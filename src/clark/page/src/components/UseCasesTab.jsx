@@ -1,11 +1,11 @@
 // The Use Cases tab of a published file: view only. It reads what the published file holds (data.use_case_pages names,
 // for each use case the client may see, the next steps and milestones to show) and draws it. It changes nothing and asks for nothing.
 // Row 1114: the list as the full app's Use cases page draws it, read only: the tabs with their counts (no "On the dashboard" tab, every
-// published row is on it), Sort by the Ref and Status headings, Group by with groups that shut, the count line and the filtered-empty state.
+// published row is on it), Sort by and Group by menus (item 1149: the rows are the dashboard summary's) with groups that shut, the count line and the filtered-empty state.
 // A published row carries no work item count, so there is no Work items heading to sort by. The choice lives for the visit only.
 import { signal } from "@preact/signals";
 import { data, uc, project } from "../stores/report.js";
-import { ucFor, ucKey, listOf, pickRows, groupsOf, groupLabel, TABS, GROUPS, SORTS, FIRST } from "../logic/useCasesList.js";
+import { ucFor, ucKey, refBox, stepsWord, listOf, pickRows, groupsOf, groupLabel, TABS, GROUPS, SORTS, FIRST } from "../logic/useCasesList.js";
 import { commitWords } from "../logic/commitment.js";
 import { plural } from "../workItems.js";
 import { UseCaseFilePage } from "./UseCaseFilePage.jsx";
@@ -14,6 +14,7 @@ import { CommitChip } from "./CommitChip.jsx";
 import { Menu } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
 
+const RAGS = { "On track": "g", Flag: "a", "High risk": "r", Done: "n" };
 const view = signal({ ...FIRST });
 const shut = signal(new Set());
 const TABS_HERE = TABS.filter(([id]) => id !== "on");
@@ -27,7 +28,13 @@ function Item({ p, u, steps, marks }) {
   const ms = p.milestones.map((id) => marks[id]).filter(Boolean);
   return (
     <details class="ucp" open={printing.value}>
-      <summary><span class="num">{u.ref}</span> <span class="ucp-title">{u.title}</span> <span class="muted">{u.status}</span><CommitChip u={u} />{u.headline ? <span class="ucp-headline">{u.headline}</span> : null}</summary>
+      <summary class="ucp-bar">{/* item 1149: the dashboard summary's row: reference box, title, where it stands, status word with the commitment, the shared next steps */}
+        {u.ref ? <span class="ucref num" data-ref>{refBox(u.ref)}</span> : <span></span>}
+        <span class="uctitle ucp-title">{u.title}</span>
+        <span class="uchead ucp-headline">{u.headline}</span>
+        <span class="ucstc"><span class={`ucword rag-${(RAGS[u.status] || "n")}`} data-word><i class="ragdot" aria-hidden="true"></i>{u.status}</span><CommitChip u={u} /></span>
+        <span class="ucsteps num">{stepsWord(mine.length)}</span>
+      </summary>
       <div class="ucp-body">
         <p><a class="link" data-uc-page href={`#usecases&p=${project.value}&uc=${encodeURIComponent(ucKey(d, u))}`}>Open the page</a></p>
         {u.standing ? <div class="prose" dangerouslySetInnerHTML={{ __html: u.standing }} /> : null}
@@ -59,13 +66,11 @@ function UseCasesList({ d, pages, cases, steps, marks }) {
             ))}
           </div>
           <span class="ucp-tools">
+            <Menu label="Sort by" ariaLabel={`Sort by: ${(SORTS_HERE.find(([k]) => k === f.sort) || SORTS_HERE[0])[1]}`} id="ucp-sort" btnCls="btn sm" menuLabel="Sort by" items={SORTS_HERE.map(([k, w]) => ({ id: k, name: w, checked: f.sort === k }))} onPick={(k) => set({ sort: k })} />
             <Menu label="Group by" ariaLabel={`Group by: ${groupLabel(f.group)}`} id="ucp-group" btnCls="btn sm" menuLabel="Group by" items={GROUPS_HERE.map(([k, w]) => ({ id: k, name: w, checked: f.group === k }))} onPick={(k) => set({ group: k })} />
           </span>
         </div>
       </div>}
-      {paper ? null : <p class="ucp-sorts muted">Sort by {SORTS_HERE.map(([k, w]) => (
-        <button type="button" key={k} class="ucp-sort" data-sort={k} aria-pressed={f.sort === k ? "true" : "false"} aria-label={`Sort by ${w}`} onClick={() => set({ sort: k })}>{k === "ref" ? "Ref" : w}{f.sort === k ? <Icon name="chevdown" /> : null}</button>
-      ))}</p>}
       {!kept.length ? (
         <div class="ucp-empty" data-empty>
           <p class="muted">No use cases match these filters.</p>
