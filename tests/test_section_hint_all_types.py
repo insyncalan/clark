@@ -53,6 +53,9 @@ class HintEverySection(unittest.TestCase):
             for width in (1400, 900):
                 with chrome() as cdp:
                     s, sid = self.load_page(cdp, width)
+                    # The hint is meant to go after HINT_MS (4 s). This test measures where it sits, in two themes, one after the other: on a slow Mac
+                    # (4 s is not enough for all of it) it went before the second read. Keep it for the whole test; its 4 s life is pinned elsewhere.
+                    cdp.js("(() => { const t = window.setTimeout; window.setTimeout = (f, ms, ...a) => t(f, ms === 4000 ? 600000 : ms, ...a); })()", sid)
                     self.edit_mode(cdp, sid)
                     cdp.js("document.querySelector('[data-view=dashboard]').click()", sid)
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.sec-hint')", sid)), f"the hint shows, {kind} {width}")
