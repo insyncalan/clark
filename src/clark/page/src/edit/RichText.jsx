@@ -1,7 +1,7 @@
-// A rich field being edited (#66): clarkEditor with its toolbar, the bubble over a selection, the "/" menu and the link box.
+// A rich field being edited (item 66): clarkEditor with its toolbar, the bubble over a selection, the "/" menu and the link box.
 // The only coupling to the rest of the page is two callbacks: onSave(html) (returns a promise: the reply, or null when the save
 // failed, and then the field stays open; a text instead says why in the field, and it stays open) and onClose(back). `back` is true when the person closed it from the keyboard (Esc, or
-// Cmd or Ctrl + Enter), so the field's view takes the focus again (#188); it is false when the focus went elsewhere on its own.
+// Cmd or Ctrl + Enter), so the field's view takes the focus again (item 188); it is false when the focus went elsewhere on its own.
 // Cmd or Ctrl + Enter saves, so does leaving the field; Esc puts the old text back. Every button is a real button with a plain-words name. Text is never drawn as markup here: the editor owns its own
 // document.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
@@ -10,6 +10,7 @@ import { href } from "../logic/cleanHtml.js";
 import { Menu, Fade } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { actionIcon } from "../menuIcons.js";
+import { AiMenu } from "./AiMenu.jsx";
 
 const BAR = [
   ["bold", "B", "Bold"], ["italic", "I", "Italic"], ["strike", "S", "Strikethrough"],
@@ -33,7 +34,9 @@ function place(box, x, y) {
   box.style.top = `${Math.round(top)}px`;
 }
 
-export function RichText({ value, label, onSave, onClose, oneLine = false }) {
+// Item 1179: `ai` (optional) is {menu: {x, y} or null, open({x, y}), close(), pick({option, instruction, text, apply(html)})}. With it, a right-click, Shift+F10 or the
+// Menu key over selected text opens the AI menu; with nothing selected the browser keeps its own menu.
+export function RichText({ value, label, onSave, onClose, oneLine = false, ai = null }) {
   const host = useRef(null), root = useRef(null), bubble = useRef(null), slashBox = useRef(null), ed = useRef(null), linkIn = useRef(null);
   const [h, setH] = useState(null);                           // the editor, once it exists (the first draw has none)
   const [, tick] = useState(0);
@@ -43,7 +46,8 @@ export function RichText({ value, label, onSave, onClose, oneLine = false }) {
   const [sel, setSel] = useState(null);                     // { x, y } over a non-empty selection
   const slashRef = useRef(null); slashRef.current = slash;
   const busy = useRef(false), closed = useRef(false), keep = useRef(false);
-  const props = useRef({}); props.current = { onSave, onClose };
+  const menuSel = useRef(null);
+  const props = useRef({}); props.current = { onSave, onClose, ai };
 
   const leave = (back) => { if (!closed.current) { closed.current = true; props.current.onClose(back === true); } };
   const finish = async (back = true) => {
@@ -110,10 +114,30 @@ export function RichText({ value, label, onSave, onClose, oneLine = false }) {
       },
     });
     ed.current = made;
+    const withSelection = () => { const { from, to, empty } = made.editor.state.selection; return empty ? null : { from, to }; };
+    const onMenu = (e) => {
+      const r = withSelection();
+      if (!props.current.ai || !r) return;           // nothing selected: the browser's own menu
+      menuSel.current = r;                           // the words the menu was opened on, kept in case the click moves the caret
+      e.preventDefault();
+      props.current.ai.open({ x: e.clientX, y: e.clientY });
+    };
+    const onKey = (e) => {
+      if (!props.current.ai || !((e.key === "F10" && e.shiftKey) || e.key === "ContextMenu")) return;
+      const r = withSelection();
+      if (!r) return;
+      menuSel.current = r;
+      e.preventDefault();
+      const c = made.editor.view.coordsAtPos(r.to);
+      props.current.ai.open({ x: c.left, y: c.bottom + 4 });
+    };
+    host.current.addEventListener("contextmenu", onMenu);
+    host.current.addEventListener("keydown", onKey);
     setH(made);
     made.editor.view.focus();                     // at once, in this step (the editor's own focus waits for a frame, and a late frame left the box open but not focused)
     made.focus();
-    return () => { made.destroy(); ed.current = null; };
+    const hostEl = host.current;
+    return () => { hostEl.removeEventListener("contextmenu", onMenu); hostEl.removeEventListener("keydown", onKey); made.destroy(); ed.current = null; };
   }, []);
 
   // Keep the bubble and the "/" menu inside the window.
@@ -129,12 +153,13 @@ export function RichText({ value, label, onSave, onClose, oneLine = false }) {
   // Leaving the whole field (focus goes outside it, and outside its floating boxes) saves.
   const away = (e) => {
     const to = e.relatedTarget;
+    if (to && to.closest && to.closest("[data-ai-card], [data-pk-ai], [data-ai-menu]")) return;          // item 1179: the suggestion card and the Draft with AI button
     if (to && (root.current.contains(to) || (bubble.current && bubble.current.contains(to)) || (slashBox.current && slashBox.current.contains(to)))) return;
     if (!to && document.hasFocus() === false) return;
     if (keep.current) return;                  // a menu or the link box just closed: its focus is being put back
     setTimeout(() => {
       const at = document.activeElement;
-      if (at && at !== document.body && (root.current.contains(at) || (bubble.current && bubble.current.contains(at)))) return;
+      if (at && at !== document.body && (root.current.contains(at) || (bubble.current && bubble.current.contains(at)) || (at.closest && at.closest("[data-ai-card], [data-pk-ai], [data-ai-menu]")))) return;
       finishRef.current(false);
     }, 0);
   };
@@ -145,6 +170,26 @@ export function RichText({ value, label, onSave, onClose, oneLine = false }) {
     setTimeout(() => { if (ed.current) ed.current.editor.view.focus(); }, 40);
     setTimeout(() => { keep.current = false; }, 400);
   };
+  const aiPick = ({ option, instruction }) => {
+    const e = ed.current.editor, now = e.state.selection, kept = menuSel.current;
+    menuSel.current = null;
+    const { from, to, empty } = now.empty && kept && kept.to <= e.state.doc.content.size ? { from: kept.from, to: kept.to, empty: false } : now;
+    const text = empty ? e.getText() : e.state.doc.textBetween(from, to, " ");
+    const docAtPick = e.state.doc;
+    // Accept writes through the live editor. It answers false when the editor has closed since the pick (nothing is written).
+    // The positions of the pick hold only while the text is unchanged; after typing, the selection of the moment is used.
+    const apply = (html) => {
+      const live = ed.current && ed.current.editor;
+      if (!live || live.isDestroyed) return false;
+      if (empty) { live.commands.setContent(html, { emitUpdate: true }); return true; }
+      const r = live.state.doc === docAtPick ? { from, to } : { from: live.state.selection.from, to: live.state.selection.to };
+      live.chain().focus().insertContentAt(r, html).run();
+      return true;
+    };
+    keep.current = true; setTimeout(() => { keep.current = false; }, 400);       // the menu goes and the card takes the focus: the editor stays open
+    ai.pick({ option, instruction, text, apply });
+  };
+  const aiClose = (how) => { menuSel.current = null; ai.close(); if (how === "esc") { refocus(); const back = () => { if (ed.current) ed.current.editor.view.focus(); }; back(); setTimeout(back, 0); setTimeout(back, 80); } };      // again after the menu has left the page, which drops its focus
   const hold = (e) => e.preventDefault();                    // a button never takes the focus from the text
   const press = (name) => {
     if (name === "link") { setLinkOpen(true); return; }
@@ -184,6 +229,7 @@ export function RichText({ value, label, onSave, onClose, oneLine = false }) {
       <div class="rt-host prose" ref={host} />
       {problem ? <p class="rt-problem" role="alert">{problem}</p> : null}
       {sel && !linkOpen && !oneLine ? <div class="rt-bubble" ref={bubble} role="toolbar" aria-label="Format the selection">{BUBBLE.map(button)}</div> : null}
+      {ai && ai.menu ? <AiMenu at={ai.menu} onPick={aiPick} onClose={aiClose} /> : null}
       {slash ? (
         <Fade class="rt-slash" boxRef={slashBox} role="listbox" aria-label="Insert">
           {slash.items.map(([n, w], i) => (

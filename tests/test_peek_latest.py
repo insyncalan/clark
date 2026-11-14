@@ -174,7 +174,7 @@ class Source(unittest.TestCase):
     def test_the_peek_hands_both_parts_to_edit_only(self):
         peek = (ROOT / "src/clark/page/src/components/Peek.jsx").read_text(encoding="utf-8")
         self.assertIn("editing && forItem && tools.PeekWarn", peek)
-        self.assertIn("editing && forItem && tools.PeekLatest", peek)
+        self.assertIn("editing && !!p && tools.PeekLatest", peek)      # item 1179: a milestone has the field too, so it is not gated on forItem
         self.assertNotIn("edit/", peek.replace("tools.", "").replace("../edit/editing.js", ""), "Peek.jsx imports nothing from edit/ but the one editing test (edit/editing.js)")
 
 
@@ -253,7 +253,7 @@ class Browser(unittest.TestCase):
             cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13, "modifiers": mod}, sid)
 
     def due(self, cdp, sid):
-        return cdp.js("(d => d ? d.textContent.replace('Changed', '').trim() : '')(document.querySelector('#peek [data-row=due] dd'))", sid)
+        return cdp.js("(d => d ? d.textContent.trim() : '')(document.querySelector('#peek [data-row=due] .pkc-v'))", sid)
 
     def toast(self, cdp, sid):
         return cdp.js("(document.querySelector('.toast') || {textContent: ''}).textContent", sid)

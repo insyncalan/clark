@@ -46,11 +46,11 @@ class Fields(unittest.TestCase):
         return [(w, dark) for w in (1400, 900) for dark in (False, True)]
 
     def title(self, cdp, sid):
-        return cdp.js("(t => t ? t.textContent : '')(document.querySelector('#peek [data-pk-title-in]'))", sid)
+        return cdp.js("(t => t ? t.value : '')(document.querySelector('#peek [data-pk-title-in]'))", sid)
 
     def type_title(self, cdp, sid, text):
         cdp.js("document.querySelector('#peek [data-pk-title-in]').focus()", sid)
-        cdp.js(f"document.querySelector('#peek [data-pk-title-in]').textContent = {json.dumps(text)}", sid)
+        cdp.js(f"document.querySelector('#peek [data-pk-title-in]').value = {json.dumps(text)}", sid)
 
 
 class Title(Fields):
