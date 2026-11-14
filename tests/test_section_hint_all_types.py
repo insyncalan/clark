@@ -30,6 +30,10 @@ BOXES = r"""(() => {
 })()"""
 
 
+TRAIL = r"""(() => { window.__trail = []; const t0 = performance.now(); const note = (w) => { const a = document.activeElement; window.__trail.push([Math.round(performance.now() - t0), w, Math.round(scrollY), location.hash, a ? (a.tagName + '.' + (a.className || a.id || '')).slice(0, 40) : '']); };
+  addEventListener('scroll', () => note('scroll'), true); document.addEventListener('click', (e) => note('click ' + ((e.target.closest && e.target.closest('[data-view],[data-mode]')) ? (e.target.closest('[data-view],[data-mode]').dataset.view || e.target.closest('[data-view],[data-mode]').dataset.mode) : '')), true); note('start'); })()"""
+
+
 class HintEverySection(unittest.TestCase):
     setUpClass = tp.Browser.__dict__["setUpClass"]
     tearDownClass = tp.Browser.__dict__["tearDownClass"]
@@ -52,6 +56,7 @@ class HintEverySection(unittest.TestCase):
             for width in (1400, 900):
                 with chrome() as cdp:
                     s, sid = self.load_page(cdp, width)
+                    cdp.js(TRAIL, sid)
                     self.edit_mode(cdp, sid)
                     cdp.js("document.querySelector('[data-view=dashboard]').click()", sid)
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.sec-hint')", sid)), f"the hint shows, {kind} {width}")
@@ -77,7 +82,8 @@ class HintEverySection(unittest.TestCase):
             same = now is not None and now != "null" and last[:1] == [now]
             last[:] = [now]
             return same
-        self.assertTrue(wait(still, 10), f"the page settled, {where}")
+        if not wait(still, 10):
+            self.fail(f"the page settled, {where} | " + str(cdp.js("JSON.stringify({y: scrollY, anchor: document.documentElement.style.overflowAnchor, room: document.documentElement.scrollHeight - innerHeight, trail: (window.__trail || []).slice(0, 40), hintTop: (document.querySelector('.sec-hint') || {getBoundingClientRect: () => ({top: null})}).getBoundingClientRect().top})", sid)))
 
     def restore(self, saved):
         for i, t, b, be, hi in saved:
