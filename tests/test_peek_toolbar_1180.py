@@ -63,7 +63,7 @@ class Toolbar(unittest.TestCase):
                 self.assertTrue(self.left_of(cdp, sid, "[data-pk-wide]", "[data-pk-prev]"))
                 self.assertTrue(self.left_of(cdp, sid, "[data-pk-prev]", "[data-pk-next]"))
                 self.assertTrue(self.left_of(cdp, sid, "[data-pk-next]", "#pk-more"))
-                right = cdp.js("document.querySelector('#peek').getBoundingClientRect().right - document.querySelector('#pk-more').getBoundingClientRect().right", sid)
+                right = cdp.js("(e => e.getBoundingClientRect().left + e.clientLeft + e.clientWidth)(document.querySelector('#peek')) - document.querySelector('#pk-more').getBoundingClientRect().right", sid)
                 self.assertLess(right, 32, "More is the right-most control")
                 left = cdp.js("document.querySelector('[data-pk-close]').getBoundingClientRect().left - document.querySelector('#peek').getBoundingClientRect().left", sid)
                 self.assertLess(left, 32, "Close is the left-most control")

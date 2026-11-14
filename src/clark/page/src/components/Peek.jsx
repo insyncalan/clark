@@ -16,7 +16,7 @@ import { slideOut } from "../peek/exit.js";
 import { closesPeek } from "../peek/outside.js";
 import { itemIds, milestoneIds, around, placeIn } from "../peek/list.js";
 import { Icon } from "./Icon.jsx";
-import { wordsOpen, flashed } from "../stores/wordsState.js";
+import { wordsOpen, flashed, askFrom } from "../stores/wordsState.js";
 import { statusTone, priorityTone, dateTone, iconClass } from "../iconColours.js";
 import { stateOf, LOOK } from "../logic/milestones.js";
 import { MsMark } from "./MsMark.jsx";
@@ -291,7 +291,7 @@ export function Peek({ tools }) {
       const t = e.target, inField = t && t.nodeType === 1 && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
       if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey && !inField && Words) {
         if (last && performance.now() - last < 1000) { e.preventDefault(); last = 0; wordsOpen.value = true; }
-        else { last = performance.now() || 1; const ask = document.querySelector("#peek [data-pk-ask]"); if (ask) { e.preventDefault(); ask.focus(); } }      // the first "/" puts the cursor in the footer input
+        else { last = performance.now() || 1; const ask = document.querySelector("#peek [data-pk-ask]"); if (ask) { e.preventDefault(); askFrom.el = document.activeElement; ask.focus(); } }      // the first "/" puts the cursor in the footer input
       } else if (e.key !== "Shift") last = 0;
     };
     document.addEventListener("keydown", onKey);
@@ -303,9 +303,12 @@ export function Peek({ tools }) {
     let down = false;
     const press = (e) => { down = closesPeek(e.target); };
     const click = (e) => { const was = down; down = false; if (was && closesPeek(e.target)) askClose(); };
+    // A mouse press on Close keeps the focus in the open editor: taking it would save the update before the bar can ask.
+    const hold = (e) => { if (e.target.closest && e.target.closest("[data-pk-close]")) e.preventDefault(); };
     document.addEventListener("pointerdown", press, true);
+    document.addEventListener("mousedown", hold, true);
     document.addEventListener("click", click);
-    return () => { document.removeEventListener("pointerdown", press, true); document.removeEventListener("click", click); };
+    return () => { document.removeEventListener("pointerdown", press, true); document.removeEventListener("mousedown", hold, true); document.removeEventListener("click", click); };
   }, [!!p]);                                              // eslint-disable-line react-hooks/exhaustive-deps
   // Closed: the panel slides out. Its node is kept as it mounts and the copy is made in a layout effect, not while rendering.
   useLayoutEffect(() => {
@@ -335,9 +338,9 @@ export function Peek({ tools }) {
       {row ? <ItemChips row={row} tools={tools} editing={editing} /> : null}
       <div class="pk-body" key={p.id} data-pk-body>      {/* a new key each step: the body fades in as Previous or Next moves on */}
       <div>
+          {Latest && row ? <Latest key={row.id} row={row} /> : null}
           {row ? <ItemFields row={row} editing={editing} slim ClientLine={editing && tools.PeekClientLine ? tools.PeekClientLine : null} Cell={null} Wording={editing && tools.PeekWording ? tools.PeekWording : null} Pick={editing && tools.PeekPick ? tools.PeekPick : null} /> : msEditing ? <tools.MilestoneEdit m={m} /> : <MilestoneFields m={m} tools={tools} />}
           {Source && !History ? <Source key={`s-${p.id}`} row={row || m} /> : FileSource ? <SourceLine text={(row || m).source} /> : null}      {/* with the history tabs the source is its own tab */}
-          {Latest && row ? <Latest key={row.id} row={row} /> : null}
         </div>
       {History && (row || m) ? <History key={p.id} id={p.id} /> : null}
       {Words && wordsOpen.value && (row || m) ? <Words key={p.id} row={row || m} kind={milestone ? "milestone" : "item"} /> : null}
