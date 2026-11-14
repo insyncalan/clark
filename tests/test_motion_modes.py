@@ -35,7 +35,7 @@ class MotionModes(unittest.TestCase):
         import shutil
         shutil.rmtree(str(cls.folder), ignore_errors=True)
 
-    def load(self, cdp, width, scheme, motion):
+    def load(self, cdp, width, scheme, motion, view="dashboard"):
         projects = self.store.read("projects")
         s = real_server(self.store.path, self.store.data_for, who="Demo User", projects=lambda archived=False: projects,
                         page_html=lambda: testpage.html())
@@ -46,7 +46,7 @@ class MotionModes(unittest.TestCase):
         cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme},
                                                               {"name": "prefers-reduced-motion", "value": motion}]}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
-        cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.port}/#dashboard&p={self.code}")}, sid)
+        cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.port}/#{view}&p={self.code}")}, sid)
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#profile-btn')", sid)))
         return sid
 
@@ -62,17 +62,18 @@ class MotionModes(unittest.TestCase):
 
     def test_row_884_the_thumb_is_measured_again_when_the_window_width_changes(self):
         from test_server import chrome
-        want = """(() => { const g = document.querySelector('.rbar .modes.glide'), v = g.querySelector('[data-mode=view]'), on = g.querySelector('[aria-pressed=true]');
+        want = """(() => { const g = document.querySelector('#gantt-bar .modes.glide'), v = g.querySelector('[data-mode=view]'), on = g.querySelector('[aria-pressed=true]');
           return g.style.getPropertyValue('--vw') === v.offsetWidth + 'px' && g.style.getPropertyValue('--tx') === (on.offsetLeft - v.offsetLeft) + 'px'
             && Math.abs(parseFloat(g.style.getPropertyValue('--sx')) - on.offsetWidth / v.offsetWidth) < 0.001; })()"""
         for scheme in ("light", "dark"):
             with self.subTest(scheme=scheme), chrome() as cdp:
-                sid = self.load(cdp, 1400, scheme, "no-preference")
+                sid = self.load(cdp, 1400, scheme, "no-preference", "gantt")      # item 1177: the Dashboard's pill floats and has no thumb; Toggle's sliding pill is the Gantt page's
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#gantt-bar .modes.glide')", sid)), "the Gantt page's pill drew")
                 self.assertTrue(wait(lambda: cdp.js(want, sid)), "measured at 1400")
                 for width in (900, 1400):
                     cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
                     self.assertTrue(wait(lambda: cdp.js(want, sid)), f"measured again at {width}")
-                cdp.js("document.querySelector('.rbar .modes.glide [data-mode=edit]').click()", sid)
+                cdp.js("document.querySelector('#gantt-bar .modes.glide [data-mode=edit]').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js(want, sid)), "and after a switch")
 
     def test_row_884_is_inside_the_motion_block_uses_tokens_and_the_still_pill_is_untouched(self):
