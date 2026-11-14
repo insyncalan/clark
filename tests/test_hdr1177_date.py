@@ -50,9 +50,9 @@ class HeaderDate(Base):
     def test_the_old_separate_date_picker_is_gone(self):
         with chrome() as cdp:
             p = self.show(cdp)
-            gone = p.js("[document.querySelectorAll('#week-ending-pick').length, document.querySelectorAll('input#week-ending').length, "
+            gone = p.js("[document.querySelectorAll('#report-bar #week-ending-pick').length, document.querySelectorAll('input#week-ending').length, "
                         "document.querySelectorAll('#report-bar input').length, document.querySelectorAll('input[type=date]').length]")
-            self.assertEqual(gone, [0, 0, 0, 0], "no calendar button, no date field, no input in the bar, no native date input")
+            self.assertEqual(gone, [0, 0, 0, 0], "no calendar button in the bar (the header date button keeps the id week-ending-pick), no date field, no input in the bar, no native date input")
             p.js(DATE + ".click()")
             p.until("!!" + PANEL, "the calendar opened")
             self.assertEqual(p.js("document.querySelectorAll('input[type=date]').length"), 0, "the calendar is clark's own")

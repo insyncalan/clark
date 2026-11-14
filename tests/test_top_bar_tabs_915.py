@@ -18,8 +18,8 @@ LONG = "Example Client onboarding programme, phase two, northern region"
 MEASURE = """(function(){
   var pb = document.querySelector('.top .hdr-project'), sp = pb.querySelector(':scope > span'), b = pb.getBoundingClientRect(), s = sp.getBoundingClientRect();
   var row = document.querySelector('.top .tabs'), f = row.getBoundingClientRect();      // the tab row's own edge: its first tab may be scrolled out of view
- 
-  return {btn: b.width, text: s.width, trunc: sp.scrollWidth > sp.clientWidth, gap: f.left - b.right, rowScrolls: row.scrollWidth > row.clientWidth + 1,
+  var end = document.querySelector('.top .hdr-end').getBoundingClientRect();
+  return {btn: b.width, text: s.width, trunc: sp.scrollWidth > sp.clientWidth, gap: f.top - b.bottom, endGap: end.left - b.right, rowScrolls: row.scrollWidth > row.clientWidth + 1,
           page: document.documentElement.scrollWidth - document.documentElement.clientWidth};
 })()"""
 
@@ -51,11 +51,12 @@ class ProjectButtonFit(Base):
     def check(self, width, theme, edit, active):
         got = self.measure(width, theme, edit, active)
         where = f"at {width} px, {theme}, {'Edit' if edit else 'View'}, {active or 'Dashboard'}: {got}"
-        # row 1064: the name is not drawn (it is read out only), so the button is the chevron alone; a long name must not widen it
+        # item 1177: the name is drawn in the header's button (a second row holds the tabs at 900); a long name is cut with an ellipsis and never widens the button past its column
         self.assertGreaterEqual(got["btn"], 20, "the project switcher collapsed; " + where)
-        self.assertLessEqual(got["btn"], 48, "a long project name widened the switcher; " + where)
-        self.assertLessEqual(got["text"], 2, "the project name is drawn in the bar; " + where)
-        self.assertGreaterEqual(got["gap"], 8, "the project button touches the tab row; " + where)
+        self.assertLessEqual(got["btn"], 700, "a long project name widened the switcher; " + where)
+        self.assertTrue(got["trunc"], "a long project name is cut with an ellipsis; " + where)
+        self.assertGreaterEqual(got["endGap"], 8, "the project button touches the search and profile buttons; " + where)
+        self.assertGreaterEqual(got["gap"], 0, "the project button runs into the tab row under it; " + where)
         self.assertLessEqual(got["page"], 0, "the page scrolls sideways; " + where)
         self.assertFalse(got["rowScrolls"], "the tab row scrolls sideways; " + where)
         # row 804: no tab has a View | Edit switch in the top bar (it is the Dashboard report bar's pill), so the bar has room and the button may be wider on every tab

@@ -63,7 +63,7 @@ class Offsets(Base):
             p = self.visit(cdp)
             for w in SIZES:
                 size(cdp, p, w, 700)
-                for ref in ("ABC-S-008", "ABC-S-011", "ABC-S-004"):
+                for ref in ("ABC-S-008", "ABC-S-010", "ABC-S-004"):      # not 011: Supporting documents is not drawn in View with no document (test_report_editor.py line 413)
                     p.js("window.scrollTo(0, 0)")
                     p.js(f"document.querySelector('[data-id=\"{ref}\"]').scrollIntoView()")
                     p.until(f"document.querySelector('[data-id=\"{ref}\"]').getBoundingClientRect().top >= {TOP}.bottom - 1",

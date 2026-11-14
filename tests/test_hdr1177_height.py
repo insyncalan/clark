@@ -39,7 +39,7 @@ class HeaderHeight(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             for w, h in HEIGHTS.items():
-                size(cdp, p, w, 900)
+                size(cdp, p, w, 400)      # a short window so even the two-column page at 1400 is taller than 800 px plus the window
                 p.js("window.scrollTo(0, 800)")
                 p.until("window.scrollY >= 700", f"{w}: the page scrolled")
                 got = p.js(f"(function(){{var r={TOP}.getBoundingClientRect(), e=document.elementFromPoint(r.left + 40, r.top + r.height / 2);"

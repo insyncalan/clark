@@ -59,7 +59,7 @@ class ProfileMenu(Base):
             p = self.page(cdp)
             self.open_menu(p)
             self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')}).join()"),
-                             "menuitem,menuitem,menuitem,menuitem,menuitem,menuitem,menuitem,separator,group,separator,menuitem")
+                             "menuitem,presentation,menuitem,menuitem,menuitem,menuitem,menuitem,menuitem,separator,group,separator,menuitem")   # item 1177: the second child is the state line (ProfileMenu.jsx, const state), a label with role presentation
             self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu [role=group]').children, function(e){return e.getAttribute('role')}).join()"),
                              "presentation,menuitemradio,menuitemradio,menuitemradio", "the group holds its label and the three radios")
             self.assertEqual(p.js("(function(){var g=document.querySelector('#profile-menu [role=group]');return document.getElementById(g.getAttribute('aria-labelledby')).textContent})()"),
@@ -198,7 +198,7 @@ class ProfileMenu(Base):
                 labels = self.labels(p)
                 self.assertEqual(labels.count("Settings"), 1)
                 self.assertEqual(labels.index("Settings"), labels.index("Published reports") + 1)
-                self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')}).indexOf('group') - [].map.call(document.querySelectorAll('#profile-menu [role=menuitem]'), function(e){return e.textContent}).indexOf('Settings')"), 2, "Settings, then the separator, then the group")
+                self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')}).indexOf('group') - [].map.call(document.querySelectorAll('#profile-menu [role=menuitem]'), function(e){return e.textContent}).indexOf('Settings')"), 3, "Settings, then the separator, then the group; item 1177: the state line (a presentation child) sits above, so the child index runs one ahead of the menuitem index")
                 self.assertEqual(p.js("document.querySelectorAll('#profile-menu [data-kind=who]').length"), 1)
                 p.key("Escape", code="Escape", vk=27)
                 p.until("!document.querySelector('#profile-menu')", "Esc closed it")
