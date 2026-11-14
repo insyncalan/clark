@@ -346,9 +346,13 @@ class Flat(Peeks):
                 look = f"(() => {{ const c = getComputedStyle(document.querySelector({json.dumps(sel)})); return [c.outlineStyle, c.outlineWidth, c.borderTopWidth, c.backgroundColor]; }})()"
                 rest = cdp.js(look, sid)
                 self.assertEqual((rest[0], rest[2], rest[3]), ("none", "0px", "rgba(0, 0, 0, 0)"), "at rest, plain text: " + str(rest))
+                cdp.js(f"document.querySelector({json.dumps(sel)}).scrollIntoView({{block: 'center'}})", sid)      # the point below must be on screen
+                self.assertTrue(wait(lambda: cdp.js(f"(() => {{ const r = document.querySelector({json.dumps(sel)}).getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; }})()", sid)), "the Latest update is on screen")
                 x, y = cdp.js(f"(() => {{ const r = document.querySelector({json.dumps(sel)}).getBoundingClientRect(); return [r.left + 20, r.top + r.height / 2]; }})()", sid)
                 cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, sid)
-                self.assertTrue(wait(lambda: cdp.js(f"document.querySelector({json.dumps(sel)}).matches(':hover')", sid)), "the pointer is over it")
+                over = wait(lambda: cdp.js(f"document.querySelector({json.dumps(sel)}).matches(':hover')", sid))
+                seen = "" if over else " | " + json.dumps(cdp.js(f"(() => {{ const e = document.elementFromPoint({x}, {y}), r = document.querySelector({json.dumps(sel)}).getBoundingClientRect(); return {{point: [{x}, {y}], inner: [innerWidth, innerHeight], rect: [r.left, r.top, r.width, r.height], at: e ? e.tagName + '.' + e.className + '#' + e.id : null}}; }})()", sid))
+                self.assertTrue(over, "the pointer is over it" + seen)
                 hover = cdp.js(look, sid)
                 self.assertEqual((hover[0], hover[2]), ("none", "0px"), "under the pointer, no box: " + str(hover))
                 self.assertEqual(hover[3], cdp.js(f"{PROBE}('--grey-50')", sid), "a quiet tint says it can be edited: " + str(hover))

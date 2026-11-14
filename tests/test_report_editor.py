@@ -54,8 +54,8 @@ class Pg:
         self.t, self.cdp, self.sid = test, cdp, sid
 
     @classmethod
-    def at(cls, test, cdp, port, hash_="#dashboard&p=ABC", section_style="slim"):
-        return cls(test, cdp, navigate(cdp, port, for_project(hash_), section_style=section_style))
+    def at(cls, test, cdp, port, hash_="#dashboard&p=ABC", section_style="slim", motion=None):
+        return cls(test, cdp, navigate(cdp, port, for_project(hash_), section_style=section_style, motion=motion))
 
     def js(self, expr):
         return self.cdp.js(expr, self.sid)
@@ -197,8 +197,8 @@ class Base(unittest.TestCase):
     def titles_in_store(self):
         return [r["title"] for r in order.in_order(self.store.read("report_sections", "ABC"))]
 
-    def visit(self, cdp, hash_="#dashboard&p=ABC"):
-        p = Pg.at(self, cdp, self.s.port, hash_)
+    def visit(self, cdp, hash_="#dashboard&p=ABC", motion=None):
+        p = Pg.at(self, cdp, self.s.port, hash_, motion=motion)
         p.ready()
         return p
 
