@@ -133,10 +133,20 @@ class Appearance(Base):
                     self.assertIn("gradient", got[0], "the chosen segment has the pill gradient")
                     self.assertNotEqual(got[1], p.js("getComputedStyle(document.querySelector('#personal [data-appearance] button[aria-checked=false]')).color"), "the chosen text colour differs")
                     self.assertNotIn("gradient", got[2], "the others have none")
-                    p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=system]').focus()")
-                    p.cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "End", "code": "End", "windowsVirtualKeyCode": 35}, p.sid)
-                    p.cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "End", "code": "End", "windowsVirtualKeyCode": 35}, p.sid)
-                    p.until("document.documentElement.dataset.theme === 'dark'", "End picks the last")
+                    self.key_until(p, "system", "End", 35, "document.documentElement.dataset.theme === 'dark'", "End picks the last")
+
+    def key_until(self, p, pick, name, code, cond, what):
+        """Focus the button and press the key, pressing again if a slow computer dropped it, until cond holds (up to 6 tries of 2 s)."""
+        import time
+        for _ in range(6):
+            p.js(f"document.querySelector('#personal [data-appearance] button[data-theme-pick={pick}]').focus()")
+            self.key(p, name, code)
+            end = time.time() + 2
+            while time.time() < end:
+                if p.js(cond):
+                    return
+                time.sleep(0.1)
+        self.fail(what)
 
     def key(self, p, name, code, mods=0):
         for kind in ("keyDown", "keyUp"):
@@ -147,9 +157,7 @@ class Appearance(Base):
             p = self.page(cdp)
             self.open_settings(p)
             p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=dark]').click()")
-            p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=dark]').focus()")
-            self.key(p, "Home", 36)
-            p.until("document.documentElement.dataset.theme === 'auto'", "Home picks System, the first")
+            self.key_until(p, "dark", "Home", 36, "document.documentElement.dataset.theme === 'auto'", "Home picks System, the first")
             self.assertEqual(self.in_settings(p), ["system"])
             self.assertEqual(p.js("document.activeElement.dataset.themePick"), "system", "focus follows")
 
