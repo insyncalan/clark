@@ -73,11 +73,19 @@ def list_items(body, key):
     lines = body.splitlines()
     items, i = [], 0
     while i < len(lines):
-        m = re.match(rf"^( *)(?:-\s+)?{key}:[ ]*(.*?)\s*$", lines[i])
+        m = re.match(rf"^([ \t]*)(-\s+)?([\"']?){key}\3:(?:\s+(.*?))?\s*$", lines[i])
         i += 1
         if not m:
             continue
-        indent, rest = len(m.group(1)), m.group(2)
+        indent, dashed, rest = len(m.group(1)), bool(m.group(2)), m.group(4) or ""
+        while re.match(r"[&!]\S*(\s+|$)", rest):  # anchors and tags before the value
+            rest = re.sub(r"^[&!]\S*\s*", "", rest)
+        if not rest:  # a flow list may start on the next non-blank line
+            j = i
+            while j < len(lines) and not lines[j].strip():
+                j += 1
+            if j < len(lines) and lines[j].strip().startswith("["):
+                rest, i = lines[j].strip(), j + 1
         if rest.startswith("["):  # flow list, maybe over several lines
             while rest.count("[") > rest.count("]") and i < len(lines):
                 rest += " " + lines[i].strip()
@@ -86,7 +94,8 @@ def list_items(body, key):
                 items.append(_mapping(raw[1:-1]) if raw.startswith("{") else _unquote(raw))
             continue
         block = []
-        while i < len(lines) and (not lines[i].strip() or len(lines[i]) - len(lines[i].lstrip()) > indent):
+        while i < len(lines) and (not lines[i].strip() or len(lines[i]) - len(lines[i].lstrip()) > indent
+                                  or (not dashed and re.match(rf"^ {{{indent}}}-(\s|$)", lines[i]))):  # same-indent items
             block.append(lines[i])
             i += 1
         cur = None
@@ -240,6 +249,41 @@ class TheCheckCatchesChanges(unittest.TestCase):
         self.assertEqual(problems(text, {"/x"}), [])
         long_form = self.BASE.replace('- "127.0.0.1:1:2"', "- target: 2\n        published: 1\n        host_ip: 127.0.0.1")
         self.assertEqual(problems(long_form, {"/x"}), [])
+
+    def test_item_638_layout_gaps(self):
+        """Item 638 review gaps: same-indent list, flow list on the next line, anchor or tag, tab, quoted key."""
+        b = self.BASE
+        old = '    ports:\n      - "127.0.0.1:1:2"\n'
+        bad = {
+            "same-indent ports": b.replace(old, '    ports:\n    - "0.0.0.0:1:2"\n'),
+            "same-indent second item": b.replace(old, '    ports:\n    - "127.0.0.1:1:2"\n    - "3:4"\n'),
+            "same-indent volumes": b.replace("      - type: bind\n        source: .\n        target: /x\n", '    - "/x"\n    - "/y"\n'),
+            "flow on next line": b.replace(old, '    ports:\n      ["0.0.0.0:1:2"]\n'),
+            "flow on next line, not indented": b.replace(old, '    ports:\n["0.0.0.0:1:2"]\n'),
+            "anchor before flow": b.replace(old, '    ports: &p ["0.0.0.0:1:2"]\n'),
+            "tag before flow": b.replace(old, '    ports: !override ["0.0.0.0:1:2"]\n'),
+            "tag and anchor before flow": b.replace(old, '    ports: !override &p ["0.0.0.0:1:2"]\n'),
+            "tag then block": b.replace(old, '    ports: !override\n      - "0.0.0.0:1:2"\n'),
+            "tab after colon": b.replace(old, '    ports:\t["0.0.0.0:1:2"]\n'),
+            "tab after colon, block": b.replace(old, '    ports:\t\n      - "0.0.0.0:1:2"\n'),
+            "double-quoted key": b.replace(old, '    "ports":\n      - "0.0.0.0:1:2"\n'),
+            "single-quoted key": b.replace(old, "    'ports': [\"0.0.0.0:1:2\"]\n"),
+            "quoted volumes key": b.replace("    volumes:\n", '    "volumes":\n').replace("target: /x", "target: /y"),
+        }
+        for label, text in bad.items():
+            with self.subTest(label):
+                self.assertTrue(problems(text, {"/x"}), label)
+        fine = {
+            "same-indent ports": b.replace(old, '    ports:\n    - "127.0.0.1:1:2"\n'),
+            "flow on next line": b.replace(old, '    ports:\n      ["127.0.0.1:1:2"]\n'),
+            "anchor before flow": b.replace(old, '    ports: &p ["127.0.0.1:1:2"]\n'),
+            "tag before flow": b.replace(old, '    ports: !override ["127.0.0.1:1:2"]\n'),
+            "tab after colon": b.replace(old, '    ports:\t["127.0.0.1:1:2"]\n'),
+            "quoted key": b.replace(old, '    "ports":\n      - "127.0.0.1:1:2"\n'),
+        }
+        for label, text in fine.items():
+            with self.subTest("fine " + label):
+                self.assertEqual(problems(text, {"/x"}), [], label)
 
     def test_a_word_in_a_comment_is_not_a_change(self):
         self.assertEqual(problems("# no docker.sock, never privileged\n" + self.BASE, {"/x"}), [])
