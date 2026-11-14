@@ -170,8 +170,8 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
         <>
           {unknowns.length ? (
             <div id="import-unknowns">
-              <div class="st-bar"><span class="muted">{T.notInClark}</span></div>
-              <ul class="imp-list" aria-label={T.notInClark}>
+              <div class="st-bar"><span class="muted">{T.notThere}</span></div>
+              <ul class="imp-list" aria-label={T.notThere}>
                 {unknowns.map((u) => {
                   const a = answers[u.id] || {};
                   return (

@@ -37,7 +37,7 @@ export const IMPORT = {
   changesToCheck: "Changes to check",
   accept: "Accept",
   reject: "Reject",
-  notInClark: "Not in clark yet",
+  notThere: "Not in clark yet",
   createIt: "Create it",
   useExisting: "Use an existing one",
   chooseOne: "Choose one",
