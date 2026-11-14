@@ -93,6 +93,29 @@ class Header(Zoned):
         self.assertEqual(os.environ.get("TZ"), self.had)
 
 
+class Pin(Zoned):
+    """Docker Desktop on Windows can pass TZ as a Windows zone id or as an empty string; neither pins the zone (item 631)."""
+    def test_a_windows_zone_id_or_an_empty_value_is_no_pin(self):
+        for value in ("Dubai Standard Time", "W. Europe Standard Time", ""):
+            with self.subTest(tz=value):
+                self.assertIsNone(zone.valid(value or ""))
+                with mock.patch.dict(os.environ, {"TZ": value}):
+                    pinned = zone.valid(os.environ.get("TZ") or "")
+                self.assertIsNone(pinned)
+
+    def test_the_page_zone_is_applied_when_the_pin_is_a_windows_id(self):
+        os.environ["TZ"] = "Dubai Standard Time"
+        self.assertTrue(zone.follow_header("America/New_York", True))
+        self.assertEqual(self.days(), ["2026-11-13"] * 4)
+
+    def test_the_image_has_zone_data_for_a_zone_with_daylight_saving(self):
+        from zoneinfo import ZoneInfo
+        for name in ("Asia/Dubai", "America/New_York"):
+            with self.subTest(zone=name):
+                ZoneInfo(name)
+                self.assertEqual(zone.valid(name), name)
+
+
 class Recorded(Zoned):
     def test_a_step_made_in_the_dubai_zone_records_plus_four(self):
         demo = DemoStore()
