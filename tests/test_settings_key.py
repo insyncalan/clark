@@ -99,7 +99,7 @@ class SettingsKey(Base):
             p.until(AT_SETTINGS, "opened once nothing was in the way")
             before = p.js("history.length")
             p.key("ß", META | ALT, "KeyS", 83)
-            self.stays_settings = p.js("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(1))))")
+            p.js("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(1))))")
             self.assertEqual(p.js("history.length"), before, "on Settings already, it adds no history entry")
 
 
