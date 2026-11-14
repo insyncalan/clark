@@ -4,6 +4,7 @@ as text. No Docker is run. Run: python3 dev/run_tests.py test_image_licences
 import json
 import os
 import re
+import shutil
 import unittest
 
 from _paths import ROOT
@@ -88,6 +89,24 @@ class ComposeImageTests(unittest.TestCase):
         import package
         self.assertIn("LICENSE", package.SHARED)
         self.assertIn("NOTICE.md", package.SHARED)
+
+
+class ImageMatchesListTests(unittest.TestCase):
+    """docker/image-packages.txt against the real image. Skipped without Docker, without the image, or without the list file."""
+
+    def test_list_file_matches_the_image(self):
+        path = os.path.join(ROOT, "docker", "image-packages.txt")
+        if not shutil.which("docker"):
+            self.skipTest("Docker is not installed")
+        if not os.path.exists(path):
+            self.skipTest("docker/image-packages.txt does not exist yet")
+        image = re.search(r"^\s*image:\s*(\S+)\s*$", read("docker", "compose.yaml"), re.M).group(1)
+        try:
+            debian = il.parse_dpkg(il._docker(image, "dpkg-query", "-W", "-f=${binary:Package}\t${Version}\t${source:Package}\n"))
+            pip = il.parse_pip(il._docker(image, "python3", "-m", "pip", "list", "--format=json"))
+        except (OSError, RuntimeError) as e:
+            self.skipTest(f"the image could not be read: {e}")
+        self.assertEqual(read("docker", "image-packages.txt"), il.packages_txt(debian, pip))
 
 
 if __name__ == "__main__":
