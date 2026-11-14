@@ -5,7 +5,7 @@ Written by a teammate (a teammate), 29-10-2026, for the Head. A note only: no co
 ## The answer
 - **Build the Mac zip now, and the Windows zip later from the same command.** `python3 dev/tools/package.py mac` makes `clark-<version>-mac.zip`; `package.py windows` is written later and adds a pinned Python. One list of files says what goes in both.
 - **The Mac zip is the clark folder as it is today, cut down:** `clark.command`, the `clark/` stand-in, `src/clark/`, the runtime parts of `vendor/`, `README.md` and the licences. It uses the Mac's own Python, as now.
-- **The Windows zip is the same folder, plus Python's official embeddable package** (one pinned version, its SHA-256 checked at build) and `clark.cmd`.
+- **The later native Windows zip is the same folder, plus Python's official embeddable package** (one pinned version, its SHA-256 checked at build) and `clark.cmd`.
 - **A doctor** (`python3 -m clark.doctor`, opened from the launcher with `--doctor`) checks Python, the data folder, the browser and the Claude command, and says what to do in plain words.
 - **Update (item 627): Windows is the Docker route.** The native Windows zip (embeddable Python, `clark.cmd`) is not in v1.1; on Windows the user extracts the zip and runs Docker (item 427). The Windows sections below are the later native build.
 - **Five small Mac changes keep Windows open** (below). None touches a guarded file.

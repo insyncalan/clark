@@ -9,12 +9,14 @@ from _paths import ROOT
 
 SHEET = ROOT / "dev" / "handchecks" / "1.1.0-sheet.md"
 
-# The v1.1 items about Windows, from the plan's v1.1 list (item 627 is this sheet itself).
-WINDOWS_ITEMS = ["623", "624", "625", "626", "627", "629", "630", "634", "635", "636", "638"]
+# The v1.1 items this sheet checks by hand (items 626 and 630 are the CI job and the release path, which a person cannot check on a laptop).
+WINDOWS_ITEMS = ["623", "624", "625", "629", "631", "632", "634", "635", "636", "638"]
 
 # What the issue says the Windows lines cover.
 TOPICS = ["extract", "PowerShell", "Command Prompt", "OneDrive", "restart", "backup",
-          "Edge", "Chrome", "offline", "LAN", "Dubai"]
+          "Edge", "Chrome", "offline", "LAN", "time zone", "ask clark"]
+
+HEADINGS = ["# Hand-check sheet for clark 1.1.0, Windows (Docker route)", "## Windows checks"]
 
 
 class WindowsSheet(unittest.TestCase):
@@ -22,16 +24,25 @@ class WindowsSheet(unittest.TestCase):
         self.assertTrue(SHEET.exists(), "dev/handchecks/1.1.0-sheet.md is missing")
         self.text = SHEET.read_text(encoding="utf-8")
 
+    def check_lines(self):
+        return [l for l in self.text.splitlines() if l.startswith("- [ ]")]
+
     def test_the_sheet_names_every_windows_item_id(self):
         for n in WINDOWS_ITEMS:
             self.assertRegex(self.text, rf"#{n}\b", f"item {n} is not named on the 1.1.0 sheet")
 
     def test_the_sheet_covers_every_topic_the_issue_lists(self):
         for t in TOPICS:
-            self.assertIn(t.lower(), self.text.lower(), f"no Windows line about: {t}")
+            found = any(re.search(rf"\b{re.escape(t)}", l, re.I) for l in self.check_lines())
+            self.assertTrue(found, f"no Windows check line about: {t}")
+
+    def test_the_sheet_keeps_its_title_and_heading(self):
+        lines = self.text.splitlines()
+        for h in HEADINGS:
+            self.assertIn(h, lines, f"heading missing: {h}")
 
     def test_each_check_line_names_an_item_id(self):
-        lines = [l for l in self.text.splitlines() if l.startswith("- [ ]")]
+        lines = self.check_lines()
         self.assertGreaterEqual(len(lines), len(TOPICS))
         for l in lines:
             self.assertRegex(l, r"#\d{3}\b", f"check line without an item id: {l[:60]}")
