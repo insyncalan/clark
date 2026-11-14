@@ -5,14 +5,14 @@ The sixteen chips of the side list sit between the search box and the first card
 puts focus in the first card's heading, and the next Tab reaches Your name. Chrome is required: these tests fail, never skip, without it."""
 import unittest
 
-from test_settings_head import Head
+import test_settings_head
 from test_server import chrome
 
 WIDTHS = (1400, 900)
 TAB = dict(code="Tab", vk=9)
 
 
-class Skip(Head):
+class Skip(test_settings_head.Head):
     # Head's own tests belong to test_settings_head; this file borrows only its helpers
     test_C_the_title_the_help_line_and_a_chip_for_each_card_that_exists = test_C_a_click_scrolls_to_the_card_and_focuses_its_heading = None
     test_C_keyboard_tab_to_a_chip_and_enter = test_C_the_list_is_at_the_left_at_900_and_wider_and_a_row_of_chips_below_900 = test_C_text_size_and_contrast_in_light_and_dark = None
