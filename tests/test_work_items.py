@@ -399,7 +399,7 @@ class RealBrowser(unittest.TestCase):
     def test_the_page_words_follow_the_rules_in_every_source_file(self):
         """User text says clark in lower case, never "UC", never "report editor" (the X-Clark-Token header is not user text)."""
         for path in (SRC / "clark" / "page" / "src").rglob("*.js*"):
-            text = path.read_text(encoding="utf-8").replace("X-Clark-Token", "")
+            text = path.read_text(encoding="utf-8").replace("X-Clark-Token", "").replace("X-Clark-Tz", "")
             with self.subTest(path.name):
                 self.assertNotRegex(text, r"\bClark\b")
                 self.assertNotIn("report editor", text.lower())
