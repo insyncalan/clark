@@ -25,6 +25,14 @@ class Base(Api):
         finally:
             con.close()
 
+    def store_needs_row(self):
+        con = sqlite3.connect(str(self.path))
+        try:
+            con.execute("INSERT INTO report_sections (project, id, type, title, sort_order) SELECT 'ABC', 'ABC-S-500', 'needs', 'Made for the test', COALESCE(MAX(sort_order), 0) + 1000 FROM report_sections WHERE project = 'ABC'")
+            con.commit()
+        finally:
+            con.close()
+
     def of_type(self, kind):
         return [r for r in self.rows() if r["type"] == kind]
 
@@ -37,7 +45,10 @@ class RoundTrip(Base):
         for t in ("text",) + tuple(store_module.BODY_TYPES) + BUILT_INS:
             with self.subTest(type=t):
                 if not self.of_type(t):
-                    self.ok("new", values={"type": t, "title": "Made for the test"})
+                    if t == "needs":      # item 1158: the page no longer adds a Needs from you section, but one already stored is still a section that can be deleted and undone
+                        self.store_needs_row()
+                    else:
+                        self.ok("new", values={"type": t, "title": "Made for the test"})
                 row = self.of_type(t)[0]
                 before_rows, before_data = self.s.read(KIND, "ABC"), self.counts()
                 gone = self.ok("delete", id=row["id"])
