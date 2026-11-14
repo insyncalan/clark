@@ -47,11 +47,13 @@ def code_files():
 
 class Source(unittest.TestCase):
     def test_the_draft_chip_and_its_helper_are_gone(self):
-        """Ruling 1: no Draft on any peek. The pill, its hook, its CSS and the helper that wrote its words are gone from the source and the page."""
+        """Ruling 1: no Draft chip on any peek. The pill, its hook, its CSS and the helper that wrote its words are gone from the source and the page.
+        Item 1179 lifted the ruling for one control only: the 'Draft with AI' text button (data-pk-ai); every other use of the word stays out."""
         latest = (SRC / "edit" / "PeekLatest.jsx").read_text(encoding="utf-8")
         helper = (SRC / "edit" / "peekLatest.js").read_text(encoding="utf-8")
+        allowed = latest.replace("Draft with AI", "")                 # item 1179: the button's words and aria-label
         for marker in ("draftFor", "pk-draft", "Draft", 'place: "draft"', "drafted"):
-            self.assertNotIn(marker, latest, marker)
+            self.assertNotIn(marker, allowed, marker)
         self.assertNotIn("draftFor", helper)
         self.assertNotIn("Draft", (SRC / "edit" / "MilestonePeek.jsx").read_text(encoding="utf-8"), "the milestone peek has none either")
         self.assertNotIn("pk-draft", (SRC / "edit" / "edit.css").read_text(encoding="utf-8"))
@@ -210,7 +212,7 @@ class Browser(Peeks):
                 self.no_draft(cdp, sid, "Edit")
                 self.assertTrue(cdp.js("!!document.querySelector('#peek [data-pk-latest] [data-rich=latest_update]')", sid), "the Latest update stays, without its Draft")
 
-    def test_the_client_milestone_peek_is_read_only_and_no_peek_has_a_draft(self):
+    def test_the_client_milestone_peek_is_read_only_and_no_peek_has_a_draft_chip(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.dashboard_in_view(cdp, width, self.store, self.code)

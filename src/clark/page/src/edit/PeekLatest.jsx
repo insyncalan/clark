@@ -91,7 +91,7 @@ export function PeekLatest({ row }) {
         forceOpen={wantOpen} onClose={() => { setWantOpen(false); setMenuAt(null); }}
         ai={{ menu: menuAt, open: (pt) => { setCard(null); setMenuAt(pt); }, close: () => setMenuAt(null), pick: (req) => { setMenuAt(null); setCard({ ...req, n: Date.now() }); } }} />
       {card ? <div data-ai-card><AiCard key={card.n} client={aiClient} place="current" option={card.option} text={card.text} instruction={card.instruction}
-        returnTo={() => { const e = editorOf(); if (e) e.focus(); }} onAccept={card.apply} onClose={() => setCard(null)} /></div> : null}
+        returnTo={() => { const e = editorOf(); if (e) e.focus(); }} onAccept={(h) => { if (card.apply(h) === false) { say("problem", "The editor was closed, so nothing was changed. Open it and try again."); return; } latestDirty.value = true; }} onClose={() => setCard(null)} /></div> : null}
       </> : null}
       {stamp ? <div class="pk-last" data-pk-last><Icon name="clock" cls="s" /> Last updated {stamp}</div> : null}
       {open ? <p class="pk-latest-hint" data-pk-latest-hint data-pk-hint>Cmd or Ctrl and Enter saves.</p> : null}

@@ -58,17 +58,20 @@ class Source(unittest.TestCase):
     def test_the_latest_update_is_no_longer_for_actions_only(self):
         self.assertNotRegex(self.read("edit/PeekLatest.jsx"), r"action\s*\?", "no 'action ? :' guard is left in PeekLatest")
         peek = self.read("components/Peek.jsx")
-        self.assertNotRegex(peek, r"forItem\s*=\s*!!p\s*&&\s*p\.kind\s*!==\s*.milestone.", "a milestone gets the Latest update too")
+        latest = next(l for l in peek.splitlines() if "tools.PeekLatest" in l and "const" in l)
+        self.assertNotIn("forItem", latest, "the Latest update line is not gated on the item-only flag (a milestone gets it too)")
+        self.assertIn("MilestonePeek", peek + self.read("edit/MilestonePeek.jsx"))
+        self.assertNotRegex(self.read("edit/PeekLatest.jsx"), r"kind\s*!==?\s*.(risk|issue|milestone).", "no per-kind exclusion is left")
 
     def test_the_menu_is_the_current_place_menu_and_the_editor_takes_an_ai_prop(self):
         menu = self.read("edit/AiMenu.jsx")
         self.assertIn('menu("current")', menu)
-        self.assertIn("menu", menu)
+        self.assertIn('role="menu"', menu)
         rich = self.read("edit/RichText.jsx")
-        self.assertIn("contextmenu", rich)
-        self.assertRegex(rich, r"\bai\b")
-        self.assertIn("F10", rich)
-        self.assertIn("ai", self.read("edit/RichField.jsx"))
+        self.assertRegex(rich, r"addEventListener\(\s*.contextmenu.")
+        self.assertRegex(rich, r"props\.current\.ai\b")
+        self.assertRegex(rich, r"F10")
+        self.assertRegex(self.read("edit/RichField.jsx"), r"\bai\s*=\s*\{")
 
     def test_the_ai_card_is_mounted_and_its_old_header_is_fixed(self):
         self.assertIn("AiCard", self.read("edit/PeekLatest.jsx"))
@@ -87,9 +90,8 @@ class Source(unittest.TestCase):
         self.assertIn("--brand-blue-tint", css)
         self.assertIn(".pk-ai-menu", css)
 
-    def test_the_words_are_logged_and_comments_carry_no_hash_digits(self):
-        words = (ROOT / "comms/NEW-WORDS.md").read_text(encoding="utf-8")
-        self.assertIn("Draft with AI", words)
+    def test_comments_carry_no_hash_digits(self):
+        """comms/ is gitignored (the NEW-WORDS.md entry is the lead's to log), so nothing here reads it."""
         for rel in ("edit/PeekLatest.jsx", "edit/AiMenu.jsx", "edit/AiCard.jsx", "edit/RichText.jsx"):
             self.assertNotRegex(self.read(rel), r"#\d{2,}", rel + ": write 'item 1179', not a hash and digits")
 
@@ -165,6 +167,101 @@ class Browser(test_peek_latest.Browser):
                 self.assertTrue(wait(lambda: cdp.js("window.__cm !== null", sid)), "the event arrived")
                 self.assertFalse(self.menu_open(cdp, sid), "no AI menu")
                 self.assertFalse(cdp.js("window.__cm", sid), "preventDefault was not called, so the browser's menu shows")
+
+    def stub_ai(self, cdp, sid, html="<p>Better words.</p>"):
+        """The page's fetch answers the AI routes: status ready, and one suggestion. Everything else goes to the real server."""
+        cdp.js("(html => { const real = window.fetch; window.__ai = []; window.fetch = (u, o) => { const path = String(u);"
+               " if (path.startsWith('/api/ai/status')) return Promise.resolve(new Response(JSON.stringify({ok: true, state: 'ready', line: ''}), {status: 200}));"
+               " if (path.startsWith('/api/ai/suggest')) { window.__ai.push(JSON.parse(o.body)); return Promise.resolve(new Response(JSON.stringify({ok: true, html, notes: [], changes: []}), {status: 200})); }"
+               " return real(u, o); }; })(" + json.dumps(html) + "); true", sid)
+
+    def pick_first_option(self, cdp, sid):
+        click(cdp, sid, BUTTON)
+        self.assertTrue(wait(lambda: self.menu_open(cdp, sid)))
+        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-ai-menu] [data-ai-option]')", sid)))
+        click(cdp, sid, "[data-ai-menu] [data-ai-option]")
+
+    def card_state(self, cdp, sid):
+        return cdp.js("(c => c ? c.dataset.state : null)(document.querySelector('[data-pk-latest] [data-ai-card] .aic'))", sid)
+
+    def editor_text(self, cdp, sid):
+        return cdp.js("document.querySelector('#peek .ProseMirror').textContent", sid)
+
+    def test_accept_writes_the_suggestion_into_the_editor_and_a_save_sends_it(self):
+        with chrome() as cdp:
+            sent, sid = self.open_kind(cdp, 1400, "action", OVERDUE)
+            self.stub_ai(cdp, sid)
+            self.open_box(cdp, sid)
+            self.type_in(cdp, sid, "Venue confirmed.")
+            self.pick_first_option(cdp, sid)
+            self.assertTrue(wait(lambda: self.card_state(cdp, sid) == "ready"), "the card reaches Suggestion ready (a status the page asked for)")
+            self.assertEqual(cdp.js("window.__ai[0].place", sid), "current", "asked for the current-update place")
+            self.assertIn("Venue confirmed.", cdp.js("window.__ai[0].text", sid), "the field's words went to the provider")
+            self.assertIn("Venue confirmed.", self.editor_text(cdp, sid), "nothing changes before Accept")
+            self.assertEqual(sent, [])
+            click(cdp, sid, "[data-ai-card] .again")
+            self.assertTrue(wait(lambda: "Better words." in self.editor_text(cdp, sid)), "Accept wrote it through the editor")
+            self.assertNotIn("Venue confirmed.", self.editor_text(cdp, sid))
+            self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('[data-ai-card] .aic')", sid)), "the card is gone")
+            self.save_key(cdp, sid)
+            self.assertTrue(wait(lambda: len(sent) == 1), "one save")
+            self.assertIn("Better words.", sent[0]["changes"]["latest_update"])
+
+    def test_discard_leaves_the_text_as_it_was(self):
+        with chrome() as cdp:
+            sent, sid = self.open_kind(cdp, 1400, "action", OVERDUE)
+            self.stub_ai(cdp, sid)
+            self.open_box(cdp, sid)
+            self.type_in(cdp, sid, "Venue confirmed.")
+            self.pick_first_option(cdp, sid)
+            self.assertTrue(wait(lambda: self.card_state(cdp, sid) == "ready"))
+            cdp.js("[...document.querySelectorAll('[data-ai-card] .aic-btn')].find(b => !b.classList.contains('again')).click(); true", sid)
+            self.assertTrue(wait(lambda: self.card_state(cdp, sid) is None), "the card closes")
+            self.assertIn("Venue confirmed.", self.editor_text(cdp, sid))
+            self.assertNotIn("Better", self.editor_text(cdp, sid))
+            self.assertEqual(sent, [])
+
+    def test_accept_on_a_selection_replaces_only_the_selection(self):
+        with chrome() as cdp:
+            sent, sid = self.open_kind(cdp, 1400, "action", OVERDUE)
+            self.stub_ai(cdp, sid, "<p>X</p>")
+            self.open_box(cdp, sid)
+            cdp.js("document.querySelector('#peek .ProseMirror').cxed.editor.commands.setContent('<p>Alpha beta gamma</p>'); true", sid)
+            cdp.js("document.querySelector('#peek .ProseMirror').cxed.editor.commands.setTextSelection({from: 7, to: 11}); true", sid)     # 'beta'
+            self.right_click(cdp, sid)
+            self.assertTrue(wait(lambda: self.menu_open(cdp, sid)))
+            click(cdp, sid, "[data-ai-menu] [data-ai-option]")
+            self.assertTrue(wait(lambda: self.card_state(cdp, sid) == "ready"))
+            self.assertEqual(cdp.js("window.__ai[0].text", sid), "beta", "only the selected words are sent")
+            click(cdp, sid, "[data-ai-card] .again")
+            self.assertTrue(wait(lambda: "X" in self.editor_text(cdp, sid)))
+            t = self.editor_text(cdp, sid)
+            self.assertTrue(t.startswith("Alpha") and t.endswith("gamma") and "beta" not in t, t)
+
+    def test_with_ai_off_the_card_says_so_and_changes_nothing(self):
+        with chrome() as cdp:
+            sent, sid = self.open_kind(cdp, 1400, "action", OVERDUE)
+            cdp.js("(real => { window.__ai = []; window.fetch = (u, o) => String(u).startsWith('/api/ai/') ? (window.__ai.push(String(u)), Promise.resolve(new Response(JSON.stringify({ok: true, state: 'off', line: ''}), {status: 200}))) : real(u, o); })(window.fetch); true", sid)
+            self.open_box(cdp, sid)
+            self.type_in(cdp, sid, "Venue confirmed.")
+            self.pick_first_option(cdp, sid)
+            self.assertTrue(wait(lambda: self.card_state(cdp, sid) == "off"), "the off card")
+            self.assertFalse(cdp.js("window.__ai.some(u => u.startsWith('/api/ai/suggest'))", sid), "nothing is sent to a provider when AI is off")
+            self.assertFalse(cdp.js("!!document.querySelector('[data-ai-card] .again')", sid), "no Accept on an off card")
+            self.assertIn("Venue confirmed.", self.editor_text(cdp, sid))
+            self.assertEqual(sent, [])
+
+    def test_tab_from_the_open_editor_to_the_button_keeps_the_editor_and_saves_nothing(self):
+        with chrome() as cdp:
+            sent, sid = self.open_kind(cdp, 1400, "action", OVERDUE)
+            self.open_box(cdp, sid)
+            self.type_in(cdp, sid, "Half typed.")
+            cdp.js("document.querySelector('[data-pk-latest] [data-pk-ai]').focus(); true", sid)      # what Shift+Tab from the editor does
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-ai')", sid)))
+            cdp.call("Runtime.evaluate", {"expression": "new Promise(r => setTimeout(r, 300))", "awaitPromise": True}, sid)
+            self.assertTrue(cdp.js("!!document.querySelector('#peek .ProseMirror')", sid), "the editor is still open")
+            self.assertEqual(sent, [], "focus on the button is not a save")
+            self.assertIn("Half typed.", self.editor_text(cdp, sid))
 
     def test_shift_f10_on_a_selection_opens_the_menu(self):
         with chrome() as cdp:

@@ -107,11 +107,11 @@ class Server(unittest.TestCase):
         self.undo({"project": self.code, "apply_id": body["apply_id"]})
         self.assertGreaterEqual(stamp(), changed, "the Undo is a change too: the stamp is never put back to an older time")
 
-    def test_a_risk_or_a_decision_has_no_latest_update(self):
+    def test_a_decision_has_no_latest_update(self):
+        """Item 1179: a risk, an issue and a milestone now take one (test_draft_with_ai_1179 pins that); a decision still does not."""
         data = self.store.data_for(self.code)
-        for kind, ref in (("raid", data["raid"][0]["id"]), ("decisions", data["decisions"][0]["id"])):
-            code, body = self.send("Anything", kind, ref)
-            self.assertEqual((code, body["ok"]), (400, False), kind)
+        code, body = self.send("Anything", "decisions", data["decisions"][0]["id"])
+        self.assertEqual((code, body["ok"]), (400, False))
 
     def test_the_undo_words_never_repeat_the_text(self):
         entry = {"field": "latest_update", "to": "A secret sentence", "ref": OVERDUE}
@@ -404,12 +404,13 @@ class Browser(unittest.TestCase):
                 self.assertTrue(wait(lambda: len(sent) == 1), "one save")
                 self.assertTrue(wait(lambda: got() != want), "the stamp is the one clark wrote")
 
-    def test_a_risk_shows_the_stamp_but_no_latest_update(self):
+    def test_a_risk_shows_the_stamp_and_the_latest_update_field(self):
+        """Item 1179: the Latest update is on all four peeks (it was an action's only)."""
         risk = self.data["raid"][0]["id"]
         with chrome() as cdp:
             sent, sid = self.load(cdp, 1400, risk)
             self.assertTrue(cdp.js("!!document.querySelector('[data-pk-last]')", sid))
-            self.assertFalse(cdp.js("!!document.querySelector('[data-rich=latest_update]')", sid))
+            self.assertTrue(cdp.js("!!document.querySelector('[data-rich=latest_update]')", sid))
 
     def kinds(self):
         """(a client-visible action, an internal action) of the demo data."""
