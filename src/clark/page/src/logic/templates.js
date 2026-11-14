@@ -89,9 +89,13 @@ export const LATER = [
 
 // The built-in sections (row 906): a deleted one is added again from the box, one of each, with the title and settings it starts
 // with (changes.py BUILT_IN_TYPES). Listed only while the report has no section of that type (`list` and `counts` take `sections`).
-const builtIn = (type, title, kind) => ({ id: `built-in-${type}`, name: title, kind, fit: ["full"], type, title, body: "", ready: true, description: "", holds: [], builtIn: true });
+// Item 1190: At a glance has its words, parts and width like any template; the section it makes is the built-in's own (type glance),
+// so the tiles, the edit in place, View, Word, Excel and the published file are the built-in's. Offered while the report has none.
+const GLANCE_CARD = { fit: ["full", "half"], description: "The project’s health, and counts of overdue actions, high risks and issues, and decisions needed.",
+                      holds: ["Heading", "Project health", "Overdue actions", "High risks and issues", "Decisions needed"] };
+const builtIn = (type, title, kind, more = {}) => ({ id: `built-in-${type}`, name: title, kind, fit: ["full"], type, title, body: "", ready: true, description: "", holds: [], builtIn: true, ...more });
 export const BUILT_INS = [
-  builtIn("current", "Current state", "text"), builtIn("glance", "At a glance", "figures"), builtIn("usecases", "Use case summary", "work"),
+  builtIn("current", "Current state", "text"), builtIn("glance", "At a glance", "figures", GLANCE_CARD), builtIn("usecases", "Use case summary", "work"),
   builtIn("milestones", "Milestones", "dates"), builtIn("raid", "Risks and issues", "work"), builtIn("actions", "Open actions", "work"),
   builtIn("decisions", "Decisions", "work"), builtIn("docs", "Supporting documents", "files"),
 ];
@@ -139,6 +143,7 @@ export const SKETCHES = {
   "one-doc": ["grid-template-rows:1fr 1fr", ["", "width:70%"]],
   "current-state": ["grid-template-rows:repeat(3,1fr)", ["width:85%", "width:70%", "width:50%"]],
   "plan-summary": ["grid-template-rows:repeat(4,1fr)", ["width:40%", "width:80%", "width:40%", "width:70%"]],
+  "built-in-glance": ["grid-template-columns:repeat(4,1fr)", ["", "border-top:3px solid var(--status-red)", "border-top:3px solid var(--status-amber)", ""]],
 };
 
 export const find = (id) => TEMPLATES.find((t) => t.id === id) || BUILT_INS.find((t) => t.id === id) || null;
