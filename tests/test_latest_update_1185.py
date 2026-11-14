@@ -111,6 +111,15 @@ class SaveUndoHistory(Base):
                 self.assertTrue(any(not e["in_force"] for e in events))
 
 
+class UndoWords(Base):
+    def test_the_undo_sentence_names_the_field_and_never_the_text(self):
+        for kind in KINDS:
+            with self.subTest(kind=kind):
+                table, ref = self.make(kind)
+                words = changes._field_words({"field": "latest_update", "to": "A secret sentence", "ref": ref}, ref)
+                self.assertEqual(words, f"the latest update of {ref} is back as it was")
+
+
 class Published(Base):
     def published(self):
         return publish.build(self.s, "ABC", now="2026-10-29")["body"].decode("utf-8")
@@ -154,6 +163,20 @@ class Published(Base):
                     st.create("item_labels", {"item_id": ref, "label": "Sensitive"})
                 self.assertNotIn(token, self.published(), kind + " sensitive")
 
+    def test_an_archived_item_keeps_it_out_and_the_open_one_beside_it_has_it(self):
+        for kind in KINDS:
+            with self.subTest(kind=kind):
+                table, ref = self.make(kind)
+                other = self.make(kind)[1]
+                token = "zz-1185-arch-" + kind
+                self.set_latest(table, ref, token)
+                self.set_latest(table, other, token + "-open")
+                with self.s.step("dashboard", USER) as st:
+                    st.archive(table, ref)
+                text = self.published()
+                self.assertNotIn(token + "<", text.replace(token + "-open", ""), "archived")
+                self.assertIn(token + "-open", text, "the open one is published")
+
     def test_a_decision_publishes_no_latest_update(self):
         self.assertNotIn("latest_update", publish.PUBLISH_FIELDS["decisions"])
 
@@ -176,10 +199,15 @@ class ExcelRoundTrip(Base):
             head = {c.value: c.column for c in ws[1]}
             row = next(r for r in range(2, ws.max_row + 1) if ws.cell(r, head["ID"]).value == refs[key][1])
             ws.cell(row, head["Latest update"]).value = "After the edit"
+            if key == "milestones":
+                ws.cell(row, head["State reason"]).value = "Waiting on the venue"          # a neighbouring text column in the same import
         wb.save(str(path))
         plan = xi.read_workbook(self.s, path, "ABC")
+        plan.confirm_unrecorded()            # openpyxl saved the file again, so it has no export record
         plan.accept_all()
-        xi.apply_import(self.s, plan, USER, state_path=state)
+        done = xi.apply_import(self.s, plan, USER, state_path=state)
+        self.assertTrue(done.applied, done.message)
+        self.assertEqual(self.s.read("milestones", ref=refs["milestones"][1])["state_reason"], "Waiting on the venue")
         for table, ref in refs.values():
             self.assertIn("After the edit", self.s.read(table, ref=ref)["latest_update"], table)
 
