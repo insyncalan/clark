@@ -39,6 +39,12 @@ class Fields(unittest.TestCase):
         wait(lambda: self._inside_now(cdp, sid, selector))
         return self._inside_now(cdp, sid, selector)
 
+    def more_pick(self, cdp, sid, word):
+        """Row 1180: Duplicate, Archive and Delete are items of the toolbar's More menu."""
+        click(cdp, sid, "#pk-more")
+        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[role=menu]')", sid)), "More opens")
+        cdp.js(f"[...document.querySelectorAll('[role=menu] [role^=menuitem]')].find(b => b.textContent.trim().toLowerCase().startsWith({word!r})).click()", sid)
+
     def setUp(self):
         self.fresh()
 
@@ -46,11 +52,14 @@ class Fields(unittest.TestCase):
         return [(w, dark) for w in (1400, 900) for dark in (False, True)]
 
     def title(self, cdp, sid):
-        return cdp.js("(t => t ? t.value : '')(document.querySelector('#peek [data-pk-title-in]'))", sid)
+        """The title as shown (row 1180: plain text until a click opens the box; then the box's text)."""
+        return cdp.js("(h => { const t = h.querySelector('[data-pk-title-in]'); return t && t.tagName === 'TEXTAREA' ? t.value : h.textContent.trim(); })(document.querySelector('#peek h2.pk-title'))", sid)
 
     def type_title(self, cdp, sid, text):
-        cdp.js("document.querySelector('#peek [data-pk-title-in]').focus()", sid)
-        cdp.js(f"document.querySelector('#peek [data-pk-title-in]').value = {json.dumps(text)}", sid)
+        if not cdp.js("!!document.querySelector('#peek textarea[data-pk-title-in]')", sid):
+            click(cdp, sid, "#peek h2.pk-title .pkh-title-txt")
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement === document.querySelector('#peek textarea[data-pk-title-in]')", sid)), "a click opens the box")
+        cdp.js(f"document.querySelector('#peek textarea[data-pk-title-in]').value = {json.dumps(text)}", sid)
 
 
 class Title(Fields):
@@ -60,13 +69,13 @@ class Title(Fields):
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 sent, sid = self.load(cdp, width, ACTION, dark=dark)
                 self.assertEqual(self.title(cdp, sid), was)
-                self.assertTrue(self.inside(cdp, sid, "[data-pk-title-in]"), "the title box fits the peek")
+                self.assertTrue(self.inside(cdp, sid, "h2.pk-title"), "the title fits the peek")
                 self.type_title(cdp, sid, "A new title for this action")
                 key(cdp, sid, "Enter")
                 self.assertTrue(wait(lambda: len(sent) == 1))
                 self.assertEqual((sent[0]["kind"], sent[0]["id"], sent[0]["changes"]), ("actions", ACTION, {"description": "A new title for this action"}))
                 self.assertTrue(wait(lambda: self.title(cdp, sid) == "A new title for this action"))
-                self.assertTrue(wait(lambda: f"Title of {ACTION} changed." in self.toast(cdp, sid)))
+                self.assertTrue(wait(lambda: "Title changed" in self.toast(cdp, sid)))
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.toast [data-undo]')", sid)))
                 cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
                 self.assertTrue(wait(lambda: self.title(cdp, sid) == was), "one Undo puts the old title back")
@@ -81,7 +90,7 @@ class Title(Fields):
             self.assertTrue(cdp.js("!!document.querySelector('#peek')", sid), "Esc leaves the peek open")
             self.type_title(cdp, sid, "   ")
             key(cdp, sid, "Enter")
-            self.assertTrue(wait(lambda: "A title can't be blank" in self.toast(cdp, sid)))
+            self.assertTrue(wait(lambda: self.title(cdp, sid) == was), "a blank title puts the old one back (row 1180)")
             self.assertEqual(sent, [], "nothing was sent")
 
     def test_a_refused_title_keeps_its_text_and_the_box_gets_focus_back(self):
@@ -93,8 +102,8 @@ class Title(Fields):
                 if how == "Enter":
                     key(cdp, sid, "Enter")
                 else:
-                    cdp.js("document.querySelector('#peek [data-pk-title-in]').blur()", sid)
-                self.assertTrue(wait(lambda: cdp.js("document.activeElement === document.querySelector('#peek [data-pk-title-in]')", sid)), "the box has focus again")
+                    cdp.js("document.querySelector('#peek textarea[data-pk-title-in]').blur()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement === document.querySelector('#peek textarea[data-pk-title-in]')", sid)), "the box has focus again")
                 self.assertEqual(self.title(cdp, sid), text, "the typed text is kept")
                 self.assertEqual(sent, [], "nothing was sent")
 
@@ -116,7 +125,7 @@ class Title(Fields):
 
     def test_the_title_is_plain_in_a_published_file_and_in_view(self):
         peek = (SRC / "components/Peek.jsx").read_text(encoding="utf-8")
-        self.assertIn("editing && forItem && tools.PeekTitle", peek)
+        self.assertIn("TitleBox = editing && forItem && tools.PeekItemTitle", peek)
         view = (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8")
         self.assertNotIn("data-pk-title-in", view)
 
@@ -256,9 +265,9 @@ class Duplicate(Fields):
         for width, dark in self.widths():
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 sent, sid = self.load(cdp, width, ACTION, dark=dark)
-                self.assertTrue(self.inside(cdp, sid, "[data-pk-dup]"), "the button fits the peek")
+                self.assertTrue(self.inside(cdp, sid, "#pk-more"), "the button fits the peek")
                 self.calm(cdp, sid)
-                click(cdp, sid, "#peek [data-pk-dup]")
+                self.more_pick(cdp, sid, "duplicate")
                 self.assertTrue(wait(lambda: len(sent) == 1))
                 self.assertEqual((sent[0]["kind"], sent[0]["op"], sent[0]["copy_of"]), ("actions", "new", ACTION))
                 self.assertEqual(sent[0]["values"], {"description": a["description"] + " (copy)"})
@@ -271,8 +280,8 @@ class Duplicate(Fields):
                 self.assertTrue(wait(lambda: len(self.store.data_for(self.code)["actions"]) == before), "one Undo takes the copy back")
 
     def test_the_button_is_edit_only(self):
-        self.assertIn("editing && forItem && tools.PeekDuplicate", (SRC / "components/Peek.jsx").read_text(encoding="utf-8"))
-        self.assertNotIn("data-pk-dup", (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8"))
+        self.assertIn("MoreBtn = editing && forItem && tools.PeekMore", (SRC / "components/Peek.jsx").read_text(encoding="utf-8"))
+        self.assertNotIn("PeekDuplicate", (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8"))
 
 
 class Archive(Fields):
@@ -283,9 +292,9 @@ class Archive(Fields):
         for width, dark in self.widths():
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 sent, sid = self.load(cdp, width, ACTION, dark=dark)
-                self.assertTrue(self.inside(cdp, sid, "[data-pk-archive]"), "the button fits the peek")
+                self.assertTrue(self.inside(cdp, sid, "#pk-more"), "the button fits the peek")
                 self.calm(cdp, sid)
-                click(cdp, sid, "#peek [data-pk-archive]")
+                self.more_pick(cdp, sid, "archive")
                 self.assertTrue(wait(lambda: len(sent) == 1))
                 self.assertEqual((sent[0]["kind"], sent[0]["op"], sent[0]["id"]), ("actions", "archive", ACTION))
                 self.assertTrue(wait(lambda: f"{ACTION} archived. It is out of the lists and the published page." in self.toast(cdp, sid)))
@@ -302,7 +311,7 @@ class Archive(Fields):
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 sent, sid = self.load(cdp, width, ACTION, dark=dark)
                 self.calm(cdp, sid)
-                click(cdp, sid, "#peek [data-pk-archive]")
+                self.more_pick(cdp, sid, "archive")
                 self.assertTrue(wait(lambda: cdp.js("document.activeElement === document.querySelector('.toast [data-undo]')", sid)), "the focus is on Undo")
                 key(cdp, sid, "Enter")
                 self.assertTrue(wait(lambda: self.row(ACTION)["archived"] == 0), "Enter on Undo brings it back")
@@ -315,7 +324,7 @@ class Archive(Fields):
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 sent, sid = self.load(cdp, width, ACTION, dark=dark)
                 self.calm(cdp, sid)
-                click(cdp, sid, "#peek [data-pk-archive]")
+                self.more_pick(cdp, sid, "archive")
                 self.assertTrue(wait(lambda: cdp.js("document.activeElement === document.querySelector('.toast [data-undo]')", sid)), "the focus is on Undo")
                 cdp.js("document.getElementById('main').focus()", sid)
                 self.assertTrue(cdp.js("document.activeElement.id === 'main'", sid), "main has the focus")
@@ -325,8 +334,8 @@ class Archive(Fields):
                 self.assertTrue(wait(lambda: cdp.js(f"(() => {{ const a = document.activeElement, r = a && a.closest('tr[data-id], article.bcard[data-id]'); return !!r && r.dataset.id === {row}; }})()", sid)), "the focus is on the restored item, not on main")
 
     def test_the_button_is_edit_only(self):
-        self.assertIn("editing && forItem && tools.PeekArchive", (SRC / "components/Peek.jsx").read_text(encoding="utf-8"))
-        self.assertNotIn("data-pk-archive", (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8"))
+        self.assertIn("MoreBtn = editing && forItem && tools.PeekMore", (SRC / "components/Peek.jsx").read_text(encoding="utf-8"))
+        self.assertNotIn("PeekArchive", (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8"))
 
 
 BOX_PK = "#peek [data-ce]"
