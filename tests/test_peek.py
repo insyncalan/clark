@@ -318,9 +318,10 @@ class Browser(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("clarkPage.peek() && clarkPage.peek().id", sid) == ids[1]))
                 self.assertEqual(cdp.js("document.querySelector('#peek').dataset.peek", sid), ids[1])
                 labels = cdp.js("[...document.querySelectorAll('#peek dt')].map(d => d.textContent)", sid)
-                self.assertIn("Owner", labels)
-                self.assertIn("Status", labels)
-                self.assertIn("Shown to client", labels, "an internal field shows on Work items in View too (row 824)")
+                self.assertIn("Workstream", labels, "the Details rows")
+                for chip in ("status", "owner", "due"):
+                    self.assertTrue(cdp.js(f"!!document.querySelector('#peek .pk-chips [data-row={chip}]')", sid), f"the {chip} chip (item 1180)")
+                self.assertNotIn("Shown to client", labels, "the line is drawn in Edit only")
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').getAnimations().length === 0", sid)), "the slide-in has ended")
                 self.assertEqual(cdp.js("document.querySelector('#peek').getBoundingClientRect().right", sid), cdp.js("document.documentElement.clientWidth", sid))
                 self.open_words(cdp, sid)
@@ -348,7 +349,8 @@ class Browser(unittest.TestCase):
             s, sid = self.load_page(cdp, 1400, f"#work&p={self.code}&item={pending}")
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek dt')", sid)))
             labels = cdp.js("[...document.querySelectorAll('#peek dt')].map(d => d.textContent)", sid)
-            self.assertIn("Decision by", labels)
+            who = "(c => (c.matches('[aria-label]') ? c : c.querySelector('[aria-label]')).getAttribute('aria-label'))(document.querySelector('#peek .pk-chips [data-row=owner]'))"
+            self.assertTrue(cdp.js(who, sid).startswith("Decider"), "the owner chip of a decision is named Decider")
             self.assertNotIn("Made by", labels, "a decision still to be made is not 'made by' anyone")
             self.assertNotIn("Owner", labels)
             for attr in ("data-pk-prev", "data-pk-next", "data-pk-wide", "data-pk-close"):
@@ -358,7 +360,7 @@ class Browser(unittest.TestCase):
             self.assertEqual(cdp.js("document.querySelector('[data-pk-wide]').title", sid), "Open full page")
             cdp.js(f"location.hash = '#work&p={self.code}&item={made}'", sid)
             self.assertTrue(wait(lambda: cdp.js("clarkPage.peek() && clarkPage.peek().id", sid) == made))
-            self.assertIn("Decision by", cdp.js("[...document.querySelectorAll('#peek dt')].map(d => d.textContent)", sid), "the prototype says Decision by for every decision")
+            self.assertTrue(wait(lambda: cdp.js("(c => (c.matches('[aria-label]') ? c : c.querySelector('[aria-label]')).getAttribute('aria-label'))(document.querySelector('#peek .pk-chips [data-row=owner]'))", sid).startswith("Decider")), "the owner chip says Decider for every decision")
 
     def test_the_width_drags_resets_and_is_kept_and_never_passes_the_window(self):
         for width in (1400, 900):
@@ -463,7 +465,7 @@ class Browser(unittest.TestCase):
         return [r["id"] for r in self.data["actions"] if r["status"] == "Open"]
 
     def row_text(self, cdp, sid, which):
-        return cdp.js(f"(() => {{ const d = document.querySelector('#peek [data-row={which}] dd'); if (!d) return ''; const c = d.cloneNode(true); c.querySelectorAll('.chg').forEach((x) => x.remove()); return c.textContent.trim(); }})()", sid)
+        return cdp.js(f"(() => {{ const d = document.querySelector('#peek [data-row={which}] dd, #peek [data-row={which}] .pkc-v'); if (!d) return ''; const c = d.cloneNode(true); c.querySelectorAll('.chg').forEach((x) => x.remove()); return c.textContent.trim(); }})()", sid)
 
     def test_enter_applies_with_a_toast_flash_and_undo_and_the_box_closes(self):
         for width in (1400, 900):

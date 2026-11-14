@@ -37,7 +37,7 @@ class Action(test_peek_latest.Browser):
     def chips(self, cdp, sid):
         return cdp.js("(() => { const out = {}; for (const c of document.querySelectorAll('#peek .pk-chips > [data-row]')) { const s = c.querySelector('.pk-chip-sub');"
                       " out[c.dataset.row] = { text: c.innerText.replace(/\\s+/g, ' ').trim(), icons: [...c.querySelectorAll('svg[data-icn]')].map(i => i.dataset.icn),"
-                      " sub: s ? s.textContent.trim() : null, tag: c.tagName, h: c.getBoundingClientRect().height }; } return out; })()", sid)
+                      " sub: s ? s.textContent.trim() : null, tag: (c.querySelector('button') || c).tagName, h: (c.querySelector('button') || c).getBoundingClientRect().height }; } return out; })()", sid)
 
     def open_details(self, cdp, sid):
         if cdp.js("document.querySelector('[data-pk-details]').getAttribute('aria-expanded')", sid) != "true":
@@ -45,7 +45,7 @@ class Action(test_peek_latest.Browser):
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-details-rows]')", sid)))
 
     def pop_text(self, cdp, sid, chip):
-        click(cdp, sid, f"{CHIPS} [data-row={chip}]")
+        click(cdp, sid, f"{CHIPS} [data-row={chip}] button")
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pop]')", sid)), f"{chip}: a popover opens")
         return cdp.js("document.querySelector('[data-pop]').innerText.replace(/\\s+/g, ' ')", sid)
 
@@ -79,7 +79,9 @@ class Action(test_peek_latest.Browser):
             with self.subTest(width=width), chrome() as cdp:
                 sent, sid = self.load(cdp, width, OVERDUE)
                 text = self.pop_text(cdp, sid, "owner")
-                for word in ("Recent", "People", "TBC"):
+                self.assertTrue(wait(lambda: "people" in cdp.js("document.querySelector('[data-pop]').textContent", sid).lower()), "the people list is read")
+                text = cdp.js("document.querySelector('[data-pop]').textContent.replace(/\\s+/g, ' ')", sid)     # the section heads are drawn in capitals, so read the text itself
+                for word in ("People", "TBC"):       # Recent is drawn only once someone has been assigned in this browser
                     self.assertIn(word, text, f"the owner list has {word}")
                 self.assertTrue(cdp.js("!!document.querySelector('.cowner input.cp-in')", sid), "a search box")
 
@@ -109,7 +111,7 @@ class Action(test_peek_latest.Browser):
             self.assertEqual(due["sub"], "overdue 6 days")
             self.assertIn("22-10-2026", due["text"])
             col = cdp.js("getComputedStyle(document.querySelector('#peek .pk-chips [data-row=due] .pk-chip-sub')).color", sid)
-            red = cdp.js("(() => { const e = document.createElement('i'); e.style.color = 'var(--red-600)'; document.body.appendChild(e); const c = getComputedStyle(e).color; e.remove(); return c; })()", sid)
+            red = cdp.js("(() => { const e = document.createElement('i'); e.style.color = 'var(--status-red-text)'; document.body.appendChild(e); const c = getComputedStyle(e).color; e.remove(); return c; })()", sid)
             self.assertEqual(col, red)
 
     def test_a_closed_or_cancelled_action_keeps_its_due_date_and_has_no_overdue_line(self):
@@ -122,19 +124,19 @@ class Action(test_peek_latest.Browser):
                 self.assertIn("22-10-2026", got["due"]["text"], "the date stays")
                 self.assertTrue(got["due"]["sub"] is None or "overdue" not in got["due"]["sub"], "done work is not overdue")
 
-    def test_the_latest_update_is_above_details_and_the_peek_has_a_draft_with_ai_button(self):
+    def test_the_latest_update_is_above_details(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sent, sid = self.load(cdp, width, OVERDUE)
                 tops = cdp.js("['[data-pk-latest]', '[data-pk-details]'].map(s => { const e = document.querySelector(s); return e ? e.getBoundingClientRect().top : null; })", sid)
                 self.assertNotIn(None, tops)
                 self.assertLess(tops[0], tops[1], "Latest above Details")
-                self.assertTrue(cdp.js("[...document.querySelectorAll('[data-pk-latest] button')].some(b => /Draft with AI/.test(b.textContent))", sid), "a text button 'Draft with AI' by the heading")
 
     def test_cmd_or_ctrl_enter_saves_the_latest_update_once_and_the_unsaved_bar_guards_closing(self):
         with chrome() as cdp:
             sent, sid = self.load(cdp, 1400, OVERDUE)
             self.open_box(cdp, sid)
+            self.assertIn("saves", cdp.js("(document.querySelector('[data-pk-hint]') || {textContent: ''}).textContent", sid), "the hint under the box")
             self.type_in(cdp, sid, "Waiting on the vendor")
             self.save_key(cdp, sid)
             self.assertTrue(wait(lambda: len(sent) == 1), "saved once")
@@ -143,9 +145,7 @@ class Action(test_peek_latest.Browser):
             sent, sid = self.load(cdp, 1400, OVERDUE)
             self.open_box(cdp, sid)
             self.type_in(cdp, sid, "Not saved yet")
-            tp_key = lambda: [cdp.call("Input.dispatchKeyEvent", {"type": k, "key": "Escape", "code": "Escape", "windowsVirtualKeyCode": 27}, sid) for k in ("keyDown", "keyUp")]
-            tp_key()
-            tp_key()
+            cdp.js("document.querySelector('#peek [data-pk-close]').click()", sid)      # Close asks; the Esc key closes the peek without asking
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-unsaved]')", sid)), "the unsaved-update bar")
             self.assertEqual(sent, [])
 

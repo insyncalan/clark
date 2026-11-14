@@ -250,7 +250,7 @@ class Browser(unittest.TestCase):
             cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13, "modifiers": mod}, sid)
 
     def due(self, cdp, sid):
-        return cdp.js("(d => d ? d.textContent.replace('Changed', '').trim() : '')(document.querySelector('#peek [data-row=due] dd'))", sid)
+        return cdp.js("(d => d ? d.textContent.replace('Changed', '').trim() : '')(document.querySelector('#peek [data-row=due] .pkc-v'))", sid)
 
     def toast(self, cdp, sid):
         return cdp.js("(document.querySelector('.toast') || {textContent: ''}).textContent", sid)

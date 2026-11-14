@@ -14,6 +14,7 @@ import { warnFor, stampText } from "./peekLatest.js";
 import { Icon } from "../components/Icon.jsx";
 import { PeekLatestHistory } from "./PeekLatestHistory.jsx";
 
+const plain = (h) => String(h || "").replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
 const raw = (row) => ((data.value && data.value[tableOf(row)]) || []).find((r) => r.id === row.id) || null;
 const toClose = () => { const el = document.activeElement; if (!el || el === document.body || !el.isConnected) { const c = document.querySelector("#peek [data-pk-close]"); if (c) c.focus(); } };
 
@@ -39,6 +40,8 @@ export function PeekWarn({ row }) {
 // before it closes (PeekUnsavedBar below). Module-wide because only one peek is ever open.
 export const latestDirty = signal(false);
 const editorOf = () => document.querySelector("#peek [data-pk-latest] [data-rt] .ProseMirror, [data-pk-latest] [data-rt] [contenteditable=true]");
+let savedPlain = "";                                  // the saved text of the box now drawn, so a close can ask the editor itself (a command that types sends no input event)
+export const dirtyNow = () => { const e = editorOf(); const d = !!e && plain(e.innerHTML) !== savedPlain; latestDirty.value = d; return d; };
 const fire = (el, init) => { if (el) el.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init })); };
 
 /** The bar a close with an unsaved update shows: Save and close, Discard, Keep editing. Props: onClose() closes the peek; onDone() hides the bar. */
@@ -57,7 +60,6 @@ export function PeekUnsavedBar({ onClose, onDone }) {
   );
 }
 
-const plain = (h) => String(h || "").replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
 
 export function PeekLatest({ row, draft = null }) {
   const [open, setOpen] = useState(false);
@@ -67,6 +69,7 @@ export function PeekLatest({ row, draft = null }) {
   const html = (() => { try { return richOrPlain(now); } catch (e) { return "<p>" + String(now).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</p>"; } })();    // item 1005: the editor's HTML, or the plain text an older clark stored
   // The rich editor saves with Cmd/Ctrl+Enter and leaves with Esc. It closes only when clark has saved it: a refusal (the toast says why)
   // or no answer leaves it open with what was typed.
+  savedPlain = plain(html);
   const save = (value) => changeCell("actions", row.id, { latest_update: value },
     { text: `Latest update of ${row.id} saved.`, back: `Latest update of ${row.id} is back as it was.`, place: "peek" })
     .then((reply) => { if (reply) refresh(); return reply; });
