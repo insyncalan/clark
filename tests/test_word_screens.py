@@ -119,6 +119,8 @@ class Screens(unittest.TestCase):
         return p.js("(document.querySelector('.word-msg') || {}).innerText || ''")
 
     def focus_is(self, p):
+        # Word.jsx puts focus back in an effect after the phase changes, so wait for it to leave BODY
+        p.until("!!document.activeElement && document.activeElement !== document.body", "focus was placed")
         return p.js("(function(){var e=document.activeElement;return e.id || e.getAttribute('data-go') !== null && 'go' || e.tagName})()")
 
     def colours(self, p, box, scheme):
