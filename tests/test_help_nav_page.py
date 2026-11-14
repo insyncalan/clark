@@ -21,7 +21,6 @@ from test_report_editor import Base
 from test_help_navigation import MOCKUP
 import build_page  # noqa: E402
 
-TOPBAR = 56
 HELD_PLACES = ("howto-find-work-items", "howto-import-and-export", "howto-improve-wording-with-ai", "ref-peek")     # still held: never shown, never linked
 SIZES = (1400, 900)
 THEMES = ("light", "dark")
