@@ -208,7 +208,7 @@ class Logo(Setup):
                 self.assertEqual(got["repeat"], "no-repeat")
                 self.assertTrue(got["pos"].startswith("100%"), "against the right edge of its box")
                 self.assertLessEqual(got["w"] + got["right"], got["band"][0], "inside the band")
-                self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
+                p.until("document.documentElement.scrollWidth <= window.innerWidth", "no sideways scroll (the loading frame has left)")
                 self.assertGreaterEqual(min(p.js(LUM_COVER)), 4.5, "the text keeps its contrast")
 
     def test_the_brand_logo_sits_small_at_the_right_of_the_editor_header_before_the_icons(self):
