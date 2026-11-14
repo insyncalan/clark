@@ -74,11 +74,11 @@ function ItemChips({ row, tools, editing }) {
   return (
     <PeekChips>
       <PeekChip id={row.id} field="status" name="Status" icon="half" tone={statusTone(row, today)} value={pill.text} flash={hit("status")} pop={pop("status")} />
+      {row.kind !== "decision" ? <PeekChip id={row.id} field="priority" name="Priority" icon="bars" tone={priorityTone(row.priority)} value={text(row.priority)} sub={kept ? `${kept} kept` : ""}
+        flash={hit("priority")} tip={fixed ? "Set from impact and likelihood" : undefined} pop={pop("priority")} /> : null}
       <PeekChip id={row.id} field="owner" name={row.kind === "decision" ? "Decider" : "Owner"} icon="user" tone="b" value={who.text} flash={hit("owner")} pop={pop("owner")} />
       <PeekChip id={row.id} field="due" name={row.kind !== "decision" ? "Due date" : row.status === "Pending" ? "Needed-by date" : "Decision date"} icon="cal" tone={dateTone(row, today)} value={due.date}
         sub={overdue} subTone={late ? "late" : ""} late={late} flash={hit("due")} pop={pop("due")} />
-      {row.kind !== "decision" ? <PeekChip id={row.id} field="priority" name="Priority" icon="bars" tone={priorityTone(row.priority)} value={text(row.priority)} sub={kept ? `${kept} kept` : ""}
-        flash={hit("priority")} tip={fixed ? "Set from impact and likelihood" : undefined} pop={pop("priority")} /> : null}
     </PeekChips>
   );
 }

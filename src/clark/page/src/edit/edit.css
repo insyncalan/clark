@@ -1209,24 +1209,7 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
 /* item 1154: with a logo (the server sets --cover-logo-room; 0px when it is not set) the title and the cover line keep the logo box's room free at 900 px and wider, so they wrap before it; under 900 the logo is hidden and no room is kept */
 @media (min-width: 900px) { .frame header.cover h1, .frame header.cover .cover-line { margin-right: var(--cover-logo-room, 0px); } }
 
-/* row 1180 chips: the peek's flat row of property chips (components/PeekChips.jsx). Each chip is a coloured icon, the value, an optional small sub-line word and a chevron; the row wraps at 900 px. The target is 24 px or more. */
-.pk-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-3); }
-.pkc { display: inline-flex; align-items: center; min-height: 34px; border: 1px solid var(--grey-200); border-radius: 999px; background: var(--surface); color: var(--text); font-weight: var(--weight-medium); max-width: 100%; }
-.pkc.ro { gap: var(--space-2); padding: 0 var(--space-3); }
-.pkc.has-pop:hover { border-color: var(--brand-blue); background: var(--grey-100); }
-.pkc.late { border-color: var(--status-red); background: var(--status-red-tint); }
-.pkc.flash { background: var(--status-amber-tint); }
-.pkc-btn { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 32px; margin: 0; padding: 0 var(--space-3); border: 0; border-radius: 999px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; max-width: 100%; }
-.pkc-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.pkc-ic, .pkc-car { display: inline-flex; flex: none; }
-.pkc-ic svg { width: 16px; height: 16px; }
-.pkc-car { color: var(--text-muted); }
-.pkc-car svg { width: 12px; height: 12px; }
-.pkc-tx { display: inline-flex; flex-wrap: wrap; align-items: center; column-gap: var(--space-2); min-width: 0; }
-.pkc-v { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 16rem; }
-.pkc-sub { font-style: normal; font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); white-space: nowrap; }
-.pkc-sub.late, .pkc.late .pkc-v { color: var(--status-red-text); }
-.pkc .tag.chg { margin: 0 var(--space-2) 0 0; }
+/* row 1180 chips: the chip row itself is in shell.css (the published page draws it too) */
 .pkc .cpop { z-index: 30; }
 
 /* row 1180 head: the ID tag and project line, and the title as a textarea (PeekHead.jsx) */
