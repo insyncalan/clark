@@ -24,7 +24,7 @@
     "n": "In",
     "t": "Bring it in",
     "ic": "ul",
-    "d": "Import from Excel: actions, risks and issues, decisions, milestones and use cases. Or add them by hand with the **+** buttons."
+    "d": "Import from Excel (Settings › Data): actions, risks and issues, decisions, milestones and use cases. Or add them by hand with the **+** buttons."
    },
    {
     "n": "Update",
@@ -63,7 +63,7 @@
    },
    {
     "t": "Bring in the work",
-    "d": "On [Work items](go:work), press the import icon. **Get the template** gives you a workbook with the right columns."
+    "d": "In [Settings](go:settings), open **Data** and press **Import workbook**. **Get the template** gives you a workbook with the right columns."
    },
    {
     "t": "Say where reports go",
@@ -127,7 +127,7 @@
    ],
    [
     "Use cases",
-    "Each row shows the reference, the name, where it stands, the status, the open work items, the milestones and whether it is on the dashboard.",
+    "Each row shows the reference, the name, where it stands, the status, the number of next steps and whether it is on the dashboard.",
     "dashboard+edit"
    ],
    [
@@ -408,7 +408,6 @@
      "In Edit, click the title to change it. [[Enter]] keeps it; [[Esc]] puts it back.",
      "In Edit, under the title are **Status**, **Priority**, **Owner** and **Due**. Click **Status** to choose another value. A risk’s or issue’s status menu also sets its colour (Red, Amber or Green), which sets its priority. To change the priority, owner or due date, click it in the list row (the due date offers Today, Tomorrow, Friday, Next week and No date) or use [Change an item with words (Sneak peek)](#howto-change-an-item-in-words).",
      "A warning shows when an action is overdue or due on a weekend, with one-click fixes such as **Move to Friday** and the date.",
-     "**Needed from the client**: switch it on in Edit and, when the report has a “Needs from you” section, the item is listed there.",
      "**Latest update**: click to write it. On an item shown to the client, the box says **Shown to the client**, because the client sees this text.",
      "In Edit, **Details** is a tab and lists the Type, Workstream, Milestone and Use case (click one to choose another), then Shown to client and Client wording. In View the same fields are listed under the title with no tabs.",
      "In Edit, the **Activity** tab under the title shows the item’s history: who changed what, how and when, newest first. **Details** goes back to the fields.",
@@ -460,17 +459,17 @@
     "id": "import-and-export",
     "g": "Work items",
     "t": "Import or export Excel",
-    "w": "Work items filter line · Settings › Data · profile circle",
-    "go": "work",
+    "w": "Settings › Data · profile circle",
+    "go": "settings#data",
     "s": [
-     "**Export**: press the down-arrow icon. You get one workbook with a sheet each for Actions, Risks & Issues, Decisions, Milestones and Use cases, and a Gantt sheet when the project has Gantt lines, named after today and the project.",
-     "**Import**: press the up-arrow icon. The box lists the sheets and columns it reads. **Get the template** downloads a workbook with the right columns.",
+     "**Export**: in **Settings**, open **Data** and press **Export workbook**. You get one workbook with a sheet each for Actions, Risks & Issues, Decisions, Milestones and Use cases, and a Gantt sheet when the project has Gantt lines, named after today and the project.",
+     "**Import**: in **Settings**, open **Data** and press **Import workbook**. The box lists the sheets and columns it reads. **Get the template** downloads a workbook with the right columns.",
      "Press **Choose a file** (an Excel .xlsx workbook). The box **What to import** lists the sheets the workbook has, the Gantt sheet after the others, each with its rows. The sheets you ticked last time are ticked again (every sheet, the first time): untick any you do not want, then press **Continue**. **Check the import** then shows how many rows are new or updated, and how many are not in the workbook, with the first few. If a row breaks a rule, the box says **Nothing was imported**, lists each such row with why, and offers only **Close**: fix the workbook and choose it again. Otherwise, press **Import** (the button also says how many changes) to save them.",
      "A row with an ID that exists updates that item; a row without one adds a new item. Only the title or name is needed. A new workstream is added to the project."
     ],
     "n": "The whole import is one step: one **Undo** takes it all back.",
     "page": [
-     "work"
+     "settings#data"
     ]
    },
    {
@@ -504,23 +503,6 @@
      "Press **Add section** (or [[Enter]]). The new section appears with its heading ready to rename; [[Esc]] closes the box without adding anything.",
      "The new section opens ready to fill in, in place. A template with nothing in it yet is left out of what the client sees.",
      "One **Undo** takes the new section away again. See [Section templates](#ref-section-templates) for what each one is for."
-    ],
-    "page": [
-     "dashboard+edit"
-    ]
-   },
-   {
-    "id": "ask-for-what-you-need",
-    "g": "The report",
-    "t": "Ask the client for what you need",
-    "w": "Dashboard › Edit › Needs from you",
-    "go": "dashboard+edit",
-    "s": [
-     "On the **Dashboard**, press **Edit**. Add a section from the **Needs from you** template: press the **+** under the section you want it to follow, choose **Needs from you** and press **Add section**.",
-     "Press **Add a row**. Choose whether it is a decision, information or a date. Say what is needed and who it is from, then write the day it is needed by as DD-MM-YYYY, or leave it empty. Press **Add**.",
-     "Each row has **Edit**, **Leave out** (or **Include**) and **Remove**. A row you leave out stays in Edit and is not shown in View or on the published page.",
-     "A date that has passed shows the word **Overdue** beside it. In View and on the published page the section is a table you can read but not change.",
-     "Each row you add, change, leave out or remove is one change with its own **Undo**."
     ],
     "page": [
      "dashboard+edit"
@@ -576,7 +558,7 @@
      "In Edit, a small menu beside the status reads **Set commitment** when there is none: choose a word, or **No flag** to clear it. Each choice is one change, with one Undo and one line in History.",
      "A published file shows the chip but never the menu. A use case taken off the page with the eye is left out of the published file whole, chip and all.",
      "In the detail, write **Where it stands**, or add a next step as “Owner: what it is”.",
-     "**Archive this use case** asks first. It leaves the usual lists, the counts and the published page; its work items stay and lose the link. **Restore** or Undo brings it back."
+     "**Archive** in the **More actions** menu asks first. It leaves the usual lists, the counts and the published page; its work items stay and lose the link. **Restore** or Undo brings it back."
     ],
     "page": [
      "dashboard"
@@ -589,9 +571,9 @@
     "w": "Edit › Use cases",
     "go": "dashboard+edit",
     "s": [
-     "Open the **Use cases** tab. Each row shows the reference, the name, where it stands, the status, the open work items, the milestones and whether it is on the dashboard. A use case with a commitment shows it as a small chip beside the status.",
-     "The tabs **All use cases**, **On the dashboard**, **Committed** and **At risk** narrow the list, each with its count. At the right end of the tabs row are **Group by**, the up-arrow icon (**Import from Excel**), the down-arrow icon (**Export to Excel**) and the **+** (**Add use case**). Type in the filter line (**Filter by keyword or by field**) a word or a field such as status:Flag, commitment:Committed, milestone: or on:no; the **×** at its right empties it. **Clear the filters** puts them all back.",
-     "**Group by** draws the list as groups: **Status**, **Commitment**, **On the dashboard** or **Nothing**. Change the order with the column names **Ref**, **Status** and **Work items**.",
+     "Open the **Use cases** tab. Each row shows the reference, the name, where it stands, the status, the number of next steps and whether it is on the dashboard. A use case with a commitment shows it as a small chip beside the status.",
+     "The tabs **All use cases**, **On the dashboard**, **Committed** and **At risk** narrow the list, each with its count. At the right end of the tabs row are **Group by**, **Sort by** and the **+** (**Add use case**). Type in the filter line (**Filter by keyword or by field**) a word or a field such as status:Flag, commitment:Committed, milestone: or on:no; the **×** at its right empties it. **Clear the filters** puts them all back.",
+     "**Group by** draws the list as groups: **Status**, **Commitment**, **On the dashboard** or **Nothing**. Change the order with **Sort by**: **Reference**, **Status** or **Open work items**.",
      "Click a name to open the use case on its own page. The **Use cases** link at the top, [[Esc]] or the Back button of your browser brings you back to the list. The small menu beside the status there reads **Set commitment**: choose a word, or **No flag**. Each choice is one change, with one Undo and one line in History. If every open work item is already linked, or there are none, the link box says so."
     ],
     "page": [
@@ -745,7 +727,6 @@
     "go": "settings",
     "s": [
      "In **Settings**, open the **Projects** card and press **+** (**Add project**). Give it a name, a short code (3 to 7 letters or digits, suggested from the name; it can’t change later), the client and its workstreams, separated by commas.",
-     "A new project opens on Work items, ready for an import.",
      "Each project has **Open**, **Edit** and **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
      "Under the projects, set this project’s **Publishing** folders. The folders asking may read are in the **Asking** card, under **Folders asking may read**.",
      "The project button (the arrow beside the logo) in the top bar switches projects and shows each one’s open items. Adding a project and a project’s settings are in **Settings**, in the **Projects** card."
@@ -999,10 +980,6 @@
        [
         "Summary, This week, Next week",
         "Text sections. This week and Next week sit side by side to start with; any section can sit beside another."
-       ],
-       [
-        "Needs from you",
-        "Added from a template: what you need from the client, as rows you add yourself. Left out of the published page when no row is shown. See [Needs from you](#ref-needs-from-you)."
        ]
       ]
      ],
@@ -1115,11 +1092,6 @@
         "Half or full"
        ],
        [
-        "Needs from you",
-        "What the project needs from the client: decisions, information and dates, each with who it is from and when it is needed by.",
-        "Full or half"
-       ],
-       [
         "Link preview",
         "A web page shown as a card you write: a dashboard, a news item, a recording.",
         "Full"
@@ -1150,25 +1122,6 @@
         "Full or half"
        ]
       ]
-     ]
-    ],
-    "page": [
-     "dashboard+edit"
-    ]
-   },
-   {
-    "id": "needs-from-you",
-    "g": "Screens",
-    "t": "Needs from you",
-    "w": "Dashboard › Edit › Add a section",
-    "b": [
-     [
-      "p",
-      "A section for what you need from the client: a decision, information or a date. Add it in Edit from the **Add a section** box. You add its rows yourself with **Add a row**; each says what is needed, who it is from and the day it is needed by, and is marked as a decision, information or a date."
-     ],
-     [
-      "p",
-      "A row past its date shows the word **Overdue**, so it does not rely on colour. **Leave out** keeps a row in Edit but off the published page. On the published page the section is a table, and it is left out altogether when no row is shown. See [Ask the client for what you need](#howto-ask-for-what-you-need)."
      ]
     ],
     "page": [
@@ -1288,11 +1241,11 @@
     "b": [
      [
       "p",
-      "From the top: the saved views, then the filter line. At the right end of the filter line are the Import and Export icons, the **List** and **Board** icons and the **Group by** button (the grouping and, on the board, Swimlanes)."
+      "From the top: the saved views, then the filter line. At the right end of the filter line are the **List** and **Board** icons and the **Group by** button (the grouping and, on the board, Swimlanes)."
      ],
      [
       "p",
-      "To change how wide a column is in the list, drag the right edge of its heading. Or put the focus on a heading, or on any row, and press [[Alt+Left]] or [[Alt+Right]]. Double-click the edge to put the column back to its first width. The Use cases list works the same way: drag the right edge of a column heading, or press [[Alt+Left]] or [[Alt+Right]] on a row, and double-click the edge to put the column back. A Needs from you section in Edit has the same on its table of rows. The list of archived work items (type is:archived on the filter line) has it too, on its Type, Item, Owner, Due and Status columns. The Milestones list works the same way too, in Edit. The widths are kept on this computer, not in the project, and the published page keeps its own."
+      "To change how wide a column is in the list, drag the right edge of its heading. Or put the focus on a heading, or on any row, and press [[Alt+Left]] or [[Alt+Right]]. Double-click the edge to put the column back to its first width. The Use cases list works the same way: drag the right edge of a column heading, or press [[Alt+Left]] or [[Alt+Right]] on a row, and double-click the edge to put the column back. The list of archived work items (type is:archived on the filter line) has it too, on its Type, Item, Owner, Due and Status columns. The Milestones list works the same way too, in Edit. The widths are kept on this computer, not in the project, and the published page keeps its own."
      ],
      [
       "tbl",
@@ -1649,8 +1602,8 @@
      [
       "ul",
       [
-       "**The top bar**: Previous item and Next item, the milestone’s number, Archive (in Edit, and on the Milestones page), Make this panel fill the screen and Close this panel.",
-       "**Archive**: the Archive button archives the milestone and closes the peek. A message says, for example, M3 archived. It is out of the lists and the published page. Press **Undo** in that message and it says M3 is back.",
+       "**The top bar**: Previous item and Next item, the milestone’s number, More actions (in Edit, and on the Milestones page), Make this panel fill the screen and Close this panel.",
+       "**Archive**: pressing it in the **More actions** menu archives the milestone and closes the peek. A message says, for example, M3 archived. It is out of the lists and the published page. Press **Undo** in that message and it says M3 is back.",
        "**Tabs** (in Edit): Details, then Activity, the history of the milestone.",
        "**The title** is the milestone’s **Name**: in Edit, click it to change it.",
        "**The header line**: the state, the **Owner** and the progress. Achieved appears only once the milestone is achieved, and picking Achieved sets the progress to 100%. In View it carries its date; in Edit the date is in the Achieved on row, not repeated in the header.",
@@ -1835,7 +1788,7 @@
      [
       "ul",
       [
-       "**The cover**: the project, the week ending and who it is for.",
+       "**The top bar**: the project, the week ending and who it is for.",
        "**Three tabs**: Dashboard, Work items and Milestones.",
        "The round button at the top right opens the **Report menu**: **Profile**, **Export to Excel** (only when the file holds a workbook; when the report is too large to include one, the row is greyed and a note says so), **Export to PDF** and **Past reports**. **Profile** keeps the reader’s name in their own browser only, and the button then shows their initials. **Past reports** lists earlier reports kept in the same folder as this one, newest first, and opens the one you press; with none it says No earlier reports.",
        "**Dashboard**: the report in the Spacing you chose, with **On this page** at the right.",
@@ -1858,7 +1811,7 @@
     "b": [
      [
       "p",
-      "A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title): Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking, Feedback and Quit, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project."
+      "A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title): Essentials, Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking, Feedback and Quit, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project."
      ],
      [
       "tbl",
@@ -1867,6 +1820,10 @@
        "What it holds"
       ],
       [
+       [
+        "Essentials",
+        "Your name, Appearance, Spacing, Motion, Single-key shortcuts, Backups, Publishing folder, Asking on or off."
+       ],
        [
         "Profile",
         "About you: **Your name**, **Alias** and **Your email**."
@@ -2045,13 +2002,13 @@
        ],
        [
         "Use cases",
-        "ID, Use case, Shown as, Status, Commitment, Headline, Where it stands, Order, Client-visible, Linked milestones"
+        "ID, Reference, Use case, Status, Commitment, Headline, Where it stands, Order, Client-visible, Linked milestones"
        ]
       ]
      ],
      [
       "p",
-      "On import, columns can be in any order; the ID column and the title or name are needed. An exported workbook has a few more columns: Project, Source, Updated, Closed, State set by you, Original, Shown state, Open work items, and Priority on Risks & Issues. They are filled in by clark, and an import never changes anything from them. Client-visible reads Yes or No. Dates can be DD-MM-YYYY. Only the sheets you tick in **What to import** are read; the others are not read or changed. The Gantt sheet, named after the Gantt tab or Gantt, is read the same way: a row whose ID exists updates that line, and a row without an ID adds a line with the next free ID. Its Days and Status columns are worked out and ignored, and an import never removes a Gantt line. If a row of the Gantt sheet breaks a rule (a bad date, Done over 100, a parent that is not a phase, or more than 500 lines), nothing in the file is imported, and the message gives the rule and the row number; untick the Gantt sheet in **What to import** to import the other sheets. A row whose ID belongs to another project, or is not written as a full Gantt line ID, is left out and named with its row number, and the rest of the sheet is imported. A row with no ID, or with a word in the ID column, adds a new line. When an ID appears twice, the second row is left out. On the Actions, Risks & Issues and Decisions sheets, a Milestone or Use case cell reads “ID: name”; on import only the ID before the first colon counts, so renaming a milestone is not a change. The Milestones and Use cases sheets have an Open work items column that lists the IDs of the open actions, risks and issues and decisions linked to that row; it is worked out for the sheet and never read back. The Use cases sheet has a Commitment column that reads Planned 2026, Committed or Planned 2027, spelt exactly like that, or is left empty. An empty Commitment cell on import leaves the flag as it is; it never clears it."
+      "On import, columns can be in any order; the ID column and the title or name are needed. An exported workbook has a few more columns: Project, Source, Updated, Closed, State set by you, Original, Shown state, Open work items, and Priority on Risks & Issues. They are filled in by clark, and an import never changes anything from them. Client-visible reads Yes or No. Dates can be DD-MM-YYYY. Only the sheets you tick in **What to import** are read; the others are not read or changed. The Gantt sheet, named after the Gantt tab or Gantt, is read the same way: a row whose ID exists updates that line, and a row without an ID adds a line with the next free ID. Its Days and Status columns are worked out and ignored, and an import never removes a Gantt line. If a row of the Gantt sheet breaks a rule (a bad date, Done over 100, a parent that is not a phase, or more than 500 lines), nothing in the file is imported, and the message gives the rule and the row number; untick the Gantt sheet in **What to import** to import the other sheets. A row whose ID belongs to another project, or is not written as a full Gantt line ID, is left out and named with its row number, and the rest of the sheet is imported. A row with no ID, or with a word in the ID column, adds a new line. When an ID appears twice, the second row is left out. On the Actions, Risks & Issues and Decisions sheets, a Milestone cell reads the milestone’s name and a Use case cell reads its reference and title, such as “UC 1.5 Title”; on import clark finds the item by that text (an older “ID: name” or a bare ID still works), so renaming a milestone is not a change. The Milestones and Use cases sheets have an Open work items column that lists the IDs of the open actions, risks and issues and decisions linked to that row; it is worked out for the sheet and never read back. The Use cases sheet has a Commitment column that reads Planned 2026, Committed or Planned 2027, spelt exactly like that, or is left empty. An empty Commitment cell on import leaves the flag as it is; it never clears it."
      ]
     ]
    },
@@ -2276,13 +2233,13 @@
     "dl",
     "Export to Excel",
     "One workbook of the project, or of the use cases",
-    "Work items, the Use case summary, Settings, the profile circle"
+    "Settings, the profile circle"
    ],
    [
     "ul",
     "Import from Excel",
     "Read a workbook and check it before it is saved. Also Publish…, in the profile circle",
-    "Work items, Settings, the profile circle"
+    "Settings, the profile circle"
    ],
    [
     "rows",
@@ -2535,6 +2492,11 @@
    "full": "howto-find-a-past-publication",
    "cards": [
     {
+     "card": "essentials",
+     "title": "Essentials",
+     "line": "Your name, Appearance, Spacing, Motion, Single-key shortcuts, Backups, Publishing folder, Asking on or off."
+    },
+    {
      "card": "profile",
      "title": "Profile",
      "line": "Your name, Alias and email."
@@ -2723,8 +2685,7 @@
    "job": "Save the project as an Excel workbook, know what is in it, and take changes back in.",
    "steps": [
     {
-     "d": "On **Work items**, press the **Export to Excel** icon at the right end of the filter line. With no work items yet there is no filter line, and the icon is in the page header, beside the add button.",
-     "pic": "excel-out-icon"
+     "d": "With a project open, from any page, including **Work items**, the export is in the profile circle menu or in **Settings**, in the **Data** card."
     },
     {
      "d": "Or press your profile circle and choose **Export to Excel**. It gives the same workbook from any screen.",
@@ -3006,10 +2967,6 @@
   {
    "id": "excel-in-box",
    "alt": "The Import from Excel box, with the Choose a file button ringed."
-  },
-  {
-   "id": "excel-out-icon",
-   "alt": "The Export to Excel icon on the filter line, ringed."
   },
   {
    "id": "excel-out-menu",

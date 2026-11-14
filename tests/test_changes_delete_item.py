@@ -98,14 +98,13 @@ class DeleteItem(unittest.TestCase):
         self.assertEqual(self.delete("actions", "XYZ-A-001")[1]["message"], changes.ITEM_NOT_MINE)
 
     def test_the_store_refuses_a_delete_of_any_other_table(self):
-        for table, ref in (("milestones", self.demo.milestone), ("use_cases", self.demo.use_case), ("projects", "ABC")):
+        for table, ref in (("projects", "ABC"), ("documents", "ABC|d1")):
             with self.subTest(table=table), self.assertRaises(Invalid):
                 with self.s.step("dashboard", USER) as st:
                     st.delete(table, ref)
-        self.assertEqual(self.s.read("milestones", ref=self.demo.milestone)["id"], self.demo.milestone)
 
     def test_the_route_refuses_delete_for_other_kinds(self):
-        for kind, ref in (("milestones", self.demo.milestone), ("use_cases", self.demo.use_case), ("documents", "ABC|d1")):
+        for kind, ref in (("documents", "ABC|d1"), ("projects", "ABC")):
             status, body = self.delete(kind, ref)
             self.assertEqual((status, body["ok"]), (400, False), kind)
 
@@ -200,17 +199,6 @@ class DeleteItem(unittest.TestCase):
             st.archive("actions", self.b)
         self.assertEqual(self.delete("actions", self.b)[1]["message"], f"{self.b} is archived. Restore it first.")
 
-    def test_milestone_and_use_case_delete_are_refused_by_the_store_and_the_row_stays(self):
-        for table, ref in (("milestones", self.demo.milestone), ("use_cases", self.demo.use_case)):
-            n = self.count("change_log")
-            with self.subTest(table=table):
-                with self.assertRaises(Invalid) as e:
-                    with self.s.step("dashboard", USER) as st:
-                        st.delete(table, ref)
-                self.assertIn("never deleted", str(e.exception))
-                self.assertEqual(self.count("change_log"), n)
-                self.assertIsNotNone(self.s.read(table, ref=ref))
-
     def test_the_store_delete_item_itself_refuses_an_archived_item_and_writes_nothing(self):
         with self.s.step("dashboard", USER) as st:
             st.archive("actions", self.b)
@@ -255,6 +243,72 @@ class DeleteItem(unittest.TestCase):
         self.assertEqual((status, body["ok"], body["message"]), (400, False, changes.ITEM_NOT_MINE))
         self.assertEqual(self.count("change_log"), n)
         self.assertIsNotNone(self.s.read("actions", ref=self.b))
+
+
+    # Item 1148: a milestone and a use case are deleted the same way as a work item: one step, one Undo, a refusal naming what points at it.
+    def test_a_milestone_and_a_use_case_delete_and_undo_brings_each_back(self):
+        for kind, ref in (("milestones", self.demo.milestone), ("use_cases", self.demo.use_case)):
+            with self.subTest(kind):
+                before = dict(self.s.read(kind, ref=ref))
+                status, body = self.delete(kind, ref)
+                self.assertEqual((status, body["ok"], body["undoable"]), (200, True, True), body)
+                self.assertIsNone(self.s.read(kind, ref=ref))
+                status, back = self.undo({"project": "ABC", "apply_id": body["apply_id"]})
+                self.assertEqual((status, back["ok"], back["skipped"]), (200, True, []), back)
+                self.assertEqual(dict(self.s.read(kind, ref=ref)), before)
+
+    def test_a_gantt_line_and_a_report_section_hold_no_id_of_either_so_they_do_not_block_and_stay(self):
+        """Item 1148, check 3 of issue 1148: neither gantt_lines nor report_sections has a column that names a use case or a milestone
+        (a Gantt milestone line is its own row; a usecases or milestones section lists the project's rows and stores no id), so no
+        report section or Gantt line can point at either: the delete goes through and those rows stay as they were."""
+        cols = lambda t: {r[1] for r in self.con.execute(f"PRAGMA table_info({t})")}
+        for t in ("gantt_lines", "report_sections"):
+            self.assertFalse({"use_case", "milestone"} & cols(t), t)
+        self.con.execute("INSERT INTO gantt_lines (id, project, type, name, start, end) VALUES ('ABC-GNT-001', 'ABC', 'milestone', 'Go live', '2026-11-02', '2026-11-02')")
+        self.con.execute("INSERT INTO report_sections (project, id, type, title, sort_order) VALUES ('ABC', 'ABC-S-901', 'usecases', 'Use cases', 90), ('ABC', 'ABC-S-902', 'milestones', 'Milestones', 91)")
+        self.con.commit()
+        keep = lambda: (self.count("gantt_lines"), self.count("report_sections"))
+        before = keep()
+        for kind, ref in (("milestones", self.demo.milestone), ("use_cases", self.demo.use_case)):
+            status, body = self.delete(kind, ref)
+            self.assertEqual((status, body["ok"]), (200, True), (kind, body))
+        self.assertEqual(keep(), before)
+
+    def test_a_work_item_pointing_at_it_refuses_the_delete_and_names_it(self):
+        a = self.demo.action(milestone=self.demo.milestone, use_case=self.demo.use_case)
+        for kind, ref in (("milestones", self.demo.milestone), ("use_cases", self.demo.use_case)):
+            status, body = self.delete(kind, ref)
+            self.assertEqual(status, 400, kind)
+            self.assertEqual(body["message"], f"{ref} can't be deleted: something refers to it (an action {a}).")
+            self.assertIsNotNone(self.s.read(kind, ref=ref))
+
+    def test_a_direct_link_blocks_it_but_a_taken_off_link_goes_with_it_and_comes_back(self):
+        from clark import store as sm
+        with self.s.step("dashboard", USER) as st:
+            sm.link_use_case_milestone(st, self.demo.use_case, self.demo.milestone)
+        status, body = self.delete("milestones", self.demo.milestone)
+        self.assertEqual(status, 400)
+        self.assertIn("a use case and milestone link", body["message"])
+        with self.s.step("dashboard", USER) as st:
+            sm.unlink_use_case_milestone(st, self.demo.use_case, self.demo.milestone)
+        status, body = self.delete("use_cases", self.demo.use_case)
+        self.assertEqual((status, body["ok"]), (200, True), body)
+        self.assertEqual(self.count("use_case_milestones"), 0)
+        status, back = self.undo({"project": "ABC", "apply_id": body["apply_id"]})
+        self.assertEqual((status, back["ok"], back["skipped"]), (200, True, []), back)
+        self.assertEqual(self.count("use_case_milestones"), 1)
+        self.assertEqual(self.con.execute("PRAGMA foreign_key_check").fetchall(), [])
+
+    def test_an_archived_one_says_restore_it_first_and_stays(self):
+        for kind, ref in (("milestones", self.demo.milestone), ("use_cases", self.demo.use_case)):
+            with self.s.step("dashboard", USER) as st:
+                st.archive(kind, ref)
+            self.assertEqual(self.delete(kind, ref)[1]["message"], f"{ref} is archived. Restore it first.")
+            self.assertIsNotNone(self.s.read(kind, ref=ref))
+
+    def test_another_projects_record_is_refused(self):
+        status, body = self.delete("milestones", "DEF-M-001")
+        self.assertEqual((status, body["ok"]), (400, False))
 
 
 if __name__ == "__main__":

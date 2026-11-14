@@ -37,6 +37,11 @@ export const IMPORT = {
   changesToCheck: "Changes to check",
   accept: "Accept",
   reject: "Reject",
+  notThere: "Not in clark yet",
+  createIt: "Create it",
+  useExisting: "Use an existing one",
+  chooseOne: "Choose one",
+  needAnswer: "Each milestone and use case that is not in clark needs an answer.",
   acceptAll: "Accept all",
   rejectAll: "Reject all",
   acceptNote: "Accept archives it. It is not deleted.",
@@ -74,7 +79,7 @@ export const IMPORT_COLUMNS = [
   ["Risks & Issues", ["ID", "Description", "Type", "Workstream", "Owner", "Response action", "Due", "Impact", "Likelihood", "Status", "Raised", "Client-visible", "Client wording", "Milestone", "Use case", "Labels"]],
   ["Decisions", ["ID", "Decision", "Status", "Made by", "Needed by", "Date", "Reasoning", "Options", "Revisit", "Replaces", "Client-visible", "Client wording", "Use case", "Labels"]],
   ["Milestones", ["ID", "Milestone", "Description", "Workstream", "Agreed", "Forecast", "Status", "Order", "% complete", "Owner", "State", "State reason", "Movement", "Achieved on", "Client-visible", "Client wording", "Internal note"]],
-  ["Use cases", ["ID", "Use case", "Shown as", "Status", "Commitment", "Headline", "Where it stands", "Order", "Client-visible", "Linked milestones"]],
+  ["Use cases", ["ID", "Reference", "Use case", "Status", "Commitment", "Headline", "Where it stands", "Order", "Client-visible", "Linked milestones"]],
 ];
 
 export const PROJECT = {
@@ -130,6 +135,20 @@ export function projectRequest(mode, f) {
 export function nextAfterArchive(live, code) {
   const other = (live || []).find((r) => r.code !== code);
   return other ? other.code : null;
+}
+
+// Row 1156: the questions the check asks (milestones and use cases a work item names that clark does not have), and which of them an
+// accepted change still needs answered. `answers` is { unknown id: { do: "new" } or { do: "use", id } }; a "use" with no item chosen is not an answer.
+export const answered = (a) => !!a && (a.do === "new" || (a.do === "use" && !!a.id));
+export const KIND_NAME = { milestone: "Milestone", use_case: "Use case" };
+export function openQuestions(unknowns, accepted, answers) {
+  const on = new Set(accepted);
+  return (unknowns || []).filter((u) => (u.changes || []).some((n) => on.has(n)) && !answered(answers[u.id]));
+}
+export function sentAnswers(unknowns, answers) {
+  const out = {};
+  for (const u of unknowns || []) if (answered(answers[u.id])) out[u.id] = answers[u.id].do === "new" ? { do: "new" } : { do: "use", id: answers[u.id].id };
+  return out;
 }
 
 // The refusal of a whole file (the prototype's, io.js): one row that breaks a rule and nothing is imported.

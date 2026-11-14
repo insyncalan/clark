@@ -131,7 +131,8 @@ SHEET_TABLES["raid"] = "raid"                      # the oldest name, written ou
 # Header names the export has used or will use (#143): the old and the new read as the same column. They are written out here
 # and not taken from excel.COLUMN_OF, so a rename in the export can never stop an older workbook from importing.
 HEADER_ALIASES = {"client messaging": "client_message", "client wording": "client_message",
-                  "baseline": "baseline_date", "agreed": "baseline_date"}
+                  "baseline": "baseline_date", "agreed": "baseline_date",
+                  "shown as": "ref"}      # item 1160: a use case's Reference was headed "Shown as" before; an older workbook still imports
 TABLE_ORDER = ("milestones", "use_cases", "actions", "raid", "decisions")     # the order changes are written in
 GANTT = "gantt_lines"          # row 926: the Gantt sheet (named for the project's Gantt tab, else 'Gantt'); read by gantt_sheet(), not by the generic reader
 WRITE_ORDER = TABLE_ORDER + (GANTT,)                                         # the Gantt lines are written after the rest
@@ -179,14 +180,14 @@ def virtual_columns(table):
     return [LABELS] if table in writer.LABELLED else [UC_MILESTONES] if table == "use_cases" else []
 
 
-def milestone_ids(text):
-    """(ids, bad): a Linked milestones cell as the sorted, distinct milestone ids it names. The export writes one 'ID: name' per line;
+def milestone_ids(text, refs=None):
+    """(ids, bad): a Linked milestones cell as the sorted, distinct milestone ids it names. The export writes one 'ID: name' per line (item 1150 left this column as it was);
     a line with no ': ' may hold several ids split by commas. `bad` is the first piece that is not a milestone id."""
     found, bad = set(), ""
     for line in str(text).replace("\r", "\n").split("\n"):
         if not line.strip():
             continue
-        head = resolve_ref("milestone", line)
+        head = resolve_ref("milestone", line, refs)
         pieces = [head] if (": " in line or "," not in line) else [p.strip() for p in line.split(",") if p.strip()]
         for piece in pieces:
             m = writer.ITEM_ID.fullmatch(piece)
@@ -352,6 +353,8 @@ class ImportPlan:
     unrecorded: bool = False          # no export record of this workbook: accept_all accepts nothing, apply_import refuses...
     unrecorded_ok: bool = False       # ...until the person has confirmed it (confirm_unrecorded)
     store: object = field(default=None, repr=False)     # read only: to work out the IDs new rows would get
+    unknowns: list = field(default_factory=list)        # row 1156: milestones and use cases a work item row names that clark does not have (see _find_unknowns)
+    answers: dict = field(default_factory=dict)         # row 1156: unknown id -> {"do": "new"} or {"do": "use", "id": the item to use}
 
     def refresh_ids(self):
         """Work out, for each new row still wanted, the ID it gets if the plan is applied as it stands: row order within each
@@ -497,22 +500,100 @@ def read_date(value):
 REF_FIELDS = ("milestone", "use_case")
 
 
-def resolve_ref(field, text):
-    """A Milestone or Use case cell as the id it names (item 710). The export writes 'ID: name'; a bare id is also fine. If the
-    text holds ': ' and what comes before the first ': ' is an item id, that is the id (the name after it is only a label, so a
-    renamed milestone still resolves and is no change); otherwise the whole text is the value and the store refuses it as it
-    always did. A name that itself contains ': ' is fine: only the first one counts."""
+class RefClash(ValueError):
+    """Item 1150: a Milestone or Use case cell's text matches more than one item."""
+    def __init__(self, kind, text, names):
+        super().__init__(text)
+        self.kind, self.text, self.names = kind, text, names
+
+
+def _ref_key(text):
+    return " ".join(str(text or "").split()).casefold()
+
+
+class RefLookup:
+    """Item 1150: finds the milestone or use case a cell's text names, now that the drop-downs carry no id. `items` is
+    {"milestone": [row, ...], "use_case": [row, ...]} (rows with id, name or title, and a use case's ref); `then` is the same for the
+    rows as the export held them, so a cell written before an item was renamed still finds it. A use case is found by the text the
+    export shows ('UC 1.5 Title'), then by its reference, then by its title; a milestone by the text shown, then its name. The first
+    of those that matches anything decides: one item is the answer, more than one is a RefClash (never a guess), none is None."""
+    def __init__(self, items, then=None):
+        self.tiers, self.rows = {}, {}
+        for field, (_, nf) in excel.REF_TABLES.items():
+            rows = list(items.get(field, ()))
+            self.rows[field] = {r["id"]: r for r in rows}
+            old = [r for r in (then or {}).get(field, ()) if r["id"] in self.rows[field]]      # an item still here, as the export held it
+            self.tiers[field] = [(r["id"], self._keys(field, nf, r)) for r in rows + old]
+
+    @staticmethod
+    def _keys(field, nf, r):
+        if field == "use_case":
+            ref = r.get("ref")
+            return [_ref_key(excel.ref_text(r["id"], r.get(nf), ref)), _ref_key(ref), _ref_key(r.get(nf))]
+        return [_ref_key(excel.ref_text(r["id"], r.get(nf))), _ref_key(r.get(nf)), ""]
+
+    def shown(self, field, item_id):
+        r = self.rows[field].get(item_id) or {}
+        return excel.ref_text(item_id, r.get(excel.REF_TABLES[field][1]), r.get("ref") if field == "use_case" else None)
+
+    def names(self, field, item_id, text):
+        """Whether `text` is the text the export shows for this item (now, or as the export held it)."""
+        key = _ref_key(text)
+        return any(i == item_id and key and key in keys[:2 if field == "milestone" else 3] for i, keys in self.tiers.get(field, ()))
+
+    def find(self, field, text, own=()):
+        key = _ref_key(text)
+        for i in own:                                  # a cell that still shows the item the row has is no change, whoever else shares the name
+            if self.names(field, i, text):
+                return i
+        for n in range(3):
+            hits = []
+            for item_id, keys in self.tiers.get(field, ()):
+                if keys[n] and keys[n] == key and item_id not in hits:
+                    hits.append(item_id)
+            if len(hits) == 1:
+                return hits[0]
+            if hits:
+                names = []
+                for i in hits:
+                    t = self.shown(field, i)
+                    if t not in names:
+                        names.append(t)
+                raise RefClash("use case" if field == "use_case" else "milestone", " ".join(str(text).split()), names)
+        return None
+
+
+def resolve_ref(field, text, refs=None, own=()):
+    """A Milestone or Use case cell as the id it names. An older export wrote 'ID: name' (item 710): if the text holds ': ' and what
+    comes before the first ': ' is an item id, that is the id (the name after it is only a label, so
+    a renamed milestone still resolves and is no change). A bare id is also fine. Otherwise (item 1150) `refs`, a RefLookup, finds
+    the item by the text the export shows (first the item the row already has, `own`); text matching nothing stays as it is and the
+    store refuses it as it always did; text matching more than one item raises RefClash. A name that itself contains ': ' is fine:
+    only an id before the first one counts."""
     text = text.strip()
     head, sep, _ = text.partition(": ")
     if sep and writer.ITEM_ID.fullmatch(head.strip()):
         return head.strip()
+    if refs is not None and not writer.ITEM_ID.fullmatch(text):
+        found = refs.find(field, text, own)
+        if found:
+            return found
     return text
 
 
 OLD_COMMITMENT = "Candidate"                                    # row 1061: the word the flag had before Planned 2026
 
 
-def from_cell(name, value, kind, label=None, stored=(), table=None):
+def from_cell(name, value, kind, label=None, stored=(), table=None, refs=None):
+    """(stored value, None) or (None, why not); see _from_cell. `refs` (a RefLookup) lets a Milestone or Use case cell be read by its
+    name (item 1150); a name that matches more than one item is refused, naming the clash."""
+    try:
+        return _from_cell(name, value, kind, label, stored, table, refs)
+    except RefClash as e:
+        return None, f"{label or name}: {e.text} matches more than one {e.kind} ({', '.join(e.names)}). Pick one from the list."
+
+
+def _from_cell(name, value, kind, label=None, stored=(), table=None, refs=None):
     """(stored value, None) or (None, why not). A blank cell is (None, None). (creaite excel_sync.from_cell: dates to
     YYYY-MM-DD, Yes/No to 1/0, blank to None; departure: it refuses what it can't read instead of passing it on.) `label` is
     the column's name as the person sees it, for the reason given; it defaults to `name`. `stored` is what the item holds now
@@ -569,13 +650,13 @@ def from_cell(name, value, kind, label=None, stored=(), table=None):
         from clark import changes
         if not changes._plain_text(text) or len(unicodedata.normalize("NFC", text).strip()) > changes.UC_OWNER_LIMIT:
             return None, f"{label} must be plain text of at most {changes.UC_OWNER_LIMIT} characters, with no hidden characters"
-    if table == "use_cases" and name == "ref":                  # the change route's checks on a use case's "Shown as": plain, 1 to 20 characters
+    if table == "use_cases" and name == "ref":                  # the change route's checks on a use case's Reference: plain, 1 to 20 characters
         from clark import changes
         shown = unicodedata.normalize("NFC", text).strip()
         if text.strip() and (not changes._plain_text(shown) or len(shown) > changes.UC_REF_LIMIT):
             return None, f"{label} must be plain text of at most {changes.UC_REF_LIMIT} characters, with no hidden characters"
     if name in REF_FIELDS:
-        text = resolve_ref(name, text)
+        text = resolve_ref(name, text, refs, [x for x in stored if isinstance(x, str)])
     return (clean_rich(name, text) if name in RICH_FIELDS else text), None      # as typed: no strip (spaces round-trip); undo #37's apostrophe
 
 
@@ -782,6 +863,7 @@ class _Reader:
         self.n = 0
         self.today = writer.today()
         self.snapshot = (record or {}).get("rows") or {}     # the export's record of each row: {table: {id: row}}
+        self._refs = None
         self.made = {}                                       # fingerprint → ids an earlier import made from it (used up as rows match)
         for c in created:
             self.made.setdefault(c.get("fp"), []).append(c.get("id"))
@@ -792,6 +874,15 @@ class _Reader:
         self.errors = {}                                     # sheet → workbook rows holding an error cell in a column the import reads
         self.err_cols = {}                                   # (sheet, workbook row) → the column positions holding an error cell
         self.unplaced = set()                                # sheets with a row whose ID and title are both errors: no item can be told missing there
+
+    @property
+    def refs(self):
+        """Item 1150: the RefLookup for this project's milestones and use cases (and the rows as the export held them)."""
+        if self._refs is None:
+            items = {f: self.store.read(t, project=self.project) for f, (t, _) in excel.REF_TABLES.items()}
+            then = {f: [{**r, "id": i} for i, r in (self.snapshot.get(t) or {}).items()] for f, (t, _) in excel.REF_TABLES.items()}
+            self._refs = RefLookup(items, then)
+        return self._refs
 
     def rows_of(self, ws, min_row, cols=None):
         """(row number, [cell values]) for each row from `min_row`; a formula cell is _FORMULA (it is not read, and is noted). `cols` are the
@@ -979,7 +1070,7 @@ class _Reader:
             label = _label(table, f)
             if cell[f] is _FORMULA:
                 continue                                # a formula is not read: neither a value nor a cleared cell
-            v, err = from_cell(f, cell[f], info[f][0], label, (cur[f], was.get(f) if was else None), table=table)
+            v, err = from_cell(f, cell[f], info[f][0], label, (cur[f], was.get(f) if was else None), table=table, refs=self.refs)
             if err:
                 self.problem(f"{sheet}, row {rn}, {rid}: {err}; the row was left out", sheet, rn, rid, f)
                 bad = True
@@ -1015,7 +1106,7 @@ class _Reader:
                                        "agreed date is a rebaseline, which records a decision; do it in clark")
                 continue
             before[f], after[f] = old, v
-        if not bad and table == "use_cases" and isinstance(after.get("ref"), str):      # the change route refuses a "Shown as" another use case already has
+        if not bad and table == "use_cases" and isinstance(after.get("ref"), str):      # the change route refuses a Reference another use case already has
             mine = after["ref"].strip().casefold()
             taken = [r.get("ref") for i, r in db.items() if i != rid] + [c.after.get("ref") for c in self.plan.changes if c.table == table and c.id != rid]
             if any(isinstance(x, str) and x.strip().casefold() == mine for x in taken):
@@ -1040,7 +1131,7 @@ class _Reader:
         for f in editable:
             if f == TITLE_OF[table] or cell.get(f) is _FORMULA or cell.get(f) is None:
                 continue
-            v, err = from_cell(f, cell[f], info[f][0], f)
+            v, err = from_cell(f, cell[f], info[f][0], f, refs=self.refs)
             old = row.get(f)
             if not err and v is not None and old is not None and (v == old or (isinstance(v, str) and same(v, old))):
                 n += 1
@@ -1067,7 +1158,7 @@ class _Reader:
         for f in editable:
             if cell[f] is _FORMULA:
                 continue
-            v, err = from_cell(f, cell[f], info[f][0], _label(table, f), table=table)
+            v, err = from_cell(f, cell[f], info[f][0], _label(table, f), table=table, refs=self.refs)
             if err:
                 self.problem(f"{sheet}, row {rn} (new): {err}; the row was left out", sheet, rn, "", f)
                 bad = True
@@ -1494,6 +1585,65 @@ def check_sheets_early(path, wanted):
             raise Invalid(f"{path.name} can't be read as an Excel workbook (.xlsx).")
 
 
+
+NEEDS_ANSWER = "Each milestone and use case that is not in clark needs an answer."
+LABEL_TABLES = ("actions", "raid", "decisions")           # row 1156: the sheets whose Milestone and Use case cells can name an item that is not there yet
+_KIND_TABLE = {"milestone": "milestones", "use_case": "use_cases"}
+
+
+def _staged_keys(field, after):
+    """Row 1156: the texts a work item's cell can use for a milestone or use case this workbook makes (as _ref_key)."""
+    if field == "milestone":
+        return [_ref_key(after.get("name"))]
+    title, ref = after.get("title"), after.get("ref")
+    return [_ref_key(title)] + ([_ref_key(ref), _ref_key(f"{ref} {title}")] if ref else [])
+
+
+def _squash(text):
+    return re.sub(r"[\W_]+", "", _ref_key(text))
+
+
+def _find_unknowns(plan, refs):
+    """Row 1156: a work item's Milestone or Use case cell whose text is no item id and matches no item in clark. If this workbook's own
+    Milestones or Use cases sheet makes exactly one item by that text, the cell is that item (nothing to ask). Otherwise the text is
+    one question in plan.unknowns (one for every row that uses it, whatever its case or spacing), with the items it nearly matches.
+    Returns ({change number: [fields]}, {change number: refusal}): the cells to leave out of the per-row check, and the rows that
+    name a text two items of this workbook share."""
+    staged = {f: {} for f in REF_FIELDS}
+    for c in plan.changes:
+        for f, t in _KIND_TABLE.items():
+            if c.kind == "new" and c.table == t:
+                for k in dict.fromkeys(_staged_keys(f, c.after)):
+                    if k:
+                        staged[f].setdefault(k, []).append(c)
+    skip, clash, found = {}, {}, {}
+    for c in plan.changes:
+        if c.kind == "removed" or c.table not in LABEL_TABLES:
+            continue
+        for f in REF_FIELDS:
+            v = c.after.get(f)
+            if not isinstance(v, str) or not v.strip() or writer.ITEM_ID.fullmatch(v):
+                continue
+            key = _ref_key(v)
+            skip.setdefault(c.n, []).append(f)
+            same = staged[f].get(key, [])
+            if len(same) > 1:
+                names = [f"row {m.row} of {m.sheet}" for m in same]
+                clash[c.n] = f"{_label(c.table, f)}: {' '.join(v.split())} matches more than one {'use case' if f == 'use_case' else 'milestone'} ({', '.join(names)}). Pick one from the list."
+            elif not same:
+                u = found.get((f, key))
+                if u is None:
+                    squashed = _squash(v)
+                    near = [{"id": i, "text": refs.shown(f, i)} for i, r in refs.rows[f].items()
+                            if squashed and squashed in {_squash(x) for x in (refs.shown(f, i), r.get(excel.REF_TABLES[f][1]), r.get("ref") if f == "use_case" else "") if x}]
+                    u = found[(f, key)] = {"id": f"u{len(found) + 1}", "kind": f, "key": key, "label": " ".join(v.split()), "near": near,
+                                           "options": [{"id": i, "text": refs.shown(f, i)} for i in list(refs.rows[f])[:500]], "rows": [], "changes": []}
+                    plan.unknowns.append(u)
+                u["changes"].append(c.n)
+                u["rows"].append({"sheet": c.sheet, "row": c.row})
+    return skip, clash
+
+
 def read_workbook(store, path, project, state_path=None, allow_unrecorded=False, sheets=None):
     """Compare the workbook at `path` with `project`'s rows in the database; returns an ImportPlan of staged changes (all waiting
     for a decision), the rows that were reported, and notes. Writes nothing. Raises Invalid if the file isn't a workbook, is too
@@ -1615,10 +1765,15 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False,
     finally:
         wb.close()
     lines = [c for c in rd.plan.changes if c.table == GANTT]
+    skip, clash = _find_unknowns(rd.plan, rd.refs)
     for c in rd.plan.changes:                  # which would the writer refuse? (each tried alone and rolled back)
         if c.table != GANTT:
-            errs, _, refused = _try(store, [c], "Import check", commit=False)
-            c.problem = errs[0].message.split(": ", 1)[-1] if errs else refused
+            held = {f: c.after.pop(f) for f in skip.get(c.n, ())}      # row 1156: a label that is asked about (or is made by this workbook) is not for the store to judge yet
+            try:
+                errs, _, refused = _try(store, [c], "Import check", commit=False)
+            finally:
+                c.after.update(held)
+            c.problem = clash.get(c.n) or (errs[0].message.split(": ", 1)[-1] if errs else refused)
     if lines:                                  # row 926: the Gantt lines are tried together (a line may name another new one), each refusal kept with its row
         errs, _, refused = _try(store, lines, "Import check", commit=False)
         for c in lines:
@@ -1659,6 +1814,12 @@ def _write(st, store, c, ctx=None):
             ctx["later"].append((c, ref, later, after["project"]))
         return ref
     after = dict(c.after)
+    labels = (ctx or {}).get("labels", {})
+    if labels and c.kind != "removed":         # row 1156: a label the workbook or an answer made an item of is the id that item got
+        for f in REF_FIELDS:
+            got = labels.get((f, _ref_key(after.get(f)))) if isinstance(after.get(f), str) else None
+            if got:
+                after[f] = got
     text = writer.OWNER_TEXT.get(c.table)
     if text in after and c.kind != "removed":      # row 873: the owner text and the person it links to are written together, as an owner edit does, else a later rename or merge puts the old name back
         found = store.resolve_owner(after[text]) if after[text] else {"status": "blank"}
@@ -1668,6 +1829,11 @@ def _write(st, store, c, ctx=None):
     if c.kind == "new":
         ref = st.create(c.table, after)
         _write_milestone_links(st, ref, wanted)
+        for f, t in _KIND_TABLE.items():
+            if c.table == t and ctx is not None:
+                for k in dict.fromkeys(_staged_keys(f, after)):
+                    if k:
+                        ctx["labels"][(f, k)] = None if (f, k) in ctx["labels"] else ref      # two new items with one text: neither is taken
         return ref
     now = store.read(c.table, ref=c.id)
     if now is None:
@@ -1694,7 +1860,7 @@ def _write_milestone_links(st, use_case, wanted):
         writer.unlink_use_case_milestone(st, use_case, m)
 
 
-def _try(store, changes, by_user, commit, src_ref=None, made=None, route="excel", place="excel"):
+def _try(store, changes, by_user, commit, src_ref=None, made=None, route="excel", place="excel", answers=()):
     """(problems, step id, refused): try `changes` in one step. If any breaks a rule, every broken one is returned and the step is
     rolled back; with commit False it is rolled back whatever happens (a dry run through the writer's own checks). `refused` is
     the plain reason when the store would not open the step (it is busy, or a check before a step such as the backup refused) or
@@ -1703,13 +1869,25 @@ def _try(store, changes, by_user, commit, src_ref=None, made=None, route="excel"
     given, is filled with {change number: the id the store gave a new row}; it is only to be trusted when the step committed
     (no problems, nothing refused)."""
     problems, step_id, refused = [], None, ""
-    ctx = {"ids": {}, "later": []}               # row 926: the ids the sheet typed for new Gantt lines → the ids they got; their Parent and Depends on cells, written once every line is there
+    ctx = {"ids": {}, "later": [], "labels": {}}               # row 926: the ids the sheet typed for new Gantt lines → the ids they got; their Parent and Depends on cells, written once every line is there
 
     def broke(c, e):
         f = next((f for f in list(c.after) if re.search(rf"\b{re.escape(f)}\b", str(e))), "")
         problems.append(Problem(f"{c.label}: {plain(c.table, str(e))}", c.sheet, c.row, c.id, f))
     try:
         with store.step(route, by_user, place=place, src_ref=src_ref, dry=not commit) as st:   # #86: a preview takes no backup
+            for a in answers:                    # row 1156: the answers to the unknown labels, inside this one step (one Undo)
+                if a["do"] == "use":
+                    ctx["labels"][(a["kind"], a["key"])] = a["id"]
+                    continue
+                row = {"project": a["project"], "source": a["source"]}
+                row["name" if a["kind"] == "milestone" else "title"] = a["label"]
+                if a["kind"] == "use_case":
+                    row["status"] = "On track"                  # the page's own default for a new use case (changes._do_use_case_change)
+                try:
+                    ctx["labels"][(a["kind"], a["key"])] = st.create(_KIND_TABLE[a["kind"]], row)
+                except (Invalid, sqlite3.IntegrityError) as e:
+                    problems.append(Problem(f"{a['label']}: {plain(_KIND_TABLE[a['kind']], str(e))}", a["sheet"], a["row"], "", ""))
             for c in changes:
                 try:
                     ref = _write(st, store, c, ctx)
@@ -1789,8 +1967,17 @@ def apply_import(store, plan, by_user, state_path=None):
     if not accepted:
         return ImportResult(False, message="Nothing was accepted, so nothing was changed.")
     src = "by Excel import (" + re.sub(r"\s+", " ", plan.file)[:250] + ")"
-    made = {}
-    problems, step_id, refused = _try(store, accepted, by_user, commit=True, src_ref=src, made=made)
+    made, answers = {}, []
+    taken = {c.n for c in accepted}
+    for u in plan.unknowns:                    # row 1156: every label an accepted row names needs an answer before anything is written
+        if not taken.intersection(u["changes"]):
+            continue
+        a = plan.answers.get(u["id"])
+        if not isinstance(a, dict) or a.get("do") not in ("new", "use") or (a["do"] == "use" and not (isinstance(a.get("id"), str) and writer.ITEM_ID.fullmatch(a["id"]))):
+            return ImportResult(False, message=NEEDS_ANSWER)
+        answers.append({**a, "kind": u["kind"], "key": u["key"], "label": u["label"], "project": plan.project, "sheet": u["rows"][0]["sheet"], "row": u["rows"][0]["row"],
+                        "source": f"Excel import, {writer.shown(writer.today())}, {plan.file}"})
+    problems, step_id, refused = _try(store, accepted, by_user, commit=True, src_ref=src, made=made, answers=answers)
     if refused:
         if backup.is_refusal(refused):             # #86: the safety copy could not be made; its own words say nothing was imported
             return ImportResult(False, message=refused)

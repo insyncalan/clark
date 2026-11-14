@@ -9,6 +9,7 @@ import unittest
 from _demo import USER
 from clark import history
 from test_changes import Api, KIND
+from test_needs_content import stored_section
 
 MARK = "ZQ-HISTORY-MARK"
 OTHER = "ZQ-HISTORY-OTHER"
@@ -44,7 +45,9 @@ class Shown(Api):
             self.assertNotIn(word, shown)
 
     def section(self, kind):
-        return self.ok("new", values={"type": kind, "title": "Needs from you" if kind == "needs" else "Progress"})["ref"]
+        if kind == "needs":         # item 1158: a new Needs from you section is refused; one already stored is made straight in the store
+            return stored_section(self.s)
+        return self.ok("new", values={"type": kind, "title": "Progress"})["ref"]
 
 
 class ContentIsRedacted(Shown):

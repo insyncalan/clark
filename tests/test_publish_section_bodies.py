@@ -1,5 +1,6 @@
-"""A needs or tracker section in the published file (src/clark/publish.py; guarded): kept only when its body checks again at publish
-time, hidden ones absent, and nothing of a body (no markup, no script) reaches the file in this base.
+"""A tracker section in the published file (src/clark/publish.py; guarded): kept only when its body checks again at publish
+time, hidden ones absent, and nothing of a body (no markup, no script) reaches the file in this base. A Needs from you section is
+never in the file (item 1158); one already stored stays stored.
 
 Run: python3 dev/run_tests.py test_publish_section_bodies
 """
@@ -13,6 +14,7 @@ from _demo import USER
 from _publish_fixture import spellings
 from clark import changes, publish, section_bodies as sb, store as store_module
 from test_changes import Api, KIND
+from test_needs_content import stored_section
 
 MARK = "ZQ-PUBLISH-MARK"
 HOSTILE = ["<script>alert('" + MARK + "')</script>", '"><img src=x onerror=alert(1)>', "</script><script>x", "javascript:alert(1)",
@@ -31,7 +33,9 @@ def tbody(*words):
 
 
 class Published(Api):
-    def section(self, kind="needs", title=None, **more):
+    def section(self, kind="tracker", title=None, **more):
+        if kind == "needs":         # item 1158: a new Needs from you section is refused; one already stored is made straight in the store
+            return stored_section(self.s)
         return self.ok("new", values={"type": kind, "title": title or ("Needs from you" if kind == "needs" else "Progress")}, **more)["ref"]
 
     def write(self, ref, text):
@@ -56,20 +60,23 @@ class Published(Api):
 
 
 class Kept(Published):
-    def test_a_good_needs_body_keeps_its_shown_rows_and_a_tracker_body_keeps_its_groups_and_lines(self):
-        needs = self.section("needs")
+    def test_a_good_tracker_body_keeps_its_groups_and_lines(self):
         tracker = self.section("tracker")
-        self.write(needs, body("one"))
         self.write(tracker, tbody("two"))
         got = self.sections()
-        self.assertEqual(got[needs], {"id": needs, "type": "needs", "title": "Needs from you", "beside": 0,
-                                      "rows": [{"what": "one", "kind": "decision", "from": "one", "by": ""}]})
         self.assertEqual(got[tracker], {"id": tracker, "type": "tracker", "title": "Progress", "beside": 0, "size": "medium",
                                         "overall": {"actual": None, "planned": None, "health": "", "note": ""},
                                         "columns": {"tasks": False, "agents": False, "workflows": False},
                                         "groups": [{"name": "Plan", "lines": [{"no": "", "text": "two", "start": "", "end": "", "status": "planned",
                                                                               "weight": 0, "planned": 0, "achieved": 0, "tasks": None,
                                                                               "agents": None, "workflows": None}]}]})
+
+    def test_a_stored_needs_section_with_good_rows_is_not_in_the_file(self):
+        needs = self.section("needs")
+        self.raw(needs, body("one"))
+        self.assertNotIn(needs, self.sections())
+        self.assertNotIn(MARK, self.file())
+        self.assertIn("one", self.s.read(KIND, ref=needs)["body"], "it stays stored")
 
     def test_a_tracker_publishes_only_what_shows_and_picks_by_name(self):
         tracker = self.section("tracker")
@@ -95,16 +102,8 @@ class Kept(Published):
         self.ok("update", id=tracker, changes={"hidden": 1})
         self.assertNotIn(tracker, self.sections())
 
-    def test_an_empty_body_is_left_out(self):
-        needs = self.section("needs")
-        self.assertNotIn(needs, self.sections())
-        self.write(needs, body("one"))
-        self.assertIn(needs, self.sections())
-        self.write(needs, "")
-        self.assertNotIn(needs, self.sections())
-
     def test_a_bad_body_is_left_out_whatever_is_stored(self):
-        needs = self.section("needs")
+        needs = self.section("tracker")
         for bad in ('{"a": 1.5}', "not json", "<script>" + MARK + "</script>", '"x"', "[" * 50, '{"a": "x\\u202ey"}', '{"a": 1, "a": 2}',
                     '{"a": "%s"}' % ("x" * 70000), "   ", "null"):
             with self.subTest(body=bad[:30]):
@@ -113,35 +112,29 @@ class Kept(Published):
                 self.assertNotIn(MARK, self.file())
 
     def test_the_body_is_checked_again_at_publish_time_with_the_limits_of_that_time(self):
-        needs = self.section("needs")
-        self.write(needs, body("x" * 300))
+        needs = self.section("tracker")
+        self.write(needs, tbody(*["x" * 90] * 3))
         self.assertIn(needs, self.sections())
-        with mock.patch.dict(sb.LIMITS, {"needs": 100}):                      # a limit made stricter after the body was saved
+        with mock.patch.dict(sb.LIMITS, {"tracker": 100}):                      # a limit made stricter after the body was saved
             self.assertNotIn(needs, self.sections())
         self.assertIn(needs, self.sections())
 
     def test_the_stored_text_is_checked_by_the_checker_of_its_type_at_publish_time(self):
-        needs, tracker = self.section("needs"), self.section("tracker")
-        self.write(needs, body("a"))
+        tracker = self.section("tracker")
         self.write(tracker, tbody("b"))
         calls = []
 
-        def checker(kind):
-            def check(value, rules):
-                calls.append(kind)
-                if kind == "tracker":
-                    raise sb.Bad("Not valid.")
-                return value
-            return check
-        with mock.patch.dict(sb.CHECKERS, {"needs": checker("needs"), "tracker": checker("tracker")}):
+        def check(value, rules):
+            calls.append("tracker")
+            raise sb.Bad("Not valid.")
+        with mock.patch.dict(sb.CHECKERS, {"tracker": check}):
             got = self.sections()
-        self.assertIn(needs, got)
         self.assertNotIn(tracker, got)
-        self.assertEqual(sorted(set(calls)), ["needs", "tracker"])
+        self.assertEqual(sorted(set(calls)), ["tracker"])
 
     def test_a_hidden_section_is_absent_with_its_content(self):
-        needs = self.section("needs")
-        self.write(needs, body(MARK))
+        needs = self.section("tracker")
+        self.write(needs, tbody(MARK))
         self.ok("update", id=needs, changes={"hidden": 1})
         self.assertNotIn(needs, self.sections())
         text = self.file()
@@ -149,9 +142,9 @@ class Kept(Published):
             self.assertNotIn(spelling, text)
 
     def test_a_section_left_out_does_not_leave_its_partner_marked_as_half_of_a_pair(self):
-        first = self.section("needs")
+        first = self.section("tracker")
         second = self.section("tracker", after=first, beside=1)
-        self.write(first, body("one"))
+        self.write(first, tbody("one"))
         got = self.sections()
         self.assertEqual((got[first]["beside"], second in got), (0, False))        # the partner has no body: out, so the first takes the full row
         self.write(second, tbody("two"))
@@ -170,8 +163,7 @@ class Kept(Published):
 
 class NothingOfABodyReachesTheFile(Published):
     def test_a_tracker_body_full_of_markup_stays_text_in_every_field_in_any_spelling(self):
-        needs, tracker = self.section("needs"), self.section("tracker")
-        self.write(needs, body("one"))
+        tracker = self.section("tracker")
         hostile = [h for h in HOSTILE if h]
         line = lambda h: {"no": h[:10], "text": h[:100], "start": "2030-01-01", "end": "2030-02-01", "status": "planned"}
         self.write(tracker, json.dumps({"overall": {"note": hostile[0][:100], "health": "atrisk"},
@@ -204,13 +196,13 @@ class NothingOfABodyReachesTheFile(Published):
     def test_what_a_later_item_publishes_is_escaped_in_the_data_block_and_can_not_overwrite_the_entry(self):
         """The plug-in point: section_bodies.published(). Whatever a later item hands back is JSON-escaped (< > & and the two
         line separators) and merged without overwriting id, type, title or beside."""
-        needs = self.section("needs")
-        self.write(needs, body("one"))
+        needs = self.section("tracker")
+        self.write(needs, tbody("one"))
         given = {"rows": [{"what": h} for h in HOSTILE + [SEPARATORS]], "id": "ZQ-OVER", "type": "text", "title": "ZQ-OVER", "beside": 7}
         with mock.patch.object(sb, "published", return_value=given):
             text = self.file()
             entry = {s["id"]: s for s in self.data_block(text)["sections"]}[needs]
-        self.assertEqual((entry["id"], entry["type"], entry["title"], entry["beside"]), (needs, "needs", "Needs from you", 0))
+        self.assertEqual((entry["id"], entry["type"], entry["title"], entry["beside"]), (needs, "tracker", "Progress", 0))
         self.assertEqual([r["what"] for r in entry["rows"]], HOSTILE + [SEPARATORS])                    # arrives intact as data
         block = re.search(r'<script type="application/json" id="clark-data">(.*?)</script>', text, re.S).group(1)
         for ch in "<>&\u2028\u2029":
@@ -219,8 +211,8 @@ class NothingOfABodyReachesTheFile(Published):
         self.assertNotIn("<script>alert", text)
 
     def test_a_later_item_can_leave_a_section_out_by_returning_nothing(self):
-        needs = self.section("needs")
-        self.write(needs, body("one"))
+        needs = self.section("tracker")
+        self.write(needs, tbody("one"))
         with mock.patch.object(sb, "published", return_value=None):
             self.assertNotIn(needs, self.sections())
 
@@ -230,23 +222,23 @@ class NothingOfABodyReachesTheFile(Published):
         self.assertNotIn("clean_html(", content)
 
 
-class ThePageDrawsNeedsAndLeavesTheTrackerQuiet(unittest.TestCase):
+class ThePageDrawsTheTrackerAndNotNeeds(unittest.TestCase):
     """The live page says 'Not shown on this page yet.' for a type it can't draw (the tracker, until #189), and a published file
-    leaves that type out; needs is drawn (#121). Read from the page's source, so no browser is needed."""
+    leaves that type out; a Needs from you section is not drawn (item 1158). Read from the page's source, so no browser is needed."""
 
     PAGE = store_module.Path(publish.__file__).parent / "page" / "src" / "components"
 
     def test_the_live_page_has_a_quiet_line_for_every_type_it_does_not_draw(self):
         src = (self.PAGE / "Section.jsx").read_text(encoding="utf-8")
         self.assertIn('<p class="quiet">Not shown on this page yet.</p>', src)
-        self.assertIn('section.type === "needs"', src)
+        self.assertNotIn('section.type === "needs"', src)
         self.assertIn('section.type === "tracker"', src)            # #189: the tracker is drawn, in Edit and in View and the file
 
     def test_a_published_file_draws_a_tracker_and_no_other_type_it_does_not_know(self):
         src = (self.PAGE / "Dashboard.jsx").read_text(encoding="utf-8")
         line = next(l for l in src.splitlines() if "const fileDraws" in l)
         self.assertTrue(line.rstrip().endswith('s.type === "tracker" ? true : s.type === "milestones" ? milestoneRows(d.milestones, todayIso(), true).length > 0 : !!KINDS[s.type] && rowsFor(s.type).length > 0);'), line)   # row 933: a tracker is drawn (publish already leaves out one with no lines); milestones: drawn only when it has rows; every other type: drawn only when it is a known kind with rows, so an unknown one is left out of the file
-        self.assertIn("needs", line)
+        self.assertNotIn("needs", line)
         self.assertEqual(line.count("tracker"), 1)
 
     def test_the_page_writes_only_the_body_of_a_text_section(self):

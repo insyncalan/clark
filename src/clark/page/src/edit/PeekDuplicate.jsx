@@ -4,6 +4,7 @@ import { data, openPeek } from "../stores/report.js";
 import { changeRecord } from "../stores/changes.js";
 import { Icon } from "../components/Icon.jsx";
 import { tableOf } from "./itemEdit.js";
+import { actionIcon } from "../menuIcons.js";
 import { duplicateRequest, duplicateWords, rawOf } from "../logic/rowMenu.js";
 
 export function duplicateFromPeek(row) {
@@ -15,5 +16,5 @@ export function duplicateFromPeek(row) {
 
 export function PeekDuplicate({ row }) {
   const run = () => duplicateFromPeek(row);
-  return <button type="button" class="pkp-btn" data-pk-dup title="Duplicate" aria-label="Duplicate" onClick={run}><Icon name="plus" /></button>;
+  return <button type="button" class="pkp-btn" data-pk-dup title="Duplicate" aria-label="Duplicate" onClick={run}><Icon name={actionIcon("duplicate")} /></button>;
 }

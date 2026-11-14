@@ -19,7 +19,7 @@ import { LINE_FIELDS, CLIENT_FIELDS, CLIENT_IS } from "./filterLine.js";
 import { isPublished } from "../filters.js";
 
 export const QUALIFIERS = ["is", "has", "no"];
-export const STATES = ["open", "closed", "overdue", "quiet", "incomplete", "needed", "archived"];
+export const STATES = ["open", "closed", "overdue", "quiet", "incomplete", "archived"];
 
 const low = (s) => String(s == null ? "" : s).toLowerCase();
 /** A name as compared: lower case with spaces, hyphens, underscores and the like taken out ("Use case", use-case, usecase). */

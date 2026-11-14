@@ -162,6 +162,8 @@ Today `select()` copies only `id`, `type`, `title`, `beside` for a section, and 
 
 ## 6. What #121 (Needs from you) adds on top of the base
 
+*Item 1158: the page, the template, Help and the publish step for this section were taken out. A section already stored keeps its body and is left out of the page and the file; the checker in `section_bodies.py` stays for reading it. What follows is the record of the original design.*
+
 **Stored content** (JSON text in `body`, canonical: sorted keys, no spaces, ASCII escapes):
 
 ```

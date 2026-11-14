@@ -12,6 +12,8 @@ from _demo import USER, DemoStore
 from clark import changes, section_bodies as sb, store as store_module
 from test_changes import Api, KIND
 
+from test_needs_content import stored_section
+
 MARK = "ZQ-CONTENT-MARK"
 BODY = {"v": 1, "rows": [{"what": MARK + " <b>x</b>", "kind": "decision", "from": "Example team", "by": "", "hidden": 0}]}      # whole: the checker's own shape
 
@@ -35,6 +37,9 @@ def text(value):
 
 class Content(Api):
     def make(self, kind="needs", **more):
+        if kind == "needs":         # item 1158: a new Needs from you section is refused; one already stored is made straight in the store
+            ref = stored_section(self.s)
+            return ref, {"ref": ref, "sections": [], "apply_id": None}
         got = self.ok("new", values={"type": kind, "title": "Needs from you" if kind == "needs" else "Progress"}, **more)
         return got["ref"], got
 
@@ -70,8 +75,13 @@ class Content(Api):
 
 
 class Adding(Content):
-    def test_a_needs_and_a_tracker_section_can_be_added_with_no_content(self):
-        for kind in TYPES:
+    def test_a_needs_section_can_no_longer_be_added_and_nothing_is_written(self):
+        before = self.snapshot()
+        self.refused(self.req("new", values={"type": "needs", "title": "Needs from you"}), changes.NEW_TYPE_WORDS)
+        self.assertEqual(self.snapshot(), before)
+
+    def test_a_tracker_section_can_be_added_with_no_content(self):
+        for kind in ("tracker",):
             with self.subTest(kind=kind):
                 steps = self.count("applies")
                 ref, got = self.make(kind)
@@ -83,7 +93,7 @@ class Adding(Content):
                 self.assertNotIn(ref, self.ids_now())
 
     def test_every_other_type_is_still_refused(self):
-        for bad in ("raid", "docs", "current", "Needs", "NEEDS", "needs ", "tracker\n", "template", "", None, ["needs"], {"a": 1}, 5):
+        for bad in ("raid", "docs", "current", "needs", "Needs", "NEEDS", "needs ", "tracker\n", "template", "", None, ["needs"], {"a": 1}, 5):
             with self.subTest(type=bad):
                 self.refused(self.req("new", values={"type": bad, "title": "x"}), changes.NEW_TYPE_WORDS)
 
@@ -92,14 +102,9 @@ class Adding(Content):
         self.assertEqual(self.s.read(KIND, ref=ref)["type"], "text")
 
     def test_a_new_section_takes_no_body_from_the_request(self):
-        for kind in TYPES:        # #929: only a text section may start with words (test_changes_text_body)
+        for kind in ("tracker",):        # #929: only a text section may start with words (test_changes_text_body)
             self.refused(self.req("new", values={"type": kind, "title": "x", "body": text(BODY)}), changes.NO_BODY_HERE)
         self.refused(self.req("new", values={"type": "needs"}, body=text(BODY)), "That change doesn't take 'body'.")
-
-    def test_the_starting_body_comes_from_the_registry_not_the_request(self):
-        with mock.patch.dict(sb.EMPTY, {"needs": text({"v": 1, "rows": []})}):
-            ref, _ = self.make("needs")
-        self.assertEqual(self.stored(ref), '{"rows":[],"v":1}')                        # stored as the checker rebuilds it
 
     def test_a_new_section_goes_beside_another_like_any_section(self):
         first, _ = self.make("needs")

@@ -366,6 +366,7 @@ def writes_sql(value):
 # the file it is given.
 READONLY_HELPER = "clark/update_helper.py"
 READONLY_HELPER_SQL_PARTS = {"_ident(name)"}
+STARTER_CHECK = "clark/starter_check.py"        # item 1164: opens the data read only, to compare its version
 
 
 def _connect_calls(tree):
@@ -416,7 +417,7 @@ class OneWriter(unittest.TestCase):
                     if writes_sql(node.value):
                         problems.append(f"{rel}:{node.lineno}: writes SQL")
                 if isinstance(node, ast.Attribute) and node.attr == "connect" and isinstance(node.value, ast.Name) \
-                        and node.value.id == "sqlite3" and rel != READONLY_HELPER:
+                        and node.value.id == "sqlite3" and rel not in (READONLY_HELPER, STARTER_CHECK):
                     problems.append(f"{rel}:{node.lineno}: opens a database (only store.py may)")
         self.assertEqual(problems, [])
 
@@ -430,6 +431,20 @@ class OneWriter(unittest.TestCase):
         problems = [f"{READONLY_HELPER}:{c.lineno}: opens the database for writing" for c, after in calls
                     if not _is_readonly_connect(c, after)]
         self.assertEqual(problems, [])
+
+    def test_the_starter_check_opens_the_database_only_read_only(self):
+        tree = ast.parse((SRC / STARTER_CHECK).read_text(encoding="utf-8"))
+        calls = [c for c, _ in _connect_calls(tree)]
+        every = [n for n in ast.walk(tree) if isinstance(n, ast.Attribute) and n.attr == "connect"
+                 and isinstance(n.value, ast.Name) and n.value.id == "sqlite3"]
+        self.assertEqual(len(calls), len(every))
+        self.assertGreaterEqual(len(calls), 1)
+        modes = [n for n in ast.walk(tree) if isinstance(n, ast.Tuple)
+                 and [e.value for e in n.elts if isinstance(e, ast.Constant)] == ["mode=ro", "immutable=1"]]
+        self.assertEqual(len(modes), 1)                         # the only modes it tries are read only
+        for c in calls:
+            self.assertTrue(any(k.arg == "uri" and isinstance(k.value, ast.Constant) and k.value.value is True
+                                for k in c.keywords))
 
     def test_the_read_only_check_refuses_a_connection_that_can_write(self):
         tree = ast.parse('import sqlite3\n'
