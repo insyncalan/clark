@@ -78,14 +78,19 @@ class HintEverySection(unittest.TestCase):
         last = []
         seen = []
 
+        ys = []
+
         def still():
+            ys.append(cdp.js("scrollY", sid))
+            if ys[-1]:
+                cdp.js("scrollTo(0, 0)", sid)
             now = cdp.js("(document.documentElement.style.overflowAnchor === '' && scrollY === 0) ? JSON.stringify((() => { const h = document.querySelector('.sec-hint'); if (!h) return null; const r = h.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; })()) : null", sid)
             same = now is not None and now != "null" and last[:1] == [now]
             last[:] = [now]
             seen.append(now)
             return same
         ok = wait(still, 10)
-        why = "" if ok else " | " + json.dumps({"reads": len(seen), "last": seen[-4:], "state": cdp.js("({anchor: document.documentElement.style.overflowAnchor, y: scrollY, hint: !!document.querySelector('.sec-hint'), anims: document.getAnimations().map(a => a.animationName || a.transitionProperty).slice(0, 6), motion: document.documentElement.dataset.motion || '', reduce: matchMedia('(prefers-reduced-motion: reduce)').matches, scrollH: document.documentElement.scrollHeight, innerH: innerHeight, hintH: (document.querySelector('.sec-hint') || {getBoundingClientRect: () => ({height: -1})}).getBoundingClientRect().height, scrolls: (window.__sc || []).slice(-8), t: Math.round(performance.now()) - (window.__t0 || 0), smooth: getComputedStyle(document.documentElement).scrollBehavior})", sid)})
+        why = "" if ok else " | " + json.dumps({"reads": len(seen), "last": seen[-4:], "ys": ys[:6] + ys[-6:], "state": cdp.js("({anchor: document.documentElement.style.overflowAnchor, y: scrollY, hint: !!document.querySelector('.sec-hint'), anims: document.getAnimations().map(a => a.animationName || a.transitionProperty).slice(0, 6), motion: document.documentElement.dataset.motion || '', reduce: matchMedia('(prefers-reduced-motion: reduce)').matches, scrollH: document.documentElement.scrollHeight, innerH: innerHeight, hintH: (document.querySelector('.sec-hint') || {getBoundingClientRect: () => ({height: -1})}).getBoundingClientRect().height, scrolls: (window.__sc || []).slice(-8), t: Math.round(performance.now()) - (window.__t0 || 0), smooth: getComputedStyle(document.documentElement).scrollBehavior})", sid)})
         self.assertTrue(ok, f"the page settled, {where}" + why)
 
     def restore(self, saved):
