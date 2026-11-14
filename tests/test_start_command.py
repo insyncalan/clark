@@ -74,6 +74,17 @@ class StartCommand(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertEqual(self.calls(), ["python3 -m clark.launch"])
 
+    def test_a_health_check_that_never_answers_says_so_and_still_opens_chrome(self):
+        r = self.run_script(CURL_RC="1")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("clark is still starting in Docker. If the page does not open, wait a minute and open http://localhost:8766 again.", r.stdout)
+        self.assertIn("open -a Google Chrome http://localhost:8766", self.calls())
+
+    def test_an_empty_port_setting_means_the_usual_port(self):
+        r = self.run_script(CLARK_PORT="")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("open -a Google Chrome http://localhost:8766", self.calls())
+
     def test_compose_failing_falls_back_to_python(self):
         r = self.run_script(COMPOSE_RC="1")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
@@ -89,7 +100,7 @@ class StartCommand(unittest.TestCase):
         r = self.run_script(CLARK_DATA_DIR=f"{self.tmp}/OneDrive - Test/clark")
         self.assertEqual(r.returncode, 1, r.stdout + r.stderr)
         self.assertIn("inside OneDrive", r.stderr)
-        self.assertEqual(self.calls(), ["docker info"])
+        self.assertEqual(self.calls(), [], "docker is not run at all before the refusal")
 
     def test_old_python_says_how_to_install_it_and_starts_nothing(self):
         self.stub("python3", 'exit 1')

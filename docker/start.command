@@ -8,7 +8,7 @@ here="${0%/*}"; case "$0" in */*) ;; *) here=. ;; esac
 cd "$here/.." || exit 1
 if [ -d .app ]; then check=.app/src/clark/starter_check.py; else check=src/clark/starter_check.py; fi
 export PYTHONDONTWRITEBYTECODE=1
-port="${CLARK_PORT-8766}"
+port="${CLARK_PORT:-8766}"
 say() { echo "$*"; }
 
 if ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 9))' 2>/dev/null; then
@@ -22,14 +22,17 @@ start_with_python() {
   exec python3 -m clark.launch
 }
 
-# Docker: only when it answers. docker info fails when Docker is not installed or its app is not running.
+# Docker: the data folder is checked first, before docker is run at all (row 512, row 1164), then Docker is used only when it answers.
+# docker info fails when Docker is not installed or its app is not running.
+if command -v docker >/dev/null 2>&1; then
+  python3 "$check" --env-file "$PWD/docker/.env" || exit 1
+fi
 if ! command -v docker >/dev/null 2>&1 || ! docker info >/dev/null 2>&1; then
   say "Docker is not running, so clark is starting without it."
   start_with_python
 fi
 
 say "Docker is running. Starting clark in Docker."
-python3 "$check" --env-file "$PWD/docker/.env" || exit 1
 if ! docker compose -f "$PWD/docker/compose.yaml" up -d "$@"; then
   say "Docker could not start clark, so clark is starting without it."
   start_with_python
