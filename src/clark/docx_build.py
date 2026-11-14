@@ -1,6 +1,6 @@
 """Build the Word report (.docx) from a report's published rows (#48; BRD FR-72; design-48-word.md sections 1 to 3).
 
-A pure function: `build(published)` takes what `publish.select()` returns ({"data", "sections", "tabs", "as_at"}; publish.build() takes a fifth key, "needs_dropped", out before any caller sees the rows) and gives the
+A pure function: `build(published)` takes what `publish.select()` returns ({"data", "sections", "tabs", "as_at"}) and gives the
 file's bytes. It touches no database, file, clock or network. The Word file carries what the HTML file carries and never more:
 the build reads only named fields of the published rows, so a key `select()` did not keep is never written, and a hidden section
 is not in `sections` to begin with. There is one report (FR-82), so there is no separate team file.

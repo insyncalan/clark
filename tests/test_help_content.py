@@ -102,7 +102,7 @@ class Shape(unittest.TestCase):
         self.assertEqual([j[0] for j in START["jobs"]], ["add-a-work-item", "write-the-weekly-report", "add-a-section-from-a-template", "arrange-the-report", "publish-the-report"],
                          "the owner's order; bringing in an Excel workbook is not one of them")
         self.assertIn(START["undo"], [t["id"] for t in STEPS])
-        self.assertEqual((len(STEPS), len(SECTIONS)), (38, 36))   # merged: main adds the Feedback entry (#1069, section row), so sections 36; steps 37; with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
+        self.assertEqual((len(STEPS), len(SECTIONS)), (37, 35))   # merged: main adds the Feedback entry (#1069, section row), so sections 36; steps 37; with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
         self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (34, 29))   # merged: icons 29, the branch no longer lists the sparkle (Draft) icon that main still had (30)
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
@@ -488,13 +488,11 @@ class PublicationNumberWords(unittest.TestCase):
 
 
 class NeededFromTheClientWords(unittest.TestCase):
-    def test_help_says_the_flag_lists_the_item_only_when_the_report_has_a_needs_from_you_section(self):
-        """Row 1066: publish adds no 'Needs from you' section the editor lacks, so Help must not promise the item is listed without one."""
-        text = json.dumps(SRC, ensure_ascii=False)
-        self.assertIn("**Needed from the client**: switch it on in Edit and, when the report has a “Needs from you” section, the item is listed there.", text)
-        self.assertNotIn("switch it on in Edit and the item is listed under “Needs from you”", text)
-        peek = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "PeekLatest.jsx").read_text(encoding="utf-8")
-        self.assertIn("Lists it under “Needs from you” when the report has that section", peek, "the peek's own sub-line makes the same condition")
+    def test_help_no_longer_mentions_the_needed_from_the_client_flag_or_the_needs_from_you_section(self):
+        """Item 1158: the flag's switch and the Needs from you section are gone from the page, so Help says nothing of them."""
+        text = json.dumps(SRC, ensure_ascii=False).lower()
+        for word in ("needed from the client", "needs from you", "needs-from-you", "ask-for-what-you-need"):
+            self.assertNotIn(word, text)
 
 
 class PeekSourceWords(unittest.TestCase):

@@ -30,12 +30,11 @@ def read(*parts):
 WAITS = {
     "howto-check-before-you-publish": ("the stale and incomplete notes with Show them in the Publish box", r"Show them"),
 }
-# prototype entries the owner dropped (#919): the prototype still draws them, the build will never have them
-DROPPED = {"howto-start-from-last-report", "ref-since-last-report"}
+# prototype entries the owner dropped (#919; item 1158 for the three Needs from you ones): the prototype still draws them, the build will never have them
+DROPPED = {"howto-start-from-last-report", "ref-since-last-report", "ref-needs-from-you", "howto-ask-the-client-for-something"}
 # prototype entries the build has under another id, written for what the page does
 REPLACED = {
     "howto-work-the-use-cases": "howto-find-a-use-case",
-    "howto-ask-the-client-for-something": "howto-ask-for-what-you-need",
 }
 
 
@@ -86,7 +85,7 @@ class EveryPrototypeEntryIsAccountedFor(unittest.TestCase):
             self.assertIn(new, shown_ids(), f"{new} replaces the prototype's {old}")
 
     def test_the_prototype_entries_released_here_are_shown(self):
-        want = {"howto-set-the-health", "howto-handle-a-slipped-milestone", "ref-sections", "ref-needs-from-you", "ref-freshness", "ref-milestones-page", "ref-diagnostics"}
+        want = {"howto-set-the-health", "howto-handle-a-slipped-milestone", "ref-sections", "ref-freshness", "ref-milestones-page", "ref-diagnostics"}
         self.assertEqual(sorted(want - shown_ids()), [])
         self.assertEqual(sorted(want & held_ids()), [])
 
@@ -157,39 +156,23 @@ def entry(kind, id_):
     return next(x for x in rows if x["id"] == id_)
 
 
-class ReportSectionsHasNeedsFromYou(unittest.TestCase):
-    """Row 63: Report sections has a Needs from you row, and the whole table says only what the page draws."""
+class ReportSectionsHasNoNeedsFromYou(unittest.TestCase):
+    """Row 63, then item 1158: the Report sections table says only what the page draws, and Needs from you is no longer drawn."""
     TABLE = next(b for b in entry("ref", "sections")["b"] if b[0] == "tbl")
-
-    def test_the_row_is_there_and_names_the_section_as_the_page_does(self):
-        row = next(r for r in self.TABLE[2] if r[0] == "Needs from you")
-        self.assertIn("what you need from the client", row[1])
-        self.assertIn("[Needs from you](#ref-needs-from-you)", row[1])
-        self.assertEqual(self.TABLE[2][-1][0], "Needs from you", "the prototype puts it last")
-        self.assertIn("title: \"Needs from you\"", read("page", "src", "logic", "needs.js").replace("  title:", "title:"))
-
-    def test_what_the_row_says_is_what_the_page_does(self):
-        row = next(r for r in self.TABLE[2] if r[0] == "Needs from you")[1]
-        words = read("page", "src", "logic", "needs.js")
-        self.assertIn("rows you add yourself", row)
-        self.assertIn('addRow: "Add a row"', words)                      # the rows are added by hand
-        self.assertIn("Left out of the published page when no row is shown", row)
-        self.assertRegex(read("page", "src", "components", "Dashboard.jsx"), r's\.type === "needs" && !hasNeeds\(s\)')       # left out when no row is shown
-        self.assertNotRegex(row, r"(?i)pending decision|Needed from the client|straight after|Word file")     # what the page does not do (yet)
 
     def test_the_table_has_no_row_for_a_section_the_page_does_not_draw(self):
         """Risks and issues, Open actions and Decisions show 'Not shown on this page yet.' (Section.jsx), as does Current state in Edit."""
         names = [r[0] for r in self.TABLE[2]]
-        self.assertEqual(names, ["At a glance", "Use case summary", "Milestones", "Summary, This week, Next week", "Needs from you"])
+        self.assertEqual(names, ["At a glance", "Use case summary", "Milestones", "Summary, This week, Next week"])
         section = read("page", "src", "components", "Section.jsx")
         self.assertIn("Not shown on this page yet.", section)
-        for t in ("raid", "actions", "decisions"):
+        for t in ("raid", "actions", "decisions", "needs"):
             self.assertNotRegex(section, rf'section\.type === "{t}"')
         self.assertIn('section.type === "docs"', section)       # Supporting documents are drawn now
 
-    def test_the_needs_entry_links_to_the_task_and_the_task_is_shown(self):
-        self.assertIn("(#howto-ask-for-what-you-need)", json.dumps(entry("ref", "needs-from-you"), ensure_ascii=False))
-        entry("howto", "ask-for-what-you-need")
+    def test_help_has_no_needs_entry_and_no_task_for_it(self):
+        ids = {x["id"] for x in SHOWN["howto"]["tasks"]} | {x["id"] for x in SHOWN["reference"]["sections"]}
+        self.assertFalse({"needs-from-you", "ask-for-what-you-need"} & ids)
 
 
 class TheWeekEndsOnAFriday(unittest.TestCase):
