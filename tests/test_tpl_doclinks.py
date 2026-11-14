@@ -150,8 +150,8 @@ class Checker(unittest.TestCase):
 class RenameTest:
     """Typing into the one open rename box and pressing a key."""
     @staticmethod
-    def type(p, sel, value, key):
-        p.js(f"(() => {{ const el = document.querySelector({json.dumps(sel + ' input[data-rename-input]')}); el.value = {json.dumps(value)};"
+    def type(p, sel, value, key, index=0):
+        p.js(f"(() => {{ const el = document.querySelectorAll({json.dumps(sel + ' input[data-rename-input]')})[{index}]; el.focus(); el.value = {json.dumps(value)};"
              " el.dispatchEvent(new Event('input', {bubbles: true}));"
              f" el.dispatchEvent(new KeyboardEvent('keydown', {{key: {json.dumps(key)}, bubbles: true}})); }})()")
 
@@ -233,8 +233,8 @@ class InThePage(PageBase):
                 ["URL", "The plan", "SPAN", None],
                 ["MAIL", "Team", "SPAN", None],
                 ["PDF", "Plan v2.pdf", "SPAN", None]], "in the editor's View a name stays plain text")
-            self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-dl-i a.tpl-act')].map(a => a.textContent + ' ' + a.getAttribute('href'))"),
-                             ["Open https://example.org/plan", "Open mailto:team@example.org"], "a link gets Open only")
+            self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-dl-i a.tpl-act')].map(a => a.getAttribute('aria-label') + ' ' + a.getAttribute('href'))"),
+                             ["Open The plan https://example.org/plan", "Open Team mailto:team@example.org"], "a link gets Open only")
             self.assertFalse(p.js(f"!!document.querySelector('[data-id={json.dumps(empty)}]')"), "an empty list is left out of View")
             self.assertEqual(p.js(f"document.querySelectorAll('[data-id={json.dumps(ref)}] input, [data-id={json.dumps(ref)}] button').length"), 0,
                              "View is read only")
@@ -301,27 +301,96 @@ class InThePage(PageBase):
             p.js(f"document.querySelectorAll('{sel} [data-down]')[0].click()")
             p.until(f"document.querySelector('{sel} .tpl-dl-i .tpl-badge').textContent === 'PDF'", "the file moved up")
             self.assertEqual([i["kind"] for i in json.loads(self.store.read("report_sections", ref=ref)["body"])["items"]], ["file", "link"])
-            p.js(f"document.querySelectorAll('{sel} [data-rename]')[0].click()")
-            p.until(f"!!document.querySelector('{sel} input[data-rename-input]')", "the name became a box")
-            RenameTest.type(p, sel, "Signed plan", "Enter")
-            p.until(f"document.querySelector('{sel} .tpl-name').textContent === 'Signed plan'", "the new name shows")
+            self.assertEqual(p.js(f"document.querySelectorAll('{sel} [data-rename]').length"), 0, "no Rename button: the name is the box")
+            RenameTest.type(p, sel, "Signed plan", "Enter", 0)
+            p.until(f"document.querySelector('{sel} input[data-rename-input]').value === 'Signed plan'", "the new name shows")
             self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["items"][0]["label"], "Signed plan")
             self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["items"][0]["name"], "Plan v2.pdf")
-            p.js(f"document.querySelectorAll('{sel} [data-rename]')[0].click()")
-            p.until(f"!!document.querySelector('{sel} input[data-rename-input]')", "the name became a box again")
-            RenameTest.type(p, sel, "Other", "Escape")
-            p.until(f"!document.querySelector('{sel} input[data-rename-input]')", "Esc closed the box")
+            RenameTest.type(p, sel, "Other", "Escape", 0)
+            p.until(f"document.querySelector('{sel} input[data-rename-input]').value === 'Signed plan'", "Esc put the name back")
             self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["items"][0]["label"], "Signed plan", "Esc changes nothing")
-            p.js(f"document.querySelectorAll('{sel} [data-rename]')[1].click()")
-            p.until(f"!!document.querySelector('{sel} input[data-rename-input]')", "the link name became a box")
-            RenameTest.type(p, sel, "", "Enter")
-            p.until(f"!document.querySelector('{sel} input[data-rename-input]')", "an empty name closed the box")
+            RenameTest.type(p, sel, "", "Enter", 1)
+            p.until(f"document.querySelectorAll('{sel} input[data-rename-input]')[1].value === 'The plan'", "an empty name goes back")
             self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["items"][1]["label"], "The plan", "an empty name reverts")
 
     @staticmethod
     def set_value(p, selector, value, index=0):
         p.js(f"(() => {{ const el = document.querySelectorAll({json.dumps(selector)})[{index}]; el.focus(); el.value = {json.dumps(value)};"
              " el.dispatchEvent(new Event('input', {bubbles: true})); })()")
+
+
+ALLOWED_NOTE = ("Files you can add: PDF, Word (.doc .docx), Excel (.xls .xlsx .csv), PowerPoint (.ppt .pptx), JPG, PNG and TXT. Not allowed: "
+                "HTML, SVG, ZIP and any program or script, because they can run code or hide what is inside. Links (to a SharePoint file, "
+                "a web page or an email): https:// or mailto:.")       # UNRULED: the mockup's words, verbatim
+
+
+class MockupLook(InThePage):
+    """Item 1194: what the approved mockup shows, at 1400 and 900 px (page icon 41 px tall, icon buttons, name box in place, add-link box)."""
+
+    def widths(self, p, cdp):
+        for w in (1400, 900):
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 1000, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+            yield w
+
+    def test_view_rows_have_page_icons_type_words_and_icon_buttons(self):
+        ref = self.add([a_file("Scope statement.docx", 88 * 1024), a_file("Site photo.png", 1126 * 1024), a_file("Notes.txt", 2048),
+                        a_link("https://www.example.org/x", "some notes"), a_link("mailto:pmo@example.com", "Ask the PMO")])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.until(f"!!document.querySelector('{sel} .tpl-dl')", "the list drew")
+            for w in self.widths(p, cdp):
+                self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} .tpl-facts')].map(e => e.textContent)"),
+                                 ["Word · 88 KB", "Image · 1.1 MB", "File · 2 KB", "Web link · example.org", "Email link · pmo@example.com"], w)
+                self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} .tpl-badge')].map(e => e.textContent)"),
+                                 ["DOC", "PNG", "TXT", "URL", "MAIL"], w)
+                self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} .tpl-badge')].map(e => !!e.querySelector('svg') && Math.round(e.getBoundingClientRect().height))"),
+                                 [41] * 5, f"a page icon 41 px tall at {w}")
+                self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} a.tpl-act')].map(a => !!a.querySelector('svg') && a.textContent.trim() === '' && "
+                                      "a.getBoundingClientRect().width >= 44 && a.getBoundingClientRect().height >= 44)"), [True] * 5, f"Open is a 44 px icon at {w}")
+
+    def test_edit_rows_have_icon_remove_a_name_box_notes_and_the_link_box_in_place(self):
+        ref = self.add([a_file("Scope statement.docx", 88 * 1024), a_link()])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('{sel} [data-open-link]')", "the Edit part drew")
+            for w in self.widths(p, cdp):
+                self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} .tpl-badge')].map(e => !!e.querySelector('svg') && Math.round(e.getBoundingClientRect().height))"),
+                                 [41, 41], f"a page icon 41 px tall at {w}")
+                self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} .tpl-remove')].map(b => !!b.querySelector('svg') && b.textContent.trim() === '' && b.getAttribute('aria-label'))"),
+                                 ["Remove Scope statement.docx", "Remove The plan"], w)
+                self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} input[data-rename-input]')].map(i => i.value)"), ["Scope statement.docx", "The plan"], w)
+                self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-allowed').textContent"), ALLOWED_NOTE, w)
+                self.assertIn("Name: click to rename, Enter saves, Esc cancels.", p.js(f"document.querySelector('{sel} .tpl-hint').textContent"))
+                p.js(f"document.querySelector('{sel} [data-open-link]').click()")
+                p.until(f"!!document.querySelector('{sel} [data-add-link]')", "the add-link box opened")
+                box = p.js(f"(() => {{ const f = document.querySelector('{sel} [data-add-link]'), r = f.getBoundingClientRect(), l = document.querySelector('{sel} .tpl-dl').getBoundingClientRect();"
+                           " return [getComputedStyle(f).position, r.top < l.bottom && r.bottom > l.top, r.right <= innerWidth]; })()")
+                self.assertEqual(box, ["absolute", True, True], f"the box floats over the list under its icon at {w}")
+                p.js(f"document.querySelector('{sel} [data-add-link] button[type=submit]').click()")
+                p.until(f"!!document.querySelector('{sel} [data-add-link] .tpl-problem')", "the refusal is inside the box")
+                p.js(f"document.querySelector('{sel} [data-open-link]').click()")
+                p.until(f"!document.querySelector('{sel} [data-add-link]')", "the box closed")
+
+    def test_toasts_say_what_the_ticket_quotes(self):
+        ref = self.add([a_file("Scope statement.docx", 88 * 1024)])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('{sel} [data-open-link]')", "the Edit part drew")
+            p.js(f"document.querySelector('{sel} [data-open-link]').click()")
+            p.until(f"!!document.querySelector('{sel} [data-add-link]')", "the box opened")
+            InThePage.set_value(p, f"{sel} [data-add-link] input[type=text]", "https://example.org/b", 0)
+            InThePage.set_value(p, f"{sel} [data-add-link] input[type=text]", "Budget", 1)
+            p.js(f"document.querySelector('{sel} [data-add-link] button[type=submit]').click()")
+            p.until("!!document.querySelector('.toast')", "a toast")
+            self.assertEqual(p.js("document.querySelector('.toast').textContent").replace("Undo", "").strip(), "Link added")
+            p.js(f"document.querySelectorAll('{sel} .tpl-remove')[0].click()")
+            p.until("document.querySelector('.toast').textContent.includes('Removed')", "the remove toast")
+            self.assertEqual(p.js("document.querySelector('.toast').textContent").replace("Undo", "").strip(), "Removed Scope statement.docx")
 
 
 class Published(PageBase):
@@ -354,10 +423,10 @@ class Published(PageBase):
                     ["URL", "The plan", "A", "https://example.org/plan"],
                     ["PDF", "The plan, signed", "A", "Report%20files/Plan%20v2%231.pdf"]])
                 self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-facts')].map(e => e.textContent)"),
-                                 ["URL · example.org", "PDF · 340 KB"])
+                                 ["Web link · example.org", "PDF · 340 KB"])
                 self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-dl-i')].map(li => "
-                                      "[...li.querySelectorAll('a.tpl-act')].map(a => a.textContent + ':' + a.hasAttribute('download') + ':' + a.target))"),
-                                 [["Open:false:_blank"], ["Open:false:_blank", "Download:true:"]], "Open on every row, Download on files only")
+                                      "[...li.querySelectorAll('a.tpl-act')].map(a => a.getAttribute('aria-label') + ':' + a.hasAttribute('download') + ':' + a.target))"),
+                                 [["Open The plan:false:_blank"], ["Open The plan, signed:false:_blank", "Download The plan, signed:true:"]], "Open on every row, Download on files only")
                 self.assertEqual(p.js("document.querySelectorAll('.tpl-dl input, .tpl-dl button, .tpl-form').length"), 0)
                 self.assertEqual(p.js("[...document.querySelectorAll('.tpl-dl a.tpl-act')].every(a => a.rel === 'noopener noreferrer' || a.hasAttribute('download'))"), True)
                 self.assertFalse(p.js(f"!!document.querySelector('[data-id={json.dumps(hidden)}]')"))
