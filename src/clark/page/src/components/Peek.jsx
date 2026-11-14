@@ -200,7 +200,7 @@ export function Peek({ tools }) {
   const Tabs = editing && tools.PeekTabs, Activity = editing && tools.PeekActivity;
   const MsTitle = msEditing && tools.PeekMilestoneTitle;     // row 1078: the milestone's name is its title, changed in place (row 1180: a textarea, as the work item's)
   const TitleBox = editing && forItem && tools.PeekItemTitle, MoreBtn = editing && forItem && tools.PeekMore, MsMoreBtn = msEditing && tools.RecordMore;      // row 1180: More holds Duplicate, Archive and Delete (item 1148: a milestone's holds Archive and Delete)
-  const Warn = editing && forItem && tools.PeekWarn, Latest = editing && forItem && tools.PeekLatest;      // the warning bar and Latest update (peek, Edit only)
+  const Warn = editing && forItem && tools.PeekWarn, Latest = editing && !!p && tools.PeekLatest;      // the warning bar and Latest update (peek, Edit only)
   // Row 1077 (the owner's ruling): every peek, item or milestone, shows its Source, in Edit and in View alike. On the live page the Edit part
   // reads it from the server (tools.PeekSource); a published file (no tools, fromFile) draws the name its own data carries (FileSource below).
   const Source = !!tools && !fromFile.value && tools.PeekSource;
@@ -339,7 +339,7 @@ export function Peek({ tools }) {
         : <div role={Tabs ? "tabpanel" : undefined} id={Tabs ? "pk-panel-details" : undefined} aria-labelledby={Tabs ? "pk-tab-details" : undefined}>
           {row ? <ItemFields row={row} editing={editing} slim ClientLine={editing && tools.PeekClientLine ? tools.PeekClientLine : null} Cell={null} Wording={editing && tools.PeekWording ? tools.PeekWording : null} Pick={editing && tools.PeekPick ? tools.PeekPick : null} /> : msEditing ? <tools.MilestoneEdit m={m} /> : <MilestoneFields m={m} tools={tools} />}
           {Source ? <Source key={`s-${p.id}`} row={row || m} /> : FileSource ? <SourceLine text={(row || m).source} /> : null}
-          {Latest && row ? <Latest key={row.id} row={row} /> : null}
+          {Latest && (row || m) ? <Latest key={p.id} row={row || { id: m.id, kind: "milestone", client: !!m.client }} /> : null}
         </div>}
       {Words && wordsOpen.value && (row || m) ? <Words key={p.id} row={row || m} kind={milestone ? "milestone" : "item"} /> : null}
       </div>

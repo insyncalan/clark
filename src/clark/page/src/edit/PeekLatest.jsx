@@ -1,17 +1,21 @@
 // The peek's Latest update and its 'Last updated' stamp, and the warning bar above the title (Edit only: a published file and View
 // show the fields and nothing else). Every change is one request with one Undo (changeCell), and the data is read again after it so
-// the stamp is the one clark wrote. The text is on the one rich editor (RichField, item 1005). Row 1077 (the owner's ruling): no chip
-// writes the text for you; the box alone. An action that is shown to the client carries a 'Shown to the client' label (its latest update is published). An action has a latest update; a risk, issue or decision has the stamp only.
+// the stamp is the one clark wrote. The text is on the one rich editor (RichField, item 1005). Item 1179 (row 1077 ruling 1 is lifted for this one
+// button): 'Draft with AI' sits beside the heading and opens the AI menu; the same menu opens on a right-click of selected text. The suggestion
+// shows in a card under the field and goes into the text only through the editor, on Accept. An item shown to the client carries a 'Shown to the
+// client' label. An action, risk, issue and milestone have a latest update; a decision has the stamp only (hasField).
 import { signal } from "@preact/signals";
 import { useState } from "preact/hooks";
 import { RichField } from "./RichField.jsx";
 import { richOrPlain } from "../logic/richOrPlain.js";
-import { data } from "../stores/report.js";
+import { data, token } from "../stores/report.js";
 import { changeCell, say, refresh } from "../stores/changes.js";
 import { showDate, todayIso } from "../workItems.js";
 import { changeFor, tableOf } from "./itemEdit.js";
 import { warnFor, stampText } from "./peekLatest.js";
 import { Icon } from "../components/Icon.jsx";
+import { AiCard } from "./AiCard.jsx";
+import { realAiClient } from "./aiClient.js";
 import { PeekLatestHistory } from "./PeekLatestHistory.jsx";
 
 const raw = (row) => ((data.value && data.value[tableOf(row)]) || []).find((r) => r.id === row.id) || null;
@@ -57,17 +61,19 @@ export function PeekUnsavedBar({ onClose, onDone }) {
   );
 }
 
+const aiClient = realAiClient({ token });
 const plain = (h) => String(h || "").replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
 
-export function PeekLatest({ row, draft = null }) {
+export function PeekLatest({ row }) {
   const [open, setOpen] = useState(false);
-  const rec = raw(row), action = row.kind === "action";
+  const [menuAt, setMenuAt] = useState(null), [card, setCard] = useState(null), [wantOpen, setWantOpen] = useState(false);
+  const rec = raw(row), hasHistory = row.kind === "action", hasField = row.kind !== "decision";
   const now = rec && rec.latest_update ? String(rec.latest_update) : "";
   const stamp = rec ? stampText(rec.updated_at) : "";
   const html = (() => { try { return richOrPlain(now); } catch (e) { return "<p>" + String(now).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</p>"; } })();    // item 1005: the editor's HTML, or the plain text an older clark stored
   // The rich editor saves with Cmd/Ctrl+Enter and leaves with Esc. It closes only when clark has saved it: a refusal (the toast says why)
   // or no answer leaves it open with what was typed.
-  const save = (value) => changeCell("actions", row.id, { latest_update: value },
+  const save = (value) => changeCell(tableOf(row), row.id, { latest_update: value },
     { text: `Latest update of ${row.id} saved.`, back: `Latest update of ${row.id} is back as it was.`, place: "peek" })
     .then((reply) => { if (reply) refresh(); return reply; });
   return (
@@ -75,15 +81,21 @@ export function PeekLatest({ row, draft = null }) {
       onFocusIn={(e) => { if (e.target.closest("[data-rt]")) setOpen(true); }}
       onFocusOut={() => setTimeout(() => { if (!document.querySelector("[data-pk-latest] [data-rt]")) { setOpen(false); latestDirty.value = false; } }, 0)}
       onInput={() => { const e = editorOf(); latestDirty.value = !!e && plain(e.innerHTML) !== plain(html); }}>
-      {action ? <>
-        <div class="pk-lab"><span id={`pk-latest-lab-${row.id}`}>Latest update</span>
-          {draft}
-          {row.client ? <span class="pk-latest-client" data-pk-latest-client><Icon name="eye" cls="s" />Shown to the client</span> : null}</div>
-        <RichField field="latest_update" id={row.id} value={html} label="Latest update" empty="Add the latest update…" save={save} viewId={`pk-latest-txt-${row.id}`} labelledBy={`pk-latest-lab-${row.id} pk-latest-txt-${row.id}`} />
+      {hasField ? <>
+      <div class="pk-lab"><span id={`pk-latest-lab-${row.id}`}>Latest update</span>
+        <button type="button" class="pk-ai" data-pk-ai aria-label="Draft with AI" aria-haspopup="menu" aria-expanded={menuAt ? "true" : "false"}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); setCard(null); setMenuAt({ x: r.left, y: r.bottom + 4 }); if (!editorOf()) setWantOpen(true); }}><Icon name="sparkle" cls="s" />Draft with AI</button>
+        {row.client ? <span class="pk-latest-client" data-pk-latest-client><Icon name="eye" cls="s" />Shown to the client</span> : null}</div>
+      <RichField field="latest_update" id={row.id} value={html} label="Latest update" empty="Add the latest update…" save={save} viewId={`pk-latest-txt-${row.id}`} labelledBy={`pk-latest-lab-${row.id} pk-latest-txt-${row.id}`}
+        forceOpen={wantOpen} onClose={() => { setWantOpen(false); setMenuAt(null); }}
+        ai={{ menu: menuAt, open: (pt) => { setCard(null); setMenuAt(pt); }, close: () => setMenuAt(null), pick: (req) => { setMenuAt(null); setCard({ ...req, n: Date.now() }); } }} />
+      {card ? <div data-ai-card><AiCard key={card.n} client={aiClient} place="current" option={card.option} text={card.text} instruction={card.instruction}
+        returnTo={() => { const e = editorOf(); if (e) e.focus(); }} onAccept={card.apply} onClose={() => setCard(null)} /></div> : null}
       </> : null}
       {stamp ? <div class="pk-last" data-pk-last><Icon name="clock" cls="s" /> Last updated {stamp}</div> : null}
-      {action && open ? <p class="pk-latest-hint" data-pk-latest-hint data-pk-hint>Cmd or Ctrl and Enter saves.</p> : null}
-      {action ? <PeekLatestHistory key={`h-${row.id}`} id={row.id} /> : null}
+      {open ? <p class="pk-latest-hint" data-pk-latest-hint data-pk-hint>Cmd or Ctrl and Enter saves.</p> : null}
+      {hasHistory ? <PeekLatestHistory key={`h-${row.id}`} id={row.id} /> : null}
     </div>
   );
 }

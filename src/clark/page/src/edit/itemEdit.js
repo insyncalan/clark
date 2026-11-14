@@ -21,7 +21,7 @@ const HIDDEN = /[\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{Zl}\p{Zp}]/u;
 
 /** The table a row lives in, as clark names it. */
 export function tableOf(row) {
-  return row.kind === "action" ? "actions" : row.kind === "decision" ? "decisions" : "raid";
+  return row.kind === "action" ? "actions" : row.kind === "decision" ? "decisions" : row.kind === "milestone" ? "milestones" : "raid";
 }
 
 /** Whether a cell of this row opens a picker. */
