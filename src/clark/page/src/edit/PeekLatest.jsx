@@ -1,7 +1,7 @@
 // The peek's Latest update and its 'Last updated' stamp, and the warning bar above the title (Edit only: a published file and View
 // show the fields and nothing else). Every change is one request with one Undo (changeCell), and the data is read again after it so
 // the stamp is the one clark wrote. The text is on the one rich editor (RichField, item 1005). Row 1077 (the owner's ruling): no chip
-// writes the text for you; the box alone. An action that is shown to the client carries a 'Shown to the client' label (its latest update is published). An action has a latest update; a risk, issue or decision has the stamp only.
+// writes the text for you; the box alone. An item that is shown to the client carries a 'Shown to the client' label (its latest update is published). Item 1185: an action, a risk and an issue have a latest update (a decision has the stamp only; a milestone has its own box in MilestonePeek.jsx).
 import { RichField } from "./RichField.jsx";
 import { richOrPlain } from "../logic/richOrPlain.js";
 import { data } from "../stores/report.js";
@@ -34,24 +34,24 @@ export function PeekWarn({ row }) {
 }
 
 export function PeekLatest({ row }) {
-  const rec = raw(row), action = row.kind === "action";
+  const rec = raw(row), has = row.kind !== "decision";
   const now = rec && rec.latest_update ? String(rec.latest_update) : "";
   const stamp = rec ? stampText(rec.updated_at) : "";
   const html = (() => { try { return richOrPlain(now); } catch (e) { return "<p>" + String(now).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</p>"; } })();    // item 1005: the editor's HTML, or the plain text an older clark stored
   // The rich editor saves with Cmd/Ctrl+Enter and leaves with Esc. It closes only when clark has saved it: a refusal (the toast says why)
   // or no answer leaves it open with what was typed.
-  const save = (value) => changeCell("actions", row.id, { latest_update: value },
+  const save = (value) => changeCell(tableOf(row), row.id, { latest_update: value },
     { text: `Latest update of ${row.id} saved.`, back: `Latest update of ${row.id} is back as it was.`, place: "peek" })
     .then((reply) => { if (reply) refresh(); return reply; });
   return (
     <div class="pk-latest" data-pk-latest>
-      {action ? <>
+      {has ? <>
         <div class="pk-lab"><span id={`pk-latest-lab-${row.id}`}>Latest update</span>
           {row.client ? <span class="pk-latest-client" data-pk-latest-client><Icon name="eye" cls="s" />Shown to the client</span> : null}</div>
         <RichField field="latest_update" id={row.id} value={html} label="Latest update" empty="Add the latest update…" save={save} viewId={`pk-latest-txt-${row.id}`} labelledBy={`pk-latest-lab-${row.id} pk-latest-txt-${row.id}`} />
       </> : null}
       {stamp ? <div class="pk-last" data-pk-last><Icon name="clock" cls="s" /> Last updated {stamp}</div> : null}
-      {action ? <PeekLatestHistory key={`h-${row.id}`} id={row.id} /> : null}
+      {has ? <PeekLatestHistory key={`h-${row.id}`} id={row.id} /> : null}
     </div>
   );
 }

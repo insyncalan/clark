@@ -46,7 +46,7 @@ def others(path):
     use_cases lines are left out too: step 22 (row 875) adds owner and owner_id to that table, which changes its dump text, not row 1068's step."""
     con = sqlite3.connect(str(path))
     try:
-        return [l for l in con.iterdump() if "report_sections" not in l and "schema_version" not in l and "use_cases" not in l and "use_case_milestones" not in l]      # row 1107 (step 24) adds that table
+        return [l for l in con.iterdump() if "report_sections" not in l and "schema_version" not in l and "use_cases" not in l and "use_case_milestones" not in l and "\"raid\"" not in l and "\"milestones\"" not in l]      # row 1107 (step 24) adds that table; item 1185 (step 25) adds a column to raid and milestones
     finally:
         con.close()
 

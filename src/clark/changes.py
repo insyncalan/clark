@@ -69,7 +69,7 @@ CHANGE_KINDS = {
     # store works it out from impact and likelihood (D-12: the status picker's Rating sets those two); `archived` is in no list.
     # #67: a work item's title is the column the page shows as its title: an action's and a RAID item's `description`, a decision's `decision`.
     "actions": {UPDATE: ("status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "latest_update", "client_message", "client_visible", "client_action"), DELETE: ()},   # the peek's Latest update (an action's only); item 658: DELETE removes the item, with its links and labels
-    "raid": {UPDATE: ("status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "client_message", "client_visible", "client_action"), DELETE: ()},   # row 811: needed from the client (an action or a risk or issue; a decision has no such flag)
+    "raid": {UPDATE: ("status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "latest_update", "client_message", "client_visible", "client_action"), DELETE: ()},   # item 1185: + the peek's Latest update; row 811: needed from the client (an action or a risk or issue; a decision has no such flag)
     "decisions": {UPDATE: ("status", "made_by", "needed_by", "date", "use_case", "decision", "client_message", "client_visible"), DELETE: ()},   # #45: use_case links an existing use case of this project, or clears the link
     # #45: the At a glance tiles and the project's health. A tile is hidden, given an outline colour or moved (its place is worked
     # out here, never sent); the project's change takes no `id` (it is the request's project) and only its health and the reason.
@@ -80,7 +80,7 @@ CHANGE_KINDS = {
     # box Movement keeps for the owner (owner only: never in a reply, a Movement entry or a published file).
     "milestones": {UPDATE: ("baseline_date", "forecast_date", "actual_date", "status", "state", "state_set", "state_reason",
                             "client_message", "movement", "internal_note",
-                            "name", "owner", "workstream", "percent_complete", "description"), DELETE: ()},     # row 828: + the peek's own fields (the name, owner, workstream, progress and description)
+                            "name", "owner", "workstream", "percent_complete", "description", "latest_update"), DELETE: ()},     # row 828: + the peek's own fields (the name, owner, workstream, progress and description)
     # #164: an EXISTING use case's name, headline, status, standing text and eye (client_visible). Only `update` here: the
     # archive and restore ops below are #126's, and there is no new, move or delete for use cases.
     "use_cases": {UPDATE: ("title", "headline", "status", "standing", "client_visible", "commitment", "owner"), NEW: ("ref", "title", "status", "headline", "commitment"), LINK: (), MS_ADD: (), MS_REMOVE: (), DELETE: ()},   # item 1148: DELETE removes a use case with nothing pointing at it; item 455: and a NEW one (below); item 485: link work items to it (no fields: the items' own use_case is set)
@@ -114,13 +114,13 @@ UNDOABLE = {"report_sections": None, "actions": None, "raid": None, "decisions":
             "gantt_lines": None,                                                                     # row 926: a Gantt line, any field (a Gantt step holds nothing else: see _eligible)
             "milestones": ("archived", "baseline_date", "forecast_date", "actual_date", "status", "state", "state_set", "state_reason",
                            "client_message", "movement", "internal_note",
-                           "name", "owner", "owner_id", "workstream", "percent_complete", "description"),     # row 828: the peek's fields (owner_id: the link that goes with an owner edit, never asked for); #136: a Movement step; its decision is a work item's row (see _movement_step); #458: + the internal note
+                           "name", "owner", "owner_id", "workstream", "percent_complete", "description", "latest_update"),     # row 828: the peek's fields (owner_id: the link that goes with an owner edit, never asked for); #136: a Movement step; its decision is a work item's row (see _movement_step); #458: + the internal note
             "use_cases": ("archived", "title", "headline", "status", "standing", "client_visible", "commitment", "owner", "owner_id"), "documents": ("archived",) + DOC_FIELDS, "workstreams": ("archived",)}
 UNDO_ALSO = ("updated_at", "note")
 CHANGE_KINDS["actions"][NEW] = ("description", "client_message", "client_visible", "owner", "priority", "due_date", "workstream", "milestone", "latest_update", "use_case")      # #485: a next step added from a use case's row names it; #67: a row added in the report: no id,
-CHANGE_KINDS["raid"][NEW] = ("type", "description", "client_message", "owner", "impact", "likelihood", "due_date", "workstream", "milestone", "client_visible")   # raised, status or source
+CHANGE_KINDS["raid"][NEW] = ("type", "description", "client_message", "owner", "impact", "likelihood", "due_date", "workstream", "milestone", "client_visible", "latest_update")   # raised, status or source
 CHANGE_KINDS["decisions"][NEW] = ("decision", "client_message", "made_by", "status", "date", "needed_by", "client_visible", "reasoning")      # (clark gives those), and no priority on a risk (worked out)
-CHANGE_KINDS["milestones"][NEW] = ("name", "baseline_date", "owner", "workstream")
+CHANGE_KINDS["milestones"][NEW] = ("name", "baseline_date", "owner", "workstream", "latest_update")
 # #196: one field change to several work items of one kind, in one step with one Undo (_do_bulk). A risk's impact and likelihood
 # are here (its priority is worked out from them); a decision takes only who makes it.
 CHANGE_KINDS["actions"][BULK] = ("status", "owner", "due_date", "priority", "workstream", "milestone")
@@ -242,7 +242,7 @@ COPY_SOURCE = "Duplicated from "             # #442: a copy's source, then the i
 COPY_MARK = " (copy)"                        # #442: the end of a copy's title
 COPIED = {                                   # #442: what Duplicate copies from the stored item (the prototype copies the item whole); never the
     "actions": ("workstream", "owner", "owner_id", "priority", "due_date", "status", "latest_update", "client_message", "milestone", "use_case"),
-    "raid": ("type", "workstream", "owner", "owner_id", "response_action", "due_date", "impact", "likelihood", "status", "client_message", "milestone", "use_case"),
+    "raid": ("type", "workstream", "owner", "owner_id", "response_action", "due_date", "impact", "likelihood", "status", "latest_update", "client_message", "milestone", "use_case"),
     "decisions": ("made_by", "owner_id", "date", "status", "needed_by", "reasoning", "options", "revisit", "use_case", "client_message"),
 }                                            # id, raised, closed, archived, history or a decision's `replaces`; a RAID priority is worked out again
 NOT_A_STATUS = "That status isn't available for this item."
@@ -1171,7 +1171,7 @@ def _where(place):
 
 
 PEEK_PLACE = "peek"
-MILESTONE_PEEK_FIELDS = ("name", "owner", "workstream", "percent_complete", "description")   # row 828: only the peek sets these
+MILESTONE_PEEK_FIELDS = ("name", "owner", "workstream", "percent_complete", "description", "latest_update")   # row 828: only the peek sets these
 MILESTONE_DATES = ("baseline_date", "forecast_date", "actual_date")
 MILESTONE_STATUSES = ("Planned", "Done")                 # Cancelled is its own matter, never set from a request
 MILESTONE_MOVEMENTS = ("hold", "rebaseline")             # recover and escalate come with their own item
@@ -1213,6 +1213,10 @@ def _checked_milestone_changes(fields):
             if isinstance(v, str) and not _plain_text(v.replace("\r", "\n").replace("\n", " ") if not sanitise.HTML_START.match(v) else v.replace("\r", "").replace("\n", "").replace("\t", "")):
                 raise Refused(NOTE_TEXT_WORDS)                      # as before: a NUL, tab or bidi mark is refused, not quietly dropped by the cleaner
             out[k] = _rich_field(v.strip() if isinstance(v, str) and not sanitise.HTML_START.match(v) else v, INTERNAL_NOTE_MAX, ITEM_VALUE_WORDS, NOTE_TEXT_WORDS)
+        elif k == "latest_update":                                  # item 1185: the peek's Latest update, as an action's: clean HTML, up to 1000 characters, blank clears it
+            if isinstance(v, str) and "\r" in v:
+                raise Refused(LATEST_HIDDEN_WORDS)
+            out[k] = _rich_field(v, LATEST_UPDATE_MAX, LATEST_LONG_WORDS, LATEST_HIDDEN_WORDS)
         elif k == "name":                                           # row 828: a milestone is never nameless; the same limit as a work item's title
             text = unicodedata.normalize("NFC", v).strip() if isinstance(v, str) else ""
             if not text or len(text) > ITEM_TITLE_MAX or not _plain_text(text):
