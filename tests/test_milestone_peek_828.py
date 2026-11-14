@@ -81,7 +81,9 @@ class Fields(Base):
 
     def type_in(self, p, sel, text, leave="enter"):
         p.until(f"!!document.querySelector({json.dumps(sel)})", sel)
-        p.js(f"(() => {{ const el = document.querySelector({json.dumps(sel)}); el.focus(); el.value = {json.dumps(text)}; el.dispatchEvent(new Event('input', {{bubbles: true}})); "
+        p.js(f"(() => {{ const el = document.querySelector({json.dumps(sel)}); el.focus(); el.value = {json.dumps(text)}; el.dispatchEvent(new Event('input', {{bubbles: true}})); window.__typed = 0; requestAnimationFrame(() => requestAnimationFrame(() => {{ window.__typed = 1; }})); }})()")
+        p.until("window.__typed === 1", "the box took the typing")      # item 1184: the owner box keeps its text in state, so Enter must come after the redraw
+        p.js(f"(() => {{ const el = document.querySelector({json.dumps(sel)}); "
              + {"enter": "el.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true}));",
                 "ctrl": "el.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', ctrlKey: true, bubbles: true, cancelable: true}));",
                 "esc": "el.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true}));",
