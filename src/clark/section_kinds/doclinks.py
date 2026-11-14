@@ -5,7 +5,7 @@ The stored content (canonical JSON, checked field by field; anything else is ref
 
     {"v": 1, "items": [ITEM, ...]}          at most MAX_ITEMS items, in the order the reader sees them
     ITEM = {"kind": "file", "name": NAME, "rel": "Report files/" + NAME, "bytes": N, "label": TEXT}    label may be ""
-         | {"kind": "link", "href": LINK, "label": TEXT}                                              label may be ""
+         | {"kind": "link", "href": LINK, "label": TEXT}                                              label is required
 
 - A file is one the server copied into the client folder's "Report files" folder (POST /api/section-file): its name, the
   address relative to the report ("Report files/<name>", so it opens from the client's copy of the report, beside which that
@@ -39,6 +39,12 @@ TOO_MANY = f"A Documents and links section can hold {MAX_ITEMS} files and links 
 BAD_KIND = "Each entry must be a file or a link. Reload the page and try again."
 BAD_LABEL = f"Words for a file or link must be one line of {LABEL_MAX} characters at most. Shorten them and try again."
 BAD_LINK = "That link can't be used. It must start with https:// or mailto: and have no spaces. Paste the whole address and try again."
+# UNRULED wording (item 1194): not yet ruled by Jarvis. The ticket quotes only "Enter a link description."
+ALLOWED_ENDINGS = ("pdf", "doc", "docx", "xls", "xlsx", "csv", "ppt", "pptx", "jpg", "jpeg", "png", "txt")
+UNRULED_BAD_TYPE = "That type of file can't be added. Use PDF, Word, Excel, PowerPoint, JPG, PNG or TXT."
+UNRULED_NO_DESCRIPTION = "Enter a link description."
+BAD_TYPE = UNRULED_BAD_TYPE
+NO_DESCRIPTION = UNRULED_NO_DESCRIPTION
 BAD_FILE = "That file entry can't be used. Add the file again with Add a file."
 
 
@@ -119,6 +125,15 @@ def file_name(value):
     return value
 
 
+def allowed_type(name):
+    """`name` when its last ending (case does not matter) is one of ALLOWED_ENDINGS; else Bad. Only the ending is read, never the
+    content. Documents and links only: One document keeps its own rule."""
+    stem, dot, ending = str(name).rpartition(".")
+    if not dot or not stem or ending.lower() not in ALLOWED_ENDINGS:
+        raise Bad(BAD_TYPE)
+    return name
+
+
 def file_entry(value):
     """{name, rel, bytes}, the address always "Report files/<name>". Else Bad."""
     value = fields(value, ("name", "rel", "bytes"), ("name", "rel", "bytes"))
@@ -137,11 +152,15 @@ def _item(value, rules):
     kind = value.get("kind")
     if kind == "file":
         value = fields(value, ("kind", "name", "rel", "bytes", "label"), ("kind", "name", "rel", "bytes"))
-        return {"kind": "file", **file_entry({k: value[k] for k in ("name", "rel", "bytes")}),
-                "label": words(value.get("label", ""), rules)}
+        entry = file_entry({k: value[k] for k in ("name", "rel", "bytes")})
+        allowed_type(entry["name"])
+        return {"kind": "file", **entry, "label": words(value.get("label", ""), rules)}
     if kind == "link":
         value = fields(value, ("kind", "href", "label"), ("kind", "href"))
-        return {"kind": "link", "href": link(value["href"]), "label": words(value.get("label", ""), rules)}
+        href, label = link(value["href"]), words(value.get("label", ""), rules)
+        if not label:
+            raise Bad(NO_DESCRIPTION)
+        return {"kind": "link", "href": href, "label": label}
     raise Bad(BAD_KIND)
 
 
@@ -174,4 +193,5 @@ def add_file(value, entry):
     if len(items) >= MAX_ITEMS:
         raise Bad(TOO_MANY)
     items.append({"kind": "file", **file_entry(entry), "label": ""})
+    allowed_type(items[-1]["name"])
     return {"v": 1, "items": items}

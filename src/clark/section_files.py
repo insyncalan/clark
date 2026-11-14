@@ -28,10 +28,11 @@ import re
 import stat
 from pathlib import Path
 
+from clark.section_kinds import doclinks
 from clark import changes, platform, reach, section_bodies, to_client
 from clark import store as clark_store
 from clark.store import Invalid
-from clark.section_kinds.doclinks import FILES_FOLDER, file_name
+from clark.section_kinds.doclinks import FILES_FOLDER, allowed_type, file_name
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
 SECTION_ID = re.compile(r"[A-Za-z0-9|_-]{1,64}")
@@ -61,6 +62,7 @@ MESSAGES = {
     "unreadable": "That file could not be read. Check it opens on this computer, then try again.",
     "files_folder": "The client folder has something called “Report files” that clark can't use as a folder. Rename it, then "
                     "add the file again.",
+    "bad_type": doclinks.BAD_TYPE,
     "no_name": "That file's name can't be used in the client folder. Rename the file, then try again.",
     "names_taken": f"There are already {MAX_NUMBER} files with that name in the client folder's “Report files” folder. Rename "
                    "the file, then try again.",
@@ -120,7 +122,7 @@ def _before_the_dialog(pub, code, ref):
         try:                                                # room for one more (the step checks again: this only saves a dialog)
             text = clark_store.check_section_body(kind, section.get("body") or "")
             section_bodies.TEMPLATES[kind].add_file(json.loads(text) if text else None,
-                                                    {"name": "a", "rel": f"{FILES_FOLDER}/a", "bytes": 0})
+                                                    {"name": "a.pdf", "rel": f"{FILES_FOLDER}/a.pdf", "bytes": 0})
         except (Invalid, section_bodies.Bad) as e:
             raise Refused("full", reason=str(e)) from None
         saved = row.get("publish_client") or None
@@ -131,7 +133,7 @@ def _before_the_dialog(pub, code, ref):
                                       backups_dir=pub.backups_dir)
         if not checked["ok"]:
             raise Refused("client_folder_refused", reason=checked["message"])
-        return Path(checked["folder"])
+        return Path(checked["folder"]), kind
     finally:
         store.close()
 
@@ -219,7 +221,7 @@ def attach(pub, body):
         return fail(Refused("busy"))
     try:
         try:
-            client = _before_the_dialog(pub, code, ref)
+            client, kind = _before_the_dialog(pub, code, ref)
             try:
                 chosen = pub.choose_open_file(PROMPT)
             except platform.PlatformError as e:
@@ -227,6 +229,11 @@ def attach(pub, body):
             if chosen is None:
                 return 200, {"ok": True, "cancelled": True}
             real, data = _source(pub, chosen)
+            if kind == "doclinks":                          # the ending is judged before anything is copied
+                try:
+                    allowed_type(real.name)
+                except section_bodies.Bad:
+                    raise Refused("bad_type") from None
             folder = _files_folder(pub, client)
             name, copied, made = _copy(pub, folder, real, data)
         except Refused as r:
