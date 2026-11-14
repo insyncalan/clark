@@ -27,6 +27,7 @@ import { ImportBtn } from "./ImportBtn.jsx";
 import { ExportBtn } from "./ExportBtn.jsx";
 import { NewTile } from "../components/NewTile.jsx";
 import { Icon } from "../components/Icon.jsx";
+import { groupIcon, sortIcon } from "../menuIcons.js";
 import { CommitChip } from "../components/CommitChip.jsx";
 
 const kept = {};                                              // project -> state: a browser that refuses storage still narrows the list
@@ -159,8 +160,8 @@ function UseCasesList() {
   // (the growing +) at its right end (the ruling: Import is the up arrow, Export the down arrow, as on Work items); the filter line under it. The tabs' counts follow the line.
   const tools = (
     <span class="ucl-tools">
-      {rows.length ? <Menu label="Group by" ariaLabel={`Group by: ${groupLabel(f.group)}`} id="ucl-group" btnCls="btn sm" menuLabel="Group by" items={GROUPS.map(([k, w]) => ({ id: k, name: w, checked: f.group === k }))} onPick={(k) => set({ group: k })} /> : null}
-      {rows.length ? <Menu label="Sort by" ariaLabel={`Sort by: ${(SORTS.find(([k]) => k === f.sort) || SORTS[0])[1]}`} id="ucl-sort" btnCls="btn sm" menuLabel="Sort by" items={SORTS.map(([k, w]) => ({ id: k, name: w, checked: f.sort === k }))} onPick={(k) => set({ sort: k })} /> : null}
+      {rows.length ? <Menu label="Group by" ariaLabel={`Group by: ${groupLabel(f.group)}`} id="ucl-group" btnCls="btn sm" menuLabel="Group by" items={GROUPS.map(([k, w]) => ({ id: k, name: w, icon: groupIcon(k), checked: f.group === k }))} onPick={(k) => set({ group: k })} /> : null}
+      {rows.length ? <Menu label="Sort by" ariaLabel={`Sort by: ${(SORTS.find(([k]) => k === f.sort) || SORTS[0])[1]}`} id="ucl-sort" btnCls="btn sm" menuLabel="Sort by" items={SORTS.map(([k, w]) => ({ id: k, name: w, icon: sortIcon(k), checked: f.sort === k }))} onPick={(k) => set({ sort: k })} /> : null}
       <ImportBtn />
       <ExportBtn />
       <NewTile word="Add use case" kind="use_case" id="ucAddPage" onAdd={openAdd} />

@@ -369,7 +369,7 @@ class Menu(board.Base):
     def test_row_978_every_entry_has_an_icon_from_the_existing_set_before_its_words_16px_muted_and_taking_the_entry_colour_on_hover(self):
         """Row 978: each entry of the menu has an icon (the page's own set, named here) before its words, 16 px, in the muted text colour at rest,
         and in the entry's own colour under the pointer. The list beside an entry (statuses, dates, names) has none."""
-        want = {"draft": "pencil", "peek": "expand", "status": "half", "due": "cal", "owner": "user", "link": "ext", "copyid": "doc", "dup": "plus", "archive": "archive"}
+        want = {"draft": "pencil", "peek": "expand", "status": "half", "due": "cal", "owner": "user", "link": "ext", "copyid": "doc", "dup": "copy", "archive": "archive"}
         with chrome() as cdp:
             sid = self.visit(cdp)
             a = self.id_of("Order the laptops")
@@ -394,7 +394,7 @@ class Menu(board.Base):
             self.assertNotEqual(cdp.js("getComputedStyle(document.querySelector('.rowmenu [data-rm=archive] svg')).color", sid), muted, "and that colour is not the muted one")
             cdp.js("document.querySelector('.rowmenu [data-rm=status]').click()", sid)
             self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly [role=menuitem]')", "the list beside Change status")
-            self.assertEqual(cdp.js("document.querySelectorAll('.rowmenu .rm-fly svg').length", sid), 0, "the list has no icons")
+            self.assertEqual(cdp.js("document.querySelectorAll('.rowmenu .rm-fly [role=menuitem]').length - document.querySelectorAll('.rowmenu .rm-fly [role=menuitem] > svg').length", sid), 0, "row 1138: each line of the list has an icon")
 
     def test_row_979_a_mouse_open_shows_no_ring_on_the_first_entry_even_after_a_key_was_pressed_and_a_key_brings_it_back(self):
         with chrome() as cdp:

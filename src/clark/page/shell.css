@@ -778,6 +778,7 @@ body:not(.board-view) #sel-bar { position: sticky; top: calc(var(--topbar) + var
 .cp-names { list-style: none; margin: 6px 0 0; padding: 0; }
 .cp-name { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 32px; padding: 3px 6px; border-radius: var(--radius-sm); cursor: pointer; }
 .cp-name:hover, .cp-name:focus-visible { background: var(--brand-blue-tint); }
+.cp-name .mi { flex: none; width: 16px; height: 16px; color: var(--text-muted); }
 .cp-name .av { width: 24px; height: 24px; font-size: var(--size-caption); }
 .cp-name[aria-pressed="true"]::after { content: "✓"; margin-left: auto; color: var(--status-blue-text); }
 .cp-hint { margin: 6px 2px 2px; font-size: var(--size-caption); color: var(--text-muted); }
@@ -2542,3 +2543,13 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .set-search input { box-sizing: border-box; width: 100%; min-height: 36px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .set-search input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .set-cards [hidden] { display: none !important; }
+/* row 1138: an icon beside the words of the section menu and of the right-click menus (the same shape for the same action: menuIcons.js) */
+.menu .menu-item { display: flex; align-items: center; gap: 10px; }
+.menu .menu-item .mi { flex: none; width: 16px; height: 16px; color: var(--text-muted); }
+.gt-menu button .mi, .gt-pop button .mi { flex: none; width: 16px; height: 16px; color: var(--text-muted); }
+.mi-t { min-width: 0; overflow-wrap: anywhere; }      /* row 1138: the words of a line that has an icon (the hook the icon tests read) */
+/* row 1138: icons on the Bulk menu lines and the slash menu lines */
+.bmenu .menu-item { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.bmenu .menu-item .mi, .rt-opt .mi { flex: none; width: 16px; height: 16px; color: var(--text-muted); }
+.rt-opt { display: flex; align-items: center; gap: 10px; }
+.gt-menu button.gt-danger .mi { color: inherit; }
