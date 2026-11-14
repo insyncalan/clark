@@ -2,6 +2,8 @@
 // show the fields and nothing else). Every change is one request with one Undo (changeCell), and the data is read again after it so
 // the stamp is the one clark wrote. The text is on the one rich editor (RichField, item 1005). Row 1077 (the owner's ruling): no chip
 // writes the text for you; the box alone. An action that is shown to the client carries a 'Shown to the client' label (its latest update is published). An action has a latest update; a risk, issue or decision has the stamp only.
+import { signal } from "@preact/signals";
+import { useState } from "preact/hooks";
 import { RichField } from "./RichField.jsx";
 import { richOrPlain } from "../logic/richOrPlain.js";
 import { data } from "../stores/report.js";
@@ -33,7 +35,32 @@ export function PeekWarn({ row }) {
   );
 }
 
-export function PeekLatest({ row }) {
+// Row 1180: the box holds an unsaved update while its editor is open and its text differs from the saved one. The peek reads this
+// before it closes (PeekUnsavedBar below). Module-wide because only one peek is ever open.
+export const latestDirty = signal(false);
+const editorOf = () => document.querySelector("#peek [data-pk-latest] [data-rt] .ProseMirror, [data-pk-latest] [data-rt] [contenteditable=true]");
+const fire = (el, init) => { if (el) el.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init })); };
+
+/** The bar a close with an unsaved update shows: Save and close, Discard, Keep editing. Props: onClose() closes the peek; onDone() hides the bar. */
+export function PeekUnsavedBar({ onClose, onDone }) {
+  if (!latestDirty.value) return null;
+  const done = () => { if (onDone) onDone(); };
+  return (
+    <div class="pk-unsaved" role="alert" data-pk-unsaved>
+      <p class="pk-unsaved-t">You have an unsaved update.</p>
+      <div class="pk-unsaved-b">
+        <button type="button" data-pk-save-close data-pk-unsaved-save onClick={() => { fire(editorOf(), { key: "Enter", ctrlKey: true }); setTimeout(() => { latestDirty.value = false; done(); if (onClose) onClose(); }, 0); }}>Save and close</button>
+        <button type="button" data-pk-discard data-pk-unsaved-discard onClick={() => { fire(editorOf(), { key: "Escape" }); latestDirty.value = false; done(); if (onClose) onClose(); }}>Discard</button>
+        <button type="button" data-pk-keep data-pk-unsaved-keep onClick={() => { done(); const e = editorOf(); if (e) e.focus(); }}>Keep editing</button>
+      </div>
+    </div>
+  );
+}
+
+const plain = (h) => String(h || "").replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+
+export function PeekLatest({ row, draft = null }) {
+  const [open, setOpen] = useState(false);
   const rec = raw(row), action = row.kind === "action";
   const now = rec && rec.latest_update ? String(rec.latest_update) : "";
   const stamp = rec ? stampText(rec.updated_at) : "";
@@ -44,13 +71,18 @@ export function PeekLatest({ row }) {
     { text: `Latest update of ${row.id} saved.`, back: `Latest update of ${row.id} is back as it was.`, place: "peek" })
     .then((reply) => { if (reply) refresh(); return reply; });
   return (
-    <div class="pk-latest" data-pk-latest>
+    <div class="pk-latest" data-pk-latest
+      onFocusIn={(e) => { if (e.target.closest("[data-rt]")) setOpen(true); }}
+      onFocusOut={() => setTimeout(() => { if (!document.querySelector("[data-pk-latest] [data-rt]")) { setOpen(false); latestDirty.value = false; } }, 0)}
+      onInput={() => { const e = editorOf(); latestDirty.value = !!e && plain(e.innerHTML) !== plain(html); }}>
       {action ? <>
         <div class="pk-lab"><span id={`pk-latest-lab-${row.id}`}>Latest update</span>
+          {draft}
           {row.client ? <span class="pk-latest-client" data-pk-latest-client><Icon name="eye" cls="s" />Shown to the client</span> : null}</div>
         <RichField field="latest_update" id={row.id} value={html} label="Latest update" empty="Add the latest update…" save={save} viewId={`pk-latest-txt-${row.id}`} labelledBy={`pk-latest-lab-${row.id} pk-latest-txt-${row.id}`} />
       </> : null}
       {stamp ? <div class="pk-last" data-pk-last><Icon name="clock" cls="s" /> Last updated {stamp}</div> : null}
+      {action && open ? <p class="pk-latest-hint" data-pk-latest-hint data-pk-hint>Cmd or Ctrl and Enter saves.</p> : null}
       {action ? <PeekLatestHistory key={`h-${row.id}`} id={row.id} /> : null}
     </div>
   );
