@@ -5,6 +5,7 @@ has no switcher. Widths 1400 and 900.
 
 Run: python3 dev/run_tests.py test_project_cover_switch_1176      (Chrome required)
 """
+import contextlib
 import unittest
 
 from test_project_switch import TWO
@@ -114,15 +115,37 @@ class CoverSwitch(Base):
 
 class NotElsewhere(unittest.TestCase):
     def test_the_published_page_holds_no_cover_switch(self):
-        from _paths import SRC
-        html = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
+        """The text a published file is made from is page.page_html(view=True) (publish.py), built from page-view.html, which is not
+        committed: ensure_built makes it, as the other tests' first import does. It must exist and be the real page (it holds the cover),
+        or the check below would pass on nothing."""
+        import _paths  # noqa: F401  (builds the pages)
+        from clark import page
+        page.ensure_built()
+        self.assertTrue(page.VIEW_PAGE.is_file(), "page-view.html is built")
+        html = page.page_html(view=True)
+        self.assertIn("Weekly report", html, "it is the real published page, so the words below are really absent")
         for word in ("cover-switch", "Click to change project", "cover-project-menu"):
             self.assertNotIn(word, html)
 
+
+class GanttCover(unittest.TestCase):
+    """The Gantt page's cover, drawn in Chrome (the same demo bundle test_gantt_page uses, with the Edit tools), has no project switcher."""
+
     def test_the_gantt_page_cover_is_left_alone(self):
-        from _paths import SRC
-        src = (SRC / "clark" / "page" / "src" / "components" / "Dashboard.jsx").read_text(encoding="utf-8")
-        self.assertIn("Click to change project", (SRC / "clark" / "page" / "src").joinpath("edit", "ProjectSwitch.jsx").read_text(encoding="utf-8") + src)
+        from test_gantt_page import page_html
+        from test_server import Running, wait
+        with contextlib.closing(Running(page_html=page_html)) as server, chrome() as cdp:
+            tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
+            sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
+            cdp.call("Page.navigate", {"url": "http://127.0.0.1:%d/" % server.port}, sid)
+            self.assertTrue(wait(lambda: cdp.js("!!(window.P && window.P.mount)", sid), 15), "the test bundle ran")
+            for w in WIDTHS:
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+                cdp.js("P.mount({width: %d})" % (w - 40), sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#gantt-page #cover h1')", sid), 15), "the Gantt cover is drawn at %d" % w)
+                self.assertEqual(cdp.js("document.querySelectorAll('.cover-switch').length", sid), 0, "no project switcher in the cover at %d" % w)
+                self.assertEqual(cdp.js("document.querySelectorAll('#cover button, #cover [role=button], #cover [role=menuitemradio]').length", sid), 0)
+                self.assertNotIn("Click to change project", cdp.js("document.body.innerHTML", sid))
 
 
 if __name__ == "__main__":
