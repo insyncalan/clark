@@ -16,7 +16,7 @@ from _paths import ROOT
 
 TESTS = ROOT / "tests"
 VERSION = "1.0.7"
-SCHEMA = 24              # 1.0.6 ended at layout 20; 1.0.7 took steps 21 to 24
+SCHEMA = 25              # 1.0.6 ended at layout 20; 1.0.7 took steps 21 to 24
 
 # Filled with the rows merged so far; the cut bookkeeping adds the rest from the merged list.
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
@@ -635,7 +635,7 @@ class Cut(unittest.TestCase):
 
     def test_the_data_layout_is_still_the_one_the_notes_say(self):
         self.cut_made()
-        self.assertEqual(schema_version(), SCHEMA, "1.0.7 ends at layout 24")
+        self.assertEqual(schema_version(), SCHEMA, "1.0.7 ends at layout 25")
 
     def test_a_waiting_row_whose_pull_request_has_landed_has_been_moved_to_covered(self):
         self.cut_made()

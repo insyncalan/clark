@@ -118,6 +118,7 @@ CREATE TABLE IF NOT EXISTS raid (
   status       TEXT NOT NULL DEFAULT 'Open' CHECK (status IN ('Open','Closed','Cancelled')),
   raised       TEXT NOT NULL,
   closed       TEXT CHECK (closed IS NULL OR closed >= raised),
+  latest_update TEXT,   -- items 1182, 1183 (schema version 25): a risk's or issue's Latest update, as on actions
   client_visible INTEGER NOT NULL DEFAULT 1 CHECK (client_visible IN (0,1)),   -- clark: on by default
   client_message TEXT NOT NULL DEFAULT '',   -- clark: optional, no template (#24)
   milestone    TEXT REFERENCES milestones(id),
@@ -397,6 +398,7 @@ These are copied from `tracker.py`'s `suggested_state` and `milestone_state` at 
 - `client_visible` defaults to 1 on every work item, milestone and use case. The editor turns it off for a row that shouldn't be published.
 - `use_cases.commitment` (#709, schema version 16; step 21 renamed Candidate) is NULL (no flag) or one of `Planned 2026` (`Candidate` before schema version 21), `Committed`, `Planned 2027` (`store.COMMITMENTS`, the one list). The column has no CHECK, so a fourth word is no layout step. A new use case has none. The published file carries it with the use case (the eye still hides the whole use case); an Excel import with an empty Commitment cell leaves it as it is.
 - `use_cases.owner` and `use_cases.owner_id` (row 875, schema version 22) hold a use case's owner: `owner` is the typed name, `owner_id` is an optional link to `people(id)`. Both start empty (NULL).
+- `raid.latest_update` (items 1182 and 1183, schema version 25) holds the peek's Latest update of a risk or issue, as `actions.latest_update` does: clean HTML, NULL when none, and NULL on every row there before. It is written by the `update` change like an action's, and its History line is the one field "Latest update".
 - `actions.client_action` and `raid.client_action` (row 811, schema version 17) are 0 or 1 (CHECK), 0 by default and on every row there before. Item 1158 took the feature out of the page: there is no switch in the peek, no `is:needed` filter word, no "Needs from you" list built from the flag at publish time (`publish.py` no longer reads it), and `NEEDS` is not a type a new section may have. The column itself, every stored value and its History lines are kept as they were (no schema change, nothing deleted); the one change route can still set it (`changes.py`, `update`). The Excel workbook has no column for it and an import leaves it as it is; an older workbook with a "Needs from you" column still imports, and that column is not read. A "Needs from you" section already stored keeps its body but is left out of the page and of the published file.
 - A row carrying an `exclude` label (Sensitive) never goes out, as in creaite. `internal_note` is never published.
 - The published file only takes client-visible rows that aren't in `report_hidden`. Its build drops the others, so they are never in the file at all. creaite's separate client checks (`client_leak.py`, `client_output.py`, `client_check.py`) aren't copied. The build's own tests check that a hidden row, a row with the flag off, a Sensitive row and an internal note are each absent from the file.

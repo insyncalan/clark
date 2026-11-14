@@ -7,6 +7,7 @@ the marker check; and the editor workbook round trip with table sections present
 
 Run: python3 dev/run_tests.py test_hostile_1068
 """
+import re
 import copy
 import json
 import shutil
@@ -46,7 +47,7 @@ def others(path):
     use_cases lines are left out too: step 22 (row 875) adds owner and owner_id to that table, which changes its dump text, not row 1068's step."""
     con = sqlite3.connect(str(path))
     try:
-        return [l for l in con.iterdump() if "report_sections" not in l and "schema_version" not in l and "use_cases" not in l and "use_case_milestones" not in l]      # row 1107 (step 24) adds that table
+        return [l for l in con.iterdump() if "report_sections" not in l and "schema_version" not in l and "use_cases" not in l and "use_case_milestones" not in l and not re.search(r"\braid\b", l)]      # row 1107 (step 24) adds that table; step 25 (items 1182, 1183) adds raid.latest_update, which changes raid's dump text
     finally:
         con.close()
 

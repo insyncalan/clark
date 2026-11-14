@@ -46,7 +46,7 @@ def rows_without_flag(path):
     try:
         out = {}
         for t in TABLES:
-            names = ", ".join(c[1] for c in con.execute("PRAGMA table_info(%s)" % t) if c[1] != "client_action")
+            names = ", ".join(c[1] for c in con.execute("PRAGMA table_info(%s)" % t) if c[1] not in ("client_action", "latest_update"))
             out[t] = con.execute("SELECT %s FROM %s ORDER BY id" % (names, t)).fetchall()
         return out
     finally:
@@ -95,7 +95,7 @@ class Migrating(unittest.TestCase):
         open_store(path, onedrive_roots=[]).close()
         self.assertEqual(version(path), NOW)
         for t in TABLES:
-            self.assertEqual(columns(path, t)[-1][1:], ("client_action", "INTEGER", 1, "0", 0))
+            self.assertEqual([c[1:] for c in columns(path, t) if c[1] == "client_action"], [("client_action", "INTEGER", 1, "0", 0)])      # step 25 adds raid.latest_update after it
 
     def test_a_brought_up_file_and_a_new_file_have_the_same_tables(self):
         path = make_at(self.dir, STEP - 1)
