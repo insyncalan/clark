@@ -39,9 +39,9 @@ class MilestonesTemplate(unittest.TestCase):
         self.assertEqual(c["fit"], ["full"])
 
     def test_it_is_still_offered_only_when_the_report_has_none_and_plans_the_same_request(self):
-        none = node('T.list([{id: "a", type: "text", title: "A", beside: 0, hidden: 0}]).some((x) => x.id === "built-in-milestones")')
+        none = node('T.list({sections: [{id: "a", type: "text", title: "A", beside: 0, hidden: 0}]}).some((x) => x.id === "built-in-milestones")')
         self.assertTrue(none)
-        have = node('T.list([{id: "a", type: "milestones", title: "M", beside: 0, hidden: 0}]).some((x) => x.id === "built-in-milestones")')
+        have = node('T.list({sections: [{id: "a", type: "milestones", title: "M", beside: 0, hidden: 0}]}).some((x) => x.id === "built-in-milestones")')
         self.assertFalse(have)
         p = node('T.plan([{id: "a", type: "text", title: "A", beside: 0, hidden: 0}], "built-in-milestones", "a", false).requests')
         self.assertEqual(p[0]["values"], {"type": "milestones", "title": "Milestones"})
