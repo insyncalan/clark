@@ -31,6 +31,7 @@ import logging
 import os
 import re
 import stat
+import sys
 import threading
 import time
 import traceback
@@ -199,7 +200,7 @@ class Log:
         self.clock = clock or datetime.now
         self.home = home
         self.routes = set(routes) if routes is not None else None
-        self.echo = None                     # item 632: a stream that also gets each line (the container's stdout); None everywhere else
+        self.echo = sys.stdout if platform.container_mode() else None     # item 632: in the container each line also goes to stdout (`docker logs`); None everywhere else
         self._level_cache = (None, NORMAL)
         self._page = []
         self._lock = threading.Lock()
