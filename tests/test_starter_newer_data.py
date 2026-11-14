@@ -52,7 +52,7 @@ class Version(Tmp):
         Path(self.data).mkdir()
         (Path(self.data) / "clark.db").write_bytes(b"")
         self.assertIsNone(sc.folder_data_version(self.data))
-        (Path(self.data) / "clark.db").write_text("this is not a database " * 50)
+        (Path(self.data) / "clark.db").write_text("this is not a database " * 50, encoding="utf-8")
         self.assertIsNone(sc.folder_data_version(self.data))
 
     def test_a_database_with_no_version_is_none(self):
@@ -113,7 +113,7 @@ class Main(Tmp):
     def test_a_new_folder_and_a_non_database_are_allowed(self):
         self.assertEqual(self.run_main(self.data)[0], 0)
         Path(self.data).mkdir()
-        (Path(self.data) / "clark.db").write_text("junk " * 100)
+        (Path(self.data) / "clark.db").write_text("junk " * 100, encoding="utf-8")
         self.assertEqual(self.run_main(self.data)[0], 0)
 
     def test_no_sentence_starts_with_the_product_name_capitalised(self):
