@@ -301,6 +301,7 @@ class Edit(Setup):
                     p.until("document.querySelectorAll('.ucrow').length === 1", "the row left the dashboard")
                     p.until("(document.querySelector('.toast-text') || {}).textContent === 'Use case 1.2 taken off the page.'", "the toast")
                     p.until("document.getAnimations().filter(a => !(a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('toast-bar'))).length === 0", "the toast finished arriving")
+                    p.until("document.activeElement && document.activeElement.dataset.ucEye === %s" % json.dumps(self.demo.use_case), "the taking-off has moved focus to the next eye (60 ms after the reply; with Reduce motion nothing else makes the wait above last)")
                     p.js("document.activeElement && document.activeElement.blur()")      # after the page has settled: focus is dropped just before Undo
                     p.js("document.querySelector('[data-undo]').click()")
                     p.until("(document.querySelector('.toast-text') || {}).textContent === 'Undone: Use case 1.2 taken off the page.'", "Undo names the use case")
