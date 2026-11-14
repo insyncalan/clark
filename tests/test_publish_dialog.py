@@ -246,11 +246,17 @@ class Dialog(Base):
             self.assertFalse(p.js("document.querySelector('#pub-client').checked"))
             self.assertEqual(p.js("Object.keys(localStorage).concat(Object.keys(sessionStorage)).filter((k) => k !== 'clark.lastProject').length"), 0, "not remembered anywhere")
 
-    def menu_note(self, p):
-        """Item 1177: the report bar's state chip is gone; the published note is the last line of the profile menu. Opens the menu, reads that line, shuts the menu."""
+    def menu_note(self, p, published=True):
+        """Item 1177: the report bar's state chip is gone; the published note is the last line of the profile menu. Opens the menu, waits until it
+        has settled (published=True: until a label starting with Published is drawn; False: until the Appearance label is drawn), reads the last
+        label, shuts the menu. With nothing published, no label may start with Published and it returns None."""
         p.js("document.querySelector('#profile-btn').click()")
-        p.until("!!document.querySelector('#profile-menu .lab')", "the note is in the menu")
-        text = p.js("(function(){var l=document.querySelectorAll('#profile-menu .lab');return l[l.length-1].textContent})()")
+        if published:
+            p.until("[...document.querySelectorAll('#profile-menu .lab')].some((e) => /^Published /.test(e.textContent))", "the published note is in the menu")
+        else:
+            p.until("[...document.querySelectorAll('#profile-menu .lab')].some((e) => e.textContent === 'Appearance')", "the menu is settled")
+            self.assertEqual(p.js("[...document.querySelectorAll('#profile-menu .lab')].filter((e) => /^Published/.test(e.textContent)).length"), 0, "nothing published: no Published label")
+        text = p.js("(function(){var l=document.querySelectorAll('#profile-menu .lab');return l[l.length-1].textContent})()") if published else None
         p.js("document.querySelector('#profile-btn').click()")
         p.until("!document.querySelector('#profile-menu')", "the menu closed")
         return text
@@ -258,7 +264,7 @@ class Dialog(Base):
     def test_C_result_message_and_report_bar(self):
         with chrome() as cdp:
             p = self.page(cdp)
-            self.assertEqual(self.menu_note(p), "Appearance", "nothing published yet: no published note, so the last label is the Appearance group")
+            self.assertIsNone(self.menu_note(p, published=False), "nothing published yet: no label starts with Published")
             p.open_publish()
             p.js("document.querySelector('#pub-client').click()")
             p.go()
