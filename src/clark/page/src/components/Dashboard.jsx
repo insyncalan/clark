@@ -15,7 +15,6 @@ import { slots as slotsOf } from "../logic/placement.js";
 import { emptyBody } from "../logic/emptyBody.js";
 export { emptyBody };
 import { templateFor, templateEmpty } from "../templates/index.js";
-import { rowsOf, shownRows } from "../logic/needs.js";
 import { rowsFor } from "./ItemRows.jsx";
 import { KINDS } from "../logic/sectionRows.js";
 import { milestoneRows } from "../logic/milestones.js";
@@ -77,16 +76,15 @@ export function Dashboard({ tools }) {
     const el = at && document.querySelector(`.secs > .sec[data-id="${CSS.escape(at.id)}"]`);
     if (el) window.scrollBy(0, el.getBoundingClientRect().top - at.top);
   }, [editing]);
-  const all = d.report_sections || [];
+  const all = (d.report_sections || []).filter((s) => s.type !== "needs");      // item 1158: a Needs from you section already on a dashboard stops showing (it stays stored); nothing else is changed
   // does not draw yet (only text bodies are drawn, #74). Rows are read from every section first (#95), so a section whose partner
   // is left out takes the full row and never pairs with the next one. The page clark serves is unchanged.
   // The file draws a text section with a body, the At a glance section when it carries tiles and the use case summary when it
-  // carries use cases (item 45), Risks and issues, Open actions and Decisions only when they have a row to show (A-D5: an empty one is left out of the file, heading and all; View says it has nothing to show), and a 'Needs from you' section that has a row to show (item 121); the other types are left out until they are drawn.
+  // carries use cases (item 45), Risks and issues, Open actions and Decisions only when they have a row to show (A-D5: an empty one is left out of the file, heading and all; View says it has nothing to show); the other types are left out until they are drawn.
   // A section template (#96) is drawn in the file and in the served View alike only while it has something to show (its isEmpty,
   // FR-11: View is what the client sees), so an empty template or a stub is in neither.
-  const hasNeeds = (s) => shownRows(rowsOf(s, fromFile.value)).length > 0;       // a 'Needs from you' section with no row to show is left out (a left-out row is absent)
-  const fileDraws = (s) => (templateFor(s.type) ? !templateEmpty(s, d) : s.type === "text" ? !emptyBody(s.body) : s.type === "glance" ? !!(d.glance && d.glance.tiles && d.glance.tiles.length) : s.type === "usecases" ? !!(d.use_cases && d.use_cases.length) : s.type === "needs" ? hasNeeds(s) : s.type === "docs" ? visibleDocs(d, true).length > 0 : s.type === "tracker" ? true : s.type === "milestones" ? milestoneRows(d.milestones, todayIso(), true).length > 0 : !!KINDS[s.type] && rowsFor(s.type).length > 0);
-  const shown = (s) => !s.hidden && !(fromFile.value && !fileDraws(s)) && !(templateFor(s.type) && templateEmpty(s, d)) && !(s.type === "needs" && !hasNeeds(s)) && !(s.type === "docs" && !visibleDocs(d, fromFile.value).length);       // #74: no document to show, no section
+  const fileDraws = (s) => (templateFor(s.type) ? !templateEmpty(s, d) : s.type === "text" ? !emptyBody(s.body) : s.type === "glance" ? !!(d.glance && d.glance.tiles && d.glance.tiles.length) : s.type === "usecases" ? !!(d.use_cases && d.use_cases.length) : s.type === "docs" ? visibleDocs(d, true).length > 0 : s.type === "tracker" ? true : s.type === "milestones" ? milestoneRows(d.milestones, todayIso(), true).length > 0 : !!KINDS[s.type] && rowsFor(s.type).length > 0);
+  const shown = (s) => !s.hidden && !(fromFile.value && !fileDraws(s)) && !(templateFor(s.type) && templateEmpty(s, d)) && !(s.type === "docs" && !visibleDocs(d, fromFile.value).length);       // #74: no document to show, no section
   const list = editing ? all : all.filter(shown);
   const places = slots(all, editing ? undefined : shown);
   const emptyWhy = editing ? "This report has no sections yet. Add the first one below." : all.length ? (fromFile.value ? "This report has no sections." : "Every section of this report is hidden. Switch to Edit to show them.") : fromFile.value ? "This report has no sections." : "This report has no sections yet. Switch to Edit to add one.";
