@@ -61,7 +61,7 @@ class PeekFresh(unittest.TestCase):
         return sid
 
     def rows(self, cdp, sid):
-        return cdp.js("Object.fromEntries([...document.querySelectorAll('#peek .pk-row')].map(r => [r.querySelector('dt').textContent, r.querySelector('dd').textContent]))", sid)
+        return cdp.js("Object.fromEntries([...document.querySelectorAll('#peek .pk-row')].filter(r => r.querySelector('dt') && r.querySelector('dd')).map(r => [r.querySelector('dt').textContent, r.querySelector('dd').textContent]))", sid)
 
     def test_a_stale_item_shows_both_dates_and_the_chip_in_every_view(self):
         for width in (1400, 900):
