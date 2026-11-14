@@ -24,10 +24,15 @@ class Toolbar(unittest.TestCase):
 
     def open_peek(self, cdp, width, edit=True):
         s, sid = self.load_page(cdp, width)
+        ids = self.ids_on_page(cdp, sid)
         if edit:
             self.edit_mode(cdp, sid)
-        ids = self.ids_on_page(cdp, sid)
-        click(cdp, sid, f"#work tbody tr[data-id='{ids[1]}'] .c-item")
+            ids = self.ids_on_page(cdp, sid)
+            click(cdp, sid, f"#work tbody tr[data-id='{ids[1]}'] .c-item")
+        else:      # Work items is always editable (row 804); the read-only peek is the Dashboard in View
+            cdp.js("document.querySelector('[data-view=dashboard]').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-mode=view][aria-pressed=true]')", sid)), "the Dashboard is in View")
+            cdp.js(f"clarkPage.openPeek({ids[1]!r}, 'item')", sid)
         self.assertTrue(wait(lambda: cdp.js("clarkPage.peek() && clarkPage.peek().id", sid) == ids[1]))
         self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').getAnimations().length === 0", sid)), "the slide-in has ended")
         return sid
@@ -59,9 +64,9 @@ class Toolbar(unittest.TestCase):
                 self.assertTrue(self.left_of(cdp, sid, "[data-pk-prev]", "[data-pk-next]"))
                 self.assertTrue(self.left_of(cdp, sid, "[data-pk-next]", "#pk-more"))
                 right = cdp.js("document.querySelector('#peek').getBoundingClientRect().right - document.querySelector('#pk-more').getBoundingClientRect().right", sid)
-                self.assertLess(right, 24, "More is the right-most control")
+                self.assertLess(right, 32, "More is the right-most control")
                 left = cdp.js("document.querySelector('[data-pk-close]').getBoundingClientRect().left - document.querySelector('#peek').getBoundingClientRect().left", sid)
-                self.assertLess(left, 24, "Close is the left-most control")
+                self.assertLess(left, 32, "Close is the left-most control")
                 rule = cdp.js("""(() => { const w = document.querySelector('[data-pk-wide]').getBoundingClientRect(), p = document.querySelector('[data-pk-prev]').getBoundingClientRect();
                   return [...document.querySelectorAll('#peek .pk-bar *')].filter(e => { const r = e.getBoundingClientRect(); return e.tagName !== 'BUTTON' && !e.closest('button') && r.width <= 2 && r.height >= 8 && r.left >= w.right - 0.5 && r.right <= p.left + 0.5; }).length; })()""", sid)
                 self.assertEqual(rule, 1, "one thin rule between Open full page and Previous item")

@@ -92,11 +92,11 @@ class Running:
     """A server on a free port in a thread, stopped by close() (which also drops the connections it holds, as stopping would)."""
 
     def __init__(self, data_for=DEMO.get, page_html=None, projects=lambda archived=False: PROJECTS, change=None, undo=None, sneak=None,
-                 publisher=StubPublisher(), section_body=None):
+                 publisher=StubPublisher(), section_body=None, activity=None):
         if section_body is None:
             section_body = change      # #273: a test that stands in for the change handler stands in for a section's content too (the page sends it to its own route)
         self.httpd = Stoppable((sv.HOST, 0), data_for=data_for, page_html=page_html, projects=projects, change=change,
-                               undo=undo, sneak=sneak, publisher=publisher, section_body=section_body)
+                               undo=undo, sneak=sneak, publisher=publisher, section_body=section_body, activity=activity)
         self.port = self.httpd.server_port
         self.httpd.handle_error = self._quiet_when_the_client_leaves(self.httpd.handle_error)
         threading.Thread(target=self.httpd.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True).start()   # shutdown() waits one poll: 0.5 s by default, a test file stops a server per test

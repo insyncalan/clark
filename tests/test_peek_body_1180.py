@@ -60,7 +60,7 @@ class Body(test_peek_latest.Browser):
                 sent, sid = self.load(cdp, width, OVERDUE)
                 self.open_box(cdp, sid)
                 hint = cdp.js("(document.querySelector('[data-pk-hint]') || {textContent: ''}).textContent", sid)
-                self.assertRegex(hint, r"(Ctrl|Cmd|⌘).{0,3}Enter", "the hint names the key")
+                self.assertRegex(hint, r"Cmd or Ctrl and Enter", "the hint names the key")
                 self.assertGreater(self.top(cdp, sid, "[data-pk-hint]"), self.top(cdp, sid, self.BOX), "the hint sits under the box")
 
     def test_ctrl_or_cmd_enter_saves_once_and_a_plain_enter_makes_a_new_line(self):
@@ -102,6 +102,21 @@ class Body(test_peek_latest.Browser):
                 self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#peek')", sid)))
                 self.assertEqual(sent, [])
 
+    def test_esc_with_an_unsaved_update_shows_the_bar_and_does_not_close(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sent, sid = self.load(cdp, width, OVERDUE)
+                self.open_box(cdp, sid)
+                self.type_in(cdp, sid, "Not yet saved")
+                # Esc aimed at the page (not the editor, which keeps Esc for itself): the peek asks, like its Close button
+                cdp.js("document.body.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true}))", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-unsaved]')", sid)), "Esc shows the bar")
+                self.assertTrue(cdp.js("!!document.querySelector('#peek')", sid), "the peek stays open under it")
+                bar = cdp.js("document.querySelector('[data-pk-unsaved]').textContent", sid)
+                for words in ("Save and close", "Discard", "Keep editing"):
+                    self.assertIn(words, bar)
+                self.assertEqual(sent, [], "nothing is sent while it asks")
+
     def test_save_and_close_saves_one_change_and_then_closes(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
@@ -114,7 +129,7 @@ class Body(test_peek_latest.Browser):
                 self.assertTrue(wait(lambda: len(sent) == 1), "one request")
                 self.assertIn("Saved on the way out", sent[0]["changes"]["latest_update"])
                 self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#peek')", sid)), "then the peek closes")
-                self.assertIn("saved", self.toast(cdp, sid).lower())
+                self.assertTrue(wait(lambda: "saved" in self.toast(cdp, sid).lower()), "the toast says it is saved")
 
     def test_a_peek_with_nothing_unsaved_closes_without_asking(self):
         with chrome() as cdp:
@@ -200,6 +215,7 @@ class Body(test_peek_latest.Browser):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sent, sid = self.load(cdp, width, "TUL-A-001")
+                wait(lambda: not re.search(r"0$", self.tab(cdp, sid, "source")[0]))      # the counts arrive with the history read
                 text, _ = self.tab(cdp, sid, "source")
                 if re.search(r"0$", text):
                     self.skipTest("the demo item has no source")

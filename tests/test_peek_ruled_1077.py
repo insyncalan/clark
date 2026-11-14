@@ -30,13 +30,13 @@ import test_publish as tp  # noqa: E402
 SRC = ROOT / "src" / "clark" / "page" / "src"
 LABEL = "Ask clark to update for you"
 OLD_LABEL = "Change an item with words"
-EDIT_ONLY_ROWS = ("Shown to client", "Client wording")            # the two rows that are controls, not fields: the editor's alone
+EDIT_ONLY_ROWS = ("Client wording",)                              # the row that is a control, not a field: the editor's alone (row 1180: Client visible is one clickable line with no label)
 FILE_ONLY_ROWS = ("Client wording", "Latest update")                # row 1111: a published peek adds these two, as text, when the file carries them
 HISTORY_ROWS = ("Last reviewed",)                                  # worked out from the item's history on the live page; a published file carries no history
 CONTROLS = "button, input, textarea, select, [contenteditable], [role=textbox], [role=combobox]"
 ACTION, MILESTONE = "TUL-A-001", "TUL-M-002"
-CELLS = "(() => { const out = {}; for (const k of ['status', 'priority', 'owner', 'due']) { const e = document.querySelector('#peek .pk-fields > [data-row=' + k + ']'); if (!e) continue; const c = getComputedStyle(e); out[k] = [c.borderTopWidth, c.borderLeftWidth, c.borderTopLeftRadius, c.backgroundColor, c.boxShadow]; } return out; })()"
-FLAT = ["0px", "0px", "0px", "rgba(0, 0, 0, 0)", "none"]          # border, border, radius, fill, shadow
+CELLS = "(() => { const out = {}; for (const k of ['status', 'priority', 'owner', 'due']) { const e = document.querySelector('#peek .pk-chips > [data-row=' + k + ']'); if (!e) continue; const c = getComputedStyle(e); out[k] = c.boxShadow; } return out; })()"
+FLAT = "none"                                                     # row 1180: the chips are a flat row (an outlined pill each, no shadow, no tile round the row)
 SECTIONS = "(() => { const out = {}; for (const s of ['.pk-bar', '.pk-title', '.pk-fields', '.pk-latest', '.pk-tabs', '.pk-source', '.pk-last']) { const e = document.querySelector('#peek ' + s); if (e) out[s] = getComputedStyle(e).boxShadow; } return out; })()"   # the peek's sections draw no shadow (only the panel itself does)
 PROBE = "((name) => { const e = document.createElement('i'); e.style.cssText = 'border:1px solid var(' + name + ')'; document.body.appendChild(e); const c = getComputedStyle(e).borderTopColor; e.remove(); return c; })"
 
@@ -50,15 +50,15 @@ class Source(unittest.TestCase):
         """Ruling 1: no Draft on any peek. The pill, its hook, its CSS and the helper that wrote its words are gone from the source and the page."""
         latest = (SRC / "edit" / "PeekLatest.jsx").read_text(encoding="utf-8")
         helper = (SRC / "edit" / "peekLatest.js").read_text(encoding="utf-8")
-        for marker in ("draftFor", "pk-draft", "Draft", 'place: "draft"', "drafted"):
+        for marker in ("draftFor", "Draft", 'place: "draft"', "drafted"):
             self.assertNotIn(marker, latest, marker)
         self.assertNotIn("draftFor", helper)
         self.assertNotIn("Draft", (SRC / "edit" / "MilestonePeek.jsx").read_text(encoding="utf-8"), "the milestone peek has none either")
-        self.assertNotIn("pk-draft", (SRC / "edit" / "edit.css").read_text(encoding="utf-8"))
+        self.assertNotIn("pk-draft", (SRC / "edit" / "edit.css").read_text(encoding="utf-8"))      # the toolbar's Draft email button (row 1180) keeps the hook data-pk-draft and the id pk-draft, not the class
         for f in code_files():
             self.assertNotIn("draftFor", f.read_text(encoding="utf-8"), str(f))
         built = page.PAGE.read_text(encoding="utf-8")
-        for marker in ("pk-draft", "draftFor", "Latest update drafted"):
+        for marker in ("draftFor", "Latest update drafted", 'class:"pk-draft', ".pk-draft"):
             self.assertNotIn(marker, built, marker)
 
     def test_the_words_box_is_headed_ask_clark_to_update_for_you(self):
@@ -179,14 +179,14 @@ class Peeks(unittest.TestCase):
         self.assertEqual(found, [], f"a client's fields are read only ({where})")
 
     def no_draft(self, cdp, sid, where):
-        self.assertFalse(cdp.js("!!document.querySelector('#peek [data-pk-draft], #peek .pk-draft')", sid), where)
+        self.assertFalse(cdp.js("!!document.querySelector('#peek .pk-draft')", sid), where)
         self.assertEqual(cdp.js("[...document.querySelectorAll('#peek button, #peek .pk-chip, #peek .tag')].map(e => e.textContent.trim()).filter(t => t === 'Draft')", sid), [], where)
 
 
 
 class Browser(Peeks):
     def test_the_client_work_item_peek_is_the_editors_read_only_with_source(self):
-        """Rulings 1, 2 and 4 on the live Dashboard: View shows the fields read only, with Source; Edit shows the same rows plus its two control rows."""
+        """Rulings 1, 2 and 4 on the live Dashboard: View shows the fields read only, with Source; Edit shows the same rows plus its one control row."""
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.dashboard_in_view(cdp, width, self.store, self.code)
@@ -199,14 +199,14 @@ class Browser(Peeks):
                 for sel in (".pk-tabs", "[data-sneak]", "[data-pk-latest]", "[data-pk-title-in]", "[data-pk-needed]"):
                     self.assertFalse(cdp.js(f"!!document.querySelector('#peek {sel}')", sid), f"{sel} is the editor's alone")
                 client = self.labels(cdp, sid)
-                self.assertTrue(len(client) >= 6, client)
+                self.assertTrue(len(client) >= 5, client)      # row 1180: status, owner, due and priority are chips now, so the rows are the Details rows
                 self.to_edit(cdp, sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-tabs')", sid)), "Edit: the tabs are drawn")
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-source]')", sid)), "Edit keeps Source")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-htab=source]')", sid)), "Edit keeps Source (row 1180: it is the Source tab of the history)")
                 self.assertTrue(cdp.js(f"document.querySelector('#peek .pk-fields').querySelectorAll({json.dumps(CONTROLS)}).length > 0", sid), "the editor's fields are controls")
                 editor = self.labels(cdp, sid)
                 self.assertEqual(client, [l for l in editor if l not in EDIT_ONLY_ROWS], "the client's rows are the editor's, in the editor's order")
-                self.assertEqual(sorted(set(editor) - set(client)), sorted(EDIT_ONLY_ROWS), "the editor adds its two control rows and nothing else")
+                self.assertEqual(sorted(set(editor) - set(client)), sorted(EDIT_ONLY_ROWS), "the editor adds its one control row and nothing else")
                 self.no_draft(cdp, sid, "Edit")
                 self.assertTrue(cdp.js("!!document.querySelector('#peek [data-pk-latest] [data-rich=latest_update]')", sid), "the Latest update stays, without its Draft")
 
@@ -254,7 +254,7 @@ class Browser(Peeks):
                 self.to_edit(cdp, sid)
                 self.open_peek(cdp, sid, "PUB-A-001", "item")
                 editor = self.labels(cdp, sid)
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-source]')", sid)), "the editor has Source")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-htab=source]')", sid)), "the editor has Source (the history's Source tab, row 1180)")
             with self.subTest(width=width, where="file"), chrome() as cdp:
                 path = folder / "report.html"
                 path.write_text(text, encoding="utf-8")
@@ -268,7 +268,7 @@ class Browser(Peeks):
                     cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
                     cells = cdp.js(CELLS, sid)
                     self.assertEqual(sorted(cells), ["due", "owner", "priority", "status"])
-                    self.assertEqual(set(map(tuple, cells.values())), {tuple(FLAT)}, f"the published cells are flat too, {theme} (ruling of 10-11): " + str(cells))
+                    self.assertEqual(set(cells.values()), {FLAT}, f"the published chips are flat too, {theme} (ruling of 10-11): " + str(cells))
                     shadows = cdp.js(SECTIONS, sid)
                     self.assertTrue(shadows and set(shadows.values()) == {"none"}, f"no shadow on a published peek's sections, {theme}: " + str(shadows))
                 shown = self.labels(cdp, sid)
@@ -324,15 +324,15 @@ class Flat(Peeks):
                     cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
                     cells = cdp.js(CELLS, sid)
                     self.assertEqual(sorted(cells), ["due", "owner", "priority", "status"])
-                    self.assertEqual(set(map(tuple, cells.values())), {tuple(FLAT)}, f"{theme}: " + str(cells))
+                    self.assertEqual(set(cells.values()), {FLAT}, f"{theme}: " + str(cells))
                     shadows = cdp.js(SECTIONS, sid)
                     self.assertTrue(shadows and set(shadows.values()) == {"none"}, f"no shadow on the editor's peek sections, {theme}: " + str(shadows))
                 cdp.js("document.documentElement.dataset.theme = 'light'", sid)
                 # the Activity tab (not selected): a keyboard focus draws an underline in the focus colour and no outline box
                 cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Shift", "code": "ShiftLeft", "windowsVirtualKeyCode": 16}, sid)
                 cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "Shift", "code": "ShiftLeft", "windowsVirtualKeyCode": 16}, sid)
-                cdp.js("document.querySelector('#peek [data-pk-tab=activity]').focus()", sid)
-                self.assertTrue(wait(lambda: cdp.js("document.activeElement.dataset.pkTab", sid) == "activity"))
+                cdp.js("document.querySelector('#peek [data-pk-htab=activity]').focus()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement.dataset.pkHtab", sid) == "activity"))
                 got = cdp.js("(() => { const e = document.activeElement, c = getComputedStyle(e); return [e.matches(':focus-visible'), c.outlineStyle, c.borderBottomWidth, c.borderBottomColor]; })()", sid)
                 self.assertTrue(got[0], "the focus came from the keyboard: " + str(got))
                 self.assertEqual(got[1], "none", "no box round the tab: " + str(got))
