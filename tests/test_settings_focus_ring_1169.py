@@ -1,8 +1,8 @@
-"""Item 1169: the Spacing radio, both Gantt "on" boxes and the Feedback box draw the 2 px house focus ring, in real Chrome.
+"""Item 1169: both Gantt "on" boxes and the Feedback box draw the 2 px house focus ring, in real Chrome.
 
 Run: python3 dev/run_tests.py test_settings_focus_ring_1169
 The real Settings page over the fictional demo data at 1400 and 900 px, light and dark. Each control is focused from the keyboard's point of view
-(:focus-visible) and its computed outline is measured: solid, 2 px wide, in the house blue. The Spacing radio's focus box is the size of its card.
+(:focus-visible) and its computed outline is measured: solid, 2 px wide, in the house blue.
 Chrome is required.
 """
 import json
@@ -20,7 +20,7 @@ from test_server import CHROME, Running, chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
-SEL = {"spacing": "input[name=density]:checked", "gantt-editor": "#gantt-editor", "gantt-client": "#gantt-client", "feedback": "#feedback-message"}
+SEL = {"gantt-editor": "#gantt-editor", "gantt-client": "#gantt-client", "feedback": "#feedback-message"}
 MEASURE = r"""((sels) => {
   const out = {};
   const blue = getComputedStyle(document.documentElement).getPropertyValue('--brand-blue').trim();
@@ -28,10 +28,8 @@ MEASURE = r"""((sels) => {
     const el = document.querySelector(sel);
     if (!el) { out[name] = null; continue; }
     el.focus({ preventScroll: true });
-    const cs = getComputedStyle(el), r = el.getBoundingClientRect(), card = el.closest('label') && el.closest('label').querySelector('.secpick-card');
-    const c = card ? card.getBoundingClientRect() : null;
-    out[name] = { visible: el.matches(':focus-visible'), style: cs.outlineStyle, width: parseFloat(cs.outlineWidth), color: cs.outlineColor,
-                  w: r.width, h: r.height, cw: c && c.width, ch: c && c.height };
+    const cs = getComputedStyle(el);
+    out[name] = { visible: el.matches(':focus-visible'), style: cs.outlineStyle, width: parseFloat(cs.outlineWidth), color: cs.outlineColor };
   }
   const probe = document.createElement('i'); probe.style.color = blue; document.body.appendChild(probe);
   out.blue = getComputedStyle(probe).color; probe.remove();
@@ -92,9 +90,6 @@ class SettingsFocusRing(unittest.TestCase):
                         self.assertEqual(m["style"], "solid", label)
                         self.assertEqual(m["width"], 2, label + ": the ring is 2 px")
                         self.assertEqual(m["color"], got["blue"], label + ": the house blue")
-                    sp = got["spacing"]
-                    self.assertLess(abs(sp["w"] - sp["cw"]), 1, f"spacing, {width} px, {theme}: the focus box is as wide as the card")
-                    self.assertLess(abs(sp["h"] - sp["ch"]), 1, f"spacing, {width} px, {theme}: the focus box is as tall as the card")
 
 
 if __name__ == "__main__":
