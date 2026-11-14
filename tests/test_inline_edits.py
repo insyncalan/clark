@@ -789,8 +789,8 @@ class Live(unittest.TestCase):
                 pcell = "#peek [data-cell='peek:TUL-008:status']"
                 self.until(cdp, sid, f"!!document.querySelector(\"{pcell}\")", "the peek's Status row is a picker")
                 self.until(cdp, sid, "document.querySelector('#peek').getAnimations({subtree: true}).length === 0", "the peek's slide-in has ended")
-                self.assertEqual(cdp.js("document.querySelector('#peek .pk-rating').textContent", sid), " · Amber")
-                kept = self.look(cdp, sid, "#peek .pk-rating")
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-row=priority] .pk-chip-sub').textContent", sid), "Amber kept")
+                kept = self.look(cdp, sid, "#peek [data-row=priority] .pk-chip-sub")
                 self.assertTrue(kept["shown"], f"the rating word shows at {width}")
                 self.assertEqual(kept["color"], "rgb(169, 203, 212)", "--text-muted, dark")
                 self.assertGreaterEqual(kept["ratio"], 4.5, f"the rating word is readable in dark at {width}")
@@ -852,7 +852,7 @@ class Live(unittest.TestCase):
                 sid = self.open_page(cdp, width, edit=False)
                 cdp.js("clarkPage.openPeek('TUL-008', 'item')", sid)
                 self.until(cdp, sid, "!!document.querySelector('#peek [data-row=priority] .pk-chip-sub')", "the peek says the rating word")
-                self.assertEqual(cdp.js("document.querySelector('#peek [data-row=status] dd').textContent.replace(/\\s+/g, ' ').trim()", sid), "Closed · Amber")
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-row=status]').textContent.replace(/\\s+/g, ' ').trim()", sid), "Closed", "the status chip says Closed; the rating word is the priority chip's sub-line (test_peek_chips_1180.py:164)")
                 self.assertEqual(cdp.js("document.querySelectorAll('[data-pop]').length", sid), 0, "no picker is open until the status is chosen")
                 self.assertTrue(cdp.js("!!document.querySelector('#peek [data-pk-client]')", sid), "Work items have no mode: the peek edits in View too (row 824): it has the Client visible line")
 
