@@ -165,6 +165,8 @@ def write_sheet(wb, published, table, palette=None):
             excel.protect_text_cell(cell)
             if EDITOR_FIELD.get(field, field) not in editor_locked:       # the export's rule (item 727): only these stay editable
                 cell.protection = excel.UNLOCKED
+            else:
+                cell.fill = excel.LOCKED      # item 1157: a locked cell is grey, as in the export
     ws.freeze_panes = "A5"
     excel.print_setup(ws)
     excel.protect_sheet(ws)           # as the export's sheets (item 727): no password, the same allowed actions
