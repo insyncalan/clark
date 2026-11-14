@@ -112,7 +112,7 @@ export function ClientMenu() {
             {past.map((r) => <a class="cm-row cm-link" role="menuitem" tabIndex={-1} href={r.href} title={`Report of ${r.date}`} key={r.iso + r.href}><Icon name={actionIcon("pastReport")} cls="mi" />{r.date}</a>)}
             <div class="cm-note" role="presentation">{past.length ? WORDS.sameFolder : WORDS.none}</div>
           </div>
-          {asAt.value ? <div class="cm-group cm-asat" role="presentation"><div class="cm-note num">As at {shownDate(asAt.value)}</div></div> : null}      {/* issue 1178: the published date is at the foot of the menu, not in the bar */}
+          {asAt.value ? <div class="cm-group cm-asat" role="presentation" data-row="asat"><div class="cm-note num">As at {shownDate(asAt.value)}</div></div> : null}      {/* issue 1178: the published date is at the foot of the menu, not in the bar */}
         </MenuPanel>
       ) : null}
       {box ? <ProfileBox onClose={() => setBox(false)} /> : null}

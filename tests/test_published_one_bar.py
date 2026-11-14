@@ -30,7 +30,7 @@ BAR = """(() => {
     bar: r(bar), pos: st(bar, 'position'), logo: !!q('.logo'), nameSize: st(name, 'fontSize'), nameTag: name.tagName, lineSize: st(line, 'fontSize'),
     lineText: line.textContent, nameText: name.textContent, tabs: r(tabs), tab: r(tab), tabPad: [st(tab, 'paddingTop'), st(tab, 'paddingBottom')],
     tabLine: parseFloat(st(tab, 'lineHeight')), tabNames: [...bar.querySelectorAll('.tab')].map((t) => t.textContent),
-    logoBox: [Math.round(q('.logo').getBoundingClientRect().height), Math.round(q('.logo-icon').getBoundingClientRect().height)], noDate: !q('.asat'), badge: r(badge), name: r(name), line: r(line),
+    logoBox: [Math.round(q('.logo').getBoundingClientRect().height), Math.round(q('.logo-icon').getBoundingClientRect().height)], date: (q('button.asat') || {}).textContent || '', badge: r(badge), name: r(name), line: r(line),
     slot: !!q('.top-slot[data-slot="theme"]'), slotShown: st(q('.top-slot'), 'display'),
     frameTop: frame.getBoundingClientRect().top, glance: !!document.querySelector('.glance'), wide: document.documentElement.scrollWidth <= innerWidth,
     after: parseFloat(getComputedStyle(tab, '::after').height), afterBottom: getComputedStyle(tab, '::after').bottom,
@@ -66,7 +66,7 @@ class InTheFile(Published):
                 b = p.js(BAR)
                 self.assertEqual((b["bars"], b["covers"], b["tops"]), (1, 0, 1), "one header, and no banner card")
                 self.assertTrue(b["logo"])
-                self.assertTrue(b["noDate"], "issue 1178: the date is not in the bar (it is in the profile menu)")
+                self.assertRegex(b["date"], r"28-10-2026", "issue 1178 ruling: the date is a button in the bar (and also in the profile menu)")
                 self.assertNotIn("for ", b["lineText"], "issue 1178: no client in the line")
                 self.assertEqual(b["nameSize"], "24px")
                 self.assertEqual(b["lineSize"], "13px")

@@ -1,7 +1,38 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { ClientMenu } from "./ClientMenu.jsx";
 import { coverLine } from "../logic/cover.js";
-import { TITLES, SHORT_TITLES, shownTabs as allTabs, view, show, project, data, fromFile, mode } from "../stores/report.js";
+import { pastReportsOf } from "../logic/clientMenu.js";
+import { TITLES, SHORT_TITLES, shownTabs as allTabs, view, show, project, data, fromFile, asAt, mode } from "../stores/report.js";
+
+// A calendar date is shown DD-MM-YYYY (RULES.md); stored YYYY-MM-DD. Never shifted by a time zone.
+const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
+
+// Row 1178: the published date in a client's header is a button. A click opens the browser's own calendar (a date box, showPicker). A published
+// file has no clark behind it, so it cannot rebuild a day (the as-at rebuild needs the server): a picked day that has an earlier report in the
+// same folder opens that report; any other day keeps this report and says so in one line.
+function AsAtDate() {
+  const [open, setOpen] = useState(false), [note, setNote] = useState(""), btn = useRef(null), box = useRef(null);
+  useEffect(() => {
+    if (!open || !box.current) return;
+    box.current.focus();
+    try { if (box.current.showPicker) box.current.showPicker(); } catch (e) { /* the box stays focused: its own keys still work */ }
+  }, [open]);
+  const picked = (day) => {
+    setOpen(false);
+    if (btn.current) btn.current.focus();
+    if (!day || day === asAt.value) { setNote(""); return; }
+    const hit = pastReportsOf(data.value).find((r) => r.iso === day);
+    if (hit) { location.href = hit.href; return; }
+    setNote("No report for " + shownDate(day) + ".");
+  };
+  return (
+    <span class="asat-wrap">
+      <button type="button" class="asat num" ref={btn} title="Click to change date" aria-haspopup="dialog" aria-expanded={open ? "true" : "false"} onClick={() => { setNote(""); setOpen(!open); }}>As at {shownDate(asAt.value)}</button>
+      {open ? <input type="date" class="asat-box" ref={box} aria-label="Date of the report" value={asAt.value} onChange={(e) => picked(e.target.value)} onBlur={() => setOpen(false)} /> : null}
+      {note ? <span class="asat-note" role="status">{note}</span> : null}
+    </span>
+  );
+}
 
 export function TopBar({ tools }) {
   const tabs = { value: allTabs.value.filter((v) => v !== "settings" && v !== "published") };      // row 976: Settings is no tab; it opens from the profile circle's menu (and the address, and Published reports); the route and the view stay
@@ -59,6 +90,7 @@ export function TopBar({ tools }) {
           : <button class="tab" role="tab" key={v} data-view={v} aria-selected={view.value === v ? "true" : "false"} tabIndex={v === stop ? 0 : -1} onClick={() => (v === "gantt" && GanttName && view.value === "gantt" ? setRenaming(true) : show(v))} title={v === "gantt" && GanttName && view.value === "gantt" ? "Rename the tab" : undefined}>{SHORT_TITLES[v] ? <><span class="tl-full">{TITLES[v]}</span><span class="tl-short">{SHORT_TITLES[v]}</span></> : TITLES[v]}</button>
         ))}
       </nav>
+      {file && asAt.value ? <AsAtDate /> : null}      {/* row 1178: the date in a client's header, a button */}
       {file ? <span class="top-slot" data-slot="theme"></span> : null}      {/* issue 1146: the place for the light and dark switcher icon (issue 1144), after the date and before the profile circle; empty, it takes no room */}
       {Publish ? <Publish /> : null}
       {/* row 804: the top bar never draws View | Edit. It exists only on the Dashboard, as the report bar's pill (ReportBar.jsx, item 665); the other tabs are always editable */}
