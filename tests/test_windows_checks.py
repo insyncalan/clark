@@ -62,10 +62,12 @@ class AgainCommand(unittest.TestCase):
     def test_every_again_in_the_docker_checks_names_docker(self):
         lines = [doctor.check_docker_mode(seen(docker_os=lambda a=a: a)) for a in ("windows", None)]
         lines.append(doctor.check_port_reserved(seen(reserved_ports=lambda: [(8700, 8799)])))
-        lines.append(doctor.run_check(doctor.DOCKER_CHECKS[1], seen(port="abc")))
         for line in lines:
             self.assertEqual(line.kind, doctor.FIX)
             self.assertIn("python3 -m clark.doctor --docker again.", line.words)
+        line = doctor.run_check(doctor.DOCKER_CHECKS[1], seen(port="abc"))      # a bad port: the port check says it, this one could not finish
+        self.assertEqual(line.kind, doctor.NOT_CHECKED)
+        self.assertIn("python3 -m clark.doctor --docker again.", line.words)
 
     def test_the_command_in_a_download(self):
         from unittest import mock
