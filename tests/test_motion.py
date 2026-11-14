@@ -393,6 +393,9 @@ class PublishLooks(tpd.Base):
                 p = self.page(cdp)
                 _, media, own = mode
                 cdp.call("Emulation.setEmulatedMedia", {"features": te.REDUCE if media else ALLOW}, p.sid)
+                if not media and not own:
+                    # a Mac that reduces motion makes the page paint data-motion="reduce" at load; the pin comes after, so clear it
+                    p.js("delete document.documentElement.dataset.motion")
                 if own:
                     p.js(OWN)
                 p.js(self.HOLD)
@@ -403,6 +406,8 @@ class PublishLooks(tpd.Base):
                 self.assertEqual(p.js("document.querySelector('[data-go]').disabled"), True, "no second publish while it works")
                 spin = p.js("(function(){var e=document.querySelector('.spin');return [getComputedStyle(e).animationName,e.getAnimations().length];})()")
                 if mode[0] == "allowed":
+                    p.until("getComputedStyle(document.querySelector('.spin')).animationName === 'pub-spin'", "the ring turns when motion is allowed")
+                    spin = p.js("(function(){var e=document.querySelector('.spin');return [getComputedStyle(e).animationName,e.getAnimations().length];})()")
                     self.assertEqual(spin[0], "pub-spin")
                     self.assertGreater(spin[1], 0)
                     self.assertTrue(p.js("document.querySelector('.spin').getAnimations()[0].effect.getComputedTiming().iterations === Infinity"),
