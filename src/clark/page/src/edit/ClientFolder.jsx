@@ -21,6 +21,48 @@ async function undoLocal(code, applyId) {
   } else say("problem", words(r, "save the local folder"));
 }
 
+// One change of the Local folder (choose_local or clear_local): the project's setting is updated and the toast says it with its Undo. Returns the refusal's words, or "".
+async function changeLocal(action) {
+  const r = await folderRequest(project.value, action);
+  const b = r.body;
+  if (r.status === 200 && b && b.ok === true) {
+    if (b.changed) {
+      const d = data.value;
+      data.value = { ...d, project: { ...d.project, publish_local: b.folder || null } };
+      say("done", b.message);
+      if (b.apply_id) toast.value = { ...toast.value, local: () => undoLocal(project.value, b.apply_id) };   // the toast's own Undo (aboutYouToast.js): this setting has its own route
+    }
+    return "";
+  }
+  return words(r, "save the local folder");
+}
+
+// The Local folder control, shared by the Publishing card and the Essentials card (row 1115): the folder's name, Choose folder and Clear.
+// Its ids and data hooks start with "ess-" so the page never holds one twice. It keeps its own busy flag and refusal line.
+export function LocalFolderPick() {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const local = savedLocal();
+  async function run(action) {
+    setBusy(true);
+    setMsg(null);
+    const bad = await changeLocal(action);
+    setBusy(false);
+    if (bad) setMsg(bad);
+  }
+  const hook = (n) => ({ [`data-ess-${n}`]: "" });
+  return (
+    <div class="ess-folder">
+      <p class="folder-now" id="ess-local-folder-now">{local ? <b>{folderName(local)}</b> : <span class="muted">No local folder yet.</span>}</p>
+      <div class="row">
+        <button type="button" class="btn" id="ess-local-folder" {...hook("choose-local")} onClick={() => run("choose_local")} disabled={busy}>Choose folder</button>
+        {local ? <button type="button" class="btn quiet" {...hook("clear-local")} onClick={() => run("clear_local")} disabled={busy}>Clear</button> : null}
+      </div>
+      <div role="alert" aria-live="polite">{msg ? <p class="error">{msg}</p> : null}</div>
+    </div>
+  );
+}
+
 export function ClientFolder() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);                  // {kind: "error" | "note", text}
@@ -50,19 +92,9 @@ export function ClientFolder() {
   async function runLocal(action) {
     setBusy(true);
     setMsg(null);
-    const r = await folderRequest(project.value, action);
+    const bad = await changeLocal(action);
     setBusy(false);
-    const b = r.body;
-    if (r.status === 200 && b && b.ok === true) {
-      if (b.changed) {
-        const d = data.value;
-        data.value = { ...d, project: { ...d.project, publish_local: b.folder || null } };
-        say("done", b.message);
-        if (b.apply_id) toast.value = { ...toast.value, local: () => undoLocal(project.value, b.apply_id) };   // the toast's own Undo (aboutYouToast.js): this setting has its own route
-      }
-      return;
-    }
-    setMsg({ kind: "error", text: words(r, "save the local folder") });
+    if (bad) setMsg({ kind: "error", text: bad });
   }
 
   function usePasted(e) {
