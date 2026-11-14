@@ -71,7 +71,7 @@ def schema_types():
     return tuple(re.findall(r"'([a-z0-9]+)'", statement.split("CHECK (type IN (")[1].split("))")[0]))
 
 
-PAGE_FIRST = ("gantt", "gantttable")      # rows 926, 1068: template types with a page part but no registry module (no content of their own); the store takes them since layouts 19 and 21
+PAGE_FIRST = ("gantt", "gantttable", "milestoneslib")      # rows 926, 1068: template types with a page part but no registry module (no content of their own); the store takes them since layouts 19 and 21
 
 
 class PythonSide(unittest.TestCase):

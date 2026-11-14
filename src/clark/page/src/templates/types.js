@@ -10,4 +10,4 @@ export const TEMPLATE_TYPES = [
 // section draws the project's Gantt lines; row 1068: the Gantt table section draws the same lines as a table). Drawn by templateFor /
 // templateEdit, taken by the store (changes.py NEW_SECTION_TYPES, layouts 19 and 21) and offered by logic/templates.js ACCEPTS, but not
 // in TEMPLATE_TYPES, which tests/test_section_registry.py holds equal to the registry's list.
-export const PENDING_TYPES = ["gantt", "gantttable"];
+export const PENDING_TYPES = ["gantt", "gantttable", "milestoneslib"];      // row 1192: milestoneslib, the Milestones library template (the built-in's block, no body of its own)

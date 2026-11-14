@@ -9,6 +9,7 @@
 // box; the lead moves each one into TEMPLATES with its Help row.
 import { rows } from "./placement.js";
 import { TEMPLATE_TYPES, PENDING_TYPES } from "../templates/types.js";
+import { MILESTONES_TITLE, MILESTONES_UNRULED_DESCRIPTION, MILESTONES_UNRULED_HOLDS, MILESTONES_UNRULED_FIT } from "./templatesStrings.js";
 
 // What the store takes in a new section (changes.py NEW_SECTION_TYPES: text
 // and every type in the template registry (#96)). A template whose type is not here is listed but not offered.
@@ -71,6 +72,8 @@ export const TEMPLATES = [
     body: "<h2>Where we are</h2><p></p><h2>What is next</h2><ul><li></li></ul>",
     description: "Where the plan stands, in clark’s one editor: headings, lists and links. Starts with two headings to fill in.",
     holds: ["Heading", "Rich text: headings, lists, quote, links"] },
+  { id: "milestones", name: MILESTONES_TITLE, kind: "dates", fit: MILESTONES_UNRULED_FIT, type: "milestoneslib", title: MILESTONES_TITLE, body: "", ready: true,      // row 1192: the library template; the built-in card below stays as it is
+    description: MILESTONES_UNRULED_DESCRIPTION, holds: MILESTONES_UNRULED_HOLDS },
   { id: "gantt", name: "Gantt", kind: "dates", fit: ["full"], type: "gantt", title: "Gantt", body: "", ready: true,
     description: "The plan as bars on a timeline, from your Gantt lines. Only lines put in the client view show.", holds: ["Heading", "The Gantt chart"] },
   { id: "gantt-table", name: GANTT_TABLE_NAME, kind: "dates", fit: ["full", "half"], type: "gantttable", title: GANTT_TABLE_NAME, body: "", ready: true,
@@ -133,6 +136,7 @@ export const SKETCHES = {
   "contacts": ["grid-template-rows:repeat(3,1fr)", ["width:70%", "width:70%", "width:70%"]],
   "checklist": ["grid-template-rows:repeat(3,1fr)", ["width:80%", "width:60%", "width:70%"]],
   "key-dates": ["grid-template-rows:repeat(3,1fr)", ["width:90%", "width:90%", "width:90%"]],
+  "milestones": ["grid-template-rows:repeat(3,1fr)", ["width:90%", "width:75%", "width:85%"]],
   "link-preview": ["grid-template-columns:1fr 2fr", [IMG, ""]],
   "gantt": ["grid-template-rows:repeat(3,1fr)", ["width:60%", "width:50%;margin-left:25%", "width:40%;margin-left:55%"]],
   "gantt-table": ["grid-template-rows:repeat(4,1fr)", ["", "", "", ""]],
