@@ -9,6 +9,7 @@
 // box; the lead moves each one into TEMPLATES with its Help row.
 import { rows } from "./placement.js";
 import { TEMPLATE_TYPES, PENDING_TYPES } from "../templates/types.js";
+import { MILESTONES_NAME, MILESTONES_TITLE, MILESTONES_UNRULED_DESCRIPTION, MILESTONES_UNRULED_HOLDS, MILESTONES_UNRULED_FIT } from "./templatesStrings.js";
 
 // What the store takes in a new section (changes.py NEW_SECTION_TYPES: text
 // and every type in the template registry (#96)). A template whose type is not here is listed but not offered.
@@ -92,7 +93,7 @@ export const LATER = [
 const builtIn = (type, title, kind) => ({ id: `built-in-${type}`, name: title, kind, fit: ["full"], type, title, body: "", ready: true, description: "", holds: [], builtIn: true });
 export const BUILT_INS = [
   builtIn("current", "Current state", "text"), builtIn("glance", "At a glance", "figures"), builtIn("usecases", "Use case summary", "work"),
-  builtIn("milestones", "Milestones", "dates"), builtIn("raid", "Risks and issues", "work"), builtIn("actions", "Open actions", "work"),
+  { ...builtIn("milestones", MILESTONES_TITLE, "dates"), name: MILESTONES_NAME, fit: MILESTONES_UNRULED_FIT, description: MILESTONES_UNRULED_DESCRIPTION, holds: MILESTONES_UNRULED_HOLDS }, builtIn("raid", "Risks and issues", "work"), builtIn("actions", "Open actions", "work"),
   builtIn("decisions", "Decisions", "work"), builtIn("docs", "Supporting documents", "files"),
 ];
 const missing = (sections) => (sections ? BUILT_INS.filter((b) => !sections.some((s) => s.type === b.type)) : []);
@@ -132,6 +133,7 @@ export const SKETCHES = {
   "quote": ["grid-template-rows:2fr 1fr", ["border-left:3px solid var(--brand-cyan)", "width:40%"]],
   "contacts": ["grid-template-rows:repeat(3,1fr)", ["width:70%", "width:70%", "width:70%"]],
   "checklist": ["grid-template-rows:repeat(3,1fr)", ["width:80%", "width:60%", "width:70%"]],
+  "built-in-milestones": ["grid-template-rows:repeat(3,1fr)", ["width:90%", "width:75%", "width:85%"]],
   "key-dates": ["grid-template-rows:repeat(3,1fr)", ["width:90%", "width:90%", "width:90%"]],
   "link-preview": ["grid-template-columns:1fr 2fr", [IMG, ""]],
   "gantt": ["grid-template-rows:repeat(3,1fr)", ["width:60%", "width:50%;margin-left:25%", "width:40%;margin-left:55%"]],
