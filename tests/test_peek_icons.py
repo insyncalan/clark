@@ -250,7 +250,8 @@ class IconsBrowser(unittest.TestCase):
         iid, kind, status, priority, due = item
         rows, tokens = got["rows"], got["tokens"]
         want = {"status": rows["status"]["pill"].split()[-1],
-                "priority": {"Urgent": "r", "High": "a", "Medium": "b"}.get(priority, "n"),
+                # a risk's or issue's Rating chip (items 1182, 1183) is coloured by its colour: Urgent and High red, Medium amber, Low green; an action's Priority by its level
+                "priority": ({"Urgent": "r", "High": "r", "Medium": "a", "Low": "g"} if kind in ("risk", "issue") else {"Urgent": "r", "High": "a", "Medium": "b"}).get(priority, "n"),
                 "due": expected_date_tone(kind, status, due)}
         self.assertEqual(set(rows), {"status", "due"} | ({"priority"} if kind != "decision" else set()), f"{iid}: a decision has no priority row")
         surface = rgb_hex(got["bg"])
@@ -268,11 +269,16 @@ class IconsBrowser(unittest.TestCase):
             # never colour alone: the icon sits beside a written word, and its shape is the row's own
             self.assertTrue(row["words"], where)
         self.assertEqual(rows["status"]["words"], rows["status"]["words"].strip())
-        status, _, kept = rows["status"]["words"].partition(" · ")      # a closed or cancelled risk or issue keeps its rating word: "Closed · Amber"
+        # a closed or cancelled risk or issue keeps its rating beside its status (items 1182, 1183): "Closed Amber kept", or "Closed Not rated" when it never was
+        m = re.match(r"^(Closed|Cancelled) (?:(Red|Amber|Green) kept|(Not rated))$", rows["status"]["words"])
+        status, kept = (m.group(1), m.group(2) or m.group(3)) if m else (rows["status"]["words"], "")
         self.assertIn(status, PLAIN_STATUS, iid)
         if kept:
             self.assertIn(kept, {"Red", "Amber", "Green", "Not rated"}, f"{iid}: the rating word kept beside the status")
-        if "priority" in rows:
+        if "priority" in rows and kind in ("risk", "issue") and priority:
+            colour = {"Urgent": "Red", "High": "Red", "Medium": "Amber", "Low": "Green"}[priority]
+            self.assertEqual(rows["priority"]["words"], f"{colour} {priority}", f"{iid}: the Rating chip says the colour and the level word")
+        elif "priority" in rows:
             self.assertIn(rows["priority"]["words"], PLAIN_PRIORITY, iid)
             if priority:
                 self.assertEqual(rows["priority"]["words"], priority, "the priority is written, not only coloured")

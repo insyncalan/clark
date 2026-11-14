@@ -94,7 +94,7 @@ export function Cell({ row, field, said, keep, tip, children, place }) {
       <button type="button" class="cell-pick" ref={button} tabIndex={place ? 0 : -1} data-edit-only data-cell={k} data-tip={tip || undefined} aria-haspopup={field === "status" || field === "priority" ? "menu" : "dialog"}
         aria-expanded={open ? "true" : "false"} aria-label={`${fieldName(row, field)} of ${row.id}: ${said}. Change`}
         onClick={(e) => { e.stopPropagation(); toggle(); }} onKeyDown={down}><span class="cell-val">{children}</span></button>
-      {open ? <Picker row={row} anchor={button} today={todayIso()} names={field === "owner" ? people(data.value) : undefined} onPick={pick} onAdd={field === "owner" && (place || workSelection.ids.value.length < 2) ? add : undefined} onClose={close} /> : null}
+      {open ? <Picker row={row} anchor={button} place={place} today={todayIso()} names={field === "owner" ? people(data.value) : undefined} onPick={pick} onAdd={field === "owner" && (place || workSelection.ids.value.length < 2) ? add : undefined} onClose={close} /> : null}
     </>
   );
 }

@@ -761,6 +761,22 @@ body:not(.board-view) #sel-bar { position: sticky; top: calc(var(--topbar) + var
 .cpop [role="menuitemradio"][aria-checked="true"]::after { content: "✓"; margin-left: auto; padding-left: 14px; color: var(--status-blue-text); }
 .cpop .menu-item:focus-visible, .cpop button:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
 .cpop.rpick [role="group"] { display: flex; flex-direction: column; }   /* item 210: a risk's Priority picker, Impact then Likelihood */
+/* Items 1182, 1183: the Rating chip of a risk or an issue in the peek and its 3 x 3 matrix (the mockup's 268 px panel). Each cell is its level word on its colour; Urgent is solid. */
+.pk-rate .pk-lvl { padding: 0 var(--space-2); border-radius: 999px; font-size: 12px; font-weight: 700; line-height: 20px; }
+.pk-rate .pk-lvl.r { background: var(--status-red-tint); color: var(--status-red-text); } .pk-rate .pk-lvl.a { background: var(--status-amber-tint); color: var(--status-amber-text); } .pk-rate .pk-lvl.g { background: var(--status-green-tint); color: var(--status-green-text); }
+.cpop.crate { box-sizing: border-box; width: 268px; padding: var(--space-2); }
+.crate .mx { display: grid; grid-template-columns: auto repeat(3, 1fr); gap: 3px; margin: var(--space-1) 0 0; align-items: stretch; }
+.crate .mh { font-size: 12px; font-weight: 500; letter-spacing: .02em; color: var(--text-muted); text-align: center; padding: 2px 0; }
+.crate .mh-i { text-align: right; padding-right: 6px; } .crate .mh-l { grid-column: 2 / 5; }
+.crate .mr { display: flex; flex-direction: column; justify-content: center; align-items: flex-end; font-size: 12px; color: var(--text-muted); padding-right: 6px; line-height: 1.2; }
+.crate .mr i { font-style: normal; font-weight: 500; }
+.crate .mc { all: unset; box-sizing: border-box; display: block; min-height: 30px; padding: 7px 2px; border: 1.5px solid transparent; border-radius: 6px; text-align: center; font-size: 12px; font-weight: 600; line-height: 1.3; cursor: pointer; }
+.crate .mc.r { background: var(--status-red-tint); color: var(--status-red-text); } .crate .mc.a { background: var(--status-amber-tint); color: var(--status-amber-text); } .crate .mc.g { background: var(--status-green-tint); color: var(--status-green-text); }
+.crate .mc.r.u { background: var(--status-red-text); color: var(--text-on-brand); }
+.crate .mc:hover { filter: brightness(.96); }
+.crate .mc.on { border-color: var(--text); }
+.crate .mc:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.crate .mx-say { margin: 6px var(--space-1) 2px; font-size: 12px; color: var(--text-muted); }
 .cpop .rp-head { padding: 6px 12px 2px; font-size: var(--size-small); color: var(--text-muted); }
 .cpop.rpick [role="group"] + [role="group"] { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 2px; }
 .cowner { width: 260px; padding: 6px; }
@@ -2156,7 +2172,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   html.print-all .ucf-x { grid-column: 2 / -1; text-align: left; }
 }
 
-.pk-rating { color: var(--text-muted); }   /* a closed risk keeps its rating word beside its Closed pill */
+.pk-rating { color: var(--text-muted); font-size: 12px; font-weight: 600; }   /* a closed risk keeps its rating beside its Closed pill: "Red kept" (items 1182, 1183) */
 /* The peek's coloured icons: one class per tone, each from a design token (iconColours.js picks the tone). The word beside the icon always says the same thing. */
 .pk-val { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .pk-row[data-row=status] .pk-val { flex-wrap: nowrap; white-space: nowrap; }

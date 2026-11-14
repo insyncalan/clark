@@ -7,10 +7,11 @@ import { statusChoices, statusNote, ratingChoices } from "../itemEdit.js";
 import { colourOf, todayIso } from "../../workItems.js";
 import { statusIcon, ratingIcon } from "../../menuIcons.js";
 
-export function StatusPick({ row, anchor, onPick, onClose }) {
+export function StatusPick({ row, anchor, place, onPick, onClose }) {
   // A risk or issue also has a Rating section, whatever its status (#448) (Red, Amber, Green): its colour is set from impact and likelihood (D-12).
   // Status and Rating are two labelled groups of the one menu, each with its own tick.
-  const rating = ratingChoices(row);
+  // Items 1182, 1183: the peek has no Rating section (its Rating chip and matrix set impact and likelihood); a risk or issue there is Open, Closed or Cancelled and no more.
+  const rating = place === "peek" ? [] : ratingChoices(row);
   const choices = statusChoices(row).map((s) => ({ value: s, text: s, note: statusNote(row, s), ...statusIcon(row, s, todayIso()) }));
   if (rating.length) {
     choices.unshift({ heading: "Status", hidden: true });
