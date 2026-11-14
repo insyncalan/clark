@@ -265,6 +265,7 @@ class Guards(Rig):
         with self.chrome() as cdp:
             p = self.load_app(cdp)
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, p.sid)
+            p.js("delete document.documentElement.dataset.motion")  # a Mac that reduces motion had the page paint data-motion=reduce at load
             p.until(BACKDROP + '.anim === "bg-in"', "motion allowed is pinned: a machine that asks for less motion (a CI Mac) must not decide it")
             self.assertEqual(p.js(BACKDROP)["anim"], "bg-in", "motion allowed: the picture fades in once")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
@@ -454,6 +455,7 @@ class Published(Measure, Pub):
         with self.chrome() as cdp:
             p = self.draw_as(cdp, path, 1400, "light")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, p.sid)
+            p.js("delete document.documentElement.dataset.motion")  # a Mac that reduces motion had the page paint data-motion=reduce at load
             p.until(BACKDROP + '.anim === "bg-in"', "motion allowed is pinned, whatever the machine asks")
             self.assertEqual(p.js(BACKDROP)["anim"], "bg-in")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
