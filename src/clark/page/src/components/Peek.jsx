@@ -130,8 +130,8 @@ function MilestoneFields({ m, tools }) {
         <Row name="Agreed date" ms="baseline">{showDate(m.baseline_date)}</Row>
         <Row name="Forecast date" ms="forecast">{showDate(m.forecast_date)}</Row>
         <Row name="Workstream" ms="workstream">{text(m.workstream)}</Row>
-        {wording || !fromFile.value ? <Row name="Client wording" ms="client_message"><Rich html={wording} /></Row> : null}
-        {latest ? <Row name="Latest update" ms="latest_update"><Rich html={latest} /></Row> : null}      {/* item 1185: a published file's milestone shows its latest update when it carries one (the live editor's peek has its own box) */}      {/* a client's peek has no empty wording row, as it has no empty description row; the editor's peek keeps both */}
+        {wording || !fromFile.value ? <Row name="Client wording" ms="client_message"><Rich html={wording} /></Row> : null}      {/* a client's peek has no empty wording row, as it has no empty description row; the editor's peek keeps both */}
+        {latest ? <Row name="Latest update" ms="latest_update"><Rich html={latest} /></Row> : null}      {/* item 1185: a published file's milestone shows its latest update when it carries one (the live editor's peek has its own box) */}
       </dl>
     </>
   );
