@@ -1,10 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { ClientMenu } from "./ClientMenu.jsx";
 import { coverLine } from "../logic/cover.js";
-import { TITLES, SHORT_TITLES, shownTabs as allTabs, view, show, project, data, fromFile, asAt, mode } from "../stores/report.js";
-
-// A calendar date is shown DD-MM-YYYY (RULES.md); stored YYYY-MM-DD. Never shifted by a time zone.
-const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
+import { TITLES, SHORT_TITLES, shownTabs as allTabs, view, show, project, data, fromFile, mode } from "../stores/report.js";
 
 export function TopBar({ tools }) {
   const tabs = { value: allTabs.value.filter((v) => v !== "settings" && v !== "published") };      // row 976: Settings is no tab; it opens from the profile circle's menu (and the address, and Published reports); the route and the view stay
@@ -43,7 +40,7 @@ export function TopBar({ tools }) {
     setTimeout(() => { const b = row.current && row.current.querySelector(`[data-view="${vs[j]}"]`); if (b) b.focus(); }, 0);
   };
   const file = fromFile.value;
-  const lines = file ? coverLine(data.value && data.value.project, "") : [];      // issue 1146: a published file has one bar; the banner's words ("Weekly report", the week, the client) sit under the name
+  const lines = file ? coverLine(data.value && data.value.project, "") : [];      // issue 1146: a published file has one bar; the banner's words ("Weekly report", the week) sit under the name
   const ganttTitle = data.value && data.value.gantt && typeof data.value.gantt.title === "string" ? data.value.gantt.title : "";
   const shownName = (view.value === "gantt" && ganttTitle) || name || project.value || "No project open";      // the Gantt page's own title, when the file carries one, as the banner showed it
   const Name = view.value === "dashboard" || view.value === "gantt" ? "h1" : "div";      // the Dashboard and Gantt pages had their heading in the banner; the other pages have their own
@@ -62,7 +59,6 @@ export function TopBar({ tools }) {
           : <button class="tab" role="tab" key={v} data-view={v} aria-selected={view.value === v ? "true" : "false"} tabIndex={v === stop ? 0 : -1} onClick={() => (v === "gantt" && GanttName && view.value === "gantt" ? setRenaming(true) : show(v))} title={v === "gantt" && GanttName && view.value === "gantt" ? "Rename the tab" : undefined}>{SHORT_TITLES[v] ? <><span class="tl-full">{TITLES[v]}</span><span class="tl-short">{SHORT_TITLES[v]}</span></> : TITLES[v]}</button>
         ))}
       </nav>
-      {fromFile.value && asAt.value ? <span class="asat num">As at {shownDate(asAt.value)}</span> : null}
       {file ? <span class="top-slot" data-slot="theme"></span> : null}      {/* issue 1146: the place for the light and dark switcher icon (issue 1144), after the date and before the profile circle; empty, it takes no room */}
       {Publish ? <Publish /> : null}
       {/* row 804: the top bar never draws View | Edit. It exists only on the Dashboard, as the report bar's pill (ReportBar.jsx, item 665); the other tabs are always editable */}

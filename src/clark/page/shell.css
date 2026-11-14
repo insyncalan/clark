@@ -1666,7 +1666,7 @@ html:not([data-density="comfortable"]) .sec.drop-before { box-shadow: 0 -3px 0 v
 /* Issue 1146: a published file has ONE slim bar, 68 px high and sticky: the logo, the project name with the report line under it, the tabs, the
    date, the place for the switcher icon (.top-slot, issue 1144) and the profile circle. The brand picture is a soft wash over its right 45 percent,
    faded in from the left (the ruling: about 42 percent strength); with no picture the bar is the navy gradient. The editor keeps its own bar. */
-html:has(.top-file) { --topbar: 68px; }
+html:has(.top-file) { --topbar: 85px; }      /* issue 1178: 25 percent taller than the 68 px of issue 1146 */
 .top-file { height: var(--topbar); }
 .top-file::before { content: ""; position: absolute; inset: 0 0 0 55%; z-index: -1; pointer-events: none; background: var(--image-cover) center right / cover no-repeat; -webkit-mask-image: var(--image-fade); mask-image: var(--image-fade); opacity: .42; }
 .top-id { flex: 0 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
@@ -1675,17 +1675,21 @@ html:has(.top-file) { --topbar: 68px; }
 .top-file .tabs { height: auto; align-self: center; }
 .top-file .tab { padding-block: 8px 9px; line-height: 1.3; }      /* only as tall as its text, 8 px above and 9 px below, so the underline sits right under the label */
 .top-file .tab:focus-visible { outline-offset: 2px; }
-.top-file .asat { color: var(--white); }
-.top-file .asat ~ .cm-wrap { margin-left: 0; }
+.top-file .cm-wrap { margin-left: auto; }
+.top-file .logo { height: 22px; }      /* issue 1178: the logo is 20 percent smaller than in issue 1146 (22 px high at 1400 px, 18 px at 900 px) */
+.top-file .logo-icon { width: 22px; height: 22px; }
+.top-file .logo .wm { font-size: 19px; line-height: 22px; }
 .top-slot:empty { display: none; }
 html:has(.top-file) main { padding-top: 10px; }      /* the first card starts 10 px under the bar */
 html:has(.top-file) .frame.report { padding-top: 0; }
 html:has(.top-file) .frame.report .secs { margin-top: 0; }
 html:has(.top-file) main [id], html:has(.top-file) .sec { scroll-margin-top: calc(var(--topbar) + 16px); }      /* a jump to a section stops below the bar: the bar's height and some air (84 px) */
 @media (max-width: 900px) {      /* the ruling (A, provisional): two rows about 100 px high, the tabs as a strip under, no date. The only place the narrow bar is set. */
-  html:has(.top-file) { --topbar: 100px; }
+  html:has(.top-file) { --topbar: 125px; }
   .top-file { flex-wrap: wrap; align-content: center; row-gap: 4px; padding-block: 4px; }
-  .top-file .asat { display: none; }
+  .top-file .logo { height: 18px; }
+  .top-file .logo-icon { width: 18px; height: 18px; }
+  .top-file .logo .wm { font-size: 15px; line-height: 18px; }
   .top-file .tabs { order: 9; flex: 1 1 100%; margin-left: 0; overflow-x: auto; }
 }
 @media print { .top-file { position: relative; } html.print-all .top-file .cm-badge { border: 1px solid var(--profile-ring); background: var(--profile-bg); } }      /* on paper the bar is placed once at the top, not stuck and not repeated; relative (not static) so the picture wash stays inside the bar */

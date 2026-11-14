@@ -7,7 +7,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { Icon } from "./Icon.jsx";
 import { actionIcon } from "../menuIcons.js";
 import { MenuPanel, useMenuState } from "./Menu.jsx";
-import { data } from "../stores/report.js";
+import { data, asAt } from "../stores/report.js";
 import { printReport } from "../stores/print.js";
 import { readerName, setReaderName, removeReader, initialsOf, look, toggleLook } from "../stores/reader.js";
 import { workbookOf, tooLarge, pastReportsOf, bytesOf } from "../logic/clientMenu.js";
@@ -19,6 +19,8 @@ const WORDS = {
   kept: "Kept only in this browser. It is never put in the report or sent anywhere.",
   big: "This report is too large to include a spreadsheet.", sameFolder: "Opens the earlier report if it is in the same folder as this one.", none: "No earlier reports.",
 };
+// A calendar date is shown DD-MM-YYYY (RULES.md); stored YYYY-MM-DD. Never shifted by a time zone.
+const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
 const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 // The workbook goes to the reader through a Blob and an object address: no data: address, no library.
@@ -110,6 +112,7 @@ export function ClientMenu() {
             {past.map((r) => <a class="cm-row cm-link" role="menuitem" tabIndex={-1} href={r.href} title={`Report of ${r.date}`} key={r.iso + r.href}><Icon name={actionIcon("pastReport")} cls="mi" />{r.date}</a>)}
             <div class="cm-note" role="presentation">{past.length ? WORDS.sameFolder : WORDS.none}</div>
           </div>
+          {asAt.value ? <div class="cm-group cm-asat" role="presentation"><div class="cm-note num">As at {shownDate(asAt.value)}</div></div> : null}      {/* issue 1178: the published date is at the foot of the menu, not in the bar */}
         </MenuPanel>
       ) : null}
       {box ? <ProfileBox onClose={() => setBox(false)} /> : null}

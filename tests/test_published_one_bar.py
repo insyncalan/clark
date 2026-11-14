@@ -24,13 +24,13 @@ BAR = """(() => {
   const r = (e) => { const b = e.getBoundingClientRect(); return {top: b.top, bottom: b.bottom, left: b.left, right: b.right, h: b.height}; };
   const bar = document.querySelector('header.top'), q = (s) => bar.querySelector(s), tab = q('.tab[aria-selected="true"]');
   const st = (e, k) => getComputedStyle(e)[k], frame = document.querySelector('.frame.report');
-  const date = q('.asat'), badge = q('.cm-badge'), tabs = q('.tabs'), name = q('.top-name'), line = q('.top-line');
+  const badge = q('.cm-badge'), tabs = q('.tabs'), name = q('.top-name'), line = q('.top-line');
   return {bars: document.querySelectorAll('header.top').length, covers: document.querySelectorAll('header.cover, #cover').length,
     tops: document.querySelectorAll('header.top, header.cover').length,
     bar: r(bar), pos: st(bar, 'position'), logo: !!q('.logo'), nameSize: st(name, 'fontSize'), nameTag: name.tagName, lineSize: st(line, 'fontSize'),
     lineText: line.textContent, nameText: name.textContent, tabs: r(tabs), tab: r(tab), tabPad: [st(tab, 'paddingTop'), st(tab, 'paddingBottom')],
     tabLine: parseFloat(st(tab, 'lineHeight')), tabNames: [...bar.querySelectorAll('.tab')].map((t) => t.textContent),
-    date: date ? {shown: st(date, 'display'), box: r(date), text: date.textContent} : null, badge: r(badge), name: r(name), line: r(line),
+    logoBox: [Math.round(q('.logo').getBoundingClientRect().height), Math.round(q('.logo-icon').getBoundingClientRect().height)], noDate: !q('.asat'), badge: r(badge), name: r(name), line: r(line),
     slot: !!q('.top-slot[data-slot="theme"]'), slotShown: st(q('.top-slot'), 'display'),
     frameTop: frame.getBoundingClientRect().top, glance: !!document.querySelector('.glance'), wide: document.documentElement.scrollWidth <= innerWidth,
     after: parseFloat(getComputedStyle(tab, '::after').height), afterBottom: getComputedStyle(tab, '::after').bottom,
@@ -66,6 +66,8 @@ class InTheFile(Published):
                 b = p.js(BAR)
                 self.assertEqual((b["bars"], b["covers"], b["tops"]), (1, 0, 1), "one header, and no banner card")
                 self.assertTrue(b["logo"])
+                self.assertTrue(b["noDate"], "issue 1178: the date is not in the bar (it is in the profile menu)")
+                self.assertNotIn("for ", b["lineText"], "issue 1178: no client in the line")
                 self.assertEqual(b["nameSize"], "24px")
                 self.assertEqual(b["lineSize"], "13px")
                 self.assertEqual(b["nameTag"], "H1", "the Dashboard keeps its one heading, now in the bar")
@@ -77,24 +79,21 @@ class InTheFile(Published):
                 self.assertGreater(b["name"]["bottom"], 0)
                 self.assertLessEqual(b["badge"]["right"], width + 0.5)
 
-    def test_the_bar_is_68_px_and_sticky_at_1400_and_two_rows_at_900(self):
+    def test_the_bar_is_85_px_and_sticky_at_1400_and_two_rows_125_px_at_900(self):
         for width, dark in CASES:
             with self.subTest(width=width, dark=dark):
                 cdp, p = self.bar(width, dark)
                 b = p.js(BAR)
                 self.assertEqual(b["pos"], "sticky")
                 if width == 1400:
-                    self.assertEqual(b["bar"]["h"], 68)
-                    self.assertEqual(b["topbarVar"], "68px")
-                    self.assertAlmostEqual(b["tabs"]["top"] + b["tabs"]["h"] / 2, 34, delta=3, msg="the tabs sit on the one row")
-                    self.assertNotEqual(b["date"]["shown"], "none")
-                    self.assertTrue(b["date"]["text"].startswith("As at "))
-                    self.assertLess(b["date"]["box"]["right"], b["badge"]["left"], "the date, then the profile circle")
-                    self.assertLess(b["tabs"]["right"], b["date"]["box"]["left"] + 1)
+                    self.assertEqual(b["bar"]["h"], 85)
+                    self.assertEqual(b["topbarVar"], "85px")
+                    self.assertAlmostEqual(b["tabs"]["top"] + b["tabs"]["h"] / 2, 42, delta=3, msg="the tabs sit on the one row")
+                    self.assertEqual(b["logoBox"], [22, 22], "issue 1178: the logo is 22 px high at 1400")
                 else:
-                    self.assertEqual(b["bar"]["h"], 100)
-                    self.assertEqual(b["topbarVar"], "100px")
-                    self.assertEqual(b["date"]["shown"], "none", "the date is dropped")
+                    self.assertEqual(b["bar"]["h"], 125)
+                    self.assertEqual(b["topbarVar"], "125px")
+                    self.assertEqual(b["logoBox"], [18, 18], "issue 1178: the logo is 18 px high at 900")
                     self.assertGreaterEqual(b["tabs"]["top"], b["line"]["bottom"] - 1, "the tabs are a strip under the name")
                     self.assertGreaterEqual(b["tabs"]["right"] - b["tabs"]["left"], width - 60, "the strip runs the width")
                 p.js("window.scrollTo(0, 600)")

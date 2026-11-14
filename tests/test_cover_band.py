@@ -51,7 +51,7 @@ class Served(Setup):
                 self.assertTrue(b["name"])
                 self.assertEqual(b["kind"].upper(), "WEEKLY REPORT")
                 self.assertIn("Week ending 23-10-2026", b["line"])
-                self.assertIn("for Example Client", b["line"])
+                self.assertNotIn("for Example Client", b["line"], "issue 1178: no client in the line")
                 self.assertEqual((b["h1count"], b["crumbs"]), (1, 0), "one heading, and the small client line is gone")
                 self.assertLessEqual(abs(b["left"] - 1), 1.5, "full width of the frame, inside its border")
                 self.assertLessEqual(abs(b["right"] - 1), 1.5)
@@ -277,7 +277,7 @@ class InTheFile(Published):
                 got = p.js("({kind: document.querySelector('header.top .cover-kind').textContent, line: document.querySelector('header.top .cover-line').textContent, h1: document.querySelectorAll('h1').length, cover: document.querySelectorAll('header.cover').length})")
                 self.assertEqual(got["kind"].upper(), "WEEKLY REPORT")
                 self.assertIn("Week ending 23-10-2026", got["line"])
-                self.assertIn("for Example Client", got["line"])
+                self.assertNotIn("for Example Client", got["line"], "issue 1178: no client in the line")
                 self.assertEqual((got["h1"], got["cover"]), (1, 0))
 
     def test_a_missing_week_and_client_leave_those_parts_out(self):
