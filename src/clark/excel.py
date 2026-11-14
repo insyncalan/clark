@@ -1482,7 +1482,7 @@ def download_name(name, code, when):
     room = min(DOWNLOAD_NAME_BYTES, DOWNLOAD_FILE_BYTES - len(tail) - len(code.encode("utf-8")) - 2)     # a file name holds 255 bytes, not characters
     name = name.encode("utf-8")[:max(room, 0)].decode("utf-8", "ignore").strip().rstrip(". ")      # a cut can land on a dot: none before "(" or the date
     if not name:
-        name, code = code or "work items", ""
+        name, code = code.rstrip(". ") or "work items", ""      # the code stands in for the name: none ends in a dot before the date
     return platform.safe_name(f"{name}{f'({code})' if code else ''}{tail}", max_name=DOWNLOAD_FILE_BYTES)
 
 

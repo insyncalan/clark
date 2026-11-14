@@ -29,6 +29,10 @@ class TrailingDot(unittest.TestCase):
     def test_a_name_that_is_only_dots_and_spaces_falls_back_to_the_code(self):
         self.assertEqual(excel.download_name(" ... ", "NWD", WHEN), "NWD" + TAIL)
 
+    def test_a_code_that_ends_on_a_dot_has_none_before_the_date_when_it_stands_in_for_the_name(self):
+        self.assertEqual(excel.download_name("", "NWD.", WHEN), "NWD" + TAIL)
+        self.assertEqual(excel.download_name(" ... ", "N W.", WHEN), "N W" + TAIL)
+
     def test_no_name_part_ends_in_a_dot_or_space_before_the_bracket(self):
         for n in range(1, excel.DOWNLOAD_NAME_CUT + 3):
             name = ("ab. " * 30)[:n]
