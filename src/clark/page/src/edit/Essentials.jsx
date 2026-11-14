@@ -38,7 +38,7 @@ function NameRow() {
   }
   return (
     <SettingRow id="ess-name" name="Your name" bad={said ? <small class="fld-bad" id="ess-name-bad" role="alert">{said}</small> : null}>
-      <input id="ess-name" ref={box} type="text" value={typed} autocomplete="name" aria-invalid={said ? "true" : undefined} aria-describedby={said ? "ess-name-bad" : undefined}
+      <input id="ess-name" ref={box} type="text" value={typed} autocomplete="name" placeholder="Your full name" aria-invalid={said ? "true" : undefined} aria-describedby={said ? "ess-name-bad" : undefined}
         onInput={(e) => { dirty.current = true; setTyped(e.currentTarget.value); }} onBlur={save} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(); } }} />
     </SettingRow>
   );
