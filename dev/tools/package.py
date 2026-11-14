@@ -668,9 +668,17 @@ def download_content(system, root=ROOT, dirty=False, for_client=False, banned=No
                for p in names}
     for g in GENERATED:
         if g in listed(system):
-            if image_tar is None and release:
-                raise Refused("A release zip for Windows holds the real runtime image tar, built in CI: give it with --image-tar. Nothing was written.")
-            tar = Path(image_tar).read_bytes() if image_tar else IMAGE_PLACEHOLDER
+            tar = IMAGE_PLACEHOLDER
+            if image_tar:
+                try:
+                    tar = Path(image_tar).read_bytes()
+                except OSError:
+                    tar = b""
+            if release and (not image_tar or not tar or tar == IMAGE_PLACEHOLDER):
+                raise Refused("A release zip for Windows holds the real runtime image tar, built in CI: give it with --image-tar, "
+                              "and the file must exist and not be empty. Nothing was written.")
+            if image_tar and not tar:
+                raise Refused("The runtime image tar can't be read or is empty. Check the --image-tar file, then build again. Nothing was written.")
             content[f"{top}/{place(g)}"] = (tar, FILE_MODE)
     content[f"{top}/{place(START_HERE)}"] = (start_here(system, for_client, root, {n.split("/")[0] for n in extra}).encode("utf-8"), FILE_MODE)
     content.update({f"{top}/{n}": (data, FILE_MODE) for n, data in extra.items()})      # issue 716: not in git, so not in `names`

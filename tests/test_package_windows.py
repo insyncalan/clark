@@ -71,13 +71,34 @@ class WindowsZipTest(unittest.TestCase):
             package.download_content("windows", package.ROOT, release=True)
         self.assertIn("--image-tar", str(said.exception))
 
+    def test_a_release_with_a_missing_empty_or_placeholder_tar_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            empty = Path(tmp) / "empty.tar"
+            empty.write_bytes(b"")
+            holder = Path(tmp) / "placeholder.tar"
+            holder.write_bytes(package.IMAGE_PLACEHOLDER)
+            for name, given in (("empty name", ""), ("empty file", str(empty)), ("missing file", str(Path(tmp) / "none.tar")), ("placeholder bytes", str(holder))):
+                with self.subTest(name), mock.patch.object(package, "tag_problem", return_value=None), mock.patch.object(package, "uncommitted", return_value=""), \
+                        self.assertRaises(package.Refused) as said:
+                    package.download_content("windows", package.ROOT, release=True, image_tar=given)
+                self.assertIn("must exist and not be empty", str(said.exception))
+
+    def test_a_build_with_an_empty_tar_file_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            empty = Path(tmp) / "empty.tar"
+            empty.write_bytes(b"")
+            with self.assertRaises(package.Refused) as said:
+                package.download_content("windows", dirty=True, image_tar=str(empty))
+            self.assertIn("can't be read or is empty", str(said.exception))
+
     def test_a_native_file_in_an_extra_folder_is_refused(self):
         with tempfile.TemporaryDirectory() as tmp:
             folder = Path(tmp) / "intake"
             folder.mkdir()
             (folder / "run.cmd").write_bytes(b"x")
-            with self.assertRaises(package.Refused):
+            with self.assertRaises(package.Refused) as said:
                 package.download_content("windows", dirty=True, extra_folders=[str(folder)])
+            self.assertIn("Windows download must hold no", str(said.exception))
 
     def test_the_guard_leaves_alone_names_that_only_start_with_python(self):
         for fine in ("clark/docs/python-notes.md", "clark/pythonic.py", "clark/docs/python-style/a.md"):
