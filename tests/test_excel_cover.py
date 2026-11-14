@@ -300,7 +300,7 @@ class InTheWorkbook(unittest.TestCase):
 
     def test_cover_is_first_and_open_with_gridlines_off_and_the_band_frozen(self):
         wb = load_workbook(self.path)
-        self.assertEqual(wb.sheetnames, ["Cover", "Actions", "Risks & Issues", "Decisions", "Milestones", "Use cases", "History", "Lists"])
+        self.assertEqual(wb.sheetnames, ["Cover", "Actions", "Risks & Issues", "Decisions", "Milestones", "Use cases", "History", "Lists", excel.META_NAME])
         self.assertEqual(wb.active.title, "Cover")
         self.assertFalse(wb["Cover"].sheet_view.showGridLines)
         self.assertEqual(wb["Cover"].freeze_panes, "A3")      # below the title band (the title and the subtitle)
@@ -321,7 +321,7 @@ class InTheWorkbook(unittest.TestCase):
         ns = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
         with zipfile.ZipFile(self.path) as z:
             names = sorted(n for n in z.namelist() if n.startswith("xl/worksheets/sheet") and n.endswith(".xml"))
-            self.assertEqual(len(names), 8)
+            self.assertEqual(len(names), 9)
             for n in names:
                 root = ET.fromstring(z.read(n))
                 setup = root.find("m:pageSetup", ns)
