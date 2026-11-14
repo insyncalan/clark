@@ -80,10 +80,11 @@ class GlanceTemplate(unittest.TestCase):
         self.assertIn("glance", store_module.SECTION_TYPES)
         self.assertIn("glance", publish.BUILT_IN_SECTIONS, "the published file draws the section by its type, as for the built-in")
 
-    def test_beside_is_offered_since_the_tiles_wrap(self):
+    def test_beside_is_refused_full_width_only(self):
+        # Half width is not checked in a browser (item 1190), so the card is full width only.
         got = run('T.plan([{id: "a", type: "text", title: "Summary", beside: 0}], "built-in-glance", "a", true)')
-        self.assertTrue(got["ok"], got)
-        self.assertEqual(got["requests"][0]["beside"], 1)
+        self.assertFalse(got["ok"], got)
+        self.assertEqual(got["message"], "This template needs the full width. Place it on its own row.")
 
 
 if __name__ == "__main__":
