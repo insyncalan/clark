@@ -40,7 +40,7 @@ export function AddDialog() {
 }
 
 function Box({ after, opener, onClose }) {
-  const sections = (data.value && data.value.report_sections) || [];
+  const sections = ((data.value && data.value.report_sections) || []).filter((s) => s.type !== "needs");      // item 1174: as the Dashboard draws them
   const [query, setQuery] = useState("");
   const [recent] = useState(readRecent);
   const [kind, setKind] = useState("all");

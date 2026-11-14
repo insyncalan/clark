@@ -9,7 +9,7 @@ import { place, step, beside as besideOf, fullWidth as fullOf, rows } from "../l
 
 export const TITLE_MAX = 120;
 
-const list = () => (data.value && data.value.report_sections) || [];
+const list = () => ((data.value && data.value.report_sections) || []).filter((s) => s.type !== "needs");      // item 1174: the sections the Dashboard draws; a stored Needs section is left out there (item 1158)
 const indexOf = (id) => list().findIndex((s) => s.id === id);
 
 export function titleProblem(text, max = TITLE_MAX) {
