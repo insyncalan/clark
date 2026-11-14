@@ -3,7 +3,7 @@
 // the stamp is the one clark wrote. The text is on the one rich editor (RichField, item 1005). Row 1077 (the owner's ruling): no chip
 // writes the text for you; the box alone. An action that is shown to the client carries a 'Shown to the client' label (its latest update is published). An action has a latest update; a risk, issue or decision has the stamp only.
 import { signal } from "@preact/signals";
-import { useState } from "preact/hooks";
+import { useState, useRef, useEffect } from "preact/hooks";
 import { RichField } from "./RichField.jsx";
 import { richOrPlain } from "../logic/richOrPlain.js";
 import { data } from "../stores/report.js";
@@ -43,13 +43,15 @@ const fire = (el, init) => { if (el) el.dispatchEvent(new KeyboardEvent("keydown
 
 /** The bar a close with an unsaved update shows: Save and close, Discard, Keep editing. Props: onClose() closes the peek; onDone() hides the bar. */
 export function PeekUnsavedBar({ onClose, onDone }) {
+  const first = useRef(null);
+  // The bar is an alert (read out as it appears). The focus stays in the box: moving it out would leave the box, and leaving the box saves the update.
   if (!latestDirty.value) return null;
   const done = () => { if (onDone) onDone(); };
   return (
     <div class="pk-unsaved" role="alert" data-pk-unsaved>
       <p class="pk-unsaved-t">You have an unsaved update.</p>
       <div class="pk-unsaved-b">
-        <button type="button" data-pk-save-close data-pk-unsaved-save onClick={() => { fire(editorOf(), { key: "Enter", ctrlKey: true }); setTimeout(() => { latestDirty.value = false; done(); if (onClose) onClose(); }, 0); }}>Save and close</button>
+        <button type="button" ref={first} data-pk-save-close data-pk-unsaved-save onClick={() => { fire(editorOf(), { key: "Enter", ctrlKey: true }); setTimeout(() => { latestDirty.value = false; done(); if (onClose) onClose(); }, 0); }}>Save and close</button>
         <button type="button" data-pk-discard data-pk-unsaved-discard onClick={() => { fire(editorOf(), { key: "Escape" }); latestDirty.value = false; done(); if (onClose) onClose(); }}>Discard</button>
         <button type="button" data-pk-keep data-pk-unsaved-keep onClick={() => { done(); const e = editorOf(); if (e) e.focus(); }}>Keep editing</button>
       </div>
@@ -58,6 +60,13 @@ export function PeekUnsavedBar({ onClose, onDone }) {
 }
 
 const plain = (h) => String(h || "").replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+let savedHtml = "";
+/** Read when the peek is asked to close (Close, Esc): is the open editor's text different from the saved one? Also sets the flag the bar shows on, so a change made without a DOM input event counts too. */
+export function isLatestDirty() {
+  const e = editorOf();
+  latestDirty.value = !!e && plain(e.innerHTML) !== plain(savedHtml);
+  return latestDirty.value;
+}
 
 export function PeekLatest({ row, draft = null }) {
   const [open, setOpen] = useState(false);
@@ -67,6 +76,7 @@ export function PeekLatest({ row, draft = null }) {
   const html = (() => { try { return richOrPlain(now); } catch (e) { return "<p>" + String(now).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</p>"; } })();    // item 1005: the editor's HTML, or the plain text an older clark stored
   // The rich editor saves with Cmd/Ctrl+Enter and leaves with Esc. It closes only when clark has saved it: a refusal (the toast says why)
   // or no answer leaves it open with what was typed.
+  savedHtml = html;
   const save = (value) => changeCell("actions", row.id, { latest_update: value },
     { text: `Latest update of ${row.id} saved.`, back: `Latest update of ${row.id} is back as it was.`, place: "peek" })
     .then((reply) => { if (reply) refresh(); return reply; });

@@ -41,7 +41,7 @@ export function PeekToolbar({ near, go, wide, onWide, onClose, draft = null, onC
   const wideWords = wide ? "Return the panel to its usual width" : "Open full page";
   const draftWords = draft && draft.disabled && draft.reason ? draft.reason : "Draft email";
   return (
-    <div class="pk-bar pk-tb" role="toolbar" aria-label="Peek actions">
+    <div class="pk-bar pk-tb" role="group" aria-label="Peek actions">
       <div class="pk-tb-grp">
         <BarButton icon="right" words="Close this panel" hook="data-pk-close" onClick={onClose} />
         <BarButton icon="arrows-out" words={wideWords} hook="data-pk-wide" pressed={!!wide} onClick={onWide} />

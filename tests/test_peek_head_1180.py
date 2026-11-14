@@ -166,13 +166,13 @@ class Head(unittest.TestCase):
                 self.assertTrue(wait(lambda: self.undo_buttons(cdp, sid) == 1), "the toast carries one Undo")
                 self.assertTrue(wait(lambda: cdp.js("!!document.activeElement && document.activeElement.closest('#peek') !== null", sid)), "focus stays in the peek")
                 # the Activity line
-                click(cdp, sid, "[data-pk-tab=activity]")
+                click(cdp, sid, "[data-pk-htab=activity]")
                 self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-activity-row]').length", sid) > 0))
                 first = cdp.js("document.querySelector('[data-activity-row]').textContent", sid)
-                self.assertIn("You changed Title", first)
-                self.assertIn(was, first)
-                self.assertIn(new, first)
-                self.assertEqual(cdp.js("[...document.querySelectorAll('[data-activity-row]')].filter(r => r.textContent.includes('You changed Title')).length", sid), 1, "one line")
+                self.assertIn("Demo User", first, "the line names who made the change")
+                for word in set(was.split()) | set(new.split()):           # the line draws the change word by word, old words struck and new ones added
+                    self.assertIn(word, first)
+                self.assertEqual(cdp.js("[...document.querySelectorAll('[data-activity-row]')].filter(r => r.textContent.includes('checklist')).length", sid), 1, "one line")
                 # one Undo puts it all back
                 cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
                 self.assertTrue(wait(lambda: self.shown(cdp, sid) == was), "one Undo puts the old title back")
@@ -232,6 +232,12 @@ class Head(unittest.TestCase):
         for width in WIDTHS:
             with self.subTest(width=width), chrome() as cdp:
                 sent, sid = _tl.Browser.load(self, cdp, width, ACTION, edit=False)
+                cdp.js("clarkPage.closePeek()", sid)
+                self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#peek')", sid)))
+                cdp.js("document.querySelector('[data-view=dashboard]').click()", sid)        # a Dashboard in View is the page without Edit (every other page edits live)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-mode=edit]')", sid)))
+                cdp.js("clarkPage.openPeek(" + json.dumps(ACTION) + ")", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek h2.pk-title')", sid)))
                 self.calm(cdp, sid)
                 self.assertEqual(cdp.js("document.querySelectorAll('#peek textarea').length", sid), 0)
                 self.assertEqual(cdp.js("document.querySelectorAll('#peek [data-pk-id]').length", sid), 1, "the ID tag is in View too")
