@@ -28,7 +28,8 @@ class Pick(Bar):
         self.set_week("2031-05-02")
         with chrome() as cdp:
             p = self.show(cdp)
-            self.assertEqual(p.js("document.querySelector('#week-ending-pick').getAttribute('aria-label')"), "Week ending 02-05-2031. Click to change date")
+            self.assertIsNone(p.js("document.querySelector('#week-ending-pick').getAttribute('aria-label')"))   # the visible words are its name; no new words
+            self.assertEqual(p.js("document.querySelector('#week-ending-pick').textContent"), "Week ending 02-05-2031")
             self.assertEqual(p.js("document.querySelector('#week-ending-pick').title"), "Click to change date")
             self.assertEqual(p.js("document.querySelectorAll('#report-bar input').length"), 0)
             self.assertEqual(p.js("document.querySelectorAll('#report-bar input[type=date], #report-bar input[type=hidden]').length"), 0)

@@ -59,7 +59,8 @@ class NoChip(Base):
                 self.assertEqual(p.js("document.querySelectorAll('#report-state, .rbar-state').length"), 0, f"{w}: the chip is back")
                 p.js("document.querySelector('.top #profile-menu, .top #profile-btn') && document.querySelector('#profile-btn').click()")
                 p.until("!!document.querySelector('#profile-menu .lab')", "the note is in the menu")
-                self.assertRegex(p.js("document.querySelector('#profile-menu .lab').textContent"), r"^Published \d\d-\d\d-\d{4} locally$", f"{w}: menu note")
+                labs = p.js("[...document.querySelectorAll('#profile-menu .lab')].map((e) => e.textContent)")
+                self.assertRegex(labs[-1], r"^Published \d\d-\d\d-\d{4} locally$", f"{w}: the published note is the last line at the bottom of the menu")
 
 
 if __name__ == "__main__":

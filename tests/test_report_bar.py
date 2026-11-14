@@ -43,7 +43,7 @@ class Bar(Base):
 
     def test_view_and_edit_both_have_the_week_ending_date_button_and_no_chip(self):
         """Row 33, changed by item 1177: the week ending is the header's date button (never a box, never the browser's calendar), in View and in Edit; the bar keeps
-        View | Edit and, in Edit, the drag hint; the Draft and Editing words are in the profile menu now (test_publish_dialog)."""
+        View | Edit and, in Edit, the drag hint; the profile menu keeps only the published note (test_publish_dialog)."""
         self.set_week("2031-05-09")
         for w in (1400, 900):
             with self.subTest(width=w), chrome() as cdp:

@@ -247,10 +247,10 @@ class Dialog(Base):
             self.assertEqual(p.js("Object.keys(localStorage).concat(Object.keys(sessionStorage)).filter((k) => k !== 'clark.lastProject').length"), 0, "not remembered anywhere")
 
     def menu_note(self, p):
-        """Item 1177: the report bar's state chip is gone; its words are the first line of the profile menu. Opens the menu, reads that line, shuts the menu."""
+        """Item 1177: the report bar's state chip is gone; the published note is the last line of the profile menu. Opens the menu, reads that line, shuts the menu."""
         p.js("document.querySelector('#profile-btn').click()")
         p.until("!!document.querySelector('#profile-menu .lab')", "the note is in the menu")
-        text = p.js("document.querySelector('#profile-menu .lab').textContent")
+        text = p.js("(function(){var l=document.querySelectorAll('#profile-menu .lab');return l[l.length-1].textContent})()")
         p.js("document.querySelector('#profile-btn').click()")
         p.until("!document.querySelector('#profile-menu')", "the menu closed")
         return text
@@ -258,7 +258,7 @@ class Dialog(Base):
     def test_C_result_message_and_report_bar(self):
         with chrome() as cdp:
             p = self.page(cdp)
-            self.assertEqual(self.menu_note(p), "Draft · not published yet", "nothing published yet")
+            self.assertEqual(self.menu_note(p), "Appearance", "nothing published yet: no published note, so the last label is the Appearance group")
             p.open_publish()
             p.js("document.querySelector('#pub-client').click()")
             p.go()
