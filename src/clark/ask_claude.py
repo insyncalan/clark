@@ -230,8 +230,8 @@ def native_problem(real, roots):
 
 def _version_key(path):
     """Sort key by the numbers in a path (v20.1.0 -> 20, 1, 0), so v10 and v20 come after v9; a name with no number sorts lowest.
-    A pre-release suffix (v1.0.8-rc10) sorts below its release (v1.0.8) and above the version before it; its own digits come last."""
-    m = re.search(r"(?<=\d)[-+_]?(?:rc|alpha|beta|pre|dev|a|b)\d*", path, re.I)
+    A pre-release suffix (v1.0.8-rc10, 1.0.8a1; not a build name like -arm64 or -bin) sorts below its release (v1.0.8) and above the version before it; its own digits come last."""
+    m = re.search(r"(?<=\d)[-+_]?(?:rc|alpha|beta|pre|dev|a|b)\d*(?![a-z])", path, re.I)
     core, pre = (path[:m.start()], path[m.start():]) if m else (path, "")
     nums = tuple(int(n) for n in re.findall(r"\d+", core))
     if not nums:
