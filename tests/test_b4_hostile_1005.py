@@ -223,10 +223,20 @@ class Movement(tmp.Base):
             with chrome() as cdp:
                 p = self.form(cdp, width, theme)
                 self.put(p, "who", "<p>Pat Example</p>", close=False)
-                p.js("document.querySelector(%s).focus()" % json.dumps(self.box("who")))
+                sel = json.dumps(self.box("who"))
+                p.js("document.querySelector(%s).focus()" % sel)
+                p.js("window.__k = []; addEventListener('keydown', (e) => window.__k.push([Math.round(performance.now()), e.key, e.target.className || e.target.id || e.target.tagName]), true); window.__t0 = Math.round(performance.now())")
                 p.key("Tab", code="Tab", vk=9)
-                time.sleep(0.5)
-                self.assertFalse(p.js("!!document.querySelector(%s)" % json.dumps(self.box("who"))), "closed on Tab")
+                # The editor closes when its Tab handler has run; on a slow Mac that was after the old fixed half second. Wait for it, and say what the page was doing if it never does.
+                gone = None
+                end = time.monotonic() + 10
+                while time.monotonic() < end:
+                    gone = not p.js("!!document.querySelector(%s)" % sel)
+                    if gone:
+                        break
+                    time.sleep(0.05)
+                seen = "" if gone else " | " + json.dumps(p.js("({open: !!document.querySelector(%s), active: document.activeElement ? (document.activeElement.id || document.activeElement.className || document.activeElement.tagName) : null, keys: window.__k, since: Math.round(performance.now()) - window.__t0})" % sel))
+                self.assertTrue(gone, "closed on Tab" + seen)
                 self.assertIn("Pat Example", p.js("document.getElementById('mv-who').textContent"), "kept")
                 self.assertTrue(p.js("!!document.querySelector('.mvm-form')"), "form stays")
 
