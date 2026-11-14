@@ -29,7 +29,7 @@ BAND = """(() => {
   const h = c.querySelector('.hdr-project'), line = c.querySelector('.hdr-line');
   const r = c.getBoundingClientRect();
   return {name: h.textContent, line: line.textContent, kind: c.querySelector('.hdr-kind').textContent,
-          bg: getComputedStyle(c).backgroundColor, top: r.top, left: r.left, right: window.innerWidth - r.right,
+          bg: getComputedStyle(c).backgroundColor, top: r.top, left: r.left, right: document.documentElement.clientWidth - r.right,
           covers: document.querySelectorAll('header.cover, #cover').length, headers: document.querySelectorAll('.top-hdr').length,
           wide: document.documentElement.scrollWidth <= window.innerWidth, crumbs: document.querySelectorAll('.report .crumbs').length,
           text: c.textContent};
@@ -44,6 +44,8 @@ LUM_COVER = LUM.replace("@BAND@", "header.cover").replace("@WORDS@", "h1,.cover-
 
 def gantt_page(test, cdp, width=1400, dark=False):
     """The Gantt page of the served app (it still draws header.cover, Cover.jsx), waited for by its cover."""
+    test.store.con.execute("UPDATE projects SET show_gantt_editor = 1 WHERE code = 'ABC'")      # the Gantt tab is on, so its page can be drawn (as test_brand_backdrop does)
+    test.store.con.commit()
     p = Pg.at(test, cdp, test.s.port, "#gantt&p=ABC", section_style="slim")
     cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, p.sid)
     if dark:
@@ -180,7 +182,7 @@ HDR_LOGO = """(() => { const c = document.querySelector('.top-hdr'), e = c.query
   return {bar: [b.left, b.right, b.top, b.bottom], image: s.backgroundImage, size: s.backgroundSize, repeat: s.backgroundRepeat, pos: s.backgroundPosition,
           abs: s.position, display: s.display, w: parseFloat(s.width), h: parseFloat(s.height), left: left, right: left + parseFloat(s.width),
           mid: r.top + r.height / 2, endLeft: r.left, first: first, last: last, clarkRight: clark.right, clarkLeft: clark.left,
-          name: edge(c.querySelector('.hdr-project')), line: edge(c.querySelector('.hdr-line')), pad: getComputedStyle(e).paddingLeft,
+          name: c.querySelector('.hdr-project').getBoundingClientRect().right, line: edge(c.querySelector('.hdr-line')), pad: getComputedStyle(e).paddingLeft,
           var: getComputedStyle(document.documentElement).getPropertyValue('--image-logo').trim(),
           wide: document.documentElement.scrollWidth <= window.innerWidth, vw: window.innerWidth,
           covers: document.querySelectorAll('header.cover').length}; })()"""

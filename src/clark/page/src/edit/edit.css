@@ -1204,12 +1204,12 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
 @media (max-width: 899px) { .cover::after { display: none; } }
 /* item 1154: with a logo (the server sets --cover-logo-room; 0px when it is not set) the title and the cover line keep the logo box's room free at 900 px and wider, so they wrap before it; under 900 the logo is hidden and no room is kept */
 @media (min-width: 900px) { .frame header.cover h1, .frame header.cover .cover-line { margin-right: var(--cover-logo-room, 0px); } }
-/* item 1177: (the box has a fixed size, so a brand that names its own --image-logo without a logo file is drawn, as item 1154 drew it; with --image-logo none nothing is painted and the box is out of the flow, so nothing shifts) the slim header has no band, so the installed brand's logo (the same --image-logo as item 1154) sits small at the RIGHT of the header, before the search, ask and profile icons (.hdr-end::before). The server sets --cover-logo-room only with a logo; min() turns it into the logo's room (128 px, plus a 16 px gap), and with no logo it is 0px: no room is kept, nothing is drawn and nothing shifts. At 900 px and narrower the box is 96 x 24 px so the profile circle stays on the row. Editor only: the published bar has no .hdr-end. */
+/* item 1177: (the box is as wide as the room the server sets, up to its size, so with no logo the box has no width and nothing is drawn or shifts) the slim header has no band, so the installed brand's logo (the same --image-logo as item 1154) sits small at the RIGHT of the header, before the search, ask and profile icons (.hdr-end::before). The server sets --cover-logo-room only with a logo; min() turns it into the logo's room (128 px, plus a 16 px gap), and with no logo it is 0px: no room is kept, nothing is drawn and nothing shifts. At 900 px and narrower the box is 96 x 24 px so the profile circle stays on the row. Editor only: the published bar has no .hdr-end. */
 .hdr-end { position: relative; padding-left: min(var(--cover-logo-room, 0px), calc(var(--space-8) * 2 + var(--space-4))); }
-.hdr-end::before { content: ""; position: absolute; left: 0; top: 50%; width: calc(var(--space-8) * 2); height: var(--space-6); transform: translateY(-50%); pointer-events: none; background: var(--image-logo) right center / contain no-repeat; }
+.hdr-end::before { content: ""; position: absolute; left: 0; top: 50%; width: min(var(--cover-logo-room, 0px), calc(var(--space-8) * 2)); height: var(--space-6); transform: translateY(-50%); pointer-events: none; background: var(--image-logo) right center / contain no-repeat; }
 @media (max-width: 900px) {
   .hdr-end { padding-left: min(var(--cover-logo-room, 0px), calc(var(--space-8) * 1.5 + var(--space-3))); }
-  .hdr-end::before { width: calc(var(--space-8) * 1.5); height: var(--space-5); }
+  .hdr-end::before { width: min(var(--cover-logo-room, 0px), calc(var(--space-8) * 1.5)); height: var(--space-5); }
 }
 
 /* Item 1177, stage B: the floating View | Edit pill (#mode-pill). Fixed just under the sticky header, at the right edge, above the page's own layers and below the
