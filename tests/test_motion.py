@@ -345,7 +345,7 @@ class More(tre.Base):
                 p.view()
                 p.edit()
                 self.assertFalse(p.js("!!document.querySelector('.sec-hint')"), "only once")
-                self.assertEqual(p.js("JSON.stringify(Object.keys(localStorage).concat(Object.keys(sessionStorage)).filter((k) => k !== 'clark.dragHintSeen'))"), "[]", "the handle hint stores nothing (the report bar's own drag hint keeps its clark.dragHintSeen)")
+                self.assertEqual(p.js("JSON.stringify(Object.keys(localStorage).concat(Object.keys(sessionStorage)).filter((k) => k !== 'clark.dragHintSeen' && k !== 'clark.lastProject'))"), "[]", "the handle hint stores nothing (the report bar's own drag hint keeps its clark.dragHintSeen, and the last opened project its clark.lastProject, item 1135)")
 
     def test_a_timeline_section_stores_no_zoom_until_the_edge_is_dragged(self):
         """Entering Edit (and the 16 px room an overlay scrollbar keeps under the last lane) resizes the timeline box: that is not a drag, so no zoom is stored."""

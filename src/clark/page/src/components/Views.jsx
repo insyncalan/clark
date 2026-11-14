@@ -138,8 +138,44 @@ function cardHere(cards, picked) {
   return here;
 }
 
+// Search settings (row 1115, S2): the box in the head. A card whose heading matches stays whole; otherwise a card with setting rows keeps only the rows
+// whose name, help line or data-keywords match, and a card without rows stays when its text matches. Cards with no match, and the row of chips, are hidden
+// while the box holds words. Esc or clearing the box brings every card back. It reads the page, so a card that draws later is filtered too.
+function searchCards(root, query) {
+  const q = query.trim().toLowerCase();
+  for (const card of root.querySelectorAll(":scope > section, :scope > .setting")) {
+    const rows = [...card.querySelectorAll(".set-row")], hit = (el) => (el.textContent + " " + (el.getAttribute("data-keywords") || "")).toLowerCase().includes(q);
+    const head = card.querySelector("h2, h3"), headHit = !!head && head.textContent.toLowerCase().includes(q);
+    let show = !q || headHit;
+    if (!show && rows.length) { for (const r of rows) { const m = hit(r); r.hidden = !m; show = show || m; } }
+    else { for (const r of rows) r.hidden = false; if (!show) show = hit(card); }
+    card.hidden = !show;
+  }
+}
+
+function SettingsSearch({ onQuery }) {
+  const [q, setQ] = useState("");
+  useEffect(() => {
+    const root = document.querySelector(".set-cards");
+    if (!root) return undefined;
+    const run = () => searchCards(root, q);
+    run();
+    const seen = window.MutationObserver ? new MutationObserver(run) : null;
+    if (seen) seen.observe(root, { childList: true, subtree: true });
+    onQuery(q.trim() !== "");
+    return () => { if (seen) seen.disconnect(); };
+  }, [q]);
+  return (
+    <div class="set-search">
+      <label for="set-search-box">Search settings</label>
+      <input id="set-search-box" type="search" value={q} autocomplete="off" onInput={(e) => setQ(e.currentTarget.value)} onKeyDown={(e) => { if (e.key === "Escape" && q) { e.preventDefault(); setQ(""); } }} />
+    </div>
+  );
+}
+
 function SettingsHead({ cards }) {
   const [here, setHere] = useState("");
+  const [searching, setSearching] = useState(false);
   const picked = useRef("");
   const ids = cards.map(([, , headId]) => headId).join(" ");
   useEffect(() => {
@@ -159,8 +195,9 @@ function SettingsHead({ cards }) {
       <section class="frame set-head">
         <h1>Settings</h1>
         <p class="muted">Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.</p>
+        <SettingsSearch onQuery={setSearching} />
       </section>
-      {cards.length ? (
+      {cards.length && !searching ? (
         <nav class="set-bar" aria-label="Settings sections">
           <ul class="set-nav">{cards.map(([, name, headId]) => (
             <li key={headId}><button type="button" class="set-chip" aria-current={here === headId ? "location" : undefined} onClick={() => go(headId)}>{name}</button></li>

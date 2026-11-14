@@ -16,6 +16,7 @@ import { todayIso } from "../workItems.js";
 import { format } from "../router.js";
 import { MenuPanel, menuMove, menuItemsIn, useFadeOut } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
+import { actionIcon } from "../menuIcons.js";
 import { people, tableOf, canClearDue, newPersonChange } from "./itemEdit.js";
 import { DuePick } from "./cells/DuePick.jsx";
 import { OwnerPick } from "./cells/OwnerPick.jsx";
@@ -113,29 +114,29 @@ function entries(row, level, edit, d, today, reg) {
   if (!reg && !dr.disabled) dr.reason = "";         // the list is still being read (or could not be): no reason is given yet
   if (level === "status") {
     const l = statusList(row);
-    return [...l.map((s) => ({ id: "s:" + s, name: s })), ...(l.length ? [] : [{ id: "none", lab: "There is no other status to give this item." }])];
+    return [...l.map((s) => ({ id: "s:" + s, name: s, icon: actionIcon("status") })), ...(l.length ? [] : [{ id: "none", lab: "There is no other status to give this item." }])];
   }
   if (level === "owner") {
     const l = ownerList(people(d), row);
-    return [...l.map((n) => ({ id: "o:" + n, name: n })), ...(l.length ? [] : [{ id: "none", lab: "No one else is named in this project yet." }])];
+    return [...l.map((n) => ({ id: "o:" + n, name: n, icon: actionIcon("owner") })), ...(l.length ? [] : [{ id: "none", lab: "No one else is named in this project yet." }])];
   }
   if (level === "due") {
-    return [...dueList(today).map((x) => ({ id: "d:" + x.day, name: x.name, line: x.line })), { id: "pick", name: "Pick a date" },
-      ...(canClearDue(row) ? [{ id: "d:", name: "No date" }] : [])];
+    return [...dueList(today).map((x) => ({ id: "d:" + x.day, name: x.name, line: x.line, icon: actionIcon("due") })), { id: "pick", name: "Pick a date", icon: actionIcon("due") },
+      ...(canClearDue(row) ? [{ id: "d:", name: "No date", icon: actionIcon("none") }] : [])];
   }
   const edits = (id, name, icon) => ({ id, name, icon, sub: edit && id !== "eye", disabled: !edit, why: edit ? "" : "rm-why-view" });
   return [
-    { id: "draft", name: dr.name, icon: "pencil", line: dr.reason, disabled: dr.disabled },
-    { id: "peek", name: "Open the peek", icon: "expand" },
+    { id: "draft", name: dr.name, icon: actionIcon("draft"), line: dr.reason, disabled: dr.disabled },
+    { id: "peek", name: "Open the peek", icon: actionIcon("peek") },
     { id: "sep1", sep: true },
     ...(edit ? [] : [{ id: "lab1", lab: why, dom: "rm-why-view" }]),
-    edits("status", "Change status", "half"), edits("due", "Move due date", "cal"), edits("owner", "Change owner", "user"),
-    edits("eye", eyeChange(row).name, row.client ? "eyeoff" : "eye"),
+    edits("status", "Change status", actionIcon("status")), edits("due", "Move due date", actionIcon("due")), edits("owner", "Change owner", actionIcon("owner")),
+    edits("eye", eyeChange(row).name, actionIcon(row.client ? "hide" : "show")),
     { id: "sep2", sep: true },
-    { id: "link", name: "Copy link to this item", icon: "ext" }, { id: "copyid", name: "Copy ID", icon: "doc" },
+    { id: "link", name: "Copy link to this item", icon: actionIcon("copyLink") }, { id: "copyid", name: "Copy ID", icon: actionIcon("copyId") },
     { id: "sep3", sep: true },
-    { id: "dup", name: "Duplicate", icon: "plus", disabled: !edit, why: edit ? "" : "rm-why-view" }, { id: "archive", name: "Archive", icon: "archive", disabled: !edit, why: edit ? "" : "rm-why-view" },
-    ...(edit ? [{ id: "delete", name: "Delete", icon: "trash", danger: true }] : []),         // item 658: not offered when the page is read only
+    { id: "dup", name: "Duplicate", icon: actionIcon("duplicate"), disabled: !edit, why: edit ? "" : "rm-why-view" }, { id: "archive", name: "Archive", icon: actionIcon("archive"), disabled: !edit, why: edit ? "" : "rm-why-view" },
+    ...(edit ? [{ id: "delete", name: "Delete", icon: actionIcon("delete"), danger: true }] : []),         // item 658: not offered when the page is read only
   ];
 }
 
@@ -157,8 +158,8 @@ function Fly({ level, entries: shown, owner, focus, wrap, hover, keep, hold, onP
   let list = shown;
   if (owner && typed.trim()) {
     const found = ownerChoices(register, owner.names, owner.row, typed);
-    list = [...found.map((n) => ({ id: "o:" + n, name: n })),
-      ...(loaded && canAddPerson(register, owner.names, owner.row, typed) ? [{ id: "addp", name: `Add ${typed.trim()} as a new person` }] : [])];
+    list = [...found.map((n) => ({ id: "o:" + n, name: n, icon: actionIcon("owner") })),
+      ...(loaded && canAddPerson(register, owner.names, owner.row, typed) ? [{ id: "addp", name: `Add ${typed.trim()} as a new person`, icon: actionIcon("add") }] : [])];
   }
   useLayoutEffect(() => {
     const el = box.current, menu = wrap.current, at = menu && menu.querySelector(`[data-rm=${level}]`);
@@ -192,7 +193,7 @@ function Fly({ level, entries: shown, owner, focus, wrap, hover, keep, hold, onP
         placeholder="Type a name" aria-label={`Owner of ${owner.row.id}`} onInput={(e) => setTyped(e.currentTarget.value)} /> : null}
       {list.map((it) => it.lab ? <div key={it.id} class="lab" role="presentation">{it.lab}</div> : (
         <button key={it.id} type="button" role="menuitem" tabIndex={-1} data-rm={it.id} onClick={() => onPick(it.id === "addp" ? "addp:" + typed.trim() : it.id)}>
-          <span class="rm-t"><b>{it.name}</b>{it.line ? <small>{it.line}</small> : null}</span>
+          {it.icon ? <Icon name={it.icon} cls="mi" /> : null}<span class="rm-t"><b>{it.name}</b>{it.line ? <small>{it.line}</small> : null}</span>
         </button>
       ))}
     </div>

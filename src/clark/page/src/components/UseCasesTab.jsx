@@ -13,6 +13,7 @@ import { printing } from "../stores/print.js";
 import { CommitChip } from "./CommitChip.jsx";
 import { Menu } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
+import { groupIcon, sortIcon } from "../menuIcons.js";
 
 const RAGS = { "On track": "g", Flag: "a", "High risk": "r", Done: "n" };
 const view = signal({ ...FIRST });
@@ -66,8 +67,8 @@ function UseCasesList({ d, pages, cases, steps, marks }) {
             ))}
           </div>
           <span class="ucp-tools">
-            <Menu label="Sort by" ariaLabel={`Sort by: ${(SORTS_HERE.find(([k]) => k === f.sort) || SORTS_HERE[0])[1]}`} id="ucp-sort" btnCls="btn sm" menuLabel="Sort by" items={SORTS_HERE.map(([k, w]) => ({ id: k, name: w, checked: f.sort === k }))} onPick={(k) => set({ sort: k })} />
-            <Menu label="Group by" ariaLabel={`Group by: ${groupLabel(f.group)}`} id="ucp-group" btnCls="btn sm" menuLabel="Group by" items={GROUPS_HERE.map(([k, w]) => ({ id: k, name: w, checked: f.group === k }))} onPick={(k) => set({ group: k })} />
+            <Menu label="Sort by" ariaLabel={`Sort by: ${(SORTS_HERE.find(([k]) => k === f.sort) || SORTS_HERE[0])[1]}`} id="ucp-sort" btnCls="btn sm" menuLabel="Sort by" items={SORTS_HERE.map(([k, w]) => ({ id: k, name: w, icon: sortIcon(k), checked: f.sort === k }))} onPick={(k) => set({ sort: k })} />
+            <Menu label="Group by" ariaLabel={`Group by: ${groupLabel(f.group)}`} id="ucp-group" btnCls="btn sm" menuLabel="Group by" items={GROUPS_HERE.map(([k, w]) => ({ id: k, name: w, icon: groupIcon(k), checked: f.group === k }))} onPick={(k) => set({ group: k })} />
           </span>
         </div>
       </div>}
