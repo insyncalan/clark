@@ -5,6 +5,7 @@ Chrome launches at 1400 and 900 px.
 """
 import unittest
 
+from _demo import USER
 from test_milestones_page import BrowserBase
 from test_server import chrome, wait
 
@@ -15,6 +16,13 @@ SPACING = """(() => { const m = [...document.querySelectorAll('.mv-mk[data-mark-
 
 
 class Zoom(BrowserBase, unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        with cls.store.step("dashboard", USER) as st:      # the demo's marks sit within three months, so the line barely scrolls and the centre test passed with the centre code removed; two far marks (as in 1173c) give it room
+            st.create("milestones", {"project": "TUL", "name": "Far back", "baseline_date": "2026-03-01", "source": "demo"})
+            st.create("milestones", {"project": "TUL", "name": "Far on", "baseline_date": "2028-12-01", "source": "demo"})
+
     def pick(self, cdp, sid, scale):
         cdp.js(f"document.querySelector('.mv-bar [data-scale-b={scale}]').click()", sid)
         self.assertTrue(wait(lambda: cdp.js(f"document.querySelector('.mv-bar [data-scale-b={scale}]').getAttribute('aria-current')", sid) == "true"))
@@ -70,6 +78,21 @@ class Zoom(BrowserBase, unittest.TestCase):
                     self.assertEqual(got[1].strip('"'), got[2], f"{where}: the focused mark shows its name")
                     self.assertNotEqual(got[3], got[4], f"{where}: the name is not drawn in its own background colour")
                     self.pick(cdp, sid, "month")
+
+    def test_the_scroll_centre_is_kept_when_the_scale_changes(self):
+        port = self.serve()
+        centre = """(() => { const w = document.querySelector('.mv-wrap'); return (w.scrollLeft + w.clientWidth / 2) / w.scrollWidth; })()"""
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width, HASH, port)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('.mv-wrap').scrollWidth > document.querySelector('.mv-wrap').clientWidth", sid) is True), f"{width}: the line scrolls sideways")
+                cdp.js("(() => { const w = document.querySelector('.mv-wrap'); w.scrollLeft = (w.scrollWidth - w.clientWidth) / 2; })()", sid)
+                before = cdp.js(centre, sid)
+                self.assertGreater(before, 0.1, width)
+                self.assertLess(before, 0.9, width)
+                self.pick(cdp, sid, "quarter")
+                self.assertTrue(wait(lambda: abs(cdp.js(centre, sid) - before) <= 0.02), f"{width}: after quarter the centre {cdp.js(centre, sid)} is not within 0.02 of {before}")
+                self.assertLessEqual(abs(cdp.js(centre, sid) - before), 0.02, width)
 
     def test_the_scale_is_remembered_for_the_place_only(self):
         port = self.serve()

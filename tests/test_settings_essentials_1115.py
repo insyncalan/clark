@@ -81,7 +81,10 @@ class Essentials(Head):
                     p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Spacing: Comfortable.'", "Spacing set from Essentials saves at once with the same toast as Personal")
                     p.js("document.querySelector('[data-ess-density-pick=compact]').click()")
                     p.until("document.documentElement.dataset.density === 'compact'", "Compact again")
-                    # Motion
+                    # Motion. A computer that asks for reduced motion (the Mac runner) loads with the switch off, so start from on
+                    if p.js("document.querySelector('[data-ess-motion]').getAttribute('aria-checked')") != "true":
+                        p.js("document.querySelector('[data-ess-motion]').click()")
+                    p.until("document.querySelector('[data-ess-motion]').getAttribute('aria-checked') === 'true' && !document.documentElement.dataset.motion", "Motion starts on")
                     p.js("document.querySelector('[data-ess-motion]').click()")
                     p.until("document.documentElement.dataset.motion === 'reduce' && document.querySelector('[data-ess-motion]').getAttribute('aria-checked') === 'false'", "Motion off reduces motion")
                     p.js("document.querySelector('[data-ess-motion]').click()")

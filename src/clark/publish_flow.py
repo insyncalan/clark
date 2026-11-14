@@ -35,7 +35,7 @@ import unicodedata
 from html.parser import HTMLParser
 from pathlib import Path
 
-from clark import brands, changes, milestones, page, past_files, platform, publish, publish_pdf, section_files, to_client
+from clark import brands, changes, milestones, page, past_files, platform, publish, publish_pdf, section_files, settings, to_client
 from clark.store import Invalid, NumberTaken, open_store
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -828,7 +828,7 @@ class Publisher:
                 # in the temporary folder, which is removed. Each export has its own id, so neither replaces the other, and
                 # save_state and prune_hash_records hold excel.STATE_LOCK, so two exports at once both keep their record.
                 made = excel.export_project(store, code, folder / work, folder / "state.json", on=today, warnings=warnings, branding=self.project_brand(store, code),
-                                       exported_by=self.by_user(), reuse=excel.latest_export(here / excel.STATE_FILE, code))      # the name publish records; the owner has no source yet (projects has none), so the Cover says "the person who sent it to you"
+                                       exported_by=self.by_user(), exporter_name=settings.profile(here)["name"], reuse=excel.latest_export(here / excel.STATE_FILE, code))      # the name publish records; the owner has no source yet (projects has none), so the Cover says "the person who sent it to you"
                 data = Path(made).read_bytes()
                 record = excel.load_state(folder / "state.json", made)
                 key = (excel.id_key(code, record["export_id"]) if record.get("export_id")

@@ -197,6 +197,7 @@ class Words(unittest.TestCase):
             self.shown(cdp, sid, ["Settings",
                                   "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
                                   "Search settings",      # row 1115 S2: the box under the help line
+                                  "Skip to settings",     # item 1170: the skip link, wording ruled in NEW-WORDS.md
                                   "Essentials", "Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "Brands", "People", "Asking", "Feedback", "Quit",      # the chips: one for each card below, in the order they are on the page
                                   "Essentials", "Your name", "Appearance", "System", "Light", "Dark", "Spacing", "Compact", "Comfortable", "Motion", "Single-key shortcuts", "Backups", "Publishing folder",      # row 1115 S3: the first card
                                   "No local folder yet.", "Choose folder", "Asking on or off",

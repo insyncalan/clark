@@ -12,7 +12,7 @@ import unittest
 
 from _demo import USER
 from test_report_editor import Base as PageBase
-from test_server import chrome
+from test_server import chrome, wait
 import test_movement_page as tmp
 import test_p1005b_eye as eye
 import test_plain_line_hostile as plh
@@ -194,8 +194,12 @@ class Movement(tmp.Base):
         p.until("!!document.querySelector(%s)" % json.dumps(self.box(k)), "editor " + k)
         p.js("document.querySelector(%s).cxed.editor.commands.setContent(%s)" % (json.dumps(self.box(k)), json.dumps(html)))
         if close:
-            p.js("document.querySelector(%s).blur()" % json.dumps(self.box(k)))
-            p.until("!document.querySelector(%s)" % json.dumps(self.box(k)), "closed " + k)
+            # A slow Mac can drop the focus or the blur: focus the box, blur it again until it closes (a closed box needs no more).
+            sel = json.dumps(self.box(k))
+            def blur_once():
+                p.js("(function(){var e = document.querySelector(%s); if (e) { e.focus(); e.blur(); }})()" % sel)
+                return not p.js("!!document.querySelector(%s)" % sel)
+            p.t.assertTrue(wait(blur_once, 30), "closed " + k)
 
     def rebaseline(self):
         for which, req in reversed(self.sent):
@@ -224,9 +228,9 @@ class Movement(tmp.Base):
                 p = self.form(cdp, width, theme)
                 self.put(p, "who", "<p>Pat Example</p>", close=False)
                 p.js("document.querySelector(%s).focus()" % json.dumps(self.box("who")))
+                p.until("document.activeElement === document.querySelector(%s)" % json.dumps(self.box("who")), "focus in the editor")
                 p.key("Tab", code="Tab", vk=9)
-                time.sleep(0.5)
-                self.assertFalse(p.js("!!document.querySelector(%s)" % json.dumps(self.box("who"))), "closed on Tab")
+                p.until("!document.querySelector(%s)" % json.dumps(self.box("who")), "closed on Tab", 20)
                 self.assertIn("Pat Example", p.js("document.getElementById('mv-who').textContent"), "kept")
                 self.assertTrue(p.js("!!document.querySelector('.mvm-form')"), "form stays")
 

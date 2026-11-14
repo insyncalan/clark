@@ -133,7 +133,8 @@ class Sizes(unittest.TestCase):
         self.run_page(published_page, "&p=ABC", edit=False, views=PUBLISHED_VIEWS)
 
     def test_the_page_with_no_project_open_has_targets_of_24px(self):
-        s = Running(data_for=lambda code, archived=None: DATA.get(code), projects=lambda archived=False: ONE, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        # Two projects: with one, the page opens it by itself (stores/report.js autoOpen) and the list is only there for a moment, which a poll can miss.
+        s = Running(data_for=lambda code, archived=None: DATA.get(code), projects=lambda archived=False: ONE + [{"code": "DEF", "name": "Other Programme"}], page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         found = []
         with chrome() as cdp:

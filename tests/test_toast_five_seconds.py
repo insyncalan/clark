@@ -32,6 +32,9 @@ class ToastFiveSeconds(Base):
 
     def motion(self, cdp, p, value):
         cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": value}]}, p.sid)
+        if value == "no-preference":     # the Mac asks for reduced motion and the page painted data-motion=reduce at load: clear it
+            p.js("delete document.documentElement.dataset.motion")
+            p.until(f"matchMedia('(prefers-reduced-motion: reduce)').matches === false && !document.documentElement.dataset.motion", "motion is no-preference")
 
     def at(self, seconds):
         wait = self.t0 + seconds - time.monotonic()

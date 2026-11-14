@@ -123,7 +123,7 @@ class Held(unittest.TestCase):
         self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["write-the-weekly-report", "set-the-health", "check-the-report", "publish-the-report", "word-in-and-out", "excel-file-layout", "find-a-past-publication", "save-as-a-pdf", "add-a-work-item", "use-the-board", "change-an-item-in-the-peek", "change-an-item-in-words", "arrange-the-report", "add-a-section-from-a-template", "find-a-use-case", "change-the-layout-and-look", "handle-a-slipped-milestone", "set-up-a-project", "connect-claude-or-chatgpt", "set-your-profile", "add-people-details", "undo-a-mistake", "update-clark", "start-check-and-restore-in-terminal", "run-clark-with-docker"])
         self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["profile-circle", "sections", "section-templates", "freshness", "archive-restore", "at-a-glance", "layouts", "work-items", "milestones-page", "ask-clark", "peek", "status-words", "sneak-peek", "milestone-states", "publishing", "published-reports", "settings", "people", "updating-clark", "diagnostics", "feedback", "dates-and-ids", "using-help", "keys"])
         self.assertEqual(s["start"]["parts"], ["top", "loop", "jobs", "where", "rules"])      # the hero and the loop (row 903) above the jobs; first and foot wait for their parts of clark
-        self.assertEqual(len(s["reference"]["keys"]), 34 - len(LATER["keys"]))
+        self.assertEqual(len(s["reference"]["keys"]), 35 - len(LATER["keys"]))
         self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones", "Settings and safety", "Advanced"])
         self.assertEqual(s["reference"]["groups"], ["Screens", "Working with items", "Milestones", "Publishing", "Settings and data", "Keys and icons"])
         self.assertEqual(len(LATER["howto"]) + len(s["howto"]["tasks"]), len(RAW["howto"]["tasks"]))
@@ -137,7 +137,7 @@ class Held(unittest.TestCase):
         self.assertEqual(sorted(links - places), [])
 
     def test_the_source_itself_is_whole(self):
-        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (37, 35, 34))   # item 1158 took out the Ask the client for what you need task and the Needs from you entry; was 38, 36; 38 with the Excel file layout entry (row 1069); 37 and 35 with the People entries (#454), the Word entry written and Run clark with Docker and the AI card task (#446); the People entries held
+        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (37, 35, 35))   # v1.0.9 added the Cmd+Option+S key row; item 1158 took out the Ask the client for what you need task and the Needs from you entry; was 38, 36; 38 with the Excel file layout entry (row 1069); 37 and 35 with the People entries (#454), the Word entry written and Run clark with Docker and the AI card task (#446); the People entries held
 
 
 def lacks(code, name):
@@ -258,7 +258,7 @@ class AgainstThePage(unittest.TestCase):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]
         self.assertEqual(rows, ["[[?]]", "[[/]]", "[[/]] [[/]]", "[[Esc]]", "[[Enter]]", "[[Shift+Enter]]", "[[Up]] [[Down]] [[Enter]]", "[[V]]", "[[E]]", "[[Alt+Up]] [[Alt+Down]]", "[[Home]] [[End]]",
                                 "Double-click", "Click", "[[Mod]]+click", "[[Shift]]+click", "[[Mod+Shift]]+click", "[[Shift+Up]] [[Shift+Down]]",
-                                "[[Space]]", "[[Mod+A]]", "The tick box on a group", "[[Esc]] with a selection", "[[O]] [[S]] [[P]] [[T]] [[C]]", "[[Shift+F10]]", "[[Mod+K]]", "[[Mod+J]]",
+                                "[[Space]]", "[[Mod+A]]", "The tick box on a group", "[[Esc]] with a selection", "[[O]] [[S]] [[P]] [[T]] [[C]]", "[[Shift+F10]]", "[[Mod+K]]", "[[Mod+J]]", "Cmd+Option+S",
                                 "[[Up]] [[Down]] [[Home]] [[End]]", "[[Up]] [[Down]] [[Left]] [[Right]]", "[[Enter]]"])
 
 

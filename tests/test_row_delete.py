@@ -87,6 +87,7 @@ class DeleteItem(board.Base):
             self.open_menu(cdp, sid, a)
             click(cdp, sid, "[data-rm=peek]")
             self.until(cdp, sid, f"!!document.querySelector('#peek[data-peek=\"{a}\"] [data-pk-delete]')", "the peek")
+            self.until(cdp, sid, "document.querySelector('#peek').getAnimations({subtree: true}).length === 0", "the peek to settle")   # a click lands where the button is now, not where it slides to
             click(cdp, sid, "[data-pk-delete]")
             d = self.dialog(cdp, sid)
             self.assertEqual(d, {"q": QUESTION % a, "b": ["Delete", "Cancel"]})

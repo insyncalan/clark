@@ -266,10 +266,11 @@ class Dialog(Base):
             p.open_publish()
             p.js("window.__real = window.fetch; window.fetch = (u, o) => /publish/.test(String(u)) && o && o.method === 'POST' ? new Promise((ok) => { window.__release = () => ok(window.__real(u, o)); }) : window.__real(u, o);")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, p.sid)
+            p.js("delete document.documentElement.dataset.motion")      # the Mac paints data-motion=reduce at load
             p.go()
             p.until("!!document.querySelector('[data-go] [data-spin]')", "a spinner while it works")
             self.assertEqual(p.message().strip(), "Publishing…")
-            self.assertEqual(p.js("getComputedStyle(document.querySelector('[data-spin]')).animationName"), "pub-spin")
+            p.until("getComputedStyle(document.querySelector('[data-spin]')).animationName === 'pub-spin'", "the ring turns")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
             p.until("getComputedStyle(document.querySelector('[data-spin]')).animationName === 'none'", "the ring stays still for reduced motion")
             self.assertEqual(p.js("document.querySelector('[data-go] [data-tick]')"), None, "no tick yet")
