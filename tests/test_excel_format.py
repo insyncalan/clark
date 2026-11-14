@@ -153,6 +153,8 @@ class Formatting(unittest.TestCase):
     def test_header_is_bold_white_on_the_looks_brand_navy_and_wraps(self):
         wb = load_workbook(self.build(self.everything()))
         for ws in wb:
+            if ws.title == excel.META_NAME:         # item 1171: the metadata sheet is data, not a table with a header
+                continue
             for c in ws[1]:
                 self.assertTrue(c.font.b, (ws.title, c.value))
                 self.assertEqual(c.font.color.rgb[-6:], look.colour("white"))
@@ -358,7 +360,7 @@ class Formatting(unittest.TestCase):
             for r in ws.iter_rows():
                 for c in r:
                     self.assertNotEqual(c.data_type, "f", (ws.title, c.coordinate))
-            if ws.title != "Lists":
+            if ws.title not in ("Lists", excel.META_NAME):
                 self.assertGreater(len(ws.conditional_formatting), 0, ws.title)
         with zipfile.ZipFile(path) as z:
             for n in z.namelist():

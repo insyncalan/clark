@@ -354,6 +354,8 @@ class ImportPlan:
     unrecorded_ok: bool = False       # ...until the person has confirmed it (confirm_unrecorded)
     store: object = field(default=None, repr=False)     # read only: to work out the IDs new rows would get
     unknowns: list = field(default_factory=list)        # row 1156: milestones and use cases a work item row names that clark does not have (see _find_unknowns)
+    export_info: object = None          # item 1171: {key: text} from the export's metadata sheet, if it had one that could be read; information only
+    edited_rows: list = field(default_factory=list)     # item 1171: (table, id) of rows whose cells differ from what the export wrote ("where possible"; never gates anything)
     answers: dict = field(default_factory=dict)         # row 1156: unknown id -> {"do": "new"} or {"do": "use", "id": the item to use}
 
     def refresh_ids(self):
@@ -698,8 +700,7 @@ def in_force(store, stamp, item=None, db_id=None):
 def fingerprint(table, values):
     """SHA-256 of a new row's content: the table and the importable cell values as the importer reads them (blank cells left
     out), sorted by column name. Not the workbook's file hash, so the same content saved again gives the same fingerprint."""
-    canon = json.dumps([table, sorted((k, v) for k, v in values.items())], ensure_ascii=False, separators=(",", ":"), default=str)
-    return hashlib.sha256(canon.encode("utf-8")).hexdigest()
+    return excel.fingerprint(table, values)
 
 
 def _title_key(v):
@@ -862,6 +863,7 @@ class _Reader:
         self.plan = ImportPlan(filename, project)
         self.n = 0
         self.today = writer.today()
+        self.row_hashes = {}                                 # item 1171: (table, id) → the hash the export wrote for the row (empty: nothing to compare)
         self.snapshot = (record or {}).get("rows") or {}     # the export's record of each row: {table: {id: row}}
         self._refs = None
         self.made = {}                                       # fingerprint → ids an earlier import made from it (used up as rows match)
@@ -923,7 +925,8 @@ class _Reader:
         if table == "use_cases":
             cols = cols + [UC_MILESTONES]
             info[UC_MILESTONES] = ("TEXT", False, None)
-        header, named, ignored = header_map(next(ws.iter_rows(min_row=1, max_row=1, values_only=True), ()), table, cols, sheet)
+        first_row = next(ws.iter_rows(min_row=1, max_row=1, values_only=True), ())
+        header, named, ignored = header_map(first_row, table, cols, sheet)
         if "id" not in header:
             self.problem(f"{sheet}: there is no id column, so the sheet was skipped (every row would look new)", sheet)
             return
@@ -963,6 +966,9 @@ class _Reader:
                     self.problem(f"{sheet}, row {rn}: the ID is a formula, which is not read; the row was left out", sheet, rn, "", "id")
                 continue
             rid = "" if raw_id is None else str(raw_id).strip()
+            was_hash = self.row_hashes.get((table, rid)) if rid else None
+            if was_hash and was_hash != excel.row_hash(table, first_row, row):      # item 1171: said only when the export's hash for this row is there and differs
+                self.plan.edited_rows.append((table, rid))
             placeholder = ""
             if rid and not any(ch.isdigit() for ch in rid):    # TBD, new, n/a, -, ?: no number in it, so it says "no ID yet"
                 placeholder, rid = rid, ""
@@ -1705,6 +1711,11 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False,
             rd.plan.notes.append(f"{path.name} was imported before, but that import has been undone (or this is another copy of "
                                  "the database), so it is read again.")
         rd.plan.path, rd.plan.file_hash, rd.plan.state_path = str(path), seen_hash, state_path
+        rd.plan.export_info, rd.row_hashes = excel.read_meta(wb)          # item 1171: information only; never a reason to refuse, never trust
+        info = rd.plan.export_info or {}
+        if all(info.get(k) for k in ("exported_at_utc", "clark_version")):
+            rd.plan.notes.append(f"Exported{' by ' + info['exporter'] if info.get('exporter') else ''} with clark {info['clark_version']} "
+                                 f"on {info['exported_at_utc']} UTC.")
         rd.plan.unrecorded = not record.get("hash")
         rd.plan.unrecorded_ok = bool(allow_unrecorded)
         if rd.plan.unrecorded:

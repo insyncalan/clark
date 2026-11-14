@@ -58,6 +58,7 @@ from openpyxl.worksheet.datavalidation import DataValidation
 from openpyxl.worksheet.protection import SheetProtection
 
 from clark import excel_colours as colours
+from clark import __version__
 from clark import excel_cover
 from clark import glance
 from clark import excel_palette
@@ -929,7 +930,7 @@ def gantt_status(line, today):
 def gantt_sheet_name(name, taken=()):
     """The tab's name as a sheet name: no character a sheet name cannot hold, at most 31 characters, not one already used; else 'Gantt'."""
     clean = " ".join(GANTT_BAD_SHEET_CHARS.sub(" ", name).split())[:31] if isinstance(name, str) else ""
-    reserved = {LISTS_NAME, HISTORY_NAME, COVER_NAME, *taken}       # the sheets written after the Gantt one are named already
+    reserved = {LISTS_NAME, HISTORY_NAME, COVER_NAME, META_NAME, *taken}       # the sheets written after the Gantt one are named already
     if not clean or clean.lower() in {t.lower() for t in reserved}:
         clean = GANTT_DEFAULT_NAME
     return clean
@@ -1012,6 +1013,83 @@ def write_history(wb, view, pal=None):
     ws.freeze_panes = "A3"
     protect_sheet(ws)
     return ws
+
+
+META_NAME = "clark_meta"        # item 1171: the very hidden sheet of a full export (never in the client workbook); the import only reads it as information
+META_KEYS = ("exporter", "exported_at_utc", "clark_version", "project")      # exactly these four fields, and nothing else about the person or the project
+META_ROW = "row"                # the first cell of a row-hash line: row | table | item id | hash
+META_TEXT_CUT = 200
+
+
+def fingerprint(table, values):
+    """SHA-256 of a row's content: the table and the values (blank ones left out), sorted by name. The one canon, used for a new
+    row's fingerprint (excel_import) and for the per-row hashes of item 1171."""
+    canon = json.dumps([table, sorted((k, v) for k, v in values.items())], ensure_ascii=False, separators=(",", ":"), default=str)
+    return hashlib.sha256(canon.encode("utf-8")).hexdigest()
+
+
+def _meta_value(v):
+    """A cell value as the row hash sees it, the same on the way out (what was written) and on the way back (what a save gives)."""
+    if isinstance(v, datetime):
+        return v.date().isoformat() if v.time() == datetime.min.time() else v.isoformat()
+    if isinstance(v, date):
+        return v.isoformat()
+    if isinstance(v, float) and v == int(v):
+        v = int(v)
+    if isinstance(v, bool) or v is None:
+        return v
+    return v if isinstance(v, (int, float)) else str(v)
+
+
+def row_hash(table, labels, values):
+    """Item 1171: the hash of one sheet row, from the sheet's headings and the row's cell values; only headings that are the
+    export's own columns for the table count, blank cells are left out."""
+    known = COLUMN_OF.get(table, {})
+    pairs = {}
+    for label, v in zip(labels, values):
+        if isinstance(label, str) and label.strip() in known:
+            v = _meta_value(v)
+            if v not in (None, ""):
+                pairs[label.strip()] = v
+    return fingerprint(table, pairs)
+
+
+def write_meta(wb, meta, hashes, pal=None):
+    """Item 1171: the very hidden, protected sheet of a full export: four lines (META_KEYS) and one line per exported row
+    (META_ROW, table, item id, hash). Nothing else. Very hidden: it is not in Excel's Unhide list; it is hidden, not secret."""
+    st = Styles(_pal(pal))
+    ws = wb.create_sheet(META_NAME)
+    for key in META_KEYS:
+        ws.append([key, meta.get(key) or ""])
+    for table, rid, h in hashes:
+        ws.append([META_ROW, table, rid, h])
+    for row in ws.iter_rows():
+        for c in row:
+            protect_text_cell(c)
+            c.font = st.body_font
+    ws.sheet_state = "veryHidden"
+    protect_sheet(ws)
+    return ws
+
+
+def read_meta(wb):
+    """Item 1171: (info, hashes) from the metadata sheet of an opened workbook: info {key: text} (only the four keys, texts cut short,
+    or None when the sheet is missing or has none of them) and hashes {(table, id): hash}. Whatever is wrong with the sheet (not there,
+    edited, junk, too big) gives less or nothing, never an error, and nothing in it is ever a reason to refuse or to trust."""
+    try:
+        ws = next((w for w in wb.worksheets if w.title.strip().lower() == META_NAME), None)
+        if ws is None or (ws.max_row or 0) > 50000 or (ws.max_column or 0) > 8:
+            return None, {}
+        info, hashes = {}, {}
+        for row in ws.iter_rows(values_only=True):
+            a = row[0] if row else None
+            if a in META_KEYS and len(row) > 1 and isinstance(row[1], str):
+                info[a] = " ".join(row[1].split())[:META_TEXT_CUT]
+            elif a == META_ROW and len(row) > 3 and all(isinstance(x, str) for x in row[1:4]) and re.fullmatch(r"[0-9a-f]{64}", row[3]):
+                hashes[(row[1], row[2].strip())] = row[3]
+        return (info or None), hashes
+    except Exception:
+        return None, {}
 
 
 def write_lists(wb, lists, pal=None):
@@ -1214,12 +1292,13 @@ def write_cover(wb, cover, mark=False, pal=None, wave=False):
     return ws
 
 
-def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=None, pal=None, wave=False, gantt_tab=None):
+def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=None, pal=None, wave=False, gantt_tab=None, meta=None):
     """The workbook for one project, from {table: [row, ...]} (creaite excel_sync.cmd_export, the sheet part). Rows are dicts
     with the table's columns; labelled rows may carry `labels` (comma-separated) and milestones `original_date`. A missing
     table is an empty sheet. `on` is the day Shown state is worked out for (today by default). `cover` (excel_cover.lines) adds
     the Cover as the first sheet (#85b); without it the workbook is as it was. `history` (history.view_for_project's result) adds
-    the History sheet (#123) after the data sheets and before Lists."""
+    the History sheet (#123) after the data sheets and before Lists. `meta` ({"exporter": ..., "clark_version": ...}, item 1171) adds
+    the very hidden metadata sheet last: only a full export gives it; the client workbook and the template never do."""
     pal = _pal(pal)
     st = Styles(pal)
     lists = _project_lists(project, rows_by_table)
@@ -1234,6 +1313,7 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
     props.creator = props.lastModifiedBy = FIXED_NAME
     props.title = f"{project} work items" if project else "clark import template"
     props.description = INTERNAL_NOTE
+    row_hashes = []
     for name, table, cols, locked in SHEETS:
         ws = wb.create_sheet(name)
         rows = _ordered(table, rows_by_table.get(table, []))
@@ -1249,6 +1329,8 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
                 r = {**r, **{f: names[f].get(r.get(f), r.get(f)) for f in REF_TABLES}}
             r = {**r, **{f: sanitise.rich_plain_text(r[f]) for t, f in RICH_WORDS if t == table and isinstance(r.get(f), str)}}
             ws.append([to_cell(f, r.get(f)) for _, f in cols])
+            if meta is not None:
+                row_hashes.append((table, r["id"], row_hash(table, [label for label, _ in cols], [c.value for c in ws[ws.max_row]])))
             for c in ws[ws.max_row]:
                 c.font = st.body_font
                 protect_text_cell(c)        # text is text: openpyxl would make a string starting "=" a formula, "#N/A" an error
@@ -1321,6 +1403,9 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
         write_lists(wb, lists, pal)
     if cover:
         write_cover(wb, cover, mark, pal, wave)
+    if meta is not None:
+        write_meta(wb, {"exporter": meta.get("exporter"), "exported_at_utc": stamp.strftime("%Y-%m-%d %H:%M:%S"),
+                        "clark_version": meta.get("clark_version"), "project": project}, row_hashes, pal)
     for ws in wb.worksheets:
         print_setup(ws)
     return wb
@@ -1356,7 +1441,7 @@ def latest_export(state_path, project):
     return (token, r.get("hash")) if EXPORT_ID_OK.fullmatch(token) and r.get("hash") else None
 
 
-def export(path, project, rows_by_table, state_path, on=None, cover=None, branding=None, warnings=None, history=None, reuse=None, gantt_tab=None):
+def export(path, project, rows_by_table, state_path, on=None, cover=None, branding=None, warnings=None, history=None, reuse=None, gantt_tab=None, exported_by=None, exporter_name=None):
     """Write the workbook at `path` for `project` from {table: [row, ...]} and record what was written in `state_path`
     (creaite excel_sync.cmd_export). Returns {table: rows written}.
 
@@ -1382,7 +1467,8 @@ def export(path, project, rows_by_table, state_path, on=None, cover=None, brandi
     for note in pal.warnings:           # the palette's notes are for the log only: no one is shown them
         logging.getLogger("clark.excel").warning("%s", note)
     wave = excel_picture.load_wave(branding, warnings) if cover else None     # the brand's cover picture: only from the branding folder
-    wb = workbook(project, rows_by_table, on, cover, mark=bool(logo), history=history, pal=pal, wave=bool(wave), gantt_tab=gantt_tab)
+    wb = workbook(project, rows_by_table, on, cover, mark=bool(logo), history=history, pal=pal, wave=bool(wave), gantt_tab=gantt_tab,
+                  meta={"exporter": exporter_name, "clark_version": __version__})       # item 1171: the name typed in Settings only (blank when none; never the login name, which the Cover may still show)
     if reuse is None:                      # the same unchanged workbook exported again to its own path keeps its id
         try:
             mine = _books(state_path).get(_key(path)) or {}
@@ -1487,7 +1573,7 @@ def download_name(name, code, when):
 
 
 def export_project(store, project, path=None, state_path=None, on=None, exported_by=None, owner=None, owner_email=None,
-                   branding=None, warnings=None, reuse=None):
+                   branding=None, warnings=None, reuse=None, exporter_name=None):
     """Export one project from the store (#31): each table's rows with Store.read(kind, project), archived rows left out (as
     creaite's hide_archived), labels from item_labels and each milestone's Original date from its history. `path` defaults
     to export_name() beside clark.db; the record goes in STATE_FILE beside clark.db. Returns the path written."""
@@ -1517,7 +1603,7 @@ def export_project(store, project, path=None, state_path=None, on=None, exported
     view = history.view_for_project(store.con, project, "all", history.ROW_LIMIT)       # the one source the Activity tab shares
     rows["gantt_lines"] = [r for r in store.read("gantt_lines", project)]      # row 926: only the sheet reads these; the import does not (TABLES)
     tab = (store.read("projects", ref=project) or {}).get("gantt_tab_name")
-    export(path, project, rows, state_path, on, cover, branding, warnings, history=view, reuse=reuse, gantt_tab=tab)
+    export(path, project, rows, state_path, on, cover, branding, warnings, history=view, reuse=reuse, gantt_tab=tab, exported_by=exported_by, exporter_name=exporter_name)
     return path
 
 
