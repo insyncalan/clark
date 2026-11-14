@@ -72,7 +72,7 @@ class TheFourGuides(unittest.TestCase):
         self.assertIn("To remove a view you no longer want, open it, press the small arrow and choose **Delete view**. A message at the foot of the page has **Undo**, which puts the view back. This works for the five starting tabs too.", text["save-a-view"])
         self.assertNotIn("Bring back", text["save-a-view"])
         self.assertNotIn("Archive", text["save-a-view"])
-        for name in ("**Dashboard**", "**Week ending**", "**Published weeks**", "**Dashboard as at a day…**", "**Published reports**",
+        for name in ("**Dashboard as at a day…**", "**Published reports**",      # item 1177: step one now points to the profile circle; the report bar's Week ending box and Published weeks list are gone
                      "**Dashboard as at a day**", "**Show**", "**Back to now**"):
             self.assertIn(name, text["see-the-dashboard-as-at-a-day"], name)
         for name in ("**Settings**", "**Backups**", "**Preview**", "**Restore**", "**Close**", "**Put it back**", "**Cancel**"):

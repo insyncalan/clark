@@ -203,7 +203,7 @@
     "go": "dashboard+edit",
     "s": [
      "Open the **Dashboard** and press **Edit** at the top. Each change saves on its own.",
-     "Set **Week ending** to the Friday the report covers: type it as DD-MM-YYYY, press [[Enter]] in the box to use the Friday shown (only while no week is kept yet), or press the calendar button beside the box and pick the day. In the calendar, **Friday** takes the next Friday (today, if it is one). Any other day is not accepted.",
+     "Set **Week ending** to the Friday the report covers: click the date in the header and pick the day in the calendar. **Friday** takes the next Friday (today, if it is one). Any other day is not accepted.",
      "Click the text under **Summary**, **This week** or **Next week** and write it. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] puts the old text back.",
      "Set the health on the **Project health** tile: see [Set the project health](#howto-set-the-health).",
      "Check the lists of risks and issues, open actions and decisions. Click any part of a row (the state, the title, the owner, the date) to change it there; the ID opens the whole item in the peek.",
@@ -2838,7 +2838,7 @@
    "job": "Look at the Dashboard as it stood at the end of a past day, read only, and come back to this week.",
    "steps": [
     {
-     "d": "Open the **Dashboard**. Beside **Week ending** on the report bar there is a drop-down that reads **Published weeks**. It is there in View and in Edit, and only once the project has a publication."
+     "d": "Press your profile circle at the top right and choose **Published reports** to see the weeks you have published. It is there in View and in Edit, and only once the project has a publication."
     },
     {
      "d": "To look at a week you published, pick it from the list. Each line reads like DD-MM-YYYY · Publication 3, newest first. A page that was kept opens in a new browser tab exactly as it was published."
