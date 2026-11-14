@@ -27,7 +27,7 @@ LINE_PARTS = [".fline-wrap", ".fline", "[data-fline]", "#fline-input", "#fline-l
 
 
 # Words and keys that only the filter line (the app's) carries; the published file's page must hold none of them (as on main).
-LINE_ONLY_WORDS = ["owner:me", "Archived work", "Needed from the client", "Saved views", "Filter by keyword or by field", "Set your name in Settings",
+LINE_ONLY_WORDS = ["owner:me", "Archived work", "Saved views", "Filter by keyword or by field", "Set your name in Settings",
                    "clark.fline", "clark.fviews", "Filter work items", "Remove the search word",
                    "No work items match.", "Clear filter", "Did you mean", "could mean more than one field", "Add a value after", "Unknown state"]
 

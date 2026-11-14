@@ -91,7 +91,7 @@ class PythonSide(unittest.TestCase):
         accepts = re.search(r"export const ACCEPTS = \{ types: \[([^\]]*)\] \};", (logic / "templates.js").read_text(encoding="utf-8"))
         self.assertIsNotNone(accepts, "templates.js keeps its ACCEPTS list")
         head, _, built_ins = accepts.group(1).partition("...TEMPLATE_TYPES,")
-        self.assertEqual(re.findall(r'"([a-z]+)"', head), ["text", "needs"])
+        self.assertEqual(re.findall(r'"([a-z]+)"', head), ["text"])
         self.assertEqual(tuple(re.findall(r'"([a-z]+)"', built_ins)), publish.BUILT_IN_SECTIONS)
 
     def test_every_table_built_from_the_registry_covers_every_type(self):
@@ -336,9 +336,9 @@ class PageSide(unittest.TestCase):
         self.assertTrue(all(v == "function" for v in self.val("T.edits").values()))
         self.assertTrue(all(p["view"] == "function" and p["isEmpty"] == "function" for p in self.val("T.parts").values()))
         cat = self.val("T.templates.CATALOGUE")
-        cat_types = [x["type"] for x in cat if x["type"] not in ("text", "needs") + PAGE_FIRST]
+        cat_types = [x["type"] for x in cat if x["type"] not in ("text",) + PAGE_FIRST]
         self.assertEqual(sorted(cat_types), sorted(types), "one catalogue entry per template type")
-        self.assertEqual([x["type"] for x in cat if x["type"] in ("text", "needs")], ["text", "needs", "text", "text"], "and Text, Current state and Plan summary (all the type text) and Needs from you (#121), in the catalogue's order")
+        self.assertEqual([x["type"] for x in cat if x["type"] == "text"], ["text", "text", "text"], "Text, Current state and Plan summary (all the type text), in the catalogue's order; item 1158: no Needs from you")
         self.assertEqual(len({x["id"] for x in cat}), len(cat))
         self.assertEqual(self.val("T.templates.TEMPLATES.length + T.templates.LATER.length"), len(cat))
         self.assertTrue(set(store_module.SECTION_TYPES) >= set(x["type"] for x in cat if x["type"] not in PAGE_FIRST))
@@ -356,12 +356,12 @@ class PageSide(unittest.TestCase):
         """Replaces the first slice's 'the store refuses every type but text': the store now takes every template type, and only
         the catalogue's ready flag (switched on by the lead once a template is built) makes one placeable."""
         accepts = self.val("T.templates.ACCEPTS.types")
-        self.assertEqual(accepts, ["text", "needs"] + list(section_kinds.TYPES) + list(changes.BUILT_IN_TYPES) + list(PAGE_FIRST))      # row 926: + gantt; row 1068: + gantttable; needs: the section that carries content (#121)
+        self.assertEqual(accepts, ["text"] + list(section_kinds.TYPES) + list(changes.BUILT_IN_TYPES) + list(PAGE_FIRST))      # row 926: + gantt; row 1068: + gantttable; needs: the section that carries content (#121)
         self.assertLessEqual(set(accepts), set(changes.NEW_SECTION_TYPES), "the page's ACCEPTS is all taken by the change route")
         self.assertEqual(changes.CHANGE_KINDS["report_sections"][changes.NEW], ("type", "title", "body"), "new takes a type, a title and (text only) a starting body")
         for x in self.val("T.templates.CATALOGUE"):
             tid = x["id"]
-            if x["type"] in ("text", "needs"):       # not templates of the registry: always placeable
+            if x["type"] == "text":       # not templates of the registry: always placeable
                 self.assertIs(x["ready"], True)
                 continue
             if x["type"] in PAGE_FIRST:      # row 926: no registry module, the store takes the type: placeable

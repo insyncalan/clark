@@ -408,7 +408,6 @@
      "In Edit, click the title to change it. [[Enter]] keeps it; [[Esc]] puts it back.",
      "In Edit, under the title are **Status**, **Priority**, **Owner** and **Due**. Click **Status** to choose another value. A risk’s or issue’s status menu also sets its colour (Red, Amber or Green), which sets its priority. To change the priority, owner or due date, click it in the list row (the due date offers Today, Tomorrow, Friday, Next week and No date) or use [Change an item with words (Sneak peek)](#howto-change-an-item-in-words).",
      "A warning shows when an action is overdue or due on a weekend, with one-click fixes such as **Move to Friday** and the date.",
-     "**Needed from the client**: switch it on in Edit and, when the report has a “Needs from you” section, the item is listed there.",
      "**Latest update**: click to write it. On an item shown to the client, the box says **Shown to the client**, because the client sees this text.",
      "In Edit, **Details** is a tab and lists the Type, Workstream, Milestone and Use case (click one to choose another), then Shown to client and Client wording. In View the same fields are listed under the title with no tabs.",
      "In Edit, the **Activity** tab under the title shows the item’s history: who changed what, how and when, newest first. **Details** goes back to the fields.",
@@ -504,23 +503,6 @@
      "Press **Add section** (or [[Enter]]). The new section appears with its heading ready to rename; [[Esc]] closes the box without adding anything.",
      "The new section opens ready to fill in, in place. A template with nothing in it yet is left out of what the client sees.",
      "One **Undo** takes the new section away again. See [Section templates](#ref-section-templates) for what each one is for."
-    ],
-    "page": [
-     "dashboard+edit"
-    ]
-   },
-   {
-    "id": "ask-for-what-you-need",
-    "g": "The report",
-    "t": "Ask the client for what you need",
-    "w": "Dashboard › Edit › Needs from you",
-    "go": "dashboard+edit",
-    "s": [
-     "On the **Dashboard**, press **Edit**. Add a section from the **Needs from you** template: press the **+** under the section you want it to follow, choose **Needs from you** and press **Add section**.",
-     "Press **Add a row**. Choose whether it is a decision, information or a date. Say what is needed and who it is from, then write the day it is needed by as DD-MM-YYYY, or leave it empty. Press **Add**.",
-     "Each row has **Edit**, **Leave out** (or **Include**) and **Remove**. A row you leave out stays in Edit and is not shown in View or on the published page.",
-     "A date that has passed shows the word **Overdue** beside it. In View and on the published page the section is a table you can read but not change.",
-     "Each row you add, change, leave out or remove is one change with its own **Undo**."
     ],
     "page": [
      "dashboard+edit"
@@ -999,10 +981,6 @@
        [
         "Summary, This week, Next week",
         "Text sections. This week and Next week sit side by side to start with; any section can sit beside another."
-       ],
-       [
-        "Needs from you",
-        "Added from a template: what you need from the client, as rows you add yourself. Left out of the published page when no row is shown. See [Needs from you](#ref-needs-from-you)."
        ]
       ]
      ],
@@ -1115,11 +1093,6 @@
         "Half or full"
        ],
        [
-        "Needs from you",
-        "What the project needs from the client: decisions, information and dates, each with who it is from and when it is needed by.",
-        "Full or half"
-       ],
-       [
         "Link preview",
         "A web page shown as a card you write: a dashboard, a news item, a recording.",
         "Full"
@@ -1150,25 +1123,6 @@
         "Full or half"
        ]
       ]
-     ]
-    ],
-    "page": [
-     "dashboard+edit"
-    ]
-   },
-   {
-    "id": "needs-from-you",
-    "g": "Screens",
-    "t": "Needs from you",
-    "w": "Dashboard › Edit › Add a section",
-    "b": [
-     [
-      "p",
-      "A section for what you need from the client: a decision, information or a date. Add it in Edit from the **Add a section** box. You add its rows yourself with **Add a row**; each says what is needed, who it is from and the day it is needed by, and is marked as a decision, information or a date."
-     ],
-     [
-      "p",
-      "A row past its date shows the word **Overdue**, so it does not rely on colour. **Leave out** keeps a row in Edit but off the published page. On the published page the section is a table, and it is left out altogether when no row is shown. See [Ask the client for what you need](#howto-ask-for-what-you-need)."
      ]
     ],
     "page": [
@@ -1292,7 +1246,7 @@
      ],
      [
       "p",
-      "To change how wide a column is in the list, drag the right edge of its heading. Or put the focus on a heading, or on any row, and press [[Alt+Left]] or [[Alt+Right]]. Double-click the edge to put the column back to its first width. The Use cases list works the same way: drag the right edge of a column heading, or press [[Alt+Left]] or [[Alt+Right]] on a row, and double-click the edge to put the column back. A Needs from you section in Edit has the same on its table of rows. The list of archived work items (type is:archived on the filter line) has it too, on its Type, Item, Owner, Due and Status columns. The Milestones list works the same way too, in Edit. The widths are kept on this computer, not in the project, and the published page keeps its own."
+      "To change how wide a column is in the list, drag the right edge of its heading. Or put the focus on a heading, or on any row, and press [[Alt+Left]] or [[Alt+Right]]. Double-click the edge to put the column back to its first width. The Use cases list works the same way: drag the right edge of a column heading, or press [[Alt+Left]] or [[Alt+Right]] on a row, and double-click the edge to put the column back. The list of archived work items (type is:archived on the filter line) has it too, on its Type, Item, Owner, Due and Status columns. The Milestones list works the same way too, in Edit. The widths are kept on this computer, not in the project, and the published page keeps its own."
      ],
      [
       "tbl",
@@ -1858,7 +1812,7 @@
     "b": [
      [
       "p",
-      "A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title): Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking, Feedback and Quit, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project."
+      "A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title): Essentials, Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking, Feedback and Quit, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project."
      ],
      [
       "tbl",
@@ -1867,6 +1821,10 @@
        "What it holds"
       ],
       [
+       [
+        "Essentials",
+        "Your name, Appearance, Spacing, Motion, Single-key shortcuts, Backups, Publishing folder, Asking on or off."
+       ],
        [
         "Profile",
         "About you: **Your name**, **Alias** and **Your email**."
@@ -2534,6 +2492,11 @@
    ],
    "full": "howto-find-a-past-publication",
    "cards": [
+    {
+     "card": "essentials",
+     "title": "Essentials",
+     "line": "Your name, Appearance, Spacing, Motion, Single-key shortcuts, Backups, Publishing folder, Asking on or off."
+    },
     {
      "card": "profile",
      "title": "Profile",

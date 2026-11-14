@@ -89,6 +89,7 @@ class Card(unittest.TestCase):
         self.h.ev("window.opts.fail = true")
         self.h.card(text=TEXT)
         self.assertTrue(self.h.until("document.querySelector('.aic').dataset.state === 'failed'"))
+        self.assertTrue(self.h.until(f"document.querySelector('.aic-say').textContent.trim() === {FAILED!r}"))      # the state is set before the line is drawn
         self.assertEqual(self.h.say(), FAILED)
         self.assertEqual(self.buttons(), ["Discard", "Try again"])
         self.assertNotRegex(self.h.ev("document.querySelector('.aic').innerText"), r"canned|Error|Exception|JSON")
