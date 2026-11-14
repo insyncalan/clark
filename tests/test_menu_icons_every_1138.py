@@ -108,7 +108,7 @@ class Source(unittest.TestCase):
             "a checkbox filter panel (one checkbox line per value), not a command menu: its lines are choices, not actions",
         "Native select drop-downs (edit/AiSettings.jsx, edit/BrandPick.jsx, edit/DocumentsEdit.jsx, edit/NeedsEdit.jsx, edit/TrackerEdit.jsx, "
         "edit/UseCasesEdit.jsx, edit/WeekPicker.jsx, edit/templates/Callout.jsx, edit/templates/Checklist.jsx, edit/templates/FiguresEdit.jsx, "
-        "edit/templates/KeyDates.jsx, edit/templates/WorkItemsList.jsx, edit/templates/raidEdit.jsx, gantt/components/GanttTable.jsx cell editor)":
+        "edit/ImportWorkbook.jsx (the question for a label the workbook names), edit/templates/KeyDates.jsx, edit/templates/WorkItemsList.jsx, edit/templates/raidEdit.jsx, gantt/components/GanttTable.jsx cell editor)":
             "a native select cannot hold icons: the browser draws its list",
         "Hand over people datalist (edit/HandOver.jsx)": "a native datalist of names that completes what is typed; the browser draws it, so it cannot hold icons",
     }

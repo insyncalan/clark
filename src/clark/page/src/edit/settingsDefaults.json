@@ -1,0 +1,6 @@
+{
+  "review-days": { "value": 14, "why": "Two weeks: a project that nobody has looked at for a fortnight is worth a second look, and it is the number the Freshness filter always used." },
+  "gantt-editor": { "value": false, "why": "A project has no Gantt tab until someone asks for one, so the tab bar stays as short as before." },
+  "gantt-client": { "value": false, "why": "Nothing reaches a client's report until the editor chooses it." },
+  "gantt-name": { "value": "Gantt", "why": "The word the tab was always called." }
+}
