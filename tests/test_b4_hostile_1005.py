@@ -176,6 +176,10 @@ class Raid(PageBase):
 class Movement(tmp.Base):
     def form(self, cdp, width, theme):
         p = self.visit(cdp, width=width, theme=theme)
+        # A hosted Mac runner does not always give the page the keyboard focus: a Tab then reached the editor but the focus never left it, and a blur()
+        # of a page that never had the focus does not fire. Ask for the page to be focused, as test_appearance does.
+        p.cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)
+        p.cdp.call("Page.bringToFront", {}, p.sid)
         self.open_movement(p)
         p.js("document.querySelector('#mv-move').click()")
         p.until("!!document.querySelector('.mvm-form')", "form %s %s" % (width, theme))
@@ -235,7 +239,7 @@ class Movement(tmp.Base):
                     if gone:
                         break
                     time.sleep(0.05)
-                seen = "" if gone else " | " + json.dumps(p.js("({open: !!document.querySelector(%s), active: document.activeElement ? (document.activeElement.id || document.activeElement.className || document.activeElement.tagName) : null, keys: window.__k, since: Math.round(performance.now()) - window.__t0})" % sel))
+                seen = "" if gone else " | " + json.dumps(p.js("({focus: document.hasFocus(), open: !!document.querySelector(%s), active: document.activeElement ? (document.activeElement.id || document.activeElement.className || document.activeElement.tagName) : null, keys: window.__k, since: Math.round(performance.now()) - window.__t0})" % sel))
                 self.assertTrue(gone, "closed on Tab" + seen)
                 self.assertIn("Pat Example", p.js("document.getElementById('mv-who').textContent"), "kept")
                 self.assertTrue(p.js("!!document.querySelector('.mvm-form')"), "form stays")
