@@ -26,7 +26,7 @@ These cost little now and are the difference between a port and a rewrite. Each 
 - **Python 3.9 standard library only,** so the Windows embeddable Python can run the same code later.
 - **`.gitattributes` keeps LF line endings,** so a later Windows checkout doesn't rewrite files.
 
-The sections below on Windows describe the later port.
+The sections below on Windows describe the later native port. Update (item 627): in v1.1 Windows is the Docker route (item 427), and its hand checks are in `dev/handchecks/1.1.0-sheet.md`.
 
 ## Part 1: Mac and Windows (Windows is the later port)
 
