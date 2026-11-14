@@ -548,7 +548,7 @@ def csp_report_route(handler):
 BRAND_PREFIX = "/assets/"
 APP_ICON_PREFIX = "/app/"                 # the app icons (appfiles.ICONS): an image source too, or the browser cannot show the manifest's icons
 BRAND_ID = re.compile(r"[a-z0-9-]{1,40}")       # #944: a brand's id in /assets/<id>/<name>; only looked up by the seam, never joined onto a path
-BRAND_PICTURES = ("cover.png", "cover.jpg", "cover.jpeg", "cover.webp")     # the fixed allow-list; = page.PICTURES (a test keeps the two equal)
+BRAND_PICTURES = ("logo.png", "cover.png", "cover.jpg", "cover.jpeg", "cover.webp")     # the fixed allow-list; = page.PICTURES (a test keeps the two equal)
 
 
 def brand_picture_route(handler, name, brand_id=None):
