@@ -223,7 +223,7 @@ export function Personal() {
       <fieldset class="styles" data-appearance>
         <legend>Appearance</legend>
         <AppearancePick />
-        <p class="muted appearance-line" data-appearance-line aria-live="polite">{(APPEARANCES.find(([id]) => id === appearance.value) || APPEARANCES[0])[2]}</p>
+        <p class="muted appearance-line" data-appearance-line>{(APPEARANCES.find(([id]) => id === appearance.value) || APPEARANCES[0])[2]}</p>
       </fieldset>
       <fieldset class="styles keys">
         <legend>Keys</legend>
