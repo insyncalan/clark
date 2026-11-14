@@ -128,9 +128,24 @@ class NotElsewhere(unittest.TestCase):
             self.assertNotIn(word, html)
 
     def test_the_gantt_page_cover_is_left_alone(self):
+        """The Gantt page draws the shared Cover without the Switch, so its heading is the plan's title and nothing else; the
+        switch is handed in only by the Dashboard, and Cover draws it only when one is handed in."""
+        import re
         from _paths import SRC
-        src = (SRC / "clark" / "page" / "src" / "components" / "Dashboard.jsx").read_text(encoding="utf-8")
-        self.assertIn("Click to change project", (SRC / "clark" / "page" / "src").joinpath("edit", "ProjectSwitch.jsx").read_text(encoding="utf-8") + src)
+        comp = SRC / "clark" / "page" / "src"
+        gantt = (comp / "gantt" / "components" / "GanttPage.jsx").read_text(encoding="utf-8")
+        calls = re.findall(r"<Cover\b[^>]*?/>", gantt)
+        self.assertEqual(len(calls), 1, "the Gantt page draws one cover")
+        self.assertNotIn("Switch", calls[0])
+        for word in ("ProjectSwitch", "cover-switch", "Click to change project"):
+            self.assertNotIn(word, gantt)
+        cover = (comp / "components" / "Cover.jsx").read_text(encoding="utf-8")
+        self.assertIn("Switch ? <Switch cover name={title} /> : title", cover, "without a Switch the heading is the title")
+        dash = (comp / "components" / "Dashboard.jsx").read_text(encoding="utf-8")
+        self.assertIn("Switch={tools && tools.ProjectSwitch", dash, "the Dashboard is what hands the switch in")
+        # the built Gantt page (the served page.html carries both pages' code; the switch sits only behind the editor tools)
+        built = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
+        self.assertNotIn("cover-switch", built)
 
 
 if __name__ == "__main__":
