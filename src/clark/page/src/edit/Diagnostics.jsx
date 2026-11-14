@@ -1,6 +1,7 @@
 // Settings: Logs and diagnostics (#110). Normal or Debug, a line on what is never logged, Open folder and Copy diagnostics, and the
 // errors of the last 7 days, each in plain words (the server says them; the technical line stays in the report). The report is made by the server and copied as it is; the page never builds or edits it.
 import { useState, useEffect } from "preact/hooks";
+import { announceSwitch, leaveSwitch } from "./switchToast.js";
 import { readDiagnostics, saveLevel, openLogFolder, said, LOAD_FAILED, SAVE_FAILED, OPEN_FAILED } from "./diagnosticsApi.js";
 
 const COPY_FAILED = "The text could not be copied. Reload the page and try again.";
@@ -42,18 +43,28 @@ export function Diagnostics() {
     return null;
   }
   useEffect(() => { load(); }, []);
+  useEffect(() => leaveSwitch, []);
 
   async function choose(level) {
     if (busy || (info && info.level === level)) return;
     setBusy(true);
     setMsg(null);
     const r = await saveLevel(level);
-    if (r.status === 200 && r.body && r.body.ok === true) await load();
-    else setMsg({ kind: "error", text: said(r, SAVE_FAILED) });
+    if (r.status === 200 && r.body && r.body.ok === true) {
+      const before = info && info.level;
+      await load();
+      const nameOf = (l) => (l === "debug" ? "Debug" : "Normal");
+      if (before) announceSwitch(`Logging level: ${nameOf(level)}.`, async () => {
+        const back = await saveLevel(before);
+        if (back.status === 200 && back.body && back.body.ok === true) { await load(); return { ok: true }; }
+        return { ok: false, message: said(back, SAVE_FAILED) };
+      }, `Logging level: ${nameOf(before)}.`);
+    } else setMsg({ kind: "error", text: said(r, SAVE_FAILED) });
     setBusy(false);
   }
 
   async function openFolder() {
+    if (busy) return;
     setBusy(true);
     setMsg(null);
     const r = await openLogFolder();
@@ -63,6 +74,7 @@ export function Diagnostics() {
   }
 
   async function copyReport() {
+    if (busy) return;
     setBusy(true);
     setMsg(null);
     const fresh = await load();                           // the newest errors and lines, not the ones from when the page opened
@@ -76,14 +88,14 @@ export function Diagnostics() {
       <h2 id="diagnostics-h" tabIndex={-1}>Logs and diagnostics</h2>
       <p class="muted">The log is a short record of what clark does, to help find faults. It never records report text, names, email addresses, notes or anything else you wrote: only counts, times and which part of clark was used. Nothing is sent anywhere.</p>
       <div class="row" role="group" aria-label="Logging detail">
-        <button type="button" class={"btn" + (level === "normal" ? " pri" : "")} data-level="normal" aria-pressed={level === "normal"} onClick={() => choose("normal")} disabled={busy || !info}>Normal</button>
-        <button type="button" class={"btn" + (level === "debug" ? " pri" : "")} data-level="debug" aria-pressed={level === "debug"} onClick={() => choose("debug")} disabled={busy || !info}>Debug</button>
+        <button type="button" class={"btn" + (level === "normal" ? " pri" : "")} data-level="normal" aria-pressed={level === "normal"} onClick={() => choose("normal")} disabled={!info} aria-disabled={busy ? "true" : undefined}>Normal</button>
+        <button type="button" class={"btn" + (level === "debug" ? " pri" : "")} data-level="debug" aria-pressed={level === "debug"} onClick={() => choose("debug")} disabled={!info} aria-disabled={busy ? "true" : undefined}>Debug</button>
       </div>
       <p class="muted small">Normal records what happened. Debug adds more detail. Warnings and errors are always recorded.</p>
       {info && info.notice ? <p class="note" id="debug-notice">{info.notice}</p> : null}
       <div class="row">
-        <button type="button" class="btn" data-open-log onClick={openFolder} disabled={busy}>Open folder</button>
-        <button type="button" class="btn" data-copy-diagnostics onClick={copyReport} disabled={busy}>Copy diagnostics</button>
+        <button type="button" class="btn" data-open-log onClick={openFolder} aria-disabled={busy ? "true" : undefined}>Open folder</button>
+        <button type="button" class="btn" data-copy-diagnostics onClick={copyReport} aria-disabled={busy ? "true" : undefined}>Copy diagnostics</button>
       </div>
       <div class="pub-msg" role={msg && msg.kind === "error" ? "alert" : "status"} aria-live="polite">{msg && msg.text ? <p class={msg.kind}>{msg.text}</p> : null}</div>
       {info ? <h3>Errors in the last 7 days</h3> : null}

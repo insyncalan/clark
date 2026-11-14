@@ -84,6 +84,17 @@ class Appearance(Base):
                 self.assertEqual(self.in_settings(p), ["dark"], "one is pressed")
                 self.assertEqual(p.js("document.querySelector('#personal [data-appearance-line]').textContent"), "Always dark.", "the line follows the choice")
 
+    def test_C_the_appearance_line_is_not_a_live_region_so_a_change_is_announced_once(self):
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.page(cdp)
+                p.width(w)
+                self.open_settings(p)
+                p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=dark]').click()")
+                self.assertEqual(p.js("document.querySelector('#personal [data-appearance-line]').textContent"), "Always dark.")
+                self.assertIsNone(p.js("document.querySelector('#personal [data-appearance-line]').closest('[aria-live], [role=status], [role=alert]')"),
+                                  "the toast announces the change; the line under the control does not speak as well")
+
     def test_C_appearance_arrow_keys_move_and_pick_row_902(self):
         with chrome() as cdp:
             p = self.page(cdp)
