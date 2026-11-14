@@ -1404,7 +1404,7 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
     if cover:
         write_cover(wb, cover, mark, pal, wave)
     if meta is not None:
-        write_meta(wb, {"exporter": meta.get("exporter"), "exported_at_utc": stamp.strftime("%Y-%m-%d %H:%M:%S"),
+        write_meta(wb, {"exporter": meta.get("exporter"), "exported_at_utc": stamp.strftime("%Y-%m-%d"),      # the day only: a real publish passes `on` = today, so the stamp is midnight and a time of day would be a false one (and would stop an unchanged re-export reusing its id)
                         "clark_version": meta.get("clark_version"), "project": project}, row_hashes, pal)
     for ws in wb.worksheets:
         print_setup(ws)

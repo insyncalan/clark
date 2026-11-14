@@ -49,7 +49,7 @@ class Sheet(Case):
         self.assertEqual(ws.sheet_state, "veryHidden")
         self.assertTrue(ws.protection.sheet)
         rows = [[c for c in r] for r in ws.iter_rows(values_only=True)]
-        self.assertEqual([r[:2] for r in rows[:4]], [["exporter", "Pat Example"], ["exported_at_utc", "2026-11-14 00:00:00"],
+        self.assertEqual([r[:2] for r in rows[:4]], [["exporter", "Pat Example"], ["exported_at_utc", "2026-11-14"],
                                     ["clark_version", __version__], ["project", "ABC"]])
         hashes = rows[4:]
         self.assertTrue(hashes)
@@ -71,7 +71,7 @@ class Import(Case):
         self.assertEqual(plan.edited_rows, [])
         self.assertEqual(plan.changes, [])
         self.assertEqual(plan.export_info["exporter"], "Pat Example")
-        self.assertTrue(any("2026-11-14 00:00:00 UTC" in n for n in plan.notes))
+        self.assertTrue(any("2026-11-14 UTC" in n for n in plan.notes))
 
     def test_with_no_profile_name_the_exporter_is_blank_and_the_note_has_no_name(self):
         """Item 1171 ruling: the Settings name only, never the login name. The Cover may still show the login name; the sheet does not."""
@@ -81,7 +81,7 @@ class Import(Case):
         self.assertEqual(rows[0][:2], ["exporter", None])
         self.assertNotIn("login-name", [c for r in rows for c in r])
         plan = self.read(path)
-        self.assertTrue(any(n.startswith("Exported with clark ") and n.endswith(" on 2026-11-14 00:00:00 UTC.") for n in plan.notes), plan.notes)
+        self.assertTrue(any(n.startswith("Exported with clark ") and n.endswith(" on 2026-11-14 UTC.") for n in plan.notes), plan.notes)
 
     def test_an_edited_row_is_reported_and_an_untouched_one_is_not(self):
         def edit(wb):
@@ -163,7 +163,7 @@ class ThroughThePublisher(unittest.TestCase):
     def test_the_saved_profile_name_is_the_exporter(self):
         rows = self.export("Pat Example")
         self.assertEqual(rows[0][:2], ["exporter", "Pat Example"])
-        self.assertEqual(rows[1][:2], ["exported_at_utc", "2026-10-28 00:00:00"])
+        self.assertEqual(rows[1][:2], ["exported_at_utc", "2026-10-28"])
         self.assertEqual(rows[2][:2], ["clark_version", __version__])
 
     def test_no_saved_name_leaves_the_exporter_blank_not_the_login_name(self):
