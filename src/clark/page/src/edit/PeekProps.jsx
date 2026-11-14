@@ -31,7 +31,7 @@ export function chipPop(row, field) {
       if (r.ok) close(true);
       return r;
     };
-    return <Picker row={row} anchor={anchor} today={todayIso()} names={field === "owner" ? people(data.value) : undefined} onPick={pick} onAdd={field === "owner" ? add : undefined} onClose={close} />;
+    return <Picker row={row} anchor={anchor} today={todayIso()} names={field === "owner" ? people(data.value) : undefined} onPick={pick} onAdd={field === "owner" ? add : undefined} onClose={close} peek={field === "status" ? true : undefined} />;
   };
 }
 

@@ -25,6 +25,8 @@ import { CleanProse } from "./CleanProse.jsx";
 import { PeekToolbar } from "./PeekToolbar.jsx";
 import { PeekIdLine } from "./PeekIdLine.jsx";
 import { PeekChips, PeekChip } from "./PeekChips.jsx";
+import { RatingChip, RatingRow, ratingPop } from "./PeekRiskBody.jsx";
+import { keptWord } from "../logic/riskRating.js";
 import { PeekDetails, PeekFooter } from "./PeekDetails.jsx";
 
 // Up and Down while the peek is open (#246): the peek steps to the item before or after in the list it was opened from, the same list
@@ -53,7 +55,7 @@ const text = (v) => (v === null || v === undefined || v === "" ? DASH : String(v
 // An icon in its tone's colour (#78), with the words after it: the colour is never the only way to tell what it means.
 function Toned({ icon, tone, children }) { return <span class="pk-val"><span class={iconClass(tone)}><Icon name={icon} /></span>{children}</span>; }
 
-const ROW_OF = { owner: "owner", made_by: "owner", due_date: "due", needed_by: "due", date: "due", priority: "priority", status: "status" };
+const ROW_OF = { owner: "owner", made_by: "owner", due_date: "due", needed_by: "due", date: "due", priority: "priority", impact: "rating", likelihood: "rating", status: "status" };
 
 function Row({ name, children, ref_, key_, ms, icon, tone = "b" }) {      // key_: which field this row shows, so it can flash when that field changes; ms: a milestone's row (row 1078), a plain row, never one of the four cells
   const f = flashed.value;
@@ -66,18 +68,19 @@ function ItemChips({ row, tools, editing }) {
   const today = todayIso(), due = dueCell(row, today), pill = pillOf(row, today), who = ownerOf(row.owner), f = flashed.value;
   const hit = (key) => !!(f && f.list.some((e) => e.ref === row.id && ROW_OF[e.field] === key));
   const pop = (field) => (editing && tools && tools.PeekChipPop ? tools.PeekChipPop(row, field) : null) || undefined;
-  // item 448: a closed risk or issue's pill reads Closed; it keeps its rating word on the priority chip ("Red kept"; "Not rated" when it never was, item 532), here and in a published file.
-  const kept = (row.kind === "risk" || row.kind === "issue") && !isOpen(row) ? colourOf(row.priority).word : "";
+  // item 448: a closed risk or issue's pill reads Closed; its Status chip says which colour it kept ("Red kept"; "Not rated kept" when it never was, item 532), here and in a published file.
+  const rated = row.kind === "risk" || row.kind === "issue", kept = rated ? keptWord(row, isOpen(row)) : "";      // item 1182: a risk or issue has a Rating chip and no Priority chip; its closed Status chip says "Red kept"
   const late = due.tone === "late", days = late ? /^(\d+) days? late$/.exec(due.words) : null;
   const overdue = late ? `overdue ${days ? days[1] : "1"} ${days && days[1] !== "1" ? "days" : "day"}` : "";
   const fixed = row.kind === "assumption" || row.kind === "dependency";
   return (
     <PeekChips>
-      <PeekChip id={row.id} field="status" name="Status" icon="half" tone={statusTone(row, today)} value={pill.text} flash={hit("status")} pop={pop("status")} />
+      <PeekChip id={row.id} field="status" name="Status" icon="half" tone={statusTone(row, today)} value={pill.text} sub={kept} flash={hit("status")} pop={pop("status")} />
+      {rated ? <RatingChip row={row} pop={editing ? ratingPop(row) : undefined} flash={hit("rating") || hit("priority")} /> : null}
       <PeekChip id={row.id} field="owner" name={row.kind === "decision" ? "Decider" : "Owner"} icon="user" tone="b" value={who.text} flash={hit("owner")} pop={pop("owner")} />
       <PeekChip id={row.id} field="due" name={row.kind !== "decision" ? "Due date" : row.status === "Pending" ? "Needed-by date" : "Decision date"} icon="cal" tone={dateTone(row, today)} value={due.date}
         sub={overdue} subTone={late ? "late" : ""} late={late} flash={hit("due")} pop={pop("due")} />
-      {row.kind !== "decision" ? <PeekChip id={row.id} field="priority" name="Priority" icon="bars" tone={priorityTone(row.priority)} value={text(row.priority)} sub={kept ? `${kept} kept` : ""}
+      {row.kind !== "decision" && !rated ? <PeekChip id={row.id} field="priority" name="Priority" icon="bars" tone={priorityTone(row.priority)} value={text(row.priority)}
         flash={hit("priority")} tip={fixed ? "Set from impact and likelihood" : undefined} pop={pop("priority")} /> : null}
     </PeekChips>
   );
@@ -104,6 +107,7 @@ export function ItemFields({ row, editing, Cell, Wording, Pick, slim = false, Cl
         {kept ? <span class="pk-rating" data-pk-rating> · {kept}</span> : null}
       </Toned></Row>
       </>}
+      {slim && (row.kind === "risk" || row.kind === "issue") ? <RatingRow row={row} /> : null}
       <Row name="Workstream" icon={slim ? "board" : undefined}>{Pick && row.kind !== "decision" ? <Pick row={row} field="workstream" /> : text(row.workstream)}</Row>
       <Row name="Milestone" icon={slim ? "flag" : undefined}>{Pick && row.kind !== "decision" ? <Pick row={row} field="milestone" /> : text(row.milestone)}</Row>
       <Row name="Use case" icon={slim ? "flag" : undefined}>{Pick ? <Pick row={row} field="use_case" /> : text(row.uc)}</Row>

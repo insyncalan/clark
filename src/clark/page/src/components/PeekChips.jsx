@@ -41,7 +41,7 @@ export function PeekChip({ id, field, name, icon, tone = "n", value, sub, subTon
   const cls = `pkc${late ? " late" : ""}${flash ? " flash" : ""}`;
   const changed = flash ? <span class="tag chg">Changed</span> : null;
   if (!pop) {
-    return <span class={`${cls} ro`} data-row={field} data-flash={flash ? "1" : undefined} data-tip={tip || undefined} role="group" aria-label={`${name}: ${value}${sub ? ", " + sub : ""}`}>{body}{changed}</span>;
+    return <span class={`${cls} ro`} data-row={field} data-flash={flash ? "1" : undefined} data-tip={tip || undefined} title={tip || undefined} role="group" aria-label={`${name}: ${value}${sub ? ", " + sub : ""}`}>{body}{changed}</span>;
   }
   const k = `${place}:${id}:${field}`, open = openCell.value === k;
   const close = (back) => { if (openCell.value === k) openCell.value = ""; if (back && button.current) button.current.focus(); };
@@ -51,7 +51,7 @@ export function PeekChip({ id, field, name, icon, tone = "n", value, sub, subTon
   };
   return (
     <span class={`${cls} has-pop`} data-row={field} data-flash={flash ? "1" : undefined}>
-      <button type="button" class="pkc-btn" ref={button} data-edit-only data-cell={k} data-tip={tip || undefined} aria-haspopup="dialog" aria-expanded={open ? "true" : "false"}
+      <button type="button" class="pkc-btn" ref={button} data-edit-only data-cell={k} data-tip={tip || undefined} title={tip || undefined} aria-haspopup="dialog" aria-expanded={open ? "true" : "false"}
         aria-label={`${name} of ${id}: ${value}${sub ? ", " + sub : ""}. Change`} onClick={(e) => { e.stopPropagation(); openCell.value = open ? "" : k; }} onKeyDown={down}>
         {body}
         <span class="pkc-car"><Icon name="chevdown" /></span>

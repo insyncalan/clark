@@ -72,7 +72,7 @@ class Chips(unittest.TestCase):
                         got = self.open_item(cdp, sid, item)
                         self.assertTrue(got["hasRow"], f"{where}: a .pk-chips row")
                         self.assertEqual(got["oldCells"], 0, f"{where}: the four tall cells are gone")
-                        self.assertEqual(list(got["chips"]), ["status", "priority", "owner", "due"] if "priority" in got["chips"] else ["status", "owner", "due"], where)
+                        self.assertEqual(list(got["chips"]), ["status", "rating", "owner", "due"] if "rating" in got["chips"] else ["status", "priority", "owner", "due"] if "priority" in got["chips"] else ["status", "owner", "due"], where)      # item 1182: a risk or issue has a Rating chip in place of Priority
                         tops = {round(c["t"]) for c in got["chips"].values()}
                         self.assertLessEqual(len(tops), 2, f"{where}: one flat row (it may wrap once at 900)")
                         for k, c in got["chips"].items():
@@ -85,7 +85,7 @@ class Chips(unittest.TestCase):
                         self.assertLessEqual(got["doc"], 1, where)
 
     def test_each_chip_is_icon_then_value_then_a_chevron_and_never_colour_alone(self):
-        want = {"status": "half", "priority": "bars", "owner": "user", "due": "cal"}
+        want = {"status": "half", "priority": "bars", "rating": "bars", "owner": "user", "due": "cal"}
         for width in (1400, 900):
             with chrome() as cdp:
                 s, sid = self.load_page(cdp, width)
@@ -190,8 +190,8 @@ class Chips(unittest.TestCase):
             dec = self.open_item(cdp, sid, self.decision())
             self.assertEqual(list(dec["chips"]), ["status", "owner", "due"])
             self.open_item(cdp, sid, "TUL-007")
-            click(cdp, sid, "#peek .pk-chips [data-row=priority]")
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pop].rpick')", sid)), "a risk's priority opens the impact and likelihood picker")
+            click(cdp, sid, "#peek .pk-chips [data-row=rating]")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pop] [data-pk-matrix]')", sid)), "a risk's rating opens the impact and likelihood matrix (item 1182)")
 
     def decision(self):
         return next(r["id"] for r in self.data["decisions"])

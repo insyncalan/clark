@@ -1238,3 +1238,20 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
 .pk-client { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 28px; padding: 0; border: 0; background: none; font: inherit; color: var(--text-muted); cursor: pointer; }
 .pk-client.on { color: var(--brand-blue); }
 .pk-client:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+/* item 1182: the Rating chip's 3 x 3 matrix (PeekRiskBody.jsx) */
+.pk-matrix-pop { width: 17rem; padding: var(--space-3); }
+.pk-mx-top { display: flex; justify-content: space-between; padding-left: 4.5rem; margin-bottom: var(--space-1); }
+.pk-mx-axis { font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); }
+.pk-mx-grid { display: grid; grid-template-columns: auto repeat(3, 1fr); gap: var(--space-1); align-items: stretch; }
+.pk-mx-head { display: flex; align-items: center; justify-content: center; font-size: var(--size-caption); color: var(--text-muted); }
+.pk-mx-side { justify-content: flex-end; padding-right: var(--space-2); min-width: 3.5rem; }
+.pk-cell { min-width: 24px; min-height: 32px; padding: var(--space-2) var(--space-1); border: 2px solid transparent; border-radius: var(--radius-sm); font: inherit; font-size: var(--size-small); font-weight: var(--weight-medium); text-align: center; cursor: pointer; }
+.pk-cell[data-colour="Red"] { background: var(--status-red-tint); color: var(--status-red-text); }
+.pk-cell[data-colour="Amber"] { background: var(--status-amber-tint); color: var(--status-amber-text); }
+.pk-cell[data-colour="Green"] { background: var(--status-green-tint); color: var(--status-green-text); }
+.pk-cell[data-level="Urgent"] { background: var(--status-red); color: var(--surface); }
+.pk-cell:hover { border-color: var(--grey-200); }
+.pk-cell[aria-checked="true"] { border-color: var(--heading); }
+.pk-cell:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pk-mx-line { margin: var(--space-2) 0 0; font-size: var(--size-small); color: var(--text-muted); }
