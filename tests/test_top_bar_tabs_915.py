@@ -31,7 +31,7 @@ class ProjectButtonFit(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             size(cdp, p, width, 700)
-            p.until("!!document.querySelector('#ask-btn') && !!document.querySelector('.top .hdr-project > span')", "the bar shows")
+            p.until("!!document.querySelector('#profile-btn') && !!document.querySelector('.top .hdr-project > span')", "the bar shows")      # item 1177: no ask button in the header at 900
             p.js(f"document.documentElement.setAttribute('data-theme', '{theme}')")
             if edit:
                 p.js("document.querySelector('.top [data-mode=edit]').click()")
