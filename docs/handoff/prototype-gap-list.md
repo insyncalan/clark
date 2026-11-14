@@ -234,7 +234,7 @@ Columns: the difference (what the prototype does, what 0.2.1 does), the width it
 | B-20 | Coloured icons in the peek (status, priority, due by their colour). | both | #78 v0.4 (in review, built after 0.2.1) |
 | B-21 | Activity tab: every history row with who, how, field, from to, with the filter All, Changes, Comments and updates; Updates and Source tabs. | both | #123 v0.4 (in review, built after 0.2.1) |
 | B-22 | "Raised ... Last reviewed ..." line and the "Not reviewed in 14 days" chip. | both | #158 v0.5 (in review, built after 0.2.1) |
-| B-23 | Needed from the client switch ("Lists it under Needs from you"). | both | #121 v0.5 (Building; prototype side #144 v0.5, Ready) |
+| B-23 | Needed from the client switch ("Lists it under Needs from you"). | both | Taken out by item 1158 (the stored flag is kept) |
 | B-24 | Sneak peek: the sparkle button or two slash keys open a box; typed words ("move to friday, owner Jo, high priority") are read by plain code into a from-to card (Due 29-10 to 06-11, Owner changed); Enter applies at once with a toast and Undo; Esc closes. Confirmed it is plain code, not a model. 0.2.1: none. | both | #42 v0.4 (Building) |
 | B-25 | Draft email button in the peek (also the C key). | both | #50 v0.3 (in review, built after 0.2.1) |
 | B-26 | Latest update field with a Draft button (writes a line by rules) and a "Last updated" stamp. | both | no item yet |

@@ -50,7 +50,7 @@ class DeleteAnySection(Base):
                     p.menu(ref, "delete")
                     p.order_is([i for i in IDS if i != ref], f"{ref} deleted at {w}")
                     self.assertNotIn(ref, self.ids_in_store())
-                    self.assertEqual(p.toast(), "Section deleted.")
+                    p.toast_is("Section deleted.")      # the toast from the last Ctrl+Z may still be up
                     p.js("document.querySelector('[data-undo]').click()")      # Undo
                     p.order_is(IDS, f"Undo at {w}")
                     p.menu(ref, "delete")

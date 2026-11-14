@@ -47,7 +47,7 @@ MAX_PLANS = 4                        # checks waiting for a decision, at once
 PLAN_MINUTES = 30                    # how long one waits
 MAX_NAME = 255
 OPS = ("sheets", "check", "apply", "undo")
-ALLOWED = {"sheets": ("op", "project", "name", "data"), "check": ("op", "project", "name", "data", "file", "sheets"), "apply": ("op", "project", "plan", "accept", "confirm"),
+ALLOWED = {"sheets": ("op", "project", "name", "data"), "check": ("op", "project", "name", "data", "file", "sheets"), "apply": ("op", "project", "plan", "accept", "confirm", "answers"),
            "undo": ("op", "project", "apply_id")}
 MAX_FILE_BYTES = 25 * 1024 * 1024     # excel.MAX_FILE_BYTES; a test says they agree
 
@@ -122,6 +122,19 @@ def _accepted_numbers(value):
     return sorted(set(value))
 
 
+def _answers(value):
+    """Row 1156: {unknown id: {"do": "new"}} or {"do": "use", "id": an item id}; nothing sent is none."""
+    if value is None:
+        return {}
+    if not isinstance(value, dict) or len(value) > 5000:
+        raise Refused(BAD_ACCEPT)
+    for k, a in value.items():
+        if not isinstance(k, str) or not isinstance(a, dict) or set(a) - {"do", "id"} or a.get("do") not in ("new", "use") \
+                or (a["do"] == "use") != isinstance(a.get("id"), str) or (a["do"] == "new" and "id" in a):
+            raise Refused(BAD_ACCEPT)
+    return value
+
+
 def _item(c):
     """One staged change as the page shows it: its number, its words, and whether it is taken by Accept all."""
     return {"n": c.n, "kind": c.kind, "table": c.table, "text": c.describe(), "detail": c.detail() if c.kind == "new" else "",
@@ -132,6 +145,7 @@ def _described(plan, key):
     return {"ok": True, "plan": key, "file": plan.file, "counts": plan.counts(), "unchanged": plan.unchanged,
             "items": [_item(c) for c in plan.changes], "problems": [p.message for p in plan.problems], "notes": list(plan.notes),
             "unrecorded": bool(plan.unrecorded), "already_imported": bool(plan.already_imported), "report": plan.report(),
+            "unknowns": [{"id": u["id"], "kind": u["kind"], "label": u["label"], "near": u["near"], "options": u["options"], "rows": u["rows"], "changes": u["changes"]} for u in plan.unknowns],
             "refused": [{"name": c.describe(), "why": c.problem} for c in plan.changes if c.problem]}
 
 
@@ -244,6 +258,7 @@ def _check(store, req, project, clock):
 def _apply(store, who, req, project, clock):
     key = req.get("plan")
     accept = _accepted_numbers(req.get("accept"))
+    answers = _answers(req.get("answers"))
     confirm = req.get("confirm", False)
     if confirm is not True and confirm is not False:
         raise Refused(BAD_ACCEPT)
@@ -258,6 +273,7 @@ def _apply(store, who, req, project, clock):
         raise Refused(NEEDS_CONFIRM, 409, "needs_confirm")
     if plan.unrecorded:
         plan.confirm_unrecorded()
+    plan.answers = answers
     plan.reject_all()                                      # whatever was staged before: only what is accepted now is applied
     if accept == "all":
         plan.accept_all()

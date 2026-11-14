@@ -407,7 +407,7 @@ class OtherBranchesDatabase(Base):
                 s.close()
             before = sections_of(path)
             with self.assertRaises(sqlite3.IntegrityError):           # not caught by changes: the server answers it with its own 500, in plain words, no class and no text
-                changes.make_change(path, [], USER)({"project": "ZZZ", "kind": "report_sections", "op": "new", "values": {"type": "needs", "title": "Needs"}})
+                changes.make_change(path, [], USER)({"project": "ZZZ", "kind": "report_sections", "op": "new", "values": {"type": "tracker", "title": "Progress"}})
             self.assertEqual(sections_of(path), before)               # nothing was written
         from clark import server
         self.assertEqual(server.MESSAGES["server_error"], "Something went wrong, and nothing was changed. Try again, or restart clark.")

@@ -33,21 +33,6 @@ export function PeekWarn({ row }) {
   );
 }
 
-// Row 811: the switch that lists an action, risk or issue under "Needs from you" (a decision has no such flag).
-// One change with one Undo; the switch shows what clark stored, so a refusal leaves it as it was.
-export function PeekNeeded({ row }) {
-  const rec = raw(row), on = !!(rec && rec.client_action);
-  const was = "Marked as needed from the client", now = "No longer marked as needed from the client";
-  const flip = () => changeCell(tableOf(row), row.id, { client_action: on ? 0 : 1 },
-    { text: on ? now : was, back: on ? was : now, place: "peek" }).then(() => refresh());
-  return (
-    <label class="sw pk-act" data-pk-needed>
-      <button type="button" class="switch" role="switch" aria-checked={on ? "true" : "false"} aria-label="Needed from the client" onClick={flip}></button>
-      <span>Needed from the client<small>Lists it under “Needs from you” when the report has that section</small></span>
-    </label>
-  );
-}
-
 export function PeekLatest({ row }) {
   const rec = raw(row), action = row.kind === "action";
   const now = rec && rec.latest_update ? String(rec.latest_update) : "";

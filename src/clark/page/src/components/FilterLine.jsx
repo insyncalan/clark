@@ -20,8 +20,8 @@ import { GROUPS, LANE_GROUPS, groupLabel, boardGroup } from "../logic/board.js";
 export const PAUSE = 400;                                // ms after the last key before the typed line is applied (the owner's 300 to 500)
 
 // A saved view whose line the filter line no longer reads (a word it does not know) stays on the tabs with a plain message, and can be renamed
-// or deleted like any other, so a view that cannot be read can still be fixed or removed. The one view left out is a starting view the page cannot answer yet (Waiting on the client, while
-// is:needed is not on): Q.heldBackQuery. Choosing a view that cannot be read does not touch the line.
+// or deleted like any other, so a view that cannot be read can still be fixed or removed. The one view left out is a starting view the page cannot answer yet (an earlier version's Waiting on the client, whose
+// is:needed word item 1158 took out): Q.heldBackQuery. Choosing a view that cannot be read does not touch the line.
 
 // Which saved view is chosen, per project, for this visit. A page change keeps it; a reload goes back to the view the line matches.
 const chosen = signal({});

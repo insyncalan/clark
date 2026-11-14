@@ -41,12 +41,12 @@ const DECISION_STATUSES = ["Made", "Withdrawn"];
 const PRIORITIES = ["Urgent", "High", "Medium", "Low"];
 const DUE_WORDS = [["overdue", "Overdue (the date has passed)"], ["today", "Today"], ["next-7-days", "In the next 7 days"], ["later", "Later than 7 days"], ["none", "No date"]];
 const isWords = () => [["open", "Open"], ["closed", "Closed"], ["overdue", "Open and overdue"], ["quiet", staleWords()],      // #171: the quiet words say the project's own number
-  ["incomplete", "No owner or no date"], ["needed", "Needed from the client"], ["archived", "Archived"]];
+  ["incomplete", "No owner or no date"], ["archived", "Archived"]];
 // `is:` words that match nothing until the page supplies the data behind them. The page turns them on with `ctx.isReady: true`;
 // until then they are not offered and, typed, say so in plain words. Each is [what the page calls it].
 // `is:quiet` is the Freshness filter's "not reviewed" (counted from the same date fields, but N days or more, N being the project's number: filters.js currentReviewDays), so it is on as soon as some row carries
 // a date to count from (hasReviewDates), or when the page says so; `is:incomplete` needs only the owner and the date, so it is always on.
-const NOT_YET = { needed: "Work needed from the client", archived: "Archived work" };
+const NOT_YET = { archived: "Archived work" };
 const quietOn = (rows, ctx) => !!(ctx && ctx.isReady) || (rows || []).some((r) => r && r.reviewed) || hasReviewDates(rows);
 export const isOn = (v, ctx, rows) => (v === "quiet" ? quietOn(rows, ctx) : !own(NOT_YET, v) || !!(ctx && (ctx.isReady || (v === "archived" && ctx.archivedReady))));   // item 1067: the Edit page answers is:archived
 const PLURAL = { owner: "owners", workstream: "workstreams", usecase: "use cases", milestone: "milestones" };
@@ -84,7 +84,6 @@ function isValues(row, ctx) {
     const needsDate = row.kind === "action" || row.kind === "decision";
     if (blank(row.owner) || (needsDate && dayNumber(dueField(row)) === null)) out.push("incomplete");
   }
-  if (row.client_action) out.push("needed");
   if (row.archived) out.push("archived");
   return out;
 }
@@ -528,7 +527,6 @@ export const isCoreView = (view) => !!view && (view.core === true || CORE_IDS.in
 // The views a project starts with after the five core ones; they are the person's own, so they can be renamed and deleted like any other.
 export const DEFAULT_VIEWS = [
   { id: "overdue", name: "Overdue", line: "is:open due:overdue" },
-  { id: "client", name: "Waiting on the client", line: "is:open is:needed" },
   { id: "mine", name: "My actions", line: "is:open type:action owner:me" },
 ];
 export const MAX_VIEWS = 20;                     // the person's own views; the five core ones are not counted
@@ -634,7 +632,7 @@ export function viewTrouble(view, rows, ctx) {
 }
 
 /** True for one of the views every project starts with, still as it was given (same id, same line). Such a view that the page cannot
- *  answer yet (Waiting on the client) stays out of the tabs until the page can; any other view that cannot be read stays in (#589). */
+ *  answer (an earlier version's Waiting on the client, item 1158) stays out of the tabs until the page can; any other view that cannot be read stays in (#589). */
 export const isStartingView = (view) => !!view && DEFAULT_VIEWS.some((d) => d.id === view.id && d.line === view.line);
 export const heldBack = (view, rows, ctx) => isStartingView(view) && viewTrouble(view, rows, ctx) !== "";
 
