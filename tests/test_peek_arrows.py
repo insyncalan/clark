@@ -144,14 +144,14 @@ class Arrows(unittest.TestCase):
                 cdp.js(f"clarkPage.openPeek({json.dumps(target)})", sid)
                 self.assertTrue(wait(lambda: self.on_close(cdp, sid)))
                 # a tab: Right moves to the next tab (the tabs' own key), Down does nothing to the item
-                cdp.js("document.querySelector('#peek [role=tab]').focus()", sid)
+                cdp.js("document.querySelector('#pk-htab-all').click(); document.querySelector('#pk-htab-all').focus()", sid)
                 key(cdp, sid, "ArrowDown")
                 key(cdp, sid, "ArrowUp")
                 cdp.js("new Promise(r => setTimeout(r, 100))", sid)
                 self.assertEqual(self.shown(cdp, sid), target, "Up and Down on a tab do not step the item")
                 key(cdp, sid, "ArrowRight")
-                self.assertTrue(wait(lambda: cdp.js("document.activeElement.getAttribute('role')", sid) == "tab" and cdp.js("document.activeElement.id", sid) == "pk-tab-activity"), "Right is still the tabs' own key")
-                cdp.js("document.querySelector('#pk-tab-details').click(); document.querySelector('#pk-tab-details').focus()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement.getAttribute('role')", sid) == "tab" and cdp.js("document.activeElement.id", sid) == "pk-htab-activity"), "Right is still the tabs' own key")
+                cdp.js("document.querySelector('#pk-htab-all').click(); document.querySelector('#pk-htab-all').focus()", sid)
                 # the width edge: Left still widens it, Down leaves the item alone (below 1000 px the peek is full width over the list and the edge is hidden, row 847)
                 if width >= 1000:
                     cdp.js("document.querySelector('.pk-edge').focus()", sid)

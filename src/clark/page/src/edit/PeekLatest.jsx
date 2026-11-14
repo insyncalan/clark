@@ -39,21 +39,25 @@ export function PeekWarn({ row }) {
 // before it closes (PeekUnsavedBar below). Module-wide because only one peek is ever open.
 export const latestDirty = signal(false);
 const editorOf = () => document.querySelector("#peek [data-pk-latest] [data-rt] .ProseMirror, [data-pk-latest] [data-rt] [contenteditable=true]");
+// A bar button never takes the focus from the box: leaving the box would save the update before the choice is made.
+const hold = (e) => e.preventDefault();
+// The save the box last started (null when none): Save and close waits for its answer before it closes.
+let lastSave = null;
 const fire = (el, init) => { if (el) el.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init })); };
 
 /** The bar a close with an unsaved update shows: Save and close, Discard, Keep editing. Props: onClose() closes the peek; onDone() hides the bar. */
 export function PeekUnsavedBar({ onClose, onDone }) {
   const first = useRef(null);
-  // The bar is an alert (read out as it appears). The focus stays in the box: moving it out would leave the box, and leaving the box saves the update.
+  // The bar is an alert (read out as it appears). The focus stays in the box: moving it out would leave the box, and leaving the box saves the update. A mouse press on the bar keeps the focus in the editor for the same reason.
   if (!latestDirty.value) return null;
   const done = () => { if (onDone) onDone(); };
   return (
-    <div class="pk-unsaved" role="alert" data-pk-unsaved>
+    <div class="pk-unsaved" role="alert" data-pk-unsaved onMouseDown={(e) => e.preventDefault()}>
       <p class="pk-unsaved-t">You have an unsaved update.</p>
       <div class="pk-unsaved-b">
-        <button type="button" ref={first} data-pk-save-close data-pk-unsaved-save onClick={() => { fire(editorOf(), { key: "Enter", ctrlKey: true }); setTimeout(() => { latestDirty.value = false; done(); if (onClose) onClose(); }, 0); }}>Save and close</button>
-        <button type="button" data-pk-discard data-pk-unsaved-discard onClick={() => { fire(editorOf(), { key: "Escape" }); latestDirty.value = false; done(); if (onClose) onClose(); }}>Discard</button>
-        <button type="button" data-pk-keep data-pk-unsaved-keep onClick={() => { done(); const e = editorOf(); if (e) e.focus(); }}>Keep editing</button>
+        <button type="button" ref={first} data-pk-save-close data-pk-unsaved-save onMouseDown={hold} onClick={() => { lastSave = null; fire(editorOf(), { key: "Enter", ctrlKey: true }); const p = lastSave; if (!p) { latestDirty.value = false; done(); if (onClose) onClose(); return; } p.then((reply) => { if (reply) { latestDirty.value = false; done(); if (onClose) onClose(); } else if (!editorOf()) { /* a refusal that left no editor: nothing to keep */ done(); } else { done(); editorOf().focus(); } }); }}>Save and close</button>
+        <button type="button" data-pk-discard data-pk-unsaved-discard onMouseDown={hold} onClick={() => { fire(editorOf(), { key: "Escape" }); latestDirty.value = false; done(); if (onClose) onClose(); }}>Discard</button>
+        <button type="button" data-pk-keep data-pk-unsaved-keep onMouseDown={hold} onClick={() => { done(); const e = editorOf(); if (e) e.focus(); }}>Keep editing</button>
       </div>
     </div>
   );
@@ -77,9 +81,9 @@ export function PeekLatest({ row, draft = null }) {
   // The rich editor saves with Cmd/Ctrl+Enter and leaves with Esc. It closes only when clark has saved it: a refusal (the toast says why)
   // or no answer leaves it open with what was typed.
   savedHtml = html;
-  const save = (value) => changeCell("actions", row.id, { latest_update: value },
+  const save = (value) => (lastSave = changeCell("actions", row.id, { latest_update: value },
     { text: `Latest update of ${row.id} saved.`, back: `Latest update of ${row.id} is back as it was.`, place: "peek" })
-    .then((reply) => { if (reply) refresh(); return reply; });
+    .then((reply) => { if (reply) refresh(); return reply; }));
   return (
     <div class="pk-latest" data-pk-latest
       onFocusIn={(e) => { if (e.target.closest("[data-rt]")) setOpen(true); }}
