@@ -193,7 +193,9 @@ class Drive:
         return self.cdp.js(expr, self.sid)
 
     def until(self, expr, what, secs=20):
-        self.t.assertTrue(wait(lambda: self.js(f"!!({expr})"), secs), f"timed out waiting for: {what} (at {getattr(self, 'look_is', None)})")
+        if not wait(lambda: self.js(f"!!({expr})"), secs):
+            seen = self.js("JSON.stringify({focus: document.activeElement && (document.activeElement.tagName + '.' + document.activeElement.className), menus: document.querySelectorAll('[role=menu]').length, pops: document.querySelectorAll('.cpop').length, toast: (document.querySelector('.toast-text') || {}).textContent || '', hash: location.hash, motion: document.documentElement.dataset.motion || ''})")
+            self.t.fail(f"timed out waiting for: {what} (at {getattr(self, 'look_is', None)}) page: {seen}")
 
     def key(self, key, code=None, vk=0):
         for kind in ("keyDown", "keyUp"):
@@ -212,7 +214,9 @@ class Drive:
     def lines(self, root, name, minimum):
         self.t.assertIn(name, DRIVE_NAMES, f"{name} is not a registered drive")
         self.until(f"(({LINES})({q(root)}) || []).length >= {minimum}", f"{name}: the menu {root} drew at least {minimum} lines")
-        got = self.js(f"({LINES})({q(root)})")
+        got = []
+        self.until(f"(window.__lines = ({LINES})({q(root)})) && window.__lines.length >= {minimum}", f"{name}: the menu {root} still drew its lines")
+        got = self.js("window.__lines")
         where = f"{name} at {self.look_is[0]} {self.look_is[1]}"
         self.t.assertGreaterEqual(len(got), minimum, where)
         for g in got:
