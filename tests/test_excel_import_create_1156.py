@@ -26,7 +26,9 @@ MS, UC = "Pilot wave 2", "Reporting set-up"
 
 
 def work_item(path, text="Set up the test rig", ms=MS, uc=UC, sheet="Actions"):
-    cells = {"Description": text, "Milestone": ms, "Use case": uc} if sheet == "Actions" else {}
+    cells = {"Actions": {"Description": text, "Milestone": ms, "Use case": uc},
+             "Risks & Issues": {"Description": text, "Type": "Risk", "Status": "Open", "Milestone": ms, "Use case": uc},
+             "Decisions": {"Decision": text, "Status": "Pending", "Use case": uc}}[sheet]    # the Decisions sheet has no Milestone column
     add_row(path, sheet, **cells)
 
 
@@ -157,6 +159,24 @@ class Create(RoundTrip):
         self.assertEqual(tuple(len(self.s.read(t, project="ABC")) for t in ("milestones", "use_cases", "actions")), (ms, uc, ac))
         self.assertEqual([r for r in self.s.read("milestones", project="ABC") if r["name"] == MS], [])
         self.assertEqual([r for r in self.s.read("use_cases", project="ABC") if r["title"] == UC], [])
+
+    def test_unknown_labels_on_the_risks_and_issues_sheet_are_listed(self):
+        work_item(self.path, "Watch the test rig", sheet="Risks & Issues")
+        plan = self.read()
+        rows = [c for c in plan.changes if c.table == "raid"]
+        self.assertEqual([c.problem for c in rows], [""])
+        self.assertEqual(sorted((u["kind"], u["label"]) for u in plan.unknowns), [("milestone", MS), ("use_case", UC)])
+        for u in plan.unknowns:
+            self.assertEqual(u["rows"], [{"sheet": rows[0].sheet, "row": rows[0].row}])
+            self.assertEqual(u["changes"], [rows[0].n])
+
+    def test_an_unknown_use_case_on_the_decisions_sheet_is_listed(self):
+        work_item(self.path, "Use the test rig", sheet="Decisions")
+        plan = self.read()
+        rows = [c for c in plan.changes if c.table == "decisions"]
+        self.assertEqual([c.problem for c in rows], [""])
+        self.assertEqual([(u["kind"], u["label"]) for u in plan.unknowns], [("use_case", UC)])
+        self.assertEqual(plan.unknowns[0]["changes"], [rows[0].n])
 
     def test_an_unknown_id_is_still_refused_as_before(self):
         work_item(self.path, ms="ABC-M-999", uc=None)
