@@ -133,7 +133,8 @@ class Refusals(Api):
         self.refused(self.req("new", values={"project": "XYZ"}), "The field 'project' can't be set here.")
         self.refused(self.req("new", values={"id": "ABC-S-099"}), "The field 'id' can't be set here.")
         self.refused(self.req("new", values={"hidden": 1}), "The field 'hidden' can't be set here.")
-        self.refused(self.req("new", values={"type": "needs", "body": "x"}), changes.NO_BODY_HERE)      # #929: a body on new is for a text section only
+        self.refused(self.req("new", values={"type": "tracker", "body": "x"}), changes.NO_BODY_HERE)      # #929: a body on new is for a text section only
+        self.refused(self.req("new", values={"type": "needs"}), changes.NEW_TYPE_WORDS)      # item 1158: no new Needs from you section
         self.refused(self.req("new", values={"type": "raid"}), changes.NEW_TYPE_WORDS)
         self.refused(self.req("new", values={"type": "docs", "title": "x"}), changes.NEW_TYPE_WORDS)
         self.refused(self.req("new", values={"type": ["text"]}), changes.NEW_TYPE_WORDS)

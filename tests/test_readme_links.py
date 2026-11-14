@@ -67,7 +67,7 @@ class ReadmeLinks(unittest.TestCase):
         self.assertIn("The full words are in `LICENSE`. To ask for permission, write to ", section)
 
     def test_both_ways_to_start_and_the_check_are_there(self):
-        for words in ("Two ways to start clark", "docker compose -f docker/compose.yaml up -d", "bash clark.command --check",
+        for words in ("Two ways to start clark", "bash docker/start.command", "bash clark.command --check",
                       "bash clark.command --demo --open", "Application Support/clark", "`.app`", "http://localhost:8766"):
             self.assertIn(words, README)
 

@@ -21,6 +21,7 @@ NAME = "Your menu"
 ITEMS = ["Publish…", "Preview the page in a new tab", "Export to Excel", "Export to Word", "Published reports", "Settings", "Help"]       # the commands (#443: Published reports, after Export; row 826: Import from Word, after Export to Word, in View too)
 LOOK = ["System", "Light", "Dark"]                                                                            # the Appearance group (#179), radio items between Export and Settings
 WHO = "Add your name in Settings"                                                                          # the top line while no name is typed (#180): a link
+NAMED = r"^.+\(PUB\) \d{4}\.\d\d\.\d\d \d\d\.\d\d\.\d\d\.xlsx$"                                  # row 1143: what excel.download_name gives
 ORDER = [WHO] + ITEMS[:6] + LOOK + ITEMS[6:]
 
 
@@ -135,7 +136,7 @@ class ProfileMenu(Base):
             self.pick(p, "preview")
             self.assertIn("Allow pop-ups", self.toast(p))
 
-    def test_C_the_export_entry_downloads_the_workbook_named_with_the_code_and_the_day(self):
+    def test_C_the_export_entry_downloads_the_workbook_named_with_the_project_the_code_and_the_time(self):
         with chrome() as cdp:
             p = self.page(cdp)
             before = self.rig.everything_written()
@@ -143,9 +144,10 @@ class ProfileMenu(Base):
                  " HTMLAnchorElement.prototype.click = function(){ window.__dl.push(this.download); }")
             self.pick(p, "export")
             p.until("window.__dl.length === 1", "a download was started")
-            self.assertEqual(p.js("window.__dl[0]"), "PUB-2026-10-28.xlsx")
+            got = p.js("window.__dl[0]")
+            self.assertRegex(got, NAMED, "<project name>(<code>) YYYY.MM.DD HH.MM.SS.xlsx")
             self.assertGreater(p.js("window.__blob.size"), 1000)
-            self.assertIn("PUB-2026-10-28.xlsx", self.toast(p))
+            self.assertIn(got, self.toast(p))
             self.assertEqual((self.rig.everything_written(), self.rig.rows()), (before + ["clark-data/excel-export-state.json"], []),
                              "no workbook in any folder; only the export's record, beside the database")
 

@@ -52,7 +52,7 @@ class IconsOnTheLine(Base):
             self.assertTrue(lab and lab.startswith("Group by: "), f"the button is named Group by and the grouping ({lab!r})")
             self.assertEqual(cdp.js("document.querySelector('#viewMenu').getAttribute('aria-description')", sid), None)
 
-    def test_the_try_chip_line_is_gone_and_add_import_export_stay(self):
+    def test_the_try_chip_line_is_gone_and_add_stays(self):
         with chrome() as cdp:
             sid = self.visit(cdp)
             cdp.js("document.querySelector('#fline-input').focus()", sid)
@@ -60,30 +60,15 @@ class IconsOnTheLine(Base):
             self.assertNotIn("Try", cdp.js("document.querySelector('.fline-wrap').textContent", sid))
             self.assertEqual(cdp.js("document.querySelectorAll('#work .hacts .newb').length", sid), 1, "the + button stays")
 
-    def test_import_and_export_are_icons_on_the_filter_line_and_not_in_the_top_bar(self):
-        for width in (1400, 900):
-            with self.subTest(width=width), chrome() as cdp:
-                sid = self.visit(cdp, width=width)
-                self.assertEqual(cdp.js("document.querySelectorAll('#work .hacts #impBtn, #work .hacts #expBtn').length", sid), 0, "not in the top bar")
-                self.assertEqual(cdp.js("document.querySelectorAll('#work .fline-row #impBtn, #work .fline-row #expBtn').length", sid), 2, "both on the filter line")
-                self.assertEqual(cdp.js("document.querySelectorAll('#impBtn, #expBtn').length", sid), 2, "one of each")
-                self.assertEqual(cdp.js("[...document.querySelectorAll('#impBtn, #expBtn')].map(b => [b.getAttribute('aria-label'), b.textContent.trim()])", sid),
-                                 [["Import from Excel", ""], ["Export to Excel", ""]], "icons, named")
-                got = cdp.js("(() => { const f = document.querySelector('#work .fline').getBoundingClientRect(), v = document.querySelector('#work .fline-row .vicons').getBoundingClientRect();"
-                             " return ['#impBtn', '#expBtn'].map(q => { const r = document.querySelector(q).getBoundingClientRect();"
-                             " return [r.left >= f.right && r.top >= f.top - 8 && r.bottom <= f.bottom + 8, r.right <= v.left + 1, r.width >= 24 && r.height >= 28]; }); })()", sid)
-                self.assertEqual(got, [[True, True, True]] * 2, "beside the box, before the List, Board and Group by icons, 24 x 28 or more")
-                self.assertEqual(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid), True)
-
-    def test_count_x_import_export_and_three_icons_share_the_line_without_overlap(self):
-        # The page's start line is text, so the x shows: count and x inside the box, then Import, Export, List, Board, Group by outside it, in that order, on one row.
-        parts = ["#fline-count", "#fline-x", "#impBtn", "#expBtn", "#work .fline-row .vicons [data-lay=table]", "#work .fline-row .vicons [data-lay=board]", "#viewMenu"]
+    def test_count_x_and_three_icons_share_the_line_without_overlap(self):
+        # The page's start line is text, so the x shows: count and x inside the box, then List, Board, Group by outside it, in that order, on one row (item 1142: no Import or Export between).
+        parts = ["#fline-count", "#fline-x", "#work .fline-row .vicons [data-lay=table]", "#work .fline-row .vicons [data-lay=board]", "#viewMenu"]
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.visit(cdp, width=width)
                 got = cdp.js("(() => { const f = document.querySelector('#work .fline').getBoundingClientRect(); return %s.map(q => { const e = document.querySelector(q);"
                              " if (!e) return null; const r = e.getBoundingClientRect(); return [r.left, r.right, r.top, r.bottom, f.left, f.right, f.top, f.bottom]; }); })()" % json.dumps(parts), sid)
-                self.assertNotIn(None, got, "all seven parts are on the line")
+                self.assertNotIn(None, got, "all five parts are on the line")
                 for q, g in zip(parts, got):
                     if q in ("#fline-count", "#fline-x"):
                         self.assertTrue(g[0] >= g[4] - 0.5 and g[1] <= g[5] + 0.5 and g[2] >= g[6] - 0.5 and g[3] <= g[7] + 0.5, f"{q} is inside the box: {g}")
@@ -91,7 +76,7 @@ class IconsOnTheLine(Base):
                         self.assertGreaterEqual(g[0], g[5] - 0.5, f"{q} is outside the box, after it: {g}")
                 for a, b, ga, gb in zip(parts, parts[1:], got, got[1:]):
                     self.assertLessEqual(ga[1], gb[0] + 0.5, f"{a} ends before {b} starts")
-                for q, g in zip(parts[1:], got[1:]):
+                for q, g in zip(parts[2:], got[2:]):
                     self.assertTrue(g[1] - g[0] >= 24 and g[3] - g[2] >= 24, f"{q} is 24 px or more: {g}")
                 self.assertEqual(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid), True)
 
@@ -132,18 +117,30 @@ class IconsOnTheLine(Base):
 
 
 class ImportExportPlace(Base):
-    def test_with_no_work_items_import_and_export_stay_in_the_top_bar(self):
+    def test_no_page_has_import_or_export_icons(self):
+        """Item 1142: Work items (with items and with none), Use cases and Gantt carry no Import or Export icon, at 1400 and 900."""
+        for width in (1400, 900):
+            with self.subTest(width=width, page="work"), chrome() as cdp:
+                sid = self.visit(cdp, width=width, wait_for="#work h1")
+                self.assertEqual(cdp.js("document.querySelectorAll('#impBtn, #expBtn, #work .fio').length", sid), 0, "none on the filter line")
         with self.store.step("dashboard", USER) as st:
             for k in ("actions", "raid", "decisions"):
                 for r in self.data[k]:
                     st.archive(k, r["id"])
         for width in (1400, 900):
-            with self.subTest(width=width), chrome() as cdp:
+            with self.subTest(width=width, page="empty work"), chrome() as cdp:
                 sid = self.visit(cdp, width=width, wait_for="#work h1")
                 self.until(cdp, sid, "/no work items yet/.test(document.querySelector('#work').textContent)", "the empty project")
-                self.assertEqual(cdp.js("document.querySelectorAll('#work .fline').length", sid), 0, "no filter line")
-                self.assertEqual(cdp.js("document.querySelectorAll('#work .hacts #impBtn').length", sid), 1, "Import is in the top bar")
-                self.assertEqual(cdp.js("document.querySelectorAll('#impBtn').length", sid), 1)
+                self.assertEqual(cdp.js("document.querySelectorAll('#impBtn, #expBtn').length", sid), 0, "none in the top bar either")
+
+    def test_the_sources_hold_no_page_import_or_export_icon(self):
+        src = Path(__file__).resolve().parent.parent / "src" / "clark" / "page" / "src"
+        for gone in ("edit/ImportBtn.jsx", "edit/ExportBtn.jsx", "components/ImportExport.jsx"):
+            self.assertFalse((src / gone).exists(), gone)
+        for page in ("edit/UseCasesPage.jsx", "gantt/components/GanttPage.jsx", "components/WorkItems.jsx", "components/FilterLine.jsx"):
+            text = (src / page).read_text(encoding="utf-8")
+            for word in ("ImportBtn", "ExportBtn", "ImportExport", "data-gp-import", "data-gp-export"):
+                self.assertNotIn(word, text, f"{page} still has {word}")
 
     def test_a_published_file_has_no_import_or_export_anywhere(self):
         out = Path(publish.publish(self.store, "ABC", tempfile.mkdtemp(prefix="clark-pub-"), by_user=USER, now="2026-10-29", branding=tempfile.mkdtemp())["path"])
