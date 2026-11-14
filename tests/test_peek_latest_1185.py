@@ -1,13 +1,16 @@
-"""Row 1185: the peek source draws the Latest update box for every kind that has the column (a source-level check; the box itself is
-covered in test_peek_latest). Run: python3 dev/run_tests.py test_peek_latest_1185
+"""Row 1185: the Latest update box on a risk, an issue and a milestone peek in a real browser (1400 and 900: save, one Undo, the history link), the
+milestone Latest update in the published file, and the few source checks that remain (the box itself is covered in test_peek_latest). Run: python3 dev/run_tests.py test_peek_latest_1185
 """
-import re
+import json
 import unittest
 
 from _paths import SRC
 from test_milestone_peek_828 import Fields
 from test_movement_page import GO_LIVE, Base
-from test_server import chrome
+from _demo import USER, DemoStore
+from clark import changes, publish
+import test_peek_latest
+from test_server import chrome, wait
 
 PAGE = SRC / "clark" / "page" / "src"
 
@@ -15,16 +18,6 @@ PAGE = SRC / "clark" / "page" / "src"
 class PeekSource(unittest.TestCase):
     def read(self, rel):
         return (PAGE / rel).read_text(encoding="utf-8")
-
-    def test_the_box_is_not_gated_on_an_action(self):
-        src = self.read("edit/PeekLatest.jsx")
-        self.assertNotRegex(src, r"action\s*\?")
-        self.assertNotIn('"actions"', src)          # the table comes from the row, not a fixed word
-
-    def test_a_risk_row_carries_the_field_to_the_peek(self):
-        src = self.read("workItems.js")
-        raid = [l for l in src.splitlines() if "latest_update" in l]
-        self.assertGreaterEqual(len(raid), 2, "actions and risks/issues both read latest_update")
 
     def test_a_decision_is_still_skipped_and_the_milestone_and_published_rows_are_not_action_only(self):
         self.assertIn('"decision"', self.read("edit/PeekLatest.jsx"))
@@ -35,6 +28,70 @@ class PeekSource(unittest.TestCase):
         shown = [l for l in peek.splitlines() if 'name="Latest update"' in l]
         self.assertEqual(len(shown), 2, "a published work item and a published milestone each show it")
         self.assertFalse([l for l in shown if "action" in l], "the work item row is not gated on an action")
+
+
+_B = test_peek_latest.Browser
+
+
+class RaidBox(unittest.TestCase):
+    """A risk peek and an issue peek (they were once action-only): the box saves the editor's HTML, one Undo puts the old text back, the history link shows."""
+    load, open_box, type_in, save_key, toast, fresh, refused = (_B.load, _B.open_box, _B.type_in, _B.save_key, _B.toast,
+                                                                _B.fresh, _B.refused)
+    HOLD, SHOWN, BOX = _B.HOLD, _B.SHOWN, _B.BOX
+
+    def shown(self, cdp, sid):
+        return cdp.js(f"(document.querySelector({json.dumps(self.SHOWN)}) || {{textContent: ''}}).textContent", sid)
+
+    def test_a_risk_and_an_issue_save_a_latest_update_undo_it_and_show_the_history_link(self):
+        for ref, kind in (("TUL-007", "Risk"), ("TUL-010", "Issue")):
+            for width in (1400, 900):
+                with self.subTest(kind=kind, width=width), chrome() as cdp:
+                    sent, sid = self.load(cdp, width, ref, edit=True)
+                    row = lambda: self.store.read("raid", ref=ref)["latest_update"]
+                    self.assertEqual(cdp.js("(e => e ? e.textContent : '')(document.querySelector('#peek [data-pk-lh-btn]'))", sid), "Show history", "the link is there before any change")
+                    was = row()
+                    self.open_box(cdp, sid)
+                    self.type_in(cdp, sid, f"{kind} words")
+                    self.save_key(cdp, sid)
+                    self.assertTrue(wait(lambda: f"{kind} words" in self.shown(cdp, sid)), "the peek shows the saved update")
+                    self.assertEqual((len(sent), sent[0]["kind"], sent[0]["id"]), (1, "raid", ref), "one request")
+                    self.assertEqual(row(), f"<p>{kind} words</p>")
+                    self.assertIn("Latest update of", self.toast(cdp, sid))
+                    self.assertEqual(cdp.js("document.querySelector('#peek [data-pk-lh-btn]').textContent", sid), "Show history", "the link stays after the save")
+                    cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
+                    self.assertTrue(wait(lambda: f"{kind} words" not in self.shown(cdp, sid)), "one Undo takes the text off the peek")
+                    self.assertEqual(row(), was)
+                    self.assertTrue(cdp.js("!!document.querySelector('#peek [data-pk-lh-btn]')", sid), "the link is there after the Undo")
+
+
+class MilestonePublished(unittest.TestCase):
+    """The milestone Latest update in the published (client) file, through the real change route and the real build."""
+    def setUp(self):
+        self.demo = DemoStore()
+        self.addCleanup(self.demo.close)
+        self.s = self.demo.store
+        self.change = changes.make_change(self.s.path, [], USER)
+
+    def body(self):
+        return publish.build(self.s, "ABC", now="2026-10-29")["body"].decode("utf-8")
+
+    def set(self, ref, **fields):
+        status, body = self.change({"project": "ABC", "kind": "milestones", "op": "update", "id": ref, "changes": fields, "place": "peek"})
+        self.assertEqual(status, 200, body)
+
+    def test_it_is_in_the_client_file_with_client_wording_and_gone_without(self):
+        ref = self.demo.milestone
+        with self.s.step("dashboard", USER) as st:
+            st.update("milestones", ref, {"client_visible": 1})
+        self.set(ref, latest_update="zz-ms-latest-token")
+        self.assertNotIn("zz-ms-latest-token", self.body(), "no client wording: the Latest update is dropped, the milestone stays")
+        self.assertIn("Pilot live", self.body())
+        self.set(ref, client_message="Client wording for the pilot")
+        self.assertIn("zz-ms-latest-token", self.body(), "with client wording it is published")
+        self.assertEqual(self.s.read("milestones", ref=ref)["latest_update"], "<p>zz-ms-latest-token</p>")
+        self.set(ref, client_message="")
+        self.assertNotIn("zz-ms-latest-token", self.body(), "the wording removed: it is dropped again")
+        self.assertEqual(self.s.read("milestones", ref=ref)["latest_update"], "<p>zz-ms-latest-token</p>", "dropped from the file only, kept in the store")
 
 
 class MilestoneBox(Base):
