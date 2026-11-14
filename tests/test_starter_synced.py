@@ -148,8 +148,11 @@ class Script(unittest.TestCase):
         self.bin.mkdir()
         self.log = Path(self.tmp) / "docker.log"
         stub = self.bin / "docker"
-        stub.write_text('#!/bin/sh\necho "$@" >> "$DOCKER_LOG"\n', encoding="utf-8")
+        stub.write_text('#!/bin/sh\n[ "$1" = info ] && exit 0\necho "$@" >> "$DOCKER_LOG"\n', encoding="utf-8")
         stub.chmod(0o755)
+        for name in ("curl", "open"):       # row 1161: after compose the script waits for the page and opens Chrome; nothing real is reached
+            (self.bin / name).write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            (self.bin / name).chmod(0o755)
 
     def run_script(self, data, *args):
         env = {"PATH": f"{self.bin}:{os.environ['PATH']}", "HOME": self.tmp, "DOCKER_LOG": str(self.log), "CLARK_DATA_DIR": data}
