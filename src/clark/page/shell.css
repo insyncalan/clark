@@ -1551,6 +1551,17 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .set-cards .fld, .set-cards .fld.copy-fld { grid-template-columns: 8rem minmax(0, 1fr); column-gap: var(--space-3); align-items: center; max-width: none; margin-bottom: var(--d-set-fld); }
 .set-cards .fld > label { grid-column: 1; }
 .set-cards .fld > :not(label) { grid-column: 2; min-width: 0; }
+/* Row 1115, S1: the one setting row. Name and help line at the left, the control at the right, a thin rule between two rows. */
+.set-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 16rem); column-gap: var(--space-4); align-items: center; padding: var(--space-3) 0; }
+.set-row + .set-row { border-top: 1px solid var(--border); }
+.set-row-text { display: grid; gap: var(--space-1); min-width: 0; }
+.set-row-text label { font-size: var(--size-body); font-weight: var(--weight-medium); color: var(--text); }
+.set-row-text small { color: var(--text-muted); font-size: var(--size-caption); overflow-wrap: anywhere; }
+.set-row-ctl { display: flex; justify-content: flex-end; min-width: 0; }
+.set-row-ctl input[type="text"] { box-sizing: border-box; width: 100%; min-height: 36px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.set-row-ctl input[type="text"]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.set-row-ctl input[aria-invalid="true"] { border-color: var(--status-red-text); }
+.set-row-ctl input[type="checkbox"] { width: 24px; height: 24px; margin: 0; accent-color: var(--brand-blue); }
 .fld-bad { margin: 0; min-height: 0; overflow-wrap: anywhere; color: var(--status-red-text); font-size: var(--size-caption); }
 .fld-bad:empty { display: none; }
 /* Settings › People (item 454): the prototype's People card (system/prototype/app.css: .pp-paste, .pp-acts, .pp-sum, table.set.ppl). */
@@ -2556,6 +2567,12 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 
 /* A long word with no spaces (a project, milestone or use case name) breaks inside its box instead of widening the page. */
 .crumbs, .head > div, .head h1, .head-sub, .ucbar, .ucdetail { min-width: 0; overflow-wrap: anywhere; }
+/* Row 1115, S2: the Search settings box in the Settings head. */
+.set-search { display: grid; gap: var(--space-1); margin-top: var(--space-3); max-width: 24rem; }
+.set-search label { font-size: var(--size-caption); color: var(--text-muted); }
+.set-search input { box-sizing: border-box; width: 100%; min-height: 36px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.set-search input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.set-cards [hidden] { display: none !important; }
 /* row 1138: an icon beside the words of the section menu and of the right-click menus (the same shape for the same action: menuIcons.js) */
 .menu .menu-item { display: flex; align-items: center; gap: 10px; }
 .menu .menu-item .mi { flex: none; width: 16px; height: 16px; color: var(--text-muted); }
