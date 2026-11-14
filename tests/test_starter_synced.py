@@ -5,6 +5,7 @@ The decision is a pure function (clark.starter_check.refusal): no Docker, no net
 PATH that only records its arguments, so a test can say whether docker was reached at all. Everything lives in a temporary folder.
 """
 import os
+import select
 import shutil
 import subprocess
 import sys
@@ -206,16 +207,23 @@ class Script(unittest.TestCase):
 
     def test_the_window_opens_with_the_browser_found(self):
         """Item 636: after compose up, the starter opens http://localhost:8766 with CLARK_BROWSER (stub), without a real browser."""
-        opened = self.opened
+        opened = Path(self.tmp) / "opened.fifo"   # item 636: a named pipe, so the test blocks on the real event (the stub writing) instead of polling
+        os.mkfifo(opened)
+        rfd = os.open(opened, os.O_RDONLY | os.O_NONBLOCK)
+        self.addCleanup(os.close, rfd)
         env = {"PATH": f"{self.bin}:{os.environ['PATH']}", "HOME": self.tmp, "DOCKER_LOG": str(self.log), "CLARK_BROWSER": str(self.fake),
                "OPENED_LOG": str(opened), "CLARK_DATA_DIR": f"{self.tmp}/data", "CLARK_PORT": "8780"}
         r = subprocess.run(["bash", str(ROOT / "docker" / "start.command")], env=env, capture_output=True, text=True, cwd=self.tmp, timeout=60)
         self.assertEqual(r.returncode, 0, r.stderr)
-        for _ in range(50):
-            if opened.exists():
-                break
-            time.sleep(0.1)
-        self.assertEqual(opened.read_text(encoding="utf-8").strip(), "http://localhost:8780")
+        got = b""
+        deadline = time.monotonic() + 5
+        while b"\n" not in got and time.monotonic() < deadline:
+            if select.select([rfd], [], [], max(0.0, deadline - time.monotonic()))[0]:
+                chunk = os.read(rfd, 4096)
+                if not chunk:
+                    break   # writer closed: nothing more will come
+                got += chunk
+        self.assertEqual(got.decode("utf-8").strip(), "http://localhost:8780")
 
     def test_open_clark_order_and_fallback(self):
         calls = []
