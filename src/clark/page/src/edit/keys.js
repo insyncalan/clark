@@ -46,7 +46,7 @@ export function installModeKeys() {
 export function settingsKey(e) {
   if (!/Mac/.test(navigator.platform || "")) return false;       // read when the key is pressed, so a test can stand in for a Mac
   if (e.code !== "KeyS" || !e.metaKey || !e.altKey || e.ctrlKey || e.shiftKey || e.repeat || e.isComposing || e.defaultPrevented) return false;
-  if (!shownTabs.value.includes("settings") || view.value === "settings" || helpOpen.value || peek.value) return false;
+  if (!shownTabs.value.includes("settings") || view.value === "settings" || helpOpen.value || peek.value || document.getElementById("help-peek")) return false;
   if (busy(document.activeElement) || busy(e.target)) return false;
   if (document.querySelector("dialog[open],[role=dialog],[role=alertdialog],[role=menu]")) return false;
   e.preventDefault();
