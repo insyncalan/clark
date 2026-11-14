@@ -1,5 +1,5 @@
 """The 'Needs from you' section's content (src/clark/section_bodies.py, #121): the rows' checker, what is published of them, and the real
-change route and publish path over a real store. Fictional data. No browser (the page's own tests are in test_needs_page.py).
+change route and publish path over a real store. Fictional data. No browser (item 1158: the page no longer draws the section; a stored one stays stored and is left out of the file).
 
 Run: python3 dev/run_tests.py test_needs_content
 """
@@ -8,6 +8,7 @@ import re
 import time
 import unittest
 
+from _demo import USER
 from _publish_fixture import spellings
 from clark import publish, section_bodies as sb
 from clark.store import BODY_RULES
@@ -31,6 +32,12 @@ def check(text):
 
 def stored(*rows):
     return json.loads(check(body(*rows)))
+
+
+def stored_section(store):
+    """A Needs from you section as an old file has one (item 1158: a new one can no longer be made, a stored one stays)."""
+    with store.step("dashboard", USER) as st:
+        return st.create("report_sections", {"project": "ABC", "type": "needs", "title": "Needs from you", "body": "", "sort_order": 50, "beside": 0, "hidden": 0})
 
 
 class Checker(unittest.TestCase):
@@ -196,7 +203,7 @@ class Published(unittest.TestCase):
 
 class Route(Api):
     def make(self):
-        return self.ok("new", values={"type": "needs", "title": "Needs from you"})["ref"]
+        return stored_section(self.s)
 
     def write(self, ref, *rows):
         return self.change(self.req("update", id=ref, changes={"body": body(*rows)}))
@@ -271,7 +278,7 @@ class InTheFile(Api):
         return {s["id"]: s for s in self.build()["published"]["sections"]}
 
     def make(self, *rows, **more):
-        ref = self.ok("new", values={"type": "needs", "title": "Needs from you"}, **more)["ref"]
+        ref = stored_section(self.s)
         if rows:
             status, got = self.change(self.req("update", id=ref, changes={"body": body(*rows)}))
             self.assertEqual(status, 200, got)
@@ -282,14 +289,13 @@ class InTheFile(Api):
         self.assertEqual(len(found), 1)
         return json.loads(found[0])
 
-    def test_the_file_carries_the_shown_rows_and_a_hidden_row_is_absent_in_every_spelling(self):
-        ref = self.make(row(what="Shown row", **{"from": "Team A"}), row(what=MARK, **{"from": MARK}, hidden=1))
-        entry = self.sections()[ref]
-        self.assertEqual(entry["rows"], [{"what": "Shown row", "kind": "decision", "from": "Team A", "by": "04-03-2027"}])
-        self.assertEqual(set(entry), {"id", "type", "title", "beside", "rows"})
+    def test_a_stored_list_is_not_in_the_file_in_any_spelling(self):
+        ref = self.make(row(what="Shown row", **{"from": MARK}), row(what=MARK, **{"from": MARK}, hidden=1))
+        self.assertNotIn(ref, self.sections())
         text = self.build()["body"].decode("utf-8")
-        for spelling in spellings(MARK):
+        for spelling in spellings(MARK) + ["Shown row"]:
             self.assertNotIn(spelling, text)
+        self.assertIn("Shown row", self.s.read("report_sections", ref=ref)["body"], "it stays stored")
 
     def test_a_hidden_section_and_a_list_with_nothing_to_show_are_absent(self):
         hidden_section = self.make(row(what=MARK))
@@ -304,25 +310,10 @@ class InTheFile(Api):
             for spelling in spellings(marker):
                 self.assertNotIn(spelling, text)
 
-    def test_a_row_is_data_in_the_block_never_markup_and_never_in_an_attribute(self):
+    def test_hostile_words_in_a_stored_list_are_not_in_the_file(self):
         ref = self.make(*[row(what=h, **{"from": h}) for h in HOSTILE])
-        before = len(re.findall(r"<script\b", self.build()["body"].decode("utf-8")))
+        self.assertNotIn(ref, self.sections())
         text = self.build()["body"].decode("utf-8")
-        self.assertEqual(len(re.findall(r'id="clark-data"', text)), 1)
-        self.assertEqual(len(re.findall(r"<script\b", text)), before)
-        block = re.search(r'<script type="application/json" id="clark-data">(.*?)</script>', text, re.S).group(1)
-        for ch in "<>&\u2028\u2029":
-            self.assertNotIn(ch, block, "none of them is raw inside the block")
-        rows = {s["id"]: s for s in self.data_block(text)["sections"]}[ref]["rows"]
-        self.assertEqual([r["what"] for r in rows], HOSTILE, "it arrives intact, as data")
-        outside = text.replace(block, "")
         for h in HOSTILE:
-            self.assertNotIn(h, outside, "the words are nowhere but in the data block")
-        self.assertNotIn("<script>alert", text)
-
-    def test_the_view_page_draws_only_text_for_the_rows(self):
-        src = publish.Path(publish.__file__).parent / "page" / "src"
-        for name in ("components/Needs.jsx", "edit/NeedsEdit.jsx", "logic/needs.js"):
-            code = (src / name).read_text(encoding="utf-8")
-            self.assertNotIn("dangerouslySetInnerHTML", code, name)
-            self.assertNotIn("innerHTML", code, name)
+            self.assertNotIn(h, text)
+        self.assertNotIn(MARK, text)

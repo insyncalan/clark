@@ -1,6 +1,5 @@
 // One section of the report (#65). In Edit, `tools` (edit/) adds the gutter control (grip, + and menu) and the editable title; View
 // never renders any of them, so they are not in the page at all.
-// A 'Needs from you' section (#121) is a table of rows: view only here and in a published file, edited in place in Edit (edit/NeedsEdit.jsx).
 // A 'Progress tracker' section (#189) is a bar and groups of lines: view only here and in a published file, edited in place in Edit (edit/TrackerEdit.jsx).
 // A text section's body (Summary, This week, Next week; #74) is drawn only in a published file, view-only: the publish build
 // cleaned it (publish.clean_html) before it wrote the file, and the file holds nothing else. A published file draws no other type
@@ -23,7 +22,6 @@ import { Glance } from "./Glance.jsx";
 import { UseCases } from "./UseCases.jsx";
 import { MsBlock } from "./MsBlock.jsx";
 import { emptyBody } from "../logic/emptyBody.js";
-import { Needs } from "./Needs.jsx";
 import { Documents } from "./Documents.jsx";
 import { Tracker } from "./Tracker.jsx";
 
@@ -58,7 +56,6 @@ export function Section({ section, index, count, slot, anchor, tools, clean }) {
       </header>
       {section.type === "glance" ? <Glance tools={tools} clean={clean} /> : section.type === "usecases" ? <UseCases tools={tools} /> : section.type === "milestones" ? <MsBlock place={`sec-${section.id}`} tools={tools} />
         : tpl ? (editing ? <TemplateEdit section={section} tools={tools} /> : <tpl.view section={section} data={data.value} clean={clean} />)
-        : section.type === "needs" ? (editing ? <tools.NeedsEdit section={section} /> : <Needs section={section} />)
         : section.type === "docs" ? (editing ? <tools.DocumentsEdit section={section} /> : <Documents />)
         : section.type === "tracker" ? (editing ? <tools.TrackerEdit section={section} slot={slot} /> : <Tracker section={section} slot={slot} />)
         : editing && section.type === "text" && tools.richOn("body")

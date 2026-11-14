@@ -1,4 +1,4 @@
-"""'Needs from you' over the REAL section-body route with the REAL store (#405; src/clark/server.py SECTION_BODY_LIMIT, guarded): the
+"""A stored 'Needs from you' list (item 1158: a new one cannot be made; an old one stays) over the REAL section-body route with the REAL store (#405; src/clark/server.py SECTION_BODY_LIMIT, guarded): the
 fullest list the checker accepts, in every kind of letter, is not stopped by the route's size limit, and what the checker refuses
 gets the checker's own words, not the route's general ones.
 
@@ -10,6 +10,7 @@ import unittest
 from _demo import USER, DemoStore
 from clark import changes, section_bodies as sb, server as sv
 from clark.store import BODY_RULES
+from test_needs_content import stored_section
 from test_tracker_route import KIND, LETTERS, Running, request
 
 TAKEN = LETTERS[:-1]            # the four-byte letter is over the checker's own limit in this list: its own test below
@@ -32,10 +33,7 @@ class Route(unittest.TestCase):
         self.store = self.demo.store
         self.running = Running(change=changes.make_change(self.store.path, [], USER), section_body=changes.make_section_body(self.store.path, [], USER), undo=changes.make_undo(self.store.path, [], USER))
         self.addCleanup(self.running.close)
-        status, _, data = self.running.api("POST", "/api/change", json.dumps(
-            {"project": "ABC", "kind": KIND, "op": "new", "values": {"type": "needs", "title": "Needs from you"}}).encode())
-        self.assertEqual(status, 200, data)
-        self.ref = json.loads(data)["ref"]
+        self.ref = stored_section(self.store)
 
     def post(self, body):
         status, _, data = self.running.api("POST", "/api/section-body", body)
