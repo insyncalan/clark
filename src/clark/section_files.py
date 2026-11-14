@@ -62,7 +62,7 @@ MESSAGES = {
     "unreadable": "That file could not be read. Check it opens on this computer, then try again.",
     "files_folder": "The client folder has something called “Report files” that clark can't use as a folder. Rename it, then "
                     "add the file again.",
-    "bad_type": doclinks.BAD_TYPE,
+    "bad_type": "{name} is not an allowed type",
     "no_name": "That file's name can't be used in the client folder. Rename the file, then try again.",
     "names_taken": f"There are already {MAX_NUMBER} files with that name in the client folder's “Report files” folder. Rename "
                    "the file, then try again.",
@@ -223,7 +223,7 @@ def attach(pub, body):
         try:
             client, kind = _before_the_dialog(pub, code, ref)
             try:
-                chosen = pub.choose_open_file(PROMPT)
+                chosen = pub.choose_open_file(PROMPT, types=doclinks.ALLOWED_ENDINGS) if kind == "doclinks" else pub.choose_open_file(PROMPT)
             except platform.PlatformError as e:
                 raise Refused("dialog_failed", reason=str(e).rstrip()) from None
             if chosen is None:
@@ -233,7 +233,7 @@ def attach(pub, body):
                 try:
                     allowed_type(real.name)
                 except section_bodies.Bad:
-                    raise Refused("bad_type") from None
+                    raise Refused("bad_type", name=real.name) from None
             folder = _files_folder(pub, client)
             name, copied, made = _copy(pub, folder, real, data)
         except Refused as r:

@@ -56,8 +56,9 @@ class Route(unittest.TestCase):
         self.change = changes.make_change(self.s.path, [], USER)
         self.undo = changes.make_undo(self.s.path, [], USER)
 
-    def choose(self, prompt, start=None):
+    def choose(self, prompt, start=None, types=None):
         self.asked.append(prompt)
+        self.types = types
         return self.chosen[0]
 
     def section(self, kind="doclinks", title="Fictional papers"):
@@ -276,6 +277,11 @@ class Route(unittest.TestCase):
                 self.chosen = [chosen]
                 self.refused(ref, "never_place")
 
+    def test_the_file_window_offers_only_the_allowed_endings_for_documents_and_links(self):
+        ref = self.section()
+        self.assertEqual(self.attach(ref)[0], 200)
+        self.assertEqual(tuple(self.types), doclinks.ALLOWED_ENDINGS)
+
     def test_a_file_of_a_type_that_is_not_allowed_is_refused_before_any_copy(self):
         ref = self.section()
         for name in ("page.html", "pic.svg", "bundle.zip", "run.exe", "report.pdf.exe", "noending"):
@@ -285,7 +291,7 @@ class Route(unittest.TestCase):
                 self.asked.clear()
                 self.chosen = [bad]
                 message = self.refused(ref, "bad_type")
-                self.assertEqual(message, doclinks.BAD_TYPE)
+                self.assertEqual(message, f"{name} is not an allowed type")
         self.assertIsNone(self.files(), "no Report files folder was made")
         self.assertIsNone(self.items(ref))
         upper = self.src / "Plan.PDF"
@@ -325,7 +331,7 @@ class Route(unittest.TestCase):
     def test_a_dialog_that_fails_says_so(self):
         ref = self.section()
 
-        def broken(prompt, start=None):
+        def broken(prompt, start=None, types=None):
             self.asked.append(prompt)
             raise platform.PlatformError("The file window could not be opened. " + platform.TRY_AGAIN)
         self.pub.choose_open_file = broken
@@ -374,7 +380,7 @@ class InThePage(PageBase):
         self.source.write_bytes(PDF)
         with self.store.step("dashboard", USER) as st:
             st.update("projects", "ABC", {"publish_client": str(self.client)})
-        self.pub = publish_flow.Publisher(self.store.path, [], fs=to_client.RealFs(), choose_open_file=lambda prompt, start=None: self.source,
+        self.pub = publish_flow.Publisher(self.store.path, [], fs=to_client.RealFs(), choose_open_file=lambda prompt, start=None, types=None: self.source,
                                           by_user=lambda: USER, data_dir=self.tmp / "data", today=lambda: "2030-01-15")
         self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING), seam=self.seam,
                              publisher=self.pub)
