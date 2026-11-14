@@ -109,6 +109,26 @@ class SettingsKey(Base):
             p.key("\u00df", META | ALT, "KeyS", 83)
             self.stays(p, "not while Help is open")
 
+    def test_it_does_nothing_while_help_is_open_even_with_no_help_peek_element(self):
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            p.js("clarkPage.help.open()")
+            p.until("clarkPage.help.isOpen()", "Help opened")
+            p.js("var h = document.getElementById('help-peek'); if (h) h.remove()")      # only the open flag is left to stop it
+            self.on_body(p)
+            self.assertTrue(p.js("clarkPage.help.isOpen() && !document.getElementById('help-peek')"), "Help is open and there is no peek element")
+            p.key("\u00df", META | ALT, "KeyS", 83)
+            self.stays(p, "the open flag alone stops it")
+
+    def test_it_does_nothing_with_a_help_peek_element_and_help_not_open(self):
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            p.js("var d = document.createElement('div'); d.id = 'help-peek'; document.body.appendChild(d)")
+            self.on_body(p)
+            self.assertTrue(p.js("!clarkPage.help.isOpen() && !!document.getElementById('help-peek')"), "the peek element is there and Help is not open")
+            p.key("\u00df", META | ALT, "KeyS", 83)
+            self.stays(p, "the peek element alone stops it")
+
     def test_on_settings_already_it_does_not_act_again(self):
         with chrome() as cdp:
             p = self.at(cdp, 1400)
