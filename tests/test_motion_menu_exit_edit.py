@@ -78,6 +78,9 @@ def esc_on(js, sel):
 
 def motion_of(cdp, sid, value, scheme="light"):
     cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": value}, {"name": "prefers-color-scheme", "value": scheme}]}, sid)
+    if value == "no-preference":
+        # a Mac that reduces motion makes the page paint data-motion="reduce" at load; this pin comes after, so clear it
+        cdp.js("delete document.documentElement.dataset.motion", sid)
 
 
 class Live(rm.Menu):

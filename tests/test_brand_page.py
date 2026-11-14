@@ -12,9 +12,11 @@ back, and .pub-msg for the one sentence the server last said. Sentences come fro
 drawn as text, never changed.
 """
 import re
+import sys
 import unittest
 
 import test_update_page as up
+from test_server import wait
 from _paths import ROOT
 from test_update_page import InBrowser, OK, lit
 
@@ -244,10 +246,21 @@ class Page(InBrowser):
     def focus_pick(self):
         self.js("document.querySelector('#brand-pick').focus()")
 
+    def step(self, key, vk):
+        """One arrow key on the focused picker. Item 1850: on a Mac, Chrome opens the select's own list on an arrow key and moves nothing
+        (it asks the theme: PopsMenuByArrowKeys), so a real key there sends no change. Elsewhere the key moves the choice by one and
+        fires input and change; on a Mac the test does what the key does elsewhere, so the page's change handling is what is checked."""
+        if sys.platform != "darwin":
+            return self.press(key, vk)
+        self.js("(function () { const s = document.querySelector('#brand-pick'); const i = Math.max(0, Math.min(s.options.length - 1, s.selectedIndex + %d)); "
+                "if (i === s.selectedIndex) return; s.selectedIndex = i; s.dispatchEvent(new Event('input', {bubbles: true})); "
+                "s.dispatchEvent(new Event('change', {bubbles: true})); })()" % (1 if key == "ArrowDown" else -1))
+        self.settle()
+
     def test_an_arrow_saves_that_one_step_and_the_same_choice_saves_nothing(self):
         self.pick("generic")
         self.focus_pick()
-        self.press("ArrowDown", 40)
+        self.step("ArrowDown", 40)
         self.assertEqual(self.val("T.calls.filter(c => c[0] === 'pick')"), [["pick", ["example-brand", "Example Brand"]]])
         self.js("const s = document.querySelector('#brand-pick'); s.dispatchEvent(new Event('change', {bubbles: true}))")
         self.settle()
@@ -303,6 +316,7 @@ class Page(InBrowser):
         self.held()
         self.choose("example-brand")
         self.choose("generic")
+        self.assertTrue(wait(lambda: self.val("T.releases.length") >= 1), "the first save to be on its way")      # item 1850: a slow Mac had not started it yet, and release() then freed nothing
         self.js("T.release()")                  # the first save ends; the waiting choice's save is held too (T.hold stays on)
         self.settle()
         self.assertEqual(self.val("T.saved()"), "example-brand", "the second save has not ended")
@@ -313,8 +327,8 @@ class Page(InBrowser):
     def test_arrows_down_then_up_while_the_save_is_held_end_on_the_first_brand(self):
         self.held()
         self.focus_pick()
-        self.press("ArrowDown", 40)
-        self.press("ArrowUp", 38)
+        self.step("ArrowDown", 40)
+        self.step("ArrowUp", 38)
         self.settle()
         self.release_and_settle()
         self.assertEqual(self.picks(), ["example-brand", "generic"])
@@ -323,7 +337,7 @@ class Page(InBrowser):
     def test_a_refused_save_puts_the_select_back_on_the_saved_brand(self):
         self.pick("generic")      # the fake save changes nothing, as a refused change would
         self.focus_pick()
-        self.press("ArrowDown", 40)
+        self.step("ArrowDown", 40)
         self.settle()
         self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic")
 
@@ -331,7 +345,7 @@ class Page(InBrowser):
         self.js("T.keep = true")
         self.pick("generic")
         self.focus_pick()
-        self.press("ArrowDown", 40)
+        self.step("ArrowDown", 40)
         self.settle()
         self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "example-brand", "the kept choice is shown")
         self.js("T.undoPick('generic')")

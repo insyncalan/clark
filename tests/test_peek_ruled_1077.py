@@ -10,6 +10,7 @@ Run: python3 dev/run_tests.py test_peek_ruled_1077
 The source and the built pages are read first (no browser); then the page in headless Chrome at 1400 and 900 px.
 """
 import json
+import time
 import tempfile
 import unittest
 from pathlib import Path
@@ -346,9 +347,26 @@ class Flat(Peeks):
                 look = f"(() => {{ const c = getComputedStyle(document.querySelector({json.dumps(sel)})); return [c.outlineStyle, c.outlineWidth, c.borderTopWidth, c.backgroundColor]; }})()"
                 rest = cdp.js(look, sid)
                 self.assertEqual((rest[0], rest[2], rest[3]), ("none", "0px", "rgba(0, 0, 0, 0)"), "at rest, plain text: " + str(rest))
-                x, y = cdp.js(f"(() => {{ const r = document.querySelector({json.dumps(sel)}).getBoundingClientRect(); return [r.left + 20, r.top + r.height / 2]; }})()", sid)
-                cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, sid)
-                self.assertTrue(wait(lambda: cdp.js(f"document.querySelector({json.dumps(sel)}).matches(':hover')", sid)), "the pointer is over it")
+                el = f"document.querySelector({json.dumps(sel)})"
+                cdp.js(f"{el}.scrollIntoView({{block: 'center'}})", sid)      # the point below must be on screen
+                box = f"(() => {{ const r = {el}.getBoundingClientRect(); return [r.left, r.top, r.width, r.height, innerHeight]; }})()"
+
+                def settled():
+                    """True once the box has not moved for 300 ms and is wholly on screen: on a Mac the page above the Latest update may still be growing (the gate run showed the box 31.5 px lower than where it was measured, at both widths)."""
+                    first = cdp.js(box, sid)
+                    time.sleep(0.3)
+                    last = cdp.js(box, sid)
+                    return first == last and last[1] >= 0 and last[1] + last[3] <= last[4]
+                self.assertTrue(wait(settled, 20), "the Latest update is on screen and still: " + str(cdp.js(box, sid)))
+                over, tries = False, []
+                for _ in range(3):      # the point is taken from the box as it is now, and again if the page moved under the pointer
+                    x, y = cdp.js(f"(() => {{ const r = {el}.getBoundingClientRect(); return [r.left + 20, r.top + r.height / 2]; }})()", sid)
+                    cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, sid)
+                    over = wait(lambda: cdp.js(f"{el}.matches(':hover')", sid), 4)
+                    if over:
+                        break
+                    tries.append(cdp.js(f"(() => {{ const e = document.elementFromPoint({x}, {y}), r = {el}.getBoundingClientRect(); return {{point: [{x}, {y}], inner: [innerWidth, innerHeight], rect: [r.left, r.top, r.width, r.height], at: e ? e.tagName + '.' + e.className + '#' + e.id : null}}; }})()", sid))
+                self.assertTrue(over, "the pointer is over it | " + json.dumps(tries))
                 hover = cdp.js(look, sid)
                 self.assertEqual((hover[0], hover[2]), ("none", "0px"), "under the pointer, no box: " + str(hover))
                 self.assertEqual(hover[3], cdp.js(f"{PROBE}('--grey-50')", sid), "a quiet tint says it can be edited: " + str(hover))

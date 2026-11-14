@@ -226,9 +226,9 @@ class Workflow(unittest.TestCase):
         self.assertIn("test_no_real_names.py", out)
         self.assertIn("test_app_files.py", out)               # the reuse record's rows (docs/REUSE-FROM-CREAITE.md)
 
-    def test_three_shards_on_macos_and_the_macos_job_is_required_when_it_runs(self):
+    def test_six_shards_on_macos_and_the_macos_job_is_required_when_it_runs(self):
         mac = self.jobs["macos"]
-        self.assertEqual(set(re.findall(r"\{shard: (\d+), shards: (\d+)\}", mac)), {("1", "3"), ("2", "3"), ("3", "3")})
+        self.assertEqual(set(re.findall(r"\{shard: (\d+), shards: (\d+)\}", mac)), {(str(i), "6") for i in range(1, 7)})
         self.assertRegex(mac, r"runs-on: macos-latest")
         self.assertIn('python-version: "3.x"', mac)
         self.assertNotIn("--quick", mac)

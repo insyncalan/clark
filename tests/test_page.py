@@ -213,7 +213,7 @@ def density_for(section_style):
         raise ValueError("unknown section style %r; use one of %s or None" % (section_style, sorted(OLD_SECTION_WORDS))) from None
 
 
-def navigate(cdp, port, hash_="", section_style="slim"):
+def navigate(cdp, port, hash_="", section_style="slim", motion=None):
     """Open the page. The layout tests were written when Slim gaps was the standard section style; row 667 made One card the standard, so
     a test that measures a layout opens the page with Slim gaps remembered (as a person who chose it would have), unless it says
     section_style=None to see the standard (test_section_style_cards, test_section_card_look). Item 1025: the remembered choice is now the
@@ -224,6 +224,8 @@ def navigate(cdp, port, hash_="", section_style="slim"):
     if section_style:
         cdp.call("Page.enable", {}, sid)
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": "try { if (!localStorage.getItem('clark.density')) localStorage.setItem('clark.density', %r); } catch (e) {}" % density_for(section_style)}, sid)
+    if motion:      # item 1115: a Mac that asks for less motion makes the page paint data-motion=reduce at load, so a test that needs motion pins it BEFORE the page loads
+        cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": motion}]}, sid)
     cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{port}/{hash_}"}, sid)
     return sid
 
