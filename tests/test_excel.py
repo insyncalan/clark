@@ -49,7 +49,7 @@ HEADERS = {
              "Source", "Updated"],
     "Decisions": ["ID", "Decision", "Project", "Status", "Made by", "Needed by", "Date", "Reasoning", "Options", "Revisit",
                   "Replaces", "Client-visible", "Client wording", "Use case", "Labels", "Source", "Updated"],
-    "Use cases": ["ID", "Use case", "Project", "Shown as", "Status", "Commitment", "Headline", "Where it stands", "Order", "Client-visible",
+    "Use cases": ["ID", "Reference", "Use case", "Project", "Status", "Commitment", "Headline", "Where it stands", "Order", "Client-visible",
                   "Linked milestones", "Open work items", "Source", "Updated"],
 }
 

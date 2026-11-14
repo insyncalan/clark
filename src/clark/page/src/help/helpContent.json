@@ -2045,7 +2045,7 @@
        ],
        [
         "Use cases",
-        "ID, Use case, Shown as, Status, Commitment, Headline, Where it stands, Order, Client-visible, Linked milestones"
+        "ID, Reference, Use case, Status, Commitment, Headline, Where it stands, Order, Client-visible, Linked milestones"
        ]
       ]
      ],
