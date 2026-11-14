@@ -50,6 +50,17 @@ class Folders(TempHome):
         self.assertEqual(pl.onedrive_roots(self.home, on=pl.MAC),
                          [cloud / "OneDrive-DemoOrg", cloud / "OneDrive-Personal", self.home / "OneDrive"])
 
+    def test_the_onedrive_refusal_never_carries_the_tenant_folder_name(self):
+        for tenant in ("OneDrive-Fictional Ltd", "OneDrive - Fictional Ltd"):
+            root = self.home / "Library" / "CloudStorage" / tenant
+            (root / "clark").mkdir(parents=True)
+            for what in ("data", "backups"):
+                with self.subTest(tenant=tenant, what=what):
+                    with self.assertRaises(pl.PlatformError) as e:
+                        pl.check_data_dir(root / "clark", roots=[root], what=what)
+                    self.assertNotIn("Fictional", str(e.exception))
+                    self.assertIn("inside OneDrive", str(e.exception))
+
     def test_a_data_folder_inside_onedrive_is_refused_with_the_reason(self):
         root = self.home / "Library" / "CloudStorage" / "OneDrive-DemoOrg"
         (root / "clark").mkdir(parents=True)

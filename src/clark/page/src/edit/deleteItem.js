@@ -6,11 +6,12 @@ import { tableOf } from "./itemEdit.js";
 import { ask } from "./Bulk.jsx";
 import { deleteQuestion, deleteWords, deleteRequest } from "../logic/rowMenu.js";
 
-/** Ask, and on Delete send the step. `place`: "menu" or "peek". A refusal is said in the toast, and nothing changes. */
-export function deleteItem(row, place, from = null) {
+/** Ask, and on Delete send the step. `place`: "menu", "peek" or "cell". A refusal is said in the toast, and nothing changes.
+ *  Item 1148: `kind` is the table of a milestone or a use case ("milestones", "use_cases"; a work item's is worked out); `done` runs once it is deleted. */
+export function deleteItem(row, place, from = null, kind = null, done = null) {
   ask(deleteQuestion(row.id), () => {
     const w = deleteWords(row.id);
-    changeRecord(deleteRequest(row.id, tableOf(row), place), { text: w.text, back: w.back, focusUndo: true })
-      .then((r) => { if (r && peeked.value === row.id) closePeek(); });
+    changeRecord(deleteRequest(row.id, kind || tableOf(row), place), { text: w.text, back: w.back, focusUndo: true })
+      .then((r) => { if (r && peeked.value === row.id) closePeek(); if (r && done) done(); });
   }, { from, yesLabel: "Delete", cancelFirst: true });
 }

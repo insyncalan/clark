@@ -15,7 +15,7 @@ import unittest
 
 from _paths import ROOT
 from test_report_editor import Base
-from test_server import chrome
+from test_server import chrome, wait
 
 WORDS = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "askWords.js").read_text(encoding="utf-8")
 NEVER = re.compile(r"\w*(Error|Exception)\b|Traceback|JSON|Not allowed|Bad request|[Rr]eport editor|\bUC\b|!|\bAPI\b|\bHTTP\b")
@@ -331,13 +331,27 @@ class Panel(Base):
             p.until("document.querySelector('#ask-panel') === null", "the button closed the open panel", 30)
             p.until("document.querySelector('#ask-btn').getAttribute('aria-expanded') === 'false' && document.querySelector('#ask-panel') === null", "and it stayed closed", 30)
 
+    def test_hunt19_the_grip_says_its_width_to_a_screen_reader(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.assertTrue(p.js("/^\\d+$/.test(document.querySelector('#ask-grip').getAttribute('aria-valuenow') || '')"))
+            before = int(p.js("document.querySelector('#ask-grip').getAttribute('aria-valuenow')"))
+            p.js("document.querySelector('#ask-grip').focus()")
+            p.key("ArrowLeft", code="ArrowLeft", vk=37)
+            p.until(f"+document.querySelector('#ask-grip').getAttribute('aria-valuenow') > {before}", "the value follows the width")
+
     def test_a_long_answer_opens_at_its_first_line_and_a_short_one_at_the_end(self):
         self.stub.answer = "\n".join(f"Line {i} of a long answer." for i in range(150))
         with chrome() as cdp:
             p = self.opened(cdp)
             self.answered(p)
-            top = p.js("(() => { const l = document.querySelector('#ask-log'), a = document.querySelector('.ask-turn.assistant'); return a.getBoundingClientRect().top - l.getBoundingClientRect().top; })()")
-            self.assertTrue(-2 <= top <= 40, f"the answer's first line is at the top of the log (offset {top})")
+            read = "(() => { const l = document.querySelector('#ask-log'), a = document.querySelector('.ask-turn.assistant'); return a.getBoundingClientRect().top - l.getBoundingClientRect().top; })()"
+            # A slow Mac can lay the log out after the panel set its scroll: wait for the offset to settle (the page sets the scroll again on its next change), and
+            # say what was measured if it never does.
+            wait(lambda: -2 <= p.js(read) <= 40, 20)
+            top = p.js(read)
+            seen = p.js("(() => { const l = document.querySelector('#ask-log'), a = document.querySelector('.ask-turn.assistant'); return {scrollTop: l.scrollTop, scrollHeight: l.scrollHeight, clientHeight: l.clientHeight, answerOffsetTop: a.offsetTop, logOffsetTop: l.offsetTop, answerHeight: a.offsetHeight, turns: [...l.children].map(e => Math.round(e.getBoundingClientRect().height * 10) / 10), motion: document.documentElement.dataset.motion || null}; })()")
+            self.assertTrue(-2 <= top <= 40, f"the answer's first line is at the top of the log (offset {top}) | " + json.dumps(seen))
 
     def test_off_sends_no_request_and_links_to_settings(self):
         self.stub.enabled = False

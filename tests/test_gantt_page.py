@@ -336,19 +336,12 @@ class Page(unittest.TestCase):
         self.until("document.querySelector('.gt-scroll')", "the table")
         self.assertEqual(self.count(".gt-scroll tbody tr"), 3)
 
-    def test_export_and_import_run_the_editors_own_excel_flows(self):
+    def test_the_page_has_no_import_or_export_icons(self):
         self.mount(mode="edit")
-        self.assertEqual(self.js("document.querySelector('[data-gp-export]').disabled"), False, "Export to Excel is on (row 926)")
-        self.assertEqual(self.js("document.querySelector('[data-gp-export]').title"), "Export to Excel")
-        self.click("[data-gp-export]")
-        self.assertEqual(self.js("window.__exports"), 1, "one press runs the editor's own workbook export once")
-        self.assertEqual(self.count("[data-gp-import]"), 0, "Import is for Edit in the table")
+        self.assertEqual(self.count("[data-gp-export], [data-gp-import]"), 0, "item 1142: Import and Export are in Settings only, not on the Gantt page (chart)")
         self.click("[data-gp-layout]")
-        self.until("document.querySelector('[data-gp-import]')", "Import in the table")
-        self.assertEqual(self.js("document.querySelector('[data-gp-import]').disabled"), False, "Import from Excel is on")
-        self.assertEqual(self.js("document.querySelector('[data-gp-import]').title"), "Import from Excel")
-        self.click("[data-gp-import]")
-        self.assertEqual(self.js("window.__imports"), 1, "one press opens the editor's own import box once")
+        self.until("document.querySelector('.gt-scroll')", "the table")
+        self.assertEqual(self.count("[data-gp-export], [data-gp-import]"), 0, "nor in the table")
 
     def test_the_show_menu_filters_the_table_and_ticked_lines_is_for_edit_only(self):
         self.mount(mode="edit")
@@ -369,7 +362,9 @@ class Page(unittest.TestCase):
         self.until("document.activeElement && document.activeElement.hasAttribute('data-gp-filter')", "focus moves into the menu")
         self.key("ArrowDown", "document.activeElement")
         self.assertEqual(self.js("document.activeElement.dataset.gpFilter"), self.js("document.querySelectorAll('[data-gp-filter]')[1].dataset.gpFilter"), "ArrowDown moves on")
-        self.key("Escape")
+        # A person's Escape goes to the focused item, so it is sent there: the menu's own key handler is set at once. The page-wide Escape listener is
+        # added by an effect after the menu is drawn, and on a slow Mac it was not yet there when an Escape sent to the document arrived.
+        self.key("Escape", "document.activeElement")
         self.until("!document.querySelector('[data-gp-showmenu]')", "Escape closes the menu")
         self.assertTrue(self.js("document.activeElement === document.querySelector('[data-gp-show]')"), "focus is back on Show")
 
@@ -431,6 +426,17 @@ class Page(unittest.TestCase):
         ops = self.val("P.page.diff(P.lines(), P.page.fromTable(P.page.toTable(P.lines()).map(function(r){ return r.id === 'GNT-002' ? Object.assign({}, r, {o: 'Ada Example'}) : r; })))")
         self.assertEqual(ops, [{"op": "update", "id": "GNT-002", "changes": {"owner": "Ada Example"}}])
         self.assertEqual(len(self.calls()), before)
+
+    def test_clearing_cells_in_the_table_says_plan_changed_not_an_empty_id(self):
+        self.mount(mode="edit")
+        self.click("[data-gp-layout=table]")
+        self.until("document.querySelector('td[data-c]')", "the table")
+        self.js("(function(){ var td = Array.from(document.querySelectorAll('td[data-k=dep]')).find(function(x){ return x.textContent.trim(); }); td.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, button: 0})); document.dispatchEvent(new MouseEvent('mouseup', {bubbles: true})); })()")
+        self.settle()
+        before = len(self.calls())
+        self.key("Delete", "document.querySelector('.gt-scroll')")
+        self.until(f"P.host.calls.length > {before}", "the clear is sent")
+        self.assertEqual(self.calls()[-1][2], "Plan changed.")
 
     def test_a_column_eye_saves_only_hideable_columns_and_the_chart_keeps_its_dates(self):
         self.mount(mode="edit")

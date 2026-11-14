@@ -76,7 +76,7 @@ Already in place, and kept: the data folder only from `platform.data_dir()` (Win
 2. First start: the window opens in Chrome, or in Edge if Chrome isn't there; no console window stays open.
 3. From a OneDrive folder with spaces, for example `C:\Users\demo\OneDrive - Example Ltd\clark`: it starts, the data still goes to `%LOCALAPPDATA%\clark`, and the doctor gives the "Always keep on this device" line.
 4. A company laptop: whether AppLocker or Defender blocks `pythonw.exe` run from a user folder.
-5. Run it again with clark open: only the window opens. Close the window: clark stops a minute later.
+5. Run it again with clark open: only the window opens. Close the window: clark stops two minutes later.
 
 ## Risks
 - **Gatekeeper and SmartScreen** make the first start a few extra clicks, and neither `clark.command` nor `clark.cmd` is signed. Signing is a later item; the how-to and `START-HERE.txt` must show the clicks.

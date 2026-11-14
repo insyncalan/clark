@@ -175,7 +175,7 @@ class OfflinePage(unittest.TestCase):
         self.assertIn("<h1>Start clark to use this window</h1>", self.page)
         self.assertIn("Nothing is running at this address. Start it the way you started it: double-click <b>clark.command</b> in your clark folder, or, if you use Docker, open Terminal in that folder and type:", self.page)
         self.assertIn("<code>docker compose -f docker/compose.yaml up -d</code>", self.page)
-        self.assertIn("Closing the last clark window stops clark.command after a minute. Docker keeps running until you stop it with:", self.page)
+        self.assertIn("Closing the last clark window stops clark.command after two minutes. Docker keeps running until you stop it with:", self.page)
         self.assertIn("<code>docker compose -f docker/compose.yaml down</code>", self.page)
         self.assertIn('<button type="button" id="again">Check again</button>', self.page)
         self.assertIn('"Still not running. Double-click clark.command, then check again."', self.page)
@@ -193,7 +193,7 @@ class OfflinePage(unittest.TestCase):
 
     def test_it_says_when_each_way_of_starting_stops(self):
         """item 427: one text for both routes (the double-click and Docker)."""
-        self.assertIn("Closing the last clark window stops clark.command after a minute. Docker keeps running until you stop it with:", self.page)
+        self.assertIn("Closing the last clark window stops clark.command after two minutes. Docker keeps running until you stop it with:", self.page)
 
     def test_the_launcher_name_is_escaped_and_nothing_else_is_put_in(self):
         page = af.offline_page('<b>x"&').decode("utf-8")

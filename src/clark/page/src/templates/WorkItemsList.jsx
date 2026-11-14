@@ -6,6 +6,8 @@
 import { asAt, fromFile } from "../stores/report.js";
 import { KIND_WORDS, dueCell, pillOf, ownerOf, todayIso } from "../workItems.js";
 import { listOf, drawRows, WORDS } from "./workItemsList.js";
+import { ItemIcon, iconWords } from "../components/ItemRows.jsx";      // row 1145: the dashboard lists' icon, alone, is the status
+import { clientPill } from "../logic/sectionRows.js";
 
 export const READY = true;
 
@@ -23,13 +25,13 @@ function cellText(row, col, now) {
   return "";
 }
 
-function Cell({ row, col, now }) {
+function Cell({ row, col, now, live }) {
   if (col === "type") return <span class={`type k-${row.kind}`}>{KIND_WORDS[row.kind] || row.kind}</span>;
   if (col === "due") {
     const d = dueCell(row, now);
     return <><span class="num">{d.date}</span>{d.words ? <span class={`due-l${d.tone ? " " + d.tone : ""}`}>{d.words}</span> : null}</>;
   }
-  if (col === "status") { const p = pillOf(row, now); return <span class={`pill ${p.class}`}>{p.text}</span>; }
+  if (col === "status") { const p = clientPill(row, now); return <ItemIcon row={row} pill={p} today={now} plain={live} />; }      // in Edit the row is itself a button, so the icon takes no tab stop of its own; the cell says the words
   if (col === "owner") { const o = ownerOf(row.owner); return o.initials ? o.text : <span class="muted">{o.text}</span>; }
   return cellText(row, col, now);
 }
@@ -50,9 +52,9 @@ export function Rows({ rows, columns, now, open }) {
         <tbody>
           {rows.map((row) => (
             <tr key={row.id} data-id={row.id} {...act(row)}>
-              {before.map((c) => <td key={c} class={`wil-c-${c}`}><Cell row={row} col={c} now={now} /></td>)}
+              {before.map((c) => <td key={c} class={`wil-c-${c}`}><Cell row={row} col={c} now={now} live={!!open} /></td>)}
               <td class="wil-c-title">{row.title || ""}</td>
-              {after.map((c) => <td key={c} class={`wil-c-${c}`}><Cell row={row} col={c} now={now} /></td>)}
+              {after.map((c) => <td key={c} class={`wil-c-${c}`} title={open && c === "status" ? iconWords(row, clientPill(row, now), now).tip : undefined}><Cell row={row} col={c} now={now} live={!!open} /></td>)}
             </tr>
           ))}
         </tbody>

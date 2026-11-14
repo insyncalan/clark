@@ -252,6 +252,15 @@ class AGoodFile(unittest.TestCase):
                 '<w:del w:id="2"><w:r><w:delText>deleted </w:delText></w:r></w:del><w:r><w:t>end</w:t></w:r></w:p>')
         self.assertEqual(blocks(body), [{"kind": "paragraph", "text": "kept added end"}])
 
+    def test_a_tracked_formatting_change_reads_the_current_style_not_the_old_one(self):
+        old = lambda inner: f'<w:pPrChange w:id="1"><w:pPr>{inner}</w:pPr></w:pPrChange>'
+        made_heading = ('<w:p><w:pPr><w:pStyle w:val="Heading1"/>' + old('<w:pStyle w:val="Normal"/>') + '</w:pPr><w:r><w:t>Actions</w:t></w:r></w:p>')
+        made_body = ('<w:p><w:pPr><w:pStyle w:val="Normal"/>' + old('<w:pStyle w:val="Heading1"/>') + '</w:pPr><w:r><w:t>Actions</w:t></w:r></w:p>')
+        was_list = ('<w:p><w:pPr>' + old('<w:numPr><w:ilvl w:val="3"/><w:numId w:val="7"/></w:numPr>') + '</w:pPr><w:r><w:t>Actions</w:t></w:r></w:p>')
+        self.assertEqual(blocks(made_heading), [{"kind": "heading", "level": 1, "text": "Actions"}])
+        self.assertEqual(blocks(made_body), [{"kind": "paragraph", "text": "Actions"}])
+        self.assertEqual(blocks(was_list), [{"kind": "paragraph", "text": "Actions"}])
+
     def test_text_a_person_cannot_see_is_not_read_and_is_noted(self):
         body = (P("seen") + P("secret instructions", hidden=True)
                 + '<w:p><w:r><w:t>box: </w:t></w:r><w:r><mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">'
@@ -264,6 +273,41 @@ class AGoodFile(unittest.TestCase):
         self.assertEqual(len(got.notes), 2)
         self.assertIn("hidden", got.notes[0])
         self.assertEqual(got.notes[1], "2 pictures, drawings or text boxes were not read.")
+
+    def test_old_formatting_in_a_tracked_change_does_not_hide_visible_text(self):
+        body = '<w:p><w:r><w:rPr><w:rPrChange w:id="1"><w:rPr><w:vanish/></w:rPr></w:rPrChange></w:rPr><w:t>visible now</w:t></w:r></w:p>'
+        got = read(docx(body), NAME)
+        self.assertEqual(got.blocks, [{"kind": "paragraph", "text": "visible now"}])
+        self.assertEqual(got.notes, [])
+
+    def test_text_hidden_by_a_paragraph_or_character_style_is_not_read_and_is_noted(self):
+        styles = STYLES.replace("</w:styles>",
+            '<w:style w:type="paragraph" w:styleId="Hid"><w:name w:val="Hid"/><w:basedOn w:val="Normal"/><w:rPr><w:vanish/></w:rPr></w:style>'
+            '<w:style w:type="paragraph" w:styleId="Hid2"><w:name w:val="Hid2"/><w:basedOn w:val="Hid"/></w:style>'
+            '<w:style w:type="character" w:styleId="HidChar"><w:name w:val="HidChar"/><w:rPr><w:vanish/></w:rPr></w:style></w:styles>')
+        body = (P("seen") + P("secret", style="Hid") + P("secret too", style="Hid2")
+                + '<w:p><w:r><w:t>a </w:t></w:r><w:r><w:rPr><w:rStyle w:val="HidChar"/></w:rPr><w:t>secret</w:t></w:r><w:r><w:t>b</w:t></w:r></w:p>')
+        got = read(docx(body, parts={"word/styles.xml": styles}), NAME)
+        self.assertEqual([b["text"] for b in got.blocks], ["seen", "a b"])
+        self.assertEqual(len(got.notes), 1)
+        self.assertIn("hidden", got.notes[0])
+
+    def test_a_blank_hidden_style_paragraph_gives_no_hidden_note(self):
+        styles = STYLES.replace("</w:styles>",
+            '<w:style w:type="paragraph" w:styleId="Hid"><w:name w:val="Hid"/><w:basedOn w:val="Normal"/><w:rPr><w:vanish/></w:rPr></w:style></w:styles>')
+        got = read(docx(P("seen") + '<w:p><w:pPr><w:pStyle w:val="Hid"/></w:pPr></w:p>' + P("  ", style="Hid"), parts={"word/styles.xml": styles}), NAME)
+        self.assertEqual([b["text"] for b in got.blocks], ["seen"])
+        self.assertEqual(got.notes, [], "nothing was dropped, so nothing is said")
+
+    def test_an_explicit_vanish_off_shows_text_in_a_hidden_style(self):
+        styles = STYLES.replace("</w:styles>",
+            '<w:style w:type="paragraph" w:styleId="Hid"><w:name w:val="Hid"/><w:basedOn w:val="Normal"/><w:rPr><w:vanish/></w:rPr></w:style>'
+            '<w:style w:type="character" w:styleId="HidChar"><w:name w:val="HidChar"/><w:rPr><w:vanish/></w:rPr></w:style></w:styles>')
+        body = ('<w:p><w:pPr><w:pStyle w:val="Hid"/></w:pPr><w:r><w:rPr><w:vanish w:val="0"/></w:rPr><w:t>shown</w:t></w:r><w:r><w:t>hidden</w:t></w:r></w:p>'
+                '<w:p><w:r><w:rPr><w:rStyle w:val="HidChar"/><w:vanish w:val="0"/></w:rPr><w:t>also shown</w:t></w:r></w:p>')
+        got = read(docx(body, parts={"word/styles.xml": styles}), NAME)
+        self.assertEqual([b["text"] for b in got.blocks], ["shown", "also shown"])
+        self.assertEqual(len(got.notes), 1, "the one hidden run is still noted")
 
     def test_a_link_keeps_its_words_and_loses_its_address(self):
         rels = RELS.format('<Relationship Id="rId9" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" '
@@ -576,6 +620,19 @@ class MacrosObjectsAndLinks(Refused):
                            'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>')
         self.assertEqual(blocks(P("ok"), parts={"word/_rels/document.xml.rels": rels, "word/styles.xml": STYLES}),
                          [{"kind": "paragraph", "text": "ok"}])
+
+
+class MalformedTables(Refused):
+    """A cell with no row around it is a damaged file: the plain refusal, never a crash."""
+
+    def test_cell_directly_in_a_table(self):
+        self.refused(docx('<w:tbl><w:tc><w:p><w:r><w:t>x</w:t></w:r></w:p></w:tc></w:tbl>'), "could not be opened")
+
+    def test_cell_after_its_row_closed(self):
+        self.refused(docx('<w:tbl><w:tr></w:tr><w:tc><w:p/></w:tc></w:tbl>'), "could not be opened")
+
+    def test_row_directly_inside_a_cell(self):
+        self.refused(docx('<w:tbl><w:tr><w:tc><w:tr><w:tc><w:p/></w:tc></w:tr><w:p/></w:tc></w:tr></w:tbl>'), "could not be opened")
 
 
 class HostileXml(Refused):

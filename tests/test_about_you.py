@@ -152,6 +152,19 @@ class AboutYou(Base):
             p.until("!!document.querySelector('#about-name')", "Settings › Profile drew")
             p.until("document.activeElement && document.activeElement.id === 'about-name'", "the name box has the cursor")
 
+    def test_C_the_link_with_settings_already_open_puts_the_cursor_in_the_name_box(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            for w in WIDTHS:
+                p.width(w)
+                self.open_settings(p)
+                p.until("document.activeElement && document.activeElement.id === 'about-name'", f"opening Settings gave the name box the cursor at {w}")      # let that finish, then move away
+                p.js("document.querySelector('#profile-btn').focus()")
+                self.assertNotEqual(p.js("document.activeElement.id"), "about-name")
+                self.open_menu(p)
+                p.js("document.querySelector('#profile-menu .who-link').click()")
+                p.until("document.activeElement && document.activeElement.id === 'about-name'", f"the name box has the cursor with Settings already open at {w}")
+
     def test_C_long_values_are_cut_on_one_line_each_and_never_widen_the_menu(self):
         name, email = "N" * 60, ("e" * 48) + "@example.test"
         self.assertEqual((len(name), len(email)), (60, 61))

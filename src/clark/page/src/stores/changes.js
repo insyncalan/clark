@@ -243,7 +243,7 @@ export function undo(applyId, code = project.value) {
     say("done", skipped && typeof r.reply.words === "string" && r.reply.words ? r.reply.words : back || "Undone.", null, code);
     if (focus) setTimeout(() => {         // row 865: where the person was, unless they have already moved on
       const now = document.activeElement, el = document.querySelector(focus);
-      if (el && (!now || now === document.body || !now.isConnected)) el.focus({ preventScroll: true });
+      if (el && (!now || now === document.body || now.id === "main" || !now.isConnected)) el.focus({ preventScroll: true });
     }, 60);
     return r.reply;
   });

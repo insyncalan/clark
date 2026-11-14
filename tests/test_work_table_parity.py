@@ -126,8 +126,8 @@ MEASURE = r"""(() => {
   const cards = [...document.querySelectorAll('#work .wgroup')].map((c) => { const s = getComputedStyle(c), t = c.querySelector('table.items');
     return { bw: s.borderTopWidth, radius: parseFloat(s.borderTopLeftRadius), tables: c.querySelectorAll('table.items').length, groups: c.querySelectorAll('tbody[data-group]').length,
              inside: !!t && t.getBoundingClientRect().right <= c.getBoundingClientRect().right + 1, head: !!c.querySelector('tr.grp .grp-b'), count: (c.querySelector('tr.grp .gc') || {}).textContent, rows: c.querySelectorAll('tr[data-id]').length }; });
-  const rows = [...document.querySelectorAll('#work tr[data-id]')].map((r) => { const k = r.querySelector('.c-item .kb'), e = r.querySelector('.c-eye .weye'), b = k && k.getBoundingClientRect();
-    return { id: r.dataset.id, kind: r.dataset.kind, letter: k ? k.textContent : null, label: k ? k.getAttribute('aria-label') : null, title: k ? k.getAttribute('title') : null,
+  const rows = [...document.querySelectorAll('#work tr[data-id]')].map((r) => { const k = r.querySelector('.c-status .ico'), tp = k && k.closest('[data-tip]') ? k.closest('[data-tip]').dataset.tip.split(' · ')[0] : null, e = r.querySelector('.c-eye .weye'), b = k && k.getBoundingClientRect();
+    return { id: r.dataset.id, kind: r.dataset.kind, letter: k ? k.textContent : null, label: tp, title: tp,
              w: b ? Math.round(b.width) : 0, h: b ? Math.round(b.height) : 0, eye: e ? (e.getAttribute('aria-pressed') || (e.classList.contains('on') ? 'true' : 'false')) : null, eyeTag: e ? e.tagName : null, eyeTab: e ? e.tabIndex : null, eyeLabel: e ? e.getAttribute('aria-label') : null,
              tag: !!r.querySelector('.tag.cl'), type: !!r.querySelector('.c-type') }; });
   const wide = [...document.querySelectorAll('#work table.items tbody td')].filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.className);
@@ -219,7 +219,7 @@ class Table(unittest.TestCase):
                         for r in got["rows"]:
                             kinds.add(r["kind"])
                             self.assertEqual((r["letter"], r["label"], r["title"]), (LETTERS[r["kind"]], WORDS[r["kind"]], WORDS[r["kind"]]), f"{where}: {r['id']}")
-                            self.assertEqual((r["w"], r["h"]), (22, 22), f"{where}: {r['id']} badge is one 22 px square, never a broken word")
+                            self.assertEqual((r["w"], r["h"]), (24, 24), f"{where}: {r['id']} icon is one 24 px square (row 1145), never a broken word")
                             self.assertIn(r["eye"], ("true", "false"), f"{where}: {r['id']} has its eye")
                             self.assertEqual(r["eyeTag"], "BUTTON", f"{where}: a button in View as in Edit (row 819)")
                             self.assertFalse(r["tag"] or r["type"], f"{where}: {r['id']} has no 'Shown to client' tag and no Type cell")

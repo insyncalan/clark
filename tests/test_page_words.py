@@ -196,7 +196,11 @@ class Words(unittest.TestCase):
             system = cdp.js("(navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || ''", sid).strip() or "unknown"   # what the page itself reads
             self.shown(cdp, sid, ["Settings",
                                   "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
-                                  "Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "Brands", "People", "Asking", "Feedback", "Quit",      # the chips: one for each card below, in the order they are on the page
+                                  "Search settings",      # row 1115 S2: the box under the help line
+                                  "Essentials", "Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "Brands", "People", "Asking", "Feedback", "Quit",      # the chips: one for each card below, in the order they are on the page
+                                  "Essentials", "Your name", "Appearance", "System", "Light", "Dark", "Spacing", "Compact", "Comfortable", "Motion", "Single-key shortcuts", "Backups", "Publishing folder",      # row 1115 S3: the first card
+                                  "No local folder yet.", "Choose folder", "Asking on or off",
+                                  "Asking is off, because clark could not check the setting just now. Reload the page to try again.", "Turn on asking",
                                   "Profile",      # row 950: the first card, with the About you boxes that were in Personal
                                   "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
                                   "Alias", "Your first name and your initials, worked out from your full name. You can change it.",     # item 613
@@ -212,7 +216,7 @@ class Words(unittest.TestCase):
                                   "These are for you, on this computer. Your spacing choice is used on the published report too; Light or Dark is yours alone.",
                                   "Spacing", "Compact", "The Dashboard sections run on in one flat page, with thin lines between them, so more fits on the screen.",
                                   "Comfortable", "Each Dashboard section is its own card, with room between them.",
-                                  "Appearance", "System", "Light", "Dark", "Follows your Mac's setting.",      # #179
+                                  "Appearance", "System", "Light", "Dark", "Follows your computer's setting.",      # #179
                                   "Keys", "Single-key shortcuts",            # #193
                                   "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.",
                                   "Freshness",          # #160: the project's "Not reviewed after (days)"

@@ -105,7 +105,7 @@ class Rows(unittest.TestCase):
                                           "start clark again.")
 
     # Row 16: the data folder is inside OneDrive. The line carries the typed command, so both forms are pinned.
-    ONEDRIVE_HEAD = ("Your clark data is set to go in ~/OneDrive - Work/clark, which is inside OneDrive. OneDrive copies files "
+    ONEDRIVE_HEAD = ("Your clark data is set to go in ~/OneDrive/clark, which is inside OneDrive. OneDrive copies files "
                      "while they are being written, which damages the data. Choose a folder on this computer that OneDrive "
                      "doesn't sync. Then open Terminal, type cd and a space, drag clark's folder into the Terminal window and "
                      "press Return. Type ")

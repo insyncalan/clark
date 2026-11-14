@@ -3,8 +3,8 @@
     python3 -m clark.launch [--data FOLDER] [--port N]      (clark.command in clark's folder runs this)
 
 It asks what is on the port first, and never takes over what isn't its own:
-- nothing there: it starts clark (python3 -m clark) in the background, marked CLARK_LAUNCHED=1 so that it stops by itself a
-  minute after the last clark window closes (idle.py), waits up to 15 seconds for it to answer, and opens the window
+- nothing there: it starts clark (python3 -m clark) in the background, marked CLARK_LAUNCHED=1 so that it stops by itself
+  two minutes after the last clark window closes (idle.py), waits up to 15 seconds for it to answer, and opens the window
 - clark with this data folder: it is already running; only the window is opened, but only if it is this folder's clark of this
   version and its page answers (row 975); otherwise it stops with a plain line and changes nothing
 - clark with another data folder, or any other program (creaite also answers /health, without the mark): said in plain words,
@@ -317,7 +317,7 @@ def launch(port, folder, say=print, environ=None, start=platform.start_detached,
                     f"{launcher_file() or 'the clark launcher'} again. If it still does not start, send the file "
                     f"{platform.with_tilde(log)} to the clark team. It records what went wrong.")
             return 1
-        say("A minute after the last window closes, clark stops by itself.")
+        say("Two minutes after the last window closes, clark stops by itself.")
     return open_clark(port, say, environ, find_chrome, open_window, open_browser)
 
 

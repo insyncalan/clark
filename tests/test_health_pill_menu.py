@@ -68,7 +68,8 @@ class Source(unittest.TestCase):
         self.assertIn('<Icon name="check" cls="hck" />', menu)
         self.assertIn('"menuitemradio"', menu)
         health = (PAGE / "src" / "edit" / "GlanceEdit.jsx").read_text(encoding="utf-8")
-        self.assertIn("pill: r, checked: name === health", health)
+        self.assertIn("pill: r,", health)
+        self.assertIn("checked: name === health", health)
         self.assertIn("pickHealth(h, health, reason)", health, "what is saved is unchanged")
 
     def test_the_report_pill_is_the_same_block(self):

@@ -266,7 +266,8 @@ class RunsAsAProcess(TempFolder):
         code, out, err = self.start("--data", str(inside), "--port", str(free_port()), home=self.tmp).finish()
         self.assertEqual(code, 1)
         self.assertEqual(len(err), 1)
-        self.assertRegex(err[0], r"^Your data can't be kept in .* because it is inside OneDrive \(OneDrive-DemoOrg\)")
+        self.assertRegex(err[0], r"^Your data can't be kept in .* because it is inside OneDrive")
+        self.assertNotIn("DemoOrg", err[0])
         self.assertFalse(inside.exists())
         self.assertNotIn("Traceback", "\n".join(err))
 

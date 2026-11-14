@@ -25,6 +25,7 @@ export const chatEpoch = signal(0);                    // row 1119: bumped when 
 
 function room() { return Math.max(MIN, Math.floor(document.documentElement.clientWidth * 0.9)); }     // clientWidth: never the scrollbar's width
 
+export function widthRange() { return { min: MIN, max: room() }; }      // the same limits clampWidth keeps to; the grip tells them to a screen reader
 export function clampWidth(w) { return Math.min(room(), Math.max(MIN, Math.round(Number(w) || DEFAULT))); }
 function initialWidth() {
   try { const w = parseInt(localStorage.getItem(KEY), 10); if (w >= MIN) return clampWidth(w); } catch (e) { /* only a convenience */ }

@@ -119,6 +119,10 @@ class Formatting(unittest.TestCase):
                   "Use cases": "Use case"}
         for name, title in titles.items():
             ws = wb[name]
+            if name == "Use cases":          # item 1160: Reference sits between ID and Use case, so the title is the third column
+                self.assertEqual(ws.freeze_panes, "D2", name)
+                self.assertEqual([ws["A1"].value, ws["B1"].value, ws["C1"].value], ["ID", "Reference", title], name)
+                continue
             self.assertEqual(ws.freeze_panes, "C2", name)
             self.assertEqual([ws["A1"].value, ws["B1"].value], ["ID", title], name)
 
@@ -374,11 +378,13 @@ class Formatting(unittest.TestCase):
         try:
             d.export()
             back = excel.read_workbook(d.path)
+            names = excel._ref_names({t: d.store.read(t, "ABC") for t in ("milestones", "use_cases")})
+            shown_ids = {f: {text: i for i, text in m.items()} for f, m in names.items()}
             for _, table, cols, _ in excel.SHEETS:
                 fields = [f for _, f in cols if f not in excel.DERIVED and f not in ("labels", "milestones")]
                 stored = {r["id"]: {f: (sanitise.rich_plain_text(r[f]) if (table, f) in excel.RICH_WORDS and isinstance(r[f], str) else r[f]) for f in fields} for r in d.store.read(table, "ABC")}
-                got = {r["id"]: {f: (r.get(f).split(": ")[0] if f in excel.REF_TABLES and r.get(f) else r.get(f)) for f in fields}
-                       for r in back[table]}      # item 710: the cell reads ID: name; the import takes the ID
+                got = {r["id"]: {f: (shown_ids[f].get(r.get(f), r.get(f)) if f in excel.REF_TABLES and r.get(f) else r.get(f)) for f in fields}
+                       for r in back[table]}      # item 1150: the cell reads the name; mapped back to the id here
                 self.assertEqual(got, stored, table)
         finally:
             d.close()

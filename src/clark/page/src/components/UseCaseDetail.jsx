@@ -7,21 +7,23 @@
 // out). A work item row and a linked milestone's name open their peek beside the page (row 859, row 860): the page stays, Esc closes the
 // peek and the focus goes back to the row or name. "Open all N in Work items" is the one way from here to the Work items page.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { data, rows, fromFile, project, openWork, openPeek } from "../stores/report.js";
+import { data, rows, fromFile, project, openWork, openPeek, openUseCases } from "../stores/report.js";
 import { change, say } from "../stores/changes.js";
 import { blink } from "../stores/motion.js";
 import { cameBackFrom } from "../stores/useCaseFocus.js";
 import { readUseCaseHistory, readArchivedUseCase } from "../api.js";
 import { Menu } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
+import { actionIcon } from "../menuIcons.js";
 import { RichField } from "../edit/RichField.jsx";
 import { cleanHtml } from "../logic/cleanHtml.js";
-import { isOpen, pillOf, dueCell, ownerOf, sortRows, showDate, todayIso, plural } from "../workItems.js";
+import { isOpen, dueCell, ownerOf, sortRows, showDate, todayIso, plural } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
 import { refOf } from "../logic/useCasesList.js";
 import { milestoneRows } from "../logic/milestones.js";
 import { MsMark } from "./MsMark.jsx";
-import { toneOf } from "./ItemRows.jsx";                     // row 1081: the chip takes the colours of row 1021
+import { ItemIcon, iconWords } from "./ItemRows.jsx";      // row 1145: the coloured pill with words is the tinted letter icon alone (row 1021's)
+import { clientPill } from "../logic/sectionRows.js";
 import { CommitChip } from "./CommitChip.jsx";
 import { CommitMenu } from "../edit/CommitMenu.jsx";
 import { SneakPeek } from "../edit/SneakPeek.jsx";
@@ -227,10 +229,11 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
         {!ro ? (
           <div class="ucd-acts">
             <Menu label="Change status" ariaLabel="Change status" menuLabel="Status" id="ucd-status" btnCls="btn" left
-              items={STATUSES.map(([name]) => ({ id: name, name, checked: u.status === name }))}
+              items={STATUSES.map(([name]) => ({ id: name, name, icon: actionIcon("status"), checked: u.status === name }))}
               onPick={(name) => { if (name !== u.status) send({ status: name }, `Status changed to ${name}.`); }} />
             <button type="button" class={`ucd-eye${on ? " on" : ""}`} data-eye title={on ? EYE.on : EYE.off} aria-label={on ? EYE.on : EYE.off}
               onClick={(e) => { blink(e); send({ client_visible: on ? 0 : 1 }, on ? "Taken off the dashboard." : "Put on the dashboard."); }}><Icon name={on ? "eye" : "eyeoff"} />{on ? EYE.on : EYE.off}</button>
+            {ed && ed.RecordMore ? <ed.RecordMore row={u} kind="use_cases" cls="btn ucd-more" id="ucd-more" onArchived={() => setMine(true)} onDeleted={() => openUseCases()} /> : null}      {/* item 1148: Archive moved in here from the foot of the page, and Delete */}
           </div>
         ) : null}
       </div>
@@ -256,13 +259,13 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
             {work.length ? (
               <ul class="ucd-items plain">
                 {work.map((r) => {
-                  const due = r.kind === "decision" || r.kind === "action" ? dueCell(r, todayIso()).date : "", who = ownerOf(r.owner).text, pill = pillOf(r, todayIso());
+                  const due = r.kind === "decision" || r.kind === "action" ? dueCell(r, todayIso()).date : "", who = ownerOf(r.owner).text, pill = clientPill(r, todayIso()), say = iconWords(r, pill, todayIso());
                   const extra = [who !== "—" ? who : "", due && due !== "—" ? `Due ${due}` : r.kind === "action" ? "No due date" : ""].filter(Boolean).join(" · ") || "No owner";
                   return (
                     <li key={r.id}>
-                      <button type="button" class="ucd-item" data-item={r.id} onClick={() => openPeek(r.id, "item")}>
-                        <span class="ucd-id num">{r.id}</span><span class="ucd-t">{r.title}</span>
-                        <span class={`pill ${toneOf(r, pill)}`}>{pill.text}</span><span class="ucd-x">{extra}</span>
+                      <button type="button" class="ucd-item" data-item={r.id} data-tip={say.tip} onClick={() => openPeek(r.id, "item")}>
+                        <ItemIcon row={r} pill={pill} today={todayIso()} plain /><span class="sr">{say.name}</span>
+                        <span class="ucd-id num">{r.id}</span><span class="ucd-t">{r.title}</span><span class="ucd-x">{extra}</span>
                       </button>
                     </li>
                   );
@@ -271,9 +274,6 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
             ) : <p class="muted" data-no-work>No work items are linked to this use case yet.</p>}
             {!ro && ed ? <div class="ucx-addrow" data-addrow><ed.NextStep u={u} /><ed.LinkButton u={u} /></div> : null}
           </section>
-          {!ro ? (
-            <p class="ucd-foot"><button type="button" class="link" data-archive onClick={() => archive("archive")}>Archive this use case (it can be restored; nothing is deleted)</button></p>
-          ) : null}
         </div>
         <div class="ucd-side">
           <section class="ucd-card" aria-labelledby="ucd-h-det">
@@ -289,12 +289,12 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
             {ms.length ? <ul class="ucd-ms plain">{ms.map((k) => {
                 const m = k.m, st = milestoneRows([m], todayIso(), false)[0];                 // the same state word and mark as the Milestones page (row 860)
                 return <li key={m.id} data-ms={m.id} data-how={k.direct ? (k.via ? "both" : "direct") : "work"}><button type="button" class="link ucd-msname" data-ms-open={m.id} onClick={() => openPeek(m.id, "milestone")}>{m.name}</button>
-                  <span class="ucd-msx">{st ? <span class={`mst c-${st.colour}`} data-ms-state><MsMark name={st.mark} />{st.word}</span> : null}<span class="muted num">{showDate(m.status === "Done" && m.actual_date ? m.actual_date : m.baseline_date || m.forecast_date)}</span>{!ro && ed && k.direct ? <ed.MilestoneUnlink u={u} m={m} /> : null}{!ro && ed && k.via ? <ed.MilestoneRemove u={u} m={m} /> : null}</span>
+                  <span class="ucd-msx">{st ? <span class={`mst c-${st.colour}`} data-ms-state><MsMark name={st.mark} />{st.word}</span> : null}<span class="muted num">{showDate(m.status === "Done" && m.actual_date ? m.actual_date : m.baseline_date || m.forecast_date)}</span>{!ro && ed && k.direct ? <ed.MilestoneUnlink u={u} m={m} /> : null}</span>
                   <span class="muted ucd-mshow" data-ms-how>{HOW_LINKED(k)}</span></li>;
               })}</ul>
               : <p class="muted">No milestones: it is not linked to one directly, and none of its work items is linked to one.</p>}
             {ms.length ? <p class="muted ucd-msnote" data-ms-note>Linked directly means the use case itself is linked to the milestone. Through work items means one of its work items is.</p> : null}
-            {!ro && ed ? <div class="ucx-addrow" data-addrow><ed.MilestoneLink u={u} /><ed.MilestoneAdd u={u} /></div> : null}
+            {!ro && ed ? <div class="ucx-addrow" data-addrow><ed.MilestoneLink u={u} /></div> : null}
           </section>
           <section class="ucd-card" aria-labelledby="ucd-h-hist">
             <h2 id="ucd-h-hist" class="ucd-ch">History</h2>

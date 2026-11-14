@@ -3,12 +3,12 @@
 export const GANTT_EDIT_WORDS = {
   edit: "Edit", view: "View",
   editTip: "Edit the plan", viewTip: "Back to the view (what the client sees)",
-  exportXl: "Export to Excel", importXl: "Import from Excel",
   undo: "Undo",
   addBelow: "Add a line below",                                                          // the add button beside a row (chart and table) and the first line of an empty plan
   editNote: "Editing · each change saves on its own",                                  // the Dashboard's own words, reused
   titleLabel: "Title",                                                                   // added: the title box's accessible name
   titleChanged: "Title changed.",                                                        // added: the title's Undo toast
+  planChanged: "Plan changed.",                                                         // added: a fill, a clear or a paste, which has no one line to name
   changed: (id) => `${id} changed.`,                                                     // added: a line edited in the chart
   added: "A line was added with the next free ID.",
   deleted: (id) => `Line ${id} deleted.`,

@@ -100,7 +100,7 @@ PRINT_RULES = (
     "html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fff}"
     # no controls: the live page (top bar, tabs, buttons, the contents lines) is not printed; the stacked copy is
     "body.print-stacked #app{display:none!important}"
-    ".top,.tabs,.toc,.pubbar,nav,dialog,input,select,textarea,.filters,.sec-tools,.add,.wbar,.fbar,.factive,.newb{display:none!important}"
+    ".top,.tabs,.toc,.pubbar,nav,dialog,input,select,textarea,.filters,.sec-tools,.msl-det,[data-uc-page],.ucp-views,.ucp-sorts,.ucp-count,.add,.wbar,.fbar,.factive,.newb{display:none!important}"
     "button,[role=button]{border:0!important;background:none!important;box-shadow:none!important;padding:0!important;"
     "min-height:0!important;cursor:default!important;color:inherit!important;font:inherit!important}"
     # the tabs stacked: each starts on a new page, under its own heading
@@ -125,12 +125,12 @@ def print_css(orientation="portrait"):
     return "@page{size:A4 %s;margin:12mm 12mm 16mm}@media print{%s}" % (orientation, PRINT_RULES)
 
 
-def with_print_css(html, orientation="portrait"):
+def with_print_css(html, orientation="portrait", footed=False):
     """`html` (text) with the print rules in a style tag at the end of its head (or at the start if it has none), and its
     <html> tag set to the light theme."""
     tag = "<style>%s</style>" % print_css(orientation)
     html = re.sub(r"(<html\b[^>]*?)\s+data-theme\s*=\s*(\"[^\"]*\"|'[^']*'|[^\s>]+)", r"\1", html, count=1, flags=re.I)
-    html = re.sub(r"<html\b", '<html data-theme="light"', html, count=1, flags=re.I)
+    html = re.sub(r"<html\b", '<html data-theme="light"%s' % (" data-pdf-foot" if footed else ""), html, count=1, flags=re.I)
     at = html.lower().rfind("</head>")
     return tag + html if at < 0 else html[:at] + tag + html[at:]
 
@@ -570,7 +570,7 @@ def make_pdf(page, out, orientation="portrait", chrome=None, timeout=TIMEOUT, po
     work = tempfile.mkdtemp(prefix="clark-pdf-")
     try:
         copy = Path(work) / "page.html"
-        copy.write_text(with_print_css(Path(page).read_text(encoding="utf-8"), orientation), encoding="utf-8")
+        copy.write_text(with_print_css(Path(page).read_text(encoding="utf-8"), orientation, bool(footer_left)), encoding="utf-8")
         deadline = time.monotonic() + timeout
         profile = Path(work) / "profile"
         proc, ends = None, None

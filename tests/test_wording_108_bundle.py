@@ -45,10 +45,10 @@ class AskHelp(unittest.TestCase):
 
 
 class UseCaseHelp(unittest.TestCase):
-    def test_idx16_use_case_help_names_add_a_milestone_and_remove(self):
+    def test_idx16_use_case_help_names_add_a_milestone_and_unlink(self):
         text = read(PAGE / "help" / "helpContent.json")
-        self.assertIn("**Add a milestone** adds a next step called Reach", text)
-        self.assertIn("**Remove** (on a milestone it has through its work items)", text)
+        self.assertIn("**Add a milestone** links it to a milestone and **Unlink** takes the link away", text)
+        self.assertNotIn("adds a next step called Reach", text)
 
 
 class GanttPrintNote(unittest.TestCase):

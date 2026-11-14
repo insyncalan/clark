@@ -49,7 +49,7 @@ function Sized({ CW, place, children }) {
 
 export function MsList({ CW, ...rest }) { return CW ? <Sized CW={CW} place={rest.place}>{(vars, hd) => <MsRows {...rest} vars={vars} hd={hd} />}</Sized> : <MsRows {...rest} />; }
 
-function MsRows({ rows, place, open, internalTag, Eye, left, legend, canFold = true, vars, hd }) {
+function MsRows({ rows, place, open, internalTag, Eye, More, left, legend, canFold = true, vars, hd }) {
   const [all, setAll] = useState(() => !fromFile.value && !!recall(`msAll.${place}`, false));
   const shown = railRows(rows, all);
   const [det, setDet] = useState(() => !canFold || fromFile.value || recall(`msDet.${place}`, true) !== false);      // a published file starts open and keeps no choice (remembering there needs a ruling)
@@ -72,7 +72,7 @@ function MsRows({ rows, place, open, internalTag, Eye, left, legend, canFold = t
           const out = !!(Eye && left && left.has(r.id));          // left out of the published page: said in words, never by colour alone
           return (
           // The li stays a list item; in the editor the button is its child (role and keys), so the list keeps its semantics.
-          <li class={`msl-row${r.clientVisible ? "" : " out"}${open ? "" : " plain"}${Eye ? " has-eye" : ""}${isChanged(r.id) ? " changed" : ""}`} key={r.id} data-ms={r.id} data-changed={isChanged(r.id) ? "1" : undefined}>
+          <li class={`msl-row${r.clientVisible ? "" : " out"}${open ? "" : " plain"}${Eye ? " has-eye" : ""}${Eye && More ? " has-more" : ""}${isChanged(r.id) ? " changed" : ""}`} key={r.id} data-ms={r.id} data-changed={isChanged(r.id) ? "1" : undefined}>
             <span class={`node c-${r.colour}${r.state === "Achieved" ? " fill" : ""}`} />
             <div class="msl-cells" {...(open ? { tabindex: "0", role: "button", "aria-label": `${r.name}, ${r.word}${out ? ", left out of the published page" : ""}`, onClick: () => open(r.id), onKeyDown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(r.id); } } } : {})}>
               <span class="msl-date"><When r={r} /></span>
@@ -82,6 +82,7 @@ function MsRows({ rows, place, open, internalTag, Eye, left, legend, canFold = t
               <Sub r={r} />
             </div>
             {Eye ? <Eye id={r.id} name={r.name} left={out} internal={!r.clientVisible} /> : null}
+            {Eye && More ? <More row={r} /> : null}
           </li>
           );
         })}

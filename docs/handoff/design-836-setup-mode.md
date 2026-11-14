@@ -152,7 +152,7 @@ import line does not change: the setup server is a separate process named by a s
 - **Two details the existing `start` call forces.** `start(argv, env, log, cwd=str(folder))` (`launch.py:184`) puts the log in
   `<data folder>/server.log` and runs in the data folder. In the refused case that folder is the one that must not be touched, so
   setup uses `platform.log_dir()/setup.log` (`platform.py:121-124`, `~/Library/Logs/clark/`) and `cwd=str(SRC)` (`launch.py:33`).
-- **Idle stop.** `CLARK_LAUNCHED=1` makes `serve()` start `IDLE.watch` (`server.py:1523-1525`, `idle.py:46-69`) after 60 s without
+- **Idle stop.** `CLARK_LAUNCHED=1` makes `serve()` start `IDLE.watch` (`server.py:1523-1525`, `idle.py:46-69`) after 120 s without
   `/api/here`. The page must send the heartbeat (`idle.HEARTBEAT` 10 s, `idle.py:19`) or setup would stop under a person who is
   reading it. This is why `/api/here` is in the setup table, and it is the one idle-related line the prototype names.
 - **"Done" starts the normal clark**: after `serve()` returns (`server.py:1530-1535`, jobs waited for, socket closed), `setup_mode.main`
@@ -232,7 +232,7 @@ to `platform.py` (if the owner agrees) must not say it.
 - [ ] Only the four hooks of section 6 start setup; the port-taken, lock and did-not-start paths still say their lines.
 - [ ] Setup never opens the store, takes the data lock (`platform.hold_data_lock`) or creates the refused folder; "done" starts the
       normal clark only after re-running every required check.
-- [ ] The idle stop: a setup page that is open is kept alive; one that is closed stops within a minute and leaves no process.
+- [ ] The idle stop: a setup page that is open is kept alive; one that is closed stops within two minutes and leaves no process.
 - [ ] A second double-click while setup is open reaches the existing window (`ours`), not "another copy", and not a second setup.
 - [ ] The pointer is re-validated at every read; a missing, unreadable or refused one falls back to the default and is never fatal.
 - [ ] A person with data in the refused folder is told (owner's words) that choosing a folder starts a new one; nothing is deleted

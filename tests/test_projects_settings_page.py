@@ -59,6 +59,11 @@ class Rules(unittest.TestCase):
 
 
 class Source(unittest.TestCase):
+    def test_restore_returns_focus_to_the_heading_as_archive_does(self):
+        text = (SRC_DIR / "edit" / "Projects.jsx").read_text(encoding="utf-8")
+        self.assertNotIn('if (op === "archive") focusHeading();', text)
+        self.assertIn("        focusHeading();", text)
+
     def test_the_published_page_has_no_projects_table_and_no_way_to_archive(self):
         view = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
         for needle in ("projects-table", "Show archived", '"kind":"projects"', "kind: \"projects\""):

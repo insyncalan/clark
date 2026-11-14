@@ -35,7 +35,7 @@ class Sixty(unittest.TestCase):
                 cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
                 cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.port}/#milestones&p=TUL")}, sid)
-                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-lab').length", sid) >= len(SIXTY)))
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-mk').length", sid) >= len(SIXTY) and cdp.js("document.querySelectorAll('.mv-lab').length", sid) >= 1))   # row 1159: a name with no room is hidden
                 time.sleep(0.5)
                 got = cdp.js(BOXES, sid)
                 self.assertEqual(got["pairs"], [], f"{width}px: no two labels overlap")

@@ -87,8 +87,8 @@ class Base(unittest.TestCase):
         # the test copy of the served page (window.clarkPage): the finished dialog stays open until a test sets a time (#437)
         self.rig = Rig(self, saved=self.saved, page_html=testpage.html)
 
-    def page(self, cdp, hash_="#dashboard&p=PUB"):
-        sid = navigate(cdp, self.rig.httpd.server_port, for_project(hash_), section_style=None)      # the standard style is what these tests see (row 667)
+    def page(self, cdp, hash_="#dashboard&p=PUB", motion=None):
+        sid = navigate(cdp, self.rig.httpd.server_port, for_project(hash_), section_style=None, motion=motion)      # the standard style is what these tests see (row 667)
         p = Pg(self, cdp, sid)
         p.until("!!document.querySelector('#profile-btn')", "the profile circle is in the top bar")
         return p
@@ -130,7 +130,7 @@ class Dialog(Base):
                 p.until("!document.querySelector('#publish-dialog')", "closed")
             p.open_publish()
             self.assertFalse(p.js("document.querySelector('#pub-pdf').checked"), "reopened: unticked")
-            self.assertEqual(p.js("localStorage.length + sessionStorage.length"), 0)
+            self.assertEqual(p.js("Object.keys(localStorage).concat(Object.keys(sessionStorage)).filter((k) => k !== 'clark.lastProject').length"), 0)
 
     def test_C_pdf_tick_has_no_chrome_wording_and_is_never_greyed(self):
         with chrome() as cdp:
@@ -244,7 +244,7 @@ class Dialog(Base):
             self.assertEqual(p.focused(), "publish")
             p.open_publish()
             self.assertFalse(p.js("document.querySelector('#pub-client').checked"))
-            self.assertEqual(p.js("localStorage.length + sessionStorage.length"), 0, "not remembered anywhere")
+            self.assertEqual(p.js("Object.keys(localStorage).concat(Object.keys(sessionStorage)).filter((k) => k !== 'clark.lastProject').length"), 0, "not remembered anywhere")
 
     def test_C_result_message_and_report_bar(self):
         with chrome() as cdp:
@@ -262,7 +262,7 @@ class Dialog(Base):
     def test_C_publish_shows_a_spinner_while_it_works_then_a_tick_with_the_same_words(self):
         """#130 point 4: a spinner on the Publish button beside "Publishing…" (still when the person asked for less motion), then a tick beside the success line."""
         with chrome() as cdp:
-            p = self.page(cdp)
+            p = self.page(cdp, motion="no-preference")      # before the load: a Mac that reduces motion paints data-motion=reduce at load
             p.open_publish()
             p.js("window.__real = window.fetch; window.fetch = (u, o) => /publish/.test(String(u)) && o && o.method === 'POST' ? new Promise((ok) => { window.__release = () => ok(window.__real(u, o)); }) : window.__real(u, o);")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, p.sid)
@@ -523,8 +523,9 @@ class NoFolder(Base):
                 p.until("!document.querySelector('#publish-dialog') && document.activeElement && document.activeElement.id === 'publishing'", f"{w}: the box closed and the Publishing card has the focus")
                 self.assertEqual(p.js("document.querySelector('h1').textContent"), "Settings", "Settings is open")      # row 976: Settings is no tab, so the page's own heading says it is open
                 self.assertEqual(p.js("document.querySelectorAll('[data-view=settings]').length"), 0, "and it is not a tab")
-                self.assertTrue(p.js("(function(){var r=document.querySelector('#publishing').getBoundingClientRect();return r.top >= 0 && r.top < innerHeight})()"), "the card is in view")
-                self.assertTrue(p.js("(function(){var t=document.querySelector('header.top').getBoundingClientRect().bottom;return document.querySelector('#publishing').getBoundingClientRect().top >= t - 1})()"), "clear of the top bar")
+                # the card scrolls into view smoothly (the page is longer with Essentials first), so wait for it to arrive before reading where it is
+                p.until("(function(){var r=document.querySelector('#publishing').getBoundingClientRect();return r.top >= 0 && r.top < innerHeight})()", "the card is in view")
+                p.until("(function(){var t=document.querySelector('header.top').getBoundingClientRect().bottom;return document.querySelector('#publishing').getBoundingClientRect().top >= t - 1})()", "clear of the top bar")
 
 
 class Settings(Base):

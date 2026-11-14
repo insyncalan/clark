@@ -139,7 +139,7 @@ class DataFolder(DoctorCase):
         code, lines = self.run_doctor(["--data", str(root / "clark")])
         self.assertEqual(code, 1)
         self.assertEqual(self.line(lines, "To fix: Your clark data is set to go"),
-                         "To fix: Your clark data is set to go in ~/Library/CloudStorage/OneDrive-Fictional Ltd/clark, which "
+                         "To fix: Your clark data is set to go in ~/Library/CloudStorage/OneDrive/clark, which "
                          "is inside OneDrive. OneDrive copies files while they are being written, which damages the data. "
                          "Choose a folder on this computer that OneDrive doesn't sync. Then open Terminal, type cd and a space, drag clark's "
                          "folder into the Terminal window and press Return. Type python3 -m clark --data and a space, drag the "

@@ -18,8 +18,8 @@ from test_inline_edits import EMPTY_BRANDING, key, need_chrome, tearDownModule  
 from test_server import chrome, wait
 from test_work_items import FIXED_DATE, load_demo, page_target
 
-PAGES = [("usecases", "#usecases&p=TUL", "#usecases .ucl-hd", "ref", "[data-uc]"), ("work", "#work&p=TUL&f=mode:all", "#work table.items", "owner", "#work tbody tr[data-id]"),
-         ("milestones", "#milestones&p=TUL", "#milestones .msl-hd", "state", "#milestones li.msl-row")]      # row 1104: the Milestones list has a heading row too
+PAGES = [("work", "#work&p=TUL&f=mode:all", "#work table.items", "owner", "#work tbody tr[data-id]"),
+         ("milestones", "#milestones&p=TUL", "#milestones .msl-hd", "state", "#milestones li.msl-row")]      # row 1104: the Milestones list has a heading row too; item 1149: the Use cases page has none now
 
 
 class Widths(unittest.TestCase):
@@ -153,16 +153,16 @@ class Widths(unittest.TestCase):
         src = (Path(page.__file__).parent / "src" / "edit" / "colWidths.jsx").read_text(encoding="utf-8")
         self.assertIn("now.current", src, "put reads the latest widths, not the render a drag began in")
         with chrome() as cdp:
-            sid = self.visit(cdp, 1400, "light", "#usecases&p=TUL")
+            sid = self.visit(cdp, 1400, "light", "#milestones&p=TUL")
             js = lambda e: cdp.js(e, sid)  # noqa: E731
-            grip = "#usecases .ucl-hd [data-cgrip=\"ref\"]"
+            grip = "#milestones .msl-hd [data-cgrip=\"state\"]"
             self.assertTrue(wait(lambda: js(f"!!document.querySelector('{grip}')"), 20))
             x, y = js(f"(() => {{ const b = document.querySelector('{grip}').getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; }})()")
             for t, px, extra in (("mouseMoved", x, {}), ("mousePressed", x, {"button": "left", "buttons": 1, "clickCount": 1}), ("mouseMoved", x + 20, {"buttons": 1}), ("mouseMoved", x + 40, {"buttons": 1})):
                 cdp.call("Input.dispatchMouseEvent", {"type": t, "x": px, "y": y, **extra}, sid)
-            self.assertIsNone(js("localStorage.getItem('clark.cols.usecases')"), "nothing is written while the drag goes on")
+            self.assertIsNone(js("localStorage.getItem('clark.cols.milestones')"), "nothing is written while the drag goes on")
             cdp.call("Input.dispatchMouseEvent", {"type": "mouseReleased", "x": x + 40, "y": y, "button": "left", "buttons": 0, "clickCount": 1}, sid)
-            self.assertIn("ref", js("localStorage.getItem('clark.cols.usecases')") or "", "the width is written when the drag ends")
+            self.assertIn("state", js("localStorage.getItem('clark.cols.milestones')") or "", "the width is written when the drag ends")
 
     def test_the_milestones_heading_lines_up_with_the_rows(self):
         for width in (1400, 900):

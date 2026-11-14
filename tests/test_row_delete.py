@@ -133,6 +133,39 @@ class DeleteItem(board.Base):
             self.assertTrue(cdp.js("[...document.querySelectorAll('#peek-archived button')].some(b => /Restore/.test(b.textContent))", sid))
             self.assertFalse(cdp.js("!!document.querySelector('[data-pk-delete]') || [...document.querySelectorAll('#peek-archived button')].some(b => /Delete/i.test(b.textContent + (b.getAttribute('aria-label') || '') + (b.title || '')))", sid))
 
+    def test_the_peek_more_actions_menu_ends_with_delete_in_the_warning_colour_and_asks_the_same_question(self):
+        a = self.id_of("Order the laptops")
+        for width in (1400, 900):
+            with self.subTest(width), chrome() as cdp:
+                sid = self.visit(cdp, width=width)
+                before = self.steps()
+                self.open_menu(cdp, sid, a)
+                click(cdp, sid, "[data-rm=peek]")
+                self.until(cdp, sid, f"!!document.querySelector('#peek[data-peek=\"{a}\"] #pk-more')", "the peek")
+                self.assertEqual(cdp.js("(() => { const b = document.getElementById('pk-more'); return [b.getAttribute('aria-label'), b.title, !!document.querySelector('[data-pk-delete]')]; })()", sid), ["More actions", "More actions", True])
+                click(cdp, sid, "#pk-more")
+                self.until(cdp, sid, "!!document.querySelector('[role=menu] [role=menuitem]')", "the menu")
+                self.until(cdp, sid, "document.querySelector('[role=menu]').getAnimations({subtree: true}).length === 0", "the menu to settle")
+                got = cdp.js("(() => { const m = [...document.querySelectorAll('[role=menu] [role=menuitem]')]; return [m.map(b => b.textContent.trim()), m[m.length - 1].classList.contains('danger')]; })()", sid)
+                self.assertEqual(got, [["Duplicate", "Archive", "Delete"], True])
+                click(cdp, sid, "[role=menu] [data-kind=delete]")
+                self.assertEqual(self.dialog(cdp, sid), {"q": QUESTION % a, "b": ["Delete", "Cancel"]})
+                click(cdp, sid, "[data-bask=no]")
+                self.until(cdp, sid, "!document.querySelector('[role=alertdialog]')", "the question to close")
+                self.assertEqual((self.steps(), len(self.query("SELECT 1 FROM actions WHERE id = ?", a))), (before, 1))
+                self.until(cdp, sid, "document.activeElement && document.activeElement.id === 'pk-more'", "the focus to come back to the More actions button")
+                click(cdp, sid, "#pk-more")
+                self.until(cdp, sid, "!!document.querySelector('[role=menu] [data-kind=delete]')", "the menu")
+                self.until(cdp, sid, "document.querySelector('[role=menu]').getAnimations({subtree: true}).length === 0", "the menu to settle")
+                click(cdp, sid, "[role=menu] [data-kind=delete]")
+                self.dialog(cdp, sid)
+                click(cdp, sid, "[data-bask=yes]")
+                self.assertEqual(self.wait_toast(cdp, sid, "done")["text"], f"{a} deleted.")
+                self.until(cdp, sid, "!document.querySelector('#peek')", "the peek to close")
+                self.assertEqual(self.query("SELECT 1 FROM actions WHERE id = ?", a), [])
+                click(cdp, sid, "[data-undo]")
+                self.until(cdp, sid, f"!!document.querySelector(\"{ROW % a}\")", "the row to come back")
+
 
 if __name__ == "__main__":
     unittest.main()

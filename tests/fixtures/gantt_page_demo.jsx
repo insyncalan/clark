@@ -42,7 +42,7 @@ P.mount = (opts = {}) => {
   render(null, root);
   root.innerHTML = "";
   window.__exports = 0; window.__imports = 0;
-  const tools = opts.fromFile ? null : { Toggle, GanttTitle, GanttBarNote, ganttWords: GANTT_EDIT_WORDS, exportExcel: () => { window.__exports += 1; }, importExcel: () => { window.__imports = (window.__imports || 0) + 1; } };
+  const tools = opts.fromFile ? null : { Toggle, GanttTitle, GanttBarNote, ganttWords: GANTT_EDIT_WORDS, exportExcel: () => { window.__exports += 1; } };
   render(<div id="host" style={{ width: `${opts.width || 1000}px` }}>
     <GanttPage host={host} tools={tools} today="2026-11-06"
       above={opts.slots === false ? null : <div id="slot-above-box">Above</div>} below={opts.slots === false ? null : <div id="slot-below-box">Below</div>} />
