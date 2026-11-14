@@ -33,7 +33,7 @@ class Typed(unittest.TestCase):
 
     def saved(self):
         f = self.data / settings.FILE
-        return json.loads(f.read_text()).get(settings.BACKUP_COPY_FOLDER) if f.exists() else None
+        return json.loads(f.read_text(encoding="utf-8")).get(settings.BACKUP_COPY_FOLDER) if f.exists() else None
 
     def test_a_typed_path_inside_the_share_saves_the_container_path(self):
         got = self.run_on("c:/users/user/onedrive - acme/backups/Copies")

@@ -9,7 +9,7 @@ Standard library only.
 import re
 from pathlib import PureWindowsPath
 
-from clark import platform
+from clark import host_strings, platform
 
 HOST_SETTING = "CLARK_HOST"
 WINDOWS = "windows"
@@ -21,11 +21,10 @@ SLOTS = {
     "files": ("CLARK_SHARE_FILES", "/shares/files"),
 }
 
-NOT_SHARED = ("Only a folder that was shared when this was started can be used here, and “{folder}” was not. "
-              "Nothing was changed.")
-NOT_A_PATH = "Type the full path of the folder, starting with the drive, for example C:\\Users\\Name\\Documents. Nothing was changed."
-NOT_SHARED_AT_ALL = "No folder has been shared for this yet. Nothing was changed."
-SAVED = "Saved as {path}."
+NOT_SHARED = host_strings.UNRULED_NOT_SHARED
+NOT_A_PATH = host_strings.UNRULED_NOT_A_PATH
+NOT_SHARED_AT_ALL = host_strings.UNRULED_NOT_SHARED_AT_ALL
+SAVED = host_strings.UNRULED_SAVED
 
 _SEP = re.compile(r"[\\/]+")
 _BAD = re.compile(r'[<>"|?*\x00-\x1f\x7f]')
@@ -82,7 +81,7 @@ def _within(root, parsed):
 
 def to_container(slot, typed, environ):
     """(container path, Windows form) for a typed Windows path inside the shared folder of `slot`. Raises ValueError in plain words,
-    ending "Nothing was changed.", for text that is not a full path, for a slot nothing was shared for, and for a path outside the
+    ending with the no-change sentence, for text that is not a full path, for a slot nothing was shared for, and for a path outside the
     shared folder. The Windows form is the path as typed with a capital drive letter and backslashes."""
     parsed = _parse(typed)
     if parsed is None:
