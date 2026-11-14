@@ -135,16 +135,15 @@ class Fields(Base):
             self.type_in(p, "#peek [data-ms-in=owner]", "  ")
             self.saved(p, "owner", None)
             self.click(p, "#peek [data-ms-field=name]")
-            self.type_in(p, "#peek [data-ms-in=name]", " ")
-            p.until("!document.querySelector('#peek [data-ms-in=name]')", "the blank name closed the box")
+            self.type_in(p, "#peek [data-ms-field=name]", " ", leave="blur")
+            p.until("document.querySelector('#peek [data-ms-field=name]').value === 'Go live'", "the blank name went back to the old name")
             self.assertEqual(self.row(self.cur)["name"], "Go live")
-            self.assertEqual(p.js("document.querySelector('#peek [data-ms-field=name]').textContent"), "Go live")
 
     def test_name_renames_with_one_undo_and_a_refusal_changes_nothing(self):
         with chrome() as cdp:
             p = self.visit_peek(cdp)
             self.click(p, "#peek [data-ms-field=name]")
-            self.type_in(p, "#peek [data-ms-in=name]", "Go live, phase one")
+            self.type_in(p, "#peek [data-ms-field=name]", "Go live, phase one", leave="blur")
             self.saved(p, "name", "Go live, phase one")
             self.undo(p)
             self.saved(p, "name", "Go live")
