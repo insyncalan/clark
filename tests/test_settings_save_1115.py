@@ -1,4 +1,4 @@
-"""Row 1115, S5: every setting saves at once. Appearance and Spacing say their new choice in a quiet toast with one Undo; the Brand choice has no Save
+"""Row 1115, S5: every setting saves at once. Appearance, Spacing and Motion say their new choice in a quiet toast with one Undo; the Brand choice has no Save
 button and the Backups copy-folder keeps its Save (a half-typed path must not be saved). In a real browser at 1400 and 900 px, light and dark. Run: python3 dev/run_tests.py test_settings_save_1115
 Chrome is required: these tests fail, never skip, without it."""
 import unittest
@@ -34,18 +34,19 @@ class SaveAtOnce(Head):
 
     def test_item_1168_the_motion_switch_says_its_new_state_in_a_toast_with_one_undo(self):
         for w in WIDTHS:
-            with self.subTest(width=w), chrome() as cdp:
-                p = self.page(cdp)
-                self.open_settings(p, w)
-                start = p.js("document.querySelector('[data-ess-motion]').getAttribute('aria-checked')")
-                now, was = ("Off", "On") if start == "true" else ("On", "Off")
-                p.js("document.querySelector('[data-ess-motion]').click()")
-                p.until(f"{TEXT} === 'Motion: {now}.'", "the toast says the new motion state")
-                self.assertEqual(p.js("document.querySelectorAll('.toast [data-undo]').length"), 1, "one Undo")
-                p.js("document.querySelector('.toast [data-undo]').click()")
-                p.until(f"{TEXT} === 'Motion: {was}.'", "Undo says the state it put back")
-                self.assertEqual(p.js("document.querySelector('[data-ess-motion]').getAttribute('aria-checked')"), start)
-                self.assertEqual(p.js("document.querySelectorAll('.toast [data-undo]').length"), 0, "no Undo of an Undo")
+            for mode in MODES:
+                with self.subTest(width=w, mode=mode), chrome() as cdp:
+                    p = self.page(cdp)
+                    self.open_settings(p, w, mode)
+                    start = p.js("document.querySelector('[data-ess-motion]').getAttribute('aria-checked')")
+                    now, was = ("Off", "On") if start == "true" else ("On", "Off")
+                    p.js("document.querySelector('[data-ess-motion]').click()")
+                    p.until(f"{TEXT} === 'Motion: {now}.'", "the toast says the new motion state")
+                    self.assertEqual(p.js("document.querySelectorAll('.toast [data-undo]').length"), 1, "one Undo")
+                    p.js("document.querySelector('.toast [data-undo]').click()")
+                    p.until(f"{TEXT} === 'Motion: {was}.'", "Undo says the state it put back")
+                    self.assertEqual(p.js("document.querySelector('[data-ess-motion]').getAttribute('aria-checked')"), start)
+                    self.assertEqual(p.js("document.querySelectorAll('.toast [data-undo]').length"), 0, "no Undo of an Undo")
 
     def test_S5_choosing_what_is_already_chosen_says_nothing(self):
         with chrome() as cdp:
