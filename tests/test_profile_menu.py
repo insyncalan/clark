@@ -80,7 +80,7 @@ class ProfileMenu(Base):
                 p.go()
                 p.until("!document.querySelector('#publish-dialog')", "closed")
                 p.js("document.querySelector('#profile-btn').click()")
-                p.until("!!document.querySelector('#profile-menu .lab')", "the note is in the menu")
+                p.until("[...document.querySelectorAll('#profile-menu .lab')].some((e) => /^Published /.test(e.textContent))", "the published note is in the menu")
                 self.assertRegex(p.js("(function(){var l=document.querySelectorAll('#profile-menu .lab');return l[l.length-1].textContent})()"), r"^Published \d\d-\d\d-\d{4} locally$")
                 self.assertTrue(p.js("(function(){var r=document.querySelector('#profile-menu').getBoundingClientRect();return r.left>=0&&r.right<=innerWidth})()"), "inside the window")
 
@@ -198,7 +198,7 @@ class ProfileMenu(Base):
                 labels = self.labels(p)
                 self.assertEqual(labels.count("Settings"), 1)
                 self.assertEqual(labels.index("Settings"), labels.index("Published reports") + 1)
-                self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')}).indexOf('group') - [].map.call(document.querySelectorAll('#profile-menu [role=menuitem]'), function(e){return e.textContent}).indexOf('Settings')"), 2, "Settings, then the separator, then the group; item 1177: the published note and state line sit at the bottom, so the child index is two ahead of the menuitem index")
+                self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')}).indexOf('group') - [].map.call(document.querySelectorAll('#profile-menu [role=menuitem]'), function(e){return e.textContent}).indexOf('Settings')"), 2, "Settings, then the separator, then the group; item 1177: the published note sits at the bottom, below the group, so the child index is two ahead of the menuitem index")
                 self.assertEqual(p.js("document.querySelectorAll('#profile-menu [data-kind=who]').length"), 1)
                 p.key("Escape", code="Escape", vk=27)
                 p.until("!document.querySelector('#profile-menu')", "Esc closed it")
