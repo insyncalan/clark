@@ -9,11 +9,12 @@ import threading
 import unittest
 import urllib.request
 
+from clark import milestone_feed
 from clark import server as sv
 
 from _demo import USER, DemoStore
 
-KINDS = ("milestones", "actions", "raid", "decisions", "use_cases")
+KINDS = ("milestones", "actions", "raid", "decisions", "use_cases", "workstreams")
 
 
 class Scope(unittest.TestCase):
@@ -71,6 +72,14 @@ class Scope(unittest.TestCase):
         with self.store.step("dashboard", USER) as st:
             st.create("projects", {"code": "CCC", "name": "Third Programme"})
         self.assertEqual(self.store.data_for("CCC")["project"]["brand"], "generic")
+
+    def test_the_milestones_feed_is_per_project(self):
+        feed = milestone_feed.make_feed(self.store.data_for)
+        names = lambda code: [m["name"] for m in feed(code)["milestones"]]
+        self.assertIn("Pilot live", names("ABC"))
+        self.assertNotIn("Second only milestone", names("ABC"))
+        self.assertEqual(names("BBB"), ["Second only milestone"])
+        self.assertIsNone(feed("NOPE"))
 
     def test_no_such_project_is_none(self):
         self.assertIsNone(self.store.data_for("NOPE"))
