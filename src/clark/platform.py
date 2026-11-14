@@ -218,12 +218,15 @@ def onedrive_roots(home=None, on=None):
     return sorted(p for p in found if p.is_dir())
 
 
+PROBE_WAIT = 15     # issue 635: seconds a doctor probe (docker, netsh) may take before it counts as one that could not answer
+
+
 def docker_os(run=None):
     """What Docker Desktop is running, as `docker info --format {{.OSType}}` says it: "linux" or "windows"; None when docker can't be
     run or answers with an error (not installed, or Docker Desktop not started). Changes nothing."""
     try:
-        done = _run(["docker", "info", "--format", "{{.OSType}}"], run)
-    except (OSError, ValueError):
+        done = _run(["docker", "info", "--format", "{{.OSType}}"], run, PROBE_WAIT)
+    except (OSError, ValueError, subprocess.SubprocessError):
         return None
     words = (done.stdout or "").strip().lower()
     return words if done.returncode == 0 and words in ("linux", "windows") else None
@@ -233,8 +236,8 @@ def reserved_ports(run=None):
     """The TCP port ranges Windows has set aside, as (first, last) pairs from `netsh interface ipv4 show excludedportrange
     protocol=tcp`; None when that can't be run or has no range in its answer. Changes nothing."""
     try:
-        done = _run(["netsh", "interface", "ipv4", "show", "excludedportrange", "protocol=tcp"], run)
-    except (OSError, ValueError):
+        done = _run(["netsh", "interface", "ipv4", "show", "excludedportrange", "protocol=tcp"], run, PROBE_WAIT)
+    except (OSError, ValueError, subprocess.SubprocessError):
         return None
     if done.returncode != 0:
         return None
@@ -658,9 +661,11 @@ def run_program(args, cwd=None, run=None):
                                    text=True, check=False)
 
 
-def _run(args, run=None):
-    """Start a program from an argument list (never through a shell) and return the finished process."""
-    return (run or subprocess.run)(list(args), capture_output=True, text=True, check=False)
+def _run(args, run=None, timeout=None):
+    """Start a program from an argument list (never through a shell) and return the finished process. With `timeout` (seconds) a
+    program that has not finished by then is stopped and subprocess.TimeoutExpired is raised."""
+    extra = {} if timeout is None else {"timeout": timeout}
+    return (run or subprocess.run)(list(args), capture_output=True, text=True, check=False, **extra)
 
 
 def open_file(path, run=None, on=None):

@@ -12,7 +12,7 @@ To update:
      space, drag the new folder into the window and press Return.
   4. Type this and press Return:
         docker compose -f docker/compose.yaml up -d
-  5. Open http://localhost:8766 in Chrome.
+  5. Open http://127.0.0.1:8766 in Chrome.
 
 Sometimes the new clark keeps your data in a newer form than the old one did.
 If so, it first makes a copy of your data. The copy is in the backups folder,

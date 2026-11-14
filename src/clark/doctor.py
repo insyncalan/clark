@@ -239,8 +239,8 @@ def check_docker_mode(seen):
         return Line(READY, "Docker Desktop is running Linux containers.")
     if kind == "windows":
         return Line(FIX, "Docker Desktop is running Windows containers. Right-click the Docker icon, choose Switch to Linux "
-                         f"containers, then run {typed.doctor()} again.")
-    return Line(FIX, f"Docker Desktop isn't running. Start Docker Desktop, then run {typed.doctor()} again.")
+                         f"containers, then run {typed.doctor(docker=True)} again.")
+    return Line(FIX, f"Docker Desktop isn't running. Start Docker Desktop, then run {typed.doctor(docker=True)} again.")
 
 
 def check_port_reserved(seen):
@@ -253,7 +253,7 @@ def check_port_reserved(seen):
         port = port_number(seen.port_text if given else (seen.environ.get("CLARK_PORT") or server.DEFAULT_PORT), where)
     except Usage:
         return Line(FIX, f"The start-up number (set with {where}) must be a whole number from 1 to 65535. Change it, then "
-                         f"run {typed.doctor()} again.")
+                         f"run {typed.doctor(docker=True)} again.")
     if seen.on != platform.WINDOWS:
         return Line(READY, f"Port {port} isn't set aside.")
     ranges = seen.reserved_ports()
@@ -261,7 +261,7 @@ def check_port_reserved(seen):
         raise RuntimeError("the list of ports could not be read")      # run_check says "couldn't finish"
     if any(a <= port <= b for a, b in ranges):
         return Line(FIX, f"Windows has set port {port} aside, so clark can't use it. Choose another number with CLARK_PORT, then "
-                         f"run {typed.doctor()} again.")
+                         f"run {typed.doctor(docker=True)} again.")
     return Line(READY, f"Port {port} isn't set aside.")
 
 
@@ -271,7 +271,7 @@ def saved_paths(folder):
     db = Path(folder) / "clark.db"
     if not db.is_file():
         return []
-    con = sqlite3.connect(f"file:{db.as_posix()}?mode=ro", uri=True)
+    con = sqlite3.connect(f"{db.absolute().as_uri()}?mode=ro", uri=True)    # as_uri quotes "?", "#" and "%" in the folder's name
     try:
         found = []
         for sql in ("SELECT path FROM source_folders", "SELECT local_path FROM publications",
@@ -289,6 +289,9 @@ def saved_paths(folder):
 def check_saved_folders(seen):
     """Folders saved in the data that do not exist here (issue 635): a backup is portable, but the paths in it are the other
     computer's. Advice, never a block."""
+    if platform.container_mode():               # the paths are the computer's own; this container cannot see that computer's folders
+        return Line(NOT_CHECKED, "The folders saved in your data are on your computer, and clark can't see them from inside "
+                                 "Docker, so they were not checked.")
     if sqlite3 is None:
         raise RuntimeError("no SQLite")         # run_check says "couldn't finish"
     paths = saved_paths(seen.folder())

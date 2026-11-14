@@ -255,7 +255,7 @@ class MacZipTest(unittest.TestCase):
         up = "docker compose -f docker/compose.yaml up -d"
         self.assertIn(up, text)
         self.assertIn("docker compose -f docker/compose.yaml down", text)
-        self.assertIn("http://localhost:8766", text)
+        self.assertIn("http://127.0.0.1:8766", text)
         self.assertLess(text.index(up), text.index("1. Double-click clark.command"), "Docker is said first")
         self.assertIn("Install clark", text)
         self.assertIn("OneDrive", text)
@@ -303,7 +303,7 @@ class MacZipTest(unittest.TestCase):
         self.assertTrue(any(l.startswith("IMPORTANT: Never open the same data") for l in lines), "the warning starts its own line")
         self.assertLess(flat.index("With Docker, your data"), flat.index(warning))
         self.assertLess(flat.index(warning), flat.index("To use another port"))
-        self.assertIn("CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d then open http://localhost:8800 instead.", flat)
+        self.assertIn("CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d then open http://127.0.0.1:8800 instead.", flat)
         self.assertLess(flat.index("With Docker, your data"), flat.index("Without Docker:"))
         self.assertIn("Without Docker, your data is kept in ~/Library/Application Support/clark", flat)
 

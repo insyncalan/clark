@@ -124,6 +124,20 @@ class DataMove(unittest.TestCase):
         self.assertEqual(line.kind, doctor.NOT_CHECKED)
         self.assertNotIn("Traceback", line.words)
 
+    def test_a_folder_name_with_a_question_mark_hash_or_percent_is_read(self):
+        odd = Path(tempfile.mkdtemp(prefix="clark-odd?#%41-"))
+        self.addCleanup(shutil.rmtree, odd, True)
+        shutil.copy(self.db, odd / "clark.db")
+        self.assertEqual(doctor.saved_paths(odd), sorted({MAC_SOURCE, MAC_LOCAL, MAC_CLIENT}))
+
+    def test_inside_the_container_the_check_says_it_was_not_made(self):
+        from unittest import mock
+        with mock.patch.object(doctor.platform, "container_mode", return_value=True):
+            line = doctor.check_saved_folders(doctor.Seen(data=str(self.new), home="/home/nobody"))
+        self.assertEqual(line.kind, doctor.NOT_CHECKED)
+        self.assertIn("inside Docker", line.words)
+        self.assertNotIn(MAC_SOURCE, line.words)
+
     def test_the_check_is_in_the_doctor_and_is_not_required(self):
         ours = [c for c in doctor.CHECKS if c.run is doctor.check_saved_folders]
         self.assertEqual(len(ours), 1)

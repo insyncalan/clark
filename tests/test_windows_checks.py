@@ -3,6 +3,7 @@
 Run: python3 tests/test_windows_checks.py
 Docker and netsh are never run: the system calls are replaced by fakes. Nothing is written outside the process.
 """
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -54,6 +55,44 @@ class DockerMode(unittest.TestCase):
             self.assertEqual(line.kind, kind)
             self.assertIn(words, line.words)
             self.assertNotIn("Traceback", line.words)
+
+
+class AgainCommand(unittest.TestCase):
+    """The "run ... again" words of the two Docker checks give the command with --docker, so the second run repeats them."""
+    def test_every_again_in_the_docker_checks_names_docker(self):
+        lines = [doctor.check_docker_mode(seen(docker_os=lambda a=a: a)) for a in ("windows", None)]
+        lines.append(doctor.check_port_reserved(seen(reserved_ports=lambda: [(8700, 8799)])))
+        lines.append(doctor.check_port_reserved(seen(port="abc")))
+        for line in lines:
+            self.assertEqual(line.kind, doctor.FIX)
+            self.assertIn("python3 -m clark.doctor --docker again.", line.words)
+
+    def test_the_command_in_a_download(self):
+        from unittest import mock
+        from clark import typed
+        with mock.patch.object(typed, "_set", return_value=True):
+            self.assertEqual(typed.doctor(docker=True), "bash clark.command --check --docker")
+            self.assertEqual(typed.doctor(), "bash clark.command --check")
+
+
+class ProbeWait(unittest.TestCase):
+    def test_both_probes_are_given_a_time_limit(self):
+        got = []
+
+        def run(args, **kw):
+            got.append(kw.get("timeout"))
+            return SimpleNamespace(stdout="linux" if args[0] == "docker" else NETSH, returncode=0)
+        pl.docker_os(run)
+        pl.reserved_ports(run)
+        self.assertEqual(got, [pl.PROBE_WAIT, pl.PROBE_WAIT])
+        self.assertGreater(pl.PROBE_WAIT, 0)
+
+    def test_a_probe_that_hangs_is_no_answer_and_stops_nothing(self):
+        hang = fake(boom=subprocess.TimeoutExpired("docker", 15))
+        self.assertIsNone(pl.docker_os(hang))
+        self.assertIsNone(pl.reserved_ports(hang))
+        line = doctor.run_check(doctor.DOCKER_CHECKS[0], seen(docker_os=lambda: pl.docker_os(hang)))
+        self.assertEqual(line.kind, doctor.FIX)
 
 
 class ReservedPort(unittest.TestCase):
