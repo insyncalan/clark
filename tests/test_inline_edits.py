@@ -15,7 +15,6 @@ import re
 import shutil
 import sys
 import tempfile
-import time
 import unittest
 from _editor_checks import for_url
 from pathlib import Path
