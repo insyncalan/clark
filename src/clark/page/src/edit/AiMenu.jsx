@@ -33,7 +33,7 @@ export function AiMenu({ at, onPick, onClose }) {
   );
   return (
     <div class="pk-ai-menu" data-ai-menu role="menu" aria-label="Draft with AI" ref={box} tabIndex={-1}
-      onKeyDown={(e) => { if (e.target === ask.current) return; menuMove(e, menuItemsIn(box.current)); }}>
+      onKeyDown={(e) => { if (e.key === "Tab") { closeRef.current("esc"); return; } if (e.target === ask.current) return; menuMove(e, menuItemsIn(box.current)); }}>
       {m.format_notes ? item(m.format_notes) : null}
       {m.groups.map((g) => (
         <div key={g.label} role="group" aria-label={g.label}>

@@ -26,7 +26,7 @@ class Mutants(unittest.TestCase):
                 cdp.js("clarkPage.closePeek()", sid)
                 cdp.js("clarkPage.openPeek('TUL-007')", sid)
                 self.assertTrue(wait(lambda: "TUL-007" in (cdp.js("(document.querySelector('#peek') || {}).textContent || ''", sid) or "")))
-                self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('[data-pk-lh]')", sid)), "a risk has no Latest update box and no history")
+                self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('[data-pk-lh]')", sid)), "a risk has no history (its Latest update box is item 1179, its history is not)")
                 self.assertEqual(cdp.js("document.querySelectorAll('[data-pk-lh]').length", sid), 0)
 
     def test_a_row_without_a_value_a_name_or_a_way_says_so_and_a_full_row_shows_its_way_and_time(self):

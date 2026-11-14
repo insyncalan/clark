@@ -149,13 +149,13 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
   // Leaving the whole field (focus goes outside it, and outside its floating boxes) saves.
   const away = (e) => {
     const to = e.relatedTarget;
-    if (to && to.closest && to.closest("[data-ai-card]")) return;          // item 1179: the suggestion card under the field
+    if (to && to.closest && to.closest("[data-ai-card], [data-pk-ai]")) return;          // item 1179: the suggestion card and the Draft with AI button
     if (to && (root.current.contains(to) || (bubble.current && bubble.current.contains(to)) || (slashBox.current && slashBox.current.contains(to)))) return;
     if (!to && document.hasFocus() === false) return;
     if (keep.current) return;                  // a menu or the link box just closed: its focus is being put back
     setTimeout(() => {
       const at = document.activeElement;
-      if (at && at !== document.body && (root.current.contains(at) || (bubble.current && bubble.current.contains(at)) || (at.closest && at.closest("[data-ai-card]")))) return;
+      if (at && at !== document.body && (root.current.contains(at) || (bubble.current && bubble.current.contains(at)) || (at.closest && at.closest("[data-ai-card], [data-pk-ai]")))) return;
       finishRef.current(false);
     }, 0);
   };
@@ -169,7 +169,17 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
   const aiPick = ({ option, instruction }) => {
     const e = ed.current.editor, { from, to, empty } = e.state.selection;
     const text = empty ? e.getText() : e.state.doc.textBetween(from, to, " ");
-    const apply = (html) => { if (empty) e.commands.setContent(html, true); else e.chain().focus().insertContentAt({ from, to }, html).run(); };
+    const docAtPick = e.state.doc;
+    // Accept writes through the live editor. It answers false when the editor has closed since the pick (nothing is written).
+    // The positions of the pick hold only while the text is unchanged; after typing, the selection of the moment is used.
+    const apply = (html) => {
+      const live = ed.current && ed.current.editor;
+      if (!live || live.isDestroyed) return false;
+      if (empty) { live.commands.setContent(html, { emitUpdate: true }); return true; }
+      const r = live.state.doc === docAtPick ? { from, to } : { from: live.state.selection.from, to: live.state.selection.to };
+      live.chain().focus().insertContentAt(r, html).run();
+      return true;
+    };
     keep.current = true; setTimeout(() => { keep.current = false; }, 400);       // the menu goes and the card takes the focus: the editor stays open
     ai.pick({ option, instruction, text, apply });
   };
