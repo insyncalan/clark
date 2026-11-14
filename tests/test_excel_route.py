@@ -226,7 +226,7 @@ class Apply(Base):
         self.assertEqual((status, self.steps()), (409, before), refused)
         self.assertEqual(refused["message"], "Each milestone and use case that is not in clark needs an answer.")
         self.assertEqual(self.apply(key, answers={u["id"]: {"do": "use"}})[0], 400)
-        status, done = self.apply(key, answers={u["id"]: {"do": "create"}})
+        status, done = self.apply(key, answers={u["id"]: {"do": "new"}})
         self.assertEqual((status, done["ok"]), (200, True), done)
         self.assertEqual(self.steps(), before + 1)
         self.assertEqual(self.post(op="undo", project="ABC", apply_id=done["apply_id"])[0], 200)

@@ -123,14 +123,14 @@ def _accepted_numbers(value):
 
 
 def _answers(value):
-    """Row 1156: {unknown id: {"do": "create"}} or {"do": "use", "id": an item id}; nothing sent is none."""
+    """Row 1156: {unknown id: {"do": "new"}} or {"do": "use", "id": an item id}; nothing sent is none."""
     if value is None:
         return {}
     if not isinstance(value, dict) or len(value) > 5000:
         raise Refused(BAD_ACCEPT)
     for k, a in value.items():
-        if not isinstance(k, str) or not isinstance(a, dict) or set(a) - {"do", "id"} or a.get("do") not in ("create", "use") \
-                or (a["do"] == "use") != isinstance(a.get("id"), str) or (a["do"] == "create" and "id" in a):
+        if not isinstance(k, str) or not isinstance(a, dict) or set(a) - {"do", "id"} or a.get("do") not in ("new", "use") \
+                or (a["do"] == "use") != isinstance(a.get("id"), str) or (a["do"] == "new" and "id" in a):
             raise Refused(BAD_ACCEPT)
     return value
 

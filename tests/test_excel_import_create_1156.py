@@ -58,7 +58,7 @@ class Create(RoundTrip):
         plan = self.ask()
         before, n = self.snapshot(), self.steps()
         ids = self.ids(plan)
-        for answers in ({}, {ids["milestone"]: {"do": "create"}}):
+        for answers in ({}, {ids["milestone"]: {"do": "new"}}):
             res = self.apply(plan, answers)
             self.assertFalse(res.applied)
             self.assertEqual(res.message, xi.NEEDS_ANSWER)
@@ -68,7 +68,7 @@ class Create(RoundTrip):
         work_item(self.path)
         plan = self.ask()
         before, n = self.snapshot(), self.steps()
-        res = self.apply(plan, {u["id"]: {"do": "create"} for u in plan.unknowns})
+        res = self.apply(plan, {u["id"]: {"do": "new"} for u in plan.unknowns})
         self.assertTrue(res.applied, res.message)
         self.assertEqual(self.steps(), n + 1)
         (m,) = [r for r in self.s.read("milestones", project="ABC") if r["name"] == MS]
@@ -94,7 +94,7 @@ class Create(RoundTrip):
         work_item(self.path)
         plan = self.ask()
         ids = self.ids(plan)
-        res = self.apply(plan, {ids["milestone"]: {"do": "create"}, ids["use_case"]: {"do": "use", "id": self.demo.use_case}})
+        res = self.apply(plan, {ids["milestone"]: {"do": "new"}, ids["use_case"]: {"do": "use", "id": self.demo.use_case}})
         self.assertTrue(res.applied, res.message)
         a = self.new_action()
         self.assertNotEqual(a["milestone"], self.demo.milestone)
@@ -114,7 +114,7 @@ class Create(RoundTrip):
         plan = self.ask()
         (u,) = plan.unknowns
         self.assertEqual(len(u["rows"]), 2)
-        res = self.apply(plan, {u["id"]: {"do": "create"}})
+        res = self.apply(plan, {u["id"]: {"do": "new"}})
         self.assertTrue(res.applied, res.message)
         made = [r for r in self.s.read("milestones", project="ABC") if r["name"] == MS]
         self.assertEqual(len(made), 1)

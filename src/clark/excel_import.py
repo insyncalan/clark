@@ -354,7 +354,7 @@ class ImportPlan:
     unrecorded_ok: bool = False       # ...until the person has confirmed it (confirm_unrecorded)
     store: object = field(default=None, repr=False)     # read only: to work out the IDs new rows would get
     unknowns: list = field(default_factory=list)        # row 1156: milestones and use cases a work item row names that clark does not have (see _find_unknowns)
-    answers: dict = field(default_factory=dict)         # row 1156: unknown id -> {"do": "create"} or {"do": "use", "id": the item to use}
+    answers: dict = field(default_factory=dict)         # row 1156: unknown id -> {"do": "new"} or {"do": "use", "id": the item to use}
 
     def refresh_ids(self):
         """Work out, for each new row still wanted, the ID it gets if the plan is applied as it stands: row order within each
@@ -1973,7 +1973,7 @@ def apply_import(store, plan, by_user, state_path=None):
         if not taken.intersection(u["changes"]):
             continue
         a = plan.answers.get(u["id"])
-        if not isinstance(a, dict) or a.get("do") not in ("create", "use") or (a["do"] == "use" and not (isinstance(a.get("id"), str) and writer.ITEM_ID.fullmatch(a["id"]))):
+        if not isinstance(a, dict) or a.get("do") not in ("new", "use") or (a["do"] == "use" and not (isinstance(a.get("id"), str) and writer.ITEM_ID.fullmatch(a["id"]))):
             return ImportResult(False, message=NEEDS_ANSWER)
         answers.append({**a, "kind": u["kind"], "key": u["key"], "label": u["label"], "project": plan.project, "sheet": u["rows"][0]["sheet"], "row": u["rows"][0]["row"],
                         "source": f"Excel import, {writer.shown(writer.today())}, {plan.file}"})

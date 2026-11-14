@@ -26,7 +26,7 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
   const [saved, setSaved] = useState("");                    // the template, once the browser has been asked to save it
   const [ticks, setTicks] = useState({});
   const [ticked, setTicked] = useState({});                  // the sheets to import, by table
-  const [answers, setAnswers] = useState({});                // row 1156: each milestone or use case clark does not have: { do: "create" } or { do: "use", id }
+  const [answers, setAnswers] = useState({});                // row 1156: each milestone or use case clark does not have: { do: "new" } or { do: "use", id }
   const input = useRef(null);
   const busy = useRef(false);                            // Import or Undo is already on its way: a second click (a double click) is ignored
   // Choose a file is off while the file is read, which takes the focus away; when the box is back on its first step, give it back.
@@ -179,7 +179,7 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
                       <div class="imp-main"><span class="tag">{L.KIND_NAME[u.kind]}</span> <span>{u.label}</span></div>
                       <div class="muted imp-detail">{u.rows.map((r) => `${r.sheet}, row ${r.row}`).join("; ")}</div>
                       <div class="st-act" role="radiogroup" aria-label={u.label}>
-                        <label><input type="radio" name={`u${u.id}`} value="create" checked={a.do === "create"} onChange={() => setAnswers((o) => ({ ...o, [u.id]: { do: "create" } }))} />{T.createIt}</label>
+                        <label><input type="radio" name={`u${u.id}`} value="new" checked={a.do === "new"} onChange={() => setAnswers((o) => ({ ...o, [u.id]: { do: "new" } }))} />{T.createIt}</label>
                         <label><input type="radio" name={`u${u.id}`} value="use" checked={a.do === "use"} onChange={() => setAnswers((o) => ({ ...o, [u.id]: { do: "use", id: (o[u.id] && o[u.id].do === "use" && o[u.id].id) || "" } }))} />{T.useExisting}</label>
                         {a.do === "use" ? (
                           <select aria-label={u.label} value={a.id || ""} onChange={(e) => { const v = e.currentTarget.value; setAnswers((o) => ({ ...o, [u.id]: { do: "use", id: v } })); }}>

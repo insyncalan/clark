@@ -138,8 +138,8 @@ export function nextAfterArchive(live, code) {
 }
 
 // Row 1156: the questions the check asks (milestones and use cases a work item names that clark does not have), and which of them an
-// accepted change still needs answered. `answers` is { unknown id: { do: "create" } or { do: "use", id } }; a "use" with no item chosen is not an answer.
-export const answered = (a) => !!a && (a.do === "create" || (a.do === "use" && !!a.id));
+// accepted change still needs answered. `answers` is { unknown id: { do: "new" } or { do: "use", id } }; a "use" with no item chosen is not an answer.
+export const answered = (a) => !!a && (a.do === "new" || (a.do === "use" && !!a.id));
 export const KIND_NAME = { milestone: "Milestone", use_case: "Use case" };
 export function openQuestions(unknowns, accepted, answers) {
   const on = new Set(accepted);
@@ -147,7 +147,7 @@ export function openQuestions(unknowns, accepted, answers) {
 }
 export function sentAnswers(unknowns, answers) {
   const out = {};
-  for (const u of unknowns || []) if (answered(answers[u.id])) out[u.id] = answers[u.id].do === "create" ? { do: "create" } : { do: "use", id: answers[u.id].id };
+  for (const u of unknowns || []) if (answered(answers[u.id])) out[u.id] = answers[u.id].do === "new" ? { do: "new" } : { do: "use", id: answers[u.id].id };
   return out;
 }
 
