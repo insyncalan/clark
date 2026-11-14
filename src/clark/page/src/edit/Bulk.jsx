@@ -192,6 +192,13 @@ export function BulkLayer() {
   return <Ask open={open} key="ask" />;
 }
 
+/** Item 1148: the question of a delete asked off the Work items page (a use case's or a milestone's), drawn once for every other page (MsLayers.jsx). */
+export function AskLayer() {
+  const open = bulkOpen.value;
+  if (!open || open.what !== "ask" || view.value === "work") return null;
+  return <Ask open={open} key="ask" />;
+}
+
 // ── The ways in from a row, a card or the peek ──
 
 // The items a key or the menu acts on: the selection when the row is one of it, else that row alone.

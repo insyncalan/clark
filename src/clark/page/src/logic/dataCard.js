@@ -79,7 +79,7 @@ export const IMPORT_COLUMNS = [
   ["Risks & Issues", ["ID", "Description", "Type", "Workstream", "Owner", "Response action", "Due", "Impact", "Likelihood", "Status", "Raised", "Client-visible", "Client wording", "Milestone", "Use case", "Labels"]],
   ["Decisions", ["ID", "Decision", "Status", "Made by", "Needed by", "Date", "Reasoning", "Options", "Revisit", "Replaces", "Client-visible", "Client wording", "Use case", "Labels"]],
   ["Milestones", ["ID", "Milestone", "Description", "Workstream", "Agreed", "Forecast", "Status", "Order", "% complete", "Owner", "State", "State reason", "Movement", "Achieved on", "Client-visible", "Client wording", "Internal note"]],
-  ["Use cases", ["ID", "Use case", "Shown as", "Status", "Commitment", "Headline", "Where it stands", "Order", "Client-visible", "Linked milestones"]],
+  ["Use cases", ["ID", "Reference", "Use case", "Status", "Commitment", "Headline", "Where it stands", "Order", "Client-visible", "Linked milestones"]],
 ];
 
 export const PROJECT = {

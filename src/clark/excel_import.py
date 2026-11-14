@@ -131,7 +131,8 @@ SHEET_TABLES["raid"] = "raid"                      # the oldest name, written ou
 # Header names the export has used or will use (#143): the old and the new read as the same column. They are written out here
 # and not taken from excel.COLUMN_OF, so a rename in the export can never stop an older workbook from importing.
 HEADER_ALIASES = {"client messaging": "client_message", "client wording": "client_message",
-                  "baseline": "baseline_date", "agreed": "baseline_date"}
+                  "baseline": "baseline_date", "agreed": "baseline_date",
+                  "shown as": "ref"}      # item 1160: a use case's Reference was headed "Shown as" before; an older workbook still imports
 TABLE_ORDER = ("milestones", "use_cases", "actions", "raid", "decisions")     # the order changes are written in
 GANTT = "gantt_lines"          # row 926: the Gantt sheet (named for the project's Gantt tab, else 'Gantt'); read by gantt_sheet(), not by the generic reader
 WRITE_ORDER = TABLE_ORDER + (GANTT,)                                         # the Gantt lines are written after the rest
@@ -649,7 +650,7 @@ def _from_cell(name, value, kind, label=None, stored=(), table=None, refs=None):
         from clark import changes
         if not changes._plain_text(text) or len(unicodedata.normalize("NFC", text).strip()) > changes.UC_OWNER_LIMIT:
             return None, f"{label} must be plain text of at most {changes.UC_OWNER_LIMIT} characters, with no hidden characters"
-    if table == "use_cases" and name == "ref":                  # the change route's checks on a use case's "Shown as": plain, 1 to 20 characters
+    if table == "use_cases" and name == "ref":                  # the change route's checks on a use case's Reference: plain, 1 to 20 characters
         from clark import changes
         shown = unicodedata.normalize("NFC", text).strip()
         if text.strip() and (not changes._plain_text(shown) or len(shown) > changes.UC_REF_LIMIT):
@@ -1105,7 +1106,7 @@ class _Reader:
                                        "agreed date is a rebaseline, which records a decision; do it in clark")
                 continue
             before[f], after[f] = old, v
-        if not bad and table == "use_cases" and isinstance(after.get("ref"), str):      # the change route refuses a "Shown as" another use case already has
+        if not bad and table == "use_cases" and isinstance(after.get("ref"), str):      # the change route refuses a Reference another use case already has
             mine = after["ref"].strip().casefold()
             taken = [r.get("ref") for i, r in db.items() if i != rid] + [c.after.get("ref") for c in self.plan.changes if c.table == table and c.id != rid]
             if any(isinstance(x, str) and x.strip().casefold() == mine for x in taken):

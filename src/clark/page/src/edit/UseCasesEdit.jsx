@@ -18,6 +18,7 @@
 // the owner, 03-11-2026): it is counted in "from your project record (N)" and on the Use cases page until its eye is turned on.
 import { signal } from "@preact/signals";
 import { getArchived } from "../api.js";
+import { RecordMore } from "./RecordMore.jsx";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, mode, project, rows } from "../stores/report.js";
 import { inertBehind } from "./modalLayers.js";
@@ -338,4 +339,4 @@ export function Boxes() {
 }
 
 /** The Edit parts as one object, `tools.ucEdit`. */
-export const UCEDIT = { Add, Status, Commit: CommitMenu, Headline, Name, FromRecord, Eye, Standing, NextStep, LinkButton, MilestoneLink, MilestoneUnlink, Boxes, added };
+export const UCEDIT = { RecordMore, Add, Status, Commit: CommitMenu, Headline, Name, FromRecord, Eye, Standing, NextStep, LinkButton, MilestoneLink, MilestoneUnlink, Boxes, added };
