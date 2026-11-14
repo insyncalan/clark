@@ -23,6 +23,8 @@ from test_server import chrome
 
 MARK = "Fictional marker kept out"        # planted where it must never reach a file
 RULES = store_module.BODY_RULES
+DESCRIPTION_LABEL = "Link description (required)"          # quoted from the ticket
+EMPTY_STATE = "Nothing here yet. Add a file or a link."      # quoted from the ticket
 
 
 def body(items, **more):
@@ -145,6 +147,15 @@ class Checker(unittest.TestCase):
         self.assertIsNone(section_bodies.published("doclinks", {"v": 1, "items": []}, ctx))
 
 
+class RenameTest:
+    """Typing into the one open rename box and pressing a key."""
+    @staticmethod
+    def type(p, sel, value, key):
+        p.js(f"(() => {{ const el = document.querySelector({json.dumps(sel + ' input[data-rename-input]')}); el.value = {json.dumps(value)};"
+             " el.dispatchEvent(new Event('input', {bubbles: true}));"
+             f" el.dispatchEvent(new KeyboardEvent('keydown', {{key: {json.dumps(key)}, bubbles: true}})); }})()")
+
+
 class Saved(Api):
     def make(self, title="Fictional documents", **more):
         return self.ok("new", values={"type": "doclinks", "title": title}, after=None, **more)["ref"]
@@ -219,9 +230,11 @@ class InThePage(PageBase):
             p = self.visit(cdp)
             p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] .tpl-dl')", "the list drew")
             self.assertEqual(self.entries(p, ref), [
-                ["URL", "The plan", "A", "https://example.org/plan"],
-                ["MAIL", "Team", "A", "mailto:team@example.org"],
-                ["PDF", "Plan v2.pdf", "SPAN", None]], "the page clark serves names a file without linking it")
+                ["URL", "The plan", "SPAN", None],
+                ["MAIL", "Team", "SPAN", None],
+                ["PDF", "Plan v2.pdf", "SPAN", None]], "in the editor's View a name stays plain text")
+            self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-dl-i a.tpl-act')].map(a => a.textContent + ' ' + a.getAttribute('href'))"),
+                             ["Open https://example.org/plan", "Open mailto:team@example.org"], "a link gets Open only")
             self.assertFalse(p.js(f"!!document.querySelector('[data-id={json.dumps(empty)}]')"), "an empty list is left out of View")
             self.assertEqual(p.js(f"document.querySelectorAll('[data-id={json.dumps(ref)}] input, [data-id={json.dumps(ref)}] button').length"), 0,
                              "View is read only")
@@ -232,7 +245,11 @@ class InThePage(PageBase):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            p.until(f"!!document.querySelector('{sel} [data-add-link]')", "the Edit part drew")
+            p.until(f"!!document.querySelector('{sel} [data-open-link]')", "the Edit part drew")
+            p.js(f"document.querySelector('{sel} [data-open-link]').click()")
+            p.until(f"!!document.querySelector('{sel} [data-add-link]')", "the add-link box opened")
+            self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} [data-add-link] label')].map(l => l.textContent)"),
+                             ["Link", DESCRIPTION_LABEL])
             self.set_value(p, f"{sel} [data-add-link] input[type=text]", "https://example.org/budget", 0)
             self.set_value(p, f"{sel} [data-add-link] input[type=text]", "Budget", 1)
             p.js(f"document.querySelector('{sel} [data-add-link] button[type=submit]').click()")
@@ -253,9 +270,15 @@ class InThePage(PageBase):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            p.until(f"!!document.querySelector('{sel} [data-add-link]')", "the Edit part drew")
-            self.assertIn("stays out of the published page", p.js(f"document.querySelector('{sel} .tpl-empty').textContent"))
+            p.until(f"!!document.querySelector('{sel} [data-open-link]')", "the Edit part drew")
+            self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-empty').textContent"), EMPTY_STATE)
+            p.js(f"document.querySelector('{sel} [data-open-link]').click()")
+            p.until(f"!!document.querySelector('{sel} [data-add-link]')", "the add-link box opened")
             sent = len(self.sent)
+            self.set_value(p, f"{sel} [data-add-link] input[type=text]", "https://example.org/ok", 0)
+            p.js(f"document.querySelector('{sel} [data-add-link] button[type=submit]').click()")
+            p.until(f"!!document.querySelector('{sel} .tpl-problem')", "the missing description is refused")
+            self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-problem').textContent"), "Enter a link description.")
             for bad in ("javascript:alert(1)", "http://example.org", "example.org"):
                 self.set_value(p, f"{sel} [data-add-link] input[type=text]", bad, 0)
                 p.js(f"document.querySelector('{sel} [data-add-link] button[type=submit]').click()")
@@ -265,6 +288,35 @@ class InThePage(PageBase):
             self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-problem').getAttribute('role')"), "alert")
             p.js(f"document.querySelector('{sel} [data-add-file]').focus()")
             self.assertTrue(p.js("document.activeElement.hasAttribute('data-add-file')"), "Add a file takes focus from the keyboard")
+
+    def test_edit_renames_in_place_and_moves_rows_one_step_each(self):
+        ref = self.add([a_link(), a_file()])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"document.querySelectorAll('{sel} .tpl-dl-i').length === 2", "the rows drew")
+            self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} .tpl-dl-i')].map(li => li.querySelector('[data-up]').disabled + ':' + li.querySelector('[data-down]').disabled)"),
+                             ["true:false", "false:true"], "move is disabled at the ends")
+            p.js(f"document.querySelectorAll('{sel} [data-down]')[0].click()")
+            p.until(f"document.querySelector('{sel} .tpl-dl-i .tpl-badge').textContent === 'PDF'", "the file moved up")
+            self.assertEqual([i["kind"] for i in json.loads(self.store.read("report_sections", ref=ref)["body"])["items"]], ["file", "link"])
+            p.js(f"document.querySelectorAll('{sel} [data-rename]')[0].click()")
+            p.until(f"!!document.querySelector('{sel} input[data-rename-input]')", "the name became a box")
+            RenameTest.type(p, sel, "Signed plan", "Enter")
+            p.until(f"document.querySelector('{sel} .tpl-name').textContent === 'Signed plan'", "the new name shows")
+            self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["items"][0]["label"], "Signed plan")
+            self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["items"][0]["name"], "Plan v2.pdf")
+            p.js(f"document.querySelectorAll('{sel} [data-rename]')[0].click()")
+            p.until(f"!!document.querySelector('{sel} input[data-rename-input]')", "the name became a box again")
+            RenameTest.type(p, sel, "Other", "Escape")
+            p.until(f"!document.querySelector('{sel} input[data-rename-input]')", "Esc closed the box")
+            self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["items"][0]["label"], "Signed plan", "Esc changes nothing")
+            p.js(f"document.querySelectorAll('{sel} [data-rename]')[1].click()")
+            p.until(f"!!document.querySelector('{sel} input[data-rename-input]')", "the link name became a box")
+            RenameTest.type(p, sel, "", "Enter")
+            p.until(f"!document.querySelector('{sel} input[data-rename-input]')", "an empty name closed the box")
+            self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["items"][1]["label"], "The plan", "an empty name reverts")
 
     @staticmethod
     def set_value(p, selector, value, index=0):
@@ -301,10 +353,13 @@ class Published(PageBase):
                 self.assertEqual(InThePage.entries(self, p, ref), [
                     ["URL", "The plan", "A", "https://example.org/plan"],
                     ["PDF", "The plan, signed", "A", "Report%20files/Plan%20v2%231.pdf"]])
-                self.assertEqual(p.js(f"document.querySelector('[data-id={json.dumps(ref)}] .tpl-facts').textContent"), "example.org")
-                self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-facts')][1].textContent"),
-                                 "Plan v2#1.pdf · 340 KB")
+                self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-facts')].map(e => e.textContent)"),
+                                 ["URL · example.org", "PDF · 340 KB"])
+                self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-dl-i')].map(li => "
+                                      "[...li.querySelectorAll('a.tpl-act')].map(a => a.textContent + ':' + a.hasAttribute('download') + ':' + a.target))"),
+                                 [["Open:false:_blank"], ["Open:false:_blank", "Download:true:"]], "Open on every row, Download on files only")
                 self.assertEqual(p.js("document.querySelectorAll('.tpl-dl input, .tpl-dl button, .tpl-form').length"), 0)
+                self.assertEqual(p.js("[...document.querySelectorAll('.tpl-dl a.tpl-act')].every(a => a.rel === 'noopener noreferrer' || a.hasAttribute('download'))"), True)
                 self.assertFalse(p.js(f"!!document.querySelector('[data-id={json.dumps(hidden)}]')"))
                 self.assertLessEqual(p.js("document.documentElement.scrollWidth"), width, "no sideways scroll")
                 rel = p.js(f"document.querySelector('[data-id={json.dumps(ref)}] a.tpl-name').rel")
