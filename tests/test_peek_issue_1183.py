@@ -25,8 +25,8 @@ ISSUE, CLOSED_ISSUE, RISK = "TUL-010", "TUL-012", "TUL-007"
 PEEK_DIR = ROOT / "src/clark/page/src"
 LEVELS = ("High", "Medium", "Low")
 CHIPS = """(() => { const p = document.querySelector('#peek'); const o = {};
-  for (const c of p.querySelectorAll('.pk-chips > [data-row]')) { const s = c.querySelector('.pk-chip-sub'); const r = c.getBoundingClientRect();
-    o[c.dataset.row] = { text: c.innerText.replace(/\\s+/g, ' ').trim(), tip: c.getAttribute('data-tip') || c.getAttribute('title') || '', tag: c.tagName, sub: s ? s.textContent.trim() : null, h: r.height }; }
+  for (const c of p.querySelectorAll('.pk-chips > [data-row]')) { const s = c.querySelector('.pk-chip-sub'); const r = c.getBoundingClientRect(); const b = c.querySelector('button') || c;
+    o[c.dataset.row] = { text: c.innerText.replace(/\\s+/g, ' ').trim(), tip: b.getAttribute('data-tip') || b.getAttribute('title') || '', tag: b.tagName, sub: s ? s.textContent.trim() : null, h: r.height }; }
   return o; })()"""
 
 
@@ -44,6 +44,13 @@ def colour(impact, likelihood):
 
 
 class Issue(test_peek_latest.Browser):
+    def test_a_risk_shows_the_stamp_but_no_latest_update(self):
+        """Overrides the action rule of test_peek_latest: a risk has a Latest update box too (item 1185), so only the stamp is checked here."""
+        risk = self.data["raid"][0]["id"]
+        with chrome() as cdp:
+            sent, sid = self.load(cdp, 1400, risk)
+            self.assertTrue(cdp.js("!!document.querySelector('[data-pk-last]')", sid))
+
     def chips(self, cdp, sid):
         return cdp.js(CHIPS, sid)
 
@@ -57,7 +64,7 @@ class Issue(test_peek_latest.Browser):
         self.settled(cdp, sid, item)
 
     def open_matrix(self, cdp, sid):
-        click(cdp, sid, "#peek .pk-chips [data-row=rating]")
+        click(cdp, sid, "#peek .pk-chips [data-row=rating] button")
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pop] [data-pk-matrix]')", sid)), "the matrix opens")
 
     # --- 1. the chip row ------------------------------------------------------------------------------------------
@@ -80,7 +87,7 @@ class Issue(test_peek_latest.Browser):
                 chip = self.chips(cdp, sid)["rating"]
                 self.assertEqual(chip["tag"], "BUTTON")
                 self.assertIn("Red", chip["text"])
-                self.assertIn("Urgent", chip["text"], "the level word beside the colour")
+                self.assertEqual(chip["sub"], "Urgent", "the level word is the small sub-line under the colour")
                 self.assertEqual(chip["tip"], "Priority from impact and likelihood")
                 self.assertGreaterEqual(chip["h"], 24)
                 self.assertTrue(cdp.js("!!document.querySelector('#peek .pk-chips [data-row=rating] svg[data-icn=bars]')", sid), "the bars icon")
@@ -162,7 +169,7 @@ class Issue(test_peek_latest.Browser):
                 n = len(sent)
                 click(cdp, sid, "[data-pk-cell][data-impact=Low][data-likelihood=Low]")
                 self.assertTrue(wait(lambda: "Green" in self.chips(cdp, sid)["rating"]["text"]), "the chip shows the new rating")
-                self.assertIn("Low", self.chips(cdp, sid)["rating"]["text"])
+                self.assertEqual(self.chips(cdp, sid)["rating"]["sub"], "Low")
                 new = sent[n:]
                 self.assertEqual(len(new), 1, "one request for both fields")
                 ch = new[0]["changes"]
@@ -177,15 +184,24 @@ class Issue(test_peek_latest.Browser):
                 self.assertEqual((row["impact"], row["likelihood"]), ("High", "High"))
 
     def test_a_pick_adds_one_activity_line(self):
+        self.with_activity = True                                     # the Activity tab reads history; the harness serves it only when asked
         with chrome() as cdp:
             sent, sid = self.load(cdp, 1400, ISSUE)
             self.settled(cdp, sid, ISSUE)
-            count = "document.querySelectorAll('#peek [data-pk-hrow=activity]').length"
-            click(cdp, sid, "#peek [data-pk-htab=activity]")
+            count = "new Set([...document.querySelectorAll('#peek [data-activity-row][data-step]')].map(r => r.dataset.step)).size"      # one pick is one step: a line per field in it
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-tab=activity]')", sid)), "the Activity tab")
+            click(cdp, sid, "#peek [data-pk-tab=activity]")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-activity][aria-busy=false]')", sid)), "the history is drawn")
             before = cdp.js(count, sid)
             self.open_matrix(cdp, sid)
             click(cdp, sid, "[data-pk-cell][data-impact=Medium][data-likelihood=Medium]")
-            self.assertTrue(wait(lambda: cdp.js(count, sid) == before + 1), "exactly one new Activity line")
+            self.assertTrue(wait(lambda: len(sent) == 1), f"a change was sent: {sent}")
+            wait(lambda: cdp.js(count, sid) > before)
+            click(cdp, sid, "#peek [data-pk-tab=updates]") if False else None
+            shown = cdp.js("(document.querySelector('[data-activity]') || {textContent: 'none'}).textContent", sid)
+            self.assertTrue(wait(lambda: cdp.js(count, sid) > before), f"a new step (panel says: {shown})")
+            rows = cdp.js("[...document.querySelectorAll('[data-activity-row]')].slice(0, 3).map(r => r.textContent.slice(0, 90))", sid)
+            self.assertEqual(cdp.js(count, sid), before + 1, f"exactly one new step in the Activity list: {rows}")
 
     def test_keys_roam_the_matrix_and_esc_returns_focus_to_the_chip(self):
         with chrome() as cdp:
@@ -194,12 +210,12 @@ class Issue(test_peek_latest.Browser):
             self.open_matrix(cdp, sid)
             self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-cell')", sid)), "focus starts on a cell, the ticked one")
             self.assertEqual(cdp.js("[document.activeElement.dataset.impact, document.activeElement.dataset.likelihood]", sid), ["High", "High"])
-            key(cdp, sid, "ArrowRight")
+            key(cdp, sid, "ArrowLeft")                                   # the issue is High and High: the last column, so Left is the move
             moved = cdp.js("[document.activeElement.dataset.impact, document.activeElement.dataset.likelihood]", sid)
             self.assertNotEqual(moved, ["High", "High"], "an arrow key moves between cells")
             key(cdp, sid, "Escape")
             self.assertTrue(wait(lambda: cdp.js("!document.querySelector('[data-pop]')", sid)))
-            self.assertTrue(wait(lambda: cdp.js("document.activeElement === document.querySelector('#peek .pk-chips [data-row=rating]')", sid)))
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement === document.querySelector('#peek .pk-chips [data-row=rating] button')", sid)))
             self.assertTrue(cdp.js("!!document.querySelector('#peek')", sid), "the first Esc leaves the peek open")
 
     # --- 4. Latest update -----------------------------------------------------------------------------------------
@@ -262,8 +278,8 @@ class Issue(test_peek_latest.Browser):
             sent, sid = self.load(cdp, 1400, ISSUE)
             self.settled(cdp, sid, ISSUE)
             self.assertEqual(cdp.js("document.querySelector('#peek [data-pk-idtag]').textContent.trim()", sid), ISSUE)
-            if cdp.js("document.querySelector('[data-pk-details]').getAttribute('aria-expanded')", sid) == "true":
-                click(cdp, sid, "[data-pk-details]")
+            if cdp.js("document.querySelector('[data-pk-details]').dataset.open", sid) == "1":
+                click(cdp, sid, "[data-pk-details] .pk-details-h")
             self.assertIn("Raised", cdp.js("document.querySelector('[data-pk-details-sum]').textContent", sid))
 
     # --- a risk is untouched by the Latest update rule, an action keeps its own ---------------------------------------

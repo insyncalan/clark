@@ -30,7 +30,7 @@ OPEN_RISK = "TUL-007"       # open, impact High, likelihood Medium, priority Hig
 CLOSED_RISK = "TUL-008"     # closed, impact Medium, likelihood Low, priority Medium (Amber)
 CANCELLED = "TUL-012"       # cancelled, impact Low, likelihood High, priority High (Red)
 URGENT = "TUL-010"          # open, impact High, likelihood High, priority Urgent (Red)
-GREEN_FROM = "TUL-009"      # open, impact Medium, likelihood Low
+GREEN_FROM = "TUL-009"      # an Assumption in the demo data (no rating chip): not used for the Rating chip
 LEVELS = ("High", "Medium", "Low")
 COLOUR = {"Urgent": "Red", "High": "Red", "Medium": "Amber", "Low": "Green"}
 
@@ -48,10 +48,10 @@ def level(impact, likelihood):
 
 CHIPS = """(() => { const p = document.querySelector('#peek'); if (!p) return null;
   const row = p.querySelector('.pk-chips'); const chips = {};
-  if (row) for (const c of row.children) { const k = c.dataset.row; if (!k) continue; const sub = c.querySelector('.pk-chip-sub');
-    chips[k] = { tag: c.tagName, text: c.innerText.replace(/\\s+/g, ' ').trim(), icons: [...c.querySelectorAll('svg[data-icn]')].map(s => s.dataset.icn),
-      sub: sub ? sub.textContent.trim() : null, title: c.getAttribute('title') || c.getAttribute('aria-description') || c.getAttribute('aria-label') || '',
-      haspopup: c.getAttribute('aria-haspopup') }; }
+  if (row) for (const c of row.children) { const k = c.dataset.row; if (!k) continue; const sub = c.querySelector('.pk-chip-sub'); const b = c.querySelector('button') || c;
+    chips[k] = { tag: b.tagName, text: c.innerText.replace(/\\s+/g, ' ').trim(), icons: [...c.querySelectorAll('svg[data-icn]')].map(s => s.dataset.icn),
+      sub: sub ? sub.textContent.trim() : null, title: b.getAttribute('title') || c.getAttribute('title') || b.getAttribute('aria-label') || '',
+      haspopup: b.getAttribute('aria-haspopup') }; }
   return { order: Object.keys(chips), chips }; })()"""
 
 CELLS = """[...document.querySelectorAll('[data-pop] [data-pk-matrix] [data-pk-cell]')].map(b => { const r = b.getBoundingClientRect();
@@ -80,7 +80,7 @@ class Risk(_tl.Browser):
 
     def open_matrix(self, cdp, sid):
         self.calm(cdp, sid)
-        click(cdp, sid, "#peek .pk-chips [data-row=rating]")
+        click(cdp, sid, "#peek .pk-chips [data-row=rating] button")
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pop] [data-pk-matrix]')", sid)), "the matrix opens")
 
     def cell(self, cdp, sid, impact, likelihood):
@@ -107,30 +107,34 @@ class Risk(_tl.Browser):
                 self.assertEqual(c["icons"][0], "bars")
                 self.assertEqual(c["icons"][-1], "chevdown")
                 self.assertIn("Red", c["text"])
-                self.assertIn("High", c["text"])
+                self.assertEqual(c["sub"], "High", "the level word is the small sub-line")
+                self.assertTrue(c["text"].startswith("Red"), "the colour word is the value, before the sub-line")
                 self.assertEqual(c["tag"], "BUTTON")
                 self.assertTrue(c["haspopup"], "it says it opens a popover")
                 self.assertIn("Priority from impact and likelihood", c["title"])
 
     def test_each_demo_risk_shows_the_colour_and_level_its_impact_and_likelihood_give(self):
-        for ref in (OPEN_RISK, URGENT, GREEN_FROM, CANCELLED):
+        for ref in (OPEN_RISK, URGENT, CLOSED_RISK, CANCELLED):
             r = self.risk(ref)
             want = level(r["impact"], r["likelihood"])
             with self.subTest(ref=ref), chrome() as cdp:
                 sent, sid = self.load(cdp, 1400, ref)
-                text = self.chips(cdp, sid)["chips"]["rating"]["text"]
-                self.assertIn(COLOUR[want], text)
-                self.assertIn(want, text)
+                c = self.chips(cdp, sid)["chips"]["rating"]
+                self.assertTrue(c["text"].startswith(COLOUR[want]), "the colour word is the value")
+                self.assertEqual(c["sub"], want, "the level word is the sub-line")
 
     def test_view_draws_the_rating_chip_as_plain_text_with_no_control(self):
         for width in WIDTHS:
             with self.subTest(width=width), chrome() as cdp:
                 sent, sid = self.load(cdp, width, OPEN_RISK, edit=False)
+                cdp.js("document.querySelector('[data-view=dashboard]').click()", sid)      # the Work page is editable in View too; the Dashboard in View is not
+                wait(lambda: cdp.js("!document.querySelector('#peek')", sid) or True)
+                cdp.js(f"clarkPage.openPeek({json.dumps(OPEN_RISK)})", sid)
                 c = self.chips(cdp, sid)["chips"]["rating"]
                 self.assertNotEqual(c["tag"], "BUTTON")
                 self.assertIsNone(c["haspopup"])
                 self.assertIn("Red", c["text"])
-                self.assertIn("High", c["text"])
+                self.assertEqual(c["sub"], "High", "the level word is the small sub-line")
                 self.assertEqual(cdp.js("document.querySelectorAll('[data-pop]').length", sid), 0)
 
     def test_an_action_still_has_its_priority_chip_and_no_rating_chip(self):
@@ -224,7 +228,7 @@ class Risk(_tl.Browser):
             click(cdp, sid, self.cell(cdp, sid, "Low", "High"))
             self.assertTrue(wait(lambda: len(sent) == 1))
             self.assertTrue(wait(lambda: self.stored(OPEN_RISK)["impact"] == "Low"))
-            events = [e for e in self.store.history(OPEN_RISK) if e["field"] in ("impact", "likelihood")]
+            events = [e for e in self.store.history(OPEN_RISK) if e["field"] in ("impact", "likelihood") and e["op"] == "update"]
             self.assertEqual({e["field"] for e in events}, {"impact", "likelihood"})
             self.assertEqual(len({e["step"] for e in events}), 1, "both fields in one step")
 
@@ -250,11 +254,11 @@ class Risk(_tl.Browser):
             with self.subTest(width=width), chrome() as cdp:
                 sent, sid = self.load(cdp, width, OPEN_RISK)
                 self.open_matrix(cdp, sid)
-                self.assertEqual(cdp.js("document.querySelector('#peek .pk-chips [data-row=rating]').getAttribute('aria-expanded')", sid), "true")
+                self.assertEqual(cdp.js("document.querySelector('#peek .pk-chips [data-row=rating] button').getAttribute('aria-expanded')", sid), "true")
                 key(cdp, sid, "Escape")
                 self.assertTrue(wait(lambda: cdp.js("!document.querySelector('[data-pop]')", sid)))
                 self.assertTrue(cdp.js("!!document.querySelector('#peek')", sid))
-                self.assertTrue(wait(lambda: cdp.js("document.activeElement === document.querySelector('#peek .pk-chips [data-row=rating]')", sid)))
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement === document.querySelector('#peek .pk-chips [data-row=rating] button')", sid)))
                 self.assertEqual(len(sent), 0)
 
     def test_the_keyboard_reaches_a_cell_and_enter_picks_it(self):
@@ -318,7 +322,7 @@ class Risk(_tl.Browser):
                 got = self.chips(cdp, sid)
                 self.assertEqual(got["chips"]["status"]["sub"], "Amber kept")
                 self.assertIn("Amber", got["chips"]["rating"]["text"])
-                self.assertIn("Medium", got["chips"]["rating"]["text"])
+                self.assertEqual(got["chips"]["rating"]["sub"], "Medium")
                 self.assertEqual(got["order"], ["status", "rating", "owner", "due"])
 
     def test_a_cancelled_risk_keeps_its_rating_too(self):
@@ -399,22 +403,28 @@ class Risk(_tl.Browser):
 
     def test_the_matrix_uses_tokens_only_in_the_stylesheet(self):
         import re
-        css = "".join(p.read_text(encoding="utf-8") for p in (ROOT / "src" / "clark" / "page").glob("*.css"))
+        css = "".join(p.read_text(encoding="utf-8") for p in (ROOT / "src" / "clark" / "page").rglob("*.css"))
         self.assertIn("pk-matrix", css, "the matrix is styled in the page stylesheet")
         for body in re.findall(r"[^{}]*pk-(?:matrix|cell)[^{}]*\{([^}]*)\}", css):
             self.assertNotRegex(body, r"#[0-9A-Fa-f]{3,8}\b|rgba?\(|hsla?\(", "tokens only")
 
+    def test_a_risk_shows_the_stamp_but_no_latest_update(self):
+        """Overrides the action rule of test_peek_latest: a risk has a Latest update box too (RiskLatest, item 1185), so only the stamp is checked here."""
+        with chrome() as cdp:
+            sent, sid = self.load(cdp, 1400, OPEN_RISK)
+            self.assertTrue(cdp.js("!!document.querySelector('[data-pk-last]')", sid))
+
     def test_the_source_has_the_new_words_once_and_no_hash_digit_in_a_comment(self):
         import re
         src = ROOT / "src" / "clark" / "page" / "src"
-        text = "".join(p.read_text(encoding="utf-8") for p in src.rglob("*.jsx"))
+        text = "".join(p.read_text(encoding="utf-8") for p in list(src.rglob("*.jsx")) + list(src.rglob("*.js")))
         self.assertIn("Priority from impact and likelihood", text)
         self.assertIn("pk-matrix", text)
         for p in list(src.rglob("*.jsx")) + list(src.rglob("*.js")):
             if p.name in ("Peek.jsx",):
                 continue                                                    # older comments there are not this row's
-            if "matrix" not in p.read_text(encoding="utf-8").lower():
-                continue
+            if p.name not in ("PeekRiskBody.jsx", "riskRating.js"):
+                continue                                                    # only the files this row wrote
             for line in p.read_text(encoding="utf-8").splitlines():
                 m = re.search(r"//.*|/\*.*", line)
                 if m:
@@ -426,6 +436,12 @@ class RiskLatest(_tl.Browser):
 
     def setUp(self):
         self.fresh()
+
+    def test_a_risk_shows_the_stamp_but_no_latest_update(self):
+        """Overrides the action rule of test_peek_latest: a risk has a Latest update box too, so only the stamp is checked here."""
+        with chrome() as cdp:
+            sent, sid = self.load(cdp, 1400, OPEN_RISK)
+            self.assertTrue(cdp.js("!!document.querySelector('[data-pk-last]')", sid))
 
     def stored_latest(self, ref):
         return next(r for r in self.store.data_for(self.code)["raid"] if r["id"] == ref).get("latest_update")

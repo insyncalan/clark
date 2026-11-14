@@ -13,7 +13,7 @@ import { MATRIX_ROWS, MATRIX_COLS, RATING_TIP, levelOf, colourWord, ratingOf, ma
 /** The matrix popover. onPick(impact, likelihood) makes the change; onClose(back) closes it. Keys: Right, Left, Down, Up move by cell, Home and End the first and last; Enter or Space picks. */
 export function RatingMatrix({ row, anchor, onPick, onClose }) {
   const grid = useRef(null), [said, setSaid] = useState(matrixLine(row.impact, row.likelihood));      // the sentence is the focused or hovered cell's; at first the current one's
-  const on = (el) => { if (el) setSaid(matrixLine(el.dataset.impact, el.dataset.likelihood)); };
+  const say = (el) => { if (el) setSaid(matrixLine(el.dataset.impact, el.dataset.likelihood)); };
   const cells = () => Array.from(grid.current ? grid.current.querySelectorAll("[data-pk-cell]") : []);
   useLayoutEffect(() => {
     const all = cells();
@@ -50,7 +50,7 @@ export function RatingMatrix({ row, anchor, onPick, onClose }) {
               const level = levelOf(i, l), colour = colourWord(level), on = row.impact === i && row.likelihood === l;
               return (
                 <button type="button" role="radio" class={`pk-cell${on ? " on" : ""}`} key={`${i}-${l}`} data-pk-cell data-impact={i} data-likelihood={l} data-colour={colour} data-level={level}
-                  aria-checked={on ? "true" : "false"} aria-label={`Impact ${i}, likelihood ${l}: ${level} (${colour})`} onClick={() => onPick(i, l)} onFocus={(e) => on(e.currentTarget)} onMouseEnter={(e) => on(e.currentTarget)}>{level}</button>
+                  aria-checked={on ? "true" : "false"} aria-label={`Impact ${i}, likelihood ${l}: ${level} (${colour})`} onClick={() => onPick(i, l)} onFocus={(e) => say(e.currentTarget)} onMouseEnter={(e) => say(e.currentTarget)}>{level}</button>
               );
             }),
           ])}
@@ -73,10 +73,10 @@ export function ratingPop(row) {
   };
 }
 
-/** The Rating chip: bars icon, colour and level word, the tooltip. `pop` is ratingPop(row) in Edit, absent when read only. */
+/** The Rating chip: bars icon, the colour word, the level word as its small sub-line (the mockup's "Red" with "High"), the tooltip. `pop` is ratingPop(row) in Edit, absent when read only. */
 export function RatingChip({ row, pop, flash, sub }) {
   const r = ratingOf(row);
-  return <PeekChip id={row.id} field="rating" name="Rating" icon="bars" tone={priorityTone(row.priority)} value={r.text} sub={sub || ""} flash={flash} tip={RATING_TIP} pop={pop || undefined} />;
+  return <PeekChip id={row.id} field="rating" name="Rating" icon="bars" tone={priorityTone(row.priority)} value={r.colour} sub={sub || r.level} flash={flash} tip={RATING_TIP} pop={pop || undefined} />;
 }
 
 /** The Details row, one line: "Rating: Red · High (impact High, likelihood Medium)". */

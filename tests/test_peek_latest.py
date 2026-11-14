@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 
 from _paths import ROOT
 import _testpage as testpage
+from clark import activity_read  # noqa: E402
 
 from clark import changes, sneak  # noqa: E402
 from test_peek import key  # noqa: E402
@@ -208,6 +209,7 @@ class Browser(unittest.TestCase):
         s = Running(data_for=self.store.data_for, projects=lambda archived=False: projects, page_html=lambda: testpage.html(),
                     sneak=sneak.make_read(self.store.data_for), change=lambda req: (sent.append(req), self.refused() if refuse else real(req))[1],
                     undo=changes.make_undo(self.store.path, [], "Demo User"))
+        if getattr(self, "with_activity", False): s.httpd.activity = activity_read.make_read(self.store.path, self.store.data_for)      # the Activity tab reads history (rows 1182, 1183)
         self.addCleanup(s.close)
         sid = page_target(cdp)
         cdp.call("Page.enable", {}, sid)
@@ -250,7 +252,7 @@ class Browser(unittest.TestCase):
             cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13, "modifiers": mod}, sid)
 
     def due(self, cdp, sid):
-        return cdp.js("(d => d ? d.textContent.replace('Changed', '').trim() : '')(document.querySelector('#peek [data-row=due] dd'))", sid)
+        return cdp.js("(d => d ? d.textContent.replace('Changed', '').trim() : '')(document.querySelector('#peek .pk-chips [data-row=due] .pkc-v') || document.querySelector('#peek [data-row=due] dd'))", sid)
 
     def toast(self, cdp, sid):
         return cdp.js("(document.querySelector('.toast') || {textContent: ''}).textContent", sid)
