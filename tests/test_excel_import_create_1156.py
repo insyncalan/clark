@@ -149,6 +149,33 @@ class Create(RoundTrip):
         self.assertFalse(res.applied)
         self.assertEqual(self.snapshot(), before)
 
+    def other_project_ids(self):
+        with self.s.step("dashboard", USER) as st:
+            st.create("projects", {"code": "XYZ", "name": "Other Programme", "health": "On track"})
+            return (st.create("milestones", {"project": "XYZ", "name": "Other live", "baseline_date": "2030-03-01", "source": "demo"}),
+                    st.create("use_cases", {"project": "XYZ", "title": "Other case", "status": "On track", "source": "demo"}))
+
+    def test_a_use_answer_the_store_refuses_applies_nothing(self):
+        """A missing id, an id of the other kind and another project's id: the store refuses each, so nothing is applied."""
+        other_ms, other_uc = self.other_project_ids()
+        work_item(self.path)
+        plan = self.ask()
+        ids = self.ids(plan)
+        refused = {
+            "missing": ("ABC-M-999", "ABC-U-999"),
+            "wrong kind": (self.demo.use_case, self.demo.milestone),
+            "another project": (other_ms, other_uc),
+        }
+        for label, (ms, uc) in refused.items():
+            for which, answers in (("milestone", {ids["milestone"]: {"do": "use", "id": ms}, ids["use_case"]: {"do": "use", "id": self.demo.use_case}}),
+                                   ("use case", {ids["milestone"]: {"do": "use", "id": self.demo.milestone}, ids["use_case"]: {"do": "use", "id": uc}})):
+                with self.subTest(label, wrong=which):
+                    before, n = self.snapshot(), self.steps()
+                    res = self.apply(plan, answers)
+                    self.assertFalse(res.applied, res.message)
+                    self.assertEqual((self.snapshot(), self.steps()), (before, n))
+                    self.assertEqual([r for r in self.s.read("actions", project="ABC") if r["description"] == "Set up the test rig"], [])
+
     def test_an_unknown_id_is_still_refused_as_before(self):
         work_item(self.path, ms="ABC-M-999", uc=None)
         plan = self.read()
