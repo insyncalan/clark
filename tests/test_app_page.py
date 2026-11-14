@@ -72,7 +72,7 @@ class Live(unittest.TestCase):
         self.assertEqual(self.blocked, [], "the policy blocked nothing")
 
     def test_the_beat_carries_the_zone_of_the_computer(self):
-        """#631: X-Clark-Tz is the browser's own IANA zone, and follows it when the computer moves (the next beat)."""
+        """item 631: X-Clark-Tz is the browser's own IANA zone, and follows it when the computer moves (the next beat)."""
         seen = []
         real = sv.here_route
         with mock.patch.object(sv, "here_route", lambda h, req: (seen.append(h.headers.get("X-Clark-Tz")), real(h, req))[1]), chrome() as cdp:

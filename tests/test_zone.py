@@ -1,4 +1,4 @@
-"""#631: the time zone in the Docker route (src/clark/zone.py, with the guarded store.py and server.py).
+"""item 631: the time zone in the Docker route (src/clark/zone.py, with the guarded store.py and server.py).
 
 Run: python3 dev/run_tests.py test_zone
 A container runs in UTC; the page sends its zone and the server applies it, so 'today' and the offset on History are the person's.

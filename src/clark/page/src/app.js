@@ -32,7 +32,7 @@ export function keepThemeColour() {
   return meta;
 }
 
-// #631: the zone this computer is in (an IANA name), sent with every beat so a laptop that travels is followed within one beat.
+// item 631: the zone this computer is in (an IANA name), sent with every beat so a laptop that travels is followed within one beat.
 const zoneHeader = () => { try { const tz = Intl.DateTimeFormat().resolvedOptions().timeZone; return tz ? { "X-Clark-Tz": tz } : {}; } catch (e) { return {}; } };
 
 export function sayHere(token) {

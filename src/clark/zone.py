@@ -1,4 +1,4 @@
-"""#631: the time zone in the Docker route. A container runs in UTC, so 'today' (store.today, milestones.today, sneak.today,
+"""item 631: the time zone in the Docker route. A container runs in UTC, so 'today' (store.today, milestones.today, sneak.today,
 movement_read.today_text) and the offset on History times would be the container's, not the person's. Those functions read the
 process zone, so this one place sets it: apply_zone(name) validates an IANA name, sets TZ and calls time.tzset. It is used only in
 container mode (the Mac route runs in the person's own zone, and tzset does not exist on Windows; the container is Linux).
