@@ -63,7 +63,7 @@ class WindowsZipTest(unittest.TestCase):
         self.assertNotIn("Mac", self.text)
 
     def test_the_placeholder_is_what_a_build_without_a_tar_holds(self):
-        self.assertEqual(package.IMAGE_PLACEHOLDER, self.tar)
+        self.assertEqual(b"placeholder: the runtime image tar is built in CI and put here with --image-tar (item 624)\n", self.tar)
 
     def test_a_release_without_a_tar_is_refused_for_the_tar(self):
         with mock.patch.object(package, "tag_problem", return_value=None), mock.patch.object(package, "uncommitted", return_value=""), \
@@ -98,7 +98,8 @@ class WindowsZipTest(unittest.TestCase):
             (folder / "run.cmd").write_bytes(b"x")
             with self.assertRaises(package.Refused) as said:
                 package.download_content("windows", dirty=True, extra_folders=[str(folder)])
-            self.assertIn("Windows download must hold no", str(said.exception))
+            self.assertEqual("The Windows download must hold no .exe, .cmd or python folder, and it would hold: "
+                             "clark/intake/run.cmd. Nothing was written.", str(said.exception))
 
     def test_the_guard_leaves_alone_names_that_only_start_with_python(self):
         for fine in ("clark/docs/python-notes.md", "clark/pythonic.py", "clark/docs/python-style/a.md"):
