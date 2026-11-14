@@ -132,8 +132,15 @@ class Nav(Base):
             p.js(f"document.querySelector('.hp-idx a[data-hlink={target}]').click()")
             p.until(f"document.querySelector('.hp-idx a[aria-current]').dataset.hlink === {json.dumps(target)}", "a click marks its link")
             p.until(f"!!document.querySelector('#hp-{target}.hp-found')", "and opens its entry")
+            # scroll down first, so the page is surely away from the top and the next scroll to the top is a real scroll event
+            p.js("window.scrollTo(0, document.documentElement.scrollHeight)")
+            p.until("window.scrollY > 0", "scrolled away from the top")
             p.js("window.scrollTo(0, 0)")
-            p.until(f"document.querySelector('.hp-idx a[aria-current]').dataset.hlink === {json.dumps(ids[0])}", "scrolling to the top marks the first entry again")
+            p.until("window.scrollY === 0", "back at the top")
+            try:
+                p.until(f"document.querySelector('.hp-idx a[aria-current]').dataset.hlink === {json.dumps(ids[0])}", "scrolling to the top marks the first entry again")
+            except AssertionError as e:
+                raise AssertionError(str(e) + " | state: " + json.dumps(p.js("({y: scrollY, h: document.documentElement.scrollHeight, ch: document.documentElement.clientHeight, mark: (document.querySelector('.hp-idx a[aria-current]') || {dataset: {}}).dataset.hlink})")) + " first=" + ids[0]) from None
             p.js("window.scrollTo(0, document.documentElement.scrollHeight)")
             p.until(f"document.querySelector('.hp-idx a[aria-current]').dataset.hlink !== {json.dumps(ids[0])}", "scrolling down moves the mark")
 
