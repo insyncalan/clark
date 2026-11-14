@@ -10,7 +10,7 @@ export const MODES = [
 ];
 export const CHOOSE_A_KIND = "That kind of email isn't available. Choose Update request, Chase or Decision.";
 export const NOTHING_TO_RECORD = "Tick at least one item before you press I sent it.";
-export const COPY_REFUSED = "The browser did not copy it. Press ⌘C to copy the selected text.";
+export const COPY_REFUSED = "The browser did not copy it. Press Ctrl+C (Cmd+C on a Mac) to copy the selected text.";
 export const NO_OPEN_ITEMS = "There are no open items to put in an email.";
 export const NO_ADDRESS = "No address yet. Add one in your mail app.";
 export const COPIED = "Copied";

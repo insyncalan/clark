@@ -142,6 +142,34 @@ class PageKeys(Base):
             self.assertEqual(p.js("window.marker"), "same page", "no reload at any point")
             self.assertEqual(self.sent, [], "the keys ask the server for nothing")
 
+    def peek_in_edit(self, p):
+        p.edit()
+        p.js("clarkPage.show('milestones')")
+        p.until("!!document.querySelector('.msl-cells[role=button]')", "the milestones list")
+        p.js("document.querySelector('.msl-cells[role=button]').focus()")
+        p.key("Enter", code="Enter", vk=13)
+        p.until("!!document.querySelector('#peek .pk-fields dt')", "the peek is open")
+        p.until("document.querySelector('#peek').getAnimations({subtree: true}).every(a => a.playState !== 'running')", "the slide-in has ended")
+        p.js("document.activeElement.blur()")
+
+    def two_slashes(self, p):
+        p.js("window.seen = 0; window.tap = e => { if (e.key === '/') window.seen++; }; document.addEventListener('keydown', window.tap)")   # added last, so it runs after the peek's own handler
+        p.key("/", code="Slash", vk=191)
+        p.key("/", code="Slash", vk=191)
+        p.until("window.seen === 2", "both slashes reached the page")
+        p.js("document.removeEventListener('keydown', window.tap)")
+
+    def test_two_slashes_open_the_words_box_only_when_the_switch_is_on(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.peek_in_edit(p)
+            self.two_slashes(p)
+            self.assertTrue(p.js("!!document.querySelector('[data-sneak]')"), "two slashes open the box when the switch is on")
+            self.flip(p, False)
+            self.peek_in_edit(p)
+            self.two_slashes(p)
+            self.assertFalse(p.js("!!document.querySelector('[data-sneak]')"), "two slashes do nothing when the switch is off")
+
     def test_arrows_enter_esc_space_and_ctrl_or_cmd_combinations_are_untouched(self):
         with chrome() as cdp:
             p = self.visit(cdp)
