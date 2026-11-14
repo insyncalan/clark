@@ -34,6 +34,23 @@ class Skip(Head):
                 p.key("Tab", **TAB)
                 self.assertEqual(p.js("document.activeElement.id"), "ess-name", "one more Tab reaches Your name: two Tabs from the search box, not seventeen")
 
+    def test_S_count_the_tab_presses_from_the_search_box_to_your_name_with_the_skip_link(self):
+        # Read from the code: Tab 1 lands on the skip button, Enter focuses the first card heading (not a Tab), Tab 2 lands on Your name. Expected count: 2.
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.page(cdp)
+                self.open_settings(p, w)
+                p.until("!!document.getElementById('ess-name')", "Essentials drew Your name")
+                p.js("document.getElementById('set-search-box').focus()")
+                tabs = 0
+                while p.js("document.activeElement.id") != "ess-name" and tabs < 6:
+                    p.key("Tab", **TAB)
+                    tabs += 1
+                    if p.js("document.activeElement.className") == "skip skip-cards":
+                        p.key("Enter", code="Enter", vk=13)
+                self.assertEqual(p.js("document.activeElement.id"), "ess-name", "Your name was reached")
+                self.assertEqual(tabs, 2, "two Tab presses with the skip link used, where it took seventeen without")
+
     def test_S_the_skip_link_is_out_of_sight_until_it_has_focus_and_goes_while_searching(self):
         for w in WIDTHS:
             with self.subTest(width=w), chrome() as cdp:
