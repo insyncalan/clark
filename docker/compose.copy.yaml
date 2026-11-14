@@ -1,0 +1,11 @@
+# Add a folder of this computer for "Copy my backups to" (item 634). Use it together with compose.yaml:
+#   CLARK_COPY_DIR="/full/path/to/the/folder" docker compose -f docker/compose.yaml -f docker/compose.copy.yaml up -d
+# The folder is shared into the container as /backups-out. In Settings › Backups, type /backups-out into "Copy my backups to".
+# On Windows the folder can be in OneDrive: only whole, finished backup files are put there.
+# CLARK_COPY_DIR must be named: without it, compose stops and says so.
+services:
+  clark:
+    volumes:
+      - type: bind
+        source: ${CLARK_COPY_DIR:?name the folder in CLARK_COPY_DIR (a full path, in quotes)}
+        target: /backups-out
