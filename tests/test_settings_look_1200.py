@@ -23,6 +23,7 @@ from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 WIDTHS = (1400, 900)
 EDGE = "rgb(122, 133, 159)"
+OLD_EDGE = "rgb(196, 206, 227)"       # the grey-300 edge the Gantt card had before item 1200
 PATH = "/Users/demo/OneDrive-DemoOrg/clark backups"
 # the stand-in listing offers one OneDrive folder, so the Use line is drawn
 STUB = COPY_STUB.replace("/tmp/OneDrive", PATH)
@@ -40,6 +41,8 @@ LOOK = """(() => {
   return {
     token: cs(document.documentElement).getPropertyValue('--control-edge').trim(),
     muted: cs(document.documentElement).getPropertyValue('--text-muted').trim(),
+    gantt: {name: edge('#gantt-name'), reset: edge('#gantt-setting .set-reset'), intro: type('#gantt-setting > h2 + p'), button: type('#gantt-setting .set-reset')},
+    sizes: {intro: type('#safety > h2 + p, #local-folder > h2 + p'), save: type('[data-copy-save]'), seg: type('.seg button'), chip: type('.set-nav .set-chip')},
     edges: {box: edge('#safety-copy-box'), save: edge('[data-copy-save]'), choice: edge('.seg'), name: edge('#ess-name'), paste: edge('#client-folder-paste'), use: edge('[data-copy-suggestion]')},
     heading: type('#safety-h'), label: type('.set-row-text label'), group: type('#local-folder h3'), help: type('.set-row-text small'),
     placeholders: {name: q('#ess-name').placeholder, essCopy: q('#ess-safety-copy-box').placeholder, copy: q('#safety-copy-box').placeholder, paste: q('#client-folder-paste').placeholder},
@@ -67,23 +70,30 @@ class SettingsLook(unittest.TestCase):
         self.store, self.folder, _ = load_demo()
         self.addCleanup(shutil.rmtree, str(self.folder), True)
         self.addCleanup(self.store.close)
-        self.s = Running(data_for=lambda code, archived=None: self.store.data_for(code), projects=lambda archived=False: [{"code": "TUL", "name": "Tulip"}],
+        self.s = Running(data_for=self.data_for, projects=lambda archived=False: [{"code": "TUL", "name": "Tulip"}],
                          page_html=lambda: page.page_html(EMPTY_BRANDING))
         self.addCleanup(self.s.close)
         quiet = mock.patch.object(sv.LOG, "disabled", True)
         quiet.start()
         self.addCleanup(quiet.stop)
 
-    def look(self, cdp, width):
+    def data_for(self, code, archived=None):
+        d = self.store.data_for(code)
+        d["project"]["gantt_tab_name"] = "Delivery plan"      # a renamed Gantt tab, so its Reset button is drawn
+        return d
+
+    def look(self, cdp, width, scheme="light"):
         sid = page_target(cdp)
+        cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Page.enable", {}, sid)
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": STUB}, sid)
         cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#settings&p=TUL"}, sid)
         ready = ("!!document.querySelector('[data-copy-suggestion]') && !!document.querySelector('[data-ess-copy-suggestion]') && !!document.querySelector('#client-folder-paste')"
-                 " && !!document.querySelector('#local-folder h3') && !!document.querySelector('.set-chip[aria-current]') && !!document.querySelector('#ess-name') && !!document.querySelector('.seg')")
+                 " && !!document.querySelector('#local-folder h3') && !!document.querySelector('.set-chip[aria-current]') && !!document.querySelector('#ess-name') && !!document.querySelector('.seg') && !!document.querySelector('#gantt-name') && !!document.querySelector('#gantt-setting .set-reset')")
         self.assertTrue(wait(lambda: cdp.js(ready, sid)), "Settings, its Backups suggestion and its Publishing card are drawn")
+        cdp.js(f"document.documentElement.dataset.theme = {json.dumps(scheme)}", sid)
         return cdp.js(LOOK, sid)
 
     def test_the_look_at_1400_and_900(self):
@@ -100,6 +110,30 @@ class SettingsLook(unittest.TestCase):
                 self.assertEqual(k["help"]["color"], rgb(k["muted"]), f"help line is in the muted colour at {w}")
                 self.assertEqual(k["placeholders"], {"name": "Your full name", "essCopy": "/Users/you/OneDrive/clark backups", "copy": "/Users/you/OneDrive/clark backups",
                                                      "paste": "/Users/you/OneDrive/Client/Reports"}, f"the examples in the empty boxes at {w}")
+
+    def test_the_gantt_card_keeps_its_old_edge_at_1400_and_900(self):
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                g = self.look(cdp, w)["gantt"]
+                self.assertEqual(g["name"], [OLD_EDGE, "1px"], f"the Gantt tab name box keeps the old edge at {w}")
+                self.assertEqual(g["reset"], [OLD_EDGE, "1px"], f"the Gantt Reset button keeps the old edge at {w}")
+                self.assertNotEqual(g["name"][0], EDGE, f"the Gantt card does not take the new token at {w}")
+                self.assertEqual(g["intro"]["size"], "14px", f"the Gantt intro line keeps its old 14 px at {w}")
+
+    def test_the_type_of_intro_buttons_choices_and_menu_at_1400_and_900(self):
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                z = self.look(cdp, w)["sizes"]
+                for what in ("intro", "save", "seg", "chip"):
+                    self.assertEqual(z[what]["size"], "15px", f"{what} is 15 px at {w}")
+
+    def test_the_dark_control_edge_is_7aa3ae_at_1400_and_900(self):
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                k = self.look(cdp, w, "dark")
+                self.assertEqual(k["token"].lower(), "#7aa3ae", f"the dark control-edge token at {w}")
+                for name, got in k["edges"].items():
+                    self.assertEqual(got, [rgb("#7AA3AE"), "1px"], f"{name} is edged with the dark token at {w}")
 
     def test_the_backups_path_is_beside_a_short_use_button_at_1400_and_900(self):
         for w in WIDTHS:
