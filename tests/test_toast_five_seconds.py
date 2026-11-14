@@ -40,7 +40,7 @@ class ToastFiveSeconds(Base):
 
     def test_the_message_is_still_there_at_4_seconds_and_gone_by_6_and_the_bar_shrinks(self):
         with chrome() as cdp:
-            p = self.visit(cdp)
+            p = self.visit(cdp, motion="no-preference")      # before the load: a Mac that reduces motion paints data-motion=reduce at load
             self.motion(cdp, p, "no-preference")
             self.make_toast(p)
             self.assertTrue(p.js(f"!!document.querySelector('{BAR}') && getComputedStyle(document.querySelector('{BAR}')).display !== 'none'"), "the bar is drawn")
