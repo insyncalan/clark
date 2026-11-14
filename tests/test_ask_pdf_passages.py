@@ -186,6 +186,16 @@ class Outcomes(Fake):
         self.assertTrue(0 < len(got.pages) < 20)
         self.assertEqual([n for n, _t in got.pages], list(range(1, len(got.pages) + 1)))
 
+    def test_a_cut_at_the_output_budget_is_counted_as_left_out(self):
+        # pdf-2: the cut was silent; the reader now says pages were left out, and ask counts them so the existing "too long" note shows.
+        with mock.patch.object(pdf_reader, "OUT_BUDGET", 5000):
+            got = self.read(pdf(["ZQ %d " % i + "x" * 900 for i in range(20)]))
+        self.assertEqual(got.left_out, 20 - len(got.pages))
+        self.assertGreater(got.left_out, 0)
+
+    def test_a_pdf_read_in_full_leaves_nothing_out(self):
+        self.assertEqual(self.read(pdf(["ZQ one", "ZQ two"])).left_out, 0)
+
     def test_a_first_page_bigger_than_the_budget_is_still_read(self):
         # The guard keeps at least one page: a lone page over the budget is returned, not dropped to an empty or failed result.
         with mock.patch.object(pdf_reader, "OUT_BUDGET", 100):
@@ -283,6 +293,18 @@ class InAsk(Fake):
             got = self.run_it()
         self.assertEqual([p.label for p in got.passages][-1], "saved/Plan.pdf, page 1, part 4")
         self.assertEqual(len(got.passages), 4)
+
+    def test_parts_cut_by_the_part_cap_are_counted_as_left_out(self):
+        self.put("Plan.pdf", pdf(["ZQ " + "a" * 197]))
+        with mock.patch.object(ask_passages.ask_data, "PASSAGE_SIZE", 20), mock.patch.object(ask_passages, "MAX_PDF_PARTS", 4):
+            got = self.run_it()
+        self.assertGreater(got.left_out, 0)
+
+    def test_pages_cut_by_the_reader_budget_are_counted_as_left_out_in_ask(self):
+        self.put("Plan.pdf", pdf(["ZQ %d " % i + "x" * 900 for i in range(20)]))
+        with mock.patch.object(pdf_reader, "OUT_BUDGET", 5000):
+            got = self.run_it()
+        self.assertGreater(got.left_out, 0)
 
     def test_the_part_cap_leaves_room_for_every_page_of_the_longest_pdf(self):
         self.assertGreaterEqual(ask_passages.MAX_PDF_PARTS, pdf_reader.MAX_PAGES)
