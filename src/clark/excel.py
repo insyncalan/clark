@@ -837,7 +837,7 @@ def wraps(table, field):
 
 
 def freeze_cell(table, cols):
-    """Where the panes freeze: below the header row, and after the ID and the item's title (C2 on every sheet)."""
+    """Where the panes freeze: below the header row, and after the item's title column (C2 where the title is the second column, D2 on Use cases, whose Reference comes second; item 1160)."""
     fields = [f for _, f in cols]
     return f"{get_column_letter(fields.index(TITLE_OF[table]) + 2)}2"
 
