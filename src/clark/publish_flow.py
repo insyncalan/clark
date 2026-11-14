@@ -34,7 +34,7 @@ import unicodedata
 from html.parser import HTMLParser
 from pathlib import Path
 
-from clark import brands, changes, milestones, page, past_files, platform, publish, publish_pdf, section_files, to_client
+from clark import brands, changes, host_folders, milestones, page, past_files, platform, publish, publish_pdf, section_files, to_client
 from clark.store import Invalid, NumberTaken, open_store
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -696,7 +696,16 @@ class Publisher:
                 saved = row.get("publish_client") or None
                 if action == "clear":
                     return self.save_folder(store, code, saved, None)
-                if action == "paste":
+                if action == "paste" and host_folders.windows_host(os.environ) and host_folders.is_drive_path(body["value"]):
+                    try:
+                        picked = Path(host_folders.to_container("client", body["value"], os.environ)[0]).resolve(strict=True)
+                    except ValueError as e:
+                        return 409, self.fail("client_folder_refused", str(e))
+                    except (OSError, RuntimeError):
+                        return 409, self.fail("paste_unknown")
+                    if not picked.is_dir():
+                        return 409, self.fail("paste_unknown")
+                elif action == "paste":
                     picked, refused = self.pasted_folder(body["value"])
                     if refused:
                         return 409, self.fail(refused)

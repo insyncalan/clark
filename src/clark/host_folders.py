@@ -3,7 +3,7 @@
 Pure: it reads text, never a disk, and never writes. The compose file for Windows shares up to three folders in and names each one's
 Windows path in an environment variable; the container sees each at a fixed place under /shares. A person types a Windows path in
 Settings; this module says whether it is inside a shared folder, gives the container path it maps to, and writes a container path
-back in Windows form. Nothing here is wired into a route yet (the design note, docs/v1.1-container-host-side.md, says why).
+back in Windows form. Only to_container is called from a route so far (the pasted client folder in publish_flow.py); see docs/v1.1-container-host-side.md.
 Standard library only.
 """
 import re
@@ -50,6 +50,12 @@ def _parse(text):
     if any(not p.strip(".") or p[-1] in ". " for p in parts):
         return None
     return text[0].upper(), parts
+
+
+def is_drive_path(text):
+    """True when `text` starts like a Windows drive path (a letter, a colon, a slash), so a caller can send it to to_container."""
+    text = text.strip() if isinstance(text, str) else ""
+    return len(text) >= 3 and text[0].isascii() and text[0].isalpha() and text[1] == ":" and text[2] in "\\/"
 
 
 def shares(environ):
