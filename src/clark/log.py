@@ -191,6 +191,9 @@ def fault_of(exc):
     return kind, where
 
 
+DEMO_PREFIX = "clark-demo-"      # the name --demo gives its temporary folder (src/clark/__main__.py mkdtemp prefix)
+
+
 class Log:
     """The log for one folder. `folder` is where the files go; `data` is where the level is kept (diagnostics.json)."""
 
@@ -200,11 +203,16 @@ class Log:
         self.clock = clock or datetime.now
         self.home = home
         self.routes = set(routes) if routes is not None else None
-        self.echo = sys.stdout if platform.container_mode() else None     # item 632: in the container each line also goes to stdout (`docker logs`); None everywhere else
+        self.echo = sys.stdout if platform.container_mode() and not self._is_demo() else None     # item 632: in the container each line also goes to stdout (`docker logs`); None everywhere else and for a --demo run (its folder is the temporary clark-demo- one)
         self._level_cache = (None, NORMAL)
         self._page = []
         self._lock = threading.Lock()
         self._folder_private = False
+
+    def _is_demo(self):
+        """True when this log belongs to a --demo run: its data folder (or, without one, its log folder's parent) is the temporary clark-demo-* folder."""
+        where = self.data if self.data is not None else self.folder.parent
+        return where.name.startswith(DEMO_PREFIX)
 
     # The level
 

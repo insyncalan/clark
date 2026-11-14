@@ -122,6 +122,19 @@ class LogsInContainer(unittest.TestCase):
             logging.getLogger("clark.test").info("started on port %d", 1)
         self.assertEqual((out.getvalue(), log.echo), ("", None))
 
+    def test_a_demo_run_in_the_container_does_not_go_to_standard_output(self):
+        scratch = Path(tempfile.mkdtemp(prefix=clog.DEMO_PREFIX, dir=self.tmp))
+        out = io.StringIO()
+        with in_container(), mock.patch.object(pl, "system", return_value="linux"), contextlib.redirect_stdout(out):
+            log, handler, _ = launcher.start_log(scratch, lambda: [], home=self.tmp / "home", scratch=scratch)
+            self.addCleanup(logging.getLogger("clark").removeHandler, handler)
+            logging.getLogger("clark.test").info("demo line")
+        self.assertEqual((out.getvalue(), log.echo, log.folder), ("", None, scratch / "logs"))
+        self.assertIn("demo line", next((scratch / "logs").glob("clark-*.log")).read_text(encoding="utf-8"))
+
+    def test_the_demo_prefix_is_the_one_the_launcher_gives_its_temporary_folder(self):
+        self.assertIn(f'mkdtemp(prefix="{clog.DEMO_PREFIX}")', Path(launcher.__file__).read_text(encoding="utf-8"))
+
     def test_a_line_that_is_not_written_for_size_still_does_not_break_the_stream(self):
         log, _ = self.started()
         log.echo = mock.Mock(write=mock.Mock(side_effect=OSError("closed")), flush=mock.Mock())
