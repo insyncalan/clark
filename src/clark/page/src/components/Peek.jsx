@@ -22,10 +22,15 @@ import { stateOf, LOOK } from "../logic/milestones.js";
 import { MsMark } from "./MsMark.jsx";
 import { MsProgress } from "./MsList.jsx";
 import { CleanProse } from "./CleanProse.jsx";
+import { PeekToolbar } from "./PeekToolbar.jsx";
+import { PeekIdLine } from "./PeekIdLine.jsx";
+import { PeekChips, PeekChip } from "./PeekChips.jsx";
+import { PeekDetails, PeekFooter } from "./PeekDetails.jsx";
 
 // Up and Down while the peek is open (#246): the peek steps to the item before or after in the list it was opened from, the same list
 // Previous and Next use. What it says after a step (a polite line only a screen reader hears) is kept here; `n` makes a repeat say it again.
 const said = signal({ text: "", n: 0 });
+const unsaved = signal(false);                          // row 1180: Close was pressed with an unsaved Latest update: the bar (Save and close, Discard, Keep editing) is shown
 const say = (text) => { said.value = { text, n: said.value.n + 1 }; };
 
 // Where the peek takes an arrow (#289): only Up and Down, only plain, only on one of its own buttons. A box, the width edge, a tab,
@@ -50,20 +55,45 @@ function Toned({ icon, tone, children }) { return <span class="pk-val"><span cla
 
 const ROW_OF = { owner: "owner", made_by: "owner", due_date: "due", needed_by: "due", date: "due", priority: "priority", status: "status" };
 
-function Row({ name, children, ref_, key_, ms }) {      // key_: which field this row shows, so it can flash when that field changes; ms: a milestone's row (row 1078), a plain row, never one of the four cells
+function Row({ name, children, ref_, key_, ms, icon, tone = "b" }) {      // key_: which field this row shows, so it can flash when that field changes; ms: a milestone's row (row 1078), a plain row, never one of the four cells
   const f = flashed.value;
   const hit = !!(f && key_ && f.list.some((e) => e.ref === ref_ && ROW_OF[e.field] === key_));
-  return <div class={`pk-row${hit ? " flash" : ""}`} data-row={key_ || undefined} data-ms-row={ms || undefined} data-flash={hit ? "1" : undefined}><dt>{name}</dt><dd>{children}{hit ? <span class="tag chg">Changed</span> : null}</dd></div>;
+  return <div class={`pk-row${hit ? " flash" : ""}`} data-row={key_ || undefined} data-ms-row={ms || undefined} data-flash={hit ? "1" : undefined}><dt>{icon ? <span class={`pk-rowic ${iconClass(tone)}`}><Icon name={icon} /></span> : null}{name}</dt><dd>{children}{hit ? <span class="tag chg">Changed</span> : null}</dd></div>;
+}
+
+// Row 1180: the four property cells are the chip row now (ItemChips). A flat row of chips: status, owner, due and (not a decision) priority; each opens its popover in Edit.
+function ItemChips({ row, tools, editing }) {
+  const today = todayIso(), due = dueCell(row, today), pill = pillOf(row, today), who = ownerOf(row.owner), f = flashed.value;
+  const hit = (key) => !!(f && f.list.some((e) => e.ref === row.id && ROW_OF[e.field] === key));
+  const pop = (field) => (editing && tools && tools.PeekChipPop ? tools.PeekChipPop(row, field) : null) || undefined;
+  // item 448: a closed risk or issue's pill reads Closed; it keeps its rating word on the priority chip ("Red kept"; "Not rated" when it never was, item 532), here and in a published file.
+  const kept = (row.kind === "risk" || row.kind === "issue") && !isOpen(row) ? colourOf(row.priority).word : "";
+  const late = due.tone === "late", days = late ? /^(\d+) days? late$/.exec(due.words) : null;
+  const overdue = late ? `overdue ${days ? days[1] : "1"} ${days && days[1] !== "1" ? "days" : "day"}` : "";
+  const fixed = row.kind === "assumption" || row.kind === "dependency";
+  return (
+    <PeekChips>
+      <PeekChip id={row.id} field="status" name="Status" icon="half" tone={statusTone(row, today)} value={pill.text} flash={hit("status")} pop={pop("status")} />
+      <PeekChip id={row.id} field="owner" name={row.kind === "decision" ? "Decider" : "Owner"} icon="user" tone="b" value={who.text} flash={hit("owner")} pop={pop("owner")} />
+      <PeekChip id={row.id} field="due" name={row.kind !== "decision" ? "Due date" : row.status === "Pending" ? "Needed-by date" : "Decision date"} icon="cal" tone={dateTone(row, today)} value={due.date}
+        sub={overdue} subTone={late ? "late" : ""} late={late} flash={hit("due")} pop={pop("due")} />
+      {row.kind !== "decision" ? <PeekChip id={row.id} field="priority" name="Priority" icon="bars" tone={priorityTone(row.priority)} value={text(row.priority)} sub={kept ? `${kept} kept` : ""}
+        flash={hit("priority")} tip={fixed ? "Set from impact and likelihood" : undefined} pop={pop("priority")} /> : null}
+    </PeekChips>
+  );
 }
 
 // ItemFields and Edge are also the archived peek's (ArchivedItems.jsx in the Edit part, item 450 row 39; reached with is:archived, item 1067): the same rows, read only.
-export function ItemFields({ row, editing, Cell, Wording, Pick }) {
+// `slim` (row 1180, the live peek): the Type row and the four cells are the chip row above and the project is in the ID line, so they are not repeated; the rest sits in the collapsible Details.
+export function ItemFields({ row, editing, Cell, Wording, Pick, slim = false, ClientLine = null }) {
   const today = todayIso(), due = dueCell(row, today), pill = pillOf(row, today), who = ownerOf(row.owner);
   // #448: a closed risk or issue's pill reads Closed; it keeps its rating word beside it (the prototype's "Closed · Amber"; "Not rated" when it never was, #532), here and in a published file.
   const kept = (row.kind === "risk" || row.kind === "issue") && !isOpen(row) ? colourOf(row.priority).word : "";
-  return (
+  const raised = typeof row.not_reviewed === "boolean" ? row.raised : row.raised_on;
+  const rows = (
     <dl class="pk-fields">
-      <Row name="Type">{KIND_WORDS[row.kind] || row.kind}</Row>
+      {slim ? null : <Row name="Type">{KIND_WORDS[row.kind] || row.kind}</Row>}
+      {slim ? null : <>
       <Row key_="owner" ref_={row.id} name={row.kind === "decision" ? "Decision by" : "Owner"}>{who.text}</Row>
       <Row key_="due" ref_={row.id} name={row.kind === "decision" && row.status === "Pending" ? "Needed by" : row.kind === "decision" ? "Date" : "Due"}>
         <Toned icon="cal" tone={dateTone(row, today)}>{due.date}</Toned>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}> {due.words}</span> : null}
@@ -73,19 +103,23 @@ export function ItemFields({ row, editing, Cell, Wording, Pick }) {
         {Cell ? <Cell row={row} field="status" said={pill.text} place="peek"><span class={`pill ${pill.class}`}>{pill.text}</span></Cell> : <span class={`pill ${pill.class}`}>{pill.text}</span>}
         {kept ? <span class="pk-rating" data-pk-rating> · {kept}</span> : null}
       </Toned></Row>
-      <Row name="Workstream">{Pick && row.kind !== "decision" ? <Pick row={row} field="workstream" /> : text(row.workstream)}</Row>
-      <Row name="Milestone">{Pick && row.kind !== "decision" ? <Pick row={row} field="milestone" /> : text(row.milestone)}</Row>
-      <Row name="Use case">{Pick ? <Pick row={row} field="use_case" /> : text(row.uc)}</Row>
-      {editing ? <Row name="Shown to client">{row.client ? "Yes" : "No"}</Row> : null}
-      {Wording ? <Row name="Client wording"><Wording row={row} /></Row> : null}
+      </>}
+      <Row name="Workstream" icon={slim ? "board" : undefined}>{Pick && row.kind !== "decision" ? <Pick row={row} field="workstream" /> : text(row.workstream)}</Row>
+      <Row name="Milestone" icon={slim ? "flag" : undefined}>{Pick && row.kind !== "decision" ? <Pick row={row} field="milestone" /> : text(row.milestone)}</Row>
+      <Row name="Use case" icon={slim ? "flag" : undefined}>{Pick ? <Pick row={row} field="use_case" /> : text(row.uc)}</Row>
+      {editing ? (slim && ClientLine ? <div class="pk-row" data-pk-client-row><dd><ClientLine row={row} /></dd></div> : <Row name="Shown to client">{row.client ? "Yes" : "No"}</Row>) : null}
+      {Wording ? <Row name="Client wording" icon={slim ? "doc" : undefined}><Wording row={row} /></Row> : null}
       {!editing && fromFile.value && row.client_message ? <Row name="Client wording" ms="client_message">{row.client_message}</Row> : null}      {/* item 1111: a published file's peek draws the client wording the file carries, read only and only when there is some */}
       {!editing && fromFile.value && row.kind === "action" && row.latest_update ? <Row name="Latest update" ms="latest_update"><Rich html={String(row.latest_update)} /></Row> : null}      {/* the file's latest update is already clean (publish.clean_html); no history, no editing */}
       {typeof row.not_reviewed === "boolean" ? <>
         <Row name="Raised">{showDate(row.raised)}</Row>
-        <Row name="Last reviewed">{row.last_reviewed ? showDate(row.last_reviewed) : "Not yet"}</Row>
+        <Row name="Last reviewed" icon={slim ? "clock" : undefined}>{row.last_reviewed ? showDate(row.last_reviewed) : "Not yet"}</Row>
       </> : row.raised_on ? <Row name="Raised">{showDate(row.raised_on)}</Row> : null}      {/* row 1077: a published file carries no history (no freshness, no Last reviewed) but it carries the date raised, so a client's peek keeps that row */}
     </dl>
   );
+  if (!slim) return rows;
+  const summary = [row.kind === "decision" ? "" : row.workstream, row.kind === "decision" ? "" : row.milestone, raised ? `Raised ${showDate(raised)}` : "", editing ? (row.client ? "Client visible" : "Client not visible") : ""];
+  return <PeekDetails summary={summary}>{rows}</PeekDetails>;
 }
 
 // The read-only Source line under the fields (row 1077, the owner's ruling): where the item or milestone came from, by name. On the live page
@@ -125,6 +159,7 @@ function MilestoneFields({ m, tools }) {
         {who.text === DASH ? null : <><span class="pk-ms-owner" data-ms-head="owner">{who.initials ? <span class="av" aria-hidden="true">{who.initials}</span> : null}{who.text}</span><MsSep /></>}
         <span class="msl-prog" data-ms-head="progress"><MsProgress value={m.status === "Done" && m.percent_complete == null ? 100 : m.percent_complete} /></span>
       </MsHead>
+      <PeekDetails summary={[m.workstream, m.forecast_date ? `Forecast ${showDate(m.forecast_date)}` : ""]}>
       <dl class="pk-fields" data-ms-fields>
         {description || !fromFile.value ? <Row name="Description" ms="description"><Rich html={description} /></Row> : null}      {/* row 560: a file carries no description for a milestone with no client wording, so a client's peek has no such row */}
         <Row name="Agreed date" ms="baseline">{showDate(m.baseline_date)}</Row>
@@ -132,6 +167,7 @@ function MilestoneFields({ m, tools }) {
         <Row name="Workstream" ms="workstream">{text(m.workstream)}</Row>
         {wording || !fromFile.value ? <Row name="Client wording" ms="client_message"><Rich html={wording} /></Row> : null}      {/* a client's peek has no empty wording row, as it has no empty description row; the editor's peek keeps both */}
       </dl>
+      </PeekDetails>
     </>
   );
 }
@@ -162,8 +198,8 @@ export function Peek({ tools }) {
   const forItem = !!p && p.kind !== "milestone";
   const Words = editing && !!p && tools.Words;
   const Tabs = editing && tools.PeekTabs, Activity = editing && tools.PeekActivity;
-  const MsTitle = msEditing && tools.MilestoneTitle;         // row 1078: the milestone's name is its title, changed in place
-  const TitleBox = editing && forItem && tools.PeekTitle, DupBtn = editing && forItem && tools.PeekDuplicate, ArchBtn = editing && forItem && tools.PeekArchive, DelBtn = editing && forItem && tools.PeekDelete, MoreBtn = editing && forItem && tools.PeekMore, MsMoreBtn = msEditing && tools.RecordMore;      // item 1148: the milestone peek has More actions (Archive, Delete) in place of the Archive button
+  const MsTitle = msEditing && tools.PeekMilestoneTitle;     // row 1078: the milestone's name is its title, changed in place (row 1180: a textarea, as the work item's)
+  const TitleBox = editing && forItem && tools.PeekItemTitle, MoreBtn = editing && forItem && tools.PeekMore, MsMoreBtn = msEditing && tools.RecordMore;      // row 1180: More holds Duplicate, Archive and Delete (item 1148: a milestone's holds Archive and Delete)
   const Warn = editing && forItem && tools.PeekWarn, Latest = editing && forItem && tools.PeekLatest;      // the warning bar and Latest update (peek, Edit only)
   // Row 1077 (the owner's ruling): every peek, item or milestone, shows its Source, in Edit and in View alike. On the live page the Edit part
   // reads it from the server (tools.PeekSource); a published file (no tools, fromFile) draws the name its own data carries (FileSource below).
@@ -183,6 +219,7 @@ export function Peek({ tools }) {
     if (close) close.focus();
     return () => {
       wordsOpen.value = false;
+      unsaved.value = false;
       let el = back.current;
       back.current = null;
       if (shown.current && shown.current !== opened.current) {                     // the peek moved on: the row it shows now, if it is drawn
@@ -227,6 +264,8 @@ export function Peek({ tools }) {
   }, [!!p, p && p.kind]);                                 // eslint-disable-line react-hooks/exhaustive-deps
   // Esc closes the words box first, then the peek; two slashes outside a field open the words box (Edit only). Up and Down on one of the
   // peek's own buttons step to the item before or after (#246); every other arrow is left to whatever it was aimed at (#289).
+  // Closing with an unsaved Latest update shows the bar (Save and close, Discard, Keep editing) instead of closing (row 1180).
+  const askClose = () => { if (tools && tools.peekDirty && tools.peekDirty()) unsaved.value = true; else closePeek(); };
   const stepBy = (dir) => {
     const q = peek.value;                                 // the peek now, not the one this handler was made for: a second key can come before the redraw
     if (!q) return;
@@ -263,7 +302,7 @@ export function Peek({ tools }) {
     if (!p) return undefined;
     let down = false;
     const press = (e) => { down = closesPeek(e.target); };
-    const click = (e) => { const was = down; down = false; if (was && closesPeek(e.target)) closePeek(); };
+    const click = (e) => { const was = down; down = false; if (was && closesPeek(e.target)) askClose(); };
     document.addEventListener("pointerdown", press, true);
     document.addEventListener("click", click);
     return () => { document.removeEventListener("pointerdown", press, true); document.removeEventListener("click", click); };
@@ -284,33 +323,27 @@ export function Peek({ tools }) {
   return (
     <aside class={`peek${wide.value ? " wide" : ""}`} id="peek" ref={keep} aria-label={`${p.id} details`} style={wide.value ? "" : `width:${Math.min(width.value, document.documentElement.clientWidth)}px`} data-peek={p.id}>
       <Edge />
-      <div class="pk-bar">
-        <button type="button" class="pkp-btn" data-pk-prev title="Previous item" aria-label="Previous item" disabled={!near.prev} onClick={() => go(near.prev)}><Icon name="chevleft" /></button>
-        <button type="button" class="pkp-btn" data-pk-next title="Next item" aria-label="Next item" disabled={!near.next} onClick={() => go(near.next)}><Icon name="chevright" /></button>
-        <span class="pk-id num">{p.id}</span>
-        <span class="pk-sp" />
-        {DupBtn && row ? <DupBtn row={row} /> : null}
-        {ArchBtn && row ? <ArchBtn row={row} /> : null}
-        {DelBtn && row ? <DelBtn row={row} /> : null}
-        {MoreBtn && row ? <MoreBtn row={row} /> : null}
-        {MsMoreBtn && m ? <MsMoreBtn row={m} kind="milestones" place="peek" cls="pkp-btn" id="pk-more" fixed={false} /> : null}
-        <button type="button" class="pkp-btn" data-pk-wide aria-pressed={wide.value} title={wide.value ? "Return the panel to its usual width" : "Make this panel fill the screen"} aria-label={wide.value ? "Return the panel to its usual width" : "Make this panel fill the screen"} onClick={() => { wide.value = !wide.value; }}><Icon name="expand" /></button>
-        <button type="button" class="pkp-btn" data-pk-close title="Close this panel" aria-label="Close this panel" onClick={closePeek}><Icon name="x" /></button>
-      </div>
+      <PeekToolbar near={near} go={go} wide={wide.value} onWide={() => { wide.value = !wide.value; }} onClose={askClose}
+        draft={editing && row && tools.peekDraft ? tools.peekDraft(row) : null} onCopy={editing && row && tools.copyLinkFor ? () => tools.copyLinkFor(row) : null}
+        more={MoreBtn && row ? <MoreBtn row={row} /> : MsMoreBtn && m ? <MsMoreBtn row={m} kind="milestones" place="peek" cls="pkp-btn" id="pk-more" fixed={false} /> : null} />
+      {unsaved.value && tools && tools.PeekUnsavedBar ? <tools.PeekUnsavedBar onClose={closePeek} onDone={() => { unsaved.value = false; }} /> : null}
       {Warn && row ? <Warn key={`w-${row.id}`} row={row} /> : null}
+      <PeekIdLine id={p.id} />
       <p class="sr-only" role="status" aria-live="polite" data-pk-live>{said.value.text}</p>
-      <h2 class="pk-title" tabIndex={-1}>{TitleBox && row ? <TitleBox key={row.id} row={row} /> : MsTitle && m ? <MsTitle key={m.id} m={m} /> : title}</h2>
+      <h2 class="pk-title" tabIndex={-1}>{TitleBox && row ? <><TitleBox key={row.id} row={row} /><span class="sr-only" aria-hidden="true">{title}</span></> : MsTitle && m ? <><MsTitle key={m.id} m={m} /><span class="sr-only" aria-hidden="true">{title}</span></> : title}</h2>
       {row && typeof row.not_reviewed === "boolean" && notReviewed(row, todayIso()) ? <p class="pk-stale"><span class="pk-chip" data-stale>{staleWords(row.review_days || undefined)}</span></p> : null}
+      {row ? <ItemChips row={row} tools={tools} editing={editing} /> : null}
       {Tabs ? <Tabs /> : null}
       <div class="pk-body" key={p.id} data-pk-body>      {/* a new key each step: the body fades in as Previous or Next moves on */}
       {showActivity ? <Activity key={p.id} id={p.id} />
         : <div role={Tabs ? "tabpanel" : undefined} id={Tabs ? "pk-panel-details" : undefined} aria-labelledby={Tabs ? "pk-tab-details" : undefined}>
-          {row ? <ItemFields row={row} editing={editing} Cell={editing && tools.Cell ? tools.Cell : null} Wording={editing && tools.PeekWording ? tools.PeekWording : null} Pick={editing && tools.PeekPick ? tools.PeekPick : null} /> : msEditing ? <tools.MilestoneEdit m={m} /> : <MilestoneFields m={m} tools={tools} />}
+          {row ? <ItemFields row={row} editing={editing} slim ClientLine={editing && tools.PeekClientLine ? tools.PeekClientLine : null} Cell={null} Wording={editing && tools.PeekWording ? tools.PeekWording : null} Pick={editing && tools.PeekPick ? tools.PeekPick : null} /> : msEditing ? <tools.MilestoneEdit m={m} /> : <MilestoneFields m={m} tools={tools} />}
           {Source ? <Source key={`s-${p.id}`} row={row || m} /> : FileSource ? <SourceLine text={(row || m).source} /> : null}
           {Latest && row ? <Latest key={row.id} row={row} /> : null}
         </div>}
       {Words && wordsOpen.value && (row || m) ? <Words key={p.id} row={row || m} kind={milestone ? "milestone" : "item"} /> : null}
       </div>
+      {Words && (row || m) ? <PeekFooter onAsk={() => { wordsOpen.value = true; }} /> : null}
     </aside>
   );
 }
