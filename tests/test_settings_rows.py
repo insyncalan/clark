@@ -69,7 +69,7 @@ class Rows(Head):
                 self.assertEqual(c["shadow"], "none", c["id"] + ": no shadow")
                 self.assertEqual(c["h2"], "20px", c["id"] + ": heading size")
                 if c["intro"] is not None:
-                    self.assertEqual(c["intro"], "14px", c["id"] + ": intro size")
+                    self.assertEqual(c["intro"], "14px" if c["id"] == "gantt-setting" else "15px", c["id"] + ": intro size (item 1200: 15 px, the Gantt card keeps 14)")
                 if n:
                     self.assertEqual(c["gap"], 12, c["id"] + ": the gap to the card above")
         self.across(check)
