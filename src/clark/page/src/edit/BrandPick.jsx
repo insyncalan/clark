@@ -33,7 +33,7 @@ export function BrandPick({ brands, project = undefined, save = saveReal }) {
     try { await save(id, id === "generic" ? "Generic" : (b ? b.name : id)); } finally { saving.current = false; }
     const queued = next.current;
     next.current = null;
-    setDraft(null);      // the select shows what clark kept (a refused change leaves the old brand)
+    setDraft(queued);      // the select shows what clark kept (a refused change leaves the old brand), or the choice still waiting to be saved
     if (queued !== null) commit(queued);
   };
   return (

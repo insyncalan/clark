@@ -268,7 +268,7 @@ class Page(InBrowser):
         self.js("T.hold = false; T.release()")
         self.settle()
 
-    def test_a_choice_made_while_one_is_saving_waits_and_is_saved_after(self):
+    def test_the_same_choice_again_while_it_is_saving_sends_nothing_more(self):
         self.held()
         self.choose("example-brand")
         self.choose("example-brand")
@@ -284,6 +284,17 @@ class Page(InBrowser):
         self.release_and_settle()
         self.assertEqual(self.picks(), ["example-brand", "generic"], "the brand is put back, not taken as already saved")
         self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic")
+        self.assertEqual(self.val("T.saved()"), "generic")
+
+    def test_the_select_keeps_the_waiting_choice_while_its_save_is_on_its_way(self):       # A, B, A: no flash of B after the first save
+        self.held()
+        self.choose("example-brand")
+        self.choose("generic")
+        self.js("T.release()")                  # the first save ends; the waiting choice's save is held too (T.hold stays on)
+        self.settle()
+        self.assertEqual(self.val("T.saved()"), "example-brand", "the second save has not ended")
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic", "the select shows the choice that is waiting, not the brand just saved")
+        self.release_and_settle()
         self.assertEqual(self.val("T.saved()"), "generic")
 
     def test_arrows_down_then_up_while_the_save_is_held_end_on_the_first_brand(self):
