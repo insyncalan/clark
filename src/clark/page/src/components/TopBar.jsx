@@ -65,7 +65,7 @@ export function TopBar({ tools }) {
         ? <div class="top-id"><Name class="top-name" id="project-name">{shownName}</Name><p class="cover-line top-line"><b class="cover-kind">Weekly report</b>{lines.map((t) => <span key={t}>{t}</span>)}</p></div>
         : <div class="hdr-id">{/* item 1177: the editor's one header: the project name (a button that opens the project list), then "Weekly report" and the week (a button that opens the calendar); no "for <client>" and no banner under it */}
             {ProjectSwitch ? <ProjectSwitch name={name} header /> : <span class="hdr-project hdr-static" id="project-name">{name || project.value || "No project open"}</span>}
-            <p class="hdr-line"><b class="hdr-kind">Weekly report</b>{HeaderDate ? <><i class="hdr-dot" aria-hidden="true"></i><HeaderDate /></> : weekEnding ? <><i class="hdr-dot" aria-hidden="true"></i><span class="hdr-date hdr-static num">Week ending {shownDate(weekEnding)}</span></> : null}</p>
+            <p class="hdr-line"><b class="hdr-kind">Weekly report</b>{HeaderDate ? <>{" "}<i class="hdr-dot" aria-hidden="true"></i><HeaderDate /></> : weekEnding ? <>{" "}<i class="hdr-dot" aria-hidden="true"></i><span class="hdr-date hdr-static num">Week ending {shownDate(weekEnding)}</span></> : null}</p>
           </div>}
       <nav class="tabs" ref={row} role="tablist" aria-label="Views" onKeyDown={onTabKey}>
         {tabs.value.map((v) => (v === "gantt" && renaming && GanttName && view.value === "gantt"

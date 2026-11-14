@@ -2597,7 +2597,7 @@ html:has(.top-hdr) { --topbar: 85px; }
 .top-hdr .logo .wm { font-size: var(--size-h3); line-height: 22px; }
 .hdr-id { flex: 0 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
 .hdr-id .dd { display: block; min-width: 0; }
-.hdr-project { all: unset; box-sizing: border-box; display: block; max-width: 100%; margin: 0 -5px; padding: 0 5px; border-radius: var(--radius-sm); cursor: pointer; font-size: var(--size-h2); line-height: 1.2; font-weight: var(--weight-medium); color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hdr-project { all: unset; box-sizing: border-box; display: block; min-width: 0; max-width: 100%; margin: 0 -5px; padding: 0 5px; border-radius: var(--radius-sm); cursor: pointer; font-size: var(--size-h2); line-height: 1.2; font-weight: var(--weight-medium); color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hdr-project > span { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hdr-project.hdr-static { cursor: default; }
 .hdr-project:not(.hdr-static):hover, .hdr-project[aria-expanded="true"] { background: color-mix(in srgb, var(--white) 14%, transparent); text-decoration: underline dotted; text-decoration-thickness: 2px; text-underline-offset: 6px; }

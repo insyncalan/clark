@@ -10,7 +10,7 @@ from test_server import chrome
 TWO = [{"code": "ABC", "name": "Harbour Bridge Programme", "open": 3}, {"code": "XYZ", "name": "Second Programme", "open": 1}]
 NAME = "document.querySelector('.top .hdr-project')"
 MENU = "document.querySelector('#project-menu')"
-ROWS = "[].map.call(document.querySelectorAll('#project-menu [role=menuitemradio]'), function(e){return e.textContent})"
+ROWS = "[].map.call(document.querySelectorAll('#project-menu [role=menuitemradio]'), function(e){return e.textContent.replace('\\u2713','')})"      # the open project's row starts with its tick (test_project_switch strips it the same way)
 
 
 class HeaderProject(Base):
@@ -21,14 +21,22 @@ class HeaderProject(Base):
     def page(self, cdp, width):
         p = self.visit(cdp)
         size(cdp, p, width, 800)
-        p.until(f"!!{NAME}", "item 1177: the project name is in the header")
+        p.until(f"!!{NAME} && {NAME}.textContent.indexOf('Example Programme') >= 0", "item 1177: the project name is in the header (the header shows the open project's own name, Example Programme in the test page, not the list's; measured)")
         return p
+
+    def press(self, p, key, code, vk):
+        """A real Enter carries its text, and a button is pressed by Enter only when the key does (as test_filter_line_keys.press does); Space and Esc are sent as they are."""
+        for kind in ("keyDown", "keyUp"):
+            ev = {"type": kind, "key": key, "code": code, "windowsVirtualKeyCode": vk, "modifiers": 0}
+            if key == "Enter" and kind == "keyDown":
+                ev["text"] = "\r"
+            p.cdp.call("Input.dispatchKeyEvent", ev, p.sid)
 
     def test_the_project_name_is_a_button_in_the_header_with_the_name_in_it(self):
         for w in SIZES:
             with self.subTest(width=w), chrome() as cdp:
                 p = self.page(cdp, w)
-                got = p.js(f"(function(){{var b={NAME}; return [b.tagName, !!b.closest('.top'), b.textContent.indexOf('Harbour Bridge Programme') >= 0, "
+                got = p.js(f"(function(){{var b={NAME}; return [b.tagName, !!b.closest('.top'), b.textContent.indexOf('Example Programme') >= 0, "
                            "document.querySelectorAll('.top .hdr-project').length, b.getBoundingClientRect().width > 40];})()")
                 self.assertEqual(got, ["BUTTON", True, True, 1, True], f"{w}: .hdr-project is one visible button in .top holding the project name")
 
@@ -36,7 +44,7 @@ class HeaderProject(Base):
         for w in SIZES:
             with self.subTest(width=w), chrome() as cdp:
                 p = self.page(cdp, w)
-                n = p.js("[...document.querySelectorAll('h1, h2')].filter(e => e.textContent.indexOf('Harbour Bridge Programme') >= 0 && e.getClientRects().length).length")
+                n = p.js("[...document.querySelectorAll('h1, h2')].filter(e => e.textContent.indexOf('Example Programme') >= 0 && e.getClientRects().length).length")
                 self.assertEqual(n, 0, f"{w}: the name is shown once, in the header, not again as a heading")
 
     def test_a_click_opens_the_project_list_and_a_second_click_shuts_it(self):
@@ -68,7 +76,7 @@ class HeaderProject(Base):
                 p = self.page(cdp, 1400)
                 p.js(f"{NAME}.focus()")
                 p.until(f"document.activeElement === {NAME}", "the name has focus")
-                p.key(key, code=code, vk=vk)
+                self.press(p, key, code, vk)
                 p.until(f"!!{MENU}", f"{code} opens the project list")
 
     def test_esc_shuts_the_list_and_puts_focus_back_on_the_name(self):
@@ -76,7 +84,7 @@ class HeaderProject(Base):
             with self.subTest(width=w), chrome() as cdp:
                 p = self.page(cdp, w)
                 p.js(f"{NAME}.focus()")
-                p.key("Enter", code="Enter", vk=13)
+                self.press(p, "Enter", "Enter", 13)
                 p.until(f"!!{MENU}", f"{w}: Enter opened the list")
                 p.key("Escape", code="Escape", vk=27)
                 p.until(f"!{MENU}", f"{w}: Esc shut the list")

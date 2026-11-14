@@ -65,6 +65,11 @@ class MotionModes(unittest.TestCase):
         want = """(() => { const g = document.querySelector('#gantt-bar .modes.glide'), v = g.querySelector('[data-mode=view]'), on = g.querySelector('[aria-pressed=true]');
           return g.style.getPropertyValue('--vw') === v.offsetWidth + 'px' && g.style.getPropertyValue('--tx') === (on.offsetLeft - v.offsetLeft) + 'px'
             && Math.abs(parseFloat(g.style.getPropertyValue('--sx')) - on.offsetWidth / v.offsetWidth) < 0.001; })()"""
+        import sqlite3
+        con = sqlite3.connect(str(self.store.path))      # item 1177: the Gantt page is offered only where the project's setting says so; the demo has it off, and #gantt then lands on the Dashboard (report.js:85)
+        con.execute("UPDATE projects SET show_gantt_editor = 1")
+        con.commit()
+        con.close()
         for scheme in ("light", "dark"):
             with self.subTest(scheme=scheme), chrome() as cdp:
                 sid = self.load(cdp, 1400, scheme, "no-preference", "gantt")      # item 1177: the Dashboard's pill floats and has no thumb; Toggle's sliding pill is the Gantt page's
