@@ -194,7 +194,7 @@ class Page(unittest.TestCase):
                 self.assertEqual(self.mode(), "view")
                 self.assertEqual(self.text("#cover h1"), "Demo project", "the title defaults to the project name")
                 self.assertIn("Week ending 06-11-2026", self.text("#cover .cover-line"))
-                self.assertIn("for Example client", self.text("#cover .cover-line"))
+                self.assertNotIn("Example client", self.text("#cover .cover-line"), "item 1178: no for-client in the heading line")
                 self.assertEqual(self.count("#cover [contenteditable], #cover input"), 0, "View has no title box")
                 self.assertEqual(self.count("[data-gantt]"), 1)
                 self.assertEqual(self.count("[data-slot=above] #slot-above-box"), 1)

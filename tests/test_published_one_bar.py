@@ -77,23 +77,23 @@ class InTheFile(Published):
                 self.assertGreater(b["name"]["bottom"], 0)
                 self.assertLessEqual(b["badge"]["right"], width + 0.5)
 
-    def test_the_bar_is_68_px_and_sticky_at_1400_and_two_rows_at_900(self):
+    def test_the_bar_is_85_px_and_sticky_at_1400_and_two_rows_at_900(self):
         for width, dark in CASES:
             with self.subTest(width=width, dark=dark):
                 cdp, p = self.bar(width, dark)
                 b = p.js(BAR)
                 self.assertEqual(b["pos"], "sticky")
                 if width == 1400:
-                    self.assertEqual(b["bar"]["h"], 68)
-                    self.assertEqual(b["topbarVar"], "68px")
-                    self.assertAlmostEqual(b["tabs"]["top"] + b["tabs"]["h"] / 2, 34, delta=3, msg="the tabs sit on the one row")
+                    self.assertEqual(b["bar"]["h"], 85)      # item 1178: 68 + 25 percent
+                    self.assertEqual(b["topbarVar"], "85px")
+                    self.assertAlmostEqual(b["tabs"]["top"] + b["tabs"]["h"] / 2, 42.5, delta=3, msg="the tabs sit on the one row")
                     self.assertNotEqual(b["date"]["shown"], "none")
                     self.assertTrue(b["date"]["text"].startswith("As at "))
                     self.assertLess(b["date"]["box"]["right"], b["badge"]["left"], "the date, then the profile circle")
                     self.assertLess(b["tabs"]["right"], b["date"]["box"]["left"] + 1)
                 else:
-                    self.assertEqual(b["bar"]["h"], 100)
-                    self.assertEqual(b["topbarVar"], "100px")
+                    self.assertEqual(b["bar"]["h"], 125)      # item 1178: 100 + 25 percent
+                    self.assertEqual(b["topbarVar"], "125px")
                     self.assertEqual(b["date"]["shown"], "none", "the date is dropped")
                     self.assertGreaterEqual(b["tabs"]["top"], b["line"]["bottom"] - 1, "the tabs are a strip under the name")
                     self.assertGreaterEqual(b["tabs"]["right"] - b["tabs"]["left"], width - 60, "the strip runs the width")
