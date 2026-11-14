@@ -18,7 +18,9 @@ OPEN = "document.dispatchEvent(new CustomEvent('clark:add-section', {detail: {af
 GONE = "That section isn't in the report any more. Reload the page."      # the words of logic/templates.js for a section that is not in the list
 
 
-class AddAfterWithStoredNeeds(Base):
+class StoredNeeds(Base):
+    NEEDS_BESIDE = 0                        # the stored Needs section's own `beside` flag
+
     def setUp(self):
         super().setUp()
         rows = {r["id"]: r["sort_order"] for r in self.store.read("report_sections", "ABC")}
@@ -26,7 +28,8 @@ class AddAfterWithStoredNeeds(Base):
         self.assertTrue(rows[FIRST] < between < rows["ABC-S-002"], "room between the first two sections for a stored one")
         con = sqlite3.connect(str(self.store.path))
         try:
-            con.execute("INSERT INTO report_sections (project, id, type, title, sort_order) VALUES ('ABC', ?, 'needs', 'Needs from you', ?)", (NEEDS, between))
+            con.execute("INSERT INTO report_sections (project, id, type, title, sort_order, beside) VALUES ('ABC', ?, 'needs', 'Needs from you', ?, ?)",
+                        (NEEDS, between, self.NEEDS_BESIDE))
             con.commit()
         finally:
             con.close()
@@ -35,6 +38,8 @@ class AddAfterWithStoredNeeds(Base):
         p.js(OPEN % after)
         p.until("!!document.querySelector('[role=dialog]') && document.activeElement.matches('input[type=search]')", "the box opened")
 
+
+class AddAfterWithStoredNeeds(StoredNeeds):
     def test_the_stored_needs_section_is_in_the_store_and_not_on_the_page(self):
         self.assertEqual(self.ids_in_store()[:3], [FIRST, NEEDS, "ABC-S-002"])
         with chrome() as cdp:
@@ -75,6 +80,32 @@ class AddAfterWithStoredNeeds(Base):
             self.open_box(p, NEEDS)                                        # asked for the Needs section itself: it is not there to place after
             self.assertTrue(p.js("document.querySelector('input[name=where][value=beside]').disabled"))
             self.assertEqual(p.js("document.getElementById('ad-w-why').textContent"), GONE)
+
+
+class AddAfterWithStoredNeedsPaired(StoredNeeds):
+    """The stored Needs section carries beside = 1. Counted in the box's list (AddDialog.jsx, the filter on its first line), it would pair
+    with the section after it, so the second section would look as if it had a partner and the choice Beside it would be off. The Dashboard
+    does not draw the Needs section, the second section stands on a row of its own, and Beside it must be offered. (The request for
+    the own-row choice names the same section with or without the filter, because actions.js filters on its own, so the box is where
+    the two differ; the box is what is read here. Clark itself would refuse a Beside request here, as it reads the stored rows, so
+    none is sent.)"""
+    NEEDS_BESIDE = 1
+    SECOND = "ABC-S-002"
+
+    def test_beside_the_section_after_the_stored_needs_section_is_offered_as_the_person_sees_it(self):
+        flags = self.beside_flags()
+        self.assertEqual((flags[FIRST], flags[self.SECOND], flags[NEEDS]), (0, 0, 1), "the two drawn sections are alone; only the stored Needs one is flagged")
+        title = [r["title"] for r in self.store.read("report_sections", "ABC") if r["id"] == self.SECOND][0]
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            self.assertEqual(p.ids(), IDS)
+            self.open_box(p, self.SECOND)
+            self.assertFalse(p.js("document.querySelector('input[name=where][value=beside]').disabled"), "Beside the second section is offered")
+            self.assertEqual(p.js("document.getElementById('ad-w-why').textContent"), "", "no reason given: nothing is in the way")
+            label = p.js("document.querySelector('input[name=where][value=beside]').parentNode.textContent.trim()")
+            self.assertEqual(label, "Beside \u201c%s\u201d (half width)" % title, "the choice names the second section, not a partner it does not have")
+            self.assertEqual(self.sent, [], "opening the box asks clark for nothing")
 
 
 if __name__ == "__main__":
