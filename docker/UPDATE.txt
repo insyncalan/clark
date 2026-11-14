@@ -35,7 +35,8 @@ To go back to the old clark:
         docker compose -f docker/compose.yaml run --rm clark python3 -m clark restore --data /data
      Then type the same line again, with the name of the -migrate.db copy added
      at the end.
-  3. In the old folder, type the line from step 4 to start the old clark.
+  3. In the old folder, type this and press Return to start the old clark:
+        docker compose -f docker/compose.yaml up -d
 
 Update from file in Settings does not work under Docker. The clark folder is
 read-only there. Use the steps above.
