@@ -169,6 +169,21 @@ class Dropped(Plant):
         self.assertEqual(flags["s-milestones"], 0)
         self.assertEqual(sum(flags.values()), 0)
 
+    def test_a_partner_left_out_of_the_file_leaves_the_first_alone_and_the_next_section_free(self):
+        for kind in ("gantt", "gantttable", "nosuchtype"):                # no Gantt tab, no eye-on line, a type the file does not know: each has nothing to draw
+            def out_partner(plant, kind=kind):
+                by = {x["id"]: x for x in plant["sections"]}
+                at = by["s-milestones"]["sort_order"]
+                for x in plant["sections"]:
+                    x["sort_order"] += 1 if x["sort_order"] > at else 0      # room for the partner straight after milestones
+                plant["sections"].append({"id": "s-out", "type": kind, "title": "Out", "body": "", "beside": 0, "hidden": 0, "sort_order": at + 1})
+                by["s-milestones"]["beside"] = 1                          # milestones beside a section that is not in the file
+            _, pub, text = made(out_partner)
+            flags = {x["id"]: x["beside"] for x in pub["sections"]}
+            self.assertNotIn("s-out", flags, kind)
+            self.assertEqual((flags["s-milestones"], flags["s-notes"], sum(flags.values())), (0, 0, 0), kind)
+            self.assertEqual({x["id"]: x["beside"] for x in block(text)["sections"]}, flags, kind)
+
     def test_hidden_kind_drops_rows_and_tab(self):
         def hide(*types):
             def go(plant):
