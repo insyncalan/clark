@@ -1893,7 +1893,6 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
     .sec.is-changed.drop-before { animation: m-glow calc(var(--dur-enter) + var(--dur-state) + var(--dur-instant)) var(--ease-out) 1, m-line-top var(--dur-glide) var(--ease-enter) 1; }
     .secs.drop-end { animation: m-line-end var(--dur-glide) var(--ease-enter) 1; }
     .sec.drop-left::after, .sec.drop-right::after, .sec.drop-before.slot-left::before { animation: m-outline var(--dur-glide) var(--ease-enter) 1; }
-    .sec-ghost { animation: m-outline var(--dur-glide) var(--ease-enter) 1; }
     .sec.drag-slot { animation: m-outline var(--dur-glide) var(--ease-enter) 1; }
     /* the health badge and reason settle when health changes */
     .hrow.settle { animation: m-settle var(--dur-state) var(--ease-enter) 1; }
