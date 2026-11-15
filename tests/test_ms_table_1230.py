@@ -45,7 +45,7 @@ SEE = """(() => {
 })()"""
 
 
-class Table(unittest.TestCase):
+class Base(unittest.TestCase):
     def setUp(self):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
@@ -59,21 +59,23 @@ class Table(unittest.TestCase):
         quiet.start()
         self.addCleanup(quiet.stop)
 
-    def visit(self, cdp, width, edit):
+    def visit(self, cdp, width, edit, where="#dashboard&p=ABC"):
         sid = page_target(cdp)
         cdp.call("Page.enable", {}, sid)
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Page.navigate", {"url": "about:blank"}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#dashboard&p=ABC"}, sid)
+        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/{where}"}, sid)
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.msv .msl-row')", sid), 10), "the block drew")
-        if edit:
+        if edit and not where.startswith("#milestones"):      # the Milestones page has no View mode: it is always the editor
             cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-mode=edit]').getAttribute('aria-pressed') === 'true'", sid), 10), "Edit is on")
         cdp.js("(document.querySelector('.msv .msl-all') || {click() {}}).click()", sid)       # every row, not the first five
         self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid), 10))
         return sid
 
+
+class Table(Base):
     def test_five_columns_under_a_heading_row_in_view_and_in_edit(self):
         for width in (1400, 900):
             for edit in (False, True):
@@ -106,6 +108,38 @@ class Table(unittest.TestCase):
                 got = cdp.js("(() => { const b = document.querySelector('.msv [data-msdet]'); return [b.getAttribute('aria-expanded'), b.textContent.trim(), "
                              "document.querySelector('#' + b.getAttribute('aria-controls')).hidden, !!document.querySelector('.msv .msl-hd') && document.querySelector('.msv .msl-hd').getBoundingClientRect().width]; })()", sid)
                 self.assertEqual(got, ["false", "Show milestone details", True, 0])
+
+
+PAGE = """(() => {
+  const box = document.querySelector('#milestones .msl-box');
+  if (!box) return null;
+  const hd = box.querySelector('.msl-hd'), li = box.querySelector('.msl-row'), cells = li.querySelector('.msl-cells');
+  const x = (e) => Math.round(e.getBoundingClientRect().left);
+  const cols = [...cells.children].filter((e) => e.dataset.col).map((e) => e.dataset.col);
+  const sub = cells.querySelector(':scope > .msl-sub');
+  return {heads: hd ? [...hd.querySelectorAll('.msl-hc > span')].map((s) => s.textContent.trim()) : null, cols, sub: sub ? sub.textContent.trim() : null,
+          agreedCell: !!cells.querySelector('[data-col=agreed]'), dateInside: !!cells.querySelector('.msl-date .msl-sub'),
+          first: cols.map((k) => x(cells.querySelector(`[data-col=${k}]`))), place: box.dataset.place};
+})()"""
+
+
+class PageList(Base):
+    """The ruling: the Dashboard section only. The Milestones page keeps its list as it was: Date, Milestone, State, Progress, the
+    Agreed line under the date and name, and a heading row in Edit only."""
+
+    def test_the_milestones_page_keeps_its_old_columns_and_an_edit_only_heading(self):
+        for width in (1400, 900):
+            for edit in (True,):
+                with self.subTest(width=width, edit=edit), chrome() as cdp:
+                    sid = self.visit(cdp, width, edit, "#milestones&p=ABC")
+                    got = cdp.js(PAGE, sid)
+                    self.assertEqual(got["place"], "page")
+                    self.assertEqual(got["cols"], ["date", "name", "state", "prog"], "the old four columns, in the old order")
+                    self.assertFalse(got["agreedCell"], "no Agreed column on the page")
+                    self.assertFalse(got["dateInside"], "the note is not inside the date cell")
+                    self.assertTrue(got["sub"], "the old second line (Agreed, or the Expected date) sits in the row under the date and name")
+                    self.assertEqual(got["heads"], ["Date", "Milestone", "State", "Progress"],
+                                     "the heading row over the old four")
 
 
 if __name__ == "__main__":
