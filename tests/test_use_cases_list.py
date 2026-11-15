@@ -283,6 +283,17 @@ class List(Setup):
                     self.assertEqual(self.count(p), "Showing 4 of 4 · 2 on the dashboard")
                     self.assertFalse(p.js("[...document.querySelectorAll('#usecases .ucl-list .ucl-row')].some(r => r.querySelector('.ucl-ref').textContent === 'UC 9')"))
 
+    def test_the_project_name_is_above_the_heading_and_the_sub_line_is_gone(self):
+        """Item 1203: the project name sits in the crumbs line above the Use cases heading, and the old ucl-sub paragraph is not drawn."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width)
+                crumbs = p.js("(() => { const c = document.querySelector('#usecases > .crumbs'), h = document.querySelector('#usecases h1'); return c && h ? { text: c.textContent, above: c.getBoundingClientRect().bottom <= h.getBoundingClientRect().top } : null; })()")
+                self.assertIsNotNone(crumbs, "the crumbs line is drawn on the Use cases page")
+                self.assertEqual(crumbs["text"], "Example Programme", "the crumbs line is the project name")
+                self.assertTrue(crumbs["above"], "the crumbs line sits above the heading")
+                self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-sub').length"), 0, "the sub line under the heading is gone")
+
     def test_a_row_is_laid_out_as_the_dashboard_summary_row_is(self):
         """Item 1149: the page row has the dashboard summary row's parts: the same boxed reference, the same title weight, the title and where it stands beside the box."""
         probe = """(() => {
