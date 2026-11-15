@@ -142,7 +142,7 @@ class ActivityBrowser(unittest.TestCase):
                 cdp.js("document.querySelector('[data-pk-htab=activity]').focus()", sid)
                 key(cdp, sid, "ArrowLeft")
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-fields')", sid)))
-                self.assertEqual(cdp.js("document.activeElement.dataset.pkTab", sid), "details")
+                self.assertEqual(cdp.js("document.activeElement.dataset.pkHtab", sid), "details")
                 self.assertFalse(cdp.js("!!document.querySelector('[data-activity]')", sid))
 
     def peek_stays(self, cdp, sid, item, rows=True):
