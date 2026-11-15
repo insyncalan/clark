@@ -1788,7 +1788,7 @@
      [
       "ul",
       [
-       "**The top bar**: the logo, the project name (opens the project list), then Weekly report and the week (opens the calendar).",
+       "**The top bar**: the logo, the project name, then Weekly report and the week. Nothing in it is a button.",
        "**Three tabs**: Dashboard, Work items and Milestones.",
        "The round button at the top right opens the **Report menu**: **Profile**, **Export to Excel** (only when the file holds a workbook; when the report is too large to include one, the row is greyed and a note says so), **Export to PDF** and **Past reports**. **Profile** keeps the reader’s name in their own browser only, and the button then shows their initials. **Past reports** lists earlier reports kept in the same folder as this one, newest first, and opens the one you press; with none it says No earlier reports.",
        "**Dashboard**: the report in the Spacing you chose, with **On this page** at the right.",
