@@ -1009,8 +1009,8 @@ def find_claude(which=shutil.which):
     return found or None
 
 
-# Windows and Docker (#635). Read from names and from what the system answers; the doctor's checks use them with fakes.
-DOCKER_WAIT = 30         # seconds `docker info` may take before Docker is said to be not running
+# Windows and Docker (row 635). Read from names and from what the system answers; the doctor's checks use them with fakes.
+DOCKER_WAIT = 30         # seconds `docker info` (or netsh) may take before it is said to be not answering
 
 
 def pure_path(text):
@@ -1036,7 +1036,7 @@ def docker_os_type(run=None):
     try:
         done = (run or subprocess.run)(["docker", "info", "--format", "{{.OSType}}"], capture_output=True, text=True,
                                        check=False, timeout=DOCKER_WAIT)
-    except (OSError, subprocess.SubprocessError):
+    except (OSError, ValueError, subprocess.SubprocessError):       # ValueError: an answer the computer's own code page can't decode
         return None
     answer = (done.stdout or "").strip().lower()
     return answer if done.returncode == 0 and answer else None
@@ -1048,12 +1048,15 @@ def reserved_port_ranges(run=None, on=None):
     if (on or system()) != WINDOWS:
         return []
     try:
-        done = _run(["netsh", "interface", "ipv4", "show", "excludedportrange", "protocol=tcp"], run)
-    except (OSError, subprocess.SubprocessError):
+        done = (run or subprocess.run)(["netsh", "interface", "ipv4", "show", "excludedportrange", "protocol=tcp"],
+                                       capture_output=True, text=True, check=False, timeout=DOCKER_WAIT)
+    except (OSError, ValueError, subprocess.SubprocessError):
         return None
     if done.returncode != 0:
         return None
-    return [(int(a), int(b)) for a, b in re.findall(r"^\s*(\d+)\s+(\d+)", done.stdout or "", re.M)]
+    # A row is two whole numbers and an optional "*" (an administered exclusion); a mark some Windows languages put before the numbers is allowed.
+    rows = re.findall(r"^[\s\u200e\u200f]*(\d+)\s+(\d+)\s*\*?\s*$", done.stdout or "", re.M)
+    return [(int(a), int(b)) for a, b in rows if 1 <= int(a) <= int(b) <= 65535]
 
 
 # A program started for a job that is waited for (the PDF export drives Chrome this way).

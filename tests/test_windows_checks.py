@@ -1,9 +1,9 @@
-"""#635: the first-run checks for clark on Windows in Docker (src/clark/doctor.py --docker, src/clark/platform.py).
+"""Row 635: the first-run checks for clark on Windows in Docker (src/clark/doctor.py --docker, src/clark/platform.py).
 
 Run: python3 dev/run_tests.py test_windows_checks
 Nothing here runs Docker, netsh or Windows: the system's answers are fakes. Covered: every output of the Docker check, the
 Windows forms of a OneDrive path, the port Windows keeps for itself, and the 127.0.0.1 wording. The data move is in
-test_data_move.py. What only a real Windows laptop can show is the hand check in #623.
+test_data_move.py. What only a real Windows laptop can show is the hand check in row 623.
 """
 import shutil
 import subprocess
@@ -121,6 +121,10 @@ class OneDriveWindowsForms(unittest.TestCase):
         for path in (r"C:\Users\a\Documents\clark", "C:/clark-data", "/Users/a/clark", r"\\server\share\clark"):
             self.assertIsNone(pl.onedrive_in_path(path), path)
 
+    def test_a_backslash_path_without_a_drive_is_read_as_windows(self):
+        self.assertIsInstance(pl.pure_path(r"Users\a\OneDrive\clark"), pl.PureWindowsPath)
+        self.assertEqual(pl.pure_path(r"Users\a\clark").name, "clark")
+
     def test_the_form_is_read_from_the_text(self):
         self.assertIsInstance(pl.pure_path(r"C:\Users\a"), pl.PureWindowsPath)
         self.assertIsInstance(pl.pure_path("C:/Users/a"), pl.PureWindowsPath)
@@ -138,6 +142,17 @@ class ReservedPorts(unittest.TestCase):
         run = runner(done(NETSH))
         self.assertEqual(pl.reserved_port_ranges(run, on=pl.MAC), [])
         self.assertEqual(run.calls, [])
+
+    def test_netsh_is_given_a_time_limit_and_a_bad_decode_is_none(self):
+        run = runner(done(NETSH))
+        pl.reserved_port_ranges(run, on=pl.WINDOWS)
+        self.assertEqual(run.calls[0][1]["timeout"], pl.DOCKER_WAIT)
+        self.assertIsNone(pl.reserved_port_ranges(runner(error=UnicodeDecodeError("cp932", b"x", 0, 1, "bad")), on=pl.WINDOWS))
+        self.assertIsNone(pl.docker_os_type(runner(error=UnicodeDecodeError("cp932", b"x", 0, 1, "bad"))))
+
+    def test_a_row_must_be_two_numbers_in_order_and_a_mark_before_them_is_allowed(self):
+        text = "\u200f  8700   8799\n   100   50\n   5  6  7\n   70000  70001\n  9000  9005  *\n"
+        self.assertEqual(pl.reserved_port_ranges(runner(done(text)), on=pl.WINDOWS), [(8700, 8799), (9000, 9005)])
 
     def test_netsh_failing_is_none(self):
         self.assertIsNone(pl.reserved_port_ranges(runner(done("", 1)), on=pl.WINDOWS))

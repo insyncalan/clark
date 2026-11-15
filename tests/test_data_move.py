@@ -1,4 +1,4 @@
-"""#635: clark's data moved from a Mac to Windows (or any other computer), by its backup file.
+"""Row 635: clark's data moved from a Mac to Windows (or any other computer), by its backup file.
 
 Run: python3 dev/run_tests.py test_data_move
 A backup made on a "Mac" (a demo store holding Mac paths in source_folders and publications) is restored into a clean folder,
@@ -109,6 +109,25 @@ class MacBackupMoved(unittest.TestCase):
         self.assertNotIn("''", line.words)
         self.assertNotIn("such as", line.words)
         self.assertTrue(line.words.startswith("Folders saved in your data that do not exist here: 2. This is usual"), line.words)
+
+    def test_one_missing_folder_is_said_in_the_singular_and_several_in_the_plural(self):
+        self._set_source_folders("D:\\Plans\\Site")
+        one = self._line_with_missing("D:\\Plans\\Site").words
+        self.assertEqual(one, "Folders saved in your data that do not exist here: 1, such as 'Site'. This is usual after moving clark's "
+                              "data from another computer. The rest of clark works without them; choose that folder again where you use it.")
+        self._set_source_folders("D:\\Plans\\Site", "D:\\Plans\\Yard")
+        two = self._line_with_missing("D:\\Plans\\Site", "D:\\Plans\\Yard").words
+        self.assertTrue(two.endswith("choose those folders again where you use them."), two)
+
+    def test_an_empty_saved_path_is_not_a_missing_folder(self):
+        self._set_source_folders("", "D:\\Plans\\Site")
+        line = self._line_with_missing("", "D:\\Plans\\Site")
+        self.assertIn("not exist here: 1, such as 'Site'.", line.words)
+
+    def test_the_example_is_the_first_named_missing_path_in_sorted_order(self):
+        self._set_source_folders("D:\\Plans\\Zed", "D:\\Plans\\Alpha")
+        line = self._line_with_missing("D:\\Plans\\Zed", "D:\\Plans\\Alpha")
+        self.assertIn("such as 'Alpha'.", line.words)
 
     def test_a_saved_root_is_passed_over_for_a_named_example(self):
         self._set_source_folders("C:\\", "D:\\Plans\\Site")

@@ -14,8 +14,8 @@ Each check prints one line: Ready, To fix, Worth knowing (advice, never a fault)
 - the browser: Chrome found, or the default browser is used (advice)
 - nothing else is using the connection clark needs, asked as the launcher asks (required)
 - Claude Code, for ask clark (advice: clark runs without it)
-- folders saved in the data that aren't on this computer, as after moving the data from a Mac to Windows (advice, #635)
-With --docker, for clark run in Docker (#635), two more (both required):
+- folders saved in the data that aren't on this computer, as after moving the data from a Mac to Windows (advice, row 635)
+With --docker, for clark run in Docker (row 635), two more (both required):
 - Docker Desktop is started and runs Linux containers (`docker info --format {{.OSType}}`, as START-HERE has it typed)
 - the port clark uses isn't one Windows keeps back for itself; the ready line says to open 127.0.0.1, not localhost
 
@@ -308,7 +308,7 @@ CHECKS = (
     Check("The Claude Code check", False, check_claude),
     Check("The check for saved folders", False, check_saved_folders),
 )
-DOCKER_CHECKS = (                               # with --docker (#635)
+DOCKER_CHECKS = (                               # with --docker (row 635)
     Check("The Docker check", True, check_docker_mode),
     Check("The check that Windows doesn't keep clark's port", True, check_port_not_reserved),
 )
