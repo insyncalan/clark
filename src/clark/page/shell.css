@@ -2633,10 +2633,10 @@ html:has(.top-hdr) { --topbar: 85px; }
 .hdr-date { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 24px; margin: -4px -5px; padding: 0 5px; border-radius: var(--radius-sm); cursor: pointer; color: inherit; font-size: inherit; line-height: inherit; }
 .hdr-date.hdr-static { cursor: default; }
 .hdr-date:not(.hdr-static):hover, .hdr-date[aria-expanded="true"] { background: color-mix(in srgb, var(--white) 14%, transparent); text-decoration: underline dotted; text-decoration-thickness: 2px; text-underline-offset: 4px; }
-.top-hdr .tabs { margin-left: 0; height: auto; align-self: stretch; align-items: flex-end; flex: none; }
+.top-hdr .tabs { margin-left: auto; height: auto; align-self: stretch; align-items: flex-end; flex: none; }
 .top-hdr .tab { padding-block: 8px 12px; }
 .top-hdr .tab:focus-visible { outline-offset: -4px; }
-.hdr-end { margin-left: auto; flex: none; display: flex; align-items: center; gap: 10px; }
+.hdr-end { margin-left: 0; flex: none; display: flex; align-items: center; gap: 10px; }
 @media (max-width: 900px) {      /* two rows: the logo, the name with its line and the buttons on top, the tabs as a strip under */
   html:has(.top-hdr) { --topbar: 129px; }
   .top-hdr { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: 1fr auto; grid-template-areas: "logo id end" "tabs tabs tabs"; gap: 0 16px; padding: 22px 20px 0; align-items: center; }

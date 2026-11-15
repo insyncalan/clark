@@ -94,6 +94,15 @@ class HdrLogoTitle(Base):
                        "return Math.round(t.bottom - a.bottom);})()")
             self.assertEqual(got, 10, "the underline is 10 px above the bottom edge")
 
+    def test_row_1212_the_tabs_sit_at_the_right_just_before_the_icon_group_at_1400(self):
+        """Row 1212: the option C reference groups the tabs at the right, the last tab's label about 37 px before the search circle (so about 23 px from the last tab's box, which has 14 px padding)."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.at(cdp, p, 1400)
+            got = p.js(f"(function(){{var ts={TOP}.querySelectorAll('.tab'), l=ts[ts.length-1].getBoundingClientRect(), e={TOP}.querySelector('.hdr-end').getBoundingClientRect(); "
+                       "return Math.round(e.left - l.right);})()")
+            self.assertTrue(18 <= got <= 28, f"the last tab ends {got} px before the icon group; the reference has about 23")
+
     def test_row_1212_no_second_logo_in_the_icon_group(self):
         with chrome() as cdp:
             p = self.visit(cdp)
