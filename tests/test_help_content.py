@@ -357,7 +357,7 @@ class LowWordsRound(unittest.TestCase):
 
     def test_the_report_has_no_look_to_choose(self):
         self.assertNotIn("one look", self.ALL)
-        self.assertIn("The report is the cover, then the sections, with the contents at the right edge", self.ALL)
+        self.assertIn("The report is the sections, with the contents at the right edge", self.ALL)
         self.assertNotIn("sections in cards", self.ALL)       # Compact is not cards
 
     def test_no_line_starts_with_ask_clark(self):
