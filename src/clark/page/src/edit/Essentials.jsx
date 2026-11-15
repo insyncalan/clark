@@ -4,18 +4,18 @@
 // start with "ess-" so the page never holds one twice. Edit parts only (a published file has no Settings).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { data } from "../stores/report.js";
-import { density, setDensity } from "../stores/density.js";
+import { density } from "../stores/density.js";
 import { motionOn, setMotion } from "../stores/motionPref.js";
 import { profile, loadProfile, setProfile } from "../stores/profile.js";
 import { announce } from "./aboutYouToast.js";
 import { SettingRow } from "./SettingRow.jsx";
-import { DENSITIES, AppearancePick, KeysSwitch } from "./Personal.jsx";
+import { DENSITIES, AppearancePick, KeysSwitch, pickDensity } from "./Personal.jsx";
 import { CopyFolder } from "./Safety.jsx";
 import { listBackups, setCopyFolder } from "./safetyApi.js";
 import { LocalFolderPick } from "./ClientFolder.jsx";
 import { askOn, askStatus, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
 import { useAskFlip } from "./AskSettings.jsx";
-import { leaveSwitch } from "./switchToast.js";
+import { announceSwitch, leaveSwitch } from "./switchToast.js";
 
 // Your name: saved when the box is left or on Enter, as in About you; a refusal stands under the box and the box keeps what was typed.
 function NameRow() {
@@ -38,7 +38,7 @@ function NameRow() {
   }
   return (
     <SettingRow id="ess-name" name="Your name" bad={said ? <small class="fld-bad" id="ess-name-bad" role="alert">{said}</small> : null}>
-      <input id="ess-name" ref={box} type="text" value={typed} autocomplete="name" aria-invalid={said ? "true" : undefined} aria-describedby={said ? "ess-name-bad" : undefined}
+      <input id="ess-name" ref={box} type="text" value={typed} autocomplete="name" placeholder="Your full name" aria-invalid={said ? "true" : undefined} aria-describedby={said ? "ess-name-bad" : undefined}
         onInput={(e) => { dirty.current = true; setTyped(e.currentTarget.value); }} onBlur={save} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(); } }} />
     </SettingRow>
   );
@@ -49,17 +49,24 @@ function SpacingRow() {
     <SettingRow id="ess-spacing-first" name="Spacing">
       <div class="seg" role="radiogroup" aria-label="Spacing" data-ess-density>
         {DENSITIES.map(([id, name], i) => (
-          <button key={id} type="button" role="radio" id={i === 0 ? "ess-spacing-first" : undefined} data-ess-density-pick={id} aria-checked={density.value === id ? "true" : "false"} onClick={() => setDensity(id)}>{name}</button>
+          <button key={id} type="button" role="radio" id={i === 0 ? "ess-spacing-first" : undefined} data-ess-density-pick={id} aria-checked={density.value === id ? "true" : "false"} onClick={() => pickDensity(id)}>{name}</button>
         ))}
       </div>
     </SettingRow>
   );
 }
 
+// The Motion switch applies at once and says so in the same quiet toast as Spacing and Appearance ("Motion: Off."), with one Undo (item 1168).
+function flipMotion() {
+  const now = !motionOn.value, word = (on) => `Motion: ${on ? "On" : "Off"}.`;
+  setMotion(now);
+  announceSwitch(word(now), () => { setMotion(!now); return { ok: true }; }, word(!now));
+}
+
 function MotionRow() {
   return (
     <SettingRow id="ess-motion" name="Motion">
-      <button type="button" id="ess-motion" class="switch" role="switch" data-ess-motion aria-checked={motionOn.value ? "true" : "false"} onClick={() => setMotion(!motionOn.value)}></button>
+      <button type="button" id="ess-motion" class="switch" role="switch" data-ess-motion aria-checked={motionOn.value ? "true" : "false"} onClick={flipMotion}></button>
     </SettingRow>
   );
 }

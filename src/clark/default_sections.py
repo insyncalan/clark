@@ -6,8 +6,9 @@ The types and titles are those of the editor prototype (system/prototype/db.js, 
 body, and only a text section can sit beside another: This week is set beside the next section, as in the prototype.
 tests/test_sections_store.py pins this list.
 """
+CURRENT_STATE_PREFILL = "Say where the project stands today, at a high level: what is done, what comes next, and anything that needs attention."   # item 1188: the editor's hint for the first section, never its body (a client must not read instruction text); the page gets it from the build (dev/tools/build_page.py)
 DEFAULT_SECTIONS = (
-    {"type": "current", "title": "Current state"},
+    {"type": "text", "title": "Current state", "body": ""},   # item 1188: a text section now; the older type "current" is still read and stored, and existing reports keep it
     {"type": "glance", "title": "At a glance"},
     {"type": "usecases", "title": "Use case summary"},
     {"type": "milestones", "title": "Milestones"},

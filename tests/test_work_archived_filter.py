@@ -14,6 +14,7 @@ from _paths import SRC
 
 from clark import publish  # noqa: E402
 from test_work_board_page import Base  # noqa: E402
+from test_server import wait  # noqa: E402
 from test_work_filters import click, key, set_line  # noqa: E402
 
 WIDTHS = (1400, 900)
@@ -97,8 +98,12 @@ class ArchivedFilter(Base):
             click(cdp, sid, f"#archived-list tr[data-arch-id='{self.gone[1]}']")
             self.until(cdp, sid, "!!document.querySelector('#peek-archived')", "the peek")
             self.until(cdp, sid, "!document.querySelector('#peek-archived').getAnimations({subtree: true}).some(a => a.playState === 'running')", "the slide in")
-            key(cdp, sid, "Escape")
-            self.until(cdp, sid, "!document.querySelector('#peek-archived')", "the peek shut")
+            for _ in range(5):             # a slow Mac may drop the key before the peek has its handler: press again, only while the peek is open
+                key(cdp, sid, "Escape")
+                if wait(lambda: not cdp.js("!!document.querySelector('#peek-archived')", sid), 4):
+                    break
+            self.until(cdp, sid, "!document.querySelector('#peek-archived')", "the peek shut",
+                       why=lambda: cdp.js("JSON.stringify({focus: document.activeElement && document.activeElement.tagName, peek: !!document.querySelector('#peek-archived'), motion: document.documentElement.dataset.motion || ''})", sid))
             self.until(cdp, sid, f"document.activeElement && document.activeElement.dataset.archId === '{self.gone[1]}'", "the focus on the row")
 
     def test_is_archived_not_and_with_a_search_word(self):

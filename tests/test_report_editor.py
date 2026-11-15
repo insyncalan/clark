@@ -29,6 +29,7 @@ import build_page  # noqa: E402
 import esbuild  # noqa: E402
 
 from clark import changes, order, page, publish, server as sv  # noqa: E402
+from clark.default_sections import CURRENT_STATE_PREFILL  # noqa: E402
 from test_page import DATA, navigate  # noqa: E402
 from test_server import Running, chrome, wait, wait_toast  # noqa: E402
 
@@ -54,8 +55,8 @@ class Pg:
         self.t, self.cdp, self.sid = test, cdp, sid
 
     @classmethod
-    def at(cls, test, cdp, port, hash_="#dashboard&p=ABC", section_style="slim"):
-        return cls(test, cdp, navigate(cdp, port, for_project(hash_), section_style=section_style))
+    def at(cls, test, cdp, port, hash_="#dashboard&p=ABC", section_style="slim", motion=None):
+        return cls(test, cdp, navigate(cdp, port, for_project(hash_), section_style=section_style, motion=motion))
 
     def js(self, expr):
         return self.cdp.js(expr, self.sid)
@@ -197,8 +198,8 @@ class Base(unittest.TestCase):
     def titles_in_store(self):
         return [r["title"] for r in order.in_order(self.store.read("report_sections", "ABC"))]
 
-    def visit(self, cdp, hash_="#dashboard&p=ABC"):
-        p = Pg.at(self, cdp, self.s.port, hash_)
+    def visit(self, cdp, hash_="#dashboard&p=ABC", motion=None):
+        p = Pg.at(self, cdp, self.s.port, hash_, motion=motion)
         p.ready()
         return p
 
@@ -249,8 +250,8 @@ class Modes(Base):
             # drawn says the one plain line
             # #74: Supporting documents draws its own list (and is left out of View while it has no document), so it is not one of these
             sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases', 'text', 'current', 'docs'].includes(s.dataset.type))"
-            texts = "[...document.querySelectorAll('.secs > .sec')].filter(s => ['text', 'current'].includes(s.dataset.type)).map(s => s.querySelector('.quiet').textContent)"
-            self.assertEqual(p.js(texts), ["Nothing recorded."] * 4, "View: a text section with nothing saved says so in plain words")
+            texts = "[...document.querySelectorAll('.secs > .sec')].filter(s => ['text', 'current'].includes(s.dataset.type)).map(s => s.querySelector('.quiet, .sec-body').textContent)"
+            self.assertEqual(p.js(texts), ["Nothing recorded."] * 4, "View: a text section with nothing saved says so in plain words, Current state too: its starting line is the editor's hint, never a body (item 1188)")
             quiet = sec + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet, [data-nothing]').textContent)"
             kinds = p.js(sec + ".map(s => s.dataset.type)")
             want = [f"{k}:{NOTHING if k in ('raid', 'actions', 'decisions') else QUIET}" for k in kinds]       # A-D5: those three draw their rows
@@ -264,7 +265,7 @@ class Modes(Base):
             sec_other = sec + ".filter(s => !['raid', 'actions', 'decisions'].includes(s.dataset.type))"
             self.assertEqual(p.js(sec_other + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet').textContent)"), [w for w in want if w.split(':')[0] not in ('raid', 'actions', 'decisions')], "Edit: the same line")
             self.assertEqual(p.js(sec + ".filter(s => ['raid', 'actions', 'decisions'].includes(s.dataset.type)).map(s => !!s.querySelector('[data-showing]'))"), [True] * 3, "Edit: the three row sections say Showing N of M instead (A-D5)")
-            self.assertEqual(p.js(texts), ["Nothing recorded."] + ["Click to write."] * 3, "Edit: Current state draws its text as View does (row 850); the three text sections open the editor in place (#220)")
+            self.assertEqual(p.js(texts), [CURRENT_STATE_PREFILL] + ["Click to write."] * 3, "Edit: Current state is empty and shows its starting line as the editor's hint (item 1188); the other three say Click to write.")
             self.assertNotIn("is not shown", p.js("document.querySelector('main').textContent"))
             p.view()
             self.assertEqual(edit_elements(cdp, p.sid), [], "and gone again in View")
@@ -1383,7 +1384,7 @@ class Published(unittest.TestCase):
             self.assertNotIn("Hidden secret plan", titles)
             self.assertIn("Shown <b>plan</b>", titles)
             self.assertEqual(titles, ["At a glance", "Use case summary", "Milestones", "Shown <b>plan</b>", "Next week"],
-                             "At a glance and the use case summary (#45) and the two text sections with words: Summary is hidden, and no other type is drawn in a file yet")
+                             "Current state has no words (its starting line is only the editor's hint, item 1188), so it is not drawn; At a glance and the use case summary (#45) and the two text sections with words: Summary is hidden, and no other type is drawn in a file yet")
             self.assertEqual(edit_elements(cdp, sid), [])
             self.assertEqual(cdp.js("document.querySelectorAll('.mode, [aria-pressed]').length", sid), 0, "no Edit button")
             for key in ("e", "E", "v"):                                           # V and E do nothing in a published file (#103)
@@ -1494,7 +1495,7 @@ class Published(unittest.TestCase):
         store = demo.store
         sections = order.in_order(store.read("report_sections", "ABC"))
         kinds = {s["type"] for s in sections}
-        self.assertTrue({"current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs"} <= kinds,
+        self.assertTrue({"glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs"} <= kinds,
                         kinds)
         with store.step("dashboard", USER) as st:
             for s in sections:
@@ -1514,7 +1515,7 @@ class Published(unittest.TestCase):
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-id=\"ABC-S-005\"] .sec-body')", sid)), "the file drew")
             drawn = cdp.js("[...document.querySelectorAll('.sec')].map(s => s.dataset.type)", sid)
-            self.assertEqual(drawn, ["glance", "usecases", "milestones"] + ["text"] * len([s for s in sections if s["type"] == "text"]),
+            self.assertEqual(drawn, ["text", "glance", "usecases", "milestones"] + ["text"] * (len([s for s in sections if s["type"] == "text"]) - 1),
                              "only text sections, At a glance, the use case summary (#45) and Milestones are drawn")
             for s in sections:
                 if s["type"] not in ("text", "glance", "usecases", "milestones"):

@@ -5,6 +5,9 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { listBackups, previewBackup, restoreBackup, setCopyFolder } from "./safetyApi.js";
 import * as L from "../logic/safety.js";
 
+// Item 1200: the example shown in the empty copy-folder box (placeholder text, not a value).
+export const COPY_PLACEHOLDER = "/Users/you/OneDrive/clark backups";
+
 const REAL = { list: listBackups, preview: previewBackup, restore: restoreBackup, setCopyFolder };
 
 // Copy my backups to (#622): one optional folder, off until a path is saved. Saved by the Save button or Enter (never by leaving the box,
@@ -31,12 +34,15 @@ export function CopyFolder({ list, api, saved, row }) {
   return (
     <div class={row ? "copy-fld" : "fld copy-fld"} id={`${ix}-copy`}>
       {row ? null : <label for="safety-copy-box">{list.copy_label}</label>}
-      <input id={`${ix}-copy-box`} type="text" value={typed} autocomplete="off" spellcheck={false} {...{ [row ? "data-ess-copy-folder" : "data-copy-folder"]: "" }} aria-describedby={`${row ? "" : ix + "-copy-line "}${ix}-copy-said`}
+      <input id={`${ix}-copy-box`} type="text" value={typed} autocomplete="off" spellcheck={false} placeholder={COPY_PLACEHOLDER} {...{ [row ? "data-ess-copy-folder" : "data-copy-folder"]: "" }} aria-describedby={`${row ? "" : ix + "-copy-line "}${ix}-copy-said`}
         aria-invalid={said && said.kind === "error" ? "true" : undefined}
         onInput={(e) => setTyped(e.currentTarget.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (!busy) save(); } }} />
       {row ? null : <small id="safety-copy-line">{list.copy_help}</small>}
       {(list.copy_suggestions || []).map((path) => (
-        <button type="button" class="btn quiet sm" {...{ [row ? "data-ess-copy-suggestion" : "data-copy-suggestion"]: "" }} key={path} aria-disabled={busy ? "true" : undefined} onClick={() => { if (!busy) setTyped(path); }}>Use {path}</button>
+        <div class="copy-sug" key={path}>
+          <span class="copy-sug-path">{path}</span>
+          <button type="button" class="btn" {...{ [row ? "data-ess-copy-suggestion" : "data-copy-suggestion"]: "" }} aria-label={`Use ${path}`} aria-disabled={busy ? "true" : undefined} onClick={() => { if (!busy) setTyped(path); }}>Use</button>
+        </div>
       ))}
       <div class="row"><button type="button" class="btn sm" {...{ [row ? "data-ess-copy-save" : "data-copy-save"]: "" }} aria-disabled={busy ? "true" : undefined} onClick={save}>{L.LABELS.save}</button></div>
       <div id={`${ix}-copy-said`} role={said && said.kind === "error" ? "alert" : "status"} aria-live="polite">{said ? <p class={said.kind === "error" ? "fld-bad" : "success"}>{said.text}</p> : null}</div>

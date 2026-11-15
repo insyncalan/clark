@@ -1,6 +1,7 @@
-"""Row 811: the "needed from the client" flag and the Excel round trip. The workbook has NO column for the flag (a new column is new
-wording, held for the owner), so the contract pinned here is the minimal one: an export writes no such column, a workbook is read
-without it, and an import that changes OTHER cells of an action or a risk leaves its flag where it was (nothing is silently dropped).
+"""Row 811, then item 1158: the "needed from the client" flag and the Excel round trip. The workbook has NO column for the flag, so the
+contract pinned here is the minimal one: an export writes no such column, a workbook is read without it, an import that changes OTHER
+cells of an action or a risk leaves its flag where it was (nothing is silently dropped), and an older workbook that still has a
+'Needs from you' column imports: the column is not read, and the stored flag is not touched.
 
 Run: python3 dev/run_tests.py test_excel_client_action
 """
@@ -75,6 +76,25 @@ class RoundTrip(unittest.TestCase):
         self.assertTrue(xi.apply_import(self.s, p, USER).applied)
         self.assertEqual(self.s.read("actions", ref=self.action)["priority"], "High")
         self.assertEqual(self.flags(), (1, 1))
+
+    def test_an_old_workbook_with_a_needs_from_you_column_still_imports_and_leaves_the_stored_flag_alone(self):
+        wb = load_workbook(str(self.path))
+        for sheet in ("Actions", "Risks & Issues"):
+            ws = wb[sheet]
+            col = ws.max_column + 1
+            ws.cell(1, col).value = "Needs from you"
+            for r in range(2, ws.max_row + 1):
+                if ws.cell(r, 1).value is not None:
+                    ws.cell(r, col).value = "No"          # what an older export wrote there: it is not read
+        wb.save(str(self.path))
+        edit(self.path, "Actions", self.action, Priority="High")
+        p = xi.read_workbook(self.s, self.path, "ABC", state_path=self.state)
+        self.assertEqual(p.problems, [], "the extra column is no reason to refuse the workbook")
+        self.assertEqual(len(p.changes), 1, "only the Priority cell changed; the extra column is not a change")
+        p.accept_all()
+        self.assertTrue(xi.apply_import(self.s, p, USER).applied)
+        self.assertEqual(self.s.read("actions", ref=self.action)["priority"], "High")
+        self.assertEqual(self.flags(), (1, 1), "the stored client_action value of both rows is untouched")
 
 
 if __name__ == "__main__":

@@ -174,7 +174,7 @@ class OfflinePage(unittest.TestCase):
         self.assertIn("<title>Not running</title>", self.page)
         self.assertIn("<h1>Start clark to use this window</h1>", self.page)
         self.assertIn("Nothing is running at this address. Start it the way you started it: double-click <b>clark.command</b> in your clark folder, or, if you use Docker, open Terminal in that folder and type:", self.page)
-        self.assertIn("<code>docker compose -f docker/compose.yaml up -d</code>", self.page)
+        self.assertIn("<code>bash docker/start.command</code>", self.page)
         self.assertIn("Closing the last clark window stops clark.command after two minutes. Docker keeps running until you stop it with:", self.page)
         self.assertIn("<code>docker compose -f docker/compose.yaml down</code>", self.page)
         self.assertIn('<button type="button" id="again">Check again</button>', self.page)

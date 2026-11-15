@@ -402,12 +402,6 @@ const CHANGE_KNOWN = {
   "That value isn't one clark can use.": "That value can't be used, and nothing was changed. Try another.",
   "A latest update can be at most 1000 characters. Shorten it and try again.": "A latest update can be 1000 characters at most. Nothing was changed. Shorten it and try again.",
   "That has a hidden character in it. Take it out and try again.": "That update has a hidden character in it, often from copying and pasting. Nothing was changed. Type it again, then press Enter.",
-  // #121: a 'Needs from you' list clark would not save (clark/section_bodies.py's words; the page checks first and says the same)
-  "Needs from you can have at most 100 rows.": "A list can have 100 rows at most, and nothing was changed. Remove one to add another.",
-  "Say what is needed.": "Say what is needed. Nothing was changed.",
-  "What is needed can be 300 characters at most.": "What is needed can be 300 characters at most. Nothing was changed.",
-  "From can be 100 characters at most.": "From can be 100 characters at most. Nothing was changed.",
-  "By must be a real day between 2000 and 2100, or empty.": "By must be a real day between 2000 and 2100, or empty. Nothing was changed.",
   // the change route's own limit (server.py MESSAGES change_too_large) is the key at the end of this table
   // row 1005: the Text and picture section's text over its limit (section_kinds/textimage.py's words, said as the server says them)
   "The text can be 40,000 characters at most. Shorten it and try again.": "The text can be 40,000 characters at most. Shorten it and try again.",

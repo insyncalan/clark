@@ -287,8 +287,9 @@ UC_STANDING_WORDS = "That text can't be saved. It may be too long, or not text."
 UC_REF_WORDS = f"A use case needs an ID of 1 to {UC_REF_LIMIT} characters, with no line breaks or hidden characters."
 UC_REF_USED = "That ID is already used by another use case of this project."
 UC_NOT_MINE = NOT_MINE_RECORD                          # another project's use case and a missing one: the same words
-BUILT_IN_TYPES = tuple(s["type"] for s in clark_store.DEFAULT_SECTIONS if s["type"] != "text")   # row 906: re-added from Add a section, one of each
-NEW_SECTION_TYPES = ("text",) + section_bodies.BODY_TYPES + BUILT_IN_TYPES + ("gantt", "gantttable")         # what a new section may be: an allow-list, never the request's own spelling; gantttable (row 1068) is the Gantt table alone, no body either
+BUILT_IN_TITLES = {"current": "Current state", **{s["type"]: s["title"] for s in clark_store.DEFAULT_SECTIONS if s["type"] != "text"}}   # item 1188: "current" is no longer a default section (the first is text now), but it stays re-addable, so it is named here
+BUILT_IN_TYPES = tuple(BUILT_IN_TITLES)   # row 906: re-added from Add a section, one of each
+NEW_SECTION_TYPES = ("text",) + tuple(t for t in section_bodies.BODY_TYPES if t != section_bodies.NEEDS) + tuple(t for t in BUILT_IN_TYPES if t != section_bodies.NEEDS) + ("gantt", "gantttable")         # item 1158: no new needs section; what a new section may be: an allow-list, never the request's own spelling; gantttable (row 1068) is the Gantt table alone, no body either
 NEW_TYPE_WORDS = "That kind of section can't be added."
 NO_BODY_HERE = "That kind of section can't take content this way."
 BODY_NOT_TEXT = "A section's content must be sent as text."
@@ -787,7 +788,7 @@ def _do_change(store, by_user, req):
             raise Refused(NEW_TYPE_WORDS)
         title = clark_store.section_title(values["title"]) if "title" in values else DEFAULT_TITLE
         if new_type in BUILT_IN_TYPES:                              # row 906: a built-in comes back with its own title and settings
-            title = next(s["title"] for s in clark_store.DEFAULT_SECTIONS if s["type"] == new_type)
+            title = BUILT_IN_TITLES[new_type]
         start_body = None
         if "body" in values:                                        # #929: a text section may start with its words, in the one step (one Undo)
             if not isinstance(values["body"], str):
