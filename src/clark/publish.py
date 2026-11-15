@@ -66,6 +66,20 @@ SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", 
 BUILT_IN_SECTIONS = ("current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs")      # row 906: the sections whose data lives elsewhere
 
 
+CURRENT_STATE_TITLE = "Current state"
+
+
+def current_state_section_body(sections):
+    """Item 1188: the cleaned body of the report's text section that is the Current state (the first not hidden text section with
+    that title, casefolded and whitespace-normalised), or "" when there is none. A report that still has the built-in current
+    section, or no section rows, reads the project's current_state column instead (the caller)."""
+    title = CURRENT_STATE_TITLE.casefold()
+    for s in sections or ():
+        if s.get("type") == "text" and not s.get("hidden") and " ".join(str(s.get("title") or "").split()).casefold() == title:
+            return clean_html(s.get("body"))
+    return ""
+
+
 def hidden_types(sections, deleted=False):
     """The built-in section types the published file carries nothing of (row 906). A section left out (hidden) is one; so is a
     built-in with no section row, when the project HAS section rows or has had them all deleted (`deleted`). No rows and none ever
@@ -567,7 +581,7 @@ def select(inputs):
     out["labels"] = {i: list(item_labels[i]) for i in sorted(linkable) if item_labels.get(i)}
     proj = _pick(project, PUBLISH_FIELDS["projects"])
     proj["health_reason"] = reason_html(proj["health_reason"])
-    proj["current_state"] = "" if "current" in hidden_types else clean_html(proj["current_state"])
+    proj["current_state"] = clean_html(proj["current_state"]) if "current" not in hidden_types else current_state_section_body(given)      # item 1188: a report whose Current state is a text section carries that body
     out["project"] = proj
     out["documents"] = documents(inputs.get("documents"), code, hidden_ids, hidden_types) if any(
         s.get("type") == "docs" and not s.get("hidden") for s in sections) else []          # #74: carried only with a section to draw them
