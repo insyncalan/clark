@@ -29,6 +29,20 @@ class Typed(unittest.TestCase):
         self.assertEqual(shown, "C:\\users\\user\\onedrive - acme\\clients\\ABC")
         self.assertNotIn("/", shown)
 
+    def test_a_name_typed_in_the_wrong_case_is_spelled_as_the_share_lists_it(self):
+        listing = {"/shares/client": ["Abc Ltd", "other"], "/shares/client/Abc Ltd": ["Week 43"]}
+        with container(), mock.patch("clark.host_folders.os.listdir", lambda p: listing[p]):
+            path, shown = hf.to_container("client", "c:\\users\\user\\onedrive - acme\\clients\\ABC LTD\\week 43", ENV)
+        self.assertEqual(path, "/shares/client/Abc Ltd/Week 43")
+        self.assertTrue(shown.endswith("ABC LTD\\week 43"), "the Windows form stays as typed")
+
+    def test_a_name_the_share_does_not_list_or_lists_twice_keeps_the_typed_form(self):
+        listing = {"/shares/client": ["Abc", "ABC"]}
+        with container(), mock.patch("clark.host_folders.os.listdir", lambda p: listing[p]):
+            self.assertEqual(hf.to_container("client", "C:\\Users\\User\\OneDrive - Acme\\Clients\\aBc", ENV)[0], "/shares/client/aBc")
+        with container(), mock.patch("clark.host_folders.os.listdir", side_effect=OSError):
+            self.assertEqual(hf.to_container("client", "C:\\Users\\User\\OneDrive - Acme\\Clients\\New\\x", ENV)[0], "/shares/client/New/x")
+
     def test_the_shared_folder_itself_maps_to_its_mount(self):
         with container():
             self.assertEqual(hf.to_container("backup", "d:\\backups", ENV)[0], "/shares/backup")

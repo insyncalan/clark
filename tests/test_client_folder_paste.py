@@ -175,6 +175,15 @@ class WindowsPaste(Base):
             status, got = self.paste("C:\\Users\\Sam\\OneDrive\\Reports")
         mapped.assert_called_once()
 
+    def test_the_windows_form_as_typed_is_returned_with_the_saved_folder(self):
+        typed = "C:\\Users\\Sam\\OneDrive\\Reports"
+        with mock.patch.object(publish_flow.host_folders, "windows_host", return_value=True), \
+                mock.patch.object(publish_flow.host_folders, "to_container", return_value=(str(self.reports), typed)):
+            status, got = self.paste(typed)
+        self.assertEqual((status, got.get("ok")), (200, True), got)
+        self.assertEqual(got["folder_windows"], typed)
+        self.assertNotEqual(got["folder"], typed, "the stored folder is still the container path")
+
 
 class ThePage(unittest.TestCase):
     """The box under Choose folder, at 1400 and 900, light and dark: it pastes, saves and shows a refusal in a role=alert."""

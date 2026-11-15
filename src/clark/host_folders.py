@@ -6,6 +6,7 @@ Settings; this module says whether it is inside a shared folder, gives the conta
 back in Windows form. Only to_container is called from a route so far (the pasted client folder in publish_flow.py); see docs/handoff/design-625-host-side.md.
 Standard library only.
 """
+import os
 import re
 from pathlib import PureWindowsPath
 
@@ -79,10 +80,32 @@ def _within(root, parsed):
     return parsed[1][len(root[1]):]
 
 
+def _real_case(base, parts):
+    """`parts` with each name spelled as the share lists it. The share is case-sensitive but Windows is not, so a name typed in another
+    case is looked up case-insensitively among the folder's entries. A name the listing does not hold (or holds twice, differing only in
+    case), or a folder that cannot be listed, keeps the form that was typed."""
+    out = []
+    here = base
+    for part in parts:
+        real = part
+        try:
+            names = os.listdir(here)
+        except OSError:
+            names = None
+        if names is not None and part not in names:
+            same = [n for n in names if n.casefold() == part.casefold()]
+            if len(same) == 1:
+                real = same[0]
+        out.append(real)
+        here = here + "/" + real
+    return out
+
+
 def to_container(slot, typed, environ):
     """(container path, Windows form) for a typed Windows path inside the shared folder of `slot`. Raises ValueError in plain words,
     ending with the no-change sentence, for text that is not a full path, for a slot nothing was shared for, and for a path outside the
-    shared folder. The Windows form is the path as typed with a capital drive letter and backslashes."""
+    shared folder. The Windows form is the path as typed with a capital drive letter and backslashes. The container path spells each folder as the
+    share lists it (see _real_case), so a name typed in the wrong case still finds the folder."""
     parsed = _parse(typed)
     if parsed is None:
         raise ValueError(NOT_A_PATH)
@@ -93,7 +116,7 @@ def to_container(slot, typed, environ):
     if below is None:
         raise ValueError(NOT_SHARED.format(folder=platform.host_shown("\\".join([parsed[0] + ":"] + parsed[1]))))
     target = SLOTS[slot][1]
-    return "/".join([target] + below), "\\".join([parsed[0] + ":"] + parsed[1])
+    return "/".join([target] + _real_case(target, below)), "\\".join([parsed[0] + ":"] + parsed[1])
 
 
 def windows_form(container_path, environ):

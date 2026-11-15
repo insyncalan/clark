@@ -698,12 +698,14 @@ class Publisher:
                 saved = row.get("publish_client") or None
                 if action == "clear":
                     return self.save_folder(store, code, saved, None)
+                typed_windows = None    # the Windows form of a pasted drive path, returned to the page as it was typed
                 if action == "paste" and host_folders.windows_host(os.environ) and host_folders.is_drive_path(body["value"]):
                     refused = self.paste_refusal(body["value"].strip())
                     if refused:
                         return 409, self.fail(refused)
                     try:
-                        picked = Path(host_folders.to_container("client", body["value"], os.environ)[0]).resolve(strict=True)
+                        mapped, typed_windows = host_folders.to_container("client", body["value"], os.environ)
+                        picked = Path(mapped).resolve(strict=True)
                     except ValueError as e:
                         return 409, self.fail("client_folder_refused", str(e))
                     except (OSError, RuntimeError):
@@ -728,7 +730,7 @@ class Publisher:
                                               backups_dir=self.backups_dir)
                 if not checked["ok"]:
                     return 409, self.fail("client_folder_refused", checked["message"])
-                return self.save_folder(store, code, saved, checked["folder"], checked.get("warning"))
+                return self.save_folder(store, code, saved, checked["folder"], checked.get("warning"), typed_windows)
             finally:
                 store.close()
 
@@ -767,16 +769,18 @@ class Publisher:
             return None, "paste_not_synced"
         return real, None
 
-    def save_folder(self, store, code, saved, folder, warning=None):
+    def save_folder(self, store, code, saved, folder, warning=None, windows=None):
+        """Save the client folder. `windows` is the Windows form of a pasted drive path; it is returned as `folder_windows` (not stored)."""
+        extra = {"folder_windows": windows} if windows else {}
         if folder == saved:
-            return 200, {"ok": True, "changed": False, "folder": saved, "message": MESSAGES["folder_unchanged" if folder else "folder_cleared"]}
+            return 200, {"ok": True, "changed": False, "folder": saved, "message": MESSAGES["folder_unchanged" if folder else "folder_cleared"], **extra}
         try:
             with store.step("dashboard", self.by_user(), place="menu") as st:
                 st.update("projects", code, {"publish_client": folder})
         except Invalid as e:
             return 409, self.fail("settings_failed", MESSAGES["settings_failed"])
         return 200, {"ok": True, "changed": True, "folder": folder, "folder_name": to_client.folder_name(folder),
-                     "warning": warning, "message": MESSAGES["folder_saved" if folder else "folder_cleared"]}
+                     "warning": warning, "message": MESSAGES["folder_saved" if folder else "folder_cleared"], **extra}
 
     # ----- a file for a section template (#96) -----
     def section_file(self, body):
