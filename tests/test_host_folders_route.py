@@ -24,6 +24,24 @@ class Typed(Base):
         self.assertEqual((status, got["ok"]), (200, True), got)
         self.assertEqual(self.folder(), str((self.rig.root / "mount" / "ABC").resolve()))
 
+    def test_a_name_typed_in_the_wrong_case_saves_the_folder_as_the_share_lists_it(self):
+        (self.rig.root / "mount" / "Abc Ltd").mkdir(parents=True)
+        status, got = self.paste_on_windows("c:/users/user/clients/ABC LTD")
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        self.assertEqual(self.folder(), str((self.rig.root / "mount" / "Abc Ltd").resolve()))
+
+    def test_the_saved_response_returns_the_windows_form_as_typed(self):
+        (self.rig.root / "mount" / "ABC").mkdir(parents=True)
+        status, got = self.paste_on_windows("c:/users/user/clients/ABC")
+        self.assertEqual(status, 200, got)
+        self.assertEqual(got["folder_windows"], "C:\\users\\user\\clients\\ABC")
+
+    def test_off_windows_the_saved_response_has_no_windows_form(self):
+        (self.rig.root / "mount" / "ABC").mkdir(parents=True)
+        status, got = self.paste_on_windows(str(self.rig.root / "mount" / "ABC"), env={"CLARK_HOST": ""})
+        self.assertEqual(status, 409, got)
+        self.assertNotIn("folder_windows", got)
+
     def test_a_path_outside_the_shared_folder_is_refused_and_nothing_is_saved(self):
         status, got = self.paste_on_windows("C:\\Other")
         self.assertEqual((status, got["ok"]), (409, False))

@@ -38,7 +38,7 @@ goes only to a shared client folder.
    checks (not the data folder, writable, make a missing last folder) run on the container path unchanged.
 2. After Publish, After Excel export and After Word export: the page uses `saved_words` where it now names the file only.
 3. To client: `to_client.RealFs` is the only writer and already writes to the saved client folder; the saved value is a path under
-   `/shares/client`, so it cannot be a data folder. OneDrive is allowed here (outputs), never for the data folder (#427's check
+   `/shares/client`, so it cannot be a data folder. OneDrive is allowed here (outputs), never for the data folder (item 427's check
    stays).
 4. item 629 adds the one reader of `CLARK_HOST` in `platform.py`; this module then calls that instead of reading the setting itself.
 
@@ -60,6 +60,6 @@ file written in the container appears at the typed path, and that a OneDrive-syn
 - Done-when 3 (To client copying into the shared client folder) is not confirmed: the saved path now can be under `/shares/client`,
   but the copy itself was not run against a shared folder.
 - Not checked: that the Settings page lets a typed `C:\` path through to the paste request.
-- The compose file itself (a Windows variant, a start command): it belongs to item 623/#427 and the file lists the package-layout tests check.
+- The compose file itself (a Windows variant, a start command): it belongs to item 623/item 427 and the file lists the package-layout tests check.
 - Spelling a shared folder into the compose file for the person: they type the path once in the start command.
 - Ask clark source folders: off on Windows (owner's decision, 05-11-2026), so no slot.
