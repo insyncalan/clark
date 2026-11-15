@@ -5,6 +5,7 @@
 // isEmpty: nothing that can be drawn, so the section is left out of the served View and the published file alike (FR-11).
 import { fromFile } from "../stores/report.js";
 import { docItems, kindWords, sizeWords } from "./files.js";
+import { UNRULED_OPEN, UNRULED_DOWNLOAD } from "../logic/docLinksWords.js";
 
 export const READY = true;
 
@@ -30,12 +31,27 @@ export function FileRow({ file, label }) {
   );
 }
 
+// Row 1221: the editor's way to read a file row's file (edit/templates/fileRoute.js sets it). A published file has none, so it draws no
+// Open or Download and names no route (a file's own address resolves only beside the client's copy of the report).
+export const fileReader = { read: null };
+
+function FileActions({ file }) {
+  const read = fileReader.read;
+  if (!read) return null;
+  return (
+    <span class="tpl-acts">
+      <button type="button" class="tpl-act" aria-label={`${UNRULED_OPEN} ${file.name}`} onClick={() => read(file.name, false)}>{UNRULED_OPEN}</button>
+      <button type="button" class="tpl-act" aria-label={`${UNRULED_DOWNLOAD} ${file.name}`} onClick={() => read(file.name, true)}>{UNRULED_DOWNLOAD}</button>
+    </span>
+  );
+}
+
 export function View({ section }) {
   return (
     <ul class="tpl-dl">
       {docItems(section).map((i, n) => (
         <li key={n} class={`tpl-dl-i tpl-dl-${i.kind}`}>
-          {i.kind === "file" ? <FileRow file={i} label={i.label} /> : (
+          {i.kind === "file" ? <><FileRow file={i} label={i.label} />{fromFile.value ? null : <FileActions file={i} />}</> : (
             <>
               <span class="tpl-badge">Link</span>
               <span class="tpl-main">

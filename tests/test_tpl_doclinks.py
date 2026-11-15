@@ -198,8 +198,41 @@ class InThePage(PageBase):
                 ["Link", "team@example.org", "A", "mailto:team@example.org"],
                 ["PDF", "Plan v2.pdf", "SPAN", None]], "the page clark serves names a file without linking it")
             self.assertFalse(p.js(f"!!document.querySelector('[data-id={json.dumps(empty)}]')"), "an empty list is left out of View")
-            self.assertEqual(p.js(f"document.querySelectorAll('[data-id={json.dumps(ref)}] input, [data-id={json.dumps(ref)}] button').length"), 0,
-                             "View is read only")
+            self.assertEqual(p.js(f"document.querySelectorAll('[data-id={json.dumps(ref)}] input').length"), 0, "View is read only")
+            self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] button')].map(b => b.getAttribute('aria-label'))"),
+                             ["Open Plan v2.pdf", "Download Plan v2.pdf"], "the only buttons are a file's Open and Download (row 1221)")
+
+    STUB = """(() => { window.seen = []; window.opened = []; window.saved = [];
+        const real = window.fetch.bind(window);
+        window.fetch = (url, opts) => { if (String(url).startsWith('/api/section-file')) { window.seen.push([String(url), (opts && opts.headers && opts.headers['X-Clark-Token']) ? 'token' : 'no token']);
+            return Promise.resolve(new Response(new Blob(['fictional bytes'], {type: 'application/pdf'}), {status: 200})); } return real(url, opts); };
+        window.open = (u, t) => ({closed: false, close() { this.closed = true; }, location: {set href(h) { window.opened.push(String(h).slice(0, 5)); }}});
+        HTMLAnchorElement.prototype.click = function () { window.saved.push([this.download, this.href.slice(0, 5)]); }; })()"""
+
+    def test_view_gives_a_file_row_open_and_download_that_read_through_clark(self):
+        """Row 1221: in the editor's View a file row has Open and Download (44 px, named, at 1400 and 900), and each asks
+        GET /api/section-file with the token, the project and the file's name; Open uses a new tab, Download the browser's save.
+        A link row has neither (it has its own link)."""
+        ref = self.add([a_file("Plan v2.pdf"), a_link()])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.until(f"!!document.querySelector('{sel} .tpl-dl')", "the list drew")
+            p.js(self.STUB)
+            for w in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 1000, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                got = p.js(f"[...document.querySelectorAll('{sel} .tpl-dl-i')].map(li => [...li.querySelectorAll('button.tpl-act')].map(b => "
+                           "[b.getAttribute('aria-label'), b.textContent, Math.round(b.getBoundingClientRect().height) >= 44]))")
+                self.assertEqual(got, [[["Open Plan v2.pdf", "Open", True], ["Download Plan v2.pdf", "Download", True]], []], w)
+                self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w, "no sideways scroll")
+            p.js(f"document.querySelectorAll('{sel} button.tpl-act')[0].click()")
+            p.until("window.opened.length === 1", "Open opened the file in a new tab")
+            p.js(f"document.querySelectorAll('{sel} button.tpl-act')[1].click()")
+            p.until("window.saved.length === 1", "Download saved the file")
+            self.assertEqual(p.js("window.seen"), [["/api/section-file?project=ABC&name=Plan%20v2.pdf", "token"],
+                                                   ["/api/section-file?project=ABC&name=Plan%20v2.pdf&download=1", "token"]])
+            self.assertEqual(p.js("window.saved"), [["Plan v2.pdf", "blob:"]])
+            self.assertEqual(p.js("window.opened"), ["blob:"])
 
     def test_edit_adds_a_link_in_one_step_and_undo_takes_it_back(self):
         ref = self.add([a_link()])
@@ -279,7 +312,8 @@ class Published(PageBase):
                 self.assertEqual(p.js(f"document.querySelector('[data-id={json.dumps(ref)}] .tpl-facts').textContent"), "example.org")
                 self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-facts')][1].textContent"),
                                  "Plan v2#1.pdf · 340 KB")
-                self.assertEqual(p.js("document.querySelectorAll('.tpl-dl input, .tpl-dl button, .tpl-form').length"), 0)
+                self.assertEqual(p.js("document.querySelectorAll('.tpl-dl input, .tpl-dl button, .tpl-form, .tpl-act').length"), 0,
+                                 "the file has no Open or Download control (row 1221: they read through clark, which a file cannot)")
                 self.assertFalse(p.js(f"!!document.querySelector('[data-id={json.dumps(hidden)}]')"))
                 self.assertLessEqual(p.js("document.documentElement.scrollWidth"), width, "no sideways scroll")
                 rel = p.js(f"document.querySelector('[data-id={json.dumps(ref)}] a.tpl-name').rel")
