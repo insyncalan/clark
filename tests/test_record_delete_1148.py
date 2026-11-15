@@ -13,6 +13,7 @@ import unittest
 from unittest import mock
 
 from _demo import USER
+from _new_page import reload_to_new_page_cdp
 from _real_server import real_server
 from clark import __main__ as launcher, page, server as sv, use_cases_read
 from clark.store import open_store
@@ -208,8 +209,7 @@ class Delete(unittest.TestCase):
                 sid = self.visit(cdp, "#usecases&p=TUL", "document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0", width)
                 for grouping in ("status", "nothing"):
                     cdp.js(f"localStorage.setItem('clark.ucPage', JSON.stringify({{TUL: {{line: '', tab: 'all', group: '{grouping}', sort: 'ref'}}}}))", sid)
-                    cdp.call("Page.reload", {}, sid)
-                    self.until(cdp, sid, "document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0", "the rows again")
+                    reload_to_new_page_cdp(cdp, sid, "document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0", "the rows again on the new page")
                     got = cdp.js("""(() => {
                         const box = document.querySelector('#usecases .ucl-box'), cols = box.querySelectorAll('.ucl-cols'), first = box.querySelector('.ucl-row[data-uc]');
                         const tracks = (el) => getComputedStyle(el).gridTemplateColumns.split(' ').length;
