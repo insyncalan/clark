@@ -115,8 +115,8 @@ def container_on_host_network(net_dir="/sys/class/net"):
 
 
 def container_host_in_onedrive(environ=None):
-    """item 427: inside the shipped container, the Mac folder that is shared in as the data folder, named by the compose file in
-    CLARK_DATA_SOURCE, as a Path when it is in OneDrive (a part of the path is OneDrive's own folder, `OneDrive`, `OneDrive - <name>`
+    """item 427: inside the shipped container, the Mac or Windows folder that is shared in as the data folder, named by the compose file in
+    CLARK_DATA_SOURCE, as a Path (a PureWindowsPath for a Windows path, item 629) when it is in OneDrive (a part of the path is OneDrive's own folder, `OneDrive`, `OneDrive - <name>`
     or `OneDrive-<name>`, case ignored), else None. Never outside a container. Without that variable nothing is known, so nothing is
     refused here; the compose file always sets it. This reads a name, not the disk: it refuses a harmless folder that is merely named like OneDrive (safe), and it cannot see a
     link with another name that points into OneDrive (a data-safety limit; the Mac-side starter is where links are resolved)."""
