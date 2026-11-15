@@ -174,7 +174,7 @@ class Served(Zoned):
         self.assertEqual(self.post("Asia/Dubai"), 200)
         self.assertEqual(self.stamped, ["+00:00"])
 
-    def test_the_heartbeat_applies_it_and_a_page_load_does_too(self):
+    def test_the_heartbeat_applies_it_and_a_page_load_does_not(self):
         with self.patches[0], self.patches[1], self.patches[2]:
             os.environ["TZ"] = "UTC"
             time.tzset()
@@ -184,7 +184,27 @@ class Served(Zoned):
             self.s.ask("GET", "/health")
             self.assertEqual(store_module.today(), "2026-11-14", "a request with no header leaves the zone as it is")
             self.s.ask("GET", "/", {"X-Tz": "America/New_York"})
-            self.assertEqual(store_module.today(), "2026-11-13")
+            self.assertEqual(store_module.today(), "2026-11-14", "the page is served without a token, so it does not move the zone")
+
+    def test_a_request_without_the_token_does_not_change_the_zone(self):
+        with self.patches[0], self.patches[1], self.patches[2]:
+            os.environ["TZ"] = "UTC"
+            time.tzset()
+            self.assertEqual(self.s.api("POST", "/api/here", b"{}", extra={"X-Tz": "Asia/Dubai"})[0], 200)
+            for method, path in (("GET", "/api/state"), ("GET", "/api/nothing-here"), ("GET", "/health"), ("GET", "/")):
+                self.s.ask(method, path, {"X-Tz": "America/New_York"})                           # no token
+                self.s.ask(method, path, {"X-Tz": "America/New_York", sv.TOKEN_HEADER: "wrong-token"})
+            status = self.s.api("POST", "/api/change", b"{}", token="wrong-token", extra={"X-Tz": "America/New_York"})[0]
+            self.assertEqual(status, 403)
+            self.assertEqual(store_module.today(), "2026-11-14")
+            self.assertEqual(os.environ["TZ"], "Asia/Dubai")
+
+    def test_a_get_with_the_token_follows_the_zone(self):
+        with self.patches[0], self.patches[1], self.patches[2]:
+            os.environ["TZ"] = "UTC"
+            time.tzset()
+            self.s.ask("GET", "/api/nothing-here", {sv.TOKEN_HEADER: sv.TOKEN, "X-Tz": "America/New_York"})
+            self.assertEqual(os.environ["TZ"], "America/New_York")
 
 
 class Source(unittest.TestCase):

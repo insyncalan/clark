@@ -1472,7 +1472,7 @@ class Handler(BaseHTTPRequestHandler):
         return host_allowed(self.headers.get("Host"))
 
     def follow_zone(self):
-        """item 631: in the container only, the page's time zone (X-Tz) is applied before the request is routed; anything that is not
+        """item 631: in the container only, the page's time zone (X-Tz) is applied once the token has been checked (never for the page, /health or a refused call); anything that is not
         an IANA name is ignored. Found by name when asked, so this module imports no other clark module."""
         if container_mode():
             importlib.import_module("clark.zone").follow_header(self.headers.get("X-Tz"), True)
@@ -1587,7 +1587,6 @@ class Handler(BaseHTTPRequestHandler):
         if container_mode() and not local_peer(self.client_address[0]):      # item 427: with the container's 0.0.0.0 bind, the page and /health are for this machine only too
             note_refused_peer(self.client_address[0])
             return self.send(403, CONTAINER_REFUSED_PAGE, "text/html")
-        self.follow_zone()
         route = self.path.split("?")[0]
         if route == "/health":
             return self.send(200, health_answer(self.headers.get(MARK_HEADER)))
@@ -1609,6 +1608,7 @@ class Handler(BaseHTTPRequestHandler):
         if api or route.startswith("/api/"):
             if not self.authorised() or updating(self, route):
                 return None
+            self.follow_zone()          # only a request that carried this run's token may change the zone
             if api:
                 return self.run_route(api)
         return self.send(404, error_body("not_found"))
@@ -1699,7 +1699,6 @@ class SetupHandler(Handler):
         if container_mode() and not local_peer(self.client_address[0]):
             note_refused_peer(self.client_address[0])
             return self.send(403, CONTAINER_REFUSED_PAGE, "text/html")
-        self.follow_zone()
         route = self.path.split("?")[0]
         if route == "/health":
             return self.send(200, health_answer(self.headers.get(MARK_HEADER)))
@@ -1708,6 +1707,7 @@ class SetupHandler(Handler):
         if route.startswith("/api/"):
             if not self.authorised():
                 return None
+            self.follow_zone()          # after the token, as on Handler
             api = SETUP_GET_ROUTES.get(route)
             if api:
                 if self.headers.get("Content-Length") not in (None, "0") or self.headers.get("Transfer-Encoding"):
