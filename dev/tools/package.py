@@ -239,29 +239,34 @@ and press Return. Nothing you do there is kept.
 START_HERE_WINDOWS = """\
 Getting started on Windows
 
-These steps are for Windows. You only need Docker and Chrome.
+These steps are for Windows. You need Docker Desktop and Chrome or Edge. Docker
+Desktop must already be installed and running; to check, open PowerShell and
+type docker version.
 
 What is in this folder: README.md says what clark is. START-HERE.md is this
 page. docker holds the files for starting clark with Docker. branding holds
-your own logo and colours, if you add them. The program files are in a hidden
-folder called .app: you do not need to open it.
+your own logo and colours, if you add them. The program files are in a folder
+called .app: you do not need to open it.
 
-  1. Open Docker Desktop and wait until it says it is running.
-  2. Open PowerShell, type cd and a space, drag this folder into the PowerShell
-     window and press Return.
-  3. The first time only, type this and press Return:
+  1. Right-click the zip you downloaded, choose Extract All and finish. Then
+     open the new folder called clark. Do not run anything from inside the zip.
+  2. Open Docker Desktop and wait until it says it is running.
+  3. Open PowerShell (Start, type PowerShell). Type cd and a space, drag the
+     folder called clark into the PowerShell window and press Enter.
+  4. The first time only, type this and press Enter:
         docker load -i docker\\clark-runtime.tar
-  4. Type these two lines, pressing Return after each:
-        $env:CLARK_DATA_DIR = "$env:USERPROFILE\\clark-data"
-        docker compose -f docker/compose.yaml up -d
-  5. Open Chrome and go to http://localhost:8766
-  6. To stop clark, type this in the same folder and press Return:
-        docker compose -f docker/compose.yaml down
+  5. Type this and press Enter:
+        docker compose -f docker/compose.yaml -f docker/compose.windows.yaml up -d
+  6. Open Chrome or Edge and go to http://localhost:8766
+  7. To stop clark, type this in the same folder and press Enter:
+        docker compose -f docker/compose.yaml -f docker/compose.windows.yaml down
 Your data is kept in the clark-data folder in your user folder, not in this
-folder, so replacing this folder with a newer download cannot lose it. Type the
-first line of step 4 every time you start clark, or it will not find your data.
+folder, so replacing this folder with a newer download cannot lose it. To keep
+it somewhere else, type this first, in every new PowerShell window, and put your
+own folder in it:
+        $env:CLARK_DATA_DIR = "D:\\clark-data"
 To see what Docker has said, type this in the same folder:
-        docker compose -f docker/compose.yaml logs --tail 50
+        docker compose -f docker/compose.yaml -f docker/compose.windows.yaml logs --tail 50
 """
 
 IMAGE_PLACEHOLDER = b"placeholder: the runtime image tar is built in CI and put here with --image-tar (item 624)\n"
