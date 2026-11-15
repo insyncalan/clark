@@ -83,7 +83,7 @@ class TocButton(Base):
             p.js(f"{BTN}.click()")
             p.until(OPEN, "open")
             # The page's listener is added just after it opens; press again on each poll until it has taken effect.
-            p.until("(document.querySelector('main').dispatchEvent(new PointerEvent('pointerdown', {bubbles: true})), "
+            p.until("(document.querySelector('h1').dispatchEvent(new PointerEvent('pointerdown', {bubbles: true})), "
                     f"!{OPEN})", "a click elsewhere shuts it")
 
     def test_at_900_the_open_list_and_button_fit_in_both_colours(self):
