@@ -39,6 +39,7 @@ class Stub:
         self.answer = "The pilot goes live in March."
         self.provider, self.why = "", ""         # #54: who the server says a question goes to, and its reason when nothing can answer
         self.stopped = False
+        self.notes = []                          # row 1218: the plain lines about what was left out
         self.sources = []                        # row 890: [{"id", "label"}] the answer used
 
     def status(self, *_):
@@ -56,7 +57,7 @@ class Stub:
         self.hold.wait(30)
         if self.stopped:
             return 200, {"ok": False, "code": "no_answer", "message": "That was stopped before an answer came back."}
-        return 200, {"ok": True, "answer": self.answer, "parsed": True, "cites": [], "sources": self.sources, "flags": [], "changes": [], "notes": []}
+        return 200, {"ok": True, "answer": self.answer, "parsed": True, "cites": [], "sources": self.sources, "flags": [], "changes": [], "notes": list(self.notes)}
 
     def open_source(self, body):
         self.calls.append(("open_source", body))
@@ -634,6 +635,37 @@ class Panel(Base):
         quips = re.findall(r'^  "(.+)",$', WORDS[WORDS.index("QUIPS"):], re.M)
         self.assertGreaterEqual(len(quips), 5)
         self.assertEqual(len(set(quips)), len(quips))
+
+    def test_left_out_notes_are_one_small_grey_block_under_the_answer(self):
+        """Row 1218: four notes are one block (one list), smaller than the answer, tighter, grey at 4.5 to 1 or more, at 1400 and 900, light and dark."""
+        self.stub.notes = ["Note one.", "Note two.", "Note three.", "Note four."]
+        self.stub.sources = [{"id": "P1", "label": "plan.xlsx"}]
+        read = """(function(){
+          const rgb = (c) => c.match(/[\\d.]+/g).slice(0, 3).map(Number), lum = (c) => { const [r, g, b] = rgb(c).map((v) => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }); return .2126 * r + .7152 * g + .0722 * b; };
+          const n = document.querySelector('[data-ask-notes]'), a = document.querySelector('.ask-turn.assistant .ask-text'), s = document.querySelector('.ask-sources');
+          let bg = n, bgc = 'rgba(0, 0, 0, 0)'; while (bg && /rgba\\(0, 0, 0, 0\\)|transparent/.test(bgc)) { bgc = getComputedStyle(bg).backgroundColor; bg = bg.parentElement; }
+          const l1 = lum(getComputedStyle(n).color), l2 = lum(bgc), ratio = (Math.max(l1, l2) + .05) / (Math.min(l1, l2) + .05);
+          const nr = n.getBoundingClientRect();
+          return {blocks: document.querySelectorAll('[data-ask-notes]').length, items: n.querySelectorAll('li').length, size: parseFloat(getComputedStyle(n).fontSize), answer: parseFloat(getComputedStyle(a).fontSize),
+                  gapBelowSources: nr.top - s.getBoundingClientRect().bottom, itemGap: n.children[1].getBoundingClientRect().top - n.children[0].getBoundingClientRect().bottom, ratio, color: getComputedStyle(n).color, answerColor: getComputedStyle(a).color};
+        })()"""
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            for width in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                for theme in ("light", "dark"):
+                    p.js(f"document.documentElement.dataset.theme = '{theme}'")
+                    if not p.js("!!document.querySelector('[data-ask-notes]')"):
+                        self.ask(p, "What was left out?")
+                        p.until("!!document.querySelector('[data-ask-notes]')", "the notes block")
+                    r = p.js(read)
+                    where = f"{width} {theme}"
+                    self.assertEqual((r["blocks"], r["items"]), (1, 4), where)
+                    self.assertLess(r["size"], r["answer"], where)
+                    self.assertLessEqual(r["gapBelowSources"], 12, where)
+                    self.assertLessEqual(r["itemGap"], 4, where)
+                    self.assertGreaterEqual(r["ratio"], 4.5, f"{where} {r}")
+                    self.assertNotEqual(r["color"], r["answerColor"], where)
 
     def test_laptop_widths_light_and_dark(self):
         self.stub.hold.clear()

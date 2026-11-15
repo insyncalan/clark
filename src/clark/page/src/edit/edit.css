@@ -276,6 +276,9 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-who { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; color: inherit; }    /* "You" and "Answer" are for a reader that announces; the bubble and the reply place already say it (issue 794) */
 .ask-text { white-space: pre-wrap; overflow-wrap: anywhere; }
 /* row 890: the Sources disclosure under an answer, closed by default; the same look as the other disclosures (.docs-left) */
+/* row 1218: the notes about what was left out: one small grey block close under the Sources line (--text-muted, 4.5 to 1 on the panel in light and dark) */
+.ask-notes { margin: -10px 0 0; padding: 0 0 0 var(--space-4); list-style: disc; font-size: var(--size-caption); line-height: 1.35; color: var(--text-muted); overflow-wrap: anywhere; }
+.ask-notes li { margin: 0 0 2px; }
 .ask-sources { margin-top: var(--space-2); }
 .ask-sources summary { cursor: pointer; color: var(--text-muted); font-size: var(--size-small); min-height: 24px; }
 .ask-sources summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
