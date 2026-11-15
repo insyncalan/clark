@@ -3,7 +3,8 @@
 import { NONE } from "../filters.js";
 import * as Q from "../logic/filterQueryUi.js";
 import { compileQuery } from "../logic/filterQueryEval.js";
-import { STATUS_WORDS, RAG, ON_WORDS, TABS, pickRows } from "../logic/useCasesList.js";
+import { STATUS_WORDS, RAG, ON_WORDS, pickRows } from "../logic/useCasesList.js";
+import { PAGE_VIEWS } from "../logic/filterLine.js";
 
 // ---- the filter line (row 1085) ----
 // The page's own line, read by the Work items box (components/FilterLine.jsx LineBox) with this schema and no other: status:, commitment: and
@@ -29,13 +30,17 @@ export const lineTest = (line, rows) => compileQuery(parsedOf(line, rows), CTX, 
 export const lineParts = (line, rows) => { const s = Q.splitLine(line, rows, CTX, LINE); return { chips: s.chips, words: parsedOf(s.rest, rows).text.join(" ") }; };
 
 
-/** Each tab's count: the rows the line keeps that the tab keeps too (the counts follow the box, as the switch's did). */
-export function tabCounts(rows, f) {
+/** One test for a saved view (item 1203): the rows the view's own line keeps. A view the tab id does not name keeps every row. */
+const viewTest = (views, id, rows) => { const v = views.find((x) => x.id === id); return v ? lineTest(v.line, rows) : () => true; };
+
+/** Each saved view's count (`views`: the page's saved views, the starting four when none are given): the rows the typed line keeps that the view's line keeps too (the counts follow the box). */
+export function tabCounts(rows, f, views = PAGE_VIEWS.usecases) {
   const base = rows.filter(lineTest(f.line, rows));
-  return Object.fromEntries(TABS.map(([id, , keeps]) => [id, base.filter(keeps).length]));
+  return Object.fromEntries(views.map((v) => [v.id, base.filter(viewTest(views, v.id, rows)).length]));
 }
 
-/** The rows the filters keep, in the chosen order (the sort is stable, so ties keep the data's order). */
-export function shownOf(rows, f) {
-  return pickRows(rows, f, lineTest(f.line, rows));
+/** The rows the typed line and the chosen saved view keep, in the chosen order (the sort is stable, so ties keep the data's order). */
+export function shownOf(rows, f, views = PAGE_VIEWS.usecases) {
+  const line = lineTest(f.line, rows), view = viewTest(views, f.tab, rows);
+  return pickRows(rows, { ...f, tab: "all" }, (r) => line(r) && view(r));
 }
