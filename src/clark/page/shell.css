@@ -1327,7 +1327,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .set-nav li { display: block; }
 .set-chip { all: unset; box-sizing: border-box; position: relative; display: flex; align-items: center; width: 100%; min-height: 36px; padding: 0 12px; border: 0; border-radius: 10px; background: transparent; color: var(--text); font-size: var(--size-body); line-height: 20px; cursor: pointer; }      /* item 1200: soft 36 px rows; no background transition: a theme switch must not leave a light chip for 120 ms (test_v020 reads the ground at once) */
 /* From 900 to 1099 px the list is the narrowest the grid allows (150 px), so the cards are wider at 900 (about 670 px, not 596) and a control keeps more than 420 px beside its label; the four section styles wrap two and two. */
-@media (min-width: 900px) and (max-width: 1099px) { .set-layout { grid-template-columns: 150px minmax(0, 1fr); } }
+@media (min-width: 900px) and (max-width: 1099px) { .set-layout { grid-template-columns: 150px minmax(0, 1fr); } .set-nav { gap: 0; } .set-bar { margin-top: var(--space-1); padding-top: var(--space-1); } }      /* item 1177: at 900 the header is 129 px (two rows), so the sixteen links sit edge to edge (each keeps its 36 px, and the first keeps room for its focus ring) and the last one, Quit, is still inside a 900 px high window at the top of the page */
 @media (max-width: 899px) {
   .set-layout { display: block; }
   .set-bar { position: sticky; padding: var(--space-2) 0; margin-top: var(--space-3); max-height: none; overflow-y: visible; box-shadow: 0 0 0 100vmax var(--grey-50); clip-path: inset(0 -100vmax); }

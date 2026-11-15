@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { ClientMenu } from "./ClientMenu.jsx";
 import { coverLine } from "../logic/cover.js";
-import { TITLES, SHORT_TITLES, shownTabs as allTabs, view, show, project, data, fromFile, asAt, mode } from "../stores/report.js";
+import { TITLES, SHORT_TITLES, shownTabs as allTabs, view, show, project, data, fromFile, asAt, mode, status } from "../stores/report.js";
 
 // A calendar date is shown DD-MM-YYYY (RULES.md); stored YYYY-MM-DD. Never shifted by a time zone.
 const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
@@ -66,7 +66,7 @@ export function TopBar({ tools }) {
         : <div class="hdr-id">{/* item 1177: the editor's one header: the project name (a button that opens the project list), then "Weekly report" and the week (a button that opens the calendar); no "for <client>" and no banner under it */}
             {(() => {
               const who = ProjectSwitch ? <ProjectSwitch name={name} header /> : <span class="hdr-project hdr-static" id="project-name">{name || project.value || "No project open"}</span>;
-              return view.value === "dashboard" ? <h1 class="hdr-h1">{who}</h1> : who;      /* the Dashboard keeps its one level-1 heading: the project name, same size and same click (item 1177 took its cover); the Gantt page has its own in its cover, and the other pages have theirs */
+              return view.value === "dashboard" && status.value === "ready" ? <h1 class="hdr-h1">{who}</h1> : who;      /* the Dashboard keeps its one level-1 heading: the project name, same size and same click (item 1177 took its cover); the Gantt page has its own in its cover, and the other pages have theirs */
             })()}
             <p class="hdr-line"><b class="hdr-kind">Weekly report</b>{HeaderDate ? <>{" "}<i class="hdr-dot" aria-hidden="true"></i><HeaderDate /></> : weekEnding ? <>{" "}<i class="hdr-dot" aria-hidden="true"></i><span class="hdr-date hdr-static num">Week ending {shownDate(weekEnding)}</span></> : null}</p>
           </div>}
