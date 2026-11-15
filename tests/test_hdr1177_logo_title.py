@@ -19,6 +19,7 @@ LINE = ("(function(){var d=document.querySelector('.top .hdr-date'); if (!d) ret
 class HdrLogoTitle(Base):
     def at(self, cdp, p, w):
         size(cdp, p, w, 800)
+        p.until("document.fonts.status === 'loaded'", "the fonts are loaded (a late font moves a wrap, so the header height waits for them)")
         p.js("window.scrollTo(0, 0)")
 
     def test_the_logo_box_is_147_by_24_at_1400_and_120_by_24_at_900(self):

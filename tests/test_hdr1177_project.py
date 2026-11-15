@@ -44,8 +44,9 @@ class HeaderProject(Base):
         for w in SIZES:
             with self.subTest(width=w), chrome() as cdp:
                 p = self.page(cdp, w)
-                n = p.js("[...document.querySelectorAll('h1, h2')].filter(e => e.textContent.indexOf('Example Programme') >= 0 && e.getClientRects().length).length")
-                self.assertEqual(n, 0, f"{w}: the name is shown once, in the header, not again as a heading")
+                got = p.js("(function(){var l=[...document.querySelectorAll('h1, h2')].filter(e => e.textContent.indexOf('Example Programme') >= 0 && e.getClientRects().length); "
+                           "return [l.length, l.filter(e => e.closest('header.top')).length];})()")
+                self.assertEqual(got, [1, 1], f"{w}: the name is shown once as a heading, the page's one h1 in the header, not again below it")
 
     def test_a_click_opens_the_project_list_and_a_second_click_shuts_it(self):
         for w in SIZES:
