@@ -1,5 +1,7 @@
 # Mac first, built ready for Windows, and clark on OneDrive
 
+> **Windows today (v1.1):** Windows is the Docker route. A person extracts the zip, runs Docker locally and uses clark in the browser (design note 427). The native Windows build in the sections below (embeddable Python, `clark.cmd`, Credential Manager) is not in v1.1 and stays here as the later option. A failure on the Windows lines of the hand-check sheet does not hold the Mac release up, but the Windows zip is not attached until they pass (dev/RELEASING.md).
+
 Written by a teammate, 28-10-2026, after the owner's two asks:
 - "how do we tackle portability to mac and windows? I think it's an important part of mvp"
 - "clark will most likely sit on a one drive folder and multiple users will edit... we'll need to address database issues (future feature - start with single user for mvp/beta)"

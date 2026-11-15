@@ -1,5 +1,7 @@
 # Design note: #57 a download per system (Mac now, Windows ready to follow)
 
+> **Windows today (v1.1, plan item 624):** Windows is the Docker route: a person extracts the zip, runs the compose file and uses clark in the browser; there is no .exe, no .cmd and no embedded Python. The native Windows build described below (embeddable Python, `clark.cmd`) is not in v1.1 and is kept only as the later option. A failure on the Windows lines of the hand-check sheet does not hold the Mac release up, but the Windows zip is not attached until they pass (dev/RELEASING.md).
+
 Written by a teammate (a teammate), 29-10-2026, for the Head. A note only: no code is in this branch. Read from `origin/main` `fc7f0fb`: `src/clark/platform.py`, `src/clark/__main__.py`, `src/clark/launch.py`, `clark.command`, the `clark/` stand-in, `.gitattributes`, `tests/test_layout.py`, `docs/handoff/design-71-launcher.md` and `docs/handoff/portability-and-sharing.md`.
 
 ## The answer
