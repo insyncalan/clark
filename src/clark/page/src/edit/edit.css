@@ -91,6 +91,19 @@
 .pk-fix button:focus-visible, .pk-latest-text:focus-visible, .pk-latest-in:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .pk-latest { margin: var(--space-2) 0 0; padding-top: var(--space-2); border-top: 1px solid var(--grey-100); }
 .pk-lab { display: flex; align-items: center; gap: 10px; margin-bottom: var(--space-1); color: var(--text); font-size: var(--size-small); }
+.pk-ai { display: inline-flex; align-items: center; gap: 4px; min-height: 24px; padding: 2px 8px; border: 0; border-radius: var(--radius); background: transparent; color: var(--brand-blue); font: inherit; font-size: var(--size-caption); font-weight: 600; cursor: pointer; }
+.pk-ai:hover, .aim-opt:hover { background: var(--brand-blue-tint); }
+.pk-ai:focus-visible, .aim-opt:focus-visible, .aim-ask input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pk-ai-panel { margin: 0 0 var(--space-1); }
+.aim { display: flex; flex-direction: column; min-width: 240px; max-width: 360px; padding: 4px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); color: var(--text); }
+.aim hr { width: 100%; margin: 4px 0; border: 0; border-top: 1px solid var(--border); }
+.aim-gl { padding: 4px 8px 0; color: var(--text-muted); font-size: var(--size-caption); font-weight: 600; }
+.aim-opt { display: flex; flex-direction: column; align-items: flex-start; gap: 0; min-height: 24px; padding: 4px 8px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.aim-nm { font-size: var(--size-small); }
+.aim-ds { color: var(--text-muted); font-size: var(--size-caption); }
+.aim-ask input { box-sizing: border-box; width: 100%; min-height: 24px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-small); }
+.rt-ai { position: fixed; z-index: 60; max-width: min(360px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow: auto; }
+.rt-ai .aic { margin: 0; }
 .pk-latest-client { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: var(--text-muted); font-size: var(--size-small); }
 .pk-latest-text, .pk-latest-in { display: block; box-sizing: border-box; width: 100%; min-height: var(--space-7); margin: 0; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: var(--text); font: inherit; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }
 .pk-latest-text { cursor: text; }
