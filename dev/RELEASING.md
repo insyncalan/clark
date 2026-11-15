@@ -49,3 +49,7 @@ Only a finding marked HIGH holds a release back. Every MEDIUM and LOW gets a Tec
 | The release-branch owner | Builds the release branch and writes the notes | 1, 2 |
 | The board keeper | Keeps the board and the release row on issue #1 of the plan repository, and hands over the hand-check sheet | 21, 22, 23 |
 | Whoever verifies | Reads the gate, downloads the zip, launches it for real and runs the asset check | 3, 11, 12, 13, 14, 15, 16, 17, 18, 20 |
+
+## Windows (v1.1)
+
+The Windows download is not a native build: a person extracts a zip and runs clark in Docker (item 627). No step above is run for it by a script. Before it is published, a person with a real Windows laptop works through `dev/handchecks/1.1.0-sheet.md` and writes down what failed. A failed line there holds the Windows zip back; it never holds back the Mac release.
