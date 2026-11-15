@@ -156,3 +156,16 @@ class StartCommand(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def test_the_forms_compose_accepts_for_the_port_line_are_all_taken(self):
+        forms = {"export": "export CLARK_PORT=9124\n", "blanks": "  CLARK_PORT=9125\n", "comment": "CLARK_PORT=9126 # my port\n",
+                 "crlf": "A=1\r\nCLARK_PORT=9127\r\nB=2\r\n", "quoted comment": "CLARK_PORT='9128' # x\n",
+                 "last wins": "CLARK_PORT=9129\nCLARK_PORT=9130\n", "commented out": "# CLARK_PORT=9131\n"}
+        for name, text in forms.items():
+            with self.subTest(name):
+                (self.repo / "docker" / ".env").write_bytes(text.encode())
+                if self.log.exists():
+                    self.log.unlink()
+                self.run_script()
+                want = {"commented out": 8766, "last wins": 9130}.get(name, int(text.split("CLARK_PORT=")[1][:4]))
+                self.assertIn(f"open -a {BROWSER} http://localhost:{want}", self.calls())

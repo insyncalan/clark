@@ -11,10 +11,14 @@ export PYTHONDONTWRITEBYTECODE=1
 # The port compose publishes: CLARK_PORT in the shell, else CLARK_PORT in docker/.env (compose reads that file too), else 8766.
 port="${CLARK_PORT:-}"
 if [ -z "$port" ] && [ -f docker/.env ]; then
-  envtext=$'\n'"$(<docker/.env)"
-  case "$envtext" in
-    *$'\n'CLARK_PORT=*) rest="${envtext##*$'\n'CLARK_PORT=}"; port="${rest%%$'\n'*}"; port="${port//[\"\' $'\r']/}" ;;
-  esac
+  # Each line as compose takes it: an optional leading "export", blanks around, a quoted value, and a " #" comment after it. The last one wins.
+  oldifs="$IFS"; IFS=$'\n'; set -f
+  for line in $(<docker/.env); do
+    line="${line//$'\r'/}"; line="${line#"${line%%[![:space:]]*}"}"
+    case "$line" in export[[:space:]]*) line="${line#export}"; line="${line#"${line%%[![:space:]]*}"}" ;; esac
+    case "$line" in CLARK_PORT=*) value="${line#CLARK_PORT=}"; value="${value%%[[:space:]]#*}"; port="${value//[\"\' ]/}" ;; esac
+  done
+  IFS="$oldifs"; set +f
 fi
 case "$port" in ''|*[!0-9]*) port=8766 ;; esac
 say() { echo "$*"; }
