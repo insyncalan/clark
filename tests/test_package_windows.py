@@ -56,18 +56,18 @@ class WindowsZipTest(unittest.TestCase):
 
     def test_start_here_types_the_commands(self):
         self.assertIn("docker load -i docker\\clark-runtime.tar", self.text)
-        self.assertIn("docker compose -f docker/compose.yaml up -d", self.text)
-        self.assertIn("localhost:8766", self.text)
+        self.assertIn("docker compose -f docker/compose.yaml -f docker/compose.windows.yaml up -d", self.text)
+        self.assertIn("127.0.0.1:8766", self.text)
         self.assertEqual([], starts_with_product_name(self.text))
         self.assertNotIn("clark.command", self.text)
         self.assertNotIn("Mac", self.text)
 
     def test_start_here_keeps_the_data_outside_the_clark_folder(self):
         """Item 624: compose.yaml says the data is NOT in the clark folder, so swapping the folder cannot lose it; the Windows text must agree."""
-        self.assertIn('$env:CLARK_DATA_DIR = "$env:USERPROFILE\\clark-data"', self.text)
+        self.assertIn("a folder called clark-data, beside this folder and not in\nit", self.text)
+        self.assertNotIn("CLARK_DATA_DIR", self.text)
         for inside in ("$PWD", "%CD%", "\\data\""):
             self.assertNotIn(inside, self.text)
-        self.assertIn("not in this\nfolder", self.text)
 
     def test_the_placeholder_is_what_a_build_without_a_tar_holds(self):
         self.assertEqual(b"placeholder: the runtime image tar is built in CI and put here with --image-tar (item 624)\n", self.tar)

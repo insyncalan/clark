@@ -247,21 +247,20 @@ your own logo and colours, if you add them. The program files are in a hidden
 folder called .app: you do not need to open it.
 
   1. Open Docker Desktop and wait until it says it is running.
-  2. Open PowerShell, type cd and a space, drag this folder into the PowerShell
-     window and press Return.
-  3. The first time only, type this and press Return:
+  2. Open PowerShell or Command Prompt, type cd and a space, drag this folder
+     into the window and press Enter.
+  3. The first time only, type this and press Enter:
         docker load -i docker\\clark-runtime.tar
-  4. Type these two lines, pressing Return after each:
-        $env:CLARK_DATA_DIR = "$env:USERPROFILE\\clark-data"
-        docker compose -f docker/compose.yaml up -d
-  5. Open Chrome and go to http://localhost:8766
-  6. To stop clark, type this in the same folder and press Return:
-        docker compose -f docker/compose.yaml down
-Your data is kept in the clark-data folder in your user folder, not in this
-folder, so replacing this folder with a newer download cannot lose it. Type the
-first line of step 4 every time you start clark, or it will not find your data.
+  4. Type this and press Enter:
+        docker compose -f docker/compose.yaml -f docker/compose.windows.yaml up -d
+  5. Open Chrome and go to http://127.0.0.1:8766
+  6. To stop clark, type this in the same folder and press Enter:
+        docker compose -f docker/compose.yaml -f docker/compose.windows.yaml down
+Your data is kept in a folder called clark-data, beside this folder and not in
+it, so replacing this folder with a newer download cannot lose it. Unzip a newer
+download beside this folder, so clark-data is found again.
 To see what Docker has said, type this in the same folder:
-        docker compose -f docker/compose.yaml logs --tail 50
+        docker compose -f docker/compose.yaml -f docker/compose.windows.yaml logs --tail 50
 
 Updating clark: the file docker\\UPDATE-windows.txt has the steps, for
 PowerShell and for Command Prompt. In short: stop the old clark, unzip the new
