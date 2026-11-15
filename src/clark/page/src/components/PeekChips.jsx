@@ -4,10 +4,8 @@
 // DuePick, PriorityPick, RatingPick) are used as they are. One popover is open at a time: the open key is the shared openCell signal
 // of the table's cells, with a "peek:" key so the table's popover and the peek's are never both open. With no `pop` (a read-only peek:
 // the published file, the Dashboard in View, a field that cannot be picked) the chip is drawn as a plain span: same look, no control.
-import { useRef } from "preact/hooks";
 import { Icon } from "./Icon.jsx";
 import { iconClass } from "../iconColours.js";
-import { openCell } from "../stores/openCell.js";
 
 /** The row. `children`: PeekChip elements. */
 export function PeekChips({ children, label = "Properties" }) {
@@ -27,11 +25,11 @@ export function PeekChips({ children, label = "Properties" }) {
  *  late     true: the chip itself takes the red tint (an overdue date)
  *  flash    true: the Changed tag shows beside the chip (the existing flash)
  *  tip      optional hover text (a field that cannot be picked says why)
- *  pop      optional ({ anchor, close }) => element. Absent: read only. `close(back)`: back true puts focus on the chip.
+ *  pop      optional ({ anchor, close }) => element. Absent: read only.
+ *  Live     the editor's interactive chip (edit/PeekChipLive.jsx, handed down by tools); absent: read only, so a published file holds none of its code. `close(back)`: back true puts focus on the chip.
  *  place    popover key prefix, default "peek"
  */
-export function PeekChip({ id, field, name, icon, tone = "n", value, sub, subTone, late, flash, tip, pop, place = "peek", children }) {
-  const button = useRef(null);
+export function PeekChip({ id, field, name, icon, tone = "n", value, sub, subTone, late, flash, tip, pop, Live, place = "peek", children }) {
   const body = (
     <>
       <span class={`pkc-ic ${iconClass(tone)}`}><Icon name={icon} /></span>
@@ -40,24 +38,8 @@ export function PeekChip({ id, field, name, icon, tone = "n", value, sub, subTon
   );
   const cls = `pkc${late ? " late" : ""}${flash ? " flash" : ""}`;
   const changed = flash ? <span class="tag chg">Changed</span> : null;
-  if (!pop) {
+  if (!pop || !Live) {
     return <span class={`${cls} ro`} data-row={field} data-flash={flash ? "1" : undefined} data-tip={tip || undefined} role="group" aria-label={`${name}: ${value}${sub ? ", " + sub : ""}`}>{body}{changed}</span>;
   }
-  const k = `${place}:${id}:${field}`, open = openCell.value === k;
-  const close = (back) => { if (openCell.value === k) openCell.value = ""; if (back && button.current) button.current.focus(); };
-  const down = (e) => {
-    if (e.key === "Escape" && open) { e.preventDefault(); e.stopPropagation(); close(true); }
-    else if (e.key === "ArrowDown" && e.altKey && !open) { e.preventDefault(); openCell.value = k; }
-  };
-  return (
-    <span class={`${cls} has-pop`} data-row={field} data-flash={flash ? "1" : undefined}>
-      <button type="button" class="pkc-btn" ref={button} data-edit-only data-cell={k} data-tip={tip || undefined} aria-haspopup="dialog" aria-expanded={open ? "true" : "false"}
-        aria-label={`${name} of ${id}: ${value}${sub ? ", " + sub : ""}. Change`} onClick={(e) => { e.stopPropagation(); openCell.value = open ? "" : k; }} onKeyDown={down}>
-        {body}
-        <span class="pkc-car"><Icon name="chevdown" /></span>
-      </button>
-      {changed}
-      {open ? pop({ anchor: button, close }) : null}
-    </span>
-  );
+  return <Live id={id} field={field} name={name} value={value} sub={sub} tip={tip} pop={pop} place={place} cls={cls} body={body} changed={changed} flash={flash} />;
 }

@@ -16,15 +16,16 @@ export function ActionChips({ row, tools, editing }) {
   const today = todayIso(), due = dueCell(row, today), pill = pillOf(row, today), who = ownerOf(row.owner), f = flashed.value;
   const hit = (key) => !!(f && f.list.some((e) => e.ref === row.id && ROW_OF[e.field] === key));
   const pop = (field) => (editing && tools && tools.PeekChipPop ? tools.PeekChipPop(row, field) : null) || undefined;
+  const Live = editing && tools && tools.PeekChipLive ? tools.PeekChipLive : undefined;
   const late = due.tone === "late", days = late ? /^(\d+) days? late$/.exec(due.words) : null;
   const n = days ? days[1] : "1";
   const overdue = late ? `overdue ${n} ${n === "1" ? "day" : "days"}` : "";
   return (
     <PeekChips>
-      <PeekChip id={row.id} field="status" name="Status" icon="half" tone={statusTone(row, today)} value={pill.text} flash={hit("status")} pop={pop("status")} />
-      <PeekChip id={row.id} field="priority" name="Priority" icon="bars" tone={priorityTone(row.priority)} value={text(row.priority)} flash={hit("priority")} pop={pop("priority")} />
-      <PeekChip id={row.id} field="owner" name="Owner" icon="user" tone="b" value={who.text} flash={hit("owner")} pop={pop("owner")} />
-      <PeekChip id={row.id} field="due" name="Due date" icon="cal" tone={dateTone(row, today)} value={due.date} sub={overdue} subTone={late ? "late" : ""} late={late} flash={hit("due")} pop={pop("due")} />
+      <PeekChip Live={Live} id={row.id} field="status" name="Status" icon="half" tone={statusTone(row, today)} value={pill.text} flash={hit("status")} pop={pop("status")} />
+      <PeekChip Live={Live} id={row.id} field="priority" name="Priority" icon="bars" tone={priorityTone(row.priority)} value={text(row.priority)} flash={hit("priority")} pop={pop("priority")} />
+      <PeekChip Live={Live} id={row.id} field="owner" name="Owner" icon="user" tone="b" value={who.text} flash={hit("owner")} pop={pop("owner")} />
+      <PeekChip Live={Live} id={row.id} field="due" name="Due date" icon="cal" tone={dateTone(row, today)} value={due.date} sub={overdue} subTone={late ? "late" : ""} late={late} flash={hit("due")} pop={pop("due")} />
     </PeekChips>
   );
 }

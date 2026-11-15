@@ -70,6 +70,7 @@ function ItemChips({ row, tools, editing }) {
   const today = todayIso(), due = dueCell(row, today), pill = pillOf(row, today), who = ownerOf(row.owner), f = flashed.value;
   const hit = (key) => !!(f && f.list.some((e) => e.ref === row.id && ROW_OF[e.field] === key));
   const pop = (field) => (editing && tools && tools.PeekChipPop ? tools.PeekChipPop(row, field) : null) || undefined;
+  const Live = editing && tools && tools.PeekChipLive ? tools.PeekChipLive : undefined;
   // item 448: a closed risk or issue's pill reads Closed; it keeps its rating word on the priority chip ("Red kept"; "Not rated" when it never was, item 532), here and in a published file.
   const kept = (row.kind === "risk" || row.kind === "issue") && !isOpen(row) ? colourOf(row.priority).word : "";
   const late = due.tone === "late", days = late ? /^(\d+) days? late$/.exec(due.words) : null;
@@ -77,11 +78,11 @@ function ItemChips({ row, tools, editing }) {
   const fixed = row.kind === "assumption" || row.kind === "dependency";
   return (
     <PeekChips>
-      <PeekChip id={row.id} field="status" name="Status" icon="half" tone={statusTone(row, today)} value={pill.text} flash={hit("status")} pop={pop("status")} />
-      {row.kind !== "decision" ? <PeekChip id={row.id} field="priority" name="Priority" icon="bars" tone={priorityTone(row.priority)} value={text(row.priority)} sub={kept ? `${kept} kept` : ""}
+      <PeekChip Live={Live} id={row.id} field="status" name="Status" icon="half" tone={statusTone(row, today)} value={pill.text} flash={hit("status")} pop={pop("status")} />
+      {row.kind !== "decision" ? <PeekChip Live={Live} id={row.id} field="priority" name="Priority" icon="bars" tone={priorityTone(row.priority)} value={text(row.priority)} sub={kept ? `${kept} kept` : ""}
         flash={hit("priority")} tip={fixed ? "Set from impact and likelihood" : undefined} pop={pop("priority")} /> : null}
-      <PeekChip id={row.id} field="owner" name={row.kind === "decision" ? "Decider" : "Owner"} icon="user" tone="b" value={who.text} flash={hit("owner")} pop={pop("owner")} />
-      <PeekChip id={row.id} field="due" name={row.kind !== "decision" ? "Due date" : row.status === "Pending" ? "Needed-by date" : "Decision date"} icon="cal" tone={dateTone(row, today)} value={due.date}
+      <PeekChip Live={Live} id={row.id} field="owner" name={row.kind === "decision" ? "Decider" : "Owner"} icon="user" tone="b" value={who.text} flash={hit("owner")} pop={pop("owner")} />
+      <PeekChip Live={Live} id={row.id} field="due" name={row.kind !== "decision" ? "Due date" : row.status === "Pending" ? "Needed-by date" : "Decision date"} icon="cal" tone={dateTone(row, today)} value={due.date}
         sub={overdue} subTone={late ? "late" : ""} late={late} flash={hit("due")} pop={pop("due")} />
     </PeekChips>
   );

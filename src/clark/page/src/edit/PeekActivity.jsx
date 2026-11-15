@@ -2,6 +2,7 @@
 // GET /api/activity). Edit only: View and a published file show the fields and nothing else, so nothing here is in them.
 // Every value is drawn as text, never as markup. The tabs follow the usual keys: Left and Right move, Home and End jump.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { zoneFetch } from "../api.js";
 import { project, data, token } from "../stores/report.js";
 import { peekTab } from "../stores/peekState.js";
 import { readActivity } from "./activityApi.js";
@@ -130,7 +131,7 @@ function HistorySource({ view }) {
   const path = view.source_path || "";
   const web = /^https?:\/\//i.test(path);
   const open = () => {
-    fetch("/api/ask/open-source", { method: "POST", headers: { "Content-Type": "application/json", "X-Clark-Token": token() }, body: JSON.stringify({ project: project.value, file: path, page: null }) }).catch(() => {});
+    zoneFetch("/api/ask/open-source", { method: "POST", headers: { "Content-Type": "application/json", "X-Clark-Token": token() }, body: JSON.stringify({ project: project.value, file: path, page: null }) }).catch(() => {});
   };
   return (
     <p class="pk-hsrc" data-pk-hrow="source" title={path}>
