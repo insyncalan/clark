@@ -53,6 +53,7 @@ services:
       CLARK_PORT: "8766"
       CLARK_PUBLISHED_PORT: "${CLARK_PORT:-8766}"
       CLARK_DATA_SOURCE: "${CLARK_DATA_DIR:-${HOME}/Library/Application Support/clark}"
+      TZ: "${TZ:-}"
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUNBUFFERED: "1"
     healthcheck:

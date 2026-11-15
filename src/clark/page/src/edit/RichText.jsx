@@ -10,6 +10,8 @@ import { href } from "../logic/cleanHtml.js";
 import { Menu, Fade } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { actionIcon } from "../menuIcons.js";
+import { AiFlow } from "./DraftAi.jsx";
+import { aiClient } from "./aiShared.js";
 
 const BAR = [
   ["bold", "B", "Bold"], ["italic", "I", "Italic"], ["strike", "S", "Strikethrough"],
@@ -33,7 +35,9 @@ function place(box, x, y) {
   box.style.top = `${Math.round(top)}px`;
 }
 
-export function RichText({ value, label, onSave, onClose, oneLine = false }) {
+// Row 1179: with `ai` (a place) a right-click on selected text, or Shift+F10 / the Menu key, opens the AI menu of that place over the selection; no selection
+// leaves the browser's own menu. Accept puts the suggestion in place of the selection (one more edit in the open box; it is saved like any other).
+export function RichText({ value, label, onSave, onClose, oneLine = false, ai = null }) {
   const host = useRef(null), root = useRef(null), bubble = useRef(null), slashBox = useRef(null), ed = useRef(null), linkIn = useRef(null);
   const [h, setH] = useState(null);                           // the editor, once it exists (the first draw has none)
   const [, tick] = useState(0);
@@ -41,6 +45,8 @@ export function RichText({ value, label, onSave, onClose, oneLine = false }) {
   const [linkOpen, setLinkOpen] = useState(false);
   const [slash, setSlash] = useState(null);                 // { query, items, at } or null
   const [sel, setSel] = useState(null);                     // { x, y } over a non-empty selection
+  const [aiAt, setAiAt] = useState(null);                   // the AI menu over a selection: { x, y, text, from, to } or null
+  const aiBox = useRef(null), aiOpen = useRef(false);
   const slashRef = useRef(null); slashRef.current = slash;
   const busy = useRef(false), closed = useRef(false), keep = useRef(false);
   const props = useRef({}); props.current = { onSave, onClose };
@@ -126,13 +132,48 @@ export function RichText({ value, label, onSave, onClose, oneLine = false }) {
   }, [slash]);
   useEffect(() => { if (linkOpen && linkIn.current) { linkIn.current.focus(); linkIn.current.select(); } }, [linkOpen]);
 
+  // The AI menu (row 1179): over a non-empty selection only.
+  const openAi = async (x, y) => {
+    if (!ai || oneLine || !ed.current) return false;
+    const { from, to, empty } = ed.current.editor.state.selection;
+    if (empty) return false;
+    const text = ed.current.editor.state.doc.textBetween(from, to, "\n", "\n");
+    if (!text.trim()) return false;
+    aiOpen.current = true;                                     // from now on the focus moving into the menu and the card is not 'leaving the field'
+    await aiClient().refresh();
+    setAiAt({ x, y, text, from, to });
+    return true;
+  };
+  const aiDone = () => { aiOpen.current = false; setAiAt(null); if (ed.current) ed.current.editor.view.focus(); };
+  const aiAccept = (html) => {
+    const a = aiAt;
+    if (a && ed.current) ed.current.editor.chain().focus().insertContentAt({ from: a.from, to: a.to }, html).run();
+  };
+  useLayoutEffect(() => { if (aiAt && aiBox.current) place(aiBox.current, aiAt.x, aiAt.y); }, [aiAt]);
+  const onContext = (e) => {
+    if (!ai || oneLine || !host.current || !host.current.contains(e.target)) return;
+    const s = ed.current && ed.current.editor.state.selection;
+    if (!s || s.empty) return;                                // no selection: the browser's own menu
+    e.preventDefault(); e.stopPropagation();
+    openAi(e.clientX, e.clientY);
+  };
+  const onKeyAi = (e) => {
+    if (!ai || oneLine || !(e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) || !host.current.contains(e.target)) return;
+    const s = ed.current && ed.current.editor.state.selection;
+    if (!s || s.empty) return;
+    e.preventDefault(); e.stopPropagation();
+    const c = ed.current.editor.view.coordsAtPos(s.from);
+    openAi(c.left, c.bottom + 4);
+  };
+
   // Leaving the whole field (focus goes outside it, and outside its floating boxes) saves.
   const away = (e) => {
     const to = e.relatedTarget;
     if (to && (root.current.contains(to) || (bubble.current && bubble.current.contains(to)) || (slashBox.current && slashBox.current.contains(to)))) return;
     if (!to && document.hasFocus() === false) return;
-    if (keep.current) return;                  // a menu or the link box just closed: its focus is being put back
+    if (keep.current || aiOpen.current) return;                  // a menu or the link box just closed: its focus is being put back (the AI menu and card are part of the field)
     setTimeout(() => {
+      if (aiOpen.current) return;
       const at = document.activeElement;
       if (at && at !== document.body && (root.current.contains(at) || (bubble.current && bubble.current.contains(at)))) return;
       finishRef.current(false);
@@ -166,7 +207,7 @@ export function RichText({ value, label, onSave, onClose, oneLine = false }) {
   const current = h ? STYLES.find(([n]) => n !== "paragraph" && h.active(n)) : null;
 
   return (
-    <div class="rt" ref={root} data-rt aria-label={label || "Rich text"} onFocusOut={away}>
+    <div class="rt" ref={root} data-rt aria-label={label || "Rich text"} onFocusOut={away} onContextMenu={onContext} onKeyDown={onKeyAi}>
       <div class="rt-bar" role="toolbar" aria-label="Formatting">
         {!oneLine && <Menu label={current ? current[1] : "Text"} ariaLabel={`Text style: ${current ? current[1] : "Text"}`} btnCls="rt-btn rt-style" left
           items={STYLES.map(([n, w]) => ({ id: n, name: w, icon: actionIcon("textStyle") }))} onPick={(n) => { h.run(n); tick((x) => x + 1); refocus(); }} />}
@@ -184,6 +225,7 @@ export function RichText({ value, label, onSave, onClose, oneLine = false }) {
       <div class="rt-host prose" ref={host} />
       {problem ? <p class="rt-problem" role="alert">{problem}</p> : null}
       {sel && !linkOpen && !oneLine ? <div class="rt-bubble" ref={bubble} role="toolbar" aria-label="Format the selection">{BUBBLE.map(button)}</div> : null}
+      {aiAt ? <div class="rt-ai" ref={aiBox} data-rt-ai><AiFlow place={ai} text={aiAt.text} floating boxRef={null} onAccept={aiAccept} onDone={aiDone} /></div> : null}
       {slash ? (
         <Fade class="rt-slash" boxRef={slashBox} role="listbox" aria-label="Insert">
           {slash.items.map(([n, w], i) => (

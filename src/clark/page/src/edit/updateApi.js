@@ -3,13 +3,14 @@
 // file name: it says "downloads" or "file" (the server opens the system's own dialog), then names only the review or the arm the
 // server handed out.
 import { token } from "../stores/report.js";
+import { zoneFetch } from "../api.js";
 
 // {status, body}: never a throw, whatever the network or the server did. A status of 0 is "no answer".
 async function call(method, path, body) {
   try {
     const headers = { "X-Clark-Token": token() };
     if (body !== undefined) headers["Content-Type"] = "application/json";
-    const r = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), cache: "no-store" });
+    const r = await zoneFetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), cache: "no-store" });
     return { status: r.status, body: await r.json().catch(() => null) };
   } catch (e) {
     return { status: 0, body: null };

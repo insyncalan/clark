@@ -480,7 +480,7 @@ class TheLists(unittest.TestCase):
         fields = set(changes.CHANGE_KINDS["milestones"][changes.UPDATE])
         self.assertEqual(fields, {"baseline_date", "forecast_date", "actual_date", "status", "state", "state_set", "state_reason",
                                   "client_message", "movement", "internal_note",
-                                  "name", "owner", "workstream", "percent_complete", "description"})      # #458: + the internal note; row 828: + the peek's fields
+                                  "name", "owner", "workstream", "percent_complete", "description", "latest_update"})      # #458: + the internal note; row 828: + the peek's fields; item 1185: + Latest update
         self.assertFalse(fields & {"sort_order", "project", "id", "archived", "client_visible"})
         self.assertEqual(changes.KIND_OP_KEYS["milestones"][changes.UPDATE], ("id", "changes", "rebaseline", "new_person"))      # row 986: + the owner's new person
         for kind in ("actions", "raid", "decisions"):      # row 986: the owner update alone takes `new_person`
