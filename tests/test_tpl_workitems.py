@@ -17,6 +17,7 @@ Needs Chrome (the #33 harness): the page tests fail, never skip, without it. Fic
 import contextlib
 import json
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -313,6 +314,26 @@ class PageRules(unittest.TestCase):
                          "a hidden Actions section leaves every action out")
         self.assertEqual(self.val(f"W.listOf({{type: 'workitems', body: ''}}, {json.dumps(data)}, {json.dumps(TODAY)})")["saved"], False)
 
+    def test_the_served_page_reads_the_name_of_a_published_milestone_only(self):
+        data = {"project": {"code": "ABC"}, "labels": {"ABC-M-002": ["Sensitive"]}, "report_sections": [], "use_cases": [],
+                "milestones": [dict(m, project="ABC", archived=0, client_visible=1) for m in ROWS["milestones"]], "raid": [], "decisions": [],
+                "actions": [dict(r, project="ABC", archived=0, client_visible=1, description=r["id"]) for r in ROWS["actions"]]}
+        ids = json.dumps(["ABC-A-001", "ABC-A-005"])
+        served = self.val(f"W.drawRows({ids}, W.drawn({json.dumps(data)}, true)).map(r => r.milestone)")
+        self.assertEqual(served, ["Go live", ""], "a milestone the report would not publish has no name on the served page")
+        kept = self.val(f"W.drawRows({ids}, W.drawn({json.dumps(data)}, false)).map(r => r.milestone)")
+        self.assertEqual(kept, ["Go live", "Pilot"], "a file draws from its own data as it is")
+
+    def test_the_link_shows_only_when_rows_lie_beyond_most_rows(self):
+        body = json.dumps(stored({"mode": "all", "max": 3, "owner": ["Pat Demo", "Lee Demo"]}))
+        data = {"project": {"code": "ABC"}, "labels": {}, "report_sections": [], "use_cases": [], "milestones": [], "raid": [], "decisions": [],
+                "actions": [dict(r, project="ABC", archived=0, client_visible=1, description=r["id"]) for r in ROWS["actions"]]}
+        sec = f"{{type: 'workitems', body: {body}}}"
+        got = self.val(f"(l => [l.all.length, l.more])(W.listOf({sec}, {json.dumps(data)}, {json.dumps(TODAY)}))")
+        self.assertEqual(got, [3, False], "three rows with Most rows 3: nothing lies beyond")
+        data["actions"] = data["actions"][:3] + data["actions"][5:]
+        self.assertEqual(self.val(f"W.listOf({sec}, {json.dumps(data)}, {json.dumps(TODAY)}).more"), False)
+
     def test_a_file_section_draws_only_ids_its_data_holds(self):
         data = {"actions": [{"id": "ABC-A-001", "description": "One"}], "raid": [], "decisions": []}
         got = self.val(f"W.listOf({{type: 'workitems', items: ['ABC-A-009', 'ABC-A-001', 5], columns: ['owner', 'title', 'id']}}, {json.dumps(data)}, {json.dumps(TODAY)})")
@@ -459,6 +480,23 @@ class Saved(Api):
         self.assertEqual(sec["items"], [self.risk])
 
 
+class StatusColours(unittest.TestCase):
+    """The half-circle in the Status column takes its colour from clientPill; the store holds no Blocked action, so the page's own
+    function is run under Node (as test_completed_blue does)."""
+
+    def test_a_blocked_row_is_amber_in_progress_green_completed_blue_and_nothing_is_red(self):
+        if shutil.which("node") is None:
+            self.skipTest("node is not installed on this computer (CI has it)")
+        from test_work_items import bundled
+        code = bundled(PAGE_SRC / "logic" / "sectionRows.js", "SR")
+        rows = [{"kind": k, "status": s, "priority": "Medium", "due_date": "2030-03-01"} for k in ("action", "risk", "issue")
+                for s in ("Blocked", "In progress", "Completed")]
+        done = subprocess.run(["node", "-"], input=code + ";console.log(JSON.stringify(%s.map((r) => SR.clientPill(r, %s))))" % (json.dumps(rows), json.dumps(TODAY)),
+                              capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual([p["class"] for p in json.loads(done.stdout)], ["a", "g", "b"] * 3)
+
+
 class InThePage(PageBase):
     """The page clark serves. Its data (Store.data_for) does not carry the eye's hidden ids yet, so these lists never name the
     eye-hidden item's owner; PageRules shows the page leaves an eye-hidden id out once the data carries it."""
@@ -551,6 +589,23 @@ class InThePage(PageBase):
                 for rid, word, cls in got:
                     self.assertTrue(word and " " not in cls.replace("wil-half ic-", "").strip() and cls.startswith("wil-half ic-"), (rid, word, cls))
                 self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-c-status .ico').length"), 0, "no letter tile")
+
+    def test_edit_draws_a_milestone_name_only_when_the_report_would_publish_that_milestone(self):
+        with self.demo.store.step("dashboard", USER) as st:
+            hidden = st.create("milestones", {"project": "ABC", "name": "ZQ-unpublished gate", "baseline_date": "2030-04-01", "source": "demo"})
+            st.update("milestones", hidden, {"client_visible": 0})
+        shown = self.demo.action(description="Carry on", owner="Pat Demo", due_date="2030-02-02", milestone=self.demo.milestone)
+        unshown = self.demo.action(description="Stay quiet", owner="Pat Demo", due_date="2030-02-03", milestone=hidden)
+        ref = self.add({"mode": "all", "columns": ["id", "milestone"], "owner": ["Pat Demo"]})
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width)
+                p.edit()
+                p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table tbody tr[data-id=\"{shown}\"]')", "Edit drew")
+                def cell(item):
+                    return p.js(f"document.querySelector('[data-id=\"{ref}\"] .wil-table tbody tr[data-id=\"{item}\"] .wil-c-milestone').textContent")
+                self.assertEqual(cell(shown), "Pilot live")
+                self.assertEqual(cell(unshown), "\u2014", "Edit reads a milestone name as View does: an unpublished one is not named")
 
     def test_text_contrast_is_at_least_4_5_to_1_in_light_and_dark(self):
         ref = self.add({"mode": "all", "caption": "Fictional caption", "owner": ["Pat Demo"]})
@@ -967,6 +1022,38 @@ class PublishedFile(PageBase):
                 self.assertTrue(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-st')].some(e => /Overdue/.test(e.textContent) && !!e.querySelector('svg.wil-half.ic-r'))"), "the status reads as at the publish date: a red half-circle and the word")
                 self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-all]')"), "a file holds only the first rows, so it has no Show all items link")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
+
+    def test_a_file_never_shows_the_link_even_when_its_section_lists_more_rows_than_it_draws(self):
+        status, got = self.real_change({"project": "ABC", "kind": "report_sections", "op": changes.NEW, "values": {"type": "workitems", "title": "Due soon"}, "after": None})
+        ref = got["ref"]
+        body = {"mode": "all", "max": 2, "owner": ["Pat Demo", "Lee Demo"]}
+        status, got = self.real_change({"project": "ABC", "kind": "report_sections", "op": changes.UPDATE, "id": ref, "changes": {"body": json.dumps(body)}})
+        self.assertEqual(status, 200, got)
+        out = tempfile.mkdtemp(prefix="clark-96-wil-")
+        self.addCleanup(shutil.rmtree, out, ignore_errors=True)
+        path = Path(publish.publish(self.store, "ABC", out, by_user=USER, now=TODAY, branding=EMPTY_BRANDING)["path"])
+        text = path.read_text(encoding="utf-8")
+        head = '<script type="application/json" id="clark-data">'
+        start = text.index(head) + len(head)
+        end = text.index("</script>", start)
+        data = json.loads(text[start:end])
+        sec = next(s for s in data["sections"] if s["id"] == ref)
+        sec.pop("items")
+        for k in ("actions", "raid", "decisions"):
+            data["data"][k] = [dict(r, project="ABC", archived=0, client_visible=1) for r in data["data"][k]]      # the rows as the served page holds them
+        sec["body"] = stored(body)      # the section now carries a filter that lists three rows, two drawn
+        raw = json.dumps(data).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
+        path.write_text(text[:start] + raw + text[end:], encoding="utf-8")
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
+                sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, sid)
+                cdp.call("Page.navigate", {"url": path.as_uri()}, sid)
+                p = Pg(self, cdp, sid)
+                p.until("document.documentElement.dataset.ready === '1' && !!document.querySelector('h1')", "the file drew")
+                p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr').length === 2", "the list drew its two rows")
+                self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-all]')"), "a file has no Show all items link")
 
 
 if __name__ == "__main__":
