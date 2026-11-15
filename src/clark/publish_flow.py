@@ -35,7 +35,7 @@ import unicodedata
 from html.parser import HTMLParser
 from pathlib import Path
 
-from clark import brands, changes, milestones, page, past_files, platform, publish, publish_pdf, section_files, settings, to_client
+from clark import brands, changes, host_folders, milestones, page, past_files, platform, publish, publish_pdf, section_files, settings, to_client
 from clark.store import Invalid, NumberTaken, open_store
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -698,7 +698,22 @@ class Publisher:
                 saved = row.get("publish_client") or None
                 if action == "clear":
                     return self.save_folder(store, code, saved, None)
-                if action == "paste":
+                typed_windows = None    # the Windows form of a pasted drive path, returned to the page as it was typed
+                if action == "paste" and host_folders.windows_host(os.environ) and host_folders.is_drive_path(body["value"]):
+                    refused = self.paste_refusal(body["value"].strip())
+                    if refused:
+                        return 409, self.fail(refused)
+                    try:
+                        mapped, typed_windows = host_folders.to_container("client", body["value"], os.environ)
+                        picked = Path(mapped).resolve(strict=True)
+                        host_folders.check_inside("client", picked, typed_windows)    # a link may lead out of the share
+                    except ValueError as e:
+                        return 409, self.fail("client_folder_refused", str(e))
+                    except (OSError, RuntimeError):
+                        return 409, self.fail("paste_unknown")
+                    if not picked.is_dir():
+                        return 409, self.fail("paste_unknown")
+                elif action == "paste":
                     picked, refused = self.pasted_folder(body["value"])
                     if refused:
                         return 409, self.fail(refused)
@@ -716,7 +731,7 @@ class Publisher:
                                               backups_dir=self.backups_dir)
                 if not checked["ok"]:
                     return 409, self.fail("client_folder_refused", checked["message"])
-                return self.save_folder(store, code, saved, checked["folder"], checked.get("warning"))
+                return self.save_folder(store, code, saved, checked["folder"], checked.get("warning"), typed_windows)
             finally:
                 store.close()
 
@@ -726,13 +741,20 @@ class Publisher:
         already exist and be inside one of the OneDrive roots; client_folder then checks it exactly as a chosen one. Anything with
         the form of a link (LINK_FORM) is refused as one: it is never opened, and no folder is guessed from its words."""
         text = value.strip()
-        if not text or len(text) > MAX_PASTE or any(unicodedata.category(ch) in ("Cc", "Cf") for ch in text):
-            return None, "paste_unknown"
-        if LINK_FORM.match(text):
-            return None, "paste_link"
+        refused = self.paste_refusal(text)
+        if refused:
+            return None, refused
         if text.startswith("/") or text == "~" or text.startswith("~/"):
             return self.synced_folder(Path(text).expanduser())
         return None, "paste_unknown"            # a relative path, ~name and every other kind of text
+
+    @staticmethod
+    def paste_refusal(text):
+        """The MESSAGES code that refuses stripped pasted `text` before it is read as a path (empty, over MAX_PASTE, a control or
+        format character, the form of a link), else None. Shared by pasted_folder and the Windows drive-path paste."""
+        if not text or len(text) > MAX_PASTE or any(unicodedata.category(ch) in ("Cc", "Cf") for ch in text):
+            return "paste_unknown"
+        return "paste_link" if LINK_FORM.match(text) else None
 
     def synced_folder(self, path):
         if not path.is_absolute() or ".." in path.parts:
@@ -748,16 +770,18 @@ class Publisher:
             return None, "paste_not_synced"
         return real, None
 
-    def save_folder(self, store, code, saved, folder, warning=None):
+    def save_folder(self, store, code, saved, folder, warning=None, windows=None):
+        """Save the client folder. `windows` is the Windows form of a pasted drive path; it is returned as `folder_windows` (not stored)."""
+        extra = {"folder_windows": windows} if windows else {}
         if folder == saved:
-            return 200, {"ok": True, "changed": False, "folder": saved, "message": MESSAGES["folder_unchanged" if folder else "folder_cleared"]}
+            return 200, {"ok": True, "changed": False, "folder": saved, "message": MESSAGES["folder_unchanged" if folder else "folder_cleared"], **extra}
         try:
             with store.step("dashboard", self.by_user(), place="menu") as st:
                 st.update("projects", code, {"publish_client": folder})
         except Invalid as e:
             return 409, self.fail("settings_failed", MESSAGES["settings_failed"])
         return 200, {"ok": True, "changed": True, "folder": folder, "folder_name": to_client.folder_name(folder),
-                     "warning": warning, "message": MESSAGES["folder_saved" if folder else "folder_cleared"]}
+                     "warning": warning, "message": MESSAGES["folder_saved" if folder else "folder_cleared"], **extra}
 
     # ----- a file for a section template (#96) -----
     def section_file(self, body):

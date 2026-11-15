@@ -130,8 +130,8 @@ class Tool(unittest.TestCase):
         real = rec.HTTPServer
 
         class Probe(real):
-            def server_bind(self):
-                super().server_bind()
+            def server_activate(self):
+                super().server_activate()
                 result["port"] = self.server_address[1]
                 ready.set()
 
@@ -139,7 +139,7 @@ class Tool(unittest.TestCase):
             with mock.patch.object(rec, "HTTPServer", Probe):
                 result["record"] = rec.run("127.0.0.1", 0, out=out)
 
-        t = threading.Thread(target=go)
+        t = threading.Thread(target=go, daemon=True)
         t.start()
         self.assertTrue(ready.wait(5))
         c = http.client.HTTPConnection("127.0.0.1", result["port"], timeout=5)
@@ -162,8 +162,8 @@ class Tool(unittest.TestCase):
         real = rec.HTTPServer
 
         class Probe(real):
-            def server_bind(self):
-                super().server_bind()
+            def server_activate(self):
+                super().server_activate()
                 result["port"] = self.server_address[1]
                 ready.set()
 
@@ -171,7 +171,7 @@ class Tool(unittest.TestCase):
             with mock.patch.object(rec, "HTTPServer", Probe):
                 result["record"] = rec.run("127.0.0.1", 0, out=out)
 
-        t = threading.Thread(target=go)
+        t = threading.Thread(target=go, daemon=True)
         t.start()
         self.assertTrue(ready.wait(5))
         for send in requests:

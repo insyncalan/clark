@@ -4,7 +4,7 @@
 // Every value is a text node; nothing here is read as markup. While asking is off nothing on a card can be pressed.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { project, reread, token } from "../stores/report.js";
-import { sendUndo } from "../api.js";
+import { sendUndo, zoneFetch } from "../api.js";
 import { showDate } from "../workItems.js";
 import { plainText } from "../logic/cleanHtml.js";
 import { panelState, turns } from "./askPanelState.js";
@@ -18,7 +18,7 @@ export const fixedLine = (m, fallback) => (typeof m === "string" && m.length > 0
 
 export async function askPost(path, body) {
   try {
-    const r = await fetch(path, { method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store" });
+    const r = await zoneFetch(path, { method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store" });
     return { status: r.status, body: await r.json().catch(() => null) };
   } catch (e) {
     return { status: 0, body: null };
