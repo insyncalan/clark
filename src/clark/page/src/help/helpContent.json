@@ -2009,7 +2009,7 @@
        ],
        [
         "Decisions",
-        "ID, Decision, Status, Made by, Needed by, Date, Reasoning, Options, Revisit, Replaces, Client-visible, Client wording, Use case, Labels"
+        "ID, Decision, Status, Priority, Made by, Needed by, Date, Reasoning, Options, Revisit, Replaces, Latest update, Client-visible, Client wording, Use case, Labels"
        ],
        [
         "Milestones",

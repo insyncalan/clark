@@ -82,7 +82,7 @@ class CardBrowser(unittest.TestCase):
         self.assertIsNotNone(got["type"], where)
         self.assertGreaterEqual(got["type"]["t"], max(c["b"] for c in order) - 1, f"{where}: Type and the rest sit below the row")
         self.assertEqual((got["type"]["line"], got["type"]["lineColor"]), ("1px", got["edge"]), f"{where}: one hairline under the property row, the theme's own")
-        known = {"Type", "Owner", "Decision by", "Due", "Needed by", "Date", "Priority", "Status", "Workstream", "Milestone", "Use case", "Shown to client", "Client wording", "Raised", "Last reviewed"}
+        known = {"Type", "Owner", "Made by", "Decision by", "Made on", "Reasoning", "Options considered", "Revisit", "Replaces", "Visible to client", "Due", "Needed by", "Date", "Priority", "Status", "Workstream", "Milestone", "Use case", "Shown to client", "Client wording", "Raised", "Last reviewed"}
         self.assertLessEqual(set(got["labels"]), known, f"{where}: the same labels as before (no new words)")
 
     def test_the_card_in_view_and_edit_light_and_dark_at_both_widths(self):
