@@ -77,7 +77,7 @@ export function AskPanel() {
     const fresh = was.open !== open || was.bump !== panelFocus.value;
     seen.current = { open, bump: panelFocus.value, busy, state };
     const at = document.activeElement, c = document.getElementById("ask-panel");
-    // A change of busy alone (a send starting, an answer landing) moves focus only after Stop: the Stop button leaves with the check, so focus is on the body.
+    // A change of busy alone (a send starting, an answer landing) moves focus only after Stop: the Stop icon leaves with the check, so focus is on the body.
     // A control the person tabbed to meanwhile (Copy, a source link) keeps it.
     if (!fresh && was.state === state && was.busy !== busy && !(was.busy && !busy && (!at || at === document.body))) return;
     if (!fresh && at && at !== document.body && !(c && c.contains(at))) return;
@@ -284,10 +284,15 @@ export function AskPanel() {
           onInput={(e) => setText(e.currentTarget.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) send(e); }} />
         <div class="ask-actions">
-          {busy ? <button type="button" class="btn" id="ask-stop" onClick={stop}>{W.STOP}</button> : null}
-          <button type="submit" class="btn primary" id="ask-send" title={W.SEND} aria-label={W.SEND} disabled={state !== "ready" || busy} data-empty={text.trim() ? undefined : "true"} aria-disabled={text.trim() ? undefined : "true"}>
-            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-          </button>
+          {busy ? (
+            <button type="button" key="stop" class="btn primary ask-stop-icon" id="ask-stop" title={W.STOP} aria-label={W.STOP} onClick={stop}>
+              <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="9" height="9" rx="1.5" fill="currentColor" /></svg>
+            </button>
+          ) : (
+            <button type="submit" key="send" class="btn primary" id="ask-send" title={W.SEND} aria-label={W.SEND} disabled={state !== "ready"} data-empty={text.trim() ? undefined : "true"} aria-disabled={text.trim() ? undefined : "true"}>
+              <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </button>
+          )}
         </div>
       </form>
     </aside>
