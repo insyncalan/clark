@@ -586,7 +586,7 @@ def select(inputs):
     out["labels"] = {i: list(item_labels[i]) for i in sorted(linkable) if item_labels.get(i)}
     proj = _pick(project, PUBLISH_FIELDS["projects"])
     proj["health_reason"] = reason_html(proj["health_reason"])
-    proj["current_state"] = clean_html(proj["current_state"]) if "current" not in hidden_types else current_state_section_body(sections)      # item 1188: a report whose Current state is a text section carries that body
+    proj["current_state"] = (clean_html(proj["current_state"]) or current_state_section_body(sections)) if "current" not in hidden_types else current_state_section_body(sections)      # item 1188: a report whose Current state is a text section carries that body; a built-in current section with an empty column falls back to it
     out["project"] = proj
     out["documents"] = documents(inputs.get("documents"), code, hidden_ids, hidden_types) if any(
         s.get("type") == "docs" and not s.get("hidden") for s in sections) else []          # #74: carried only with a section to draw them

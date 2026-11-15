@@ -74,6 +74,20 @@ class Reads(Base):
         inputs["sections"] = [{"id": "ABC-S-001", "type": "current", "title": "Current state", "sort_order": 10}]
         self.assertEqual(self.state(inputs), "<p>Old column.</p>")
 
+    def test_a_built_in_current_section_with_an_empty_column_and_a_current_state_text_section_gives_the_text_body(self):
+        inputs = self.inputs()
+        inputs["data"]["project"]["current_state"] = ""
+        inputs["sections"] = [{"id": "ABC-S-001", "type": "current", "title": "Current state", "sort_order": 10, "hidden": 0},
+                              {"id": "ABC-S-002", "type": "text", "title": "Current state", "body": "<p>Text body.</p>", "sort_order": 20, "hidden": 0}]
+        self.assertEqual(self.state(inputs), "<p>Text body.</p>")
+
+    def test_a_built_in_current_section_with_a_filled_column_keeps_the_column_over_the_text_section(self):
+        inputs = self.inputs()
+        inputs["data"]["project"]["current_state"] = "<p>Column.</p>"
+        inputs["sections"] = [{"id": "ABC-S-001", "type": "current", "title": "Current state", "sort_order": 10, "hidden": 0},
+                              {"id": "ABC-S-002", "type": "text", "title": "Current state", "body": "<p>Text body.</p>", "sort_order": 20, "hidden": 0}]
+        self.assertEqual(self.state(inputs), "<p>Column.</p>")
+
     def test_ask_sees_the_section_body(self):
         self.change(self.sections()[0]["id"], body="<p>Vendor contract signed.</p>")
         text = repr(ask_data.project_data(self.s, "ABC", "current state vendor", budget=40000).passages)
