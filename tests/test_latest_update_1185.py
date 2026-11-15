@@ -170,12 +170,13 @@ class Published(Base):
                 other = self.make(kind)[1]
                 token = "zz-1185-arch-" + kind
                 self.set_latest(table, ref, token)
-                self.set_latest(table, other, token + "-open")
+                open_token = "zz-1185-open-" + kind
+                self.set_latest(table, other, open_token)
                 with self.s.step("dashboard", USER) as st:
                     st.archive(table, ref)
                 text = self.published()
-                self.assertNotIn(token + "<", text.replace(token + "-open", ""), "archived")
-                self.assertIn(token + "-open", text, "the open one is published")
+                self.assertNotIn(token, text, "archived")
+                self.assertIn(open_token, text, "the open one is published")
 
     def test_a_decision_publishes_no_latest_update(self):
         self.assertNotIn("latest_update", publish.PUBLISH_FIELDS["decisions"])
