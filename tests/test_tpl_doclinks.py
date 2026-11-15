@@ -94,7 +94,7 @@ class Checker(unittest.TestCase):
         for name in ("a.html", "a.htm", "a.svg", "a.zip", "a.exe", "a.js", "a.sh", "a.bat", "report.pdf.exe", "noending", "a.pdf ",
                      "a.pdfx", "pdf", "a.gif", "a.docm"):
             with self.subTest(name=name):
-                self.refused("doclinks", body([a_file(name=name)]), doclinks.BAD_FILE if name.endswith(" ") else doclinks.bad_type(name))
+                self.refused("doclinks", body([a_file(name=name)]), f"{name}: {doclinks.BAD_FILE}" if name.endswith(" ") else doclinks.bad_type(name))
 
     def test_the_refusal_names_the_allowed_types_and_add_file_meets_the_same_rule(self):
         for word in ("PDF", "Word", "Excel", "PowerPoint", "JPG", "PNG", "TXT"):
@@ -114,6 +114,15 @@ class Checker(unittest.TestCase):
         """Item 1194 (ruled 15-11): 'Link {n}: Enter a link description.', n counted from 1 over every entry, files included."""
         self.refused("doclinks", body([a_link(), a_link(label="")]), "Link 2: Enter a link description.")
         self.refused("doclinks", body([a_link(), a_file(), a_link(label="  ")]), "Link 3: Enter a link description.")
+
+    def test_a_stored_entry_that_fails_the_check_is_named_in_the_refusal(self):
+        """Item 1628 (ruled 16-11): a refusal that drops the whole section names the item: a file by its name, a link by its place (from 1)."""
+        self.refused("doclinks", body([a_link(), a_link(href="http://example.org")]), "Link 2: " + doclinks.BAD_LINK)
+        self.refused("doclinks", body([a_file(), a_link(label="x" * 500)]), "Link 2: " + doclinks.BAD_LABEL)
+        self.refused("doclinks", body([a_link(), a_file(name="Plan v3.pdf", rel="Report files/other.pdf")]), "Plan v3.pdf: " + doclinks.BAD_FILE)
+        self.refused("doclinks", body([a_file(label="x" * 500)]), "Plan v2.pdf: " + doclinks.BAD_LABEL)
+        self.refused("doclinks", body([a_file(name="a.zip")]), doclinks.bad_type("a.zip"))      # already named: no second prefix
+        self.refused("doclinks", body([a_link(label="")]), "Link 1: Enter a link description.")
 
     def test_the_refusal_for_a_file_names_the_file(self):
         """Item 1194 (ruled 15-11): '{file name}: That type of file can't be added. Use PDF, Word, Excel, PowerPoint, JPG, PNG or TXT.'"""
@@ -144,8 +153,8 @@ class Checker(unittest.TestCase):
         self.refused("doclinks", body(["https://example.org"]), doclinks.BAD_KIND)
         self.refused("doclinks", json.dumps({"v": 1, "items": {"0": a_link()}}))
         self.refused("doclinks", json.dumps([a_link()]))
-        self.refused("doclinks", body([a_link(label=MARK * 10)]), doclinks.BAD_LABEL)
-        self.refused("doclinks", body([a_link(label=12)]), doclinks.BAD_LABEL)
+        self.refused("doclinks", body([a_link(label=MARK * 10)]), "Link 1: " + doclinks.BAD_LABEL)
+        self.refused("doclinks", body([a_link(label=12)]), "Link 1: " + doclinks.BAD_LABEL)
 
     def test_at_most_twenty_entries_and_the_limit_fits_the_change_route(self):
         self.assertEqual(len(json.loads(check("doclinks", body([a_link()] * 20)))["items"]), 20)
@@ -204,7 +213,7 @@ class Saved(Api):
         before = self.snapshot()
         status, got = self.save(ref, body([a_link(href="javascript:" + MARK)]))
         self.assertEqual(status, 400)
-        self.assertEqual(got["message"], doclinks.BAD_LINK)
+        self.assertEqual(got["message"], "Link 1: " + doclinks.BAD_LINK)
         self.assertNotIn(MARK, json.dumps(got))
         self.assertEqual(self.snapshot(), before)
 

@@ -173,6 +173,23 @@ def _item(value, rules, n=1):
     raise Bad(BAD_KIND)
 
 
+def _named_item(value, rules, n):
+    """_item, with the entry named in a refusal that does not already name it: a file by its name, a link by its place (from 1), as ruled 15-11.
+    A refusal that already carries the bad-type or the no-description tail is left as it is, so no sentence gets two prefixes."""
+    try:
+        return _item(value, rules, n)
+    except Bad as e:
+        text = str(e)
+        if text.endswith((BAD_TYPE_TAIL, NO_DESCRIPTION_TAIL)) or type(value) is not dict:
+            raise
+        name = value.get("name")
+        if value.get("kind") == "file" and isinstance(name, str) and name:
+            raise Bad(f"{name[:NAME_MAX]}: {text}") from None
+        if value.get("kind") == "link":
+            raise Bad(f"Link {n}: {text}") from None
+        raise
+
+
 def check(value, rules):
     value = fields(value, ("v", "items"), ("v",))
     version(value)
@@ -181,7 +198,7 @@ def check(value, rules):
         raise Bad(NOT_OBJECT)
     if len(items) > MAX_ITEMS:
         raise Bad(TOO_MANY)
-    return {"v": 1, "items": [_item(i, rules, n) for n, i in enumerate(items, 1)]}
+    return {"v": 1, "items": [_named_item(i, rules, n) for n, i in enumerate(items, 1)]}
 
 
 def published(value, ctx):
