@@ -2,8 +2,11 @@
 // Its look is neutral on purpose (outline or ink), so it is never read as a status colour. Used by View, the Use cases page and the
 // published file; Edit's menu button (edit/CommitMenu.jsx) draws the same chip.
 import { commitWord, commitClass } from "../logic/commitment.js";
+import { UNRULED_NO_COMMITMENT } from "../logic/unruled1234.js";
 
-export function CommitChip({ u }) {
+// Row 1234: with `dash` (View's use case rows) an empty commitment draws a dash, not a chip. Edit draws "Set commitment" instead (edit/CommitMenu.jsx).
+export function CommitChip({ u, dash }) {
   const w = commitWord(u);
-  return w ? <span class={`cchip ${commitClass(w)}`} data-commit={w} title="Commitment">{w}</span> : null;
+  if (w) return <span class={`cchip ${commitClass(w)}`} data-commit={w} title="Commitment">{w}</span>;
+  return dash ? <span class="cdash muted" data-commit-none role="img" aria-label={UNRULED_NO_COMMITMENT}>{"\u2014"}</span> : null;
 }
