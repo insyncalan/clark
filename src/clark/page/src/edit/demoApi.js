@@ -1,10 +1,11 @@
 // The demo data banner's two calls (#731): GET /api/demo (is demo data on show) and POST /api/demo/clear. Never a throw.
 import { token } from "../stores/report.js";
+import { zoneFetch } from "../api.js";
 import { DEMO } from "../logic/demoWords.js";
 
 export async function readDemo() {
   try {
-    const r = await fetch("/api/demo", { headers: { "X-Clark-Token": token() }, cache: "no-store" });
+    const r = await zoneFetch("/api/demo", { headers: { "X-Clark-Token": token() }, cache: "no-store" });
     const body = await r.json().catch(() => null);
     return !!(r.ok && body && body.ok === true && body.demo === true);
   } catch (e) {
@@ -15,7 +16,7 @@ export async function readDemo() {
 // {ok: true, removed} or {ok: false, message}
 export async function sendDemoRemove() {
   try {
-    const r = await fetch("/api/demo/clear", { method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" }, body: "{}", cache: "no-store" });
+    const r = await zoneFetch("/api/demo/clear", { method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" }, body: "{}", cache: "no-store" });
     const body = await r.json().catch(() => null);
     if (r.ok && body && body.ok === true) return { ok: true, removed: typeof body.removed === "number" ? body.removed : 1 };
     const said = body && typeof body.message === "string" && body.message.length <= 400 && r.status === 400 ? body.message : "";

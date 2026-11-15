@@ -74,7 +74,7 @@ class Menu(unittest.TestCase):
                                 f"!!{BADGE}.querySelector('svg'), {BADGE}.tagName]"), ["Report menu", "Report menu", "menu", "false", True, "BUTTON"])
             self.menu(cdp, js)
             self.assertEqual(js(f"{BADGE}.getAttribute('aria-expanded')"), "true")
-            self.assertEqual(js(ROWS), ["profile", "pdf", "past"], "no workbook in the file: Export to Excel is not drawn")
+            self.assertEqual(js(ROWS), ["profile", "pdf", "past", "asat"], "no workbook in the file: Export to Excel is not drawn")
             self.assertEqual(js(f"[...{MENU}.querySelectorAll('[data-row=profile], [data-row=pdf], .cm-group .lab')].map(e => e.textContent)"),
                              ["Profile", "Export to PDF", "Past reports"])
             self.assertEqual(js(f"{MENU}.querySelectorAll('[data-look], [role=menuitemradio]').length"), 0, "no Light, Dark or System rows")
@@ -281,7 +281,7 @@ class Menu(unittest.TestCase):
             js("window.__got = []; var make = URL.createObjectURL; URL.createObjectURL = function(b){ window.__got.push([b.size, b.type]); return make.call(URL, b); };"
                "HTMLAnchorElement.prototype.click = function(){ window.__got.push([this.download, this.href.slice(0, 5)]); };")
             self.menu(cdp, js)
-            self.assertEqual(js(ROWS), ["profile", "excel", "pdf", "past"])
+            self.assertEqual(js(ROWS), ["profile", "excel", "pdf", "past", "asat"])
             self.assertEqual(js(f"{MENU}.querySelector('[data-row=excel]').textContent"), "Export to Excel")
             self.pick(cdp, js, "[data-row=excel]")
             self.assertEqual(js("window.__got"), [[22, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"], ["Report-2026-10-28.xlsx", "blob:"]])
@@ -291,7 +291,7 @@ class Menu(unittest.TestCase):
         with chrome() as cdp:
             js = self.show(cdp, {"client_workbook_too_large": True})
             self.menu(cdp, js)
-            self.assertEqual(js(ROWS), ["profile", "excel", "pdf", "past"])
+            self.assertEqual(js(ROWS), ["profile", "excel", "pdf", "past", "asat"])
             self.assertEqual(js(f"(function(){{var r={MENU}.querySelector('[data-row=excel]'); return [r.getAttribute('aria-disabled'), r.textContent, r.nextElementSibling.textContent];}})()"),
                              ["true", "Export to Excel", "This report is too large to include a spreadsheet."])
             js("window.__got = 0; URL.createObjectURL = function(){ window.__got++; return ''; }")
@@ -324,7 +324,7 @@ class Menu(unittest.TestCase):
         with chrome() as cdp:
             js = self.show(cdp, {"client_workbook": {"name": "x.xlsx", "base64": "not base64 !!"}, "past_reports": "nope"})
             self.menu(cdp, js)
-            self.assertEqual(js(ROWS), ["profile", "pdf", "past"])
+            self.assertEqual(js(ROWS), ["profile", "pdf", "past", "asat"])
 
     # --- keys -------------------------------------------------------------------------------------------------------------
 

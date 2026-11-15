@@ -3,6 +3,7 @@
 // never read as markup. Nothing is sent while asking is off.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { project, show, token, view } from "../stores/report.js";
+import { zoneFetch } from "../api.js";
 import { words } from "./publishApi.js";
 import { stopRestore } from "../router.js";
 import { askProvider } from "./askState.js";
@@ -31,7 +32,7 @@ function sourceLabels(list) {
 
 async function post(path, body) {
   try {
-    const r = await fetch(path, { method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store" });
+    const r = await zoneFetch(path, { method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store" });
     return { status: r.status, body: await r.json().catch(() => null) };
   } catch (e) {
     return { status: 0, body: null };

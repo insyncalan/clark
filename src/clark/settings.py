@@ -15,7 +15,7 @@ import threading
 import unicodedata
 from pathlib import Path
 
-from clark import platform
+from clark import host_folders, platform
 
 FILE = "settings.json"
 LOCK = threading.RLock()                # every setter reads the file and writes it back whole: one at a time, so none is lost
@@ -224,6 +224,8 @@ def set_backup_copy_folder(data_dir, text):
     data_dir = Path(data_dir)
     off = text is None or (isinstance(text, str) and not text.strip())
     path = None
+    if not off and host_folders.windows_host(os.environ) and host_folders.is_drive_path(text):
+        text = host_folders.to_container("backup", text, os.environ)[0]    # a typed Windows path inside the shared backup folder
     if not off:
         problem = backup_copy_problem(data_dir, text)
         if problem is not None:
