@@ -8,7 +8,15 @@ here="${0%/*}"; case "$0" in */*) ;; *) here=. ;; esac
 cd "$here/.." || exit 1
 if [ -d .app ]; then check=.app/src/clark/starter_check.py; else check=src/clark/starter_check.py; fi
 export PYTHONDONTWRITEBYTECODE=1
-port="${CLARK_PORT:-8766}"
+# The port compose publishes: CLARK_PORT in the shell, else CLARK_PORT in docker/.env (compose reads that file too), else 8766.
+port="${CLARK_PORT:-}"
+if [ -z "$port" ] && [ -f docker/.env ]; then
+  envtext=$'\n'"$(<docker/.env)"
+  case "$envtext" in
+    *$'\n'CLARK_PORT=*) rest="${envtext##*$'\n'CLARK_PORT=}"; port="${rest%%$'\n'*}"; port="${port//[\"\' $'\r']/}" ;;
+  esac
+fi
+case "$port" in ''|*[!0-9]*) port=8766 ;; esac
 say() { echo "$*"; }
 
 # Python: the same start as clark.command. It opens Chrome (or your default browser) itself and says what it did.
