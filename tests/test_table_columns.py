@@ -31,6 +31,9 @@ TABLES = {
     "milestones": ("#milestones&p=TUL", "#milestones .msl-hd [data-col]", "#milestones .msl-hd [data-col='%s']", "#milestones .msl-cells [data-col='%s']:not(.cols-off)", "#milestones li.msl-row",
                    MS_ALL, ["Milestone", "State"], ["Date", "Milestone", "State", "Progress"]),
 }
+# Notes the time of every scroll of the page (any element, captured), from the first moment of the page; a late one closes an open menu.
+SETTLE = "window.__lastScroll = 0; window.addEventListener('scroll', () => { window.__lastScroll = performance.now(); }, true);"
+QUIET_MS = 700
 MENU = ".cols-menu[role=menu]"
 ITEMS = MENU + " [role=menuitemcheckbox]"
 
@@ -66,9 +69,14 @@ class Columns(unittest.TestCase):
 
     def open_table(self, cdp, width, scheme, table, early=""):
         url, heads, head, cell, row, *_ = TABLES[table]
-        sid = self.visit(cdp, width, scheme, url, early)
+        sid = self.visit(cdp, width, scheme, url, SETTLE + early)
         js = lambda e: cdp.js(e, sid)  # noqa: E731
         self.assertTrue(wait(lambda: js(f"document.querySelectorAll({json.dumps(row)}).length > 0 && document.querySelectorAll({json.dumps(heads)}).length > 0"), 20), "the table is drawn")
+        # The menu closes on any scroll of the window (MenuPanel), and the page scrolls itself while it settles (the address's own place, fonts moving the
+        # layout), later on a slower computer (macOS CI). So the menu is asked for only once the Columns button is there, the fonts are in and no scroll
+        # has come for a while.
+        btn = "#work .cols-btn" if table == "work" else "#milestones .msl-cols-btn"
+        self.assertTrue(wait(lambda: js(f"!!document.querySelector({json.dumps(btn)}) && document.fonts.status === 'loaded' && performance.now() - window.__lastScroll > {QUIET_MS}"), 20), "the page has settled")
         return sid, js
 
     def right_click(self, cdp, sid, selector):
