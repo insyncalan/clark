@@ -136,7 +136,7 @@ already use Docker, use Docker instead. You only need Docker and Chrome.
   2. Open Terminal, type cd and a space, drag this folder into the Terminal
      window and press Return.
   3. Type this and press Return (the first time it takes a few minutes):
-        docker compose -f docker/compose.yaml up -d
+        bash docker/start.command
   4. Open Chrome and go to http://localhost:8766
      To keep clark as its own app, choose the Install clark button at the
      right end of Chrome's address bar. Open it from there on later days.
@@ -151,7 +151,7 @@ With Docker, your data is kept in ~/Library/Application Support/clark, the same
 place clark.command uses, not in this folder, so you can swap this folder for a
 newer download without losing anything. To use another folder, put its full
 path in CLARK_DATA_DIR in front of the command in step 3:
-        CLARK_DATA_DIR="/full/path" docker compose -f docker/compose.yaml up -d
+        CLARK_DATA_DIR="/full/path" bash docker/start.command
 A folder inside OneDrive cannot be used by clark.
 If an earlier Docker start kept your data in a data folder inside the clark
 folder, move that data folder out of the clark folder first, or name it
@@ -160,7 +160,7 @@ By default clark.command and Docker use the same data.
 IMPORTANT: Never open the same data from clark.command and from Docker at the
 same time: stop one before you start the other.
 To use another port, put it in front of the command, for example:
-        CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d
+        CLARK_PORT=8800 bash docker/start.command
 then open http://localhost:8800 instead.
 If it says port 8766 is already used, another clark is open: close it, or stop
 it with the command in step 5, then try again. If it says it cannot connect to
