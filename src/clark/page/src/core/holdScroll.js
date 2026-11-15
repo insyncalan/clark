@@ -4,7 +4,7 @@
 // Sideways wheel movement (the Back and Forward swipe, item 1136) is never touched, and neither is a scroll inside a scroller
 // that can still move that way.
 
-const EDITABLE = "input, textarea, select, [contenteditable], [role=separator], [role=slider], [role=listbox], [role=menu], [role=tab]";
+const FIELDS = "input, textarea, select, [role=separator], [role=slider], [role=listbox], [role=menu], [role=tab]";   // a rich text box is found by isContentEditable below, never by a selector naming it
 const PRESSABLE = "button, a[href], summary, [role=button]";
 
 function scrolls(el, dy) {
@@ -48,7 +48,7 @@ export function holdScroll(panel, { keys: withKeys = true } = {}) {
     if (e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
     if (![" ", "PageUp", "PageDown", "Home", "End", "ArrowUp", "ArrowDown"].includes(k)) return;
     const t = e.target;
-    if (t && t.closest && (t.closest(EDITABLE) || (k === " " && t.closest(PRESSABLE)))) return;
+    if (t && t.closest && ((t.isContentEditable || t.closest(FIELDS)) || (k === " " && t.closest(PRESSABLE)))) return;
     e.preventDefault();                          // the page behind never takes the key
     const s = keyScroller(t, panel);
     if (!s) return;
