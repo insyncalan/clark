@@ -20,7 +20,17 @@ from test_work_items import FIXED_DATE, load_demo, page_target
 
 PAGES = [("work", "#work&p=TUL&f=mode:all", "#work table.items", "owner", "#work tbody tr[data-id]"),
          ("milestones", "#milestones&p=TUL", "#milestones .msl-hd", "state", "#milestones li.msl-row"),
-         ("projects", "#settings&p=TUL", "#projects-table", "c2", "#projects-table tbody tr")]      # row 1104: the Projects table in Settings too (Published reports and People use the same hook); the Milestones list has a heading row too; item 1149: the Use cases page has none now
+         ("projects", "#settings&p=TUL", "#projects-table", "c2", "#projects-table tbody tr"),
+         ("published", "#published&p=TUL", "#pubs-table", "c1", "#pubs-table tbody tr"),
+         ("people", "#settings&p=TUL", "#ppTable", "Email", "#ppTable tbody tr")]      # row 1104: the Projects, Published reports and People tables in Settings too (the same hook); the Milestones list has a heading row too; item 1149: the Use cases page has none now
+
+
+class FakePast:
+    """Stands in for past_reports.PastReports: GET /api/publications answers three rows of the shape the real listing gives."""
+    def listing(self, code, archived=False):
+        rows = [{"number": n, "when": f"{n} Nov 2026, 09:00", "where": "Saved on this computer", "who": "tester", "word": False, "kept": False, "week": None, "day": "2026-11-0%d" % n,
+                 "archived": False} for n in (3, 2, 1)]
+        return 200, {"ok": True, "project": code, "total": 3, "shown": 3, "limit": 10, "archived": 0, "publications": rows}
 
 
 class Widths(unittest.TestCase):
@@ -32,6 +42,10 @@ class Widths(unittest.TestCase):
         self.path = self.folder / "clark.db"
         self.s = real_server(self.path, self.read, projects=lambda archived=False: [{"code": "TUL", "name": "Tulip"}], page_html=lambda: page.page_html(EMPTY_BRANDING))
         self.s.httpd.use_cases = use_cases_read.make_read(self.read, lambda code: set(), launcher.use_case_history(mock.Mock(path=self.path)))
+        self.s.httpd.past = FakePast()      # the Published reports list: three publications, no copy kept on disk
+        with self.store.step("dashboard", "tester", place="menu") as step:      # the People table: two people with all four columns filled
+            step.add_person(name="Person One", email="one@example.com", organisation="Client", role="Programme manager", source="test")
+            step.add_person(name="Person Two", email="two@example.com", organisation="Supplier", role="Delivery lead", source="test")
         self.addCleanup(self.s.close)
         quiet = mock.patch.object(sv.LOG, "disabled", True)
         quiet.start()
