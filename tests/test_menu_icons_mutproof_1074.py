@@ -207,9 +207,10 @@ class PeekFields(Shown):
 
     def test_milestone_and_use_case_menus_have_their_own_icon_and_a_minus_to_clear(self):
         for width in WIDTHS:
-            for field, icon, none in (("milestone", "flag", "No milestone"), ("use_case", "doc", "No use case")):
+            # Item 1181: an action's peek has no Use case picker (the ticket drops it for actions), so the use case menu is read on a risk.
+            for field, icon, none, ref in (("milestone", "flag", "No milestone", "TUL-A-001"), ("use_case", "doc", "No use case", "TUL-007")):
                 with self.subTest(width=width, field=field), chrome() as cdp:
-                    sid = self.open_page(cdp, width, hash_="#work&p=TUL&f=mode:all&item=TUL-A-001")
+                    sid = self.open_page(cdp, width, hash_=f"#work&p=TUL&f=mode:all&item={ref}")
                     self.until(cdp, sid, f"!!document.querySelector('[data-pk-pick={field}]')", "peek pick")
                     click(cdp, sid, f"[data-pk-pick={field}]")
                     self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "menu")

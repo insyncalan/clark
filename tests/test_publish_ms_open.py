@@ -14,7 +14,8 @@ from test_server import chrome, wait
 import test_publish as tp
 from _new_page import reload_to_new_page_cdp
 
-CONTROLS = "button, input, textarea, select, [role=textbox], [role=combobox]"
+# Row 1180: the Details line is a fold toggle in a read only peek too (it changes nothing), so the "read only" check leaves it out.
+CONTROLS = "button:not([data-pk-details]), input, textarea, select, [role=textbox], [role=combobox]"
 PEEK_LABELS = ("Description", "Agreed date", "Forecast date", "Workstream", "Client wording")
 PEEK_ID = "((document.querySelector('#peek') || {dataset: {}}).dataset.peek || '')"  # parenthesised: bare, "x || '' === ''" is always true
 

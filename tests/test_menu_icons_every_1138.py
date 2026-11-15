@@ -433,7 +433,7 @@ class Work(BulkBase):
                 row_dup = d.js(f"({icon})('[data-rm=dup]')")
                 d.click("[data-rm=peek]", "the Peek line of the row menu")
                 d.button("#pk-more", "the peek's More actions button")
-                self.assertEqual(d.js("(() => { const b = document.querySelector('#peek [data-pk-dup] svg.i'); return b ? b.dataset.icn : null; })()"), row_dup, f"The peek header Duplicate button has the row menu's icon at {w} {th}")
+                self.assertEqual(d.js("document.querySelectorAll('#peek .pk-bar [data-pk-dup]').length"), 0, f"The peek header has no Duplicate button of its own at {w} {th} (it is in More actions)")
                 d.js("document.getElementById('pk-more').click()")
                 d.lines("[role=menu][aria-label='More actions']", "peek-more", 3)
                 self.assertEqual(d.js(f"({icon})('[data-kind=duplicate]')"), row_dup, f"Duplicate has the row menu's icon at {w} {th}")
