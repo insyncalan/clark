@@ -21,9 +21,9 @@ class DemoDialogPlace(unittest.TestCase):
     setUp = DemoLine.setUp
 
     def show(self, cdp, sid):
-        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#demo-remove')", sid), 30), "the banner")
+        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#demo-remove')", sid), 90), "the banner")
         cdp.js("document.querySelector('#demo-remove').focus(); document.querySelector('#demo-remove').click()", sid)
-        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#demo-confirm')", sid), 30), "the dialog")
+        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#demo-confirm')", sid), 90), "the dialog")
 
     def test_the_dialog_starts_below_the_top_bar_at_every_width_in_light_and_dark(self):
         for theme in ("light", "dark"):

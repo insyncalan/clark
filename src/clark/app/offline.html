@@ -21,7 +21,7 @@
 <main>
   <h1>Start clark to use this window</h1>
   <p>Nothing is running at this address. Start it the way you started it: double-click <b>@LAUNCHER@</b> in your clark folder, or, if you use Docker, open Terminal in that folder and type:</p>
-  <code>docker compose -f docker/compose.yaml up -d</code>
+  <code>bash docker/start.command</code>
   <p>Closing the last clark window stops @LAUNCHER@ after two minutes. Docker keeps running until you stop it with:</p>
   <code>docker compose -f docker/compose.yaml down</code>
   <button type="button" id="again">Check again</button>
