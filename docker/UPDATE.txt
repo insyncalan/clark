@@ -15,7 +15,7 @@ To update:
      On Windows, type this in PowerShell and press Enter (this folder's
      docker/compose.windows.yaml keeps your data in the clark-data folder in
      your user folder; to use another folder, first type
-     $env:CLARK_DATA_DIR = "D:\\clark-data" with your own folder):
+     $env:CLARK_DATA_DIR = "D:\clark-data" with your own folder):
         docker compose -f docker/compose.yaml -f docker/compose.windows.yaml up -d
   5. Open http://localhost:8766 in Chrome or Edge. On a Mac the start in step 4
      opens it for you; on Windows open it yourself.
