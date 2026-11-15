@@ -78,6 +78,35 @@ class Typed(unittest.TestCase):
         self.assertEqual(str(cm.exception), hf.NOT_SHARED_AT_ALL)
 
 
+class CheckInside(unittest.TestCase):
+    """item 625: check_inside called directly, with a real folder as the share root (no paste route)."""
+
+    def setUp(self):
+        import os, shutil, tempfile
+        self.base = os.path.realpath(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.base, True)
+        self.share = os.path.join(self.base, "share")
+        os.makedirs(os.path.join(self.share, "ABC"))
+        os.makedirs(os.path.join(self.base, "share-other"))
+
+    def check(self, real):
+        with mock.patch.object(hf, "share_root", return_value=self.share):
+            hf.check_inside("client", real, "C:\\Shared\\x")
+
+    def test_the_share_itself_and_a_folder_below_it_pass(self):
+        self.check(self.share)
+        self.check(self.share + "/ABC")
+
+    def test_a_folder_outside_the_share_is_refused_with_the_not_shared_sentence(self):
+        with self.assertRaises(ValueError) as cm:
+            self.check(self.base)
+        self.assertEqual(str(cm.exception), hf.NOT_SHARED.format(folder=hf.platform.host_shown("C:\\Shared\\x")))
+
+    def test_a_sibling_whose_name_starts_with_the_share_name_is_refused(self):
+        with self.assertRaises(ValueError):
+            self.check(self.base + "/share-other")
+
+
 class Setting(unittest.TestCase):
     def test_nothing_is_on_without_the_setting_or_outside_a_container(self):
         with container():
