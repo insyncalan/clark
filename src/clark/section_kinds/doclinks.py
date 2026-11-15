@@ -18,8 +18,6 @@ The stored content (canonical JSON, checked field by field; anything else is ref
 Published: the same items, fields picked by name; nothing when there is no item (an empty template stays out of the file). The
 page draws them from the file's own data block (page/src/templates/DocLinks.jsx).
 """
-import json
-
 from clark.section_kinds.base import Bad
 
 READY = True
@@ -178,13 +176,18 @@ def _item(value, rules, n=1, stored=False):
     raise Bad(BAD_KIND)
 
 
+def _key(entry):
+    """An entry as something two entries can be compared by (a tuple of its fields, in name order)."""
+    return tuple(sorted(entry.items()))
+
+
 def kept_entries(stored_value, rules):
     """The entries a section already holds, each as its canonical text read without the two 1194 rules (see _item): an entry
     that is sent back unchanged is one of these. An entry of the stored content that cannot be read at all is not kept."""
     out = set()
     for i in (stored_value.get("items") or []) if type(stored_value) is dict and type(stored_value.get("items")) is list else []:
         try:
-            out.add(json.dumps(_item(i, rules, stored=True), sort_keys=True))
+            out.add(_key(_item(i, rules, stored=True)))
         except Bad:
             pass
     return out
@@ -199,7 +202,7 @@ def _named_item(value, rules, n, kept=()):
         if kept:
             try:                                  # option A (1194): an entry the section already holds, sent back unchanged, is kept as it is
                 same = _item(value, rules, n, stored=True)
-                if json.dumps(same, sort_keys=True) in kept:
+                if _key(same) in kept:
                     return same
             except Bad:
                 pass
