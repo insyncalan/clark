@@ -23,7 +23,7 @@ export const LABELS = {
 export const NOTHING_YET = "Write your feedback first.";
 export const TOO_LONG = "This is too long for a mail link. Use Copy as text and paste it into an email.";
 export const COPIED = "Copied";
-export const COPY_REFUSED = "The browser did not copy it. Press ⌘C to copy the selected text.";
+export const COPY_REFUSED = "The browser did not copy it. Press Ctrl+C (Cmd+C on a Mac) to copy the selected text.";
 
 function text(x) { return x == null ? "" : String(x); }
 

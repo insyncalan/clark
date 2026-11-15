@@ -89,11 +89,12 @@ class Hostile(Base):
                 try:
                     con.execute("INSERT INTO publications (project, at, local_path, word, file_sha256, checks, by_user, number) VALUES ('PUB',?,'/x',0,?,'not needed','u',?)", (v, SHA, i))
                 except sqlite3.IntegrityError:
-                    pass
+                    self.assertIsNone(v, "only the NULL at is refused (the column is NOT NULL)")
             con.commit()
         finally:
             con.close()
         body = self.listing(archived=True)
+        self.assertEqual(len(body["publications"]), 3, "the three stored rows are all listed")
         for p in body["publications"]:
             self.assertTrue(p["at"] is None or isinstance(p["at"], str))
         json.dumps(body)
@@ -268,8 +269,6 @@ class Routes(Base):
                 with self.subTest(action=action, body=body):
                     status, got = self.req("POST", path, body)
                     self.assertIn(status, (400, 404, 409, 415), (status, got))
-                    if action == "restore" and body == {"project": "PUB", "number": n}:
-                        continue
             self.assertEqual((self.marks(), self.history_count()), before, "nothing was written")
         for raw in (b"{", b"\xff\xfe", b"[" * 5000, b'{"project":"PUB","number":1,"number":2}', b"", b"null"):
             with self.subTest(raw=raw[:20]):
