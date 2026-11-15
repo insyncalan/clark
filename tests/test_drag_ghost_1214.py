@@ -67,7 +67,7 @@ class DragGhost(tre.Base):
                     glide = p.js("getComputedStyle(document.querySelector('.sec.drag-slot')).animationDuration")
                     self.assertEqual(glide, "0.16s" if mode[0] == "allowed" else "0s")
                     gname = p.js("getComputedStyle(document.querySelector('.sec-ghost')).animationName")
-                    self.assertEqual(gname, "m-outline" if mode[0] == "allowed" else "none")
+                    self.assertEqual(gname, "none", "the ghost has no animation of its own, it would hold it at the corner while it plays")
                     self.shot(cdp, p, f"ghost-{width}-{mode[0]}")
                     p.key("Escape", code="Escape", vk=27)
                     p.mouse("mouseReleased", hx + 40, ty, 0)
