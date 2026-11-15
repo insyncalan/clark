@@ -391,8 +391,8 @@ class WhereItIsNamed(unittest.TestCase):
     def test_the_card_is_mounted_in_settings_through_the_edit_tools(self):
         self.assertIn("Safety", (PAGE_SRC / "edit" / "index.js").read_text(encoding="utf-8"))
         views = (PAGE_SRC / "components" / "Views.jsx").read_text(encoding="utf-8")
-        self.assertIn("tools.Safety", views)
-        self.assertIn("<Safety />", views)
+        self.assertIn('["backups", "Backups", ["Safety"]]', views)      # row 1024: the Backups page of the Settings menu holds the card
+        self.assertIn("const Card = tools[tool]", views)      # and the page draws each card it holds from the edit tools
 
 
 if __name__ == "__main__":

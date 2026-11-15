@@ -18,6 +18,7 @@ from test_server import chrome, wait
 from clark import excel, excel_route
 
 WIDTHS = (1400, 900)
+SETTINGS_PAGES = {"data": ("Export and import", "#data-card"), "backups": ("Backups", "#safety-h")}      # row 1024: Settings shows one page at a time: its menu item and a card on it
 USER = "Test Person"
 
 
@@ -70,11 +71,15 @@ class Card(Base):
                 return False
         self.assertTrue(wait(got, seconds), what)
 
-    def open_settings(self, p):
+    def open_settings(self, p, page="data"):
+        """Open Settings from the circle's menu, then the page by its item in the Settings menu (the Data page by default), and wait for its card."""
+        item, card = SETTINGS_PAGES[page]
         p.js("document.querySelector('#profile-btn').click()")
         p.until("!!document.querySelector('#profile-menu')", "the menu opened")
         p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
-        p.until("!!document.querySelector('#data-card')", "the Data card drew")
+        p.until("!!document.querySelector('.set-chip')", "the Settings menu drew")
+        p.js(f"[...document.querySelectorAll('.set-nav .set-chip')].find(b => b.textContent === {json.dumps(item)}).click()")
+        p.until(f"!!document.querySelector({json.dumps(card)})", f"the {item} page drew")
 
     def choose(self, p, b64, through=True):
         """Choose the file; with `through` also press Continue on the sheet list (#655) when the file got that far."""

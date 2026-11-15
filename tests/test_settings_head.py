@@ -3,7 +3,7 @@ light and dark. Issues 697 and 842: at 900 px and wider the links are a list dow
 are tested: no narrower width is). Run: python3 dev/run_tests.py test_settings_head
 
 What is asserted: the title and the help line; a chip for each card that is on the page (Essentials, Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking, Feedback, Quit) and none
-for a card that is not; a click scrolls the card into view and moves focus to its heading; the keyboard does the same (Tab to a chip,
+for a card that is not; a click opens the page and marks it (aria-current); the keyboard does the same (Tab to an item,
 Enter); the list stands at the left of the cards at 900 px and wider, the page never scrolls sideways and nothing overlaps; each chip is at least 24 px high and wide; the chip text is at least 13 px
 and 4.5:1 on its ground; the focus ring is 2 px. Chrome is required: these tests fail, never skip, without it.
 """
@@ -22,6 +22,24 @@ CARDS = [("Essentials", "essentials-h"), ("Profile", "profile-h"), ("Publishing"
          ("Version and updates", "update-h"), ("Brands", "brands-h"), ("People", "people-h"), ("Asking", "ask-settings-h"), ("Feedback", "feedback-h"), ("Quit", "quit-h")]
 
 
+# Row 1024: Settings shows one page at a time. The pages by group, as the menu names them, with the cards (name, heading id) each draws.
+GROUPS = [("Everyday", [("projects", "Projects", [("Projects", "projects-h")]), ("people", "People", [("People", "people-h")]),
+                        ("profile", "Profile", [("Essentials", "essentials-h"), ("Profile", "profile-h")])]),
+          ("Publishing", [("folder", "Folder", [("Publishing", "client-folder-h")]), ("brand", "Brand", [("Brands", "brands-h")])]),
+          ("Look and feel", [("appearance", "Appearance", [("Personal", "personal-h")]), ("reports", "Reports", [("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h")])]),
+          ("Data and safety", [("backups", "Backups", [("Backups", "safety-h")]), ("data", "Export and import", [("Data", "data-card-h")])]),
+          ("Advanced", [("claude", "Claude and AI", [("Asking", "ask-settings-h")]), ("logs", "Logs and diagnostics", [("Logs and diagnostics", "diagnostics-h")]),
+                        ("version", "Version and updates", [("Version and updates", "update-h"), ("Feedback", "feedback-h"), ("Quit", "quit-h")])])]
+PAGES = [page for _, pages in GROUPS for page in pages]      # (slug, menu name, cards)
+PAGE_OF = {head: slug for slug, _, cards in PAGES for _, head in cards}      # which page a card's heading is on
+FIRST = PAGES[0][0]
+
+
+def address(slug, project="PUB"):
+    """The address of a Settings page: the first page is the plain one."""
+    return f"#settings&p={project}" + ("" if slug == FIRST else f"&s={slug}")
+
+
 def ratio(a, b):
     def lum(rgb):
         out = []
@@ -38,7 +56,7 @@ def rgb(text):
 
 
 class Head(Base):
-    def open_settings(self, p, w, mode="light"):
+    def open_settings(self, p, w, mode="light", page=FIRST):
         p.width(w)
         scheme(p, mode)
         rate = int(os.environ.get("CLARK_TEST_CPU_THROTTLE", "0") or 0)      # tests only: a slow runner (macOS headless) on any machine
@@ -47,10 +65,25 @@ class Head(Base):
         slow = int(os.environ.get("CLARK_TEST_SLOW_RAF", "0") or 0)      # tests only: a frame callback every N ms, like macOS headless
         if slow:
             p.js("(function(){ var r = window.requestAnimationFrame.bind(window); window.requestAnimationFrame = function(f){ return setTimeout(function(){ r(f); }, %d); }; })()" % slow)
-        p.js("location.hash = '#settings&p=PUB'")
-        p.until("!!document.querySelector('.set-nav .set-chip') && !!document.querySelector('#personal-h') && !!document.querySelector('#safety-h')",
-                "Settings and its chips drew")
+        p.js(f"location.hash = '{address(page)}'")
+        heads = " && ".join(f"!!document.getElementById('{head}')" for _, head in dict(((s, c) for s, _, c in PAGES))[page])
+        p.until(f"!!document.querySelector('.set-nav .set-chip[aria-current]') && {heads}", "Settings, its menu and the page's cards drew")
         p.settled("Settings finished drawing and scrolling")
+
+    def to_page(self, p, slug):
+        """Another Settings page by its address, in the page that is open (nothing reloads); wait until it is the marked one with its cards drawn."""
+        p.js(f"location.hash = '{address(slug)}'")
+        heads = " && ".join(f"!!document.getElementById('{head}')" for _, head in dict(((s, c) for s, _, c in PAGES))[slug])
+        name = {s: n for s, n, _ in PAGES}[slug]
+        p.until(f"(document.querySelector('.set-chip[aria-current]') || {{}}).textContent === '{name}' && {heads}", f"the {name} page drew")
+
+    def go_page(self, p, slug):
+        """Open a Settings page by its menu item, as a person does, and wait until it is the marked one with its cards drawn."""
+        name = {s: n for s, n, _ in PAGES}[slug]
+        self.click_chip(p, name)
+        heads = " && ".join(f"!!document.getElementById('{head}')" for _, head in dict(((s, c) for s, _, c in PAGES))[slug])
+        p.until(f"(function(){{var c = document.querySelector('.set-chip[aria-current]'); return !!c && c.textContent === '{name}';}})() && {heads}", f"the {name} page drew")
+        p.settled("the page finished drawing")
 
     def chips(self, p):
         return p.js("[...document.querySelectorAll('.set-nav .set-chip')].map(b => b.textContent)")
@@ -79,11 +112,17 @@ class Head(Base):
         mousedown, and the router's scroll restore after the hash change (router.js restore()) ends only on wheel, touchstart, keydown or
         mousedown, so on a slow runner (macOS headless: slow requestAnimationFrame) it was still alive and put the jump back to 0. Also
         starts a record of window.scrollY at +0/+100/+500/+2000 ms, which a failure prints."""
-        at = p.js(f"""(function(){{
-          var b = [...document.querySelectorAll('.set-nav .set-chip')].find(b => b.textContent === '{name}'), r = b.getBoundingClientRect();
-          return [r.left + r.width / 2, r.top + r.height / 2, innerWidth, innerHeight];
-        }})()""")
-        self.assertTrue(0 <= at[0] <= at[2] and 0 <= at[1] <= at[3], f"the {name} chip is inside the window to be clicked: {at}")
+        find = f"[...document.querySelectorAll('.set-nav .set-chip')].find(b => b.textContent === '{name}')"
+        at = None
+        for _ in range(6):      # the menu is taller than a 900 px window: a person wheels the page down, then scrolls the list to the item, as often as it takes
+            p.cdp.call("Input.dispatchMouseEvent", {"type": "mouseWheel", "x": p.js("innerWidth") - 60, "y": 300, "deltaX": 0, "deltaY": 3000}, p.sid)
+            p.settled("the scroll to the foot finished")
+            p.js(f"{find}.scrollIntoView({{block: 'center'}})")
+            p.settled("the scroll to the menu item finished")
+            at = p.js(f"(function(){{ var r = ({find}).getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2, innerWidth, innerHeight]; }})()")
+            if 0 <= at[0] <= at[2] and 0 <= at[1] <= at[3]:
+                break
+        self.assertTrue(0 <= at[0] <= at[2] and 0 <= at[1] <= at[3], f"the {name} chip is inside the window to be clicked: {at}; scrollY={p.js('scrollY')}")
         for kind in ("mouseMoved", "mousePressed", "mouseReleased"):
             params = {"type": kind, "x": at[0], "y": at[1], "button": "none" if kind == "mouseMoved" else "left",
                       "buttons": 1 if kind == "mousePressed" else 0, "clickCount": 0 if kind == "mouseMoved" else 1}
@@ -107,7 +146,7 @@ class Head(Base):
         # the position and the animations are checked again once the heading is found: still no animation, the same scrollY 100 ms apart.
         p.settled("the chip's scroll finished")
 
-    def test_C_the_title_the_help_line_and_a_chip_for_each_card_that_exists(self):
+    def test_C_the_title_the_help_line_and_a_menu_item_for_each_page_that_exists(self):
         for w in WIDTHS:
             for mode in MODES:
                 with self.subTest(width=w, mode=mode), chrome() as cdp:
@@ -115,38 +154,48 @@ class Head(Base):
                     self.open_settings(p, w, mode)
                     self.assertEqual(p.js("document.querySelector('.set-head h1').textContent"), "Settings")
                     self.assertEqual(p.js("document.querySelector('.set-head p').textContent"), HELP)
-                    self.assertEqual(self.chips(p), [name for name, _ in CARDS])
-                    for name, head_id in CARDS:
-                        self.assertEqual(p.js(f"document.getElementById('{head_id}').textContent"), name, "a chip says what its card's heading says")
-                        self.assertEqual(p.js(f"document.getElementById('{head_id}').getAttribute('tabindex')"), "-1")
+                    self.assertEqual(self.chips(p), [name for _, name, _ in PAGES])
+                    self.assertEqual(p.js("[...document.querySelectorAll('.set-group-name')].map(e => e.textContent)"), [g for g, _ in GROUPS])
+                    self.assertEqual(p.js("document.querySelector('.set-chip[aria-current]').textContent"), PAGES[0][1], "the first page is the marked one")
+                    for slug, name, cards in PAGES:
+                        self.go_page(p, slug)
+                        self.assertEqual(p.js("[...document.querySelectorAll('.set-chip[aria-current]')].map(b => b.textContent)"), [name], "one marked item")
+                        self.assertEqual(p.js("[...document.querySelectorAll('.set-cards h2[id], .set-cards h3[id]')].map(h => h.id).filter(i => i.endsWith('-h'))"),
+                                         [head for _, head in cards], f"the {name} page draws its cards and no others")
+                        for card, head_id in cards:
+                            self.assertEqual(p.js(f"document.getElementById('{head_id}').textContent"), card, "a card's heading says its name")
+                            self.assertEqual(p.js(f"document.getElementById('{head_id}').getAttribute('tabindex')"), "-1")
                     for gone in ("AI", "Client folder", "Published reports"):
-                        self.assertNotIn(gone, self.chips(p), f"no chip for {gone}: there is no such card")
+                        self.assertNotIn(gone, self.chips(p), f"no menu item for {gone}: there is no such page")
                     self.assertNotIn("Settings are not ready yet.", p.js("document.querySelector('main').innerText"))
 
-    def test_C_a_click_scrolls_to_the_card_and_focuses_its_heading(self):
+    def test_C_a_click_opens_the_page_and_marks_it_and_the_address_keeps_it(self):
         for w in WIDTHS:
             with self.subTest(width=w), chrome() as cdp:
                 p = self.page(cdp)
                 self.open_settings(p, w)
-                for name, head_id in reversed(CARDS):
-                    p.js("window.scrollTo(0, 0)")
-                    p.settled("the scroll to the top finished")      # the click comes only when nothing is moving
-                    self.click_chip(p, name)
-                    self.at_top(p, head_id)
-                self.assertTrue(p.js("location.hash.indexOf('#settings') === 0"), "the page's own address is kept")
+                for slug, name, cards in reversed(PAGES):
+                    self.go_page(p, slug)
+                    self.assertEqual(p.js("location.hash"), address(slug, "PUB"), "the page is in the address")
+                    head_id = cards[0][1]
+                    p.cdp.call("Input.dispatchMouseEvent", {"type": "mouseWheel", "x": p.js("innerWidth") - 60, "y": 300, "deltaX": 0, "deltaY": -3000}, p.sid)      # each page keeps the place it was left at (router.js): a wheel up to the top of it
+                    p.settled("the scroll to the top finished")
+                    self.assertTrue(p.js(f"(function(){{var r = document.getElementById('{head_id}').getBoundingClientRect(); return r.top >= 56 && r.top < window.innerHeight;}})()"),
+                                    f"{head_id} starts in view, clear of the top bar: " + p.js("'top=' + document.getElementById('" + head_id + "').getBoundingClientRect().top + ' scrollY=' + scrollY"))
 
-    def test_C_keyboard_tab_to_a_chip_and_enter(self):
+    def test_C_keyboard_tab_to_a_menu_item_and_enter(self):
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_settings(p, 1400)
             p.js("document.querySelector('.set-nav .set-chip').focus()")
             p.key("Tab", code="Tab", vk=9)
-            self.assertEqual(p.js("document.activeElement.textContent"), "Profile", "Tab moves from chip to chip")
-            self.assertEqual(p.js("document.querySelectorAll('.set-nav .set-chip').length"), len(CARDS))
-            p.js("window.scrollTo(0, 0)")
+            self.assertEqual(p.js("document.activeElement.textContent"), PAGES[1][1], "Tab moves from item to item")
+            self.assertEqual(p.js("document.querySelectorAll('.set-nav .set-chip').length"), len(PAGES))
             p.key("Enter", code="Enter", vk=13)
-            self.at_top(p, "profile-h")
-            self.assertEqual(p.js("getComputedStyle(document.activeElement).outlineWidth"), "2px", "the heading shows the ring after the keyboard")
+            p.until(f"document.getElementById('{PAGES[1][2][0][1]}') !== null && document.querySelector('.set-chip[aria-current]').textContent === '{PAGES[1][1]}'", "Enter opened the page")
+            self.assertEqual(p.js("document.querySelector('.set-chip[aria-current]').getAttribute('aria-current')"), "page")
+            self.assertEqual(p.js("document.activeElement.textContent"), PAGES[1][1], "the focus stays on the item")
+            self.assertEqual(p.js("getComputedStyle(document.activeElement).outlineWidth"), "2px", "the item shows the ring after the keyboard")
 
     def test_C_the_list_is_at_the_left_at_900_and_wider_and_a_row_of_chips_below_900(self):
         for w in WIDTHS:
@@ -158,7 +207,7 @@ class Head(Base):
                     self.assertTrue(p.js("(function(){var n = document.querySelector('.set-nav'); return n.scrollWidth <= n.clientWidth;})()"), "the list does not scroll sideways")
                     chips = p.js("[...document.querySelectorAll('.set-nav .set-chip')].map(b => { const r = b.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; })")
                     nav = p.js("(function(){var r = document.querySelector('.set-bar').getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom];})()")
-                    first = p.js("(function(){var r = document.getElementById('client-folder-h').closest('section').getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom];})()")
+                    first = p.js("(function(){var r = document.querySelector('.set-cards > section').getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom];})()")
                     for a, b in zip(chips, chips[1:]):
                         self.assertTrue(b[1] >= a[3] - 1 or b[0] >= a[2] - 1, "no two links overlap")
                     for h, wd in ((c[3] - c[1], c[2] - c[0]) for c in chips):

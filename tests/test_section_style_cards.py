@@ -74,6 +74,8 @@ class Cards(Base):
         p.js("document.querySelector('#profile-btn').click()")
         p.until("!!document.querySelector('#profile-menu')", "the menu opened")
         p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
+        p.until("!!document.querySelector('.set-nav .set-chip')", "the Settings menu drew")
+        p.js("[...document.querySelectorAll('.set-nav .set-chip')].find(b => b.textContent === 'Appearance').click()")      # row 1024: the Personal card is on the Appearance page
         p.until("!!document.querySelector('#personal')", "Settings › Personal drew")
         p.js(f"document.querySelector('#personal [data-appearance] button[data-theme-pick={look}]').click()")
         p.until("document.documentElement.dataset.theme === 'dark'" if look == "dark" else "!document.documentElement.dataset.theme", f"{look} is on")
@@ -124,6 +126,8 @@ class Cards(Base):
                 p.js("document.querySelector('#profile-btn').click()")
                 p.until("!!document.querySelector('#profile-menu')", "the menu opened")
                 p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
+                p.until("!!document.querySelector('.set-nav .set-chip')", "the Settings menu drew")
+                p.js("[...document.querySelectorAll('.set-nav .set-chip')].find(b => b.textContent === 'Appearance').click()")      # row 1024: the Personal card is on the Appearance page
                 p.until("!!document.querySelector('#personal')", "Settings › Personal drew")
                 self.assertEqual(self.chosen(p), [want], "the card marked is the one in force")
                 self.assertEqual(p.js("localStorage.getItem('clark.density')"), stored, "a stored choice is not changed by opening the page")
@@ -167,6 +171,8 @@ class Cards(Base):
             p.js("document.querySelector('#profile-btn').click()")
             p.until("!!document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]')", "menu")
             p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
+            p.until("!!document.querySelector('.set-nav .set-chip')", "the Settings menu drew")
+            p.js("[...document.querySelectorAll('.set-nav .set-chip')].find(b => b.textContent === 'Appearance').click()")      # row 1024: the Personal card is on the Appearance page
             p.until("!!document.querySelector('#personal [data-density-pick]')", "Personal again")
             self.assertEqual(self.chosen(p), ["comfortable"], "and kept for the Settings card")
 
@@ -232,6 +238,8 @@ class Cards(Base):
                 p.js("document.querySelector('#profile-btn').click()")
                 p.until("!!document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]')", "menu")
                 p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
+                p.until("!!document.querySelector('.set-nav .set-chip')", "the Settings menu drew")
+                p.js("[...document.querySelectorAll('.set-nav .set-chip')].find(b => b.textContent === 'Appearance').click()")      # row 1024: the Personal card is on the Appearance page
                 p.until("!!document.querySelector('#personal [data-density-pick]')", "Personal")
             self.assertEqual(look["compact"][0], True, "Compact sections have no card shadow")
             self.assertEqual(look["compact"][2], "0px", "Compact sections are flat")
