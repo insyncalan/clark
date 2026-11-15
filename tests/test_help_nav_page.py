@@ -21,7 +21,6 @@ from test_report_editor import Base
 from test_help_navigation import MOCKUP
 import build_page  # noqa: E402
 
-TOPBAR = 56
 HELD_PLACES = ("howto-find-work-items", "howto-import-and-export", "howto-improve-wording-with-ai", "ref-peek")     # still held: never shown, never linked
 SIZES = (1400, 900)
 THEMES = ("light", "dark")
@@ -110,7 +109,10 @@ class Nav(Base):
                     p.until("window.scrollY > 1500", f"{scheme} {w}: scrolled far down")
                     r = p.js("(function(){var r=document.querySelector('.hp-idx').getBoundingClientRect(); return [r.top, r.bottom, innerHeight, r.right <= document.querySelector('.hp-task').getBoundingClientRect().left]})()")
                     self.assertGreaterEqual(r[0], 0, f"{scheme} {w}: the list is not scrolled off the top")
-                    self.assertLessEqual(r[0], TOPBAR + 20, f"{scheme} {w}: it stays under the top bar")
+                    # item 1177: the sticky header is 85 px at 1400 and 129 px at 900 (shell.css --topbar), and .hp-idx sticks at calc(var(--topbar) + 16px) (shell.css:1040)
+                    bar = p.js("parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topbar'))")
+                    self.assertEqual(bar, 85 if w == 1400 else 129, f"{scheme} {w}: the header height token")
+                    self.assertLessEqual(r[0], bar + 20, f"{scheme} {w}: it stays under the top bar")
                     self.assertGreater(r[1], 200, f"{scheme} {w}: and has height to show")
                     self.assertTrue(r[3], f"{scheme} {w}: beside the entries, not over them")
                     self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), f"{scheme} {w}: no sideways scroll")

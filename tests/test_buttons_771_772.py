@@ -35,7 +35,8 @@ class Buttons(Base):
             con.execute("UPDATE app_settings SET ask_enabled = 1 WHERE id = 1")
         p = self.visit(cdp)
         size(cdp, p, width, 700)
-        p.until("!!document.querySelector('#ask-btn')", "the ask button shows")
+        # item 1177: at 900 the ask clark button is the profile menu's second entry, not a header button
+        p.until("!!document.querySelector('#ask-btn')" if width > 900 else "!!document.querySelector('#profile-btn')", "the ask button shows" if width > 900 else "the profile circle shows")
         p.js(f"document.documentElement.setAttribute('data-theme', '{theme}')")
         return p
 
@@ -63,7 +64,7 @@ class Buttons(Base):
             self.assertEqual(got, ["solid", "2px"])
 
     def test_the_search_button_has_an_outline_and_the_ask_text_is_smaller(self):
-        for width in (1400, 900):
+        for width in (1400,):      # item 1177: at 900 the two buttons are profile menu entries (test_hdr1177_900), so the look is checked at 1400 only
             for theme in ("light", "dark"):
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
                     p = self.at(cdp, width, theme)

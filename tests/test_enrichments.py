@@ -269,8 +269,8 @@ class Mark(tre.Base):
             p.clear_toast()
             p.menu("ABC-S-003", "hide")
             p.until("!!document.querySelector('.tag.chg')", "marked again")
-            p.mouse("mousePressed", 700, 300, 1)
-            p.mouse("mouseReleased", 700, 300)
+            p.mouse("mousePressed", 20, 300, 1)      # the left gutter: bare page, no link or button under it (the slim header moved the Dashboard blocks, so 700 hit a link)
+            p.mouse("mouseReleased", 20, 300)
             p.until("!document.querySelector('.tag.chg')", "gone at the next click")
             p.js("clarkPage.markChanged(['ABC-S-004'])")
             p.until("!!document.querySelector('[data-id=\"ABC-S-004\"] .tag.chg')", "marked by hand")
@@ -390,7 +390,7 @@ class Skeleton(tre.Base):
                             self.assertNotEqual(bg, "rgba(0, 0, 0, 0)")
                         self.assertTrue(p.js("document.documentElement.scrollWidth <= innerWidth"), f"no sideways scroll at {w}")
                         gate["open"] = True
-                        p.until("!document.querySelector('.skel-frame') && !!document.querySelector('main h1:not(.sr)')", "the screen replaced it")
+                        p.until("!document.querySelector('.skel-frame') && !!document.querySelector('main h1:not(.sr), main .sec')", "the screen replaced it")
                         self.assertIsNone(p.js("document.querySelector('main').getAttribute('aria-busy')"), "busy ends with the data")
 
     def test_an_instant_answer_never_flashes_a_placeholder(self):
@@ -398,7 +398,7 @@ class Skeleton(tre.Base):
         with chrome() as cdp:
             for view in ("work", "milestones", "dashboard"):
                 p = self.visit_with(cdp, s.port, f"#{view}&p=ABC")
-                p.until("!!document.querySelector('main h1')", "the screen drew")
+                p.until("!!document.querySelector('main h1, main .sec')", "the screen drew")      # item 1177: the Dashboard has no h1 now, its sections stand for it
                 time.sleep(0.4)
                 seen = p.js("window.__seen")
                 self.assertFalse(seen["skelEver"], f"{view}: a placeholder flashed")
