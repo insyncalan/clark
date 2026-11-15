@@ -321,8 +321,10 @@ def _content(s, ctx=None):
     try:
         text = check_section_body(s["type"], s.get("body"))
     except StoreInvalid:
-        return None
-    return section_bodies.published(s["type"], json.loads(text), ctx) if text else None
+        return {} if s["type"] == section_bodies.USECASES else None      # row 1234: the use case summary is never left out for its view setting: no setting, or a bad one, is the defaults
+    if not text:
+        return {} if s["type"] == section_bodies.USECASES else None
+    return section_bodies.published(s["type"], json.loads(text), ctx)
 
 
 def _keeper(d, code, hidden_ids, blocked):
