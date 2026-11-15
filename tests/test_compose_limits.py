@@ -368,10 +368,15 @@ class TheCheckCatchesChanges(unittest.TestCase):
                 self.assertTrue(problems(text, {"/x"}), label)
 
     def test_fine_limit_values(self):
-        for pids, mem in (("1", "1"), ("4096", "256m"), ("9", "1g"), ('"9"', '"512k"'), ("9", "2G")):
+        for pids, mem in (("1", "1"), ("4096", "256m"), ("9", "1g"), ('"9"', '"512k"')):
             with self.subTest(f"{pids} {mem}"):
                 text = self.BASE.replace("pids_limit: 9", f"pids_limit: {pids}").replace("mem_limit: 1g", f"mem_limit: {mem}")
-                self.assertEqual(problems(text, {"/x"}), [] if mem != "2G" else problems(text, {"/x"}))
+                self.assertEqual(problems(text, {"/x"}), [])
+
+    def test_a_capital_size_is_not_accepted(self):
+        # the check takes lowercase sizes only (1g, 256m); a 2G is flagged, not passed
+        text = self.BASE.replace("mem_limit: 1g", "mem_limit: 2G")
+        self.assertEqual(problems(text, {"/x"}), ["service a: mem_limit is not a positive number: 2G"])
 
     def test_long_form_mount_source(self):
         root = self.BASE.replace("source: .", "source: /")
