@@ -25,7 +25,7 @@ import { inertBehind } from "./modalLayers.js";
 import { change, say } from "../stores/changes.js";
 import { NewTile } from "../components/NewTile.jsx";
 import { Menu } from "../components/Menu.jsx";
-import { Picker } from "../components/Picker.jsx";
+import { PickerTable } from "../components/PickerTable.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { actionIcon } from "../menuIcons.js";
 import { Line, NAME_MAX, HEAD_MAX, HEADLINE_PROMPT, STANDING_PROMPT } from "../components/UseCaseDetail.jsx";
@@ -246,7 +246,6 @@ export function Name({ u }) {
 
 // The picker of the use cases that are not on the dashboard, in the prototype's words.
 function Pick({ onClose, opener }) {
-  const only = { use_cases: (data.value.use_cases || []).filter((u) => !u.archived) };
   const add = async (ids) => {
     onClose(true);
     const n = ids.length;
@@ -255,8 +254,7 @@ function Pick({ onClose, opener }) {
   };
   return (
     <Modal onClose={() => onClose(false)} opener={opener}>
-      <Picker data={only} hiddenIds={[]} title="Add a use case from your project record" placeholder="Search by name, ID, owner or use case"
-        onAdd={add} onClose={() => onClose(false)} />
+      <PickerTable data={data.value} onAdd={add} onClose={() => onClose(false)} />
     </Modal>
   );
 }
