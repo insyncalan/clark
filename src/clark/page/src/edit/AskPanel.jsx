@@ -53,6 +53,18 @@ function pillsFor(list, page) {
   return W.PILLS_BY_SUBJECT[subject] || W.SUGGESTIONS;
 }
 
+/** Row 1218: the notes about what was left out (kind "note") follow the answer as one small block, not a paragraph each. */
+function shownTurns(list) {
+  const out = [];
+  for (const t of list) {
+    const last = out[out.length - 1];
+    if (t.kind === "note" && typeof t.text === "string") {
+      if (last && last.kind === "notes") last.lines.push(t.text); else out.push({ kind: "notes", role: "assistant", lines: [t.text] });
+    } else out.push(t);
+  }
+  return out;
+}
+
 export function AskPanel() {
   const open = panelOpen.value, state = panelState.value, model = panelModel.value, width = panelWidth.value;
   const list = turns.value, busy = pending.value;
@@ -258,7 +270,9 @@ export function AskPanel() {
         </div>
       ) : null}
       <div class="ask-log" id="ask-log" hidden={showHist} role="log" aria-live="polite" aria-label={W.LOG_LABEL} ref={log}>
-        {list.map((t, i) => (
+        {shownTurns(list).map((t, i) => t.kind === "notes" ? (
+          <ul key={i} class="ask-turn assistant ask-notes" data-role="assistant" data-ask-notes>{t.lines.map((n, k) => <li key={k}>{n}</li>)}</ul>
+        ) : (
           <div key={i} class={`ask-turn ${t.role}${t.kind ? " " + t.kind : ""}`} data-role={t.role}>
             <div class="ask-who">{t.role === "user" ? W.YOU : W.REPLY}</div>
             {t.kind === "changes" ? <ChangeCards turn={t} /> : t.role === "assistant" && !t.kind && typeof t.text === "string" ? <FormattedAnswer text={t.text} /> : <div class="ask-text">{t.text}</div>}
