@@ -35,7 +35,7 @@ export function useColumns(table) {
     onKeyDown: (e) => { if (!asked(e) || typing(e.target)) return; e.preventDefault(); e.stopPropagation(); open(e.target.closest("th, button, [data-col]") || e.currentTarget); },
   };
   const button = (place) => { const cls = place === "ms" ? "msl-cols-btn" : "cols-btn"; return (
-    <button type="button" class={cls} aria-label={W.UNRULED_BUTTON} aria-haspopup="menu" aria-expanded={at && at.classList.contains(cls) ? "true" : "false"} title={W.UNRULED_BUTTON_TIP} data-tip={W.UNRULED_BUTTON_TIP}
+    <button type="button" class={cls} tabIndex={place === "ms" ? undefined : -1} aria-label={W.UNRULED_BUTTON} aria-haspopup="menu" aria-expanded={at && at.classList.contains(cls) ? "true" : "false"} title={W.UNRULED_BUTTON_TIP} data-tip={W.UNRULED_BUTTON_TIP}
       onClick={(e) => { e.stopPropagation(); if (at && at.classList.contains(cls)) setAt(null); else open(e.currentTarget); }}><Icon name="columns" /></button>
   ); };
   const press = (id, label) => {
