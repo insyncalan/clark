@@ -138,7 +138,6 @@ def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, ma
                 pdf_reasons.append((label, got.reason))
                 continue
             pages = got.pages
-            cut += got.left_out
             lines = [line for _n, text in pages for line in text.splitlines()]
         try:
             if pages is not None:
@@ -161,7 +160,7 @@ def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, ma
             for number, text in pages:
                 chunks = ask_data._cut(pdf_reader.SOURCE_PAGE.format(name=label, page=number), list(_chunks(text.splitlines())))
                 parts += [ask.Passage(c.label if i == 1 else f"{pdf_reader.SOURCE_PAGE.format(name=label, page=number)}, part {i}", c.text, file=label, page=number) for i, c in enumerate(chunks, 1)]
-            cut += max(0, len(parts) - MAX_PDF_PARTS)
+            cut += got.left_out + max(0, len(parts) - MAX_PDF_PARTS)      # pages past the read budget count only for a file that is kept
             parts = parts[:MAX_PDF_PARTS]
             chars += sum(len(p.text) for p in parts)
             passages += parts
