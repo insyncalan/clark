@@ -5,9 +5,9 @@
 import { useRef, useState } from "preact/hooks";
 import { data, openPeek } from "../../stores/report.js";
 import { change, say } from "../../stores/changes.js";
-import { Rows, today } from "../../templates/WorkItemsList.jsx";
+import { Rows, ShowAll, today } from "../../templates/WorkItemsList.jsx";
 import { KINDS, MODES, STATUSES, DUE, PRIORITIES, NONE, SORTS, COLUMNS, MAX_ROWS, MAX_CAPTION, WORDS, defaults, filterOf, bodyOf,
-  editListOf, drawRows, offered } from "../../templates/workItemsList.js";
+  editListOf, drawRows, offered, drawn, idsToShow } from "../../templates/workItemsList.js";
 import { Eye } from "../cells/Eye.jsx";
 import { plural } from "../../workItems.js";
 import { lineOf, chipsOf, readLine } from "../../templates/workItemsLine.js";
@@ -50,6 +50,7 @@ function Choice({ id, label, field, values, words, value, onPick }) {
 export const LINE_HINT = "Type a filter, for example: type:risk status:Open owner:\"Pat Demo\"  Press Enter to save it.";
 
 export function Edit({ section }) {
+  const [all, setAll] = useState(false);          // row 1199: Show all items
   const [tick, setTick] = useState(0);              // a refused save draws the form again from what is saved
   const d = data.value || {};
   const saved = filterOf(section);
@@ -116,7 +117,7 @@ export function Edit({ section }) {
 
   const now = today();
   const list = editListOf(section, d, now);
-  const rows = drawRows(list.items, d);
+  const rows = drawRows(idsToShow(list, all), drawn(d, true));
   return (
     <div class="wil wil-edit" key={tick} data-wil-edit="">
       {saved ? null : <p class="quiet wil-say" data-wil-say="not-yet">{NOT_YET}</p>}
@@ -156,6 +157,7 @@ export function Edit({ section }) {
       {saved && !rows.length ? <p class="wil-none" data-wil-say="none" role="status">{NO_MATCH}</p> : null}
       {saved && rows.length && rows.length === list.off.length ? <p class="wil-none" data-wil-say="all-hidden" role="status">{ALL_HIDDEN}</p> : null}
       {saved && rows.length ? <Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Eye={Eye} /> : null}
+      {saved && rows.length ? <ShowAll list={list} all={all} onToggle={() => setAll(!all)} /> : null}
       {saved && list.caption && rows.length ? <p class="wil-cap">{list.caption}</p> : null}
       <div class="wil-capbox">
         <label class="wil-sel wil-capf" data-field="caption"><span>Caption (optional)</span>
