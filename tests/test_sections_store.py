@@ -93,6 +93,10 @@ class Seed(Base):
         self.assertEqual((first["type"], first["title"], first["body"]), ("text", "Current state", ""))
         self.assertEqual([r["body"] for r in self.sections()], [""] * 11)
         self.assertEqual(default_sections.DEFAULT_SECTIONS[0].get("body", ""), "")
+        self.assertEqual([x.get("body", "") for x in default_sections.DEFAULT_SECTIONS], [""] * 11, "item 1193: Summary, This week and Next week start empty too")
+        self.assertEqual(default_sections.SECTION_HINTS["Summary"], "Give the reader the headline: how the project is going, in two or three sentences.")
+        self.assertEqual(default_sections.SECTION_HINTS["This week"], "List what was done this week, and what moved forward.")
+        self.assertEqual(default_sections.SECTION_HINTS["Next week"], "List what is planned for next week, and who is doing it.")
         self.assertEqual(default_sections.CURRENT_STATE_PREFILL, "Say where the project stands today, at a high level: what is done, what comes next, and anything that needs attention.")
 
     def test_data_for_gives_the_sections_in_order_with_their_own_query(self):

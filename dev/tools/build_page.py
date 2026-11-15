@@ -243,7 +243,7 @@ def preact_flags(held=True, inline_pictures=False):
             f"--alias:clark-help-content={help_content_path(held)}",
             f"--alias:clark-help-pictures={help_pictures_path(inline_pictures)}",      # the editing page only: see help_pictures_path
             *(f"--define:{name}={json.dumps(value)}" for name, value in limits.items()),
-            f"--define:__CLARK_CURRENT_STATE_HINT__={json.dumps(default_sections.CURRENT_STATE_PREFILL)}"]      # item 1188: the editor's hint for an empty Current state section; one source, default_sections.py
+            f"--define:__CLARK_SECTION_HINTS__={json.dumps(default_sections.SECTION_HINTS)}"]      # items 1188, 1193: the editor's hint for an empty default text section; one source, default_sections.py
 
 
 def bundle(entry=ENTRY):
