@@ -20,8 +20,8 @@ from test_server import CHROME, Running, chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
-PROBE_SELECT = "(() => { const d = document.createElement('div'); d.className = 'fld'; d.innerHTML = '<label for=\"probe-select\">x</label><select id=\"probe-select\"><option>a</option></select>'; document.querySelector('#feedback').appendChild(d); })()"
-SEL = {"gantt-editor": "#gantt-editor", "gantt-client": "#gantt-client", "feedback": "#feedback-message", "feedback-shown": "#feedback-shown", "feedback-contact": "#feedback-contact", "fld-select": "#probe-select"}
+PROBE_SELECT = "(() => { const d = document.createElement('div'); d.className = 'fld'; d.innerHTML = '<label for=\"probe-select\">x</label><select id=\"probe-select\"><option>a</option></select>'; document.querySelector('#feedback').appendChild(d); const a = document.createElement('div'); a.className = 'ai-model'; a.innerHTML = '<select id=\"probe-ai-model\"><option>a</option></select>'; document.body.appendChild(a); })()"
+SEL = {"gantt-editor": "#gantt-editor", "gantt-client": "#gantt-client", "feedback": "#feedback-message", "feedback-shown": "#feedback-shown", "feedback-contact": "#feedback-contact", "fld-select": "#probe-select", "ai-model-select": "#probe-ai-model"}
 MEASURE = r"""((sels) => {
   const out = {};
   const blue = getComputedStyle(document.documentElement).getPropertyValue('--brand-blue').trim();
