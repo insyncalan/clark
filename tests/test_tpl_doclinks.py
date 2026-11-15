@@ -329,6 +329,23 @@ class InThePage(PageBase):
             p.js(f"document.querySelector('{sel} [data-add-file]').focus()")
             self.assertTrue(p.js("document.activeElement.hasAttribute('data-add-file')"), "Add a file takes focus from the keyboard")
 
+    def test_edit_refusal_for_the_add_link_box_counts_files_too(self):
+        """Item 1194: with one link and one file listed the box says 'Link 3: ...' (n counts files too), not always 'Link 1: ...'."""
+        ref = self.add([a_link(), a_file()])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('{sel} [data-open-link]')", "the Edit part drew")
+            p.js(f"document.querySelector('{sel} [data-open-link]').click()")
+            p.until(f"!!document.querySelector('{sel} [data-add-link]')", "the add-link box opened")
+            sent = len(self.sent)
+            self.set_value(p, f"{sel} [data-add-link] input[type=text]", "https://example.org/ok", 0)
+            p.js(f"document.querySelector('{sel} [data-add-link] button[type=submit]').click()")
+            p.until(f"!!document.querySelector('{sel} [data-add-link] .tpl-problem')", "the missing description is refused")
+            self.assertEqual(p.js(f"document.querySelector('{sel} [data-add-link] .tpl-problem').textContent"), "Link 3: Enter a link description.")
+            self.assertEqual(len(self.sent), sent, "nothing was sent")
+
     def test_edit_renames_in_place_and_moves_rows_one_step_each(self):
         ref = self.add([a_link(), a_file()])
         sel = f"[data-id={json.dumps(ref)}]"
