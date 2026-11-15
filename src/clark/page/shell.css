@@ -816,11 +816,6 @@ table.items.grouped tr.grp th { padding: var(--d-grp-y) var(--space-4); border-t
 table.items thead tr.grp, table.items thead tr.colh { cursor: default; }
 table.items td.c-eye, table.items th.c-eye { padding-left: 0; padding-right: var(--space-2); text-align: center; vertical-align: middle; }
 table.items .weye { width: 28px; height: 28px; }
-table.items .rmore { width: 24px; height: 24px; margin-left: 0; opacity: 0; vertical-align: middle; }
-table.items tr:hover .rmore, table.items tr:focus-within .rmore, table.items .rmore:focus-visible, table.items .rmore[aria-expanded="true"] { opacity: 1; }
-@media (hover: none) { table.items .rmore { opacity: 1; } }
-@media (max-width: 1000px) { table.items .rmore { display: block; margin: 0 auto; } }          /* the narrow table keeps the eye column as it was: the button sits under the eye */
-@media (min-width: 1001px) { table.items .c-eye { width: 68px; } }
 table.items .weye[aria-pressed="true"], table.items .weye.on { color: var(--status-blue-text); }
 .grp-b { all: unset; box-sizing: border-box; min-height: 24px; display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer; font-weight: var(--weight-medium); }
 .grp-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
@@ -1327,7 +1322,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .set-bar { grid-column: 1; position: sticky; top: var(--topbar); z-index: 15; margin-top: var(--space-4); padding: var(--space-2) var(--space-1); background: var(--grey-50); max-height: calc(100vh - var(--topbar) - var(--space-4)); overflow-y: auto; }
 .set-nav { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .set-nav li { display: block; }
-.set-chip { all: unset; box-sizing: border-box; display: flex; align-items: center; width: 100%; min-height: 28px; padding: 3px 12px; border: 1px solid var(--grey-500); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--size-small); line-height: 20px; cursor: pointer; transition: border-color var(--dur-instant) var(--ease-out); }      /* no background transition: a theme switch must not leave a light chip for 120 ms (test_v020 reads the ground at once) */
+.set-chip { all: unset; box-sizing: border-box; position: relative; display: flex; align-items: center; width: 100%; min-height: 36px; padding: 0 12px; border: 0; border-radius: 10px; background: transparent; color: var(--text); font-size: var(--size-body); line-height: 20px; cursor: pointer; }      /* item 1200: soft 36 px rows; no background transition: a theme switch must not leave a light chip for 120 ms (test_v020 reads the ground at once) */
 /* From 900 to 1099 px the list is the narrowest the grid allows (150 px), so the cards are wider at 900 (about 670 px, not 596) and a control keeps more than 420 px beside its label; the four section styles wrap two and two. */
 @media (min-width: 900px) and (max-width: 1099px) { .set-layout { grid-template-columns: 150px minmax(0, 1fr); } }
 @media (max-width: 899px) {
@@ -1338,8 +1333,9 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
   .set-nav { flex-direction: row; flex-wrap: wrap; gap: var(--space-2); }
   .set-chip { display: inline-flex; width: auto; border-radius: var(--radius-pill); }
 }
-.set-chip:hover { border-color: var(--text-muted); background: var(--brand-blue-tint); }
-.set-chip[aria-current], .set-chip[aria-current]:hover { border-color: var(--brand-blue); background: var(--brand-blue); color: var(--text-on-brand); }      /* the same weight, so marking a chip never moves the row */
+.set-chip:hover { background: var(--grey-100); }
+.set-chip[aria-current], .set-chip[aria-current]:hover { background: var(--brand-blue-tint); color: var(--status-blue-text); font-weight: var(--weight-medium); }
+.set-chip[aria-current]::before { content: ""; position: absolute; left: 0; top: 7px; bottom: 7px; width: 3px; border-radius: 3px; background: var(--brand-blue); }      /* item 1200: the violet marker on the card you are reading */
 .set-chip:focus-visible, .setting h2[tabindex="-1"]:focus-visible, .personal h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
 .setting, .personal { scroll-margin-top: calc(var(--topbar) + 16px); }
 /* The Settings cards (row 841): the prototype's card, compact: less padding, a smaller heading, a 14 px intro line and no shadow. Later than .frame and its 900 px rule, and more specific. */
@@ -1567,6 +1563,19 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .set-row-ctl input[type="checkbox"]:focus-visible, #feedback-message:focus-visible, #feedback-shown:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .fld-bad { margin: 0; min-height: 0; overflow-wrap: anywhere; color: var(--status-red-text); font-size: var(--size-caption); }
 .fld-bad:empty { display: none; }
+/* Item 1200, Settings look. Field and button edges take one token, --control-edge (3.7:1 on white). Type: card heading 20, label 15 semibold,
+   group label 13 caps, help line 13 muted. The Backups path is a line of text with a short Use button beside it, not inside it. */
+.set-cards .frame:not(#gantt-setting) .fld input, .set-cards .frame:not(#gantt-setting) .set-row-ctl input[type="text"], .set-cards .frame:not(#gantt-setting) .folder-paste input, .set-cards .frame:not(#gantt-setting) .set-reset, .set-cards .frame:not(#gantt-setting) .seg, .set-cards .frame:not(#gantt-setting) .btn:not(.pri):not(.ok), .set-cards .frame:not(#gantt-setting) .btn:not(.pri):not(.ok):hover { border-color: var(--control-edge); }
+.set-cards .frame:not(#gantt-setting) .seg button + button { border-left-color: var(--control-edge); }
+.set-cards .frame:not(#gantt-setting) .fld input[aria-invalid="true"], .set-cards .frame:not(#gantt-setting) .set-row-ctl input[aria-invalid="true"] { border-color: var(--status-red-text); }
+/* Type for the cards that change (not the Gantt card): the mock-up README gives 20 / 15 / 13 / 13 for heading, label, group label and help. It says nothing of the intro line, buttons, choices and menu rows; they take the 15 px label size, so the page has those four sizes and no fifth. */
+.set-cards .frame:not(#gantt-setting) > h2 + p, .set-cards .frame:not(#gantt-setting) .btn, .set-cards .frame:not(#gantt-setting) .seg button { font-size: var(--size-body); }
+.set-cards .setting > h3, .set-cards .setting-part > h3 { margin: var(--space-4) 0 var(--space-1); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; }
+.copy-sug { display: flex; align-items: center; gap: var(--space-2); min-width: 0; margin-top: var(--space-1); }
+.copy-sug-path { flex: 1 1 auto; min-width: 0; font-size: var(--size-caption); color: var(--text-muted); overflow-wrap: anywhere; }
+.set-cards .copy-sug .btn { flex: none; margin-top: 0; font-weight: var(--weight-medium); }
+.set-row[data-ess-backups] { grid-template-columns: minmax(0, 1fr); row-gap: var(--space-2); }
+.set-row[data-ess-backups] .set-row-ctl { justify-content: flex-start; }
 /* Settings › People (item 454): the prototype's People card (system/prototype/app.css: .pp-paste, .pp-acts, .pp-sum, table.set.ppl). */
 .pp-h { display: flex; align-items: center; gap: 12px; margin: 0 0 6px; }
 .pp-h h2 { margin: 0; flex: 1; }

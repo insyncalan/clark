@@ -177,12 +177,15 @@ class Head(Base):
             with self.subTest(mode=mode), chrome() as cdp:
                 p = self.page(cdp)
                 self.open_settings(p, 1400, mode)
+                # item 1200: the rows are soft (no outline, no fill at rest), so the text is read on the bar's ground and the one thing that needs 3:1 is the violet marker of the marked row
                 got = p.js("""[...document.querySelectorAll('.set-nav .set-chip:not([aria-current])')].map(b => { const s = getComputedStyle(b);
-                    return [parseFloat(s.fontSize), s.color, s.backgroundColor, s.borderTopColor]; })""")
-                for size, color, ground, edge in got:
+                    return [parseFloat(s.fontSize), s.color, s.backgroundColor === 'rgba(0, 0, 0, 0)' ? getComputedStyle(document.querySelector('.set-bar')).backgroundColor : s.backgroundColor, s.borderTopWidth]; })""")
+                for size, color, ground, border in got:
                     self.assertGreaterEqual(size, 13)
                     self.assertGreaterEqual(ratio(rgb(color), rgb(ground)), 4.5, f"{mode}: the chip text on its ground")
-                    self.assertGreaterEqual(ratio(rgb(edge), rgb(ground)), 3, f"{mode}: the chip's edge on its ground")
+                    self.assertEqual(border, "0px", f"{mode}: a soft row has no outline")
+                marker, bar = p.js("""[getComputedStyle(document.querySelector('.set-chip[aria-current]'), '::before').backgroundColor, getComputedStyle(document.querySelector('.set-bar')).backgroundColor]""")
+                self.assertGreaterEqual(ratio(rgb(marker), rgb(bar)), 3, f"{mode}: the marker of the marked row on the bar")
                 p.js("document.querySelector('.set-nav .set-chip').focus()")
                 p.key("Tab", code="Tab", vk=9)
                 p.key("Tab", code="Tab", vk=9, )
