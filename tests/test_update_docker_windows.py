@@ -18,7 +18,9 @@ WIN_COMPOSE = (ROOT / "docker" / "compose.windows.yaml").read_text(encoding="utf
 SHEET = (ROOT / "dev" / "handchecks" / "1.1.0-sheet.md").read_text(encoding="utf-8")
 BOTH = "docker compose -f docker/compose.yaml -f docker/compose.windows.yaml"
 # Step 2 of the guide, ruled by the head 16-11 (WO-M3669, NEW-WORDS.md): the old folder is renamed, so the new one (always called clark) is not unzipped over it.
-RULED_STEP = ("  2. Rename the old clark folder to clark-old. Then unzip the new download in the same place.\n"
+RULED_STEP = ("  2. Rename the old clark folder to clark-old. Then unzip the new download into the\n"
+              "     folder that held it (the folder that now holds clark-old and clark-data).\n"
+              "     If you use Extract All, change the folder it shows to that folder first.\n"
               "     The new folder is called clark and finds the folder clark-data again.\n"
               "     (The old folder stays as clark-old, if you want to go back.)\n")
 
@@ -105,7 +107,7 @@ class WindowsUpdateGuide(unittest.TestCase):
         self.assertEqual(steps, ["1", "2", "3", "4", "5"])
         self.assertIn("1. Open PowerShell or Command Prompt in the clark folder", GUIDE)
         self.assertIn(BOTH + " down", GUIDE.split("2. Rename")[0])          # step 1 stops the old clark
-        self.assertIn("2. Rename the old clark folder to clark-old. Then unzip the new download in the same place.", GUIDE)      # ruled 16-11, replaces the Mac guide's step 2
+        self.assertIn("2. Rename the old clark folder to clark-old. Then unzip the new download into the", GUIDE)      # ruled 16-11 and amended 01:52, replaces the Mac guide's step 2
         self.assertIn("3. In the same window, go to the new clark folder", GUIDE)
         self.assertIn("cd /d", GUIDE)
         self.assertIn(BOTH + " up -d", GUIDE.split("4. Type this")[1].split("5. Open")[0])   # step 4 starts the new clark
