@@ -316,9 +316,11 @@ class Page(InBrowser):
         self.held()
         self.choose("example-brand")
         self.choose("generic")
-        self.settle()
+        self.assertTrue(wait(lambda: self.val("T.calls.some(c => c[0] === 'pick')")), "the first save to be recorded")      # item 1236: a fixed settle() was too short on a slow Mac, which had not recorded it yet
         self.assertEqual(self.picks(), ["example-brand"], "the second choice waits for the first save")
         self.release_and_settle()
+        self.assertTrue(wait(lambda: self.val("T.calls.filter(c => c[0] === 'pick').length") >= 2), "the second save to be recorded")
+        self.assertTrue(wait(lambda: self.val("T.saved()") == "generic"), "the second save to end")
         self.assertEqual(self.picks(), ["example-brand", "generic"], "the brand is put back, not taken as already saved")
         self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic")
         self.assertEqual(self.val("T.saved()"), "generic")

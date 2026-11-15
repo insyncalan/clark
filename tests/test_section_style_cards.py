@@ -90,6 +90,7 @@ class Cards(Base):
                 with self.subTest(width=w, look=look), chrome() as cdp:
                     p = self.page(cdp)
                     p.width(w)
+                    cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)      # a headless page is otherwise not focused (a Mac runner), and then a key press does not reach the focused input
                     self.open_settings(p, look)
                     check(p, w, look)
 

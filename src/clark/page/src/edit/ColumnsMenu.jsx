@@ -29,7 +29,7 @@ export function useColumns(table) {
     if (top + h > window.innerHeight - 8) el.style.top = `${Math.max(8, window.innerHeight - h - 8)}px`;
   }, [at]);
   const set = (next) => { writeChoice(table, code, next); setMem({ ...mem, [code]: next }); };
-  const close = (how) => { const a = at; setAt(null); if (how === "esc" && a && a.isConnected) a.focus({ preventScroll: true }); };
+  const close = (how) => { const a = at; setAt(null); if (how === "esc" && a && a.isConnected) { if (!a.matches("button, [tabindex]")) a.setAttribute("tabindex", "-1"); a.focus({ preventScroll: true }); } };
   const open = (el) => setAt(el);
   const rowProps = {
     onContextMenu: (e) => { if (typing(e.target)) return; e.preventDefault(); open(e.target.closest("th, button, [data-col]") || e.currentTarget); },

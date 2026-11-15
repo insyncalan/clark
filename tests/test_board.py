@@ -350,7 +350,7 @@ class Board(InBrowser):
         self.assertEqual(self.move(self.row("cut-over"), "priority", "Urgent")["request"]["changes"], {"priority": "Urgent"})
         self.assertRefused(self.move(self.row("Supplier"), "priority", "Low"), "A risk or issue's priority comes from its impact and likelihood. Change those in its details.")
         self.assertRefused(self.move(self.row("Test system"), "priority", "Low", frm={"group": "priority", "key": "__none", "lane": None}), "A risk or issue's priority comes from its impact and likelihood. Change those in its details.")
-        self.assertRefused(self.move(self.row("new tool"), "priority", "High"), "A decision has no priority.")
+        self.assertRefused(self.move(self.row("new tool"), "priority", "High"), "A decision's priority is set in its details, one at a time.")
         self.assertRefused(self.move(self.row("cut-over"), "priority", "__none"), "An action can't be moved to Not rated. Choose Urgent, High, Medium or Low.")
 
     def test_milestone_moves(self):
