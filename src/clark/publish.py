@@ -44,6 +44,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 from clark import doclinks, milestones, page, platform, sanitise, section_bodies
+from clark.default_sections import CURRENT_STATE_PREFILL, SECTION_HINTS
 from clark.source_name import source_name
 from clark.store import (COMMITMENTS, GANTT_COLUMNS, GANTT_HIDEABLE, GANTT_DEFAULT_HIDDEN, GANTT_DEFAULT_TAB, GANTT_ID, GANTT_TAB_LIMIT, GANTT_TEXT_LIMITS, Invalid as StoreInvalid,
                          NumberTaken, check_section_body, excluded_label_names, gantt_list, open_store)
@@ -64,6 +65,24 @@ DEFAULT_SECTIONS = tuple({"id": f"s-{t}", "type": t, "title": title, "body": "",
                                                          ("decisions", "Decisions")), 1))
 SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs", "gantt", "gantttable") + section_bodies.BODY_TYPES      # row 926: gantt carries no data of its own; row 1068: gantttable neither (both draw data.gantt)
 BUILT_IN_SECTIONS = ("current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs")      # row 906: the sections whose data lives elsewhere
+
+
+CURRENT_STATE_TITLE = "Current state"
+
+
+def current_state_section_body(sections):
+    """Item 1188: the cleaned body of the report's text section that is the Current state (the first not hidden text section with
+    that title, casefolded and whitespace-normalised), or "" when there is none. A report that still has the built-in current
+    section, or no section rows, reads the project's current_state column instead (the caller)."""
+    title = CURRENT_STATE_TITLE.casefold()
+    sections = sorted(sections or (), key=lambda s: (s.get("sort_order", 0), str(s.get("id"))))      # display order, as select() sorts
+    instructions = {" ".join(t.split()) for t in (CURRENT_STATE_PREFILL, *SECTION_HINTS.values())}
+    for s in sections:
+        if s.get("type") == "text" and not s.get("hidden") and " ".join(str(s.get("title") or "").split()).casefold() == title:
+            body = clean_html(s.get("body"))
+            text = " ".join(htmllib.unescape(re.sub(r"<[^>]*>", " ", body)).split())
+            return "" if text in instructions else body      # a body that is only an editor hint (stored by an earlier build) never reaches a client
+    return ""
 
 
 def hidden_types(sections, deleted=False):
@@ -567,7 +586,7 @@ def select(inputs):
     out["labels"] = {i: list(item_labels[i]) for i in sorted(linkable) if item_labels.get(i)}
     proj = _pick(project, PUBLISH_FIELDS["projects"])
     proj["health_reason"] = reason_html(proj["health_reason"])
-    proj["current_state"] = "" if "current" in hidden_types else clean_html(proj["current_state"])
+    proj["current_state"] = (clean_html(proj["current_state"]) or current_state_section_body(sections)) if "current" not in hidden_types else current_state_section_body(sections)      # item 1188: a report whose Current state is a text section carries that body; a built-in current section with an empty column falls back to it
     out["project"] = proj
     out["documents"] = documents(inputs.get("documents"), code, hidden_ids, hidden_types) if any(
         s.get("type") == "docs" and not s.get("hidden") for s in sections) else []          # #74: carried only with a section to draw them
