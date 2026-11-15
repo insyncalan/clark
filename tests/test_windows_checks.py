@@ -154,6 +154,13 @@ class ReservedPorts(unittest.TestCase):
         text = "\u200f  8700   8799\n   100   50\n   5  6  7\n   70000  70001\n  9000  9005  *\n"
         self.assertEqual(pl.reserved_port_ranges(runner(done(text)), on=pl.WINDOWS), [(8700, 8799), (9000, 9005)])
 
+    def test_a_row_starting_at_zero_is_not_a_port_range(self):
+        self.assertEqual(pl.reserved_port_ranges(runner(done("  0  5\n  1  5\n")), on=pl.WINDOWS), [(1, 5)])
+
+    def test_a_row_does_not_run_over_the_end_of_its_line(self):
+        for text, want in (("8700\n8799\n", []), ("8700 8799\n9000\n9005\n", [(8700, 8799)]), ("8700\n\n8799\n", [])):
+            self.assertEqual(pl.reserved_port_ranges(runner(done(text)), on=pl.WINDOWS), want, text)
+
     def test_netsh_failing_is_none(self):
         self.assertIsNone(pl.reserved_port_ranges(runner(done("", 1)), on=pl.WINDOWS))
         self.assertIsNone(pl.reserved_port_ranges(runner(error=FileNotFoundError(2, "no netsh")), on=pl.WINDOWS))

@@ -1055,7 +1055,7 @@ def reserved_port_ranges(run=None, on=None):
     if done.returncode != 0:
         return None
     # A row is two whole numbers and an optional "*" (an administered exclusion); a mark some Windows languages put before the numbers is allowed.
-    rows = re.findall(r"^[\s\u200e\u200f]*(\d+)\s+(\d+)\s*\*?\s*$", done.stdout or "", re.M)
+    rows = re.findall(r"^[ \t\u200e\u200f]*(\d+)[ \t]+(\d+)[ \t]*\*?[ \t]*\r?$", done.stdout or "", re.M)
     return [(int(a), int(b)) for a, b in rows if 1 <= int(a) <= int(b) <= 65535]
 
 
