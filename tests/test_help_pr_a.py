@@ -135,7 +135,7 @@ class SettingsChips(unittest.TestCase):
         views = code("components", "Views.jsx")
         cards = re.search(r"const CARDS = \[(.*?)\];", views, re.S).group(1)
         names = [n for n in re.findall(r'\["\w+", "([^"]*)", "[\w-]+"\]', cards)]
-        self.assertEqual(names, ["Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "", "", "People", "Asking", "Feedback", ""])
+        self.assertEqual(names, ["Essentials", "Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "", "", "People", "Asking", "Feedback", ""])
         self.assertIn('Update.chip = L.TITLE', code("edit", "Update.jsx"))
         self.assertIn('TITLE = "Version and updates"', code("logic", "update.js"))
         self.assertIn("Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking, Feedback and Quit, in the order the cards are drawn.", self.TEXT)
@@ -184,7 +184,7 @@ class SettingsChips(unittest.TestCase):
 class AskOff(unittest.TestCase):
     def test_the_button_hides_and_the_slash_still_opens(self):
         text = flat(SECS["ask-clark"])
-        self.assertIn("if (!askOn.value) return null;", code("edit", "AskButton.jsx"))
+        self.assertIn("if (!askOn.value || narrowHeader.value) return null;", code("edit", "AskButton.jsx"))  # item 1177: AskButton.jsx:11 keeps the askOn guard and adds narrowHeader (ask clark is in the profile menu at 900)
         keys = code("edit", "askPanelState.js")
         self.assertIn('e.key === "/"', keys)
         self.assertNotIn("askOn", keys[keys.index("export function installAskKeys"):keys.index("document.addEventListener(\"mousedown\"")])

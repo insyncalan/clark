@@ -63,10 +63,12 @@ export const toneOf = (row, pill) => {
   if (row.status === "Closed" || row.status === "Completed") return "b";
   return pill.class === "b" ? "g" : pill.class;
 };
+const COLOUR_WORDS = ["Red", "Amber", "Green"];      // the tile's colour words; the tooltip of an Urgent item drops them (the visible word stays as it is)
 export const iconWords = (row, pill, today) => {
   const kind = KIND_WORDS[row.kind] || "Item", late = isLate(row, today) && pill.text !== "Overdue" ? "Overdue" : "";
   const own = row.kind !== "decision" && pill.text === row.status && pill.text !== "Delayed";      // a record's own status word (Blocked, In progress) wins; the tooltip still says Overdue
-  const parts = isUrgent(row) ? [pill.text, "Urgent", late] : own ? [pill.text, late] : [pill.text];      // an Urgent item that is also late keeps its maroon tile; the tooltip says both
+  // An Urgent item keeps its maroon tile and says Urgent after its status word (Blocked, Delayed, Overdue, Pending ...); only the colour word gives way to Urgent.
+  const parts = isUrgent(row) ? [COLOUR_WORDS.includes(pill.text) ? "" : pill.text, "Urgent", late] : own ? [pill.text, late] : [pill.text];
   const words = parts.filter(Boolean);
   return { name: `${kind}, ${words.join(", ")}`, tip: `${kind} · ${words.join(" · ")}` };
 };

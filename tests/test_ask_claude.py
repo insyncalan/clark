@@ -921,5 +921,20 @@ class Source(unittest.TestCase):
         self.assertIn("shell=False", self.RUN)
 
 
+class VersionKey(unittest.TestCase):
+    def test_prerelease_orders_below_its_release_and_by_number(self):
+        paths = ["/n/v1.0.8-rc10/bin", "/n/v1.0.8-rc9/bin", "/n/v1.0.8/bin", "/n/v1.0.9-rc1/bin", "/n/v1.0.7/bin"]
+        got = sorted(paths, key=ac._version_key, reverse=True)
+        self.assertEqual(got, ["/n/v1.0.9-rc1/bin", "/n/v1.0.8/bin", "/n/v1.0.8-rc10/bin", "/n/v1.0.8-rc9/bin", "/n/v1.0.7/bin"])
+
+    def test_build_suffixes_are_not_prereleases_but_a_b_rc_are(self):
+        for tag in ("arm64", "amd64", "bin"):
+            self.assertGreater(ac._version_key("/n/v1.2.3-" + tag), ac._version_key("/n/v1.2.3-rc1"), tag)
+            self.assertEqual(ac._version_key("/n/v1.2.3-" + tag)[2], 1, tag)
+        for tag in ("a1", "b2", "rc1"):
+            self.assertEqual(ac._version_key("/n/v1.2.3" + tag)[2], 0, tag)
+            self.assertLess(ac._version_key("/n/v1.2.3" + tag), ac._version_key("/n/v1.2.3"), tag)
+
+
 if __name__ == "__main__":
     unittest.main()

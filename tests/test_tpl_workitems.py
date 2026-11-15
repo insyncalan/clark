@@ -503,8 +503,8 @@ class InThePage(PageBase):
                     text = p.js("document.querySelector('#report').textContent")
                     for planted in ("ZQ-sensitive step", "ZQ-client-off step", "ZQ-archived step"):
                         self.assertNotIn(planted, text)
-                    self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]').length"), 0,
-                                     "View is read only: no control and no row to open")
+                    self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]:not(.ico)').length"), 0,
+                                     "View is read only: no control and no row to open (the status icon takes Tab so its tooltip is reachable: row 1145)")
                     self.assertEqual(self.rows(p, ref, "lines"), [], "full width draws the table only")
                     self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
                     head = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table th')].map(e => e.textContent)")
@@ -545,7 +545,7 @@ class InThePage(PageBase):
             self.assertEqual(line, f"{self.a_due} · Pat Demo")
 
     def test_an_empty_match_is_left_out_of_view_and_said_in_edit(self):
-        ref = self.add({"owner": ["Sam Demo"]})
+        ref = self.add({"owner": ["Nobody Demo"]})
         with chrome() as cdp:
             p = self.show(cdp)
             self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"]')"), "View leaves an empty match out")
@@ -591,7 +591,8 @@ class InThePage(PageBase):
             p.js(f"(el => {{ el.focus(); el.value = '2'; el.dispatchEvent(new Event('change', {{bubbles: true}})); }})(document.querySelector({json.dumps(sel)}))")
             p.saved()
             self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["max"], 2)
-            p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr').length === 2", "two rows")
+            p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr .weye[aria-pressed=true]').length === 2", "two rows the client sees")
+            self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr').length"), 4, "and the two the eye took off, listed where they fall")
             p.clear_toast()
             cap = f"[data-id=\"{ref}\"] [data-field=caption] input"
             p.js(f"document.querySelector({json.dumps(cap)}).focus()")
@@ -807,7 +808,7 @@ class InThePage(PageBase):
             self.assertEqual(body()["mode"], "closed", "a minus sign before is:open reads as closed only")
             p.clear_toast()
 
-    def test_sort_rows_columns_and_caption_stay_in_the_one_form_block(self):
+    def test_sort_and_rows_and_columns_stay_in_the_one_form_block_and_the_caption_is_under_the_list(self):
         ref = self.add({}, title="Form")
         with chrome() as cdp:
             p = self.show(cdp, 1400)
@@ -815,8 +816,31 @@ class InThePage(PageBase):
             p.until(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-line]')", "the line drew")
             forms = p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-form').length")
             self.assertEqual(forms, 1, "one form block, as before the line was added")
-            self.assertTrue(p.js(f"(f => ['sort', 'max', 'caption'].every(n => f.querySelector('[name=' + n + '], [data-field=' + n + ']')))"
-                                 f"(document.querySelector('[data-id=\"{ref}\"] .wil-form'))"), "Sort by, Most rows and Caption sit in it")
+            self.assertTrue(p.js(f"(f => ['sort', 'max'].every(n => f.querySelector('[name=' + n + '], [data-field=' + n + ']')))"
+                                 f"(document.querySelector('[data-id=\"{ref}\"] .wil-form'))"), "Sort by and Most rows sit in it")
+            self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-form [data-field=caption]')"), "the Caption box left the form block")
+
+    def test_the_caption_box_comes_after_the_list_at_both_widths(self):
+        # Row 1113, wish 2: the caption is shown under the list, so its box is the last thing in the editing panel.
+        ref = self.add({"mode": "all", "caption": "Fictional caption"})
+        script = ("(() => { const root = document.querySelector('[data-id=\"%s\"] [data-wil-edit]');"
+                  " const box = root && root.querySelector('[data-field=caption]');"
+                  " const table = root && root.querySelector('.wil-table');"
+                  " const form = root && root.querySelector('.wil-form');"
+                  " if (!box || !table || !form) return null;"
+                  " return [box.getBoundingClientRect().top - table.getBoundingClientRect().bottom,"
+                  " box.getBoundingClientRect().top - form.getBoundingClientRect().bottom,"
+                  " !!(table.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING)]; })()") % ref
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width)
+                p.edit()
+                p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table')", "the list drew")
+                got = p.js(script)
+                self.assertIsNotNone(got, "the Caption box, the list and the form all drew")
+                self.assertTrue(got[2], "the Caption box follows the list in the page order")
+                self.assertGreaterEqual(got[0], 0, "the Caption box sits below the list, not beside or above it")
+                self.assertGreaterEqual(got[1], 0, "the Caption box sits below the form block")
 
     def test_two_ticks_made_before_the_first_reply_are_both_kept(self):
         ref = self.add({})
@@ -897,8 +921,8 @@ class PublishedFile(PageBase):
                 ids = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr')].map(e => e.dataset.id)")
                 self.assertEqual(ids, [self.a_due, self.a_later, self.risk])
                 self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] .wil-cap').textContent"), "Fictional caption")
-                self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]').length"), 0)
-                self.assertIn("Overdue", p.js(f"document.querySelector('[data-id=\"{ref}\"]').textContent"), "Due reads as at the publish date")
+                self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]:not(.ico)').length"), 0)
+                self.assertTrue(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-tip*=\"Overdue\"]')"), "Due reads as at the publish date")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
 
 

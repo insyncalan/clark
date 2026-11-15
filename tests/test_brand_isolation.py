@@ -262,7 +262,7 @@ class ClientWorkbook(Rig):
         for ws in wb.worksheets:
             for row in ws.iter_rows():
                 for c in row:
-                    if c.fill.fgColor.rgb and c.fill.fill_type == "solid":
+                    if c.fill.fgColor.rgb and c.fill.fill_type == "solid" and not (c.protection.locked and c.row > 4 and c.fill.fgColor.rgb[-6:].upper() == "E6EBF6"):      # item 1157: a locked data cell is the quiet grey, not the brand
                         self.assertEqual(c.fill.fgColor.rgb[-6:].upper(), "112233", (ws.title, c.coordinate))
                     if c.value not in (None, "") and c.font.bold and c.font.color is not None and isinstance(c.font.color.rgb, str):
                         self.assertEqual(c.font.color.rgb[-6:].upper(), "445566", (ws.title, c.coordinate))

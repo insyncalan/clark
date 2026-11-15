@@ -21,6 +21,7 @@ NAME = "Your menu"
 ITEMS = ["Publish…", "Preview the page in a new tab", "Export to Excel", "Export to Word", "Published reports", "Settings", "Help"]       # the commands (#443: Published reports, after Export; row 826: Import from Word, after Export to Word, in View too)
 LOOK = ["System", "Light", "Dark"]                                                                            # the Appearance group (#179), radio items between Export and Settings
 WHO = "Add your name in Settings"                                                                          # the top line while no name is typed (#180): a link
+NAMED = r"^.+\(PUB\) \d{4}\.\d\d\.\d\d \d\d\.\d\d\.\d\d\.xlsx$"                                  # row 1143: what excel.download_name gives
 ORDER = [WHO] + ITEMS[:6] + LOOK + ITEMS[6:]
 
 
@@ -58,7 +59,7 @@ class ProfileMenu(Base):
             p = self.page(cdp)
             self.open_menu(p)
             self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')}).join()"),
-                             "menuitem,menuitem,menuitem,menuitem,menuitem,menuitem,menuitem,separator,group,separator,menuitem")
+                             "menuitem,menuitem,menuitem,menuitem,menuitem,menuitem,menuitem,separator,group,separator,menuitem")   # item 1177: no state line in the menu
             self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu [role=group]').children, function(e){return e.getAttribute('role')}).join()"),
                              "presentation,menuitemradio,menuitemradio,menuitemradio", "the group holds its label and the three radios")
             self.assertEqual(p.js("(function(){var g=document.querySelector('#profile-menu [role=group]');return document.getElementById(g.getAttribute('aria-labelledby')).textContent})()"),
@@ -76,12 +77,11 @@ class ProfileMenu(Base):
                 p.open_publish()
                 p.go()
                 p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
-                p.until("/^Published/.test(document.querySelector('#report-state').textContent)", "the bar says when")
                 p.go()
                 p.until("!document.querySelector('#publish-dialog')", "closed")
                 p.js("document.querySelector('#profile-btn').click()")
-                p.until("!!document.querySelector('#profile-menu .lab')", "the note is in the menu")
-                self.assertRegex(p.js("document.querySelector('#profile-menu .lab').textContent"), r"^Published \d\d-\d\d-\d{4} locally$")
+                p.until("[...document.querySelectorAll('#profile-menu .lab')].some((e) => /^Published /.test(e.textContent))", "the published note is in the menu")
+                self.assertRegex(p.js("(function(){var l=document.querySelectorAll('#profile-menu .lab');return l[l.length-1].textContent})()"), r"^Published \d\d-\d\d-\d{4} locally$")
                 self.assertTrue(p.js("(function(){var r=document.querySelector('#profile-menu').getBoundingClientRect();return r.left>=0&&r.right<=innerWidth})()"), "inside the window")
 
     def test_C_the_publish_entry_opens_the_dialog(self):
@@ -135,7 +135,7 @@ class ProfileMenu(Base):
             self.pick(p, "preview")
             self.assertIn("Allow pop-ups", self.toast(p))
 
-    def test_C_the_export_entry_downloads_the_workbook_named_with_the_code_and_the_day(self):
+    def test_C_the_export_entry_downloads_the_workbook_named_with_the_project_the_code_and_the_time(self):
         with chrome() as cdp:
             p = self.page(cdp)
             before = self.rig.everything_written()
@@ -143,9 +143,10 @@ class ProfileMenu(Base):
                  " HTMLAnchorElement.prototype.click = function(){ window.__dl.push(this.download); }")
             self.pick(p, "export")
             p.until("window.__dl.length === 1", "a download was started")
-            self.assertEqual(p.js("window.__dl[0]"), "PUB-2026-10-28.xlsx")
+            got = p.js("window.__dl[0]")
+            self.assertRegex(got, NAMED, "<project name>(<code>) YYYY.MM.DD HH.MM.SS.xlsx")
             self.assertGreater(p.js("window.__blob.size"), 1000)
-            self.assertIn("PUB-2026-10-28.xlsx", self.toast(p))
+            self.assertIn(got, self.toast(p))
             self.assertEqual((self.rig.everything_written(), self.rig.rows()), (before + ["clark-data/excel-export-state.json"], []),
                              "no workbook in any folder; only the export's record, beside the database")
 
@@ -197,7 +198,7 @@ class ProfileMenu(Base):
                 labels = self.labels(p)
                 self.assertEqual(labels.count("Settings"), 1)
                 self.assertEqual(labels.index("Settings"), labels.index("Published reports") + 1)
-                self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')}).indexOf('group') - [].map.call(document.querySelectorAll('#profile-menu [role=menuitem]'), function(e){return e.textContent}).indexOf('Settings')"), 2, "Settings, then the separator, then the group")
+                self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')}).indexOf('group') - [].map.call(document.querySelectorAll('#profile-menu [role=menuitem]'), function(e){return e.textContent}).indexOf('Settings')"), 2, "Settings, then the separator, then the group; item 1177: the published note sits at the bottom, below the group, so the child index is two ahead of the menuitem index")
                 self.assertEqual(p.js("document.querySelectorAll('#profile-menu [data-kind=who]').length"), 1)
                 p.key("Escape", code="Escape", vk=27)
                 p.until("!document.querySelector('#profile-menu')", "Esc closed it")

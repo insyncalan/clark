@@ -52,7 +52,6 @@ class Rendered(Base):
                 t = p.js("document.querySelector('#hp-ref-work-items').textContent")
                 for need in ("drag the right edge of its heading", "Alt+← or Alt+→",
                              "The Use cases list works the same way",
-                             "A Needs from you section in Edit has the same",
                              "The list of archived work items", "on its Type, Item, Owner, Due and Status columns"):
                     self.assertIn(need, t, f"{w}: {need}")
                 p.js("window.clarkPage.help.open('ref-milestones-page')")

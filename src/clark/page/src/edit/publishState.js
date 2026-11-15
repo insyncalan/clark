@@ -7,7 +7,7 @@ import { signal } from "@preact/signals";
 import { data, project, show } from "../stores/report.js";
 import { publishRequest, latestRequest, words } from "./publishApi.js";
 import { exportWord } from "./wordApi.js";
-import { openInNewTab } from "../router.js";
+import { openInNewTab, stopRestore } from "../router.js";
 import { printUrl } from "../logic/printView.js";
 import { say } from "./menuNote.js";
 import { placeholderItems, placeholderWarning } from "../logic/placeholders.js";
@@ -82,6 +82,7 @@ export function toPublishingCard() {
     const card = document.getElementById("publishing");
     if (!card) { if (--tries > 0) setTimeout(find, 40); return; }
     const calm = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    stopRestore();      // the router is still putting Settings back where it was left (the top), frame by frame; that would undo this scroll
     card.setAttribute("tabindex", "-1");
     card.scrollIntoView({ block: "start", behavior: calm ? "auto" : "smooth" });
     card.focus({ preventScroll: true });

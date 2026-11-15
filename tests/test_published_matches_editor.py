@@ -43,13 +43,33 @@ class Matches(unittest.TestCase):
         self.assertEqual([x for x in got if x in editor], got, "nothing in the file that the editor does not list")
         self.assertEqual([x for x in editor if x in got], got, "the same order")
 
-    def test_a_needs_section_the_editor_has_still_gets_the_flagged_rows(self):
+    def test_a_stored_needs_section_with_rows_and_a_flagged_item_is_not_in_the_file(self):
+        """Item 1158: a Needs from you section already stored simply stops showing; it stays stored."""
+        body = json.dumps({"v": 1, "rows": [{"what": "Typed row", "kind": "decision", "from": "", "by": "", "hidden": 0}]})
         with self.s.step("dashboard", USER) as st:
-            st.create("report_sections", {"project": "ABC", "type": section_bodies.NEEDS, "title": "Needs from you", "body": "",
-                                          "sort_order": 1, "beside": 0, "hidden": 0})
+            ref = st.create("report_sections", {"project": "ABC", "type": section_bodies.NEEDS, "title": "Needs from you", "body": body,
+                                                "sort_order": 1, "beside": 0, "hidden": 0})
         self.flag()
-        got = [s for s in publish.build(self.s, "ABC", now=NOW)["published"]["sections"] if s["type"] == "needs"]
-        self.assertEqual([r["what"] for r in got[0]["rows"]], ["Send the access list"])
+        built = publish.build(self.s, "ABC", now=NOW)
+        self.assertNotIn("needs", [s["type"] for s in built["published"]["sections"]])
+        self.assertNotIn(b"Typed row", built["body"])
+        self.assertEqual(json.loads(self.s.read("report_sections", ref=ref)["body"]), json.loads(body), "the stored section is untouched")
+
+    def test_a_stored_needs_section_between_two_sections_does_not_stop_them_pairing(self):
+        """Item 1158 gap: the editor drops a stored Needs section before it reads rows, so A (beside) and C sit in one row. The file pairs them too."""
+        def text(title, order, beside):
+            return {"project": "ABC", "type": "text", "title": title, "body": f"<p>{title} words</p>", "sort_order": order, "beside": beside, "hidden": 0}
+        body = json.dumps({"v": 1, "rows": [{"what": "Typed row", "kind": "decision", "from": "", "by": "", "hidden": 0}]})
+        for old in self.s.read("report_sections", project="ABC"):
+            with self.s.step("dashboard", USER) as st:
+                st.update("report_sections", old["id"], {"hidden": 1})       # rows are never deleted; hidden ones sit after the three below
+        with self.s.step("dashboard", USER) as st:
+            st.create("report_sections", text("Alpha", -3, 1))
+            st.create("report_sections", {"project": "ABC", "type": section_bodies.NEEDS, "title": "Needs from you", "body": body,
+                                          "sort_order": -2, "beside": 0, "hidden": 0})
+            st.create("report_sections", text("Gamma", -1, 0))
+        got = {s["title"]: s["beside"] for s in publish.build(self.s, "ABC", now=NOW)["published"]["sections"]}
+        self.assertEqual(got, {"Alpha": 1, "Gamma": 0}, "the editor's rows: Alpha beside Gamma")
 
 
 if __name__ == "__main__":

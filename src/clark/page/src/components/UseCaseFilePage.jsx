@@ -3,12 +3,13 @@
 // draws no control and no History, and its Details card shows only the fields the file holds (status, commitment), and asks for nothing. A work item opens the file's read only peek; "Open all" opens the file's Work items.
 import { useEffect, useRef } from "preact/hooks";
 import { data, rows, project, openWork, openPeek } from "../stores/report.js";
-import { isOpen, pillOf, dueCell, ownerOf, todayIso, plural, showDate } from "../workItems.js";
+import { isOpen, dueCell, ownerOf, todayIso, plural, showDate } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
 import { refOf } from "../logic/useCasesList.js";
 import { milestoneRows } from "../logic/milestones.js";
 import { MsMark } from "./MsMark.jsx";
-import { toneOf } from "./ItemRows.jsx";
+import { ItemIcon, iconWords } from "./ItemRows.jsx";      // row 1145: the coloured pill with words is the tinted letter icon alone (row 1021's)
+import { clientPill } from "../logic/sectionRows.js";
 import { commitWord } from "../logic/commitment.js";
 import { CommitChip } from "./CommitChip.jsx";
 
@@ -70,13 +71,13 @@ export function UseCaseFilePage({ id }) {
             {work.length ? (
               <ul class="ucf-items plain">
                 {work.map((r) => {
-                  const due = r.kind === "decision" || r.kind === "action" ? dueCell(r, todayIso()).date : "", who = ownerOf(r.owner).text, pill = pillOf(r, todayIso());
+                  const due = r.kind === "decision" || r.kind === "action" ? dueCell(r, todayIso()).date : "", who = ownerOf(r.owner).text, pill = clientPill(r, todayIso()), say = iconWords(r, pill, todayIso());
                   const extra = [who !== "—" ? who : "", due && due !== "—" ? `Due ${due}` : r.kind === "action" ? "No due date" : ""].filter(Boolean).join(" · ") || "No owner";
                   return (
                     <li key={r.id}>
-                      <button type="button" class="ucf-item" data-item={r.id} onClick={() => openPeek(r.id, "item")}>
-                        <span class="ucf-id num">{r.id}</span><span class="ucf-t" title={r.client_message || r.title}>{r.client_message || r.title}</span>
-                        <span class={`pill ${toneOf(r, pill)}`}>{pill.text}</span><span class="ucf-x">{extra}</span>
+                      <button type="button" class="ucf-item" data-item={r.id} data-tip={say.tip} onClick={() => openPeek(r.id, "item")}>
+                        <ItemIcon row={r} pill={pill} today={todayIso()} plain /><span class="sr">{say.name}</span>
+                        <span class="ucf-id num">{r.id}</span><span class="ucf-t" title={r.client_message || r.title}>{r.client_message || r.title}</span><span class="ucf-x">{extra}</span>
                       </button>
                     </li>
                   );

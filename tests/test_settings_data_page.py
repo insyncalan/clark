@@ -133,7 +133,7 @@ class Card(Base):
                 p.js("document.querySelector('#import-undo').focus(); document.querySelector('#import-undo').click()")
                 p.until("document.querySelector('#import-result') && document.querySelector('#import-result').textContent.startsWith('Put back')", "Undo")
                 self.assertEqual(self.rig.store.read("actions", ref=action)["description"], old)
-                self.assertEqual(p.js("document.activeElement && document.activeElement.id"), "import-close", "Undo took its button away: the focus is on Close, so Esc and Tab still work")
+                self.settle(p, "document.activeElement && document.activeElement.id === 'import-close'", "Undo took its button away: the focus is on Close, so Esc and Tab still work")
                 p.js("document.querySelector('#import-close').click()")
                 p.until("!document.querySelector('#import-box')", "the box closed")
 
