@@ -11,7 +11,7 @@
 import { signal, computed } from "@preact/signals";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { data, rows as allRows, project, uc, openUseCase, leaveUseCase } from "../stores/report.js";
-import { change } from "../stores/changes.js";
+import { change, say, sayLocalUndo } from "../stores/changes.js";
 import { blink } from "../stores/motion.js";
 import { RecordContextMenu } from "./RecordContextMenu.jsx";
 import { readArchivedUseCase, getArchived } from "../api.js";
@@ -22,7 +22,7 @@ import { UseCaseDetail } from "../components/UseCaseDetail.jsx";
 import { UCEDIT, openAdd } from "./UseCasesEdit.jsx";
 import { UseCasesFilter } from "./UseCasesFilter.jsx";
 import { shownOf, tabCounts, lineParts } from "./useCasesLine.js";
-import { viewsGet, visibleViews } from "../logic/filterLine.js";
+import { viewsGet, viewsPut, visibleViews, addView, nextViewName, renameView, duplicateView, deleteView, insertView, reorderViews, MAX_NAME } from "../logic/filterLine.js";
 import { local } from "../stores/line.js";
 import { plural } from "../workItems.js";
 import { Menu } from "../components/Menu.jsx";
@@ -153,6 +153,71 @@ function UseCasesList() {
   const toggleGroup = (g) => { const next = new Set(shutGroups.value), k = `${f.group}|${g.key}`; if (next.has(k)) next.delete(k); else next.add(k); shutGroups.value = next; };
   const stop = shown.some((r) => r.id === current.value) ? current.value : shown.length ? shown[0].id : "";
   const list = useRef(null);
+  const code = project.value, nameBox = useRef(null);
+  const [form, setForm] = useState(null);      // row 1203: the Rename view box ({name, error}), or null
+  const [moving, setMoving] = useState("");      // row 1203: the id of the tab Move view is moving with the arrow keys
+  const [told, setTold] = useState("");      // row 1203: what the tabs say aloud
+  const active = views.find((v) => v.id === f.tab) || null;
+  const saveViews = (next) => { viewsPut(local(), code, next, "usecases"); tick.value++; };
+  const focusTab = (id) => setTimeout(() => { const el = document.querySelector(`#usecases .vtab[data-tab="${CSS.escape(id)}"]`); if (el) el.focus({ preventScroll: true }); }, 0);
+  const closeForm = () => { setForm(null); setTimeout(() => { const el = document.getElementById("ucl-viewTabMenu"); if (el) el.focus(); }, 0); };
+  const submitName = (e) => {
+    e.preventDefault();
+    const r = renameView(views, active.id, form.name);
+    if (!r.ok) { setForm({ ...form, error: r.message }); return; }
+    saveViews(r.views);
+    closeForm();
+  };
+  useEffect(() => {      // the name box takes the focus once the menu has given the focus back to its button
+    if (!form) return undefined;
+    const t = setTimeout(() => { if (nameBox.current) nameBox.current.focus(); }, 40);
+    return () => clearTimeout(t);
+  }, [!!form]);
+  const tabAct = (id) => {
+    if (id === "new") {
+      const r = addView(views, nextViewName(views), f.line.trim());
+      if (!r.ok) { say("problem", r.message); return; }
+      saveViews(r.views);
+      set({ tab: r.id, line: "" });
+      setTold(`Saved as ${r.views.find((v) => v.id === r.id).name}. Use Rename view to change the name.`);
+    } else if (!active) return;
+    else if (id === "rename") setForm({ name: active.name, error: "" });
+    else if (id === "move") { setMoving(active.id); setTold(`Moving ${active.name}. Press Left or Right arrow to move it, Enter to finish.`); focusTab(active.id); }
+    else if (id === "duplicate") {
+      const r = duplicateView(views, active.id);
+      if (!r.ok) { say("problem", r.message); return; }
+      saveViews(r.views);
+      set({ tab: r.id });
+      setTold(`Duplicated as ${r.views.find((v) => v.id === r.id).name}.`);
+      focusTab(r.id);
+    } else if (id === "delete") {      // no question first: the message at the foot of the page has Undo, which puts the view back where it was
+      const at = views.findIndex((v) => v.id === active.id), gone = active, r = deleteView(views, gone.id);
+      if (!r.ok) { say("problem", r.message); return; }
+      saveViews(r.views);
+      set({ tab: (r.views[at] || r.views[at - 1] || { id: "all" }).id });
+      sayLocalUndo("done", `View deleted: ${gone.name}`, () => {
+        const b = insertView(visibleViews(viewsGet(local(), code, "usecases")), gone, at);
+        if (!b.ok) { say("problem", b.message); return; }      // a name taken since, say, is told, never silent
+        saveViews(b.views);
+        set({ tab: gone.id });
+      }, code);
+      setTimeout(() => { const el = document.getElementById("ucl-viewNew"); if (el) el.focus(); }, 0);
+    }
+  };
+  const tabKeys = (e, id) => {      // Move view: Left and Right put the tab one place over, Enter or Esc ends
+    if (moving !== id) return;
+    if (e.key === "Enter" || e.key === "Escape") { e.preventDefault(); setMoving(""); return; }
+    const to = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0;
+    if (!to) return;
+    e.preventDefault();
+    const ids = views.map((v) => v.id), at = ids.indexOf(id), j = at + to;
+    if (at < 0 || j < 0 || j >= ids.length) return;
+    [ids[at], ids[j]] = [ids[j], ids[at]];
+    const r = reorderViews(views, ids);
+    if (r.ok) { saveViews(r.views); setTold(`Moved to place ${j + 1} of ${ids.length}.`); focusTab(id); }
+  };
+  const tabItems = [{ id: "rename", name: "Rename view", icon: "pencil" }, ...(views.length > 1 ? [{ id: "move", name: "Move view", icon: "move" }] : []),
+    { id: "duplicate", name: "Duplicate view", icon: "copy" }, { id: "delete", name: "Delete view", icon: "trash", danger: true }];
   const [menu, setMenu] = useState(null);      // row 1203: the right-click menu on a row (the record, the point, the element that takes the focus back)
   const rowMenu = (e) => {      // a right click, the menu key or Shift+F10 on a row
     const el = e.target.closest && e.target.closest(".ucl-row[data-uc]");
@@ -200,11 +265,25 @@ function UseCasesList() {
           <div class="fvrow">
             <div class="vtabs" role="group" aria-label="Narrow the list">
               {views.map(({ id, name }) => (
-                <button type="button" key={id} class="vtab" data-tab={id} aria-pressed={f.tab === id ? "true" : "false"} onClick={() => set({ tab: id })}><span>{name}</span><em class="num">{n[id]}</em></button>
+                <span class="vt" key={id}>
+                  <button type="button" class="vtab" data-tab={id} aria-pressed={f.tab === id ? "true" : "false"} data-moving={moving === id ? "" : undefined} onClick={() => set({ tab: id })} onKeyDown={(e) => tabKeys(e, id)} onBlur={() => { if (moving === id) setMoving(""); }}><span>{name}</span><em class="num">{n[id]}</em></button>
+                  {f.tab === id ? <Menu label="" ariaLabel={`Options for ${name}`} id="ucl-viewTabMenu" btnCls="vtabmenu" menuId="ucl-viewTabMenuList" fixed="start" menuLabel={`Options for ${name}`} items={tabItems} onPick={tabAct} /> : null}
+                </span>
               ))}
             </div>
+            <button type="button" class="vnew" id="ucl-viewNew" onClick={() => tabAct("new")}>{"+ New view"}</button>
             {tools}
           </div>
+          {form ? (
+            <form class="vform" onSubmit={submitName} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); closeForm(); } }}>
+              <label for="vname">New name for this view</label>
+              <input id="vname" type="text" value={form.name} maxLength={MAX_NAME} ref={nameBox} onInput={(e) => setForm({ ...form, name: e.target.value, error: "" })} />
+              <button type="submit" class="btn sm" id="vsave">Save</button>
+              <button type="button" class="btn sm" onClick={closeForm}>Cancel</button>
+              <span class="vmsg" role="status">{form.error}</span>
+            </form>
+          ) : null}
+          <p class="sr-only" role="status">{told}</p>
         </div>
       ) : null}
       {rows.length ? <UseCasesFilter f={f} rows={rows} now={() => state.value.line} apply={(text) => set({ line: text })} /> : null}
