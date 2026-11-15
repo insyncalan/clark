@@ -132,7 +132,7 @@ export function changeFor(row, field, value, today) {
   }
   if (field === "priority") {
     if (tableOf(row) === "raid") return { error: "A risk's or issue's priority is set from its impact and likelihood, so nothing was changed." };
-    if (!canPick(row, "priority")) return { error: "A decision has no priority, so nothing was changed." };
+    if (!canPick(row, "priority")) return { error: "A decision's priority is set in its details, one at a time. Nothing was changed." };
     if (!PRIORITIES.includes(value)) return { error: "That priority can't be used, so nothing was changed. Pick Urgent, High, Medium or Low." };
     if (value === row.priority) return null;
     const back = row.priority ? `Priority of ${row.id} is back to ${row.priority}.` : `Priority of ${row.id} is blank again.`;

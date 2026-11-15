@@ -112,7 +112,7 @@ class Rules(unittest.TestCase):
         self.assertEqual(self.change(self.RISK, "priority", "Low"), rating)
         self.assertEqual(self.change({**self.RISK, "kind": "assumption"}, "priority", "Low"),
                          {"error": "A risk's or issue's priority is set from its impact and likelihood, so nothing was changed."})
-        self.assertEqual(self.change(self.PENDING, "priority", "Low"), {"error": "A decision has no priority, so nothing was changed."})
+        self.assertEqual(self.change(self.PENDING, "priority", "Low"), {"error": "A decision's priority is set in its details, one at a time. Nothing was changed."})
         self.assertEqual(self.change(self.ACTION, "priority", "Critical"), {"error": "That priority can't be used, so nothing was changed. Pick Urgent, High, Medium or Low."})
         status = {"error": "That status isn't one this item can have, so nothing was changed. Pick one from the list."}
         self.assertEqual(self.change(self.MADE, "status", "Pending"), status)
