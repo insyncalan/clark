@@ -1287,6 +1287,10 @@ table.cw-set td.acts, .pp-earlier .pubs.cw-set td.files, .pp-earlier .pubs.cw-se
 .cols-btn, .msl-cols-btn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius-sm); cursor: pointer; color: var(--text-muted); vertical-align: middle; text-transform: none; letter-spacing: 0; }
 .cols-btn:hover, .msl-cols-btn:hover, .cols-btn[aria-expanded="true"], .msl-cols-btn[aria-expanded="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); }
 .cols-btn:focus-visible, .msl-cols-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; }
+/* the one Columns button outside the work grid: out of sight until the keyboard is on it, so nothing shifts and the grid stays one tab stop */
+.wgroup { position: relative; }
+.cols-btn.cols-kbd { position: absolute; right: var(--space-2); top: 0; z-index: 3; opacity: 0; pointer-events: none; }
+.cols-btn.cols-kbd:focus-visible { opacity: 1; pointer-events: auto; background: var(--surface); }
 .cols-btn svg, .msl-cols-btn svg { width: 16px; height: 16px; }
 table.items th.c-eye { white-space: nowrap; }
 .msl-hdw { position: relative; }

@@ -253,7 +253,7 @@ function Table({ rows, today, type, Cell, Eye, CW, CM }) {
     const flat = sortRows(rows, today), stop = stopOf(flat);
     order = flat.map((r) => r.id);
     mo = useRowMotion([{ key: "", rows: flat }]);
-    return <div class="wgroup"><table class="items" {...grid}><Cols eye={Eye} hand={hand} cw={cw} cols={cols} /><thead><tr {...(cm ? cm.rowProps : {})}><Heads eye={Eye} hand={hand} cw={cw} cm={cm} cols={cols} /></tr></thead><tbody>{rowsOf("", flat, stop)}</tbody></table>{cm ? cm.menu : null}</div>;
+    return <div class="wgroup">{cm ? cm.button("key") : null}<table class="items" {...grid}><Cols eye={Eye} hand={hand} cw={cw} cols={cols} /><thead><tr {...(cm ? cm.rowProps : {})}><Heads eye={Eye} hand={hand} cw={cw} cm={cm} cols={cols} /></tr></thead><tbody>{rowsOf("", flat, stop)}</tbody></table>{cm ? cm.menu : null}</div>;
   }
   const ctx = contextFor(today, type);
   const groups = columnsFor(g, rows, ctx).map((c) => ({ ...c, rows: sortRows(rows.filter((r) => cellOf(g, r, ctx) === c.key), today) })).filter((c) => c.rows.length > 0)
@@ -267,6 +267,7 @@ function Table({ rows, today, type, Cell, Eye, CW, CM }) {
         const shut = c.shut;
         return (
           <div class="wgroup" key={c.key}>
+            {cm && c.key === groups[0].key ? cm.button("key") : null}
             <table class="items grouped" {...grid}>
               <Cols eye={Eye} hand={hand} cw={cw} cols={cols} />
               <thead data-group={c.key} class={justOpened === c.key && !shut && !fromFile.value ? "opening" : undefined} onAnimationEnd={opened(c.key)}>

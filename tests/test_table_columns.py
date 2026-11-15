@@ -23,7 +23,7 @@ from test_work_items import FIXED_DATE, load_demo, page_target
 SRC = Path(page.__file__).parent / "src"
 WORK_ALL = ["Status", "Item", "Owner", "Due", "Priority", "Id", "Type", "Workstream", "Milestone", "Raised", "Closed", "Use case", "Latest update", "Client wording"]
 MS_ALL = ["Date", "Milestone", "State", "Progress", "Id", "Description", "Workstream", "Owner", "Agreed", "Forecast", "Order", "State reason"]
-KEYS = {"ContextMenu": 93, "F10": 121, "Escape": 27, "Enter": 13}
+KEYS = {"Tab": 9, "ContextMenu": 93, "F10": 121, "Escape": 27, "Enter": 13}
 # name, address, the heading row's cells, a heading cell by column id, a body cell by column id, a row, every label, the locked labels, the standard labels
 TABLES = {
     "work": ("#work&p=TUL&f=mode:all", "#work table.items thead th", "#work th[data-col='%s']", "#work tbody tr[data-id] td[data-col='%s']", "#work tbody tr[data-id]",
@@ -78,7 +78,7 @@ class Columns(unittest.TestCase):
 
     def press(self, cdp, sid, name, shift=False):
         common = {"key": name, "code": name, "windowsVirtualKeyCode": KEYS[name], **({"modifiers": 8} if shift else {})}
-        cdp.call("Input.dispatchKeyEvent", {"type": "rawKeyDown", **common}, sid)
+        cdp.call("Input.dispatchKeyEvent", {"type": "keyDown" if name == "Enter" else "rawKeyDown", **({"text": "\r"} if name == "Enter" else {}), **common}, sid)
         cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", **common}, sid)
 
     def menu(self, js):
@@ -219,6 +219,26 @@ class Columns(unittest.TestCase):
                     shift = "true" if how == "F10" else "false"
                     js(f"document.querySelector({json.dumps(focus)}).dispatchEvent(new KeyboardEvent('keydown', {{key: {json.dumps(how)}, shiftKey: {shift}, bubbles: true, cancelable: true}}))")
                     self.assertTrue(wait(lambda: self.menu(js), 5), "the key handler opens it on its own too")
+
+    def test_the_work_table_has_a_keyboard_way_in_that_is_not_a_second_tab_stop_of_the_grid(self):
+        """The Columns button in the work headings is mouse only (the grid is one tab stop); one more, outside the grid, is reached by Tab and shows when focused."""
+        with chrome() as cdp:
+            sid, js = self.open_table(cdp, 1400, "light", "work")
+            self.assertEqual(js("[...document.querySelectorAll('#work table.items *')].filter((e) => e.tabIndex >= 0 && !e.disabled && !e.closest('tr.grp')).length"), 1, "the grid is still one tab stop")
+            js("document.activeElement && document.activeElement.blur(); window.scrollTo(0, 0)")
+            for _ in range(60):
+                self.press(cdp, sid, "Tab")
+                if js("document.activeElement.classList.contains('cols-kbd')"):
+                    break
+            self.assertTrue(js("document.activeElement.classList.contains('cols-kbd')"), "Tab reaches the Columns button")
+            self.assertEqual(js("getComputedStyle(document.activeElement).opacity"), "1", "and it is seen while it has the focus")
+            self.press(cdp, sid, "Enter")
+            self.assertTrue(wait(lambda: self.menu(js), 5), "Enter opens the menu")
+            self.assertEqual(js("document.querySelector('.cols-kbd').getAttribute('aria-expanded')"), "true")
+            self.assertEqual(js("document.querySelectorAll('.cols-btn[aria-expanded=true]').length"), 1, "only the button that opened it says so")
+            self.press(cdp, sid, "Escape")
+            self.assertTrue(wait(lambda: not self.menu(js), 5))
+            self.assertTrue(js("document.activeElement.classList.contains('cols-kbd')"), "the focus comes back to it")
 
     def test_a_visible_columns_button_opens_the_same_menu(self):
         for table, (_, _, _, _, _, every, _, _) in TABLES.items():

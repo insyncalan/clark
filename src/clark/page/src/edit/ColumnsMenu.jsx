@@ -34,9 +34,12 @@ export function useColumns(table) {
     onContextMenu: (e) => { if (typing(e.target)) return; e.preventDefault(); open(e.target.closest("th, button, [data-col]") || e.currentTarget); },
     onKeyDown: (e) => { if (!asked(e) || typing(e.target)) return; e.preventDefault(); e.stopPropagation(); open(e.target.closest("th, button, [data-col]") || e.currentTarget); },
   };
-  const button = (place) => { const cls = place === "ms" ? "msl-cols-btn" : "cols-btn"; return (
-    <button type="button" class={cls} tabIndex={place === "ms" ? undefined : -1} aria-label={W.UNRULED_BUTTON} aria-haspopup="menu" aria-expanded={at && at.classList.contains(cls) ? "true" : "false"} title={W.UNRULED_BUTTON_TIP} data-tip={W.UNRULED_BUTTON_TIP}
-      onClick={(e) => { e.stopPropagation(); if (at && at.classList.contains(cls)) setAt(null); else open(e.currentTarget); }}><Icon name="columns" /></button>
+  // place: "ms" (the milestones heading, a tab stop), undefined (a work table heading: mouse only, so the grid stays one tab stop) or "key" (the one
+  // button outside the grid, drawn only when focused, so a keyboard has a way in). Only the one that opened the menu says it is expanded.
+  const button = (place) => { const cls = place === "ms" ? "msl-cols-btn" : place === "key" ? "cols-btn cols-kbd" : "cols-btn"; return (
+    <button type="button" class={cls} data-cbk={place || "head"} tabIndex={place === "ms" || place === "key" ? undefined : -1} aria-label={W.UNRULED_BUTTON} aria-haspopup="menu"
+      aria-expanded={place !== "head" && place !== undefined && at && at.getAttribute("data-cbk") === place ? "true" : "false"} title={W.UNRULED_BUTTON_TIP} data-tip={W.UNRULED_BUTTON_TIP}
+      onClick={(e) => { e.stopPropagation(); if (at === e.currentTarget) setAt(null); else open(e.currentTarget); }}><Icon name="columns" /></button>
   ); };
   const press = (id, label) => {
     const next = toggled(table, shown, id);
