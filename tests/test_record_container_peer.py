@@ -142,7 +142,7 @@ class Tool(unittest.TestCase):
         self.assertEqual(len(out.strip().splitlines()), 1)
         self.assertEqual(json.loads(out)["peer"], record["peer"])
 
-    def test_the_healthcheck_alone_records_nothing(self):
+    def test_health_paths_are_skipped_and_only_another_path_is_recorded(self):
         """Only the healthcheck arrives, then a real request: the line is printed once, for the real one."""
         out, record = self.run_tool([self.get("/health?x=1"), self.get("/health"), self.get("/anything")])
         self.assertEqual(len(out.strip().splitlines()), 1)
