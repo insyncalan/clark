@@ -452,7 +452,7 @@ class MockupLook(InThePage):
             for w in self.widths(p, cdp):
                 got = p.js(self.PROBE % json.dumps(sel))
                 self.assertEqual(got["row"], ["12px", "8px 10px 8px 14px", 62], f"row radius, padding and height at {w}")
-                self.assertEqual(got["name"], ["16px", "500"], w)
+                self.assertEqual(got["name"], ["15px", "500"], w)
                 self.assertLessEqual(abs(got["align"]), 1, f"the name box's text lines up with the facts line at {w}")
                 self.assertEqual(got["mark"], [["0px", "10px", 44, 44, "1.8px"]] * 3, f"move and remove: borderless 44 px icons, 1.8 stroke, at {w}")
                 self.assertEqual(got["off"], "0.3", w)
@@ -461,8 +461,8 @@ class MockupLook(InThePage):
                 self.assertEqual([h[:4] for h in got["head"]], [["1px", "1.8px", "rgb(14, 36, 48)", "rgb(217, 224, 239)"]] * 2, f"file and link icon buttons at {w}")
                 self.assertLessEqual(max(abs(h[4]) for h in got["head"]), 2, f"the icon buttons sit on the title's line at {w}")
                 self.assertIn(got["gap"], range(56, 61), f"the list starts 58 px under the icon buttons' top at {w}")
-                self.assertEqual(got["allowed"], ["12.5px", "10px 14px", "12px"], w)
-                self.assertEqual(got["hint"], "12px", w)
+                self.assertEqual(got["allowed"], ["13px", "10px 14px", "12px"], w)
+                self.assertEqual(got["hint"], "13px", w)
                 self.assertTrue(got["font"].startswith("Inter"), "the label band uses the page font")
 
     def test_view_rows_match_the_mockup_sizes_and_spacing(self):
@@ -474,7 +474,7 @@ class MockupLook(InThePage):
             for w in self.widths(p, cdp):
                 got = p.js(f"(() => {{ const li = document.querySelector('{sel} .tpl-dl-i'), n = li.querySelector('.tpl-name'), cs = (e, k) => getComputedStyle(e)[k];"
                            " return [cs(li, 'borderTopLeftRadius'), cs(li, 'padding'), Math.round(li.getBoundingClientRect().height), cs(n, 'fontSize'), cs(n, 'fontWeight')]; })()")
-                self.assertEqual(got, ["12px", "8px 10px 8px 14px", 62, "16px", "500"], w)
+                self.assertEqual(got, ["12px", "8px 10px 8px 14px", 62, "15px", "500"], w)
 
     def test_toasts_say_what_the_ticket_quotes(self):
         ref = self.add([a_file("Scope statement.docx", 88 * 1024)])
