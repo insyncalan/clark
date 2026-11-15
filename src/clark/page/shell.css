@@ -2625,16 +2625,16 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
    the week (a button that opens the calendar), the tabs, then search, ask clark and the profile circle. 85 px high at 1400 and 129 px at 900, set through the
    --topbar token so every offset that reads it follows. The published file keeps its own bar (.top-file, above). */
 html:has(.top-hdr) { --topbar: 85px; }
-.top-hdr { gap: 22px; padding: 0 28px; }
+.top-hdr { gap: 22px; padding: 10px 28px; }      /* row 1212: 10 px above and below, so the tabs (they stretch) end 10 px above the bottom edge: the underline sits 10 px up and the labels about 8 px higher than before, as in the option C reference */
 .top-hdr::before { content: ""; position: absolute; inset: 0 0 0 55%; z-index: -1; pointer-events: none; background: var(--image-cover) center right / cover no-repeat; -webkit-mask-image: var(--image-fade); mask-image: var(--image-fade); opacity: .42; }
 .top-hdr { isolation: isolate; }
-.top-hdr .logo { flex: none; width: 147px; height: 24px; margin-block: -1px; overflow: hidden; }   /* a 24 px target; the margin keeps the bar's height */
+.top-hdr .logo { flex: none; width: 147px; height: 24px; margin-block: -1px; overflow: hidden; }   /* row 1212: the option C reference picture (142 x 22 px) sits in a 24 px target; the margin keeps the bar's height */
 .top-hdr .logo-icon { flex: none; width: 22px; height: 22px; }
 .top-hdr .logo .wm { font-size: var(--size-h3); line-height: 22px; }
 .hdr-id { flex: 0 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
 .hdr-id .dd { display: block; min-width: 0; }
 .hdr-id > .hdr-h1 { all: unset; display: block; min-width: 0; }      /* the editor header's level-1 heading (Dashboard): it only carries the role, the button inside keeps its look */
-.hdr-project { all: unset; box-sizing: border-box; display: block; min-width: 0; max-width: 100%; margin: 0 -5px; padding: 0 5px; border-radius: var(--radius-sm); cursor: pointer; font-size: var(--size-h2); line-height: 1.2; font-weight: var(--weight-medium); color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hdr-project { all: unset; box-sizing: border-box; display: block; min-width: 0; max-width: 100%; margin: 0 -5px; padding: 0 5px; border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font-head); font-size: var(--size-h2); line-height: 1.2; font-weight: 800; letter-spacing: -.01em; color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hdr-project > span { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hdr-project.hdr-static { cursor: default; }
 .hdr-project:not(.hdr-static):hover, .hdr-project[aria-expanded="true"] { background: color-mix(in srgb, var(--white) 14%, transparent); text-decoration: underline dotted; text-decoration-thickness: 2px; text-underline-offset: 6px; }
@@ -2645,14 +2645,14 @@ html:has(.top-hdr) { --topbar: 85px; }
 .hdr-date { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 24px; margin: -4px -5px; padding: 0 5px; border-radius: var(--radius-sm); cursor: pointer; color: inherit; font-size: inherit; line-height: inherit; }
 .hdr-date.hdr-static { cursor: default; }
 .hdr-date:not(.hdr-static):hover, .hdr-date[aria-expanded="true"] { background: color-mix(in srgb, var(--white) 14%, transparent); text-decoration: underline dotted; text-decoration-thickness: 2px; text-underline-offset: 4px; }
-.top-hdr .tabs { margin-left: 0; height: auto; align-self: stretch; align-items: flex-end; flex: none; }
+.top-hdr .tabs { margin-left: auto; height: auto; align-self: stretch; align-items: flex-end; flex: none; }
 .top-hdr .tab { padding-block: 8px 12px; }
 .top-hdr .tab:focus-visible { outline-offset: -4px; }
-.hdr-end { margin-left: auto; flex: none; display: flex; align-items: center; gap: 10px; }
+.hdr-end { margin-left: 0; flex: none; display: flex; align-items: center; gap: 10px; }
 @media (max-width: 900px) {      /* two rows: the logo, the name with its line and the buttons on top, the tabs as a strip under */
   html:has(.top-hdr) { --topbar: 129px; }
   .top-hdr { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: 1fr auto; grid-template-areas: "logo id end" "tabs tabs tabs"; gap: 0 16px; padding: 22px 20px 0; align-items: center; }
-  .top-hdr .logo { grid-area: logo; width: 120px; height: 24px; margin-block: -3px; }
+  .top-hdr .logo { grid-area: logo; width: 120px; height: 24px; margin-block: -3px; }      /* row 1212: 24 px target; the picture stays the 18 px option C reference size */
   .top-hdr .logo-icon { width: 18px; height: 18px; }
   .top-hdr .logo .wm { font-size: var(--size-body); line-height: 18px; }
   .top-hdr .hdr-id { grid-area: id; }
