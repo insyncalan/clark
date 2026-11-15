@@ -5,6 +5,7 @@ recorded by the tool and is on the hand-check sheet."""
 import http.client
 import io
 import json
+import socket
 import threading
 import unittest
 from unittest import mock
@@ -96,6 +97,64 @@ class Tool(unittest.TestCase):
         self.assertEqual(data["peer"], "127.0.0.1")
         self.assertTrue(data["accepted"])
         self.assertEqual(set(data), {"peer", "gateway", "container_mode", "is_gateway", "accepted"})
+
+    def run_tool(self, requests):
+        """Run the tool on a free port; send each of requests (a callable taking the port) in order. Returns (output, record)."""
+        out = io.StringIO()
+        ready = threading.Event()
+        result = {}
+        real = rec.HTTPServer
+
+        class Probe(real):
+            def server_bind(self):
+                super().server_bind()
+                result["port"] = self.server_address[1]
+                ready.set()
+
+        def go():
+            with mock.patch.object(rec, "HTTPServer", Probe):
+                result["record"] = rec.run("127.0.0.1", 0, out=out)
+
+        t = threading.Thread(target=go)
+        t.start()
+        self.assertTrue(ready.wait(5))
+        for send in requests:
+            send(result["port"])
+        t.join(10)
+        self.assertFalse(t.is_alive())
+        return out.getvalue(), result.get("record")
+
+    @staticmethod
+    def get(path):
+        def send(port):
+            c = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+            c.request("GET", path)
+            c.getresponse().read()
+            c.close()
+        return send
+
+    @staticmethod
+    def empty(port):
+        socket.create_connection(("127.0.0.1", port), timeout=5).close()
+
+    def test_the_healthcheck_request_is_answered_but_is_not_the_recorded_request(self):
+        out, record = self.run_tool([self.get("/health"), self.get("/")])
+        self.assertEqual(len(out.strip().splitlines()), 1)
+        self.assertEqual(json.loads(out)["peer"], record["peer"])
+
+    def test_the_healthcheck_alone_records_nothing(self):
+        """Only the healthcheck arrives, then a real request: the line is printed once, for the real one."""
+        out, record = self.run_tool([self.get("/health?x=1"), self.get("/health"), self.get("/anything")])
+        self.assertEqual(len(out.strip().splitlines()), 1)
+
+    def test_an_empty_first_connection_does_not_raise(self):
+        out, record = self.run_tool([self.empty, self.get("/")])
+        self.assertEqual(len(out.strip().splitlines()), 1)
+        self.assertEqual(record["peer"], "127.0.0.1")
+
+    def test_the_compose_healthcheck_path_is_the_one_the_tool_skips(self):
+        text = (ROOT / "docker/compose.yaml").read_text(encoding="utf-8")
+        self.assertIn("8766" + rec.HEALTH_PATH, text)
 
     def test_the_tool_listens_where_the_container_does(self):
         self.assertEqual(rec.sv.CONTAINER_BIND, "0.0.0.0")

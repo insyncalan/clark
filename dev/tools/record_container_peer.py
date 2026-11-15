@@ -24,6 +24,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 from clark import server as sv  # noqa: E402
 
 
+HEALTH_PATH = "/health"  # what docker/compose.yaml's healthcheck requests, from 127.0.0.1
+CONNECTION_TIMEOUT = 5
+
+
 def record(peer):
     """The record for one request's peer address: what clark's own rule says about it."""
     gateway = sv.container_gateway()
@@ -38,9 +42,14 @@ def record(peer):
 
 def make_handler(sink):
     class Handler(BaseHTTPRequestHandler):
+        timeout = CONNECTION_TIMEOUT  # a connection that sends nothing is dropped, not waited on
+
         def do_GET(self):
-            sink.append(record(self.client_address[0]))
-            body = b"peer recorded\n"
+            if self.path.split("?", 1)[0] == HEALTH_PATH:
+                body = b"ok\n"  # the compose healthcheck is not the person's request: answer it, record nothing
+            else:
+                sink.append(record(self.client_address[0]))
+                body = b"peer recorded\n"
             self.send_response(200)
             self.send_header("Content-Type", "text/plain")
             self.send_header("Content-Length", str(len(body)))
@@ -53,11 +62,13 @@ def make_handler(sink):
 
 
 def run(host, port, out=None):
-    """Answer one request, print its record as one JSON line, return it."""
+    """Answer requests until one is a real first request (not the healthcheck, not an empty connection), print its
+    record as one JSON line, return it."""
     sink = []
     httpd = HTTPServer((host, port), make_handler(sink))
     try:
-        httpd.handle_request()
+        while not sink:
+            httpd.handle_request()
     finally:
         httpd.server_close()
     line = json.dumps(sink[0], sort_keys=True)
