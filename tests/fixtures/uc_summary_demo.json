@@ -1,0 +1,11 @@
+{
+  "_about": "Row 1234: a demo page of 6 use cases in project ABC for the Use case summary tests (fictional). Each has a status, a commitment (or none), open steps (actions raised against it) and work items (a Risk and a Decision linked to it). Loaded by tests/test_use_case_summary_1234.py.",
+  "use_cases": [
+    {"ref": "6.1", "title": "Invoice matching",  "status": "On track",  "commitment": "Committed",    "headline": "Matching is live", "open_steps": 2, "work_items": 1},
+    {"ref": "6.2", "title": "Payment runs",      "status": "Flag",      "commitment": "Planned 2026", "headline": "One supplier file fails", "open_steps": 3, "work_items": 2},
+    {"ref": "6.3", "title": "Supplier onboarding","status": "High risk","commitment": "Committed",    "headline": "Waiting on the legal text", "open_steps": 1, "work_items": 2},
+    {"ref": "6.4", "title": "Month-end close",   "status": "On track",  "commitment": null,           "headline": "Dry run passed", "open_steps": 0, "work_items": 0},
+    {"ref": "6.5", "title": "Approvals by phone","status": "Done",      "commitment": "Planned 2027", "headline": "Finished in October", "open_steps": 0, "work_items": 1},
+    {"ref": "6.6", "title": "Archive search",    "status": "Flag",      "commitment": null,           "headline": "Index is slow", "open_steps": 2, "work_items": 0}
+  ]
+}
