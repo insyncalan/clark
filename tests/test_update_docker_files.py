@@ -24,6 +24,13 @@ class DockerUpdate(unittest.TestCase):
         self.assertIn("docker compose -f docker/compose.yaml -f docker/compose.windows.yaml up -d", step)
         self.assertIn("press Enter", step)
 
+    def test_every_compose_file_the_update_steps_name_is_in_the_folder(self):
+        """Item 636: the Windows steps name docker/compose.windows.yaml (item 629); a folder without it would send a person to a missing file."""
+        named = sorted(set(re.findall(r"-f (docker/[\w.-]+)", UPDATE)))
+        self.assertIn("docker/compose.windows.yaml", named)
+        for name in named:
+            self.assertTrue((ROOT / name).is_file(), f"UPDATE.txt names {name}, which is not in the folder")
+
     def test_the_check_runs_before_the_server_and_a_refusal_stops_the_start(self):
         m = re.search(r'^\s*command: \["sh", "-c", "(.+)"\]$', COMPOSE, re.M)
         self.assertIsNotNone(m, "the start is one sh -c line")
