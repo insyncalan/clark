@@ -72,7 +72,8 @@ export function useColWidths(table) {
     return sum > 0 && sum > free ? Math.max(0, free) / sum : 1;
   };
   const drawn = (id, k) => (px(id) === null ? undefined : { width: `${k < 1 ? Math.max(MIN_COL, Math.floor(px(id) * k)) : px(id)}px` });
-  return { px, style, grip, head, fit, drawn };
+  const any = () => Object.keys(saved).some((id) => px(id) !== null);       // a table with a chosen width is laid out in fixed mode, so the width holds
+  return { px, style, grip, head, fit, drawn, any };
 }
 
 /** A grid template: each default track, with the track of a column that has a chosen width set to that many pixels. `ids` runs along the tracks. */

@@ -26,6 +26,8 @@ class TopBarActions(Base):
             p.until("!!document.querySelector('#ask-btn')", "the ask button shows while asking is on")
         elif asking:
             p.until("!!document.querySelector('#profile-btn')", "the profile circle shows")
+            # The page loads wide and size() narrows it after: the header drops the two buttons only once narrowHeader has flipped and the page has redrawn.
+            p.until("document.querySelectorAll('.top #ask-btn, .top #pal-btn').length === 0", "at 900 the header has dropped the search and ask buttons")
         return p
 
     def test_the_two_buttons_have_their_words_and_sit_before_the_avatar(self):
