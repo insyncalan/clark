@@ -2183,7 +2183,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .pk-fields > .pk-row[data-row=owner] { order: 3; }
 .pk-fields > .pk-row[data-row=due] { order: 4; }
 .pk-fields > .pk-row[data-row] dd { min-width: 0; }
-@container (min-width: 560px) { .pk-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@container (min-width: 600px) { .pk-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
 /* Publish progress: main draws the ring (.spin, a still ring with one strong quarter) and the green tick; clark's own setting
    (<html data-motion="reduce">) also stops the ring, which the media query alone would not. */

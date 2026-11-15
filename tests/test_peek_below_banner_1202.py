@@ -89,7 +89,7 @@ class PeekBrowser(unittest.TestCase):
                 ids = self.ids_on_page(cdp, sid)
                 kinds = {}
                 for i in ids:
-                    kinds.setdefault(i.split("-")[0], i)
+                    kinds.setdefault(i.split("-")[1], i)
                 self.assertGreaterEqual(len(kinds), 2, "the demo page has more than one kind of item")
                 for theme in ("light", "dark"):
                     cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
