@@ -27,9 +27,9 @@ class TipEdges(BrowserBase, unittest.TestCase):
 
         def data_for(code, **kw):
             d = copy.deepcopy(base(code, **kw))
-            if code == "TUL":
-                ms = d["milestones"]
-                dates = sorted(x for m in ms for x in (m["baseline_date"], m["forecast_date"], m["actual_date"]) if x)
+            ms = d["milestones"] if code == "TUL" else []
+            dates = sorted(x for m in ms for x in (m["baseline_date"], m["forecast_date"], m["actual_date"]) if x)
+            if dates:      # a call that carries no dated milestone (a view of archived ones, say) is passed on as it is
                 lo, hi = (datetime.date.fromisoformat(dates[0]), datetime.date.fromisoformat(dates[-1]))
                 for i in range(4):   # four long names close together at each end: all but one are hidden; the late ones lie years out, so the line scrolls
                     for tag, day in (("E", lo - datetime.timedelta(days=30 - i)), ("L", hi + datetime.timedelta(days=1000 + i))):
@@ -45,6 +45,7 @@ class TipEdges(BrowserBase, unittest.TestCase):
         for width in (1400, 900):
             with chrome() as cdp:
                 sid = self.visit(cdp, width, "#milestones&p=TUL", port)
+                cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)   # the page has the focus, so element.focus() matches :focus-visible on a Mac runner too
                 cdp.js("document.querySelector('.mv-bar [data-scale-b=quarter]').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-mk[data-hid]').length", sid) > 4), f"{width}: names are hidden")
                 n = cdp.js("document.querySelectorAll('.mv-mk[data-hid]').length", sid)
