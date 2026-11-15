@@ -40,7 +40,10 @@ class StartCommand(unittest.TestCase):
 
     def run_script(self, *args, **extra):
         # A PATH of the stub folder only, so no docker, curl, Chrome or clark of this computer is ever found (a CI image has docker in /usr/bin).
-        env = {"PATH": str(self.bin), "HOME": self.tmp, "LOG": str(self.log), "CLARK_DATA_DIR": f"{self.tmp}/data", **extra}
+        # CLARK_BROWSER names a program that does not exist, so the starter's own search (the Chrome or Edge of the computer the test runs on,
+        # on a Mac runner the real /Applications one) is never reached and the stubbed `open -a` line is what the script falls back to.
+        env = {"PATH": str(self.bin), "HOME": self.tmp, "LOG": str(self.log), "CLARK_DATA_DIR": f"{self.tmp}/data",
+               "CLARK_BROWSER": f"{self.tmp}/no-such-browser", **extra}
         return subprocess.run([shutil.which("bash"), str(self.repo / "docker" / "start.command"), *args], env=env, capture_output=True, text=True, cwd=self.tmp, timeout=60)
 
     def calls(self):
@@ -56,6 +59,18 @@ class StartCommand(unittest.TestCase):
         self.assertFalse([c for c in calls if c.startswith("python3")], "Python must not start when Docker works")
         self.assertIn("clark is running in Docker.", r.stdout)
         self.assertIn("Opened clark in Chrome.", r.stdout)
+
+    def test_a_chrome_installed_on_the_computer_does_not_change_the_stubbed_runs(self):
+        """The macOS runner has a real Chrome in /Applications (here: one under HOME, which the starter also searches): the stubbed
+        `open -a` line must still be what these runs log, because CLARK_BROWSER is set to a program that is not there."""
+        real = Path(self.tmp) / "Applications" / "Google Chrome.app" / "Contents" / "MacOS" / "Google Chrome"
+        real.parent.mkdir(parents=True)
+        real.write_text("#!/bin/sh\necho real-chrome-started >> \"$LOG\"\n", encoding="utf-8")
+        real.chmod(0o755)
+        r = self.run_script()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn(f"open -a {BROWSER} http://localhost:8766", self.calls())
+        self.assertNotIn("real-chrome-started", self.calls())
 
     def test_docker_running_but_chrome_missing_gives_the_address(self):
         r = self.run_script(OPEN_RC="1", CLARK_PORT="9000")
