@@ -23,7 +23,7 @@ import sys
 import tempfile
 import threading
 import time
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 try:
     import fcntl               # the Mac's and Linux's file lock; there is none on Windows
@@ -125,10 +125,10 @@ def container_host_in_onedrive(environ=None):
     host = (os.environ if environ is None else environ).get("CLARK_DATA_SOURCE")
     if not host:
         return None
-    path = Path(host)
+    path = PureWindowsPath(host) if "\\" in host or re.match(r"[A-Za-z]:", host) else Path(host)      # item 629: a Windows host path is split on its backslashes (a Linux Path in the container would read it as one name)
     for i, part in enumerate(path.parts):
         if part.lower().startswith("onedrive"):
-            return Path(*path.parts[:i + 1])
+            return type(path)(*path.parts[:i + 1])
     return None
 
 

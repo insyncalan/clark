@@ -233,6 +233,21 @@ class ContainerOneDrive(unittest.TestCase):
                     self.assertNotIn("Users", str(e.exception))
                     self.assertIn("clark", str(e.exception)); self.assertNotIn("/data", str(e.exception), "it names the Mac's folder, not the container's")
 
+    def test_a_windows_folder_is_split_on_its_backslashes(self):
+        """item 629: the Windows overlay hands a path like C:\\Users\\sam\\OneDrive\\clark; a Linux Path in the container reads it as one name."""
+        for path in ("C:\\Users\\sam\\OneDrive\\clark", "C:\\Users\\sam\\OneDrive - Fictional Ltd\\Documents\\clark", "D:/Users/sam/OneDrive-Fictional Ltd/clark"):
+            with self.subTest(path):
+                a, b = self.host(path)
+                with a, b:
+                    root = pl.container_host_in_onedrive()
+                    self.assertIsNotNone(root)
+                    self.assertTrue(root.name.lower().startswith("onedrive"), root.name)
+        for path in ("C:\\Users\\sam\\clark-data", "C:\\Users\\sam\\Documents\\not-OneDrive-really\\clark"):
+            with self.subTest(path):
+                a, b = self.host(path)
+                with a, b:
+                    self.assertIsNone(pl.container_host_in_onedrive())
+
     def test_an_ordinary_folder_and_a_name_that_only_contains_onedrive_are_let_through(self):
         for path in ("/Users/sam/Library/Application Support/clark", "/Users/sam/clark-data", "/Users/sam/Documents/not-OneDrive-really/clark",
                      "/Users/sam/Library/CloudStorage/Box/clark", "/data"):
