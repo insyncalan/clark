@@ -237,6 +237,7 @@ class Body(test_peek_latest.Browser):
                 sent, sid = self.load(cdp, width, OVERDUE)
                 self.assertEqual(self.tabs(cdp, sid), ["all", "activity", "updates", "source"])
                 self.assertEqual(cdp.js("document.querySelector('[data-pk-htabs]').getAttribute('role')", sid), "tablist")
+                self.until(cdp, sid, "the history read arrived (the activity list is no longer aria-busy)", "(a => !!a && a.getAttribute('aria-busy') === 'false')(document.querySelector('[data-activity]'))")
                 for name, word in (("all", "All"), ("activity", "Activity"), ("updates", "Updates"), ("source", "Source")):
                     text, _ = self.tab(cdp, sid, name)
                     self.assertRegex(text, rf"^{word}\s*\d+$", f"{word} ends in its count")
