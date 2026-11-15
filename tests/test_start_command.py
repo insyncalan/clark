@@ -153,10 +153,6 @@ class StartCommand(unittest.TestCase):
         self.assertNotIn("read ", text)
         self.assertNotIn("sleep", text)
 
-
-if __name__ == "__main__":
-    unittest.main()
-
     def test_the_forms_compose_accepts_for_the_port_line_are_all_taken(self):
         forms = {"export": "export CLARK_PORT=9124\n", "blanks": "  CLARK_PORT=9125\n", "comment": "CLARK_PORT=9126 # my port\n",
                  "crlf": "A=1\r\nCLARK_PORT=9127\r\nB=2\r\n", "quoted comment": "CLARK_PORT='9128' # x\n",
@@ -167,5 +163,9 @@ if __name__ == "__main__":
                 if self.log.exists():
                     self.log.unlink()
                 self.run_script()
-                want = {"commented out": 8766, "last wins": 9130}.get(name, int(text.split("CLARK_PORT=")[1][:4]))
+                want = {"commented out": 8766, "last wins": 9130}.get(name, int(text.split("CLARK_PORT=")[1].strip("'\"")[:4]))
                 self.assertIn(f"open -a {BROWSER} http://localhost:{want}", self.calls())
+
+
+if __name__ == "__main__":
+    unittest.main()
