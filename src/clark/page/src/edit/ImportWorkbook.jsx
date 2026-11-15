@@ -26,6 +26,7 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
   const [saved, setSaved] = useState("");                    // the template, once the browser has been asked to save it
   const [ticks, setTicks] = useState({});
   const [ticked, setTicked] = useState({});                  // the sheets to import, by table
+  const [answers, setAnswers] = useState({});                // row 1156: each milestone or use case clark does not have: { do: "new" } or { do: "use", id }
   const input = useRef(null);
   const busy = useRef(false);                            // Import or Undo is already on its way: a second click (a double click) is ignored
   // Choose a file is off while the file is read, which takes the focus away; when the box is back on its first step, give it back.
@@ -60,6 +61,7 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
     if (!r.ok) { setStep({ at: "pick" }); setProblem(r.words); return; }
     if (keep) L.rememberSheets(tables);                  // only a check that went through keeps the choice
     setTicks(L.startTicks(r.body.items));
+    setAnswers(Object.fromEntries((r.body.unknowns || []).filter((u) => u.near.length === 1).map((u) => [u.id, { do: "use", id: u.near[0].id }])));   // a near match is offered as the answer
     setStep({ at: "plan", plan: r.body });
   }
 
@@ -74,12 +76,12 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
   async function doImport() {
     const p = step.plan;
     const accept = L.acceptedNumbers(p.items, ticks);
-    if (!accept.length || busy.current) return;
+    if (!accept.length || busy.current || L.openQuestions(p.unknowns, accept, answers).length) return;
     busy.current = true;
     try {
       setProblem("");
       setStep({ at: "applying", plan: p });
-      const r = await api.apply(project, p.plan, accept, p.unrecorded);
+      const r = await api.apply(project, p.plan, accept, p.unrecorded, L.sentAnswers(p.unknowns, answers));
       if (!r.ok) { setStep({ at: "plan", plan: p }); setProblem(r.words); return; }
       onDone(r.body);
       setStep({ at: "done", message: r.body.message, applyId: r.body.apply_id });
@@ -133,6 +135,8 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
   }
   const p = step.plan, items = p.items, shown = items.slice(0, SHOWN), count = L.acceptedNumbers(items, ticks).length;
   const refused = p.refused || [];
+  const unknowns = p.unknowns || [];
+  const open = L.openQuestions(unknowns, L.acceptedNumbers(items, ticks), answers).length;
   if (refused.length) {                                  // one row that breaks a rule refuses the whole file (the prototype's, io.js)
     const k = refused.length;
     return (
@@ -154,7 +158,7 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
   return (
     <Dialog key="plan" id="import-box" opener={opener} title={T.checkTitle} onClose={close} wide first={empty ? "#import-close" : "#import-go"}
       foot={<>{cancel}{empty ? <button type="button" class="btn pri" id="import-close" aria-disabled={applying ? "true" : undefined} onClick={close}>{T.close}</button>
-        : <button type="button" class="btn pri" id="import-go" disabled={!count || step.at === "applying"} onClick={doImport}>{p.unrecorded ? T.anyway : `Import ${count} ${count === 1 ? "change" : "changes"}`}</button>}</>}>
+        : <button type="button" class="btn pri" id="import-go" disabled={!count || open > 0 || step.at === "applying"} onClick={doImport}>{p.unrecorded ? T.anyway : `Import ${count} ${count === 1 ? "change" : "changes"}`}</button>}</>}>
       <p class="muted">{p.file} into {projectName}</p>
       <div class="stat" id="import-summary">{L.countsRow(p).map(([n, w]) => <span key={w}><b>{n}</b> {w}</span>)}</div>
       <p id="import-sheets">{L.sheetLine(p)}</p>
@@ -164,6 +168,33 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
       {p.notes.map((t, i) => <p class="muted imp-note" key={`n${i}`}>{t}</p>)}
       {empty ? null : (
         <>
+          {unknowns.length ? (
+            <div id="import-unknowns">
+              <div class="st-bar"><span class="muted">{T.notThere}</span></div>
+              <ul class="imp-list" aria-label={T.notThere}>
+                {unknowns.map((u) => {
+                  const a = answers[u.id] || {};
+                  return (
+                    <li key={u.id} data-unknown={u.id}>
+                      <div class="imp-main"><span class="tag">{L.KIND_NAME[u.kind]}</span> <span>{u.label}</span></div>
+                      <div class="muted imp-detail">{u.rows.map((r) => `${r.sheet}, row ${r.row}`).join("; ")}</div>
+                      <div class="st-act" role="radiogroup" aria-label={u.label}>
+                        <label><input type="radio" name={`u${u.id}`} value="new" checked={a.do === "new"} onChange={() => setAnswers((o) => ({ ...o, [u.id]: { do: "new" } }))} />{T.createIt}</label>
+                        <label><input type="radio" name={`u${u.id}`} value="use" checked={a.do === "use"} onChange={() => setAnswers((o) => ({ ...o, [u.id]: { do: "use", id: (o[u.id] && o[u.id].do === "use" && o[u.id].id) || "" } }))} />{T.useExisting}</label>
+                        {a.do === "use" ? (
+                          <select aria-label={u.label} value={a.id || ""} onChange={(e) => { const v = e.currentTarget.value; setAnswers((o) => ({ ...o, [u.id]: { do: "use", id: v } })); }}>
+                            <option value="">{T.chooseOne}</option>
+                            {u.options.map((o) => <option key={o.id} value={o.id}>{o.text}</option>)}
+                          </select>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+              {open ? <p class="muted" id="import-unanswered">{T.needAnswer}</p> : null}
+            </div>
+          ) : null}
           <div class="st-bar"><span class="muted">{T.changesToCheck}</span><span><button type="button" class="link" id="import-accept-all" onClick={() => setAll(true)}>{T.acceptAll}</button> · <button type="button" class="link" id="import-reject-all" onClick={() => setAll(false)}>{T.rejectAll}</button></span></div>
           <ul class="imp-list" aria-label="Changes in this workbook">
             {shown.map((i) => (

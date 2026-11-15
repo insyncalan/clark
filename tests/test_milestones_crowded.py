@@ -40,7 +40,7 @@ BOXES = """(() => {
   const laneClash = Object.values(lanes).flatMap((l) => l.flatMap((a, i) => l.slice(i + 1).filter((b) => a.l < b.r - EPS && b.l < a.r - EPS).map((b) => [a.n, b.n])));
   const wrap = document.querySelector('.mv-wrap'), strip = document.querySelector('.mv-strip').getBoundingClientRect();
   const lowest = Math.max(...labs.map((l) => l.b));
-  return {count: labs.length, pairs, laneClash, lowest: lowest - strip.top, stripHeight: strip.height, fits: wrap.scrollHeight <= wrap.clientHeight + EPS, bar: wrap.offsetHeight - wrap.clientHeight - 2,
+  return {count: labs.length, lanes: Object.keys(lanes), pairs, laneClash, lowest: lowest - strip.top, stripHeight: strip.height, fits: wrap.scrollHeight <= wrap.clientHeight + EPS, bar: wrap.offsetHeight - wrap.clientHeight - 2,
            todayHits: labs.concat(others).filter((o) => hit(today, o)).map((o) => o.n),
           inside: labs.every((l) => l.l >= document.querySelector('.mv-strip').getBoundingClientRect().left - 1)};
 })()"""
@@ -82,10 +82,14 @@ class Crowded(unittest.TestCase):
         return "" if not css else "(() => { const sheet = new CSSStyleSheet(); sheet.replaceSync(%s); document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet]; })();" % json.dumps(css)
 
     def check(self, cdp, sid, where):
-        self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-lab').length", sid) >= len(CROWDED)), where)
+        self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-mk').length", sid) >= len(CROWDED) and cdp.js("document.querySelectorAll('.mv-lab').length", sid) >= 1), where)
         time.sleep(0.4)                       # the labels are measured, then laid out again
         got = cdp.js(BOXES, sid)
-        self.assertGreaterEqual(got["count"], len(CROWDED) + 1, where)       # row 1020: one label a milestone (a slipped one carries '+N days' on it), no separate expected-date label
+        marks = cdp.js("document.querySelectorAll('.mv-mk').length", sid)
+        self.assertEqual(got["count"] + cdp.js("document.querySelectorAll('.mv-meas').length", sid), marks, where)       # row 1159: a name is shown or hidden (its mark keeps it), never both and never dropped
+        self.assertGreaterEqual(marks, len(CROWDED) + 1, where)
+        self.assertLess(got["count"], marks, f"{where}: the crowded line hides the names with no room")
+        self.assertEqual(len(got["lanes"]), 1, f"{where}: one lane")
         if "scrollbar font" in where:
             self.assertGreaterEqual(got["bar"], 10, f"{where}: this variant really draws a scrollbar that takes room inside the box")
         self.assertEqual(got["pairs"], [], f"{where}: no two labels overlap")
@@ -107,9 +111,9 @@ class Crowded(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.mv-wrap')", sid)))
                 self.check(cdp, sid, f"app {font} font {width}px")
 
-    def test_many_lanes_in_a_wider_font_still_fit_the_box(self):
-        """A wider font than this machine's (forced here) needs more lanes than the 900 px box limit: the box grows to the measured lanes."""
-        extra = [(f"Extra milestone number {n} with a long name", f"2026-11-{10 + n % 3:02d}", f"2026-11-{20 + n % 5:02d}") for n in range(40)]       # row 1020: a label is one line now, so more of them make the lanes the old 900 px limit could not hold
+    def test_many_more_milestones_still_make_one_lane_and_the_box_does_not_grow(self):
+        """Row 1159: forty more milestones in a wider font than this machine's (forced here) make no new lanes: names with no room are hidden, the box keeps its height."""
+        extra = [(f"Extra milestone number {n} with a long name", f"2026-11-{10 + n % 3:02d}", f"2026-11-{20 + n % 5:02d}") for n in range(40)]
         store, folder, _ = load_demo()               # its own store: the shared one keeps ten milestones for the other tests
         self.addCleanup(shutil.rmtree, str(folder), True)
         self.addCleanup(store.close)
@@ -117,7 +121,8 @@ class Crowded(unittest.TestCase):
         with store.step("dashboard", USER) as step:
             for name, base, fc in extra:
                 step.create("milestones", {"project": "TUL", "name": name, "baseline_date": base, "forecast_date": fc, "client_visible": 1, "source": "demo"})
-        s = Running(data_for=store.data_for, projects=lambda archived=False: store.read("projects"), page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        projects = store.read("projects")
+        s = Running(data_for=store.data_for, projects=lambda archived=False: projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         self.FONTS["wider"] = ".mv-lab, .mv-month, .mv-today { font-family: 'Courier New', 'DejaVu Sans Mono', monospace !important; letter-spacing: 0.2em !important; }"
         self.addCleanup(self.FONTS.pop, "wider", None)
@@ -127,11 +132,12 @@ class Crowded(unittest.TestCase):
             cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE + ";" + self.style_for("wider")}, sid)
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
             cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.port}/#milestones&p=TUL")}, sid)
-            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-lab').length", sid) >= len(CROWDED) + len(extra)))
+            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-mk').length", sid) >= len(CROWDED) + len(extra)))
             time.sleep(0.4)
             got = cdp.js(BOXES, sid)
-            self.assertGreater(got["lowest"], 880, "this check really needs more lanes than the old 900 px limit allowed")
-            self.assertTrue(got["fits"], f"the box is tall enough for the lanes actually used (lowest label {got['lowest']}, strip {got['stripHeight']})")
+            self.assertEqual(len(got["lanes"]), 1)
+            self.assertLess(got["stripHeight"], 200, "no lanes were added")
+            self.assertTrue(got["fits"])
             self.assertEqual(got["laneClash"], [])
 
     def test_in_the_published_file_at_1400_and_900_px(self):

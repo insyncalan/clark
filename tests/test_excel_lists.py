@@ -137,14 +137,14 @@ class Lists(unittest.TestCase):
 
     def test_the_projects_own_lists_are_on_the_lists_sheet(self):
         self.assertEqual(self.lists[WS], ["Build"])
-        self.assertEqual(self.lists[MS], sorted(f"{r['id']}: {r['name']}" for r in self.d.store.read("milestones", "ABC")))
-        self.assertEqual(self.lists[UC], sorted(f"{r['id']}: {r['title']}" for r in self.d.store.read("use_cases", "ABC")))
+        self.assertEqual(self.lists[MS], sorted((r["name"] for r in self.d.store.read("milestones", "ABC")), key=lambda v: (v.casefold(), v)))
+        self.assertEqual(self.lists[UC], sorted((excel.ref_text(r["id"], r["title"], r.get("ref")) for r in self.d.store.read("use_cases", "ABC")), key=lambda v: (v.casefold(), v)))
 
     def test_the_lists_sheet_is_hidden_and_last(self):
         self.assertEqual(self.wb["Lists"].sheet_state, "hidden")
-        self.assertEqual(self.wb.sheetnames[-1], "Lists")
+        self.assertEqual(self.wb.sheetnames[-2:], ["Lists", excel.META_NAME])
         self.assertEqual(self.wb.active.title, "Cover")             # the workbook opens on a visible sheet
-        for name in self.wb.sheetnames[:-1]:
+        for name in self.wb.sheetnames[:-2]:
             self.assertEqual(self.wb[name].sheet_state, "visible", name)
 
     def test_owner_is_free_text_with_a_note(self):

@@ -252,7 +252,7 @@ class MacZipTest(unittest.TestCase):
         """item 427: a computer that will not open clark.command uses Docker and Chrome only. The guide says it first, as commands to
         type (never a .command file), and the download holds the compose file it names."""
         text = package.start_here("mac")
-        up = "docker compose -f docker/compose.yaml up -d"
+        up = "bash docker/start.command"
         self.assertIn(up, text)
         self.assertIn("docker compose -f docker/compose.yaml down", text)
         self.assertIn("http://localhost:8766", text)
@@ -291,7 +291,7 @@ class MacZipTest(unittest.TestCase):
         self.assertIn("These steps are for a Mac.", flat)
         self.assertIn("With Docker, your data is kept in ~/Library/Application Support/clark, the same place clark.command uses, not in this folder, "
                       "so you can swap this folder for a newer download without losing anything.", flat)
-        self.assertIn('CLARK_DATA_DIR="/full/path" docker compose -f docker/compose.yaml up -d', flat)
+        self.assertIn('CLARK_DATA_DIR="/full/path" bash docker/start.command', flat)
         self.assertNotIn("beside the clark files", flat)
         self.assertIn("Use the clark download, not a copy of the source code: a copy of the source has no built page, and Docker stops with a message saying so.", flat)
         self.assertIn("To see what Docker has said, type this in the same folder:", flat)
@@ -303,7 +303,7 @@ class MacZipTest(unittest.TestCase):
         self.assertTrue(any(l.startswith("IMPORTANT: Never open the same data") for l in lines), "the warning starts its own line")
         self.assertLess(flat.index("With Docker, your data"), flat.index(warning))
         self.assertLess(flat.index(warning), flat.index("To use another port"))
-        self.assertIn("CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d then open http://localhost:8800 instead.", flat)
+        self.assertIn("CLARK_PORT=8800 bash docker/start.command then open http://localhost:8800 instead.", flat)
         self.assertLess(flat.index("With Docker, your data"), flat.index("Without Docker:"))
         self.assertIn("Without Docker, your data is kept in ~/Library/Application Support/clark", flat)
 
@@ -845,6 +845,77 @@ class ImagePapersTest(unittest.TestCase):
         for needle in ("python:3.12-slim", "bash 5.2.15-2+b7: GPL-3+", "libssl3 3.0.17-1~deb12u2: see /usr/share/doc/libssl3/copyright"):
             with self.subTest(needle=needle):
                 self.assertIn(needle, text)
+
+
+def _files_in_zip(listed_items):
+    """The names (as the zip holds them) that a list of items produces from the tracked files."""
+    out = []
+    for item in listed_items:
+        names = tracked(item) if item.endswith("/") else [item]
+        out += [release_files.place(n) for n in names]
+    return out
+
+
+class PreviousReleaseAcceptsThisOneTest(unittest.TestCase):
+    """Item 1151: an installed older version checks a new zip against ITS OWN list (updates.check_coverage). Tests used to
+    check the new list against the new zip only, so 1.0.7 (new vendor/pypdf/) was refused by every 1.0.6 computer."""
+
+    @staticmethod
+    def _old_module(tag):
+        r = subprocess.run(["git", "-C", str(ROOT), "show", f"{tag}:src/clark/release_files.py"], capture_output=True)
+        if r.returncode != 0:
+            return None
+        import types
+        mod = types.ModuleType("old_release_files")
+        exec(compile(r.stdout, f"{tag}/release_files.py", "exec"), mod.__dict__)
+        return mod
+
+    @staticmethod
+    def unsafe_for(old, system="mac"):
+        """The names this tree's zip would hold that the older list `old` does not cover (what check_coverage calls unsafe)."""
+        return sorted(n for n in _files_in_zip(release_files.listed(system)) if not old.covers(system, n))
+
+    def test_an_older_list_missing_a_path_is_caught(self):
+        import types
+        old = types.SimpleNamespace(covers=lambda system, rel: not rel.startswith(".app/vendor/pypdf/"))
+        found = self.unsafe_for(old)
+        self.assertTrue(found and all(n.startswith(".app/vendor/pypdf/") for n in found))
+
+    def test_the_last_release_list_covers_every_file_of_this_tree(self):
+        tags = subprocess.run(["git", "-C", str(ROOT), "tag", "--list", "v*", "--sort=-v:refname"], capture_output=True, text=True).stdout.split()
+        if not tags:
+            shallow = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--is-shallow-repository"], capture_output=True, text=True).stdout.strip()
+            if shallow == "true":
+                self.skipTest("shallow clone with no release tags (push runs use depth 1; pull request runs fetch all tags)")
+            self.fail("no v* release tag in a full clone: fetch tags (git fetch --tags)")
+        old = self._old_module(tags[0])
+        self.assertIsNotNone(old, tags[0])
+        self.assertEqual([], self.unsafe_for(old), f"{tags[0]} would refuse this tree's zip as outside its own list")
+
+    def test_the_last_release_own_check_coverage_accepts_this_trees_zip(self):
+        """Item 1151: run the newest tag's real updates.check_coverage (its own code and its own list), not release_files.covers alone."""
+        import importlib.util
+        import clark
+        tags = subprocess.run(["git", "-C", str(ROOT), "tag", "--list", "v*", "--sort=-v:refname"], capture_output=True, text=True).stdout.split()
+        if not tags:
+            self.skipTest("no v* release tag (shallow clone without tags); the sibling test decides skip or fail")
+        tag = tags[0]
+        old_rf = self._old_module(tag)
+        src = subprocess.run(["git", "-C", str(ROOT), "show", f"{tag}:src/clark/updates.py"], capture_output=True)
+        self.assertEqual(0, src.returncode, tag)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "old_updates.py"
+            path.write_bytes(src.stdout)
+            spec = importlib.util.spec_from_file_location("old_updates", path)
+            old = importlib.util.module_from_spec(spec)
+            with mock.patch.object(clark, "release_files", old_rf):      # the old file does `from clark import release_files`
+                spec.loader.exec_module(old)
+        for system in sorted(set(release_files.SYSTEMS) - release_files.NOT_BUILT_YET):
+            rels = _files_in_zip(release_files.listed(system) + (release_files.START_HERE,))
+            try:
+                old.check_coverage(system, rels)
+            except old.UpdateError as e:
+                self.fail(f"{tag} would refuse this tree's {system} zip: {e}")
 
 
 if __name__ == "__main__":

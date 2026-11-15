@@ -235,7 +235,7 @@ class Polish(Rig):
                 self.assertTrue(cell.alignment.wrap_text, (sheet, name))
                 self.assertEqual(cell.alignment.vertical, "top")
                 self.assertEqual(ws.column_dimensions[heads[name]].width, 40)
-            self.assertEqual(ws[f"{heads['Use case']}2"].value, "U1: Pay")
+            self.assertEqual(ws[f"{heads['Use case']}2"].value, "Pay")
             for name in ("ID", "Owner", "Labels"):
                 if name in heads:
                     self.assertFalse(ws[f"{heads[name]}2"].alignment.wrap_text, (sheet, name))

@@ -5,6 +5,7 @@
 // (the browser's print), Past reports. Light and dark have their own small button beside the badge. The reader's name and look are kept in their own browser only (stores/reader.js).
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { Icon } from "./Icon.jsx";
+import { actionIcon } from "../menuIcons.js";
 import { MenuPanel, useMenuState } from "./Menu.jsx";
 import { data } from "../stores/report.js";
 import { printReport } from "../stores/print.js";
@@ -85,7 +86,7 @@ export function ClientMenu() {
   const wasBox = useRef(false);
   useLayoutEffect(() => { if (wasBox.current && !box && btn.current) btn.current.focus(); wasBox.current = box; }, [box]);
   const run = (fn) => () => { close("pick"); fn(); };
-  const item = (row, label, fn, extra) => <button type="button" class="cm-row" role="menuitem" tabIndex={-1} data-row={row} onClick={run(fn)} {...extra}>{label}</button>;
+  const item = (row, label, fn, extra) => <button type="button" class="cm-row" role="menuitem" tabIndex={-1} data-row={row} onClick={run(fn)} {...extra}>{actionIcon(row) ? <Icon name={actionIcon(row)} cls="mi" /> : null}{label}</button>;
   return (
     <span class="cm-wrap">
       <button type="button" class="cm-theme" id="client-theme-btn" aria-label={WORDS.theme} title={WORDS.theme} data-tip={WORDS.theme} onClick={toggleLook}>
@@ -101,12 +102,12 @@ export function ClientMenu() {
         <MenuPanel label={WORDS.menu} id="client-menu" cls="cm-menu" anchor={btn.current} onClose={close}>
           {item("profile", WORDS.profile, () => setBox(true))}
           {book ? item("excel", WORDS.excel, () => download(book)) : null}
-          {big ? <button type="button" class="cm-row" role="menuitem" aria-disabled="true" data-keep="1" tabIndex={-1} data-row="excel" aria-describedby="client-menu-big">{WORDS.excel}</button> : null}
+          {big ? <button type="button" class="cm-row" role="menuitem" aria-disabled="true" data-keep="1" tabIndex={-1} data-row="excel" aria-describedby="client-menu-big"><Icon name={actionIcon("excel")} cls="mi" />{WORDS.excel}</button> : null}
           {big ? <div class="cm-note" id="client-menu-big" role="presentation">{WORDS.big}</div> : null}
           {item("pdf", WORDS.pdf, () => { printReport(); })}
           <div class="cm-group" role="group" aria-labelledby="client-menu-past" data-row="past">
             <div class="lab" role="presentation" id="client-menu-past">{WORDS.past}</div>
-            {past.map((r) => <a class="cm-row cm-link" role="menuitem" tabIndex={-1} href={r.href} title={`Report of ${r.date}`} key={r.iso + r.href}>{r.date}</a>)}
+            {past.map((r) => <a class="cm-row cm-link" role="menuitem" tabIndex={-1} href={r.href} title={`Report of ${r.date}`} key={r.iso + r.href}><Icon name={actionIcon("pastReport")} cls="mi" />{r.date}</a>)}
             <div class="cm-note" role="presentation">{past.length ? WORDS.sameFolder : WORDS.none}</div>
           </div>
         </MenuPanel>

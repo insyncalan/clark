@@ -32,6 +32,9 @@ class ToastFiveSeconds(Base):
 
     def motion(self, cdp, p, value):
         cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": value}]}, p.sid)
+        if value == "no-preference":     # the Mac asks for reduced motion and the page painted data-motion=reduce at load: clear it
+            p.js("delete document.documentElement.dataset.motion")
+            p.until(f"matchMedia('(prefers-reduced-motion: reduce)').matches === false && !document.documentElement.dataset.motion", "motion is no-preference")
 
     def at(self, seconds):
         wait = self.t0 + seconds - time.monotonic()
@@ -40,7 +43,7 @@ class ToastFiveSeconds(Base):
 
     def test_the_message_is_still_there_at_4_seconds_and_gone_by_6_and_the_bar_shrinks(self):
         with chrome() as cdp:
-            p = self.visit(cdp)
+            p = self.visit(cdp, motion="no-preference")      # before the load: a Mac that reduces motion paints data-motion=reduce at load
             self.motion(cdp, p, "no-preference")
             self.make_toast(p)
             self.assertTrue(p.js(f"!!document.querySelector('{BAR}') && getComputedStyle(document.querySelector('{BAR}')).display !== 'none'"), "the bar is drawn")

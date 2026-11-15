@@ -283,7 +283,7 @@ class Token(ServerTest):
             self.assertTrue(r.startswith("/api/"), r)
         free = {("GET", "/health"), ("GET", "/"), ("POST", sv.CSP_REPORT_ROUTE),
                 *(("GET", sv.BRAND_PREFIX + n) for n in page.PICTURES)}
-        self.assertEqual(sorted(page.PICTURES), ["cover.jpeg", "cover.jpg", "cover.png", "cover.webp"])
+        self.assertEqual(sorted(page.PICTURES), ["cover.jpeg", "cover.jpg", "cover.png", "cover.webp", "logo.png"])
         with mock.patch.object(self.s.httpd, "brand_picture", lambda name: (PICTURE, page.PICTURES[name])):
             for method, path in sorted(free):
                 if method == "GET":

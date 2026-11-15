@@ -253,7 +253,7 @@ export function setProject(code) {
 // A different project is a fresh page load, GET /?project=<code> (#944): the server sends that project's one brand block with the policy's
 // hashes of exactly those bytes. The page is asked for first: if it cannot be had, this page stays and moves in place as before (as it does
 // for the same project, or an address that cannot be set).
-function loadProject(s) {
+function loadProject(s, replace) {
   if (s.project === project.value || typeof fetch !== "function") { go(s); return; }
   const url = "/?project=" + s.project + route.format(s);
   const since = trouble.n;
@@ -262,7 +262,7 @@ function loadProject(s) {
     if (!r) return;                                        // the save failed or ran past the wait: this page stays, as it is
     if (!r.ok) { go(s); return; }
     try { beforeReload.forEach((f) => f()); } catch (e) {}
-    location.assign(url);
+    location[replace ? "replace" : "assign"](url);          // the auto-open replaces: Back from it leaves, it does not land on the bare address again
   }, () => go(s));
 }
 
@@ -402,12 +402,6 @@ const CHANGE_KNOWN = {
   "That value isn't one clark can use.": "That value can't be used, and nothing was changed. Try another.",
   "A latest update can be at most 1000 characters. Shorten it and try again.": "A latest update can be 1000 characters at most. Nothing was changed. Shorten it and try again.",
   "That has a hidden character in it. Take it out and try again.": "That update has a hidden character in it, often from copying and pasting. Nothing was changed. Type it again, then press Enter.",
-  // #121: a 'Needs from you' list clark would not save (clark/section_bodies.py's words; the page checks first and says the same)
-  "Needs from you can have at most 100 rows.": "A list can have 100 rows at most, and nothing was changed. Remove one to add another.",
-  "Say what is needed.": "Say what is needed. Nothing was changed.",
-  "What is needed can be 300 characters at most.": "What is needed can be 300 characters at most. Nothing was changed.",
-  "From can be 100 characters at most.": "From can be 100 characters at most. Nothing was changed.",
-  "By must be a real day between 2000 and 2100, or empty.": "By must be a real day between 2000 and 2100, or empty. Nothing was changed.",
   // the change route's own limit (server.py MESSAGES change_too_large) is the key at the end of this table
   // row 1005: the Text and picture section's text over its limit (section_kinds/textimage.py's words, said as the server says them)
   "The text can be 40,000 characters at most. Shorten it and try again.": "The text can be 40,000 characters at most. Shorten it and try again.",
@@ -482,6 +476,21 @@ function nameProject(s) {
     route.replaceAddress("/?project=" + s.project + route.format(s));
   } catch (e) {}
 }
+// A bare address (no project named) on the page's first read: the only project opens by itself; with two or more, the last one used here
+// does if it is still there. Otherwise the chooser stays. Later visits to the chooser (the project button, a removed project) never jump.
+const LAST = "clark.lastProject";
+function lastUsed() { try { return localStorage.getItem(LAST) || ""; } catch (e) { return ""; } }
+export function rememberProject(code) { try { if (code) localStorage.setItem(LAST, code); } catch (e) { /* a private window: not remembered */ } }
+function forgetProject() { try { localStorage.removeItem(LAST); } catch (e) { /* not remembered anyway */ } }
+function autoOpen() {
+  const list = projects.value;
+  if (projectsState.value !== "ready" || !list.length) return;
+  if (view.value === "settings" || view.value === "published") return;          // these pages work without a project: opening one would pull the page away
+  const pick = list.length === 1 ? list[0].code : (list.find((p) => p.code === lastUsed()) || {}).code;
+  if (!pick) { if (list.length > 1 && lastUsed()) forgetProject(); return; }          // a remembered project that is gone is dropped
+  if (!route.isProject(pick)) return;
+  loadProject({ view: view.value, project: pick, item: "", ms: "", f: "" }, true);
+}
 let firstLoad = true;          // only the page's first read may go to another page for its brand: a switch that could not get the page stays put (loadProject)
 export async function load() {
   const first = firstLoad; firstLoad = false;
@@ -489,7 +498,7 @@ export async function load() {
   if (p) return openPublished(p);          // a published file never asks a server for anything
   const code = project.value;
   const mine = ++reading;
-  if (!code) { status.value = "none"; return loadProjects(); }
+  if (!code) { status.value = "none"; await loadProjects(); if (first && mine === reading) autoOpen(); return; }
   status.value = "loading";
   try {
     const r = await fetch(`/api/data?project=${encodeURIComponent(code)}`, { headers: { "X-Clark-Token": token() } });
@@ -497,6 +506,7 @@ export async function load() {
     if (mine !== reading) return;
     if (r.status === 404) { status.value = "missing"; message.value = plain(404, body); return; }
     if (!r.ok || !body.ok) { status.value = "failed"; message.value = plain(r.status, body); return; }
+    rememberProject(code);          // only a project that opened is remembered as the last used
     if (first) {
       if (!(body.data && body.data.project && body.data.project.brand === "generic") && reloadFor(where(), false)) return;   // a brand of its own (or none known): the page for it, before anything is drawn
       nameProject(where());          // a Generic project keeps this page; its address names it as the reload would have (no second load)

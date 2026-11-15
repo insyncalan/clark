@@ -1531,7 +1531,7 @@ def all_sections_deleted(con, code):
 def delete_row(con, table, key, current, step, item=False):
     """Remove a links, item_labels, labels (or, #65, report_sections, glance_tiles, report_hidden) row; item 658: or, when `item`
     is true (only delete_item says so), an action, RAID item or decision. The row is kept in change_log (field REMOVED) so undo can put it back."""
-    if table not in DELETED_ON_CANCEL and not (item and table in DELETABLE_ITEMS):
+    if table not in DELETED_ON_CANCEL and not (item and (table in DELETABLE_ITEMS or table == "use_case_milestones")):
         raise Invalid(f"{table} rows are never deleted; close or cancel them instead")
     current = dict(current)
     if table == "labels":
@@ -1547,7 +1547,7 @@ def delete_row(con, table, key, current, step, item=False):
     return key
 
 
-DELETABLE_ITEMS = ("actions", "raid", "decisions")     # item 658: the work items a person may delete (not by cancel: cancel closes them); milestones and use cases are never deleted
+DELETABLE_ITEMS = ("actions", "raid", "decisions", "milestones", "use_cases")     # item 658: the work items a person may delete (not by cancel: cancel closes them); item 1148: and a milestone and a use case, the same way
 
 
 def item_pointer(con, key):
@@ -1556,14 +1556,14 @@ def item_pointer(con, key):
     for table, col in REVERT_REFS:
         if table in ("links", "item_labels") or col not in columns(con, table):
             continue
-        r = con.execute(f"SELECT * FROM {_table(table)} WHERE {col} = ? LIMIT 1", (key,)).fetchone()
+        r = con.execute(f"SELECT * FROM {_table(table)} WHERE {col} = ?" + (" AND removed_at IS NULL" if table == "use_case_milestones" else "") + " LIMIT 1", (key,)).fetchone()   # item 1148: a link taken off is history, not a pointer
         if r:
             return table, key_of(table, r)
     return None
 
 
 def delete_item(con, table, key, current, step):
-    """Item 658: delete one action, RAID item or decision, with its links, its labels and its hiding from the report, in the
+    """Item 658: delete one action, RAID item or decision (item 1148: or a milestone or a use case), with its links, its labels and its hiding from the report, in the
     caller's one step. Each row is kept in change_log (field REMOVED) so one Undo puts all of them back while they are still gone.
     Refused for another table, an archived item or project, or an item another record points at. The ID is never reused
     (next_id reads change_log)."""
@@ -1577,9 +1577,12 @@ def delete_item(con, table, key, current, step):
         raise Invalid(f"{key} can't be deleted: something refers to it ({_REF_WORDS.get(pointer[0], pointer[0])} {pointer[1]}).")
     for t, rows_ in (("links", con.execute("SELECT * FROM links WHERE from_item = ? OR to_item = ?", (key, key)).fetchall()),
                      ("item_labels", con.execute("SELECT * FROM item_labels WHERE item_id = ?", (key,)).fetchall()),
-                     ("report_hidden", con.execute("SELECT * FROM report_hidden WHERE project = ? AND item_id = ?", (current["project"], key)).fetchall())):
+                     ("report_hidden", con.execute("SELECT * FROM report_hidden WHERE project = ? AND item_id = ?", (current["project"], key)).fetchall()),
+                     # item 1148: the links of a milestone or use case that were taken off stay as history; they go with it (no live one is left: that is a pointer)
+                     ("use_case_milestones", con.execute("SELECT * FROM use_case_milestones WHERE use_case = ? OR milestone = ?", (key, key)).fetchall()
+                      if table in ("milestones", "use_cases") else [])):
         for r in rows_:
-            delete_row(con, t, key_of(t, r), dict(r), step)
+            delete_row(con, t, key_of(t, r), dict(r), step, item=(t == "use_case_milestones"))
     return delete_row(con, table, key, current, step, item=True)
 
 
@@ -1958,7 +1961,7 @@ def revert_plan(con, rows, step, undoing_a_revert):
 def _link_end_gone(con, old):
     """Item 658: whether either work item a removed link joined is not in the project now."""
     for end in (old.get("from_item"), old.get("to_item")):
-        if end and not any(fetch(con, t, end) is not None for t in DELETABLE_ITEMS + ("milestones", "use_cases")):
+        if end and not any(fetch(con, t, end) is not None for t in DELETABLE_ITEMS):
             return True
     return False
 
@@ -1978,7 +1981,7 @@ def _return_links(con, step, key, undoing):
             continue
         if con.execute("SELECT 1 FROM change_log WHERE tbl = 'links' AND item_id = ? AND rowid > ?", (lk, r["rowid"])).fetchone():
             continue                                               # the link was put back, or taken away again, since
-        if not con.execute("SELECT 1 FROM change_log WHERE apply_id = ? AND field = ? AND tbl IN ('actions', 'raid', 'decisions')",
+        if not con.execute("SELECT 1 FROM change_log WHERE apply_id = ? AND field = ? AND tbl IN ('actions', 'raid', 'decisions', 'milestones', 'use_cases')",
                            (r["apply_id"], REMOVED)).fetchone():
             continue                                               # not removed by a delete of an item
         back = {k: v for k, v in old.items() if k in columns(con, "links") and v is not None}

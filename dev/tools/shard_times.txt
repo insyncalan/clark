@@ -346,7 +346,6 @@ test_ms_block_hidden_once.py 0.4
 test_ms_followups.py 21.1
 test_multi_select.py 126.4
 test_needs_content.py 4.8
-test_needs_page.py 40.6
 test_needs_route.py 4.2
 test_no_client_image.py 1.0
 test_no_real_names.py 46.2

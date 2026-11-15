@@ -55,14 +55,14 @@ class NoSectionToList(unittest.TestCase):
         self.assertEqual(self.needs_in(made), [], "the owner's hidden section stays hidden")
         self.assertEqual(lines, [])
 
-    def test_a_hidden_needs_section_before_a_shown_one_does_not_take_the_rows(self):
+    def test_a_hidden_needs_section_before_a_shown_one_is_neither_drawn_nor_fed_rows(self):
         self.section(hidden=1, sort_order=1)
         shown = self.section(hidden=0, sort_order=2)
         self.flag(2)
         made, lines = self.built_quietly()
         got = self.needs_in(made)
-        self.assertEqual([x["id"] for x in got], [shown])
-        self.assertEqual([r["what"] for r in got[0]["rows"]], ["G000", "G001"])
+        self.assertEqual(got, [], "item 1158: a stored Needs from you section is not drawn in the file, and takes no flagged row")
+        self.assertIn(shown, [r["id"] for r in self.s.read("report_sections", project="ABC")], "it stays stored")
         self.assertEqual(lines, [])
 
 
