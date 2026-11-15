@@ -87,7 +87,10 @@ class Delete(unittest.TestCase):
         return sid
 
     def pick(self, cdp, sid, button, entry):
-        click(cdp, sid, button)
+        if button.endswith(".ucl-go"):      # row 1203: a use case's row has no More button, its menu is the right-click menu (the same two entries)
+            cdp.js(f"document.querySelector({json.dumps(button)}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true, clientX: 300, clientY: 300}}))", sid)
+        else:
+            click(cdp, sid, button)
         self.until(cdp, sid, f"!!document.querySelector('.ddmenu [data-kind={entry}]')", "the More actions menu opened")
         return cdp.js("[...document.querySelectorAll('.ddmenu [role=menuitem]')].map(b => b.dataset.kind)", sid)
 
@@ -110,7 +113,7 @@ class Delete(unittest.TestCase):
             with self.subTest(width), chrome() as cdp:
                 sid = self.visit(cdp, "#usecases&p=TUL", f"document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0 && !!document.querySelector('{row}')", width)
                 self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), "no sideways scroll")
-                names = self.pick(cdp, sid, f"{row} .ucl-more", "delete")
+                names = self.pick(cdp, sid, f"{row} .ucl-go", "delete")
                 self.assertEqual(names, ["archive", "delete"])
                 self.assertTrue(cdp.js("document.querySelector('.ddmenu [data-kind=delete]').classList.contains('danger')", sid))
                 click(cdp, sid, ".ddmenu [data-kind=delete]")
@@ -121,7 +124,7 @@ class Delete(unittest.TestCase):
                 self.until(cdp, sid, "!document.querySelector('[role=alertdialog]')", "the question closed")
                 self.assertFalse(self.gone("use_cases", self.uc))
                 self.assertTrue(cdp.js(f"!!document.querySelector('{row}')", sid))
-                self.pick(cdp, sid, f"{row} .ucl-more", "delete")
+                self.pick(cdp, sid, f"{row} .ucl-go", "delete")
                 click(cdp, sid, ".ddmenu [data-kind=delete]")
                 self.question(cdp, sid)
                 click(cdp, sid, "[role=alertdialog] [data-bask=yes]")
@@ -136,16 +139,33 @@ class Delete(unittest.TestCase):
         row = f"#usecases [data-uc={json.dumps(self.uc)}]"
         with chrome() as cdp:
             sid = self.visit(cdp, "#usecases&p=TUL", f"!!document.querySelector('{row}')", 1400)
-            self.pick(cdp, sid, f"{row} .ucl-more", "archive")
+            self.pick(cdp, sid, f"{row} .ucl-go", "archive")
             click(cdp, sid, ".ddmenu [data-kind=archive]")
             self.toast(cdp, sid, "Use case archived. It can be restored.")
             self.assertTrue(self.archived("use_cases", self.uc))
+
+    def test_row_1203_the_rows_have_column_names_and_no_more_button_and_the_menu_key_opens_the_menu_and_esc_gives_the_focus_back(self):
+        row = f"#usecases [data-uc={json.dumps(self.uc)}]"
+        for width in (1400, 900):
+            with self.subTest(width), chrome() as cdp:
+                sid = self.visit(cdp, "#usecases&p=TUL", f"!!document.querySelector('{row}')", width)
+                heads = cdp.js("[...document.querySelectorAll('#usecases .ucl-cols > span')].map(s => s.textContent).filter(Boolean)", sid)
+                self.assertEqual(heads, ["Use case", "Where it stands", "Status", "Next steps"])
+                self.assertEqual(cdp.js("document.querySelectorAll('#usecases .ucl-more').length", sid), 0, "no More button on a row")
+                cdp.js(f"document.querySelector({json.dumps(row + ' .ucl-go')}).focus()", sid)
+                cdp.js(f"document.querySelector({json.dumps(row + ' .ucl-go')}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true, clientX: 0, clientY: 0}}))", sid)      # the menu key or Shift+F10: no pointer
+                self.until(cdp, sid, "!!document.querySelector('#ucl-ctx [data-kind=archive]')", "the menu opened")
+                self.assertEqual(cdp.js("[...document.querySelectorAll('#ucl-ctx [role=menuitem]')].map(b => b.dataset.kind)", sid), ["archive", "delete"])
+                cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Escape", "code": "Escape", "windowsVirtualKeyCode": 27}, sid)
+                cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "Escape", "code": "Escape", "windowsVirtualKeyCode": 27}, sid)
+                self.until(cdp, sid, "!document.querySelector('#ucl-ctx')", "the menu closed")
+                self.until(cdp, sid, f"document.activeElement === document.querySelector({json.dumps(row + ' .ucl-go')})", "the focus is back on the row's name")
 
     def test_a_use_case_with_work_items_is_refused_by_name_and_stays(self):
         row = f"#usecases [data-uc={json.dumps(USED_UC)}]"
         with chrome() as cdp:
             sid = self.visit(cdp, "#usecases&p=TUL", f"!!document.querySelector('{row}')", 1400)
-            self.pick(cdp, sid, f"{row} .ucl-more", "delete")
+            self.pick(cdp, sid, f"{row} .ucl-go", "delete")
             click(cdp, sid, ".ddmenu [data-kind=delete]")
             self.question(cdp, sid)
             click(cdp, sid, "[role=alertdialog] [data-bask=yes]")
