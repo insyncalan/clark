@@ -17,8 +17,8 @@ MAC_GUIDE = (ROOT / "docker" / "UPDATE.txt").read_text(encoding="utf-8")
 WIN_COMPOSE = (ROOT / "docker" / "compose.windows.yaml").read_text(encoding="utf-8")
 SHEET = (ROOT / "dev" / "handchecks" / "1.1.0-sheet.md").read_text(encoding="utf-8")
 BOTH = "docker compose -f docker/compose.yaml -f docker/compose.windows.yaml"
-# The one sentence that is new and not ruled (item 633, G2). It must stay marked UNRULED in the file until the owner rules it.
-UNRULED_LINE = "UNRULED: unzip the new download beside the old clark folder, so the folder clark-data is found again."
+# The sentence that was new in item 633 (G2); its wording is now approved and the file carries it plain.
+RULED_LINE = "unzip the new download beside the old clark folder, so the folder clark-data is found again."
 
 
 def commands(text):
@@ -41,9 +41,9 @@ class WindowsUpdateGuide(unittest.TestCase):
         for name in ("compose.yaml", "compose.windows.yaml"):
             self.assertTrue((ROOT / "docker" / name).is_file())
 
-    def test_the_new_folder_is_unzipped_beside_the_old_one_and_the_line_is_marked_unruled(self):
-        self.assertIn(UNRULED_LINE, GUIDE)
-        self.assertEqual(GUIDE.count("UNRULED"), 1, "one unruled sentence, listed in this test")
+    def test_the_new_folder_is_unzipped_beside_the_old_one_and_the_line_is_plain(self):
+        self.assertIn(RULED_LINE, GUIDE)
+        self.assertNotIn("UNRULED", GUIDE)
 
     def test_the_windows_data_source_is_a_sibling_of_the_clark_folder(self):
         self.assertIn("${CLARK_DATA_DIR:-../../clark-data}", WIN_COMPOSE)
