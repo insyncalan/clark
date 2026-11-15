@@ -239,9 +239,9 @@ class PageKeys(Base):
             p.until("document.querySelectorAll('#hp-ref-keys .hp-keys tbody tr').length > 0", "the key table drew")
             rows = p.js("[...document.querySelectorAll('#hp-ref-keys .hp-keys tbody tr')].map(r => r.textContent)")
             hit = [r for r in rows if "Single-key shortcuts" in r]
-            self.assertEqual(len(hit), 2, "the V row and the E row each say it")
+            self.assertEqual(len(hit), 3, "the V row, the E row and the O S P T C row each say it")
             self.assertFalse([r for r in rows if r.startswith("?") and "Single-key" in r], "? is not a letter key: it is not covered")
-            self.assertTrue(any(r.startswith("V") for r in hit) and any(r.startswith("E") for r in hit))
+            self.assertTrue(any(r.startswith("V") for r in hit) and any(r.startswith("E") for r in hit) and any(r.startswith("O") for r in hit))
             self.assertTrue(all("Settings › Personal" in r for r in hit))
 
     def test_the_setting_survives_a_reload(self):
