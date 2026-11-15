@@ -1080,7 +1080,8 @@ class RealBrowser(unittest.TestCase):
             self.assertEqual(cdp.js("document.title", sid), self.name)
             self.assertEqual(cdp.js("[...document.querySelectorAll('.tab')].map(t => t.dataset.view).join()", sid),
                              "dashboard,work,milestones,usecases", "four tabs and no Settings")
-            self.assertIsNone(cdp.js("document.querySelector('.top .asat')", sid), "issue 1178: no date chip in the bar")
+            self.assertIn("28-10-2026", cdp.js("(document.querySelector('.top button.asat') || {}).textContent", sid),
+                          "issue 1178: the publish date is a button in the bar")
             cdp.js("document.querySelector('#client-menu-btn').click()", sid)
             self.assertIn("As at 28-10-2026", cdp.js("document.querySelector('#client-menu').textContent", sid), "the publish date is in the profile menu")
             for view, h1 in (("work", "Work items"), ("milestones", "Milestones"), ("dashboard", self.name)):
