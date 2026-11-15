@@ -75,8 +75,8 @@ class Editor(unittest.TestCase):
     def visit(self, cdp, hash_):
         self.cdp = cdp
         self.sid = navigate(cdp, self.s.port, hash_)
-        self.until("document.documentElement.dataset.ready === '1' && !!document.querySelector('h1') && "
-                   "document.querySelector('h1').textContent !== 'Loading'", "the page drew")
+        self.until("document.documentElement.dataset.ready === '1' && !!document.querySelector('.hdr-project') && "
+                   "document.querySelector('main') && !/^Loading/.test(document.querySelector('main').textContent)", "the page drew")
         self.js(WATCH)
 
     def js(self, expr):
@@ -90,6 +90,7 @@ class Editor(unittest.TestCase):
             self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code, "windowsVirtualKeyCode": vk}, self.sid)
 
     def edit(self):
+        self.until("!!document.querySelector('[data-mode=edit]')", "the Edit button drew")        # the pill is drawn with the report, a moment after the header
         self.js("document.querySelector('[data-mode=edit]').click()")
         self.until("document.querySelector('#report') && document.querySelector('#report').dataset.mode === 'edit'", "Edit")
 
