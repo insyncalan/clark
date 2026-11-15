@@ -47,6 +47,23 @@ class WindowsSheet(unittest.TestCase):
         for l in lines:
             self.assertRegex(l, r"#\d{3}\b", f"check line without an item id: {l[:60]}")
 
+    def test_the_sheet_keeps_every_windows_check_line(self):
+        self.assertGreaterEqual(len(self.check_lines()), 12, "a Windows check line was deleted from the 1.1.0 sheet")
+
+    def test_a_docker_file_the_sheet_names_exists_or_its_line_says_which_item_adds_it(self):
+        """item 627: lines 16 and 7 name compose files that other pull requests add. Until those merge, the line must say so and name the item;
+        a line naming a file that is absent and not explained would send a tester to a file that is not there."""
+        for l in self.check_lines():
+            for name in set(re.findall(r"docker/[\w.-]+", l)):
+                if (ROOT / name).exists():
+                    continue
+                self.assertRegex(l, r"item \d{3}.*merged", f"{name} is not in the tree and the line does not say which item adds it")
+
+    def test_the_backup_line_tags_every_item_it_depends_on(self):
+        line = next(l for l in self.check_lines() if "compose.copy.yaml" in l)
+        for n in ("634", "629"):
+            self.assertIn(f"#{n}", line)
+
     def test_the_0_2_0_sheet_no_longer_says_do_not_check_windows(self):
         old = (ROOT / "dev" / "handchecks" / "0.2.0-sheet.md").read_text(encoding="utf-8")
         self.assertNotIn("Windows and Linux downloads. Do not check them", old)
