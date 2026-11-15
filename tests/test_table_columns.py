@@ -174,6 +174,24 @@ class Columns(unittest.TestCase):
                 self.assertIsNone(js(f"localStorage.getItem('clark.cols.show.{table}.OTHER')"), "and so has another project")
                 reload_to_new_page_cdp(cdp, sid, f"!!document.querySelector({json.dumps(TABLES[table][2] % 'workstream')})", "the choice is still there after a reload")
 
+    def test_a_hidden_columns_width_is_kept_per_column_id_and_comes_back_with_the_column(self):
+        """Row 1222, ruled 15-11: hiding a column does not forget the width chosen for it (row 1104 keeps widths by column id)."""
+        early = "try { localStorage.setItem('clark.cols.work', JSON.stringify({workstream: 222})); } catch (e) {}"
+        with chrome() as cdp:
+            sid, js = self.open_table(cdp, 1400, "light", "work", early)
+            self.right_click(cdp, sid, "#work th[data-col='owner']")
+            self.assertTrue(wait(lambda: self.menu(js), 5))
+            self.pick(js, "Workstream")
+            self.assertTrue(wait(lambda: "workstream" in self.heads(js, "work"), 5))
+            width = lambda: js("Math.round(document.querySelector(\"#work th[data-col='workstream']\").getBoundingClientRect().width)")  # noqa: E731
+            self.assertTrue(wait(lambda: abs(width() - 222) <= 2, 5), f"the kept width is drawn ({width()})")
+            self.pick(js, "Workstream")
+            self.assertTrue(wait(lambda: "workstream" not in self.heads(js, "work"), 5), "hidden")
+            self.assertIn("222", js("localStorage.getItem('clark.cols.work')") or "", "the width is still kept while the column is hidden")
+            self.pick(js, "Workstream")
+            self.assertTrue(wait(lambda: "workstream" in self.heads(js, "work"), 5))
+            self.assertTrue(wait(lambda: abs(width() - 222) <= 2, 5), f"and it comes back at that width ({width()})")
+
     def test_a_blocked_store_still_lets_the_table_redraw(self):
         block = "Storage.prototype.setItem = function () { throw new Error('blocked'); };"
         with chrome() as cdp:
