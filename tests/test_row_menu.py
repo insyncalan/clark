@@ -1372,6 +1372,7 @@ class Menu(board.Base):
                 self.assertEqual(cdp.js("document.querySelectorAll('.de .pick input').length", sid), 0, "nothing to tick")
                 self.assertTrue(cdp.js("[...document.querySelectorAll('.de .pk-btn.pri, .de .pk-btn')].filter(b => /Copy|sent/.test(b.textContent)).every(b => b.disabled)", sid), "nothing to copy or record")
                 self.assertFalse(cdp.js("/Share|Order|Book|laptops|training/.test(document.querySelector('.de-preview').textContent)", sid), "no words of the item in the draft")
+                self.until(cdp, sid, "document.querySelector('[data-draft-email]').contains(document.activeElement)", "focus inside the dialog")   # Esc is read on the dialog: pressed before focus moves in, it goes nowhere
                 key(cdp, sid, "Escape")
                 self.until(cdp, sid, "!document.querySelector('[data-draft-email]')", "the dialog to close")
 
