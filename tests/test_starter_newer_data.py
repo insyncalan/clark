@@ -139,6 +139,16 @@ class Main(Tmp):
         self.assertIn(f"reads: up to {sc.SCHEMA_VERSION}", out)
         self.assertIn("newer than this clark", out)
 
+    def test_diagnose_works_in_any_position(self):
+        make_db(self.data, sc.SCHEMA_VERSION + 2).close()
+        env = Path(self.tmp) / ".env"
+        env.write_text(f"CLARK_DATA_DIR={self.data}\n", encoding="utf-8")
+        for args in (("--diagnose", "--env-file", str(env)), ("--env-file", str(env), "--diagnose"), (self.data, "--diagnose")):
+            with self.subTest(args):
+                code, out, err = self.run_main(*args)
+                self.assertEqual((code, err), (0, ""))
+                self.assertIn(f"Data folder: {self.data}", out)
+
     def test_diagnose_on_a_missing_folder_does_not_fail(self):
         code, out, _ = self.run_main("--diagnose", self.data)
         self.assertEqual(code, 0)

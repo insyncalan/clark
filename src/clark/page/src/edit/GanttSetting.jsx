@@ -56,7 +56,7 @@ export function GanttSetting() {
       <SettingRow id="gantt-name" name="Tab name" helpId="gantt-name-line" data-gantt-name changed={now !== defaultOf("gantt-name")} onReset={resetName}
         help={`Up to ${NAME_MAX} characters. The default is Gantt. You can also click the tab's name while editing the Gantt page.`}
         bad={<p class="fld-bad" role="alert" data-gantt-name-bad>{said}</p>}>
-        <input id="gantt-name" type="text" value={shown} maxLength={NAME_MAX + 20} aria-describedby="gantt-name-line" aria-invalid={said ? "true" : undefined}
+        <input id="gantt-name" type="text" placeholder="Gantt" value={shown} maxLength={NAME_MAX + 20} aria-describedby="gantt-name-line" aria-invalid={said ? "true" : undefined}
           onInput={(e) => setTyped(e.currentTarget.value)} onBlur={save}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(); } else if (e.key === "Escape") { setTyped(null); setSaid(""); } }} />
       </SettingRow>

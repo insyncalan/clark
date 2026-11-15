@@ -273,7 +273,7 @@ class MergeDriverTests(unittest.TestCase):
         import importlib.util
         import sysconfig
         mod = self.driver_module()
-        ours = {"esbuild": "dev/tools/esbuild.py", "clark": "src/clark/__init__.py", "clark.limits": "src/clark/limits.py",
+        ours = {"esbuild": "dev/tools/esbuild.py", "clark": "src/clark/__init__.py", "clark.limits": "src/clark/limits.py", "clark.default_sections": "src/clark/default_sections.py",
                 "clark.page": "src/clark/page/__init__.py"}
         stdlib = os.path.realpath(sysconfig.get_paths()["stdlib"])
         for name in mod.BUILD_CODE:
