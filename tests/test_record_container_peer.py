@@ -215,6 +215,18 @@ class Tool(unittest.TestCase):
     def test_the_tool_listens_where_the_container_does(self):
         self.assertEqual(rec.sv.CONTAINER_BIND, "0.0.0.0")
 
+    def test_the_host_option_defaults_to_the_container_bind_address(self):
+        """main() with no arguments hands run() the address the container binds, not a copy of it."""
+        with mock.patch.object(rec, "run") as run:
+            self.assertEqual(rec.main([]), 0)
+        run.assert_called_once_with(sv.CONTAINER_BIND, 8766)
+        with mock.patch.object(sv, "CONTAINER_BIND", "10.9.8.7"), mock.patch.object(rec, "run") as run:
+            rec.main([])
+        run.assert_called_once_with("10.9.8.7", 8766)
+        with mock.patch.object(rec, "run") as run:
+            rec.main(["--host", "127.0.0.1", "--port", "9"])
+        run.assert_called_once_with("127.0.0.1", 9)
+
     def test_the_documented_command_names_files_that_exist(self):
         doc = (ROOT / "docs/handoff/design-427-docker-first-start.md").read_text(encoding="utf-8")
         self.assertIn("dev/tools/record_container_peer.py", doc)
