@@ -125,6 +125,14 @@ class ShowAll(unittest.TestCase):
     def test_show_all_of_a_short_list_changes_nothing(self):
         self.assertEqual(self.win(5, 10, True), {"count": 5, "link": ""})
 
+    def test_one_row_over_max_is_already_a_longer_list(self):
+        """The boundary: max + 1 rows is the shortest list that offers the link; max rows (above) is the longest that does not."""
+        self.assertEqual(self.win(11, 10, False), {"count": 10, "link": "Show all items"})
+        self.assertEqual(self.win(11, 10, True), {"count": 11, "link": "Show only 10"})
+        self.assertEqual(self.win(10, 10, True), {"count": 10, "link": ""})
+        self.assertEqual(self.win(1, 1, False), {"count": 1, "link": ""})
+        self.assertEqual(self.win(2, 1, False), {"count": 1, "link": "Show all items"})
+
     def test_matching_can_return_every_hit_not_just_max(self):
         got = run_node("(() => { const f = Object.assign(W.defaults(), {max: 2}); return [W.matching(f, rows, '2030-01-15'), W.matching(f, rows, '2030-01-15', undefined, true)]; })()")
         self.assertEqual(got[0], ["A-1", "A-2"])
