@@ -19,7 +19,8 @@ from test_server import chrome, wait
 from test_work_items import FIXED_DATE, load_demo, page_target
 
 PAGES = [("work", "#work&p=TUL&f=mode:all", "#work table.items", "owner", "#work tbody tr[data-id]"),
-         ("milestones", "#milestones&p=TUL", "#milestones .msl-hd", "state", "#milestones li.msl-row")]      # row 1104: the Milestones list has a heading row too; item 1149: the Use cases page has none now
+         ("milestones", "#milestones&p=TUL", "#milestones .msl-hd", "state", "#milestones li.msl-row"),
+         ("projects", "#settings&p=TUL", "#projects-table", "c2", "#projects-table tbody tr")]      # row 1104: the Projects table in Settings too (Published reports and People use the same hook); the Milestones list has a heading row too; item 1149: the Use cases page has none now
 
 
 class Widths(unittest.TestCase):
@@ -71,6 +72,7 @@ class Widths(unittest.TestCase):
         until = lambda e, what: self.assertTrue(wait(lambda: js(e), 20), what)  # noqa: E731
         until(f"document.querySelectorAll({json.dumps(ready)}).length > 0 && !!document.querySelector('{head} [data-cgrip=\"{col}\"]')", "the heading has its handle")
         grip = f"{head} [data-cgrip=\"{col}\"]"
+        js(f"document.querySelector({json.dumps(grip)}).scrollIntoView({{block: 'center'}})")      # the Settings tables are below the first screen
         cell = f"document.querySelector({json.dumps(grip)}).parentElement.getBoundingClientRect().width"
         box = js(f"(() => {{ const b = document.querySelector({json.dumps(grip)}).getBoundingClientRect(); return [b.width, b.height]; }})()")
         self.assertGreaterEqual(box[1], 24, "the hit area is 24 px tall")
