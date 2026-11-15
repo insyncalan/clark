@@ -90,6 +90,7 @@ class Editor(unittest.TestCase):
             self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code, "windowsVirtualKeyCode": vk}, self.sid)
 
     def edit(self):
+        self.until("!!document.querySelector('[data-mode=edit]')", "the Edit button drew")        # the pill is drawn with the report, a moment after the header
         self.js("document.querySelector('[data-mode=edit]').click()")
         self.until("document.querySelector('#report') && document.querySelector('#report').dataset.mode === 'edit'", "Edit")
 
@@ -109,6 +110,16 @@ class Editor(unittest.TestCase):
         self.cdp.call("Input.insertText", {"text": text}, self.sid)
         self.assertEqual(self.js("document.activeElement.dataset.title"), "", "the title still has the caret")
 
+    def step(self, action):
+        """Back or Forward between two entries of the same project: the page may stay the same document or load again, so wait for the move
+        (a new hash, or a new document), then put the error watch on whichever document is shown."""
+        before = self.js("location.hash")
+        self.js("window.__before = 1")
+        self.js(action)
+        self.until("document.readyState === 'complete' && (window.__before !== 1 || location.hash !== %r)" % before, "the history step was taken")
+        if not self.js("Array.isArray(window.errs)"):
+            self.js(WATCH)
+
     def no_errors(self):
         self.assertEqual(self.js("window.errs"), [])
 
@@ -124,13 +135,15 @@ class Editor(unittest.TestCase):
             self.type_title(first, "Where we are now")
             self.assertEqual(self.js("history.length"), n, "typing adds no entry")
             self.assertEqual(self.sent, [], "nothing is saved while it is being typed")
-            self.js("history.back()")
+            self.step("history.back()")        # Back from the report to Work items: the same document or a new one, so watch whichever is shown
+            self.js(WATCH)
             self.until("location.hash === '#work&p=ABC' && !!document.querySelector('#work')", "Back went to Work items")
             self.until("!!document.querySelector('[data-undo]')", "the message says the title was saved, with Undo")
             self.assertEqual(self.js("document.querySelector('.toast-text').textContent"), "Title changed.")
             self.assertEqual(self.titles("ABC")[0], "Where we are now", "the title was kept, not lost")
             self.assertEqual(self.sent, ["change"], "saved once")
-            self.js("history.forward()")
+            self.step("history.forward()")
+            self.js(WATCH)
             self.until("!!document.querySelector('.secs > .sec')", "Forward to the report")
             self.assertEqual(self.page_titles()[0], "Where we are now")
             self.no_errors()
@@ -307,9 +320,11 @@ class Editor(unittest.TestCase):
             self.js("document.querySelector('.secs > .sec [data-options]').click()")
             self.until("!!document.querySelector('.secs .menu')", "the menu opened")
             self.assertEqual(self.js("history.length"), n, "opening a menu adds no entry")
-            self.js("history.back()")
+            self.step("history.back()")        # Back from the report to Work items: the same document or a new one, so watch whichever is shown
+            self.js(WATCH)
             self.until("!!document.querySelector('#work')", "Back went to Work items")
-            self.js("history.forward()")
+            self.step("history.forward()")
+            self.js(WATCH)
             self.until("!!document.querySelector('.secs > .sec')", "Forward to the report")
             self.assertEqual(self.js("document.querySelectorAll('.secs .menu').length"), 0, "the menu is not open again")
             self.assertEqual(self.sent, [], "nothing in it was chosen")
