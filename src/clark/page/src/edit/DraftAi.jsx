@@ -32,7 +32,7 @@ export function AiMenuList({ place, text, onPick, onClose, boxRef = null, floati
     }
   };
   return (
-    <div class={`aim${floating ? " aim-float" : ""}`} role="menu" aria-label="AI" data-ai-menu ref={box} onKeyDown={key}>
+    <div class={`aim${floating ? " aim-float" : ""}`} role="menu" aria-label={DRAFT_WITH_AI} data-ai-menu ref={box} onKeyDown={key}>
       {m.format_notes && lines(text) >= 2 ? <>{item(m.format_notes)}<hr /></> : null}
       {m.groups.map((g, i) => <div key={g.label} role="group" aria-label={g.label}>{i ? <hr /> : null}<div class="aim-gl" aria-hidden="true">{g.label}</div>{g.items.map(item)}</div>)}
       <hr />{item(m.ask)}
