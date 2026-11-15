@@ -103,7 +103,7 @@ export function Dashboard({ tools }) {
         {list.map((s, i) => <Section key={s.id} section={s} index={i} count={list.length} slot={places[i]} anchor={anchors[s.id]} tools={editing ? tools : null} clean={!fromFile.value && tools ? tools.clean : null} />)}
       </div>
       {editing && list.length === 0 ? <tools.Add /> : null}
-      <Minimap sections={list} onJump={jump} stickyHeight={topBarHeight()} counts={counts} />
+      <Minimap sections={list} onJump={jump} stickyHeight={topBarHeight} counts={counts} />
     </section>
     </>
   );
