@@ -9,7 +9,7 @@ from test_inline_67 import size
 from test_report_editor import Base
 from test_server import chrome
 
-WIDTHS = ((1400, 147, 24, 85), (900, 120, 24, 129))      # width, logo box w, logo box h, header height (item 1177)
+WIDTHS = ((1400, 147, 22, 85), (900, 120, 18, 129))      # width, logo box w, logo box h, header height (item 1177; row 1212: the logo box is 147 x 22 and 120 x 18, the option C reference)
 TOP = "document.querySelector('.top')"
 LOGO = f"(function(){{var r={TOP}.querySelector('.logo').getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)];}})()"
 LINE = ("(function(){var d=document.querySelector('.top .hdr-date'); if (!d) return ''; "
@@ -22,7 +22,7 @@ class HdrLogoTitle(Base):
         p.until("document.fonts.status === 'loaded'", "the fonts are loaded (a late font moves a wrap, so the header height waits for them)")
         p.js("window.scrollTo(0, 0)")
 
-    def test_the_logo_box_is_147_by_24_at_1400_and_120_by_24_at_900(self):
+    def test_the_logo_box_is_147_by_22_at_1400_and_120_by_18_at_900(self):
         with chrome() as cdp:
             p = self.visit(cdp)
             for w, lw, lh, _ in WIDTHS:
@@ -75,6 +75,33 @@ class HdrLogoTitle(Base):
                            "document.querySelectorAll('.cover-kind').length, document.querySelectorAll('#project-name').length]")
                 self.assertEqual(got, [0, 0, 0, 1], f"{w}: no cover banner; the project name exists once (in the header)")
                 self.assertTrue(p.js("!!document.querySelector('#project-name').closest('.top')"), f"{w}: the one project name is in the header")
+
+    def test_row_1212_the_project_name_is_24_px_in_the_heading_font_at_weight_800(self):
+        """Row 1212: the option C reference shows the name in the heading font (Montserrat, 800), 24 px: 348 px wide for Mossgrove Customer Portal (measured 345.5 in the image)."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            for w, _, _, _ in WIDTHS:
+                self.at(cdp, p, w)
+                got = p.js("(function(){var s=getComputedStyle(document.querySelector('.top .hdr-project')); return [s.fontSize, s.fontWeight, s.fontFamily.split(',')[0].trim(), s.letterSpacing];})()")
+                self.assertEqual(got, ["24px", "800", "Montserrat", "-0.24px"], f"{w}: the project name is 24 px, weight 800, Montserrat, -0.01em")
+
+    def test_row_1212_the_tabs_end_10_px_above_the_bottom_edge_at_1400(self):
+        """Row 1212: the underline (the bottom of the selected tab) sits 10 px above the bottom edge of the 85 px header (reference: 10 px measured in the image at 2x)."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.at(cdp, p, 1400)
+            got = p.js(f"(function(){{var t={TOP}.getBoundingClientRect(), a=document.querySelector('.top .tab[aria-selected=\"true\"]').getBoundingClientRect(); "
+                       "return Math.round(t.bottom - a.bottom);})()")
+            self.assertEqual(got, 10, "the underline is 10 px above the bottom edge")
+
+    def test_row_1212_no_second_logo_in_the_icon_group(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            for w, _, _, _ in WIDTHS:
+                self.at(cdp, p, w)
+                p.js("document.documentElement.style.setProperty('--image-logo', 'url(\"data:image/gif;base64,R0lGODlhAQABAAAAACw=\")'); document.documentElement.style.setProperty('--cover-logo-room', '192px')")
+                got = p.js("(function(){var e=document.querySelector('.top .hdr-end'); return [getComputedStyle(e,'::before').content, getComputedStyle(e).paddingLeft];})()")
+                self.assertEqual(got, ["none", "0px"], f"{w}: the icon group has no logo box in front of it")
 
 
 if __name__ == "__main__":
