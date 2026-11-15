@@ -260,10 +260,13 @@ def check_saved_folders(seen):
     missing = sorted(p for p in saved if p and not seen.exists(p))
     if not missing:
         return Line(READY, "Every folder saved in your data is on this computer.")
-    # Only the last part of one name is said: a whole path from another computer holds that computer's account name.
+    # Only the last part of one name is said: a whole path from another computer holds that computer's account name. A root
+    # such as "C:\\" or "/" has no last part, so it is never the example, and with no example the clause is left out.
     many = len(missing) != 1
-    return Line(ADVICE, f"Folders saved in your data that do not exist here: {len(missing)}, such as "
-                        f"'{platform.pure_path(missing[0]).name}'. This is usual after moving clark's data from another computer. "
+    example = next((name for name in (platform.pure_path(p).name for p in missing) if name), None)
+    such_as = f", such as '{example}'" if example else ""
+    return Line(ADVICE, f"Folders saved in your data that do not exist here: {len(missing)}{such_as}. This is usual after "
+                        f"moving clark's data from another computer. "
                         f"The rest of clark works without them; choose {'those folders' if many else 'that folder'} again where you use "
                         f"{'them' if many else 'it'}.")
 

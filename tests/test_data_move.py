@@ -87,6 +87,34 @@ class MacBackupMoved(unittest.TestCase):
         self.assertNotIn("alex", line.words)                               # the other computer's account name is never said
         self.assertNotIn("Traceback", line.words)
 
+    def _line_with_missing(self, *missing):
+        """The saved-folders line when only the stated paths are absent: the data's own paths are there."""
+        seen = doctor.Seen(data=str(self.clean), on=pl.MAC, home=self.clean, environ={}, exists=lambda p: p not in missing)
+        return doctor.run_check(doctor.Check("The check for saved folders", False, doctor.check_saved_folders), seen)
+
+    def _set_source_folders(self, *paths):
+        import sqlite3
+        con = sqlite3.connect(self.db)
+        project, = con.execute("SELECT project FROM source_folders").fetchone()
+        con.execute("DELETE FROM source_folders")
+        for order, path in enumerate(paths):
+            con.execute("INSERT INTO source_folders (project, path, sort_order) VALUES (?, ?, ?)", (project, path, order))
+        con.commit()
+        con.close()
+
+    def test_a_saved_root_with_no_name_is_not_quoted_as_empty_quotes(self):
+        self._set_source_folders("C:\\", "/")
+        line = self._line_with_missing("C:\\", "/")
+        self.assertEqual(line.kind, doctor.ADVICE)
+        self.assertNotIn("''", line.words)
+        self.assertNotIn("such as", line.words)
+        self.assertTrue(line.words.startswith("Folders saved in your data that do not exist here: 2. This is usual"), line.words)
+
+    def test_a_saved_root_is_passed_over_for_a_named_example(self):
+        self._set_source_folders("C:\\", "D:\\Plans\\Site")
+        line = self._line_with_missing("C:\\", "D:\\Plans\\Site")
+        self.assertIn("not exist here: 2, such as 'Site'.", line.words)
+
     def test_a_missing_source_folder_is_advice_not_a_fault(self):
         lines = []
         code = doctor.main(["--data", str(self.clean)], say=lines.append, on=pl.MAC, home=self.clean, environ={},
