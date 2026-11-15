@@ -34,7 +34,7 @@ export function Edit({ section }) {
   const save = (items, words) => saveContent(section, { ...content, items }, words);
   const remove = (n) => {
     const item = raw[n];
-    save(raw.filter((_, i) => i !== n), W.UNRULED_REMOVED(item ? item.label || item.name || item.href : ""));
+    save(raw.filter((_, i) => i !== n), item && item.kind === "file" ? W.UNRULED_REMOVED_FILE(item.label || item.name || item.href) : W.UNRULED_REMOVED(item ? item.label || item.name || item.href : ""));
   };
   const move = async (n, by) => {
     const to = n + by;

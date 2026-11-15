@@ -435,7 +435,7 @@ class MockupLook(InThePage):
             self.assertEqual(p.js("document.querySelector('.toast').textContent").replace("Undo", "").replace("Close", "").strip(), "Link added")
             p.js(f"document.querySelectorAll('{sel} .tpl-remove')[0].click()")
             p.until("document.querySelector('.toast').textContent.includes('Removed')", "the remove toast")
-            self.assertEqual(p.js("document.querySelector('.toast').textContent").replace("Undo", "").replace("Close", "").strip(), "Removed Scope statement.docx")
+            self.assertEqual(p.js("document.querySelector('.toast').textContent").replace("Undo", "").replace("Close", "").strip(), "Removed Scope statement.docx. The file stays in the client folder.")
 
 
 class Published(PageBase):

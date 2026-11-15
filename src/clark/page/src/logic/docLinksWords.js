@@ -20,6 +20,7 @@ export const UNRULED_MOVED = "Moved";
 export const UNRULED_RENAMED = "Name saved";
 export const UNRULED_NOTE = "A file is copied into the client folder's “Report files” folder and opens from the client's copy of the report.";
 export const UNRULED_REMOVED = (name) => `Removed ${name}`;
+export const UNRULED_REMOVED_FILE = (name) => `Removed ${name}. The file stays in the client folder.`;
 // The mockup's note under the list (docs-mockup.html), verbatim.
 export const UNRULED_ALLOWED_HEAD = "Files you can add:";
 export const UNRULED_ALLOWED_TYPES = "PDF, Word (.doc .docx), Excel (.xls .xlsx .csv), PowerPoint (.ppt .pptx), JPG, PNG and TXT.";
