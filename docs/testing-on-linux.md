@@ -99,3 +99,7 @@ git worktree prune
 ## The cost rule
 
 A box costs money for every hour it is switched on, whether or not it is running tests. The plan lists the boxes that may be on, and the guard that checks running machines works from that list: a box that is not in the plan is powered off. So a new box goes into the plan first, a box that is replaced or no longer needed comes out of it and is switched off, and anything that would add cost (a bigger box, a second one, paid minutes) is raised with the project owner before it is spent.
+
+## Windows
+
+Windows is the Docker route, so no Windows machine runs the suite. The Linux boxes check the compose file and the Windows zip contents (no .exe, .cmd or python.exe). What only a real Windows laptop can show is on the Windows lines of the hand-check sheet: extract, typed commands in PowerShell and Command Prompt, a OneDrive path with spaces, data surviving a restart, and a restored backup. A failure there does not hold the Mac release up, but the Windows zip is not attached until those lines pass (dev/RELEASING.md).
