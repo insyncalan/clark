@@ -196,12 +196,14 @@ class Looks(tre.Base):
                 p = self.go(cdp, "#work&p=ABC", mode)
                 p.until("!!document.querySelector('#work-count')", "the list drew")
                 before = p.js("document.querySelector('#work-count').textContent")
+                # row 1243: the animation is short, so a Mac under load read it after it had ended (0 running): note its start in the page instead
+                p.js("window.__countAnim = null; document.addEventListener('animationstart', e => { if (e.target && e.target.id === 'work-count') window.__countAnim = e.animationName; }, true)")
                 tf.set_line(p.cdp, p.sid, "is:closed")      # row 1059: the Open / Closed / All pills are gone; the line says it
                 p.until(f"document.querySelector('#work-count').textContent !== {before!r}", "the count changed")
                 name, running = self.anim(p, "#work-count")
                 if mode[0] == "allowed":
-                    self.assertEqual(name, "m-in")
-                    self.assertGreater(running, 0)
+                    p.until("window.__countAnim !== null", "the count line's animation started")
+                    self.assertEqual(p.js("window.__countAnim"), "m-in")
                     self.assertEqual(p.js("document.querySelector('#fline-input').disabled"), False, "the filter line stays live")
                 else:
                     self.assertEqual((name, running), ("none", 0))
