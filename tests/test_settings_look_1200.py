@@ -41,7 +41,7 @@ LOOK = """(() => {
   return {
     token: cs(document.documentElement).getPropertyValue('--control-edge').trim(),
     muted: cs(document.documentElement).getPropertyValue('--text-muted').trim(),
-    gantt: {name: edge('#gantt-name'), reset: edge('#gantt-setting .set-reset'), intro: type('#gantt-setting > h2 + p'), button: type('#gantt-setting .set-reset')},
+    gantt: {name: edge('#gantt-name'), namePlaceholder: q('#gantt-name').placeholder, reset: edge('#gantt-setting .set-reset'), intro: type('#gantt-setting > h2 + p'), button: type('#gantt-setting .set-reset')},
     sizes: {intro: type('#safety > h2 + p, #local-folder > h2 + p'), save: type('[data-copy-save]'), seg: type('.seg button'), chip: type('.set-nav .set-chip')},
     edges: {box: edge('#safety-copy-box'), save: edge('[data-copy-save]'), choice: edge('.seg'), name: edge('#ess-name'), paste: edge('#client-folder-paste'), use: edge('[data-copy-suggestion]')},
     heading: type('#safety-h'), label: type('.set-row-text label'), group: type('#local-folder h3'), help: type('.set-row-text small'),
@@ -118,6 +118,7 @@ class SettingsLook(unittest.TestCase):
                 self.assertEqual(g["name"], [OLD_EDGE, "1px"], f"the Gantt tab name box keeps the old edge at {w}")
                 self.assertEqual(g["reset"], [OLD_EDGE, "1px"], f"the Gantt Reset button keeps the old edge at {w}")
                 self.assertNotEqual(g["name"][0], EDGE, f"the Gantt card does not take the new token at {w}")
+                self.assertEqual(g["namePlaceholder"], "Gantt", f"the empty Gantt tab name box shows the example Gantt at {w}")
                 self.assertEqual(g["intro"]["size"], "14px", f"the Gantt intro line keeps its old 14 px at {w}")
 
     def test_the_type_of_intro_buttons_choices_and_menu_at_1400_and_900(self):
