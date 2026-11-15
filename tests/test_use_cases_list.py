@@ -322,7 +322,7 @@ class List(Setup):
                     self.assertGreaterEqual(min(sizes), 13, "no text under 13 px")
 
     def test_text_contrast_is_at_least_4_5_to_1_in_light_and_dark(self):
-        sels = ["#usecases h1", ".ucl-sub", ".ucl-ref", ".ucl-go", ".ucl-head", ".ucl-steps", ".ucl-st .pill",
+        sels = ["#usecases h1", "#usecases .crumbs", ".ucl-ref", ".ucl-go", ".ucl-head", ".ucl-steps", ".ucl-st .pill",
                 ".ucl-eye", ".ucl-row.off .ucl-eye", ".ucl-count", ".vtab", ".vtab em", "#ucl-group", "#ucl-sort", "#ucl-q-count"]
         for width in (1400, 900):
             for dark in (False, True):
