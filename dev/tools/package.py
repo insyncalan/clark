@@ -264,8 +264,9 @@ To see what Docker has said, type this in the same folder:
         docker compose -f docker/compose.yaml -f docker/compose.windows.yaml logs --tail 50
 
 Updating clark: the file docker\\UPDATE-windows.txt has the steps, for
-PowerShell and for Command Prompt. In short: stop the old clark, unzip the new
-download into a new folder (never over the old one), and start the new folder.
+PowerShell and for Command Prompt. In short: stop the old clark, rename this folder
+to clark-old, unzip the newer download into the folder that held it, and start
+the new folder.
 Your data is not in the clark folder, so it is still there.
 """
 

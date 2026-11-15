@@ -57,6 +57,12 @@ class WindowsUpdateGuide(unittest.TestCase):
         self.assertEqual(Path("/w/clark-1/docker").joinpath("../../clark-data").resolve(),
                          Path("/w/clark-2/docker").joinpath("../../clark-data").resolve())
 
+    def test_the_hand_check_sheet_names_the_ruled_step_2_not_unzip_beside(self):
+        row = [l for l in SHEET.splitlines() if l.startswith("| 633.1 ")][0]
+        for words in ("rename the old clark folder to clark-old", "unzip the new download into the folder that held it", "Extract All, change the folder it shows to that folder first"):
+            self.assertIn(words, row)
+        self.assertNotIn("beside", row)
+
     def test_the_zip_always_unzips_to_clark_so_the_renamed_old_folder_leaves_the_name_free(self):
         """The zip's one top folder is clark (release_files.TOP), so after the old folder is renamed the new one finds the same clark-data."""
         from clark import release_files
@@ -122,8 +128,9 @@ class WindowsUpdateGuide(unittest.TestCase):
         text = " ".join(package.START_HERE_WINDOWS.split())
         self.assertIn("docker\\UPDATE-windows.txt", text)
         self.assertIn("for PowerShell and for Command Prompt", text)
-        for step in ("stop the old clark", "unzip the new download into a new folder", "start the new folder"):
+        for step in ("stop the old clark", "rename this folder to clark-old", "unzip the newer download into the folder that held it", "start the new folder"):
             self.assertIn(step, text)
+        self.assertNotIn("into a new folder", text)
         self.assertIn("Your data is not in the clark folder", text)
         self.assertTrue(release_files.covers("windows", "docker/UPDATE-windows.txt"))
 
