@@ -153,6 +153,11 @@ class OptionalColumns(unittest.TestCase):
     def test_columns_for_keeps_the_design_order_and_drops_unknown(self):
         self.assertEqual(run_node("W.columnsFor(['id', 'milestone', 'bogus', 'owner'])"), ["owner", "milestone", "id"])
 
+    def test_columns_for_one_chosen_column_is_that_column_not_the_default(self):
+        """A single chosen column is a choice: the list shows it alone, and the default is only for nothing chosen."""
+        self.assertEqual(run_node("W.columnsFor(['priority'])"), ["priority"])
+        self.assertEqual(run_node("W.columnsFor(['bogus', 'id'])"), ["id"])
+
     def test_columns_for_nothing_chosen_is_the_default(self):
         self.assertEqual(run_node("W.columnsFor([])"), ["owner", "due", "priority", "id"])
         self.assertEqual(run_node("W.columnsFor(['bogus'])"), ["owner", "due", "priority", "id"])
