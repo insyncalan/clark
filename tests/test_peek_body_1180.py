@@ -14,6 +14,7 @@ its own changes). The hooks the build must give (named here so the build and the
 """
 import json
 import re
+import time
 import unittest
 
 from _paths import ROOT
@@ -44,6 +45,30 @@ class Body(test_peek_latest.Browser):
     def tabs(self, cdp, sid):
         return cdp.js("[...document.querySelectorAll('[data-pk-htabs] [data-pk-htab]')].map(t => t.dataset.pkHtab)", sid)
 
+    def until(self, cdp, sid, what, expr, seconds=15):
+        """Wait for a page expression to be true; fails naming `what` was not reached (never hangs: wait() has a limit)."""
+        self.assertTrue(wait(lambda: cdp.js(expr, sid), seconds), f"not reached within {seconds} s: {what}")
+
+    def press(self, cdp, sid, selector, seconds=15):
+        """A real mouse press on `selector`, sent only when its centre is settled: the same rect on two looks 50 ms apart (PeekUnsavedBar scrolls
+        the body after it paints) and the topmost element at that point is the target, so it is clear of the sticky toolbar."""
+        sel = json.dumps(selector)
+        probe = (f"(e => {{ if (!e) return null; const r = e.getBoundingClientRect(), x = r.x + r.width / 2, y = r.y + r.height / 2, t = document.elementFromPoint(x, y);"
+                 f" return {{x, y, box: [r.x, r.y, r.width, r.height], top: !!t && e.contains(t)}}; }})(document.querySelector({sel}))")
+        seen = []
+
+        def settled():
+            a = cdp.js(probe, sid)
+            time.sleep(0.05)                      # about three frames
+            b = cdp.js(probe, sid)
+            seen.append(b)
+            return bool(a and b) and a["box"] == b["box"] and a["top"] and b["top"]
+        self.assertTrue(wait(settled, seconds), f"not reached within {seconds} s: {selector} at rest and clear of the toolbar (last look: {seen[-1] if seen else None})")
+        r = seen[-1]
+        cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": r["x"], "y": r["y"]}, sid)
+        for kind in ("mousePressed", "mouseReleased"):
+            cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": r["x"], "y": r["y"], "button": "left", "clickCount": 1}, sid)
+
     def test_the_latest_update_sits_above_details_and_both_above_the_history(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
@@ -59,6 +84,7 @@ class Body(test_peek_latest.Browser):
             with self.subTest(width=width), chrome() as cdp:
                 sent, sid = self.load(cdp, width, OVERDUE)
                 self.open_box(cdp, sid)
+                self.until(cdp, sid, "the hint [data-pk-hint] shown after the box opened", "!!document.querySelector('[data-pk-hint]')")
                 hint = cdp.js("(document.querySelector('[data-pk-hint]') || {textContent: ''}).textContent", sid)
                 self.assertRegex(hint, r"Cmd or Ctrl and Enter", "the hint names the key")
                 self.assertGreater(self.top(cdp, sid, "[data-pk-hint]"), self.top(cdp, sid, self.BOX), "the hint sits under the box")
@@ -109,21 +135,17 @@ class Body(test_peek_latest.Browser):
                 self.open_box(cdp, sid)
                 self.type_in(cdp, sid, "Not yet saved")
 
-                def press(selector):
-                    x, y = cdp.js(f"(r => [r.x + r.width / 2, r.y + r.height / 2])(document.querySelector({json.dumps(selector)}).getBoundingClientRect())", sid)
-                    for kind in ("mousePressed", "mouseReleased"):
-                        cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left", "clickCount": 1}, sid)
-                press("#peek [data-pk-close]")
+                self.press(cdp, sid, "#peek [data-pk-close]")
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-unsaved]')", sid)), "the mouse on Close shows the bar")
                 self.assertEqual(sent, [], "Close with the mouse saved nothing")
-                press("[data-pk-keep]")
+                self.press(cdp, sid, "[data-pk-keep]")
                 self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('[data-pk-unsaved]')", sid)))
                 self.assertIn("Not yet saved", cdp.js(f"document.querySelector({json.dumps(self.BOX)}).textContent", sid), "the editor is open with the text")
-                self.assertTrue(cdp.js("document.activeElement.classList.contains('ProseMirror')", sid), "the focus is in the editor")
+                self.until(cdp, sid, "the focus back in the editor after Keep editing", "document.activeElement.classList.contains('ProseMirror')")
                 self.assertEqual(sent, [], "Keep editing saved nothing")
-                press("#peek [data-pk-close]")
+                self.press(cdp, sid, "#peek [data-pk-close]")
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-discard]')", sid)))
-                press("[data-pk-discard]")
+                self.press(cdp, sid, "[data-pk-discard]")
                 self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#peek')", sid)))
                 self.assertEqual(sent, [], "Discard with the mouse stores nothing")
 
