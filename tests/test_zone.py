@@ -4,20 +4,21 @@ Run: python3 dev/run_tests.py test_zone
 A container runs in UTC; the page sends its zone and the server applies it, so 'today' and the offset on History are the person's.
 Nothing here starts a container; the container is stood in for by the setting and marker file, as test_server_container does.
 """
+import importlib
 import json
 import logging
 import os
 import re
 import time
 import unittest
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from unittest import mock
 
 from _paths import ROOT, SRC  # noqa: F401
 
 from _demo import USER, DemoStore
 from clark import milestones, movement_read, server as sv, sneak, store as store_module, zone
-from test_server import Running
+Running = importlib.import_module("test_server").Running      # by name: a plain server thread, so this file stays in the quick tier
 
 SENTINEL = "ZQ-SENTINEL-631"
 from test_server_container import in_container
@@ -26,13 +27,22 @@ HERE = datetime(2026, 11, 13, 22, 0, tzinfo=timezone.utc)       # 22:00 UTC: alr
 PAGE = ROOT / "src" / "clark" / "page" / "src"
 
 
+class FixedDate(date):
+    """date.today() on a newer Python reads the system clock directly and ignores a patched time.time; this one asks time.time, in the process zone."""
+    @classmethod
+    def today(cls):
+        return cls.fromtimestamp(time.time())
+
+
 class Zoned(unittest.TestCase):
     """Each test leaves the process zone as it found it."""
     def setUp(self):
         self.had = os.environ.get("TZ")
         self.addCleanup(self.restore)
         for patch in (mock.patch.object(store_module, "clock", return_value=HERE), mock.patch("time.time", return_value=HERE.timestamp()),
-                      mock.patch.object(zone, "PINNED", None)):
+                      mock.patch.object(zone, "PINNED", None), mock.patch.object(store_module, "date", FixedDate),
+                      mock.patch.object(milestones, "date", FixedDate), mock.patch.object(movement_read, "date", FixedDate),
+                      mock.patch.object(sneak, "date", FixedDate)):
             patch.start()
             self.addCleanup(patch.stop)
 
