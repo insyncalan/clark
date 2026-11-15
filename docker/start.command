@@ -11,13 +11,13 @@ export PYTHONDONTWRITEBYTECODE=1
 port="${CLARK_PORT:-8766}"
 say() { echo "$*"; }
 
-if ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 9))' 2>/dev/null; then
-  say "clark needs Python 3.9 or newer, and this Mac does not have it. Install it from https://www.python.org/downloads/ and double-click this file again."
-  exit 1
-fi
-
 # Python: the same start as clark.command. It opens Chrome (or your default browser) itself and says what it did.
+# Python 3.9 is needed only here: the Docker route runs the same data-folder check with whatever python3 this Mac has, as before this file.
 start_with_python() {
+  if ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 9))' 2>/dev/null; then
+    say "clark needs Python 3.9 or newer, and this Mac does not have it. Install it from https://www.python.org/downloads/ and double-click this file again."
+    exit 1
+  fi
   if [ -d .app ]; then PYTHONPATH="$PWD/.app${PYTHONPATH:+:$PYTHONPATH}"; export PYTHONPATH; fi
   exec python3 -m clark.launch
 }

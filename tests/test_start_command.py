@@ -108,12 +108,23 @@ class StartCommand(unittest.TestCase):
         self.assertIn("inside OneDrive", r.stderr)
         self.assertEqual(self.calls(), [], "docker is not run at all before the refusal")
 
-    def test_old_python_says_how_to_install_it_and_starts_nothing(self):
-        self.stub("python3", 'exit 1')
+    def old_python(self):
+        # Only the 3.9 version test says "too old"; the starter check and `-m clark.launch` behave as before.
+        self.stub("python3", f'case "$1" in -c) exit 1 ;; -m) echo "python3 $*" >> "$LOG"; exit 0 ;; esac\nexec {self.real_python} "$@"')
+
+    def test_old_python_with_docker_working_still_starts_docker(self):
+        self.old_python()
         r = self.run_script()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn("Python 3.9", r.stdout)
+        self.assertEqual(self.calls()[:2], ["docker info", f"docker compose -f {self.repo}/docker/compose.yaml up -d"])
+
+    def test_old_python_without_docker_says_how_to_install_it_and_starts_nothing(self):
+        self.old_python()
+        r = self.run_script(DOCKER_INFO_RC="1")
         self.assertEqual(r.returncode, 1)
         self.assertIn("clark needs Python 3.9 or newer", r.stdout)
-        self.assertEqual(self.calls(), [])
+        self.assertEqual(self.calls(), ["docker info"], "no python start after the refusal")
 
     def test_extra_words_go_on_to_compose(self):
         self.run_script("--pull", "always")
