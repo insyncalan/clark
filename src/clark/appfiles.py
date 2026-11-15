@@ -20,7 +20,7 @@ import os
 import re
 from pathlib import Path
 
-from clark import look
+from clark import look, platform
 
 HERE = Path(__file__).resolve().parent
 APP = HERE / "app"
@@ -100,10 +100,21 @@ def token_size(css, name):
     return re.search(re.escape(name) + r":\s*(\d+px)\s*;", block).group(1)
 
 
-def offline_page(launcher="clark.command"):
+STILL_MAC = "Still not running. Double-click @LAUNCHER@, then check again."
+STILL_DOCKER = "Still not running. Start it from Docker Desktop, then check again."
+
+
+def offline_page(launcher="clark.command", container=None):
     """The page shown when clark isn't running, as bytes, with the launcher's file name and the command to type in Terminal
-    (`./` and the name). The name comes from platform.launcher_name(); nothing a person typed is ever put in."""
+    (`./` and the name). The name comes from platform.launcher_name(); nothing a person typed is ever put in. In the Docker
+    container (`container`, by default platform.container_mode()) the page names only Docker: there is no launcher there, and
+    no idle stop (idle.launched), so it never says clark stops by itself. (item 632)"""
     page = (APP / "offline.html").read_text(encoding="utf-8")
+    inside = platform.container_mode() if container is None else container
+    keep, drop = ("DOCKER", "MAC") if inside else ("MAC", "DOCKER")
+    page = re.sub(r"[ \t]*<!--/?%s-->\n" % keep, "", page)
+    page = re.sub(r"[ \t]*<!--%s-->\n.*?<!--/%s-->\n" % (drop, drop), "", page, flags=re.S)
+    page = page.replace("@STILL@", STILL_DOCKER if inside else STILL_MAC)
     css = TOKENS_CSS.read_text(encoding="utf-8")
     for holder, (mode, name) in OFFLINE_COLOURS.items():
         page = page.replace(holder, token_value(css, mode, name))

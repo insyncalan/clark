@@ -21,6 +21,10 @@ export const panelWidth = signal(initialWidth());
 export const panelFocus = signal(0);                  // bumped to ask the panel to focus its question box
 export const turns = signal([]);                       // the chat: [{role: "user" | "assistant", text, kind?}]; kept while the panel is closed
 export const pending = signal(false);                  // a question is out
+export const queue = signal([]);                       // row 1220: messages typed while an answer is made, [{id, text}] in the order they are sent; kept only while the panel is open
+export const queueHeld = signal("");                   // row 1220: "" (the queue goes on by itself), "stopped" or "failed" (it waits for Send them or Clear)
+export const queueDrop = signal(0);                    // row 1220: the number of waiting messages the person has been told would be dropped
+export const QUEUE_MAX = 5;
 export const chatEpoch = signal(0);                    // row 1119: bumped when leaving the page drops the chat, so an answer still out is not added to the next one
 
 function room() { return Math.max(MIN, Math.floor(document.documentElement.clientWidth * 0.9)); }     // clientWidth: never the scrollbar's width
@@ -95,15 +99,32 @@ export function openPanel() {
   readStatus();
 }
 
+/** Row 1220: the one place the queue is changed, so a changed list is never held, nor a drop warning kept, for a list it was not about. */
+export function setQueue(list) {
+  queue.value = list;
+  queueDrop.value = 0;
+  if (!list.length) queueHeld.value = "";
+}
+/** Row 1220: leaving with messages waiting says so first; the same press again goes on. True when it may go on. */
+export function mayDrop() {
+  const n = queue.value.length;
+  if (!n || queueDrop.value === n) return true;
+  queueDrop.value = n;
+  return false;
+}
+
 /** A new chat: the earlier turns are dropped, so nothing from them is sent again. Not while a question is out. */
 export function newChat() {
-  if (pending.value) return;
+  if (pending.value || !mayDrop()) return;
+  setQueue([]);
   turns.value = [];
   chatId.value = null; histOpen.value = false;
 }
 
-export function closePanel() {
+export function closePanel(force) {
   if (!panelOpen.value) return;
+  if (force !== true && !mayDrop()) return;
+  setQueue([]);
   panelOpen.value = false;
   const back = opener;
   opener = null;
@@ -142,6 +163,6 @@ export function installAskKeys() {
   let seen = view.value + "|" + project.value;
   effect(() => {
     const now = view.value + "|" + project.value;
-    if (now !== seen) { seen = now; chatEpoch.value++; turns.value = []; chatId.value = null; histOpen.value = false; if (panelOpen.value) { panelOpen.value = false; opener = null; } }
+    if (now !== seen) { seen = now; chatEpoch.value++; setQueue([]); turns.value = []; chatId.value = null; histOpen.value = false; if (panelOpen.value) { panelOpen.value = false; opener = null; } }
   });
 }

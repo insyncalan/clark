@@ -17,6 +17,7 @@ Standard library only, Python 3.9.
 import argparse
 import json
 import os
+import socketserver
 import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -26,6 +27,18 @@ from clark import server as sv  # noqa: E402
 
 HEALTH_PATH = "/health"  # what docker/compose.yaml's healthcheck requests, from 127.0.0.1
 CONNECTION_TIMEOUT = 5
+
+
+class PeerServer(HTTPServer):
+    """HTTPServer without its reverse lookup. HTTPServer.server_bind asks socket.getfqdn for the listening host's name,
+    a lookup that can stall for seconds on a machine whose resolver is slow, before the server is ready. The tool never
+    uses the name, so bind the plain way and fill server_name and server_port from the address itself."""
+
+    def server_bind(self):
+        socketserver.TCPServer.server_bind(self)
+        host, port = self.server_address[:2]
+        self.server_name = host
+        self.server_port = port
 
 
 def record(peer):
@@ -65,7 +78,7 @@ def run(host, port, out=None):
     """Answer requests until one is a real first request (not the healthcheck, not an empty connection), print its
     record as one JSON line, return it."""
     sink = []
-    httpd = HTTPServer((host, port), make_handler(sink))
+    httpd = PeerServer((host, port), make_handler(sink))
     try:
         while not sink:
             httpd.handle_request()

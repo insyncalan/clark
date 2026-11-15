@@ -234,8 +234,12 @@ class Movement(tmp.Base):
                 sel = json.dumps(self.box("who"))
                 p.js("document.querySelector(%s).focus()" % sel)
                 p.js("window.__k = []; addEventListener('keydown', (e) => window.__k.push([Math.round(performance.now()), e.key, e.target.className || e.target.id || e.target.tagName]), true); window.__t0 = Math.round(performance.now())")
+                # The leave handler skips a focusout while the page has no focus, and a Tab with the focus elsewhere never leaves the box: wait for the page to have the focus
+                # and the caret to be in the open editor before the key, so a failure below is the key's and not the setup's. (Tab sent with the editing command insertTab
+                # is swallowed as a tab character and never moves the focus, so the key stays a plain key.)
+                p.t.assertTrue(wait(lambda: p.js("document.hasFocus() && !!document.querySelector(%s) && document.querySelector(%s).contains(document.activeElement)" % (sel, sel)), 15), "page focused with the caret in the open editor")
                 p.key("Tab", code="Tab", vk=9)
-                # The editor closes when its Tab handler has run; on a slow Mac that was after the old fixed half second. Wait for it, and say what the page was doing if it never does.
+                # The editor closes when its leave handler has run; on a slow Mac that was after the old fixed half second. Wait for it, and say what the page was doing if it never does.
                 gone = None
                 end = time.monotonic() + 10
                 while time.monotonic() < end:
@@ -247,6 +251,7 @@ class Movement(tmp.Base):
                 self.assertTrue(gone, "closed on Tab" + seen)
                 self.assertIn("Pat Example", p.js("document.getElementById('mv-who').textContent"), "kept")
                 self.assertTrue(p.js("!!document.querySelector('.mvm-form')"), "form stays")
+                self.assertTrue(wait(lambda: p.js("document.activeElement && document.activeElement.id === 'mv-reason'"), 10), "the next field has the focus; got " + json.dumps(p.js("document.activeElement ? (document.activeElement.id || document.activeElement.className || document.activeElement.tagName) : null")))
 
     def test_a_real_click_on_move_right_after_typing_sends_what_was_typed(self, width=1400, theme="light"):
         if True:

@@ -5,12 +5,15 @@ to (server.logs_route). Each method answers (status, body). The server stays fre
 decided in log.py, and what the report holds in diagnostics.py. Nothing here reads or returns a request body to the log.
 Standard library only, Python 3.9.
 """
+import os
 import re
 
 from clark import __version__, diagnostics, log as clog, platform
 
 NOT_SAVED = "The logging level could not be saved. Check that the folder can be written to, then try again."
 NOT_OPENED = "The log folder could not be opened. Try again; if it keeps happening, restart clark."
+CONTAINER_LOGS_HERE = "The log files are in the logs folder inside your clark data folder."
+CONTAINER_LOGS_AT = "The log files are in this folder: %s"
 BAD_LEVEL = "That level isn't one of the choices. Reload the page and try again."
 
 # The Errors list on screen says each error in plain words. The technical line (area, route, class) stays in the log and in Copy
@@ -70,6 +73,17 @@ def plain_error(group):
     return {"count": group["count"], "last": f"{group['last']:%d-%m-%Y %H:%M}", "what": what_it_was(group), "next": TRY_AGAIN}
 
 
+def container_log_words(environ=None):
+    """item 632: what Open folder says in the Docker container, where no folder can be opened: the logs folder on this computer
+    (the data folder clark was started with, CLARK_DATA_SOURCE), or which folder inside the data folder when that is not known.
+    The home folder is written "~" and an account name is dropped (platform.host_shown)."""
+    source = (os.environ if environ is None else environ).get("CLARK_DATA_SOURCE")
+    if not source:
+        return CONTAINER_LOGS_HERE
+    sep = "\\" if "\\" in source and "/" not in source else "/"
+    return CONTAINER_LOGS_AT % (platform.host_shown(source).rstrip("/\\") + sep + "logs")
+
+
 class Logs:
     """`log` is a clog.Log. `counts` is a function giving {name: whole number} for the report (or None). `opener` shows a folder
     (platform.open_file unless a test gives its own)."""
@@ -106,7 +120,14 @@ class Logs:
         return 200, {"ok": True, "level": now, "notice": self.log.debug_notice()}
 
     def open_folder(self, req=None):
-        """Show the log folder in Finder (made first, so a day with nothing logged still opens it)."""
+        """Show the log folder in Finder (made first, so a day with nothing logged still opens it). In the Docker container nothing can
+        be opened, so the answer says where the folder is on this computer instead (item 632)."""
+        if platform.container_mode():
+            try:
+                self.log.folder.mkdir(parents=True, exist_ok=True)
+            except OSError:
+                pass
+            return 200, {"ok": True, "shown": container_log_words()}
         try:
             self.log.folder.mkdir(parents=True, exist_ok=True)
             self.opener(self.log.folder)
