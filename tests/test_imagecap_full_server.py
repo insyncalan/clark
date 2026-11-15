@@ -162,11 +162,44 @@ class Sizes(unittest.TestCase):
 
 class Refusals(unittest.TestCase):
     def test_camera_details_and_wrong_types_are_refused(self):
-        for bad, words in ((EXIF, CAMERA_DETAILS), ("data:image/gif;base64,R0lGODlhAQABAAAAACw=", NOT_A_PICTURE),
-                           (make_png(4, 4, lambda x, y: RED, extra=(b"eXIf", b"MM\x00*x")), CAMERA_DETAILS)):
+        for bad, words in ((EXIF, fi._say_image(CAMERA_DETAILS)), ("data:image/gif;base64,R0lGODlhAQABAAAAACw=", fi._say_image(NOT_A_PICTURE)),
+                           (make_png(4, 4, lambda x, y: RED, extra=(b"eXIf", b"MM\x00*x")), fi._say_image(CAMERA_DETAILS))):
             with self.assertRaises(Bad) as e:
                 fi.check({"v": 2, "pictures": {"original": bad}}, None)
             self.assertEqual(str(e.exception), words)
+
+    def test_a_version_2_refusal_says_image_and_version_1_keeps_its_words(self):
+        said = []
+        for bad in (EXIF, "data:image/gif;base64,R0lGODlhAQABAAAAACw="):
+            with self.assertRaises(Bad) as e:
+                fi.check({"v": 2, "pictures": {"original": bad}}, None)
+            said.append(str(e.exception))
+        self.assertEqual(said[1], "That image can't be used. Add a PNG, JPEG or WebP image.")
+        with self.assertRaises(Bad) as e:
+            fi.check({"v": 2, "pictures": {"2": GOOD_JPEG}}, None)
+        said.append(str(e.exception))
+        for words in said:
+            self.assertNotIn("picture", words.lower())
+            self.assertIn("image", words)
+        with self.assertRaises(Bad) as e:
+            fi.check({"v": 1, "pictures": {"image": "data:image/gif;base64,R0lGODlhAQABAAAAACw="}}, None)
+        self.assertEqual(str(e.exception), NOT_A_PICTURE)           # version 1: the old string, unchanged
+        self.assertEqual(NOT_A_PICTURE, "That picture can't be used. Add a PNG, JPEG or WebP picture.")
+
+    def test_a_version_1_body_between_its_limit_and_the_new_limit_is_refused_by_the_old_limit(self):
+        from clark.section_kinds.textimage import BIG_PICTURE
+        self.assertEqual(fi.V1_LIMIT, 1600 * 1024)
+        self.assertEqual(fi.LIMIT, 8454144)
+        for size in (fi.V1_LIMIT + 1, 4 * 1024 * 1024, fi.LIMIT - 1024):
+            body = {"v": 1, "pictures": {"image": "data:image/png;base64," + "A" * (size - 100)}}
+            with self.assertRaises(Bad) as e:
+                fi.check(body, None)
+            self.assertEqual(str(e.exception), BIG_PICTURE, size)
+        from _pictures import check
+        from clark import store as store_module
+        with self.assertRaises(store_module.Invalid):
+            check("imagecap", {"v": 1, "pictures": {"image": "data:image/png;base64," + "A" * (3 * 1024 * 1024)}})
+        self.assertEqual(fi.check({"v": 1, "pictures": {"image": GOOD_JPEG}}, None)["pictures"]["image"], GOOD_JPEG)
 
     def test_the_route_checks_a_big_send_by_this_types_limit(self):
         from clark.section_kinds.textimage import picture
@@ -185,7 +218,7 @@ class Refusals(unittest.TestCase):
         self.assertEqual(str(e.exception), fi.NOT_ALONE)
         with self.assertRaises(Bad) as e:
             fi.check({"v": 2, "pictures": {"2": GOOD_JPEG}}, None)
-        self.assertEqual(str(e.exception), BAD_SLOT)
+        self.assertEqual(str(e.exception), fi._say_image(BAD_SLOT))
 
     def test_the_framing_is_numbers_only(self):
         for bad in ({"shape": "round"}, {"fx": -1}, {"fx": True}, {"fy": 1001}, {"crop": [0, 0, 5, 1000]}, {"crop": [0, 0, 1000]},

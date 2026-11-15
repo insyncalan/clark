@@ -33,7 +33,7 @@ import struct
 import zlib
 
 from clark.section_kinds.base import Bad
-from clark.section_kinds.textimage import (NOT_A_PICTURE, NOT_CONTENT, OLD_VERSION, PICTURES, TEXT_LIMIT, UNKNOWN_FIELD, frame, line,
+from clark.section_kinds.textimage import (BIG_PICTURE, NOT_A_PICTURE, NOT_CONTENT, OLD_VERSION, PICTURES, TEXT_LIMIT, UNKNOWN_FIELD, frame, line,
                                            picture, pictures_of, put, set_picture)
 from clark.section_kinds.textimage import PICTURE_MAX as V1_PICTURE_MAX
 
@@ -388,9 +388,37 @@ def _version(value):
     return v
 
 
+def _say_image(text):
+    """A version 2 refusal says "image", never "picture" (the version 1 texts, in textimage.py, are unchanged)."""
+    return text.replace("a picture", "an image").replace("pictures", "images").replace("picture", "image").replace("Pictures", "Images").replace("Picture", "Image")
+
+
+def _in_words_of_images(fn, *args):
+    try:
+        return fn(*args)
+    except Bad as e:
+        words = _say_image(str(e))
+        if words == str(e):
+            raise
+        raise Bad(words) from None
+
+
+def _size(value):
+    """Characters a body's text takes, near enough (the words and the images, which are plain text)."""
+    if isinstance(value, str):
+        return len(value) + 2
+    if type(value) is dict:
+        return 2 + sum(_size(k) + 1 + _size(v) + 1 for k, v in value.items())
+    if type(value) is list:
+        return 2 + sum(_size(v) + 1 for v in value)
+    return 5
+
+
 def check(value, rules):
     if _version(value) == 2:
-        return _check_full(value)
+        return _in_words_of_images(_check_full, value)
+    if _size(value) > V1_LIMIT:                                      # the old body keeps its old size
+        raise Bad(BIG_PICTURE)
     out = frame(value, ("caption", "alt", PICTURES))             # version 1: as it always was
     put(out, "caption", line(value, "caption"))
     put(out, "alt", line(value, "alt"))
@@ -426,7 +454,7 @@ def with_picture(value, slot, image):
     its one `image` slot, as it always did. A version 2 body takes only `original` (the framed copy is made from it and the body's
     framing, or taken out with it; a new original replacing one starts from no framing, and the words stay)."""
     if type(value) is dict and value.get("v") == 2:
-        return _with_original(value, slot, image)
+        return _in_words_of_images(_with_original, value, slot, image)
     if image is not None:
         picture(image, V1_PICTURE_MAX)                           # the route allows this type's larger send; a version 1 picture keeps its old size
     return set_picture(value, slot, image, V1_SLOTS, {"v": 1})
