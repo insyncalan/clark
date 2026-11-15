@@ -206,7 +206,7 @@ class InThePage(PageBase):
         const real = window.fetch.bind(window);
         window.fetch = (url, opts) => { if (String(url).startsWith('/api/section-file')) { window.seen.push([String(url), (opts && opts.headers && opts.headers['X-Clark-Token']) ? 'token' : 'no token']);
             return Promise.resolve(new Response(new Blob(['fictional bytes'], {type: 'application/pdf'}), {status: 200})); } return real(url, opts); };
-        window.open = (u, t) => ({closed: false, close() { this.closed = true; }, location: {set href(h) { window.opened.push(String(h).slice(0, 5)); }}});
+        window.open = (u, t) => ({closed: false, close() { this.closed = true; }, set location(h) { window.opened.push(String(h).slice(0, 5)); }});   // the router points the tab with tab.location = url
         HTMLAnchorElement.prototype.click = function () { window.saved.push([this.download, this.href.slice(0, 5)]); }; })()"""
 
     def test_view_gives_a_file_row_open_and_download_that_read_through_clark(self):
