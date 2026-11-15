@@ -115,7 +115,7 @@ class Names(NameCase):
     def test_an_older_workbook_with_the_old_names_and_order_round_trips(self):
         wb = load_workbook(str(self.path))
         wb[excel.SHEET_OF["raid"]].title = "Risks and issues"
-        order = ["Cover", "Milestones", "Actions", "Risks and issues", "Decisions", "Use cases", "History", "Lists"]
+        order = ["Cover", "Milestones", "Actions", "Risks and issues", "Decisions", "Use cases", "History", "Lists", excel.META_NAME]      # item 1171: the export now ends with the very hidden metadata sheet
         wb._sheets.sort(key=lambda w: order.index(w.title))
         wb.save(str(self.path))
         self.assertEqual(load_workbook(str(self.path)).sheetnames, order)

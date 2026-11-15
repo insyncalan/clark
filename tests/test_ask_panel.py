@@ -15,7 +15,7 @@ import unittest
 
 from _paths import ROOT
 from test_report_editor import Base
-from test_server import chrome
+from test_server import chrome, wait
 
 WORDS = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "askWords.js").read_text(encoding="utf-8")
 NEVER = re.compile(r"\w*(Error|Exception)\b|Traceback|JSON|Not allowed|Bad request|[Rr]eport editor|\bUC\b|!|\bAPI\b|\bHTTP\b")
@@ -345,8 +345,13 @@ class Panel(Base):
         with chrome() as cdp:
             p = self.opened(cdp)
             self.answered(p)
-            top = p.js("(() => { const l = document.querySelector('#ask-log'), a = document.querySelector('.ask-turn.assistant'); return a.getBoundingClientRect().top - l.getBoundingClientRect().top; })()")
-            self.assertTrue(-2 <= top <= 40, f"the answer's first line is at the top of the log (offset {top})")
+            read = "(() => { const l = document.querySelector('#ask-log'), a = document.querySelector('.ask-turn.assistant'); return a.getBoundingClientRect().top - l.getBoundingClientRect().top; })()"
+            # A slow Mac can lay the log out after the panel set its scroll: wait for the offset to settle (the page sets the scroll again on its next change), and
+            # say what was measured if it never does.
+            wait(lambda: -2 <= p.js(read) <= 40, 20)
+            top = p.js(read)
+            seen = p.js("(() => { const l = document.querySelector('#ask-log'), a = document.querySelector('.ask-turn.assistant'); return {scrollTop: l.scrollTop, scrollHeight: l.scrollHeight, clientHeight: l.clientHeight, answerOffsetTop: a.offsetTop, logOffsetTop: l.offsetTop, answerHeight: a.offsetHeight, turns: [...l.children].map(e => Math.round(e.getBoundingClientRect().height * 10) / 10), motion: document.documentElement.dataset.motion || null}; })()")
+            self.assertTrue(-2 <= top <= 40, f"the answer's first line is at the top of the log (offset {top}) | " + json.dumps(seen))
 
     def test_off_sends_no_request_and_links_to_settings(self):
         self.stub.enabled = False

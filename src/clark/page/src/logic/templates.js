@@ -65,7 +65,7 @@ export const TEMPLATES = [
     description: "What’s coming, from the milestones.", holds: ["Heading", "Date (from milestones)"] },
   { id: "link-preview", name: "Link preview", kind: "files", fit: ["full"], type: "linkcard", title: "Link preview", body: "", ready: true,
     description: "A web page shown as a card you write: a dashboard, a news item, a recording.", holds: ["Heading", "Link", "Card text"] },
-  { id: "current-state", name: "Current state", kind: "text", fit: ["full", "half"], type: "text", title: "Current state", body: "", ready: true,
+  { id: "current-state", name: "Header and Text", kind: "text", fit: ["full", "half"], type: "text", title: "Current state", body: "", ready: true,
     description: "The state of the project in a few lines, to sit beside another section.", holds: ["Heading", "Text"] },
   { id: "plan-summary", name: "Plan summary", kind: "text", fit: ["full", "half"], type: "text", title: "Plan summary", ready: true,
     body: "<h2>Where we are</h2><p></p><h2>What is next</h2><ul><li></li></ul>",
@@ -95,7 +95,9 @@ export const BUILT_INS = [
   builtIn("milestones", "Milestones", "dates"), builtIn("raid", "Risks and issues", "work"), builtIn("actions", "Open actions", "work"),
   builtIn("decisions", "Decisions", "work"), builtIn("docs", "Supporting documents", "files"),
 ];
-const missing = (sections) => (sections ? BUILT_INS.filter((b) => !sections.some((s) => s.type === b.type)) : []);
+// Item 1188: the first default section is now the text section "Current state", which "Header and Text" also adds, so the older
+// "current" built-in is not offered (a second card that makes the same heading); a report that has one keeps it.
+const missing = (sections) => (sections ? BUILT_INS.filter((b) => b.type !== "current" && !sections.some((s) => s.type === b.type)) : []);
 
 // Every template entry, in the box or not: one per template type, and Text.
 export const CATALOGUE = [...TEMPLATES, ...LATER];

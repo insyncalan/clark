@@ -193,7 +193,9 @@ class Drive:
         return self.cdp.js(expr, self.sid)
 
     def until(self, expr, what, secs=20):
-        self.t.assertTrue(wait(lambda: self.js(f"!!({expr})"), secs), f"timed out waiting for: {what} (at {getattr(self, 'look_is', None)})")
+        if not wait(lambda: self.js(f"!!({expr})"), secs):
+            seen = self.js("JSON.stringify({focus: document.activeElement && (document.activeElement.tagName + '.' + document.activeElement.className), menus: document.querySelectorAll('[role=menu]').length, pops: document.querySelectorAll('.cpop').length, toast: (document.querySelector('.toast-text') || {}).textContent || '', hash: location.hash, motion: document.documentElement.dataset.motion || ''})")
+            self.t.fail(f"timed out waiting for: {what} (at {getattr(self, 'look_is', None)}) page: {seen}")
 
     def key(self, key, code=None, vk=0):
         for kind in ("keyDown", "keyUp"):
@@ -212,7 +214,9 @@ class Drive:
     def lines(self, root, name, minimum):
         self.t.assertIn(name, DRIVE_NAMES, f"{name} is not a registered drive")
         self.until(f"(({LINES})({q(root)}) || []).length >= {minimum}", f"{name}: the menu {root} drew at least {minimum} lines")
-        got = self.js(f"({LINES})({q(root)})")
+        got = []
+        self.until(f"(window.__lines = ({LINES})({q(root)})) && window.__lines.length >= {minimum}", f"{name}: the menu {root} still drew its lines")
+        got = self.js("window.__lines")
         where = f"{name} at {self.look_is[0]} {self.look_is[1]}"
         self.t.assertGreaterEqual(len(got), minimum, where)
         for g in got:
@@ -235,7 +239,12 @@ class Drive:
 
     def check(self, name, opener, root="[role=menu]", minimum=2, focus=True):
         """Run `opener` (JS that clicks), check every line of the menu `root`, close it with Escape (once the focus is in it) or, for a menu that takes no focus, with a press elsewhere on the page."""
+        self.frames()                  # the page's own handlers for what was drawn are set after the draw; a slow Mac can click before they are
         self.js(opener)
+        for _ in range(3):             # a click that landed before its handler was set draws nothing: press again, only while nothing has drawn
+            if wait(lambda: self.js(f"!!(({LINES})({q(root)}))"), 5):
+                break
+            self.js(opener)
         got = self.lines(root, name, minimum)
         if focus:
             self.focused_in(root)
@@ -367,10 +376,15 @@ class Work(BulkBase):
                     d.button(sel, f"the {kind} cell")
                     d.check(f"cell-{kind}", f"document.querySelector({q(sel)}).click()", "[role=menu],.cpop", 1)
                 # the owner box with a name nobody has: the Add line and the Keep the name only line
-                d.js(f"document.querySelector({q(osel)}).click()")
+                d.frames()
+                for _ in range(3):         # a click before its handler is set opens nothing: press again, only while no box is open
+                    d.js(f"document.querySelector('.cpop') || document.querySelector({q(osel)}).click()")
+                    if wait(lambda: d.js("!!document.querySelector('.cpop .cp-in')"), 5):
+                        break
                 d.until("document.activeElement && document.activeElement.classList.contains('cp-in')", "the owner box has the focus")
+                d.until("document.querySelector('.cpop [data-section]')", "the owner list is read (the Add line waits for it)", 40)   # slow Mac: the list is read after the box opens
                 cdp.call("Input.insertText", {"text": "Zelda Quince"}, sid)
-                d.until("document.querySelector('.cpop [data-add]')", "the Add line for a new name")
+                d.until("document.querySelector('.cpop [data-add]')", "the Add line for a new name", 40)
                 d.lines(".cpop", "owner-pick-typed", 3)
                 d.key("Escape", "Escape", 27)
                 d.gone(".cpop", "the owner box")

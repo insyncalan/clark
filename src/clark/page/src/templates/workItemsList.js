@@ -191,6 +191,30 @@ export function listOf(section, data, today) {
   return { items: matching(filter, ruleRows(publishedOnly(data)), today, liveOf(data)), columns: filter.columns.length ? filter.columns : DEFAULT_COLUMNS.slice(), caption: filter.caption, saved: true };
 }
 
+// What Edit lists: the rows the saved filter lists (as listOf) plus the ones the client eye has taken off (the work item's own client-visible
+// flag, or its hidden entry), so an eye turned off can be turned on again from here. Rows publish keeps out for any other reason (Sensitive,
+// archived, another project, a hidden section) are never listed. Walks the filter's whole match in its order: an eye-off row is listed where
+// it falls, a kept row counts toward the filter's max, and nothing after the max-th kept row is listed. Returns the listOf shape plus `off`
+// (the ids listed that the client does not see).
+export function editListOf(section, data, today) {
+  const base = listOf(section, data, today);
+  const filter = filterOf(section);
+  if (!filter || (section && Array.isArray(section.items))) return { ...base, off: [] };
+  const served = servedRules(data), open = { ...served, hidden: new Set() };
+  const out = { ...data };
+  for (const k of WORK) out[k] = ((data && data[k]) || []).filter((r) => publishable({ ...r, client_visible: 1 }, k, open));
+  const off = new Set(WORK.flatMap((k) => (out[k] || []).filter((r) => !publishable(r, k, served)).map((r) => r.id)));
+  const every = matching({ ...filter, max: Number.MAX_SAFE_INTEGER }, ruleRows(out), today, liveOf(data));
+  const items = [], listedOff = [];
+  let kept = 0;
+  for (const id of every) {
+    if (off.has(id)) { items.push(id); listedOff.push(id); }
+    else if (kept < filter.max) { items.push(id); kept += 1; }
+    else break;
+  }
+  return { ...base, items, off: listedOff };
+}
+
 // The rows to draw for a list's ids, in the ids' order, from the data (workItems.js rowsOf: title, owner, dates, status).
 export function drawRows(ids, data) {
   const byId = new Map(rowsOf(data || {}).map((r) => [r.id, r]));
