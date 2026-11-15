@@ -12,6 +12,7 @@ import { MsTimeline } from "./MsTimeline.jsx";
 import { MsCalendar } from "./MsCalendar.jsx";
 import { MsList } from "./MsList.jsx";
 import { MsLegend } from "./MsLegend.jsx";
+import { MsTracker } from "./MsTracker.jsx";
 
 // `tools` is what Edit adds (edit/index.js): the eye on each row, and under the Dashboard's block the line that brings one back. A
 // published file, a page in View and a page with no tools have none.
@@ -43,8 +44,9 @@ export function MsBlock({ place, tools }) {
       <div class="msv-swap" key={view} data-swap={view}>      {/* a new key on a switch: the new view rises a little and fades in */}
         {view === "cal" ? <MsCalendar rows={rows} today={today} open={open} place={place} client={client} /> : <MsTimeline rows={rows} today={today} place={place} open={open} client={client} />}
       </div>
-      <MsList CW={CW} CM={CM} rows={rows} place={place} open={open} internalTag={!client} Eye={Eye} More={More} left={left} legend={<MsLegend client={client} id={place} />} />
+      <MsList CW={CW} CM={CM} rows={rows} place={place} open={open} internalTag={!client} Eye={Eye} More={More} left={left} legend={place === "page" ? <MsLegend client={client} id={place} /> : null} />
       {AddBack ? <AddBack /> : null}
+      {place !== "page" ? <MsTracker rows={rows} client={client} /> : null}      {/* row 1230: the Dashboard's section ends in the status tracker, which replaces its Legend; the Milestones page keeps the Legend */}
     </div>
   );
 }
