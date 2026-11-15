@@ -51,11 +51,11 @@ class Source(unittest.TestCase):
 
     def test_the_published_file_carries_no_eye_and_none_of_its_words(self):
         view = (PAGE / "page-view.html").read_text(encoding="utf-8")
-        for word in ("Client-visible", "hidden from the client.", "Select to show the client", "Not shown to the client"):
+        for word in ("Client-visible",):
             self.assertNotIn(word, view, f"the published file holds the editor's eye: {word!r}")
         editor = (PAGE / "page.html").read_text(encoding="utf-8")
         self.assertIn("Client-visible", editor, "the page clark serves has the eye")
-        self.assertIn("Select to show the client", editor)
+        self.assertIn("Put on the page", editor)
 
     def test_the_eye_uses_the_routes_the_report_already_has_so_no_guarded_file_changed(self):
         eye = (PAGE / "src" / "edit" / "cells" / "Eye.jsx").read_text(encoding="utf-8")
@@ -69,8 +69,7 @@ class Source(unittest.TestCase):
         eye = (PAGE / "src" / "edit" / "cells" / "Eye.jsx").read_text(encoding="utf-8")
         self.assertNotIn('mode.value !== "edit"', eye, "no View branch")
         self.assertNotIn('role="img"', eye)
-        self.assertIn("Shown to the client", eye)
-        self.assertIn("Hidden from the client", eye)
+        self.assertIn("eyeWords(on, row)", eye)
         for word in ("<button", "onClick"):
             self.assertIn(word, eye)
         jsx = (PAGE / "src" / "components" / "WorkItems.jsx").read_text(encoding="utf-8")
@@ -252,8 +251,8 @@ class Table(unittest.TestCase):
             got = {r["id"]: r for r in self.measure(cdp, self.load(cdp, 1400))["rows"]}
         self.assertEqual((got["TUL-A-002"]["eye"], got["TUL-A-004"]["eye"]), ("true", "false"), "A-002 is shown to the client, A-004 is not")
         self.assertEqual(got["TUL-A-001"]["eye"], "false", "A-001 has the client flag on but carries the Sensitive label, so a publish leaves it out and the eye says so")
-        self.assertTrue(got["TUL-A-002"]["eyeLabel"].startswith("Shown to the client: "))
-        self.assertTrue(got["TUL-A-004"]["eyeLabel"].startswith("Not shown to the client: "))
+        self.assertTrue(got["TUL-A-002"]["eyeLabel"].startswith("Take TUL-A-002 "))
+        self.assertTrue(got["TUL-A-004"]["eyeLabel"].startswith("Put TUL-A-004 "))
 
     def test_the_eye_in_view_is_a_read_only_mark_and_a_click_changes_nothing(self):
         """Row 819 (name kept): the Work items page is live, so a click on the eye in View turns the item off, with a toast and Undo."""
@@ -263,10 +262,10 @@ class Table(unittest.TestCase):
             got = json.loads(cdp.js(f"(() => {{ const e = document.querySelector({json.dumps(eye)}); return JSON.stringify({{ tag: e.tagName, label: e.getAttribute('aria-label'), pressed: e.getAttribute('aria-pressed'), buttons: document.querySelectorAll('#work .c-eye button').length }}); }})()", sid))
             self.assertEqual((got["tag"], got["pressed"]), ("BUTTON", "true"), "a button in View")
             self.assertGreater(got["buttons"], 1)
-            self.assertTrue(got["label"].startswith("Shown to the client: "), "the control has its words")
+            self.assertTrue(got["label"].startswith("Take TUL-A-002 ") and got["label"].endswith(" off the page"), "the control has its words")
             click(cdp, sid, eye)
             self.assertTrue(wait(lambda: self.hidden() == {ref}), "a click in View hides the item")
-            self.assertEqual(self.toast_text(cdp, sid, f"{ref} hidden from the client."), f"{ref} hidden from the client.")
+            self.assertEqual(self.toast_text(cdp, sid, got["label"]), got["label"], "row 1195: the toast says the label")
             click(cdp, sid, "[data-undo]")
             self.assertTrue(wait(lambda: self.hidden() == set()), "Undo shows it again")
 
@@ -275,10 +274,12 @@ class Table(unittest.TestCase):
         with chrome() as cdp:
             sid = self.load(cdp, 1400, "edit")
             self.assertEqual(self.hidden(), set())
+            on_label = cdp.js(f"document.querySelector({json.dumps(eye)}).getAttribute('aria-label')", sid)
+            off_label = on_label.replace("Take ", "Put ", 1)[: -len(" off the page")] + " on the page"
             click(cdp, sid, eye)
             self.assertTrue(wait(lambda: cdp.js(f"document.querySelector({json.dumps(eye)}).getAttribute('aria-pressed') === 'false'", sid)), "the eye turned off")
             self.assertTrue(wait(lambda: self.hidden() == {ref}), "the item is hidden from the report, in the store")
-            self.assertEqual(self.toast_text(cdp, sid, f"{ref} hidden from the client."), f"{ref} hidden from the client.")
+            self.assertEqual(self.toast_text(cdp, sid, on_label), on_label)
             self.assertEqual(cdp.js("document.querySelector('#peek') ? 1 : 0", sid), 0, "a click on the eye does not open the peek")
             click(cdp, sid, "[data-undo]")
             self.assertTrue(wait(lambda: cdp.js(f"document.querySelector({json.dumps(eye)}).getAttribute('aria-pressed') === 'true'", sid)), "Undo turned it on again")
@@ -288,7 +289,7 @@ class Table(unittest.TestCase):
             click(cdp, sid, eye)
             self.assertTrue(wait(lambda: cdp.js(f"document.querySelector({json.dumps(eye)}).getAttribute('aria-pressed') === 'true'", sid)), "the eye turned it on")
             self.assertTrue(wait(lambda: self.hidden() == set()), "the item is shown again, in the store")
-            self.assertEqual(self.toast_text(cdp, sid, f"{ref} shown to the client."), f"{ref} shown to the client.")
+            self.assertEqual(self.toast_text(cdp, sid, off_label), off_label)
 
     def test_the_eye_turns_an_item_on_by_its_own_flag_and_refuses_a_sensitive_one_in_words(self):
         eye = "tr[data-id='TUL-A-004'] .weye"
