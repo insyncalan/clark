@@ -67,7 +67,7 @@ class Source(unittest.TestCase):
         self.assertIn("min-height: 24px", rule)
         self.assertIn("var(--brand-blue)", rule)
         self.assertIn("var(--brand-blue-tint)", css.split(".pk-ai:hover", 1)[1].split("}", 1)[0])
-        self.assertIn("font-size: 13px; font-weight: 600", rule)
+        self.assertIn("font-size: var(--size-caption); font-weight: 600", rule)
         self.assertNotIn("draft-email", read("edit/DraftAi.jsx").lower().replace("not the draft email feature", ""))
 
 
