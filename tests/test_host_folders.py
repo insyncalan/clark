@@ -107,6 +107,16 @@ class CheckInside(unittest.TestCase):
             self.check(self.base + "/share-other")
 
 
+class WithinDriveLetter(unittest.TestCase):
+    """item 625: the same folder names on another drive are not inside the shared folder (the drive letter is compared, its case is not)."""
+
+    def test_the_same_path_on_another_drive_is_not_inside(self):
+        self.assertIsNone(hf._within(hf._parse("C:\\Share\\x"), hf._parse("D:\\Share\\x")))
+
+    def test_the_same_drive_in_another_letter_case_is_inside(self):
+        self.assertEqual(hf._within(hf._parse("C:\\Share"), hf._parse("c:\\share\\x")), ["x"])
+
+
 class Setting(unittest.TestCase):
     def test_nothing_is_on_without_the_setting_or_outside_a_container(self):
         with container():
