@@ -68,12 +68,14 @@ class PlainBadge(unittest.TestCase):
     def test_the_plain_badge_rule_and_each_kind_s_fill_and_text_are_pinned(self):
         plain = declarations(self.sheet, ".tpl-badge.tpl-plain")
         self.assertEqual({k: plain[k] for k in ("width", "padding", "color", "font-size", "font-weight", "letter-spacing")},
-                         {"width": "41px", "padding": "0", "color": "#fff", "font-size": "11px", "font-weight": "800", "letter-spacing": "0"})
+                         {"width": "41px", "padding": "0", "color": "var(--white)", "font-size": "var(--size-caption)", "font-weight": "800", "letter-spacing": "0"})
+        tok = dict(re.findall(r"(--[a-z-]+):\s*(#[0-9A-Fa-f]{3,6})", (SRC.parent / "brand" / "tokens.css").read_text(encoding="utf-8")))
+        val = lambda v: (tok[re.fullmatch(r"var\((--[a-z-]+)\)", v).group(1)] if v.startswith("var(") else v).replace("#ffffff", "#fff")
         for kind, (fill, text) in PLAIN_FILL.items():
             with self.subTest(kind=kind):
                 rule = declarations(self.sheet, ".tpl-badge.tpl-ic-%s" % kind)
-                self.assertEqual(rule["background"], fill)
-                self.assertEqual(rule.get("color", "#fff"), text)
+                self.assertEqual(val(rule["background"]), fill)
+                self.assertEqual(val(rule.get("color", "var(--white)")), text)
 
     def test_the_action_marks_are_drawn_in_css_only(self):
         self.assertEqual(declarations(self.sheet, ".tpl-act-open::before")["content"], '"\\2197"')

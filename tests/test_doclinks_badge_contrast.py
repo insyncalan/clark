@@ -32,9 +32,11 @@ class BadgeContrast(unittest.TestCase):
         for kind in KINDS:
             rule = re.search(r"\.tpl-badge\.tpl-ic-%s \{([^}]*)\}" % kind, css)
             self.assertTrue(rule, kind)
-            bg = re.search(r"background:\s*(#[0-9A-Fa-f]{3,6})", rule.group(1)).group(1)
-            fg = re.search(r"(?<!-)color:\s*(#[0-9A-Fa-f]{3,6})", rule.group(1))
-            r = ratio(fg.group(1) if fg else "#fff", bg)
+            tok = dict(re.findall(r"(--[a-z-]+):\s*(#[0-9A-Fa-f]{3,6})", (SRC.parent / "brand" / "tokens.css").read_text(encoding="utf-8")))
+            val = lambda v: tok[v] if v.startswith("--") else v
+            bg = val(re.search(r"background:\s*var\((--badge-[a-z]+)\)", rule.group(1)).group(1))
+            fg = re.search(r"(?<!-)color:\s*var\((--badge-ink)\)", rule.group(1))
+            r = ratio(val(fg.group(1)) if fg else "#fff", bg)
             self.assertGreaterEqual(r, 4.5, "%s published badge %.2f:1" % (kind, r))
 
     def test_the_editor_icon_band_text_reaches_4_5_on_every_kind(self):

@@ -664,7 +664,7 @@ textarea.tpl-field { resize: vertical; }
 .tpl-files-edit .tpl-icons > * { pointer-events: auto; }
 .sec:has(.tpl-files-edit) .sec-head { padding-right: 112px; }
 .tpl-files-edit .tpl-icons .tpl-form { position: absolute; right: 0; top: 54px; z-index: 6; width: min(340px, calc(100vw - 48px)); box-sizing: border-box; padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); box-shadow: 0 10px 30px rgba(20, 20, 80, .22); }
-.tpl-files-edit .tpl-allowed { margin: 0; padding: 10px 14px; border: 1px solid var(--grey-200); border-radius: 12px; font-size: 12.5px; color: var(--text-muted); }
+.tpl-files-edit .tpl-allowed { margin: 0; padding: 10px 14px; border: 1px solid var(--grey-200); border-radius: 12px; font-size: var(--size-caption); color: var(--text-muted); }
 .tpl-files-edit .tpl-allowed strong { color: var(--text); }
 .tpl-files-edit .tpl-icon { min-width: 44px; min-height: 44px; display: inline-grid; place-items: center; padding: 0; margin: 0; }
 .tpl-files-edit .tpl-icons > .tpl-icon { border-color: var(--grey-200); border-radius: 999px; color: var(--text); }
@@ -673,8 +673,8 @@ textarea.tpl-field { resize: vertical; }
 .tpl-files-edit .tpl-dl-i .tpl-icon { border: 0; border-radius: 10px; background: none; color: var(--text-muted); }
 .tpl-files-edit .tpl-dl-i .tpl-icon:hover:not([disabled]) { background: var(--brand-blue-tint); color: var(--brand-blue); }
 .tpl-files-edit .tpl-dl-i .tpl-icon[disabled] { opacity: .3; }
-.tpl-files-edit .tpl-hint { font-size: 12px; }
-.tpl-files-edit .tpl-rename { width: calc(100% + 12px); min-width: 0; margin: -3px -6px; padding: 2px 6px; border: 1px solid transparent; border-radius: var(--radius); background: none; color: var(--text); font: inherit; font-size: 16px; font-weight: 500; }
+.tpl-files-edit .tpl-hint { font-size: var(--size-caption); }
+.tpl-files-edit .tpl-rename { width: calc(100% + 12px); min-width: 0; margin: -3px -6px; padding: 2px 6px; border: 1px solid transparent; border-radius: var(--radius); background: none; color: var(--text); font: inherit; font-size: var(--size-body); font-weight: 500; }
 .tpl-files-edit .tpl-rename:hover { border-color: var(--grey-300); }
 .tpl-files-edit .tpl-dl-i { align-items: center; }
 .tpl-files-edit .tpl-remove { flex: none; align-self: center; }

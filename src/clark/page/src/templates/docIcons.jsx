@@ -31,7 +31,7 @@ export function PageIcon({ label }) {
         <path d="M26 2v10h10" fill="none" stroke={INK} stroke-width="2.2" stroke-linejoin="round" />
         <g fill="none" stroke-width="2" stroke-linecap="round">{GLYPHS[key]}</g>
         <path d="M5.1 31h29.8v14.9H5.1z" fill={BAND[key]} />
-        <text x="20" y="42" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-weight="800" font-size={label.length > 3 ? 8 : 9.5} fill={BAND_TEXT[key] || "#fff"}>{label}</text>
+        <text transform={`translate(20 42) scale(${label.length > 3 ? 0.6 : 0.73})`} text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-weight="800" font-size="13" fill={BAND_TEXT[key] || "#fff"}>{label}</text>
       </svg>
     </span>
   );
