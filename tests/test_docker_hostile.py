@@ -78,8 +78,8 @@ class Routes(InDocker):
                 folder = self.dir / "logs"
             routes = log_routes.Logs(Log(), opener=mock.Mock(side_effect=OSError(leaky)))
             status, body = routes.open_folder()
-            self.assertEqual(503, status)
-            self.assertEqual(log_routes.NOT_OPENED, body["message"])
+            self.assertEqual(200, status)            # item 632: in Docker the folder is told, never opened, so the opener's error is never reached
+            self.assertEqual(log_routes.container_log_words(), body["shown"])
             clean(self, repr(body))
 
     def test_the_ask_commands_in_docker_say_the_sentence_whatever_the_environment_holds(self):
