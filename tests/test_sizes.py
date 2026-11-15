@@ -31,6 +31,7 @@ DATA = {"ABC": {**BASE["ABC"],
                                     {"id": "risks", "type": "raid", "title": "Risks and issues"},
                                     {"id": "ms", "type": "milestones", "title": "Milestones"}]}}
 
+TWO = [{"code": "ABC", "name": "Example Programme"}, {"code": "DEF", "name": "Second Programme"}]       # item 1135: a bare address opens the only project by itself, so the chooser stays only with two or more (and nothing remembered)
 ONE = [{"code": "ABC", "name": "Example Programme"}]       # one project, so the top bar's project switcher is plain words: opening it would change the project under the audit
 
 OPENERS = ".fbtn, .toc-lines, .newb, .top button:not(.tab), [aria-haspopup], [aria-expanded=false]"
@@ -133,12 +134,13 @@ class Sizes(unittest.TestCase):
         self.run_page(published_page, "&p=ABC", edit=False, views=PUBLISHED_VIEWS)
 
     def test_the_page_with_no_project_open_has_targets_of_24px(self):
-        s = Running(data_for=lambda code, archived=None: DATA.get(code), projects=lambda archived=False: ONE, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        s = Running(data_for=lambda code, archived=None: DATA.get(code), projects=lambda archived=False: TWO, page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         found = []
         with chrome() as cdp:
             sid = navigate(cdp, s.port, "#dashboard")
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.frame.empty .link')", sid)), "the project list drew")
+            drew = wait(lambda: cdp.js("!!document.querySelector('.frame.empty .link')", sid))
+            self.assertTrue(drew, "the project list drew; the page had: " + str(cdp.js("JSON.stringify({hash: location.hash, ready: document.readyState, motion: document.documentElement.dataset.motion || '', frames: [...document.querySelectorAll('.frame')].map(e => e.className), links: document.querySelectorAll('.frame .link').length, main: (document.querySelector('#main') || document.body).innerText.slice(0, 200)})", sid)))
             for w in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
                 found += [f"{w}px: {g}" for g in json.loads(cdp.js(AUDIT % json.dumps(list(ALLOWED)), sid))]

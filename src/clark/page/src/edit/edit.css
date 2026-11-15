@@ -89,7 +89,6 @@
 .pk-fix button { min-height: 28px; padding: 3px 10px; border: 1px solid var(--status-amber); border-radius: var(--radius); background: var(--surface); color: var(--status-amber-text); font: inherit; font-size: var(--size-small); font-weight: var(--weight-medium); cursor: pointer; }
 .pk-fix button:hover { background: var(--status-amber-tint); }
 .pk-fix button:focus-visible, .pk-latest-text:focus-visible, .pk-latest-in:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.pk-act { margin: var(--space-2) 0 0; }
 .pk-latest { margin: var(--space-2) 0 0; padding-top: var(--space-2); border-top: 1px solid var(--grey-100); }
 .pk-lab { display: flex; align-items: center; gap: 10px; margin-bottom: var(--space-1); color: var(--text); font-size: var(--size-small); }
 .pk-latest-client { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: var(--text-muted); font-size: var(--size-small); }
@@ -320,19 +319,6 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-change .btn.primary:disabled { opacity: .55; cursor: default; }
 .ask-change-line.problem, .ask-refused { color: var(--text); border-left: 3px solid var(--status-amber); padding-left: var(--space-2); }
 .ask-change-line:focus-visible, .ask-change button:focus-visible, .ask-confirm input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
-/* 'Needs from you' in Edit: the row's own buttons sit under its date; a row being edited is a row of fields; a row left out of the
-   published page is dashed and tagged, never dimmed (dimming lowers the text's contrast). */
-.needs-edit .n-acts { display: flex; flex-wrap: wrap; gap: var(--space-1) 6px; margin-top: 6px; }
-.needs-edit .n-date { display: inline-block; }
-.needs-edit tr.n-left td { border-top-style: dashed; background: var(--grey-50); }
-.needs-edit tr.n-left td .tag.hid { margin-left: var(--space-1); }
-.needs-edit .n-f { display: block; margin: 0 0 6px; }
-.needs-edit .n-f input, .needs-edit .n-f select { box-sizing: border-box; width: 100%; min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
-.needs-edit .n-f input:focus-visible, .needs-edit .n-f select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.needs-edit tr.n-form td { background: var(--grey-50); }
-.needs-edit .n-err { margin: 0; font-size: var(--size-caption); color: var(--status-red-text); }
-.needs-edit .n-add { margin: var(--space-2) 0 var(--space-1); }
-.needs-edit .btn:disabled { color: var(--text-muted); cursor: default; }
 
 /* The command palette (#198), Edit parts only: a modal box with one search box and the results under it. */
 .pal { width: min(620px, calc(100% - 32px)); margin-top: 10vh; max-height: 70vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -568,7 +554,7 @@ textarea.tpl-field { resize: vertical; }
 
 /* #96 G3 Work items list (workitems): the Edit part (the filter and the live preview). Tokens only. */
 .wil-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px var(--space-4); margin: var(--space-1) 0 10px; padding: var(--space-3) 14px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--grey-50); }
-.wil-form > .wil-more { grid-column: 1 / -1; }   /* row 1113: the tick boxes fold inside the one form block; Sort by, Most rows, Columns and Caption stay in it where they were */
+.wil-form > .wil-more { grid-column: 1 / -1; }   /* row 1113: the tick boxes fold inside the one form block; Sort by, Most rows and Columns stay in it; the Caption box moved under the list (wish 2) */
 .wil-form-in { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px var(--space-4); margin: var(--space-1) 0 0; }
 .wil-line { display: grid; gap: var(--space-1); margin: var(--space-1) 0 var(--space-2); }
 .wil-linef input { width: 100%; box-sizing: border-box; }
@@ -587,9 +573,12 @@ textarea.tpl-field { resize: vertical; }
 .wil-sel { display: grid; gap: var(--space-1); align-content: start; min-width: 0; }
 .wil-sel span { font-size: var(--size-caption); color: var(--text-muted); font-weight: var(--weight-medium); }
 .wil-sel select, .wil-sel input { min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-small); }
-.wil-capf { grid-column: 1 / -1; }
+.wil-capbox { margin: var(--space-2) 0 0; }
 .wil-none { margin: var(--space-2) 0; padding: 10px var(--space-3); border: 1px dashed var(--grey-300); border-radius: var(--radius); color: var(--text); font-size: var(--size-small); }
 .wil-live tbody tr, .wil-live li { cursor: pointer; }
+.wil-table .wil-c-eye { width: 44px; padding-left: 0; padding-right: 0; text-align: center; }   /* row 1113: the Work items page eye, at the end of each row */
+.wil-lines.wil-live li { position: relative; padding-right: 44px; }
+.wil-lines .wil-eye { position: absolute; top: 2px; right: 0; }
 .wil-live tbody tr:hover, .wil-live li:hover { background: var(--grey-50); }
 .wil-live tbody tr:focus-visible, .wil-live li:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 

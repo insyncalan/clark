@@ -172,6 +172,11 @@ class Cards(Base):
 
         self.each_look(check)
 
+    @staticmethod
+    def backups_503(entry):
+        """Item 1850: the one log line a loaded Mac runner adds, a 503 for GET /api/backups from the test server (not about storage)."""
+        return entry.get("source") == "network" and "/api/backups" in (entry.get("url") or "") and "503" in (entry.get("text") or "")
+
     def test_C_when_the_browser_will_not_remember_the_choice_still_applies_now_and_is_not_kept(self):
         with chrome() as cdp:
             p = self.page(cdp)
@@ -186,7 +191,7 @@ class Cards(Base):
             p.js("1")                           # reads any waiting events
             errors = [e["method"] + " " + json.dumps(e["params"])[:300] for e in cdp.events
                       if e["method"] == "Runtime.exceptionThrown"
-                      or (e["method"] == "Log.entryAdded" and e["params"]["entry"].get("level") == "error")
+                      or (e["method"] == "Log.entryAdded" and e["params"]["entry"].get("level") == "error" and not self.backups_503(e["params"]["entry"]))
                       or (e["method"] == "Runtime.consoleAPICalled" and e["params"].get("type") == "error")]
             self.assertEqual(errors, [], "no uncaught exception and no console error")
             self.assertGreaterEqual(p.js("window.__tried"), 1, "the page did try to keep the choice, so the block was really met")

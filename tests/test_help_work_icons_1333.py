@@ -21,7 +21,7 @@ class WorkIconsHelp(unittest.TestCase):
         for bad in ("beside the saved views (the icon", "icon in the page header, beside the add button", "icon in the page header, ringed"):
             self.assertNotIn(bad, TEXT, bad)
         self.assertIn("**List** and **Board**", TEXT)
-        self.assertIn("filter line", TEXT.split('"id": "send-the-workbook-out"')[1][:600])
+        self.assertNotIn("filter line", TEXT.split('"id": "send-the-workbook-out"')[1][:600])      # Export and Import moved to Settings, Data: the guide names the profile circle and Settings
 
 
 if __name__ == "__main__":
