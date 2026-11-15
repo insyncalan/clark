@@ -201,6 +201,25 @@ class Refusals(unittest.TestCase):
             check("imagecap", {"v": 1, "pictures": {"image": "data:image/png;base64," + "A" * (3 * 1024 * 1024)}})
         self.assertEqual(fi.check({"v": 1, "pictures": {"image": GOOD_JPEG}}, None)["pictures"]["image"], GOOD_JPEG)
 
+    def test_a_version_1_body_over_its_limit_is_refused_by_size_before_its_fields_are_read(self):
+        from clark.section_kinds.textimage import BIG_PICTURE
+        body = {"v": 1, "pictures": {"image": GOOD_JPEG}, "zzz": "A" * (fi.V1_LIMIT + 10)}      # a small picture, a huge extra field
+        with self.assertRaises(Bad) as e:
+            fi.check(body, None)
+        self.assertEqual(str(e.exception), BIG_PICTURE)
+
+    def test_each_word_of_a_version_2_refusal_is_made_image(self):
+        self.assertEqual(fi._say_image("That picture can't be used. Add a PNG, JPEG or WebP picture."), "That image can't be used. Add a PNG, JPEG or WebP image.")
+        self.assertEqual(fi._say_image("Use a picture."), "Use an image.")
+        self.assertEqual(fi._say_image("Leave out pictures."), "Leave out images.")
+        self.assertEqual(fi._say_image("Pictures are big."), "Images are big.")
+        self.assertEqual(fi._say_image("Picture this."), "Image this.")
+
+    def test_a_version_2_refusal_of_a_bad_original_through_with_picture_says_image(self):
+        with self.assertRaises(Bad) as e:
+            fi.with_picture({"v": 2}, "original", "data:image/gif;base64,R0lGODlhAQABAAAAACw=")
+        self.assertEqual(str(e.exception), "That image can't be used. Add a PNG, JPEG or WebP image.")
+
     def test_the_route_checks_a_big_send_by_this_types_limit(self):
         from clark.section_kinds.textimage import picture
         self.assertEqual(picture(GOOD_JPEG, fi.PICTURE_MAX), GOOD_JPEG)

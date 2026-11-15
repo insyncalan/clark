@@ -390,7 +390,7 @@ def _version(value):
 
 def _say_image(text):
     """A version 2 refusal says "image", never "picture" (the version 1 texts, in textimage.py, are unchanged)."""
-    return text.replace("a picture", "an image").replace("pictures", "images").replace("picture", "image").replace("Pictures", "Images").replace("Picture", "Image")
+    return text.replace("a picture", "an image").replace("picture", "image").replace("Picture", "Image")
 
 
 def _in_words_of_images(fn, *args):
@@ -474,6 +474,7 @@ def _with_original(value, slot, image):
         if not out.get(PICTURES):
             out.pop(PICTURES, None)
         return out
+    picture(image, PICTURE_MAX)                              # a type or text that is not an image is refused in words before it is read
     kind, raw = _decode_data(image)
     if kind == "png":
         w, h = png_size(raw)
