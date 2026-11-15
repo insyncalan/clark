@@ -33,7 +33,7 @@ READ = """(() => { const p = document.querySelector('#peek'); if (!p) return nul
       expanded: ctl.getAttribute('aria-expanded'), haspopup: ctl.getAttribute('aria-haspopup'),
       border: cs.borderTopWidth, radius: cs.borderTopLeftRadius, overflow: c.scrollWidth - c.clientWidth }; }
   const probe = (name) => { const e = document.createElement('i'); e.style.color = 'var(' + name + ')'; document.body.appendChild(e); const c = getComputedStyle(e).color; e.remove(); return c; };
-  return { id: p.dataset.peek, hasRow: !!row, chips, rowBox: row ? box(row) : null, peek: box(p), oldCells: p.querySelectorAll('.pk-fields > .pk-row[data-row]').length,
+  return { id: p.dataset.peek, hasRow: !!row, chips, rowBox: row ? box(row) : null, peek: box(p), oldCells: p.querySelectorAll('.pk-fields > .pk-row[data-row=status], .pk-fields > .pk-row[data-row=priority], .pk-fields > .pk-row[data-row=owner], .pk-fields > .pk-row[data-row=due]').length,
     red: probe('--status-red-text'), sideways: p.scrollWidth - p.clientWidth, doc: document.documentElement.scrollWidth - document.documentElement.clientWidth }; })()"""
 
 
