@@ -21,6 +21,9 @@ PROBE = """((i) => {
     scrollW: wrap.scrollWidth, clientW: wrap.clientWidth}; })"""
 
 
+STATE = """(() => { const a = document.activeElement; return 'page focus ' + document.hasFocus() + ', active ' + (a && a.className) + ', transform ' + (a ? getComputedStyle(a).transform : '') + ', focus-visible ' + (a ? a.matches(':focus-visible') : ''); })()"""
+
+
 class TipEdges(BrowserBase, unittest.TestCase):
     def serve(self):
         base = self.store.data_for
@@ -53,7 +56,14 @@ class TipEdges(BrowserBase, unittest.TestCase):
                     cdp.js(f"(() => {{ const w = document.querySelector('.mv-wrap'); w.scrollLeft = {scroll}; }})()", sid)
                     for i in range(n):
                         cdp.js(f"({PROBE})({i})", sid)
-                        self.assertTrue(wait(lambda: cdp.js(f"({PROBE})({i})", sid)["k"] > 1.17), f"{width} mark {i}: the mark reaches its full scale")
+                        last = {}
+
+                        def reached():
+                            last.update(cdp.js(f"({PROBE})({i})", sid))
+                            return last["k"] > 1.17
+                        full = wait(reached)
+                        state = "" if full else cdp.js(STATE, sid)      # what a red run shows: the last probe and the page's focus state
+                        self.assertTrue(full, f"{width} mark {i}: the mark reaches its full scale (last probe {last}; {state})")
                         got = cdp.js(f"({PROBE})({i})", sid)
                         where = f"{width} {end} mark {i} of {n}"
                         self.assertGreaterEqual(got["tipL"], got["stripL"] - 0.5, f"{where}: the tip does not pass the left end of the line")
