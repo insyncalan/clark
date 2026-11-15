@@ -51,6 +51,14 @@ class WindowsZipTest(unittest.TestCase):
         self.assertEqual("windows", self.manifest["system"])
         self.assertIn("docker/clark-runtime.tar", self.manifest["files"])
 
+    def test_every_file_the_start_here_names_is_in_the_zip(self):
+        """Item 624, item 629: every `-f docker/...` file in the START-HERE commands is in the zip, so a zip built without the Windows
+        compose file (its pull request not merged yet) fails here instead of shipping commands that stop at step 5."""
+        named = sorted(set(re.findall(r"-f (docker/[\w.-]+)", self.text)))
+        self.assertIn("docker/compose.windows.yaml", named)
+        for path in named:
+            self.assertIn("clark/" + path, self.names, f"START-HERE names {path}, but the zip has no such file")
+
     def test_the_updaters_coverage_check_passes(self):
         updates.check_coverage("windows", [n.split("/", 1)[1] for n in self.names])
 
