@@ -269,8 +269,8 @@ class Logic(unittest.TestCase):
 
     def test_keys_list(self):
         keys, mac = self.r["keys"], self.r["keysMac"]
-        self.assertEqual(len(keys), 34)      # the Up and Alt+/ rows are gone (the page binds neither); Mod+J is back (askPanelState.js binds it)
-        self.assertEqual(len(mac), 34)
+        self.assertEqual(len(keys), 35)      # the Up and Alt+/ rows are gone (the page binds neither); Mod+J is back (askPanelState.js binds it)
+        self.assertEqual(len(mac), 35)
         self.assertEqual([k for k in keys if k["keys"] in ("Up",) and ("ask clark" in k["does"] or "Sneak" in k["does"])], [])
         self.assertEqual([k["keys"] for k in keys if "ask clark" in k["does"] and "J" in k["keys"]], ["Ctrl+J"])
         self.assertEqual([k["keys"] for k in mac if "ask clark" in k["does"] and "J" in k["keys"]], ["⌘+J"])
