@@ -119,6 +119,20 @@ def to_container(slot, typed, environ):
     return "/".join([target] + _real_case(target, below)), "\\".join([parsed[0] + ":"] + parsed[1])
 
 
+def share_root(slot):
+    """Where the container sees the shared folder of `slot`."""
+    return SLOTS[slot][1]
+
+
+def check_inside(slot, real, typed_windows):
+    """Raise ValueError (the not-shared sentence) unless `real`, a path already resolved with links followed, is still inside the
+    shared folder of `slot`. A link inside the share that points outside it passes to_container by name, so this is checked after the resolve."""
+    root = os.path.realpath(share_root(slot))
+    real = str(real)
+    if real != root and not real.startswith(root.rstrip("/") + "/"):
+        raise ValueError(NOT_SHARED.format(folder=platform.host_shown(typed_windows)))
+
+
 def windows_form(container_path, environ):
     """A path inside a shared folder in the container (such as /shares/files/a/b.html) as the Windows path it is, or None when it is not
     inside one. The path is cleaned first, so a dot-dot cannot make it land in another folder's name."""

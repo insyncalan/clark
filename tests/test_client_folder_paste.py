@@ -171,18 +171,56 @@ class WindowsPaste(Base):
 
     def test_a_plain_drive_path_still_reaches_the_mapping(self):
         with mock.patch.object(publish_flow.host_folders, "windows_host", return_value=True), \
-                mock.patch.object(publish_flow.host_folders, "to_container", return_value=(str(self.reports), "")) as mapped:
+                mock.patch.object(publish_flow.host_folders, "to_container", return_value=(str(self.reports), "")) as mapped, \
+                mock.patch.object(publish_flow.host_folders, "share_root", return_value=str(self.reports.parent)):
             status, got = self.paste("C:\\Users\\Sam\\OneDrive\\Reports")
         mapped.assert_called_once()
 
     def test_the_windows_form_as_typed_is_returned_with_the_saved_folder(self):
         typed = "C:\\Users\\Sam\\OneDrive\\Reports"
         with mock.patch.object(publish_flow.host_folders, "windows_host", return_value=True), \
-                mock.patch.object(publish_flow.host_folders, "to_container", return_value=(str(self.reports), typed)):
+                mock.patch.object(publish_flow.host_folders, "to_container", return_value=(str(self.reports), typed)), \
+                mock.patch.object(publish_flow.host_folders, "share_root", return_value=str(self.reports.parent)):
             status, got = self.paste(typed)
         self.assertEqual((status, got.get("ok")), (200, True), got)
         self.assertEqual(got["folder_windows"], typed)
         self.assertNotEqual(got["folder"], typed, "the stored folder is still the container path")
+
+    def paste_through_link(self, target):
+        """Paste a Windows path whose container form is a link, inside a tmp share root, pointing at `target`."""
+        import tempfile
+        share = Path(tempfile.mkdtemp()).resolve()
+        self.addCleanup(__import__("shutil").rmtree, str(share), True)
+        link = share / "link"
+        os.symlink(str(target), str(link))
+        typed = "C:\\Shared\\link"
+        with mock.patch.object(publish_flow.host_folders, "windows_host", return_value=True), \
+                mock.patch.object(publish_flow.host_folders, "to_container", return_value=(str(link), typed)), \
+                mock.patch.object(publish_flow.host_folders, "share_root", return_value=str(share)):
+            return share, self.paste(typed)
+
+    def test_a_link_inside_the_share_that_points_outside_is_refused(self):
+        import tempfile
+        outside = Path(tempfile.mkdtemp()).resolve()
+        self.addCleanup(__import__("shutil").rmtree, str(outside), True)
+        share, (status, got) = self.paste_through_link(outside)
+        self.assertEqual((status, got.get("ok")), (409, False), got)
+        self.assertEqual(got.get("code"), "client_folder_refused", got)
+
+    def test_a_link_inside_the_share_that_stays_inside_is_accepted(self):
+        import tempfile
+        share = Path(tempfile.mkdtemp()).resolve()
+        self.addCleanup(__import__("shutil").rmtree, str(share), True)
+        (share / "real").mkdir()
+        link = share / "link"
+        os.symlink(str(share / "real"), str(link))
+        typed = "C:\\Shared\\link"
+        with mock.patch.object(publish_flow.host_folders, "windows_host", return_value=True), \
+                mock.patch.object(publish_flow.host_folders, "to_container", return_value=(str(link), typed)), \
+                mock.patch.object(publish_flow.host_folders, "share_root", return_value=str(share)):
+            status, got = self.paste(typed)
+        self.assertEqual((status, got.get("ok")), (200, True), got)
+        self.assertEqual(got["folder"], str(share / "real"))
 
 
 class ThePage(unittest.TestCase):

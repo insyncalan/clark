@@ -706,6 +706,7 @@ class Publisher:
                     try:
                         mapped, typed_windows = host_folders.to_container("client", body["value"], os.environ)
                         picked = Path(mapped).resolve(strict=True)
+                        host_folders.check_inside("client", picked, typed_windows)    # a link may lead out of the share
                     except ValueError as e:
                         return 409, self.fail("client_folder_refused", str(e))
                     except (OSError, RuntimeError):
