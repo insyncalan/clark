@@ -205,6 +205,7 @@ class E2E(unittest.TestCase):
         br.until("[].some.call(document.querySelectorAll('button, a, li'), function(b){return b.textContent.trim()==='Gantt'})", "Settings lists Gantt")
         br.js("[].find.call(document.querySelectorAll('button, a'), function(b){return b.textContent.trim()==='Gantt'}).click()")
         br.until("document.querySelector('#gantt-editor')", "the Gantt card")
+        br.until(f"location.search.indexOf('project={CODE}') >= 0 && document.querySelector('#gantt-editor')", "the page has settled on the project (no reload to come)")
         self.assertIn("Show the Gantt to me", br.text("#gantt-setting"))
         self.assertEqual(br.text("#gantt-setting h2"), "Gantt")
         br.snap("settings-gantt-card")

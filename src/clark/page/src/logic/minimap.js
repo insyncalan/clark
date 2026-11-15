@@ -33,11 +33,13 @@ export function entries(sections, hiddenSections) {
 
 // Which entry is current. `offsets` is [{ id, top }] in page order, `top` measured from the top of the page. A section is
 // current once its top is above a line 30% down the visible part of the page, under the sticky bar (the prototype's rule);
-// at the very bottom the last section is current, as its top may never get that high. Returns an id, or null with no entries.
+// at the very bottom the last section is current, as its top may never get that high; at the very top the first is current, whatever lies above
+// the line (the slim header leaves no cover, so a short first section can end above it). Returns an id, or null with no entries.
 export function activeEntry(offsets, scrollTop, viewportHeight, stickyHeight = 0, pageHeight = 0) {
   if (!offsets || !offsets.length) return null;
   const sticky = Math.max(0, stickyHeight || 0);
   if (pageHeight > 0 && viewportHeight > 0 && scrollTop > 0 && scrollTop + viewportHeight >= pageHeight - 1) return offsets[offsets.length - 1].id;
+  if (scrollTop <= 0) return offsets[0].id;
   const line = scrollTop + sticky + Math.max(0, viewportHeight - sticky) * 0.3;
   let current = offsets[0].id;
   for (const o of offsets) if (o.top <= line) current = o.id;
