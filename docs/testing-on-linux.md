@@ -99,3 +99,7 @@ git worktree prune
 ## The cost rule
 
 A box costs money for every hour it is switched on, whether or not it is running tests. The plan lists the boxes that may be on, and the guard that checks running machines works from that list: a box that is not in the plan is powered off. So a new box goes into the plan first, a box that is replaced or no longer needed comes out of it and is switched off, and anything that would add cost (a bigger box, a second one, paid minutes) is raised with the project owner before it is spent.
+
+## Windows
+
+These boxes do not run Windows. What the suite can check about the Windows route (the Docker files, the starter, the zip contents) runs here as ordinary tests. Everything else is the hand-check sheet `dev/handchecks/1.1.0-sheet.md`, done on a real Windows laptop (item 627).

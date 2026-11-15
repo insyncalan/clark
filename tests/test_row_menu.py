@@ -41,7 +41,9 @@ def key(cdp, sid, name, shift=False):
 
 
 def right_click(cdp, sid, selector):
-    cdp.js(f"document.querySelector({json.dumps(selector)}).scrollIntoView({{block: 'center'}})", sid)
+    cdp.js(f"document.querySelector({json.dumps(selector)}).scrollIntoView({{block: 'center'}}); window.__rcTop = null", sid)
+    # the scroll may still be moving: the place is taken once two reads, one poll apart, agree
+    assert wait(lambda: cdp.js(f"(() => {{ const t = document.querySelector({json.dumps(selector)}).getBoundingClientRect().top, same = window.__rcTop === t; window.__rcTop = t; return same; }})()", sid)), "the row to stop scrolling"
     x, y = cdp.js(f"(() => {{ const b = document.querySelector({json.dumps(selector)}).getBoundingClientRect(); return [b.x + Math.min(b.width / 2, 120), b.y + b.height / 2]; }})()", sid)
     cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, sid)
     cdp.call("Input.dispatchMouseEvent", {"type": "mousePressed", "x": x, "y": y, "button": "right", "buttons": 2, "clickCount": 1}, sid)
@@ -303,6 +305,19 @@ class Menu(board.Base):
         """Row 878: a menu drops in over --dur-instant; its place is measured and clicked only once that has finished."""
         self.until(cdp, sid, "document.querySelector('.rowmenu') && document.querySelector('.rowmenu').getAnimations({subtree: true}).length === 0", "the menu has settled")
 
+    def calm(self, cdp, sid, what="the animations to finish"):
+        self.until(cdp, sid, "document.getAnimations().filter(a => !(a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('toast-bar'))).length === 0", what)
+
+    def quiet(self, cdp, sid, ms):
+        """A window of page time, for a check that something does NOT happen (a timer that must not fire, a menu that must not come): measured on the
+        page's own clock, started now, so a slow machine stretches the wait with the page and never shortens it."""
+        cdp.js("window.__quiet0 = performance.now()", sid)
+        self.until(cdp, sid, f"performance.now() - window.__quiet0 >= {ms}", f"{ms} ms of page time to pass")
+
+    def focus_on(self, cdp, sid, rm):
+        self.until(cdp, sid, f"document.activeElement && document.activeElement.dataset.rm === {json.dumps(rm)}", f"the focus on {rm}",
+                   why=lambda: cdp.js("document.activeElement && document.activeElement.tagName + ':' + (document.activeElement.dataset.rm || '')", sid))
+
     def open_menu(self, cdp, sid, selector):
         right_click(cdp, sid, selector)
         self.until(cdp, sid, "!!document.querySelector('.rowmenu [role=menu]')", "the menu")
@@ -332,6 +347,7 @@ class Menu(board.Base):
                              "open, with the To line's reason in words (#1048: the People list is read when the menu opens)")
             self.assertFalse(any(by[k][2] for k in ("draft", "eye", "peek", "status", "due", "owner", "link", "copyid", "dup", "archive", "delete")))
             self.assertEqual(by["eye"][3], "", "the eye has nothing to explain in Edit")
+            self.focus_on(cdp, sid, "draft")
             self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "draft", "focus is on the first entry that can be used")
             box = cdp.js("(() => { const b = document.querySelector('.rowmenu').getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; })()", sid)
             self.assertTrue(box[0] >= 0 and box[1] >= 0 and box[2] <= 1400 and box[3] <= 900, box)
@@ -404,12 +420,15 @@ class Menu(board.Base):
             self.open_menu(cdp, sid, self.TABLE % a)
             self.until(cdp, sid, "document.getAnimations().filter(a => !(a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('toast-bar'))).length === 0", "the menu to finish opening")
             self.assertEqual(cdp.js("document.querySelector('.rowmenu > .ddmenu').dataset.pointer", sid), "1", "marked as a mouse open")
+            self.focus_on(cdp, sid, "draft")
             self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "draft", "the first entry has the focus")
             cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 1390, "y": 5}, sid)      # the menu opens under the pointer: move off it, so the first entry is not the hovered one
             self.until(cdp, sid, "!document.activeElement.matches(':hover')", "the pointer is off the first entry")
+            self.calm(cdp, sid, "the first entry's ring and tint to settle")
             ring = cdp.js("(() => { const c = getComputedStyle(document.activeElement); return [c.outlineStyle, c.backgroundColor]; })()", sid)
             self.assertEqual(ring, ["none", "rgba(0, 0, 0, 0)"], "no ring and no tint on the first entry")
             key(cdp, sid, "ArrowDown")                  # a key is used: the ring is back, on the entry the key moved to
+            self.focus_on(cdp, sid, "peek")
             self.until(cdp, sid, "document.getAnimations().filter(a => !(a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('toast-bar'))).length === 0", "the ring to finish")
             self.assertEqual(cdp.js("document.querySelector('.rowmenu > .ddmenu').dataset.pointer || ''", sid), "", "the mark goes with the first key")
             self.assertEqual(cdp.js("getComputedStyle(document.activeElement).outlineStyle", sid), "solid", "the key brought the ring back")
@@ -428,6 +447,8 @@ class Menu(board.Base):
                 want = "none" if reduce else "m-in"
                 self.assertEqual(cdp.js(name + "('.rowmenu > .ddmenu')", sid), want, "the row menu: a fade, not the 4 px drop (m-drop)")
                 cdp.js("window.mounted = []; new MutationObserver((ms) => ms.forEach((m) => m.addedNodes.forEach((n) => { if (n.classList && n.classList.contains('rm-fly')) window.mounted.push(n.getAttribute('aria-label')); }))).observe(document.querySelector('.rowmenu'), {childList: true, subtree: true});", sid)
+                cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 1390, "y": 5}, sid)      # the real pointer rests where the menu opened: move it off, or a late real pointerenter swaps the timer
+                self.until(cdp, sid, "!document.querySelector('.rowmenu .ddmenu :hover')", "the pointer is off the menu")
                 cdp.js("['status', 'due', 'owner'].forEach((rm) => document.querySelector('.rowmenu > .ddmenu [data-rm=' + rm + ']').dispatchEvent(new PointerEvent('pointerenter', {pointerType: 'mouse'})))", sid)
                 self.assertEqual(cdp.js("document.querySelectorAll('.rowmenu .rm-fly').length", sid), 0, "no list while the pointer only passes over the entries")
                 self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly [role=menuitem]')", "the list after the pointer rests")
@@ -485,7 +506,8 @@ class Menu(board.Base):
             a, b = rows[0], rows[1]
             right_click(cdp, sid, self.TABLE % a)               # nothing selected: the row menu, and Bulk leaves it be
             self.until(cdp, sid, "!!document.querySelector('.rowmenu [role=menu]')", "the row menu")
-            time.sleep(0.4)
+            self.settled(cdp, sid)
+            self.quiet(cdp, sid, 400)
             self.assertEqual(cdp.js(menus, sid), 1)
             self.assertFalse(cdp.js("!!document.querySelector('.bmenu')", sid))
             self.assertEqual(cdp.js("clarkPage.selected().length", sid), 0, "the right click selected nothing")
@@ -498,7 +520,7 @@ class Menu(board.Base):
                 self.until(cdp, sid, f"clarkPage.selected().length === {len(picks)}", "the selection")
                 right_click(cdp, sid, self.TABLE % a)
                 self.until(cdp, sid, "!!document.querySelector('.bmenu')", "the multi-select menu")
-                time.sleep(0.4)
+                self.quiet(cdp, sid, 400)
                 self.assertEqual(cdp.js(menus, sid), 1, f"{len(picks)} selected")
                 self.assertFalse(cdp.js("!!document.querySelector('.rowmenu')", sid))
                 key(cdp, sid, "Escape")
@@ -557,7 +579,8 @@ class Menu(board.Base):
                     self.until(cdp, sid, "!!document.querySelector('.rm-fly')", "the list")
                 key(cdp, sid, "Tab")
                 self.shut(cdp, sid)
-                time.sleep(0.3)
+                self.until(cdp, sid, "document.activeElement && document.activeElement.tagName !== 'BODY'", "the focus to land on the page")
+                self.quiet(cdp, sid, 300)                         # the menu's refocus timers (0 and 150 ms) have run
                 self.assertNotEqual(cdp.js("document.activeElement.className", sid), "skip", "Tab from the menu must not throw focus to the top of the page")
                 self.assertNotEqual(cdp.js("document.activeElement.tagName", sid), "BODY", "focus is still on the page")
 
@@ -570,34 +593,47 @@ class Menu(board.Base):
             self.until(cdp, sid, "!!document.querySelector('.rowmenu [role=menu]')", "Shift+F10 opens it")
             key(cdp, sid, "Escape")
             self.shut(cdp, sid)
+            self.until(cdp, sid, f"document.activeElement.dataset.id === {json.dumps(a)}", "focus back on the row")
             self.assertEqual(cdp.js("document.activeElement.dataset.id", sid), a)
             key(cdp, sid, "ContextMenu")
             self.until(cdp, sid, "!!document.querySelector('.rowmenu [role=menu]')", "the menu key opens it")
+            self.focus_on(cdp, sid, "draft")
             first = cdp.js("document.activeElement.dataset.rm", sid)
             key(cdp, sid, "ArrowDown")
+            self.focus_on(cdp, sid, "peek")
             self.assertEqual((first, cdp.js("document.activeElement.dataset.rm", sid)), ("draft", "peek"))
             key(cdp, sid, "End")
+            self.focus_on(cdp, sid, "delete")
             self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "delete")
             key(cdp, sid, "Home")
+            self.focus_on(cdp, sid, "draft")
             self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "draft")
             key(cdp, sid, "ArrowDown")                                  # Open the peek
+            self.focus_on(cdp, sid, "peek")
             key(cdp, sid, "ArrowDown")                                  # Change status
+            self.focus_on(cdp, sid, "status")
             key(cdp, sid, "ArrowRight")                                 # opens its list
             self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly')")
+            self.focus_on(cdp, sid, "s:Delayed")
             self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "s:Delayed")
             self.assertTrue(cdp.js("!!document.querySelector('.rowmenu [data-rm=draft]')", sid), "the menu stays whole beside the list")
             key(cdp, sid, "ArrowLeft")                                  # back to the entry, the list shut
             self.until(cdp, sid, "!document.querySelector('.rowmenu .rm-fly')")
+            self.focus_on(cdp, sid, "status")
             self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "status")
             key(cdp, sid, "ArrowRight")
             self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly')")
+            self.focus_on(cdp, sid, "s:Delayed")
             key(cdp, sid, "End")
+            self.focus_on(cdp, sid, "s:Cancelled")
             self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "s:Cancelled")
             key(cdp, sid, "Escape")                                     # Esc leaves the list first, the menu stays
             self.until(cdp, sid, "!document.querySelector('.rowmenu .rm-fly')")
             self.assertTrue(cdp.js("!!document.querySelector('.rowmenu [role=menu]')", sid))
             key(cdp, sid, "Home")
+            self.focus_on(cdp, sid, "draft")
             key(cdp, sid, "ArrowDown")
+            self.focus_on(cdp, sid, "peek")
             key(cdp, sid, "Enter")                                      # Open the peek
             self.until(cdp, sid, f"location.hash.includes('item={a}')", "Enter on Open the peek")
             self.shut(cdp, sid)
@@ -697,7 +733,7 @@ class Menu(board.Base):
                        ".observe(document.body, {subtree: true, childList: true, characterData: true})", sid)
                 self.type_in(cdp, sid, "cedric dunmore")
                 self.until(cdp, sid, "document.querySelector('.rowmenu .rm-fly input[data-rm-search]').value === 'cedric dunmore'", "the typing")
-                time.sleep(0.6)
+                self.quiet(cdp, sid, 600)
                 self.assertEqual(cdp.js("!!document.querySelector('.rm-fly [data-rm=addp]')", sid), False, "no add while the list loads")
                 self.assertEqual(cdp.js("!!document.querySelector('.rm-fly[data-rm-loading]')", sid), True, "still loading")
                 cdp.js("window.__peopleGo()", sid)
@@ -739,25 +775,30 @@ class Menu(board.Base):
                 self.open_menu(cdp, sid, self.TABLE % a)
                 self.hover(cdp, sid, ".rowmenu > [role=menu] [data-rm=owner]")
                 self.search_box(cdp, sid)
-                self.until(cdp, sid, "document.getAnimations().length === 0", "the list to finish opening")
+                self.calm(cdp, sid, "the list to finish opening")
                 self.hover(cdp, sid, ".rowmenu .rm-fly input[data-rm-search]")
                 click(cdp, sid, ".rowmenu .rm-fly input[data-rm-search]")
+                self.until(cdp, sid, "document.activeElement.matches('input[data-rm-search]')", "focus on the box")
                 cdp.call("Input.insertText", {"text": "Wilh"}, sid)
+                self.until(cdp, sid, "document.querySelector('.rowmenu .rm-fly input[data-rm-search]').value === 'Wilh'", "the typing")
                 cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 3, "y": 3}, sid)      # off the menu and its list
-                time.sleep(0.7)
+                self.until(cdp, sid, "!document.querySelector('.rowmenu :hover')", "the pointer off the menu")
+                self.quiet(cdp, sid, 700)
                 self.assertTrue(cdp.js("!!document.querySelector('.rowmenu .rm-fly')", sid), "the list stays: the box has focus and text")
                 self.assertEqual(cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').value", sid), "Wilh")
                 cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').blur()", sid)
                 self.hover(cdp, sid, ".rowmenu > [role=menu] [data-rm=link]")
-                time.sleep(0.7)
+                self.until(cdp, sid, "document.querySelector('.rowmenu > [role=menu] [data-rm=link]').matches(':hover')", "the pointer on the link entry")
+                self.quiet(cdp, sid, 700)
                 self.assertTrue(cdp.js("!!document.querySelector('.rowmenu .rm-fly')", sid), "text typed and not yet used is kept even unfocused")
                 cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').focus()", sid)
                 key(cdp, sid, "Escape")
                 self.until(cdp, sid, "!document.querySelector('.rowmenu .rm-fly')", "Escape closes the list")
+                self.until(cdp, sid, "!document.querySelector('.rowmenu .rm-fly')", "the list gone")
                 self.open_menu(cdp, sid, self.TABLE % self.id_of("Order the laptops")) if cdp.js("!document.querySelector('.rowmenu')", sid) else None
                 self.hover(cdp, sid, ".rowmenu > [role=menu] [data-rm=owner]")
                 self.search_box(cdp, sid)
-                self.until(cdp, sid, "document.getAnimations().length === 0", "the list to finish opening")
+                self.calm(cdp, sid, "the list to finish opening")
                 self.hover(cdp, sid, ".rowmenu .rm-fly input[data-rm-search]")
                 cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 3, "y": 3}, sid)
                 self.until(cdp, sid, "!document.querySelector('.rowmenu .rm-fly')", "an empty, unfocused search still closes on leaving")
@@ -767,7 +808,7 @@ class Menu(board.Base):
         self.open_menu(cdp, sid, self.TABLE % a)
         self.hover(cdp, sid, ".rowmenu > [role=menu] [data-rm=owner]")
         self.search_box(cdp, sid)
-        self.until(cdp, sid, "document.getAnimations().length === 0", "the list to finish opening")
+        self.calm(cdp, sid, "the list to finish opening")
         self.hover(cdp, sid, ".rowmenu .rm-fly input[data-rm-search]")
 
     def test_item_1070_search_guard_edges_focus_alone_blank_text_swap_timing_and_a_list_opened_by_key(self):
@@ -779,8 +820,10 @@ class Menu(board.Base):
                     sid = self.visit(cdp, width=width)
                     self.hover_owner_list(cdp, sid)
                     cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').focus()", sid)
+                    self.until(cdp, sid, "document.activeElement.matches('input[data-rm-search]')", "focus on the box")
                     cdp.call("Input.dispatchMouseEvent", away, sid)
-                    time.sleep(0.7)
+                    self.until(cdp, sid, "!document.querySelector('.rowmenu :hover')", "the pointer off the menu")
+                    self.quiet(cdp, sid, 700)
                     self.assertTrue(cdp.js(has_fly, sid), "a focused search box keeps the list though it holds no text")
             with self.subTest(width=width, case="blank text, unfocused"):
                 with chrome() as cdp:
@@ -789,7 +832,7 @@ class Menu(board.Base):
                     self.type_in(cdp, sid, "   ")
                     cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').blur()", sid)
                     cdp.call("Input.dispatchMouseEvent", away, sid)
-                    time.sleep(0.7)
+                    self.until(cdp, sid, "!document.querySelector('.rowmenu .rm-fly')", "the list to close after the pointer leaves")
                     self.assertFalse(cdp.js(has_fly, sid), "spaces only are no text: the list closes about 250 ms after the pointer leaves")
             with self.subTest(width=width, case="swap held"):
                 with chrome() as cdp:
@@ -798,7 +841,8 @@ class Menu(board.Base):
                     self.type_in(cdp, sid, "Wilh")
                     cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').blur()", sid)
                     self.hover(cdp, sid, ".rowmenu > [role=menu] [data-rm=status]")
-                    time.sleep(0.7)
+                    self.until(cdp, sid, "document.querySelector('.rowmenu > [role=menu] [data-rm=status]').matches(':hover')", "the pointer on the status entry")
+                    self.quiet(cdp, sid, 700)
                     self.assertTrue(cdp.js("!!document.querySelector('.rowmenu .rm-fly input[data-rm-search]')", sid), "typed text is not swapped away by resting on another entry")
             with self.subTest(width=width, case="list opened by a click survives the pointer leaving"):
                 with chrome() as cdp:
@@ -808,7 +852,8 @@ class Menu(board.Base):
                     click(cdp, sid, "[data-rm=status]")
                     self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly [role=menuitem]')", "the list")
                     cdp.call("Input.dispatchMouseEvent", away, sid)
-                    time.sleep(0.7)
+                    self.until(cdp, sid, "!document.querySelector('.rowmenu :hover')", "the pointer off the menu")
+                    self.quiet(cdp, sid, 700)
                     self.assertTrue(cdp.js(has_fly, sid), "a list taken by click or key stays when the pointer leaves")
             with self.subTest(width=width, case="Escape from an entry"):
                 with chrome() as cdp:
@@ -831,7 +876,7 @@ class Menu(board.Base):
             self.search_box(cdp, sid)
             self.until(cdp, sid, "document.activeElement.matches('input[data-rm-search]')", "focus on the box")
             key(cdp, sid, "Enter")
-            time.sleep(0.5)
+            self.quiet(cdp, sid, 500)
             self.assertEqual(self.steps(), before, "Enter on an empty box takes no name")
             self.assertTrue(cdp.js("!!document.querySelector('.rowmenu .rm-fly')", sid), "the list stays")
             self.type_in(cdp, sid, "Wilhelmina Frost")
@@ -839,6 +884,7 @@ class Menu(board.Base):
             key(cdp, sid, "Enter")
             self.until(cdp, sid, "!!document.querySelector('[data-pop] [data-new-name]')", "Enter on the add entry opens the form")
             self.assertEqual(cdp.js("document.querySelector('[data-pop] [data-new-name]').value", sid), "Wilhelmina Frost")
+            self.until(cdp, sid, "!document.querySelector('.rowmenu > [role=menu]')", "the menu to give way to the form")
             self.assertEqual(cdp.js("!!document.querySelector('.rowmenu > [role=menu]')", sid), False, "the menu gives way to the form")
             cdp.js("(() => { const i = document.querySelector('[data-pop] [data-new-name]'); i.value = 'Wilhelmina Frost'; i.dispatchEvent(new Event('input', {bubbles: true})); })()", sid)
             click(cdp, sid, "[data-pop] [data-new-save]")
@@ -1051,7 +1097,12 @@ class Menu(board.Base):
                 ref = self.id_of(text)
                 self.open_menu(cdp, sid, self.TABLE % ref)
                 click(cdp, sid, "[data-rm=dup]")
-                self.assertTrue(wait(lambda: len(self.query(f"SELECT id FROM {table} WHERE {col} = ?", text + " (copy)")) == 1), table)
+                self.assertTrue(wait(lambda: len(self.query(f"SELECT id FROM {table} WHERE {col} = ?", text + " (copy)")) == 1, 30), table)
+                self.wait_toast(cdp, sid, "done")
+                self.shut(cdp, sid)                                     # the first menu is gone before the next row's menu is asked for
+                new = self.query(f"SELECT id FROM {table} WHERE {col} = ?", text + " (copy)")[0]["id"]
+                self.until(cdp, sid, f"!!document.querySelector(\"{self.TABLE % new}\")", f"{table}: the copy in the list")
+                self.calm(cdp, sid, f"{table}: the page to settle")
 
     def test_copy_id_and_copy_link_put_text_on_the_clipboard_and_say_so(self):
         with chrome() as cdp:
@@ -1071,9 +1122,9 @@ class Menu(board.Base):
             self.assertTrue(cdp.js("window.__clip[1]", sid).endswith(f"#work&p=ABC&item={a}"), cdp.js("window.__clip[1]", sid))
             self.assertEqual(self.steps(), before)
 
-    def test_when_the_browser_does_not_copy_the_cmd_c_hint_shows_only_with_a_selection(self):
+    def test_when_the_browser_does_not_copy_the_copy_key_hint_shows_only_with_a_selection(self):
         """Item 612: the note says to select the text and press the keys only when there is a selection to copy."""
-        plain, hint = "The browser did not copy it.", "The browser did not copy it. Select the text and press ⌘C instead."
+        plain, hint = "The browser did not copy it.", "The browser did not copy it. Press Ctrl+C (Cmd+C on a Mac) to copy the selected text."
         toast = "(() => { const t = document.querySelector('.toast[data-kind=note] .toast-text'); return t ? t.textContent : ''; })()"
         with chrome() as cdp:
             sid = self.visit(cdp)
@@ -1172,7 +1223,7 @@ class Menu(board.Base):
                 gate, done = self.gated_people()
                 try:
                     right_click(cdp, sid, self.TABLE % a)
-                    time.sleep(0.3)
+                    self.quiet(cdp, sid, 300)
                     self.assertFalse(cdp.js("!!document.querySelector('.rowmenu')", sid), "nothing is drawn while the list is read")
                     if how == "escape":
                         key(cdp, sid, "Escape")
@@ -1182,7 +1233,7 @@ class Menu(board.Base):
                 finally:
                     gate.set()
                 self.assertTrue(done.wait(10))
-                time.sleep(0.8)
+                self.quiet(cdp, sid, 800)
                 self.assertFalse(cdp.js("!!document.querySelector('.rowmenu')", sid), "the read came back after the dismiss: the menu stays shut")
                 self.open_menu(cdp, sid, self.TABLE % a)            # a fresh open still works afterwards
                 self.assertTrue(cdp.js("!!document.querySelector('.rowmenu [role=menu]')", sid))
@@ -1195,6 +1246,7 @@ class Menu(board.Base):
             click(cdp, sid, "[data-rm=draft]")
             self.until(cdp, sid, "!!document.querySelector('[data-draft-email] .de')", "the Draft email")
             self.shut(cdp, sid)
+            self.until(cdp, sid, "document.querySelectorAll('.de .pick input').length > 0 && document.querySelectorAll('.de-meta dd').length >= 2", "the dialog's pick and meta lines")
             self.assertEqual(self.drafts, [{"project": "ABC", "item": a, "picked": [a]}], "one ask, PR 68's POST /api/draft-email, for this item, ticked")
             self.assertEqual(cdp.js("[...document.querySelectorAll('.de .pick input')].map(i => [i.value, i.checked])", sid), [[a, True]], "its tick is pre-picked")
             self.assertEqual(cdp.js("document.querySelector('.de').getAttribute('role')", sid), "dialog")
@@ -1205,6 +1257,7 @@ class Menu(board.Base):
             self.assertIn("Example Programme", meta[3])
             self.until(cdp, sid, "document.querySelector('.de-preview').textContent.includes('Order the laptops')", "the preview to hold the item's text")     # DraftEmail.jsx fills the preview in an effect after the dialog is drawn
             self.assertIn("Order the laptops", cdp.js("document.querySelector('.de-preview').textContent", sid))
+            self.until(cdp, sid, "document.querySelector('.de').contains(document.activeElement)", "the focus in the dialog")
             self.assertTrue(cdp.js("document.querySelector('.de').contains(document.activeElement)", sid), "focus is in the dialog")
             self.assertEqual(cdp.js("[...document.querySelectorAll('.de-kinds input')].map(i => i.value)", sid), ["update_request", "chase", "decision"])
             # a change in the dialog asks for a new draft; it is still only a draft
@@ -1216,6 +1269,7 @@ class Menu(board.Base):
             self.until(cdp, sid, "!document.querySelector('[data-draft-email]')", "the dialog to close")
             self.until(cdp, sid, f"document.activeElement.dataset.id === {json.dumps(a)}", "focus back on the row")      # given back one tick after the dialog goes
             self.assertEqual((self.steps(), len(self.sent)), (before, sent), "nothing was changed, saved or sent")
+            self.until(cdp, sid, "!document.querySelector('#main, .top').hasAttribute('inert')", "the page released")
             self.assertFalse(cdp.js("document.querySelector('#main, .top').hasAttribute('inert')", sid))
 
     def test_row_1048_the_owners_address_and_name_ride_on_the_ask_show_in_the_to_line_and_stay_on_a_changed_option_at_1400_and_900(self):
@@ -1265,9 +1319,11 @@ class Menu(board.Base):
             self.open_menu(cdp, sid, self.TABLE % a)
             click(cdp, sid, "[data-rm=draft]")
             self.until(cdp, sid, "!!document.querySelector('[data-draft-email] .de')", "the Draft email")
+            self.until(cdp, sid, "document.querySelector('[data-draft-email] .de').getAttribute('aria-modal') === 'true'", "the dialog to say it is modal")
             self.assertEqual(cdp.js("document.querySelector('[data-draft-email] .de').getAttribute('aria-modal')", sid), "true")
             outside = """(() => { const out = []; for (let n = document.querySelector('[data-draft-email]'); n && n !== document.body; n = n.parentNode)
                 for (const s of n.parentNode.children) if (s !== n && !/^(SCRIPT|STYLE|LINK)$/.test(s.tagName)) out.push(s.hasAttribute('inert')); return out; })()"""
+            self.until(cdp, sid, "(() => { const g = " + outside + "; return g.length > 0 && g.every(Boolean); })()", "everything outside the dialog to be inert", why=lambda: cdp.js(outside, sid))
             got = cdp.js(outside, sid)
             self.assertTrue(got and all(got), got)
             # A panel that mounts after the dialog opened (the palette, Help, the peek) is held as it appears.
@@ -1306,6 +1362,7 @@ class Menu(board.Base):
             click(cdp, sid, "[data-rm=draft]")
             self.until(cdp, sid, "!!document.querySelector('[data-draft-email] .de')", "the Draft email")
             find = "[...document.querySelectorAll('.de .pk-btn')].find(b => /sent/.test(b.textContent))"
+            self.until(cdp, sid, find + " && document.querySelector('.de-preview').textContent.includes('Order the laptops')", "the I sent it button and the preview")
             self.assertFalse(cdp.js(find + ".disabled", sid), "I sent it is live in View on Work items")
             self.assertNotIn("Switch to Edit to change this.", cdp.js("document.querySelector('.de').textContent", sid))
             cdp.js(find + ".click()", sid)
@@ -1335,6 +1392,7 @@ class Menu(board.Base):
             self.until(cdp, sid, "!!document.querySelector('[data-draft-email] .de')", "the Draft email")
             cdp.js("location.hash = '#settings&p=ABC'", sid)
             self.until(cdp, sid, "!document.querySelector('[data-draft-email]')", "the dialog to close on another page")
+            self.until(cdp, sid, "!document.querySelector('#main, .top').hasAttribute('inert')", "the page released")
             self.assertFalse(cdp.js("document.querySelector('#main, .top').hasAttribute('inert')", sid))
 
     def test_a_missing_item_says_so_in_words(self):
@@ -1396,12 +1454,13 @@ class Menu(board.Base):
             self.open_menu(cdp, sid, self.TABLE % a)
             click(cdp, sid, "[data-rm=draft]")
             self.until(cdp, sid, "!!document.querySelector('[data-draft-email] .de')", "the Draft email")
+            self.until(cdp, sid, "[...document.querySelectorAll('.de .pk-btn')].some(x => /sent/.test(x.textContent))", "the I sent it button")
             cdp.js("(() => { const b = [...document.querySelectorAll('.de .pk-btn')].find(x => /sent/.test(x.textContent)); b.click(); b.click(); })()", sid)
             self.until(cdp, sid, "/sent/i.test(document.querySelector('.de-note').textContent)", "the note")
             self.until(cdp, sid, "[...document.querySelectorAll('.de .pk-btn')].every(x => !/sent/.test(x.textContent) || !x.disabled)", "the button ready again after the save")
             # #650: the button is usually ready already once the note shows, so give a second POST a short time to arrive
             # (a bounded wait for something that must NOT happen, as tests/test_report_editor.py does)
-            time.sleep(0.3)
+            self.quiet(cdp, sid, 300)
             self.assertEqual(len(self.sent_calls), 1, "one POST /api/draft-email/sent for two presses")
             self.assertEqual([r["ids"] for r in self.store.email_sent_for("ABC")], [[a]], "one record")
             self.assertFalse(cdp.js("[...document.querySelectorAll('.de .pk-btn')].find(x => /sent/.test(x.textContent)).disabled", sid), "ready again after the save")
@@ -1422,12 +1481,15 @@ class Menu(board.Base):
             self.until(cdp, sid, "document.body.classList.contains('board-full')")
             self.open_menu(cdp, sid, self.CARD % b)
             click(cdp, sid, "[data-rm=status]")
+            self.until(cdp, sid, "!!document.querySelector(\".rowmenu .rm-fly [data-rm='s:Closed']\")", "the status list")
+            self.calm(cdp, sid, "the list to finish opening")
             click(cdp, sid, "[data-rm='s:Closed']")
             self.wait_toast(cdp, sid, "done")
             self.assertEqual((self.row(b)["status"], self.steps()), ("Closed", before + 1))
             self.assertTrue(cdp.js("document.body.classList.contains('board-full')", sid), "full screen stays")
             self.until(cdp, sid, f"!document.querySelector(\"{self.CARD % b}\") || document.querySelector(\"{self.CARD % b}\").closest('section').dataset.col === 'Closed'", "the card in its new column")
             cdp.js(f"document.querySelector(\"article[data-id='{a}'] .bc-main\").focus()", sid)
+            self.until(cdp, sid, f"document.activeElement === document.querySelector(\"article[data-id='{a}'] .bc-main\")", "the focus on the card")
             key(cdp, sid, "F10", shift=True)
             self.until(cdp, sid, "!!document.querySelector('.rowmenu [role=menu]')", "the keys open it on a card too")
             key(cdp, sid, "Escape")
@@ -1448,7 +1510,8 @@ class Menu(board.Base):
             with chrome() as cdp:
                 sid = self.visit(cdp, width=width)
                 a = self.id_of("Order the laptops")
-                cdp.js(f"document.querySelector(\"{self.TABLE % a}\").scrollIntoView({{block: 'start'}})", sid)
+                cdp.js(f"document.querySelector(\"{self.TABLE % a}\").scrollIntoView({{block: 'start'}}); window.__rcTop = null", sid)
+                self.assertTrue(wait(lambda: cdp.js(f"(() => {{ const t = document.querySelector(\"{self.TABLE % a}\").getBoundingClientRect().top, same = window.__rcTop === t; window.__rcTop = t; return same; }})()", sid)), "the row to stop scrolling")
                 px, py = 200, cdp.js(f"Math.round(document.querySelector(\"{self.TABLE % a}\").getBoundingClientRect().top + 10)", sid)
                 for t, b, bs in (("mouseMoved", "none", 0), ("mousePressed", "right", 2), ("mouseReleased", "right", 0)):
                     cdp.call("Input.dispatchMouseEvent", {"type": t, "x": px, "y": py, "button": b, "buttons": bs, "clickCount": 1}, sid)
@@ -1471,7 +1534,8 @@ class Menu(board.Base):
                         self.assertEqual(self.fly(cdp, sid)[0][0], first)
                     self.assertEqual(self.box(cdp, sid), still, f"{rm}: the menu did not move or resize")
                     self.hover(cdp, sid, ".rowmenu .rm-fly [role=menuitem]")         # on to the list: it stays open
-                    time.sleep(0.5)
+                    self.until(cdp, sid, "document.querySelector('.rowmenu .rm-fly [role=menuitem]').matches(':hover')", f"{rm}: the pointer on the list")
+                    self.quiet(cdp, sid, 500)
                     self.assertTrue(cdp.js("!!document.querySelector('.rowmenu .rm-fly')", sid), f"{rm}: the list stays while the pointer is on it")
                     self.until(cdp, sid, "document.getAnimations().filter(a => !(a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('toast-bar'))).length === 0", f"{rm}: the list to finish opening")
                     fl = cdp.js("(() => { const f = document.querySelector('.rm-fly').getBoundingClientRect(), m = document.querySelector('.rowmenu > [role=menu]').getBoundingClientRect(); return [f.left >= m.right - 4 || f.right <= m.left + 4, f.left >= 0, f.right <= window.innerWidth]; })()", sid)
@@ -1490,6 +1554,7 @@ class Menu(board.Base):
             self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly')", "the list")
             self.assertEqual(self.box(cdp, sid), still, "the click did not move or resize the menu")
             self.assertEqual(self.steps(), before, "the click on the entry changes nothing")
+            self.calm(cdp, sid, "the list to finish opening")
             click(cdp, sid, "[data-rm='s:Delayed']")
             self.wait_toast(cdp, sid, "done")
             self.assertEqual((self.row(a)["status"], self.steps()), ("Delayed", before + 1), "one step")
@@ -1533,13 +1598,14 @@ class Menu(board.Base):
                 self.people_loaded(cdp, sid)
                 before = cdp.js(box, sid)
                 self.type_in(cdp, sid, "q" * 500)
-                self.until(cdp, sid, "document.querySelector('.rowmenu .rm-fly input[data-rm-search]').value.length > 0", "the typing")
+                self.until(cdp, sid, "document.querySelector('.rowmenu .rm-fly input[data-rm-search]').value.length === 200", "the typing stopped at 200", why=lambda: cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').value.length", sid))
                 self.assertEqual(cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').value.length", sid), 200, "a huge paste stops at 200 characters")
                 cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').select()", sid)
                 for text in ("ced", "<img src=x onerror=alert(1)>" + "w" * 150, "Zed Nobody"):
                     self.type_in(cdp, sid, text)
                     self.until(cdp, sid, f"document.querySelector('.rowmenu .rm-fly input[data-rm-search]').value === {json.dumps(text)}", "the typing")
-                    time.sleep(0.3)
+                    self.calm(cdp, sid, "the list to finish re-drawing")
+                    self.quiet(cdp, sid, 300)
                     now = cdp.js(box, sid)
                     self.assertEqual((now[1], now[3:7]), (before[1], before[3:7]), f"{width}: the menu and the list's top do not move or resize while typing")
                     self.assertEqual(now[7:], [True] * 4, f"{width}: the list stays inside the window")
@@ -1558,6 +1624,7 @@ class Menu(board.Base):
                 sid = self.visit(cdp, width=width, height=900)
                 a = self.id_of("Order the laptops")
                 row = f"tr[data-id='{a}']"
+                self.until(cdp, sid, f"!!document.querySelector(\"{row} button.weye\")", "the rows drawn")
                 self.assertEqual(cdp.js("document.querySelectorAll('button.rmore, [data-rowmore]').length", sid), 0, f"{width}: no More actions button on any row")
                 self.assertEqual(cdp.js("document.querySelectorAll('#work tr[data-id] button[aria-label=\"More actions\"]').length", sid), 0)
                 self.assertGreaterEqual(cdp.js("document.querySelectorAll('tr[data-id] button.weye').length", sid), 1, "the eye stays")

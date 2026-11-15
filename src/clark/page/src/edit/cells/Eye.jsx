@@ -10,6 +10,7 @@ import { blink } from "../../stores/motion.js";
 import { Icon } from "../../components/Icon.jsx";
 import { rulesFor, publishable } from "../../logic/publishable.js";
 import { tableOf } from "../itemEdit.js";
+import { eyeWords } from "../../logic/eyeWords.js";
 
 const state = computed(() => {
   const d = data.value;
@@ -28,18 +29,17 @@ export function eyeOf(row) {
 
 export function Eye({ row, card }) {   // `card`: the board's card, whose buttons never use the shared `ib` name (tests/test_ib_scope.py)
   const { on, back } = eyeOf(row);
+  const w = eyeWords(on, row);   // row 1195: one string for the label and the announcement after a toggle
   const go = (e) => {
     e.stopPropagation();
     blink(e);
-    if (on) change({ kind: "report_hidden", op: "new", id: row.id }, `${row.id} hidden from the client.`);
-    else if (back) change({ kind: "report_hidden", op: "delete", id: row.id }, `${row.id} shown to the client.`);
-    else change({ kind: "report_hidden", op: "pick", ids: [row.id] }, `${row.id} shown to the client.`);
+    if (on) change({ kind: "report_hidden", op: "new", id: row.id }, w.said);
+    else if (back) change({ kind: "report_hidden", op: "delete", id: row.id }, w.said);
+    else change({ kind: "report_hidden", op: "pick", ids: [row.id] }, w.said);
   };
-  const words = on ? "Shown to the client" : "Hidden from the client";
   return (
     <button type="button" class={card ? "weye" : "ib weye"} tabIndex={-1} aria-pressed={on ? "true" : "false"}
-      aria-label={`${on ? "Shown to the client" : "Not shown to the client"}: ${row.title}`}
-      title={on ? "In client reports. Select to hide" : "Internal only. Select to show the client"} onClick={go}>
+      aria-label={w.label} title={w.title} onClick={go}>
       <Icon name={on ? "eye" : "eyeoff"} />
     </button>
   );

@@ -171,7 +171,7 @@ class Unchanged(unittest.TestCase):
         self.assertNotIn("movement", publish.PUBLISH_FIELDS["milestones"])
         self.assertEqual(publish.PUBLISH_FIELDS["milestones"], (
             "id", "name", "description", "baseline_date", "forecast_date", "status", "sort_order", "percent_complete",
-            "state_reason", "owner", "actual_date", "client_message", "workstream", "source"))
+            "state_reason", "owner", "actual_date", "client_message", "workstream", "latest_update", "source"))      # item 1185: + Latest update
         self.assertEqual(clark_store.NEVER_PUBLISH, frozenset({
             "internal_note", "movement", "reasoning", "options", "response_action", "keywords", "aliases", "lead",
             "publish_local", "publish_client", "by_user", "device"}))
