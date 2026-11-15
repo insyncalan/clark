@@ -15,6 +15,7 @@ import unittest
 from _demo import USER, DemoStore
 from _paths import ROOT
 from clark import publish
+from test_glance import ON, RULES, data, sections, use_case
 
 SRC = ROOT / "src" / "clark" / "page" / "src"
 
@@ -63,10 +64,14 @@ class PublishedSections(unittest.TestCase):
         self.assertEqual(self.glance()["tiles"], [], "hidden: none")
 
     def test_d_a_hidden_use_cases_section_does_not_publish_the_strip(self):
-        self.set_hidden("usecases", 0)
-        self.assertIn("strip", self.glance(), "visible: the strip is in")
-        self.set_hidden("usecases", 1)
-        self.assertNotIn("strip", self.glance(), "hidden: no strip")
+        def strip(*hide):
+            i = {"data": data(use_cases=[use_case(1)]), "hidden": [], "sections": sections(*hide), "label_rules": RULES,
+                 "as_at": ON, "glance_tiles": []}
+            pub = publish.select(i)
+            pub["data"]["use_cases"] = [use_case(1)]      # select already empties them for a hidden section; add_glance must not rely on that
+            return publish.add_glance(pub, i)["data"]["glance"]
+        self.assertEqual(strip()["strip"]["total"], 1, "visible: the strip is in")
+        self.assertNotIn("strip", strip("usecases"), "hidden: no strip")
 
 
 if __name__ == "__main__":
