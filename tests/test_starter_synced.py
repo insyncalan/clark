@@ -150,13 +150,16 @@ class Script(unittest.TestCase):
         self.bin.mkdir()
         self.log = Path(self.tmp) / "docker.log"
         stub = self.bin / "docker"
-        stub.write_text('#!/bin/sh\necho "$@" >> "$DOCKER_LOG"\n', encoding="utf-8")
+        stub.write_text('#!/bin/sh\n[ "$1" = info ] && exit 0\necho "$@" >> "$DOCKER_LOG"\n', encoding="utf-8")
         stub.chmod(0o755)
         self.opened = Path(self.tmp) / "opened.log"
         fake = self.bin / "fakebrowser"       # item 636: the starter opens a window; a test must never open a real browser
         fake.write_text('#!/bin/sh\necho "$@" >> "$OPENED_LOG"\n', encoding="utf-8")
         fake.chmod(0o755)
         self.fake = fake
+        for name in ("curl", "open"):       # row 1161: after compose the script waits for the page and opens Chrome; nothing real is reached
+            (self.bin / name).write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            (self.bin / name).chmod(0o755)
 
     def run_script(self, data, *args):
         env = {"PATH": f"{self.bin}:{os.environ['PATH']}", "HOME": self.tmp, "DOCKER_LOG": str(self.log), "CLARK_BROWSER": str(self.fake), "OPENED_LOG": str(self.opened), "CLARK_DATA_DIR": data}
@@ -224,6 +227,42 @@ class Script(unittest.TestCase):
                     break   # writer closed: nothing more will come
                 got += chunk
         self.assertEqual(got.decode("utf-8").strip(), "http://localhost:8780")
+
+    def test_the_port_and_browser_set_only_in_docker_env_are_used(self):
+        """Item 636 (Banner's read of 1596): compose reads CLARK_PORT and CLARK_BROWSER from docker/.env, so the window must too.
+        A copy of the starter sits in a folder whose docker/.env is the only place that names them."""
+        app = Path(self.tmp) / "app"
+        (app / "docker").mkdir(parents=True)
+        (app / "src" / "clark").mkdir(parents=True)
+        shutil.copy(ROOT / "docker" / "start.command", app / "docker" / "start.command")
+        shutil.copy(ROOT / "src" / "clark" / "starter_check.py", app / "src" / "clark" / "starter_check.py")
+        (app / "docker" / ".env").write_text(f"CLARK_PORT=8780\nCLARK_BROWSER={self.fake}\nCLARK_DATA_DIR={self.tmp}/data\n", encoding="utf-8")
+        opened = Path(self.tmp) / "opened2.fifo"
+        os.mkfifo(opened)
+        rfd = os.open(opened, os.O_RDONLY | os.O_NONBLOCK)
+        self.addCleanup(os.close, rfd)
+        env = {"PATH": f"{self.bin}:{os.environ['PATH']}", "HOME": self.tmp, "DOCKER_LOG": str(self.log), "OPENED_LOG": str(opened)}   # no CLARK_* in the shell
+        r = subprocess.run(["bash", str(app / "docker" / "start.command")], env=env, capture_output=True, text=True, cwd=self.tmp, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        got = b""
+        deadline = time.monotonic() + 5
+        while b"\n" not in got and time.monotonic() < deadline:
+            if select.select([rfd], [], [], max(0.0, deadline - time.monotonic()))[0]:
+                chunk = os.read(rfd, 4096)
+                if not chunk:
+                    break
+                got += chunk
+        self.assertEqual(got.decode("utf-8").strip(), "http://localhost:8780")
+
+    def test_port_and_browser_come_from_the_shell_then_the_env_file(self):
+        env_file = Path(self.tmp) / "dot.env"
+        env_file.write_text("CLARK_PORT=8780\nCLARK_BROWSER=/x/b\n", encoding="utf-8")
+        self.assertEqual(sc.port({}, str(env_file)), "8780")
+        self.assertEqual(sc.port({"CLARK_PORT": "9000"}, str(env_file)), "9000")
+        self.assertEqual(sc.port({"CLARK_PORT": "abc"}, str(env_file)), "8766")
+        self.assertEqual(sc.port({}, str(Path(self.tmp) / "none")), "8766")
+        self.assertEqual(sc.browser_program({}, lambda p: p == "/x/b", str(env_file)), "/x/b")
+        self.assertEqual(sc.browser_program({"CLARK_BROWSER": "/y/c"}, lambda p: p == "/x/b", str(env_file)), "")
 
     def test_browser_program_order_and_fallback(self):
         chrome, edge = sc.BROWSERS_MAC[0], sc.BROWSERS_MAC[2]
