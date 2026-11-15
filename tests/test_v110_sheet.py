@@ -47,6 +47,13 @@ class WindowsSheet(unittest.TestCase):
         for l in lines:
             self.assertRegex(l, r"#\d{3}\b", f"check line without an item id: {l[:60]}")
 
+    def test_a_line_checks_the_data_folder_when_userprofile_is_not_set(self):
+        """item 629: compose.windows.yaml defaults the data folder from USERPROFILE; with it unset the default reads /clark-data. The
+        yaml is not changed untested, so a Windows tester checks it by hand on this sheet."""
+        line = next((l for l in self.check_lines() if "USERPROFILE" in l), "")
+        self.assertIn("/clark-data", line)
+        self.assertIn("(#629)", line)
+
     def test_the_sheet_keeps_every_windows_check_line(self):
         self.assertGreaterEqual(len(self.check_lines()), 12, "a Windows check line was deleted from the 1.1.0 sheet")
 
