@@ -37,7 +37,7 @@ export const WORDS = {
   madeStays: "A decision that has been made can't go back to Pending. Record a new decision that replaces it.",   // as changes.MADE_STAYS
   noWorkstream: "A decision isn't part of a workstream.",
   noMilestone: "A decision isn't tied to a milestone.",
-  noPriority: "A decision has no priority.",
+  noPriority: "A decision's priority is set in its details, one at a time.",
   riskPriority: "A risk or issue's priority comes from its impact and likelihood. Change those in its details.",
   overdue: "Overdue is worked out from the due date. Drop the card on This week, Next week or Later and choose a date.",
   notRated: "An action can't be moved to Not rated. Choose Urgent, High, Medium or Low.",

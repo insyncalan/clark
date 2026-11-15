@@ -222,7 +222,7 @@ ITEM_KEEPS_TYPE = "A work item keeps its type."
 NO_ARCHIVE = "An item can't be archived by editing its details. Archiving isn't available from the page yet. Ask the clark team if you need an item hidden now."
 NO_RAID_PRIORITY = "A risk or issue's priority comes from its impact and likelihood. Change those in its details."
 NO_DECISION_FIELD = {"workstream": "A decision isn't part of a workstream.", "milestone": "A decision isn't tied to a milestone.",
-                     "priority": "A decision has no priority."}      # row 1195: the list, the board and a bulk change still say this (the Decision peek is where a decision's priority is set: _item_field_words)
+                     "priority": "A decision's priority is set in its details, one at a time."}      # row 1195: the Decision peek is where a decision's priority is set (_item_field_words); the board says the same words (board.js noPriority)
 ITEM_VALUE_WORDS = "That value isn't one clark can use."
 STORE_LEAK = re.compile(r"\(got |\b[a-z]+_[a-z_]+\b")      # a store text that shows a value it was sent or a field name: never said to a person
 LATEST_UPDATE_MAX = 1000                  # the most characters a latest update may have
