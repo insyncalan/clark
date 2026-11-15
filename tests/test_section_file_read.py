@@ -101,11 +101,32 @@ class Read(unittest.TestCase):
         self.assertNotIn(PDF, data)
 
     def test_the_token_is_needed_and_a_bad_request_is_refused(self):
-        self.assertEqual(self.get("Plan v2.pdf", token="not the token")[0], 403)
-        self.assertEqual(self.server.api("GET", "/api/section-file?project=ABC")[0], 400)                       # no name
-        self.assertEqual(self.server.api("GET", "/api/section-file?project=ABC&name=a.pdf&name=b.pdf")[0], 400)    # a name twice
-        self.assertEqual(self.server.api("GET", "/api/section-file?project=abc&name=Plan%20v2.pdf")[0], 400)      # not a project code
+        status, _, data = self.get("Plan v2.pdf", token="not the token")
+        self.assertEqual(status, 403)
+        self.assertNotIn(PDF, data, "no file's bytes without the token")
+        base = "/api/section-file?project=ABC&name=Plan%20v2.pdf"
+        for what, path in (("no name", "/api/section-file?project=ABC"), ("no project", "/api/section-file?name=Plan%20v2.pdf"),
+                           ("a name twice", "/api/section-file?project=ABC&name=a.pdf&name=b.pdf"),
+                           ("a project twice", "/api/section-file?project=ABC&project=ABC&name=Plan%20v2.pdf"),
+                           ("not a project code", "/api/section-file?project=abc&name=Plan%20v2.pdf"),
+                           ("download is only 1", base + "&download=2"), ("download is only 1, even empty", base + "&download="),
+                           ("download twice", base + "&download=1&download=1"), ("another parameter", base + "&folder=Report%20files")):
+            got, _, data = self.server.api("GET", path)
+            self.assertEqual(got, 400, (what, data))
+            self.assertNotIn(PDF, data, what)
+        got, _, data = self.server.api("GET", base)               # and the same request, well formed, is served
+        self.assertEqual((got, data), (200, PDF))
 
+    def test_a_listed_name_that_is_a_link_out_of_the_folder_is_not_followed(self):
+        link = self.client / "Report files" / "Linked.pdf"
+        link.symlink_to(self.outside)                                    # listed below, but it leads out of the folder
+        change = changes.make_change(self.s.path, [], USER)
+        status, body = change({"project": "ABC", "kind": "report_sections", "op": "new", "values": {"type": "doclinks", "title": "More"}, "after": None})
+        self.assertEqual(status, 200, body)
+        entry = {"name": "Linked.pdf", "rel": "Report files/Linked.pdf", "bytes": len(SECRET)}
+        status, body = self.pub.add_section_file({"project": "ABC", "id": body["ref"], "entry": entry})
+        self.assertEqual(status, 200, body)
+        self.refused("Linked.pdf", 404, "file_not_there")
 
 if __name__ == "__main__":
     unittest.main()

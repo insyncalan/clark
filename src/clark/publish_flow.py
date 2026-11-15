@@ -789,6 +789,10 @@ class Publisher:
         folder and the step that adds the file to the section (section_files.py has the rules)."""
         return section_files.attach(self, body)
 
+    def read_section_file(self, code, name):
+        """GET /api/section-file?project=&name= (#1221): (status, body) for one listed file of the project (section_files.read)."""
+        return section_files.read(self, code, name)
+
     # ----- preview and export (#147) -----
     def preview(self, body):
         """POST /api/preview {project}: the published page as publish would make it (publish.build), kept in memory for one visit
