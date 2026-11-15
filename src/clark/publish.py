@@ -62,7 +62,7 @@ DEFAULT_SECTIONS = tuple({"id": f"s-{t}", "type": t, "title": title, "body": "",
                                                          ("usecases", "Use cases"), ("milestones", "Milestones"),
                                                          ("raid", "Risks and issues"), ("actions", "Actions"),
                                                          ("decisions", "Decisions")), 1))
-SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs", "gantt", "gantttable") + section_bodies.BODY_TYPES      # row 926: gantt carries no data of its own; row 1068: gantttable neither (both draw data.gantt)
+SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs", "gantt", "gantttable", "milestoneslib") + section_bodies.BODY_TYPES      # row 926: gantt carries no data of its own; row 1068: gantttable neither (both draw data.gantt)
 BUILT_IN_SECTIONS = ("current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs")      # row 906: the sections whose data lives elsewhere
 
 
@@ -74,6 +74,18 @@ def hidden_types(sections, deleted=False):
         return set()
     have = {s.get("type") for s in sections or ()}
     return {s.get("type") for s in sections or () if s.get("hidden")} | {t for t in BUILT_IN_SECTIONS if t not in have}
+
+
+def row_hidden_types(sections, deleted=False):
+    """hidden_types, for the rows of the file (row 1192): the Milestones library section draws the milestones as the built-in does, so while
+    one of them is on the page (not hidden) the milestone rows stay in the file even where the built-in Milestones section is left out
+    or deleted. The tabs and everything else keep reading hidden_types."""
+    out = hidden_types(sections, deleted)
+    if any(s.get("type") == "milestoneslib" and not s.get("hidden") for s in sections or ()):
+        out.discard("milestones")
+    return out
+
+
 # "docs" (#74): only while it has a document to show (documents()); needs, tracker and the section templates (#96) carry content: a section of those types stays in only when its
 # body checks again and its published fields are not empty (_content; a template stub is never in the file)
 
@@ -516,13 +528,14 @@ def select(inputs):
     given, deleted = inputs.get("sections"), bool(inputs.get("sections_deleted"))      # row 906: every section deleted is not "no sections yet"
     sections = sorted(given or ([] if deleted else DEFAULT_SECTIONS), key=lambda s: (s.get("sort_order", 0), str(s.get("id"))))
     hidden_types = globals()["hidden_types"](given, deleted)
+    row_hidden = row_hidden_types(given, deleted)               # row 1192: the milestone rows also stay for a Milestones library section
     hidden_ids = set(inputs.get("hidden") or ())
     blocked = _excluded_labels(inputs.get("label_rules"))
     item_labels = d.get("labels") or {}
 
     keep = _keeper(d, code, hidden_ids, blocked)
 
-    rows = {k: ([r for r in d.get(k) or () if keep(r, k)] if SECTION_OF_KIND[k] not in hidden_types else [])
+    rows = {k: ([r for r in d.get(k) or () if keep(r, k)] if SECTION_OF_KIND[k] not in row_hidden else [])
             for k in KINDS}
     ids = {k: {r["id"] for r in rows[k]} for k in KINDS}
     linkable = ids["milestones"] | ids["actions"] | ids["raid"] | ids["decisions"]

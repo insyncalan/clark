@@ -25,6 +25,7 @@ import * as onedoc from "./OneDoc.jsx";
 import * as usecases from "./UseCasesTemplate.jsx";
 import * as gantt from "../components/GanttSection.jsx";
 import * as gantttable from "../components/GanttTableSection.jsx";
+import * as milestoneslib from "../components/MilestonesLibSection.jsx";
 
 const MODULES = { textimage, headline, figures4, figures3, gallery, table, doclinks, linkcard, raid3, raid4, workitems, callout, imagecap, quote, contacts, checklist, keydates, onedoc };
 
@@ -33,7 +34,7 @@ export const TEMPLATE_PARTS = Object.freeze(Object.fromEntries(TEMPLATE_TYPES.ma
 })])));
 
 // The parts of the types the page is ready for before the store takes them (types.js PENDING_TYPES).
-const PENDING_MODULES = { gantt, gantttable };
+const PENDING_MODULES = { gantt, gantttable, milestoneslib };
 export const PENDING_PARTS = Object.freeze(Object.fromEntries(PENDING_TYPES.map((t) => [t, Object.freeze({
   view: PENDING_MODULES[t].View, isEmpty: PENDING_MODULES[t].isEmpty, ready: PENDING_MODULES[t].READY === true,
 })])));

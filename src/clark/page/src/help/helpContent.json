@@ -1097,6 +1097,11 @@
         "Half or full"
        ],
        [
+        "Milestones",
+        "The project’s milestones on a timeline or a calendar, with the list beside them.",
+        "Full"
+       ],
+       [
         "Link preview",
         "A web page shown as a card you write: a dashboard, a news item, a recording.",
         "Full"

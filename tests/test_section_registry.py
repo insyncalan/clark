@@ -72,7 +72,7 @@ def schema_types():
 
 
 BUILT_IN_PART = ("glance", "usecases")      # row 1190: a built-in store type that is also a template (page parts and a catalogue card, no registry module)
-PAGE_FIRST = ("gantt", "gantttable")      # rows 926, 1068: template types with a page part but no registry module (no content of their own); the store takes them since layouts 19 and 21
+PAGE_FIRST = ("gantt", "gantttable", "milestoneslib")      # rows 926, 1068: template types with a page part but no registry module (no content of their own); the store takes them since layouts 19 and 21
 
 
 class PythonSide(unittest.TestCase):
