@@ -18,7 +18,7 @@ ALLOWED_SOURCES = {
     "compose.yaml": {"..", "${CLARK_DATA_DIR:-${HOME}/Library/Application Support/clark}"},
     "compose.front.yaml": {"./nginx.front.conf.template"},
 }
-LIMIT_SHAPES = {"pids_limit": r"[1-9]\d*", "mem_limit": r"[1-9]\d*[bkmg]?"}  # a count, or a size like 1g / 256m
+LIMIT_SHAPES = {"pids_limit": r"[1-9]\d*", "mem_limit": r"[1-9]\d*[kmg]"}  # a count, or a size with a unit like 1g / 256m; a bare number is not a size (the real files use a unit, test_limits_are_positive_numbers)
 FORBIDDEN = (r"docker\.sock", r"(?<![\w-])privileged\b", r"\bcap_add\b", r"\bnetwork_mode\b")  # not no-new-privileges
 
 
@@ -347,9 +347,7 @@ class TheCheckCatchesChanges(unittest.TestCase):
         two = self.TWO
         self.assertEqual(problems(two, {"/x"}), [])
         for label, text in {
-            "second has no pids": two.replace("    pids_limit: 9\n    mem_limit: 1g\n", "    mem_limit: 1g\n").replace(
-                "    mem_limit: 1g\n", "    pids_limit: 9\n    mem_limit: 1g\n", 1) if False else
-                two[:two.index("  b:")] + two[two.index("  b:"):].replace("    pids_limit: 9\n", ""),
+            "second has no pids": two[:two.index("  b:")] + two[two.index("  b:"):].replace("    pids_limit: 9\n", ""),
             "second has no mem": two[:two.index("  b:")] + two[two.index("  b:"):].replace("    mem_limit: 1g\n", ""),
             "minus one": self.BASE.replace("pids_limit: 9", "pids_limit: -1"),
             "zero pids": self.BASE.replace("pids_limit: 9", "pids_limit: 0"),
@@ -368,10 +366,14 @@ class TheCheckCatchesChanges(unittest.TestCase):
                 self.assertTrue(problems(text, {"/x"}), label)
 
     def test_fine_limit_values(self):
-        for pids, mem in (("1", "1"), ("4096", "256m"), ("9", "1g"), ('"9"', '"512k"')):
+        for pids, mem in (("1", "1k"), ("4096", "256m"), ("9", "1g"), ('"9"', '"512k"')):
             with self.subTest(f"{pids} {mem}"):
                 text = self.BASE.replace("pids_limit: 9", f"pids_limit: {pids}").replace("mem_limit: 1g", f"mem_limit: {mem}")
                 self.assertEqual(problems(text, {"/x"}), [])
+
+    def test_a_bare_number_is_not_a_size(self):
+        text = self.BASE.replace("mem_limit: 1g", "mem_limit: 1048576")
+        self.assertEqual(problems(text, {"/x"}), ["service a: mem_limit is not a positive number: 1048576"])
 
     def test_a_capital_size_is_not_accepted(self):
         # the check takes lowercase sizes only (1g, 256m); a 2G is flagged, not passed
