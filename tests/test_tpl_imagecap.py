@@ -102,7 +102,7 @@ class FullRoute(PictureSteps, Api):
         self.assertNotIn(original.split(",")[1], text)
         self.assertNotIn(body["pictures"]["original"].split(",")[1], text)
         again = self.put(ref, "original", None)[1]
-        self.assertEqual(self.body(ref), {"v": 2, "caption": "Fictional view", "alt": "Two blocks", "crop": [500, 0, 1000, 1000]})
+        self.assertEqual(self.body(ref), {"v": 2, "caption": "Fictional view", "alt": "Two blocks"}, "the image is gone with its framing; the words stay")
         self.assertNotIn(ref, self.file()[0], "no image: not in the file")
         self.undone(again["apply_id"])
         self.assertEqual(decode(self.body(ref)["pictures"]["image"])[:2], (20, 10))
