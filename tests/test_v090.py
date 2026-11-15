@@ -100,7 +100,7 @@ COVERED = [
     ("#644", "The Use case summary has no export icon in View or in Edit; the Work items workbook export is unchanged.",
      "test_uc_row_parity::Reference::test_the_use_case_summary_has_no_export_icon_in_view_or_edit"),
     ("#612", "In the right-click menu, when the browser does not copy, the select-and-press-copy hint shows only if there is a selection.",
-     "test_row_menu::Menu::test_when_the_browser_does_not_copy_the_cmd_c_hint_shows_only_with_a_selection"),
+     "test_row_menu::Menu::test_when_the_browser_does_not_copy_the_copy_key_hint_shows_only_with_a_selection"),
     ("#612", "Duplicate with forged label values is refused and writes nothing.",
      "test_changes_item_eye::Duplicate::test_a_forged_labels_value_on_duplicate_is_refused_and_writes_nothing"),
     ("#48", "Export to Word saves a file and says where.",

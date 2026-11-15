@@ -235,7 +235,7 @@ class Words(unittest.TestCase):
                                   "Open folder", "Copy diagnostics", "The log settings could not be read. Reload the page and try again.",
                                   "Projects", "Show archived (2)", "Add project",      # A-S6: the projects table comes before the Data card (#444: Add project is on it); this server's stub list answers the archived request too (#653), so the table and the archived count show
                                   "Archive hides a project and everything in it from clark. Nothing is deleted: Show archived brings it back to the list, and Restore puts it back to work.",
-                                  "NAME\tCODE\tCLIENT\tWORKSTREAMS\tITEMS", "Demo programme\tDEMO\t—\t—\t0\tOpenEditArchive", "ABC Open now\tABC\t—\t—\t1\tEditArchive",
+                                  "NAME", "CODE", "CLIENT", "WORKSTREAMS", "ITEMS", "Demo programme\tDEMO\t—\t—\t0\tOpenEditArchive", "ABC Open now\tABC\t—\t—\t1\tEditArchive",
                                   "Data",               # A-S11: the Data card follows the Projects table (the prototype order)
                                   "Export workbook", "Import workbook", "Excel file layout", "Export to Word…", "Import from Word…",        # #444: Export and Import; row 831: the two Word buttons (the prototype's own words)
                                   "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",      # item 454: the prototype's one sentence (the owner approved the words)

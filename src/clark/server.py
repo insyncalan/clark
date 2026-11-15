@@ -1471,6 +1471,12 @@ class Handler(BaseHTTPRequestHandler):
         """Whether the Host header is exactly this machine. (creaite host_ok, BL-212; clark: strict, see host_allowed)"""
         return host_allowed(self.headers.get("Host"))
 
+    def follow_zone(self):
+        """item 631: in the container only, the page's time zone (X-Tz) is applied once the token has been checked (never for the page, /health or a refused call); anything that is not
+        an IANA name is ignored. Found by name when asked, so this module imports no other clark module."""
+        if container_mode():
+            importlib.import_module("clark.zone").follow_header(self.headers.get("X-Tz"), True)
+
     def headers_ok(self):
         """No second Host or Content-Length (which one counts would depend on who reads it); sends the 400 when not."""
         get_all = getattr(self.headers, "get_all", None)       # a request with no version has no parsed headers (a dict)
@@ -1602,6 +1608,7 @@ class Handler(BaseHTTPRequestHandler):
         if api or route.startswith("/api/"):
             if not self.authorised() or updating(self, route):
                 return None
+            self.follow_zone()          # only a request that carried this run's token may change the zone
             if api:
                 return self.run_route(api)
         return self.send(404, error_body("not_found"))
@@ -1620,6 +1627,7 @@ class Handler(BaseHTTPRequestHandler):
             return csp_report_route(self)
         if not self.authorised() or updating(self, route):
             return None
+        self.follow_zone()
         if (self.headers.get("Content-Type") or "").split(";")[0].strip().lower() != "application/json":
             return self.send(415, error_body("send_json"))
         try:
@@ -1699,6 +1707,7 @@ class SetupHandler(Handler):
         if route.startswith("/api/"):
             if not self.authorised():
                 return None
+            self.follow_zone()          # after the token, as on Handler
             api = SETUP_GET_ROUTES.get(route)
             if api:
                 if self.headers.get("Content-Length") not in (None, "0") or self.headers.get("Transfer-Encoding"):

@@ -15,7 +15,7 @@ import threading
 import unicodedata
 from pathlib import Path
 
-from clark import platform
+from clark import host_folders, platform
 
 FILE = "settings.json"
 LOCK = threading.RLock()                # every setter reads the file and writes it back whole: one at a time, so none is lost
@@ -26,8 +26,9 @@ BACKUPS_KEPT_RANGE = (1, 365)
 
 # What Settings › Safety says about the number, in plain words (the page shows these, not the key).
 BACKUPS_KEPT_LABEL = "How many backups to keep"
-BACKUPS_KEPT_HELP = ("This many backups are kept of each kind (daily, before an undo, before an import and so on); the oldest "
-                     "are removed after that. 14 is usual. The newest backup is always kept.")
+BACKUPS_KEPT_HELP = ("This many backups are kept of each of daily, before an undo and before an import or change. Before an import "
+                     "and before a change share one count. Before a restore and before an update each have their own count, and keep at "
+                     "least 2 and at least 3, whatever the number is. The oldest are removed after that. 14 is usual. The newest backup is always kept.")
 
 
 def _one_at_a_time(setter):
@@ -223,6 +224,8 @@ def set_backup_copy_folder(data_dir, text):
     data_dir = Path(data_dir)
     off = text is None or (isinstance(text, str) and not text.strip())
     path = None
+    if not off and host_folders.windows_host(os.environ) and host_folders.is_drive_path(text):
+        text = host_folders.to_container("backup", text, os.environ)[0]    # a typed Windows path inside the shared backup folder
     if not off:
         problem = backup_copy_problem(data_dir, text)
         if problem is not None:
