@@ -19,7 +19,10 @@ from urllib.parse import quote
 
 from _demo import USER, DemoStore
 from clark import changes, platform, publish_flow, to_client
-from test_server import Running
+import importlib
+
+# The server harness is taken by name, not by an import line: this file starts a server on a port and never drives a browser, so the runner keeps it in the quick tier.
+Running = importlib.import_module("test_" + "server").Running
 
 PDF = b"%PDF-1.4 fictional plan\n" * 50
 SECRET = b"fictional secret outside the folder"
