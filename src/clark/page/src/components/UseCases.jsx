@@ -3,7 +3,7 @@
 // (an accordion): where it stands, the open next steps as "Owner: what it is", and "See all N work items". Read-only here: changing a
 // status, linking a work item and editing the text are other items'. In a published file every use case and linked item on the page
 // is one the file kept (publish.select), so the page counts what it holds and a Sensitive or client-off item is never drawn.
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, rows, openWork, openPeek, fromFile, show, project, mode } from "../stores/report.js";
 import { format } from "../router.js";
 import { isOn, liveOf, refText, refBox, stepsWord } from "../logic/useCasesList.js";
@@ -101,6 +101,7 @@ export const allWord = (n, all, first = 5) => (all ? `Show the first ${first}` :
 
 export function UseCases({ tools, section }) {
   const d = data.value, [open, setOpen] = useState(() => new Set());
+  const box = useRef(null);       // the rows box: its --ucrow-h is the height of a real row, measured, so n rows fit exactly
   const [all, setAll] = useState(() => !fromFile.value && !!recall("ucAll", false));       // a published file never reads or writes the editor's key
   const toggleAll = () => { if (!fromFile.value) remember("ucAll", !all); setAll(!all); };
   const ed = tools && tools.ucEdit && !fromFile.value && mode.value === "edit" ? tools.ucEdit : null;       // Edit's parts (#455, #485): only in Edit; View and a published file have none
@@ -110,6 +111,15 @@ export function UseCases({ tools, section }) {
   useEffect(() => {
     if (ed && fresh && list.some((s) => s.u.id === fresh)) { setOpen(new Set([...open, fresh])); if (list.findIndex((s) => s.u.id === fresh) >= shownRows(list.length, view).shown) setAll(true); ed.added.value = ""; }
   }, [fresh, list.length]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => {
+    const ul = box.current, row = ul && ul.querySelector(":scope > .ucrow:not(.open)");
+    if (row && row.offsetHeight) ul.style.setProperty("--ucrow-h", row.offsetHeight + "px");
+  });
+  useEffect(() => {
+    const again = () => { const ul = box.current, row = ul && ul.querySelector(":scope > .ucrow:not(.open)"); if (row && row.offsetHeight) ul.style.setProperty("--ucrow-h", row.offsetHeight + "px"); };
+    window.addEventListener("resize", again);
+    return () => window.removeEventListener("resize", again);
+  }, []);
   const strip = fromFile.value && d.glance && d.glance.strip;
   const counts = strip ? strip.words : Object.fromEntries(STATUSES.map(([k]) => [k, list.filter((s) => s.u.status === k).length]));
   const total = strip ? strip.total : list.length;
@@ -131,7 +141,7 @@ export function UseCases({ tools, section }) {
   return (
     <div class="uc" data-uc-section>
       {side.above ? tracker("") : null}
-      <ul class="ucrows plain" style={rowsHigh ? { maxHeight: `calc(var(--ucrow-h, 3.25rem) * ${rowsHigh})`, overflowY: "auto" } : undefined}>{drawn.map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} ed={ed} />)}</ul>
+      <ul class="ucrows plain" ref={box} style={rowsHigh ? { maxHeight: `calc(var(--ucrow-h, 3.25rem) * ${rowsHigh})`, overflowY: "auto" } : undefined}>{drawn.map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} ed={ed} />)}</ul>
       {!scrolls && list.length > (view.n === "all" ? list.length : view.n) ? <button type="button" class="link ucall" data-ucall onClick={toggleAll}>{allWord(list.length, all, view.n)}</button> : null}
       {side.below ? tracker(" ucstrip-below") : null}
       {ed ? <ed.FromRecord n={off} /> : null}
