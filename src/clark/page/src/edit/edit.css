@@ -402,6 +402,7 @@ table.items td.c-pick { vertical-align: middle; }
 /* Use cases page: list */
 /* Row 1085: the tabs row as Work items draws its saved views, Import, Export and Add use case at its right end, and the filter line (the Work items box) under it */
 .ucl-views { margin-top: 16px; }
+.ucl-views .vtab { padding-left: 8px; padding-right: 8px; }      /* row 1203: with the open tab's menu button and + New view beside four tabs, the strip at 900 was 5 px too narrow and scrolled; two px less each side of a tab fits it */
 .ucl-tools { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-bottom: var(--space-1); }
 .ucl .fline-wrap { margin-top: 0; }
 /* Row 1085: Group by draws each group as a bordered card (.wgroup, as Work items) with a heading bar: the name, the count, open and shut */
