@@ -105,6 +105,15 @@ class StartCommand(unittest.TestCase):
         self.assertIn("Opened clark in your default browser.", r.stdout.splitlines())
         self.assertNotIn("Chrome was not found", r.stdout)
 
+    def test_the_default_browser_is_opened_on_the_port_in_use_not_on_the_usual_one(self):
+        """Row 636: the plain `open <address>` fallback carries the address of the port set for this run."""
+        self.stub("open", 'echo "open $*" >> "$LOG"; [ "$1" = -a ] && exit 1; exit 0')
+        r = self.run_script(CLARK_PORT="9000")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        calls = self.calls()
+        self.assertIn("open http://localhost:9000", calls)
+        self.assertNotIn("open http://localhost:8766", calls)
+
     def test_a_chrome_by_name_that_opens_does_not_go_on_to_the_default_browser(self):
         r = self.run_script()
         self.assertNotIn("open http://localhost:8766", self.calls())
