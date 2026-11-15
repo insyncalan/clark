@@ -94,7 +94,7 @@ export function Edit({ section }) {
       </div>
       {problem ? <p class="tpl-problem" role="alert">{problem}</p> : null}
       {docItems(section).length ? (
-        <ul class="tpl-dl">
+        <ul class="tpl-dl tpl-dl-links">
           {raw.map((item, n) => {
             const i = docItems({ content: { items: [item] } })[0];
             if (!i) return null;

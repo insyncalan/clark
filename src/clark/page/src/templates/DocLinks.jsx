@@ -70,7 +70,7 @@ export function EntryRow({ item, nameNode }) {
 
 export function View({ section }) {
   return (
-    <ul class="tpl-dl">
+    <ul class="tpl-dl tpl-dl-links">
       {docItems(section).map((i, n) => (
         <li key={n} class={`tpl-dl-i tpl-dl-${i.kind}`}>
           <EntryRow item={i} />
