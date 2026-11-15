@@ -22,6 +22,7 @@ import * as contacts from "./Contacts.jsx";
 import * as checklist from "./Checklist.jsx";
 import * as keydates from "./KeyDates.jsx";
 import * as onedoc from "./OneDoc.jsx";
+import * as usecases from "./UseCasesTemplate.jsx";
 import * as gantt from "../components/GanttSection.jsx";
 import * as gantttable from "../components/GanttTableSection.jsx";
 
@@ -37,8 +38,8 @@ export const PENDING_PARTS = Object.freeze(Object.fromEntries(PENDING_TYPES.map(
   view: PENDING_MODULES[t].View, isEmpty: PENDING_MODULES[t].isEmpty, ready: PENDING_MODULES[t].READY === true,
 })])));
 
-// The parts of the built-in types that are also templates (types.js BUILT_IN_PART_TYPES; row 1190).
-const BUILT_IN_MODULES = { glance };
+// The parts of the built-in types that are also templates (types.js BUILT_IN_PART_TYPES; rows 1190 and 1191).
+const BUILT_IN_MODULES = { glance, usecases };
 export const BUILT_IN_PARTS = Object.freeze(Object.fromEntries(BUILT_IN_PART_TYPES.map((t) => [t, Object.freeze({
   view: BUILT_IN_MODULES[t].View, isEmpty: BUILT_IN_MODULES[t].isEmpty, ready: BUILT_IN_MODULES[t].READY === true,
 })])));

@@ -20,6 +20,7 @@ import { Edit as contacts } from "./Contacts.jsx";
 import { Edit as checklist } from "./Checklist.jsx";
 import { Edit as keydates } from "./KeyDates.jsx";
 import { Edit as onedoc } from "./OneDoc.jsx";
+import { Edit as usecases, Head as usecasesHead } from "./UseCasesTemplate.jsx";
 import { Edit as gantt } from "./GanttSection.jsx";
 import { Edit as gantttable } from "./GanttTableSection.jsx";
 
@@ -30,9 +31,15 @@ export const TEMPLATE_EDITS = Object.freeze(Object.fromEntries(TEMPLATE_TYPES.ma
 const PENDING = { gantt, gantttable };
 export const PENDING_EDITS = Object.freeze(Object.fromEntries(PENDING_TYPES.map((t) => [t, PENDING[t]])));
 
-// The Edit parts of the built-in types that are also templates (types.js BUILT_IN_PART_TYPES; row 1190).
-const BUILT_IN = { glance };
+// The Edit parts of the built-in types that are also templates (types.js BUILT_IN_PART_TYPES; rows 1190 and 1191).
+const BUILT_IN = { glance, usecases };
 export const BUILT_IN_EDITS = Object.freeze(Object.fromEntries(BUILT_IN_PART_TYPES.map((t) => [t, BUILT_IN[t]])));
+
+// Item 1191: the header parts of the templates that have one, by store type.
+export const HEAD_PARTS = Object.freeze({ usecases: usecasesHead });
+export function templateHead(type) {
+  return Object.prototype.hasOwnProperty.call(HEAD_PARTS, type) ? HEAD_PARTS[type] : null;
+}
 
 // The Edit part for a section type, or null when it is not a template.
 export function templateEdit(type) {

@@ -71,7 +71,7 @@ def schema_types():
     return tuple(re.findall(r"'([a-z0-9]+)'", statement.split("CHECK (type IN (")[1].split("))")[0]))
 
 
-BUILT_IN_PART = ("glance",)      # row 1190: a built-in store type that is also a template (page parts and a catalogue card, no registry module)
+BUILT_IN_PART = ("glance", "usecases")      # row 1190: a built-in store type that is also a template (page parts and a catalogue card, no registry module)
 PAGE_FIRST = ("gantt", "gantttable")      # rows 926, 1068: template types with a page part but no registry module (no content of their own); the store takes them since layouts 19 and 21
 
 
@@ -365,7 +365,7 @@ class PageSide(unittest.TestCase):
             if x["type"] == "text":       # not templates of the registry: always placeable
                 self.assertIs(x["ready"], True)
                 continue
-            if x["type"] in PAGE_FIRST + BUILT_IN_PART:      # row 1190: glance too; row 926: no registry module, the store takes the type: placeable
+            if x["type"] in PAGE_FIRST + BUILT_IN_PART:      # rows 1190 and 1191: glance and usecases too; row 926: no registry module, the store takes the type: placeable
                 self.assertIs(x["ready"], True, tid)
                 self.assertEqual(self.val(f"T.templates.available(T.templates.CATALOGUE.find(t => t.id === {json.dumps(tid)}))"), True, tid)
                 continue
@@ -397,7 +397,7 @@ class PageSide(unittest.TestCase):
         for t in section_kinds.TYPES:
             self.assertIs(self.val(f"T.templateEmpty({{id: 'x', type: {json.dumps(t)}, body: '{{\"v\":1}}'}}, {{}})"), True, t)
         for t in BUILT_IN:
-            if t in BUILT_IN_PART:      # row 1190: drawn through templateFor, never empty in the served View
+            if t in BUILT_IN_PART:      # rows 1190 and 1191: drawn through templateFor, never empty in the served View
                 self.assertEqual(self.val(f"T.templateFor({json.dumps(t)})"), {"ready": True}, t)
             else:
                 self.assertIsNone(self.val(f"T.templateFor({json.dumps(t)})"), t)
