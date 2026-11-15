@@ -270,6 +270,23 @@ class Refusals(unittest.TestCase):
         with self.assertRaises(Bad):
             fi._read_png(bytes(raw))
 
+    def test_the_pixel_limit_is_forty_million_and_its_refusal_says_so(self):
+        raw = bytearray(base64.b64decode(halves(4, 4).split(",")[1]))
+        raw[16:24] = struct.pack(">II", 40000, 1001)
+        with self.assertRaises(Bad) as over:
+            fi._read_png(bytes(raw))
+        self.assertEqual(str(over.exception), fi.TOO_MANY_PIXELS)
+        raw[16:24] = struct.pack(">II", 40000, 1000)
+        try:
+            fi._read_png(bytes(raw))
+        except Bad as e:
+            self.assertNotEqual(str(e), fi.TOO_MANY_PIXELS, "exactly forty million pixels is not too many")
+
+    def test_a_crop_edge_between_two_pixels_takes_the_pixel_it_touches(self):
+        self.assertEqual(fi._window(10, 10, {"crop": [333, 333, 667, 667]}), (3, 3, 7, 7))
+        self.assertEqual(fi._window(10, 10, {"crop": [999, 999, 1000, 1000]}), (9, 9, 10, 10))
+        self.assertEqual(fi._window(10, 10, {"crop": [500, 500, 500, 500]}), (5, 5, 6, 6))
+
 
 class Stored(unittest.TestCase):
     def test_the_words_are_kept_and_nothing_is_made_again_when_only_they_change(self):

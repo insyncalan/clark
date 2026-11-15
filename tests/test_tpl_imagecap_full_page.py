@@ -383,6 +383,21 @@ class Page(unittest.TestCase):
         self.until("!document.querySelector('[data-rich=caption]')", "the field is gone")
         self.assertEqual(self.val("document.querySelectorAll('[data-act=caption-add]').length"), 1)
 
+    def test_remove_caption_sends_the_body_without_the_caption_and_keeps_the_rest(self):
+        self.add()
+        self.val("(function(){const i = document.querySelector('#tpl-ABC-S-1-alt'); i.value = 'Fictional plan'; i.dispatchEvent(new Event('blur')); return true;})()")
+        self.until("F.body('ABC-S-1').alt === 'Fictional plan'", "the description is saved")
+        self.click("[data-act=caption-add]")
+        self.until("document.querySelector('[data-rich=caption]')", "the caption field")
+        n = len(self.calls())
+        self.val("F.server.sections[0].body = JSON.stringify({...F.body('ABC-S-1'), caption: 'Fictional caption'}); true")
+        self.click("[data-act=caption-out]")
+        self.until(f"F.server.calls.length > {n}", "removed")
+        sent = json.loads(self.calls()[-1]["changes"]["body"])
+        self.assertNotIn("caption", sent)
+        self.assertEqual(sent["alt"], "Fictional plan")
+        self.assertEqual(sent["v"], 2)
+
     def test_the_description_note_shows_until_there_is_one(self):
         self.add()
         self.assertEqual(self.val("document.querySelector('[data-alt-note]').textContent"), "Add a description, so someone who cannot see the image knows what it shows.")
