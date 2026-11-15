@@ -1,5 +1,8 @@
 // Documents and links (item 1194): the page-style type icon (a white page, its folded corner, a small drawing, a coloured label band;
 // drawn here, not Microsoft's logos) and the icons of Open and Download. The colours and drawings are the approved mockup's.
+import { fromFile } from "../stores/report.js";
+
+// A published file's cards carry no picture, so there the page icon is a plain box of words and the action icons are CSS-drawn characters (css .tpl-plain).
 const COLOURS = { PDF: "#E8410C", DOC: "#1F5FBF", XLS: "#1E9B4B", PPT: "#E8601C", JPG: "#6B46C1", PNG: "#E0358B", TXT: "#F2A400", URL: "#5B47D8", MAIL: "#0E7C86", FILE: "#5A6B77" };
 const LINES = (c) => <path d="M12 12h14M12 17h16M12 22h10" stroke={c} />;
 const GLYPHS = {
@@ -16,6 +19,7 @@ const INK = "#0E2430";
 
 // The icon for a label (PDF DOC XLS PPT JPG PNG TXT URL MAIL, else FILE): 41px tall, the height of a row's two text lines.
 export function PageIcon({ label }) {
+  if (fromFile.value) return <span class={`tpl-badge tpl-plain tpl-ic-${GLYPHS[label] ? label : "FILE"}`}>{label}</span>;
   const key = GLYPHS[label] ? label : "FILE", colour = COLOURS[key];
   return (
     <span class="tpl-badge tpl-page">
@@ -31,4 +35,4 @@ export function PageIcon({ label }) {
 }
 
 const PATHS = { open: "M14 4h6v6M20 4l-9 9M18 14v5H5V6h5", download: "M12 4v11M7 11l5 5 5-5M5 20h14", trash: "M5 7h14M9 7V5h6v2M7 7l1 12h8l1-12" };
-export const ActIcon = ({ which }) => <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d={PATHS[which]} /></svg>;
+export const ActIcon = ({ which }) => fromFile.value ? <span class={`tpl-act-g tpl-act-${which}`} aria-hidden="true" /> : <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d={PATHS[which]} /></svg>;
