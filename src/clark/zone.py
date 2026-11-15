@@ -4,7 +4,11 @@ process zone, so this one place sets it: apply_zone(name) validates an IANA name
 container mode (the Mac route runs in the person's own zone, and tzset does not exist on Windows; the container is Linux).
 
 The page sends its own zone in X-Tz; follow_header applies it. A name that is not an IANA name is ignored and never logged.
-A zone pinned by TZ in the container's settings (docker/compose.yaml) is kept: the page's zone is then not applied."""
+A zone pinned by TZ in the container's settings (docker/compose.yaml) is kept: the page's zone is then not applied.
+
+The zone is one for the whole process, not one per request: TZ and tzset are process-wide, so the last page to send a zone sets it for
+every request and thread after it. Two people in different zones on one container are not served separately; the later header wins
+until the other page sends its own again. This is meant for one person per container."""
 import os
 import re
 import threading

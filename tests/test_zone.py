@@ -7,6 +7,7 @@ Nothing here starts a container; the container is stood in for by the setting an
 import json
 import logging
 import os
+import re
 import time
 import unittest
 from datetime import datetime, timezone
@@ -91,6 +92,17 @@ class Header(Zoned):
             self.assertFalse(zone.follow_header(None, True))
         self.assertEqual([r.getMessage() for r in seen.records], [SENTINEL])
         self.assertEqual(os.environ.get("TZ"), self.had)
+
+    def test_two_overlapping_zones_the_last_one_wins_for_the_whole_process(self):
+        """Documented limit: the zone is process-wide, so a second page in another zone replaces the first."""
+        self.assertTrue(zone.follow_header("Asia/Dubai", True))
+        self.assertEqual(self.days(), ["2026-11-14"] * 4)
+        self.assertTrue(zone.follow_header("America/New_York", True))      # a second page, a different zone
+        self.assertEqual(self.days(), ["2026-11-13"] * 4)                  # now New York for everyone, the first page included
+        self.assertEqual(store_module.local_offset(), "-05:00")
+
+    def test_the_docstring_says_one_zone_for_the_whole_process(self):
+        self.assertIn("whole process", zone.__doc__)
 
 
 class Pin(Zoned):
@@ -225,6 +237,32 @@ class Source(unittest.TestCase):
         src = (ROOT / "src" / "clark" / "server.py").read_text(encoding="utf-8")
         self.assertIn('importlib.import_module("clark.zone")', src)
         self.assertEqual(src.count("self.follow_zone()"), 3)
+
+
+class EditFetches(unittest.TestCase):
+    """item 631: a call from the editing page to clark goes through zoneFetch (api.js), which adds X-Tz; a bare fetch would skip it."""
+    BARE_OK = {"edit/Feedback.jsx"}      # the health check: it asks for no zone and the server follows none on it
+
+    def test_no_edit_file_calls_a_bare_fetch(self):
+        bare = []
+        for path in sorted((PAGE / "edit").rglob("*.js*")):
+            name = path.relative_to(PAGE).as_posix()
+            if name in self.BARE_OK:
+                continue
+            for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                code = line.split("//")[0]
+                if re.search(r"(?<![\w.])fetch\(|\|\| fetch\)", code):
+                    bare.append(f"{name}:{n}")
+        self.assertEqual(bare, [])
+
+    def test_zone_fetch_is_exported_and_adds_the_header(self):
+        src = (PAGE / "api.js").read_text(encoding="utf-8")
+        self.assertIn("export const zoneFetch", src)
+        self.assertIn('"X-Tz": tz', src)
+
+    def test_the_header_is_named_x_tz_everywhere(self):
+        for path in PAGE.rglob("*.js*"):
+            self.assertNotIn("X-Clark-Tz", path.read_text(encoding="utf-8"), path.name)
 
 
 if __name__ == "__main__":
