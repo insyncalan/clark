@@ -47,8 +47,8 @@ HEADERS = {
     "Risks & Issues": ["ID", "Description", "Project", "Type", "Workstream", "Owner", "Response action", "Due", "Impact", "Likelihood",
              "Priority", "Status", "Raised", "Closed", "Latest update", "Client-visible", "Client wording", "Milestone", "Use case", "Labels",
              "Source", "Updated"],
-    "Decisions": ["ID", "Decision", "Project", "Status", "Made by", "Needed by", "Date", "Reasoning", "Options", "Revisit",
-                  "Replaces", "Client-visible", "Client wording", "Use case", "Labels", "Source", "Updated"],
+    "Decisions": ["ID", "Decision", "Project", "Status", "Priority", "Made by", "Needed by", "Date", "Reasoning", "Options", "Revisit",
+                  "Replaces", "Latest update", "Client-visible", "Client wording", "Use case", "Labels", "Source", "Updated"],
     "Use cases": ["ID", "Reference", "Use case", "Project", "Status", "Commitment", "Headline", "Where it stands", "Order", "Client-visible",
                   "Linked milestones", "Open work items", "Source", "Updated"],
 }
