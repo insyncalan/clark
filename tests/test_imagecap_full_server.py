@@ -418,5 +418,197 @@ class Limits(unittest.TestCase):
         self.assertEqual(section_bodies.LIMITS["imagecap"], fi.LIMIT)
 
 
+def raw_png(w, h, rows, ctype=2, depth=8, interlace=0, plte=None):
+    """A PNG from rows already filtered (each a bytes with its filter byte first); `plte` adds a palette chunk."""
+    def chunk(name, body):
+        return struct.pack(">I", len(body)) + name + body + struct.pack(">I", zlib.crc32(name + body) & 0xFFFFFFFF)
+    out = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, depth, ctype, 0, 0, interlace))
+    if plte is not None:
+        out += chunk(b"PLTE", plte)
+    return out + chunk(b"IDAT", zlib.compress(b"".join(rows))) + chunk(b"IEND", b"")
+
+
+def paeth(a, b, c):
+    pa, pb, pc = abs(b - c), abs(a - c), abs(a + b - 2 * c)
+    return a if pa <= pb and pa <= pc else (b if pb <= pc else c)
+
+
+def filtered(rows, ch):
+    """Rows of bytes, each filtered with a different filter (0 to 4 in turn) by an independent encoder."""
+    out, prev = [], bytes(len(rows[0]))
+    for y, row in enumerate(rows):
+        f = y % 5
+        enc = bytearray()
+        for i, v in enumerate(row):
+            a = row[i - ch] if i >= ch else 0
+            b = prev[i]
+            c = prev[i - ch] if i >= ch else 0
+            p = (0, a, b, (a + b) // 2, paeth(a, b, c))[f]
+            enc.append((v - p) & 255)
+        out.append(bytes([f]) + bytes(enc))
+        prev = row
+    return out
+
+
+def noise_rows(w, h, ch=3, salt=1):
+    return [bytes((x * 37 + y * 101 + (x * y) * salt + (x >> 1) * 53) & 255 for x in range(w * ch)) for y in range(h)]
+
+
+def header_only(w, h):
+    """A PNG whose header says w x h and whose data is only a few bytes (read only by its size)."""
+    return png(w=1, h=1).replace(struct.pack(">II", 1, 1), struct.pack(">II", w, h), 1)
+
+
+class MutantKillers(unittest.TestCase):
+    """Row 1223: each test pins one limit, constant or branch of imagecap.py that no other test held."""
+
+    def test_the_pixel_limit_refuses_one_pixel_over(self):
+        with self.assertRaises(Bad) as e:
+            fi._read_png(header_only(53, 754717))                          # 40,000,001 pixels
+        self.assertEqual(str(e.exception), fi.TOO_MANY_PIXELS)
+
+    def test_the_two_fixed_shapes_take_their_ratio_to_the_pixel(self):
+        win = fi._window(10000, 10000, {"shape": "16:9"})
+        self.assertEqual((win[2] - win[0], win[3] - win[1]), (10000, 5624))
+        win = fi._window(10000, 10000, {"shape": "banner"})
+        self.assertEqual((win[2] - win[0], win[3] - win[1]), (10000, 3333))
+        win = fi._window(100000, 10000, {"shape": "16:9"})
+        self.assertEqual((win[2] - win[0], win[3] - win[1]), (17780, 10000))
+        win = fi._window(100000, 10000, {"shape": "banner"})
+        self.assertEqual((win[2] - win[0], win[3] - win[1]), (30000, 10000))
+
+    def test_a_free_shape_without_a_ratio_is_16_by_9(self):
+        win = fi._window(10000, 10000, {"shape": "free"})
+        self.assertEqual((win[2] - win[0], win[3] - win[1]), (10000, 5624))
+
+    def test_the_focus_down_the_image_is_read_against_its_height_and_stays_inside(self):
+        self.assertEqual(fi._window(10, 40, {"shape": "banner", "fy": 1000}), (0, 37, 10, 40))
+        self.assertEqual(fi._window(10, 40, {"shape": "banner", "fy": 500}), (0, 19, 10, 22))
+        self.assertEqual(fi._window(10, 40, {"shape": "banner", "fy": 0}), (0, 0, 10, 3))
+        w, h, _ = framed(made(make_png(10, 40, lambda x, y: GREEN), shape="banner", fy=1000))
+        self.assertEqual((w, h), (10, 3))
+
+    def test_a_crop_may_be_exactly_ten_thousandths_wide_and_high_and_no_less(self):
+        for ok in ([0, 0, 10, 1000], [0, 0, 1000, 10], [990, 990, 1000, 1000]):
+            with self.subTest(ok=ok):
+                self.assertEqual(fi.check({"v": 2, "crop": ok}, None)["crop"], ok)
+        for bad in ([0, 0, 9, 1000], [0, 0, 1000, 9]):
+            with self.subTest(bad=bad), self.assertRaises(Bad):
+                fi.check({"v": 2, "crop": bad}, None)
+
+    def test_the_free_ratio_takes_250_and_4000_and_nothing_beyond(self):
+        for ok in (250, 4000):
+            self.assertEqual(fi.check({"v": 2, "shape": "free", "ratio": ok}, None)["ratio"], ok)
+        for bad in (249, 4001):
+            with self.subTest(bad=bad), self.assertRaises(Bad):
+                fi.check({"v": 2, "shape": "free", "ratio": bad}, None)
+
+    def test_from_w_takes_1_and_a_million_and_nothing_beyond(self):
+        for ok in (1, 1_000_000):
+            self.assertEqual(fi.check({"v": 2, "from_w": ok}, None)["from_w"], ok)
+        with self.assertRaises(Bad):
+            fi.check({"v": 2, "from_w": 1_000_001}, None)
+
+    def test_a_jpeg_3000_wide_is_taken_and_used_as_it_is(self):
+        j = sized_jpeg(3000)
+        self.assertEqual(made(j)["pictures"], {"original": j, "image": j})
+
+    def test_a_3000_wide_png_is_not_noted_as_made_smaller(self):
+        body = made(make_png(3000, 1, lambda x, y: GREEN))
+        self.assertNotIn("from_w", body)
+        self.assertEqual(body["pictures"]["original"], make_png(3000, 1, lambda x, y: GREEN))
+
+    def test_a_copy_of_exactly_the_most_is_used_and_one_byte_more_is_not(self):
+        j = data(b"\xff\xd8\xff\xe0" + struct.pack(">H", 16) + b"JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00"
+                 + b"\xff\xc0" + struct.pack(">HBHHB", 17, 8, 10, 100, 3) + b"\x00" * 9 + b"\xff\xda" + b"\x00" * 20, "jpeg")
+        n = len(base64.b64decode(j.split(",")[1]))
+        self.assertEqual(fi._make_framed(j, {}), j)
+        old = fi.FRAMED_MAX
+        try:
+            fi.FRAMED_MAX = n
+            self.assertEqual(fi._make_framed(j, {}), j)
+            fi.FRAMED_MAX = n - 1
+            with self.assertRaises(Bad) as e:
+                fi._make_framed(j, {})
+            self.assertEqual(str(e.exception), fi.CANT_FRAME)
+        finally:
+            fi.FRAMED_MAX = old
+
+    def test_a_made_copy_of_exactly_the_most_is_kept_and_one_byte_more_is_not(self):
+        original = halves(40, 10)
+        n = len(base64.b64decode(fi._make_framed(original, {"shape": "banner"}).split(",")[1]))
+        old = fi.FRAMED_MAX
+        try:
+            fi.FRAMED_MAX = n
+            self.assertTrue(fi._make_framed(original, {"shape": "banner"}))
+            body = made(original, shape="banner")
+            fi.check(body, None)                                      # already ours: the same limit on the stored copy
+            fi.FRAMED_MAX = n - 1
+            with self.assertRaises(Bad) as e:
+                fi._make_framed(original, {"shape": "banner"})
+            self.assertEqual(str(e.exception), fi.STILL_BIG)
+            with self.assertRaises(Bad) as e:
+                fi.check(body, None)
+            self.assertEqual(str(e.exception), fi.STILL_BIG)
+        finally:
+            fi.FRAMED_MAX = old
+
+    def test_an_image_one_row_high_made_smaller_keeps_its_one_row(self):
+        self.assertEqual(framed(made(make_png(6000, 1, lambda x, y: GREEN)))[:2], (3000, 1))
+
+    def test_a_framed_copy_is_ours_only_for_the_ratio_and_the_focus_it_was_made_with(self):
+        body = made(halves(40, 40), shape="free", ratio=2000, fy=500)
+        self.assertIsNotNone(fi.published(body, None))
+        self.assertIsNone(fi.published(dict(body, ratio=3000), None))
+        self.assertIsNone(fi.published(dict(body, fy=100), None))
+        self.assertIsNone(fi.published(dict(body, fx=100), None))
+
+    def test_a_jpeg_without_its_size_is_refused_in_words(self):
+        with self.assertRaises(Bad) as e:
+            fi.with_picture({"v": 2}, "original", GOOD_JPEG)
+        self.assertEqual(str(e.exception), "That image can't be used. Add a PNG, JPEG or WebP image.")
+
+    def test_a_version_1_body_of_exactly_its_limit_is_read_by_its_fields_and_one_more_is_refused_by_size(self):
+        from clark.section_kinds.textimage import BIG_PICTURE, UNKNOWN_FIELD
+        body = {"v": 1, "zzz": ""}
+        body["zzz"] = "A" * (fi.V1_LIMIT - fi._size(body))
+        self.assertEqual(fi._size(body), fi.V1_LIMIT)
+        with self.assertRaises(Bad) as e:
+            fi.check(body, None)
+        self.assertEqual(str(e.exception), UNKNOWN_FIELD)
+        body["zzz"] += "A"
+        with self.assertRaises(Bad) as e:
+            fi.check(body, None)
+        self.assertEqual(str(e.exception), BIG_PICTURE)
+
+    def test_every_png_filter_is_undone_exactly(self):
+        for salt in (1, 3, 7):
+            rows = noise_rows(23, 15, 3, salt)
+            raw = raw_png(23, 15, filtered(rows, 3))
+            w, h, ch, got = fi._read_png(raw)
+            self.assertEqual((w, h, ch), (23, 15, 3))
+            self.assertEqual(got, rows)
+
+    def test_a_png_one_pixel_wide_is_read_and_a_zero_width_is_not(self):
+        self.assertEqual(fi.png_size(base64.b64decode(make_png(1, 1, lambda x, y: RED).split(",")[1])), (1, 1))
+        with self.assertRaises(Bad):
+            fi.png_size(header_only(0, 5))
+
+    def test_an_interlaced_png_cannot_be_read(self):
+        raw = raw_png(4, 4, [b"\x00" + bytes(12)] * 4, interlace=1)
+        with self.assertRaises(Bad) as e:
+            fi._read_png(raw)
+        self.assertEqual(str(e.exception), fi.CANT_FRAME)
+
+    def test_a_palette_must_be_whole_colours_and_every_pixel_must_have_one(self):
+        rows = [b"\x00" + bytes([0, 1, 0, 1])] * 2
+        got = fi._read_png(raw_png(4, 2, rows, ctype=3, plte=bytes([255, 0, 0, 0, 0, 255])))
+        self.assertEqual((got[2], got[3][0]), (3, bytes([255, 0, 0, 0, 0, 255, 255, 0, 0, 0, 0, 255])))
+        with self.assertRaises(Bad):
+            fi._read_png(raw_png(4, 2, [b"\x00" + bytes(4)] * 2, ctype=3, plte=bytes([255, 0, 0, 0])))       # four bytes: not whole colours
+        with self.assertRaises(Bad):
+            fi._read_png(raw_png(4, 2, [b"\x00" + bytes([0, 1, 2, 1])] * 2, ctype=3, plte=bytes([255, 0, 0, 0, 0, 255])))    # no colour number 2
+
+
 if __name__ == "__main__":
     unittest.main()
