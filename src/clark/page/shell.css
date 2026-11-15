@@ -1691,7 +1691,7 @@ html:has(.top-file) main { padding-top: 10px; }      /* the first card starts 10
 html:has(.top-file) .frame.report { padding-top: 0; }
 html:has(.top-file) .frame.report .secs { margin-top: 0; }
 html:has(.top-file) main [id], html:has(.top-file) .sec { scroll-margin-top: calc(var(--topbar) + 16px); }      /* a jump to a section stops below the bar: the bar's height and some air (84 px) */
-@media (max-width: 900px) {      /* the ruling (A, provisional): two rows about 100 px high, the tabs as a strip under, no date. The only place the narrow bar is set. */
+@media (max-width: 900px) {      /* the ruling (A, provisional): two rows 125 px high, the tabs as a strip under, no date. The only place the narrow bar is set. */
   html:has(.top-file) { --topbar: 125px; }
   .top-file { flex-wrap: wrap; align-content: center; row-gap: 4px; padding-block: 4px; }
   .top-file .logo { width: 120px; height: 18px; }

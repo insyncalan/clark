@@ -143,7 +143,7 @@ class InTheFile(Published):
                 self.assertGreaterEqual(m["kids"][-1]["bottom"], max(k["bottom"] for k in m["kids"]) - 0.5, "and sits at the bottom")
                 self.assertEqual(sum(1 for k in m["kids"][:-1] if "publish" in k["text"].lower() and "export" not in k["text"].lower()), 0, "said once, at the bottom")
 
-    def test_where_the_menu_has_search_and_ask_clark_they_come_first(self):
+    def test_the_client_menu_has_no_search_or_ask_clark_item(self):
         """A client file draws no search and no ask clark (the menu is Profile and Export to PDF); the menu must have drawn, and if the build adds either, at 900 they are the first two."""
         for dark in (False, True):
             with self.subTest(dark=dark):
@@ -153,8 +153,7 @@ class InTheFile(Published):
                 items = [i.lower() for i in p.js(MENU)["items"]]
                 self.assertIn("profile", items, f"the client menu opened but drew no items: {items}")
                 found = [i for i in items if "search" in i or "ask clark" in i]
-                for i in found:
-                    self.assertLess(items.index(i), 2, f"{i!r} is among the first two items: {items}")
+                self.assertEqual(found, [], f"a published file draws neither search nor ask clark in its menu: {items}")
 
     def test_the_client_view_has_no_view_edit_pill(self):
         for width, dark in CASES:
