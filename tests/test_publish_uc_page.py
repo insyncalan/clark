@@ -20,8 +20,9 @@ def js(cdp, sid, code):
 
 
 # anything in the peek that takes input, or a button that is not one of the peek's own step, width and close controls
+# Row 1180: the Details line is a fold toggle in a read only peek too (it changes nothing), so it is left out like the peek's own buttons.
 PEEK_RO = ("[...document.querySelectorAll('[data-peek] *')].filter(e => e.matches('input, textarea, select, [contenteditable]:not([contenteditable=false]), [role=textbox], [role=combobox]')"
-           " || (e.matches('button, [role=button]') && !e.matches('[data-pk-prev], [data-pk-next], [data-pk-wide], [data-pk-close]'))).length")
+           " || (e.matches('button, [role=button]') && !e.matches('[data-pk-prev], [data-pk-next], [data-pk-wide], [data-pk-close], [data-pk-details]'))).length")
 
 
 class TheFilesUseCasePage(unittest.TestCase):

@@ -34,7 +34,7 @@ class SneakAnchor(unittest.TestCase):
                 s, sid = self.load_page(cdp, width)
                 item = self.ids_on_page(cdp, sid)[0]
                 self.edit_mode(cdp, sid)
-                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 520, "deviceScaleFactor": 1, "mobile": False}, sid)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 600, "deviceScaleFactor": 1, "mobile": False}, sid)
                 self.show_item(cdp, sid, item)
                 self.open_words(cdp, sid)
                 start = cdp.js(READ, sid)

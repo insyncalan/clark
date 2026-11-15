@@ -513,6 +513,20 @@ class SavedViews(Line):
         for x in views:
             self.assertEqual(self.parse(x["line"])["errors"], [], x)
 
+    def test_row_1203_a_page_keeps_its_views_under_its_own_key_apart_from_work_items(self):
+        fake = "{store: {}, getItem(k) { return k in this.store ? this.store[k] : null; }, setItem(k, v) { this.store[k] = String(v); }}"
+        got = self.val(f"(function(){{ var s = {fake}; var v = T.fl.viewsGet(s, 'ABC', 'usecases'); var start = v.map(function (x) {{ return x.name; }});"
+                       " var w = T.fl.addView(v, 'Mine', 'on:yes').views; T.fl.viewsPut(s, 'ABC', w, 'usecases');"
+                       " return [start, Object.keys(s.store), T.fl.viewsGet(s, 'ABC', 'usecases').map(function (x) { return x.name; }),"
+                       " T.fl.viewsGet(s, 'DEF', 'usecases').length, T.fl.viewsGet(s, 'ABC').length, T.fl.viewsGet(null, 'ABC', 'nope').length, T.fl.viewsPut(s, 'ABC', w, 'nope')]; })()")
+        self.assertEqual(got[0], ["All use cases", "On the dashboard", "Committed", "At risk"])
+        self.assertEqual(got[1], ["clark.fviews.usecases"], "nothing in the Work items keys")
+        self.assertEqual(got[2], ["All use cases", "On the dashboard", "Committed", "At risk", "Mine"])
+        self.assertEqual(got[3], 4, "another project starts again")
+        self.assertEqual(got[4], 7, "Work items views are untouched")
+        self.assertEqual(got[5], 0, "an unknown page has no views")
+        self.assertFalse(got[6], "and keeps nothing")
+
     def test_core_views_keep_their_line_can_be_renamed_and_deleted_and_are_stored_apart(self):
         views = self.v("viewsGet(null, 'ABC')")
         for cid in ("core-open", "core-actions", "core-risks", "core-decisions", "core-all"):
