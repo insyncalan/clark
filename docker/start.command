@@ -10,7 +10,7 @@ if [ -d .app ]; then check=.app/src/clark/starter_check.py; else check=src/clark
 export PYTHONDONTWRITEBYTECODE=1
 # The port compose publishes: CLARK_PORT in the shell, else CLARK_PORT in docker/.env (compose reads that file too), else 8766.
 port="${CLARK_PORT:-}"
-if [ -z "$port" ] && [ -f docker/.env ]; then
+if [ -z "${CLARK_PORT+x}" ] && [ -f docker/.env ]; then
   # Each line as compose takes it: an optional leading "export", blanks around, a quoted value, and a " #" comment after it. The last one wins.
   oldifs="$IFS"; IFS=$'\n'; set -f
   for line in $(<docker/.env); do

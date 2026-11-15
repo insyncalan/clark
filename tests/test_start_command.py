@@ -153,6 +153,12 @@ class StartCommand(unittest.TestCase):
         self.assertNotIn("read ", text)
         self.assertNotIn("sleep", text)
 
+    def test_a_shell_port_that_is_set_but_empty_means_the_usual_port_not_the_env_file(self):
+        """Compose takes ${CLARK_PORT:-8766}: an exported empty value is the default and docker/.env is not asked."""
+        (self.repo / "docker" / ".env").write_text("CLARK_PORT=9123\n", encoding="utf-8")
+        self.run_script(CLARK_PORT="")
+        self.assertIn(f"open -a {BROWSER} http://localhost:8766", self.calls())
+
     def test_the_forms_compose_accepts_for_the_port_line_are_all_taken(self):
         forms = {"export": "export CLARK_PORT=9124\n", "blanks": "  CLARK_PORT=9125\n", "comment": "CLARK_PORT=9126 # my port\n",
                  "crlf": "A=1\r\nCLARK_PORT=9127\r\nB=2\r\n", "quoted comment": "CLARK_PORT='9128' # x\n",
