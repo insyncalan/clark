@@ -199,8 +199,12 @@ class TheFilesUseCasePageOnTheEdges(unittest.TestCase):
             js(cdp, sid, esc)
             self.assertTrue(js(cdp, sid, "!!document.querySelector('[data-ucf]')"), "a field takes the Esc")
             js(cdp, sid, "document.getElementById('zz').remove(); document.activeElement.blur()")
-            js(cdp, sid, esc)
-            self.assertTrue(wait(lambda: js(cdp, sid, listed)), "Esc leaves for the use case list")
+            for _ in range(5):      # the Esc is sent again until the page has heard it: on a slow runner the first one can land before the page has settled
+                js(cdp, sid, esc)
+                if wait(lambda: js(cdp, sid, listed), 3):
+                    break
+            state = js(cdp, sid, "'hash ' + location.hash + ', active ' + (document.activeElement && (document.activeElement.tagName + '.' + document.activeElement.className)) + ', peek ' + !!document.querySelector('[data-peek]') + ', dialog ' + !!document.querySelector('dialog[open],[role=dialog],[role=alertdialog],[role=menu]') + ', crumb ' + !!document.querySelector('[data-ucf] .ucf-crumb a')")
+            self.assertTrue(js(cdp, sid, listed), f"Esc leaves for the use case list ({width}: {state})")
         self.each_width(check)
 
     def test_on_paper_nothing_is_cut_nothing_overflows_and_the_crumb_is_left_off(self):

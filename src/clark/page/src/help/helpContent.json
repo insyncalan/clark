@@ -59,7 +59,7 @@
    },
    {
     "t": "Pick a project",
-    "d": "The project button (the arrow beside the logo) in the top bar switches projects."
+    "d": "The project name in the top bar, beside the logo, is a button. It opens the project list to switch projects."
    },
    {
     "t": "Bring in the work",
@@ -203,7 +203,7 @@
     "go": "dashboard+edit",
     "s": [
      "Open the **Dashboard** and press **Edit** at the top. Each change saves on its own.",
-     "Set **Week ending** to the Friday the report covers: type it as DD-MM-YYYY, press [[Enter]] in the box to use the Friday shown (only while no week is kept yet), or press the calendar button beside the box and pick the day. In the calendar, **Friday** takes the next Friday (today, if it is one). Any other day is not accepted.",
+     "Set **Week ending** to the Friday the report covers: click the date in the header and pick the day in the calendar. **Friday** takes the next Friday (today, if it is one). Any other day is not accepted.",
      "Click the text under **Summary**, **This week** or **Next week** and write it. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] puts the old text back.",
      "Set the health on the **Project health** tile: see [Set the project health](#howto-set-the-health).",
      "Check the lists of risks and issues, open actions and decisions. Click any part of a row (the state, the title, the owner, the date) to change it there; the ID opens the whole item in the peek.",
@@ -482,7 +482,7 @@
      "In Edit, each section has a control at the left of its card (in the margin on a wide window, inside the card on a narrow one): a move button and, under it, a **+**. They are faint until you point at the section or tab to them.",
      "Drag the move button to move the section, or focus it and press [[Alt+Up]] or [[Alt+Down]]. Click it, or press [[Enter]] or [[Space]] on it, to open the section’s menu.",
      "The menu has **Add a template below…**, then **Template settings** (for a section whose template has settings), **Move up** and **Move down**, **Place beside the next section** (or **Full width** when it is already beside another), then **Leave out of the published page** (or **Include in the published page**) and **Delete section**. A section that is left out shows a small eye mark under its **+** and the tag **Left out of the published page**.",
-     "To rearrange the page, pick up a section by its move button and drop it. A line between rows puts it on a row of its own; the left or right half of a section that is on its own puts the two side by side, half the width each. A row never holds more than two. The cover stays at the top. Each drop is one step you can undo, and on a narrow window a pair stacks.",
+     "To rearrange the page, pick up a section by its move button and drop it. A line between rows puts it on a row of its own; the left or right half of a section that is on its own puts the two side by side, half the width each. A row never holds more than two. The header stays at the top. Each drop is one step you can undo, and on a narrow window a pair stacks.",
      "Click a heading to rename it. [[Enter]] keeps it; [[Esc]] puts it back.",
      "A section left out stays in Edit, greyed, and disappears in View and on the published page."
     ],
@@ -729,7 +729,7 @@
      "In **Settings**, open the **Projects** card and press **+** (**Add project**). Give it a name, a short code (3 to 7 letters or digits, suggested from the name; it can’t change later), the client and its workstreams, separated by commas.",
      "Each project has **Open**, **Edit** and **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
      "Under the projects, set this project’s **Publishing** folders. The folders asking may read are in the **Asking** card, under **Folders asking may read**.",
-     "The project button (the arrow beside the logo) in the top bar switches projects and shows each one’s open items. Adding a project and a project’s settings are in **Settings**, in the **Projects** card."
+     "The project name in the top bar, beside the logo, is a button that opens the project list to switch projects, and shows each one’s open items. Adding a project and a project’s settings are in **Settings**, in the **Projects** card."
     ],
     "page": [
      "settings"
@@ -847,10 +847,10 @@
      "Keep clark on the Mac and use Docker only to show it. Connect, ask clark, the brand zip and the file and folder windows need clark to run on the Mac itself. In the clark folder, open two Terminal windows. In the first type `bash docker/front.command server` and leave it open. In the second type `bash docker/front.command`, then open localhost:8766 in Chrome. To stop, type `bash docker/front.command stop` in the second window and press Control-C in the first. If the page cannot be reached, type the first command again. If Docker is a problem, `bash clark.command` does the same without it.",
      "Before the first start. Install Docker Desktop and open it first. Wait until it says it is running. If you start clark before that, Terminal says it cannot connect to the Docker API: open Docker Desktop, wait, and type the command again.",
      "Use the clark download. Start clark from the download (the zip file), not from a copy of the source code. A copy of the source has no built pages, and clark is shared into Docker read-only, so it cannot build them: it will say that the page could not be built. The message is: \"This copy of clark has no built page. Use the clark download, not a copy of the source code.\" Docker then stops.",
-     "Start. Every command below must be typed inside the clark folder: first cd into it. Open Terminal, type cd and a space, drag the unzipped clark folder into the Terminal window and press Return. Then type `docker compose -f docker/compose.yaml up -d` and press Return. The first time takes a few minutes. Then open localhost:8766 in Chrome. This start keeps its data in ~/Library/Application Support/clark, the same place clark.command uses, so you see the projects you already have, or an empty set on a first start. The Dashboard then says \"No project open\" and \"There are no projects yet.\" Your data is not in the clark folder, so you can swap that folder for a newer download. If you already have a folder called clark, rename or move it before you unzip a newer download, so the two do not clash.",
+     "Start. Every command below must be typed inside the clark folder: first cd into it. Open Terminal, type cd and a space, drag the unzipped clark folder into the Terminal window and press Return. Then type `bash docker/start.command` and press Return. The first time takes a few minutes. Then open localhost:8766 in Chrome. This start keeps its data in ~/Library/Application Support/clark, the same place clark.command uses, so you see the projects you already have, or an empty set on a first start. The Dashboard then says \"No project open\" and \"There are no projects yet.\" Your data is not in the clark folder, so you can swap that folder for a newer download. If you already have a folder called clark, rename or move it before you unzip a newer download, so the two do not clash.",
      "Never use two routes on the same data at once. Stop clark in Docker before you use clark.command, and stop clark.command’s window before you start Docker. Neither route can always tell that the other is already using the folder.",
-     "Use another data folder. To keep your data somewhere else, put its full path in quotes in front of the command: `CLARK_DATA_DIR=\"/full/path\" docker compose -f docker/compose.yaml up -d`. Use the same line every time you start. A folder inside OneDrive cannot be used by clark. If you used Docker before and your data is in a data folder inside the old clark folder, stop clark, move that folder out of it, and name it this way.",
-     "Change the port. Put a port number in front of the start command, for example `CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d`, then open localhost:8800. It is still reachable only from this computer.",
+     "Use another data folder. To keep your data somewhere else, put its full path in quotes in front of the command: `CLARK_DATA_DIR=\"/full/path\" bash docker/start.command`. Use the same line every time you start. A folder inside OneDrive cannot be used by clark. If you used Docker before and your data is in a data folder inside the old clark folder, stop clark, move that folder out of it, and name it this way.",
+     "Change the port. Put a port number in front of the start command, for example `CLARK_PORT=8800 bash docker/start.command`, then open localhost:8800. It is still reachable only from this computer.",
      "Your data is checked first. Every time it starts, clark looks at your data folder before it opens. If the data has to be brought up to date for this clark, clark makes a copy of it first.",
      "If a button says: This needs clark to run on the Mac itself; start it from Terminal: bash clark.command. Connect to Claude or ChatGPT, ask clark, Review the brand, and the Choose folder, Save, Open and Show in Finder windows need clark to run on the Mac itself, which Docker does not do. Stop clark with the Stop line below, open Terminal in the clark folder, type bash clark.command and press Return.",
      "Stop. In the same folder, type `docker compose -f docker/compose.yaml down` and press Return. Docker does not stop clark by itself: it keeps running until you stop it this way, even when you close every clark window. It does start again by itself after Docker Desktop is closed and opened again, or after the Mac restarts, unless you stopped it with this line.",
@@ -885,7 +885,7 @@
      [
       "ul",
       [
-       "The project button (an arrow beside the logo): switch projects. Each shows its count of open items. Adding a project and a project’s settings are in **Settings**.",
+       "The project name beside the logo is a button that opens the project list: switch projects. Each shows its count of open items. Adding a project and a project’s settings are in **Settings**.",
        "**Dashboard**, **Work items** and **Milestones**: the three screens.",
        "**The profile circle**: a person icon at the top right that opens the menu. See [The profile circle](#ref-profile-circle)."
       ]
@@ -934,9 +934,9 @@
       "ul",
       [
        "**View** and **Edit**: View shows the report as the client will read it. Edit changes it in place; each change saves on its own.",
-       "**Week ending**: the date on the cover, and in the published file’s name.",
-       "The line beside it: while you edit, that each change saves on its own; otherwise “Published” on its date, to the client (or locally), or “Draft · not published yet”.",
-       "The cover: the project, then “WEEKLY REPORT · Week ending …” and who it is for."
+       "**Week ending**: the week in the top bar, after Weekly report (a button that opens the calendar), and the date in the published file’s name and on its cover.",
+       "The note at the bottom of your profile menu: “Published” on its date, to the client (or locally). It shows once the report has been published.",
+       "The top bar: the logo, the project name, then Weekly report and the week."
       ]
      ],
      [
@@ -1102,7 +1102,7 @@
         "Half or full"
        ],
        [
-        "Current state",
+        "Header and Text",
         "The state of the project in a few lines, to sit beside another section.",
         "Full or half"
        ],
@@ -1213,7 +1213,7 @@
     "b": [
      [
       "p",
-      "The report is the cover, then the sections, with the contents at the right edge. Choose the Spacing in Settings › Personal; Compact is the standard. It is used on the published report too."
+      "The report is the sections, with the contents at the right edge. Choose the Spacing in Settings › Personal; Compact is the standard. It is used on the published report too."
      ],
      [
       "tbl",
@@ -1788,7 +1788,7 @@
      [
       "ul",
       [
-       "**The top bar**: the project, the week ending and who it is for.",
+       "**The top bar**: the logo, the project name, then Weekly report and the week. Nothing in it is a button.",
        "**Three tabs**: Dashboard, Work items and Milestones.",
        "The round button at the top right opens the **Report menu**: **Profile**, **Export to Excel** (only when the file holds a workbook; when the report is too large to include one, the row is greyed and a note says so), **Export to PDF** and **Past reports**. **Profile** keeps the reader’s name in their own browser only, and the button then shows their initials. **Past reports** lists earlier reports kept in the same folder as this one, newest first, and opens the one you press; with none it says No earlier reports.",
        "**Dashboard**: the report in the Spacing you chose, with **On this page** at the right.",
@@ -2210,6 +2210,10 @@
     "Opens ask clark, from any page, even in a box. It does nothing while Help or another dialog is open"
    ],
    [
+    "Cmd+Option+S",
+    "Opens Settings, from any page. Mac only. It does nothing while you are typing in a box, or while Help, a record or another dialog is open."
+   ],
+   [
     "[[Up]] [[Down]] [[Home]] [[End]]",
     "Work items table: move the cursor from row to row (never onto a group heading), to the first row or to the last. The blue outline shows where it is. The table is one stop for [[Tab]]"
    ],
@@ -2322,7 +2326,7 @@
    [
     "pencil",
     "Edit",
-    "Switch the Dashboard to Edit. It is on the **Edit** half of the **View** and **Edit** switch at the left of the report bar.",
+    "Switch the Dashboard to Edit. It is on the **Edit** half of the **View** and **Edit** switch, the floating pill just under the header at the right.",
     "Dashboard"
    ],
    [
@@ -2614,7 +2618,7 @@
      "pic": "arrange-grip"
     },
     {
-     "d": "To move a section, drag its move button and drop it. A line between two rows puts it on a row of its own. The cover stays at the top. Without a mouse, focus the button and press [[Alt+Up]] or [[Alt+Down]]."
+     "d": "To move a section, drag its move button and drop it. A line between two rows puts it on a row of its own. The header stays at the top. Without a mouse, focus the button and press [[Alt+Up]] or [[Alt+Down]]."
     },
     {
      "d": "Click the move button, or press [[Enter]] or [[Space]] on it, to open the section’s menu.",
@@ -2834,7 +2838,7 @@
    "job": "Look at the Dashboard as it stood at the end of a past day, read only, and come back to this week.",
    "steps": [
     {
-     "d": "Open the **Dashboard**. Beside **Week ending** on the report bar there is a drop-down that reads **Published weeks**. It is there in View and in Edit, and only once the project has a publication."
+     "d": "Press your profile circle at the top right and choose **Published reports** to see the weeks you have published. It is there in View and in Edit, and only once the project has a publication."
     },
     {
      "d": "To look at a week you published, pick it from the list. Each line reads like DD-MM-YYYY · Publication 3, newest first. A page that was kept opens in a new browser tab exactly as it was published."

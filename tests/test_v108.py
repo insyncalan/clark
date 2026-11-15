@@ -87,7 +87,7 @@ COVERED = [
     ('1152', "Open the Dashboard at 1400 and 900 px. The tile edges line up with the header edges and the tile heading is smaller than before; the published file's headings are unchanged.",
      'test_dash_tiles_header::TileWidth::test_tiles_line_up_with_the_header_and_the_heading_is_19px'),
     ('1154', 'With a brand that has a logo. The Dashboard band shows it at the right at 1400 px; with Generic or a brand with no logo the band is unchanged; the band text stays easy to read.',
-     'test_cover_band::Logo::test_the_brand_logo_sits_at_the_right_of_the_band'),
+     'test_cover_band::Logo::test_the_brand_logo_sits_small_at_the_right_of_the_editor_header_before_the_icons'),
     ('1156', 'Import a workbook whose work item rows name a new milestone and a new use case. Both are listed with Create it and Use an existing one, Import is off until both are answered, then the work item is linked to them.',
      'test_import_questions_page::Questions::test_both_are_listed_with_the_two_choices_and_import_waits_for_each_answer'),
     ('1157', 'Export to Excel and open it. On every sheet each locked column, including Project, has a grey background and the text stays readable.',

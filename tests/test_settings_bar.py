@@ -129,7 +129,8 @@ class SettingsBar(Base):
                     ground = p.js("getComputedStyle(document.querySelector('.set-bar')).backgroundColor")
                     self.assertGreaterEqual(size, 13)
                     self.assertGreaterEqual(ratio(rgb(color), rgb(fill)), 4.5, f"{mode}: the marked chip's words on its fill")
-                    self.assertGreaterEqual(ratio(rgb(fill), rgb(ground)), 3, f"{mode}: the marked chip's fill on the bar")
+                    marker = p.js(f"getComputedStyle({MARKED}, '::before').backgroundColor")      # item 1200: the fill is a soft tint; the violet marker carries the 3:1
+                    self.assertGreaterEqual(ratio(rgb(marker), rgb(ground)), 3, f"{mode}: the marked chip's marker on the bar")
                     self.assertNotEqual(fill, p.js("getComputedStyle(document.querySelector('.set-nav .set-chip:not([aria-current])')).backgroundColor"),
                                         "the marked chip does not look like the others")
 

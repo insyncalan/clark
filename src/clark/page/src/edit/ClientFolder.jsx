@@ -126,7 +126,7 @@ export function ClientFolder() {
         <form class="folder-paste" data-paste-folder onSubmit={usePasted}>
           <label for="client-folder-paste">or paste the folder's path</label>
           <div class="row">
-            <input type="text" id="client-folder-paste" autocomplete="off" spellcheck={false} maxLength={PASTE_MAX} value={pasted}
+            <input type="text" id="client-folder-paste" autocomplete="off" spellcheck={false} maxLength={PASTE_MAX} placeholder="/Users/you/OneDrive/Client/Reports" value={pasted}
                    aria-describedby="client-folder-paste-hint" onInput={(e) => setPasted(e.currentTarget.value)} disabled={busy} />
             <button type="submit" class="btn" data-use-pasted disabled={busy || !pasted.trim()}>Use</button>
           </div>

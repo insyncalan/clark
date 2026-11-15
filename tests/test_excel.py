@@ -130,7 +130,7 @@ class ExcelTests(unittest.TestCase):
 
     def test_each_sheet_and_its_headers(self):
         wb = load_workbook(self.d.path)
-        self.assertEqual(wb.sheetnames, ["Cover", "Actions", "Risks & Issues", "Decisions", "Milestones", "Use cases", "History", "Lists"])
+        self.assertEqual(wb.sheetnames, ["Cover", "Actions", "Risks & Issues", "Decisions", "Milestones", "Use cases", "History", "Lists", excel.META_NAME])
         for name, header in HEADERS.items():
             self.assertEqual([c.value for c in wb[name][1]], header, name)
 
@@ -229,7 +229,7 @@ class ExcelTests(unittest.TestCase):
 
     def test_history_and_lists_are_last_and_unaffected(self):
         wb = load_workbook(self.d.path)
-        self.assertEqual(wb.sheetnames[-2:], ["History", "Lists"])
+        self.assertEqual(wb.sheetnames[-3:-1], ["History", "Lists"])
         self.assertEqual(wb["Lists"].sheet_state, "hidden")
         self.assertEqual(wb["History"].sheet_state, "visible")
 
@@ -478,7 +478,7 @@ class HistorySheetTests(unittest.TestCase):
 
     def test_sheet_is_after_the_data_sheets_before_lists(self):
         names = load_workbook(self.d.path if self.d.export() else None).sheetnames
-        self.assertEqual(names[-3:], ["Use cases", "History", "Lists"])
+        self.assertEqual(names[-4:-1], ["Use cases", "History", "Lists"])
 
     def test_headers_note_and_frozen_header(self):
         ws = self.sheet()

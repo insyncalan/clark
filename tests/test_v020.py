@@ -296,7 +296,7 @@ LIGHT_PATCHES = """(() => {
   }
   const html = document.documentElement, body = document.body;
   const ground = lum(getComputedStyle(body).backgroundColor) ?? lum(getComputedStyle(html).backgroundColor);
-  const h1 = document.querySelector('h1');
+  const h1 = document.querySelector('h1') || document.querySelector('#report h2');  // item 1177: the dashboard no longer has a cover title, so a section heading stands in
   return { patches, ground, heading: h1 ? lum(getComputedStyle(h1).color) : null,
            sideways: html.scrollWidth > window.innerWidth };
 })()"""

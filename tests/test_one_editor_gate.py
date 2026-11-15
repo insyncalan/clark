@@ -204,7 +204,7 @@ class PageGate(unittest.TestCase):
         self.assertTrue(wait(lambda: js("document.querySelector('#report').dataset.mode === 'edit'"), 10))
         return js, sid
 
-    def test_only_the_three_text_sections_have_a_rich_field_and_only_in_edit(self):
+    def test_only_the_four_text_sections_have_a_rich_field_and_only_in_edit(self):
         s = self.serve(self.page_on)
         with chrome() as cdp:
             sid = navigate(cdp, s.port, for_project("#dashboard&p=ABC"))
@@ -214,7 +214,7 @@ class PageGate(unittest.TestCase):
             js("document.querySelector('[data-mode=edit]').click()")
             self.assertTrue(wait(lambda: js("document.querySelector('#report').dataset.mode === 'edit'"), 10))
             self.assertEqual(js("[...document.querySelectorAll('[data-rich]')].map(function(f){ return f.closest('.sec').dataset.id; })"),
-                             ["ABC-S-005", "ABC-S-006", "ABC-S-007"])
+                             ["ABC-S-001", "ABC-S-005", "ABC-S-006", "ABC-S-007"])      # item 1188: the first section is a text section
             self.assertEqual(js("document.querySelectorAll('.sec[data-type=text] .quiet:not([data-rich] .quiet)').length"), 0)
             js("document.querySelector('[data-mode=view]').click()")
             self.assertTrue(wait(lambda: js("document.querySelector('#report').dataset.mode !== 'edit'"), 10))
