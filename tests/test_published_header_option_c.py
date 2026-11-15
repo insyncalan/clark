@@ -172,7 +172,7 @@ class InTheEditor(Setup):
         for width, dark in CASES:
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 p = self.show(cdp, width, dark)
-                line = p.js("(() => { const l = document.querySelector('header.cover .cover-line, header.top .top-line, .cover-line'); return l ? l.textContent : null; })()")
+                line = p.js("(() => { const l = document.querySelector('header.top .hdr-line, header.cover .cover-line, header.top .top-line'); return l ? l.textContent : null; })()")
                 self.assertIsNotNone(line, "the heading line is there")
                 self.assertIn("WEEKLY REPORT", line.upper())
                 self.assertNotIn(CLIENT, line)
