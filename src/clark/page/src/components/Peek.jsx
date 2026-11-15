@@ -64,19 +64,25 @@ export function ItemFields({ row, editing, Cell, Wording, Pick }) {
   return (
     <dl class="pk-fields">
       <Row name="Type">{KIND_WORDS[row.kind] || row.kind}</Row>
-      <Row key_="owner" ref_={row.id} name={row.kind === "decision" ? "Decision by" : "Owner"}>{who.text}</Row>
-      <Row key_="due" ref_={row.id} name={row.kind === "decision" && row.status === "Pending" ? "Needed by" : row.kind === "decision" ? "Date" : "Due"}>
+      <Row key_="owner" ref_={row.id} name={row.kind === "decision" ? "Made by" : "Owner"}>{who.text}</Row>
+      <Row key_="due" ref_={row.id} name={row.kind === "decision" && row.status === "Pending" ? "Needed by" : row.kind === "decision" ? "Made on" : "Due"}>
         <Toned icon="cal" tone={dateTone(row, today)}>{due.date}</Toned>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}> {due.words}</span> : null}
       </Row>
-      {row.kind !== "decision" ? <Row key_="priority" ref_={row.id} name="Priority"><Toned icon="bars" tone={priorityTone(row.priority)}>{text(row.priority)}</Toned></Row> : null}
+      <Row key_="priority" ref_={row.id} name="Priority"><Toned icon="bars" tone={priorityTone(row.kind === "decision" ? row.peek_priority : row.priority)}>{text(row.kind === "decision" ? row.peek_priority : row.priority)}</Toned></Row>
       <Row key_="status" ref_={row.id} name="Status"><Toned icon="half" tone={statusTone(row, today)}>
         {Cell ? <Cell row={row} field="status" said={pill.text} place="peek"><span class={`pill ${pill.class}`}>{pill.text}</span></Cell> : <span class={`pill ${pill.class}`}>{pill.text}</span>}
         {kept ? <span class="pk-rating" data-pk-rating> · {kept}</span> : null}
       </Toned></Row>
-      <Row name="Workstream">{Pick && row.kind !== "decision" ? <Pick row={row} field="workstream" /> : text(row.workstream)}</Row>
-      <Row name="Milestone">{Pick && row.kind !== "decision" ? <Pick row={row} field="milestone" /> : text(row.milestone)}</Row>
+      {row.kind !== "decision" ? <Row name="Workstream">{Pick ? <Pick row={row} field="workstream" /> : text(row.workstream)}</Row> : null}      {/* row 1195: a decision has no workstream or milestone */}
+      {row.kind !== "decision" ? <Row name="Milestone">{Pick ? <Pick row={row} field="milestone" /> : text(row.milestone)}</Row> : null}
+      {row.kind === "decision" ? <>
+        {editing ? <Row name="Reasoning" ms="reasoning">{text(row.reasoning)}</Row> : null}      {/* a published file carries neither the reasoning nor the options (publish.PUBLISH_FIELDS) */}
+        {editing ? <Row name="Options considered" ms="options">{text(row.options)}</Row> : null}
+        <Row name="Revisit" ms="revisit">{text(row.revisit)}</Row>
+        <Row name="Replaces" ms="replaces">{text(row.replaces)}</Row>
+      </> : null}
       <Row name="Use case">{Pick ? <Pick row={row} field="use_case" /> : text(row.uc)}</Row>
-      {editing ? <Row name="Shown to client">{row.client ? "Yes" : "No"}</Row> : null}
+      {editing ? <Row name={row.kind === "decision" ? "Visible to client" : "Shown to client"}>{row.client ? "Yes" : "No"}</Row> : null}
       {Wording ? <Row name="Client wording"><Wording row={row} /></Row> : null}
       {!editing && fromFile.value && row.client_message ? <Row name="Client wording" ms="client_message">{row.client_message}</Row> : null}      {/* item 1111: a published file's peek draws the client wording the file carries, read only and only when there is some */}
       {!editing && fromFile.value && row.latest_update ? <Row name="Latest update" ms="latest_update"><Rich html={String(row.latest_update)} /></Row> : null}      {/* the file's latest update is already clean (publish.clean_html); no history, no editing */}

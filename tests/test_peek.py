@@ -348,8 +348,10 @@ class Browser(unittest.TestCase):
             s, sid = self.load_page(cdp, 1400, f"#work&p={self.code}&item={pending}")
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek dt')", sid)))
             labels = cdp.js("[...document.querySelectorAll('#peek dt')].map(d => d.textContent)", sid)
-            self.assertIn("Decision by", labels)
-            self.assertNotIn("Made by", labels, "a decision still to be made is not 'made by' anyone")
+            self.assertIn("Made by", labels)
+            self.assertNotIn("Workstream", labels, "row 1195: a decision has no workstream or milestone")
+            self.assertNotIn("Milestone", labels)
+            self.assertIn("Priority", labels, "row 1195: a decision has a priority")
             self.assertNotIn("Owner", labels)
             for attr in ("data-pk-prev", "data-pk-next", "data-pk-wide", "data-pk-close"):
                 got = cdp.js(f"(b => [b.title, b.getAttribute('aria-label')])(document.querySelector('[{attr}]'))", sid)
@@ -358,7 +360,7 @@ class Browser(unittest.TestCase):
             self.assertEqual(cdp.js("document.querySelector('[data-pk-wide]').title", sid), "Make this panel fill the screen")
             cdp.js(f"location.hash = '#work&p={self.code}&item={made}'", sid)
             self.assertTrue(wait(lambda: cdp.js("clarkPage.peek() && clarkPage.peek().id", sid) == made))
-            self.assertIn("Decision by", cdp.js("[...document.querySelectorAll('#peek dt')].map(d => d.textContent)", sid), "the prototype says Decision by for every decision")
+            self.assertIn("Made by", cdp.js("[...document.querySelectorAll('#peek dt')].map(d => d.textContent)", sid), "row 1195: Made by replaces Decision by and Owner")
 
     def test_the_width_drags_resets_and_is_kept_and_never_passes_the_window(self):
         for width in (1400, 900):

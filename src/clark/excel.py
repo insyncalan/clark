@@ -98,9 +98,9 @@ SHEETS = [
         ("Source", "source"), ("Updated", "updated_at")],
      {"id", "priority", "source", "updated_at"}),
     ("Decisions", "decisions", [
-        ("ID", "id"), ("Decision", "decision"), ("Project", "project"), ("Status", "status"), ("Made by", "made_by"),
+        ("ID", "id"), ("Decision", "decision"), ("Project", "project"), ("Status", "status"), ("Priority", "priority"), ("Made by", "made_by"),
         ("Needed by", "needed_by"), ("Date", "date"), ("Reasoning", "reasoning"), ("Options", "options"),
-        ("Revisit", "revisit"), ("Replaces", "replaces"), ("Client-visible", "client_visible"),
+        ("Revisit", "revisit"), ("Replaces", "replaces"), ("Latest update", "latest_update"), ("Client-visible", "client_visible"),
         ("Client wording", "client_message"), ("Use case", "use_case"), ("Labels", "labels"), ("Source", "source"),
         ("Updated", "updated_at")],
      {"id", "source", "updated_at"}),
@@ -128,7 +128,7 @@ DATES = {"due_date", "raised", "closed", "date", "baseline_date", "forecast_date
          "original_date"}
 YES_NO = {"client_visible", "state_set"}
 LABELLED = ("actions", "raid", "decisions")
-RICH_WORDS = (("actions", "latest_update"), ("raid", "latest_update"), ("milestones", "latest_update"), ("milestones", "description"), ("milestones", "client_message"), ("milestones", "internal_note"), ("use_cases", "standing"))     # rows 1005, 1060 (row 1078: + a milestone's client wording): rich now (the editor's HTML or an older plain text); the sheet carries its words, and the import compares a cell with the words (publish.LEGACY_RICH is the same list without the Movement note, which comes last; row 1060: a use case's Where it stands is HTML too)
+RICH_WORDS = (("actions", "latest_update"), ("raid", "latest_update"), ("decisions", "latest_update"), ("milestones", "latest_update"), ("milestones", "description"), ("milestones", "client_message"), ("milestones", "internal_note"), ("use_cases", "standing"))     # rows 1005, 1060 (row 1078: + a milestone's client wording): rich now (the editor's HTML or an older plain text); the sheet carries its words, and the import compares a cell with the words (publish.LEGACY_RICH is the same list without the Movement note, which comes last; row 1060: a use case's Where it stands is HTML too)
 DERIVED = {"original_date", "shown_state", "open_items"}    # clark: worked out for the sheet, never read back as a change
 WIDE = {"description", "decision", "client_message", "latest_update", "response_action", "reasoning", "options", "revisit",
         "state_reason", "internal_note", "source", "headline", "standing"}
@@ -152,7 +152,7 @@ CHOICES = {
 
 # clark (#85c): NOT NULL columns, whose drop-down does not allow a blank. The rest (and every other sheet's optional links) do.
 NOT_BLANK = {("actions", "priority"), ("actions", "status"), ("raid", "type"), ("raid", "status"), ("milestones", "status"),
-             ("decisions", "status"), ("use_cases", "status")}
+             ("decisions", "status"), ("decisions", "priority"), ("use_cases", "status")}
 PEOPLE = {"owner", "made_by"}              # free text until the people table exists (#115)
 LISTS_NAME = "Lists"                       # the hidden sheet holding the project's own lists
 LIST_ERROR_TITLE = "Not on the list"

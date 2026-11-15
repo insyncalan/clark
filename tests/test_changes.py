@@ -1364,7 +1364,8 @@ class Items(Api):
         self.no(self.item("raid", self.r, priority="Low", status="Closed"), changes.NO_RAID_PRIORITY)
         self.no(self.item("decisions", self.d, workstream="Build"), "A decision isn't part of a workstream.")
         self.no(self.item("decisions", self.d, milestone=self.ms), "A decision isn't tied to a milestone.")
-        self.no(self.item("decisions", self.d, priority="High"), "A decision has no priority.")
+        self.go("decisions", self.d, priority="High")      # row 1195: the Decision peek sets a priority
+        self.no(self.item("decisions", self.d, priority="Critical"), changes.NOT_A_STATUS)
         self.assertEqual(self.s.read("raid", ref=self.r)["priority"], "High")
 
     def test_values_are_text_or_none_and_never_none_where_a_value_is_needed(self):
