@@ -21,7 +21,7 @@ class SettingsKey(Base):
     def at(self, cdp, width):
         p = self.visit(cdp)
         size(cdp, p, width, 700)
-        p.until("!!document.querySelector('#pal-btn')", "the top bar is there")
+        p.until("!!document.querySelector('.top')", "the top bar is there")     # item 1177: at 900 the search button sits in the profile menu, so wait for the bar itself
         self.as_a_mac(p)
         return p
 

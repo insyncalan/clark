@@ -638,7 +638,6 @@ test_vendor_tiptap.py 0.4
 test_view_text_sections.py 2.9
 test_web_marker_whitespace.py 19.6
 test_week_end_pair.py 0.8
-test_week_picker.py 17.9
 test_welcome.py 31.0
 test_word_client_held_back.py 13.3
 test_word_import.py 0.8

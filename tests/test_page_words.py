@@ -33,6 +33,8 @@ WENT_WRONG = "Something went wrong"
 SENTENCE_STARTS_WITH_PRODUCT_NAME = re.compile(r"""(?:[`"'>:;]|[.!?]\s)\s*clark\s+[a-z]""", re.I)
 NEVER = re.compile(r"\w*(Error|Exception)\b|Traceback|JSON|Not allowed|Bad request|[Rr]eport editor|\bClark\b|\bUC\b|!")
 PAGE_SRC = Path(page.PAGE).parent / "src"
+# item 1177: the Dashboard has no banner and no h1 any more; the open project's own name is the header's .hdr-project button
+OPEN_NAME = "(document.querySelector('header .hdr-project') || {}).textContent && document.querySelector('header .hdr-project').textContent.trim()"
 WAIT = 30     # seconds to poll for what the page should show: a busy machine can take far longer than a quiet one
 
 
@@ -80,7 +82,7 @@ class Words(unittest.TestCase):
     def recovers(self, cdp, sid):
         self.fake.mode = "ok"
         cdp.js("document.querySelector('.again').click()", sid)
-        self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1') && document.querySelector('h1').textContent", sid)
+        self.assertTrue(wait(lambda: cdp.js(OPEN_NAME, sid)
                              == "Example Programme", WAIT), "Try again brought the report back")
 
     def test_a_fault_in_the_data_shows_no_error_name_and_try_again_recovers(self):
@@ -143,7 +145,7 @@ class Words(unittest.TestCase):
                 sid = self.visit(cdp)
                 self.shown(cdp, sid, [WENT_WRONG, STALE, "Try again"])
             cdp.js("document.querySelector('.again').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1') && document.querySelector('h1').textContent", sid)
+            self.assertTrue(wait(lambda: cdp.js(OPEN_NAME, sid)
                                  == "Example Programme", WAIT), "Try again reloaded the page with this run's token")
 
     def test_a_refusal_with_the_servers_old_words_shows_clark_did_not_accept_that(self):
@@ -155,7 +157,7 @@ class Words(unittest.TestCase):
                 sid = self.visit(cdp)
                 self.shown(cdp, sid, [WENT_WRONG, NOT_ACCEPTED, "Try again"])
             cdp.js("document.querySelector('.again').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1') && document.querySelector('h1').textContent", sid)
+            self.assertTrue(wait(lambda: cdp.js(OPEN_NAME, sid)
                                  == "Example Programme", WAIT), "Try again reloaded the page")
 
     def test_a_message_the_page_does_not_know_is_never_shown(self):
@@ -207,9 +209,9 @@ class Words(unittest.TestCase):
                                   "Alias", "Your first name and your initials, worked out from your full name. You can change it.",     # item 613
                                   "Your email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email.",
                                   "Publishing", "Where Publish saves the report. Local is always used; the client folder only when you tick To client.",
-                                  "Local folder", "Always saved. Publish's save window opens in this folder; with none chosen, it opens where you last saved this report.",
+                                  "LOCAL FOLDER", "Always saved. Publish's save window opens in this folder; with none chosen, it opens where you last saved this report.",
                                   "No local folder yet.", "Choose folder",      # row 852: the Local folder is chosen once, like the client folder
-                                  "Client folder",      # #43: the client folder, now one half of the Publishing card (A-S9)
+                                  "CLIENT FOLDER",      # #43: the client folder, now one half of the Publishing card (A-S9)
                                   "This must be a folder OneDrive syncs to the client's SharePoint. Publish copies the finished page "
                                   "into it when you tick To client; OneDrive then uploads it.",
                                   "No client folder yet.", "Choose folder", "or paste the folder's path", "Use", "A folder on this computer.",
@@ -253,7 +255,7 @@ class Words(unittest.TestCase):
                                   "Claude is started on this computer for you.",
                                   "Your question and the passages it needs go to Claude, which Anthropic runs, and are billed to the Claude account signed in on this computer.",
                                   "Asking is off, because clark could not check the setting just now. Reload the page to try again.",   # this server has no switch route: off
-                                  "Turn on asking", "Folders asking may read",
+                                  "Turn on asking", "FOLDERS ASKING MAY READ",
                                   "Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. "
                                   "Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.",
                                   "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.",
@@ -261,7 +263,7 @@ class Words(unittest.TestCase):
                                   "Suggestions for the text you select in the report. Nothing changes until you accept one.",
                                   "AI suggestions come in a later version.",
                                   "Feedback", "Tell us what is wrong or what you would like to see. Your mail app opens with the message ready and you press send. Nothing is sent by clark itself.",
-                                  "What is wrong, or what would you suggest?How can we reach you? (optional)", "Added to the email", "Version of clark: unknown", f"System: {system}",
+                                  "What is wrong, or what would you suggest?How can we reach you? (optional)", "ADDED TO THE EMAIL", "Version of clark: unknown", f"System: {system}",
                                   "Only these lines are added to what you write. Nothing from your reports is included.", "Copy as text",
                                   "Quit", "Quit clark when you have finished. Nothing is left running.", "Quit clark"])      # #836: the Quit card, last on the page
         self.fake.mode = "wait"

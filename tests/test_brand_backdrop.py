@@ -336,7 +336,7 @@ class AppContrast(Measure, Rig):
                     for name, hash_, ready in PAGES:
                         with self.subTest(page=name, scheme=scheme, width=width, picture=pic_name), self.chrome() as cdp:
                             p = self.load_app(cdp, hash_, ready, width, scheme)
-                            self.verdict(cdp, p, f"app {name} {scheme} {width} {pic_name}")
+                            self.verdict(cdp, p, f"app {name} {scheme} {width} {pic_name}", need=name != "Dashboard")      # item 1177: the Dashboard's banner is gone, all its text sits on cards or the opaque header, so none may sit on the picture
 
     def test_work_items_links_discard_changes_and_save_as_a_new_view(self):
         for scheme in ("light", "dark"):
