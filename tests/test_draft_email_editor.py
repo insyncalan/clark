@@ -236,7 +236,7 @@ class Logic(InBrowser):
         d = draft(picked=["ABC-A-001"])
         got = self.cdp.call("Runtime.evaluate", {"expression": f"T.logic.copyNow('outlook', {lit(d)}, null, () => Promise.reject(new Error('no'))).then(JSON.stringify)",
                                                   "awaitPromise": True, "returnByValue": True}, self.sid)["result"]["value"]
-        self.assertEqual(json.loads(got), {"ok": False, "blocked": False, "message": "The browser did not copy it. Press ⌘C to copy the selected text."})
+        self.assertEqual(json.loads(got), {"ok": False, "blocked": False, "message": "The browser did not copy it. Press Ctrl+C (Cmd+C on a Mac) to copy the selected text."})
         ok = self.cdp.call("Runtime.evaluate", {"expression": f"T.logic.copyNow('text', {lit(d)}, null, () => Promise.resolve()).then(JSON.stringify)",
                                                  "awaitPromise": True, "returnByValue": True}, self.sid)["result"]["value"]
         self.assertEqual(json.loads(ok), {"ok": True, "message": "Copied"})
@@ -458,7 +458,7 @@ class Component(InBrowser):
         self.js("T.refuse = true")
         self.mount()
         self.click(".pk-foot .pri")
-        self.assertEqual(self.text(".de-note"), "The browser did not copy it. Press ⌘C to copy the selected text.")
+        self.assertEqual(self.text(".de-note"), "The browser did not copy it. Press Ctrl+C (Cmd+C on a Mac) to copy the selected text.")
         sel = self.js("window.getSelection().toString()")
         self.assertIn("Share the UAT plan", sel)
 
