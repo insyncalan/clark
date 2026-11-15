@@ -2082,6 +2082,10 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 a.tpl-name, .tpl-lc-title a { color: var(--link); text-decoration: underline; text-underline-offset: 2px; }
 a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
 .tpl-facts { color: var(--text-muted); font-size: var(--size-caption); }
+.tpl-acts { flex: none; display: flex; gap: var(--space-2); }
+button.tpl-act { min-height: 44px; min-width: 44px; padding: 0 var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); color: var(--link); font: inherit; font-size: var(--size-caption); cursor: pointer; }
+button.tpl-act:hover { background: var(--grey-100); }
+button.tpl-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .docs-view-row { align-items: center; }
 .docs-ic { flex: none; display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: var(--radius); background: var(--brand-blue-tint); color: var(--status-blue-text); }
 .docs-ic .i { width: 18px; height: 18px; }
