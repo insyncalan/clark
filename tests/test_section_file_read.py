@@ -71,12 +71,14 @@ class Read(unittest.TestCase):
     def test_a_listed_name_is_served_to_open_and_to_download(self):
         status, headers, data = self.get("Plan v2.pdf")
         self.assertEqual((status, data), (200, PDF))
-        h = {k.lower(): v for k, v in headers.items()} if hasattr(headers, "items") else {}
+        h = {k.lower(): v for k, v in headers.items()}
         self.assertEqual(h.get("content-type", "").split(";")[0], "application/pdf")
-        self.assertTrue(h.get("content-disposition", "inline").startswith("inline"), h.get("content-disposition"))
+        self.assertEqual(h.get("content-disposition"), 'inline; filename="Plan v2.pdf"')
+        self.assertEqual(h.get("x-content-type-options"), "nosniff")
+        self.assertEqual(h.get("content-length"), str(len(PDF)))
         status, headers, data = self.get("Plan v2.pdf", extra="&download=1")
         self.assertEqual((status, data), (200, PDF))
-        self.assertIn('attachment; filename="Plan v2.pdf"', {k.lower(): v for k, v in headers.items()}.get("content-disposition", ""))
+        self.assertEqual({k.lower(): v for k, v in headers.items()}.get("content-disposition"), 'attachment; filename="Plan v2.pdf"')
 
     def test_a_dot_dot_path_is_refused(self):
         for name in ("../secret.pdf", "..", "Report files/../secret.pdf", "..%2Fsecret.pdf", "../outside.pdf", "../../outside.pdf"):
