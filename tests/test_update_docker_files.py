@@ -116,7 +116,7 @@ class DockerUpdate(unittest.TestCase):
 
     def test_update_txt_gives_typed_commands_for_the_new_folder_route(self):
         for words in ("Unzip the new download into a new folder", "docker compose -f docker/compose.yaml down",
-                      "bash docker/start.command", "start from the newer clark folder", "SHA-256",
+                      "bash docker/start.command", "Nothing was changed and the container\nwas not started", "SHA-256",
                       "clark keeps the 14 newest of these copies", "never fewer than 3", "Get-FileHash -Algorithm SHA256", "Update from file in Settings does not work under Docker"):
             self.assertIn(words, UPDATE)
         self.assertNotIn("docker load", UPDATE)
