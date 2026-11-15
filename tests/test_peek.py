@@ -351,6 +351,11 @@ class Browser(unittest.TestCase):
             self.assertTrue(labels["due"].startswith("Needed-by date"), labels)
             self.assertNotIn("Made by", labels["owner"], "a decision still to be made is not 'made by' anyone")
             self.assertNotIn("Owner", labels["owner"])
+            dts = cdp.js("[...document.querySelectorAll('#peek dt')].map(d => d.textContent)", sid)      # row 1195 (kept on the new frame): the Details rows
+            self.assertNotIn("Workstream", dts, "row 1195: a decision has no workstream or milestone")
+            self.assertNotIn("Milestone", dts)
+            self.assertIn("Revisit", dts)
+            self.assertIn("priority", labels, "row 1195: a decision has a priority (its chip)")
             for attr in ("data-pk-prev", "data-pk-next", "data-pk-wide", "data-pk-close"):
                 got = cdp.js(f"(b => [b.title, b.getAttribute('aria-label')])(document.querySelector('[{attr}]'))", sid)
                 self.assertTrue(got[0] and got[0] == got[1], (attr, got))

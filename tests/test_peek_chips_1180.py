@@ -189,12 +189,12 @@ class Chips(unittest.TestCase):
             got = self.open_item(cdp, sid, "TUL-007")
             self.assertFalse([c for c in got["chips"].values() if c["sub"] and "kept" in c["sub"]])
 
-    def test_a_decision_has_no_priority_chip_and_a_risk_keeps_its_rating_picker(self):
+    def test_a_decision_has_a_priority_chip_and_a_risk_keeps_its_rating_picker(self):
         with chrome() as cdp:
             s, sid = self.load_page(cdp, 1400)
             self.edit_mode(cdp, sid)
             dec = self.open_item(cdp, sid, self.decision())
-            self.assertEqual(list(dec["chips"]), ["status", "owner", "due"])
+            self.assertEqual(list(dec["chips"]), ["status", "priority", "owner", "due"], "row 1195: a decision has a priority (peek_priority), so its chip row has Priority")
             self.open_item(cdp, sid, "TUL-007")
             click(cdp, sid, "#peek .pk-chips [data-row=priority]")
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pop].rpick')", sid)), "a risk's priority opens the impact and likelihood picker")

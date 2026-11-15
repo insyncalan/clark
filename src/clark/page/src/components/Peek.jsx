@@ -65,7 +65,7 @@ function Row({ name, children, ref_, key_, ms, icon, tone = "b" }) {      // key
   return <div class={`pk-row${hit ? " flash" : ""}`} data-row={key_ || undefined} data-ms-row={ms || undefined} data-flash={hit ? "1" : undefined}><dt>{icon ? <span class={`pk-rowic ${iconClass(tone)}`}><Icon name={icon} /></span> : null}{name}</dt><dd>{children}{hit ? <span class="tag chg">Changed</span> : null}</dd></div>;
 }
 
-// Row 1180: the four property cells are the chip row now (ItemChips). A flat row of chips: status, owner, due and (not a decision) priority; each opens its popover in Edit.
+// Row 1180: the four property cells are the chip row now (ItemChips). A flat row of chips: status, priority (a decision's from peek_priority), owner and due; each opens its popover in Edit.
 function ItemChips({ row, tools, editing }) {
   const today = todayIso(), due = dueCell(row, today), pill = pillOf(row, today), who = ownerOf(row.owner), f = flashed.value;
   const hit = (key) => !!(f && f.list.some((e) => e.ref === row.id && ROW_OF[e.field] === key));
@@ -76,11 +76,12 @@ function ItemChips({ row, tools, editing }) {
   const late = due.tone === "late", days = late ? /^(\d+) days? late$/.exec(due.words) : null;
   const overdue = late ? `overdue ${days ? days[1] : "1"} ${days && days[1] !== "1" ? "days" : "day"}` : "";
   const fixed = row.kind === "assumption" || row.kind === "dependency";
+  const prio = row.kind === "decision" ? row.peek_priority : row.priority;      // row 1195: a decision's priority is peek_priority
   return (
     <PeekChips>
       <PeekChip Live={Live} id={row.id} field="status" name="Status" icon="half" tone={statusTone(row, today)} value={pill.text} flash={hit("status")} pop={pop("status")} />
-      {row.kind !== "decision" ? <PeekChip Live={Live} id={row.id} field="priority" name="Priority" icon="bars" tone={priorityTone(row.priority)} value={text(row.priority)} sub={kept ? `${kept} kept` : ""}
-        flash={hit("priority")} tip={fixed ? "Set from impact and likelihood" : undefined} pop={pop("priority")} /> : null}
+      <PeekChip Live={Live} id={row.id} field="priority" name="Priority" icon="bars" tone={priorityTone(prio)} value={text(prio)} sub={kept ? `${kept} kept` : ""}
+        flash={hit("priority")} tip={fixed ? "Set from impact and likelihood" : undefined} pop={pop("priority")} />
       <PeekChip Live={Live} id={row.id} field="owner" name={row.kind === "decision" ? "Decider" : "Owner"} icon="user" tone="b" value={who.text} flash={hit("owner")} pop={pop("owner")} />
       <PeekChip Live={Live} id={row.id} field="due" name={row.kind !== "decision" ? "Due date" : row.status === "Pending" ? "Needed-by date" : "Decision date"} icon="cal" tone={dateTone(row, today)} value={due.date}
         sub={overdue} subTone={late ? "late" : ""} late={late} flash={hit("due")} pop={pop("due")} />
@@ -90,7 +91,7 @@ function ItemChips({ row, tools, editing }) {
 
 // ItemFields and Edge are also the archived peek's (ArchivedItems.jsx in the Edit part, item 450 row 39; reached with is:archived, item 1067): the same rows, read only.
 // `slim` (row 1180, the live peek): the Type row and the four cells are the chip row above and the project is in the ID line, so they are not repeated; the rest sits in the collapsible Details.
-export function ItemFields({ row, editing, Cell, Wording, Pick, slim = false, ClientLine = null }) {
+export function ItemFields({ row, editing, Cell, Wording, Pick, slim = false, ClientLine = null, clientName }) {
   const today = todayIso(), due = dueCell(row, today), pill = pillOf(row, today), who = ownerOf(row.owner);
   // #448: a closed risk or issue's pill reads Closed; it keeps its rating word beside it (the prototype's "Closed · Amber"; "Not rated" when it never was, #532), here and in a published file.
   const kept = (row.kind === "risk" || row.kind === "issue") && !isOpen(row) ? colourOf(row.priority).word : "";
@@ -99,20 +100,26 @@ export function ItemFields({ row, editing, Cell, Wording, Pick, slim = false, Cl
     <dl class="pk-fields">
       {slim ? null : <Row name="Type">{KIND_WORDS[row.kind] || row.kind}</Row>}
       {slim ? null : <>
-      <Row key_="owner" ref_={row.id} name={row.kind === "decision" ? "Decision by" : "Owner"}>{who.text}</Row>
-      <Row key_="due" ref_={row.id} name={row.kind === "decision" && row.status === "Pending" ? "Needed by" : row.kind === "decision" ? "Date" : "Due"}>
+      <Row key_="owner" ref_={row.id} name={row.kind === "decision" ? "Made by" : "Owner"}>{who.text}</Row>
+      <Row key_="due" ref_={row.id} name={row.kind === "decision" && row.status === "Pending" ? "Needed by" : row.kind === "decision" ? "Made on" : "Due"}>
         <Toned icon="cal" tone={dateTone(row, today)}>{due.date}</Toned>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}> {due.words}</span> : null}
       </Row>
-      {row.kind !== "decision" ? <Row key_="priority" ref_={row.id} name="Priority"><Toned icon="bars" tone={priorityTone(row.priority)}>{text(row.priority)}</Toned></Row> : null}
+      <Row key_="priority" ref_={row.id} name="Priority"><Toned icon="bars" tone={priorityTone(row.kind === "decision" ? row.peek_priority : row.priority)}>{text(row.kind === "decision" ? row.peek_priority : row.priority)}</Toned></Row>
       <Row key_="status" ref_={row.id} name="Status"><Toned icon="half" tone={statusTone(row, today)}>
         {Cell ? <Cell row={row} field="status" said={pill.text} place="peek"><span class={`pill ${pill.class}`}>{pill.text}</span></Cell> : <span class={`pill ${pill.class}`}>{pill.text}</span>}
         {kept ? <span class="pk-rating" data-pk-rating> · {kept}</span> : null}
       </Toned></Row>
       </>}
-      <Row name="Workstream" icon={slim ? "board" : undefined}>{Pick && row.kind !== "decision" ? <Pick row={row} field="workstream" /> : text(row.workstream)}</Row>
-      <Row name="Milestone" icon={slim ? "flag" : undefined}>{Pick && row.kind !== "decision" ? <Pick row={row} field="milestone" /> : text(row.milestone)}</Row>
+      {row.kind !== "decision" ? <Row name="Workstream" icon={slim ? "board" : undefined}>{Pick ? <Pick row={row} field="workstream" /> : text(row.workstream)}</Row> : null}      {/* row 1195: a decision has no workstream or milestone */}
+      {row.kind !== "decision" ? <Row name="Milestone" icon={slim ? "flag" : undefined}>{Pick ? <Pick row={row} field="milestone" /> : text(row.milestone)}</Row> : null}
+      {row.kind === "decision" ? <>
+        {editing ? <Row name="Reasoning" ms="reasoning">{text(row.reasoning)}</Row> : null}      {/* a published file carries neither the reasoning nor the options (publish.PUBLISH_FIELDS) */}
+        {editing ? <Row name="Options considered" ms="options">{text(row.options)}</Row> : null}
+        <Row name="Revisit" ms="revisit">{text(row.revisit)}</Row>
+        <Row name="Replaces" ms="replaces">{text(row.replaces)}</Row>
+      </> : null}
       <Row name="Use case" icon={slim ? "flag" : undefined}>{Pick ? <Pick row={row} field="use_case" /> : text(row.uc)}</Row>
-      {editing ? (slim && ClientLine ? <div class="pk-row" data-pk-client-row><dd><ClientLine row={row} /></dd></div> : <Row name="Shown to client">{row.client ? "Yes" : "No"}</Row>) : null}
+      {editing ? (slim && ClientLine ? <div class="pk-row" data-pk-client-row><dd><ClientLine row={row} /></dd></div> : <Row name={(clientName && clientName(row)) || "Shown to client"}>{row.client ? "Yes" : "No"}</Row>) : null}
       {Wording ? <Row name="Client wording" icon={slim ? "doc" : undefined}><Wording row={row} /></Row> : null}
       {!editing && fromFile.value && row.client_message ? <Row name="Client wording" ms="client_message">{row.client_message}</Row> : null}      {/* item 1111: a published file's peek draws the client wording the file carries, read only and only when there is some */}
       {!editing && fromFile.value && row.latest_update ? <Row name="Latest update" ms="latest_update"><Rich html={String(row.latest_update)} /></Row> : null}      {/* the file's latest update is already clean (publish.clean_html); no history, no editing */}
@@ -351,7 +358,7 @@ export function Peek({ tools }) {
               {row.client_message ? <Row name="Client wording" ms="client_message">{row.client_message}</Row> : null}
             </dl> : null}
             <PeekActionBody row={row} editing={editing} Pick={editing && tools.PeekPick ? tools.PeekPick : null} ClientLine={editing && tools.PeekClientLine ? tools.PeekClientLine : null} />
-          </> : row ? <ItemFields row={row} editing={editing} slim ClientLine={editing && tools.PeekClientLine ? tools.PeekClientLine : null} Cell={null} Wording={editing && tools.PeekWording ? tools.PeekWording : null} Pick={editing && tools.PeekPick ? tools.PeekPick : null} /> : msEditing ? <tools.MilestoneEdit m={m} /> : <MilestoneFields m={m} tools={tools} />}
+          </> : row ? <ItemFields row={row} editing={editing} slim clientName={editing && tools.clientRowName ? tools.clientRowName : null} ClientLine={editing && tools.PeekClientLine ? tools.PeekClientLine : null} Cell={null} Wording={editing && tools.PeekWording ? tools.PeekWording : null} Pick={editing && tools.PeekPick ? tools.PeekPick : null} /> : msEditing ? <tools.MilestoneEdit m={m} /> : <MilestoneFields m={m} tools={tools} />}
           {Source && !History ? <Source key={`s-${p.id}`} row={row || m} /> : FileSource ? <SourceLine text={(row || m).source} /> : null}      {/* with the history tabs the source is its own tab */}
         </div>
       {History && (row || m) ? <History key={p.id} id={p.id} /> : null}

@@ -236,7 +236,7 @@ class IconsBrowser(unittest.TestCase):
         for r in self.data["raid"]:
             out.append((r["id"], str(r["type"]).lower(), r["status"], r["priority"], r["due_date"]))
         for r in self.data["decisions"]:
-            out.append((r["id"], "decision", r["status"], None, r["needed_by"] if r["status"] == "Pending" else r["date"]))
+            out.append((r["id"], "decision", r["status"], r.get("priority"), r["needed_by"] if r["status"] == "Pending" else r["date"]))
         return out
 
     def read(self, cdp, sid, item):
@@ -250,7 +250,7 @@ class IconsBrowser(unittest.TestCase):
         want = {"status": rows["status"]["cls"][3:],
                 "priority": {"Urgent": "r", "High": "a", "Medium": "b"}.get(priority, "n"),
                 "due": expected_date_tone(kind, status, due)}
-        self.assertEqual(set(rows), {"status", "due"} | ({"priority"} if kind != "decision" else set()), f"{iid}: a decision has no priority row")
+        self.assertEqual(set(rows), {"status", "due", "priority"}, f"{iid}: every kind has a priority row (row 1195: a decision too)")
         surface = rgb_hex(got["bg"])
         for key, row in rows.items():
             where = f"{iid} {key} ({theme})"

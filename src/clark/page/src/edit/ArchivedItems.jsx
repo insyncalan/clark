@@ -151,7 +151,7 @@ function ArchivedPeek({ row }) {
       <div class="pk-archnote"><p>{NOTE}</p><button type="button" class="btn pri" id="pk-restore" aria-label={`Restore ${row.id}`} onClick={restore}>Restore</button></div>
       <h2 class="pk-title">{row.title}</h2>
       <div class="pk-body pk-ro" data-pk-body>
-        <ItemFields row={row} editing />
+        <ItemFields row={row} editing clientName={(r) => (r.kind === "decision" ? "Visible to client" : "Shown to client")} />
       </div>
       <p class="pk-arch-foot muted">{FOOT}</p>
     </aside>

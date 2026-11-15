@@ -46,19 +46,19 @@ def others(path):
     use_cases lines are left out too: step 22 (row 875) adds owner and owner_id to that table, which changes its dump text, not row 1068's step."""
     con = sqlite3.connect(str(path))
     try:
-        return [l for l in con.iterdump() if "report_sections" not in l and "schema_version" not in l and "use_cases" not in l and "use_case_milestones" not in l and "\"raid\"" not in l and "\"milestones\"" not in l and not l.startswith(("CREATE TABLE raid", "CREATE TABLE milestones"))]      # row 1107 (step 24) adds that table; item 1185 (step 25) adds a column to raid and milestones
+        return [l for l in con.iterdump() if "report_sections" not in l and "schema_version" not in l and "use_cases" not in l and "use_case_milestones" not in l and "\"raid\"" not in l and "\"milestones\"" not in l and "\"decisions\"" not in l and not l.startswith(("CREATE TABLE raid", "CREATE TABLE milestones", "CREATE TABLE decisions"))]      # row 1107 (step 24) adds that table; item 1185 (step 25) adds a column to raid and milestones
     finally:
         con.close()
 
 
 def grown(path):
-    """The two tables step 25 (item 1185) adds latest_update to: their dump text must change, so the dump filter in others() leaves them out.
+    """The three tables steps 25 and 26 (items 1185, 1195) add columns to: their dump text must change, so the dump filter in others() leaves them out.
     Instead compare them here by every other column and every row, so an upgrade still may not touch what was already there."""
     con = sqlite3.connect(str(path))
     try:
         out = {}
-        for table in ("raid", "milestones"):
-            cols = [r[1] for r in con.execute(f"PRAGMA table_info({table})") if r[1] != "latest_update"]      # fixed table names
+        for table in ("raid", "milestones", "decisions"):
+            cols = [r[1] for r in con.execute(f"PRAGMA table_info({table})") if r[1] != "latest_update" and not (table == "decisions" and r[1] == "priority")]      # fixed table names
             out[table] = (cols, con.execute(f"SELECT {', '.join(cols)} FROM {table} ORDER BY rowid").fetchall())
         return out
     finally:
