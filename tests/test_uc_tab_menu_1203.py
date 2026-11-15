@@ -66,6 +66,8 @@ class TabMenu(unittest.TestCase):
             with self.subTest(width), chrome() as cdp:
                 sid = self.visit(cdp, width)
                 self.assertEqual(cdp.js(TABS, sid), START)
+                strip = cdp.js("(() => { const s = document.querySelector('#usecases .vtabs'); return [s.scrollWidth, s.clientWidth]; })()", sid)
+                self.assertLessEqual(strip[0], strip[1], f"{width}: the tab strip with the menu button and + New view beside four tabs does not scroll (scrollWidth {strip[0]}, clientWidth {strip[1]})")
                 self.assertEqual(cdp.js("document.querySelectorAll('#usecases #ucl-viewTabMenu').length", sid), 1, "only the open tab has the arrow")
                 click(cdp, sid, "#ucl-viewTabMenu")
                 self.until(cdp, sid, "!!document.querySelector('#ucl-viewTabMenuList')", "the tab menu opened")
