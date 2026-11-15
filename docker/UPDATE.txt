@@ -27,7 +27,8 @@ up to date. clark keeps the 14 newest of these copies, or the number you chose u
 "How many backups to keep" in Settings (never fewer than 3).
 
 If clark will not start and the message says "Nothing was changed and the container
-was not started.", a newer clark has already used your data. Start from
+was not started." (the Mac start) or "Start from the newer clark folder. Nothing was
+changed." (Windows), a newer clark has already used your data. Start from
 that newer clark folder instead. To see what Docker said, type this in the
 folder:
         docker compose -f docker/compose.yaml logs --tail 50
