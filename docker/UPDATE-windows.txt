@@ -7,8 +7,9 @@ To update:
   1. Open PowerShell or Command Prompt in the clark folder you use
      now. (Both take the same lines below.) Type this and press Enter:
         docker compose -f docker/compose.yaml -f docker/compose.windows.yaml down
-  2. Unzip the new download into a new folder. Do not unzip it over the old one.
-     unzip the new download beside the old clark folder, so the folder clark-data is found again.
+  2. Rename the old clark folder to clark-old. Then unzip the new download in the same place.
+     The new folder is called clark and finds the folder clark-data again.
+     (The old folder stays as clark-old, if you want to go back.)
   3. In the same window, go to the new clark folder: type cd and a space,
      drag the new folder into the window and press Enter. In Command Prompt,
      type cd /d and a space instead, if the new folder is on another drive.

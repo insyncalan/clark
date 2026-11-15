@@ -17,8 +17,10 @@ MAC_GUIDE = (ROOT / "docker" / "UPDATE.txt").read_text(encoding="utf-8")
 WIN_COMPOSE = (ROOT / "docker" / "compose.windows.yaml").read_text(encoding="utf-8")
 SHEET = (ROOT / "dev" / "handchecks" / "1.1.0-sheet.md").read_text(encoding="utf-8")
 BOTH = "docker compose -f docker/compose.yaml -f docker/compose.windows.yaml"
-# The sentence that was new in item 633 (G2); its wording is now approved and the file carries it plain.
-RULED_LINE = "unzip the new download beside the old clark folder, so the folder clark-data is found again."
+# Step 2 of the guide, ruled by the head 16-11 (WO-M3669, NEW-WORDS.md): the old folder is renamed, so the new one (always called clark) is not unzipped over it.
+RULED_STEP = ("  2. Rename the old clark folder to clark-old. Then unzip the new download in the same place.\n"
+              "     The new folder is called clark and finds the folder clark-data again.\n"
+              "     (The old folder stays as clark-old, if you want to go back.)\n")
 
 
 def commands(text):
@@ -41,15 +43,26 @@ class WindowsUpdateGuide(unittest.TestCase):
         for name in ("compose.yaml", "compose.windows.yaml"):
             self.assertTrue((ROOT / "docker" / name).is_file())
 
-    def test_the_new_folder_is_unzipped_beside_the_old_one_and_the_line_is_plain(self):
-        self.assertIn(RULED_LINE, GUIDE)
+    def test_the_old_folder_is_renamed_first_and_the_step_does_not_contradict_itself(self):
+        self.assertIn(RULED_STEP, GUIDE)
         self.assertNotIn("UNRULED", GUIDE)
+        self.assertNotIn("Do not unzip it over the old one", GUIDE)
+        self.assertNotIn("beside the old clark folder", GUIDE)
 
     def test_the_windows_data_source_is_a_sibling_of_the_clark_folder(self):
         self.assertIn("${CLARK_DATA_DIR:-../../clark-data}", WIN_COMPOSE)
         # docker/ is two levels below the folder that holds the clark folder, so a sibling clark folder reads the same path
         self.assertEqual(Path("/w/clark-1/docker").joinpath("../../clark-data").resolve(),
                          Path("/w/clark-2/docker").joinpath("../../clark-data").resolve())
+
+    def test_the_zip_always_unzips_to_clark_so_the_renamed_old_folder_leaves_the_name_free(self):
+        """The zip's one top folder is clark (release_files.TOP), so after the old folder is renamed the new one finds the same clark-data."""
+        from clark import release_files
+        self.assertEqual(release_files.TOP, "clark")
+        old = Path("/w/clark-old/docker").joinpath("../../clark-data").resolve()
+        new = Path("/w") .joinpath(release_files.TOP, "docker", "../../clark-data").resolve()
+        self.assertEqual(old, new)
+        self.assertEqual(new, Path("/w/clark-data"))
 
     def test_the_hash_line_names_the_windows_zip_and_no_mac_name(self):
         self.assertIn("Get-FileHash -Algorithm SHA256 clark-<version>-windows.zip", GUIDE)
@@ -67,7 +80,6 @@ class WindowsUpdateGuide(unittest.TestCase):
 
     def test_it_keeps_the_ruled_sentences_of_the_mac_guide(self):
         for words in ("Your data is not in the clark folder. It stays where it is.",
-                      "Do not unzip it over the old one.",
                       "Its name ends in -migrate.db",
                       "never fewer than 3",
                       "start from the newer clark folder.\nNothing was changed.",
@@ -92,8 +104,8 @@ class WindowsUpdateGuide(unittest.TestCase):
         steps = re.findall(r"(?m)^  (\d)\. ", GUIDE.split("To go back")[0])
         self.assertEqual(steps, ["1", "2", "3", "4", "5"])
         self.assertIn("1. Open PowerShell or Command Prompt in the clark folder", GUIDE)
-        self.assertIn(BOTH + " down", GUIDE.split("2. Unzip")[0])          # step 1 stops the old clark
-        self.assertIn("2. Unzip the new download into a new folder. Do not unzip it over the old one.", GUIDE)
+        self.assertIn(BOTH + " down", GUIDE.split("2. Rename")[0])          # step 1 stops the old clark
+        self.assertIn("2. Rename the old clark folder to clark-old. Then unzip the new download in the same place.", GUIDE)      # ruled 16-11, replaces the Mac guide's step 2
         self.assertIn("3. In the same window, go to the new clark folder", GUIDE)
         self.assertIn("cd /d", GUIDE)
         self.assertIn(BOTH + " up -d", GUIDE.split("4. Type this")[1].split("5. Open")[0])   # step 4 starts the new clark
