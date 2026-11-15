@@ -80,7 +80,7 @@ class SettingsFocusRing(unittest.TestCase):
         cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
         cdp.js("(document.querySelector('[data-mode=edit]') || {click() {}}).click()", sid)
         got = {}
-        for page, names in (("reports", ("gantt-editor", "gantt-client")), ("version", ("feedback", "feedback-shown", "feedback-contact", "fld-select", "ai-model-select")), ("claude", ("ask-folder-path",))):      # row 1024: one Settings page at a time; the Gantt boxes are on Reports, Feedback on Version and updates
+        for page, names in (("reports", ("gantt-editor", "gantt-client")), ("version", ("feedback", "feedback-shown", "feedback-contact", "fld-select", "ai-model-select", "ask-folder-path"))):      # row 1024: one Settings page at a time; the Gantt boxes are on Reports, Feedback on Version and updates
             cdp.js(f"location.hash = '#settings&p=TUL&s={page}'", sid)
             self.assertTrue(wait(lambda: cdp.js(f"document.querySelector('.set-cards').getAttribute('data-page') === {json.dumps(page)} && !!document.querySelector({json.dumps(SEL[names[0]])})", sid)), f"the {page} page drew {names[0]}")
             if page == "version":
