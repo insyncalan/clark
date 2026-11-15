@@ -19,8 +19,8 @@ class PeekSource(unittest.TestCase):
     def read(self, rel):
         return (PAGE / rel).read_text(encoding="utf-8")
 
-    def test_a_decision_is_still_skipped_and_the_milestone_and_published_rows_are_not_action_only(self):
-        self.assertIn('"decision"', self.read("edit/PeekLatest.jsx"))
+    def test_a_decision_has_the_box_since_row_1195_and_the_milestone_and_published_rows_are_not_action_only(self):
+        self.assertNotIn('"decision"', self.read("edit/PeekLatest.jsx").split("export function PeekLatest")[1], "row 1195: the box is drawn for a decision too")
         ms = self.read("edit/MilestonePeek.jsx")
         self.assertIn('<Row name="Latest update" k="latest_update">', ms)
         self.assertIn("PeekLatestHistory", ms)
