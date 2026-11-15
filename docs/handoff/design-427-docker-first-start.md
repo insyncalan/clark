@@ -154,3 +154,14 @@ Way 2: without Docker
 - Stale OneDrive note: corrected above.
 - Name-only OneDrive check: left as a name check. It can refuse a harmless folder named like OneDrive (fails safe) and cannot see a link with another name that points into OneDrive; the docstring now says so. A real-path check is impossible from inside the container, and the Mac-side starter is the place to resolve links.
 - Dockerfile comment: now says to build from the download.
+
+## Recording the peer (item 511)
+
+The peer address Docker presents on a published port is expected to be the compose network's gateway, and has not been observed. `dev/tools/record_container_peer.py` is the recording step. It listens on 0.0.0.0 as the container does, answers the first request only, and prints one JSON line with the peer, the default gateway read as `container_gateway()` reads it, and whether `local_peer()` accepts the peer.
+
+1. Start it in the shipped container setting: `docker compose -f docker/compose.yaml run --rm --service-ports --no-deps --entrypoint python3 clark /clark/dev/tools/record_container_peer.py --port 8766`
+2. On the host, open `http://127.0.0.1:8766/` once.
+3. Copy the printed line into the hand-check sheet. `"accepted": true` with `"is_gateway": true` is the expected result. Any other result means clark would refuse the first request on that Docker (it fails safe), and the rule in `server.py` needs a decision.
+
+`tests/test_record_container_peer.py` pins the rule the line reports (the gateway is accepted, any other non-loopback address is refused, no readable route refuses all, outside a container the gateway is not trusted) and the tool's output shape. Done-when for item 511 is met only after step 3 has been run on a real Docker Desktop and the line recorded; no such run has been made.
+

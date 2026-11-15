@@ -143,6 +143,7 @@ class DeleteItem(board.Base):
                 self.open_menu(cdp, sid, a)
                 click(cdp, sid, "[data-rm=peek]")
                 self.until(cdp, sid, f"!!document.querySelector('#peek[data-peek=\"{a}\"] #pk-more')", "the peek")
+                self.until(cdp, sid, "document.getElementById('peek').getAnimations({subtree: true}).every(a => a.playState !== 'running')", "the peek to stop sliding in")      # the slide is on the peek itself, so click() does not wait for it: a press during it lands on the next button
                 self.assertEqual(cdp.js("(() => { const b = document.getElementById('pk-more'); return [b.getAttribute('aria-label'), b.title, !!document.querySelector('[data-pk-delete]')]; })()", sid), ["More actions", "More actions", True])
                 click(cdp, sid, "#pk-more")
                 self.until(cdp, sid, "!!document.querySelector('[role=menu] [role=menuitem]')", "the menu")

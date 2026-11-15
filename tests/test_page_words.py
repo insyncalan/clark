@@ -33,6 +33,8 @@ WENT_WRONG = "Something went wrong"
 SENTENCE_STARTS_WITH_PRODUCT_NAME = re.compile(r"""(?:[`"'>:;]|[.!?]\s)\s*clark\s+[a-z]""", re.I)
 NEVER = re.compile(r"\w*(Error|Exception)\b|Traceback|JSON|Not allowed|Bad request|[Rr]eport editor|\bClark\b|\bUC\b|!")
 PAGE_SRC = Path(page.PAGE).parent / "src"
+# item 1177: the Dashboard has no banner and no h1 any more; the open project's own name is the header's .hdr-project button
+OPEN_NAME = "(document.querySelector('header .hdr-project') || {}).textContent && document.querySelector('header .hdr-project').textContent.trim()"
 WAIT = 30     # seconds to poll for what the page should show: a busy machine can take far longer than a quiet one
 
 
@@ -80,7 +82,7 @@ class Words(unittest.TestCase):
     def recovers(self, cdp, sid):
         self.fake.mode = "ok"
         cdp.js("document.querySelector('.again').click()", sid)
-        self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1') && document.querySelector('h1').textContent", sid)
+        self.assertTrue(wait(lambda: cdp.js(OPEN_NAME, sid)
                              == "Example Programme", WAIT), "Try again brought the report back")
 
     def test_a_fault_in_the_data_shows_no_error_name_and_try_again_recovers(self):
@@ -143,7 +145,7 @@ class Words(unittest.TestCase):
                 sid = self.visit(cdp)
                 self.shown(cdp, sid, [WENT_WRONG, STALE, "Try again"])
             cdp.js("document.querySelector('.again').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1') && document.querySelector('h1').textContent", sid)
+            self.assertTrue(wait(lambda: cdp.js(OPEN_NAME, sid)
                                  == "Example Programme", WAIT), "Try again reloaded the page with this run's token")
 
     def test_a_refusal_with_the_servers_old_words_shows_clark_did_not_accept_that(self):
@@ -155,7 +157,7 @@ class Words(unittest.TestCase):
                 sid = self.visit(cdp)
                 self.shown(cdp, sid, [WENT_WRONG, NOT_ACCEPTED, "Try again"])
             cdp.js("document.querySelector('.again').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1') && document.querySelector('h1').textContent", sid)
+            self.assertTrue(wait(lambda: cdp.js(OPEN_NAME, sid)
                                  == "Example Programme", WAIT), "Try again reloaded the page")
 
     def test_a_message_the_page_does_not_know_is_never_shown(self):
@@ -233,7 +235,7 @@ class Words(unittest.TestCase):
                                   "Open folder", "Copy diagnostics", "The log settings could not be read. Reload the page and try again.",
                                   "Projects", "Show archived (2)", "Add project",      # A-S6: the projects table comes before the Data card (#444: Add project is on it); this server's stub list answers the archived request too (#653), so the table and the archived count show
                                   "Archive hides a project and everything in it from clark. Nothing is deleted: Show archived brings it back to the list, and Restore puts it back to work.",
-                                  "NAME\tCODE\tCLIENT\tWORKSTREAMS\tITEMS", "Demo programme\tDEMO\t—\t—\t0\tOpenEditArchive", "ABC Open now\tABC\t—\t—\t1\tEditArchive",
+                                  "NAME", "CODE", "CLIENT", "WORKSTREAMS", "ITEMS", "Demo programme\tDEMO\t—\t—\t0\tOpenEditArchive", "ABC Open now\tABC\t—\t—\t1\tEditArchive",
                                   "Data",               # A-S11: the Data card follows the Projects table (the prototype order)
                                   "Export workbook", "Import workbook", "Excel file layout", "Export to Word…", "Import from Word…",        # #444: Export and Import; row 831: the two Word buttons (the prototype's own words)
                                   "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",      # item 454: the prototype's one sentence (the owner approved the words)

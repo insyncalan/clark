@@ -13,7 +13,7 @@ Written by a teammate, 28-10-2026, after the owner's two asks:
 4. Several users (C then A, never a shared `clark.db` on OneDrive): "agreed... this is a backlog item si low priority for now"
 5. The data model points: "agreed with recommendations"
 
-So the MVP ships on **Mac only**, with **the allowances below built in from day one**, so Windows is a port of one module and a package, not a rewrite. The Windows parts of this note (the package, Credential Manager, Windows testing) are kept for when Windows is scheduled.
+So the MVP ships on **Mac only** (in v1.1 Windows is the Docker route, see below), with **the allowances below built in from day one**, so Windows is a port of one module and a package, not a rewrite. The Windows parts of this note (the package, Credential Manager, Windows testing) are kept for when Windows is scheduled.
 
 ## The allowances, built in the Mac MVP
 These cost little now and are the difference between a port and a rewrite. Each one is pinned by a test that runs on the Mac.
@@ -28,7 +28,7 @@ These cost little now and are the difference between a port and a rewrite. Each 
 - **Python 3.9 standard library only,** so the Windows embeddable Python can run the same code later.
 - **`.gitattributes` keeps LF line endings,** so a later Windows checkout doesn't rewrite files.
 
-The sections below on Windows describe the later port.
+The sections below on Windows describe the later native port. Update (item 627): in v1.1 Windows is the Docker route (item 427), and its hand checks are in `dev/handchecks/1.1.0-sheet.md`.
 
 ## Part 1: Mac and Windows (Windows is the later port)
 

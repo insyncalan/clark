@@ -149,6 +149,35 @@ class Logic(unittest.TestCase):
             "one-doc": ("A single file to read.", ["Heading", "File", "Text"], ["half", "full"]),
         })
 
+    def test_the_milestones_card_is_a_full_library_card_with_a_help_row(self):
+        """Item 1192: the Dashboard's Milestones section is a library card: its words, what it holds, its width, a sketch, a row in
+        Help in the same words, and it is still offered only while the report has no Milestones section."""
+        card = next(x for x in self.t("BUILT_INS") if x["type"] == "milestones")
+        self.assertEqual((card["name"], card["kind"], card["fit"], card["ready"]), ("Milestones", "dates", ["full"], True))
+        self.assertEqual(card["description"], "The milestones on a timeline or a calendar, with the list beneath.")
+        self.assertEqual(card["holds"], ["Heading", "Timeline or Calendar · live", "Milestone list · live"])
+        self.assertTrue(self.t("SKETCHES")["built-in-milestones"], "it has a sketch")
+        help_ = json.loads((SRC / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8"))
+        self.assertIn(["Milestones", card["description"], "Full"], self._rows(help_), "Help has its row, in the card's words")
+        have = [sec("a", "Summary")]
+        self.assertIn("built-in-milestones", [x["id"] for x in self.t(f"list({{sections: {lit(have)}}})")], "offered while the report has none")
+        self.assertNotIn("built-in-milestones", [x["id"] for x in self.t(f"list({{sections: {lit(S)}}})")], "not offered twice")
+        self.assertEqual(self.t(f"plan({lit(have)}, 'built-in-milestones', 'a', false)")["requests"],
+                         [{"op": "new", "values": {"type": "milestones", "title": "Milestones"}, "after": "a", "place": "report"}])
+
+    @staticmethod
+    def _rows(o, out=None):
+        out = [] if out is None else out
+        if isinstance(o, dict):
+            for v in o.values():
+                Logic._rows(v, out)
+        elif isinstance(o, list):
+            if len(o) == 3 and all(isinstance(x, str) for x in o):
+                out.append(o)
+            for v in o:
+                Logic._rows(v, out)
+        return out
+
     def test_a_stub_type_is_placeable_only_when_ready(self):
         """#96 R0: the store takes every template's type (the real change route makes one); a template is placeable only when its
         catalogue entry is ready. Every template in the box is built and ready now (tests/test_section_registry.py ties ready to the

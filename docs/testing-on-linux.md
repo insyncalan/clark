@@ -102,4 +102,5 @@ A box costs money for every hour it is switched on, whether or not it is running
 
 ## Windows
 
-Windows is the Docker route, so no Windows machine runs the suite. The Linux boxes check the compose file and the Windows zip contents (no .exe, .cmd or python.exe). What only a real Windows laptop can show is on the Windows lines of the hand-check sheet: extract, typed commands in PowerShell and Command Prompt, a OneDrive path with spaces, data surviving a restart, and a restored backup. A failure there does not hold the Mac release up, but the Windows zip is not attached until those lines pass (dev/RELEASING.md).
+Windows is the Docker route, so no Windows machine runs the suite. The Linux boxes check the compose file and the Windows zip contents (no .exe, .cmd or python.exe). What only a real Windows laptop can show is on the Windows lines of the hand-check sheet: extract, typed commands in PowerShell and Command Prompt, a OneDrive path with spaces, data surviving a restart, and a restored backup. A failure there does not hold the Mac release up, but the Windows zip is not attached until those lines pass (dev/RELEASING.md). The sheet is `dev/handchecks/1.1.0-sheet.md` (item 627).
+

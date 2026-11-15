@@ -959,5 +959,27 @@ class PreviousReleaseAcceptsThisOneTest(unittest.TestCase):
                 self.fail(f"{tag} would refuse this tree's {system} zip: {e}")
 
 
+    def test_each_release_from_1_0_7_on_accepts_this_trees_zip(self):
+        """Item 1167: v1.0.7 and every later tag (their own lists) cover this tree's zip, so an in-app update from them is not refused."""
+        def number(t):
+            return tuple(int(x) for x in t[1:].split(".") if x.isdigit())
+        tags = [t for t in release_tags() if number(t) >= (1, 0, 7)]
+        self.assertIn("v1.0.7", tags)
+        for tag in tags:
+            old = self._old_module(tag)
+            self.assertIsNotNone(old, tag)
+            self.assertEqual([], self.unsafe_for(old), f"{tag} would refuse this tree's zip as outside its own list")
+
+    def test_v1_0_6_refuses_this_trees_zip_only_for_the_two_vendor_paths(self):
+        """Item 1167: the known case. The 1.0.6 list lacks vendor/pypdf/ and vendor/typing_extensions.py (item 891), so a 1.0.6 computer
+        cannot update to 1.0.7 or later from inside clark. This pins that the refusal is exactly those paths and nothing else."""
+        self.assertIn("v1.0.6", release_tags())
+        old = self._old_module("v1.0.6")
+        self.assertIsNotNone(old)
+        found = self.unsafe_for(old)
+        self.assertTrue(found)
+        self.assertTrue(all(n.startswith(".app/vendor/pypdf/") or n == ".app/vendor/typing_extensions.py" for n in found), found[:5])
+
+
 if __name__ == "__main__":
     unittest.main()

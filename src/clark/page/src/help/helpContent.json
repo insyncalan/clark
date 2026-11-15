@@ -59,7 +59,7 @@
    },
    {
     "t": "Pick a project",
-    "d": "The project button (the arrow beside the logo) in the top bar switches projects."
+    "d": "The project name in the top bar, beside the logo, is a button. It opens the project list to switch projects."
    },
    {
     "t": "Bring in the work",
@@ -203,7 +203,7 @@
     "go": "dashboard+edit",
     "s": [
      "Open the **Dashboard** and press **Edit** at the top. Each change saves on its own.",
-     "Set **Week ending** to the Friday the report covers: type it as DD-MM-YYYY, press [[Enter]] in the box to use the Friday shown (only while no week is kept yet), or press the calendar button beside the box and pick the day. In the calendar, **Friday** takes the next Friday (today, if it is one). Any other day is not accepted.",
+     "Set **Week ending** to the Friday the report covers: click the date in the header and pick the day in the calendar. **Friday** takes the next Friday (today, if it is one). Any other day is not accepted.",
      "Click the text under **Summary**, **This week** or **Next week** and write it. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] puts the old text back.",
      "Set the health on the **Project health** tile: see [Set the project health](#howto-set-the-health).",
      "Check the lists of risks and issues, open actions and decisions. Click any part of a row (the state, the title, the owner, the date) to change it there; the ID opens the whole item in the peek.",
@@ -482,7 +482,7 @@
      "In Edit, each section has a control at the left of its card (in the margin on a wide window, inside the card on a narrow one): a move button and, under it, a **+**. They are faint until you point at the section or tab to them.",
      "Drag the move button to move the section, or focus it and press [[Alt+Up]] or [[Alt+Down]]. Click it, or press [[Enter]] or [[Space]] on it, to open the section’s menu.",
      "The menu has **Add a template below…**, then **Template settings** (for a section whose template has settings), **Move up** and **Move down**, **Place beside the next section** (or **Full width** when it is already beside another), then **Leave out of the published page** (or **Include in the published page**) and **Delete section**. A section that is left out shows a small eye mark under its **+** and the tag **Left out of the published page**.",
-     "To rearrange the page, pick up a section by its move button and drop it. A line between rows puts it on a row of its own; the left or right half of a section that is on its own puts the two side by side, half the width each. A row never holds more than two. The cover stays at the top. Each drop is one step you can undo, and on a narrow window a pair stacks.",
+     "To rearrange the page, pick up a section by its move button and drop it. A line between rows puts it on a row of its own; the left or right half of a section that is on its own puts the two side by side, half the width each. A row never holds more than two. The header stays at the top. Each drop is one step you can undo, and on a narrow window a pair stacks.",
      "Click a heading to rename it. [[Enter]] keeps it; [[Esc]] puts it back.",
      "A section left out stays in Edit, greyed, and disappears in View and on the published page."
     ],
@@ -729,7 +729,7 @@
      "In **Settings**, open the **Projects** card and press **+** (**Add project**). Give it a name, a short code (3 to 7 letters or digits, suggested from the name; it can’t change later), the client and its workstreams, separated by commas.",
      "Each project has **Open**, **Edit** and **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
      "Under the projects, set this project’s **Publishing** folders. The folders asking may read are in the **Asking** card, under **Folders asking may read**.",
-     "The project button (the arrow beside the logo) in the top bar switches projects and shows each one’s open items. Adding a project and a project’s settings are in **Settings**, in the **Projects** card."
+     "The project name in the top bar, beside the logo, is a button that opens the project list to switch projects, and shows each one’s open items. Adding a project and a project’s settings are in **Settings**, in the **Projects** card."
     ],
     "page": [
      "settings"
@@ -885,8 +885,8 @@
      [
       "ul",
       [
-       "The project button (an arrow beside the logo): switch projects. Each shows its count of open items. Adding a project and a project’s settings are in **Settings**.",
-       "**Dashboard**, **Work items** and **Milestones**: the three screens.",
+       "The project name beside the logo is a button that opens the project list: switch projects. Each shows its count of open items. Adding a project and a project’s settings are in **Settings**.",
+       "**Dashboard**, **Work items**, **Milestones** and **Use cases**: the screens. A Gantt tab (it carries the project’s own tab name) appears after them when that setting is on.",
        "**The profile circle**: a person icon at the top right that opens the menu. See [The profile circle](#ref-profile-circle)."
       ]
      ],
@@ -934,9 +934,9 @@
       "ul",
       [
        "**View** and **Edit**: View shows the report as the client will read it. Edit changes it in place; each change saves on its own.",
-       "**Week ending**: the date on the cover, and in the published file’s name.",
-       "The line beside it: while you edit, that each change saves on its own; otherwise “Published” on its date, to the client (or locally), or “Draft · not published yet”.",
-       "The cover: the project, then “WEEKLY REPORT · Week ending …” and who it is for."
+       "**Week ending**: the week in the top bar, after Weekly report (a button that opens the calendar), and the date in the published file’s name and on its cover.",
+       "The note at the bottom of your profile menu: “Published” on its date, to the client (or locally). It shows once the report has been published.",
+       "The top bar: the logo, the project name, then Weekly report and the week."
       ]
      ],
      [
@@ -1120,6 +1120,21 @@
         "Table",
         "The plan as a table, from your Gantt lines. Only lines put in the client view show.",
         "Full or half"
+       ],
+       [
+        "At a glance",
+        "The project’s health, and counts of overdue actions, high risks and issues, and decisions needed.",
+        "Full"
+       ],
+       [
+        "Use case summary",
+        "The use cases, with a count for each status and one row for each: its headline, where it stands and the open next steps.",
+        "Full"
+       ],
+       [
+        "Milestones",
+        "The milestones on a timeline or a calendar, with the list beneath.",
+        "Full"
        ]
       ]
      ]
@@ -1213,7 +1228,7 @@
     "b": [
      [
       "p",
-      "The report is the cover, then the sections, with the contents at the right edge. Choose the Spacing in Settings › Personal; Compact is the standard. It is used on the published report too."
+      "The report is the sections, with the contents at the right edge. Choose the Spacing in Settings › Personal; Compact is the standard. It is used on the published report too."
      ],
      [
       "tbl",
@@ -1341,7 +1356,7 @@
      ],
      [
       "p",
-      "The right-click menu has a small picture before each entry: Draft email to the owner, “Change status”, “Move due date”, “Change owner”, Hide from the client or Show to the client, “Copy link to this item”, “Copy ID”, **Duplicate** and **Archive**. The picture only helps you find the entry; each one still has its words. The eye entry shows the change it makes: a crossed-out eye for Hide from the client, an eye for Show to the client. “Change owner” opens a short list beside it with a box, **Type a name**, to find someone among the project’s names and the People list. If the name is new, the last entry reads “Add” and the name you typed, “as a new person”, and opens a small form for their details. The menus for status, priority, due date, owner, workstream and milestone show a small picture before each choice."
+      "The right-click menu has a small picture before each entry: Draft email to the owner, “Open the peek”, “Change status”, “Move due date”, “Change owner”, Hide from the client or Show to the client, “Copy link to this item”, “Copy ID”, **Duplicate** and **Archive**. The picture only helps you find the entry; each one still has its words. The eye entry shows the change it makes: a crossed-out eye for Hide from the client, an eye for Show to the client. “Change owner” opens a short list beside it with a box, **Type a name**, to find someone among the project’s names and the People list. If the name is new, the last entry reads “Add” and the name you typed, “as a new person”, and opens a small form for their details. The menus for status, priority, due date, owner, workstream and milestone show a small picture before each choice."
      ],
      [
       "p",
@@ -1561,7 +1576,7 @@
      ],
      [
       "p",
-      "It reads your words with plain rules on this computer: no model is used and nothing is sent. **Make the change** or [[Enter]] makes the changes shown as one step, with **Undo**; [[Shift+Enter]] makes them and keeps the box open; **Not now** or [[Esc]] closes it."
+      "It reads your words with plain rules on this computer: no model is used and nothing is sent. **Make the change** or [[Enter]] makes the changes shown as one step, with **Undo**; [[Shift+Enter]] makes them and keeps the box open; **Not now** or [[Esc]] closes it. Changes that mark something done, achieved, closed, cancelled, made or withdrawn, or move it back out of done, ask first: [[Enter]] alone only flashes “This change needs your OK”. Press **Make the change**, **Confirm and apply** or [[Mod+Enter]] to make them."
      ]
     ]
    },
@@ -1788,8 +1803,8 @@
      [
       "ul",
       [
-       "**The top bar**: the project, the week ending and who it is for.",
-       "**Three tabs**: Dashboard, Work items and Milestones.",
+       "**The top bar**: the logo, the project name, then Weekly report and the week. Nothing in it is a button.",
+       "**The tabs**: Dashboard always, then Work items and Milestones unless you hid them, then Use cases when the client can see any, and Gantt when its switch is on with at least one line shown.",
        "The round button at the top right opens the **Report menu**: **Profile**, **Export to Excel** (only when the file holds a workbook; when the report is too large to include one, the row is greyed and a note says so), **Export to PDF** and **Past reports**. **Profile** keeps the reader’s name in their own browser only, and the button then shows their initials. **Past reports** lists earlier reports kept in the same folder as this one, newest first, and opens the one you press; with none it says No earlier reports.",
        "**Dashboard**: the report in the Spacing you chose, with **On this page** at the right.",
        "**Work items**: actions, risks and issues, and decisions shown to the client, with the type and Open, Closed or All switches, Filter by, a search box and Group by. Your choices are kept in your own browser only.",
@@ -1874,7 +1889,7 @@
        ],
        [
         "Asking",
-        "The switch for asking (**Turn off asking**; it is on from the first start) and the folders asking may read for this project (**Folders asking may read**). It only reads them. If the folder window cannot open (for example when clark runs in Docker), type the folder’s location in the box that appears and press **Add folder**. It reads Word, text, Markdown and CSV files; PDF files are not read yet, and the answer says how many were skipped."
+        "The switch for asking (**Turn off asking**; it is on from the first start) and the folders asking may read for this project (**Folders asking may read**). It only reads them. If the folder window cannot open (for example when clark runs in Docker), type the folder’s location in the box that appears and press **Add folder**. It reads Word, PDF, text, Markdown and CSV files; a PDF that cannot be read (scanned pictures, password-protected, damaged, or too big) is skipped, and the answer says how many were skipped."
        ],
        [
         "AI (under Asking)",
@@ -2195,7 +2210,7 @@
    ],
    [
     "[[O]] [[S]] [[P]] [[T]] [[C]]",
-    "Work items in Edit, on a row, a card, the selection or the item you have open: change the owner (O), status (S), priority (P) or due date (T), or close it (C). Several selected change together, in one step with one Undo. Not while you are typing in a box"
+    "Work items in Edit, on a row, a card, the selection or the item you have open: change the owner (O), status (S), priority (P) or due date (T), or close it (C). Several selected change together, in one step with one Undo. Not while you are typing in a box. Single letter keys: they do nothing when Single-key shortcuts is off in Settings › Personal"
    ],
    [
     "[[Shift+F10]]",
@@ -2326,7 +2341,7 @@
    [
     "pencil",
     "Edit",
-    "Switch the Dashboard to Edit. It is on the **Edit** half of the **View** and **Edit** switch at the left of the report bar.",
+    "Switch the Dashboard to Edit. It is on the **Edit** half of the **View** and **Edit** switch, the floating pill just under the header at the right.",
     "Dashboard"
    ],
    [
@@ -2561,6 +2576,11 @@
      "line": "Who is on the project, with their emails and roles."
     },
     {
+     "card": "asking",
+     "title": "Asking",
+     "line": "Turn asking on or off, and choose the Folders asking may read."
+    },
+    {
      "card": "feedback",
      "title": "Feedback",
      "line": "Write what is wrong or what you would suggest, then send it by email."
@@ -2618,7 +2638,7 @@
      "pic": "arrange-grip"
     },
     {
-     "d": "To move a section, drag its move button and drop it. A line between two rows puts it on a row of its own. The cover stays at the top. Without a mouse, focus the button and press [[Alt+Up]] or [[Alt+Down]]."
+     "d": "To move a section, drag its move button and drop it. A line between two rows puts it on a row of its own. The header stays at the top. Without a mouse, focus the button and press [[Alt+Up]] or [[Alt+Down]]."
     },
     {
      "d": "Click the move button, or press [[Enter]] or [[Space]] on it, to open the section’s menu.",
@@ -2838,7 +2858,7 @@
    "job": "Look at the Dashboard as it stood at the end of a past day, read only, and come back to this week.",
    "steps": [
     {
-     "d": "Open the **Dashboard**. Beside **Week ending** on the report bar there is a drop-down that reads **Published weeks**. It is there in View and in Edit, and only once the project has a publication."
+     "d": "Press your profile circle at the top right and choose **Published reports** to see the weeks you have published. It is there in View and in Edit, and only once the project has a publication."
     },
     {
      "d": "To look at a week you published, pick it from the list. Each line reads like DD-MM-YYYY · Publication 3, newest first. A page that was kept opens in a new browser tab exactly as it was published."
@@ -2881,7 +2901,7 @@
      "d": "Read the line under the title. It gives the date and time of the latest backup, or says there are no backups yet: the first one is made when you save your first change of the day. If the latest copy is damaged, the line says so."
     },
     {
-     "d": "Read the list, newest first. Each row shows the date and time, the kind (Daily, Before an undo, Before an import, Before a change, Before a restore or Before an update) and the size. Under the list, a line says how many backups are kept of each kind; the oldest are removed after that."
+     "d": "Read the list, newest first. Each row shows the date and time, the kind (Daily, Before an undo, Before an import, Before a change, Before a restore or Before an update) and the size. Under the list, a line says how many backups are kept of each of daily, before an undo and before an import or change. Before an import and before a change share one count. Before a restore and before an update each have their own count, and keep at least 2 and at least 3, whatever the number is. The oldest are removed after that."
     },
     {
      "d": "To look inside a copy, press **Preview** on its row. A box says when the backup is from and how many projects, work items and milestones it holds, then how many you have now. Nothing is changed by looking."
@@ -2911,10 +2931,10 @@
    "job": "Know the minimum requirements of a brand kit: what it must hold, the limits, and how to import one.",
    "steps": [
     {
-     "d": "A brand kit is one zip file. It holds clark-brand.json, which gives the brand’s name, id and version and its file list, and the colours and fonts file. A logo and cover pictures are optional. It holds no other files. The colours and fonts file is tokens.css."
+     "d": "A brand kit is one zip file holding one folder, named with the brand’s id. Inside the folder are clark-brand.json and the colours and fonts file. clark-brand.json gives the brand’s name, id and version, and its file list, with every other file in the folder. The id in clark-brand.json must match the folder name. A logo and cover pictures are optional. The zip holds no other files. The colours and fonts file is tokens.css."
     },
     {
-     "d": "Keep to the limits: 50 files, 16 MB the zip, 24 MB unpacked, 5 MB a file. No links or paths outside the kit are allowed."
+     "d": "Keep to the limits: 50 files, 16 MB the zip, 24 MB unpacked, 5 MB a file. The colours and fonts file (tokens.css) can be at most 256 KB. A PNG logo or cover can be at most 1 MB and 2000 pixels each way. No links or paths outside the kit are allowed."
     },
     {
      "d": "Press your profile circle and choose **Settings**, then find the **Brands** card."
