@@ -153,6 +153,41 @@ class StartCommand(unittest.TestCase):
         self.assertNotIn("read ", text)
         self.assertNotIn("sleep", text)
 
+    def test_a_shell_port_that_is_set_but_empty_means_the_usual_port_not_the_env_file(self):
+        """Compose takes ${CLARK_PORT:-8766}: an exported empty value is the default and docker/.env is not asked."""
+        (self.repo / "docker" / ".env").write_text("CLARK_PORT=9123\n", encoding="utf-8")
+        self.run_script(CLARK_PORT="")
+        self.assertIn(f"open -a {BROWSER} http://localhost:8766", self.calls())
+
+    def test_the_forms_compose_accepts_for_the_port_line_are_all_taken(self):
+        forms = {"export": "export CLARK_PORT=9124\n", "blanks": "  CLARK_PORT=9125\n", "comment": "CLARK_PORT=9126 # my port\n",
+                 "crlf": "A=1\r\nCLARK_PORT=9127\r\nB=2\r\n", "quoted comment": "CLARK_PORT='9128' # x\n",
+                 "last wins": "CLARK_PORT=9129\nCLARK_PORT=9130\n", "commented out": "# CLARK_PORT=9131\n"}
+        for name, text in forms.items():
+            with self.subTest(name):
+                (self.repo / "docker" / ".env").write_bytes(text.encode())
+                if self.log.exists():
+                    self.log.unlink()
+                self.run_script()
+                want = {"commented out": 8766, "last wins": 9130}.get(name, int(text.split("CLARK_PORT=")[1].strip("'\"")[:4]))
+                self.assertIn(f"open -a {BROWSER} http://localhost:{want}", self.calls())
+
+    def test_reading_docker_env_leaves_globbing_and_word_splitting_as_they_were(self):
+        """The .env loop turns globbing off and sets IFS to a newline; a command after it must get both back. The test puts a probe line
+        into a copy of the script right after the port is settled and reads what the probe saw from the log."""
+        anchor = "case \"$port\" in ''|*[!0-9]*) port=8766 ;; esac\n"
+        script = self.repo / "docker" / "start.command"
+        text = script.read_text(encoding="utf-8")
+        self.assertEqual(text.count(anchor), 1)
+        probe = ('words="one two"; { printf \'split'
+                 '<%s>\' $words; echo; printf \'glob<%s>\' docker/compose.y*; echo; } >> "$LOG"\n')
+        script.write_text(text.replace(anchor, anchor + probe), encoding="utf-8")
+        (self.repo / "docker" / ".env").write_text("CLARK_PORT=9123\n", encoding="utf-8")
+        r = self.run_script()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("split<one>split<two>", self.calls())
+        self.assertIn("glob<docker/compose.yaml>", self.calls())
+
 
 if __name__ == "__main__":
     unittest.main()
