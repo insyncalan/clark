@@ -574,7 +574,7 @@ class Moves(Base):
         cases = [
             ("workstream", "Use the new tool", "Data", "A decision isn't part of a workstream."),
             ("priority", "Supplier slips", "Low", "A risk or issue's priority comes from its impact and likelihood. Change those in its details."),
-            ("priority", "Use the new tool", "Low", "A decision has no priority."),
+            ("priority", "Use the new tool", "Low", "A decision's priority is set in its details, one at a time."),
             ("type", "Order the laptops", "decisions", "An action can't change its type."),
             ("milestone", "Use the new tool", None, "A decision isn't tied to a milestone."),
             ("due", "Order the laptops", "overdue", "Overdue is worked out from the due date. Drop the card on This week, Next week or Later and choose a date."),
