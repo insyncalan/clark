@@ -65,6 +65,62 @@ class Rule(unittest.TestCase):
         with mock.patch("builtins.open", lambda *a, **k: io.StringIO(ROUTE)), mock.patch.object(sv.sys, "byteorder", "little"):
             self.assertEqual(sv.container_gateway(), "172.18.0.1")
 
+    def test_only_a_default_route_with_the_gateway_flag_names_a_gateway(self):
+        """Flags 0001 (route is up, no gateway flag) on a 0.0.0.0 route is not a gateway; 0003 (up and gateway) is."""
+        up_only = ROUTE.replace("\t0003\t", "\t0001\t")
+        self.assertNotEqual(up_only, ROUTE)
+        with mock.patch.object(sv.sys, "byteorder", "little"):
+            with mock.patch("builtins.open", lambda *a, **k: io.StringIO(up_only)):
+                self.assertIsNone(sv.container_gateway())
+            with mock.patch("builtins.open", lambda *a, **k: io.StringIO(ROUTE)):
+                self.assertEqual(sv.container_gateway(), "172.18.0.1")
+
+
+class FakeConnection:
+    """Stands in for the accepted socket: serves one GET request and keeps what the handler wrote."""
+    def __init__(self, path):
+        self.sent = io.BytesIO()
+        self.request = ("GET %s HTTP/1.0\r\n\r\n" % path).encode("ascii")
+
+    def makefile(self, mode, *a, **k):
+        return io.BytesIO(self.request) if "r" in mode else self.sent
+
+    def settimeout(self, t):
+        pass
+
+    def setsockopt(self, *a):
+        pass
+
+    def sendall(self, data):
+        self.sent.write(data)
+
+    def close(self):
+        pass
+
+
+class PeerLine(unittest.TestCase):
+    """The peer the tool records is the one the connection came from (client_address[0]), not a constant."""
+    def serve(self, peer, path="/"):
+        sink = []
+        handler = rec.make_handler(sink)
+        handler(FakeConnection(path), (peer, 40000), mock.Mock())
+        return sink
+
+    def test_a_non_loopback_peer_is_recorded_as_that_peer(self):
+        a = mock.patch.object(sv, "container_mode", lambda: True)
+        b = mock.patch.object(sv, "container_gateway", lambda: "172.18.0.1")
+        with a, b:
+            gateway = self.serve("172.18.0.1")
+            other = self.serve("192.168.65.1")
+        self.assertEqual([r["peer"] for r in gateway], ["172.18.0.1"])
+        self.assertTrue(gateway[0]["accepted"])
+        self.assertTrue(gateway[0]["is_gateway"])
+        self.assertEqual([r["peer"] for r in other], ["192.168.65.1"])
+        self.assertFalse(other[0]["accepted"])
+
+    def test_the_healthcheck_from_a_non_loopback_peer_records_nothing(self):
+        self.assertEqual(self.serve("172.18.0.1", "/health"), [])
+
 
 class Tool(unittest.TestCase):
     def test_the_first_request_is_recorded_as_one_json_line(self):
