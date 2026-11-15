@@ -133,5 +133,63 @@ class Read(unittest.TestCase):
         self.assertEqual(status, 200, body)
         self.refused("Linked.pdf", 404, "file_not_there")
 
+    def raw(self, query_name):
+        """GET with the name exactly as written on the wire (already percent-encoded), as a hostile client would send it."""
+        return self.server.api("GET", f"/api/section-file?project=ABC&name={query_name}")
+
+    def refused_raw(self, query_name, allowed):
+        status, _, data = self.raw(query_name)
+        self.assertIn(status, allowed, (query_name, data))
+        for secret in (SECRET, b"in the folder, on no list", PDF):
+            self.assertNotIn(secret, data, query_name)
+        for place in (str(self.tmp), "Client share"):
+            self.assertNotIn(place, data.decode("utf-8", "replace"), query_name)
+
+    def test_a_percent_encoded_dot_dot_or_slash_on_the_wire_is_refused(self):
+        for name in ("%2e%2e%2fsecret.pdf", "%2E%2E%2Fsecret.pdf", "..%2fsecret.pdf", "%2e%2e/secret.pdf", "%2e%2e", "%2e%2e%5csecret.pdf",
+                     "..%5csecret.pdf", "%2e%2e%2f%2e%2e%2foutside.pdf", "%2fetc%2fhosts", "Report%20files%2f..%2fsecret.pdf"):
+            self.refused_raw(name, (400,))
+
+    def test_a_double_encoded_dot_dot_is_never_served(self):
+        for name in ("%252e%252e%252fsecret.pdf", "..%252fsecret.pdf", "%252e%252e"):      # decodes once to a literal percent name
+            self.refused_raw(name, (400, 404))
+
+    def test_a_backslash_on_the_wire_is_refused_even_for_a_listed_file(self):
+        for name in ("Report%20files%5cPlan%20v2.pdf", "..%5c..%5coutside.pdf", "%5cPlan%20v2.pdf", "Plan%20v2.pdf%5c", "C%3a%5cWindows%5cwin.ini"):
+            self.refused_raw(name, (400,))
+
+    def test_a_nul_in_the_name_is_refused(self):
+        for name in ("Plan%20v2.pdf%00", "Plan%20v2.pdf%00.txt", "%00", "..%00%2fsecret.pdf", "Plan%20v2%00.pdf", "Unlisted.pdf%00.pdf"):
+            self.refused_raw(name, (400,))
+
+    def test_an_absolute_path_on_the_wire_is_refused(self):
+        for name in (quote(str(self.outside), safe=""), quote(str(self.client / "secret.pdf"), safe=""), "%2fetc%2fpasswd"):
+            self.refused_raw(name, (400,))
+
+    def test_a_report_files_folder_that_is_a_link_is_not_followed(self):
+        real = self.client / "Report files"
+        moved = self.tmp / "elsewhere"
+        real.rename(moved)                                               # the listed file now sits outside, reached through a link
+        real.symlink_to(moved, target_is_directory=True)
+        self.refused("Plan v2.pdf", 404, "file_not_there")
+
+    def test_a_report_files_folder_that_is_a_link_to_a_sibling_folder_is_not_followed(self):
+        real = self.client / "Report files"
+        sibling = self.client / "Other files"                            # same parent, so only the link itself gives it away
+        real.rename(sibling)
+        real.symlink_to("Other files", target_is_directory=True)
+        self.refused("Plan v2.pdf", 404, "file_not_there")
+
+    def test_a_listed_name_that_is_a_relative_link_out_of_the_folder_is_not_followed(self):
+        (self.client / "Report files" / "Rel.pdf").symlink_to("../secret.pdf")
+        change = changes.make_change(self.s.path, [], USER)
+        status, body = change({"project": "ABC", "kind": "report_sections", "op": "new", "values": {"type": "doclinks", "title": "More"}, "after": None})
+        self.assertEqual(status, 200, body)
+        entry = {"name": "Rel.pdf", "rel": "Report files/Rel.pdf", "bytes": len(SECRET)}
+        status, body = self.pub.add_section_file({"project": "ABC", "id": body["ref"], "entry": entry})
+        self.assertEqual(status, 200, body)
+        self.refused("Rel.pdf", 404, "file_not_there")
+
+
 if __name__ == "__main__":
     unittest.main()
