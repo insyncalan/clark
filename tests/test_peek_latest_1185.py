@@ -111,6 +111,7 @@ class MilestoneBox(Base):
                 p.key("Enter", modifiers=4 if p.js("/Mac/.test(navigator.platform)") else 2, code="Enter", vk=13)
                 self.saved(p, "latest_update", "<p>Venue booked</p>")
                 self.assertEqual(len(self.sent) - before, 1, "one request")
+                p.until("(document.querySelector('.toast .toast-text') || {}).textContent?.includes('Latest update of') === true", "the toast named the saved update")
                 self.assertIn("Latest update of", self.toast_text(p))
                 self.click(p, "#peek [data-ms-row=latest_update] [data-pk-lh-btn]")
                 p.until("(e => !!e && e.innerText.includes('Venue booked'))(document.querySelector('#peek [data-pk-lh-panel]'))", "the history lists the change")
