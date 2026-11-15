@@ -19,15 +19,14 @@ class Mutants(unittest.TestCase):
     press = base.Browser.press
     stub = base.Browser.stub
 
-    def test_a_decision_has_no_history_link(self):
+    def test_a_decision_has_the_latest_update_box_since_row_1195(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.load(cdp, width)
                 cdp.js("clarkPage.closePeek()", sid)
                 cdp.js("clarkPage.openPeek('TUL-D-016')", sid)
                 self.assertTrue(wait(lambda: "TUL-D-016" in (cdp.js("(document.querySelector('#peek') || {}).textContent || ''", sid) or "")))
-                self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('[data-pk-lh]')", sid)), "a decision has no Latest update box and no history (a risk and an issue have both since row 1185)")
-                self.assertEqual(cdp.js("document.querySelectorAll('[data-pk-lh]').length", sid), 0)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-latest]')", sid)), "a decision has the Latest update box (row 1195; a risk and an issue since row 1185)")
 
     def test_a_row_without_a_value_a_name_or_a_way_says_so_and_a_full_row_shows_its_way_and_time(self):
         rows = ('[{field:"Latest update",kind:"Changed",to:"",who:"",how:"",when_text:"WHEN-ONE",step:1},'
