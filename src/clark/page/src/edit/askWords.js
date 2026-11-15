@@ -59,6 +59,19 @@ export const PILLS_PAGE = { dashboard: "dashboard", work: "work", milestones: "m
 // Words in a question that name a subject. The first one found in the last question wins.
 export const PILLS_WORDS = [["milestone", "milestones"], ["use case", "usecases"], ["risk", "risks"], ["issue", "risks"], ["work item", "work"], ["task", "work"]];
 export const WORKING = "Working";
+// Row 1220: messages typed while an answer is made wait above the box. These words need approval.
+const waitingCount = (n) => (n === 1 ? "1 message is" : `${n} messages are`);
+export const QUEUE_LABEL = "Messages waiting to be sent";
+export const QUEUE_REMOVE = "Remove this message";
+export const QUEUE_MORE = (n) => `and ${n} more`;
+export const QUEUE_STOPPED = (n) => `Stopped. ${waitingCount(n)} waiting`;
+export const QUEUE_FAILED = (n) => `${waitingCount(n)} waiting`;
+export const QUEUE_SEND = "Send them";
+export const QUEUE_CLEAR = "Clear";
+export const QUEUE_FULL = "5 messages are already waiting. Wait for one to be sent, or remove one.";
+export const QUEUE_DROP = (n) => `${waitingCount(n)} waiting and would be dropped. Press again to go on.`;
+export const QUEUE_SAY_ADDED = (n) => `Message queued. ${n} waiting`;
+export const QUEUE_SAY_REMOVED = (n) => `Message removed. ${n} waiting`;
 export const LOG_LABEL = "The chat so far";
 // The office quips shown while an answer is worked on (item 1094: the creaite list of 150, copied as it is). One shows at a time and
 // changes every 5 to 10 seconds, from a shuffled deck so none comes round again until all have been shown (askPanelState.js).

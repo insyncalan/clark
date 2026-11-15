@@ -313,6 +313,21 @@ table.items td.c-pick { vertical-align: middle; }
 @media (prefers-reduced-motion: reduce) { .ask-turn, .ask-work { animation: none; } .ask-dots i { animation: none; opacity: .6; } .ask-grip::before, .ask-grip::after, .ask-pills button, .ask-form textarea { transition: none; } }
 .ask-note { flex: none; margin: 0; padding: 0 20px 6px; font-size: var(--size-caption); color: var(--text-muted); }
 .ask-note:empty { padding: 0; height: 0; overflow: hidden; }
+/* row 1220: the messages waiting to be sent, small and quiet, one line each, above the typing space; a bin at the right end of each */
+.ask-queue { flex: none; padding: 0 20px 6px; font-size: var(--size-caption); color: var(--text-muted); }
+.ask-queue ul { margin: 0; padding: 0; list-style: none; }
+.ask-queue li { display: flex; align-items: center; gap: var(--space-2); min-height: 24px; }
+.ask-queue-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ask-queue-del { flex: none; width: 24px; height: 24px; min-width: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--text-muted); background: transparent; border: 0; border-radius: var(--radius-sm); cursor: pointer; }
+.ask-queue-del:hover { color: var(--text); background: var(--grey-100); }
+.ask-queue-del:focus-visible, .ask-queue-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.ask-queue-del .i { width: 14px; height: 14px; }
+.ask-queue li.ask-queue-more { display: none; }
+.ask-queue-held { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2) var(--space-3); margin: 4px 0 0; }
+.ask-queue-act { min-height: 24px; padding: 0; font: inherit; color: var(--link, var(--brand-blue)); background: none; border: 0; text-decoration: underline; cursor: pointer; }
+.ask-queue-act:disabled { color: var(--text-muted); cursor: default; }
+.ask-queue-drop { flex: none; margin: 0; padding: 0 20px 6px; font-size: var(--size-caption); color: var(--status-amber-text); }
+@media (max-width: 900px) { .ask-queue li[data-queued]:nth-child(n+3) { display: none; } .ask-queue li.ask-queue-more { display: flex; } }
 .ask-form { flex: none; display: flex; flex-direction: row; align-items: flex-end; gap: var(--space-2); padding: var(--space-3) var(--space-4) 14px; border-top: 1px solid var(--grey-200); }
 /* row 1023 (prototype app.css:583): the brand picture, faint, at the panel's foot behind the box, rising from the bottom; nothing without a picture (--image-cover is none) */
 .ask-form { position: relative; }
