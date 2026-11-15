@@ -929,13 +929,15 @@ class PlainLabels(unittest.TestCase):
                 (self.SRC / "page.html").read_text(encoding="utf-8")]
 
     def test_there_is_no_sparkle_button_but_the_words_box_stays(self):
-        """Row 1015: the AI star beside Change status is gone; the box (its title and label) and the two slashes stay."""
+        """Row 1015: the AI star beside Change status is gone; the box (its title and label) and the two slashes stay. Row 1179 (14-11): the only
+        sparkle button on the peek is the quiet "Draft with AI" beside Latest update; the top bar still has none."""
         for text in self.texts():
             self.assertNotIn("data-sneak-open", text)
             self.assertNotIn("SneakButton", text)
             self.assertNotIn("WordsButton", text)
         self.assertNotIn("SneakButton", (self.SRC / "src" / "components" / "UseCaseDetail.jsx").read_text(encoding="utf-8"), "nor beside Change status on a use case")
         jsx = self.texts()[0]
+        self.assertIn('<Icon name="sparkle"', (self.SRC / "src" / "edit" / "PeekLatest.jsx").read_text(encoding="utf-8"), "row 1179: the sparkle is on Draft with AI")
         self.assertIn('aria-label="Ask clark to update for you"', jsx)      # row 1077: the box's label
 
     def test_the_width_button_follows_the_state(self):

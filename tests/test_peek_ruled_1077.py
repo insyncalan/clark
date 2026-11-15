@@ -47,11 +47,14 @@ def code_files():
 
 class Source(unittest.TestCase):
     def test_the_draft_chip_and_its_helper_are_gone(self):
-        """Ruling 1: no Draft on any peek. The pill, its hook, its CSS and the helper that wrote its words are gone from the source and the page."""
+        """Ruling 1 (lifted for one control by row 1179, 14-11): the old Draft pill, its hook, its CSS and the helper that wrote its words stay gone
+        from the source and the page. The one thing that came back is the "Draft with AI" button (checked in the next test)."""
         latest = (SRC / "edit" / "PeekLatest.jsx").read_text(encoding="utf-8")
         helper = (SRC / "edit" / "peekLatest.js").read_text(encoding="utf-8")
-        for marker in ("draftFor", "pk-draft", "Draft", 'place: "draft"', "drafted"):
+        for marker in ("draftFor", "pk-draft", 'place: "draft"', "drafted"):
             self.assertNotIn(marker, latest, marker)
+        import re
+        self.assertEqual(re.findall(r"Draft(?! with AI|WithAi|Button|Panel|Ai)", latest), [], "the word Draft is in PeekLatest only as 'Draft with AI' and its own component names")
         self.assertNotIn("draftFor", helper)
         self.assertNotIn("Draft", (SRC / "edit" / "MilestonePeek.jsx").read_text(encoding="utf-8"), "the milestone peek has none either")
         self.assertNotIn("pk-draft", (SRC / "edit" / "edit.css").read_text(encoding="utf-8"))
@@ -60,6 +63,22 @@ class Source(unittest.TestCase):
         built = page.PAGE.read_text(encoding="utf-8")
         for marker in ("pk-draft", "draftFor", "Latest update drafted"):
             self.assertNotIn(marker, built, marker)
+
+    def test_the_draft_with_ai_button_is_the_one_allowed_draft(self):
+        """Row 1179 (ruling 1 lifted 14-11 for this button): a quiet text button with a sparkle, the ticket's words, beside Latest update on the
+        action's peek, opening the AI menu of the place "current" and then AiCard; its rule is in edit.css (24 px target) and not in the published page."""
+        latest = (SRC / "edit" / "PeekLatest.jsx").read_text(encoding="utf-8")
+        self.assertIn('export const DRAFT_WITH_AI = "Draft with AI"', latest)
+        self.assertIn("aria-label={DRAFT_WITH_AI}", latest)
+        self.assertIn('<Icon name="sparkle"', latest)
+        self.assertIn('place="current"', latest)
+        self.assertIn("<AiCard", latest)
+        css = (SRC / "edit" / "edit.css").read_text(encoding="utf-8")
+        self.assertIn(".pk-ai {", css)
+        self.assertIn("min-height: 24px", css.split(".pk-ai {", 1)[1].split("}", 1)[0])
+        self.assertNotIn(".pk-ai {", page.VIEW_PAGE.read_text(encoding="utf-8"))
+        self.assertIn("Draft with AI", page.PAGE.read_text(encoding="utf-8"))
+        self.assertNotIn("Draft with AI", page.VIEW_PAGE.read_text(encoding="utf-8"), "Edit only")
 
     def test_the_words_box_is_headed_ask_clark_to_update_for_you(self):
         """Ruling 3: the heading and the section's label are the new words, and the old words are in no code (Help keeps its topic title)."""
@@ -223,6 +242,32 @@ class Browser(Peeks):
                 self.to_edit(cdp, sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-ms-edit]')", sid)), "Edit: the milestone editor")
                 self.no_draft(cdp, sid, "Edit, milestone")
+
+    def test_draft_with_ai_opens_the_menu_then_the_card_and_esc_gives_focus_back(self):
+        """Row 1179: on an action's peek in Edit the button is there, named "Draft with AI", opens the AI menu (an option list), an option opens
+        the card (here AI is off on the test server: the card says so in its own words), and Esc closes it with focus back on the button."""
+        with chrome() as cdp:
+            sid = self.live(cdp, 1400, self.store, f"#work&p={self.code}")
+            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
+            self.open_peek(cdp, sid, ACTION, "item")
+            B = "#peek [data-pk-latest] .pk-lab [data-pk-ai]"
+            self.assertTrue(wait(lambda: cdp.js(f"!!document.querySelector({json.dumps(B)})", sid)), "the button is beside Latest update")
+            self.assertEqual(cdp.js(f"document.querySelector({json.dumps(B)}).getAttribute('aria-label')", sid), "Draft with AI")
+            self.assertEqual(cdp.js(f"document.querySelector({json.dumps(B)}).textContent.trim()", sid), "Draft with AI")
+            self.assertGreaterEqual(cdp.js(f"document.querySelector({json.dumps(B)}).getBoundingClientRect().height", sid), 24)
+            self.assertFalse(cdp.js("!!document.querySelector('#peek [data-pk-ai-menu]')", sid))
+            cdp.js(f"document.querySelector({json.dumps(B)}).click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-ai-menu]')", sid)), "the menu opens")
+            self.assertEqual(cdp.js(f"document.querySelector({json.dumps(B)}).getAttribute('aria-expanded')", sid), "true")
+            opts = cdp.js("[...document.querySelectorAll('#peek [data-pk-ai-option]')].map(e => e.dataset.pkAiOption)", sid)
+            self.assertEqual(opts, ["notes", "rewrite", "shorter", "longer", "executive", "format", "summary"], "the server's list for the place current")
+            cdp.js("document.querySelector('#peek [data-pk-ai-option=rewrite]').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-ai-card] .aic')", sid)), "the card opens")
+            self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek .aic').dataset.state", sid) in ("off", "not_signed_in", "failed")))
+            self.assertFalse(cdp.js("!!document.querySelector('#peek [data-pk-ai-menu]')", sid))
+            cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Escape", "code": "Escape", "windowsVirtualKeyCode": 27}, sid)
+            self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#peek .aic')", sid)), "Esc closes the card")
+            self.assertTrue(wait(lambda: cdp.js(f"document.activeElement === document.querySelector({json.dumps(B)})", sid)), "focus is back on the button")
 
     def test_the_words_box_is_headed_by_the_new_label_on_the_page(self):
         with chrome() as cdp:
