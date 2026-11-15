@@ -126,6 +126,24 @@ class StartCommand(unittest.TestCase):
         self.assertIn("clark needs Python 3.9 or newer", r.stdout)
         self.assertEqual(self.calls(), ["docker info"], "no python start after the refusal")
 
+    def test_a_port_set_only_in_docker_env_is_the_one_opened_and_checked(self):
+        """Compose reads CLARK_PORT from docker/.env, so the window and the health check use it when the shell has none."""
+        (self.repo / "docker" / ".env").write_text('CLARK_DATA_DIR=' + self.tmp + '/data\nCLARK_PORT="9123"\n', encoding="utf-8")
+        r = self.run_script()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        calls = self.calls()
+        self.assertIn(f"open -a {BROWSER} http://localhost:9123", calls)
+        self.assertTrue([c for c in calls if c.startswith("curl") and "127.0.0.1:9123/health" in c], calls)
+
+    def test_the_shell_port_wins_over_docker_env_and_a_bad_value_is_the_usual_port(self):
+        (self.repo / "docker" / ".env").write_text("CLARK_PORT=9123\n", encoding="utf-8")
+        self.run_script(CLARK_PORT="9200")
+        self.assertIn(f"open -a {BROWSER} http://localhost:9200", self.calls())
+        self.log.unlink()
+        (self.repo / "docker" / ".env").write_text("CLARK_PORT=abc\n", encoding="utf-8")
+        self.run_script()
+        self.assertIn(f"open -a {BROWSER} http://localhost:8766", self.calls())
+
     def test_extra_words_go_on_to_compose(self):
         self.run_script("--pull", "always")
         self.assertTrue(self.calls()[1].endswith("up -d --pull always"))

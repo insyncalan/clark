@@ -254,13 +254,9 @@ class Script(unittest.TestCase):
                 got += chunk
         self.assertEqual(got.decode("utf-8").strip(), "http://localhost:8780")
 
-    def test_port_and_browser_come_from_the_shell_then_the_env_file(self):
+    def test_browser_comes_from_the_shell_then_the_env_file(self):
         env_file = Path(self.tmp) / "dot.env"
         env_file.write_text("CLARK_PORT=8780\nCLARK_BROWSER=/x/b\n", encoding="utf-8")
-        self.assertEqual(sc.port({}, str(env_file)), "8780")
-        self.assertEqual(sc.port({"CLARK_PORT": "9000"}, str(env_file)), "9000")
-        self.assertEqual(sc.port({"CLARK_PORT": "abc"}, str(env_file)), "8766")
-        self.assertEqual(sc.port({}, str(Path(self.tmp) / "none")), "8766")
         self.assertEqual(sc.browser_program({}, lambda p: p == "/x/b", str(env_file)), "/x/b")
         self.assertEqual(sc.browser_program({"CLARK_BROWSER": "/y/c"}, lambda p: p == "/x/b", str(env_file)), "")
 

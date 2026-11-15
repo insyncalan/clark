@@ -129,12 +129,6 @@ def setting(name, environ=None, env_file=None):
     return environ[name] if name in environ else _from_env_file(env_file, name)
 
 
-def port(environ=None, env_file=None):
-    """The port compose publishes clark on: CLARK_PORT from the shell, else docker/.env, else 8766; a value that is not digits is 8766."""
-    value = setting("CLARK_PORT", environ, env_file)
-    return value if value.isdigit() else "8766"
-
-
 BROWSERS_MAC = ("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "~/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
                 "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge")     # same order as platform.find_browser (item 636)
 
@@ -150,9 +144,9 @@ def browser_program(environ=None, exists=os.path.exists, env_file=None):
 
 def main(argv=None, environ=None):
     argv = list(sys.argv[1:] if argv is None else argv)
-    if argv[:1] in (["--browser"], ["--port"]):
+    if argv[:1] == ["--browser"]:
         env_file = argv[2] if argv[1:2] == ["--env-file"] and len(argv) >= 3 else None
-        print(browser_program(environ, env_file=env_file) if argv[0] == "--browser" else port(environ, env_file))
+        print(browser_program(environ, env_file=env_file))
         return 0
     env_file = None
     show = "--diagnose" in argv
