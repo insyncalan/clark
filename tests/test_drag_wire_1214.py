@@ -116,6 +116,21 @@ class DragWire(unittest.TestCase):
         got = self.run_script("d", [[800, 320, 130], "esc", [800, 321, 130], [800, 321, 0]])
         self.assertEqual(got["seen"], [{"outline": "b", "side": "right"}, None, None, None])
 
+    def test_esc_before_the_rest_ends_leaves_nothing_to_draw_when_the_timer_would_have_run(self):
+        got = self.run_script("d", [[800, 320, 50], "esc", ["wait", 60], ["wait", 110], ["wait", 110], "up"])
+        self.assertEqual(got["seen"], [None] * 6)
+        self.assertEqual(got["draws"], [None])
+        self.assertEqual(got["sent"], [])
+
+    def test_a_timer_that_runs_before_the_new_target_has_rested_sets_itself_again(self):
+        # scrolled over c after 50 ms: the first timer (110 ms after the move) finds c new, so it must wait the time left
+        got = self.run_script("d", [[800, 320, 50], ["scroll", 220], ["wait", 60]])
+        self.assertEqual(got["seen"], [None, None, None], "c has rested 0 ms when the first timer runs")
+        got = self.run_script("d", [[800, 320, 50], ["scroll", 220], ["wait", 60], ["wait", 109]])
+        self.assertEqual(got["seen"][-1], None, "109 ms after the first timer: not yet")
+        got = self.run_script("d", [[800, 320, 50], ["scroll", 220], ["wait", 60], ["wait", 110]])
+        self.assertEqual(got["seen"][-1], {"outline": "c", "side": "right"}, "110 ms after: the second timer settles c without any move")
+
     def test_the_drop_makes_the_pair_whatever_the_last_pixel(self):
         for last in SHAKE:
             with self.subTest(last=last):
