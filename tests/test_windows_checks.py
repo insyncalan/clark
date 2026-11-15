@@ -113,6 +113,18 @@ class ReservedPort(unittest.TestCase):
         self.assertEqual(doctor.check_port_reserved(seen(port="9000", reserved_ports=lambda: [(8700, 8799)])).kind, doctor.READY)
         self.assertEqual(doctor.check_port_reserved(seen(reserved_ports=lambda: [])).kind, doctor.READY)
 
+    def test_the_first_and_last_port_of_a_range_are_set_aside(self):
+        for port in ("8700", "8799"):
+            line = doctor.check_port_reserved(seen(port=port, reserved_ports=lambda: [(8700, 8799)]))
+            self.assertEqual(line.kind, doctor.FIX, port)
+        for port in ("8699", "8800"):
+            self.assertEqual(doctor.check_port_reserved(seen(port=port, reserved_ports=lambda: [(8700, 8799)])).kind, doctor.READY, port)
+
+    def test_an_answer_with_a_failing_exit_code_is_no_answer(self):
+        self.assertIsNone(pl.reserved_ports(fake(NETSH, 1)))
+        self.assertIsNone(pl.docker_os(fake("linux", 1)))
+        self.assertIsNone(pl.docker_os(fake("windows", 125)))
+
     def test_not_windows_is_not_asked(self):
         def boom():
             raise AssertionError("asked")

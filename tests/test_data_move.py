@@ -124,6 +124,72 @@ class DataMove(unittest.TestCase):
         self.assertEqual(line.kind, doctor.NOT_CHECKED)
         self.assertNotIn("Traceback", line.words)
 
+    def test_a_database_without_the_publications_table_still_gives_its_folders(self):
+        old = Path(tempfile.mkdtemp(prefix="clark-old-"))
+        self.addCleanup(shutil.rmtree, old, True)
+        con = sqlite3.connect(old / "clark.db")
+        try:
+            con.execute("CREATE TABLE source_folders (path TEXT)")
+            con.execute("INSERT INTO source_folders VALUES (?)", (MAC_SOURCE,))
+            con.commit()
+        finally:
+            con.close()
+        self.assertEqual(doctor.saved_paths(old), [MAC_SOURCE])
+
+    def test_a_table_that_cannot_be_read_for_another_reason_is_not_swallowed(self):
+        bad = Path(tempfile.mkdtemp(prefix="clark-nocol-"))
+        self.addCleanup(shutil.rmtree, bad, True)
+        con = sqlite3.connect(bad / "clark.db")
+        try:
+            con.execute("CREATE TABLE source_folders (other TEXT)")        # the table is there, the column is not
+            con.commit()
+        finally:
+            con.close()
+        with self.assertRaises(sqlite3.OperationalError):
+            doctor.saved_paths(bad)
+
+    def test_each_folder_is_listed_once_and_an_empty_path_is_not_a_folder(self):
+        same = Path(tempfile.mkdtemp(prefix="clark-same-"))
+        self.addCleanup(shutil.rmtree, same, True)
+        con = sqlite3.connect(same / "clark.db")
+        try:
+            con.execute("CREATE TABLE source_folders (path TEXT)")
+            con.execute("CREATE TABLE publications (local_path TEXT, client_path TEXT)")
+            con.executemany("INSERT INTO source_folders VALUES (?)", [(MAC_SOURCE,), (MAC_SOURCE,), ("",), (None,)])
+            con.execute("INSERT INTO publications VALUES (?, ?)", (MAC_SOURCE, ""))
+            con.commit()
+        finally:
+            con.close()
+        self.assertEqual(doctor.saved_paths(same), [MAC_SOURCE])
+
+    def test_only_three_missing_folders_are_named_and_the_rest_are_counted(self):
+        many = Path(tempfile.mkdtemp(prefix="clark-many-"))
+        self.addCleanup(shutil.rmtree, many, True)
+        names = [f"/Users/sam/Documents/Missing {n}" for n in "ABCDE"]
+        con = sqlite3.connect(many / "clark.db")
+        try:
+            con.execute("CREATE TABLE source_folders (path TEXT)")
+            con.executemany("INSERT INTO source_folders VALUES (?)", [(n,) for n in names])
+            con.commit()
+        finally:
+            con.close()
+        line = doctor.check_saved_folders(doctor.Seen(data=str(many), home="/home/nobody"))
+        for n in names[:3]:
+            self.assertIn(n, line.words)
+        for n in names[3:]:
+            self.assertNotIn(n, line.words)
+        self.assertIn("and 2 more", line.words)
+        three = Path(tempfile.mkdtemp(prefix="clark-three-"))
+        self.addCleanup(shutil.rmtree, three, True)
+        con = sqlite3.connect(three / "clark.db")
+        try:
+            con.execute("CREATE TABLE source_folders (path TEXT)")
+            con.executemany("INSERT INTO source_folders VALUES (?)", [(n,) for n in names[:3]])
+            con.commit()
+        finally:
+            con.close()
+        self.assertNotIn(" more", doctor.check_saved_folders(doctor.Seen(data=str(three), home="/home/nobody")).words)
+
     def test_a_folder_name_with_a_question_mark_hash_or_percent_is_read(self):
         odd = Path(tempfile.mkdtemp(prefix="clark-odd?#%41-"))
         self.addCleanup(shutil.rmtree, odd, True)
