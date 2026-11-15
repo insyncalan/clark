@@ -246,16 +246,38 @@ class TheEditor(Setup):
                   cover: document.querySelectorAll('header.cover').length, h: document.querySelector('header.top').getBoundingClientRect().height,
                   pos: getComputedStyle(document.querySelector('header.top')).position, bar: getComputedStyle(document.documentElement).getPropertyValue('--topbar').trim(),
                   margin: getComputedStyle(document.querySelector('.sec')).scrollMarginTop}))()""")
-                self.assertEqual((got["bars"], got["file"], got["cover"]), (1, 0, 1), "the bar and the banner are both still there")
-                self.assertEqual((got["h"], got["bar"], got["pos"]), (56, "56px", "sticky"))
-                self.assertEqual(got["margin"], "0px")
+                self.assertEqual((got["bars"], got["file"], got["cover"]), (1, 0, 0), "item 1177: the one header is there and the banner is gone")
+                self.assertEqual((got["h"], got["bar"], got["pos"]), (129, "129px", "sticky") if width == 900 else (85, "85px", "sticky"))
+                self.assertEqual(got["margin"], f"{got['h'] + 16:.0f}px", "item 1177: a jump stops below the sticky header (shell.css scroll-margin-top rule)")
 
 
 class TheHelpLine(unittest.TestCase):
     def test_the_published_page_help_names_the_top_bar_not_a_cover(self):
         help_ = (SRC / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
-        self.assertIn("**The top bar**: the project, the week ending and who it is for.", help_)
+        self.assertIn("**The top bar**: the logo, the project name, then Weekly report and the week. Nothing in it is a button.", help_)
+        self.assertNotIn("**The top bar**: the project, the week ending and who it is for.", help_)
         self.assertNotIn("**The cover**: the project, the week ending and who it is for.", help_)
+
+    def test_the_published_page_help_does_not_say_the_name_or_the_week_opens_anything(self):
+        import json
+        topics = json.loads((SRC / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8"))
+
+        def find(x):
+            if isinstance(x, dict):
+                if x.get("id") == "client-page":
+                    return x
+                x = list(x.values())
+            if isinstance(x, list):
+                for y in x:
+                    got = find(y)
+                    if got:
+                        return got
+            return None
+        topic = find(topics)
+        self.assertIsNotNone(topic, "the published client page topic is in the Help")
+        bullet = next(x for kind, body in topic["b"] if kind == "ul" for x in body if x.startswith("**The top bar**"))
+        for word in ("opens", "calendar", "project list", "click"):
+            self.assertNotIn(word, bullet.lower(), f"a published file's top bar has no controls (TopBar.jsx), so the Help bullet must not say {word!r}: {bullet}")
 
 
 if __name__ == "__main__":

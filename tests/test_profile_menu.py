@@ -59,7 +59,7 @@ class ProfileMenu(Base):
             p = self.page(cdp)
             self.open_menu(p)
             self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')}).join()"),
-                             "menuitem,menuitem,menuitem,menuitem,menuitem,menuitem,menuitem,separator,group,separator,menuitem")
+                             "menuitem,menuitem,menuitem,menuitem,menuitem,menuitem,menuitem,separator,group,separator,menuitem")   # item 1177: no state line in the menu
             self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu [role=group]').children, function(e){return e.getAttribute('role')}).join()"),
                              "presentation,menuitemradio,menuitemradio,menuitemradio", "the group holds its label and the three radios")
             self.assertEqual(p.js("(function(){var g=document.querySelector('#profile-menu [role=group]');return document.getElementById(g.getAttribute('aria-labelledby')).textContent})()"),
@@ -77,12 +77,11 @@ class ProfileMenu(Base):
                 p.open_publish()
                 p.go()
                 p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
-                p.until("/^Published/.test(document.querySelector('#report-state').textContent)", "the bar says when")
                 p.go()
                 p.until("!document.querySelector('#publish-dialog')", "closed")
                 p.js("document.querySelector('#profile-btn').click()")
-                p.until("!!document.querySelector('#profile-menu .lab')", "the note is in the menu")
-                self.assertRegex(p.js("document.querySelector('#profile-menu .lab').textContent"), r"^Published \d\d-\d\d-\d{4} locally$")
+                p.until("[...document.querySelectorAll('#profile-menu .lab')].some((e) => /^Published /.test(e.textContent))", "the published note is in the menu")
+                self.assertRegex(p.js("(function(){var l=document.querySelectorAll('#profile-menu .lab');return l[l.length-1].textContent})()"), r"^Published \d\d-\d\d-\d{4} locally$")
                 self.assertTrue(p.js("(function(){var r=document.querySelector('#profile-menu').getBoundingClientRect();return r.left>=0&&r.right<=innerWidth})()"), "inside the window")
 
     def test_C_the_publish_entry_opens_the_dialog(self):
@@ -199,7 +198,7 @@ class ProfileMenu(Base):
                 labels = self.labels(p)
                 self.assertEqual(labels.count("Settings"), 1)
                 self.assertEqual(labels.index("Settings"), labels.index("Published reports") + 1)
-                self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')}).indexOf('group') - [].map.call(document.querySelectorAll('#profile-menu [role=menuitem]'), function(e){return e.textContent}).indexOf('Settings')"), 2, "Settings, then the separator, then the group")
+                self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')}).indexOf('group') - [].map.call(document.querySelectorAll('#profile-menu [role=menuitem]'), function(e){return e.textContent}).indexOf('Settings')"), 2, "Settings, then the separator, then the group; item 1177: the published note sits at the bottom, below the group, so the child index is two ahead of the menuitem index")
                 self.assertEqual(p.js("document.querySelectorAll('#profile-menu [data-kind=who]').length"), 1)
                 p.key("Escape", code="Escape", vk=27)
                 p.until("!document.querySelector('#profile-menu')", "Esc closed it")
