@@ -8,6 +8,7 @@ answers when they overflow); a sideways wheel (the Back and Forward swipe, item 
 CSS on the panel, its answers and saved chats, the Peek and the other panels over the page, and that none sets a sideways containment.
 """
 import re
+import time
 import unittest
 
 from _paths import SRC
@@ -37,16 +38,35 @@ class Hold(Base):
         self.assertEqual(p.js(PAGE_Y), 600, "the page can scroll (the test's own check)")
         return p
 
-    def wheel(self, p, dy, dx=0):
-        x = p.js("(() => { const r = document.querySelector('#ask-panel').getBoundingClientRect(); return Math.round(r.left + r.width / 2); })()")
-        p.cdp.call("Input.dispatchMouseEvent", {"type": "mouseWheel", "x": x, "y": 450, "deltaX": dx, "deltaY": dy}, p.sid)
+    def wheel(self, p, dy, dx=0, over="#ask-panel", at=None):
+        """A real wheel turn over the centre of `over`: the pointer is moved there first (a bare mouseWheel does nothing in this
+        headless Chrome), then the scrolling is waited out (settle)."""
+        x, y = at or p.js(f"(() => {{ const r = document.querySelector({over!r}).getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)]; }})()")
+        p.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, p.sid)
+        p.cdp.call("Input.dispatchMouseEvent", {"type": "mouseWheel", "x": x, "y": y, "deltaX": dx, "deltaY": dy, "pointerType": "mouse"}, p.sid)
+        self.settle(p)
 
     def settle(self, p):
-        p.js("new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))")
+        """Wait out smooth scrolling: until neither the page nor the log has moved for 300 ms."""
+        read = "(() => { const l = document.querySelector('#ask-log'); return [Math.round(window.scrollY), l ? Math.round(l.scrollTop) : 0]; })()"
+        last, still, end = None, 0, time.time() + 5
+        while still < 3 and time.time() < end:
+            time.sleep(0.1)
+            now = p.js(read)
+            still = still + 1 if now == last else 0
+            last = now
 
     def scrolled_log(self, p, where):
         p.js(f"(() => {{ const l = document.querySelector('#ask-log'); l.scrollTop = {where}; }})()")
         self.settle(p)
+
+    def test_the_wheel_used_here_really_scrolls_the_page_outside_the_panel(self):
+        """The control for every 'the page never moves' check below: the same wheel, over the page beside the panel, does move it."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.open_panel(cdp, width)
+                self.wheel(p, 300, at=(40, 450))
+                self.assertGreater(p.js(PAGE_Y), 600, f"{width}: a wheel over the page outside the panel scrolls it")
 
     def test_wheel_over_an_empty_panel_never_moves_the_page(self):
         for width in (1400, 900):
@@ -54,7 +74,6 @@ class Hold(Base):
                 p = self.open_panel(cdp, width)
                 for dy in (-300, 300, -1200, 1200):
                     self.wheel(p, dy)
-                    self.settle(p)
                     self.assertEqual(p.js(PAGE_Y), 600, f"{width}: wheel {dy} over the empty panel moved the page")
 
     def test_wheel_over_a_long_answer_at_its_top_and_bottom_never_moves_the_page(self):
@@ -69,17 +88,14 @@ class Hold(Base):
                 self.assertTrue(p.js("(() => { const l = document.querySelector('#ask-log'); return l.scrollHeight > l.clientHeight + 200; })()"), "the answer overflows the log")
                 self.scrolled_log(p, 0)
                 for dy in (-400, -1200):
-                    self.wheel(p, dy)
-                    self.settle(p)
+                    self.wheel(p, dy, over="#ask-log")
                     self.assertEqual(p.js(PAGE_Y), 600, f"{width}: wheel {dy} at the top of the answer moved the page")
-                self.wheel(p, 300)
-                self.settle(p)
+                self.wheel(p, 300, over="#ask-log")
                 self.assertGreater(p.js("document.querySelector('#ask-log').scrollTop"), 0, f"{width}: the answer itself still scrolls")
                 self.assertEqual(p.js(PAGE_Y), 600)
                 self.scrolled_log(p, 999999)
                 for dy in (400, 1200):
-                    self.wheel(p, dy)
-                    self.settle(p)
+                    self.wheel(p, dy, over="#ask-log")
                     self.assertEqual(p.js(PAGE_Y), 600, f"{width}: wheel {dy} at the bottom of the answer moved the page")
 
     def test_keys_in_the_panel_never_move_the_page(self):
