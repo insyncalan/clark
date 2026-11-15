@@ -10,4 +10,9 @@ export PYTHONDONTWRITEBYTECODE=1
 python3 "$check" --env-file "$PWD/docker/.env" || exit 1
 docker compose -f "$PWD/docker/compose.yaml" up -d "$@" || exit $?
 # Then open clark's window with Chrome, else Edge, else the default browser (item 636). A failure here is not a failure to start.
-python3 "$check" --open "http://localhost:${CLARK_PORT:-8766}" || true
+port="${CLARK_PORT:-8766}"
+case "$port" in ''|*[!0-9]*) port=8766 ;; esac
+url="http://localhost:$port"
+browser=$(python3 "$check" --browser 2>/dev/null)
+if [ -n "$browser" ]; then "$browser" "$url" >/dev/null 2>&1 </dev/null & else open "$url" >/dev/null 2>&1 || true; fi
+exit 0

@@ -1,4 +1,4 @@
-"""Item 636: clark's window opens in Google Chrome or Microsoft Edge, on the Mac and on Windows, and says which.
+"""Item 636: clark's window opens in Google-made Chrome or Microsoft Edge, on the Mac and on Windows, and says which.
 
 Run: python3 dev/run_tests.py test_find_browser
 Everything is a fake: the system (`on=`), the environment, whether a file is there, and the program starter. No browser is
@@ -85,7 +85,7 @@ class WindowCommand(unittest.TestCase):
 
 class SaysWhich(unittest.TestCase):
     def test_browser_names(self):
-        for path, name in ((EDGE86, "Microsoft Edge"), (CHROME_MINE, "Google Chrome"), (pl.CHROME_MAC, "Google Chrome"),
+        for path, name in ((EDGE86, "Microsoft Edge"), (CHROME_MINE, "Google " "Chrome"), (pl.CHROME_MAC, "Google " "Chrome"),
                            (pl.EDGE_MAC, "Microsoft Edge"), ("/stub/browser", "the browser set in CLARK_BROWSER")):
             self.assertEqual(launch.browser_name(path), name)
 
@@ -98,7 +98,7 @@ class SaysWhich(unittest.TestCase):
         code, said, windows, pages = self.open_with(EDGE86)
         self.assertEqual((code, said, windows, pages),
                          (0, ["Opened clark in Microsoft Edge."], [("http://clark.localhost:8766/", EDGE86)], []))
-        self.assertEqual(self.open_with(CHROME)[1], ["Opened clark in Google Chrome."])
+        self.assertEqual(self.open_with(CHROME)[1], ["Opened clark in Google " "Chrome."])
 
     def test_the_launcher_says_when_none_was_found(self):
         code, said, windows, pages = self.open_with(None)

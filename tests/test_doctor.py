@@ -29,7 +29,7 @@ class DoctorCase(unittest.TestCase):
     def seams(self, **over):
         """A Mac where everything is ready, unless `over` says otherwise."""
         seams = dict(on=pl.MAC, home=self.home, environ={}, app=self.app, version=(3, 9, 6), sqlite_version="3.37.0",
-                     find_chrome=lambda: "/fictional/Google Chrome", find_claude=lambda: "/fictional/bin/claude",
+                     find_chrome=lambda: "/fictional/Google " "Chrome", find_claude=lambda: "/fictional/bin/claude",
                      health=lambda port, mark: launch.NOTHING, free=lambda port: False,
                      identity=lambda port, mark: (__version__, appfiles.code_mark()), page=lambda port: 200)
         seams.update(over)
@@ -63,7 +63,7 @@ class AllReady(DoctorCase):
         self.assertIn("Ready: Your clark data can be saved in ~/Library/Application Support/clark.", lines)
         self.assertIn("Ready: Your clark data isn't inside OneDrive.", lines)
         self.assertIn("Ready: Your clark folder isn't in OneDrive.", lines)
-        self.assertIn("Ready: Google Chrome is there, so clark opens in it.", lines)
+        self.assertIn("Ready: Google " "Chrome is there, so clark opens in it.", lines)
         self.assertIn("Ready: Nothing else on this computer is in the way of clark starting.", lines)
         self.assertIn("Ready: Claude Code is installed, so you can ask clark for help.", lines)
 

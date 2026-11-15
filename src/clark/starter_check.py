@@ -10,7 +10,6 @@ Run: python3 src/clark/starter_check.py [--env-file docker/.env] [--diagnose] [f
 import os
 import re
 import sqlite3
-import subprocess
 import sys
 from pathlib import Path
 
@@ -128,31 +127,20 @@ BROWSERS_MAC = ("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", 
                 "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge")     # same order as platform.find_browser (item 636)
 
 
-def open_clark(url, environ=None, exists=os.path.exists, popen=subprocess.Popen):
-    """Item 636: open `url` in Google Chrome, else Microsoft Edge (CLARK_BROWSER names another program), else the default browser.
-    Returns the program used ("" for the default browser). Only a web address is opened."""
+def browser_program(environ=None, exists=os.path.exists):
+    """Item 636: the program that opens clark's window: CLARK_BROWSER if it is set, else Google Chrome, else Microsoft Edge, or ""
+    for the default browser. It only names the program; docker/start.command starts it (only platform.py starts programs from Python)."""
     environ = os.environ if environ is None else environ
-    if not re.match(r"https?://[^\s]+\Z", url):
-        raise ValueError("Only web addresses starting http:// or https:// can be opened.")
     named = environ.get("CLARK_BROWSER")
     places = [named] if named else [os.path.expanduser(p) for p in BROWSERS_MAC]
-    program = next((p for p in places if exists(p)), "")
-    argv = [program, url] if program else ["open", url]
-    try:
-        popen(argv, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
-    except OSError:
-        return None
-    return program
+    return next((p for p in places if exists(p)), "")
 
 
 def main(argv=None, environ=None):
     argv = list(sys.argv[1:] if argv is None else argv)
-    if argv[:1] == ["--open"] and len(argv) == 2:
-        try:
-            return 0 if open_clark(argv[1], environ) is not None else 1
-        except ValueError as e:
-            print(e, file=sys.stderr)
-            return 1
+    if argv == ["--browser"]:
+        print(browser_program(environ))
+        return 0
     env_file = None
     if argv[:1] == ["--env-file"] and len(argv) >= 2:
         env_file, argv = argv[1], argv[2:]

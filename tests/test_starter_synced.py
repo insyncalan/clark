@@ -225,17 +225,13 @@ class Script(unittest.TestCase):
                 got += chunk
         self.assertEqual(got.decode("utf-8").strip(), "http://localhost:8780")
 
-    def test_open_clark_order_and_fallback(self):
-        calls = []
-        popen = lambda argv, **kw: calls.append(argv)
+    def test_browser_program_order_and_fallback(self):
         chrome, edge = sc.BROWSERS_MAC[0], sc.BROWSERS_MAC[2]
-        self.assertEqual(sc.open_clark("http://localhost:8766", {}, lambda p: p in (chrome, edge), popen), chrome)
-        self.assertEqual(sc.open_clark("http://localhost:8766", {}, lambda p: p == edge, popen), edge)
-        self.assertEqual(sc.open_clark("http://localhost:8766", {}, lambda p: False, popen), "")
-        self.assertEqual(calls[-1], ["open", "http://localhost:8766"])
-        self.assertEqual(sc.open_clark("http://localhost:8766", {"CLARK_BROWSER": "/x/b"}, lambda p: p == "/x/b", popen), "/x/b")
-        with self.assertRaises(ValueError):
-            sc.open_clark("file:///etc/passwd", {}, lambda p: True, popen)
+        self.assertEqual(sc.browser_program({}, lambda p: p in (chrome, edge)), chrome)
+        self.assertEqual(sc.browser_program({}, lambda p: p == edge), edge)
+        self.assertEqual(sc.browser_program({}, lambda p: False), "")
+        self.assertEqual(sc.browser_program({"CLARK_BROWSER": "/x/b"}, lambda p: p == "/x/b"), "/x/b")
+        self.assertEqual(sc.browser_program({"CLARK_BROWSER": "/x/b"}, lambda p: p != "/x/b"), "")
 
     def test_the_compose_file_names_the_starter(self):
         text = (ROOT / "docker" / "compose.yaml").read_text(encoding="utf-8")
