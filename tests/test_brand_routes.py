@@ -82,6 +82,24 @@ class Rig:
             conn.close()
 
 
+    def call_declared(self, method, path, length, token="good"):
+        """Row 1235: a request that declares a body of `length` bytes and sends none of it. The server refuses on the declared length alone, so this
+        reads its 400 on every system; a client that sends the whole body while the server answers and closes gets a reset on macOS, and no reply."""
+        conn = http.client.HTTPConnection(sv.HOST, self.httpd.server_port, timeout=20)
+        try:
+            conn.putrequest(method, path, skip_host=True)
+            conn.putheader("Host", "127.0.0.1:%d" % self.httpd.server_port)
+            if token == "good":
+                conn.putheader(sv.TOKEN_HEADER, sv.TOKEN)
+            conn.putheader("Content-Length", str(length))
+            conn.putheader("Content-Type", "application/json")
+            conn.endheaders()
+            r = conn.getresponse()
+            return r.status, json.loads(r.read())
+        finally:
+            conn.close()
+
+
 class Routes(unittest.TestCase):
     def setUp(self):
         self.rig = Rig(self)
@@ -110,10 +128,9 @@ class Routes(unittest.TestCase):
         self.assertEqual(self.rig.library.listed, 0)
 
     def test_a_body_over_the_limit_is_refused_400_too_large_like_every_other_route_and_the_seam_never_hears(self):
-        big = {"review_id": "x" * 100_000}
         for path in POSTS:
             with self.subTest(path):
-                status, body = self.rig.call("POST", path, big)
+                status, body = self.rig.call_declared("POST", path, 100_001)      # row 1235: over every route's limit; see call_declared
                 self.assertEqual(status, 400)
                 self.assertEqual(body.get("code"), "too_large")
         self.assertEqual(self.rig.library.calls, [])
