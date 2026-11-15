@@ -236,13 +236,16 @@ class Modes(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             self.assertEqual(edit_elements(cdp, p.sid), [], "View removes the Edit parts")
-            before = p.js("document.querySelector('main').innerHTML")
+            # The on-this-page tick follows the scroll, and Alt+ArrowDown scrolls a page on macOS (Option+Down), so the tick may move: leave the current-section marks out (the tick and the list's "on")
+            main = ("(function(){var m = document.querySelector('main').cloneNode(true);"
+                    "m.querySelectorAll('[data-tl], .toc button[data-id]').forEach(i => { i.removeAttribute('class'); i.removeAttribute('aria-current'); }); return m.innerHTML;})()")
+            before = p.js(main)
             p.key("a", code="KeyA", vk=65)
             p.type("typed in View")
             p.js("document.querySelector('.sec-h').click()")
             p.type("again")
             p.key("ArrowDown", ALT, code="ArrowDown", vk=40)
-            self.assertEqual(p.js("document.querySelector('main').innerHTML"), before, "typing in View changes nothing")
+            self.assertEqual(p.js(main), before, "typing in View changes nothing")
             self.assertEqual(edit_elements(cdp, p.sid), [])
             self.assertEqual(self.sent, [])
             # At a glance, the use case summary (#45), the milestones section (#44, its own block and its own words when empty) and,
