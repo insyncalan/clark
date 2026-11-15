@@ -112,6 +112,12 @@ class DragPreview(unittest.TestCase):
         self.until("!document.querySelector('.drag-slot')", "View draws no slot")
         self.assertEqual(self.order(), "abcd", "View draws the stored order")
 
+    def glides(self):
+        """The glides glide.js starts (script animations, not the CSS ones): id, first-frame offset, duration."""
+        return self.js("""[...document.querySelectorAll('.secs > .sec')].flatMap(e => e.getAnimations()
+            .filter(a => !(a instanceof CSSAnimation) && a.effect.getKeyframes().some(k => k.transform && k.transform !== 'none'))
+            .map(a => ({ id: e.dataset.id, from: a.effect.getKeyframes()[0].transform, ms: a.effect.getTiming().duration })))""")
+
     def test_the_sections_that_moved_glide_and_none_do_when_motion_is_reduced(self):
         for motion, moved in (("no-preference", True), ("reduce", False)):
             with self.subTest(motion=motion):
@@ -119,11 +125,45 @@ class DragPreview(unittest.TestCase):
                 self.js("T.noteRects(); 1")
                 self.set("d", MOVED)
                 self.until("!!document.querySelector('.sec.drag-slot')", "the slot")
-                n = self.js("document.querySelectorAll('.secs > .sec').length && [...document.querySelectorAll('.secs > .sec')].reduce((n, e) => n + e.getAnimations().filter(a => a.effect.getKeyframes().some(k => k.transform && k.transform !== 'none')).length, 0)")
-                if moved:
-                    self.assertGreater(n, 0, "a section that changed place glides")
-                else:
-                    self.assertEqual(n, 0, "nothing glides when motion is reduced")
+                got = self.glides()
+                if not moved:
+                    self.assertEqual(got, [], "nothing glides when motion is reduced")
+                    continue
+                self.assertEqual(sorted(g["id"] for g in got), ["b", "c", "d"], "the sections that changed place glide, the one that did not stays")
+                self.assertTrue(all(g["ms"] == 160 for g in got), "each glide lasts the --dur-glide time")
+                for g in got:
+                    self.assertRegex(g["from"], r"translate\(-?[\d.]+px, -?[\d.]+px\)")
+                    self.assertNotRegex(g["from"], r"translate\(0px, 0px\)", "it starts from where it was")
+                up = next(g for g in got if g["id"] == "d")["from"]
+                self.assertRegex(up, r"translate\(-?[\d.]+px, [\d.]+px\)", "d moved up, so it starts from its old place, lower down")
+                down = next(g for g in got if g["id"] == "b")["from"]
+                self.assertRegex(down, r"translate\(-?[\d.]+px, -[\d.]+px\)", "b moved down, so it starts from its old place, higher up")
+
+    def test_no_glide_when_nothing_was_noted_or_the_sections_did_not_move(self):
+        self.open(1400)
+        self.set("a", SECTIONS)                      # a list in the stored order: nothing changes place
+        self.until("!!document.querySelector('.sec.drag-slot')", "the slot")
+        self.assertEqual(self.glides(), [], "no sections moved, so none glide")
+
+    def test_the_drop_line_of_a_section_is_not_drawn_while_the_list_is_shown(self):
+        self.open(1400)
+        self.js("T.store.dropAt.value = { line: 'before', ids: ['b'] }; 1")
+        self.until("!!document.querySelector('.sec.drop-before[data-id=b]')", "the line before b without a list")
+        self.set("d", MOVED)
+        self.until("!!document.querySelector('.sec.drag-slot[data-id=d]')", "the slot")
+        self.assertEqual(self.js("document.querySelectorAll('.drop-before, .drop-left, .drop-right').length"), 0, "only the slot marks the place")
+
+    def test_leaving_clears_the_drag_signals_and_the_stored_order_is_drawn(self):
+        self.open(1400)
+        self.js("T.store.dropAt.value = { line: 'end' }; 1")
+        self.set("d", MOVED)
+        self.until("!!document.querySelector('.sec.drag-slot')", "the slot")
+        self.js("location.hash = '#left'; 1")       # a move through history calls leave() in stores/report.js
+        self.until("T.store.dragList.value === undefined", "dragList cleared")
+        self.assertIsNone(self.js("T.store.dragFrom.value === undefined ? null : T.store.dragFrom.value"), "dragFrom cleared")
+        self.assertIsNone(self.js("T.store.dropAt.value === undefined ? null : 1"), "dropAt cleared")
+        self.until("!document.querySelector('.drag-slot, .drag-from')", "no slot, no dragged mark")
+        self.assertEqual(self.order(), "abcd", "the stored order is drawn")
 
 
 if __name__ == "__main__":
