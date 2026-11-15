@@ -265,7 +265,7 @@ class Table(unittest.TestCase):
             self.assertTrue(got["label"].startswith("Take TUL-A-002 ") and got["label"].endswith(" off the page"), "the control has its words")
             click(cdp, sid, eye)
             self.assertTrue(wait(lambda: self.hidden() == {ref}), "a click in View hides the item")
-            self.assertEqual(self.toast_text(cdp, sid, got["label"]), got["label"], "row 1195: the toast says the label")
+            self.assertEqual(self.toast_text(cdp, sid, f"{ref} is off the page."), f"{ref} is off the page.", "row 1195: the toast is the announcement")
             click(cdp, sid, "[data-undo]")
             self.assertTrue(wait(lambda: self.hidden() == set()), "Undo shows it again")
 
@@ -274,12 +274,10 @@ class Table(unittest.TestCase):
         with chrome() as cdp:
             sid = self.load(cdp, 1400, "edit")
             self.assertEqual(self.hidden(), set())
-            on_label = cdp.js(f"document.querySelector({json.dumps(eye)}).getAttribute('aria-label')", sid)
-            off_label = on_label.replace("Take ", "Put ", 1)[: -len(" off the page")] + " on the page"
             click(cdp, sid, eye)
             self.assertTrue(wait(lambda: cdp.js(f"document.querySelector({json.dumps(eye)}).getAttribute('aria-pressed') === 'false'", sid)), "the eye turned off")
             self.assertTrue(wait(lambda: self.hidden() == {ref}), "the item is hidden from the report, in the store")
-            self.assertEqual(self.toast_text(cdp, sid, on_label), on_label)
+            self.assertEqual(self.toast_text(cdp, sid, f"{ref} is off the page."), f"{ref} is off the page.")
             self.assertEqual(cdp.js("document.querySelector('#peek') ? 1 : 0", sid), 0, "a click on the eye does not open the peek")
             click(cdp, sid, "[data-undo]")
             self.assertTrue(wait(lambda: cdp.js(f"document.querySelector({json.dumps(eye)}).getAttribute('aria-pressed') === 'true'", sid)), "Undo turned it on again")
@@ -289,7 +287,7 @@ class Table(unittest.TestCase):
             click(cdp, sid, eye)
             self.assertTrue(wait(lambda: cdp.js(f"document.querySelector({json.dumps(eye)}).getAttribute('aria-pressed') === 'true'", sid)), "the eye turned it on")
             self.assertTrue(wait(lambda: self.hidden() == set()), "the item is shown again, in the store")
-            self.assertEqual(self.toast_text(cdp, sid, off_label), off_label)
+            self.assertEqual(self.toast_text(cdp, sid, f"{ref} is on the page."), f"{ref} is on the page.")
 
     def test_the_eye_turns_an_item_on_by_its_own_flag_and_refuses_a_sensitive_one_in_words(self):
         eye = "tr[data-id='TUL-A-004'] .weye"
