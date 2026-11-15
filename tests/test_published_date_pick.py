@@ -37,6 +37,14 @@ class PickADay(PublishedFile, test_glance_page.Setup):
         p.js("""((day) => { const b = document.querySelector('input.asat-box'); b.value = day;
           b.dispatchEvent(new Event('change', {bubbles: true})); })(%r)""" % day)
 
+    def pick_open(self, p, day):
+        """Set the day on the box that is already open (or open it first), and fire change."""
+        if not p.js("!!document.querySelector('input.asat-box')"):
+            p.js("document.querySelector('button.asat').click()")
+            p.until("!!document.querySelector('input.asat-box')", "the date box opened")
+        p.js("""((day) => { const b = document.querySelector('input.asat-box'); b.value = day;
+          b.dispatchEvent(new Event('change', {bubbles: true})); })(%r)""" % day)
+
     def test_a_day_with_a_past_report_goes_to_that_report(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
@@ -71,6 +79,23 @@ class PickADay(PublishedFile, test_glance_page.Setup):
                   b.dispatchEvent(new Event('change', {bubbles: true})); })('2026-10-14')""")
                 p.until("!!document.querySelector('.asat-note')", "the whole year is a pick")
                 self.assertEqual(p.js(NOTE), "No report for 14-10-2026.")
+
+    def test_the_year_rule_has_both_branches(self):
+        """A year from 1990 to 1999 (the 199x branch) is a pick; 1980 and 3000 are not (outside both branches), so the box stays open."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.page(cdp, width)
+                here = p.js("location.href")
+                for day in ("1980-06-05", "3000-06-05"):
+                    self.pick_open(p, day)
+                    self.assertEqual(p.js("document.querySelectorAll('input.asat-box').length"), 1, f"{day} leaves the box open")
+                    self.assertEqual(p.js(NOTE), "", f"no note for {day}")
+                    self.assertEqual(p.js("location.href"), here)
+                self.pick_open(p, "1995-06-05")
+                p.until("!!document.querySelector('.asat-note')", "1995 is a pick")
+                self.assertEqual(p.js(NOTE), "No report for 05-06-1995.")
+                self.assertEqual(p.js("document.querySelectorAll('input.asat-box').length"), 0, "the date box closed")
+                self.assertEqual(p.js("location.href"), here)
 
     def test_the_button_does_not_take_focus_from_the_open_box(self):
         """Clicking the button while the box is open must close it: its mouse-down is cancelled, so the box is not blurred (and shut) first."""
