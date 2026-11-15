@@ -17,6 +17,13 @@ UPDATE = (ROOT / "docker" / "UPDATE.txt").read_text(encoding="utf-8")
 
 
 class DockerUpdate(unittest.TestCase):
+    def test_step_4_has_a_windows_line_that_does_not_use_bash(self):
+        """Item 636: PowerShell has no bash, so step 4 gives Windows its own compose line, with the Windows file that sets the data folder."""
+        step = UPDATE[UPDATE.index("  4. Start the new clark"):UPDATE.index("  5. Open")]
+        self.assertIn("On Windows", step)
+        self.assertIn("docker compose -f docker/compose.yaml -f docker/compose.windows.yaml up -d", step)
+        self.assertIn("press Enter", step)
+
     def test_the_check_runs_before_the_server_and_a_refusal_stops_the_start(self):
         m = re.search(r'^\s*command: \["sh", "-c", "(.+)"\]$', COMPOSE, re.M)
         self.assertIsNotNone(m, "the start is one sh -c line")
