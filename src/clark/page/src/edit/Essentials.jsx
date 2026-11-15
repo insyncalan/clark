@@ -15,7 +15,7 @@ import { listBackups, setCopyFolder } from "./safetyApi.js";
 import { LocalFolderPick } from "./ClientFolder.jsx";
 import { askOn, askStatus, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
 import { useAskFlip } from "./AskSettings.jsx";
-import { leaveSwitch } from "./switchToast.js";
+import { announceSwitch, leaveSwitch } from "./switchToast.js";
 
 // Your name: saved when the box is left or on Enter, as in About you; a refusal stands under the box and the box keeps what was typed.
 function NameRow() {
@@ -56,10 +56,17 @@ function SpacingRow() {
   );
 }
 
+// The Motion switch applies at once and says so in the same quiet toast as Spacing and Appearance ("Motion: Off."), with one Undo (item 1168).
+function flipMotion() {
+  const now = !motionOn.value, word = (on) => `Motion: ${on ? "On" : "Off"}.`;
+  setMotion(now);
+  announceSwitch(word(now), () => { setMotion(!now); return { ok: true }; }, word(!now));
+}
+
 function MotionRow() {
   return (
     <SettingRow id="ess-motion" name="Motion">
-      <button type="button" id="ess-motion" class="switch" role="switch" data-ess-motion aria-checked={motionOn.value ? "true" : "false"} onClick={() => setMotion(!motionOn.value)}></button>
+      <button type="button" id="ess-motion" class="switch" role="switch" data-ess-motion aria-checked={motionOn.value ? "true" : "false"} onClick={flipMotion}></button>
     </SettingRow>
   );
 }
