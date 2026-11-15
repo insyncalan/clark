@@ -1,6 +1,6 @@
 // The ask panel (#47a): a full-height panel on the right, over the open page. Edit pages only (a published file has none). The look
 // is #102's light panel with a soft wash (#214), built from the page's own tokens (edit.css). The reply is drawn as text only: it is
-// never read as markup. Nothing is sent while asking is off.
+// never read as markup (row 1217: a listed set of marks becomes elements clark makes itself, see askFormat.js). Nothing is sent while asking is off.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { project, show, token, view } from "../stores/report.js";
 import { words } from "./publishApi.js";
@@ -11,6 +11,7 @@ import * as W from "./askWords.js";
 import { Icon } from "../components/Icon.jsx";
 import { chatId, histOpen, histTick, chats, keepChat, deleteChat, when } from "./askHistory.js";
 import { ChangeCards, fixedLine } from "./AskChange.jsx";
+import { FormattedAnswer } from "./AskFormat.jsx";
 
 // Row 890: the files an answer used, as the server sends them ({id, label}). A long file is cut into parts labelled "name (part N)":
 // the suffix is dropped and each file is listed once, in the order first seen.
@@ -257,7 +258,7 @@ export function AskPanel() {
         {list.map((t, i) => (
           <div key={i} class={`ask-turn ${t.role}${t.kind ? " " + t.kind : ""}`} data-role={t.role}>
             <div class="ask-who">{t.role === "user" ? W.YOU : W.REPLY}</div>
-            {t.kind === "changes" ? <ChangeCards turn={t} /> : <div class="ask-text">{t.text}</div>}
+            {t.kind === "changes" ? <ChangeCards turn={t} /> : t.role === "assistant" && !t.kind && typeof t.text === "string" ? <FormattedAnswer text={t.text} /> : <div class="ask-text">{t.text}</div>}
             {t.sources && t.sources.length ? (
               <details class="ask-sources">
                 <summary>{W.SOURCES}</summary>
