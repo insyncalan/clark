@@ -529,7 +529,7 @@ class Settings(Rig):
         for width, scheme in self.each():
             text = self.js("document.querySelector('#diagnostics').innerText")
             for want in ("Logs and diagnostics", "never records report text, names, email addresses, notes", "Nothing is sent anywhere.",
-                         "Normal", "Debug", "Open folder", "Copy diagnostics", "Errors in the last 7 days", "None."):
+                         "Normal", "Debug", "Open folder", "Copy diagnostics", "ERRORS IN THE LAST 7 DAYS", "None."):
                 self.assertIn(want, text, f"{want} at {width} {scheme}")
             self.assertEqual(self.js("document.querySelector('[data-level=normal]').getAttribute('aria-pressed')"), "true")
             self.assertTrue(self.js("document.documentElement.scrollWidth <= window.innerWidth"), f"nothing scrolls sideways at {width}")
