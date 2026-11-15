@@ -118,7 +118,7 @@ class Import(Base):
                 self.open_box(p)
                 self.choose(p, base64.b64encode(b"not a workbook").decode())
                 p.until("!!document.querySelector('#import-problem').textContent", "the refusal")
-                self.assertEqual(p.js("document.activeElement && document.activeElement.id"), "import-choose")
+                self.settle(p, "document.activeElement && document.activeElement.id === 'import-choose'", "focus back on Choose a file")
                 p.js("document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))")
                 p.until("!document.querySelector('#import-box')", "Esc still closes the box")
 

@@ -87,8 +87,8 @@ class Base(unittest.TestCase):
         # the test copy of the served page (window.clarkPage): the finished dialog stays open until a test sets a time (#437)
         self.rig = Rig(self, saved=self.saved, page_html=testpage.html)
 
-    def page(self, cdp, hash_="#dashboard&p=PUB"):
-        sid = navigate(cdp, self.rig.httpd.server_port, for_project(hash_), section_style=None)      # the standard style is what these tests see (row 667)
+    def page(self, cdp, hash_="#dashboard&p=PUB", motion=None):
+        sid = navigate(cdp, self.rig.httpd.server_port, for_project(hash_), section_style=None, motion=motion)      # the standard style is what these tests see (row 667)
         p = Pg(self, cdp, sid)
         p.until("!!document.querySelector('#profile-btn')", "the profile circle is in the top bar")
         return p
@@ -246,30 +246,47 @@ class Dialog(Base):
             self.assertFalse(p.js("document.querySelector('#pub-client').checked"))
             self.assertEqual(p.js("Object.keys(localStorage).concat(Object.keys(sessionStorage)).filter((k) => k !== 'clark.lastProject').length"), 0, "not remembered anywhere")
 
+    def menu_note(self, p, published=True):
+        """Item 1177: the report bar's state chip is gone; the published note is the last line of the profile menu. Opens the menu, waits until it
+        has settled (published=True: until a label starting with Published is drawn; False: until the Appearance label is drawn), reads the last
+        label, shuts the menu. With nothing published, no label may start with Published and it returns None."""
+        p.js("document.querySelector('#profile-btn').click()")
+        if published:
+            p.until("[...document.querySelectorAll('#profile-menu .lab')].some((e) => /^Published /.test(e.textContent))", "the published note is in the menu")
+        else:
+            p.until("[...document.querySelectorAll('#profile-menu .lab')].some((e) => e.textContent === 'Appearance')", "the menu is settled")
+            self.assertEqual(p.js("[...document.querySelectorAll('#profile-menu .lab')].filter((e) => /^Published/.test(e.textContent)).length"), 0, "nothing published: no Published label")
+        text = p.js("(function(){var l=document.querySelectorAll('#profile-menu .lab');return l[l.length-1].textContent})()") if published else None
+        p.js("document.querySelector('#profile-btn').click()")
+        p.until("!document.querySelector('#profile-menu')", "the menu closed")
+        return text
+
     def test_C_result_message_and_report_bar(self):
         with chrome() as cdp:
             p = self.page(cdp)
-            self.assertEqual(p.js("document.querySelector('#report-state').textContent"), "Draft · not published yet", "nothing published yet")
+            self.assertIsNone(self.menu_note(p, published=False), "nothing published yet: no label starts with Published")
             p.open_publish()
             p.js("document.querySelector('#pub-client').click()")
             p.go()
             p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
             self.assertEqual(p.message(), DONE_NEW)
             self.assertEqual((self.rig.client / WANTED).read_bytes(), (self.rig.local / "chosen.html").read_bytes())
-            p.until("/^Published/.test(document.querySelector('#report-state').textContent)", "the bar says when")
-            self.assertRegex(p.js("document.querySelector('#report-state').textContent"), r"^Published \d\d-\d\d-\d{4} to the client$")
+            p.go()
+            p.until("!document.querySelector('#publish-dialog')", "closed")
+            self.assertRegex(self.menu_note(p), r"^Published \d\d-\d\d-\d{4} to the client$")
 
     def test_C_publish_shows_a_spinner_while_it_works_then_a_tick_with_the_same_words(self):
         """#130 point 4: a spinner on the Publish button beside "Publishing…" (still when the person asked for less motion), then a tick beside the success line."""
         with chrome() as cdp:
-            p = self.page(cdp)
+            p = self.page(cdp, motion="no-preference")      # before the load: a Mac that reduces motion paints data-motion=reduce at load
             p.open_publish()
             p.js("window.__real = window.fetch; window.fetch = (u, o) => /publish/.test(String(u)) && o && o.method === 'POST' ? new Promise((ok) => { window.__release = () => ok(window.__real(u, o)); }) : window.__real(u, o);")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, p.sid)
+            p.js("delete document.documentElement.dataset.motion")      # the Mac paints data-motion=reduce at load
             p.go()
             p.until("!!document.querySelector('[data-go] [data-spin]')", "a spinner while it works")
             self.assertEqual(p.message().strip(), "Publishing…")
-            self.assertEqual(p.js("getComputedStyle(document.querySelector('[data-spin]')).animationName"), "pub-spin")
+            p.until("getComputedStyle(document.querySelector('[data-spin]')).animationName === 'pub-spin'", "the ring turns")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
             p.until("getComputedStyle(document.querySelector('[data-spin]')).animationName === 'none'", "the ring stays still for reduced motion")
             self.assertEqual(p.js("document.querySelector('[data-go] [data-tick]')"), None, "no tick yet")
@@ -286,10 +303,11 @@ class Dialog(Base):
             p.go()
             p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
             self.assertEqual(self.rig.listing(self.rig.client), [])
-            p.until("/^Published/.test(document.querySelector('#report-state').textContent)", "the bar says when")
-            self.assertRegex(p.js("document.querySelector('#report-state').textContent"), r"^Published \d\d-\d\d-\d{4} locally$")
+            p.go()
+            p.until("!document.querySelector('#publish-dialog')", "closed")
+            self.assertRegex(self.menu_note(p), r"^Published \d\d-\d\d-\d{4} locally$")
 
-    def test_C_view_shows_the_published_chip_and_only_the_week_box_after_a_publish(self):
+    def test_C_view_shows_no_published_chip_and_no_field_after_a_publish(self):      # item 1177: was "the published chip and only the week box"; the chip and the box left the bar
         with chrome() as cdp:
             p = self.page(cdp)
             p.open_publish()
@@ -297,10 +315,9 @@ class Dialog(Base):
             p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
             p.go()
             p.until("!document.querySelector('#publish-dialog[open]')", "the dialog closed")
-            p.until("/^Published/.test(document.querySelector('#report-state').textContent)", "the chip says when")
             self.assertEqual(p.js("document.querySelector('#report').dataset.mode"), "view")
-            self.assertRegex(p.js("document.querySelector('#report-state').textContent"), r"^Published \d\d-\d\d-\d{4} locally$")
-            self.assertEqual(p.js("document.querySelectorAll('.rbar input').length"), 1, "View's one field is the week ending box (#439)")
+            self.assertRegex(self.menu_note(p), r"^Published \d\d-\d\d-\d{4} locally$")
+            self.assertEqual(p.js("document.querySelectorAll('#report-state, .rbar-state, .rbar input').length"), 0, "no chip and no field in the bar")
 
     def test_C_the_dialog_line_says_which_publication_this_will_be_and_when_the_last_one_went(self):
         """#437 row 26 (the prototype's io.js): 'this will be Publication N' and, once there is one, 'last published <date>, locally'."""
@@ -537,8 +554,8 @@ class Settings(Base):
             p = self.page(cdp, "#settings&p=PUB")
             p.until("!!document.querySelector('#publishing')", "the card")
             self.assertEqual(p.js("document.querySelector('#publishing h2').innerText"), "Publishing")
-            self.assertEqual(p.js("document.querySelector('#publishing #local-folder h3').innerText"), "Local folder")
-            self.assertEqual(p.js("document.querySelector('#publishing #client-folder h3').innerText"), "Client folder")
+            self.assertEqual(p.js("document.querySelector('#publishing #local-folder h3').textContent"), "Local folder")
+            self.assertEqual(p.js("document.querySelector('#publishing #client-folder h3').textContent"), "Client folder")
             # item 647 (the owner's yes): one box, under Choose folder, for a pasted folder path; the Local part has none
             self.assertEqual(p.js("document.querySelectorAll('#publishing input').length"), 1, "only the client folder's paste box")
             self.assertEqual(p.js("document.querySelectorAll('#publishing #client-folder-paste').length"), 1)

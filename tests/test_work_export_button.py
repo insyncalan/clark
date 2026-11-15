@@ -1,5 +1,5 @@
-"""B-4: an Export icon beside Add on Work items, in the editor on every mode (row 824; FR-70 hid it in Edit); the published file has none.
-The icon asks the route that already exists, GET /api/export. The Import icon (item 454) opens the same box as Settings > Data.
+"""No Export icon on Work items, in the editor or in the published file (row 1142 took it off the pages; Export is in the profile menu and Settings).
+Also holds open_page, which other page checks use.
 
 Run: python3 dev/run_tests.py test_work_export_button
 Headless Chrome (required: fails, never skips, without it). Desktop only: 1400 and 900 px, light and dark.
@@ -49,7 +49,7 @@ class ExportButton(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#work h1')", sid)))
                 self.assertEqual(cdp.js("document.querySelectorAll('#expBtn').length", sid), 0)
 
-    def test_the_editor_shows_it_in_view_and_in_edit_and_it_asks_the_export_route(self):
+    def test_the_editor_has_no_export_or_import_icon(self):
         demo = DemoStore()
         self.addCleanup(demo.close)
         s = Running(data_for=demo.store.data_for, page_html=lambda: page.page_html(tempfile.mkdtemp()))
@@ -58,18 +58,8 @@ class ExportButton(unittest.TestCase):
             with self.subTest(width=width, scheme=scheme), chrome() as cdp:
                 sid = open_page(cdp, f"http://127.0.0.1:{s.port}/#work&p=ABC", width, scheme)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#work h1')", sid)))
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#expBtn')", sid)), "the Export icon is in View")
-                self.assertEqual(cdp.js("document.querySelector('#expBtn').getAttribute('aria-label')", sid), "Export to Excel")
-                self.assertEqual(cdp.js("document.querySelector('#expBtn').getAttribute('data-tip')", sid), "Export to Excel")
                 self.assertEqual(cdp.js("document.querySelectorAll('#newBtn').length", sid), 1, "Add is still there")
-                self.assertEqual(cdp.js("document.querySelectorAll('#impBtn').length", sid), 1, "the Import icon is on the filter line")
-                self.assertEqual(cdp.js("document.querySelector('#impBtn').getAttribute('data-tip')", sid), "Import from Excel")
-                cdp.js("window.__asked = []; const f = window.fetch; window.fetch = (u, o) => { window.__asked.push(String(u)); return f(u, o); }", sid)
-                cdp.js("document.querySelector('#expBtn').click()", sid)
-                self.assertTrue(wait(lambda: cdp.js("window.__asked.some(u => u.startsWith('/api/export?project=ABC'))", sid)), "it asked GET /api/export")
-                self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch off the Dashboard")
-                self.assertEqual(cdp.js("document.querySelectorAll('#expBtn').length", sid), 1, "this page has no mode: still there (row 824)")
-                self.assertEqual(cdp.js("document.querySelectorAll('#newBtn').length", sid), 1)
+                self.assertEqual(cdp.js("document.querySelectorAll('#expBtn, #impBtn').length", sid), 0, "row 1142: no Export or Import icon")
 
 
 if __name__ == "__main__":

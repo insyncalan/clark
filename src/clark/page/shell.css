@@ -15,6 +15,7 @@ a { color: var(--status-blue-text); }
 
 .skip { position: absolute; left: 12px; top: 8px; z-index: 40; padding: 8px 14px; border-radius: 6px; background: var(--brand-navy); color: var(--white); font-size: var(--size-body); text-decoration: none; transform: translateY(-200%); }   /* row 862: out of sight until it has focus */
 .skip:focus, .skip:focus-visible { transform: none; outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+.skip-cards { position: fixed; border: 0; cursor: pointer; font-family: inherit; }   /* item 1170: the Settings skip link is a button, and stays at the top of the window when the page has scrolled */
 #main:focus { outline: none; }   /* row 862: <main> takes focus from the skip link; it is a landing place, not a control */
 .top { position: sticky; top: 0; z-index: 30; height: var(--topbar); background: var(--brand-navy); color: var(--white); display: flex; align-items: center; gap: 18px; padding: 0 20px; }
 .logo { all: unset; display: inline-flex; align-items: center; cursor: pointer; }   /* a button since row 854: it goes Home */
@@ -39,6 +40,9 @@ a { color: var(--status-blue-text); }
 }
 .top .tab { white-space: nowrap; }
 .top .dd:has(> .projbtn) { min-width: 0; }   /* the project name gives way (its ellipsis) before the bar runs past a 901 px window, now the wordmark is 24 px */
+.top .projbtn { position: relative; }
+.top .projbtn .pname { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }   /* item 1176: invisible (kept for a screen reader) until the pointer or the keys are on the button */
+.top .projbtn:hover .pname, .top .projbtn:focus-visible .pname { position: static; width: auto; height: auto; max-width: 160px; clip-path: none; overflow: hidden; text-overflow: ellipsis; }
 .projbtn > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tabs { display: flex; height: 100%; }
 .pubfoot { max-width: 1200px; margin: 24px auto 16px; padding: 0 16px; font-size: var(--size-small); color: var(--text-muted); }   /* item 120 */
@@ -360,7 +364,7 @@ html.vdragging, html.vdragging * { cursor: grabbing !important; user-select: non
 .fline-row { display: flex; align-items: center; gap: var(--space-2); }
 .fline-row > .fline { flex: 1 1 auto; min-width: 0; }
 .fline-tail { flex: none; display: inline-flex; align-items: center; margin-right: 11px; }   /* 11 px: the icons end where they ended inside the box (its 10 px padding and 1 px border) */
-.fline-tail .vicons, .fline-tail .fio { margin-left: 0; }
+.fline-tail .vicons { margin-left: 0; }
 .fedit { position: relative; flex: 1 1 140px; min-width: 0; display: flex; align-items: center; }   /* issue 662: the box holds the whole line; its tokens are drawn over the text */
 .fchips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }   /* row 845: the complete filters as chips (the chip look is .fchip, below) */
 .fline input { all: unset; box-sizing: border-box; flex: 1 1 auto; width: 100%; min-width: 0; min-height: calc(var(--space-6) - var(--space-1)); font-size: var(--size-small); color: transparent; caret-color: var(--text); }
@@ -511,20 +515,6 @@ html[data-density="comfortable"] .frame.report { padding: var(--space-1) 28px 0;
 .sec-body ul, .sec-body ol { margin: 0 0 10px; padding-left: 22px; }
 .sec-body a { color: var(--link); }
 .sec-body blockquote { margin: 0 0 10px; padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); background: var(--grey-50); }
-/* 'Needs from you': a table of what is needed, from whom and by when. It never scrolls sideways: the first column takes what the
-   others leave and wraps. The date's word Overdue is text, so it does not rest on colour alone. */
-.sec-needs { margin: var(--space-2) 0 var(--space-2); min-width: 0; }
-table.needs { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: var(--size-small); }
-table.needs th { text-align: left; font-weight: var(--weight-regular); font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); padding: var(--space-2) 10px; border-top: 1px solid var(--grey-200); }
-table.needs td { padding: 9px 10px; border-top: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; }
-table.needs th:first-child, table.needs td:first-child { padding-left: var(--space-1); }
-table.needs .n-from { width: 24%; }
-table.needs .n-by { width: 26%; }
-table.needs .n-kind { margin-right: var(--space-1); vertical-align: baseline; }
-table.needs .n-over { margin-left: 2px; }
-.slot-left table.needs .n-from, .slot-right table.needs .n-from { width: 28%; }
-.slot-left table.needs .n-by, .slot-right table.needs .n-by { width: 34%; }
-@media (max-width: 900px) { table.needs .n-from { width: 26%; } table.needs .n-by { width: 30%; } }
 
 /* 'Progress tracker' (item 189): the overall bar, then each group of lines. Only tokens; "behind plan" is never colour alone (▼ and words). */
 .sec-tracker { margin: 8px 0 8px; min-width: 0; }
@@ -676,8 +666,8 @@ input.sec-title { width: 100%; }
 .toast-btn:focus-visible { outline-color: var(--brand-cyan); }
 @media (max-width: 900px) { .modes { margin-left: auto; } .menu { min-width: 220px; } }
 
-/* The peek (#42): a panel on the right edge; its width is dragged from the left edge and kept in this browser. */
-.peek { position: fixed; top: 0; right: 0; bottom: 0; z-index: 30; max-width: 100vw; min-width: min(420px, 100vw); overflow-y: auto; background: var(--surface); border-left: 1px solid var(--grey-200); box-shadow: var(--shadow); padding: var(--space-3) var(--space-5) var(--space-5); }
+/* The peek (#42): a panel on the right edge, below the banner (item 1202); its width is dragged from the left edge and kept in this browser. */
+.peek { position: fixed; top: var(--topbar); right: 0; bottom: 0; z-index: 30; max-width: 100vw; min-width: min(420px, 100vw); overflow-y: auto; background: var(--surface); border-left: 1px solid var(--grey-200); box-shadow: var(--shadow); padding: var(--space-3) var(--space-5) var(--space-5); }
 .peek.wide { width: 100%; }
 /* Below 1000 px the peek fills the window over the list (row 847): a side panel would leave the list a strip too narrow to read. Above it the dragged width stays. */
 @media (max-width: 999px) { .peek:not(.hpk) { width: 100% !important; } .peek:not(.hpk) .pk-edge { display: none; } }      /* row 847: the item and milestone peeks overlay the page below 1000 px; the Help peek keeps its own width (and the button in view) */
@@ -829,11 +819,6 @@ table.items.grouped tr.grp th { padding: var(--d-grp-y) var(--space-4); border-t
 table.items thead tr.grp, table.items thead tr.colh { cursor: default; }
 table.items td.c-eye, table.items th.c-eye { padding-left: 0; padding-right: var(--space-2); text-align: center; vertical-align: middle; }
 table.items .weye { width: 28px; height: 28px; }
-table.items .rmore { width: 24px; height: 24px; margin-left: 0; opacity: 0; vertical-align: middle; }
-table.items tr:hover .rmore, table.items tr:focus-within .rmore, table.items .rmore:focus-visible, table.items .rmore[aria-expanded="true"] { opacity: 1; }
-@media (hover: none) { table.items .rmore { opacity: 1; } }
-@media (max-width: 1000px) { table.items .rmore { display: block; margin: 0 auto; } }          /* the narrow table keeps the eye column as it was: the button sits under the eye */
-@media (min-width: 1001px) { table.items .c-eye { width: 68px; } }
 table.items .weye[aria-pressed="true"], table.items .weye.on { color: var(--status-blue-text); }
 .grp-b { all: unset; box-sizing: border-box; min-height: 24px; display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer; font-weight: var(--weight-medium); }
 .grp-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
@@ -1175,8 +1160,8 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .mv-line { position: absolute; left: 0; right: 0; height: 2px; background: var(--grey-300); }
 .mv-today { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--brand-navy); z-index: 2; }
 .mv-today b { position: absolute; left: 4px; top: 20px; line-height: 16px; font-size: var(--size-caption); font-weight: var(--weight-regular); color: var(--status-blue-text); background: var(--surface); padding: 0 var(--space-1); white-space: nowrap; }
-.mv-mk { all: unset; position: absolute; width: 24px; height: 24px; margin: -12px 0 0 -12px; display: grid; place-items: center; cursor: pointer; z-index: 3; border-radius: 50%; transition: transform var(--dur-state) var(--ease-out); }
-.mv-mk:hover, .mv-mk:focus-visible { transform: scale(1.18); } .mv-mk:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.mv-mk { all: unset; --at: 9999px; --end: 20000px; position: absolute; width: 24px; height: 24px; margin: -12px 0 0 -12px; display: grid; place-items: center; cursor: pointer; z-index: 3; border-radius: 50%; transition: transform var(--dur-state) var(--ease-out); }
+.mv-mk:hover, .mv-mk:focus-visible { transform: scale(1.18); } .mv-mk[data-hid]:hover, .mv-mk[data-hid]:focus-visible { z-index: 7; }   /* item 1175: the open mark, and its name tip with it, sits above the shown labels (z-index 3) */ .mv-mk:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .mv-lab { all: unset; position: absolute; z-index: 3; transform: translateX(-50%); text-align: center; font-size: var(--size-caption); cursor: pointer; white-space: nowrap; padding: 0 var(--space-1); height: 24px; line-height: 24px; box-sizing: border-box; border-radius: var(--radius-sm); background: var(--grey-50); }   /* a 24 px hit box, one lane (LANE in MsTimeline.jsx) tall, so the boxes of two lanes never overlap, the layout as before; above the Today line (z-index 2), on the strip's own colour, so no line strikes through a name or a date */
 .mv-mk.plain, .mv-lab.plain, .cal-ms.plain, .msl-row.plain, .msl-row.plain .msl-cells { cursor: default; }   /* a published file: text, not a button */
 .mv-mk.plain:hover { transform: none; } .mv-lab.plain:hover { background: var(--grey-50); } .cal-ms.plain:hover { background: var(--grey-100); } .cal-ms.ghost.plain:hover { background: transparent; } .msl-row.plain:hover { background: none; }
@@ -1186,7 +1171,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .mv-lab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .mv-meas { position: absolute; top: 0; left: 0; visibility: hidden; pointer-events: none; white-space: nowrap; font-size: var(--size-caption); padding: 0 var(--space-1); box-sizing: border-box; }   /* row 1159: a hidden name, the same type as a shown one,, kept so its width can still be measured */
 .mv-bar .cal-sc { margin-left: 0; }
-.mv-mk[data-hid]:hover::after, .mv-mk[data-hid]:focus-visible::after { content: attr(data-hid); position: absolute; left: 50%; top: 100%; transform: translateX(-50%); z-index: 6; white-space: nowrap; background: var(--grey-50); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 var(--space-1); font-size: var(--size-caption); line-height: 24px; }   /* the name of a mark whose label is hidden, on hover and focus */
+.mv-mk[data-hid]:hover::after, .mv-mk[data-hid]:focus-visible::after { content: attr(data-hid); position: absolute; left: 50%; top: 100%; transform: translateX(max(calc(var(--at, 9999px) / -1.18), min(-50%, calc(-100% + (var(--end, 9999px) - var(--at, 0px)) / 1.18)))); z-index: 6; white-space: nowrap; background: var(--grey-50); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 var(--space-1); font-size: var(--size-caption); line-height: 24px; }   /* the name of a mark whose label is hidden, on hover and focus; the open mark is scaled 1.18 about its centre, so both ends of the tip are kept inside the line (0 to --end) after that scale, not before it */
 .mv-lab.ok { color: var(--status-green-text); } .mv-lab .slip { color: var(--status-red-text); margin-left: var(--space-1); }
 .mv-conn { position: absolute; height: 0; border-top: 2px dashed var(--status-red); z-index: 1; }
 .mv-ghost { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border: 2px dashed var(--status-red); border-radius: 50%; background: var(--surface); z-index: 2; }
@@ -1340,9 +1325,9 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .set-bar { grid-column: 1; position: sticky; top: var(--topbar); z-index: 15; margin-top: var(--space-4); padding: var(--space-2) var(--space-1); background: var(--grey-50); max-height: calc(100vh - var(--topbar) - var(--space-4)); overflow-y: auto; }
 .set-nav { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .set-nav li { display: block; }
-.set-chip { all: unset; box-sizing: border-box; display: flex; align-items: center; width: 100%; min-height: 28px; padding: 3px 12px; border: 1px solid var(--grey-500); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--size-small); line-height: 20px; cursor: pointer; transition: border-color var(--dur-instant) var(--ease-out); }      /* no background transition: a theme switch must not leave a light chip for 120 ms (test_v020 reads the ground at once) */
+.set-chip { all: unset; box-sizing: border-box; position: relative; display: flex; align-items: center; width: 100%; min-height: 36px; padding: 0 12px; border: 0; border-radius: 10px; background: transparent; color: var(--text); font-size: var(--size-body); line-height: 20px; cursor: pointer; }      /* item 1200: soft 36 px rows; no background transition: a theme switch must not leave a light chip for 120 ms (test_v020 reads the ground at once) */
 /* From 900 to 1099 px the list is the narrowest the grid allows (150 px), so the cards are wider at 900 (about 670 px, not 596) and a control keeps more than 420 px beside its label; the four section styles wrap two and two. */
-@media (min-width: 900px) and (max-width: 1099px) { .set-layout { grid-template-columns: 150px minmax(0, 1fr); } }
+@media (min-width: 900px) and (max-width: 1099px) { .set-layout { grid-template-columns: 150px minmax(0, 1fr); } .set-nav { gap: 0; } .set-bar { margin-top: var(--space-1); padding-top: var(--space-1); } }      /* item 1177: at 900 the header is 129 px (two rows), so the sixteen links sit edge to edge (each keeps its 36 px, and the first keeps room for its focus ring) and the last one, Quit, is still inside a 900 px high window at the top of the page */
 @media (max-width: 899px) {
   .set-layout { display: block; }
   .set-bar { position: sticky; padding: var(--space-2) 0; margin-top: var(--space-3); max-height: none; overflow-y: visible; box-shadow: 0 0 0 100vmax var(--grey-50); clip-path: inset(0 -100vmax); }
@@ -1351,8 +1336,9 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
   .set-nav { flex-direction: row; flex-wrap: wrap; gap: var(--space-2); }
   .set-chip { display: inline-flex; width: auto; border-radius: var(--radius-pill); }
 }
-.set-chip:hover { border-color: var(--text-muted); background: var(--brand-blue-tint); }
-.set-chip[aria-current], .set-chip[aria-current]:hover { border-color: var(--brand-blue); background: var(--brand-blue); color: var(--text-on-brand); }      /* the same weight, so marking a chip never moves the row */
+.set-chip:hover { background: var(--grey-100); }
+.set-chip[aria-current], .set-chip[aria-current]:hover { background: var(--brand-blue-tint); color: var(--status-blue-text); font-weight: var(--weight-medium); }
+.set-chip[aria-current]::before { content: ""; position: absolute; left: 0; top: 7px; bottom: 7px; width: 3px; border-radius: 3px; background: var(--brand-blue); }      /* item 1200: the violet marker on the card you are reading */
 .set-chip:focus-visible, .setting h2[tabindex="-1"]:focus-visible, .personal h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
 .setting, .personal { scroll-margin-top: calc(var(--topbar) + 16px); }
 /* The Settings cards (row 841): the prototype's card, compact: less padding, a smaller heading, a 14 px intro line and no shadow. Later than .frame and its 900 px rule, and more specific. */
@@ -1560,6 +1546,11 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .set-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 16rem); column-gap: var(--space-4); align-items: center; padding: var(--space-3) 0; }
 .set-row + .set-row { border-top: 1px solid var(--border); }
 .set-row-text { display: grid; gap: var(--space-1); min-width: 0; }
+.set-row-name { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.set-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--brand-blue); }
+.set-row-ctl { gap: var(--space-2); align-items: center; }
+.set-reset { flex: none; min-height: 36px; padding: var(--space-1) var(--space-3); border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+.set-reset:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .set-row-text label { font-size: var(--size-body); font-weight: var(--weight-medium); color: var(--text); }
 .set-row-text small { color: var(--text-muted); font-size: var(--size-caption); overflow-wrap: anywhere; }
 .set-row-ctl { display: flex; justify-content: flex-end; min-width: 0; }
@@ -1570,8 +1561,24 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .set-row-ctl .ess-folder .folder-now, .set-row-ctl .ess-folder .row { margin: 0; justify-content: flex-end; text-align: right; overflow-wrap: anywhere; }
 .set-row-ctl .ess-folder .row, .set-row-ctl .copy-fld .btn { margin-top: var(--space-1); }
 .set-row-ctl input[type="checkbox"] { width: 24px; height: 24px; margin: 0; accent-color: var(--brand-blue); }
+/* Item 1169: the Gantt "on" boxes and the Feedback box draw the same 2 px ring as every other Settings control, not the browser's 1 px one.
+   (The Spacing radio is a see-through input; its card already draws the 2 px ring, so it needs nothing.) */
+.set-row-ctl input[type="checkbox"]:focus-visible, #feedback-message:focus-visible, #feedback-shown:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .fld-bad { margin: 0; min-height: 0; overflow-wrap: anywhere; color: var(--status-red-text); font-size: var(--size-caption); }
 .fld-bad:empty { display: none; }
+/* Item 1200, Settings look. Field and button edges take one token, --control-edge (3.7:1 on white). Type: card heading 20, label 15 semibold,
+   group label 13 caps, help line 13 muted. The Backups path is a line of text with a short Use button beside it, not inside it. */
+.set-cards .frame:not(#gantt-setting) .fld input, .set-cards .frame:not(#gantt-setting) .set-row-ctl input[type="text"], .set-cards .frame:not(#gantt-setting) .folder-paste input, .set-cards .frame:not(#gantt-setting) .set-reset, .set-cards .frame:not(#gantt-setting) .seg, .set-cards .frame:not(#gantt-setting) .btn:not(.pri):not(.ok), .set-cards .frame:not(#gantt-setting) .btn:not(.pri):not(.ok):hover { border-color: var(--control-edge); }
+.set-cards .frame:not(#gantt-setting) .seg button + button { border-left-color: var(--control-edge); }
+.set-cards .frame:not(#gantt-setting) .fld input[aria-invalid="true"], .set-cards .frame:not(#gantt-setting) .set-row-ctl input[aria-invalid="true"] { border-color: var(--status-red-text); }
+/* Type for the cards that change (not the Gantt card): the mock-up README gives 20 / 15 / 13 / 13 for heading, label, group label and help. It says nothing of the intro line, buttons, choices and menu rows; they take the 15 px label size, so the page has those four sizes and no fifth. */
+.set-cards .frame:not(#gantt-setting) > h2 + p, .set-cards .frame:not(#gantt-setting) .btn, .set-cards .frame:not(#gantt-setting) .seg button { font-size: var(--size-body); }
+.set-cards .setting > h3, .set-cards .setting-part > h3 { margin: var(--space-4) 0 var(--space-1); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; }
+.copy-sug { display: flex; align-items: center; gap: var(--space-2); min-width: 0; margin-top: var(--space-1); }
+.copy-sug-path { flex: 1 1 auto; min-width: 0; font-size: var(--size-caption); color: var(--text-muted); overflow-wrap: anywhere; }
+.set-cards .copy-sug .btn { flex: none; margin-top: 0; font-weight: var(--weight-medium); }
+.set-row[data-ess-backups] { grid-template-columns: minmax(0, 1fr); row-gap: var(--space-2); }
+.set-row[data-ess-backups] .set-row-ctl { justify-content: flex-start; }
 /* Settings › People (item 454): the prototype's People card (system/prototype/app.css: .pp-paste, .pp-acts, .pp-sum, table.set.ppl). */
 .pp-h { display: flex; align-items: center; gap: 12px; margin: 0 0 6px; }
 .pp-h h2 { margin: 0; flex: 1; }
@@ -2188,7 +2195,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .pk-fields > .pk-row[data-row=owner] { order: 3; }
 .pk-fields > .pk-row[data-row=due] { order: 4; }
 .pk-fields > .pk-row[data-row] dd { min-width: 0; }
-@container (min-width: 560px) { .pk-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@container (min-width: 600px) { .pk-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
 /* Publish progress: main draws the ring (.spin, a still ring with one strong quarter) and the green tick; clark's own setting
    (<html data-motion="reduce">) also stops the ring, which the media query alone would not. */
@@ -2567,8 +2574,6 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 
 /* Row 1084: List, Board and Group by are icon buttons at the right end of the filter box line, each 28 px or more across. */
 .vicons { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-left: auto; padding-left: var(--space-2); }
-.fio { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-left: auto; }
-.fio + .vicons { margin-left: 0; }
 .vicons .lsw button { min-width: 32px; padding: 2px var(--space-2); }
 .btn.sm.vgb { display: inline-grid; place-items: center; box-sizing: border-box; width: 34px; height: 32px; min-width: 0; min-height: 0; padding: 2px var(--space-2); }   /* the same box as the List and Board icons beside it */
 .vgb .i { width: 18px; height: 18px; }
@@ -2591,3 +2596,51 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .bmenu .menu-item .mi, .rt-opt .mi { flex: none; width: 16px; height: 16px; color: var(--text-muted); }
 .rt-opt { display: flex; align-items: center; gap: 10px; }
 .gt-menu button.gt-danger .mi { color: inherit; }
+
+/* Item 1177: the editor's ONE slim sticky header (.top-hdr): the logo, the project name (a button that opens the project list), the line "Weekly report" and
+   the week (a button that opens the calendar), the tabs, then search, ask clark and the profile circle. 85 px high at 1400 and 129 px at 900, set through the
+   --topbar token so every offset that reads it follows. The published file keeps its own bar (.top-file, above). */
+html:has(.top-hdr) { --topbar: 85px; }
+.top-hdr { gap: 22px; padding: 0 28px; }
+.top-hdr::before { content: ""; position: absolute; inset: 0 0 0 55%; z-index: -1; pointer-events: none; background: var(--image-cover) center right / cover no-repeat; -webkit-mask-image: var(--image-fade); mask-image: var(--image-fade); opacity: .42; }
+.top-hdr { isolation: isolate; }
+.top-hdr .logo { flex: none; width: 147px; height: 24px; margin-block: -1px; overflow: hidden; }   /* a 24 px target; the margin keeps the bar's height */
+.top-hdr .logo-icon { flex: none; width: 22px; height: 22px; }
+.top-hdr .logo .wm { font-size: var(--size-h3); line-height: 22px; }
+.hdr-id { flex: 0 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
+.hdr-id .dd { display: block; min-width: 0; }
+.hdr-id > .hdr-h1 { all: unset; display: block; min-width: 0; }      /* the editor header's level-1 heading (Dashboard): it only carries the role, the button inside keeps its look */
+.hdr-project { all: unset; box-sizing: border-box; display: block; min-width: 0; max-width: 100%; margin: 0 -5px; padding: 0 5px; border-radius: var(--radius-sm); cursor: pointer; font-size: var(--size-h2); line-height: 1.2; font-weight: var(--weight-medium); color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hdr-project > span { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hdr-project.hdr-static { cursor: default; }
+.hdr-project:not(.hdr-static):hover, .hdr-project[aria-expanded="true"] { background: color-mix(in srgb, var(--white) 14%, transparent); text-decoration: underline dotted; text-decoration-thickness: 2px; text-underline-offset: 6px; }
+.hdr-project:focus-visible, .hdr-date:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+.hdr-line { margin: 0; display: flex; align-items: baseline; gap: 10px; white-space: nowrap; font-size: var(--size-caption); line-height: 1.3; color: var(--white); }
+.hdr-kind { font-weight: var(--weight-medium); letter-spacing: .08em; text-transform: uppercase; color: var(--brand-cyan); }
+.hdr-dot::before { content: "\00b7"; opacity: .6; }
+.hdr-date { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 24px; margin: -4px -5px; padding: 0 5px; border-radius: var(--radius-sm); cursor: pointer; color: inherit; font-size: inherit; line-height: inherit; }
+.hdr-date.hdr-static { cursor: default; }
+.hdr-date:not(.hdr-static):hover, .hdr-date[aria-expanded="true"] { background: color-mix(in srgb, var(--white) 14%, transparent); text-decoration: underline dotted; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.top-hdr .tabs { margin-left: 0; height: auto; align-self: stretch; align-items: flex-end; flex: none; }
+.top-hdr .tab { padding-block: 8px 12px; }
+.top-hdr .tab:focus-visible { outline-offset: -4px; }
+.hdr-end { margin-left: auto; flex: none; display: flex; align-items: center; gap: 10px; }
+@media (max-width: 900px) {      /* two rows: the logo, the name with its line and the buttons on top, the tabs as a strip under */
+  html:has(.top-hdr) { --topbar: 129px; }
+  .top-hdr { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: 1fr auto; grid-template-areas: "logo id end" "tabs tabs tabs"; gap: 0 16px; padding: 22px 20px 0; align-items: center; }
+  .top-hdr .logo { grid-area: logo; width: 120px; height: 24px; margin-block: -3px; }
+  .top-hdr .logo-icon { width: 18px; height: 18px; }
+  .top-hdr .logo .wm { font-size: var(--size-body); line-height: 18px; }
+  .top-hdr .hdr-id { grid-area: id; }
+  .top-hdr .hdr-line { min-width: 0; }   /* item 1177: the week gives way (an ellipsis) so a 390 px window has no sideways page scroll */
+  .top-hdr .hdr-date { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .top-hdr .hdr-end { grid-area: end; margin-left: 0; gap: 6px; }
+  .top-hdr .tabs { grid-area: tabs; margin: 0 -20px; padding: 0 14px; border-top: 1px solid color-mix(in srgb, var(--white) 14%, transparent); overflow-x: auto; scrollbar-width: none; align-self: end; }
+  .top-hdr .tabs::-webkit-scrollbar { display: none; }
+}
+
+/* Item 1177, offsets: everything that sticks or scrolls under the slim header reads its real height (--topbar, 85 px at 1400, 129 px at 900). The selection bar sticks flush
+   at the header's bottom; a jump to a section or card stops below the header with some air. Full screen (board-full) already hides the header and sets --topbar to 0. */
+html:has(.top-hdr) body:not(.board-view) #sel-bar { top: var(--topbar); }
+html:has(.top-hdr) .sec, html:has(.top-hdr) main [data-id], html:has(.top-hdr) main [id] { scroll-margin-top: calc(var(--topbar) + 16px); }
+html:has(.top-hdr) body.board-full .top-hdr { display: none; }

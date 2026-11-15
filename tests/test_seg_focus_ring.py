@@ -34,7 +34,7 @@ MEASURE = r"""(() => {
     out.push({ group: (b.closest('.seg').getAttribute('aria-label') || '?'), text: b.textContent.trim(), visible: b.matches(':focus-visible'), color: cs.outlineColor, style: cs.outlineStyle,
                width: parseFloat(cs.outlineWidth), offset: parseFloat(cs.outlineOffset), bg: cs.backgroundImage, fill: cs.backgroundColor });
   }
-  const mode = document.querySelector('.rbar .modes.seg .mode[aria-pressed="true"]');
+  const mode = document.querySelector('#mode-pill .mode[aria-pressed="true"]');
   let pill = null;
   if (mode) { mode.focus({ preventScroll: true }); const cs = getComputedStyle(mode); pill = { visible: mode.matches(':focus-visible'), color: cs.outlineColor, offset: parseFloat(cs.outlineOffset) }; }
   return JSON.stringify({ halves: out, pill, brand: root.getPropertyValue('--brand-blue').trim() });

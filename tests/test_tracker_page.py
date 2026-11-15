@@ -348,9 +348,15 @@ class Page(Base):
             p.edit()
             self.set(p, ref, "[data-overall-edit] [data-f=health]", "ontrack", "change")
             self.assertTrue(self.wait_until(lambda: self.stored(ref)["overall"]["health"] == "ontrack"))
+            # item 1177: the words field is contenteditable="false" while the health save is busy (TrackerWords.jsx, `busy ? "false"`), and the store is read
+            # before the page has set busy back; wait for the page to be free, as the columns step below does, or the typing lands in a field that is off.
+            p.until("!" + self.one(ref, "[data-overall-edit] [data-f=health]") + ".disabled" + " && " + self.one(ref, "[data-tr-words]") + ".isContentEditable", "the words are editable again after the health saved")
             self.assertEqual(p.js(self.count(ref, "[data-overall-edit] input[data-f=note]")), 0, "the words are edited in place now")
-            p.js("(function(){var el=" + self.one(ref, "[data-tr-words]") + "; el.focus(); getSelection().selectAllChildren(el);})()")
-            p.type("All good")
+            for _ in range(3):      # a slow Mac can drop typed keys: type, check the words are there, only then press Enter
+                p.js("(function(){var el=" + self.one(ref, "[data-tr-words]") + "; el.focus(); getSelection().selectAllChildren(el);})()")
+                p.type("All good")
+                if self.wait_until(lambda: p.js(self.one(ref, "[data-tr-words]") + ".textContent.trim()") == "All good", 3):
+                    break
             p.key("Enter", code="Enter", vk=13)
             self.assertTrue(self.wait_until(lambda: self.stored(ref)["overall"]["note"] == "All good"))
             p.until("!" + self.one(ref, "[data-col=tasks]") + ".disabled", "the columns are free again after the words saved")      # a click on a disabled box does nothing
