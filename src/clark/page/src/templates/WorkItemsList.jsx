@@ -3,10 +3,10 @@
 // title, then the chosen columns on one line). Both are drawn and the section's slot shows one (shell.css), so nothing is measured.
 // View: text nodes only, never dangerouslySetInnerHTML; only rows that would be published (the served page) or that the file
 // carries (a published file). isEmpty: no row to show, or no filter saved yet; the section then stays out of View and the file.
+import { useState } from "preact/hooks";
 import { asAt, fromFile } from "../stores/report.js";
 import { KIND_WORDS, dueCell, pillOf, ownerOf, todayIso } from "../workItems.js";
-import { listOf, drawRows, WORDS } from "./workItemsList.js";
-import { ItemIcon, iconWords } from "../components/ItemRows.jsx";      // row 1145: the dashboard lists' icon, alone, is the status
+import { listOf, drawRows, drawn, idsToShow, WORDS } from "./workItemsList.js";
 import { clientPill } from "../logic/sectionRows.js";
 
 export const READY = true;
@@ -22,16 +22,18 @@ function cellText(row, col, now) {
   if (col === "due") { const d = dueCell(row, now); return d.words ? `${d.date} (${d.words})` : d.date; }
   if (col === "status") return pillOf(row, now).text;
   if (col === "workstream") return row.workstream || "—";
+  if (col === "priority") return row.priority || "—";
+  if (col === "milestone") return row.milestone || "—";
   return "";
 }
 
-function Cell({ row, col, now, live }) {
+function Cell({ row, col, now }) {
   if (col === "type") return <span class={`type k-${row.kind}`}>{KIND_WORDS[row.kind] || row.kind}</span>;
   if (col === "due") {
     const d = dueCell(row, now);
     return <><span class="num">{d.date}</span>{d.words ? <span class={`due-l${d.tone ? " " + d.tone : ""}`}>{d.words}</span> : null}</>;
   }
-  if (col === "status") { const p = clientPill(row, now); return <ItemIcon row={row} pill={p} today={now} plain={live} />; }      // in Edit the row is itself a button, so the icon takes no tab stop of its own; the cell says the words
+  if (col === "status") { const p = clientPill(row, now); return <span class="wil-st"><svg class={`wil-half ic-${p.class}`} viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 3a9 9 0 0 1 0 18z" /></svg>{p.text}</span>; }      // row 1199: a half-circle, coloured as the status pill, before the status word
   if (col === "owner") { const o = ownerOf(row.owner); return o.initials ? o.text : <span class="muted">{o.text}</span>; }
   return cellText(row, col, now);
 }
@@ -54,9 +56,9 @@ export function Rows({ rows, columns, now, open, Eye }) {
         <tbody>
           {rows.map((row) => (
             <tr key={row.id} data-id={row.id} {...act(row)}>
-              {before.map((c) => <td key={c} class={`wil-c-${c}`}><Cell row={row} col={c} now={now} live={!!open} /></td>)}
+              {before.map((c) => <td key={c} class={`wil-c-${c}`}><Cell row={row} col={c} now={now} /></td>)}
               <td class="wil-c-title">{row.title || ""}</td>
-              {after.map((c) => <td key={c} class={`wil-c-${c}`} title={open && c === "status" ? iconWords(row, clientPill(row, now), now).tip : undefined}><Cell row={row} col={c} now={now} live={!!open} /></td>)}
+              {after.map((c) => <td key={c} class={`wil-c-${c}`}><Cell row={row} col={c} now={now} /></td>)}
               {Eye ? <td class="wil-c-eye"><Eye row={row} /></td> : null}
             </tr>
           ))}
@@ -75,18 +77,26 @@ export function Rows({ rows, columns, now, open, Eye }) {
   );
 }
 
+// Row 1199: the link under the table when the filter lists more rows than Most rows. Shown only on the page clark serves (View and Edit).
+export function ShowAll({ list, all, onToggle }) {
+  if (!list.more) return null;
+  return <p class="wil-all"><button type="button" class="wil-all-b" data-wil-all="" aria-expanded={all ? "true" : "false"} onClick={onToggle}>{all ? `Show only ${list.max}` : "Show all items"}</button></p>;
+}
+
 export function isEmpty(section, data) {
   return drawRows(listOf(section, data, today()).items, data).length === 0;
 }
 
 export function View({ section, data }) {
+  const [all, setAll] = useState(false);
   const now = today();
   const list = listOf(section, data, now);
-  const rows = drawRows(list.items, data);
+  const rows = drawRows(idsToShow(list, all), drawn(data, !fromFile.value));
   if (!rows.length) return null;
   return (
     <div class="wil" data-wil="">
       <Rows rows={rows} columns={list.columns} now={now} />
+      {fromFile.value ? null : <ShowAll list={list} all={all} onToggle={() => setAll(!all)} />}
       {list.caption ? <p class="wil-cap">{list.caption}</p> : null}
     </div>
   );

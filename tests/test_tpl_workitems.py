@@ -49,7 +49,7 @@ class Checker(unittest.TestCase):
         got = check({})
         self.assertEqual(got, {"v": 1, "kinds": [], "mode": "open", "status": [], "due": [], "owner": [], "workstream": [],
                                "use_case": [], "priority": [], "sort": "due", "max": 10,
-                               "columns": ["type", "id", "owner", "due", "status"], "caption": "",
+                               "columns": ["type", "id", "owner", "due", "priority"], "caption": "",      # row 1199: Status, Workstream and Milestone start off
                                "milestone": [], "not": {k: [] for k in wi.LEFT_OUT}, "has": [], "no": [], "text": []})
         self.assertEqual(set(got), set(wi.KEYS))
 
@@ -493,7 +493,8 @@ class InThePage(PageBase):
         return p.js(f"[...document.querySelectorAll({json.dumps(sel)})].filter(e => e.offsetParent).map(e => e.dataset.id)")
 
     def test_view_shows_the_live_rows_the_client_sees_at_both_widths_in_light_and_dark(self):
-        ref = self.add({"mode": "all", "owner": ["Pat Demo", "Lee Demo", "Sam Demo"]})          # Sam's three are all kept out
+        every = ["type", "id", "owner", "due", "status", "priority", "workstream", "milestone"]
+        ref = self.add({"mode": "all", "columns": every, "owner": ["Pat Demo", "Lee Demo", "Sam Demo"]})          # Sam's three are all kept out
         for width in (1400, 900):
             for dark in (False, True):
                 with self.subTest(width=width, dark=dark), chrome() as cdp:
@@ -508,7 +509,48 @@ class InThePage(PageBase):
                     self.assertEqual(self.rows(p, ref, "lines"), [], "full width draws the table only")
                     self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
                     head = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table th')].map(e => e.textContent)")
-                    self.assertEqual(head, ["Type", "ID", "Item", "Owner", "Due", "Status"])
+                    self.assertEqual(head, ["Type", "ID", "Item", "Owner", "Due", "Status", "Priority", "Workstream", "Milestone"])
+
+    def test_show_all_items_opens_every_row_and_show_only_closes_it_in_view_and_in_edit(self):
+        ref = self.add({"mode": "all", "max": 2, "owner": ["Pat Demo", "Lee Demo"]})      # three rows, two shown
+        link = f"[data-id=\"{ref}\"] [data-wil-all]"
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width)
+                p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table')", "the list drew")
+                self.assertEqual(self.rows(p, ref), [self.a_due, self.a_later])
+                self.assertEqual(p.js(f"document.querySelector({json.dumps(link)}).textContent"), "Show all items")
+                p.js(f"document.querySelector({json.dumps(link)}).click()")
+                p.until(f"document.querySelector({json.dumps(link)}).textContent === 'Show only 2'", "open")
+                self.assertEqual(self.rows(p, ref), [self.a_due, self.a_later, self.risk])
+                p.js(f"document.querySelector({json.dumps(link)}).click()")
+                p.until(f"document.querySelector({json.dumps(link)}).textContent === 'Show all items'", "closed")
+                self.assertEqual(self.rows(p, ref), [self.a_due, self.a_later])
+                p.edit()
+                p.until(f"!!document.querySelector({json.dumps(link)})", "Edit has the link too")
+                p.js(f"document.querySelector({json.dumps(link)}).click()")
+                p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr').length === 3", "Edit shows all")
+                self.assertEqual(p.js(f"document.querySelector({json.dumps(link)}).textContent"), "Show only 2")
+
+    def test_no_link_when_every_row_is_already_shown_and_new_columns_start_off(self):
+        ref = self.add({"mode": "all", "owner": ["Pat Demo", "Lee Demo"]})
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table')", "the list drew")
+            self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-all]')"))
+            self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table th')].map(e => e.textContent)"), ["Type", "ID", "Item", "Owner", "Due", "Priority"])
+
+    def test_the_status_column_is_a_half_circle_coloured_as_the_status_and_the_word(self):
+        ref = self.add({"mode": "all", "columns": ["id", "status"], "owner": ["Pat Demo", "Lee Demo"]})
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width)
+                p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table')", "the list drew")
+                got = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr')].map(r => {{ const c = r.querySelector('.wil-c-status .wil-st'); return [r.dataset.id, c.textContent, c.querySelector('svg.wil-half').getAttribute('class')]; }})")
+                self.assertEqual(len(got), 3)
+                for rid, word, cls in got:
+                    self.assertTrue(word and " " not in cls.replace("wil-half ic-", "").strip() and cls.startswith("wil-half ic-"), (rid, word, cls))
+                self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-c-status .ico').length"), 0, "no letter tile")
 
     def test_text_contrast_is_at_least_4_5_to_1_in_light_and_dark(self):
         ref = self.add({"mode": "all", "caption": "Fictional caption", "owner": ["Pat Demo"]})
@@ -899,7 +941,7 @@ class PublishedFile(PageBase):
         status, got = self.real_change({"project": "ABC", "kind": "report_sections", "op": changes.NEW, "values": {"type": "workitems", "title": "Due soon"}, "after": None})
         ref = got["ref"]
         status, got = self.real_change({"project": "ABC", "kind": "report_sections", "op": changes.UPDATE, "id": ref,
-                                        "changes": {"body": json.dumps({"mode": "all", "caption": "Fictional caption", "owner": ["Pat Demo", "Lee Demo", "Sam Demo", "Kim Demo"]})}})
+                                        "changes": {"body": json.dumps({"mode": "all", "caption": "Fictional caption", "columns": ["id", "owner", "due", "status"], "owner": ["Pat Demo", "Lee Demo", "Sam Demo", "Kim Demo"]})}})
         self.assertEqual(status, 200, got)
         out = tempfile.mkdtemp(prefix="clark-96-wil-")
         self.addCleanup(shutil.rmtree, out, ignore_errors=True)
@@ -922,7 +964,8 @@ class PublishedFile(PageBase):
                 self.assertEqual(ids, [self.a_due, self.a_later, self.risk])
                 self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] .wil-cap').textContent"), "Fictional caption")
                 self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]:not(.ico)').length"), 0)
-                self.assertTrue(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-tip*=\"Overdue\"]')"), "Due reads as at the publish date")
+                self.assertTrue(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-st')].some(e => /Overdue/.test(e.textContent) && !!e.querySelector('svg.wil-half.ic-r'))"), "the status reads as at the publish date: a red half-circle and the word")
+                self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-all]')"), "a file holds only the first rows, so it has no Show all items link")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
 
 

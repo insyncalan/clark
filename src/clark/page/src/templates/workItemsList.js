@@ -15,8 +15,8 @@ export const DUE = ["overdue", "soon", "none", "later"];
 export const NONE = "(none)";
 export const PRIORITIES = ["Urgent", "High", "Medium", "Low"];
 export const SORTS = ["due", "priority", "id"];
-export const COLUMNS = ["type", "id", "owner", "due", "status", "workstream"];
-export const DEFAULT_COLUMNS = ["type", "id", "owner", "due", "status"];
+export const COLUMNS = ["type", "id", "owner", "due", "status", "priority", "workstream", "milestone"];
+export const DEFAULT_COLUMNS = ["type", "id", "owner", "due", "priority"];      // row 1199: Status, Workstream and Milestone start off in a new list; a saved list keeps its own columns
 export const MAX_ROWS = 50;
 export const DEFAULT_MAX = 10;
 export const MAX_CAPTION = 200;
@@ -32,7 +32,7 @@ export const WORDS = {
   mode: { open: "Open", closed: "Closed", all: "Open and closed" },
   due: { overdue: "Overdue", soon: "Due in 7 days", none: "No date", later: "Later" },
   sort: { due: "Due date", priority: "Priority", id: "ID" },
-  columns: { type: "Type", id: "ID", owner: "Owner", due: "Due", status: "Status", workstream: "Workstream" },
+  columns: { type: "Type", id: "ID", owner: "Owner", due: "Due", status: "Status", workstream: "Workstream", priority: "Priority", milestone: "Milestone" },
   none: { owner: "No owner", workstream: "No workstream", use_case: "No use case", priority: "No priority" },
 };
 
@@ -188,7 +188,8 @@ export function listOf(section, data, today) {
   }
   const filter = filterOf(section);
   if (!filter) return { items: [], columns: DEFAULT_COLUMNS.slice(), caption: "", saved: false };
-  return { items: matching(filter, ruleRows(publishedOnly(data)), today, liveOf(data)), columns: filter.columns.length ? filter.columns : DEFAULT_COLUMNS.slice(), caption: filter.caption, saved: true };
+  const every = matching({ ...filter, max: Number.MAX_SAFE_INTEGER }, ruleRows(publishedOnly(data)), today, liveOf(data));
+  return { items: every.slice(0, filter.max), all: every, max: filter.max, more: every.length > filter.max, columns: filter.columns.length ? filter.columns : DEFAULT_COLUMNS.slice(), caption: filter.caption, saved: true };
 }
 
 // What Edit lists: the rows the saved filter lists (as listOf) plus the ones the client eye has taken off (the work item's own client-visible
@@ -206,13 +207,14 @@ export function editListOf(section, data, today) {
   const off = new Set(WORK.flatMap((k) => (out[k] || []).filter((r) => !publishable(r, k, served)).map((r) => r.id)));
   const every = matching({ ...filter, max: Number.MAX_SAFE_INTEGER }, ruleRows(out), today, liveOf(data));
   const items = [], listedOff = [];
-  let kept = 0;
+  let kept = 0, full = false;
   for (const id of every) {
+    if (full) continue;
     if (off.has(id)) { items.push(id); listedOff.push(id); }
     else if (kept < filter.max) { items.push(id); kept += 1; }
-    else break;
+    else full = true;
   }
-  return { ...base, items, off: listedOff };
+  return { ...base, items, all: every, max: filter.max, more: full, off: listedOff };
 }
 
 // The rows to draw for a list's ids, in the ids' order, from the data (workItems.js rowsOf: title, owner, dates, status).
@@ -230,4 +232,14 @@ export function offered(field, data, chosen) {
   for (const v of chosen || []) seen.add(v);
   const list = [...seen].filter((v) => v !== NONE).sort((a, b) => a.localeCompare(b));
   return seen.has(NONE) ? [...list, NONE] : list;
+}
+
+// Row 1199: the rows the section draws, the first Most rows or, once "Show all items" is open, every row the filter lists (the served page only:
+// a published file carries just the ids publish chose, so it has none to add). `more` is true when there are rows beyond Most rows.
+export const idsToShow = (list, all) => (all && list.all ? list.all : list.items);
+
+// The data a served page draws rows from: a milestone's name is read only when the report would publish that milestone, as in a file.
+export function drawn(data, served) {
+  if (!served) return data;
+  return { ...data, milestones: publishedOnly(data).milestones };
 }
