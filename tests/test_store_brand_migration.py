@@ -24,6 +24,7 @@ STEP = 20
 BEFORE = str(STEP - 1)
 NOW = str(store_module.SCHEMA_VERSION)
 NEW_COLUMNS = ("brand",)
+LATER_COLUMNS = ("latest_update",)      # item 1185 (step 25) adds this to raid and milestones
 COLUMN = "brand TEXT NOT NULL DEFAULT 'generic' CHECK (length(brand) BETWEEN 1 AND 60)"
 
 
@@ -86,7 +87,7 @@ class Migrating(unittest.TestCase):
         add_projects(path)
         self.assertEqual(version(path), BEFORE)
         self.assertFalse(set(NEW_COLUMNS) & {c[1] for c in project_columns(path)})
-        before = every_row(path)
+        before = every_row(path, LATER_COLUMNS)
         s = open_store(path, onedrive_roots=[])
         try:
             self.assertEqual(version(path), NOW)
@@ -96,7 +97,7 @@ class Migrating(unittest.TestCase):
                 self.assertEqual(s.read("projects", ref=code)["brand"], "generic")
         finally:
             s.close()
-        after = every_row(path, NEW_COLUMNS)
+        after = every_row(path, NEW_COLUMNS + LATER_COLUMNS)
         self.assertEqual({t: after[t] for t in before}, before, "no existing value changed")
         self.assertEqual(set(after) - {"use_case_milestones"}, set(before))      # row 1107 (layout 24) adds that table
 

@@ -96,6 +96,7 @@ class Source(unittest.TestCase):
         "edit/ArchivedPeek.jsx": "row 1074", "edit/PeekActivity.jsx": "row 1074", "edit/ArchivedItems.jsx": "row 1074", "components/UseCases.jsx": "row 1074",
         "components/Peek.jsx": "row 1074",
         "edit/Palette.jsx": "the command palette is a search list of what was typed (pages, items and commands found), not a menu of actions",
+        "edit/DraftAi.jsx": "row 1179: the AI menu is drawn as in the approved peek mock-up (each line a name and a description, no icon); the icon rule for it is open for the owner",
         "components/UseCaseFilePage.jsx": "only a selector that tells when a menu is open (for Esc); it draws none",
     }
     # By design NOT icon menus, kept here with the reason: lists that follow what is typed, whose lines are text matches.

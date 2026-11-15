@@ -113,7 +113,7 @@ export function ItemFields({ row, editing, Cell, Wording, Pick, slim = false, Cl
       {editing ? (slim && ClientLine ? <div class="pk-row" data-pk-client-row><dd><ClientLine row={row} /></dd></div> : <Row name="Shown to client">{row.client ? "Yes" : "No"}</Row>) : null}
       {Wording ? <Row name="Client wording" icon={slim ? "doc" : undefined}><Wording row={row} /></Row> : null}
       {!editing && fromFile.value && row.client_message ? <Row name="Client wording" ms="client_message">{row.client_message}</Row> : null}      {/* item 1111: a published file's peek draws the client wording the file carries, read only and only when there is some */}
-      {!editing && fromFile.value && row.kind === "action" && row.latest_update ? <Row name="Latest update" ms="latest_update"><Rich html={String(row.latest_update)} /></Row> : null}      {/* the file's latest update is already clean (publish.clean_html); no history, no editing */}
+      {!editing && fromFile.value && row.latest_update ? <Row name="Latest update" ms="latest_update"><Rich html={String(row.latest_update)} /></Row> : null}      {/* the file's latest update is already clean (publish.clean_html); no history, no editing */}
       {typeof row.not_reviewed === "boolean" ? <>
         <Row name="Raised">{showDate(row.raised)}</Row>
         <Row name="Last reviewed" icon={slim ? "clock" : undefined}>{row.last_reviewed ? showDate(row.last_reviewed) : "Not yet"}</Row>
@@ -154,7 +154,7 @@ const richOf = (tools, value) => (fromFile.value ? String(value || "") : tools &
 const Rich = ({ html }) => (html ? <CleanProse html={html} cls="prose pk-rich" /> : DASH);
 
 function MilestoneFields({ m, tools }) {
-  const who = ownerOf(m.owner), description = richOf(tools, m.description), wording = richOf(tools, m.client_message);
+  const who = ownerOf(m.owner), description = richOf(tools, m.description), wording = richOf(tools, m.client_message), latest = fromFile.value ? richOf(tools, m.latest_update) : "";
   return (
     <>
       <MsHead>
@@ -169,6 +169,7 @@ function MilestoneFields({ m, tools }) {
         <Row name="Forecast date" ms="forecast">{showDate(m.forecast_date)}</Row>
         <Row name="Workstream" ms="workstream">{text(m.workstream)}</Row>
         {wording || !fromFile.value ? <Row name="Client wording" ms="client_message"><Rich html={wording} /></Row> : null}      {/* a client's peek has no empty wording row, as it has no empty description row; the editor's peek keeps both */}
+        {latest ? <Row name="Latest update" ms="latest_update"><Rich html={latest} /></Row> : null}      {/* item 1185: a published file's milestone shows its latest update when it carries one (the live editor's peek has its own box) */}
       </dl>
       </PeekDetails>
     </>
