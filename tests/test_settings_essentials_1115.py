@@ -113,7 +113,6 @@ class Essentials(Head):
                     p.js("""(() => { const b = document.getElementById('ess-name'); b.focus(); b.value = 'Sam Essential'; b.dispatchEvent(new Event('input', {bubbles: true})); b.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true})); })()""")
                     p.until("document.getElementById('about-name').value === 'Sam Essential'", "the name saved from Essentials shows in About you")
                     # Backups: the copy-folder box and its Save are there
-                    p.until("!!document.querySelector('#essentials [data-ess-copy-save]') && !!document.querySelector('#essentials #ess-safety-copy-box')", "the Backups row drew")      # the row draws after its list is read: a slow runner had not drawn it yet
                     self.assertTrue(p.js("!!document.querySelector('#essentials [data-ess-copy-save]') && !!document.querySelector('#essentials #ess-safety-copy-box')"))
                     p.js("""(() => { const b = document.getElementById('ess-safety-copy-box'); b.focus(); b.value = '/tmp/essentials-copy'; b.dispatchEvent(new Event('input', {bubbles: true})); document.querySelector('[data-ess-copy-save]').click(); })()""")
                     p.until("!!document.querySelector('#ess-safety-copy-said p.success')", "the copy folder saved from Essentials")
@@ -126,7 +125,6 @@ class Essentials(Head):
                     p.until("!!document.querySelector('[data-ask-switch]')", "the Asking card's switch")
                     self.assertEqual(p.js("document.querySelector('[data-ask-switch]').getAttribute('aria-pressed')"), was)
                     self.to_page(p, "profile")
-                    p.until("!!document.querySelector('[data-ess-ask]') && !document.querySelector('[data-ess-ask]').disabled", "the asking switch is ready again")      # opening the page asks for the switch again: until it answers the button is disabled and a click does nothing
                     p.js("document.querySelector('[data-ess-ask]').click()")
                     p.until(f"document.querySelector('[data-ess-ask]').getAttribute('aria-pressed') !== '{was}'", "Asking flipped from Essentials")
                     self.to_page(p, "claude")
