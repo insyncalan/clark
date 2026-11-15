@@ -382,7 +382,6 @@ table.items td.c-pick { vertical-align: middle; }
 .pa-row.picked { background: color-mix(in srgb, var(--brand-blue-tint) 60%, var(--surface)); }
 .pa-row[data-step] .pa-what { user-select: text; }
 /* Use cases page: list */
-.ucl-sub { margin: 4px 0 0; font-size: var(--size-body); }
 /* Row 1085: the tabs row as Work items draws its saved views, Import, Export and Add use case at its right end, and the filter line (the Work items box) under it */
 .ucl-views { margin-top: 16px; }
 .ucl-tools { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-bottom: var(--space-1); }

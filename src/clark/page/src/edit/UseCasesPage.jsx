@@ -167,10 +167,10 @@ function UseCasesList() {
   );
   return (
     <section class="frame ucl" id="usecases">
+      <p class="crumbs">{data.value.project.name}</p>
       <div class="head">
         <div>
           <h1>Use cases</h1>
-          <p class="muted ucl-sub">Every use case of this project. The home dashboard shows the ones marked {ON_WORDS}.</p>
         </div>
         {rows.length ? null : <div class="hacts">{tools}</div>}
       </div>
