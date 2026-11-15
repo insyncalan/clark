@@ -57,6 +57,29 @@ class PickADay(PublishedFile, test_glance_page.Setup):
                 self.assertEqual(p.js("location.href"), here, "this report stays")
                 self.assertEqual(p.js("document.querySelectorAll('input.asat-box').length"), 0, "the date box closed")
 
+    def test_a_half_typed_year_is_not_a_pick_and_the_box_stays_open(self):
+        """Typing the year 2026 passes through whole dates such as 0202-10-14; none of them may close the box or draw a note."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.page(cdp, width)
+                here = p.js("location.href")
+                self.pick(p, "0202-10-14")
+                self.assertEqual(p.js("document.querySelectorAll('input.asat-box').length"), 1, "the date box is still open")
+                self.assertEqual(p.js(NOTE), "", "no note for a half-typed year")
+                self.assertEqual(p.js("location.href"), here)
+                p.js("""((day) => { const b = document.querySelector('input.asat-box'); b.value = day;
+                  b.dispatchEvent(new Event('change', {bubbles: true})); })('2026-10-14')""")
+                p.until("!!document.querySelector('.asat-note')", "the whole year is a pick")
+                self.assertEqual(p.js(NOTE), "No report for 14-10-2026.")
+
+    def test_the_button_does_not_take_focus_from_the_open_box(self):
+        """Clicking the button while the box is open must close it: its mouse-down is cancelled, so the box is not blurred (and shut) first."""
+        with chrome() as cdp:
+            p = self.page(cdp, 1400)
+            p.js("document.querySelector('button.asat').click()")
+            p.until("!!document.querySelector('input.asat-box')", "the date box opened")
+            self.assertTrue(p.js("(() => { const e = new MouseEvent('mousedown', {bubbles: true, cancelable: true}); document.querySelector('button.asat').dispatchEvent(e); return e.defaultPrevented; })()"))
+
     def test_the_same_day_does_nothing(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:

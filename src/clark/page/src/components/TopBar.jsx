@@ -18,6 +18,7 @@ function AsAtDate() {
     box.current.focus();
     try { if (box.current.showPicker) box.current.showPicker(); } catch (e) { /* the box stays focused: its own keys still work */ }
   }, [open]);
+  // A date box fires change for every typed digit that makes a whole date ("0002-05-05" after one digit of the year): only a year from 1990 on is a pick; a click on the button while the box is open closes it (no blur first).
   const picked = (day) => {
     setOpen(false);
     if (btn.current) btn.current.focus();
@@ -28,8 +29,8 @@ function AsAtDate() {
   };
   return (
     <span class="asat-wrap">
-      <button type="button" class="asat num" ref={btn} title="Click to change date" aria-haspopup="dialog" aria-expanded={open ? "true" : "false"} onClick={() => { setNote(""); setOpen(!open); }}>As at {shownDate(asAt.value)}</button>
-      {open ? <input type="date" class="asat-box" ref={box} aria-label="Date of the report" value={asAt.value} onChange={(e) => picked(e.target.value)} onBlur={() => setOpen(false)} /> : null}
+      <button type="button" class="asat num" ref={btn} title="Click to change date" aria-haspopup="dialog" aria-expanded={open ? "true" : "false"} onMouseDown={(e) => { if (open) e.preventDefault(); }} onClick={() => { setNote(""); setOpen(!open); }}>As at {shownDate(asAt.value)}</button>
+      {open ? <input type="date" class="asat-box" ref={box} aria-label="Date of the report" value={asAt.value} onChange={(e) => { if (/^(199\d|2\d{3})-/.test(e.target.value)) picked(e.target.value); }} onBlur={() => setOpen(false)} /> : null}
       {note ? <span class="asat-note" role="status">{note}</span> : null}
     </span>
   );
