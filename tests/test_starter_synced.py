@@ -229,7 +229,7 @@ class Script(unittest.TestCase):
         self.assertEqual(got.decode("utf-8").strip(), "http://localhost:8780")
 
     def test_the_port_and_browser_set_only_in_docker_env_are_used(self):
-        """Item 636 (Banner's read of 1596): compose reads CLARK_PORT and CLARK_BROWSER from docker/.env, so the window must too.
+        """Item 636 (the read of 1596): compose reads CLARK_PORT and CLARK_BROWSER from docker/.env, so the window must too.
         A copy of the starter sits in a folder whose docker/.env is the only place that names them."""
         app = Path(self.tmp) / "app"
         (app / "docker").mkdir(parents=True)
