@@ -134,6 +134,19 @@ class MacBackupMoved(unittest.TestCase):
         line = self._line_with_missing("C:\\", "D:\\Plans\\Site")
         self.assertIn("not exist here: 2, such as 'Site'.", line.words)
 
+    def test_a_path_saved_in_two_places_is_counted_once(self):
+        self._set_source_folders(MAC_PATHS[1])                   # also the publication's local_path
+        line = self._line_with_missing(MAC_PATHS[1], MAC_PATHS[2])
+        self.assertIn("not exist here: 2,", line.words)
+
+    def test_the_doctor_only_reads_the_database(self):
+        from unittest import mock
+        seen = doctor.Seen(data=str(self.clean), on=pl.MAC, home=self.clean, environ={}, exists=lambda p: False)
+        with mock.patch.object(cs, "connect", wraps=cs.connect) as connect:
+            doctor.check_saved_folders(seen)
+        self.assertTrue(connect.called)
+        self.assertTrue(all(call.kwargs.get("readonly") is True for call in connect.call_args_list), connect.call_args_list)
+
     def test_a_missing_source_folder_is_advice_not_a_fault(self):
         lines = []
         code = doctor.main(["--data", str(self.clean)], say=lines.append, on=pl.MAC, home=self.clean, environ={},

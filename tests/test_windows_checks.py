@@ -235,5 +235,34 @@ class DockerFlag(unittest.TestCase):
         self.assertEqual(lines[-1], "1 thing to fix before clark can start. Fix it, then run python3 -m clark.doctor again.")
 
 
+class MutationGaps(unittest.TestCase):
+    """Cases a one-edit mutation check of the row 635 lines showed nothing was asserting."""
+
+    def test_the_two_docker_checks_are_both_required(self):
+        self.assertEqual([c.required for c in doctor.DOCKER_CHECKS], [True, True])
+
+    def test_the_time_limit_is_a_real_wait(self):
+        self.assertGreater(pl.DOCKER_WAIT, 0)
+
+    def test_docker_answering_nothing_at_all_is_none(self):
+        self.assertIsNone(pl.docker_os_type(runner(done("", 0))))
+        self.assertIsNone(pl.docker_os_type(runner(done("  \n", 0))))
+
+    def test_netsh_not_answering_in_time_is_none(self):
+        self.assertIsNone(pl.reserved_port_ranges(runner(error=subprocess.TimeoutExpired("netsh", 30)), on=pl.WINDOWS))
+
+    def test_netsh_rows_ending_in_a_carriage_return_are_read(self):
+        text = NETSH.replace("\n", "\r\n")
+        self.assertEqual(pl.reserved_port_ranges(runner(done(text)), on=pl.WINDOWS), [(5357, 5357), (8700, 8799), (50000, 50059)])
+
+    def test_two_numbers_need_a_gap_between_them(self):
+        self.assertEqual(pl.reserved_port_ranges(runner(done("   11\n  1010\n")), on=pl.WINDOWS), [])
+
+    def test_a_range_may_end_at_the_last_port(self):
+        self.assertEqual(pl.reserved_port_ranges(runner(done("  65000  65535\n")), on=pl.WINDOWS), [(65000, 65535)])
+        line = doctor.run_check(doctor.DOCKER_CHECKS[1], seen(reserved_ports=lambda: [(65000, 65535)], port="65535"))
+        self.assertEqual(line.kind, doctor.FIX)
+
+
 if __name__ == "__main__":
     unittest.main()
