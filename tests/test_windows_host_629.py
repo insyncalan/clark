@@ -123,6 +123,12 @@ class Compose(unittest.TestCase):
     def test_the_windows_file_passes_the_setting(self):
         self.assertRegex(self.text("compose.windows.yaml"), r'(?m)^      CLARK_HOST: "windows"$')
 
+    def test_the_windows_file_defaults_the_data_folder_to_the_user_folder(self):
+        text = self.text("compose.windows.yaml")
+        self.assertRegex(text, r'(?m)^        source: \$\{CLARK_DATA_DIR:-\$\{USERPROFILE\}/clark-data\}$')
+        self.assertRegex(text, r'(?m)^      CLARK_DATA_SOURCE: "\$\{CLARK_DATA_DIR:-\$\{USERPROFILE\}/clark-data\}"$')
+        self.assertRegex(text, r"(?m)^        target: /data$")
+
     def test_the_main_file_does_not(self):
         self.assertNotIn("CLARK_HOST", self.text("compose.yaml"))
 

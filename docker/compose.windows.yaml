@@ -2,7 +2,17 @@
 #   docker compose -f docker/compose.yaml -f docker/compose.windows.yaml up -d
 # CLARK_HOST=windows tells clark the computer under Docker is Windows (inside the container it sees Linux): paths are shown in
 # Windows form and ask clark is off. Without this file nothing changes.
+# It also gives the data folder a Windows default. compose.yaml's default is a Mac place under HOME, and PowerShell and Command
+# Prompt set USERPROFILE, not HOME: without this, an unset CLARK_DATA_DIR would put the data inside Docker's own Linux machine,
+# where the person cannot see it. Here the default is the clark-data folder in the user folder; CLARK_DATA_DIR still wins.
 services:
   clark:
     environment:
       CLARK_HOST: "windows"
+      CLARK_DATA_SOURCE: "${CLARK_DATA_DIR:-${USERPROFILE}/clark-data}"
+    volumes:
+      - type: bind
+        source: ${CLARK_DATA_DIR:-${USERPROFILE}/clark-data}
+        target: /data
+        bind:
+          create_host_path: true
