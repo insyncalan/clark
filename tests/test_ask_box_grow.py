@@ -92,6 +92,7 @@ class Grow(Base):
             p = self.opened(cdp, 1400, False)
             p.js(PUT % json.dumps("one\ntwo"))
             p.until("document.querySelector('#ask-box').getBoundingClientRect().height > 50", "grown")
+            p.until("/0px 0px 0px [1-9]/.test(getComputedStyle(document.querySelector('#ask-box')).boxShadow)", "the ring settled")
             ring = p.js("getComputedStyle(document.querySelector('#ask-box')).boxShadow")
             self.assertRegex(ring, r"0px 0px 0px [1-9][\d.]*px", "the ring is a shadow outside the border")
             self.assertEqual(p.js("getComputedStyle(document.querySelector('#ask-box')).outlineStyle"), "none")
