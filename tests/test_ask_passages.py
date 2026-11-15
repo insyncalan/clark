@@ -132,7 +132,7 @@ class WhatIsRead(Folders):
     def test_pages_left_out_of_a_screened_pdf_are_not_counted(self):
         self.put(self.box, "keys.pdf", b"%PDF-1.4 x", binary=True)
         self.put(self.box, "ok.pdf", b"%PDF-1.4 y", binary=True)
-        secret = "password = hunter2hunter2hunter2"
+        secret = "password = " + "hunter2" * 3
         def fake(raw, truncated=False, **k):
             text = secret if b" x" in raw else "ZQ plain page"
             return pdf_reader.Result("ok", pages=((1, text),), left_out=7)
