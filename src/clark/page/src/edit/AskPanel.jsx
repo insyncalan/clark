@@ -1,8 +1,9 @@
 // The ask panel (#47a): a full-height panel on the right, over the open page. Edit pages only (a published file has none). The look
 // is #102's light panel with a soft wash (#214), built from the page's own tokens (edit.css). The reply is drawn as text only: it is
-// never read as markup. Nothing is sent while asking is off.
-import { useEffect, useRef, useState } from "preact/hooks";
+// never read as markup (row 1217: a listed set of marks becomes elements clark makes itself, see askFormat.js). Nothing is sent while asking is off.
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { project, show, token, view } from "../stores/report.js";
+import { zoneFetch } from "../api.js";
 import { words } from "./publishApi.js";
 import { stopRestore } from "../router.js";
 import { askProvider } from "./askState.js";
@@ -11,6 +12,7 @@ import * as W from "./askWords.js";
 import { Icon } from "../components/Icon.jsx";
 import { chatId, histOpen, histTick, chats, keepChat, deleteChat, when } from "./askHistory.js";
 import { ChangeCards, fixedLine } from "./AskChange.jsx";
+import { FormattedAnswer } from "./AskFormat.jsx";
 
 // Row 890: the files an answer used, as the server sends them ({id, label}). A long file is cut into parts labelled "name (part N)":
 // the suffix is dropped and each file is listed once, in the order first seen.
@@ -31,7 +33,7 @@ function sourceLabels(list) {
 
 async function post(path, body) {
   try {
-    const r = await fetch(path, { method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store" });
+    const r = await zoneFetch(path, { method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store" });
     return { status: r.status, body: await r.json().catch(() => null) };
   } catch (e) {
     return { status: 0, body: null };
@@ -51,6 +53,18 @@ function pillsFor(list, page) {
   return W.PILLS_BY_SUBJECT[subject] || W.SUGGESTIONS;
 }
 
+/** Row 1218: the notes about what was left out (kind "note") follow the answer as one small block, not a paragraph each. */
+function shownTurns(list) {
+  const out = [];
+  for (const t of list) {
+    const last = out[out.length - 1];
+    if (t.kind === "note" && typeof t.text === "string") {
+      if (last && last.kind === "notes") last.lines.push(t.text); else out.push({ kind: "notes", role: "assistant", lines: [t.text] });
+    } else out.push(t);
+  }
+  return out;
+}
+
 export function AskPanel() {
   const open = panelOpen.value, state = panelState.value, model = panelModel.value, width = panelWidth.value;
   const list = turns.value, busy = pending.value;
@@ -60,6 +74,8 @@ export function AskPanel() {
   const showHist = histOpen.value && !busy;
   const saved = showHist ? (histTick.value, chats()) : [];
   const box = useRef(null), log = useRef(null), stopped = useRef(false);
+  // Row 1215: the box is one line high when empty and grows with its text; the cap and the line height are in edit.css, past the cap it scrolls inside.
+  useLayoutEffect(() => { const b = box.current; if (!b) return; b.style.height = "auto"; b.style.height = text ? b.scrollHeight + 2 + "px" : ""; });   // empty: the placeholder never makes it taller
   // Row 885: closing sinks the panel first, and it stays drawn until the animation ends (a 400 ms timer guards it, so no dead overlay is left).
   // Where motion is off it leaves at once, as before.
   const phase = useRef(open ? "open" : "closed"), [, redraw] = useState(0);
@@ -76,7 +92,7 @@ export function AskPanel() {
     const fresh = was.open !== open || was.bump !== panelFocus.value;
     seen.current = { open, bump: panelFocus.value, busy, state };
     const at = document.activeElement, c = document.getElementById("ask-panel");
-    // A change of busy alone (a send starting, an answer landing) moves focus only after Stop: the Stop button leaves with the check, so focus is on the body.
+    // A change of busy alone (a send starting, an answer landing) moves focus only after Stop: the Stop icon leaves with the check, so focus is on the body.
     // A control the person tabbed to meanwhile (Copy, a source link) keeps it.
     if (!fresh && was.state === state && was.busy !== busy && !(was.busy && !busy && (!at || at === document.body))) return;
     if (!fresh && at && at !== document.body && !(c && c.contains(at))) return;
@@ -254,10 +270,12 @@ export function AskPanel() {
         </div>
       ) : null}
       <div class="ask-log" id="ask-log" hidden={showHist} role="log" aria-live="polite" aria-label={W.LOG_LABEL} ref={log}>
-        {list.map((t, i) => (
+        {shownTurns(list).map((t, i) => t.kind === "notes" ? (
+          <ul key={i} class="ask-turn assistant ask-notes" data-role="assistant" data-ask-notes>{t.lines.map((n, k) => <li key={k}>{n}</li>)}</ul>
+        ) : (
           <div key={i} class={`ask-turn ${t.role}${t.kind ? " " + t.kind : ""}`} data-role={t.role}>
             <div class="ask-who">{t.role === "user" ? W.YOU : W.REPLY}</div>
-            {t.kind === "changes" ? <ChangeCards turn={t} /> : <div class="ask-text">{t.text}</div>}
+            {t.kind === "changes" ? <ChangeCards turn={t} /> : t.role === "assistant" && !t.kind && typeof t.text === "string" ? <FormattedAnswer text={t.text} /> : <div class="ask-text">{t.text}</div>}
             {t.sources && t.sources.length ? (
               <details class="ask-sources">
                 <summary>{W.SOURCES}</summary>
@@ -283,10 +301,15 @@ export function AskPanel() {
           onInput={(e) => setText(e.currentTarget.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) send(e); }} />
         <div class="ask-actions">
-          {busy ? <button type="button" class="btn" id="ask-stop" onClick={stop}>{W.STOP}</button> : null}
-          <button type="submit" class="btn primary" id="ask-send" title={W.SEND} aria-label={W.SEND} disabled={state !== "ready" || busy} data-empty={text.trim() ? undefined : "true"} aria-disabled={text.trim() ? undefined : "true"}>
-            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
-          </button>
+          {busy ? (
+            <button type="button" key="stop" class="btn primary ask-stop-icon" id="ask-stop" title={W.STOP} aria-label={W.STOP} onClick={stop}>
+              <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="9" height="9" rx="1.5" fill="currentColor" /></svg>
+            </button>
+          ) : (
+            <button type="submit" key="send" class="btn primary" id="ask-send" title={W.SEND} aria-label={W.SEND} disabled={state !== "ready"} data-empty={text.trim() ? undefined : "true"} aria-disabled={text.trim() ? undefined : "true"}>
+              <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+            </button>
+          )}
         </div>
       </form>
     </aside>

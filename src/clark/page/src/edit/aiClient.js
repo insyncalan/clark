@@ -1,3 +1,4 @@
+import { zoneFetch } from "../api.js";
 // The page's one way to ask for an AI suggestion (#72). Two clients with the same methods: the STUB (canned replies, no network, for
 // tests) and realAiClient below (one fetch to the server's route, a stop signal, one fixed error line for any failure):
 //   status()                     -> "ready" | "off" | "not_signed_in" | "busy"   (the card does not ask unless it is "ready")
@@ -66,7 +67,7 @@ const STATES = ["ready", "off", "not_signed_in", "busy"];
 // state) and line() (that line, "" until the server has answered). Until it has answered, or if it cannot be reached, AI reads as off
 // (nothing is sent on a guess). A failure of any kind rejects with one Error holding the fixed line; the card has its own words.
 export function realAiClient({ token, fetchFn } = {}) {
-  const send = (method, path, body, signal) => (fetchFn || fetch)(path, {
+  const send = (method, path, body, signal) => (fetchFn || zoneFetch)(path, {
     method, signal, cache: "no-store",
     headers: Object.assign({ "X-Clark-Token": token ? token() : "" }, body === undefined ? {} : { "Content-Type": "application/json" }),
     body: body === undefined ? undefined : JSON.stringify(body),

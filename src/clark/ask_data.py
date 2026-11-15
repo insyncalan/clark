@@ -21,8 +21,10 @@ from clark import timefmt
 from clark.ask import BUDGET, MAX_PASSAGE, Passage
 
 PASSAGE_SIZE = 1200          # characters a passage is cut to, about (one or a few rows)
+KIND_WORDS = {"milestones": "milestones", "actions": "actions", "raid": "risks and issues", "decisions": "decisions",
+              "use_cases": "use cases"}
 LABELS = {"project": "report: the project", "milestones": "report: milestones", "actions": "report: actions",
-          "raid": "report: risks and issues", "decisions": "report: decisions", "use_cases": "report: use cases"}
+          "raid": "report: risks and issues", "decisions": "report: decisions", "use_cases": "report: use cases", "left_out": "report: left out"}
 KIND_ORDER = ("milestones", "actions", "raid", "decisions", "use_cases")
 TITLE = {"milestones": "name", "actions": "description", "raid": "description", "decisions": "decision", "use_cases": "title"}
 OWNER = {"milestones": "owner", "actions": "owner", "raid": "owner", "decisions": "made_by"}
@@ -51,6 +53,7 @@ class ProjectData:
     facts: dict
     left_out: int
     secret: int = 0
+    kinds_left_out: tuple = ()          # row 1213: the kinds whose whole section is left out of the report (named in a passage and a note)
 
 
 def plain(value):
@@ -141,14 +144,31 @@ def facts_of(selected):
     return out
 
 
+def kinds_left_out(inputs):
+    """Row 1213: the kinds whose whole section is left out of the report (names only, never a row or a count)."""
+    hidden = publish.hidden_types(inputs.get("sections"), bool(inputs.get("sections_deleted")))
+    return tuple(k for k in KIND_ORDER if publish.SECTION_OF_KIND[k] in hidden)
+
+
+def left_out_line(kinds):
+    """The plain words that say which kinds the report leaves out, so the answer never says none exist."""
+    names = ", ".join(KIND_WORDS[k] for k in kinds)
+    return (f"Left out of the report this answer reads: {names}. They may exist in the project, but they are not given here. "
+            "Do not say there are none; say they were not part of what you were given.")
+
+
 def project_data(store, code, question="", budget=BUDGET):
     """The open project's data for one question, from what the published file would carry (publish.select). Raises
     publish.PublishError (plain words) for a code that isn't a project."""
-    selected = publish.select(publish.read_inputs(store, code))["data"]
+    inputs = publish.read_inputs(store, code)
+    selected = publish.select(inputs)["data"]
     passages, secret = _cut_screened(LABELS["project"], project_lines(selected.get("project") or {}))
+    left_kinds = kinds_left_out(inputs)
+    if left_kinds:
+        passages += _cut(LABELS["left_out"], [left_out_line(left_kinds)])
     for kind in KIND_ORDER:
         more, n = _cut_screened(LABELS[kind], [row_line(kind, r) for r in selected.get(kind) or ()])
         passages += more
         secret += n
     chosen, left = choose(passages, question, budget)
-    return ProjectData(chosen, facts_of(selected), left, secret)
+    return ProjectData(chosen, facts_of(selected), left, secret, left_kinds)

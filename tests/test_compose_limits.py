@@ -12,12 +12,15 @@ from _paths import ROOT
 ALLOWED_TARGETS = {
     "compose.yaml": {"/clark", "/data"},
     "compose.front.yaml": {"/etc/nginx/templates/default.conf.template"},
+    "compose.copy.yaml": {"/backups-out"},     # item 625: the one extra folder, an overlay on compose.yaml (the host folder for the copy-out of backups)
 }
 # The host paths a long-form bind mount may have, by file (item 638). A new host path is a decision too.
 ALLOWED_SOURCES = {
     "compose.yaml": {"..", "${CLARK_DATA_DIR:-${HOME}/Library/Application Support/clark}"},
     "compose.front.yaml": {"./nginx.front.conf.template"},
+    "compose.copy.yaml": {"${CLARK_COPY_DIR:?name the folder in CLARK_COPY_DIR (a full path, in quotes)}"},
 }
+OVERLAYS = {"compose.copy.yaml"}      # a file that only adds to compose.yaml: it sets no limits of its own, compose.yaml's stay in force
 LIMIT_SHAPES = {"pids_limit": r"[1-9]\d*", "mem_limit": r"[1-9]\d*[kmg]"}  # a count, or a size with a unit like 1g / 256m; a bare number is not a size (the real files use a unit, test_limits_are_positive_numbers)
 FORBIDDEN = (r"docker\.sock", r"(?<![\w-])privileged\b", r"\bcap_add\b", r"\bnetwork_mode\b")  # not no-new-privileges
 
@@ -200,13 +203,18 @@ class ComposeFiles(unittest.TestCase):
         for name, allowed in ALLOWED_TARGETS.items():
             with self.subTest(name):
                 text = (ROOT / "docker" / name).read_text(encoding="utf-8")
-                self.assertEqual(problems(text, allowed, ALLOWED_SOURCES[name]), [])
+                found = problems(text, allowed, ALLOWED_SOURCES[name])
+                if name in OVERLAYS:      # compose.yaml's limits stay in force under an overlay
+                    found = [f for f in found if not f.endswith(("no pids_limit", "no mem_limit"))]
+                self.assertEqual(found, [])
 
     def test_every_compose_file_is_listed(self):
         self.assertEqual({p.name for p in (ROOT / "docker").glob("compose*.yaml")}, set(ALLOWED_TARGETS))
 
     def test_limits_are_positive_numbers(self):
         for name in ALLOWED_TARGETS:
+            if name in OVERLAYS:
+                continue
             with self.subTest(name):
                 text = strip_comments((ROOT / "docker" / name).read_text(encoding="utf-8"))
                 self.assertRegex(text, r"(?m)^\s+pids_limit:\s*[1-9]\d*\s*$")

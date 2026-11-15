@@ -6,6 +6,7 @@
 // - Under each picture template, the running total of the pictures in the report against the 5 MB a published page can hold.
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, project, reread, token, plainChange } from "../../stores/report.js";
+import { zoneFetch } from "../../api.js";
 import { change, say } from "../../stores/changes.js";
 import { stored, PICTURE_TYPES } from "../../templates/pictures.jsx";
 import { safeImage } from "../../templates/safe.js";
@@ -54,7 +55,7 @@ function refusal(status, reply) {
 export async function sendPicture(section, slot, image, words) {
   const code = project.value;
   try {
-    const r = await fetch("/api/section-image", {
+    const r = await zoneFetch("/api/section-image", {
       method: "POST",
       headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
       body: JSON.stringify({ project: code, section: section.id, slot, image, place: PLACE }),

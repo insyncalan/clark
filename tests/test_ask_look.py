@@ -238,7 +238,7 @@ class Look(Base):
             put("pasted text " * 300)
             self.assertIsNone(p.js(send), "text enables it")
             p.until("!document.querySelector('#ask-pills')", "a long pasted text hides the suggestions")
-            self.assertLessEqual(p.js("document.querySelector('#ask-box').getBoundingClientRect().height"), 44)
+            self.assertLessEqual(p.js("document.querySelector('#ask-box').getBoundingClientRect().height"), 132, "row 1215: a long pasted text stops at five lines")
 
     def test_row_1093_the_dashboard_has_its_own_suggestions(self):
         pills = "[...document.querySelectorAll('#ask-pills button')].map(b => b.textContent)"
@@ -381,7 +381,7 @@ class Look(Base):
                     self.assertGreater(max(chans) - min(chans), 40, f"{what}: the brand colour, not grey ({box['bg']})")
                     p.js("(function(){var b=document.querySelector('#ask-box');b.value='a very long question '.repeat(20);b.dispatchEvent(new Event('input',{bubbles:true}));})()")
                     p.until("!document.querySelector('#ask-pills')", f"{what}: suggestions gone while typing")
-                    self.assertLessEqual(p.js("document.querySelector('#ask-box').getBoundingClientRect().height"), 44, f"{what}: a long question stays one line")
+                    self.assertLessEqual(p.js("document.querySelector('#ask-box').getBoundingClientRect().height"), 132, f"{what}: a long question stops at five lines")
                     self.assertEqual(float(p.js("getComputedStyle(document.querySelector('#ask-send')).opacity")), 1.0, f"{what}: looks enabled with text")
             p.js("(function(){var b=document.querySelector('#ask-box');b.value='';b.dispatchEvent(new Event('input',{bubbles:true}));})()")
             p.until("!!document.querySelector('#ask-pills')", "suggestions back when the box is emptied")

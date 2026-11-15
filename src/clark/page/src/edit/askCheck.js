@@ -5,6 +5,7 @@
 // that a helper signed out meanwhile is noticed; a question is checked again by the server anyway. Settings calls forgetCheck()
 // whenever it changes the connection, the model or the asking switch, so the next open asks afresh.
 import { token } from "../stores/report.js";
+import { zoneFetch } from "../api.js";
 
 export const CHECK_KEEP_MS = 5 * 60 * 1000;
 let kept = null;         // { body, at }
@@ -23,7 +24,7 @@ export function runCheck() {
   out = (async () => {
     let b = null;
     try {
-      const x = await fetch("/api/ask/status", { headers: { "X-Clark-Token": token() }, cache: "no-store" });
+      const x = await zoneFetch("/api/ask/status", { headers: { "X-Clark-Token": token() }, cache: "no-store" });
       const body = await x.json().catch(() => null);
       b = x.status === 200 ? body : null;
     } catch (e) { b = null; }
