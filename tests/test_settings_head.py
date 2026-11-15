@@ -80,9 +80,12 @@ class Head(Base):
     def go_page(self, p, slug):
         """Open a Settings page by its menu item, as a person does, and wait until it is the marked one with its cards drawn."""
         name = {s: n for s, n, _ in PAGES}[slug]
-        self.click_chip(p, name)
         heads = " && ".join(f"!!document.getElementById('{head}')" for _, head in dict(((s, c) for s, _, c in PAGES))[slug])
-        p.until(f"(function(){{var c = document.querySelector('.set-chip[aria-current]'); return !!c && c.textContent === '{name}';}})() && {heads}", f"the {name} page drew")
+        drew = f"(function(){{var c = document.querySelector('.set-chip[aria-current]'); return !!c && c.textContent === '{name}';}})() && {heads}"
+        p.until(f"[...document.querySelectorAll('.set-nav .set-chip')].some(b => b.textContent === '{name}')", f"the {name} menu item is drawn")
+        p.settled(f"the {name} menu item stopped moving before it is clicked")
+        self.click_chip(p, name)
+        p.until(drew, f"the {name} page drew")
         p.settled("the page finished drawing")
 
     def chips(self, p):
