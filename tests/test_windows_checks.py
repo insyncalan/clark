@@ -62,6 +62,9 @@ class DockerAnswer(unittest.TestCase):
     def test_windows(self):
         self.assertEqual(pl.docker_os_type(runner(done("Windows\r\n"))), "windows")
 
+    def test_docker_answering_but_failing_is_none(self):
+        self.assertIsNone(pl.docker_os_type(runner(done("linux\n", 1))))
+
     def test_docker_not_started_is_none(self):
         self.assertIsNone(pl.docker_os_type(runner(done("", 1))))
 
@@ -148,6 +151,14 @@ class ReservedPorts(unittest.TestCase):
         self.assertEqual(line.kind, doctor.FIX)
         self.assertTrue(line.words.startswith("Windows keeps port 8766 for itself, so clark can't use it. Restart the computer"),
                         line.words)
+
+    def test_the_edges_of_a_range_and_a_later_range_count(self):
+        self.assertEqual(self.line([(8766, 8766)]).kind, doctor.FIX)
+        self.assertEqual(self.line([(8700, 8766)]).kind, doctor.FIX)
+        self.assertEqual(self.line([(8766, 8799)]).kind, doctor.FIX)
+        self.assertEqual(self.line([(8700, 8765)]).kind, doctor.READY)
+        self.assertEqual(self.line([(8767, 8799)]).kind, doctor.READY)
+        self.assertEqual(self.line([(5357, 5357), (8700, 8799)]).kind, doctor.FIX)
 
     def test_8766_free_says_127_0_0_1_not_localhost(self):
         self.assertEqual(self.line([(5357, 5357), (50000, 50059)]),
