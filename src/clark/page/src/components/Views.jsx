@@ -197,6 +197,7 @@ function SettingsHead({ cards }) {
         <p class="muted">Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.</p>
         <SettingsSearch onQuery={setSearching} />
       </section>
+      {cards.length && !searching ? <button type="button" class="skip skip-cards" onClick={() => go(cards[0][2])}>Skip to settings</button> : null}      {/* item 1170: after the search box and before the chips; Enter moves focus to the first card's heading, so Your name is one Tab on instead of seventeen */}
       {cards.length && !searching ? (
         <nav class="set-bar" aria-label="Settings sections">
           <ul class="set-nav">{cards.map(([, name, headId]) => (

@@ -37,9 +37,10 @@ function Cell({ row, col, now, live }) {
 }
 
 // The rows, at both widths. `open(id)` (Edit only) makes each row open its peek: a click, or Enter on the focused row.
-export function Rows({ rows, columns, now, open }) {
+// `Eye` (Edit only): the Work items page's own Client-visible eye (edit/cells/Eye.jsx), drawn at the end of each row, so it means the same thing here.
+export function Rows({ rows, columns, now, open, Eye }) {
   const act = open ? (row) => ({ tabIndex: 0, role: "button", "aria-label": `Open ${row.id}: ${row.title || ""}`, onClick: () => open(row.id),
-    onKeyDown: (e) => { if ((e.key === "Enter" || e.key === " ") && !e.defaultPrevented) { e.preventDefault(); open(row.id); } } }) : () => ({});
+    onKeyDown: (e) => { if (e.target.closest && e.target.closest("button")) return; if ((e.key === "Enter" || e.key === " ") && !e.defaultPrevented) { e.preventDefault(); open(row.id); } } }) : () => ({});
   const before = columns.filter((c) => c === "type" || c === "id"), after = columns.filter((c) => c !== "type" && c !== "id");
   return (
     <>
@@ -48,6 +49,7 @@ export function Rows({ rows, columns, now, open }) {
           {before.map((c) => <th key={c} class={`wil-c-${c}`} scope="col">{WORDS.columns[c]}</th>)}
           <th class="wil-c-title" scope="col">Item</th>
           {after.map((c) => <th key={c} class={`wil-c-${c}`} scope="col">{WORDS.columns[c]}</th>)}
+          {Eye ? <th class="wil-c-eye" scope="col"><span class="sr">{Eye.heading}</span></th> : null}
         </tr></thead>
         <tbody>
           {rows.map((row) => (
@@ -55,6 +57,7 @@ export function Rows({ rows, columns, now, open }) {
               {before.map((c) => <td key={c} class={`wil-c-${c}`}><Cell row={row} col={c} now={now} live={!!open} /></td>)}
               <td class="wil-c-title">{row.title || ""}</td>
               {after.map((c) => <td key={c} class={`wil-c-${c}`} title={open && c === "status" ? iconWords(row, clientPill(row, now), now).tip : undefined}><Cell row={row} col={c} now={now} live={!!open} /></td>)}
+              {Eye ? <td class="wil-c-eye"><Eye row={row} /></td> : null}
             </tr>
           ))}
         </tbody>
@@ -64,6 +67,7 @@ export function Rows({ rows, columns, now, open }) {
           <li key={row.id} data-id={row.id} {...act(row)}>
             <span class="wil-t">{row.title || ""}</span>
             <span class="wil-m">{columns.map((c) => cellText(row, c, now)).filter(Boolean).join(" · ")}</span>
+            {Eye ? <span class="wil-eye"><Eye row={row} /></span> : null}
           </li>
         ))}
       </ul>
