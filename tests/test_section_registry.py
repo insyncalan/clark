@@ -50,7 +50,7 @@ def bare_page():
     return _PAGE["html"]
 
 
-PURE_LIBRARY = ("base64", "binascii", "re")      # #96: standard library parts that read no file and no database
+PURE_LIBRARY = ("base64", "binascii", "hashlib", "re", "struct", "zlib")      # #96: standard library parts that read no file and no database (row 1223: imagecap reads and writes a PNG)
 STUBS = tuple(t for t in section_kinds.TYPES if not section_kinds.REGISTRY[t].READY)   # the real stubs left (none once every template is built)
 STAND_IN = "callout"      # a real type that a test turns back into a stub, while no real stub is left
 
