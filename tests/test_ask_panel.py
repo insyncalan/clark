@@ -225,6 +225,22 @@ class Panel(Base):
             self.assertEqual(p.js("document.querySelectorAll('.ask-turn')[1].querySelector('.ask-text').textContent"), self.stub.answer)
             self.assertEqual(p.js("typeof window.__pwn"), "undefined")
 
+    def test_row_1217_an_answer_with_marks_is_drawn_formatted_not_as_symbols(self):
+        self.stub.answer = "**Overall health:** steady <b>x</b>\n\n## Main concerns\n- Supplier delay\n- Kit late\n\n1. First\n2. Second"
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask(p, "How is it?")
+            p.until("document.querySelectorAll('.ask-turn').length === 2", "the answer")
+            q = "document.querySelectorAll('.ask-turn')[1]"
+            self.assertEqual(p.js(q + ".querySelectorAll('strong').length"), 1)
+            self.assertEqual(p.js(q + ".querySelectorAll('h4').length"), 1)
+            self.assertEqual(p.js(q + ".querySelectorAll('ul li').length"), 2)
+            self.assertEqual(p.js(q + ".querySelectorAll('ol li').length"), 2)
+            self.assertEqual(p.js(q + ".querySelectorAll('b').length"), 0)
+            self.assertNotIn("**", p.js(q + ".textContent"))
+            self.assertIn("<b>x</b>", p.js(q + ".textContent"))
+            self.assertEqual(p.js("getComputedStyle(" + q + ".querySelector('li')).display"), "list-item")
+
     # ----- row 890: the Sources disclosure under an answer -----
     def answered(self, p):
         self.ask(p, "Where did that come from?")
