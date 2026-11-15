@@ -1,4 +1,4 @@
-"""Item 1169: both Gantt "on" boxes, the Feedback boxes (message, shown text, contact) and a select in a `.fld` (the brand choice) draw the 2 px house focus ring, in real Chrome.
+"""Item 1169: both Gantt "on" boxes, the Feedback boxes, the Asking folder box (message, shown text, contact) and a select in a `.fld` (the brand choice) draw the 2 px house focus ring, in real Chrome.
 
 Run: python3 dev/run_tests.py test_settings_focus_ring_1169
 The real Settings page over the fictional demo data at 1400 and 900 px, light and dark. Each control is focused from the keyboard's point of view
@@ -20,8 +20,8 @@ from test_server import CHROME, Running, chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
-PROBE_SELECT = "(() => { const d = document.createElement('div'); d.className = 'fld'; d.innerHTML = '<label for=\"probe-select\">x</label><select id=\"probe-select\"><option>a</option></select>'; document.querySelector('#feedback').appendChild(d); const a = document.createElement('div'); a.className = 'ai-model'; a.innerHTML = '<select id=\"probe-ai-model\"><option>a</option></select>'; document.body.appendChild(a); })()"
-SEL = {"gantt-editor": "#gantt-editor", "gantt-client": "#gantt-client", "feedback": "#feedback-message", "feedback-shown": "#feedback-shown", "feedback-contact": "#feedback-contact", "fld-select": "#probe-select", "ai-model-select": "#probe-ai-model"}
+PROBE_SELECT = "(() => { const d = document.createElement('div'); d.className = 'fld'; d.innerHTML = '<label for=\"probe-select\">x</label><select id=\"probe-select\"><option>a</option></select>'; document.querySelector('#feedback').appendChild(d); const a = document.createElement('div'); a.className = 'ai-model'; a.innerHTML = '<select id=\"probe-ai-model\"><option>a</option></select>'; document.body.appendChild(a); const f = document.createElement('form'); f.className = 'row'; f.innerHTML = '<input id=\"ask-folder-path\" class=\"grow\" type=\"text\">'; document.querySelector('#feedback').appendChild(f); })()"
+SEL = {"gantt-editor": "#gantt-editor", "gantt-client": "#gantt-client", "feedback": "#feedback-message", "feedback-shown": "#feedback-shown", "feedback-contact": "#feedback-contact", "fld-select": "#probe-select", "ai-model-select": "#probe-ai-model", "ask-folder-path": "#ask-folder-path"}
 MEASURE = r"""((sels) => {
   const out = {};
   const blue = getComputedStyle(document.documentElement).getPropertyValue('--brand-blue').trim();
