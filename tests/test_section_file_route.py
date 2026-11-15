@@ -291,7 +291,8 @@ class Route(unittest.TestCase):
                 self.asked.clear()
                 self.chosen = [bad]
                 message = self.refused(ref, "bad_type")
-                self.assertEqual(message, f"{name} is not an allowed type")
+                self.assertEqual(message, doclinks.bad_type(name))
+                self.assertEqual(message, f"{name}: That type of file can't be added. Use PDF, Word, Excel, PowerPoint, JPG, PNG or TXT.")
         self.assertIsNone(self.files(), "no Report files folder was made")
         self.assertIsNone(self.items(ref))
         upper = self.src / "Plan.PDF"

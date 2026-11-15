@@ -34,14 +34,14 @@ export function Edit({ section }) {
   const save = (items, words) => saveContent(section, { ...content, items }, words);
   const remove = (n) => {
     const item = raw[n];
-    save(raw.filter((_, i) => i !== n), item && item.kind === "file" ? W.UNRULED_REMOVED_FILE(item.label || item.name || item.href) : W.UNRULED_REMOVED(item ? item.label || item.name || item.href : ""));
+    save(raw.filter((_, i) => i !== n), item && item.kind === "file" ? W.REMOVED_FILE(item.label || item.name || item.href) : W.REMOVED(item ? item.label || item.name || item.href : ""));
   };
   const move = async (n, by) => {
     const to = n + by;
     if (to < 0 || to >= raw.length) return;
     const items = raw.slice();
     [items[n], items[to]] = [items[to], items[n]];
-    const reply = await save(items, W.UNRULED_MOVED);
+    const reply = await save(items, W.MOVED);
     if (reply && root.current) {
       const button = root.current.querySelector(`[data-row="${to}"] [${by < 0 ? "data-up" : "data-down"}]:not([disabled])`) || root.current.querySelector(`[data-row="${to}"] [data-up]:not([disabled]), [data-row="${to}"] [data-down]:not([disabled])`);
       if (button) button.focus();
@@ -53,7 +53,7 @@ export function Edit({ section }) {
     const was = item ? item.label || (item.kind === "file" ? item.name : "") : "";
     if (!words || !item || words === was) { if (box) box.value = was || (item && item.href) || ""; return; }
     if (labelProblem(words)) { setProblem(labelProblem(words)); if (box) box.value = was; return; }
-    save(raw.map((x, i) => (i === n ? { ...x, label: words } : x)), W.UNRULED_RENAMED);
+    save(raw.map((x, i) => (i === n ? { ...x, label: words } : x)), W.RENAMED);
   };
   const addFile = async () => {
     if (full) { setProblem(FULL); return; }
@@ -65,29 +65,29 @@ export function Edit({ section }) {
   const addLink = async (e) => {
     e.preventDefault();
     const link = href.trim(), words = oneLine(label);
-    const why = full ? FULL : linkProblem(link) || (words ? labelProblem(words) : W.UNRULED_NO_DESCRIPTION(raw.length + 1));
+    const why = full ? FULL : linkProblem(link) || (words ? labelProblem(words) : W.NO_DESCRIPTION(raw.length + 1));
     setBoxProblem(why);
     if (why) return;
-    const reply = await save([...raw, { kind: "link", href: link, label: words }], W.UNRULED_LINK_ADDED);
+    const reply = await save([...raw, { kind: "link", href: link, label: words }], W.LINK_ADDED);
     if (reply) closeBox();
   };
   const fid = `tpl-${section.id}`;
   return (
     <div class="tpl-edit tpl-files-edit" ref={root}>
       <div class="tpl-icons">
-        <button type="button" class="btn quiet tpl-icon" data-add-file disabled={busy} onClick={addFile} title={W.UNRULED_ADD_FILE} aria-label={W.UNRULED_ADD_FILE}><Icon d={FILE_ICON} /></button>
-        <button type="button" class="btn quiet tpl-icon" data-open-link ref={linkIcon} aria-expanded={boxOpen} onClick={() => setBoxOpen(!boxOpen)} title={W.UNRULED_ADD_LINK} aria-label={W.UNRULED_ADD_LINK}><Icon d={LINK_ICON} /></button>
+        <button type="button" class="btn quiet tpl-icon" data-add-file disabled={busy} onClick={addFile} title={W.ADD_FILE} aria-label={W.ADD_FILE}><Icon d={FILE_ICON} /></button>
+        <button type="button" class="btn quiet tpl-icon" data-open-link ref={linkIcon} aria-expanded={boxOpen} onClick={() => setBoxOpen(!boxOpen)} title={W.ADD_LINK} aria-label={W.ADD_LINK}><Icon d={LINK_ICON} /></button>
             {boxOpen ? (
         <form class="tpl-form" onSubmit={addLink} data-add-link onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); closeBox(); } }}>
-          <label for={`${fid}-href`}>{W.UNRULED_LINK_ADDRESS_LABEL}</label>
+          <label for={`${fid}-href`}>{W.LINK_ADDRESS_LABEL}</label>
           <input id={`${fid}-href`} type="text" inputMode="url" autocomplete="off" spellcheck={false} placeholder="https://" autofocus
             value={href} onInput={(e) => setHref(e.currentTarget.value)} />
-          <label for={`${fid}-label`}>{W.UNRULED_DESCRIPTION_LABEL}</label>
+          <label for={`${fid}-label`}>{W.DESCRIPTION_LABEL}</label>
           <input id={`${fid}-label`} type="text" autocomplete="off" aria-required="true" value={label} onInput={(e) => setLabel(e.currentTarget.value)} />
           {boxProblem ? <p class="tpl-problem" role="alert">{boxProblem}</p> : null}
           <div class="tpl-actions">
-            <button type="button" class="btn quiet" onClick={closeBox}>{W.UNRULED_CANCEL}</button>
-            <button type="submit" class="btn">{W.UNRULED_ADD_LINK_SUBMIT}</button>
+            <button type="button" class="btn quiet" onClick={closeBox}>{W.CANCEL}</button>
+            <button type="submit" class="btn">{W.ADD_LINK_SUBMIT}</button>
           </div>
         </form>
       ) : null}
@@ -102,7 +102,7 @@ export function Edit({ section }) {
             return (
               <li key={n} data-row={n} class={`tpl-dl-i tpl-dl-${i.kind}`}>
                 <EntryRow item={i} nameNode={
-                  <input key={`${n}:${name}`} class="tpl-rename" data-rename-input type="text" autocomplete="off" defaultValue={name} aria-label={W.UNRULED_RENAME(name)}
+                  <input key={`${n}:${name}`} class="tpl-rename" data-rename-input type="text" autocomplete="off" defaultValue={name} aria-label={W.RENAME(name)}
                     onKeyDown={(e) => {
                       const box = e.currentTarget;
                       if (e.key === "Enter") { e.preventDefault(); box.dataset.done = "1"; rename(n, box.value, box); }
@@ -110,16 +110,16 @@ export function Edit({ section }) {
                     }}
                     onBlur={(e) => { const box = e.currentTarget; if (box.dataset.done) { delete box.dataset.done; return; } rename(n, box.value, box); }} />
                 } />
-                <button type="button" class="btn sm quiet tpl-icon" data-up disabled={n === 0} onClick={() => move(n, -1)} title={W.UNRULED_MOVE_UP(name)} aria-label={W.UNRULED_MOVE_UP(name)}><Icon d={UP_ICON} /></button>
-                <button type="button" class="btn sm quiet tpl-icon" data-down disabled={n === raw.length - 1} onClick={() => move(n, 1)} title={W.UNRULED_MOVE_DOWN(name)} aria-label={W.UNRULED_MOVE_DOWN(name)}><Icon d={DOWN_ICON} /></button>
-                <button type="button" class="btn sm quiet tpl-icon tpl-remove" onClick={() => remove(n)} title={W.UNRULED_REMOVE(name)} aria-label={W.UNRULED_REMOVE(name)}><ActIcon which="trash" /></button>
+                <button type="button" class="btn sm quiet tpl-icon" data-up disabled={n === 0} onClick={() => move(n, -1)} title={W.MOVE_UP(name)} aria-label={W.MOVE_UP(name)}><Icon d={UP_ICON} /></button>
+                <button type="button" class="btn sm quiet tpl-icon" data-down disabled={n === raw.length - 1} onClick={() => move(n, 1)} title={W.MOVE_DOWN(name)} aria-label={W.MOVE_DOWN(name)}><Icon d={DOWN_ICON} /></button>
+                <button type="button" class="btn sm quiet tpl-icon tpl-remove" onClick={() => remove(n)} title={W.REMOVE(name)} aria-label={W.REMOVE(name)}><ActIcon which="trash" /></button>
               </li>
             );
           })}
         </ul>
-      ) : <p class="quiet tpl-empty">{W.UNRULED_EMPTY}</p>}
-      <p class="tpl-allowed"><strong>{W.UNRULED_ALLOWED_HEAD}</strong>{" "}{W.UNRULED_ALLOWED_TYPES}{" "}<strong>{W.UNRULED_NOT_HEAD}</strong>{" "}{W.UNRULED_NOT_TYPES}</p>
-      <p class="quiet tpl-hint">{W.UNRULED_RENAME_HINT} {W.UNRULED_NOTE}</p>
+      ) : <p class="quiet tpl-empty">{W.EMPTY}</p>}
+      <p class="tpl-allowed"><strong>{W.ALLOWED_HEAD}</strong>{" "}{W.ALLOWED_TYPES}{" "}<strong>{W.NOT_HEAD}</strong>{" "}{W.NOT_TYPES}</p>
+      <p class="quiet tpl-hint">{W.RENAME_HINT} {W.NOTE}</p>
     </div>
   );
 }

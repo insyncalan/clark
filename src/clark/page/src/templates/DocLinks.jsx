@@ -32,17 +32,30 @@ export function FileRow({ file, label }) {
   );
 }
 
-// The Open and Download of a row: 44px icon buttons named for a screen reader, Open on every row (in a new tab), Download on a file only.
-// A file's own address resolves only beside the client's copy of the report, so a file's actions are drawn in a published file.
+// Row 1221: the editor's way to read a file row's file (edit/templates/fileRoute.js sets it). The editor's View has no address for a file
+// (a file's own address resolves only beside the client's copy of the report), so its Open and Download read the file through clark.
+export const fileReader = { read: null };
+
+// The Open and Download of a row: 44px icon buttons named for a screen reader. A link has Open on every row (in a new tab). A file has
+// Open and Download as links in a published file, and as buttons that read through clark in the editor's View (when the editor set fileReader).
 function Actions({ item }) {
   const name = item.label || (item.kind === "file" ? item.name : item.shown);
-  const open = <a class="tpl-act" href={item.href} target="_blank" rel="noopener noreferrer" title={W.UNRULED_OPEN} aria-label={`${W.UNRULED_OPEN} ${name}`}><ActIcon which="open" /></a>;
-  if (item.kind === "link") return open;
-  if (!fromFile.value) return null;
+  if (item.kind === "link" || fromFile.value) {
+    const open = <a class="tpl-act" href={item.href} target="_blank" rel="noopener noreferrer" title={W.OPEN} aria-label={`${W.OPEN} ${name}`}><ActIcon which="open" /></a>;
+    if (item.kind === "link") return open;
+    return (
+      <>
+        {open}
+        <a class="tpl-act" href={item.href} download={item.name} title={W.DOWNLOAD} aria-label={`${W.DOWNLOAD} ${name}`}><ActIcon which="download" /></a>
+      </>
+    );
+  }
+  const read = fileReader.read;
+  if (!read) return null;
   return (
     <>
-      {open}
-      <a class="tpl-act" href={item.href} download={item.name} title={W.UNRULED_DOWNLOAD} aria-label={`${W.UNRULED_DOWNLOAD} ${name}`}><ActIcon which="download" /></a>
+      <button type="button" class="tpl-act" title={W.OPEN} aria-label={`${W.OPEN} ${name}`} onClick={() => read(item.name, false)}><ActIcon which="open" /></button>
+      <button type="button" class="tpl-act" title={W.DOWNLOAD} aria-label={`${W.DOWNLOAD} ${name}`} onClick={() => read(item.name, true)}><ActIcon which="download" /></button>
     </>
   );
 }

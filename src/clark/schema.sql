@@ -145,6 +145,8 @@ CREATE TABLE IF NOT EXISTS decisions (
   archived     INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0,1)),
   updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
   owner_id TEXT REFERENCES people(id),   -- clark: the link to the people table (#115), beside the free-text owner
+  priority TEXT NOT NULL DEFAULT 'Medium' CHECK (priority IN ('Urgent','High','Medium','Low')),   -- clark: row 1195, the Decision peek's Priority (step 26)
+  latest_update TEXT,   -- clark: row 1195, the peek's Latest update (step 26); the last columns, as the step adds them
   CHECK (status <> 'Made' OR date IS NOT NULL),
   CHECK (replaces IS NULL OR replaces <> id)
 );

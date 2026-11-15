@@ -52,7 +52,7 @@ class Card(unittest.TestCase):
         cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme},
                                                               {"name": "prefers-reduced-motion", "value": "reduce"}]}, sid)
         cdp.call("Page.navigate", {"url": "about:blank"}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{port}/#settings&p=TUL"}, sid)
+        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{port}/#settings&p=TUL&s=version"}, sid)      # row 1024: the Quit card is on the Version and updates page
         self.until(cdp, sid, "document.querySelector('#quit-h')", "the Quit card")
         self.until(cdp, sid, "document.getAnimations().length === 0", "motion to finish")
         return sid
@@ -62,7 +62,7 @@ class Card(unittest.TestCase):
         with chrome() as cdp:
             sid = self.visit(cdp, s.port)
             self.assertEqual(cdp.js("document.querySelector('#quit-h').textContent", sid), "Quit")
-            self.assertEqual(cdp.js("[...document.querySelectorAll('.set-nav .set-chip')].map(c => c.textContent.trim()).includes('Quit')", sid), True)
+            self.assertEqual(cdp.js("(document.querySelector('.set-nav .set-chip[aria-current]') || {}).textContent", sid), "Version and updates", "row 1024: the card has no item of its own; its page's item is the marked one")
             self.assertEqual(cdp.js("document.querySelectorAll('#quit button').length", sid), 1)
             self.assertEqual(cdp.js("document.querySelector('#quit button').textContent.trim()", sid), "Quit clark")
             self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True)

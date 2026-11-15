@@ -15,6 +15,7 @@ import { KIND_WORDS, dueCell, pillOf, ownerOf, showDate, todayIso, isOpen, colou
 import { slideOut } from "../peek/exit.js";
 import { closesPeek } from "../peek/outside.js";
 import { itemIds, milestoneIds, around, placeIn } from "../peek/list.js";
+import { holdScroll } from "../core/holdScroll.js";
 import { Icon } from "./Icon.jsx";
 import { wordsOpen, flashed } from "../stores/wordsState.js";
 import { singleKeys } from "../stores/keyPrefs.js";
@@ -58,26 +59,32 @@ function Row({ name, children, ref_, key_, ms }) {      // key_: which field thi
 }
 
 // ItemFields and Edge are also the archived peek's (ArchivedItems.jsx in the Edit part, item 450 row 39; reached with is:archived, item 1067): the same rows, read only.
-export function ItemFields({ row, editing, Cell, Wording, Pick }) {
+export function ItemFields({ row, editing, Cell, Wording, Pick, clientName }) {
   const today = todayIso(), due = dueCell(row, today), pill = pillOf(row, today), who = ownerOf(row.owner);
   // #448: a closed risk or issue's pill reads Closed; it keeps its rating word beside it (the prototype's "Closed · Amber"; "Not rated" when it never was, #532), here and in a published file.
   const kept = (row.kind === "risk" || row.kind === "issue") && !isOpen(row) ? colourOf(row.priority).word : "";
   return (
     <dl class="pk-fields">
       <Row name="Type">{KIND_WORDS[row.kind] || row.kind}</Row>
-      <Row key_="owner" ref_={row.id} name={row.kind === "decision" ? "Decision by" : "Owner"}>{who.text}</Row>
-      <Row key_="due" ref_={row.id} name={row.kind === "decision" && row.status === "Pending" ? "Needed by" : row.kind === "decision" ? "Date" : "Due"}>
+      <Row key_="owner" ref_={row.id} name={row.kind === "decision" ? "Made by" : "Owner"}>{who.text}</Row>
+      <Row key_="due" ref_={row.id} name={row.kind === "decision" && row.status === "Pending" ? "Needed by" : row.kind === "decision" ? "Made on" : "Due"}>
         <Toned icon="cal" tone={dateTone(row, today)}>{due.date}</Toned>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}> {due.words}</span> : null}
       </Row>
-      {row.kind !== "decision" ? <Row key_="priority" ref_={row.id} name="Priority"><Toned icon="bars" tone={priorityTone(row.priority)}>{text(row.priority)}</Toned></Row> : null}
+      <Row key_="priority" ref_={row.id} name="Priority"><Toned icon="bars" tone={priorityTone(row.kind === "decision" ? row.peek_priority : row.priority)}>{text(row.kind === "decision" ? row.peek_priority : row.priority)}</Toned></Row>
       <Row key_="status" ref_={row.id} name="Status"><Toned icon="half" tone={statusTone(row, today)}>
         {Cell ? <Cell row={row} field="status" said={pill.text} place="peek"><span class={`pill ${pill.class}`}>{pill.text}</span></Cell> : <span class={`pill ${pill.class}`}>{pill.text}</span>}
         {kept ? <span class="pk-rating" data-pk-rating> · {kept}</span> : null}
       </Toned></Row>
-      <Row name="Workstream">{Pick && row.kind !== "decision" ? <Pick row={row} field="workstream" /> : text(row.workstream)}</Row>
-      <Row name="Milestone">{Pick && row.kind !== "decision" ? <Pick row={row} field="milestone" /> : text(row.milestone)}</Row>
+      {row.kind !== "decision" ? <Row name="Workstream">{Pick ? <Pick row={row} field="workstream" /> : text(row.workstream)}</Row> : null}      {/* row 1195: a decision has no workstream or milestone */}
+      {row.kind !== "decision" ? <Row name="Milestone">{Pick ? <Pick row={row} field="milestone" /> : text(row.milestone)}</Row> : null}
+      {row.kind === "decision" ? <>
+        {editing ? <Row name="Reasoning" ms="reasoning">{text(row.reasoning)}</Row> : null}      {/* a published file carries neither the reasoning nor the options (publish.PUBLISH_FIELDS) */}
+        {editing ? <Row name="Options considered" ms="options">{text(row.options)}</Row> : null}
+        <Row name="Revisit" ms="revisit">{text(row.revisit)}</Row>
+        <Row name="Replaces" ms="replaces">{text(row.replaces)}</Row>
+      </> : null}
       <Row name="Use case">{Pick ? <Pick row={row} field="use_case" /> : text(row.uc)}</Row>
-      {editing ? <Row name="Shown to client">{row.client ? "Yes" : "No"}</Row> : null}
+      {editing ? <Row name={(clientName && clientName(row)) || "Shown to client"}>{row.client ? "Yes" : "No"}</Row> : null}
       {Wording ? <Row name="Client wording"><Wording row={row} /></Row> : null}
       {!editing && fromFile.value && row.client_message ? <Row name="Client wording" ms="client_message">{row.client_message}</Row> : null}      {/* item 1111: a published file's peek draws the client wording the file carries, read only and only when there is some */}
       {!editing && fromFile.value && row.latest_update ? <Row name="Latest update" ms="latest_update"><Rich html={String(row.latest_update)} /></Row> : null}      {/* the file's latest update is already clean (publish.clean_html); no history, no editing */}
@@ -157,7 +164,7 @@ export function Edge() {
 export function Peek({ tools }) {
   const p = peek.value;
   const box = useRef(null), back = useRef(null), opened = useRef(""), shown = useRef(""), stepped = useRef(false);
-  const lastBox = useRef(null), keep = useCallback((n) => { box.current = n; if (n) lastBox.current = n; }, []);
+  const lastBox = useRef(null), keep = useCallback((n) => { box.current = n; if (n) { lastBox.current = n; holdScroll(n, { keys: false }); } }, []);
   const editing = !!tools && !fromFile.value && isEditing();      // every page but a Dashboard in View (row 824)
   const msEditing = !!tools && !!tools.MilestoneEdit && !fromFile.value && (mode.value === "edit" || view.value === "milestones");     // row 828: the milestone's own fields are editable on the Milestones page with no View mode, and in Edit elsewhere
   // The words box changes a work item or a milestone; a use case has no peek (its own page, UseCaseDetail, has the box). The warning bar and Latest update are an item's only.
@@ -307,7 +314,7 @@ export function Peek({ tools }) {
       <div class="pk-body" key={p.id} data-pk-body>      {/* a new key each step: the body fades in as Previous or Next moves on */}
       {showActivity ? <Activity key={p.id} id={p.id} />
         : <div role={Tabs ? "tabpanel" : undefined} id={Tabs ? "pk-panel-details" : undefined} aria-labelledby={Tabs ? "pk-tab-details" : undefined}>
-          {row ? <ItemFields row={row} editing={editing} Cell={editing && tools.Cell ? tools.Cell : null} Wording={editing && tools.PeekWording ? tools.PeekWording : null} Pick={editing && tools.PeekPick ? tools.PeekPick : null} /> : msEditing ? <tools.MilestoneEdit m={m} /> : <MilestoneFields m={m} tools={tools} />}
+          {row ? <ItemFields row={row} editing={editing} clientName={editing && tools.clientRowName ? tools.clientRowName : null} Cell={editing && tools.Cell ? tools.Cell : null} Wording={editing && tools.PeekWording ? tools.PeekWording : null} Pick={editing && tools.PeekPick ? tools.PeekPick : null} /> : msEditing ? <tools.MilestoneEdit m={m} /> : <MilestoneFields m={m} tools={tools} />}
           {Source ? <Source key={`s-${p.id}`} row={row || m} /> : FileSource ? <SourceLine text={(row || m).source} /> : null}
           {Latest && row ? <Latest key={row.id} row={row} /> : null}
         </div>}

@@ -62,10 +62,13 @@ MESSAGES = {
     "unreadable": "That file could not be read. Check it opens on this computer, then try again.",
     "files_folder": "The client folder has something called “Report files” that clark can't use as a folder. Rename it, then "
                     "add the file again.",
-    "bad_type": "{name} is not an allowed type",
+    "bad_type": "{name}: That type of file can't be added. Use PDF, Word, Excel, PowerPoint, JPG, PNG or TXT.",      # the same sentence as the page (docLinksWords.js BAD_TYPE) and doclinks.bad_type
     "no_name": "That file's name can't be used in the client folder. Rename the file, then try again.",
     "names_taken": f"There are already {MAX_NUMBER} files with that name in the client folder's “Report files” folder. Rename "
                    "the file, then try again.",
+    "bad_file_name": "That is not a file name from this report. Use the Open or Download button on a file in the report.",      # UNRULED (1221)
+    "file_not_listed": "That file is not in this report. Reload the page and try again.",                                       # UNRULED (1221)
+    "file_not_there": "That file could not be found in the client folder. Check the folder, then try again.",                   # UNRULED (1221)
     "copy_failed": "The file could not be copied into the client folder, and nothing was added. Check that OneDrive is running "
                    "and the folder can be written to, then try again.",
 }
@@ -252,3 +255,76 @@ def attach(pub, body):
         return 200, {**reply, "file": entry, "message": (ADDED if copied else USED).format(name=name)}
     finally:
         pub.lock.release()
+
+
+# ----- reading a listed file back (#1221): GET /api/section-file?project=<CODE>&name=<NAME>[&download=1] -----
+TYPES = {"pdf": "application/pdf", "doc": "application/msword",
+         "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "xls": "application/vnd.ms-excel",
+         "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "csv": "text/csv",
+         "ppt": "application/vnd.ms-powerpoint",
+         "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation", "jpg": "image/jpeg",
+         "jpeg": "image/jpeg", "png": "image/png", "txt": "text/plain"}
+
+
+def _listed_names(section):
+    """The file names a Documents and links or One document section lists (its stored content, checked again)."""
+    kind = section.get("type")
+    try:
+        text = clark_store.check_section_body(kind, section.get("body") or "")
+        value = json.loads(text) if text else None
+    except (Invalid, section_bodies.Bad, ValueError):
+        return set()
+    if not isinstance(value, dict):
+        return set()
+    if kind == "doclinks":
+        return {i["name"] for i in value.get("items") or [] if isinstance(i, dict) and i.get("kind") == "file"}
+    f = value.get("file")
+    return {f["name"]} if isinstance(f, dict) else set()
+
+
+def read(pub, code, name):
+    """GET /api/section-file for the publisher `pub`: (200, {"ok", "name", "type", "data"}) or (status, refusal). The name is one
+    file name (doclinks.file_name) the project lists in a Documents and links or One document section; the file is read from
+    "Report files" in the client folder and nothing else is opened. No refusal names a folder or carries a file's bytes."""
+    if not isinstance(code, str) or not PROJECT_CODE.fullmatch(code):
+        return fail(Refused("bad_project_code", 400))
+    try:
+        file_name(name)
+    except section_bodies.Bad:
+        return fail(Refused("bad_file_name", 400))
+    try:
+        store = pub.store()
+        try:
+            row = store.read("projects", ref=code)
+            if row is None:
+                raise Refused("project_not_found", 404)
+            sections = [s for s in store.read("report_sections", code) or [] if s.get("type") in changes.FILE_TYPES]
+            if not any(name in _listed_names(s) for s in sections):
+                raise Refused("file_not_listed", 404)
+            saved = row.get("publish_client") or None
+            if not saved:
+                raise Refused("file_not_there", 404)
+            checked = to_client.preflight(pub.fs, saved, data_dir=pub.data_dir, onedrive_roots=pub.onedrive_roots,
+                                          local_folder=store.last_publish_folder(code) or row.get("publish_local"),
+                                          backups_dir=pub.backups_dir)
+        finally:
+            store.close()
+        if not checked["ok"]:
+            raise Refused("file_not_there", 404)
+        client = Path(checked["folder"])
+        folder = client / FILES_FOLDER
+        if not pub.fs.is_dir(str(folder)) or os.path.islink(folder) or Path(pub.fs.realpath(str(folder))).parent != Path(pub.fs.realpath(str(client))):
+            raise Refused("file_not_there", 404)
+        real = Path(pub.fs.realpath(str(folder / name)))
+        if real.parent != Path(pub.fs.realpath(str(folder))) or os.path.islink(folder / name):
+            raise Refused("file_not_there", 404)
+        try:
+            data = pub.fs.read_bytes(str(real), limit=MAX_FILE_BYTES + 1)
+        except OSError:
+            raise Refused("file_not_there", 404) from None
+        if len(data) > MAX_FILE_BYTES:
+            raise Refused("too_big")
+    except Refused as r:
+        return fail(r)
+    ending = name.rpartition(".")[2].lower()
+    return 200, {"ok": True, "name": name, "type": TYPES.get(ending, "application/octet-stream"), "data": data}

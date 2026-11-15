@@ -8,6 +8,7 @@ Needs Chrome (the #33 harness): the page tests fail, never skip, without it. Fic
 light and dark.
 """
 import json
+import re
 import shutil
 import tempfile
 import unittest
@@ -121,6 +122,16 @@ class Checker(unittest.TestCase):
         with self.assertRaises(section_bodies.Bad) as e:
             doclinks.add_file(None, {"name": "run me.exe", "rel": "Report files/run me.exe", "bytes": 1})
         self.assertEqual(str(e.exception), "run me.exe: " + tail)
+
+    def test_the_refusal_for_a_file_type_is_one_sentence_on_the_server_and_in_the_page(self):
+        """Item 1628 (ruled 16-11): the page's BAD_TYPE (docLinksWords.js), doclinks.bad_type and the route's bad_type refusal are the same sentence."""
+        from clark import section_files
+        name = "run me.exe"
+        words = (SRC / "clark" / "page" / "src" / "logic" / "docLinksWords.js").read_text(encoding="utf-8")
+        page = re.search(r"export const BAD_TYPE = \(name\) => `([^`]*)`;", words).group(1).replace("${name}", name)
+        route = section_files.MESSAGES["bad_type"].format(name=name)
+        self.assertEqual(page, doclinks.bad_type(name))
+        self.assertEqual(route, doclinks.bad_type(name))
 
     def test_the_shape_is_fixed_and_nothing_unknown_is_stored(self):
         self.refused("doclinks", json.dumps({"v": 2, "items": []}), doclinks.BAD_VERSION)
@@ -276,8 +287,41 @@ class InThePage(PageBase):
             self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-dl-i a.tpl-act')].map(a => a.getAttribute('aria-label') + ' ' + a.getAttribute('href'))"),
                              ["Open The plan https://example.org/plan", "Open Team mailto:team@example.org"], "a link gets Open only")
             self.assertFalse(p.js(f"!!document.querySelector('[data-id={json.dumps(empty)}]')"), "an empty list is left out of View")
-            self.assertEqual(p.js(f"document.querySelectorAll('[data-id={json.dumps(ref)}] input, [data-id={json.dumps(ref)}] button').length"), 0,
-                             "View is read only")
+            self.assertEqual(p.js(f"document.querySelectorAll('[data-id={json.dumps(ref)}] input').length"), 0, "View is read only")
+            self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] button')].map(b => b.getAttribute('aria-label'))"),
+                             ["Open Plan v2.pdf", "Download Plan v2.pdf"], "the only buttons are a file's Open and Download (row 1221)")
+
+    STUB = """(() => { window.seen = []; window.opened = []; window.saved = [];
+        const real = window.fetch.bind(window);
+        window.fetch = (url, opts) => { if (String(url).startsWith('/api/section-file')) { window.seen.push([String(url), (opts && opts.headers && opts.headers['X-Clark-Token']) ? 'token' : 'no token']);
+            return Promise.resolve(new Response(new Blob(['fictional bytes'], {type: 'application/pdf'}), {status: 200})); } return real(url, opts); };
+        window.open = (u, t) => ({closed: false, close() { this.closed = true; }, set location(h) { window.opened.push(String(h).slice(0, 5)); }});   // the router points the tab with tab.location = url
+        HTMLAnchorElement.prototype.click = function () { window.saved.push([this.download, this.href.slice(0, 5)]); }; })()"""
+
+    def test_view_gives_a_file_row_open_and_download_that_read_through_clark(self):
+        """Row 1221: in the editor's View a file row has Open and Download (44 px, named, at 1400 and 900), and each asks
+        GET /api/section-file with the token, the project and the file's name; Open uses a new tab, Download the browser's save.
+        A link row has neither (it has its own link)."""
+        ref = self.add([a_file("Plan v2.pdf"), a_link()])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.until(f"!!document.querySelector('{sel} .tpl-dl')", "the list drew")
+            p.js(self.STUB)
+            for w in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 1000, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                got = p.js(f"[...document.querySelectorAll('{sel} .tpl-dl-i')].map(li => [...li.querySelectorAll('button.tpl-act')].map(b => "
+                           "[b.getAttribute('aria-label'), b.title, Math.round(b.getBoundingClientRect().height) >= 44]))")
+                self.assertEqual(got, [[["Open Plan v2.pdf", "Open", True], ["Download Plan v2.pdf", "Download", True]], []], w)
+                self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w, "no sideways scroll")
+            p.js(f"document.querySelectorAll('{sel} button.tpl-act')[0].click()")
+            p.until("window.opened.length === 1", "Open opened the file in a new tab")
+            p.js(f"document.querySelectorAll('{sel} button.tpl-act')[1].click()")
+            p.until("window.saved.length === 1", "Download saved the file")
+            self.assertEqual(p.js("window.seen"), [["/api/section-file?project=ABC&name=Plan%20v2.pdf", "token"],
+                                                   ["/api/section-file?project=ABC&name=Plan%20v2.pdf&download=1", "token"]])
+            self.assertEqual(p.js("window.saved"), [["Plan v2.pdf", "blob:"]])
+            self.assertEqual(p.js("window.opened"), ["blob:"])
 
     def test_edit_adds_a_link_in_one_step_and_undo_takes_it_back(self):
         ref = self.add([a_link()])
@@ -378,7 +422,7 @@ class InThePage(PageBase):
 
 ALLOWED_NOTE = ("Files you can add: PDF, Word (.doc .docx), Excel (.xls .xlsx .csv), PowerPoint (.ppt .pptx), JPG, PNG and TXT. Not allowed: "
                 "HTML, SVG, ZIP and any program or script, because they can run code or hide what is inside. Links (to a SharePoint file, "
-                "a web page or an email): https:// or mailto:.")       # UNRULED: the mockup's words, verbatim
+                "a web page or an email): https:// or mailto:.")       # ruled 16-11: the mockup's words, verbatim
 
 
 class MockupLook(InThePage):
