@@ -48,7 +48,7 @@ class TheBrowser(unittest.TestCase):
         self.addCleanup(self.demo.close)
         store = self.demo.store
         with store.step("dashboard", USER) as st:
-            st.update("projects", "ABC", {"current_state": CURRENT})
+            st.update("report_sections", "ABC-S-001", {"body": CURRENT})      # item 1188: the first section is a text section, its body is the text
             st.update("report_sections", "ABC-S-005", {"body": SUMMARY})
             st.update("report_sections", "ABC-S-007", {"body": HOSTILE})      # ABC-S-006 stays empty
         self.s = Running(data_for=store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING))
@@ -94,16 +94,12 @@ class TheBrowser(unittest.TestCase):
                     self.assertGreaterEqual(cdp.js(LUMA % "[data-id=ABC-S-006] .quiet", sid), 4.5, "quiet line contrast " + where)
                     self.assertGreaterEqual(float(cdp.js("parseFloat(getComputedStyle(document.querySelector('[data-id=ABC-S-005] .prose p')).fontSize)", sid)), 13, where)
                     self.assertLessEqual(cdp.js("document.documentElement.scrollWidth - window.innerWidth", sid), 0, "no sideways scroll " + where)
-            # Edit: Current state draws its text as View does (row 850); the three text sections show their text in the editor's field
+            # Edit: the four text sections show their text in the editor's field
             cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
             self.until(cdp, sid, "document.querySelector('#report').dataset.mode === 'edit'", "Edit mode")
             for k, name in SECTIONS.items():
-                if name == "current":
-                    self.assertNotIn(OLD, self.text_of(cdp, sid, k), f"Edit draws the Current state text as View does (row 850) for {k}")
-                    self.assertIn("The pilot is on track and the data is clean.", self.text_of(cdp, sid, k), f"Edit draws the Current state text for {k}")
-                else:
-                    self.assertNotIn(OLD, self.text_of(cdp, sid, k), f"Edit opens the editor for {k}")
-                    self.assertTrue(cdp.js(f"!!document.querySelector('[data-id=\"{k}\"] [data-rich=body]')", sid), f"{k} has its rich field")
+                self.assertNotIn(OLD, self.text_of(cdp, sid, k), f"Edit opens the editor for {k}")
+                self.assertTrue(cdp.js(f"!!document.querySelector('[data-id=\"{k}\"] [data-rich=body]')", sid), f"{k} has its rich field")
             cdp.js("document.querySelector('[data-mode=view]').click()", sid)
             self.until(cdp, sid, "document.querySelector('#report').dataset.mode === 'view'", "View again")
             self.assertIn("Plain words about the month.", self.text_of(cdp, sid, "ABC-S-005"))
