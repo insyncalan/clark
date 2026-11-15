@@ -222,10 +222,9 @@ export function legend(client) {
   return out;
 }
 
-// The rail list shows 5, then "Show all N milestones" / "Show the first 5".
+// The use cases list (components/UseCases.jsx) shows 5, then its own Show all link; the milestone list no longer does (row 1230).
 export const RAIL = 5;
 export function railRows(rows, all) { return all || rows.length <= RAIL ? rows : rows.slice(0, RAIL); }
-export const railWord = (n, all) => (all ? "Show the first 5" : `Show all ${n} milestones`);
 
 /** Label rows that would overlap are put on lower lines (the prototype's place()): returns each label's line, in x order. Each label is
  *  centred on its x; `width` is one number or one width for each label, and `gap` is the clear space kept between neighbours. */

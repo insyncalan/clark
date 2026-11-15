@@ -76,7 +76,6 @@ class Rules(unittest.TestCase):
               legend: [MS.legend(false), MS.legend(true)],
               zoom: [0.1, 0.7, 1.5, 3, 9, "x", null].map(MS.clampZoom),
               rail: [MS.railRows(rows, false).length, MS.railRows(rows, true).length, MS.railRows(rows.slice(0, 5), false).length],
-              words: [MS.railWord(9, false), MS.railWord(9, true)],
               lines: MS.labelLines([0, 10, 20, 300, 305], 136),
               near: [MS.neighbour("month", "2026-12-15", 1), MS.neighbour("week", "2026-10-28", -1), MS.neighbour("quarter", "2026-10-28", -1),
                      MS.neighbour("month", "2100-12-31", 1), MS.neighbour("month", "2000-01-01", -1), MS.neighbour("week", "2100-12-31", 1)],
@@ -141,7 +140,6 @@ class Rules(unittest.TestCase):
     def test_zoom_the_rail_and_the_label_lines(self):
         self.assertEqual(self.js["zoom"], [0.7, 0.7, 1.5, 3, 3, 1, 0.7])
         self.assertEqual(self.js["rail"], [5, len(self.py), 5])
-        self.assertEqual(self.js["words"], ["Show all 9 milestones", "Show the first 5"])
         self.assertEqual(self.js["lines"], [0, 1, 2, 0, 1])
 
     def test_the_next_and_earlier_period_stop_where_the_page_stops_drawing(self):
@@ -293,20 +291,13 @@ class RealBrowser(BrowserBase, unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("document.querySelector('.mv-wrap').dataset.zoomPct", sid) == "100"))
             self.assertIsNone(cdp.js("document.querySelector('[data-zreset]')", sid))
 
-    def test_the_rail_list_shows_five_then_all_and_remembers(self):
+    def test_row_1230_the_rail_list_shows_every_milestone_and_has_no_show_all_link(self):
         port = self.serve()
         with chrome() as cdp:
             sid = self.visit(cdp, 1400, "#milestones&p=MOSS", port)
             self.assertEqual(len(self.expected("MOSS")), 7)
-            self.assertEqual(cdp.js("document.querySelectorAll('.msl-row').length", sid), 5)
-            self.assertEqual(cdp.js("document.querySelector('.msl-all').textContent", sid), "Show all 7 milestones")
-            cdp.js("document.querySelector('.msl-all').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.msl-row').length", sid) == 7))
-            self.assertEqual(cdp.js("document.querySelector('.msl-all').textContent", sid), "Show the first 5")
-            sid = self.visit(cdp, 1400, "#milestones&p=MOSS", port)
-            self.assertEqual(cdp.js("document.querySelectorAll('.msl-row').length", sid), 7, "remembered")
-            cdp.js("document.querySelector('.msl-all').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.msl-row').length", sid) == 5), "Show the first 5 goes back")
+            self.assertEqual(cdp.js("document.querySelectorAll('.msl-row').length", sid), 7)
+            self.assertFalse(cdp.js("!!document.querySelector('.msl-all, [data-msall]')", sid))
 
     def test_the_legend_lists_the_six_states_expected_and_today_and_stays_on_screen(self):
         for width in (1400, 900):

@@ -87,14 +87,12 @@ class NoBrowser(unittest.TestCase):
         self.assertNotIn(".mvm-note", build_page.page_css(build_page.ENTRY_VIEW))
         self.assertIn(".head-sub", build_page.page_css(build_page.ENTRY_VIEW))
 
-    def test_the_owners_ruling_the_list_stays_five_rows_and_show_all(self):
+    def test_row_1230_the_milestone_list_has_no_show_all_link(self):
         logic = MODULE.read_text(encoding="utf-8")
-        self.assertIn("export const RAIL = 5;", logic)
-        self.assertIn('`Show all ${n} milestones`', logic)
-        self.assertIn('"Show the first 5"', logic)
+        self.assertNotIn("Show all ${n} milestones", logic)
+        self.assertNotIn("railWord", logic)
         view = page.VIEW_PAGE.read_text(encoding="utf-8")
-        self.assertIn("Show all ", view)
-        self.assertIn("Show the first 5", view)
+        self.assertNotIn("Show all N milestones", view)
 
     def test_every_new_string_is_in_the_words_file_and_is_plain(self):
         words = set(js_words().values())
@@ -544,11 +542,8 @@ class Published(unittest.TestCase):
             self.assertEqual(cdp.js("document.querySelector('#milestones .crumbs').textContent", sid), "Example Programme")
             self.assertRegex(cdp.js("document.querySelector('#ms-summary').textContent", sid), r"^.+ is agreed for \d\d-\d\d-\d{4}.* \d+ achieved, 8 to come\.$")
             self.assertEqual(cdp.js("!!document.querySelector('#addMs')", sid), False, "a file has no Add milestone")
-            self.assertEqual(cdp.js("document.querySelectorAll('.msl-row').length", sid), 5, "the owner's ruling: five rows")
-            self.assertEqual(cdp.js("document.querySelector('.msl-all').textContent", sid), "Show all 8 milestones")
-            cdp.js("document.querySelector('.msl-all').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.msl-row').length === 8", sid)), "Show all lists every milestone")
-            self.assertEqual(cdp.js("document.querySelector('.msl-all').textContent", sid), "Show the first 5")
+            self.assertEqual(cdp.js("document.querySelectorAll('.msl-row').length", sid), 8, "row 1230: every milestone is listed")
+            self.assertFalse(cdp.js("!!document.querySelector('.msl-all')", sid), "and there is no Show all link")
             self.assertEqual(cdp.js("document.querySelectorAll('textarea, #mvNote, #mv-recover, #mv-escalate').length", sid), 0)
 
     def test_the_file_never_writes_the_editors_show_all_keys(self):
@@ -569,9 +564,7 @@ class Published(unittest.TestCase):
                 cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
                 cdp.js("[...document.querySelectorAll('.tab')].find(t => /Milestones/.test(t.textContent)).click()", sid)
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.msl-all')", sid)))
-                cdp.js("document.querySelector('.msl-all').click()", sid)
-                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.msl-row').length > 5", sid)))
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.msl-row').length > 5", sid)), "row 1230: every row, no link")
                 cdp.js("location.hash = '#dashboard'", sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-ucall]')", sid)), "the use cases list has Show all")
                 cdp.js("document.querySelector('[data-ucall]').click()", sid)

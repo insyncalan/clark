@@ -1,6 +1,5 @@
 // The bar above the rows holds 'Hide milestone details' (left) and the Legend (right, passed in as `legend`) on one row (row 1020).
-// The milestone list in the design system's rail form (#44a; FR-52): 5 rows, then "Show all N milestones" / "Show the first 5",
-// remembered for each place, under a "Hide milestone details" / "Show milestone details" toggle (also remembered for each place;
+// The milestone list in the design system's rail form (#44a; FR-52): every row (row 1230: the "Show all N milestones" link is gone), under a "Hide milestone details" / "Show milestone details" toggle (also remembered for each place;
 // not in a published file, which shows the list as it is). Each row: a point on the rail, the date and how it compares, the name, the state and progress.
 // In Edit each row also has the eye (`Eye`, edit/MsEye.jsx), a button beside the row that leaves it out of the published page; a row
 // that is left out says so in words (`left`: the set of ids). View and a published file pass neither.
@@ -9,7 +8,7 @@ import { Icon } from "./Icon.jsx";
 import { MsMark } from "./MsMark.jsx";
 import { isChanged, WORD } from "../stores/changed.js";
 import { fromFile } from "../stores/report.js";
-import { showDate, subLine, agreedText, expectedCell, railRows, railWord, RAIL } from "../logic/milestones.js";
+import { showDate, subLine, agreedText, expectedCell } from "../logic/milestones.js";
 import { recall, remember } from "../logic/remember.js";
 import { defsOf, standardIds } from "../logic/tableColumns.js";
 
@@ -85,11 +84,9 @@ function MsRows({ rows, place, open, internalTag, Eye, More, left, legend, canFo
   const STD = STD_OF(place), page = place === "page";
   cols = cols || STD;
   const on = (id) => cols.includes(id), off = (id) => (on(id) ? "" : " cols-off");
-  const [all, setAll] = useState(() => !fromFile.value && !!recall(`msAll.${place}`, false));
-  const shown = railRows(rows, all);
+  const shown = rows;          // row 1230: every milestone is listed; the "Show all N milestones" / "Show the first 5" link is gone
   const [det, setDet] = useState(() => !canFold || fromFile.value || recall(`msDet.${place}`, true) !== false);      // a published file starts open and keeps no choice (remembering there needs a ruling)
   const fold = () => { if (canFold && !fromFile.value) remember(`msDet.${place}`, !det); setDet(!det); };
-  const toggle = () => { if (!fromFile.value) remember(`msAll.${place}`, !all); setAll(!all); };
   return (
     <div class="msl-box" data-place={place} style={vars} data-nodate={on("date") ? undefined : "1"}>
       <div class="msl-bar">
@@ -126,7 +123,6 @@ function MsRows({ rows, place, open, internalTag, Eye, More, left, legend, canFo
         })}
       </ul>
       {menu}
-      {rows.length > RAIL ? <button type="button" class="link msl-all" data-msall={place} onClick={toggle}>{railWord(rows.length, all)}</button> : null}
       </div>
     </div>
   );

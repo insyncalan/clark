@@ -4,7 +4,7 @@
 import { useEffect } from "preact/hooks";
 import { data } from "../stores/report.js";
 import { isEditing } from "../logic/editing.js";
-import { Picker } from "../components/Picker.jsx";
+import { MsPicker } from "./MsPicker.jsx";
 import { pickerFrom, offThePage } from "./MsAddBack.jsx";
 import { addMilestonesBack } from "./actions.js";
 import { ArchivedPeek } from "./ArchivedPeek.jsx";
@@ -13,7 +13,7 @@ import { AskLayer } from "./Bulk.jsx";
 const BEHIND = ["#main", ".top"];                       // made inert while the picker is open, as the Add a section box does
 
 function PickerBox({ from }) {
-  const { only, left } = offThePage(data.value);
+  const left = offThePage(data.value).left;
   const close = () => {
     pickerFrom.value = null;
     // Focus goes back to the line; when the last milestone came back the line is gone, so it goes to the list it joined.
@@ -30,7 +30,7 @@ function PickerBox({ from }) {
   }, []);
   return (
     <div class="ad-scrim" data-ms-picker onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}>
-      <Picker data={only} hiddenIds={left} onAdd={(ids) => { close(); addMilestonesBack(ids); }} onClose={close} title="Add a milestone from your project record" />
+      <MsPicker data={data.value} leftOut={left} onAdd={(ids) => { close(); addMilestonesBack(ids); }} onClose={close} />
     </div>
   );
 }

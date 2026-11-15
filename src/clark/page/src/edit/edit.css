@@ -1338,3 +1338,43 @@ table.items .c-x-id, table.items .c-x-type { width: 100px; }
   table.items td.c-x { grid-column: 1 / -1; width: auto; }
   table.items td.c-x::before { content: attr(data-label); display: block; font-size: var(--size-small); color: var(--text-muted); }
 }
+
+/* Row 1230 (picker PR): the Add a milestone box (edit/MsPicker.jsx). 1080 px wide and 650 px tall at least, never past its place; the table scrolls
+   inside the body, never the page. Tokens only; no text under 13 px. */
+.picker.ms-pk { position: relative; width: min(1080px, 100%); --pkmax: calc(100dvh - var(--topbar) - 2 * var(--space-6)); min-height: min(650px, var(--pkmax)); max-height: var(--pkmax); }
+.ms-pk .pk-search { flex-wrap: nowrap; align-items: center; }
+.ms-pk .ficon { position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; min-width: 32px; min-height: 32px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); cursor: pointer; }
+.ms-pk .ficon.on { border-color: var(--brand-blue); color: var(--brand-blue); }
+.ms-pk .ficon i { position: absolute; top: -6px; right: -6px; min-width: 16px; padding: 0 4px; border-radius: 8px; background: var(--brand-blue); color: var(--surface); font-style: normal; font-size: var(--size-small); line-height: 16px; text-align: center; }
+.ms-pk .ficon:focus-visible, .ms-pk .frow:focus-visible, .ms-pk .isnot button:focus-visible, .ms-pk .pkt input:focus-visible, .ms-pk .fopts input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ms-pk .fpan { position: absolute; z-index: 2; top: 112px; right: 20px; width: min(560px, calc(100% - 40px)); display: grid; grid-template-columns: 200px minmax(0, 1fr); background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+.ms-pk .fl-l { padding: var(--space-3); border-right: 1px solid var(--grey-100); display: grid; align-content: start; gap: var(--space-1); }
+.ms-pk .fl-l input { min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; min-width: 0; }
+.ms-pk .fl-l h4 { margin: var(--space-2) 0 0; font-size: var(--size-small); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); }
+.ms-pk .frow { display: flex; justify-content: space-between; min-height: 32px; align-items: center; padding: var(--space-1) 10px; border: 0; border-radius: var(--radius); background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.ms-pk .frow.sel { background: var(--grey-100); font-weight: var(--weight-medium); }
+.ms-pk .frow span { font-size: var(--size-small); color: var(--text-muted); }
+.ms-pk .fl-r { padding: var(--space-3); display: grid; align-content: start; gap: var(--space-2); min-width: 0; }
+.ms-pk .fl-r h3 { margin: 0; font-size: var(--size-body); color: var(--heading); font-weight: var(--weight-medium); }
+.ms-pk .isnot { display: flex; align-items: center; gap: var(--space-1); }
+.ms-pk .isnot button { min-height: 28px; padding: 0 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+.ms-pk .isnot button[aria-pressed=true] { background: var(--grey-100); font-weight: var(--weight-medium); }
+.ms-pk .isnot span { color: var(--text-muted); }
+.ms-pk .fact { display: flex; gap: var(--space-2); }
+.ms-pk .fopts { display: grid; gap: var(--space-1); }
+.ms-pk .fopts label { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; min-height: 28px; }
+.ms-pk .fopts label.zero { color: var(--text-muted); }
+.ms-pk .fopts .c { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.ms-pk .fres { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding-top: var(--space-2); border-top: 1px solid var(--grey-100); color: var(--text-muted); }
+.ms-pk .pk-body { min-height: 0; }
+.ms-pk .pkt { width: 100%; border-collapse: collapse; }
+.ms-pk .pkt th { position: sticky; top: 0; z-index: 1; background: var(--surface); padding: var(--space-2) var(--space-2); text-align: left; font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); border-bottom: 1px solid var(--grey-200); }
+.ms-pk .pkt td { padding: var(--space-2); border-top: 1px solid var(--grey-100); vertical-align: middle; overflow-wrap: anywhere; }
+.ms-pk .pkt tbody tr { cursor: pointer; }
+.ms-pk .pkt tbody tr:hover { background: var(--grey-50); }
+.ms-pk .pkt .c1 { width: 32px; }
+.ms-pk .pkt .r { text-align: right; font-variant-numeric: tabular-nums; }
+.ms-pk .pkt .id { color: var(--text-muted); white-space: nowrap; }
+.ms-pk .pkt .mkc { margin-right: 6px; }
+.ms-pk .pkt input[type=checkbox] { accent-color: var(--brand-blue); width: 16px; height: 16px; }
+.ms-pk .why { display: inline-block; padding: 2px 8px; border: 1px solid var(--grey-300); border-radius: 999px; font-size: var(--size-small); white-space: nowrap; }
