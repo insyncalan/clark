@@ -1222,21 +1222,21 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .mv-ghost { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border: 2px dashed var(--status-red); border-radius: 50%; background: var(--surface); z-index: 2; }
 .msl { list-style: none; margin: var(--d-msl-top) 0 0; padding: 0 0 0 var(--space-1); }
 .msl-row { position: relative; border-left: 2px solid var(--grey-200); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
-.msl-cells { display: grid; grid-template-columns: minmax(150px, 190px) minmax(160px, 1fr) 150px 130px; column-gap: var(--space-4); row-gap: 0; align-items: center; padding: var(--d-msl-y) var(--space-2) var(--d-msl-y) 22px; cursor: pointer; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.msl-cells { display: grid; grid-template-columns: minmax(140px, 1fr) 130px 100px minmax(150px, 190px) 120px; column-gap: var(--space-4); row-gap: 0; align-items: center; padding: var(--d-msl-y) var(--space-2) var(--d-msl-y) 22px; cursor: pointer; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
 .msl-row:not(:last-child)::after { content: ""; position: absolute; left: 22px; right: 0; bottom: 0; height: 1px; background: var(--grey-200); }   /* row 1083: a light line under every row but the last, from the text (right of the rail), so the rail and its dots stay unbroken */
 .msl-row:hover { background: var(--grey-50); } .msl-cells:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
 .msl-row.out { opacity: .6; }
 .msl-row .node { position: absolute; left: -7px; top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; background: var(--surface); border: 2px solid var(--grey-500); }
 .node.c-green { border-color: var(--status-green); } .node.c-amber { border-color: var(--status-amber); } .node.c-red { border-color: var(--status-red); } .node.c-blue { border-color: var(--status-blue); }
 .node.fill.c-green { background: var(--status-green); }
-.msl-date b { display: block; font-weight: var(--weight-medium); line-height: 17px; }
+.msl-date b { display: block; font-weight: var(--weight-medium); line-height: 17px; } .msl-agr { font-size: var(--size-small); }
 /* Row 1020: a row is one compact line (date, name, state, progress) and a small second line (Agreed, or Expected a date and days later, in red) under the date and name. */
-.msl-cells > * { grid-row: 1; } .msl-cells > .msl-sub { grid-row: 2; grid-column: 1 / 3; display: block; margin-top: -1px; font-size: var(--size-caption); line-height: 13px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .msl-sub.late { color: var(--status-red-text); }
+.msl-cells > * { grid-row: 1; } .msl-date .msl-sub { display: block; margin-top: 0; font-size: var(--size-caption); line-height: 13px; color: var(--text-muted); overflow-wrap: anywhere; } .msl-sub.late { color: var(--status-red-text); }
 .msl-name { font-weight: var(--weight-medium); line-height: 17px; }
 /* C-M10: at laptop widths the date's second line ("Expected a date · N days later") reads on one line, so the date cell is wide enough for it;
    a long name wraps inside its own cell, and below this width the line may wrap as before. */
 .msl-name { min-width: 0; overflow-wrap: anywhere; }
-@media (min-width: 1201px) { .msl-cells { grid-template-columns: minmax(240px, 17rem) minmax(160px, 1fr) 150px 130px; } }
+@media (min-width: 1201px) { .msl-cells { grid-template-columns: minmax(180px, 1fr) 150px 110px minmax(170px, 14rem) 130px; } }
 .mst { display: inline-flex; align-items: center; gap: 6px; font-size: var(--size-caption); font-weight: var(--weight-medium); } .mst .ms-i { width: 16px; height: 16px; flex: none; }
 .mst.c-green { color: var(--status-green-text); } .mst.c-amber { color: var(--status-amber-text); } .mst.c-red { color: var(--status-red-text); } .mst.c-blue { color: var(--status-blue-text); } .mst.c-grey { color: var(--text-muted); }
 .msl-prog { display: flex; align-items: center; gap: var(--space-2); font-size: var(--size-caption); }
@@ -1277,7 +1277,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 @media (max-width: 900px) { .cal-d { min-height: 64px; } .cal-q { grid-template-columns: 1fr; } }
 /* C-M11 (row 24): a list row keeps its columns (date, name, state, progress) down to 801 px, as the prototype's does (app.css:849);
    only at 800 px and below do the cells stack in two columns (app.css:875). */
-@media (max-width: 800px) { .msl-cells { grid-template-columns: auto 1fr auto; padding: 5px var(--space-2) 5px 18px; column-gap: var(--space-3); row-gap: 1px; } .msl-cells > .msl-name { grid-column: 2 / 4; } .msl-cells > .msl-sub { grid-column: 1 / 4; margin-top: 0; white-space: normal; } .msl-cells > .mst { grid-row: 3; grid-column: 1 / 3; } .msl-cells > .msl-prog { grid-row: 3; grid-column: 3; min-width: 110px; } .msl-row:not(:last-child)::after { left: 18px; } }   /* narrow (row 1020): date and name, the second line, then the state and the progress; never two columns of half-empty cells */
+@media (max-width: 800px) { .msl-cells { grid-template-columns: 1fr 1fr; padding: 5px var(--space-2) 5px 18px; column-gap: var(--space-3); row-gap: 2px; } .msl-cells > .msl-name { grid-column: 1 / 3; } .msl-cells > * { grid-row: auto; } .msl-row:not(:last-child)::after { left: 18px; } }   /* narrow (row 1230): name over the cells, two to a line; the heading row is not shown (edit.css) */
 @media (max-width: 700px) { .cal-list { display: block; } .cal-ms span { display: none; } .cal-ms { justify-content: center; } }   /* the cells keep their marks, the names go, the period is listed under the month */
 .mlg { position: relative; display: flex; justify-content: flex-end; margin: 6px 0 2px; }
 .mlg-b { all: unset; display: inline-flex; align-items: center; box-sizing: border-box; min-height: 28px; min-width: 28px; gap: var(--space-1); font-size: var(--size-caption); color: var(--text-muted); cursor: help; padding: 2px var(--space-1); border-radius: var(--radius-sm); }
