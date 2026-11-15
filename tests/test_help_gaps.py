@@ -83,8 +83,10 @@ def one(start):
 
 
 class WorkItemsHelpMatchesTheCode(unittest.TestCase):
-    def test_peek_top_bar_names_delete(self):
-        self.assertIn("**Delete**", one("At the top: **Previous item** and **Next item**"))
+    def test_peek_top_bar_names_duplicate_and_archive_only(self):
+        text = one("At the top: **Previous item** and **Next item**")
+        self.assertIn("**Duplicate** and **Archive**", text)
+        self.assertNotIn("Delete", text)
 
     def test_right_click_menu_names_open_the_peek(self):
         text = one("The right-click menu has a small picture")
