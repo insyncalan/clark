@@ -1309,3 +1309,39 @@ table.items .c-x-id, table.items .c-x-type { width: 100px; }
   table.items td.c-x { grid-column: 1 / -1; width: auto; }
   table.items td.c-x::before { content: attr(data-label); display: block; font-size: var(--size-small); color: var(--text-muted); }
 }
+
+/* Full width image (row 1223), Edit: the drop area, the stage, the focus dot, the height handle, the ONE icon toolbar, the crop. Tokens only. One block for the
+   framing controls (the View's rules are shell.css .tpl-fullimg). */
+.tpl-full-edit { display: flex; flex-direction: column; gap: var(--space-3); }
+.fi-drop { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); padding: var(--space-6) var(--space-4); border: 1px dashed var(--grey-300); border-radius: var(--radius-lg); background: var(--surface-muted); }
+.fi-drop.over, .fi-stage.over { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.fi-wrap { width: 100%; min-width: 0; }
+.fi-stage { position: relative; display: flex; justify-content: center; align-items: center; overflow: hidden; border-radius: var(--radius-lg); background: var(--surface-muted); }
+.fi-fill-brand { background: var(--brand-blue); }
+.fi-fill-plain { background: var(--surface-muted); }
+.fi-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(24px); transform: scale(1.2); opacity: 0.9; }
+.fi-box { position: relative; overflow: hidden; border-radius: var(--radius-lg); flex: none; }
+.fi-pic { position: absolute; max-width: none; height: auto; user-select: none; }
+.fi-dot { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; border: 3px solid var(--white); background: var(--brand-blue); box-shadow: 0 0 0 1px var(--grey-300), 0 1px 4px rgba(0, 0, 0, 0.4); cursor: grab; touch-action: none; }
+.fi-dot:focus-visible, .fi-handle:focus-visible, .fi-btn:focus-visible, .fi-crop-box:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.fi-handle { position: absolute; left: 50%; bottom: 4px; width: 56px; height: 10px; margin-left: -28px; border-radius: 5px; background: var(--white); border: 1px solid var(--grey-300); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); cursor: ns-resize; touch-action: none; }
+.fi-bar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1); padding: var(--space-1) var(--space-2); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); }
+.fi-grow { flex: 1; }
+.fi-sep { width: 1px; align-self: stretch; margin: 4px var(--space-1); background: var(--grey-200); }
+.fi-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: var(--text); cursor: pointer; }
+.fi-btn:hover:not(:disabled) { background: var(--brand-blue-tint); }
+.fi-btn.on { background: var(--brand-blue-tint); border-color: var(--brand-blue); color: var(--status-blue-text); }
+.fi-btn:disabled { opacity: 0.4; cursor: default; }
+.fi-btn::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); padding: 3px 8px; border-radius: var(--radius-sm); background: var(--text); color: var(--surface); font-size: var(--size-caption); white-space: nowrap; pointer-events: none; opacity: 0; z-index: 5; }
+.fi-btn:hover::after, .fi-btn:focus-visible::after { opacity: 1; }
+.fi-file { margin: 0; }
+.fi-red { margin: 0; font-size: var(--size-caption); color: var(--status-red-text); }
+.fi-crop { display: flex; flex-direction: column; gap: var(--space-2); align-items: center; }
+.fi-crop-area { position: relative; max-width: 100%; border-radius: var(--radius-lg); overflow: hidden; user-select: none; }
+.fi-crop-area img { display: block; width: 100%; height: 100%; }
+.fi-crop-box { position: absolute; box-sizing: border-box; border: 2px solid var(--white); box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); cursor: move; touch-action: none; }
+.fi-crop-h { position: absolute; width: 16px; height: 16px; background: var(--white); border: 2px solid var(--brand-blue); border-radius: 3px; touch-action: none; }
+.fi-crop-h.nw { left: -8px; top: -8px; cursor: nwse-resize; } .fi-crop-h.ne { right: -8px; top: -8px; cursor: nesw-resize; }
+.fi-crop-h.sw { left: -8px; bottom: -8px; cursor: nesw-resize; } .fi-crop-h.se { right: -8px; bottom: -8px; cursor: nwse-resize; }
+.fi-crop-acts { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.fi-help { margin: 0; }

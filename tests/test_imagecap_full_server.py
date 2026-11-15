@@ -243,6 +243,15 @@ class Stored(unittest.TestCase):
         self.assertNotIn("pictures", out)
         self.assertNotIn("from_w", out)
 
+    def test_a_new_image_replacing_one_starts_from_no_framing_and_the_words_stay(self):
+        body = made(halves(40, 10), crop=[500, 0, 1000, 1000], shape="banner", fit="stretch", fill="brand")
+        body.update(caption="Fictional view", alt="Two blocks")
+        again = fi.with_picture(body, "original", halves(20, 10))
+        self.assertEqual({k: v for k, v in again.items() if k != "pictures"}, {"v": 2, "caption": "Fictional view", "alt": "Two blocks"})
+        self.assertEqual(framed(again)[:2], (20, 10))
+        out = fi.with_picture(body, "original", None)
+        self.assertEqual(out, {"v": 2, "caption": "Fictional view", "alt": "Two blocks"})
+
     def test_the_words_alone_are_kept_when_the_image_goes(self):
         out = fi.with_picture({**made(halves(4, 4)), "caption": "Fictional"}, "original", None)
         self.assertEqual(out["caption"], "Fictional")

@@ -52,6 +52,7 @@ SLOTS = ("image", "original")
 V1_SLOTS = ("image",)
 SHAPES = ("whole", "16:9", "banner", "free")
 RATIOS = {"16:9": 1778, "banner": 3000}
+FRAMING = ("shape", "ratio", "fx", "fy", "crop", "fit", "fill")
 FITS = ("centre", "stretch")
 FILLS = ("blur", "brand", "plain")
 __all__ = ("READY", "LIMIT", "EMPTY", "START", "SLOTS", "PICTURE_MAX", "TEXT_LIMIT", "WIDTH_MAX", "check", "with_picture", "published")
@@ -423,7 +424,7 @@ def _check_full(value):
 def with_picture(value, slot, image):
     """The body with its picture set or taken out (POST /api/section-image, through changes.py). A version 1 body (or none yet) has
     its one `image` slot, as it always did. A version 2 body takes only `original` (the framed copy is made from it and the body's
-    framing, or taken out with it)."""
+    framing, or taken out with it; a new original replacing one starts from no framing, and the words stay)."""
     if type(value) is dict and value.get("v") == 2:
         return _with_original(value, slot, image)
     if image is not None:
@@ -434,8 +435,12 @@ def with_picture(value, slot, image):
 def _with_original(value, slot, image):
     if slot != "original":
         raise Bad(MADE_HERE)
+    had = bool((value.get(PICTURES) or {}).get("original"))
     out = set_picture(value, slot, image, SLOTS, {"v": 2})
     out.pop("from_w", None)
+    if had or image is None:                                 # another image (or none) is not framed like the one it replaces: it starts from no framing
+        for key in FRAMING:
+            out.pop(key, None)
     if image is None:
         out.get(PICTURES, {}).pop("image", None)
         if not out.get(PICTURES):
