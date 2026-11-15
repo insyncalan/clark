@@ -47,7 +47,7 @@ export function TopBar({ tools }) {
   const lines = file ? coverLine(data.value && data.value.project, "") : [];      // issue 1146: a published file has one bar; the banner's words ("Weekly report", the week, the client) sit under the name
   const ganttTitle = data.value && data.value.gantt && typeof data.value.gantt.title === "string" ? data.value.gantt.title : "";
   const shownName = (view.value === "gantt" && ganttTitle) || name || project.value || "No project open";      // the Gantt page's own title, when the file carries one, as the banner showed it
-  const Name = view.value === "dashboard" || view.value === "gantt" ? "h1" : "div";      // the Dashboard and Gantt pages had their heading in the banner; the other pages have their own
+  const Name = status.value === "ready" && (view.value === "dashboard" || view.value === "gantt") ? "h1" : "div";      // the Dashboard and Gantt pages had their heading in the banner; the other pages have their own
   const weekEnding = data.value && data.value.project && data.value.project.week_ending;
   const tail = (<>
       {Publish ? <Publish /> : null}
