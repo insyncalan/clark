@@ -78,7 +78,8 @@ class MotionGroup(unittest.TestCase):
         jsx = (ROOT / "src/clark/page/src/components/WorkItems.jsx").read_text(encoding="utf-8")
         heads = re.search(r"function Heads\(.*?\n\}\n", jsx, re.S).group(0)
         ths = re.findall(r"<th\b[^>]*>", heads)
-        self.assertGreaterEqual(len(ths), 7)
+        self.assertGreaterEqual(len(ths), 3, "the hand-over, one per listed column and the eye heading")   # row 1222: the column heads are drawn from the table's list, so one tag draws them all
+        self.assertIn("cols.map(", heads)
         for th in ths:
             self.assertIn('scope="col"', th)
         self.assertRegex(EDIT, r'\[data-motion="reduce"\]\) thead\.opening > tr:not\(\.grp\)')
