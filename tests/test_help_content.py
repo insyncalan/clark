@@ -86,7 +86,7 @@ class Shape(unittest.TestCase):
                       "the projects you already have, or an empty set on a first start.", steps[at])
         self.assertIn("Your data is not in the clark folder, so you can swap that folder for a newer download.", steps[at])
         self.assertIn("If you already have a folder called clark, rename or move it before you unzip a newer download, so the two do not clash.", steps[at])
-        self.assertIn('CLARK_DATA_DIR="/full/path" docker compose -f docker/compose.yaml up -d', steps[at + 2])
+        self.assertIn('CLARK_DATA_DIR="/full/path" bash docker/start.command', steps[at + 2])
         self.assertIn("stop clark, move that folder out of it, and name it this way.", steps[at + 2])
         self.assertIn("Docker and clark.command use the same data unless you name another folder with CLARK_DATA_DIR. "
                       "If clark.command looks empty, you started Docker with another folder.", text)
@@ -104,7 +104,7 @@ class Shape(unittest.TestCase):
                          "the owner's order; bringing in an Excel workbook is not one of them")
         self.assertIn(START["undo"], [t["id"] for t in STEPS])
         self.assertEqual((len(STEPS), len(SECTIONS)), (37, 35))   # merged: main adds the Feedback entry (#1069, section row), so sections 36; steps 37; with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
-        self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (34, 29))   # merged: icons 29, the branch no longer lists the sparkle (Draft) icon that main still had (30)
+        self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (35, 29))   # merged: icons 29, the branch no longer lists the sparkle (Draft) icon that main still had (30)
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
         for kind, rows, groups in (("task", STEPS, SRC["howto"]["groups"]), ("section", SECTIONS, SRC["reference"]["groups"])):

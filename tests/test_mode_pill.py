@@ -91,7 +91,7 @@ class ModePill(Base):
         switch = read("edit/Toggle.jsx")
         self.assertIsNone(re.search(r"keydown|keyup|onKey|addEventListener", switch), "the switch adds no key listener of its own")
         self.assertIsNotNone(re.search(r"modeKeys\s*\.\s*install\s*\(", read("boot.jsx")), "boot installs the V and E listener")
-        self.assertIsNotNone(re.search(r"modeKeys\s*:\s*\{\s*install\s*:\s*installModeKeys", read("edit/index.js")), "the edit tools expose it")
+        self.assertIsNotNone(re.search(r"modeKeys\s*:\s*\{\s*install\s*:\s*\(\)\s*=>\s*\{\s*installModeKeys\s*\(\s*\)", read("edit/index.js")), "the edit tools expose it, installing the V and E listener")
         self.assertIsNotNone(re.search(r"function\s+installModeKeys[^}]*addEventListener\(\s*[\"']keydown", read("edit/keys.js")), "keys.js adds the listener")
 
     def test_the_keys_still_work_after_a_round_trip_through_another_tab(self):

@@ -382,8 +382,9 @@ class Work(BulkBase):
                     if wait(lambda: d.js("!!document.querySelector('.cpop .cp-in')"), 5):
                         break
                 d.until("document.activeElement && document.activeElement.classList.contains('cp-in')", "the owner box has the focus")
+                d.until("document.querySelector('.cpop [data-section]')", "the owner list is read (the Add line waits for it)", 40)   # slow Mac: the list is read after the box opens
                 cdp.call("Input.insertText", {"text": "Zelda Quince"}, sid)
-                d.until("document.querySelector('.cpop [data-add]')", "the Add line for a new name")
+                d.until("document.querySelector('.cpop [data-add]')", "the Add line for a new name", 40)
                 d.lines(".cpop", "owner-pick-typed", 3)
                 d.key("Escape", "Escape", 27)
                 d.gone(".cpop", "the owner box")
