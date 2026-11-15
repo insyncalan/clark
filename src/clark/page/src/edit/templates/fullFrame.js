@@ -2,7 +2,7 @@
 // the original and the framing numbers). The page draws the original at its own size on a canvas; no framing is applied here. Resolves to
 // { ok: true, data, width, height } or { ok: false, message }; never throws. Clark checks it like every image when it is sent.
 import { dataBytes } from "./shrink.js";
-import { UNRULED_WORDS, UNRULED_MOST_BYTES } from "../../logic/fullImageWords.js";
+import { WORDS, MOST_BYTES } from "../../logic/fullImageWords.js";
 
 function load(url) {
   return new Promise((resolve) => {
@@ -13,9 +13,9 @@ function load(url) {
   });
 }
 
-export async function pngOf(url, most = UNRULED_MOST_BYTES) {
+export async function pngOf(url, most = MOST_BYTES) {
   const img = await load(url);
-  if (!img || !img.naturalWidth) return { ok: false, message: UNRULED_WORDS.unreadable };
+  if (!img || !img.naturalWidth) return { ok: false, message: WORDS.unreadable };
   let scale = 1;
   for (let round = 0; round < 6; round++) {
     const width = Math.max(1, Math.round(img.naturalWidth * scale)), height = Math.max(1, Math.round(img.naturalHeight * scale));
@@ -26,5 +26,5 @@ export async function pngOf(url, most = UNRULED_MOST_BYTES) {
     if (png.startsWith("data:image/png;base64,") && dataBytes(png) <= most) return { ok: true, data: png, width, height };
     scale *= 0.75;
   }
-  return { ok: false, message: UNRULED_WORDS.tooBig };
+  return { ok: false, message: WORDS.tooBig };
 }

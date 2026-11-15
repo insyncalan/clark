@@ -11,7 +11,7 @@
 // "stretch". Same words and keys as section_kinds/imagecap.py published().
 import { contentOf, Figure, lineOf, picturesOf } from "./pictures.jsx";
 import { safeImage } from "./safe.js";
-import { UNRULED_FITS, UNRULED_FILLS } from "../logic/fullImageWords.js";
+import { FITS, FILLS } from "../logic/fullImageWords.js";
 
 export const READY = true;
 
@@ -38,10 +38,10 @@ function Full({ c }) {
   const src = safeImage(c.image);
   if (!src) return null;
   const centred = c.fit !== "stretch";
-  const fill = centred ? (UNRULED_FILLS.includes(c.fill) ? c.fill : UNRULED_FILLS[0]) : "";
+  const fill = centred ? (FILLS.includes(c.fill) ? c.fill : FILLS[0]) : "";
   const caption = lineOf(c.caption);
   return (
-    <figure class={`tpl-fullimg${centred ? ` fill-${fill}` : " stretch"}`} data-fit={centred ? UNRULED_FITS[0] : "stretch"}>
+    <figure class={`tpl-fullimg${centred ? ` fill-${fill}` : " stretch"}`} data-fit={centred ? FITS[0] : "stretch"}>
       <div class="tpl-fullimg-frame">
         {fill === "blur" ? <img class="tpl-fullimg-blur" src={src} alt="" aria-hidden="true" loading="lazy" decoding="async" /> : null}
         <img class="tpl-fullimg-img" src={src} alt={lineOf(c.alt)} loading="lazy" decoding="async" />

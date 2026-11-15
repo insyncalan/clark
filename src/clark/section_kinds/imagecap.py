@@ -64,7 +64,7 @@ CANT_FRAME = ("That image can't be cropped or shaped here. Add a PNG image, or u
 TOO_WIDE = "That image is wider than 3,000 px and can't be made smaller here. Add a PNG image, or make it smaller first."
 TOO_MANY_PIXELS = "That image has too many pixels. Add a smaller one."
 STILL_BIG = "That image is too large even after it is made smaller. Add a smaller one."
-NOT_ALONE = "An image is added with Choose an image, with its original. Reload the page and try again."
+NOT_ALONE = "An image can only be added with Choose an image. Reload the page and try again."
 
 _PNG = b"\x89PNG\r\n\x1a\n"
 _DATA = re.compile(r"data:image/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})\Z")

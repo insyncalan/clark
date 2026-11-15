@@ -16,7 +16,7 @@ import { data } from "../../stores/report.js";
 import { picturesOf, stored } from "../../templates/pictures.jsx";
 import { safeImage } from "../../templates/safe.js";
 import { cleanFrame, frameOfBody, bodyFields, regionOf, aspectOf, cuts, ratioFor, ratioLimits, drawnWide, outSize, baseOf, applyCrop, useWholeImage, nudgeFocus } from "../../logic/fullImageFrame.js";
-import { UNRULED_WORDS as W, UNRULED_fileNote, UNRULED_PRINT_WIDE, UNRULED_SMALL_WIDE, UNRULED_MOST_BYTES, UNRULED_SLOT_ORIGINAL as ORIGINAL } from "../../logic/fullImageWords.js";
+import { WORDS as W, fileNote, PRINT_WIDE, SMALL_WIDE, MOST_BYTES, SLOT_ORIGINAL as ORIGINAL } from "../../logic/fullImageWords.js";
 
 const pct = (n) => `${(n * 100).toFixed(3)}%`;
 
@@ -72,7 +72,7 @@ export function Edit({ section }) {
   const out = info ? outSize(info, eff) : { w: wide, h: wide };
   const dw = region ? drawnWide(eff, out.w, wide) : wide;
   const high = dw / ar;
-  const small = !!info && baseOf(info, eff).w < UNRULED_SMALL_WIDE;
+  const small = !!info && baseOf(info, eff).w < SMALL_WIDE;
 
   // ---- saving (a change is the framing as whole numbers, with the words; a shape or crop of a JPEG or WebP first sends it as a PNG) ----
   async function commit(next, said = W.framed) {
@@ -99,7 +99,7 @@ export function Edit({ section }) {
     if (!TYPES.includes(file.type)) { say("problem", W.notAnImage); return; }
     setBusy(true);
     try {
-      const made = await shrink(file, { longest: 8000, widest: UNRULED_PRINT_WIDE, most: UNRULED_MOST_BYTES });
+      const made = await shrink(file, { longest: 8000, widest: PRINT_WIDE, most: MOST_BYTES });
       if (!made.ok) { say("problem", made.message); return; }
       const said = originalUrl ? W.replaced : W.added;
       if (!(await sendPicture(section, ORIGINAL, made.data, said))) return;             // clark makes the framed copy; a new image starts from no framing
@@ -201,7 +201,7 @@ export function Edit({ section }) {
     width: pct(info.w / region.w), left: pct(-region.x / region.w), top: pct(-region.y / region.h),
   };
   const dotFx = eff.fx === undefined ? 0.5 : eff.fx, dotFy = eff.fy === undefined ? 0.5 : eff.fy;
-  const note = UNRULED_fileNote({ w: info.w, from: v.from_w }, out.w);
+  const note = fileNote({ w: info.w, from: v.from_w }, out.w);
   return (
     <div class="tpl-edit tpl-full-edit">
       <div class="fi-wrap" ref={wrap}>

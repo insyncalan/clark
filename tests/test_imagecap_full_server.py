@@ -235,6 +235,7 @@ class Refusals(unittest.TestCase):
         with self.assertRaises(Bad) as e:
             fi.check({"v": 2, "pictures": {"image": GOOD_JPEG}}, None)
         self.assertEqual(str(e.exception), fi.NOT_ALONE)
+        self.assertEqual(fi.NOT_ALONE, "An image can only be added with Choose an image. Reload the page and try again.")      # ruled wording
         with self.assertRaises(Bad) as e:
             fi.check({"v": 2, "pictures": {"2": GOOD_JPEG}}, None)
         self.assertEqual(str(e.exception), fi._say_image(BAD_SLOT))

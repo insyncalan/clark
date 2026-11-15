@@ -9,7 +9,7 @@
 // box; the lead moves each one into TEMPLATES with its Help row.
 import { rows } from "./placement.js";
 import { TEMPLATE_TYPES, PENDING_TYPES } from "../templates/types.js";
-import { UNRULED_WORDS } from "./fullImageWords.js";
+import { WORDS } from "./fullImageWords.js";
 
 // What the store takes in a new section (changes.py NEW_SECTION_TYPES: text
 // and every type in the template registry (#96)). A template whose type is not here is listed but not offered.
@@ -58,8 +58,8 @@ export const TEMPLATES = [
     description: "One picture with its caption.", holds: ["Heading", "Image", "Caption"] },
   // Row 1223: the same store type as Image with caption (imagecap), started with a body of version 2 (`start`: changes.py takes exactly this body for a new
   // imagecap section; section_kinds/imagecap.py START). Full width only. Its name is unruled (logic/fullImageWords.js).
-  { id: "full-image", name: UNRULED_WORDS.name, kind: "text", fit: ["full"], type: "imagecap", title: UNRULED_WORDS.name, body: "", start: '{"v":2}', ready: true,
-    description: UNRULED_WORDS.description, holds: UNRULED_WORDS.holds },
+  { id: "full-image", name: WORDS.name, kind: "text", fit: ["full"], type: "imagecap", title: WORDS.name, body: "", start: '{"v":2}', ready: true,
+    description: WORDS.description, holds: WORDS.holds },
   { id: "quote", name: "Quote", kind: "text", fit: ["half", "full"], type: "quote", title: "Quote", body: "", ready: true,
     description: "A voice from the business.", holds: ["Heading", "Text (quote)", "Person"] },
   { id: "contacts", name: "Contacts", kind: "dates", fit: ["half", "full"], type: "contacts", title: "Contacts", body: "", ready: true,

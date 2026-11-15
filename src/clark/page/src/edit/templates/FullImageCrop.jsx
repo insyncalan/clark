@@ -2,7 +2,7 @@
 // "Use the whole image". The box is fractions of the stored original; its arithmetic is logic/fullImageFrame.js's. Arrow keys move the box,
 // with Shift they resize it; Enter applies, Esc cancels. Nothing is saved until Apply.
 import { useRef, useState } from "preact/hooks";
-import { UNRULED_WORDS as W } from "../../logic/fullImageWords.js";
+import { WORDS as W } from "../../logic/fullImageWords.js";
 import { startBox, moveBox, resizeBox, nudgeBox } from "../../logic/fullImageFrame.js";
 
 const CORNERS = ["nw", "ne", "sw", "se"];

@@ -1,24 +1,24 @@
 // Row 1223: every word and number of the Full width image template (an imagecap section with a body of version 2), in one place. Words
-// are unruled: the owner has not yet ruled on them (each is named UNRULED_ so one search finds them all). "image", never "picture", on
+// are ruled. "image", never "picture", on
 // screen. Pure: no DOM, no Preact; the page's Edit and View parts and the tests read it.
 
 // The body keys are the framing's (logic/fullImageFrame.js says how a frame is stored). The slots: pictures.original is what the person
 // added; pictures.image is the framed copy clark makes from it (the page never sends it).
-export const UNRULED_SLOT_FRAMED = "image";
-export const UNRULED_SLOT_ORIGINAL = "original";
-export const UNRULED_SHAPES = ["whole", "16:9", "banner", "free"];
-export const UNRULED_FITS = ["centre", "stretch"];
-export const UNRULED_FILLS = ["blur", "brand", "plain"];
+export const SLOT_FRAMED = "image";
+export const SLOT_ORIGINAL = "original";
+export const SHAPES = ["whole", "16:9", "banner", "free"];
+export const FITS = ["centre", "stretch"];
+export const FILLS = ["blur", "brand", "plain"];
 
 // Numbers: the print width (300 dpi across about 257 mm), the small-image width, the flattest and tallest a height may be.
-export const UNRULED_PRINT_WIDE = 3000;
-export const UNRULED_SMALL_WIDE = 1200;
-export const UNRULED_FLATTEST = 4;               // width : height, at most
-export const UNRULED_TALLEST = 0.7;              // of the window's height
-export const UNRULED_MOST_BYTES = 3 * 1024 * 1024;   // the original and the framed copy, each, decoded (imagecap.py ORIGINAL_MAX, FRAMED_MAX)
-export const UNRULED_PAGE_INCHES = 257 / 25.4;   // the content width of A4 landscape
+export const PRINT_WIDE = 3000;
+export const SMALL_WIDE = 1200;
+export const FLATTEST = 4;               // width : height, at most
+export const TALLEST = 0.7;              // of the window's height
+export const MOST_BYTES = 3 * 1024 * 1024;   // the original and the framed copy, each, decoded (imagecap.py ORIGINAL_MAX, FRAMED_MAX)
+export const PAGE_INCHES = 257 / 25.4;   // the content width of A4 landscape
 
-export const UNRULED_WORDS = {
+export const WORDS = {
   name: "Full width image",
   description: "One image across the full width, framed as you choose, with an optional caption.",
   holds: ["Image", "Caption (optional)"],
@@ -74,13 +74,13 @@ export const UNRULED_WORDS = {
 const px = (n) => Math.round(n).toLocaleString("en-GB");
 
 // The note under the toolbar: what the file is and what happened to it. `info` is the body's info; `framedWide` the framed copy's width.
-export function UNRULED_fileNote(info, framedWide) {
+export function fileNote(info, framedWide) {
   if (!info || !info.w) return "";
   const from = info.from && info.from > info.w ? info.from : 0;
   const wide = framedWide || info.w;
   if (from) return `${px(from)} px, made smaller for print to ${px(info.w)} px`;
-  if (wide < UNRULED_SMALL_WIDE) return `${px(wide)} px: it sits centred at its own size, not stretched.`;
-  const dpi = Math.round(wide / UNRULED_PAGE_INCHES / 10) * 10;
+  if (wide < SMALL_WIDE) return `${px(wide)} px: it sits centred at its own size, not stretched.`;
+  const dpi = Math.round(wide / PAGE_INCHES / 10) * 10;
   if (dpi >= 300) return `${px(wide)} px: sharp, about ${dpi} dpi if printed full width.`;
   return `${px(wide)} px: sharp on screen, about ${dpi} dpi if printed full width, below the 300 dpi target`;
 }

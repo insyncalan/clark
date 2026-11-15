@@ -2,7 +2,7 @@
 // dividers: Shape (Whole, 16:9, Strip 3:1, Free); Crop... and Reset; for a small image only Centre or Stretch, then Fill; Replace and
 // Remove at the right. Every icon has an accessible name and a tooltip on hover and focus; the arrow keys move along the bar (one tab stop).
 import { useEffect, useRef } from "preact/hooks";
-import { UNRULED_WORDS as W, UNRULED_SHAPES, UNRULED_FILLS } from "../../logic/fullImageWords.js";
+import { WORDS as W, SHAPES, FILLS } from "../../logic/fullImageWords.js";
 
 const P = {
   whole: <rect x="3" y="5" width="14" height="10" rx="1.5" />,
@@ -51,7 +51,7 @@ export function Bar({ a }) {
   useEffect(() => restTab(bar.current));      // one tab stop: kept after every draw
   return (
     <div class="fi-bar" role="toolbar" aria-label={W.toolbar} aria-orientation="horizontal" data-busy={a.busy ? "1" : undefined} ref={bar} onKeyDown={onKeyDown} onFocusIn={onFocusIn}>
-      {UNRULED_SHAPES.map((s) => <Btn key={s} icon={s} name={W.shape[s]} tip={W.shapeTip[s]} act={`shape-${s}`} on={a.shape === s} disabled={d} onClick={() => a.onShape(s)} />)}
+      {SHAPES.map((s) => <Btn key={s} icon={s} name={W.shape[s]} tip={W.shapeTip[s]} act={`shape-${s}`} on={a.shape === s} disabled={d} onClick={() => a.onShape(s)} />)}
       <Sep />
       <Btn icon="crop" name={W.crop} tip={W.cropTip} disabled={d} onClick={a.onCrop} />
       <Btn icon="reset" name={W.reset} tip={W.resetTip} disabled={d || !a.canReset} onClick={a.onReset} />
@@ -61,7 +61,7 @@ export function Bar({ a }) {
         <Btn icon="stretch" name={W.stretch} act="fit-stretch" on={a.fit === "stretch"} disabled={d} onClick={() => a.onFit("stretch")} />
         {a.fit !== "stretch" ? <>
           <Sep />
-          {UNRULED_FILLS.map((f) => <Btn key={f} icon={f} name={W.fill[f]} act={`fill-${f}`} on={a.fill === f} disabled={d} onClick={() => a.onFill(f)} />)}
+          {FILLS.map((f) => <Btn key={f} icon={f} name={W.fill[f]} act={`fill-${f}`} on={a.fill === f} disabled={d} onClick={() => a.onFill(f)} />)}
         </> : null}
       </> : null}
       <span class="fi-grow" />

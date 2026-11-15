@@ -8,7 +8,7 @@
 //   shape, ratio (thousandths), fx, fy (0..1000), crop [x0, y0, x1, y1] (0..1000), fit, fill. bodyFields makes them, frameOfBody reads them.
 // The original is never changed: the frame says how to look at it, and clark makes the framed copy from the original and these numbers.
 // Words and the shape names are fullImageWords.js's.
-import { UNRULED_SHAPES, UNRULED_FITS, UNRULED_FILLS, UNRULED_FLATTEST, UNRULED_TALLEST, UNRULED_SMALL_WIDE } from "./fullImageWords.js";
+import { SHAPES, FITS, FILLS, FLATTEST, TALLEST, SMALL_WIDE } from "./fullImageWords.js";
 
 const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
 const num = (v, lo, hi, d) => (typeof v === "number" && Number.isFinite(v) ? clamp(v, lo, hi) : d);
@@ -18,19 +18,19 @@ const r4 = (n) => Math.round(n * 10000) / 10000;
 export function cleanFrame(f) {
   const v = f && typeof f === "object" && !Array.isArray(f) ? f : {};
   const out = {};
-  if (UNRULED_SHAPES.includes(v.shape) && v.shape !== "whole") out.shape = v.shape;
+  if (SHAPES.includes(v.shape) && v.shape !== "whole") out.shape = v.shape;
   const fx = r4(num(v.fx, 0, 1, 0.5)), fy = r4(num(v.fy, 0, 1, 0.5));
   if (fx !== 0.5) out.fx = fx;
   if (fy !== 0.5) out.fy = fy;
-  if (out.shape === "free") out.ratio = r4(num(v.ratio, 0.05, UNRULED_FLATTEST, 16 / 9));
+  if (out.shape === "free") out.ratio = r4(num(v.ratio, 0.05, FLATTEST, 16 / 9));
   const c = v.crop;
   if (c && typeof c === "object") {
     const w = num(c.w, MIN_BOX, 1, 1), h = num(c.h, MIN_BOX, 1, 1);
     const crop = { x: r4(num(c.x, 0, 1 - w, 0)), y: r4(num(c.y, 0, 1 - h, 0)), w: r4(w), h: r4(h) };
     if (crop.w < 1 || crop.h < 1) out.crop = crop;
   }
-  if (UNRULED_FITS.includes(v.fit) && v.fit !== "centre") out.fit = v.fit;
-  if (UNRULED_FILLS.includes(v.fill) && v.fill !== "blur") out.fill = v.fill;
+  if (FITS.includes(v.fit) && v.fit !== "centre") out.fit = v.fit;
+  if (FILLS.includes(v.fill) && v.fill !== "blur") out.fill = v.fill;
   return out;
 }
 
@@ -64,7 +64,7 @@ export function regionOf(info, frame) {
 // width, so it is drawn as wide as it was before the shape cut some of it away (the part is then drawn a little larger).
 export function outSize(info, frame) {
   const r = regionOf(info, frame), b = baseOf(info, frame);
-  const w = b.w < UNRULED_SMALL_WIDE ? b.w : r.w;
+  const w = b.w < SMALL_WIDE ? b.w : r.w;
   return { w: Math.max(1, Math.round(w)), h: Math.max(1, Math.round(w * r.h / r.w)) };
 }
 
@@ -82,13 +82,13 @@ export function cuts(info, frame) {
 
 // The width : height a drawn height may have: not flatter than 4:1, not taller than 70 percent of the window.
 export function ratioLimits(drawnWide, windowHigh) {
-  const hi = UNRULED_FLATTEST;
-  const lo = Math.min(hi, drawnWide / Math.max(1, windowHigh * UNRULED_TALLEST));
+  const hi = FLATTEST;
+  const lo = Math.min(hi, drawnWide / Math.max(1, windowHigh * TALLEST));
   return { lo, hi };
 }
 // A height already taller than the limit is not pulled down by touching the handle: the limit is the window's, or the height it has.
 export const ratioFor = (drawnWide, high, windowHigh, was = 0) => {
-  const { lo, hi } = ratioLimits(drawnWide, Math.max(windowHigh, was / UNRULED_TALLEST));
+  const { lo, hi } = ratioLimits(drawnWide, Math.max(windowHigh, was / TALLEST));
   return r4(clamp(drawnWide / Math.max(1, high), lo, hi));
 };
 
@@ -136,7 +136,7 @@ const thousandths = (n, lo, hi) => Math.round(clamp(n, lo, hi) * 1000);
 export function bodyFields(frame) {
   const f = cleanFrame(frame);
   const out = { shape: f.shape, ratio: undefined, fx: undefined, fy: undefined, crop: undefined, fit: f.fit, fill: f.fill };
-  if (f.shape === "free") out.ratio = thousandths(f.ratio, 0.25, UNRULED_FLATTEST);
+  if (f.shape === "free") out.ratio = thousandths(f.ratio, 0.25, FLATTEST);
   if (f.fx !== undefined) out.fx = thousandths(f.fx, 0, 1);
   if (f.fy !== undefined) out.fy = thousandths(f.fy, 0, 1);
   if (f.crop) {
