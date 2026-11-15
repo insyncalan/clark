@@ -282,7 +282,7 @@ class Browser(unittest.TestCase):
                 titles = cdp.js("[...document.querySelectorAll('.print-tab-title')].map(t => t.textContent.trim())", sid)
                 self.assertEqual(titles, ["Dashboard", "Work items", "Milestones", "Use cases"], "every tab the file has, in print order, Use cases last")
                 self.assertEqual(len(tabs), len(titles), "the file's tab bar has the same tabs")
-                self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.top')).display", sid), "none")
+                self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.top')).display", sid), "flex", "the file's one bar prints once at the top (issue 1146)")
                 self.assertEqual(cdp.js("document.querySelectorAll('.print-tab').length", sid), len(tabs))
                 self.assertEqual(cdp.js("getComputedStyle(document.body).backgroundColor", sid), "rgb(255, 255, 255)", "light, whatever the computer prefers")
                 self.assertEqual(cdp.js("document.querySelectorAll('.ucp:not([open])').length", sid), 0, "no use case is left closed")

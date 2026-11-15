@@ -1,4 +1,4 @@
-"""Item 1131: the Use cases no-match message wraps, and long headlines and milestone lists stay two lines."""
+"""Item 1131: the Use cases no-match message wraps, and long headlines stay two lines."""
 import re
 import unittest
 from pathlib import Path
@@ -16,15 +16,13 @@ class UseCasesLongTextClamp(unittest.TestCase):
     def test_no_match_message_wraps_anywhere(self):
         self.assertTrue(any("overflow-wrap: anywhere" in b for b in rule(".ucl-none")))
 
-    def test_small_headline_and_milestones_clamp_to_two_lines(self):
-        for sel in (".ucl-name small", ".ucl-head", ".ucl-ms"):
-            bodies = list(rule(sel))
-            body = " ".join(bodies)
-            self.assertIn("-webkit-line-clamp: 2", body, sel)
-            self.assertIn("overflow: hidden", body, sel)
-            self.assertIn("-webkit-box-orient: vertical", body, sel)
-            # .ucl-name small is hidden in its base rule; the 1100px rule (the last) is the one that shows it, and it must show it as a box
-            self.assertIn("display: -webkit-box", bodies[-1] if sel == ".ucl-name small" else body, sel)
+    def test_headline_clamps_to_two_lines(self):
+        # item 1149: where it stands is shown in full on the row, clamped to two lines (the milestones left the row)
+        body = " ".join(rule(".ucl-head"))
+        self.assertIn("-webkit-line-clamp: 2", body)
+        self.assertIn("overflow: hidden", body)
+        self.assertIn("-webkit-box-orient: vertical", body)
+        self.assertIn("display: -webkit-box", body)
 
 
 if __name__ == "__main__":

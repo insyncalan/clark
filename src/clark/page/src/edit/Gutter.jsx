@@ -9,6 +9,8 @@ import { askToAdd } from "./addSection.js";
 import { note } from "./notes.js";
 import { useMenuState, useFadeOut } from "../components/Menu.jsx";
 import { handleHint, HINT_WORDS } from "../stores/motion.js";
+import { Icon } from "../components/Icon.jsx";
+import { actionIcon } from "../menuIcons.js";
 import { hasSettings, openSettings, SettingsPopover, MENU_WORD } from "./TemplateSettings.jsx";
 
 // An item that cannot apply stays in the menu, unavailable, with the reason on it.
@@ -108,7 +110,7 @@ export function Gutter({ section, count }) {
         <OptionsBox boxRef={menu} label={`Options for ${section.title}`} onKeyDown={onMenuKey}>
           {items.map((it) => [
             <button type="button" role="menuitem" class="menu-item" key={it.act} data-act={it.act} aria-disabled={it.off ? "true" : undefined}
-              aria-describedby={it.off ? `why-${section.id}-${it.act}` : undefined} onClick={() => pick(it)}>{it.text}</button>,
+              aria-describedby={it.off ? `why-${section.id}-${it.act}` : undefined} onClick={() => pick(it)}>{actionIcon(it.act) ? <Icon name={actionIcon(it.act)} cls="mi" /> : null}<span class="mi-t">{it.text}</span></button>,
             it.off ? <div class="menu-why" key={`${it.act}-why`} id={`why-${section.id}-${it.act}`} role="none">{it.reason}</div> : null,
           ])}
         </OptionsBox>

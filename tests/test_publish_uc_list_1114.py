@@ -44,9 +44,12 @@ class RealBrowser(unittest.TestCase):
             self.assertEqual(js("document.querySelector('[data-tab=risk] em').textContent"), "1")
             self.assertEqual(js("document.querySelector('#ucp-count').textContent"), "2 use cases")
             self.assertFalse(js("/On the dashboard/i.test(document.body.innerText)"), "no On the dashboard word is drawn in a published file")
-            self.assertEqual(js("[...document.querySelectorAll('.ucp .num')].pop().textContent"), "9.9")   # Ref order: the planted 9.9 is last,
+            self.assertEqual(js("[...document.querySelectorAll('.ucp .ucref')].pop().textContent"), "UC 9.9")   # Ref order: the planted 9.9 is last,
             self.assertNotEqual(js("document.querySelector('.ucp-title').textContent"), "ZQ-SECOND-USECASE")   # so it is not first yet
-            js("document.querySelector('[data-sort=status]').click()")
+            js("document.querySelector('[aria-label^=\"Sort by\"]').click()")
+            self.assertTrue(wait(lambda: js("!![...document.querySelectorAll('[role^=menuitem]')].find(e => e.textContent.replace('✓', '').trim() === 'Status')")))
+            self.assertEqual(js("[...document.querySelectorAll('[role^=menuitem]')].map(e => e.textContent.replace('✓', '').trim()).join()").split(",")[:2], ["Reference", "Status"])
+            js("[...document.querySelectorAll('[role^=menuitem]')].find(e => e.textContent.replace('✓', '').trim() === 'Status').click()")
             self.assertEqual(js("document.querySelector('.ucp-title').textContent"), "ZQ-SECOND-USECASE")  # Status order puts High risk first: the order changed
             js("document.querySelector('[data-tab=risk]').click()")
             self.assertEqual(js("document.querySelectorAll('.ucp').length"), 1)
@@ -56,6 +59,25 @@ class RealBrowser(unittest.TestCase):
             js("document.querySelector('[data-clear-all]').click()")
             self.assertEqual(js("document.querySelectorAll('.ucp').length"), 2)
             self.assertEqual(js("document.querySelector('[data-tab=all]').getAttribute('aria-pressed')"), "true")
+
+    def test_a_published_row_is_the_dashboard_summary_row(self):
+        # item 1149: the boxed reference ("UC" once), the title, where it stands, the status word and the shared next steps; no table, no column names
+        for width in (1400, 900):
+            with self.subTest(width=width), tempfile.TemporaryDirectory() as tmp, chrome() as cdp:
+                sid = self.go(cdp, made(), tmp)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1000, "deviceScaleFactor": 1, "mobile": False}, sid)
+                js = lambda s: cdp.js(s, sid)  # noqa: E731
+                self.assertEqual(js("[...document.querySelectorAll('.ucp > summary .ucref')].map(e => e.textContent).join()"), "UC 1.1,UC 9.9")
+                self.assertEqual(js("document.querySelectorAll('.ucp > summary .ucsteps').length"), 2)
+                self.assertTrue(js("/^(No open steps|\\d+ next steps?)$/.test(document.querySelector('.ucp > summary .ucsteps').textContent)"))
+                self.assertEqual(js("[...document.querySelectorAll('.ucp > summary')].map(s => (s.innerText.match(/UC/g) || []).length).join()"), "1,1", "UC is said once on a row")
+                self.assertEqual(js("getComputedStyle(document.querySelector('.ucp > summary')).display"), "grid")
+                cols = js("getComputedStyle(document.querySelector('.ucp > summary')).gridTemplateColumns").split()
+                self.assertEqual(cols[-2:], ["124px", "112px" if width == 1400 else "96px"], f"the row's narrow grid wins at {width} px (item 1149)")
+                medium = js("(() => { const e = document.createElement('b'); e.style.fontWeight = 'var(--weight-medium)'; document.body.append(e); const w = getComputedStyle(e).fontWeight; e.remove(); return w; })()")
+                self.assertEqual(js("getComputedStyle(document.querySelector('.ucp > summary .uctitle')).fontWeight"), medium, "the dashboard's title weight")
+                self.assertEqual(js("document.querySelectorAll('.ucp-sorts, .ucp-sort').length"), 0, "the sort is a menu beside Group by")
+                self.assertTrue(js("document.documentElement.scrollWidth <= window.innerWidth"))
 
     def test_group_by_status_and_a_group_shuts(self):
         with tempfile.TemporaryDirectory() as tmp, chrome() as cdp:

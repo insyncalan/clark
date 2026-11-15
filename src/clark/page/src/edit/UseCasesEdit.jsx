@@ -18,6 +18,7 @@
 // the owner, 03-11-2026): it is counted in "from your project record (N)" and on the Use cases page until its eye is turned on.
 import { signal } from "@preact/signals";
 import { getArchived } from "../api.js";
+import { RecordMore } from "./RecordMore.jsx";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, mode, project, rows } from "../stores/report.js";
 import { inertBehind } from "./modalLayers.js";
@@ -26,6 +27,7 @@ import { NewTile } from "../components/NewTile.jsx";
 import { Menu } from "../components/Menu.jsx";
 import { Picker } from "../components/Picker.jsx";
 import { Icon } from "../components/Icon.jsx";
+import { actionIcon } from "../menuIcons.js";
 import { Line, NAME_MAX, HEAD_MAX, HEADLINE_PROMPT, STANDING_PROMPT } from "../components/UseCaseDetail.jsx";
 import { RichField } from "./RichField.jsx";
 import { KIND_WORDS, todayIso } from "../workItems.js";
@@ -144,7 +146,7 @@ export function Status({ u }) {
   return (
     <span class="ucst" data-uc-status={u.id} data-edit-only>
       <Menu label={u.status} labelCls={`ucword rag-${r}`} btnCls="ucw-btn" ariaLabel={`Status: ${u.status}. Change`} menuLabel="Status" id={`ucst-${u.id}`} chevron={false}
-        items={STATUSES.map(([n, c]) => ({ id: n, name: n, word: c, checked: u.status === n }))}
+        items={STATUSES.map(([n, c]) => ({ id: n, name: n, word: c, icon: actionIcon("status"), checked: u.status === n }))}
         onPick={(n) => { if (n !== u.status) send(u, { status: n }, `Use case ${name(u)} set to ${n}.`); }} />
     </span>
   );
@@ -251,7 +253,7 @@ export function MilestoneLink({ u }) {
   return (
     <span class="ucx-mslink" data-ms-link={u.id} data-edit-only>
       <Menu label="Add a milestone" ariaLabel={`Add a milestone to use case ${name(u)}`} menuLabel="Milestones to link" id={`ucd-mslink-${u.id}`} btnCls="btn sm" left
-        items={items} onPick={pick} />
+        items={items.map((m) => ({ ...m, icon: actionIcon("milestone") }))} onPick={pick} />
     </span>
   );
 }
@@ -337,4 +339,4 @@ export function Boxes() {
 }
 
 /** The Edit parts as one object, `tools.ucEdit`. */
-export const UCEDIT = { Add, Status, Commit: CommitMenu, Headline, Name, FromRecord, Eye, Standing, NextStep, LinkButton, MilestoneLink, MilestoneUnlink, Boxes, added };
+export const UCEDIT = { RecordMore, Add, Status, Commit: CommitMenu, Headline, Name, FromRecord, Eye, Standing, NextStep, LinkButton, MilestoneLink, MilestoneUnlink, Boxes, added };

@@ -417,9 +417,9 @@ class Line(unittest.TestCase):
                     self.put(cdp, sid, "priority:High")
                     n = len(expect(rows, "all", filters={"priority": ["High"]}))
                     self.assertEqual(cdp.js("document.querySelector('#fline-count').textContent", sid), f"{n} of {len(rows)}")
-                    geo = cdp.js("(() => { const c = document.querySelector('#fline-count').getBoundingClientRect(), b = document.querySelector('.fline').getBoundingClientRect(), x = document.querySelector('#fline-x').getBoundingClientRect(); return {inside: c.left >= b.left && c.right <= b.right && c.top >= b.top && c.bottom <= b.bottom, right: document.querySelector('.fline-row .fio').getBoundingClientRect().left - x.right, gap: x.left - c.right}; })()", sid)
+                    geo = cdp.js("(() => { const c = document.querySelector('#fline-count').getBoundingClientRect(), b = document.querySelector('.fline').getBoundingClientRect(), x = document.querySelector('#fline-x').getBoundingClientRect(); return {inside: c.left >= b.left && c.right <= b.right && c.top >= b.top && c.bottom <= b.bottom, right: document.querySelector('.fline-row .vicons').getBoundingClientRect().left - x.right, gap: x.left - c.right}; })()", sid)
                     self.assertTrue(geo["inside"], "inside the box")
-                    self.assertLess(geo["right"], 24, "at the right end, by the clear button (row 1084: Import, Export and the view icons follow the clear button)")
+                    self.assertLess(geo["right"], 24, "at the right end, by the clear button (row 1142: the view icons follow the clear button)")
                     self.assertLess(geo["gap"], 24)
 
     def test_the_list_follows_the_box_after_a_pause_not_on_enter(self):
@@ -844,10 +844,9 @@ class Line(unittest.TestCase):
                     cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
 
     def test_a_saved_view_the_line_cannot_read_stays_listed_says_why_and_can_be_renamed_or_deleted(self):
-        """#589: it is no longer hidden. The starting view that needs a client answer is still left out (the test above)."""
+        """#589: it is no longer hidden."""
         s = self.serve()
         views = [{"id": "open", "name": "Open items", "line": "is:open"},
-                 {"id": "client", "name": "Waiting on the client", "line": "is:open is:needed"},
                  {"id": "old", "name": "Old view", "line": "is:open colour:red"}]
         tabs = "[...document.querySelectorAll('.vtab span')].map(e => e.textContent)"
         for width in SIZES:
@@ -857,7 +856,7 @@ class Line(unittest.TestCase):
                 cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({TUL: %s}))" % json.dumps(views), sid)
                 reload_to_new_page_cdp(cdp, sid)
                 self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.vtab').length", sid) == 6), "the six tabs are there")
-                self.assertEqual(cdp.js(tabs, sid), ["Open items", "Actions", "Risks and issues", "Decisions", "All work items", "Old view"], "the broken view is listed; the starting client view is still left out")
+                self.assertEqual(cdp.js(tabs, sid), ["Open items", "Actions", "Risks and issues", "Decisions", "All work items", "Old view"], "the broken view is listed")
                 self.assertEqual(cdp.js("document.querySelector('[data-vbad]').textContent", sid), "", "nothing said until it is chosen")
                 before = self.shown(cdp, sid)
                 click_tab(cdp, sid, ".vtab[data-view-id=old]")

@@ -7,7 +7,8 @@ import { data, openPeek } from "../../stores/report.js";
 import { change, say } from "../../stores/changes.js";
 import { Rows, today } from "../../templates/WorkItemsList.jsx";
 import { KINDS, MODES, STATUSES, DUE, PRIORITIES, NONE, SORTS, COLUMNS, MAX_ROWS, MAX_CAPTION, WORDS, defaults, filterOf, bodyOf,
-  listOf, drawRows, offered } from "../../templates/workItemsList.js";
+  editListOf, drawRows, offered } from "../../templates/workItemsList.js";
+import { Eye } from "../cells/Eye.jsx";
 import { plural } from "../../workItems.js";
 import { lineOf, chipsOf, readLine } from "../../templates/workItemsLine.js";
 
@@ -15,6 +16,7 @@ export const SAVED = "Work items list changed.";
 export const NOT_YET = "No filter is set for this section yet. Set one below and it shows here.";
 export const NO_MATCH = "No work items match this filter, so this section is left out of the published page. Change the filter to list some.";
 export const ONLY_SHOWN = "Only work items that go in the published page are listed.";
+export const ALL_HIDDEN = "Every work item listed here is hidden from the client, so this section is left out of the published page. Turn an eye on to list one.";
 export const BAD_MAX = `Show between 1 and ${MAX_ROWS} work items. Type a number in that range.`;
 export const LONG_CAPTION = `The caption can be at most ${MAX_CAPTION} characters. Shorten it and save again.`;
 
@@ -129,7 +131,7 @@ export function Edit({ section }) {
   };
 
   const now = today();
-  const list = listOf(section, d, now);
+  const list = editListOf(section, d, now);
   const rows = drawRows(list.items, d);
   return (
     <div class="wil wil-edit" key={tick} data-wil-edit="" data-wil-id={id}>
@@ -165,14 +167,17 @@ export function Edit({ section }) {
           <input type="number" name="max" min="1" max={MAX_ROWS} step="1" value={filter.max} onChange={commitMax} onKeyDown={keys} />
         </label>
         <Boxes id={id} legend="Columns at full width" field="columns" values={COLUMNS} words={(v) => WORDS.columns[v]} chosen={filter.columns} onToggle={toggleColumn} />
+      </div>
+      <p class="quiet" data-wil-say="count">{saved ? `${plural(rows.length, "work item")} listed now. ${ONLY_SHOWN}` : ONLY_SHOWN}</p>
+      {saved && !rows.length ? <p class="wil-none" data-wil-say="none" role="status">{NO_MATCH}</p> : null}
+      {saved && rows.length && rows.length === list.off.length ? <p class="wil-none" data-wil-say="all-hidden" role="status">{ALL_HIDDEN}</p> : null}
+      {saved && rows.length ? <Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Eye={Eye} /> : null}
+      {saved && list.caption && rows.length ? <p class="wil-cap">{list.caption}</p> : null}
+      <div class="wil-capbox">
         <label class="wil-sel wil-capf" data-field="caption"><span>Caption (optional)</span>
           <input type="text" name="caption" value={filter.caption} onInput={capInput} onChange={commitCaption} onKeyDown={keys} />
         </label>
       </div>
-      <p class="quiet" data-wil-say="count">{saved ? `${plural(rows.length, "work item")} listed now. ${ONLY_SHOWN}` : ONLY_SHOWN}</p>
-      {saved && !rows.length ? <p class="wil-none" data-wil-say="none" role="status">{NO_MATCH}</p> : null}
-      {saved && rows.length ? <Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} /> : null}
-      {saved && list.caption && rows.length ? <p class="wil-cap">{list.caption}</p> : null}
     </div>
   );
 }

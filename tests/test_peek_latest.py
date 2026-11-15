@@ -151,7 +151,7 @@ class Source(unittest.TestCase):
 
     def test_each_change_is_sent_with_its_own_place(self):
         jsx = (ROOT / "src/clark/page/src/edit/PeekLatest.jsx").read_text(encoding="utf-8")
-        self.assertEqual(jsx.count('place: "peek"'), 3, "a move, a saved update and the Needed from the client switch (row 811)")
+        self.assertEqual(jsx.count('place: "peek"'), 2, "a move and a saved update (item 1158: the Needed from the client switch is gone)")
         self.assertNotIn('place: "draft"', jsx, "row 1077: the page no longer drafts (the server still knows the place, for its history)")
         self.assertIn('done.place || "cell"', (ROOT / "src/clark/page/src/stores/changes.js").read_text(encoding="utf-8"))
         self.assertTrue({"peek", "draft"} <= set(changes.PLACES))

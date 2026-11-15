@@ -25,10 +25,12 @@ RING = "(function(){ var e = document.querySelector('#pub-go .spin'); if (!e) re
 
 class Ring(tpd.Base):
     def held(self, cdp, features, own=False):
-        p = self.page(cdp)
+        p = self.page(cdp, motion="no-preference" if features == ALLOW else None)      # before the load: a Mac that reduces motion paints data-motion=reduce at load
         cdp.call("Emulation.setEmulatedMedia", {"features": features}, p.sid)
         if own:
             p.js("document.documentElement.dataset.motion = 'reduce'")
+        elif features == ALLOW:
+            p.js("delete document.documentElement.dataset.motion")      # the Mac asks for reduced motion and the page paints data-motion=reduce at load
         p.js(HOLD)
         p.open_publish()
         p.go()

@@ -12,6 +12,8 @@ const ICONS = {
   right: '<path d="m9 6 6 6-6 6"/>',
   tline: '<path d="M3 12h18"/><circle cx="7" cy="12" r="2"/><circle cx="15" cy="12" r="2"/><path d="M7 8V6M15 8V6"/>',
   cal: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
+  chevup: '<path d="m18 15-6-6-6 6"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/>',
   chevdown: '<path d="m6 9 6 6 6-6"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
   move: '<path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/>',

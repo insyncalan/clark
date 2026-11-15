@@ -36,7 +36,7 @@ class PublishedTabs(Base):
         got = self.probe(900)
         self.assertEqual(got["shrink"], "1", got)
         self.assertEqual(got["ox"], "auto", got)
-        self.assertGreater(got["sw"], got["cw"], f"the tab row scrolls inside its bar: {got}")
+        self.assertGreaterEqual(got["cw"], 800, f"issue 1146: the tabs are a strip the width of the two-row bar, and scroll inside it when they do not fit: {got}")
         self.assertLessEqual(got["doc"], got["win"], f"the page does not run past the window: {got}")
 
     def test_at_1400_the_page_is_not_wider_than_the_window(self):

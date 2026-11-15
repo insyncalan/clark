@@ -98,7 +98,10 @@ class PopFocus(unittest.TestCase):
     def test_the_panel_opens_above_a_control_near_the_bottom_of_the_window(self):
         with chrome() as cdp:
             sid = self.open_page(cdp, 1400)
+            cdp.js("window.__resized = 0; window.addEventListener('resize', () => { window.__resized += 1; })", sid)
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 700, "deviceScaleFactor": 1, "mobile": False}, sid)
+            # The window's resize event arrives after the call returns, and a resize closes the panel; wait for it before opening
+            self.until(cdp, sid, "window.__resized > 0 && innerHeight === 700", "the window finished resizing")
             cell = cdp.js("""(() => { const c = [...document.querySelectorAll('[data-cell$=":due"]')].pop(); c.scrollIntoView({block: 'end'}); c.focus();
                 window.__c = c; return c.getBoundingClientRect().bottom > innerHeight - 100; })()""", sid)
             self.assertTrue(cell, "the control is near the bottom of the window")
