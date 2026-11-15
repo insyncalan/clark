@@ -260,6 +260,19 @@ export function subLine(r) {
   return { text: r.baseline ? "Agreed" : "No agreed date", late: false };
 }
 
+/** Row 1230 (detail table): the Agreed cell, the baseline date, or the existing words when there is none. */
+export const agreedText = (r) => (r.baseline ? showDate(r.baseline) : "No agreed date");
+
+/** Row 1230: the Expected or achieved cell. `date` is the achieved date, else the expected date (later than agreed when slipped), else the agreed or forecast date;
+ *  `text` is the small line under it, in the row's existing words (no Agreed line any more: that is its own column); empty for a plain on-track row. */
+export function expectedCell(r) {
+  if (r.state === "Achieved") return { date: r.achieved ? showDate(r.achieved) : "\u2014", text: r.achieved ? r.achievedNote || "Achieved" : "Achieved, date not recorded", late: false };
+  if (r.state === CANCELLED) return { date: showDate(r.baseline || r.forecast), text: "No longer going ahead", late: false };
+  if (r.state === "Forecast") return { date: showDate(r.forecast || r.baseline), text: "Forecast, not agreed", late: false };
+  if (r.slip) return { date: showDate(r.expected), text: r.slipText, late: true };
+  return { date: showDate(r.baseline || r.forecast), text: "", late: false };
+}
+
 /** The Milestones head when headLine gives nothing: 'No milestones yet.' only when there are no rows to draw; if every row is cancelled, say so. */
 export function emptyHead(rows) {
   const n = (rows || []).length;
