@@ -95,7 +95,9 @@ export const BUILT_INS = [
   builtIn("milestones", "Milestones", "dates"), builtIn("raid", "Risks and issues", "work"), builtIn("actions", "Open actions", "work"),
   builtIn("decisions", "Decisions", "work"), builtIn("docs", "Supporting documents", "files"),
 ];
-const missing = (sections) => (sections ? BUILT_INS.filter((b) => !sections.some((s) => s.type === b.type)) : []);
+// Item 1188: the first default section is now the text section "Current state", which "Header and Text" also adds, so the older
+// "current" built-in is not offered (a second card that makes the same heading); a report that has one keeps it.
+const missing = (sections) => (sections ? BUILT_INS.filter((b) => b.type !== "current" && !sections.some((s) => s.type === b.type)) : []);
 
 // Every template entry, in the box or not: one per template type, and Text.
 export const CATALOGUE = [...TEMPLATES, ...LATER];
