@@ -80,9 +80,14 @@ class Head(Base):
     def go_page(self, p, slug):
         """Open a Settings page by its menu item, as a person does, and wait until it is the marked one with its cards drawn."""
         name = {s: n for s, n, _ in PAGES}[slug]
-        self.click_chip(p, name)
         heads = " && ".join(f"!!document.getElementById('{head}')" for _, head in dict(((s, c) for s, _, c in PAGES))[slug])
-        p.until(f"(function(){{var c = document.querySelector('.set-chip[aria-current]'); return !!c && c.textContent === '{name}';}})() && {heads}", f"the {name} page drew")
+        drew = f"(function(){{var c = document.querySelector('.set-chip[aria-current]'); return !!c && c.textContent === '{name}';}})() && {heads}"
+        for attempt in range(3):      # a click on a slow runner (macOS) can be lost to a scroll or a re-draw under it: a person clicks again when the page did not open
+            self.click_chip(p, name)
+            if wait(lambda: p.js(f"!!({drew})"), 8 if attempt < 2 else 15):
+                break
+        p.until(drew, f"the {name} page drew; marked: " + str(p.js("(document.querySelector('.set-chip[aria-current]') || {}).textContent")) +
+                "; cards: " + str(p.js("[...document.querySelectorAll('.set-cards [id$=-h]')].map(h => h.id)")))
         p.settled("the page finished drawing")
 
     def chips(self, p):

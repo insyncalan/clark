@@ -54,6 +54,7 @@ class Setup(Base):
         if settings:
             return p
         p.ready()
+        cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)      # again after the page is ready: a slow runner can drop it with the old document (as _rich_page does)
         p.until("!!document.querySelector('.glance')", "the tiles drew")
         return p
 
@@ -226,6 +227,7 @@ class Health(Setup):
             p.type("First line")
             p.key("Enter", 0, "Enter", 13)
             p.type("Second line")
+            p.until("document.querySelector('[data-reason] .ProseMirror').textContent.includes('Second line')", "the second line is in the editor before it is left")
             p.js("document.activeElement.blur()")
             p.saved()
             self.assertEqual(self.project()["health_reason"], "<p>First line</p><p>Second line</p>")
@@ -604,6 +606,7 @@ class Published(PublishedFile, Setup):
         for width, dark in ((1400, False), (900, True)):
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 p = self.draw(cdp, path, width, dark)
+                p.until("document.querySelectorAll('.glance > .tcell').length > 0 && !!document.querySelector('.uctotal')", "the file's tiles and use cases drew")
                 self.assertEqual(p.js("[...document.querySelectorAll('.glance > .tcell')].map(e => e.dataset.tile)"), ["health", "overdue", "risks"])
                 self.assertEqual(p.js("document.querySelector('[data-fig=overdue] .v').textContent"), "1", "the client counts only what the file holds")
                 self.assertEqual(p.js("document.querySelectorAll('.glance button:not(.fig), .glance textarea, .glance input, .uc textarea, .uc input').length"), 0)
