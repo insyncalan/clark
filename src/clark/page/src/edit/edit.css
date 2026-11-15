@@ -1270,6 +1270,7 @@ table.items th.c-eye { white-space: nowrap; }
 @media (min-width: 801px) {
   .msl-cols-btn { display: inline-flex; position: absolute; right: var(--space-2); top: 50%; transform: translateY(-50%); }
   .msl-x { display: block; }
+  .msl-hdw + .msl { margin-top: 0; }      /* the heading row is now in a wrapper (it holds the Columns button): the rows still join it */
   .msl-cells > .cols-off { display: none; }
   .msl-box[data-nodate] .msl-cells > .msl-sub { grid-column: 1; }
 }
