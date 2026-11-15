@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { Menu } from "../components/Menu.jsx";
 import { token, project, setProject } from "../stores/report.js";
+import { zoneFetch } from "../api.js";
 import { navigate } from "../router.js";
 import { actionIcon } from "../menuIcons.js";
 
@@ -17,7 +18,7 @@ export function ProjectSwitch({ name, cover, header }) {      // `cover` (item 1
   const live = useRef(true), asked = useRef(0);
   const read = () => {
     const mine = ++asked.current;       // only the newest answer is shown, so a slow older one cannot put old counts back
-    fetch("/api/projects", { headers: { "X-Clark-Token": token() }, cache: "no-store" })
+    zoneFetch("/api/projects", { headers: { "X-Clark-Token": token() }, cache: "no-store" })
       .then((r) => r.json().then((b) => (r.ok && b.ok && Array.isArray(b.projects) ? b.projects : [])))
       .then((rows) => { if (live.current && mine === asked.current && rows.length) setList(rows); })
       .catch(() => {});

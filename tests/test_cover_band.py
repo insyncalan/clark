@@ -172,20 +172,14 @@ class Picture(Setup):
 LOGO = """(() => { const c = document.querySelector('header.cover'), r = c.getBoundingClientRect(), s = getComputedStyle(c, '::after');
   return {band: [r.width, r.height], display: s.display, image: s.backgroundImage, size: s.backgroundSize, repeat: s.backgroundRepeat,
           pos: s.backgroundPosition, abs: s.position, w: parseFloat(s.width), h: parseFloat(s.height), top: parseFloat(s.top), right: parseFloat(s.right)}; })()"""
-# item 1177 (option c): the installed brand's logo (item 1154's --image-logo) is drawn small at the RIGHT of the editor's header, before the icons: .hdr-end::before.
+# row 1212: the editor's header draws the brand's logo ONCE (the .logo box at the left). The copy at the right (.hdr-end::before, drawn from --image-logo) is gone.
+# drawn = every box in the header (and its ::before and ::after) that paints the brand logo picture: it must be none.
 HDR_LOGO = """(() => { const c = document.querySelector('.top-hdr'), e = c.querySelector('.hdr-end'), s = getComputedStyle(e, '::before'),
-  b = c.getBoundingClientRect(), r = e.getBoundingClientRect(), clark = c.querySelector('.logo').getBoundingClientRect(),
-  edge = (el) => { const g = document.createRange(); g.selectNodeContents(el); return Math.max(...[...g.getClientRects()].map((x) => x.right)); },
-  kids = [...e.children].filter((k) => k.getBoundingClientRect().width > 0), first = kids.length ? Math.min(...kids.map((k) => k.getBoundingClientRect().left)) : null,
-  last = kids.length ? Math.max(...kids.map((k) => k.getBoundingClientRect().right)) : null;
-  const left = r.left + parseFloat(s.left || 0);
-  return {bar: [b.left, b.right, b.top, b.bottom], image: s.backgroundImage, size: s.backgroundSize, repeat: s.backgroundRepeat, pos: s.backgroundPosition,
-          abs: s.position, display: s.display, w: parseFloat(s.width), h: parseFloat(s.height), left: left, right: left + parseFloat(s.width),
-          mid: r.top + r.height / 2, endLeft: r.left, first: first, last: last, clarkRight: clark.right, clarkLeft: clark.left,
-          name: c.querySelector('.hdr-project').getBoundingClientRect().right, line: edge(c.querySelector('.hdr-line')), pad: getComputedStyle(e).paddingLeft,
-          var: getComputedStyle(document.documentElement).getPropertyValue('--image-logo').trim(),
-          wide: document.documentElement.scrollWidth <= window.innerWidth, vw: window.innerWidth,
-          covers: document.querySelectorAll('header.cover').length}; })()"""
+  b = c.getBoundingClientRect(), l = c.querySelector('.logo').getBoundingClientRect(),
+  drawn = [c, ...c.querySelectorAll('*')].flatMap((n) => ['', '::before', '::after'].map((q) => getComputedStyle(n, q).backgroundImage)).filter((i) => i.includes('data:image/png') || i.includes('/assets/'));
+  return {content: s.content, image: s.backgroundImage, w: s.width, pad: getComputedStyle(e).paddingLeft, drawn: drawn.length,
+          var: getComputedStyle(document.documentElement).getPropertyValue('--image-logo').trim(), clarkLeft: l.left - b.left, clarkW: l.width, clarkH: l.height,
+          wide: document.documentElement.scrollWidth <= window.innerWidth, covers: document.querySelectorAll('header.cover').length}; })()"""
 
 
 class Logo(Setup):
@@ -211,39 +205,27 @@ class Logo(Setup):
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
                 self.assertGreaterEqual(min(p.js(LUM_COVER)), 4.5, "the text keeps its contrast")
 
-    def test_the_brand_logo_sits_small_at_the_right_of_the_editor_header_before_the_icons(self):
+    def test_the_editor_header_draws_no_second_logo_at_the_right_even_with_a_brand_logo_set(self):
+        """Row 1212: with --image-logo set (and the room the server sets with a logo) nothing in the header paints it and the icon group keeps no room for it."""
         for width, dark in ((1400, False), (900, True), (1400, True), (900, False)):
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 p = self.show(cdp, width, dark)
-                plain = p.js(HDR_LOGO)
-                self.assertEqual(plain["image"], "none", "no brand logo: nothing is drawn")
-                self.assertEqual(plain["image"], "none", "no brand logo: nothing is painted; the box is out of the flow (item 1177) and the room kept is checked below")
                 p.js("document.documentElement.style.setProperty('--image-logo', %s); document.documentElement.style.setProperty('--cover-logo-room', '192px')" % json.dumps(artwork()))
                 got = p.js(HDR_LOGO)
-                self.assertIn("data:image/png", got["image"])
-                self.assertEqual((got["abs"], got["display"]), ("absolute", "block"))
-                self.assertEqual((got["w"], got["h"]), (128, 32) if width == 1400 else (96, 24), "small: 128 x 32 at 1400, 96 x 24 at 900")
-                self.assertEqual(got["size"], "contain", "the logo is scaled to fit, never stretched or cropped")
-                self.assertEqual(got["repeat"], "no-repeat")
-                self.assertTrue(got["pos"].startswith("100%"), "against the right edge of its box")
-                self.assertGreaterEqual(got["left"], got["bar"][0], "inside the bar")
-                self.assertLessEqual(got["right"], got["bar"][1], "inside the bar")
-                self.assertTrue(got["bar"][2] <= got["mid"] <= got["bar"][3], "in the bar's height")
-                self.assertLessEqual(got["right"], got["first"] + 0.5, "before the icons: the logo ends at or left of the first icon")
-                self.assertLessEqual(got["last"], got["vw"] + 0.5, "the profile circle stays on the row")
-                self.assertLessEqual(got["clarkRight"], got["left"], "the clark logo stays at the left, the brand logo is right of it")
+                self.assertEqual(got["content"], "none", "no ::before on the icon group: the second logo is gone")
+                self.assertEqual((got["image"], got["w"]), ("none", "auto"))
+                self.assertEqual(got["pad"], "0px", "the icon group keeps no room for a logo")
+                self.assertEqual(got["drawn"], 0, "no box in the header paints the brand logo picture")
                 self.assertTrue(got["wide"], "no sideways scroll")
                 self.assertGreaterEqual(min(p.js(LUM_HDR)), 4.5, "the text keeps its contrast")
 
-    def test_the_clark_logo_stays_at_the_left_and_the_brand_logo_sits_left_of_the_icon_group(self):
+    def test_the_one_logo_stays_at_the_left_of_the_editor_header(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
                 p.js("document.documentElement.style.setProperty('--image-logo', %s); document.documentElement.style.setProperty('--cover-logo-room', '192px')" % json.dumps(artwork()))
                 got = p.js(HDR_LOGO)
-                self.assertLessEqual(got["clarkLeft"] - got["bar"][0], 40, "the clark logo is at the left edge of the header")
-                self.assertLess(got["clarkRight"], got["endLeft"], "the clark logo is left of the .hdr-end group")
-                self.assertGreaterEqual(got["left"], got["endLeft"], "the brand logo is in .hdr-end, at its left, before the icons")
+                self.assertLessEqual(got["clarkLeft"], 40, "the logo is at the left edge of the header")
                 self.assertEqual(got["covers"], 0, "still no cover band under the header")
 
 
@@ -277,20 +259,16 @@ class BrandLogo(Setup):
                 p.until("window.__logo === 40", "the logo picture loaded from the route")
                 self.assertGreaterEqual(min(p.js(LUM_COVER)), 4.5)
 
-    def test_the_installed_brand_logo_reaches_the_editor_header(self):
+    def test_the_installed_brand_logo_is_not_drawn_a_second_time_in_the_editor_header(self):
+        """Row 1212: through the real wiring the variable is set (the Gantt band uses it), but the editor's header paints no copy of it."""
         self.serve(True)
         for width, dark in ((1400, False), (900, True)):
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 p = self.show(cdp, width, dark)
                 got = p.js(HDR_LOGO)
-                self.assertIn("/assets/one-brand/logo.png", got["image"], "the brand's own logo is drawn in the header")
-                self.assertIn("/assets/one-brand/logo.png", got["var"])
-                self.assertEqual((got["display"], got["abs"]), ("block", "absolute"))
-                self.assertEqual((got["w"], got["h"]), (128, 32) if width == 1400 else (96, 24))
-                self.assertLessEqual(got["right"], got["first"] + 0.5, "before the icons")
+                self.assertIn("/assets/one-brand/logo.png", got["var"], "the brand's logo is still set for the Gantt band")
+                self.assertEqual((got["content"], got["image"], got["pad"], got["drawn"]), ("none", "none", "0px", 0))
                 self.assertTrue(got["wide"])
-                p.js("window.__logo = 0; const i = new Image(); i.onload = () => { window.__logo = i.naturalWidth; }; i.src = '/assets/one-brand/logo.png';")
-                p.until("window.__logo === 40", "the logo picture loaded from the route")
                 self.assertGreaterEqual(min(p.js(LUM_HDR)), 4.5)
 
     def test_a_brand_without_a_logo_draws_nothing(self):
@@ -299,7 +277,7 @@ class BrandLogo(Setup):
             with self.subTest(width=width), chrome() as cdp:
                 self.assertEqual(gantt_page(self, cdp, width).js(LOGO)["image"], "none")
                 got = self.show(cdp, width).js(HDR_LOGO)
-                self.assertEqual((got["var"], got["image"], got["w"]), ("none", "none", 0))
+                self.assertEqual((got["var"], got["image"], got["drawn"]), ("none", "none", 0))
 
 
 ROOM = """(() => { const c = document.querySelector('header.cover'), h = c.querySelector('h1'), l = c.querySelector('.cover-line'),
@@ -335,14 +313,18 @@ class LogoRoom(Setup):
             with self.subTest(width=width), chrome() as cdp:
                 self.assertEqual(gantt_page(self, cdp, width).js(ROOM)["pad"], pad)
 
-    def test_a_long_title_and_line_stop_before_the_logo_in_the_editor_header(self):
+    def test_a_long_title_and_line_stop_before_the_icon_group_in_the_editor_header(self):
+        """Row 1212: with no logo box at the right, the long name still ends before the icon group (its ellipsis) and the page has no sideways scroll."""
         self.serve(True)
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
-                got = self.show(cdp, width).js(HDR_LOGO)
-                self.assertGreater(got["w"], 0, "the logo has its box")
-                self.assertLessEqual(got["name"], got["left"] + 0.5, "the project name ends at or left of the logo box")
-                self.assertLessEqual(got["line"], got["left"] + 0.5, "the header line ends at or left of the logo box")
+                p = self.show(cdp, width)
+                got = p.js("""(() => { const c = document.querySelector('.top-hdr'), e = c.querySelector('.hdr-end').getBoundingClientRect(),
+                  r = (s) => c.querySelector(s).getBoundingClientRect().right;
+                  return {name: r('.hdr-project'), line: r('.hdr-line'), end: e.left, wide: document.documentElement.scrollWidth <= window.innerWidth}; })()""")
+                self.assertLessEqual(got["name"], got["end"] + 0.5, "the project name ends at or left of the icon group")
+                self.assertLessEqual(got["line"], got["end"] + 0.5, "the header line ends at or left of the icon group")
+                self.assertTrue(got["wide"], "no sideways scroll")
 
     def test_with_no_logo_the_editor_header_end_padding_is_unchanged(self):
         self.serve(False)
@@ -351,7 +333,7 @@ class LogoRoom(Setup):
                 p = self.show(cdp, width)
                 got = p.js(HDR_LOGO)
                 self.assertEqual(got["pad"], "0px", "no room kept without a logo")
-                self.assertEqual(got["w"], 0)
+                self.assertEqual((got["content"], got["w"]), ("none", "auto"))
 
 
 class BrandLogoPage(unittest.TestCase):
@@ -403,7 +385,7 @@ class InTheFile(Published):
                 got = p.js("({kind: document.querySelector('header.top .cover-kind').textContent, line: document.querySelector('header.top .cover-line').textContent, h1: document.querySelectorAll('h1').length, cover: document.querySelectorAll('header.cover').length})")
                 self.assertEqual(got["kind"].upper(), "WEEKLY REPORT")
                 self.assertIn("Week ending 23-10-2026", got["line"])
-                self.assertIn("for Example Client", got["line"])
+                self.assertNotIn("for Example Client", got["line"], "issue 1178: no client in the line")
                 self.assertEqual((got["h1"], got["cover"]), (1, 0))
 
     def test_a_missing_week_and_client_leave_those_parts_out(self):

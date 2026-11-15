@@ -2,6 +2,7 @@
 // this card only says what happened, in plain words (the server's own when it refused). Edit parts only: a published file has none.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { token } from "../stores/report.js";
+import { zoneFetch } from "../api.js";
 
 const STOPPING = "Stopping clark. You can close this window.";
 const SAVING = "Finishing your save first. Then clark stops.";
@@ -13,7 +14,7 @@ const FAILED = "Quitting did not work. Try again.";
 // {status, body}: never a throw; a status of 0 is "no answer".
 async function quit() {
   try {
-    const r = await fetch("/api/quit", { method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" }, body: "{}", cache: "no-store" });
+    const r = await zoneFetch("/api/quit", { method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" }, body: "{}", cache: "no-store" });
     return { status: r.status, body: await r.json().catch(() => null) };
   } catch (e) {
     return { status: 0, body: null };
