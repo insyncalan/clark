@@ -656,7 +656,7 @@ class CopyingAndSent(unittest.TestCase):
 
     def test_a_refused_clipboard_says_what_to_press(self):
         self.assertEqual(de.copy_result(True), "Copied")
-        self.assertEqual(de.copy_result(False), "The browser did not copy it. Press ⌘C to copy the selected text.")
+        self.assertEqual(de.copy_result(False), "The browser did not copy it. Press Ctrl+C (Cmd+C on a Mac) to copy the selected text.")
 
     def test_mail_link_only_when_the_finished_link_is_short(self):
         # The limit is on the encoded link, not the text: a space is 3 characters in a link and a line break 6.
