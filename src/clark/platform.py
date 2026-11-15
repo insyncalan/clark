@@ -24,7 +24,7 @@ import sys
 import tempfile
 import threading
 import time
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 try:
     import fcntl               # the Mac's and Linux's file lock; there is none on Windows
@@ -71,6 +71,28 @@ def container_mode():
     return os.environ.get("CLARK_CONTAINER") == "1" and (os.path.exists("/.dockerenv") or os.path.exists("/run/.containerenv"))
 
 
+HOST_WINDOWS = "windows"
+ASK_OFF_ON_WINDOWS = "ask clark is not available on Windows yet"
+
+
+def host(environ=None):
+    """item 629: "windows" only when CLARK_HOST=windows is set (by docker/compose.windows.yaml, for a container on a Windows computer,
+    where clark itself sees Linux); anything else, or nothing, is None and clark behaves as it always has."""
+    value = (os.environ if environ is None else environ).get("CLARK_HOST")
+    return HOST_WINDOWS if value == HOST_WINDOWS else None
+
+
+def windows_host(environ=None):
+    """item 629: True when the host computer is Windows (see host)."""
+    return host(environ) == HOST_WINDOWS
+
+
+def _host_form(text):
+    """item 629: `text`, a home-relative path written with "~/", in the Windows form (with backslashes) when the host is Windows; as it is
+    otherwise. Only the home folder is the host's: a path outside it (such as /data in the container) is the container's and stays as it is."""
+    return text.replace("/", "\\") if windows_host() else text
+
+
 _POD_INTERFACES = ("tunl0", "sit0", "ip6tnl0", "gre0", "gretap0", "erspan0", "ip_vti0", "ip6_vti0", "ip6gre0")       # tunnel devices the kernel makes in every network, not a physical one
 
 
@@ -104,10 +126,10 @@ def container_host_in_onedrive(environ=None):
     host = (os.environ if environ is None else environ).get("CLARK_DATA_SOURCE")
     if not host:
         return None
-    path = Path(host)
+    path = PureWindowsPath(host) if "\\" in host or re.match(r"[A-Za-z]:", host) else Path(host)      # item 629: a Windows host path is split on its backslashes (a Linux Path in the container would read it as one name)
     for i, part in enumerate(path.parts):
         if part.lower().startswith("onedrive"):
-            return Path(*path.parts[:i + 1])
+            return type(path)(*path.parts[:i + 1])
     return None
 
 
@@ -444,7 +466,7 @@ def shown(path, home=None):
     if path == home:
         return "~"
     try:
-        return "~/" + path.relative_to(home).as_posix()
+        return _host_form("~/" + path.relative_to(home).as_posix())
     except ValueError:
         return str(path)
 
@@ -968,7 +990,9 @@ def folder_phrase(path, capital=False):
 def with_tilde(path, home=None):
     """`path` as a person reads it: the home folder written ~, so a message never shows the account's folder name."""
     text, home = str(path), str(Path(home) if home else Path.home())
-    return "~" + text[len(home):] if text == home or text.startswith(home.rstrip("/") + "/") else text
+    if not home.rstrip("/"):                    # item 629: a home of "/" holds everything, so nothing is written from "~"
+        return text
+    return _host_form("~" + text[len(home):]) if text == home or text.startswith(home.rstrip("/") + "/") else text
 
 
 def start_detached(argv, env, log_path, cwd=None, popen=None, on=None):
@@ -1018,6 +1042,8 @@ NO_SCRIPTS = (".cmd", ".bat")
 
 def find_claude(which=shutil.which):
     """The Claude command to run, or None if it isn't on the PATH. A .cmd or .bat file is refused with the reason."""
+    if windows_host():                          # item 629: the container's Linux command is not the host's; ask clark is off
+        raise PlatformError(ASK_OFF_ON_WINDOWS)
     found = which(CLAUDE)
     if found and Path(found).suffix.lower() in NO_SCRIPTS:
         raise PlatformError("The copy of Claude Code on this computer can't be used safely by ask clark. Install Claude "
