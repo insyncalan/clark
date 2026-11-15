@@ -312,6 +312,8 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-actions { flex: none; display: flex; align-items: center; gap: var(--space-2); }
 .ask-actions .btn.primary { width: 36px; min-width: 36px; height: 36px; min-height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; }
 .ask-actions .btn.primary:disabled, .ask-actions .btn.primary[data-empty] { opacity: .45; cursor: default; box-shadow: none; }
+.ask-actions .ask-stop-icon { opacity: 1; cursor: pointer; }
+.ask-actions .ask-stop-icon svg { display: block; }
 /* #47e: a suggested change in the ask panel */
 .ask-changes { display: flex; flex-direction: column; gap: 10px; margin-top: var(--space-1); }
 .ask-passage { margin: 0; padding: 6px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: var(--surface); }  /* row 936: a quote edge is a hairline all round, no one-side stripe */
