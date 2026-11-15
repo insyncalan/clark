@@ -185,6 +185,34 @@ class Saved(Api):
         self.assertNotIn(MARK, json.dumps(got))
         self.assertEqual(self.snapshot(), before)
 
+    def stored(self, ref, text):
+        """Put `text` in the section's body as an older clark, or a hand edit, could have left it (no checker in the way)."""
+        self.s.con.execute("UPDATE report_sections SET body = ? WHERE id = ?", (text, ref))
+        self.s.con.commit()
+        self.assertEqual(self.s.read("report_sections", ref=ref)["body"], text)
+
+    def test_stored_content_the_new_rules_refuse_drops_the_section_and_refuses_every_save_PINNED_BEHAVIOUR(self):
+        """Item 1194 made a link description required and a file ending allowed. Content stored BEFORE that (a link with no words, a
+        file ending in .zip) no longer checks, so: publish leaves the whole section out (never repaired, never half drawn) and a
+        save that still carries that entry is refused in the plain words. Removing the old entry (or giving it words) makes the
+        section saveable and published again. This pins the behaviour; there is no fallback that keeps old entries."""
+        for name, old, words in (("link with no words", a_link(label=""), doclinks.NO_DESCRIPTION),
+                                 ("file with an ending that is not allowed", a_file(name="old.zip"), doclinks.BAD_TYPE)):
+            with self.subTest(old=name):
+                ref = self.make("Fictional old " + name)
+                self.stored(ref, body([a_link(), old]))
+                built = publish.build(self.s, "ABC", now="2030-01-15")
+                self.assertNotIn(ref, {s["id"] for s in built["published"]["sections"]}, "the whole section is left out, the good link too")
+                before = self.snapshot()
+                status, got = self.save(ref, body([a_link(), old, a_link(href="https://example.org/new", label="New")]))
+                self.assertEqual((status, got["message"]), (400, words))
+                self.assertEqual(self.snapshot(), before, "a refused save writes nothing")
+                status, got = self.save(ref, body([a_link()]))
+                self.assertEqual(status, 200, got)
+                built = publish.build(self.s, "ABC", now="2030-01-15")
+                self.assertEqual([i["href"] for i in next(s for s in built["published"]["sections"] if s["id"] == ref)["content"]["items"]],
+                                 ["https://example.org/plan"], "once the old entry is gone the section is published again")
+
     def test_the_file_carries_the_list_and_a_hidden_or_empty_section_is_left_out(self):
         shown = self.make("Fictional papers")
         self.save(shown, body([a_link(), a_file()]))
