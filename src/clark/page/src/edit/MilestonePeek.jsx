@@ -21,6 +21,11 @@ import { RichField } from "./RichField.jsx";
 import { richOrPlain } from "../logic/richOrPlain.js";
 import { richWords } from "../logic/richWords.js";
 import { MsHead, MsState, MsSep } from "../components/Peek.jsx";
+import { PeekLatestHistory } from "./PeekLatestHistory.jsx";
+import { stampText } from "./peekLatest.js";
+import { DraftButton, DraftPanel, useDraftAi } from "./DraftAi.jsx";
+import { placeFor, keyForField } from "../logic/aiPlaces.js";
+import { Icon } from "../components/Icon.jsx";
 import { PICKABLE, ALL_STATES, shownState, stateChange, textChange, progressChange } from "./msPeek.js";
 
 const DASH = "—";
@@ -76,6 +81,21 @@ function ClientWording({ m }) {
   return <RichField field="client_message" id={m.id} value={asHtml(m.client_message)} label="Client wording" empty={DASH} save={put} />;
 }
 
+// Item 1185: the milestone's Latest update, on the same editor as the work item peek's, with its history. One change, one Undo.
+function Latest({ m }) {
+  const ai = useDraftAi(), place = placeFor(keyForField("latest_update"));      // row 1179: the same button and right-click menu as the other peeks
+  const put = (value) => save(m, { latest_update: value }, richWords(value).trim() ? `Latest update of ${m.id} saved.` : `Latest update of ${m.id} cleared.`);
+  const shown = m.client_visible !== false && m.client_visible !== 0 && !leftOutIds(data.value).includes(m.id), stamp = stampText(m.updated_at);   // the same label and stamp as PeekLatest.jsx
+  return (
+    <>
+      <div class="pk-lab"><DraftButton ai={ai} />{shown ? <span class="pk-latest-client" data-pk-latest-client><Icon name="eye" cls="s" />Shown to the client</span> : null}</div>
+      <DraftPanel ai={ai} place={place} text={richWords(m.latest_update || "")} onAccept={(h) => put(h)} />
+      <RichField field="latest_update" id={m.id} value={asHtml(m.latest_update)} label="Latest update" empty={DASH} save={put} ai={place} />
+      {stamp ? <div class="pk-last" data-pk-last><Icon name="clock" cls="s" /> Last updated {stamp}</div> : null}
+      <PeekLatestHistory key={`h-${m.id}`} id={m.id} />
+    </>
+  );
+}
 
 // A date you pick: the Work items' date picker, with no new words (its panel is named by the field and the id).
 function DateField({ m, field, label }) {
@@ -195,6 +215,7 @@ export function MilestoneEdit({ m }) {
         <Row name="Use cases" k="use_cases"><span data-ms-ucs>{usecasesOfMilestone(data.value, m.id).map((u) => `${u.ref ? u.ref + " " : ""}${u.title}`).join(", ") || "—"}</span></Row>      {/* row 1107: the use cases linked straight to it and those reaching it through their actions, risks, issues and decisions (the editor only; a use case is linked or unlinked on its own page) */}
         <Row name="Visible to client" k="visible"><Visible m={m} /></Row>
         <Row name="Client wording" k="client_message"><ClientWording m={m} /></Row>
+        <Row name="Latest update" k="latest_update"><Latest m={m} /></Row>
       </dl>
     </>
   );

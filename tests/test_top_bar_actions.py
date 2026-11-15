@@ -114,6 +114,16 @@ class TopBarActions(Base):
                 got = p.js("['.tb-ask-w', '.tb-key'].map(s => getComputedStyle(document.querySelector(s)).display !== 'none')")
                 self.assertEqual(got, [shown, shown], f"at {width} px the ask word and the / key hint should be {'shown' if shown else 'hidden'}; got {got}")
 
+    def test_the_window_resize_event_alone_drops_the_two_buttons(self):
+        """Row 1177: the narrow-header signal follows the window's resize event even when the media query's own change event never fires."""
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            self.assertEqual(p.js("document.querySelectorAll('.top #ask-btn, .top #pal-btn').length"), 2, "at 1400 px both buttons are in the header")
+            # Only the answer of matchMedia changes; the real query list never changes, so its change event cannot fire. Only the resize listener can carry the news.
+            p.js("window.matchMedia = q => ({matches: true, media: q, addEventListener(){}, removeEventListener(){}, addListener(){}, removeListener(){}});"
+                 "window.dispatchEvent(new Event('resize')); 0")
+            p.until("document.querySelectorAll('.top #ask-btn, .top #pal-btn').length === 0", "the resize event alone dropped the search and ask buttons")
+
     def test_a_long_project_name_at_900_px_light_and_dark_keeps_the_bar_inside_the_window(self):
         # The project name shortens first; the new buttons must not push anything out.
         for width in (900,):

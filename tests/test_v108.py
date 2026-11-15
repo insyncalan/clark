@@ -476,7 +476,7 @@ class Cut(unittest.TestCase):
 
     def test_the_data_layout_is_still_the_one_the_notes_say(self):
         self.cut_made()
-        self.assertEqual(schema_version(), SCHEMA, "1.0.8 ends at layout 24")
+        self.assertGreaterEqual(schema_version(), SCHEMA, "1.0.8 ends at layout 24; a later layout only adds steps")      # item 1185 adds step 25 on the 1.1 line
 
     def test_a_waiting_row_whose_pull_request_has_landed_has_been_moved_to_covered(self):
         self.cut_made()
