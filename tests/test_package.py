@@ -911,7 +911,7 @@ class PreviousReleaseAcceptsThisOneTest(unittest.TestCase):
             old = importlib.util.module_from_spec(spec)
             with mock.patch.object(clark, "release_files", old_rf):      # the old file does `from clark import release_files`
                 spec.loader.exec_module(old)
-        for system in sorted(set(release_files.SYSTEMS) - release_files.NOT_BUILT_YET):
+        for system in sorted((set(release_files.SYSTEMS) - release_files.NOT_BUILT_YET) & set(old_rf.SYSTEMS)):      # item 624: a system the last release never shipped (the Windows zip) has no check of its own to run
             rels = _files_in_zip(release_files.listed(system) + (release_files.START_HERE,))
             try:
                 old.check_coverage(system, rels)
