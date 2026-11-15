@@ -156,7 +156,7 @@ class Served(Zoned):
         self.patches = in_container()
 
     def post(self, tz=None):
-        return self.s.api("POST", "/api/change", b"{}", extra={"X-Clark-Tz": tz} if tz is not None else None)[0]
+        return self.s.api("POST", "/api/change", b"{}", extra={"X-Tz": tz} if tz is not None else None)[0]
 
     def test_a_post_with_the_header_records_the_dubai_offset(self):
         with self.patches[0], self.patches[1], self.patches[2]:
@@ -178,24 +178,24 @@ class Served(Zoned):
         with self.patches[0], self.patches[1], self.patches[2]:
             os.environ["TZ"] = "UTC"
             time.tzset()
-            status = self.s.api("POST", "/api/here", b"{}", extra={"X-Clark-Tz": "Asia/Dubai"})[0]
+            status = self.s.api("POST", "/api/here", b"{}", extra={"X-Tz": "Asia/Dubai"})[0]
             self.assertEqual(status, 200)
             self.assertEqual(store_module.today(), "2026-11-14")
             self.s.ask("GET", "/health")
             self.assertEqual(store_module.today(), "2026-11-14", "a request with no header leaves the zone as it is")
-            self.s.ask("GET", "/", {"X-Clark-Tz": "America/New_York"})
+            self.s.ask("GET", "/", {"X-Tz": "America/New_York"})
             self.assertEqual(store_module.today(), "2026-11-13")
 
 
 class Source(unittest.TestCase):
     def test_api_js_requests_and_the_heartbeat_carry_the_header(self):
         api, app = (PAGE / "api.js").read_text(encoding="utf-8"), (PAGE / "app.js").read_text(encoding="utf-8")
-        self.assertIn('"X-Clark-Tz"', api)
+        self.assertIn('"X-Tz"', api)
         self.assertIn("globalThis.fetch(", api)
         self.assertIn("Intl.DateTimeFormat().resolvedOptions().timeZone", api)
-        self.assertIn('"X-Clark-Tz"', app)
+        self.assertIn('"X-Tz"', app)
         self.assertIn("Intl.DateTimeFormat().resolvedOptions().timeZone", app)
-        self.assertEqual(zone.HEADER, "X-Clark-Tz")
+        self.assertEqual(zone.HEADER, "X-Tz")
 
     def test_the_compose_file_offers_an_optional_pin(self):
         text = (ROOT / "docker" / "compose.yaml").read_text(encoding="utf-8")

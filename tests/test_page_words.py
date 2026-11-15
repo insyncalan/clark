@@ -341,7 +341,7 @@ class Words(unittest.TestCase):
         files = [f for f in PAGE_SRC.rglob("*") if f.is_file()] + [PAGE_SRC.parent / "shell.css"]
         self.assertTrue(files)
         for f in files:
-            text = f.read_text(encoding="utf-8").replace("X-Clark-Token", "").replace("X-Clark-Tz", "")     # the header's name is the server's, not text
+            text = f.read_text(encoding="utf-8").replace("X-Clark-Token", "")     # the header's name is the server's, not text
             self.assertNotIn("report editor", text.lower(), f.name)
             self.assertNotIn("Clark", text, f.name)
             self.assertIsNone(re.search(r"\bJSON\b(?!\.)", re.sub(r"//.*", "", text)) if f.suffix == ".jsx" else None, f.name)

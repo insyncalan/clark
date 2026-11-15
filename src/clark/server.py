@@ -1472,10 +1472,10 @@ class Handler(BaseHTTPRequestHandler):
         return host_allowed(self.headers.get("Host"))
 
     def follow_zone(self):
-        """item 631: in the container only, the page's time zone (X-Clark-Tz) is applied before the request is routed; anything that is not
+        """item 631: in the container only, the page's time zone (X-Tz) is applied before the request is routed; anything that is not
         an IANA name is ignored. Found by name when asked, so this module imports no other clark module."""
         if container_mode():
-            importlib.import_module("clark.zone").follow_header(self.headers.get("X-Clark-Tz"), True)
+            importlib.import_module("clark.zone").follow_header(self.headers.get("X-Tz"), True)
 
     def headers_ok(self):
         """No second Host or Content-Length (which one counts would depend on who reads it); sends the 400 when not."""

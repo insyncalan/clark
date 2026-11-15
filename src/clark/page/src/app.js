@@ -33,7 +33,7 @@ export function keepThemeColour() {
 }
 
 // item 631: the zone this computer is in (an IANA name), sent with every beat so a laptop that travels is followed within one beat.
-const zoneHeader = () => { try { const tz = Intl.DateTimeFormat().resolvedOptions().timeZone; return tz ? { "X-Clark-Tz": tz } : {}; } catch (e) { return {}; } };
+const zoneHeader = () => { try { const tz = Intl.DateTimeFormat().resolvedOptions().timeZone; return tz ? { "X-Tz": tz } : {}; } catch (e) { return {}; } };
 
 export function sayHere(token) {
   return fetch("/api/here", { method: "POST", headers: { "Content-Type": "application/json", "X-Clark-Token": token, ...zoneHeader() }, body: "{}", cache: "no-store" })

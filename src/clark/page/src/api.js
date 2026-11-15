@@ -8,12 +8,12 @@ import { knownRefusal } from "./edit/movementWords.js";
 
 const KIND = "report_sections";
 
-// item 631: each request made through this file says which time zone this computer is in (X-Clark-Tz, an IANA name); a few fetches made elsewhere in the page do not carry it, and the heartbeat sends it from app.js.
+// item 631: each request made through this file says which time zone this computer is in (X-Tz, an IANA name); a few fetches made elsewhere in the page do not carry it, and the heartbeat sends it from app.js.
 const zone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) { return ""; } };
 // It calls globalThis.fetch (the local fetch below shadows the bare name): the browser's own, and it also exists in node, where the tests run this file.
 const fetch = (url, init = {}) => {
   const tz = zone();
-  return globalThis.fetch(url, tz ? { ...init, headers: { ...init.headers, "X-Clark-Tz": tz } } : init);
+  return globalThis.fetch(url, tz ? { ...init, headers: { ...init.headers, "X-Tz": tz } } : init);
 };
 
 // While the page is going away (Back to another page load, a closed tab) a save started by leaving a field must still reach clark: the browser

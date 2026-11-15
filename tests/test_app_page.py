@@ -72,10 +72,10 @@ class Live(unittest.TestCase):
         self.assertEqual(self.blocked, [], "the policy blocked nothing")
 
     def test_the_beat_carries_the_zone_of_the_computer(self):
-        """item 631: X-Clark-Tz is the browser's own IANA zone, and follows it when the computer moves (the next beat)."""
+        """item 631: X-Tz is the browser's own IANA zone, and follows it when the computer moves (the next beat)."""
         seen = []
         real = sv.here_route
-        with mock.patch.object(sv, "here_route", lambda h, req: (seen.append(h.headers.get("X-Clark-Tz")), real(h, req))[1]), chrome() as cdp:
+        with mock.patch.object(sv, "here_route", lambda h, req: (seen.append(h.headers.get("X-Tz")), real(h, req))[1]), chrome() as cdp:
             sid = navigate(cdp, self.s.port, "#dashboard&p=ABC")
             for width in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
