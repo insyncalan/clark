@@ -19,7 +19,7 @@ BOX = """(function(sel){
 
 
 class HeaderTabsAndIcons(Base):
-    def open(self, cdp):
+    def opened(self, cdp):
         p = self.visit(cdp)
         size(cdp, p, 1400, 800)
         p.until("!!document.querySelector('.top #ask-btn') && !!document.querySelector('.top #profile-btn')", "the header shows its buttons")
@@ -30,7 +30,7 @@ class HeaderTabsAndIcons(Base):
         with chrome() as cdp:
             with sqlite3.connect(str(self.store.path)) as con:
                 con.execute("UPDATE app_settings SET ask_enabled = 1 WHERE id = 1")
-            p = self.open(cdp)
+            p = self.opened(cdp)
             got = p.js("(function(){var h=document.querySelector('.top'), s=getComputedStyle(h);"
                        "return [Math.round(h.getBoundingClientRect().height), s.position, s.top, s.zIndex];})()")
             self.assertEqual(got, [85, "sticky", "0px", "30"], f"the header should be 85 px, sticky, top 0, z-index 30; got {got}")
@@ -39,7 +39,7 @@ class HeaderTabsAndIcons(Base):
         with chrome() as cdp:
             with sqlite3.connect(str(self.store.path)) as con:
                 con.execute("UPDATE app_settings SET ask_enabled = 1 WHERE id = 1")
-            p = self.open(cdp)
+            p = self.opened(cdp)
             names = p.js("[...document.querySelectorAll('.top .tab')].map(t => t.textContent.trim())")
             self.assertEqual(names, ["Dashboard", "Work items", "Milestones", "Use cases"], f"the header tabs should be the four, in order; got {names}")
             for view in ("dashboard", "work", "milestones", "usecases"):
@@ -50,7 +50,7 @@ class HeaderTabsAndIcons(Base):
         with chrome() as cdp:
             with sqlite3.connect(str(self.store.path)) as con:
                 con.execute("UPDATE app_settings SET ask_enabled = 1 WHERE id = 1")
-            p = self.open(cdp)
+            p = self.opened(cdp)
             for name, sel in (("search", "#pal-btn"), ("ask clark", "#ask-btn"), ("profile", "#profile-btn")):
                 got = p.js(f"{BOX}('{sel}')")
                 self.assertTrue(got and got["inside"] and got["shown"] and got["w"] > 0 and got["h"] > 0,
@@ -60,7 +60,7 @@ class HeaderTabsAndIcons(Base):
         with chrome() as cdp:
             with sqlite3.connect(str(self.store.path)) as con:
                 con.execute("UPDATE app_settings SET ask_enabled = 1 WHERE id = 1")
-            p = self.open(cdp)
+            p = self.opened(cdp)
             xs = p.js("(function(){var r=s=>document.querySelector('.top '+s).getBoundingClientRect();"
                       "return [r('.tab[data-view=usecases]').right, r('#pal-btn').left, r('#ask-btn').left, r('#profile-btn').left];})()")
             self.assertEqual(xs, sorted(xs), f"the order left to right should be last tab, search, ask clark, profile; got {xs}")
