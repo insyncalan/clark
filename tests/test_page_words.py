@@ -217,7 +217,7 @@ class Words(unittest.TestCase):
                 ('projects', 'Projects', [
                     "Projects", "Show archived (2)", "Add project",      # A-S6: the projects table comes before the Data card (#444: Add project is on it); this server's stub list answers the archived request too (#653), so the table and the archived count show
                     "Archive hides a project and everything in it from clark. Nothing is deleted: Show archived brings it back to the list, and Restore puts it back to work.",
-                    "NAME\tCODE\tCLIENT\tWORKSTREAMS\tITEMS", "Demo programme\tDEMO\t—\t—\t0\tOpenEditArchive", "ABC Open now\tABC\t—\t—\t1\tEditArchive"
+                    "NAME", "CODE", "CLIENT", "WORKSTREAMS", "ITEMS", "Demo programme\tDEMO\t—\t—\t0\tOpenEditArchive", "ABC Open now\tABC\t—\t—\t1\tEditArchive"
                 ]),
                 ('people', 'People', [
                     "People", "Paste from Excel",             # #454: the People card; this server has no people routes, so the list can't be read

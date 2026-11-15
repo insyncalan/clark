@@ -142,6 +142,34 @@ class PageKeys(Base):
             self.assertEqual(p.js("window.marker"), "same page", "no reload at any point")
             self.assertEqual(self.sent, [], "the keys ask the server for nothing")
 
+    def peek_in_edit(self, p):
+        p.edit()
+        p.js("clarkPage.show('milestones')")
+        p.until("!!document.querySelector('.msl-cells[role=button]')", "the milestones list")
+        p.js("document.querySelector('.msl-cells[role=button]').focus()")
+        p.key("Enter", code="Enter", vk=13)
+        p.until("!!document.querySelector('#peek .pk-fields dt')", "the peek is open")
+        p.until("document.querySelector('#peek').getAnimations({subtree: true}).every(a => a.playState !== 'running')", "the slide-in has ended")
+        p.js("document.activeElement.blur()")
+
+    def two_slashes(self, p):
+        p.js("window.seen = 0; window.tap = e => { if (e.key === '/') window.seen++; }; document.addEventListener('keydown', window.tap)")   # added last, so it runs after the peek's own handler
+        p.key("/", code="Slash", vk=191)
+        p.key("/", code="Slash", vk=191)
+        p.until("window.seen === 2", "both slashes reached the page")
+        p.js("document.removeEventListener('keydown', window.tap)")
+
+    def test_two_slashes_open_the_words_box_only_when_the_switch_is_on(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.peek_in_edit(p)
+            self.two_slashes(p)
+            self.assertTrue(p.js("!!document.querySelector('[data-sneak]')"), "two slashes open the box when the switch is on")
+            self.flip(p, False)
+            self.peek_in_edit(p)
+            self.two_slashes(p)
+            self.assertFalse(p.js("!!document.querySelector('[data-sneak]')"), "two slashes do nothing when the switch is off")
+
     def test_arrows_enter_esc_space_and_ctrl_or_cmd_combinations_are_untouched(self):
         with chrome() as cdp:
             p = self.visit(cdp)
@@ -239,9 +267,9 @@ class PageKeys(Base):
             p.until("document.querySelectorAll('#hp-ref-keys .hp-keys tbody tr').length > 0", "the key table drew")
             rows = p.js("[...document.querySelectorAll('#hp-ref-keys .hp-keys tbody tr')].map(r => r.textContent)")
             hit = [r for r in rows if "Single-key shortcuts" in r]
-            self.assertEqual(len(hit), 2, "the V row and the E row each say it")
+            self.assertEqual(len(hit), 3, "the V row, the E row and the O S P T C row each say it")
             self.assertFalse([r for r in rows if r.startswith("?") and "Single-key" in r], "? is not a letter key: it is not covered")
-            self.assertTrue(any(r.startswith("V") for r in hit) and any(r.startswith("E") for r in hit))
+            self.assertTrue(any(r.startswith("V") for r in hit) and any(r.startswith("E") for r in hit) and any(r.startswith("O") for r in hit))
             self.assertTrue(all("Settings › Personal" in r for r in hit))
 
     def test_the_setting_survives_a_reload(self):

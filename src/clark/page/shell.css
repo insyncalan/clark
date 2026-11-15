@@ -1568,9 +1568,9 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .set-row-ctl .ess-folder .folder-now, .set-row-ctl .ess-folder .row { margin: 0; justify-content: flex-end; text-align: right; overflow-wrap: anywhere; }
 .set-row-ctl .ess-folder .row, .set-row-ctl .copy-fld .btn { margin-top: var(--space-1); }
 .set-row-ctl input[type="checkbox"] { width: 24px; height: 24px; margin: 0; accent-color: var(--brand-blue); }
-/* Item 1169: the Gantt "on" boxes and the Feedback box draw the same 2 px ring as every other Settings control, not the browser's 1 px one.
+/* Item 1169: the Gantt "on" boxes, the Feedback boxes (message, shown text, contact) and a select in a field (Brand for this project) and the Asking folder location box draw the same 2 px ring as every other Settings control, not the browser's 1 px one.
    (The Spacing radio is a see-through input; its card already draws the 2 px ring, so it needs nothing.) */
-.set-row-ctl input[type="checkbox"]:focus-visible, #feedback-message:focus-visible, #feedback-shown:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.set-row-ctl input[type="checkbox"]:focus-visible, #feedback-message:focus-visible, #feedback-shown:focus-visible, #feedback-contact:focus-visible, #ask-folder-path:focus-visible, .fld select:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .fld-bad { margin: 0; min-height: 0; overflow-wrap: anywhere; color: var(--status-red-text); font-size: var(--size-caption); }
 .fld-bad:empty { display: none; }
 /* Item 1200, Settings look. Field and button edges take one token, --control-edge (3.7:1 on white). Type: card heading 20, label 15 semibold,
@@ -2014,8 +2014,17 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .wil-table .wil-c-id { width: 108px; }
 .wil-table .wil-c-owner { width: 150px; }
 .wil-table .wil-c-due { width: 128px; }
-.wil-table .wil-c-status { width: 56px; }      /* row 1145: the icon alone */
-.wil-table .wil-c-workstream { width: 140px; }
+.wil-table .wil-c-status { width: 120px; }      /* row 1199: the half-circle and the status word */
+.wil-table .wil-c-priority { width: 90px; }
+.wil-table .wil-c-workstream, .wil-table .wil-c-milestone { width: 140px; }
+.wil-st { display: inline-flex; align-items: center; gap: 6px; }
+.wil-half { width: 14px; height: 14px; flex: none; fill: currentColor; stroke: currentColor; stroke-width: 2; }
+.wil-half circle { fill: none; }
+.wil-half.ic-r { color: var(--status-red); } .wil-half.ic-a { color: var(--status-amber); } .wil-half.ic-g { color: var(--status-green); }
+.wil-half.ic-b { color: var(--status-blue); } .wil-half.ic-n { color: var(--status-grey); }
+.wil-all { margin: var(--space-2) 0 0; }
+.wil-all-b { border: 0; background: none; padding: 4px 0; font: inherit; font-size: var(--size-small); color: var(--status-blue-text); cursor: pointer; text-decoration: underline; }
+.wil-all-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .wil-table .type { white-space: nowrap; }
 .wil-lines { margin: var(--space-1) 0 0; padding: 0; list-style: none; }
 .wil-lines li { display: flex; flex-direction: column; gap: 2px; padding: var(--space-2) 2px; border-top: 1px solid var(--grey-100); }
@@ -2024,7 +2033,10 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .wil-cap { margin: var(--space-2) 0 0; font-size: var(--size-caption); color: var(--text-muted); }
 .sec.slot-full .wil-lines, .sec.slot-left .wil-table, .sec.slot-right .wil-table { display: none; }
 @media (max-width: 1100px) {
-  .wil-table .wil-c-workstream, .wil-table .wil-c-owner { width: 120px; }
+  .wil-table .wil-c-workstream, .wil-table .wil-c-milestone, .wil-table .wil-c-owner { width: 100px; }
+  .wil-table .wil-c-type, .wil-table .wil-c-id, .wil-table .wil-c-due { width: 92px; }
+  .wil-table .wil-c-status { width: 96px; }
+  .wil-table .wil-c-priority { width: 72px; }
 }
 
 /* Pictures group (#96): Text and image, Image with caption, Image gallery, Headline band. View and the published file; tokens only. */

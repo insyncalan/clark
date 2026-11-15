@@ -38,7 +38,10 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
   const dropAsk = () => { clearTimeout(disarm.current); setArmed(null); toUndo(); };      // Esc on the question
   useEffect(() => { if (armed) { const b = document.querySelector("#update [data-undo-confirm]"); if (b) b.focus(); } }, [armed]);      // the question opens: the focus moves to its button
 
-  const closePanel = () => { setPanel(null); requestAnimationFrame(() => { const b = document.querySelector("#update " + opener.current); if (b) b.focus(); }); };      // Cancel or Esc: the focus goes back to the button that opened the panel
+  // The focus goes back to a button on the next frame, once Preact has drawn the buttons enabled again after setBusy(false).
+  // (Review, Choose and Install are disabled while busy and lose the focus; Undo only says aria-disabled, but takes the same path.)
+  const refocus = (sel) => requestAnimationFrame(() => { const b = document.querySelector("#update " + sel); if (b) b.focus(); });
+  const closePanel = () => { setPanel(null); refocus(opener.current); };      // Cancel or Esc: the focus goes back to the button that opened the panel
 
   async function review(from, reinstall) {
     opener.current = from === "file" ? "[data-choose]" : "[data-review]";
@@ -57,24 +60,26 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
     setMsg({ kind: "error", text: L.answerWords(r.status, r.body) });
   }
 
-  async function restarted(r) {
+  async function restarted(r, back) {
     if (r.status === 200 && r.body && r.body.ok === true && r.body.restart === true) {
       setMsg({ kind: "info", text: typeof r.body.message === "string" ? r.body.message.slice(0, 300) : "" });
       const how = await L.waitForRestart(api.who, sleep);
       if (how === "reload") { reload(); return; }
       setBusy(false);
       setMsg({ kind: "error", text: L.SLOW });
+      refocus(back);
       return;
     }
     setBusy(false);
     setMsg({ kind: "error", text: L.answerWords(r.status, r.body) });
+    refocus(back);
   }
 
   async function install() {
     setBusy(true);
     const id = panel.id;
     setPanel(null);
-    await restarted(await api.install(id));
+    await restarted(await api.install(id), opener.current);
   }
 
   async function arm() {
@@ -96,7 +101,7 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
     const a = armed;
     setArmed(null);
     setBusy(true);
-    await restarted(await api.undo(a.id, a.choice === "app_only"));
+    await restarted(await api.undo(a.id, a.choice === "app_only"), "[data-undo]");
   }
 
   async function copyNotes() {
@@ -145,7 +150,7 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
                 {armed ? (
                   <div onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); dropAsk(); } }}>
                     <p id="update-armed">{armed.line}</p>
-                    <div class="row"><button type="button" class="btn pri" data-undo-confirm aria-disabled={busy ? "true" : undefined} onClick={() => { if (!busy) confirmUndo(); }}>
+                    <div class="row"><button type="button" class="btn pri" data-undo-confirm aria-describedby="update-armed" aria-disabled={busy ? "true" : undefined} onClick={() => { if (!busy) confirmUndo(); }}>
                       {armed.choice === "full" ? L.LABELS.undoConfirm : L.LABELS.appOnly}</button></div>
                   </div>
                 ) : <div class="row"><button type="button" class="btn" data-undo aria-disabled={busy ? "true" : undefined} onClick={() => { if (!busy) arm(); }}>{L.LABELS.undo}</button></div>}

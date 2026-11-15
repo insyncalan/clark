@@ -146,7 +146,7 @@ class Formatting(unittest.TestCase):
         rows = {"actions": [action(1), action(2), action(3)], "raid": []}
         wb = load_workbook(self.build(rows))
         self.assertEqual(wb["Actions"].auto_filter.ref, "A1:R4")
-        self.assertEqual(wb["Risks & Issues"].auto_filter.ref, "A1:U1")
+        self.assertEqual(wb["Risks & Issues"].auto_filter.ref, "A1:V1")
         for name, table, cols, _ in excel.SHEETS:
             self.assertTrue(wb[name].auto_filter.ref.startswith("A1:"), name)
 
