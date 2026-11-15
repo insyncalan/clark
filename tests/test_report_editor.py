@@ -29,7 +29,7 @@ import build_page  # noqa: E402
 import esbuild  # noqa: E402
 
 from clark import changes, order, page, publish, server as sv  # noqa: E402
-from clark.default_sections import CURRENT_STATE_PREFILL  # noqa: E402
+from clark.default_sections import SECTION_HINTS  # noqa: E402
 from test_page import DATA, navigate  # noqa: E402
 from test_server import Running, chrome, wait, wait_toast  # noqa: E402
 
@@ -251,7 +251,7 @@ class Modes(Base):
             # #74: Supporting documents draws its own list (and is left out of View while it has no document), so it is not one of these
             sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases', 'text', 'current', 'docs'].includes(s.dataset.type))"
             texts = "[...document.querySelectorAll('.secs > .sec')].filter(s => ['text', 'current'].includes(s.dataset.type)).map(s => s.querySelector('.quiet, .sec-body').textContent)"
-            self.assertEqual(p.js(texts), ["Nothing recorded."] * 4, "View: a text section with nothing saved says so in plain words, Current state too: its starting line is the editor's hint, never a body (item 1188)")
+            self.assertEqual(p.js(texts), ["Nothing recorded."] * 4, "View: a text section with nothing saved says so in plain words, the four default ones too: their guiding lines are the editor's hint, never a body (items 1188, 1193)")
             quiet = sec + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet, [data-nothing]').textContent)"
             kinds = p.js(sec + ".map(s => s.dataset.type)")
             want = [f"{k}:{NOTHING if k in ('raid', 'actions', 'decisions') else QUIET}" for k in kinds]       # A-D5: those three draw their rows
@@ -265,7 +265,7 @@ class Modes(Base):
             sec_other = sec + ".filter(s => !['raid', 'actions', 'decisions'].includes(s.dataset.type))"
             self.assertEqual(p.js(sec_other + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet').textContent)"), [w for w in want if w.split(':')[0] not in ('raid', 'actions', 'decisions')], "Edit: the same line")
             self.assertEqual(p.js(sec + ".filter(s => ['raid', 'actions', 'decisions'].includes(s.dataset.type)).map(s => !!s.querySelector('[data-showing]'))"), [True] * 3, "Edit: the three row sections say Showing N of M instead (A-D5)")
-            self.assertEqual(p.js(texts), [CURRENT_STATE_PREFILL] + ["Click to write."] * 3, "Edit: Current state is empty and shows its starting line as the editor's hint (item 1188); the other three say Click to write.")
+            self.assertEqual(p.js(texts), [SECTION_HINTS[t] for t in ("Current state", "Summary", "This week", "Next week")], "Edit: the four text sections are empty and each shows its guiding line as the editor's hint (items 1188, 1193)")
             self.assertNotIn("is not shown", p.js("document.querySelector('main').textContent"))
             p.view()
             self.assertEqual(edit_elements(cdp, p.sid), [], "and gone again in View")
