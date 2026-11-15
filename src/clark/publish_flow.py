@@ -699,6 +699,9 @@ class Publisher:
                 if action == "clear":
                     return self.save_folder(store, code, saved, None)
                 if action == "paste" and host_folders.windows_host(os.environ) and host_folders.is_drive_path(body["value"]):
+                    refused = self.paste_refusal(body["value"].strip())
+                    if refused:
+                        return 409, self.fail(refused)
                     try:
                         picked = Path(host_folders.to_container("client", body["value"], os.environ)[0]).resolve(strict=True)
                     except ValueError as e:
@@ -735,13 +738,20 @@ class Publisher:
         already exist and be inside one of the OneDrive roots; client_folder then checks it exactly as a chosen one. Anything with
         the form of a link (LINK_FORM) is refused as one: it is never opened, and no folder is guessed from its words."""
         text = value.strip()
-        if not text or len(text) > MAX_PASTE or any(unicodedata.category(ch) in ("Cc", "Cf") for ch in text):
-            return None, "paste_unknown"
-        if LINK_FORM.match(text):
-            return None, "paste_link"
+        refused = self.paste_refusal(text)
+        if refused:
+            return None, refused
         if text.startswith("/") or text == "~" or text.startswith("~/"):
             return self.synced_folder(Path(text).expanduser())
         return None, "paste_unknown"            # a relative path, ~name and every other kind of text
+
+    @staticmethod
+    def paste_refusal(text):
+        """The MESSAGES code that refuses stripped pasted `text` before it is read as a path (empty, over MAX_PASTE, a control or
+        format character, the form of a link), else None. Shared by pasted_folder and the Windows drive-path paste."""
+        if not text or len(text) > MAX_PASTE or any(unicodedata.category(ch) in ("Cc", "Cf") for ch in text):
+            return "paste_unknown"
+        return "paste_link" if LINK_FORM.match(text) else None
 
     def synced_folder(self, path):
         if not path.is_absolute() or ".." in path.parts:

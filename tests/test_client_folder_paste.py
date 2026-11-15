@@ -149,6 +149,33 @@ class Junk(Base):
         self.assertIsNone(self.folder())
 
 
+class WindowsPaste(Base):
+    """The Windows drive-path branch gets the same first checks as pasted_folder: length, control and format characters, link form."""
+
+    def refused_on_windows(self, value, words):
+        with mock.patch.object(publish_flow.host_folders, "windows_host", return_value=True), \
+                mock.patch.object(publish_flow.host_folders, "to_container", side_effect=AssertionError("the path was mapped")) as mapped:
+            self.refused(value, words)
+        mapped.assert_not_called()
+
+    def test_an_over_long_paste_is_refused_unread(self):
+        self.refused_on_windows("C:\\" + "x" * publish_flow.MAX_PASTE, UNKNOWN)
+
+    def test_a_paste_with_a_format_character_is_refused(self):
+        for ch in ("\u202e", "\u200b", "\ufeff"):
+            with self.subTest(char=hex(ord(ch))):
+                self.refused_on_windows("C:\\Users\\Sam\\OneDrive" + ch + "\\Reports", UNKNOWN)
+
+    def test_a_link_form_paste_is_refused_as_a_link(self):
+        self.refused_on_windows("C://fictional.sharepoint.com/sites/HarbourBridge", LINK)
+
+    def test_a_plain_drive_path_still_reaches_the_mapping(self):
+        with mock.patch.object(publish_flow.host_folders, "windows_host", return_value=True), \
+                mock.patch.object(publish_flow.host_folders, "to_container", return_value=(str(self.reports), "")) as mapped:
+            status, got = self.paste("C:\\Users\\Sam\\OneDrive\\Reports")
+        mapped.assert_called_once()
+
+
 class ThePage(unittest.TestCase):
     """The box under Choose folder, at 1400 and 900, light and dark: it pastes, saves and shows a refusal in a role=alert."""
 
