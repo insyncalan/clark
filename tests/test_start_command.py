@@ -63,7 +63,7 @@ class StartCommand(unittest.TestCase):
     def test_a_chrome_installed_on_the_computer_does_not_change_the_stubbed_runs(self):
         """The macOS runner has a real Chrome in /Applications (here: one under HOME, which the starter also searches): the stubbed
         `open -a` line must still be what these runs log, because CLARK_BROWSER is set to a program that is not there."""
-        real = Path(self.tmp) / "Applications" / "Google Chrome.app" / "Contents" / "MacOS" / "Google Chrome"
+        real = Path(self.tmp) / "Applications" / (BROWSER + ".app") / "Contents" / "MacOS" / BROWSER
         real.parent.mkdir(parents=True)
         real.write_text("#!/bin/sh\necho real-chrome-started >> \"$LOG\"\n", encoding="utf-8")
         real.chmod(0o755)
