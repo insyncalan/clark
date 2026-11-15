@@ -223,21 +223,36 @@ class Saved(Api):
         self.s.con.commit()
         self.assertEqual(self.s.read("report_sections", ref=ref)["body"], text)
 
-    def test_stored_content_the_new_rules_refuse_drops_the_section_and_refuses_every_save_PINNED_BEHAVIOUR(self):
+    def test_stored_content_the_new_rules_refuse_is_kept_on_a_save_and_left_out_of_the_file_OPTION_A(self):
         """Item 1194 made a link description required and a file ending allowed. Content stored BEFORE that (a link with no words, a
-        file ending in .zip) no longer checks, so: publish leaves the whole section out (never repaired, never half drawn) and a
-        save that still carries that entry is refused in the plain words. Removing the old entry (or giving it words) makes the
-        section saveable and published again. This pins the behaviour; there is no fallback that keeps old entries."""
-        for name, old, words in (("link with no words", a_link(label=""), "Link 2: Enter a link description."),
-                                 ("file with an ending that is not allowed", a_file(name="old.zip"), "old.zip: " + doclinks.BAD_TYPE_TAIL)):
+        file ending in .zip) no longer checks. This test used to pin that every save was refused while such an entry was held (the
+        whole section was locked until the editor removed it). It is changed to option A, because a report with one old entry could
+        not be saved at all, not even to fix another line: a save keeps an entry the section already holds when it comes back
+        unchanged; a changed or new entry meets every rule; publish stays strict and leaves the whole section out until the old
+        entry is gone or fixed."""
+        for name, old, fixed, words in (
+                ("link with no words", a_link(label=""), a_link(label="Words now"), "Link 2: Enter a link description."),
+                ("file with an ending that is not allowed", a_file(name="old.zip"), a_file(name="old.exe"), "old.exe: " + doclinks.BAD_TYPE_TAIL)):
             with self.subTest(old=name):
                 ref = self.make("Fictional old " + name)
                 self.stored(ref, body([a_link(), old]))
                 built = publish.build(self.s, "ABC", now="2030-01-15")
-                self.assertNotIn(ref, {s["id"] for s in built["published"]["sections"]}, "the whole section is left out, the good link too")
+                self.assertNotIn(ref, {s["id"] for s in built["published"]["sections"]}, "publish is strict: the whole section is left out, the good link too")
+                new = a_link(href="https://example.org/new", label="New")
+                status, got = self.save(ref, body([a_link(), old, new]))
+                self.assertEqual(status, 200, got)
+                self.assertEqual(json.loads(self.s.read("report_sections", ref=ref)["body"])["items"][1]["name" if old["kind"] == "file" else "href"],
+                                 old.get("name") or old["href"], "the old entry is stored as it was")
+                self.assertEqual(len(json.loads(self.s.read("report_sections", ref=ref)["body"])["items"]), 3)
+                built = publish.build(self.s, "ABC", now="2030-01-15")
+                self.assertNotIn(ref, {s["id"] for s in built["published"]["sections"]}, "still strict after a save that kept the old entry")
                 before = self.snapshot()
-                status, got = self.save(ref, body([a_link(), old, a_link(href="https://example.org/new", label="New")]))
-                self.assertEqual((status, got["message"]), (400, words))
+                changed = dict(old, **({"name": "old.exe", "rel": "Report files/old.exe"} if old["kind"] == "file" else {"href": "https://example.org/other"}))
+                status, got = self.save(ref, body([a_link(), changed]))
+                self.assertEqual((status, got["message"]), (400, words), "a changed old entry meets every rule")
+                bad_new = a_link(href="https://example.org/brand-new", label="")
+                status, got = self.save(ref, body([a_link(), old, bad_new]))
+                self.assertEqual((status, got["message"]), (400, "Link 3: Enter a link description."), "a new bad entry is refused")
                 self.assertEqual(self.snapshot(), before, "a refused save writes nothing")
                 status, got = self.save(ref, body([a_link()]))
                 self.assertEqual(status, 200, got)

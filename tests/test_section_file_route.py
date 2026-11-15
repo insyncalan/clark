@@ -246,6 +246,18 @@ class Route(unittest.TestCase):
                      "changes": {"body": json.dumps({"v": 1, "items": full})}})
         self.assertEqual(self.refused(ref, "full", dialog=False), doclinks.TOO_MANY)
 
+    def test_add_a_file_keeps_an_old_stored_entry_that_the_new_rules_refuse_OPTION_A(self):
+        """A section that holds a link with no words (stored before item 1194) still takes a file: the old entry stays as it was
+        (never repaired, never dropped), the new file meets every rule."""
+        ref = self.section()
+        old = {"kind": "link", "href": "https://example.org/old", "label": ""}
+        self.s.con.execute("UPDATE report_sections SET body = ? WHERE id = ?", (json.dumps({"v": 1, "items": [old]}), ref))
+        self.s.con.commit()
+        status, body = self.attach(ref)
+        self.assertEqual(status, 200, body)
+        self.assertEqual([i.get("href") or i["name"] for i in self.items(ref)["items"]], ["https://example.org/old", "Plan v2.pdf"])
+        self.assertEqual(self.items(ref)["items"][0]["label"], "", "the old entry is stored as it was")
+
     def test_an_archived_project_is_read_only(self):
         ref = self.section()
         with self.s.step("dashboard", USER) as st:

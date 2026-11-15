@@ -123,7 +123,7 @@ def _before_the_dialog(pub, code, ref):
         if kind is None:
             raise Refused("no_file_here", 400)
         try:                                                # room for one more (the step checks again: this only saves a dialog)
-            text = clark_store.check_section_body(kind, section.get("body") or "")
+            text = clark_store.check_section_body(kind, section.get("body") or "", section.get("body"))
             section_bodies.TEMPLATES[kind].add_file(json.loads(text) if text else None,
                                                     {"name": "a.pdf", "rel": f"{FILES_FOLDER}/a.pdf", "bytes": 0})
         except (Invalid, section_bodies.Bad) as e:
@@ -270,7 +270,7 @@ def _listed_names(section):
     """The file names a Documents and links or One document section lists (its stored content, checked again)."""
     kind = section.get("type")
     try:
-        text = clark_store.check_section_body(kind, section.get("body") or "")
+        text = clark_store.check_section_body(kind, section.get("body") or "", section.get("body"))
         value = json.loads(text) if text else None
     except (Invalid, section_bodies.Bad, ValueError):
         return set()
