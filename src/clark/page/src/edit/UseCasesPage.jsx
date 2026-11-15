@@ -4,7 +4,7 @@
 // and how many are open, the linked milestones, and the eye (an icon alone; its words are the tooltip). The eye is the dashboard's own switch (use_cases.client_visible),
 // changed through the one change path with its Undo toast, in View as in Edit (row 819).
 // The list is ONE tab stop (the current row's name): Up and Down move between rows, Home and End to the first and last, Right to the
-// row's eye and Left back to its name. Row 1085: the page follows the Work items page: four fixed tabs with counts (All use cases, On the
+// row's eye and Left back to its name. Row 1085: the page follows the Work items page: four saved views as tabs with counts (item 1203: read from logic/filterLine.js viewsGet with page "usecases"; the starting four are All use cases, On the
 // dashboard, Committed, At risk) over one rule, Group by and the + at the row's end, the filter line under it (the Work items box over this
 // page's own fields, edit/UseCasesFilter.jsx), the sort in a menu beside Group by (item 1149: the rows are the dashboard summary's, no column names). The tab, the line, the group and the sort are remembered for
 // each project in this browser (logic/useCasesList.js), never in the address, so they add no Back entry.
@@ -16,12 +16,14 @@ import { blink } from "../stores/motion.js";
 import { RecordContextMenu } from "./RecordContextMenu.jsx";
 import { readArchivedUseCase, getArchived } from "../api.js";
 import { cameBackFrom } from "../stores/useCaseFocus.js";
-import { listOf, ucFor, tidy, recalled, keep, narrowed, countWords, rowSay, groupsOf, groupLabel, refBox, stepsWord, ON_WORDS, OFF_WORDS, SORTS, TABS, GROUPS, RAG } from "../logic/useCasesList.js";
+import { listOf, ucFor, tidy, recalled, keep, narrowed, countWords, rowSay, groupsOf, groupLabel, refBox, stepsWord, ON_WORDS, OFF_WORDS, SORTS, GROUPS, RAG } from "../logic/useCasesList.js";
 import { commitWords } from "../logic/commitment.js";
 import { UseCaseDetail } from "../components/UseCaseDetail.jsx";
 import { UCEDIT, openAdd } from "./UseCasesEdit.jsx";
 import { UseCasesFilter } from "./UseCasesFilter.jsx";
 import { shownOf, tabCounts, lineParts } from "./useCasesLine.js";
+import { viewsGet, visibleViews } from "../logic/filterLine.js";
+import { local } from "../stores/line.js";
 import { plural } from "../workItems.js";
 import { Menu } from "../components/Menu.jsx";
 import { NewTile } from "../components/NewTile.jsx";
@@ -144,7 +146,7 @@ function ArchivedUseCases() {
 }
 
 function UseCasesList() {
-  const f = state.value, rows = all.value, kept_ = shownOf(rows, f), n = tabCounts(rows, f);
+  const f = state.value, rows = all.value, views = visibleViews(viewsGet(local(), project.value, "usecases")), kept_ = shownOf(rows, f, views), n = tabCounts(rows, f, views);
   // Row 1085: the rows in their groups (one plain group for Nothing); a shut group keeps its heading and its count, its rows are away for the visit.
   const groups = groupsOf(kept_, f.group, commitWords(data.value)).map((g) => ({ ...g, shut: f.group !== "nothing" && shutGroups.value.has(`${f.group}|${g.key}`) }));
   const shown = groups.flatMap((g) => (g.shut ? [] : g.rows));
@@ -197,7 +199,7 @@ function UseCasesList() {
         <div class="fviews ucl-views">
           <div class="fvrow">
             <div class="vtabs" role="group" aria-label="Narrow the list">
-              {TABS.map(([id, name]) => (
+              {views.map(({ id, name }) => (
                 <button type="button" key={id} class="vtab" data-tab={id} aria-pressed={f.tab === id ? "true" : "false"} onClick={() => set({ tab: id })}><span>{name}</span><em class="num">{n[id]}</em></button>
               ))}
             </div>
