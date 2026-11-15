@@ -65,7 +65,7 @@ DRIVE_NAMES = {
     "rowmenu", "rowmenu-status", "rowmenu-due", "rowmenu-owner", "rowmenu-owner-add", "rowmenu-card", "bulk-items", "bulk-items-mixed",
     "bulk-picker-status", "bulk-picker-owner", "bulk-picker-due", "bulk-picker-priority", "bulk-picker-workstream", "bulk-picker-milestone",
     "board-move", "board-move-lanes", "gantt-show-chart", "gantt-show-table", "gantt-add-below-chart", "gantt-add-below-table",
-    "gantt-right-click", "client", "client-disabled-excel", "text-style", "slash-list", "peek-more", "record-more", "record-ctx",
+    "gantt-right-click", "columns", "client", "client-disabled-excel", "text-style", "slash-list", "peek-more", "record-more", "record-ctx",
 }
 
 
@@ -74,7 +74,7 @@ class Source(unittest.TestCase):
     # that is in neither table fails, and so does a drive that no file names or a file that names a drive that does not exist.
     MENUS = {
         "edit/Gutter.jsx": ("section",), "edit/ProfileMenu.jsx": ("profile",),
-        "edit/RowMenu.jsx": ("rowmenu", "rowmenu-card", "rowmenu-status", "rowmenu-due", "rowmenu-owner", "rowmenu-owner-add"),
+        "edit/ColumnsMenu.jsx": ("columns",), "edit/RowMenu.jsx": ("rowmenu", "rowmenu-card", "rowmenu-status", "rowmenu-due", "rowmenu-owner", "rowmenu-owner-add"),
         "components/ClientMenu.jsx": ("client", "client-disabled-excel"),
         "gantt/components/GanttTable.jsx": ("gantt-right-click", "gantt-add-below-table"),
         "gantt/components/GanttChart.jsx": ("gantt-add-below-chart",), "gantt/components/GanttPage.jsx": ("gantt-show-chart", "gantt-show-table"),
@@ -167,7 +167,7 @@ class Source(unittest.TestCase):
 
 # ── driving every menu ────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-ITEM = "[role=menuitem],[role=menuitemradio],[role=option],.menu-item,.cm-row,.cp-name,.cp-q button"
+ITEM = "[role=menuitem],[role=menuitemcheckbox],[role=menuitemradio],[role=option],.menu-item,.cm-row,.cp-name,.cp-q button"
 # The lines of the open menu `root`: anything a person can pick, a disabled line too. Each must draw an svg.i of 15px or more. A line for a
 # named person draws that person's initials circle (.av) as its icon, so it needs no second one.
 LINES = ("(root => { const ok = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };"
@@ -367,6 +367,8 @@ class Work(BulkBase):
                 d.check("new-tile", "document.querySelector('#newBtn').click()", "[role=menu]", 2)
                 d.button("#viewTabMenu", "view tab")
                 d.check("view-tab", "document.querySelector('#viewTabMenu').click()", "[role=menu]", 1)
+                d.button("[data-cbk=head]", "the columns button")
+                d.check("columns", "document.querySelector('[data-cbk=head]').click()", ".cols-menu", 6)
                 d.button("#viewMenu", "view menu")
                 d.check("view", "document.querySelector('#viewMenu').click()", "#viewMenuList", 8)
                 osel = "#work-list tr[data-id] [aria-label^='Owner of ']"
@@ -389,7 +391,7 @@ class Work(BulkBase):
                 d.lines(".cpop", "owner-pick-typed", 3)
                 d.key("Escape", "Escape", 27)
                 d.gone(".cpop", "the owner box")
-            d.expect(["new-tile", "view-tab", "view", "owner-pick", "owner-pick-typed", "cell-Due date", "cell-Priority", "cell-Status"])
+            d.expect(["new-tile", "view-tab", "columns", "view", "owner-pick", "owner-pick-typed", "cell-Due date", "cell-Priority", "cell-Status"])
 
     def test_row_menu_and_its_lists(self):
         with chrome() as cdp:

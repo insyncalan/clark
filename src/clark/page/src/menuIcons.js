@@ -32,7 +32,7 @@ export const ACTION_ICON = {
   peek: "expand", draft: "pencil", pdf: "doc", excel: "dl", moveTo: "move", outline: "board", none: "circleminus",
   lookLight: "sun", lookDark: "eyeoff", lookSystem: "gear", pastReport: "archive", commit: "check",
   status: "half", due: "cal", owner: "user", priority: "bars", impact: "bars", likelihood: "bars", workstream: "board", milestone: "flag",
-  made_by: "user", close: "check", reopen: "half", project: "doc", textStyle: "tline", filterAll: "table", filterPhases: "bars", filterMilestones: "flag", filterTicked: "check",
+  made_by: "user", close: "check", reopen: "half", project: "doc", textStyle: "tline", filterAll: "table", filterPhases: "bars", filterMilestones: "flag", filterTicked: "check", columnsStandard: "table",
 };
 
 // Row 1138: the icon for each way of grouping (Group by, the lanes, the board's Move to menu): the same field has the same icon as its own
@@ -43,6 +43,12 @@ export function groupIcon(id) { return GROUP_ICON[id] || "circleminus"; }
 // Row 1138: the icon for each way of sorting the use case list (Sort by).
 const SORT_ICON = { ref: "doc", status: "half", open: "bars" };
 export function sortIcon(id) { return SORT_ICON[id] || "circleminus"; }
+
+// Row 1222: the icon each line of the columns menu takes (edit/ColumnsMenu.jsx): a column of a field has that field's icon (as its own action above),
+// any other column the table icon; the foot line "Show the standard columns" has the table icon too.
+const COLUMN_ICON = { status: "half", state: "half", item: "doc", name: "flag", owner: "user", made_by: "user", due: "cal", date: "cal", agreed: "cal", forecast: "cal", raised: "cal", closed: "cal",
+  prio: "bars", workstream: "board", milestone: "flag", usecase: "doc", prog: "bars" };
+export function columnIcon(id) { return COLUMN_ICON[id] || "table"; }
 
 /** The icon name for an action, or undefined when the action has none. */
 export function actionIcon(action) { return ACTION_ICON[action]; }

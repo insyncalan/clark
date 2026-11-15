@@ -10,6 +10,7 @@ import { announce } from "../stores/work.js";
 import { MenuPanel } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { defsOf, shownIds, toggled, readChoice, writeChoice, standardIds } from "../logic/tableColumns.js";
+import { columnIcon, actionIcon } from "../menuIcons.js";
 import * as W from "../logic/columnsWords.js";
 
 const asked = (e) => e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey);
@@ -53,13 +54,14 @@ export function useColumns(table) {
         return (
           <button key={c.id} type="button" role="menuitemcheckbox" aria-checked={on ? "true" : "false"} aria-disabled={c.locked ? "true" : undefined} data-keep={c.locked ? "" : undefined}
             data-col-name={c.label} tabIndex={-1} aria-describedby={c.locked ? `cols-why-${c.id}` : undefined} onClick={() => { if (!c.locked) press(c.id, c.label); }}>
+            <Icon name={columnIcon(c.id)} cls="mi" />
             <span class="ck" aria-hidden="true">{on ? "✓" : ""}</span>
             <span class="cols-name">{c.label}{c.locked ? <small class="cols-why" id={`cols-why-${c.id}`}>{W.UNRULED_LOCKED_REASON}</small> : null}</span>
           </button>
         );
       })}
       <div class="sep" role="separator"></div>
-      <button type="button" role="menuitem" data-cols-standard="" tabIndex={-1} onClick={() => { set(standardIds(table)); announce.value = W.UNRULED_ANNOUNCE_STANDARD; }}>{W.UNRULED_STANDARD}</button>
+      <button type="button" role="menuitem" data-cols-standard="" tabIndex={-1} onClick={() => { set(standardIds(table)); announce.value = W.UNRULED_ANNOUNCE_STANDARD; }}><Icon name={actionIcon("columnsStandard")} cls="mi" />{W.UNRULED_STANDARD}</button>
     </MenuPanel>
   ) : null;
   return { shown: shownIds(table, shown), has: (id) => shown.includes(id), rowProps, button, menu };
