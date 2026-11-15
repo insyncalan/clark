@@ -1231,3 +1231,8 @@ body.board-full #mode-pill, body:has(#profile-menu, dialog[open], [role="dialog"
 #report-bar { min-height: 0; margin: 0; }
 #report-bar .rbar-hint { position: fixed; top: calc(var(--topbar) + 8px); right: calc(20px + 74px + 8px); z-index: 28; box-shadow: var(--shadow); }
 body.board-full #report-bar .rbar-hint, body:has(#profile-menu, dialog[open], [role="dialog"], [role="alertdialog"]) #report-bar .rbar-hint { display: none; }
+
+/* row 1104: a table whose column has a chosen width is laid out in fixed mode so the width holds; the other columns share the rest, and a long word breaks inside its cell */
+table.cw-set, .projects table.proj-table.cw-set { table-layout: fixed; width: 100%; }
+table.cw-set td { overflow-wrap: anywhere; white-space: normal; }
+table.cw-set td.acts, .pp-earlier .pubs.cw-set td.files, .pp-earlier .pubs.cw-set td.num { white-space: normal; }

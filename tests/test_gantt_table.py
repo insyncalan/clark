@@ -315,6 +315,23 @@ class Table(unittest.TestCase):
 
     # ── View against Edit ──
 
+    def real_key(self, key, code, vk, modifiers=0):
+        for kind in ("keyDown", "keyUp"):
+            self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code, "windowsVirtualKeyCode": vk, "modifiers": modifiers}, self.sid)
+        self.go("0")
+
+    def test_tab_leaves_a_read_only_table_with_a_real_key_at_both_widths(self):
+        """In View the Tab walk has no purpose: Tab and Shift+Tab pass on to the page, with no Esc first."""
+        for width in (1400, 900):
+            self.load(width=width, edit=False)
+            self.go("var b = document.createElement('button'); b.id = 'after'; b.textContent = 'After'; document.querySelector('.gt').after(b);")
+            self.go("document.querySelector('.gt-scroll').focus()")
+            self.real_key("Tab", "Tab", 9)
+            self.assertEqual(self.val("document.activeElement.id"), "after", f"{width}: Tab leaves the table")
+            self.go("document.querySelector('.gt-scroll').focus()")
+            self.real_key("Tab", "Tab", 9, modifiers=8)
+            self.assertNotEqual(self.val("document.activeElement.className"), "gt-scroll", f"{width}: Shift+Tab leaves the table")
+
     def test_view_is_read_only_with_no_row_numbers_and_no_hidden_columns(self):
         self.load(edit=False)
         s = self.state()

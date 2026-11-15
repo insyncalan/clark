@@ -26,8 +26,9 @@ BACKUPS_KEPT_RANGE = (1, 365)
 
 # What Settings › Safety says about the number, in plain words (the page shows these, not the key).
 BACKUPS_KEPT_LABEL = "How many backups to keep"
-BACKUPS_KEPT_HELP = ("This many backups are kept of each kind (daily, before an undo, before an import and so on); the oldest "
-                     "are removed after that. 14 is usual. The newest backup is always kept.")
+BACKUPS_KEPT_HELP = ("This many backups are kept of each of daily, before an undo and before an import or change. Before an import "
+                     "and before a change share one count. Before a restore and before an update each have their own count, and keep at "
+                     "least 2 and at least 3, whatever the number is. The oldest are removed after that. 14 is usual. The newest backup is always kept.")
 
 
 def _one_at_a_time(setter):

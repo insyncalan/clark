@@ -17,6 +17,7 @@ import { closesPeek } from "../peek/outside.js";
 import { itemIds, milestoneIds, around, placeIn } from "../peek/list.js";
 import { Icon } from "./Icon.jsx";
 import { wordsOpen, flashed } from "../stores/wordsState.js";
+import { singleKeys } from "../stores/keyPrefs.js";
 import { statusTone, priorityTone, dateTone, iconClass } from "../iconColours.js";
 import { stateOf, LOOK } from "../logic/milestones.js";
 import { MsMark } from "./MsMark.jsx";
@@ -251,7 +252,7 @@ export function Peek({ tools }) {
       }
       if (peekOwnsArrow(e)) { e.preventDefault(); stepBy(e.key === "ArrowUp" ? -1 : 1); return; }
       const t = e.target, inField = t && t.nodeType === 1 && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
-      if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey && !inField && Words) {
+      if (e.key === "/" && singleKeys.value && !e.metaKey && !e.ctrlKey && !e.altKey && !inField && Words) {
         if (last && performance.now() - last < 1000) { e.preventDefault(); last = 0; wordsOpen.value = true; } else last = performance.now() || 1;
       } else if (e.key !== "Shift") last = 0;
     };

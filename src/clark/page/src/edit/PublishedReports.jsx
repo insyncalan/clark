@@ -6,6 +6,7 @@
 // `api`, `openTab`, `code` and `name` are seams for the tests; the page passes none of them.
 import { useEffect, useState } from "preact/hooks";
 import { project, show } from "../stores/report.js";
+import { useColWidths } from "./colWidths.jsx";
 import { openInNewTab } from "../router.js";
 import { dialog } from "./publishState.js";
 import { say } from "../stores/changes.js";
@@ -20,6 +21,7 @@ export function showPublished() { show("published"); }
 
 export function PublishedReports({ api = REAL, openTab = openInNewTab, code = project.value, withAsAt = true, toast = say, zone }) {
   const [state, setState] = useState({ phase: "loading", list: null, message: "" });
+  const cw = useColWidths("published");
   const [msg, setMsg] = useState(null);                      // {kind: "error" | "note", text}
   const [busy, setBusy] = useState(0);                       // the number being opened, or 0
   const [showArch, setShowArch] = useState(false);           // Show archived (#345): the archived ones are listed too, marked
@@ -104,8 +106,8 @@ export function PublishedReports({ api = REAL, openTab = openInNewTab, code = pr
       {rows.length ? (
         <div class="pp-block pp-earlier">
           <p class="pp-kicker">{L.PAGE.earlier}</p>
-          <table class="pubs" id="pubs-table">
-            <thead><tr>{L.COLUMNS.map((c, i) => <th scope="col" key={i}>{c || <span class="sr">Open</span>}</th>)}</tr></thead>
+          <table class={`pubs${cw.any() ? " cw-set" : ""}`} id="pubs-table">
+            <thead><tr>{L.COLUMNS.map((c, i) => c ? <th scope="col" key={i} style={cw.style(`c${i}`)} {...cw.head(`c${i}`, c)}>{c}{cw.grip(`c${i}`, c)}</th> : <th scope="col" key={i}><span class="sr">Open</span></th>)}</tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.number} data-pub={r.number} class={r.archived ? "arch-row" : ""}>
