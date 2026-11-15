@@ -127,7 +127,7 @@ class Tool(unittest.TestCase):
         out = io.StringIO()
         ready = threading.Event()
         result = {}
-        real = rec.HTTPServer
+        real = rec.PeerServer
 
         class Probe(real):
             def server_activate(self):
@@ -136,7 +136,7 @@ class Tool(unittest.TestCase):
                 ready.set()
 
         def go():
-            with mock.patch.object(rec, "HTTPServer", Probe):
+            with mock.patch.object(rec, "PeerServer", Probe):
                 result["record"] = rec.run("127.0.0.1", 0, out=out)
 
         t = threading.Thread(target=go, daemon=True)
@@ -154,12 +154,24 @@ class Tool(unittest.TestCase):
         self.assertTrue(data["accepted"])
         self.assertEqual(set(data), {"peer", "gateway", "container_mode", "is_gateway", "accepted"})
 
+    def test_the_tool_never_asks_for_the_host_name_before_it_listens(self):
+        """socket.getfqdn is a reverse lookup that can stall; the server the tool uses must not call it."""
+        def refuse(*a, **k):
+            raise AssertionError("socket.getfqdn was called")
+        with mock.patch.object(socket, "getfqdn", refuse):
+            httpd = rec.PeerServer(("127.0.0.1", 0), rec.make_handler([]))
+            try:
+                self.assertEqual(httpd.server_name, "127.0.0.1")
+                self.assertEqual(httpd.server_port, httpd.server_address[1])
+            finally:
+                httpd.server_close()
+
     def run_tool(self, requests):
         """Run the tool on a free port; send each of requests (a callable taking the port) in order. Returns (output, record)."""
         out = io.StringIO()
         ready = threading.Event()
         result = {}
-        real = rec.HTTPServer
+        real = rec.PeerServer
 
         class Probe(real):
             def server_activate(self):
@@ -168,7 +180,7 @@ class Tool(unittest.TestCase):
                 ready.set()
 
         def go():
-            with mock.patch.object(rec, "HTTPServer", Probe):
+            with mock.patch.object(rec, "PeerServer", Probe):
                 result["record"] = rec.run("127.0.0.1", 0, out=out)
 
         t = threading.Thread(target=go, daemon=True)
