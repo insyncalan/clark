@@ -253,11 +253,11 @@ class TheEditor(Setup):
 class TheHelpLine(unittest.TestCase):
     def test_the_published_page_help_names_the_top_bar_not_a_cover(self):
         help_ = (SRC / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
-        self.assertIn("**The top bar**: the logo, the project name, then Weekly report and the week. Nothing in it is a button.", help_)
+        self.assertIn("**The top bar**: the logo, the project name, then Weekly report and the week, and As at with the date of this report. The date is a button: it opens a calendar, and picking the day of an earlier report kept in the same folder opens that report; any other day says No report for that day and stays on this one. Nothing else in it is a button.", help_)
         self.assertNotIn("**The top bar**: the project, the week ending and who it is for.", help_)
         self.assertNotIn("**The cover**: the project, the week ending and who it is for.", help_)
 
-    def test_the_published_page_help_does_not_say_the_name_or_the_week_opens_anything(self):
+    def test_the_published_page_help_says_only_the_date_is_a_button(self):
         import json
         topics = json.loads((SRC / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8"))
 
@@ -275,8 +275,10 @@ class TheHelpLine(unittest.TestCase):
         topic = find(topics)
         self.assertIsNotNone(topic, "the published client page topic is in the Help")
         bullet = next(x for kind, body in topic["b"] if kind == "ul" for x in body if x.startswith("**The top bar**"))
-        for word in ("opens", "calendar", "project list", "click"):
-            self.assertNotIn(word, bullet.lower(), f"a published file's top bar has no controls (TopBar.jsx), so the Help bullet must not say {word!r}: {bullet}")
+        self.assertIn("The date is a button: it opens a calendar", bullet, "the date is the one button (TopBar.jsx AsAtDate)")
+        for word in ("project list", "the name is a button", "the week is a button"):
+            self.assertNotIn(word, bullet.lower(), f"the name and the week open nothing in a published file, so the Help bullet must not say {word!r}: {bullet}")
+        self.assertIn("nothing else in it is a button", bullet.lower())
 
 
 if __name__ == "__main__":
