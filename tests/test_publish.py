@@ -1080,7 +1080,7 @@ class RealBrowser(unittest.TestCase):
             self.assertEqual(cdp.js("document.title", sid), self.name)
             self.assertEqual(cdp.js("[...document.querySelectorAll('.tab')].map(t => t.dataset.view).join()", sid),
                              "dashboard,work,milestones,usecases", "four tabs and no Settings")
-            self.assertIsNone(cdp.js("document.querySelector('.top .asat')", sid), "issue 1178: no date chip in the bar")
+            self.assertEqual(cdp.js("(document.querySelector('.top button.asat') || {}).textContent", sid), "As at 28-10-2026", "issue 1178 ruling: the date is a button in the bar")
             cdp.js("document.querySelector('#client-menu-btn').click()", sid)
             self.assertIn("As at 28-10-2026", cdp.js("document.querySelector('#client-menu').textContent", sid), "the publish date is in the profile menu")
             for view, h1 in (("work", "Work items"), ("milestones", "Milestones"), ("dashboard", self.name)):
@@ -1167,11 +1167,12 @@ class RealBrowser(unittest.TestCase):
             # Today, the arrows, the scale, a quarter's month heading, Legend, "Show all", Reset and the Hide/Show details fold (row 1114). Only these are allowed in a file;
             # a timeline mark and its label (.mv-mk, .mv-lab) open the file's read only peek (row 1114), which edits nothing;
             # any other button there (an eye, Export, Hold) is an Edit control and fails, as does every button outside the block.
-            # The reader's badge (.cm-wrap, issue 713) is the one other button: it changes only how the page looks for them (their own Light / Dark choice).
+            # The date button in the bar (.asat-wrap, row 1178) is the other: it only opens a calendar and opens an earlier report, and edits nothing.
+            # The reader's badge (.cm-wrap, issue 713) is a further button: it changes only how the page looks for them (their own Light / Dark choice).
             allow = "[data-msvb], [data-mv], [data-cal], [data-scale-b], [data-goto], [data-msall], [data-zreset], .mlg-b, .mv-mk, .mv-lab, [data-msdet]"
             found = cdp.js("({fields: document.querySelectorAll('input, textarea, select, form, [contenteditable]').length, "
                            "design: document.designMode, editable: document.body.isContentEditable, "
-                           "buttons: [...document.querySelectorAll('button')].filter(b => !b.classList.contains('tab') && !b.closest('.msv') && !b.closest('.toc') && !b.closest('.cm-wrap') && !b.closest('.glance')).length, "
+                           "buttons: [...document.querySelectorAll('button')].filter(b => !b.classList.contains('tab') && !b.closest('.msv') && !b.closest('.toc') && !b.closest('.cm-wrap') && !b.closest('.asat-wrap') && !b.closest('.glance')).length, "
                            f"unlisted: [...document.querySelectorAll('.msv button')].filter(b => !b.matches({json.dumps(allow)})).map(b => b.className + ' ' + b.textContent).length, "
                            "settings: !!document.querySelector('[data-view=settings]'), mode: document.documentElement.dataset.mode})", sid)
             logo = cdp.js("(function(){ var l = document.querySelector('.top .logo'); return l ? l.tagName : null; })()", sid)
