@@ -432,7 +432,7 @@ class MockupLook(InThePage):
                 p.js(f"document.querySelector('{sel} [data-open-link]').click()")
                 p.until(f"!document.querySelector('{sel} [data-add-link]')", "the box closed")
 
-    # Measured against docs-mockup.html in the same Chrome (item 1194, WO stark): the sizes and colours that need no wording and no ruling.
+    # Measured against docs-mockup.html in the same Chrome (item 1194): the sizes and colours that need no wording and no ruling.
     PROBE = ("(() => { const sec = document.querySelector(%s), q = s => sec.querySelector(s), cs = (e, k) => getComputedStyle(e)[k], R = e => e.getBoundingClientRect();"
              " const li = q('.tpl-dl-i'), nm = q('.tpl-rename, .tpl-name'), fx = q('.tpl-facts'), up = q('[data-up]'), dn = q('[data-down]'), rm = q('.tpl-remove'), ic = [...sec.querySelectorAll('.tpl-icons > button')],"
              " al = q('.tpl-allowed'), hint = q('.tpl-hint'), head = sec.querySelector('.sec-head'), list = q('.tpl-dl'), svg = q('.tpl-badge svg text');"

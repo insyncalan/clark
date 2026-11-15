@@ -41,7 +41,7 @@ BAD_LABEL = f"Words for a file or link must be one line of {LABEL_MAX} character
 BAD_LINK = "That link can't be used. It must start with https:// or mailto: and have no spaces. Paste the whole address and try again."
 # UNRULED wording (item 1194): not yet ruled. The ticket quotes only "Enter a link description."
 ALLOWED_ENDINGS = ("pdf", "doc", "docx", "xls", "xlsx", "csv", "ppt", "pptx", "jpg", "jpeg", "png", "txt")
-# Ruled by Alan (15-11, relayed by Jarvis): the refusal names the entry, a link by its place in the list (from 1), a file by its name.
+# Ruled (15-11): the refusal names the entry, a link by its place in the list (from 1), a file by its name.
 BAD_TYPE_TAIL = "That type of file can't be added. Use PDF, Word, Excel, PowerPoint, JPG, PNG or TXT."
 NO_DESCRIPTION_TAIL = "Enter a link description."
 
