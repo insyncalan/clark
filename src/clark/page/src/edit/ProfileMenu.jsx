@@ -20,7 +20,12 @@ import { profile, loadProfile, wantName } from "../stores/profile.js";
 import { openExport } from "./wordState.js";
 import { toast } from "../stores/changes.js";
 import { ToastCard, ToastBar, startHeld, keepFocus } from "./ToastCard.jsx";
+import { actionIcon } from "../menuIcons.js";
 import { Welcome } from "./Welcome.jsx";
+import { narrowHeader } from "./narrowHeader.js";
+import { openPalette } from "./Palette.jsx";
+import { askOn } from "./askState.js";
+import { closePanel, openPanel, panelOpen } from "./askPanelState.js";
 
 export const MENU_NAME = "Your menu";
 const LOOK_WORDS = { light: "Light", dark: "Dark", system: "System" };
@@ -80,11 +85,11 @@ export function ProfileMenu() {
   // Row 786: with no project open the circle is still there, with the entries that need no project (Settings, Appearance, Help); Publish and the rest wait for the report, or Publish would open without the project's client folder
   const open = !!data.value;
   if (!open && status.value !== "none") return null;      // while the report loads (or failed) there is still no circle, as before
-  const items = open ? [{ id: "publish", name: "Publish…", tip: "Publish" }, { id: "preview", name: "Preview the page in a new tab", tip: "Preview" },
-    { id: "export", name: "Export to Excel", tip: "Export" }, { id: "word-export", name: "Export to Word" }] : [];
-  if (open && tabs.value.includes("published")) items.push({ id: "published", name: "Published reports" });
-  if (tabs.value.includes("settings")) items.push({ id: "settings", name: "Settings" });      // row 1092: after Published reports, before the Appearance group, always (no short word, so the tooltip is as it was)
-  items.push({ id: "help", name: "Help" });
+  const items = open ? [{ id: "publish", name: "Publish…", tip: "Publish", icon: actionIcon("publish") }, { id: "preview", name: "Preview the page in a new tab", tip: "Preview", icon: actionIcon("preview") },
+    { id: "export", name: "Export to Excel", tip: "Export", icon: actionIcon("exportExcel") }, { id: "word-export", name: "Export to Word", icon: actionIcon("exportWord") }] : [];
+  if (open && tabs.value.includes("published")) items.push({ id: "published", name: "Published reports", icon: actionIcon("published") });
+  if (tabs.value.includes("settings")) items.push({ id: "settings", name: "Settings", icon: actionIcon("settings") });      // row 1092: after Published reports, before the Appearance group, always (no short word, so the tooltip is as it was)
+  items.push({ id: "help", name: "Help", icon: actionIcon("help") });
   // Who you are (#180), the top line: the name in bold with the email under it, or only the name; with neither, a link that opens
   // Settings › Profile and puts the cursor in the name box. Only what was typed in Settings: clark never makes up an email.
   const me = profile.value;
@@ -94,13 +99,17 @@ export function ProfileMenu() {
   // The last-published note is hidden from the bar in a narrow window, so the menu says it too; a separator sets the settings apart.
   // Appearance (#179; its group is called Appearance in the menu and in Settings): the same three choices as Settings › Personal, in the same order, below the separator that divides the actions
   // (Publish, Preview, Export) from the settings entries; the one in use is marked. One signal feeds both places.
-  const look = [{ id: "look-lab", lab: "Appearance" }, ...MODES.map((m) => ({ id: `look-${m}`, name: LOOK_WORDS[m], checked: appearance.value === m }))];
+  const look = [{ id: "look-lab", lab: "Appearance" }, ...MODES.map((m) => ({ id: `look-${m}`, name: LOOK_WORDS[m], icon: actionIcon("look" + m[0].toUpperCase() + m.slice(1)), checked: appearance.value === m }))];
   const actions = items.filter((i) => ["publish", "preview", "export", "word-export", "published", "settings"].includes(i.id)), rest = items.filter((i) => !actions.includes(i));
   const who = named ? { id: "who", head: { name: me.name || me.email, line: me.name ? me.email : "", title: [me.name, me.email].filter(Boolean).join("\n") } }
-    : { id: "who", name: "Add your name in Settings", link: true };
-  const shown = [who, ...(last ? [{ id: "note", lab: last }] : []), ...actions, { id: "sep", sep: true }, ...look, ...(rest.length ? [{ id: "sep", sep: true }] : []), ...rest];   // a separator sets the settings entries apart from the look group
+    : { id: "who", name: "Add your name in Settings", link: true, icon: actionIcon("profile") };
+  // item 1177: at 900 px and narrower the header has no search or ask clark button; they are the first two entries here (ask clark only while asking is on)
+  const near = narrowHeader.value ? [{ id: "search", name: "Go to or do", icon: actionIcon("search") }, ...(askOn.value ? [{ id: "ask", name: "ask clark", icon: actionIcon("ask") }] : [])] : [];
+  const shown = [...(named ? [who, ...near] : [...near, who]), ...actions, { id: "sep", sep: true }, ...look, ...(rest.length ? [{ id: "sep", sep: true }] : []), ...rest, ...(last ? [{ id: "sep", sep: true }] : []), ...(last ? [{ id: "note", lab: last }] : [])];   // a separator sets the settings entries apart from the look group
   const pick = (id) => {
-    if (id === "publish") openPublish();
+    if (id === "search") openPalette();
+    else if (id === "ask") { if (panelOpen.value) closePanel(); else openPanel(); }
+    else if (id === "publish") openPublish();
     else if (id === "preview") preview();
     else if (id === "export") exportExcel();
     else if (id === "published") showPublished();

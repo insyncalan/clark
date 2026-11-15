@@ -8,6 +8,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { clarkEditor, SanitiseError } from "../core/editor.js";
 import { href } from "../logic/cleanHtml.js";
 import { Menu, Fade } from "../components/Menu.jsx";
+import { Icon } from "../components/Icon.jsx";
+import { actionIcon } from "../menuIcons.js";
 
 const BAR = [
   ["bold", "B", "Bold"], ["italic", "I", "Italic"], ["strike", "S", "Strikethrough"],
@@ -18,6 +20,7 @@ const BUBBLE = [["bold", "B", "Bold"], ["italic", "I", "Italic"], ["strike", "S"
 const STYLES = [["paragraph", "Text"], ["h1", "Heading 1"], ["h2", "Heading 2"], ["h3", "Heading 3"]];
 const SLASH = [["h1", "Heading 1"], ["h2", "Heading 2"], ["h3", "Heading 3"], ["bullet", "Bulleted list"], ["numbered", "Numbered list"],
   ["checklist", "Checklist"], ["quote", "Quote"], ["rule", "Divider"]];
+const SLASH_ICON = { h1: "tline", h2: "tline", h3: "tline", bullet: "dots", numbered: "bars", checklist: "check", quote: "doc", rule: "circleminus" };      // row 1138: the / menu's icons
 export const TOO_LONG = "That is too long to save. Shorten it and try again.";
 const BAD_LINK = "That address can't be used. Start it with https://, http:// or mailto:";
 
@@ -166,7 +169,7 @@ export function RichText({ value, label, onSave, onClose, oneLine = false }) {
     <div class="rt" ref={root} data-rt aria-label={label || "Rich text"} onFocusOut={away}>
       <div class="rt-bar" role="toolbar" aria-label="Formatting">
         {!oneLine && <Menu label={current ? current[1] : "Text"} ariaLabel={`Text style: ${current ? current[1] : "Text"}`} btnCls="rt-btn rt-style" left
-          items={STYLES.map(([n, w]) => ({ id: n, name: w }))} onPick={(n) => { h.run(n); tick((x) => x + 1); refocus(); }} />}
+          items={STYLES.map(([n, w]) => ({ id: n, name: w, icon: actionIcon("textStyle") }))} onPick={(n) => { h.run(n); tick((x) => x + 1); refocus(); }} />}
         {bar.map((b, i) => (b === "|" ? <span class="rt-sep" key={i} aria-hidden="true" /> : button(b)))}
         <span class="rt-keys">Cmd+Enter saves. Esc cancels.</span>
       </div>
@@ -185,7 +188,7 @@ export function RichText({ value, label, onSave, onClose, oneLine = false }) {
         <Fade class="rt-slash" boxRef={slashBox} role="listbox" aria-label="Insert">
           {slash.items.map(([n, w], i) => (
             <button type="button" key={n} role="option" aria-selected={i === slash.at ? "true" : "false"} class={`rt-opt${i === slash.at ? " on" : ""}`}
-              onMouseDown={hold} onClick={() => chooseSlash(n)}>{w}</button>
+              onMouseDown={hold} onClick={() => chooseSlash(n)}><Icon name={SLASH_ICON[n] || "tline"} cls="mi" />{w}</button>
           ))}
         </Fade>
       ) : null}

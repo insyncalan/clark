@@ -8,7 +8,7 @@ SRC = (Path(__file__).resolve().parent.parent / "src" / "clark" / "page" / "src"
 
 class EmptyMenu(unittest.TestCase):
     def test_an_empty_list_gets_one_row_that_says_where_a_project_is_added(self):
-        self.assertRegex(SRC, r'none \? \[\{ id: "__settings", name: "No project yet\. Open Settings to add one\." \}\]')
+        self.assertRegex(SRC, r'none \? \[\{ id: "__settings", name: "No project yet\. Open Settings to add one\.", icon: actionIcon\("settings"\) \}\]')
 
     def test_that_row_opens_settings_and_never_calls_setProject(self):
         m = re.search(r"const pick = \(id\) => \{(.*?)\n  \};", SRC, re.S)

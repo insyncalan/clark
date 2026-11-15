@@ -96,7 +96,7 @@ class ApprovedWordsArePinned(unittest.TestCase):
     def test_the_lines_carried_over_say_accept_all(self):
         self.assertIn("It changed in clark after the workbook was made.", BOX)
         self.assertIn("Not imported: {t}", BOX)
-        self.assertIn("and {items.length - SHOWN} more, taken as Accept all is for the rest: new and changed rows with no problem.", BOX)
+        self.assertIn("more, of which {hiddenOn} will be imported", BOX)
         self.assertNotIn("ticks above", BOX)
 
 

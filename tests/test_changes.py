@@ -103,7 +103,7 @@ class Allowed(Api):
             ops = set(changes.CHANGE_KINDS[kind])
             want = {"archive", "restore"} | ({"update"} if kind in changes.ITEM_KINDS or kind in ("projects", "milestones", "use_cases", "documents") else set())
             self.assertEqual(ops, want | ({"new"} if kind in changes.NEWABLE + ("use_cases", "documents") else set())      # #67: a row can be added to four kinds; #455: and a use case (its own writer); #74: + a document link
-                             | ({"bulk", "handover", "delete"} if kind in changes.ITEM_KINDS else set())     # #196, #199: only the work items take a bulk change or a hand over; item 658: and a delete
+                             | ({"bulk", "handover", "delete"} if kind in changes.ITEM_KINDS else set()) | ({"delete"} if kind in ("milestones", "use_cases") else set())     # #196, #199: only the work items take a bulk change or a hand over; item 658: and a delete
                              | ({"link", "msadd", "msremove"} if kind == "use_cases" else set()))                 # #485: a use case takes work items to link to it
             self.assertEqual(set(changes.CHANGE_KINDS[kind]["archive"]) | set(changes.CHANGE_KINDS[kind]["restore"]), set())
         for kind in ("workstreams", "labels", "links", "report_sections ", "",
@@ -133,7 +133,8 @@ class Refusals(Api):
         self.refused(self.req("new", values={"project": "XYZ"}), "The field 'project' can't be set here.")
         self.refused(self.req("new", values={"id": "ABC-S-099"}), "The field 'id' can't be set here.")
         self.refused(self.req("new", values={"hidden": 1}), "The field 'hidden' can't be set here.")
-        self.refused(self.req("new", values={"type": "needs", "body": "x"}), changes.NO_BODY_HERE)      # #929: a body on new is for a text section only
+        self.refused(self.req("new", values={"type": "tracker", "body": "x"}), changes.NO_BODY_HERE)      # #929: a body on new is for a text section only
+        self.refused(self.req("new", values={"type": "needs"}), changes.NEW_TYPE_WORDS)      # item 1158: no new Needs from you section
         self.refused(self.req("new", values={"type": "raid"}), changes.NEW_TYPE_WORDS)
         self.refused(self.req("new", values={"type": "docs", "title": "x"}), changes.NEW_TYPE_WORDS)
         self.refused(self.req("new", values={"type": ["text"]}), changes.NEW_TYPE_WORDS)
@@ -142,7 +143,7 @@ class Refusals(Api):
         self.refused(self.req("new", before="ABC-S-001"), "That change doesn't take 'before'.")
         self.refused(self.req("update", id="ABC-S-005", values={"title": "x"}), "That change doesn't take 'values'.")
         self.refused(self.req("update", id="ABC-S-005", changes={"sort_order": 1}), "The field 'sort_order' can't be set here.")
-        self.refused(self.req("update", id="ABC-S-001", changes={"body": "x"}), changes.NO_BODY_HERE)         # a built-in section takes no body (a text section does: test_changes_text_body)
+        self.refused(self.req("update", id="ABC-S-002", changes={"body": "x"}), changes.NO_BODY_HERE)         # a built-in section takes no body (ABC-S-001 is a text section since item 1188; a text section takes one: test_changes_text_body)
         self.refused(self.req("update", id="ABC-S-005", changes={"project": "XYZ"}), "The field 'project' can't be set here.")
         self.refused(self.req("update", id="ABC-S-005", changes={}), "Say what to change.")
         self.refused(self.req("update", id="ABC-S-005"), "Say what to change.")

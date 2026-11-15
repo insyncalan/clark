@@ -32,7 +32,8 @@ UI_NAMES = {"Version and updates", "clark version and updates"}     # the name o
 # 'Report menu' and 'Export to PDF' are the published file's own menu words (components/ClientMenu.jsx WORDS, #713); the prototype has no such menu.
 # 'Ask clark to update for you' is the words box's heading (edit/SneakPeek.jsx, row 1077, the owner's words of 09-11-2026); the prototype still says Change an item with words.
 # 'Earlier chats' is the heading of the ask clark History list (edit/askWords.js HISTORY_TITLE, row 1095); the prototype has no chat history.
-CHECKED_BY_HAND = set(['Add issue', 'Move to Status', 'Show all N milestones', 'Show all N use cases', 'Earlier chats', 'The header line', 'Ask clark to update for you', 'Close this panel', 'Make this panel fill the screen', 'Comfortable', 'Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Show the files', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Folders asking may read', 'Turn off asking', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'Who agreed it', 'What to import', 'Set commitment', 'No flag', 'Report menu', 'Export to PDF', '⋯', 'Template settings', 'Use the automatic words', 'Show history', 'Hide history', 'Show the Gantt to me', 'Show the Gantt to the client', 'Tab name', 'Your email', 'Open in your mail app', 'Add folder', 'All use cases', 'Commitment', 'Quit clark'])  # 'Quit clark': the Quit card's button and confirm (edit/Quit.jsx), named by the Quit help line  # merged with main: the four main-only words ('Personal › Spacing', 'Personal › Appearance', 'Review X.Y.Z', 'The line above the title') are now found in the prototype, so they are out; 'Open in your mail app' (Feedback card) is kept  # the last four: the Gantt and Profile cards' own labels (edit/GanttSetting.jsx, edit/Personal.jsx)
+# 'More actions' is the menu of a use case or milestone row and of the milestone peek (edit/RecordMore.jsx, item 1148); the prototype has no such menu.
+CHECKED_BY_HAND = set(['More actions', 'Add issue', 'Move to Status', 'Show all N milestones', 'Show all N use cases', 'Earlier chats', 'The header line', 'Ask clark to update for you', 'Close this panel', 'Make this panel fill the screen', 'Comfortable', 'Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Show the files', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Folders asking may read', 'Turn off asking', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'Who agreed it', 'What to import', 'Set commitment', 'No flag', 'Report menu', 'Export to PDF', '⋯', 'Template settings', 'Use the automatic words', 'Show history', 'Hide history', 'Show the Gantt to me', 'Show the Gantt to the client', 'Tab name', 'Your email', 'Open in your mail app', 'Add folder', 'All use cases', 'Commitment', 'Quit clark'])  # 'Quit clark': the Quit card's button and confirm (edit/Quit.jsx), named by the Quit help line  # merged with main: the four main-only words ('Personal › Spacing', 'Personal › Appearance', 'Review X.Y.Z', 'The line above the title') are now found in the prototype, so they are out; 'Open in your mail app' (Feedback card) is kept  # the last four: the Gantt and Profile cards' own labels (edit/GanttSetting.jsx, edit/Personal.jsx)
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -85,7 +86,7 @@ class Shape(unittest.TestCase):
                       "the projects you already have, or an empty set on a first start.", steps[at])
         self.assertIn("Your data is not in the clark folder, so you can swap that folder for a newer download.", steps[at])
         self.assertIn("If you already have a folder called clark, rename or move it before you unzip a newer download, so the two do not clash.", steps[at])
-        self.assertIn('CLARK_DATA_DIR="/full/path" docker compose -f docker/compose.yaml up -d', steps[at + 2])
+        self.assertIn('CLARK_DATA_DIR="/full/path" bash docker/start.command', steps[at + 2])
         self.assertIn("stop clark, move that folder out of it, and name it this way.", steps[at + 2])
         self.assertIn("Docker and clark.command use the same data unless you name another folder with CLARK_DATA_DIR. "
                       "If clark.command looks empty, you started Docker with another folder.", text)
@@ -102,8 +103,8 @@ class Shape(unittest.TestCase):
         self.assertEqual([j[0] for j in START["jobs"]], ["add-a-work-item", "write-the-weekly-report", "add-a-section-from-a-template", "arrange-the-report", "publish-the-report"],
                          "the owner's order; bringing in an Excel workbook is not one of them")
         self.assertIn(START["undo"], [t["id"] for t in STEPS])
-        self.assertEqual((len(STEPS), len(SECTIONS)), (38, 36))   # merged: main adds the Feedback entry (#1069, section row), so sections 36; steps 37; with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
-        self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (34, 29))   # merged: icons 29, the branch no longer lists the sparkle (Draft) icon that main still had (30)
+        self.assertEqual((len(STEPS), len(SECTIONS)), (37, 35))   # merged: main adds the Feedback entry (#1069, section row), so sections 36; steps 37; with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
+        self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (35, 29))   # merged: icons 29, the branch no longer lists the sparkle (Draft) icon that main still had (30)
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
         for kind, rows, groups in (("task", STEPS, SRC["howto"]["groups"]), ("section", SECTIONS, SRC["reference"]["groups"])):
@@ -350,12 +351,13 @@ class LowWordsRound(unittest.TestCase):
         self.assertEqual(self.ALL.count("the usual lists, the counts and the published page"), 2)
 
     def test_editing_line_says_what_it_does(self):
-        self.assertIn("while you edit, that each change saves on its own", self.ALL)
+        self.assertIn("The note at the bottom of your profile menu: “Published” on its date", self.ALL)
+        self.assertNotIn("Draft · not published yet", self.ALL)
         self.assertNotIn("“Editing", self.ALL)       # the page has no such label to quote
 
     def test_the_report_has_no_look_to_choose(self):
         self.assertNotIn("one look", self.ALL)
-        self.assertIn("The report is the cover, then the sections, with the contents at the right edge", self.ALL)
+        self.assertIn("The report is the sections, with the contents at the right edge", self.ALL)
         self.assertNotIn("sections in cards", self.ALL)       # Compact is not cards
 
     def test_no_line_starts_with_ask_clark(self):
@@ -488,13 +490,11 @@ class PublicationNumberWords(unittest.TestCase):
 
 
 class NeededFromTheClientWords(unittest.TestCase):
-    def test_help_says_the_flag_lists_the_item_only_when_the_report_has_a_needs_from_you_section(self):
-        """Row 1066: publish adds no 'Needs from you' section the editor lacks, so Help must not promise the item is listed without one."""
-        text = json.dumps(SRC, ensure_ascii=False)
-        self.assertIn("**Needed from the client**: switch it on in Edit and, when the report has a “Needs from you” section, the item is listed there.", text)
-        self.assertNotIn("switch it on in Edit and the item is listed under “Needs from you”", text)
-        peek = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "PeekLatest.jsx").read_text(encoding="utf-8")
-        self.assertIn("Lists it under “Needs from you” when the report has that section", peek, "the peek's own sub-line makes the same condition")
+    def test_help_no_longer_mentions_the_needed_from_the_client_flag_or_the_needs_from_you_section(self):
+        """Item 1158: the flag's switch and the Needs from you section are gone from the page, so Help says nothing of them."""
+        text = json.dumps(SRC, ensure_ascii=False).lower()
+        for word in ("needed from the client", "needs from you", "needs-from-you", "ask-for-what-you-need"):
+            self.assertNotIn(word, text)
 
 
 class PeekSourceWords(unittest.TestCase):

@@ -180,10 +180,10 @@ class Preview(Case):
 
 
 class Export(Case):
-    def test_it_downloads_the_workbook_named_with_the_code_and_the_day(self):
+    def test_it_downloads_the_workbook_named_with_the_project_the_code_and_the_local_time(self):
         status, r, raw = get(self.rig, "/api/export?project=PUB")
         self.assertEqual(status, 200)
-        self.assertEqual(r.getheader("Content-Disposition"), 'attachment; filename="PUB-2026-10-28.xlsx"')
+        self.assertRegex(r.getheader("Content-Disposition"), r'^attachment; filename="[^"]+\(PUB\) \d{4}\.\d\d\.\d\d \d\d\.\d\d\.\d\d\.xlsx"$')      # row 1143
         self.assertEqual(r.getheader("Content-Type"), sv.XLSX_TYPE)
         self.assertEqual(r.getheader("Content-Length"), str(len(raw)))
         self.assertEqual(r.getheader("Cache-Control"), "no-store")

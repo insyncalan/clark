@@ -1,4 +1,4 @@
-"""The Use cases list keeps long text inside the page: the no-match message wraps, and the headline and milestone cells stop at two lines."""
+"""The Use cases list keeps long text inside the page: the no-match message wraps, and the headline stops at two lines."""
 import re
 import unittest
 
@@ -12,8 +12,8 @@ def rule(selector):
 
 
 def narrow_block():
-    """The text of the first @media (max-width: 1100px) block that holds the .ucl rules, braces matched."""
-    start = CSS.index("@media (max-width: 1100px) {\n  .ucl-row")
+    """The text of the first @media (max-width: 900px) block that holds the .ucl rules, braces matched."""
+    start = CSS.index("@media (max-width: 900px) {\n  .ucl-row")
     depth, k = 0, CSS.index("{", start)
     for end in range(k, len(CSS)):
         depth += {"{": 1, "}": -1}.get(CSS[end], 0)
@@ -29,16 +29,12 @@ class LongText(unittest.TestCase):
     def test_no_match_message_wraps(self):
         self.assertIn("overflow-wrap: anywhere", rule(".ucl-none"))
 
-    def test_headline_and_milestones_clamp_to_two_lines(self):
-        body = rule(".ucl-head, .ucl-ms")
+    def test_headline_clamps_to_two_lines_at_every_width(self):
+        # item 1149: where it stands is shown in full on the row, clamped; the one rule is the base rule, so no width turns it off
+        body = rule(".ucl-head")
         self.assertIn("-webkit-line-clamp: 2", body)
         self.assertIn("overflow: hidden", body)
-
-    def test_narrow_headline_small_clamps(self):
-        # The clamp lives in the base rule; the narrow block must turn the line on as a box, or the clamp does nothing there.
-        self.assertIn("-webkit-line-clamp: 2", rule(".ucl-name small"))
-        self.assertIn("display: none", rule(".ucl-name small"))
-        self.assertIn("display: -webkit-box", NARROW_RULES[".ucl-name small"])
+        self.assertNotIn(".ucl-head", NARROW_RULES, "the narrow block keeps the headline on the row")
 
     def test_narrow_count_line_takes_its_own_row(self):
         body = NARROW_RULES[".ucl-count"]

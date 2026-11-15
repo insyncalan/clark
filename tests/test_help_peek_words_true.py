@@ -73,7 +73,8 @@ class MilestonePeek(unittest.TestCase):
     def test_top_bar_has_no_eye(self):
         bar = find(MS, "**The top bar**")
         self.assertNotIn("eye", bar)
-        self.assertIn("Archive", bar)          # PeekArchive.jsx: the button is named Archive
+        self.assertIn("More actions", bar)     # item 1148: Archive and Delete sit in the More actions menu; the Archive bullet below names the step
+        self.assertTrue(any(r.startswith("**Archive**") for r in MS))
         self.assertIn("Previous item", bar)
 
     def test_dates_have_no_rebaseline(self):

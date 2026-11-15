@@ -548,7 +548,7 @@ def csp_report_route(handler):
 BRAND_PREFIX = "/assets/"
 APP_ICON_PREFIX = "/app/"                 # the app icons (appfiles.ICONS): an image source too, or the browser cannot show the manifest's icons
 BRAND_ID = re.compile(r"[a-z0-9-]{1,40}")       # #944: a brand's id in /assets/<id>/<name>; only looked up by the seam, never joined onto a path
-BRAND_PICTURES = ("cover.png", "cover.jpg", "cover.jpeg", "cover.webp")     # the fixed allow-list; = page.PICTURES (a test keeps the two equal)
+BRAND_PICTURES = ("logo.png", "cover.png", "cover.jpg", "cover.jpeg", "cover.webp")     # the fixed allow-list; = page.PICTURES (a test keeps the two equal)
 
 
 def brand_picture_route(handler, name, brand_id=None):
@@ -1078,6 +1078,16 @@ def preview_page_route(handler):
     return handler.send(200, body, "text/html")
 
 
+def content_disposition(name):
+    """Row 1143: an attachment header for `name`. A name of plain ASCII is `filename="..."` as before; any other gets an ASCII
+    fallback there and the whole name in `filename*` (RFC 6266), since a header holds no more than latin-1 and the browser
+    reads `filename*` first."""
+    if name.isascii():
+        return f'attachment; filename="{name}"'
+    plain = re.sub(r'[^\x20-\x7e]', "_", name)
+    return f"attachment; filename=\"{plain}\"; filename*=UTF-8''{quote(name, safe='')}"
+
+
 def export_route(handler):
     """GET /api/export?project=<CODE>: the workbook as a download, or the publisher's plain refusal as JSON. GET /api/export?template=1
     (#454): the import template instead, an export's workbook with no rows, which names no project and reads nothing from the store;
@@ -1096,7 +1106,7 @@ def export_route(handler):
     handler.send_response(200)
     handler.send_header("Content-Type", XLSX_TYPE)
     handler.send_header("Content-Length", str(len(data)))
-    handler.send_header("Content-Disposition", f'attachment; filename="{body["name"]}"')
+    handler.send_header("Content-Disposition", content_disposition(body["name"]))
     if body.get("warnings"):
         handler.send_header("X-Export-Warning", quote(" ".join(body["warnings"]), safe=" "))        # plain words, any logo warning
     handler.end_headers()

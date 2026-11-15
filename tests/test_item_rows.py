@@ -84,7 +84,7 @@ class ItemRows(unittest.TestCase):
         self.assertIn(w("Training room booked for November"), actions[1], "the client's own wording is shown when there is one")
         raid = js(ROWS % "raid")
         self.assertEqual(len(raid), 2, where)
-        self.assertTrue(raid[0].split("|")[1] == "Red" and raid[0].endswith("|risk") and w("Supplier delivery may slip") in raid[0], raid[0])
+        self.assertTrue(raid[0].split("|")[1] == ("Red" if where == "the file" else "Urgent") and raid[0].endswith("|risk") and w("Supplier delivery may slip") in raid[0], raid[0])
         self.assertIn("Urgent", raid[0].split("|")[3], "the pill is the status colour; the priority word is in the line (prototype views.js:378)")
         self.assertIn("01-11-2026", raid[0])
         self.assertTrue(raid[1].split("|")[1] == "Green" and raid[1].endswith("|issue") and "Low" in raid[1].split("|")[3], raid[1])
@@ -248,10 +248,10 @@ class CurrentStateInEdit(unittest.TestCase):
     def test_the_text_is_drawn_in_view_and_in_edit_in_both_themes_at_both_widths(self):
         demo = DemoStore()
         self.addCleanup(demo.close)
-        demo.update("projects", "ABC", {"current_state": "<p>Scanning is <strong>two thirds</strong> done ZQ-NOW</p>"})
+        demo.update("report_sections", "ABC-S-001", {"body": "<p>Scanning is <strong>two thirds</strong> done ZQ-NOW</p>"})   # item 1188: Current state is a text section, its words are its body
         s = Running(data_for=demo.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING))
         self.addCleanup(s.close)
-        body = "(document.querySelector('[data-type=current] .sec-body') || {}).textContent || ''"
+        body = "(document.querySelector('#sec-ABC-S-001 .sec-body') || {}).textContent || ''"
         with chrome() as cdp:
             p = Pg.at(self, cdp, s.port)
             p.ready()
@@ -264,8 +264,8 @@ class CurrentStateInEdit(unittest.TestCase):
                         cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
                         where = f"{mode} {theme} {w}"
                         self.assertIn("two thirds", p.js(body), f"{where}: the Current state text is drawn")
-                        self.assertNotIn("Not shown on this page yet", p.js("document.querySelector('[data-type=current]').textContent"), where)
-                        self.assertGreater(p.js("document.querySelector('[data-type=current] .sec-body').getBoundingClientRect().height"), 10, where)
+                        self.assertNotIn("Not shown on this page yet", p.js("document.querySelector('#sec-ABC-S-001').textContent"), where)
+                        self.assertGreater(p.js("document.querySelector('#sec-ABC-S-001 .sec-body').getBoundingClientRect().height"), 10, where)
 
 
 def edit_server(test, store):
@@ -351,7 +351,7 @@ class EditRows(unittest.TestCase):
                              "status, owner, date and priority change in place (a risk's priority through its impact and likelihood, item 210)")
             self.assertEqual(p.js(f"document.querySelectorAll({row!r} + ' [data-fixed$=\":priority\"]').length"), 0,
                              "a risk's priority is no longer a fixed cell: its rating picker sets the impact and likelihood it is worked out from")
-            self.assertEqual(p.js(f"document.querySelector({row!r} + ' [data-cell$=\":status\"]').dataset.tip"), "Risk · Red · Urgent · Overdue", "the icon says Red, Amber or Green on a risk, and Urgent (and Overdue) on an Urgent one (row 1021: the pill is gone)")
+            self.assertEqual(p.js(f"document.querySelector({row!r} + ' [data-cell$=\":status\"]').dataset.tip"), "Risk · Urgent · Overdue", "the icon says Red, Amber or Green on a risk, and Urgent instead (never Red as well) with Overdue on an Urgent one (row 1021: the pill is gone)")
             act = "[data-type=actions] .wl-row[data-id=%r]" % id_of(self.store, "Cut-over plan to be agreed")
             self.assertEqual(p.js(f"document.querySelector({act!r} + ' [data-cell$=\":status\"]').dataset.tip"), "Action · Overdue")
             # the client's wording, in place

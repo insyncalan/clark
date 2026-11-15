@@ -26,7 +26,7 @@ export function startDrag(e, handle, id, count) {
   let dragging = false, cancelled = false, target = null;
   try { handle.setPointerCapture(e.pointerId); } catch (x) { /* a pointer that cannot be captured still drags */ }
   handle.focus();
-  const sections = () => (data.value && data.value.report_sections) || [];
+  const sections = () => ((data.value && data.value.report_sections) || []).filter((s) => s.type !== "needs");      // item 1174: as the Dashboard draws them
   const move = (m) => {
     if (cancelled) return;                       // Esc is final: more movement cannot bring the drop back
     if (!dragging && Math.hypot(m.clientX - startX, m.clientY - startY) < THRESHOLD) return;

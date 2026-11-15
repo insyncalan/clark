@@ -194,6 +194,8 @@ class Page(Base):
             self.assertFalse(cdp.js("!!document.querySelector('[data-peek], .cpop, .bmenu, .bask')", sid), "and open nothing")
             special(cdp, sid, "F10", "F10", 121, SHIFT)
             self.assertFalse(cdp.js("!!document.querySelector('.bmenu')", sid), "the row menu is off")
+            # the row menu draws a moment after its key, so a look right after the key proves nothing: ask whether any handler took the key
+            self.assertFalse(cdp.js(f"document.querySelector(\"tr[data-id='{rows[0]}']\").dispatchEvent(new KeyboardEvent('keydown', {{key: 'F10', shiftKey: true, bubbles: true, cancelable: true}})) === false", sid), "no handler takes Shift+F10")
             cdp.js(f"document.querySelector(\"tr[data-id='{rows[0]}']\").focus()", sid)
             press(cdp, sid, " ")
             self.assertEqual(cdp.js(self.TICKS, sid), [r for r in before if r != rows[0]] if rows[0] in before else before + [rows[0]], "Space ticks")

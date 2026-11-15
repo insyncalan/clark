@@ -16,11 +16,11 @@ CSS = (Path(__file__).resolve().parent.parent / "src" / "clark" / "page" / "shel
 LOOK = ("(() => { const b = document.querySelector('#work .fline'), s = getComputedStyle(b); "
         "return {outline: s.outlineStyle + ' ' + s.outlineWidth, shadow: s.boxShadow, border: s.borderTopColor, bg: s.backgroundColor}; })()")
 GEO = ("(() => { const row = document.querySelector('#work .fline-row').getBoundingClientRect(), box = document.querySelector('#work .fline').getBoundingClientRect(), "
-       "ids = ['#impBtn', '#expBtn', '#work .vicons [data-lay=table]', '#work .vicons [data-lay=board]', '#viewMenu'], "
+       "ids = ['#work .vicons [data-lay=table]', '#work .vicons [data-lay=board]', '#viewMenu'], "
        "icons = ids.map(q => { const e = document.querySelector(q); return e ? Math.round(e.getBoundingClientRect().left - row.left) : null; }), "
        "last = document.querySelector('#viewMenu').getBoundingClientRect(); "
        "return {icons, fromRight: Math.round(row.right - last.right), "
-       "inside: document.querySelectorAll('#work .fline [data-lay], #work .fline #viewMenu, #work .fline #impBtn, #work .fline #expBtn').length, "
+       "inside: document.querySelectorAll('#work .fline [data-lay], #work .fline #viewMenu').length, "
        "boxW: box.width, rowW: row.width, boxRight: box.right, firstIcon: Math.min(...ids.map(q => document.querySelector(q).getBoundingClientRect().left)), "
        "wide: document.documentElement.scrollWidth > innerWidth}; })()")
 

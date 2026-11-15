@@ -45,9 +45,11 @@ class DemoSeam:
 
 class Walk:
     def watched(self, p, sid):
-        """The first section with a real strip of itself under the top bar, and the one scrolled to just under the top bar."""
+        """The first section with a real strip of itself under the top bar, and the one scrolled to just under the top bar. The bar is 85 px
+        at 1400 and 129 px at 900 (item 1177: the tabs take a second row), so "just under" is read from the bar, not fixed at 85: a section left
+        under the 129 px bar shows only a tail and the page rightly holds the next one instead."""
         ids = [p.js(NEAREST)]
-        if sid and p.js("(() => { const e = document.querySelector('.secs > .sec[data-id=' + JSON.stringify(%s) + ']'); return !!e && e.getBoundingClientRect().top < 100; })()" % json.dumps(sid)):
+        if sid and p.js("(() => { const e = document.querySelector('.secs > .sec[data-id=' + JSON.stringify(%s) + ']'); return !!e && e.getBoundingClientRect().top < document.querySelector('.top').getBoundingClientRect().bottom + 15; })()" % json.dumps(sid)):
             ids.append(sid)
         return list(dict.fromkeys(ids))
 
@@ -69,7 +71,7 @@ class Walk:
                 if sid is None:
                     p.js("window.scrollTo(0, 0)")
                 else:
-                    p.js(f"window.scrollTo(0, window.scrollY + document.querySelector('.secs > .sec[data-id=\"{sid}\"]').getBoundingClientRect().top - 85)")
+                    p.js(f"window.scrollTo(0, window.scrollY + document.querySelector('.secs > .sec[data-id=\"{sid}\"]').getBoundingClientRect().top - document.querySelector('.top').getBoundingClientRect().bottom)")
                 p.js("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
                 for key, mode in (("e", "edit"), ("v", "view")):
                     near = [json.dumps(n) for n in self.watched(p, sid)]

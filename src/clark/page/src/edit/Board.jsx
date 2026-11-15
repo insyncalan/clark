@@ -14,6 +14,7 @@ import { createDrag } from "../logic/dragCore.js";
 import { useSettle } from "../stores/motion.js";
 import { MenuPanel, useFadeOut } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
+import { groupIcon, actionIcon } from "../menuIcons.js";
 import { Eye as WorkEye } from "./cells/Eye.jsx";
 import { cursor, stopOf, cardKeys } from "../listKeys.js";
 import { GroupTick } from "../components/SelectBar.jsx";
@@ -381,8 +382,8 @@ export function Board({ rows, today, type }) {
               {menuFor(cd.id).map((it, i) => it.head
                 ? <div key={"h" + i} class="mh" role="presentation">{it.head}</div>
                 : <button key={(it.lane ? "l" : "c") + it.key} type="button" role="menuitem" tabIndex={-1} data-to={it.key} data-lane={it.lane ? "1" : undefined}
-                    onClick={() => sendMenu(cd.id, it)}>{it.name}</button>)}
-              {menuFor(cd.id).length === 0 ? <button type="button" role="menuitem" aria-disabled="true" tabIndex={-1}>{noMove(byId[cd.id])}</button> : null}
+                    onClick={() => sendMenu(cd.id, it)}><Icon name={groupIcon(it.lane ? b.lane : g)} cls="mi" />{it.name}</button>)}
+              {menuFor(cd.id).length === 0 ? <button type="button" role="menuitem" aria-disabled="true" tabIndex={-1}><Icon name={actionIcon("none")} cls="mi" />{noMove(byId[cd.id])}</button> : null}
             </MenuPanel>
           ) : null}
         </Card>

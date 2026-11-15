@@ -116,7 +116,7 @@ class PageKeys(Base):
                     p.until(f"window.innerWidth === {w}", "resized")
                     where = f"{scheme} {w}"
                     p.js("document.activeElement.blur()")
-                    self.assertEqual(p.js(TITLES), ["View (V)|V", "Edit (E)|E"], where)
+                    self.assertEqual(p.js(TITLES), ["View|V", "Edit|E"], where)
                     for key, test in (("e", EDIT), ("v", VIEW), ("E", EDIT), ("V", VIEW)):
                         self.letter(p, key)
                         p.until(test, f"{where}: {key} does its job when on")
@@ -135,7 +135,7 @@ class PageKeys(Base):
                     self.assertTrue(p.js(EDIT), f"{where}: V does nothing when off")
                     p.view()
                     self.flip(p, True)                                                # read live: no reload
-                    self.assertEqual(p.js(TITLES), ["View (V)|V", "Edit (E)|E"], f"{where}: the letter is back")
+                    self.assertEqual(p.js(TITLES), ["View|V", "Edit|E"], f"{where}: the letter is back")
                     self.letter(p, "e")
                     p.until(EDIT, f"{where}: E works again, no reload")
                     p.view()
@@ -156,6 +156,7 @@ class PageKeys(Base):
             self.assertFalse(p.js("!!document.querySelector('#help-peek, #help, #ask-panel')"), "? and / open nothing when off")
             p.js("clarkPage.help.open()")                                          # the profile menu's Help item goes the same way
             p.until("!!document.querySelector('#help')", "Help opens by the menu when off")
+            p.until("document.activeElement.id === 'hpQ'", "Help opens on its search box")  # the focus lands in a post-render effect, after #help exists
             p.js("document.activeElement.blur()")                                  # full Help opens on its search box (row 1054); leave it first
             p.key("/", code="Slash", vk=191)
             time.sleep(0.2)

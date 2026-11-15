@@ -22,8 +22,10 @@ class TopBarActions(Base):
             con.execute("UPDATE app_settings SET ask_enabled = ? WHERE id = 1", (1 if asking else 0,))
         p = self.visit(cdp)
         size(cdp, p, width, 700)
-        if asking:
+        if asking and width > 900:      # item 1177: at 900 the ask button is the profile menu's second entry (test_hdr1177_900)
             p.until("!!document.querySelector('#ask-btn')", "the ask button shows while asking is on")
+        elif asking:
+            p.until("!!document.querySelector('#profile-btn')", "the profile circle shows")
         return p
 
     def test_the_two_buttons_have_their_words_and_sit_before_the_avatar(self):
@@ -104,6 +106,9 @@ class TopBarActions(Base):
         for width, shown in ((1400, True), (900, False)):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.at(cdp, width)
+                if width == 900:      # item 1177: at 900 the whole button is out of the header row
+                    self.assertEqual(p.js("document.querySelectorAll('.top #ask-btn, .top #pal-btn').length"), 0, "at 900 px the buttons are not in the header")
+                    continue
                 got = p.js("['.tb-ask-w', '.tb-key'].map(s => getComputedStyle(document.querySelector(s)).display !== 'none')")
                 self.assertEqual(got, [shown, shown], f"at {width} px the ask word and the / key hint should be {'shown' if shown else 'hidden'}; got {got}")
 
@@ -115,16 +120,16 @@ class TopBarActions(Base):
                     p = self.at(cdp, width)
                     p.js(f"document.documentElement.setAttribute('data-theme', '{theme}')")
                     p.js("document.querySelector('.top [data-mode=edit]') && document.querySelector('.top [data-mode=edit]').click()")
-                    p.js("(function(){ var s = document.querySelector('.top .projbtn > span') || document.querySelector('.top .proj'); "
+                    p.js("(function(){ var s = document.querySelector('.top .hdr-project > span') || document.querySelector('.top .proj'); "
                          "s.textContent = 'Customer onboarding programme, phase two, northern region'; })()")
                     got = p.js(f"(function(){{var r=[...{ITEMS}].map(e => [e.className || e.id, e.getBoundingClientRect()]), bad=[];"
                                "for (var i=0;i<r.length;i++){ if (r[i][1].right > document.documentElement.clientWidth + 0.5) bad.push('past ' + r[i][0]);"
                                "for (var j=i+1;j<r.length;j++) if (r[i][1].left < r[j][1].right - 0.5 && r[j][1].left < r[i][1].right - 0.5 && r[i][1].top < r[j][1].bottom - 0.5 && r[j][1].top < r[i][1].bottom - 0.5 && r[i][1].width && r[j][1].width) bad.push(r[i][0] + ' over ' + r[j][0]); }"
                                "return bad.concat(document.documentElement.scrollWidth > document.documentElement.clientWidth ? ['sideways scroll'] : []);})()")
                     self.assertEqual(got, [], f"at {width} px, {theme}, long name")
-                    clipped = p.js("(function(){ var s = document.querySelector('.top .projbtn > span'); return s ? [s.textContent.length > 40, s.scrollWidth > s.clientWidth] : null; })()")
+                    clipped = p.js("(function(){ var s = document.querySelector('.top .hdr-project > span'); return s ? [s.textContent.length > 40, s.scrollWidth > s.clientWidth] : null; })()")
                     self.assertEqual(clipped, [True, True], f"at {width} px, {theme}: the long name is in the bar and is the part that gives way (its ellipsis)")
-                    self.assertTrue(p.js("!!document.querySelector('#ask-btn') && !!document.querySelector('#pal-btn')"), "both buttons are there")
+                    self.assertEqual(p.js("document.querySelectorAll('.top #ask-btn, .top #pal-btn').length"), 0, "item 1177: at 900 both buttons are in the profile menu, not the header")
 
 
 if __name__ == "__main__":
