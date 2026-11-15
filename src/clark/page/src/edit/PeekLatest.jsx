@@ -42,7 +42,7 @@ export function PeekWarn({ row }) {
 // Row 1180: the box holds an unsaved update while its editor is open and its text differs from the saved one. The peek reads this
 // before it closes (PeekUnsavedBar below). Module-wide because only one peek is ever open.
 export const latestDirty = signal(false);
-const editorOf = () => document.querySelector("#peek [data-pk-latest] [data-rt] .ProseMirror, [data-pk-latest] [data-rt] [contenteditable=true]");
+const editorOf = () => document.querySelector("#peek [data-pk-latest] [data-rt] .ProseMirror");
 // A bar button never takes the focus from the box: leaving the box would save the update before the choice is made.
 const hold = (e) => e.preventDefault();
 // The save the box last started (null when none): Save and close waits for its answer before it closes.

@@ -26,7 +26,7 @@ class PeekSource(unittest.TestCase):
         self.assertIn("PeekLatestHistory", ms)
         peek = self.read("components/Peek.jsx")
         shown = [l for l in peek.splitlines() if 'name="Latest update"' in l]
-        self.assertEqual(len(shown), 2, "a published work item and a published milestone each show it")
+        self.assertEqual(len(shown), 3, "a published work item, a published action (row 1181: its own file rows above the Details) and a published milestone each show it")
         self.assertFalse([l for l in shown if "action" in l], "the work item row is not gated on an action")
 
 
