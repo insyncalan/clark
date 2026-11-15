@@ -355,8 +355,9 @@ class CommandTest(unittest.TestCase):
             code = package.main(list(argv))
         return code, out.getvalue(), err.getvalue()
 
-    def test_windows_is_not_built_yet(self):
-        with tempfile.TemporaryDirectory() as tmp:
+    def test_a_system_in_not_built_yet_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(package, "NOT_BUILT_YET", {"windows"}), \
+                mock.patch.object(package, "SYSTEMS", {"mac": ("clark.command",)}):
             code, out, err = self.run_main("windows", "--out", tmp)
             self.assertEqual(1, code)
             self.assertIn("Windows download isn't built yet", err)
@@ -950,7 +951,7 @@ class PreviousReleaseAcceptsThisOneTest(unittest.TestCase):
             old = importlib.util.module_from_spec(spec)
             with mock.patch.object(clark, "release_files", old_rf):      # the old file does `from clark import release_files`
                 spec.loader.exec_module(old)
-        for system in sorted(set(release_files.SYSTEMS) - release_files.NOT_BUILT_YET):
+        for system in sorted((set(release_files.SYSTEMS) - release_files.NOT_BUILT_YET) & set(old_rf.SYSTEMS)):      # item 624: a system the last release never shipped (the Windows zip) has no check of its own to run
             rels = _files_in_zip(release_files.listed(system) + (release_files.START_HERE,))
             try:
                 old.check_coverage(system, rels)
