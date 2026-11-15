@@ -7,6 +7,7 @@ import { richOrPlain } from "../logic/richOrPlain.js";
 import { richWords } from "../logic/richWords.js";
 import { Menu, MenuPanel } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
+import { actionIcon } from "../menuIcons.js";
 import { OUTLINE_CHOICES, TILE_TITLES } from "../glanceTiles.js";
 import { data } from "../stores/report.js";
 import { note } from "./notes.js";
@@ -88,7 +89,7 @@ function Cell({ tile, order, children }) {
           <div class="lab" role="presentation">Outline colour</div>
           {OUTLINE_CHOICES.map(([value, name]) => (
             <button key={value || "auto"} type="button" role="menuitemradio" aria-checked={tile.outline === value ? "true" : "false"} tabIndex={-1} data-outline={value || "auto"}
-              onClick={() => { setMenu(false); outlineTile(tile.key, value); }}>{(tile.outline === value ? "✓ " : "") + name}</button>
+              onClick={() => { setMenu(false); outlineTile(tile.key, value); }}><Icon name={actionIcon("outline")} cls="mi" />{(tile.outline === value ? "✓ " : "") + name}</button>
           ))}
         </MenuPanel>
       ) : null}
@@ -102,7 +103,7 @@ function HealthPill({ health, reason }) {
   const rag = (ITEMS.find((i) => i[0] === health) || [0, "n"])[1];
   return (
     <Menu label={health || "Not set"} btnCls={`pill hpill ${rag} pillbtn`} ariaLabel={`Project health: ${health || "not set"}. Change it`} id="health-pill" menuId="health-menu" menuLabel="Project health"
-      items={ITEMS.map(([name, r]) => ({ id: name, name, pill: r, checked: name === health }))} onPick={(h) => pickHealth(h, health, reason)} chevron={false} left />
+      items={ITEMS.map(([name, r]) => ({ id: name, name, pill: r, icon: actionIcon("status"), checked: name === health }))} onPick={(h) => pickHealth(h, health, reason)} chevron={false} left />
   );
 }
 

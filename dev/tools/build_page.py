@@ -42,7 +42,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 import esbuild  # noqa: E402
 sys.path.insert(0, str(HERE.parents[1] / "src"))
-from clark import limits, page  # noqa: E402
+from clark import default_sections, limits, page  # noqa: E402
 from clark.page import strip_css_comments  # noqa: E402
 
 ROOT = HERE.parents[1]
@@ -242,7 +242,8 @@ def preact_flags(held=True, inline_pictures=False):
             f"--alias:tiptap={VENDOR_TIPTAP / 'tiptap.module.js'}",      # the editor (#66); only the Edit entry imports it
             f"--alias:clark-help-content={help_content_path(held)}",
             f"--alias:clark-help-pictures={help_pictures_path(inline_pictures)}",      # the editing page only: see help_pictures_path
-            *(f"--define:{name}={json.dumps(value)}" for name, value in limits.items())]
+            *(f"--define:{name}={json.dumps(value)}" for name, value in limits.items()),
+            f"--define:__CLARK_SECTION_HINTS__={json.dumps(default_sections.SECTION_HINTS)}"]      # items 1188, 1193: the editor's hint for an empty default text section; one source, default_sections.py
 
 
 def bundle(entry=ENTRY):

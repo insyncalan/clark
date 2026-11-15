@@ -240,13 +240,7 @@ Raised by the second the project lead, reviewed by the lead.
   - It's made by printing the published page to PDF with Chrome, so it holds exactly what the page shows: the three tabs stacked, no controls, sections kept whole, page numbers, light mode, and the publish number in the footer.
   - The finished-file scan also runs on the PDF's text.
   - If Chrome is missing, the PDF tick is greyed out with a plain line saying why.
-- **FR-12b (v0.5, #121, #144):** **"Needs from you"** is a section template.
-  - It lists, soonest first, open decisions the client can see that are marked pending, and items marked **Needed from the client**, drawn live.
-  - It also lists lines added by hand, each with what is needed, an owner and a due date (DD-MM-YYYY).
-  - A late line says **"Overdue"** in words.
-  - When it's empty, the published page leaves the section out and the editor shows "Nothing needed from you this week."
-  - On the published page it sits straight after At a glance.
-  - Lines are archived, never deleted.
+- **FR-12b (v0.5, #121, #144; taken out by item 1158):** **"Needs from you"** was a section template. It is no longer offered, no new one can be added, and the page and the published file no longer draw one. A section already stored is kept (nothing is deleted) and simply stops showing. The "Needed from the client" switch on an action, risk or issue is gone too; the stored flag and its history stay as they were.
 - **FR-12c (v0.5, #118):** **"Changed since the last report":** a block worked out from history. A new week's report starts from the last one, with the text sections carried forward.
 - **FR-62b (v0.5, #122):**
   - Before an AI request, **show what will be sent**: the sources, the size and the provider.

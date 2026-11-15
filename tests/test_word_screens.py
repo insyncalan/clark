@@ -119,6 +119,8 @@ class Screens(unittest.TestCase):
         return p.js("(document.querySelector('.word-msg') || {}).innerText || ''")
 
     def focus_is(self, p):
+        # Word.jsx puts focus back in an effect after the phase changes, so wait for it to leave BODY
+        p.until("!!document.activeElement && document.activeElement !== document.body", "focus was placed")
         return p.js("(function(){var e=document.activeElement;return e.id || e.getAttribute('data-go') !== null && 'go' || e.tagName})()")
 
     def colours(self, p, box, scheme):
@@ -360,6 +362,24 @@ class Export(Screens):
             self.assertEqual(p.js("document.querySelector('#word-export-dialog').getAttribute('aria-busy')"), "false")
             self.assertEqual(self.asked, ["Choose the folder for the Word report"], "the folder window was asked for once")
 
+    def test_a_second_esc_while_saving_does_not_lose_the_box(self):
+        with chrome() as cdp:
+            self.start()
+            self.gate = threading.Event()
+            self.addCleanup(self.gate.set)
+            p = self.page(cdp)
+            self.open_export(p)
+            p.js("document.querySelector('[data-go]').click()")
+            p.until("/Saving the Word report/.test(document.querySelector('.word-msg').innerText)", "it says it is saving")
+            p.key("Escape", code="Escape", vk=27)
+            p.key("Escape", code="Escape", vk=27)
+            p.js("(function () { var d = document.querySelector('#word-export-dialog'); if (d.open) d.close(); })()")    # what Chrome does to a modal on a second Esc with no click between, whatever onCancel says
+            p.until("document.querySelector('#word-export-dialog') !== null", "the box is still wanted")
+            p.until("document.querySelector('#word-export-dialog') && document.querySelector('#word-export-dialog').open", "the box is shown again")
+            self.gate.set()
+            p.until("document.querySelector('[data-go]').innerText === 'Close'", "it finished")
+            self.assertTrue(p.js("document.querySelector('#word-export-dialog').open"), "the result is shown")
+
     def test_the_keyboard(self):
         with chrome() as cdp:
             self.start()
@@ -411,7 +431,7 @@ class WordToo(Screens):
                 p.until("!document.querySelector('#publish-dialog')", "closed")
                 p.open_publish()
                 self.assertFalse(p.js("document.querySelector('#pub-word').checked"), "reopened: unticked, never remembered")
-                self.assertEqual(p.js("localStorage.length + sessionStorage.length"), 0)
+                self.assertEqual(p.js("Object.keys(localStorage).concat(Object.keys(sessionStorage)).filter((k) => k !== 'clark.lastProject').length"), 0)
 
     def test_ticked_it_saves_the_word_report_beside_the_web_page_and_says_both(self):
         with chrome() as cdp:

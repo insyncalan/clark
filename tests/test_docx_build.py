@@ -556,6 +556,17 @@ class RichText(unittest.TestCase):
         self.assertIn("fine", text)
 
 
+class UseCaseHeadings(unittest.TestCase):
+    def test_a_heading_inside_a_use_case_is_below_the_use_cases_own_heading(self):
+        p = published()
+        p["data"]["use_cases"][0]["standing"] = "<h1>ZQ-BIG</h1><p>text</p>"
+        doc = parts(docx_build.build(p))["word/document.xml"].decode()
+        styles = re.findall(r'<w:pStyle w:val="Heading(\d)"/>', doc)
+        i = styles.index("3")
+        self.assertEqual(styles[i + 1], "4", styles)
+        self.assertNotIn("2", styles[i + 1:i + 2])
+
+
 class Brand(unittest.TestCase):
     def test_a_local_brand_is_laid_over_the_demo_colours(self):
         both = parts(docx_build.build(published(), colours={"brand-navy": "#112233"}))

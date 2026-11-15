@@ -265,6 +265,7 @@ class Guards(Rig):
         with self.chrome() as cdp:
             p = self.load_app(cdp)
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, p.sid)
+            p.js("delete document.documentElement.dataset.motion")  # a Mac that reduces motion had the page paint data-motion=reduce at load
             p.until(BACKDROP + '.anim === "bg-in"', "motion allowed is pinned: a machine that asks for less motion (a CI Mac) must not decide it")
             self.assertEqual(p.js(BACKDROP)["anim"], "bg-in", "motion allowed: the picture fades in once")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
@@ -335,7 +336,7 @@ class AppContrast(Measure, Rig):
                     for name, hash_, ready in PAGES:
                         with self.subTest(page=name, scheme=scheme, width=width, picture=pic_name), self.chrome() as cdp:
                             p = self.load_app(cdp, hash_, ready, width, scheme)
-                            self.verdict(cdp, p, f"app {name} {scheme} {width} {pic_name}")
+                            self.verdict(cdp, p, f"app {name} {scheme} {width} {pic_name}", need=name != "Dashboard")      # item 1177: the Dashboard's banner is gone, all its text sits on cards or the opaque header, so none may sit on the picture
 
     def test_work_items_links_discard_changes_and_save_as_a_new_view(self):
         for scheme in ("light", "dark"):
@@ -454,6 +455,7 @@ class Published(Measure, Pub):
         with self.chrome() as cdp:
             p = self.draw_as(cdp, path, 1400, "light")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, p.sid)
+            p.js("delete document.documentElement.dataset.motion")  # a Mac that reduces motion had the page paint data-motion=reduce at load
             p.until(BACKDROP + '.anim === "bg-in"', "motion allowed is pinned, whatever the machine asks")
             self.assertEqual(p.js(BACKDROP)["anim"], "bg-in")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)

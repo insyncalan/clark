@@ -29,6 +29,7 @@ import build_page  # noqa: E402
 import esbuild  # noqa: E402
 
 from clark import changes, order, page, publish, server as sv  # noqa: E402
+from clark.default_sections import SECTION_HINTS  # noqa: E402
 from test_page import DATA, navigate  # noqa: E402
 from test_server import Running, chrome, wait, wait_toast  # noqa: E402
 
@@ -54,8 +55,8 @@ class Pg:
         self.t, self.cdp, self.sid = test, cdp, sid
 
     @classmethod
-    def at(cls, test, cdp, port, hash_="#dashboard&p=ABC", section_style="slim"):
-        return cls(test, cdp, navigate(cdp, port, for_project(hash_), section_style=section_style))
+    def at(cls, test, cdp, port, hash_="#dashboard&p=ABC", section_style="slim", motion=None):
+        return cls(test, cdp, navigate(cdp, port, for_project(hash_), section_style=section_style, motion=motion))
 
     def js(self, expr):
         return self.cdp.js(expr, self.sid)
@@ -197,8 +198,8 @@ class Base(unittest.TestCase):
     def titles_in_store(self):
         return [r["title"] for r in order.in_order(self.store.read("report_sections", "ABC"))]
 
-    def visit(self, cdp, hash_="#dashboard&p=ABC"):
-        p = Pg.at(self, cdp, self.s.port, hash_)
+    def visit(self, cdp, hash_="#dashboard&p=ABC", motion=None):
+        p = Pg.at(self, cdp, self.s.port, hash_, motion=motion)
         p.ready()
         return p
 
@@ -211,7 +212,7 @@ class Modes(Base):
             p.js("window.marker = 'same page'; window.lengthBefore = history.length")
             hash_before = p.js("location.hash")
             self.assertEqual(p.js("document.querySelector('#report').dataset.mode"), "view", "a page opens in View")
-            pressed = "[...document.querySelectorAll('.mode')].map(b => b.textContent + ':' + b.getAttribute('aria-pressed'))"
+            pressed = "[...document.querySelectorAll('#mode-pill .mode')].map(b => b.title + ':' + b.getAttribute('aria-pressed'))"
             self.assertEqual(p.js(pressed), ["View:true", "Edit:false"])
             for w in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
@@ -249,8 +250,8 @@ class Modes(Base):
             # drawn says the one plain line
             # #74: Supporting documents draws its own list (and is left out of View while it has no document), so it is not one of these
             sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases', 'text', 'current', 'docs'].includes(s.dataset.type))"
-            texts = "[...document.querySelectorAll('.secs > .sec')].filter(s => ['text', 'current'].includes(s.dataset.type)).map(s => s.querySelector('.quiet').textContent)"
-            self.assertEqual(p.js(texts), ["Nothing recorded."] * 4, "View: a text section with nothing saved says so in plain words")
+            texts = "[...document.querySelectorAll('.secs > .sec')].filter(s => ['text', 'current'].includes(s.dataset.type)).map(s => s.querySelector('.quiet, .sec-body').textContent)"
+            self.assertEqual(p.js(texts), ["Nothing recorded."] * 4, "View: a text section with nothing saved says so in plain words, the four default ones too: their guiding lines are the editor's hint, never a body (items 1188, 1193)")
             quiet = sec + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet, [data-nothing]').textContent)"
             kinds = p.js(sec + ".map(s => s.dataset.type)")
             want = [f"{k}:{NOTHING if k in ('raid', 'actions', 'decisions') else QUIET}" for k in kinds]       # A-D5: those three draw their rows
@@ -264,7 +265,7 @@ class Modes(Base):
             sec_other = sec + ".filter(s => !['raid', 'actions', 'decisions'].includes(s.dataset.type))"
             self.assertEqual(p.js(sec_other + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet').textContent)"), [w for w in want if w.split(':')[0] not in ('raid', 'actions', 'decisions')], "Edit: the same line")
             self.assertEqual(p.js(sec + ".filter(s => ['raid', 'actions', 'decisions'].includes(s.dataset.type)).map(s => !!s.querySelector('[data-showing]'))"), [True] * 3, "Edit: the three row sections say Showing N of M instead (A-D5)")
-            self.assertEqual(p.js(texts), ["Nothing recorded."] + ["Click to write."] * 3, "Edit: Current state draws its text as View does (row 850); the three text sections open the editor in place (#220)")
+            self.assertEqual(p.js(texts), [SECTION_HINTS[t] for t in ("Current state", "Summary", "This week", "Next week")], "Edit: the four text sections are empty and each shows its guiding line as the editor's hint (items 1188, 1193)")
             self.assertNotIn("is not shown", p.js("document.querySelector('main').textContent"))
             p.view()
             self.assertEqual(edit_elements(cdp, p.sid), [], "and gone again in View")
@@ -277,7 +278,8 @@ class Modes(Base):
             p.ready()
             self.assertEqual(p.js("document.querySelectorAll('.sec').length"), 0)
             self.assertEqual(p.js("document.querySelector('#no-sections').textContent"), "This report has no sections yet. Switch to Edit to add one.")
-            self.assertEqual(p.js("document.querySelector('h1').textContent"), "Example Programme")
+            # item 1177: the Dashboard has no banner h1 any more; the header's project button (.hdr-project) holds the open project's own name
+            p.until("!!document.querySelector('.top .hdr-project') && document.querySelector('.top .hdr-project').textContent.indexOf('Example Programme') >= 0", "the header names the project")
             p.edit()
             self.assertEqual(p.js("document.querySelectorAll('[data-add]').length"), 1, "an empty report can still get its first section")
             # Only a request that sends something is counted: the page reads the project again after a change (#188), and that GET
@@ -310,8 +312,8 @@ class Keys(Base):
     def test_v_and_e_switch_the_dashboard_and_the_buttons_say_so(self):
         with chrome() as cdp:
             p = self.visit(cdp)
-            self.assertEqual(p.js("[...document.querySelectorAll('.mode')].map(b => b.title + '|' + b.getAttribute('aria-keyshortcuts'))"),
-                             ["View (V)|V", "Edit (E)|E"])
+            self.assertEqual(p.js("[...document.querySelectorAll('#mode-pill .mode')].map(b => b.title + '|' + b.getAttribute('aria-keyshortcuts'))"),
+                             ["View|V", "Edit|E"])      # item 1177: the pill's tooltips are exactly View and Edit (ModePill.jsx:14,17)
             p.js("window.marker = 'same page'; window.lengthBefore = history.length; document.activeElement.blur()")
             self.press(p, "e")
             p.until("document.querySelector('#report').dataset.mode === 'edit'", "E switches to Edit")
@@ -970,11 +972,11 @@ class Gutter(Base):
                 self.open_menu(p, ref)
                 self.assertFalse([t for t in p.js(self.MENU_TEXTS % ref) if "text section" in t.lower()], "no text-section entry")
                 p.key("Escape", code="Escape", vk=27)
-            # the grip and the + are in the margin, left of the section's own box
+            # the grip and the + are inside the section's own box, in its left padding (row 1152: the tiles run the width of the band)
             for ref in ("ABC-S-001", "ABC-S-006"):
                 box = p.js(f"(function(){{var s=document.querySelector('[data-id=\"{ref}\"]').getBoundingClientRect(),"
                            f"c=document.querySelector('[data-id=\"{ref}\"] .sec-ctl').getBoundingClientRect();"
-                           "return [c.right <= s.left, c.top >= s.top, c.bottom <= s.bottom];})()")
+                           "return [c.left >= s.left, c.top >= s.top, c.bottom <= s.bottom];})()")
                 self.assertEqual(box, [True, True, True], ref)
 
     def test_faint_at_rest_clear_on_hover_and_focus_and_while_open(self):
@@ -1118,12 +1120,12 @@ class Gutter(Base):
                 p.edit()
                 self.assertEqual({k: v for k, v in rects().items() if k in in_view}, in_view, f"the same left edge and width in View and Edit at {w}")   # #74: an empty Supporting documents is in Edit only
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
-            # the right half: its control sits in the gap between the two columns and covers no content
+            # the right half: its control sits inside its own tile, right of the left column's tile (row 1152)
             gap = p.js("(function(){var l=document.querySelector('[data-id=\"ABC-S-006\"]').getBoundingClientRect(),"
                        "r=document.querySelector('[data-id=\"ABC-S-007\"]').getBoundingClientRect(),"
                        "c=document.querySelector('[data-id=\"ABC-S-007\"] .sec-ctl').getBoundingClientRect();"
-                       "return [c.left >= l.right, c.right <= r.left];})()")
-            self.assertEqual(gap, [True, True], "in the gap")
+                       "return [c.left >= r.left, c.left >= l.right];})()")
+            self.assertEqual(gap, [True, True], "inside its own tile")
             # opening the menu or hovering moves nothing either
             before = rects()
             self.open_menu(p, "ABC-S-007")
@@ -1151,10 +1153,7 @@ class Gutter(Base):
                     for ref, ctl_right, head_left, content_left, ctl_left, sec_left in rows:
                         self.assertLessEqual(ctl_right, head_left, f"{ref} at {w} in {scheme}: the control ends before the heading")
                         self.assertLessEqual(ctl_right, content_left, f"{ref} at {w} in {scheme}: and before all content")
-                        if w == 900:
-                            self.assertGreaterEqual(ctl_left, sec_left, f"{ref}: inside the card at 900")
-                        else:
-                            self.assertLessEqual(ctl_right, sec_left, f"{ref}: in the margin at 1400")
+                        self.assertGreaterEqual(ctl_left, sec_left, f"{ref}: inside the card at {w}")      # row 1152: at every width
                     self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w, f"no sideways scroll at {w} in {scheme}")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "light"}]}, p.sid)
             # a left-out section too
@@ -1386,7 +1385,7 @@ class Published(unittest.TestCase):
             self.assertNotIn("Hidden secret plan", titles)
             self.assertIn("Shown <b>plan</b>", titles)
             self.assertEqual(titles, ["At a glance", "Use case summary", "Milestones", "Shown <b>plan</b>", "Next week"],
-                             "At a glance and the use case summary (#45) and the two text sections with words: Summary is hidden, and no other type is drawn in a file yet")
+                             "Current state has no words (its starting line is only the editor's hint, item 1188), so it is not drawn; At a glance and the use case summary (#45) and the two text sections with words: Summary is hidden, and no other type is drawn in a file yet")
             self.assertEqual(edit_elements(cdp, sid), [])
             self.assertEqual(cdp.js("document.querySelectorAll('.mode, [aria-pressed]').length", sid), 0, "no Edit button")
             for key in ("e", "E", "v"):                                           # V and E do nothing in a published file (#103)
@@ -1497,7 +1496,7 @@ class Published(unittest.TestCase):
         store = demo.store
         sections = order.in_order(store.read("report_sections", "ABC"))
         kinds = {s["type"] for s in sections}
-        self.assertTrue({"current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs"} <= kinds,
+        self.assertTrue({"glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs"} <= kinds,
                         kinds)
         with store.step("dashboard", USER) as st:
             for s in sections:
@@ -1517,7 +1516,7 @@ class Published(unittest.TestCase):
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-id=\"ABC-S-005\"] .sec-body')", sid)), "the file drew")
             drawn = cdp.js("[...document.querySelectorAll('.sec')].map(s => s.dataset.type)", sid)
-            self.assertEqual(drawn, ["glance", "usecases", "milestones"] + ["text"] * len([s for s in sections if s["type"] == "text"]),
+            self.assertEqual(drawn, ["text", "glance", "usecases", "milestones"] + ["text"] * (len([s for s in sections if s["type"] == "text"]) - 1),
                              "only text sections, At a glance, the use case summary (#45) and Milestones are drawn")
             for s in sections:
                 if s["type"] not in ("text", "glance", "usecases", "milestones"):

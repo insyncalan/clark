@@ -16,6 +16,7 @@ import { todayIso } from "../workItems.js";
 import { format } from "../router.js";
 import { MenuPanel, menuMove, menuItemsIn, useFadeOut } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
+import { actionIcon } from "../menuIcons.js";
 import { people, tableOf, canClearDue, newPersonChange } from "./itemEdit.js";
 import { DuePick } from "./cells/DuePick.jsx";
 import { OwnerPick } from "./cells/OwnerPick.jsx";
@@ -25,6 +26,7 @@ import { openCard } from "./Board.jsx";
 import { deleteItem } from "./deleteItem.js";
 import { isEditing } from "../logic/editing.js";
 import { workSelection } from "../stores/selection.js";
+import { handing } from "../stores/handover.js";
 
 // The owner link (a person's id) is read here, in the editor, from the data the item came from: the shared row builder never carries it,
 // so a published file holds no trace of it (#115).
@@ -52,7 +54,7 @@ function refocus(id) {
 }
 
 let opened = 0;                                // counts the opens, so only the last one draws
-function openFor(el, x, y, pointer, back) {
+function openFor(el, x, y, pointer) {
   if (!el.dataset.id) return;
   const at = ++opened;
   // a dismiss while the list is still being read (Escape, or a press anywhere) cancels this open: the menu never appears after it
@@ -65,7 +67,7 @@ function openFor(el, x, y, pointer, back) {
   readPeople().then((r) => {
     stop();
     if (at !== opened || !el.isConnected) return;                  // a later open, or the row went, while the list was read
-    state.value = { id: el.dataset.id, x, y, fly: "", focusFly: false, pick: false, from: back || homeOf(el), pointer: !!pointer, reg: r.ok ? r.people : null };      // row 979: `pointer` marks a mouse open, so the first entry shows no ring until a key is used
+    state.value = { id: el.dataset.id, x, y, fly: "", focusFly: false, pick: false, from: homeOf(el), pointer: !!pointer, reg: r.ok ? r.people : null };      // row 979: `pointer` marks a mouse open, so the first entry shows no ring until a key is used
   });
 }
 
@@ -75,7 +77,7 @@ function openFor(el, x, y, pointer, back) {
 function useOpeners() {
   useEffect(() => {
     const onContext = (e) => {
-      if (view.value !== "work" || !e.target.closest || workSelection.size.value >= 1) return;
+      if (view.value !== "work" || !e.target.closest || workSelection.size.value >= 1 || handing()) return;   // Hand over (item 199) ticks and nothing else
       const el = e.target.closest(ROW);
       if (!el || e.target.isContentEditable || e.target.closest("input, textarea, select, .cpop, .ddmenu, .rowmenu")) return;
       e.preventDefault();
@@ -84,12 +86,12 @@ function useOpeners() {
       openFor(el, kbd ? r.left + 24 : e.clientX, kbd ? r.bottom : e.clientY, !kbd);
     };
     const onKey = (e) => {
-      if (view.value !== "work" || workSelection.size.value >= 1 || !(e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey))) return;
+      if (view.value !== "work" || workSelection.size.value >= 1 || handing() || !(e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey))) return;
       const at = document.activeElement, el = at && at.closest ? at.closest(ROW) : null;
       if (!el || at.isContentEditable || at.closest(".cpop, .ddmenu, .rowmenu, input, textarea")) return;
       e.preventDefault();
       const r = el.getBoundingClientRect();
-      openFor(el, r.left + 24, r.bottom, undefined, at.matches("[data-rowmore]") ? at : undefined);      // from the row's More actions button, Esc or a pick gives the focus back to that button
+      openFor(el, r.left + 24, r.bottom);
     };
     document.addEventListener("contextmenu", onContext, true);
     document.addEventListener("keydown", onKey, true);
@@ -112,29 +114,29 @@ function entries(row, level, edit, d, today, reg) {
   if (!reg && !dr.disabled) dr.reason = "";         // the list is still being read (or could not be): no reason is given yet
   if (level === "status") {
     const l = statusList(row);
-    return [...l.map((s) => ({ id: "s:" + s, name: s })), ...(l.length ? [] : [{ id: "none", lab: "There is no other status to give this item." }])];
+    return [...l.map((s) => ({ id: "s:" + s, name: s, icon: actionIcon("status") })), ...(l.length ? [] : [{ id: "none", lab: "There is no other status to give this item." }])];
   }
   if (level === "owner") {
     const l = ownerList(people(d), row);
-    return [...l.map((n) => ({ id: "o:" + n, name: n })), ...(l.length ? [] : [{ id: "none", lab: "No one else is named in this project yet." }])];
+    return [...l.map((n) => ({ id: "o:" + n, name: n, icon: actionIcon("owner") })), ...(l.length ? [] : [{ id: "none", lab: "No one else is named in this project yet." }])];
   }
   if (level === "due") {
-    return [...dueList(today).map((x) => ({ id: "d:" + x.day, name: x.name, line: x.line })), { id: "pick", name: "Pick a date" },
-      ...(canClearDue(row) ? [{ id: "d:", name: "No date" }] : [])];
+    return [...dueList(today).map((x) => ({ id: "d:" + x.day, name: x.name, line: x.line, icon: actionIcon("due") })), { id: "pick", name: "Pick a date", icon: actionIcon("due") },
+      ...(canClearDue(row) ? [{ id: "d:", name: "No date", icon: actionIcon("none") }] : [])];
   }
   const edits = (id, name, icon) => ({ id, name, icon, sub: edit && id !== "eye", disabled: !edit, why: edit ? "" : "rm-why-view" });
   return [
-    { id: "draft", name: dr.name, icon: "pencil", line: dr.reason, disabled: dr.disabled },
-    { id: "peek", name: "Open the peek", icon: "expand" },
+    { id: "draft", name: dr.name, icon: actionIcon("draft"), line: dr.reason, disabled: dr.disabled },
+    { id: "peek", name: "Open the peek", icon: actionIcon("peek") },
     { id: "sep1", sep: true },
     ...(edit ? [] : [{ id: "lab1", lab: why, dom: "rm-why-view" }]),
-    edits("status", "Change status", "half"), edits("due", "Move due date", "cal"), edits("owner", "Change owner", "user"),
-    edits("eye", eyeChange(row).name, row.client ? "eyeoff" : "eye"),
+    edits("status", "Change status", actionIcon("status")), edits("due", "Move due date", actionIcon("due")), edits("owner", "Change owner", actionIcon("owner")),
+    edits("eye", eyeChange(row).name, actionIcon(row.client ? "hide" : "show")),
     { id: "sep2", sep: true },
-    { id: "link", name: "Copy link to this item", icon: "ext" }, { id: "copyid", name: "Copy ID", icon: "doc" },
+    { id: "link", name: "Copy link to this item", icon: actionIcon("copyLink") }, { id: "copyid", name: "Copy ID", icon: actionIcon("copyId") },
     { id: "sep3", sep: true },
-    { id: "dup", name: "Duplicate", icon: "plus", disabled: !edit, why: edit ? "" : "rm-why-view" }, { id: "archive", name: "Archive", icon: "archive", disabled: !edit, why: edit ? "" : "rm-why-view" },
-    ...(edit ? [{ id: "delete", name: "Delete", icon: "trash", danger: true }] : []),         // item 658: not offered when the page is read only
+    { id: "dup", name: "Duplicate", icon: actionIcon("duplicate"), disabled: !edit, why: edit ? "" : "rm-why-view" }, { id: "archive", name: "Archive", icon: actionIcon("archive"), disabled: !edit, why: edit ? "" : "rm-why-view" },
+    ...(edit ? [{ id: "delete", name: "Delete", icon: actionIcon("delete"), danger: true }] : []),         // item 658: not offered when the page is read only
   ];
 }
 
@@ -156,8 +158,8 @@ function Fly({ level, entries: shown, owner, focus, wrap, hover, keep, hold, onP
   let list = shown;
   if (owner && typed.trim()) {
     const found = ownerChoices(register, owner.names, owner.row, typed);
-    list = [...found.map((n) => ({ id: "o:" + n, name: n })),
-      ...(loaded && canAddPerson(register, owner.names, owner.row, typed) ? [{ id: "addp", name: `Add ${typed.trim()} as a new person` }] : [])];
+    list = [...found.map((n) => ({ id: "o:" + n, name: n, icon: actionIcon("owner") })),
+      ...(loaded && canAddPerson(register, owner.names, owner.row, typed) ? [{ id: "addp", name: `Add ${typed.trim()} as a new person`, icon: actionIcon("add") }] : [])];
   }
   useLayoutEffect(() => {
     const el = box.current, menu = wrap.current, at = menu && menu.querySelector(`[data-rm=${level}]`);
@@ -191,7 +193,7 @@ function Fly({ level, entries: shown, owner, focus, wrap, hover, keep, hold, onP
         placeholder="Type a name" aria-label={`Owner of ${owner.row.id}`} onInput={(e) => setTyped(e.currentTarget.value)} /> : null}
       {list.map((it) => it.lab ? <div key={it.id} class="lab" role="presentation">{it.lab}</div> : (
         <button key={it.id} type="button" role="menuitem" tabIndex={-1} data-rm={it.id} onClick={() => onPick(it.id === "addp" ? "addp:" + typed.trim() : it.id)}>
-          <span class="rm-t"><b>{it.name}</b>{it.line ? <small>{it.line}</small> : null}</span>
+          {it.icon ? <Icon name={it.icon} cls="mi" /> : null}<span class="rm-t"><b>{it.name}</b>{it.line ? <small>{it.line}</small> : null}</span>
         </button>
       ))}
     </div>
@@ -389,24 +391,6 @@ function DraftHost({ d }) {
     <div class="ad-scrim" data-draft-email={d.id} ref={root} onKeyDown={keys} onPointerDown={(e) => { if (e.target === e.currentTarget) close(); }}>
       <DraftEmail items={d.items} state={d.state} draft={d.draft} today={d.today} onChange={onChange} onClose={close} onSent={edit ? (entry) => sendEmailSent(project.value, entry, { person: d.person, tone: d.draft ? d.draft.tone : null, reply_by: d.state ? d.state.replyBy : "" }) : undefined} sentOff={edit ? "" : VIEW_ONLY} none={NOT_OFFERED} />
     </div>
-  );
-}
-
-// The "More actions" button at the end of a table row (item 658): the same menu as the right click, opened beside the button. It is a button of its own,
-// so the row's click (the peek, the selection) and the cell edit never see its press. Shown on row hover or focus; always reachable by Tab.
-export function RowMore({ row }) {
-  const s = state.value;
-  const open = (e) => {
-    e.stopPropagation();
-    const b = e.currentTarget, tr = b.closest("tr[data-id]");
-    if (!tr) return;
-    const r = b.getBoundingClientRect();
-    openFor(tr, r.right + 4, r.top, e.detail > 0, b);
-  };
-  return (
-    <button type="button" tabIndex={-1} class="ib rmore" aria-haspopup="menu" aria-expanded={s && s.id === row.id ? "true" : "false"} aria-label="More actions" title="More actions" data-rowmore={row.id} onClick={open} onDblClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
-      <Icon name="dots" />
-    </button>
   );
 }
 

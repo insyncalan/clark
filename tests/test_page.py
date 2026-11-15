@@ -213,7 +213,7 @@ def density_for(section_style):
         raise ValueError("unknown section style %r; use one of %s or None" % (section_style, sorted(OLD_SECTION_WORDS))) from None
 
 
-def navigate(cdp, port, hash_="", section_style="slim"):
+def navigate(cdp, port, hash_="", section_style="slim", motion=None):
     """Open the page. The layout tests were written when Slim gaps was the standard section style; row 667 made One card the standard, so
     a test that measures a layout opens the page with Slim gaps remembered (as a person who chose it would have), unless it says
     section_style=None to see the standard (test_section_style_cards, test_section_card_look). Item 1025: the remembered choice is now the
@@ -224,6 +224,8 @@ def navigate(cdp, port, hash_="", section_style="slim"):
     if section_style:
         cdp.call("Page.enable", {}, sid)
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": "try { if (!localStorage.getItem('clark.density')) localStorage.setItem('clark.density', %r); } catch (e) {}" % density_for(section_style)}, sid)
+    if motion:      # item 1115: a Mac that asks for less motion makes the page paint data-motion=reduce at load, so a test that needs motion pins it BEFORE the page loads
+        cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": motion}]}, sid)
     cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{port}/{hash_}"}, sid)
     return sid
 
@@ -280,8 +282,8 @@ class RealBrowser(unittest.TestCase):
             with chrome() as cdp:
                 sid = navigate(cdp, s.port, "#dashboard&p=ABC")
                 self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1"), "the bundle ran")
-                self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1') && document.querySelector('h1').textContent",
-                                                    sid) == "Example Programme"), "the page read its data with the token")
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('#project-name') && document.querySelector('#project-name').textContent.trim()",
+                                                    sid) == "Example Programme"), "the page read its data with the token")      # item 1177: the editor's header has no h1; the project name is the header's own button
                 self.assertEqual(blocked, [], f"the real bundle needed nothing the policy blocks: {blocked}")
                 cdp.js("var s = document.createElement('script'); s.textContent = 'window.injected = 1'; "
                        "document.body.appendChild(s);", sid)

@@ -9,11 +9,10 @@
 // box; the lead moves each one into TEMPLATES with its Help row.
 import { rows } from "./placement.js";
 import { TEMPLATE_TYPES, PENDING_TYPES } from "../templates/types.js";
-import { WORDS as NEEDS } from "./needs.js";
 
-// What the store takes in a new section (changes.py NEW_SECTION_TYPES: text, needs since the section that carries content (#121),
+// What the store takes in a new section (changes.py NEW_SECTION_TYPES: text
 // and every type in the template registry (#96)). A template whose type is not here is listed but not offered.
-export const ACCEPTS = { types: ["text", "needs", ...TEMPLATE_TYPES, "current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs", ...PENDING_TYPES] };      // row 926: the Gantt section (no body, no registry module) is taken by the store at layout 19; row 1068: the Gantt table section at layout 21
+export const ACCEPTS = { types: ["text", ...TEMPLATE_TYPES, "current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs", ...PENDING_TYPES] };      // row 926: the Gantt section (no body, no registry module) is taken by the store at layout 19; row 1068: the Gantt table section at layout 21
 
 export const KINDS = [
   { id: "text", name: "Text and pictures" },
@@ -64,11 +63,9 @@ export const TEMPLATES = [
     description: "Next steps or readiness, ticked off.", holds: ["Heading", "Checklist · linked to work items"] },
   { id: "key-dates", name: "Key dates", kind: "dates", fit: ["half", "full"], type: "keydates", title: "Key dates", body: "", ready: true,
     description: "What’s coming, from the milestones.", holds: ["Heading", "Date (from milestones)"] },
-  { id: "needs", name: NEEDS.title, kind: "dates", fit: ["full", "half"], type: "needs", title: NEEDS.title, body: "", ready: true,
-    description: "What the project needs from the client: decisions, information and dates, each with who it is from and when it is needed by.", holds: ["Heading", "Row: what is needed", "From", "By"] },
   { id: "link-preview", name: "Link preview", kind: "files", fit: ["full"], type: "linkcard", title: "Link preview", body: "", ready: true,
     description: "A web page shown as a card you write: a dashboard, a news item, a recording.", holds: ["Heading", "Link", "Card text"] },
-  { id: "current-state", name: "Current state", kind: "text", fit: ["full", "half"], type: "text", title: "Current state", body: "", ready: true,
+  { id: "current-state", name: "Header and Text", kind: "text", fit: ["full", "half"], type: "text", title: "Current state", body: "", ready: true,
     description: "The state of the project in a few lines, to sit beside another section.", holds: ["Heading", "Text"] },
   { id: "plan-summary", name: "Plan summary", kind: "text", fit: ["full", "half"], type: "text", title: "Plan summary", ready: true,
     body: "<h2>Where we are</h2><p></p><h2>What is next</h2><ul><li></li></ul>",
@@ -98,9 +95,11 @@ export const BUILT_INS = [
   builtIn("milestones", "Milestones", "dates"), builtIn("raid", "Risks and issues", "work"), builtIn("actions", "Open actions", "work"),
   builtIn("decisions", "Decisions", "work"), builtIn("docs", "Supporting documents", "files"),
 ];
-const missing = (sections) => (sections ? BUILT_INS.filter((b) => !sections.some((s) => s.type === b.type)) : []);
+// Item 1188: the first default section is now the text section "Current state", which "Header and Text" also adds, so the older
+// "current" built-in is not offered (a second card that makes the same heading); a report that has one keeps it.
+const missing = (sections) => (sections ? BUILT_INS.filter((b) => b.type !== "current" && !sections.some((s) => s.type === b.type)) : []);
 
-// Every template entry, in the box or not: one per template type, and Text and Needs from you (#121).
+// Every template entry, in the box or not: one per template type, and Text.
 export const CATALOGUE = [...TEMPLATES, ...LATER];
 
 export const MESSAGES = {
@@ -136,7 +135,6 @@ export const SKETCHES = {
   "contacts": ["grid-template-rows:repeat(3,1fr)", ["width:70%", "width:70%", "width:70%"]],
   "checklist": ["grid-template-rows:repeat(3,1fr)", ["width:80%", "width:60%", "width:70%"]],
   "key-dates": ["grid-template-rows:repeat(3,1fr)", ["width:90%", "width:90%", "width:90%"]],
-  "needs": ["grid-template-rows:repeat(3,1fr)", ["border-left:3px solid var(--status-amber)", "border-left:3px solid var(--status-amber);width:80%", "width:55%"]],
   "link-preview": ["grid-template-columns:1fr 2fr", [IMG, ""]],
   "gantt": ["grid-template-rows:repeat(3,1fr)", ["width:60%", "width:50%;margin-left:25%", "width:40%;margin-left:55%"]],
   "gantt-table": ["grid-template-rows:repeat(4,1fr)", ["", "", "", ""]],

@@ -6,6 +6,8 @@
 import { asAt, fromFile } from "../stores/report.js";
 import { KIND_WORDS, dueCell, pillOf, ownerOf, todayIso } from "../workItems.js";
 import { listOf, drawRows, WORDS } from "./workItemsList.js";
+import { ItemIcon, iconWords } from "../components/ItemRows.jsx";      // row 1145: the dashboard lists' icon, alone, is the status
+import { clientPill } from "../logic/sectionRows.js";
 
 export const READY = true;
 
@@ -23,21 +25,22 @@ function cellText(row, col, now) {
   return "";
 }
 
-function Cell({ row, col, now }) {
+function Cell({ row, col, now, live }) {
   if (col === "type") return <span class={`type k-${row.kind}`}>{KIND_WORDS[row.kind] || row.kind}</span>;
   if (col === "due") {
     const d = dueCell(row, now);
     return <><span class="num">{d.date}</span>{d.words ? <span class={`due-l${d.tone ? " " + d.tone : ""}`}>{d.words}</span> : null}</>;
   }
-  if (col === "status") { const p = pillOf(row, now); return <span class={`pill ${p.class}`}>{p.text}</span>; }
+  if (col === "status") { const p = clientPill(row, now); return <ItemIcon row={row} pill={p} today={now} plain={live} />; }      // in Edit the row is itself a button, so the icon takes no tab stop of its own; the cell says the words
   if (col === "owner") { const o = ownerOf(row.owner); return o.initials ? o.text : <span class="muted">{o.text}</span>; }
   return cellText(row, col, now);
 }
 
 // The rows, at both widths. `open(id)` (Edit only) makes each row open its peek: a click, or Enter on the focused row.
-export function Rows({ rows, columns, now, open }) {
+// `Eye` (Edit only): the Work items page's own Client-visible eye (edit/cells/Eye.jsx), drawn at the end of each row, so it means the same thing here.
+export function Rows({ rows, columns, now, open, Eye }) {
   const act = open ? (row) => ({ tabIndex: 0, role: "button", "aria-label": `Open ${row.id}: ${row.title || ""}`, onClick: () => open(row.id),
-    onKeyDown: (e) => { if ((e.key === "Enter" || e.key === " ") && !e.defaultPrevented) { e.preventDefault(); open(row.id); } } }) : () => ({});
+    onKeyDown: (e) => { if (e.target.closest && e.target.closest("button")) return; if ((e.key === "Enter" || e.key === " ") && !e.defaultPrevented) { e.preventDefault(); open(row.id); } } }) : () => ({});
   const before = columns.filter((c) => c === "type" || c === "id"), after = columns.filter((c) => c !== "type" && c !== "id");
   return (
     <>
@@ -46,13 +49,15 @@ export function Rows({ rows, columns, now, open }) {
           {before.map((c) => <th key={c} class={`wil-c-${c}`} scope="col">{WORDS.columns[c]}</th>)}
           <th class="wil-c-title" scope="col">Item</th>
           {after.map((c) => <th key={c} class={`wil-c-${c}`} scope="col">{WORDS.columns[c]}</th>)}
+          {Eye ? <th class="wil-c-eye" scope="col"><span class="sr">{Eye.heading}</span></th> : null}
         </tr></thead>
         <tbody>
           {rows.map((row) => (
             <tr key={row.id} data-id={row.id} {...act(row)}>
-              {before.map((c) => <td key={c} class={`wil-c-${c}`}><Cell row={row} col={c} now={now} /></td>)}
+              {before.map((c) => <td key={c} class={`wil-c-${c}`}><Cell row={row} col={c} now={now} live={!!open} /></td>)}
               <td class="wil-c-title">{row.title || ""}</td>
-              {after.map((c) => <td key={c} class={`wil-c-${c}`}><Cell row={row} col={c} now={now} /></td>)}
+              {after.map((c) => <td key={c} class={`wil-c-${c}`} title={open && c === "status" ? iconWords(row, clientPill(row, now), now).tip : undefined}><Cell row={row} col={c} now={now} live={!!open} /></td>)}
+              {Eye ? <td class="wil-c-eye"><Eye row={row} /></td> : null}
             </tr>
           ))}
         </tbody>
@@ -62,6 +67,7 @@ export function Rows({ rows, columns, now, open }) {
           <li key={row.id} data-id={row.id} {...act(row)}>
             <span class="wil-t">{row.title || ""}</span>
             <span class="wil-m">{columns.map((c) => cellText(row, c, now)).filter(Boolean).join(" · ")}</span>
+            {Eye ? <span class="wil-eye"><Eye row={row} /></span> : null}
           </li>
         ))}
       </ul>
