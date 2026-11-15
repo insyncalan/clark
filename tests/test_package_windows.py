@@ -66,6 +66,11 @@ class WindowsZipTest(unittest.TestCase):
         """Item 624: compose.yaml says the data is NOT in the clark folder, so swapping the folder cannot lose it; the Windows text must agree."""
         self.assertIn("a folder called clark-data, beside this folder and not in\nit", self.text)
         self.assertNotIn("CLARK_DATA_DIR", self.text)
+        # Item 633, ruled 16-11 (WO-M3672, NEW-WORDS.md): the update sentence matches step 2 of docker/UPDATE-windows.txt.
+        flat = " ".join(self.text.split())
+        self.assertIn("To update, rename this folder to clark-old, then unzip the newer download into the folder that held it, so clark-data is found again.", flat)
+        self.assertIn("so replacing this folder with a newer download cannot lose it.", flat)
+        self.assertNotIn("Unzip a newer download beside this folder", flat)
         for inside in ("$PWD", "%CD%", "\\data\""):
             self.assertNotIn(inside, self.text)
 

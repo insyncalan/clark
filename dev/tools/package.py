@@ -257,8 +257,9 @@ folder called .app: you do not need to open it.
   6. To stop clark, type this in the same folder and press Enter:
         docker compose -f docker/compose.yaml -f docker/compose.windows.yaml down
 Your data is kept in a folder called clark-data, beside this folder and not in
-it, so replacing this folder with a newer download cannot lose it. Unzip a newer
-download beside this folder, so clark-data is found again.
+it, so replacing this folder with a newer download cannot lose it. To update,
+rename this folder to clark-old, then unzip the newer download into the folder
+that held it, so clark-data is found again.
 To see what Docker has said, type this in the same folder:
         docker compose -f docker/compose.yaml -f docker/compose.windows.yaml logs --tail 50
 
