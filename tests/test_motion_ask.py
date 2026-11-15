@@ -8,7 +8,8 @@ import re
 import unittest
 
 from _paths import ROOT
-from test_ask_panel import Panel
+from test_ask_panel import Stub
+from test_report_editor import Base
 
 CSS = (ROOT / "src/clark/page/shell.css").read_text(encoding="utf-8")
 EDIT = (ROOT / "src/clark/page/src/edit/edit.css").read_text(encoding="utf-8")
@@ -16,7 +17,13 @@ JSX = (ROOT / "src/clark/page/src/edit/AskPanel.jsx").read_text(encoding="utf-8"
 NAME = "getComputedStyle(document.querySelector('#ask-panel')).animationName"
 
 
-class MotionAsk(Panel):
+class MotionAsk(Base):
+    # Base, not test_ask_panel.Panel: subclassing Panel re-ran its 48 tests here, and importing Panel into this module made unittest collect them a second time
+    def setUp(self):
+        super().setUp()
+        self.stub = Stub()
+        self.s.httpd.ask = self.stub
+
     def test_row_885_the_panel_rises_and_sinks_and_is_still_when_reduced(self):
         from test_server import chrome
         with chrome() as cdp:
