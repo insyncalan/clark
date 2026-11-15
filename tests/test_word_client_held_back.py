@@ -181,7 +181,8 @@ class CleanReport(Setup, unittest.TestCase):
         self.visible = "See the plan"
         with self.store.step("dashboard", USER) as st:
             st.create("documents", {"project": "ABC", "title": "Delivery plan", "kind": "Plan", "url": self.LINK, "sort_order": 1})
-        self.demo.update("projects", "ABC", {"current_state": f'<p>{self.visible}: <a href="{self.LINK}">the delivery plan</a></p>'})
+        # item 1188: the first section is a text section; its body (not the project's current_state) carries the rich text now
+        self.demo.update("report_sections", "ABC-S-001", {"body": f'<p>{self.visible}: <a href="{self.LINK}">the delivery plan</a></p>'})
 
     def test_the_word_copy_saves_in_both_folders_with_its_link(self):
         status, got = self.word_export()

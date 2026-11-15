@@ -856,6 +856,53 @@ def _files_in_zip(listed_items):
     return out
 
 
+def release_tags(run=subprocess.run):
+    """Item 1167: the v* release tags, newest first. A shallow clone with none (push-run CI is depth 1) fetches them; if there are
+    still none the tests fail loudly instead of skipping."""
+    def listing():
+        return run(["git", "-C", str(ROOT), "tag", "--list", "v*", "--sort=-v:refname"], capture_output=True, text=True).stdout.split()
+    tags = listing()
+    if not tags:
+        shallow = run(["git", "-C", str(ROOT), "rev-parse", "--is-shallow-repository"], capture_output=True, text=True).stdout.strip()
+        if shallow == "true":
+            run(["git", "-C", str(ROOT), "fetch", "--tags", "--depth=1", "origin"], capture_output=True, text=True)
+            tags = listing()
+    if not tags:
+        raise AssertionError("no v* release tag: fetch tags (git fetch --tags)")
+    return tags
+
+
+class ReleaseTagsTest(unittest.TestCase):
+    """Item 1167: no release tag is a failure, never a skip; a shallow clone fetches the tags first."""
+
+    @staticmethod
+    def _runner(calls, tags_after_fetch, shallow):
+        def run(cmd, **kw):
+            calls.append(cmd[3])
+            out = ""
+            if cmd[3] == "tag":
+                out = "v1.0.8\nv1.0.7\n" if ("fetch" in calls and tags_after_fetch) else ""
+            elif cmd[3] == "rev-parse":
+                out = "true\n" if shallow else "false\n"
+            return subprocess.CompletedProcess(cmd, 0, stdout=out)
+        return run
+
+    def test_a_shallow_clone_fetches_the_tags(self):
+        calls = []
+        self.assertEqual(["v1.0.8", "v1.0.7"], release_tags(self._runner(calls, True, True)))
+        self.assertIn("fetch", calls)
+
+    def test_no_tags_after_the_fetch_fails_loudly(self):
+        with self.assertRaises(AssertionError):
+            release_tags(self._runner([], False, True))
+
+    def test_a_full_clone_with_no_tags_fails_without_fetching(self):
+        calls = []
+        with self.assertRaises(AssertionError):
+            release_tags(self._runner(calls, False, False))
+        self.assertNotIn("fetch", calls)
+
+
 class PreviousReleaseAcceptsThisOneTest(unittest.TestCase):
     """Item 1151: an installed older version checks a new zip against ITS OWN list (updates.check_coverage). Tests used to
     check the new list against the new zip only, so 1.0.7 (new vendor/pypdf/) was refused by every 1.0.6 computer."""
@@ -882,12 +929,7 @@ class PreviousReleaseAcceptsThisOneTest(unittest.TestCase):
         self.assertTrue(found and all(n.startswith(".app/vendor/pypdf/") for n in found))
 
     def test_the_last_release_list_covers_every_file_of_this_tree(self):
-        tags = subprocess.run(["git", "-C", str(ROOT), "tag", "--list", "v*", "--sort=-v:refname"], capture_output=True, text=True).stdout.split()
-        if not tags:
-            shallow = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--is-shallow-repository"], capture_output=True, text=True).stdout.strip()
-            if shallow == "true":
-                self.skipTest("shallow clone with no release tags (push runs use depth 1; pull request runs fetch all tags)")
-            self.fail("no v* release tag in a full clone: fetch tags (git fetch --tags)")
+        tags = release_tags()
         old = self._old_module(tags[0])
         self.assertIsNotNone(old, tags[0])
         self.assertEqual([], self.unsafe_for(old), f"{tags[0]} would refuse this tree's zip as outside its own list")
@@ -896,9 +938,7 @@ class PreviousReleaseAcceptsThisOneTest(unittest.TestCase):
         """Item 1151: run the newest tag's real updates.check_coverage (its own code and its own list), not release_files.covers alone."""
         import importlib.util
         import clark
-        tags = subprocess.run(["git", "-C", str(ROOT), "tag", "--list", "v*", "--sort=-v:refname"], capture_output=True, text=True).stdout.split()
-        if not tags:
-            self.skipTest("no v* release tag (shallow clone without tags); the sibling test decides skip or fail")
+        tags = release_tags()
         tag = tags[0]
         old_rf = self._old_module(tag)
         src = subprocess.run(["git", "-C", str(ROOT), "show", f"{tag}:src/clark/updates.py"], capture_output=True)
@@ -916,6 +956,28 @@ class PreviousReleaseAcceptsThisOneTest(unittest.TestCase):
                 old.check_coverage(system, rels)
             except old.UpdateError as e:
                 self.fail(f"{tag} would refuse this tree's {system} zip: {e}")
+
+
+    def test_each_release_from_1_0_7_on_accepts_this_trees_zip(self):
+        """Item 1167: v1.0.7 and every later tag (their own lists) cover this tree's zip, so an in-app update from them is not refused."""
+        def number(t):
+            return tuple(int(x) for x in t[1:].split(".") if x.isdigit())
+        tags = [t for t in release_tags() if number(t) >= (1, 0, 7)]
+        self.assertIn("v1.0.7", tags)
+        for tag in tags:
+            old = self._old_module(tag)
+            self.assertIsNotNone(old, tag)
+            self.assertEqual([], self.unsafe_for(old), f"{tag} would refuse this tree's zip as outside its own list")
+
+    def test_v1_0_6_refuses_this_trees_zip_only_for_the_two_vendor_paths(self):
+        """Item 1167: the known case. The 1.0.6 list lacks vendor/pypdf/ and vendor/typing_extensions.py (item 891), so a 1.0.6 computer
+        cannot update to 1.0.7 or later from inside clark. This pins that the refusal is exactly those paths and nothing else."""
+        self.assertIn("v1.0.6", release_tags())
+        old = self._old_module("v1.0.6")
+        self.assertIsNotNone(old)
+        found = self.unsafe_for(old)
+        self.assertTrue(found)
+        self.assertTrue(all(n.startswith(".app/vendor/pypdf/") or n == ".app/vendor/typing_extensions.py" for n in found), found[:5])
 
 
 if __name__ == "__main__":

@@ -687,7 +687,7 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .docs-arch-text .tpl-facts { color: var(--text-muted); }
 
 /* The bar above the page (A-D2): the week, where the report stands, and in Edit the notes. Tokens only. */
-.rbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 12px; font-size: var(--size-small); color: var(--text-muted); }
+.rbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 12px; min-height: 30px; font-size: var(--size-small); color: var(--text-muted); }
 .rbar .modes.seg { margin-left: 0; flex: none; padding: 3px; gap: 2px; background: var(--surface); border: 1px solid var(--grey-300); border-radius: var(--radius-pill); overflow: visible; }   /* #665: the prototype's .seg, on the page background */
 .rbar .seg .mode { min-width: 0; min-height: 28px; padding: 0 14px; border-radius: var(--radius-pill); font-size: var(--size-small); color: var(--text-muted); }
 .rbar .seg .mode:hover { color: var(--text); }
@@ -696,18 +696,9 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .rbar .seg .mode[aria-pressed="true"]:focus-visible { box-shadow: inset 0 0 0 2px var(--pill-fg); }   /* #996: the blue outset ring is under 3:1 on the aqua in dark, so the chosen half also gets an inner ring in the fill's own text colour (--pill-fg); the outset ring stays */
 .rbar .seg .mode { gap: var(--space-1); }
 .rbar .seg .mode .tb-ico { width: 14px; height: 14px; }
-.rbar-week { display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); }
-.rbar-week input { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--grey-300); border-radius: var(--radius); padding: 3px 8px; min-height: 28px; }
-.rbar-week input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
-.rbar-weekbox { display: inline-flex; align-items: center; gap: 8px; }
-.rbar-cal { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; min-height: 28px; padding: 0; color: var(--text-muted); background: var(--surface); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); cursor: pointer; }
-.rbar-cal:hover { color: var(--text); }
-.rbar-cal:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
-/* item 344: the week picker beside Week ending (the prototype's #wkPast), in View and Edit; picking only opens, it changes nothing */
-.rbar-past { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); padding: 3px 8px; min-height: 28px; width: auto; max-width: min(260px, 100%); box-sizing: border-box; }
-.rbar-past:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .rbar-state { font-size: var(--size-caption); padding: 2px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius-pill); background: var(--surface); color: var(--text-muted); }
-.rbar-hint { color: var(--status-blue-text); background: var(--brand-blue-tint); border-radius: var(--radius-sm); padding: 4px 9px; }   /* row 773: the prototype chip */
+/* item 1177: the bar keeps one line's height (30px) with or without the drag hint, so the hint appearing on the first Edit does not move the page (the chip and switch used to hold that height) */
+.rbar-hint { box-sizing: border-box; min-height: 30px; display: inline-flex; align-items: center; color: var(--status-blue-text); background: var(--brand-blue-tint); border-radius: var(--radius-sm); padding: 4px 9px; }   /* row 773: the prototype chip */
 
 /* The eye on a milestone row (edit/MsEye.jsx): the row's cells and the eye sit side by side; the eye is a real button, 28 px square. */
 .msl-row.has-eye { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 4px; padding-right: 6px; }
@@ -946,7 +937,7 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 /* row 938-1 (motion): the main buttons and the View/Edit pills sink 1 px while pressed, over --dur-instant. Here, not in shell.css, so the
    published page carries none of it. Absent under reduced motion (the computer's setting or <html data-motion="reduce">): no movement. */
 @media (prefers-reduced-motion: no-preference) {
-  :root:not([data-motion="reduce"]) :is(.again, .btn.primary, .btn.pri, .modes.seg .mode):not(:disabled):active { transform: translateY(1px); transition: transform var(--dur-instant) var(--ease-out); }
+  :root:not([data-motion="reduce"]) :is(.again, .btn.primary, .btn.pri, .modes.seg .mode, #mode-pill .mode):not(:disabled):active { transform: translateY(1px); transition: transform var(--dur-instant) var(--ease-out); }
 }
 
 /* row 880: opening a group, its column names and rows rise 4 px and fade in over --dur-layout (transform and opacity only: no height moves). Edit build only: the published file has no glide. */
@@ -1206,3 +1197,37 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
 @media (max-width: 899px) { .cover::after { display: none; } }
 /* item 1154: with a logo (the server sets --cover-logo-room; 0px when it is not set) the title and the cover line keep the logo box's room free at 900 px and wider, so they wrap before it; under 900 the logo is hidden and no room is kept */
 @media (min-width: 900px) { .frame header.cover h1, .frame header.cover .cover-line { margin-right: var(--cover-logo-room, 0px); } }
+
+/* item 1176: the project name in the editor Dashboard cover is a button that looks like the heading until hover or focus, then shows it can be clicked; the chevron fades in with opacity only (it stays visible to focus) */
+.cover-switch { all: unset; box-sizing: border-box; display: inline; cursor: pointer; color: inherit; font: inherit; border: 0; border-radius: var(--radius); }
+.cover-switch .nch { opacity: 0; margin-left: var(--space-2); vertical-align: middle; }
+.cover-switch:hover, .cover-switch[aria-expanded="true"] { outline: 1px dashed var(--white); outline-offset: 4px; }
+.cover-switch:hover .nch, .cover-switch:focus-visible .nch, .cover-switch[aria-expanded="true"] .nch { opacity: 1; }
+.cover-switch:focus-visible { outline: 2px solid var(--white); outline-offset: 4px; }
+.cover:has(.cover-switch[aria-expanded="true"]) { z-index: 30; }      /* the cover is its own stacking layer (isolate), so while its project list is open the whole band sits above the sections below, or their headings would take the clicks meant for the list rows */
+.cover h1 .ddmenu { font-size: var(--size-body); font-weight: normal; line-height: normal; color: var(--text); text-align: left; letter-spacing: normal; text-transform: none; }
+/* item 1177: (the box is as wide as the room the server sets, up to its size, so with no logo the box has no width and nothing is drawn or shifts) the slim header has no band, so the installed brand's logo (the same --image-logo as item 1154) sits small at the RIGHT of the header, before the search, ask and profile icons (.hdr-end::before). The server sets --cover-logo-room only with a logo; min() turns it into the logo's room (128 px, plus a 16 px gap), and with no logo it is 0px: no room is kept, nothing is drawn and nothing shifts. At 900 px and narrower the box is 96 x 24 px so the profile circle stays on the row. Editor only: the published bar has no .hdr-end. */
+.hdr-end { position: relative; padding-left: min(var(--cover-logo-room, 0px), calc(var(--space-8) * 2 + var(--space-4))); }
+.hdr-end::before { content: ""; position: absolute; left: 0; top: 50%; width: min(var(--cover-logo-room, 0px), calc(var(--space-8) * 2)); height: var(--space-6); transform: translateY(-50%); pointer-events: none; background: var(--image-logo) right center / contain no-repeat; }
+@media (max-width: 900px) {
+  .hdr-end { padding-left: min(var(--cover-logo-room, 0px), calc(var(--space-8) * 1.5 + var(--space-3))); }
+  .hdr-end::before { width: min(var(--cover-logo-room, 0px), calc(var(--space-8) * 1.5)); height: var(--space-5); }
+}
+
+/* Item 1177, stage B: the floating View | Edit pill (#mode-pill). Fixed just under the sticky header, at the right edge, above the page's own layers and below the
+   header (z-index 28: the minimap is 25, the header 30). Half see-through at rest, solid on hover and when a button has the focus. Icon buttons only (eye, pencil).
+   It is Edit parts' only (the published file has none), the Dashboard's alone (ReportBar draws it), and it is hidden in the full-screen board, under any dialog and while the profile menu is open. */
+#mode-pill { position: fixed; top: calc(var(--topbar) + 8px); right: 20px; z-index: 28; margin: 0; display: inline-flex; gap: 2px; padding: 3px; overflow: visible; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-pill); box-shadow: var(--shadow); opacity: .72; transition: opacity var(--dur-instant) var(--ease-out); }
+#mode-pill:hover, #mode-pill:focus-within { opacity: 1; }
+#mode-pill .mode { min-width: 0; width: 32px; min-height: 28px; height: 28px; padding: 0; border-radius: var(--radius-pill); color: var(--text-muted); }
+#mode-pill .mode:hover { color: var(--text); }
+#mode-pill .mode[aria-pressed="true"] { background-color: var(--pill-color); background-image: var(--pill-bg); color: var(--pill-fg); }
+#mode-pill .mode .tb-ico { width: 16px; height: 16px; }
+#mode-pill .mode:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+#mode-pill .mode[aria-pressed="true"]:focus-visible { box-shadow: inset 0 0 0 2px var(--pill-fg); }
+body.board-full #mode-pill, body:has(#profile-menu, dialog[open], [role="dialog"], [role="alertdialog"]) #mode-pill { display: none; }
+#report-bar:empty { display: none; }
+/* Switching to Edit must not move the page: the drag hint floats left of the pill (fixed, as the pill is) and the bar takes no room, so drawing or dropping the hint changes no section's place. */
+#report-bar { min-height: 0; margin: 0; }
+#report-bar .rbar-hint { position: fixed; top: calc(var(--topbar) + 8px); right: calc(20px + 74px + 8px); z-index: 28; box-shadow: var(--shadow); }
+body.board-full #report-bar .rbar-hint, body:has(#profile-menu, dialog[open], [role="dialog"], [role="alertdialog"]) #report-bar .rbar-hint { display: none; }

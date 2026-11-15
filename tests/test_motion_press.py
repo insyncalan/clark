@@ -91,7 +91,7 @@ class MotionPress(unittest.TestCase):
         edit = EDIT[start:end]
         rule = re.search(r":is\(([^)]*)\)[^{]*:active \{([^}]*)\}", edit)
         self.assertIsNotNone(rule)
-        self.assertEqual(set(x.strip() for x in rule.group(1).split(",")), {".again", ".btn.primary", ".btn.pri", ".modes.seg .mode"})
+        self.assertEqual(set(x.strip() for x in rule.group(1).split(",")), {".again", ".btn.primary", ".btn.pri", ".modes.seg .mode", "#mode-pill .mode"})      # item 1177: the floating pill keeps the press sink the Dashboard pill had (edit.css:946)
         self.assertIn("transform: translateY(1px)", rule.group(2), "sinks 1 px")
         self.assertIn("transform var(--dur-instant) var(--ease-out)", rule.group(2), "over --dur-instant")
         self.assertTrue(edit.index("@media (prefers-reduced-motion: no-preference)") < edit.index(":active"), "gated on no-preference")
