@@ -3,6 +3,7 @@
 // one Undo (the copy stays in the folder: Undo takes it off the section). Edit only; never in a published file. The route's
 // refusals are plain words with the next step (src/clark/section_files.py), shown as they are when the reply has their shape.
 import { token, project, reread, plain } from "../../stores/report.js";
+import { zoneFetch } from "../../api.js";
 import { say } from "../../stores/changes.js";
 
 const KNOWN = [200, 400, 404, 409];
@@ -21,7 +22,7 @@ export async function chooseFile(id) {
   const code = project.value;
   let status = 0, body = null;
   try {
-    const r = await fetch("/api/section-file", {
+    const r = await zoneFetch("/api/section-file", {
       method: "POST", cache: "no-store",
       headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
       body: JSON.stringify({ project: code, section: id }),
