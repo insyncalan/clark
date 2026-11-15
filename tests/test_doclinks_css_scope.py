@@ -33,7 +33,7 @@ def declarations(sheet, selector):
 
 
 class Scope(unittest.TestCase):
-    sheet = rules((SRC / "shell.css").read_text())
+    sheet = rules((SRC / "shell.css").read_text(encoding="utf-8"))
 
     def test_the_mockup_row_rules_exist_and_every_selector_of_them_is_scoped(self):
         for selector in SCOPED:
@@ -59,11 +59,11 @@ class Scope(unittest.TestCase):
 
     def test_both_doc_links_lists_carry_the_scope_class(self):
         for path in ("src/edit/templates/DocLinks.jsx", "src/templates/DocLinks.jsx"):
-            self.assertIn('<ul class="tpl-dl tpl-dl-links">', (SRC / path).read_text(), path)
+            self.assertIn('<ul class="tpl-dl tpl-dl-links">', (SRC / path).read_text(encoding="utf-8"), path)
 
 
 class PlainBadge(unittest.TestCase):
-    sheet = rules((SRC / "shell.css").read_text())
+    sheet = rules((SRC / "shell.css").read_text(encoding="utf-8"))
 
     def test_the_plain_badge_rule_and_each_kind_s_fill_and_text_are_pinned(self):
         plain = declarations(self.sheet, ".tpl-badge.tpl-plain")
@@ -80,7 +80,7 @@ class PlainBadge(unittest.TestCase):
         self.assertEqual(declarations(self.sheet, ".tpl-act-download::before")["content"], '"\\2193"')
 
     def test_the_published_icon_is_a_plain_span_with_no_svg_and_the_editor_one_is_the_drawn_page(self):
-        src = (SRC / "src" / "templates" / "docIcons.jsx").read_text()
+        src = (SRC / "src" / "templates" / "docIcons.jsx").read_text(encoding="utf-8")
         plain = next(l for l in src.splitlines() if l.strip().startswith("if (fromFile.value) return"))
         self.assertIn("tpl-badge tpl-plain tpl-ic-", plain)
         self.assertNotIn("<svg", plain)

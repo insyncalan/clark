@@ -28,7 +28,7 @@ def table(src, name):
 
 class BadgeContrast(unittest.TestCase):
     def test_the_published_badge_text_reaches_4_5_on_every_kind(self):
-        css = (SRC / "shell.css").read_text()
+        css = (SRC / "shell.css").read_text(encoding="utf-8")
         for kind in KINDS:
             rule = re.search(r"\.tpl-badge\.tpl-ic-%s \{([^}]*)\}" % kind, css)
             self.assertTrue(rule, kind)
@@ -38,7 +38,7 @@ class BadgeContrast(unittest.TestCase):
             self.assertGreaterEqual(r, 4.5, "%s published badge %.2f:1" % (kind, r))
 
     def test_the_editor_icon_band_text_reaches_4_5_on_every_kind(self):
-        src = (SRC / "src" / "templates" / "docIcons.jsx").read_text()
+        src = (SRC / "src" / "templates" / "docIcons.jsx").read_text(encoding="utf-8")
         band, text = table(src, "BAND"), table(src, "BAND_TEXT")
         for kind in KINDS:
             self.assertIn(kind, band)
