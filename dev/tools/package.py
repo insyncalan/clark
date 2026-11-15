@@ -262,6 +262,11 @@ folder, so replacing this folder with a newer download cannot lose it. Type the
 first line of step 4 every time you start clark, or it will not find your data.
 To see what Docker has said, type this in the same folder:
         docker compose -f docker/compose.yaml logs --tail 50
+
+Updating clark: the file docker\\UPDATE-windows.txt has the steps, for
+PowerShell and for Command Prompt. In short: stop the old clark, unzip the new
+download into a new folder (never over the old one), and start the new folder.
+Your data is not in the clark folder, so it is still there.
 """
 
 IMAGE_PLACEHOLDER = b"placeholder: the runtime image tar is built in CI and put here with --image-tar (item 624)\n"
