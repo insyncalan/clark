@@ -214,6 +214,10 @@ export function onPop(handler) {
   return () => { removeEventListener("popstate", run); removeEventListener("hashchange", run); };
 }
 
+/** Opens another published file (a report of the same folder) in this tab. A published file has no clark behind it, so this is a plain
+ *  load of that file's address; it is here because only the router sets the address. */
+export function openFile(href) { location.href = href; }
+
 /** Opens a new tab now, while the click still counts (a browser blocks a tab opened after a wait), then points it at the address
  *  `getUrl()` gives, a promise of a string (#147). If that gives nothing, or anything but a string, the tab is closed. Resolves to
  *  true when the tab was pointed, false when it was blocked or there was no address. The one place a tab's address is set.

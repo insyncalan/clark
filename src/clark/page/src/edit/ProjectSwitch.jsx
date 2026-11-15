@@ -1,3 +1,4 @@
+// Item 1176: the name in the bar is invisible until the pointer is on the button (or a key is on it), where it shows beside the chevron; the hover title says "Click to change project". Only a screen reader had it before. The Dashboard cover keeps its own switcher.
 // The project switcher in the top bar (A-D25, and item 439 row 37, prototype core.js:292-295): a button with a chevron and a menu. Row 1064: the name is not drawn in the bar
 // (the Dashboard cover has it); it stays in the button for a screen reader, and in the label. The menu lists the projects (the open one marked, each with "N open items"). Row 1092: nothing else; adding a project and project settings are in Settings.
 // Choosing a project is setProject(): one new address entry and a page load for that project (#944), so Back returns to the project before;
@@ -6,17 +7,18 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { Menu } from "../components/Menu.jsx";
 import { token, project, setProject } from "../stores/report.js";
+import { zoneFetch } from "../api.js";
 import { navigate } from "../router.js";
 import { actionIcon } from "../menuIcons.js";
 
 export const openWords = (n) => (typeof n === "number" ? `${n} open ${n === 1 ? "item" : "items"}` : undefined);
 
-export function ProjectSwitch({ name }) {
+export function ProjectSwitch({ name, cover, header }) {      // `cover` (item 1176): the Dashboard cover's own copy; `header` (item 1177): the name as the slim header's button
   const [list, setList] = useState([]);
   const live = useRef(true), asked = useRef(0);
   const read = () => {
     const mine = ++asked.current;       // only the newest answer is shown, so a slow older one cannot put old counts back
-    fetch("/api/projects", { headers: { "X-Clark-Token": token() }, cache: "no-store" })
+    zoneFetch("/api/projects", { headers: { "X-Clark-Token": token() }, cache: "no-store" })
       .then((r) => r.json().then((b) => (r.ok && b.ok && Array.isArray(b.projects) ? b.projects : [])))
       .then((rows) => { if (live.current && mine === asked.current && rows.length) setList(rows); })
       .catch(() => {});
@@ -30,5 +32,7 @@ export function ProjectSwitch({ name }) {
     if (id === "__settings") { navigate({ view: "settings", project: project.value }); return; }
     setProject(id);
   };
-  return <Menu id="project-name" btnCls="proj projbtn" label={shown} ariaLabel={`Project: ${shown}. Change project`} menuId="project-menu" menuLabel="Projects" left labelCls="sr" items={items} onPick={pick} onOpen={read} focusChecked />;
+  if (cover) return <Menu btnCls="cover-switch" label={shown} tip="Click to change project" ariaLabel={`Project: ${shown}. Click to change project`} menuId="cover-project-menu" menuLabel="Projects" left fixed="start" items={items} onPick={pick} onOpen={read} focusChecked />;
+  if (header) return <Menu id="project-name" btnCls="hdr-project" label={shown} tip="Click to change project" ariaLabel={`Project: ${shown}. Change project`} menuId="project-menu" menuLabel="Projects" left chevron={false} items={items} onPick={pick} onOpen={read} focusChecked />;      // item 1177: in the editor's one header the name is the button itself (drawn, not hidden), with the tooltip
+  return <Menu id="project-name" btnCls="proj projbtn" label={shown} ariaLabel={`Project: ${shown}. Change project`} menuId="project-menu" menuLabel="Projects" left labelCls="pname" tip="Click to change project" items={items} onPick={pick} onOpen={read} focusChecked />;
 }

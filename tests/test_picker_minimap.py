@@ -375,6 +375,7 @@ class MinimapLogic(InBrowser):
         self.assertEqual(self.val(f"T.minimap.activeEntry({lit(offs)}, 600, 700, 0, 1300)"), "c", "a short last section never reaches the line")
         self.assertEqual(self.val(f"T.minimap.activeEntry({lit(offs)}, 600, 700, 0, 2000)"), "b")
         self.assertEqual(self.val(f"T.minimap.activeEntry({lit(offs)}, 0, 700, 0, 600)"), "a", "a page shorter than the window stays on the first")
+        self.assertEqual(self.val(f"T.minimap.activeEntry({lit([{'id': 'a', 'top': 100}, {'id': 'b', 'top': 200}])}, 0, 600, 85, 3000)"), "a", "at the very top the first is current, though the second is above the line")
 
     def test_where_to_scroll_to_is_under_the_sticky_bar_and_never_negative(self):
         offs = [{"id": "a", "top": 20}, {"id": "b", "top": 800}, {"id": "c", "top": 1500.4}]
@@ -456,7 +457,6 @@ class MinimapInBrowser(InBrowser):
         self.assertEqual(self.js("document.querySelector('.toc').textContent.includes('Documents')"), False)
 
     def test_nothing_is_drawn_when_every_section_is_hidden(self):
-        self.mount(hidden=[s["id"] for s in SECTIONS]) if False else None
         self.js(f"T.mountMinimap({lit(SECTIONS)}, {lit([s['id'] for s in SECTIONS])})")
         self.settle()
         self.assertEqual(self.js("document.querySelectorAll('.toc').length"), 0)

@@ -1426,6 +1426,7 @@ class Line(unittest.TestCase):
             click(cdp, sid, "#viewNew")
             self.assertTrue(wait(lambda: "View 1" in cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)), "row 1073: the view is made at once")
             self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "viewNew"), "row 1073: the focus stays on + New view after it makes a view")
+            self.assertTrue(wait(lambda: "View 1" in cdp.js("document.getElementById('work-live').textContent", sid)), "a screen reader is told the view was saved and how to rename it")
             click_tab(cdp, sid, ".vtab[data-view-id=core-open]")
             click(cdp, sid, "#viewTabMenu")
             click(cdp, sid, "#viewTabMenuList [data-kind=rename]")
@@ -1926,11 +1927,7 @@ class Line(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.mode[aria-pressed=true]') && !!document.querySelector('.mode[aria-pressed=false]')", sid)), "one of each is drawn on the Dashboard")
             col = lambda sel: cdp.js(f"getComputedStyle(document.querySelector({json.dumps(sel)})).color", sid)
             self.assertNotEqual(col(".mode[aria-pressed=true]"), col(".mode[aria-pressed=false]"), "the pressed half has its own colour")
-            self.assertNotEqual(cdp.js("getComputedStyle(document.querySelector('.modes'), '::before').backgroundColor", sid), "rgba(0, 0, 0, 0)",
-                                "the pill's thumb (the pressed half's background, row 884) is drawn")
-            cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, sid)
-            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.modes'), '::before').backgroundColor", sid), "rgba(0, 0, 0, 0)",
-                             "under reduced motion there is no thumb")
+            # item 1177: the Dashboard's pill is the floating icon pill (#mode-pill) with no sliding thumb; the pressed half's own background is checked below
             self.assertNotEqual(bg(".mode[aria-pressed=true]"), "rgba(0, 0, 0, 0)", "under reduced motion the pressed half has its own background (the still form)")
 
     def test_the_targets_are_big_enough_and_the_colours_come_from_the_tokens(self):

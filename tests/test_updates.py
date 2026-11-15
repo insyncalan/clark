@@ -720,7 +720,6 @@ class PlanTest(Base):
         self.assertIn("README.md", p.replaced)
 
     def test_same_files_means_nothing_replaced(self):
-        r = self.release(version="0.3.0") if False else None
         files = listed_files("0.3.0")
         shutil.rmtree(Path(self.tmp) / "zips", ignore_errors=True)
         os.mkdir(Path(self.tmp) / "zips")

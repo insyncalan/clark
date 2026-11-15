@@ -33,6 +33,9 @@ services:
     tmpfs:
       - /tmp
       - /etc/nginx/conf.d:uid=101,gid=101
+    # Limits (item 638): the proxy cannot start more than 128 processes or use more than 256 MB of memory.
+    pids_limit: 128
+    mem_limit: 256m
     cap_drop:
       - ALL
     security_opt:

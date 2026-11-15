@@ -475,9 +475,9 @@ class MovedLatestFields(unittest.TestCase):
                 self.assertIn(field, publish.RICH.get(table, ()), "published through clean_html")
                 self.assertIn((table, field), publish.LEGACY_RICH, "an old plain row reads as escaped paragraphs")
         from clark import excel
-        self.assertEqual(excel.RICH_WORDS, publish.LEGACY_RICH + (("milestones", "internal_note"), ("use_cases", "standing")), "the workbook carries the words of the same fields, of the Movement note (never published, so not in the published list) and, row 1060, of a use case's Where it stands (HTML from the start, so not legacy)")
+        self.assertEqual(set(excel.RICH_WORDS), set(publish.LEGACY_RICH) | {("milestones", "internal_note"), ("use_cases", "standing")}, "the workbook carries the words of the same fields, of the Movement note (never published, so not in the published list) and, row 1060, of a use case's Where it stands (HTML from the start, so not legacy)")
         src = (SRC / "clark" / "changes.py").read_text(encoding="utf-8")
-        self.assertEqual(src.count("_rich_field("), 5, "the definition and the four fields' writes (latest update, Internal note, description, client wording)")
+        self.assertEqual(src.count("_rich_field("), 6, "the definition and the five writes (latest update, Internal note, a milestone's latest update, description, client wording)")
 
     def test_the_published_page_carries_no_editor_for_them(self):
         page.ensure_built()

@@ -8,6 +8,15 @@ import { knownRefusal } from "./edit/movementWords.js";
 
 const KIND = "report_sections";
 
+// item 631: each request made through this file says which time zone this computer is in (X-Tz, an IANA name); the other pages' calls to clark use zoneFetch from here; the page load, the health check and stores/report.js (which this file imports, so it cannot import this) carry none, and the heartbeat sends it from app.js.
+const zone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) { return ""; } };
+// It calls globalThis.fetch (the local fetch below shadows the bare name): the browser's own, and it also exists in node, where the tests run this file.
+export const zoneFetch = (url, init = {}) => {
+  const tz = zone();
+  return globalThis.fetch(url, tz ? { ...init, headers: { ...init.headers, "X-Tz": tz } } : init);
+};
+const fetch = zoneFetch;   // every existing call in this file keeps its name
+
 // While the page is going away (Back to another page load, a closed tab) a save started by leaving a field must still reach clark: the browser
 // keeps a keepalive request going, up to its size limit (64 KiB, so a smaller body only; the reply is not read by a page that has gone).
 const alive = (body) => (leaving.on && body.length < 60000 ? { keepalive: true } : {});
