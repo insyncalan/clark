@@ -47,19 +47,40 @@ def code_files():
 
 class Source(unittest.TestCase):
     def test_the_draft_chip_and_its_helper_are_gone(self):
-        """Ruling 1: no Draft on any peek. The pill, its hook, its CSS and the helper that wrote its words are gone from the source and the page."""
+        """Ruling 1 (lifted for one control by row 1179, 14-11): the old Draft pill, its hook, its CSS and the helper that wrote its words stay gone
+        from the source and the page. The one thing that came back is the "Draft with AI" button (checked in the next test)."""
+        import re
         latest = (SRC / "edit" / "PeekLatest.jsx").read_text(encoding="utf-8")
         helper = (SRC / "edit" / "peekLatest.js").read_text(encoding="utf-8")
-        for marker in ("draftFor", "pk-draft", "Draft", 'place: "draft"', "drafted"):
+        milestone = (SRC / "edit" / "MilestonePeek.jsx").read_text(encoding="utf-8")
+        for marker in ("draftFor", "pk-draft", 'place: "draft"', "drafted"):
             self.assertNotIn(marker, latest, marker)
+        for name, text in (("PeekLatest", latest), ("MilestonePeek", milestone)):
+            self.assertEqual(re.findall(r"Draft(?! with AI|Button|Panel|Ai)", text), [], f"the word Draft is in {name} only as 'Draft with AI' and the names of its own component and file")
         self.assertNotIn("draftFor", helper)
-        self.assertNotIn("Draft", (SRC / "edit" / "MilestonePeek.jsx").read_text(encoding="utf-8"), "the milestone peek has none either")
         self.assertNotIn("pk-draft", (SRC / "edit" / "edit.css").read_text(encoding="utf-8"))
         for f in code_files():
             self.assertNotIn("draftFor", f.read_text(encoding="utf-8"), str(f))
         built = page.PAGE.read_text(encoding="utf-8")
         for marker in ("pk-draft", "draftFor", "Latest update drafted"):
             self.assertNotIn(marker, built, marker)
+
+    def test_the_draft_with_ai_button_is_the_one_allowed_draft(self):
+        """Row 1179 (ruling 1 lifted 14-11 for this button): a quiet text button with a sparkle, the ticket's words, beside Latest update on every peek,
+        opening the AI menu of the place "current" and then AiCard; its rule is in edit.css (24 px target) and the button is not in the published page."""
+        shared = (SRC / "edit" / "DraftAi.jsx").read_text(encoding="utf-8")
+        self.assertIn('export const DRAFT_WITH_AI = "Draft with AI"', shared)
+        self.assertIn("aria-label={DRAFT_WITH_AI}", shared)
+        self.assertIn('<Icon name="sparkle"', shared)
+        self.assertIn("<AiCard", shared)
+        for f in ("PeekLatest.jsx", "MilestonePeek.jsx"):
+            self.assertIn("<DraftButton", (SRC / "edit" / f).read_text(encoding="utf-8"), f)
+        css = (SRC / "edit" / "edit.css").read_text(encoding="utf-8")
+        self.assertIn(".pk-ai {", css)
+        self.assertIn("min-height: 24px", css.split(".pk-ai {", 1)[1].split("}", 1)[0])
+        self.assertNotIn(".pk-ai {", page.VIEW_PAGE.read_text(encoding="utf-8"))
+        self.assertIn("Draft with AI", page.PAGE.read_text(encoding="utf-8"))
+        self.assertNotIn("Draft with AI", page.VIEW_PAGE.read_text(encoding="utf-8"), "Edit only")
 
     def test_the_words_box_is_headed_ask_clark_to_update_for_you(self):
         """Ruling 3: the heading and the section's label are the new words, and the old words are in no code (Help keeps its topic title)."""

@@ -7,6 +7,7 @@ const now = () => typeof window !== "undefined" && typeof window.matchMedia === 
 
 export const narrowHeader = signal(now());
 if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
-  const mq = window.matchMedia(QUERY), set = () => { narrowHeader.value = mq.matches; };
+  const mq = window.matchMedia(QUERY), set = () => { narrowHeader.value = window.matchMedia(QUERY).matches; };
   if (mq.addEventListener) mq.addEventListener("change", set); else if (mq.addListener) mq.addListener(set);
+  window.addEventListener("resize", set);      // the window's own resize says it too, where the media query's change has not fired (set reads mq.matches, which is always current)
 }

@@ -457,7 +457,6 @@ class MinimapInBrowser(InBrowser):
         self.assertEqual(self.js("document.querySelector('.toc').textContent.includes('Documents')"), False)
 
     def test_nothing_is_drawn_when_every_section_is_hidden(self):
-        self.mount(hidden=[s["id"] for s in SECTIONS]) if False else None
         self.js(f"T.mountMinimap({lit(SECTIONS)}, {lit([s['id'] for s in SECTIONS])})")
         self.settle()
         self.assertEqual(self.js("document.querySelectorAll('.toc').length"), 0)

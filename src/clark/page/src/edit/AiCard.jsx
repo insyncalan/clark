@@ -1,4 +1,4 @@
-// The AI suggestion card (#72, slice 2): one card under a field, five states, four buttons. It is not wired to any editor yet; it mounts on
+// The AI suggestion card (row 72, slice 2): one card under a field, five states, four buttons. Row 1179 mounts it under the peek's Latest update (DraftAi.jsx) and over a selection in the rich editor; it mounts on
 // anything and talks to an `aiClient` (edit/aiClient.js). Nothing changes in the field before Accept: the card only calls `onAccept(html)`
 // from the Accept button while a suggestion is ready, and the html it passes is the cleaned one (cleanHtml), never the raw reply.
 //

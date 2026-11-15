@@ -254,7 +254,6 @@ class Values(unittest.TestCase):
         self.assertEqual(body.count("<w:p>"), 1)
         from xml.dom import minidom
         minidom.parseString(body.encode())                  # still well formed
-        self.assertNotIn("{{OTHER}}", re.sub(r"<[^>]*>", "", body).replace("{{OTHER}}", "", 0) and "") if False else None
 
     def test_a_value_that_looks_like_a_placeholder_is_not_filled_again(self):
         out = main_of(fill(make(P("{{A}} {{B}}")), {"A": "{{B}}", "B": "end"}))
