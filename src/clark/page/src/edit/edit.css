@@ -1271,3 +1271,41 @@ body.board-full #report-bar .rbar-hint, body:has(#profile-menu, dialog[open], [r
 table.cw-set, .projects table.proj-table.cw-set { table-layout: fixed; width: 100%; }
 table.cw-set td { overflow-wrap: anywhere; white-space: normal; }
 table.cw-set td.acts, .pp-earlier .pubs.cw-set td.files, .pp-earlier .pubs.cw-set td.num { white-space: normal; }
+
+/* Row 1222: the columns menu of a Work items or Milestones table (edit/ColumnsMenu.jsx), the Columns button, and the milestone cells a person can add. */
+.ddmenu.cols-menu { min-width: 260px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow-y: auto; }
+.cols-menu [role="menuitemcheckbox"], .cols-menu [role="menuitem"] { all: unset; display: flex; align-items: flex-start; box-sizing: border-box; width: 100%; min-height: 32px; padding: var(--space-2) 14px; cursor: pointer; font-size: var(--size-small); color: var(--text); }
+.cols-menu [role="menuitemcheckbox"]:hover, .cols-menu [role="menuitemcheckbox"]:focus-visible, .cols-menu [role="menuitem"]:hover, .cols-menu [role="menuitem"]:focus-visible { background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.cols-menu [role="menuitemcheckbox"]:focus-visible, .cols-menu [role="menuitem"]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.cols-menu [role="menuitemcheckbox"][aria-disabled="true"] { color: var(--text-muted); cursor: default; }
+.cols-menu [role="menuitemcheckbox"][aria-disabled="true"]:hover { background: none; color: var(--text-muted); }
+.cols-menu .mi { flex: none; width: 16px; height: 16px; margin-right: var(--space-2); color: var(--text-muted); }
+.cols-menu .cols-name { display: block; min-width: 0; }
+.cols-menu .cols-why { display: block; font-size: var(--size-caption); color: var(--text-muted); }
+.cols-btn, .msl-cols-btn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius-sm); cursor: pointer; color: var(--text-muted); vertical-align: middle; text-transform: none; letter-spacing: 0; }
+.cols-btn:hover, .msl-cols-btn:hover, .cols-btn[aria-expanded="true"], .msl-cols-btn[aria-expanded="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.cols-btn:focus-visible, .msl-cols-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; }
+/* the one Columns button outside the work grid: out of sight until the keyboard is on it, so nothing shifts and the grid stays one tab stop */
+.wgroup { position: relative; }
+.cols-btn.cols-kbd { position: absolute; right: var(--space-2); top: 0; z-index: 3; opacity: 0; pointer-events: none; }
+.cols-btn.cols-kbd:focus-visible { opacity: 1; pointer-events: auto; background: var(--surface); }
+.cols-btn svg, .msl-cols-btn svg { width: 16px; height: 16px; }
+table.items th.c-eye { white-space: nowrap; }
+.msl-hdw { position: relative; }
+.msl-cols-btn { display: none; }
+.msl-x { display: none; min-width: 0; overflow-wrap: anywhere; font-size: var(--size-small); }
+@media (min-width: 801px) {
+  .msl-cols-btn { display: inline-flex; position: absolute; right: var(--space-2); top: 50%; transform: translateY(-50%); }
+  .msl-x { display: block; }
+  .msl-hdw + .msl { margin-top: 0; }      /* the heading row is now in a wrapper (it holds the Columns button): the rows still join it */
+  .msl-cells > .cols-off { display: none; }
+  .msl-box[data-nodate] .msl-cells > .msl-sub { grid-column: 1; }
+}
+.wgroup:has(.c-x) { overflow-x: auto; }
+table.items .c-x { width: 130px; }
+table.items .c-x-latest, table.items .c-x-wording { width: 220px; }
+table.items .c-x-id, table.items .c-x-type { width: 100px; }
+@media (max-width: 700px) {
+  table.items td.c-x { grid-column: 1 / -1; width: auto; }
+  table.items td.c-x::before { content: attr(data-label); display: block; font-size: var(--size-small); color: var(--text-muted); }
+}

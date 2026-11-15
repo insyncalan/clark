@@ -111,7 +111,7 @@ export function milestoneRows(list, today, client) {
       achieved: r.status === "Done" ? r.actual_date || null : null, achievedNote: achievedNote(r),
       percent: r.percent_complete === undefined ? null : r.percent_complete, slip, slipText: slip ? `${plural(slip, "day")} later` : null,
       expected, marks: marksOf(r, state, slip, expected), clientVisible: r.client_visible === undefined ? true : !!r.client_visible,
-      sort_order: r.sort_order || 0,
+      sort_order: r.sort_order || 0, description: r.description || "", workstream: r.workstream || "", reason: r.state_reason || "",      // row 1222: the Milestones table's optional columns
     });
   }
   return out.sort(sortKey);
