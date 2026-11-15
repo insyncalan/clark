@@ -286,6 +286,9 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-md pre { overflow-x: auto; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); background: var(--grey-100); white-space: pre; }
 .ask-md pre code { padding: 0; background: none; }
 /* row 890: the Sources disclosure under an answer, closed by default; the same look as the other disclosures (.docs-left) */
+/* row 1218: the notes about what was left out: one small grey block close under the Sources line (--text-muted, 4.5 to 1 on the panel in light and dark) */
+.ask-notes { margin: -10px 0 0; padding: 0 0 0 var(--space-4); list-style: disc; font-size: var(--size-caption); line-height: 1.35; color: var(--text-muted); overflow-wrap: anywhere; }
+.ask-notes li { margin: 0 0 2px; }
 .ask-sources { margin-top: var(--space-2); }
 .ask-sources summary { cursor: pointer; color: var(--text-muted); font-size: var(--size-small); min-height: 24px; }
 .ask-sources summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
@@ -325,12 +328,12 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-queue-act:disabled { color: var(--text-muted); cursor: default; }
 .ask-queue-drop { flex: none; margin: 0; padding: 0 20px 6px; font-size: var(--size-caption); color: var(--status-amber-text); }
 @media (max-width: 900px) { .ask-queue li[data-queued]:nth-child(n+3) { display: none; } .ask-queue li.ask-queue-more { display: flex; } }
-.ask-form { flex: none; display: flex; flex-direction: row; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4) 14px; border-top: 1px solid var(--grey-200); }
+.ask-form { flex: none; display: flex; flex-direction: row; align-items: flex-end; gap: var(--space-2); padding: var(--space-3) var(--space-4) 14px; border-top: 1px solid var(--grey-200); }
 /* row 1023 (prototype app.css:583): the brand picture, faint, at the panel's foot behind the box, rising from the bottom; nothing without a picture (--image-cover is none) */
 .ask-form { position: relative; }
 .ask-form::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 340px; z-index: -1; pointer-events: none; background: var(--image-cover) 70% bottom / cover no-repeat; opacity: .2; -webkit-mask-image: linear-gradient(0deg, var(--black), transparent); mask-image: linear-gradient(0deg, var(--black), transparent); }
 @media print { .ask-form::before { display: none; } }
-.ask-form textarea { flex: 1 1 auto; min-width: 0; width: 100%; box-sizing: border-box; height: 40px; min-height: 0; max-height: 40px; line-height: 20px; padding: 9px 14px; overflow-y: auto; border: 1px solid var(--ask-edge); border-radius: 12px; background: var(--grey-50); color: var(--text); font: inherit; font-size: var(--size-body); resize: none; outline: none; transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
+.ask-form textarea { flex: 1 1 auto; min-width: 0; width: 100%; box-sizing: border-box; height: 44px; min-height: 44px; max-height: 132px; padding: 10px 14px; overflow-y: auto; border: 1px solid var(--ask-edge); border-radius: 12px; background: var(--grey-50); color: var(--text); font: inherit; font-size: var(--size-body); line-height: 22px; resize: none; outline: none; transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
 .ask-form textarea::placeholder { color: var(--text-muted); opacity: 1; }
 .ask-form textarea:focus-visible { background: var(--surface); border-color: var(--brand-blue); box-shadow: 0 0 0 2px var(--brand-blue), 0 0 0 5px color-mix(in srgb, var(--brand-blue) 20%, transparent); }
 .ask-form textarea:disabled { opacity: .7; }
@@ -397,7 +400,6 @@ table.items td.c-pick { vertical-align: middle; }
 .pa-row.picked { background: color-mix(in srgb, var(--brand-blue-tint) 60%, var(--surface)); }
 .pa-row[data-step] .pa-what { user-select: text; }
 /* Use cases page: list */
-.ucl-sub { margin: 4px 0 0; font-size: var(--size-body); }
 /* Row 1085: the tabs row as Work items draws its saved views, Import, Export and Add use case at its right end, and the filter line (the Work items box) under it */
 .ucl-views { margin-top: 16px; }
 .ucl-tools { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-bottom: var(--space-1); }

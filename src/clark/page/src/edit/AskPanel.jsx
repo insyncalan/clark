@@ -1,7 +1,7 @@
 // The ask panel (#47a): a full-height panel on the right, over the open page. Edit pages only (a published file has none). The look
 // is #102's light panel with a soft wash (#214), built from the page's own tokens (edit.css). The reply is drawn as text only: it is
 // never read as markup (row 1217: a listed set of marks becomes elements clark makes itself, see askFormat.js). Nothing is sent while asking is off.
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { project, show, token, view } from "../stores/report.js";
 import { zoneFetch } from "../api.js";
 import { words } from "./publishApi.js";
@@ -55,6 +55,18 @@ function pillsFor(list, page) {
 
 let nextId = 1;
 
+/** Row 1218: the notes about what was left out (kind "note") follow the answer as one small block, not a paragraph each. */
+function shownTurns(list) {
+  const out = [];
+  for (const t of list) {
+    const last = out[out.length - 1];
+    if (t.kind === "note" && typeof t.text === "string") {
+      if (last && last.kind === "notes") last.lines.push(t.text); else out.push({ kind: "notes", role: "assistant", lines: [t.text] });
+    } else out.push(t);
+  }
+  return out;
+}
+
 export function AskPanel() {
   const open = panelOpen.value, state = panelState.value, model = panelModel.value, width = panelWidth.value;
   const list = turns.value, busy = pending.value;
@@ -66,6 +78,8 @@ export function AskPanel() {
   const showHist = histOpen.value && !busy;
   const saved = showHist ? (histTick.value, chats()) : [];
   const box = useRef(null), log = useRef(null), stopped = useRef(false);
+  // Row 1215: the box is one line high when empty and grows with its text; the cap and the line height are in edit.css, past the cap it scrolls inside.
+  useLayoutEffect(() => { const b = box.current; if (!b) return; b.style.height = "auto"; b.style.height = text ? b.scrollHeight + 2 + "px" : ""; });   // empty: the placeholder never makes it taller
   // Row 885: closing sinks the panel first, and it stays drawn until the animation ends (a 400 ms timer guards it, so no dead overlay is left).
   // Where motion is off it leaves at once, as before.
   const phase = useRef(open ? "open" : "closed"), [, redraw] = useState(0);
@@ -305,7 +319,9 @@ export function AskPanel() {
         </div>
       ) : null}
       <div class="ask-log" id="ask-log" hidden={showHist} role="log" aria-live="polite" aria-label={W.LOG_LABEL} ref={log}>
-        {list.map((t, i) => (
+        {shownTurns(list).map((t, i) => t.kind === "notes" ? (
+          <ul key={i} class="ask-turn assistant ask-notes" data-role="assistant" data-ask-notes>{t.lines.map((n, k) => <li key={k}>{n}</li>)}</ul>
+        ) : (
           <div key={i} class={`ask-turn ${t.role}${t.kind ? " " + t.kind : ""}`} data-role={t.role}>
             <div class="ask-who">{t.role === "user" ? W.YOU : W.REPLY}</div>
             {t.kind === "changes" ? <ChangeCards turn={t} /> : t.role === "assistant" && !t.kind && typeof t.text === "string" ? <FormattedAnswer text={t.text} /> : <div class="ask-text">{t.text}</div>}

@@ -60,7 +60,7 @@ class Ask(Panel):
                     self.assertLess(one["h"], 2 * one["line"] + 16, f"ask {width} {theme}: one line high at rest (row 1096)")
                     put(MANY)
                     many = p.js(SIZE % sel)
-                    self.assertAlmostEqual(many["h"], one["h"], delta=2, msg=f"ask {width} {theme}: stays one line, scrolls (row 1096)")
+                    self.assertAlmostEqual(many["h"], 132, delta=2, msg=f"ask {width} {theme}: ten lines stop at five lines and scroll (row 1215)")
                     self.assertLessEqual(many["ow"], 20, f"ask {width} {theme}: no sideways scroll")
                     put("")
                     p.until("document.querySelector('#ask-panel').getAnimations().length === 0", "the panel has finished rising (row 885)")
