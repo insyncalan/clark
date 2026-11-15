@@ -12,7 +12,7 @@ import unittest
 
 from _demo import USER
 from test_report_editor import Base as PageBase
-from test_server import chrome
+from test_server import chrome, wait
 import test_movement_page as tmp
 import test_p1005b_eye as eye
 import test_plain_line_hostile as plh
@@ -198,8 +198,12 @@ class Movement(tmp.Base):
         p.until("!!document.querySelector(%s)" % json.dumps(self.box(k)), "editor " + k)
         p.js("document.querySelector(%s).cxed.editor.commands.setContent(%s)" % (json.dumps(self.box(k)), json.dumps(html)))
         if close:
-            p.js("document.querySelector(%s).blur()" % json.dumps(self.box(k)))
-            p.until("!document.querySelector(%s)" % json.dumps(self.box(k)), "closed " + k)
+            # A slow Mac can drop the focus or the blur: focus the box, blur it again until it closes (a closed box needs no more).
+            sel = json.dumps(self.box(k))
+            def blur_once():
+                p.js("(function(){var e = document.querySelector(%s); if (e) { e.focus(); e.blur(); }})()" % sel)
+                return not p.js("!!document.querySelector(%s)" % sel)
+            p.t.assertTrue(wait(blur_once, 30), "closed " + k)
 
     def rebaseline(self):
         for which, req in reversed(self.sent):
