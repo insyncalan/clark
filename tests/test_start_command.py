@@ -172,6 +172,22 @@ class StartCommand(unittest.TestCase):
                 want = {"commented out": 8766, "last wins": 9130}.get(name, int(text.split("CLARK_PORT=")[1].strip("'\"")[:4]))
                 self.assertIn(f"open -a {BROWSER} http://localhost:{want}", self.calls())
 
+    def test_reading_docker_env_leaves_globbing_and_word_splitting_as_they_were(self):
+        """The .env loop turns globbing off and sets IFS to a newline; a command after it must get both back. The test puts a probe line
+        into a copy of the script right after the port is settled and reads what the probe saw from the log."""
+        anchor = "case \"$port\" in ''|*[!0-9]*) port=8766 ;; esac\n"
+        script = self.repo / "docker" / "start.command"
+        text = script.read_text(encoding="utf-8")
+        self.assertEqual(text.count(anchor), 1)
+        probe = ('words="one two"; { printf \'split'
+                 '<%s>\' $words; echo; printf \'glob<%s>\' docker/compose.y*; echo; } >> "$LOG"\n')
+        script.write_text(text.replace(anchor, anchor + probe), encoding="utf-8")
+        (self.repo / "docker" / ".env").write_text("CLARK_PORT=9123\n", encoding="utf-8")
+        r = self.run_script()
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("split<one>split<two>", self.calls())
+        self.assertIn("glob<docker/compose.yaml>", self.calls())
+
 
 if __name__ == "__main__":
     unittest.main()
