@@ -133,6 +133,17 @@ class Read(unittest.TestCase):
         self.assertEqual(status, 200, body)
         self.refused("Linked.pdf", 404, "file_not_there")
 
+    def test_a_listed_name_that_is_a_link_to_another_file_in_the_folder_is_not_followed_either(self):
+        link = self.client / "Report files" / "Inside.pdf"
+        link.symlink_to(self.client / "Report files" / "Plan v2.pdf")    # stays inside the folder: only the link check itself refuses it
+        change = changes.make_change(self.s.path, [], USER)
+        status, body = change({"project": "ABC", "kind": "report_sections", "op": "new", "values": {"type": "doclinks", "title": "Inside"}, "after": None})
+        self.assertEqual(status, 200, body)
+        entry = {"name": "Inside.pdf", "rel": "Report files/Inside.pdf", "bytes": len(PDF)}
+        status, body = self.pub.add_section_file({"project": "ABC", "id": body["ref"], "entry": entry})
+        self.assertEqual(status, 200, body)
+        self.refused("Inside.pdf", 404, "file_not_there")
+
     def raw(self, query_name):
         """GET with the name exactly as written on the wire (already percent-encoded), as a hostile client would send it."""
         return self.server.api("GET", f"/api/section-file?project=ABC&name={query_name}")
