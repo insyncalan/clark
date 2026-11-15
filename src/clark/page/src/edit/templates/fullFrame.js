@@ -1,6 +1,6 @@
 // Row 1223, Edit only: a JPEG or WebP original made a PNG, because clark cuts and shapes only a PNG (it makes the framed copy itself, from
 // the original and the framing numbers). The page draws the original at its own size on a canvas; no framing is applied here. Resolves to
-// { ok: true, data, width, height } or { ok: false, message }; never throws. Clark checks it like every image when it is sent.
+// { ok: true, data, width, height } or { ok: false, message }; never throws. clark checks it like every image when it is sent.
 import { dataBytes } from "./shrink.js";
 import { WORDS, MOST_BYTES } from "../../logic/fullImageWords.js";
 

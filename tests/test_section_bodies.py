@@ -21,7 +21,7 @@ def check(kind, body):
     return sb.check(kind, body, BODY_RULES)
 
 
-PURE_LIBRARY = ("base64", "binascii", "re")      # #96: standard library parts that read no file and no database
+PURE_LIBRARY = ("base64", "binascii", "hashlib", "re", "struct", "zlib")      # #96: standard library parts that read no file and no database (row 1223: hashlib, struct and zlib read and cut the bytes of an image in imagecap.py)
 
 
 class Generic(unittest.TestCase):
