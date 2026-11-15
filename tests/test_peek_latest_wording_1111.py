@@ -9,6 +9,7 @@ from pathlib import Path
 
 import _publish_fixture as fx
 from clark import page, publish  # noqa: E402
+# row 1180: the Details line is a show-and-hide button, not an edit control, so the control count leaves it out
 from test_server import chrome, wait  # noqa: E402
 import test_publish as tp  # noqa: E402
 
@@ -39,7 +40,7 @@ class PublishedPeek(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-fields')", sid)), "the peek drew")
             got = cdp.js(LABELS, sid)
             return got, cdp.js("document.querySelector('#peek .pk-body').innerText", sid), cdp.js(
-                f"[...document.querySelector('#peek .pk-body').querySelectorAll({json.dumps(CONTROLS)})].length", sid), cdp.js(
+                f"[...document.querySelector('#peek .pk-body').querySelectorAll({json.dumps(CONTROLS)})].filter(e => !e.hasAttribute('data-pk-details')).length", sid), cdp.js(
                 "document.querySelectorAll('#peek [data-ms-row=latest_update] em').length", sid)
 
     def test_an_action_with_both_shows_both_read_only(self):

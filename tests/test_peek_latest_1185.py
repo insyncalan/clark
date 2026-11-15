@@ -19,14 +19,14 @@ class PeekSource(unittest.TestCase):
     def read(self, rel):
         return (PAGE / rel).read_text(encoding="utf-8")
 
-    def test_a_decision_is_still_skipped_and_the_milestone_and_published_rows_are_not_action_only(self):
-        self.assertIn('"decision"', self.read("edit/PeekLatest.jsx"))
+    def test_a_decision_has_the_box_since_row_1195_and_the_milestone_and_published_rows_are_not_action_only(self):
+        self.assertNotIn('"decision"', self.read("edit/PeekLatest.jsx").split("export function PeekLatest")[1], "row 1195: the box is drawn for a decision too")
         ms = self.read("edit/MilestonePeek.jsx")
         self.assertIn('<Row name="Latest update" k="latest_update">', ms)
         self.assertIn("PeekLatestHistory", ms)
         peek = self.read("components/Peek.jsx")
         shown = [l for l in peek.splitlines() if 'name="Latest update"' in l]
-        self.assertEqual(len(shown), 2, "a published work item and a published milestone each show it")
+        self.assertEqual(len(shown), 3, "a published work item, a published action (row 1181: its own file rows above the Details) and a published milestone each show it")
         self.assertFalse([l for l in shown if "action" in l], "the work item row is not gated on an action")
 
 
@@ -111,6 +111,7 @@ class MilestoneBox(Base):
                 p.key("Enter", modifiers=4 if p.js("/Mac/.test(navigator.platform)") else 2, code="Enter", vk=13)
                 self.saved(p, "latest_update", "<p>Venue booked</p>")
                 self.assertEqual(len(self.sent) - before, 1, "one request")
+                p.until("(document.querySelector('.toast .toast-text') || {}).textContent?.includes('Latest update of') === true", "the toast named the saved update")
                 self.assertIn("Latest update of", self.toast_text(p))
                 self.click(p, "#peek [data-ms-row=latest_update] [data-pk-lh-btn]")
                 p.until("(e => !!e && e.innerText.includes('Venue booked'))(document.querySelector('#peek [data-pk-lh-panel]'))", "the history lists the change")

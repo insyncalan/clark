@@ -487,7 +487,7 @@ class UseCases(Setup):
 class Styles(Setup):
     def test_each_section_style_applies_at_once_and_is_remembered(self):
         with chrome() as cdp:
-            p = self.show(cdp, hash_="#settings&p=ABC", settings=True, standard=True)
+            p = self.show(cdp, hash_="#settings&p=ABC&s=appearance", settings=True, standard=True)
             p.until("!!document.querySelector('#personal')", "Personal")
             self.assertEqual(p.js("[...document.querySelectorAll('input[name=density]')].map(i => i.value)"), ["compact", "comfortable"])
             self.assertEqual(p.js("document.querySelector('input[name=density]:checked').value"), "compact", "Compact is the default")
@@ -499,7 +499,7 @@ class Styles(Setup):
             p.until("document.documentElement.dataset.density === 'comfortable'", "remembered after a reload")
             flat = {}
             for value in ("comfortable", "compact"):
-                p.js("location.hash = '#settings&p=ABC'")
+                p.js("location.hash = '#settings&p=ABC&s=appearance'")
                 p.until(f"!!document.querySelector('input[name=density][value={value}]')", "Personal")
                 p.js(f"document.querySelector('input[name=density][value={value}]').click()")
                 p.until(f"document.documentElement.dataset.density === '{value}'", f"{value} applied")
@@ -544,6 +544,7 @@ class Published(PublishedFile, Setup):
             for width in (1400, 900):
                 with self.subTest(tile=tile, width=width), chrome() as cdp:
                     p = self.draw(cdp, path, width)
+                    p.until(f"!!document.querySelector('[data-fig={tile}] .v') && !!document.querySelector('[data-fig=health]')", "the published tiles drew")
                     self.assertEqual(p.js(f"document.querySelector('[data-fig={tile}]').tagName"), "BUTTON", "a published tile is a button")
                     self.assertEqual(p.js("document.querySelector('[data-fig=health]').tagName"), "DIV", "Project health counts nothing to open")
                     shown = int(p.js(f"document.querySelector('[data-fig={tile}] .v').textContent"))
@@ -563,6 +564,7 @@ class Published(PublishedFile, Setup):
             for tile in ("overdue", "risks"):
                 with self.subTest(width=width, tile=tile), chrome() as cdp:
                     p = self.draw(cdp, path, width)
+                    p.until(f"!!document.querySelector('[data-fig={tile}] .v')", "the published tile drew")
                     value = int(p.js(f"document.querySelector('[data-fig={tile}] .v').textContent"))
                     self.assertGreaterEqual(value, 1, "the fictional file holds something for the tile to open")
                     p.js(f"document.querySelector('[data-fig={tile}]').click()")
@@ -578,6 +580,7 @@ class Published(PublishedFile, Setup):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.draw(cdp, path, width)
+                p.until("!!document.querySelector('[data-fig=risks] .v')", "the published risks tile drew")
                 want = int(p.js("document.querySelector('[data-fig=risks] .v').textContent"))
                 self.assertEqual(p.js("document.querySelector('[data-fig=risks]').tagName"), "BUTTON")
                 self.assertTrue(p.js("document.querySelector('[data-fig=risks]').getAttribute('aria-label').endsWith('Opens Work items showing these')"), "the spoken name says where it goes")

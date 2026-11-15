@@ -2,7 +2,9 @@
 // show the fields and nothing else). Every change is one request with one Undo (changeCell), and the data is read again after it so
 // the stamp is the one clark wrote. The text is on the one rich editor (RichField, item 1005). Row 1077 (the owner's ruling): no chip
 // writes the text for you; the box alone. Row 1179 (the owner, 14-11) lifts that for ONE control: the quiet "Draft with AI" button beside the heading
-// (DraftAi.jsx), and the right-click AI menu on selected text in the box; nothing changes in the text before Accept. An item that is shown to the client carries a 'Shown to the client' label (its latest update is published). Item 1185: an action, a risk and an issue have a latest update (a decision has the stamp only; a milestone has its own box in MilestonePeek.jsx).
+// (DraftAi.jsx), and the right-click AI menu on selected text in the box; nothing changes in the text before Accept. An item that is shown to the client carries a 'Shown to the client' label (its latest update is published). Item 1185: an action, a risk, an issue and (row 1195) a decision have a latest update (a milestone has its own box in MilestonePeek.jsx).
+import { signal } from "@preact/signals";
+import { useState, useRef, useEffect } from "preact/hooks";
 import { RichField } from "./RichField.jsx";
 import { richOrPlain } from "../logic/richOrPlain.js";
 import { data } from "../stores/report.js";
@@ -37,19 +39,72 @@ export function PeekWarn({ row }) {
   );
 }
 
+// Row 1180: the box holds an unsaved update while its editor is open and its text differs from the saved one. The peek reads this
+// before it closes (PeekUnsavedBar below). Module-wide because only one peek is ever open.
+export const latestDirty = signal(false);
+const editorOf = () => document.querySelector("#peek [data-pk-latest] [data-rt] .ProseMirror");
+// A bar button never takes the focus from the box: leaving the box would save the update before the choice is made.
+const hold = (e) => e.preventDefault();
+// The save the box last started (null when none): Save and close waits for its answer before it closes.
+let lastSave = null;
+const fire = (el, init) => { if (el) el.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init })); };
+
+/** The bar a close with an unsaved update shows: Save and close, Discard, Keep editing. Props: onClose() closes the peek; onDone() hides the bar. */
+export function PeekUnsavedBar({ onClose, onDone }) {
+  const first = useRef(null);
+  const root = useRef(null);
+  // The toolbar stays at the top while the body scrolls: a bar that opens behind it cannot be pressed, so the body scrolls until the bar is clear of it.
+  useEffect(() => {
+    const el = root.current, tb = document.querySelector("#peek .pk-tb");
+    if (!el || !tb) return;
+    const over = tb.getBoundingClientRect().bottom - el.getBoundingClientRect().top;
+    if (over <= 0) return;
+    let s = el.parentElement;
+    while (s && s.scrollHeight <= s.clientHeight) s = s.parentElement;
+    if (s) s.scrollTop -= over + 4;
+  }, [latestDirty.value]);
+  // The bar is an alert (read out as it appears). The focus stays in the box: moving it out would leave the box, and leaving the box saves the update. A mouse press on the bar keeps the focus in the editor for the same reason.
+  if (!latestDirty.value) return null;
+  const done = () => { if (onDone) onDone(); };
+  return (
+    <div class="pk-unsaved" role="alert" data-pk-unsaved ref={root} onMouseDown={(e) => e.preventDefault()}>
+      <p class="pk-unsaved-t">You have an unsaved update.</p>
+      <div class="pk-unsaved-b">
+        <button type="button" ref={first} data-pk-save-close data-pk-unsaved-save onMouseDown={hold} onClick={() => { lastSave = null; fire(editorOf(), { key: "Enter", ctrlKey: true }); const p = lastSave; if (!p) { latestDirty.value = false; done(); if (onClose) onClose(); return; } p.then((reply) => { if (reply) { latestDirty.value = false; done(); if (onClose) onClose(); } else if (!editorOf()) { /* a refusal that left no editor: nothing to keep */ done(); } else { done(); editorOf().focus(); } }); }}>Save and close</button>
+        <button type="button" data-pk-discard data-pk-unsaved-discard onMouseDown={hold} onClick={() => { fire(editorOf(), { key: "Escape" }); latestDirty.value = false; done(); if (onClose) onClose(); }}>Discard</button>
+        <button type="button" data-pk-keep data-pk-unsaved-keep onMouseDown={hold} onClick={() => { done(); const e = editorOf(); if (e) e.focus(); }}>Keep editing</button>
+      </div>
+    </div>
+  );
+}
+
+const plain = (h) => String(h || "").replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
+let savedHtml = "";
+/** Read when the peek is asked to close (Close, Esc): is the open editor's text different from the saved one? Also sets the flag the bar shows on, so a change made without a DOM input event counts too. */
+export function isLatestDirty() {
+  const e = editorOf();
+  latestDirty.value = !!e && plain(e.innerHTML) !== plain(savedHtml);
+  return latestDirty.value;
+}
+
 export function PeekLatest({ row }) {
-  const rec = raw(row), has = row.kind !== "decision";
+  const [open, setOpen] = useState(false);
+  const rec = raw(row), has = true;
   const now = rec && rec.latest_update ? String(rec.latest_update) : "";
   const stamp = rec ? stampText(rec.updated_at) : "";
   const html = (() => { try { return richOrPlain(now); } catch (e) { return "<p>" + String(now).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</p>"; } })();    // item 1005: the editor's HTML, or the plain text an older clark stored
   // The rich editor saves with Cmd/Ctrl+Enter and leaves with Esc. It closes only when clark has saved it: a refusal (the toast says why)
   // or no answer leaves it open with what was typed.
+  savedHtml = html;
   const ai = useDraftAi(), place = placeFor(keyForField("latest_update"));      // "current", for all four kinds (the field name decides, not the kind)
-  const save = (value) => changeCell(tableOf(row), row.id, { latest_update: value },
+  const save = (value) => (lastSave = changeCell(tableOf(row), row.id, { latest_update: value },
     { text: `Latest update of ${row.id} saved.`, back: `Latest update of ${row.id} is back as it was.`, place: "peek" })
-    .then((reply) => { if (reply) refresh(); return reply; });
+    .then((reply) => { if (reply) refresh(); return reply; }));
   return (
-    <div class="pk-latest" data-pk-latest>
+    <div class="pk-latest" data-pk-latest
+      onFocusIn={(e) => { if (e.target.closest("[data-rt]")) setOpen(true); }}
+      onFocusOut={() => setTimeout(() => { if (!document.querySelector("[data-pk-latest] [data-rt]")) { setOpen(false); latestDirty.value = false; } }, 0)}
+      onInput={() => { const e = editorOf(); latestDirty.value = !!e && plain(e.innerHTML) !== plain(html); }}>
       {has ? <>
         <div class="pk-lab"><span id={`pk-latest-lab-${row.id}`}>Latest update</span>
           <DraftButton ai={ai} />
@@ -58,6 +113,7 @@ export function PeekLatest({ row }) {
         <RichField field="latest_update" id={row.id} value={html} label="Latest update" empty="Add the latest update…" save={save} ai={place} viewId={`pk-latest-txt-${row.id}`} labelledBy={`pk-latest-lab-${row.id} pk-latest-txt-${row.id}`} />
       </> : null}
       {stamp ? <div class="pk-last" data-pk-last><Icon name="clock" cls="s" /> Last updated {stamp}</div> : null}
+      {has && open ? <p class="pk-latest-hint" data-pk-latest-hint data-pk-hint>Cmd or Ctrl and Enter saves.</p> : null}
       {has ? <PeekLatestHistory key={`h-${row.id}`} id={row.id} /> : null}
     </div>
   );

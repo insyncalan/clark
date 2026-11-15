@@ -47,6 +47,7 @@ PROBE = """((headId, sels) => {
 
 class CardsWidths(Base):
     open_settings = test_settings_head.Head.open_settings
+    to_page = test_settings_head.Head.to_page
 
     def test_C_each_card_fits_at_1400_and_900_and_its_controls_show(self):
         for w in WIDTHS:
@@ -55,6 +56,8 @@ class CardsWidths(Base):
                 self.open_settings(p, w)
                 for name, head, sels in CARDS:
                     with self.subTest(width=w, card=name):
+                        self.to_page(p, test_settings_head.PAGE_OF[head])      # row 1024: the card is on its own page
+                        p.until(f"(() => {{ const h = document.getElementById({json.dumps(head)}), c = h && h.closest('section'); return !!c && {json.dumps(sels)}.every(s => !!c.querySelector(s)); }})()", name + ": its controls drew")      # some cards fill from a read
                         got = p.js(PROBE % (json.dumps(head), json.dumps(sels)))
                         self.assertIsNotNone(got, name + ": the card is on the Settings page")
                         self.assertNotIn("noSection", got, name + ": the heading is inside a section (a card)")

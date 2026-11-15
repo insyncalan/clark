@@ -70,7 +70,7 @@ CHANGE_KINDS = {
     # #67: a work item's title is the column the page shows as its title: an action's and a RAID item's `description`, a decision's `decision`.
     "actions": {UPDATE: ("status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "latest_update", "client_message", "client_visible", "client_action"), DELETE: ()},   # the peek's Latest update (an action's only); item 658: DELETE removes the item, with its links and labels
     "raid": {UPDATE: ("status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "latest_update", "client_message", "client_visible", "client_action"), DELETE: ()},   # item 1185: + the peek's Latest update; row 811: needed from the client (an action or a risk or issue; a decision has no such flag)
-    "decisions": {UPDATE: ("status", "made_by", "needed_by", "date", "use_case", "decision", "client_message", "client_visible"), DELETE: ()},   # #45: use_case links an existing use case of this project, or clears the link
+    "decisions": {UPDATE: ("status", "made_by", "needed_by", "date", "use_case", "decision", "priority", "latest_update", "client_message", "client_visible"), DELETE: ()},   # row 1195: + the Decision peek's Priority and Latest update;   # #45: use_case links an existing use case of this project, or clears the link
     # #45: the At a glance tiles and the project's health. A tile is hidden, given an outline colour or moved (its place is worked
     # out here, never sent); the project's change takes no `id` (it is the request's project) and only its health and the reason.
     "glance_tiles": {UPDATE: ("hidden", "outline"), MOVE: ()},
@@ -119,7 +119,7 @@ UNDOABLE = {"report_sections": None, "actions": None, "raid": None, "decisions":
 UNDO_ALSO = ("updated_at", "note")
 CHANGE_KINDS["actions"][NEW] = ("description", "client_message", "client_visible", "owner", "priority", "due_date", "workstream", "milestone", "latest_update", "use_case")      # #485: a next step added from a use case's row names it; #67: a row added in the report: no id,
 CHANGE_KINDS["raid"][NEW] = ("type", "description", "client_message", "owner", "impact", "likelihood", "due_date", "workstream", "milestone", "client_visible", "latest_update")   # raised, status or source
-CHANGE_KINDS["decisions"][NEW] = ("decision", "client_message", "made_by", "status", "date", "needed_by", "client_visible", "reasoning")      # (clark gives those), and no priority on a risk (worked out)
+CHANGE_KINDS["decisions"][NEW] = ("decision", "client_message", "made_by", "status", "date", "needed_by", "client_visible", "reasoning", "priority", "latest_update")      # row 1195: + priority, latest_update      # (clark gives those), and no priority on a risk (worked out)
 CHANGE_KINDS["milestones"][NEW] = ("name", "baseline_date", "owner", "workstream", "latest_update")
 # #196: one field change to several work items of one kind, in one step with one Undo (_do_bulk). A risk's impact and likelihood
 # are here (its priority is worked out from them); a decision takes only who makes it.
@@ -222,7 +222,7 @@ ITEM_KEEPS_TYPE = "A work item keeps its type."
 NO_ARCHIVE = "An item can't be archived by editing its details. Archiving isn't available from the page yet. Ask the clark team if you need an item hidden now."
 NO_RAID_PRIORITY = "A risk or issue's priority comes from its impact and likelihood. Change those in its details."
 NO_DECISION_FIELD = {"workstream": "A decision isn't part of a workstream.", "milestone": "A decision isn't tied to a milestone.",
-                     "priority": "A decision has no priority."}
+                     "priority": "A decision's priority is set in its details, one at a time."}      # row 1195: the Decision peek is where a decision's priority is set (_item_field_words); the board says the same words (board.js noPriority)
 ITEM_VALUE_WORDS = "That value isn't one clark can use."
 STORE_LEAK = re.compile(r"\(got |\b[a-z]+_[a-z_]+\b")      # a store text that shows a value it was sent or a field name: never said to a person
 LATEST_UPDATE_MAX = 1000                  # the most characters a latest update may have
@@ -243,7 +243,7 @@ COPY_MARK = " (copy)"                        # #442: the end of a copy's title
 COPIED = {                                   # #442: what Duplicate copies from the stored item (the prototype copies the item whole); never the
     "actions": ("workstream", "owner", "owner_id", "priority", "due_date", "status", "latest_update", "client_message", "milestone", "use_case"),
     "raid": ("type", "workstream", "owner", "owner_id", "response_action", "due_date", "impact", "likelihood", "status", "latest_update", "client_message", "milestone", "use_case"),
-    "decisions": ("made_by", "owner_id", "date", "status", "needed_by", "reasoning", "options", "revisit", "use_case", "client_message"),
+    "decisions": ("made_by", "owner_id", "date", "status", "needed_by", "reasoning", "options", "revisit", "use_case", "priority", "latest_update", "client_message"),
 }                                            # id, raised, closed, archived, history or a decision's `replaces`; a RAID priority is worked out again
 NOT_A_STATUS = "That status isn't available for this item."
 # D-12: the status picker's Rating sets a risk's or issue's impact and likelihood; these are its own refusals.
@@ -376,7 +376,7 @@ def _fields(given, kind, op, columns, what):
     usable = set(CHANGE_KINDS[kind][op]) & set(columns)
     for k in given:
         if kind in ITEM_KINDS and op != NEW:
-            _item_field_words(kind, k)
+            _item_field_words(kind, k, op)
         elif kind in ITEM_KINDS and (k == "archived" or (kind == "raid" and k == "priority")):
             _item_field_words(kind, k)                                  # a new row too: the same plain words
         if k == "type" and op == UPDATE:
@@ -386,7 +386,7 @@ def _fields(given, kind, op, columns, what):
     return dict(given)
 
 
-def _item_field_words(kind, field):
+def _item_field_words(kind, field, op=None):
     """Plain words for a field that a work item can never take here; nothing when it is simply not in the list."""
     if field == "archived":
         raise Refused(NO_ARCHIVE)
@@ -394,7 +394,7 @@ def _item_field_words(kind, field):
         raise Refused(ITEM_KEEPS_TYPE)
     if kind == "raid" and field == "priority":
         raise Refused(NO_RAID_PRIORITY)
-    if kind == "decisions" and field in NO_DECISION_FIELD:
+    if kind == "decisions" and field in NO_DECISION_FIELD and not (field == "priority" and op == UPDATE):      # row 1195: the peek sets a decision's priority; a bulk change and the board still refuse it
         raise Refused(NO_DECISION_FIELD[field])
 
 

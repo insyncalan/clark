@@ -1078,14 +1078,14 @@ def preview_page_route(handler):
     return handler.send(200, body, "text/html")
 
 
-def content_disposition(name):
+def content_disposition(name, kind="attachment"):
     """Row 1143: an attachment header for `name`. A name of plain ASCII is `filename="..."` as before; any other gets an ASCII
     fallback there and the whole name in `filename*` (RFC 6266), since a header holds no more than latin-1 and the browser
     reads `filename*` first."""
     if name.isascii():
-        return f'attachment; filename="{name}"'
+        return f'{kind}; filename="{name}"'
     plain = re.sub(r'[^\x20-\x7e]', "_", name)
-    return f"attachment; filename=\"{plain}\"; filename*=UTF-8''{quote(name, safe='')}"
+    return f"{kind}; filename=\"{plain}\"; filename*=UTF-8''{quote(name, safe='')}"
 
 
 def export_route(handler):
@@ -1109,6 +1109,35 @@ def export_route(handler):
     handler.send_header("Content-Disposition", content_disposition(body["name"]))
     if body.get("warnings"):
         handler.send_header("X-Export-Warning", quote(" ".join(body["warnings"]), safe=" "))        # plain words, any logo warning
+    handler.end_headers()
+    for i in range(0, len(data), DOWNLOAD_CHUNK):
+        handler.wfile.write(data[i:i + DOWNLOAD_CHUNK])
+    return None
+
+
+def section_file_read_route(handler):
+    """GET /api/section-file?project=<CODE>&name=<NAME>[&download=1] (#1221): a file the project lists, as the editor View's Open
+    (inline) or Download (attachment). Each parameter once, nothing else (400); no body (400); the publisher decides the rest
+    (section_files.read: one file name, listed, read from "Report files" only). The bytes are the file's own, typed by its ending,
+    never sniffed."""
+    publisher = getattr(handler.server, "publisher", None)
+    if publisher is None:
+        return handler.send(404, error_body("not_found"))
+    if handler.headers.get("Content-Length") not in (None, "0") or handler.headers.get("Transfer-Encoding"):
+        return handler.send(400, error_body("bad_request"))
+    query = parse_qs(urlsplit(handler.path).query, keep_blank_values=True)
+    if (not {"project", "name"} <= set(query) or set(query) - {"project", "name", "download"}
+            or any(len(v) != 1 for v in query.values()) or query.get("download", ["1"]) != ["1"]):
+        return handler.send(400, error_body("bad_request"))
+    status, body = publisher.read_section_file(query["project"][0], query["name"][0])
+    if status != 200:
+        return handler.send(status, body)
+    data = body["data"]
+    handler.send_response(200)
+    handler.send_header("Content-Type", body["type"])
+    handler.send_header("Content-Length", str(len(data)))
+    handler.send_header("Content-Disposition", content_disposition(body["name"], "attachment" if "download" in query else "inline"))
+    handler.send_header("X-Content-Type-Options", "nosniff")
     handler.end_headers()
     for i in range(0, len(data), DOWNLOAD_CHUNK):
         handler.wfile.write(data[i:i + DOWNLOAD_CHUNK])
@@ -1396,7 +1425,7 @@ class BrandLibrary:
 
 
 GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/publication": publisher_route("latest"),
-              "/api/export": export_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
+              "/api/export": export_route, "/api/section-file": section_file_read_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
               "/api/movement": movement_route, "/api/activity": activity_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"),
               "/api/ask-enabled": app_settings_route("read_ask"), "/api/providers": ai_connect_route("get"), "/api/ask/status": ask_route("status"), "/api/ai/status": ask_route("status", "ai"),
               "/api/profile": profile_route("get"), "/api/people": people_route("people_list"), "/api/update": update_route("status"), "/api/diagnostics": logs_route("diagnostics"),

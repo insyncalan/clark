@@ -193,13 +193,11 @@ READ = """(() => {
   const tokens = {}; for (const n of ['--icon-red', '--icon-amber', '--icon-green', '--icon-blue', '--icon-grey', '--surface', '--flash']) tokens[n] = probe('color:var(' + n + ');background:var(' + n + ')')[0];
   const rows = {};
   for (const key of ['status', 'priority', 'due']) {
-    const dd = peek.querySelector('[data-row=' + key + '] dd'); if (!dd) continue;
-    const val = dd.querySelector('.pk-val'), tone = val.querySelector('span[class^=ic-]'), svg = tone.querySelector('svg');
-    const word = (val.querySelector('.pill') || val), late = dd.querySelector('.due-l');
-    const wordBg = val.querySelector('.pill') ? getComputedStyle(word).backgroundColor : getComputedStyle(peek).backgroundColor;
-    rows[key] = { cls: tone.className, icon: svg.dataset.icn, hidden: svg.getAttribute('aria-hidden'), color: getComputedStyle(tone).color,
-      words: val.textContent.trim(), wordColor: getComputedStyle(word).color, wordBg, pill: (val.querySelector('.pill') || {}).className || '',
-      under: late ? late.textContent.trim() : '', underColor: late ? getComputedStyle(late).color : '', label: dd.getAttribute('aria-label') };
+    const chip = peek.querySelector('.pk-chips > [data-row=' + key + ']'); if (!chip) continue;
+    const tone = chip.querySelector('.pkc-ic'), svg = tone.querySelector('svg'), val = chip.querySelector('.pkc-v'), sub = chip.querySelector('.pkc-sub');
+    rows[key] = { cls: tone.className.split(' ').find(c => c.startsWith('ic-')) || '', icon: svg.dataset.icn, hidden: svg.getAttribute('aria-hidden'), color: getComputedStyle(tone).color,
+      words: val.textContent.trim(), wordColor: getComputedStyle(val).color, wordBg: getComputedStyle(chip).backgroundColor,
+      under: sub ? sub.textContent.trim() : '', underColor: sub ? getComputedStyle(sub).color : '' };
   }
   return { id: peek.dataset.peek, rows, tokens, bg: getComputedStyle(peek).backgroundColor };
 })()"""
@@ -238,25 +236,27 @@ class IconsBrowser(unittest.TestCase):
         for r in self.data["raid"]:
             out.append((r["id"], str(r["type"]).lower(), r["status"], r["priority"], r["due_date"]))
         for r in self.data["decisions"]:
-            out.append((r["id"], "decision", r["status"], None, r["needed_by"] if r["status"] == "Pending" else r["date"]))
+            out.append((r["id"], "decision", r["status"], r.get("priority"), r["needed_by"] if r["status"] == "Pending" else r["date"]))
         return out
 
     def read(self, cdp, sid, item):
         cdp.js(f"location.hash = '#work&p={self.code}&item={item}'", sid)
-        self.assertTrue(wait(lambda: cdp.js("(() => { const p = document.querySelector('#peek'); return !!p && p.dataset.peek === " + json.dumps(item) + " && !!p.querySelector('.pk-val'); })()", sid)), item)
+        self.assertTrue(wait(lambda: cdp.js("(() => { const p = document.querySelector('#peek'); return !!p && p.dataset.peek === " + json.dumps(item) + " && !!p.querySelector('.pk-chips [data-row=status]'); })()", sid)), item)
         return cdp.js(READ, sid)
 
     def check_item(self, got, item, theme):
         iid, kind, status, priority, due = item
         rows, tokens = got["rows"], got["tokens"]
-        want = {"status": rows["status"]["pill"].split()[-1],
+        want = {"status": rows["status"]["cls"][3:],
                 "priority": {"Urgent": "r", "High": "a", "Medium": "b"}.get(priority, "n"),
                 "due": expected_date_tone(kind, status, due)}
-        self.assertEqual(set(rows), {"status", "due"} | ({"priority"} if kind != "decision" else set()), f"{iid}: a decision has no priority row")
+        self.assertEqual(set(rows), {"status", "due", "priority"}, f"{iid}: every kind has a priority row (row 1195: a decision too)")
         surface = rgb_hex(got["bg"])
         for key, row in rows.items():
             where = f"{iid} {key} ({theme})"
             self.assertEqual(row["cls"], f"ic-{want[key]}", where)
+            if key == "status":
+                self.assertIn(want[key], TONES, where)
             self.assertEqual(row["icon"], ROW_ICON[key], where)
             self.assertEqual(row["hidden"], "true", f"{where}: the icon is hidden from a screen reader; the words carry it")
             self.assertEqual(rgb_hex(row["color"]), rgb_hex(tokens[ICON_TOKENS[want[key]]]), f"{where}: the colour on screen is the token's")
@@ -264,28 +264,23 @@ class IconsBrowser(unittest.TestCase):
             self.assertGreaterEqual(ratio(rgb_hex(row["color"]), rgb_hex(tokens["--flash"])), 3.0, f"{where}: icon on its highlight")
             self.assertGreaterEqual(ratio(rgb_hex(row["wordColor"]), rgb_hex(row["wordBg"])), 4.5, f"{where}: the words")
             if row["under"]:
-                self.assertGreaterEqual(ratio(rgb_hex(row["underColor"]), surface), 4.5, f"{where}: the words under the date")
+                self.assertGreaterEqual(ratio(rgb_hex(row["underColor"]), rgb_hex(row["wordBg"])), 4.5, f"{where}: the small words after the value")
             # never colour alone: the icon sits beside a written word, and its shape is the row's own
             self.assertTrue(row["words"], where)
         self.assertEqual(rows["status"]["words"], rows["status"]["words"].strip())
-        status, _, kept = rows["status"]["words"].partition(" · ")      # a closed or cancelled risk or issue keeps its rating word: "Closed · Amber"
-        self.assertIn(status, PLAIN_STATUS, iid)
-        if kept:
-            self.assertIn(kept, {"Red", "Amber", "Green", "Not rated"}, f"{iid}: the rating word kept beside the status")
+        self.assertIn(rows["status"]["words"], PLAIN_STATUS, iid)      # row 1180: a closed risk's rating word is the priority chip's small line ("Red kept")
+        if "priority" in rows and rows["priority"]["under"]:
+            self.assertRegex(rows["priority"]["under"], r"^(Red|Amber|Green|Not rated) kept$", iid)
         if "priority" in rows:
-            self.assertIn(rows["priority"]["words"], PLAIN_PRIORITY, iid)
-            if priority:
-                self.assertEqual(rows["priority"]["words"], priority, "the priority is written, not only coloured")
+            self.assertIn(rows["priority"]["words"], PLAIN_PRIORITY | {"Red", "Amber", "Green", "Not rated"}, iid)
         self.assertRegex(rows["due"]["words"], DATE, iid)
         if want["due"] == "r":
-            self.assertRegex(rows["due"]["under"], r"late", f"{iid}: a red date says it is late")
-        if want["due"] == "a":
-            self.assertRegex(rows["due"]["under"], r"late|Today|Tomorrow|In \d+ days?", f"{iid}: an amber date says how soon, or that it is late")
+            self.assertRegex(rows["due"]["under"], r"overdue", f"{iid}: a red date says it is overdue (row 1180)")
         for row in rows.values():
             for text in (row["words"], row["under"]):
                 self.assertNotRegex(text, JARGON, f"{iid}: {text!r}")
         if rows["due"]["under"]:
-            self.assertRegex(rows["due"]["under"], UNDER, iid)
+            self.assertRegex(rows["due"]["under"], r"^overdue \d+ days?$", iid)
 
     def test_the_data_has_every_tone_to_check(self):
         """The check below is only as good as the data: the demo items must reach more than one tone in each row."""
@@ -327,7 +322,7 @@ class IconsBrowser(unittest.TestCase):
         self.assertNotEqual(a["rows"]["due"]["color"], b["rows"]["due"]["color"])
         self.assertEqual(a["rows"]["due"]["icon"], b["rows"]["due"]["icon"])
         self.assertEqual({r["icon"] for r in a["rows"].values()}, set(ROW_ICON.values()), "three different shapes, not one shape in three colours")
-        self.assertRegex(a["rows"]["due"]["under"], "late")
+        self.assertRegex(a["rows"]["due"]["under"], "overdue")
 
     def test_a_milestone_peek_is_unchanged(self):
         """Only the work item's status, priority and date carry icons; a milestone's fields are the words they were."""

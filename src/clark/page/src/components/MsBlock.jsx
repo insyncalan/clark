@@ -26,6 +26,7 @@ export function MsBlock({ place, tools }) {
   const rows = milestoneRows(data.value.milestones, today, client).filter((r) => !dash || (r.clientVisible && !left.has(r.id)));
   const More = Eye && place === "page" && tools.RecordMore ? ({ row }) => <tools.RecordMore row={row} kind="milestones" cls="ib ms-more" /> : null;      // item 1148: the Milestones page's rows have More actions (Archive, Delete)
   const CW = Eye && tools.colWidths ? tools.colWidths : null;      // row 1104: the Edit part's column widths hook; the published file and View have none
+  const CM = Eye && tools.columns ? tools.columns : null;      // row 1222: the columns menu; the page clark serves only
   const AddBack = dash && tools && tools.MsAddBack && isEditing() ? tools.MsAddBack : null;
   const [kept, setView] = useState(() => (client ? "line" : recall(`msv.${place}`, "line") === "cal" ? "cal" : "line"));
   const view = client ? (mv.value === "cal" ? "cal" : "line") : kept;      // a published file keeps the choice in its address (storage on file:// is not reliable); the editor keeps it in storage
@@ -42,7 +43,7 @@ export function MsBlock({ place, tools }) {
       <div class="msv-swap" key={view} data-swap={view}>      {/* a new key on a switch: the new view rises a little and fades in */}
         {view === "cal" ? <MsCalendar rows={rows} today={today} open={open} place={place} client={client} /> : <MsTimeline rows={rows} today={today} place={place} open={open} client={client} />}
       </div>
-      <MsList CW={CW} rows={rows} place={place} open={open} internalTag={!client} Eye={Eye} More={More} left={left} legend={<MsLegend client={client} id={place} />} />
+      <MsList CW={CW} CM={CM} rows={rows} place={place} open={open} internalTag={!client} Eye={Eye} More={More} left={left} legend={<MsLegend client={client} id={place} />} />
       {AddBack ? <AddBack /> : null}
     </div>
   );

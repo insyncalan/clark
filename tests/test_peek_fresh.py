@@ -61,7 +61,7 @@ class PeekFresh(unittest.TestCase):
         return sid
 
     def rows(self, cdp, sid):
-        return cdp.js("Object.fromEntries([...document.querySelectorAll('#peek .pk-row')].map(r => [r.querySelector('dt').textContent, r.querySelector('dd').textContent]))", sid)
+        return cdp.js("Object.fromEntries([...document.querySelectorAll('#peek .pk-row')].filter(r => r.querySelector('dt')).map(r => [r.querySelector('dt').textContent, r.querySelector('dd').textContent]))", sid)
 
     def test_a_stale_item_shows_both_dates_and_the_chip_in_every_view(self):
         for width in (1400, 900):
@@ -69,7 +69,8 @@ class PeekFresh(unittest.TestCase):
                 with self.subTest(width=width, scheme=scheme), chrome() as cdp:
                     sid = self.load(cdp, width, self.open[0], scheme)
                     got = self.rows(cdp, sid)
-                    self.assertEqual((got["Raised"], got["Last reviewed"]), ("01-09-2026", "02-10-2026"))
+                    self.assertTrue(got["Raised"].startswith("01-09-2026"), got["Raised"])      # item 1181: an action's Raised carries a hint after the date; Last reviewed is not an action row
+                    self.assertNotIn("Last reviewed", got)
                     self.assertEqual(cdp.js("[...document.querySelectorAll('#peek [data-stale]')].map(c => c.textContent)", sid), ["Not reviewed in 14 days"])
                     box = cdp.js("(c => { const r = c.getBoundingClientRect(), p = document.querySelector('#peek').getBoundingClientRect(); return [r.left >= p.left, r.right <= p.right, getComputedStyle(c).color, getComputedStyle(document.body).backgroundColor]; })(document.querySelector('#peek [data-stale]'))", sid)
                     self.assertTrue(box[0] and box[1], "the chip sits inside the peek")
@@ -79,13 +80,14 @@ class PeekFresh(unittest.TestCase):
         with chrome() as cdp:
             sid = self.load(cdp, 1400, self.open[1], "light")
             got = self.rows(cdp, sid)
-            self.assertEqual((got["Raised"], got["Last reviewed"]), ("20-10-2026", "Not yet"))
+            self.assertTrue(got["Raised"].startswith("20-10-2026"), got["Raised"])
+            self.assertNotIn("Last reviewed", got)
             self.assertEqual(cdp.js("document.querySelectorAll('#peek [data-stale]').length", sid), 0)
 
     def test_a_closed_item_never_shows_the_chip(self):
         with chrome() as cdp:
             sid = self.load(cdp, 1400, self.closed, "light")
-            self.assertEqual(self.rows(cdp, sid)["Raised"], "01-09-2026")
+            self.assertTrue(self.rows(cdp, sid)["Raised"].startswith("01-09-2026"))
             self.assertEqual(cdp.js("document.querySelectorAll('#peek [data-stale]').length", sid), 0)
 
     def test_an_item_with_no_freshness_in_its_data_shows_neither_row_nor_chip(self):

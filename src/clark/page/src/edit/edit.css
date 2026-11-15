@@ -78,6 +78,11 @@
 /* The peek's Details and Activity tabs (#42): Edit only. */
 .pk-tabs { display: flex; gap: var(--space-1); margin: var(--space-1) 0 var(--space-2); border-bottom: 1px solid var(--grey-200); }
 .pk-tab { min-height: 32px; padding: var(--space-1) var(--space-3); border: 0; border-bottom: 2px solid transparent; background: none; color: var(--text-muted); font: inherit; font-size: var(--size-caption); cursor: pointer; }
+.pk-hcount { margin-left: 2px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.pk-history { margin: var(--space-3) 0 0; }
+.pk-hicon { flex: none; margin-top: 2px; color: var(--text-muted); }
+.pk-hsrc { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin: var(--space-2) 0; }
+.pk-hsrc a, .pk-hsrc .linklike { color: var(--brand-blue); font: inherit; background: none; border: 0; padding: 0; min-height: 24px; text-decoration: underline; cursor: pointer; }
 .pk-tab.on { color: var(--text); border-bottom-color: var(--brand-blue); font-weight: var(--weight-medium); }
 .pk-activity:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .pk-tab:focus-visible { outline: 0; border-bottom-color: var(--focus); }   /* row 1077 (flat): a tab's focus is its underline in the focus colour, not a box */
@@ -222,6 +227,8 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-panel { --ask-edge: color-mix(in srgb, var(--grey-700) 85%, var(--surface)); position: fixed; top: 0; right: 0; bottom: 0; z-index: 45; display: flex; flex-direction: column; max-width: 90%; isolation: isolate; color: var(--text); border-left: 1px solid var(--grey-200); box-shadow: -12px 0 40px color-mix(in srgb, var(--brand-navy) 16%, transparent);
   background: radial-gradient(95% 48% at 100% 100%, color-mix(in srgb, var(--brand-blue) 24%, transparent), transparent 72%), radial-gradient(75% 40% at 0% 96%, color-mix(in srgb, var(--brand-blue) 12%, transparent), transparent 72%), var(--surface); }
 .ask-panel:focus { outline: none; }
+/* row 1219: scrolling over the panel never moves the page behind it (the panel, its answers and its saved chats contain the scroll; core/holdScroll.js covers a panel that does not overflow). Vertical only: the sideways Back and Forward swipe (1136) must still reach the browser. */
+.ask-panel, .ask-hist, .ask-log { overscroll-behavior-y: contain; }
 /* row 885: the panel rises from the bottom of the window as it opens and sinks back as it closes (transform only; its place is unchanged); still under reduced motion */
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-motion="reduce"]) .ask-panel { animation: ask-up var(--dur-layout) var(--ease-enter) 1; }
@@ -402,6 +409,7 @@ table.items td.c-pick { vertical-align: middle; }
 /* Use cases page: list */
 /* Row 1085: the tabs row as Work items draws its saved views, Import, Export and Add use case at its right end, and the filter line (the Work items box) under it */
 .ucl-views { margin-top: 16px; }
+.ucl-views .vtab { padding-left: 8px; padding-right: 8px; }      /* row 1203: with the open tab's menu button and + New view beside four tabs, the strip at 900 was 5 px too narrow and scrolled; two px less each side of a tab fits it */
 .ucl-tools { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-bottom: var(--space-1); }
 .ucl .fline-wrap { margin-top: 0; }
 /* Row 1085: Group by draws each group as a bordered card (.wgroup, as Work items) with a heading bar: the name, the count, open and shut */
@@ -412,8 +420,10 @@ table.items td.c-pick { vertical-align: middle; }
 .ucl-count { display: block; margin: 10px 0 0; font-size: var(--size-caption); color: var(--text-muted); }   /* row 1085: under the list */
 /* Row 1085: the sort sits on the column names (Ref, Status, Work items): the pressed one is marked with a small chevron */
 .ucl-box { margin-top: 14px; }
+.ucl-cols { display: grid; grid-template-columns: minmax(40px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px 36px; gap: var(--space-3); padding: 6px var(--space-1); border-bottom: 1px solid var(--grey-100); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); }   /* row 1203: the column names over the rows, the same columns */
+.ucl-cols .ucl-c1 { grid-column: 1 / 3; }
 .ucl-list { margin: 0; padding: 0; list-style: none; }
-.ucl-row { display: grid; grid-template-columns: minmax(40px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px 36px 36px; gap: var(--space-3); align-items: center; min-height: 40px; padding: var(--d-uc-bar-y) var(--space-1); border-bottom: 1px solid var(--grey-100); cursor: pointer; font-size: var(--size-body); }   /* item 1149: the dashboard summary row's columns, then the eye */
+.ucl-row { display: grid; grid-template-columns: minmax(40px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px 36px; gap: var(--space-3); align-items: center; min-height: 40px; padding: var(--d-uc-bar-y) var(--space-1); border-bottom: 1px solid var(--grey-100); cursor: pointer; font-size: var(--size-body); }   /* item 1149: the dashboard summary row's columns, then the eye */
 .ucl-list .ucl-row:hover, .ucl-list .ucl-row:focus-within { background: var(--grey-100); }  /* row 936: a hovered row is a tint, no blue one-side stripe (a stripe is for selected) */
 .ucl-go { all: unset; box-sizing: border-box; display: block; min-height: 24px; padding: 2px 0; cursor: pointer; font-size: var(--size-body); font-weight: var(--weight-medium); line-height: 1.35; color: var(--heading); overflow-wrap: anywhere; border-radius: 3px; }
 .ucl-go:hover { text-decoration: underline; text-underline-offset: 2px; }
@@ -423,11 +433,6 @@ table.items td.c-pick { vertical-align: middle; }
 .ucl-eye { all: unset; box-sizing: border-box; justify-self: start; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border-radius: var(--radius); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--status-blue-text); cursor: pointer; }
 .ucl-eye .i, .ucl-eye svg { width: 16px; height: 16px; flex: none; }   /* issue 753: the eye alone, its words are the tooltip */
 .ucl-eye:hover { background: var(--grey-100); }
-.ucl-row > .dd { justify-self: start; }   /* item 1148: the row's More actions, after the eye */
-.ucl-more { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border-radius: var(--radius); color: var(--text-muted); cursor: pointer; }
-.ucl-more .i, .ucl-more svg { width: 16px; height: 16px; flex: none; }
-.ucl-more:hover, .ucl-more[aria-expanded="true"] { background: var(--grey-100); color: var(--text); }
-.ucl-more:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .ucd-acts .ucd-more { width: 32px; padding: 0; justify-content: center; }
 .ucl-eye:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .ucl-row.off .ucl-eye { color: var(--text-muted); font-weight: var(--weight-regular); }
@@ -436,7 +441,7 @@ table.items td.c-pick { vertical-align: middle; }
 .ucmore { margin: 8px 0 0; font-size: var(--size-small); }
 .ucmore a { display: inline-flex; align-items: center; min-height: 24px; color: var(--link); text-underline-offset: 2px; }
 @media (max-width: 900px) {
-  .ucl-row { grid-template-columns: minmax(44px, max-content) minmax(0, 1fr) minmax(0, 1fr) 124px 96px 36px 36px; gap: var(--space-2); }
+  .ucl-row, .ucl-cols { grid-template-columns: minmax(44px, max-content) minmax(0, 1fr) minmax(0, 1fr) 124px 96px 36px; gap: var(--space-2); }
   .ucl-count { margin-left: 0; flex-basis: 100%; }
 }
 @media (max-width: 640px) {      /* the editor's fifth tab: the tabs scroll inside their own bar, so the mode switch and the profile stay in the window */
@@ -1133,10 +1138,10 @@ body > .gt-menu.leaving hr { border: 0; border-top: 1px solid var(--border); mar
   .item-rows-edit .wl-meta .cell-val { flex-wrap: wrap; min-width: 0; }
   .item-rows-edit .wl-meta .late { min-width: 0; overflow-wrap: anywhere; }
   .ucl-go { min-height: 44px; display: flex; align-items: center; }
-  .ucl-eye, .ucl-more { width: 44px; height: 44px; }
-  .ucl-row { grid-template-columns: auto minmax(0, 1fr) 44px 44px; gap: 4px 10px; }   /* item 1149: the reference and the title share the first line, the eye at the end of it; the rest each take a line under */
+  .ucl-eye { width: 44px; height: 44px; }
+  .ucl-cols { display: none; }
+  .ucl-row { grid-template-columns: auto minmax(0, 1fr) 44px; gap: 4px 10px; }   /* item 1149: the reference and the title share the first line, the eye at the end of it; the rest each take a line under */
   .ucl-row > .ucl-eye { grid-column: 3; grid-row: 1; justify-self: end; }
-  .ucl-row > .dd { grid-column: 4; grid-row: 1; justify-self: end; }
   .ucl-row > .ucl-go { grid-column: 2; }
   .ucl-row > .ucl-head, .ucl-row > .ucl-st, .ucl-row > .ucl-steps { grid-column: 1 / -1; min-width: 0; }
 }
@@ -1240,6 +1245,27 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
 /* item 1154: with a logo (the server sets --cover-logo-room; 0px when it is not set) the title and the cover line keep the logo box's room free at 900 px and wider, so they wrap before it; under 900 the logo is hidden and no room is kept */
 @media (min-width: 900px) { .frame header.cover h1, .frame header.cover .cover-line { margin-right: var(--cover-logo-room, 0px); } }
 
+/* row 1180 chips: the chip row itself is in shell.css (the published page draws it too) */
+.pkc .cpop { z-index: 30; }
+
+/* row 1180 head: the ID tag and project line, and the title as a textarea (PeekHead.jsx) */
+.pkh-line { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-4) 0 var(--space-1); color: var(--text-muted); font-size: var(--size-small); }
+.pkh-id { display: inline-flex; padding: 1px 7px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: transparent; color: var(--heading); font-size: var(--size-caption); font-weight: var(--weight-medium); }
+.pkh-proj { min-width: 0; overflow-wrap: anywhere; }
+.pkh-title-in { display: block; width: calc(100% + 2 * var(--space-2)); box-sizing: border-box; margin: 0 calc(-1 * var(--space-2)); padding: 0 var(--space-2); border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: inherit; font: inherit; line-height: inherit; resize: none; overflow: hidden; cursor: text; overflow-wrap: anywhere; }
+.pkh-title-txt { cursor: text; white-space: pre-wrap; }
+.pkh-title-in:hover { background: var(--grey-50); }
+.pkh-title-in:focus { outline: 2px solid var(--focus); outline-offset: 2px; border-color: var(--brand-blue); background: var(--surface); }
+.pkh-line + .pk-title { margin-top: 0; }
+
+/* row 1180 wire: the Details rows' icons and the one Client visible line */
+.pk-rowic { display: inline-flex; margin-right: var(--space-2); vertical-align: -2px; }
+.pk-client { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 28px; padding: 0; border: 0; background: none; font: inherit; color: var(--text-muted); cursor: pointer; }
+.pk-client.on { color: var(--brand-blue); }
+.pk-client:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+/* item 1181 chips: the Action peek's chip row (PeekActionChips.jsx). The chips, popovers and look are the shared frame's (item 1180); the Due chip's overdue sub-line and tint are PeekChip's. */
+
 /* item 1176: the project name in the editor Dashboard cover is a button that looks like the heading until hover or focus, then shows it can be clicked; the chevron fades in with opacity only (it stays visible to focus) */
 .cover-switch { all: unset; box-sizing: border-box; display: inline; cursor: pointer; color: inherit; font: inherit; border: 0; border-radius: var(--radius); }
 .cover-switch .nch { opacity: 0; margin-left: var(--space-2); vertical-align: middle; }
@@ -1272,3 +1298,41 @@ body.board-full #report-bar .rbar-hint, body:has(#profile-menu, dialog[open], [r
 table.cw-set, .projects table.proj-table.cw-set { table-layout: fixed; width: 100%; }
 table.cw-set td { overflow-wrap: anywhere; white-space: normal; }
 table.cw-set td.acts, .pp-earlier .pubs.cw-set td.files, .pp-earlier .pubs.cw-set td.num { white-space: normal; }
+
+/* Row 1222: the columns menu of a Work items or Milestones table (edit/ColumnsMenu.jsx), the Columns button, and the milestone cells a person can add. */
+.ddmenu.cols-menu { min-width: 260px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow-y: auto; }
+.cols-menu [role="menuitemcheckbox"], .cols-menu [role="menuitem"] { all: unset; display: flex; align-items: flex-start; box-sizing: border-box; width: 100%; min-height: 32px; padding: var(--space-2) 14px; cursor: pointer; font-size: var(--size-small); color: var(--text); }
+.cols-menu [role="menuitemcheckbox"]:hover, .cols-menu [role="menuitemcheckbox"]:focus-visible, .cols-menu [role="menuitem"]:hover, .cols-menu [role="menuitem"]:focus-visible { background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.cols-menu [role="menuitemcheckbox"]:focus-visible, .cols-menu [role="menuitem"]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.cols-menu [role="menuitemcheckbox"][aria-disabled="true"] { color: var(--text-muted); cursor: default; }
+.cols-menu [role="menuitemcheckbox"][aria-disabled="true"]:hover { background: none; color: var(--text-muted); }
+.cols-menu .mi { flex: none; width: 16px; height: 16px; margin-right: var(--space-2); color: var(--text-muted); }
+.cols-menu .cols-name { display: block; min-width: 0; }
+.cols-menu .cols-why { display: block; font-size: var(--size-caption); color: var(--text-muted); }
+.cols-btn, .msl-cols-btn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius-sm); cursor: pointer; color: var(--text-muted); vertical-align: middle; text-transform: none; letter-spacing: 0; }
+.cols-btn:hover, .msl-cols-btn:hover, .cols-btn[aria-expanded="true"], .msl-cols-btn[aria-expanded="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.cols-btn:focus-visible, .msl-cols-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; }
+/* the one Columns button outside the work grid: out of sight until the keyboard is on it, so nothing shifts and the grid stays one tab stop */
+.wgroup { position: relative; }
+.cols-btn.cols-kbd { position: absolute; right: var(--space-2); top: 0; z-index: 3; opacity: 0; pointer-events: none; }
+.cols-btn.cols-kbd:focus-visible { opacity: 1; pointer-events: auto; background: var(--surface); }
+.cols-btn svg, .msl-cols-btn svg { width: 16px; height: 16px; }
+table.items th.c-eye { white-space: nowrap; }
+.msl-hdw { position: relative; }
+.msl-cols-btn { display: none; }
+.msl-x { display: none; min-width: 0; overflow-wrap: anywhere; font-size: var(--size-small); }
+@media (min-width: 801px) {
+  .msl-cols-btn { display: inline-flex; position: absolute; right: var(--space-2); top: 50%; transform: translateY(-50%); }
+  .msl-x { display: block; }
+  .msl-hdw + .msl { margin-top: 0; }      /* the heading row is now in a wrapper (it holds the Columns button): the rows still join it */
+  .msl-cells > .cols-off { display: none; }
+  .msl-box[data-nodate] .msl-cells > .msl-sub { grid-column: 1; }
+}
+.wgroup:has(.c-x) { overflow-x: auto; }
+table.items .c-x { width: 130px; }
+table.items .c-x-latest, table.items .c-x-wording { width: 220px; }
+table.items .c-x-id, table.items .c-x-type { width: 100px; }
+@media (max-width: 700px) {
+  table.items td.c-x { grid-column: 1 / -1; width: auto; }
+  table.items td.c-x::before { content: attr(data-label); display: block; font-size: var(--size-small); color: var(--text-muted); }
+}

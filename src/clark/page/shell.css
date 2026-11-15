@@ -201,7 +201,7 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 .pk-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .pk-btn:disabled { color: var(--text-muted); cursor: default; }
 .pk-btn.pri:not(:disabled) { background-color: var(--pill-color); background-image: var(--pill-bg); border-color: var(--pill-color); color: var(--pill-fg); }  /* row 946: the aqua pill, as .btn.pri */
-.pk-body { flex: 1 1 auto; overflow: auto; padding: 0 20px; min-height: 80px; }
+.pk-body { flex: 1 1 auto; overflow: auto; overscroll-behavior-y: contain; padding: 0 20px; min-height: 80px; }
 .pk-group h3 { margin: var(--space-3) 0 var(--space-1); font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); }
 .pick { list-style: none; margin: 0; padding: 0; }
 .pick label { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start; padding: var(--space-2) var(--space-1); border-top: 1px solid var(--grey-100); cursor: pointer; }
@@ -675,7 +675,7 @@ input.sec-title { width: 100%; }
 @media (max-width: 900px) { .modes { margin-left: auto; } .menu { min-width: 220px; } }
 
 /* The peek (#42): a panel on the right edge, below the banner (item 1202); its width is dragged from the left edge and kept in this browser. */
-.peek { position: fixed; top: var(--topbar); right: 0; bottom: 0; z-index: 30; max-width: 100vw; min-width: min(420px, 100vw); overflow-y: auto; background: var(--surface); border-left: 1px solid var(--grey-200); box-shadow: var(--shadow); padding: var(--space-3) var(--space-5) var(--space-5); }
+.peek { position: fixed; top: var(--topbar); right: 0; bottom: 0; z-index: 30; max-width: 100vw; min-width: min(420px, 100vw); overflow-y: auto; overscroll-behavior-y: contain; background: var(--surface); border-left: 1px solid var(--grey-200); box-shadow: var(--shadow); padding: var(--space-3) var(--space-5) var(--space-5); }
 .peek.wide { width: 100%; }
 /* Below 1000 px the peek fills the window over the list (row 847): a side panel would leave the list a strip too narrow to read. Above it the dragged width stays. */
 @media (max-width: 999px) { .peek:not(.hpk) { width: 100% !important; } .peek:not(.hpk) .pk-edge { display: none; } }      /* row 847: the item and milestone peeks overlay the page below 1000 px; the Help peek keeps its own width (and the button in view) */
@@ -695,7 +695,7 @@ input.sec-title { width: 100%; }
 .pkp-btn:disabled { opacity: .35; cursor: default; }
 .pkp-btn[aria-pressed=true] { background: var(--brand-blue-tint); }
 .pkp-btn .i { width: 18px; height: 18px; }
-.pk-title { margin: var(--d-pk-title-t) 0 var(--d-pk-title-b); font-size: var(--size-h2); font-weight: var(--weight-medium); line-height: 1.3; color: var(--heading); overflow-wrap: anywhere; }
+.pk-title { margin: var(--d-pk-title-t) 0 var(--d-pk-title-b); font-size: var(--size-h2); font-weight: 700; line-height: 1.3; color: var(--heading); overflow-wrap: anywhere; }
 .pk-fields { margin: 0; }
 .pk-row { display: grid; grid-template-columns: 130px 1fr; gap: var(--space-3); padding: var(--d-pk-row-y) 0; border-top: 1px solid var(--grey-100); }
 .pk-row dt { color: var(--text-muted); font-size: var(--size-caption); }
@@ -1269,7 +1269,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .me:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .me .i { width: 18px; height: 18px; }
 .top .dd { position: relative; display: inline-flex; }
-.dlg { width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
+.dlg { width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; overscroll-behavior-y: contain; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 .dlg::backdrop { background: color-mix(in srgb, var(--black) 40%, transparent); }
 .dlg-form { padding: var(--d-dlg-y) var(--space-5); }
 .dlg h2 { margin: 0 0 var(--space-1); font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); overflow-wrap: anywhere; }
@@ -1344,6 +1344,13 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
   .set-nav { flex-direction: row; flex-wrap: wrap; gap: var(--space-2); }
   .set-chip { display: inline-flex; width: auto; border-radius: var(--radius-pill); }
 }
+.set-nav .plain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }      /* row 1024: a group of pages under its name */
+.set-group { margin-top: var(--space-3); }
+.set-group:first-child { margin-top: 0; }
+.set-group-name { display: block; padding: 0 12px var(--space-1); color: var(--text-muted, var(--text)); font-size: var(--size-small); font-weight: var(--weight-medium); }
+.set-group-line { display: block; padding: 0 12px var(--space-1); font-size: var(--size-small); line-height: 1.35; }
+.set-advanced { margin-top: var(--space-5); padding-top: var(--space-3); border-top: 1px solid var(--grey-200, var(--grey-100)); }      /* set apart at the foot */
+.set-advanced .set-chip { color: var(--text-muted, var(--text)); }
 .set-chip:hover { background: var(--grey-100); }
 .set-chip[aria-current], .set-chip[aria-current]:hover { background: var(--brand-blue-tint); color: var(--status-blue-text); font-weight: var(--weight-medium); }
 .set-chip[aria-current]::before { content: ""; position: absolute; left: 0; top: 7px; bottom: 7px; width: 3px; border-radius: 3px; background: var(--brand-blue); }      /* item 1200: the violet marker on the card you are reading */
@@ -1743,7 +1750,7 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 .ask-folders li { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-top: var(--space-1); }
 #ask-folder-path { flex: 1 1 260px; min-height: 32px; padding: var(--space-1) var(--space-2); border: 1px solid var(--border); border-radius: var(--radius); font-size: var(--size-small); }
 /* The Add a section box (#96): a modal over the page, desktop and 900 px. Tokens only; no text under 13 px. */
-.ad-scrim { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: calc(var(--topbar) + var(--space-6)) var(--space-4) var(--space-6); background: color-mix(in srgb, var(--black) 45%, transparent); overflow: auto; }   /* row 758: a box starts below the top bar, never over it */
+.ad-scrim { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: calc(var(--topbar) + var(--space-6)) var(--space-4) var(--space-6); background: color-mix(in srgb, var(--black) 45%, transparent); overflow: auto; overscroll-behavior-y: contain; }   /* row 758: a box starts below the top bar, never over it */
 .ad:focus { outline: none; }
 .ad { display: flex; flex-direction: column; width: min(900px, 100%); max-height: calc(100vh - var(--topbar) - 2 * var(--space-6)); max-height: calc(100dvh - var(--topbar) - 2 * var(--space-6)); background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-body); color: var(--text); }
 .ad-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); padding: var(--space-4) var(--space-5) var(--space-2); }
@@ -2082,6 +2089,10 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 a.tpl-name, .tpl-lc-title a { color: var(--link); text-decoration: underline; text-underline-offset: 2px; }
 a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
 .tpl-facts { color: var(--text-muted); font-size: var(--size-caption); }
+.tpl-acts { flex: none; display: flex; gap: var(--space-2); }
+button.tpl-act { min-height: 44px; min-width: 44px; padding: 0 var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); color: var(--link); font: inherit; font-size: var(--size-caption); cursor: pointer; }
+button.tpl-act:hover { background: var(--grey-100); }
+button.tpl-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .docs-view-row { align-items: center; }
 .docs-ic { flex: none; display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: var(--radius); background: var(--brand-blue-tint); color: var(--status-blue-text); }
 .docs-ic .i { width: 18px; height: 18px; }
@@ -2620,6 +2631,47 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .bmenu .menu-item .mi, .rt-opt .mi { flex: none; width: 16px; height: 16px; color: var(--text-muted); }
 .rt-opt { display: flex; align-items: center; gap: 10px; }
 .gt-menu button.gt-danger .mi { color: inherit; }
+
+/* row 1180 toolbar: Close, Open full page, a rule, Previous, Next on the left; Draft email, Copy link, More on the right. The .pkp-btn rules above are shared with the Ask panel and stay as they are. */
+.pk-tb { gap: 4px; position: sticky; top: calc(-1 * var(--space-3)); z-index: 3; margin-top: calc(-1 * var(--space-3)); padding-top: var(--space-3); background: var(--surface); }      /* stays at the top while the body scrolls, as the mockup bar does */
+.pk-tb-grp { display: flex; align-items: center; gap: 2px; }
+.pk-tb-rule { width: 1px; height: 18px; margin: 0 6px; background: var(--grey-200, var(--grey-100)); flex: none; }
+.pk-tb .pkp-btn:hover:not(:disabled) .i { color: var(--brand-blue); }
+
+/* row 1180 body: collapsible Details, footer, unsaved-update bar */
+.pk-details { margin: var(--space-3) 0 0; border-top: 1px solid var(--grey-100); }
+.pk-details-h { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 24px; padding: var(--space-2) 0; border: 0; background: transparent; color: var(--text); font: inherit; font-weight: var(--weight-medium); text-align: left; cursor: pointer; }
+.pk-details-h:focus-visible, .pk-foot-in:focus-visible, .pk-unsaved button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pk-details-sum { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-weight: var(--weight-regular); font-size: var(--size-small); }
+.pk-details-car { margin-left: auto; transition: transform 0.15s; }
+.pk-details[data-open="1"] .pk-details-car { transform: rotate(180deg); }
+.pk-foot { display: flex; align-items: center; gap: var(--space-2); margin: var(--space-3) 0 0; padding: var(--space-2) 0; border-top: 1px solid var(--grey-100); position: sticky; bottom: calc(-1 * var(--space-5)); z-index: 3; background: var(--surface); }      /* stays at the foot of the panel, as the mockup does */
+.pk-foot-key { flex: none; padding: 0 6px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); color: var(--text-muted); font: inherit; font-size: var(--size-small); }
+.pk-foot-in { flex: 1 1 auto; min-width: 0; min-height: 24px; padding: 4px 8px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); color: var(--text-muted); font: inherit; text-align: left; cursor: text; }
+.pk-unsaved { margin: var(--space-2) 0 0; padding: 8px 10px; border: 1px solid var(--status-amber); border-radius: var(--radius); background: var(--status-amber-tint); }
+.pk-unsaved-t { margin: 0 0 var(--space-1); }
+.pk-unsaved-b { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.pk-unsaved-b button { min-height: 24px; padding: 2px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .pk-details-car { transition: none; } }
+
+/* row 1180 chips: the peek's flat row of property chips (components/PeekChips.jsx). Each chip is a coloured icon, the value, an optional small sub-line word and a chevron; the row wraps at 900 px. The target is 24 px or more. */
+.pk-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-3); }
+.pkc { display: inline-flex; align-items: center; min-height: 34px; border: 1px solid var(--grey-200); border-radius: 999px; background: var(--surface); color: var(--text); font-weight: var(--weight-medium); max-width: 100%; }
+.pkc.ro { gap: var(--space-2); padding: 0 var(--space-3); }
+.pkc.has-pop:hover { border-color: var(--brand-blue); background: var(--grey-100); }
+.pkc.late { border-color: var(--status-red); background: var(--status-red-tint); }
+.pkc.flash { background: var(--status-amber-tint); }
+.pkc-btn { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 32px; margin: 0; padding: 0 var(--space-3); border: 0; border-radius: 999px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; max-width: 100%; }
+.pkc-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pkc-ic, .pkc-car { display: inline-flex; flex: none; }
+.pkc-ic svg { width: 16px; height: 16px; }
+.pkc-car { color: var(--text-muted); }
+.pkc-car svg { width: 12px; height: 12px; }
+.pkc-tx { display: inline-flex; flex-wrap: wrap; align-items: center; column-gap: var(--space-2); min-width: 0; }
+.pkc-v { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 16rem; }
+.pkc-sub { font-style: normal; font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); white-space: nowrap; }
+.pkc-sub.late, .pkc.late .pkc-v { color: var(--status-red-text); }
+.pkc .tag.chg { margin: 0 var(--space-2) 0 0; }
 
 /* Item 1177: the editor's ONE slim sticky header (.top-hdr): the logo, the project name (a button that opens the project list), the line "Weekly report" and
    the week (a button that opens the calendar), the tabs, then search, ask clark and the profile circle. 85 px high at 1400 and 129 px at 900, set through the

@@ -446,8 +446,8 @@ class AboutYou(Base):
             self.open_settings(p)
             self.type_into(p, "name", "Sam Lee")
             self.handled(p, "Sam Lee")
-            reload_to_new_page(p.js, "!!document.querySelector('#profile-btn')", "the page again")
-            self.open_settings(p)
+            reload_to_new_page(p.js, "!!document.querySelector('#profile-btn') && !!document.querySelector('.set-chip')", "the page again, on Settings")      # row 1024: the address keeps the Settings page; the menu is there once it has drawn
+            p.until("!!document.querySelector('#about-name')", "About you drew again: the reloaded address keeps the Profile page, so the menu is not needed")
             p.until("document.querySelector('#about-name').value === 'Sam Lee'", "the box follows what clark holds")
             self.type_into(p, "name", "Sam Lee")                      # the stored words, saved again
             self.handled(p, "Sam Lee")

@@ -75,21 +75,26 @@ class SettingsFocusRing(unittest.TestCase):
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": REFUSE_CLIPBOARD}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#settings&p=TUL"}, sid)
+        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#settings&p=TUL&s=reports"}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1"), "the bundle ran")
         cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
         cdp.js("(document.querySelector('[data-mode=edit]') || {click() {}}).click()", sid)
-        self.assertTrue(wait(lambda: cdp.js(f"!!document.querySelector({json.dumps(SEL['feedback'])})", sid)), "the Feedback box is on the page")
-        cdp.js(TYPE_MESSAGE, sid)       # a message, then Copy as text, which the refused clipboard answers by drawing the shown-text box
-        self.assertTrue(wait(lambda: cdp.js("!document.querySelector('button[data-feedback-copy]').disabled", sid)), "Copy as text is enabled by the message")
-        cdp.js("document.querySelector('button[data-feedback-copy]').click()", sid)
-        cdp.js(PROBE_SELECT, sid)       # the Brand for this project choice is a select in a .fld; its card needs the brand service, which this test server has not
-        for name, sel in SEL.items():
-            self.assertTrue(wait(lambda: cdp.js(f"!!document.querySelector({json.dumps(sel)})", sid)), f"{name} is on the page")
-        self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid)), "the page's motion has finished before anything is measured")
-        for kind in ("keyDown", "keyUp"):       # a key, so the page is in keyboard mode and a focused control matches :focus-visible
-            cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "Shift", "code": "ShiftLeft", "windowsVirtualKeyCode": 16}, sid)
-        return json.loads(cdp.js(f"{MEASURE}({json.dumps(SEL)})", sid))
+        got = {}
+        for page, names in (("reports", ("gantt-editor", "gantt-client")), ("version", ("feedback", "feedback-shown", "feedback-contact", "fld-select", "ai-model-select", "ask-folder-path"))):      # row 1024: one Settings page at a time; the Gantt boxes are on Reports, Feedback on Version and updates
+            cdp.js(f"location.hash = '#settings&p=TUL&s={page}'", sid)
+            self.assertTrue(wait(lambda: cdp.js(f"document.querySelector('.set-cards').getAttribute('data-page') === {json.dumps(page)} && !!document.querySelector({json.dumps(SEL[names[0]])})", sid)), f"the {page} page drew {names[0]}")
+            if page == "version":
+                cdp.js(TYPE_MESSAGE, sid)       # a message, then Copy as text, which the refused clipboard answers by drawing the shown-text box
+                self.assertTrue(wait(lambda: cdp.js("!document.querySelector('button[data-feedback-copy]').disabled", sid)), "Copy as text is enabled by the message")
+                cdp.js("document.querySelector('button[data-feedback-copy]').click()", sid)
+                cdp.js(PROBE_SELECT, sid)       # the Brand for this project choice is a select in a .fld; its card needs the brand service, which this test server has not
+            for name in names:
+                self.assertTrue(wait(lambda: cdp.js(f"!!document.querySelector({json.dumps(SEL[name])})", sid)), f"{name} is on the page")
+            self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid)), "the page's motion has finished before anything is measured")
+            for kind in ("keyDown", "keyUp"):       # a key, so the page is in keyboard mode and a focused control matches :focus-visible
+                cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "Shift", "code": "ShiftLeft", "windowsVirtualKeyCode": 16}, sid)
+            got.update(json.loads(cdp.js(f"{MEASURE}({json.dumps({n: SEL[n] for n in names})})", sid)))
+        return got
 
     def test_each_control_has_the_two_pixel_ring_at_both_widths_in_both_looks(self):
         with chrome() as cdp:

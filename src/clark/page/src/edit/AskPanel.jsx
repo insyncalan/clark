@@ -2,7 +2,7 @@
 // is #102's light panel with a soft wash (#214), built from the page's own tokens (edit.css). The reply is drawn as text only: it is
 // never read as markup (row 1217: a listed set of marks becomes elements clark makes itself, see askFormat.js). Nothing is sent while asking is off.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { project, show, token, view } from "../stores/report.js";
+import { project, showSettings, token, view } from "../stores/report.js";
 import { zoneFetch } from "../api.js";
 import { words } from "./publishApi.js";
 import { stopRestore } from "../router.js";
@@ -10,6 +10,7 @@ import { askProvider } from "./askState.js";
 import { panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panelFocus, turns, pending, chatEpoch, queue, queueHeld, queueDrop, QUEUE_MAX, setQueue, closePanel, newChat, setWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
 import * as W from "./askWords.js";
 import { Icon } from "../components/Icon.jsx";
+import { holdScroll } from "../core/holdScroll.js";
 import { chatId, histOpen, histTick, chats, keepChat, deleteChat, when } from "./askHistory.js";
 import { ChangeCards, fixedLine } from "./AskChange.jsx";
 import { FormattedAnswer } from "./AskFormat.jsx";
@@ -271,7 +272,7 @@ export function AskPanel() {
   }
   // To Settings and the Asking card there: scrolled into view and focused, so the link lands on the switch, not at the top.
   function toSettings(e) {
-    e.preventDefault(); closePanel(true); show("settings");
+    e.preventDefault(); closePanel(true); showSettings("claude");
     const focusCard = (tries) => {                       // wait for the Settings card to be drawn, then scroll to it and focus its heading
       const c = document.getElementById("ask-settings");
       if (c) {                                           // the page's own place-restore would set the scroll back to the top: stop it, then scroll while the cards above settle
@@ -285,7 +286,7 @@ export function AskPanel() {
   }
 
   return (
-    <aside id="ask-panel" class={leaving ? "ask-panel leaving" : "ask-panel"} onAnimationEnd={(e) => { if (e.target === e.currentTarget && e.animationName === "ask-down") finish(); }} role="complementary" aria-label={W.PANEL_TITLE} tabindex="-1" style={{ width: clampWidth(width) + "px" }}>
+    <aside id="ask-panel" ref={(n) => { if (n) holdScroll(n); }} class={leaving ? "ask-panel leaving" : "ask-panel"} onAnimationEnd={(e) => { if (e.target === e.currentTarget && e.animationName === "ask-down") finish(); }} role="complementary" aria-label={W.PANEL_TITLE} tabindex="-1" style={{ width: clampWidth(width) + "px" }}>
       <div class="ask-grip" id="ask-grip" role="separator" aria-orientation="vertical" aria-label={W.GRIP} aria-valuenow={clampWidth(width)} aria-valuemin={widthRange().min} aria-valuemax={widthRange().max} tabindex="0" onPointerDown={grip} onKeyDown={gripKey} />
       <header class="ask-head">
         <h2>{W.PANEL_TITLE}</h2>
@@ -299,10 +300,10 @@ export function AskPanel() {
         {busy ? W.WORKING : state === "checking" ? W.CHECKING_LINE : state === "unknown" ? null : state === "off" ? W.READY_LINE : state === "signed-out" ? null : model ? W.MODEL_LINE(model) : W.READY_LINE}
       </p>
       {state === "off" ? (
-        <p class="ask-off" id="ask-off">{W.OFF_LINE} <a href="#settings" data-ask-settings onClick={toSettings}>{W.OFF_LINK}</a></p>
+        <p class="ask-off" id="ask-off">{W.OFF_LINE} <a href="#settings&s=claude" data-ask-settings onClick={toSettings}>{W.OFF_LINK}</a></p>
       ) : null}
       {state === "signed-out" ? (
-        <p class="ask-off" id="ask-signed-out">{panelDisconnected.value ? W.DISCONNECTED_LINE : W.named(W.SIGNED_OUT_LINE, askProvider.value)} <a href="#settings" data-ask-settings onClick={toSettings}>{W.SETTINGS_LINK}</a></p>
+        <p class="ask-off" id="ask-signed-out">{panelDisconnected.value ? W.DISCONNECTED_LINE : W.named(W.SIGNED_OUT_LINE, askProvider.value)} <a href="#settings&s=claude" data-ask-settings onClick={toSettings}>{W.SETTINGS_LINK}</a></p>
       ) : null}
       {showHist ? (
         <div class="ask-hist" id="ask-hist" role="region" aria-label={W.HISTORY_TITLE}>

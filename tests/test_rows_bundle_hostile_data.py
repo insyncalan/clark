@@ -52,6 +52,8 @@ class WithAProject(Base):
         p.js("document.querySelector('#profile-btn').click()")
         p.until("!!document.querySelector('#profile-menu')", "the menu opened")
         p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
+        p.until("!!document.querySelector('.set-nav .set-chip')", "the Settings menu drew")
+        p.js("[].find.call(document.querySelectorAll('.set-chip'), function(b){return b.textContent.trim()==='Export and import'}).click()")      # row 1024: one Settings page at a time
         p.until("!!document.querySelector('#data-card')", "the Data card drew")
 
     def test_enabled_and_each_opens_its_own_box_only(self):
@@ -107,7 +109,7 @@ class NoProject(unittest.TestCase):
         cdp.call("Page.enable", {}, sid)
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{port}/#settings"}, sid)
+        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{port}/#settings&s=data"}, sid)
         self.assertTrue(wait(lambda: bool(cdp.js("!!document.querySelector('#word-import')", sid)), 30), "the Data card did not draw")
         return sid
 

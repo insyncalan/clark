@@ -58,7 +58,7 @@ class WorkNoMode(unittest.TestCase):
                     cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", **common}, sid)
                 self.until(cdp, sid, f"!!document.querySelector({PEEK_PARTS})", "the words box is in the peek in View")
                 self.assertTrue(cdp.js("!!document.querySelector('#peek [role=tablist]')", sid), "the tabs are in the peek in View")
-                self.assertTrue(cdp.js("[...document.querySelectorAll('#peek dt')].some(d => d.textContent === 'Shown to client')", sid), "Shown to client")
+                self.assertTrue(cdp.js("!!document.querySelector('#peek [data-pk-client]')", sid), "Client visible line")
 
     def test_the_eye_click_in_view_writes_and_says_so(self):
         with chrome() as cdp:

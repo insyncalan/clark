@@ -505,14 +505,14 @@ class WhereItIsNamed(unittest.TestCase):
         self.assertEqual(named, ["updateApi.js"])
         view = (PAGE_PY / "page-view.html").read_text(encoding="utf-8")
         self.assertNotIn("/api/update", view)
-        self.assertNotIn("Version and updates", view)
+        self.assertNotIn("Up to date.", view)      # row 1024: the page name is in the shared menu list now, so the card's own words stand for it
         self.assertIn("/api/update", (PAGE_PY / "page.html").read_text(encoding="utf-8"))
 
     def test_the_card_is_mounted_in_settings_through_the_edit_tools(self):
         self.assertIn("Update", (PAGE_SRC / "edit" / "index.js").read_text(encoding="utf-8"))
         views = (PAGE_SRC / "components" / "Views.jsx").read_text(encoding="utf-8")
-        self.assertIn("tools.Update", views)
-        self.assertIn("<Update />", views)
+        self.assertIn('["version", "Version and updates", ["Update", "Feedback", "Quit"]]', views)      # row 1024: the cards are named in the Settings page list, and drawn from the edit tools by name
+        self.assertIn('Update: "update-h"', views)
 
 
 if __name__ == "__main__":

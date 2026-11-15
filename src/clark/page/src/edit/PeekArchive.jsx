@@ -1,11 +1,9 @@
-// The peek's Archive button (Edit only): the row menu's Archive for the item shown, so a keyboard or touch user has a route to it.
+// The peek's Archive step (More actions, Edit only): the row menu's Archive for the item shown, so a keyboard or touch user has a route to it.
 // One change, one Undo (the item is back); the peek closes with the item, as the row menu's Archive does. The request and the words
 // are the row menu's own (RowMenu.jsx).
 import { closePeek } from "../stores/report.js";
 import { changeRecord } from "../stores/changes.js";
-import { Icon } from "../components/Icon.jsx";
 import { tableOf } from "./itemEdit.js";
-import { deleteItem } from "./deleteItem.js";
 
 // The archive step with its words, shared by the button and the "More actions" menu (PeekMore.jsx).
 export function archiveFromPeek(row, milestone = false) {      // row 867: the milestone peek has the same button and words
@@ -22,14 +20,4 @@ export function archiveFromPeek(row, milestone = false) {      // row 867: the m
       focus: `tr[data-id="${CSS.escape(row.id)}"], article.bcard[data-id="${CSS.escape(row.id)}"] .bc-main` })
     .then((r) => { if (r) { if (milestone) settle(next); closePeek(); } }); };
   return run();
-}
-
-export function PeekArchive({ row, milestone = false }) {
-  const run = () => archiveFromPeek(row, milestone);
-  return <button type="button" class="pkp-btn" data-pk-archive title="Archive" aria-label="Archive" onClick={run}><Icon name="archive" /></button>;
-}
-
-// Item 658: the peek's Delete button (an action, a RAID item or a decision; Edit only): the same question and step as the row menu's Delete.
-export function PeekDelete({ row }) {
-  return <button type="button" class="pkp-btn" data-pk-delete title="Delete" aria-label="Delete" onClick={() => deleteItem(row, "peek")}><Icon name="trash" /></button>;
 }
