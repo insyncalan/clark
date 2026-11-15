@@ -144,6 +144,7 @@ class DeleteItem(board.Base):
                 click(cdp, sid, "[data-rm=peek]")
                 self.until(cdp, sid, f"!!document.querySelector('#peek[data-peek=\"{a}\"] #pk-more')", "the peek")
                 self.until(cdp, sid, "document.getElementById('peek').getAnimations({subtree: true}).every(a => a.playState !== 'running')", "the peek to stop sliding in")      # the slide is on the peek itself, so click() does not wait for it: a press during it lands on the next button
+                self.until(cdp, sid, "(() => { const r = JSON.stringify(document.getElementById('pk-more').getBoundingClientRect()); const same = window.__pkr === r; window.__pkr = r; return same; })()", "the More actions button to hold still")      # the slide brings a scrollbar into the 815 px peek, which moves the header buttons 15 px: press only once the button has the same place on two reads
                 self.assertEqual(cdp.js("(() => { const b = document.getElementById('pk-more'); return [b.getAttribute('aria-label'), b.title, !!document.querySelector('[data-pk-delete]')]; })()", sid), ["More actions", "More actions", True])
                 click(cdp, sid, "#pk-more")
                 self.until(cdp, sid, "!!document.querySelector('[role=menu] [role=menuitem]')", "the menu")
