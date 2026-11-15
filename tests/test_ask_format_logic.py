@@ -79,8 +79,22 @@ class Blocks(unittest.TestCase):
         self.assertEqual(flat(parse(s)[0]["lines"][0]), s)
         self.assertEqual(flat(parse("- ABC-A-001: 12")[0]["items"][0][0]), "ABC-A-001: 12")
 
+    def test_a_doubled_underscore_is_text_not_an_italic(self):
+        self.assertEqual(flat(parse("a window.__pwn=1 and window.__pwn=2")[0]["lines"][0]), "a window.__pwn=1 and window.__pwn=2")
+
     def test_a_numbered_list_keeps_its_start(self):
         self.assertEqual(parse("3. c\n4. d")[0]["start"], 3)
+
+    def test_a_heading_deeper_than_three_is_drawn_as_the_third_level(self):
+        # the page draws level + 2 as the element, so a level over 3 would be h6 to h8 (h7 and h8 are not elements)
+        self.assertEqual([x["level"] for x in parse("# a\n\n## b\n\n### c\n\n#### d\n\n###### e")], [1, 2, 3, 3, 3])
+
+    def test_a_plus_bullet_is_a_list_like_a_dash_and_a_star(self):
+        for mark in ("-", "*", "+"):
+            with self.subTest(mark):
+                b = parse(f"{mark} one\n{mark} two")
+                self.assertEqual([x["t"] for x in b], ["ul"])
+                self.assertEqual([flat(i[0]) for i in b[0]["items"]], ["one", "two"])
 
 
 class Streaming(unittest.TestCase):

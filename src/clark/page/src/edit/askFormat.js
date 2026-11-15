@@ -26,7 +26,7 @@ export function inline(s) {
     } else if (c === "*" || c === "_") {
       let j = s.indexOf(c, i + 1);
       while (j > 0 && c === "*" && s[j + 1] === "*" && j + 1 < s.length) j = s.indexOf(c, j + 2);   // a bold inside the italic is not its end
-      if (j > i + 1 && bounded(s, i + 1, j) && (c === "*" || (!wordChar(s[i - 1]) && !wordChar(s[j + 1])))) {
+      if (j > i + 1 && bounded(s, i + 1, j) && (c === "*" || (s[i - 1] !== "_" && s[i + 1] !== "_" && s[j - 1] !== "_" && s[j + 1] !== "_" && !wordChar(s[i - 1]) && !wordChar(s[j + 1])))) {   // a doubled underscore (window.__x) is text
         flush(); out.push({ t: "em", c: inline(s.slice(i + 1, j)) }); i = j + 1; continue;
       }
     }
