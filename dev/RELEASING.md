@@ -52,4 +52,4 @@ Only a finding marked HIGH holds a release back. Every MEDIUM and LOW gets a Tec
 
 ## Windows (v1.1)
 
-The Windows download is not a native build: a person extracts a zip and runs clark in Docker (item 627). No step above is run for it by a script. Before it is published, a person with a real Windows laptop works through `dev/handchecks/1.1.0-sheet.md` and writes down what failed. A failed line there holds the Windows zip back; it never holds back the Mac release.
+The Windows download is not a native build: a person unzips a zip and runs clark in Docker (item 627). No step above is run for it by a script. Before it is published, a person with a real Windows laptop works through `dev/handchecks/1.1.0-sheet.md` and writes down what failed. A failed line there holds the Windows zip back; it never holds back the Mac release.
