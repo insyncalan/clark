@@ -65,6 +65,11 @@ class Target(unittest.TestCase):
         self.assertEqual(at("a", 500, 215), {"before": "c"})
         self.assertEqual(at("b", 500, 455), {"before": None})
 
+    def test_the_pointer_exactly_on_the_quarter_edge_is_in_the_middle_and_not_in_the_top_quarter(self):
+        self.assertEqual(at("e", 200, 145), {"beside": "b", "side": "left"})      # row b is 120 to 220: the edge is 120 + 25
+        self.assertEqual(at("e", 800, 145), {"beside": "b", "side": "right"})
+        self.assertEqual(at("e", 500, 144.5), {"before": "b"})
+
     def test_the_middle_of_a_section_on_its_own_is_half_width_left_or_right_by_the_side_the_pointer_is_on(self):
         self.assertEqual(at("e", 200, 170), {"beside": "b", "side": "left"})
         self.assertEqual(at("e", 800, 170), {"beside": "b", "side": "right"})
