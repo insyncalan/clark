@@ -252,7 +252,7 @@ class MacZipTest(unittest.TestCase):
         """item 427: a computer that will not open clark.command uses Docker and Chrome only. The guide says it first, as commands to
         type (never a .command file), and the download holds the compose file it names."""
         text = package.start_here("mac")
-        up = "docker compose -f docker/compose.yaml up -d"
+        up = "bash docker/start.command"
         self.assertIn(up, text)
         self.assertIn("docker compose -f docker/compose.yaml down", text)
         self.assertIn("http://localhost:8766", text)
@@ -291,7 +291,7 @@ class MacZipTest(unittest.TestCase):
         self.assertIn("These steps are for a Mac.", flat)
         self.assertIn("With Docker, your data is kept in ~/Library/Application Support/clark, the same place clark.command uses, not in this folder, "
                       "so you can swap this folder for a newer download without losing anything.", flat)
-        self.assertIn('CLARK_DATA_DIR="/full/path" docker compose -f docker/compose.yaml up -d', flat)
+        self.assertIn('CLARK_DATA_DIR="/full/path" bash docker/start.command', flat)
         self.assertNotIn("beside the clark files", flat)
         self.assertIn("Use the clark download, not a copy of the source code: a copy of the source has no built page, and Docker stops with a message saying so.", flat)
         self.assertIn("To see what Docker has said, type this in the same folder:", flat)
@@ -303,7 +303,7 @@ class MacZipTest(unittest.TestCase):
         self.assertTrue(any(l.startswith("IMPORTANT: Never open the same data") for l in lines), "the warning starts its own line")
         self.assertLess(flat.index("With Docker, your data"), flat.index(warning))
         self.assertLess(flat.index(warning), flat.index("To use another port"))
-        self.assertIn("CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d then open http://localhost:8800 instead.", flat)
+        self.assertIn("CLARK_PORT=8800 bash docker/start.command then open http://localhost:8800 instead.", flat)
         self.assertLess(flat.index("With Docker, your data"), flat.index("Without Docker:"))
         self.assertIn("Without Docker, your data is kept in ~/Library/Application Support/clark", flat)
 
@@ -891,6 +891,31 @@ class PreviousReleaseAcceptsThisOneTest(unittest.TestCase):
         old = self._old_module(tags[0])
         self.assertIsNotNone(old, tags[0])
         self.assertEqual([], self.unsafe_for(old), f"{tags[0]} would refuse this tree's zip as outside its own list")
+
+    def test_the_last_release_own_check_coverage_accepts_this_trees_zip(self):
+        """Item 1151: run the newest tag's real updates.check_coverage (its own code and its own list), not release_files.covers alone."""
+        import importlib.util
+        import clark
+        tags = subprocess.run(["git", "-C", str(ROOT), "tag", "--list", "v*", "--sort=-v:refname"], capture_output=True, text=True).stdout.split()
+        if not tags:
+            self.skipTest("no v* release tag (shallow clone without tags); the sibling test decides skip or fail")
+        tag = tags[0]
+        old_rf = self._old_module(tag)
+        src = subprocess.run(["git", "-C", str(ROOT), "show", f"{tag}:src/clark/updates.py"], capture_output=True)
+        self.assertEqual(0, src.returncode, tag)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "old_updates.py"
+            path.write_bytes(src.stdout)
+            spec = importlib.util.spec_from_file_location("old_updates", path)
+            old = importlib.util.module_from_spec(spec)
+            with mock.patch.object(clark, "release_files", old_rf):      # the old file does `from clark import release_files`
+                spec.loader.exec_module(old)
+        for system in sorted(set(release_files.SYSTEMS) - release_files.NOT_BUILT_YET):
+            rels = _files_in_zip(release_files.listed(system) + (release_files.START_HERE,))
+            try:
+                old.check_coverage(system, rels)
+            except old.UpdateError as e:
+                self.fail(f"{tag} would refuse this tree's {system} zip: {e}")
 
 
 if __name__ == "__main__":
