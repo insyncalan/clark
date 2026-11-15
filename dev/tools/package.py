@@ -251,8 +251,9 @@ called .app: you do not need to open it.
   1. Right-click the zip you downloaded, choose Extract All and finish. Then
      open the new folder called clark. Do not run anything from inside the zip.
   2. Open Docker Desktop and wait until it says it is running.
-  3. Open PowerShell (Start, type PowerShell). Type cd and a space, drag the
-     folder called clark into the PowerShell window and press Enter.
+  3. Open PowerShell (Start, type PowerShell), or Command Prompt (Start, type
+     cmd). Type cd and a space, drag the folder called clark into the window and
+     press Enter.
   4. The first time only, type this and press Enter:
         docker load -i docker\\clark-runtime.tar
   5. Type this and press Enter:
@@ -265,6 +266,8 @@ folder, so replacing this folder with a newer download cannot lose it. To keep
 it somewhere else, type this first, in every new PowerShell window, and put your
 own folder in it:
         $env:CLARK_DATA_DIR = "D:\\clark-data"
+In a Command Prompt window, type this first instead, in every new window:
+        set CLARK_DATA_DIR=D:\\clark-data
 To see what Docker has said, type this in the same folder:
         docker compose -f docker/compose.yaml -f docker/compose.windows.yaml logs --tail 50
 """

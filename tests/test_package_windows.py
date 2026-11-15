@@ -79,6 +79,12 @@ class WindowsZipTest(unittest.TestCase):
         self.assertIn("not in this\nfolder", self.text)
         self.assertIn("in every new PowerShell window", self.text)
 
+    def test_start_here_gives_the_command_prompt_form_as_well_as_the_powershell_one(self):
+        """The same steps work in a Command Prompt window; only the data-folder line differs (set, not $env:), and the text says so."""
+        self.assertIn("or Command Prompt (Start, type\n     cmd)", self.text)
+        self.assertIn("In a Command Prompt window, type this first instead, in every new window:\n        set CLARK_DATA_DIR=D:\\clark-data\n", self.text)
+        self.assertIn('$env:CLARK_DATA_DIR = "D:\\clark-data"', self.text)
+
     def test_start_here_starts_from_the_extracted_folder_with_the_windows_file(self):
         """Item 624, item 629: Extract All first, and every compose line names the Windows file, or CLARK_HOST=windows is never set and
         the data default is the Mac one."""
