@@ -254,7 +254,8 @@ class TheEditor(Setup):
 class TheHelpLine(unittest.TestCase):
     def test_the_published_page_help_names_the_top_bar_not_a_cover(self):
         help_ = (SRC / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
-        self.assertIn("**The top bar**: the project, the week ending and who it is for.", help_)
+        self.assertIn("**The top bar**: the logo, the project name (opens the project list), then Weekly report and the week (opens the calendar).", help_)
+        self.assertNotIn("**The top bar**: the project, the week ending and who it is for.", help_)
         self.assertNotIn("**The cover**: the project, the week ending and who it is for.", help_)
 
 
