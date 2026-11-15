@@ -377,10 +377,10 @@ class Cards(Base):
             self.assertEqual((card["letter"], card["move"], card["moveOpacity"]), ("A", True, "1"), "a letter badge named in full, and the ... always there in Edit")
             self.assertRegex(card["due"], r"^In \d+ days$|^\d+ days late$|Today|Tomorrow")
             self.assertTrue(card["eye"])
-            self.assertTrue(card["eyeWords"].startswith("Shown to the client"), card["eyeWords"])
+            self.assertTrue(card["eyeWords"].startswith("Take "), card["eyeWords"])
             self.assertEqual(card["role"], "button")
             self.assertTrue(card["label"].startswith(f"{a} Send the invitations, Delayed"), card["label"])
-            self.assertTrue(cdp.js(f"document.querySelector(\"article[data-id='{self.id_of('Book the training room')}'] button.weye\").getAttribute('aria-label')", sid).startswith("Not shown to the client"), "a hidden card has the crossed-out eye to turn it on")
+            self.assertTrue(cdp.js(f"document.querySelector(\"article[data-id='{self.id_of('Book the training room')}'] button.weye\").getAttribute('aria-label')", sid).startswith("Put "), "a hidden card has the crossed-out eye to turn it on")
             self.assertEqual(cdp.js(f"document.querySelector(\"article[data-id='{self.id_of('Book the training room')}'] .av\")", sid), None, "no initials for an item with no owner")
 
     def test_the_card_eye_is_a_button_that_toggles_in_view_and_edit_with_one_undo(self):
@@ -395,7 +395,7 @@ class Cards(Base):
                 click(cdp, sid, eye)
                 self.until(cdp, sid, f"document.querySelector({json.dumps(eye)}).getAttribute('aria-pressed') === 'false'", "the eye turned off")
                 self.assertEqual(self.steps(), before + 1, "one click is one step")
-                self.assertEqual(cdp.js("document.querySelector('.toast-text').textContent", sid), f"{a} hidden from the client.")
+                self.assertEqual(cdp.js("document.querySelector('.toast-text').textContent", sid), f"{a} is off the page.")
                 self.assertEqual(cdp.js("document.querySelector('#peek') ? 1 : 0", sid), 0, "a click on the eye does not open the peek")
                 click(cdp, sid, "[data-undo]")
                 self.until(cdp, sid, f"document.querySelector({json.dumps(eye)}).getAttribute('aria-pressed') === 'true'", "Undo turned it on again")
