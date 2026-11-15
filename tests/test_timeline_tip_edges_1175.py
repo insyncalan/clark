@@ -48,6 +48,7 @@ class TipEdges(BrowserBase, unittest.TestCase):
         for width in (1400, 900):
             with chrome() as cdp:
                 sid = self.visit(cdp, width, "#milestones&p=TUL", port)
+                cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, sid)   # the scale is off under reduced motion (shell.css); the Mac runner is measured to give the focused mark no transform
                 cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)   # the page has the focus, so element.focus() matches :focus-visible on a Mac runner too
                 cdp.js("document.querySelector('.mv-bar [data-scale-b=quarter]').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-mk[data-hid]').length", sid) > 4), f"{width}: names are hidden")
