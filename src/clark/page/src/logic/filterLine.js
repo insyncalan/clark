@@ -671,8 +671,33 @@ export function linePut(storage, project, line) {
 const sane = (v) => v && typeof v.id === "string" && typeof v.name === "string" && typeof v.line === "string";
 // An older stored set began with its own "Open items" view (id open, as given); the core one replaces it. Any other stored view stays, as it was.
 const oldOpenItems = (v) => v.id === "open" && v.name === "Open items" && v.line === "is:open";
+// Row 1203: a page other than Work items keeps its saved views under its own key (`${VIEWS_KEY}.${page}`), never in the Work items memory, with
+// its own starting views and none of the five core ones. `page` is a key of PAGE_VIEWS; an unknown page has no views and keeps nothing.
+export const PAGE_VIEWS = {
+  usecases: [
+    { id: "all", name: "All use cases", line: "" },
+    { id: "on", name: "On the dashboard", line: "on:yes" },
+    { id: "committed", name: "Committed", line: "commitment:Committed" },
+    { id: "risk", name: "At risk", line: 'status:Flag,"High risk"' },
+  ],
+};
+const pageKey = (page) => `${VIEWS_KEY}.${page}`;
+function pageViewsGet(storage, project, page) {
+  const start = PAGE_VIEWS[page];
+  if (!start) return [];
+  const mine = storage ? readAll(storage, pageKey(page))[project] : null;
+  const got = (Array.isArray(mine) && mine.every(sane) ? mine : start).map((v) => ({ ...v }));
+  return isPublished() ? got.filter((v) => lineIsClientSafe(v.line)) : got;
+}
+function pageViewsPut(storage, project, views, page) {
+  if (!storage || !PAGE_VIEWS[page]) return false;
+  const all = readAll(storage, pageKey(page));
+  all[project] = (views || []).map((v) => ({ ...v }));
+  return writeAll(storage, pageKey(page), all);
+}
 /** A project's views: the five core ones, then its own stored views, or the ones every project starts with. */
-export function viewsGet(storage, project) {
+export function viewsGet(storage, project, page) {
+  if (page) return pageViewsGet(storage, project, page);
   const mine = storage ? readAll(storage, VIEWS_KEY)[project] : null;
   const own = (Array.isArray(mine) && mine.every(sane) ? mine : DEFAULT_VIEWS).filter((v) => !isCoreView(v) && !oldOpenItems(v)).map((v) => ({ ...v }));
   const kept = storage ? readAll(storage, CORE_KEY)[project] : null, names = (kept && kept.names) || {}, gone = Array.isArray(kept && kept.gone) ? kept.gone : [];
@@ -684,7 +709,8 @@ export function viewsGet(storage, project) {
   }
   return isPublished() ? got.filter((v) => lineIsClientSafe(v.line)) : got;
 }
-export function viewsPut(storage, project, views) {
+export function viewsPut(storage, project, views, page) {
+  if (page) return pageViewsPut(storage, project, views, page);
   if (!storage) return false;
   const all = readAll(storage, VIEWS_KEY);
   all[project] = (views || []).filter((v) => !isCoreView(v));            // the core views are never stored with the person's own
