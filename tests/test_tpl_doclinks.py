@@ -93,22 +93,34 @@ class Checker(unittest.TestCase):
         for name in ("a.html", "a.htm", "a.svg", "a.zip", "a.exe", "a.js", "a.sh", "a.bat", "report.pdf.exe", "noending", "a.pdf ",
                      "a.pdfx", "pdf", "a.gif", "a.docm"):
             with self.subTest(name=name):
-                self.refused("doclinks", body([a_file(name=name)]), doclinks.BAD_FILE if name.endswith(" ") else doclinks.BAD_TYPE)
+                self.refused("doclinks", body([a_file(name=name)]), doclinks.BAD_FILE if name.endswith(" ") else doclinks.bad_type(name))
 
     def test_the_refusal_names_the_allowed_types_and_add_file_meets_the_same_rule(self):
         for word in ("PDF", "Word", "Excel", "PowerPoint", "JPG", "PNG", "TXT"):
-            self.assertIn(word, doclinks.BAD_TYPE)
+            self.assertIn(word, doclinks.BAD_TYPE_TAIL)
         with self.assertRaises(section_bodies.Bad) as e:
             doclinks.add_file(None, {"name": "a.zip", "rel": "Report files/a.zip", "bytes": 1})
-        self.assertEqual(str(e.exception), doclinks.BAD_TYPE)
+        self.assertEqual(str(e.exception), doclinks.bad_type("a.zip"))
 
     def test_a_link_needs_a_description_a_file_does_not(self):
         for label in ("", "   "):
             with self.subTest(label=label):
-                self.refused("doclinks", body([a_link(label=label)]), doclinks.NO_DESCRIPTION)
-        self.refused("doclinks", body([{"kind": "link", "href": "https://example.org/plan"}]), doclinks.NO_DESCRIPTION)
-        self.assertEqual(doclinks.NO_DESCRIPTION, "Enter a link description.")
+                self.refused("doclinks", body([a_link(label=label)]), "Link 1: Enter a link description.")
+        self.refused("doclinks", body([{"kind": "link", "href": "https://example.org/plan"}]), "Link 1: Enter a link description.")
         self.assertEqual(json.loads(check("doclinks", body([a_file(label="")])))["items"][0]["label"], "")
+
+    def test_the_refusal_for_a_link_names_its_place_in_the_list(self):
+        """Item 1194 (ruled 15-11): 'Link {n}: Enter a link description.', n counted from 1 over every entry, files included."""
+        self.refused("doclinks", body([a_link(), a_link(label="")]), "Link 2: Enter a link description.")
+        self.refused("doclinks", body([a_link(), a_file(), a_link(label="  ")]), "Link 3: Enter a link description.")
+
+    def test_the_refusal_for_a_file_names_the_file(self):
+        """Item 1194 (ruled 15-11): '{file name}: That type of file can't be added. Use PDF, Word, Excel, PowerPoint, JPG, PNG or TXT.'"""
+        tail = "That type of file can't be added. Use PDF, Word, Excel, PowerPoint, JPG, PNG or TXT."
+        self.refused("doclinks", body([a_link(), a_file(name="Setup tool.zip")]), "Setup tool.zip: " + tail)
+        with self.assertRaises(section_bodies.Bad) as e:
+            doclinks.add_file(None, {"name": "run me.exe", "rel": "Report files/run me.exe", "bytes": 1})
+        self.assertEqual(str(e.exception), "run me.exe: " + tail)
 
     def test_the_shape_is_fixed_and_nothing_unknown_is_stored(self):
         self.refused("doclinks", json.dumps({"v": 2, "items": []}), doclinks.BAD_VERSION)
@@ -196,8 +208,8 @@ class Saved(Api):
         file ending in .zip) no longer checks, so: publish leaves the whole section out (never repaired, never half drawn) and a
         save that still carries that entry is refused in the plain words. Removing the old entry (or giving it words) makes the
         section saveable and published again. This pins the behaviour; there is no fallback that keeps old entries."""
-        for name, old, words in (("link with no words", a_link(label=""), doclinks.NO_DESCRIPTION),
-                                 ("file with an ending that is not allowed", a_file(name="old.zip"), doclinks.BAD_TYPE)):
+        for name, old, words in (("link with no words", a_link(label=""), "Link 2: Enter a link description."),
+                                 ("file with an ending that is not allowed", a_file(name="old.zip"), "old.zip: " + doclinks.BAD_TYPE_TAIL)):
             with self.subTest(old=name):
                 ref = self.make("Fictional old " + name)
                 self.stored(ref, body([a_link(), old]))
@@ -306,7 +318,7 @@ class InThePage(PageBase):
             self.set_value(p, f"{sel} [data-add-link] input[type=text]", "https://example.org/ok", 0)
             p.js(f"document.querySelector('{sel} [data-add-link] button[type=submit]').click()")
             p.until(f"!!document.querySelector('{sel} .tpl-problem')", "the missing description is refused")
-            self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-problem').textContent"), "Enter a link description.")
+            self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-problem').textContent"), "Link 1: Enter a link description.")
             for bad in ("javascript:alert(1)", "http://example.org", "example.org"):
                 self.set_value(p, f"{sel} [data-add-link] input[type=text]", bad, 0)
                 p.js(f"document.querySelector('{sel} [data-add-link] button[type=submit]').click()")

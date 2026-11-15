@@ -41,10 +41,19 @@ BAD_LABEL = f"Words for a file or link must be one line of {LABEL_MAX} character
 BAD_LINK = "That link can't be used. It must start with https:// or mailto: and have no spaces. Paste the whole address and try again."
 # UNRULED wording (item 1194): not yet ruled. The ticket quotes only "Enter a link description."
 ALLOWED_ENDINGS = ("pdf", "doc", "docx", "xls", "xlsx", "csv", "ppt", "pptx", "jpg", "jpeg", "png", "txt")
-UNRULED_BAD_TYPE = "That type of file can't be added. Use PDF, Word, Excel, PowerPoint, JPG, PNG or TXT."
-UNRULED_NO_DESCRIPTION = "Enter a link description."
-BAD_TYPE = UNRULED_BAD_TYPE
-NO_DESCRIPTION = UNRULED_NO_DESCRIPTION
+# Ruled by Alan (15-11, relayed by Jarvis): the refusal names the entry, a link by its place in the list (from 1), a file by its name.
+BAD_TYPE_TAIL = "That type of file can't be added. Use PDF, Word, Excel, PowerPoint, JPG, PNG or TXT."
+NO_DESCRIPTION_TAIL = "Enter a link description."
+
+
+def bad_type(name):
+    return f"{name}: {BAD_TYPE_TAIL}"
+
+
+def no_description(n):
+    return f"Link {n}: {NO_DESCRIPTION_TAIL}"
+
+
 BAD_FILE = "That file entry can't be used. Add the file again with Add a file."
 
 
@@ -130,7 +139,7 @@ def allowed_type(name):
     content. Documents and links only: One document keeps its own rule."""
     stem, dot, ending = str(name).rpartition(".")
     if not dot or not stem or ending.lower() not in ALLOWED_ENDINGS:
-        raise Bad(BAD_TYPE)
+        raise Bad(bad_type(name))
     return name
 
 
@@ -146,7 +155,7 @@ def file_entry(value):
     return {"name": name, "rel": value["rel"], "bytes": size}
 
 
-def _item(value, rules):
+def _item(value, rules, n=1):
     if type(value) is not dict:
         raise Bad(BAD_KIND)
     kind = value.get("kind")
@@ -159,7 +168,7 @@ def _item(value, rules):
         value = fields(value, ("kind", "href", "label"), ("kind", "href"))
         href, label = link(value["href"]), words(value.get("label", ""), rules)
         if not label:
-            raise Bad(NO_DESCRIPTION)
+            raise Bad(no_description(n))
         return {"kind": "link", "href": href, "label": label}
     raise Bad(BAD_KIND)
 
@@ -172,7 +181,7 @@ def check(value, rules):
         raise Bad(NOT_OBJECT)
     if len(items) > MAX_ITEMS:
         raise Bad(TOO_MANY)
-    return {"v": 1, "items": [_item(i, rules) for i in items]}
+    return {"v": 1, "items": [_item(i, rules, n) for n, i in enumerate(items, 1)]}
 
 
 def published(value, ctx):
