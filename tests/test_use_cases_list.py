@@ -311,7 +311,7 @@ class List(Setup):
                     self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
                     self.assertEqual(p.js("[...document.querySelectorAll('#usecases, #usecases *')].filter(e => e.scrollWidth > e.clientWidth + 1 && /auto|scroll/.test(getComputedStyle(e).overflowX)).length"), 0)
                     small = p.js("""[...document.querySelectorAll('#usecases button, #usecases input:not([type=checkbox]), #usecases a, #usecases [tabindex]')].map(e => {
-                        const r = e.getBoundingClientRect(); return [e.className || e.id || e.tagName, Math.round(r.width), Math.round(r.height)]; }).filter(x => x[1] < 24 || x[2] < 24)""")
+                        const r = e.getBoundingClientRect(); return [e.className || e.id || e.tagName, Math.round(r.width), Math.round(r.height)]; }).filter(x => (x[1] || x[2]) && (x[1] < 24 || x[2] < 24))""")   # a heading the narrow layout does not draw (0 x 0) is no target
                     self.assertEqual(small, [], "every control is at least 24 px each way")
                     p.js("document.querySelector('#ucl-group').click()")
                     p.until("!!document.querySelector('.ddmenu [role=menuitemradio]')", "the Group by menu opened")

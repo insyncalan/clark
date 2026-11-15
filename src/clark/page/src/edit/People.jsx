@@ -4,6 +4,7 @@
 // step, so one Undo takes the whole paste back. Edit's page only: a published file has no Settings and no people, and nothing here
 // is in it. The Excel import of work items (the buttons, the box, "Check the import") is not this card's: it follows item 444 and item 449.
 import { useEffect, useRef, useState } from "preact/hooks";
+import { useColWidths } from "./colWidths.jsx";
 import { useGrow } from "./useGrow.js";
 import { data, rows as workRows } from "../stores/report.js";
 import { peopleRows, needDetails, countLine, doneLine, readPaste, planLine, toSend, NONE_TO_ADD, NOTHING_NEW } from "../logic/people.js";
@@ -13,6 +14,7 @@ const PREVIEW_ROWS = 50;                       // the preview draws this many ro
 const WILL = { add: "New person", update: "Update", same: "No change", "": "Not added" };
 
 export function People() {
+  const cw = useColWidths("people");
   const [list, setList] = useState(null);            // null: not read yet; otherwise the people clark holds
   const [failed, setFailed] = useState("");           // why the list could not be read ("" when it could)
   const [only, setOnly] = useState(false);            // the list filtered to those who need details
@@ -126,8 +128,8 @@ export function People() {
               <span>{countLine(need, all.length)}</span>
               {need > 0 ? <button type="button" class="link" id="ppOnly" aria-pressed={filtered ? "true" : "false"} onClick={() => setOnly(!only)}>{filtered ? "Show everyone" : "Show only these"}</button> : null}
             </p>
-            <table class="pp-table" id="ppTable">
-              <thead><tr><th>Name</th><th>Email</th><th>Organisation</th><th>Role</th></tr></thead>
+            <table class={`pp-table${cw.any() ? " cw-set" : ""}`} id="ppTable">
+              <thead><tr>{["Name", "Email", "Organisation", "Role"].map((w) => <th key={w} style={cw.style(w)} {...cw.head(w, w)}>{w}{cw.grip(w, w)}</th>)}</tr></thead>
               <tbody>
                 {shown.map((r) => (
                   <tr key={r.id || `o:${r.name}`} data-person={r.name}>
