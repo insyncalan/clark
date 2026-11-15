@@ -11,6 +11,7 @@ from unittest import mock
 from _paths import SRC  # noqa: F401
 
 import _publish_fixture as plant
+import test_ask_route as route
 from clark import ask_data, ask_service, publish
 
 
@@ -48,6 +49,48 @@ class LeftOutKinds(unittest.TestCase):
         note = ask_service.kinds_note(self.run_with({"milestones", "raid"}).kinds_left_out)
         self.assertIn("milestones, risks and issues", note)
         self.assertIn("may be missing something", note)
+
+    def test_every_section_row_deleted_counts_the_built_ins_as_left_out(self):
+        given = plant.inputs()
+        given["sections"] = []
+        given["sections_deleted"] = 1
+        with mock.patch.object(publish, "read_inputs", return_value=given):
+            got = ask_data.project_data(object(), "PUB", "what milestones are there?")
+        self.assertIn("milestones", got.kinds_left_out)
+        self.assertEqual(len([p for p in got.passages if p.label == "report: left out"]), 1)
+
+    def test_no_section_rows_and_none_deleted_leaves_nothing_out(self):
+        given = plant.inputs()
+        given["sections"] = []
+        given["sections_deleted"] = 0
+        with mock.patch.object(publish, "read_inputs", return_value=given):
+            got = ask_data.project_data(object(), "PUB", "q")
+        self.assertEqual(got.kinds_left_out, ())
+
+    def test_two_hidden_kinds_are_both_named_in_the_passage(self):
+        got = self.run_with({"milestones", "raid"})
+        text = [p.text for p in got.passages if p.label == "report: left out"][0]
+        self.assertGreater(len(got.kinds_left_out), 1)
+        for kind in got.kinds_left_out:
+            self.assertIn(ask_data.KIND_WORDS[kind], text)
+
+
+class ThroughTheService(route.Base):
+    """The whole of AskService.ask: the person is told, in the notes of the reply, which kinds the report leaves out."""
+
+    def ask_with(self, hidden):
+        with mock.patch.object(publish, "read_inputs", return_value=inputs_with(hidden)):
+            return self.question("what milestones are there?")
+
+    def test_the_reply_notes_name_the_left_out_kind(self):
+        status, got = self.ask_with({"milestones"})
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        self.assertIn(ask_service.kinds_note(("milestones",)), got["notes"])
+
+    def test_the_reply_has_no_such_note_when_every_section_is_shown(self):
+        status, got = self.ask_with(set())
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        self.assertFalse([n for n in got["notes"] if "may be missing something" in n], got["notes"])
 
 
 if __name__ == "__main__":
