@@ -269,7 +269,7 @@ def read(data, item_id, words, now=None, known_owners=None, archived=None):
         if kind not in ("action", "decision"):
             notes.append("A risk's, issue's or other register item's priority comes from its impact and likelihood, so it was left out.")
         elif kind == "decision":
-            notes.append("A decision has no priority, so it was left out.")
+            notes.append("A decision's priority is set in its details, one at a time, so it was left out.")
         else:
             add("priority", PRIORITIES[p.group(1) or p.group(2)], phrase=phrase_of(words, PRIORITY_RX, skip))
     if status:
