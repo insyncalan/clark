@@ -35,7 +35,8 @@ a { color: var(--status-blue-text); }
   .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
   .top .tabs::-webkit-scrollbar { display: none; }
   .top .tab { flex: none; }
-  .top .asat, .top .asat-wrap { flex: none; white-space: nowrap; }
+  .top .asat { flex: none; white-space: nowrap; }
+  .top .asat-wrap { flex: none; }
 }
 .top .tab { white-space: nowrap; }
 .top .dd:has(> .projbtn) { min-width: 0; }   /* the project name gives way (its ellipsis) before the bar runs past a 901 px window, now the wordmark is 24 px */
@@ -43,7 +44,7 @@ a { color: var(--status-blue-text); }
 .tabs { display: flex; height: 100%; }
 .pubfoot { max-width: 1200px; margin: 24px auto 16px; padding: 0 16px; font-size: var(--size-small); color: var(--text-muted); }   /* item 120 */
 .asat { margin-left: auto; font-size: var(--size-caption); color: color-mix(in srgb, var(--white) 75%, transparent); }
-button.asat { all: unset; box-sizing: border-box; margin-left: auto; padding: 2px 6px; border-radius: var(--radius); font-size: var(--size-caption); color: var(--white); cursor: pointer; }
+button.asat { all: unset; box-sizing: border-box; margin-left: auto; min-height: 24px; display: inline-flex; align-items: center; padding: 2px 6px; border-radius: var(--radius); font-size: var(--size-caption); color: var(--white); cursor: pointer; }
 button.asat:hover { background: color-mix(in srgb, var(--white) 15%, transparent); text-decoration: underline dotted; }
 button.asat:focus-visible { outline: 2px solid var(--white); outline-offset: 1px; }
 .asat-wrap { position: relative; display: inline-flex; align-items: center; margin-left: auto; gap: var(--space-2); }
@@ -1685,7 +1686,7 @@ html:has(.top-file) { --topbar: 85px; }      /* issue 1178: 25 percent taller th
 .top-file .cm-wrap { margin-left: auto; }
 .top-file .logo { box-sizing: border-box; width: 147px; height: 22px; flex: none; }      /* issue 1178: the logo is 20 percent smaller than in issue 1146 (22 px high at 1400 px, 18 px at 900 px) */
 .top-file .logo-icon { width: 22px; height: 22px; }
-.top-file .logo .wm { font-size: 19px; line-height: 22px; }
+.top-file .logo .wm { font-size: var(--size-h3); line-height: 22px; }
 .top-slot:empty { display: none; }
 html:has(.top-file) main { padding-top: 10px; }      /* the first card starts 10 px under the bar */
 html:has(.top-file) .frame.report { padding-top: 0; }
@@ -1696,7 +1697,7 @@ html:has(.top-file) main [id], html:has(.top-file) .sec { scroll-margin-top: cal
   .top-file { flex-wrap: wrap; align-content: center; row-gap: 4px; padding-block: 4px; }
   .top-file .logo { width: 120px; height: 18px; }
   .top-file .logo-icon { width: 18px; height: 18px; }
-  .top-file .logo .wm { font-size: 15px; line-height: 18px; }
+  .top-file .logo .wm { font-size: var(--size-body); line-height: 18px; }
   .top-file .tabs { order: 9; flex: 1 1 100%; margin-left: 0; overflow-x: auto; }
 }
 @media print { .top-file { position: relative; } html.print-all .top-file .cm-badge { border: 1px solid var(--profile-ring); background: var(--profile-bg); } }      /* on paper the bar is placed once at the top, not stuck and not repeated; relative (not static) so the picture wash stays inside the bar */

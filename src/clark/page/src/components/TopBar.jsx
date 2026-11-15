@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { openFile } from "../router.js";
 import { ClientMenu } from "./ClientMenu.jsx";
 import { coverLine } from "../logic/cover.js";
 import { pastReportsOf } from "../logic/clientMenu.js";
@@ -22,7 +23,7 @@ function AsAtDate() {
     if (btn.current) btn.current.focus();
     if (!day || day === asAt.value) { setNote(""); return; }
     const hit = pastReportsOf(data.value).find((r) => r.iso === day);
-    if (hit) { location.href = hit.href; return; }
+    if (hit) { openFile(hit.href); return; }
     setNote("No report for " + shownDate(day) + ".");
   };
   return (
