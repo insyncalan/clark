@@ -91,6 +91,19 @@
 .pk-fix button:focus-visible, .pk-latest-text:focus-visible, .pk-latest-in:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .pk-latest { margin: var(--space-2) 0 0; padding-top: var(--space-2); border-top: 1px solid var(--grey-100); }
 .pk-lab { display: flex; align-items: center; gap: 10px; margin-bottom: var(--space-1); color: var(--text); font-size: var(--size-small); }
+.pk-ai { display: inline-flex; align-items: center; gap: 4px; min-height: 24px; padding: 2px 8px; border: 0; border-radius: var(--radius); background: transparent; color: var(--brand-blue); font: inherit; font-size: var(--size-caption); font-weight: 600; cursor: pointer; }
+.pk-ai:hover, .aim-opt:hover { background: var(--brand-blue-tint); }
+.pk-ai:focus-visible, .aim-opt:focus-visible, .aim-ask input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pk-ai-panel { margin: 0 0 var(--space-1); }
+.aim { display: flex; flex-direction: column; min-width: 240px; max-width: 360px; padding: 4px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); color: var(--text); }
+.aim hr { width: 100%; margin: 4px 0; border: 0; border-top: 1px solid var(--border); }
+.aim-gl { padding: 4px 8px 0; color: var(--text-muted); font-size: var(--size-caption); font-weight: 600; }
+.aim-opt { display: flex; flex-direction: column; align-items: flex-start; gap: 0; min-height: 24px; padding: 4px 8px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.aim-nm { font-size: var(--size-small); }
+.aim-ds { color: var(--text-muted); font-size: var(--size-caption); }
+.aim-ask input { box-sizing: border-box; width: 100%; min-height: 24px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-small); }
+.rt-ai { position: fixed; z-index: 60; max-width: min(360px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow: auto; }
+.rt-ai .aic { margin: 0; }
 .pk-latest-client { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: var(--text-muted); font-size: var(--size-small); }
 .pk-latest-text, .pk-latest-in { display: block; box-sizing: border-box; width: 100%; min-height: var(--space-7); margin: 0; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: var(--text); font: inherit; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }
 .pk-latest-text { cursor: text; }
@@ -262,7 +275,20 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-turn.problem { padding-left: var(--space-3); border-left: 3px solid var(--status-amber); }
 .ask-who { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; color: inherit; }    /* "You" and "Answer" are for a reader that announces; the bubble and the reply place already say it (issue 794) */
 .ask-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* row 1217: a formatted answer: blocks carry their own spacing, so the pre-wrap of plain text is off */
+.ask-md { white-space: normal; }
+.ask-md > :first-child { margin-top: 0; } .ask-md > :last-child { margin-bottom: 0; }
+.ask-md p, .ask-md ul, .ask-md ol, .ask-md pre { margin: 0 0 var(--space-2); }
+.ask-md .ask-h { margin: var(--space-3) 0 var(--space-1); font-size: var(--size-body); font-weight: var(--weight-semibold); line-height: 1.35; }
+.ask-md ul, .ask-md ol { padding-left: var(--space-4); }
+.ask-md li { margin: 0 0 4px; }
+.ask-md code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .92em; padding: 0 3px; border-radius: 3px; background: var(--grey-100); }
+.ask-md pre { overflow-x: auto; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); background: var(--grey-100); white-space: pre; }
+.ask-md pre code { padding: 0; background: none; }
 /* row 890: the Sources disclosure under an answer, closed by default; the same look as the other disclosures (.docs-left) */
+/* row 1218: the notes about what was left out: one small grey block close under the Sources line (--text-muted, 4.5 to 1 on the panel in light and dark) */
+.ask-notes { margin: -10px 0 0; padding: 0 0 0 var(--space-4); list-style: disc; font-size: var(--size-caption); line-height: 1.35; color: var(--text-muted); overflow-wrap: anywhere; }
+.ask-notes li { margin: 0 0 2px; }
 .ask-sources { margin-top: var(--space-2); }
 .ask-sources summary { cursor: pointer; color: var(--text-muted); font-size: var(--size-small); min-height: 24px; }
 .ask-sources summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
@@ -287,18 +313,35 @@ table.items td.c-pick { vertical-align: middle; }
 @media (prefers-reduced-motion: reduce) { .ask-turn, .ask-work { animation: none; } .ask-dots i { animation: none; opacity: .6; } .ask-grip::before, .ask-grip::after, .ask-pills button, .ask-form textarea { transition: none; } }
 .ask-note { flex: none; margin: 0; padding: 0 20px 6px; font-size: var(--size-caption); color: var(--text-muted); }
 .ask-note:empty { padding: 0; height: 0; overflow: hidden; }
-.ask-form { flex: none; display: flex; flex-direction: row; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4) 14px; border-top: 1px solid var(--grey-200); }
+/* row 1220: the messages waiting to be sent, small and quiet, one line each, above the typing space; a bin at the right end of each */
+.ask-queue { flex: none; padding: 0 20px 6px; font-size: var(--size-caption); color: var(--text-muted); }
+.ask-queue ul { margin: 0; padding: 0; list-style: none; }
+.ask-queue li { display: flex; align-items: center; gap: var(--space-2); min-height: 24px; }
+.ask-queue-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ask-queue-del { flex: none; width: 24px; height: 24px; min-width: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--text-muted); background: transparent; border: 0; border-radius: var(--radius-sm); cursor: pointer; }
+.ask-queue-del:hover { color: var(--text); background: var(--grey-100); }
+.ask-queue-del:focus-visible, .ask-queue-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.ask-queue-del .i { width: 14px; height: 14px; }
+.ask-queue li.ask-queue-more { display: none; }
+.ask-queue-held { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2) var(--space-3); margin: 4px 0 0; }
+.ask-queue-act { min-height: 24px; padding: 0; font: inherit; color: var(--link, var(--brand-blue)); background: none; border: 0; text-decoration: underline; cursor: pointer; }
+.ask-queue-act:disabled { color: var(--text-muted); cursor: default; }
+.ask-queue-drop { flex: none; margin: 0; padding: 0 20px 6px; font-size: var(--size-caption); color: var(--status-amber-text); }
+@media (max-width: 900px) { .ask-queue li[data-queued]:nth-child(n+3) { display: none; } .ask-queue li.ask-queue-more { display: flex; } }
+.ask-form { flex: none; display: flex; flex-direction: row; align-items: flex-end; gap: var(--space-2); padding: var(--space-3) var(--space-4) 14px; border-top: 1px solid var(--grey-200); }
 /* row 1023 (prototype app.css:583): the brand picture, faint, at the panel's foot behind the box, rising from the bottom; nothing without a picture (--image-cover is none) */
 .ask-form { position: relative; }
 .ask-form::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 340px; z-index: -1; pointer-events: none; background: var(--image-cover) 70% bottom / cover no-repeat; opacity: .2; -webkit-mask-image: linear-gradient(0deg, var(--black), transparent); mask-image: linear-gradient(0deg, var(--black), transparent); }
 @media print { .ask-form::before { display: none; } }
-.ask-form textarea { flex: 1 1 auto; min-width: 0; width: 100%; box-sizing: border-box; height: 40px; min-height: 0; max-height: 40px; line-height: 20px; padding: 9px 14px; overflow-y: auto; border: 1px solid var(--ask-edge); border-radius: 12px; background: var(--grey-50); color: var(--text); font: inherit; font-size: var(--size-body); resize: none; outline: none; transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
+.ask-form textarea { flex: 1 1 auto; min-width: 0; width: 100%; box-sizing: border-box; height: 44px; min-height: 44px; max-height: 132px; padding: 10px 14px; overflow-y: auto; border: 1px solid var(--ask-edge); border-radius: 12px; background: var(--grey-50); color: var(--text); font: inherit; font-size: var(--size-body); line-height: 22px; resize: none; outline: none; transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
 .ask-form textarea::placeholder { color: var(--text-muted); opacity: 1; }
 .ask-form textarea:focus-visible { background: var(--surface); border-color: var(--brand-blue); box-shadow: 0 0 0 2px var(--brand-blue), 0 0 0 5px color-mix(in srgb, var(--brand-blue) 20%, transparent); }
 .ask-form textarea:disabled { opacity: .7; }
 .ask-actions { flex: none; display: flex; align-items: center; gap: var(--space-2); }
 .ask-actions .btn.primary { width: 36px; min-width: 36px; height: 36px; min-height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; }
 .ask-actions .btn.primary:disabled, .ask-actions .btn.primary[data-empty] { opacity: .45; cursor: default; box-shadow: none; }
+.ask-actions .ask-stop-icon { opacity: 1; cursor: pointer; }
+.ask-actions .ask-stop-icon svg { display: block; }
 /* #47e: a suggested change in the ask panel */
 .ask-changes { display: flex; flex-direction: column; gap: 10px; margin-top: var(--space-1); }
 .ask-passage { margin: 0; padding: 6px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: var(--surface); }  /* row 936: a quote edge is a hairline all round, no one-side stripe */
@@ -357,7 +400,6 @@ table.items td.c-pick { vertical-align: middle; }
 .pa-row.picked { background: color-mix(in srgb, var(--brand-blue-tint) 60%, var(--surface)); }
 .pa-row[data-step] .pa-what { user-select: text; }
 /* Use cases page: list */
-.ucl-sub { margin: 4px 0 0; font-size: var(--size-body); }
 /* Row 1085: the tabs row as Work items draws its saved views, Import, Export and Add use case at its right end, and the filter line (the Work items box) under it */
 .ucl-views { margin-top: 16px; }
 .ucl-tools { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-bottom: var(--space-1); }
@@ -1206,13 +1248,7 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
 .cover-switch:focus-visible { outline: 2px solid var(--white); outline-offset: 4px; }
 .cover:has(.cover-switch[aria-expanded="true"]) { z-index: 30; }      /* the cover is its own stacking layer (isolate), so while its project list is open the whole band sits above the sections below, or their headings would take the clicks meant for the list rows */
 .cover h1 .ddmenu { font-size: var(--size-body); font-weight: normal; line-height: normal; color: var(--text); text-align: left; letter-spacing: normal; text-transform: none; }
-/* item 1177: (the box is as wide as the room the server sets, up to its size, so with no logo the box has no width and nothing is drawn or shifts) the slim header has no band, so the installed brand's logo (the same --image-logo as item 1154) sits small at the RIGHT of the header, before the search, ask and profile icons (.hdr-end::before). The server sets --cover-logo-room only with a logo; min() turns it into the logo's room (128 px, plus a 16 px gap), and with no logo it is 0px: no room is kept, nothing is drawn and nothing shifts. At 900 px and narrower the box is 96 x 24 px so the profile circle stays on the row. Editor only: the published bar has no .hdr-end. */
-.hdr-end { position: relative; padding-left: min(var(--cover-logo-room, 0px), calc(var(--space-8) * 2 + var(--space-4))); }
-.hdr-end::before { content: ""; position: absolute; left: 0; top: 50%; width: min(var(--cover-logo-room, 0px), calc(var(--space-8) * 2)); height: var(--space-6); transform: translateY(-50%); pointer-events: none; background: var(--image-logo) right center / contain no-repeat; }
-@media (max-width: 900px) {
-  .hdr-end { padding-left: min(var(--cover-logo-room, 0px), calc(var(--space-8) * 1.5 + var(--space-3))); }
-  .hdr-end::before { width: min(var(--cover-logo-room, 0px), calc(var(--space-8) * 1.5)); height: var(--space-5); }
-}
+/* row 1212: the editor's slim header draws the brand's logo ONCE, at the left (the .logo box). The second copy that used to sit at the right, before the search, ask and profile icons (.hdr-end::before, drawn from --image-logo, with the room --cover-logo-room kept as padding), is gone; the report band on the Gantt page keeps its own logo (.cover::after, item 1154). */
 
 /* Item 1177, stage B: the floating View | Edit pill (#mode-pill). Fixed just under the sticky header, at the right edge, above the page's own layers and below the
    header (z-index 28: the minimap is 25, the header 30). Half see-through at rest, solid on hover and when a button has the focus. Icon buttons only (eye, pencil).
@@ -1231,3 +1267,8 @@ body.board-full #mode-pill, body:has(#profile-menu, dialog[open], [role="dialog"
 #report-bar { min-height: 0; margin: 0; }
 #report-bar .rbar-hint { position: fixed; top: calc(var(--topbar) + 8px); right: calc(20px + 74px + 8px); z-index: 28; box-shadow: var(--shadow); }
 body.board-full #report-bar .rbar-hint, body:has(#profile-menu, dialog[open], [role="dialog"], [role="alertdialog"]) #report-bar .rbar-hint { display: none; }
+
+/* row 1104: a table whose column has a chosen width is laid out in fixed mode so the width holds; the other columns share the rest, and a long word breaks inside its cell */
+table.cw-set, .projects table.proj-table.cw-set { table-layout: fixed; width: 100%; }
+table.cw-set td { overflow-wrap: anywhere; white-space: normal; }
+table.cw-set td.acts, .pp-earlier .pubs.cw-set td.files, .pp-earlier .pubs.cw-set td.num { white-space: normal; }

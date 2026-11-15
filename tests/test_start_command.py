@@ -127,6 +127,28 @@ class StartCommand(unittest.TestCase):
         # Only the 3.9 version test says "too old"; the starter check and `-m clark.launch` behave as before.
         self.stub("python3", f'case "$1" in -c) exit 1 ;; -m) echo "python3 $*" >> "$LOG"; exit 0 ;; esac\nexec {self.real_python} "$@"')
 
+    def python_version(self, version):
+        # python3 stub that runs the script's own `-c` version test against a pretend version (the real test code, not a canned answer).
+        self.stub("python3", f'''case "$1" in -c) exec {self.real_python} -c 'import sys; exec(sys.argv[1].replace("sys.version_info", sys.argv[2]))' "$2" "{version}" ;; -m) echo "python3 $*" >> "$LOG"; exit 0 ;; esac
+exec {self.real_python} "$@"''')
+
+    def test_python_3_8_is_too_old_and_3_9_is_enough(self):
+        self.python_version("(3, 8, 18)")
+        r = self.run_script(DOCKER_INFO_RC="1")
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("clark needs Python 3.9 or newer", r.stdout)
+        self.python_version("(3, 9, 0)")
+        r = self.run_script(DOCKER_INFO_RC="1")
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("python3 -m clark.launch", self.calls())
+
+    def test_the_health_check_waits_up_to_thirty_retries(self):
+        self.run_script()
+        curl = [c for c in self.calls() if c.startswith("curl ")]
+        self.assertEqual(len(curl), 1)
+        self.assertIn("--retry 30 ", curl[0])
+        self.assertIn("--retry-connrefused", curl[0])
+
     def test_old_python_with_docker_working_still_starts_docker(self):
         self.old_python()
         r = self.run_script()

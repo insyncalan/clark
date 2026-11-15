@@ -6,6 +6,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { project as openCode, openProjectAt, loadProjects, reread } from "../stores/report.js";
 import { say, undone, enqueue } from "../stores/changes.js";
+import { useColWidths } from "./colWidths.jsx";
 import { NewTile } from "../components/NewTile.jsx";
 import { listProjects, readProject, sendProjectArchive } from "./projectsApi.js";
 import { openBox, closeBox } from "./boxes.js";
@@ -18,6 +19,7 @@ export function Projects({ api = REAL }) {
   const [state, setState] = useState({ phase: "loading", live: [], gone: [] });
   const [showGone, setShowGone] = useState(false);
   const [busy, setBusy] = useState("");
+  const cw = useColWidths("projects");
 
   async function load() {
     const [live, gone] = await Promise.all([api.list(false), api.list(true)]);
@@ -83,8 +85,8 @@ export function Projects({ api = REAL }) {
       {state.phase === "failed" ? <p class="error" role="alert">{L.FAILED} <button type="button" class="btn sm" onClick={load}>{L.LABELS.tryAgain}</button></p> : null}
       {state.phase === "ready" && !rows.length ? <p class="muted" id="projects-none">{state.gone.length ? L.ALL_ARCHIVED : L.NONE}</p> : null}
       {rows.length ? (
-        <table class="items proj-table" id="projects-table" aria-label={L.TITLE}>
-          <thead><tr>{L.COLUMNS.map((c) => <th key={c} scope="col">{c}</th>)}<th scope="col" aria-label="What you can do"></th></tr></thead>
+        <table class={`items proj-table${cw.any() ? " cw-set" : ""}`} id="projects-table" aria-label={L.TITLE}>
+          <thead><tr>{L.COLUMNS.map((c, i) => <th key={c} scope="col" style={cw.style(`c${i}`)} {...cw.head(`c${i}`, c)}>{c}{cw.grip(`c${i}`, c)}</th>)}<th scope="col" aria-label="What you can do"></th></tr></thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.code} data-project={r.code} class={r.archived ? "arch" : ""}>
