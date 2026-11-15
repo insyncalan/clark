@@ -6,7 +6,7 @@ Run: python3 dev/run_tests.py test_current_state_section_1188
 import unittest
 
 from _paths import ROOT  # noqa: F401
-from clark import ask_data, publish
+from clark import ask_data, default_sections, publish
 from test_sections_store import Base
 
 
@@ -30,6 +30,27 @@ class Body(unittest.TestCase):
     def test_another_title_or_type_and_no_sections_give_nothing(self):
         self.assertEqual(publish.current_state_section_body([sec("<p>x</p>", title="Summary"), sec("<p>y</p>", type_="current")]), "")
         self.assertEqual(publish.current_state_section_body(None), "")
+
+
+class Instruction(unittest.TestCase):
+    def test_the_prefill_line_stored_as_the_body_gives_nothing(self):
+        self.assertEqual(publish.current_state_section_body([sec("<p>%s</p>" % default_sections.CURRENT_STATE_PREFILL)]), "")
+        self.assertEqual(publish.current_state_section_body([sec("  <div>%s</div>\n" % default_sections.CURRENT_STATE_PREFILL.replace(" ", "  "))]), "")
+
+    def test_every_hint_value_stored_as_the_body_gives_nothing(self):
+        for hint in default_sections.SECTION_HINTS.values():
+            self.assertEqual(publish.current_state_section_body([sec("<p>%s</p>" % hint)]), "", hint)
+
+    def test_an_edited_body_that_merely_contains_the_line_is_kept(self):
+        body = "<p>%s Also, the vendor is late.</p>" % default_sections.CURRENT_STATE_PREFILL
+        self.assertEqual(publish.current_state_section_body([sec(body)]), body)
+
+
+class Order(unittest.TestCase):
+    def test_the_first_in_display_order_wins_not_the_first_in_input_order(self):
+        later = dict(sec("<p>Later.</p>"), id="S-1", sort_order=20)
+        earlier = dict(sec("<p>Earlier.</p>"), id="S-2", sort_order=10)
+        self.assertEqual(publish.current_state_section_body([later, earlier]), "<p>Earlier.</p>")
 
 
 class Reads(Base):
