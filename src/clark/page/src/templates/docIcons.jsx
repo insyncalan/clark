@@ -4,6 +4,9 @@ import { fromFile } from "../stores/report.js";
 
 // A published file's cards carry no picture, so there the page icon is a plain box of words and the action icons are CSS-drawn characters (css .tpl-plain).
 const COLOURS = { PDF: "#E8410C", DOC: "#1F5FBF", XLS: "#1E9B4B", PPT: "#E8601C", JPG: "#6B46C1", PNG: "#E0358B", TXT: "#F2A400", URL: "#5B47D8", MAIL: "#0E7C86", FILE: "#5A6B77" };
+// The coloured label band and its text, at least 4.5:1 on every kind; the same pairs as the published file's badge (css .tpl-ic-*).
+export const BAND = { PDF: "#C93608", DOC: "#1F5FBF", XLS: "#1E9B4B", PPT: "#E8601C", JPG: "#6B46C1", PNG: "#C72A7A", TXT: "#F2A400", URL: "#5B47D8", MAIL: "#0E7C86", FILE: "#5A6B77" };
+export const BAND_TEXT = { XLS: "#111", PPT: "#111", TXT: "#111" };
 const LINES = (c) => <path d="M12 12h14M12 17h16M12 22h10" stroke={c} />;
 const GLYPHS = {
   PDF: LINES(COLOURS.PDF), DOC: LINES(COLOURS.DOC), FILE: LINES(COLOURS.FILE),
@@ -20,15 +23,15 @@ const INK = "#0E2430";
 // The icon for a label (PDF DOC XLS PPT JPG PNG TXT URL MAIL, else FILE): 41px tall, the height of a row's two text lines.
 export function PageIcon({ label }) {
   if (fromFile.value) return <span class={`tpl-badge tpl-plain tpl-ic-${GLYPHS[label] ? label : "FILE"}`}>{label}</span>;
-  const key = GLYPHS[label] ? label : "FILE", colour = COLOURS[key];
+  const key = GLYPHS[label] ? label : "FILE";
   return (
     <span class="tpl-badge tpl-page">
       <svg viewBox="0 0 40 48" width="34" height="41" aria-hidden="true" focusable="false">
         <path d="M4 2h22l10 10v34H4z" fill="#fff" stroke={INK} stroke-width="2.2" stroke-linejoin="round" />
         <path d="M26 2v10h10" fill="none" stroke={INK} stroke-width="2.2" stroke-linejoin="round" />
         <g fill="none" stroke-width="2" stroke-linecap="round">{GLYPHS[key]}</g>
-        <path d="M5.1 31h29.8v14.9H5.1z" fill={colour} />
-        <text x="20" y="42" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-weight="800" font-size={label.length > 3 ? 8 : 9.5} fill="#fff">{label}</text>
+        <path d="M5.1 31h29.8v14.9H5.1z" fill={BAND[key]} />
+        <text x="20" y="42" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-weight="800" font-size={label.length > 3 ? 8 : 9.5} fill={BAND_TEXT[key] || "#fff"}>{label}</text>
       </svg>
     </span>
   );
