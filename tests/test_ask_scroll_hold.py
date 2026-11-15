@@ -38,6 +38,18 @@ class Hold(Base):
         self.assertEqual(p.js(PAGE_Y), 600, "the page can scroll (the test's own check)")
         return p
 
+    def focus_panel(self, p):
+        """Put the focus on the panel itself and wait until it stays there: the panel gives the focus to its own box a moment after it opens
+        (on a slow runner after this test's first focus), and a key then goes to the box and the page, not to the panel under test."""
+        for _ in range(20):
+            p.js("document.querySelector('#ask-panel').focus()")
+            time.sleep(0.25)
+            if p.js("document.activeElement && document.activeElement.id") == "ask-panel":
+                time.sleep(0.25)
+                if p.js("document.activeElement && document.activeElement.id") == "ask-panel":
+                    return
+        self.fail("the focus would not stay on the panel")
+
     def wheel(self, p, dy, dx=0, over="#ask-panel", at=None):
         """A real wheel turn over the centre of `over`: the pointer is moved there first (a bare mouseWheel does nothing in this
         headless Chrome), then the scrolling is waited out (settle)."""
@@ -105,7 +117,7 @@ class Hold(Base):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.open_panel(cdp, width)
-                p.js("document.querySelector('#ask-panel').focus()")
+                self.focus_panel(p)
                 for key, code, vk in keys:                     # the empty panel
                     p.key(key, code=code, vk=vk)
                     self.settle(p)
@@ -115,7 +127,7 @@ class Hold(Base):
                 p.js("document.querySelector('#ask-send').click()")
                 p.until("document.querySelectorAll('#ask-log .ask-turn.assistant').length > 0", "the answer is in")
                 self.scrolled_log(p, 0)
-                p.js("document.querySelector('#ask-panel').focus()")
+                self.focus_panel(p)
                 p.key("PageDown", code="PageDown", vk=34)
                 self.settle(p)
                 self.assertGreater(p.js("document.querySelector('#ask-log').scrollTop"), 100, f"{width}: Page Down scrolls the answers")
