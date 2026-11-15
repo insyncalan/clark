@@ -1,5 +1,5 @@
 """The contents lines follow the header across 900 px: the bar is 85 px tall at 1400 and 129 px at 900, and the lines mark the section
-that sits under the bar's height NOW, not the height the page was first drawn with (task from Cap, 1597 area).
+that sits under the bar's height NOW, not the height the page was first drawn with (found while reading the 1597 header).
 Chrome is required: these tests fail, never skip, without it.
 
 Run: python3 dev/run_tests.py test_minimap_resize_900
