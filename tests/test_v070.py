@@ -179,7 +179,7 @@ COVERED = [
     ("A-D25", "Choosing a project opens it.",
      "test_project_switch::ProjectSwitch::test_C_choosing_a_project_changes_the_address_and_says_so"),
     ("A-D1", "The band names the project, the week and the client.",
-     "test_cover_band::Served::test_the_band_names_the_project_the_week_and_the_client"),
+     "test_cover_band::Served::test_the_header_names_the_project_and_the_week_with_no_client_and_no_band"),
     ("A-D1", "The published file draws the band too.",
      "test_cover_band::InTheFile::test_the_published_file_draws_the_words_in_its_bar_from_its_own_data"),
     ("A-D3", "Every section is a card with one square.",
