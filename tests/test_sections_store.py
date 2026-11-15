@@ -88,11 +88,12 @@ class Seed(Base):
         from clark.section_kinds import TYPES as TEMPLATE_TYPES
         self.assertEqual(set(store_module.SECTION_TYPES), set(NINE) | {"needs", "tracker", "gantt", "gantttable"} | set(TEMPLATE_TYPES))      # the nine of the starting report, and those that carry content (#96: the section templates too)
 
-    def test_the_first_default_section_starts_with_the_approved_line(self):         # item 1188
-        line = "Say where the project stands today, at a high level: what is done, what comes next, and anything that needs attention."
+    def test_the_first_default_section_starts_with_an_empty_body(self):         # item 1188: instruction text never reaches a client; the line is the editor's hint only
         first = self.sections()[0]
-        self.assertEqual((first["type"], first["title"], first["body"]), ("text", "Current state", line))
-        self.assertEqual([r["body"] for r in self.sections()[1:]], [""] * 10)
+        self.assertEqual((first["type"], first["title"], first["body"]), ("text", "Current state", ""))
+        self.assertEqual([r["body"] for r in self.sections()], [""] * 11)
+        self.assertEqual(default_sections.DEFAULT_SECTIONS[0].get("body", ""), "")
+        self.assertEqual(default_sections.CURRENT_STATE_PREFILL, "Say where the project stands today, at a high level: what is done, what comes next, and anything that needs attention.")
 
     def test_data_for_gives_the_sections_in_order_with_their_own_query(self):
         data = self.s.data_for("ABC")

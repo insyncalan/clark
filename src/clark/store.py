@@ -1470,7 +1470,7 @@ def _seed_sections(con, code, step):
             values = {"project": code, "type": section["type"], "title": section["title"], "sort_order": GAP * n}
             if section.get("beside"):
                 values["beside"] = 1
-            if section.get("body"):                                   # item 1188: the first section starts with its approved line
+            if section.get("body"):                                   # items 1188, 1193: a default body is written only when it has words; the first section starts empty (its line is the editor hint)
                 values["body"] = section["body"]
             write_item(con, {"table": "report_sections", "op": "new", "values": values}, step)
     finally:

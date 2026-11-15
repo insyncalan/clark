@@ -251,7 +251,7 @@ class Modes(Base):
             # #74: Supporting documents draws its own list (and is left out of View while it has no document), so it is not one of these
             sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases', 'text', 'current', 'docs'].includes(s.dataset.type))"
             texts = "[...document.querySelectorAll('.secs > .sec')].filter(s => ['text', 'current'].includes(s.dataset.type)).map(s => s.querySelector('.quiet, .sec-body').textContent)"
-            self.assertEqual(p.js(texts), [CURRENT_STATE_PREFILL] + ["Nothing recorded."] * 3, "View: Current state is a text section with the approved starting line (item 1188); a text section with nothing saved says so in plain words")
+            self.assertEqual(p.js(texts), ["Nothing recorded."] * 4, "View: a text section with nothing saved says so in plain words, Current state too: its starting line is the editor's hint, never a body (item 1188)")
             quiet = sec + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet, [data-nothing]').textContent)"
             kinds = p.js(sec + ".map(s => s.dataset.type)")
             want = [f"{k}:{NOTHING if k in ('raid', 'actions', 'decisions') else QUIET}" for k in kinds]       # A-D5: those three draw their rows
@@ -265,7 +265,7 @@ class Modes(Base):
             sec_other = sec + ".filter(s => !['raid', 'actions', 'decisions'].includes(s.dataset.type))"
             self.assertEqual(p.js(sec_other + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet').textContent)"), [w for w in want if w.split(':')[0] not in ('raid', 'actions', 'decisions')], "Edit: the same line")
             self.assertEqual(p.js(sec + ".filter(s => ['raid', 'actions', 'decisions'].includes(s.dataset.type)).map(s => !!s.querySelector('[data-showing]'))"), [True] * 3, "Edit: the three row sections say Showing N of M instead (A-D5)")
-            self.assertEqual(p.js(texts), [CURRENT_STATE_PREFILL] + ["Click to write."] * 3, "Edit: Current state is a text section, so it draws its starting line and opens the editor in place like the other three (item 1188)")
+            self.assertEqual(p.js(texts), [CURRENT_STATE_PREFILL] + ["Click to write."] * 3, "Edit: Current state is empty and shows its starting line as the editor's hint (item 1188); the other three say Click to write.")
             self.assertNotIn("is not shown", p.js("document.querySelector('main').textContent"))
             p.view()
             self.assertEqual(edit_elements(cdp, p.sid), [], "and gone again in View")
@@ -1383,8 +1383,8 @@ class Published(unittest.TestCase):
             titles = cdp.js("[...document.querySelectorAll('.sec-h')].map(e => e.textContent)", sid)
             self.assertNotIn("Hidden secret plan", titles)
             self.assertIn("Shown <b>plan</b>", titles)
-            self.assertEqual(titles, ["Current state", "At a glance", "Use case summary", "Milestones", "Shown <b>plan</b>", "Next week"],
-                             "Current state (the text section with its starting line), At a glance and the use case summary (#45) and the two text sections with words: Summary is hidden, and no other type is drawn in a file yet")
+            self.assertEqual(titles, ["At a glance", "Use case summary", "Milestones", "Shown <b>plan</b>", "Next week"],
+                             "Current state has no words (its starting line is only the editor's hint, item 1188), so it is not drawn; At a glance and the use case summary (#45) and the two text sections with words: Summary is hidden, and no other type is drawn in a file yet")
             self.assertEqual(edit_elements(cdp, sid), [])
             self.assertEqual(cdp.js("document.querySelectorAll('.mode, [aria-pressed]').length", sid), 0, "no Edit button")
             for key in ("e", "E", "v"):                                           # V and E do nothing in a published file (#103)
