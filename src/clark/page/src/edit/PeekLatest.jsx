@@ -48,11 +48,22 @@ const fire = (el, init) => { if (el) el.dispatchEvent(new KeyboardEvent("keydown
 /** The bar a close with an unsaved update shows: Save and close, Discard, Keep editing. Props: onClose() closes the peek; onDone() hides the bar. */
 export function PeekUnsavedBar({ onClose, onDone }) {
   const first = useRef(null);
+  const root = useRef(null);
+  // The toolbar stays at the top while the body scrolls: a bar that opens behind it cannot be pressed, so the body scrolls until the bar is clear of it.
+  useEffect(() => {
+    const el = root.current, tb = document.querySelector("#peek .pk-tb");
+    if (!el || !tb) return;
+    const over = tb.getBoundingClientRect().bottom - el.getBoundingClientRect().top;
+    if (over <= 0) return;
+    let s = el.parentElement;
+    while (s && s.scrollHeight <= s.clientHeight) s = s.parentElement;
+    if (s) s.scrollTop -= over + 4;
+  }, [latestDirty.value]);
   // The bar is an alert (read out as it appears). The focus stays in the box: moving it out would leave the box, and leaving the box saves the update. A mouse press on the bar keeps the focus in the editor for the same reason.
   if (!latestDirty.value) return null;
   const done = () => { if (onDone) onDone(); };
   return (
-    <div class="pk-unsaved" role="alert" data-pk-unsaved onMouseDown={(e) => e.preventDefault()}>
+    <div class="pk-unsaved" role="alert" data-pk-unsaved ref={root} onMouseDown={(e) => e.preventDefault()}>
       <p class="pk-unsaved-t">You have an unsaved update.</p>
       <div class="pk-unsaved-b">
         <button type="button" ref={first} data-pk-save-close data-pk-unsaved-save onMouseDown={hold} onClick={() => { lastSave = null; fire(editorOf(), { key: "Enter", ctrlKey: true }); const p = lastSave; if (!p) { latestDirty.value = false; done(); if (onClose) onClose(); return; } p.then((reply) => { if (reply) { latestDirty.value = false; done(); if (onClose) onClose(); } else if (!editorOf()) { /* a refusal that left no editor: nothing to keep */ done(); } else { done(); editorOf().focus(); } }); }}>Save and close</button>
