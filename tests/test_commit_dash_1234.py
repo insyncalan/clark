@@ -20,6 +20,8 @@ class Dash(Flags):
                 self.assertEqual(p.js(f"[...document.querySelectorAll('{ROW2} [data-commit-none]')].map(e => e.textContent)"), ["—"])
                 self.assertEqual(p.js("document.querySelectorAll('.ucrow:nth-child(1) [data-commit-none]').length"), 0, "a flagged row has no dash")
                 self.assertEqual(p.js(f"document.querySelectorAll('{ROW2} .cchip').length"), 0, "the dash is not a chip")
+                self.assertEqual(p.js(f"document.querySelector('{ROW2} [data-commit-none]').getAttribute('title')"), "Commitment", "only an existing word names the dash")
+                self.assertEqual(p.js(f"document.querySelector('{ROW2} [data-commit-none]').hasAttribute('aria-label')"), False)
                 body = p.js("document.querySelector('.uc').innerText")
                 for word in ("Set commitment", "No flag", "None"):
                     self.assertNotIn(word, body)
