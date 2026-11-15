@@ -1,4 +1,4 @@
-"""Item 1169: both Gantt "on" boxes and the Feedback box draw the 2 px house focus ring, in real Chrome.
+"""Item 1169: both Gantt "on" boxes, the Feedback boxes (message, shown text, contact) and a select in a `.fld` (the brand choice) draw the 2 px house focus ring, in real Chrome.
 
 Run: python3 dev/run_tests.py test_settings_focus_ring_1169
 The real Settings page over the fictional demo data at 1400 and 900 px, light and dark. Each control is focused from the keyboard's point of view
@@ -20,7 +20,8 @@ from test_server import CHROME, Running, chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
-SEL = {"gantt-editor": "#gantt-editor", "gantt-client": "#gantt-client", "feedback": "#feedback-message", "feedback-shown": "#feedback-shown"}
+PROBE_SELECT = "(() => { const d = document.createElement('div'); d.className = 'fld'; d.innerHTML = '<label for=\"probe-select\">x</label><select id=\"probe-select\"><option>a</option></select>'; document.querySelector('#feedback').appendChild(d); })()"
+SEL = {"gantt-editor": "#gantt-editor", "gantt-client": "#gantt-client", "feedback": "#feedback-message", "feedback-shown": "#feedback-shown", "feedback-contact": "#feedback-contact", "fld-select": "#probe-select"}
 MEASURE = r"""((sels) => {
   const out = {};
   const blue = getComputedStyle(document.documentElement).getPropertyValue('--brand-blue').trim();
@@ -82,6 +83,7 @@ class SettingsFocusRing(unittest.TestCase):
         cdp.js(TYPE_MESSAGE, sid)       # a message, then Copy as text, which the refused clipboard answers by drawing the shown-text box
         self.assertTrue(wait(lambda: cdp.js("!document.querySelector('button[data-feedback-copy]').disabled", sid)), "Copy as text is enabled by the message")
         cdp.js("document.querySelector('button[data-feedback-copy]').click()", sid)
+        cdp.js(PROBE_SELECT, sid)       # the Brand for this project choice is a select in a .fld; its card needs the brand service, which this test server has not
         for name, sel in SEL.items():
             self.assertTrue(wait(lambda: cdp.js(f"!!document.querySelector({json.dumps(sel)})", sid)), f"{name} is on the page")
         self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid)), "the page's motion has finished before anything is measured")
