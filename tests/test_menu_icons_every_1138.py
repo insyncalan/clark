@@ -96,6 +96,7 @@ class Source(unittest.TestCase):
         "edit/ArchivedPeek.jsx": "row 1074", "edit/PeekActivity.jsx": "row 1074", "edit/ArchivedItems.jsx": "row 1074", "components/UseCases.jsx": "row 1074",
         "components/Peek.jsx": "row 1074",
         "edit/Palette.jsx": "the command palette is a search list of what was typed (pages, items and commands found), not a menu of actions",
+        "edit/DraftAi.jsx": "row 1179: the AI menu is drawn as in the approved peek mock-up (each line a name and a description, no icon); the icon rule for it is open for the owner",
         "components/UseCaseFilePage.jsx": "only a selector that tells when a menu is open (for Esc); it draws none",
     }
     # By design NOT icon menus, kept here with the reason: lists that follow what is typed, whose lines are text matches.
@@ -107,7 +108,7 @@ class Source(unittest.TestCase):
         "Work items filter value box (components/WorkFilters.jsx, class fbox, role=group)":
             "a checkbox filter panel (one checkbox line per value), not a command menu: its lines are choices, not actions",
         "Native select drop-downs (edit/AiSettings.jsx, edit/BrandPick.jsx, edit/DocumentsEdit.jsx, edit/NeedsEdit.jsx, edit/TrackerEdit.jsx, "
-        "edit/UseCasesEdit.jsx, edit/WeekPicker.jsx, edit/templates/Callout.jsx, edit/templates/Checklist.jsx, edit/templates/FiguresEdit.jsx, "
+        "edit/UseCasesEdit.jsx, edit/templates/Callout.jsx, edit/templates/Checklist.jsx, edit/templates/FiguresEdit.jsx, "
         "edit/ImportWorkbook.jsx (the question for a label the workbook names), edit/templates/KeyDates.jsx, edit/templates/WorkItemsList.jsx, edit/templates/raidEdit.jsx, gantt/components/GanttTable.jsx cell editor)":
             "a native select cannot hold icons: the browser draws its list",
         "Hand over people datalist (edit/HandOver.jsx)": "a native datalist of names that completes what is typed; the browser draws it, so it cannot hold icons",

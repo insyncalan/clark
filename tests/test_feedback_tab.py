@@ -208,7 +208,7 @@ class Card(InBrowser):
         self.js("T.refuse = true")
         self.type("#feedback-message", "Hello")
         self.click("button[data-feedback-copy]")
-        self.assertEqual(self.text("#feedback-note"), "The browser did not copy it. Press ⌘C to copy the selected text.")
+        self.assertEqual(self.text("#feedback-note"), "The browser did not copy it. Press Ctrl+C (Cmd+C on a Mac) to copy the selected text.")
         self.assertIn("Hello", self.js("document.querySelector('#feedback-shown').value"))
 
     def test_typing_after_a_copy_clears_the_copied_note(self):

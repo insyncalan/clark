@@ -5,7 +5,7 @@
 //   logic/publishable.js would publish, so View shows exactly what the client sees (FR-11);
 // - a published file holds no filter: its section carries `items` (the ids publish chose, in order, from rows it already kept),
 //   `columns` and `caption`, and the rows are drawn from the file's own data.
-import { dayNumber, rowsOf } from "../workItems.js";
+import { dayNumber, rowsOf, colourOf } from "../workItems.js";
 import { rulesFor, publishable } from "../logic/publishable.js";
 
 export const KINDS = ["action", "risk", "issue", "assumption", "dependency", "decision"];
@@ -15,8 +15,8 @@ export const DUE = ["overdue", "soon", "none", "later"];
 export const NONE = "(none)";
 export const PRIORITIES = ["Urgent", "High", "Medium", "Low"];
 export const SORTS = ["due", "priority", "id"];
-export const COLUMNS = ["type", "id", "owner", "due", "status", "workstream"];
-export const DEFAULT_COLUMNS = ["type", "id", "owner", "due", "status"];
+export const COLUMNS = ["type", "id", "owner", "due", "status", "priority", "workstream", "milestone"];
+export const DEFAULT_COLUMNS = ["type", "id", "owner", "due", "priority"];      // row 1199: Status, Workstream and Milestone start off in a new list; a saved list keeps its own columns
 export const MAX_ROWS = 50;
 export const DEFAULT_MAX = 10;
 export const MAX_CAPTION = 200;
@@ -32,7 +32,7 @@ export const WORDS = {
   mode: { open: "Open", closed: "Closed", all: "Open and closed" },
   due: { overdue: "Overdue", soon: "Due in 7 days", none: "No date", later: "Later" },
   sort: { due: "Due date", priority: "Priority", id: "ID" },
-  columns: { type: "Type", id: "ID", owner: "Owner", due: "Due", status: "Status", workstream: "Workstream" },
+  columns: { type: "Type", id: "ID", owner: "Owner", due: "Due", status: "Status", workstream: "Workstream", priority: "Priority", milestone: "Milestone" },
   none: { owner: "No owner", workstream: "No workstream", use_case: "No use case", priority: "No priority" },
 };
 
@@ -41,6 +41,45 @@ const leftOut = () => Object.fromEntries(LEFT_OUT.map((f) => [f, []]));
 export function defaults() {
   return { v: 1, kinds: [], mode: "open", status: [], due: [], owner: [], workstream: [], use_case: [], priority: [], sort: "due",
     max: DEFAULT_MAX, columns: DEFAULT_COLUMNS.slice(), caption: "", milestone: [], not: leftOut(), has: [], no: [], text: [] };
+}
+
+// Item 1195 (the approved design, v1.1). Saved views: each is the filter a tab starts from; "all" is the filter a new list starts from.
+export const VIEWS = [
+  { id: "all", name: "All work items", patch: {} },
+  { id: "actions", name: "Actions", patch: { kinds: ["action"] } },
+  { id: "risks-issues", name: "Risks and issues", patch: { kinds: ["risk", "issue"] } },
+  { id: "decisions", name: "Decisions", patch: { kinds: ["decision"] } },
+  { id: "overdue", name: "Overdue", patch: { due: ["overdue"] } },
+];
+
+// A fresh filter for a view (an unknown id gives the default filter), so a caller can change it without touching the view.
+export function viewFilter(id) {
+  const v = VIEWS.find((x) => x.id === id);
+  const out = defaults();
+  if (v) for (const k of Object.keys(v.patch)) out[k] = v.patch[k].slice();
+  return out;
+}
+
+// The priority cell of a row: the priority word with the colour class of the pills. A decision has no priority field yet.
+export function priorityCell(row) {
+  if (row && row.kind === "decision") return { text: "", class: "n" };
+  const p = row && row.priority;
+  const c = colourOf(p);
+  return { text: p || "Not rated", class: c.class };
+}
+
+// How many rows to draw and which link sits under the table: "Show all items" when the list is longer than Most rows, then "Show only N".
+export function windowOf(total, max, showAll) {
+  if (total <= max) return { count: total, link: "" };
+  return showAll ? { count: total, link: `Show only ${max}` } : { count: max, link: "Show all items" };
+}
+
+// The columns of the approved design, in its order; Status, Workstream and Milestone are off by default.
+export const DESIGN_COLUMNS = ["status", "owner", "due", "priority", "workstream", "milestone", "id"];
+export const DESIGN_DEFAULT_COLUMNS = ["owner", "due", "priority", "id"];
+export function columnsFor(chosen) {
+  const got = DESIGN_COLUMNS.filter((c) => Array.isArray(chosen) && chosen.includes(c));
+  return got.length ? got : DESIGN_DEFAULT_COLUMNS.slice();
 }
 
 const isList = (v) => Array.isArray(v) && v.every((x) => typeof x === "string");
@@ -147,8 +186,8 @@ export function liveOf(data) {
   return { workstream: some("workstreams", (w) => low(tidy(w.name))), use_case: some("use_cases", (u) => u.id), goneOwner: (data && data.gone_owners) || [] };
 }
 
-// The ids of `rows` (ruleRows' shape) that `filter` lists, sorted and cut to its max: section_kinds/workitems.py matching().
-export function matching(filter, rows, today, live) {
+// The ids of `rows` (ruleRows' shape) that `filter` lists, sorted and cut to its max (`all` true: every hit, for Show all items): section_kinds/workitems.py matching().
+export function matching(filter, rows, today, live, all) {
   filter = alive(filter, live);
   if (!filter) return [];
   const hits = rows.filter((r) => typeof r.id === "string" && r.id
@@ -158,7 +197,7 @@ export function matching(filter, rows, today, live) {
   if (filter.sort === "id") hits.sort((x, y) => cmp(x.id, y.id));
   else if (filter.sort === "priority") hits.sort((x, y) => closedLast(x, y) || cmp(rank(x), rank(y)) || byDue(x, y) || cmp(x.id, y.id));
   else hits.sort((x, y) => closedLast(x, y) || byDue(x, y) || cmp(x.id, y.id));
-  return hits.slice(0, filter.max).map((r) => r.id);
+  return (all ? hits : hits.slice(0, filter.max)).map((r) => r.id);
 }
 
 // The rules for what the page clark serves may show: the publishable() mirror of publish.select, from what the data carries.
@@ -188,7 +227,8 @@ export function listOf(section, data, today) {
   }
   const filter = filterOf(section);
   if (!filter) return { items: [], columns: DEFAULT_COLUMNS.slice(), caption: "", saved: false };
-  return { items: matching(filter, ruleRows(publishedOnly(data)), today, liveOf(data)), columns: filter.columns.length ? filter.columns : DEFAULT_COLUMNS.slice(), caption: filter.caption, saved: true };
+  const every = matching({ ...filter, max: Number.MAX_SAFE_INTEGER }, ruleRows(publishedOnly(data)), today, liveOf(data));
+  return { items: every.slice(0, filter.max), all: every, max: filter.max, more: every.length > filter.max, columns: filter.columns.length ? filter.columns : DEFAULT_COLUMNS.slice(), caption: filter.caption, saved: true };
 }
 
 // What Edit lists: the rows the saved filter lists (as listOf) plus the ones the client eye has taken off (the work item's own client-visible
@@ -206,13 +246,14 @@ export function editListOf(section, data, today) {
   const off = new Set(WORK.flatMap((k) => (out[k] || []).filter((r) => !publishable(r, k, served)).map((r) => r.id)));
   const every = matching({ ...filter, max: Number.MAX_SAFE_INTEGER }, ruleRows(out), today, liveOf(data));
   const items = [], listedOff = [];
-  let kept = 0;
+  let kept = 0, full = false;
   for (const id of every) {
+    if (full) continue;
     if (off.has(id)) { items.push(id); listedOff.push(id); }
     else if (kept < filter.max) { items.push(id); kept += 1; }
-    else break;
+    else full = true;
   }
-  return { ...base, items, off: listedOff };
+  return { ...base, items, all: every, max: filter.max, more: full, off: listedOff };
 }
 
 // The rows to draw for a list's ids, in the ids' order, from the data (workItems.js rowsOf: title, owner, dates, status).
@@ -230,4 +271,14 @@ export function offered(field, data, chosen) {
   for (const v of chosen || []) seen.add(v);
   const list = [...seen].filter((v) => v !== NONE).sort((a, b) => a.localeCompare(b));
   return seen.has(NONE) ? [...list, NONE] : list;
+}
+
+// Row 1199: the rows the section draws, the first Most rows or, once "Show all items" is open, every row the filter lists (the served page only:
+// a published file carries just the ids publish chose, so it has none to add). `more` is true when there are rows beyond Most rows.
+export const idsToShow = (list, all) => (all && list.all ? list.all : list.items);
+
+// The data a served page draws rows from: a milestone's name is read only when the report would publish that milestone, as in a file.
+export function drawn(data, served) {
+  if (!served) return data;
+  return { ...data, milestones: publishedOnly(data).milestones };
 }

@@ -27,10 +27,10 @@ export function dueIcon() { return { icon: "cal", tone: "n" }; }
 // menu, the profile menu, the right-click menus, the row menu). The words beside an icon are unchanged; an action not listed here has no icon.
 export const ACTION_ICON = {
   add: "plus", duplicate: "copy", up: "chevup", down: "chevdown", beside: "board", full: "arrows-out", hide: "eyeoff", show: "eye",
-  delete: "trash", settings: "gear", publish: "ul", preview: "search", exportExcel: "dl", exportWord: "dl", published: "archive",
+  delete: "trash", settings: "gear", publish: "ul", preview: "search", search: "search", ask: "sparkle", exportExcel: "dl", exportWord: "dl", published: "archive",
   help: "info", profile: "user", copy: "copy", copyLink: "ext", copyId: "doc", copyIds: "doc", clear: "circleminus", archive: "archive",
   peek: "expand", draft: "pencil", pdf: "doc", excel: "dl", moveTo: "move", outline: "board", none: "circleminus",
-  lookLight: "sparkle", lookDark: "eyeoff", lookSystem: "gear", pastReport: "archive", commit: "check",
+  lookLight: "sun", lookDark: "eyeoff", lookSystem: "gear", pastReport: "archive", commit: "check",
   status: "half", due: "cal", owner: "user", priority: "bars", impact: "bars", likelihood: "bars", workstream: "board", milestone: "flag",
   made_by: "user", close: "check", reopen: "half", project: "doc", textStyle: "tline", filterAll: "table", filterPhases: "bars", filterMilestones: "flag", filterTicked: "check",
 };

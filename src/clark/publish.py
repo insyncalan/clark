@@ -44,6 +44,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 from clark import doclinks, milestones, page, platform, sanitise, section_bodies
+from clark.default_sections import CURRENT_STATE_PREFILL, SECTION_HINTS
 from clark.source_name import source_name
 from clark.store import (COMMITMENTS, GANTT_COLUMNS, GANTT_HIDEABLE, GANTT_DEFAULT_HIDDEN, GANTT_DEFAULT_TAB, GANTT_ID, GANTT_TAB_LIMIT, GANTT_TEXT_LIMITS, Invalid as StoreInvalid,
                          NumberTaken, check_section_body, excluded_label_names, gantt_list, open_store)
@@ -66,6 +67,24 @@ SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", 
 BUILT_IN_SECTIONS = ("current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs")      # row 906: the sections whose data lives elsewhere
 
 
+CURRENT_STATE_TITLE = "Current state"
+
+
+def current_state_section_body(sections):
+    """Item 1188: the cleaned body of the report's text section that is the Current state (the first not hidden text section with
+    that title, casefolded and whitespace-normalised), or "" when there is none. A report that still has the built-in current
+    section, or no section rows, reads the project's current_state column instead (the caller)."""
+    title = CURRENT_STATE_TITLE.casefold()
+    sections = sorted(sections or (), key=lambda s: (s.get("sort_order", 0), str(s.get("id"))))      # display order, as select() sorts
+    instructions = {" ".join(t.split()) for t in (CURRENT_STATE_PREFILL, *SECTION_HINTS.values())}
+    for s in sections:
+        if s.get("type") == "text" and not s.get("hidden") and " ".join(str(s.get("title") or "").split()).casefold() == title:
+            body = clean_html(s.get("body"))
+            text = " ".join(htmllib.unescape(re.sub(r"<[^>]*>", " ", body)).split())
+            return "" if text in instructions else body      # a body that is only an editor hint (stored by an earlier build) never reaches a client
+    return ""
+
+
 def hidden_types(sections, deleted=False):
     """The built-in section types the published file carries nothing of (row 906). A section left out (hidden) is one; so is a
     built-in with no section row, when the project HAS section rows or has had them all deleted (`deleted`). No rows and none ever
@@ -81,12 +100,12 @@ def hidden_types(sections, deleted=False):
 PUBLISH_FIELDS = {
     "projects": ("code", "name", "sponsor", "phase", "health", "health_reason", "client_name", "current_state", "week_ending", "layout"),
     "milestones": ("id", "name", "description", "baseline_date", "forecast_date", "status", "sort_order", "percent_complete",
-                   "state_reason", "owner", "actual_date", "client_message", "workstream", "source"),
+                   "state_reason", "owner", "actual_date", "client_message", "workstream", "latest_update", "source"),
     "workstreams": ("id", "name", "status"),
     "actions": ("id", "description", "workstream", "owner", "priority", "due_date", "status", "raised", "closed",
                 "latest_update", "client_message", "milestone", "use_case", "source"),
     "raid": ("id", "type", "workstream", "description", "owner", "due_date", "impact", "likelihood",
-             "priority", "status", "raised", "closed", "client_message", "milestone", "use_case", "source"),
+             "priority", "status", "raised", "closed", "latest_update", "client_message", "milestone", "use_case", "source"),
     "decisions": ("id", "decision", "made_by", "client_message", "date", "status", "needed_by",
                   "revisit", "replaces", "use_case", "source"),
     "use_cases": ("id", "ref", "title", "status", "headline", "standing", "sort_order", "commitment"),   # #709: the flag goes with the use case
@@ -99,9 +118,9 @@ PUBLISH_FIELDS = {
 SOURCED = ("milestones", "actions", "raid", "decisions")
 # Row 560 (ruled): a client-visible row with no client wording of its own (blank client_message) publishes its title only:
 # the text fields named here are emptied for it, in the web file and the Word copy alike (both read select()'s rows).
-WORDLESS_DROPS = {"actions": ("latest_update",), "milestones": ("description",)}
-RICH = {"projects": ("current_state",), "use_cases": ("standing",), "actions": ("latest_update",), "milestones": ("description", "client_message")}     # HTML the editor wrote: through clean_html
-LEGACY_RICH = (("actions", "latest_update"), ("milestones", "description"), ("milestones", "client_message"))     # row 1005: rich now, plain text before: a stored value that is not HTML is escaped into paragraphs first (sanitise.rich_or_plain); row 1078: + a milestone's client wording
+WORDLESS_DROPS = {"actions": ("latest_update",), "raid": ("latest_update",), "milestones": ("description", "latest_update")}     # item 1185: a risk, an issue and a milestone follow the action
+RICH = {"projects": ("current_state",), "use_cases": ("standing",), "actions": ("latest_update",), "raid": ("latest_update",), "milestones": ("description", "client_message", "latest_update")}     # HTML the editor wrote: through clean_html
+LEGACY_RICH = (("actions", "latest_update"), ("raid", "latest_update"), ("milestones", "description"), ("milestones", "client_message"), ("milestones", "latest_update"))     # row 1005: rich now, plain text before: a stored value that is not HTML is escaped into paragraphs first (sanitise.rich_or_plain); row 1078: + a milestone's client wording
 # Read from the database as well, only to decide (never copied): the gates, and what a milestone's state is worked out from.
 GATES = {"milestones": ("client_visible", "archived", "state", "state_set"), "workstreams": ("archived",),
          "actions": ("client_visible", "archived"), "raid": ("client_visible", "archived"),   # item 1158: the needs-from-you flag is no longer read here
@@ -567,7 +586,7 @@ def select(inputs):
     out["labels"] = {i: list(item_labels[i]) for i in sorted(linkable) if item_labels.get(i)}
     proj = _pick(project, PUBLISH_FIELDS["projects"])
     proj["health_reason"] = reason_html(proj["health_reason"])
-    proj["current_state"] = "" if "current" in hidden_types else clean_html(proj["current_state"])
+    proj["current_state"] = (clean_html(proj["current_state"]) or current_state_section_body(sections)) if "current" not in hidden_types else current_state_section_body(sections)      # item 1188: a report whose Current state is a text section carries that body; a built-in current section with an empty column falls back to it
     out["project"] = proj
     out["documents"] = documents(inputs.get("documents"), code, hidden_ids, hidden_types) if any(
         s.get("type") == "docs" and not s.get("hidden") for s in sections) else []          # #74: carried only with a section to draw them
@@ -583,7 +602,10 @@ def select(inputs):
     for_templates = {k: out[k] for k in KINDS}
     for_templates["actions"] = [{**r, "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") else r
                                 for r in out["actions"]]                      # row 1005: a template (pure) is handed the words of the latest update, as the file's HTML would be markup to it
-    for_templates["milestones"] = [{**r, "client_message": sanitise.rich_plain_text(r.get("client_message"))} if r.get("client_message") else r
+    for_templates["raid"] = [{**r, "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") else r
+                             for r in out["raid"]]                            # item 1185: the same for a risk or issue
+    for_templates["milestones"] = [{**r, "client_message": sanitise.rich_plain_text(r.get("client_message")), "latest_update": sanitise.rich_plain_text(r.get("latest_update"))}
+                                   if r.get("client_message") or r.get("latest_update") else r
                                    for r in out["milestones"]]                # row 1078: the same for a milestone's client wording
     live = {"workstream": frozenset(" ".join(str(w.get("name") or "").split()).lower() for w in d["workstreams"] if not w.get("archived")) if "workstreams" in d else None,
             "use_case": frozenset(u.get("id") for u in d["use_cases"] if not u.get("archived")) if "use_cases" in d else None,

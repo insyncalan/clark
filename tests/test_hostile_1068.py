@@ -46,7 +46,21 @@ def others(path):
     use_cases lines are left out too: step 22 (row 875) adds owner and owner_id to that table, which changes its dump text, not row 1068's step."""
     con = sqlite3.connect(str(path))
     try:
-        return [l for l in con.iterdump() if "report_sections" not in l and "schema_version" not in l and "use_cases" not in l and "use_case_milestones" not in l]      # row 1107 (step 24) adds that table
+        return [l for l in con.iterdump() if "report_sections" not in l and "schema_version" not in l and "use_cases" not in l and "use_case_milestones" not in l and "\"raid\"" not in l and "\"milestones\"" not in l and not l.startswith(("CREATE TABLE raid", "CREATE TABLE milestones"))]      # row 1107 (step 24) adds that table; item 1185 (step 25) adds a column to raid and milestones
+    finally:
+        con.close()
+
+
+def grown(path):
+    """The two tables step 25 (item 1185) adds latest_update to: their dump text must change, so the dump filter in others() leaves them out.
+    Instead compare them here by every other column and every row, so an upgrade still may not touch what was already there."""
+    con = sqlite3.connect(str(path))
+    try:
+        out = {}
+        for table in ("raid", "milestones"):
+            cols = [r[1] for r in con.execute(f"PRAGMA table_info({table})") if r[1] != "latest_update"]      # fixed table names
+            out[table] = (cols, con.execute(f"SELECT {', '.join(cols)} FROM {table} ORDER BY rowid").fetchall())
+        return out
     finally:
         con.close()
 
@@ -103,7 +117,7 @@ class FromEveryOlderLayout(unittest.TestCase):
                 self.dir, keep = folder, self.dir
                 try:
                     path = self.seeded(level)
-                    before, rest, objects = rows_of(path), others(path), names(path)
+                    before, rest, objects, kept = rows_of(path), others(path), names(path), grown(path)
                     s = open_store(path, onedrive_roots=[])
                     try:
                         self.assertEqual(s.con.execute("PRAGMA foreign_key_check").fetchall(), [])
@@ -116,6 +130,7 @@ class FromEveryOlderLayout(unittest.TestCase):
                     if level == 20:
                         self.assertEqual(names(path), objects, "no index, trigger or table of another name lost or gained")
                         self.assertEqual(others(path), rest, "no other table touched")
+                        self.assertEqual(grown(path), kept, "raid and milestones: every old column and row unchanged (they only gain latest_update)")
                     con = sqlite3.connect(str(path))
                     try:
                         con.execute("PRAGMA foreign_keys = ON")

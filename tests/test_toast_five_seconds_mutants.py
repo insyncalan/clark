@@ -9,7 +9,7 @@ import time
 import unittest
 
 from test_report_editor import Base  # noqa: E402
-from test_server import chrome  # noqa: E402
+from test_server import chrome, wait  # noqa: E402
 import test_toast_five_seconds as first  # noqa: E402
 
 BAR, GONE = ".toast .toast-bar", "!document.querySelector('.toast')"
@@ -71,7 +71,14 @@ class Mutants(Base):
             self.make_toast(p)
             p.js("document.querySelector('.toast [data-undo]').focus()")
             p.until("document.activeElement === document.querySelector('.toast [data-undo]')", "focus is on Undo", 5)
-            w1 = p.js(f"document.querySelector('{BAR}').getBoundingClientRect().width")
+            width = lambda: p.js(f"document.querySelector('{BAR}').getBoundingClientRect().width")
+
+            def paused():           # the CSS pause paints a frame after focus lands: read until two reads 0.1 s apart agree
+                before = width()
+                time.sleep(0.1)
+                return width() == before
+            self.assertTrue(wait(paused, 3), "the bar stops once focus is on Undo")
+            w1 = width()
             time.sleep(1.0)
             w2 = p.js(f"document.querySelector('{BAR}').getBoundingClientRect().width")
             self.assertEqual(w1, w2, "the bar stands still with focus on Undo")

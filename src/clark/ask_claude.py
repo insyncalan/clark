@@ -58,8 +58,10 @@ from clark import ask, platform
 PROVIDER = "claude"
 # An npm global or nvm install is looked for too (a "*" stands for one nvm node version). Its `claude` is a link: it is followed to the file
 # it names, and that file must still be a Mac program (the native package's own binary); a script is refused as before.
+# Row 1100: the VS Code extension keeps its own Mac program in its folder (the newest version first); it passes the same checks.
 PLACES = ("~/.local/bin/claude", "~/.claude/local/claude", "/opt/homebrew/bin/claude", "/usr/local/bin/claude",
-          "~/.npm-global/bin/claude", "~/.nvm/versions/node/*/bin/claude")
+          "~/.npm-global/bin/claude", "~/.nvm/versions/node/*/bin/claude",
+          "~/.vscode/extensions/anthropic.claude-code-*/resources/native-binary/claude")
 OTHER_ROOTS = ("/opt/homebrew", "/usr/local")       # besides the home folder, where the file a place names may be
 NEEDED_FLAGS = ("--print", "--safe-mode", "--disable-slash-commands", "--tools", "--strict-mcp-config", "--setting-sources",
                 "--no-session-persistence", "--system-prompt", "--output-format", "--max-budget-usd")
