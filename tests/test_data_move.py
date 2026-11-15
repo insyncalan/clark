@@ -124,6 +124,19 @@ class MacBackupMoved(unittest.TestCase):
         line = self._line_with_missing("", "D:\\Plans\\Site")
         self.assertIn("not exist here: 1, such as 'Site'.", line.words)
 
+    def test_when_every_saved_folder_is_here_the_line_is_ready_and_says_so(self):
+        line = self._line_with_missing()                                      # nothing is absent: the data's own paths are all there
+        self.assertEqual(line.kind, doctor.READY)
+        self.assertEqual(line.words, "Every folder saved in your data is on this computer.")
+
+    def test_with_no_database_yet_the_line_is_ready_and_says_there_is_nothing_to_look_for(self):
+        empty = self.clean / "nothing-here-yet"
+        empty.mkdir()
+        seen = doctor.Seen(data=str(empty), on=pl.MAC, home=empty, environ={}, exists=lambda p: False)
+        line = doctor.run_check(doctor.Check("The check for saved folders", False, doctor.check_saved_folders), seen)
+        self.assertEqual(line.kind, doctor.READY)
+        self.assertEqual(line.words, "There is no saved data here yet, so no saved folders to look for.")
+
     def test_the_example_is_the_first_named_missing_path_in_sorted_order(self):
         self._set_source_folders("D:\\Plans\\Zed", "D:\\Plans\\Alpha")
         line = self._line_with_missing("D:\\Plans\\Zed", "D:\\Plans\\Alpha")
