@@ -1,4 +1,4 @@
-"""python3 -m clark.launch: start clark if it isn't running, then open it in Chrome or Edge (#71, row 1076, item 636).
+"""python3 -m clark.launch: start clark if it isn't running, then open it in Chrome or Edge (row 1076, item 636).
 
     python3 -m clark.launch [--data FOLDER] [--port N]      (clark.command in clark's folder runs this)
 
