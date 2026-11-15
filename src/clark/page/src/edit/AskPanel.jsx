@@ -2,7 +2,7 @@
 // is #102's light panel with a soft wash (#214), built from the page's own tokens (edit.css). The reply is drawn as text only: it is
 // never read as markup. Nothing is sent while asking is off.
 import { useEffect, useRef, useState } from "preact/hooks";
-import { project, show, token, view } from "../stores/report.js";
+import { project, showSettings, token, view } from "../stores/report.js";
 import { words } from "./publishApi.js";
 import { stopRestore } from "../router.js";
 import { askProvider } from "./askState.js";
@@ -206,7 +206,7 @@ export function AskPanel() {
   }
   // To Settings and the Asking card there: scrolled into view and focused, so the link lands on the switch, not at the top.
   function toSettings(e) {
-    e.preventDefault(); closePanel(); show("settings");
+    e.preventDefault(); closePanel(); showSettings("claude");
     const focusCard = (tries) => {                       // wait for the Settings card to be drawn, then scroll to it and focus its heading
       const c = document.getElementById("ask-settings");
       if (c) {                                           // the page's own place-restore would set the scroll back to the top: stop it, then scroll while the cards above settle
@@ -234,10 +234,10 @@ export function AskPanel() {
         {busy ? W.WORKING : state === "checking" ? W.CHECKING_LINE : state === "unknown" ? null : state === "off" ? W.READY_LINE : state === "signed-out" ? null : model ? W.MODEL_LINE(model) : W.READY_LINE}
       </p>
       {state === "off" ? (
-        <p class="ask-off" id="ask-off">{W.OFF_LINE} <a href="#settings" data-ask-settings onClick={toSettings}>{W.OFF_LINK}</a></p>
+        <p class="ask-off" id="ask-off">{W.OFF_LINE} <a href="#settings&s=claude" data-ask-settings onClick={toSettings}>{W.OFF_LINK}</a></p>
       ) : null}
       {state === "signed-out" ? (
-        <p class="ask-off" id="ask-signed-out">{panelDisconnected.value ? W.DISCONNECTED_LINE : W.named(W.SIGNED_OUT_LINE, askProvider.value)} <a href="#settings" data-ask-settings onClick={toSettings}>{W.SETTINGS_LINK}</a></p>
+        <p class="ask-off" id="ask-signed-out">{panelDisconnected.value ? W.DISCONNECTED_LINE : W.named(W.SIGNED_OUT_LINE, askProvider.value)} <a href="#settings&s=claude" data-ask-settings onClick={toSettings}>{W.SETTINGS_LINK}</a></p>
       ) : null}
       {showHist ? (
         <div class="ask-hist" id="ask-hist" role="region" aria-label={W.HISTORY_TITLE}>

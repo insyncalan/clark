@@ -55,6 +55,7 @@ export const view = signal(start.view);
 export const item = signal(start.item);              // the open peek: a work item's id, or "" (the peek itself is #42)
 export const ms = signal(start.ms);                  // ... or a milestone's id
 export const uc = signal(start.uc);                  // the open use case's address key on the Use cases page (its reference as written, else its id), or ""
+export const settingsPage = signal(start.s || "");   // Settings: the page shown, its slug from the address ("" is Projects), row 1024
 export const mv = signal(start.mv);                  // a published file's Milestones block view in the address: "cal" or "" (the Timeline); see setMsView()
 const filterText = signal(start.f);                  // the Work items filters' text, opaque to the router (#64a): see setFilters()
 export const f = computed(() => filterText.value);   // read-only: a component changes it only through setFilters()
@@ -112,7 +113,7 @@ export const counts = computed(() => {
 
 let openedF = null;                                  // null: not known (a reload or a restored tab), so closing rewrites the entry
 
-const where = () => ({ view: view.value, project: project.value, item: item.value, ms: ms.value, f: filterText.value, uc: uc.value, mv: mv.value });
+const where = () => ({ view: view.value, project: project.value, item: item.value, ms: ms.value, f: filterText.value, uc: uc.value, mv: mv.value, s: settingsPage.value });
 
 // Draw the page from an address: the signals follow it, and a project that changed is read again. A published file has one
 // project and only its own tabs: an address that names another project or a tab the file does not have (typed, or a Back to it)
@@ -126,6 +127,7 @@ function apply(s) {
     item.value = s.item;
     ms.value = s.ms;
     uc.value = s.uc || "";
+    settingsPage.value = s.s || "";
     mv.value = s.mv || "";
     filterText.value = s.f;
   });
@@ -191,6 +193,11 @@ route.onPop((s) => { if (reloadFor(s)) return; backingAt = -Infinity; leave(); a
 /** Go to a page: one new entry; an open peek closes, and so do the filters (they belong to one page). */
 export function show(next) {
   go({ view: next, project: project.value, item: "", ms: "", f: "" });
+}
+
+/** Settings on one of its pages (row 1024): one new entry, as any change of page is. `page` is a slug from router.SETTINGS_PAGES; the first (or none) is plain "#settings". */
+export function showSettings(page) {
+  go({ view: "settings", project: project.value, item: "", ms: "", f: "", s: page || "" });
 }
 
 /** Open Work items with a filter state already set (an At a glance tile, #79): one new entry, as any change of page is. */
