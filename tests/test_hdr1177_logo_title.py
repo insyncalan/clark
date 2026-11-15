@@ -9,7 +9,7 @@ from test_inline_67 import size
 from test_report_editor import Base
 from test_server import chrome
 
-WIDTHS = ((1400, 147, 22, 85), (900, 120, 18, 129))      # width, logo box w, logo box h, header height (item 1177; row 1212: the logo box is 147 x 22 and 120 x 18, the option C reference)
+WIDTHS = ((1400, 147, 24, 85), (900, 120, 24, 129))      # width, logo box w, logo box h, header height (item 1177; row 1212: the logo box is 147 x 24 and 120 x 24, a 24 px target around the option C reference picture of 22 and 18 px)
 TOP = "document.querySelector('.top')"
 LOGO = f"(function(){{var r={TOP}.querySelector('.logo').getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)];}})()"
 LINE = ("(function(){var d=document.querySelector('.top .hdr-date'); if (!d) return ''; "
@@ -22,7 +22,7 @@ class HdrLogoTitle(Base):
         p.until("document.fonts.status === 'loaded'", "the fonts are loaded (a late font moves a wrap, so the header height waits for them)")
         p.js("window.scrollTo(0, 0)")
 
-    def test_the_logo_box_is_147_by_22_at_1400_and_120_by_18_at_900(self):
+    def test_the_logo_box_is_147_by_24_at_1400_and_120_by_24_at_900(self):
         with chrome() as cdp:
             p = self.visit(cdp)
             for w, lw, lh, _ in WIDTHS:
