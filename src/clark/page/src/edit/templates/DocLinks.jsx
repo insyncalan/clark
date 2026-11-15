@@ -65,7 +65,7 @@ export function Edit({ section }) {
   const addLink = async (e) => {
     e.preventDefault();
     const link = href.trim(), words = oneLine(label);
-    const why = full ? FULL : linkProblem(link) || (words ? labelProblem(words) : W.NO_DESCRIPTION(raw.length + 1));
+    const why = full ? FULL : (linkProblem(link) ? `Link ${raw.length + 1}: ${linkProblem(link)}` : "") || (words ? labelProblem(words) : W.NO_DESCRIPTION(raw.length + 1));
     setBoxProblem(why);
     if (why) return;
     const reply = await save([...raw, { kind: "link", href: link, label: words }], W.LINK_ADDED);

@@ -391,11 +391,31 @@ class InThePage(PageBase):
                 self.set_value(p, f"{sel} [data-add-link] input[type=text]", bad, 0)
                 p.js(f"document.querySelector('{sel} [data-add-link] button[type=submit]').click()")
                 p.until(f"!!document.querySelector('{sel} .tpl-problem')", "the refusal is shown")
-                self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-problem').textContent"), doclinks.BAD_LINK)
+                self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-problem').textContent"), "Link 1: " + doclinks.BAD_LINK)
             self.assertEqual(len(self.sent), sent, "nothing was sent")
             self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-problem').getAttribute('role')"), "alert")
             p.js(f"document.querySelector('{sel} [data-add-file]').focus()")
             self.assertTrue(p.js("document.activeElement.hasAttribute('data-add-file')"), "Add a file takes focus from the keyboard")
+
+    def test_the_edit_box_refusal_of_a_bad_link_is_the_servers_sentence_with_its_place(self):
+        """PR 1628: href "x y" is refused with 'Link n: ...' by the server, and the Edit box says the very same sentence."""
+        with self.assertRaises(section_bodies.Bad) as cm:
+            check("doclinks", body([a_file(), a_link(href="x y")]))
+        server = str(cm.exception)
+        self.assertEqual(server, "Link 2: " + doclinks.BAD_LINK)
+        ref = self.add([a_file()])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('{sel} [data-open-link]')", "the Edit part drew")
+            p.js(f"document.querySelector('{sel} [data-open-link]').click()")
+            p.until(f"!!document.querySelector('{sel} [data-add-link]')", "the add-link box opened")
+            self.set_value(p, f"{sel} [data-add-link] input[type=text]", "x y", 0)
+            self.set_value(p, f"{sel} [data-add-link] input[type=text]", "A site", 1)
+            p.js(f"document.querySelector('{sel} [data-add-link] button[type=submit]').click()")
+            p.until(f"!!document.querySelector('{sel} .tpl-problem')", "the refusal is shown")
+            self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-problem').textContent"), server)
 
     def test_edit_refusal_for_the_add_link_box_counts_files_too(self):
         """Item 1194: with one link and one file listed the box says 'Link 3: ...' (n counts files too), not always 'Link 1: ...'."""
