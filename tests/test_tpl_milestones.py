@@ -4,7 +4,7 @@ Run: python3 dev/run_tests.py test_tpl_milestones
 
 Ruling (relayed from the issue text): build Milestones as a library template (an entry in TEMPLATES, with a view part and an edit
 part, store type "milestoneslib") AND keep the built-in card unchanged. The heading is "Milestones". Every other word of the entry
-is an UNRULED constant in logic/templatesStrings.js. Word, Excel and the existing sections are not touched. Schema layout 25.
+is an UNRULED constant in logic/templatesStrings.js. Word, Excel and the existing sections are not touched. The layout step is store.MILESTONES_LIB_STEP.
 """
 import json
 import shutil
@@ -124,8 +124,8 @@ class TheStore(unittest.TestCase):
 
     def test_the_migration_is_step_25_and_the_latest(self):
         from clark import store
-        self.assertEqual(store.SCHEMA_VERSION, 25)
-        self.assertEqual(dict(store.MIGRATIONS)[25], store.migrate_milestones_library_section_type)
+        self.assertEqual(store.SCHEMA_VERSION, store.MILESTONES_LIB_STEP)
+        self.assertEqual(dict(store.MIGRATIONS)[store.MILESTONES_LIB_STEP], store.migrate_milestones_library_section_type)
 
     def test_a_layout_24_file_opens_with_the_new_check_and_keeps_its_rows(self):
         from clark import store
@@ -133,7 +133,7 @@ class TheStore(unittest.TestCase):
         from test_store_use_case_done_migration import make_at
         d = Path(tempfile.mkdtemp(prefix="clark-test-"))
         self.addCleanup(shutil.rmtree, d, True)
-        path = make_at(d, 24)
+        path = make_at(d, store.MILESTONES_LIB_STEP - 1)
         con = sqlite3.connect(str(path), isolation_level=None)
         con.execute("INSERT INTO report_sections (project, id, type, title, body, beside, hidden, sort_order) VALUES ('ABC', 'ABC-S-001', 'milestones', 'Milestones', '', 0, 0, 1)")
         self.assertNotIn("'%s'" % KIND, con.execute("SELECT sql FROM sqlite_master WHERE name = 'report_sections'").fetchone()[0])
