@@ -58,7 +58,7 @@ class Rows(unittest.TestCase):
         os.environ.pop("CLARK_TYPED", None)
 
     def seams(self, **over):
-        seams = dict(find_chrome=lambda: "/fictional/chrome", find_claude=lambda: "/fictional/bin/claude",
+        seams = dict(find_chrome=lambda: "/fictional/Google " "Chrome", find_claude=lambda: "/fictional/bin/claude",
                      health=lambda port, mark: launch.NOTHING, free=lambda port: False)
         seams.update(over)
         return seams
@@ -125,10 +125,10 @@ class Rows(unittest.TestCase):
 
     # Row 20: the browser line, both ways.
     def test_row_20_chrome_found(self):
-        self.both(self.default, "browser", "Ready:", "Chrome is there, so clark opens in Chrome.", "ready")
+        self.both(self.default, "browser", "Ready:", "Google " "Chrome is there, so clark opens in it.", "ready")
 
     def test_row_20_chrome_not_found(self):
-        words = "Chrome wasn't found, so clark will open in your usual browser."
+        words = "Chrome or Edge wasn't found, so clark will open in your usual browser."
         self.both(self.default, "browser", "Worth knowing:", words, "advice", find_chrome=lambda: None)
 
     # Row 22: the port. The launcher's name is the Mac's and the doctor puts the answer on one line.

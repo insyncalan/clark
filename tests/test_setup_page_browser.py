@@ -175,7 +175,7 @@ class ToFix(Case):
             self.assertIn("which is inside OneDrive.", rows[1][3])
             self.assertTrue(rows[1][3].endswith("Backups can still go to OneDrive."))
             self.assertEqual(p.text("#line"), "1 thing to fix before clark can start. Fix it, then choose Check again.")
-            self.assertEqual(rows[2][3], "Chrome wasn't found, so clark will open in your usual browser. Install Chrome to open clark there.")
+            self.assertEqual(rows[2][3], "Chrome or Edge wasn't found, so clark will open in your usual browser. Install Google Chrome or Microsoft Edge to open clark there.")
             for gone in ("Terminal", "python3", "start clark again", "double-click", "doctor"):
                 self.assertNotIn(gone, p.js("document.body.innerText"))
             self.assertEqual([p.shown("#choose"), p.shown("#again"), p.shown("#status"), p.shown("#problem")], [True, True, False, False])

@@ -181,6 +181,9 @@ class CodexCommand(ask_claude.ClaudeCommand):
 
     def command(self):
         self.failed = None
+        if platform.windows_host():                     # item 629: ask clark is off on a Windows host, said first
+            self.failed = "windows_host"
+            return None, platform.ASK_OFF_ON_WINDOWS
         if platform.container_mode():                   # item 1100: before the home check, which the container's own home would fail first
             self.failed = "container"
             return None, platform.needs_mac_words()

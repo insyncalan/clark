@@ -17,6 +17,20 @@ UPDATE = (ROOT / "docker" / "UPDATE.txt").read_text(encoding="utf-8")
 
 
 class DockerUpdate(unittest.TestCase):
+    def test_step_4_has_a_windows_line_that_does_not_use_bash(self):
+        """Item 636: PowerShell has no bash, so step 4 gives Windows its own compose line, with the Windows file that sets the data folder."""
+        step = UPDATE[UPDATE.index("  4. Start the new clark"):UPDATE.index("  5. Open")]
+        self.assertIn("On Windows", step)
+        self.assertIn("docker compose -f docker/compose.yaml -f docker/compose.windows.yaml up -d", step)
+        self.assertIn("press Enter", step)
+
+    def test_every_compose_file_the_update_steps_name_is_in_the_folder(self):
+        """Item 636: the Windows steps name docker/compose.windows.yaml (item 629); a folder without it would send a person to a missing file."""
+        named = sorted(set(re.findall(r"-f (docker/[\w.-]+)", UPDATE)))
+        self.assertIn("docker/compose.windows.yaml", named)
+        for name in named:
+            self.assertTrue((ROOT / name).is_file(), f"UPDATE.txt names {name}, which is not in the folder")
+
     def test_the_check_runs_before_the_server_and_a_refusal_stops_the_start(self):
         m = re.search(r'^\s*command: \["sh", "-c", "(.+)"\]$', COMPOSE, re.M)
         self.assertIsNotNone(m, "the start is one sh -c line")
@@ -109,7 +123,7 @@ class DockerUpdate(unittest.TestCase):
 
     def test_update_txt_gives_typed_commands_for_the_new_folder_route(self):
         for words in ("Unzip the new download into a new folder", "docker compose -f docker/compose.yaml down",
-                      "bash docker/start.command", "start from the newer clark folder", "SHA-256",
+                      "bash docker/start.command", "Nothing was changed and the container\nwas not started.", "Start from the newer clark folder. Nothing was\nchanged.", "SHA-256",
                       "clark keeps the 14 newest of these copies", "never fewer than 3", "Get-FileHash -Algorithm SHA256", "Update from file in Settings does not work under Docker"):
             self.assertIn(words, UPDATE)
         self.assertNotIn("docker load", UPDATE)
