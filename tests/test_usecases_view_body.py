@@ -46,7 +46,7 @@ class Checker(unittest.TestCase):
     def test_bad_bodies_are_refused_without_quoting_them(self):
         bad = ['[]', '[1]', '"x"', '{"x": 1}', '{"n": 0}', '{"n": -1}', '{"n": 1001}', '{"n": true}', '{"n": null}', '{"n": "7"}',
                '{"n": "All"}', '{"n": "x"}', '{"n": 2.5}', '{"scroll": 1}', '{"scroll": "true"}', '{"scroll": null}',
-               '{"tracker": "left"}', '{"tracker": ""}', '{"tracker": "TOP"}', '{"tracker": null}', '{"n": 1, "n": 2}', '{"v": 1}',
+               '{"tracker": "left"}', '{"tracker": "x"}', '{"tracker": ""}', '{"tracker": "TOP"}', '{"tracker": null}', '{"n": 1, "n": 2}', '{"v": 1}',
                '{"n": NaN}', '{"tracker": "ZQMARK\\u0007"}', "not json"]
         for text in bad:
             with self.subTest(body=text):
