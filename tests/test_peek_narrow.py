@@ -1,9 +1,9 @@
-"""Row 847: below 1000 px the peek fills the window over the list; from 1000 px up the side panel (and its 560 px default) stays.
+"""Row 847: below 1000 px the peek fills the window over the list; from 1000 px up the side panel (and its 640 px default) stays.
 
 Run: python3 dev/run_tests.py test_peek_narrow
 
 In a real browser at 900 and 1400 px, light and dark, View and Edit, on Work items and the Dashboard: the peek is as wide as the
-window at 900 and 560 px at 1400; Esc closes it at 900 and the focus goes back to the row; widening it at 1400 still works.
+window at 900 and 640 px at 1400; Esc closes it at 900 and the focus goes back to the row; widening it at 1400 still works.
 No new words: the test reads no text.
 """
 import json
@@ -52,7 +52,7 @@ class NarrowBrowser(unittest.TestCase):
                                 if width < 1000:
                                     self.assertEqual((round(left), round(w)), (0, round(win)), f"{where}: the peek takes the whole window")
                                 else:
-                                    self.assertEqual(round(w), 560, f"{where}: the owner's 560 px default")
+                                    self.assertEqual(round(w), 640, f"{where}: the 640 px default (item 1202)")
                                     self.assertGreater(left, 300, f"{where}: the list stays beside it")
                                 self.assertEqual(round(right), round(win), where)
                                 self.assertEqual(cdp.js("document.documentElement.scrollWidth - document.documentElement.clientWidth", sid) <= 1, True, where)

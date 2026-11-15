@@ -374,6 +374,7 @@ class Browser(unittest.TestCase):
                 if width < 1000:      # row 847: below 1000 px the peek fills the window, so there is no width to drag, keep or reset
                     self.assertEqual(default, client, "the peek takes the whole window below 1000 px")
                 else:
+                    self.assertEqual(default, 640, "the default is 640 px (item 1202)")
                     edge = cdp.js("(() => { const b = document.querySelector('.pk-edge').getBoundingClientRect(); return [b.x + 3, b.y + 200]; })()", sid)
                     for kind, x in (("mousePressed", edge[0]), ("mouseMoved", client - 700), ("mouseReleased", client - 700)):
                         cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": edge[1], "button": "left", "buttons": 1 if kind != "mouseReleased" else 0, "clickCount": 1}, sid)
@@ -384,7 +385,7 @@ class Browser(unittest.TestCase):
                     cdp.js("document.querySelector('.pk-edge').focus()", sid)
                     for _ in range(40):
                         key(cdp, sid, "ArrowLeft")
-                    self.assertTrue(wait(lambda: w() == client), "never wider than the window")
+                    self.assertTrue(wait(lambda: w() == client - 32), "never wider than the window minus 32 px (item 1202)")
                     cdp.js("document.querySelector('.pk-edge').dispatchEvent(new MouseEvent('dblclick', {bubbles: true}))", sid)
                     self.assertTrue(wait(lambda: w() == default), "double-click resets")
                 click(cdp, sid, "[data-pk-wide]")
@@ -808,10 +809,11 @@ class TestPageStyles(unittest.TestCase):
 class WidthSource(unittest.TestCase):
     def test_no_peek_file_sizes_the_width_from_window_inner_width(self):
         """A classic scroll bar makes innerWidth wider than the page, so the peek is sized from the client width."""
-        for name in ("components/Peek.jsx", "stores/peekState.js"):
+        for name in ("components/Peek.jsx", "peek/width.js"):       # item 1202: the width rule moved from stores/peekState.js to peek/width.js
             text = (ROOT / "src/clark/page/src" / name).read_text(encoding="utf-8")
             self.assertNotIn("innerWidth", text, name)
             self.assertIn("documentElement.clientWidth", text, name)
+        self.assertNotIn("innerWidth", (ROOT / "src/clark/page/src/stores/peekState.js").read_text(encoding="utf-8"))
 
     def test_the_fill_screen_rule_is_a_hundred_percent_not_a_hundred_vw(self):
         """100vw counts a classic scroll bar (15 px on Linux), so a peek that fills the screen would be too wide; 100% does not."""

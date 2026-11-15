@@ -97,7 +97,7 @@ class CardRule(unittest.TestCase):
         start = css.index("/* The peek's card (row 766)")
         block = css[start:css.index("\n\n", start)]
         self.assertIn("container-type: inline-size", block)
-        self.assertIn("@container (min-width: 560px)", block)
+        self.assertIn("@container (min-width: 600px)", block)
         flat = next(l for l in block.splitlines() if l.startswith(".pk-fields > .pk-row[data-row] {"))
         for boxed in ("border: 1px", "border-radius: var(", "background: var("):
             self.assertNotIn(boxed, flat, "row 1077: the four cells are flat")
