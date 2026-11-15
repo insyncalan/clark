@@ -78,6 +78,11 @@
 /* The peek's Details and Activity tabs (#42): Edit only. */
 .pk-tabs { display: flex; gap: var(--space-1); margin: var(--space-1) 0 var(--space-2); border-bottom: 1px solid var(--grey-200); }
 .pk-tab { min-height: 32px; padding: var(--space-1) var(--space-3); border: 0; border-bottom: 2px solid transparent; background: none; color: var(--text-muted); font: inherit; font-size: var(--size-caption); cursor: pointer; }
+.pk-hcount { margin-left: 2px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.pk-history { margin: var(--space-3) 0 0; }
+.pk-hicon { flex: none; margin-top: 2px; color: var(--text-muted); }
+.pk-hsrc { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin: var(--space-2) 0; }
+.pk-hsrc a, .pk-hsrc .linklike { color: var(--brand-blue); font: inherit; background: none; border: 0; padding: 0; min-height: 24px; text-decoration: underline; cursor: pointer; }
 .pk-tab.on { color: var(--text); border-bottom-color: var(--brand-blue); font-weight: var(--weight-medium); }
 .pk-activity:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .pk-tab:focus-visible { outline: 0; border-bottom-color: var(--focus); }   /* row 1077 (flat): a tab's focus is its underline in the focus colour, not a box */
@@ -404,6 +409,7 @@ table.items td.c-pick { vertical-align: middle; }
 /* Use cases page: list */
 /* Row 1085: the tabs row as Work items draws its saved views, Import, Export and Add use case at its right end, and the filter line (the Work items box) under it */
 .ucl-views { margin-top: 16px; }
+.ucl-views .vtab { padding-left: 8px; padding-right: 8px; }      /* row 1203: with the open tab's menu button and + New view beside four tabs, the strip at 900 was 5 px too narrow and scrolled; two px less each side of a tab fits it */
 .ucl-tools { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-bottom: var(--space-1); }
 .ucl .fline-wrap { margin-top: 0; }
 /* Row 1085: Group by draws each group as a bordered card (.wgroup, as Work items) with a heading bar: the name, the count, open and shut */
@@ -1238,6 +1244,27 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
 @media (max-width: 899px) { .cover::after { display: none; } }
 /* item 1154: with a logo (the server sets --cover-logo-room; 0px when it is not set) the title and the cover line keep the logo box's room free at 900 px and wider, so they wrap before it; under 900 the logo is hidden and no room is kept */
 @media (min-width: 900px) { .frame header.cover h1, .frame header.cover .cover-line { margin-right: var(--cover-logo-room, 0px); } }
+
+/* row 1180 chips: the chip row itself is in shell.css (the published page draws it too) */
+.pkc .cpop { z-index: 30; }
+
+/* row 1180 head: the ID tag and project line, and the title as a textarea (PeekHead.jsx) */
+.pkh-line { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-4) 0 var(--space-1); color: var(--text-muted); font-size: var(--size-small); }
+.pkh-id { display: inline-flex; padding: 1px 7px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: transparent; color: var(--heading); font-size: var(--size-caption); font-weight: var(--weight-medium); }
+.pkh-proj { min-width: 0; overflow-wrap: anywhere; }
+.pkh-title-in { display: block; width: calc(100% + 2 * var(--space-2)); box-sizing: border-box; margin: 0 calc(-1 * var(--space-2)); padding: 0 var(--space-2); border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: inherit; font: inherit; line-height: inherit; resize: none; overflow: hidden; cursor: text; overflow-wrap: anywhere; }
+.pkh-title-txt { cursor: text; white-space: pre-wrap; }
+.pkh-title-in:hover { background: var(--grey-50); }
+.pkh-title-in:focus { outline: 2px solid var(--focus); outline-offset: 2px; border-color: var(--brand-blue); background: var(--surface); }
+.pkh-line + .pk-title { margin-top: 0; }
+
+/* row 1180 wire: the Details rows' icons and the one Client visible line */
+.pk-rowic { display: inline-flex; margin-right: var(--space-2); vertical-align: -2px; }
+.pk-client { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 28px; padding: 0; border: 0; background: none; font: inherit; color: var(--text-muted); cursor: pointer; }
+.pk-client.on { color: var(--brand-blue); }
+.pk-client:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+/* item 1181 chips: the Action peek's chip row (PeekActionChips.jsx). The chips, popovers and look are the shared frame's (item 1180); the Due chip's overdue sub-line and tint are PeekChip's. */
 
 /* item 1176: the project name in the editor Dashboard cover is a button that looks like the heading until hover or focus, then shows it can be clicked; the chevron fades in with opacity only (it stays visible to focus) */
 .cover-switch { all: unset; box-sizing: border-box; display: inline; cursor: pointer; color: inherit; font: inherit; border: 0; border-radius: var(--radius); }

@@ -70,8 +70,8 @@ class Tab(unittest.TestCase):
     def open_activity(self, cdp, width, scheme="light"):
         sid = self.open_page(cdp, width, scheme)
         dblclick(cdp, sid, f"#work tbody tr[data-id='{ITEM}'] .c-item")
-        self.until(cdp, sid, "!!document.querySelector('[data-pk-tab=activity]')", "the peek has its tabs in Edit")
-        tuk.click(cdp, sid, "[data-pk-tab=activity]")
+        self.until(cdp, sid, "!!document.querySelector('[data-pk-htab=activity]')", "the peek has its history tabs in Edit")
+        tuk.click(cdp, sid, "[data-pk-htab=activity]")
         self.until(cdp, sid, "document.querySelectorAll('[data-activity-row]').length > 0", "the history is drawn")
         return sid
 

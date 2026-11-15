@@ -4,7 +4,7 @@
 // A reading that needs a confirm is never applied by Enter alone; the Make the change button counts as that OK (the chips and lines are on screen). Applying goes through the work-item change route (#68).
 import { useState, useEffect, useRef } from "preact/hooks";
 import { project } from "../stores/report.js";
-import { wordsOpen } from "../stores/wordsState.js";
+import { wordsOpen, askFrom } from "../stores/wordsState.js";
 import { sneakRead } from "../api.js";
 import { Icon } from "../components/Icon.jsx";
 import { applyReading } from "./sneakApply.js";
@@ -17,7 +17,9 @@ export function SneakPeek({ row, kind = "item" }) {
   const [busy, setBusy] = useState(false);
   const box = useRef(null);
   useEffect(() => {                                   // focus goes into the box, and back to where it was when the box alone closes
-    const before = document.activeElement;
+    const active = document.activeElement;
+    const before = askFrom.el && askFrom.el.isConnected ? askFrom.el : active;      // the footer input was only a stop on the way in (and is gone once the box is up)
+    askFrom.el = null;
     if (box.current) box.current.focus();
     return () => {
       if (wordsOpen.value) return;                    // the box is still wanted (another item): the new box takes focus

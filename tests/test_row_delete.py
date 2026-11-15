@@ -79,6 +79,13 @@ class DeleteItem(board.Base):
                     self.assertEqual(len(self.query("SELECT 1 FROM actions WHERE id = ?", a)), 1, where)
                     self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), where)
 
+    def more_delete(self, cdp, sid):
+        """Row 1180: the peek has no Delete button of its own; Delete is the last entry of its More actions menu."""
+        click(cdp, sid, "#pk-more")
+        self.until(cdp, sid, "!!document.querySelector('[role=menu] [data-kind=delete]')", "the menu")
+        self.until(cdp, sid, "document.querySelector('[role=menu]').getAnimations({subtree: true}).length === 0", "the menu to settle")
+        click(cdp, sid, "[role=menu] [data-kind=delete]")
+
     def test_the_peek_has_the_same_delete_and_it_closes_with_the_item(self):
         a = self.id_of("Order the laptops")
         with chrome() as cdp:
@@ -86,16 +93,16 @@ class DeleteItem(board.Base):
             before = self.steps()
             self.open_menu(cdp, sid, a)
             click(cdp, sid, "[data-rm=peek]")
-            self.until(cdp, sid, f"!!document.querySelector('#peek[data-peek=\"{a}\"] [data-pk-delete]')", "the peek")
+            self.until(cdp, sid, f"!!document.querySelector('#peek[data-peek=\"{a}\"] #pk-more')", "the peek")
             self.until(cdp, sid, "document.querySelector('#peek').getAnimations({subtree: true}).length === 0", "the peek to settle")   # a click lands where the button is now, not where it slides to
-            click(cdp, sid, "[data-pk-delete]")
+            self.more_delete(cdp, sid)
             d = self.dialog(cdp, sid)
             self.assertEqual(d, {"q": QUESTION % a, "b": ["Delete", "Cancel"]})
             click(cdp, sid, "[data-bask=no]")                                           # Cancel: nothing happens, the peek stays
             self.until(cdp, sid, "!document.querySelector('[role=alertdialog]')", "the question to close")
             self.assertEqual((self.steps(), len(self.query("SELECT 1 FROM actions WHERE id = ?", a))), (before, 1))
             self.assertTrue(cdp.js(f"!!document.querySelector('#peek[data-peek=\"{a}\"]')", sid))
-            click(cdp, sid, "[data-pk-delete]")
+            self.more_delete(cdp, sid)
             self.dialog(cdp, sid)
             click(cdp, sid, "[data-bask=yes]")
             t = self.wait_toast(cdp, sid, "done")
@@ -144,7 +151,7 @@ class DeleteItem(board.Base):
                 click(cdp, sid, "[data-rm=peek]")
                 self.until(cdp, sid, f"!!document.querySelector('#peek[data-peek=\"{a}\"] #pk-more')", "the peek")
                 self.until(cdp, sid, "document.getElementById('peek').getAnimations({subtree: true}).every(a => a.playState !== 'running')", "the peek to stop sliding in")      # the slide is on the peek itself, so click() does not wait for it: a press during it lands on the next button
-                self.assertEqual(cdp.js("(() => { const b = document.getElementById('pk-more'); return [b.getAttribute('aria-label'), b.title, !!document.querySelector('[data-pk-delete]')]; })()", sid), ["More actions", "More actions", True])
+                self.assertEqual(cdp.js("(() => { const b = document.getElementById('pk-more'); return [b.getAttribute('aria-label'), b.title, !!document.querySelector('[data-pk-delete]')]; })()", sid), ["More actions", "More actions", False])
                 click(cdp, sid, "#pk-more")
                 self.until(cdp, sid, "!!document.querySelector('[role=menu] [role=menuitem]')", "the menu")
                 self.until(cdp, sid, "document.querySelector('[role=menu]').getAnimations({subtree: true}).length === 0", "the menu to settle")

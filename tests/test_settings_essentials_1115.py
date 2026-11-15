@@ -1,4 +1,4 @@
-"""Row 1115, S3: the Essentials card, first in the Settings long scroll with its chip first, in a real browser at 1400 and 900 px, light and dark.
+"""Row 1115, S3: the Essentials card, first on the Settings Profile page, in a real browser at 1400 and 900 px, light and dark.
 Run: python3 dev/run_tests.py test_settings_essentials_1115
 
 Essentials holds eight settings on the shared setting row: Your name, Appearance, Spacing, Motion, Single-key shortcuts, Backups, Publishing folder,
@@ -35,13 +35,13 @@ STUB = r"""(() => {
 
 class Essentials(Head):
     # Head's own tests belong to test_settings_head; this file borrows only its helpers
-    test_C_the_title_the_help_line_and_a_chip_for_each_card_that_exists = test_C_a_click_scrolls_to_the_card_and_focuses_its_heading = None
-    test_C_keyboard_tab_to_a_chip_and_enter = test_C_the_list_is_at_the_left_at_900_and_wider_and_a_row_of_chips_below_900 = test_C_text_size_and_contrast_in_light_and_dark = None
+    test_C_the_title_the_help_line_and_a_menu_item_for_each_page_that_exists = test_C_a_click_opens_the_page_and_marks_it_and_the_address_keeps_it = None
+    test_C_keyboard_tab_to_a_menu_item_and_enter = test_C_the_list_is_at_the_left_at_900_and_wider_and_a_row_of_chips_below_900 = test_C_text_size_and_contrast_in_light_and_dark = None
 
     def settings(self, cdp, w, mode):
         p = self.page(cdp, motion="no-preference")      # the Motion switch starts On: a Mac that reduces motion would start it Off
         p.js(STUB)      # the page is on the Dashboard: Settings draws afresh, and its cards read the stand-in
-        self.open_settings(p, w, mode)
+        self.open_settings(p, w, mode, page="profile")      # row 1024: Essentials is the first card of the Profile page
         self.drawn(p)
         return p
 
@@ -49,15 +49,15 @@ class Essentials(Head):
         p.until("!!document.querySelector('#essentials') && document.querySelectorAll('#essentials .set-row').length === 8 && !!document.querySelector('#ess-safety-copy-box')",
                 "Essentials drew its eight rows")
 
-    def test_S3_essentials_is_the_first_card_and_the_first_chip(self):
+    def test_S3_essentials_is_the_first_card_of_the_profile_page(self):
         for w in WIDTHS:
             for mode in MODES:
                 with self.subTest(width=w, mode=mode), chrome() as cdp:
                     p = self.settings(cdp, w, mode)
-                    self.assertEqual(self.chips(p)[0], "Essentials")
+                    self.assertEqual(p.js("document.querySelector('.set-chip[aria-current]').textContent"), "Profile")
                     self.assertEqual(p.js("document.querySelector('.set-cards > section').id"), "essentials", "the first card")
                     self.assertEqual(p.js("document.querySelector('.set-cards > section h2').textContent"), "Essentials")
-                    self.assertEqual(p.js("document.querySelector('.set-nav .set-chip').getAttribute('aria-current')"), "location")
+                    self.assertEqual(p.js("document.querySelector('.set-chip[aria-current]').getAttribute('aria-current')"), "page")
                     self.assertFalse(p.js("document.documentElement.scrollWidth > document.documentElement.clientWidth"), "no sideways scroll")
 
     def test_S3_the_eight_rows_are_there_on_the_shared_row_with_working_controls(self):
@@ -71,14 +71,23 @@ class Essentials(Head):
                     self.assertTrue(all(g[0] and g[1] for g in got), f"each row has a control inside it: {got}")
                     # Appearance: Dark here is Dark in Personal too
                     p.js("document.querySelector('[data-ess-theme-pick=dark]').click()")
-                    p.until("document.documentElement.dataset.theme === 'dark' && document.querySelector('[data-theme-pick=dark]').getAttribute('aria-checked') === 'true'", "Dark chosen from Essentials shows in Personal")
+                    p.until("document.documentElement.dataset.theme === 'dark'", "Dark chosen from Essentials")
+                    self.to_page(p, "appearance")
+                    p.until("document.querySelector('[data-theme-pick=dark]').getAttribute('aria-checked') === 'true'", "Dark chosen from Essentials shows in Personal")
+                    self.to_page(p, "profile")
                     p.js("document.querySelector('[data-ess-theme-pick=light]').click()")
-                    p.until("!document.documentElement.dataset.theme && document.querySelector('[data-theme-pick=light]').getAttribute('aria-checked') === 'true'", "Light")
+                    p.until("!document.documentElement.dataset.theme", "Light")
+                    self.to_page(p, "appearance")
+                    p.until("document.querySelector('[data-theme-pick=light]').getAttribute('aria-checked') === 'true'", "Light shows in Personal")
+                    self.to_page(p, "profile")
                     p.js("document.querySelector('[data-ess-theme-pick=system]').click()")
                     # Spacing
                     p.js("document.querySelector('[data-ess-density-pick=comfortable]').click()")
-                    p.until("document.documentElement.dataset.density === 'comfortable' && document.querySelector('input[name=density][value=comfortable]').checked", "Spacing set from Essentials shows in Personal")
+                    p.until("document.documentElement.dataset.density === 'comfortable'", "Spacing set from Essentials")
                     p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Spacing: Comfortable.'", "Spacing set from Essentials saves at once with the same toast as Personal")
+                    self.to_page(p, "appearance")
+                    p.until("document.querySelector('input[name=density][value=comfortable]').checked", "Spacing set from Essentials shows in Personal")
+                    self.to_page(p, "profile")
                     p.js("document.querySelector('[data-ess-density-pick=compact]').click()")
                     p.until("document.documentElement.dataset.density === 'compact'", "Compact again")
                     # Motion. A computer that asks for reduced motion (the Mac runner) loads with the switch off, so start from on
@@ -91,9 +100,15 @@ class Essentials(Head):
                     p.until("!document.documentElement.dataset.motion", "Motion on again")
                     # Single-key shortcuts: the same switch as in Personal
                     p.js("document.querySelector('[data-ess-keys]').click()")
-                    p.until("document.querySelector('[data-ess-keys]').getAttribute('aria-checked') === 'false' && document.querySelector('#personal .switch').getAttribute('aria-checked') === 'false'", "the keys switch is one state")
+                    p.until("document.querySelector('[data-ess-keys]').getAttribute('aria-checked') === 'false'", "the keys switch is off")
+                    self.to_page(p, "appearance")
+                    p.until("document.querySelector('#personal .switch').getAttribute('aria-checked') === 'false'", "the keys switch is one state")
+                    self.to_page(p, "profile")
                     p.js("document.querySelector('[data-ess-keys]').click()")
-                    p.until("document.querySelector('#personal .switch').getAttribute('aria-checked') === 'true'", "keys on again")
+                    p.until("document.querySelector('[data-ess-keys]').getAttribute('aria-checked') === 'true'", "keys on again")
+                    self.to_page(p, "appearance")
+                    p.until("document.querySelector('#personal .switch').getAttribute('aria-checked') === 'true'", "keys on again in Personal")
+                    self.to_page(p, "profile")
                     # Your name: saved, and About you shows it
                     p.js("""(() => { const b = document.getElementById('ess-name'); b.focus(); b.value = 'Sam Essential'; b.dispatchEvent(new Event('input', {bubbles: true})); b.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true})); })()""")
                     p.until("document.getElementById('about-name').value === 'Sam Essential'", "the name saved from Essentials shows in About you")
@@ -105,10 +120,16 @@ class Essentials(Head):
                     self.assertTrue(p.js("!!document.querySelector('#essentials [data-ess-choose-local]')"))
                     # Asking: the switch is the same one as in Asking
                     p.until("!document.querySelector('[data-ess-ask]').disabled", "the asking switch is ready")
-                    was = p.js("document.querySelector('[data-ask-switch]').getAttribute('aria-pressed')")
-                    self.assertEqual(p.js("document.querySelector('[data-ess-ask]').getAttribute('aria-pressed')"), was)
+                    was = p.js("document.querySelector('[data-ess-ask]').getAttribute('aria-pressed')")
+                    self.to_page(p, "claude")
+                    p.until("!!document.querySelector('[data-ask-switch]')", "the Asking card's switch")
+                    self.assertEqual(p.js("document.querySelector('[data-ask-switch]').getAttribute('aria-pressed')"), was)
+                    self.to_page(p, "profile")
                     p.js("document.querySelector('[data-ess-ask]').click()")
+                    p.until(f"document.querySelector('[data-ess-ask]').getAttribute('aria-pressed') !== '{was}'", "Asking flipped from Essentials")
+                    self.to_page(p, "claude")
                     p.until(f"document.querySelector('[data-ask-switch]').getAttribute('aria-pressed') !== '{was}'", "Asking flipped from Essentials shows in Asking")
+                    self.to_page(p, "profile")
                     self.assertFalse(p.js("document.documentElement.scrollWidth > document.documentElement.clientWidth"), "no sideways scroll")
                     self.assertEqual(p.js("[...document.querySelectorAll('[id]')].map(e => e.id).filter((id, i, a) => a.indexOf(id) !== i)"), [], "no id is on the page twice")
 
@@ -122,7 +143,7 @@ class Essentials(Head):
                 p.js("localStorage.removeItem('clark.motion'); " + ("localStorage.setItem('clark.motion', %r); " % kept if kept else ""))
                 reload_to_new_page(p.js, "document.readyState === 'complete'", "the page reloaded under the emulated setting")
                 p.js(STUB)
-                self.open_settings(p, 1400, "light")
+                self.open_settings(p, 1400, "light", page="profile")
                 self.drawn(p)
                 self.assertEqual(p.js("document.querySelector('[data-ess-motion]').getAttribute('aria-checked')"), shown)
                 self.assertEqual(p.js("document.documentElement.dataset.motion === 'reduce'"), reduced)
@@ -130,8 +151,11 @@ class Essentials(Head):
     def test_S3_the_originals_stay_in_their_cards_and_the_rows_are_searchable(self):
         with chrome() as cdp:
             p = self.settings(cdp, 1400, "light")
-            for sel in ("#about-name", "[data-theme-pick=dark]", "input[name=density]", "#personal .switch", "#safety-copy-box", "#local-folder [data-choose-local]", "[data-ask-switch]"):
-                self.assertTrue(p.js(f"!!document.querySelector({sel!r})"), sel + " stays in its own card")
+            for slug, sel in (("profile", "#about-name"), ("appearance", "[data-theme-pick=dark]"), ("appearance", "input[name=density]"), ("appearance", "#personal .switch"),
+                              ("backups", "#safety-copy-box"), ("folder", "#local-folder [data-choose-local]"), ("claude", "[data-ask-switch]")):
+                self.to_page(p, slug)
+                p.until(f"!!document.querySelector({sel!r})", sel + " stays in its own card")
+            self.to_page(p, "profile")
             p.js("""(() => { const b = document.getElementById('set-search-box'); b.focus(); b.value = 'motion'; b.dispatchEvent(new Event('input', {bubbles: true})); })()""")
             p.until("[...document.querySelectorAll('#essentials .set-row')].filter(r => !r.hidden).length === 1", "the Motion row is the one row left in Essentials")
             self.assertEqual(p.js("[...document.querySelectorAll('#essentials .set-row:not([hidden]) label')].map(l => l.textContent)"), ["Motion"])

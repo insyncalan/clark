@@ -79,6 +79,7 @@ class Browser:
                                                     "buttons": buttons, "clickCount": 1 if kind != "mouseMoved" else 0}, self.sid)
 
     def click(self, sel, dx=0, dy=0):
+        self.cdp.call("Input.dispatchMouseEvent", {"type": "mouseWheel", "x": 5, "y": 5, "deltaX": 0, "deltaY": 1}, self.sid)      # row 1024: a page keeps its own scroll place until a wheel, so the scroll to the control below stays
         x, y, *_ = self.where(sel)
         for kind, b in (("mouseMoved", 0), ("mousePressed", 1), ("mouseReleased", 0)):
             self.mouse(kind, x + dx, y + dy, b)
@@ -210,8 +211,8 @@ class E2E(unittest.TestCase):
     def settings_and_the_tab(self, br):
         br.visit(self.base + f"#settings&p={CODE}", "document.querySelector('#gantt-setting, [data-settings-menu], .setting')")
         self.assertNotIn("Gantt", self.tabs(br), "the tab is off to begin with")
-        br.until("[].some.call(document.querySelectorAll('button, a, li'), function(b){return b.textContent.trim()==='Gantt'})", "Settings lists Gantt")
-        br.js("[].find.call(document.querySelectorAll('button, a'), function(b){return b.textContent.trim()==='Gantt'}).click()")
+        br.until("[].some.call(document.querySelectorAll('.set-chip'), function(b){return b.textContent.trim()==='Reports'})", "Settings lists the Reports page, which holds the Gantt card")      # row 1024: one Settings page at a time
+        br.js("[].find.call(document.querySelectorAll('.set-chip'), function(b){return b.textContent.trim()==='Reports'}).click()")
         br.until("document.querySelector('#gantt-editor')", "the Gantt card")
         br.until(f"location.search.indexOf('project={CODE}') >= 0 && document.querySelector('#gantt-editor')", "the page has settled on the project (no reload to come)")
         self.assertIn("Show the Gantt to me", br.text("#gantt-setting"))
@@ -396,7 +397,7 @@ class E2E(unittest.TestCase):
         # the client switch on, then Publish: the file carries the Gantt
         self.send(kind="projects", op="update", changes={"gantt_hidden_columns": "show,note,budget,effort,baseline_start,baseline_end,owner"})
         br.visit(self.base + f"#settings&p={CODE}", "document.querySelector('.setting, #gantt-setting')")
-        br.js("[].find.call(document.querySelectorAll('button, a'), function(b){return b.textContent.trim()==='Gantt'}).click()")
+        br.js("[].find.call(document.querySelectorAll('.set-chip'), function(b){return b.textContent.trim()==='Reports'}).click()")      # row 1024: the Gantt card is on the Reports page
         br.until("document.querySelector('#gantt-client')", "the client tick")
         br.click("#gantt-client")
         self.assertTrue(wait(lambda: self.project()["show_gantt_client"] == 1), "ticked")
@@ -422,7 +423,7 @@ class E2E(unittest.TestCase):
         br.snap("published-table")
         # untick: the next file has no Gantt tab
         br.visit(self.base + f"#settings&p={CODE}", "document.querySelector('.setting, #gantt-setting')")
-        br.js("[].find.call(document.querySelectorAll('button, a'), function(b){return b.textContent.trim()==='Gantt'}).click()")
+        br.js("[].find.call(document.querySelectorAll('.set-chip'), function(b){return b.textContent.trim()==='Reports'}).click()")      # row 1024: the Gantt card is on the Reports page
         br.until("document.querySelector('#gantt-client') && document.querySelector('#gantt-client').checked", "the client tick, drawn from the saved project as ticked")      # before the project is read the box is drawn unticked, and a click then ticks it again
         br.click("#gantt-client")
         self.assertTrue(wait(lambda: self.project()["show_gantt_client"] == 0), "unticked")

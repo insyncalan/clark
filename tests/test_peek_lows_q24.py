@@ -19,7 +19,7 @@ from test_server import chrome, wait
 
 EDGES = """(() => {
   const l = (s) => { const e = document.querySelector(s); return e ? Math.round(e.getBoundingClientRect().left * 10) / 10 : null; };
-  return { title: l('#peek .pk-title'), tabs: l('#peek .pk-tabs'), card: Math.min(...[...document.querySelectorAll('#peek .pk-fields > .pk-row[data-row], #peek .pk-fields > .pk-row[data-ms-row]')].map((e) => Math.round(e.getBoundingClientRect().left * 10) / 10)), fields: l('#peek .pk-fields') };
+  return { title: l('#peek .pk-title'), tabs: l('#peek .pk-tabs'), card: Math.min(...[...document.querySelectorAll('#peek .pk-fields > .pk-row[data-row], #peek .pk-fields > .pk-row[data-ms-row]')].map((e) => Math.round(e.getBoundingClientRect().left * 10) / 10)), fields: l('#peek .pk-fields'), chips: l('#peek .pk-chips') };
 })()"""
 
 
@@ -89,7 +89,8 @@ class ItemEdges(unittest.TestCase):
                         e = cdp.js(f"JSON.stringify({EDGES})", sid)
                         e = json.loads(e)
                         self.assertIsNotNone(e["tabs"], "Edit draws the tabs")
-                        self.assertAlmostEqual(e["card"], e["title"], delta=1, msg=str(e))
+                        self.assertAlmostEqual(e["chips"], e["title"], delta=1, msg=str(e))      # row 1180: the chip row is the first card; the Details rows follow it
+                        self.assertAlmostEqual(e["fields"], e["title"], delta=1, msg=str(e))
                         self.assertAlmostEqual(e["tabs"], e["title"], delta=1, msg=str(e))
 
 

@@ -32,7 +32,7 @@ class SettingRow(Head):
             for mode in MODES:
                 with self.subTest(width=w, mode=mode), chrome() as cdp:
                     p = self.page(cdp)
-                    self.open_settings(p, w, mode)
+                    self.open_settings(p, w, mode, "reports")      # row 1024: Freshness and Gantt are on the Reports page
                     p.until("!!document.querySelector('#gantt-name') && !!document.querySelector('#review-days')", "the cards drew")
                     got = p.js(PROBE)
                     for id in CONTROLS:

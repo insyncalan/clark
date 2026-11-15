@@ -66,7 +66,7 @@ class BackupCopyFocus(unittest.TestCase):
         cdp.call("Page.enable", {}, sid)
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": STUB}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#settings"}, sid)
+        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#settings&s=backups"}, sid)
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-copy-folder]')", sid)), "the box is on the page")
         return sid
 
