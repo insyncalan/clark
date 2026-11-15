@@ -75,11 +75,13 @@ class StopIcon(Base):
             p.until("document.activeElement && document.activeElement.id === 'ask-box'", "the box has focus while it works")
             p.type("And the next question")
             p.key("Enter", code="Enter", vk=13)
-            self.assertEqual(p.js("document.querySelector('#ask-box').value"), "And the next question", "typed text stays")
+            # Row 1220: Enter while it works queues what was typed (the box is emptied) and still sends nothing.
+            p.until("document.querySelectorAll('#ask-queue li[data-queued]').length === 1", "the typed question waits above the box")
+            self.assertEqual(p.js("document.querySelector('#ask-box').value"), "")
             self.assertEqual(self.stub.count("ask"), 1, "Enter did not send a second question while it works")
             self.stub.hold.set()
-            p.until("document.querySelectorAll('.ask-turn').length === 2 && !document.querySelector('#ask-stop')", "the answer landed", 30)
-            self.assertEqual(p.js("document.querySelector('#ask-box').value"), "And the next question")
+            p.until("document.querySelectorAll('.ask-turn').length === 4 && !document.querySelector('#ask-stop')", "the answer landed and the queued question was asked after it", 30)
+            self.assertEqual(self.stub.count("ask"), 2)
 
     def test_the_keyboard_stops_it_and_the_arrow_comes_back(self):
         self.stub.hold.clear()
