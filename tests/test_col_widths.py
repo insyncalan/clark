@@ -74,7 +74,7 @@ class Widths(unittest.TestCase):
         cell = f"document.querySelector({json.dumps(grip)}).parentElement.getBoundingClientRect().width"
         box = js(f"(() => {{ const b = document.querySelector({json.dumps(grip)}).getBoundingClientRect(); return [b.width, b.height]; }})()")
         self.assertGreaterEqual(box[1], 24, "the hit area is 24 px tall")
-        hidden = name != "work"      # the Use cases and Milestones heading rows is hidden from a screen reader: no focus and no words on it
+        hidden = name == "milestones"      # only the Milestones heading row is hidden from a screen reader: no focus and no words on it; Use cases and Work items have both
         if not hidden:
             self.assertIn("Width of the", js(f"document.querySelector({json.dumps(grip)}).parentElement.getAttribute('aria-description')"))
         first = js(cell)
