@@ -13,7 +13,7 @@ import shutil
 import sys
 import tempfile
 import unittest
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -247,6 +247,32 @@ class ContainerOneDrive(unittest.TestCase):
                 a, b = self.host(path)
                 with a, b:
                     self.assertIsNone(pl.container_host_in_onedrive())
+
+    def test_a_windows_path_is_recognised_by_its_backslash_or_its_drive_letter_and_comes_back_as_a_windows_path(self):
+        """item 629: each way in (a backslash, a drive letter of either case with forward slashes) and the type that comes back are pinned."""
+        cases = (("Users\\sam\\OneDrive\\clark", "Users\\sam\\OneDrive"),      # a backslash and no drive letter
+                 ("D:/Users/sam/OneDrive/clark", "D:\\Users\\sam\\OneDrive"),      # a drive letter and forward slashes
+                 ("d:/Users/sam/OneDrive - Fictional Ltd/clark", "d:\\Users\\sam\\OneDrive - Fictional Ltd"),   # a lowercase drive
+                 ("C:\\Users\\sam\\OneDrive\\clark", "C:\\Users\\sam\\OneDrive"))
+        for path, want in cases:
+            with self.subTest(path):
+                a, b = self.host(path)
+                with a, b:
+                    root = pl.container_host_in_onedrive()
+                    self.assertIsInstance(root, PureWindowsPath)
+                    self.assertEqual(str(root), want)
+
+    def test_a_posix_path_with_a_colon_in_a_name_is_not_read_as_a_windows_path(self):
+        """item 629: only a drive letter at the very start, with no backslash, makes it a Windows path; any other colon leaves a Linux Path."""
+        for path, want in (("/Users/sam/OneDrive/a:b/clark", "/Users/sam/OneDrive"), ("Users/sam:x/OneDrive/clark", "Users/sam:x/OneDrive"),
+                           ("ab:/OneDrive/clark", "ab:/OneDrive"), ("a/b:/OneDrive/clark", "a/b:/OneDrive")):
+            with self.subTest(path):
+                a, b = self.host(path)
+                with a, b:
+                    root = pl.container_host_in_onedrive()
+                    self.assertNotIsInstance(root, PureWindowsPath)
+                    self.assertIsInstance(root, Path)
+                    self.assertEqual(str(root), want)
 
     def test_an_ordinary_folder_and_a_name_that_only_contains_onedrive_are_let_through(self):
         for path in ("/Users/sam/Library/Application Support/clark", "/Users/sam/clark-data", "/Users/sam/Documents/not-OneDrive-really/clark",
