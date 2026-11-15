@@ -17,11 +17,11 @@ from test_work_items import FIXED_DATE, page_target
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
 HEADS = ["Milestone", "State", "Agreed", "Expected or achieved", "Progress"]
 ROWS = [  # name, fields, agreed cell, expected-or-achieved date cell, small line (None: no line)
-    ("T on track", {"baseline_date": "2030-04-01"}, "1 Apr 2030", "1 Apr 2030", None),
-    ("T late", {"baseline_date": "2020-05-01", "forecast_date": "2030-05-01"}, "1 May 2020", None, None),
-    ("T done", {"baseline_date": "2026-09-10", "status": "Done", "actual_date": "2026-09-15"}, "10 Sep 2026", "15 Sep 2026", "Achieved"),
-    ("T dropped", {"baseline_date": "2030-06-01", "status": "Cancelled"}, "1 Jun 2030", "1 Jun 2030", "No longer going ahead"),
-    ("T maybe", {"forecast_date": "2030-07-01"}, "No agreed date", "1 Jul 2030", "Forecast, not agreed"),
+    ("T on track", {"baseline_date": "2030-04-01"}, "01-04-2030", "01-04-2030", None),
+    ("T late", {"baseline_date": "2020-05-01", "forecast_date": "2030-05-01"}, "01-05-2020", None, None),
+    ("T done", {"baseline_date": "2026-09-10", "status": "Done", "actual_date": "2026-09-15"}, "10-09-2026", "15-09-2026", "Achieved 5 days after the agreed date"),
+    ("T dropped", {"baseline_date": "2030-06-01", "status": "Cancelled"}, "01-06-2030", "01-06-2030", "No longer going ahead"),
+    ("T maybe", {"forecast_date": "2030-07-01"}, "No agreed date", "01-07-2030", None),
 ]
 
 SEE = """(() => {
@@ -93,7 +93,7 @@ class Table(unittest.TestCase):
                         self.assertEqual(r["order"], sorted(r["order"]), f"{name}: the cells run left to right in the heading's order")
                         self.assertEqual(len(set(r["order"])), 5, f"{name}: five columns")
                     late = got["rows"]["T late"]
-                    self.assertTrue(late["late"] and late["sub"].endswith("days later") and late["date"] == "1 May 2030", f"a slipped row: {late}")
+                    self.assertTrue(late["late"] and late["sub"].endswith("days later") and late["date"] == "01-05-2030", f"a slipped row: {late}")
                     self.assertEqual(got["firstRowCells"], got["hdAligned"], "each heading sits over its column")
 
     def test_a_row_opens_the_peek_and_the_toggle_hides_the_table_and_its_heading(self):
