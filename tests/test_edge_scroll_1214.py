@@ -2,9 +2,10 @@
 
 Run: python3 dev/run_tests.py test_edge_scroll_1214
 Quick tier: no page. The module is bundled by the pinned esbuild and run in node. Same numbers as the board's drag: a 56 px band,
-a step of min(24, ceil(depth / 3)).
+a step of min(24, ceil(depth / 3)). Also checks drag.js is wired to it and stops the scrolling on release, cancel and Esc.
 """
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -65,6 +66,22 @@ class EdgeStep(unittest.TestCase):
 
     def test_bad_numbers_do_not_scroll(self):
         self.assertEqual(steps([[None, 60, 500], [300, None, 500]]), [0, 0])
+
+
+DRAG = (PAGE_SRC / "edit" / "drag.js").read_text(encoding="utf-8")
+CODE = "\n".join(line.split("//")[0] for line in DRAG.splitlines())
+
+
+class Wired(unittest.TestCase):
+    def test_drag_uses_the_step_and_a_frame_loop(self):
+        self.assertIn("edgeStep", CODE)
+        self.assertIn("requestAnimationFrame", CODE)
+        self.assertIn("scrollBy", CODE)
+
+    def test_the_loop_is_stopped_by_end_and_esc(self):
+        self.assertEqual(len(re.findall(r"cancelAnimationFrame", CODE)), 1, "one stop function")
+        self.assertRegex(CODE, r"const cancel = [^\n]*stop\(\)")
+        self.assertRegex(CODE, r"const end = [^\n]*\n(?:\s*if \(u\.pointerId[^\n]*\n)?\s*stop\(\);", "release and cancel stop it first")
 
 
 if __name__ == "__main__":
