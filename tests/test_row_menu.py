@@ -1203,6 +1203,7 @@ class Menu(board.Base):
             self.assertEqual(meta[2], "Subject")
             self.assertIn(a, meta[3])
             self.assertIn("Example Programme", meta[3])
+            self.until(cdp, sid, "document.querySelector('.de-preview').textContent.includes('Order the laptops')", "the preview to hold the item's text")     # DraftEmail.jsx fills the preview in an effect after the dialog is drawn
             self.assertIn("Order the laptops", cdp.js("document.querySelector('.de-preview').textContent", sid))
             self.assertTrue(cdp.js("document.querySelector('.de').contains(document.activeElement)", sid), "focus is in the dialog")
             self.assertEqual(cdp.js("[...document.querySelectorAll('.de-kinds input')].map(i => i.value)", sid), ["update_request", "chase", "decision"])
