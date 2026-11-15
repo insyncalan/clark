@@ -24,8 +24,11 @@ def _limits():
 DEFAULT_BUDGET = 1_500_000          # bytes of JSON: pages after this are left out, so a big readable PDF is not lost to the parent's cut
 
 
-def _say(status, pages=()):
-    sys.stdout.write(json.dumps({"status": status, "pages": [list(p) for p in pages]}))
+def _say(status, pages=(), left=0):
+    said = {"status": status, "pages": [list(p) for p in pages]}
+    if left:
+        said["left"] = left                       # pages after the budget cut, only when there were some
+    sys.stdout.write(json.dumps(said))
     sys.stdout.flush()
 
 
@@ -47,17 +50,18 @@ def main(argv):
         count = len(reader.pages)
         if count > max_pages:
             return _say("too_many_pages")
-        pages, used = [], 0
+        pages, used, left = [], 0, 0
         for n in range(count):
             text = (reader.pages[n].extract_text() or "").strip()[:max_chars]
             if text:
                 used += len(json.dumps([n + 1, text])) + 2          # ensure_ascii counted: a non-ASCII character is up to 12 bytes
                 if pages and used > budget:
-                    break                                           # the leading pages are kept; the rest is left out
+                    left = count - n                                # the leading pages are kept; the rest is left out, and counted
+                    break
                 pages.append((n + 1, text))
     except Exception:
         return _say("corrupt")
-    return _say("ok" if pages else "scanned", pages)
+    return _say("ok" if pages else "scanned", pages, left)
 
 
 if __name__ == "__main__":
