@@ -29,6 +29,8 @@ class Ring(tpd.Base):
         cdp.call("Emulation.setEmulatedMedia", {"features": features}, p.sid)
         if own:
             p.js("document.documentElement.dataset.motion = 'reduce'")
+        elif features == ALLOW:
+            p.js("delete document.documentElement.dataset.motion")      # the Mac asks for reduced motion and the page paints data-motion=reduce at load
         p.js(HOLD)
         p.open_publish()
         p.go()
