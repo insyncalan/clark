@@ -40,6 +40,7 @@ EXPECTED = {
              "Status": (["Open", "Closed", "Cancelled"], False), "Client-visible": (YES_NO, False),
              "Milestone": (MS, True), "Use case": (UC, True)},
     "Decisions": {"Project": (["ABC"], False), "Status": (["Pending", "Made", "Withdrawn"], False),
+                  "Priority": (["Urgent", "High", "Medium", "Low"], False),      # row 1195
                   "Client-visible": (YES_NO, False), "Use case": (UC, True)},
     "Use cases": {"Project": (["ABC"], False), "Status": (["On track", "Flag", "High risk", "Done"], False),
                   "Commitment": (["Planned 2026", "Committed", "Planned 2027"], True),       # #709: the store's own words; no flag is allowed
@@ -124,7 +125,7 @@ class Lists(unittest.TestCase):
         """The inline values are those the database accepts: a value outside them is refused there too."""
         schema = (Path(__file__).resolve().parent.parent / "src" / "clark" / "schema.sql").read_text(encoding="utf-8")
         checks = {("actions", "status"), ("raid", "status"), ("milestones", "status"), ("decisions", "status"),
-                  ("use_cases", "status"), ("actions", "priority"), ("raid", "type"), ("raid", "impact"),
+                  ("use_cases", "status"), ("actions", "priority"), ("decisions", "priority"), ("raid", "type"), ("raid", "impact"),
                   ("raid", "likelihood"), ("raid", "priority"), ("milestones", "state"), ("milestones", "movement")}
         for table, field in sorted(checks):
             table_sql = schema[schema.index(f"CREATE TABLE IF NOT EXISTS {table} ("):]
