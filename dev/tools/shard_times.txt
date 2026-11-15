@@ -197,6 +197,7 @@ test_font.py 5.1
 test_freshness.py 1.0
 test_freshness_feed.py 2.4
 test_friday_pair.py 0.7
+test_full_image_frame.py 6.0
 test_gantt_chart.py 6.8
 test_gantt_e2e.py 35.4
 test_gantt_excel_export.py 18.7
@@ -265,6 +266,7 @@ test_icon_labels.py 1.0
 test_icons.py 0.5
 test_idle.py 1.4
 test_idle_docker_wiring.py 30.0
+test_imagecap_full_server.py 5.0
 test_import_template.py 133.0
 test_import_words.py 0.4
 test_improve_menu_fit.py 42.6
@@ -571,6 +573,8 @@ test_tpl_figures4.py 11.7
 test_tpl_gallery.py 5.4
 test_tpl_headline.py 6.2
 test_tpl_imagecap.py 8.1
+test_tpl_imagecap_full_page.py 44.0
+test_tpl_imagecap_full_view.py 20.0
 test_tpl_keydates.py 23.8
 test_tpl_linkcard.py 5.4
 test_tpl_onedoc.py 5.1

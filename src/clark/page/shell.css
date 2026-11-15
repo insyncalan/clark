@@ -2074,6 +2074,19 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-band-btn:hover { background: var(--grey-100); }
 .tpl-band-btn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .tpl-band .tpl-fig img { max-height: 240px; background: transparent; }
+/* Row 1223: Full width image (an imagecap section with a body of version 2). The framed image fills the section's width and keeps its shape; no tool is drawn.
+   One that is narrower than the section sits centred at its own size on its fill (the image's own blurred copy, brand colour or plain), or is stretched
+   to the width when its fit says so. The image's own colours are never changed by the theme (no filter on the image, no overlay), no sideways scroll,
+   and on paper the figure is not split across two pages. No heading is drawn for it. */
+.tpl-fullimg { margin: 0; min-width: 0; max-width: 100%; break-inside: avoid; page-break-inside: avoid; }
+.tpl-fullimg-frame { position: relative; display: flex; justify-content: center; overflow: hidden; border-radius: var(--radius); }
+.tpl-fullimg-img { position: relative; display: block; width: auto; max-width: 100%; height: auto; border-radius: var(--radius); }
+.tpl-fullimg.stretch .tpl-fullimg-img { width: 100%; }
+.tpl-fullimg figcaption { margin-top: var(--space-2); font-size: var(--size-caption); color: var(--text-muted); }
+.tpl-fullimg.fill-brand .tpl-fullimg-frame { background: var(--brand-blue); }
+.tpl-fullimg.fill-blur .tpl-fullimg-frame { background: var(--grey-100); }
+.tpl-fullimg-blur { position: absolute; inset: -24px; width: calc(100% + 48px); height: calc(100% + 48px); max-width: none; object-fit: cover; filter: blur(24px); transform: scale(1.05); pointer-events: none; }
+.sec[data-type="imagecap"] > .sec-head:has(~ .tpl-fullimg) { display: none; }
 @media (max-width: 900px) {
   .tpl-ti, .tpl-ti.pic-left, .tpl-band.has-pic { grid-template-columns: minmax(0, 1fr); }
   .tpl-ti.pic-left .tpl-fig { order: 0; }
