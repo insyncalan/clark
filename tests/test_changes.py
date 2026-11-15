@@ -1062,7 +1062,7 @@ class ByUser(Api):
 
 ITEM_FIELDS = {"actions": {"status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "latest_update", "client_message", "client_visible", "client_action"},   # row 811: + needed from the client
                "raid": {"status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "latest_update", "client_message", "client_visible", "client_action"},
-               "decisions": {"status", "made_by", "needed_by", "date", "use_case", "decision", "client_message", "client_visible"}}      # #67: + the title; #97: + the eye; the report rows: + the client wording
+               "decisions": {"status", "made_by", "needed_by", "date", "use_case", "decision", "priority", "latest_update", "client_message", "client_visible"}}      # row 1195: + priority and latest_update; #67: + the title; #97: + the eye; the report rows: + the client wording
 
 
 class Items(Api):
