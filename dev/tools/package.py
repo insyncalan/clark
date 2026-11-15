@@ -252,11 +252,14 @@ folder called .app: you do not need to open it.
   3. The first time only, type this and press Return:
         docker load -i docker\\clark-runtime.tar
   4. Type these two lines, pressing Return after each:
-        $env:CLARK_DATA_DIR = "$PWD\\data"
+        $env:CLARK_DATA_DIR = "$env:USERPROFILE\\clark-data"
         docker compose -f docker/compose.yaml up -d
   5. Open Chrome and go to http://localhost:8766
   6. To stop clark, type this in the same folder and press Return:
         docker compose -f docker/compose.yaml down
+Your data is kept in the clark-data folder in your user folder, not in this
+folder, so replacing this folder with a newer download cannot lose it. Type the
+first line of step 4 every time you start clark, or it will not find your data.
 To see what Docker has said, type this in the same folder:
         docker compose -f docker/compose.yaml logs --tail 50
 """

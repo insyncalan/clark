@@ -62,6 +62,13 @@ class WindowsZipTest(unittest.TestCase):
         self.assertNotIn("clark.command", self.text)
         self.assertNotIn("Mac", self.text)
 
+    def test_start_here_keeps_the_data_outside_the_clark_folder(self):
+        """Item 624: compose.yaml says the data is NOT in the clark folder, so swapping the folder cannot lose it; the Windows text must agree."""
+        self.assertIn('$env:CLARK_DATA_DIR = "$env:USERPROFILE\\clark-data"', self.text)
+        for inside in ("$PWD", "%CD%", "\\data\""):
+            self.assertNotIn(inside, self.text)
+        self.assertIn("not in this\nfolder", self.text)
+
     def test_the_placeholder_is_what_a_build_without_a_tar_holds(self):
         self.assertEqual(b"placeholder: the runtime image tar is built in CI and put here with --image-tar (item 624)\n", self.tar)
 
