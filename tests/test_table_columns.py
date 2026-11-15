@@ -197,6 +197,10 @@ class Columns(unittest.TestCase):
                     self.press(cdp, sid, "Escape")
                     self.assertTrue(wait(lambda: not self.menu(js), 5), "Escape closes it")
                     self.assertTrue(js(f"document.activeElement === document.querySelector({json.dumps(focus)})"), "with the focus back where it was")
+                    # the page's own key handling, with no native contextmenu event behind it (a browser that sends none for the key)
+                    shift = "true" if how == "F10" else "false"
+                    js(f"document.querySelector({json.dumps(focus)}).dispatchEvent(new KeyboardEvent('keydown', {{key: {json.dumps(how)}, shiftKey: {shift}, bubbles: true, cancelable: true}}))")
+                    self.assertTrue(wait(lambda: self.menu(js), 5), "the key handler opens it on its own too")
 
     def test_a_visible_columns_button_opens_the_same_menu(self):
         for table, (_, _, _, _, _, every, _, _) in TABLES.items():
