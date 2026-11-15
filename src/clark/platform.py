@@ -23,7 +23,7 @@ import sys
 import tempfile
 import threading
 import time
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 try:
     import fcntl               # the Mac's and Linux's file lock; there is none on Windows
@@ -115,8 +115,8 @@ def container_on_host_network(net_dir="/sys/class/net"):
 
 
 def container_host_in_onedrive(environ=None):
-    """item 427: inside the shipped container, the Mac folder that is shared in as the data folder, named by the compose file in
-    CLARK_DATA_SOURCE, as a Path when it is in OneDrive (a part of the path is OneDrive's own folder, `OneDrive`, `OneDrive - <name>`
+    """item 427: inside the shipped container, the Mac or Windows folder that is shared in as the data folder, named by the compose file in
+    CLARK_DATA_SOURCE, as a Path (a PureWindowsPath for a Windows path, item 629) when it is in OneDrive (a part of the path is OneDrive's own folder, `OneDrive`, `OneDrive - <name>`
     or `OneDrive-<name>`, case ignored), else None. Never outside a container. Without that variable nothing is known, so nothing is
     refused here; the compose file always sets it. This reads a name, not the disk: it refuses a harmless folder that is merely named like OneDrive (safe), and it cannot see a
     link with another name that points into OneDrive (a data-safety limit; the Mac-side starter is where links are resolved)."""
@@ -125,10 +125,10 @@ def container_host_in_onedrive(environ=None):
     host = (os.environ if environ is None else environ).get("CLARK_DATA_SOURCE")
     if not host:
         return None
-    path = Path(host)
+    path = PureWindowsPath(host) if "\\" in host or re.match(r"[A-Za-z]:", host) else Path(host)      # item 629: a Windows host path is split on its backslashes (a Linux Path in the container would read it as one name)
     for i, part in enumerate(path.parts):
         if part.lower().startswith("onedrive"):
-            return Path(*path.parts[:i + 1])
+            return type(path)(*path.parts[:i + 1])
     return None
 
 
