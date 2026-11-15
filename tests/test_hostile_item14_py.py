@@ -79,7 +79,7 @@ class MilestonesHostile(unittest.TestCase):
         self.assertEqual(milestones.original_date(log, "M-1", "2026-09-09", undone=[2, 3]), "2026-09-09")
         self.assertEqual(milestones.original_date([], "M-1", None), None)
         self.assertEqual(milestones.original_date(log, ["M-1"], "keep"), "keep")      # a list id matches nothing and cannot raise
-        self.assertEqual(milestones.original_date(log, "M-1", "keep", undone=(["x"] and ())), "2026-02-01")
+        self.assertEqual(milestones.original_date(log, "M-1", "keep", undone=()), "2026-02-01")      # nothing undone: the first real update wins
 
 
 class GlanceHostile(unittest.TestCase):
@@ -141,12 +141,7 @@ class GlanceHostile(unittest.TestCase):
             items = [{"use_case": "U-1", "kind": "action", "status": "Open", "due_date": bad, "priority": bad},
                      {"use_case": "U-1", "kind": "risk", "status": "Open", "priority": bad}]
             with self.subTest(v=str(bad)[:12]):
-                try:
-                    out = glance.use_case_strip(ucs, items, TODAY)
-                except TypeError:
-                    # a sort_order that cannot be compared is the one input the strip does not take: it is the store's integer column
-                    self.assertIsInstance(ucs[0]["sort_order"], (str, float, bool, list, dict))
-                    continue
+                out = glance.use_case_strip(ucs, items, TODAY)
                 self.assertEqual(out["total"], 2)
                 for r in out["rows"]:
                     self.assertIsInstance(r["title"], (str, type(bad)))
@@ -177,10 +172,7 @@ class ToClientHostile(unittest.TestCase):
     def test_client_file_name_is_always_a_safe_html_name_with_the_day(self):
         for code in self.NAMES:
             with self.subTest(code=code[:12]):
-                try:
-                    name = to_client.client_file_name(code, "2026-11-06", TODAY)
-                except platform.PlatformError:
-                    continue
+                name = to_client.client_file_name(code, "2026-11-06", TODAY)      # no folder is given, so too_deep cannot apply: a PlatformError here is a failure
                 self.assertTrue(name.endswith("-2026-11-06.html"), name)
                 self.assertNotRegex(name, r'[\\/:*?"<>|\x00-\x1f]')
                 self.assertLessEqual(len(name), 120)
