@@ -3,7 +3,7 @@
 // to read or change a person. {ok, ...} always, never a throw. A refusal by the server (a 400 in its own plain sentences, which end
 // "Nothing was changed.") is shown as it is when it is short; any other failure gets the page's own words.
 import { token, project } from "../stores/report.js";
-import { CHANGE_ROUTE } from "../api.js";
+import { CHANGE_ROUTE, zoneFetch } from "../api.js";
 
 const FAILED = "That could not be saved just now, and nothing was changed. Wait a moment and try again. If it keeps happening, restart clark.";
 const NO_ANSWER = "Nothing was changed, because clark did not answer. Check that clark is still running, then try again.";
@@ -13,7 +13,7 @@ async function call(method, path, body) {
   try {
     const headers = { "X-Clark-Token": token() };
     if (body !== undefined) headers["Content-Type"] = "application/json";
-    const r = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), cache: "no-store" });
+    const r = await zoneFetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), cache: "no-store" });
     return { status: r.status, body: await r.json().catch(() => null) };
   } catch (e) {
     return { status: 0, body: null };
