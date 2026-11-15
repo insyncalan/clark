@@ -1,7 +1,7 @@
 // The ask panel (#47a): a full-height panel on the right, over the open page. Edit pages only (a published file has none). The look
 // is #102's light panel with a soft wash (#214), built from the page's own tokens (edit.css). The reply is drawn as text only: it is
 // never read as markup. Nothing is sent while asking is off.
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { project, show, token, view } from "../stores/report.js";
 import { words } from "./publishApi.js";
 import { stopRestore } from "../router.js";
@@ -60,6 +60,8 @@ export function AskPanel() {
   const showHist = histOpen.value && !busy;
   const saved = showHist ? (histTick.value, chats()) : [];
   const box = useRef(null), log = useRef(null), stopped = useRef(false);
+  // Row 1215: the box is one line high when empty and grows with its text; the cap and the line height are in edit.css, past the cap it scrolls inside.
+  useLayoutEffect(() => { const b = box.current; if (!b) return; b.style.height = "auto"; b.style.height = text ? b.scrollHeight + 2 + "px" : ""; });   // empty: the placeholder never makes it taller
   // Row 885: closing sinks the panel first, and it stays drawn until the animation ends (a 400 ms timer guards it, so no dead overlay is left).
   // Where motion is off it leaves at once, as before.
   const phase = useRef(open ? "open" : "closed"), [, redraw] = useState(0);
