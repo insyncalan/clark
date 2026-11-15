@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -231,11 +232,18 @@ class SeparateProcess(Fake):
         self.assertNotEqual(group, os.getpgrp())
 
     def test_no_process_is_left_after_a_timeout(self):
-        before = subprocess.run(["pgrep", "-f", "pdf_reader_child.py"], capture_output=True).stdout
+        def listed():
+            return set(subprocess.run(["pgrep", "-f", "pdf_reader_child.py"], capture_output=True).stdout.split())
+        before = listed()          # another test's child (or another shard's) may still be leaving: only a pid new since this line counts
         with mock.patch.object(pdf_reader, "SECONDS", 1.0):
             self.read(pdf(["HANG"]))
-        after = subprocess.run(["pgrep", "-f", "pdf_reader_child.py"], capture_output=True).stdout
-        self.assertEqual(before, after)
+        pause, left = threading.Event(), set()
+        for _ in range(100):       # wait on the real condition, up to 10 s: the group is killed, then it is gone from the list
+            left = listed() - before
+            if not left:
+                break
+            pause.wait(0.1)
+        self.assertEqual(left, set(), "a reader child started by this test is still running")
 
 
 class InAsk(Fake):
