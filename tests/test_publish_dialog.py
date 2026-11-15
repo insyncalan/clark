@@ -538,8 +538,8 @@ class Settings(Base):
             p = self.page(cdp, "#settings&p=PUB")
             p.until("!!document.querySelector('#publishing')", "the card")
             self.assertEqual(p.js("document.querySelector('#publishing h2').innerText"), "Publishing")
-            self.assertEqual(p.js("document.querySelector('#publishing #local-folder h3').innerText"), "Local folder")
-            self.assertEqual(p.js("document.querySelector('#publishing #client-folder h3').innerText"), "Client folder")
+            self.assertEqual(p.js("document.querySelector('#publishing #local-folder h3').textContent"), "Local folder")
+            self.assertEqual(p.js("document.querySelector('#publishing #client-folder h3').textContent"), "Client folder")
             # item 647 (the owner's yes): one box, under Choose folder, for a pasted folder path; the Local part has none
             self.assertEqual(p.js("document.querySelectorAll('#publishing input').length"), 1, "only the client folder's paste box")
             self.assertEqual(p.js("document.querySelectorAll('#publishing #client-folder-paste').length"), 1)

@@ -21,15 +21,18 @@ PROBE = """((i) => {
     scrollW: wrap.scrollWidth, clientW: wrap.clientWidth}; })"""
 
 
+STATE = """(() => { const a = document.activeElement; return 'page focus ' + document.hasFocus() + ', active ' + (a && a.className) + ', transform ' + (a ? getComputedStyle(a).transform : '') + ', focus-visible ' + (a ? a.matches(':focus-visible') : ''); })()"""
+
+
 class TipEdges(BrowserBase, unittest.TestCase):
     def serve(self):
         base = self.store.data_for
 
         def data_for(code, **kw):
             d = copy.deepcopy(base(code, **kw))
-            if code == "TUL":
-                ms = d["milestones"]
-                dates = sorted(x for m in ms for x in (m["baseline_date"], m["forecast_date"], m["actual_date"]) if x)
+            ms = d["milestones"] if code == "TUL" else []
+            dates = sorted(x for m in ms for x in (m["baseline_date"], m["forecast_date"], m["actual_date"]) if x)
+            if dates:      # a call that carries no dated milestone (a view of archived ones, say) is passed on as it is
                 lo, hi = (datetime.date.fromisoformat(dates[0]), datetime.date.fromisoformat(dates[-1]))
                 for i in range(4):   # four long names close together at each end: all but one are hidden; the late ones lie years out, so the line scrolls
                     for tag, day in (("E", lo - datetime.timedelta(days=30 - i)), ("L", hi + datetime.timedelta(days=1000 + i))):
@@ -45,6 +48,8 @@ class TipEdges(BrowserBase, unittest.TestCase):
         for width in (1400, 900):
             with chrome() as cdp:
                 sid = self.visit(cdp, width, "#milestones&p=TUL", port)
+                cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, sid)   # the scale is off under reduced motion (shell.css); the Mac runner is measured to give the focused mark no transform
+                cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)   # the page has the focus, so element.focus() matches :focus-visible on a Mac runner too
                 cdp.js("document.querySelector('.mv-bar [data-scale-b=quarter]').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-mk[data-hid]').length", sid) > 4), f"{width}: names are hidden")
                 n = cdp.js("document.querySelectorAll('.mv-mk[data-hid]').length", sid)
@@ -52,7 +57,14 @@ class TipEdges(BrowserBase, unittest.TestCase):
                     cdp.js(f"(() => {{ const w = document.querySelector('.mv-wrap'); w.scrollLeft = {scroll}; }})()", sid)
                     for i in range(n):
                         cdp.js(f"({PROBE})({i})", sid)
-                        self.assertTrue(wait(lambda: cdp.js(f"({PROBE})({i})", sid)["k"] > 1.17), f"{width} mark {i}: the mark reaches its full scale")
+                        last = {}
+
+                        def reached():
+                            last.update(cdp.js(f"({PROBE})({i})", sid))
+                            return last["k"] > 1.17
+                        full = wait(reached)
+                        state = "" if full else cdp.js(STATE, sid)      # what a red run shows: the last probe and the page's focus state
+                        self.assertTrue(full, f"{width} mark {i}: the mark reaches its full scale (last probe {last}; {state})")
                         got = cdp.js(f"({PROBE})({i})", sid)
                         where = f"{width} {end} mark {i} of {n}"
                         self.assertGreaterEqual(got["tipL"], got["stripL"] - 0.5, f"{where}: the tip does not pass the left end of the line")
