@@ -138,12 +138,11 @@ class ActivityBrowser(unittest.TestCase):
                 stamps = cdp.js("Array.from(document.querySelectorAll('[data-activity-row] .pa-meta')).map(e => (e.textContent.match(/\\d{2}-\\d{2}-\\d{4}( \\d{2}:\\d{2})?/) || [''])[0])", sid)
                 keys = [(s[6:10], s[3:5], s[0:2], s[11:]) for s in stamps]
                 self.assertEqual(keys, sorted(keys, reverse=True), "newest first, in the browser")
-                # the keys: Left goes back to Details, focus stays on the tabs
+                # the keys (row 1180): Left goes back one history tab, to All; focus stays on the tabs
                 cdp.js("document.querySelector('[data-pk-htab=activity]').focus()", sid)
                 key(cdp, sid, "ArrowLeft")
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-fields')", sid)))
-                self.assertEqual(cdp.js("document.activeElement.dataset.pkHtab", sid), "details")
-                self.assertFalse(cdp.js("!!document.querySelector('[data-activity]')", sid))
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-pk-htab=all]').getAttribute('aria-selected')", sid) == "true"))
+                self.assertEqual(cdp.js("document.activeElement.dataset.pkHtab", sid), "all")
 
     def peek_stays(self, cdp, sid, item, rows=True):
         """The peek is still open on `item` well after the router's 400 ms Back fallback, with Activity rows if asked."""
