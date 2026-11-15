@@ -185,13 +185,14 @@ class Cards(Base):
                 cdp.call(domain + ".enable", {}, p.sid)
             p.js("window.__tried = 0; Storage.prototype.setItem = function () { window.__tried++; throw new Error('storage is blocked'); }")
             cdp.events.clear()
+            t0 = time.time() * 1000             # a log entry older than this click is the page opening (Log.enable replays them, late on a Mac)
             p.js("document.querySelector('#personal input[name=density][value=comfortable]').click()")
             p.until("document.documentElement.dataset.density === 'comfortable'", "applied at once")
             time.sleep(0.3)                     # let a late error or an unhandled rejection arrive
             p.js("1")                           # reads any waiting events
             errors = [e["method"] + " " + json.dumps(e["params"])[:300] for e in cdp.events
                       if e["method"] == "Runtime.exceptionThrown"
-                      or (e["method"] == "Log.entryAdded" and e["params"]["entry"].get("level") == "error" and not self.backups_503(e["params"]["entry"]))
+                      or (e["method"] == "Log.entryAdded" and e["params"]["entry"].get("level") == "error" and e["params"]["entry"].get("timestamp", t0) >= t0 and not self.backups_503(e["params"]["entry"]))
                       or (e["method"] == "Runtime.consoleAPICalled" and e["params"].get("type") == "error")]
             self.assertEqual(errors, [], "no uncaught exception and no console error")
             self.assertGreaterEqual(p.js("window.__tried"), 1, "the page did try to keep the choice, so the block was really met")
