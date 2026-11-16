@@ -2,7 +2,7 @@
 // heading show), then the box as the reader sees it, with its title and words typed inside it (the one editor, with its / menu). Each save is one change()
 // (noteEdit.jsx saveContent): one step, one Undo. The view part is templates/Callout.jsx.
 import { useEffect, useRef, useState } from "preact/hooks";
-import { source, tidyCallout, calloutLook, TONE_WORDS, COLOURS, ICONS, LIMITS } from "../../templates/notes.js";
+import { source, tidyCallout, calloutLook, PROMPTS, TONE_WORDS, COLOURS, ICONS, LIMITS } from "../../templates/notes.js";
 import { mark, boxClass } from "../../templates/Callout.jsx";
 import { Field, useSaver } from "./noteEdit.jsx";
 import { RichField } from "../RichField.jsx";
@@ -83,8 +83,8 @@ export function Edit({ section }) {
         {mark(k)}
         <div class="tpl-callout-main">
           {k.word ? <p class="tpl-callout-tone">{k.word}</p> : null}
-          <Field value={saved.title} label="Callout title" max={LIMITS.title} placeholder="Add a title: what the reader must see" cls="cb-title" onCommit={(title) => write({ title })} />
-          <RichField field="callout" empty="Click to write." id={section.id} value={wordsAsHtml(saved.html, saved.paras)} label="Callout words" save={(html) => write({ html: noBreaks(html), paras: [] })} />
+          <Field value={saved.title} label="Callout title" max={LIMITS.title} placeholder={PROMPTS.title} cls="cb-title" onCommit={(title) => write({ title })} />
+          <RichField field="callout" empty={PROMPTS.words} id={section.id} value={wordsAsHtml(saved.html, saved.paras)} label="Callout words" save={(html) => write({ html: noBreaks(html), paras: [] })} />
         </div>
       </div>
       {!saved.title && saved.paras.length === 0 && !saved.html ? <p class="quiet">Empty for now: add a title or some words. It stays out of the published page until then.</p> : null}

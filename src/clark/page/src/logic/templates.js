@@ -16,6 +16,7 @@ import { WORDS } from "./fullImageWords.js";
 export const ACCEPTS = { types: ["text", ...TEMPLATE_TYPES, "current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs", ...PENDING_TYPES] };      // row 926: the Gantt section (no body, no registry module) is taken by the store at layout 19; row 1068: the Gantt table section at layout 21
 
 export const KINDS = [
+  { id: "info", name: "Project information" },      // #1272 (owner 16-11): the group the Callout moves to; the headline and glance cards follow with their rows
   { id: "text", name: "Text and pictures" },
   { id: "figures", name: "Figures" },
   { id: "work", name: "Work items" },
@@ -52,8 +53,9 @@ export const TEMPLATES = [
     description: "Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed.", holds: ["Heading", "Filter (set in Edit)", "Work item list · live", "Caption (optional)"] },
   { id: "docs-links", name: "Documents and links", kind: "files", fit: ["full", "half"], type: "doclinks", title: "Documents and links", body: "", ready: true,
     description: "The papers that go with this week’s report.", holds: ["Heading", "File (one or more)", "Link list"] },
-  { id: "callout", name: "Callout", kind: "notes", fit: ["half", "full"], type: "callout", title: "Callout", body: "", ready: true,
-    description: "One thing the reader must see.", holds: ["Heading", "Callout · decision"] },
+  { id: "callout", name: "Callout", kind: "info", fit: ["half", "full"], type: "callout", title: "Callout", body: "", ready: true,
+    description: "One thing the reader must see.", more: "Type a category of your own or pick one, then a colour and an icon. Or leave them out.",
+    holds: ["Heading", "Callout · decision", "Callout · category, colour, icon", "Callout · tile and heading on or off"] },      // #1272 G: `more` is the extra line under the description
   { id: "image-caption", name: "Image with caption", kind: "text", fit: ["half", "full"], type: "imagecap", title: "Image with caption", body: "", ready: true,
     description: "One picture with its caption.", holds: ["Heading", "Image", "Caption"] },
   // Row 1223: the same store type as Image with caption (imagecap), started with a body of version 2 (`start`: changes.py takes exactly this body for a new

@@ -235,5 +235,34 @@ class Page(n.PageChecks):
             self.assertEqual((got["category"], got["colour"], got["icon"]), ("Legal hold", "amber", "question"))
 
 
+class SharedLook(unittest.TestCase):
+    """#1272 slice 3: the tile and heading flags are read the same way for every section type; the prompt words are one pair of strings (the #1251 hook)."""
+
+    def run_js(self, probe):
+        import shutil, subprocess, tempfile
+        from pathlib import Path
+        import esbuild  # noqa: E402  (dev/tools)
+        if not shutil.which("node"):
+            raise unittest.SkipTest("no node")
+        notes = Path(__file__).resolve().parent.parent / "src" / "clark" / "page" / "src" / "templates" / "notes.js"
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "n.js"
+            done = esbuild.run(["--bundle", "--format=iife", "--global-name=N", str(notes), f"--outfile={out}"], capture_output=True, text=True)
+            self.assertEqual(done.returncode, 0, done.stderr)
+            script = Path(tmp) / "probe.js"
+            script.write_text(out.read_text(encoding="utf-8") + ";\nconsole.log(JSON.stringify(" + probe + "));", encoding="utf-8")
+            got = subprocess.run([shutil.which("node"), str(script)], capture_output=True, text=True)
+            self.assertEqual(got.returncode, 0, got.stderr)
+            return json.loads(got.stdout)
+
+    def test_any_section_type_can_turn_its_tile_and_heading_off(self):
+        got = self.run_js("[N.sectionShows({type: 'text'}), N.sectionShows({type: 'text', tile: false}), N.sectionShows({type: 'raid3', heading: false, tile: false}),"
+                          " N.sectionShows({type: 'callout', body: JSON.stringify({v: 1, tone: 'info', title: 'T', paras: [], html: '', tile: false})})]")
+        self.assertEqual(got, [{"tile": True, "heading": True}, {"tile": False, "heading": True}, {"tile": False, "heading": False}, {"tile": False, "heading": True}])
+
+    def test_the_prompt_words_are_two_placeholders(self):
+        self.assertEqual(self.run_js("Object.keys(N.PROMPTS)"), ["title", "words"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -72,3 +72,15 @@ export function tidyTable(v) {
   return { cols, rows: rows.filter((r) => r.some(Boolean)), caption: text(o.caption) };
 }
 export const tableEmpty = (t) => !t.cols.some(Boolean) && t.rows.length === 0;
+
+// #1251 hook (the prompt words are written under #1251): the grey placeholders a just-added Callout shows. Placeholders only: nothing here is ever stored, so none of it can
+// reach the published page. #1251 changes these two strings and nothing else.
+export const PROMPTS = { title: "Add a title: what the reader must see", words: "Click to write." };
+
+// #1272 decision 4, the shared part: whether a section shows its tile and its heading, for every type. A callout keeps the two switches in its own content (slice 2);
+// any other type reads the same two flags from the section itself (`tile`, `heading`: false turns it off) once the store carries them. Nothing else in the page
+// asks the section type, so the store step only has to fill these two fields.
+export function sectionShows(section) {
+  const c = section.type === "callout" ? tidyCallout(source(section)) : section;
+  return { tile: c.tile !== false, heading: c.heading !== false };
+}
