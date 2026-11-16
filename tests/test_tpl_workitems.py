@@ -576,7 +576,7 @@ class InThePage(PageBase):
                     self.assertEqual(self.rows(p, ref, "lines"), [], "full width draws the table only")
                     self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
                     head = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table th')].map(e => e.textContent)")
-                    self.assertEqual(head, ["Type", "ID", "Item", "Owner", "Due", "Status", "Priority", "Workstream", "Milestone"])
+                    self.assertEqual(head, ["", "Type", "Item", "Owner", "Due", "Status", "Priority", "Workstream", "Milestone", "ID"])
 
     def test_show_all_items_opens_every_row_and_show_only_closes_it_in_view_and_in_edit(self):
         ref = self.add({"mode": "all", "max": 2, "owner": ["Pat Demo", "Lee Demo"]})      # three rows, two shown
@@ -605,7 +605,7 @@ class InThePage(PageBase):
             p = self.show(cdp)
             p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table')", "the list drew")
             self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-all]')"))
-            self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table th')].map(e => e.textContent)"), ["Type", "ID", "Item", "Owner", "Due", "Priority"])
+            self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table th')].map(e => e.textContent)"), ["", "Type", "Item", "Owner", "Due", "Priority", "ID"])
 
     def test_the_status_column_is_a_half_circle_coloured_as_the_status_and_the_word(self):
         ref = self.add({"mode": "all", "columns": ["id", "status"], "owner": ["Pat Demo", "Lee Demo"]})
