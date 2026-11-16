@@ -268,11 +268,18 @@ class IconsBrowser(unittest.TestCase):
             # never colour alone: the icon sits beside a written word, and its shape is the row's own
             self.assertTrue(row["words"], where)
         self.assertEqual(rows["status"]["words"], rows["status"]["words"].strip())
-        self.assertIn(rows["status"]["words"], PLAIN_STATUS, iid)      # row 1180: a closed risk's rating word is the priority chip's small line ("Red kept")
-        if "priority" in rows and rows["priority"]["under"]:
-            self.assertRegex(rows["priority"]["under"], r"^(Red|Amber|Green|Not rated) kept$", iid)
+        self.assertIn(rows["status"]["words"], PLAIN_STATUS, iid)      # row 1180: a closed risk's rating word is the Status chip's small line ("Red kept")
+        if rows["status"]["under"]:
+            self.assertRegex(rows["status"]["under"], r"^(Red|Amber|Green|Not rated) kept$", iid)
+        rated_open = kind in ("risk", "issue") and status not in ("Closed", "Cancelled") and priority
         if "priority" in rows:
-            self.assertIn(rows["priority"]["words"], PLAIN_PRIORITY | {"Red", "Amber", "Green", "Not rated"}, iid)
+            # row 1182: an open risk or issue's chip is its colour word with the level as a small pill; a closed one has no small line (its "<colour> kept" is on Status)
+            if rated_open:
+                self.assertRegex(rows["priority"]["under"], r"^(Urgent|High|Medium|Low)$", iid)
+            else:
+                self.assertEqual(rows["priority"]["under"], "", f"{iid}: the Rating or Priority chip has no small line (it moved to Status)")
+        if "priority" in rows:
+            self.assertIn(rows["priority"]["words"], {"Red", "Amber", "Green"} if rated_open else PLAIN_PRIORITY | {"Red", "Amber", "Green", "Not rated"}, iid)
         self.assertRegex(rows["due"]["words"], DATE, iid)
         if want["due"] == "r":
             self.assertRegex(rows["due"]["under"], r"overdue", f"{iid}: a red date says it is overdue (row 1180)")

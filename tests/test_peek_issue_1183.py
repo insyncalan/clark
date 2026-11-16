@@ -37,9 +37,9 @@ class IssuePeek(unittest.TestCase):
             sid = self.peek(cdp, 1400, self.ISSUE)
             self.assertEqual(self.label(cdp, sid), "Rating")
             now = self.row("raid", self.ISSUE)
-            self.assertEqual(cdp.js("document.querySelector('#peek .pk-chips [data-row=priority] .pkc-v').textContent.trim()", sid),
-                             now["priority"])
             colour = "Red" if now["priority"] in ("Urgent", "High") else "Amber" if now["priority"] == "Medium" else "Green"
+            self.assertEqual(cdp.js("document.querySelector('#peek .pk-chips [data-row=priority] .pkc-v').textContent.trim()", sid), colour)      # row 1182: colour word, level as the small pill
+            self.assertEqual(cdp.js("document.querySelector('#peek .pk-chips [data-row=priority] .pkc-sub').textContent.trim()", sid), now["priority"])
             self.assertEqual(cdp.js("document.querySelector('#peek .pk-chips [data-row=priority] button').dataset.tip", sid), colour + " rating, set from impact and likelihood")
         with _chrome() as cdp:
             sid = self.peek(cdp, 1400, self.RISK)
@@ -94,7 +94,7 @@ class IssuePeek(unittest.TestCase):
             click(cdp, sid, "[data-pop] [data-value=Closed]")
             self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved")
             kept = {"Urgent": "Red", "High": "Red", "Medium": "Amber", "Low": "Green"}[self.row("raid", self.ISSUE)["priority"]]
-            self.until(cdp, sid, f"((document.querySelector('#peek .pk-chips [data-row=priority] .pkc-sub') || {{}}).textContent || '').trim() === '{kept} kept'", "Red kept (or its colour)")
+            self.until(cdp, sid, f"((document.querySelector('#peek .pk-chips [data-row=status] .pkc-sub') || {{}}).textContent || '').trim() === '{kept} kept'", "Red kept (or its colour)")
 
 
 def _chrome():

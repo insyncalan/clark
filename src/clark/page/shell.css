@@ -2734,6 +2734,10 @@ button.tpl-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 
 .pkc-v { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 16rem; }
 .pkc-sub { font-style: normal; font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); white-space: nowrap; }
 .pkc-sub.late, .pkc.late .pkc-v { color: var(--status-red-text); }
+.pkc-sub.lvl { padding: 0 var(--space-2); border-radius: 999px; font-size: var(--size-caption); }
+.pkc-sub.lvl.r { background: var(--status-red-tint); color: var(--status-red-text); }
+.pkc-sub.lvl.a { background: var(--status-amber-tint); color: var(--status-amber-text); }
+.pkc-sub.lvl.g { background: var(--status-green-tint); color: var(--status-green-text); }
 .pkc .tag.chg { margin: 0 var(--space-2) 0 0; }
 
 /* Item 1177: the editor's ONE slim sticky header (.top-hdr): the logo, the project name (a button that opens the project list), the line "Weekly report" and
