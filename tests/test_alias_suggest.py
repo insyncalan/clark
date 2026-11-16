@@ -160,7 +160,7 @@ class OnThePage(Base):
                                  "an empty name leaves the Alias empty")
                 for theme in ("light", "dark"):
                     with self.subTest(width=w, theme=theme):
-                        p.js(f"document.querySelector('#personal [data-appearance] button[data-theme-pick={theme}]').click()")
+                        p.js(f"document.querySelector('[data-ess-theme-pick={theme}]').click()")      # row 1024: Appearance (Personal) is on another page; Essentials has the same choice on this one
                         p.until(f"document.documentElement.dataset.theme === {json.dumps('dark' if theme == 'dark' else None)} "
                                 f"|| ({json.dumps(theme)} === 'light' && !document.documentElement.dataset.theme)", "the appearance applied")
                         for name, alias in (("Jane Doe", "Jane, JD"), ("Jane", "Jane"), ("Mary Ann Smith", "Mary, MAS")):
@@ -231,7 +231,7 @@ class OnThePage(Base):
             self.type_into(p, "alias", "Janey")
             self.assertTrue(wait(lambda: self.saved().get("profile_alias") == "Janey"))
             reload_to_new_page(p.js, "!!document.querySelector('#profile-btn')", "the page again (not the one being left)")
-            self.open_settings(p)
+            p.until("!!document.querySelector('#about-name')", "About you drew again: the reloaded address keeps the Profile page, so the menu is not needed")      # row 1024
             p.until("document.querySelector('#about-alias').value === 'Janey'", "the Alias is read from clark")
             self.type_into(p, "name", "Sam Lee")
             self.assertTrue(wait(lambda: self.saved().get("profile_name") == "Sam Lee"))
@@ -276,7 +276,7 @@ class OnThePage(Base):
             self.assertEqual(self.alias(p), "", "an Alias the person emptied is not filled in again in that session")
             self.assertEqual(self.saved().get("profile_alias", ""), "")
             reload_to_new_page(p.js, "!!document.querySelector('#profile-btn')", "the page again (not the one being left)")
-            self.open_settings(p)
+            p.until("!!document.querySelector('#about-name')", "About you drew again: the reloaded address keeps the Profile page, so the menu is not needed")      # row 1024
             p.until("document.querySelector('#about-alias').value === 'Jane, JR'", "an empty saved Alias is suggested from the name again")
             self.assertEqual(self.saved().get("profile_alias", ""), "", "a suggestion alone writes nothing")
 

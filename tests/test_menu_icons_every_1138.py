@@ -65,7 +65,7 @@ DRIVE_NAMES = {
     "rowmenu", "rowmenu-status", "rowmenu-due", "rowmenu-owner", "rowmenu-owner-add", "rowmenu-card", "bulk-items", "bulk-items-mixed",
     "bulk-picker-status", "bulk-picker-owner", "bulk-picker-due", "bulk-picker-priority", "bulk-picker-workstream", "bulk-picker-milestone",
     "board-move", "board-move-lanes", "gantt-show-chart", "gantt-show-table", "gantt-add-below-chart", "gantt-add-below-table",
-    "gantt-right-click", "client", "client-disabled-excel", "text-style", "slash-list", "peek-more", "record-more",
+    "gantt-right-click", "columns", "client", "client-disabled-excel", "text-style", "slash-list", "peek-more", "record-more", "record-ctx",
 }
 
 
@@ -74,7 +74,7 @@ class Source(unittest.TestCase):
     # that is in neither table fails, and so does a drive that no file names or a file that names a drive that does not exist.
     MENUS = {
         "edit/Gutter.jsx": ("section",), "edit/ProfileMenu.jsx": ("profile",),
-        "edit/RowMenu.jsx": ("rowmenu", "rowmenu-card", "rowmenu-status", "rowmenu-due", "rowmenu-owner", "rowmenu-owner-add"),
+        "edit/ColumnsMenu.jsx": ("columns",), "edit/RowMenu.jsx": ("rowmenu", "rowmenu-card", "rowmenu-status", "rowmenu-due", "rowmenu-owner", "rowmenu-owner-add"),
         "components/ClientMenu.jsx": ("client", "client-disabled-excel"),
         "gantt/components/GanttTable.jsx": ("gantt-right-click", "gantt-add-below-table"),
         "gantt/components/GanttChart.jsx": ("gantt-add-below-chart",), "gantt/components/GanttPage.jsx": ("gantt-show-chart", "gantt-show-table"),
@@ -84,7 +84,7 @@ class Source(unittest.TestCase):
         "edit/ProjectSwitch.jsx": ("project-switch",), "components/FilterLine.jsx": ("view",), "components/WorkItems.jsx": ("view-tab", "view"),
         "components/NewTile.jsx": ("new-tile",), "edit/UseCasesPage.jsx": ("uc-group", "uc-sort"), "components/UseCasesTab.jsx": ("uc-group", "uc-sort"),
         "edit/UseCasesEdit.jsx": ("uc-status", "uc-milestone-link"), "components/UseCaseDetail.jsx": ("uc-detail-status",),
-        "edit/CommitMenu.jsx": ("commitment",), "edit/RichText.jsx": ("text-style", "slash-list"), "edit/PeekMore.jsx": ("peek-more",), "edit/RecordMore.jsx": ("record-more",),
+        "edit/CommitMenu.jsx": ("commitment",), "edit/RichText.jsx": ("text-style", "slash-list"), "edit/PeekMore.jsx": ("peek-more",), "edit/RecordMore.jsx": ("record-more",), "edit/RecordContextMenu.jsx": ("record-ctx",),
         "edit/cells/OwnerPick.jsx": ("owner-pick", "owner-pick-typed"),
         "edit/cells/MenuPick.jsx": ("cell-Due date", "cell-Priority", "cell-Status"),
     }
@@ -167,7 +167,7 @@ class Source(unittest.TestCase):
 
 # ── driving every menu ────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-ITEM = "[role=menuitem],[role=menuitemradio],[role=option],.menu-item,.cm-row,.cp-name,.cp-q button"
+ITEM = "[role=menuitem],[role=menuitemcheckbox],[role=menuitemradio],[role=option],.menu-item,.cm-row,.cp-name,.cp-q button"
 # The lines of the open menu `root`: anything a person can pick, a disabled line too. Each must draw an svg.i of 15px or more. A line for a
 # named person draws that person's initials circle (.av) as its icon, so it needs no second one.
 LINES = ("(root => { const ok = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };"
@@ -367,6 +367,8 @@ class Work(BulkBase):
                 d.check("new-tile", "document.querySelector('#newBtn').click()", "[role=menu]", 2)
                 d.button("#viewTabMenu", "view tab")
                 d.check("view-tab", "document.querySelector('#viewTabMenu').click()", "[role=menu]", 1)
+                d.button("[data-cbk=head]", "the columns button")
+                d.check("columns", "document.querySelector('[data-cbk=head]').click()", ".cols-menu", 6)
                 d.button("#viewMenu", "view menu")
                 d.check("view", "document.querySelector('#viewMenu').click()", "#viewMenuList", 8)
                 osel = "#work-list tr[data-id] [aria-label^='Owner of ']"
@@ -389,7 +391,7 @@ class Work(BulkBase):
                 d.lines(".cpop", "owner-pick-typed", 3)
                 d.key("Escape", "Escape", 27)
                 d.gone(".cpop", "the owner box")
-            d.expect(["new-tile", "view-tab", "view", "owner-pick", "owner-pick-typed", "cell-Due date", "cell-Priority", "cell-Status"])
+            d.expect(["new-tile", "view-tab", "columns", "view", "owner-pick", "owner-pick-typed", "cell-Due date", "cell-Priority", "cell-Status"])
 
     def test_row_menu_and_its_lists(self):
         with chrome() as cdp:
@@ -431,7 +433,7 @@ class Work(BulkBase):
                 row_dup = d.js(f"({icon})('[data-rm=dup]')")
                 d.click("[data-rm=peek]", "the Peek line of the row menu")
                 d.button("#pk-more", "the peek's More actions button")
-                self.assertEqual(d.js("(() => { const b = document.querySelector('#peek [data-pk-dup] svg.i'); return b ? b.dataset.icn : null; })()"), row_dup, f"The peek header Duplicate button has the row menu's icon at {w} {th}")
+                self.assertEqual(d.js("document.querySelectorAll('#peek .pk-bar [data-pk-dup]').length"), 0, f"The peek header has no Duplicate button of its own at {w} {th} (it is in More actions)")
                 d.js("document.getElementById('pk-more').click()")
                 d.lines("[role=menu][aria-label='More actions']", "peek-more", 3)
                 self.assertEqual(d.js(f"({icon})('[data-kind=duplicate]')"), row_dup, f"Duplicate has the row menu's icon at {w} {th}")
@@ -502,6 +504,8 @@ class Work(BulkBase):
                 d.check("uc-group", "document.querySelector('#ucl-group').click()", "[role=menu]", 3)
                 d.button("#ucl-sort", "Sort by")
                 d.check("uc-sort", "document.querySelector('#ucl-sort').click()", "[role=menu]", 3)
+                d.button(".ucl-go", "a use case row")
+                d.check("record-ctx", "document.querySelector('.ucl-go').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true, clientX: 300, clientY: 300}))", "#ucl-ctx", 2)
             d.js("location.hash = '#usecases&p=ABC&uc=ABC-U-001'")
             d.until("document.querySelector('#ucd-status')", "the use case page")
             for w, th in LOOKS:
@@ -512,7 +516,7 @@ class Work(BulkBase):
                 d.check("uc-milestone-link", "document.querySelector('[id^=ucd-mslink-]').click()", "[role=menu]", 1)
                 d.button("#ucd-more", "More actions")
                 d.check("record-more", "document.querySelector('#ucd-more').click()", "[role=menu]", 2)
-            d.expect(["uc-group", "uc-sort", "uc-detail-status", "commitment", "uc-milestone-link", "record-more"])
+            d.expect(["uc-group", "uc-sort", "record-ctx", "uc-detail-status", "commitment", "uc-milestone-link", "record-more"])
 
 
 class Gantt(unittest.TestCase):

@@ -12,7 +12,7 @@
 // section and the tools; View and the file: its view part from templates/index.js, given the section and the report's data). Dashboard leaves a template
 // with nothing to show out of View and the file, so its view part is only ever asked to draw something. No branch per template
 // is ever added here. The Supporting documents section (#74) is its links: Documents.jsx in View and a file, tools.DocumentsEdit in Edit.
-import { dropAt, fromFile, data } from "../stores/report.js";
+import { dropAt, dragFrom, dragList, fromFile, data } from "../stores/report.js";
 import { templateFor } from "../templates/index.js";
 import { ItemRows } from "./ItemRows.jsx";
 import { KINDS } from "../logic/sectionRows.js";
@@ -40,12 +40,14 @@ export function Section({ section, index, count, slot, anchor, tools, clean }) {
   const editing = !!tools;
   const hidden = section.hidden ? 1 : 0;
   const drop = editing && dropAt.value ? dropAt.value : null;      // what a drag would draw (#95)
-  const mark = !drop ? "" : drop.line === "before" && drop.ids.includes(section.id) ? " drop-before"
+  const moved = editing && dragList.value && dragFrom.value === section.id;      // row 1214: the place it would land in, drawn dashed
+  const mark = moved ? " drag-slot" : !drop || (editing && dragList.value) ? "" : drop.line === "before" && drop.ids.includes(section.id) ? " drop-before"
     : drop.outline === section.id ? ` drop-${drop.side}` : "";
+  const from = editing && dragFrom.value === section.id ? " drag-from" : "";
   const changed = isChanged(section.id);
   const tpl = templateFor(section.type);
   return (
-    <article class={`sec slot-${slot}${hidden ? " is-hidden" : ""}${changed ? " is-changed" : ""}${mark}`}
+    <article class={`sec slot-${slot}${hidden ? " is-hidden" : ""}${changed ? " is-changed" : ""}${mark}${from}`}
       id={anchor || anchorId(section.id)} tabIndex={-1} data-id={section.id} data-type={section.type} data-changed={changed ? "1" : undefined}>
       {editing ? <tools.Gutter section={section} count={count} /> : null}
       <header class="sec-head">

@@ -35,6 +35,8 @@ class SettingsWidthsOne(Base):
     def open_settings(self, p, w):
         test_settings_head.Head.open_settings(self, p, w)      # the module is imported, not the class, so its own tests do not run again
 
+    to_page = test_settings_head.Head.to_page
+
     def test_C_each_card_fits_at_1400_and_900_with_its_controls_drawn(self):
         for w in WIDTHS:
             with self.subTest(width=w), chrome() as cdp:
@@ -42,6 +44,8 @@ class SettingsWidthsOne(Base):
                 self.open_settings(p, w)
                 for name, ident, least in CARDS:
                     with self.subTest(card=name):
+                        self.to_page(p, test_settings_head.PAGE_OF[ident])      # row 1024: the card is on its own page
+                        p.until(f"(() => {{ const e = document.getElementById({ident!r}), c = e && e.closest('section'); return !!c && c.querySelectorAll('button, input:not([type=hidden]), select, textarea, a[href]').length >= {least}; }})()", name + ": its controls drew")      # some cards fill from a read
                         look = p.js(LOOK % ident)
                         self.assertIsNotNone(look, f"{name}: the card is on the Settings page at {w}")
                         self.assertNotIn("noSection", look, f"{name}: the id is inside a section (a card), not a bare heading at {w}")

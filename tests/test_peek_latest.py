@@ -3,7 +3,7 @@ the Draft chip is gone from every peek (ruling 1), so nothing here presses it; t
 Run: python3 dev/run_tests.py test_peek_latest
 
 Part 1 is clark/changes.py: an action's latest_update is one more field of the work-item change (plain text, line breaks allowed, 1000
-characters at most, blank clears it), one step and one Undo, and a decision has none (item 1185: a risk and an issue have one). Part 2 is the source and the built page.
+characters at most, blank clears it), one step and one Undo, and a decision has one too (item 1185: a risk and an issue; row 1195: a decision). Part 2 is the source and the built page.
 Part 3 is the page in a real browser at 1400 and 900 px in Edit: the box, the stamp, Move to Friday, Move a week on and the
 weekend bar's two moves, each one request and one Undo; View has none of it. In dark, at both widths, the box, its stamp and the overdue bar
 are drawn with the dark tokens and each line of text reads at 4.5:1 or more on what it is drawn over.
@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from _paths import ROOT
 import _testpage as testpage
 
-from clark import changes, sneak  # noqa: E402
+from clark import activity_read, changes, sneak  # noqa: E402
 from test_peek import key  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
@@ -107,14 +107,15 @@ class Server(unittest.TestCase):
         self.undo({"project": self.code, "apply_id": body["apply_id"]})
         self.assertGreaterEqual(stamp(), changed, "the Undo is a change too: the stamp is never put back to an older time")
 
-    def test_a_risk_has_a_latest_update_and_a_decision_has_none(self):
+    def test_a_risk_and_a_decision_have_a_latest_update(self):
         data = self.store.data_for(self.code)
         risk, decision = data["raid"][0]["id"], data["decisions"][0]["id"]
         code, body = self.send("Anything", "raid", risk)
         self.assertEqual((code, body["ok"]), (200, True), body)
         self.assertIn("Anything", self.store.read("raid", ref=risk)["latest_update"])
         code, body = self.send("Anything", "decisions", decision)
-        self.assertEqual((code, body["ok"]), (400, False), "a decision")
+        self.assertEqual((code, body["ok"]), (200, True), "row 1195: a decision has one")
+        self.assertIn("Anything", self.store.read("decisions", ref=decision)["latest_update"])
 
     def test_the_undo_words_never_repeat_the_text(self):
         entry = {"field": "latest_update", "to": "A secret sentence", "ref": OVERDUE}
@@ -209,7 +210,7 @@ class Browser(unittest.TestCase):
         real = changes.make_change(self.store.path, [], "Demo User")
         projects = self.store.read("projects")            # read here: the store's connection belongs to this thread, and the server answers on another
         s = Running(data_for=self.store.data_for, projects=lambda archived=False: projects, page_html=lambda: testpage.html(),
-                    sneak=sneak.make_read(self.store.data_for), change=lambda req: (sent.append(req), self.refused() if refuse else real(req))[1],
+                    sneak=sneak.make_read(self.store.data_for), activity=activity_read.make_read(self.store.path, self.store.data_for), change=lambda req: (sent.append(req), self.refused() if refuse else real(req))[1],
                     undo=changes.make_undo(self.store.path, [], "Demo User"))
         self.addCleanup(s.close)
         sid = page_target(cdp)
@@ -253,7 +254,7 @@ class Browser(unittest.TestCase):
             cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13, "modifiers": mod}, sid)
 
     def due(self, cdp, sid):
-        return cdp.js("(d => d ? d.textContent.replace('Changed', '').trim() : '')(document.querySelector('#peek [data-row=due] dd'))", sid)
+        return cdp.js("(d => d ? d.textContent.replace('Changed', '').trim() : '')(document.querySelector('#peek [data-row=due] .pkc-v'))", sid)
 
     def toast(self, cdp, sid):
         return cdp.js("(document.querySelector('.toast') || {textContent: ''}).textContent", sid)
@@ -407,7 +408,7 @@ class Browser(unittest.TestCase):
                 self.assertTrue(wait(lambda: len(sent) == 1), "one save")
                 self.assertTrue(wait(lambda: got() != want), "the stamp is the one clark wrote")
 
-    def test_a_risk_and_an_issue_show_the_box_save_and_undo_it_and_a_decision_has_the_stamp_only(self):
+    def test_a_risk_and_an_issue_show_the_box_save_and_undo_it_and_a_decision_shows_it_too(self):
         """Item 1185: the box, the save, the Undo and the history on the other kinds, at both widths."""
         raid = self.data["raid"]
         risk = next(r["id"] for r in raid if str(r.get("type")).lower() == "risk")
@@ -431,7 +432,7 @@ class Browser(unittest.TestCase):
         with chrome() as cdp:
             sent, sid = self.load(cdp, 1400, self.data["decisions"][0]["id"])
             self.assertTrue(cdp.js("!!document.querySelector('[data-pk-last]')", sid))
-            self.assertFalse(cdp.js("!!document.querySelector('[data-rich=latest_update]')", sid), "a decision has the stamp only")
+            self.assertTrue(cdp.js(f"!!document.querySelector({json.dumps(self.SHOWN)})", sid), "row 1195: a decision has the box")
 
     def kinds(self):
         """(a client-visible action, an internal action) of the demo data."""

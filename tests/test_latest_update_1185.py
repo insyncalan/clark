@@ -43,13 +43,13 @@ class Column(Base):
     def test_the_column_is_on_risks_issues_and_milestones_and_in_a_fresh_file(self):
         for t in ("raid", "milestones", "actions"):
             self.assertIn("latest_update", store_module.columns(self.s.con, t))
-        self.assertNotIn("latest_update", store_module.columns(self.s.con, "decisions"))
+        self.assertIn("latest_update", store_module.columns(self.s.con, "decisions"))      # row 1195 (step 26)
 
     def test_the_change_kinds_allow_it_on_update_and_new(self):
         for t in ("raid", "milestones"):
             self.assertIn("latest_update", changes.CHANGE_KINDS[t]["update"], t)
             self.assertIn("latest_update", changes.CHANGE_KINDS[t]["new"], t)
-        self.assertNotIn("latest_update", changes.CHANGE_KINDS["decisions"]["update"])
+        self.assertIn("latest_update", changes.CHANGE_KINDS["decisions"]["update"])      # row 1195
 
 
 class SaveUndoHistory(Base):
@@ -178,8 +178,8 @@ class Published(Base):
                 self.assertNotIn(token, text, "archived")
                 self.assertIn(open_token, text, "the open one is published")
 
-    def test_a_decision_publishes_no_latest_update(self):
-        self.assertNotIn("latest_update", publish.PUBLISH_FIELDS["decisions"])
+    def test_a_decision_publishes_its_latest_update_as_rich_words_since_row_1195(self):
+        self.assertIn("latest_update", publish.PUBLISH_FIELDS["decisions"])
 
 
 class ExcelRoundTrip(Base):

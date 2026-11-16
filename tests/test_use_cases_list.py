@@ -688,7 +688,8 @@ class Line(Setup):
             self.assertEqual(p.js("document.querySelector('#ucl-q-count').textContent"), "4 of 4", "the count sits in the box")
             self.assertEqual(self.line(p), "")
             self.assertEqual(p.js("[...document.querySelectorAll('#usecases .vtab span:first-child')].map(e => e.textContent)"), ["All use cases", ON, "Committed", "At risk"], "the four tabs over the line")
-            self.assertEqual(p.js("document.querySelectorAll('#usecases .seg, #usecases .vtabmenu, #viewNew').length"), 0, "no switch; fixed tabs have no menu and no New view")
+            self.assertEqual(p.js("document.querySelectorAll('#usecases .seg, #viewNew').length"), 0, "no switch, no Work items New view button")
+            self.assertEqual(p.js("[document.querySelectorAll('#usecases .vtabmenu').length, document.querySelectorAll('#usecases #ucl-viewNew').length, document.querySelector('#usecases .vtabmenu').getAttribute('aria-label')]"), [1, 1, "Options for All use cases"], "row 1203: the open tab has its menu button and + New view stands beside the tabs")
 
     def test_a_status_field_narrows_the_list_and_the_status_choice_and_the_line_follow_each_other(self):
         with chrome() as cdp:

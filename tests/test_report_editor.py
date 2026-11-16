@@ -132,13 +132,18 @@ class Pg:
         return self.js(f"(function(){{var r=document.querySelector('[data-id=\"{ref}\"]').getBoundingClientRect();"
                        "return {left:r.left, top:r.top, right:r.right, bottom:r.bottom};})()")
 
-    def drag(self, ref, x, y, release=True):
-        """Press the handle of `ref`, move to (x, y) in steps and (by default) let go there."""
+    SHOWN = "!!document.querySelector('.sec.drop-before, .sec.drop-left, .sec.drop-right, .secs.drop-end')"
+
+    def drag(self, ref, x, y, release=True, drops=True):
+        """Press the handle of `ref`, move to (x, y) in steps and (by default) let go there. A drop needs the target to be shown
+        (the pointer has rested on it), so the release waits for the drop indicator; drops=False is for a release that drops nothing."""
         hx, hy, _ = self.box(f'[data-id="{ref}"] [data-drag]')
         self.mouse("mousePressed", hx, hy, 1)
         for step in range(1, 9):
             self.mouse("mouseMoved", hx + (x - hx) * step / 8, hy + (y - hy) * step / 8, 1)
         if release:
+            if drops:
+                self.until(self.SHOWN, "the drop target is shown before the release")
             self.mouse("mouseReleased", x, y, 0)
 
     def menu(self, ref, act):
@@ -236,13 +241,16 @@ class Modes(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             self.assertEqual(edit_elements(cdp, p.sid), [], "View removes the Edit parts")
-            before = p.js("document.querySelector('main').innerHTML")
+            # The on-this-page tick follows the scroll, and Alt+ArrowDown scrolls a page on macOS (Option+Down), so the tick may move: leave the current-section marks out (the tick and the list's "on")
+            main = ("(function(){var m = document.querySelector('main').cloneNode(true);"
+                    "m.querySelectorAll('[data-tl], .toc button[data-id]').forEach(i => { i.removeAttribute('class'); i.removeAttribute('aria-current'); }); return m.innerHTML;})()")
+            before = p.js(main)
             p.key("a", code="KeyA", vk=65)
             p.type("typed in View")
             p.js("document.querySelector('.sec-h').click()")
             p.type("again")
             p.key("ArrowDown", ALT, code="ArrowDown", vk=40)
-            self.assertEqual(p.js("document.querySelector('main').innerHTML"), before, "typing in View changes nothing")
+            self.assertEqual(p.js(main), before, "typing in View changes nothing")
             self.assertEqual(edit_elements(cdp, p.sid), [])
             self.assertEqual(self.sent, [])
             # At a glance, the use case summary (#45), the milestones section (#44, its own block and its own words when empty) and,
@@ -633,7 +641,7 @@ class Sections(Base):
             self.assertIsNone(p.js("document.querySelector('.drop-right')"), "the outline goes")
             n = len(self.sent)
             r8 = p.rect("ABC-S-008")                         # dropped on itself: nothing is sent and nothing is said
-            p.drag("ABC-S-008", (r8["left"] + r8["right"]) / 2, (r8["top"] + r8["bottom"]) / 2)
+            p.drag("ABC-S-008", (r8["left"] + r8["right"]) / 2, (r8["top"] + r8["bottom"]) / 2, drops=False)
             self.assertEqual(len(self.sent), n)
             p.js("document.querySelector('[data-undo]').click()")
             p.order_is(IDS, "one Undo puts the order back")
@@ -719,7 +727,7 @@ class Sections(Base):
             self.assertNotIn("flags", self.sent[-1][1])
             n = len(self.sent)
             hx, hy, _ = p.box('[data-id="ABC-S-001"] [data-drag]')
-            p.drag("ABC-S-001", hx, hy + 2)                  # under 4 px: a click
+            p.drag("ABC-S-001", hx, hy + 2, drops=False)                  # under 4 px: a click
             self.assertEqual(len(self.sent), n)
             self.assertIsNone(p.js("document.querySelector('.drop-before')"))
 
