@@ -75,6 +75,8 @@ export const publication = signal(0);       // a published file: its publication
 export const fromFile = signal(false);       // true when the page is a published file (#39): it never edits and never asks a server
 export const mode = signal("view");          // view | edit (#65): memory only, never in the database or the address, so a reload is View
 export const dropAt = signal(undefined);     // Edit, while a section is dragged: what to draw (logic/placement.js indicator: { line: "before", ids } | { line: "end" } | { outline, side }), undefined for none
+export const dragFrom = signal(undefined);     // Edit, while a section is dragged: its id (edit/drag.js)
+export const dragList = signal(undefined);     // Edit, while a section is dragged and a place is shown: the sections as the drop would leave them, so the others make room (edit/drag.js); undefined for the page as it is
 export const asAt = signal("");              // view mode: the publish date, YYYY-MM-DD; due dates and Overdue read as at this
 export const rebuilt = signal("");           // item 349: the day the Dashboard is shown as at, rebuilt from the change history (YYYY-MM-DD), else "": memory only, never in the address; while set the page is read only
 export const SERVED_TABS = VIEWS;   // the served page offers every view; a published file lists its own, from p.tabs
@@ -183,6 +185,8 @@ function leave() {
   leaveField();
   openFilter.value = "";
   dropAt.value = undefined;
+  dragFrom.value = undefined;
+  dragList.value = undefined;
   moves.value++;
 }
 
@@ -383,7 +387,7 @@ export function plain(code, body) {
 // What the page says when a change or an undo (api.js) failed, by the same rule as plain(): the status picks the words, and a
 // message from the server is used only to pick one of these, never shown. Each says that nothing was changed (or what is
 // still true) and what to do next.
-const CHANGE_FAILED = "That change could not be made, and nothing was changed. Reload the page and try again.";
+export const CHANGE_FAILED = "That change could not be made, and nothing was changed. Reload the page and try again.";
 const CHANGE_KNOWN = {
   "Your page is out of date. Reload it, then try again.": "The report has changed since you opened it, and nothing was changed. Reload the page and try again.",
   "That section isn't in this project.": "That section is no longer in this report, and nothing was changed. Reload the page.",
