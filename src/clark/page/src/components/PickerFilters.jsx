@@ -2,7 +2,7 @@
 // the chosen field's values on the right with "is any of" / "is not any of", Select all, Clear and Done. It holds no state of its own about the
 // filters: the state (logic/useCasePicker.js) lives in PickerTable and comes in as `s`, changes go out through `set`.
 import { useRef, useEffect, useState } from "preact/hooks";
-import { FIELDS, optionsOf, setMode, toggleValue, selectAllValues, clearField } from "../logic/useCasePicker.js";
+import { UC_PICKER } from "../logic/useCasePicker.js";
 
 // Words the owner has not ruled on yet (row 1234). Each is one constant so a ruling is one edit; none is typed anywhere else.
 export const UNRULED_FILTERS = "Filters";
@@ -11,7 +11,8 @@ export const UNRULED_NOT = "is not any of";
 export const UNRULED_SEARCH = "Search by name, ID or status";
 const IS_ANY = "is any of";                 // existing: the Work items filter says it (WorkFilters.jsx)
 
-export function PickerFilters({ id, rows, s, set, onDone }) {
+export function PickerFilters({ id, rows, s, set, onDone, L = UC_PICKER }) {
+  const { fields: FIELDS, optionsOf, setMode, toggleValue, selectAllValues, clearField } = L;
   const [key, setKey] = useState(FIELDS[0].key);
   const first = useRef(null);
   useEffect(() => { if (first.current) first.current.focus(); }, []);

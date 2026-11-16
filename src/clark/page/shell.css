@@ -220,7 +220,8 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 .pkt-table td { padding: var(--space-2); border-bottom: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; }
 .pkt-table tbody tr { cursor: pointer; }
 .pkt-table tbody tr:hover, .pkt-table tbody tr.on { background: var(--grey-50); }
-.pkt-table td.num, .pkt-table th:nth-child(7), .pkt-table th:nth-child(8) { text-align: right; }
+.pkt-table td.num, .pkt-table th.num { text-align: right; }
+.pkt-table th.pkt-tick { width: 32px; }
 .pkt-table input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .pkt-panel { position: absolute; z-index: 5; top: 96px; left: 20px; right: 20px; display: flex; min-height: 240px; max-height: 70%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-small); }
 .pkt-fields { list-style: none; margin: 0; padding: var(--space-2); width: 180px; flex: none; border-right: 1px solid var(--grey-100); }
