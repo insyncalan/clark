@@ -7,7 +7,7 @@ Data: tests/fixtures/uc_summary_demo.json (6 use cases), fictional. Laptop width
 Written ahead of the build, nothing skipped, so some fail until it exists. The hooks they assume are named once here;
 when the build names them differently, change them here only.
   HEADS   the heading row, one child per heading, in order
-  CELL    on each cell of a row's bar: data-cell = ref | title | status | commit | steps
+  CELL    on each cell of a row's bar: data-uccol = ref | title | status | commit | steps
 The words are those of comms/uxui-findings/row1234-new-words-16-11.md section 1; the dash is the symbol, not a word.
 """
 import json
@@ -28,7 +28,7 @@ BOXES = """(() => {
   const box = e => { const r = e.getBoundingClientRect(); return [r.left, r.width]; };
   const heads = [...document.querySelectorAll('%s')].map(box);
   const rows = [...document.querySelectorAll('.ucrows > .ucrow')].map(li => Object.fromEntries(
-    [...li.querySelectorAll('.ucbar [data-cell]')].map(c => [c.dataset.cell, box(c)])));
+    [...li.querySelectorAll('.ucbar [data-uccol]')].map(c => [c.dataset.uccol, box(c)])));
   return {heads, rows};
 })()""" % HEADS
 
@@ -129,29 +129,29 @@ class Commitment(Table):
                 for u in DEMO:
                     with self.subTest(ref=u["ref"]):
                         want = u["commitment"] or DASH
-                        self.assertEqual(p.js(f"({self.row(p, u['ref'])}).querySelector('[data-cell=commit]').textContent.trim()"), want)
+                        self.assertEqual(p.js(f"({self.row(p, u['ref'])}).querySelector('[data-uccol=commit]').textContent.trim()"), want)
 
     def test_the_commitment_is_not_inside_the_status_cell(self):
         with chrome() as cdp:
             p = self.page(cdp, 1400)
-            self.assertFalse(p.js("!!document.querySelector('.ucbar [data-cell=status] [data-commit]')"))
-            self.assertTrue(p.js("!!document.querySelector('.ucbar [data-cell=commit] [data-commit]')"), "a set commitment keeps its chip, in its own cell")
+            self.assertFalse(p.js("!!document.querySelector('.ucbar [data-uccol=status] [data-commit]')"))
+            self.assertTrue(p.js("!!document.querySelector('.ucbar [data-uccol=commit] [data-commit]')"), "a set commitment keeps its chip, in its own cell")
 
     def test_the_dash_is_a_symbol_hidden_from_a_screen_reader_or_named_as_none(self):
         with chrome() as cdp:
             p = self.page(cdp, 1400)
             r = self.row(p, "6.4")
-            hidden = p.js(f"(c => c.querySelector('[aria-hidden=true],[aria-label]') !== null || c.getAttribute('aria-label') !== null)(({r}).querySelector('[data-cell=commit]'))")
+            hidden = p.js(f"(c => c.querySelector('[aria-hidden=true],[aria-label]') !== null || c.getAttribute('aria-label') !== null)(({r}).querySelector('[data-uccol=commit]'))")
             self.assertTrue(hidden, "the dash is not read out as a word")
 
     def test_the_status_cell_says_the_status_word_and_the_steps_cell_the_open_steps_words(self):
         with chrome() as cdp:
             p = self.page(cdp, 1400)
             r = self.row(p, "6.2")
-            self.assertEqual(p.js(f"({r}).querySelector('[data-cell=status]').textContent.trim()"), "Flag")
-            self.assertEqual(p.js(f"({r}).querySelector('[data-cell=steps]').textContent.trim()"), "3 next steps")
+            self.assertEqual(p.js(f"({r}).querySelector('[data-uccol=status]').textContent.trim()"), "Flag")
+            self.assertEqual(p.js(f"({r}).querySelector('[data-uccol=steps]').textContent.trim()"), "3 next steps")
             r = self.row(p, "6.4")
-            self.assertEqual(p.js(f"({r}).querySelector('[data-cell=steps]').textContent.trim()"), "No open steps")
+            self.assertEqual(p.js(f"({r}).querySelector('[data-uccol=steps]').textContent.trim()"), "No open steps")
 
 
 class WholeRowOpens(Table):
@@ -161,10 +161,10 @@ class WholeRowOpens(Table):
                 with self.subTest(width=width, cell=cell), chrome() as cdp:
                     p = self.page(cdp, width)
                     r = self.row(p, "6.1")
-                    p.js(f"({r}).querySelector('[data-cell={cell}]').click()")
+                    p.js(f"({r}).querySelector('[data-uccol={cell}]').click()")
                     p.until(f"!!({r}).querySelector('.ucdetail')", "opened")
                     self.assertEqual(p.js(f"({r}).querySelector('.ucbar').getAttribute('aria-expanded')"), "true")
-                    p.js(f"({r}).querySelector('[data-cell={cell}]').click()")
+                    p.js(f"({r}).querySelector('[data-uccol={cell}]').click()")
                     p.until(f"!({r}).querySelector('.ucdetail')", "closed")
 
     def test_a_press_on_the_bar_outside_every_cell_also_opens_it(self):

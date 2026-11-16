@@ -55,18 +55,18 @@ function Row({ s, shown, toggle, ed }) {
       <div class="ucbar" role="button" tabIndex={0} aria-expanded={shown ? "true" : "false"} aria-controls={id}
         onClick={(e) => { if (ed && mine(e)) return; toggle(); }} onKeyDown={(e) => { if (ed && e.target !== e.currentTarget) return; press(e, toggle); }}>
         {ed ? <ed.Eye u={u} /> : null}
-        <span class="uccell" data-cell="ref">{u.ref ? <span class="ucref num" data-ref>{refBox(u.ref)}</span> : null}</span>
-        <span class="uccell uctc" data-cell="title">
+        <span class="uccell" data-uccol="ref">{u.ref ? <span class="ucref num" data-ref>{refBox(u.ref)}</span> : null}</span>
+        <span class="uccell uctc" data-uccol="title">
           <span class="uctitle">{u.title}</span>
           {ed ? <ed.Headline u={u} /> : <span class="uchead">{u.headline}</span>}
         </span>
-        <span class="uccell ucstc" data-cell="status">
+        <span class="uccell ucstc" data-uccol="status">
           {ed ? <ed.Status u={u} /> : <span class={`ucword rag-${rag(u.status)}`} data-word><i class="ragdot" aria-hidden="true"></i>{u.status}</span>}
         </span>
-        <span class="uccell ucc" data-cell="commit">
+        <span class="uccell ucc" data-uccol="commit">
           {ed ? <ed.Commit u={u} /> : <CommitChip u={u} dash />}
         </span>
-        <span class="uccell ucsteps num" data-cell="steps">{stepsWord(s.steps.length)}</span>
+        <span class="uccell ucsteps num" data-uccol="steps">{stepsWord(s.steps.length)}</span>
       </div>
       {shown ? (
         <div class="ucdetail" id={id}>
