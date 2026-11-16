@@ -133,6 +133,7 @@
 /* Row 1184: the milestone's four chips (State, Owner, Progress, Forecast date, "overdue N days" beside it) share one line in the 640 px peek: a closer gap and padding */
 .pk-chips.ms .pkc-btn { gap: var(--space-1); padding: 0 var(--space-2); }
 .pk-chips.ms .pkc-v { max-width: 9rem; }
+.pk-chips.ms { flex-wrap: nowrap; }                            /* the four chips stay on one line; no gap and no fixed flex, so they fill the row like the other peeks */
 .pk-chips.ms .pkc { min-width: 0; }
 .pk-chips.ms .pkc-btn { min-width: 0; max-width: 100%; }
 .pk-chips.ms .pkc-tx { flex-wrap: nowrap; }                     /* the date and "overdue N days" stay on one line, so the four chips stay on one */
