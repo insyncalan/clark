@@ -52,7 +52,9 @@ class BodyOf(unittest.TestCase):
 
     def test_a_bad_setting_is_stored_as_the_default_for_that_field(self):
         self.assertEqual(run("V.bodyOf({n: 0, scroll: 'yes', tracker: 'left'})"), json.dumps(DEFAULT, separators=(",", ":")))
-        self.assertEqual(run("V.bodyOf(undefined)"), json.dumps(DEFAULT, separators=(",", ":")))
+        # an absent key stays absent: a view with nothing given writes nothing (row 1234: a tracker-only click must not write n)
+        self.assertEqual(run("V.bodyOf(undefined)"), "{}")
+        self.assertEqual(run("V.bodyOf({tracker: 'left'})"), '{"tracker":"top"}')
 
     def test_the_body_reads_back_the_same(self):
         saved = {"n": "all", "scroll": True, "tracker": "bottom"}
