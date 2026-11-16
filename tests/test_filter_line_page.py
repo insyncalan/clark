@@ -795,8 +795,8 @@ class Line(unittest.TestCase):
                     click(cdp, sid, "#viewTabMenu")
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewTabMenuList')", sid)), "the tabs menu opened")
                     items = cdp.js("[...document.querySelectorAll('#viewTabMenuList [role=menuitem]')].map(b => b.textContent)", sid)
-                    self.assertEqual(items[0], "Save changes")
-                    self.assertEqual(items, ["Save changes", "Save as a new view…", "Rename view", "Move view", "Duplicate view", "Delete view"])
+                    self.assertEqual(items[0], "Update view")
+                    self.assertEqual(items, ["Update view", "Save as a new view…", "Rename view", "Move view", "Duplicate view", "Delete view"])
                     click(cdp, sid, "#viewTabMenuList [data-kind=save]")
                     self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-dot]').length", sid) == 0), "saved: the dot goes")
                     # another tab, then back: the saved line is what comes back
@@ -1791,7 +1791,7 @@ class Line(unittest.TestCase):
                     cdp.js("document.querySelector('#viewTabMenu').focus()", sid)
                     key(cdp, sid, "ArrowDown")                                        # keyboard: Down opens, the first entry has the focus
                     self.assertTrue(wait(lambda: cdp.js("document.activeElement.dataset.kind", sid) == "save"), "the Save button has focus")
-                    self.assertEqual(cdp.js("document.activeElement.textContent", sid), "Save changes")
+                    self.assertEqual(cdp.js("document.activeElement.textContent", sid), "Update view")
                     key(cdp, sid, "Enter")
                     self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-dot]').length", sid) == 0), "saved: the dot goes")
                     # + New view on a core tab: the line becomes a view after the core five, with its count, and is chosen
@@ -1816,6 +1816,53 @@ class Line(unittest.TestCase):
                     click(cdp, sid, "#viewMenu")
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewMenuList')", sid)), "the View menu opened")
                     self.assertEqual(cdp.js("document.querySelectorAll('#viewMenuList [data-kind=saveas], #viewMenuList [data-kind=rename], #viewMenuList [data-kind=delete]').length", sid), 0)
+                    cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
+
+    def test_row_1265_update_view_on_a_core_tab_and_the_prompt_when_the_line_is_left_with_changes(self):
+        s = self.serve()
+        dots = "document.querySelectorAll('[data-dot]').length"
+        ask = "document.querySelector('.vask')"
+        for width in SIZES:
+            for theme in THEMES:
+                with self.subTest(width=width, theme=theme), shared.page() as cdp:
+                    sid = self.load(cdp, s.port, width, theme=theme)
+                    click_tab(cdp, sid, ".vtab[data-view-id=core-decisions]")
+                    self.assertTrue(wait(lambda: sorted(self.chips(cdp, sid)) == ["is:open", "type:decision"]))
+                    # an unchanged line: leaving it asks nothing
+                    cdp.js("document.querySelector('#fline-input').focus(); document.querySelector('#viewNew').focus()", sid)
+                    self.assertFalse(cdp.js(f"!!{ask}", sid), "no prompt when the line is unchanged")
+                    # Update view on a core tab saves the line and puts the dot out
+                    self.put(cdp, sid, "is:open type:decision priority:High")
+                    self.assertTrue(wait(lambda: cdp.js(dots, sid) == 1))
+                    click(cdp, sid, "#viewTabMenu")
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewTabMenuList')", sid)))
+                    self.assertEqual(cdp.js("document.querySelector('#viewTabMenuList [role=menuitem]').textContent", sid), "Update view")
+                    click(cdp, sid, "#viewTabMenuList [data-kind=save]")
+                    self.assertTrue(wait(lambda: cdp.js(dots, sid) == 0), "the dot goes")
+                    self.assertIn("priority:High", cdp.js("JSON.parse(localStorage.getItem('clark.fcore')).TUL.lines['core-decisions']", sid))
+                    # leaving the changed line shows the prompt; Discard puts the saved line back
+                    self.put(cdp, sid, "is:open type:decision priority:Low")
+                    self.assertTrue(wait(lambda: cdp.js(dots, sid) == 1))
+                    cdp.js("document.querySelector('#fline-input').focus()", sid)
+                    cdp.js("document.querySelector('#viewNew').focus()", sid)                 # focus stays inside the box: no prompt
+                    self.assertFalse(cdp.js(f"!!{ask}", sid), "focus moving inside the filter box asks nothing")
+                    cdp.js("document.querySelector('#fline-input').focus(); document.body.tabIndex = -1; document.body.focus()", sid)
+                    self.assertTrue(wait(lambda: cdp.js(f"!!{ask}", sid)), "the prompt shows")
+                    self.assertEqual(cdp.js(f"{ask}.textContent.indexOf('Save your changes to this view?') >= 0", sid), True)
+                    self.assertEqual(cdp.js(f"[...{ask}.querySelectorAll('button')].map(b => b.textContent)", sid), ["Update view", "Save as a new view", "Discard"])
+                    self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "fvAskUpdate"), "the first choice has the focus")
+                    key(cdp, sid, "Tab"); key(cdp, sid, "Tab")
+                    self.assertEqual(cdp.js("document.activeElement.id", sid), "fvAskDiscard")
+                    key(cdp, sid, "Enter")
+                    self.assertTrue(wait(lambda: cdp.js(dots, sid) == 0 and not cdp.js(f"!!{ask}", sid)), "Discard: dot and prompt go")
+                    self.assertTrue(wait(lambda: "priority:High" in " ".join(self.chips(cdp, sid))), "the saved line is back")
+                    # Update view in the prompt
+                    self.put(cdp, sid, "is:open type:decision priority:Low")
+                    cdp.js("document.querySelector('#fline-input').focus(); document.body.focus()", sid)
+                    self.assertTrue(wait(lambda: cdp.js(f"!!{ask}", sid)))
+                    click(cdp, sid, "#fvAskUpdate")
+                    self.assertTrue(wait(lambda: cdp.js(dots, sid) == 0 and not cdp.js(f"!!{ask}", sid)))
+                    self.assertIn("priority:Low", cdp.js("JSON.parse(localStorage.getItem('clark.fcore')).TUL.lines['core-decisions']", sid))
                     cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
 
     def test_a_project_with_stored_views_keeps_them_after_the_core_five_and_nothing_stored_is_rewritten(self):

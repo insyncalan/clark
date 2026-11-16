@@ -571,9 +571,9 @@ export function nextViewName(views) {
   while (taken.has(`view ${n}`)) n++;
   return `View ${n}`;
 }
-/** Save the current line over a view (Save). */
+/** Save the current line over a view (Update view). A core view takes it too, for this project only: the standard line is kept apart (CORE_KEY, lines). */
 export function saveView(views, id, line) {
-  if (!findView(views, id) || isCoreView(findView(views, id))) return { ok: false, message: "That view is not there any more." };
+  if (!findView(views, id)) return { ok: false, message: "That view is not there any more." };
   return { ok: true, views: views.map((v) => (v.id === id ? { ...v, line: String(line || "") } : v)) };
 }
 export function renameView(views, id, name) {
@@ -646,7 +646,7 @@ export const viewCount = (view, rows, ctx) => apply(rows, view.line, ctx).length
 export const LINE_KEY = "clark.fline";
 export const VIEWS_KEY = "clark.fviews";
 export const ORDER_KEY = "clark.forder";          // per project: the ids of the views in the order the person put them (row 1071)
-export const CORE_KEY = "clark.fcore";           // per project: {names: {core id: new name}, gone: [core ids deleted]}
+export const CORE_KEY = "clark.fcore";           // per project: {names: {core id: new name}, gone: [core ids deleted], lines: {core id: line saved over the standard one}}
 
 function readAll(storage, key) {
   try {
@@ -700,8 +700,8 @@ export function viewsGet(storage, project, page) {
   if (page) return pageViewsGet(storage, project, page);
   const mine = storage ? readAll(storage, VIEWS_KEY)[project] : null;
   const own = (Array.isArray(mine) && mine.every(sane) ? mine : DEFAULT_VIEWS).filter((v) => !isCoreView(v) && !oldOpenItems(v)).map((v) => ({ ...v }));
-  const kept = storage ? readAll(storage, CORE_KEY)[project] : null, names = (kept && kept.names) || {}, gone = Array.isArray(kept && kept.gone) ? kept.gone : [];
-  const core = CORE_VIEWS.filter((v) => !gone.includes(v.id)).map((v) => ({ ...v, name: typeof names[v.id] === "string" && names[v.id].trim() && names[v.id].length <= MAX_NAME ? names[v.id] : v.name }));
+  const kept = storage ? readAll(storage, CORE_KEY)[project] : null, names = (kept && kept.names) || {}, lines = (kept && kept.lines) || {}, gone = Array.isArray(kept && kept.gone) ? kept.gone : [];
+  const core = CORE_VIEWS.filter((v) => !gone.includes(v.id)).map((v) => ({ ...v, name: typeof names[v.id] === "string" && names[v.id].trim() && names[v.id].length <= MAX_NAME ? names[v.id] : v.name, line: typeof lines[v.id] === "string" && lines[v.id].length <= 600 ? lines[v.id] : v.line }));
   const got = [...core, ...own], order = storage ? readAll(storage, ORDER_KEY)[project] : null;
   if (Array.isArray(order)) {       // row 1071: the person's own order; a view the order does not name (a new one) goes last, in the order it came
     const at = (v) => { const i = order.indexOf(v.id); return i < 0 ? order.length : i; };
@@ -715,10 +715,10 @@ export function viewsPut(storage, project, views, page) {
   const all = readAll(storage, VIEWS_KEY);
   all[project] = (views || []).filter((v) => !isCoreView(v));            // the core views are never stored with the person's own
   const there = (views || []).filter(isCoreView), gone = CORE_IDS.filter((id) => !there.some((v) => v.id === id));
-  const names = {};
-  for (const v of there) { const was = CORE_VIEWS.find((c) => c.id === v.id); if (was && v.name !== was.name) names[v.id] = v.name; }
+  const names = {}, lines = {};
+  for (const v of there) { const was = CORE_VIEWS.find((c) => c.id === v.id); if (was && v.name !== was.name) names[v.id] = v.name; if (was && v.line !== was.line) lines[v.id] = v.line; }
   const core = readAll(storage, CORE_KEY);
-  if (gone.length || Object.keys(names).length) core[project] = { names, gone }; else delete core[project];
+  if (gone.length || Object.keys(names).length || Object.keys(lines).length) core[project] = Object.keys(lines).length ? { names, gone, lines } : { names, gone }; else delete core[project];
   const order = readAll(storage, ORDER_KEY), natural = [...CORE_VIEWS.filter((c) => there.some((v) => v.id === c.id)), ...all[project]].map((v) => v.id);
   const ids = (views || []).map((v) => v.id);
   if (ids.join("\n") === natural.join("\n")) delete order[project]; else order[project] = ids;      // nothing extra is stored for the order a project starts with
