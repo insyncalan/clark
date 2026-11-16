@@ -47,6 +47,26 @@ class Data(n.DataChecks):
         self.assertNotIn(ref, self.file_sections())
 
 
+class Words(unittest.TestCase):
+    """The named lists and defaults themselves (mutation check): every colour and icon, the tone looks, words() alone."""
+
+    def test_every_colour_and_icon_is_named_and_the_tone_looks_are_kept(self):
+        from clark.section_kinds import callout
+        self.assertEqual(tuple(callout.COLOURS), ("plain", "violet", "amber", "red", "green", "grey"))
+        self.assertEqual(len(callout.ICONS), 21)
+        self.assertIn("shield", callout.ICONS)
+        self.assertEqual(callout.COLOURS["grey"], "Grey")
+        self.assertEqual(callout.TONE_LOOK, {"info": ("violet", "info"), "decision": ("amber", "question"), "warning": ("red", "warning")})
+        self.assertEqual(callout.upgrade({"v": 1, "tone": "warning"}),
+                         {"v": 1, "tone": "warning", "category": "", "colour": "red", "icon": "warning", "tile": True, "heading": True})
+
+    def test_words_alone_carries_the_category_colour_and_icon(self):
+        from clark.section_kinds import callout
+        self.assertEqual(callout.words({"v": 1, "tone": "warning", "category": "Budget", "colour": "grey", "icon": "shield"}),
+                         {"category": "Budget", "colour_name": "Grey", "icon_name": "Shield"})
+        self.assertEqual(callout.words({"v": 1, "icon": "none", "colour": "plain"}), {"category": "", "colour_name": "Plain", "icon_name": ""})
+
+
 class Page(n.PageChecks):
     TYPE, GOOD, HOSTILE_BODY = "callout", GOOD, HOSTILE
     SHOWS = ("Decision needed", "Fictional decision", "Fictional words about the budget.", "A second fictional line.")
