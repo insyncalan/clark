@@ -83,6 +83,21 @@ class AddMenu(base.InThePage):
                 p.until("!!document.querySelector('#peek')", "its peek opened")
                 self.assertEqual(self.store.con.execute("SELECT count(*) FROM raid").fetchone()[0], before + 1, "one risk was made at once")
 
+    def test_adding_from_a_list_leaves_the_pages_own_filters_in_the_address(self):      # row 1268: killer for addItem's `if (!list)` (a list's + must not reset the Work items page's filters)
+        ref = self.add({"mode": "all", "owner": ["Pat Demo"]})
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.edit()
+            btn = f"[data-id=\"{ref}\"] [data-wil-add] button"
+            p.until(f"!!document.querySelector({json.dumps(btn)})", "the + is drawn")
+            p.js("location.hash = location.hash.split('&f=')[0] + '&f=any'")
+            p.until("location.hash.indexOf('&f=any') > 0", "a filter is in the address")
+            p.js(f"document.querySelector({json.dumps(btn)}).click()")
+            p.until("!!document.querySelector('[role=menu] [role=menuitem]')", "the menu opened")
+            p.js("[...document.querySelectorAll('[role=menu] [role=menuitem]')].find(e => e.textContent.trim() === 'Action').click()")
+            p.until("!!document.querySelector('#peek')", "its peek opened")
+            self.assertIn("&f=any", p.js("location.hash"), "the page's filters were left as they were")
+
     def test_the_plus_is_in_the_saved_views_row_at_its_right_end_right_of_the_last_tab(self):      # row 1268: the ticket puts Add + at the right end of the views row
         ref = self.add({"mode": "all", "owner": ["Pat Demo"]})
         for width in (1400, 900):
