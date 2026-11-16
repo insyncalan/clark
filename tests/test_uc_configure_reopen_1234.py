@@ -32,8 +32,9 @@ class Reopen(Setup):
                 p.js(HOLD)
                 p.js("(s => { s.value = '1'; s.dispatchEvent(new Event('change', {bubbles: true})); })(document.querySelector('#ucCfgN'))")
                 p.until("window.__posts === 1", "the first save is out")
-                p.js(closer)
-                p.until("!document.querySelector('#ucCfg')", "closed")
+                # Esc is heard on the document by a listener the box adds after its first paint (up to a tenth of a second on a slow runner, macOS):
+                # a key sent before that is lost. So the key is sent again on each poll until the box is gone (a second key on a shut box does nothing).
+                p.until("!document.querySelector('#ucCfg') || (" + closer + ", false)", "closed")
                 p.js("document.querySelector('[data-uc-configure]').click()")
                 p.until("!!document.querySelector('#ucCfgS')", "panel again")
                 p.js("document.querySelector('#ucCfgS').click()")
