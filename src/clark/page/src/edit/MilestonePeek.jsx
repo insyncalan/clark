@@ -7,12 +7,12 @@
 // Latest update box (PeekMsLatest) above Details, then the rows Description, Agreed date (read only), Achieved on (an achieved milestone's alone),
 // Workstream, Use case (one link, through the use cases' own msadd and msremove), Client wording (greyed while the milestone is not shown to the client)
 // and the Client visible line. Description and Client wording are on the one rich editor (item 1005).
-import { useRef, useState } from "preact/hooks";
+import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, project, reread } from "../stores/report.js";
 import { changeMilestone, changeSteps, say } from "../stores/changes.js";
 import { DuePick } from "./cells/DuePick.jsx";
 import { OwnerPick } from "./cells/OwnerPick.jsx";
-import { Pop } from "./cells/Pop.jsx";
+import { Pop, roam } from "./cells/Pop.jsx";
 import { MenuPick } from "./cells/MenuPick.jsx";
 import { fieldIcon } from "../menuIcons.js";
 import { quickDates } from "./itemEdit.js";
@@ -99,8 +99,20 @@ function DateField({ m, field, label }) {
 }
 
 // Row 1184: the popovers of the chips. Each is `({ anchor, close }) => element`; a pick is one change with one Undo (save) and closes the popover.
+// The choices of a popover take the focus as it opens (the current one, else the first) and the arrows, Home and End move through them.
+function useRoam(current) {
+  const box = useRef(null);
+  const items = () => Array.from(box.current ? box.current.querySelectorAll("button") : []);
+  useLayoutEffect(() => {
+    const all = items();
+    (all.find(current) || all[0]).focus({ preventScroll: true });
+  }, []);                                                 // eslint-disable-line react-hooks/exhaustive-deps
+  return [box, (e) => { if (roam(e, items(), true)) e.stopPropagation(); }];
+}
+
 function StatePop({ m, anchor, close }) {
   const today = todayIso(), now = shownStateOf(m);
+  const [box, key] = useRoam((b) => b.dataset.msState === now);
   const pick = (s) => {
     if (!PICKABLE.includes(s)) return;      // Overdue is worked out from the dates; a click that gets past the page sends nothing
     close(true);
@@ -109,7 +121,7 @@ function StatePop({ m, anchor, close }) {
   };
   return (
     <Pop anchor={anchor} label={`State of ${m.id}`} cls="pk-ms-pop" onClose={close}>
-      <div class="pk-ms-states" role="group" aria-label={`State of ${m.id}`} data-ms-states>
+      <div ref={box} onKeyDown={key} class="pk-ms-states" role="group" aria-label={`State of ${m.id}`} data-ms-states>
         {PICKABLE.map((s) => (
           <button type="button" key={s} class="pk-ms-state" data-ms-state={s} aria-pressed={now === s ? "true" : "false"} onClick={() => pick(s)}>
             <span class={`pkc-ic ${iconClass(STATE_LOOK[s][1])}`}><Icon name={STATE_LOOK[s][0]} /></span>{s}
@@ -135,6 +147,7 @@ function OwnerPop({ m, anchor, close }) {
 const BLOCKS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 function ProgressPop({ m, anchor, close }) {
   const was = shownPercent(m);      // a Done milestone with no percent shows 100, in the chip and here
+  const [box, key] = useRoam((b) => Number(b.dataset.msBlock) === was);
   const [hover, setHover] = useState(0);
   const pick = (n) => {
     close(true);
@@ -144,7 +157,7 @@ function ProgressPop({ m, anchor, close }) {
   const upto = hover || (was == null ? 0 : was);
   return (
     <Pop anchor={anchor} label={`Progress of ${m.id}`} cls="pk-ms-pop" onClose={close}>
-      <div class="pk-ms-blocks" role="group" aria-label={`Progress of ${m.id}`} data-ms-blocks onMouseLeave={() => setHover(0)}>
+      <div ref={box} onKeyDown={key} class="pk-ms-blocks" role="group" aria-label={`Progress of ${m.id}`} data-ms-blocks onMouseLeave={() => setHover(0)}>
         {BLOCKS.map((n, i) => (
           <button type="button" key={n} class={`pk-ms-block${upto >= n ? " on" : ""}${hover && hover >= n ? " pv" : ""}`} data-ms-block={n} style={`--p:${Math.round(55 + i * 45 / 9)}%`}
             title={`${n}%`} aria-label={`${n} percent`} aria-pressed={was != null && was >= n ? "true" : "false"} onMouseEnter={() => setHover(n)} onFocus={() => setHover(n)} onBlur={() => setHover(0)} onClick={() => pick(n)} />

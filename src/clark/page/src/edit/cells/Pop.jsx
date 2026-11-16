@@ -105,13 +105,14 @@ export function Pop({ anchor, label, role = "dialog", cls = "", onClose, childre
 }
 
 // The arrows, Home and End move focus through a list of controls (wrapping); returns whether the key was one of them.
-export function roam(e, items) {
+// `across`: a row of choices where Right and Left also step on (Down and Up always do).
+export function roam(e, items, across = false) {
   const all = items.filter((el) => el && !el.disabled);
   if (!all.length) return false;
   const at = all.indexOf(document.activeElement);
   let next = -1;
-  if (e.key === "ArrowDown") next = (at + 1) % all.length;
-  else if (e.key === "ArrowUp") next = at <= 0 ? all.length - 1 : at - 1;
+  if (e.key === "ArrowDown" || (across && e.key === "ArrowRight")) next = (at + 1) % all.length;
+  else if (e.key === "ArrowUp" || (across && e.key === "ArrowLeft")) next = at <= 0 ? all.length - 1 : at - 1;
   else if (e.key === "Home") next = 0;
   else if (e.key === "End") next = all.length - 1;
   if (next < 0) return false;

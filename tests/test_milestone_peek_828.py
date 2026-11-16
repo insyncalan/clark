@@ -83,10 +83,10 @@ class Fields(Base):
 
     def type_owner(self, p, text, leave="enter"):
         """The owner popover reads what is typed from the box's state: let the page draw the typed text before the key (a person's keystrokes always do)."""
-        import time
         sel = ".cowner input.cp-in"
         self.type_in(p, sel, text, leave="none")
-        time.sleep(0.4)
+        p.js("window.__drawn = 0; requestAnimationFrame(() => requestAnimationFrame(() => { window.__drawn = 1; }))")
+        p.until("window.__drawn === 1", "the page drew the typed text")
         key = {"enter": "Enter", "esc": "Escape"}[leave]
         p.js(f"document.querySelector({json.dumps(sel)}).dispatchEvent(new KeyboardEvent('keydown', {{key: '{key}', bubbles: true, cancelable: true}}))")
 
@@ -94,13 +94,8 @@ class Fields(Base):
         self.assertTrue(self.until_store(lambda: self.row(self.cur)[field] == value), f"{field} was not saved as {value!r}: {self.row(self.cur)[field]!r}")
 
     def until_store(self, test, seconds=10):
-        import time
-        end = time.time() + seconds
-        while time.time() < end:
-            if test():
-                return True
-            time.sleep(0.1)
-        return test()
+        from _rich_page import wait_for
+        return wait_for(test, seconds) or test()
 
     def toast_text(self, p):
         return p.js("(document.querySelector('.toast .toast-text') || {}).textContent || ''")

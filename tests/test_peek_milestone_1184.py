@@ -9,7 +9,6 @@ reads Overdue by the dates), ABC-M-001 "Pilot live" is far ahead (On track by th
 """
 import json
 import re
-import time
 import unittest
 
 from _demo import USER
@@ -28,6 +27,18 @@ RED = "(() => { const e = document.createElement('i'); e.style.color = 'var(--st
 class Milestone(Base):
     cur = PILOT
 
+    refuse = ()      # the ops of change requests the server refuses in a test (a real refusal's shape)
+
+    def seam(self, real, which):
+        base = super().seam(real, which)
+
+        def call(req):
+            if which == "change" and req.get("op") in self.refuse:
+                self.sent.append(("refused", req))
+                return 400, {"ok": False, "message": "That use case can't be changed just now.", "code": "refused"}
+            return base(req)
+        return call
+
     def visit(self, cdp, ms=PILOT, width=1400, view="milestones"):
         from test_report_editor import Pg
         self.cur = ms
@@ -43,12 +54,8 @@ class Milestone(Base):
         p.js(f"document.querySelector({json.dumps(sel)}).click()")
 
     def until_store(self, test, seconds=10):
-        end = time.time() + seconds
-        while time.time() < end:
-            if test():
-                return True
-            time.sleep(0.1)
-        return test()
+        from _rich_page import wait_for
+        return wait_for(test, seconds) or test()
 
     def saved(self, field, value):
         self.assertTrue(self.until_store(lambda: self.row(self.cur)[field] == value), f"{field} was not saved as {value!r}: {self.row(self.cur)[field]!r}")
@@ -183,7 +190,8 @@ class Milestone(Base):
             self.assertTrue(p.js("!!document.querySelector('.cowner input.cp-in')"), "a search box")
             self.click(p, ".cowner input.cp-in")
             p.js("(() => { const i = document.querySelector('.cowner input.cp-in'); i.value = 'Zed Example'; i.dispatchEvent(new Event('input', {bubbles: true})); })()")
-            time.sleep(0.4)
+            p.js("window.__drawn = 0; requestAnimationFrame(() => requestAnimationFrame(() => { window.__drawn = 1; }))")
+            p.until("window.__drawn === 1", "the page drew the typed text")
             p.js("document.querySelector('.cowner input.cp-in').dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true}))")
             self.saved("owner", "Zed Example")
             p.until("document.querySelector('#peek .pk-chips [data-row=owner]').innerText.includes('Zed Example')", "the chip shows it")
@@ -267,7 +275,8 @@ class Milestone(Base):
             self.chip(p, "owner")
             self.click(p, ".cowner input.cp-in")
             p.js("(() => { const i = document.querySelector('.cowner input.cp-in'); i.value = ''; i.dispatchEvent(new Event('input', {bubbles: true})); })()")
-            time.sleep(0.4)
+            p.js("window.__drawn = 0; requestAnimationFrame(() => requestAnimationFrame(() => { window.__drawn = 1; }))")
+            p.until("window.__drawn === 1", "the page drew the typed text")
             p.js("document.querySelector('.cowner input.cp-in').dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true}))")
             self.saved("owner", None)
             p.until(f"(document.querySelector('.toast .toast-text') || {{}}).textContent === 'Owner of {GO_LIVE} cleared.'", "the cleared toast")
@@ -320,6 +329,104 @@ class Milestone(Base):
                 p.until("!document.querySelector('[data-pop]')", f"Esc closed the {field} popover")
                 self.assertEqual(p.js("!!document.querySelector('#peek')"), True, "the peek is still open")
                 self.assertEqual(self.sent, [], "Esc sent nothing")
+
+    # ---- real keys in the State and Progress popovers (the browser's own key events, CDP Input.dispatchKeyEvent) -------------------------------------
+
+    KEYS = {"ArrowDown": (40, ""), "ArrowUp": (38, ""), "ArrowRight": (39, ""), "ArrowLeft": (37, ""), "Home": (36, ""), "End": (35, ""), "Enter": (13, "\r"), " ": (32, " "), "Escape": (27, "")}
+
+    def real_key(self, cdp, p, key):
+        vk, text = self.KEYS[key]
+        code = {" ": "Space"}.get(key, key)
+        for kind in ("keyDown", "keyUp"):
+            cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code, "windowsVirtualKeyCode": vk, **({"text": text} if kind == "keyDown" and text else {})}, p.sid)
+
+    def at(self, p):
+        return p.js("(() => { const a = document.activeElement; return a && (a.dataset.msState || a.dataset.msBlock) || null; })()")
+
+    def test_the_state_options_are_reached_by_real_arrows_home_end_and_enter_picks(self):
+        order = ["Forecast", "On track", "At risk", "Slipped", "Achieved"]
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                self.setUp()
+                p = self.visit(cdp, width=width)
+                self.chip(p, "state")
+                p.until("document.activeElement && !!document.activeElement.dataset.msState", "focus is on a state option as the popover opens")
+                self.assertEqual(self.at(p), "On track", "the current state has the focus")
+                walk = []
+                for key in ("ArrowDown", "ArrowDown", "ArrowDown", "ArrowDown", "ArrowUp", "ArrowRight", "ArrowLeft", "Home", "End"):
+                    self.real_key(cdp, p, key)
+                    walk.append(self.at(p))
+                self.assertEqual(walk, ["At risk", "Slipped", "Achieved", "Forecast", "Achieved", "Forecast", "Achieved", "Forecast", "Achieved"], "Down/Right next, Up/Left previous (wrapping), Home first, End last")
+                self.assertEqual(p.js("!!document.querySelector('[data-pop]')"), True)
+                self.real_key(cdp, p, "ArrowUp")
+                self.real_key(cdp, p, "Enter")
+                self.saved("state", "Slipped")
+                p.until("!document.querySelector('[data-pop]')", "Enter picked and closed")
+
+    def test_real_esc_in_the_state_popover_closes_it_and_not_the_peek(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.chip(p, "state")
+            p.until("!!document.activeElement.dataset.msState", "focus inside")
+            self.real_key(cdp, p, "ArrowDown")
+            self.real_key(cdp, p, "Escape")
+            p.until("!document.querySelector('[data-pop]')", "Esc closed the popover")
+            self.assertEqual(p.js("!!document.querySelector('#peek')"), True, "the peek is still open")
+            self.assertEqual(self.sent, [])
+            self.real_key(cdp, p, "Escape")
+            p.until("!document.querySelector('#peek')", "a second Esc closes the peek")
+
+    def test_the_progress_blocks_are_reached_by_real_arrows_home_end_and_enter_or_space_sets(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                self.setUp()
+                p = self.visit(cdp, width=width)
+                self.chip(p, "progress")
+                p.until("document.activeElement && !!document.activeElement.dataset.msBlock", "focus is on a block as the popover opens")
+                self.assertEqual(self.at(p), "10", "no progress: the first block has the focus")
+                walk = []
+                for key in ("ArrowRight", "ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp", "End", "ArrowDown", "End", "Home", "ArrowUp"):
+                    self.real_key(cdp, p, key)
+                    walk.append(self.at(p))
+                self.assertEqual(walk, ["20", "30", "40", "30", "20", "100", "10", "100", "10", "100"])
+                self.real_key(cdp, p, "ArrowUp")
+                self.real_key(cdp, p, "Enter")
+                self.saved("percent_complete", 90)
+                p.until("!document.querySelector('[data-pop]')", "Enter set it and closed")
+                self.chip(p, "progress")
+                p.until("document.activeElement && document.activeElement.dataset.msBlock === '90'", "the block of the current progress has the focus")
+                self.real_key(cdp, p, "ArrowLeft")
+                self.real_key(cdp, p, " ")
+                self.saved("percent_complete", 80)
+
+    def test_real_esc_in_the_progress_popover_closes_it_and_not_the_peek(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.chip(p, "progress")
+            p.until("!!document.activeElement.dataset.msBlock", "focus inside")
+            self.real_key(cdp, p, "Escape")
+            p.until("!document.querySelector('[data-pop]')", "Esc closed the popover")
+            self.assertEqual(p.js("!!document.querySelector('#peek')"), True, "the peek is still open")
+
+    def test_real_enter_on_the_block_equal_to_the_progress_sets_0(self):
+        with chrome() as cdp:
+            self.setUp()
+            with self.store.step("dashboard", USER) as st:
+                st.update("milestones", PILOT, {"percent_complete": 40})
+            p = self.visit(cdp)
+            self.chip(p, "progress")
+            p.until("document.activeElement && document.activeElement.dataset.msBlock === '40'", "the current block has the focus")
+            self.real_key(cdp, p, "Enter")
+            self.saved("percent_complete", 0)
+
+    def test_esc_still_closes_the_picker_first_for_the_other_chips_by_real_key(self):
+        for field in ("owner", "forecast"):
+            with self.subTest(field=field), chrome() as cdp:
+                p = self.visit(cdp)
+                self.chip(p, field)
+                self.real_key(cdp, p, "Escape")
+                p.until("!document.querySelector('[data-pop]')", f"Esc closed the {field} popover")
+                self.assertEqual(p.js("!!document.querySelector('#peek')"), True, "the peek is still open")
 
     def test_the_state_pick_has_a_pickable_guard(self):
         src = (PAGE_SRC / "edit" / "MilestonePeek.jsx").read_text(encoding="utf-8")
@@ -453,6 +560,30 @@ class Milestone(Base):
                 self.assertEqual(self.sent[-1][1]["op"], "msremove")
                 self.undo(p)
                 self.assertTrue(self.until_store(lambda: self.links() == [b]), "one Undo puts the link back")
+
+    def test_a_refused_end_of_the_old_link_puts_the_made_add_back_and_a_refused_add_keeps_the_old_link(self):
+        for what, refused in (("the end of the old link", "msremove"), ("the add", "msadd")):
+            with self.subTest(refused=what), chrome() as cdp:
+                self.setUp()
+                a, b = self.two_use_cases()
+                with self.store.step("dashboard", USER) as st:
+                    sm.link_use_case_milestone(st, a, PILOT)
+                self.refuse = (refused,)
+                p = self.visit(cdp)
+                self.assertEqual(self.links(), [a])
+                self.click(p, "#peek [data-ms-row=use_cases] [data-ms-ucs]")
+                self.click(p, f"[data-pop] [role=menuitemradio][data-value='{b}']")
+                p.until("!!document.querySelector('.toast .toast-text')", "a message")
+                self.assertEqual(p.js("document.querySelector('.toast .toast-text').textContent"), "That change could not be made, and nothing was changed. Reload the page and try again.", "the page's words for a refused change")
+                p.until("document.querySelector('#peek [data-ms-ucs]').textContent.includes('Invoice matching')", "the row still shows the old link")
+                self.assertTrue(self.until_store(lambda: self.links() == [a]), f"the old link is the only one: nothing half-made is left: {self.links()}")
+                ops = [r["op"] for w, r in self.sent if w in ("change", "refused") and r.get("kind") == "use_cases"]
+                if refused == "msremove":
+                    self.assertEqual(ops, ["msadd", "msremove"], "the add was made, then the end was refused")
+                    self.assertTrue(self.until_store(lambda: self.links() == [a]))
+                    self.assertEqual(p.js("!!document.querySelector('.toast [data-undo]')"), False, "no Undo is left for a change that was put back")
+                else:
+                    self.assertEqual(ops, ["msadd"], "a refused add stops before the old link is touched")
 
     def test_the_use_case_picker_needs_no_store_change(self):
         ch = (SRC / "clark" / "changes.py").read_text(encoding="utf-8")
