@@ -14,6 +14,7 @@ class HistFoot(B.Body):
             with self.subTest(width=width), chrome() as cdp:
                 sent, sid = self.load(cdp, width, OVERDUE)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-hrow] .pk-hicon')", sid)))
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').getAnimations().length === 0", sid)), "the slide-in has ended")      # a box measured mid-slide is a fraction of a pixel off
                 got = cdp.js("(e => { const r = e.getBoundingClientRect(); return [r.width, r.height, getComputedStyle(e).borderTopLeftRadius]; })(document.querySelector('[data-pk-hrow] .pk-hicon'))", sid)
                 self.assertEqual(got, [30, 30, "8px"])
 
