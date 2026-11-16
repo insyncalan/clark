@@ -105,7 +105,7 @@ class Fields(Base):
             self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
             self.assertEqual(p.js("[...document.querySelectorAll('#peek [data-ms-edit] .pk-row')].map((r) => r.dataset.msRow)"), list(ROWS))
             self.assertEqual(p.js("[...document.querySelectorAll('#peek .pk-title [data-ms-field], #peek [data-ms-head] [data-ms-field], #peek [data-ms-head] [data-ms-num], #peek [data-ms-states]')].map((e) => e.dataset.msField || e.dataset.msNum !== undefined && 'progress' || 'states')"),
-                             ["name", "owner", "progress", "states"], "the name is the title; the owner, the progress and the state buttons are above the rows")
+                             ["owner", "progress", "states"], "the owner, the progress and the state buttons are above the rows (row 1180: the name is the title, a box only once clicked)")
         with chrome() as cdp:
             p = self.visit_peek(cdp, view="dashboard")
             self.assertEqual(p.js("document.querySelectorAll('#peek [data-ms-edit]').length"), 0, "the Dashboard's View peek stays read only")
@@ -134,17 +134,17 @@ class Fields(Base):
             self.click(p, "#peek [data-ms-field=owner]")
             self.type_in(p, "#peek [data-ms-in=owner]", "  ")
             self.saved(p, "owner", None)
-            self.click(p, "#peek [data-ms-field=name]")
-            self.type_in(p, "#peek [data-ms-in=name]", " ")
-            p.until("!document.querySelector('#peek [data-ms-in=name]')", "the blank name closed the box")
+            self.click(p, "#peek .pk-title .pkh-title-txt")
+            self.type_in(p, "#peek textarea[data-ms-field=name]", " ")
+            p.until("!document.querySelector('#peek textarea[data-ms-field=name]')", "the blank name closed the box")
             self.assertEqual(self.row(self.cur)["name"], "Go live")
-            self.assertEqual(p.js("document.querySelector('#peek [data-ms-field=name]').textContent"), "Go live")
+            self.assertEqual(p.js("document.querySelector('#peek .pk-title').textContent"), "Go live")
 
     def test_name_renames_with_one_undo_and_a_refusal_changes_nothing(self):
         with chrome() as cdp:
             p = self.visit_peek(cdp)
-            self.click(p, "#peek [data-ms-field=name]")
-            self.type_in(p, "#peek [data-ms-in=name]", "Go live, phase one")
+            self.click(p, "#peek .pk-title .pkh-title-txt")
+            self.type_in(p, "#peek textarea[data-ms-field=name]", "Go live, phase one")
             self.saved(p, "name", "Go live, phase one")
             self.undo(p)
             self.saved(p, "name", "Go live")

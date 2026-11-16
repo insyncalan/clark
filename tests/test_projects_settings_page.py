@@ -312,7 +312,8 @@ class Browser(unittest.TestCase):
             self.assertEqual(cdp.js("document.querySelector('tr[data-project=MOSS] [data-open]').getAttribute('aria-label')", sid), "Open " + self.names["MOSS"])
             self.assertEqual(cdp.js("document.querySelector('tr[data-project=MOSS] [data-edit]').getAttribute('aria-label')", sid), "Edit " + self.names["MOSS"])
             self.assertEqual(cdp.js("document.querySelector('#projects-table thead th:last-child').getAttribute('aria-label')", sid), "What you can do")
-            self.assertEqual(cdp.js("document.querySelector('#projects').compareDocumentPosition(document.querySelector('#data-card')) & 4", sid), 4, "the Data card follows the Projects table")
+            names = cdp.js("[...document.querySelectorAll('.set-nav .set-chip')].map(b => b.textContent)", sid)      # row 1024: one Settings page at a time, so the order is the menu's
+            self.assertLess(names.index("Projects"), names.index("Export and import"), "the Data page follows the Projects page")
 
     def test_open_goes_to_that_project_s_dashboard(self):
         s = self.serve()

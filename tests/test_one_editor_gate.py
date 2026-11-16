@@ -115,7 +115,7 @@ class MovedFields(unittest.TestCase):
         peek = (PAGE_SRC / "edit/MilestonePeek.jsx").read_text(encoding="utf-8")
         self.assertNotIn("plainFromEditor(", peek)
         self.assertIn('<RichField field="client_message"', peek)
-        for rel in ("edit/templates/ImageCap.jsx", "edit/templates/TextImage.jsx"):
+        for rel in ("edit/templates/ImageCap.jsx", "edit/templates/FullImage.jsx", "edit/templates/TextImage.jsx"):
             text = (PAGE_SRC / rel).read_text(encoding="utf-8")
             self.assertIn('<CaptionField section={section} field="caption"', text, rel)
             self.assertNotIn('<LineField section={section} field="caption"', text, rel)

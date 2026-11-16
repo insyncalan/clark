@@ -35,7 +35,7 @@ import zipfile
 from datetime import date
 
 from clark import excel_colours as colours_table
-from clark import docx_graphics, docx_read, glance, look, platform, sanitise
+from clark import docx_fullimage, docx_graphics, docx_read, glance, look, platform, sanitise
 
 MAX_BYTES = 5 * 1024 * 1024               # NFR-8: a file larger than this is refused (as publish.MAX_BYTES)
 NONE = "None recorded."                   # creaite's own words (docx_tools.NONE)
@@ -58,7 +58,8 @@ HEX = re.compile(r"#?([0-9A-Fa-f]{6})")
 NOT_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ud800-\udfff￾￿]")
 
 TITLES = {"current": "Current state", "glance": "At a glance", "usecases": "Use cases", "milestones": "Milestones",
-          "text": "Notes", "raid": "Risks and issues", "actions": "Actions", "decisions": "Decisions", "gantt": "Gantt"}
+          "text": "Notes", "raid": "Risks and issues", "actions": "Actions", "decisions": "Decisions", "gantt": "Gantt",
+          "imagecap": "Image"}                            # row 1223: only a Full width image (body version 2) is written, and it has no heading; an Image with caption (version 1) is left out, as it was
 HIDDEN_BY_KIND = ("actions", "raid", "decisions")
 HEADING_STYLE = {"h1": "Heading2", "h2": "Heading3", "h3": "Heading4"}
 MAX_LEVELS = 4                                           # list levels written
@@ -109,9 +110,9 @@ class _Ctx:
             self.links[address] = self.rid()
         return self.links[address]
 
-    def image(self, png):
+    def image(self, png, ext="png"):
         if png not in self.images:
-            self.images[png] = (self.rid(), f"image{len(self.images) + 1}.png")
+            self.images[png] = (self.rid(), f"image{len(self.images) + 1}.{ext}")
         return self.images[png]
 
     def new_list(self):
@@ -141,7 +142,7 @@ def run(text, bold=False, italic=False, strike=False, color=None, size=None, sty
     return f"<w:r>{'<w:rPr>' + props + '</w:rPr>' if props else ''}{''.join(body)}</w:r>"
 
 
-def para(runs="", style=None, keep_next=False, num=None, rule=False, fill=None, tabs=None, spacing=None):
+def para(runs="", style=None, keep_next=False, num=None, rule=False, fill=None, tabs=None, spacing=None, align=None):
     """One paragraph. `num` is (numId, level) for a list item; `rule` draws a line under it; `fill` shades it."""
     props = (f'<w:pStyle w:val="{style}"/>' if style else "") + ("<w:keepNext/>" if keep_next else "")
     if num:
@@ -154,6 +155,8 @@ def para(runs="", style=None, keep_next=False, num=None, rule=False, fill=None, 
         props += f'<w:tabs><w:tab w:val="right" w:pos="{int(tabs)}"/></w:tabs>'
     if spacing:
         props += f'<w:spacing w:before="{int(spacing[0])}" w:after="{int(spacing[1])}"/>'
+    if align in ("center", "left", "right"):
+        props += f'<w:jc w:val="{align}"/>'
     return f"<w:p>{'<w:pPr>' + props + '</w:pPr>' if props else ''}{runs}</w:p>"
 
 
@@ -205,11 +208,11 @@ NS_PIC = "http://schemas.openxmlformats.org/drawingml/2006/picture"
 EMU_PER_TWIP = 635
 
 
-def picture(ctx, drawn, width_twips, alt):
+def picture(ctx, drawn, width_twips, alt, ext="png"):
     """A run holding an inline picture (a Word drawing) of `drawn` = (png, pixel width, pixel height), `width_twips` wide with
     its shape kept. `alt` is the picture's alternative text, made only of words the report already shows."""
     png, w, h = drawn
-    rid, name = ctx.image(png)
+    rid, name = ctx.image(png, ext)
     ctx.drawings += 1
     cx = int(width_twips) * EMU_PER_TWIP
     cy = max(1, cx * h // w)
@@ -222,7 +225,7 @@ def picture(ctx, drawn, width_twips, alt):
             "</a:graphicData></a:graphic></wp:inline></w:drawing></w:r>")
 
 
-def picture_para(ctx, make, width_twips, style=None, **kw):
+def picture_para(ctx, make, width_twips, style=None, ext="png", **kw):
     """A paragraph holding a picture, or "" when it cannot be made. `make()` gives (drawn, alt text) or None. A picture is only an
     addition to words the report already carries, so any failure in drawing it (a number too large to read, a bug) leaves the
     words alone and writes no picture."""
@@ -231,7 +234,7 @@ def picture_para(ctx, make, width_twips, style=None, **kw):
         if not made:
             return ""
         drawn, alt = made
-        return para(picture(ctx, drawn, width_twips, alt), style, **kw)
+        return para(picture(ctx, drawn, width_twips, alt, ext), style, **kw)
     except Exception:
         return ""
 
@@ -549,6 +552,31 @@ def section_gantt(published, ctx, title, sec):
     return "".join(out)
 
 
+def section_imagecap(published, ctx, title, sec):
+    """Row 1223: the Full width image, as framed (the file holds only the framed copy), as wide as the text; one narrower than the text at its
+    own size, centred (or the full width when its fit is stretch) on its fill (brand colour or grey; Word cannot blur). The caption in small
+    grey type under it, none when there is none. No heading. An Image with caption (no `full` in its content) is not in the Word report, as
+    before. An image that cannot be read leaves the section out; the words alone are never shown without it."""
+    c = sec.get("content") if isinstance(sec.get("content"), dict) else {}
+    if not c.get("full"):
+        return ""
+    got = docx_fullimage.decode(c.get("image"))
+    if not got:
+        return ""
+    raw, ext, w, h = got
+    stretch = c.get("fit") == "stretch"
+    twips = docx_fullimage.width_twips(w, h, TEXT_W, stretch)
+    narrow = twips < TEXT_W and not stretch
+    fill = {"brand": ctx.tok["brand-blue"], "blur": ctx.tok["grey-100"]}.get(c.get("fill", "blur")) if narrow else None
+    caption = str(c.get("caption") or "").strip()
+    alt = str(c.get("alt") or "")
+    pic = picture_para(ctx, lambda: ((raw, w, h), alt), twips, ext=ext, keep_next=bool(caption), fill=fill,
+                       align="center" if narrow else None, spacing=(120, 40))
+    if not pic:
+        return ""
+    return pic + (para(run(caption, color=ctx.tok["grey-700"], size=16), spacing=(0, 120)) if caption else "")
+
+
 def _status_key(word):
     return {v: k for k, v in GANTT_STATUS.items()}[word]
 
@@ -622,7 +650,7 @@ def section_decisions(published, ctx, title, sec):
     return _heading(title) + table(ctx, ["ID", "Decision", "Status", "Made by", "Date"], [1200, 4138, 1100, 1400, 1800], rows)
 
 
-SIMPLE = {"current": section_current, "text": section_text, "milestones": section_milestones, "actions": section_actions,
+SIMPLE = {"imagecap": section_imagecap, "current": section_current, "text": section_text, "milestones": section_milestones, "actions": section_actions,
           "raid": section_raid, "decisions": section_decisions, "gantt": section_gantt}
 
 
@@ -743,7 +771,7 @@ def rels_xml(ctx):
     return HEAD + f'<Relationships xmlns="{NS_REL}">' + "".join(rel) + "</Relationships>"
 
 
-def content_types_xml(pictures=False):
+def content_types_xml(pictures=False, jpeg=False):
     o = [("/word/document.xml", f"{DOC_TYPE}.document.main+xml"), ("/word/styles.xml", f"{DOC_TYPE}.styles+xml"),
          ("/word/numbering.xml", f"{DOC_TYPE}.numbering+xml"), ("/word/settings.xml", f"{DOC_TYPE}.settings+xml"),
          ("/word/footer1.xml", f"{DOC_TYPE}.footer+xml"),
@@ -752,6 +780,7 @@ def content_types_xml(pictures=False):
     return HEAD + (f'<Types xmlns="{NS_CT}"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
                    '<Default Extension="xml" ContentType="application/xml"/>'
                    + ('<Default Extension="png" ContentType="image/png"/>' if pictures else "")
+                   + ('<Default Extension="jpeg" ContentType="image/jpeg"/>' if jpeg else "")
                    + "".join(f'<Override PartName="{p}" ContentType="{t}"/>' for p, t in o) + "</Types>")
 
 
@@ -815,7 +844,7 @@ def build(published, colours=None):
     project = published["data"]["project"]
     ctx = _Ctx(palette(colours), published["as_at"])
     body = title_block(published, ctx) + "".join(xml for _, xml in sections(published, ctx))
-    parts = [("[Content_Types].xml", content_types_xml(bool(ctx.images))), ("_rels/.rels", package_rels_xml()),
+    parts = [("[Content_Types].xml", content_types_xml(any(n.endswith(".png") for _, n in ctx.images.values()), any(n.endswith(".jpeg") for _, n in ctx.images.values()))), ("_rels/.rels", package_rels_xml()),
              ("docProps/core.xml", core_xml(project.get("name") or project["code"], published["as_at"])),
              ("docProps/app.xml", app_xml()), ("word/document.xml", document_xml(body)),
              ("word/styles.xml", styles_xml(ctx.tok)), ("word/numbering.xml", numbering_xml(ctx.lists)),

@@ -26,7 +26,7 @@ export function wordsOf(section) {
   if (pending.has(section.id)) return pending.get(section.id);
   const v = { ...(stored(section) || {}) };
   delete v.pictures;
-  v.v = 1;
+  v.v = v.v === 2 ? 2 : 1;      // row 1223: a Full width image keeps its version
   return v;
 }
 
@@ -161,7 +161,10 @@ export function picturesTotal(sections) {
     if (!s || s.hidden || !PICTURE_TYPES.includes(s.type)) continue;
     const v = stored(s);
     const pics = v && v.pictures && typeof v.pictures === "object" ? v.pictures : {};
-    for (const p of Object.values(pics)) if (typeof p === "string") n += p.length;
+    for (const [slot, p] of Object.entries(pics)) {
+      if (v.v === 2 && slot !== "image") continue;      // row 1223: a Full width image publishes its framed copy only, never its original
+      if (typeof p === "string") n += p.length;
+    }
   }
   return n;
 }

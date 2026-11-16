@@ -256,12 +256,12 @@ class Card(InBrowser):
 
 
 class InSettings(unittest.TestCase):
-    """The card is on the Settings page after the others, with a link in the list, and Help names it."""
+    """The card is on the Settings page after the others, with its page in the menu, and Help names it."""
 
     def test_settings_draws_the_card_and_a_link_for_it(self):
         views = (PAGE_SRC / "components" / "Views.jsx").read_text(encoding="utf-8")
-        self.assertIn('["Feedback", "Feedback", "feedback-h"]', views)
-        self.assertIn("<Feedback />", views)
+        self.assertIn('["version", "Version and updates", ["Update", "Feedback", "Quit"]]', views)      # row 1024: the card is on the Version and updates page, which has the menu item
+        self.assertIn('Feedback: "feedback-h"', views)
         self.assertIn("Feedback,", (PAGE_SRC / "edit" / "index.js").read_text(encoding="utf-8"))
 
     def test_help_names_the_card(self):

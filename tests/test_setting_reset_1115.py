@@ -53,7 +53,7 @@ class Reset(unittest.TestCase):
         for w in (1400, 900):
             with self.subTest(width=w):
                 self.load(edit=True, width=w)
-                self.go("location.hash = '#settings&p=DEMO'")
+                self.go("location.hash = '#settings&p=DEMO&s=reports'")
                 for id in ROWS:
                     self.assertEqual((self.row(id)["dot"], self.row(id)["reset"]), (False, False), id)
 
@@ -62,7 +62,7 @@ class Reset(unittest.TestCase):
         for w in (1400, 900):
             with self.subTest(width=w):
                 self.load(changed, edit=True, width=w)
-                self.go("location.hash = '#settings&p=DEMO'")
+                self.go("location.hash = '#settings&p=DEMO&s=reports'")
                 for id in ROWS:
                     r = self.row(id)
                     self.assertTrue(r["dot"] and r["reset"] and r["resetBeforeControl"], id)
@@ -78,7 +78,7 @@ class Reset(unittest.TestCase):
         for w in (1400, 900):
             with self.subTest(width=w):
                 self.load({"gantt_tab_name": "A tab name that is nearly thirty"}, edit=True, width=w)
-                self.go("location.hash = '#settings&p=DEMO'")
+                self.go("location.hash = '#settings&p=DEMO&s=reports'")
                 ok = self.js("(() => { const r = document.getElementById('gantt-name').closest('.set-row'), b = r.getBoundingClientRect();"
                              " return [...r.querySelectorAll('.set-reset, input, .set-dot')].every(e => { const k = e.getBoundingClientRect(); return k.left >= b.left - 1 && k.right <= b.right + 1; })"
                              " && document.documentElement.scrollWidth <= innerWidth; })()")
@@ -93,7 +93,7 @@ class Reset(unittest.TestCase):
             for id in ROWS:
                 with self.subTest(width=w, row=id):
                     self.load(changed, edit=True, width=w)
-                    self.go("location.hash = '#settings&p=DEMO'")
+                    self.go("location.hash = '#settings&p=DEMO&s=reports'")
                     self.go("document.getElementById('%s').closest('.set-row').querySelector('.set-reset').focus()" % id)
                     self.go("document.activeElement.click()")
                     self.assertEqual(self.focused(), id, "after Reset")
@@ -107,7 +107,7 @@ class Reset(unittest.TestCase):
             for id, bad, typed in (("review-days", "data-review-days-bad", "0"), ("gantt-name", "data-gantt-name-bad", "")):
                 with self.subTest(width=w, row=id):
                     self.load({"review_after_days": 30, "gantt_tab_name": "Plan"}, edit=True, width=w)
-                    self.go("location.hash = '#settings&p=DEMO'")
+                    self.go("location.hash = '#settings&p=DEMO&s=reports'")
                     self.go("var b = document.getElementById('%s'); b.focus(); b.value = %s; b.dispatchEvent(new Event('input', {bubbles: true}))" % (id, json.dumps(typed)))
                     self.go("document.getElementById('%s').blur()" % id)
                     self.assertTrue(self.js("document.querySelector('[%s]').textContent.length > 0" % bad), "the refusal line is shown")
@@ -118,7 +118,7 @@ class Reset(unittest.TestCase):
 
     def test_reset_drops_a_half_typed_value(self):
         self.load({"gantt_tab_name": "Plan"}, edit=True)
-        self.go("location.hash = '#settings&p=DEMO'")
+        self.go("location.hash = '#settings&p=DEMO&s=reports'")
         self.go("var b = document.getElementById('gantt-name'); b.value = 'Half'; b.dispatchEvent(new Event('input', {bubbles: true}))")
         self.go("document.getElementById('gantt-name').closest('.set-row').querySelector('.set-reset').click()")
         self.assertEqual(self.js("document.getElementById('gantt-name').value"), "Gantt")

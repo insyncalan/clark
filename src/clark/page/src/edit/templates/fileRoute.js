@@ -5,6 +5,8 @@
 import { token, project, reread, plain } from "../../stores/report.js";
 import { zoneFetch } from "../../api.js";
 import { say } from "../../stores/changes.js";
+import { openInNewTab } from "../../router.js";
+import { fileReader } from "../../templates/DocLinks.jsx";
 
 const KNOWN = [200, 400, 404, 409];
 
@@ -39,3 +41,34 @@ export async function chooseFile(id) {
   say("problem", fileWords(status, body));
   return "refused";
 }
+
+// Row 1221: the editor View's Open and Download on a file row (templates/DocLinks.jsx): GET /api/section-file?project=&name=[&download=1]
+// with the token (a new tab cannot send it, so the bytes are read here and handed to the browser as a blob). Open: a new tab; Download:
+// the browser's own save. A refusal says plain()'s words for its status, as every other read does.
+async function readFile(name, download) {
+  // The blob for the file, or null when it was refused (the toast says why).
+  const blobUrl = async () => {
+    try {
+      const r = await zoneFetch(`/api/section-file?project=${encodeURIComponent(project.value)}&name=${encodeURIComponent(name)}${download ? "&download=1" : ""}`,
+        { headers: { "X-Clark-Token": token() }, cache: "no-store" });
+      if (!r.ok) {
+        const body = await r.json().catch(() => null);
+        say("problem", plain(r.status, body));
+        return null;
+      }
+      const url = URL.createObjectURL(await r.blob());
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      return url;
+    } catch (e) {
+      say("problem", plain(0));
+      return null;
+    }
+  };
+  if (!download) { await openInNewTab(blobUrl); return; }   // the router opens and points the tab: only it sets an address
+  const url = await blobUrl();
+  if (!url) return;
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+fileReader.read = readFile;

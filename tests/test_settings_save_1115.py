@@ -3,7 +3,7 @@ button and the Backups copy-folder keeps its Save (a half-typed path must not be
 Chrome is required: these tests fail, never skip, without it."""
 import unittest
 
-from test_settings_head import Head
+from test_settings_head import PAGES, Head
 from test_server import chrome
 
 WIDTHS = (1400, 900)
@@ -17,7 +17,7 @@ class SaveAtOnce(Head):
             for mode in MODES:
                 with self.subTest(width=w, mode=mode), chrome() as cdp:
                     p = self.page(cdp)
-                    self.open_settings(p, w, mode)
+                    self.open_settings(p, w, mode, page="appearance")
                     p.js("document.querySelector('[data-theme-pick=dark]').click()")
                     p.until(f"{TEXT} === 'Appearance: Dark.'", "the toast says the new look")
                     self.assertEqual(p.js("document.querySelectorAll('.toast [data-undo]').length"), 1, "one Undo")
@@ -37,7 +37,7 @@ class SaveAtOnce(Head):
             for mode in MODES:
                 with self.subTest(width=w, mode=mode), chrome() as cdp:
                     p = self.page(cdp)
-                    self.open_settings(p, w, mode)
+                    self.open_settings(p, w, mode, page="profile")      # the Motion switch is in Essentials
                     start = p.js("document.querySelector('[data-ess-motion]').getAttribute('aria-checked')")
                     now, was = ("Off", "On") if start == "true" else ("On", "Off")
                     p.js("document.querySelector('[data-ess-motion]').click()")
@@ -51,7 +51,7 @@ class SaveAtOnce(Head):
     def test_S5_choosing_what_is_already_chosen_says_nothing(self):
         with chrome() as cdp:
             p = self.page(cdp)
-            self.open_settings(p, 1400)
+            self.open_settings(p, 1400, page="appearance")
             p.js("document.querySelector('[data-theme-pick=system]').click()")
             p.settled("nothing to say")
             self.assertFalse(p.js("!!document.querySelector('.toast')"))
@@ -61,8 +61,10 @@ class SaveAtOnce(Head):
             with self.subTest(width=w), chrome() as cdp:
                 p = self.page(cdp)
                 self.open_settings(p, w)
-                self.assertEqual(p.js("[...document.querySelectorAll('.set-cards button')].filter(b => /^save\\b/i.test(b.textContent.trim())).filter(b => !b.matches('[data-copy-save]')).map(b => b.textContent)"), [])
-                self.assertEqual(p.js("document.querySelectorAll('[data-brand-save]').length"), 0, "choosing a brand saves at once")
+                for slug, _, _ in PAGES:      # row 1024: every page in turn
+                    self.to_page(p, slug)
+                    self.assertEqual(p.js("[...document.querySelectorAll('.set-cards button')].filter(b => /^save\\b/i.test(b.textContent.trim())).filter(b => !b.matches('[data-copy-save]')).map(b => b.textContent)"), [], slug)
+                    self.assertEqual(p.js("document.querySelectorAll('[data-brand-save]').length"), 0, "choosing a brand saves at once")
 
 
 if __name__ == "__main__":

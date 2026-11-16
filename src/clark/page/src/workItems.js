@@ -144,4 +144,5 @@ export function rowsOf(data) {
 export function countOf(total, open) { return { total, open, noun: total === 1 ? "work item" : "work items" }; }
 
 // Grouped by workstream, the group's heading already says it, so the line leaves it out (#947).
-export function metaOf(row, group) { return [row.id, row.uc, row.milestone, group === "workstream" ? "" : row.workstream].filter(Boolean).join(" · "); }
+// Row 1222: `own` names the parts that have a column of their own (Id, Use case, Milestone, Workstream), so the line does not say them twice.
+export function metaOf(row, group, own = {}) { return [own.id ? "" : row.id, own.uc ? "" : row.uc, own.milestone ? "" : row.milestone, group === "workstream" || own.workstream ? "" : row.workstream].filter(Boolean).join(" · "); }
