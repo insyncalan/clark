@@ -486,14 +486,14 @@ class Saved(Api):
             self.assertNotIn(hidden, [a["id"] for a in built["data"]["actions"]])
 
     def test_a_hidden_actions_section_gives_the_data_only_the_listed_rows(self):
-        self.save({"mode": "all", "owner": ["Pat Demo"]})
-        everything = [a["id"] for a in publish.build(self.s, "ABC", now=TODAY)["published"]["data"]["actions"]]
+        self.save({"mode": "all", "owner": ["Pat Demo"]})          # the list names Pat's row alone; Lee's a_later is kept but not named
         with self.s.step("dashboard", USER) as st:
             st.create("report_sections", {"project": "ABC", "type": "actions", "title": "Open actions", "sort_order": 50, "hidden": 1})
         built = publish.build(self.s, "ABC", now=TODAY)["published"]
         sec = next(s for s in built["sections"] if s["id"] == self.ref)
-        self.assertEqual(sorted(a["id"] for a in built["data"]["actions"]), sorted(i for i in sec["items"] if i.startswith("ABC-A-")))
-        self.assertTrue(len(everything) >= len(built["data"]["actions"]))
+        self.assertEqual(sec["items"], [self.a_due, self.risk])
+        self.assertEqual([a["id"] for a in built["data"]["actions"]], [self.a_due], "exactly the named action")
+        self.assertNotIn(self.a_later, [a["id"] for a in built["data"]["actions"]], "a kept row the list does not name stays out")
 
 
 class StatusColours(unittest.TestCase):
