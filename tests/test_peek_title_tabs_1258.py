@@ -61,5 +61,17 @@ class TitleTabs(unittest.TestCase):
                 self.assertEqual(got[0][1], "rgba(0, 0, 0, 0)")
 
 
+    def test_the_help_peek_keeps_its_own_title_and_box(self):
+        """The rules above are for the item peek only: a .hpk peek that carries the same classes gets none of them (its letters stay at -0.24 px, not -0.36 px, and its 1 px border stays)."""
+        for width in WIDTHS:
+            with self.subTest(width=width), chrome() as cdp:
+                _, sid = self.load(cdp, width)
+                self.calm(cdp, sid)
+                got = cdp.js("(() => { const d = document.createElement('div'); d.className = 'peek hpk'; d.style.cssText = 'position:absolute;left:0;top:0;visibility:hidden';"
+                             " d.innerHTML = '<h2 class=\"pk-title\">T</h2><textarea class=\"pkh-title-in\"></textarea>'; document.body.appendChild(d);"
+                             " const t = getComputedStyle(d.querySelector('h2')), b = getComputedStyle(d.querySelector('textarea')); const r = [t.letterSpacing, b.borderTopWidth]; d.remove(); return r; })()", sid)
+                self.assertEqual(got, ["-0.24px", "1px"])
+
+
 if __name__ == "__main__":
     unittest.main()
