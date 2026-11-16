@@ -34,7 +34,7 @@ class DragState(unittest.TestCase):
                          'export { data, dropAt, dragFrom, dragList } from "@src/stores/report.js";', Path(cls._tmp.name), None, "dragstate.cjs")
 
     def run_script(self, steps, width=1400):
-        """steps: [x, y, ms] or [x, y, ms, pointerId] (a move, then the clock runs ms), "esc", "up", "up2" (a release of pointer 2), "lost", "lost2" (the handle, taken off the page, loses the capture of pointer 1, 2), "hidden" (the handle stays on the page but loses the capture, as when the preview hides it). Returns one snapshot after the start and one after each step."""
+        """steps: [x, y, ms] or [x, y, ms, pointerId] (a move, then the clock runs ms), "esc", "up", "up2" (a release of pointer 2), "lost", "lost2" (the handle, taken off the page, loses the capture of pointer 1, 2), "hidden" (the handle stays on the page but loses the capture, as when the preview hides it), "swap" (the page draws a new grip for the section and takes the old one off, nothing else), "swaplost" (that, and the old grip loses the capture). Returns one snapshot after the start and one after each step."""
         js = (STAND_IN
               + "const m = require(process.argv[1]); const L = {}, body = [], notes = [];"
               "globalThis.matchMedia = () => ({ matches: " + ("true" if width == 900 else "false") + " });"
@@ -47,6 +47,7 @@ class DragState(unittest.TestCase):
               "const sent = []; globalThis.fetch = async (u, o) => { sent.push(1); return { ok: false, status: 500, json: async () => ({}), text: async () => '' }; };"
               "const fire = () => { for (let i = 0; i < timers.length; i++) { const t = timers[i]; if (t && t[0] <= now) { timers[i] = null; t[1](); } } };"
               "m.data.value = { report_sections: " + json.dumps(SECTIONS) + " };"
+              "globalThis.CSS = { escape: (x) => String(x) }; const grips = new Set(['d']); const docQuery = document.querySelector; document.querySelector = (q) => { const g = /data-id=\"([^\"]*)\"/.exec(q); if (g && /data-drag/.test(q)) return grips.has(g[1]) ? { isNew: true } : null; return docQuery(q); };"
               "const H = {}; const handle = { isConnected: true, setPointerCapture() {}, focus() {}, addEventListener(t, f) { H[t] = f; }, removeEventListener(t, f) { if (H[t] === f) delete H[t]; } };"
               "const snap = () => ({ from: m.dragFrom.value ?? null, list: m.dragList.value ? 1 : null, drop: m.dropAt.value ?? null, drawn: body.length,"
               " listeners: Object.keys(L).sort(), onHandle: Object.keys(H), sent: sent.length, notes: notes.length, noted: notes.slice() });"
@@ -55,7 +56,8 @@ class DragState(unittest.TestCase):
               "const out = [snap()];"
               "for (const s of " + json.dumps(steps) + ") {"
               "  if (s === 'esc') L.keydown && L.keydown({ key: 'Escape' });"
-              "  else if (s === 'lost' || s === 'lost2' || s === 'hidden') { if (H.lostpointercapture) { const f = H.lostpointercapture; if (s !== 'hidden') handle.isConnected = false; f({ pointerId: s === 'lost2' ? 2 : 1, type: 'lostpointercapture' }); } }"
+              "  else if (s === 'lost' || s === 'lost2' || s === 'hidden') { if (H.lostpointercapture) { const f = H.lostpointercapture; if (s !== 'hidden') { handle.isConnected = false; grips.delete('d'); } f({ pointerId: s === 'lost2' ? 2 : 1, type: 'lostpointercapture' }); } }"
+              "  else if (s === 'swap' || s === 'swaplost') { handle.isConnected = false; if (s === 'swaplost') H.lostpointercapture && H.lostpointercapture({ pointerId: 1, type: 'lostpointercapture' }); }"
               "  else if (s === 'up' || s === 'up2') L.pointerup && L.pointerup({ pointerId: s === 'up' ? 1 : 2, type: 'pointerup' });"
               "  else { L.pointermove && L.pointermove({ pointerId: s[3] || 1, clientX: s[0], clientY: s[1] }); now += s[2]; fire(); }"
               "  out.push(snap());"
@@ -169,6 +171,28 @@ class DragState(unittest.TestCase):
                 self.assertEqual(got[-1]["sent"], 1, "the drop, once, after the release of the capture too")
                 self.assertEqual(got[3]["notes"], got[2]["notes"], "and does not run the clean-up again")
                 self.assertEqual((got[2]["listeners"], got[2]["onHandle"]), ([], []))
+
+    def test_a_grip_replaced_by_a_new_one_for_the_same_section_does_not_end_the_drag(self):
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                got = self.run_script([[200, 330, REST], "swaplost", [200, 100, REST], "up"], width)
+                self.assertEqual((got[2]["from"], got[2]["drawn"], got[2]["listeners"]), ("d", 2, got[1]["listeners"]))
+                self.assertEqual(got[2]["drop"], got[1]["drop"], "the slot stays")
+                self.assertIsNotNone(got[3]["drop"], "and follows the pointer to a new target")
+                self.assertEqual(got[-1]["sent"], 1, "one drop")
+
+    def test_a_replaced_grip_that_says_nothing_leaves_the_drag_alive(self):
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                got = self.run_script([[200, 330, REST], "swap"], width)
+                self.assertEqual((got[2]["from"], got[2]["drawn"], got[2]["listeners"]), ("d", 2, got[1]["listeners"]))
+
+    def test_a_section_that_is_gone_ends_the_drag_without_a_drop(self):
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                got = self.run_script([[200, 330, REST], "lost", "up"], width)
+                self.assertEqual((got[2]["from"], got[2]["drawn"], got[2]["listeners"], got[2]["onHandle"]), (None, 0, [], []))
+                self.assertEqual(got[-1]["sent"], 0, "nothing sent")
 
     def test_the_handle_listens_for_the_lost_capture_while_dragging(self):
         got = self.run_script([[200, 330, REST]])

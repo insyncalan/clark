@@ -129,6 +129,7 @@ export function startDrag(e, handle, id, count) {
   const lost = (l) => {                          // the handle left the page mid-drag: the drag ends here and drops nothing
     if (l.pointerId !== e.pointerId) return;
     if (handle.isConnected !== false) return;    // the preview hides the grip (it is in the slot), and a hidden grip loses the capture too: that is not the end
+    if (document.querySelector(`.secs > .sec[data-id="${CSS.escape(id)}"] [data-drag]`)) return;     // the page drew the grip again (a new element for the same section): the drag goes on
     abort();
   };
   const keepFromHandle = (k) => { if (k.altKey && (k.key === "ArrowUp" || k.key === "ArrowDown")) { k.preventDefault(); k.stopPropagation(); } };     // the handle's own Alt+Arrow would move the data under the frozen rects
