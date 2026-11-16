@@ -73,6 +73,28 @@ class Word(unittest.TestCase):
         got = cells(docx_build.build(with_list(["PUB-A-001"], columns=("status", "owner", "id", "type"))))
         self.assertEqual(got[:5], ["Type", "ID", "Item", "Owner", "Status"])
 
+    def test_a_list_with_no_columns_chosen_has_the_default_columns_with_priority(self):
+        # row 1268: WORK_DEFAULT is Type, ID, Item, Owner, Due, Priority (a list that names none gets these)
+        got = cells(docx_build.build(with_list(["PUB-A-001"], columns=())))
+        self.assertEqual(got[:6], ["Type", "ID", "Item", "Owner", "Due", "Priority"])
+        self.assertEqual(got[6:12], ["Action", "PUB-A-001", "ZQ-KEEP-MESSAGE-1", "Site manager", "06-11-2026", "Medium"])
+        for word in ("Workstream", "Milestone", "Status"):
+            self.assertNotIn(word, got)
+
+    def test_a_milestone_id_prints_the_milestones_name(self):
+        got = cells(docx_build.build(with_list(["PUB-A-001"], columns=("id", "milestone"))))
+        self.assertEqual(got, ["ID", "Item", "Milestone", "PUB-A-001", "ZQ-KEEP-MESSAGE-1", "Pilot live ZQ-KEEP-MILESTONE-1"])
+        self.assertNotIn("PUB-M-001", got)
+
+    def test_the_item_column_sits_after_type_and_id_and_before_the_rest(self):
+        got = cells(docx_build.build(with_list(["PUB-A-001"], columns=("milestone", "workstream", "priority", "status", "due", "owner", "id", "type"))))
+        self.assertEqual(got[:8], ["Type", "ID", "Item", "Owner", "Due", "Status", "Priority", "Workstream"])
+        self.assertEqual(got[8], "Milestone")
+
+    def test_the_workstream_cell_prints_the_workstream(self):
+        got = cells(docx_build.build(with_list(["PUB-A-001"], columns=("id", "workstream"))))
+        self.assertEqual(got, ["ID", "Item", "Workstream", "PUB-A-001", "ZQ-KEEP-MESSAGE-1", "Delivery"])
+
     def list_table(self, p):
         return next(b["rows"] for b in blocks(docx_build.build(p)) if b["kind"] == "table" and b["rows"][0][0] == "ID" and b["rows"][0][1] == "Item")
 
@@ -91,18 +113,18 @@ class Word(unittest.TestCase):
         self.assertEqual(self.list_table(with_list(["PUB-A-002"], columns=("id", "owner", "priority", "due", "status")))[1][3], "06-11-2026")
 
     def decision_due(self, status, needed_by, as_at, date="2026-10-09"):
-        p = with_list(["PUB-D-001"])
+        p = with_list(["PUB-D-001"], columns=("id", "due"))
         p["as_at"] = as_at
         d = next(r for r in p["data"]["decisions"] if r["id"] == "PUB-D-001")
         d.update(status=status, needed_by=needed_by, date=date)
-        return self.list_table(p)[1][4]
+        return self.list_table(p)[1][2]
 
     def test_a_row_due_yesterday_says_yesterday(self):
-        p = with_list(["PUB-A-002"])
+        p = with_list(["PUB-A-002"], columns=("id", "due"))
         p["as_at"] = "2026-11-07"                       # PUB-A-002 is due 2026-11-06
-        self.assertEqual(self.list_table(p)[1][4], "06-11-2026 Yesterday")
+        self.assertEqual(self.list_table(p)[1][2], "06-11-2026 Yesterday")
         p["as_at"] = "2026-11-08"
-        self.assertEqual(self.list_table(p)[1][4], "06-11-2026 2 days late")
+        self.assertEqual(self.list_table(p)[1][2], "06-11-2026 2 days late")
 
     def test_a_pending_decision_due_yesterday_says_yesterday(self):
         self.assertEqual(self.decision_due("Pending", "2026-11-06", "2026-11-07"), "06-11-2026 Yesterday")
