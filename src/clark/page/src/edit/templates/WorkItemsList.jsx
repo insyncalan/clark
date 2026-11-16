@@ -7,7 +7,7 @@ import { MenuPanel } from "../../components/Menu.jsx";
 import { data, openPeek, rows as reportRows, filterCtx } from "../../stores/report.js";
 import { LineBox } from "../../components/FilterLine.jsx";
 import { change, say } from "../../stores/changes.js";
-import { Rows, ShowAll, today } from "../../templates/WorkItemsList.jsx";
+import { Rows, Scroller, Foot, today } from "../../templates/WorkItemsList.jsx";
 import { KINDS, MODES, STATUSES, DUE, PRIORITIES, NONE, SORTS, COLUMNS, MAX_ROWS, MAX_CAPTION, WORDS, defaults, filterOf, bodyOf,
   editListOf, drawRows, offered, drawn, idsToShow } from "../../templates/workItemsList.js";
 import { Eye } from "../cells/Eye.jsx";
@@ -63,7 +63,6 @@ export const ADD_ITEMS = ADDABLE.map((k) => ({ kind: k, word: k[0].toUpperCase()
 const addOne = (kind) => addItem(kind, "report", true);
 
 export function Edit({ section }) {
-  const [all, setAll] = useState(false);          // row 1199: Show all items
   const [cfg, setCfg] = useState(false);          // row 1268: the Configure box (the gear) is open
   const gearRef = useRef(null);
   const cw = useColWidths(`wil-${section.id}`);      // row 1268, item 12: the page's column widths, kept for this list
@@ -143,7 +142,7 @@ export function Edit({ section }) {
 
   const now = today();
   const list = editListOf(section, d, now);
-  const rows = drawRows(idsToShow(list, all), drawn(d, true));
+  const rows = drawRows(idsToShow(list, true), drawn(d, true));
   return (
     <div class="wil wil-edit" key={tick} data-wil-edit="" data-wil-id={id}>
       {saved ? null : <p class="quiet wil-say" data-wil-say="not-yet">{NOT_YET}</p>}
@@ -185,9 +184,9 @@ export function Edit({ section }) {
       <p class="quiet" data-wil-say="count">{saved ? `${plural(rows.length, "work item")} listed now. ${ONLY_SHOWN}` : ONLY_SHOWN}</p>
       {saved && !rows.length ? <p class="wil-none" data-wil-say="none" role="status">{NO_MATCH}</p> : null}
       {saved && rows.length && rows.length === list.off.length ? <p class="wil-none" data-wil-say="all-hidden" role="status">{ALL_HIDDEN}</p> : null}
-      {saved && rows.length ? <Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Eye={Eye} Cell={Cell} cw={cw} head={headProps} /> : null}
+      {saved && rows.length ? <Scroller max={list.max} count={rows.length}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Eye={Eye} Cell={Cell} cw={cw} head={headProps} /></Scroller> : null}
       {colMenu}
-      {saved && rows.length ? <ShowAll list={list} all={all} onToggle={() => setAll(!all)} /> : null}
+      {saved && rows.length ? <Foot section={section} total={rows.length} max={list.max} edit nameOf={nameOf} /> : null}
       {saved && list.caption && rows.length ? <p class="wil-cap">{list.caption}</p> : null}
       <div class="wil-capbox">
         <label class="wil-sel wil-capf" data-field="caption"><span>Caption (optional)</span>

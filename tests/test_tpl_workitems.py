@@ -596,26 +596,22 @@ class InThePage(PageBase):
                     head = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table th')].map(e => e.textContent)")
                     self.assertEqual(head, ["", "Type", "Item", "Owner", "Due", "Status", "Priority", "Workstream", "Milestone", "ID"])
 
-    def test_show_all_items_opens_every_row_and_show_only_closes_it_in_view_and_in_edit(self):
-        ref = self.add({"mode": "all", "max": 2, "owner": ["Pat Demo", "Lee Demo"]})      # three rows, two shown
-        link = f"[data-id=\"{ref}\"] [data-wil-all]"
+    def test_rows_scroll_in_a_box_as_tall_as_most_rows_with_the_review_link_and_in_edit_the_count(self):
+        ref = self.add({"mode": "all", "max": 2, "owner": ["Pat Demo", "Lee Demo"]})      # three rows, two high
+        box = f"[data-id=\"{ref}\"] [data-wil-scroll]"
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
                 p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table')", "the list drew")
-                self.assertEqual(self.rows(p, ref), [self.a_due, self.a_later])
-                self.assertEqual(p.js(f"document.querySelector({json.dumps(link)}).textContent"), "Show all items")
-                p.js(f"document.querySelector({json.dumps(link)}).click()")
-                p.until(f"document.querySelector({json.dumps(link)}).textContent === 'Show only 2'", "open")
-                self.assertEqual(self.rows(p, ref), [self.a_due, self.a_later, self.risk])
-                p.js(f"document.querySelector({json.dumps(link)}).click()")
-                p.until(f"document.querySelector({json.dumps(link)}).textContent === 'Show all items'", "closed")
-                self.assertEqual(self.rows(p, ref), [self.a_due, self.a_later])
+                self.assertEqual(self.rows(p, ref), [self.a_due, self.a_later, self.risk], "every row the filter lists is drawn")
+                self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-all]')"), "no Show all items: the rows scroll")
+                self.assertTrue(p.js(f"(() => {{ const b = document.querySelector({json.dumps(box)}); return b.scrollHeight > b.clientHeight && b.clientHeight > 0; }})()"), "the box is shorter than its rows")
+                self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-review]').textContent"), "Review all 3 items")
+                self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-count]')"), "View has no count")
                 p.edit()
-                p.until(f"!!document.querySelector({json.dumps(link)})", "Edit has the link too")
-                p.js(f"document.querySelector({json.dumps(link)}).click()")
-                p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr').length === 3", "Edit shows all")
-                self.assertEqual(p.js(f"document.querySelector({json.dumps(link)}).textContent"), "Show only 2")
+                p.until(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-count]')", "Edit has the count")
+                self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-count]').textContent"), "Showing 2 of 3, scroll for the rest")
+                self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr').length"), 3)
 
     def test_no_link_when_every_row_is_already_shown_and_new_columns_start_off(self):
         ref = self.add({"mode": "all", "owner": ["Pat Demo", "Lee Demo"]})
@@ -735,8 +731,9 @@ class InThePage(PageBase):
             p.js(f"(el => {{ el.focus(); el.value = '2'; el.dispatchEvent(new Event('change', {{bubbles: true}})); }})(document.querySelector({json.dumps(sel)}))")
             p.saved()
             self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["max"], 2)
-            p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr .weye[aria-pressed=true]').length === 2", "two rows the client sees")
-            self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr').length"), 4, "and the two the eye took off, listed where they fall")
+            p.until(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-count]').textContent.startsWith('Showing 2 of ')", "the count follows Most rows (row 1268)")
+            self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr').length"), 5, "every row the filter lists, the two the eye took off where they fall")
+            self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr .weye[aria-pressed=true]').length"), 3)
             p.clear_toast()
             cap = f"[data-id=\"{ref}\"] [data-field=caption] input"
             p.js(f"document.querySelector({json.dumps(cap)}).focus()")

@@ -3,10 +3,10 @@
 // title, then the chosen columns on one line). Both are drawn and the section's slot shows one (shell.css), so nothing is measured.
 // View: a row opens the peek (row 1268); text nodes only, never dangerouslySetInnerHTML; only rows that would be published (the served page) or that the file
 // carries (a published file). isEmpty: no row to show, or no filter saved yet; the section then stays out of View and the file.
-import { useState } from "preact/hooks";
-import { asAt, fromFile, openPeek } from "../stores/report.js";
+import { useState, useRef, useLayoutEffect } from "preact/hooks";
+import { asAt, fromFile, openPeek, openWork } from "../stores/report.js";
 import { KIND_WORDS, dueCell, pillOf, ownerOf, todayIso } from "../workItems.js";
-import { listOf, drawRows, drawn, idsToShow, priorityCell, WORDS } from "./workItemsList.js";
+import { listOf, drawRows, drawn, idsToShow, filterOf, footWords, reviewWords, pageState, priorityCell, WORDS } from "./workItemsList.js";
 import { clientPill } from "../logic/sectionRows.js";
 import { ItemIcon } from "../components/ItemRows.jsx";
 
@@ -96,20 +96,49 @@ export function ShowAll({ list, all, onToggle }) {
   return <p class="wil-all"><button type="button" class="wil-all-b" data-wil-all="" aria-expanded={all ? "true" : "false"} onClick={onToggle}>{all ? `Show only ${list.max}` : "Show all items"}</button></p>;
 }
 
+// Row 1268: the rows scroll inside a box as tall as the first Most rows (measured from the drawn rows, as the mock-up's fitScroll does), so
+// every row the filter lists is on the page and the rest are a scroll away. Only the table or the lines are visible at a time (shell.css), so
+// the one with a height is measured. No limit when there are no more rows than Most rows.
+export function Scroller({ max, count, children }) {
+  const box = useRef(null);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    el.style.maxHeight = "";
+    if (count <= max) return;
+    const vis = [...el.querySelectorAll(".wil-table tbody tr, .wil-lines li")].filter((r) => r.offsetHeight > 0);
+    const head = el.querySelector(".wil-table thead");
+    const h = vis.slice(0, max).reduce((n, r) => n + r.offsetHeight, 0) + (head && head.offsetHeight > 0 ? head.offsetHeight : 0);
+    if (h > 0) el.style.maxHeight = `${h}px`;
+  });
+  return <div class="wil-scroll" data-wil-scroll="" ref={box} tabIndex={count > max ? 0 : undefined} role={count > max ? "region" : undefined} aria-label={count > max ? "Work items, scroll for more" : undefined}>{children}</div>;
+}
+
+// The foot under the rows (the served page only): "Showing N of M" in Edit, and the link to the Work items page on the same filter.
+export function Foot({ section, total, max, edit, nameOf }) {
+  const filter = filterOf(section);
+  if (!filter || !total) return null;
+  return (
+    <div class="wil-foot" data-wil-foot="">
+      {edit ? <span data-wil-count="">{footWords(total, max)}</span> : <span></span>}
+      <button type="button" class="wil-review" data-wil-review="" onClick={() => openWork(pageState(filter, nameOf))}>{reviewWords(total)}</button>
+    </div>
+  );
+}
+
 export function isEmpty(section, data) {
   return drawRows(listOf(section, data, today()).items, data).length === 0;
 }
 
 export function View({ section, data }) {
-  const [all, setAll] = useState(false);
   const now = today();
   const list = listOf(section, data, now);
-  const rows = drawRows(idsToShow(list, all), drawn(data, !fromFile.value));
+  const rows = drawRows(idsToShow(list, !fromFile.value), drawn(data, !fromFile.value));
   if (!rows.length) return null;
   return (
     <div class="wil" data-wil="">
-      <Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} />      {/* row 1268: a row opens the peek in View and in a published file: read only there (Peek draws no control unless the page is editing), editable in Edit */}
-      {fromFile.value ? null : <ShowAll list={list} all={all} onToggle={() => setAll(!all)} />}
+      <Scroller max={list.max || rows.length} count={rows.length}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} /></Scroller>      {/* row 1268: a row opens the peek in View and in a published file: read only there (Peek draws no control unless the page is editing), editable in Edit */}
+      {fromFile.value ? null : <Foot section={section} total={rows.length} max={list.max} edit={false} />}
       {list.caption ? <p class="wil-cap">{list.caption}</p> : null}
     </div>
   );
