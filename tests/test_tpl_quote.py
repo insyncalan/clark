@@ -98,8 +98,8 @@ class Page(n.PageChecks):
 
     def test_half_width_quote_keeps_look_b_inside_its_card_in_view_and_edit_light_and_dark(self):
         """Row 1271, half width: a Quote placed as the left half keeps the panel and the rule, nothing runs wider than its card, the page does not scroll
-        sideways. Measured on this tree at 1400: the half card is 604 wide (the 1232 content less the 24 gap, halved), not the mock-up's 493; the test
-        pins the measured number so a layout change shows."""
+        sideways. Row 1271 (Alan 16-11, Quote B, 493): the Quote's half card is 493 wide at 1400 (every other half card stays 604, the 1232 content less the 24 gap,
+        halved) and the full width at 900. The numbers are printed."""
         ref = self.make({**GOOD, "quote": "Fictional " + "words " * 90})
         with chrome() as cdp:
             p = self.visit(cdp)
@@ -114,12 +114,26 @@ class Page(n.PageChecks):
                 for dark in (False, True):
                     p.js(f"document.documentElement.setAttribute('data-theme', '{'dark' if dark else 'light'}')")
                     where = f"{mode} {'dark' if dark else 'light'}"
-                    self.assertEqual(round(p.js(f"{sec}.getBoundingClientRect().width")), 604, where)
+                    self.assertEqual(round(p.js(f"{sec}.getBoundingClientRect().width")), 493, where)
+                    other = "document.querySelector('.secs > .sec:not([data-id=" + json.dumps(ref) + "])')"
+                    w = lambda e: round(p.js(e + ".getBoundingClientRect().width"))
+                    print("half card at 1400, %s: Quote %d, its panel %d, the other half %d" % (where, w(sec), w(sec + ".querySelector('.tpl-quote')"), w(other)))
                     q = f"{sec}.querySelector('.tpl-quote')"
                     self.assertEqual(p.js(f"getComputedStyle({q}, '::before').height"), "3px", f"{where}: the rule")
                     self.assertLessEqual(p.js(f"{q}.getBoundingClientRect().right"), p.js(f"{sec}.getBoundingClientRect().right"), f"{where}: inside the card")
                     self.assertLessEqual(p.js(f"{q}.scrollWidth"), p.js(f"{q}.clientWidth"), f"{where}: no sideways overflow")
                     self.assertLessEqual(p.js("document.documentElement.scrollWidth - document.documentElement.clientWidth"), 0, f"{where}: the page does not scroll sideways")
+
+    def test_half_width_quote_is_the_full_width_at_900_where_a_half_card_is_full_width(self):
+        ref = self.make({**GOOD, "quote": "Fictional " + "words " * 90})
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self._at(cdp, p, 900)
+            sec = f"document.querySelector('[data-id={json.dumps(ref)}]')"
+            p.js(f"""(function(){{ var a = {sec}; a.className = a.className.replace(/slot-\\w+/, 'slot-left'); }})()""")
+            got, full = round(p.js(f"{sec}.getBoundingClientRect().width")), round(p.js("document.querySelector('.secs').getBoundingClientRect().width"))
+            print("half card at 900: Quote %d, the page's section column %d" % (got, full))
+            self.assertEqual(got, full)
 
     def test_no_tile_and_no_heading_in_view_keep_the_heading_for_a_screen_reader(self):
         ref = self.make({**GOOD, "tile": False, "heading": False})
