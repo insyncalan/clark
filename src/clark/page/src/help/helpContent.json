@@ -2614,7 +2614,7 @@
      "pic": "templates-add-box"
     },
     {
-     "d": "The **Add a section** box opens with the cursor in **Search templates**. On the left, pick a kind: **All templates**, **Text and pictures**, **Figures**, **Work items**, **Files and links**, **People and dates** or **Notes**. Or type a word to find a template by name.",
+     "d": "The **Add a section** box opens with the cursor in **Search templates**. On the left, pick a kind: **All templates**, **Text and pictures**, **Numbers**, **Work items**, **Files and links**, **People and dates** or **Notes**. Or type a word to find a template by name.",
      "pic": "templates-dialog"
     },
     {

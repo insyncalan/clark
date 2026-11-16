@@ -208,7 +208,7 @@ class Logic(unittest.TestCase):
 
     def test_search_and_kinds_and_counts(self):
         self.assertEqual(len(self.t("list()")), 23)      # row 1068: + the Plan table card
-        self.assertEqual([x["id"] for x in self.t('list({query: "figures"})')], ["figures-4", "figures-3"])
+        self.assertEqual([x["id"] for x in self.t('list({query: "numbers"})')], ["figures-4", "figures-3"])
         self.assertEqual([x["id"] for x in self.t('list({query: "COMING dates"})')], ["key-dates"], "case does not matter and every word must match")
         self.assertEqual(self.t('list({query: "zzz"})'), [])
         self.assertEqual([x["id"] for x in self.t('list({kind: "work"})')], ["raid-3", "raid-4", "work-items"])
@@ -341,7 +341,7 @@ class Box(Base):
                              "the page behind cannot be reached")
             self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 23)      # row 1068: + the Plan table card
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.textContent)"),
-                             ["All templates23", "Text and pictures8", "Figures2", "Work items3", "Files and links3", "People and dates5", "Notes2"])      # row 1068: + the Gantt table card, in People and dates
+                             ["All templates23", "Text and pictures8", "Numbers2", "Work items3", "Files and links3", "People and dates5", "Notes2"])      # row 1068: + the Gantt table card, in People and dates
             self.assertEqual(self.sent, [], "opening sends nothing")
 
     def test_everything_outside_the_box_is_inert_while_it_is_open_and_restored_when_it_closes(self):

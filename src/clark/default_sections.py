@@ -8,13 +8,14 @@ tests/test_sections_store.py pins this list.
 """
 CURRENT_STATE_PREFILL = "Say where the project stands today, at a high level: what is done, what comes next, and anything that needs attention."   # item 1188: the editor's hint for the first section, never its body (a client must not read instruction text); the page gets it from the build (dev/tools/build_page.py)
 SECTION_HINTS = {          # item 1193: the guiding sentence of each text section that has one; the editor's hint only, never a body
-    "Current state": CURRENT_STATE_PREFILL,
+    "Header": CURRENT_STATE_PREFILL,
+    "Current state": CURRENT_STATE_PREFILL,      # row 1262: a report that already has this title keeps its hint
     "Summary": "Give the reader the headline: how the project is going, in two or three sentences.",
     "This week": "List what was done this week, and what moved forward.",
     "Next week": "List what is planned for next week, and who is doing it.",
 }
 DEFAULT_SECTIONS = (
-    {"type": "text", "title": "Current state", "body": ""},   # item 1188: a text section now; the older type "current" is still read and stored, and existing reports keep it
+    {"type": "text", "title": "Header", "body": ""},   # item 1188: a text section now; the older type "current" is still read and stored, and existing reports keep it
     {"type": "glance", "title": "At a glance"},
     {"type": "usecases", "title": "Use case summary"},
     {"type": "milestones", "title": "Milestones"},

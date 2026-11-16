@@ -89,7 +89,7 @@ class Reads(Base):
         self.assertEqual(self.state(inputs), "<p>Column.</p>")
 
     def test_ask_sees_the_section_body(self):
-        self.change(self.sections()[0]["id"], body="<p>Vendor contract signed.</p>")
+        self.change(self.sections()[0]["id"], title="Current state", body="<p>Vendor contract signed.</p>")      # row 1262: a report that has the title Current state keeps it; the new default is Header
         text = repr(ask_data.project_data(self.s, "ABC", "current state vendor", budget=40000).passages)
         self.assertIn("Vendor contract signed.", text)
 

@@ -14,7 +14,7 @@ from clark.store import Invalid
 
 NINE = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs")
 ELEVEN = (
-    ("text", "Current state", 0), ("glance", "At a glance", 0), ("usecases", "Use case summary", 0),
+    ("text", "Header", 0), ("glance", "At a glance", 0), ("usecases", "Use case summary", 0),
     ("milestones", "Milestones", 0), ("text", "Summary", 0), ("text", "This week", 1), ("text", "Next week", 0),
     ("raid", "Risks and issues", 0), ("actions", "Open actions", 0), ("decisions", "Decisions", 0),
     ("docs", "Supporting documents", 0))
@@ -90,7 +90,7 @@ class Seed(Base):
 
     def test_the_first_default_section_starts_with_an_empty_body(self):         # item 1188: instruction text never reaches a client; the line is the editor's hint only
         first = self.sections()[0]
-        self.assertEqual((first["type"], first["title"], first["body"]), ("text", "Current state", ""))
+        self.assertEqual((first["type"], first["title"], first["body"]), ("text", "Header", ""))
         self.assertEqual([r["body"] for r in self.sections()], [""] * 11)
         self.assertEqual(default_sections.DEFAULT_SECTIONS[0].get("body", ""), "")
         self.assertEqual([x.get("body", "") for x in default_sections.DEFAULT_SECTIONS], [""] * 11, "item 1193: Summary, This week and Next week start empty too")
