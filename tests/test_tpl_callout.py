@@ -234,6 +234,29 @@ class Page(n.PageChecks):
             got = json.loads(self.body_of(ref))
             self.assertEqual((got["category"], got["colour"], got["icon"]), ("Legal hold", "amber", "question"))
 
+    def test_edit_the_decision_icon_is_the_question_mark_the_title_and_words_line_up_with_the_category_and_the_counter_counts(self):
+        """Row 1272 rulings 17-11 (mock-up B wins): the Decision suggestion keeps the question icon; the title text and the words text start where the
+        category word starts; the toolbar says "Title N of 120" (N = characters typed, Edit only)."""
+        for width in (1400, 900):
+            ref = self.make(GOOD)
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp)
+                self._at(cdp, p, width)
+                p.edit()
+                sec = f"[data-id={json.dumps(ref)}]"
+                p.until(f"!!document.querySelector('{sec} [aria-label=\"Use Decision needed\"]')", "the toolbar")
+                p.js(f"document.querySelector('{sec} [aria-label=\"Use Decision needed\"]').click()")
+                p.saved()
+                self.assertEqual(json.loads(self.body_of(ref))["icon"], "question")
+                p.until(f"!!document.querySelector('{sec} .tpl-callout-tone')", "the category word")
+                left = p.js(f"""(() => {{ const q = (s) => document.querySelector('{sec} ' + s), edge = (el) => {{ const r = el.getBoundingClientRect(), c = getComputedStyle(el);
+                    return Math.round((r.left + parseFloat(c.borderLeftWidth) + parseFloat(c.paddingLeft)) * 10) / 10; }};
+                    return [q('.tpl-callout-tone').getBoundingClientRect().left, edge(q('.cb-title')), edge(q('.tpl-callout-main .rt-view'))].map((x) => Math.round(x * 10) / 10); }})()""")
+                self.assertEqual(len(set(left)), 1, f"the category word, the title text and the words start at one left edge: {left}")
+                self.assertEqual(p.js(f"document.querySelector('{sec} .cb-count').textContent"), f"Title {len(GOOD['title'])} of 120")
+                n.fill(p, n.field_js(ref, "Callout title"), "Four")
+                p.until(f"document.querySelector('{sec} .cb-count').textContent === 'Title 4 of 120'", "the counter follows what is typed")
+
 
 class SharedLook(unittest.TestCase):
     """#1272 slice 3: the tile and heading flags are read the same way for every section type; the prompt words are one pair of strings (the #1251 hook)."""

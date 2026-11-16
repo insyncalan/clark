@@ -605,7 +605,13 @@ textarea.tpl-field { resize: vertical; }
 .cb-opt { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-2) var(--space-1); border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: var(--text); font: inherit; font-size: var(--size-caption); cursor: pointer; }
 .cb-opt .i { width: 1.6em; height: 1.6em; }
 .cb .tpl-callout { margin: 0; }
-.tpl-field.cb-title { min-height: 2em; margin: 0 0 var(--space-1); padding: 0 var(--space-2); border-color: transparent; background: transparent; color: var(--heading); font-weight: var(--weight-medium); }
+/* row 1272 (mock-up B): the title and the words sit on the category word's left edge; the 1px edge and the padding are pulled back by the same amount. */
+.cb { --cb-pull: calc(var(--space-2) + 1px); }
+.tpl-field.cb-title { width: calc(100% + 2 * var(--cb-pull)); min-height: 2em; margin: 0 calc(-1 * var(--cb-pull)) var(--space-1); padding: 0 var(--space-2); border-color: transparent; background: transparent; color: var(--heading); font-weight: var(--weight-medium); }
+.cb .tpl-callout-main .rt-view { margin: 0 calc(-1 * var(--cb-pull)); padding: 0 var(--space-2); border: 1px solid transparent; }
+.cb .tpl-callout-main .rt-view:hover { outline: 0; border-color: var(--text-muted); }
+.cb-sep { align-self: stretch; width: 1px; margin: var(--space-1); background: var(--grey-200); }
+.cb-count { margin: 0 var(--space-2); font-size: var(--size-caption); color: var(--text-muted); white-space: nowrap; }
 .tpl-field.cb-title:hover { border-color: var(--text-muted); }
 .tpl-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
