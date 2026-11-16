@@ -59,7 +59,7 @@ NOT_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ud800-\udfff￾￿]")
 
 TITLES = {"current": "Current state", "glance": "At a glance", "usecases": "Use cases", "milestones": "Milestones",
           "text": "Notes", "raid": "Risks and issues", "actions": "Actions", "decisions": "Decisions", "gantt": "Gantt",
-          "imagecap": "Image"}                            # row 1223: only a Full width image (body version 2) is written, and it has no heading; an Image with caption (version 1) is left out, as it was
+          "imagecap": "Image", "workitems": "Work items"}                            # row 1223: only a Full width image (body version 2) is written, and it has no heading; an Image with caption (version 1) is left out, as it was
 HIDDEN_BY_KIND = ("actions", "raid", "decisions")
 HEADING_STYLE = {"h1": "Heading2", "h2": "Heading3", "h3": "Heading4"}
 MAX_LEVELS = 4                                           # list levels written
@@ -650,7 +650,34 @@ def section_decisions(published, ctx, title, sec):
     return _heading(title) + table(ctx, ["ID", "Decision", "Status", "Made by", "Date"], [1200, 4138, 1100, 1400, 1800], rows)
 
 
-SIMPLE = {"imagecap": section_imagecap, "current": section_current, "text": section_text, "milestones": section_milestones, "actions": section_actions,
+def section_workitems(published, ctx, title, sec):
+    """Row 1268: a Work items list prints the rows it names, in its order, as one table: the words of the three built-in tables."""
+    by_id = {r.get("id"): (t, r) for t in ("actions", "raid", "decisions") for r in _rows(published, t)}
+    rows = []
+    for i in sec.get("items") or ():
+        if i not in by_id:
+            continue
+        t, r = by_id[i]
+        if t == "decisions":
+            pending = r.get("status") == "Pending"
+            when = _date(r.get("needed_by") if pending else r.get("date")) if (r.get("needed_by") if pending else r.get("date")) else ""
+            late = colours_table.is_late("decisions", "needed_by", r, ctx.today)
+            rows.append([word_cell(i, ctx), (text_paras(_words(r, "client_message", "decision"), ctx), None), word_cell(r.get("made_by"), ctx),
+                         word_cell(None, ctx), word_cell(when + (" (overdue)" if late and when else ""), ctx, late=late),
+                         word_cell(r.get("status"), ctx, colour=colours_table.colour_for("decisions", "status", r.get("status")))])
+        else:
+            kind = "action" if t == "actions" else str(r.get("type") or "").lower()
+            rows.append([word_cell(i, ctx), (text_paras(_words(r, "client_message", "description"), ctx), None),
+                         word_cell(r.get("owner"), ctx, extra=[r.get("workstream")]),
+                         word_cell(r.get("priority"), ctx, colour=colours_table.colour_for(t, "priority", r.get("priority"))),
+                         _due(t, "due_date", r, ctx), _status_cell(r, kind, ctx)])
+    if not rows:
+        return ""
+    caption = para(run(sec["caption"], color=ctx.tok["grey-700"], size=18)) if sec.get("caption") else ""
+    return _heading(title) + caption + table(ctx, ["ID", "Title", "Owner", "Priority", "Due", "Status"], [1200, 3638, 1350, 950, 1200, 1200], rows)
+
+
+SIMPLE = {"workitems": section_workitems, "imagecap": section_imagecap, "current": section_current, "text": section_text, "milestones": section_milestones, "actions": section_actions,
           "raid": section_raid, "decisions": section_decisions, "gantt": section_gantt}
 
 
