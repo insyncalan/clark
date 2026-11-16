@@ -10,6 +10,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import test_server  # noqa: E402,F401  (marks this file as a browser test for the tiers)
 from test_publish import chrome, opened, wait  # noqa: E402
 from test_uc_rowh_1234 import made  # noqa: E402
 
