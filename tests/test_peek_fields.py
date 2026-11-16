@@ -15,7 +15,7 @@ from test_server import chrome, wait  # noqa: E402
 from test_work_filters import click  # noqa: E402
 
 ACTION = "TUL-A-001"
-RISK = "TUL-007"     # item 1181: an action no longer draws Client wording or a Use case picker (ticket, Details rows), so those tests use a risk or issue
+RISK = "TUL-007"     # rows 1181 and 1256: an action, a risk and an issue no longer draw Client wording or a Use case picker (their Details rows), so those tests use a decision
 SRC = ROOT / "src/clark/page/src"
 
 
@@ -135,6 +135,11 @@ class Title(Fields):
 
 
 class Wording(Fields):
+    # row 1256: an action, a risk and an issue no longer draw Client wording in the peek (their Details are one body); a decision still does,
+    # and the report rows edit it for the others (test_inline_edits)
+    def decision(self):
+        return self.data["decisions"][0]
+
     BOX = "#peek [data-ce]"            # item 1005: the wording drawn as text; a click opens the one editor (a ProseMirror) in its place, Enter saves
 
     def words(self, cdp, sid):
@@ -146,26 +151,26 @@ class Wording(Fields):
         cdp.js(f"(() => {{ const e = document.activeElement.cxed.editor; e.commands.selectAll(); e.commands.insertContent({json.dumps(text)}); }})()", sid)
 
     def test_the_client_wording_is_changed_in_place_and_undone_in_one_step(self):
-        was = (self.raid(RISK).get("client_message") or "").strip()
+        was = (self.decision().get("client_message") or "").strip()
         for width, dark in self.widths():
             with self.subTest(width=width, dark=dark), chrome() as cdp:
-                sent, sid = self.load(cdp, width, RISK, dark=dark)
+                sent, sid = self.load(cdp, width, self.decision()["id"], dark=dark)
                 self.assertEqual(cdp.js("document.querySelector('#peek [data-ce]').closest('.pk-row').querySelector('dt').textContent", sid), "Client wording")
                 self.assertEqual(self.words(cdp, sid), was)
                 self.assertTrue(self.inside(cdp, sid, BOX_PK), "the box fits the peek")
                 self.type_words(cdp, sid, "Plain words a client can read")
                 key(cdp, sid, "Enter")
                 self.assertTrue(wait(lambda: len(sent) == 1))
-                self.assertEqual((sent[0]["kind"], sent[0]["id"], sent[0]["changes"]), ("raid", RISK, {"client_message": "Plain words a client can read"}))
-                self.assertTrue(wait(lambda: f"Wording of {RISK} changed." in self.toast(cdp, sid)))
+                self.assertEqual((sent[0]["kind"], sent[0]["id"], sent[0]["changes"]), ("decisions", self.decision()["id"], {"client_message": "Plain words a client can read"}))
+                self.assertTrue(wait(lambda: f"Wording of {self.decision()['id']} changed." in self.toast(cdp, sid)))
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.toast [data-undo]')", sid)))
                 cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
                 self.assertTrue(wait(lambda: self.words(cdp, sid) == was), "one Undo puts the old words back")
 
     def test_escape_and_an_empty_text_put_the_old_words_back(self):
-        was = (self.raid(RISK).get("client_message") or "").strip()
+        was = (self.decision().get("client_message") or "").strip()
         with chrome() as cdp:
-            sent, sid = self.load(cdp, 1400, RISK)
+            sent, sid = self.load(cdp, 1400, self.decision()["id"])
             self.type_words(cdp, sid, "Typed and abandoned")
             key(cdp, sid, "Escape")
             self.assertTrue(wait(lambda: self.words(cdp, sid) == was))
@@ -180,7 +185,7 @@ class Wording(Fields):
     def test_the_open_peek_wording_editor_shows_no_toolbar_and_no_keys_line(self):
         for width, dark in self.widths():
             with self.subTest(width=width, dark=dark), chrome() as cdp:
-                sent, sid = self.load(cdp, width, RISK, dark=dark)
+                sent, sid = self.load(cdp, width, self.decision()["id"], dark=dark)
                 cdp.js(f"document.querySelector({json.dumps(self.BOX)}).click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("document.activeElement.classList.contains('ProseMirror')", sid), 15), "the editor opens with the focus in it")
                 shown = cdp.js("['#peek .rt-bar', '#peek .rt-keys'].map(q => { const e = document.querySelector(q); return e ? getComputedStyle(e).display : 'none'; })", sid)
@@ -198,13 +203,11 @@ class Picks(Fields):
     def shown(self, cdp, sid, field):
         return cdp.js(f"(b => b ? b.textContent : null)(document.querySelector('#peek [data-pk-pick={field}]'))", sid)
 
-    def test_workstream_milestone_and_use_case_are_chosen_in_the_peek_each_with_one_undo(self):
+    def test_workstream_and_milestone_are_chosen_in_the_peek_each_with_one_undo(self):
         a = self.raid(RISK)
         other_ws = next(w["name"] for w in self.data["workstreams"] if w["name"] != a["workstream"] and w["status"] != "Closed" and not w.get("archived"))
         other_ms = next(m for m in self.data["milestones"] if m["id"] != a["milestone"] and not m.get("archived"))
-        other_uc = next(u for u in self.data["use_cases"] if u["id"] != a["use_case"] and not u.get("archived"))
-        cases = [("workstream", other_ws, other_ws, "Workstream"), ("milestone", other_ms["id"], other_ms["name"], "Milestone"),
-                 ("use_case", other_uc["id"], f"Use case {other_uc['ref']}", "Use case")]
+        cases = [("workstream", other_ws, other_ws, "Workstream"), ("milestone", other_ms["id"], other_ms["name"], "Milestone")]
         for width, dark in self.widths():
             for field, value, words, name in cases:
                 with self.subTest(width=width, dark=dark, field=field), chrome() as cdp:
@@ -218,9 +221,7 @@ class Picks(Fields):
                     self.assertTrue(wait(lambda: len(sent) == 1))
                     self.assertEqual((sent[0]["kind"], sent[0]["id"], sent[0]["changes"]), ("raid", RISK, {field: value}))
                     self.assertTrue(wait(lambda: self.shown(cdp, sid, field) == words))
-                    self.assertTrue(wait(lambda: (f"{RISK}: use case changed to {other_uc['ref']}." if field == "use_case" else f"{name} of {RISK} changed to {words}.") in self.toast(cdp, sid)))
-                    if field == "use_case":
-                        self.assertNotIn("Use case of", self.toast(cdp, sid))
+                    self.assertTrue(wait(lambda: f"{name} of {RISK} changed to {words}." in self.toast(cdp, sid)))
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.toast [data-undo]')", sid)))
                     cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
                     self.assertTrue(wait(lambda: self.shown(cdp, sid, field) == was), "one Undo puts it back")
@@ -242,12 +243,13 @@ class Picks(Fields):
             self.assertTrue(wait(lambda: self.shown(cdp, sid, "milestone") == "No milestone"))
 
     def test_the_none_choice_of_a_use_case_says_cleared(self):
+        ref = self.data["decisions"][0]["id"]      # row 1256: a risk no longer draws a Use case choice; a decision does
         with chrome() as cdp:
-            sent, sid = self.load(cdp, 1400, RISK)
+            sent, sid = self.load(cdp, 1400, ref)
             click(cdp, sid, "#peek [data-pk-pick=use_case]")
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[role=menu]')", sid)))
             cdp.js("document.querySelector(\"[role=menu] [data-value='']\").click()", sid)
-            self.assertTrue(wait(lambda: f"Use case of {RISK} cleared." in self.toast(cdp, sid)))
+            self.assertTrue(wait(lambda: f"Use case of {ref} cleared." in self.toast(cdp, sid)))
             self.assertTrue(wait(lambda: sent and sent[0]["changes"] == {"use_case": None}))
 
     def test_a_decision_has_a_use_case_choice_and_no_workstream_or_milestone_choice(self):
