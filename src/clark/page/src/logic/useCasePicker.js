@@ -1,10 +1,14 @@
 // Row 1234: the add-a-use-case picker's logic. Plain functions, no DOM, no store, no imports, so a node test runs them alone.
 // A row is the shape useCasesList.listOf gives ({id, ref, name, status, commitment, open, total}); `steps` (open steps) may be added by the caller.
 // State: {q, filters: {fieldKey: {mode: "is" | "not", values: [..]}}, picked: [ids]}. Nothing here saves: the caller gets the ids.
+// Words the owner has not ruled on yet (row 1234). One constant each so a ruling is one edit; the picker types none of them elsewhere.
+export const UNRULED_OPEN_STEPS = "Open steps";
+export const UNRULED_RESULT = (shown, total) => `Result: ${shown} of ${total} shown`;
+export const UNRULED_ADD = (n) => (n ? `Add ${n}` : "Add selected"); // at 0 no number; "Add selected" is the old picker's word
 export const FIELDS = [
   { key: "status", label: "Status", get: (r) => r.status },
   { key: "commitment", label: "Commitment", get: (r) => r.commitment },
-  { key: "steps", label: "Open steps", more: true, get: (r) => r.steps },
+  { key: "steps", label: UNRULED_OPEN_STEPS, more: true, get: (r) => r.steps },
   { key: "total", label: "Work items", more: true, get: (r) => r.total },
 ];
 const text = (v) => (v === undefined || v === null ? "" : String(v));
@@ -57,6 +61,5 @@ export const clearPicked = (s) => ({ ...s, picked: [] });
 export const pickedIds = (s, rows) => { const ids = new Set(rows.map((r) => r.id)); return s.picked.filter((id) => ids.has(id)); };
 
 export const counts = (rows, s) => ({ shown: visible(rows, s).length, total: rows.length, picked: pickedIds(s, rows).length });
-// The words: "Result: N of M shown" and "Add N" (at 0 no number: "Add selected", the word the old picker already uses).
-export const resultWords = (c) => `Result: ${c.shown} of ${c.total} shown`;
-export const addWords = (c) => (c.picked ? `Add ${c.picked}` : "Add selected");
+export const resultWords = (c) => UNRULED_RESULT(c.shown, c.total);
+export const addWords = (c) => UNRULED_ADD(c.picked);

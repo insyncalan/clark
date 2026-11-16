@@ -142,7 +142,8 @@ export function addWords(n) {
 }
 // The empty-state sentence: nothing hidden at all, or nothing matching the search.
 export const ALL_ON_PAGE = "Everything is already on the page.";
+export const NO_MATCH = "Nothing matches your search. Clear it to see what can be added.";
 export function emptyWords(data, hiddenIds, query, onPage) {
   if (!idsOf(pickable(data, hiddenIds, "", onPage)).length) return ALL_ON_PAGE;
-  return idsOf(pickable(data, hiddenIds, query, onPage)).length ? "" : "Nothing matches your search. Clear it to see what can be added.";
+  return idsOf(pickable(data, hiddenIds, query, onPage)).length ? "" : NO_MATCH;
 }
