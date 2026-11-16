@@ -65,7 +65,7 @@ CLOSED = ("Closed", "Cancelled", "Made", "Withdrawn")
 
 
 def built_in_rows(p, section):
-    """The ids the built-in section holds: open rows; Decisions are Pending plus Made in the last 14 days (Alan 16-11)."""
+    """The ids the built-in section holds: open rows; Decisions are Pending plus Made in the last 14 days (ruling of 16-11)."""
     rows = p["data"][section]
     if section != "decisions":
         return sorted(r["id"] for r in rows if r.get("status") not in CLOSED)
@@ -140,7 +140,7 @@ class Data(Api):
                 self.assertEqual(sorted(str(ws.cell(r, 1).value) for r in range(5, ws.max_row + 1) if ws.cell(r, 1).value), every[table])
 
     def test_at_a_glance_counts_are_the_same_with_the_lists_as_with_the_built_in_sections(self):
-        """Alan 16-11: the tiles count what the client can open (Visible), and need no built-in section."""
+        """Ruling of 16-11: the tiles count what the client can open (Visible), and need no built-in section."""
         def tiles(p):
             return {t["tile"]: (t["value"], t["detail"]) for t in p["data"]["glance"]["tiles"]}
         with_built_in = tiles(self.build(True))
