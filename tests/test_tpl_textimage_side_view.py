@@ -187,6 +187,18 @@ class View(unittest.TestCase):
         self.draw(content(), 1400)
         self.assertEqual(self.measure()["pos"], "50% 50%")
 
+    def test_the_focus_edges_zero_and_one_thousand_are_carried_and_drawn_and_one_past_is_not(self):
+        got = self.js(f"F.shown({json.dumps({'v': 2, 'html': '<p>x</p>', 'fx': 1000, 'fy': 0, 'pictures': {'image': IMG}})})")
+        self.assertEqual(got["fx"], 1000, "1000 is the far edge and is kept")
+        self.assertEqual(got["fy"], 0, "0 is a real focus, carried unless it is the centre")
+        got = self.js(f"F.shown({json.dumps({'v': 2, 'html': '<p>x</p>', 'fx': 0, 'fy': 1000, 'pictures': {'image': IMG}})})")
+        self.assertEqual([got["fx"], got["fy"]], [0, 1000])
+        got = self.js(f"F.shown({json.dumps({'v': 2, 'html': '<p>x</p>', 'fx': 1001, 'fy': -1, 'pictures': {'image': IMG}})})")
+        self.assertNotIn("fx", got)
+        self.assertNotIn("fy", got)
+        self.draw(content(fx=1000, fy=0), 1400)
+        self.assertEqual(self.measure()["pos"], "100% 0%")
+
     def test_text_beside_a_short_image_starts_at_the_top(self):
         self.draw(content(shape="square", share="third"), 1400)
         m = self.measure()
