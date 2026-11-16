@@ -53,6 +53,21 @@ class Overdue(unittest.TestCase):
                         self.assertEqual(sub["bg"], g["redTint"], "a red-tint pill")
                         self.assertNotEqual(sub["radius"], "0px")
 
+    def test_an_overdue_action_status_chip_says_open_and_the_due_chip_carries_the_lateness(self):
+        for width in (1400, 900):
+            with self.with_overdue(), chrome() as cdp:
+                s, sid = self.load_page(cdp, width)
+                for mode in ("view", "edit"):
+                    if mode == "edit":
+                        self.edit_mode(cdp, sid)
+                    with self.subTest(f"{width} {mode}"):
+                        got = self.open_item(cdp, sid, OVERDUE, view=mode == "view")
+                        status, due = got["chips"]["status"], got["chips"]["due"]
+                        self.assertEqual(status["text"], "Open", "an overdue action's Status chip says Open, not Overdue")
+                        self.assertNotIn("Overdue", status["text"])
+                        self.assertEqual(due["sub"], "overdue 2 days", "the Due chip carries the overdue pill")
+                        self.assertEqual(due["subColour"], got["red"])
+
     def test_hover_is_a_soft_fill_and_the_border_does_not_change(self):
         for width in (1400, 900):
             with self.with_overdue(), chrome() as cdp:
