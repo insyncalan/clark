@@ -484,6 +484,12 @@ class Detail(unittest.TestCase):
             type_owner("x" * 201)
             self.until(cdp, sid, "/200 characters at most/.test((document.querySelector('.toast-text') || {}).textContent || '')", "a long owner is refused in plain words")
             self.assertEqual((len(self.sent), self.steps(), self.row()["owner"]), (n, before, was["owner"]), "nothing was sent")
+            # Esc puts the old owner back and sends nothing
+            cdp.js("(() => { const t = document.querySelector('[data-ucd] [data-ucd-field=owner]'); t.focus(); t.select(); })()", sid)
+            cdp.call("Input.insertText", {"text": "Thrown away"}, sid)
+            key(cdp, sid, "Escape")
+            self.assertEqual(cdp.js("document.querySelector('[data-ucd] [data-ucd-field=owner]').value", sid), was["owner"] or "")
+            self.assertEqual((len(self.sent), self.steps(), self.row()["owner"]), (n, before, was["owner"]), "Esc sent nothing")
 
     def test_the_status_menu_offers_four_words_and_a_pick_is_one_change_with_one_undo(self):
         with chrome() as cdp:
