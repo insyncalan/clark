@@ -16,7 +16,7 @@ from _paths import ROOT   # noqa: F401
 from openpyxl import load_workbook
 from clark import docx_build, excel, excel_client
 
-from test_docx_build import published, every_text, headings
+from test_docx_build import published, every_text, headings, blocks
 
 BUILT_IN = ("actions", "raid", "decisions")
 
@@ -72,6 +72,23 @@ class Word(unittest.TestCase):
     def test_the_columns_come_in_the_pages_order(self):
         got = cells(docx_build.build(with_list(["PUB-A-001"], columns=("status", "owner", "id", "type"))))
         self.assertEqual(got[:5], ["Type", "ID", "Item", "Owner", "Status"])
+
+    def list_table(self, p):
+        return next(b["rows"] for b in blocks(docx_build.build(p)) if b["kind"] == "table" and b["rows"][0][0] == "ID" and b["rows"][0][1] == "Item")
+
+    def test_the_header_row_is_the_on_screen_words(self):
+        # the Work items list's own words (templates/workItemsList.js WORDS.columns, WorkItemsList.jsx): ID, Item (the title), Owner, Due, Status, Priority
+        self.assertEqual(self.list_table(with_list(["PUB-A-001"], columns=("id", "owner", "priority", "due", "status")))[0], ["ID", "Item", "Owner", "Due", "Status", "Priority"])
+
+    def test_a_late_row_says_what_the_screen_says_not_overdue(self):
+        p = with_list(["PUB-A-002"], columns=("id", "owner", "priority", "due", "status"))
+        p["as_at"] = "2026-12-31"
+        due = self.list_table(p)[1][3]
+        self.assertEqual(due, "06-11-2026 55 days late")      # workItems.js dueCell: N days late
+        self.assertNotIn("(overdue)", every_text(docx_build.build(p)))
+
+    def test_a_row_not_late_has_the_date_alone(self):
+        self.assertEqual(self.list_table(with_list(["PUB-A-002"], columns=("id", "owner", "priority", "due", "status")))[1][3], "06-11-2026")
 
     def test_the_built_in_sections_are_as_before(self):
         p = published()
