@@ -137,9 +137,9 @@ export function View({ section, data }) {
   if (!rows.length) return null;
   return (
     <div class="wil" data-wil="">
+      {list.caption ? <p class="wil-cap">{list.caption}</p> : null}
       <Scroller max={list.max || rows.length} count={rows.length}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} /></Scroller>      {/* row 1268: a row opens the peek in View and in a published file: read only there (Peek draws no control unless the page is editing), editable in Edit */}
       {fromFile.value ? null : <Foot section={section} total={rows.length} max={list.max} edit={false} />}
-      {list.caption ? <p class="wil-cap">{list.caption}</p> : null}
     </div>
   );
 }

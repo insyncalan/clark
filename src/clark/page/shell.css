@@ -2143,7 +2143,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .wil-lines .wil-t, .wil-lines .wil-m { grid-column: 2; }
 .wil-t { color: var(--text); overflow-wrap: anywhere; }
 .wil-m { font-size: var(--size-small); color: var(--text-muted); overflow-wrap: anywhere; }
-.wil-cap { margin: var(--space-2) 0 0; font-size: var(--size-caption); color: var(--text-muted); }
+.wil-cap { margin: 0 0 var(--space-2); font-size: var(--size-caption); color: var(--text-muted); }
 .sec.slot-full .wil-lines, .sec.slot-left .wil-table, .sec.slot-right .wil-table { display: none; }
 @media (max-width: 1100px) {
   .wil-table .wil-c-workstream, .wil-table .wil-c-milestone, .wil-table .wil-c-owner { width: 100px; }

@@ -651,7 +651,6 @@ textarea.tpl-field { resize: vertical; }
 .wil-cfg .wil-opts { display: grid; grid-template-columns: 1fr 1fr; }
 .wil-cacts { display: flex; justify-content: flex-end; }
 .wil-cacts button { min-height: 36px; padding: 0 20px; border: 0; border-radius: 999px; background: var(--grey-100); color: var(--text); font: inherit; font-weight: var(--weight-medium); cursor: pointer; }
-.wil-capbox { margin: var(--space-2) 0 0; }
 .wil-none { margin: var(--space-2) 0; padding: 10px var(--space-3); border: 1px dashed var(--grey-300); border-radius: var(--radius); color: var(--text); font-size: var(--size-small); }
 .wil-live tbody tr, .wil-live li { cursor: pointer; }
 .wil-table .wil-c-eye { width: 44px; padding-left: 0; padding-right: 0; text-align: center; }   /* row 1113: the Work items page eye, at the end of each row */
