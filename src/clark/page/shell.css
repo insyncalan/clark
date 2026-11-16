@@ -2034,7 +2034,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-quote-nm { font-family: var(--font-head); font-size: var(--size-caption); font-weight: var(--weight-medium); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--heading); }
 .tpl-quote-by .tpl-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .tpl-quote-rl { font-size: var(--size-caption); color: var(--text-muted); }
-@container half (max-width: 520px) { .tpl-quote { padding: var(--space-3) var(--space-4); } }      /* a half card (493 at 1400) keeps the panel and the rule; the words wrap, nothing runs wider */
+@container half (max-width: 520px) { .tpl-quote { padding: var(--space-3) var(--space-4); } }      /* a half card keeps the panel and the rule; the words wrap, nothing runs wider */
 /* #1271: no tile (the card around the quote) and no heading. In Edit the card stays, dashed, and the heading struck through, so the section can be found. */
 .sec.no-tile { background: transparent; border-color: transparent; box-shadow: none; }
 #report[data-mode="view"] .sec.no-tile { padding-left: 0; padding-right: 0; }

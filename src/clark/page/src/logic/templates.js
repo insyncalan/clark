@@ -61,7 +61,7 @@ export const TEMPLATES = [
   { id: "full-image", name: WORDS.name, kind: "text", fit: ["full"], type: "imagecap", title: WORDS.name, body: "", start: '{"v":2}', ready: true,
     description: WORDS.description, holds: WORDS.holds },
   { id: "quote", name: "Quote", kind: "text", fit: ["half", "full"], type: "quote", title: "Quote", body: "", ready: true,
-    description: "A voice from the business.", holds: ["Heading", "Text (quote)", "Person"] },
+    description: "A voice from the business.", holds: ["Heading", "Quote", "Said by", "Role"] },
   { id: "contacts", name: "Contacts", kind: "dates", fit: ["half", "full"], type: "contacts", title: "Contacts", body: "", ready: true,
     description: "Who to ask.", holds: ["Heading", "Person", "Person", "Person"] },
   { id: "checklist", name: "Checklist", kind: "dates", fit: ["half", "full"], type: "checklist", title: "Checklist", body: "", ready: true,
@@ -149,7 +149,7 @@ export const SKETCHES = {
   "callout": ["", ["background:var(--status-amber-tint);border-left:3px solid var(--status-amber)"]],
   "image-caption": ["grid-template-rows:2fr 1fr", [IMG, "width:50%"]],
   "full-image": ["grid-template-rows:3fr 1fr", [IMG, "width:40%"]],
-  "quote": ["grid-template-rows:2fr 1fr", ["border-left:3px solid var(--brand-cyan)", "width:40%"]],
+  "quote": ["grid-template-rows:2fr 1fr", ["background:var(--grey-50);border-top:3px solid var(--brand-blue);border-radius:var(--radius-sm)", "width:40%"]],      // #1271 look B: the panel with the blue rule on top; no cyan stripe
   "contacts": ["grid-template-rows:repeat(3,1fr)", ["width:70%", "width:70%", "width:70%"]],
   "checklist": ["grid-template-rows:repeat(3,1fr)", ["width:80%", "width:60%", "width:70%"]],
   "key-dates": ["grid-template-rows:repeat(3,1fr)", ["width:90%", "width:90%", "width:90%"]],

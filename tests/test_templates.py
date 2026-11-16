@@ -122,6 +122,16 @@ class Logic(unittest.TestCase):
         for t in self.t("TEMPLATES"):      # a row with the card's name AND its description (row 1068: two cards are called Table, the Notes grid and the Gantt table, each with its own row)
             self.assertIn((t["name"], t["description"]), rows, f"{t['name']}: Help has a row for it, in the box's words")
 
+    def test_the_quote_card_sketch_is_look_b_with_no_cyan_stripe_and_holds_edits_words(self):
+        """Row 1271: the library sketch draws the panel with the blue rule on top (look B), not a cyan side stripe; Holds says Quote, Said by, Role."""
+        sk = self.t("SKETCHES")["quote"]
+        joined = " ".join(sk[1])
+        self.assertNotIn("brand-cyan", joined)
+        self.assertNotIn("border-left", joined)
+        self.assertIn("border-top:3px solid var(--brand-blue)", sk[1][0])
+        card = next(x for x in self.t("TEMPLATES") if x["id"] == "quote")
+        self.assertEqual(card["holds"], ["Heading", "Quote", "Said by", "Role"])
+
     def test_descriptions_and_what_each_holds_are_the_prototypes(self):
         """The review table: the words and parts are the prototype's (system/prototype/views.js), so Help's table can match them."""
         got = {x["id"]: (x["description"], x["holds"], x["fit"]) for x in self.t("TEMPLATES")}
@@ -137,7 +147,7 @@ class Logic(unittest.TestCase):
             "callout": ("One thing the reader must see.", ["Heading", "Callout · decision"], ["half", "full"]),
             "key-dates": ("What’s coming, from the milestones.", ["Heading", "Date (from milestones)"], ["half", "full"]),
             "link-preview": ("A web page shown as a card you write: a dashboard, a news item, a recording.", ["Heading", "Link", "Card text"], ["full"]),
-            "quote": ("A voice from the business.", ["Heading", "Text (quote)", "Person"], ["half", "full"]),
+            "quote": ("A voice from the business.", ["Heading", "Quote", "Said by", "Role"], ["half", "full"]),
             "table": ("Anything with rows: a budget line, a cut-over plan, a training schedule.", ["Heading", "Table"], ["full"]),
             "contacts": ("Who to ask.", ["Heading", "Person", "Person", "Person"], ["half", "full"]),
             "checklist": ("Next steps or readiness, ticked off.", ["Heading", "Checklist · linked to work items"], ["half", "full"]),
