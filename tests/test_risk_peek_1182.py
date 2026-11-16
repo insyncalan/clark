@@ -1,4 +1,5 @@
 """Row 1182: the Risk peek (the approved mockup, button Risk). Run: python3 dev/run_tests.py test_risk_peek_1182
+The page runs in headless Chrome (set CLARK_CHROME to its path).
 
 A risk's peek has a Rating chip (not Priority; also an issue's, row 1183; the chip row of row 1180) that opens a 3 x 3 matrix of impact and likelihood: one click sets both, in
 one step with one Undo. The peek's status picker lists Open, Closed and Cancelled only (no Red, Amber, Green); a closed risk says
