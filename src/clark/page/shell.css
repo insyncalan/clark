@@ -543,7 +543,7 @@ html[data-density="comfortable"] .frame.report { padding: var(--space-1) 28px 0;
 .slot-left { grid-column: 1; }
 .sec.slot-left, .sec.slot-right { container: half / inline-size; }      /* row 1099: the item rows (shell.css, .irows) size to the half card, not to the window */
 .slot-right { grid-column: 2; }
-:root { --quote-half-w: 493px; }      /* #1271, Alan 16-11 (Quote B, 493): a Quote's half card is 493 wide at a 1400 window, where every other half card is 604 (two equal columns less the gap). Only above 900: below it a half card is the full width. */
+:root { --quote-half-w: 493px; }      /* #1271, the owner (16-11: Quote B, 493): a Quote's half card is 493 wide at a 1400 window, where every other half card is 604 (two equal columns less the gap). Only above 900: below it a half card is the full width. */
 @media (min-width: 901px) { .sec.slot-left[data-type="quote"], .sec.slot-right[data-type="quote"] { width: 100%; max-width: var(--quote-half-w); } }
 .sec-head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
 /* The coloured square: --brand-blue is at least 3:1 against the card, and against the grey band, in light and in dark. */

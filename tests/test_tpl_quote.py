@@ -98,7 +98,7 @@ class Page(n.PageChecks):
 
     def test_half_width_quote_keeps_look_b_inside_its_card_in_view_and_edit_light_and_dark(self):
         """Row 1271, half width: a Quote placed as the left half keeps the panel and the rule, nothing runs wider than its card, the page does not scroll
-        sideways. Row 1271 (Alan 16-11, Quote B, 493): the Quote's half card is 493 wide at 1400 (every other half card stays 604, the 1232 content less the 24 gap,
+        sideways. Row 1271 (the owner, 16-11: Quote B, 493): the Quote's half card is 493 wide at 1400 (every other half card stays 604, the 1232 content less the 24 gap,
         halved) and the full width at 900. The numbers are printed."""
         ref = self.make({**GOOD, "quote": "Fictional " + "words " * 90})
         with chrome() as cdp:
