@@ -209,7 +209,7 @@ function Workstream({ m }) {
 // link through the use cases' own msadd and msremove (no change of the store); it works on the DIRECT links, the only ones msremove can end. It shows the first direct
 // one (else the first that reaches it through a work item); "No use case" is offered only when a direct link exists to remove. A change is the add, then the remove of the old
 // link, as ONE message with ONE Undo (changeSteps); a refused add leaves the old link as it was.
-const ucName = (u) => (u.ref ? `UC ${u.ref} ${u.title}` : u.title);
+const ucName = (u) => (u.ref ? ["UC", u.ref, u.title].join(" ") : u.title);
 function UseCase({ m }) {
   const [open, setOpen] = useState(false);
   const button = useRef(null);
