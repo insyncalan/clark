@@ -43,6 +43,26 @@ class StatusKept(unittest.TestCase):
                 self.peek(cdp, sid, ref)
                 self.assertEqual(self.sub(cdp, sid, "status"), "", ref)
 
+    def test_kept_is_a_red_pill_from_the_tokens(self):
+        """Row 1256-A2 (ticket 1d): the 'kept' line is a pill in the red tint with the red text, from the status tokens, at 1400 and 900 wide.
+        Killer for: the kept line drawn as plain muted text (no subTone)."""
+        probe = ("(() => { const p = document.createElement('i'); p.style.cssText = 'background:var(--status-red-tint);color:var(--status-red-text)';"
+                 " document.body.appendChild(p); const c = getComputedStyle(p); const o = [c.backgroundColor, c.color]; p.remove(); return o; })()")
+        read = ("(() => { const e = document.querySelector('#peek .pk-chips [data-row=status] .pkc-sub'); const c = getComputedStyle(e);"
+                " return [c.backgroundColor, c.color, c.borderTopLeftRadius, c.fontSize, c.fontWeight]; })()")
+        with chrome() as cdp:
+            for width in (1400, 900):
+                sid = self.open_page(cdp, width)
+                want = cdp.js(probe, sid)
+                for ref in ("TUL-008", "TUL-012"):
+                    self.peek(cdp, sid, ref)
+                    bg, fg, radius, size, weight = cdp.js(read, sid)
+                    self.assertEqual([bg, fg], want, f"{ref} at {width}: red tint and red text from the tokens")
+                    self.assertGreaterEqual(float(radius.replace("px", "")), 9, f"{ref} at {width}: a pill (radius 999)")
+                    self.assertGreaterEqual(float(size.replace("px", "")), 13, f"{ref} at {width}: 13 px floor")
+                    self.assertEqual(weight, "700", f"{ref} at {width}")
+                    print(f"MEASURED {width} {ref}: bg={bg} fg={fg} radius={radius} size={size} weight={weight}")
+
 
 if __name__ == "__main__":
     unittest.main()
