@@ -53,6 +53,8 @@ class Head(unittest.TestCase):
     def calm(self, cdp, sid):
         self.assertTrue(wait(lambda: cdp.js("(p => !p || p.getAnimations({subtree: true}).every(a => a.playState !== 'running'))(document.querySelector('#peek'))", sid)),
                         "the peek has stopped moving")
+        self.assertTrue(wait(lambda: cdp.js("(a => !a || a.getAttribute('aria-busy') !== 'true')(document.querySelector('#peek .pk-activity'))", sid)),
+                        "the history has arrived, so the peek has its full height (and its scrollbar, or none) before anything is measured")
 
     def value(self, cdp, sid):
         return cdp.js("(t => t ? t.value : null)(document.querySelector('#peek textarea[data-pk-title-in]'))", sid)

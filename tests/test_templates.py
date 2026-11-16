@@ -47,11 +47,12 @@ FIRST_SLICE_DESCRIPTIONS = [
     {"id": "table", "description": "Anything with rows: a budget line, a cut-over plan, a training schedule."},
     {"id": "gallery", "description": "Pictures in a grid, each with a caption."},
     {"id": "image-caption", "description": "One picture with its caption."},
+    {"id": "full-image", "description": "One image across the full width, framed as you choose, with an optional caption."},
     {"id": "quote", "description": "A voice from the business."},
     {"id": "contacts", "description": "Who to ask."},
     {"id": "checklist", "description": "Next steps or readiness, ticked off."},
 ]
-FIRST_SLICE = ["text", "text-image", "figures-4", "figures-3", "gallery", "table", "raid-3", "raid-4", "work-items", "docs-links", "callout", "image-caption", "quote", "contacts", "checklist", "key-dates", "link-preview", "current-state", "plan-summary", "one-doc"]      # the box's templates: the first slice, Needs from you (#121) and the two files and links ones moved in (#96 G7); every one built
+FIRST_SLICE = ["text", "text-image", "figures-4", "figures-3", "gallery", "table", "raid-3", "raid-4", "work-items", "docs-links", "callout", "image-caption", "full-image", "quote", "contacts", "checklist", "key-dates", "link-preview", "current-state", "plan-summary", "one-doc"]      # the box's templates: the first slice, Needs from you (#121) and the two files and links ones moved in (#96 G7); every one built
 BOX = FIRST_SLICE[:-1] + ["gantt", "gantt-table"] + FIRST_SLICE[-1:]      # the box's cards: the Gantt (row 926) and the Gantt table (row 1068) sit before One document, placeable since the store takes their types (layouts 19 and 21)
 
 
@@ -141,6 +142,7 @@ class Logic(unittest.TestCase):
             "contacts": ("Who to ask.", ["Heading", "Person", "Person", "Person"], ["half", "full"]),
             "checklist": ("Next steps or readiness, ticked off.", ["Heading", "Checklist · linked to work items"], ["half", "full"]),
             "image-caption": ("One picture with its caption.", ["Heading", "Image", "Caption"], ["half", "full"]),
+            "full-image": ("One image across the full width, framed as you choose, with an optional caption.", ["Image", "Caption (optional)"], ["full"]),      # row 1223
             "gallery": ("Pictures in a grid, each with a caption.", ["Heading", "Image", "Caption", "Image", "Caption", "Image"], ["full"]),
             "current-state": ("The state of the project in a few lines, to sit beside another section.", ["Heading", "Text"], ["full", "half"]),
             "plan-summary": ("Where the plan stands, in clark’s one editor: headings, lists and links. Starts with two headings to fill in.", ["Heading", "Rich text: headings, lists, quote, links"], ["full", "half"]),
@@ -205,7 +207,7 @@ class Logic(unittest.TestCase):
     # ── search, kinds, counts, recently used ─────────────────────────────────
 
     def test_search_and_kinds_and_counts(self):
-        self.assertEqual(len(self.t("list()")), 22)      # row 1068: + the Plan table card
+        self.assertEqual(len(self.t("list()")), 23)      # row 1068: + the Plan table card
         self.assertEqual([x["id"] for x in self.t('list({query: "figures"})')], ["figures-4", "figures-3"])
         self.assertEqual([x["id"] for x in self.t('list({query: "KEY dates"})')], ["key-dates"], "case does not matter and every word must match")
         self.assertEqual(self.t('list({query: "zzz"})'), [])
@@ -305,7 +307,8 @@ class Logic(unittest.TestCase):
         self.assertEqual(gantt["requests"], [{"op": "new", "values": {"type": "gantt", "title": "Gantt"}, "after": "a", "place": "report"}], "row 926: the store takes the Gantt now")
         for tid in FIRST_SLICE[1:]:
             p = self.t(f"plan({lit(S)}, {lit(tid)}, 'a', false)")
-            self.assertEqual(p["requests"], [{"op": "new", "values": {"type": by[tid]["type"], "title": by[tid]["title"]}, "after": "a", "place": "report"}], tid)
+            values = {"type": by[tid]["type"], "title": by[tid]["title"], **({"body": by[tid]["start"]} if by[tid].get("start") else {})}      # row 1223: Full width image starts a version 2 body
+            self.assertEqual(p["requests"], [{"op": "new", "values": values, "after": "a", "place": "report"}], tid)
         for x in self.t("LATER"):
             p = self.t(f"plan({lit(S)}, {lit(x['id'])}, 'a', false)")
             self.assertEqual((p["ok"], p["message"]), (False, "That template isn't in the list."), x["id"])
@@ -336,9 +339,9 @@ class Box(Base):
             self.assertEqual(p.js(f"document.getElementById({d}.getAttribute('aria-labelledby')).textContent"), "Add a section")
             self.assertEqual(p.js("document.querySelector('#main').hasAttribute('inert') && document.querySelector('.top').hasAttribute('inert')"), True,
                              "the page behind cannot be reached")
-            self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 22)      # row 1068: + the Plan table card
+            self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 23)      # row 1068: + the Plan table card
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.textContent)"),
-                             ["All templates22", "Text and pictures7", "Figures2", "Work items3", "Files and links3", "People and dates5", "Notes2"])      # row 1068: + the Gantt table card, in People and dates
+                             ["All templates23", "Text and pictures8", "Figures2", "Work items3", "Files and links3", "People and dates5", "Notes2"])      # row 1068: + the Gantt table card, in People and dates
             self.assertEqual(self.sent, [], "opening sends nothing")
 
     def test_everything_outside_the_box_is_inert_while_it_is_open_and_restored_when_it_closes(self):
@@ -429,7 +432,7 @@ class Box(Base):
                   heard: document.querySelector('[data-template=text]').textContent.includes('Full width or Half width'),
                   big: !!document.querySelector('.ad-prev .ad-sk.big'),
                   holds: [...document.querySelectorAll('.ad-prev .ad-els li')].map(l => l.textContent)};})()""")
-            self.assertEqual(got, {"cards": 22, "sketched": 22, "radios": 22, "firstRow": 3, "text": ["Full width", "Half width"], "gallery": ["Full width"],
+            self.assertEqual(got, {"cards": 23, "sketched": 23, "radios": 23, "firstRow": 3, "text": ["Full width", "Half width"], "gallery": ["Full width"],
                                    "chipsHidden": "true", "heard": True, "big": True, "holds": ["Heading", "Text"]})
             x = "document.querySelector('.ad-head [data-close]')"
             self.assertEqual(p.js(f"{x}.getAttribute('aria-label')"), "Close")
@@ -517,7 +520,7 @@ class Box(Base):
             p = self.visit(cdp)
             p.edit()
             self.open_box(p, "ABC-S-003")
-            self.assertEqual(p.js("document.querySelectorAll('input[name=template]:not([disabled])').length"), 22, "every template can be focused")
+            self.assertEqual(p.js("document.querySelectorAll('input[name=template]:not([disabled])').length"), 23, "every template can be focused")
             self.assertEqual(p.js("document.querySelector('button[data-place]').disabled"), False, "Text is chosen and can be placed")
             cat = {x["id"]: x["description"] for x in FIRST_SLICE_DESCRIPTIONS}
             for tid, desc in cat.items():

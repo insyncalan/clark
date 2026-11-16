@@ -14,6 +14,7 @@ from _pictures_page import BarePage
 from clark import changes, store as store_module
 from clark.section_kinds import imagecap, textimage
 from test_changes import Api
+from test_imagecap_full_server import RED, BLUE, halves, decode
 from test_server import chrome  # noqa: F401  (a browser file: its page tests drive Chrome through _pictures_cases)
 
 KIND = "imagecap"
@@ -30,7 +31,7 @@ class Checker(unittest.TestCase):
                 check(KIND, bad)
             self.assertEqual(str(e.exception), words)
         self.assertTrue(imagecap.READY)
-        self.assertEqual(imagecap.PICTURE_MAX, textimage.PICTURE_MAX)
+        self.assertEqual(imagecap.V1_PICTURE_MAX, textimage.PICTURE_MAX)      # row 1223: the old body keeps its size; the Full width image's own limits are in test_imagecap_full_server
 
     def test_published_waits_for_a_picture(self):
         self.assertIsNone(published(KIND, {"v": 1, "caption": "Fictional", "alt": "Fictional"}))
@@ -65,6 +66,54 @@ class Route(PictureSteps, Api):
         self.assertNotIn(hidden, sections)
         self.assertNotIn("Fictional lonely caption", text)
         self.assertNotIn(GOOD_JPEG.split(",")[1], text)
+
+
+class FullRoute(PictureSteps, Api):
+    """Row 1223: the Full width image is an imagecap section with a version 2 body; the store type, the schema and the store are the old ones."""
+    START = imagecap.START
+
+    def made_full(self, title="Fictional full"):
+        return self.ok("new", values={"type": KIND, "title": title, "body": self.START}, after=None)["ref"]
+
+    def test_a_new_one_starts_with_its_body_and_nothing_else_may_be_given(self):
+        ref = self.made_full()
+        self.assertEqual(self.body(ref), {"v": 2})
+        for kind, body in ((KIND, '{"v":1}'), (KIND, '{"v":2,"caption":"x"}'), (KIND, '{"v": 2}'), ("quote", self.START)):
+            with self.subTest(kind=kind, body=body):
+                status, got = self.change(self.req("new", values={"type": kind, "title": "Fictional", "body": body}, after=None))
+                self.assertEqual((status, got["message"]), (400, changes.NO_BODY_HERE))
+
+    def test_the_original_goes_in_the_framing_with_the_words_one_undo_each_and_the_file_has_the_framed_copy_only(self):
+        ref = self.made_full()
+        original = halves(40, 10)
+        status, got = self.put(ref, "original", original)
+        self.assertEqual(status, 200, got)
+        self.assertEqual(self.body(ref)["pictures"], {"original": original, "image": original})
+        self.assertEqual(self.put(ref, "image", GOOD)[1]["message"], imagecap.MADE_HERE)
+        self.assertEqual(self.words(ref, {"v": 2, "caption": "Fictional view", "alt": "Two blocks", "crop": [500, 0, 1000, 1000]})[0], 200)
+        body = self.body(ref)
+        self.assertEqual(body["pictures"]["original"], original)
+        self.assertEqual(decode(body["pictures"]["image"])[:2], (20, 10), "clark made the framed copy from the numbers")
+        sections, text = self.file()
+        content = sections[ref]["content"]
+        self.assertEqual((content["caption"], content["alt"], content["full"]), ("Fictional view", "Two blocks", 1))
+        w, h, rows = decode(content["image"])
+        self.assertEqual({px for row in rows for px in row}, {BLUE}, "the part cropped away is not in the file")
+        self.assertNotIn(original.split(",")[1], text)
+        self.assertNotIn(body["pictures"]["original"].split(",")[1], text)
+        again = self.put(ref, "original", None)[1]
+        self.assertEqual(self.body(ref), {"v": 2, "caption": "Fictional view", "alt": "Two blocks"}, "the image is gone with its framing; the words stay")
+        self.assertNotIn(ref, self.file()[0], "no image: not in the file")
+        self.undone(again["apply_id"])
+        self.assertEqual(decode(self.body(ref)["pictures"]["image"])[:2], (20, 10))
+
+    def test_an_old_body_in_the_store_opens_and_publishes_unchanged(self):
+        ref = self.made(KIND, "Fictional old")
+        self.put(ref, "image", GOOD)
+        self.words(ref, {"v": 1, "caption": "Fictional caption", "alt": "Fictional plan"})
+        self.assertEqual(self.body(ref), {"v": 1, "caption": "Fictional caption", "alt": "Fictional plan", "pictures": {"image": GOOD}})
+        self.assertEqual(self.file()[0][ref]["content"], {"image": GOOD, "caption": "Fictional caption", "alt": "Fictional plan"})
+        self.assertEqual(self.put(ref, "original", GOOD)[1]["message"], textimage.BAD_SLOT)
 
 
 class Parity(BarePage):

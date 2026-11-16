@@ -213,6 +213,13 @@ class SavePath(unittest.TestCase):
         self.assertEqual(body["caption"], cap)
         self.assertNotIn(" ", body["caption"])
 
+    def test_the_full_width_image_caption_is_held_to_one_plain_line_too(self):
+        """Row 1223: a body of version 2 (Full width image) keeps the same caption rule as version 1."""
+        cap = plain("<p>A &lt;b&gt; caption</p><p>second line</p>", True)
+        body = imagecap.check({"v": 2, "caption": cap}, {})
+        self.assertEqual(body["caption"], cap)
+        self.assertNotIn(" ", body["caption"])
+
 
 if __name__ == "__main__":
     unittest.main()

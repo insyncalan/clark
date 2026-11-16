@@ -249,7 +249,7 @@ class Http(unittest.TestCase):
         self.assertEqual(status, 200, got)
         self.assertIsInstance(got["apply_id"], int)
         self.assertEqual(self.post("/api/section-image", {"project": "ABC"}, token="wrong")[0], 403)
-        self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/section-image"], 1536 * 1024)
+        self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/section-image"], 11 * 1024 * 1024)      # row 1223: one Full width image (8 MiB) as text
         for route in ("/api/section-image", "/api/change"):
             over = {sv.TOKEN_HEADER: sv.TOKEN, "Content-Type": "application/json", "Content-Length": str(sv.ROUTE_BODY_LIMITS[route] + 1)}
             status, _, raw = self.s.ask("POST", route, over, b"{}")
