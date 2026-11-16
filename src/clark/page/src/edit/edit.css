@@ -119,22 +119,23 @@
 /* Row 828: the milestone peek's own fields (MilestonePeek.jsx). Tokens only; the text fields borrow the Latest update look. */
 .pk-ms-text, .pk-ms-in { min-height: 28px; padding: 3px 8px; }
 .pk-ms-states { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-/* Row 1078: the header line in Edit (shell.css .pk-ms-head draws the line): the owner is the in-place text, the progress its slider and number,
-   and the state buttons are a row of their own under the line. The title is the name, in place, in the title's own type. */
-.pk-ms-head .pk-ms-text, .pk-ms-head .pk-ms-in { display: inline-block; width: auto; min-height: 26px; padding: 2px 6px; }
-.pk-ms-head .pk-ms-progress { flex: 1 1 150px; min-width: 150px; }
-.pk-ms-head + .pk-ms-states { margin: calc(-1 * var(--space-1)) 0 var(--space-3); }
 .pk-title .pk-ms-text, .pk-title .pk-ms-in { display: block; width: 100%; min-height: 1.3em; margin: 0 calc(-1 * var(--space-2)); padding: 0 var(--space-2); font: inherit; line-height: inherit; color: inherit; }
 .pk-ms-state, .pk-ms-eye { min-height: 28px; padding: 2px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-small); cursor: pointer; }
 .pk-ms-state:hover:not(:disabled), .pk-ms-eye:hover:not(:disabled) { background: var(--brand-blue-tint); }
 .pk-ms-state[aria-pressed="true"], .pk-ms-eye[aria-pressed="true"] { border-color: var(--brand-blue); background: var(--brand-blue-tint); color: var(--status-blue-text); }
 .pk-ms-state:disabled, .pk-ms-eye:disabled { cursor: default; color: var(--text-muted); }
-.pk-ms-state:focus-visible, .pk-ms-eye:focus-visible, .pk-ms-select:focus-visible, .pk-ms-num:focus-visible, .pk-ms-progress input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.pk-ms-progress { display: flex; align-items: center; gap: var(--space-2); }
-.pk-ms-progress input[type="range"] { flex: 1; min-width: 0; }
-.pk-ms-num { width: 4em; min-height: 28px; box-sizing: border-box; padding: 2px 6px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
-.pk-ms-num::placeholder { color: var(--text-muted); opacity: 1; }
+.pk-ms-state:focus-visible, .pk-ms-eye:focus-visible, .pk-ms-select:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .pk-ms-select { max-width: 100%; min-height: 28px; padding: 2px 6px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+/* Row 1184: the milestone chips' popovers. The states are a column of buttons, each with its own icon; the progress is ten blocks, each stronger than the one before. */
+.pk-ms-pop .pk-ms-states { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
+.pk-ms-pop .pk-ms-state { display: flex; align-items: center; gap: var(--space-2); justify-content: flex-start; border-radius: var(--radius); text-align: left; }
+.pk-ms-state .pkc-ic svg { width: 16px; height: 16px; display: block; }
+.pk-ms-blocks { display: flex; gap: 3px; padding: 7px 8px; }
+.pk-ms-block { width: 20px; min-width: 24px; height: 24px; box-sizing: border-box; padding: 0; border: 0; border-radius: 3px; background: var(--grey-100); cursor: pointer; }
+.pk-ms-block.on { background: color-mix(in srgb, var(--brand-blue) var(--p), var(--surface)); }
+.pk-ms-block.pv { opacity: .55; }
+.pk-ms-block:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.pk-off { color: var(--text-muted); cursor: not-allowed; }
 .pk-latest-hint, .pk-latest-err { margin: 4px 0 0; font-size: var(--size-small); }
 .pk-latest-hint { color: var(--text-muted); }
 .pk-latest-err { color: var(--status-red-text); }
