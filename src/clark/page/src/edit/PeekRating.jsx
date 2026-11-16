@@ -66,6 +66,8 @@ export function Matrix({ row, anchor, onClose }) {
             })}
           </>
         ))}
+        <span class="rmx-colhead" aria-hidden="true" />
+        {LIKELIHOODS.map((li) => <span class="rmx-h rmx-col" key={`h-${li}`} aria-hidden="true">{li}</span>)}
       </div>
       <p class="rmx-hint" data-rmx-hint data-pk-matrix-say>{at.i && at.l ? hintOf(at.i, at.l) : ""}</p>
     </Pop>

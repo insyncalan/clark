@@ -2760,7 +2760,7 @@ button.tpl-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 
 .pkc-sub { font-style: normal; font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); white-space: nowrap; }
 .pkc.late .pkc-v { color: var(--status-red-text); }
 .pkc-sub.late { padding: 1px var(--space-2); border-radius: 999px; background: var(--status-red-tint); color: var(--status-red-text); font-size: var(--size-caption); font-weight: 700; line-height: 1.4; }   /* row 1256: 'overdue N days' as a small red-tint pill (11 px, listed in test_size_scale) */
-.pkc-sub.lvl { padding: 0 var(--space-2); border-radius: 999px; font-size: var(--size-caption); }
+.pkc-sub.lvl { padding: 0 var(--space-2); border-radius: 999px; font-size: var(--size-caption); font-weight: 700; line-height: 1.2; }   /* row 1257: the level pill is bold (700), as the design image */
 .pkc-sub.lvl.r { background: var(--status-red-tint); color: var(--status-red-text); }
 .pkc-sub.lvl.a { background: var(--status-amber-tint); color: var(--status-amber-text); }
 .pkc-sub.lvl.g { background: var(--status-green-tint); color: var(--status-green-text); }
