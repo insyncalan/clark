@@ -143,6 +143,18 @@ class ViewOf(unittest.TestCase):
     def test_one_bad_field_falls_back_alone(self):
         self.assertEqual(self.of({"body": json.dumps({"n": 0, "scroll": "yes", "tracker": "left"})}), {"set": True, "n": 5, "scroll": False, "tracker": "top"})
 
+    def test_a_null_count_is_not_set(self):
+        self.assertFalse(self.of({"body": json.dumps({"n": None, "tracker": "off"})})["set"])
+        self.assertFalse(self.of({"n": None, "tracker": "off"}, True)["set"])
+        self.assertEqual(self.of({"body": json.dumps({"n": None, "tracker": "off"})})["n"], 5)
+
+    def test_the_body_written_holds_only_the_complete_setting(self):
+        body = run('V.bodyOf({"n": 0, "scroll": "yes", "tracker": "left", "extra": 1})')
+        self.assertEqual(json.loads(body), {"n": 5, "scroll": False, "tracker": "top"})
+        # only the keys given are written (row 1234c); Configure gives all three once a number is chosen
+        self.assertEqual(list(json.loads(run('V.bodyOf({"n": 3, "scroll": true, "tracker": "off"})'))), ["n", "scroll", "tracker"])
+        self.assertEqual(list(json.loads(run('V.bodyOf({"n": 3})'))), ["n"])
+
     def test_the_browser_keys_are_not_read(self):
         self.assertNotIn("localStorage", (PAGE_SRC / "logic" / "useCaseView.js").read_text(encoding="utf-8"))
         self.assertNotIn("clark.uc", (PAGE_SRC / "components" / "UseCases.jsx").read_text(encoding="utf-8").replace("clark.ucAll", ""))
