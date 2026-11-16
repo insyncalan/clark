@@ -27,7 +27,7 @@ class Grip(BrowserBase, unittest.TestCase):
                 dx, below, top, native = cdp.js(GEO, sid)
                 self.assertLess(abs(dx), 1.5, f"{width}: centred")
                 self.assertLessEqual(below, -10, f"{width}: it hangs under the strip's bottom edge, over no label")
-                self.assertTrue(-3 <= top <= 2, f"{width}: it touches the bottom edge ({top})")
+                self.assertTrue(-3 <= top <= 12, f"{width}: its 24px box starts at the bottom edge and hangs under it ({top})")
                 self.assertEqual(native, "none", f"{width}: no browser handle in the corner")
 
     def test_the_grip_is_a_named_slider_with_a_value(self):

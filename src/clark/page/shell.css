@@ -1314,7 +1314,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .mv-txt button:hover { color: var(--text); } .mv-txt button:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .mv-txt button[aria-current="true"] { color: var(--heading); font-weight: var(--weight-medium); border-bottom-color: var(--brand-blue); }
 .mv-box { --sb: 0px; position: relative; min-width: 0; max-width: 100%; padding-bottom: 14px; }   /* row 1267: room under the strip for the grip, so it never sits over a label */
-.mv-grip { position: absolute; left: 50%; bottom: 0; z-index: 4; box-sizing: border-box; width: 64px; height: 14px; margin-left: -32px; display: flex; align-items: center; justify-content: center; cursor: ns-resize; touch-action: none; border-radius: var(--radius-sm); }
+.mv-grip { position: absolute; left: 50%; bottom: 0; z-index: 4; box-sizing: border-box; width: 64px; height: 24px; margin-left: -32px; display: flex; align-items: center; justify-content: center; cursor: ns-resize; touch-action: none; border-radius: var(--radius-sm); }
 .mv-grip span { display: block; width: 40px; height: 6px; border-top: 2px solid var(--grey-500); border-bottom: 2px solid var(--grey-500); border-radius: 2px; box-sizing: border-box; }
 .mv-grip:hover span { border-color: var(--text-muted); }
 .mv-grip:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
