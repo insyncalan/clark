@@ -83,6 +83,27 @@ class AddMenu(base.InThePage):
                 p.until("!!document.querySelector('#peek')", "its peek opened")
                 self.assertEqual(self.store.con.execute("SELECT count(*) FROM raid").fetchone()[0], before + 1, "one risk was made at once")
 
+    def test_the_plus_is_in_the_saved_views_row_at_its_right_end_right_of_the_last_tab(self):      # row 1268: the ticket puts Add + at the right end of the views row
+        ref = self.add({"mode": "all", "owner": ["Pat Demo"]})
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width)
+                p.edit()
+                row = f"[data-id=\"{ref}\"] .wil-views .fvrow"
+                p.until(f"!!document.querySelector({json.dumps(row + ' .vtab')}) && !!document.querySelector({json.dumps(row + ' [data-wil-add] button')})", "the row drew with the +")
+                r = p.js("""(() => { const q = (s) => document.querySelector(s), box = (e) => { const b = e.getBoundingClientRect(); return [b.left, b.right, b.top, b.bottom]; };
+                    const row = q(%s), tabs = [...row.querySelectorAll('.vtab')], add = row.querySelector('[data-wil-add]');
+                    return { inRow: !!add && add.parentElement === row, row: box(row), add: box(add), last: box(tabs[tabs.length - 1]), vnew: box(row.querySelector('.vnew')),
+                             above: !!q(%s) };
+                })()""" % (json.dumps(row), json.dumps(f'[data-id="{ref}"] > .wil-edit > .wil-add, [data-id="{ref}"] .wil-edit > .wil-add')))
+                self.assertTrue(r["inRow"], "the + is a child of the saved-views row, not a row of its own above it")
+                self.assertFalse(r["above"], "no separate row above the tabs")
+                self.assertGreaterEqual(r["add"][0], r["last"][1], "right of the last tab")
+                self.assertGreaterEqual(r["add"][0], r["vnew"][1], "right of + New view")
+                self.assertGreaterEqual(r["add"][2], r["row"][2] - 1, "inside the row, from the top")
+                self.assertLessEqual(r["add"][3], r["row"][3] + 1, "inside the row, to the bottom")
+                self.assertLess(r["row"][1] - r["add"][1], 4, "at the right end of the row")
+
     def test_view_has_no_plus(self):
         ref = self.add({"mode": "all", "owner": ["Pat Demo"]})
         with chrome() as cdp:

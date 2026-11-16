@@ -626,7 +626,7 @@ textarea.tpl-field { resize: vertical; }
 .wil-form > .wil-more { grid-column: 1 / -1; }   /* row 1113: the tick boxes fold inside the one form block; Sort by, Most rows and Columns stay in it; the Caption box moved under the list (wish 2) */
 .wil-form-in { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px var(--space-4); margin: var(--space-1) 0 0; }
 /* Row 1268: the Add + at the right end, a dashed square as the one on Work items (the approved mock-up) */
-.wil-add { display: flex; justify-content: flex-end; margin: 0 0 var(--space-1); }
+.wil-add { flex: none; display: flex; justify-content: flex-end; margin: 0 0 var(--space-1) auto; }   /* at the right end of the saved-views row (ticket 1268) */
 .wil-add .newb { border-style: dashed; }
 .wil-line { display: grid; gap: var(--space-1); margin: var(--space-1) 0 var(--space-2); }
 .wil-line p { margin: 0; }
@@ -642,15 +642,15 @@ textarea.tpl-field { resize: vertical; }
 .wil-sel select, .wil-sel input { min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-small); }
 /* row 1268: the gear and its Configure box (Sort by, Most rows, Columns), as the approved mock-up draws them. Tokens only. */
 .wil-cw { position: relative; grid-column: 1 / -1; display: flex; justify-content: flex-end; }
-.wil-gear { display: inline-flex; align-items: center; justify-content: center; min-width: 36px; min-height: 36px; border: 1px solid var(--grey-300); border-radius: 50%; background: var(--surface); color: var(--text); cursor: pointer; }
+.wil-gear { display: inline-flex; align-items: center; justify-content: center; min-width: calc(var(--space-6) + var(--space-1)); min-height: calc(var(--space-6) + var(--space-1)); border: 1px solid var(--grey-300); border-radius: 50%; background: var(--surface); color: var(--text); cursor: pointer; }
 .wil-gear:hover, .wil-gear[aria-expanded=true] { background: var(--grey-100); }
 .wil-gear:focus-visible, .wil-cacts button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.wil-cfg { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; width: min(320px, 100%); box-sizing: border-box; display: grid; gap: var(--space-3); padding: 14px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); box-shadow: 0 10px 30px rgba(6, 47, 58, 0.2); }
+.wil-cfg { position: absolute; right: 0; top: calc(100% + var(--space-1)); z-index: 20; width: min(calc(var(--space-4) * 20), 100%); box-sizing: border-box; display: grid; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
 .wil-cfg[hidden] { display: none; }
 .wil-cfg h4 { margin: 0; font-size: var(--size-body); }
 .wil-cfg .wil-opts { display: grid; grid-template-columns: 1fr 1fr; }
 .wil-cacts { display: flex; justify-content: flex-end; }
-.wil-cacts button { min-height: 36px; padding: 0 20px; border: 0; border-radius: 999px; background: var(--grey-100); color: var(--text); font: inherit; font-weight: var(--weight-medium); cursor: pointer; }
+.wil-cacts button { min-height: calc(var(--space-6) + var(--space-1)); padding: 0 var(--space-4); border: 0; border-radius: var(--radius-pill); background: var(--grey-100); color: var(--text); font: inherit; font-weight: var(--weight-medium); cursor: pointer; }
 .wil-none { margin: var(--space-2) 0; padding: 10px var(--space-3); border: 1px dashed var(--grey-300); border-radius: var(--radius); color: var(--text); font-size: var(--size-small); }
 .wil-live tbody tr, .wil-live li { cursor: pointer; }
 .wil-table .wil-c-eye { width: 44px; padding-left: 0; padding-right: 0; text-align: center; }   /* row 1113: the Work items page eye, at the end of each row */
@@ -1412,8 +1412,8 @@ table.items .c-x-id, table.items .c-x-type { width: 100px; }
 /* Row 1268: the saved-view tabs of the Work items list (Edit only). */
 .wil-views { margin: 0 0 var(--space-2); }
 .wil-vopts { position: relative; display: inline-block; }
-.wil-vopts > summary { list-style: none; cursor: pointer; min-width: 22px; min-height: 28px; display: inline-flex; align-items: center; justify-content: center; color: var(--text-muted); }
+.wil-vopts > summary { list-style: none; cursor: pointer; min-width: var(--space-5); min-height: calc(var(--space-5) + var(--space-1)); display: inline-flex; align-items: center; justify-content: center; color: var(--text-muted); }
 .wil-vopts > summary::-webkit-details-marker { display: none; }
 .wil-vopts > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.wil-vopts-in { position: absolute; z-index: 5; top: 100%; left: 0; display: grid; min-width: 180px; padding: var(--space-1); border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); }
-.wil-vopts-in .link { text-align: left; min-height: 28px; padding: 0 var(--space-2); }
+.wil-vopts-in { position: absolute; z-index: 5; top: 100%; left: 0; display: grid; min-width: calc(var(--space-8) * 3); padding: var(--space-1); border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); }
+.wil-vopts-in .link { text-align: left; min-height: calc(var(--space-5) + var(--space-1)); padding: 0 var(--space-2); }

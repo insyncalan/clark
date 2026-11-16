@@ -55,6 +55,20 @@ class Scale(unittest.TestCase):
         bare = [(name, sel, v) for name, sel, v in all_sizes() if re.fullmatch(r"\d+(?:\.\d+)?px", v) and (sel, v) not in NOT_TEXT]
         self.assertEqual(bare, [], "use a --size-* token from brand/tokens.css")
 
+    def test_the_work_items_review_gear_and_view_options_boxes_use_tokens_for_every_length(self):      # row 1268: reader found bare px in these
+        mine = (".wil-review", ".wil-gear", ".wil-cfg", ".wil-cacts button", ".wil-vopts > summary", ".wil-vopts-in", ".wil-vopts-in .link", ".wil-add")
+        seen, bare = set(), []
+        for path in CSS.values():
+            for sel, body in rules(path.read_text(encoding="utf-8")):
+                if sel in mine:
+                    seen.add(sel)
+                    for decl in body.split(";"):
+                        prop, _, val = decl.partition(":")
+                        if prop.strip() not in ("border", "outline", "outline-offset") and re.search(r"\d+px", val):
+                            bare.append((sel, prop.strip(), val.strip()))
+        self.assertEqual(seen, set(mine), "the parser found every rule")
+        self.assertEqual(bare, [], "use --space-* and the other tokens, not a bare pixel length")
+
     def test_no_token_carries_a_pixel_fallback(self):
         stale = [(name, sel, v) for name, sel, v in all_sizes() if re.search(r"var\(--size-[\w-]+\s*,", v)]
         self.assertEqual(stale, [], "a fallback goes stale when the scale moves (it did for --size-h2 in #87)")

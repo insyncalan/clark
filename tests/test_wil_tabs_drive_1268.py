@@ -40,5 +40,26 @@ class Tabs(base.InThePage):
             p.until(f"!document.querySelector('[data-id=\"{self.ref}\"] .wil-views')", "View mode has no tabs row")
 
 
+    def test_review_all_opens_the_work_items_page_on_the_type_of_the_lists_kinds(self):      # row 1268: killer for the link's target, per page state
+        from test_tpl_workitems import USER
+        with self.store.step("dashboard", USER) as st:
+            st.create("raid", {"project": "ABC", "type": "Issue", "description": "Vendor is late", "raised": "2026-10-01", "source": "demo",
+                               "impact": "High", "likelihood": "High", "owner": "Pat Demo"})
+            st.create("decisions", {"project": "ABC", "decision": "Pick the vendor", "date": "2026-10-01", "made_by": "Pat Demo", "source": "demo"})
+        want = {"all": [], "action": ["action"], "risk": ["risk"], "issue": ["issue"], "decision": ["decision"]}
+        got = {}
+        for name, kinds in want.items():
+            ref = self.add({"mode": "all", "kinds": kinds}, title=f"List {name}")
+            with chrome() as cdp:
+                p = self.show(cdp)
+                sel = f"[data-id=\"{ref}\"] [data-wil-review]"
+                p.until(f"!!document.querySelector({json.dumps(sel)})", "the link drew")
+                p.js(f"document.querySelector({json.dumps(sel)}).click()")
+                p.until("location.hash.includes('work')", "the Work items page opened")
+                got[name] = p.js("location.hash")
+        self.assertEqual(got, {"all": "#work&p=ABC&f=mode:all", "action": "#work&p=ABC&f=mode:all;type:action", "risk": "#work&p=ABC&f=mode:all;type:risk",
+                               "issue": "#work&p=ABC&f=mode:all;type:risk", "decision": "#work&p=ABC&f=mode:all;type:decision"})
+
+
 if __name__ == "__main__":
     unittest.main()

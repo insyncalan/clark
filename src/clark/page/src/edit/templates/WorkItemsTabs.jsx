@@ -14,7 +14,7 @@ import { lineOf } from "../../templates/workItemsLine.js";
 const ITEMS = [{ id: "save", name: "Save changes" }, { id: "saveas", name: "Save as a new view…" }, { id: "rename", name: "Rename view" },
   { id: "dup", name: "Duplicate view" }, { id: "del", name: "Delete view", danger: true }];
 
-export function Tabs({ section, filter, d, now, known, nameOf, apply }) {
+export function Tabs({ add, section, filter, d, now, known, nameOf, apply }) {
   const code = project.value;
   const [rev, setRev] = useState(0);                       // drawn again after the views were saved
   const [picked, setPicked] = useState("");              // the tab the person picked
@@ -77,6 +77,7 @@ export function Tabs({ section, filter, d, now, known, nameOf, apply }) {
         <button type="button" class="vnew" data-wil-new="" onClick={() => act("saveas")}>{"+ New view"}</button>
         {dot ? <span class="fvacts"><button type="button" class="btn sm" data-wil-save="" onClick={() => act("save")}>Save view</button>
           <button type="button" class="link" data-wil-discard="" onClick={() => pick(active)}>Discard changes</button></span> : null}
+        {add}
       </div>
       {form ? (
         <form class="vform" onSubmit={submit} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setForm(null); } }}>

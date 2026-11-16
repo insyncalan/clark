@@ -101,6 +101,8 @@ class Tabs(unittest.TestCase):
         self.assertEqual(st(["issue"])["type"], "risk")
         self.assertEqual(st(["risk", "issue"])["type"], "risk")
         self.assertEqual(st(["action", "risk"])["type"], "all")
+        for mixed in (["decision", "action"], ["action", "decision"], ["decision", "risk"], ["issue", "action"], ["issue", "decision"]):
+            self.assertEqual(st(mixed)["type"], "all", mixed)
         r = st(["action"], owner=["Pat Demo"], mode="closed")
         self.assertEqual((r["mode"], r["filters"]), ("closed", {"owner": ["Pat Demo"]}))
 
