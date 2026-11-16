@@ -126,6 +126,9 @@ class Bars(unittest.TestCase):
 
     def settle(self):
         self.until("document.getAnimations().length === 0", "every animation ended")
+        # an ended animation leaves getAnimations() before its animationend event is delivered (a later frame, late on a loaded or unfocused Mac);
+        # the chart takes a bar's grow mark off in that handler, so wait for the marks themselves to be gone
+        self.until("!document.querySelector('.gt-grow')", "every grow mark taken off")
 
     def n_bars(self):
         return self.val(f"document.querySelectorAll('{BARS}').length")
