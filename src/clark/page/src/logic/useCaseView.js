@@ -28,7 +28,7 @@ export function visibleItems(items, view, showAll = false) {
   return items.slice(0, shownRows(items.length, view, showAll).shown);
 }
 
-// Whether a "Show all" control is wanted: only when some rows are hidden, and the list is not already scrolling.
+// Whether a "Show all" control is wanted: only when some rows are hidden, and the list is not already scrolling. (The summary also leaves it out once a number is set, the 16-11 ruling.)
 export function needsShowAll(total, view, showAll = false) {
   const v = normalizeView(view);
   return !v.scroll && shownRows(total, v, showAll).hidden > 0;
@@ -56,5 +56,14 @@ export function viewOf(section, fromFile) {
   return { set: !!v && v.n !== undefined && v.n !== null, ...normalizeView(v) };
 }
 
-// The section's body for a view: the JSON text of { n, scroll, tracker } and nothing else (what viewOf reads back).
-export const bodyOf = (view) => JSON.stringify(normalizeView(view));
+// The section's body for a view: the JSON text of the keys the view holds, only those given (a view with no n writes no n, so a section
+// that never chose a count stays unset), and nothing else (what viewOf reads back).
+export const bodyOf = (view) => JSON.stringify(Object.fromEntries(["n", "scroll", "tracker"].filter((k) => view && view[k] !== undefined).map((k) => [k, normalizeView(view)[k]])));
+
+// The keys a section's stored body holds, as an object holding only those (viewOf's `set` is true when n is among them).
+export function givenOf(section) {
+  let v = null;
+  if (section && typeof section.body === "string" && section.body) { try { v = JSON.parse(section.body); } catch (e) { v = null; } }
+  if (!v || typeof v !== "object" || Array.isArray(v)) return {};
+  return Object.fromEntries(["n", "scroll", "tracker"].filter((k) => v[k] !== undefined && v[k] !== null).map((k) => [k, v[k]]));
+}

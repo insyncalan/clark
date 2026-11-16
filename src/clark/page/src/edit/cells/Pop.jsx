@@ -32,7 +32,7 @@ export function Pop({ anchor, label, role = "dialog", cls = "", onClose, childre
     const el = box.current, a = anchor && anchor.current;
     if (!el || !a) return;
     const r = a.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
-    const left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8));
+    const left = Math.max(8, Math.min(r.left, document.documentElement.clientWidth - w - 8));
     let top = r.bottom + 4;
     if (top + h > window.innerHeight - 8 && r.top - h - 4 > 8) top = r.top - h - 4;
     top = Math.max(8, Math.min(top, window.innerHeight - h - 8));   // no room either side: it moves up just enough to be whole

@@ -72,17 +72,19 @@ function ItemChips({ row, tools, editing }) {
   const hit = (key) => !!(f && f.list.some((e) => e.ref === row.id && ROW_OF[e.field] === key));
   const pop = (field) => (editing && tools && tools.PeekChipPop ? tools.PeekChipPop(row, field) : null) || undefined;
   const Live = editing && tools && tools.PeekChipLive ? tools.PeekChipLive : undefined;
-  // item 448: a closed risk or issue's pill reads Closed; it keeps its rating word on the priority chip ("Red kept"; "Not rated" when it never was, item 532), here and in a published file.
+  // item 448: a closed risk or issue's pill reads Closed; it keeps its rating word as the small line of the Status chip ("Red kept"; "Not rated" when it never was, item 532), here and in a published file.
   const kept = (row.kind === "risk" || row.kind === "issue") && !isOpen(row) ? colourOf(row.priority).word : "";
   const late = due.tone === "late", days = late ? /^(\d+) days? late$/.exec(due.words) : null;
   const overdue = late ? `overdue ${days ? days[1] : "1"} ${days && days[1] !== "1" ? "days" : "day"}` : "";
-  const fixed = row.kind === "assumption" || row.kind === "dependency";
   const prio = row.kind === "decision" ? row.peek_priority : row.priority;      // row 1195: a decision's priority is peek_priority
+  // row 1182: an open risk or issue's chip face is its colour word with the level as a small pill ("Red" + "High"), as in the design image; the icon tone stays the level's.
+  const rated = (row.kind === "risk" || row.kind === "issue") && isOpen(row) && !!prio;
+  const fixed = row.kind === "assumption" || row.kind === "dependency";
   return (
     <PeekChips>
-      <PeekChip Live={Live} id={row.id} field="status" name="Status" icon="half" tone={statusTone(row, today)} value={pill.text} flash={hit("status")} pop={pop("status")} />
-      <PeekChip Live={Live} id={row.id} field="priority" name={(row.kind === "risk" || row.kind === "issue") ? "Rating" : "Priority"} icon="bars" tone={priorityTone(prio)} value={text(prio)} sub={kept ? `${kept} kept` : ""}
-        flash={hit("priority")} tip={fixed ? "Set from impact and likelihood" : row.kind === "issue" ? `${colourOf(prio).word} rating, set from impact and likelihood` : undefined} pop={pop("priority")} />
+      <PeekChip Live={Live} id={row.id} field="status" name="Status" icon="half" tone={statusTone(row, today)} value={pill.text} sub={kept ? `${kept} kept` : ""} flash={hit("status")} pop={pop("status")} />
+      <PeekChip Live={Live} id={row.id} field="priority" name={(row.kind === "risk" || row.kind === "issue") ? "Rating" : "Priority"} icon="bars" tone={priorityTone(prio)} value={rated ? colourOf(prio).word : text(prio)} sub={rated ? text(prio) : ""} subTone={rated ? `lvl ${colourOf(prio).class}` : ""}
+        flash={hit("priority")} tip={fixed ? "Set from impact and likelihood" : row.kind === "risk" ? "Priority from impact and likelihood" : row.kind === "issue" ? `${colourOf(prio).word} rating, set from impact and likelihood` : undefined} pop={pop("priority")} />
       <PeekChip Live={Live} id={row.id} field="owner" name={row.kind === "decision" ? "Decider" : "Owner"} icon="user" tone="b" value={who.text} flash={hit("owner")} pop={pop("owner")} />
       <PeekChip Live={Live} id={row.id} field="due" name={row.kind !== "decision" ? "Due date" : row.status === "Pending" ? "Needed-by date" : "Decision date"} icon="cal" tone={dateTone(row, today)} value={due.date}
         sub={overdue} subTone={late ? "late" : ""} late={late} flash={hit("due")} pop={pop("due")} />

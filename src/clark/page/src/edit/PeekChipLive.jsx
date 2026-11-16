@@ -14,7 +14,7 @@ export function PeekChipLive({ id, field, name, value, sub, tip, pop, place, cls
   };
   return (
     <span class={`${cls} has-pop`} data-row={field} data-flash={flash ? "1" : undefined}>
-      <button type="button" class="pkc-btn" ref={button} data-edit-only data-cell={k} data-tip={tip || undefined} aria-haspopup="dialog" aria-expanded={open ? "true" : "false"}
+      <button type="button" class="pkc-btn" ref={button} data-edit-only data-cell={k} data-tip={tip || undefined} aria-description={tip || undefined} aria-haspopup="dialog" aria-expanded={open ? "true" : "false"}
         aria-label={`${name} of ${id}: ${value}${sub ? ", " + sub : ""}. Change`} onClick={(e) => { e.stopPropagation(); openCell.value = open ? "" : k; }} onKeyDown={down}>
         {body}
         <span class="pkc-car"><Icon name="chevdown" /></span>
