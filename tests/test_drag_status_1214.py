@@ -46,8 +46,17 @@ class DragStatus(tre.Base):
         self.assertEqual(p.js("document.querySelector('[data-drag-say]').getAttribute('aria-live')"), "polite")
         self.assertEqual(p.js("document.querySelector('[data-drag-say]').getAttribute('role')"), "status")
         if sends:
+            self.quiet_toast(p)
             p.js("document.querySelector('[data-undo]').click()")
             p.order_is(IDS, "Undo puts it back")
+
+    def quiet_toast(self, p):
+        """The drop's toast is on the page with its Undo, but its region does not announce: only the drag's own live region speaks."""
+        self.assertEqual(p.js("document.querySelector('.toasts').getAttribute('aria-live')"), "off")
+        self.assertIsNone(p.js("document.querySelector('.toasts').getAttribute('role')"))
+        self.assertEqual(p.js("document.querySelectorAll('.toast [data-undo]').length"), 1, "Undo is still there")
+        self.assertGreater(p.js("document.querySelector('.toast [data-undo]').getBoundingClientRect().width"), 0, "and drawn")
+        self.assertGreater(len(p.js("document.querySelector('.toast .toast-text').textContent")), 0, "the toast still has its words")
 
     def edge(self, p, ref, where):
         r = p.rect(ref)
@@ -109,6 +118,16 @@ class DragStatus(tre.Base):
                 x, y = self.edge(p, seven, "bottom")
                 self.hold(p, seven, x, y, f'Release to make "{T[seven]}" full width.')
                 self.release_and_hear(p, x, y, f'"{T[seven]}" is now full width.')
+
+    def test_a_toast_that_is_not_a_drop_is_still_polite(self):
+        for width, ref in ((1400, IDS[3]), (900, IDS[4])):      # each width leaves out a section of its own: the store keeps the first one's change
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.at(cdp, width)
+                p.menu(ref, "hide")
+                p.saved()
+                self.assertEqual(p.js("document.querySelector('.toasts').getAttribute('aria-live')"), "polite")
+                self.assertEqual(p.js("document.querySelector('.toasts').getAttribute('role')"), "status")
+                self.assertEqual(p.js(SAY), "", "the drag's region said nothing")
 
     def test_own_place(self):
         for width in (1400, 900):
