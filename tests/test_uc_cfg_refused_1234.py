@@ -23,7 +23,7 @@ class Refused(Setup):
 
     def open_panel(self, p):
         p.js("document.querySelector('[data-mode=edit]').click()")
-        p.until("!!document.querySelector('#ucAdd')", "Edit")
+        p.until("!!document.querySelector('[data-uc-configure]')", "Edit")
         p.js(f"{CFG}.click()")
         p.until("!!document.querySelector('[data-uc-tracker]')", "tracker control")
 
