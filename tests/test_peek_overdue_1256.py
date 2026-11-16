@@ -1,5 +1,5 @@
 """Row 1256 (PR A3): the overdue look on the peek's date chip. The date text is red; the chip keeps its normal (flat, borderless) look and fill; the sub-word
-"overdue 2 days" is an 11 px bold red-tint pill; hover is a soft fill with no border change.
+"overdue 2 days" is a bold red-tint pill at the caption size (13 px; the page never goes below 13 px); hover is a soft fill with no border change.
 
 Run: python3 dev/run_tests.py test_peek_overdue_1256   (real browser, 1400 and 900 px, demo data, fixed date 28-10-2026)
 """
@@ -48,7 +48,7 @@ class Overdue(unittest.TestCase):
                         self.assertEqual(g["fill"], g["surface"], "the chip keeps its normal fill")
                         sub = g["sub"]
                         self.assertEqual(sub["text"], "overdue 2 days")
-                        self.assertEqual((sub["size"], sub["weight"]), ("11px", "700"))
+                        self.assertEqual((sub["size"], sub["weight"]), ("13px", "700"))
                         self.assertEqual(sub["colour"], g["red"])
                         self.assertEqual(sub["bg"], g["redTint"], "a red-tint pill")
                         self.assertNotEqual(sub["radius"], "0px")

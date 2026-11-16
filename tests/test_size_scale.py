@@ -14,8 +14,7 @@ CSS = {"shell.css": ROOT / "src/clark/page/shell.css", "edit.css": ROOT / "src/c
 # .cp-m (18 px) stays the one glyph exemption: it sizes an icon character, not text.
 NOT_TEXT = {(".cp-m", "18px"),
             (".tr-v", "32px"), (".tr-size-large .tr-v", "44px"), (".tr-size-small .tr-v", "24px"), (".tr-size-compact .tr-v", "18px"),
-            (".tr-overall .tr-v", "26px"),  # the progress tracker's headline figures (#160; #930: Large 44, Medium 32, Small 24, Compact 18), on screen and in print
-            (".pkc-sub.late", "11px")}  # row 1256: the overdue pill under the peek chip's date is 11 px bold by the approved mockup
+            (".tr-overall .tr-v", "26px")}  # the progress tracker's headline figures (#160; #930: Large 44, Medium 32, Small 24, Compact 18), on screen and in print
 
 # Fixed boxes that a 14 px label overfills at 900 px: the "As at" date in the top bar, the avatars (initials in a 26 or 24 px
 # circle), the Type badge (102 px column), the template tick box (18 px).
