@@ -9,7 +9,7 @@ import { dayNumber, rowsOf, colourOf } from "../workItems.js";
 import { rulesFor, publishable } from "../logic/publishable.js";
 
 export const KINDS = ["action", "risk", "issue", "assumption", "dependency", "decision"];
-export const MODES = ["open", "closed", "all"];
+export const MODES = ["open", "closed", "all", "current"];
 export const STATUSES = ["Open", "Delayed", "Pending", "Closed", "Cancelled", "Made", "Withdrawn"];
 export const DUE = ["overdue", "soon", "none", "later"];
 export const NONE = "(none)";
@@ -19,6 +19,7 @@ export const COLUMNS = ["type", "id", "owner", "due", "status", "priority", "wor
 export const DEFAULT_COLUMNS = ["type", "id", "owner", "due", "priority"];      // row 1199: Status, Workstream and Milestone start off in a new list; a saved list keeps its own columns
 export const MAX_ROWS = 50;
 export const DEFAULT_MAX = 10;
+export const RECENT = 14;      // row 1268: "current" lists a decision made in the last 14 days, as the built-in Decisions section does (logic/sectionRows.js)
 export const MAX_CAPTION = 200;
 const CLOSED = ["Closed", "Cancelled", "Made", "Withdrawn"];
 const FILTERS = ["kinds", "status", "due", "owner", "workstream", "use_case", "priority"];
@@ -29,7 +30,7 @@ const WORK = ["actions", "raid", "decisions"];
 // The words a person reads for each choice.
 export const WORDS = {
   kinds: { action: "Actions", risk: "Risks", issue: "Issues", assumption: "Assumptions", dependency: "Dependencies", decision: "Decisions" },
-  mode: { open: "Open", closed: "Closed", all: "Open and closed" },
+  mode: { open: "Open", closed: "Closed", all: "Open and closed", current: "Open, and decisions made in the last 14 days" },
   due: { overdue: "Overdue", soon: "Due in 7 days", none: "No date", later: "Later" },
   sort: { due: "Due date", priority: "Priority", id: "ID" },
   columns: { type: "Type", id: "ID", owner: "Owner", due: "Due", status: "Status", workstream: "Workstream", priority: "Priority", milestone: "Milestone" },
@@ -48,7 +49,7 @@ export const VIEWS = [
   { id: "all", name: "All work items", patch: {} },
   { id: "actions", name: "Actions", patch: { kinds: ["action"] } },
   { id: "risks-issues", name: "Risks and issues", patch: { kinds: ["risk", "issue"] } },
-  { id: "decisions", name: "Decisions", patch: { kinds: ["decision"] } },
+  { id: "decisions", name: "Decisions", patch: { kinds: ["decision"], mode: "current" } },      // row 1268: Pending, and Made in the last 14 days
   { id: "overdue", name: "Overdue", patch: { due: ["overdue"] } },
 ];
 
@@ -60,10 +61,11 @@ export function viewFilter(id) {
   return out;
 }
 
-// The priority cell of a row: the priority word with the colour class of the pills. A decision has no priority field yet.
+// The priority cell of a row: the priority word with the colour class of the pills (the Rating chip's colour). A decision's priority
+// is the one its peek sets (row 1195, peek_priority on a drawn row, priority on a rule row); a decision with none says nothing.
 export function priorityCell(row) {
-  if (row && row.kind === "decision") return { text: "", class: "n" };
-  const p = row && row.priority;
+  const p = row && row.kind === "decision" ? (row.peek_priority || row.priority) : row && row.priority;
+  if (row && row.kind === "decision" && !p) return { text: "", class: "n" };
   const c = colourOf(p);
   return { text: p || "Not rated", class: c.class };
 }
@@ -118,6 +120,12 @@ export function ruleRows(data) {
 
 const low = (s) => String(s == null ? "" : s).toLowerCase();
 const isOpen = (r) => !CLOSED.includes(r.status);
+// row 1268: a decision Made in the last 14 days (today counts, a date in the future does not), as logic/sectionRows.js listed().
+function madeLately(r, today) {
+  const a = dayNumber(r.due), t = dayNumber(today);
+  return r.kind === "decision" && r.status === "Made" && a !== null && t !== null && t - a >= 0 && t - a <= RECENT;
+}
+const modeFits = (mode, r, today) => mode === "all" || (mode === "current" ? isOpen(r) || madeLately(r, today) : (mode === "open") === isOpen(r));
 const tidy = (v) => (typeof v === "string" ? v.split(/\s+/).filter(Boolean).join(" ") : "");
 
 function bucket(r, today) {
@@ -191,7 +199,7 @@ export function matching(filter, rows, today, live, all) {
   filter = alive(filter, live);
   if (!filter) return [];
   const hits = rows.filter((r) => typeof r.id === "string" && r.id
-    && (filter.mode === "all" || (filter.mode === "open") === isOpen(r))
+    && modeFits(filter.mode, r, today)
     && FILTERS.every((f) => member(r, f, filter[f], today)) && allowed(r, filter, today));
   const closedLast = (x, y) => cmp(isOpen(x) ? 0 : 1, isOpen(y) ? 0 : 1);
   if (filter.sort === "id") hits.sort((x, y) => cmp(x.id, y.id));

@@ -117,8 +117,11 @@ ROWS = {
         {"id": "ABC-003", "type": "Dependency", "status": "Closed", "owner": None, "workstream": "Run", "use_case": None, "priority": "Low", "due_date": "2030-01-01"},
     ],
     "decisions": [
-        {"id": "ABC-D-001", "status": "Pending", "made_by": "Pat Demo", "use_case": None, "needed_by": "2030-01-16", "date": None},
-        {"id": "ABC-D-002", "status": "Made", "made_by": "Lee Demo", "use_case": "ABC-U-001", "needed_by": "2030-01-01", "date": "2030-01-05"},
+        {"id": "ABC-D-001", "status": "Pending", "made_by": "Pat Demo", "use_case": None, "needed_by": "2030-01-16", "date": None, "priority": "High"},
+        {"id": "ABC-D-002", "status": "Made", "made_by": "Lee Demo", "use_case": "ABC-U-001", "needed_by": "2030-01-01", "date": "2030-01-05", "priority": "Low"},
+        {"id": "ABC-D-003", "status": "Made", "made_by": "Lee Demo", "use_case": None, "needed_by": None, "date": "2029-12-31", "priority": "Medium"},      # row 1268: 15 days ago, out of "current"
+        {"id": "ABC-D-004", "status": "Made", "made_by": "Lee Demo", "use_case": None, "needed_by": None, "date": "2030-01-01", "priority": "Urgent"},      # 14 days ago, the last day in
+        {"id": "ABC-D-005", "status": "Made", "made_by": "Lee Demo", "use_case": None, "needed_by": None, "date": "2030-01-16", "priority": "Urgent"},      # tomorrow: not yet
     ],
 }
 ROWS["milestones"] = [{"id": "ABC-M-001", "name": "Go live"}, {"id": "ABC-M-002", "name": "Pilot"}]
@@ -132,7 +135,7 @@ ROWS["decisions"][0]["decision"] = "Pick the vendor"
 LEFT = [{"not": {"owner": ["Pat Demo"]}}, {"milestone": ["go LIVE"]}, {"milestone": ["(none)"]}, {"has": [["owner"]]}, {"no": [["due"]]},
         {"text": ["supplier"]}, {"text": ["abc-00"]}, {"not": {"due": ["overdue"]}}, {"has": [["owner", "due"]], "mode": "all"},
         {"no": [["owner", "milestone"]]}, {"not": {"kinds": ["risk", "issue"], "milestone": ["Pilot"]}}, {"text": ["second wave", "plan"]}]
-FILTERS = [{}, {"mode": "all"}, {"mode": "closed"}, {"kinds": ["risk", "issue"]}, {"kinds": ["decision"], "mode": "all"},
+FILTERS = [{}, {"mode": "current"}, {"mode": "current", "kinds": ["decision"]}, {"mode": "all"}, {"mode": "closed"}, {"kinds": ["risk", "issue"]}, {"kinds": ["decision"], "mode": "all"},
            {"due": ["overdue"]}, {"due": ["soon", "none"]}, {"due": ["later"], "mode": "all"}, {"owner": ["Pat Demo"]},
            {"owner": ["(none)"], "mode": "all"}, {"workstream": ["Build", "(none)"]}, {"use_case": ["ABC-U-001"], "mode": "all"},
            {"priority": ["Urgent", "High"]}, {"priority": ["(none)"], "mode": "all"}, {"status": ["Delayed", "Pending"]},
@@ -237,6 +240,16 @@ class PageRules(unittest.TestCase):
                 body = stored(f)
                 page = self.val(f"W.matching(W.filterOf({{body: {json.dumps(body)}}}), W.ruleRows({json.dumps(ROWS)}), {json.dumps(TODAY)})")
                 self.assertEqual(page, want)
+
+    def test_current_lists_open_rows_and_a_decision_made_in_the_last_14_days(self):      # row 1268, item 4
+        got = wi.matching(check({"mode": "current", "kinds": ["decision"], "max": 50}), wi.rows_of(ROWS), TODAY)
+        self.assertEqual(sorted(got), ["ABC-D-001", "ABC-D-002", "ABC-D-004"])
+        page = self.val(f"W.matching(W.filterOf({{body: {json.dumps(stored({'mode': 'current', 'kinds': ['decision'], 'max': 50}))}}}), W.ruleRows({json.dumps(ROWS)}), {json.dumps(TODAY)}).sort()")
+        self.assertEqual(page, ["ABC-D-001", "ABC-D-002", "ABC-D-004"])
+
+    def test_a_decision_has_no_priority_in_the_rules_as_on_the_work_items_page(self):      # row 1268, item 8: the cell shows the peek's priority, the filter and sort still read none
+        got = wi.matching(check({"mode": "all", "kinds": ["decision"], "priority": ["Urgent"], "max": 50}), wi.rows_of(ROWS), TODAY)
+        self.assertEqual(got, [])
 
     def test_a_name_that_is_gone_matches_nothing_and_the_page_and_publish_agree(self):
         every = lambda f: wi.matching(check(f), wi.rows_of(ROWS), TODAY)
