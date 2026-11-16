@@ -68,6 +68,19 @@ class BuiltPages(unittest.TestCase):
         self.assertNotIn('{r.from || "nothing"}', src)
         self.assertNotIn('{r.to || "nothing"}', src)
 
+    def test_dayWords_runs_a_stored_day_to_day_first_and_leaves_other_text_alone_row_1258(self):
+        """Runs the real dayWords line of PeekActivity.jsx in node with the real showDate, so a broken date pattern fails."""
+        node = need_node(self)
+        src = (SRC / "edit" / "PeekActivity.jsx").read_text(encoding="utf-8")
+        line = re.search(r"^const dayWords = .*$", src, re.M)
+        self.assertTrue(line, "dayWords is defined in PeekActivity.jsx")
+        code = (f'import {{ showDate }} from "{(SRC / "workItems.js").as_uri()}"; {line.group(0)}\n'
+                'console.log(JSON.stringify(["2026-11-06", "2026-11-20", "2026-1-6", "2026-11-06T10:00", "20261106", "06-11-2026", "Open", "", null, undefined, "x2026-11-06", "2026-11-06x"].map(dayWords)))')
+        done = subprocess.run([node, "--input-type=module", "-e", code], capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(json.loads(done.stdout), ["06-11-2026", "20-11-2026", "2026-1-6", "2026-11-06T10:00", "20261106", "06-11-2026", "Open", "", None, None,
+                                                    "x2026-11-06", "2026-11-06x"])
+
     def test_the_activity_tab_is_in_the_served_page_only(self):
         served, view = page.PAGE.read_text(encoding="utf-8"), page.VIEW_PAGE.read_text(encoding="utf-8")
         for word in ("/api/activity", "data-activity", "Reading the history", "Item details and history"):
