@@ -655,6 +655,16 @@ WORK_COLUMNS = {"type": ("Type", 1000), "id": ("ID", 1200), "owner": ("Owner", 1
 WORK_DEFAULT = ("type", "id", "owner", "due", "priority")
 
 
+def _late_words(iso, ctx):
+    """Row 1268: the words the on-screen Work items list puts beside a late date (workItems.js dueCell): Yesterday, or N days late."""
+    n = (ctx.today - date.fromisoformat(str(iso)[:10])).days
+    return "Yesterday" if n == 1 else f"{n} days late"
+
+
+def _list_due(iso, late, ctx, extra=()):
+    return word_cell(_date(iso) + (" " + _late_words(iso, ctx) if late and iso else "") if iso else "", ctx, late=late, extra=extra)
+
+
 def section_workitems(published, ctx, title, sec):
     """Row 1268: a Work items list prints the rows it names, in its order, as one table: the Item and the columns the list chose (its `columns`, in the page's order)."""
     by_id = {r.get("id"): (t, r) for t in ("actions", "raid", "decisions") for r in _rows(published, t)}
@@ -672,13 +682,13 @@ def section_workitems(published, ctx, title, sec):
             late = colours_table.is_late("decisions", "needed_by", r, ctx.today)
             cells = {"type": word_cell("Decision", ctx), "id": word_cell(i, ctx), "item": (text_paras(_words(r, "client_message", "decision"), ctx), None),
                      "owner": word_cell(r.get("made_by"), ctx), "priority": word_cell(None, ctx), "workstream": word_cell(None, ctx), "milestone": word_cell(None, ctx),
-                     "due": word_cell(when + (" (overdue)" if late and when else ""), ctx, late=late), "status": word_cell(r.get("status"), ctx, colour=colours_table.colour_for("decisions", "status", r.get("status")))}
+                     "due": word_cell(when + (" " + _late_words(r.get("needed_by"), ctx) if late and when and pending else ""), ctx, late=late), "status": word_cell(r.get("status"), ctx, colour=colours_table.colour_for("decisions", "status", r.get("status")))}
         else:
             kind = "action" if t == "actions" else str(r.get("type") or "").lower()
             cells = {"type": word_cell(kind.capitalize(), ctx), "id": word_cell(i, ctx), "item": (text_paras(_words(r, "client_message", "description"), ctx), None),
                      "owner": word_cell(r.get("owner"), ctx), "workstream": word_cell(r.get("workstream"), ctx), "milestone": word_cell(names.get(r.get("milestone")), ctx),
                      "priority": word_cell(r.get("priority"), ctx, colour=colours_table.colour_for(t, "priority", r.get("priority"))),
-                     "due": _due(t, "due_date", r, ctx), "status": _status_cell(r, kind, ctx)}
+                     "due": _list_due(r.get("due_date"), colours_table.is_late(t, "due_date", r, ctx.today), ctx), "status": _status_cell(r, kind, ctx)}
         rows.append([cells[c] for c in order])
     if not rows:
         return ""
@@ -686,6 +696,8 @@ def section_workitems(published, ctx, title, sec):
     fixed = {c: WORK_COLUMNS[c][1] for c in order if c != "item"}
     weights = [fixed.get(c, max(2000, TEXT_W - sum(fixed.values()))) for c in order]
     return _heading(title) + caption + table(ctx, ["Item" if c == "item" else WORK_COLUMNS[c][0] for c in order], weights, rows)
+
+
 
 
 SIMPLE = {"workitems": section_workitems, "imagecap": section_imagecap, "current": section_current, "text": section_text, "milestones": section_milestones, "actions": section_actions,
