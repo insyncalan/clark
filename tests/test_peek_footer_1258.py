@@ -1,4 +1,4 @@
-"""Row 1258 part 4: the peek's footer at the approved size (the mockup's footer): 43 px high, the key tag 30 x 19 in mono 12 / 600, the input
+"""Row 1258 part 4: the peek's footer at the approved size (the mockup's footer): 43 px high, the key tag 30 x 19 in mono 13 / 600, the input
 without a border. A real browser at 1400 and 900 px in Edit on the fictional demo project; no new words (the placeholder is unchanged).
 Run: python3 dev/run_tests.py test_peek_footer_1258
 """
@@ -31,7 +31,7 @@ class Footer(test_peek_latest.Browser):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.opened(cdp, width)
                 k = self.box(cdp, sid, "[data-pk-foot] kbd")
-                self.assertEqual((k["w"], k["h"], k["size"], k["weight"]), (30, 19, "12px", "600"))
+                self.assertEqual((k["w"], k["h"], k["size"], k["weight"]), (30, 19, "13px", "600"))
                 self.assertRegex(k["font"].lower(), r"mono|menlo|consolas")
 
     def test_the_input_has_no_border_and_the_words_are_unchanged(self):

@@ -2742,7 +2742,7 @@ button.tpl-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 
 .pk-details-car { margin-left: auto; transition: transform 0.15s; }
 .pk-details[data-open="1"] .pk-details-car { transform: rotate(180deg); }
 .pk-foot { display: flex; align-items: center; gap: var(--space-2); margin: var(--space-3) 0 0; box-sizing: border-box; min-height: 43px; padding: 0; border-top: 1px solid var(--grey-100); position: sticky; bottom: calc(-1 * var(--space-5)); z-index: 3; background: var(--surface); }      /* stays at the foot of the panel, as the mockup does */
-.pk-foot-key { flex: none; box-sizing: border-box; width: 30px; height: 19px; display: grid; place-items: center; padding: 0; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); color: var(--text-muted); font: 600 12px/1 ui-monospace, Menlo, Consolas, monospace; }
+.pk-foot-key { flex: none; box-sizing: border-box; width: 30px; height: 19px; display: grid; place-items: center; padding: 0; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); color: var(--text-muted); font: 600 13px/1 ui-monospace, Menlo, Consolas, monospace; }
 .pk-foot-in { flex: 1 1 auto; min-width: 0; min-height: 24px; padding: 4px 8px; border: 0; background: transparent; color: var(--text-muted); font: inherit; text-align: left; cursor: text; }
 .pk-unsaved { margin: var(--space-2) 0 0; padding: 8px 10px; border: 1px solid var(--status-amber); border-radius: var(--radius); background: var(--status-amber-tint); }
 .pk-unsaved-t { margin: 0 0 var(--space-1); }
