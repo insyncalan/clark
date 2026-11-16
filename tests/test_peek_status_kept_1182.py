@@ -34,6 +34,15 @@ class StatusKept(unittest.TestCase):
             self.peek(cdp, sid, "TUL-007")
             self.assertEqual(self.sub(cdp, sid, "status"), "")
 
+    def test_a_made_or_withdrawn_decision_has_no_kept_line(self):
+        """Only a risk or an issue keeps its rating. A decision that is Made (TUL-D-013, priority Medium) is closed too and must show no 'kept' line.
+        (A closed action cannot kill this: actions draw their own chips.) Killer for: the kind check dropped from the kept line of the Status chip."""
+        with chrome() as cdp:
+            sid = self.open_page(cdp, 1400)
+            for ref in ("TUL-D-013", "TUL-D-014"):
+                self.peek(cdp, sid, ref)
+                self.assertEqual(self.sub(cdp, sid, "status"), "", ref)
+
 
 if __name__ == "__main__":
     unittest.main()
