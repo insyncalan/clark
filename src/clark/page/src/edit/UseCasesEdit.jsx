@@ -143,12 +143,15 @@ export function Configure({ section }) {
   return <button type="button" class="pk-btn uc-configure" data-edit-only data-uc-configure onClick={() => openBox("configure", section.id)}>{W.CONFIGURE}</button>;
 }
 
+const bases = new Map();
+
 // "Configure use cases": the number shown and whether viewers scroll. Each change is kept at once (no Save), so Edit draws what it draws.
 function ConfigureBox({ id, onClose, opener }) {
   const first = useRef(null), v = viewOf(sectionOf(id), false);
   // Two changes in a row (the number, then the switch) must not lose the first: while any save is still being stored, the next builds on the
   // last view asked for, not on what the page has drawn so far. Once none is in flight, a change of the drawn view (an Undo, say) hands the base back to it.
-  const now = useRef(null);       // { view, pending, failed, tail }: `view` is the last view that was stored; `tail` runs the saves one after the other
+  // Held per section outside the box: a box shut and opened again while a save is still out must find the same base, not the drawn view.
+  const now = { get current() { return bases.get(id) || null; }, set current(x) { if (x) bases.set(id, x); else bases.delete(id); } };      // { view, pending, failed, tail }: `view` is the last view that was stored; `tail` runs the saves one after the other
   useEffect(() => { if (now.current && now.current.pending === 0) now.current = null; }, [v.n, v.scroll, v.tracker]);
   const setView = (patch) => {
     const cur = now.current || { view: givenOf(sectionOf(id)), pending: 0, failed: false, tail: Promise.resolve() };      // only the keys the stored body holds: a tracker-only click then writes the tracker alone

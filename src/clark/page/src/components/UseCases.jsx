@@ -60,7 +60,7 @@ function Row({ s, shown, toggle, ed }) {
         {ed ? <ed.Headline u={u} /> : <span class="uchead">{u.headline}</span>}
         <span class="ucstc">
           {ed ? <ed.Status u={u} /> : <span class={`ucword rag-${rag(u.status)}`} data-word><i class="ragdot" aria-hidden="true"></i>{u.status}</span>}
-          {ed ? <ed.Commit u={u} /> : <CommitChip u={u} />}
+          {ed ? <ed.Commit u={u} /> : <CommitChip u={u} dash />}
         </span>
         <span class="ucsteps num">{stepsWord(s.steps.length)}</span>
       </div>
