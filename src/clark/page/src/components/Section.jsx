@@ -1,7 +1,7 @@
 // One section of the report (#65). In Edit, `tools` (edit/) adds the gutter control (grip, + and menu) and the editable title; View
 // never renders any of them, so they are not in the page at all.
 // A 'Progress tracker' section (#189) is a bar and groups of lines: view only here and in a published file, edited in place in Edit (edit/TrackerEdit.jsx).
-// A text section's body (Summary, This week, Next week; #74) is drawn only in a published file, view-only: the publish build
+// A text section's body (Current state, This week, Next week; #74) is drawn only in a published file, view-only: the publish build
 // cleaned it (publish.clean_html) before it wrote the file, and the file holds nothing else. A published file draws no other type
 // (Dashboard leaves those sections out of it, so a client never reads that something is missing). The page clark serves never
 // draws a saved body as markup in Edit until the one editor arrives (#66); there, every type but the ones below shows one quiet

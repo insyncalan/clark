@@ -502,7 +502,7 @@ def _checked_changes(fields):
 def _section_body(section, body):
     """The canonical text of `body` for the stored section `section` (a row of this project), through the one checker registry
     (section_bodies.CHECKERS, keyed by the STORED type: the request never says which type it is). Only a needs or tracker section
-    takes a body here, and a text section (Summary, This week, Next week) through the cleaner (_text_body). A refusal is plain words and never
+    takes a body here, and a text section (Current state, This week, Next week) through the cleaner (_text_body). A refusal is plain words and never
     quotes the content. The store checks it again on write (every write, an Undo too). A section that holds pictures (#96 R1)
     takes its words here and keeps its stored pictures (_keep_pictures)."""
     if section["type"] == "text":
