@@ -1425,6 +1425,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
    the status word and the steps, so the status words' left edges are equal in every row. */
 .uc { margin-top: var(--space-2); }
 .ucstrip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--space-4); padding: var(--space-1) 0 var(--d-uc-strip-b); font-size: var(--size-body); }
+.ucstrip-below { padding: var(--d-uc-strip-b) 0 var(--space-1); }
 .uctotal { font-weight: var(--weight-medium); color: var(--heading); }
 .ucn { display: inline-flex; align-items: center; gap: 6px; color: var(--text); }
 .meter { display: flex; gap: 2px; flex: 0 1 auto; width: min(280px, 40%); margin-left: auto; height: 8px; }   /* item 1147: the bars sit at the right end of the tile, on the counts' line; 280 px but never over 40% of the tile */
