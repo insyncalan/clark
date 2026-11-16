@@ -268,6 +268,9 @@ class Page(InBrowser):
         self.assertEqual(self.val("T.calls.filter(c => c[0] === 'pick')"), [["pick", ["example-brand", "Example Brand"]]])
 
     def focus_pick(self):
+        # Row 1249: the brands come from the fake list call and the page draws them a debounce later (T.slowRender: 100 ms), so a fixed settle() after
+        # mount can end before the select has its second option; an arrow then moves nothing and no save is ever recorded. Wait for what is drawn.
+        self.assertTrue(wait(lambda: self.val("(document.querySelector('#brand-pick') || {options: []}).options.length") >= 2), "the picker to be drawn with its brands")
         self.js("document.querySelector('#brand-pick').focus()")
 
     def step(self, key, vk):
