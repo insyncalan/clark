@@ -738,6 +738,10 @@ input.sec-title { width: 100%; }
 .pk-row { display: grid; grid-template-columns: 130px 1fr; gap: var(--space-3); padding: var(--d-pk-row-y) 0; border-top: 1px solid var(--grey-100); }
 .pk-row dt { color: var(--text-muted); font-size: var(--size-caption); }
 .pk-row dd { margin: 0; overflow-wrap: anywhere; }
+/* row 1256: the Client visible line (.cv): 14 px, weight 500, muted with an eye, teal when the item is shown to the client; the same look as a button in Edit and as plain text in View and in a published file */
+.pk-row[data-pk-client-row] dd { grid-column: 1 / -1; }
+.cv { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 28px; font-size: var(--size-small); font-weight: 500; color: var(--text-muted); }
+.cv.on { color: var(--status-green); }      /* the brand's teal-green token: the shell takes no hard-coded colour, so the mock-up's exact teal would need a new token (asked) */
 /* Row 1078: the milestone peek's header line (Peek.jsx MsHead), the published page's too: the state, the owner and the progress on one flat line
    under the title; the hairline under it is the first row's top edge. The editor puts its controls in the same places (edit.css sizes them). */
 .pk-ms-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin: 0 0 var(--space-3); font-size: var(--size-small); color: var(--text); }
