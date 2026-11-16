@@ -94,7 +94,8 @@ class Page(unittest.TestCase):
 
     def mount(self, body=None, mode="edit", width=1300, page=1400, theme="light"):
         self.setup_page(page, theme)
-        self.val(f"F.mount({{id: 'ABC-S-1', body: {json.dumps(json.dumps(body)) if body else '""'}}}, {json.dumps(mode)}, {width})")
+        text = json.dumps(json.dumps(body)) if body else '""'      # built first: Python 3.9 takes no same-type quote inside an f-string
+        self.val(f"F.mount({{id: 'ABC-S-1', body: {text}}}, {json.dumps(mode)}, {width})")
         self.until("document.querySelector('#root').children.length", "drawn")
 
     def calls(self):
