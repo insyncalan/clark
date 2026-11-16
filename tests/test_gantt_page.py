@@ -325,6 +325,7 @@ class Page(unittest.TestCase):
                                  "[data-gantt] .gt-bar [data-g-expand]')].map(b => b.dataset.gpLayout ? 'layout' : b.dataset.gScale ? 'scale' : Object.keys(b.dataset)[0])")
                 self.assertEqual(order, ["layout", "layout", "scale", "scale", "scale", "gZout", "gFit", "gZin", "gShow", "gTodayBtn", "gExpand"])
                 self.assertEqual(self.val("document.querySelector('[data-gp-layout=chart]').getAttribute('aria-pressed')"), "true")
+                self.assertEqual(self.count("[data-gantt] .gt-bar .gt-sep"), 1, "one divider between the layout buttons and the scale switches, never two in a row")
                 self.click("[data-gp-layout=table]")
                 self.until("document.querySelector('.gt-scroll')", "the table")
                 self.assertEqual(self.val("document.querySelector('[data-gp-layout=table]').getAttribute('aria-pressed')"), "true")

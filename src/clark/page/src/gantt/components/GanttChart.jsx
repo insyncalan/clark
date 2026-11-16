@@ -363,7 +363,7 @@ export function GanttChart({
   return (
     <section class={`gt${full ? " gt-full" : ""}`} data-gantt data-mode={edit ? "edit" : "view"} data-full={full ? "1" : "0"}>
       <div class="gt-bar" role="toolbar" aria-label="Chart">
-        {lead ? <>{lead}<span class="gt-sep" aria-hidden="true" /></> : null}
+        {lead}
         <span class="gt-sep" aria-hidden="true" />
         <span class="gt-grp" role="group" aria-label="Scale">
           {SCALES.map((s) => (
