@@ -84,7 +84,7 @@ function ItemChips({ row, tools, editing }) {
   const fixed = row.kind === "assumption" || row.kind === "dependency";
   return (
     <PeekChips>
-      <PeekChip Live={Live} id={row.id} field="status" name="Status" icon="half" tone={openRI ? "b" : statusTone(row, today)} value={openRI ? "Open" : pill.text} sub={kept ? `${kept} kept` : ""} flash={hit("status")} pop={pop("status")} />
+      <PeekChip Live={Live} id={row.id} field="status" name="Status" icon="half" tone={openRI ? "b" : statusTone(row, today)} value={openRI ? "Open" : pill.text} sub={kept ? `${kept} kept` : ""} subTone={kept ? "kept" : ""} flash={hit("status")} pop={pop("status")} />
       <PeekChip Live={Live} id={row.id} field="priority" name={(row.kind === "risk" || row.kind === "issue") ? "Rating" : "Priority"} icon="bars" tone={priorityTone(prio)} value={rated ? colourOf(prio).word : text(prio)} sub={rated ? text(prio) : ""} subTone={rated ? `lvl ${colourOf(prio).class}` : ""}
         flash={hit("priority")} tip={fixed ? "Set from impact and likelihood" : row.kind === "risk" ? "Priority from impact and likelihood" : row.kind === "issue" ? `${colourOf(prio).word} rating, set from impact and likelihood` : undefined} pop={pop("priority")} />
       <PeekChip Live={Live} id={row.id} field="owner" name={row.kind === "decision" ? "Decider" : "Owner"} icon="user" tone="b" value={who.text} flash={hit("owner")} pop={pop("owner")} />
@@ -195,7 +195,7 @@ function MilestoneFields({ m, tools }) {
 export function Edge() {
   const start = useRef(null);
   const down = (e) => { start.current = true; try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* no capture: the move still follows */ } e.preventDefault(); };
-  const move = (e) => { if (start.current) setWidth(document.documentElement.clientWidth - e.clientX); };
+  const move = (e) => { if (start.current) setWidth(document.documentElement.clientWidth - 16 - e.clientX); };
   const up = () => { start.current = null; };
   const key = (e) => {
     const step = e.shiftKey ? 80 : 20;

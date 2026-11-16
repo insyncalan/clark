@@ -81,6 +81,8 @@
 .pk-hcount { margin-left: 2px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .pk-history { margin: var(--space-3) 0 0; }
 .pk-hicon { flex: none; margin-top: 2px; color: var(--text-muted); }
+/* the approved peek mockup: the history icon sits in a 30 px tile with an 8 px corner */
+.pk-hrow-tile, .pa-line > .pk-hicon, .pk-hsrc > .pk-hicon { box-sizing: content-box; width: 16px; height: 16px; padding: 6px; border: 1px solid var(--grey-200); border-radius: 8px; margin-top: 0; }
 .pk-hsrc { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin: var(--space-2) 0; }
 .pk-hsrc a, .pk-hsrc .linklike { color: var(--brand-blue); font: inherit; background: none; border: 0; padding: 0; min-height: 24px; text-decoration: underline; cursor: pointer; }
 .pk-tab.on { color: var(--text); border-bottom-color: var(--brand-blue); font-weight: var(--weight-medium); }
@@ -814,9 +816,7 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .tracker-edit .t-name-form .t-f, .tracker-edit .t-new-group .t-f { width: 260px; max-width: 100%; }
 .tracker-edit .btn:disabled { color: var(--text-muted); cursor: default; }
 
-/* The Dashboard's use case summary in Edit: the status button, the headline and the name changed in place, the growing Add
-   button in the header, the Add a use case box and the link to the picker. Tokens only; no text under 13 px. */
-.uc-add { flex: none; margin-left: auto; }
+/* The Dashboard's use case summary in Edit: the status button, the headline and the name changed in place, the Add a use case box and the link to the picker. Tokens only; no text under 13 px. */
 .ucw-btn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 24px; cursor: pointer; border-radius: var(--radius-sm); padding: 1px 4px; margin: -1px -4px; }
 .ucw-btn:hover { background: var(--grey-200); }
 .ucw-btn:focus-visible { outline: 2px solid var(--brand-blue); }
@@ -1250,6 +1250,7 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
 @media (min-width: 801px) {
   .msl-hd { display: block; margin: var(--d-msl-top) 0 0 var(--space-1); border-left: 2px solid transparent; border-bottom: 1px solid var(--grey-200); font-size: var(--size-caption); font-weight: var(--weight-medium); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); }
   .msl-hc { display: grid; grid-template-columns: minmax(150px, 190px) minmax(160px, 1fr) 150px 130px; column-gap: var(--space-4); align-items: center; padding: 6px var(--space-2) 6px 22px; }
+  .msl-box:not([data-place="page"]) .msl-hc { grid-template-columns: minmax(140px, 1fr) 130px 100px minmax(150px, 190px) 120px; }
   .msl-hc > span { position: relative; min-width: 0; }
   .msl-hd + .msl, .msl-hd ~ .msl { margin-top: 0; }
   .msl-box:has(.msl-row.has-eye) .msl-hc { padding-right: calc(var(--space-2) + 38px); }
@@ -1258,6 +1259,7 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
 }
 @media (min-width: 1201px) {
   .msl-hc { grid-template-columns: minmax(240px, 17rem) minmax(160px, 1fr) 150px 130px; }
+  .msl-box:not([data-place="page"]) .msl-hc { grid-template-columns: minmax(180px, 1fr) 150px 110px minmax(170px, 14rem) 130px; }
   .msl-box[style*="--msl-cols:"] .msl-cells, .msl-box[style*="--msl-cols:"] .msl-hc { grid-template-columns: var(--msl-cols-w); }
 }
 .msl-hc > span:has(> .cgrip) { position: relative; }
@@ -1275,6 +1277,11 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
 .pkh-line { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-4) 0 var(--space-1); color: var(--text-muted); font-size: var(--size-small); }
 .pkh-id { display: inline-flex; padding: 1px 7px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: transparent; color: var(--heading); font-size: var(--size-caption); font-weight: var(--weight-medium); }
 .pkh-proj { min-width: 0; overflow-wrap: anywhere; }
+/* row 1258 (v1.1.1): the ID tag and the project line as the approved mockup draws them (peek-mockup.html .id, .crumb): mono 12 px / 600 on #F6F8FC (a literal accepted by the owner 17-11), radius 6, 20 px high; the project line 13 px */
+.peek .pkh-line { font-size: var(--size-caption); }      /* 13 px, the mockup's project line */
+.peek .pkh-id { box-sizing: border-box; align-items: center; height: 20px; padding: 2px 7px; border-radius: 6px; background: #F6F8FC; color: var(--heading); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; line-height: 1; }
+:root[data-theme="dark"] .peek .pkh-id { background: var(--grey-50); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .peek .pkh-id { background: var(--grey-50); } }
 .pkh-title-in { display: block; width: calc(100% + 2 * var(--space-2)); box-sizing: border-box; margin: 0 calc(-1 * var(--space-2)); padding: 0 var(--space-2); border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: inherit; font: inherit; line-height: inherit; resize: none; overflow: hidden; cursor: text; overflow-wrap: anywhere; }
 .pkh-title-txt { cursor: text; white-space: pre-wrap; }
 .pkh-title-in:hover { background: var(--grey-50); }
@@ -1400,3 +1407,12 @@ table.items .c-x-id, table.items .c-x-type { width: 100px; }
 
 .ucm-seg { display: inline-flex; gap: var(--space-2); }
 .ucm-seg .pk-btn[aria-pressed="true"] { font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+
+/* Row 1258 (v1.1.1), the peeks to the approved mockups, step 3: the title and the tabs as peek-mockup.html layout A draws them (h2.ti, .tabs).
+   The title is Inter 24/700 with -.015em, and its in-place box carries a 2 px ring (a shadow, no border); the tabs are 14/600, 40 px high, with an ink underline. */
+.peek:not(.hpk) .pk-title { font-family: var(--font-label); font-size: var(--size-h2); font-weight: 700; line-height: 1.2; letter-spacing: -.015em; }
+.peek:not(.hpk) .pkh-title-in { border-width: 0; letter-spacing: inherit; }
+.peek:not(.hpk) .pkh-title-in:focus { outline: 0; box-shadow: 0 0 0 2px var(--brand-blue); }
+.peek .pk-tabs { gap: 2px; margin: 22px 0 4px; }
+.peek .pk-tab { box-sizing: border-box; height: 40px; min-height: 40px; padding: 9px 12px; margin-bottom: -1px; font-size: var(--size-small); font-weight: 600; line-height: 20px; }
+.peek .pk-tab.on { border-bottom-color: var(--text); font-weight: 600; }
