@@ -94,8 +94,8 @@
 .pk-fix button { min-height: 28px; padding: 3px 10px; border: 1px solid var(--status-amber); border-radius: var(--radius); background: var(--surface); color: var(--status-amber-text); font: inherit; font-size: var(--size-small); font-weight: var(--weight-medium); cursor: pointer; }
 .pk-fix button:hover { background: var(--status-amber-tint); }
 .pk-fix button:focus-visible, .pk-latest-text:focus-visible, .pk-latest-in:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.pk-latest { margin: var(--space-2) 0 0; padding-top: var(--space-2); border-top: 1px solid var(--grey-100); }
-.pk-lab { display: flex; align-items: center; gap: 10px; margin-bottom: var(--space-1); color: var(--text); font-size: var(--size-small); }
+.pk-latest { margin: var(--space-2) 0 0; }   /* row 1257: the box below is the frame, so no rule above it */
+.pk-lab { display: flex; align-items: center; gap: 10px; margin: 0 0 8px; color: var(--heading); font-size: 13px; font-weight: 700; letter-spacing: .02em; }   /* row 1257: 13 px / 700 like the mockup; the Draft with AI button inside keeps its own 13 / 600 */
 .pk-ai { display: inline-flex; align-items: center; gap: 4px; min-height: 24px; padding: 2px 8px; border: 0; border-radius: var(--radius); background: transparent; color: var(--brand-blue); font: inherit; font-size: var(--size-caption); font-weight: 600; cursor: pointer; }
 .pk-ai:hover, .aim-opt:hover { background: var(--brand-blue-tint); }
 .pk-ai:focus-visible, .aim-opt:focus-visible, .aim-ask input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
@@ -142,10 +142,21 @@
 .pk-ms-block.pv { opacity: .55; }
 .pk-ms-block:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .pk-off { color: var(--text-muted); cursor: not-allowed; }
+/* Row 1257 (layout A of the approved peek mockup): the Latest update is ONE bordered card, the editor on top and a footer strip with the save key always shown. */
+.pk-lbox { overflow: hidden; border: 1px solid var(--grey-200); border-radius: 12px; background: var(--grey-50); }
+.pk-lbox:focus-within { border-color: var(--brand-blue); background: var(--surface); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-blue) 15%, transparent); }
+.pk-lbox .rt-view, .pk-lbox .rt-view:hover { display: block; box-sizing: border-box; min-height: 84px; margin: 0; padding: 12px 14px; border: 0; border-radius: 0; background: transparent; font-size: 14px; line-height: 1.45; }
+.pk-lbox .rt-view .quiet, .pk-lbox .rt-view .prose p { margin: 0; }
+.pk-lbox .rt { margin: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.pk-lbox .rt-keys { display: none; }   /* the footer strip says how to save */
+.pk-lbox .rt-host { min-height: 84px; resize: none; }
+.pk-lbox .rt-host .ProseMirror { min-height: 84px; box-sizing: border-box; padding: 12px 14px; font-size: 14px; line-height: 1.45; }
+.pk-lfoot { display: flex; justify-content: flex-end; gap: 10px; padding: 8px 10px 8px 14px; border-top: 1px solid var(--grey-200); color: var(--text-muted); font-size: 12px; }
+.pk-key { display: inline-block; padding: 0 5px; border: 1px solid var(--grey-200); border-radius: 5px; background: var(--surface); font: 600 11px ui-monospace, Menlo, monospace; }
 .pk-latest-hint, .pk-latest-err { margin: 4px 0 0; font-size: var(--size-small); }
 .pk-latest-hint { color: var(--text-muted); }
 .pk-latest-err { color: var(--status-red-text); }
-.pk-last { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: var(--space-1); color: var(--text-muted); font-size: var(--size-small); }
+.pk-last { display: flex; align-items: center; justify-content: flex-end; margin-top: 6px; color: var(--text-muted); font-size: 12px; }   /* row 1257: 12 px, 6 px under the box, no icon, lowercase words */
 /* Issue 1016: the four cells of the peek card are a step shorter above and below and a step closer together (Edit only: the published page keeps shell.css's own). */
 .peek .pk-body:has(.wordsbox) { overflow: visible; }   /* row 1077: with the words box open the peek itself scrolls, so the foot band (.wordsbox, sticky) pins to the peek's bottom edge */
 .peek .wordsbox { bottom: var(--space-2); margin: calc(var(--space-4) + var(--space-1)) calc(-1 * var(--space-5)) calc(-1 * var(--space-5)); padding: var(--space-3) var(--space-5); border: 0; border-top: 1px solid var(--grey-200); border-radius: 0; background: var(--grey-50); box-shadow: none; }   /* row 1077 (the owner's ruling, flat): in the peek it is a foot band the full width of the panel, pinned to its bottom edge while the body scrolls (the peek scrolls; edit.css lets the body show through), a hairline above and a light tint */

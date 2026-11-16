@@ -1,0 +1,101 @@
+"""Row 1257 (v1.2), item 4: the Latest update box of the work item peek (an action, a risk, an issue) drawn as the approved mockup's layout A, measured at 1400 and 900:
+heading 13 px / 700, one bordered card (border 1 px, radius 12, soft background, min text 84 px, padding 12 / 14, 14 px), a footer strip that is always shown inside
+the card with the save key, the focus ring, the lowercase stamp under the card without an icon, and the same placeholder for every kind.
+Run: python3 dev/run_tests.py test_peek_latest_box_1257
+"""
+import json
+import re
+import unittest
+
+import test_peek_latest
+import test_server  # noqa: F401  (a test that drives Chrome carries this import)
+from test_server import chrome, wait
+
+_B = test_peek_latest.Browser
+ITEMS = (("TUL-A-002", "action"), ("TUL-007", "risk"), ("TUL-010", "issue"))
+BOX = "#peek [data-pk-lbox]"
+
+
+class Box(unittest.TestCase):
+    load, open_box, type_in, save_key, toast, fresh, refused = (_B.load, _B.open_box, _B.type_in, _B.save_key, _B.toast, _B.fresh, _B.refused)
+    HOLD, SHOWN, BOX = _B.HOLD, _B.SHOWN, _B.BOX
+    setUp = _B.setUp
+
+    def each(self):
+        for width in (1400, 900):
+            for ref, kind in ITEMS:
+                with self.subTest(width=width, kind=kind), chrome() as cdp:
+                    sent, sid = self.load(cdp, width, ref, edit=True)
+                    yield cdp, sid, width
+
+    def num(self, cdp, sid, js):
+        return cdp.js(js, sid)
+
+    def test_the_box_is_a_bordered_card_with_the_measured_numbers(self):
+        for cdp, sid, width in self.each():
+            r = cdp.js("(() => { const b = document.querySelector('#peek [data-pk-lbox]'), c = getComputedStyle(b), t = getComputedStyle(b.querySelector('.rt-view')), v = b.querySelector('.rt-view').getBoundingClientRect(), br = b.getBoundingClientRect();"
+                       " return { bt: c.borderTopWidth, rad: c.borderTopLeftRadius, bg: c.backgroundColor, ov: c.overflow, bc: c.borderTopColor, pl: t.paddingLeft, pt: t.paddingTop, fs: t.fontSize, minh: v.height, sw: b.scrollWidth, cw: b.clientWidth, w: br.width }; })()", sid)
+            self.assertEqual((r["bt"], r["rad"], r["ov"], r["bc"]), ("1px", "12px", "hidden", "rgb(217, 224, 239)"), r)
+            self.assertEqual((r["pl"], r["pt"], r["fs"]), ("14px", "12px", "14px"), r)
+            self.assertGreaterEqual(r["minh"], 84, "the text area is at least 84 px high")
+            self.assertLessEqual(r["sw"], r["cw"], "no sideways overflow in the box")
+
+    def test_the_heading_is_13_px_and_700(self):
+        for cdp, sid, width in self.each():
+            r = cdp.js("(s => { const c = getComputedStyle(s); return [c.fontSize, c.fontWeight]; })(document.querySelector('#peek .pk-lab span'))", sid)
+            self.assertEqual(r, ["13px", "700"])
+
+    def test_the_footer_is_shown_before_the_box_is_opened_and_sits_inside_it_under_the_text(self):
+        for cdp, sid, width in self.each():
+            r = cdp.js("(() => { const b = document.querySelector('#peek [data-pk-lbox]'), f = b.querySelector('[data-pk-latest-hint]'); if (!f) return null; const k = f.querySelector('kbd'), c = getComputedStyle(f), kc = getComputedStyle(k);"
+                       " return { text: f.textContent.trim(), key: k.textContent, fs: c.fontSize, top: f.getBoundingClientRect().top, vb: b.querySelector('.rt-view').getBoundingClientRect().bottom, bt: c.borderTopWidth, kfs: kc.fontSize, kfw: kc.fontWeight, krad: kc.borderTopLeftRadius }; })()", sid)
+            self.assertIsNotNone(r, "the footer is in the box before any click")
+            self.assertEqual((r["text"], r["key"]), ("⌘ Enter to save", "⌘ Enter"))
+            self.assertEqual((r["fs"], r["bt"], r["kfs"], r["kfw"], r["krad"]), ("12px", "1px", "11px", "600", "5px"))
+            self.assertGreaterEqual(r["top"], r["vb"] - 0.5, "the strip is under the text")
+
+    def test_the_box_lights_on_focus_and_the_footer_stays(self):
+        for cdp, sid, width in self.each():
+            self.open_box(cdp, sid)
+            r = cdp.js("(() => { const c = getComputedStyle(document.querySelector('#peek [data-pk-lbox]')); return [c.borderTopColor, c.boxShadow, !!document.querySelector('#peek [data-pk-lbox] [data-pk-latest-hint]'), getComputedStyle(document.querySelector('#peek [data-pk-lbox] .rt')).borderTopWidth]; })()", sid)
+            self.assertEqual(r[0], "rgb(91, 71, 216)")
+            self.assertIn("0px 0px 0px 3px", r[1])
+            self.assertRegex(r[1], r"91, 71, 216|0\.15|91 71 216", "the ring is the brand colour at low alpha")
+            self.assertTrue(r[2])
+            self.assertEqual(r[3], "0px", "the editor draws no frame of its own inside the card")
+
+    def test_the_stamp_is_lowercase_12_px_without_an_icon_6_px_under_the_box(self):
+        for cdp, sid, width in self.each():
+            has = cdp.js("!!document.querySelector('#peek [data-pk-last]')", sid)
+            if not has:
+                continue
+            r = cdp.js("(() => { const s = document.querySelector('#peek [data-pk-last]'), c = getComputedStyle(s); return { t: s.textContent.trim(), svg: s.querySelectorAll('svg').length, fs: c.fontSize, mt: c.marginTop, gap: s.getBoundingClientRect().top - document.querySelector('#peek [data-pk-lbox]').getBoundingClientRect().bottom }; })()", sid)
+            self.assertTrue(re.fullmatch(r"last updated \d{2}-\d{2}-\d{4} \d{2}:\d{2}", r["t"]), r)
+            self.assertEqual((r["svg"], r["fs"], r["mt"]), (0, "12px", "6px"))
+            self.assertAlmostEqual(r["gap"], 6, delta=1)
+
+    def test_the_empty_box_says_the_same_words_for_every_kind(self):
+        seen = set()
+        for cdp, sid, width in self.each():
+            t = cdp.js("(e => e ? e.textContent : '')(document.querySelector('#peek [data-pk-lbox] .rt-view .quiet'))", sid)
+            if t:
+                seen.add(t)
+        self.assertLessEqual(seen, {"What changed? Add the latest update…"})
+
+    def test_a_save_is_still_one_change_with_one_undo(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sent, sid = self.load(cdp, width, "TUL-007", edit=True)
+                self.open_box(cdp, sid)
+                self.type_in(cdp, sid, "Box words")
+                self.save_key(cdp, sid)
+                self.assertTrue(wait(lambda: "Box words" in cdp.js(f"(document.querySelector({json.dumps(self.SHOWN)}) || {{textContent: ''}}).textContent", sid) or ""))
+                self.assertEqual(len(sent), 1)
+                self.assertIn("Latest update of", self.toast(cdp, sid))
+
+
+del _B
+
+
+if __name__ == "__main__":
+    unittest.main()
