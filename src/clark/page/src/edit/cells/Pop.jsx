@@ -49,7 +49,7 @@ export function Pop({ anchor, label, role = "dialog", cls = "", onClose, childre
     };
     const moved = (e) => { if (!box.current || !box.current.contains(e.target)) place(); };
     const resized = () => onClose(false);
-    const esc = (e) => { if (e.key === "Escape" && !e.defaultPrevented && box.current && !box.current.contains(e.target)) { e.preventDefault(); e.stopPropagation(); onClose(true); } };   // row 1184: focus is still on the chip that opened it, so the panel's own key handler never hears the Esc; it closes the panel and not the peek
+    const esc = (e) => { const a = anchor && anchor.current; if (e.key === "Escape" && !e.defaultPrevented && box.current && a && a.contains(e.target)) { e.preventDefault(); e.stopPropagation(); onClose(true); } };   // row 1184: focus is still on the chip that opened it, so the panel's own key handler never hears the Esc; it closes the panel and not the peek
     document.addEventListener("keydown", esc, true);
     document.addEventListener("pointerdown", away, true);
     document.addEventListener("scroll", moved, true);
