@@ -34,7 +34,7 @@ import { KIND_WORDS, todayIso } from "../workItems.js";
 import { splitStep, knownNames, stepValues, linkable, openCount, narrow, KINDS, linkedWords, linkableMilestones } from "../logic/ucRow.js";
 import { peopleList } from "../stores/handover.js";
 import { CommitMenu } from "./CommitMenu.jsx";
-import { viewOf, bodyOf, ALL, TRACKER_POSITIONS } from "../logic/useCaseView.js";
+import { viewOf, bodyOf, givenOf, ALL, TRACKER_POSITIONS } from "../logic/useCaseView.js";
 import { isOn, liveOf } from "../logic/useCasesList.js";
 import * as W from "./ucConfigureWords.js";
 
@@ -151,8 +151,9 @@ function ConfigureBox({ id, onClose, opener }) {
   const now = useRef(null);       // { view, pending, failed }
   useEffect(() => { if (now.current && now.current.pending === 0) now.current = null; }, [v.n, v.scroll, v.tracker]);
   const setView = (patch) => {
-    const cur = now.current || { view: { n: v.n, scroll: v.scroll, tracker: v.tracker }, pending: 0, failed: false };
+    const cur = now.current || { view: givenOf(sectionOf(id)), pending: 0, failed: false };      // only the keys the stored body holds: a tracker-only click then writes the tracker alone
     cur.view = { ...cur.view, ...patch };
+    if (cur.view.n !== undefined) cur.view = { scroll: v.scroll, tracker: v.tracker, ...cur.view };      // once a number is chosen the body holds all three, as before; a tracker or scroll change before that writes only its own key
     cur.pending += 1;
     now.current = cur;
     saveView(id, cur.view).then((r) => {
