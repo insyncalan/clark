@@ -2646,6 +2646,8 @@ button.tpl-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 
 .gp-first { margin: 0 0 var(--space-2); border-color: var(--border); }      /* the first line of an empty plan */
 .gp-slot { margin: var(--space-4) 0; }
 .gp-plan { margin: var(--space-4) 0; }
+/* Row 1197: in the comfortable spacing the plan (toolbar, chart or table) runs the width of the page band, as the Dashboard's tiles do (row 1152); the frame's 28 px side room is taken back. 900 px and narrower already has none. */
+@media (min-width: 901px) { html[data-density="comfortable"] .gp-plan { margin-left: -28px; margin-right: -28px; } }
 
 /* The Gantt table (row 926). Lives here, not in the component: the page only runs inline style elements it has a hash for, so a style
    element drawn by the component at run time would never apply. Brand tokens only, so light and dark both follow the page. */
