@@ -603,7 +603,7 @@ def select(inputs):
         proj["gantt_default_rows"] = gantt["default_rows"]
     shown = []
     pairs = set()                  # ids that open a row of two whose halves BOTH show: rows are read from every section, then the hidden are left out
-    for_templates = {k: built[k] for k in KINDS}
+    for_templates = {"use_cases": built["use_cases"]}            # the four work and milestone kinds follow, each with its words made plain
     for_templates["actions"] = [{**r, "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") else r
                                 for r in built["actions"]]                      # row 1005: a template (pure) is handed the words of the latest update, as the file's HTML would be markup to it
     for_templates["raid"] = [{**r, "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") else r

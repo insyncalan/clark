@@ -495,6 +495,21 @@ class Saved(Api):
         self.assertEqual([a["id"] for a in built["data"]["actions"]], [self.a_due], "exactly the named action")
         self.assertNotIn(self.a_later, [a["id"] for a in built["data"]["actions"]], "a kept row the list does not name stays out")
 
+    def test_the_list_body_is_built_from_the_unfiltered_rows_not_the_published_sections(self):
+        """Row 1268: with the Actions, Risks and issues and Decisions sections hidden, the published-section filter keeps none of their rows,
+        yet the list still reads them (the template is handed the rows as built, not as the sections carry them)."""
+        self.save({"mode": "all", "owner": ["Pat Demo"]})
+        with self.s.step("dashboard", USER) as st:
+            dec = st.create("decisions", {"project": "ABC", "decision": "Pick the vendor", "date": "2026-10-01", "made_by": "Pat Demo", "source": "demo"})
+            for kind, title, order in (("actions", "Open actions", 50), ("raid", "Risks and issues", 51), ("decisions", "Decisions", 52)):
+                st.create("report_sections", {"project": "ABC", "type": kind, "title": title, "sort_order": order, "hidden": 1})
+        built = publish.build(self.s, "ABC", now=TODAY)["published"]
+        sec = next(s for s in built["sections"] if s["id"] == self.ref)
+        self.assertCountEqual(sec["items"], [self.a_due, self.risk, dec], "an action, a risk and a decision, each from a hidden section")
+        self.assertEqual([a["id"] for a in built["data"]["actions"]], [self.a_due])
+        self.assertEqual([r["id"] for r in built["data"]["raid"]], [self.risk])
+        self.assertEqual([r["id"] for r in built["data"]["decisions"]], [dec])
+
 
 class StatusColours(unittest.TestCase):
     """The half-circle in the Status column takes its colour from clientPill; the store holds no Blocked action, so the page's own
