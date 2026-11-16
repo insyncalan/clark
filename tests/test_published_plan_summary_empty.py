@@ -24,6 +24,16 @@ TYPED_P = "<h2>Where we are</h2><p>On track.</p><h2>What is next</h2><ul><li></l
 TYPED_LI = "<h2>Where we are</h2><p></p><h2>What is next</h2><ul><li>Sign off</li></ul>"
 ONLY_HEADING = "<h2>Just a heading</h2>"
 NORMAL = "<h2>A heading</h2><p>Plain words under it.</p>"
+TRAILING_NEWLINE = UNFILLED + "\n"
+EXTRA_AFTER = UNFILLED + "<p>One more line.</p>"
+EXTRA_BEFORE = "<p>One more line.</p>" + UNFILLED
+H3_HEADINGS = "<h3>Where we are</h3><p></p><h3>What is next</h3><ul><li></li></ul>"
+OL_LIST = "<h2>Where we are</h2><p></p><h2>What is next</h2><ol><li></li></ol>"
+LOWER_HEADING = UNFILLED.replace("Where we are", "where we are")
+SPACED_HEADING = UNFILLED.replace("Where we are", "Where  we are")
+EMPTY_P = "<p></p>"
+BR_NBSP = "<p>&nbsp;<br></p>"
+PICTURE_ONLY = '<p><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw="></p>'
 TITLE = "ZQ plan summary row 1251"
 
 
@@ -57,6 +67,31 @@ class PublishedPlanSummary(Base):
     def test_a_normal_text_section_shows(self):
         for w in (1400, 900):
             self.assertTrue(self.published_text(NORMAL, w), w)
+
+    def test_skeleton_with_trailing_whitespace_is_left_out(self):
+        for w in (1400, 900):
+            self.assertFalse(self.published_text(TRAILING_NEWLINE, w), w)
+
+    def test_skeleton_with_anything_added_shows(self):
+        for w in (1400, 900):
+            for body in (EXTRA_AFTER, EXTRA_BEFORE):
+                self.assertTrue(self.published_text(body, w), (w, body))
+
+    def test_same_words_in_other_tags_show(self):
+        for w in (1400, 900):
+            for body in (H3_HEADINGS, OL_LIST):
+                self.assertTrue(self.published_text(body, w), (w, body))
+
+    def test_other_case_or_spacing_in_a_heading_shows(self):
+        for w in (1400, 900):
+            for body in (LOWER_HEADING, SPACED_HEADING):
+                self.assertTrue(self.published_text(body, w), (w, body))
+
+    def test_blank_bodies_are_left_out_and_a_picture_shows(self):
+        for w in (1400, 900):
+            self.assertFalse(self.published_text(EMPTY_P, w), w)
+            self.assertFalse(self.published_text(BR_NBSP, w), w)
+            self.assertTrue(self.published_text(PICTURE_ONLY, w), w)
 
     def test_view_side_uses_the_same_rule(self):
         src = (Path(__file__).resolve().parent.parent / "src/clark/page/src/logic/emptyBody.js").read_text(encoding="utf-8")
