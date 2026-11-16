@@ -51,6 +51,10 @@ class FrameCss(unittest.TestCase):
             self.assertRegex(tag, want)
         self.assertRegex(rule(EDIT_CSS, ".peek .pkh-line"), r"font-size:\s*var\(--size-caption\)")      # 13 px on the scale (the browser test measures 13px)
 
+    def test_the_dark_tag_takes_the_grey_50_token_in_both_dark_rules(self):
+        self.assertRegex(EDIT_CSS, r':root\[data-theme="dark"\] \.peek \.pkh-id \{ background: var\(--grey-50\); \}')
+        self.assertRegex(EDIT_CSS, r'prefers-color-scheme: dark\) \{ :root:not\(\[data-theme="light"\]\) \.peek \.pkh-id \{ background: var\(--grey-50\); \}')
+
     def test_dragging_the_edge_allows_for_the_16_px(self):
         self.assertIn("clientWidth - 16 - e.clientX", PEEK_JSX)
 
@@ -138,6 +142,22 @@ class FrameBrowser(unittest.TestCase):
                 g = cdp.js(GEOM, sid)
                 self.assertEqual(g["peek"]["radius"], "16px", width)
                 self.assertNotEqual(g["id"]["bg"], "rgb(246, 248, 252)", f"{width}: the tag is not the light tone in dark")
+                grey50 = cdp.js("(() => { const d = document.createElement('i'); d.style.background = 'var(--grey-50)'; document.body.append(d); const c = getComputedStyle(d).backgroundColor; d.remove(); return c; })()", sid)
+                self.assertEqual(g["id"]["bg"], grey50, f"{width}: the dark tag is exactly the --grey-50 tone")
+
+    def test_dragging_the_edge_sets_the_width_to_the_gap_between_the_pointer_and_the_16_px_margin(self):
+        with chrome() as cdp:
+            s, sid = self.load_page(cdp, 1400)
+            cdp.js(f"location.hash = '#work&p={self.code}&item={self.ids_on_page(cdp, sid)[0]}'", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-edge')", sid)))
+            self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').getAnimations().length === 0", sid)))
+            win = cdp.js("document.documentElement.clientWidth", sid)
+            cdp.js("""(() => { const e = document.querySelector('#peek .pk-edge'), o = {bubbles: true, pointerId: 1};
+              e.dispatchEvent(new PointerEvent('pointerdown', {...o, clientX: 760}));
+              e.dispatchEvent(new PointerEvent('pointermove', {...o, clientX: 700}));
+              e.dispatchEvent(new PointerEvent('pointerup', {...o, clientX: 700})); })()""", sid)
+            self.assertTrue(wait(lambda: round(cdp.js("document.querySelector('#peek').getBoundingClientRect().width", sid)) == win - 16 - 700))
+            self.assertEqual(round(cdp.js("document.querySelector('#peek').getBoundingClientRect().right", sid)), win - 16)
 
 
 if __name__ == "__main__":
