@@ -10,6 +10,7 @@ import contextlib
 import json
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -63,6 +64,22 @@ class Published(unittest.TestCase):
             with self.subTest(bad=bad):
                 self.assertEqual(gallery.published({**body, **bad}, None)["content"].keys(), {"pictures"})
         self.assertIsNone(gallery.published({"columns": 3, "shape": "square"}, None), "no image, nothing in the report")
+
+
+class PublishedEveryValue(unittest.TestCase):
+    """Row 1233 killer tests: every shape and both column counts reach the file, and only those."""
+
+    def test_every_shape_and_both_column_counts_pass_through(self):
+        body = {"v": 1, "pictures": {"1": GOOD}}
+        for shape in ("4:3", "square", "16:9", "whole"):
+            with self.subTest(shape=shape):
+                self.assertEqual(published("gallery", {**body, "shape": shape})["content"]["shape"], shape)
+                self.assertEqual(gallery.published({**body, "shape": shape}, None)["content"]["shape"], shape)
+        for columns in (2, 3):
+            with self.subTest(columns=columns):
+                self.assertEqual(published("gallery", {**body, "columns": columns})["content"]["columns"], columns)
+        self.assertEqual(gallery.SHAPES, ("4:3", "square", "16:9", "whole"))
+        self.assertEqual(gallery.COLUMNS, (2, 3))
 
 
 class View(unittest.TestCase):
@@ -148,6 +165,34 @@ class View(unittest.TestCase):
         self.assertEqual(self.measure()["across"], 2, "none said, half width")
         self.draw(pictures(1), 900, columns=3)
         self.assertEqual(self.measure()["across"], 1, "one image is one across")
+
+    def test_fewer_images_than_columns_fill_the_row_not_a_third_each(self):
+        """Row 1233 killer: three across said with two images is two across (each half the row); with one image it is the whole row."""
+        for n, cls in ((1, "c-1"), (2, "c-2"), (3, "c-3")):
+            self.draw(pictures(n), 1400, columns=3)
+            m = self.measure()
+            with self.subTest(n=n):
+                self.assertIn(cls, m["cls"].split())
+                row = self.js("document.querySelector('.tpl-gal').getBoundingClientRect().width")
+                img = self.js("document.querySelector('.tpl-gal-fig img').getBoundingClientRect().width")
+                self.assertGreater(img, row / n * 0.9, "each image takes its share of the whole row")
+
+    def test_a_closed_large_view_does_not_close_the_next_one_opened_at_once(self):
+        """Row 1233 killer: the late close event of the dialog taken away must not close the one opened right after."""
+        self.draw(pictures(3, caps=(0, 1, 2), size=(1200, 900)))
+        for _ in range(3):
+            self.js("document.querySelectorAll('.tpl-gal-open')[0].click()")
+            self.assertTrue(wait(lambda: self.state()["open"]))
+            self.js("document.querySelector('.tpl-gal-x').click()")
+            self.assertTrue(wait(lambda: not self.state()["open"]))
+            self.js("document.querySelectorAll('.tpl-gal-open')[1].click()")
+            self.assertTrue(wait(lambda: self.state()["open"]))
+            time.sleep(0.6)
+            self.assertTrue(self.state()["open"], "still open after the first one's close event has arrived")
+            self.assertEqual(self.state()["caption"], "Fictional caption 2")
+            self.js("document.querySelector('.tpl-gal-x').click()")
+            self.assertTrue(wait(lambda: not self.state()["open"]))
+            time.sleep(0.3)
 
     def test_old_gallery_with_nothing_said_is_drawn_as_it_was(self):
         for n, across in ((1, 1), (2, 2), (3, 3), (6, 3)):
