@@ -625,6 +625,9 @@ textarea.tpl-field { resize: vertical; }
 .wil-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px var(--space-4); margin: var(--space-1) 0 10px; padding: var(--space-3) 14px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--grey-50); }
 .wil-form > .wil-more { grid-column: 1 / -1; }   /* row 1113: the tick boxes fold inside the one form block; Sort by, Most rows and Columns stay in it; the Caption box moved under the list (wish 2) */
 .wil-form-in { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px var(--space-4); margin: var(--space-1) 0 0; }
+/* Row 1268: the Add + at the right end, a dashed square as the one on Work items (the approved mock-up) */
+.wil-add { display: flex; justify-content: flex-end; margin: 0 0 var(--space-1); }
+.wil-add .newb { border-style: dashed; }
 .wil-line { display: grid; gap: var(--space-1); margin: var(--space-1) 0 var(--space-2); }
 .wil-line p { margin: 0; }
 .wil-more summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }

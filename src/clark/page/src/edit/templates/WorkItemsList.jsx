@@ -13,6 +13,8 @@ import { KINDS, MODES, STATUSES, DUE, PRIORITIES, NONE, SORTS, COLUMNS, MAX_ROWS
 import { Eye } from "../cells/Eye.jsx";
 import { Cell } from "../cells/Cell.jsx";
 import { useColWidths } from "../colWidths.jsx";
+import { NewTile } from "../../components/NewTile.jsx";
+import { addItem, ADDABLE } from "../addItem.js";
 import { plural } from "../../workItems.js";
 import { lineOf, readLine } from "../../templates/workItemsLine.js";
 
@@ -53,6 +55,11 @@ function Choice({ id, label, field, values, words, value, onPick }) {
 }
 
 export const CONFIGURE_LABEL = "Configure this list";      // row 1268: the words of the approved mock-up
+
+// Row 1268, the approved Add: a + that opens a short menu (Action, Risk, Issue, Decision); a pick makes the item at once and opens its peek.
+export const ADD_WORD = "Add work item";
+export const ADD_ITEMS = ADDABLE.map((k) => ({ kind: k, word: k[0].toUpperCase() + k.slice(1) }));
+const addOne = (kind) => addItem(kind, "report", true);
 
 export function Edit({ section }) {
   const [all, setAll] = useState(false);          // row 1199: Show all items
@@ -139,6 +146,7 @@ export function Edit({ section }) {
   return (
     <div class="wil wil-edit" key={tick} data-wil-edit="" data-wil-id={id}>
       {saved ? null : <p class="quiet wil-say" data-wil-say="not-yet">{NOT_YET}</p>}
+      <div class="wil-add" data-wil-add=""><NewTile word={ADD_WORD} kind="" items={ADD_ITEMS} onAdd={addOne} id={`${id}-add`} /></div>
       <div class="wil-line" data-wil-line="">
         <LineBox line={lineOf(filter, nameOf)} now={() => lineOf(latest(), nameOf)} apply={applyLine} rows={reportRows.value} ctx={filterCtx()}
           ids={{ input: `${id}-line`, list: `${id}-line-list`, count: `${id}-line-count`, x: `${id}-line-x`, msg: `${id}-line-msg`, gloss: `${id}-line-gloss`, opt: `${id}-line-o` }} label="Filter" />
