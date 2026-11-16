@@ -39,12 +39,12 @@ from clark import sanitise
 from clark.section_kinds import REGISTRY as TEMPLATES, TYPES as TEMPLATE_TYPES
 from clark.section_kinds.base import Bad, Context
 
-NEEDS, TRACKER = "needs", "tracker"
-BODY_TYPES = (NEEDS, TRACKER) + TEMPLATE_TYPES   # the section types (besides text) that carry content
+NEEDS, TRACKER, USECASES = "needs", "tracker", "usecases"
+BODY_TYPES = (NEEDS, TRACKER, USECASES) + TEMPLATE_TYPES   # the section types (besides text) that carry content
 MAX_DEPTH = 8                            # lists and objects inside each other, at most
 MAX_DIGITS = 15                          # a whole number of more digits is refused before Python reads it (slow on 3.9)
 DEFAULT_LIMIT = 262144                   # bytes of stored text, unless LIMITS says less
-LIMITS = {NEEDS: 262144, TRACKER: 262144, **{t: m.LIMIT for t, m in TEMPLATES.items()}}      # tracker: the checker's own caps keep the widest-letter tracker under this once stored
+LIMITS = {NEEDS: 262144, TRACKER: 262144, USECASES: 256, **{t: m.LIMIT for t, m in TEMPLATES.items()}}      # tracker: the checker's own caps keep the widest-letter tracker under this once stored
 # needs: 100 rows of the longest text, each character written as six ASCII bytes, still fits. Bad is the one class of
 # section_kinds/base.py, so a template's refusal and a needs refusal are caught the same way.
 
@@ -431,8 +431,28 @@ def _checked_tracker(value, rules):
     return out
 
 
-CHECKERS = {NEEDS: _checked_needs, TRACKER: _checked_tracker, **{t: m.check for t, m in TEMPLATES.items()}}
-EMPTY = {NEEDS: "", TRACKER: "", **{t: m.EMPTY for t, m in TEMPLATES.items()}}   # a new section starts with no content at all (for needs that is the same as an empty list: nothing shows, nothing is published); an item may give a richer start
+USECASES_N_MAX = 1000
+USECASES_ALL = "all"
+USECASES_TRACKER = ("top", "bottom", "off")
+
+
+def _checked_view(value, rules):
+    """Row 1234: the use case summary's view setting, {n, scroll, tracker}: how many rows show (a whole number from 1, or "all"), whether
+    the list scrolls, and where the tracker sits. A missing key takes its default (5, false, "top"), so the stored text always has
+    the three keys; an empty body is the defaults too. Anything else is refused with the one existing sentence for a value that does
+    not fit (no new words), never quoting the value."""
+    if type(value) is not dict or set(value) - {"n", "scroll", "tracker"}:
+        raise Bad(BAD_VALUE)
+    n, scroll, tracker = value.get("n", 5), value.get("scroll", False), value.get("tracker", "top")
+    if not ((type(n) is int and 1 <= n <= USECASES_N_MAX) or n == USECASES_ALL and type(n) is str):
+        raise Bad(BAD_VALUE)
+    if type(scroll) is not bool or type(tracker) is not str or tracker not in USECASES_TRACKER:
+        raise Bad(BAD_VALUE)
+    return {"n": n, "scroll": scroll, "tracker": tracker}
+
+
+CHECKERS = {NEEDS: _checked_needs, TRACKER: _checked_tracker, USECASES: _checked_view, **{t: m.check for t, m in TEMPLATES.items()}}
+EMPTY = {NEEDS: "", TRACKER: "", USECASES: "", **{t: m.EMPTY for t, m in TEMPLATES.items()}}   # a new section starts with no content at all (for needs that is the same as an empty list: nothing shows, nothing is published); an item may give a richer start
 
 
 def check(kind, body, rules, stored=None):
@@ -517,6 +537,8 @@ def published(kind, value, ctx=None):
     if kind == NEEDS:
         rows = [r for r in (_shown_needs_row(r) for r in (value.get("rows") if type(value) is dict and type(value.get("rows")) is list else [])) if r]
         return {"rows": rows} if rows else None
+    if kind == USECASES:
+        return {k: value[k] for k in ("n", "scroll", "tracker")} if type(value) is dict and all(k in value for k in ("n", "scroll", "tracker")) else {}      # row 1234: flat, so the page reads a file entry as it reads a live body; {} (the defaults) never leaves the section out
     if kind != TRACKER:
         return None                     # an unknown kind fails closed: nothing of it is published
     return _published_tracker(value)

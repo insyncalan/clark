@@ -534,6 +534,7 @@ def _text_body(body):
 
 PICTURES = "pictures"                     # the one field of a picture template's body that only POST /api/section-image sets
 IMAGE_KEYS = ("project", "section", "slot", "image", "place")
+FULL_IMAGE_START = section_kinds.REGISTRY["imagecap"].START         # row 1223: the one body a new imagecap section may be given (the Full width image)
 NO_PICTURE_HERE = "That section can't hold a picture."
 PICTURE_NOT_TEXT = "Send the picture as text, or nothing to take it out."
 WORDS_TOO_LONG = "That text is too long to save. Shorten it and try again."
@@ -793,9 +794,12 @@ def _do_change(store, by_user, req):
         if "body" in values:                                        # #929: a text section may start with its words, in the one step (one Undo)
             if not isinstance(values["body"], str):
                 raise Refused(BODY_NOT_TEXT)
-            if new_type != "text":
+            if new_type == "imagecap" and values["body"] == FULL_IMAGE_START:
+                start_body = values["body"]                         # row 1223: the Full width image starts as an imagecap body of version 2, and only with this body
+            elif new_type != "text":
                 raise Refused(NO_BODY_HERE)
-            start_body = _text_body(values["body"])                 # the same cleaner and limits as an update of a text section's body
+            else:
+                start_body = _text_body(values["body"])             # the same cleaner and limits as an update of a text section's body
         after = _id_or_none(req.get("after"), STALE)
         beside = _flag(req["beside"]) if "beside" in req else 0
         if beside and after is None:

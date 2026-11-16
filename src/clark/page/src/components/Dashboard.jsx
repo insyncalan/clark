@@ -4,7 +4,8 @@
 // `tools` from edit/) draws every section, a hidden one dimmed, with those parts. A published file passes no tools and is never Edit.
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { armHint } from "../stores/motion.js";
-import { data, mode, fromFile, dropAt, rebuilt } from "../stores/report.js";
+import { glide } from "./glide.js";
+import { data, mode, fromFile, dropAt, dragList, rebuilt } from "../stores/report.js";
 import { Section } from "./Section.jsx";
 import { Minimap } from "./Minimap.jsx";
 import { scrollTargets, entries, countOf } from "../logic/minimap.js";
@@ -68,13 +69,15 @@ export function Dashboard({ tools }) {
   const editing = !!(tools && tools.Gutter) && mode.value === "edit" && !fromFile.value;
   const was = useRef({ editing, at: null });
   if (was.current.editing !== editing) was.current = { editing, at: nearestTop() };
+  useLayoutEffect(() => { glide(document.querySelector(".secs")); }, [dragList.value]);      // row 1214: the sections that moved glide to their new place
   useLayoutEffect(() => {
     const at = was.current.at;
     was.current.at = null;
     const el = at && document.querySelector(`.secs > .sec[data-id="${CSS.escape(at.id)}"]`);
     if (el) window.scrollBy(0, el.getBoundingClientRect().top - at.top);
   }, [editing]);
-  const all = (d.report_sections || []).filter((s) => s.type !== "needs");      // item 1158: a Needs from you section already on a dashboard stops showing (it stays stored); nothing else is changed
+  const stored = (d.report_sections || []).filter((s) => s.type !== "needs");
+  const all = editing && dragList.value ? dragList.value : stored;      // row 1214: while a section is dragged, the others are drawn as the drop would leave them      // item 1158: a Needs from you section already on a dashboard stops showing (it stays stored); nothing else is changed
   // does not draw yet (only text bodies are drawn, #74). Rows are read from every section first (#95), so a section whose partner
   // is left out takes the full row and never pairs with the next one. The page clark serves is unchanged.
   // The file draws a text section with a body, the At a glance section when it carries tiles and the use case summary when it
@@ -99,7 +102,7 @@ export function Dashboard({ tools }) {
     {Bar ? <Bar /> : null}
     <section class={`frame report${rebuilt.value ? " asat-frame" : ""}`} id="report" data-mode={editing ? "edit" : "view"} inert={rebuilt.value ? true : undefined}>{/* item 349: as at a day, nothing in it can be focused or clicked */}
       {list.length === 0 ? <p class="muted" id="no-sections">{emptyWhy}</p> : null}
-      <div class={`secs${editing && dropAt.value && dropAt.value.line === "end" ? " drop-end" : ""}`}>
+      <div class={`secs${editing && dropAt.value && dropAt.value.line === "end" && !dragList.value ? " drop-end" : ""}`}>
         {list.map((s, i) => <Section key={s.id} section={s} index={i} count={list.length} slot={places[i]} anchor={anchors[s.id]} tools={editing ? tools : null} clean={!fromFile.value && tools ? tools.clean : null} />)}
       </div>
       {editing && list.length === 0 ? <tools.Add /> : null}

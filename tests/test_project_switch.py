@@ -15,10 +15,12 @@ ITEMS = "[].map.call(document.querySelectorAll('#project-menu [role=menuitemradi
 
 
 class ProjectSwitch(Base):
-    def open_menu(self, p):
+    def open_menu(self, p, rows=None):
         p.until("document.querySelector('#project-name').tagName === 'BUTTON'", "the name is a menu button")
         p.js("document.querySelector('#project-name').click()")
         p.until("!!document.querySelector('#project-menu')", "the menu opened")
+        if rows:        # the list is read after the menu draws (it first holds only the open project), so wait for it before reading rows
+            p.until("document.querySelectorAll('#project-menu [role^=menuitem]').length === %d" % rows, "the project list is read")
 
     def test_C_one_project_is_still_a_button_with_its_menu(self):
         with chrome() as cdp:
@@ -56,7 +58,7 @@ class ProjectSwitch(Base):
                 p.width(w)
                 self.assertTrue(p.js("document.querySelector('#project-name').classList.contains('hdr-project') && !document.querySelector('#project-name .nch')"), "item 1177: the drawn name is the button (ProjectSwitch.jsx:33)")
                 self.assertTrue(p.js("document.querySelector('#project-name').getBoundingClientRect().width > 16"), "visible at this width")
-                self.open_menu(p)
+                self.open_menu(p, 2)
                 self.assertEqual(p.js(ITEMS), ["Harbour Bridge Programme3 open items", "Second Programme1 open item"])
                 self.assertEqual(p.js("document.querySelector('#project-menu [aria-checked=true] b').textContent"), "Harbour Bridge Programme")
                 self.assertEqual(p.js("document.querySelector('#project-menu [aria-checked=true] small').textContent"), "3 open items")
@@ -70,10 +72,10 @@ class ProjectSwitch(Base):
 
     def test_C_the_menu_starts_on_the_open_project(self):
         """Row 856: focus is on the open project (Enter at once keeps it). Row 1092: the project list is all the menu holds."""
-        self.rig.httpd.projects = lambda archived=False: [TWO[1], TWO[0]]
+        self.rig.httpd.projects = lambda archived=False: (__import__('time').sleep(1), [TWO[1], TWO[0]])[1]
         with chrome() as cdp:
             p = self.page(cdp)
-            self.open_menu(p)
+            self.open_menu(p, 2)
             p.until("document.activeElement && document.activeElement.getAttribute('aria-checked') === 'true'", "focus is on the open project")
             self.assertEqual(p.js("document.activeElement.querySelector('b').textContent"), "Harbour Bridge Programme")
             self.assertEqual(p.js("document.querySelectorAll('#project-menu [role^=menuitem]').length"), 2, "the two projects and nothing else")
@@ -84,22 +86,22 @@ class ProjectSwitch(Base):
         self.rig.httpd.projects = lambda archived=False: [dict(r) for r in now]
         with chrome() as cdp:
             p = self.page(cdp)
-            self.open_menu(p)
+            self.open_menu(p, 2)
             self.assertEqual(p.js(ITEMS), ["Harbour Bridge Programme3 open items", "Second Programme1 open item"])
             p.key("Escape", code="Escape", vk=27)
             p.until("!document.querySelector('#project-menu')", "Esc closed it")
             now[0]["open"], now[1]["open"] = 2, 4          # one item closed in the first project, three added to the second
-            self.open_menu(p)
+            self.open_menu(p, 2)
             p.until("document.querySelector('#project-menu [aria-checked=true] small').textContent === '2 open items'", "the fresh count")
             self.assertEqual(p.js(ITEMS), ["Harbour Bridge Programme2 open items", "Second Programme4 open items"])
 
     def test_C_choosing_a_project_changes_the_address_and_says_so(self):
-        self.rig.httpd.projects = lambda archived=False: TWO
+        self.rig.httpd.projects = lambda archived=False: (__import__('time').sleep(1), TWO)[1]
         with self.rig.store.step("dashboard", "tester", place="menu") as s:      # the chosen project is one clark has, so its page opens in View
             s.create("projects", {"code": "ABC", "name": "Second Programme"})
         with chrome() as cdp:
             p = self.page(cdp)
-            self.open_menu(p)
+            self.open_menu(p, 2)
             p.js("document.querySelectorAll('#project-menu [role=menuitemradio]')[1].click()")
             p.until("/p=ABC/.test(location.hash) && new URLSearchParams(location.search).get('project') === 'ABC'", "the address names the chosen project, in the page loaded for it")      # #944: its own page load, so the old page's toast is gone
             p.until("document.getElementById('project-name').textContent.includes('Second Programme')", "the new page says the chosen project is open")

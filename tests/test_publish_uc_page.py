@@ -191,19 +191,21 @@ class TheFilesUseCasePageOnTheEdges(unittest.TestCase):
 
         def check(cdp, sid, width):
             self.at(cdp, sid, "1.1")
+            # the page has set up its Esc listener in the same step that gives the heading the focus: wait for that, not for a pause
+            self.assertTrue(wait(lambda: js(cdp, sid, "document.activeElement === document.querySelector('[data-ucf] h1')")), "the page has settled")
             js(cdp, sid, "document.querySelector('[data-item]').click()")
             self.assertTrue(wait(lambda: js(cdp, sid, "!!document.querySelector('[data-peek]')")))
             js(cdp, sid, esc)
-            self.assertTrue(js(cdp, sid, "!!document.querySelector('[data-ucf]')"), "an open peek takes the Esc")
-            js(cdp, sid, "document.querySelector('[data-peek]').remove()")
+            # the peek is gone from the page, and its focus is given back, before the next step: the page's own close, not a removal by the test
+            self.assertTrue(wait(lambda: js(cdp, sid, "!document.querySelector('[data-peek]') && !!document.querySelector('[data-ucf]')")), "an open peek takes the Esc")
             js(cdp, sid, "(() => { const i = document.createElement('input'); i.id = 'zz'; document.querySelector('[data-ucf]').appendChild(i); i.focus(); })()")
+            self.assertTrue(wait(lambda: js(cdp, sid, "document.activeElement === document.getElementById('zz')")), "the field has the focus")
             js(cdp, sid, esc)
             self.assertTrue(js(cdp, sid, "!!document.querySelector('[data-ucf]')"), "a field takes the Esc")
             js(cdp, sid, "document.getElementById('zz').remove(); document.activeElement.blur()")
-            for _ in range(5):      # the Esc is sent again until the page has heard it: on a slow runner the first one can land before the page has settled
-                js(cdp, sid, esc)
-                if wait(lambda: js(cdp, sid, listed), 3):
-                    break
+            self.assertTrue(wait(lambda: js(cdp, sid, "!document.getElementById('zz') && !document.querySelector('[data-peek]') && document.activeElement === document.body")), "no field, no peek, no focus")
+            js(cdp, sid, esc)
+            wait(lambda: js(cdp, sid, listed))
             state = js(cdp, sid, "'hash ' + location.hash + ', active ' + (document.activeElement && (document.activeElement.tagName + '.' + document.activeElement.className)) + ', peek ' + !!document.querySelector('[data-peek]') + ', dialog ' + !!document.querySelector('dialog[open],[role=dialog],[role=alertdialog],[role=menu]') + ', crumb ' + !!document.querySelector('[data-ucf] .ucf-crumb a')")
             self.assertTrue(js(cdp, sid, listed), f"Esc leaves for the use case list ({width}: {state})")
         self.each_width(check)

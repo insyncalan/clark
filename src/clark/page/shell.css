@@ -333,7 +333,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .factive.pub .fchip { padding: 2px 4px 2px 10px; }
 .factive.pub .fchip button { width: 22px; height: 22px; }
 /* The one filter line: saved views above, then the line with its chips, its box and its suggestions, then the hint chips. */
-:root { --layer-list: 26; }   /* row 808: the layer of a list that floats over the page: over the drop-down menus (25), under the top bar (30) */
+:root { --layer-list: 26; --dur-glide: 160ms; }   /* row 808: the layer of a list that floats over the page: over the drop-down menus (25), under the top bar (30) */
 /* Item 955: the border every menu and floating list shares: grey-500 with a fifth of grey-700, so it is at least 3:1 against the page ground and against a card surface in light (3.4:1 and 3.7:1) and in dark (over 5:1). It was --border (grey-300), 1.46:1 to 2.09:1. It follows the theme because the two greys do. */
 :root { --menu-border: color-mix(in srgb, var(--grey-500), var(--grey-700) 20%); }
 .fline-wrap { position: relative; margin-top: var(--d-fline-top); }
@@ -620,9 +620,16 @@ table.tracker tr.tr-none td { text-align: left; }
 /* A pair's line runs across the gap between its halves; a half to drop on is outlined (a pseudo-element, so nothing changes size). */
 .sec.drop-left, .sec.drop-right, .sec.drop-before.slot-left { position: relative; }
 .sec.drop-before.slot-left::before { content: ""; position: absolute; top: -3px; right: -24px; width: 24px; height: 3px; background: var(--brand-cyan); }
-.sec.drop-left::after, .sec.drop-right::after { content: ""; position: absolute; top: 0; bottom: 0; width: 50%; border: 2px solid var(--brand-cyan); border-radius: var(--radius); pointer-events: none; box-sizing: border-box; }
+.sec.drop-left::after, .sec.drop-right::after { content: ""; position: absolute; top: 0; bottom: 0; width: 50%; border: 2px dashed var(--brand-cyan); border-radius: var(--radius); pointer-events: none; box-sizing: border-box; }      /* row 1214: the slot is dashed */
 .sec.drop-left::after { left: 0; }
 .sec.drop-right::after { right: 0; }
+/* Row 1214: while a section is dragged, its title follows the pointer (the ghost, drawn over the page, never hit by it) and its old place keeps a faint dashed outline. */
+.sec-ghost { position: fixed; left: 0; top: 0; z-index: 50; max-width: min(320px, 60vw); padding: var(--space-1) 10px; border-radius: var(--radius); background: var(--brand-navy); color: var(--white); font-size: var(--size-small); line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .92; pointer-events: none; }
+.sec-was { position: absolute; z-index: 40; box-sizing: border-box; border: 2px dashed var(--grey-300); border-radius: var(--radius); pointer-events: none; }      /* the old place: faint, drawn over the page from where the section was when the drag began */
+.sec.drag-from { opacity: .5; }      /* before a place is shown, the section stays where it is */
+.sec.drag-slot, :root .sec.drag-slot { position: relative; background: transparent; box-shadow: none; border: 2px dashed var(--brand-cyan); border-radius: var(--radius); box-sizing: border-box; }      /* the place it would land in: the others have made room, its content is not drawn */
+.sec.drag-slot { opacity: 1; }
+.sec.drag-slot > * { visibility: hidden; }
 @media (max-width: 900px) { .secs { grid-template-columns: minmax(0, 1fr); } .slot-left, .slot-right { grid-column: 1; } }
 
 /* Edit only: the View/Edit switch, the section control (grip, + and menu), the editable title, Add and the toast. 24 px targets at least. */
@@ -1881,11 +1888,12 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
     /* row 922: a menu fades out as it closes (opacity only; Menu.jsx keeps it drawn for the fade, inert, and removes it after) */
     .ddmenu.leaving { pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
     /* the drop line and the half-width outline ease in as the pointer finds a place (they take no input) */
-    .sec.drop-before { animation: m-line-top var(--dur-state) var(--ease-enter) 1; }
+    .sec.drop-before { animation: m-line-top var(--dur-glide) var(--ease-enter) 1; }
     /* item 519: a changed section dragged over keeps its glow (the two rules above each set animation, so the later one won) */
-    .sec.is-changed.drop-before { animation: m-glow calc(var(--dur-enter) + var(--dur-state) + var(--dur-instant)) var(--ease-out) 1, m-line-top var(--dur-state) var(--ease-enter) 1; }
-    .secs.drop-end { animation: m-line-end var(--dur-state) var(--ease-enter) 1; }
-    .sec.drop-left::after, .sec.drop-right::after, .sec.drop-before.slot-left::before { animation: m-outline var(--dur-state) var(--ease-enter) 1; }
+    .sec.is-changed.drop-before { animation: m-glow calc(var(--dur-enter) + var(--dur-state) + var(--dur-instant)) var(--ease-out) 1, m-line-top var(--dur-glide) var(--ease-enter) 1; }
+    .secs.drop-end { animation: m-line-end var(--dur-glide) var(--ease-enter) 1; }
+    .sec.drop-left::after, .sec.drop-right::after, .sec.drop-before.slot-left::before { animation: m-outline var(--dur-glide) var(--ease-enter) 1; }
+    .sec.drag-slot { animation: m-outline var(--dur-glide) var(--ease-enter) 1; }
     /* the health badge and reason settle when health changes */
     .hrow.settle { animation: m-settle var(--dur-state) var(--ease-enter) 1; }
     /* the timeline and calendar swap: the new view rises 4 px and fades in */
@@ -2074,6 +2082,19 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-band-btn:hover { background: var(--grey-100); }
 .tpl-band-btn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .tpl-band .tpl-fig img { max-height: 240px; background: transparent; }
+/* Row 1223: Full width image (an imagecap section with a body of version 2). The framed image fills the section's width and keeps its shape; no tool is drawn.
+   One that is narrower than the section sits centred at its own size on its fill (the image's own blurred copy, brand colour or plain), or is stretched
+   to the width when its fit says so. The image's own colours are never changed by the theme (no filter on the image, no overlay), no sideways scroll,
+   and on paper the figure is not split across two pages. No heading is drawn for it. */
+.tpl-fullimg { margin: 0; min-width: 0; max-width: 100%; break-inside: avoid; page-break-inside: avoid; }
+.tpl-fullimg-frame { position: relative; display: flex; justify-content: center; overflow: hidden; border-radius: var(--radius); }
+.tpl-fullimg-img { position: relative; display: block; width: auto; max-width: 100%; height: auto; border-radius: var(--radius); }
+.tpl-fullimg.stretch .tpl-fullimg-img { width: 100%; }
+.tpl-fullimg figcaption { margin-top: var(--space-2); font-size: var(--size-caption); color: var(--text-muted); }
+.tpl-fullimg.fill-brand .tpl-fullimg-frame { background: var(--brand-blue); }
+.tpl-fullimg.fill-blur .tpl-fullimg-frame { background: var(--grey-100); }
+.tpl-fullimg-blur { position: absolute; inset: -24px; width: calc(100% + 48px); height: calc(100% + 48px); max-width: none; object-fit: cover; filter: blur(24px); transform: scale(1.05); pointer-events: none; }
+.sec[data-type="imagecap"] > .sec-head:has(~ .tpl-fullimg) { display: none; }
 @media (max-width: 900px) {
   .tpl-ti, .tpl-ti.pic-left, .tpl-band.has-pic { grid-template-columns: minmax(0, 1fr); }
   .tpl-ti.pic-left .tpl-fig { order: 0; }
