@@ -191,6 +191,25 @@ class View(unittest.TestCase):
             self.js("document.querySelector('.tpl-gal-x').click()")
             self.assertTrue(wait(lambda: not self.state()["open"]))
 
+    def test_a_close_event_of_a_dialog_already_taken_away_is_ignored(self):
+        """Row 1233 guard: `if (live.current) onClose()` -- the stale dialog's close event, delivered after the next one is open, must not close it.
+        The event is delivered by hand to the kept old element, so the order does not depend on when the browser queues the real one."""
+        self.draw(pictures(3, caps=(0, 1, 2), size=(1200, 900)))
+        self.js("document.querySelectorAll('.tpl-gal-open')[0].click()")
+        self.assertTrue(wait(lambda: self.state()["open"]))
+        self.js("window.__old = document.querySelector('dialog.tpl-gal-large')")
+        self.js("document.querySelector('.tpl-gal-x').click()")
+        self.assertTrue(wait(lambda: not self.state()["open"]))
+        self.assertTrue(self.js("!window.__old.isConnected"), "the first dialog is gone from the page")
+        self.js("document.querySelectorAll('.tpl-gal-open')[1].click()")
+        self.assertTrue(wait(lambda: self.state()["open"]))
+        self.assertTrue(self.js("document.querySelector('dialog.tpl-gal-large') !== window.__old"), "the open one is the second dialog")
+        self.js("window.__old.dispatchEvent(new Event('close'))")
+        self.assertFalse(wait(lambda: not self.state()["open"], 0.6), "the stale close event closed the second dialog")
+        self.assertEqual(self.state()["caption"], "Fictional caption 2")
+        self.js("document.querySelector('.tpl-gal-x').click()")
+        self.assertTrue(wait(lambda: not self.state()["open"]))
+
     def test_old_gallery_with_nothing_said_is_drawn_as_it_was(self):
         for n, across in ((1, 1), (2, 2), (3, 3), (6, 3)):
             self.draw(pictures(n))
