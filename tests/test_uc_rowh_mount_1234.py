@@ -37,7 +37,7 @@ class Browser(unittest.TestCase):
                 sid = self.draw(cdp, tmp, width)
                 got = cdp.js(ROWS, sid)
                 self.assertGreater(abs(got["closed"][0] - got["fallback"]), 4, f"the long rows must differ from the fallback for this test to mean anything: {got}")
-                self.assertAlmostEqual(got["box"], 3 * got["closed"][0], delta=1, msg=f"first draw: the box is 3 measured rows tall: {got}")
+                self.assertAlmostEqual(got["box"], sum(got["closed"][:3]), delta=1, msg=f"first draw: the box is the first 3 measured rows tall: {got}")
 
     def test_the_box_scrolls_and_measures_a_closed_row_when_the_first_row_opens(self):
         for width in (1400, 900):
@@ -49,7 +49,7 @@ class Browser(unittest.TestCase):
                 cdp.js("document.querySelector('.uc .ucrows > .ucrow button, .uc .ucrows > .ucrow [role=button], .uc .ucrows > .ucrow summary').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.uc .ucrows > .ucrow.open')", sid)))
                 after = cdp.js(ROWS, sid)
-                self.assertAlmostEqual(after["box"], 3 * after["closed"][0], delta=1, msg=f"the box is 3 rows of the first closed row, never the open one: {before} -> {after}")
+                self.assertAlmostEqual(after["box"], sum(after["closed"][:3]), delta=1, msg=f"the box is the first 3 closed rows, never the open one: {before} -> {after}")
 
 
 if __name__ == "__main__":
