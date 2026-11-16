@@ -61,6 +61,17 @@ class Place(Setup):
             self.put(p, "bottom")
             self.assertEqual(p.js("[document.querySelector('.uctotal').textContent, [...document.querySelectorAll('.ucn')].map(e => e.textContent), document.querySelectorAll('.meter i').length]"), top)
 
+    def test_the_bottom_tracker_has_its_space_above_and_the_top_one_below(self):
+        pad = "(e => [parseFloat(getComputedStyle(e).paddingTop), parseFloat(getComputedStyle(e).paddingBottom)])(document.querySelector('.ucstrip'))"
+        with chrome() as cdp:
+            p = self.show(cdp, 1400)
+            self.put(p, "top")
+            above, below = p.js(pad)
+            self.assertGreater(below, above)
+            self.put(p, "bottom")
+            above, below = p.js(pad)
+            self.assertGreater(above, below)
+
     def test_a_bad_kept_value_reads_as_top(self):
         with chrome() as cdp:
             p = self.show(cdp, 1400)
