@@ -1,0 +1,15 @@
+/* Theme prototype-2.0 (item 1260): the rules a token cannot carry. Every colour and size is a token, so a Brand reaches them. */
+body { background: var(--page-bg) var(--page-grad) fixed no-repeat; }
+@media print { body { background: var(--white); } }
+.sec { background: none; border: 0; border-left: 2px solid var(--gutter-rule); border-radius: 0; box-shadow: none; padding-left: 20px; transition: border-color .2s; }
+.sec:hover, .sec:focus-within { border-left-color: color-mix(in srgb, var(--brand-blue) 35%, var(--gutter-rule)); }
+#report[data-mode="edit"] .sec { border-left-color: var(--brand-blue); }
+@media print { .sec { border-left: 0; padding-left: 0; } }
+.secs { counter-reset: secn; }
+.secs > .sec { counter-increment: secn; }
+.secs > .sec.is-hidden { counter-increment: none; }
+.secs .sec-head::before { content: counter(secn); width: auto; height: auto; margin-right: 4px; background: none; color: var(--sec-number-color); font-size: var(--sec-number-size); font-weight: var(--weight-semibold); line-height: 1.25; font-variant-numeric: tabular-nums; }
+.col { background: var(--band-bg); border-top: 3px solid var(--line-soft); }
+.col-h { background: var(--band-bg); }
+.boardbox { scrollbar-width: none; }
+.boardbox::-webkit-scrollbar { display: none; }
