@@ -71,6 +71,23 @@ class Grip(BrowserBase, unittest.TestCase):
                 self.assertGreater(cdp.js("document.querySelector('.mv-wrap').offsetHeight", sid), h + 60, f"{width}: taller")
                 self.assertTrue(wait(lambda: cdp.js("localStorage.getItem('clark.tlZoom.page')", sid) not in (None, "1")), f"{width}: remembered")
 
+    def test_a_touch_drag_on_the_grip_zooms_by_pointer_events(self):
+        port = self.serve()
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width, HASH, port)
+                h = cdp.js("document.querySelector('.mv-wrap').offsetHeight", sid)
+                self.assertEqual(cdp.js("getComputedStyle(document.querySelector('[data-grip]')).touchAction", sid), "none", f"{width}: the grip holds the touch")
+                x, y = cdp.js("(() => { const r = document.querySelector('[data-grip]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()", sid)
+                cdp.js("(() => { window.__pt = []; for (const t of ['pointerdown', 'pointermove', 'pointerup']) document.addEventListener(t, (e) => window.__pt.push(e.pointerType), true); })()", sid)
+                cdp.call("Input.dispatchTouchEvent", {"type": "touchStart", "touchPoints": [{"x": x, "y": y}]}, sid)
+                for i in range(1, 7):
+                    cdp.call("Input.dispatchTouchEvent", {"type": "touchMove", "touchPoints": [{"x": x, "y": y + i * 20}]}, sid)
+                cdp.call("Input.dispatchTouchEvent", {"type": "touchEnd", "touchPoints": []}, sid)
+                self.assertTrue(wait(lambda: float(cdp.js(PCT, sid)) > 100), f"{width}: zoomed in by touch")
+                self.assertGreater(cdp.js("document.querySelector('.mv-wrap').offsetHeight", sid), h + 60, f"{width}: taller")
+                self.assertIn("touch", cdp.js("window.__pt", sid), f"{width}: the events were touch pointers")
+
     def test_the_ends_hold_once_settled_home_is_remembered_and_the_grip_is_off_the_paper(self):
         port = self.serve()
         for width in (1400, 900):
