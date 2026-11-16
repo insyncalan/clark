@@ -2743,19 +2743,19 @@ button.tpl-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 
 
 /* row 1180 chips: the peek's flat row of property chips (components/PeekChips.jsx). Each chip is a coloured icon, the value, an optional small sub-line word and a chevron; the row wraps at 900 px. The target is 24 px or more. */
 .pk-chips { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; margin: 0 0 var(--space-3); }
-.pkc { display: inline-flex; align-items: center; flex: 1 1 auto; min-width: 0; min-height: 34px; border: 0; border-left: 1px solid var(--grey-200); border-radius: 0; background: var(--surface); color: var(--text); font-weight: var(--weight-medium); max-width: 100%; }
+.pkc { display: inline-flex; align-items: center; flex: 1 1 auto; min-width: 0; min-height: 34px; border: 0; border-left: 1px solid var(--grey-200); border-radius: 0; background: var(--surface); color: var(--text); font-size: var(--size-body); font-weight: var(--weight-regular); max-width: 100%; }
 .pkc:first-child { border-left: 0; }
 .pkc.ro { gap: var(--space-2); padding: 0 var(--space-3); }
 .pkc.has-pop:hover { background: var(--grey-100); }
 .pkc.late { background: var(--status-red-tint); }
 .pkc.flash { background: var(--status-amber-tint); }
-.pkc-btn { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 32px; margin: 0; padding: 0 var(--space-3); border: 0; border-radius: 0; background: none; color: inherit; font: inherit; text-align: left; flex: 1 1 auto; cursor: pointer; max-width: 100%; }
+.pkc-btn { display: flex; align-items: center; gap: var(--space-2); min-height: 32px; margin: 0; padding: 0 var(--space-3); border: 0; border-radius: 0; background: none; color: inherit; font: inherit; text-align: left; flex: 1 1 auto; min-width: 0; cursor: pointer; max-width: 100%; }
 .pkc-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .pkc-ic, .pkc-car { display: inline-flex; flex: none; }
-.pkc-ic svg { width: 16px; height: 16px; }
-.pkc-car { color: var(--text-muted); }
+.pkc-ic svg { width: 20px; height: 20px; }
+.pkc-car { color: var(--text-muted); margin-left: auto; }
 .pkc-car svg { width: 12px; height: 12px; }
-.pkc-tx { display: inline-flex; flex-wrap: wrap; align-items: center; column-gap: var(--space-2); min-width: 0; }
+.pkc-tx { display: inline-flex; flex: 1 1 auto; flex-wrap: wrap; align-items: center; column-gap: var(--space-2); min-width: 0; }
 .pkc-v { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 16rem; }
 .pkc-sub { font-style: normal; font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); white-space: nowrap; }
 .pkc-sub.late, .pkc.late .pkc-v { color: var(--status-red-text); }
