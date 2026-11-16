@@ -44,6 +44,8 @@ export function refText(ref) {
 /** The boxed reference, item 1149: the short form once, then the number (UC, a space, then 1.3 + 1.4); the one string the dashboard, the page and the published tab draw in the box. Empty when there is no reference. */
 export const refBox = (ref) => (refText(ref) ? REF_PREFIX + " " + refText(ref) : "");
 /** The open next steps of a use case, as its row says them. */
+// row 1234-A: the digit of stepsWord(n) apart from its words, for the badge (none when n is 0: "No open steps" stays plain text)
+export const stepsParts = (n) => { const w = stepsWord(n), d = n ? String(n) : ""; return [d, w.slice(d.length)]; };
 export const stepsWord = (n) => (n === 1 ? "1 next step" : n ? `${n} next steps` : "No open steps");
 export const nameOf = (u) => String(u.title || "").split("\n").map((t) => t.trim()).filter(Boolean).join(" · ");
 // The common entities, decoded after the tags are gone (an encoded < is text, not a tag) and the ampersand last (so &amp;lt; stays &lt;).
