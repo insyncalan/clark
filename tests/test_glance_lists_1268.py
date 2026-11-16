@@ -18,11 +18,11 @@ def body(**kw):
     return store_module.check_section_body("workitems", json.dumps({"mode": "all", **kw}))
 
 
-def run(d, hide, items_filter=None):
+def run(d, hide, items_filter=None, tiles=()):
     secs = sections(*hide)
     if items_filter is not None:
         secs.append({"id": "s-list", "type": "workitems", "title": "Mine", "body": items_filter, "beside": 0, "hidden": 0, "sort_order": 50})
-    i = {"data": d, "hidden": [], "sections": secs, "label_rules": RULES, "as_at": ON, "glance_tiles": []}
+    i = {"data": d, "hidden": [], "sections": secs, "label_rules": RULES, "as_at": ON, "glance_tiles": list(tiles)}
     return publish.add_glance(publish.select(i), i)["data"]["glance"]["tiles"]
 
 
@@ -33,6 +33,8 @@ def probe():
 
 def by(tiles):
     return {t["tile"]: t for t in tiles}
+
+SHOWN = [{"project": "ABC", "tile": "decisions", "hidden": 0, "outline": "", "sort_order": 4}]   # the Decisions needed tile switched on
 
 
 class Lists(unittest.TestCase):
@@ -74,6 +76,27 @@ class Lists(unittest.TestCase):
     def test_a_list_of_assumptions_brings_the_risks_tile_back(self):      # mutation check: KINDS_OF_TILE["risks"] names assumption
         d = data(raid_=[raid(1, type_="Assumption", priority="High")])
         self.assertIn("risks", by(run(d, ("raid",), body(kinds=["assumption"]))))
+
+    def test_each_risk_kind_alone_brings_the_risks_tile_back(self):
+        for type_, kind in (("Risk", "risk"), ("Issue", "issue"), ("Assumption", "assumption"), ("Dependency", "dependency")):
+            with self.subTest(kind=kind):
+                d = data(raid_=[raid(1, type_=type_, priority="High")])
+                got = by(run(d, ("raid",), body(kinds=[kind])))
+                self.assertEqual(got["risks"]["value"], 1)
+                self.assertEqual(got["risks"]["detail"], "of 1 open risk or issue")
+
+    def test_a_list_of_actions_does_not_bring_the_risks_tile_back(self):
+        d = data(actions=[action(1, "2026-10-20")], raid_=[raid(1, priority="High")])
+        self.assertNotIn("risks", by(run(d, ("raid",), body(kinds=["action"]))))
+
+    def test_a_list_of_decisions_brings_the_decisions_tile_back_when_it_is_shown(self):
+        d = data(decisions=[decision(1, needed_by="2026-10-30")])
+        got = by(run(d, ("decisions",), body(kinds=["decision"]), SHOWN))
+        self.assertEqual(got["decisions"]["value"], 1)
+
+    def test_a_list_of_risks_does_not_bring_the_decisions_tile_back(self):
+        d = data(decisions=[decision(1)], raid_=[raid(1)])
+        self.assertNotIn("decisions", by(run(d, ("decisions",), body(kinds=["risk"]), SHOWN)))
 
 
 class WordTiles(unittest.TestCase):
