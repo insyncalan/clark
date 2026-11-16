@@ -30,7 +30,7 @@ class Css(unittest.TestCase):
         self.assertRegex(CSS, r"\.tcell\.health \{[^}]*min-width: min\(292px, 100%\)")
         self.assertRegex(CSS, r"\.mv\[data-place\], \.msv-swap \{ min-width: 0; max-width: 100%; \}")
         self.assertRegex(CSS, r"\.mv-wrap \{[^}]*max-width: 100%")
-        self.assertRegex(CSS, r"@media \(max-width: 640px\) \{ \.ucbar \{ grid-template-columns: auto minmax\(0, 1fr\); \} \.ucbar > :nth-child\(n\+3\) \{ grid-column: 1 / -1;")
+        self.assertRegex(CSS, r"@media \(max-width: 640px\) \{ (?:\.ucheads \{ display: none; \} )?\.ucbar \{ grid-template-columns: auto minmax\(0, 1fr\); \} \.ucbar > :nth-child\(n\+3\) \{ grid-column: 1 / -1;")
 
 
 class Dashboard(unittest.TestCase):
