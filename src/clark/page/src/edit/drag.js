@@ -16,6 +16,7 @@ import { say } from "../stores/changes.js";
 import { edgeStep } from "../logic/edgeScroll.js";
 
 const THRESHOLD = 4;                           // px the pointer must travel before it is a drag and not a click
+const HOLD_MS = 400;                           // a finger must rest this long on the grip before the drag starts; a quick swipe scrolls the page
 const STACKED = "(max-width: 900px)";          // one column: a pair stacks, so there is no half to drop on
 
 let saving = false;                              // a drop is being stored: the page still shows the preview while the stored order is the old one, so no new drag starts until it is done
@@ -42,6 +43,9 @@ export function startDrag(e, handle, id, count) {
   let dragging = false, cancelled = false, state = settleStart(), timer = 0, last = null, ptr = null, frame = 0;
   try { handle.setPointerCapture(e.pointerId); } catch (x) { /* a pointer that cannot be captured still drags */ }
   handle.focus();
+  const touch = e.pointerType === "touch";
+  let armed = !touch, swipe = false, holdTimer = 0, lastY = startY;       // a finger is armed only after HOLD_MS; one that moves first is a swipe
+  if (!armed) holdTimer = setTimeout(() => { holdTimer = 0; armed = true; }, HOLD_MS);
   const sections = () => ((data.value && data.value.report_sections) || []).filter((s) => s.type !== "needs");      // item 1174: as the Dashboard draws them
   const clear = () => { if (timer) { clearTimeout(timer); timer = 0; } };
   let ghost = null, was = null;                  // the title that follows the pointer, and the outline at the old place: drawn over the page, never hit by it
@@ -101,6 +105,14 @@ export function startDrag(e, handle, id, count) {
   const move = (m) => {
     if (m.pointerId !== e.pointerId) return;       // another finger or pen is not this drag
     if (cancelled) return;                       // Esc is final: more movement cannot bring the drop back
+    if (!armed) {                                // the grip holds the touch (touch-action none), so a swipe scrolls the page by hand
+      if (!swipe && Math.hypot(m.clientX - startX, m.clientY - startY) < THRESHOLD) return;
+      swipe = true;
+      if (holdTimer) { clearTimeout(holdTimer); holdTimer = 0; }
+      window.scrollBy(0, lastY - m.clientY);
+      lastY = m.clientY;
+      return;
+    }
     if (!dragging && Math.hypot(m.clientX - startX, m.clientY - startY) < THRESHOLD) return;
     if (!dragging) draw();
     dragging = true;
@@ -115,6 +127,7 @@ export function startDrag(e, handle, id, count) {
   const finish = () => {                         // every way a drag ends: nothing of it stays on the page or on the document
     stop();
     clear();
+    if (holdTimer) { clearTimeout(holdTimer); holdTimer = 0; }
     document.removeEventListener("keydown", cancel, true);
     document.removeEventListener("pointermove", move);
     document.removeEventListener("pointerup", end);

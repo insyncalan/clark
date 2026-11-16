@@ -58,6 +58,8 @@ class Fingers(Watching, Base):
         hx, hy, _ = p.box(f'[data-id="{ref}"] [data-drag]')
         self.touch(p, "touchStart", {1: (hx, hy)})
         p.until(f"document.activeElement === document.querySelector('[data-id=\"{ref}\"] [data-drag]')", "finger 1 pressed the grip")
+        t0 = p.js("performance.now()")
+        p.until(f"performance.now() - {t0} >= 450", "finger 1 held the grip past the 400 ms hold")   # a clock condition, not a sleep
         x, y = toward
         for step in range(1, 9):
             self.touch(p, "touchMove", {1: (hx + (x - hx) * step / 8, hy + (y - hy) * step / 8)})
