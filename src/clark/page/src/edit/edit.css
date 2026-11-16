@@ -154,7 +154,7 @@
 .pk-lbox .rt-host { min-height: 84px; resize: none; }
 .pk-lbox .rt-host .ProseMirror { min-height: 84px; box-sizing: border-box; padding: 12px 14px; font-size: var(--size-small); line-height: 1.45; }
 .pk-lfoot { display: flex; justify-content: flex-end; gap: 10px; padding: 8px 10px 8px 14px; border-top: 1px solid var(--grey-200); color: var(--text-muted); font-size: 12px; }
-.pk-key { display: inline-block; padding: 0 5px; border: 1px solid var(--grey-200); border-radius: 5px; background: var(--surface); font: 600 11px ui-monospace, Menlo, monospace; }
+.pk-key { display: inline-block; padding: 0 5px; border: 1px solid var(--grey-200); border-radius: 5px; background: var(--surface); font: 600 var(--size-caption) ui-monospace, Menlo, monospace; }
 .pk-latest-hint, .pk-latest-err { margin: 4px 0 0; font-size: var(--size-small); }
 .pk-latest-hint { color: var(--text-muted); }
 .pk-latest-err { color: var(--status-red-text); }
