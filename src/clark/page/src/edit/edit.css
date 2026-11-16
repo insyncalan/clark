@@ -131,10 +131,9 @@
 .pk-ms-blocks { display: flex; gap: 3px; padding: 7px 8px; }
 .pk-ms-block { min-width: 24px; height: 24px; box-sizing: border-box; padding: 0; border: 1px solid var(--grey-300); border-radius: 3px; background: var(--grey-100); cursor: pointer; }   /* the empty block has an edge, so filled and empty read apart in the dark theme too */
 /* Row 1184: the milestone's four chips (State, Owner, Progress, Forecast date, "overdue N days" beside it) share one line in the 640 px peek: a closer gap and padding */
-.pk-chips.ms { gap: var(--space-1); flex-wrap: nowrap; }
 .pk-chips.ms .pkc-btn { gap: var(--space-1); padding: 0 var(--space-2); }
 .pk-chips.ms .pkc-v { max-width: 9rem; }
-.pk-chips.ms .pkc { flex: 0 1 auto; min-width: 0; }
+.pk-chips.ms .pkc { min-width: 0; }
 .pk-chips.ms .pkc-btn { min-width: 0; max-width: 100%; }
 .pk-chips.ms .pkc-tx { flex-wrap: nowrap; }                     /* the date and "overdue N days" stay on one line, so the four chips stay on one */
 .pk-chips.ms [data-row="state"], .pk-chips.ms [data-row="forecast"] { flex: none; }   /* the state and the late date are never cut; a long owner or progress is (its full words are the chip's label) */
