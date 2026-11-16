@@ -209,7 +209,8 @@ class Looks(tre.Base):
                     self.assertEqual((name, running), ("none", 0))
 
 
-    def test_the_drop_line_eases_in_while_a_section_is_dragged_and_is_still_in_either_reduced_form(self):
+    # row 1214: the drag preview draws the moved section as the dashed slot where it would land (the old line mark is not drawn while a list is dragged)
+    def test_the_drop_slot_eases_in_while_a_section_is_dragged_and_is_still_in_either_reduced_form(self):
         for mode in MODES:
             with self.subTest(mode=mode[0]), chrome() as cdp:
                 p = self.go(cdp, "#dashboard&p=ABC", mode)
@@ -221,15 +222,15 @@ class Looks(tre.Base):
                 p.mouse("mousePressed", hx, hy, 1)
                 for step in range(1, 9):
                     p.mouse("mouseMoved", hx, hy + (ty - hy) * step / 8, 1)
-                p.until("!!document.querySelector('.sec.drop-before')", "a drop line while dragging")
-                name, running = self.anim(p, ".sec.drop-before")
+                p.until("!!document.querySelector('.sec.drag-slot')", "the slot while dragging")
+                name, running = self.anim(p, ".sec.drag-slot")
                 if mode[0] == "allowed":
-                    self.assertEqual(name, "m-line-top")
-                    self.assertEqual(p.js("getComputedStyle(document.querySelector('.sec.drop-before')).pointerEvents"), "auto", "the page stays live")
-                    p.until("document.querySelector('.sec.drop-before').getAnimations().length === 0", "it ends by itself", 3)
+                    self.assertEqual(name, "m-outline")
+                    self.assertEqual(p.js("getComputedStyle(document.querySelector('.sec.drag-slot')).pointerEvents"), "auto", "the page stays live")
+                    p.until("document.querySelector('.sec.drag-slot').getAnimations().length === 0", "it ends by itself", 3)
                 else:
-                    self.assertEqual((name, running), ("none", 0), "the line is simply there")
-                self.assertNotEqual(p.js("getComputedStyle(document.querySelector('.sec.drop-before')).boxShadow"), "none", "the line is drawn")
+                    self.assertEqual((name, running), ("none", 0), "the slot is simply there")
+                self.assertEqual(p.js("getComputedStyle(document.querySelector('.sec.drag-slot')).borderTopStyle"), "dashed", "the slot is drawn")
                 p.key("Escape", code="Escape", vk=27)          # cancel: nothing is dropped, so the next mode starts from the same order
                 p.mouse("mouseReleased", hx, ty, 0)
 
