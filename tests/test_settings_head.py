@@ -127,7 +127,7 @@ class Head(Base):
                 break
         self.assertTrue(0 <= at[0] <= at[2] and 0 <= at[1] <= at[3], f"the {name} chip is inside the window to be clicked: {at}; scrollY={p.js('scrollY')}")
         # The pointer goes to the chip and the press waits until the real element is under it: a layout shift or a late scroll between the
-        # measure and the press (macOS: slow frames) would put the press on another row. The pointer follows the chip until it is on it; one press, one release.
+        # measure and the press (macOS: slow frames) would put the press on another row. The wait only moves the pointer (no press) until the chip is under it at the same point twice running; then one press, one release.
         under = {}
 
         def on_chip():
