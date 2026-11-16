@@ -34,7 +34,7 @@ const kept = {}; globalThis.localStorage = { getItem: k => kept[k] ?? null, setI
 globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({ ok: true, data: { report_sections: cfg.sections } }), text: async () => '{}' });
 const m = require(process.argv[1]);
 m.project.value = 'ABC'; m.data.value = { report_sections: cfg.sections };
-const handle = { setPointerCapture() {}, focus() {} };
+const handle = { setPointerCapture() {}, focus() {}, addEventListener() {}, removeEventListener() {} };
 const press = (id, pid) => m.startDrag({ button: 0, clientX: 0, clientY: 0, pointerId: pid, preventDefault() {} }, handle, id, 3);
 const advance = (to) => { for (let n = 0; n < 1000; n++) { timers.sort((a, b) => a.at - b.at); const t = timers[0]; if (!t || t.at > to) break; timers.shift(); clock = t.at; t.fn(); } clock = to; };
 press('C', 1);

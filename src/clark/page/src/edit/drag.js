@@ -119,12 +119,20 @@ export function startDrag(e, handle, id, count) {
     document.removeEventListener("pointermove", move);
     document.removeEventListener("pointerup", end);
     document.removeEventListener("pointercancel", end);
+    handle.removeEventListener("lostpointercapture", lost);
+    window.removeEventListener("blur", abort);
     if (unwatch) { unwatch(); unwatch = null; }
     active = false;
     dropAt.value = undefined;
     wipe();
   };
   const abort = () => { cancelled = true; finish(); noteRects(); dragList.value = undefined; };   // the page left Edit (or the project changed) mid-drag: drop nothing
+  const lost = (l) => {                          // the handle left the page mid-drag: the drag ends here and drops nothing
+    if (l.pointerId !== e.pointerId) return;
+    if (handle.isConnected !== false) return;    // the preview hides the grip (it is in the slot), and a hidden grip loses the capture too: that is not the end
+    if (document.querySelector(`.secs > .sec[data-id="${CSS.escape(id)}"] [data-drag]`)) return;     // the page drew the grip again (a new element for the same section): the drag goes on
+    abort();
+  };
   const keepFromHandle = (k) => { if (k.altKey && (k.key === "ArrowUp" || k.key === "ArrowDown")) { k.preventDefault(); k.stopPropagation(); } };     // the handle's own Alt+Arrow would move the data under the frozen rects
   const cancel = (k) => { keepFromHandle(k); if (k.key === "Escape") { state = settleStart(); abort(); } };   // Esc: the drag is over now, whether or not a release ever comes (a lost window focus or pointer would leave it stuck)
   const end = (u) => {
@@ -142,6 +150,8 @@ export function startDrag(e, handle, id, count) {
       } catch (err) { failed(); clearList(); }       // placeAt threw before it started: the preview must not stay
     } else { noteRects(); dragList.value = undefined; }     // nothing to place (dropped where it already is, Esc, click, pointercancel, no target): placement says nothing
   };
+  handle.addEventListener("lostpointercapture", lost);
+  window.addEventListener("blur", abort);      // the window lost focus (alt-tab) mid-drag: the release may never reach the page, so the drag ends here and drops nothing
   document.addEventListener("keydown", cancel, true);      // capture: before the handle's own key handler sees it
   document.addEventListener("pointermove", move);      // on the document, not the grip: the preview draws the section as a slot and the grip in it is hidden, so the grip no longer gets the pointer
   document.addEventListener("pointerup", end);
