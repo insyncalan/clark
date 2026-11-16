@@ -31,6 +31,8 @@ class Appearance(Base):
         p.js("document.querySelector('#profile-btn').click()")
         p.until("!!document.querySelector('#profile-menu')", "the menu opened")
         p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
+        p.until("!!document.querySelector('.set-chip')", "the Settings menu drew")
+        p.js("[...document.querySelectorAll('.set-nav .set-chip')].find(b => b.textContent === 'Appearance').click()")      # row 1024: Personal is on the Appearance page
         p.until("!!document.querySelector('#personal')", "Settings › Personal drew")
 
     def open_menu(self, p):

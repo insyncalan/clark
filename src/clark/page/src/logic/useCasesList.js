@@ -119,7 +119,7 @@ export function tidy(s) {
   const old = x.line === undefined;
   return {
     line: typeof x.line === "string" ? x.line.slice(0, 600) : old ? lineFromOld(x) : "",
-    tab: TABS.some(([k]) => k === x.tab) ? x.tab : old && x.on === "on" ? "on" : "all",
+    tab: typeof x.tab === "string" && x.tab && x.tab.length <= 60 ? x.tab : old && x.on === "on" ? "on" : "all",
     group: GROUPS.some(([k]) => k === x.group) ? x.group : "nothing",
     sort: SORTS.some(([k]) => k === x.sort) ? x.sort : "ref",
   };

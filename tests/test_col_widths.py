@@ -22,7 +22,7 @@ PAGES = [("work", "#work&p=TUL&f=mode:all", "#work table.items", "owner", "#work
          ("milestones", "#milestones&p=TUL", "#milestones .msl-hd", "state", "#milestones li.msl-row"),
          ("projects", "#settings&p=TUL", "#projects-table", "c2", "#projects-table tbody tr"),
          ("published", "#published&p=TUL", "#pubs-table", "c1", "#pubs-table tbody tr"),
-         ("people", "#settings&p=TUL", "#ppTable", "Email", "#ppTable tbody tr")]      # row 1104: the Projects, Published reports and People tables in Settings too (the same hook); the Milestones list has a heading row too; item 1149: the Use cases page has none now
+         ("people", "#settings&p=TUL&s=people", "#ppTable", "Email", "#ppTable tbody tr")]      # row 1104: the Projects, Published reports and People tables in Settings too (the same hook); the Milestones list has a heading row too; item 1149: the Use cases page has none now
 
 
 class FakePast:

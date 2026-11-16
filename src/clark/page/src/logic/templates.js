@@ -9,6 +9,7 @@
 // box; the lead moves each one into TEMPLATES with its Help row.
 import { rows } from "./placement.js";
 import { TEMPLATE_TYPES, PENDING_TYPES } from "../templates/types.js";
+import { WORDS } from "./fullImageWords.js";
 
 // What the store takes in a new section (changes.py NEW_SECTION_TYPES: text
 // and every type in the template registry (#96)). A template whose type is not here is listed but not offered.
@@ -55,6 +56,10 @@ export const TEMPLATES = [
     description: "One thing the reader must see.", holds: ["Heading", "Callout · decision"] },
   { id: "image-caption", name: "Image with caption", kind: "text", fit: ["half", "full"], type: "imagecap", title: "Image with caption", body: "", ready: true,
     description: "One picture with its caption.", holds: ["Heading", "Image", "Caption"] },
+  // Row 1223: the same store type as Image with caption (imagecap), started with a body of version 2 (`start`: changes.py takes exactly this body for a new
+  // imagecap section; section_kinds/imagecap.py START). Full width only. Its name is unruled (logic/fullImageWords.js).
+  { id: "full-image", name: WORDS.name, kind: "text", fit: ["full"], type: "imagecap", title: WORDS.name, body: "", start: '{"v":2}', ready: true,
+    description: WORDS.description, holds: WORDS.holds },
   { id: "quote", name: "Quote", kind: "text", fit: ["half", "full"], type: "quote", title: "Quote", body: "", ready: true,
     description: "A voice from the business.", holds: ["Heading", "Text (quote)", "Person"] },
   { id: "contacts", name: "Contacts", kind: "dates", fit: ["half", "full"], type: "contacts", title: "Contacts", body: "", ready: true,
@@ -143,6 +148,7 @@ export const SKETCHES = {
   "docs-links": ["grid-template-rows:repeat(3,1fr)", ["", "", ""]],
   "callout": ["", ["background:var(--status-amber-tint);border-left:3px solid var(--status-amber)"]],
   "image-caption": ["grid-template-rows:2fr 1fr", [IMG, "width:50%"]],
+  "full-image": ["grid-template-rows:3fr 1fr", [IMG, "width:40%"]],
   "quote": ["grid-template-rows:2fr 1fr", ["border-left:3px solid var(--brand-cyan)", "width:40%"]],
   "contacts": ["grid-template-rows:repeat(3,1fr)", ["width:70%", "width:70%", "width:70%"]],
   "checklist": ["grid-template-rows:repeat(3,1fr)", ["width:80%", "width:60%", "width:70%"]],
@@ -230,9 +236,9 @@ export function plan(sections, id, after, beside = false) {
   if (beside) {
     const b = besideState(sections, after, t);
     if (!b.ok) return b;
-    return { ok: true, requests: [{ op: "new", values: { type: t.type, title: t.title }, after: a.id, beside: 1, place: "report" }],
+    return { ok: true, requests: [{ op: "new", values: { type: t.type, title: t.title, ...(t.start ? { body: t.start } : {}) }, after: a.id, beside: 1, place: "report" }],
              words: `${t.name} added, beside the section above.`, template: t };
   }
   // clark clears a stale pairing flag on the last section in the same step (#244), so this is one request and one Undo.
-  return { ok: true, requests: [{ op: "new", values: { type: t.type, title: t.title }, after: a.id, place: "report" }], words: `${t.name} added.`, template: t };
+  return { ok: true, requests: [{ op: "new", values: { type: t.type, title: t.title, ...(t.start ? { body: t.start } : {}) }, after: a.id, place: "report" }], words: `${t.name} added.`, template: t };
 }

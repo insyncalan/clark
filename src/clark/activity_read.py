@@ -56,6 +56,15 @@ def source_line(con, item_id, events):
     return words + (" by " + who if who and words else "")
 
 
+def source_path(con, item_id):
+    """The item's stored `source` as written (the full path or words), capped, for the hover text on the peek's Source tab (row 1180). "" when none."""
+    for table in TABLES:
+        row = con.execute("SELECT source FROM " + table + " WHERE id = ?", (item_id,)).fetchone()
+        if row is not None:
+            return row[0][:500] if isinstance(row[0], str) else ""
+    return ""
+
+
 def make_read(path, data_for):
     """`read(code, item_id)` for the server: None when the project or the item isn't there, else {"rows", "empty", "closing"}.
     `path` is clark.db; `data_for(code)` is Store.data_for."""
@@ -67,10 +76,12 @@ def make_read(path, data_for):
         try:
             view = history.activity_for_item(con, item_id, "all", ROW_LIMIT)
             source = source_line(con, item_id, history.history(con, item_id))
+            path_as_written = source_path(con, item_id)
             refused = changes.undo_refusals(Store(con, path), code, {r["step"] for r in view["rows"] if isinstance(r.get("step"), int)})
         finally:
             con.close()
         rows = [_row(dict(r, undo_refused=refused.get(r.get("step"), ""))) for r in view["rows"]]
         return {"rows": rows, "empty": "" if rows else "Nothing has changed on this item yet.",
-                "closing": CLOSING if view["closing"] else "", "source": source}
+                "closing": CLOSING if view["closing"] else "", "source": source,
+                "source_path": path_as_written}
     return read

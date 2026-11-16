@@ -41,18 +41,35 @@ LOOK = """(() => {
   return {
     token: cs(document.documentElement).getPropertyValue('--control-edge').trim(),
     muted: cs(document.documentElement).getPropertyValue('--text-muted').trim(),
-    gantt: {name: edge('#gantt-name'), namePlaceholder: q('#gantt-name').placeholder, reset: edge('#gantt-setting .set-reset'), intro: type('#gantt-setting > h2 + p'), button: type('#gantt-setting .set-reset')},
+    gantt: !q('#gantt-name') ? null : {name: edge('#gantt-name'), namePlaceholder: (q('#gantt-name') || {}).placeholder, reset: edge('#gantt-setting .set-reset'), intro: type('#gantt-setting > h2 + p'), button: type('#gantt-setting .set-reset')},
     sizes: {intro: type('#safety > h2 + p, #local-folder > h2 + p'), save: type('[data-copy-save]'), seg: type('.seg button'), chip: type('.set-nav .set-chip')},
     edges: {box: edge('#safety-copy-box'), save: edge('[data-copy-save]'), choice: edge('.seg'), name: edge('#ess-name'), paste: edge('#client-folder-paste'), use: edge('[data-copy-suggestion]')},
     heading: type('#safety-h'), label: type('.set-row-text label'), group: type('#local-folder h3'), help: type('.set-row-text small'),
-    placeholders: {name: q('#ess-name').placeholder, essCopy: q('#ess-safety-copy-box').placeholder, copy: q('#safety-copy-box').placeholder, paste: q('#client-folder-paste').placeholder},
+    placeholders: {name: (q('#ess-name') || {}).placeholder, essCopy: (q('#ess-safety-copy-box') || {}).placeholder, copy: (q('#safety-copy-box') || {}).placeholder, paste: (q('#client-folder-paste') || {}).placeholder},
     use: sug('[data-copy-suggestion]'), essUse: sug('[data-ess-copy-suggestion]'),
     menu: {count: chips.length, minHeight: Math.min(...chips.map(c => rect(c).h)), tops: [...new Set(chips.map(c => Math.round(rect(c).t)))].length,
            radius: cs(chips[1]).borderTopLeftRadius, border: cs(chips[1]).borderTopWidth, curMarker: cur ? cs(cur, '::before').width : null, curMarkerShown: cur ? cs(cur, '::before').display : null,
-           curBg: cur ? cs(cur).backgroundColor : null, curWeight: cur ? cs(cur).fontWeight : null, otherBg: cs(chips.find(c => c !== cur)).backgroundColor,
+           curBg: cur ? cs(cur).backgroundColor : null, curWeight: cur ? cs(cur).fontWeight : null, otherBg: cs(chips.find(c => c !== cur) || chips[0]).backgroundColor,
            navDir: cs(nav).flexDirection, pageScroll: document.documentElement.scrollWidth - innerWidth}
   };
 })()"""
+
+
+# The Settings pages that hold what is measured, each with what shows it is drawn (the first is the page the address opens).
+PAGE_READY = [("profile", "!!document.querySelector('#ess-name') && !!document.querySelector('[data-ess-copy-suggestion]') && !!document.querySelector('#ess-safety-copy-box')"),
+              ("appearance", "!!document.querySelector('.seg')"),
+              ("backups", "!!document.querySelector('[data-copy-suggestion]') && !!document.querySelector('#safety-copy-box') && !!document.querySelector('#safety-h')"),
+              ("folder", "!!document.querySelector('#client-folder-paste') && !!document.querySelector('#local-folder h3')"),
+              ("reports", "!!document.querySelector('#gantt-name') && !!document.querySelector('#gantt-setting .set-reset')")]
+
+
+def merge(into, more):
+    """What a page read adds to what the pages before it read: a value another page did not have, key by key."""
+    for k, v in more.items():
+        if isinstance(v, dict) and isinstance(into.get(k), dict):
+            merge(into[k], v)
+        elif v is not None and (k not in into or into[k] is None):
+            into[k] = v
 
 
 def tearDownModule():
@@ -89,12 +106,19 @@ class SettingsLook(unittest.TestCase):
         cdp.call("Page.enable", {}, sid)
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": STUB}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#settings&p=TUL"}, sid)
-        ready = ("!!document.querySelector('[data-copy-suggestion]') && !!document.querySelector('[data-ess-copy-suggestion]') && !!document.querySelector('#client-folder-paste')"
-                 " && !!document.querySelector('#local-folder h3') && !!document.querySelector('.set-chip[aria-current]') && !!document.querySelector('#ess-name') && !!document.querySelector('.seg') && !!document.querySelector('#gantt-name') && !!document.querySelector('#gantt-setting .set-reset')")
-        self.assertTrue(wait(lambda: cdp.js(ready, sid)), "Settings, its Backups suggestion and its Publishing card are drawn")
-        cdp.js(f"document.documentElement.dataset.theme = {json.dumps(scheme)}", sid)
-        return cdp.js(LOOK, sid)
+        # row 1024: one Settings page at a time, so each page that holds something measured is opened in turn and what it holds is read there
+        got = {}
+        for n, (slug, ready) in enumerate(PAGE_READY):
+            if n == 0:
+                cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#settings&p=TUL&s={slug}"}, sid)
+            else:
+                cdp.js(f"location.hash = '#settings&p=TUL&s={slug}'", sid)
+            self.assertTrue(wait(lambda: cdp.js(ready + " && !!document.querySelector('.set-chip[aria-current]') && document.querySelector('.set-cards').getAttribute('data-page') === " + json.dumps(slug), sid)),
+                            f"Settings, its {slug} page and its menu are drawn")
+            if n == 0:
+                cdp.js(f"document.documentElement.dataset.theme = {json.dumps(scheme)}", sid)
+            merge(got, cdp.js(LOOK, sid))
+        return got
 
     def test_the_look_at_1400_and_900(self):
         for w in WIDTHS:

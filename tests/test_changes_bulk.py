@@ -124,6 +124,13 @@ class Bulk(unittest.TestCase):
             with self.subTest(field=field):
                 self.refused("decisions", self.decisions, {field: "Made"}, words)
 
+    def test_priority_in_bulk_on_decisions_is_refused_without_saying_decisions_have_no_priority(self):      # row 1195
+        """400, nothing written, and the words point to the Decision peek, where a decision's priority is set."""
+        before = self.value("decisions", self.decisions[0], "priority")
+        body = self.refused("decisions", self.decisions, {"priority": "High"}, "A decision's priority is set in its details, one at a time.")
+        self.assertEqual(self.value("decisions", self.decisions[0], "priority"), before)
+        self.assertNotIn("no priority", body["message"])
+
     def test_a_made_or_withdrawn_decision_keeps_who_made_it(self):
         with self.s.step("dashboard", USER) as st:
             made = st.create("decisions", {"project": "ABC", "decision": "Go", "made_by": "Board", "status": "Made", "date": "2026-10-01", "source": "demo"})

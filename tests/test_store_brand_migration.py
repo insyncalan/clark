@@ -24,7 +24,7 @@ STEP = 20
 BEFORE = str(STEP - 1)
 NOW = str(store_module.SCHEMA_VERSION)
 NEW_COLUMNS = ("brand",)
-LATER_COLUMNS = ("latest_update",)      # item 1185 (step 25) adds this to raid and milestones
+LATER_COLUMNS = ("latest_update", "decisions.priority")      # item 1185 (step 25) adds this to raid and milestones
 COLUMN = "brand TEXT NOT NULL DEFAULT 'generic' CHECK (length(brand) BETWEEN 1 AND 60)"
 
 
@@ -50,7 +50,7 @@ def every_row(path, leave_out=()):
     try:
         out = {}
         for (n,) in con.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != 'meta' ORDER BY name").fetchall():
-            kept = ", ".join(f'"{c[1]}"' for c in con.execute(f'PRAGMA table_info("{n}")') if c[1] not in leave_out)
+            kept = ", ".join(f'"{c[1]}"' for c in con.execute(f'PRAGMA table_info("{n}")') if c[1] not in leave_out and f"{n}.{c[1]}" not in leave_out)
             out[n] = con.execute(f'SELECT rowid, {kept} FROM "{n}" ORDER BY rowid').fetchall()
         return out
     finally:

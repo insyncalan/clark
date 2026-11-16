@@ -51,7 +51,7 @@ class Line(unittest.TestCase):
         self.s.httpd.ai = ai_service.AiService(self.service)
 
     def show(self, cdp):
-        self.sid = navigate(cdp, self.s.port, "#settings&p=ABC")
+        self.sid = navigate(cdp, self.s.port, "#settings&p=ABC&s=claude")
         js = lambda e: cdp.js(e, self.sid)          # noqa: E731
         self.assertTrue(wait(lambda: js("!!document.querySelector('#ai-state')"), 20), "the AI entry is in Settings")
         return js
@@ -99,7 +99,7 @@ class Line(unittest.TestCase):
                 self.assertTrue(wait(lambda: js("!!document.querySelector('#report')"), 20))
                 js("""const real = window.fetch;
                       window.fetch = function (url) { if (String(url).indexOf('/api/ai/status') >= 0) { %s; } return real.apply(this, arguments); };
-                      location.hash = '#settings&p=ABC'""" % replace)
+                      location.hash = '#settings&p=ABC&s=claude'""" % replace)
                 self.assertTrue(wait(lambda: js("(document.querySelector('#ai-state') || {}).innerText") == UNAVAILABLE, 20),
                                 js("(document.querySelector('#ai-state') || {}).innerText"))
                 self.assertEqual(js("document.querySelector('#ai-state').dataset.state"), "unavailable")
@@ -112,7 +112,7 @@ class Line(unittest.TestCase):
             js("""window.__pending = []; window.__held = () => window.__pending.splice(0).forEach((f) => f()); const real = window.fetch;
                   window.fetch = function (url) { if (String(url).indexOf('/api/ai/status') >= 0) { const a = arguments; return new Promise((r) => { window.__pending.push(() => r(real.apply(window, a))); }); }
                                                   return real.apply(this, arguments); };
-                  location.hash = '#settings&p=ABC'""")
+                  location.hash = '#settings&p=ABC&s=claude'""")
             self.assertTrue(wait(lambda: js("(document.querySelector('#ai-state') || {}).innerText") == CHECKING, 10))
             # Release whatever the page has asked so far on every poll, until the answer is on screen: the page asks after it draws
             # the words, and may ask again if it draws again, so one release at one moment can find nothing, or the wrong ask.

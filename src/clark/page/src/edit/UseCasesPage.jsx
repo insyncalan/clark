@@ -4,24 +4,26 @@
 // and how many are open, the linked milestones, and the eye (an icon alone; its words are the tooltip). The eye is the dashboard's own switch (use_cases.client_visible),
 // changed through the one change path with its Undo toast, in View as in Edit (row 819).
 // The list is ONE tab stop (the current row's name): Up and Down move between rows, Home and End to the first and last, Right to the
-// row's eye and Left back to its name. Row 1085: the page follows the Work items page: four fixed tabs with counts (All use cases, On the
+// row's eye and Left back to its name. Row 1085: the page follows the Work items page: four saved views as tabs with counts (item 1203: read from logic/filterLine.js viewsGet with page "usecases"; the starting four are All use cases, On the
 // dashboard, Committed, At risk) over one rule, Group by and the + at the row's end, the filter line under it (the Work items box over this
 // page's own fields, edit/UseCasesFilter.jsx), the sort in a menu beside Group by (item 1149: the rows are the dashboard summary's, no column names). The tab, the line, the group and the sort are remembered for
 // each project in this browser (logic/useCasesList.js), never in the address, so they add no Back entry.
 import { signal, computed } from "@preact/signals";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { data, rows as allRows, project, uc, openUseCase, leaveUseCase } from "../stores/report.js";
-import { change } from "../stores/changes.js";
+import { change, say, sayLocalUndo } from "../stores/changes.js";
 import { blink } from "../stores/motion.js";
-import { RecordMore } from "./RecordMore.jsx";
+import { RecordContextMenu } from "./RecordContextMenu.jsx";
 import { readArchivedUseCase, getArchived } from "../api.js";
 import { cameBackFrom } from "../stores/useCaseFocus.js";
-import { listOf, ucFor, tidy, recalled, keep, narrowed, countWords, rowSay, groupsOf, groupLabel, refBox, stepsWord, ON_WORDS, OFF_WORDS, SORTS, TABS, GROUPS, RAG } from "../logic/useCasesList.js";
+import { listOf, ucFor, tidy, recalled, keep, narrowed, countWords, rowSay, groupsOf, groupLabel, refBox, stepsWord, ON_WORDS, OFF_WORDS, SORTS, GROUPS, RAG } from "../logic/useCasesList.js";
 import { commitWords } from "../logic/commitment.js";
 import { UseCaseDetail } from "../components/UseCaseDetail.jsx";
 import { UCEDIT, openAdd } from "./UseCasesEdit.jsx";
 import { UseCasesFilter } from "./UseCasesFilter.jsx";
 import { shownOf, tabCounts, lineParts } from "./useCasesLine.js";
+import { viewsGet, viewsPut, visibleViews, addView, nextViewName, renameView, duplicateView, deleteView, insertView, reorderViews, MAX_NAME } from "../logic/filterLine.js";
+import { local } from "../stores/line.js";
 import { plural } from "../workItems.js";
 import { Menu } from "../components/Menu.jsx";
 import { NewTile } from "../components/NewTile.jsx";
@@ -71,8 +73,16 @@ function Row({ r, stop, shown }) {
       <span class="ucl-steps ucsteps num" data-steps>{stepsWord(r.open)}</span>
       <button type="button" class="ucl-eye" tabIndex={-1} data-eye title={eyeWords} aria-label={`${r.ref || "Use case"} ${r.name}: ${eyeWords}. ${r.on ? "Take it off the dashboard" : "Put it on the dashboard"}`}
         onFocus={() => { current.value = r.id; }} onClick={(e) => { blink(e); setEye(r, shown); }}><Icon name={r.on ? "eye" : "eyeoff"} /></button>
-      <RecordMore row={r.u} kind="use_cases" cls="ucl-more" id={`ucl-more-${r.id}`} tab={-1} />      {/* item 1148: Archive and Delete, in a row's More actions */}
     </li>
+  );
+}
+
+// Row 1203: the column names over the rows (the rows' own columns; the eye has none). Not read out: each row says its own parts.
+function ColumnHeads() {
+  return (
+    <div class="ucl-cols" aria-hidden="true">
+      <span class="ucl-c1">Use case</span><span>Where it stands</span><span>Status</span><span>Next steps</span><span></span>
+    </div>
   );
 }
 
@@ -81,11 +91,11 @@ function keys(e) {
   const t = e.target, k = e.key;
   if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.isComposing || e.defaultPrevented || !t.closest) return;
   const row = t.closest(".ucl-row");
-  if (!row || !t.matches(".ucl-go, .ucl-eye, .ucl-more")) return;
-  const more = t.classList.contains("ucl-more"), eye = t.classList.contains("ucl-eye") || more, rows = [...e.currentTarget.querySelectorAll(".ucl-list .ucl-row")], at = rows.indexOf(row);
+  if (!row || !t.matches(".ucl-go, .ucl-eye")) return;
+  const eye = t.classList.contains("ucl-eye"), rows = [...e.currentTarget.querySelectorAll(".ucl-list .ucl-row")], at = rows.indexOf(row);
   const focus = (el) => { if (el) { e.preventDefault(); el.focus(); } };
-  if (k === "ArrowRight") return focus(more ? null : eye ? row.querySelector(".ucl-more") : row.querySelector(".ucl-eye"));      // item 1148: the name, the eye, then More actions
-  if (k === "ArrowLeft") return focus(more ? row.querySelector(".ucl-eye") : row.querySelector(".ucl-go"));
+  if (k === "ArrowRight") return focus(eye ? null : row.querySelector(".ucl-eye"));      // the name, then the eye (Archive and Delete are in the row's right-click menu, the menu key or Shift+F10)
+  if (k === "ArrowLeft") return focus(eye ? row.querySelector(".ucl-go") : null);
   const to = { ArrowUp: at - 1, ArrowDown: at + 1, Home: 0, End: rows.length - 1 }[k];
   if (to === undefined) return;
   e.preventDefault();
@@ -136,13 +146,89 @@ function ArchivedUseCases() {
 }
 
 function UseCasesList() {
-  const f = state.value, rows = all.value, kept_ = shownOf(rows, f), n = tabCounts(rows, f);
+  const f = state.value, rows = all.value, views = visibleViews(viewsGet(local(), project.value, "usecases")), kept_ = shownOf(rows, f, views), n = tabCounts(rows, f, views);
   // Row 1085: the rows in their groups (one plain group for Nothing); a shut group keeps its heading and its count, its rows are away for the visit.
   const groups = groupsOf(kept_, f.group, commitWords(data.value)).map((g) => ({ ...g, shut: f.group !== "nothing" && shutGroups.value.has(`${f.group}|${g.key}`) }));
   const shown = groups.flatMap((g) => (g.shut ? [] : g.rows));
   const toggleGroup = (g) => { const next = new Set(shutGroups.value), k = `${f.group}|${g.key}`; if (next.has(k)) next.delete(k); else next.add(k); shutGroups.value = next; };
   const stop = shown.some((r) => r.id === current.value) ? current.value : shown.length ? shown[0].id : "";
   const list = useRef(null);
+  const code = project.value, nameBox = useRef(null);
+  const [form, setForm] = useState(null);      // row 1203: the Rename view box ({name, error}), or null
+  const [moving, setMoving] = useState("");      // row 1203: the id of the tab Move view is moving with the arrow keys
+  const [told, setTold] = useState("");      // row 1203: what the tabs say aloud
+  const active = views.find((v) => v.id === f.tab) || null;
+  const saveViews = (next) => { viewsPut(local(), code, next, "usecases"); tick.value++; };
+  const focusTab = (id) => setTimeout(() => { const el = document.querySelector(`#usecases .vtab[data-tab="${CSS.escape(id)}"]`); if (el) el.focus({ preventScroll: true }); }, 0);
+  const closeForm = () => { setForm(null); setTimeout(() => { const el = document.getElementById("ucl-viewTabMenu"); if (el) el.focus(); }, 0); };
+  const submitName = (e) => {
+    e.preventDefault();
+    const r = renameView(views, active.id, form.name);
+    if (!r.ok) { setForm({ ...form, error: r.message }); return; }
+    saveViews(r.views);
+    closeForm();
+  };
+  useEffect(() => {      // the name box takes the focus once the menu has given the focus back to its button
+    if (!form) return undefined;
+    const t = setTimeout(() => { if (nameBox.current) nameBox.current.focus(); }, 40);
+    return () => clearTimeout(t);
+  }, [!!form]);
+  const tabAct = (id) => {
+    if (id === "new") {
+      const r = addView(views, nextViewName(views), f.line.trim());
+      if (!r.ok) { say("problem", r.message); return; }
+      saveViews(r.views);
+      set({ tab: r.id, line: "" });
+      setTold(`Saved as ${r.views.find((v) => v.id === r.id).name}. Use Rename view to change the name.`);
+    } else if (!active) return;
+    else if (id === "rename") setForm({ name: active.name, error: "" });
+    else if (id === "move") { setMoving(active.id); setTold(`Moving ${active.name}. Press Left or Right arrow to move it, Enter to finish.`); focusTab(active.id); }
+    else if (id === "duplicate") {
+      const r = duplicateView(views, active.id);
+      if (!r.ok) { say("problem", r.message); return; }
+      saveViews(r.views);
+      set({ tab: r.id });
+      setTold(`Duplicated as ${r.views.find((v) => v.id === r.id).name}.`);
+      focusTab(r.id);
+    } else if (id === "delete") {      // no question first: the message at the foot of the page has Undo, which puts the view back where it was
+      const at = views.findIndex((v) => v.id === active.id), gone = active, r = deleteView(views, gone.id);
+      if (!r.ok) { say("problem", r.message); return; }
+      saveViews(r.views);
+      set({ tab: (r.views[at] || r.views[at - 1] || { id: "all" }).id });
+      sayLocalUndo("done", `View deleted: ${gone.name}`, () => {
+        const b = insertView(visibleViews(viewsGet(local(), code, "usecases")), gone, at);
+        if (!b.ok) { say("problem", b.message); return; }      // a name taken since, say, is told, never silent
+        saveViews(b.views);
+        set({ tab: gone.id });
+      }, code);
+      setTimeout(() => { const el = document.getElementById("ucl-viewNew"); if (el) el.focus(); }, 0);
+    }
+  };
+  const tabKeys = (e, id) => {      // Move view: Left and Right put the tab one place over, Enter or Esc ends
+    if (moving !== id) return;
+    if (e.key === "Enter" || e.key === "Escape") { e.preventDefault(); setMoving(""); return; }
+    const to = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0;
+    if (!to) return;
+    e.preventDefault();
+    const ids = views.map((v) => v.id), at = ids.indexOf(id), j = at + to;
+    if (at < 0 || j < 0 || j >= ids.length) return;
+    [ids[at], ids[j]] = [ids[j], ids[at]];
+    const r = reorderViews(views, ids);
+    if (r.ok) { saveViews(r.views); setTold(`Moved to place ${j + 1} of ${ids.length}.`); focusTab(id); }
+  };
+  const tabItems = [{ id: "rename", name: "Rename view", icon: "pencil" }, ...(views.length > 1 ? [{ id: "move", name: "Move view", icon: "move" }] : []),
+    { id: "duplicate", name: "Duplicate view", icon: "copy" }, { id: "delete", name: "Delete view", icon: "trash", danger: true }];
+  const [menu, setMenu] = useState(null);      // row 1203: the right-click menu on a row (the record, the point, the element that takes the focus back)
+  const rowMenu = (e) => {      // a right click, the menu key or Shift+F10 on a row
+    const el = e.target.closest && e.target.closest(".ucl-row[data-uc]");
+    if (!el) return;
+    const rec = rows.find((x) => x.id === el.dataset.uc);
+    if (!rec) return;
+    e.preventDefault();
+    const go = el.querySelector(".ucl-go"), key = e.clientX === 0 && e.clientY === 0, at = (key ? (document.activeElement && el.contains(document.activeElement) ? document.activeElement : go) : null);
+    const box = at ? at.getBoundingClientRect() : null;
+    setMenu({ row: rec.u, x: box ? box.left : e.clientX, y: box ? box.bottom : e.clientY, from: go });
+  };
   useEffect(() => {      // coming back from a use case: its row takes the focus
     const from = returning || cameBackFrom.value;       // Back (this page noted it) or the detail's crumb and Esc (the detail left it)
     returning = "";
@@ -178,12 +264,26 @@ function UseCasesList() {
         <div class="fviews ucl-views">
           <div class="fvrow">
             <div class="vtabs" role="group" aria-label="Narrow the list">
-              {TABS.map(([id, name]) => (
-                <button type="button" key={id} class="vtab" data-tab={id} aria-pressed={f.tab === id ? "true" : "false"} onClick={() => set({ tab: id })}><span>{name}</span><em class="num">{n[id]}</em></button>
+              {views.map(({ id, name }) => (
+                <span class="vt" key={id}>
+                  <button type="button" class="vtab" data-tab={id} aria-pressed={f.tab === id ? "true" : "false"} data-moving={moving === id ? "" : undefined} onClick={() => set({ tab: id })} onKeyDown={(e) => tabKeys(e, id)} onBlur={() => { if (moving === id) setMoving(""); }}><span>{name}</span><em class="num">{n[id]}</em></button>
+                  {f.tab === id ? <Menu label="" ariaLabel={`Options for ${name}`} id="ucl-viewTabMenu" btnCls="vtabmenu" menuId="ucl-viewTabMenuList" fixed="start" menuLabel={`Options for ${name}`} items={tabItems} onPick={tabAct} /> : null}
+                </span>
               ))}
             </div>
+            <button type="button" class="vnew" id="ucl-viewNew" onClick={() => tabAct("new")}>{"+ New view"}</button>
             {tools}
           </div>
+          {form ? (
+            <form class="vform" onSubmit={submitName} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); closeForm(); } }}>
+              <label for="vname">New name for this view</label>
+              <input id="vname" type="text" value={form.name} maxLength={MAX_NAME} ref={nameBox} onInput={(e) => setForm({ ...form, name: e.target.value, error: "" })} />
+              <button type="submit" class="btn sm" id="vsave">Save</button>
+              <button type="button" class="btn sm" onClick={closeForm}>Cancel</button>
+              <span class="vmsg" role="status">{form.error}</span>
+            </form>
+          ) : null}
+          <p class="sr-only" role="status">{told}</p>
         </div>
       ) : null}
       {rows.length ? <UseCasesFilter f={f} rows={rows} now={() => state.value.line} apply={(text) => set({ line: text })} /> : null}
@@ -194,13 +294,15 @@ function UseCasesList() {
             {narrowed(f) ? <button type="button" class="btn" data-clear-all onClick={clear}>Clear the filters</button> : null}
           </div>
         ) : f.group === "nothing" ? (
-          <div class="ucl-box" ref={list} onKeyDown={keys}>
+          <div class="ucl-box" ref={list} onKeyDown={keys} onContextMenu={rowMenu}>
+            <ColumnHeads />
             <ul class="ucl-list" aria-label="Use cases">
               {shown.map((r) => <Row key={r.id} r={r} stop={r.id === stop} shown={shown} />)}
             </ul>
           </div>
         ) : (
-          <div class="ucl-box" ref={list} onKeyDown={keys}>
+          <div class="ucl-box" ref={list} onKeyDown={keys} onContextMenu={rowMenu}>
+            <ColumnHeads />
             {groups.map((g) => (
               <div class="wgroup ucl-group" key={g.key} data-group={g.key}>
                 <div class="ucl-grp">
@@ -219,6 +321,7 @@ function UseCasesList() {
             ))}
           </div>
         )}
+      {menu ? <RecordContextMenu at={menu} kind="use_cases" onClose={() => setMenu(null)} /> : null}
       {rows.length ? <p class="ucl-count num" id="ucl-count" role="status">{countWords(kept_.length, rows)}</p> : null}
       <ArchivedUseCases />
     </section>

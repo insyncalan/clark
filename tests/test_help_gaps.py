@@ -49,7 +49,9 @@ class EveryPlaceHelpPointsAtExists(unittest.TestCase):
 
     def test_go_and_page_names_a_screen_or_a_settings_card_the_page_draws(self):
         views = (SRC / "components" / "Views.jsx").read_text(encoding="utf-8")
-        cards = set(re.findall(r'"([\w-]+)-h"\]', views))      # profile, personal, update, people ...
+        heads = re.search(r"const HEADS = \{(.*?)\};", views, re.S).group(1)
+        cards = set(re.findall(r'"([\w-]+)-h"', heads))      # row 1024: the card headings, from the HEADS list; profile, personal, update, people ...
+        cards |= {s for s in re.findall(r'\["(\w+)", "[^"]+", \[', views)}      # and each Settings page's own name, such as data
         cards |= {re.sub(r"-card$", "", c) for c in cards}     # the Data card's heading is data-card-h; Help says settings#data
         for entry in RAW["howto"]["tasks"] + RAW["reference"]["sections"]:
             for where in [entry.get("go")] + entry.get("page", []):

@@ -55,6 +55,7 @@ export const view = signal(start.view);
 export const item = signal(start.item);              // the open peek: a work item's id, or "" (the peek itself is #42)
 export const ms = signal(start.ms);                  // ... or a milestone's id
 export const uc = signal(start.uc);                  // the open use case's address key on the Use cases page (its reference as written, else its id), or ""
+export const settingsPage = signal(start.s || "");   // Settings: the page shown, its slug from the address ("" is Projects), row 1024
 export const mv = signal(start.mv);                  // a published file's Milestones block view in the address: "cal" or "" (the Timeline); see setMsView()
 const filterText = signal(start.f);                  // the Work items filters' text, opaque to the router (#64a): see setFilters()
 export const f = computed(() => filterText.value);   // read-only: a component changes it only through setFilters()
@@ -74,6 +75,8 @@ export const publication = signal(0);       // a published file: its publication
 export const fromFile = signal(false);       // true when the page is a published file (#39): it never edits and never asks a server
 export const mode = signal("view");          // view | edit (#65): memory only, never in the database or the address, so a reload is View
 export const dropAt = signal(undefined);     // Edit, while a section is dragged: what to draw (logic/placement.js indicator: { line: "before", ids } | { line: "end" } | { outline, side }), undefined for none
+export const dragFrom = signal(undefined);     // Edit, while a section is dragged: its id (edit/drag.js)
+export const dragList = signal(undefined);     // Edit, while a section is dragged and a place is shown: the sections as the drop would leave them, so the others make room (edit/drag.js); undefined for the page as it is
 export const asAt = signal("");              // view mode: the publish date, YYYY-MM-DD; due dates and Overdue read as at this
 export const rebuilt = signal("");           // item 349: the day the Dashboard is shown as at, rebuilt from the change history (YYYY-MM-DD), else "": memory only, never in the address; while set the page is read only
 export const SERVED_TABS = VIEWS;   // the served page offers every view; a published file lists its own, from p.tabs
@@ -112,7 +115,7 @@ export const counts = computed(() => {
 
 let openedF = null;                                  // null: not known (a reload or a restored tab), so closing rewrites the entry
 
-const where = () => ({ view: view.value, project: project.value, item: item.value, ms: ms.value, f: filterText.value, uc: uc.value, mv: mv.value });
+const where = () => ({ view: view.value, project: project.value, item: item.value, ms: ms.value, f: filterText.value, uc: uc.value, mv: mv.value, s: settingsPage.value });
 
 // Draw the page from an address: the signals follow it, and a project that changed is read again. A published file has one
 // project and only its own tabs: an address that names another project or a tab the file does not have (typed, or a Back to it)
@@ -126,6 +129,7 @@ function apply(s) {
     item.value = s.item;
     ms.value = s.ms;
     uc.value = s.uc || "";
+    settingsPage.value = s.s || "";
     mv.value = s.mv || "";
     filterText.value = s.f;
   });
@@ -181,6 +185,8 @@ function leave() {
   leaveField();
   openFilter.value = "";
   dropAt.value = undefined;
+  dragFrom.value = undefined;
+  dragList.value = undefined;
   moves.value++;
 }
 
@@ -191,6 +197,11 @@ route.onPop((s) => { if (reloadFor(s)) return; backingAt = -Infinity; leave(); a
 /** Go to a page: one new entry; an open peek closes, and so do the filters (they belong to one page). */
 export function show(next) {
   go({ view: next, project: project.value, item: "", ms: "", f: "" });
+}
+
+/** Settings on one of its pages (row 1024): one new entry, as any change of page is. `page` is a slug from router.SETTINGS_PAGES; the first (or none) is plain "#settings". */
+export function showSettings(page) {
+  go({ view: "settings", project: project.value, item: "", ms: "", f: "", s: page || "" });
 }
 
 /** Open Work items with a filter state already set (an At a glance tile, #79): one new entry, as any change of page is. */
@@ -376,7 +387,7 @@ export function plain(code, body) {
 // What the page says when a change or an undo (api.js) failed, by the same rule as plain(): the status picks the words, and a
 // message from the server is used only to pick one of these, never shown. Each says that nothing was changed (or what is
 // still true) and what to do next.
-const CHANGE_FAILED = "That change could not be made, and nothing was changed. Reload the page and try again.";
+export const CHANGE_FAILED = "That change could not be made, and nothing was changed. Reload the page and try again.";
 const CHANGE_KNOWN = {
   "Your page is out of date. Reload it, then try again.": "The report has changed since you opened it, and nothing was changed. Reload the page and try again.",
   "That section isn't in this project.": "That section is no longer in this report, and nothing was changed. Reload the page.",

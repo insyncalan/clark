@@ -1,7 +1,7 @@
 """Row 1115, S2: Search settings in the Settings head, in a real browser at 1400 and 900 px, light and dark.
 Run: python3 dev/run_tests.py test_settings_search_1115
 
-Typing a name or help word keeps the cards and rows that match and hides the rest and the row of chips; Esc or clearing brings everything back.
+Typing a name or help word keeps the cards and rows that match and hides the rest and the menu (a search looks through every page's cards); Esc or clearing brings everything back.
 Chrome is required: these tests fail, never skip, without it."""
 import unittest
 
@@ -24,11 +24,12 @@ class Search(Head):
                 with self.subTest(width=w, mode=mode), chrome() as cdp:
                     p = self.page(cdp)
                     self.open_settings(p, w, mode)
-                    p.until("!!document.getElementById('set-search-box') && !!document.querySelector('#gantt-name')", "the box and cards drew")
+                    p.until("!!document.getElementById('set-search-box')", "the box drew")
                     all_cards = p.js(SHOWN)
-                    self.assertGreater(len(all_cards), 5)
+                    self.assertEqual(all_cards, ["Projects"], "row 1024: before a search the page shows only its own cards")
                     self.assertEqual(p.js("document.querySelector('label[for=set-search-box]').textContent"), "Search settings")
-                    self.type(p, "tab name")
+                    self.type(p, "tab name")      # a search looks through the cards of every page
+                    p.until("!!document.querySelector('#gantt-name')", "the cards of the other pages drew")
                     p.until("document.querySelectorAll('.set-cards > section:not([hidden])').length === 1", "one card is left")
                     self.assertEqual(p.js(SHOWN), ["Gantt"])
                     self.assertEqual(p.js(ROWS).count(False), 1, "only the matching row stays in the card")

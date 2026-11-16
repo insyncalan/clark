@@ -50,7 +50,7 @@ COVERED = [
     ("#806", 'A click on a Work items row or card opens its peek.',
      "test_inline_67::RowClick::test_a_click_on_a_row_opens_its_peek_and_one_in_a_field_or_button_does_not"),
     ("#816", 'Help describes the Settings links as a list at the left.',
-     "test_help_pr_a::SettingsChips::test_the_chip_names_and_order_are_the_pages"),
+     "test_help_pr_a::SettingsChips::test_the_menu_names_and_order_are_the_pages"),
     ("#781", 'Messages are a centred pill at the foot.',
      "test_toast_pill::ToastPill::test_source_has_no_left_edge_and_a_pill_radius"),
     ("#792", 'The Keys group is drawn without a box.',

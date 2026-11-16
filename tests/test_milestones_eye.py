@@ -298,6 +298,9 @@ class Editor(unittest.TestCase):
                     self.press("ABC-M-002")
                     self.until("!document.querySelector(\".secs .msl-row[data-ms='ABC-M-002']\")", "the row left the Dashboard")
                     self.until("document.querySelector('.toast .toast-text').textContent === 'Training done taken off the page.'", "the toast")
+                    # The press plans its own focus move (MsEye.jsx keepFocus) and gives it a frame after the row is gone; wait for it to land
+                    # on the next row's eye before the person "moves on", or that late move lands after the blur and Undo finds focus taken.
+                    self.until("!!document.activeElement && document.activeElement.dataset.msEye === 'ABC-M-003'", "focus moved to the next row's eye")
                     self.until("document.getAnimations().length === 0", "the toast finished arriving")
                     self.js("document.activeElement && document.activeElement.blur()")
                     self.key("z", "KeyZ", 90, modifiers=2)

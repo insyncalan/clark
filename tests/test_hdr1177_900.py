@@ -24,6 +24,10 @@ class HeaderAt900(Base):
         size(cdp, p, width, 700)
         p.until(f"window.innerWidth === {width}", f"the window is {width} wide")
         p.until("!!document.querySelector('.top #profile-btn')", "the profile circle is drawn")
+        want = "true" if width <= 900 else "false"
+        p.until(f"window.matchMedia('(max-width: 900px)').matches === {want}", f"the narrow-window query says {want}")
+        p.js("window.__frames = 0; (function tick(){ window.__frames++; requestAnimationFrame(tick); })()")
+        p.until("window.__frames >= 4", "four frames were drawn at this width: the header follows the window's width on a slow runner too")
         return p
 
     def open_menu(self, p):

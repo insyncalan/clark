@@ -1062,7 +1062,7 @@ class ByUser(Api):
 
 ITEM_FIELDS = {"actions": {"status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "latest_update", "client_message", "client_visible", "client_action"},   # row 811: + needed from the client
                "raid": {"status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "latest_update", "client_message", "client_visible", "client_action"},
-               "decisions": {"status", "made_by", "needed_by", "date", "use_case", "decision", "client_message", "client_visible"}}      # #67: + the title; #97: + the eye; the report rows: + the client wording
+               "decisions": {"status", "made_by", "needed_by", "date", "use_case", "decision", "priority", "latest_update", "client_message", "client_visible"}}      # row 1195: + priority and latest_update; #67: + the title; #97: + the eye; the report rows: + the client wording
 
 
 class Items(Api):
@@ -1364,7 +1364,8 @@ class Items(Api):
         self.no(self.item("raid", self.r, priority="Low", status="Closed"), changes.NO_RAID_PRIORITY)
         self.no(self.item("decisions", self.d, workstream="Build"), "A decision isn't part of a workstream.")
         self.no(self.item("decisions", self.d, milestone=self.ms), "A decision isn't tied to a milestone.")
-        self.no(self.item("decisions", self.d, priority="High"), "A decision has no priority.")
+        self.go("decisions", self.d, priority="High")      # row 1195: the Decision peek sets a priority
+        self.no(self.item("decisions", self.d, priority="Critical"), changes.NOT_A_STATUS)
         self.assertEqual(self.s.read("raid", ref=self.r)["priority"], "High")
 
     def test_values_are_text_or_none_and_never_none_where_a_value_is_needed(self):
