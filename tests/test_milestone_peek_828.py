@@ -173,7 +173,7 @@ class Fields(Base):
             p.until("document.querySelector('#peek .pk-chips [data-row=progress]').textContent.includes('40%')", "the chip says 40%")
             self.chip(p, "progress")
             self.click(p, "[data-pop] [data-ms-block='40']")
-            self.saved(p, "percent_complete", 0)       # ruled (Jarvis): the block that equals the progress sets it back to 0
+            self.saved(p, "percent_complete", 0)       # ruled: the block that equals the progress sets it back to 0
             self.chip(p, "progress")
             self.click(p, "[data-pop] [data-ms-block='70']")
             self.saved(p, "percent_complete", 70)
