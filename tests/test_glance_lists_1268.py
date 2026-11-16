@@ -62,6 +62,32 @@ class Lists(unittest.TestCase):
         got = by(run(probe(), ("raid",), body(kinds=["risk"])))
         self.assertEqual(got["risks"]["value"], 1)
 
+    def test_a_shown_section_with_no_rows_keeps_its_tile(self):      # mutation check: the hidden-section guard in glance._section_gone
+        got = by(run(data(raid_=[raid(1, priority="High")]), (), body(kinds=["risk"])))
+        self.assertIn("overdue", got)
+        self.assertEqual(got["overdue"]["value"], 0)
+
+    def test_a_list_of_dependencies_brings_the_risks_tile_back(self):      # mutation check: KINDS_OF_TILE["risks"] names dependency
+        d = data(raid_=[raid(1, type_="Dependency", priority="High")])
+        self.assertIn("risks", by(run(d, ("raid",), body(kinds=["dependency"]))))
+
+
+class WordTiles(unittest.TestCase):
+    """docx_build._kept: the rows the Word glance tiles count (mutation check, row 1268)."""
+
+    def kept(self, listed, shown):
+        from clark import docx_build
+        pub = {"data": probe(), "sections": [{"type": "workitems", "items": listed}] if listed is not None else []}
+        return docx_build._kept(pub, shown)
+
+    def test_a_hidden_actions_section_counts_only_the_actions_a_list_names(self):
+        every = {r["id"] for r in self.kept(None, {"actions", "raid", "decisions"})["rows"] if r["kind"] == "action"}
+        self.assertEqual(len(every), 3)
+        one = sorted(every)[0]
+        got = self.kept([one], {"raid", "decisions"})["rows"]
+        self.assertEqual([r["id"] for r in got if r["kind"] == "action"], [one])
+        self.assertEqual([r["id"] for r in self.kept(None, {"raid", "decisions"})["rows"] if r["kind"] == "action"], [])
+
 
 if __name__ == "__main__":
     unittest.main()
