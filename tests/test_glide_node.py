@@ -23,13 +23,13 @@ _BUNDLE = {}
 STUBS = """
 globalThis.addEventListener = () => {}; globalThis.window = globalThis;
 const R = { was: {}, now: {}, media: false, calls: [] };
-const mk = (id) => ({ dataset: { id }, animate(k, o) { R.calls.push({ id, from: k[0].transform, to: k[1].transform, ms: o.duration }); },
-  getBoundingClientRect() { return R.cur[id]; } });
-const root = { querySelectorAll: () => Object.keys(R.cur).map(mk) };
-globalThis.document = { documentElement: { dataset: {} }, querySelector: () => root };
+const mk = (id) => { const el = { dataset: { id }, animate(k, o) { R.calls.push({ id, from: k[0].transform, to: k[1].transform, ms: o.duration, easing: o.easing }); },
+  getBoundingClientRect() { return R.cur[id]; } }; if (R.noAnimate) delete el.animate; return el; };
+const root = { querySelectorAll: (sel) => sel === ":scope > .sec[data-id]" ? Object.keys(R.cur).map(mk) : [] };
+globalThis.document = { documentElement: { dataset: {} }, querySelector: (sel) => (sel === ".secs" && !R.nullRoot ? root : null) };
 globalThis.matchMedia = () => ({ matches: R.media });
 function run(was, now, o = {}) {
-  R.calls = []; R.media = !!o.media; document.documentElement.dataset = o.attr ? { motion: "reduce" } : {};
+  R.calls = []; R.media = !!o.media; R.noAnimate = !!o.noAnimate; R.nullRoot = !!o.nullRoot; document.documentElement.dataset = o.attr ? { motion: "reduce" } : {};
   R.cur = was; if (!o.skipNote) G.noteRects();
   R.cur = now; G.glide(o.noRoot ? null : root);
   return R.calls;
@@ -65,7 +65,7 @@ class Glide(unittest.TestCase):
 
     def test_a_section_that_moved_glides_from_where_it_was_for_160_ms(self):
         got = self.go({"a": at(10, 100)}, {"a": at(10, 40)})
-        self.assertEqual(got, [{"id": "a", "from": "translate(0px, 60px)", "to": "none", "ms": 160}])
+        self.assertEqual(got, [{"id": "a", "from": "translate(0px, 60px)", "to": "none", "ms": 160, "easing": "ease-out"}])
 
     def test_a_move_along_either_line_alone_glides(self):
         self.assertEqual([g["from"] for g in self.go({"a": at(50, 40)}, {"a": at(10, 40)})], ["translate(40px, 0px)"], "sideways only")
@@ -74,8 +74,8 @@ class Glide(unittest.TestCase):
     def test_less_than_a_pixel_is_no_move_and_a_pixel_is(self):
         self.assertEqual(self.go({"a": at(10.4, 40.4)}, {"a": at(10, 40)}), [], "0.4 px each way: still")
         self.assertEqual(self.go({"a": at(10.9, 40.9)}, {"a": at(10, 40)}), [], "0.9 px each way: still")
-        self.assertEqual(self.go({"a": at(10, 41)}, {"a": at(10, 40)}), [{"id": "a", "from": "translate(0px, 1px)", "to": "none", "ms": 160}], "exactly 1 px: glides")
-        self.assertEqual(self.go({"a": at(9, 40)}, {"a": at(10, 40)}), [{"id": "a", "from": "translate(-1px, 0px)", "to": "none", "ms": 160}], "1 px to the left: glides")
+        self.assertEqual(self.go({"a": at(10, 41)}, {"a": at(10, 40)}), [{"id": "a", "from": "translate(0px, 1px)", "to": "none", "ms": 160, "easing": "ease-out"}], "exactly 1 px: glides")
+        self.assertEqual(self.go({"a": at(9, 40)}, {"a": at(10, 40)}), [{"id": "a", "from": "translate(-1px, 0px)", "to": "none", "ms": 160, "easing": "ease-out"}], "1 px to the left: glides")
         self.assertEqual(len(self.go({"a": at(10, 39.2)}, {"a": at(10, 40)}, "{}")), 0, "-0.8 px: still")
 
     def test_nothing_glides_when_motion_is_reduced_by_the_computer_or_by_clark(self):
@@ -88,6 +88,20 @@ class Glide(unittest.TestCase):
         self.assertEqual(self.go({"a": at(0, 0)}, {"a": at(0, 0), "n": at(5, 90)}), [], "n is new, a did not move")
         self.assertEqual(self.go({"a": at(10, 100)}, {"a": at(10, 40)}, "{skipNote: true}"), [], "noteRects was not called")
         self.assertEqual(self.go({"a": at(10, 100)}, {"a": at(10, 40)}, "{noRoot: true}"), [], "no root")
+
+    def test_a_section_moved_down_glides_from_above_where_it_is(self):
+        got = self.go({"a": at(10, 40)}, {"a": at(10, 100)})
+        self.assertEqual(got, [{"id": "a", "from": "translate(0px, -60px)", "to": "none", "ms": 160, "easing": "ease-out"}])
+
+    def test_the_glide_eases_out(self):
+        got = self.go({"a": at(10, 100)}, {"a": at(10, 40)})
+        self.assertEqual([g["easing"] for g in got], ["ease-out"])
+
+    def test_an_element_without_animate_is_left_alone(self):
+        self.assertEqual(self.go({"a": at(10, 100)}, {"a": at(10, 40)}, "{noAnimate: true}"), [], "no animate: no call and no throw")
+
+    def test_no_sections_box_when_the_note_is_taken_means_no_glide_and_no_throw(self):
+        self.assertEqual(self.go({"a": at(10, 100)}, {"a": at(10, 40)}, "{nullRoot: true}"), [], "the box was missing at noteRects")
 
     def test_the_note_is_used_once(self):
         got = run("(() => { run({a: {left: 0, top: 90}}, {a: {left: 0, top: 40}}); R.calls = []; G.glide(root); return R.calls; })()")
