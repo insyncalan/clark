@@ -200,6 +200,36 @@ class Columns(unittest.TestCase):
             self.assertTrue(wait(lambda: "workstream" in self.heads(js, "work"), 5))
             self.assertTrue(wait(lambda: abs(width() - 222) <= 2, 5), f"and it comes back at that width ({width()})")
 
+    def test_the_dashboard_milestones_choice_and_widths_are_kept_under_msdash_and_leave_the_milestones_keys_alone(self):
+        """Row 1230: the Dashboard section is its own table ("msDash"); its columns choice and widths do not write the Milestones page's keys."""
+        keys = "JSON.stringify(Object.keys(localStorage).filter((k) => k.startsWith('clark.cols')).sort())"
+        with chrome() as cdp:
+            sid = self.visit(cdp, 1400, "light", "#dashboard&p=TUL")
+            js = lambda e: cdp.js(e, sid)  # noqa: E731
+            box = ".msv .msl-box"
+            self.assertTrue(wait(lambda: js(f"!!document.querySelector('{box} .msl-row')"), 20), "the Dashboard milestones drew their rows")
+            js("document.querySelector('[data-mode=edit]').click()")
+            head = f"{box} .msl-hd [data-col='state']"
+            self.assertTrue(wait(lambda: js(f"!!document.querySelector({json.dumps(head)})"), 10), "Edit draws the heading row")
+            js(f"document.querySelector({json.dumps(head)}).scrollIntoView({{block: 'center'}})")
+            self.right_click(cdp, sid, head)
+            self.assertTrue(wait(lambda: self.menu(js), 5))
+            self.pick(js, "Workstream")
+            self.assertTrue(wait(lambda: js(f"!!document.querySelector({json.dumps(box + ' .msl-hd [data-col=workstream]')})"), 5), "the column appears on the Dashboard")
+            chosen = js("localStorage.getItem('clark.cols.show.msDash.TUL')")
+            self.assertIn("workstream", chosen or "", "the choice is kept under msDash and the project")
+            self.press(cdp, sid, "Escape")
+            self.assertTrue(wait(lambda: not self.menu(js), 5), "the menu is closed")
+            grip = f"{box} .msl-hd [data-cgrip='agreed']"
+            x, y = js(f"(() => {{ const b = document.querySelector({json.dumps(grip)}).getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; }})()")
+            for t, px, extra in (("mouseMoved", x, {}), ("mousePressed", x, {"button": "left", "buttons": 1, "clickCount": 1}), ("mouseMoved", x + 20, {"buttons": 1}),
+                                 ("mouseReleased", x + 20, {"button": "left", "buttons": 0, "clickCount": 1})):
+                cdp.call("Input.dispatchMouseEvent", {"type": t, "x": px, "y": y, **extra}, sid)
+            self.assertTrue(wait(lambda: "agreed" in (js("localStorage.getItem('clark.cols.msDash')") or ""), 5), "the width is kept under clark.cols.msDash")
+            self.assertEqual(json.loads(js(keys)), ["clark.cols.msDash", "clark.cols.show.msDash.TUL"], "nothing else is written, so no milestones key")
+            self.assertIsNone(js("localStorage.getItem('clark.cols.milestones')"), "the Milestones page's widths are untouched")
+            self.assertIsNone(js("localStorage.getItem('clark.cols.show.milestones.TUL')"), "and so is its choice")
+
     def test_a_blocked_store_still_lets_the_table_redraw(self):
         block = "Storage.prototype.setItem = function () { throw new Error('blocked'); };"
         with chrome() as cdp:

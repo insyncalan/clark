@@ -203,5 +203,15 @@ class Rest(unittest.TestCase):
         self.assertEqual(run(probe), [True, 0])
 
 
+class Shake(unittest.TestCase):
+    def test_a_shake_over_the_right_half_keeps_the_shown_target_and_the_drop_makes_a_pair(self):
+        probe = (f"(() => {{ const f = DL.freezeRects({R}); let s = DL.settleStart(); let moves = 0, now = 0; "
+                 f"for (let i = 0; i < 60; i++) {{ const t = DL.dragTarget({S}, 'e', f, {{x: 700 + (i % 5) - 2, y: 170 + (i % 3) - 1}}); "
+                 f"s = DL.settle(s, t, now); if (s.moved) moves++; now += 10; }} "
+                 f"const p = DL.place({S}, 'e', s.shown); const next = DL.applied({S}, p.payload); "
+                 f"return {{ shown: DL.targetKey(s.shown), moves, rows: DL.rows(next).map((r) => r.map((x) => x.id)) }}; }})()")
+        self.assertEqual(run(probe), {"shown": "beside:b:right", "moves": 1, "rows": [["a"], ["b", "e"], ["c", "d"]]})
+
+
 if __name__ == "__main__":
     unittest.main()

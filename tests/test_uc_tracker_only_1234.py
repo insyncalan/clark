@@ -27,7 +27,7 @@ class TrackerOnly(PublishedFile, Setup):
 
     def click_tracker(self, p):
         p.js("document.querySelector('[data-mode=edit]').click()")
-        p.until("!!document.querySelector('#ucAdd')", "Edit")
+        p.until("!!document.querySelector('[data-uc-configure]')", "Edit")
         p.js("document.querySelector('[data-uc-configure]').click()")
         p.until("!!document.querySelector('[data-uc-tracker]')", "tracker control")
         p.js("document.querySelector('[data-tracker=bottom]').click()")
@@ -45,7 +45,7 @@ class TrackerOnly(PublishedFile, Setup):
                 p.reload()
                 p.until("!!document.querySelector('.uc')", "the summary drew again")
                 p.js("document.querySelector('[data-mode=edit]').click()")
-                p.until("!!document.querySelector('#ucAdd')", "Edit")
+                p.until("!!document.querySelector('[data-uc-configure]')", "Edit")
                 edit_rows = p.js(ROWS)
                 path = self.publish()
                 q = self.draw(cdp, path, width)
