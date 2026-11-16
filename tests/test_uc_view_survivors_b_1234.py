@@ -60,12 +60,12 @@ class Heights(Demo):
                 self.assertEqual(p.js(ROWS), self.total, "every row is there to scroll to")
                 self.assertEqual(p.js(f"getComputedStyle({LIST}).overflowY"), "auto")
                 style = p.js(f"{LIST}.getAttribute('style')")
-                self.assertIn("3.25rem", style, "the row height falls back to 3.25rem")
+                self.assertIn("var(--ucrow-h", style, "the height is n times the measured row height (the 3.25rem is only the fallback before it is measured)")
                 self.assertRegex(style, r"\* 3\)", "three rows high")
                 self.set_local(p, n="all", scroll=True)
-                self.assertIsNone(p.js(f"{LIST}.getAttribute('style')"), "all has no height to fix")
+                self.assertEqual(p.js(f"{LIST}.style.maxHeight"), "", "all has no height to fix (the measured row height may stay as a variable)")
                 self.set_local(p, n=3, scroll=False)
-                self.assertIsNone(p.js(f"{LIST}.getAttribute('style')"), "no scrolling, no fixed height")
+                self.assertEqual(p.js(f"{LIST}.style.maxHeight"), "", "no scrolling, no fixed height")
                 self.assertEqual(p.js(f"getComputedStyle({LIST}).overflowY"), "visible")
 
 
