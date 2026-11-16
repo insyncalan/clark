@@ -644,6 +644,9 @@ def check_section_body(kind, body, stored=None):
         raise Invalid(str(e)) from None
 
 
+UNDOING = "(undoing)"        # rides in `changed` (never a column) when revert_group puts a section's body back
+
+
 def _section_rules(con, table, row, changed):
     """clark (#65): a section's own rules, in plain words. Runs before the id exists on a new row, so the id rules need an id."""
     row["title"] = section_title(row.get("title"))
@@ -659,7 +662,10 @@ def _section_rules(con, table, row, changed):
         # what is stored is its canonical text, never the request's. A write that leaves the body alone (a rename, hide, move or
         # renumber) does not re-check it, so a body saved under an older, looser checker never locks its section; publish checks it again
         was = con.execute("SELECT body FROM report_sections WHERE id = ?", (row.get("id"),)).fetchone() if row.get("id") else None
-        row["body"] = check_section_body(row["type"], row.get("body"), was[0] if was else None)      # what the section holds now: an old entry sent back unchanged stays
+        # what the section holds now: an old entry sent back unchanged stays. An Undo puts back the logged old text, so there that text
+        # is what an entry may stay as (the row now holds the newer text, which has dropped the old entry); a changed or new entry still meets every rule
+        row["body"] = check_section_body(row["type"], row.get("body"), row["body"] if UNDOING in changed else was[0] if was else None)
+        changed.discard(UNDOING)
     if row.get("id") and not str(row["id"]).startswith(f"{row.get('project')}-S-"):
         raise Invalid("That section's id doesn't belong to its project.")
     if "id" in changed or not row.get("id"):          # a new section, or one put back by an undo: never count the row itself
@@ -1768,7 +1774,7 @@ def _merged_row(con, table, current, changes, revert=False, archiving=False):
     _not_before_raised(table, row)
     if table in CHECK and not (revert and table == "projects" and "health_reason" in changes):
         CHECK[table](row, current, changes)
-    check_row(con, table, row, set(changes))
+    check_row(con, table, row, set(changes) | ({UNDOING} if revert and table == "report_sections" and "body" in changes else set()))
     return row
 
 

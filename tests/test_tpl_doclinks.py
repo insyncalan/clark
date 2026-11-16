@@ -260,6 +260,51 @@ class Saved(Api):
                 self.assertEqual([i["href"] for i in next(s for s in built["published"]["sections"] if s["id"] == ref)["content"]["items"]],
                                  ["https://example.org/plan"], "once the old entry is gone the section is published again")
 
+    def test_undo_of_a_save_puts_back_an_old_entry_the_new_rules_refuse(self):
+        """Row 1194, the Undo defect: a body stored before item 1194 holds a link with no words; a save drops that link; Undo of the
+        save must put the stored text back whole (200, body equal), as it does for any other section, not refuse its own old entry."""
+        for name, old in (("link with no words", a_link(label="")), ("file with an ending that is not allowed", a_file(name="old.zip", label=""))):
+            with self.subTest(old=name):
+                ref = self.make("Fictional undo " + name)
+                before = section_bodies.canonical({"v": 1, "items": [a_link(), old]})      # as clark stores a body: its canonical text
+                self.stored(ref, before)
+                status, got = self.save(ref, body([a_link()]))
+                self.assertEqual(status, 200, got)
+                status, undone = self.undone(got["apply_id"])
+                self.assertEqual(status, 200, undone)
+                self.assertEqual(undone.get("skipped") or [], [], "nothing is left out of the put back")
+                self.assertEqual(self.s.read("report_sections", ref=ref)["body"], before)
+
+    def test_undo_waives_only_the_entries_the_log_holds_and_publish_stays_strict(self):
+        ref = self.make("Fictional undo strict")
+        old = a_link(label="")
+        before = body([a_link(), old])
+        self.stored(ref, before)
+        status, got = self.save(ref, body([a_link()]))
+        self.assertEqual(status, 200, got)
+        status, _ = self.undone(got["apply_id"])
+        self.assertEqual(status, 200)
+        built = publish.build(self.s, "ABC", now="2030-01-15")
+        self.assertNotIn(ref, {s["id"] for s in built["published"]["sections"]}, "publish is still strict after the Undo")
+        status, got = self.save(ref, body([a_link(), dict(old, href="https://example.org/other")]))
+        self.assertEqual((status, got["message"]), (400, "Link 2: Enter a link description."), "a changed entry after the Undo meets every rule")
+        status, got = self.save(ref, body([a_link(), old, a_link(href="https://example.org/n", label="")]))
+        self.assertEqual((status, got["message"]), (400, "Link 3: Enter a link description."), "a new bad entry after the Undo is refused")
+
+    def test_the_store_waives_old_entries_only_for_an_undo(self):
+        """At the store's own door (no request check before it): a write of a body with a new entry that fails the rules is refused;
+        the same text put back by an Undo (revert) is kept; an Undo still refuses a text that cannot be read at all."""
+        ref = self.make("Fictional store door")
+        old = body([a_link(), a_link(label="")])
+        current = dict(self.s.con.execute("SELECT * FROM report_sections WHERE id = ?", (ref,)).fetchone())
+        for revert, text, ok in ((False, old, False), (True, old, True), (True, "{not json", False), (False, body([a_link()]), True)):
+            with self.subTest(revert=revert, text=text[:12]):
+                if ok:
+                    store_module._merged_row(self.s.con, "report_sections", current, {"body": text}, revert=revert)
+                else:
+                    with self.assertRaises(store_module.Invalid):
+                        store_module._merged_row(self.s.con, "report_sections", current, {"body": text}, revert=revert)
+
     def test_the_file_carries_the_list_and_a_hidden_or_empty_section_is_left_out(self):
         shown = self.make("Fictional papers")
         self.save(shown, body([a_link(), a_file()]))
