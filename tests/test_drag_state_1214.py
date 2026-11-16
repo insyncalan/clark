@@ -78,16 +78,16 @@ class DragState(unittest.TestCase):
                 got = self.run_script([[200, 330, REST]], width)
                 self.assertEqual(got[0]["from"], None, "not before the pointer has moved")
                 self.assertEqual(got[1]["from"], "d")
-                self.assertEqual(got[1]["drawn"], 2, "the ghost and the old-place outline")
+                self.assertEqual(got[1]["drawn"], 3, "the ghost, the old-place outline and the status line")
                 self.assertIsNotNone(got[1]["drop"], "a slot is shown")
                 self.assertEqual(got[1]["list"], 1, "the list the others make room by")
 
     def test_a_release_takes_everything_away(self):
         for width in (1400, 900):
             with self.subTest(width=width):
-                for steps in ([[200, 330, REST], "up"], [[200, 330, 50], "up"]):
+                for steps, left in (([[200, 330, REST], "up"], 0), ([[200, 330, 50], "up"], 1)):
                     got = self.run_script(steps, width)
-                    self.assertEqual((got[-1]["from"], got[-1]["drop"], got[-1]["drawn"]), (None, None, 0), steps)
+                    self.assertEqual((got[-1]["from"], got[-1]["drop"], got[-1]["drawn"]), (None, None, left), steps)       # a release before the rest drops nowhere: the one thing left is the live region that says "stays where it is" (it stays, so the next drop is heard)
                     self.assertIsNone(got[-1]["list"], steps)
 
     def test_the_list_is_let_go_on_a_release_that_drops_nowhere(self):
@@ -96,13 +96,13 @@ class DragState(unittest.TestCase):
                 got = self.run_script([[200, 330, REST], "esc", "up"], width)
                 self.assertIsNone(got[-1]["list"])
                 got = self.run_script([[200, 330, 50], "up"], width)
-                self.assertEqual((got[-1]["from"], got[-1]["drawn"], got[-1]["list"]), (None, 0, None))
+                self.assertEqual((got[-1]["from"], got[-1]["drawn"], got[-1]["list"]), (None, 1, None))      # the live region that says "stays where it is" is all that is left
 
     def test_esc_takes_everything_away_at_once(self):
         for width in (1400, 900):
             with self.subTest(width=width):
                 got = self.run_script([[200, 330, REST], "esc"], width)
-                self.assertEqual(got[1]["drawn"], 2)
+                self.assertEqual(got[1]["drawn"], 3)
                 self.assertEqual((got[2]["from"], got[2]["drop"], got[2]["list"], got[2]["drawn"]), (None, None, None, 0))
 
     def test_the_glide_is_told_where_the_sections_were_before_the_page_changes(self):
@@ -140,7 +140,7 @@ class DragState(unittest.TestCase):
         for width in (1400, 900):
             with self.subTest(width=width):
                 got = self.run_script([[200, 330, REST], "up2"], width)
-                self.assertEqual((got[2]["from"], got[2]["drawn"], got[2]["listeners"]), ("d", 2, got[1]["listeners"]))
+                self.assertEqual((got[2]["from"], got[2]["drawn"], got[2]["listeners"]), ("d", 3, got[1]["listeners"]))
                 self.assertEqual(got[2]["drop"], got[1]["drop"])
 
     def test_a_handle_that_loses_the_pointer_ends_the_drag_without_a_drop(self):
@@ -156,21 +156,21 @@ class DragState(unittest.TestCase):
         for width in (1400, 900):
             with self.subTest(width=width):
                 got = self.run_script([[200, 330, REST], "hidden", "up"], width)
-                self.assertEqual((got[2]["from"], got[2]["drawn"], got[2]["listeners"]), ("d", 2, got[1]["listeners"]))
+                self.assertEqual((got[2]["from"], got[2]["drawn"], got[2]["listeners"]), ("d", 3, got[1]["listeners"]))
                 self.assertEqual(got[-1]["sent"], 1, "and it still drops")
 
     def test_a_grip_still_on_the_page_that_loses_the_capture_does_not_end_the_drag_even_if_the_page_query_misses_it(self):
         for width in (1400, 900):
             with self.subTest(width=width):
                 got = self.run_script([[200, 330, REST], "hiddenaway", "up"], width)
-                self.assertEqual((got[2]["from"], got[2]["drawn"], got[2]["listeners"]), ("d", 2, got[1]["listeners"]))
+                self.assertEqual((got[2]["from"], got[2]["drawn"], got[2]["listeners"]), ("d", 3, got[1]["listeners"]))
                 self.assertEqual(got[-1]["sent"], 1, "and it still drops")
 
     def test_the_lost_capture_of_another_pointer_is_ignored(self):
         for width in (1400, 900):
             with self.subTest(width=width):
                 got = self.run_script([[200, 330, REST], "lost2"], width)
-                self.assertEqual((got[2]["from"], got[2]["drawn"], got[2]["listeners"]), ("d", 2, got[1]["listeners"]))
+                self.assertEqual((got[2]["from"], got[2]["drawn"], got[2]["listeners"]), ("d", 3, got[1]["listeners"]))
                 self.assertEqual(got[2]["drop"], got[1]["drop"])
 
     def test_a_normal_drop_drops_once_and_the_capture_released_after_it_changes_nothing(self):
@@ -185,7 +185,7 @@ class DragState(unittest.TestCase):
         for width in (1400, 900):
             with self.subTest(width=width):
                 got = self.run_script([[200, 330, REST], "swaplost", [200, 100, REST], "up"], width)
-                self.assertEqual((got[2]["from"], got[2]["drawn"], got[2]["listeners"]), ("d", 2, got[1]["listeners"]))
+                self.assertEqual((got[2]["from"], got[2]["drawn"], got[2]["listeners"]), ("d", 3, got[1]["listeners"]))
                 self.assertEqual(got[2]["drop"], got[1]["drop"], "the slot stays")
                 self.assertIsNotNone(got[3]["drop"], "and follows the pointer to a new target")
                 self.assertEqual(got[-1]["sent"], 1, "one drop")
@@ -194,7 +194,7 @@ class DragState(unittest.TestCase):
         for width in (1400, 900):
             with self.subTest(width=width):
                 got = self.run_script([[200, 330, REST], "swap"], width)
-                self.assertEqual((got[2]["from"], got[2]["drawn"], got[2]["listeners"]), ("d", 2, got[1]["listeners"]))
+                self.assertEqual((got[2]["from"], got[2]["drawn"], got[2]["listeners"]), ("d", 3, got[1]["listeners"]))
 
     def test_a_section_that_is_gone_ends_the_drag_without_a_drop(self):
         for width in (1400, 900):

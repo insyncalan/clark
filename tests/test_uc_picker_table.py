@@ -57,7 +57,7 @@ class Table(Setup):
                 self.assertEqual(p.js(RESULT), "Result: 2 of 2 shown")
                 self.assertEqual(p.js("document.querySelectorAll('form.picker thead th').length"), 9, "a tick column and the eight named")
                 self.assertEqual(p.js("!!document.querySelector('[data-badge]')"), False, "no badge before a filter")
-                self.assertEqual(p.js("document.activeElement === document.querySelector('form.picker input[type=search]')"), True, "focus in the search")
+                p.until("document.activeElement === document.querySelector('form.picker input[type=search]')", "focus in the search (the picker moves it in an effect, after the first paint)")
                 self.assertEqual(p.js("document.querySelector('form.picker').getBoundingClientRect().right <= window.innerWidth"), True, "the picker fits the window")
                 p.js("document.querySelector('[data-filter]').click()")
                 p.until("!!document.querySelector('.pkt-panel')", "the panel")

@@ -74,8 +74,8 @@ class Source(unittest.TestCase):
         self.assertIn("aria-label={DRAFT_WITH_AI}", shared)
         self.assertIn('<Icon name="sparkle"', shared)
         self.assertIn("<AiCard", shared)
-        for f in ("PeekLatest.jsx", "MilestonePeek.jsx"):
-            self.assertIn("<DraftButton", (SRC / "edit" / f).read_text(encoding="utf-8"), f)
+        self.assertIn("<DraftButton", (SRC / "edit" / "PeekLatest.jsx").read_text(encoding="utf-8"), "the one box (LatestBox) every peek draws, the milestone's too since row 1184")
+        self.assertIn("<LatestBox", (SRC / "edit" / "MilestonePeek.jsx").read_text(encoding="utf-8"), "the milestone peek's Latest update is that box")
         css = (SRC / "edit" / "edit.css").read_text(encoding="utf-8")
         self.assertIn(".pk-ai {", css)
         self.assertIn("min-height: 24px", css.split(".pk-ai {", 1)[1].split("}", 1)[0])
