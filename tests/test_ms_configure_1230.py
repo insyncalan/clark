@@ -3,13 +3,12 @@ Run: ~/ag/slot.sh with, inside tests/: PYTHONPATH=../src:../vendor:. python3 -m 
 Widths 1400 and 900 only. The words are the ruled ones (edit/ucConfigureWords.js, MS_ constants; the rest are the ruled Use case summary words).
 """
 import json
-import time
 import unittest
 
 from _demo import USER
 from _uc_view import put_view  # noqa: F401  (the use case twin's helper; the Milestones one is below)
 from test_glance_page import Setup, tearDownModule  # noqa: F401
-from test_server import chrome
+from test_server import chrome, wait
 
 ROWS = ".msv[data-place^=sec-] .msl > li"
 SEE = """(() => {
@@ -46,12 +45,8 @@ class Configure(Setup):
         return json.loads(row["body"]) if row["body"] else None
 
     def wait_body(self, check, what):
-        for _ in range(100):
-            v = self.stored()
-            if v and check(v):
-                return v
-            time.sleep(0.1)
-        self.fail(what)
+        self.assertTrue(wait(lambda: (lambda v: bool(v) and check(v))(self.stored())), what)
+        return self.stored()
 
     def open_panel(self, p):
         p.js("document.querySelector('[data-ms-configure]').click()")
