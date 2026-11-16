@@ -55,7 +55,7 @@ class Commitment(unittest.TestCase):
         self.assertIn("kind: \"use_cases\", op: \"update\"", menu)           # one change (so one Undo and one History line)
         self.assertIn("commitment set to", menu)
         chip = code("components", "CommitChip.jsx")
-        self.assertIn("return w ? <span", chip)                              # nothing is drawn with no flag
+        self.assertTrue("return w ? <span" in chip or "if (w) return <span" in chip)   # a chip only with a flag; with none, nothing or only the View dash
         self.assertIn(": null;", chip)
         self.assertIn("<CommitChip", code("components", "UseCases.jsx"))     # Dashboard rows
         self.assertIn("<ed.Commit", code("components", "UseCases.jsx"))      # the menu only where Edit is
