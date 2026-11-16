@@ -76,8 +76,8 @@ export function Edit({ section }) {
         </div>
         <div class="cb-set"><span class="cb-lbl">Icon</span><IconPicker value={k.icon} onPick={(icon) => look({ icon })} /></div>
         <div class="cb-set"><span class="cb-lbl">Show</span>
-          <button type="button" role="switch" class="cb-btn" aria-checked={k.tile ? "true" : "false"} aria-label="Show the tile (the card around the callout)" onClick={() => look({ tile: !k.tile })}>Tile</button>
-          <button type="button" role="switch" class="cb-btn" aria-checked={k.heading ? "true" : "false"} aria-label="Show the heading" onClick={() => look({ heading: !k.heading })}>Heading</button>
+          <button type="button" role="switch" class="cb-btn" aria-checked={k.tile ? "true" : "false"} aria-label="Show the tile (the card around the callout)" onClick={() => look({ tile: !k.tile })}><Icon name={k.tile ? "eye" : "eyeoff"} />Tile</button>
+          <button type="button" role="switch" class="cb-btn" aria-checked={k.heading ? "true" : "false"} aria-label="Show the heading" onClick={() => look({ heading: !k.heading })}><Icon name={k.heading ? "eye" : "eyeoff"} />Heading</button>
           <span class="cb-sep" aria-hidden="true"></span>
           <span class="cb-count" data-cb-count>{`Title ${typed === null ? (saved.title || "").length : typed} of ${LIMITS.title}`}</span>
         </div>
