@@ -617,7 +617,7 @@ class Sections(Base):
             p.mouse("mousePressed", hx, hy, 1)
             for step in range(1, 9):
                 p.mouse("mouseMoved", hx, hy + (ty - hy) * step / 8, 1)
-            p.until("!!document.querySelector('.sec.drag-slot')", "the slot is drawn while dragging")
+            p.until("(function(){var s=document.querySelector('.sec.drag-slot');return !!s && !!s.nextElementSibling && s.nextElementSibling.dataset.id === 'ABC-S-004';})()", "the slot sits before the fourth section")
             self.assertEqual(p.js("document.querySelector('.sec.drag-slot').nextElementSibling.dataset.id"), "ABC-S-004")
             p.mouse("mouseReleased", hx, ty, 0)
             p.stored(n0)
@@ -647,7 +647,7 @@ class Sections(Base):
             r = p.rect("ABC-S-002")                          # At a glance, on its own: any type can be paired
             mid_y = (r["top"] + r["bottom"]) / 2
             p.drag("ABC-S-008", r["left"] + (r["right"] - r["left"]) * 0.75, mid_y, release=False)
-            p.until("!!document.querySelector('.sec.drag-slot.slot-right')", "the slot is drawn as the right half while dragging")
+            p.until("(function(){var s=document.querySelector('.sec.drag-slot.slot-right');return !!s && !!s.previousElementSibling && s.previousElementSibling.dataset.id === 'ABC-S-002';})()", "the slot is drawn as the right half beside the second section")
             self.assertEqual(p.js("document.querySelector('.sec.drag-slot').dataset.id"), "ABC-S-008")
             self.assertEqual(p.js("document.querySelector('.sec.drag-slot').previousElementSibling.dataset.id"), "ABC-S-002")
             self.assertIsNone(p.js("document.querySelector('.sec.drag-slot.slot-left')"))
@@ -742,7 +742,7 @@ class Sections(Base):
             p.edit()
             r = p.rect("ABC-S-006")
             p.drag("ABC-S-001", (r["left"] + r["right"]) / 2 - 20, r["top"] + 3, release=False)       # the top of the pair
-            p.until("!!document.querySelector('.sec.drag-slot')", "the slot is drawn above the whole pair")
+            p.until("(function(){var s=document.querySelector('.sec.drag-slot');return !!s && !!s.nextElementSibling && s.nextElementSibling.dataset.id === 'ABC-S-006';})()", "the slot sits above the whole pair")
             self.assertEqual(p.js("[document.querySelector('.sec.drag-slot').nextElementSibling.dataset.id, "
                                   "document.querySelector('.sec.drag-slot').nextElementSibling.nextElementSibling.dataset.id]"), ["ABC-S-006", "ABC-S-007"])
             p.mouse("mouseReleased", r["left"], r["top"] + 3, 0)
