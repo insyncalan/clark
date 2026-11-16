@@ -464,6 +464,8 @@ class HelpWordsMatchScreen(unittest.TestCase):
         m = re.search(r"`Show all \$\{n\} (milestones)`", MILESTONES)
         self.assertIsNotNone(m, "the screen's word changed")
         self.assertTrue(any("**Show all N milestones** shows the rest" in s for s in ALL))
+        self.assertTrue(any("**Show all N milestones** shows the rest, unless a number is set in **Configure**" in s for s in ALL))
+        self.assertTrue(any("The first five, then **Show all**, unless a number is set in **Configure**" in s for s in ALL))
         self.assertFalse(any("each milestone with its date" in s and "**Show all** shows" in s for s in ALL))
 
     def test_swimlane_choices(self):
