@@ -34,7 +34,7 @@ import { KIND_WORDS, todayIso } from "../workItems.js";
 import { splitStep, knownNames, stepValues, linkable, openCount, narrow, KINDS, linkedWords, linkableMilestones } from "../logic/ucRow.js";
 import { peopleList } from "../stores/handover.js";
 import { CommitMenu } from "./CommitMenu.jsx";
-import { viewOf, bodyOf, ALL } from "../logic/useCaseView.js";
+import { viewOf, bodyOf, ALL, TRACKER_POSITIONS } from "../logic/useCaseView.js";
 import { isOn, liveOf } from "../logic/useCasesList.js";
 import * as W from "./ucConfigureWords.js";
 
@@ -179,8 +179,13 @@ function ConfigureBox({ id, onClose, opener }) {
           </select> <span data-uc-of>{W.OF(total)}</span></span>
           <label for="ucCfgS">{W.SCROLL_LABEL}</label>
           <input type="checkbox" id="ucCfgS" role="switch" checked={v.scroll} onChange={(e) => setView({ scroll: e.currentTarget.checked })} />
+          <span id="ucCfgT">{W.TRACKER_LABEL}</span>
+          <span role="group" aria-labelledby="ucCfgT" aria-label={W.TRACKER_GROUP} class="ucm-seg" data-uc-tracker>
+            {TRACKER_POSITIONS.map((t) => <button key={t} type="button" class="pk-btn" data-tracker={t} aria-pressed={v.tracker === t ? "true" : "false"} onClick={() => setView({ tracker: t })}>{W.TRACKER_WORDS[t]}</button>)}
+          </span>
         </div>
         <p class="muted" data-uc-cfg-help style="margin:0 var(--space-5)">{W.SCROLL_HELP(n)}</p>
+        <p class="muted" data-uc-cfg-tracker style="margin:var(--space-2) var(--space-5) 0">{W.TRACKER_HELP}</p>
         <p class="muted" data-uc-cfg-same style="margin:var(--space-2) var(--space-5) 0">{W.SAME_NOTE}</p>
         <div class="ad-foot"><button type="button" class="pk-btn pri" data-cancel onClick={onClose}>{W.DONE}</button></div>
       </div>

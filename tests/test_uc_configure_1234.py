@@ -153,7 +153,8 @@ class Source(unittest.TestCase):
                 if name.startswith("UNRULED_"):
                     continue
                 self.assertIn(name, {"CONFIGURE", "TITLE", "NUMBER_LABEL", "SHOWN_LABEL", "ALL_WORD", "OF", "SCROLL_LABEL", "SAME_NOTE",
-                                     "SCROLL_HELP", "DONE"}, f"{name} is neither approved nor UNRULED_")
+                                     "SCROLL_HELP", "DONE",
+                                     "TRACKER_LABEL", "TRACKER_GROUP", "TRACKER_WORDS", "TRACKER_HELP"}, f"{name} is neither approved nor UNRULED_")
         edit = (PAGE_SRC / "edit" / "UseCasesEdit.jsx").read_text(encoding="utf-8")
         body = edit[edit.index("function ConfigureBox"):edit.index("/** The growing Add button")]
         self.assertFalse(re.search(r">\s*[A-Za-z][A-Za-z ]+\s*<", body), "no bare words in the panel markup")
