@@ -8,7 +8,7 @@ import { pickable, idsOf } from "./picker.js";
 
 // The words of row 1230. The ones marked ruled have been ruled by the owner. One constant each so a later ruling is one edit.
 export const WORDS = {
-  title: "Add a milestone from your project record",   // #1230 'Add picker' text
+  title: "Add a milestone from your project record",   // item 1230 title
   search: "Search by name, ID or state",               // ruled
   where: "Where it is",                                // ruled (column head)
   off: "Taken off with the eye",                       // ruled: the 'Where it is' cell and the On the page filter value
