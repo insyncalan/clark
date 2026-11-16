@@ -5,6 +5,7 @@
 // published file carries the cards already chosen ({ id, text }) and the rows it kept in its own data, so both end up the same list.
 import { publishable, rulesFor } from "../logic/publishable.js";
 import { dateWords } from "./safe.js";
+import { colourOf } from "../workItems.js";
 import { richWords } from "../logic/richWords.js";
 
 export const SIZES = { raid3: 3, raid4: 4 };
@@ -52,6 +53,15 @@ export function metaBits(row, kind) {
   const bits = [row.status ? String(row.status) : "", who && who !== "TBC" ? `owner ${who}` : "", dateWords(day) ? `${label} ${dateWords(day)}` : ""];
   return bits.filter(Boolean);
 }
+// The rating a risk or issue card shows, as a word (Red, Amber, Green, Not rated), and the tone the card's edge and band take.
+// An action and a decision carry no rating: no word, the brand tone.
+export function ratingOf(row, kind) {
+  if (kind !== "raid") return { word: "", tone: "rc-b" };
+  const c = colourOf(row && row.priority);
+  return { word: c.word, tone: "rc-" + c.class };
+}
+// The item's latest update as plain words ("" when it has none), for every kind of card.
+export const latestOf = (row) => richWords(row && row.latest_update).trim();
 export const metaOf = (row, kind) => metaBits(row, kind).join(" · ");
 
 // The rules for the served page's data. The published file needs none: it holds only the rows publish kept.

@@ -2086,15 +2086,24 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 @media (max-width: 1100px) { .raid-n3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }   /* plan 1022: below 1100 px two cards a line, so an ID, an owner and a date fit whole */
 @media (max-width: 1400px) { .raid-n4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }   /* four across is 226 px a card at 1101 px: a whole owner does not fit, so four cards go two across up to 1400 px */
 @media (max-width: 640px) { .raid-n3, .raid-n4 { grid-template-columns: minmax(0, 1fr); } }   /* a phone: one card a line */
-.raid-card { min-width: 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); overflow-wrap: anywhere; }
+.raid-cards { align-items: stretch; }
+.raid-card { --rc-edge: var(--brand-blue); --rc-tint: var(--brand-blue-tint); --rc-ink: var(--brand-blue-strong); display: flex; flex-direction: column; min-width: 0; padding: 0 var(--space-4) var(--space-3); border: 1px solid var(--grey-200); border-top: 4px solid var(--rc-edge); border-radius: var(--radius); background: var(--surface); overflow-wrap: anywhere; }   /* a 4 px edge in the rating colour, a band under it, and the foot line pinned to the bottom so the foot lines line up across a row */
+.raid-card.rc-r { --rc-edge: var(--status-red-text); --rc-tint: var(--status-red-tint); --rc-ink: var(--status-red-text); }
+.raid-card.rc-a { --rc-edge: var(--status-amber-text); --rc-tint: var(--status-amber-tint); --rc-ink: var(--status-amber-text); }
+.raid-card.rc-g { --rc-edge: var(--status-green-text); --rc-tint: var(--status-green-tint); --rc-ink: var(--status-green-text); }
+.raid-card.rc-n { --rc-edge: var(--grey-700); --rc-tint: var(--grey-100); --rc-ink: var(--grey-700); }
 .raid-card p { margin: 0 0 var(--space-1); }
-.raid-top { font-size: var(--size-caption); color: var(--text-muted); }
-.raid-top { display: flex; align-items: baseline; gap: 0 var(--space-1); min-width: 0; }   /* plan 1022: the kind and the ID share one line, the ID never breaks inside itself */
+.raid-top { font-size: var(--size-caption); color: var(--rc-ink); }
+.raid-card p.raid-top { margin: 0 calc(-1 * var(--space-4)) var(--space-2); padding: var(--space-2) var(--space-4); background: var(--rc-tint); display: flex; align-items: baseline; gap: 0 var(--space-1); min-width: 0; }   /* plan 1022: the kind and the ID share one line, the ID never breaks inside itself */
 .raid-top .raid-kind { flex: none; white-space: nowrap; }
 .raid-top .raid-id { white-space: nowrap; }   /* the ID shows whole: no clip, no ellipsis */
 .raid-kind { font-weight: var(--weight-medium); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
-.raid-title { font-weight: var(--weight-light); color: var(--heading); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* plan 1022: only the title is cut, with an ellipsis */
-.raid-meta { font-size: var(--size-caption); color: var(--text-muted); }
+.raid-title { font-weight: var(--weight-light); color: var(--heading); }   /* the whole description shows: no cut, no ellipsis */
+.raid-rating { margin-left: auto; font-weight: var(--weight-medium); white-space: nowrap; }
+.raid-label { font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); margin-top: var(--space-2); }
+.raid-latest { color: var(--text); }
+.raid-card p.raid-meta { margin: auto 0 0; padding-top: var(--space-2); border-top: 1px solid var(--grey-200); font-size: var(--size-caption); color: var(--text-muted); }
+.raid-card .raid-label + .raid-latest { margin-bottom: var(--space-2); }
 .raid-meta .raid-bit { display: inline-block; vertical-align: bottom; white-space: nowrap; }   /* plan 1022: the status, the owner and the date each show whole on one line; when they do not all fit, the next one goes to a second line (never an ellipsis) */
 .raid-text { margin-top: var(--space-2); color: var(--text); }
 
@@ -2265,7 +2274,7 @@ button.tpl-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 
   html.print-all .print-tab-title { margin: 0 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--grey-200); font-size: var(--size-body); font-weight: 400; color: var(--text-muted); }
   html.print-all .sec, html.print-all article, html.print-all .tile, html.print-all .fig, html.print-all figure, html.print-all blockquote, html.print-all tr, html.print-all li, html.print-all h1, html.print-all h2, html.print-all h3, html.print-all details { break-inside: avoid; }
   html.print-all h1, html.print-all h2, html.print-all h3 { break-after: avoid; }
-  html.print-all .wl-title, html.print-all .irows .wl-title, html.print-all .raid-title { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }   /* a Dashboard row's title is written whole on paper: the peek that shows the rest does not exist there */
+  html.print-all .wl-title, html.print-all .irows .wl-title, html.print-all .raid-title { overflow-wrap: anywhere; }   /* a Dashboard row's title is written whole on paper: the peek that shows the rest does not exist there */
   html.print-all .msl-cells.msl-cells[role=button] { padding: 5px var(--space-2) 5px 18px; }   /* the button reset above strips the row's left room, and the timeline dot lands on the text; given back */
   html.print-all .ucp-none, html.print-all .ucp-body h2:has(+ .ucp-none) { display: none; }   /* row 767: the print opens every use case, so an empty list's line and its heading are left off the paper (no new words) */
   html.print-all .mv-wrap { overflow: hidden; resize: none; min-height: 0; }   /* row 767: the printed timeline is drawn to the page width (MsTimeline.jsx), so it needs no sideways scroll; nothing is cut off */
