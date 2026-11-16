@@ -83,6 +83,10 @@ class Target(unittest.TestCase):
         self.assertEqual(probe(175), {"before": "b"})                      # 55 px in: the top edge
         self.assertEqual(probe(185), {"beside": "b", "side": "left"})      # 65 px in: beside
         self.assertEqual(probe(220), {"beside": "b", "side": "left"})      # 100 px in of 400: beside, not above (a quarter would be above)
+        self.assertEqual(probe(175.9), {"before": "b"})                    # 55.9 px in: still the top edge
+        self.assertEqual(probe(176), {"beside": "b", "side": "left"})      # exactly 56 px in: beside (the edge is under 56, not up to it)
+        self.assertEqual(probe(464.1), {"before": "c"})                    # 55.9 px from the bottom: the bottom edge
+        self.assertEqual(probe(464), {"beside": "b", "side": "left"})      # exactly 56 px from the bottom: beside
 
     def test_a_short_row_still_uses_exactly_a_quarter(self):
         self.assertEqual(at("e", 200, 144), {"before": "b"})               # b is 100 high: 24 px in is inside the 25 px quarter
