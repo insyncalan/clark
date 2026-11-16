@@ -5,7 +5,7 @@ use case, priority), how to sort them, how many at most, which columns to show a
 are live: they are chosen again from the project's records each time the page is drawn or published.
 
 Stored (canonical JSON, every key present once checked):
-  {"v": 1, "kinds": [..], "mode": "open"|"closed"|"all", "status": [..], "due": [..], "owner": [..], "workstream": [..],
+  {"v": 1, "kinds": [..], "mode": "open"|"closed"|"all"|"current", "status": [..], "due": [..], "owner": [..], "workstream": [..],
    "use_case": [..], "priority": [..], "sort": "due"|"priority"|"id", "max": 1..50, "columns": [..], "caption": ".."}
 An empty list is "any". "(none)" in owner, workstream, use_case or priority matches a row that has none. There is no
 "client visible" choice: a row that is not client visible never publishes (D-3), so it could only ever give an empty list.
@@ -25,7 +25,7 @@ EMPTY = ""
 
 VERSION = 1
 KINDS = ("action", "risk", "issue", "assumption", "dependency", "decision")
-MODES = ("open", "closed", "all")
+MODES = ("open", "closed", "all", "current")
 STATUSES = ("Open", "Delayed", "Pending", "Closed", "Cancelled", "Made", "Withdrawn")
 DUE = ("overdue", "soon", "none", "later")
 NONE = "(none)"
@@ -38,6 +38,7 @@ DEFAULT_MAX = 10
 MAX_VALUES = 30                     # names in one filter
 MAX_TEXT = 120                      # characters in one owner or workstream name
 MAX_CAPTION = 200
+RECENT = 14                         # row 1268: "current" lists a decision made in the last 14 days (logic/sectionRows.js)
 CLOSED = ("Closed", "Cancelled", "Made", "Withdrawn")
 KEYS = ("v", "kinds", "mode", "status", "due", "owner", "workstream", "use_case", "priority", "sort", "max", "columns", "caption",
         "milestone", "not", "has", "no", "text")
@@ -229,6 +230,19 @@ def _open(row):
     return row.get("status") not in CLOSED
 
 
+def _made_lately(row, today):
+    a, t = day_number(row.get("due")), day_number(today)
+    return row.get("kind") == "decision" and row.get("status") == "Made" and a is not None and t is not None and 0 <= t - a <= RECENT
+
+
+def _mode_fits(mode, row, today):
+    if mode == "all":
+        return True
+    if mode == "current":
+        return _open(row) or _made_lately(row, today)
+    return (mode == "open") == _open(row)
+
+
 def _bucket(row, today):
     a, t = day_number(row.get("due")), day_number(today)
     if a is None or t is None:
@@ -308,7 +322,7 @@ def matching(value, rows, today, live=None):
     if value is None:
         return []
     hits = [r for r in rows if isinstance(r.get("id"), str) and r["id"]
-            and (value["mode"] == "all" or (value["mode"] == "open") == _open(r))
+            and _mode_fits(value["mode"], r, today)
             and all(_member(r, f, value[f], today) for f in FILTERS) and _allowed(r, value, today)]
     rank = {p: i for i, p in enumerate(PRIORITIES)}
     if value["sort"] == "id":

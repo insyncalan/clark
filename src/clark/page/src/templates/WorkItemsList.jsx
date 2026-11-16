@@ -6,7 +6,7 @@
 import { useState } from "preact/hooks";
 import { asAt, fromFile } from "../stores/report.js";
 import { KIND_WORDS, dueCell, pillOf, ownerOf, todayIso } from "../workItems.js";
-import { listOf, drawRows, drawn, idsToShow, WORDS } from "./workItemsList.js";
+import { listOf, drawRows, drawn, idsToShow, priorityCell, WORDS } from "./workItemsList.js";
 import { clientPill } from "../logic/sectionRows.js";
 
 export const READY = true;
@@ -22,7 +22,7 @@ function cellText(row, col, now) {
   if (col === "due") { const d = dueCell(row, now); return d.words ? `${d.date} (${d.words})` : d.date; }
   if (col === "status") return pillOf(row, now).text;
   if (col === "workstream") return row.workstream || "—";
-  if (col === "priority") return row.priority || "—";
+  if (col === "priority") { const p = priorityCell(row).text; return p && p !== "Not rated" ? p : row.kind === "risk" || row.kind === "issue" ? "Not rated" : "—"; }      // row 1268: a decision's is the one its peek sets
   if (col === "milestone") return row.milestone || "—";
   return "";
 }
@@ -34,6 +34,7 @@ function Cell({ row, col, now }) {
     return <><span class="num">{d.date}</span>{d.words ? <span class={`due-l${d.tone ? " " + d.tone : ""}`}>{d.words}</span> : null}</>;
   }
   if (col === "status") { const p = clientPill(row, now); return <span class="wil-st"><svg class={`wil-half ic-${p.class}`} viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 3a9 9 0 0 1 0 18z" /></svg>{p.text}</span>; }      // row 1199: a half-circle, coloured as the status pill, before the status word
+  if (col === "priority") { const p = priorityCell(row); const rated = p.text && (p.text !== "Not rated" || row.kind === "risk" || row.kind === "issue"); return rated ? <span class={`pill ${p.class}`}>{p.text}</span> : <span class="muted">—</span>; }      // row 1268: the rating chip, in the colour of the pills
   if (col === "owner") { const o = ownerOf(row.owner); return o.initials ? o.text : <span class="muted">{o.text}</span>; }
   return cellText(row, col, now);
 }
