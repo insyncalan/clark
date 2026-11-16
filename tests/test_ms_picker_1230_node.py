@@ -99,5 +99,45 @@ class Filters(unittest.TestCase):
                          ["None selected", "3 selected", "Add selected", "Add 2", "1 milestone added to the page.", "2 milestones added to the page."])
 
 
+def row(**kw):
+    base = {"id": "X", "name": "x", "word": "", "baseline": "2026-12-01", "state": "On track", "why": "Not on the page", "clientVisible": True}
+    base.update(kw)
+    return json.dumps(base)
+
+
+class Survivors(unittest.TestCase):
+    """Pins the edges the mutation sweep (mut-row1230-pr4-picker) found unguarded."""
+
+    def test_due_edges_today_and_seven_and_eight_days(self):
+        probe = "[%s].map((r) => W.dueBucket(r, today))" % ", ".join(
+            row(baseline=d) for d in ("2026-10-27", "2026-10-28", "2026-11-04", "2026-11-05"))
+        self.assertEqual(run_node(probe), ["overdue", "soon", "soon", "later"])
+
+    def test_cancelled_is_closed_so_later_even_when_past_due(self):
+        self.assertEqual(run_node("W.dueBucket(%s, today)" % row(baseline="2026-10-01", state="Cancelled")), "later")
+        self.assertEqual(run_node("W.dueBucket(%s, today)" % row(baseline="2026-10-01", state="Achieved")), "later")
+        self.assertEqual(run_node("W.dueBucket(%s, today)" % row(baseline="2026-10-01", state="Slipped")), "overdue")
+
+    def test_a_date_that_is_not_a_date_is_no_date(self):
+        self.assertEqual(run_node("W.dueBucket(%s, today)" % row(baseline="soonish")), "none")
+        self.assertEqual(run_node("W.dueBucket(%s, today)" % row(baseline="")), "none")
+
+    def test_counts_ignore_the_fields_own_selection_but_apply_the_others(self):
+        rows = "[%s, %s, %s]" % (row(id="A", state="Achieved"), row(id="B", state="Slipped"),
+                                 row(id="C", state="Slipped", clientVisible=False))
+        got = run_node("W.counts(%s, {sel: {status: ['Achieved']}}, 'status', today).filter((c) => c[1])" % rows)
+        self.assertEqual(got, [["Achieved", 1], ["Slipped", 2]])
+        got = run_node("W.counts(%s, {sel: {status: ['Achieved'], client: ['yes']}}, 'status', today).filter((c) => c[1])" % rows)
+        self.assertEqual(got, [["Achieved", 1], ["Slipped", 1]])
+
+    def test_search_ignores_the_case_of_what_is_typed(self):
+        self.assertEqual(shown({"query": "EYE TWO"}), ["M-2"])
+        self.assertEqual(shown({"query": "  M-3 "}), ["M-3"])
+
+    def test_the_status_options(self):
+        self.assertEqual(run_node("W.options('status').map((o) => o[0])"),
+                         ["Achieved", "On track", "At risk", "Slipped", "Overdue", "Forecast", "Cancelled"])
+
+
 if __name__ == "__main__":
     unittest.main()
