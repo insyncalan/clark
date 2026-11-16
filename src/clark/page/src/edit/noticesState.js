@@ -1,6 +1,7 @@
-// Row 1046, piece 2: what the bell holds. The notices are pushed to the running clark (pushNotices; the file at a path set in Settings is a later piece);
+// Row 1046, piece 2: what the bell holds. The notices are pushed to the running clark (pushNotices; the file at a path set in Settings feeds it, see loadNotices below);
 // which are shown and how many are unread come from logic/notices.js. Read ids are kept per person in this browser (try/catch: a private window keeps them for this visit only).
 import { signal, computed } from "@preact/signals";
+import { noticesRead } from "./publishApi.js";
 import { visible, unreadIds, markRead, markAllRead, pruneRead, arrivals } from "../logic/notices.js";
 
 const KEY = "clark.notices-read";
@@ -30,3 +31,21 @@ export function pushNotices(list) {
 }
 export function readOne(id) { readIds.value = markRead(readIds.value, id); keep(readIds.value); }
 export function readAll() { readIds.value = markAllRead(readIds.value, shown.value); keep(readIds.value); }
+
+// Row 1046, piece 3: the notices come from the file or folder set in Settings, read by the server (GET /api/notices): once when the editor
+// starts, then every few minutes. An answer that is not a good one (offline, no such route, a bad body) changes nothing, so a share that
+// is away never empties the bell or shows an error; a good empty answer does (the file was cleared).
+export const REFRESH_MS = 5 * 60 * 1000;
+export async function loadNotices() {
+  const r = await noticesRead();
+  const b = r && r.body;
+  if (r && r.status === 200 && b && b.ok === true && Array.isArray(b.notices) && b.why !== "away") pushNotices(b.notices);
+  return r && r.status;
+}
+let timer = null;
+export function startNotices() {
+  if (timer) return;
+  loadNotices();
+  timer = setInterval(loadNotices, REFRESH_MS);
+}
+export function stopNotices() { if (timer) { clearInterval(timer); timer = null; } }

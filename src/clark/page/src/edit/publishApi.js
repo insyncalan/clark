@@ -101,3 +101,6 @@ export const askFoldersChange = (project, action, path) => call("POST", "/api/as
 // takes {enabled: true | false}. The server checks the value and keeps it (with history and Undo); the page shows what it answered.
 export const askEnabledRead = () => call("GET", "/api/ask-enabled");
 export const askEnabledChange = (enabled) => changing("POST", "/api/ask-enabled", { enabled });
+
+// Row 1046: the notices in the file or folder set in Settings. GET /api/notices answers {ok, why, notices}; read only.
+export const noticesRead = () => call("GET", "/api/notices");
