@@ -1,4 +1,6 @@
-"""Item 1202: every peek starts below the nav banner and runs to the bottom of the screen. Run: python3 dev/run_tests.py test_peek_below_banner_1202
+"""Item 1202: every peek starts below the nav banner and runs to the bottom of the screen. Row 1258 (v1.1.1, Alan: the approved mockup rules) then made
+the item, milestone and archived peeks a floating card: 16 px in from the right and the bottom and 16 px under the banner, radius 16 (the Help peek
+keeps the flush shape). Where this file used to say flush right, to the bottom and no radius, it now says that card; test_peek_frame_1258 measures it. Run: python3 dev/run_tests.py test_peek_below_banner_1202
 
 Part 1 reads the stylesheets: every peek (the item, milestone, archived and Help peeks all carry class peek) takes its place from one rule
 that starts at the banner's height (--topbar), stays flush right and to the bottom, and has no inset and no rounded outer corners; no other
@@ -34,13 +36,17 @@ class PeekBelowBanner(unittest.TestCase):
         self.assertRegex(body, r"position:\s*fixed")
         self.assertRegex(body, r"top:\s*var\(--topbar\)")
         self.assertRegex(body, r"right:\s*0[;\s]")
-        self.assertRegex(body, r"bottom:\s*0[;\s]")
+        self.assertRegex(body, r"bottom:\s*0[;\s]")        # the Help peek and the base rule stay flush; the card rule below insets the other peeks
 
-    def test_no_inset_and_no_rounded_corners(self):
-        body = rule(CSS, ".peek")
-        self.assertNotIn("border-radius", body)
+    def test_the_item_milestone_and_archived_peeks_are_the_16_px_card(self):
+        body = rule(CSS, ".peek:not(.hpk)")
+        self.assertRegex(body, r"top:\s*calc\(var\(--topbar\) \+ 16px\)")
+        self.assertRegex(body, r"right:\s*16px")
+        self.assertRegex(body, r"bottom:\s*16px")
+        self.assertRegex(body, r"border-radius:\s*16px")
         self.assertNotIn("height", body)
-        self.assertNotRegex(body, r"top:\s*(0|16px)\b")
+        self.assertNotIn("border-radius", rule(CSS, ".peek"))
+        self.assertNotRegex(rule(CSS, ".peek"), r"top:\s*(0|16px)\b")
 
     def test_the_help_peek_keeps_the_banner_line_and_sets_no_height(self):
         body = rule(CSS, ".hpk")
@@ -55,7 +61,7 @@ class PeekBelowBanner(unittest.TestCase):
                     continue
                 if re.search(r"\.peek\s+\S|\.hpk\s+\S|#\w+\s+\S", sel.strip()):
                     continue                                                    # a rule for something inside the peek
-                if sel.strip() in (".peek", ".hpk"):
+                if sel.strip() in (".peek", ".hpk", ".peek:not(.hpk)"):
                     continue                                                    # checked above
                 self.assertNotRegex(body, r"(^|[;\s])(top|bottom|height|max-height|inset):", f"{name}: {sel.strip()}")
 
@@ -100,11 +106,11 @@ class PeekBrowser(unittest.TestCase):
                             self.assertTrue(wait(lambda: cdp.js("(() => { const p = document.querySelector('#peek'); return !!p && p.dataset.peek === " + json.dumps(item) + "; })()", sid)), where)
                             self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').getAnimations().length === 0", sid)), where)
                             top, bottom, right, banner, height, win, banner_on_top, radius = cdp.js(GEOM, sid)
-                            self.assertEqual(round(top), round(banner), f"{where}: starts on the banner's bottom edge")
-                            self.assertEqual(round(bottom), round(height), f"{where}: runs to the bottom of the screen")
-                            self.assertEqual(round(right), round(win), f"{where}: flush to the right edge")
+                            self.assertEqual(round(top), round(banner) + 16, f"{where}: starts 16 px under the banner's bottom edge")
+                            self.assertEqual(round(bottom), round(height) - 16, f"{where}: runs to 16 px above the bottom of the screen")
+                            self.assertEqual(round(right), round(win) - 16, f"{where}: 16 px in from the right edge")
                             self.assertTrue(banner_on_top, f"{where}: the banner stays on top and clickable")
-                            self.assertEqual(radius, "0px", where)
+                            self.assertEqual(radius, "16px", where)
                 cdp.js("document.documentElement.dataset.theme = 'light'", sid)
 
 
