@@ -60,6 +60,14 @@ class FollowRule(unittest.TestCase):
 
 
 class BuiltPages(unittest.TestCase):
+    def test_a_stored_day_in_an_activity_row_is_read_day_first_row_1258(self):
+        src = (SRC / "edit" / "PeekActivity.jsx").read_text(encoding="utf-8")
+        self.assertIn("dayWords(r.from)", src)
+        self.assertIn("dayWords(r.to)", src)
+        self.assertIn("showDate(v)", src)
+        self.assertNotIn('{r.from || "nothing"}', src)
+        self.assertNotIn('{r.to || "nothing"}', src)
+
     def test_the_activity_tab_is_in_the_served_page_only(self):
         served, view = page.PAGE.read_text(encoding="utf-8"), page.VIEW_PAGE.read_text(encoding="utf-8")
         for word in ("/api/activity", "data-activity", "Reading the history", "Item details and history"):
