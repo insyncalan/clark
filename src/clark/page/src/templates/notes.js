@@ -7,7 +7,7 @@ import { richOf } from "./files.js";
 
 export const TONES = ["info", "decision", "warning"];
 export const TONE_WORDS = { info: "Information", decision: "Decision needed", warning: "Warning" };
-// #1272: the colour and icon names (the words the store keeps, section_kinds/callout.py COLOURS and ICONS) and what an older callout's tone drew.
+// item 1272: the colour and icon names (the words the store keeps, section_kinds/callout.py COLOURS and ICONS) and what an older callout's tone drew.
 export const COLOURS = { plain: "Plain", violet: "Violet", amber: "Amber", red: "Red", green: "Green", grey: "Grey" };
 export const ICONS = { none: "No icon", info: "Information", question: "Question", warning: "Warning", alert: "Alert", check: "Tick", clock: "Clock",
   cal: "Calendar", flag: "Flag", lock: "Lock", key: "Key", bulb: "Light bulb", star: "Star", bell: "Bell", megaphone: "Megaphone", doc: "Document",

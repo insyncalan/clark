@@ -47,7 +47,7 @@ export function Section({ section, index, count, slot, anchor, tools, clean }) {
   const from = editing && dragFrom.value === section.id ? " drag-from" : "";
   const changed = isChanged(section.id);
   const tpl = templateFor(section.type);
-  const co = section.type === "callout" ? tidyCallout(source(section)) : null;      // #1272: a callout can show without its tile or its heading
+  const co = section.type === "callout" ? tidyCallout(source(section)) : null;      // item 1272: a callout can show without its tile or its heading
   return (
     <article class={`sec slot-${slot}${co && co.tile === false ? " no-tile" : ""}${co && co.heading === false ? " no-head" : ""}${hidden ? " is-hidden" : ""}${changed ? " is-changed" : ""}${mark}${from}`}
       id={anchor || anchorId(section.id)} tabIndex={-1} data-id={section.id} data-type={section.type} data-changed={changed ? "1" : undefined}>

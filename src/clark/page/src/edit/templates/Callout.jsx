@@ -1,4 +1,4 @@
-// Callout (item 96, #1272), store type "callout": its Edit part, in place. A toolbar above the box (category, colour, icon, and whether the tile and the
+// Callout (item 96, item 1272), store type "callout": its Edit part, in place. A toolbar above the box (category, colour, icon, and whether the tile and the
 // heading show), then the box as the reader sees it, with its title and words typed inside it (the one editor, with its / menu). Each save is one change()
 // (noteEdit.jsx saveContent): one step, one Undo. The view part is templates/Callout.jsx.
 import { useEffect, useRef, useState } from "preact/hooks";
