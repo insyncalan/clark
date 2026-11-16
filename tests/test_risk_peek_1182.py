@@ -3,7 +3,7 @@ The page runs in headless Chrome (set CLARK_CHROME to its path).
 
 A risk's peek has a Rating chip (not Priority; also an issue's, row 1183; the chip row of row 1180) that opens a 3 x 3 matrix of impact and likelihood: one click sets both, in
 one step with one Undo. The peek's status picker lists Open, Closed and Cancelled only (no Red, Amber, Green); a closed risk says
-"<colour> kept" under its Rating. The table's own Status picker keeps its Rating section.
+"<colour> kept" under its Status chip. The table's own Status picker keeps its Rating section.
 """
 import unittest
 
@@ -36,8 +36,8 @@ class RiskPeek(unittest.TestCase):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.open_page(cdp, width)
                 self.peek(cdp, sid, "TUL-007")
-                self.assertEqual(cdp.js("document.querySelector('#peek .pk-chips [data-row=priority] button').getAttribute('aria-label')", sid), "Rating of TUL-007: High. Change")
-                self.assertEqual(cdp.js("document.querySelector('#peek .pk-chips [data-row=priority] .pkc-v').textContent", sid), "High")
+                self.assertEqual(cdp.js("document.querySelector('#peek .pk-chips [data-row=priority] button').getAttribute('aria-label')", sid), "Rating of TUL-007: Red, High. Change")      # row 1182: the chip face is the colour word with the level as a small pill
+                self.assertEqual(cdp.js("document.querySelector('#peek .pk-chips [data-row=priority] .pkc-v').textContent", sid), "Red")
                 self.peek(cdp, sid, "TUL-010")      # rows 1182 1183: an issue says Rating too
                 self.assertEqual(cdp.js("document.querySelector('#peek .pk-chips [data-row=priority] button').getAttribute('aria-label').split(' of ')[0]", sid), "Rating")
 
@@ -58,7 +58,7 @@ class RiskPeek(unittest.TestCase):
             r = self.row("raid", "TUL-007")
             self.assertEqual((r["impact"], r["likelihood"], r["priority"]), ("Low", "Low", "Low"))
             self.changed_once(before, "both fields from the matrix")
-            self.until(cdp, sid, "document.querySelector('#peek [data-row=priority] .pkc-v').textContent === 'Low'", "the peek says Low")
+            self.until(cdp, sid, "document.querySelector('#peek [data-row=priority] .pkc-sub').textContent === 'Low'", "the peek says Low")      # row 1182: the level is the small pill now
             self.assertEqual(self.toast(cdp, sid), "Impact of TUL-007 is Low and likelihood Low. Its priority is now Low.")
             self.undo(cdp, sid, "the matrix pick", "Impact and likelihood of TUL-007 are back to High and Medium.")
             r = self.row("raid", "TUL-007")
@@ -95,6 +95,27 @@ class RiskPeek(unittest.TestCase):
             self.assertEqual(cdp.js("!!document.querySelector('#peek')", sid), True, "and leaves the peek open")
             self.assertEqual(cdp.js("!!document.activeElement.closest('[data-row=priority]')", sid), True)
 
+    def test_the_matrix_arrow_keys_do_not_reach_the_page_behind(self):
+        # CLARK_CHROME: an arrow key moves between the cells only; it must not also move the page's own row or peek navigation
+        with chrome() as cdp:
+            sid = self.open_page(cdp, 1400)
+            self.peek(cdp, sid, "TUL-007")
+            self.open_matrix(cdp, sid)
+            cdp.js("window.__arrows = 0; document.addEventListener('keydown', (e) => { if (e.key.startsWith('Arrow')) window.__arrows++; });", sid)
+            for name in ("ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft"):
+                key(cdp, sid, name)
+            self.assertEqual(cdp.js("window.__arrows", sid), 0, "no arrow key got past the matrix to the page")
+
+    def test_a_matrix_pick_gives_focus_back_to_the_rating_chip(self):
+        # CLARK_CHROME: picking a cell closes the matrix with focus returned to the chip that opened it (a keyboard user is not dropped)
+        with chrome() as cdp:
+            sid = self.open_page(cdp, 1400)
+            self.peek(cdp, sid, "TUL-007")
+            self.open_matrix(cdp, sid)
+            click(cdp, sid, "[data-pop] [data-impact=Low][data-likelihood=Low]")
+            self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", "the matrix closed")
+            self.until(cdp, sid, "!!document.activeElement.closest('#peek [data-row=priority]')", "focus is back on the Rating chip")
+
     def test_the_peeks_status_picker_has_no_colours_but_the_tables_keeps_them(self):
         with chrome() as cdp:
             sid = self.open_page(cdp, 1400)
@@ -112,9 +133,43 @@ class RiskPeek(unittest.TestCase):
         with chrome() as cdp:
             sid = self.open_page(cdp, 1400)
             self.peek(cdp, sid, "TUL-008")
-            self.assertEqual(cdp.js("document.querySelector('#peek [data-row=priority] .pk-chip-sub').textContent", sid), "Amber kept")
+            self.assertEqual(cdp.js("document.querySelector('#peek [data-row=status] .pk-chip-sub').textContent", sid), "Amber kept")
             self.peek(cdp, sid, "TUL-012")      # a cancelled issue
-            self.assertEqual(cdp.js("(document.querySelector('#peek [data-row=priority] .pk-chip-sub') || {}).textContent", sid), "Red kept", "an issue keeps its word as it did (row 1180)")
+            self.assertEqual(cdp.js("(document.querySelector('#peek [data-row=status] .pk-chip-sub') || {}).textContent", sid), "Red kept", "an issue keeps its word on the Status chip too")
+
+
+class LevelOf(unittest.TestCase):
+    """Row 1182: levelOf, the matrix's rule, called on its own in Chrome. A cell with only one of the two fields says no level at all."""
+
+    @staticmethod
+    def run_js(expression):
+        import tempfile
+        from pathlib import Path
+        import build_page
+        import esbuild
+        from test_server import chrome as browser
+        from test_work_items import page_target
+        src = Path(build_page.__file__).resolve().parents[2] / "src" / "clark" / "page" / "src"
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "rating.js"
+            done = esbuild.run(["--bundle", "--format=iife", "--global-name=PR", "--tsconfig-raw={}", *build_page.preact_flags(),
+                                "edit/PeekRating.jsx", f"--outfile={out}"], cwd=src, capture_output=True, text=True)
+            assert done.returncode == 0, done.stderr
+            script = out.read_text(encoding="utf-8")
+        with browser() as cdp:
+            sid = page_target(cdp)
+            res = cdp.call("Runtime.evaluate", {"expression": script + ";\n" + expression, "returnByValue": True}, sid)
+            assert "exceptionDetails" not in res, res
+            return res["result"]["value"]
+
+    def test_one_missing_field_gives_no_level(self):
+        got = self.run_js("""[["High", null], [null, "High"], ["High", ""], ["", "Low"], ["Low", undefined], [undefined, "Medium"], [null, null]]
+                             .map(([i, l]) => PR.levelOf(i, l))""")
+        self.assertEqual(got, [None] * 7, "an impact without a likelihood (or the reverse) is not rated")
+
+    def test_the_nine_cells(self):
+        got = self.run_js("PR.IMPACTS.map((i) => PR.LIKELIHOODS.map((l) => PR.levelOf(i, l)))")
+        self.assertEqual(got, [["High", "High", "Urgent"], ["Medium", "Medium", "High"], ["Low", "Medium", "High"]])
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-"""Row 1256 (PR A3): the overdue look on the peek's date chip. The date text is red; the chip keeps its normal border and fill; the sub-word
+"""Row 1256 (PR A3): the overdue look on the peek's date chip. The date text is red; the chip keeps its normal (flat, borderless) look and fill; the sub-word
 "overdue 2 days" is an 11 px bold red-tint pill; hover is a soft fill with no border change.
 
 Run: python3 dev/run_tests.py test_peek_overdue_1256   (real browser, 1400 and 900 px, demo data, fixed date 28-10-2026)
@@ -18,7 +18,7 @@ CSS = (ROOT / "src/clark/page/shell.css").read_text(encoding="utf-8")
 PROBE = """(() => { const c = document.querySelector('#peek .pk-chips [data-row=due]'); const v = c.querySelector('.pkc-v'), s = c.querySelector('.pkc-sub');
   const cs = getComputedStyle(c), ss = s ? getComputedStyle(s) : null;
   const probe = (name, prop) => { const e = document.createElement('i'); e.style[prop] = 'var(' + name + ')'; document.body.appendChild(e); const x = getComputedStyle(e)[prop]; e.remove(); return x; };
-  return { dateColour: getComputedStyle(v).color, border: cs.borderTopColor, fill: cs.backgroundColor, red: probe('--status-red-text', 'color'), redTint: probe('--status-red-tint', 'backgroundColor'),
+  return { dateColour: getComputedStyle(v).color, border: cs.borderTopWidth, fill: cs.backgroundColor, red: probe('--status-red-text', 'color'), redTint: probe('--status-red-tint', 'backgroundColor'),
     grey200: probe('--grey-200', 'borderTopColor'), surface: probe('--surface', 'backgroundColor'),
     sub: s ? { text: s.textContent.trim(), size: ss.fontSize, weight: ss.fontWeight, colour: ss.color, bg: ss.backgroundColor, radius: ss.borderTopLeftRadius } : null }; })()"""
 
@@ -44,7 +44,7 @@ class Overdue(unittest.TestCase):
                         self.open_item(cdp, sid, OVERDUE, view=mode == "view")
                         g = cdp.js(PROBE, sid)
                         self.assertEqual(g["dateColour"], g["red"], "the date text is red")
-                        self.assertEqual(g["border"], g["grey200"], "the chip keeps its normal border")
+                        self.assertEqual(g["border"], "0px", "the flat chip row has no border round the chip")
                         self.assertEqual(g["fill"], g["surface"], "the chip keeps its normal fill")
                         sub = g["sub"]
                         self.assertEqual(sub["text"], "overdue 2 days")

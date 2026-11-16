@@ -143,7 +143,7 @@ class AddedBeyondFive(Setup):
                 made = {r["ref"]: r for r in self.store.read("use_cases", "ABC")}[ref]
                 self.click(p, "[data-uc-back]")
                 p.until("!!document.querySelector('form.picker')", "the picker")
-                p.js("document.querySelector('form.picker .pick input[value=\"%s\"]').click()" % made["id"])
+                p.js("document.querySelector('form.picker tbody input[value=\"%s\"]').click()" % made["id"])
                 p.js("document.querySelector('form.picker button[type=submit]').click()")
                 p.until("!document.querySelector('form.picker')", "the picker closed")
                 p.until(f"{ROWS} === {7 + n}", "all are shown, so the new one is not out of sight")

@@ -51,7 +51,19 @@ class Browser(unittest.TestCase):
                 got = cdp.js("(u => { const r = [...u.querySelectorAll(':scope > .ucrow')].map(l => l.getBoundingClientRect()); const b = u.getBoundingClientRect();"
                              " return { box: b.height, rows: r.map(x => x.height), fully: r.filter(x => x.bottom <= b.bottom + 1).length }; })(document.querySelector('.uc .ucrows'))", sid)
                 self.assertEqual(got["fully"], 3, f"n=3 box shows {got['fully']} whole rows: {got}")
-                self.assertAlmostEqual(got["box"], 3 * got["rows"][0], delta=1, msg=f"the box is n measured rows tall, not the fallback: {got}")
+                self.assertAlmostEqual(got["box"], sum(got["rows"][:3]), delta=1, msg=f"the box is the first n measured rows tall, not the fallback: {got}")
+
+    def test_the_measured_row_height_is_a_closed_row_even_when_the_first_row_is_open(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), tempfile.TemporaryDirectory() as tmp, chrome() as cdp:
+                pub, text = made({"n": 3, "scroll": True, "tracker": "top"})
+                sid = self.draw(cdp, text, tmp, width)
+                cdp.js("document.querySelector('.uc .ucrow:nth-child(1) .ucbar').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.uc .ucrow.open')", sid)))
+                got = cdp.js("(u => ({ open: u.querySelector(':scope > .ucrow:nth-child(1)').getBoundingClientRect().height, closed: u.querySelector(':scope > .ucrow:nth-child(2)').getBoundingClientRect().height,"
+                             " v: parseFloat(u.style.getPropertyValue('--ucrow-h')) }))(document.querySelector('.uc .ucrows'))", sid)
+                self.assertGreater(got["open"], got["closed"] + 1, f"an open row is taller, so the check can fail: {got}")
+                self.assertAlmostEqual(got["v"], got["closed"], delta=1, msg=f"--ucrow-h is a closed row's height: {got}")
 
 
 if __name__ == "__main__":

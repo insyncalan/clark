@@ -7,5 +7,5 @@ import { commitWord, commitClass } from "../logic/commitment.js";
 export function CommitChip({ u, dash }) {
   const w = commitWord(u);
   if (w) return <span class={`cchip ${commitClass(w)}`} data-commit={w} title="Commitment">{w}</span>;
-  return dash ? <span class="cdash muted" data-commit-none title="Commitment">{"\u2014"}</span> : null;
+  return dash ? <span class="cdash muted" data-commit-none title="Commitment" aria-hidden="true">{"\u2014"}</span> : null;
 }

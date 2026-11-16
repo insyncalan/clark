@@ -733,17 +733,17 @@ class Live(unittest.TestCase):
             self.assertEqual(self.row("raid", "TUL-007")["status"], "Closed")
             self.changed_once(before, "status from the peek")
             self.assertEqual(self.toast(cdp, sid), "Status of TUL-007 changed to Closed.")
-            self.until(cdp, sid, f"document.querySelector(\"{pcell}\").textContent === 'Closed'", "the peek's cell says Closed")
-            self.assertEqual(cdp.js("(document.querySelector('#peek [data-row=priority] .pk-chip-sub') || {}).textContent", sid), "Red kept", "a closed risk keeps its rating word in the peek")
+            self.until(cdp, sid, f"(document.querySelector(\"{pcell} .pkc-v\") || {{}}).textContent === 'Closed'", "the peek's cell says Closed")
+            self.assertEqual(cdp.js("(document.querySelector('#peek [data-row=status] .pk-chip-sub') || {}).textContent", sid), "Red kept", "a closed risk keeps its rating word in the peek")
             self.assertEqual(self.cell_text(cdp, sid, "TUL-007", "status"), "Closed", "the table's cell says it too")
             # the rating of the now closed risk, from the peek: the Rating chip's matrix (row 1182)
             click(cdp, sid, "#peek .pk-chips [data-row=priority] button")
             self.until(cdp, sid, "!!document.querySelector('[data-pop] .rmx')", "the matrix opened on a closed risk")
             click(cdp, sid, "[data-pop] [data-impact=Medium][data-likelihood=Medium]")
-            self.until(cdp, sid, "(document.querySelector('#peek [data-row=priority] .pk-chip-sub') || {}).textContent === 'Amber kept'", "the peek says Closed · Amber")
+            self.until(cdp, sid, "(document.querySelector('#peek [data-row=status] .pk-chip-sub') || {}).textContent === 'Amber kept'", "the peek says Closed · Amber")
             self.assertEqual(self.row("raid", "TUL-007")["status"], "Closed")
             self.undo(cdp, sid, "rating from the peek", "Impact and likelihood of TUL-007 are back to High and Medium.")
-            self.until(cdp, sid, "(document.querySelector('#peek [data-row=priority] .pk-chip-sub') || {}).textContent === 'Red kept'", "Undo draws Closed · Red again in the peek")
+            self.until(cdp, sid, "(document.querySelector('#peek [data-row=status] .pk-chip-sub') || {}).textContent === 'Red kept'", "Undo draws Closed · Red again in the peek")
             self.assertEqual(self.row("raid", "TUL-007")["priority"], "High")
 
     # One test for each width: each starts on a fresh store, since the first leaves TUL-007 closed.
@@ -789,8 +789,8 @@ class Live(unittest.TestCase):
                 pcell = "#peek [data-cell='peek:TUL-008:status']"
                 self.until(cdp, sid, f"!!document.querySelector(\"{pcell}\")", "the peek's Status row is a picker")
                 self.until(cdp, sid, "document.querySelector('#peek').getAnimations({subtree: true}).length === 0", "the peek's slide-in has ended")
-                self.assertEqual(cdp.js("document.querySelector('#peek [data-row=priority] .pk-chip-sub').textContent", sid), "Amber kept")
-                kept = self.look(cdp, sid, "#peek [data-row=priority] .pk-chip-sub")
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-row=status] .pk-chip-sub').textContent", sid), "Amber kept")
+                kept = self.look(cdp, sid, "#peek [data-row=status] .pk-chip-sub")
                 self.assertTrue(kept["shown"], f"the rating word shows at {width}")
                 self.assertEqual(kept["color"], "rgb(169, 203, 212)", "--text-muted, dark")
                 self.assertGreaterEqual(kept["ratio"], 4.5, f"the rating word is readable in dark at {width}")
@@ -851,8 +851,8 @@ class Live(unittest.TestCase):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.open_page(cdp, width, edit=False)
                 cdp.js("clarkPage.openPeek('TUL-008', 'item')", sid)
-                self.until(cdp, sid, "!!document.querySelector('#peek [data-row=priority] .pk-chip-sub')", "the peek says the rating word")
-                self.assertEqual(cdp.js("document.querySelector('#peek [data-row=status]').textContent.replace(/\\s+/g, ' ').trim()", sid), "Closed", "the status chip says Closed; the rating word is the priority chip's sub-line (test_peek_chips_1180.py:164)")
+                self.until(cdp, sid, "!!document.querySelector('#peek [data-row=status] .pk-chip-sub')", "the peek says the rating word")
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-row=status] .pkc-v').textContent.trim()", sid), "Closed", "the status chip says Closed; the rating word is its sub-line (row 1182)")
                 self.assertEqual(cdp.js("document.querySelectorAll('[data-pop]').length", sid), 0, "no picker is open until the status is chosen")
                 self.assertTrue(cdp.js("!!document.querySelector('#peek [data-pk-client]')", sid), "Work items have no mode: the peek edits in View too (row 824): it has the Client visible line")
 
