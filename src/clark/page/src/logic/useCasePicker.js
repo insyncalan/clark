@@ -52,8 +52,8 @@ export function makePicker({ fields, hay, addWord }) {
     const values = cur.values.includes(v) ? cur.values.filter((x) => x !== v) : [...cur.values, v];
     return { ...s, filters: { ...s.filters, [key]: { mode: cur.mode, values } } };
   }
-  /** Select all: every value the field offers. Clear: none (and the filter goes). */
-  const selectAllValues = (s, key, rows) => ({ ...s, filters: { ...s.filters, [key]: { mode: (s.filters[key] || {}).mode || "is", values: optionsOf(rows, key).map((o) => o.value) } } });
+  /** Select all: every value the field offers that some row holds (a value with none is greyed and is not ticked). Clear: none (and the filter goes). */
+  const selectAllValues = (s, key, rows) => ({ ...s, filters: { ...s.filters, [key]: { mode: (s.filters[key] || {}).mode || "is", values: optionsOf(rows, key).filter((o) => o.count).map((o) => o.value) } } });
   function clearField(s, key) { const filters = { ...s.filters }; delete filters[key]; return { ...s, filters }; }
   const activeCount = (s) => Object.values(s.filters).filter((f) => f.values.length).length;
 
