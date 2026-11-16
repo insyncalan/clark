@@ -49,7 +49,7 @@ class FrameCss(unittest.TestCase):
         tag = rule(EDIT_CSS, ".peek .pkh-id")
         for want in (r"height:\s*20px", r"border-radius:\s*6px", r"background:\s*#F6F8FC", r"font-size:\s*12px", r"font-weight:\s*600", r"ui-monospace"):
             self.assertRegex(tag, want)
-        self.assertRegex(rule(EDIT_CSS, ".peek .pkh-line"), r"font-size:\s*13px")
+        self.assertRegex(rule(EDIT_CSS, ".peek .pkh-line"), r"font-size:\s*var\(--size-caption\)")      # 13 px on the scale (the browser test measures 13px)
 
     def test_dragging_the_edge_allows_for_the_16_px(self):
         self.assertIn("clientWidth - 16 - e.clientX", PEEK_JSX)
