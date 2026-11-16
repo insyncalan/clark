@@ -17,12 +17,14 @@ from _paths import ROOT
 from test_title_limit import bundle  # noqa: E402
 
 STAND_IN = ("globalThis.addEventListener = () => {}; globalThis.removeEventListener = () => {}; globalThis.window = globalThis;"
-            "globalThis.matchMedia = () => ({ matches: false });"
+            "globalThis.matchMedia = () => ({ matches: false }); globalThis.requestAnimationFrame = () => 1; globalThis.cancelAnimationFrame = () => {}; globalThis.scrollBy = () => {}; globalThis.innerHeight = 800;"
             "globalThis.location = { search: '', hash: '', pathname: '/', href: 'http://x/' };"
             "const docL = {};"
-            "globalThis.document = { addEventListener(t, f) { docL[t] = f; }, removeEventListener() {}, querySelector() { return null; },"
+            "globalThis.document = { addEventListener(t, f) { docL[t] = f; }, removeEventListener() {}, querySelector() { return null; }, createElement() { return { style: {}, setAttribute() {}, remove() {} }; }, body: { appendChild() {} },"
             " querySelectorAll() { return globalThis.__rects.map(([id, top, bottom]) => ({ dataset: { id },"
             " getBoundingClientRect: () => ({ left: 0, right: 400, top, bottom }) })); }, documentElement: { dataset: {} } };"
+            "globalThis.scrollX = 0; globalThis.scrollY = 0; globalThis.requestAnimationFrame = () => 1; globalThis.cancelAnimationFrame = () => {}; let now = 0; const timers = []; globalThis.performance = { now: () => now }; globalThis.setTimeout = (f, ms) => { timers.push([now + ms, f]); return timers.length; }; globalThis.clearTimeout = (n) => { if (timers[n - 1]) timers[n - 1] = null; };"
+            "const rest = () => { now += 120; for (const t of timers.splice(0)) if (t) t[1](); };"
             "const kept = {}; globalThis.localStorage = { getItem: k => kept[k] ?? null, setItem: (k, v) => { kept[k] = v; }, removeItem: k => { delete kept[k]; } };")
 
 # stored order: A, a Needs section (not drawn), B, C. The person sees A, B, C.
@@ -55,7 +57,7 @@ class DragSkipsNeeds(unittest.TestCase):
               "m.data.value = { report_sections: stored };"
               "const L = {}; const handle = { setPointerCapture() {}, focus() {}, addEventListener(t, f) { L[t] = f; }, removeEventListener() {} };"
               "m.startDrag({ button: 0, clientX: 0, clientY: 0, pointerId: 1, preventDefault() {} }, handle, " + json.dumps(moved) + ", 3);"
-              "L.pointermove({ clientX: " + str(x) + ", clientY: " + str(y) + " });"
+              "docL.pointermove({ pointerId: 1, clientX: " + str(x) + ", clientY: " + str(y) + " }); rest();"
               "const drop = m.dropAt.value || null;"
               "let order = null;"
               "if (drop && drop.line === 'before') {"
