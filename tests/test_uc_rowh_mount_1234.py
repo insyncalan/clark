@@ -49,7 +49,7 @@ class Browser(unittest.TestCase):
                 cdp.js("document.querySelector('.uc .ucrows > .ucrow button, .uc .ucrows > .ucrow [role=button], .uc .ucrows > .ucrow summary').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.uc .ucrows > .ucrow.open')", sid)))
                 after = cdp.js(ROWS, sid)
-                self.assertAlmostEqual(after["box"], sum(after["closed"][:3]), delta=1, msg=f"the box is the first 3 closed rows, never the open one: {before} -> {after}")
+                self.assertAlmostEqual(after["box"], sum(before["closed"][:3]), delta=1, msg=f"the box stays the first 3 rows as they were closed (before is all closed), never moved by the open one: {before} -> {after}")
 
 
 if __name__ == "__main__":
