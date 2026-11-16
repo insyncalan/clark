@@ -66,7 +66,7 @@ class DragPreview(unittest.TestCase):
     def js(self, expr):
         return self.cdp.js(expr, self.sid)
 
-    def open(self, width, motion="no-preference"):
+    def draw_at(self, width, motion="no-preference"):
         self.cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
         self.cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": motion}]}, self.sid)
         self.cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.server.port}/"}, self.sid)
@@ -86,7 +86,7 @@ class DragPreview(unittest.TestCase):
     def test_the_page_is_drawn_from_the_list_and_the_dragged_section_is_the_slot(self):
         for width in (1400, 900):
             with self.subTest(width=width):
-                self.open(width)
+                self.draw_at(width)
                 self.assertEqual(self.order(), "abcd")
                 self.set("d", None)
                 self.until("!!document.querySelector('.sec.drag-from[data-id=d]')", "dragged, no place shown yet")
@@ -103,7 +103,7 @@ class DragPreview(unittest.TestCase):
                 self.assertEqual(self.js("T.store.data.value.report_sections.map(s => s.id).join('')"), "abcd", "the stored list is not touched")
 
     def test_the_drop_line_is_not_drawn_while_the_list_is_shown_and_leaving_clears_the_signals(self):
-        self.open(1400)
+        self.draw_at(1400)
         self.js("T.store.dropAt.value = { line: 'end' }; 1")
         self.until("document.querySelector('.secs').classList.contains('drop-end')", "the end line without a list")
         self.set("d", MOVED)
@@ -121,7 +121,7 @@ class DragPreview(unittest.TestCase):
     def test_the_sections_that_moved_glide_and_none_do_when_motion_is_reduced(self):
         for motion, moved in (("no-preference", True), ("reduce", False)):
             with self.subTest(motion=motion):
-                self.open(1400, motion)
+                self.draw_at(1400, motion)
                 self.js("T.noteRects(); 1")
                 self.set("d", MOVED)
                 self.until("!!document.querySelector('.sec.drag-slot')", "the slot")
@@ -140,13 +140,13 @@ class DragPreview(unittest.TestCase):
                 self.assertRegex(down, r"translate\(-?[\d.]+px, -[\d.]+px\)", "b moved down, so it starts from its old place, higher up")
 
     def test_no_glide_when_nothing_was_noted_or_the_sections_did_not_move(self):
-        self.open(1400)
+        self.draw_at(1400)
         self.set("a", SECTIONS)                      # a list in the stored order: nothing changes place
         self.until("!!document.querySelector('.sec.drag-slot')", "the slot")
         self.assertEqual(self.glides(), [], "no sections moved, so none glide")
 
     def test_the_drop_line_of_a_section_is_not_drawn_while_the_list_is_shown(self):
-        self.open(1400)
+        self.draw_at(1400)
         self.js("T.store.dropAt.value = { line: 'before', ids: ['b'] }; 1")
         self.until("!!document.querySelector('.sec.drop-before[data-id=b]')", "the line before b without a list")
         self.set("d", MOVED)
@@ -154,7 +154,7 @@ class DragPreview(unittest.TestCase):
         self.assertEqual(self.js("document.querySelectorAll('.drop-before, .drop-left, .drop-right').length"), 0, "only the slot marks the place")
 
     def test_leaving_clears_the_drag_signals_and_the_stored_order_is_drawn(self):
-        self.open(1400)
+        self.draw_at(1400)
         self.js("T.store.dropAt.value = { line: 'end' }; 1")
         self.set("d", MOVED)
         self.until("!!document.querySelector('.sec.drag-slot')", "the slot")
