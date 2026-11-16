@@ -155,6 +155,10 @@ class ViewOf(unittest.TestCase):
         self.assertEqual(list(json.loads(run('V.bodyOf({"n": 3, "scroll": true, "tracker": "off"})'))), ["n", "scroll", "tracker"])
         self.assertEqual(list(json.loads(run('V.bodyOf({"n": 3})'))), ["n"])
 
+    def test_a_hand_edited_null_key_is_not_given(self):
+        self.assertEqual(run('V.givenOf({body: "{\\"n\\":null,\\"tracker\\":\\"bottom\\"}"})'), {"tracker": "bottom"})
+        self.assertEqual(run('V.givenOf({body: "{\\"scroll\\":null}"})'), {})
+
     def test_the_browser_keys_are_not_read(self):
         self.assertNotIn("localStorage", (PAGE_SRC / "logic" / "useCaseView.js").read_text(encoding="utf-8"))
         self.assertNotIn("clark.uc", (PAGE_SRC / "components" / "UseCases.jsx").read_text(encoding="utf-8").replace("clark.ucAll", ""))
