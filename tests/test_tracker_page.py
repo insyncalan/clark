@@ -687,6 +687,7 @@ class Source(unittest.TestCase):
         for path in (PAGE / "shell.css", PAGE / "src" / "edit" / "edit.css"):
             css = path.read_text(encoding="utf-8")
             block = re.sub(r"/\*.*?\*/", "", css[css.rindex("/*", 0, css.index("Progress tracker")):], flags=re.S)
+            block = block.replace("background: #F6F8FC", "")      # row 1258: the ID tag's literal, accepted by Alan 17-11 (committed tokens first, then Theme, then Brand)
             self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(", block.split("@media print")[0] if path.name == "shell.css" else block), path.name)
 
 

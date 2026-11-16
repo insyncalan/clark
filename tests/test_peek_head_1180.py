@@ -94,8 +94,8 @@ class Head(unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelectorAll('#peek [data-pk-project]').length", sid), 1, "the project once")
                 self.assertEqual(cdp.js("document.querySelector('#peek [data-pk-project]').textContent.trim()", sid), name)
                 outlined = cdp.js("(c => { const s = getComputedStyle(c); return parseFloat(s.borderTopWidth) > 0 && s.borderTopStyle !== 'none' && "
-                                  "s.backgroundColor === 'rgb(243, 246, 252)'; })(document.querySelector('#peek [data-pk-id]'))", sid)      # row 1258: the mockup's tag is outlined AND filled #F6F8FC
-                self.assertTrue(outlined, "the tag is a 1 px outlined tag on the --grey-50 tone (the mockup's #F6F8FC, as near as the token goes)")
+                                  "s.backgroundColor === 'rgb(246, 248, 252)'; })(document.querySelector('#peek [data-pk-id]'))", sid)      # row 1258: the mockup's tag is outlined AND filled #F6F8FC
+                self.assertTrue(outlined, "the tag is a 1 px outlined tag on mockup's #F6F8FC")
                 order = cdp.js("(() => { const q = (s) => document.querySelector(s), f = Node.DOCUMENT_POSITION_FOLLOWING;"
                                " return [q('#peek .pk-bar').compareDocumentPosition(q('#peek [data-pk-id]')) & f, q('#peek [data-pk-id]').compareDocumentPosition(q('#peek [data-pk-project]')) & f,"
                                " q('#peek [data-pk-project]').compareDocumentPosition(q('#peek h2.pk-title')) & f].map(Boolean); })()", sid)

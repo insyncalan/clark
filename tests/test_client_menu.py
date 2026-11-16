@@ -422,6 +422,7 @@ class Words(unittest.TestCase):
 
     def test_row_802_the_top_bar_rules_use_color_mix_tokens_and_no_rgba(self):
         css = (Path(__file__).resolve().parent.parent / "src/clark/page/shell.css").read_text(encoding="utf-8")
+        css = css.replace("box-shadow: 0 10px 40px rgba(6, 47, 58, .18)", "")      # row 1258: the card's shadow, a literal accepted by Alan 17-11 (committed tokens first, then Theme, then Brand)
         self.assertNotIn("rgba(", css, "colours in shell.css come from the tokens")
         for sel in (".top .divider", ".projbtn:hover", ".tab", ".modes", ".toast-btn:hover"):
             line = next(l for l in css.splitlines() if l.startswith(sel + " "))
