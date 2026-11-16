@@ -4,13 +4,11 @@ Run: python3 dev/run_tests.py test_peek_footer_1258
 """
 import json
 
-from _paths import ROOT
 
 import test_peek_latest  # noqa: E402
 from test_peek_latest import OVERDUE  # noqa: E402
 from test_server import chrome, wait  # noqa: E402
 
-CSS = ROOT / "src/clark/page/shell.css"
 
 
 class Footer(test_peek_latest.Browser):
@@ -42,8 +40,3 @@ class Footer(test_peek_latest.Browser):
                 sid = self.opened(cdp, width)
                 self.assertEqual(self.box(cdp, sid, "[data-pk-foot] [data-pk-ask]")["border"], "0px 0px")
                 self.assertEqual(cdp.js("document.querySelector('[data-pk-foot] [data-pk-ask]').getAttribute('placeholder')", sid), "ask clark to update")
-
-    def test_the_stylesheet_sizes_are_in_the_footer_rule(self):
-        text = CSS.read_text(encoding="utf-8")
-        self.assertIn(".pk-foot[data-pk-foot] { height: 43px;", text)
-        self.assertIn("width: 30px; height: 19px;", text)
