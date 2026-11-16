@@ -816,9 +816,7 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .tracker-edit .t-name-form .t-f, .tracker-edit .t-new-group .t-f { width: 260px; max-width: 100%; }
 .tracker-edit .btn:disabled { color: var(--text-muted); cursor: default; }
 
-/* The Dashboard's use case summary in Edit: the status button, the headline and the name changed in place, the growing Add
-   button in the header, the Add a use case box and the link to the picker. Tokens only; no text under 13 px. */
-.uc-add { flex: none; margin-left: auto; }
+/* The Dashboard's use case summary in Edit: the status button, the headline and the name changed in place, the Add a use case box and the link to the picker. Tokens only; no text under 13 px. */
 .ucw-btn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 24px; cursor: pointer; border-radius: var(--radius-sm); padding: 1px 4px; margin: -1px -4px; }
 .ucw-btn:hover { background: var(--grey-200); }
 .ucw-btn:focus-visible { outline: 2px solid var(--brand-blue); }
