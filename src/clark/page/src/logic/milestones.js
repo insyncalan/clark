@@ -299,12 +299,12 @@ export function subLine(r) {
 export const agreedText = (r) => (r.baseline ? showDate(r.baseline) : "No agreed date");
 
 /** Row 1230: the Expected or achieved cell. `date` is the achieved date, else the expected date (later than agreed when slipped), else the agreed or forecast date;
- *  `text` is the small line under it, in the row's existing words (no Agreed line any more: that is its own column); empty for a plain on-track row. */
+ *  `text` is the small line under it (the mock-up's: "Forecast" under a forecast date, "+N days" for a slipped or overdue one; the other lines keep their words); empty for a plain on-track row. */
 export function expectedCell(r) {
   if (r.state === "Achieved") return { date: r.achieved ? showDate(r.achieved) : "\u2014", text: r.achieved ? r.achievedNote || "Achieved" : "Achieved, date not recorded", late: false };
   if (r.state === CANCELLED) return { date: showDate(r.baseline || r.forecast), text: "No longer going ahead", late: false };
-  if (r.state === "Forecast") return { date: showDate(r.forecast || r.baseline), text: "Forecast, not agreed", late: false };
-  if (r.slip) return { date: showDate(r.expected), text: r.slipText, late: true };
+  if (r.state === "Forecast") return { date: showDate(r.forecast || r.baseline), text: "Forecast", late: false };
+  if (r.slip) return { date: showDate(r.expected), text: `+${plural(r.slip, "day")}`, late: true };
   return { date: showDate(r.baseline || r.forecast), text: "", late: false };
 }
 

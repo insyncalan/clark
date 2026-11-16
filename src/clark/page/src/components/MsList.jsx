@@ -35,9 +35,10 @@ function Expected({ r }) {
 // Progress: a bar (its length is the share done) and the number as text, so it is never colour alone. The bar is a picture only; the
 // text carries the name for a screen reader. Anything that is not a number from 0 to 100 reads as not set and draws no bar.
 // The milestone peek's header line draws the same (Peek.jsx, row 1078).
-export function MsProgress({ value }) {
+// `dash` (row 1230, the Dashboard's detail table): none draws a muted dash that a screen reader names "Progress not set".
+export function MsProgress({ value, dash = false }) {
   const n = value === null || value === undefined || value === "" ? NaN : Number(value);
-  if (!Number.isFinite(n)) return <span class="muted">Progress not set</span>;
+  if (!Number.isFinite(n)) return dash ? <span class="muted" role="img" aria-label="Progress not set">&mdash;</span> : <span class="muted">Progress not set</span>;
   const pct = Math.max(0, Math.min(100, Math.round(n)));
   return <><span class="pbar" aria-hidden="true"><i style={{ width: `${pct}%` }} /></span><span class="num"><span class="sr">Progress </span>{pct}%</span></>;
 }
@@ -115,7 +116,7 @@ function MsRows({ rows, place, open, internalTag, Eye, More, left, legend, canFo
               <span class={`mst c-${r.colour}`} data-col="state"><MsMark name={r.mark} />{r.word}</span>
               {page ? null : <span class={`msl-agr num${off("agreed")}`} data-col="agreed">{agreedText(r)}</span>}
               {page ? null : <span class={`msl-date${off("date")}`} data-col="date"><Expected r={r} /></span>}
-              <span class={`msl-prog${off("prog")}`} data-col="prog" title="Progress"><MsProgress value={r.percent} /></span>
+              <span class={`msl-prog${off("prog")}`} data-col="prog" title="Progress"><MsProgress value={r.percent} dash={!page} /></span>
               {cols.filter((id) => !STD.includes(id)).map((id) => <span key={id} class="msl-x" data-col={id} data-label={labelOf(id, place)}>{xText(id, r)}</span>)}
               {page ? <Sub r={r} /> : null}
             </div>
