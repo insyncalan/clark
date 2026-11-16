@@ -134,6 +134,13 @@ class Sizes(unittest.TestCase):
             gallery.with_picture({"v": 2, "shape": "square"}, "1", sized_jpeg(800))
         self.assertEqual(str(e.exception), imagecap.CANT_FRAME.replace("picture", "image"))
 
+    def test_a_jpeg_exactly_1600_wide_is_kept_and_one_pixel_wider_is_refused(self):
+        body = add({"v": 2}, "1", sized_jpeg(gallery.WIDTH_MAX))
+        self.assertEqual(body["pictures"], {"1": sized_jpeg(gallery.WIDTH_MAX)})
+        with self.assertRaises(Bad) as e:
+            gallery.with_picture({"v": 2}, "1", sized_jpeg(gallery.WIDTH_MAX + 1))
+        self.assertEqual(str(e.exception), gallery.TOO_WIDE)
+
     def test_a_framed_copy_over_its_limit_is_refused(self):
         noise = random.Random(1)
         noise = make_png(500, 500, lambda x, y: (noise.randrange(256), noise.randrange(256), noise.randrange(256)))
