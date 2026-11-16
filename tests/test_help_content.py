@@ -437,6 +437,14 @@ class HelpMatchesThePage(unittest.TestCase):
         self.assertNotIn("Back returns", line)
         self.assertNotIn("**Back**", line)       # the page has no button called Back
 
+    def test_the_move_line_says_esc_cancels_the_move_and_the_drag_code_does_cancel_on_esc(self):
+        # the behaviour itself is shown by tests/test_report_editor.py test_esc_cancels_a_drag_and_releasing_drops_nothing
+        lines = [l for t in STEPS for l in t["s"] if "pick up a section by its move button" in l]
+        self.assertEqual(len(lines), 1)
+        self.assertIn("A row never holds more than two. [[Esc]] cancels the move. ", lines[0])
+        drag = (self.SRC / "edit" / "drag.js").read_text(encoding="utf-8")
+        self.assertIn('"Escape"', drag)
+
     def test_every_line_that_lists_milestone_states_lists_fr50s(self):
         """#453: FR-50's states are Achieved, On track, At risk, Slipped, Overdue and Forecast; no Help line may leave one out."""
         brd = (ROOT / "docs" / "BRD.md").read_text(encoding="utf-8")
