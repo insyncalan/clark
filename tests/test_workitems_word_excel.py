@@ -21,11 +21,21 @@ from test_docx_build import published, every_text, headings
 BUILT_IN = ("actions", "raid", "decisions")
 
 
-def with_list(items, title="Open work", built_in=False, caption=""):
+def with_list(items, title="Open work", built_in=False, caption="", columns=("id",)):
     p = copy.deepcopy(published())
     p["sections"] = [s for s in p["sections"] if built_in or s["type"] not in BUILT_IN]
-    p["sections"].append({"id": "s-list", "type": "workitems", "title": title, "beside": 0, "items": items, "columns": ["id"], "caption": caption})
+    p["sections"].append({"id": "s-list", "type": "workitems", "title": title, "beside": 0, "items": items, "columns": list(columns), "caption": caption})
     return p
+
+
+def cells(data):
+    """The words of the one Work items table, in reading order (the table after the list's heading)."""
+    import re
+    import zipfile
+    xml = zipfile.ZipFile(io.BytesIO(data)).read("word/document.xml").decode()
+    xml = xml[xml.index("Open work"):]
+    xml = xml[xml.index("<w:tbl>"):xml.index("</w:tbl>")]
+    return re.findall(r"<w:t[^>]*>([^<]*)</w:t>", xml)
 
 
 class Word(unittest.TestCase):
@@ -46,6 +56,22 @@ class Word(unittest.TestCase):
 
     def test_a_list_that_names_no_published_row_is_left_out(self):
         self.assertNotIn("Open work", headings(docx_build.build(with_list(["PUB-A-404"]))))
+
+    def test_the_table_has_the_columns_the_list_chose_and_no_other(self):
+        got = cells(docx_build.build(with_list(["PUB-A-001"], columns=("id", "owner"))))
+        self.assertEqual(got[:3], ["ID", "Item", "Owner"])
+        for word in ("Priority", "Workstream", "Milestone", "Status", "Due", "Type"):
+            self.assertNotIn(word, got)
+
+    def test_id_is_a_column_choice_and_leaves_with_it(self):
+        self.assertIn("PUB-A-001", cells(docx_build.build(with_list(["PUB-A-001"], columns=("id", "due")))))
+        got = cells(docx_build.build(with_list(["PUB-A-001"], columns=("due",))))
+        self.assertNotIn("PUB-A-001", got)
+        self.assertEqual(got[:2], ["Item", "Due"])
+
+    def test_the_columns_come_in_the_pages_order(self):
+        got = cells(docx_build.build(with_list(["PUB-A-001"], columns=("status", "owner", "id", "type"))))
+        self.assertEqual(got[:5], ["Type", "ID", "Item", "Owner", "Status"])
 
     def test_the_built_in_sections_are_as_before(self):
         p = published()

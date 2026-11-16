@@ -42,7 +42,7 @@ function Cell({ row, col, now }) {
 
 // The rows, at both widths. `open(id)` (Edit only) makes each row open its peek: a click, or Enter on the focused row.
 // `Eye` (Edit only): the Work items page's own Client-visible eye (edit/cells/Eye.jsx), drawn at the end of each row, so it means the same thing here.
-export function Rows({ rows, columns, now, open, Eye }) {
+export function Rows({ rows, columns, now, open, Eye, head }) {
   const act = open ? (row) => ({ tabIndex: 0, role: "button", "aria-label": `Open ${row.id}: ${row.title || ""}`, onClick: () => open(row.id),
     onKeyDown: (e) => { if (e.target.closest && e.target.closest("button")) return; if ((e.key === "Enter" || e.key === " ") && !e.defaultPrevented) { e.preventDefault(); open(row.id); } } }) : () => ({});
   // Row 1268: one line as the built-in rows: the letter tile, the title, the chosen columns, the ID last; an item the client eye has taken off is greyed.
@@ -52,7 +52,7 @@ export function Rows({ rows, columns, now, open, Eye }) {
   return (
     <>
       <table class={`wil-table${open ? " wil-live" : ""}`}>
-        <thead><tr>
+        <thead><tr {...(head || {})}>
           <th class="wil-c-tile" scope="col" aria-label={WORDS.columns.type} />
           {before.map((c) => <th key={c} class={`wil-c-${c}`} scope="col">{WORDS.columns[c]}</th>)}
           <th class="wil-c-title" scope="col">Item</th>
