@@ -11,6 +11,8 @@ import { Rows, ShowAll, today } from "../../templates/WorkItemsList.jsx";
 import { KINDS, MODES, STATUSES, DUE, PRIORITIES, NONE, SORTS, COLUMNS, MAX_ROWS, MAX_CAPTION, WORDS, defaults, filterOf, bodyOf,
   editListOf, drawRows, offered, drawn, idsToShow } from "../../templates/workItemsList.js";
 import { Eye } from "../cells/Eye.jsx";
+import { Cell } from "../cells/Cell.jsx";
+import { useColWidths } from "../colWidths.jsx";
 import { plural } from "../../workItems.js";
 import { lineOf, readLine } from "../../templates/workItemsLine.js";
 
@@ -52,6 +54,7 @@ function Choice({ id, label, field, values, words, value, onPick }) {
 
 export function Edit({ section }) {
   const [all, setAll] = useState(false);          // row 1199: Show all items
+  const cw = useColWidths(`wil-${section.id}`);      // row 1268, item 12: the page's column widths, kept for this list
   const [tick, setTick] = useState(0);              // a refused save draws the form again from what is saved
   const d = data.value || {};
   const saved = filterOf(section);
@@ -159,7 +162,7 @@ export function Edit({ section }) {
       <p class="quiet" data-wil-say="count">{saved ? `${plural(rows.length, "work item")} listed now. ${ONLY_SHOWN}` : ONLY_SHOWN}</p>
       {saved && !rows.length ? <p class="wil-none" data-wil-say="none" role="status">{NO_MATCH}</p> : null}
       {saved && rows.length && rows.length === list.off.length ? <p class="wil-none" data-wil-say="all-hidden" role="status">{ALL_HIDDEN}</p> : null}
-      {saved && rows.length ? <Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Eye={Eye} head={headProps} /> : null}
+      {saved && rows.length ? <Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Eye={Eye} Cell={Cell} cw={cw} head={headProps} /> : null}
       {colMenu}
       {saved && rows.length ? <ShowAll list={list} all={all} onToggle={() => setAll(!all)} /> : null}
       {saved && list.caption && rows.length ? <p class="wil-cap">{list.caption}</p> : null}
