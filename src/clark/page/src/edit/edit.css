@@ -81,6 +81,8 @@
 .pk-hcount { margin-left: 2px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .pk-history { margin: var(--space-3) 0 0; }
 .pk-hicon { flex: none; margin-top: 2px; color: var(--text-muted); }
+/* the approved peek mockup: the history icon sits in a 30 px tile with an 8 px corner */
+.pk-hrow-tile, .pa-line > .pk-hicon, .pk-hsrc > .pk-hicon { box-sizing: content-box; width: 16px; height: 16px; padding: 6px; border: 1px solid var(--grey-200); border-radius: 8px; margin-top: 0; }
 .pk-hsrc { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin: var(--space-2) 0; }
 .pk-hsrc a, .pk-hsrc .linklike { color: var(--brand-blue); font: inherit; background: none; border: 0; padding: 0; min-height: 24px; text-decoration: underline; cursor: pointer; }
 .pk-tab.on { color: var(--text); border-bottom-color: var(--brand-blue); font-weight: var(--weight-medium); }
