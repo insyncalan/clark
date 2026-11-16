@@ -58,11 +58,13 @@ def seed(store):
 # (selector of the row or card, the parts that never wrap, the title). The item rows are the one-line rows (row 1021): their id, owner, date and
 # priority columns are pinned by test_item_one_line and test_item_row_fit, so here only the title is checked (one line, an ellipsis when cut).
 ROWS = (".irows .wl-row", "", ".wl-title")
-CARDS = (".raid-card", ".raid-id, .raid-meta .raid-bit", ".raid-title")
+# row 1270: a card's title wraps whole (no cut, no ellipsis); the fourth part says so.
+CARDS = (".raid-card", ".raid-id, .raid-meta .raid-bit", ".raid-title", True)
 
 
 def check(test, js, surface, where, width):
-    box, parts, title = surface
+    box, parts, title = surface[:3]
+    whole = len(surface) > 3 and surface[3]
     n = js(f"document.querySelectorAll({box!r}).length")
     test.assertGreater(n, 0, f"{where}: {box} drawn")
     if parts:
@@ -87,7 +89,7 @@ def check(test, js, surface, where, width):
           if (e.getBoundingClientRect().right > edge + slack) out.push('runs over: ' + what);
         }});
         var t = row.querySelector({title!r});
-        if (!oneLine(t)) out.push('title wraps');
+        if (!oneLine(t) && {title!r} !== '.raid-title') out.push('title wraps');   // row 1270: a card shows its whole description, so only a list row's title is held to one line
         var cut = [t].concat([].slice.call(t.querySelectorAll('*'))).filter(function (e) {{ return e.scrollWidth > e.clientWidth + 1; }});
         cut.forEach(function (e) {{
           var cs = getComputedStyle(e);

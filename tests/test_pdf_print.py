@@ -134,7 +134,7 @@ class Source(unittest.TestCase):
 
     def test_h10_print_titles_whole_list_rows_padded_and_last_month_not_cut(self):
         block = css_block(self.css, "@media print", "html.print-all, html.print-all body")
-        self.assertRegex(block, r"html\.print-all \.wl-title[^{]*\.raid-title \{[^}]*white-space: normal[^}]*overflow: visible", "a Dashboard row title is whole on paper")
+        self.assertRegex(block, r"html\.print-all \.wl-title[^{]*\{[^}]*white-space: normal[^}]*overflow: visible", "a Dashboard row title is whole on paper")
         self.assertRegex(block, r"html\.print-all \.msl-cells\.msl-cells\[role=button\] \{[^}]*padding: 5px var\(--space-2\) 5px 18px", "the list row keeps its left room")
         jsx = (PAGE_SRC / "components" / "MsTimeline.jsx").read_text(encoding="utf-8")
         self.assertIn("x(m) <= W - PRINT_TAIL", jsx, "a month name too near the line's end is left off on paper")
