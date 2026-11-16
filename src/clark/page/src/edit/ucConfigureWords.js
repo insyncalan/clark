@@ -9,6 +9,10 @@ export const OF = (n) => `of ${n}`;
 export const SCROLL_LABEL = "Viewers can scroll the list";
 export const SAME_NOTE = "Edit uses the same number and scroll, so what you see is what viewers get.";
 export const SCROLL_HELP = (n) => `On: the list is ${n} rows tall and scrolls up and down to the rest. Off: viewers see only the first ${n}.`;
+export const TRACKER_LABEL = "Status tracker";
+export const TRACKER_GROUP = "Tracker position";
+export const TRACKER_WORDS = { top: "Top", bottom: "Bottom", off: "Off" };
+export const TRACKER_HELP = "The count by status and the bar. Top or bottom of the list, or off.";
 export const DONE = "Done";
 
 // Not ruled yet (no ruling): nothing here may be treated as final wording.

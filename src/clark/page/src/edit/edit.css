@@ -1387,3 +1387,6 @@ table.items .c-x-id, table.items .c-x-type { width: 100px; }
 .fi-crop-h.sw { left: -8px; bottom: -8px; cursor: nesw-resize; } .fi-crop-h.se { right: -8px; bottom: -8px; cursor: nwse-resize; }
 .fi-crop-acts { display: flex; gap: var(--space-2); flex-wrap: wrap; }
 .fi-help { margin: 0; }
+
+.ucm-seg { display: inline-flex; gap: var(--space-2); }
+.ucm-seg .pk-btn[aria-pressed="true"] { font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
