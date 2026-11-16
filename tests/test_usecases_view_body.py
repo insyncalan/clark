@@ -18,6 +18,13 @@ def check(value):
     return sb.check("usecases", value if isinstance(value, str) else json.dumps(value), RULES)
 
 
+class PublishedPick(unittest.TestCase):
+    def test_published_picks_the_three_keys_by_name_and_nothing_else(self):
+        self.assertEqual(sb.published("usecases", {"n": 3, "scroll": True, "evil": 1}), {"n": 3, "scroll": True})
+        self.assertEqual(sb.published("usecases", {"tracker": "bottom", "x": "y"}), {"tracker": "bottom"})
+        self.assertEqual(sb.published("usecases", "text"), {})
+
+
 class Checker(unittest.TestCase):
     def test_the_type_is_registered_everywhere(self):
         self.assertIn("usecases", sb.BODY_TYPES)
