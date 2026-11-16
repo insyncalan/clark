@@ -6,6 +6,7 @@ Chrome). One chip for each state: its mark, its count and its word, under the la
 state. The Dashboard has no Legend any more; the Milestones page keeps its Legend and has no tracker. Widths 1400 and 900 only.
 """
 import json
+import shutil
 import tempfile
 import unittest
 from unittest import mock
@@ -14,6 +15,7 @@ from _demo import USER, DemoStore
 
 from clark import page, server as sv
 from test_server import Running, chrome, wait
+from test_milestones_page import publish_with_plants
 from test_work_items import FIXED_DATE, page_target
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
@@ -84,6 +86,33 @@ class Tracker(unittest.TestCase):
                 sid = self.visit(cdp, "#milestones&p=ABC", width, False, ".mv-wrap")
                 self.assertEqual(cdp.js("document.querySelectorAll('.msv[data-place=page] .mlg').length", sid), 1)
                 self.assertEqual(cdp.js("document.querySelectorAll('[data-tracker]').length", sid), 0)
+
+    def test_a_published_file_says_the_clients_words_and_has_no_cancelled_chip(self):
+        demo, folder, path, _ids = publish_with_plants()
+        self.addCleanup(demo.close)
+        self.addCleanup(shutil.rmtree, folder, True)
+        with chrome() as cdp:
+            sid = page_target(cdp)
+            cdp.call("Page.navigate", {"url": path.as_uri()}, sid)
+            self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready === '1'", sid), 10))
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-tracker]')", sid), 10), "the file draws the tracker")
+            got = cdp.js("[...document.querySelectorAll('[data-tracker]')[0].querySelectorAll('[data-tracker-state]')].map((c) => [c.dataset.trackerState, c.textContent.trim()])", sid)
+        self.assertEqual([s for s, _ in got], STATES[:-1], "no Cancelled chip in a file")
+        words = dict(got)
+        self.assertRegex(words["Slipped"], r"^\d+ Expected later$")
+        self.assertRegex(words["Overdue"], r"^\d+ Late$")
+        self.assertNotIn("Slipped", words["Slipped"])
+        self.assertNotIn("Overdue", words["Overdue"])
+
+    def test_every_chip_has_a_title_and_only_empty_chips_are_zero(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp, "#dashboard&p=ABC", 1400, False, ".msv .msl-row")
+            got = cdp.js("[...document.querySelectorAll('.msv[data-place^=sec-] [data-tracker-state]')].map((c) => ({n: Number(c.dataset.n), title: c.getAttribute('title'), zero: c.classList.contains('zero')}))", sid)
+        self.assertEqual(len(got), len(STATES))
+        for c in got:
+            self.assertTrue(c["title"] and c["title"].strip(), "the chip says what its state means")
+            self.assertEqual(c["zero"], c["n"] == 0, "the dim class is on a chip with none, and only there")
+        self.assertTrue(any(c["zero"] for c in got) and any(not c["zero"] for c in got), "both kinds are in the data")
 
 
 if __name__ == "__main__":
