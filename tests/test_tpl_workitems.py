@@ -992,6 +992,31 @@ class InThePage(PageBase):
                                  f"(document.querySelector('[data-id=\"{ref}\"] .wil-form'))"), "Sort by and Most rows sit in it")
             self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-form [data-field=caption]')"), "the Caption box left the form block")
 
+    def test_the_gear_opens_configure_with_sort_rows_and_columns_and_escape_closes_it(self):
+        # Row 1268 (the approved mock-up): a gear opens "Configure this list"; Sort by, Most rows and the columns are in it.
+        ref = self.add({}, title="Gear")
+        root = f"[data-id=\"{ref}\"]"
+        with chrome() as cdp:
+            p = self.show(cdp, 1400)
+            p.edit()
+            p.until(f"!!document.querySelector('{root} [data-wil-gear]')", "the gear drew")
+            dlg = f"{root} .wil-cfg"
+            self.assertTrue(p.js(f"document.querySelector('{dlg}').hidden"), "closed at first")
+            self.assertEqual(p.js(f"document.querySelector('{root} [data-wil-gear]').getAttribute('aria-expanded')"), "false")
+            p.js(f"document.querySelector('{root} [data-wil-gear]').click()")
+            p.until(f"!document.querySelector('{dlg}').hidden", "the gear opened it")
+            self.assertEqual(p.js(f"document.querySelector('{root} [data-wil-gear]').getAttribute('aria-expanded')"), "true")
+            self.assertEqual(p.js(f"document.querySelector('{dlg} h4').textContent"), "Configure this list")
+            self.assertTrue(p.js(f"['sort', 'max', 'columns'].every(n => !!document.querySelector('{dlg} [data-field=' + n + ']'))"), "Sort by, Most rows, Columns in it")
+            self.assertFalse(p.js(f"!!document.querySelector('{dlg} [data-field=caption]')"), "the caption box stays under the list")
+            p.js(f"document.querySelector('{dlg} select').focus()")
+            p.key("Escape", code="Escape", vk=27)
+            p.until(f"document.querySelector('{dlg}').hidden", "Escape closed it")
+            self.assertTrue(p.js(f"document.activeElement === document.querySelector('{root} [data-wil-gear]')"), "focus back on the gear")
+            p.js(f"document.querySelector('{root} [data-wil-gear]').click()")
+            p.js(f"document.querySelector('{root} [data-wil-cfgdone]').click()")
+            p.until(f"document.querySelector('{dlg}').hidden", "Done closed it")
+
     def test_the_caption_box_comes_after_the_list_at_both_widths(self):
         # Row 1113, wish 2: the caption is shown under the list, so its box is the last thing in the editing panel.
         ref = self.add({"mode": "all", "caption": "Fictional caption"})

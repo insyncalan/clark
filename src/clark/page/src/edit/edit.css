@@ -637,6 +637,17 @@ textarea.tpl-field { resize: vertical; }
 .wil-sel { display: grid; gap: var(--space-1); align-content: start; min-width: 0; }
 .wil-sel span { font-size: var(--size-caption); color: var(--text-muted); font-weight: var(--weight-medium); }
 .wil-sel select, .wil-sel input { min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-small); }
+/* row 1268: the gear and its Configure box (Sort by, Most rows, Columns), as the approved mock-up draws them. Tokens only. */
+.wil-cw { position: relative; grid-column: 1 / -1; display: flex; justify-content: flex-end; }
+.wil-gear { display: inline-flex; align-items: center; justify-content: center; min-width: 36px; min-height: 36px; border: 1px solid var(--grey-300); border-radius: 50%; background: var(--surface); color: var(--text); cursor: pointer; }
+.wil-gear:hover, .wil-gear[aria-expanded=true] { background: var(--grey-100); }
+.wil-gear:focus-visible, .wil-cacts button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.wil-cfg { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; width: min(320px, 100%); box-sizing: border-box; display: grid; gap: var(--space-3); padding: 14px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); box-shadow: 0 10px 30px rgba(6, 47, 58, 0.2); }
+.wil-cfg[hidden] { display: none; }
+.wil-cfg h4 { margin: 0; font-size: var(--size-body); }
+.wil-cfg .wil-opts { display: grid; grid-template-columns: 1fr 1fr; }
+.wil-cacts { display: flex; justify-content: flex-end; }
+.wil-cacts button { min-height: 36px; padding: 0 20px; border: 0; border-radius: 999px; background: var(--grey-100); color: var(--text); font: inherit; font-weight: var(--weight-medium); cursor: pointer; }
 .wil-capbox { margin: var(--space-2) 0 0; }
 .wil-none { margin: var(--space-2) 0; padding: 10px var(--space-3); border: 1px dashed var(--grey-300); border-radius: var(--radius); color: var(--text); font-size: var(--size-small); }
 .wil-live tbody tr, .wil-live li { cursor: pointer; }
