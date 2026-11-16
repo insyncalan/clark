@@ -11,7 +11,7 @@ import { isChanged, WORD } from "../stores/changed.js";
 import { fromFile } from "../stores/report.js";
 import { showDate, subLine, railRows, railWord, RAIL } from "../logic/milestones.js";
 import { recall, remember } from "../logic/remember.js";
-import { MS_EDIT_SCROLL_ON, MS_EDIT_SCROLL_OFF, MS_VIEW_ON, MS_VIEW_OFF, MS_REGION } from "../edit/ucConfigureWords.js";
+import { MS_VIEW_ON, MS_VIEW_OFF, MS_REGION } from "./msViewWords.js";
 import { defsOf, standardIds } from "../logic/tableColumns.js";
 import { visibleItems, scrollRows } from "../logic/useCaseView.js";
 
@@ -66,7 +66,7 @@ const XCELL = { id: (r) => r.id, description: (r) => r.description, workstream: 
   forecast: (r) => (r.forecast ? showDate(r.forecast) : ""), order: (r) => String(r.sort_order), reason: (r) => r.reason };
 const xText = (id, r) => { const t = String((XCELL[id] || (() => ""))(r) || "").trim(); return t || "—"; };
 
-function MsRows({ view, rows, place, open, internalTag, Eye, More, left, legend, canFold = true, vars, hd, cols = STD, menu }) {
+function MsRows({ view, rows, place, open, internalTag, Eye, Note, More, left, legend, canFold = true, vars, hd, cols = STD, menu }) {
   const on = (id) => cols.includes(id), off = (id) => (on(id) ? "" : " cols-off");
   const [all, setAll] = useState(() => !fromFile.value && !!recall(`msAll.${place}`, false));
   // Row 1230: with a view setting (the Dashboard's section) the number shown and the scrolling come from it, as the Use case summary does: Edit scrolls once a number is stored,
@@ -75,7 +75,7 @@ function MsRows({ view, rows, place, open, internalTag, Eye, More, left, legend,
   const shown = !view ? railRows(rows, all) : scrolls ? rows : visibleItems(rows, view, view.set ? false : all);
   const more = view ? !scrolls && !view.set && rows.length > (view.n === "all" ? rows.length : view.n) : rows.length > RAIL;
   const cut = !!view && view.set && view.n !== "all" && view.n < rows.length;      // a number is stored and fewer than the rows: the notes below say so
-  const note = !cut ? "" : Eye ? (view.scroll ? MS_EDIT_SCROLL_ON : MS_EDIT_SCROLL_OFF)(view.n, rows.length) : (view.scroll ? MS_VIEW_ON : MS_VIEW_OFF)(view.n, rows.length);
+  const note = !cut ? "" : Eye && Note ? Note(view.scroll, view.n, rows.length) : (view.scroll ? MS_VIEW_ON : MS_VIEW_OFF)(view.n, rows.length);
   const list = useRef(null);
   const fit = () => {      // the list is as tall as its first `high` rows, measured, so n rows fit exactly whatever their height
     const ul = list.current;

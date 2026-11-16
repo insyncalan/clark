@@ -49,7 +49,7 @@ export function MsBlock({ place, tools, section }) {
         {view === "cal" ? <MsCalendar rows={rows} today={today} open={open} place={place} client={client} /> : <MsTimeline rows={rows} today={today} place={place} open={open} client={client} />}
       </div>
       {side.above ? <MsTracker rows={rows} client={client} /> : null}
-      <MsList CW={CW} CM={CM} view={cfg} rows={rows} place={place} open={open} internalTag={!client} Eye={Eye} More={More} left={left} legend={place === "page" ? <MsLegend client={client} id={place} /> : null} />
+      <MsList CW={CW} CM={CM} view={cfg} rows={rows} place={place} open={open} internalTag={!client} Eye={Eye} Note={tools ? tools.msNote : null} More={More} left={left} legend={place === "page" ? <MsLegend client={client} id={place} /> : null} />
       {AddBack ? <AddBack /> : null}
       {side.below ? <MsTracker rows={rows} client={client} /> : null}      {/* row 1230: the Dashboard's section ends in the status tracker, which replaces its Legend; the Milestones page keeps the Legend */}
     </div>
