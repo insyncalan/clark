@@ -384,6 +384,8 @@ class PageGate(unittest.TestCase):
         s = self.serve(self.page_on)
         with chrome() as cdp:
             js, sid = self.edit(cdp, s)
+            cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)      # the editor ignores a blur while document.hasFocus() is false (RichText away); a headless page on macOS is not focused
+            self.assertTrue(wait(lambda: js("document.hasFocus()"), 10), "the page has the focus")
             self.open_field(cdp, js, sid)
             x, y = js("(() => { const r = document.querySelector('.sec[data-type=milestones] h2, .sec h2').getBoundingClientRect(); return [r.x + 4, r.y + r.height / 2]; })()")
             for kind in ("mousePressed", "mouseReleased"):

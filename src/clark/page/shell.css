@@ -220,7 +220,8 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 .pkt-table td { padding: var(--space-2); border-bottom: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; }
 .pkt-table tbody tr { cursor: pointer; }
 .pkt-table tbody tr:hover, .pkt-table tbody tr.on { background: var(--grey-50); }
-.pkt-table td.num, .pkt-table th:nth-child(7), .pkt-table th:nth-child(8) { text-align: right; }
+.pkt-table td.num, .pkt-table th.num { text-align: right; }
+.pkt-table th.pkt-tick { width: 32px; }
 .pkt-table input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .pkt-panel { position: absolute; z-index: 5; top: 96px; left: 20px; right: 20px; display: flex; min-height: 240px; max-height: 70%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-small); }
 .pkt-fields { list-style: none; margin: 0; padding: var(--space-2); width: 180px; flex: none; border-right: 1px solid var(--grey-100); }
@@ -228,6 +229,10 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 .pkt-field[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); }
 .pkt-field:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .pkt-more { padding: var(--space-3) var(--space-2) var(--space-1); font-size: var(--size-caption); text-transform: uppercase; letter-spacing: var(--tracking-caps); color: var(--text-muted); }
+.pkt-find { padding: 0 0 var(--space-1); }
+.pkt-find input { box-sizing: border-box; width: 100%; padding: 4px var(--space-2); border: 1px solid var(--border); border-radius: var(--radius); font: inherit; }
+.pkt-field .pkt-set { float: right; font-size: var(--size-caption); color: var(--text-muted); }
+.pkt-values .pkt-any { align-self: center; color: var(--text-muted); }
 .pkt-values { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; padding: var(--space-2) 0; }
 .pkt-values .isnot { display: flex; gap: var(--space-1); padding: 0 var(--space-3) 6px; }
 .pkt-values .isnot button { all: unset; padding: 3px 10px; border-radius: var(--radius-pill); cursor: pointer; color: var(--text-muted); }
@@ -1232,14 +1237,16 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .msl-row .node { position: absolute; left: -7px; top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; background: var(--surface); border: 2px solid var(--grey-500); }
 .node.c-green { border-color: var(--status-green); } .node.c-amber { border-color: var(--status-amber); } .node.c-red { border-color: var(--status-red); } .node.c-blue { border-color: var(--status-blue); }
 .node.fill.c-green { background: var(--status-green); }
-.msl-date b { display: block; font-weight: var(--weight-medium); line-height: 17px; }
+.msl-date b { display: block; font-weight: var(--weight-medium); line-height: 17px; } .msl-agr { font-size: var(--size-small); }
+.msl-box:not([data-place="page"]) .msl-cells { grid-template-columns: minmax(140px, 1fr) 130px 100px minmax(150px, 190px) 120px; }   /* row 1230: the Dashboard section's five columns; the Milestones page keeps its four */
 /* Row 1020: a row is one compact line (date, name, state, progress) and a small second line (Agreed, or Expected a date and days later, in red) under the date and name. */
 .msl-cells > * { grid-row: 1; } .msl-cells > .msl-sub { grid-row: 2; grid-column: 1 / 3; display: block; margin-top: -1px; font-size: var(--size-caption); line-height: 13px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .msl-sub.late { color: var(--status-red-text); }
+.msl-date .msl-sub { display: block; margin-top: 0; font-size: var(--size-caption); line-height: 13px; color: var(--text-muted); overflow-wrap: anywhere; }
 .msl-name { font-weight: var(--weight-medium); line-height: 17px; }
 /* C-M10: at laptop widths the date's second line ("Expected a date · N days later") reads on one line, so the date cell is wide enough for it;
    a long name wraps inside its own cell, and below this width the line may wrap as before. */
 .msl-name { min-width: 0; overflow-wrap: anywhere; }
-@media (min-width: 1201px) { .msl-cells { grid-template-columns: minmax(240px, 17rem) minmax(160px, 1fr) 150px 130px; } }
+@media (min-width: 1201px) { .msl-cells { grid-template-columns: minmax(240px, 17rem) minmax(160px, 1fr) 150px 130px; } .msl-box:not([data-place="page"]) .msl-cells { grid-template-columns: minmax(180px, 1fr) 150px 110px minmax(170px, 14rem) 130px; } }
 .mst { display: inline-flex; align-items: center; gap: 6px; font-size: var(--size-caption); font-weight: var(--weight-medium); } .mst .ms-i { width: 16px; height: 16px; flex: none; }
 .mst.c-green { color: var(--status-green-text); } .mst.c-amber { color: var(--status-amber-text); } .mst.c-red { color: var(--status-red-text); } .mst.c-blue { color: var(--status-blue-text); } .mst.c-grey { color: var(--text-muted); }
 .msl-prog { display: flex; align-items: center; gap: var(--space-2); font-size: var(--size-caption); }
@@ -1280,7 +1287,8 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 @media (max-width: 900px) { .cal-d { min-height: 64px; } .cal-q { grid-template-columns: 1fr; } }
 /* C-M11 (row 24): a list row keeps its columns (date, name, state, progress) down to 801 px, as the prototype's does (app.css:849);
    only at 800 px and below do the cells stack in two columns (app.css:875). */
-@media (max-width: 800px) { .msl-cells { grid-template-columns: auto 1fr auto; padding: 5px var(--space-2) 5px 18px; column-gap: var(--space-3); row-gap: 1px; } .msl-cells > .msl-name { grid-column: 2 / 4; } .msl-cells > .msl-sub { grid-column: 1 / 4; margin-top: 0; white-space: normal; } .msl-cells > .mst { grid-row: 3; grid-column: 1 / 3; } .msl-cells > .msl-prog { grid-row: 3; grid-column: 3; min-width: 110px; } .msl-row:not(:last-child)::after { left: 18px; } }   /* narrow (row 1020): date and name, the second line, then the state and the progress; never two columns of half-empty cells */
+@media (max-width: 800px) { .msl-cells { grid-template-columns: auto 1fr auto; padding: 5px var(--space-2) 5px 18px; column-gap: var(--space-3); row-gap: 1px; } .msl-cells > .msl-name { grid-column: 2 / 4; } .msl-cells > .msl-sub { grid-column: 1 / 4; margin-top: 0; white-space: normal; } .msl-cells > .mst { grid-row: 3; grid-column: 1 / 3; } .msl-cells > .msl-prog { grid-row: 3; grid-column: 3; min-width: 110px; } .msl-row:not(:last-child)::after { left: 18px; }
+  .msl-box:not([data-place="page"]) .msl-cells { grid-template-columns: 1fr 1fr; row-gap: 2px; } .msl-box:not([data-place="page"]) .msl-cells > .msl-name { grid-column: 1 / 3; } .msl-box:not([data-place="page"]) .msl-cells > * { grid-row: auto; } }   /* narrow: the page's date and name, the second line, then the state and the progress; the Dashboard section (row 1230): name over the cells, two to a line, no heading row (edit.css) */
 @media (max-width: 700px) { .cal-list { display: block; } .cal-ms span { display: none; } .cal-ms { justify-content: center; } }   /* the cells keep their marks, the names go, the period is listed under the month */
 .mlg { position: relative; display: flex; justify-content: flex-end; margin: 6px 0 2px; }
 .mlg-b { all: unset; display: inline-flex; align-items: center; box-sizing: border-box; min-height: 28px; min-width: 28px; gap: var(--space-1); font-size: var(--size-caption); color: var(--text-muted); cursor: help; padding: 2px var(--space-1); border-radius: var(--radius-sm); }
@@ -2815,3 +2823,5 @@ html:has(.top-hdr) { --topbar: 85px; }
 html:has(.top-hdr) body:not(.board-view) #sel-bar { top: var(--topbar); }
 html:has(.top-hdr) .sec, html:has(.top-hdr) main [data-id], html:has(.top-hdr) main [id] { scroll-margin-top: calc(var(--topbar) + 16px); }
 html:has(.top-hdr) body.board-full .top-hdr { display: none; }
+.pkt-name { display: inline-flex; align-items: center; gap: 8px; } .pkt-name .ms-i { width: 16px; height: 16px; flex: none; }
+.pkt-opts label.zero { color: var(--text-muted); opacity: 0.6; cursor: default; }
