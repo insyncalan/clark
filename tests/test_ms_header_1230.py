@@ -185,14 +185,14 @@ class Header(Base):
                       self.assertGreaterEqual(got["barPad"], 200, "the bar still leaves room for the switch")
 
 
-# Nine milestones about two weeks apart: the labels need tiers, and a leader can always stay clear of the other labels.
+# Nine milestones about two weeks apart: the labels need tiers (this fixture fits in four; the code allows TIER_MAX, 12), and a leader can always stay clear of the other labels.
 
 
 class Spread(Base):
     ROWS = [(f"Phase {n} sign-off", d, f) for n, (d, f) in enumerate([("2026-10-02", None), ("2026-10-18", "2026-11-02"), ("2026-11-03", None), ("2026-11-20", None),
                                                                       ("2026-12-08", "2026-12-22"), ("2026-12-26", None), ("2027-01-12", None), ("2027-01-30", None), ("2027-02-15", None)])]
 
-    def test_every_name_is_shown_in_up_to_four_tiers_with_a_leader_to_its_mark(self):
+    def test_nine_marks_about_two_weeks_apart_are_all_named_in_at_most_four_tiers_each_with_a_leader(self):
         for width, edit in CASES:
             with self.subTest(width=width, edit=edit), self.case(width, edit) as (cdp, sid, got):
                 self.assertGreaterEqual(got["solid"], 9)
