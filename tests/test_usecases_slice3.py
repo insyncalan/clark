@@ -50,8 +50,8 @@ class UseCasesSlice3(unittest.TestCase):
 
     def test_view_and_edit_draw_the_built_in_parts(self):
         src = (PAGE / "components" / "Section.jsx").read_text(encoding="utf-8")
-        self.assertIn('section.type === "usecases" ? <UseCases tools={tools} />', src)
-        self.assertIn('section.type === "usecases" && tools.ucEdit ? <tools.ucEdit.Add />', src, "the section header keeps its Add control")
+        self.assertIn('section.type === "usecases" ? <UseCases tools={tools} section={section} />', src)
+        self.assertIn('section.type === "usecases" && tools.ucEdit ? <><tools.ucEdit.Configure section={section} /><tools.ucEdit.Add /></>', src, "the section header keeps its Add control")
 
     def test_word_excel_and_the_published_file_read_the_section_by_its_type(self):
         self.assertTrue(callable(docx_build.section_usecases))

@@ -126,9 +126,20 @@ class Head(Base):
             if 0 <= at[0] <= at[2] and 0 <= at[1] <= at[3]:
                 break
         self.assertTrue(0 <= at[0] <= at[2] and 0 <= at[1] <= at[3], f"the {name} chip is inside the window to be clicked: {at}; scrollY={p.js('scrollY')}")
-        for kind in ("mouseMoved", "mousePressed", "mouseReleased"):
-            params = {"type": kind, "x": at[0], "y": at[1], "button": "none" if kind == "mouseMoved" else "left",
-                      "buttons": 1 if kind == "mousePressed" else 0, "clickCount": 0 if kind == "mouseMoved" else 1}
+        # The pointer goes to the chip and the press waits until the real element is under it: a layout shift or a late scroll between the
+        # measure and the press (macOS: slow frames) would put the press on another row. The wait only moves the pointer (no press) until the chip is under it at the same point twice running; then one press, one release.
+        under = {}
+
+        def on_chip():
+            now = p.js(f"(function(){{ var b = {find}, r = b.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2; return [x, y, document.elementFromPoint(x, y) === b]; }})()")
+            if under.get("at") == now[:2] and now[2]:
+                return True
+            under["at"] = now[:2]
+            p.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": now[0], "y": now[1], "button": "none", "buttons": 0, "clickCount": 0}, p.sid)
+            return False
+        self.assertTrue(wait(on_chip, 15), f"the pointer is on the {name} menu item and it stopped moving")
+        for kind in ("mousePressed", "mouseReleased"):
+            params = {"type": kind, "x": under["at"][0], "y": under["at"][1], "button": "left", "buttons": 1 if kind == "mousePressed" else 0, "clickCount": 1}
             p.cdp.call("Input.dispatchMouseEvent", params, p.sid)
         p.js("""(function(){ window.__trail = [];
           [0, 100, 500, 2000].forEach(function(ms){ setTimeout(function(){ window.__trail.push('+' + ms + 'ms scrollY=' + Math.round(window.scrollY)); }, ms); });
@@ -182,8 +193,10 @@ class Head(Base):
                     self.assertEqual(p.js("location.hash"), address(slug, "PUB"), "the page is in the address")
                     head_id = cards[0][1]
                     p.cdp.call("Input.dispatchMouseEvent", {"type": "mouseWheel", "x": p.js("innerWidth") - 60, "y": 300, "deltaX": 0, "deltaY": -3000}, p.sid)      # each page keeps the place it was left at (router.js): a wheel up to the top of it
+                    in_view = f"(function(){{var r = document.getElementById('{head_id}').getBoundingClientRect(); return r.top >= 56 && r.top < window.innerHeight;}})()"
+                    wait(lambda: p.js(in_view), 15)      # the wheel's scroll starts later than the wheel is sent (macOS), and a settled read before it starts sees a still page: wait for the heading itself
                     p.settled("the scroll to the top finished")
-                    self.assertTrue(p.js(f"(function(){{var r = document.getElementById('{head_id}').getBoundingClientRect(); return r.top >= 56 && r.top < window.innerHeight;}})()"),
+                    self.assertTrue(p.js(in_view),
                                     f"{head_id} starts in view, clear of the top bar: " + p.js("'top=' + document.getElementById('" + head_id + "').getBoundingClientRect().top + ' scrollY=' + scrollY"))
 
     def test_C_keyboard_tab_to_a_menu_item_and_enter(self):

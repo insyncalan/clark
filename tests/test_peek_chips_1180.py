@@ -197,7 +197,7 @@ class Chips(unittest.TestCase):
             self.assertEqual(list(dec["chips"]), ["status", "priority", "owner", "due"], "row 1195: a decision has a priority (peek_priority), so its chip row has Priority")
             self.open_item(cdp, sid, "TUL-007")
             click(cdp, sid, "#peek .pk-chips [data-row=priority]")
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pop].rpick')", sid)), "a risk's priority opens the impact and likelihood picker")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pop].rmatrix .rmx')", sid)), "rows 1182 1183: a risk's rating opens the 3 x 3 impact and likelihood matrix")
 
     def decision(self):
         return next(r["id"] for r in self.data["decisions"])

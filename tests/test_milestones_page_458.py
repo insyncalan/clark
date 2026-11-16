@@ -453,26 +453,36 @@ class Page(Base):
 
     def test_text_typed_in_the_note_editor_is_not_overwritten_when_the_data_is_read_again(self):      # #603, now the one rich editor
         IN = "document.activeElement && !!document.activeElement.closest('#mvNote .ProseMirror')"
+        SAVED = "(document.querySelector('.toast .toast-text') || {}).textContent === 'Note saved. Undo.'"
+        def two_frames():          # the editor hands the focus to the text a frame later: a select-all sent before it is undone
+            p.js("window.settled = false; requestAnimationFrame(() => requestAnimationFrame(() => { window.settled = true; })); true")
+            p.until("window.settled === true", "two frames have passed")
+        def typed(words):
+            p.js("document.execCommand('selectAll')")
+            p.type(words)
+            p.until("document.querySelector('#mvNote .ProseMirror') && document.querySelector('#mvNote .ProseMirror').textContent === %s" % json.dumps(words), "the words are in the editor")
         with chrome() as cdp:
             p = self.visit(cdp)
             self.open_movement(p)
+            p.until("!!document.querySelector('#mvNote .rt-view')", "the note box drawn")
             p.js("document.querySelector('#mvNote .rt-view').click()")
             p.until(IN, "the editor opened")
-            p.js("document.execCommand('selectAll')")
-            p.type("First note")
+            two_frames()
+            typed("First note")
             p.js("document.activeElement.blur()")
-            p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Note saved. Undo.'", "the toast")
+            p.until(SAVED, "the toast")
+            p.until("document.querySelector('#mvNote .rt-view') && document.querySelector('#mvNote .rt-view').textContent === 'First note'", "the box shows what was saved")
             p.js("document.querySelector('#mvNote .rt-view').click()")
             p.until(IN, "the editor opened again")
-            p.js("document.execCommand('selectAll')")
-            p.type("Half a sentence")
+            two_frames()
+            typed("Half a sentence")
             p.js("document.querySelector('.toast [data-undo]').click()")      # a script click leaves the focus in the editor: the data is read again under the typing
             p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Undone.'", "Undone")
             p.until("(window.__t = window.__t || Date.now(), Date.now() - window.__t > 800)", "a beat for the re-read to be drawn")
             self.assertEqual(self.row(GO_LIVE)["internal_note"], INTERNAL)
             self.assertEqual(p.js("document.querySelector('#mvNote .ProseMirror').textContent"), "Half a sentence", "the typing is kept")
             p.js("document.activeElement.blur()")
-            p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Note saved. Undo.'", "the typing saves when the editor is left")
+            p.until(SAVED, "the typing saves when the editor is left")
             self.assertEqual(self.row(GO_LIVE)["internal_note"], "<p>Half a sentence</p>")
 
     def test_the_movement_buttons_fit_at_both_widths_in_both_themes(self):
