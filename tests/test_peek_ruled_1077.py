@@ -221,7 +221,7 @@ class Browser(Peeks):
                 for sel in (".pk-tabs", "[data-sneak]", "[data-pk-latest]", "[data-pk-title-in]", "[data-pk-needed]"):
                     self.assertFalse(cdp.js(f"!!document.querySelector('#peek {sel}')", sid), f"{sel} is the editor's alone")
                 client = self.labels(cdp, sid)
-                self.assertTrue(len(client) >= 3, client)      # rows 1181 and 1256: Status, Owner, Due and Priority are chips, not rows; a risk keeps Workstream, Milestone and Raised (no Use case, Client wording or Last reviewed)
+                self.assertTrue(len(client) >= 4, client)      # rows 1181 and 1256: Status, Owner, Due and Priority are chips, not rows; a risk keeps Workstream, Milestone, Use case and Raised (no Client wording or Last reviewed)
                 self.to_edit(cdp, sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-tabs')", sid)), "Edit: the tabs are drawn")
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-htab=source]')", sid)), "Edit keeps Source (row 1180: it is the Source tab of the history)")

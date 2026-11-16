@@ -15,7 +15,7 @@ from test_server import chrome, wait  # noqa: E402
 from test_work_filters import click  # noqa: E402
 
 ACTION = "TUL-A-001"
-RISK = "TUL-007"     # rows 1181 and 1256: an action, a risk and an issue no longer draw Client wording or a Use case picker (their Details rows), so those tests use a decision
+RISK = "TUL-007"     # rows 1181 and 1256: an action no longer draws a Use case picker, and no action, risk or issue draws Client wording; those tests use a risk (Use case) or a decision (Client wording)
 SRC = ROOT / "src/clark/page/src"
 
 
@@ -203,11 +203,13 @@ class Picks(Fields):
     def shown(self, cdp, sid, field):
         return cdp.js(f"(b => b ? b.textContent : null)(document.querySelector('#peek [data-pk-pick={field}]'))", sid)
 
-    def test_workstream_and_milestone_are_chosen_in_the_peek_each_with_one_undo(self):
+    def test_workstream_milestone_and_use_case_are_chosen_in_the_peek_each_with_one_undo(self):
         a = self.raid(RISK)
         other_ws = next(w["name"] for w in self.data["workstreams"] if w["name"] != a["workstream"] and w["status"] != "Closed" and not w.get("archived"))
         other_ms = next(m for m in self.data["milestones"] if m["id"] != a["milestone"] and not m.get("archived"))
-        cases = [("workstream", other_ws, other_ws, "Workstream"), ("milestone", other_ms["id"], other_ms["name"], "Milestone")]
+        other_uc = next(u for u in self.data["use_cases"] if u["id"] != a["use_case"] and not u.get("archived"))
+        cases = [("workstream", other_ws, other_ws, "Workstream"), ("milestone", other_ms["id"], other_ms["name"], "Milestone"),
+                 ("use_case", other_uc["id"], f"Use case {other_uc['ref']}", "Use case")]
         for width, dark in self.widths():
             for field, value, words, name in cases:
                 with self.subTest(width=width, dark=dark, field=field), chrome() as cdp:
@@ -221,7 +223,9 @@ class Picks(Fields):
                     self.assertTrue(wait(lambda: len(sent) == 1))
                     self.assertEqual((sent[0]["kind"], sent[0]["id"], sent[0]["changes"]), ("raid", RISK, {field: value}))
                     self.assertTrue(wait(lambda: self.shown(cdp, sid, field) == words))
-                    self.assertTrue(wait(lambda: f"{name} of {RISK} changed to {words}." in self.toast(cdp, sid)))
+                    self.assertTrue(wait(lambda: (f"{RISK}: use case changed to {other_uc['ref']}." if field == "use_case" else f"{name} of {RISK} changed to {words}.") in self.toast(cdp, sid)))
+                    if field == "use_case":
+                        self.assertNotIn("Use case of", self.toast(cdp, sid))
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.toast [data-undo]')", sid)))
                     cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
                     self.assertTrue(wait(lambda: self.shown(cdp, sid, field) == was), "one Undo puts it back")
@@ -243,13 +247,12 @@ class Picks(Fields):
             self.assertTrue(wait(lambda: self.shown(cdp, sid, "milestone") == "No milestone"))
 
     def test_the_none_choice_of_a_use_case_says_cleared(self):
-        ref = self.data["decisions"][0]["id"]      # row 1256: a risk no longer draws a Use case choice; a decision does
         with chrome() as cdp:
-            sent, sid = self.load(cdp, 1400, ref)
+            sent, sid = self.load(cdp, 1400, RISK)
             click(cdp, sid, "#peek [data-pk-pick=use_case]")
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[role=menu]')", sid)))
             cdp.js("document.querySelector(\"[role=menu] [data-value='']\").click()", sid)
-            self.assertTrue(wait(lambda: f"Use case of {ref} cleared." in self.toast(cdp, sid)))
+            self.assertTrue(wait(lambda: f"Use case of {RISK} cleared." in self.toast(cdp, sid)))
             self.assertTrue(wait(lambda: sent and sent[0]["changes"] == {"use_case": None}))
 
     def test_a_decision_has_a_use_case_choice_and_no_workstream_or_milestone_choice(self):
