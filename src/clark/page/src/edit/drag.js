@@ -34,11 +34,11 @@ let active = false;                              // one drag at a time: a second
 // Start a drag of section `id` from a pointerdown on `handle` (its element). `count` is how many sections there are.
 export function startDrag(e, handle, id, count) {
   if (e.button !== 0 || count < 2 || active || saving) return;
+  const start = freezeRects(rects());            // measured once, here: the preview moves the sections, so it is never measured again; before the drag is marked on, so a start that cannot measure blocks nothing
   active = true;
   e.preventDefault();
   const startX = e.clientX, startY = e.clientY;
   const scrollX = window.scrollX, scrollY = window.scrollY;
-  const start = freezeRects(rects());            // measured once, here: the preview moves the sections, so it is never measured again
   let dragging = false, cancelled = false, state = settleStart(), timer = 0, last = null, ptr = null, frame = 0;
   try { handle.setPointerCapture(e.pointerId); } catch (x) { /* a pointer that cannot be captured still drags */ }
   handle.focus();
