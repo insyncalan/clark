@@ -60,6 +60,20 @@ class TrackerControl(Setup):
                     p.until(f"document.querySelector('[data-tracker={pos}]').getAttribute('aria-pressed') === 'true'", "pressed")
                     self.assertEqual(self.pressed(p), pos, "exactly one is pressed")
 
+    def test_a_later_scroll_change_keeps_the_tracker_choice(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                put_view(self, {"n": 3, "scroll": False, "tracker": "bottom"})
+                p = self.show(cdp, width)
+                self.open_panel(p)
+                p.js("document.querySelector('#ucCfgS').click()")
+                for _ in range(100):
+                    v = self.stored()
+                    if v and v.get("scroll") is True:
+                        break
+                    time.sleep(0.1)
+                self.assertEqual(v, {"n": 3, "scroll": True, "tracker": "bottom"}, "the tracker kept when the switch is changed")
+
     def test_off_is_saved_drawn_and_read_back(self):
         put_view(self, None)
         with chrome() as cdp:
