@@ -8,8 +8,8 @@ import { Icon } from "./Icon.jsx";
 import { iconClass } from "../iconColours.js";
 
 /** The row. `children`: PeekChip elements. */
-export function PeekChips({ children, label = "Properties" }) {
-  return <div class="pk-chips" role="group" aria-label={label}>{children}</div>;
+export function PeekChips({ children, label = "Properties", cls = "" }) {
+  return <div class={`pk-chips${cls ? " " + cls : ""}`} role="group" aria-label={label}>{children}</div>;
 }
 
 /**

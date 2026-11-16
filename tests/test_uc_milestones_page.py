@@ -84,7 +84,7 @@ class Card(base.Detail):
                 click(cdp, sid, f"[data-ucd] [data-ms-open={DIRECT}]")
                 self.until(cdp, sid, "!!document.querySelector('#peek [data-ms-ucs]')", "the milestone peek names its use cases")
                 said = cdp.js("document.querySelector('#peek [data-ms-ucs]').textContent", sid)
-                self.assertEqual(said, "1.1 Paper files scanned and indexed", "the use case linked straight to it, by reference and title")
+                self.assertEqual(said, "UC 1.1 Paper files scanned and indexed", "the use case linked straight to it, by reference and title")
 
     def test_add_a_milestone_menu_links_it_directly(self):
         with chrome() as cdp:

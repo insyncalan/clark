@@ -153,6 +153,34 @@ export function change(req, done, named = null) {
   });
 }
 
+// Row 1184: several changes made as one (the milestone peek's Use case: the new link, then the old one's end). They run in order; the first that is
+// refused stops the rest (its toast says why, nothing after it is made). One message when done, with ONE Undo that takes all of the steps back
+// (undoSeveral, #197). A refusal after a step was made puts that step back too (the Use case's add stays out when the old link's end is refused), so no
+// half-made change is left with no Undo. Resolves to true when every change was made.
+export function changeSteps(reqs, done) {
+  const code = project.value;
+  return enqueue(async () => {
+    const steps = [];
+    let ok = true;
+    for (const req of reqs) {
+      const r = await sendChange(code, req);
+      if (!r.ok) { say("problem", r.message); ok = false; break; }
+      redraw(code, r.reply);
+      if (r.reply.apply_id) steps.push(r.reply.apply_id);
+    }
+    if (!ok && steps.length) {
+      const back = await sendUndoMany(code, steps, { confirm: false });      // the refusal's toast stays: the words of the undo are not said
+      if (back.ok) { redraw(code, back.reply); undone.value++; for (const x of steps) { const at = undoable.findIndex((u) => u.step === x); if (at >= 0) undoable.splice(at, 1); } }
+      else say("problem", back.message);
+    }
+    if (!(await readAgain(code, "The change was saved"))) return ok;
+    if (!ok) return false;
+    if (steps.length === 1) say("done", done, steps[0], code);
+    else if (steps.length > 1) sayLocalUndo("done", done, () => { undoSeveral(steps); });
+    return true;
+  });
+}
+
 // Move one work item on the board (#68): the work items are read again (reread, report.js) after it and after its undo, so
 // the page shows what clark saved. `done` is the toast's words; an Undo goes with it only when the reply says the step can be put
 // back (a decision made is not). A refusal is a note: nothing was changed and there is nothing to undo.
