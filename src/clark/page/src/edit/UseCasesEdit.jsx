@@ -34,6 +34,9 @@ import { KIND_WORDS, todayIso } from "../workItems.js";
 import { splitStep, knownNames, stepValues, linkable, openCount, narrow, KINDS, linkedWords, linkableMilestones } from "../logic/ucRow.js";
 import { peopleList } from "../stores/handover.js";
 import { CommitMenu } from "./CommitMenu.jsx";
+import { viewOf, bodyOf, ALL } from "../logic/useCaseView.js";
+import { isOn, liveOf } from "../logic/useCasesList.js";
+import * as W from "./ucConfigureWords.js";
 
 export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"]];
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
@@ -47,6 +50,10 @@ const openBox = (kind, uc = "", live = false) => { box.value = { kind, uc, live,
 const closeBox = () => { box.value = null; };
 /** Row 830: the Add box from the Use cases page, which has no View|Edit switch (the Dashboard's button only draws it in Edit). */
 export const openAdd = () => openBox("add", "", true);
+
+/** Row 1234: save the summary's view {n, scroll, tracker} into the section's body: one change, one Undo, the route every section body takes. */
+export const saveView = (id, view) => change({ op: "update", id, changes: { body: bodyOf(view) }, place: "cell" }, "Saved.");
+const sectionOf = (id) => ((data.value && data.value.report_sections) || []).find((x) => x.id === id) || null;
 
 /** The id of the use case just added: the summary opens its row (UseCases.jsx reads it once and clears it). */
 export const added = signal("");
@@ -127,6 +134,42 @@ function AddBox({ onClose, opener }) {
           <button type="submit" class="pk-btn pri" data-place disabled={busy}>Add</button>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+/** Row 1234: the Configure button in the section's header, Edit only (Section.jsx draws it only when `tools.ucEdit` has it). */
+export function Configure({ section }) {
+  return <button type="button" class="pk-btn uc-configure" data-edit-only data-uc-configure onClick={() => openBox("configure", section.id)}>{W.CONFIGURE}</button>;
+}
+
+// "Configure use cases": the number shown and whether viewers scroll. Each change is kept at once (no Save), so Edit draws what it draws.
+function ConfigureBox({ id, onClose, opener }) {
+  const first = useRef(null), v = viewOf(sectionOf(id), false);
+  const setView = (patch) => saveView(id, { n: v.n, scroll: v.scroll, tracker: v.tracker, ...patch });
+  const total = liveOf(data.value).filter(isOn).length;
+  const counts = Array.from({ length: Math.max(total, 1) }, (_, i) => i + 1);
+  if (v.n !== ALL && !counts.includes(v.n)) counts.push(v.n);
+  const n = v.n === ALL ? total : v.n;
+  useLayoutEffect(() => { if (first.current) first.current.focus(); }, []);
+  return (
+    <Modal onClose={onClose} opener={opener}>
+      <div class="ad ucm" id="ucCfg" role="dialog" aria-modal="true" aria-labelledby="uccfg-title">
+        <div class="ad-head"><h2 id="uccfg-title">{W.TITLE}</h2></div>
+        <div class="ucm-form">
+          <label for="ucCfgN">{W.NUMBER_LABEL}</label>
+          <span><select class="field" id="ucCfgN" ref={first} value={String(v.n)} aria-label={W.SHOWN_LABEL}
+            onChange={(e) => setView({ n: e.currentTarget.value === ALL ? ALL : Number(e.currentTarget.value) })}>
+            {counts.sort((a, b) => a - b).map((c) => <option key={c} value={String(c)}>{c}</option>)}
+            <option value={ALL}>{W.ALL_WORD}</option>
+          </select> <span data-uc-of>{W.OF(total)}</span></span>
+          <label for="ucCfgS">{W.SCROLL_LABEL}</label>
+          <input type="checkbox" id="ucCfgS" role="switch" checked={v.scroll} onChange={(e) => setView({ scroll: e.currentTarget.checked })} />
+        </div>
+        <p class="muted" data-uc-cfg-help style="margin:0 var(--space-5)">{W.SCROLL_HELP(n)}</p>
+        <p class="muted" data-uc-cfg-same style="margin:var(--space-2) var(--space-5) 0">{W.SAME_NOTE}</p>
+        <div class="ad-foot"><button type="button" class="pk-btn pri" data-cancel onClick={onClose}>{W.DONE}</button></div>
+      </div>
     </Modal>
   );
 }
@@ -335,8 +378,9 @@ export function Boxes() {
   const b = box.value;
   if (!b || (mode.value !== "edit" && !b.live)) return null;       // row 830: a box opened from the Use cases page needs no Edit mode
   if (b.kind === "link") return <LinkBox key={`link-${b.uc}`} uc={b.uc} opener={b.opener} onClose={closeBox} />;
+  if (b.kind === "configure") return <ConfigureBox key="configure" id={b.uc} opener={b.opener} onClose={closeBox} />;
   return b.kind === "add" ? <AddBox key="add" opener={b.opener} onClose={closeBox} /> : <Pick key="pick" opener={b.opener} onClose={closeBox} />;
 }
 
 /** The Edit parts as one object, `tools.ucEdit`. */
-export const UCEDIT = { RecordMore, Add, Status, Commit: CommitMenu, Headline, Name, FromRecord, Eye, Standing, NextStep, LinkButton, MilestoneLink, MilestoneUnlink, Boxes, added };
+export const UCEDIT = { RecordMore, Add, Configure, Status, Commit: CommitMenu, Headline, Name, FromRecord, Eye, Standing, NextStep, LinkButton, MilestoneLink, MilestoneUnlink, Boxes, added };
