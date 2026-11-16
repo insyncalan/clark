@@ -1302,7 +1302,7 @@ class Gutter(Base):
             self.assertEqual(p.js(g % "[data-drag]" + ".getAttribute('aria-label')"), "Move or change Summary".replace("Summary", self.titles_in_store()[3]))
             self.assertEqual(p.js(g % "[data-drag]" + ".title"), "Drag to move · click for options")
             self.assertEqual(p.js(g % "[data-drag]" + ".getAttribute('aria-haspopup')"), "menu")
-            self.assertEqual(p.js(g % "[data-drag]" + ".getAttribute('aria-keyshortcuts')"), "Alt+ArrowUp Alt+ArrowDown")
+            self.assertEqual(p.js(g % "[data-drag]" + ".getAttribute('aria-keyshortcuts')"), "Alt+ArrowUp Alt+ArrowDown Alt+ArrowRight Alt+ArrowLeft")
             self.assertEqual(p.js(g % "[data-add]" + ".getAttribute('aria-label')"), "Add a template below " + self.titles_in_store()[3])
             self.assertEqual(p.js(g % "[data-add]" + ".title"), "Add a template below")
 
