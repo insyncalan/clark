@@ -26,7 +26,7 @@ class Reopen(Setup):
                 put_view(self, None)
                 p = self.show(cdp, width)
                 p.js("document.querySelector('[data-mode=edit]').click()")
-                p.until("!!document.querySelector('#ucAdd')", "Edit")
+                p.until("!!document.querySelector('[data-uc-configure]')", "Edit")
                 p.js("document.querySelector('[data-uc-configure]').click()")
                 p.until("!!document.querySelector('#ucCfgN')", "panel")
                 p.js(HOLD)

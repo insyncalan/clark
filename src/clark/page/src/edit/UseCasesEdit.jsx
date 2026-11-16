@@ -23,7 +23,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, mode, project, rows } from "../stores/report.js";
 import { inertBehind } from "./modalLayers.js";
 import { change, say } from "../stores/changes.js";
-import { NewTile } from "../components/NewTile.jsx";
 import { Menu } from "../components/Menu.jsx";
 import { PickerTable } from "../components/PickerTable.jsx";
 import { Icon } from "../components/Icon.jsx";
@@ -202,15 +201,6 @@ function ConfigureBox({ id, onClose, opener }) {
   );
 }
 
-/** The growing Add button in the section's header: a "+" that grows to "Add use case" on the pointer or the keyboard. */
-export function Add() {
-  return (
-    <span class="uc-add" data-edit-only>
-      <NewTile word="Add use case" kind="use_case" id="ucAdd" onAdd={() => openBox("add")} />
-    </span>
-  );
-}
-
 /** The status word of a row: a button in Edit that opens the three words. */
 export function Status({ u }) {
   const r = rag(u.status);
@@ -277,7 +267,7 @@ export function Eye({ u }) {
     if (!reply) return;
     setTimeout(() => {          // the row has left: the focus goes to the next row's eye, else the one before, else the way back to the record
       const now = Array.from(document.querySelectorAll(".uc .ucrow [data-uc-eye]"));
-      const to = now[at] || now[at - 1] || document.querySelector("[data-uc-back], #ucAdd");
+      const to = now[at] || now[at - 1] || document.querySelector("[data-uc-back]");
       if (to && to.focus) to.focus({ preventScroll: true });
     }, 60);
   };
@@ -409,4 +399,4 @@ export function Boxes() {
 }
 
 /** The Edit parts as one object, `tools.ucEdit`. */
-export const UCEDIT = { RecordMore, Add, Configure, Status, Commit: CommitMenu, Headline, Name, FromRecord, Eye, Standing, NextStep, LinkButton, MilestoneLink, MilestoneUnlink, Boxes, added };
+export const UCEDIT = { RecordMore, Configure, Status, Commit: CommitMenu, Headline, Name, FromRecord, Eye, Standing, NextStep, LinkButton, MilestoneLink, MilestoneUnlink, Boxes, added };
