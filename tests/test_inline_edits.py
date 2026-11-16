@@ -792,7 +792,7 @@ class Live(unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelector('#peek [data-row=status] .pk-chip-sub').textContent", sid), "Amber kept")
                 kept = self.look(cdp, sid, "#peek [data-row=status] .pk-chip-sub")
                 self.assertTrue(kept["shown"], f"the rating word shows at {width}")
-                self.assertEqual(kept["color"], "rgb(169, 203, 212)", "--text-muted, dark")
+                self.assertEqual(kept["color"], "rgb(240, 138, 124)", "the kept rating is the red pill (row 1256), dark")
                 self.assertGreaterEqual(kept["ratio"], 4.5, f"the rating word is readable in dark at {width}")
                 click(cdp, sid, pcell)
                 self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the peek's menu opened")
