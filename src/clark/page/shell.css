@@ -2030,6 +2030,13 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tone-warning .tpl-callout-tone { color: var(--status-red-text); }
 .tpl-callout-h { margin: 0 0 var(--space-1); font-weight: var(--weight-medium); color: var(--heading); }
 .tpl-callout-p { margin: 0 0 var(--space-2); }
+.tpl-rh { display: flex; align-items: flex-start; gap: var(--space-4); margin: var(--space-2) 0; padding: var(--space-3) 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+.tpl-rh-pill { flex: none; }
+.tpl-rh-text { min-width: 0; flex: 1 1 auto; }
+.tpl-rh-h { margin: 0; font-size: var(--size-h2); font-weight: var(--weight-semibold); color: var(--heading); }
+.tpl-rh-h + .tpl-rh-p { margin-top: var(--space-1); }
+.tpl-rh-p { margin: 0; color: var(--text-muted); }
+@media (max-width: 900px) { .tpl-rh { flex-direction: column; gap: var(--space-2); } }
 .tpl-callout-p:last-child { margin-bottom: 0; }
 .tpl-quote { margin: var(--space-2) 0; padding: var(--space-2) var(--space-4); border-radius: var(--radius); background: var(--grey-50); min-width: 0; overflow-wrap: anywhere; }
 .tpl-quote-q { margin: 0; font-size: var(--size-h3); line-height: 1.4; color: var(--heading); }
