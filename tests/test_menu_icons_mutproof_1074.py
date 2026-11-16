@@ -6,6 +6,7 @@ date of today handed in), and the bulk bar's choices carry the right icon and to
 1400 and 900 px only: the status menu of a late and of a soon-due action, the rating menu of a risk, the bulk bar's four menus, the
 milestone peek's workstream menu, and that the icon is drawn (shown, 16 px, before the words).
 """
+import faulthandler
 import json
 import shutil
 import subprocess
@@ -20,6 +21,7 @@ import test_bulk_bar as bb  # noqa: E402
 import test_milestone_peek_828 as mp  # noqa: E402
 from test_movement_page import GO_LIVE, Base as MoveBase  # noqa: E402
 
+faulthandler.dump_traceback_later(500, repeat=True)      # diagnostic: where a stalled run is blocked
 SRC = ROOT / "src" / "clark" / "page" / "src"
 WIDTHS = (1400, 900)
 

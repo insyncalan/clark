@@ -12,6 +12,7 @@ back, and .pub-msg for the one sentence the server last said. Sentences come fro
 drawn as text, never changed.
 """
 import re
+import json
 import sys
 import unittest
 
@@ -357,7 +358,8 @@ class Page(InBrowser):
         self.focus_pick()
         self.step("ArrowDown", 40)
         self.step("ArrowUp", 38)
-        self.assertTrue(wait(lambda: self.val("T.calls.filter(c => c[0] === 'pick').length") >= 1), "the first save to be recorded")
+        self.assertTrue(wait(lambda: self.val("T.calls.filter(c => c[0] === 'pick').length") >= 1),
+                        "the first save to be recorded " + json.dumps(self.val("({calls: T.calls, releases: T.releases.length, hold: T.hold, sel: document.querySelector('#brand-pick') && [document.querySelector('#brand-pick').selectedIndex, document.querySelector('#brand-pick').value, document.querySelector('#brand-pick').options.length], active: document.activeElement && document.activeElement.id})")))
         self.release_and_settle()
         self.assertTrue(wait(lambda: self.val("T.calls.filter(c => c[0] === 'pick').length") >= 2), "the second save to be recorded")
         self.assertEqual(self.picks(), ["example-brand", "generic"])
