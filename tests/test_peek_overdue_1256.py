@@ -4,6 +4,7 @@
 Run: python3 dev/run_tests.py test_peek_overdue_1256   (real browser, 1400 and 900 px, demo data, fixed date 28-10-2026)
 """
 import unittest
+from unittest import mock
 
 from _paths import ROOT
 
@@ -67,6 +68,25 @@ class Overdue(unittest.TestCase):
                         self.assertNotIn("Overdue", status["text"])
                         self.assertEqual(due["sub"], "overdue 2 days", "the Due chip carries the overdue pill")
                         self.assertEqual(due["subColour"], got["red"])
+                        icon = cdp.js("document.querySelector('#peek .pk-chips [data-row=status] .pkc-ic').className", sid)
+                        self.assertIn("ic-b", icon, "the Status chip of an overdue action is the Open blue; the red is on the Due chip")
+
+    def test_a_delayed_action_that_is_not_late_keeps_its_own_status_word(self):
+        real = self.store.data_for
+
+        def data_for(code, *a, **k):
+            d = real(code, *a, **k)
+            return dict(d, actions=[dict(r, due_date="2026-12-01", status="Delayed") if r["id"] == OVERDUE else r for r in d["actions"]])
+        for width in (1400, 900):
+            with mock.patch.object(self.store, "data_for", data_for), chrome() as cdp:
+                s, sid = self.load_page(cdp, width)
+                for mode in ("view", "edit"):
+                    if mode == "edit":
+                        self.edit_mode(cdp, sid)
+                    with self.subTest(f"{width} {mode}"):
+                        got = self.open_item(cdp, sid, OVERDUE, view=mode == "view")
+                        self.assertEqual(got["chips"]["status"]["text"], "Delayed", "only an overdue action's Status chip is turned into Open")
+                        self.assertIsNone(got["chips"]["due"]["sub"])
 
     def test_hover_is_a_soft_fill_and_the_border_does_not_change(self):
         for width in (1400, 900):
