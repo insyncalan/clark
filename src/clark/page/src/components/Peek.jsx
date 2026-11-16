@@ -78,10 +78,12 @@ function ItemChips({ row, tools, editing }) {
   const prio = row.kind === "decision" ? row.peek_priority : row.priority;      // row 1195: a decision's priority is peek_priority
   // row 1182: an open risk or issue's chip face is its colour word with the level as a small pill ("Red" + "High"), as in the design image; the icon tone stays the level's.
   const rated = (row.kind === "risk" || row.kind === "issue") && isOpen(row) && !!prio;
+  // row 1256: an open risk or issue's Status chip says Open (as Closed and Cancelled say theirs); its colour is on the Rating chip.
+  const openRI = (row.kind === "risk" || row.kind === "issue") && isOpen(row);
   const fixed = row.kind === "assumption" || row.kind === "dependency";
   return (
     <PeekChips>
-      <PeekChip Live={Live} id={row.id} field="status" name="Status" icon="half" tone={statusTone(row, today)} value={pill.text} sub={kept ? `${kept} kept` : ""} flash={hit("status")} pop={pop("status")} />
+      <PeekChip Live={Live} id={row.id} field="status" name="Status" icon="half" tone={openRI ? "b" : statusTone(row, today)} value={openRI ? "Open" : pill.text} sub={kept ? `${kept} kept` : ""} flash={hit("status")} pop={pop("status")} />
       <PeekChip Live={Live} id={row.id} field="priority" name={(row.kind === "risk" || row.kind === "issue") ? "Rating" : "Priority"} icon="bars" tone={priorityTone(prio)} value={rated ? colourOf(prio).word : text(prio)} sub={rated ? text(prio) : ""} subTone={rated ? `lvl ${colourOf(prio).class}` : ""}
         flash={hit("priority")} tip={fixed ? "Set from impact and likelihood" : row.kind === "risk" ? "Priority from impact and likelihood" : row.kind === "issue" ? `${colourOf(prio).word} rating, set from impact and likelihood` : undefined} pop={pop("priority")} />
       <PeekChip Live={Live} id={row.id} field="owner" name={row.kind === "decision" ? "Decider" : "Owner"} icon="user" tone="b" value={who.text} flash={hit("owner")} pop={pop("owner")} />
@@ -355,7 +357,7 @@ export function Peek({ tools }) {
       <div class="pk-body" key={p.id} data-pk-body>      {/* a new key each step: the body fades in as Previous or Next moves on */}
       <div>
           {Latest && row ? <Latest key={row.id} row={row} /> : null}      {/* item 1181: the Latest update sits above the Details */}
-          {row && row.kind === "action" ? <>
+          {row && (row.kind === "action" || row.kind === "risk" || row.kind === "issue") ? <>      {/* row 1256: a risk's and an issue's Details are drawn like an action's */}
             {!editing && fromFile.value && (row.client_message || row.latest_update) ? <dl class="pk-fields" data-pk-file-rows>
               {row.latest_update ? <Row name="Latest update" ms="latest_update"><Rich html={String(row.latest_update)} /></Row> : null}
               {row.client_message ? <Row name="Client wording" ms="client_message">{row.client_message}</Row> : null}

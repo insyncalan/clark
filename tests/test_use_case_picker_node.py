@@ -21,8 +21,7 @@ ROWS = [
 
 def run(body, mod=None):
     node = shutil.which("node")
-    if not node:
-        raise unittest.SkipTest("no node")
+    assert node, "node is needed to run the picker logic"
     with tempfile.TemporaryDirectory() as tmp:
         src = Path(mod or MOD).read_text(encoding="utf-8")
         (Path(tmp) / "m.mjs").write_text(src, encoding="utf-8")
