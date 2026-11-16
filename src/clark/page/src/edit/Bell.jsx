@@ -18,10 +18,13 @@ function go(to) {      // an action only names a place inside clark (logic/notic
 }
 
 export function Bell() {
-  const btn = useRef(null), box = useRef(null);
+  const btn = useRef(null), box = useRef(null), back = useRef(false);
   const count = unread.value.length, open = noticesOpen.value;
-  const close = () => { noticesOpen.value = false; if (btn.current) btn.current.focus(); };
-  useEffect(() => { if (open && box.current) box.current.focus(); }, [open]);
+  const close = () => { back.current = true; noticesOpen.value = false; };      // focus goes back in the effect below, after the popup is gone: a focus call here can be undone by the pending focus-in effect (a quick Close under load)
+  useEffect(() => {
+    if (open && box.current) box.current.focus();
+    else if (!open && back.current) { back.current = false; if (btn.current) btn.current.focus(); }
+  }, [open]);
   useEffect(() => {
     if (!open) return undefined;
     const away = (e) => { if (box.current && !box.current.contains(e.target) && btn.current && !btn.current.contains(e.target)) noticesOpen.value = false; };

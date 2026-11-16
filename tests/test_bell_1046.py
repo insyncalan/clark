@@ -86,6 +86,14 @@ class Bell(Base):
             p.js("document.querySelector('.bell-act').click()")
             p.until("!document.querySelector('#bell-pop')", "the action closed the popup")
 
+    def test_the_popup_shadow_is_the_token_not_a_literal(self):
+        import re
+        from pathlib import Path
+        css = (Path(__file__).resolve().parent.parent / "src/clark/page/shell.css").read_text()
+        rule = re.search(r"^\.bell-pop \{[^}]*\}", css, re.M).group(0)
+        self.assertIn("box-shadow: var(--shadow)", rule)
+        self.assertNotIn("rgba", rule)
+
     def test_the_bar_has_no_overlap_with_the_bell(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
