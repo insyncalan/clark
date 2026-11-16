@@ -10,11 +10,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CSS = {"shell.css": ROOT / "src/clark/page/shell.css", "edit.css": ROOT / "src/clark/page/src/edit/edit.css"}
 
+# Row 1257 adds the Latest update card's footer, key cap and stamp (12, 11, 12 px, from the approved mockup).
 # Not text on the type scale: big figures in the At a glance tiles, and the calendar's month arrows (a glyph sized to its button).
 # .cp-m (18 px) stays the one glyph exemption: it sizes an icon character, not text.
 NOT_TEXT = {(".cp-m", "18px"),
             (".tr-v", "32px"), (".tr-size-large .tr-v", "44px"), (".tr-size-small .tr-v", "24px"), (".tr-size-compact .tr-v", "18px"),
-            (".tr-overall .tr-v", "26px")}  # the progress tracker's headline figures (#160; #930: Large 44, Medium 32, Small 24, Compact 18), on screen and in print
+            (".tr-overall .tr-v", "26px"),
+            (".pk-lfoot", "12px"), (".pk-key", "11px"), (".pk-last", "12px")}
 
 # Fixed boxes that a 14 px label overfills at 900 px: the "As at" date in the top bar, the avatars (initials in a 26 or 24 px
 # circle), the Type badge (102 px column), the template tick box (18 px).
