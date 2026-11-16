@@ -92,6 +92,99 @@ class Page(n.PageChecks):
             self.assertEqual(self.body_of(ref), before)
             self.assertTrue(p.toast().endswith((".", "?")), p.toast())
 
+    # ---- #1272 slice 2: the look in View and the controls in Edit ----
+    def _at(self, cdp, p, width):
+        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+
+    def test_view_draws_the_colour_the_icon_and_the_category_word(self):
+        ref = self.make({**GOOD, "category": "Legal hold", "colour": "green", "icon": "lock"})
+        old = self.make(GOOD)
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp)
+                self._at(cdp, p, width)
+                box = lambda r: f"document.querySelector('[data-id={json.dumps(r)}] .tpl-callout')"
+                self.assertEqual(p.js(f"{box(ref)}.dataset.colour + ' ' + {box(ref)}.dataset.icon"), "green lock")
+                self.assertEqual(p.js(f"{box(ref)}.querySelector('.tpl-callout-tone').textContent"), "Legal hold")
+                self.assertTrue(p.js(f"!!{box(ref)}.querySelector('svg[data-icn=lock]')"))
+                self.assertEqual(p.js(f"{box(old)}.dataset.colour + ' ' + {box(old)}.dataset.icon"), "amber question", "an older callout draws its tone's look")
+                self.assertEqual(p.js(f"{box(old)}.querySelector('.tpl-callout-tone').textContent"), "Decision needed")
+
+    def test_a_colour_with_no_word_and_no_icon_draws_its_own_shape_and_plain_draws_none(self):
+        a = self.make({**GOOD, "category": "", "colour": "red", "icon": "none"})
+        b = self.make({**GOOD, "category": "", "colour": "plain", "icon": "none"})
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.assertTrue(p.js(f"!!document.querySelector('[data-id={json.dumps(a)}] .tpl-callout svg[data-icn=shRed]')"))
+            self.assertFalse(p.js(f"!!document.querySelector('[data-id={json.dumps(b)}] .tpl-callout svg')"))
+
+    def test_no_tile_and_no_heading_in_view_and_the_heading_keeps_its_name(self):
+        ref = self.make({**GOOD, "tile": False, "heading": False})
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            sec = f"document.querySelector('[data-id={json.dumps(ref)}]')"
+            self.assertTrue(p.js(f"{sec}.classList.contains('no-tile') && {sec}.classList.contains('no-head')"))
+            self.assertEqual(p.js(f"getComputedStyle({sec}).backgroundColor"), "rgba(0, 0, 0, 0)")
+            self.assertLessEqual(p.js(f"{sec}.querySelector('.sec-h').getBoundingClientRect().width"), 2)
+            self.assertIn("Fictional callout", p.js(f"{sec}.querySelector('.sec-h').textContent"), "the heading is still in the page for a screen reader")
+
+    def test_edit_a_suggestion_sets_the_word_the_colour_and_the_icon_as_one_step(self):
+        for width in (1400, 900):
+            ref = self.make(GOOD)
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp)
+                self._at(cdp, p, width)
+                p.edit()
+                sec = f"[data-id={json.dumps(ref)}]"
+                p.until(f"!!document.querySelector('{sec} [aria-label=\"Use Warning\"]')", "the toolbar")
+                p.js(f"document.querySelector('{sec} [aria-label=\"Use Warning\"]').click()")
+                p.saved()
+                got = json.loads(self.body_of(ref))
+                self.assertEqual((got["category"], got["colour"], got["icon"], got["tone"]), ("Warning", "red", "warning", "warning"))
+                p.js(f"document.querySelector('{sec} [aria-label=\"No category\"]').click()")
+                from test_server import wait
+                self.assertTrue(wait(lambda: "category" not in json.loads(self.body_of(ref)), 10), self.body_of(ref))
+                self.assertEqual(json.loads(self.body_of(ref))["colour"], "red")
+
+    def test_edit_the_colour_the_icon_and_the_switches_save(self):
+        ref = self.make(GOOD)
+        from test_server import wait
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            sec = f"[data-id={json.dumps(ref)}]"
+            q = lambda label: f"document.querySelector('{sec} [aria-label=\"{label}\"]')"
+            p.until(f"!!{q('Green')}", "the toolbar")
+            self.assertEqual(p.js(f"{q('Amber')}.getAttribute('aria-checked')"), "true", "an older callout shows its tone's colour")
+            p.js(f"{q('Green')}.click()")
+            self.assertTrue(wait(lambda: json.loads(self.body_of(ref)).get("colour") == "green", 10), self.body_of(ref))
+            self.assertEqual(json.loads(self.body_of(ref))["category"], "Decision needed", "the word an older callout drew is kept")
+            p.js(f"{q('Choose an icon')}.click()")
+            p.until(f"!!document.querySelector('{sec} [role=listbox]')", "the icons are listed")
+            self.assertEqual(p.js(f"document.querySelectorAll('{sec} [role=option]').length"), 21, "20 icons and No icon")
+            p.js(f"[...document.querySelectorAll('{sec} [role=option]')].find(o => o.textContent === 'Key').click()")
+            self.assertTrue(wait(lambda: json.loads(self.body_of(ref)).get("icon") == "key", 10), self.body_of(ref))
+            self.assertFalse(p.js(f"!!document.querySelector('{sec} [role=listbox]')"), "choosing closes the list")
+            p.js(f"{q('Show the tile (the card around the callout)')}.click()")
+            self.assertTrue(wait(lambda: json.loads(self.body_of(ref)).get("tile") is False, 10), self.body_of(ref))
+            p.js(f"{q('Show the heading')}.click()")
+            self.assertTrue(wait(lambda: json.loads(self.body_of(ref)).get("heading") is False, 10), self.body_of(ref))
+            self.assertTrue(p.js(f"document.querySelector('{sec}').classList.contains('no-tile')"), "Edit keeps the card, dashed")
+            self.assertEqual(p.js(f"getComputedStyle(document.querySelector('{sec}')).borderStyle"), "dashed")
+
+    def test_edit_a_category_is_typed_in_the_toolbar_and_over_30_characters_is_not_typed(self):
+        ref = self.make(GOOD)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            sel = n.field_js(ref, "Category")
+            p.until(f"!!{sel}", "the category field")
+            self.assertEqual(p.js(f"{sel}.maxLength"), 30)
+            n.fill(p, sel, "Legal hold")
+            p.saved()
+            got = json.loads(self.body_of(ref))
+            self.assertEqual((got["category"], got["colour"], got["icon"]), ("Legal hold", "amber", "question"))
+
 
 if __name__ == "__main__":
     unittest.main()
