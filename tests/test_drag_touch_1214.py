@@ -68,6 +68,15 @@ class DragTouch(unittest.TestCase):
                 self.assertFalse(got["drawn"], "no drag, even after 400 ms has passed")
                 self.assertEqual(got["scrolls"][:2], [30, 30], "the page followed the finger by hand")
 
+    def test_a_small_shake_under_the_threshold_is_not_a_swipe_and_four_px_is(self):
+        for w in WIDTHS:
+            with self.subTest(width=w):
+                shake = self.run_script(w, "touch", [[800, 798, 50], ["wait", 450], [800, 320, 130]])
+                self.assertTrue(shake["drawn"], "2 px is a shake: the hold still ends and the drag starts")
+                self.assertEqual(shake["scrolls"], [], "2 px did not scroll")
+                swipe = self.run_script(w, "touch", [[800, 796, 50]])
+                self.assertEqual(swipe["scrolls"], [4], "4 px is the threshold: a swipe")
+
     def test_a_finger_let_go_before_the_hold_leaves_no_timer_and_no_drag(self):
         for w in WIDTHS:
             with self.subTest(width=w):

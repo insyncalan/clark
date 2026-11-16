@@ -67,7 +67,7 @@ class DragEnds(unittest.TestCase):
                 got = self.run_drag(w)
                 self.assertEqual(got["afterEsc"]["listeners"], [], "Esc leaves no document listener behind")
                 self.assertEqual(got["afterEsc"]["live"], 0, "no ghost or outline stays")
-                self.assertEqual(got["adds"], 8, "the new press added its own four listeners")
+                self.assertEqual(got["adds"], 10, "the new press added its own five listeners")
 
 
 if __name__ == "__main__":
