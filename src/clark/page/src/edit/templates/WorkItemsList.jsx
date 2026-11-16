@@ -11,6 +11,7 @@ import { KINDS, MODES, STATUSES, DUE, PRIORITIES, NONE, SORTS, COLUMNS, MAX_ROWS
 import { Eye } from "../cells/Eye.jsx";
 import { plural } from "../../workItems.js";
 import { lineOf, chipsOf, readLine } from "../../templates/workItemsLine.js";
+import { Tabs } from "./WorkItemsTabs.jsx";
 
 export const SAVED = "Work items list changed.";
 export const NOT_YET = "No filter is set for this section yet. Set one below and it shows here.";
@@ -137,6 +138,7 @@ export function Edit({ section }) {
   return (
     <div class="wil wil-edit" key={tick} data-wil-edit="" data-wil-id={id}>
       {saved ? null : <p class="quiet wil-say" data-wil-say="not-yet">{NOT_YET}</p>}
+      <Tabs section={section} filter={filter} d={d} now={now} known={known} nameOf={nameOf} apply={(next) => save({ ...latest(), ...next })} />
       <div class="wil-line" data-wil-line="">
         <label class="wil-sel wil-linef"><span>Filter</span>
           <input type="text" name="line" aria-describedby={`${id}-hint`} value={lineOf(filter, nameOf)} key={lineOf(filter, nameOf)} onChange={commitLine} onKeyDown={lineKeys} autocomplete="off" spellcheck={false} />
