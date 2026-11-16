@@ -17,6 +17,7 @@ import { NewTile } from "../../components/NewTile.jsx";
 import { addItem, ADDABLE } from "../addItem.js";
 import { plural } from "../../workItems.js";
 import { lineOf, readLine } from "../../templates/workItemsLine.js";
+import { Tabs } from "./WorkItemsTabs.jsx";
 
 export const SAVED = "Work items list changed.";
 export const COLUMNS_MENU = "Columns";      // row 1268: the label of the menu a right click on a column heading opens
@@ -151,6 +152,7 @@ export function Edit({ section }) {
         <LineBox line={lineOf(filter, nameOf)} now={() => lineOf(latest(), nameOf)} apply={applyLine} rows={reportRows.value} ctx={filterCtx()}
           ids={{ input: `${id}-line`, list: `${id}-line-list`, count: `${id}-line-count`, x: `${id}-line-x`, msg: `${id}-line-msg`, gloss: `${id}-line-gloss`, opt: `${id}-line-o` }} label="Filter" />
       </div>
+      <Tabs section={section} filter={filter} d={d} now={now} known={known} nameOf={nameOf} apply={(next) => save({ ...latest(), ...next })} />
       <div class="wil-form">
       <details class="wil-more" data-wil-more="">
       <summary>Choose from lists</summary>
