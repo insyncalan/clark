@@ -581,10 +581,21 @@ textarea.tpl-field { resize: vertical; }
 .tpl-table-edit th, .tpl-table-edit td { min-width: 120px; }
 .tpl-table-edit th .btn { margin-top: var(--space-1); }
 .tpl-edit .btn { align-self: flex-start; }
+/* #1271 Quote, in place: the toolbar (Tile, Heading) above the panel, with the words, the name and the role typed inside it. */
+.cb-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); }
+.cb-set { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); min-width: 0; }
+.cb-lbl { font-size: var(--size-caption); color: var(--text-muted); margin-right: var(--space-1); white-space: nowrap; }
+.cb-btn { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 2.25em; padding: 0 var(--space-2); border: 1px solid var(--control-edge); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-caption); cursor: pointer; }
+.cb-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.cb-btn[aria-checked="true"] { background: var(--brand-blue-tint); border-color: var(--brand-blue); color: var(--status-blue-text); font-weight: var(--weight-semibold); }
+.cb-btn[aria-checked="false"] { color: var(--text-muted); }
+.qb .tpl-quote { margin: 0; }
+.qb .tpl-field.qb-words { width: 100%; box-sizing: border-box; min-height: 2.25em; font-size: var(--size-h3); line-height: 1.4; color: var(--heading); border-color: var(--control-edge); }
+.qb-who { display: grid; grid-template-columns: repeat(auto-fit, minmax(12em, 1fr)); gap: var(--space-2) var(--space-3); margin-top: var(--space-3); }
+.qb .tpl-field.qb-by, .qb .tpl-field.qb-role { width: 100%; box-sizing: border-box; min-height: 2.25em; border-color: var(--control-edge); }
 .tpl-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 /* #936: the Quote and the Link preview draw no coloured side stripe in Edit (a quiet panel, a plain frame); the published file keeps its own. Tokens only. */
-.tpl-quote { padding: var(--space-2) var(--space-4); border-left: 0; border-radius: var(--radius); background: var(--grey-50); }
 .tpl-lc { border-left: 1px solid var(--grey-200); }
 /* row 936: the draft-email internal note and the rich-text field quote draw no one-side stripe in Edit (a quiet panel and a plain frame instead); amber attention stripes elsewhere stay */
 .de-internal { border-left: 0; border-radius: var(--radius-sm); border: 1px solid var(--grey-200); }

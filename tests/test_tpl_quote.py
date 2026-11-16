@@ -79,6 +79,61 @@ class Page(n.PageChecks):
             p.saved()
             self.assertEqual(json.loads(self.body_of(ref))["quote"], "Fictional enter words")
 
+    # ---- #1271 slice 2: look B in View, the Tile and Heading switches in Edit ----
+    def _at(self, cdp, p, width):
+        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+
+    def test_view_look_b_has_the_rule_the_name_in_capitals_and_the_role_under_it_and_nothing_runs_wide(self):
+        ref = self.make({**GOOD, "quote": "Fictional " + "words " * 90})
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp)
+                self._at(cdp, p, width)
+                q = f"document.querySelector('[data-id={json.dumps(ref)}] .tpl-quote')"
+                self.assertEqual(p.js(f"getComputedStyle({q}, '::before').height"), "3px", "the short rule above the words")
+                self.assertEqual(p.js(f"getComputedStyle({q}.querySelector('.tpl-quote-nm')).textTransform"), "uppercase")
+                self.assertEqual(p.js(f"{q}.querySelector('.tpl-quote-nm').textContent"), "Sam Example")
+                self.assertGreater(p.js(f"{q}.querySelector('.tpl-quote-rl').getBoundingClientRect().top"), p.js(f"{q}.querySelector('.tpl-quote-nm').getBoundingClientRect().bottom") - 1, "the role is under the name")
+                self.assertLessEqual(p.js(f"{q}.scrollWidth"), p.js(f"{q}.clientWidth"), "no sideways overflow")
+
+    def test_no_tile_and_no_heading_in_view_keep_the_heading_for_a_screen_reader(self):
+        ref = self.make({**GOOD, "tile": False, "heading": False})
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            sec = f"document.querySelector('[data-id={json.dumps(ref)}]')"
+            self.assertTrue(p.js(f"{sec}.classList.contains('no-tile') && {sec}.classList.contains('no-head')"))
+            self.assertEqual(p.js(f"getComputedStyle({sec}).backgroundColor"), "rgba(0, 0, 0, 0)")
+            self.assertLessEqual(p.js(f"{sec}.querySelector('.sec-h').getBoundingClientRect().width"), 2)
+            self.assertIn("Fictional quote", p.js(f"{sec}.querySelector('.sec-h').textContent"))
+
+    def test_edit_the_two_switches_save_and_the_off_state_tags_say_so(self):
+        from test_server import wait
+        for width in (1400, 900):
+            ref = self.make(GOOD)
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp)
+                self._at(cdp, p, width)
+                p.edit()
+                sec = f"[data-id={json.dumps(ref)}]"
+                q = lambda label: f"document.querySelector('{sec} [aria-label=\"{label}\"]')"
+                tag = lambda: p.js(f"(document.querySelector('{sec} .tag.hid') || {{}}).textContent || ''")
+                p.until(f"!!{q('Show the heading')}", "the toolbar")
+                self.assertEqual(p.js(f"document.querySelector('{sec} [role=toolbar]').getAttribute('aria-label')"), "Quote tools")
+                self.assertEqual(p.js(f"{q('Show the heading')}.getAttribute('aria-checked')"), "true")
+                self.assertEqual(tag(), "")
+                p.js(f"{q('Show the tile (the card around the quote)')}.click()")
+                self.assertTrue(wait(lambda: json.loads(self.body_of(ref)).get("tile") is False, 10), self.body_of(ref))
+                p.until(f"({q('Show the tile (the card around the quote)')}).getAttribute('aria-checked') === 'false'", "the tile switch is off")
+                self.assertEqual(tag(), "Tile not shown in View")
+                self.assertEqual(p.js(f"getComputedStyle(document.querySelector('{sec}')).borderStyle"), "dashed", "Edit keeps the card, dashed")
+                p.js(f"{q('Show the heading')}.click()")
+                self.assertTrue(wait(lambda: json.loads(self.body_of(ref)).get("heading") is False, 10), self.body_of(ref))
+                p.until(f"document.querySelector('{sec} .tag.hid') && document.querySelector('{sec} .tag.hid').textContent === 'Tile and heading not shown in View'", "both tags")
+                self.assertIn("line-through", p.js(f"getComputedStyle(document.querySelector('{sec} .sec-h')).textDecorationLine"))
+                p.js(f"{q('Show the tile (the card around the quote)')}.click()")
+                self.assertTrue(wait(lambda: "tile" not in json.loads(self.body_of(ref)), 10), self.body_of(ref))
+                p.until(f"document.querySelector('{sec} .tag.hid') && document.querySelector('{sec} .tag.hid').textContent === 'Heading not shown in View'", "heading tag")
+
 
 if __name__ == "__main__":
     unittest.main()

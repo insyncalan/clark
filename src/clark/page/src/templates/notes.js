@@ -35,6 +35,7 @@ export function tidyQuote(v) {
   return q;
 }
 export const quoteEmpty = (q) => !q.quote;
+export const quoteShows = (q) => ({ tile: q.tile !== false, heading: q.heading !== false });      // row 1271: both on unless stored off
 
 export const PERSON_FIELDS = ["name", "role", "email", "phone"];
 export function tidyContacts(v) {

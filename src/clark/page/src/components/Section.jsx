@@ -24,6 +24,7 @@ import { MsBlock } from "./MsBlock.jsx";
 import { emptyBody } from "../logic/emptyBody.js";
 import { Documents } from "./Documents.jsx";
 import { Tracker } from "./Tracker.jsx";
+import { source, tidyQuote } from "../templates/notes.js";
 
 // View's text for a text or current section: cleaned HTML in the prose style, or one plain line when there is nothing to read.
 function ViewText({ html }) {
@@ -46,13 +47,16 @@ export function Section({ section, index, count, slot, anchor, tools, clean }) {
   const from = editing && dragFrom.value === section.id ? " drag-from" : "";
   const changed = isChanged(section.id);
   const tpl = templateFor(section.type);
+  const qo = section.type === "quote" ? tidyQuote(source(section)) : null;      // #1271: a quote can show without its tile or its heading
+  const offWord = qo && qo.tile === false && qo.heading === false ? "Tile and heading not shown in View" : qo && qo.tile === false ? "Tile not shown in View" : qo && qo.heading === false ? "Heading not shown in View" : "";
   return (
-    <article class={`sec slot-${slot}${hidden ? " is-hidden" : ""}${changed ? " is-changed" : ""}${mark}${from}`}
+    <article class={`sec slot-${slot}${qo && qo.tile === false ? " no-tile" : ""}${qo && qo.heading === false ? " no-head" : ""}${hidden ? " is-hidden" : ""}${changed ? " is-changed" : ""}${mark}${from}`}
       id={anchor || anchorId(section.id)} tabIndex={-1} data-id={section.id} data-type={section.type} data-changed={changed ? "1" : undefined}>
       {editing ? <tools.Gutter section={section} count={count} /> : null}
       <header class="sec-head">
         <h2 class="sec-h">{editing ? <tools.Title section={section} /> : section.title}</h2>
         {changed ? <span class="tag chg">{WORD}</span> : null}
+        {editing && offWord ? <span class="tag hid">{offWord}</span> : null}
         {editing && hidden ? <span class="tag hid">Left out of the published page</span> : null}
         {editing && section.type === "usecases" && tools.ucEdit ? <tools.ucEdit.Configure section={section} /> : null}
       </header>
