@@ -37,7 +37,7 @@ export function PickerTable({ data, onAdd, onClose, title = "Add a use case from
     <form class="picker pkt" role="dialog" aria-modal="true" aria-label={title} onSubmit={submit} onKeyDown={keys}>
       <div class="pk-head">
         <h2>{title}</h2>
-        <p class="muted">Choose what to add to the page.</p>
+        {rows.length ? <p class="muted">Choose what to add to the page.</p> : <p class="muted" data-empty>{ALL_ON_PAGE}</p>}
       </div>
       <div class="pk-search">
         <label class="pk-q"><span class="sr">Search</span>
@@ -65,7 +65,6 @@ export function PickerTable({ data, onAdd, onClose, title = "Add a use case from
           </tbody>
         </table>
         {rows.length && !shown.length ? <p class="muted pk-none">{NO_MATCH}</p> : null}
-        {!rows.length ? <p class="muted pk-none" data-empty>{ALL_ON_PAGE}</p> : null}
       </div>
       <div class="pk-foot">
         <span class="muted pk-count" data-result aria-live="polite">{L.resultWords(c)}</span>
