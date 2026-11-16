@@ -355,7 +355,7 @@ export function Peek({ tools }) {
       <div class="pk-body" key={p.id} data-pk-body>      {/* a new key each step: the body fades in as Previous or Next moves on */}
       <div>
           {Latest && row ? <Latest key={row.id} row={row} /> : null}      {/* item 1181: the Latest update sits above the Details */}
-          {row && row.kind === "action" ? <>
+          {row && (row.kind === "action" || row.kind === "risk" || row.kind === "issue") ? <>      {/* row 1256: a risk's and an issue's Details are drawn like an action's */}
             {!editing && fromFile.value && (row.client_message || row.latest_update) ? <dl class="pk-fields" data-pk-file-rows>
               {row.latest_update ? <Row name="Latest update" ms="latest_update"><Rich html={String(row.latest_update)} /></Row> : null}
               {row.client_message ? <Row name="Client wording" ms="client_message">{row.client_message}</Row> : null}

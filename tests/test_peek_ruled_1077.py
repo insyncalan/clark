@@ -221,14 +221,14 @@ class Browser(Peeks):
                 for sel in (".pk-tabs", "[data-sneak]", "[data-pk-latest]", "[data-pk-title-in]", "[data-pk-needed]"):
                     self.assertFalse(cdp.js(f"!!document.querySelector('#peek {sel}')", sid), f"{sel} is the editor's alone")
                 client = self.labels(cdp, sid)
-                self.assertTrue(len(client) >= 5, client)      # item 1181: Status, Owner, Due and Priority are chips, not rows; a risk keeps Workstream, Milestone, Use case, Raised, Last reviewed
+                self.assertTrue(len(client) >= 3, client)      # rows 1181 and 1256: Status, Owner, Due and Priority are chips, not rows; a risk keeps Workstream, Milestone and Raised (no Use case, Client wording or Last reviewed)
                 self.to_edit(cdp, sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-tabs')", sid)), "Edit: the tabs are drawn")
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-htab=source]')", sid)), "Edit keeps Source (row 1180: it is the Source tab of the history)")
                 self.assertTrue(cdp.js(f"document.querySelector('#peek .pk-fields').querySelectorAll({json.dumps(CONTROLS)}).length > 0", sid), "the editor's fields are controls")
                 editor = self.labels(cdp, sid)
                 self.assertEqual(client, [l for l in editor if l not in EDIT_ONLY_ROWS], "the client's rows are the editor's, in the editor's order")
-                self.assertEqual(sorted(set(editor) - set(client)), sorted(EDIT_ONLY_ROWS), "the editor adds its one control row and nothing else")
+                self.assertEqual(sorted(set(editor) - set(client)), [], "row 1256: the editor's one control row is the Client visible line, which has no label, so it adds no labelled row")
                 self.no_draft(cdp, sid, "Edit")
                 self.open_peek(cdp, sid, ACTION, "item")      # the Latest update is an action's alone
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-latest] [data-rich=latest_update]')", sid)), "the Latest update stays, without its Draft")
