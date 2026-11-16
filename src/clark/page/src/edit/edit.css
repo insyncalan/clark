@@ -1404,9 +1404,9 @@ table.items .c-x-id, table.items .c-x-type { width: 100px; }
 
 /* Row 1258 (v1.1.1), the peeks to the approved mockups, step 3: the title and the tabs as peek-mockup.html layout A draws them (h2.ti, .tabs).
    The title is Inter 24/700 with -.015em, and its in-place box carries a 2 px ring (a shadow, no border); the tabs are 14/600, 40 px high, with an ink underline. */
-.peek:not(.hpk) .pk-title { font-family: var(--font-label); font-size: 24px; font-weight: 700; line-height: 1.2; letter-spacing: -.015em; }
+.peek:not(.hpk) .pk-title { font-family: var(--font-label); font-size: var(--size-h2); font-weight: 700; line-height: 1.2; letter-spacing: -.015em; }
 .peek:not(.hpk) .pkh-title-in { border-width: 0; letter-spacing: inherit; }
 .peek:not(.hpk) .pkh-title-in:focus { outline: 0; box-shadow: 0 0 0 2px var(--brand-blue); }
 .peek .pk-tabs { gap: 2px; margin: 22px 0 4px; }
-.peek .pk-tab { box-sizing: border-box; height: 40px; min-height: 40px; padding: 9px 12px; margin-bottom: -1px; font-size: 14px; font-weight: 600; line-height: 20px; }
+.peek .pk-tab { box-sizing: border-box; height: 40px; min-height: 40px; padding: 9px 12px; margin-bottom: -1px; font-size: var(--size-small); font-weight: 600; line-height: 20px; }
 .peek .pk-tab.on { border-bottom-color: var(--text); font-weight: 600; }
