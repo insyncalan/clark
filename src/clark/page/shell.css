@@ -2160,6 +2160,34 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-fullimg.fill-blur .tpl-fullimg-frame { background: var(--grey-100); }
 .tpl-fullimg-blur { position: absolute; inset: -24px; width: calc(100% + 48px); height: calc(100% + 48px); max-width: none; object-fit: cover; filter: blur(24px); transform: scale(1.05); pointer-events: none; }
 .sec[data-type="imagecap"] > .sec-head:has(~ .tpl-fullimg) { display: none; }
+/* Row 1232: Text and Image Side by Side (textimage, body v 2), view. A full width section: the image left or right taking a half (default), a third or
+   two thirds; the image fills the height of the words. A half width section (slot-left, slot-right), and any section at 900 px wide: one column,
+   the image above or below the words (a full width one: left puts it above, right below; a half width one: hpos). */
+.tpl-sbs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-5); align-items: stretch; }
+.tpl-sbs.share-third { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
+.tpl-sbs.share-two { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.tpl-sbs.pos-right.share-third { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.tpl-sbs.pos-right.share-two { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
+.tpl-sbs.pos-right .tpl-sbs-fig { order: 2; }
+.tpl-sbs:is(.no-pic, .no-words):is(.share-half, .share-third, .share-two) { grid-template-columns: minmax(0, 1fr); }
+.tpl-sbs-fig { margin: 0; min-width: 0; display: flex; flex-direction: column; break-inside: avoid; page-break-inside: avoid; }
+.tpl-sbs-words { min-width: 0; align-self: start; overflow-wrap: anywhere; }
+.tpl-sbs-frame { position: relative; flex: 1 1 auto; min-height: 230px; overflow: hidden; border-radius: var(--radius); background: var(--surface-muted); }
+.tpl-sbs-frame img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius); }
+.tpl-sbs.shape-43 .tpl-sbs-frame, .tpl-sbs.shape-square .tpl-sbs-frame, .tpl-sbs.shape-whole .tpl-sbs-frame { flex: none; min-height: 0; }
+.tpl-sbs.shape-43 .tpl-sbs-frame img, .tpl-sbs.shape-square .tpl-sbs-frame img, .tpl-sbs.shape-whole .tpl-sbs-frame img { position: static; height: auto; }
+.tpl-sbs.shape-43 .tpl-sbs-frame img { aspect-ratio: 4 / 3; }
+.tpl-sbs.shape-square .tpl-sbs-frame img { aspect-ratio: 1 / 1; }
+.tpl-sbs.shape-whole .tpl-sbs-frame img { object-fit: contain; }
+.tpl-sbs-fig figcaption { margin-top: var(--space-2); font-size: var(--size-caption); color: var(--text-muted); }
+:is(.slot-left, .slot-right) .tpl-sbs:is(.share-half, .share-third, .share-two) { grid-template-columns: minmax(0, 1fr); }
+.tpl-sbs.no-words.shape-fill .tpl-sbs-frame, .slot-left .tpl-sbs.shape-fill .tpl-sbs-frame, .slot-right .tpl-sbs.shape-fill .tpl-sbs-frame { flex: none; min-height: 0; aspect-ratio: 16 / 9; }
+.slot-left .tpl-sbs:not(.hpos-bottom) .tpl-sbs-fig, .slot-right .tpl-sbs:not(.hpos-bottom) .tpl-sbs-fig { order: 0; }
+.slot-left .tpl-sbs.hpos-bottom .tpl-sbs-fig, .slot-right .tpl-sbs.hpos-bottom .tpl-sbs-fig { order: 2; }
+@media (max-width: 900px) {
+  .tpl-sbs, .tpl-sbs.share-third, .tpl-sbs.share-two, .tpl-sbs.pos-right.share-third, .tpl-sbs.pos-right.share-two { grid-template-columns: minmax(0, 1fr); }
+  .tpl-sbs.shape-fill .tpl-sbs-frame { flex: none; min-height: 0; aspect-ratio: 16 / 9; }
+}
 @media (max-width: 900px) {
   .tpl-ti, .tpl-ti.pic-left, .tpl-band.has-pic { grid-template-columns: minmax(0, 1fr); }
   .tpl-ti.pic-left .tpl-fig { order: 0; }
