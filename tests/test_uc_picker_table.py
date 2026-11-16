@@ -40,7 +40,7 @@ class Table(Setup):
         p.mouse("mousePressed", x, y, 1)
         p.mouse("mouseReleased", x, y)
 
-    def open(self, p):
+    def show_picker(self, p):
         self.click(p, "[data-uc-back]")
         p.until("!!" + Q, "the picker")
 
@@ -52,7 +52,7 @@ class Table(Setup):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.edit(cdp, width)
-                self.open(p)
+                self.show_picker(p)
                 self.assertEqual(p.js(ROWS), 2)
                 self.assertEqual(p.js(RESULT), "Result: 2 of 2 shown")
                 self.assertEqual(p.js("document.querySelectorAll('form.picker thead th').length"), 9, "a tick column and the eight named")
@@ -90,7 +90,7 @@ class Table(Setup):
     def test_search_by_status_and_add_still_saves_the_pick(self):
         with chrome() as cdp:
             p = self.edit(cdp)
-            self.open(p)
+            self.show_picker(p)
             p.js("(() => { const i = document.querySelector('form.picker input[type=search]'); i.value = 'high risk'; i.dispatchEvent(new Event('input', {bubbles: true})); })()")
             p.until(ROWS + " === 1", "search by status")
             p.js("document.querySelector('form.picker tbody tr td:nth-child(3)').click()")        # a click on the row ticks it
