@@ -73,6 +73,42 @@ class Checker(unittest.TestCase):
         with self.assertRaises(store_module.Invalid):
             store_module.check_section_body("milestones", json.dumps({"n": 0}))
 
+    def test_n_limit_is_exactly_one_thousand(self):
+        self.assertEqual(json.loads(check(json.dumps({"n": 1000})))["n"], 1000)
+        self.assertEqual(json.loads(check(json.dumps({"n": 1})))["n"], 1)
+        with self.assertRaises(sb.Bad):
+            check(json.dumps({"n": 1001}))
+
+
+class PublishedPerField(unittest.TestCase):
+    """section_bodies.published reads what is stored field by field: a field that is missing or not valid publishes as today's value."""
+
+    def pub(self, value):
+        return sb.published("milestones", value)
+
+    def test_a_missing_field_publishes_its_default(self):
+        self.assertEqual(self.pub({}), DEFAULTS)
+        self.assertEqual(self.pub({"n": 9}), {**DEFAULTS, "n": 9})
+        self.assertEqual(self.pub({"scroll": True}), {**DEFAULTS, "scroll": True})
+        self.assertEqual(self.pub({"tracker": "off"}), {**DEFAULTS, "tracker": "off"})
+
+    def test_a_field_that_is_not_valid_publishes_its_default_never_the_bad_value(self):
+        for bad in (0, -1, 1001, "5", "All", True, None, 1.5):
+            self.assertEqual(self.pub({"n": bad})["n"], 5, repr(bad))
+        for bad in (1, 0, "true", None):
+            self.assertIs(self.pub({"scroll": bad})["scroll"], False, repr(bad))
+        for bad in ("left", "", 1, None):
+            self.assertEqual(self.pub({"tracker": bad})["tracker"], "top", repr(bad))
+
+    def test_a_value_that_is_not_a_dict_publishes_the_defaults(self):
+        for bad in (None, [], "x", 3):
+            self.assertEqual(self.pub(bad), DEFAULTS, repr(bad))
+
+    def test_a_valid_value_is_published_as_it_is(self):
+        full = {"n": "all", "scroll": True, "tracker": "bottom"}
+        self.assertEqual(self.pub(full), full)
+        self.assertEqual(self.pub({**full, "n": 1000})["n"], 1000)
+
 
 class OldRowsAndFiles(Published):
     def ms(self):
