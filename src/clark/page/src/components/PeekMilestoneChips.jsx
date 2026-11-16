@@ -16,6 +16,9 @@ export const STATE_LOOK = {
 /** The state a milestone shows: a published file carries the one it worked out; the live page works it out (logic/milestones.js). */
 export const shownStateOf = (m) => (fromFile.value && m.state ? m.state : stateOf(m, todayIso()));
 
+/** The progress a milestone shows: its percent, or 100 for a Done one with none; null when not set. The chip and the progress popover both read it. */
+export const shownPercent = (m) => (m.percent_complete == null ? (m.status === "Done" ? 100 : null) : m.percent_complete);
+
 /** "overdue N days" for an open milestone whose forecast date has passed, else "". */
 export function overdueWords(m, state, today) {
   const a = dayNumber(m.forecast_date), b = dayNumber(today);
@@ -27,13 +30,13 @@ export function overdueWords(m, state, today) {
 /** `m`: the milestone; `tools`: the editor's tools (PeekMsChipPop, PeekChipLive); `editing`: true when the editor's chips are wanted. */
 export function MilestoneChips({ m, tools, editing }) {
   const today = todayIso(), state = shownStateOf(m), look = STATE_LOOK[state] || STATE_LOOK.Forecast, who = ownerOf(m.owner);
-  const pct = m.status === "Done" && m.percent_complete == null ? 100 : m.percent_complete;
+  const pct = shownPercent(m);
   const progress = typeof pct === "number" ? `${Math.round(Math.min(100, Math.max(0, pct)))}%` : "Progress not set";
   const sub = overdueWords(m, state, today), late = !!sub;
   const pop = (field) => (editing && tools && tools.PeekMsChipPop ? tools.PeekMsChipPop(m, field) : null) || undefined;
   const Live = editing && tools && tools.PeekChipLive ? tools.PeekChipLive : undefined;
   return (
-    <PeekChips>
+    <PeekChips cls="ms">
       <PeekChip Live={Live} id={m.id} field="state" name="State" icon={look[0]} tone={look[1]} value={state} pop={pop("state")} />
       <PeekChip Live={Live} id={m.id} field="owner" name="Owner" icon="user" tone="b" value={who.text} pop={pop("owner")} />
       <PeekChip Live={Live} id={m.id} field="progress" name="Progress" icon="bars" tone="b" value={progress} pop={pop("progress")} />

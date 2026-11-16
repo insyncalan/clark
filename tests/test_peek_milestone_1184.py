@@ -87,7 +87,7 @@ class Milestone(Base):
                     self.assertEqual(got[key]["icons"][0], icon, key)
                     self.assertEqual(got[key]["tag"], "BUTTON", f"{key}: a control in Edit")
                     self.assertGreaterEqual(got[key]["h"], 24, f"{key}: a 24 px target")
-                self.assertEqual(p.js("document.querySelectorAll('#peek .pk-ms-states, #peek [data-ms-head], #peek [data-ms-range]').length"), 0, "no old header line, no States row, no slider")
+                self.assertEqual(p.js("document.querySelectorAll('#peek .pk-ms-states, #peek [data-ms-head], #peek [data-ms-range]').length"), 0, "the editor has no header line, no States row, no slider")
 
     def test_the_state_popover_shows_five_icons_and_the_forecast_one_is_dashed(self):
         for width in (1400, 900):
@@ -109,10 +109,10 @@ class Milestone(Base):
                 self.assertEqual(p.js("getComputedStyle(document.querySelector('#peek .pk-chips [data-row=state] .pkc-ic')).color"),
                                  p.js("(() => { const e = document.createElement('i'); e.className = 'ic-r'; document.body.appendChild(e); const c = getComputedStyle(e).color; e.remove(); return c; })()"), "the icon is the red one")
                 self.chip(p, "state")
-                self.assertEqual(p.js("document.querySelector('[data-pop] [data-ms-state=Overdue]').disabled"), True, "not a choice")
-                n = len(self.sent)
-                p.js("document.querySelector('[data-pop] [data-ms-state=Overdue]').click()")
-                self.assertEqual(len(self.sent), n, "pressing it sends nothing")
+                self.assertEqual(p.js("[...document.querySelectorAll('[data-pop] [data-ms-state]')].map(b => b.dataset.msState)"), ["Forecast", "On track", "At risk", "Slipped", "Achieved"], "five values: Overdue is not an option")
+                self.assertEqual(p.js("document.querySelectorAll('[data-pop] [data-ms-state=Overdue]').length"), 0)
+                self.assertEqual(p.js("document.querySelectorAll('[data-pop] [data-ms-state][disabled]').length"), 0)
+                self.assertEqual(self.sent, [])
                 self.assertEqual(self.row(GO_LIVE)["state"], None)
 
     def test_picking_a_state_is_one_change_with_one_undo(self):
@@ -187,6 +187,168 @@ class Milestone(Base):
             p.js("document.querySelector('.cowner input.cp-in').dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true}))")
             self.saved("owner", "Zed Example")
             p.until("document.querySelector('#peek .pk-chips [data-row=owner]').innerText.includes('Zed Example')", "the chip shows it")
+
+
+    def test_the_block_that_equals_the_progress_sets_it_back_to_0_by_mouse_and_by_keyboard(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                self.setUp()
+                with self.store.step("dashboard", USER) as st:
+                    st.update("milestones", PILOT, {"percent_complete": 40})
+                p = self.visit(cdp, width=width)
+                self.chip(p, "progress")
+                self.click(p, "[data-pop] [data-ms-block='40']")
+                self.saved("percent_complete", 0)
+                p.until("document.querySelector('#peek .pk-chips [data-row=progress]').innerText.trim() === '0%'", "the chip says 0%")
+                # keyboard: set 40 again, then Enter on the focused 40 block clears; Space does the same
+                for key, vk, text in (("Enter", 13, "\r"), (" ", 32, " ")):
+                    self.chip(p, "progress")
+                    self.click(p, "[data-pop] [data-ms-block='40']")
+                    self.saved("percent_complete", 40)
+                    p.until("document.querySelector('#peek .pk-chips [data-row=progress]').innerText.trim() === '40%'", "the chip says 40%")
+                    self.chip(p, "progress")
+                    p.js("document.querySelector('[data-pop] [data-ms-block=\"40\"]').focus()")
+                    for kind in ("keyDown", "keyUp"):
+                        cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": "Enter" if key == "Enter" else "Space", "windowsVirtualKeyCode": vk, **({"text": text} if kind == "keyDown" else {})}, p.sid)
+                    self.saved("percent_complete", 0)
+                    p.until("document.querySelector('#peek .pk-chips [data-row=progress]').innerText.trim() === '0%'", "the chip says 0%")
+
+    def test_pressing_achieved_again_reopens_and_another_state_on_a_done_milestone_clears_the_achieved_date(self):
+        done = {"status": "Done", "state": "Achieved", "state_set": 1, "actual_date": "2026-03-04", "percent_complete": 100}
+        with chrome() as cdp:
+            with self.store.step("dashboard", USER) as st:
+                st.update("milestones", PILOT, done)
+            p = self.visit(cdp)
+            self.chip(p, "state")
+            self.assertEqual(p.js("document.querySelector('[data-pop] [data-ms-state=Achieved]').getAttribute('aria-pressed')"), "true")
+            self.click(p, "[data-pop] [data-ms-state=Achieved]")
+            self.saved("status", "Planned")
+            row = self.row(PILOT)
+            self.assertEqual((row["state"], row["state_set"], row["actual_date"]), (None, 0, None), "reopened: the dates decide again")
+        with chrome() as cdp:
+            self.setUp()
+            with self.store.step("dashboard", USER) as st:
+                st.update("milestones", PILOT, done)
+            p = self.visit(cdp)
+            self.chip(p, "state")
+            self.click(p, "[data-pop] [data-ms-state=Slipped]")
+            self.saved("status", "Planned")
+            row = self.row(PILOT)
+            self.assertEqual((row["state"], row["state_set"], row["actual_date"]), ("Slipped", 1, None))
+            p.until("document.querySelectorAll('#peek [data-ms-row=actual]').length === 0", "the Achieved on row goes")
+
+    def test_an_unchanged_value_sends_nothing_and_clearing_says_cleared(self):
+        with chrome() as cdp:
+            with self.store.step("dashboard", USER) as st:
+                st.update("milestones", GO_LIVE, {"workstream": "Build"})
+            p = self.visit(cdp, ms=GO_LIVE)
+            self.assertEqual(self.sent, [])
+            # the same owner: nothing sent
+            self.chip(p, "owner")
+            self.click(p, ".cowner input.cp-in")
+            p.js("document.querySelector('.cowner input.cp-in').dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true}))")
+            p.until("!document.querySelector('[data-pop]')", "the popover closed")
+            # the same workstream: nothing sent
+            self.click(p, "#peek [data-ms-field=workstream]")
+            self.click(p, "[data-pop] [role=menuitemradio][data-value=Build]")
+            p.until("!document.querySelector('[data-pop]')", "the menu closed")
+            self.assertEqual(self.sent, [], "an unchanged value sends nothing")
+            # No workstream clears with the cleared toast
+            self.click(p, "#peek [data-ms-field=workstream]")
+            self.click(p, "[data-pop] [role=menuitemradio][data-value='']")
+            self.saved("workstream", None)
+            p.until(f"(document.querySelector('.toast .toast-text') || {{}}).textContent === 'Workstream of {GO_LIVE} cleared.'", "the cleared toast")
+            # No date clears the forecast
+            self.chip(p, "forecast")
+            self.click(p, ".cdate [data-quick='']") if p.js("!!document.querySelector(\".cdate [data-quick='']\")") else p.js("[...document.querySelectorAll('.cdate [data-quick]')].find(b => /No date/.test(b.textContent)).click()")
+            self.saved("forecast_date", None)
+            p.until(f"(document.querySelector('.toast .toast-text') || {{}}).textContent === 'Forecast date of {GO_LIVE} cleared.'", "the cleared toast")
+            # a blank owner clears with the cleared toast
+            self.chip(p, "owner")
+            self.click(p, ".cowner input.cp-in")
+            p.js("(() => { const i = document.querySelector('.cowner input.cp-in'); i.value = ''; i.dispatchEvent(new Event('input', {bubbles: true})); })()")
+            time.sleep(0.4)
+            p.js("document.querySelector('.cowner input.cp-in').dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true}))")
+            self.saved("owner", None)
+            p.until(f"(document.querySelector('.toast .toast-text') || {{}}).textContent === 'Owner of {GO_LIVE} cleared.'", "the cleared toast")
+
+    def test_a_milestone_that_is_not_client_visible_has_a_disabled_line_and_a_greyed_wording(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                self.setUp()
+                with self.store.step("dashboard", USER) as st:
+                    st.update("milestones", PILOT, {"client_visible": 0, "client_message": "<p>Internal words</p>"})
+                p = self.visit(cdp, width=width)
+                line = p.js("(() => { const b = document.querySelector('#peek [data-pk-client]'); return { text: b.textContent.trim(), off: b.disabled, pressed: b.getAttribute('aria-pressed') }; })()")
+                self.assertEqual(line, {"text": "Client not visible", "off": True, "pressed": "false"})
+                self.assertEqual(p.js("document.querySelectorAll('#peek [data-ms-wording-off]').length"), 1)
+                self.assertIn("Internal words", p.js("document.querySelector('#peek [data-ms-wording-off]').textContent"), "the wording is shown, greyed")
+                n = len(self.sent)
+                p.js("document.querySelector('#peek [data-pk-client]').click()")
+                self.assertEqual(len(self.sent), n, "the disabled line sends nothing")
+
+    def test_the_agreed_date_is_shown_as_dd_mm_yyyy(self):
+        with chrome() as cdp:
+            p = self.visit(cdp, ms=GO_LIVE)
+            self.assertIn("10-01-2020", p.js("document.querySelector('#peek [data-ms-row=baseline] dd').textContent"))
+
+
+    def test_the_four_chips_are_on_one_line_at_both_widths_with_and_without_overdue_words(self):
+        for width in (1400, 900):
+            for ms in (PILOT, GO_LIVE):
+                with self.subTest(width=width, ms=ms), chrome() as cdp:
+                    if ms == GO_LIVE:      # a late forecast of a few days, as the screenshot has: "overdue 12 days"
+                        import datetime
+                        late = (datetime.date.today() - datetime.timedelta(days=12)).isoformat()
+                        with self.store.step("dashboard", USER) as st:
+                            st.update("milestones", GO_LIVE, {"forecast_date": late})
+                    p = self.visit(cdp, ms=ms, width=width)
+                    got = p.js("[...document.querySelectorAll('#peek .pk-chips > [data-row]')].map(e => { const r = e.getBoundingClientRect(); const v = e.querySelector('.pkc-v'); return [Math.round(r.top), Math.round(r.right), v.scrollWidth <= v.clientWidth + 1]; })")
+                    self.assertEqual(len({g[0] for g in got}), 1, f"all four chip tops are equal: {got}")
+                    pr = p.js("document.querySelector('#peek').getBoundingClientRect().right")
+                    self.assertLessEqual(max(g[1] for g in got), pr, "inside the peek")
+                    if ms == PILOT:
+                        self.assertTrue(all(g[2] for g in got), f"no value is cut short: {got}")
+                    self.assertTrue(got[3][2], f"the forecast date and its overdue words are never cut: {got}")
+
+    def test_esc_closes_the_open_popover_first_and_not_the_peek(self):
+        for field in ("state", "owner", "progress", "forecast"):
+            with self.subTest(field=field), chrome() as cdp:
+                p = self.visit(cdp)
+                self.chip(p, field)
+                p.js("(() => { const e = document.activeElement; ((e && e !== document.body ? e : document.body)).dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true})); })()")
+                p.until("!document.querySelector('[data-pop]')", f"Esc closed the {field} popover")
+                self.assertEqual(p.js("!!document.querySelector('#peek')"), True, "the peek is still open")
+                self.assertEqual(self.sent, [], "Esc sent nothing")
+
+    def test_the_state_pick_has_a_pickable_guard(self):
+        src = (PAGE_SRC / "edit" / "MilestonePeek.jsx").read_text(encoding="utf-8")
+        pick = src[src.index("function StatePop"):src.index("function OwnerPop")]
+        self.assertIn("if (!PICKABLE.includes(s)) return;", pick)
+        self.assertNotIn("ALL_STATES", pick)
+
+    def test_every_value_in_the_details_rows_is_one_font_size(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp, ms=GO_LIVE, width=width)
+                sizes = p.js("[...document.querySelectorAll('#peek [data-ms-edit] .pk-row dd')].map(d => [d.parentElement.dataset.msRow, [...new Set([d, ...d.querySelectorAll('button, span, p, .rf-empty, [data-rich]')].filter(e => e.textContent.trim()).map(e => getComputedStyle(e).fontSize))]])")
+                allsizes = {x for _, ss in sizes for x in ss}
+                self.assertEqual(len(allsizes), 1, f"one font size in the Details values: {sizes}")
+
+    def test_filled_and_empty_progress_blocks_read_apart_in_both_themes(self):
+        for theme in ("light", "dark"):
+            with self.subTest(theme=theme), chrome() as cdp:
+                with self.store.step("dashboard", USER) as st:
+                    st.update("milestones", PILOT, {"percent_complete": 30})
+                p = self.visit(cdp)
+                p.js(f"document.documentElement.dataset.theme = '{theme}'")
+                self.chip(p, "progress")
+                lum = ("(c => { const v = c.match(/[\\d.]+/g).slice(0, 3).map(Number).map(x => { x /= 255; return x <= .03928 ? x / 12.92 : Math.pow((x + .055) / 1.055, 2.4); });"
+                       " return .2126 * v[0] + .7152 * v[1] + .0722 * v[2]; })")
+                a, b = p.js(f"[...document.querySelectorAll('[data-pop] [data-ms-block]')].slice(0, 4).map(e => {lum}(getComputedStyle(e).backgroundColor))"), None
+                filled, empty = a[0], a[3]
+                ratio = (max(filled, empty) + .05) / (min(filled, empty) + .05)
+                self.assertGreaterEqual(ratio, 1.5, f"{theme}: filled {filled:.3f} against empty {empty:.3f}")
 
     # ---- Latest update above Details --------------------------------------------------------------------------------------------------------------
 
@@ -271,7 +433,8 @@ class Milestone(Base):
                 self.click(p, "#peek [data-ms-row=use_cases] [data-ms-ucs]")
                 p.until("!!document.querySelector('[data-pop][role=menu]')", "the menu opened")
                 values = p.js("[...document.querySelectorAll('[data-pop] [role=menuitemradio]')].map(e => e.dataset.value)")
-                self.assertIn(a, values), self.assertIn(b, values), self.assertEqual(values[-1], "", "None is the last choice")
+                self.assertIn(a, values), self.assertIn(b, values)
+                self.assertNotIn("", values, "nothing linked: there is no link for None to end, so it is not offered")
                 # add
                 self.click(p, f"[data-pop] [role=menuitemradio][data-value='{a}']")
                 self.assertTrue(self.until_store(lambda: self.links() == [a]), "linked")
@@ -356,16 +519,23 @@ class Milestone(Base):
 
     # ---- View and the file's chips ----------------------------------------------------------------------------------------------------------------
 
-    def test_the_dashboard_in_view_draws_the_same_chips_read_only_with_the_state_icon(self):
+    def test_the_dashboard_in_view_keeps_the_header_line_and_has_no_chip_row(self):
+        """Row 1184 changes the editor's peek only: View (and a published file) keep the read only header line of row 1078, with the client's state word."""
         with self.store.step("dashboard", USER) as st:
             st.update("milestones", PILOT, {"state": "At risk", "state_set": 1, "percent_complete": 40})
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
-                p = self.visit(cdp, width=width, view="dashboard")
-                got = self.chips(p)
-                self.assertEqual(list(got), ["state", "owner", "progress", "forecast"])
-                self.assertEqual((got["state"]["text"], got["state"]["icons"][0], got["progress"]["text"]), ("At risk", "sRisk", "40%"))
-                self.assertEqual(p.js("document.querySelectorAll('#peek .pk-chips button').length"), 0, "no tools in View")
+                from test_report_editor import Pg
+                p = Pg.at(self, cdp, self.s.port, f"#dashboard&p=ABC&ms={PILOT}")
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.until("!!document.querySelector('#peek [data-ms-head]')", "the header line")
+                self.assertEqual(p.js("document.querySelectorAll('#peek .pk-chips, #peek [data-ms-block]').length"), 0, "no chip row in View")
+                self.assertEqual(p.js("document.querySelector('#peek [data-ms-head=state]').textContent.trim()"), "At risk")
+                self.assertEqual(p.js("document.querySelectorAll('#peek [data-ms-head] button').length"), 0, "read only")
+
+    def test_the_published_chip_word_is_the_clients_state_word(self):
+        src = (PAGE_SRC / "components" / "Peek.jsx").read_text(encoding="utf-8")
+        self.assertIn("m.state_word", src[src.index("export function MsState"):src.index("export const MsSep")], "a file's state is the client's word (publish.py state_word)")
 
 
 class Source(unittest.TestCase):
@@ -381,7 +551,7 @@ class Source(unittest.TestCase):
     def test_progress_at_100_does_not_set_the_state(self):
         src = (PAGE_SRC / "edit" / "MilestonePeek.jsx").read_text(encoding="utf-8")
         block = src[src.index("function ProgressPop"):src.index("function ForecastPop")]
-        self.assertIn("progressChange(was, String(n))", block)
+        self.assertIn("progressChange(was, String(n === was ? 0 : n))", block)
         self.assertNotIn("Achieved", block)
         self.assertNotIn("stateChange", block)
 

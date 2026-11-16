@@ -9,7 +9,7 @@
 // and the Client visible line. Description and Client wording are on the one rich editor (item 1005).
 import { useRef, useState } from "preact/hooks";
 import { data, project, reread } from "../stores/report.js";
-import { changeMilestone, change, say } from "../stores/changes.js";
+import { changeMilestone, changeSteps, say } from "../stores/changes.js";
 import { DuePick } from "./cells/DuePick.jsx";
 import { OwnerPick } from "./cells/OwnerPick.jsx";
 import { Pop } from "./cells/Pop.jsx";
@@ -23,14 +23,14 @@ import { usecasesOfMilestone } from "../logic/ucRow.js";
 import { RichField } from "./RichField.jsx";
 import { richOrPlain } from "../logic/richOrPlain.js";
 import { richWords } from "../logic/richWords.js";
-import { STATE_LOOK, shownStateOf } from "../components/PeekMilestoneChips.jsx";
+import { STATE_LOOK, shownStateOf, shownPercent } from "../components/PeekMilestoneChips.jsx";
 import { iconClass } from "../iconColours.js";
 import { people } from "./itemEdit.js";
 import { PeekDetails } from "../components/PeekDetails.jsx";
 import { stampText } from "./peekLatest.js";
 import { LatestBox } from "./PeekLatest.jsx";
 import { Icon } from "../components/Icon.jsx";
-import { PICKABLE, ALL_STATES, stateChange, textChange, progressChange } from "./msPeek.js";
+import { PICKABLE, stateChange, textChange, progressChange } from "./msPeek.js";
 
 const DASH = "—";
 // Row icons as the Action peek's rows (PeekActionBody.jsx ARow).
@@ -59,7 +59,7 @@ function ClientWording({ m, on }) {
   if (!on) {
     return (
       <>
-        <span class="pk-off" data-ms-wording-off aria-disabled="true" title="Turn on Client visible to edit">{richWords(m.client_message || "").trim() || "Add client wording"}</span>
+        <span class="pk-off" data-ms-wording-off tabIndex={0} aria-disabled="true" title="Turn on Client visible to edit">{richWords(m.client_message || "").trim() || "Add client wording"}</span>
         <span class="muted pk-hint" data-ms-wording-hint> not shown to the client</span>
       </>
     );
@@ -70,7 +70,7 @@ function ClientWording({ m, on }) {
 // Item 1185, row 1184: the milestone's Latest update, the work item peek's box (PeekLatest.jsx LatestBox) above Details, with its history. One change, one Undo.
 export function PeekMsLatest({ m }) {
   const put = (value) => save(m, { latest_update: value }, richWords(value).trim() ? `Latest update of ${m.id} saved.` : `Latest update of ${m.id} cleared.`);
-  const shown = m.client_visible !== false && m.client_visible !== 0 && !leftOutIds(data.value).includes(m.id);
+  const shown = isOn(m);
   return <LatestBox id={m.id} now={m.latest_update ? String(m.latest_update) : ""} stamp={stampText(m.updated_at)} shown={shown} save={put} placeholder="What changed? Add the latest update…" />;
 }
 
@@ -102,6 +102,7 @@ function DateField({ m, field, label }) {
 function StatePop({ m, anchor, close }) {
   const today = todayIso(), now = shownStateOf(m);
   const pick = (s) => {
+    if (!PICKABLE.includes(s)) return;      // Overdue is worked out from the dates; a click that gets past the page sends nothing
     close(true);
     const c = stateChange(m, s, today);
     save(m, c, `State of ${m.id} changed to ${c.state || shownStateOf({ ...m, ...c })}.`);
@@ -109,8 +110,8 @@ function StatePop({ m, anchor, close }) {
   return (
     <Pop anchor={anchor} label={`State of ${m.id}`} cls="pk-ms-pop" onClose={close}>
       <div class="pk-ms-states" role="group" aria-label={`State of ${m.id}`} data-ms-states>
-        {ALL_STATES.map((s) => (
-          <button type="button" key={s} class="pk-ms-state" data-ms-state={s} aria-pressed={now === s ? "true" : "false"} disabled={!PICKABLE.includes(s)} onClick={() => pick(s)}>
+        {PICKABLE.map((s) => (
+          <button type="button" key={s} class="pk-ms-state" data-ms-state={s} aria-pressed={now === s ? "true" : "false"} onClick={() => pick(s)}>
             <span class={`pkc-ic ${iconClass(STATE_LOOK[s][1])}`}><Icon name={STATE_LOOK[s][0]} /></span>{s}
           </button>
         ))}
@@ -133,11 +134,11 @@ function OwnerPop({ m, anchor, close }) {
 
 const BLOCKS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
 function ProgressPop({ m, anchor, close }) {
-  const was = m.percent_complete == null ? null : m.percent_complete;
+  const was = shownPercent(m);      // a Done milestone with no percent shows 100, in the chip and here
   const [hover, setHover] = useState(0);
   const pick = (n) => {
     close(true);
-    const c = progressChange(was, String(n));
+    const c = progressChange(was, String(n === was ? 0 : n));      // the block that equals the progress now sets it back to 0 (ruled: the blocks are the only control)
     if (c) save(m, c, said(m, "Progress", c.percent_complete, `${c.percent_complete}%`));
   };
   const upto = hover || (was == null ? 0 : was);
@@ -145,7 +146,7 @@ function ProgressPop({ m, anchor, close }) {
     <Pop anchor={anchor} label={`Progress of ${m.id}`} cls="pk-ms-pop" onClose={close}>
       <div class="pk-ms-blocks" role="group" aria-label={`Progress of ${m.id}`} data-ms-blocks onMouseLeave={() => setHover(0)}>
         {BLOCKS.map((n, i) => (
-          <button type="button" key={n} class={`pk-ms-block${upto >= n ? " on" : ""}${hover && hover >= n ? " pv" : ""}`} data-ms-block={n} style={`--p:${Math.round(38 + i * 62 / 9)}%`}
+          <button type="button" key={n} class={`pk-ms-block${upto >= n ? " on" : ""}${hover && hover >= n ? " pv" : ""}`} data-ms-block={n} style={`--p:${Math.round(55 + i * 45 / 9)}%`}
             title={`${n}%`} aria-label={`${n} percent`} aria-pressed={was != null && was >= n ? "true" : "false"} onMouseEnter={() => setHover(n)} onFocus={() => setHover(n)} onBlur={() => setHover(0)} onClick={() => pick(n)} />
         ))}
       </div>
@@ -191,30 +192,34 @@ function Workstream({ m }) {
   );
 }
 
-// The first use case that reaches the milestone and the ones linked straight to it (row 1107). The picker adds or removes ONE link through the use cases' own
-// msadd and msremove (no change of the store): a pick links the use case picked and unlinks the one shown, None unlinks every direct link.
-const ucName = (u) => `${u.ref ? u.ref + " " : ""}${u.title}`;
+// The use cases that reach the milestone: the ones linked straight to it (row 1107) and the ones through a work item that names both. The picker adds or removes the
+// link through the use cases' own msadd and msremove (no change of the store); it works on the DIRECT links, the only ones msremove can end. It shows the first direct
+// one (else the first that reaches it through a work item); "No use case" is offered only when a direct link exists to remove. A change is the add, then the remove of the old
+// link, as ONE message with ONE Undo (changeSteps); a refused add leaves the old link as it was.
+const ucName = (u) => (u.ref ? `UC ${u.ref} ${u.title}` : u.title);
 function UseCase({ m }) {
   const [open, setOpen] = useState(false);
   const button = useRef(null);
   const d = data.value || {};
-  const shownUc = usecasesOfMilestone(d, m.id)[0] || null;
   const direct = new Set((d.uc_milestones || []).filter((l) => l.milestone === m.id).map((l) => l.use_case));
+  const reaching = usecasesOfMilestone(d, m.id);
+  const shownUc = reaching.find((u) => direct.has(u.id)) || reaching[0] || null;
+  const removable = reaching.filter((u) => direct.has(u.id)).map((u) => u.id);
   const choices = (d.use_cases || []).filter((u) => !u.archived || (shownUc && u.id === shownUc.id)).map((u) => ({ value: u.id, text: ucName(u), ...fieldIcon("use_case") }))
-    .concat([{ value: "", text: "No use case", ...fieldIcon("use_case", true) }]);
+    .concat(removable.length ? [{ value: "", text: "No use case", ...fieldIcon("use_case", true) }] : []);
   const close = (back) => { setOpen(false); if (back && button.current) button.current.focus(); };
-  const link = (op, ucId, words) => change({ kind: "use_cases", op, id: ucId, ids: [m.id], place: "peek" }, words);
+  const link = (op, ucId) => ({ kind: "use_cases", op, id: ucId, ids: [m.id], place: "peek" });
   const pick = async (value) => {
     close(true);
     if (!value) {
-      for (const id of direct) await link("msremove", id, `Use case of ${m.id} cleared.`);
+      await changeSteps(removable.map((id) => link("msremove", id)), `Use case of ${m.id} cleared.`);
       return;
     }
-    if (shownUc && shownUc.id === value) return;
-    const text = (choices.find((c) => c.value === value) || {}).text || "";
-    if (!direct.has(value)) await link("msadd", value, `${m.id}: use case changed to ${((d.use_cases || []).find((u) => u.id === value) || {}).ref || text}.`);
-    if (shownUc && shownUc.id !== value && direct.has(shownUc.id)) await link("msremove", shownUc.id, `Use case of ${m.id} cleared.`);
-    await reread(project.value);
+    if (shownUc && shownUc.id === value && direct.has(value)) return;
+    const uc = (d.use_cases || []).find((u) => u.id === value) || {};
+    const reqs = direct.has(value) ? [] : [link("msadd", value)];
+    if (shownUc && shownUc.id !== value && direct.has(shownUc.id)) reqs.push(link("msremove", shownUc.id));
+    if (reqs.length) await changeSteps(reqs, `${m.id}: use case changed to ${uc.ref || ucName(uc)}.`);
   };
   return (
     <>

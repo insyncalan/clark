@@ -165,9 +165,9 @@ class Source(unittest.TestCase):
         jsx = (ROOT / "src/clark/page/src/edit/PeekLatest.jsx").read_text(encoding="utf-8")
         self.assertNotIn('id="pk-latest-lab"', jsx)
         self.assertNotIn('id="pk-latest-txt"', jsx)
-        self.assertIn("id={`pk-latest-lab-${row.id}`}", jsx)
-        self.assertIn("viewId={`pk-latest-txt-${row.id}`}", jsx)               # item 1005: the text is RichField's view; the id and the label list reach it as props
-        self.assertIn("labelledBy={`pk-latest-lab-${row.id} pk-latest-txt-${row.id}`}", jsx)
+        self.assertIn("id={`pk-latest-lab-${id}`}", jsx)
+        self.assertIn("viewId={`pk-latest-txt-${id}`}", jsx)               # item 1005: the text is RichField's view; the id and the label list reach it as props
+        self.assertIn("labelledBy={`pk-latest-lab-${id} pk-latest-txt-${id}`}", jsx)
         field = (ROOT / "src/clark/page/src/edit/RichField.jsx").read_text(encoding="utf-8")
         self.assertIn("id={viewId}", field)
         self.assertIn("aria-labelledby={labelledBy}", field)

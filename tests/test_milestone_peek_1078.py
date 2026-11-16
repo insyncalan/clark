@@ -26,12 +26,14 @@ import test_publish as tp  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
 EDITOR_ROWS = ["Description", "Agreed date", "Workstream", "Use case", "Client wording"]      # row 1184: the forecast date is a chip, Latest update is a box above Details, Visible to client is the Client visible line
-CLIENT_ROWS = [r for r in EDITOR_ROWS if r != "Use case"]      # item 1185: a published file draws Latest update only when it carries one (above Details); row 1107: the use case is the editor's row alone (a use case may be hidden from the client)nt)
-EDIT_ONLY = ("Visible to client", "data-ms-edit", "pk-ms-states", "data-ms-states", '"data-ms-field"', "data-ms-in", "data-ms-block")     # words and hooks of the editor's module alone
+CLIENT_ROWS = ["Description", "Agreed date", "Forecast date", "Workstream", "Client wording"]      # View and a published file keep the live rows (row 1184 changes the editor's peek only); a file draws Latest update only when it carries one
+EDIT_ONLY = ("Visible to client", "data-ms-edit", "pk-ms-states", "data-ms-states", '"data-ms-field"', "data-ms-in", "data-ms-block", "Add description", "Add workstream", "Select use case", "Add client wording", "Turn on Client visible to edit", "not shown to the client", "data-ms-wording")     # words and hooks of the editor's module alone (row 1184 adds the new ones)
 CONTROLS = "button, input, textarea, select, [contenteditable], [role=textbox], [role=combobox], [role=button]"
 # Row 1180: the Details line is a fold toggle (a button) in a read only peek too; it changes nothing, so the "read only" checks leave it out.
 BODY_CONTROLS = ", ".join(f"{c}:not([data-pk-details])" for c in CONTROLS.split(", "))
 LABELS = "[...document.querySelectorAll('#peek .pk-fields dt')].map(d => d.textContent.trim())"
+WORDS = "((e) => { const c = e.cloneNode(true); c.querySelectorAll('.av, .sr').forEach(x => x.remove()); return c.textContent.trim(); })"     # what is read: not the owner's initials picture, not the screen reader's prefix
+HEAD = "(() => { const h = document.querySelector('#peek [data-ms-head]'); return h ? [...h.children].filter(e => !e.classList.contains('pk-ms-sep')).map(e => e.dataset.msHead || e.className) : null; })()"
 CHIP_KEYS = "[...document.querySelectorAll('#peek .pk-chips > [data-row]')].map(c => c.dataset.row)"      # row 1184: the chip row replaces the header line
 CHIPS = "(() => Object.fromEntries([...document.querySelectorAll('#peek .pk-chips > [data-row]')].map(c => [c.dataset.row, c.innerText.replace(/\\s+/g, ' ').trim()])))()"
 CHIP_ORDER = ["state", "owner", "progress", "forecast"]
@@ -58,14 +60,13 @@ class Sources(unittest.TestCase):
         self.assertNotIn('field="client_message" label="Client wording" value', src, "not a plain box any more")
         self.assertIn("MilestoneTitle", (PAGE_SRC / "edit" / "index.js").read_text(encoding="utf-8"))
 
-    def test_the_shared_fields_are_the_same_rows_read_only_under_the_chip_row(self):
+    def test_the_shared_fields_are_the_same_rows_read_only_with_the_header_line(self):
         src = (PAGE_SRC / "components" / "Peek.jsx").read_text(encoding="utf-8")
         body = src[src.index("function MilestoneFields"):]
         body = body[:body.index("\n}\n")]
-        self.assertEqual([m.group(1) for m in re.finditer(r'<Row name="([^"]+)"', body)], ["Latest update", "Description", "Agreed date", "Achieved on", "Workstream", "Client wording"])
+        self.assertEqual([m.group(1) for m in re.finditer(r'<Row name="([^"]+)"', body)], CLIENT_ROWS + ["Latest update"])
         self.assertNotIn("Visible to client", src, "the editor's row is in the editor's module alone (published page)")
-        self.assertIn("<MilestoneChips", src, "the chip row is the shared component, read only here")
-        self.assertNotIn("data-ms-head", src, "the old header line is gone")
+        self.assertIn("data-ms-head", src)
         self.assertIn("MilestoneTitle", src)
         self.assertNotIn("dangerouslySetInnerHTML", src, "rich words go through the one audited seam (CleanProse)")
 
@@ -73,13 +74,14 @@ class Sources(unittest.TestCase):
         src = (PAGE_SRC / "edit" / "msPeek.js").read_text(encoding="utf-8")
         self.assertIn('return { status: "Done", state: "Achieved", state_set: 1, actual_date: m.actual_date || today, percent_complete: 100 };', src)
 
-    def test_the_published_page_has_the_chip_row_and_none_of_the_editors_words(self):
+    def test_the_published_page_has_the_header_line_and_none_of_the_editors_words(self):
         view = page.VIEW_PAGE.read_text(encoding="utf-8")
-        for marker in ("data-ms-fields", "pk-chips", 'data-icn'):
+        for marker in ("data-ms-head", ".pk-ms-head {", "data-ms-fields"):
             self.assertIn(marker, view, marker)
         for word in EDIT_ONLY:
             self.assertNotIn(word, view, word)
-        self.assertNotIn("data-ms-head", view, "the old header line is gone")
+        self.assertNotIn(".pk-ms-head {", (PAGE_SRC / "edit" / "edit.css").read_text(encoding="utf-8"), "the shared look is shell.css's (inlined into the published page)")
+        self.assertIn(".pk-ms-head {", (SRC / "clark" / "page" / "shell.css").read_text(encoding="utf-8"))
 
     def test_the_client_wording_of_a_milestone_is_rich_on_publish_in_the_sheet_and_in_the_change_route(self):
         self.assertIn("client_message", publish.RICH["milestones"])
@@ -117,7 +119,7 @@ class Fields(Base):
         self.cur = ms
         p = Pg.at(self, cdp, self.s.port, f"#{view}&p=ABC&ms={ms}")
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, p.sid)
-        p.until("!!document.querySelector('#peek .pk-chips')", "the peek drew its chip row")
+        p.until("!!document.querySelector('#peek .pk-chips, #peek [data-ms-head]')", "the peek drew its chip row or header line")
         if theme:
             p.js(f"document.documentElement.dataset.theme = '{theme}'")
         cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
@@ -216,6 +218,11 @@ class Fields(Base):
                         self.assertTrue(r["beside"], f"label left, value right: {r}")
                     chips = p.js("(() => { const h = document.querySelector('#peek .pk-chips'), pr = document.querySelector('#peek').getBoundingClientRect(); return { n: h.children.length, inside: [...h.children].every(e => { const r = e.getBoundingClientRect(); return r.right <= pr.right + 1 && r.left >= pr.left - 1; }) }; })()")
                     self.assertEqual(chips["n"], 4)
+                    if width == 1400:
+                        tops = p.js("[...document.querySelectorAll('#peek .pk-chips > [data-row]')].map(e => e.getBoundingClientRect().top)")
+                        self.assertLess(max(tops) - min(tops), 8, "the four chips are on one line at 1400: " + str(tops))
+                    head = p.js("(() => { const h = document.querySelector('#peek .pk-chips'), c = getComputedStyle(h); return { border: c.borderTopWidth + c.borderBottomWidth, bg: c.backgroundColor }; })()")
+                    self.assertEqual((head["border"], head["bg"]), ("0px0px", "rgba(0, 0, 0, 0)"), "the chip row is flat: " + str(head))
                     self.assertTrue(chips["inside"], "every chip is inside the peek")
                     self.assertTrue(p.js("(p => p.scrollWidth <= p.clientWidth + 1)(document.querySelector('#peek'))"), "no sideways scroll")
 
@@ -225,15 +232,17 @@ class Fields(Base):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.visit_peek(cdp, width=width)
-                editor_head = p.js(CHIPS)
-                self.assertEqual(editor_head["progress"], "40%")
+                chips = p.js(CHIPS)      # row 1184: the editor's peek has the chip row; View keeps the header line, with the same words
+                editor_head = [chips["state"], chips["owner"], chips["progress"]]
+                self.assertEqual(editor_head[2], "40%")
             with self.subTest(width=width, view="dashboard"), chrome() as cdp:
                 p = self.visit_peek(cdp, width=width, view="dashboard")
                 self.assertEqual(p.js("document.querySelectorAll('#peek [data-ms-edit], #peek [data-ms-states]').length"), 0, "View: the fields, not the editor")
                 self.assertEqual(p.js(f"[...document.querySelector('#peek .pk-body').querySelectorAll({json.dumps(BODY_CONTROLS)})].map(e => e.outerHTML.slice(0, 60))"), [], "read only")
-                self.assertEqual(p.js(CHIP_KEYS), CHIP_ORDER)
-                self.assertEqual(p.js(CHIPS), editor_head, "the same chip row as the editor's")
-                self.assertEqual(p.js("document.querySelectorAll('#peek .pk-chips button').length"), 0, "View: the chips are read only")
+                self.assertEqual(p.js(HEAD), ["state", "owner", "progress"])
+                head = p.js(f"[...document.querySelectorAll('#peek [data-ms-head] [data-ms-head]')].map({WORDS})")
+                self.assertEqual((head[0], head[2]), (editor_head[0], editor_head[2]), "the same state and progress words as the editor's chips")
+                self.assertIn(head[1], editor_head[1], "the same owner")
                 self.assertEqual(p.js(LABELS), CLIENT_ROWS)
                 self.assertEqual(p.js("document.querySelector('#peek [data-ms-fields] [data-ms-row=client_message] strong').textContent"), "well", "rich words, as the editor shows them")
                 self.assertEqual(p.js("document.querySelector('#peek [data-ms-fields] [data-ms-row=description]').textContent.replace('Description', '').trim()"), "Scope")
@@ -243,17 +252,16 @@ class Fields(Base):
                     self.assertEqual((r["left"], r["radius"], r["bg"], r["beside"]), ("0px", "0px", "rgba(0, 0, 0, 0)", True), str(r))
 
 
-    def test_an_achieved_milestone_reads_achieved_with_its_date_row_in_the_dashboard_in_view(self):
+    def test_an_achieved_milestone_reads_achieved_with_its_date_in_the_dashboard_in_view(self):
         with self.store.step("dashboard", USER) as st:
             st.update("milestones", GO_LIVE, {"status": "Done", "state": "Achieved", "state_set": 1, "actual_date": "2026-03-04", "percent_complete": 100})
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.visit_peek(cdp, width=width, view="dashboard")
-                self.assertEqual(p.js(CHIPS)["state"], "Achieved")
-                self.assertEqual(p.js("[...document.querySelectorAll('#peek [data-ms-fields] [data-ms-row=actual]')].map(r => r.querySelector('dd').textContent.trim())"), ["04-03-2026"], "the date is in the Achieved on row")
+                self.assertEqual(p.js("document.querySelector('#peek [data-ms-head=state]').textContent.trim()"), "Achieved on 04-03-2026")
                 self.assertEqual(p.js("document.querySelectorAll('#peek [data-ms-edit], #peek [data-ms-states]').length"), 0, "View: not the editor")
                 self.assertEqual(p.js(f"[...document.querySelector('#peek .pk-body').querySelectorAll({json.dumps(BODY_CONTROLS)})].length"), 0, "read only")
-                self.assertEqual(p.js(CHIP_KEYS), CHIP_ORDER)
+                self.assertEqual(p.js(HEAD), ["state", "owner", "progress"])
 
 
 class Published(unittest.TestCase):
@@ -278,13 +286,11 @@ class Published(unittest.TestCase):
             with self.subTest(width=width), chrome() as cdp:
                 sid = tp.opened(cdp, path.as_uri() + "#dashboard&p=PUB&ms=PUB-M-001", width)
                 from test_server import wait
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-chips')", sid)), "the published milestone peek drew")
-                self.assertEqual(cdp.js(CHIP_KEYS, sid), CHIP_ORDER)
-                chips = cdp.js(CHIPS, sid)
-                self.assertEqual(chips["state"], "At risk")
-                self.assertEqual(chips["owner"], "Delivery lead")
-                self.assertEqual(chips["progress"], "60%")
-                self.assertEqual(cdp.js("document.querySelectorAll('#peek .pk-chips button').length", sid), 0, "a file's chips are read only")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-ms-head]')", sid)), "the published milestone peek drew")
+                self.assertEqual(cdp.js(HEAD, sid), ["state", "owner", "progress"])
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-ms-head=state]').textContent.trim()", sid), "At risk")
+                self.assertEqual(cdp.js(f"{WORDS}(document.querySelector('#peek [data-ms-head=owner]'))", sid), "Delivery lead")
+                self.assertEqual(cdp.js(f"{WORDS}(document.querySelector('#peek [data-ms-head=progress]'))", sid), "60%")
                 self.assertEqual(cdp.js(LABELS, sid), CLIENT_ROWS, "the editor's rows, less Visible to client")
                 self.assertEqual(cdp.js(f"[...document.querySelector('#peek .pk-body').querySelectorAll({json.dumps(BODY_CONTROLS)})].length", sid), 0, "read only")
                 self.assertEqual(cdp.js("document.querySelector('#peek [data-ms-row=client_message] em').textContent", sid), "this")
@@ -295,9 +301,9 @@ class Published(unittest.TestCase):
                 cdp.js("location.hash = '#dashboard&p=PUB&ms=PUB-M-002'", sid)
                 self.assertTrue(wait(lambda: cdp.js("(p => !!p && p.dataset.peek === 'PUB-M-002')(document.querySelector('#peek'))", sid)))
                 self.assertEqual(cdp.js(LABELS, sid), [r for r in CLIENT_ROWS if r not in ("Description", "Client wording")])
-                self.assertEqual(cdp.js(CHIPS, sid)["progress"], "Progress not set")
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-ms-head=progress]').textContent.trim()", sid), "Progress not set")
 
-    def test_an_empty_owner_and_progress_in_a_files_milestone_peek_chips_say_progress_not_set_and_the_live_dash_for_the_owner(self):
+    def test_an_empty_owner_and_progress_in_a_files_milestone_peek_header_say_progress_not_set_with_no_bare_dash(self):
         def bare(plant):
             for m in plant["data"]["milestones"]:
                 if m["id"] == "PUB-M-002":
@@ -312,12 +318,13 @@ class Published(unittest.TestCase):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = tp.opened(cdp, path.as_uri() + "#dashboard&p=PUB&ms=PUB-M-002", width)
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-chips')", sid)), "the peek drew")
-                chips = cdp.js(CHIPS, sid)
-                self.assertEqual(chips["progress"], "Progress not set")
-                self.assertEqual(chips["owner"], "\u2014", "an empty owner is the live dash, as the Action chip's")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-ms-head=progress]')", sid)), "the peek drew")
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-ms-head=progress]').textContent.trim()", sid), "Progress not set")
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-ms-head=owner]')", sid), None, "no bare dash for an empty owner")
+                self.assertNotIn("\u2014", cdp.js("document.querySelector('#peek .pk-ms-head').textContent", sid))
+                self.assertEqual(cdp.js("document.querySelectorAll('#peek .pk-ms-head .pk-ms-sep').length", sid), 1, "state, progress: one separator")
 
-    def test_an_achieved_milestone_in_a_file_reads_achieved_with_its_date_row_read_only(self):
+    def test_an_achieved_milestone_in_a_file_reads_achieved_with_its_date_read_only(self):
         plant = fx.load()
         for m in plant["data"]["milestones"]:
             if m["id"] == "PUB-M-001":
@@ -332,11 +339,11 @@ class Published(unittest.TestCase):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = tp.opened(cdp, path.as_uri() + "#dashboard&p=PUB&ms=PUB-M-001", width)
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-chips')", sid)), "the peek drew")
-                chips = cdp.js(CHIPS, sid)
-                self.assertEqual((chips["state"], chips["progress"]), ("Achieved", "100%"))
-                self.assertEqual(cdp.js("[...document.querySelectorAll('#peek [data-ms-row=actual] dd')].map(e => e.textContent.trim())", sid), ["04-03-2026"], "the date is in the Achieved on row")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-ms-head]')", sid)), "the peek drew")
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-ms-head=state]').textContent.trim()", sid), "Achieved on 04-03-2026")
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-ms-head=state]').className.includes('mst')", sid), True)
                 self.assertEqual(cdp.js(f"[...document.querySelector('#peek .pk-body').querySelectorAll({json.dumps(BODY_CONTROLS)})].length", sid), 0, "read only")
+                self.assertEqual(cdp.js(f"{WORDS}(document.querySelector('#peek [data-ms-head=progress]'))", sid), "100%")
 
 
 if __name__ == "__main__":

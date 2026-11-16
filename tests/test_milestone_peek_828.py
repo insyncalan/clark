@@ -163,7 +163,7 @@ class Fields(Base):
             self.undo(p)
             self.saved(p, "name", "Go live")
 
-    def test_progress_by_blocks_one_step_each_and_the_same_block_sends_nothing(self):
+    def test_progress_by_blocks_one_step_each_and_the_same_block_sets_it_back_to_0(self):
         with chrome() as cdp:
             p = self.visit_peek(cdp)
             self.chip(p, "progress")
@@ -171,24 +171,22 @@ class Fields(Base):
             self.click(p, "[data-pop] [data-ms-block='40']")
             self.saved(p, "percent_complete", 40)
             p.until("document.querySelector('#peek .pk-chips [data-row=progress]').textContent.includes('40%')", "the chip says 40%")
-            sent = len(self.sent)
             self.chip(p, "progress")
             self.click(p, "[data-pop] [data-ms-block='40']")
-            p.until("!document.querySelector('[data-pop]')", "the popover closed")
-            self.assertEqual(len(self.sent), sent, "the same percentage sends nothing")
+            self.saved(p, "percent_complete", 0)       # ruled (Jarvis): the block that equals the progress sets it back to 0
             self.chip(p, "progress")
             self.click(p, "[data-pop] [data-ms-block='70']")
             self.saved(p, "percent_complete", 70)
             self.undo(p)
-            self.saved(p, "percent_complete", 40)
+            self.saved(p, "percent_complete", 0)
 
     def test_state_popover_sets_clears_and_achieved_is_done_with_its_date(self):
         with chrome() as cdp:
             p = self.visit_peek(cdp, ms=PILOT)       # agreed far ahead: On track by the dates, so a worse state needs no reason
             self.chip(p, "state")
             self.assertEqual(p.js("[...document.querySelectorAll('[data-pop] [data-ms-state]')].map((b) => b.dataset.msState)"),
-                             ["Forecast", "On track", "At risk", "Slipped", "Overdue", "Achieved"])
-            self.assertEqual(p.js("document.querySelector('[data-pop] [data-ms-state=Overdue]').disabled"), True)
+                             ["Forecast", "On track", "At risk", "Slipped", "Achieved"])      # row 1184 (ruled): Overdue is shown on the chip when the dates make it so, and is not an option
+            self.assertEqual(p.js("document.querySelectorAll('[data-pop] [data-ms-state=Overdue]').length"), 0)
             self.assertEqual(p.js("document.querySelector('[data-pop] [data-ms-state=\"On track\"]').getAttribute('aria-pressed')"), "true", "the dates say On track")
             self.click(p, "[data-pop] [data-ms-state=Slipped]")
             self.saved(p, "state", "Slipped")

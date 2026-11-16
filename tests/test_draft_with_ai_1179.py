@@ -34,11 +34,11 @@ def read(rel):
 class Source(unittest.TestCase):
     def test_the_button_is_in_every_peek_and_the_menu_is_the_places_menu(self):
         latest, ms, shared = read("edit/PeekLatest.jsx"), read("edit/MilestonePeek.jsx"), read("edit/DraftAi.jsx")
-        for text in (latest, ms):
-            self.assertIn("<DraftButton", text)
-            self.assertIn("<DraftPanel", text)
-            self.assertIn("ai={place}", text, "the right-click menu is on in the Latest update editor")
-            self.assertIn('keyForField("latest_update")', text, "the place comes from aiPlaces.js, by the field")
+        self.assertIn("<LatestBox", ms, "row 1184: the milestone's Latest update is the work item peek's box (PeekLatest.jsx LatestBox)")
+        self.assertIn("<DraftButton", latest)
+        self.assertIn("<DraftPanel", latest)
+        self.assertIn("ai={place}", latest, "the right-click menu is on in the Latest update editor")
+        self.assertIn('keyForField("latest_update")', latest, "the place comes from aiPlaces.js, by the field")
         self.assertIn('export const DRAFT_WITH_AI = "Draft with AI"', shared)
         self.assertIn("aria-label={DRAFT_WITH_AI}", shared)
         self.assertIn('role="menu" aria-label={DRAFT_WITH_AI}', shared, "the menu is named with the same words as the button")
@@ -211,7 +211,7 @@ class MilestonePane(Base):
                 p.js(STUB)
                 p.until(f"!!document.querySelector({json.dumps(B)})", "the button is on the milestone peek")
                 self.assertEqual(p.js(f"document.querySelector({json.dumps(B)}).getAttribute('aria-label')"), "Draft with AI")
-                self.assertTrue(p.js(f"document.querySelector('#peek [data-ms-row=latest_update]').contains(document.querySelector({json.dumps(B)}))"), "in the Latest update row")
+                self.assertTrue(p.js(f"document.querySelector('#peek [data-pk-latest]').contains(document.querySelector({json.dumps(B)}))"), "in the Latest update box")
                 before = len(self.sent)
                 p.js(f"document.querySelector({json.dumps(B)}).click()")
                 p.until("!!document.querySelector('#peek [data-ai-menu]')", "the menu opens")

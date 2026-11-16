@@ -153,6 +153,28 @@ export function change(req, done, named = null) {
   });
 }
 
+// Row 1184: several changes made as one (the milestone peek's Use case: the new link, then the old one's end). They run in order; the first that is
+// refused stops the rest (its toast says why, nothing after it is made). One message when done, with ONE Undo that takes all of the steps back
+// (undoSeveral, #197). Resolves to true when every change was made.
+export function changeSteps(reqs, done) {
+  const code = project.value;
+  return enqueue(async () => {
+    const steps = [];
+    let ok = true;
+    for (const req of reqs) {
+      const r = await sendChange(code, req);
+      if (!r.ok) { say("problem", r.message); ok = false; break; }
+      redraw(code, r.reply);
+      if (r.reply.apply_id) steps.push(r.reply.apply_id);
+    }
+    if (!(await readAgain(code, "The change was saved"))) return ok;
+    if (!ok) return false;
+    if (steps.length === 1) say("done", done, steps[0], code);
+    else if (steps.length > 1) sayLocalUndo("done", done, () => { undoSeveral(steps); });
+    return true;
+  });
+}
+
 // Move one work item on the board (#68): the work items are read again (reread, report.js) after it and after its undo, so
 // the page shows what clark saved. `done` is the toast's words; an Undo goes with it only when the reply says the step can be put
 // back (a decision made is not). A refusal is a note: nothing was changed and there is nothing to undo.
