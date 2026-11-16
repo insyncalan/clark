@@ -1271,7 +1271,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .mv-txt button { all: unset; box-sizing: border-box; min-height: 28px; display: inline-flex; align-items: center; padding: 0 var(--space-1); font-size: var(--size-caption); color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; }
 .mv-txt button:hover { color: var(--text); } .mv-txt button:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .mv-txt button[aria-current="true"] { color: var(--heading); font-weight: var(--weight-medium); border-bottom-color: var(--brand-blue); }
-.mv-box { position: relative; min-width: 0; max-width: 100%; }
+.mv-box { --sb: 0px; position: relative; min-width: 0; max-width: 100%; }
 .mv-cap { position: absolute; left: var(--space-3); bottom: calc(var(--sb) + 4px); z-index: 4; font-size: var(--size-caption); color: var(--text-muted); pointer-events: none; }
 .mv-cap button { pointer-events: auto; }
 .msv[data-place^="sec-"] .mv-wrap { min-height: 150px; }
