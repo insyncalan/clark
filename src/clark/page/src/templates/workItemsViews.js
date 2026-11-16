@@ -11,7 +11,10 @@ const norm = (s) => String(s == null ? "" : s).split(/\s+/).filter(Boolean).join
 
 // The filter a view gives, built on the current one; { filter } or { problem } (a view whose words the list cannot read).
 export function applyView(view, current, known = []) {
-  return readLine(view ? view.line : "", current, known);
+  const r = readLine(view ? view.line : "", current, known);
+  // Row 1268 (slice 9 with slice 3): the Decisions tab is Pending plus Made in the last 14 days, the "current" mode; the line has no word for it, so the tab sets it.
+  if (r.filter && view && view.id === "decisions" && r.filter.mode === "open" && r.filter.kinds.length === 1 && r.filter.kinds[0] === "decision") r.filter.mode = "current";
+  return r;
 }
 
 // The line the filter reads as, in the form views are compared in.
