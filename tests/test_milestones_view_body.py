@@ -142,6 +142,20 @@ class InFile(Published, Base):
                 self.raw(ref, bad)
                 self.assertIn(ref, self.sections())
 
+    def test_the_file_keeps_every_milestone_whatever_the_count_and_scroll_are(self):
+        # The page slices to the count; the published file never does. 5 more client-visible milestones make 6 in all.
+        with self.s.step("dashboard", "Demo User") as st:
+            for i in range(5):
+                st.create("milestones", {"project": "ABC", "name": f"Extra {i}", "baseline_date": f"2030-0{4 + i}-01", "source": "demo"})
+        ref = self.ms()
+        for scroll in (False, True):
+            with self.subTest(scroll=scroll):
+                self.write(ref, json.dumps({"n": 2, "scroll": scroll, "tracker": "bottom"}))
+                built = self.build()["published"]
+                self.assertEqual(len(built["data"]["milestones"]), 6)
+                entry = {s["id"]: s for s in built["sections"]}[ref]
+                self.assertEqual((entry["n"], entry["scroll"], entry["tracker"]), (2, scroll, "bottom"))
+
     def test_a_hidden_section_stays_out(self):
         ref = self.ms()
         self.ok("update", id=ref, changes={"hidden": 1})
