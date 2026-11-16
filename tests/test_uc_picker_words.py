@@ -34,7 +34,7 @@ class Words(Setup):
         p.until("!!document.querySelector('.uc [data-uc-status]')", "Edit shows the status buttons")
         return p
 
-    def open(self, p):
+    def show_picker(self, p):
         p.js("document.querySelector('[data-uc-back]').scrollIntoView({block: 'center'})")
         x, y, _ = p.box("[data-uc-back]")
         p.mouse("mouseMoved", x, y)
@@ -46,7 +46,7 @@ class Words(Setup):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.edit(cdp, width)
-                self.open(p)
+                self.show_picker(p)
                 self.assertEqual(p.js(SEARCH + ".placeholder"), "Search by name, ID or status")
                 self.assertEqual(p.js("document.querySelector('[data-filter] .sr').textContent"), "Filters", "screen-reader text of the filter button")
                 self.assertEqual(p.js("document.querySelector('form.picker [data-result]').textContent"), "Result: 2 of 2 shown")
