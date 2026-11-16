@@ -98,6 +98,25 @@ class LayoutKeepsContent(Base):
     def test_layout_change_at_900(self):
         self.run_at(900)
 
+    def test_right_half_made_full_width_frees_its_partner_at_900(self):
+        """A real pair (This week, Next week): the right half goes full width from its menu; the left half, its old partner, is
+        alone and full width too, so it does not pair with the section after it."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 900, "height": 6000, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+            p.until("window.innerWidth === 900", "resized")
+            p.edit()
+            order = self.ids_in_store()
+            flags = self.beside_flags()
+            self.assertEqual((flags["ABC-S-006"], flags["ABC-S-007"]), (1, 0), "This week and Next week are a pair to start with")
+            p.menu("ABC-S-007", "full")
+            p.until("!document.querySelector('[data-id=\"ABC-S-006\"]').classList.contains('slot-left')", "the old partner is alone")
+            flags = self.beside_flags()
+            self.assertEqual((flags["ABC-S-006"], flags["ABC-S-007"]), (0, 0), "neither half is beside anything now")
+            self.assertEqual(self.ids_in_store(), order, "nothing moved")
+            for ref in ("ABC-S-006", "ABC-S-007"):
+                p.until(f"document.querySelector('[data-id=\"{ref}\"]').classList.contains('slot-full')", ref + " is full width")
+
 
 if __name__ == "__main__":
     unittest.main()
