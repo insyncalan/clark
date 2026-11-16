@@ -223,6 +223,17 @@ class Crowded(Base):
                 self.assertEqual(got["overlaps"], [], "no two labels overlap")
                 self.assertTrue(got["noScroll"])
 
+    def test_a_cluster_that_needs_three_or_more_tiers_gets_them_with_no_overlap_and_a_leader_each(self):
+        """Ten marks within two weeks cannot fit in two tiers (one above, one below): cutting the tier limit to two must fail here."""
+        for width, edit in CASES:
+            with self.subTest(width=width, edit=edit), self.case(width, edit) as (cdp, sid, got):
+                self.assertGreaterEqual(len(got["tops"]), 3, f"the data needs three or more tiers: {got['tops']}")
+                self.assertTrue(got["above"] and got["below"], "tiers on both sides of the line")
+                self.assertEqual(got["overlaps"], [], "no two labels overlap")
+                self.assertEqual(got["leads"], got["labs"], "one leader for each label")
+                for j in got["joins"]:
+                    self.assertLessEqual(j["dx"], 2, f"{j['id']}: the leader is on its mark")
+
 
 if __name__ == "__main__":
     unittest.main()
