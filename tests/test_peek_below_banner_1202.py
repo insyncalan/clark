@@ -1,4 +1,4 @@
-"""Item 1202: every peek starts below the nav banner and runs to the bottom of the screen. Row 1258 (v1.1.1, Alan: the approved mockup rules) then made
+"""Item 1202: every peek starts below the nav banner and runs to the bottom of the screen. Row 1258 (v1.1.1, the approved mock-up rules) then made
 the item, milestone and archived peeks a floating card: 16 px in from the right and the bottom and 16 px under the banner, radius 16 (the Help peek
 keeps the flush shape). Where this file used to say flush right, to the bottom and no radius, it now says that card; test_peek_frame_1258 measures it. Run: python3 dev/run_tests.py test_peek_below_banner_1202
 
