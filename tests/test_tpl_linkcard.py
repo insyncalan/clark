@@ -155,6 +155,10 @@ class InThePage(PageBase):
             self.assertTrue(wait(lambda: "ZQ-WORDS" in self.store.read("report_sections", ref=ref)["body"], 15), "the words were saved")
             p.until(f"!document.querySelector('{sel} .ProseMirror')", "the words field closed")
             self.assertEqual(p.js(f"document.querySelector({json.dumps(href)}).value"), "https://example.org/typed-not-saved")
+            # the words' own toast carries an Undo too: close it, so the Undo waited for below is the card save's
+            p.until("!!document.querySelector('.toast [data-dismiss]')", "the words' toast")
+            p.js("document.querySelector('.toast [data-dismiss]').click()")
+            p.until("!document.querySelector('.toast')", "the words' toast is gone")
             self.put(p, href, CARD["href"])
             self.put(p, f"{sel} input[id$=-title]", "Pilot dashboard, week 3")
             p.js(f"document.querySelector('{sel} [data-save] button').click()")
