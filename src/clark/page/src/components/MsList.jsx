@@ -4,14 +4,16 @@
 // not in a published file, which shows the list as it is). Each row: a point on the rail, the date and how it compares, the name, the state and progress.
 // In Edit each row also has the eye (`Eye`, edit/MsEye.jsx), a button beside the row that leaves it out of the published page; a row
 // that is left out says so in words (`left`: the set of ids). View and a published file pass neither.
-import { useState } from "preact/hooks";
+import { useState, useLayoutEffect, useRef } from "preact/hooks";
 import { Icon } from "./Icon.jsx";
 import { MsMark } from "./MsMark.jsx";
 import { isChanged, WORD } from "../stores/changed.js";
 import { fromFile } from "../stores/report.js";
 import { showDate, subLine, railRows, railWord, RAIL } from "../logic/milestones.js";
 import { recall, remember } from "../logic/remember.js";
+import { MS_EDIT_SCROLL_ON, MS_EDIT_SCROLL_OFF, MS_VIEW_ON, MS_VIEW_OFF, MS_REGION } from "../edit/ucConfigureWords.js";
 import { defsOf, standardIds } from "../logic/tableColumns.js";
+import { visibleItems, scrollRows } from "../logic/useCaseView.js";
 
 // The date is the first line of the row; its second line (Agreed, or Expected date and days later in red) is `Sub`, a small line under the
 // date and the name (row 1020).
@@ -64,10 +66,25 @@ const XCELL = { id: (r) => r.id, description: (r) => r.description, workstream: 
   forecast: (r) => (r.forecast ? showDate(r.forecast) : ""), order: (r) => String(r.sort_order), reason: (r) => r.reason };
 const xText = (id, r) => { const t = String((XCELL[id] || (() => ""))(r) || "").trim(); return t || "—"; };
 
-function MsRows({ rows, place, open, internalTag, Eye, More, left, legend, canFold = true, vars, hd, cols = STD, menu }) {
+function MsRows({ view, rows, place, open, internalTag, Eye, More, left, legend, canFold = true, vars, hd, cols = STD, menu }) {
   const on = (id) => cols.includes(id), off = (id) => (on(id) ? "" : " cols-off");
   const [all, setAll] = useState(() => !fromFile.value && !!recall(`msAll.${place}`, false));
-  const shown = railRows(rows, all);
+  // Row 1230: with a view setting (the Dashboard's section) the number shown and the scrolling come from it, as the Use case summary does: Edit scrolls once a number is stored,
+  // a number stored means no "Show all", and with none stored the first 5 and "Show all N milestones" stay as they were. No view (the Milestones page): as it was.
+  const scrolls = view ? (Eye ? view.set || view.scroll : view.scroll) : false, high = view ? scrollRows({ ...view, scroll: scrolls }) : 0;
+  const shown = !view ? railRows(rows, all) : scrolls ? rows : visibleItems(rows, view, view.set ? false : all);
+  const more = view ? !scrolls && !view.set && rows.length > (view.n === "all" ? rows.length : view.n) : rows.length > RAIL;
+  const cut = !!view && view.set && view.n !== "all" && view.n < rows.length;      // a number is stored and fewer than the rows: the notes below say so
+  const note = !cut ? "" : Eye ? (view.scroll ? MS_EDIT_SCROLL_ON : MS_EDIT_SCROLL_OFF)(view.n, rows.length) : (view.scroll ? MS_VIEW_ON : MS_VIEW_OFF)(view.n, rows.length);
+  const list = useRef(null);
+  const fit = () => {      // the list is as tall as its first `high` rows, measured, so n rows fit exactly whatever their height
+    const ul = list.current;
+    if (!ul) return;
+    const li = ul.querySelectorAll(":scope > li");
+    ul.style.maxHeight = high && li.length > high && li[high].offsetTop > li[0].offsetTop ? `${li[high].offsetTop - li[0].offsetTop}px` : "";
+  };
+  useLayoutEffect(() => { fit(); });
+  useLayoutEffect(() => { window.addEventListener("resize", fit); return () => window.removeEventListener("resize", fit); });
   const [det, setDet] = useState(() => !canFold || fromFile.value || recall(`msDet.${place}`, true) !== false);      // a published file starts open and keeps no choice (remembering there needs a ruling)
   const fold = () => { if (canFold && !fromFile.value) remember(`msDet.${place}`, !det); setDet(!det); };
   const toggle = () => { if (!fromFile.value) remember(`msAll.${place}`, !all); setAll(!all); };
@@ -83,7 +100,7 @@ function MsRows({ rows, place, open, internalTag, Eye, More, left, legend, canFo
       </div>
       <div id={`msl-${place}`} hidden={!det}>
       {hd}
-      <ul class="msl">
+      <ul class={`msl${high ? " msl-scroll" : ""}`} ref={list} {...(cut && scrolls ? { tabindex: "0", "aria-label": MS_REGION } : {})}>
         {shown.map((r) => {
           const out = !!(Eye && left && left.has(r.id));          // left out of the published page: said in words, never by colour alone
           return (
@@ -105,7 +122,8 @@ function MsRows({ rows, place, open, internalTag, Eye, More, left, legend, canFo
         })}
       </ul>
       {menu}
-      {rows.length > RAIL ? <button type="button" class="link msl-all" data-msall={place} onClick={toggle}>{railWord(rows.length, all)}</button> : null}
+      {note ? <p class="note muted" data-msl-note>{note}</p> : null}
+      {more ? <button type="button" class="link msl-all" data-msall={place} onClick={toggle}>{railWord(rows.length, all)}</button> : null}
       </div>
     </div>
   );

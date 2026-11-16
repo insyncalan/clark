@@ -16,3 +16,15 @@ export const DONE = "Done";
 
 // Not ruled yet (no ruling): nothing here may be treated as final wording.
 // (none: the close button reads DONE, item 9 of the words file)
+
+// Row 1230: the Milestones section's Configure uses this same box; these are its own ruled words (ruled 16-11).
+export const MS_TITLE = "Configure milestones";
+export const MS_NUMBER_LABEL = "Milestones shown in the list";
+export const MS_SHOWN_LABEL = "Milestones shown";
+export const MS_SAME_NOTE = "Edit uses the same number but scrolls whenever a number is set, so you can reach every milestone; viewers get the scrolling only when it is On.";
+export const MS_TRACKER_HELP = "The counts by state; they double as the key. Top or bottom of the list, or off.";
+export const MS_EDIT_SCROLL_ON = (n, m) => `Same as the published page: ${n} of ${m} milestones show at a time; scroll the list for the rest. Change this in Configure.`;
+export const MS_EDIT_SCROLL_OFF = (n, m) => `Same as the published page: ${n} of ${m} milestones show at a time. Viewers cannot scroll, so they see only the first ${n}; scroll here to reach the others. Change this in Configure.`;
+export const MS_VIEW_OFF = (n, m) => `Showing ${n} of ${m} milestones`;
+export const MS_VIEW_ON = (n, m) => `Showing ${n} of ${m} \u00b7 scroll the list for the rest`;
+export const MS_REGION = "Milestones; scroll to see more";
