@@ -318,10 +318,13 @@ def _content(s, ctx=None):
     (store.check_section_body, the same checker a write meets), never trusted, so a body that is bad for any reason (written
     by an older or another clark, or by hand) never reaches the file. What is published is fields picked by name from the
     CHECKED value (section_bodies.published), never the stored text, and never passed through clean_html."""
+    old = {} if s["type"] in (section_bodies.MILESTONES, section_bodies.USECASES) else None      # row 1230: the built-in Milestones row stays in the file whatever its body: empty or bad publishes as an old row (no settings)
     try:
         text = check_section_body(s["type"], s.get("body"))
     except StoreInvalid:
-        return {} if s["type"] == section_bodies.USECASES else None      # row 1234: the use case summary is never left out for its view setting: no setting, or a bad one, is the defaults
+        return old
+    if old is not None and not text:
+        return old
     if not text:
         return {} if s["type"] == section_bodies.USECASES else None
     return section_bodies.published(s["type"], json.loads(text), ctx)

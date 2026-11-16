@@ -451,7 +451,47 @@ def _checked_view(value, rules):
     return {"n": n, "scroll": scroll, "tracker": tracker}
 
 
-CHECKERS = {NEEDS: _checked_needs, TRACKER: _checked_tracker, USECASES: _checked_view, **{t: m.check for t, m in TEMPLATES.items()}}
+# ── Milestones view settings (row 1230) ───────────────────────────────────────
+# The built-in Milestones section's row keeps no data of its own, only how its list is shown: {"n", "scroll", "tracker"}.
+# n: how many rows show before the list scrolls (a whole number from 1 to MS_MAX_N) or "all"; scroll: whether viewers may scroll
+# to the rest; tracker: where the status tracker sits. A missing key means today's look (n 5, scroll false, tracker top), so an
+# old row (empty body) and an old file open as they always did. Not in BODY_TYPES: it is no new section type.
+MILESTONES = "milestones"
+MS_DEFAULTS = {"n": 5, "scroll": False, "tracker": "top"}
+MS_TRACKER = ("top", "bottom", "off")
+MS_MAX_N = 1000
+MS_SHAPE = "The Milestones settings hold how many milestones show, whether viewers can scroll, and where the status tracker sits."
+MS_N = f'Milestones shown must be a whole number from 1 to {MS_MAX_N}, or "all".'
+MS_SCROLL = "Viewers can scroll is either on or off."
+MS_TRACKER_BAD = "The status tracker sits at the top, at the bottom, or is off."
+
+
+def _ms_n(n):
+    return n == "all" or (type(n) is int and 1 <= n <= MS_MAX_N)
+
+
+def _checked_milestones(value, rules):
+    if type(value) is not dict or set(value) - set(MS_DEFAULTS):
+        raise Bad(MS_SHAPE)
+    out = {**MS_DEFAULTS, **value}
+    if not _ms_n(out["n"]):
+        raise Bad(MS_N)
+    if type(out["scroll"]) is not bool:
+        raise Bad(MS_SCROLL)
+    if type(out["tracker"]) is not str or out["tracker"] not in MS_TRACKER:
+        raise Bad(MS_TRACKER_BAD)
+    return out
+
+
+def _published_milestones(value):
+    """Per field: a field that is missing or not valid in what is stored publishes as today's value, never as the bad one."""
+    v = value if type(value) is dict else {}
+    return {"n": v["n"] if "n" in v and _ms_n(v["n"]) else MS_DEFAULTS["n"],
+            "scroll": v["scroll"] if type(v.get("scroll")) is bool else MS_DEFAULTS["scroll"],
+            "tracker": v["tracker"] if type(v.get("tracker")) is str and v["tracker"] in MS_TRACKER else MS_DEFAULTS["tracker"]}
+
+
+CHECKERS = {NEEDS: _checked_needs, TRACKER: _checked_tracker, USECASES: _checked_view, MILESTONES: _checked_milestones, **{t: m.check for t, m in TEMPLATES.items()}}
 EMPTY = {NEEDS: "", TRACKER: "", USECASES: "", **{t: m.EMPTY for t, m in TEMPLATES.items()}}   # a new section starts with no content at all (for needs that is the same as an empty list: nothing shows, nothing is published); an item may give a richer start
 
 
@@ -530,6 +570,8 @@ def published(kind, value, ctx=None):
         return {"rows": rows} if rows else None
     if kind == USECASES:
         return {k: value[k] for k in ("n", "scroll", "tracker")} if type(value) is dict and all(k in value for k in ("n", "scroll", "tracker")) else {}      # row 1234: flat, so the page reads a file entry as it reads a live body; {} (the defaults) never leaves the section out
+    if kind == MILESTONES:
+        return _published_milestones(value)
     if kind != TRACKER:
         return None                     # an unknown kind fails closed: nothing of it is published
     return _published_tracker(value)

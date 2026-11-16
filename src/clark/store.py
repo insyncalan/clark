@@ -87,7 +87,7 @@ SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", 
                  "gantttable")                                               # row 1068: the Gantt table alone, the same lines and no body of its own
 # the thirty-one of schema.sql's CHECK, the first twenty-nine of them: 'needs', 'tracker' and the eighteen section templates (#96) carry content, through the
 # registry in section_bodies.py (section_kinds/); tests/test_section_registry.py pins this list to that registry
-BODY_TYPES = ("text",) + section_bodies.BODY_TYPES   # the section types that may have a body; text is written only by its own item (#188), the others by changes.py through the checker
+BODY_TYPES = ("text", section_bodies.MILESTONES) + section_bodies.BODY_TYPES   # the section types that may have a body; text is written only by its own item (#188), the others by changes.py through the checker
 DELETABLE_TYPES = SECTION_TYPES                 # row 906: any section may be deleted; a built-in's row holds no data (its records live in their own tables)
 # #709: the words of a use case's commitment flag, the owner's own, case exact. The ONE place they are written: changes.py, the Excel
 # import and export, the data feed to the page and the tests all read this tuple. No flag is NULL. SQL has no CHECK on the column,
