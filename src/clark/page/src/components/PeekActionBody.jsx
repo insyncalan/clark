@@ -1,6 +1,7 @@
 // Row 1181: an Action's Details in the peek. Self-contained; Peek.jsx places it (in place of the shared ItemFields for kind=action) and
 // puts the Latest update above it. The rows are Workstream, Milestone, Raised (read only, with its hint), then the Client visible line.
 // Type, Use case, Client wording and Last reviewed are not drawn for an action (the ticket's 'Decide before build': the simplest choice, dropped for actions only).
+// Row 1256: a risk and an issue use this body too and keep their Use case row (decided in the ticket: keep it); Type, Client wording and Last reviewed are not drawn.
 import { PeekDetails } from "./PeekDetails.jsx";
 import { Icon } from "./Icon.jsx";
 import { showDate } from "../workItems.js";
@@ -30,6 +31,7 @@ export function PeekActionBody({ row, editing = false, Pick = null, ClientLine =
       <dl class="pk-fields" data-pk-action-rows>
         <ARow name="Workstream" icon="board" data="workstream">{Pick ? <Pick row={row} field="workstream" /> : text(row.workstream)}</ARow>
         <ARow name="Milestone" icon="flag" data="milestone">{Pick ? <Pick row={row} field="milestone" /> : text(row.milestone)}</ARow>
+        {row.kind === "risk" || row.kind === "issue" ? <ARow name="Use case" icon="doc" data="use_case">{Pick ? <Pick row={row} field="use_case" /> : text(row.uc)}</ARow> : null}
         <ARow name="Raised" icon="clock" data="raised">{raised ? showDate(raised) : DASH}<span class="muted pk-hint" data-pk-raised-hint> set when it was raised</span></ARow>
         {editing ? (ClientLine ? <div class="pk-row" data-pk-client-row><dd><ClientLine row={row} /></dd></div> : <ARow name="Shown to client">{row.client ? "Yes" : "No"}</ARow>) : null}
       </dl>

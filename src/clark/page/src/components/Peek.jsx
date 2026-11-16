@@ -30,6 +30,7 @@ import { PeekChips, PeekChip } from "./PeekChips.jsx";
 import { PeekDetails } from "./PeekDetails.jsx";
 import { ActionChips } from "./PeekActionChips.jsx";
 import { PeekActionBody } from "./PeekActionBody.jsx";
+import { MilestoneChips } from "./PeekMilestoneChips.jsx";
 
 // Up and Down while the peek is open (#246): the peek steps to the item before or after in the list it was opened from, the same list
 // Previous and Next use. What it says after a step (a polite line only a screen reader hears) is kept here; `n` makes a repeat say it again.
@@ -216,7 +217,7 @@ export function Peek({ tools }) {
   const forItem = !!p && p.kind !== "milestone";
   const Words = editing && !!p && tools.Words;
   const History = editing && tools.PeekHistory;      // row 1180: the history tabs (All, Activity, Updates, Source) under the body
-  const MsTitle = msEditing && tools.PeekMilestoneTitle;     // row 1078: the milestone's name is its title, changed in place (row 1180: a textarea, as the work item's)
+  const MsTitle = msEditing && tools.PeekMilestoneTitle, MsLatest = msEditing && tools.PeekMsLatest;     // row 1078: the milestone's name is its title, changed in place (row 1180: a textarea, as the work item's)
   const TitleBox = editing && forItem && tools.PeekItemTitle, MoreBtn = editing && forItem && tools.PeekMore, MsMoreBtn = msEditing && tools.RecordMore;      // row 1180: More holds Duplicate, Archive and Delete (item 1148: a milestone's holds Archive and Delete)
   const Warn = editing && forItem && tools.PeekWarn, Latest = editing && forItem && tools.PeekLatest;      // the warning bar and Latest update (peek, Edit only)
   // Row 1077 (the owner's ruling): every peek, item or milestone, shows its Source, in Edit and in View alike. On the live page the Edit part
@@ -353,11 +354,11 @@ export function Peek({ tools }) {
       <p class="sr-only" role="status" aria-live="polite" data-pk-live>{said.value.text}</p>
       <h2 class="pk-title" tabIndex={-1}>{TitleBox && row ? <><TitleBox key={row.id} row={row} /></> : MsTitle && m ? <><MsTitle key={m.id} m={m} /></> : title}</h2>
       {row && typeof row.not_reviewed === "boolean" && notReviewed(row, todayIso()) ? <p class="pk-stale"><span class="pk-chip" data-stale>{staleWords(row.review_days || undefined)}</span></p> : null}
-      {row && row.kind === "action" ? <ActionChips row={row} tools={tools} editing={editing} /> : row ? <ItemChips row={row} tools={tools} editing={editing} /> : null}
+      {row && row.kind === "action" ? <ActionChips row={row} tools={tools} editing={editing} /> : row ? <ItemChips row={row} tools={tools} editing={editing} /> : m && msEditing ? <MilestoneChips m={m} tools={tools} editing /> : null}      {/* row 1184: the editor's milestone peek has the chip row; View and a published file keep the header line (MsHead) as before */}
       <div class="pk-body" key={p.id} data-pk-body>      {/* a new key each step: the body fades in as Previous or Next moves on */}
       <div>
-          {Latest && row ? <Latest key={row.id} row={row} /> : null}      {/* item 1181: the Latest update sits above the Details */}
-          {row && row.kind === "action" ? <>
+          {Latest && row ? <Latest key={row.id} row={row} /> : MsLatest && m ? <MsLatest key={m.id} m={m} /> : null}      {/* item 1181: the Latest update sits above the Details */}
+          {row && (row.kind === "action" || row.kind === "risk" || row.kind === "issue") ? <>      {/* row 1256: a risk's and an issue's Details are drawn like an action's */}
             {!editing && fromFile.value && (row.client_message || row.latest_update) ? <dl class="pk-fields" data-pk-file-rows>
               {row.latest_update ? <Row name="Latest update" ms="latest_update"><Rich html={String(row.latest_update)} /></Row> : null}
               {row.client_message ? <Row name="Client wording" ms="client_message">{row.client_message}</Row> : null}
