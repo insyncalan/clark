@@ -352,6 +352,13 @@ class Route(PictureSteps, Api):
         self.assertEqual(stored["pictures"], {"original": GOOD, "image": GOOD})
         self.assertEqual((stored["html"], stored["side"]), (WORDS, "left"))
 
+    def test_a_version_2_original_over_one_mebibyte_is_taken_by_the_image_route(self):
+        ref = self.new()
+        big = data(png((b"tEXt", b"x" * (ti.PICTURE_MAX + 10))))               # a real PNG over 1 MiB: only the large send of version 2 lets it in
+        status, got = self.put(ref, "original", big)
+        self.assertEqual(status, 200, got)
+        self.assertTrue(self.body(ref)["pictures"]["original"])
+
     def test_the_published_file_has_the_framed_copy_only(self):
         ref = self.new()
         self.put(ref, "original", halves(40, 10))
