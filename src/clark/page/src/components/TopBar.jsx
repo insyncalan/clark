@@ -68,7 +68,7 @@ export function TopBar({ tools }) {
     const bar = document.querySelector("header.top");
     if (!bar) return undefined;
     const root = document.documentElement;
-    const read = () => { const h = Math.ceil(bar.getBoundingClientRect().height); if (h > 0) root.style.setProperty("--topbar", h + "px"); };
+    const read = () => { const h = bar.getBoundingClientRect().height; if (h > 0) root.style.setProperty("--topbar", h + "px"); };
     const watch = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(read);
     if (watch) watch.observe(bar);
     read();

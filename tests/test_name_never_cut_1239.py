@@ -4,7 +4,6 @@ and 900 px. Chrome is required: these tests fail, never skip, without it.
 
 Run: python3 dev/run_tests.py test_name_never_cut_1239
 """
-import math
 import unittest
 
 import test_glance_page as glance
@@ -33,7 +32,7 @@ MEASURE = """(() => {
 class Check:
     def whole(self, p, selector, name, where):
         p.js(f"document.querySelector({selector!r}).textContent = {name!r}")
-        p.until("getComputedStyle(document.documentElement).getPropertyValue('--topbar').trim() === Math.ceil(document.querySelector('header.top').getBoundingClientRect().height) + 'px'", "--topbar followed the bar's height")
+        p.until("getComputedStyle(document.documentElement).getPropertyValue('--topbar').trim() === document.querySelector('header.top').getBoundingClientRect().height + 'px'", "--topbar followed the bar's height")
         got = p.js(MEASURE % repr(selector))
         self.assertEqual(got["text"], name, "the whole name is in the page " + where)
         self.assertEqual(got["ellipsis"], 0, "no element around the name ends in an ellipsis " + where)
@@ -43,7 +42,7 @@ class Check:
         self.assertLessEqual(got["page"], 0, "the page scrolls sideways " + where)
         self.assertGreaterEqual(got["barBottom"], got["nameBottom"] - 0.5, "the bar holds the name " + where)
         self.assertGreaterEqual(got["barBottom"], got["lineBottom"] - 0.5, "the bar holds the line under the name " + where)
-        self.assertEqual(got["topbar"], "%dpx" % math.ceil(got["barHeight"]), "--topbar is the bar's real height " + where)
+        self.assertAlmostEqual(float(got["topbar"][:-2]), got["barHeight"], places=2, msg="--topbar is the bar's real height " + where)
         return got
 
 
