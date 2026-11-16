@@ -126,7 +126,7 @@ export function startDrag(e, handle, id, count) {
   };
   const abort = () => { cancelled = true; finish(); noteRects(); dragList.value = undefined; };   // the page left Edit (or the project changed) mid-drag: drop nothing
   const keepFromHandle = (k) => { if (k.altKey && (k.key === "ArrowUp" || k.key === "ArrowDown")) { k.preventDefault(); k.stopPropagation(); } };     // the handle's own Alt+Arrow would move the data under the frozen rects
-  const cancel = (k) => { keepFromHandle(k); if (k.key === "Escape") { cancelled = true; clear(); stop(); state = settleStart(); dropAt.value = undefined; wipe(); noteRects(); dragList.value = undefined; } };   // Esc: releasing now drops nothing
+  const cancel = (k) => { keepFromHandle(k); if (k.key === "Escape") { state = settleStart(); abort(); } };   // Esc: the drag is over now, whether or not a release ever comes (a lost window focus or pointer would leave it stuck)
   const end = (u) => {
     if (u.pointerId !== e.pointerId) return;
     stop();
@@ -139,8 +139,8 @@ export function startDrag(e, handle, id, count) {
       try {
         const done = placeAt(id, target, "report", "handle");      // the others stay where the preview put them until the move is stored, so nothing jumps back and forth
         Promise.resolve(done).catch(failed).finally(clearList);
-      } catch (e) { failed(); clearList(); }       // placeAt threw before it started: the preview must not stay
-    } else { noteRects(); dragList.value = undefined; }     // dropped where it already is: placement says nothing
+      } catch (err) { failed(); clearList(); }       // placeAt threw before it started: the preview must not stay
+    } else { noteRects(); dragList.value = undefined; }     // nothing to place (dropped where it already is, Esc, click, pointercancel, no target): placement says nothing
   };
   document.addEventListener("keydown", cancel, true);      // capture: before the handle's own key handler sees it
   document.addEventListener("pointermove", move);      // on the document, not the grip: the preview draws the section as a slot and the grip in it is hidden, so the grip no longer gets the pointer

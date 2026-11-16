@@ -134,9 +134,20 @@ class Pg:
 
     SHOWN = "!!document.querySelector('.sec.drag-slot, .sec.drop-before, .sec.drop-left, .sec.drop-right, .secs.drop-end')"    # the preview draws the moved section as the slot
 
+    IDLE = "document.getAnimations().filter((a) => a.effect && a.effect.target && a.effect.target.closest && a.effect.target.closest('.secs')).length === 0"      # the sections' glide is over (a toast's own animation is not waited for)
+    def stored(self, n0):
+        """Wait until the request a drop sent (the ones after the first n0) has been answered by the store and the page has said so in
+        its toast: the page keeps its preview, and takes no new drag, until then."""
+        self.t.assertTrue(wait(lambda: len(self.t.sent) > n0 and self.t.answered == len(self.t.sent), 10), "the drop was sent and answered")
+        self.until("!!document.querySelector('.toast')", "the page said the drop is stored")
+
     def drag(self, ref, x, y, release=True, drops=True):
         """Press the handle of `ref`, move to (x, y) in steps and (by default) let go there. A drop needs the target to be shown
         (the pointer has rested on it), so the release waits for the drop indicator; drops=False is for a release that drops nothing."""
+        self.until(self.IDLE, "the sections have stopped gliding, so the rectangles are where they are")
+        n0 = len(self.t.sent)
+        if release and drops:
+            self.clear_toast()                                  # the toast that says this drop is stored must be this drop's
         hx, hy, _ = self.box(f'[data-id="{ref}"] [data-drag]')
         self.mouse("mousePressed", hx, hy, 1)
         for step in range(1, 9):
@@ -145,6 +156,8 @@ class Pg:
             if drops:
                 self.until(self.SHOWN, "the drop target is shown before the release")
             self.mouse("mouseReleased", x, y, 0)
+            if drops:
+                self.stored(n0)
 
     def menu(self, ref, act):
         self.js(f"document.querySelector('[data-id=\"{ref}\"] [data-options]').click()")
@@ -175,6 +188,7 @@ class Base(unittest.TestCase):
         self.store = self.demo.store
         self.real_change = changes.make_change(self.store.path, [], USER)
         self.real_undo = changes.make_undo(self.store.path, [], USER)
+        self.answered = 0
         self.sent = []                       # every request the page made that reached the seams: (which, request)
         self.failure = None                     # a function (req) -> (status, body) or an exception to raise
         self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: testpage.html(), seam=self.seam)
@@ -186,12 +200,15 @@ class Base(unittest.TestCase):
     def seam(self, real, which):
         def call(req):
             self.sent.append((which, req))
-            if self.failure is not None:
-                got = self.failure(req)
-                if isinstance(got, BaseException):
-                    raise got
-                return got
-            return real(req)
+            try:
+                if self.failure is not None:
+                    got = self.failure(req)
+                    if isinstance(got, BaseException):
+                        raise got
+                    return got
+                return real(req)
+            finally:
+                self.answered += 1                  # the store has answered (or the fault was raised): the page can now take it in
         return call
 
     def ids_in_store(self):
@@ -596,12 +613,14 @@ class Sections(Base):
             hx, hy, _ = p.box('[data-id="ABC-S-001"] [data-drag]')
             _, _, bottom = p.box('[data-id="ABC-S-003"]')
             ty = bottom - 3                                  # in the lower half of the third section: it lands before the fourth
+            n0 = len(self.sent)
             p.mouse("mousePressed", hx, hy, 1)
             for step in range(1, 9):
                 p.mouse("mouseMoved", hx, hy + (ty - hy) * step / 8, 1)
             p.until("!!document.querySelector('.sec.drag-slot')", "the slot is drawn while dragging")
             self.assertEqual(p.js("document.querySelector('.sec.drag-slot').nextElementSibling.dataset.id"), "ABC-S-004")
             p.mouse("mouseReleased", hx, ty, 0)
+            p.stored(n0)
             want = ["ABC-S-002", "ABC-S-003", "ABC-S-001"] + IDS[3:]
             p.order_is(want, "dragged")
             self.assertEqual(self.ids_in_store(), want)
@@ -641,12 +660,14 @@ class Sections(Base):
                     "document.querySelector('[data-id=\"ABC-S-008\"]').classList.contains('slot-right')", "two columns")
             self.assertIsNone(p.js("document.querySelector('.drop-right')"), "the outline goes")
             n = len(self.sent)
+            p.until(p.IDLE, "the sections have stopped gliding, so the rectangle is where they are")
             r8 = p.rect("ABC-S-008")                         # dropped on itself: nothing is sent and nothing is said
             p.drag("ABC-S-008", (r8["left"] + r8["right"]) / 2, (r8["top"] + r8["bottom"]) / 2, drops=False)
             self.assertEqual(len(self.sent), n)
             p.js("document.querySelector('[data-undo]').click()")
             p.order_is(IDS, "one Undo puts the order back")
             self.assertEqual(self.beside_flags()["ABC-S-002"], 0)
+            p.until(p.IDLE, "the sections have stopped gliding, so the rectangle is where they are")
             r = p.rect("ABC-S-002")                          # again, then a reload: the layout is in the store
             p.drag("ABC-S-008", r["left"] + (r["right"] - r["left"]) * 0.25, (r["top"] + r["bottom"]) / 2)
             p.until("document.querySelector('[data-id=\"ABC-S-008\"]').classList.contains('slot-left')", "beside, on the left")
