@@ -2746,8 +2746,7 @@ button.tpl-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 
 .pkc { display: inline-flex; align-items: center; flex: 1 1 auto; min-width: 0; min-height: 34px; border: 0; border-left: 1px solid var(--grey-200); border-radius: 0; background: var(--surface); color: var(--text); font-size: var(--size-body); font-weight: var(--weight-regular); max-width: 100%; }
 .pkc:first-child { border-left: 0; }
 .pkc.ro { gap: var(--space-2); padding: 0 var(--space-3); }
-.pkc.has-pop:hover { background: var(--grey-100); }
-.pkc.late { background: var(--status-red-tint); }
+.pkc.has-pop:hover { background: var(--grey-100); }   /* row 1256: an overdue chip keeps its normal fill; only the date text is red; hover is the soft fill */
 .pkc.flash { background: var(--status-amber-tint); }
 .pkc-btn { display: flex; align-items: center; gap: var(--space-2); min-height: 32px; margin: 0; padding: 0 var(--space-3); border: 0; border-radius: 0; background: none; color: inherit; font: inherit; text-align: left; flex: 1 1 auto; min-width: 0; cursor: pointer; max-width: 100%; }
 .pkc-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
@@ -2758,7 +2757,8 @@ button.tpl-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 
 .pkc-tx { display: inline-flex; flex: 1 1 auto; flex-wrap: wrap; align-items: center; column-gap: var(--space-2); min-width: 0; }
 .pkc-v { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 16rem; }
 .pkc-sub { font-style: normal; font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); white-space: nowrap; }
-.pkc-sub.late, .pkc.late .pkc-v { color: var(--status-red-text); }
+.pkc.late .pkc-v { color: var(--status-red-text); }
+.pkc-sub.late { padding: 1px var(--space-2); border-radius: 999px; background: var(--status-red-tint); color: var(--status-red-text); font-size: var(--size-caption); font-weight: 700; line-height: 1.4; }   /* row 1256: 'overdue N days' as a small red-tint pill (11 px, listed in test_size_scale) */
 .pkc-sub.lvl { padding: 0 var(--space-2); border-radius: 999px; font-size: var(--size-caption); }
 .pkc-sub.lvl.r { background: var(--status-red-tint); color: var(--status-red-text); }
 .pkc-sub.lvl.a { background: var(--status-amber-tint); color: var(--status-amber-text); }
