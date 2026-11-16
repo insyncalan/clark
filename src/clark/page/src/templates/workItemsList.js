@@ -74,6 +74,25 @@ export function windowOf(total, max, showAll) {
   return showAll ? { count: total, link: `Show only ${max}` } : { count: max, link: "Show all items" };
 }
 
+// Row 1268 (mock-up work-items-mockup.html, rows()): the foot under the scrolling rows. Edit says how many of the rows are in view and that the
+// rest scroll; View and Edit both carry the link that opens the Work items page on the same filter.
+export const footWords = (total, max) => `Showing ${Math.min(total, max)} of ${total}${total > max ? ", scroll for the rest" : ""}`;
+export const reviewWords = (total) => `Review all ${total} items`;
+
+// The Work items page's filter state (filters.js shape) for a list's saved filter, so "Review all N items" opens the page on the same rows.
+// Open, closed or all; the type when the kinds are one of the page's (Actions, Risks and issues, Decisions); the field choices. The
+// "not", "has", "no" and free-word parts of a list have no place in that state and are left out (the page then shows a few more rows).
+export function pageState(filter, nameOf = (f, v) => v) {
+  const type = !filter.kinds.length ? "all" : filter.kinds.every((k) => k === "action") ? "action" : filter.kinds.every((k) => k === "decision") ? "decision"
+    : filter.kinds.every((k) => k === "risk" || k === "issue") ? "risk" : "all";
+  const filters = {};
+  for (const f of ["workstream", "status", "due", "owner", "priority", "use_case", "milestone"]) {
+    const list = f === "use_case" ? filter[f].map((v) => nameOf(f, v)) : filter[f];
+    if (list.length) filters[f] = list.slice();
+  }
+  return { mode: filter.mode, type, filters, not: {} };
+}
+
 // The columns of the approved design, in its order; Status, Workstream and Milestone are off by default.
 export const DESIGN_COLUMNS = ["status", "owner", "due", "priority", "workstream", "milestone", "id"];
 export const DESIGN_DEFAULT_COLUMNS = ["owner", "due", "priority", "id"];
