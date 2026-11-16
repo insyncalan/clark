@@ -64,6 +64,34 @@ class Word(unittest.TestCase):
     def test_a_row_not_late_has_the_date_alone(self):
         self.assertEqual(self.list_table(with_list(["PUB-A-002"]))[1][4], "06-11-2026")
 
+    def decision_due(self, status, needed_by, as_at, date="2026-10-09"):
+        p = with_list(["PUB-D-001"])
+        p["as_at"] = as_at
+        d = next(r for r in p["data"]["decisions"] if r["id"] == "PUB-D-001")
+        d.update(status=status, needed_by=needed_by, date=date)
+        return self.list_table(p)[1][4]
+
+    def test_a_row_due_yesterday_says_yesterday(self):
+        p = with_list(["PUB-A-002"])
+        p["as_at"] = "2026-11-07"                       # PUB-A-002 is due 2026-11-06
+        self.assertEqual(self.list_table(p)[1][4], "06-11-2026 Yesterday")
+        p["as_at"] = "2026-11-08"
+        self.assertEqual(self.list_table(p)[1][4], "06-11-2026 2 days late")
+
+    def test_a_pending_decision_due_yesterday_says_yesterday(self):
+        self.assertEqual(self.decision_due("Pending", "2026-11-06", "2026-11-07"), "06-11-2026 Yesterday")
+
+    def test_a_pending_decision_late_by_days_says_days_late(self):
+        self.assertEqual(self.decision_due("Pending", "2026-11-06", "2026-11-10"), "06-11-2026 4 days late")
+
+    def test_a_pending_decision_not_yet_late_has_the_date_alone(self):
+        self.assertEqual(self.decision_due("Pending", "2026-11-06", "2026-11-06"), "06-11-2026")
+
+    def test_a_non_pending_decision_with_a_past_needed_by_gets_no_late_words(self):
+        for status in ("Made", "Superseded", "Withdrawn"):
+            got = self.decision_due(status, "2026-11-06", "2026-11-10", date="2026-10-09")
+            self.assertEqual(got, "09-10-2026", status)
+
     def test_the_built_in_sections_are_as_before(self):
         p = published()
         shown = headings(docx_build.build(p))
