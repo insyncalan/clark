@@ -10,7 +10,6 @@ import contextlib
 import json
 import sys
 import tempfile
-import time
 import unittest
 from pathlib import Path
 
@@ -187,12 +186,10 @@ class View(unittest.TestCase):
             self.assertTrue(wait(lambda: not self.state()["open"]))
             self.js("document.querySelectorAll('.tpl-gal-open')[1].click()")
             self.assertTrue(wait(lambda: self.state()["open"]))
-            time.sleep(0.6)
-            self.assertTrue(self.state()["open"], "still open after the first one's close event has arrived")
+            self.assertFalse(wait(lambda: not self.state()["open"], 0.6), "still open after the first one's close event has arrived (a poll that ends at once if it closes)")
             self.assertEqual(self.state()["caption"], "Fictional caption 2")
             self.js("document.querySelector('.tpl-gal-x').click()")
             self.assertTrue(wait(lambda: not self.state()["open"]))
-            time.sleep(0.3)
 
     def test_old_gallery_with_nothing_said_is_drawn_as_it_was(self):
         for n, across in ((1, 1), (2, 2), (3, 3), (6, 3)):
@@ -243,7 +240,7 @@ class View(unittest.TestCase):
         self.assertGreater(s["big"], self.measure_small(), "larger than in the grid")
         self.key("Escape", 27)
         self.assertTrue(wait(lambda: not self.state()["open"]), "Esc closes")
-        self.assertEqual(self.js("document.activeElement.className"), "tpl-gal-open", "focus goes back to the image")
+        self.assertTrue(wait(lambda: self.js("document.activeElement.className") == "tpl-gal-open"), "focus goes back to the image")
         # an image with no caption: the large view has no caption line
         self.js("document.querySelectorAll('.tpl-gal-open')[0].click()")
         self.assertTrue(wait(lambda: self.state()["open"]))
