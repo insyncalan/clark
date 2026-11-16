@@ -210,6 +210,36 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 .pk-none { padding: var(--space-4) 0; margin: 0; }
 .pk-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-3) 20px; border-top: 1px solid var(--grey-200); }
 .pk-count { margin-right: auto; font-size: var(--size-caption); }
+/* row 1234: the add-a-use-case picker as a table with a filter panel */
+.picker.pkt { position: relative; width: min(1080px, 100%); min-height: min(650px, 90vh); max-height: 90vh; }
+.pkt-filter { display: inline-flex; align-items: center; gap: var(--space-1); }
+.pkt-filter .icon, .pkt-filter svg { width: 16px; height: 16px; }
+.pkt-badge { min-width: 18px; padding: 0 5px; border-radius: var(--radius-pill); background: var(--brand-blue-tint); color: var(--status-blue-text); font-size: var(--size-caption); text-align: center; }
+.pkt-table { width: 100%; border-collapse: collapse; font-size: var(--size-small); }
+.pkt-table th { position: sticky; top: 0; background: var(--surface); text-align: left; padding: var(--space-1) var(--space-2); color: var(--text-muted); font-weight: var(--weight-medium); border-bottom: 1px solid var(--grey-200); white-space: nowrap; }
+.pkt-table td { padding: var(--space-2); border-bottom: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; }
+.pkt-table tbody tr { cursor: pointer; }
+.pkt-table tbody tr:hover, .pkt-table tbody tr.on { background: var(--grey-50); }
+.pkt-table td.num, .pkt-table th:nth-child(7), .pkt-table th:nth-child(8) { text-align: right; }
+.pkt-table input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.pkt-panel { position: absolute; z-index: 5; top: 96px; left: 20px; right: 20px; display: flex; min-height: 240px; max-height: 70%; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-small); }
+.pkt-fields { list-style: none; margin: 0; padding: var(--space-2); width: 180px; flex: none; border-right: 1px solid var(--grey-100); }
+.pkt-field { all: unset; display: block; box-sizing: border-box; width: 100%; padding: 6px var(--space-2); border-radius: var(--radius); cursor: pointer; color: var(--text); }
+.pkt-field[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.pkt-field:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.pkt-more { padding: var(--space-3) var(--space-2) var(--space-1); font-size: var(--size-caption); text-transform: uppercase; letter-spacing: var(--tracking-caps); color: var(--text-muted); }
+.pkt-values { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; padding: var(--space-2) 0; }
+.pkt-values .isnot { display: flex; gap: var(--space-1); padding: 0 var(--space-3) 6px; }
+.pkt-values .isnot button { all: unset; padding: 3px 10px; border-radius: var(--radius-pill); cursor: pointer; color: var(--text-muted); }
+.pkt-values .isnot button[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.pkt-values .isnot button:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.pkt-values .fact { display: flex; gap: 6px; padding: 0 var(--space-3) 6px; border-bottom: 1px solid var(--grey-100); }
+.pkt-opts { flex: 1 1 auto; overflow: auto; }
+.pkt-opts label { display: flex; align-items: center; gap: 10px; padding: 6px var(--space-3); cursor: pointer; }
+.pkt-opts label:hover { background: var(--grey-50); }
+.pkt-opts .c { margin-left: auto; color: var(--text-muted); font-size: var(--size-caption); }
+.pkt-opts input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.pkt-done { display: flex; justify-content: flex-end; padding: var(--space-2) var(--space-3) 0; border-top: 1px solid var(--grey-100); }
 
 /* The Work items list (#36): a table that never scrolls sideways; the Item column takes what the others leave and wraps. */
 .btn { padding: 6px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); cursor: pointer; font-size: var(--size-small); }
