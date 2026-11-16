@@ -388,7 +388,10 @@ class PageGate(unittest.TestCase):
             x, y = js("(() => { const r = document.querySelector('.sec[data-type=milestones] h2, .sec h2').getBoundingClientRect(); return [r.x + 4, r.y + r.height / 2]; })()")
             for kind in ("mousePressed", "mouseReleased"):
                 cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left", "clickCount": 1}, sid)
-            self.assertTrue(wait(lambda: js("!document.querySelector('.ProseMirror')"), 10), "leaving the field closed it")
+            closed = wait(lambda: js("!document.querySelector('.ProseMirror')"), 10)
+            facts = js("JSON.stringify({rect: (() => { const r = document.querySelector('.sec h2').getBoundingClientRect(); return [r.x, r.y, r.width, r.height]; })(), view: [innerWidth, innerHeight], scroll: scrollY, hasFocus: document.hasFocus(), active: document.activeElement && (document.activeElement.tagName + '.' + document.activeElement.className), at: (() => { const e = document.elementFromPoint(%s, %s); return e && (e.tagName + '.' + e.className); })(), pm: !!document.querySelector('.ProseMirror')})" % (x, y))
+            print("DIAG one_editor_gate click", [x, y], facts, flush=True)
+            self.assertTrue(closed, "leaving the field closed it; diag " + str(facts))
             self.assertEqual(js("document.activeElement.matches('[data-rich]')"), False, "the focus stayed where the person put it")
 
     def test_space_opens_the_field_as_enter_does(self):
