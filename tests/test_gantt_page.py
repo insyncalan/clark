@@ -300,16 +300,35 @@ class Page(unittest.TestCase):
     def test_the_table_toggle_keeps_the_mode_and_the_lines(self):
         self.look(1400)
         self.mount(mode="edit")
-        self.assertEqual(self.text("[data-gp-layout]"), "Table")
-        self.click("[data-gp-layout]")
+        self.assertEqual(self.val("document.querySelector('[data-gp-layout=chart]').getAttribute('aria-pressed')"), "true", "the chart is shown")
+        self.click("[data-gp-layout=table]")
         self.until("document.querySelector('.gt-scroll')", "the table")
         self.assertEqual(self.mode(), "edit", "the mode is kept")
-        self.assertEqual(self.text("[data-gp-layout]"), "Chart")
+        self.assertEqual(self.val("document.querySelector('[data-gp-layout=table]').getAttribute('aria-pressed')"), "true", "the table is shown")
         self.assertEqual(self.count(".gt-scroll tbody tr"), 6, "Edit shows every line in the table")
-        self.click("[data-gp-layout]")
+        self.click("[data-gp-layout=chart]")
         self.until("document.querySelector('[data-g-bar]')", "the chart")
         self.assertEqual(self.mode(), "edit")
         self.assertEqual(self.count("[data-g-row]"), 6)
+
+    def test_the_layout_is_two_icon_buttons_and_the_zoom_sits_beside_the_filter(self):
+        # row 1197: no Table word button; a table icon and a chart icon beside the scale switches; zoom, filter, Today and full screen run on in that order
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                self.look(width)
+                self.mount(mode="edit")
+                self.assertEqual(self.count("button.gt-wd[data-gp-layout]"), 0, "the word button is gone")
+                self.assertEqual(self.val("[...document.querySelectorAll('[data-gp-layout]')].map(b => b.getAttribute('aria-label') + ':' + b.textContent.trim())"),
+                                 ["Table:", "Chart:"], "two buttons with names and no visible words")
+                order = self.val("[...document.querySelectorAll('[data-gantt] .gt-bar [data-gp-layout], [data-gantt] .gt-bar [data-g-scale], [data-gantt] .gt-bar [data-g-zout], "
+                                 "[data-gantt] .gt-bar [data-g-fit], [data-gantt] .gt-bar [data-g-zin], [data-gantt] .gt-bar [data-g-show], [data-gantt] .gt-bar [data-g-today-btn], "
+                                 "[data-gantt] .gt-bar [data-g-expand]')].map(b => b.dataset.gpLayout ? 'layout' : b.dataset.gScale ? 'scale' : Object.keys(b.dataset)[0])")
+                self.assertEqual(order, ["layout", "layout", "scale", "scale", "scale", "gZout", "gFit", "gZin", "gShow", "gTodayBtn", "gExpand"])
+                self.assertEqual(self.val("document.querySelector('[data-gp-layout=chart]').getAttribute('aria-pressed')"), "true")
+                self.click("[data-gp-layout=table]")
+                self.until("document.querySelector('.gt-scroll')", "the table")
+                self.assertEqual(self.val("document.querySelector('[data-gp-layout=table]').getAttribute('aria-pressed')"), "true")
+                self.assertEqual(self.count("[data-g-scale]"), 0, "the scale switches are the chart's only")
 
     def test_the_table_reads_in_full_in_the_published_file_and_in_edit_at_both_widths(self):
         # the real ID carries the project code; the ID cell and the Days, Done % and Depends on headers are not cut
@@ -321,7 +340,7 @@ class Page(unittest.TestCase):
                     with self.subTest(width=width, scheme=scheme, published=published):
                         self.look(width, scheme)
                         self.mount(lines=lines, fromFile=published, mode="edit")
-                        self.click("[data-gp-layout]")
+                        self.click("[data-gp-layout=table]")
                         self.until("document.querySelector('.gt-scroll td[data-k=id]')", "the table")
                         cut = self.val("[...document.querySelectorAll(\"td[data-k=id], th[data-k=id], th[data-k=dur], th[data-k=pct], th[data-k=dep]\")]"
                                        ".filter((e) => { var l = e.querySelector('.gt-hl') || e; return l.scrollWidth > l.clientWidth || l.getBoundingClientRect().right > e.getBoundingClientRect().right; })"
@@ -332,20 +351,20 @@ class Page(unittest.TestCase):
 
     def test_view_in_the_table_shows_the_same_three_lines(self):
         self.mount()
-        self.click("[data-gp-layout]")
+        self.click("[data-gp-layout=table]")
         self.until("document.querySelector('.gt-scroll')", "the table")
         self.assertEqual(self.count(".gt-scroll tbody tr"), 3)
 
     def test_the_page_has_no_import_or_export_icons(self):
         self.mount(mode="edit")
         self.assertEqual(self.count("[data-gp-export], [data-gp-import]"), 0, "item 1142: Import and Export are in Settings only, not on the Gantt page (chart)")
-        self.click("[data-gp-layout]")
+        self.click("[data-gp-layout=table]")
         self.until("document.querySelector('.gt-scroll')", "the table")
         self.assertEqual(self.count("[data-gp-export], [data-gp-import]"), 0, "nor in the table")
 
     def test_the_show_menu_filters_the_table_and_ticked_lines_is_for_edit_only(self):
         self.mount(mode="edit")
-        self.click("[data-gp-layout]")
+        self.click("[data-gp-layout=table]")
         self.click("[data-gp-show]")
         self.assertEqual(self.count("[data-gp-filter]"), 4)
         self.click("[data-gp-filter=phases]")
@@ -357,7 +376,7 @@ class Page(unittest.TestCase):
 
     def test_hunt15_table_show_menu_takes_focus_and_escape_returns_it(self):
         self.mount(mode="edit")
-        self.click("[data-gp-layout]")
+        self.click("[data-gp-layout=table]")
         self.click("[data-gp-show]")
         self.until("document.activeElement && document.activeElement.hasAttribute('data-gp-filter')", "focus moves into the menu")
         self.key("ArrowDown", "document.activeElement")
@@ -370,7 +389,7 @@ class Page(unittest.TestCase):
 
     def test_the_show_menu_hands_focus_back_to_its_button_on_a_pick_and_on_esc(self):
         self.mount(mode="edit")
-        self.click("[data-gp-layout]")
+        self.click("[data-gp-layout=table]")
         self.js("document.querySelector('[data-gp-show]').focus()")
         self.click("[data-gp-show]")
         self.js("document.querySelector('[data-gp-filter=phases]').focus(); document.querySelector('[data-gp-filter=phases]').click()")
@@ -384,7 +403,7 @@ class Page(unittest.TestCase):
 
     def test_deleting_a_row_in_the_table_keeps_focus_in_the_table(self):
         self.mount(mode="edit")
-        self.click("[data-gp-layout]")
+        self.click("[data-gp-layout=table]")
         self.until("document.querySelector('[data-del]')", "the table")
         n = self.count(".gt-scroll tbody tr")
         self.js("document.querySelector('[data-del=\"0\"]').focus(); document.querySelector('[data-del=\"0\"]').click()")
