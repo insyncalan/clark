@@ -39,7 +39,7 @@ class Data(n.DataChecks):
         self.assertEqual((c["category"], c["colour_name"], c["icon_name"]), ("Budget", "Violet", "Light bulb"))
         self.write(ref, GOOD)                       # an older callout: the colour and icon its tone drew
         c = self.file_sections()[ref]["content"]
-        self.assertEqual((c["category"], c["colour_name"], c["icon_name"], c["tile"], c["heading"]), ("", "Amber", "Question", True, True))
+        self.assertEqual((c["category"], c["colour_name"], c["icon_name"], c["tile"], c["heading"]), ("Decision needed", "Amber", "Question", True, True), "an older callout keeps its tone word in the file")
 
     def test_a_tone_alone_is_not_content(self):
         ref = self.section()
@@ -58,7 +58,7 @@ class Words(unittest.TestCase):
         self.assertEqual(callout.COLOURS["grey"], "Grey")
         self.assertEqual(callout.TONE_LOOK, {"info": ("violet", "info"), "decision": ("amber", "question"), "warning": ("red", "warning")})
         self.assertEqual(callout.upgrade({"v": 1, "tone": "warning"}),
-                         {"v": 1, "tone": "warning", "category": "", "colour": "red", "icon": "warning", "tile": True, "heading": True})
+                         {"v": 1, "tone": "warning", "category": "Warning", "colour": "red", "icon": "warning", "tile": True, "heading": True})
 
     def test_words_alone_carries_the_category_colour_and_icon(self):
         from clark.section_kinds import callout
@@ -165,6 +165,35 @@ class Page(n.PageChecks):
                 from test_server import wait
                 self.assertTrue(wait(lambda: "category" not in json.loads(self.body_of(ref)), 10), self.body_of(ref))
                 self.assertEqual(json.loads(self.body_of(ref))["colour"], "red")
+
+    def test_the_box_class_follows_the_shape_and_the_tile_and_heading_classes_follow_their_own_field(self):
+        shape = self.make({**GOOD, "category": "", "colour": "red", "icon": "none"})
+        bare = self.make({**GOOD, "category": "", "colour": "plain", "icon": "none"})
+        old = self.make(GOOD)
+        tile_only = self.make({**GOOD, "tile": False, "heading": True})
+        head_only = self.make({**GOOD, "tile": True, "heading": False})
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            cls = lambda r, sel="": p.js(f"document.querySelector('[data-id={json.dumps(r)}]{sel}').className")
+            self.assertNotIn("noic", cls(shape, " .tpl-callout"), "a colour's own shape is an icon: the grid keeps its column")
+            self.assertIn("noic", cls(bare, " .tpl-callout"))
+            self.assertNotIn("no-head", cls(old)); self.assertNotIn("no-tile", cls(old))
+            self.assertIn("no-tile", cls(tile_only)); self.assertNotIn("no-head", cls(tile_only))
+            self.assertIn("no-head", cls(head_only)); self.assertNotIn("no-tile", cls(head_only))
+
+    def test_edit_each_suggestion_sets_its_own_colour_and_icon(self):
+        from test_server import wait
+        for label, want in (("Use Decision needed", ("Decision needed", "amber", "question", "decision")), ("Use Information", ("Information", "violet", "info", "info"))):
+            ref = self.make({**GOOD, "tone": "warning"})
+            with self.subTest(label=label), chrome() as cdp:
+                p = self.visit(cdp)
+                p.edit()
+                sec = f"[data-id={json.dumps(ref)}]"
+                p.until(f"!!document.querySelector('{sec} [aria-label=\"{label}\"]')", "the toolbar")
+                p.js(f"document.querySelector('{sec} [aria-label=\"{label}\"]').click()")
+                self.assertTrue(wait(lambda: json.loads(self.body_of(ref)).get("colour") == want[1], 10), self.body_of(ref))
+                got = json.loads(self.body_of(ref))
+                self.assertEqual((got["category"], got["colour"], got["icon"], got["tone"]), want)
 
     def test_edit_the_colour_the_icon_and_the_switches_save(self):
         ref = self.make(GOOD)

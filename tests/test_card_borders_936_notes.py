@@ -52,6 +52,15 @@ class Notes(PublishedFile, glance.Setup):
                     self.assertEqual(got["lc"], "1px")
                     self.assertEqual(got["callout"], "1px", "the callout has an even edge, no stripe (#1272)")
 
+    def test_the_published_file_shows_an_older_callouts_tone_word(self):
+        self.plant_notes()                                  # its callout is an older one: a tone and no category, colour or icon
+        path = self.publish()
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.draw(cdp, path, width, False)
+                self.settled(p)
+                self.assertEqual(p.js("document.querySelector('.tpl-callout-tone').textContent"), "Decision needed")
+
     def test_the_published_file_draws_the_quiet_marker_and_has_an_even_callout_edge(self):
         self.plant_notes()
         path = self.publish()
