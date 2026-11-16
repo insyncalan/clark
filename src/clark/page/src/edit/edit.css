@@ -169,7 +169,7 @@
 .rmx { display: grid; grid-template-columns: auto repeat(3, minmax(0, 1fr)); gap: 3px; align-items: stretch; }
 .rmx-h { color: var(--text-muted); font-size: var(--size-caption); font-weight: 500; align-self: center; }
 .rmx-corner { text-align: right; padding-right: var(--space-1); }
-.rmx-top { grid-column: 2 / 5; }
+.rmx-top { grid-column: 2 / 5; text-align: center; }
 .rmx-col { text-align: center; }
 .rmx-l { color: var(--text-muted); font-size: var(--size-caption); font-weight: 500; align-self: center; text-align: right; padding-right: 6px; }
 .rmx-c { min-height: var(--space-6); padding: 7px 2px; border: 1.5px solid transparent; border-radius: 6px; font: inherit; font-size: var(--size-caption); font-weight: 600; cursor: pointer; }
@@ -179,6 +179,7 @@
 .rmx-c[aria-pressed=true] { border-color: currentColor; }
 .rmx-c:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .rmx-hint { margin: 6px var(--space-1) 2px; color: var(--text-muted); font-size: var(--size-caption); }
+.rmx-hint b { font-weight: var(--weight-semibold); color: var(--text); }
 .pa-list { list-style: none; margin: 0; padding: 0; }
 .pa-row { padding: var(--space-2) 0; border-top: 1px solid var(--grey-100); }
 .pa-meta { margin: 0; font-size: var(--size-caption); color: var(--text-muted); }

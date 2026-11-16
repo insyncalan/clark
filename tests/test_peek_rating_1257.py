@@ -57,6 +57,24 @@ class RatingChip(unittest.TestCase):
                     cdp.js("document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))", sid)
                     self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", "closed")
 
+    def test_the_likelihood_header_is_centred_over_its_three_columns_and_the_level_in_the_line_is_bold(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.open_page(cdp, width)
+                for ref in ("TUL-007", "TUL-010"):
+                    self.peek(cdp, sid, ref)
+                    click(cdp, sid, "#peek .pk-chips [data-row=priority] button")
+                    self.until(cdp, sid, "!!document.querySelector('[data-pop] .rmx')", "the matrix opened")
+                    cdp.js("document.querySelector('[data-pop] .rmx-c[data-mx=\"High|Medium\"]').dispatchEvent(new MouseEvent('mouseover', {bubbles: true})); document.querySelector('[data-pop] .rmx-c[data-mx=\"High|Medium\"]').focus()", sid)
+                    self.until(cdp, sid, "!!document.querySelector('[data-rmx-hint] b')", "the line names the cell")
+                    got = cdp.js("(() => { const t = document.querySelector('[data-pop] .rmx-top'), cells = [...document.querySelectorAll('[data-pop] .rmx-c')], b = document.querySelector('[data-rmx-hint] b');"
+                                 " const left = Math.min(...cells.map((c) => c.getBoundingClientRect().left)), right = Math.max(...cells.map((c) => c.getBoundingClientRect().right)), r = document.createRange(); r.selectNodeContents(t);"
+                                 " const w = r.getBoundingClientRect(); return {mid: (w.left + w.right) / 2, grid: (left + right) / 2, bold: getComputedStyle(b).fontWeight, level: b.textContent, line: document.querySelector('[data-rmx-hint]').textContent}; })()", sid)
+                    self.assertAlmostEqual(got["mid"], got["grid"], delta=2, msg=f"{ref}: the word Likelihood sits over the middle of the three columns")
+                    self.assertEqual((got["bold"], got["level"], got["line"]), ("700", "High", "High impact, Medium likelihood: High (Red)"), ref)
+                    cdp.js("document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))", sid)
+                    self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", "closed")
+
 
 if __name__ == "__main__":
     unittest.main()
