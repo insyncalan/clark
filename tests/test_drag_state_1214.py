@@ -34,7 +34,7 @@ class DragState(unittest.TestCase):
                          'export { data, dropAt, dragFrom, dragList } from "@src/stores/report.js";', Path(cls._tmp.name), None, "dragstate.cjs")
 
     def run_script(self, steps, width=1400):
-        """steps: [x, y, ms] or [x, y, ms, pointerId] (a move, then the clock runs ms), "esc", "blur" (the window loses focus), "up", "up2" (a release of pointer 2), "lost", "lost2" (the handle, taken off the page, loses the capture of pointer 1, 2), "hidden" (the handle stays on the page but loses the capture, as when the preview hides it), "swap" (the page draws a new grip for the section and takes the old one off, nothing else), "swaplost" (that, and the old grip loses the capture). Returns one snapshot after the start and one after each step."""
+        """steps: [x, y, ms] or [x, y, ms, pointerId] (a move, then the clock runs ms), "esc", "blur" (the window loses focus), "up", "up2" (a release of pointer 2), "lost", "lost2" (the handle, taken off the page, loses the capture of pointer 1, 2), "hidden" (the handle stays on the page but loses the capture, as when the preview hides it), "hiddenaway" (that, and no grip for the section can be found by the page's query), "swap" (the page draws a new grip for the section and takes the old one off, nothing else), "swaplost" (that, and the old grip loses the capture). Returns one snapshot after the start and one after each step."""
         js = (STAND_IN
               + "const m = require(process.argv[1]); const L = {}, W = {}, body = [], notes = [];"
               "globalThis.addEventListener = (t, f) => { W[t] = f; }; globalThis.removeEventListener = (t, f) => { if (W[t] === f) delete W[t]; };"
@@ -57,7 +57,7 @@ class DragState(unittest.TestCase):
               "const out = [snap()];"
               "for (const s of " + json.dumps(steps) + ") {"
               "  if (s === 'esc') L.keydown && L.keydown({ key: 'Escape' });"
-              "  else if (s === 'lost' || s === 'lost2' || s === 'hidden') { if (H.lostpointercapture) { const f = H.lostpointercapture; if (s !== 'hidden') { handle.isConnected = false; grips.delete('d'); } f({ pointerId: s === 'lost2' ? 2 : 1, type: 'lostpointercapture' }); } }"
+              "  else if (s === 'lost' || s === 'lost2' || s === 'hidden' || s === 'hiddenaway') { if (H.lostpointercapture) { const f = H.lostpointercapture; if (s === 'hiddenaway') grips.delete('d'); if (s !== 'hidden' && s !== 'hiddenaway') { handle.isConnected = false; grips.delete('d'); } f({ pointerId: s === 'lost2' ? 2 : 1, type: 'lostpointercapture' }); } }"
               "  else if (s === 'blur') W.blur && W.blur({ type: 'blur' });"
               "  else if (s === 'swap' || s === 'swaplost') { handle.isConnected = false; if (s === 'swaplost') H.lostpointercapture && H.lostpointercapture({ pointerId: 1, type: 'lostpointercapture' }); }"
               "  else if (s === 'up' || s === 'up2') L.pointerup && L.pointerup({ pointerId: s === 'up' ? 1 : 2, type: 'pointerup' });"
@@ -156,6 +156,13 @@ class DragState(unittest.TestCase):
         for width in (1400, 900):
             with self.subTest(width=width):
                 got = self.run_script([[200, 330, REST], "hidden", "up"], width)
+                self.assertEqual((got[2]["from"], got[2]["drawn"], got[2]["listeners"]), ("d", 2, got[1]["listeners"]))
+                self.assertEqual(got[-1]["sent"], 1, "and it still drops")
+
+    def test_a_grip_still_on_the_page_that_loses_the_capture_does_not_end_the_drag_even_if_the_page_query_misses_it(self):
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                got = self.run_script([[200, 330, REST], "hiddenaway", "up"], width)
                 self.assertEqual((got[2]["from"], got[2]["drawn"], got[2]["listeners"]), ("d", 2, got[1]["listeners"]))
                 self.assertEqual(got[-1]["sent"], 1, "and it still drops")
 
