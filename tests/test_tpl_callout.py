@@ -285,6 +285,7 @@ class SharedLook(unittest.TestCase):
 
     def test_the_prompt_words_are_two_placeholders(self):
         self.assertEqual(self.run_js("Object.keys(N.PROMPTS)"), ["title", "words"])
+        self.assertEqual(self.run_js("N.PROMPTS"), {"title": "Add a title: what the reader must see", "words": "Click to write."})
 
 
 if __name__ == "__main__":
