@@ -28,7 +28,7 @@ export function visibleItems(items, view, showAll = false) {
   return items.slice(0, shownRows(items.length, view, showAll).shown);
 }
 
-// Whether a "Show all" control is wanted: only when some rows are hidden, and the list is not already scrolling.
+// Whether a "Show all" control is wanted: only when some rows are hidden, and the list is not already scrolling. (The summary also leaves it out once a number is set, the 16-11 ruling.)
 export function needsShowAll(total, view, showAll = false) {
   const v = normalizeView(view);
   return !v.scroll && shownRows(total, v, showAll).hidden > 0;
