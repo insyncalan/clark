@@ -12,7 +12,6 @@ from test_delete_any_section import Base
 from test_publish_section_bodies import Published
 
 RULES = sb.Rules(plain=lambda t: True, visible=lambda t: True)
-FULL = {"n": 5, "scroll": False, "tracker": "top"}
 
 
 def check(value):
@@ -26,11 +25,14 @@ class Checker(unittest.TestCase):
         self.assertIn("usecases", sb.CHECKERS)
         self.assertEqual(sb.EMPTY["usecases"], "")
 
-    def test_good_bodies_are_stored_with_all_three_keys(self):
-        self.assertEqual(json.loads(check({})), FULL)
-        self.assertEqual(json.loads(check({"n": 3})), {**FULL, "n": 3})
-        self.assertEqual(json.loads(check({"scroll": True})), {**FULL, "scroll": True})
-        self.assertEqual(json.loads(check({"tracker": "off"})), {**FULL, "tracker": "off"})
+    def test_good_bodies_are_stored_with_only_the_keys_given(self):
+        # Row 1234 (c): this used to pin "all three keys always"; a tracker-only click would then write n and flip the section to "count chosen",
+        # so each key now stays out of the text until it is written.
+        self.assertEqual(json.loads(check({})), {})
+        self.assertEqual(json.loads(check({"n": 3})), {"n": 3})
+        self.assertEqual(json.loads(check({"scroll": True})), {"scroll": True})
+        self.assertEqual(json.loads(check({"tracker": "off"})), {"tracker": "off"})
+        self.assertNotIn("n", json.loads(check({"tracker": "bottom"})))
         self.assertEqual(json.loads(check({"n": "all", "scroll": True, "tracker": "bottom"})), {"n": "all", "scroll": True, "tracker": "bottom"})
         for n in (1, 1000):
             self.assertEqual(json.loads(check({"n": n}))["n"], n)
@@ -58,6 +60,11 @@ class Checker(unittest.TestCase):
         self.assertEqual(sb.published("usecases", {"n": 3, "scroll": True, "tracker": "off"}), {"n": 3, "scroll": True, "tracker": "off"})
         self.assertEqual(sb.published("usecases", {"n": "all", "scroll": False, "tracker": "top"})["n"], "all")
 
+    def test_published_carries_only_the_keys_the_body_holds(self):
+        self.assertEqual(sb.published("usecases", {"tracker": "off"}), {"tracker": "off"})
+        self.assertEqual(sb.published("usecases", {"scroll": True}), {"scroll": True})
+        self.assertEqual(sb.published("usecases", {}), {})
+
 
 class Route(Base):
     def uc(self):
@@ -77,7 +84,7 @@ class Route(Base):
         self.assertEqual(json.loads(self.stored(ref)), {"n": 3, "scroll": True, "tracker": "off"})
         status, got = self.write(ref, json.dumps({"n": 8}))
         self.assertEqual(status, 200, got)
-        self.assertEqual(json.loads(self.stored(ref)), {**FULL, "n": 8})
+        self.assertEqual(json.loads(self.stored(ref)), {"n": 8})
         undone = self.undone(got["apply_id"])
         self.assertEqual(undone[0], 200, undone)
         self.assertEqual(json.loads(self.stored(ref)), {"n": 3, "scroll": True, "tracker": "off"})
@@ -89,6 +96,12 @@ class Route(Base):
         self.assertEqual((status, got["ok"]), (400, False))
         self.assertEqual(self.snapshot(), before)
         self.assertEqual(self.stored(ref), "")
+
+    def test_a_tracker_only_write_stores_the_tracker_alone(self):
+        ref = self.uc()
+        status, got = self.write(ref, json.dumps({"tracker": "bottom"}))
+        self.assertEqual(status, 200, got)
+        self.assertEqual(json.loads(self.stored(ref)), {"tracker": "bottom"})
 
 
 class InFile(Published, Base):
@@ -107,6 +120,12 @@ class InFile(Published, Base):
         got = self.sections()[ref]
         self.assertEqual((got["n"], got["scroll"], got["tracker"]), (3, True, "bottom"))
         self.assertEqual((got["id"], got["type"]), (ref, "usecases"))
+
+    def test_a_tracker_only_view_reaches_the_entry_with_the_tracker_alone(self):
+        ref = self.uc()
+        self.write(ref, json.dumps({"tracker": "bottom"}))
+        got = self.sections()[ref]
+        self.assertEqual((got["tracker"], "n" in got, "scroll" in got), ("bottom", False, False))
 
     def test_a_bad_stored_body_still_keeps_the_section(self):
         ref = self.uc()
