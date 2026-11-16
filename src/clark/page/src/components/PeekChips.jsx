@@ -21,7 +21,7 @@ export function PeekChips({ children, label = "Properties", cls = "" }) {
  *  tone     r | a | g | b | n: the icon's colour class; a tone is never the only signal, the value is written
  *  value    the value as words ("Open", "Omar Ali", "24-10-2026")
  *  sub      optional small word after the value ("overdue 2 days", "Red kept")
- *  subTone  optional: "late" draws the sub-line red
+ *  subTone  optional: "late" or "kept" draws the sub-line as a red pill
  *  late     true: an overdue date; the chip keeps its normal fill, only the date text and the sub-word pill are red
  *  flash    true: the Changed tag shows beside the chip (the existing flash)
  *  tip      optional hover text (a field that cannot be picked says why)

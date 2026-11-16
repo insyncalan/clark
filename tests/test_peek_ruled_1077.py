@@ -413,7 +413,7 @@ class Flat(Peeks):
     def test_the_words_box_is_a_foot_band_pinned_to_the_bottom_while_the_body_scrolls(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
-                sid = self.work(cdp, width, height=560)                      # a short window: the peek's body is taller than the peek
+                sid = self.work(cdp, width, height=700)                      # a short window: the peek's body is taller than the peek (row 1258: 700, not 560: the card is 32 px shorter than the old flush peek, and at 900 px a 560 px window left it 397 px high, too short for the 118 px foot band to leave its place in the body and pin)
                 self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)))
                 for _ in range(2):
                     cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "/", "code": "Slash", "text": "/", "windowsVirtualKeyCode": 191}, sid)
