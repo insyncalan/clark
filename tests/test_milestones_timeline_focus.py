@@ -14,8 +14,7 @@ class TimelineFocus(BrowserBase, unittest.TestCase):
         for width in (1400, 900):
             with chrome() as cdp:
                 sid = self.visit(cdp, width, "#milestones&p=TUL", port)
-                h = cdp.js("document.querySelector('.mv-wrap').offsetHeight", sid)
-                cdp.js(f"document.querySelector('.mv-wrap').style.height = '{h * 2}px'", sid)
+                cdp.js("(() => { const g = document.querySelector('[data-grip]'); g.focus(); g.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowDown', bubbles: true, cancelable: true})); })()", sid)   # row 1267: the grip, not the browser's corner handle, sets the zoom
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-zreset]')", sid)))
                 cdp.js("document.querySelector('[data-zreset]').focus()", sid)
                 cdp.js("document.querySelector('[data-zreset]').click()", sid)
