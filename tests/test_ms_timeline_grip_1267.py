@@ -71,6 +71,31 @@ class Grip(BrowserBase, unittest.TestCase):
                 self.assertGreater(cdp.js("document.querySelector('.mv-wrap').offsetHeight", sid), h + 60, f"{width}: taller")
                 self.assertTrue(wait(lambda: cdp.js("localStorage.getItem('clark.tlZoom.page')", sid) not in (None, "1")), f"{width}: remembered")
 
+    def test_the_ends_hold_once_settled_home_is_remembered_and_the_grip_is_off_the_paper(self):
+        port = self.serve()
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width, HASH, port)
+                for _ in range(12):
+                    self.press(cdp, sid, "ArrowUp")
+                self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "70"), f"{width}: floor")
+                cdp.js("new Promise((r) => setTimeout(r, 400))", sid)
+                self.assertEqual(cdp.js(PCT, sid), "70", f"{width}: the floor holds after settling")
+                self.assertEqual(cdp.js("document.querySelector('[data-grip]').getAttribute('aria-valuenow')", sid), "70")
+                for _ in range(30):
+                    self.press(cdp, sid, "ArrowDown")
+                self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "300"), f"{width}: ceiling")
+                cdp.js("new Promise((r) => setTimeout(r, 400))", sid)
+                self.assertEqual(cdp.js(PCT, sid), "300", f"{width}: the ceiling holds after settling")
+                self.assertEqual(cdp.js("localStorage.getItem('clark.tlZoom.page')", sid), "3", f"{width}: ceiling remembered")
+                self.press(cdp, sid, "Home")
+                self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "100"), f"{width}: Home resets")
+                self.assertEqual(cdp.js("localStorage.getItem('clark.tlZoom.page')", sid), "1", f"{width}: Home remembered")
+                self.assertNotEqual(cdp.js("getComputedStyle(document.querySelector('[data-grip]')).display", sid), "none", f"{width}: shown on screen")
+                cdp.js("document.documentElement.classList.add('print-all')", sid)
+                cdp.call("Emulation.setEmulatedMedia", {"media": "print"}, sid)
+                self.assertEqual(cdp.js("getComputedStyle(document.querySelector('[data-grip]')).display", sid), "none", f"{width}: left off the paper")
+
 
 if __name__ == "__main__":
     unittest.main()
