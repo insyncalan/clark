@@ -47,6 +47,29 @@ class Parity(base.InThePage):
             self.assertTrue(wait(lambda: p.js(f"document.querySelector('[data-id=\"{self.ref}\"] .wil-table th[data-cw-head=owner]').style.width") != ""),
                             "Alt with Right arrow sets the Owner width")
 
+    def test_a_right_click_or_shift_f10_on_a_heading_opens_the_columns_menu_with_the_shown_ones_ticked(self):      # row 1268
+        head = f"document.querySelector('[data-id=\"{self.ref}\"] .wil-table th[data-cw-head=owner]')"
+        items = "[...document.querySelectorAll('[role=menu] [role=menuitemcheckbox]')].map(b => b.dataset.colName + ':' + b.getAttribute('aria-checked'))"
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.edit()
+            p.until(f"!!{head}", "the heading drew")
+            p.js(f"{head}.dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
+            p.until("!!document.querySelector('[role=menuitemcheckbox]')", "the right click opened the columns menu")
+            got = p.js(items)
+            self.assertIn("Owner:true", got)
+            self.assertIn("Status:true", got)
+            self.assertTrue(any(g.endswith(":false") for g in got), "a column the list does not show is unticked")
+
+    def test_shift_f10_on_a_heading_opens_the_columns_menu(self):      # row 1268
+        head = f"document.querySelector('[data-id=\"{self.ref}\"] .wil-table th[data-cw-head=owner]')"
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.edit()
+            p.until(f"!!{head}", "the heading drew")
+            p.js(f"{head}.dispatchEvent(new KeyboardEvent('keydown', {{key: 'F10', shiftKey: true, bubbles: true, cancelable: true}}))")
+            p.until("!!document.querySelector('[role=menuitemcheckbox]')", "Shift+F10 opened the columns menu")
+
 
 for _name in [n for n in dir(base.InThePage) if n.startswith("test_") and n not in vars(Parity)]:
     setattr(Parity, _name, None)

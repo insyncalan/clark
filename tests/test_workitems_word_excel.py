@@ -140,6 +140,24 @@ class Word(unittest.TestCase):
             got = self.decision_due(status, "2026-11-06", "2026-11-10", date="2026-10-09")
             self.assertEqual(got, "09-10-2026", status)
 
+    def any_table(self, p):
+        return next(b["rows"] for b in blocks(docx_build.build(p)) if b["kind"] == "table" and "Item" in b["rows"][0])
+
+    def test_the_type_cell_holds_the_rows_kind(self):      # row 1268
+        rows = self.any_table(with_list(["PUB-A-001", "PUB-001"], columns=("type", "id")))
+        self.assertEqual(rows[0][0], "Type")
+        self.assertEqual(rows[1][0], "Action")
+        self.assertEqual(rows[2][0], "Risk")
+
+    def test_the_priority_column_is_wide_enough_for_its_word(self):
+        import re
+        import zipfile
+        xml = zipfile.ZipFile(io.BytesIO(docx_build.build(with_list(["PUB-A-001"], columns=("id", "priority"))))).read("word/document.xml").decode()
+        xml = xml[xml.index("Open work"):]
+        grid = [int(w) for w in re.findall(r'<w:gridCol w:w="(\d+)"', xml[xml.index("<w:tbl>"):])[:3]]
+        self.assertEqual(grid[0], 1200)
+        self.assertEqual(grid[2], 950)
+
     def test_the_built_in_sections_are_as_before(self):
         p = published()
         shown = headings(docx_build.build(p))
