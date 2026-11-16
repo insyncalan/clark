@@ -371,8 +371,13 @@ def _date(iso):
 def _kept(published, shown):
     """The published rows, in the shape glance reads them for a client (so the counts are the page's)."""
     data = published["data"]
-    return {"data": data, "rows": glance.work_rows(data), "use_cases": data.get("use_cases") or [],
-            "hidden_types": {t for t in HIDDEN_BY_KIND if t not in shown}}
+    hidden = {t for t in HIDDEN_BY_KIND if t not in shown}
+    listed = {i for s in published["sections"] if s.get("type") == "workitems" for i in s.get("items") or ()}
+    rows = glance.work_rows(data)
+    # row 1268: a row of a section left off the file is counted only when a Work items list in the file names it
+    rows = [r for r in rows if r["id"] in listed or not any(r["kind"] in glance.KINDS_OF_TILE[n] and glance.SECTION_OF_TILE[n] in hidden
+                                                          for n in glance.KINDS_OF_TILE)]
+    return {"data": data, "rows": rows, "use_cases": data.get("use_cases") or [], "hidden_types": hidden}
 
 
 def section_current(published, ctx, title, sec):
@@ -696,8 +701,6 @@ def section_workitems(published, ctx, title, sec):
     fixed = {c: WORK_COLUMNS[c][1] for c in order if c != "item"}
     weights = [fixed.get(c, max(2000, TEXT_W - sum(fixed.values()))) for c in order]
     return _heading(title) + caption + table(ctx, ["Item" if c == "item" else WORK_COLUMNS[c][0] for c in order], weights, rows)
-
-
 
 
 SIMPLE = {"workitems": section_workitems, "imagecap": section_imagecap, "current": section_current, "text": section_text, "milestones": section_milestones, "actions": section_actions,

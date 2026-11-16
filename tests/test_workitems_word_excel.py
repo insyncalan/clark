@@ -57,7 +57,6 @@ class Word(unittest.TestCase):
     def test_a_list_that_names_no_published_row_is_left_out(self):
         self.assertNotIn("Open work", headings(docx_build.build(with_list(["PUB-A-404"]))))
 
-
     def test_the_table_has_the_columns_the_list_chose_and_no_other(self):
         got = cells(docx_build.build(with_list(["PUB-A-001"], columns=("id", "owner"))))
         self.assertEqual(got[:3], ["ID", "Item", "Owner"])
