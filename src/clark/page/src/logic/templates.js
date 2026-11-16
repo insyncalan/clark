@@ -28,33 +28,33 @@ export const RECENT_MAX = 3;
 
 // Row 1068: the card name and the starting title of the Gantt table template (type gantttable), the owner's word. The Notes grid
 // template (type table) is also called Table; the ONE place to change this one's word (Help's row carries the same word).
-export const GANTT_TABLE_NAME = "Table";
+export const GANTT_TABLE_NAME = "Gantt table";
 
 // Words and parts are the prototype's (system/prototype/views.js, the same list Help's table draws from). `fit` puts the better width first.
 export const TEMPLATES = [
   { id: "text", name: "Text", kind: "text", fit: ["full", "half"], type: "text", title: "New section", body: "", ready: true,
     description: "Words under a heading, written in clark’s one editor.", holds: ["Heading", "Text"] },
-  { id: "text-image", name: "Text and image", kind: "text", fit: ["full", "half"], type: "textimage", title: "Text and image", body: "", ready: true,
+  { id: "text-image", name: "Text with image", kind: "text", fit: ["full", "half"], type: "textimage", title: "Text and image", body: "", ready: true,
     description: "A story with a picture: a site visit, a design, a screenshot of the new system.", holds: ["Heading", "Text", "Image", "Caption"] },
-  { id: "figures-4", name: "Key figures, four", kind: "figures", fit: ["full", "half"], type: "figures4", title: "Key figures", body: "", ready: true,
+  { id: "figures-4", name: "Numbers", kind: "figures", fit: ["full", "half"], type: "figures4", title: "Key figures", body: "", ready: true,
     description: "Three or four numbers with labels and a change since last week.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed", "Figure · typed", "Caption"] },
-  { id: "figures-3", name: "Key figures, three", kind: "figures", fit: ["full", "half"], type: "figures3", title: "Key figures", body: "", ready: true,
+  { id: "figures-3", name: "Numbers", kind: "figures", fit: ["full", "half"], type: "figures3", title: "Key figures", body: "", ready: true,
     description: "Three numbers with labels, in wider cards, so a short note fits under the change.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed"] },
-  { id: "gallery", name: "Image gallery", kind: "text", fit: ["full"], type: "gallery", title: "Image gallery", body: "", ready: true,
+  { id: "gallery", name: "Picture grid", kind: "text", fit: ["full"], type: "gallery", title: "Image gallery", body: "", ready: true,
     description: "Pictures in a grid, each with a caption.", holds: ["Heading", "Image", "Caption", "Image", "Caption", "Image"] },
   { id: "table", name: "Table", kind: "notes", fit: ["full"], type: "table", title: "Table", body: "", ready: true,
     description: "Anything with rows: a budget line, a cut-over plan, a training schedule.", holds: ["Heading", "Table"] },
-  { id: "raid-3", name: "RAID cards, three", kind: "work", fit: ["full"], type: "raid3", title: "Risks and issues", body: "", ready: true,
+  { id: "raid-3", name: "Item cards, three", kind: "work", fit: ["full"], type: "raid3", title: "Risks and issues", body: "", ready: true,
     description: "The risks, actions, issues or decisions you want the reader to see, as cards.", holds: ["Heading", "RAID card ×3", "Text source", "Text"] },
-  { id: "raid-4", name: "RAID cards, four", kind: "work", fit: ["full"], type: "raid4", title: "Risks and issues", body: "", ready: true,
+  { id: "raid-4", name: "Item cards, four", kind: "work", fit: ["full"], type: "raid4", title: "Risks and issues", body: "", ready: true,
     description: "Four shorter cards: good for “this week’s actions” or “decisions needed”.", holds: ["Heading", "RAID card ×4"] },
-  { id: "work-items", name: "Work items list", kind: "work", fit: ["full", "half"], type: "workitems", title: "Work items", body: "", ready: true,
+  { id: "work-items", name: "Live work list", kind: "work", fit: ["full", "half"], type: "workitems", title: "Work items", body: "", ready: true,
     description: "Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed.", holds: ["Heading", "Filter (set in Edit)", "Work item list · live", "Caption (optional)"] },
-  { id: "docs-links", name: "Documents and links", kind: "files", fit: ["full", "half"], type: "doclinks", title: "Documents and links", body: "", ready: true,
+  { id: "docs-links", name: "Files and links", kind: "files", fit: ["full", "half"], type: "doclinks", title: "Documents and links", body: "", ready: true,
     description: "The papers that go with this week’s report.", holds: ["Heading", "File (one or more)", "Link list"] },
-  { id: "callout", name: "Callout", kind: "notes", fit: ["half", "full"], type: "callout", title: "Callout", body: "", ready: true,
+  { id: "callout", name: "Must-see note", kind: "notes", fit: ["half", "full"], type: "callout", title: "Callout", body: "", ready: true,
     description: "One thing the reader must see.", holds: ["Heading", "Callout · decision"] },
-  { id: "image-caption", name: "Image with caption", kind: "text", fit: ["half", "full"], type: "imagecap", title: "Image with caption", body: "", ready: true,
+  { id: "image-caption", name: "One picture", kind: "text", fit: ["half", "full"], type: "imagecap", title: "Image with caption", body: "", ready: true,
     description: "One picture with its caption.", holds: ["Heading", "Image", "Caption"] },
   // Row 1223: the same store type as Image with caption (imagecap), started with a body of version 2 (`start`: changes.py takes exactly this body for a new
   // imagecap section; section_kinds/imagecap.py START). Full width only. Its name is unruled (logic/fullImageWords.js).
@@ -62,17 +62,17 @@ export const TEMPLATES = [
     description: WORDS.description, holds: WORDS.holds },
   { id: "quote", name: "Quote", kind: "text", fit: ["half", "full"], type: "quote", title: "Quote", body: "", ready: true,
     description: "A voice from the business.", holds: ["Heading", "Text (quote)", "Person"] },
-  { id: "contacts", name: "Contacts", kind: "dates", fit: ["half", "full"], type: "contacts", title: "Contacts", body: "", ready: true,
+  { id: "contacts", name: "Who to ask", kind: "dates", fit: ["half", "full"], type: "contacts", title: "Contacts", body: "", ready: true,
     description: "Who to ask.", holds: ["Heading", "Person", "Person", "Person"] },
-  { id: "checklist", name: "Checklist", kind: "dates", fit: ["half", "full"], type: "checklist", title: "Checklist", body: "", ready: true,
+  { id: "checklist", name: "Next steps", kind: "dates", fit: ["half", "full"], type: "checklist", title: "Checklist", body: "", ready: true,
     description: "Next steps or readiness, ticked off.", holds: ["Heading", "Checklist · linked to work items"] },
-  { id: "key-dates", name: "Key dates", kind: "dates", fit: ["half", "full"], type: "keydates", title: "Key dates", body: "", ready: true,
+  { id: "key-dates", name: "Coming dates", kind: "dates", fit: ["half", "full"], type: "keydates", title: "Key dates", body: "", ready: true,
     description: "What’s coming, from the milestones.", holds: ["Heading", "Date (from milestones)"] },
-  { id: "link-preview", name: "Link preview", kind: "files", fit: ["full"], type: "linkcard", title: "Link preview", body: "", ready: true,
+  { id: "link-preview", name: "Web page card", kind: "files", fit: ["full"], type: "linkcard", title: "Link preview", body: "", ready: true,
     description: "A web page shown as a card you write: a dashboard, a news item, a recording.", holds: ["Heading", "Link", "Card text"] },
   { id: "current-state", name: "Header and Text", kind: "text", fit: ["full", "half"], type: "text", title: "Current state", body: "", ready: true,
     description: "The state of the project in a few lines, to sit beside another section.", holds: ["Heading", "Text"] },
-  { id: "plan-summary", name: "Plan summary", kind: "text", fit: ["full", "half"], type: "text", title: "Plan summary", ready: true,
+  { id: "plan-summary", name: "Where we are, what's next", kind: "text", fit: ["full", "half"], type: "text", title: "Plan summary", ready: true,
     body: "<h2>Where we are</h2><p></p><h2>What is next</h2><ul><li></li></ul>",
     description: "Where the plan stands, in clark’s one editor: headings, lists and links. Starts with two headings to fill in.",
     holds: ["Heading", "Rich text: headings, lists, quote, links"] },
@@ -80,7 +80,7 @@ export const TEMPLATES = [
     description: "The plan as bars on a timeline, from your Gantt lines. Only lines put in the client view show.", holds: ["Heading", "The Gantt chart"] },
   { id: "gantt-table", name: GANTT_TABLE_NAME, kind: "dates", fit: ["full", "half"], type: "gantttable", title: GANTT_TABLE_NAME, body: "", ready: true,
     description: "The plan as a table, from your Gantt lines. Only lines put in the client view show.", holds: ["Heading", "The plan table"] },
-  { id: "one-doc", name: "One document", kind: "files", fit: ["half", "full"], type: "onedoc", title: "Document", body: "", ready: true,
+  { id: "one-doc", name: "One file", kind: "files", fit: ["half", "full"], type: "onedoc", title: "Document", body: "", ready: true,
     description: "A single file to read.", holds: ["Heading", "File", "Text"] },
 ];
 

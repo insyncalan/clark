@@ -209,12 +209,12 @@ class Logic(unittest.TestCase):
     def test_search_and_kinds_and_counts(self):
         self.assertEqual(len(self.t("list()")), 23)      # row 1068: + the Plan table card
         self.assertEqual([x["id"] for x in self.t('list({query: "figures"})')], ["figures-4", "figures-3"])
-        self.assertEqual([x["id"] for x in self.t('list({query: "KEY dates"})')], ["key-dates"], "case does not matter and every word must match")
+        self.assertEqual([x["id"] for x in self.t('list({query: "COMING dates"})')], ["key-dates"], "case does not matter and every word must match")
         self.assertEqual(self.t('list({query: "zzz"})'), [])
         self.assertEqual([x["id"] for x in self.t('list({kind: "work"})')], ["raid-3", "raid-4", "work-items"])
         self.assertEqual([x["id"] for x in self.t('list({kind: "work", query: "list"})')], ["work-items"])
-        c = self.t('counts({query: "key"})')
-        self.assertEqual((c["all"], c["figures"], c["dates"], c["text"], c["recent"]), (3, 2, 1, 0, 0))
+        c = self.t('counts({query: "numbers"})')
+        self.assertEqual((c["all"], c["figures"], c["dates"], c["text"], c["recent"]), (2, 2, 0, 0, 0))
         self.assertEqual([x["id"] for x in self.t('list({kind: "recent", recent: ["callout", "text", "nope"]})')], ["callout", "text"])
 
     def test_recently_used_is_newest_first_each_once_at_most_three_and_only_known(self):
@@ -489,9 +489,9 @@ class Box(Base):
             p = self.visit(cdp)
             p.edit()
             self.open_box(p, "ABC-S-003")
-            p.type("key")
-            p.until("document.querySelectorAll('[data-template]').length === 3", "the search narrowed the list")
-            self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.querySelector('.ad-n').textContent)"), ["3", "0", "2", "0", "0", "1", "0"])
+            p.type("numbers")
+            p.until("document.querySelectorAll('[data-template]').length === 2", "the search narrowed the list")
+            self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.querySelector('.ad-n').textContent)"), ["2", "0", "2", "0", "0", "0", "0"])
             p.key("ArrowDown", code="ArrowDown", vk=40)
             self.assertTrue(p.js("document.activeElement.matches('input[name=template]:checked') && document.activeElement.value === 'figures-4'"),
                             "a template that cannot be placed yet can still be reached and chosen, so Down goes to it")
@@ -536,7 +536,7 @@ class Box(Base):
                 self.assertFalse(p.js("document.querySelector('button[data-place]').disabled"), seen[-1])
                 self.assertIsNone(p.js("document.activeElement.getAttribute('aria-disabled')"), seen[-1])
             self.assertEqual(seen, BOX, "the arrow keys reach every template, in order")
-            self.assertEqual(p.js("document.querySelector('.ad-prev h3').textContent"), "One document")
+            self.assertEqual(p.js("document.querySelector('.ad-prev h3').textContent"), "One file")
             self.assertIn("A single file to read.", p.js("document.querySelector('.ad-prev').textContent"))
             self.assertFalse(p.js("!!document.getElementById('ad-later-prev')"), "no reason to give: it can be placed")
             self.assertIsNone(p.js("document.querySelector('button[data-place]').getAttribute('aria-describedby')"))
@@ -544,7 +544,7 @@ class Box(Base):
             p.js("document.querySelector('[data-kind=notes]').click()")
             p.until("document.querySelectorAll('[data-template]').length === 2", "Notes")
             p.js("document.querySelector('[data-template=callout]').click()")
-            p.until("document.querySelector('.ad-prev h3').textContent === 'Callout'", "the preview shows it")
+            p.until("document.querySelector('.ad-prev h3').textContent === 'Must-see note'", "the preview shows it")
             self.assertEqual(p.js("document.querySelector('.ad-prev .ad-lbl').textContent"), "Holds")
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-prev li')].map(l => l.textContent)"), ["Heading", "Callout · decision"])
 
