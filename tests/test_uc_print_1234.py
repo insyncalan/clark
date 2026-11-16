@@ -33,7 +33,7 @@ def made(view, extra=4, long=False):
 
 
 class Browser(unittest.TestCase):
-    def open(self, cdp, text, tmp, width):
+    def show(self, cdp, text, tmp, width):
         path = Path(tmp) / "r.html"
         path.write_text(text, encoding="utf-8")
         sid = opened(cdp, path.as_uri())
@@ -47,7 +47,7 @@ class Browser(unittest.TestCase):
         for width in (1400, 900):
             with self.subTest(width=width), tempfile.TemporaryDirectory() as tmp, chrome() as cdp:
                 pub, text = made({"n": 2, "scroll": True, "tracker": "top"})
-                sid = self.open(cdp, text, tmp, width)
+                sid = self.show(cdp, text, tmp, width)
                 js = lambda s: cdp.js(s, sid)  # noqa: E731
                 total = js("document.querySelectorAll('.ucrows > .ucrow').length")
                 self.assertGreater(total, 2)
