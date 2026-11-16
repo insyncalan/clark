@@ -132,7 +132,7 @@ class Pg:
         return self.js(f"(function(){{var r=document.querySelector('[data-id=\"{ref}\"]').getBoundingClientRect();"
                        "return {left:r.left, top:r.top, right:r.right, bottom:r.bottom};})()")
 
-    SHOWN = "!!document.querySelector('.sec.drop-before, .sec.drop-left, .sec.drop-right, .secs.drop-end')"
+    SHOWN = "!!document.querySelector('.sec.drag-slot, .sec.drop-before, .sec.drop-left, .sec.drop-right, .secs.drop-end')"    # the preview draws the moved section as the slot
 
     def drag(self, ref, x, y, release=True, drops=True):
         """Press the handle of `ref`, move to (x, y) in steps and (by default) let go there. A drop needs the target to be shown
@@ -599,8 +599,8 @@ class Sections(Base):
             p.mouse("mousePressed", hx, hy, 1)
             for step in range(1, 9):
                 p.mouse("mouseMoved", hx, hy + (ty - hy) * step / 8, 1)
-            p.until("!!document.querySelector('.sec.drop-before')", "a drop line while dragging")
-            self.assertEqual(p.js("document.querySelector('.sec.drop-before').dataset.id"), "ABC-S-004")
+            p.until("!!document.querySelector('.sec.drag-slot')", "the slot is drawn while dragging")
+            self.assertEqual(p.js("document.querySelector('.sec.drag-slot').nextElementSibling.dataset.id"), "ABC-S-004")
             p.mouse("mouseReleased", hx, ty, 0)
             want = ["ABC-S-002", "ABC-S-003", "ABC-S-001"] + IDS[3:]
             p.order_is(want, "dragged")
@@ -628,9 +628,10 @@ class Sections(Base):
             r = p.rect("ABC-S-002")                          # At a glance, on its own: any type can be paired
             mid_y = (r["top"] + r["bottom"]) / 2
             p.drag("ABC-S-008", r["left"] + (r["right"] - r["left"]) * 0.75, mid_y, release=False)
-            p.until("!!document.querySelector('.sec.drop-right')", "the right half is outlined while dragging")
-            self.assertEqual(p.js("document.querySelector('.sec.drop-right').dataset.id"), "ABC-S-002")
-            self.assertIsNone(p.js("document.querySelector('.drop-left')"))
+            p.until("!!document.querySelector('.sec.drag-slot.slot-right')", "the slot is drawn as the right half while dragging")
+            self.assertEqual(p.js("document.querySelector('.sec.drag-slot').dataset.id"), "ABC-S-008")
+            self.assertEqual(p.js("document.querySelector('.sec.drag-slot').previousElementSibling.dataset.id"), "ABC-S-002")
+            self.assertIsNone(p.js("document.querySelector('.sec.drag-slot.slot-left')"))
             p.mouse("mouseReleased", r["left"] + (r["right"] - r["left"]) * 0.75, mid_y, 0)
             p.order_is(IDS[:2] + ["ABC-S-008"] + IDS[2:7] + IDS[8:], "dropped beside")
             self.assertEqual(self.sent[-1][1], {"project": "ABC", "kind": "report_sections", "op": "move", "id": "ABC-S-008",
@@ -681,13 +682,13 @@ class Sections(Base):
             r = p.rect("ABC-S-002")
             n = len(self.sent)
             p.drag("ABC-S-008", r["left"] + (r["right"] - r["left"]) * 0.75, (r["top"] + r["bottom"]) / 2, release=False)
-            p.until("!!document.querySelector('.sec.drop-right')", "the half is outlined while dragging")
+            p.until("!!document.querySelector('.sec.drag-slot.slot-right')", "the slot is drawn as the right half while dragging")
             p.key("Escape", code="Escape", vk=27)
-            p.until("!document.querySelector('.sec.drop-right')", "Esc clears the indicator")
+            p.until("!document.querySelector('.sec.drag-slot, .sec.drag-from')", "Esc clears the preview")
             x, y = r["left"] + (r["right"] - r["left"]) * 0.75, (r["top"] + r["bottom"]) / 2
             p.mouse("mouseMoved", x + 1, y + 1, 1)                      # 1 px of jitter after Esc: still cancelled
             p.mouse("mouseMoved", x, y, 1)
-            self.assertFalse(p.js("!!document.querySelector('.sec.drop-right, .sec.drop-left, .sec.drop-before, .secs.drop-end')"), "no indicator comes back")
+            self.assertFalse(p.js("!!document.querySelector('.sec.drag-slot, .sec.drag-from, .sec.drop-right, .sec.drop-left, .sec.drop-before, .secs.drop-end')"), "no indicator comes back")
             p.mouse("mouseReleased", x, y, 0)
             self.assertEqual(len(self.sent), n, "nothing was sent")
             p.order_is(IDS, "the order is as it was")
@@ -720,8 +721,9 @@ class Sections(Base):
             p.edit()
             r = p.rect("ABC-S-006")
             p.drag("ABC-S-001", (r["left"] + r["right"]) / 2 - 20, r["top"] + 3, release=False)       # the top of the pair
-            p.until("document.querySelectorAll('.sec.drop-before').length === 2", "a line across the whole pair")
-            self.assertEqual(p.js("[...document.querySelectorAll('.sec.drop-before')].map(e => e.dataset.id)"), ["ABC-S-006", "ABC-S-007"])
+            p.until("!!document.querySelector('.sec.drag-slot')", "the slot is drawn above the whole pair")
+            self.assertEqual(p.js("[document.querySelector('.sec.drag-slot').nextElementSibling.dataset.id, "
+                                  "document.querySelector('.sec.drag-slot').nextElementSibling.nextElementSibling.dataset.id]"), ["ABC-S-006", "ABC-S-007"])
             p.mouse("mouseReleased", r["left"], r["top"] + 3, 0)
             p.order_is(IDS[1:5] + ["ABC-S-001"] + IDS[5:], "above the pair")
             self.assertNotIn("flags", self.sent[-1][1])
