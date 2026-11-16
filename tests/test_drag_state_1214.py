@@ -124,7 +124,7 @@ class DragState(unittest.TestCase):
         for width in (1400, 900):
             with self.subTest(width=width):
                 got = self.run_script([[200, 330, REST]], width)
-                self.assertEqual(got[1]["listeners"], ["keydown", "pointercancel", "pointermove", "pointerup"])
+                self.assertEqual(got[1]["listeners"], ["keydown", "lostpointercapture", "pointercancel", "pointermove", "pointerup"])
                 for steps in ([[200, 330, REST], "up"], [[200, 330, REST], "esc", "up"]):
                     self.assertEqual(self.run_script(steps, width)[-1]["listeners"], [], steps)
 
