@@ -4,11 +4,19 @@ and Progress, under a heading row that is drawn in View and in Edit alike. A row
 Run: python3 dev/run_tests.py -j 1 test_ms_table_1230   (headless Chrome; fails, never skips, without it)
 Fictional data over a real store; "today" is 2026-10-28. Widths 1400 and 900 only; no keyboard walk-through.
 """
+import json
+import sys
 import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from _demo import USER, DemoStore
+from _paths import SRC, TOOLS
+
+sys.path.insert(0, str(TOOLS))
+import build_page  # noqa: E402
+import esbuild  # noqa: E402
 
 from clark import page, server as sv
 from test_server import Running, chrome, wait
@@ -140,6 +148,82 @@ class PageList(Base):
                     self.assertTrue(got["sub"], "the old second line (Agreed, or the Expected date) sits in the row under the date and name")
                     self.assertEqual(got["heads"], ["Date", "Milestone", "State", "Progress"],
                                      "the heading row over the old four")
+
+
+PAGE_SRC = SRC / "clark" / "page" / "src"
+ENTRY = """import { render, h } from "preact";
+import { MsList } from "%(src)s/components/MsList.jsx";
+import { milestoneRows } from "%(src)s/logic/milestones.js";
+import * as TC from "%(src)s/logic/tableColumns.js";
+window.T = { TC, draw(props) {
+  const box = document.createElement("div"); document.body.appendChild(box);
+  const rows = milestoneRows([{ id: 1, name: "One", baseline_date: "2030-04-01" }, { id: 2, name: "Two", baseline_date: "2030-05-01" }], "2026-10-28", false);
+  render(h(MsList, { rows, ...props }), box);
+  const hd = box.querySelector(".msl-hd");
+  return { hd: !!hd, set: !!hd && hd.classList.contains("set"), cols: [...box.querySelectorAll(".msl-hd [data-col]")].map((e) => e.dataset.col), vars: box.querySelector(".msl-box").getAttribute("style") };
+} };
+"""
+_BUNDLE = {}
+
+
+def bundle():
+    """MsList.jsx itself, drawn by Preact in headless Chrome with a stand-in for Edit's width and column hooks (`CW`, `CM`)."""
+    if "js" not in _BUNDLE:
+        with tempfile.TemporaryDirectory() as tmp:
+            entry, out = Path(tmp) / "entry.jsx", Path(tmp) / "out.js"
+            entry.write_text(ENTRY % {"src": str(PAGE_SRC)}, encoding="utf-8")
+            done = esbuild.run(["--bundle", "--format=iife", "--target=es2020", "--charset=utf8", "--tsconfig-raw={}", *build_page.preact_flags(),
+                                str(entry), f"--outfile={out}"], cwd=tmp, capture_output=True, text=True)
+            assert done.returncode == 0, done.stderr
+            _BUNDLE["js"] = out.read_text(encoding="utf-8")
+    return _BUNDLE["js"]
+
+
+STAND_IN = "{ px: () => null, head: () => ({}), grip: () => null }"
+
+
+class ListUnits(unittest.TestCase):
+    """Row 1230 rulings on MsList.jsx and tableColumns.js, drawn for real in Chrome (one browser at a time)."""
+
+    @classmethod
+    def setUpClass(cls):
+        with chrome() as cdp:
+            cls.sid = page_target(cdp)
+            res = cdp.call("Runtime.evaluate", {"expression": bundle(), "returnByValue": True}, cls.sid)
+            assert "exceptionDetails" not in res, res
+            cls.drawn = {}
+            for name, props in {
+                "page-view": "{ place: 'page' }",
+                "dash-view": "{ place: 'sec-1' }",
+                "dash-std": "{ place: 'sec-1', CW: () => (%(cw)s), CM: () => ({ shown: T.TC.standardIds('msDash'), rowProps: {}, button: () => null, menu: null }) }",
+                "dash-added": "{ place: 'sec-1', CW: () => (%(cw)s), CM: () => ({ shown: T.TC.shownIds('msDash', ['agreed', 'date', 'prog', 'owner']), rowProps: {}, button: () => null, menu: null }) }",
+                "dash-removed": "{ place: 'sec-1', CW: () => (%(cw)s), CM: () => ({ shown: T.TC.shownIds('msDash', ['agreed', 'date']), rowProps: {}, button: () => null, menu: null }) }",
+            }.items():
+                got = cdp.call("Runtime.evaluate", {"expression": f"(() => {{ document.body.innerHTML = ''; return T.draw({props % {'cw': STAND_IN}}); }})()", "returnByValue": True}, cls.sid)
+                assert "exceptionDetails" not in got, got
+                cls.drawn[name] = got["result"]["value"]
+            cls.locked = cdp.call("Runtime.evaluate", {"expression": "({ only: T.TC.shownIds('msDash', ['agreed']), off: T.TC.toggled('msDash', T.TC.standardIds('msDash'), 'name'), offState: T.TC.toggled('msDash', T.TC.standardIds('msDash'), 'state') })",
+                                                       "returnByValue": True}, cls.sid)["result"]["value"]
+
+    def test_the_milestones_page_draws_no_heading_row_in_view(self):
+        self.assertFalse(self.drawn["page-view"]["hd"], "the page's heading row is Edit's alone")
+        self.assertTrue(self.drawn["dash-view"]["hd"], "control: the Dashboard section draws its heading row in View")
+        self.assertEqual(self.drawn["dash-view"]["cols"], ["name", "state", "agreed", "date", "prog"])
+
+    def test_the_dashboards_name_column_is_locked(self):
+        self.assertIn("name", self.locked["only"], "a choice that leaves the name out still shows it")
+        self.assertEqual(self.locked["off"], ["name", "state", "agreed", "date", "prog"], "pressing the name changes nothing")
+        self.assertEqual(self.locked["offState"], ["name", "state", "agreed", "date", "prog"], "nor the state")
+
+    def test_sized_marks_the_table_custom_when_a_column_is_added_or_removed(self):
+        std = self.drawn["dash-std"]
+        self.assertTrue(std["hd"] and not std["set"] and not std["vars"], f"the standard columns are not custom: {std}")
+        for name in ("dash-added", "dash-removed"):
+            got = self.drawn[name]
+            self.assertTrue(got["set"], f"{name}: the heading row is marked set")
+            self.assertIn("--msl-cols", got["vars"] or "", f"{name}: the column widths are set")
+        self.assertEqual(self.drawn["dash-added"]["cols"], ["name", "state", "agreed", "date", "prog", "owner"])
+        self.assertEqual(self.drawn["dash-removed"]["cols"], ["name", "state", "agreed", "date"])
 
 
 if __name__ == "__main__":
