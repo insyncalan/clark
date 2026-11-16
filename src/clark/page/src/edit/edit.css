@@ -644,12 +644,10 @@ textarea.tpl-field { resize: vertical; }
 .wil-sel select, .wil-sel input { min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-small); }
 .wil-capbox { margin: var(--space-2) 0 0; }
 .wil-none { margin: var(--space-2) 0; padding: 10px var(--space-3); border: 1px dashed var(--grey-300); border-radius: var(--radius); color: var(--text); font-size: var(--size-small); }
-.wil-live tbody tr, .wil-live li { cursor: pointer; }
-.wil-table .wil-c-eye { width: 44px; padding-left: 0; padding-right: 0; text-align: center; }   /* row 1113: the Work items page eye, at the end of each row */
-.wil-lines.wil-live li { position: relative; padding-right: 44px; }
-.wil-lines .wil-eye { position: absolute; top: 2px; right: 0; }
-.wil-live tbody tr:hover, .wil-live li:hover { background: var(--grey-50); }
-.wil-live tbody tr:focus-visible, .wil-live li:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.wil-live .wl-row, .wil-live li { cursor: pointer; }
+.wil-lines .wil-eye { flex: none; }      /* row 1113: the Work items page eye, at the end of each row */
+.wil-live .wl-row:hover, .wil-lines.wil-live li:hover { background: var(--grey-50); }
+.wil-live .wl-row:focus-visible, .wil-live li:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 
 /* Pictures group (#96): the Edit parts of Text and image, Image with caption, Image gallery and Headline band. Edit only; tokens only.
    .tpl-edit is the typed notes block's (the same column); the picture fields and slots have their own names, apart from Key figures' slots. */

@@ -3,14 +3,18 @@
 // Undo, place "report"). Under it, the rows it lists now, exactly as View and the published page will show them; each row opens
 // its peek (a click, or Enter). An empty match says so here, and only here: View and the published page leave the section out.
 import { useRef, useState } from "preact/hooks";
-import { data, openPeek } from "../../stores/report.js";
+import { data, openPeek, openWork, rows as allRows, filterCtx } from "../../stores/report.js";
+import { LineBox } from "../../components/FilterLine.jsx";
+import { MenuPanel } from "../../components/Menu.jsx";
+import { addItem, ADDABLE } from "../addItem.js";
 import { change, say } from "../../stores/changes.js";
-import { Rows, ShowAll, today } from "../../templates/WorkItemsList.jsx";
-import { KINDS, MODES, STATUSES, DUE, PRIORITIES, NONE, SORTS, COLUMNS, MAX_ROWS, MAX_CAPTION, WORDS, defaults, filterOf, bodyOf,
-  editListOf, drawRows, offered, drawn, idsToShow } from "../../templates/workItemsList.js";
+import { Rows, Window, Foot, today, shownColumns } from "../../templates/WorkItemsList.jsx";
+import { workState } from "../../templates/workItemsReview.js";
+import { KINDS, MODES, STATUSES, DUE, PRIORITIES, NONE, SORTS, COLUMNS, DESIGN_COLUMNS, MAX_ROWS, MAX_CAPTION, WORDS, defaults, filterOf, bodyOf,
+  editListOf, drawRows, offered, drawn } from "../../templates/workItemsList.js";
 import { Eye } from "../cells/Eye.jsx";
 import { plural } from "../../workItems.js";
-import { lineOf, chipsOf, readLine } from "../../templates/workItemsLine.js";
+import { lineOf, readLine } from "../../templates/workItemsLine.js";
 
 export const SAVED = "Work items list changed.";
 export const NOT_YET = "No filter is set for this section yet. Set one below and it shows here.";
@@ -50,7 +54,8 @@ function Choice({ id, label, field, values, words, value, onPick }) {
 export const LINE_HINT = "Type a filter, for example: type:risk status:Open owner:\"Pat Demo\"  Press Enter to save it.";
 
 export function Edit({ section }) {
-  const [all, setAll] = useState(false);          // row 1199: Show all items
+  const [plus, setPlus] = useState(null);           // the dashed + Add menu: Action, Risk, Issue, Decision; a choice makes the item and opens its Peek
+  const [at, setAt] = useState(null);              // the columns menu (a right click on the heading row), kept in step with the Columns boxes
   const [tick, setTick] = useState(0);              // a refused save draws the form again from what is saved
   const d = data.value || {};
   const saved = filterOf(section);
@@ -77,7 +82,7 @@ export function Edit({ section }) {
   };
   const toggleColumn = (field, v) => {
     const cur = latest();
-    const next = cur.columns.includes(v) ? cur.columns.filter((x) => x !== v) : COLUMNS.filter((c) => c === v || cur.columns.includes(c));
+    const next = cur.columns.includes(v) ? cur.columns.filter((x) => x !== v) : COLUMNS.filter((c) => c === v || cur.columns.includes(c));      // a Type column is the letter tile now: it stays in a saved list but is no choice
     if (!next.length) { say("problem", "Choose at least one column to show."); setTick((n) => n + 1); return; }
     save({ ...cur, columns: next });
   };
@@ -98,34 +103,15 @@ export function Edit({ section }) {
   const capInput = (e) => { if (points(e.currentTarget.value) > MAX_CAPTION) say("problem", LONG_CAPTION); };
   // The filter line: Enter (or leaving the box) reads the typed words onto the filter and saves it as ONE change; a word the list cannot
   // use is said in plain words and nothing is saved. A chip's x takes that one choice off.
-  const commitLine = (e) => {
-    const el = e.currentTarget, cur = latest();
-    if (el.value.trim() === lineOf(cur, nameOf)) return;
-    const r = readLine(el.value, cur, known);
+  // Item 1268: the box is the Work items page's own (components/FilterLine.jsx LineBox), not a copy: the same chips, suggestions, count and keys.
+  const applyLine = (text) => {
+    const cur = latest();
+    if (String(text).trim() === lineOf(cur, nameOf)) return;
+    const r = readLine(text, cur, known);
     if (r.problem) { say("problem", r.problem); return; }
     save(r.filter);
   };
-  const lineKeys = (e) => {
-    if (e.key === "Enter") { e.preventDefault(); commitLine(e); }
-    else if (e.key === "Escape") { e.preventDefault(); e.currentTarget.value = lineOf(filter, nameOf); e.currentTarget.blur(); }
-  };
-  // The chip's x goes with its chip, which drops the focus to the page: it goes to the chip that took its place, the one before it when
-  // that was the last, or the Filter box when none is left.
-  const dropChip = (field, v, e) => {
-    const cur = latest(), root = e.currentTarget.closest("[data-wil-edit]"), had = document.activeElement === e.currentTarget;
-    const at = had ? [...root.querySelectorAll(".wil-chips button")].indexOf(e.currentTarget) : -1;
-    const done = save({ ...cur, [field]: cur[field].filter((x) => x !== v) });
-    const btn = e.currentTarget;
-    const back = (tries) => {      // the list is drawn a moment after the reply: wait until this x is gone, then move the focus
-      const now = document.querySelector(`[data-wil-id="${id}"]`);
-      if (btn.isConnected && document.activeElement === btn) { if (tries > 0) setTimeout(() => back(tries - 1), 30); return; }
-      if (!now || (document.activeElement && document.activeElement !== document.body)) return;
-      const xs = now.querySelectorAll(".wil-chips button");
-      const el = xs.length ? xs[Math.min(at, xs.length - 1)] : now.querySelector("input[name=line]");
-      if (el) el.focus();
-    };
-    if (had) done.then(() => setTimeout(() => back(20), 0));
-  };
+  const BOX = { input: `${id}-q`, list: `${id}-q-list`, count: `${id}-q-count`, x: `${id}-q-x`, msg: `${id}-q-msg`, gloss: `${id}-q-gloss`, opt: `${id}-qo` };
   const keys = (e) => {
     if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); }
     else if (e.key === "Escape") { e.preventDefault(); e.currentTarget.value = e.currentTarget.name === "max" ? String(filter.max) : filter.caption; e.currentTarget.blur(); }
@@ -133,21 +119,14 @@ export function Edit({ section }) {
 
   const now = today();
   const list = editListOf(section, d, now);
-  const rows = drawRows(idsToShow(list, all), drawn(d, true));
+  const rows = drawRows(list.all || list.items, drawn(d, true));
+  const cols = shownColumns(filter.columns);
+  const head = { onContextMenu: (e) => { e.preventDefault(); setAt(e.target.closest("[data-col]") || e.currentTarget); } };
   return (
     <div class="wil wil-edit" key={tick} data-wil-edit="" data-wil-id={id}>
       {saved ? null : <p class="quiet wil-say" data-wil-say="not-yet">{NOT_YET}</p>}
       <div class="wil-line" data-wil-line="">
-        <label class="wil-sel wil-linef"><span>Filter</span>
-          <input type="text" name="line" aria-describedby={`${id}-hint`} value={lineOf(filter, nameOf)} key={lineOf(filter, nameOf)} onChange={commitLine} onKeyDown={lineKeys} autocomplete="off" spellcheck={false} />
-        </label>
-        <p class="quiet" id={`${id}-hint`}>{LINE_HINT}</p>
-        <ul class="wil-chips" aria-label="Choices in this filter">
-          {chipsOf(filter, nameOf).map((c) => (
-            <li key={`${c.field}:${c.value}`} class="wil-chip"><span>{c.label}</span>
-              <button type="button" aria-label={`Take off ${c.label}`} onClick={(e) => dropChip(c.field, c.value, e)}>&times;</button></li>
-          ))}
-        </ul>
+        <LineBox line={lineOf(filter, nameOf)} now={() => lineOf(latest(), nameOf)} apply={applyLine} rows={allRows.value} ctx={filterCtx()} ids={BOX} label="Filter work items" />
       </div>
       <div class="wil-form">
       <details class="wil-more" data-wil-more="">
@@ -160,6 +139,9 @@ export function Edit({ section }) {
         <Boxes id={id} legend="Priority" field="priority" values={[...PRIORITIES, NONE]} words={none("priority")} chosen={filter.priority} onToggle={toggle} />
         <Boxes id={id} legend="Owner" field="owner" values={offered("owner", d, filter.owner)} words={none("owner")} chosen={filter.owner} onToggle={toggle} />
         <Boxes id={id} legend="Workstream" field="workstream" values={offered("workstream", d, filter.workstream)} words={none("workstream")} chosen={filter.workstream} onToggle={toggle} />
+        <fieldset class="wil-f" data-field="recent"><legend>Decisions</legend>
+          <div class="wil-opts"><label><input type="checkbox" name={`${id}-recent`} checked={!!filter.recent} onChange={() => save({ ...latest(), recent: !latest().recent })} />Pending, and made in the last 14 days</label></div>
+        </fieldset>
         <Boxes id={id} legend="Use case" field="use_case" values={offered("use_case", d, filter.use_case)} words={none("use_case")} chosen={filter.use_case} onToggle={toggle} />
       </div>
       </details>
@@ -167,13 +149,32 @@ export function Edit({ section }) {
         <label class="wil-sel" data-field="max"><span>Most rows</span>
           <input type="number" name="max" min="1" max={MAX_ROWS} step="1" value={filter.max} onChange={commitMax} onKeyDown={keys} />
         </label>
-        <Boxes id={id} legend="Columns at full width" field="columns" values={COLUMNS} words={(v) => WORDS.columns[v]} chosen={filter.columns} onToggle={toggleColumn} />
+        <Boxes id={id} legend="Columns at full width" field="columns" values={DESIGN_COLUMNS} words={(v) => WORDS.columns[v]} chosen={filter.columns} onToggle={toggleColumn} />
       </div>
       <p class="quiet" data-wil-say="count">{saved ? `${plural(rows.length, "work item")} listed now. ${ONLY_SHOWN}` : ONLY_SHOWN}</p>
       {saved && !rows.length ? <p class="wil-none" data-wil-say="none" role="status">{NO_MATCH}</p> : null}
       {saved && rows.length && rows.length === list.off.length ? <p class="wil-none" data-wil-say="all-hidden" role="status">{ALL_HIDDEN}</p> : null}
-      {saved && rows.length ? <Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Eye={Eye} /> : null}
-      {saved && rows.length ? <ShowAll list={list} all={all} onToggle={() => setAll(!all)} /> : null}
+      {saved ? (
+        <div class="wil-views" data-wil-views="">
+          <button type="button" class="wil-add" data-wil-add="" aria-haspopup="menu" aria-label="Add a work item" onClick={(e) => setPlus(e.currentTarget)}>+</button>
+          {plus ? (
+            <MenuPanel label="Add" cls="cols-menu" anchor={plus} fixed="start" onClose={() => setPlus(null)}>
+              {ADDABLE.map((k) => <button key={k} type="button" role="menuitem" tabIndex={-1} data-add-kind={k} onClick={() => { setPlus(null); addItem(k); }}>{k[0].toUpperCase() + k.slice(1)}</button>)}
+            </MenuPanel>
+          ) : null}
+        </div>
+      ) : null}
+      {saved && rows.length ? <Window max={list.max} total={rows.length}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Eye={Eye} off={list.off} headProps={head} /></Window> : null}
+      {saved && rows.length ? <Foot shown={Math.min(list.max, rows.length)} total={rows.length} onReview={() => openWork(workState(filter))} /> : null}
+      {at ? (
+        <MenuPanel label="Columns" cls="cols-menu" anchor={at} fixed="start" onClose={() => setAt(null)}>
+          {DESIGN_COLUMNS.map((c) => (
+            <button key={c} type="button" role="menuitemcheckbox" aria-checked={cols.includes(c) ? "true" : "false"} data-col-name={WORDS.columns[c]} tabIndex={-1} onClick={() => toggleColumn("columns", c)}>
+              <span class="ck" aria-hidden="true">{cols.includes(c) ? "✓" : ""}</span><span class="cols-name">{WORDS.columns[c]}</span>
+            </button>
+          ))}
+        </MenuPanel>
+      ) : null}
       {saved && list.caption && rows.length ? <p class="wil-cap">{list.caption}</p> : null}
       <div class="wil-capbox">
         <label class="wil-sel wil-capf" data-field="caption"><span>Caption (optional)</span>

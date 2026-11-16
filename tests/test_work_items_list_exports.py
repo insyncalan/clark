@@ -89,7 +89,7 @@ class Exports(unittest.TestCase):
         off = plant["data"]["actions"][1]["id"]
         plant["data"]["actions"][2]["archived"] = 1
         gone = plant["data"]["actions"][2]["id"]
-        pub = publish.select(pages([("All", {"mode": "all"})], plant=plant))
+        pub = publish.select(pages([("All", {"mode": "all", "kinds": ["action", "risk", "issue", "assumption", "dependency", "decision"]})], plant=plant))
         listed = [i for s in pub["sections"] if s["type"] == "workitems" for i in s["items"]]
         for bad in (hide, off, gone):
             self.assertNotIn(bad, listed)
@@ -108,6 +108,10 @@ class Exports(unittest.TestCase):
         pub = publish.select(pages([("Open actions", {"mode": "all", "kinds": ["action"]})]))
         self.assertTrue(pub["data"]["actions"])
         self.assertEqual((pub["data"]["raid"], pub["data"]["decisions"]), ([], []))
+
+    def test_a_list_that_names_no_kind_does_not_reopen_a_hidden_built_in_section(self):
+        pub = publish.select(pages([("Everything", {"mode": "all"})]))
+        self.assertEqual([len(pub["data"][k]) for k in BUILT_IN], [0, 0, 0])
 
 
 if __name__ == "__main__":

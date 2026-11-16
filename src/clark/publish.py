@@ -101,7 +101,7 @@ LIST_TABLE = {"action": "actions", "decision": "decisions"}           # a Work i
 
 def listed_types(sections):
     """Item 1268: the built-in work section types (actions, raid, decisions) that a Work items list section in the file can list,
-    from its saved kinds (none chosen: every kind). The client opens those rows through the list, so they are published and
+    from the kinds it names. The client opens those rows through the list, so they are published and
     counted whether or not the built-in section is on the page. A hidden list, or one whose body does not read, adds nothing."""
     out = set()
     for s in sections or ():
@@ -113,7 +113,7 @@ def listed_types(sections):
             continue
         if not isinstance(kinds, list):
             continue
-        out |= {LIST_TABLE.get(k, "raid") for k in kinds if isinstance(k, str)} if kinds else {"actions", "raid", "decisions"}
+        out |= {LIST_TABLE.get(k, "raid") for k in kinds if isinstance(k, str)}      # a list that names no kind (every kind) opens nothing a hidden built-in section keeps out
     return out
 # "docs" (#74): only while it has a document to show (documents()); needs, tracker and the section templates (#96) carry content: a section of those types stays in only when its
 # body checks again and its published fields are not empty (_content; a template stub is never in the file)

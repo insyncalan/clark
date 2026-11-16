@@ -2098,40 +2098,40 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .raid-meta .raid-bit { display: inline-block; vertical-align: bottom; white-space: nowrap; }   /* plan 1022: the status, the owner and the date each show whole on one line; when they do not all fit, the next one goes to a second line (never an ellipsis) */
 .raid-text { margin-top: var(--space-2); color: var(--text); }
 
-/* #96 G3 Work items list (workitems): the view part. Full width draws the table, half width the two-line rows; tokens only. */
+/* #96 G3 Work items list (workitems): the view part (item 1268). Full width draws the built-in sections' one-line rows (the .irows grid), half width the
+   two-line rows; the list holds every filtered row and scrolls behind a window of Most rows (no visible scrollbar). Tokens only. */
 .wil { min-width: 0; }
-.wil-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: var(--size-small); margin-top: var(--space-1); }
-.wil-table th { text-align: left; font-weight: var(--weight-regular); font-size: var(--size-small); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); padding: 6px var(--space-2); border-top: 1px solid var(--grey-200); }
-.wil-table td { padding: var(--space-2); border-top: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; color: var(--text); }
-.wil-table th:first-child, .wil-table td:first-child { padding-left: 2px; }
-.wil-table .wil-c-type { width: 116px; }
-.wil-table .wil-c-id { width: 108px; }
-.wil-table .wil-c-owner { width: 150px; }
-.wil-table .wil-c-due { width: 128px; }
-.wil-table .wil-c-status { width: 120px; }      /* row 1199: the half-circle and the status word */
-.wil-table .wil-c-priority { width: 90px; }
-.wil-table .wil-c-workstream, .wil-table .wil-c-milestone { width: 140px; }
-.wil-st { display: inline-flex; align-items: center; gap: 6px; }
+.wil-scroll { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; }
+.wil-scroll::-webkit-scrollbar { display: none; }
+.wil-grid { margin: 0; }
+.wil-grid .wl-head { position: sticky; top: 0; z-index: 1; background: var(--surface); }
+.wil-grid .wl-head .c-ico { display: block; }
+.wil-grid .c-x { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--size-small); }
+.wil-grid .wl-head > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wil-grid .wl-head .wil-c-eye { text-align: center; }
+.wil-st { display: inline-flex; align-items: center; gap: 6px; font-size: var(--size-small); white-space: nowrap; }
 .wil-half { width: 14px; height: 14px; flex: none; fill: currentColor; stroke: currentColor; stroke-width: 2; }
 .wil-half circle { fill: none; }
 .wil-half.ic-r { color: var(--status-red); } .wil-half.ic-a { color: var(--status-amber); } .wil-half.ic-g { color: var(--status-green); }
 .wil-half.ic-b { color: var(--status-blue); } .wil-half.ic-n { color: var(--status-grey); }
-.wil-all { margin: var(--space-2) 0 0; }
-.wil-all-b { border: 0; background: none; padding: 4px 0; font: inherit; font-size: var(--size-small); color: var(--status-blue-text); cursor: pointer; text-decoration: underline; }
-.wil-all-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
-.wil-table .type { white-space: nowrap; }
-.wil-lines { margin: var(--space-1) 0 0; padding: 0; list-style: none; }
-.wil-lines li { display: flex; flex-direction: column; gap: 2px; padding: var(--space-2) 2px; border-top: 1px solid var(--grey-100); }
-.wil-t { color: var(--text); overflow-wrap: anywhere; }
-.wil-m { font-size: var(--size-small); color: var(--text-muted); overflow-wrap: anywhere; }
+.wil-off { opacity: 0.45; }      /* an item the client's eye has taken off is greyed; its eye stays plain so it can be turned on again */
+.wil-off .wil-c-eye { opacity: 1; }
+.wil-lines { margin: 0; padding: 0; list-style: none; }
+.wil-lines li { display: grid; gap: 2px; padding: 8px 2px; border-top: 1px solid var(--grey-100); min-width: 0; }
+.wil-lines li:first-child { border-top: 0; }
+.wil-l1 { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.wil-t { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font-weight: var(--weight-light); }
+.wil-l1 .prio { flex: none; margin-left: auto; padding: 0 7px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); font-size: var(--size-small); }
+.wil-m { display: flex; flex-wrap: wrap; gap: 0 10px; padding-left: 32px; font-size: var(--size-small); color: var(--text-muted); }
+.wil-bit { white-space: nowrap; }      /* the ID, the date and the owner never break */
+.wil-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 2px var(--space-3); margin: var(--space-2) 0 0; font-size: var(--size-small); color: var(--text-muted); }
+.wil-review { border: 0; background: none; padding: 4px 0; font: inherit; color: var(--status-blue-text); cursor: pointer; text-decoration: underline; }
+.wil-review:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.wil-views { display: flex; justify-content: flex-end; margin: 0 0 var(--space-2); }
+.wil-add { width: 34px; height: 34px; border: 1px dashed var(--grey-300); border-radius: var(--radius-sm); background: none; color: var(--text-muted); font: inherit; font-size: 18px; line-height: 1; cursor: pointer; }
+.wil-add:hover { background: var(--grey-50); }
 .wil-cap { margin: var(--space-2) 0 0; font-size: var(--size-caption); color: var(--text-muted); }
-.sec.slot-full .wil-lines, .sec.slot-left .wil-table, .sec.slot-right .wil-table { display: none; }
-@media (max-width: 1100px) {
-  .wil-table .wil-c-workstream, .wil-table .wil-c-milestone, .wil-table .wil-c-owner { width: 100px; }
-  .wil-table .wil-c-type, .wil-table .wil-c-id, .wil-table .wil-c-due { width: 92px; }
-  .wil-table .wil-c-status { width: 96px; }
-  .wil-table .wil-c-priority { width: 72px; }
-}
+.sec.slot-full .wil-lines, .sec.slot-left .wil-grid, .sec.slot-right .wil-grid { display: none; }
 
 /* Pictures group (#96): Text and image, Image with caption, Image gallery, Headline band. View and the published file; tokens only. */
 .tpl-fig { margin: 0; min-width: 0; }
