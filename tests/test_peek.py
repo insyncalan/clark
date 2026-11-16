@@ -898,6 +898,33 @@ class ClosedRiskPublished(unittest.TestCase):
                 self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, "no sideways scroll")
 
 
+def open_the_rated_risk(plant):
+    """Row 1182: PUB-001, shown to the client, is open and rated High (impact High, likelihood Medium)."""
+    r = next(r for r in plant["data"]["raid"] if r["id"] == "PUB-001")
+    r.update(status="Open", closed="", impact="High", likelihood="Medium", priority="High", client_visible=1)
+
+
+class OpenRatedRiskPublished(unittest.TestCase):
+    """Row 1182 (ruled 16-11): an open risk's Rating chip is the colour word with the level as a small pill in a published file too, with no picker."""
+
+    def test_the_published_peek_draws_the_colour_word_and_the_level_pill(self):
+        import tempfile
+        import test_publish as tp
+        _plant, _pub, text = tp.made(open_the_rated_risk)
+        for width in (1400, 900):
+            with self.subTest(width=width), tempfile.TemporaryDirectory() as tmp, chrome() as cdp:
+                path = Path(tmp) / "report.html"
+                path.write_text(text, encoding="utf-8")
+                sid = tp.opened(cdp, path.as_uri() + "#work&p=PUB&item=PUB-001", width)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-row=priority] .pkc-v')", sid)), "the peek of the open risk drew")
+                got = cdp.js("(() => { const c = document.querySelector('#peek [data-row=priority]'); const s = c.querySelector('.pkc-sub'); return { v: c.querySelector('.pkc-v').textContent.trim(), sub: s ? s.textContent.trim() : '', cls: s ? s.className : '', pill: s ? getComputedStyle(s).borderTopLeftRadius : '' }; })()", sid)
+                self.assertEqual((got["v"], got["sub"]), ("Red", "High"))
+                self.assertIn("lvl", got["cls"].split())
+                self.assertNotEqual(got["pill"], "0px", "the level is drawn as a pill in the published file")
+                self.assertEqual(cdp.js("document.querySelectorAll('#peek [data-cell], #peek .cell-pick, [data-pop]').length", sid), 0, "no picker in a published file")
+                self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, "no sideways scroll")
+
+
 def close_the_unrated_risk(plant):
     """#532: PUB-001, shown to the client, is closed and was never rated."""
     r = next(r for r in plant["data"]["raid"] if r["id"] == "PUB-001")

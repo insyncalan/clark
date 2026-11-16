@@ -35,8 +35,19 @@ class ChipFace(unittest.TestCase):
                     self.assertIn("lvl", got["subCls"], ref)
                     self.assertIn(got["sub"], ("Urgent", "High", "Medium", "Low"), ref)
                     self.assertNotEqual(got["pill"], "0px", f"{ref}: the level is a pill")
+                    self.assertIn({"Red": "r", "Amber": "a", "Green": "g"}[got["v"]], got["subCls"].split(), f"{ref}: the pill carries the colour's own class (lvl r / a / g), not only lvl")
                     if level:
                         self.assertEqual((got["v"], got["sub"]), ("Red", level))
+
+    def test_an_open_risk_with_no_rating_has_no_pill(self):
+        """Mutant survivor: without the `!!prio` guard an unrated open risk drew "Not rated" + a dash pill. It keeps the plain dash and no pill."""
+        self.store.con.execute("UPDATE raid SET priority = NULL, impact = NULL, likelihood = NULL WHERE id = 'TUL-007'")
+        self.store.con.commit()
+        with chrome() as cdp:
+            sid = self.open_page(cdp, 1400)
+            got = self.face(cdp, sid, "TUL-007")
+            self.assertEqual(got["v"], "\u2014", "an unrated open risk shows the dash, not a colour word")
+            self.assertEqual(got["sub"] or "", "", "and no level pill")
 
     def test_a_closed_risk_keeps_its_old_face(self):
         with chrome() as cdp:
