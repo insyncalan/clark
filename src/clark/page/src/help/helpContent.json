@@ -1594,7 +1594,7 @@
     "b": [
      [
       "p",
-      "A box that lists what is not on the page yet: work items, milestones, use cases or documents. Type to search by name, ID, owner or use case; a switch narrows it by kind; tick what you want, or **Select all shown**. [[Enter]] in the search ticks the only match, and [[Down]] goes to the list. **Add** puts them on the page in one step, with one **Undo**."
+      "A box that lists what is not on the page yet: work items, milestones, use cases or documents. Type to search by name, ID, owner or use case (in the milestones box: name, ID or state); where there is a switch it narrows by kind; tick what you want, or **Select all shown** (in the milestones box: the tick in the header). [[Enter]] in the search ticks the only match, and [[Down]] goes to the list, except in the milestones box. **Add** puts them on the page in one step, with one **Undo**."
      ]
     ]
    },

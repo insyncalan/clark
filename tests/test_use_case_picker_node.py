@@ -49,6 +49,12 @@ class Picker(unittest.TestCase):
         self.assertEqual(run('ids(P.visible(ROWS, P.toggleValue(P.emptyState(), "steps", 3)))'), ["U2", "U3"])
         self.assertEqual(run('ids(P.visible(ROWS, P.toggleValue(P.toggleValue(P.emptyState(), "steps", "3"), "total", "5")))'), ["U2"])
 
+    def test_select_all_values_skips_a_value_no_row_holds(self):
+        # the use-case picker's own lists hold only values some row has, so this is the shared rule, tried on a fixed list that has a zero
+        body = 'P.makePicker({ fields: [{ key: "k", label: "K", get: (r) => r.status, fixed: ["Done", "Nothing", "Flag"] }], hay: (r) => [r.name], addWord: "Add" }).selectAllValues({ q: "", filters: {}, picked: [] }, "k", ROWS).filters.k.values'
+        self.assertEqual(run(body), ["Done", "Flag"])
+        self.assertEqual(run('P.selectAllValues(P.emptyState(), "status", ROWS).filters.status.values'), ["Done", "Flag", "High risk", "On track"], "the use-case picker's own Select all is unchanged")
+
     def test_options_select_all_clear_toggle_off(self):
         self.assertEqual(run('P.optionsOf(ROWS, "commitment")'), [{"value": "Committed", "count": 2}, {"value": "Planned 2026", "count": 1}])
         self.assertEqual(run('P.optionsOf(ROWS, "steps").map((o) => o.value)'), ["0", "1", "3"])
