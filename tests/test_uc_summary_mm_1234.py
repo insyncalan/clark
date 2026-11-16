@@ -69,7 +69,7 @@ class PutOnThePage(Demo):
                 made = {r["ref"]: r for r in self.store.read("use_cases", "ABC")}[ref]
                 self.click(p, "[data-uc-back]")
                 p.until("!!document.querySelector('form.picker')", "the picker")
-                p.js("document.querySelector('form.picker .pick input[value=\"%s\"]').click()" % made["id"])
+                p.js("document.querySelector('form.picker tbody input[value=\"%s\"]').click()" % made["id"])
                 p.js("document.querySelector('form.picker button[type=submit]').click()")
                 p.until("!document.querySelector('form.picker')", "the picker closed")
                 row = f"document.querySelector('.ucrow[data-uc=\"{made['id']}\"]')"
