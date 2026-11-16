@@ -7,7 +7,7 @@ export const SHOWN_LABEL = "Use cases shown";
 export const ALL_WORD = "All";
 export const OF = (n) => `of ${n}`;
 export const SCROLL_LABEL = "Viewers can scroll the list";
-export const SAME_NOTE = "Edit uses the same number and scroll, so what you see is what viewers get.";
+export const SAME_NOTE = "Edit uses the same number but scrolls whenever a number is set, so you can reach every use case; viewers get the scrolling only when it is On.";
 export const SCROLL_HELP = (n) => `On: the list is ${n} rows tall and scrolls up and down to the rest. Off: viewers see only the first ${n}.`;
 export const TRACKER_LABEL = "Status tracker";
 export const TRACKER_GROUP = "Tracker position";

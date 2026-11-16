@@ -63,7 +63,7 @@ class HelpUsesApprovedWords(unittest.TestCase):
 
     def test_the_approved_strings_are_the_ones_the_panel_draws(self):
         src = WORDS.read_text(encoding="utf-8")
-        for s in ("The count by status and the bar. Top or bottom of the list, or off.", "Viewers can scroll the list", "Configure use cases", "Number shown"):
+        for s in ("Edit uses the same number but scrolls whenever a number is set, so you can reach every use case; viewers get the scrolling only when it is On.", "The count by status and the bar. Top or bottom of the list, or off.", "Viewers can scroll the list", "Configure use cases", "Number shown"):
             self.assertIn(s, src, s)
 
 

@@ -16,7 +16,7 @@ from clark import page
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
 WORDS_FILE = PAGE_SRC / "edit" / "ucConfigureWords.js"
-SAME = "Edit uses the same number and scroll, so what you see is what viewers get."
+SAME = "Edit uses the same number but scrolls whenever a number is set, so you can reach every use case; viewers get the scrolling only when it is On."
 # Whole phrases only the editor draws; short common words (Configure, All, Show all, Number shown) are checked in their own tests.
 PHRASES = ["Configure use cases", "Use cases shown", "Viewers can scroll the list", SAME,
            "scrolls up and down to the rest", "viewers see only the first"]
