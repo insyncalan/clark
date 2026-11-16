@@ -7,7 +7,7 @@ import { richOf } from "./files.js";
 
 export const TONES = ["info", "decision", "warning"];
 export const TONE_WORDS = { info: "Information", decision: "Decision needed", warning: "Warning" };
-// #1272: the colour and icon names (the words the store keeps, section_kinds/callout.py COLOURS and ICONS) and what an older callout's tone drew.
+// item 1272: the colour and icon names (the words the store keeps, section_kinds/callout.py COLOURS and ICONS) and what an older callout's tone drew.
 export const COLOURS = { plain: "Plain", violet: "Violet", amber: "Amber", red: "Red", green: "Green", grey: "Grey" };
 export const ICONS = { none: "No icon", info: "Information", question: "Question", warning: "Warning", alert: "Alert", check: "Tick", clock: "Clock",
   cal: "Calendar", flag: "Flag", lock: "Lock", key: "Key", bulb: "Light bulb", star: "Star", bell: "Bell", megaphone: "Megaphone", doc: "Document",
@@ -73,11 +73,11 @@ export function tidyTable(v) {
 }
 export const tableEmpty = (t) => !t.cols.some(Boolean) && t.rows.length === 0;
 
-// #1251 hook (the prompt words are written under #1251): the grey placeholders a just-added Callout shows. Placeholders only: nothing here is ever stored, so none of it can
-// reach the published page. #1251 changes these two strings and nothing else.
+// item 1251 hook (the prompt words are written under item 1251): the grey placeholders a just-added Callout shows. Placeholders only: nothing here is ever stored, so none of it can
+// reach the published page. item 1251 changes these two strings and nothing else.
 export const PROMPTS = { title: "Add a title: what the reader must see", words: "Click to write." };
 
-// #1272 decision 4, the shared part: whether a section shows its tile and its heading, for every type. A callout keeps the two switches in its own content (slice 2);
+// item 1272 decision 4, the shared part: whether a section shows its tile and its heading, for every type. A callout keeps the two switches in its own content (slice 2);
 // any other type reads the same two flags from the section itself (`tile`, `heading`: false turns it off) once the store carries them. Nothing else in the page
 // asks the section type, so the store step only has to fill these two fields.
 export function sectionShows(section) {
