@@ -146,10 +146,21 @@ export function Configure({ section }) {
 // "Configure use cases": the number shown and whether viewers scroll. Each change is kept at once (no Save), so Edit draws what it draws.
 function ConfigureBox({ id, onClose, opener }) {
   const first = useRef(null), v = viewOf(sectionOf(id), false);
-  // Two changes in a row (the number, then the switch) must not lose the first: the second builds on the first even before the page has drawn it back.
-  const now = useRef(null);
-  useEffect(() => { now.current = null; }, [v.n, v.scroll, v.tracker]);     // the drawn view has caught up with what was saved: build from it again
-  const setView = (patch) => { now.current = { ...(now.current || { n: v.n, scroll: v.scroll, tracker: v.tracker }), ...patch }; saveView(id, now.current); };
+  // Two changes in a row (the number, then the switch) must not lose the first: while any save is still being stored, the next builds on the
+  // last view asked for, not on what the page has drawn so far. Once none is in flight, a change of the drawn view (an Undo, say) hands the base back to it.
+  const now = useRef(null);       // { view, pending, failed }
+  useEffect(() => { if (now.current && now.current.pending === 0) now.current = null; }, [v.n, v.scroll, v.tracker]);
+  const setView = (patch) => {
+    const cur = now.current || { view: { n: v.n, scroll: v.scroll, tracker: v.tracker }, pending: 0, failed: false };
+    cur.view = { ...cur.view, ...patch };
+    cur.pending += 1;
+    now.current = cur;
+    saveView(id, cur.view).then((r) => {
+      cur.pending -= 1;
+      if (!r) cur.failed = true;                                  // refused: the unsaved value must not become the base
+      if (cur.pending === 0 && cur.failed && now.current === cur) now.current = null;
+    });
+  };
   const total = liveOf(data.value).filter(isOn).length;
   const counts = Array.from({ length: Math.max(total, 1) }, (_, i) => i + 1);
   if (v.n !== ALL && !counts.includes(v.n)) counts.push(v.n);
