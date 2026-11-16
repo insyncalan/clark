@@ -138,7 +138,7 @@ class Pg:
     def stored(self, n0):
         """Wait until the request a drop sent (the ones after the first n0) has been answered by the store and the page has said so in
         its toast: the page keeps its preview, and takes no new drag, until then."""
-        self.t.assertTrue(wait(lambda: len(self.t.sent) > n0 and self.t.answered == len(self.t.sent), 10), "the drop was sent and answered")
+        self.t.assertTrue(wait(lambda: len(self.t.sent) > n0 and self.t.store_answered == len(self.t.sent), 10), "the drop was sent and answered")
         self.until("!!document.querySelector('.toast')", "the page said the drop is stored")
 
     def drag(self, ref, x, y, release=True, drops=True):
@@ -188,7 +188,7 @@ class Base(unittest.TestCase):
         self.store = self.demo.store
         self.real_change = changes.make_change(self.store.path, [], USER)
         self.real_undo = changes.make_undo(self.store.path, [], USER)
-        self.answered = 0
+        self.store_answered = 0
         self.sent = []                       # every request the page made that reached the seams: (which, request)
         self.failure = None                     # a function (req) -> (status, body) or an exception to raise
         self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: testpage.html(), seam=self.seam)
@@ -208,7 +208,7 @@ class Base(unittest.TestCase):
                     return got
                 return real(req)
             finally:
-                self.answered += 1                  # the store has answered (or the fault was raised): the page can now take it in
+                self.store_answered += 1                  # the store has answered (or the fault was raised): the page can now take it in
         return call
 
     def ids_in_store(self):
