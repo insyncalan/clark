@@ -721,8 +721,8 @@ class Live(unittest.TestCase):
             pcell = "#peek [data-cell='peek:TUL-007:status']"
             self.until(cdp, sid, f"!!document.querySelector(\"{pcell}\")", "the peek's Status row is a picker in Edit")
             self.until(cdp, sid, "document.querySelector('#peek').getAnimations({subtree: true}).length === 0", "the peek's slide-in (#131) has ended, so a click lands where it is drawn")
-            self.assertEqual(cdp.js(f"document.querySelector(\"{pcell}\").textContent", sid), "Red")
-            self.assertEqual(cdp.js(f"document.querySelector(\"{pcell}\").getAttribute('aria-label')", sid), "Status of TUL-007: Red. Change")
+            self.assertEqual(cdp.js(f"document.querySelector(\"{pcell}\").textContent", sid), "Open")  # row 1256: the colour is on the Rating chip
+            self.assertEqual(cdp.js(f"document.querySelector(\"{pcell}\").getAttribute('aria-label')", sid), "Status of TUL-007: Open. Change")
             click(cdp, sid, pcell)
             self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the peek's menu opened")
             self.assertEqual(cdp.js("document.querySelectorAll('[data-pop]').length", sid), 1, "one picker open, not the table's too")
