@@ -80,6 +80,63 @@ class AltSideKeys(Base):
                 self.assertEqual(len(self.sent), n)
                 self.assertEqual(self.beside_flags(), flags)
 
+    def drawn(self, p):
+        """Returns after the page has drawn twice, so a message the last key asked for would be on screen by now."""
+        p.cdp.call("Runtime.evaluate", {"expression": "new Promise(function (r) { requestAnimationFrame(function () { requestAnimationFrame(r); }); })",
+                                        "awaitPromise": True, "returnByValue": True}, p.sid)
+
+    def paired_says_nothing(self, width):
+        from test_server import chrome
+        with chrome() as cdp:
+            p = self.at(cdp, width)
+            p.js(GRIP % "ABC-S-002" + ".focus()")
+            self.right(p)
+            p.saved()
+            p.clear_toast()
+            n = len(self.sent)
+            flags = dict(self.beside_flags())
+            for sid in ("ABC-S-002", "ABC-S-003"):       # both halves of the pair
+                p.js(GRIP % sid + ".focus()")
+                self.right(p)
+                self.drawn(p)
+                self.assertEqual(p.js("document.querySelectorAll('.toast').length"), 0, sid + ": no message")
+                self.assertEqual(len(self.sent), n)
+                self.assertEqual(self.beside_flags(), flags)
+
+    def shift_does_nothing(self, width):
+        from test_server import chrome
+        with chrome() as cdp:
+            p = self.at(cdp, width)
+            before = dict(self.beside_flags())
+            n = len(self.sent)
+            p.js(GRIP % "ABC-S-002" + ".focus()")
+            p.key("ArrowRight", ALT | 8, code="ArrowRight", vk=39)
+            self.drawn(p)
+            self.assertEqual(len(self.sent), n, "Shift+Alt+Right sent nothing")
+            self.assertEqual(self.beside_flags(), before)
+            self.assertEqual(p.js("document.querySelectorAll('.toast').length"), 0)
+            self.right(p)
+            p.saved()
+            n = len(self.sent)
+            flags = dict(self.beside_flags())
+            p.key("ArrowLeft", ALT | 8, code="ArrowLeft", vk=37)
+            self.drawn(p)
+            self.assertEqual(len(self.sent), n, "Shift+Alt+Left sent nothing")
+            self.assertEqual(self.beside_flags(), flags)
+            self.assertEqual(p.js("document.querySelector('[data-id=\"ABC-S-002\"]').classList.contains('slot-left')"), True)
+
+    def test_alt_right_on_either_half_of_a_pair_shows_no_message_at_1400(self):
+        self.paired_says_nothing(1400)
+
+    def test_alt_right_on_either_half_of_a_pair_shows_no_message_at_900(self):
+        self.paired_says_nothing(900)
+
+    def test_shift_with_alt_and_an_arrow_does_nothing_at_1400(self):
+        self.shift_does_nothing(1400)
+
+    def test_shift_with_alt_and_an_arrow_does_nothing_at_900(self):
+        self.shift_does_nothing(900)
+
     def test_alt_right_and_alt_left_with_one_undo_each_at_1400(self):
         self.one_undo_each(1400)
 
