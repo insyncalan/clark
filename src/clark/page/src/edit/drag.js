@@ -133,6 +133,7 @@ export function startDrag(e, handle, id, count) {
     document.removeEventListener("pointerup", end);
     document.removeEventListener("pointercancel", end);
     handle.removeEventListener("lostpointercapture", lost);
+    document.removeEventListener("lostpointercapture", lost);
     window.removeEventListener("blur", abort);
     if (unwatch) { unwatch(); unwatch = null; }
     active = false;
@@ -164,6 +165,7 @@ export function startDrag(e, handle, id, count) {
     } else { noteRects(); dragList.value = undefined; }     // nothing to place (dropped where it already is, Esc, click, pointercancel, no target): placement says nothing
   };
   handle.addEventListener("lostpointercapture", lost);
+  document.addEventListener("lostpointercapture", lost);     // a captured grip that leaves the page loses the capture on the document, not on itself
   window.addEventListener("blur", abort);      // the window lost focus (alt-tab) mid-drag: the release may never reach the page, so the drag ends here and drops nothing
   document.addEventListener("keydown", cancel, true);      // capture: before the handle's own key handler sees it
   document.addEventListener("pointermove", move);      // on the document, not the grip: the preview draws the section as a slot and the grip in it is hidden, so the grip no longer gets the pointer
