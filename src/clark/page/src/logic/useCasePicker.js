@@ -57,6 +57,6 @@ export const clearPicked = (s) => ({ ...s, picked: [] });
 export const pickedIds = (s, rows) => { const ids = new Set(rows.map((r) => r.id)); return s.picked.filter((id) => ids.has(id)); };
 
 export const counts = (rows, s) => ({ shown: visible(rows, s).length, total: rows.length, picked: pickedIds(s, rows).length });
-// The words (new, for Jarvis to approve): "Result: N of M shown" and "Add N".
+// The words: "Result: N of M shown" and "Add N" (at 0 no number: "Add selected", the word the old picker already uses).
 export const resultWords = (c) => `Result: ${c.shown} of ${c.total} shown`;
-export const addWords = (c) => `Add ${c.picked}`;
+export const addWords = (c) => (c.picked ? `Add ${c.picked}` : "Add selected");

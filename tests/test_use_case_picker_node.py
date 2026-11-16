@@ -66,6 +66,8 @@ class Picker(unittest.TestCase):
         self.assertEqual(run('(() => { let s = P.toggleRow(P.toggleRow(P.emptyState(), "U1"), "GONE"); s = P.toggleValue(s, "status", "Flag"); return [P.pickedIds(s, ROWS), P.counts(ROWS, s), P.clearPicked(s).picked]; })()'),
                          [["U1"], {"shown": 1, "total": 4, "picked": 1}, []])
         self.assertEqual(run('P.toggleRow(P.toggleRow(P.emptyState(), "U1"), "U1").picked'), [])
+        # a count of 0 shows no number
+        self.assertEqual(run('[P.addWords({picked: 0}), P.addWords({picked: 2})]'), ["Add selected", "Add 2"])
         self.assertEqual(run('P.pickAllShown(P.toggleValue(P.toggleRow(P.emptyState(), "U1"), "status", "Flag"), ROWS).picked'), ["U1", "U2"])
         self.assertEqual(run('P.pickAllShown(P.pickAllShown(P.emptyState(), ROWS), ROWS).picked'), ["U1", "U2", "U3", "U4"])
 
