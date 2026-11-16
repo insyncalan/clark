@@ -76,12 +76,17 @@ class Target(unittest.TestCase):
         self.assertEqual(at("e", 499, 170), {"beside": "b", "side": "left"})
         self.assertEqual(at("e", 500, 170), {"beside": "b", "side": "right"})
 
-    def test_the_quarter_edge_is_a_quarter_of_the_height_and_not_a_fixed_number_of_pixels(self):
+    def test_a_row_taller_than_224_px_has_an_edge_of_56_px_and_not_a_quarter(self):
         rects = json.dumps({**RECTS, "b": dict(left=0, top=120, right=1000, bottom=520)})
         sections = json.dumps(SECTIONS)
         probe = lambda y: run(f"DL.dragTarget({sections}, 'e', {rects}, {{x: 200, y: {y}}})")
-        self.assertEqual(probe(215), {"before": "b"})                      # 95 px in: still the top quarter of 400
-        self.assertEqual(probe(225), {"beside": "b", "side": "left"})      # 105 px in: the middle
+        self.assertEqual(probe(175), {"before": "b"})                      # 55 px in: the top edge
+        self.assertEqual(probe(185), {"beside": "b", "side": "left"})      # 65 px in: beside
+        self.assertEqual(probe(220), {"beside": "b", "side": "left"})      # 100 px in of 400: beside, not above (a quarter would be above)
+
+    def test_a_short_row_still_uses_exactly_a_quarter(self):
+        self.assertEqual(at("e", 200, 144), {"before": "b"})               # b is 100 high: 24 px in is inside the 25 px quarter
+        self.assertEqual(at("e", 200, 146), {"beside": "b", "side": "left"})   # 26 px in: the middle
 
     def test_over_a_pair_only_above_or_below_are_offered_whatever_the_x(self):
         for x in (100, 495, 800):
