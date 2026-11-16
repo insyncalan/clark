@@ -8,7 +8,7 @@
   and a hidden section leave the section out of the file. Planted markers are absent from the file's bytes.
 - The page's rules and section_kinds/workitems.py choose the same ids, in the same order, over the same rows.
 - In a real browser: View shows the rows the client sees (and leaves the section out when nothing matches); Edit saves each
-  committed choice as one step and says when nothing matches; rows open their peek in Edit only; full width draws the table and
+  committed choice as one step and says when nothing matches; rows open their peek (read only outside Edit); full width draws the table and
   half width the two-line rows; 1400 and 900 px, light and dark, no sideways scroll; the published file draws from its own data.
 
 Run: python3 dev/run_tests.py test_tpl_workitems
@@ -558,8 +558,8 @@ class InThePage(PageBase):
                     text = p.js("document.querySelector('#report').textContent")
                     for planted in ("ZQ-sensitive step", "ZQ-client-off step", "ZQ-archived step"):
                         self.assertNotIn(planted, text)
-                    self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]:not(.ico)').length"), 0,
-                                     "View is read only: no control and no row to open (the status icon takes Tab so its tooltip is reachable: row 1145)")
+                    self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]:not(.ico):not(tr[data-id]):not(li[data-id])').length"), 0,
+                                     "View is read only: no control (a row is focusable, it opens the read only peek, row 1268; the status icon takes Tab so its tooltip is reachable: row 1145)")
                     self.assertEqual(self.rows(p, ref, "lines"), [], "full width draws the table only")
                     self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
                     head = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table th')].map(e => e.textContent)")
@@ -1053,7 +1053,7 @@ class PublishedFile(PageBase):
                 ids = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr')].map(e => e.dataset.id)")
                 self.assertEqual(ids, [self.a_due, self.a_later, self.risk])
                 self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] .wil-cap').textContent"), "Fictional caption")
-                self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]:not(.ico)').length"), 0)
+                self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]:not(.ico):not(tr[data-id]):not(li[data-id])').length"), 0)      # row 1268: a row is focusable (it opens the read only peek)
                 self.assertTrue(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-st')].some(e => /Overdue/.test(e.textContent) && !!e.querySelector('svg.wil-half.ic-r'))"), "the status reads as at the publish date: a red half-circle and the word")
                 self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-all]')"), "a file holds only the first rows, so it has no Show all items link")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
