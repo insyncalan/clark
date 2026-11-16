@@ -11,6 +11,7 @@ No new word: nothing here changes a string.
 """
 import unittest
 
+import test_server  # noqa: F401  (marks this file as a browser test for the tiers)
 import test_ms_header_1230 as H
 
 WIDTHS = (1400, 900)
