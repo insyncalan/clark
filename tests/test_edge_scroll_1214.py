@@ -80,7 +80,9 @@ class Wired(unittest.TestCase):
 
     def test_the_loop_is_stopped_by_end_and_esc(self):
         self.assertEqual(len(re.findall(r"cancelAnimationFrame", CODE)), 1, "one stop function")
-        self.assertRegex(CODE, r"const cancel = [^\n]*stop\(\)")
+        self.assertRegex(CODE, r"const cancel = [^\n]*Escape[^\n]*abort\(\)", "Esc ends the drag through abort")
+        self.assertRegex(CODE, r"const abort = [^\n]*finish\(\)", "abort ends it through finish")
+        self.assertRegex(CODE, r"const finish = \(\) => \{[^\n]*\n\s*stop\(\);", "finish stops the loop first")
         self.assertRegex(CODE, r"const end = [^\n]*\n(?:\s*if \(u\.pointerId[^\n]*\n)?\s*stop\(\);", "release and cancel stop it first")
 
 
