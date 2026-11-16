@@ -720,8 +720,11 @@ input.sec-title { width: 100%; }
 /* The peek (#42): a panel on the right edge, below the banner (item 1202); its width is dragged from the left edge and kept in this browser. */
 .peek { position: fixed; top: var(--topbar); right: 0; bottom: 0; z-index: 30; max-width: 100vw; min-width: min(420px, 100vw); overflow-y: auto; overscroll-behavior-y: contain; background: var(--surface); border-left: 1px solid var(--grey-200); box-shadow: var(--shadow); padding: var(--space-3) var(--space-5) var(--space-5); }
 .peek.wide { width: 100%; }
+/* Row 1258 (v1.1.1), the approved peek mockup (peek-mockup.html .panel): the item, milestone and archived peeks float as a card, 16 px in from the right and the bottom, 16 px under the banner, radius 16, a 1 px border and the mockup's shadow. The Help peek keeps its banner-line, flush-right shape. */
+.peek:not(.hpk) { top: calc(var(--topbar) + 16px); right: 16px; bottom: 16px; max-width: calc(100% - 32px); border: 1px solid var(--grey-200); border-radius: 16px; box-shadow: 0 10px 40px rgba(6, 47, 58, .18); }
+.peek.wide:not(.hpk) { width: calc(100% - 32px); }
 /* Below 1000 px the peek fills the window over the list (row 847): a side panel would leave the list a strip too narrow to read. Above it the dragged width stays. */
-@media (max-width: 999px) { .peek:not(.hpk) { width: 100% !important; } .peek:not(.hpk) .pk-edge { display: none; } }      /* row 847: the item and milestone peeks overlay the page below 1000 px; the Help peek keeps its own width (and the button in view) */
+@media (max-width: 999px) { .peek:not(.hpk) { width: calc(100% - 32px) !important; } .peek:not(.hpk) .pk-edge { display: none; } }      /* row 847: the item and milestone peeks overlay the page below 1000 px; the Help peek keeps its own width (and the button in view) */
 /* The exit: a copy of the closed peek slides out to the right (prototype app.css:416-18); none under reduced motion. */
 .peek.leaving { pointer-events: none; animation: pk-out var(--dur-instant) var(--ease-exit) forwards; }
 @keyframes pk-out { to { transform: translateX(104%); } }
@@ -2731,7 +2734,8 @@ button.tpl-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 
 .gt-menu button.gt-danger .mi { color: inherit; }
 
 /* row 1180 toolbar: Close, Open full page, a rule, Previous, Next on the left; Draft email, Copy link, More on the right. The .pkp-btn rules above are shared with the Ask panel and stay as they are. */
-.pk-tb { gap: 4px; position: sticky; top: calc(-1 * var(--space-3)); z-index: 3; margin-top: calc(-1 * var(--space-3)); padding-top: var(--space-3); background: var(--surface); }      /* stays at the top while the body scrolls, as the mockup bar does */
+.pk-tb { gap: 4px; position: sticky; top: calc(-1 * var(--space-3)); z-index: 3; margin-top: calc(-1 * var(--space-3)); padding-top: var(--space-3); background: var(--surface); box-sizing: border-box; min-height: 59px; padding-bottom: var(--space-3); }      /* stays at the top while the body scrolls, as the mockup bar does; row 1258: 59 px high (12 + 34 + 12 + the 1 px rule) as the mockup's */
+.pk-tb .pkp-btn { width: 34px; height: 34px; }      /* row 1258: the mockup's 34 px buttons, radius 8 */
 .pk-tb-grp { display: flex; align-items: center; gap: 2px; }
 .pk-tb-rule { width: 1px; height: 18px; margin: 0 6px; background: var(--grey-200, var(--grey-100)); flex: none; }
 .pk-tb .pkp-btn:hover:not(:disabled) .i { color: var(--brand-blue); }
