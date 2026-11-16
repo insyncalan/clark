@@ -151,7 +151,9 @@ class ViewOf(unittest.TestCase):
     def test_the_body_written_holds_only_the_complete_setting(self):
         body = run('V.bodyOf({"n": 0, "scroll": "yes", "tracker": "left", "extra": 1})')
         self.assertEqual(json.loads(body), {"n": 5, "scroll": False, "tracker": "top"})
-        self.assertEqual(list(json.loads(run('V.bodyOf({"n": 3})'))), ["n", "scroll", "tracker"])
+        # only the keys given are written (row 1234c); Configure gives all three once a number is chosen
+        self.assertEqual(list(json.loads(run('V.bodyOf({"n": 3, "scroll": true, "tracker": "off"})'))), ["n", "scroll", "tracker"])
+        self.assertEqual(list(json.loads(run('V.bodyOf({"n": 3})'))), ["n"])
 
     def test_the_browser_keys_are_not_read(self):
         self.assertNotIn("localStorage", (PAGE_SRC / "logic" / "useCaseView.js").read_text(encoding="utf-8"))
