@@ -276,6 +276,56 @@ class Logic(unittest.TestCase):
                 const g = T.drawN({place: 'sec-1'}, 6); g.box.querySelector('.msl-all').click(); await new Promise((r) => setTimeout(r, 80));
                 return [g.box.querySelectorAll('.msl-row').length, [...window.__store.keys()]]; };
                 out.file = await go(true); out.live = await go(false); T.fromFile.value = false; return out; })()""")
+            cls.more = ev(f"""(() => {{ const TC = T.TC, M = T.M, names = (l, client) => M.milestoneRows(l, '2026-10-28', client).map((r) => r.name);
+                const mix = [{{id: 1, name: 'cancelled', baseline_date: '2030-01-01', status: 'Cancelled'}}, {{id: 2, name: 'kept', baseline_date: '2030-02-01'}}];
+                const cell = (r) => M.expectedCell(M.milestoneRows([r], '2026-10-28', false)[0]);
+                window.__store.clear(); TC.writeChoice('msDash', 'P1', ['owner']); const k = [...window.__store.keys()][0];
+                return {{editor: names(mix, false), client: names(mix, true),
+                  cancelled: cell({{id: 3, name: 'c', baseline_date: '2030-04-01', forecast_date: '2030-03-01', status: 'Cancelled'}}),
+                  doneNoDate: cell({{id: 4, name: 'd', baseline_date: '2030-04-01', status: 'Done'}}),
+                  unknownPress: TC.toggled('msDash', ['date', 'agreed'], 'nope'),
+                  stored: JSON.parse(window.__store.get(k)),
+                  lockedLeftOut: TC.isStandard('msDash', ['agreed', 'date', 'prog'])}}; }})()""")
+            cls.cols = ev(f"""(() => {{ document.body.innerHTML = ''; const cw = {STAND_IN}, CM = (ids) => () => ({{shown: T.TC.shownIds('msDash', ids), rowProps: {{}}, button: () => null, menu: null}});
+                const d = (ids, extra, n = 2) => T.drawN({{place: 'sec-1', CW: () => cw, CM: CM(ids), open: () => {{}}}}, n, extra);
+                const nod = (ids) => d(ids, {{}}).box.querySelector('.msl-box').getAttribute('data-nodate');
+                const swap = d(['agreed', 'date', 'owner'], {{}});
+                const prog = (v) => d(['prog'], {{percent_complete: v}}).cells.prog;
+                const lab = d(['agreed', 'date', 'prog', 'owner'], {{owner: 'Sam'}}).box.querySelector('.msl-cells').getAttribute('aria-label');
+                return {{noDateWithoutDate: nod(['agreed', 'prog']), noDateWithDate: nod(['date', 'prog']),
+                  swapSet: swap.set, swapVars: swap.vars,
+                  forecast: d(['forecast'], {{forecast_date: '2030-09-09'}}).cells.forecast, noForecast: d(['forecast'], {{}}).cells.forecast,
+                  prog: [prog(100), prog(150), prog(-5), prog('x')], label: lab}}; }})()""")
+            cls.fold = ev("""(() => { document.body.innerHTML = ''; window.__store.clear(); T.fromFile.value = true;
+                const g = T.drawN({place: 'sec-1'}, 2); g.box.querySelector('.msl-det').click(); const keys = [...window.__store.keys()]; T.fromFile.value = false; return keys; })()""")
+
+    def test_a_published_file_leaves_out_cancelled_rows_and_the_editor_keeps_them(self):
+        self.assertEqual(self.more["editor"], ["cancelled", "kept"])
+        self.assertEqual(self.more["client"], ["kept"])
+
+    def test_the_expected_cell_of_a_cancelled_row_is_its_agreed_date_and_an_achieved_row_without_a_date_says_so(self):
+        self.assertEqual(self.more["cancelled"]["date"], "01-04-2030", "the agreed date, not the forecast")
+        self.assertEqual(self.more["doneNoDate"], {"date": "\u2014", "text": "Achieved, date not recorded", "late": False})
+
+    def test_pressing_a_column_the_table_does_not_have_changes_nothing_and_a_stored_choice_holds_the_locked_columns(self):
+        self.assertEqual(self.more["unknownPress"], ["name", "state", "agreed", "date"], "the choice as it is drawn, not as it was handed in")
+        self.assertEqual(self.more["stored"], ["name", "state", "owner"], "what is kept names the locked columns too")
+        self.assertTrue(self.more["lockedLeftOut"], "the locked columns are always shown, so a choice of the other three is the standard set")
+
+    def test_the_date_column_alone_decides_whether_the_box_is_marked_without_dates_and_five_other_columns_are_custom(self):
+        c = self.cols
+        self.assertEqual((c["noDateWithoutDate"], c["noDateWithDate"]), ("1", None))
+        self.assertTrue(c["swapSet"] and "--msl-cols" in (c["swapVars"] or ""), f"five columns that are not the standard five are custom: {c['swapVars']}")
+
+    def test_the_forecast_progress_and_extra_cells_read_the_row_and_the_row_label_names_the_extra_columns_only(self):
+        c = self.cols
+        self.assertEqual((c["forecast"], c["noForecast"]), ("09-09-2030", "\u2014"))
+        self.assertEqual([p.replace("Progress ", "", 1) for p in c["prog"]], ["100%", "100%", "0%", "not set"], "from 0 to 100, anything else is not set")
+        self.assertTrue(c["label"].endswith(", Owner Sam"), c["label"])
+        self.assertNotIn("Milestone M1", c["label"], "the standard columns are the row's own words, not repeated")
+
+    def test_a_published_file_does_not_remember_the_fold_either(self):
+        self.assertEqual(self.fold, [])
 
     def test_rows_run_by_agreed_date_then_forecast_then_undated_then_sort_order_then_id_and_archived_ones_are_left_out(self):
         self.assertEqual(self.order, ["early-first", "early", "forecast", "late", "tie-a", "tie-b", "none"], "a date, the forecast when there is none, then no date at all; ties by sort order then id; the archived row is not drawn")
