@@ -17,6 +17,8 @@ from test_server import chrome, wait  # noqa: E402
 ON, OFF = "TUL-007", "TUL-008"
 LINE = ("(() => { const e = document.querySelector('#peek [data-pk-client-row] .cv'); if (!e) return null; const c = getComputedStyle(e), r = e.getBoundingClientRect();"
         " return { text: e.textContent.trim(), tag: e.tagName, size: c.fontSize, weight: c.fontWeight, colour: c.color, eye: !!e.querySelector('svg'), on: e.classList.contains('on'), h: r.height, w: r.width }; })()")
+ICON = ("(() => { const e = document.querySelector('#peek [data-pk-client-row] .cv svg'); return e ? e.innerHTML : null; })()")
+ROLE = ("(() => { const e = document.querySelector('#peek [data-pk-client-row] .cv'); return e ? [e.getAttribute('role'), e.getAttribute('tabindex')] : null; })()")
 TEAL = "rgb(0, 134, 117)"      # --status-green, the brand's teal-green (the mock-up's #0A8F9C has no token)
 
 
@@ -64,6 +66,31 @@ class Line(base.Peeks):
                     self.look(got, on)
                     self.assertEqual(got["tag"], "BUTTON")
                     self.assertGreaterEqual(got["w"], 100)
+
+    def test_the_eye_shape_differs_on_and_off_and_matches_edit(self):
+        self.hide(OFF)
+        shapes = {}
+        for mode in ("view", "edit"):
+            for ref, on in ((ON, True), (OFF, False)):
+                with chrome() as cdp:
+                    sid = self.dashboard_in_view(cdp, 1400, self.store, self.code)
+                    if mode == "edit":
+                        self.to_edit(cdp, sid)
+                    self.open_peek(cdp, sid, ref, "item")
+                    self.line(cdp, sid)
+                    shapes[(mode, on)] = cdp.js(ICON, sid)
+        self.assertIsNotNone(shapes[("view", True)])
+        self.assertNotEqual(shapes[("view", True)], shapes[("view", False)], "eye and eyeoff differ")
+        self.assertEqual(shapes[("view", True)], shapes[("edit", True)], "View eye is the Edit eye")
+        self.assertEqual(shapes[("view", False)], shapes[("edit", False)])
+
+    def test_the_view_line_is_inert_text(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.dashboard_in_view(cdp, width, self.store, self.code)
+                self.open_peek(cdp, sid, ON, "item")
+                self.line(cdp, sid)
+                self.assertEqual(cdp.js(ROLE, sid), [None, None], "no role or tabindex on read-only text")
 
     def test_a_published_file_draws_the_line_as_visible_with_no_control(self):
         _plant, _pub, text = tp.made()
