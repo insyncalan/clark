@@ -155,7 +155,18 @@ ENTRY = """import { render, h } from "preact";
 import { MsList } from "%(src)s/components/MsList.jsx";
 import { milestoneRows } from "%(src)s/logic/milestones.js";
 import * as TC from "%(src)s/logic/tableColumns.js";
-window.T = { TC, draw(props) {
+import * as M from "%(src)s/logic/milestones.js";
+import { fromFile } from "%(src)s/stores/report.js";
+window.T = { TC, M, fromFile, boxes: [], drawN(props, n, extra) {
+  const box = document.createElement("div"); document.body.appendChild(box);
+  const list = Array.from({ length: n }, (_, i) => ({ id: i + 1, name: "M" + (i + 1), baseline_date: "2030-04-0" + (i + 1), sort_order: i === 0 ? 3 : 0, ...(extra || {}) }));
+  const rows = M.milestoneRows(list, "2026-10-28", false);
+  render(h(MsList, { rows, ...props }), box);
+  const first = box.querySelector(".msl-row");
+  return { all: !!box.querySelector(".msl-all"), trimmed: box.querySelectorAll(".msl-row").length, vars: box.querySelector(".msl-box").getAttribute("style"),
+           set: !!box.querySelector(".msl-hd.set"), cells: Object.fromEntries([...first.querySelectorAll(".msl-cells [data-col]")].map((e) => [e.dataset.col, e.textContent.trim()])),
+           cls: Object.fromEntries([...first.querySelectorAll(".msl-cells [data-col]")].map((e) => [e.dataset.col, e.className])), box };
+}, draw(props) {
   const box = document.createElement("div"); document.body.appendChild(box);
   const rows = milestoneRows([{ id: 1, name: "One", baseline_date: "2030-04-01" }, { id: 2, name: "Two", baseline_date: "2030-05-01" }], "2026-10-28", false);
   render(h(MsList, { rows, ...props }), box);
@@ -224,6 +235,82 @@ class ListUnits(unittest.TestCase):
             self.assertIn("--msl-cols", got["vars"] or "", f"{name}: the column widths are set")
         self.assertEqual(self.drawn["dash-added"]["cols"], ["name", "state", "agreed", "date", "prog", "owner"])
         self.assertEqual(self.drawn["dash-removed"]["cols"], ["name", "state", "agreed", "date"])
+
+
+CHEAT = "window.__store = new Map(); Object.defineProperty(window, 'localStorage', {configurable: true, value: {getItem: (k) => window.__store.has(k) ? window.__store.get(k) : null, setItem: (k, v) => window.__store.set(k, String(v)), removeItem: (k) => window.__store.delete(k)}}); 0;"
+STD_ALL = "['name', 'state', 'agreed', 'date', 'prog']"
+
+
+class Logic(unittest.TestCase):
+    """Sort order, the 'show all' rail, the Expected cell, the kept column choice and the extra cells, one browser, the list's own code."""
+
+    @classmethod
+    def setUpClass(cls):
+        with chrome() as cdp:
+            sid = page_target(cdp)
+            cdp.call("Runtime.evaluate", {"expression": bundle() + ";" + CHEAT, "returnByValue": True}, sid)
+            ev = lambda js: cdp.call("Runtime.evaluate", {"expression": js, "returnByValue": True, "awaitPromise": True}, sid)["result"].get("value")
+            cls.order = ev("""(() => { const L = [
+                {id: 'z', name: 'late', baseline_date: '2030-03-01'}, {id: 'y', name: 'early', baseline_date: '2030-01-01', sort_order: 2},
+                {id: 'x', name: 'early-first', baseline_date: '2030-01-01', sort_order: 1}, {id: 'w', name: 'forecast', forecast_date: '2030-02-01'},
+                {id: 'v', name: 'none'}, {id: 'b', name: 'tie-b', baseline_date: '2030-03-01', sort_order: 9}, {id: 'a', name: 'tie-a', baseline_date: '2030-03-01', sort_order: 9},
+                {id: 'u', name: 'gone', baseline_date: '2029-01-01', archived: true}];
+                return T.M.milestoneRows(L, '2026-10-28', false).map((r) => r.name); })()""")
+            cls.rail = ev("(() => { const r = T.M.milestoneRows(Array.from({length: 7}, (_, i) => ({id: i, name: 'n' + i})), '2026-10-28', false); return [T.M.railRows(r, false).length, T.M.railRows(r, true).length, T.M.railRows(r.slice(0, 5), false).length]; })()")
+            cls.expected = ev("""(() => { const c = (r) => T.M.expectedCell(T.M.milestoneRows([r], '2026-10-28', false)[0]).date;
+                return {early: c({id: 1, name: 'a', baseline_date: '2030-04-01', forecast_date: '2030-03-01'}), fc: c({id: 2, name: 'b', baseline_date: '2030-04-01', forecast_date: '2030-05-01', state_set: true, state: 'Forecast'})}; })()""")
+            cls.toggle = ev(f"""(() => {{ const TC = T.TC, std = TC.standardIds('msDash');
+                const off = TC.toggled('msDash', std, 'agreed'); return {{off, back: TC.toggled('msDash', off, 'agreed'), added: TC.toggled('msDash', std, 'owner'),
+                  same: TC.isStandard('msDash', std), swapped: TC.isStandard('msDash', ['name', 'state', 'agreed', 'date', 'owner'])}}; }})()""")
+            cls.kept = ev(f"""(() => {{ const TC = T.TC, std = TC.standardIds('msDash'), pick = ['agreed', 'owner']; window.__store.clear();
+                TC.writeChoice('msDash', 'P1', std); const afterStd = window.__store.size;
+                TC.writeChoice('msDash', 'P1', pick); const one = TC.readChoice('msDash', 'P1'), other = TC.readChoice('msDash', 'P2'), keys = [...window.__store.keys()];
+                TC.writeChoice('msDash', 'P1', std); return {{afterStd, one, other, keys, gone: window.__store.size}}; }})()""")
+            cls.five = ev("(() => { document.body.innerHTML = ''; return [T.drawN({place: 'sec-1'}, 5).all, T.drawN({place: 'sec-1'}, 6).all]; })()")
+            cls.extra = ev(f"""(() => {{ document.body.innerHTML = ''; const cw = {STAND_IN};
+                const g = T.drawN({{place: 'sec-1', CW: () => cw, CM: () => ({{shown: T.TC.shownIds('msDash', ['agreed', 'date', 'prog', 'id', 'order', 'description']), rowProps: {{}}, button: () => null, menu: null}})}}, 2);
+                const lean = T.drawN({{place: 'sec-1', CW: () => cw, CM: () => ({{shown: T.TC.shownIds('msDash', ['date', 'prog']), rowProps: {{}}, button: () => null, menu: null}})}}, 2);
+                const px = T.drawN({{place: 'sec-1', CW: () => ({{...cw, px: (id) => (id === 'prog' ? 200 : null)}}), CM: () => ({{shown: T.TC.standardIds('msDash'), rowProps: {{}}, button: () => null, menu: null}})}}, 2);
+                return {{cells: g.cells, lean: lean.cls, px: {{set: px.set, vars: px.vars}}}}; }})()""")
+            cls.file = ev("""(async () => { const out = {}; const go = async (ff) => { document.body.innerHTML = ''; window.__store.clear(); T.fromFile.value = ff;
+                const g = T.drawN({place: 'sec-1'}, 6); g.box.querySelector('.msl-all').click(); await new Promise((r) => setTimeout(r, 80));
+                return [g.box.querySelectorAll('.msl-row').length, [...window.__store.keys()]]; };
+                out.file = await go(true); out.live = await go(false); T.fromFile.value = false; return out; })()""")
+
+    def test_rows_run_by_agreed_date_then_forecast_then_undated_then_sort_order_then_id_and_archived_ones_are_left_out(self):
+        self.assertEqual(self.order, ["early-first", "early", "forecast", "late", "tie-a", "tie-b", "none"], "a date, the forecast when there is none, then no date at all; ties by sort order then id; the archived row is not drawn")
+
+    def test_the_rail_shows_five_rows_until_all_are_asked_for(self):
+        self.assertEqual(self.rail, [5, 7, 5])
+        self.assertEqual(self.five, [False, True], "Show all appears only above five rows")
+
+    def test_the_expected_cell_is_the_agreed_date_unless_the_row_slipped_or_is_only_a_forecast(self):
+        self.assertEqual(self.expected, {"early": "01-04-2030", "fc": "01-05-2030"})
+
+    def test_pressing_a_column_turns_it_off_and_on_and_only_the_exact_standard_set_counts_as_standard(self):
+        self.assertEqual(self.toggle["off"], ["name", "state", "date", "prog"])
+        self.assertEqual(self.toggle["back"], ["name", "state", "agreed", "date", "prog"])
+        self.assertEqual(self.toggle["added"], ["name", "state", "agreed", "date", "prog", "owner"])
+        self.assertTrue(self.toggle["same"])
+        self.assertFalse(self.toggle["swapped"], "five columns that are not the standard five")
+
+    def test_the_chosen_columns_are_kept_for_each_project_and_the_standard_set_keeps_nothing(self):
+        k = self.kept
+        self.assertEqual(k["afterStd"], 0, "the standard set is kept as nothing")
+        self.assertEqual(k["one"], ["name", "state", "agreed", "owner"], "what was picked, with the locked columns")
+        self.assertEqual(k["other"], ["name", "state", "agreed", "date", "prog"], "another project still has the standard set")
+        self.assertEqual(len(k["keys"]), 1)
+        self.assertEqual(k["gone"], 0, "choosing the standard set again takes the kept choice away")
+
+    def test_the_extra_columns_say_what_the_row_holds_and_a_dash_when_it_holds_nothing(self):
+        c = self.extra["cells"]
+        self.assertEqual((c["id"], c["order"], c["description"]), ("1", "3", "\u2014"))
+        self.assertIn("cols-off", self.extra["lean"]["agreed"], "a column that is off keeps its cell, marked off")
+        self.assertNotIn("cols-off", self.extra["lean"]["prog"])
+        self.assertTrue(self.extra["px"]["set"] and "200px" in self.extra["px"]["vars"], f"one dragged width sets the widths: {self.extra['px']}")
+
+    def test_a_published_file_does_not_remember_show_all_and_the_editor_does(self):
+        self.assertEqual(self.file, {"file": [6, []], "live": [6, ["clark.msAll.sec-1"]]})
 
 
 if __name__ == "__main__":
