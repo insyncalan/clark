@@ -160,7 +160,7 @@
 .rmx-h { color: var(--text-muted); font-size: var(--size-small, 12px); align-self: center; }
 .rmx-corner { text-align: right; padding-right: var(--space-1); }
 .rmx-top { grid-column: 2 / 5; }
-.rmx-r { color: var(--text-muted); font-size: var(--size-small, 12px); align-self: center; text-align: right; padding-right: var(--space-1); }
+.rmx-l { color: var(--text-muted); font-size: var(--size-small, 12px); align-self: center; text-align: right; padding-right: var(--space-1); }
 .rmx-c { min-height: var(--space-6); padding: var(--space-1) var(--space-2); border: 1px solid transparent; border-radius: var(--radius); font: inherit; cursor: pointer; }
 .rmx-c.rmx-r { background: var(--status-red-tint); color: var(--status-red-text); }
 .rmx-c.rmx-a { background: var(--status-amber-tint); color: var(--status-amber-text); }

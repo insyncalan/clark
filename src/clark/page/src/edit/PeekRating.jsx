@@ -57,7 +57,7 @@ export function Matrix({ row, anchor, onClose }) {
         <span class="rmx-h rmx-corner">Impact ↓</span><span class="rmx-h rmx-top">Likelihood →</span>
         {IMPACTS.map((im) => (
           <>
-            <span class="rmx-r" key={`r-${im}`}>{im}</span>
+            <span class="rmx-l" key={`r-${im}`}>{im}</span>
             {LIKELIHOODS.map((li) => {
               const p = levelOf(im, li), c = colourOf(p);
               return <button type="button" key={`${im}-${li}`} class={`rmx-c rmx-${c.class}`} data-impact={im} data-likelihood={li} data-mx={`${im}|${li}`} data-level={p}

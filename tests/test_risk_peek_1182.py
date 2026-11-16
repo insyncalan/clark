@@ -63,6 +63,23 @@ class RiskPeek(unittest.TestCase):
             r = self.row("raid", "TUL-007")
             self.assertEqual((r["impact"], r["likelihood"], r["priority"]), ("High", "Medium", "High"), "one Undo puts back both")
 
+    def test_every_cell_is_laid_out_alike_and_the_row_labels_are_not_cells(self):
+        # a red cell once took the row label's class (right-aligned, centred): all cells share one alignment, the labels another
+        with chrome() as cdp:
+            sid = self.open_page(cdp, 1400)
+            self.peek(cdp, sid, "TUL-007")
+            self.open_matrix(cdp, sid)
+            got = cdp.js("(() => { const cs = (e) => { const s = getComputedStyle(e); return [s.textAlign, s.alignSelf]; };"
+                         " return {cells: [...document.querySelectorAll('[data-pop] .rmx-c')].map((b) => [b.dataset.level, ...cs(b)]),"
+                         " labels: [...document.querySelectorAll('[data-pop] .rmx-l')].map((l) => [l.textContent, ...cs(l)]),"
+                         " asLabel: document.querySelectorAll('[data-pop] .rmx-c.rmx-l').length}; })()", sid)
+            self.assertEqual(len(got["cells"]), 9)
+            self.assertEqual(len({(a, b) for _, a, b in got["cells"]}), 1, f"all nine cells share text-align and align-self: {got['cells']}")
+            self.assertEqual({a for _, a, _ in got["cells"]} & {"right"}, set(), "no cell is right-aligned like a label")
+            self.assertEqual([l for l, _, _ in got["labels"]], ["High", "Medium", "Low"])
+            self.assertTrue(all(a == "right" for _, a, _ in got["labels"]), "the row labels are right-aligned")
+            self.assertEqual(got["asLabel"], 0, "no cell carries the label class")
+
     def test_the_matrix_keys(self):
         with chrome() as cdp:
             sid = self.open_page(cdp, 1400)
