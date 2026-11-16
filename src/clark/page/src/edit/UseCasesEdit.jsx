@@ -153,6 +153,7 @@ function ConfigureBox({ id, onClose, opener }) {
   const setView = (patch) => {
     const cur = now.current || { view: givenOf(sectionOf(id)), pending: 0, failed: false };      // only the keys the stored body holds: a tracker-only click then writes the tracker alone
     cur.view = { ...cur.view, ...patch };
+    if (cur.view.n !== undefined) cur.view = { scroll: v.scroll, tracker: v.tracker, ...cur.view };      // once a number is chosen the body holds all three, as before; a tracker or scroll change before that writes only its own key
     cur.pending += 1;
     now.current = cur;
     saveView(id, cur.view).then((r) => {
