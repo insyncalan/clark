@@ -22,6 +22,11 @@ from clark.section_kinds.base import Bad
 READY = True
 LIMIT = 8192
 EMPTY = ""
+# Row 1268: a new list starts with this saved filter (all work items, the default columns, Most rows 10), never blank; changes.py accepts exactly this body
+# for a new list, and the page's TEMPLATES entry sends it (tests/test_tpl_workitems.py holds the two to the page's own default filter).
+START = ('{"v":1,"kinds":[],"mode":"open","status":[],"due":[],"owner":[],"workstream":[],"use_case":[],"priority":[],"sort":"due","max":10,'
+         '"columns":["type","id","owner","due","priority"],"caption":"","milestone":[],"not":{"kinds":[],"status":[],"due":[],"owner":[],'
+         '"workstream":[],"use_case":[],"priority":[],"milestone":[]},"has":[],"no":[],"text":[]}')
 
 VERSION = 1
 KINDS = ("action", "risk", "issue", "assumption", "dependency", "decision")

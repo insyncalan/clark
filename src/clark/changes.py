@@ -535,6 +535,7 @@ def _text_body(body):
 PICTURES = "pictures"                     # the one field of a picture template's body that only POST /api/section-image sets
 IMAGE_KEYS = ("project", "section", "slot", "image", "place")
 FULL_IMAGE_START = section_kinds.REGISTRY["imagecap"].START         # row 1223: the one body a new imagecap section may be given (the Full width image)
+WORK_ITEMS_START = section_kinds.REGISTRY["workitems"].START       # row 1268: the one body a new Work items list may be given (the saved filter it starts from)
 NO_PICTURE_HERE = "That section can't hold a picture."
 PICTURE_NOT_TEXT = "Send the picture as text, or nothing to take it out."
 WORDS_TOO_LONG = "That text is too long to save. Shorten it and try again."
@@ -796,6 +797,8 @@ def _do_change(store, by_user, req):
                 raise Refused(BODY_NOT_TEXT)
             if new_type == "imagecap" and values["body"] == FULL_IMAGE_START:
                 start_body = values["body"]                         # row 1223: the Full width image starts as an imagecap body of version 2, and only with this body
+            elif new_type == "workitems" and values["body"] == WORK_ITEMS_START:
+                start_body = values["body"]                         # row 1268: a new Work items list starts with a saved filter, and only with this one
             elif new_type != "text":
                 raise Refused(NO_BODY_HERE)
             else:
