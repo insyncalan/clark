@@ -22,7 +22,7 @@ ROWS = ("(u => { const r = [...u.querySelectorAll(':scope > .ucrow')]; const b =
 
 
 class Browser(unittest.TestCase):
-    def open(self, cdp, tmp, width, long=True):
+    def draw(self, cdp, tmp, width, long=True):
         pub, text = made({"n": 3, "scroll": True, "tracker": "top"}, long=long)
         path = Path(tmp) / "r.html"
         path.write_text(text, encoding="utf-8")
@@ -34,7 +34,7 @@ class Browser(unittest.TestCase):
     def test_first_draw_is_n_measured_rows_without_a_resize(self):
         for width in (1400, 900):
             with self.subTest(width=width), tempfile.TemporaryDirectory() as tmp, chrome() as cdp:
-                sid = self.open(cdp, tmp, width)
+                sid = self.draw(cdp, tmp, width)
                 got = cdp.js(ROWS, sid)
                 self.assertGreater(abs(got["closed"][0] - got["fallback"]), 4, f"the long rows must differ from the fallback for this test to mean anything: {got}")
                 self.assertAlmostEqual(got["box"], 3 * got["closed"][0], delta=1, msg=f"first draw: the box is 3 measured rows tall: {got}")
@@ -42,7 +42,7 @@ class Browser(unittest.TestCase):
     def test_the_box_scrolls_and_measures_a_closed_row_when_the_first_row_opens(self):
         for width in (1400, 900):
             with self.subTest(width=width), tempfile.TemporaryDirectory() as tmp, chrome() as cdp:
-                sid = self.open(cdp, tmp, width)
+                sid = self.draw(cdp, tmp, width)
                 before = cdp.js(ROWS, sid)
                 self.assertEqual(before["overflowY"], "auto", before)
                 self.assertGreater(before["scroll"], before["client"] + 1, f"more rows than fit must scroll: {before}")
