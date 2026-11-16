@@ -87,17 +87,30 @@ class RowCount(Demo):
                     self.assertEqual(p.js(ROWS), n)
                     self.assertEqual(p.js("document.querySelector('.uctotal').textContent"), f"{self.total} use cases", "the count still covers every use case")
 
-    def test_show_all_shows_every_use_case_and_show_the_first_n_goes_back(self):
+    def test_show_all_shows_every_use_case_and_show_the_first_5_goes_back_while_no_number_is_set(self):
+        """Ruling 16-11 01:00: the old link stays only until Configure sets a number."""
         with chrome() as cdp:
             p = self.show(cdp)
-            self.set_local(p, **{VIEW_KEY: 4})
-            self.assertEqual(p.js(ROWS), 4)
+            self.set_local(p)
+            self.assertEqual(p.js(ROWS), 5)
             self.assertEqual(p.js(BUTTON), f"Show all {self.total} use cases")
             p.js("document.querySelector('[data-ucall]').click()")
             p.until(f"{ROWS} === {self.total}", "all shown")
-            self.assertEqual(p.js(BUTTON), "Show the first 4", "the words follow the view number")
+            self.assertEqual(p.js(BUTTON), "Show the first 5")
             p.js("document.querySelector('[data-ucall]').click()")
-            p.until(f"{ROWS} === 4", "reduced")
+            p.until(f"{ROWS} === 5", "reduced")
+
+    def test_a_set_number_has_no_show_all_link_and_an_old_show_all_does_not_open_the_rest(self):
+        """Ruling 16-11 01:00: the old link goes once Configure sets the number; scroll off then means viewers see only the first n."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width)
+                p.js("localStorage.setItem('clark.ucAll', 'true')")
+                self.set_local(p, **{VIEW_KEY: 2, SCROLL_KEY: False})
+                self.assertEqual(p.js(ROWS), 2, "the number wins over an old Show all")
+                self.assertIsNone(p.js(BUTTON), "no Show all link")
+                self.edit(p)
+                self.assertIsNone(p.js(BUTTON), "no Show all link in Edit either")
 
     def test_a_view_number_at_or_above_the_total_has_no_show_all(self):
         with chrome() as cdp:

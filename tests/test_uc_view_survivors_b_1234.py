@@ -30,7 +30,7 @@ class TrackerPlace(Demo):
                 self.set_local(p, n=3, tracker="off")
                 self.assertEqual(p.js(STRIPS), 0, "off draws no strip")
 
-    def test_bottom_draws_one_strip_below_the_rows_and_below_show_all(self):
+    def test_bottom_draws_one_strip_below_the_rows(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
@@ -38,18 +38,17 @@ class TrackerPlace(Demo):
                 self.assertEqual(p.js(STRIPS), 1, "one strip, not one above and one below")
                 self.assertEqual(p.js(ORDER), "below")
                 self.assertTrue(p.js("document.querySelector('.uc .ucstrip').classList.contains('ucstrip-below')"), "marked as the bottom one")
-                self.assertTrue(p.js("!!(document.querySelector('[data-ucall]').compareDocumentPosition(document.querySelector('.ucstrip')) & 4)"), "after Show all")
+                self.assertIsNone(p.js(BUTTON), "a number is set, so there is no Show all for the strip to follow")
 
 
 class ShowAll(Demo):
-    def test_show_all_is_there_only_when_rows_are_hidden_and_the_list_does_not_scroll(self):
+    def test_there_is_no_show_all_once_a_number_is_set_whether_or_not_rows_are_hidden(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
-                for view, want in (({"n": self.total - 1}, True), ({"n": self.total}, False), ({"n": "all"}, False),
-                                   ({"n": 3, "scroll": True}, False), ({"n": 3, "scroll": False}, True)):
+                for view in ({"n": self.total - 1}, {"n": self.total}, {"n": "all"}, {"n": 3, "scroll": True}, {"n": 3, "scroll": False}):
                     self.set_local(p, **view)
-                    self.assertEqual(p.js(BUTTON) is not None, want, view)
+                    self.assertIsNone(p.js(BUTTON), view)
 
 
 class Heights(Demo):
@@ -61,12 +60,12 @@ class Heights(Demo):
                 self.assertEqual(p.js(ROWS), self.total, "every row is there to scroll to")
                 self.assertEqual(p.js(f"getComputedStyle({LIST}).overflowY"), "auto")
                 style = p.js(f"{LIST}.getAttribute('style')")
-                self.assertIn("3.25rem", style, "the row height falls back to 3.25rem")
+                self.assertIn("var(--ucrow-h", style, "the height is n times the measured row height (the 3.25rem is only the fallback before it is measured)")
                 self.assertRegex(style, r"\* 3\)", "three rows high")
                 self.set_local(p, n="all", scroll=True)
-                self.assertIsNone(p.js(f"{LIST}.getAttribute('style')"), "all has no height to fix")
+                self.assertEqual(p.js(f"{LIST}.style.maxHeight"), "", "all has no height to fix (the measured row height may stay as a variable)")
                 self.set_local(p, n=3, scroll=False)
-                self.assertIsNone(p.js(f"{LIST}.getAttribute('style')"), "no scrolling, no fixed height")
+                self.assertEqual(p.js(f"{LIST}.style.maxHeight"), "", "no scrolling, no fixed height")
                 self.assertEqual(p.js(f"getComputedStyle({LIST}).overflowY"), "visible")
 
 
@@ -108,7 +107,7 @@ class EditAndFile(Demo, PublishedFile):
             p.until("!!document.querySelector('[data-nouc]')", "the empty line")
             self.assertEqual(p.js("document.querySelector('[data-nouc]').textContent"), "No use cases are on the dashboard.")
 
-    def test_a_published_file_draws_its_own_view_has_no_edit_parts_and_writes_no_browser_key(self):
+    def test_a_published_file_with_a_number_and_scroll_off_shows_only_those_rows_with_no_way_to_open_the_rest_and_writes_no_browser_key(self):
         put_view(self, {"n": 3, "scroll": False, "tracker": "bottom"})
         path = self.publish()
         with chrome() as cdp:
@@ -116,8 +115,8 @@ class EditAndFile(Demo, PublishedFile):
             self.assertEqual(p.js(ROWS), 3, "the file's own number")
             self.assertEqual(p.js(ORDER), "below", "the file's own tracker place")
             self.assertFalse(p.js("!!document.querySelector('#ucAdd, [data-mode=edit]')"), "a file has no Edit")
-            p.js("document.querySelector('[data-ucall]').click()")
-            p.until(f"{ROWS} === {self.total}", "all shown in the file")
+            self.assertIsNone(p.js(BUTTON), "ruled 16-11: a number with scroll off shows only the first n, no Show all")
+            self.assertEqual(p.js(ROWS), 3, "still the file's own number")
             self.assertEqual(p.js("Object.keys(localStorage).filter(k => /ucAll/.test(k)).length"), 0, "the file stores nothing of the editor's key")
 
 

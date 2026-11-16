@@ -438,9 +438,10 @@ USECASES_TRACKER = ("top", "bottom", "off")
 
 def _checked_view(value, rules):
     """Row 1234: the use case summary's view setting, {n, scroll, tracker}: how many rows show (a whole number from 1, or "all"), whether
-    the list scrolls, and where the tracker sits. A missing key takes its default (5, false, "top"), so the stored text always has
-    the three keys; an empty body is the defaults too. Anything else is refused with the one existing sentence for a value that does
-    not fit (no new words), never quoting the value."""
+    the list scrolls, and where the tracker sits. Only the keys given are stored (a tracker-only change never writes n, so the
+    section stays on the default count and the page's Edit view stays what it was); the page fills a missing key with its default
+    (5, false, "top"). Anything else is refused with the one existing sentence for a value that does not fit (no new words),
+    never quoting the value."""
     if type(value) is not dict or set(value) - {"n", "scroll", "tracker"}:
         raise Bad(BAD_VALUE)
     n, scroll, tracker = value.get("n", 5), value.get("scroll", False), value.get("tracker", "top")
@@ -448,7 +449,7 @@ def _checked_view(value, rules):
         raise Bad(BAD_VALUE)
     if type(scroll) is not bool or type(tracker) is not str or tracker not in USECASES_TRACKER:
         raise Bad(BAD_VALUE)
-    return {"n": n, "scroll": scroll, "tracker": tracker}
+    return {k: value[k] for k in ("n", "scroll", "tracker") if k in value}
 
 
 CHECKERS = {NEEDS: _checked_needs, TRACKER: _checked_tracker, USECASES: _checked_view, **{t: m.check for t, m in TEMPLATES.items()}}
@@ -529,7 +530,7 @@ def published(kind, value, ctx=None):
         rows = [r for r in (_shown_needs_row(r) for r in (value.get("rows") if type(value) is dict and type(value.get("rows")) is list else [])) if r]
         return {"rows": rows} if rows else None
     if kind == USECASES:
-        return {k: value[k] for k in ("n", "scroll", "tracker")} if type(value) is dict and all(k in value for k in ("n", "scroll", "tracker")) else {}      # row 1234: flat, so the page reads a file entry as it reads a live body; {} (the defaults) never leaves the section out
+        return {k: value[k] for k in ("n", "scroll", "tracker") if k in value} if type(value) is dict else {}      # row 1234: flat, the keys the body holds (the page fills the rest), so the page reads a file entry as it reads a live body; {} (the defaults) never leaves the section out
     if kind != TRACKER:
         return None                     # an unknown kind fails closed: nothing of it is published
     return _published_tracker(value)

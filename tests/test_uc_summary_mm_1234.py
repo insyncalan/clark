@@ -34,7 +34,7 @@ class ScrollList(Demo):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
                 self.set_local(p, n=4, scroll=False)
-                self.assertIsNotNone(p.js(BUTTON), "View keeps the first 4 and Show all")
+                self.assertIsNone(p.js(BUTTON), "once a number is set View shows only the first 4 and has no Show all (1234, 16-11 ruling)")
                 self.edit(p)
                 self.assertIsNone(p.js(BUTTON), "Edit scrolls, so there is no Show all")
                 self.assertIn("* 4)", p.js(f"{SCROLLER}.style.maxHeight"))
@@ -69,7 +69,7 @@ class PutOnThePage(Demo):
                 made = {r["ref"]: r for r in self.store.read("use_cases", "ABC")}[ref]
                 self.click(p, "[data-uc-back]")
                 p.until("!!document.querySelector('form.picker')", "the picker")
-                p.js("document.querySelector('form.picker .pick input[value=\"%s\"]').click()" % made["id"])
+                p.js("document.querySelector('form.picker tbody input[value=\"%s\"]').click()" % made["id"])
                 p.js("document.querySelector('form.picker button[type=submit]').click()")
                 p.until("!document.querySelector('form.picker')", "the picker closed")
                 row = f"document.querySelector('.ucrow[data-uc=\"{made['id']}\"]')"
