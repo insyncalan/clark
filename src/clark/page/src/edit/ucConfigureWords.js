@@ -6,12 +6,10 @@ export const NUMBER_LABEL = "Number shown";
 export const SHOWN_LABEL = "Use cases shown";
 export const ALL_WORD = "All";
 export const OF = (n) => `of ${n}`;
-export const SHOW_ALL = "Show all";
 export const SCROLL_LABEL = "Viewers can scroll the list";
 export const SAME_NOTE = "Edit uses the same number and scroll, so what you see is what viewers get.";
 export const SCROLL_HELP = (n) => `On: the list is ${n} rows tall and scrolls up and down to the rest. Off: viewers see only the first ${n}.`;
 export const DONE = "Done";
-export const EMPTY_COMMITMENT = "—";          // a dash for an empty commitment
 
 // Not ruled yet (no ruling): nothing here may be treated as final wording.
 // (none: the close button reads DONE, item 9 of the words file)

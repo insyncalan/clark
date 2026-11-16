@@ -146,7 +146,10 @@ export function Configure({ section }) {
 // "Configure use cases": the number shown and whether viewers scroll. Each change is kept at once (no Save), so Edit draws what it draws.
 function ConfigureBox({ id, onClose, opener }) {
   const first = useRef(null), v = viewOf(sectionOf(id), false);
-  const setView = (patch) => saveView(id, { n: v.n, scroll: v.scroll, tracker: v.tracker, ...patch });
+  // Two changes in a row (the number, then the switch) must not lose the first: the second builds on the first even before the page has drawn it back.
+  const now = useRef(null);
+  useEffect(() => { now.current = null; }, [v.n, v.scroll, v.tracker]);     // the drawn view has caught up with what was saved: build from it again
+  const setView = (patch) => { now.current = { ...(now.current || { n: v.n, scroll: v.scroll, tracker: v.tracker }), ...patch }; saveView(id, now.current); };
   const total = liveOf(data.value).filter(isOn).length;
   const counts = Array.from({ length: Math.max(total, 1) }, (_, i) => i + 1);
   if (v.n !== ALL && !counts.includes(v.n)) counts.push(v.n);

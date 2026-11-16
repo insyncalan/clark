@@ -91,6 +91,19 @@ class Configure(Setup):
                 self.assertEqual(p.js("document.querySelector('#ucCfgN').value"), "all", "read back from the body after a reload")
                 self.assertTrue(p.js("document.querySelector('#ucCfgS').checked"))
 
+    def test_two_changes_made_before_the_page_has_drawn_the_first_keep_both(self):
+        """A second change in the same moment builds on the first (a stale drawn view once saved n back to 5): both fields reach the body."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                put_view(self, None)
+                p = self.show(cdp, width)
+                self.edit(p)
+                p.js("document.querySelector('[data-uc-configure]').click()")
+                p.until("!!document.querySelector('#ucCfgN')", "panel")
+                p.js("(s => { s.value = '1'; s.dispatchEvent(new Event('change', {bubbles: true})); document.querySelector('#ucCfgS').click(); })(document.querySelector('#ucCfgN'))")
+                v = self.wait_body(p, lambda v: v["scroll"] is True, "scroll saved")
+                self.assertEqual(v, {"n": 1, "scroll": True, "tracker": "top"}, "the second change kept the first")
+
     def test_a_saved_view_is_recorded_as_made_in_the_table(self):
         """The place a save names is what History says about it: place "cell" reads as the table, "report" as the page."""
         from clark import history
@@ -139,8 +152,8 @@ class Source(unittest.TestCase):
                 name = line.split()[2]
                 if name.startswith("UNRULED_"):
                     continue
-                self.assertIn(name, {"CONFIGURE", "TITLE", "NUMBER_LABEL", "SHOWN_LABEL", "ALL_WORD", "OF", "SHOW_ALL", "SCROLL_LABEL", "SAME_NOTE",
-                                     "SCROLL_HELP", "EMPTY_COMMITMENT", "DONE"}, f"{name} is neither approved nor UNRULED_")
+                self.assertIn(name, {"CONFIGURE", "TITLE", "NUMBER_LABEL", "SHOWN_LABEL", "ALL_WORD", "OF", "SCROLL_LABEL", "SAME_NOTE",
+                                     "SCROLL_HELP", "DONE"}, f"{name} is neither approved nor UNRULED_")
         edit = (PAGE_SRC / "edit" / "UseCasesEdit.jsx").read_text(encoding="utf-8")
         body = edit[edit.index("function ConfigureBox"):edit.index("/** The growing Add button")]
         self.assertFalse(re.search(r">\s*[A-Za-z][A-Za-z ]+\s*<", body), "no bare words in the panel markup")
