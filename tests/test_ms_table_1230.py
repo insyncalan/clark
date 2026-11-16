@@ -278,10 +278,13 @@ class Logic(unittest.TestCase):
                 const lean = T.drawN({{place: 'sec-1', CW: () => cw, CM: () => ({{shown: T.TC.shownIds('msDash', ['date', 'prog']), rowProps: {{}}, button: () => null, menu: null}})}}, 2);
                 const px = T.drawN({{place: 'sec-1', CW: () => ({{...cw, px: (id) => (id === 'prog' ? 200 : null)}}), CM: () => ({{shown: T.TC.standardIds('msDash'), rowProps: {{}}, button: () => null, menu: null}})}}, 2);
                 return {{cells: g.cells, lean: lean.cls, px: {{set: px.set, vars: px.vars}}}}; }})()""")
-            cls.file = ev("""(async () => { const out = {}; const go = async (ff) => { document.body.innerHTML = ''; window.__store.clear(); T.fromFile.value = ff;
-                const g = T.drawN({place: 'sec-1'}, 6); g.box.querySelector('.msl-all').click(); await new Promise((r) => setTimeout(r, 80));
-                return [g.box.querySelectorAll('.msl-row').length, [...window.__store.keys()]]; };
-                out.file = await go(true); out.live = await go(false); T.fromFile.value = false; return out; })()""")
+            def go(ff):      # a file keeps no choice, the live page stores it: wait for the rows (and the stored key) rather than for a fixed time
+                ev(f"(() => {{ document.body.innerHTML = ''; window.__store.clear(); T.fromFile.value = {'true' if ff else 'false'}; const g = T.drawN({{place: 'sec-1'}}, 6); g.box.querySelector('.msl-all').click(); }})()")
+                read = "(() => [document.querySelectorAll('.msl-row').length, [...window.__store.keys()]])()"
+                wait(lambda: (lambda v: v[0] == 6 and (ff or v[1]))(ev(read)), 10)
+                return ev(read)
+            cls.file = {"file": go(True), "live": go(False)}
+            ev("T.fromFile.value = false")
             cls.more = ev(f"""(() => {{ const TC = T.TC, M = T.M, names = (l, client) => M.milestoneRows(l, '2026-10-28', client).map((r) => r.name);
                 const mix = [{{id: 1, name: 'cancelled', baseline_date: '2030-01-01', status: 'Cancelled'}}, {{id: 2, name: 'kept', baseline_date: '2030-02-01'}}];
                 const cell = (r) => M.expectedCell(M.milestoneRows([r], '2026-10-28', false)[0]);
