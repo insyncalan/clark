@@ -51,7 +51,7 @@ class Checker(unittest.TestCase):
         self.assertEqual(got, {"v": 1, "kinds": [], "mode": "open", "status": [], "due": [], "owner": [], "workstream": [],
                                "use_case": [], "priority": [], "sort": "due", "max": 10,
                                "columns": ["type", "id", "owner", "due", "priority"], "caption": "",      # row 1199: Status, Workstream and Milestone start off
-                               "milestone": [], "not": {k: [] for k in wi.LEFT_OUT}, "has": [], "no": [], "text": []})
+                               "milestone": [], "not": {k: [] for k in wi.LEFT_OUT}, "has": [], "no": [], "text": [], "recent": False})
         self.assertEqual(set(got), set(wi.KEYS))
 
     def test_choices_are_kept_in_their_own_order_without_repeats(self):
@@ -151,6 +151,23 @@ class Rules(unittest.TestCase):
         self.assertEqual(ids({"owner": ["(none)"], "mode": "all"}), ["ABC-A-004", "ABC-003"], "a blank owner has none")
         self.assertEqual(ids({"mode": "closed", "due": ["none"]}), ["ABC-A-006"], "a closed row with a made-up day has no date")
 
+    def test_the_decisions_rule_is_a_filter_choice_and_the_file_carries_every_id_with_its_window(self):
+        """Item 1268: Pending, or Made in the last 14 days; other kinds are untouched; published lists every id, `max` is the window."""
+        today = "2030-01-20"
+        rows = [{"id": "D1", "kind": "decision", "status": "Pending", "due": "2030-02-01"}, {"id": "D2", "kind": "decision", "status": "Made", "due": "2030-01-10"},
+                {"id": "D3", "kind": "decision", "status": "Made", "due": "2029-12-01"}, {"id": "D4", "kind": "decision", "status": "Made", "due": "2030-01-25"},
+                {"id": "D5", "kind": "decision", "status": "Withdrawn", "due": "2030-01-19"}, {"id": "D6", "kind": "decision", "status": "Made", "due": None},
+                {"id": "A1", "kind": "action", "status": "Open", "due": "2029-01-01"}]
+        ids = lambda **v: wi.matching(check({"mode": "all", "sort": "id", **v}), rows, today)
+        self.assertEqual(ids(), ["A1", "D1", "D2", "D3", "D4", "D5", "D6"])
+        self.assertEqual(ids(recent=True), ["A1", "D1", "D2"], "pending and last 14 days only; a future or undated made decision, a withdrawn one and an old one drop")
+        self.assertEqual(ids(recent=True, kinds=["decision"]), ["D1", "D2"])
+        with self.assertRaises(Exception):
+            check({"recent": "yes"})
+        ctx = base.Context(ROWS, TODAY)
+        got = section_bodies.published("workitems", check({"mode": "all", "max": 2, "owner": ["Pat Demo", "Lee Demo"]}), ctx)
+        self.assertEqual((len(got["items"]) > 2, got["max"]), (True, 2), "every id goes, the window is max")
+
     def test_not_has_no_milestone_and_free_words_choose_as_the_page_reads_them(self):
         ids = lambda v: wi.matching(check(v), wi.rows_of(ROWS), TODAY)
         self.assertEqual(ids({"not": {"owner": ["Pat Demo"]}}), ["ABC-002", "ABC-A-002", "ABC-A-005", "ABC-A-004"])
@@ -181,7 +198,7 @@ class Rules(unittest.TestCase):
         ctx = base.Context(ROWS, TODAY)
         got = section_bodies.published("workitems", check({"kinds": ["risk", "issue"], "columns": ["id", "owner"], "caption": "Red items",
                                                            "owner": ["Lee Demo", "Pat Demo"]}), ctx)
-        self.assertEqual(got, {"items": ["ABC-002", "ABC-001"], "columns": ["id", "owner"], "caption": "Red items"})
+        self.assertEqual(got, {"items": ["ABC-002", "ABC-001"], "max": 10, "columns": ["id", "owner"], "caption": "Red items"})
         self.assertIsNone(section_bodies.published("workitems", check({"owner": ["Nobody Demo"]}), ctx), "an empty match is left out")
         self.assertIsNone(section_bodies.published("workitems", check({}), base.Context()), "no kept rows: left out")
         self.assertIsNone(section_bodies.published("workitems", {"v": 1}), "an unchecked value is never published")
@@ -454,7 +471,7 @@ class Saved(Api):
         self.assertEqual(sec["items"], [self.a_due, self.a_later, self.risk])
         self.assertEqual(sec["columns"], ["id", "owner", "due"])
         self.assertEqual(sec["caption"], "What is due")
-        self.assertEqual(set(sec), {"id", "type", "title", "beside", "items", "columns", "caption"}, "the filter is never in the file")
+        self.assertEqual(set(sec), {"id", "type", "title", "beside", "items", "max", "columns", "caption"}, "the filter is never in the file")
         text = built["body"].decode("utf-8")
         for planted in ("ZQ-sensitive step", "ZQ-client-off step", "ZQ-archived step", "ZQ-eye-hidden step"):
             self.assertNotIn(planted, text)

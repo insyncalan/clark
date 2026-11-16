@@ -40,7 +40,7 @@ export const WORDS = {
 const leftOut = () => Object.fromEntries(LEFT_OUT.map((f) => [f, []]));
 export function defaults() {
   return { v: 1, kinds: [], mode: "open", status: [], due: [], owner: [], workstream: [], use_case: [], priority: [], sort: "due",
-    max: DEFAULT_MAX, columns: DEFAULT_COLUMNS.slice(), caption: "", milestone: [], not: leftOut(), has: [], no: [], text: [] };
+    max: DEFAULT_MAX, columns: DEFAULT_COLUMNS.slice(), caption: "", milestone: [], not: leftOut(), has: [], no: [], text: [], recent: false };
 }
 
 // Item 1195 (the approved design, v1.1). Saved views: each is the filter a tab starts from; "all" is the filter a new list starts from.
@@ -100,6 +100,7 @@ export function filterOf(section) {
   if (SORTS.includes(v.sort)) out.sort = v.sort;
   if (Number.isInteger(v.max) && v.max >= 1 && v.max <= MAX_ROWS) out.max = v.max;
   if (typeof v.caption === "string") out.caption = v.caption;
+  if (v.recent === true) out.recent = true;
   return out;
 }
 
@@ -145,11 +146,21 @@ function emptyIn(r, field, today) {
 }
 
 // The parts of the filter beyond the choices: milestone, not, has, no and the free words (section_kinds/workitems.py _allowed).
+// Item 1268: the Decisions rule, as logic/sectionRows.js listed() and section_kinds/workitems.py _recent_ok: a decision is listed while Pending,
+// or Made in the last 14 days; every other kind of row is not touched.
+export const RECENT_DAYS = 14;
+function recentOk(r, today) {
+  if (r.kind !== "decision" || r.status === "Pending") return true;
+  const a = dayNumber(r.due), b = dayNumber(today);
+  return r.status === "Made" && a !== null && b !== null && b - a >= 0 && b - a <= RECENT_DAYS;
+}
+
 function allowed(r, f, today) {
   if (!member(r, "milestone", f.milestone, today)) return false;
   if (LEFT_OUT.some((k) => f.not[k].length && member(r, k, f.not[k], today))) return false;
   if (f.has.some((g) => g.every((k) => emptyIn(r, k, today)))) return false;
   if (f.no.some((g) => !g.some((k) => emptyIn(r, k, today)))) return false;
+  if (f.recent && !recentOk(r, today)) return false;
   const hay = low(`${r.title || ""} ${r.id || ""}`);
   return f.text.every((w) => hay.includes(low(w)));
 }
@@ -222,7 +233,9 @@ export function listOf(section, data, today) {
   if (section && Array.isArray(section.items)) {
     const there = new Set(WORK.flatMap((k) => ((data && data[k]) || []).map((r) => r.id)));
     const cols = isList(section.columns) ? section.columns.filter((c) => COLUMNS.includes(c)) : [];
-    return { items: section.items.filter((id) => typeof id === "string" && there.has(id)), columns: cols.length ? cols : DEFAULT_COLUMNS.slice(),
+    const every = section.items.filter((id) => typeof id === "string" && there.has(id));
+    const max = Number.isInteger(section.max) && section.max >= 1 && section.max <= MAX_ROWS ? section.max : DEFAULT_MAX;      // item 1268: the file carries every id; max is the window the rest scroll behind
+    return { items: every.slice(0, max), all: every, max, more: every.length > max, columns: cols.length ? cols : DEFAULT_COLUMNS.slice(),
       caption: typeof section.caption === "string" ? section.caption : "", saved: true };
   }
   const filter = filterOf(section);

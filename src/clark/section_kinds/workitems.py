@@ -10,7 +10,7 @@ Stored (canonical JSON, every key present once checked):
 An empty list is "any". "(none)" in owner, workstream, use_case or priority matches a row that has none. There is no
 "client visible" choice: a row that is not client visible never publishes (D-3), so it could only ever give an empty list.
 
-Published: {"items": [ids, in order], "columns": [..], "caption": ".."}; the ids are chosen from ctx only (what publish.select
+Published: {"items": [every id the filter lists, in order], "max": rows in the window (the rest scroll), "columns": [..], "caption": ".."}; the ids are chosen from ctx only (what publish.select
 already kept), so an archived, client-hidden, eye-hidden or Sensitive item can never be in the list. With no item left the
 section is left out of the file (an empty match says so in Edit only). The filter itself is never published.
 
@@ -40,10 +40,11 @@ MAX_TEXT = 120                      # characters in one owner or workstream name
 MAX_CAPTION = 200
 CLOSED = ("Closed", "Cancelled", "Made", "Withdrawn")
 KEYS = ("v", "kinds", "mode", "status", "due", "owner", "workstream", "use_case", "priority", "sort", "max", "columns", "caption",
-        "milestone", "not", "has", "no", "text")
+        "milestone", "not", "has", "no", "text", "recent")
 FILTERS = ("kinds", "status", "due", "owner", "workstream", "use_case", "priority")
 LEFT_OUT = FILTERS + ("milestone",)             # what a "not" may name: the choices above, and a milestone
 PRESENT = ("type", "status", "owner", "priority", "due", "workstream", "usecase", "milestone")      # what has: and no: may name (the page's field words)
+RECENT_DAYS = 14                   # item 1268: the Decisions rule, as the Work items page lists decisions (Pending, or Made in the last 14 days)
 MAX_GROUPS = 10                     # has: words and no: words, and free words
 
 NOT_A_FILTER = "That list's filter could not be read. Choose its filter again."
@@ -162,6 +163,9 @@ def check(value, rules):
         raise Bad(LONG_CAPTION)
     if caption and not rules.visible(caption):
         raise Bad(BAD_CHOICE)
+    recent = value.get("recent", False)
+    if type(recent) is not bool:
+        raise Bad(BAD_CHOICE)
     return {
         "v": VERSION,
         "kinds": _choices(value.get("kinds", []), KINDS),
@@ -181,6 +185,7 @@ def check(value, rules):
         "has": _groups(value.get("has", [])),
         "no": _groups(value.get("no", [])),
         "text": _words(value.get("text", []), rules),
+        "recent": recent,
     }
 
 
@@ -266,6 +271,16 @@ def _empty(row, field, today):
     return not _text(row.get(key))
 
 
+def _recent_ok(row, today):
+    """The Decisions rule (item 1268): a decision is listed while Pending, or when Made within the last RECENT_DAYS days, as
+    page/src/logic/sectionRows.js listed() (a Made one with no real date, or any other status, drops out).
+    Every other kind of row is not a decision and is not touched by it."""
+    if row.get("kind") != "decision" or row.get("status") == "Pending":
+        return True
+    d, t = day_number(row.get("due")), day_number(today)
+    return row.get("status") == "Made" and d is not None and t is not None and 0 <= t - d <= RECENT_DAYS
+
+
 def _allowed(row, value, today):
     """The parts of the filter beyond the choices: milestone, not, has, no and the free words."""
     if not _member(row, "milestone", value["milestone"], today):
@@ -275,6 +290,8 @@ def _allowed(row, value, today):
     if any(all(_empty(row, f, today) for f in g) for g in value["has"]):
         return False
     if any(not any(_empty(row, f, today) for f in g) for g in value["no"]):
+        return False
+    if value.get("recent") and not _recent_ok(row, today):
         return False
     hay = f"{row.get('title') or ''} {row.get('id') or ''}".lower()
     return all(w.lower() in hay for w in value["text"])
@@ -302,8 +319,8 @@ def _alive(value, live):
     return out
 
 
-def matching(value, rows, today, live=None):
-    """The ids of `rows` (rows_of's shape) that the checked filter `value` lists, sorted and cut to its max."""
+def matching(value, rows, today, live=None, cut=True):
+    """The ids of `rows` (rows_of's shape) that the checked filter `value` lists, sorted and (cut true) cut to its max; cut false: every hit (the list scrolls, its max is the window)."""
     value = _alive(value, live)
     if value is None:
         return []
@@ -317,7 +334,7 @@ def matching(value, rows, today, live=None):
         hits.sort(key=lambda r: (not _open(r), rank.get(r.get("priority"), len(PRIORITIES)), _due_key(r), r["id"]))
     else:
         hits.sort(key=lambda r: (not _open(r), _due_key(r), r["id"]))
-    return [r["id"] for r in hits[:value["max"]]]
+    return [r["id"] for r in (hits[:value["max"]] if cut else hits)]
 
 
 def published(value, ctx):
@@ -325,7 +342,7 @@ def published(value, ctx):
     if type(value) is not dict or set(value) != set(KEYS):
         return None
     kept = ctx.ids.get("actions", frozenset()) | ctx.ids.get("raid", frozenset()) | ctx.ids.get("decisions", frozenset())
-    items = [i for i in matching(value, rows_of(ctx.rows), ctx.as_at, ctx.live) if i in kept]
+    items = [i for i in matching(value, rows_of(ctx.rows), ctx.as_at, ctx.live, cut=False) if i in kept]
     if not items:
         return None
-    return {"items": items, "columns": list(value["columns"]), "caption": value["caption"]}
+    return {"items": items, "max": value["max"], "columns": list(value["columns"]), "caption": value["caption"]}
