@@ -38,7 +38,7 @@ class SourcePins(unittest.TestCase):
 
     def test_e_add_control_only_when_editing_and_glance_gets_clean(self):
         jsx = read("components", "Section.jsx")
-        self.assertIn('editing && section.type === "usecases" && tools.ucEdit ? <tools.ucEdit.Add /> : null', jsx)
+        self.assertIn('editing && section.type === "usecases" && tools.ucEdit ? <><tools.ucEdit.Configure section={section} /><tools.ucEdit.Add /></> : null', jsx)
         self.assertIn('<Glance tools={tools} clean={clean} />', jsx)
 
 
