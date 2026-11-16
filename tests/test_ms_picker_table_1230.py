@@ -9,6 +9,7 @@ import unittest
 
 from _demo import USER
 
+import _testpage as testpage
 import test_milestones_eye as base
 from test_server import chrome
 from test_work_items import page_target  # noqa: F401
@@ -59,9 +60,11 @@ class MsPicker(unittest.TestCase):
                 self.assertEqual(self.js("!!document.querySelector('form.picker thead input[type=checkbox]')"), True, "the header tick")
                 self.assertEqual(self.js("[...document.querySelectorAll('form.picker button')].some((b) => b.textContent === 'Select all shown')"), False, "the tick is the select-all")
                 self.assertEqual(self.js(IDS), "ABC-M-004,ABC-M-002", "earliest agreed date first")
+                self.assertEqual(self.js("[...document.querySelectorAll('form.picker tbody input')].map((i) => i.getAttribute('aria-label')).join()"), "Add Go live,Add Training done")
                 cells = self.js("[...document.querySelectorAll('form.picker tbody tr')].map((r) => [...r.querySelectorAll('td')].slice(1).map((d) => d.textContent).join('|'))")
-                self.assertEqual(cells, ["Go live|On track|01-12-2029|01-12-2029|40%|On the page, not shown to the client|ABC-M-004",
-                                         "Training done|On track|01-04-2030|01-04-2030||Taken off the page|ABC-M-002"])
+                self.assertEqual(cells, ["Go live|On track|01-12-2029|01-12-2029|40%|Not on the page|ABC-M-004",
+                                         "Training done|On track|01-04-2030|01-04-2030||Taken off with the eye|ABC-M-002"])
+                self.assertEqual(self.js("[...document.querySelectorAll('form.picker tbody tr')].every((r) => !!r.querySelector('td:nth-child(2) svg.ms-i'))"), True, "the state mark leads the Milestone cell")
                 self.assertEqual(self.js(RESULT), "Result: 2 of 2 shown")
                 self.assertEqual(self.js(COUNT), "None selected")
                 self.assertEqual(self.js(SUBMIT + ".textContent"), "Add selected")
@@ -74,19 +77,33 @@ class MsPicker(unittest.TestCase):
             with self.subTest(width=width), chrome() as cdp:
                 self.opened(cdp, width)
                 self.assertEqual(self.js("!!document.querySelector('[data-badge]')"), False)
+                self.assertEqual(self.js("document.querySelector('[data-filter]').textContent"), "Filters")
                 self.js("document.querySelector('[data-filter]').click()")
                 self.until("!!document.querySelector('.pkt-panel')", "the panel")
-                self.assertEqual(self.js("[...document.querySelectorAll('.pkt-fields > li')].map((l) => l.textContent).join()"), "Status,Due,More fields,On the page,Client-visible")
+                self.assertEqual(self.js("[...document.querySelectorAll('.pkt-fields > li:not(.pkt-find)')].map((l) => l.textContent).join()"), "Status,Due,More fields,On the page,Client visible")
+                self.assertEqual(self.js("[...document.querySelectorAll('.pkt-opts label')].map((l) => l.textContent).join()"),
+                                 "Achieved0,On track2,At risk0,Slipped0,Overdue0,Forecast0,Cancelled0", "Status: every state, 0 where none holds it")
+                self.assertEqual(self.js("[...document.querySelectorAll('.pkt-opts label.zero input')].every((i) => i.disabled)"), True, "a state with none is greyed and cannot be ticked")
                 self.js("document.querySelector('.pkt-panel [data-field=agreed]').click()")
-                self.assertEqual(self.js("[...document.querySelectorAll('.pkt-opts label')].map((l) => l.textContent).join()"), "01-12-20291,01-04-20301", "Due, earliest first (not by the digits as text), with counts")
+                self.assertEqual(self.js("[...document.querySelectorAll('.pkt-opts label')].map((l) => l.textContent).join()"), "Overdue0,Due in 7 days0,No date0,Later2", "Due: the Work items buckets, in their order")
                 self.js("document.querySelector('.pkt-panel [data-field=onPage]').click()")
-                self.js("document.querySelector('.pkt-panel input[value=\"No\"]').click()")
+                self.assertEqual(self.js("[...document.querySelectorAll('.pkt-opts label')].map((l) => l.textContent).join()"), "Not on the page1,Taken off with the eye1", "the On the page values are the Where it is words")
+                self.assertEqual(self.js("[...document.querySelectorAll('.pkt-values .isnot')[0].children].map((b) => b.textContent).join()"), "is,is not,any of", "the match: is and is not as two buttons, then any of")
+                self.assertEqual(self.js("document.querySelectorAll('.pkt-values .isnot button').length"), 2)
+                self.assertEqual(self.js("document.querySelector('.pkt-panel [data-find]').placeholder"), "Find a field\u2026")
+                self.js("document.querySelector('.pkt-panel input[value=\"Taken off with the eye\"]').click()")
+                self.assertEqual(self.js("document.querySelector('[data-field=onPage] [data-set]').textContent"), "set", "the field that has a filter says set")
+                self.assertEqual(self.js("document.querySelector('[data-field=client] [data-set]')"), None, "and the others do not")
+                self.assertEqual(self.js("document.querySelector('[data-filter]').textContent"), "Filters, 1 on1", "the icon's name carries the count")
                 self.until("document.querySelector('[data-badge]') && document.querySelector('[data-badge]').textContent === '1'", "the badge says 1")
                 self.assertEqual(self.js(IDS), "ABC-M-002")
                 self.assertEqual(self.js(RESULT), "Result: 1 of 2 shown")
                 self.js("document.querySelector('.pkt-panel [data-not=\"1\"]').click()")
                 self.until(ROWS + " === 1 && " + IDS + " === 'ABC-M-004'", "is not any of keeps the other")
+                self.js("(() => { const i = document.querySelector('.pkt-panel [data-find]'); i.value = 'client'; i.dispatchEvent(new Event('input', {bubbles: true})); })()")
+                self.assertEqual(self.js("[...document.querySelectorAll('.pkt-fields > li:not(.pkt-find)')].filter((l) => !l.querySelector('input')).map((l) => l.textContent).join()"), "More fields,Client visible", "Find a field narrows the list")
                 self.js("document.querySelector('.pkt-panel [data-field=client]').click()")
+                self.assertEqual(self.js("[...document.querySelectorAll('.pkt-opts label')].map((l) => l.textContent).join()"), "Shown to the client1,Internal only1", "Client visible values")
                 self.js("document.querySelector('.pkt-panel [data-all]').click()")
                 self.until("document.querySelector('[data-badge]').textContent === '2'", "two fields filter")
                 self.js("document.querySelector('.pkt-panel [data-done]').click()")
@@ -134,6 +151,40 @@ class MsPicker(unittest.TestCase):
             self.until("!" + Q, "a click outside closed it")
             self.assertEqual(self.sent, [])
             self.assertEqual(sorted(self.left_out()), ["ABC-M-002"])
+
+    def test_one_added_says_one_milestone_and_an_emptied_list_says_everything_is_on_the_page(self):
+        with chrome() as cdp:
+            del self.sent[:]
+            self.opened(cdp)
+            self.js("document.querySelector('form.picker tbody input').click()")
+            self.until(COUNT + " === '1 selected'", "one ticked")
+            self.assertEqual(self.js(SUBMIT + ".textContent"), "Add 1")
+            self.js(SUBMIT + ".click()")
+            self.until("!" + Q, "the picker closed")
+            self.until("!!document.querySelector('.toast .toast-text')", "the toast")
+            self.assertEqual(self.js("document.querySelector('.toast .toast-text').textContent"), "1 milestone added to the page.")
+        self.s.httpd.page_html = lambda: testpage.html()         # the browser tests' copy of the page, which has window.clarkPage
+        with chrome() as cdp:
+            self.opened(cdp)
+            self.assertEqual(self.js("!!document.querySelector('form.picker [data-empty]')"), False)
+            self.js("window.clarkPage.changeData((d) => ({ ...d, milestones: [] }))")
+            self.until("!!document.querySelector('form.picker [data-empty]')", "the empty state")
+            self.assertEqual(self.js("document.querySelector('form.picker [data-empty]').textContent"), "Everything is already on the page.")
+            self.assertEqual(self.js(ROWS), 0)
+            self.assertEqual(self.js(SUBMIT + ".disabled"), True)
+
+    def test_the_box_is_about_1080_wide_and_650_tall_at_1400_and_fits_at_900(self):
+        for width, (wide, tall) in ((1400, (1080, 650)), (900, (None, 650))):
+            with self.subTest(width=width), chrome() as cdp:
+                self.opened(cdp, width)
+                w = self.js("Math.round(document.querySelector('form.picker').getBoundingClientRect().width)")
+                h = self.js("Math.round(document.querySelector('form.picker').getBoundingClientRect().height)")
+                inner = self.js("window.innerHeight")
+                if wide:
+                    self.assertEqual(w, wide, "box width")
+                else:
+                    self.assertLessEqual(w, width, "box fits the window")
+                self.assertGreaterEqual(h, min(tall, int(inner * 0.9) - 1), "box min height (650, or 90% of the window when shorter)")
 
 
 if __name__ == "__main__":

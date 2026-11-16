@@ -13,7 +13,7 @@ export const FIELDS = [
 ];
 const text = (v) => (v === undefined || v === null ? "" : String(v));
 
-// Row 1230: the add-a-milestone picker is the same machine with other fields. `fields` is [{key, label, more?, get(row), sort?(value)}], `hay(row)` the row's
+// Row 1230: the add-a-milestone picker is the same machine with other fields. `fields` is [{key, label, more?, get(row), sort?(value), fixed?: [every value offered, in order]}], `hay(row)` the row's
 // words the search looks in, `addWord` the button's word when none is picked. The use-case picker below is one call of this.
 export function makePicker({ fields, hay, addWord }) {
   const field = (k) => fields.find((f) => f.key === k);
@@ -38,6 +38,7 @@ export function makePicker({ fields, hay, addWord }) {
   /** The values a field's list offers, each with how many of ALL rows hold it (blank values are not offered), sorted for people. */
   function optionsOf(rows, key) {
     const f0 = field(key), n = new Map();
+    if (f0.fixed) { for (const r of rows) { const v = text(f0.get(r)); n.set(v, (n.get(v) || 0) + 1); } return f0.fixed.map((value) => ({ value, count: n.get(value) || 0 })); }   // a fixed list: every value, in its order, with 0 where no row holds it
     for (const r of rows) { const v = text(f0.get(r)); if (v !== "") n.set(v, (n.get(v) || 0) + 1); }
     return [...n].map(([value, count]) => ({ value, count })).sort((a, b) => (f0.sort ? (f0.sort(a.value) < f0.sort(b.value) ? -1 : f0.sort(a.value) > f0.sort(b.value) ? 1 : 0) : isNaN(a.value - b.value) ? a.value.localeCompare(b.value) : a.value - b.value));
   }
