@@ -92,11 +92,11 @@ class Running:
     """A server on a free port in a thread, stopped by close() (which also drops the connections it holds, as stopping would)."""
 
     def __init__(self, data_for=DEMO.get, page_html=None, projects=lambda archived=False: PROJECTS, change=None, undo=None, sneak=None,
-                 publisher=StubPublisher(), section_body=None):
+                 publisher=StubPublisher(), section_body=None, activity=None):
         if section_body is None:
             section_body = change      # #273: a test that stands in for the change handler stands in for a section's content too (the page sends it to its own route)
         self.httpd = Stoppable((sv.HOST, 0), data_for=data_for, page_html=page_html, projects=projects, change=change,
-                               undo=undo, sneak=sneak, publisher=publisher, section_body=section_body)
+                               undo=undo, sneak=sneak, publisher=publisher, section_body=section_body, activity=activity)
         self.port = self.httpd.server_port
         self.httpd.handle_error = self._quiet_when_the_client_leaves(self.httpd.handle_error)
         threading.Thread(target=self.httpd.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True).start()   # shutdown() waits one poll: 0.5 s by default, a test file stops a server per test
@@ -353,7 +353,7 @@ class Saving(ServerTest):
         self.assertEqual(sv.POST_ROUTES["/api/section-body"], sv.section_body_route)      # #273
         self.assertEqual(sv.POST_ROUTES["/api/excel-import"], sv.excel_import_route)      # #444
         self.assertEqual(sv.POST_ROUTES["/api/project"], sv.project_save_route)
-        self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page
+        self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/section-image": 11 * 1024 * 1024,     # #96 R1: one picture, shrunk by the page; row 1223: one Full width image (8 MiB, 11 MiB as text)
                                                 "/api/change": sv.CHANGE_BODY_LIMIT, "/api/section-body": sv.SECTION_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024,
                                                 "/api/backups/restore": 1024, "/api/backups/copy-folder": 4096, "/api/profile": 2 * 1024, "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024,     # #110
                                                  "/api/word-export": 1024,     # #111, #180; #48

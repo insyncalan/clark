@@ -13,7 +13,7 @@ import { DENSITIES, AppearancePick, KeysSwitch, pickDensity } from "./Personal.j
 import { CopyFolder } from "./Safety.jsx";
 import { listBackups, setCopyFolder } from "./safetyApi.js";
 import { LocalFolderPick } from "./ClientFolder.jsx";
-import { askOn, askStatus, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
+import { askOn, askStatus, loadAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
 import { useAskFlip } from "./AskSettings.jsx";
 import { announceSwitch, leaveSwitch } from "./switchToast.js";
 
@@ -92,7 +92,7 @@ function AskRow() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
   const { switchRef, flip } = useAskFlip(on, busy, setBusy, setMsg);
-  useEffect(() => leaveSwitch, []);      // the Asking card reads the switch each time Settings opens; this row shows the same state
+  useEffect(() => { loadAsk(true); return leaveSwitch; }, []);      // row 1024: the Asking card is on another page now, so this row asks for the switch itself each time it opens; both show the same state
   const bad = msg && msg.text ? <small class={msg.kind === "error" ? "fld-bad" : ""} role={msg.kind === "error" ? "alert" : "status"}>{msg.text}</small> : null;
   return (
     <SettingRow id="ess-ask" name="Asking on or off" help={status === "loading" ? ASK_CHECKING_LINE : status === "unavailable" ? ASK_UNAVAILABLE_LINE : on ? "Asking is on." : ASK_OFF_LINE} helpId="ess-ask-line" bad={bad}>

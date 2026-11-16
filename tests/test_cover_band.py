@@ -393,7 +393,9 @@ class InTheFile(Published):
             st.update("projects", "ABC", {"client_name": None, "week_ending": None})
         path = self.publish()
         with chrome() as cdp:
-            line = self.draw(cdp, path).js("document.querySelector('.cover-line').textContent")
+            p = self.draw(cdp, path)
+            p.until("!!document.querySelector('.cover-line') && document.querySelector('.cover-line').textContent.trim() !== ''", "the cover line drew")
+            line = p.js("document.querySelector('.cover-line').textContent")
         self.assertEqual(line.strip(), "Weekly report")
 
 

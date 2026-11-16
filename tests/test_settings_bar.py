@@ -1,4 +1,4 @@
-"""#440 (S2): the Settings chips' bar that stays under the top bar, with the chip of the card you are reading marked, in a real
+"""#440 (S2): the Settings chips' bar that stays under the top bar, with the item of the open page marked, in a real
 browser at 1400 and 900 px, light and dark. Run: python3 dev/run_tests.py test_settings_bar
 
 What is asserted: the bar (the list at the left at 900 px and wider, the row of chips below 900 px is not tested: only 1400 and 900 px are; issues 697 and 842) stays under the top bar as you scroll, on the page's own ground, and a card a chip goes to is never hidden by
@@ -11,7 +11,7 @@ import unittest
 
 from test_publish_dialog import Base
 from test_server import chrome, wait
-from test_settings_head import ratio, rgb
+from test_settings_head import FIRST, PAGES, address, ratio, rgb
 
 WIDTHS = (1400, 900)
 MODES = ("light", "dark")
@@ -25,26 +25,26 @@ def calm(p, mode="light"):
 
 
 class SettingsBar(Base):
-    def open_settings(self, p, w, mode="light"):
+    def open_settings(self, p, w, mode="light", page=FIRST):
         p.width(w)
         calm(p, mode)
-        p.js("location.hash = '#settings&p=PUB'")
-        p.until("!!document.querySelector('#personal-h') && !!document.querySelector('#ask-settings-h') && !!document.querySelector('.set-nav .set-chip[aria-current]')",
-                "Settings, its cards and a marked chip drew")
-        self.laid_out(p)
+        p.js(f"location.hash = '{address(page)}'")
+        heads = " && ".join(f"!!document.getElementById('{head}')" for _, head in dict((s, c) for s, _, c in PAGES)[page])
+        p.until(f"{heads} && !!document.querySelector('.set-nav .set-chip[aria-current]')", "Settings, the page's cards and a marked item drew")
+        self.laid_out(p, heads=[head for _, head in dict((s, c) for s, _, c in PAGES)[page]])
 
-    def laid_out(self, p, seconds=15, frames=6):
+    def laid_out(self, p, seconds=15, frames=6, heads=("projects-h",)):
         """A card above Personal (Profile) may still grow after the first draw, which moves every card below it: a scroll aimed at a card's top
         read before that lands at the wrong place. Wait until the page height and the tops of three cards are the same on `frames` reads in a row,
         100 ms apart; fail, naming what kept moving, when they do not settle."""
-        read = ("[document.documentElement.scrollHeight, ...['personal-h', 'safety-h', 'ask-settings-h'].map(id => Math.round(document.getElementById(id).getBoundingClientRect().top + window.scrollY))].join()")
+        read = ("[document.documentElement.scrollHeight, ...%s.map(id => Math.round(document.getElementById(id).getBoundingClientRect().top + window.scrollY))].join()") % list(heads)
         seen = []
 
         def still():
             seen.append(p.js(read))
             time.sleep(0.1)
             return len(seen) >= frames and len(set(seen[-frames:])) == 1
-        self.assertTrue(wait(still, seconds), "the layout never settled in %d s (page height, tops of Personal, Backups, Asking, last reads: %s)" % (seconds, seen[-frames:]))
+        self.assertTrue(wait(still, seconds), "the layout never settled in %d s (page height, tops of the page's cards, last reads: %s)" % (seconds, seen[-frames:]))
 
     def marked(self, p):
         return p.js(f"({MARKED} || {{}}).textContent || ''")
@@ -66,58 +66,53 @@ class SettingsBar(Base):
             for mode in MODES:
                 with self.subTest(width=w, mode=mode), chrome() as cdp:
                     p = self.page(cdp)
-                    self.open_settings(p, w, mode)
+                    self.open_settings(p, w, mode, page="version")      # the page with the most cards, so there is room to scroll
                     self.assertEqual(p.js("getComputedStyle(document.querySelector('.set-bar')).position"), "sticky")
-                    self.assertEqual(self.marked(p), "Essentials", "at the top of the page the first chip is marked")
-                    p.js("window.scrollTo(0, 900)")
+                    self.assertEqual(self.marked(p), "Version and updates", "the open page's item is marked")
+                    # a page is short, and the list is as tall as the window: it is under the top bar only for the few pixels the page can still be scrolled after the list reaches the top bar, so scroll 10 px past that
+                    p.js("window.scrollTo(0, window.scrollY + document.querySelector('.set-bar').getBoundingClientRect().top - document.querySelector('.top').getBoundingClientRect().bottom + 10)")
                     self.settle(p)
                     self.assertLess(abs(p.js("document.querySelector('.set-bar').getBoundingClientRect().top - document.querySelector('.top').getBoundingClientRect().bottom")), 2,
-                                    "the bar is under the top bar")
+                                    "the bar is under the top bar: " + p.js("'scrollY=' + scrollY + ' docH=' + document.documentElement.scrollHeight + ' bar top=' + document.querySelector('.set-bar').getBoundingClientRect().top + ' top bar bottom=' + document.querySelector('.top').getBoundingClientRect().bottom + ' --topbar=' + getComputedStyle(document.documentElement).getPropertyValue('--topbar')"))
                     self.assertEqual(p.js("getComputedStyle(document.querySelector('.set-bar')).backgroundColor"), p.js("getComputedStyle(document.body).backgroundColor"),
                                      "the bar is on the page's own ground")
-                    for name, head_id in (("Backups", "safety-h"), ("Personal", "personal-h"), ("Logs and diagnostics", "diagnostics-h"), ("Publishing", "client-folder-h")):
+                    for name, head_id in (("Backups", "safety-h"), ("Appearance", "personal-h"), ("Logs and diagnostics", "diagnostics-h"), ("Folder", "client-folder-h")):
                         self.chip(p, name)
-                        p.until(f"document.activeElement && document.activeElement.id === '{head_id}'", f"focus is on {head_id}")
+                        p.until(f"!!document.getElementById('{head_id}') && ({MARKED} || {{}}).textContent === '{name}'", f"{name} opened its page")
                         self.settle(p)
                         self.assertTrue(self.clear_of_bar(p, f"#{head_id}"), f"{name}: its heading is clear of the bar")
                         self.assertEqual(self.marked(p), name)
                     self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
 
-    def test_C_the_marked_chip_follows_the_card_you_are_reading_as_you_scroll(self):
+    def test_C_the_marked_item_is_the_open_page_and_only_one(self):
         for w in WIDTHS:
             with self.subTest(width=w), chrome() as cdp:
                 p = self.page(cdp)
-                self.open_settings(p, w)
-                for name, head_id in (("Personal", "personal-h"), ("Backups", "safety-h"), ("Logs and diagnostics", "diagnostics-h")):
-                    p.js(f"(() => {{ const c = document.getElementById('{head_id}').closest('section'), b = document.querySelector('.set-bar'), room = window.innerWidth >= 900 ? 0 : b.offsetHeight; "
-                         f"window.scrollTo(0, window.scrollY + c.getBoundingClientRect().top - room - document.querySelector('.top').offsetHeight - 8); }})()")
-                    p.until(f"({MARKED} || {{}}).textContent === '{name}'", f"{name} is marked once its card is under the bar")
-                    self.assertEqual(p.js("document.querySelectorAll('.set-nav .set-chip[aria-current]').length"), 1, "one chip is marked")
-                    self.assertEqual(p.js(f"{MARKED}.getAttribute('aria-current')"), "location")
-                p.js("window.scrollTo(0, 0)")
-                p.until(f"({MARKED} || {{}}).textContent === 'Essentials'", "back at the top, the first chip is marked")
-                self.chip(p, "Asking")
-                p.until("document.activeElement && document.activeElement.id === 'ask-settings-h'", "focus is on the Asking heading")
-                self.settle(p)
-                self.assertEqual(self.marked(p), "Asking", "the last chip, near the foot of the page, stays marked")
-                self.assertTrue(self.clear_of_bar(p, "#ask-settings-h"))
+                self.open_settings(p, w, page="logs")
+                self.assertEqual(self.marked(p), "Logs and diagnostics", "a page opened by its address is the marked one")
+                for slug, name, cards in PAGES:
+                    self.chip(p, name)
+                    p.until(f"({MARKED} || {{}}).textContent === '{name}' && !!document.getElementById('{cards[0][1]}')", f"{name} is marked once its page is open")
+                    self.assertEqual(p.js("document.querySelectorAll('.set-nav .set-chip[aria-current]').length"), 1, "one item is marked")
+                    self.assertEqual(p.js(f"{MARKED}.getAttribute('aria-current')"), "page")
+                    self.assertEqual(p.js("document.querySelector('.set-cards').getAttribute('data-page')"), slug, "only this page's cards are drawn")
 
-    def test_row_1041_scrolled_to_the_very_foot_of_settings_the_marked_chip_is_asking(self):
-        """Scrolled by hand (no chip chosen) to the very bottom. The cards of Feedback and Quit are too short to ever come up to the bar, so the
-        last chip that can be marked by scrolling is Asking (Views.jsx cardHere), which is what the row says. Mutation tried: make cardHere
-        return cards[0] when at the foot: the marked chip is then Essentials."""
+    def test_row_1041_scrolled_to_the_very_foot_of_the_longest_page_the_marked_item_is_still_that_page(self):
+        """Scrolled by hand (no item chosen) to the very bottom of Version and updates, the page with the most cards: with one page at a time the
+        marked item follows the open page, not the card under the bar, so it stays Version and updates. Mutation tried: mark the first item at the
+        foot: the marked item is then Projects."""
         for w in WIDTHS:
             for mode in MODES:
                 with self.subTest(width=w, mode=mode), chrome() as cdp:
                     p = self.page(cdp)
-                    self.open_settings(p, w, mode)
-                    self.assertEqual(self.marked(p), "Essentials")
-                    self.assertEqual(p.js("[...document.querySelectorAll('.set-nav .set-chip')].slice(-3).map(b => b.textContent).join()"), "Asking,Feedback,Quit")
+                    self.open_settings(p, w, mode, page="version")
+                    self.assertEqual(self.marked(p), "Version and updates")
+                    self.assertEqual(p.js("[...document.querySelectorAll('.set-nav .set-chip')].slice(-3).map(b => b.textContent).join()"), "Claude and AI,Logs and diagnostics,Version and updates")
                     p.js("window.scrollTo(0, document.documentElement.scrollHeight)")
                     self.settle(p)
                     self.assertTrue(p.js("window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2"), "the page is at its very foot")
-                    p.until(f"({MARKED} || {{}}).textContent === 'Asking'", "the foot of the page marks Asking")
-                    self.assertEqual(p.js("document.querySelectorAll('.set-nav .set-chip[aria-current]').length"), 1, "one chip is marked")
+                    self.assertEqual(self.marked(p), "Version and updates", "the foot of the page keeps its own item marked")
+                    self.assertEqual(p.js("document.querySelectorAll('.set-nav .set-chip[aria-current]').length"), 1, "one item is marked")
 
     def test_C_the_marked_chip_can_be_read_in_light_and_dark(self):
         for w in WIDTHS:
@@ -147,8 +142,8 @@ class SettingsBar(Base):
                 p.until("document.activeElement && document.activeElement.id === 'about-name'", "the name box has the cursor")
                 self.settle(p)
                 self.assertTrue(self.clear_of_bar(p, "#about-name"), "the box is clear of the bar")
-                # Essentials (row 1115) is the first card; the Profile box sits in view below it without any scroll, so the card at the top of the page stays marked
-                self.assertEqual(self.marked(p), "Essentials", "the chip of the card at the top of the page is marked")
+                # row 1024: the link opens the Profile page, which holds the name box, and that page's item is the marked one
+                self.assertEqual(self.marked(p), "Profile", "the item of the page that holds the name box is marked")
 
 
 if __name__ == "__main__":

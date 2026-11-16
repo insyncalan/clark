@@ -360,9 +360,9 @@ WORDS_NOT_USED = re.compile(r"\b(apply|applied|staged|proposal|sweep|tracker|vau
 
 def settings_parts():
     code = (PAGE_SRC / "components" / "Views.jsx").read_text(encoding="utf-8")
-    body = code[code.index("export function Settings"):]
-    body = body[:body.index("\n}\n")]
-    return set(re.findall(r"\{(\w+) \? <\1 />", body))
+    groups = code[code.index("const GROUPS = ["):]      # row 1024: the Settings pages hold the cards, named in this list
+    groups = groups[:groups.index("\n];")]
+    return {name for lst in re.findall(r'\[("[A-Z]\w*"(?:, "[A-Z]\w*")*)\]', groups) for name in re.findall(r'"(\w+)"', lst)}
 
 
 class ContextText(unittest.TestCase):

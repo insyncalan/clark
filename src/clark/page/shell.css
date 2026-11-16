@@ -333,7 +333,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .factive.pub .fchip { padding: 2px 4px 2px 10px; }
 .factive.pub .fchip button { width: 22px; height: 22px; }
 /* The one filter line: saved views above, then the line with its chips, its box and its suggestions, then the hint chips. */
-:root { --layer-list: 26; }   /* row 808: the layer of a list that floats over the page: over the drop-down menus (25), under the top bar (30) */
+:root { --layer-list: 26; --dur-glide: 160ms; }   /* row 808: the layer of a list that floats over the page: over the drop-down menus (25), under the top bar (30) */
 /* Item 955: the border every menu and floating list shares: grey-500 with a fifth of grey-700, so it is at least 3:1 against the page ground and against a card surface in light (3.4:1 and 3.7:1) and in dark (over 5:1). It was --border (grey-300), 1.46:1 to 2.09:1. It follows the theme because the two greys do. */
 :root { --menu-border: color-mix(in srgb, var(--grey-500), var(--grey-700) 20%); }
 .fline-wrap { position: relative; margin-top: var(--d-fline-top); }
@@ -620,9 +620,16 @@ table.tracker tr.tr-none td { text-align: left; }
 /* A pair's line runs across the gap between its halves; a half to drop on is outlined (a pseudo-element, so nothing changes size). */
 .sec.drop-left, .sec.drop-right, .sec.drop-before.slot-left { position: relative; }
 .sec.drop-before.slot-left::before { content: ""; position: absolute; top: -3px; right: -24px; width: 24px; height: 3px; background: var(--brand-cyan); }
-.sec.drop-left::after, .sec.drop-right::after { content: ""; position: absolute; top: 0; bottom: 0; width: 50%; border: 2px solid var(--brand-cyan); border-radius: var(--radius); pointer-events: none; box-sizing: border-box; }
+.sec.drop-left::after, .sec.drop-right::after { content: ""; position: absolute; top: 0; bottom: 0; width: 50%; border: 2px dashed var(--brand-cyan); border-radius: var(--radius); pointer-events: none; box-sizing: border-box; }      /* row 1214: the slot is dashed */
 .sec.drop-left::after { left: 0; }
 .sec.drop-right::after { right: 0; }
+/* Row 1214: while a section is dragged, its title follows the pointer (the ghost, drawn over the page, never hit by it) and its old place keeps a faint dashed outline. */
+.sec-ghost { position: fixed; left: 0; top: 0; z-index: 50; max-width: min(320px, 60vw); padding: var(--space-1) 10px; border-radius: var(--radius); background: var(--brand-navy); color: var(--white); font-size: var(--size-small); line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: .92; pointer-events: none; }
+.sec-was { position: absolute; z-index: 40; box-sizing: border-box; border: 2px dashed var(--grey-300); border-radius: var(--radius); pointer-events: none; }      /* the old place: faint, drawn over the page from where the section was when the drag began */
+.sec.drag-from { opacity: .5; }      /* before a place is shown, the section stays where it is */
+.sec.drag-slot, :root .sec.drag-slot { position: relative; background: transparent; box-shadow: none; border: 2px dashed var(--brand-cyan); border-radius: var(--radius); box-sizing: border-box; }      /* the place it would land in: the others have made room, its content is not drawn */
+.sec.drag-slot { opacity: 1; }
+.sec.drag-slot > * { visibility: hidden; }
 @media (max-width: 900px) { .secs { grid-template-columns: minmax(0, 1fr); } .slot-left, .slot-right { grid-column: 1; } }
 
 /* Edit only: the View/Edit switch, the section control (grip, + and menu), the editable title, Add and the toast. 24 px targets at least. */
@@ -695,7 +702,7 @@ input.sec-title { width: 100%; }
 .pkp-btn:disabled { opacity: .35; cursor: default; }
 .pkp-btn[aria-pressed=true] { background: var(--brand-blue-tint); }
 .pkp-btn .i { width: 18px; height: 18px; }
-.pk-title { margin: var(--d-pk-title-t) 0 var(--d-pk-title-b); font-size: var(--size-h2); font-weight: var(--weight-medium); line-height: 1.3; color: var(--heading); overflow-wrap: anywhere; }
+.pk-title { margin: var(--d-pk-title-t) 0 var(--d-pk-title-b); font-size: var(--size-h2); font-weight: 700; line-height: 1.3; color: var(--heading); overflow-wrap: anywhere; }
 .pk-fields { margin: 0; }
 .pk-row { display: grid; grid-template-columns: 130px 1fr; gap: var(--space-3); padding: var(--d-pk-row-y) 0; border-top: 1px solid var(--grey-100); }
 .pk-row dt { color: var(--text-muted); font-size: var(--size-caption); }
@@ -1344,6 +1351,13 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
   .set-nav { flex-direction: row; flex-wrap: wrap; gap: var(--space-2); }
   .set-chip { display: inline-flex; width: auto; border-radius: var(--radius-pill); }
 }
+.set-nav .plain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }      /* row 1024: a group of pages under its name */
+.set-group { margin-top: var(--space-3); }
+.set-group:first-child { margin-top: 0; }
+.set-group-name { display: block; padding: 0 12px var(--space-1); color: var(--text-muted, var(--text)); font-size: var(--size-small); font-weight: var(--weight-medium); }
+.set-group-line { display: block; padding: 0 12px var(--space-1); font-size: var(--size-small); line-height: 1.35; }
+.set-advanced { margin-top: var(--space-5); padding-top: var(--space-3); border-top: 1px solid var(--grey-200, var(--grey-100)); }      /* set apart at the foot */
+.set-advanced .set-chip { color: var(--text-muted, var(--text)); }
 .set-chip:hover { background: var(--grey-100); }
 .set-chip[aria-current], .set-chip[aria-current]:hover { background: var(--brand-blue-tint); color: var(--status-blue-text); font-weight: var(--weight-medium); }
 .set-chip[aria-current]::before { content: ""; position: absolute; left: 0; top: 7px; bottom: 7px; width: 3px; border-radius: 3px; background: var(--brand-blue); }      /* item 1200: the violet marker on the card you are reading */
@@ -1874,11 +1888,12 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
     /* row 922: a menu fades out as it closes (opacity only; Menu.jsx keeps it drawn for the fade, inert, and removes it after) */
     .ddmenu.leaving { pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
     /* the drop line and the half-width outline ease in as the pointer finds a place (they take no input) */
-    .sec.drop-before { animation: m-line-top var(--dur-state) var(--ease-enter) 1; }
+    .sec.drop-before { animation: m-line-top var(--dur-glide) var(--ease-enter) 1; }
     /* item 519: a changed section dragged over keeps its glow (the two rules above each set animation, so the later one won) */
-    .sec.is-changed.drop-before { animation: m-glow calc(var(--dur-enter) + var(--dur-state) + var(--dur-instant)) var(--ease-out) 1, m-line-top var(--dur-state) var(--ease-enter) 1; }
-    .secs.drop-end { animation: m-line-end var(--dur-state) var(--ease-enter) 1; }
-    .sec.drop-left::after, .sec.drop-right::after, .sec.drop-before.slot-left::before { animation: m-outline var(--dur-state) var(--ease-enter) 1; }
+    .sec.is-changed.drop-before { animation: m-glow calc(var(--dur-enter) + var(--dur-state) + var(--dur-instant)) var(--ease-out) 1, m-line-top var(--dur-glide) var(--ease-enter) 1; }
+    .secs.drop-end { animation: m-line-end var(--dur-glide) var(--ease-enter) 1; }
+    .sec.drop-left::after, .sec.drop-right::after, .sec.drop-before.slot-left::before { animation: m-outline var(--dur-glide) var(--ease-enter) 1; }
+    .sec.drag-slot { animation: m-outline var(--dur-glide) var(--ease-enter) 1; }
     /* the health badge and reason settle when health changes */
     .hrow.settle { animation: m-settle var(--dur-state) var(--ease-enter) 1; }
     /* the timeline and calendar swap: the new view rises 4 px and fades in */
@@ -2067,6 +2082,19 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-band-btn:hover { background: var(--grey-100); }
 .tpl-band-btn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .tpl-band .tpl-fig img { max-height: 240px; background: transparent; }
+/* Row 1223: Full width image (an imagecap section with a body of version 2). The framed image fills the section's width and keeps its shape; no tool is drawn.
+   One that is narrower than the section sits centred at its own size on its fill (the image's own blurred copy, brand colour or plain), or is stretched
+   to the width when its fit says so. The image's own colours are never changed by the theme (no filter on the image, no overlay), no sideways scroll,
+   and on paper the figure is not split across two pages. No heading is drawn for it. */
+.tpl-fullimg { margin: 0; min-width: 0; max-width: 100%; break-inside: avoid; page-break-inside: avoid; }
+.tpl-fullimg-frame { position: relative; display: flex; justify-content: center; overflow: hidden; border-radius: var(--radius); }
+.tpl-fullimg-img { position: relative; display: block; width: auto; max-width: 100%; height: auto; border-radius: var(--radius); }
+.tpl-fullimg.stretch .tpl-fullimg-img { width: 100%; }
+.tpl-fullimg figcaption { margin-top: var(--space-2); font-size: var(--size-caption); color: var(--text-muted); }
+.tpl-fullimg.fill-brand .tpl-fullimg-frame { background: var(--brand-blue); }
+.tpl-fullimg.fill-blur .tpl-fullimg-frame { background: var(--grey-100); }
+.tpl-fullimg-blur { position: absolute; inset: -24px; width: calc(100% + 48px); height: calc(100% + 48px); max-width: none; object-fit: cover; filter: blur(24px); transform: scale(1.05); pointer-events: none; }
+.sec[data-type="imagecap"] > .sec-head:has(~ .tpl-fullimg) { display: none; }
 @media (max-width: 900px) {
   .tpl-ti, .tpl-ti.pic-left, .tpl-band.has-pic { grid-template-columns: minmax(0, 1fr); }
   .tpl-ti.pic-left .tpl-fig { order: 0; }
@@ -2082,6 +2110,10 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 a.tpl-name, .tpl-lc-title a { color: var(--link); text-decoration: underline; text-underline-offset: 2px; }
 a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
 .tpl-facts { color: var(--text-muted); font-size: var(--size-caption); }
+.tpl-acts { flex: none; display: flex; gap: var(--space-2); }
+button.tpl-act { min-height: 44px; min-width: 44px; padding: 0 var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); color: var(--link); font: inherit; font-size: var(--size-caption); cursor: pointer; }
+button.tpl-act:hover { background: var(--grey-100); }
+button.tpl-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .docs-view-row { align-items: center; }
 .docs-ic { flex: none; display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: var(--radius); background: var(--brand-blue-tint); color: var(--status-blue-text); }
 .docs-ic .i { width: 18px; height: 18px; }
@@ -2620,6 +2652,47 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .bmenu .menu-item .mi, .rt-opt .mi { flex: none; width: 16px; height: 16px; color: var(--text-muted); }
 .rt-opt { display: flex; align-items: center; gap: 10px; }
 .gt-menu button.gt-danger .mi { color: inherit; }
+
+/* row 1180 toolbar: Close, Open full page, a rule, Previous, Next on the left; Draft email, Copy link, More on the right. The .pkp-btn rules above are shared with the Ask panel and stay as they are. */
+.pk-tb { gap: 4px; position: sticky; top: calc(-1 * var(--space-3)); z-index: 3; margin-top: calc(-1 * var(--space-3)); padding-top: var(--space-3); background: var(--surface); }      /* stays at the top while the body scrolls, as the mockup bar does */
+.pk-tb-grp { display: flex; align-items: center; gap: 2px; }
+.pk-tb-rule { width: 1px; height: 18px; margin: 0 6px; background: var(--grey-200, var(--grey-100)); flex: none; }
+.pk-tb .pkp-btn:hover:not(:disabled) .i { color: var(--brand-blue); }
+
+/* row 1180 body: collapsible Details, footer, unsaved-update bar */
+.pk-details { margin: var(--space-3) 0 0; border-top: 1px solid var(--grey-100); }
+.pk-details-h { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 24px; padding: var(--space-2) 0; border: 0; background: transparent; color: var(--text); font: inherit; font-weight: var(--weight-medium); text-align: left; cursor: pointer; }
+.pk-details-h:focus-visible, .pk-foot-in:focus-visible, .pk-unsaved button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pk-details-sum { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-weight: var(--weight-regular); font-size: var(--size-small); }
+.pk-details-car { margin-left: auto; transition: transform 0.15s; }
+.pk-details[data-open="1"] .pk-details-car { transform: rotate(180deg); }
+.pk-foot { display: flex; align-items: center; gap: var(--space-2); margin: var(--space-3) 0 0; padding: var(--space-2) 0; border-top: 1px solid var(--grey-100); position: sticky; bottom: calc(-1 * var(--space-5)); z-index: 3; background: var(--surface); }      /* stays at the foot of the panel, as the mockup does */
+.pk-foot-key { flex: none; padding: 0 6px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); color: var(--text-muted); font: inherit; font-size: var(--size-small); }
+.pk-foot-in { flex: 1 1 auto; min-width: 0; min-height: 24px; padding: 4px 8px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); color: var(--text-muted); font: inherit; text-align: left; cursor: text; }
+.pk-unsaved { margin: var(--space-2) 0 0; padding: 8px 10px; border: 1px solid var(--status-amber); border-radius: var(--radius); background: var(--status-amber-tint); }
+.pk-unsaved-t { margin: 0 0 var(--space-1); }
+.pk-unsaved-b { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.pk-unsaved-b button { min-height: 24px; padding: 2px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .pk-details-car { transition: none; } }
+
+/* row 1180 chips: the peek's flat row of property chips (components/PeekChips.jsx). Each chip is a coloured icon, the value, an optional small sub-line word and a chevron; the row wraps at 900 px. The target is 24 px or more. */
+.pk-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-3); }
+.pkc { display: inline-flex; align-items: center; min-height: 34px; border: 1px solid var(--grey-200); border-radius: 999px; background: var(--surface); color: var(--text); font-weight: var(--weight-medium); max-width: 100%; }
+.pkc.ro { gap: var(--space-2); padding: 0 var(--space-3); }
+.pkc.has-pop:hover { border-color: var(--brand-blue); background: var(--grey-100); }
+.pkc.late { border-color: var(--status-red); background: var(--status-red-tint); }
+.pkc.flash { background: var(--status-amber-tint); }
+.pkc-btn { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 32px; margin: 0; padding: 0 var(--space-3); border: 0; border-radius: 999px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; max-width: 100%; }
+.pkc-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pkc-ic, .pkc-car { display: inline-flex; flex: none; }
+.pkc-ic svg { width: 16px; height: 16px; }
+.pkc-car { color: var(--text-muted); }
+.pkc-car svg { width: 12px; height: 12px; }
+.pkc-tx { display: inline-flex; flex-wrap: wrap; align-items: center; column-gap: var(--space-2); min-width: 0; }
+.pkc-v { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 16rem; }
+.pkc-sub { font-style: normal; font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); white-space: nowrap; }
+.pkc-sub.late, .pkc.late .pkc-v { color: var(--status-red-text); }
+.pkc .tag.chg { margin: 0 var(--space-2) 0 0; }
 
 /* Item 1177: the editor's ONE slim sticky header (.top-hdr): the logo, the project name (a button that opens the project list), the line "Weekly report" and
    the week (a button that opens the calendar), the tabs, then search, ask clark and the profile circle. 85 px high at 1400 and 129 px at 900, set through the

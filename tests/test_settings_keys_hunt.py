@@ -28,7 +28,7 @@ class Hunt(D.Base):
             for width in D.WIDTHS:
                 with self.subTest(width=width):
                     p.width(width)
-                    self.open_settings(p)
+                    self.open_settings(p, "backups")
                     p.until("!!document.querySelector('[data-preview]')", "backups drew")
                     for kind, closer in (("[data-preview]", "Escape"), ("[data-restore]", "Escape"), ("[data-restore]", "Enter")):
                         p.js(f"document.querySelector('{kind}').focus()")

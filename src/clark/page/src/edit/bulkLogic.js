@@ -14,7 +14,7 @@ export const WHY = {
   projects: "These items are in different projects",
   decision: "A decision takes only who makes it",
   raidPriority: "A risk's or issue's priority comes from its impact and likelihood",
-  noDecision: "A decision has no priority",
+  noDecision: "A decision's priority is set in its details, one at a time.",
   tooMany: `Choose at most ${MAX} items at a time`,
 };
 

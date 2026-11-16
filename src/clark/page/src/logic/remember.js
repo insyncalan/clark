@@ -14,3 +14,8 @@ export function recall(key, fallback) {
 export function remember(key, value) {
   try { window.localStorage.setItem(`clark.${key}`, JSON.stringify(value)); return true; } catch (e) { return false; }
 }
+
+/** Row 1222: take a kept choice away, so what is read next is the fallback. A blocked store has nothing to take away. */
+export function forget(key) {
+  try { window.localStorage.removeItem(`clark.${key}`); return true; } catch (e) { return false; }
+}

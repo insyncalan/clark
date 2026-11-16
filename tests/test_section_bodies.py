@@ -21,7 +21,7 @@ def check(kind, body):
     return sb.check(kind, body, BODY_RULES)
 
 
-PURE_LIBRARY = ("base64", "binascii", "re")      # #96: standard library parts that read no file and no database
+PURE_LIBRARY = ("base64", "binascii", "hashlib", "re", "struct", "zlib")      # #96: standard library parts that read no file and no database (row 1223: hashlib, struct and zlib read and cut the bytes of an image in imagecap.py)
 
 
 class Generic(unittest.TestCase):
@@ -36,11 +36,11 @@ class Generic(unittest.TestCase):
 
 class Registry(unittest.TestCase):
     def test_one_checker_per_content_type_keyed_by_type(self):
-        self.assertEqual(set(sb.CHECKERS), set(TYPES))
+        self.assertEqual(set(sb.CHECKERS), set(TYPES) | {"usecases"})      # row 1234: the use case summary keeps its view setting in its body
         self.assertIs(sb.CHECKERS["needs"], sb._checked_needs)
         self.assertIs(sb.CHECKERS["tracker"], sb._checked_tracker)
-        self.assertEqual(set(sb.EMPTY), set(TYPES))
-        self.assertEqual(set(sb.LIMITS), set(TYPES))
+        self.assertEqual(set(sb.EMPTY), set(TYPES) | {"usecases"})
+        self.assertEqual(set(sb.LIMITS), set(TYPES) | {"usecases"})
 
     def test_the_module_is_pure_and_imports_nothing_from_clark(self):
         tree = ast.parse((SRC / "clark" / "section_bodies.py").read_text(encoding="utf-8"))

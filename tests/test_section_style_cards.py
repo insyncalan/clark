@@ -74,6 +74,8 @@ class Cards(Base):
         p.js("document.querySelector('#profile-btn').click()")
         p.until("!!document.querySelector('#profile-menu')", "the menu opened")
         p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
+        p.until("!!document.querySelector('.set-nav .set-chip')", "the Settings menu drew")
+        p.js("[...document.querySelectorAll('.set-nav .set-chip')].find(b => b.textContent === 'Appearance').click()")      # row 1024: the Personal card is on the Appearance page
         p.until("!!document.querySelector('#personal')", "Settings › Personal drew")
         p.js(f"document.querySelector('#personal [data-appearance] button[data-theme-pick={look}]').click()")
         p.until("document.documentElement.dataset.theme === 'dark'" if look == "dark" else "!document.documentElement.dataset.theme", f"{look} is on")
@@ -88,6 +90,7 @@ class Cards(Base):
                 with self.subTest(width=w, look=look), chrome() as cdp:
                     p = self.page(cdp)
                     p.width(w)
+                    cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)      # a headless page is otherwise not focused (a Mac runner), and then a key press does not reach the focused input
                     self.open_settings(p, look)
                     check(p, w, look)
 
@@ -124,6 +127,8 @@ class Cards(Base):
                 p.js("document.querySelector('#profile-btn').click()")
                 p.until("!!document.querySelector('#profile-menu')", "the menu opened")
                 p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
+                p.until("!!document.querySelector('.set-nav .set-chip')", "the Settings menu drew")
+                p.js("[...document.querySelectorAll('.set-nav .set-chip')].find(b => b.textContent === 'Appearance').click()")      # row 1024: the Personal card is on the Appearance page
                 p.until("!!document.querySelector('#personal')", "Settings › Personal drew")
                 self.assertEqual(self.chosen(p), [want], "the card marked is the one in force")
                 self.assertEqual(p.js("localStorage.getItem('clark.density')"), stored, "a stored choice is not changed by opening the page")
@@ -167,6 +172,8 @@ class Cards(Base):
             p.js("document.querySelector('#profile-btn').click()")
             p.until("!!document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]')", "menu")
             p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
+            p.until("!!document.querySelector('.set-nav .set-chip')", "the Settings menu drew")
+            p.js("[...document.querySelectorAll('.set-nav .set-chip')].find(b => b.textContent === 'Appearance').click()")      # row 1024: the Personal card is on the Appearance page
             p.until("!!document.querySelector('#personal [data-density-pick]')", "Personal again")
             self.assertEqual(self.chosen(p), ["comfortable"], "and kept for the Settings card")
 
@@ -185,13 +192,14 @@ class Cards(Base):
                 cdp.call(domain + ".enable", {}, p.sid)
             p.js("window.__tried = 0; Storage.prototype.setItem = function () { window.__tried++; throw new Error('storage is blocked'); }")
             cdp.events.clear()
+            t0 = time.time() * 1000             # a log entry older than this click is the page opening (Log.enable replays them, late on a Mac)
             p.js("document.querySelector('#personal input[name=density][value=comfortable]').click()")
             p.until("document.documentElement.dataset.density === 'comfortable'", "applied at once")
             time.sleep(0.3)                     # let a late error or an unhandled rejection arrive
             p.js("1")                           # reads any waiting events
             errors = [e["method"] + " " + json.dumps(e["params"])[:300] for e in cdp.events
                       if e["method"] == "Runtime.exceptionThrown"
-                      or (e["method"] == "Log.entryAdded" and e["params"]["entry"].get("level") == "error" and not self.backups_503(e["params"]["entry"]))
+                      or (e["method"] == "Log.entryAdded" and e["params"]["entry"].get("level") == "error" and e["params"]["entry"].get("timestamp", t0) >= t0 and not self.backups_503(e["params"]["entry"]))
                       or (e["method"] == "Runtime.consoleAPICalled" and e["params"].get("type") == "error")]
             self.assertEqual(errors, [], "no uncaught exception and no console error")
             self.assertGreaterEqual(p.js("window.__tried"), 1, "the page did try to keep the choice, so the block was really met")
@@ -231,6 +239,8 @@ class Cards(Base):
                 p.js("document.querySelector('#profile-btn').click()")
                 p.until("!!document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]')", "menu")
                 p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
+                p.until("!!document.querySelector('.set-nav .set-chip')", "the Settings menu drew")
+                p.js("[...document.querySelectorAll('.set-nav .set-chip')].find(b => b.textContent === 'Appearance').click()")      # row 1024: the Personal card is on the Appearance page
                 p.until("!!document.querySelector('#personal [data-density-pick]')", "Personal")
             self.assertEqual(look["compact"][0], True, "Compact sections have no card shadow")
             self.assertEqual(look["compact"][2], "0px", "Compact sections are flat")

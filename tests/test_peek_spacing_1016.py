@@ -18,10 +18,10 @@ from test_server import chrome  # noqa: E402
 
 READ = """(() => { const p = document.querySelector('#peek');
   const b = (e) => { if (!e) return null; const r = e.getBoundingClientRect(); return { t: r.top, b: r.bottom, h: r.height }; };
-  const cells = {}; for (const k of ['status', 'priority', 'owner', 'due']) { const e = p.querySelector('.pk-fields > [data-row=' + k + ']'); if (e) cells[k] = b(e); }
+  const cells = {}; for (const k of ['status', 'priority', 'owner', 'due']) { const e = p.querySelector('.pk-chips > [data-row=' + k + ']'); if (e) cells[k] = b(e); }
   const rows = [...p.querySelectorAll('.pk-fields > .pk-row:not([data-row])')].map(b);
   return { cells, lastRow: rows[rows.length - 1], latest: b(p.querySelector('.pk-latest')), lab: b(p.querySelector('.pk-lab')),
-    text: b(p.querySelector('.pk-latest .rt-view')), src: b(p.querySelector('.pk-latest')?.previousElementSibling?.matches('.pk-source') ? p.querySelector('.pk-source') : null), stamp: b(p.querySelector('.pk-last')), body: b(p.querySelector('.pk-body')) }; })()"""
+    text: b(p.querySelector('.pk-latest .rt-view')), src: b(p.querySelector('.pk-latest')?.previousElementSibling?.matches('.pk-source') ? p.querySelector('.pk-source') : null), stamp: b(p.querySelector('.pk-last')), body: b(p.querySelector('.pk-body')), details: b(p.querySelector('.pk-details')) }; })()"""
 
 
 class Spacing(unittest.TestCase):
@@ -45,21 +45,22 @@ class Spacing(unittest.TestCase):
                     where = f"{width} {theme}"
                     with self.subTest(where):
                         for k, c in g["cells"].items():
-                            lo, hi = (48, 68) if width == 1400 and k in ("status", "priority") else (48, 88)
+                            lo, hi = (24, 64)      # row 1180: the cells are the chip row, a chip each
                             self.assertGreaterEqual(c["h"], lo, f"{where} {k}: not cramped")
-                            self.assertLessEqual(c["h"], hi, f"{where} {k}: tighter than the old 74.5 / 93")
+                            self.assertLessEqual(c["h"], hi, f"{where} {k}: a chip, tighter than the old 74.5 / 93")
                         # item 1158: the Needed from the client switch is gone, so the Source line (item 1009) or Latest update follows the last field
                         if g["src"]:
                             self.assertTrue(8 <= g["src"]["t"] - g["lastRow"]["b"] <= 16, f"{where}: last field to the Source line")
                             self.assertTrue(4 <= g["latest"]["t"] - g["src"]["b"] <= 10, f"{where}: Source line to Latest update")
                             cdp.js("document.querySelector('#peek .pk-source').remove()", sid)
                             g = cdp.js(READ, sid)
-                        self.assertTrue(4 <= g["latest"]["t"] - g["lastRow"]["b"] <= 14, f"{where}: last field to Latest update")
+                        self.assertTrue(8 <= g["latest"]["t"] - max(c["b"] for c in g["cells"].values()) <= 24, f"{where}: chip row to Latest update (row 1180: Latest update follows the chips, the Details rows come after it)")
                         self.assertTrue(4 <= g["lab"]["t"] - g["latest"]["t"] <= 14, f"{where}: rule to the label")
                         # row 1005: the area is the rich editor's view, one prompt line (24 px), not the old textarea (44 and up); the ceiling stays
                         self.assertTrue(20 <= g["text"]["h"] <= 56, f"{where}: the empty Latest update area, {g['text']['h']}")
                         self.assertTrue(2 <= g["stamp"]["t"] - g["text"]["b"] <= 5, f"{where}: area to Last updated")
-                        self.assertLessEqual(g["body"]["h"], 690 if width == 1400 else 625, f"{where}: the whole section, {g['body']['h']}")
+                        top = g["details"]["t"] - g["body"]["t"]      # row 1180: the top section ends at the Details line; the Details rows and the history follow it
+                        self.assertLessEqual(top, 690 if width == 1400 else 625, f"{where}: the whole top section, {top}")
                 cdp.js("document.documentElement.dataset.theme = 'light'", sid)
 
 
