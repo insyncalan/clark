@@ -71,6 +71,25 @@ class Picker(unittest.TestCase):
         self.assertEqual(run('P.pickAllShown(P.toggleValue(P.toggleRow(P.emptyState(), "U1"), "status", "Flag"), ROWS).picked'), ["U1", "U2"])
         self.assertEqual(run('P.pickAllShown(P.pickAllShown(P.emptyState(), ROWS), ROWS).picked'), ["U1", "U2", "U3", "U4"])
 
+    def test_unruled_words_are_named_constants(self):
+        # the three words the owner has not ruled on are one named constant each; the logic types them nowhere else
+        self.assertEqual(run('[P.UNRULED_OPEN_STEPS, P.UNRULED_RESULT(2, 5), P.UNRULED_ADD(3)]'), ["Open steps", "Result: 2 of 5 shown", "Add 3"])
+        src = MOD.read_text(encoding="utf-8")
+        for w in ("Open steps", "Result:", "`Add "):
+            self.assertEqual(src.count(w), 1, w)
+
+    def test_filter_with_no_values_keeps_every_row(self):
+        # a value toggled on then off leaves values [] and must not hide anything (in either mode)
+        self.assertEqual(run('ids(P.visible(ROWS, P.toggleValue(P.toggleValue(P.emptyState(), "status", "Flag"), "status", "Flag")))'), ["U1", "U2", "U3", "U4"])
+        self.assertEqual(run('ids(P.visible(ROWS, P.toggleValue(P.toggleValue(P.setMode(P.emptyState(), "status", "not"), "status", "Flag"), "status", "Flag")))'), ["U1", "U2", "U3", "U4"])
+        self.assertEqual(run('ROWS.map((r) => P.matchesFilter(r, "status", {mode: "is", values: []}))'), [True, True, True, True])
+
+    def test_toggle_value_keeps_the_chosen_mode(self):
+        self.assertEqual(run('P.toggleValue(P.setMode(P.emptyState(), "status", "not"), "status", "Flag").filters.status'), {"mode": "not", "values": ["Flag"]})
+        self.assertEqual(run('P.toggleValue(P.toggleValue(P.setMode(P.emptyState(), "status", "not"), "status", "Flag"), "status", "Done").filters.status.mode'), "not")
+        self.assertEqual(run('ids(P.visible(ROWS, P.toggleValue(P.setMode(P.emptyState(), "status", "not"), "status", "Flag")))'), ["U1", "U3", "U4"])
+        self.assertEqual(run('P.toggleValue(P.emptyState(), "status", "Flag").filters.status.mode'), "is")
+
 
 if __name__ == "__main__":
     unittest.main()

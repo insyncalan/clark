@@ -891,10 +891,37 @@ class ClosedRiskPublished(unittest.TestCase):
                 path = Path(tmp) / "report.html"
                 path.write_text(text, encoding="utf-8")
                 sid = tp.opened(cdp, path.as_uri() + "#work&p=PUB&item=PUB-001", width)
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-row=priority] .pk-chip-sub')", sid)), "the peek of the closed risk drew")
-                self.assertEqual(cdp.js("document.querySelector('#peek [data-row=status]').textContent.replace(/\\s+/g, ' ').trim() + ' ' + document.querySelector('#peek [data-row=priority] .pk-chip-sub').textContent", sid), "Closed Amber kept")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-row=status] .pk-chip-sub')", sid)), "the peek of the closed risk drew")
+                self.assertEqual(cdp.js("[...document.querySelectorAll('#peek [data-row=status] .pkc-v, #peek [data-row=status] .pkc-sub')].map(e => e.textContent.trim()).join(' ')", sid), "Closed Amber kept")
                 self.assertEqual(cdp.js("document.querySelectorAll('#peek [data-cell], #peek .cell-pick, [data-pop]').length", sid), 0, "no picker in a published file")
                 self.assertEqual(cdp.js("!!document.querySelector('#peek [data-pk-client]')", sid), False, "a published file has no Client visible control")
+                self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, "no sideways scroll")
+
+
+def open_the_rated_risk(plant):
+    """Row 1182: PUB-001, shown to the client, is open and rated High (impact High, likelihood Medium)."""
+    r = next(r for r in plant["data"]["raid"] if r["id"] == "PUB-001")
+    r.update(status="Open", closed="", impact="High", likelihood="Medium", priority="High", client_visible=1)
+
+
+class OpenRatedRiskPublished(unittest.TestCase):
+    """Row 1182 (ruled 16-11): an open risk's Rating chip is the colour word with the level as a small pill in a published file too, with no picker."""
+
+    def test_the_published_peek_draws_the_colour_word_and_the_level_pill(self):
+        import tempfile
+        import test_publish as tp
+        _plant, _pub, text = tp.made(open_the_rated_risk)
+        for width in (1400, 900):
+            with self.subTest(width=width), tempfile.TemporaryDirectory() as tmp, chrome() as cdp:
+                path = Path(tmp) / "report.html"
+                path.write_text(text, encoding="utf-8")
+                sid = tp.opened(cdp, path.as_uri() + "#work&p=PUB&item=PUB-001", width)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-row=priority] .pkc-v')", sid)), "the peek of the open risk drew")
+                got = cdp.js("(() => { const c = document.querySelector('#peek [data-row=priority]'); const s = c.querySelector('.pkc-sub'); return { v: c.querySelector('.pkc-v').textContent.trim(), sub: s ? s.textContent.trim() : '', cls: s ? s.className : '', pill: s ? getComputedStyle(s).borderTopLeftRadius : '' }; })()", sid)
+                self.assertEqual((got["v"], got["sub"]), ("Red", "High"))
+                self.assertIn("lvl", got["cls"].split())
+                self.assertNotEqual(got["pill"], "0px", "the level is drawn as a pill in the published file")
+                self.assertEqual(cdp.js("document.querySelectorAll('#peek [data-cell], #peek .cell-pick, [data-pop]').length", sid), 0, "no picker in a published file")
                 self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, "no sideways scroll")
 
 
@@ -917,8 +944,8 @@ class ClosedUnratedRiskPeek(unittest.TestCase):
                 path.write_text(text, encoding="utf-8")
                 sid = tp.opened(cdp, path.as_uri() + "#work&p=PUB&item=PUB-001", width)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-row=status]')", sid)), "the peek drew")
-                self.assertEqual(cdp.js("document.querySelector('#peek [data-row=status]').textContent.replace(/\\s+/g, ' ').trim() + ' ' + document.querySelector('#peek [data-row=priority] .pk-chip-sub').textContent", sid), "Closed Not rated kept")
-                # #532 follow-up (row 1180): the rating word is the priority chip's second line now, so the status chip is one line
+                self.assertEqual(cdp.js("[...document.querySelectorAll('#peek [data-row=status] .pkc-v, #peek [data-row=status] .pkc-sub')].map(e => e.textContent.trim()).join(' ')", sid), "Closed Not rated kept")
+                # #532 follow-up (row 1180): a closed risk's "<colour> kept" is the Status chip's small line now
                 self.assertLess(cdp.js("document.querySelector('#peek [data-row=status]').getBoundingClientRect().height", sid), 48, "the status chip is one line")
 
 

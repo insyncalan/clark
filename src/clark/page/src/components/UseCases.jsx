@@ -55,14 +55,18 @@ function Row({ s, shown, toggle, ed }) {
       <div class="ucbar" role="button" tabIndex={0} aria-expanded={shown ? "true" : "false"} aria-controls={id}
         onClick={(e) => { if (ed && mine(e)) return; toggle(); }} onKeyDown={(e) => { if (ed && e.target !== e.currentTarget) return; press(e, toggle); }}>
         {ed ? <ed.Eye u={u} /> : null}
-        {u.ref ? <span class="ucref num" data-ref>{refBox(u.ref)}</span> : <span></span>}
-        <span class="uctitle">{u.title}</span>
-        {ed ? <ed.Headline u={u} /> : <span class="uchead">{u.headline}</span>}
-        <span class="ucstc">
+        <span class="uccell" data-uccol="ref">{u.ref ? <span class="ucref num" data-ref>{refBox(u.ref)}</span> : null}</span>
+        <span class="uccell uctc" data-uccol="title">
+          <span class="uctitle">{u.title}</span>
+          {ed ? <ed.Headline u={u} /> : <span class="uchead">{u.headline}</span>}
+        </span>
+        <span class="uccell ucstc" data-uccol="status">
           {ed ? <ed.Status u={u} /> : <span class={`ucword rag-${rag(u.status)}`} data-word><i class="ragdot" aria-hidden="true"></i>{u.status}</span>}
+        </span>
+        <span class="uccell ucc" data-uccol="commit">
           {ed ? <ed.Commit u={u} /> : <CommitChip u={u} dash />}
         </span>
-        <span class="ucsteps num">{stepsWord(s.steps.length)}</span>
+        <span class="uccell ucsteps num" data-uccol="steps">{stepsWord(s.steps.length)}</span>
       </div>
       {shown ? (
         <div class="ucdetail" id={id}>
@@ -111,21 +115,28 @@ export function UseCases({ tools, section }) {
   useEffect(() => {
     if (ed && fresh && list.some((s) => s.u.id === fresh)) { setOpen(new Set([...open, fresh])); if (list.findIndex((s) => s.u.id === fresh) >= shownRows(list.length, view).shown) setAll(true); ed.added.value = ""; }
   }, [fresh, list.length]);   // eslint-disable-line react-hooks/exhaustive-deps
-  useLayoutEffect(() => {
-    const ul = box.current, row = ul && ul.querySelector(":scope > .ucrow:not(.open)");
-    if (row && row.offsetHeight) ul.style.setProperty("--ucrow-h", row.offsetHeight + "px");
-  });
+  const scrolls = ed ? view.set || view.scroll : view.scroll, rowsHigh = scrollRows({ ...view, scroll: scrolls });
+  const shut = useRef(new Map());       // each row's height when closed, by id: a row that is open keeps the height it had closed, so opening one never moves the box
+  const fit = (n) => {
+    const ul = box.current;
+    if (!ul || !n) return;
+    const rows = [...ul.querySelectorAll(":scope > .ucrow")];
+    rows.forEach((r) => { if (!r.classList.contains("open") && r.offsetHeight) shut.current.set(r.dataset.uc, r.offsetHeight); });
+    const first = rows.slice(0, Math.ceil(n)).map((r) => shut.current.get(r.dataset.uc)).filter(Boolean);
+    if (first.length) ul.style.setProperty("--ucrow-h", first.reduce((a, b) => a + b, 0) / first.length + "px");       // n times this is the first n closed rows added up
+  };
+  useLayoutEffect(() => { fit(rowsHigh); });
   useEffect(() => {
-    const again = () => { const ul = box.current, row = ul && ul.querySelector(":scope > .ucrow:not(.open)"); if (row && row.offsetHeight) ul.style.setProperty("--ucrow-h", row.offsetHeight + "px"); };
+    const again = () => { shut.current.clear(); fit(rowsHigh); };
     window.addEventListener("resize", again);
     return () => window.removeEventListener("resize", again);
-  }, []);
+  });
   const strip = fromFile.value && d.glance && d.glance.strip;
   const counts = strip ? strip.words : Object.fromEntries(STATUSES.map(([k]) => [k, list.filter((s) => s.u.status === k).length]));
   const total = strip ? strip.total : list.length;
   if (!list.length) return <><p class="muted" data-nouc>{off ? "No use cases are on the dashboard." : "No use cases yet."}</p>{ed ? <ed.FromRecord n={off} /> : null}<More n={off} /></>;
   // Edit scrolls once a view number is stored; with none stored it keeps the first 5 and Show all. Once a number is set there is no Show all and an old one does not open the rest.
-  const scrolls = ed ? view.set || view.scroll : view.scroll, rowsHigh = scrollRows({ ...view, scroll: scrolls }), every = (view.set ? false : all) || printing.value;
+  const every = (view.set ? false : all) || printing.value;
   const drawn = scrolls ? list : visibleItems(list, view, every);
   const flip = (id) => { const n = new Set(open); if (n.has(id)) n.delete(id); else n.add(id); setOpen(n); };
   const side = trackerPlace(view);   // the count pills and the bar: above the rows, below them (after Show all) or not drawn
@@ -141,6 +152,7 @@ export function UseCases({ tools, section }) {
   return (
     <div class="uc" data-uc-section>
       {side.above ? tracker("") : null}
+      <div class={`ucheads${ed ? " ucheads-ed" : ""}`} aria-hidden="true"><span>Ref</span><span>Use case</span><span>Status</span><span>Commitment</span><span>Next steps</span></div>
       <ul class="ucrows plain" ref={box} style={rowsHigh ? { maxHeight: `calc(var(--ucrow-h, 3.25rem) * ${rowsHigh})`, overflowY: "auto" } : undefined}>{drawn.map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} ed={ed} />)}</ul>
       {!scrolls && !view.set && list.length > (view.n === "all" ? list.length : view.n) ? <button type="button" class="link ucall" data-ucall onClick={toggleAll}>{allWord(list.length, all, view.n)}</button> : null}
       {side.below ? tracker(" ucstrip-below") : null}
