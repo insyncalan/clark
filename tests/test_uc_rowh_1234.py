@@ -57,7 +57,7 @@ class Browser(unittest.TestCase):
         for width in (1400, 900):
             with self.subTest(width=width), tempfile.TemporaryDirectory() as tmp, chrome() as cdp:
                 pub, text = made({"n": 3, "scroll": True, "tracker": "top"})
-                sid = self.open(cdp, text, tmp, width)
+                sid = self.draw(cdp, text, tmp, width)
                 cdp.js("document.querySelector('.uc .ucrow:nth-child(1) .ucbar').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.uc .ucrow.open')", sid)))
                 got = cdp.js("(u => ({ open: u.querySelector(':scope > .ucrow:nth-child(1)').getBoundingClientRect().height, closed: u.querySelector(':scope > .ucrow:nth-child(2)').getBoundingClientRect().height,"
