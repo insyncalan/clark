@@ -918,7 +918,7 @@ class ClosedUnratedRiskPeek(unittest.TestCase):
                 sid = tp.opened(cdp, path.as_uri() + "#work&p=PUB&item=PUB-001", width)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-row=status]')", sid)), "the peek drew")
                 self.assertEqual(cdp.js("[...document.querySelectorAll('#peek [data-row=status] .pkc-v, #peek [data-row=status] .pkc-sub')].map(e => e.textContent.trim()).join(' ')", sid), "Closed Not rated kept")
-                # #532 follow-up (row 1180): the rating word is the priority chip's second line now, so the status chip is one line
+                # #532 follow-up (row 1180): a closed risk's "<colour> kept" is the Status chip's small line now
                 self.assertLess(cdp.js("document.querySelector('#peek [data-row=status]').getBoundingClientRect().height", sid), 48, "the status chip is one line")
 
 

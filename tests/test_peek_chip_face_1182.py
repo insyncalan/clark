@@ -42,8 +42,9 @@ class ChipFace(unittest.TestCase):
         with chrome() as cdp:
             sid = self.open_page(cdp, 1400)
             got = self.face(cdp, sid, "TUL-008")
-            self.assertRegex(got["sub"] or "", r"kept$")
-            self.assertNotIn("lvl", got["subCls"])
+            self.assertEqual(got["sub"] or "", "", "a closed risk's Rating chip has no small line: its colour kept is on the Status chip")
+            kept = cdp.js("(() => { const s = document.querySelector('#peek .pk-chips [data-row=status] .pkc-sub'); return s ? s.textContent.trim() : ''; })()", sid)
+            self.assertRegex(kept, r"kept$")
 
 
 if __name__ == "__main__":
