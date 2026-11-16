@@ -33,7 +33,7 @@ def made(view, extra=4, long=False):
 
 
 class Browser(unittest.TestCase):
-    def open(self, cdp, text, tmp, width):
+    def draw(self, cdp, text, tmp, width):
         path = Path(tmp) / "r.html"
         path.write_text(text, encoding="utf-8")
         sid = opened(cdp, path.as_uri())
@@ -47,7 +47,7 @@ class Browser(unittest.TestCase):
         for width in (1400, 900):
             with self.subTest(width=width), tempfile.TemporaryDirectory() as tmp, chrome() as cdp:
                 pub, text = made({"n": 3, "scroll": True, "tracker": "top"})
-                sid = self.open(cdp, text, tmp, width)
+                sid = self.draw(cdp, text, tmp, width)
                 got = cdp.js("(u => { const r = [...u.querySelectorAll(':scope > .ucrow')].map(l => l.getBoundingClientRect()); const b = u.getBoundingClientRect();"
                              " return { box: b.height, rows: r.map(x => x.height), fully: r.filter(x => x.bottom <= b.bottom + 1).length }; })(document.querySelector('.uc .ucrows'))", sid)
                 self.assertEqual(got["fully"], 3, f"n=3 box shows {got['fully']} whole rows: {got}")
