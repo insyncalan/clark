@@ -80,6 +80,29 @@ class Tracker(unittest.TestCase):
                     self.assertEqual(sum(c["n"] for c in got["chips"]), len(got["rows"]), "every row is counted once")
                     self.assertGreaterEqual(len(got["rows"]), 3)
 
+    def test_the_tracker_styling_zero_chips_icon_size_and_top_border(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, "#dashboard&p=ABC", width, False, ".msv .msl-row")
+                got = cdp.js("""(() => {
+                  const t = document.querySelector('.msv[data-place^=sec-] [data-tracker]'), cs = (e) => getComputedStyle(e);
+                  const chips = [...t.querySelectorAll('.mtk-chip')].map((c) => { const i = c.querySelector('.ms-i').getBoundingClientRect();
+                    return {zero: c.classList.contains('zero'), n: Number(c.dataset.n), color: cs(c).color, w: i.width, h: i.height}; });
+                  return {chips, cap: cs(t.querySelector('.mtk-cap')).color, bw: cs(t).borderTopWidth, bs: cs(t).borderTopStyle, bc: cs(t).borderTopColor};
+                })()""", sid)
+                zeros = [c for c in got["chips"] if c["n"] == 0]
+                full = [c for c in got["chips"] if c["n"] > 0]
+                self.assertTrue(zeros and full, "the demo has both empty and counted states")
+                for c in got["chips"]:
+                    self.assertEqual(c["zero"], c["n"] == 0, "the zero class is on exactly the empty chips")
+                    self.assertEqual((c["w"], c["h"]), (16, 16), "the chip mark is 16 by 16")
+                for c in zeros:
+                    self.assertEqual(c["color"], got["cap"], "an empty chip is in the muted text colour")
+                for c in full:
+                    self.assertNotEqual(c["color"], got["cap"], "a counted chip is in the normal text colour")
+                self.assertEqual((got["bw"], got["bs"]), ("1px", "solid"), "the tracker has a 1px solid top border")
+                self.assertNotIn(got["bc"], ("rgba(0, 0, 0, 0)", "transparent"), "the top border is visible")
+
     def test_the_milestones_page_keeps_its_legend_and_has_no_tracker(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
