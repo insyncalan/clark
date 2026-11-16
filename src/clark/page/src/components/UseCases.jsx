@@ -124,8 +124,8 @@ export function UseCases({ tools, section }) {
   const counts = strip ? strip.words : Object.fromEntries(STATUSES.map(([k]) => [k, list.filter((s) => s.u.status === k).length]));
   const total = strip ? strip.total : list.length;
   if (!list.length) return <><p class="muted" data-nouc>{off ? "No use cases are on the dashboard." : "No use cases yet."}</p>{ed ? <ed.FromRecord n={off} /> : null}<More n={off} /></>;
-  // Edit scrolls once a view number is stored; with none stored it keeps the first 5 and Show all.
-  const scrolls = ed ? view.set || view.scroll : view.scroll, rowsHigh = scrollRows({ ...view, scroll: scrolls }), every = all || printing.value;
+  // Edit scrolls once a view number is stored; with none stored it keeps the first 5 and Show all. Once a number is set there is no Show all and an old one does not open the rest.
+  const scrolls = ed ? view.set || view.scroll : view.scroll, rowsHigh = scrollRows({ ...view, scroll: scrolls }), every = (view.set ? false : all) || printing.value;
   const drawn = scrolls ? list : visibleItems(list, view, every);
   const flip = (id) => { const n = new Set(open); if (n.has(id)) n.delete(id); else n.add(id); setOpen(n); };
   const side = trackerPlace(view);   // the count pills and the bar: above the rows, below them (after Show all) or not drawn
@@ -142,7 +142,7 @@ export function UseCases({ tools, section }) {
     <div class="uc" data-uc-section>
       {side.above ? tracker("") : null}
       <ul class="ucrows plain" ref={box} style={rowsHigh ? { maxHeight: `calc(var(--ucrow-h, 3.25rem) * ${rowsHigh})`, overflowY: "auto" } : undefined}>{drawn.map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} ed={ed} />)}</ul>
-      {!scrolls && list.length > (view.n === "all" ? list.length : view.n) ? <button type="button" class="link ucall" data-ucall onClick={toggleAll}>{allWord(list.length, all, view.n)}</button> : null}
+      {!scrolls && !view.set && list.length > (view.n === "all" ? list.length : view.n) ? <button type="button" class="link ucall" data-ucall onClick={toggleAll}>{allWord(list.length, all, view.n)}</button> : null}
       {side.below ? tracker(" ucstrip-below") : null}
       {ed ? <ed.FromRecord n={off} /> : null}
       <More n={off} />
