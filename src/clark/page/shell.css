@@ -1433,14 +1433,20 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .meter .m-g { background: var(--status-green); } .meter .m-a { background: var(--status-amber); } .meter .m-r { background: var(--status-red); } .meter .m-n { background: var(--status-grey); }
 .ucrows { border-top: 1px solid var(--grey-200); }
 .ucrows > li.ucrow { padding: 0; border-top: 0; border-bottom: 1px solid var(--grey-100); }
-.ucbar { all: unset; box-sizing: border-box; display: grid; grid-template-columns: minmax(40px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px; gap: var(--space-3); align-items: center; width: 100%; min-height: 40px; padding: var(--d-uc-bar-y) var(--space-1); cursor: pointer; font-size: var(--size-body); }
+.uc { --uc-cols: 64px minmax(0, 1fr) 112px 124px 112px; --uc-gap: var(--space-3); }   /* row 1234: one set of columns for the heading row and every bar; the title takes the rest */
+.ucheads { display: grid; grid-template-columns: var(--uc-cols); gap: var(--uc-gap); padding: 6px var(--space-1); font-size: var(--size-small); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); }
+.ucheads > * { min-width: 0; }
+.uccell { min-width: 0; }
+.uctc { display: flex; flex-direction: column; gap: 2px; }
+.ucbar { all: unset; box-sizing: border-box; display: grid; grid-template-columns: var(--uc-cols); gap: var(--uc-gap); align-items: center; width: 100%; min-height: 40px; padding: var(--d-uc-bar-y) var(--space-1); cursor: pointer; font-size: var(--size-body); }
 .ucbar:hover, .ucrow.open > .ucbar { background: var(--grey-100); }
 .ucbar:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
 .ucref { justify-self: start; padding: 2px var(--space-2); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--size-caption); font-weight: var(--weight-medium); white-space: nowrap; }
 .uctitle { font-weight: var(--weight-medium); color: var(--heading); overflow-wrap: anywhere; }
 .uchead { color: var(--text-muted); overflow-wrap: anywhere; }
 .ucword { display: inline-flex; align-items: center; gap: 6px; color: var(--text); }
-.ucstc { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }   /* issue 709: the commitment chip sits under the status word, in the status column */
+.ucstc { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }
+.ucc { display: flex; align-items: flex-start; min-width: 0; }   /* issue 709: the commitment chip sits under the status word, in the status column */
 /* issue 709: the commitment chip. Neutral on purpose, so it is never read as a status (red, amber, green, grey are the status words' colours):
    Planned 2026 is a dashed outline, Committed a solid ink fill (the text colour as the fill, the page colour as the word), Planned 2027 a plain
    outline on a faint tint. Text is --text on --surface, --grey-50 or --text itself: 14:1 or more in light and dark. */
@@ -1520,8 +1526,8 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucstepl .av { flex: none; }
 .ucstepl .av { width: 26px; height: 26px; font-size: var(--size-caption); }
 .ucstepl [data-stepid] { flex: none; max-width: 40%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* row 1004: the id stays whole at 360 px (it was cut into pieces in the 60 px left over); an id longer than the line is clipped with an ellipsis, never pushing the page sideways */
-@media (max-width: 900px) { .ucbar { grid-template-columns: minmax(44px, max-content) minmax(0, 1fr) minmax(0, 1fr) 124px 96px; gap: var(--space-2); } .ucdetail { padding-left: 52px; } .meter { width: 80px; } }   /* item 1147: at 900 px the bars shrink to about 80 px and stay on the counts' line (they wrap under only when the line is tight) */
-@media (max-width: 640px) { .ucbar { grid-template-columns: auto minmax(0, 1fr); } .ucbar > :nth-child(n+3) { grid-column: 1 / -1; min-width: 0; } }   /* row 1034: the number and the title share the first line; the headline, the status and the steps each take a line under it, so a use case row never runs past a 360 px card */
+@media (max-width: 900px) { .uc { --uc-cols: 64px minmax(0, 1fr) 112px 124px 112px; --uc-gap: var(--space-2); } .ucdetail { padding-left: 52px; } .meter { width: 80px; } }   /* item 1147: at 900 px the bars shrink to about 80 px and stay on the counts' line (they wrap under only when the line is tight) */
+@media (max-width: 640px) { .ucheads { display: none; } .ucbar { grid-template-columns: auto minmax(0, 1fr); } .ucbar > :nth-child(n+3) { grid-column: 1 / -1; min-width: 0; } }   /* row 1034: the number and the title share the first line; the headline, the status and the steps each take a line under it, so a use case row never runs past a 360 px card */
 
 /* Settings › Personal and the section styles (#45). The style is an attribute on the page (stores/style.js): One card is the default (row 667). */
 .personal { margin-top: var(--space-3); }

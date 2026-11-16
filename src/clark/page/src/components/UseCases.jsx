@@ -55,14 +55,18 @@ function Row({ s, shown, toggle, ed }) {
       <div class="ucbar" role="button" tabIndex={0} aria-expanded={shown ? "true" : "false"} aria-controls={id}
         onClick={(e) => { if (ed && mine(e)) return; toggle(); }} onKeyDown={(e) => { if (ed && e.target !== e.currentTarget) return; press(e, toggle); }}>
         {ed ? <ed.Eye u={u} /> : null}
-        {u.ref ? <span class="ucref num" data-ref>{refBox(u.ref)}</span> : <span></span>}
-        <span class="uctitle">{u.title}</span>
-        {ed ? <ed.Headline u={u} /> : <span class="uchead">{u.headline}</span>}
-        <span class="ucstc">
+        <span class="uccell" data-cell="ref">{u.ref ? <span class="ucref num" data-ref>{refBox(u.ref)}</span> : null}</span>
+        <span class="uccell uctc" data-cell="title">
+          <span class="uctitle">{u.title}</span>
+          {ed ? <ed.Headline u={u} /> : <span class="uchead">{u.headline}</span>}
+        </span>
+        <span class="uccell ucstc" data-cell="status">
           {ed ? <ed.Status u={u} /> : <span class={`ucword rag-${rag(u.status)}`} data-word><i class="ragdot" aria-hidden="true"></i>{u.status}</span>}
+        </span>
+        <span class="uccell ucc" data-cell="commit">
           {ed ? <ed.Commit u={u} /> : <CommitChip u={u} dash />}
         </span>
-        <span class="ucsteps num">{stepsWord(s.steps.length)}</span>
+        <span class="uccell ucsteps num" data-cell="steps">{stepsWord(s.steps.length)}</span>
       </div>
       {shown ? (
         <div class="ucdetail" id={id}>
@@ -141,6 +145,7 @@ export function UseCases({ tools, section }) {
   return (
     <div class="uc" data-uc-section>
       {side.above ? tracker("") : null}
+      <div class={`ucheads${ed ? " ucheads-ed" : ""}`} aria-hidden="true"><span>Ref</span><span>Use case</span><span>Status</span><span>Commitment</span><span>Next steps</span></div>
       <ul class="ucrows plain" ref={box} style={rowsHigh ? { maxHeight: `calc(var(--ucrow-h, 3.25rem) * ${rowsHigh})`, overflowY: "auto" } : undefined}>{drawn.map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} ed={ed} />)}</ul>
       {!scrolls && !view.set && list.length > (view.n === "all" ? list.length : view.n) ? <button type="button" class="link ucall" data-ucall onClick={toggleAll}>{allWord(list.length, all, view.n)}</button> : null}
       {side.below ? tracker(" ucstrip-below") : null}
