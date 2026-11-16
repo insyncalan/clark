@@ -114,19 +114,24 @@ class Pane(unittest.TestCase):
                     self.assertEqual((sent[0]["kind"], sent[0]["id"], sent[0]["changes"]), (table, ref, {"latest_update": f"<p>{SUGGESTED}</p>"}))
                     self.assertTrue(wait(lambda: cdp.js(f"document.activeElement === document.querySelector({json.dumps(B)})", sid)), "focus is back on the button")
 
+    def click_when_there(self, cdp, sid, selector):
+        """Waits for the real element, then clicks it: a single read right after load or a close finds nothing on a slow runner."""
+        self.assertTrue(wait(lambda: cdp.js(f"!!document.querySelector({json.dumps(selector)})", sid)), f"{selector} is on the page")
+        cdp.js(f"document.querySelector({json.dumps(selector)}).click()", sid)
+
     def test_esc_closes_the_menu_and_the_card_and_gives_the_focus_back_to_the_button(self):
         with chrome() as cdp:
             _, sid = self.opened(cdp, 1400, "TUL-A-001")
             key = lambda: [cdp.call("Input.dispatchKeyEvent", {"type": t, "key": "Escape", "code": "Escape", "windowsVirtualKeyCode": 27}, sid) for t in ("keyDown", "keyUp")]
-            cdp.js(f"document.querySelector({json.dumps(B)}).click()", sid)
+            self.click_when_there(cdp, sid, B)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-ai-menu]')", sid)))
             self.assertTrue(wait(lambda: cdp.js("document.activeElement.dataset.aiOption === 'rewrite'", sid)), "the first option has the focus")
             key()
             self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#peek [data-ai-menu]')", sid)), "Esc closes the menu")
             self.assertTrue(wait(lambda: cdp.js(f"document.activeElement === document.querySelector({json.dumps(B)})", sid)), "focus is back on the button")
-            cdp.js(f"document.querySelector({json.dumps(B)}).click()", sid)
+            self.click_when_there(cdp, sid, B)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-ai-menu]')", sid)))
-            cdp.js("document.querySelector('#peek [data-ai-option=rewrite]').click()", sid)
+            self.click_when_there(cdp, sid, "#peek [data-ai-option=rewrite]")
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .aic') && document.querySelector('#peek .aic').contains(document.activeElement)", sid)), "the focus is in the card")
             key()
             self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#peek .aic')", sid)), "Esc closes the card")

@@ -1397,3 +1397,6 @@ table.items .c-x-id, table.items .c-x-type { width: 100px; }
 
 /* Row 1184: every value in the milestone's Details rows is the one size: the rich editors' empty words (Add description, Add client wording) take the size of the pickers beside them */
 [data-ms-edit] .pk-row dd .quiet { font-size: inherit; }
+
+.ucm-seg { display: inline-flex; gap: var(--space-2); }
+.ucm-seg .pk-btn[aria-pressed="true"] { font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }

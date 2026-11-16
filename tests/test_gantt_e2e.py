@@ -268,7 +268,8 @@ class E2E(unittest.TestCase):
         br.fill("[data-g-bp]", "40")
         br.snap("gantt-edit-box")
         br.click("[data-g-bsave]")
-        self.assertTrue(wait(lambda: self.line("Scan paper files")["end"] == "2026-11-06"), self.lines())
+        got = lambda: (lambda t: (t["start"], t["end"], t["pct"]))(self.line("Scan paper files"))      # the box's fields reach the store together: wait for all three, not the first
+        self.assertTrue(wait(lambda: got() == ("2026-10-05", "2026-11-06", 40)), self.lines())
         task = self.line("Scan paper files")
         self.assertEqual((task["start"], task["end"], task["pct"]), ("2026-10-05", "2026-11-06", 40), "dates stored as YYYY-MM-DD, done as a whole number")
         br.until("document.querySelector('.toasts') && document.querySelector('.toasts').textContent.indexOf('changed') >= 0", "the toast says it changed")      # the store is written before the toast is drawn
@@ -324,9 +325,13 @@ class E2E(unittest.TestCase):
     def undo_and_reload(self, br):
         before = self.line("Scan paper files")["end"]
         # a change, then Cmd+Z: the server's own history puts it back
+        br.js("[].forEach.call(document.querySelectorAll('.toasts .toast'), function(e){e.setAttribute('data-old-toast','1')})")      # the toasts on screen now are marked; the rename's toast is the one that is not
         br.fill("[data-g-edit='GNT-002:name']", "Scan the paper files")
         br.key("Enter")
         self.assertTrue(wait(lambda: "Scan the paper files" in self.names()), self.names())
+        # the page keeps the step for Cmd+Z only when the server's reply has come in and it draws the toast with its Undo (the store is written first):
+        # wait for a toast element that is new (the old ones are marked), not for different text or the clock
+        br.until("[].some.call(document.querySelectorAll('.toasts .toast:not([data-old-toast])'), function(t){return [].some.call(t.querySelectorAll('button'), function(b){return /Undo/.test(b.textContent)})})", "the rename's toast offers Undo")
         br.js("document.activeElement && document.activeElement.blur()")
         br.key("z", CMD, "KeyZ")
         self.assertTrue(wait(lambda: "Scan paper files" in self.names()), f"Cmd+Z undid the rename: {self.names()}")
