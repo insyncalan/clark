@@ -57,6 +57,9 @@ class Words(Setup):
                 self.assertEqual(p.js("[...document.querySelectorAll('.pkt-field')].map(b => b.textContent).filter(t => t === 'Open steps' || t === 'Work items').join()"),
                                  "Open steps,Work items")
                 self.assertEqual(p.js("document.querySelector('.pkt-panel [data-not=\"1\"]').textContent"), "is not any of")
+                # at 0 ticked the button has no number
+                self.assertEqual(p.js("document.querySelector('form.picker button[type=submit]').textContent"), "Add selected", "no count at 0")
+                self.assertEqual(p.js("document.querySelector('form.picker button[type=submit]').disabled"), True, "nothing to add at 0")
                 # a tick makes the submit say Add 1
                 p.js("document.querySelector('form.picker tbody input').click()")
                 p.until("document.querySelector('form.picker button[type=submit]').textContent === 'Add 1'", "the submit says Add 1")
