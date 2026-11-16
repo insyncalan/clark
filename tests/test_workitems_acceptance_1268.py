@@ -74,7 +74,9 @@ def built_in_rows(p, section):
 
 
 def list_body(kinds):
-    return json.dumps({"kinds": kinds, "mode": "open", "max": 50, "columns": ["id", "owner", "due", "status", "priority"]})
+    """Decisions use mode 'current' (Pending plus Made in the last 14 days); the other lists use 'open'."""
+    mode = "current" if kinds == ["decision"] else "open"
+    return json.dumps({"kinds": kinds, "mode": mode, "max": 50, "columns": ["id", "owner", "due", "status", "priority"]})
 
 
 class Data(Api):
@@ -143,8 +145,13 @@ class Data(Api):
         """Ruling of 16-11: the tiles count what the client can open (Visible), and need no built-in section."""
         def tiles(p):
             return {t["tile"]: (t["value"], t["detail"]) for t in p["data"]["glance"]["tiles"]}
+        def show_decisions():       # Decisions needed is hidden by default; show it so the client has it to count
+            with self.s.step("dashboard", USER) as st:
+                st.create("glance_tiles", {"project": "ABC", "tile": "decisions", "hidden": 0, "sort_order": 3})
+        show_decisions()
         with_built_in = tiles(self.build(True))
         self.tearDown(), self.setUp()
+        show_decisions()
         with_lists = tiles(self.build(True, built_in=False))
         for name in ("overdue", "risks", "decisions"):
             with self.subTest(tile=name):
@@ -174,8 +181,10 @@ class InThePage(PageBase):
             status, got = self.real_change({"project": "ABC", "kind": "report_sections", "op": changes.UPDATE, "id": got["ref"], "changes": {"body": list_body(kinds)}})
             self.assertEqual(status, 200, got)
 
-    def ids(self, p, root):
-        return sorted(set(p.js(f"[...document.querySelectorAll({json.dumps(root + ' [data-id]')})].filter(e => e.offsetParent).map(e => e.dataset.id)")) )
+    def ids(self, p, root, off=False):
+        """The ids drawn under root. `off` true: only the rows greyed (wil-off); false: the rows not greyed."""
+        test = "e.classList.contains('wil-off')" if off else "!e.classList.contains('wil-off')"
+        return sorted(set(p.js(f"[...document.querySelectorAll({json.dumps(root + ' [data-id]')})].filter(e => e.offsetParent && {test}).map(e => e.dataset.id)")))
 
     def compare(self, p, where):
         for title, (_, section) in LISTS.items():
@@ -184,6 +193,11 @@ class InThePage(PageBase):
                 built_in = [i for i in self.ids(p, f"[data-id=\"{self.built_in[section]}\"]") if ROW.match(i)]
                 self.assertTrue(built_in, f"the built-in {section} section drew no rows (section {self.built_in[section]})")
                 self.assertEqual(listed, built_in)
+                if where.startswith("Edit") and section == "actions":
+                    # Edit lists, greyed, the rows the client eye or the client-off flag has taken off (editListOf: so the eye can be turned back on);
+                    # the built-in section does not draw them (it offers them in its picker). They are not part of what the client sees.
+                    off = [i for i in self.ids(p, f"[data-id=\"{self.refs[title]}\"]", off=True) if ROW.match(i)]
+                    self.assertEqual(off, sorted([self.a_off, self.a_eye]))
 
     def test_view_and_edit_list_the_rows_of_the_built_in_sections_at_both_widths_in_light_and_dark(self):
         for width in (1400, 900):
