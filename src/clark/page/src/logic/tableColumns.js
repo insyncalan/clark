@@ -15,6 +15,7 @@ export const TABLE_COLUMNS = {
     { id: "raised", label: "Raised" }, { id: "closed", label: "Closed" }, { id: "usecase", label: "Use case" },
     { id: "latest", label: "Latest update" }, { id: "wording", label: "Client wording" },
   ],
+  // Row 1230 ruling: the Milestones page keeps its list as it was ("milestones"); only the Dashboard section's is the five column table ("msDash").
   milestones: [
     { id: "date", label: "Date", standard: true },
     { id: "name", label: "Milestone", locked: true, standard: true },
@@ -22,6 +23,15 @@ export const TABLE_COLUMNS = {
     { id: "prog", label: "Progress", standard: true },
     { id: "id", label: "Id" }, { id: "description", label: "Description" }, { id: "workstream", label: "Workstream" }, { id: "owner", label: "Owner" },
     { id: "agreed", label: "Agreed" }, { id: "forecast", label: "Forecast" }, { id: "order", label: "Order" }, { id: "reason", label: "State reason" },
+  ],
+  msDash: [
+    { id: "name", label: "Milestone", locked: true, standard: true },
+    { id: "state", label: "State", locked: true, standard: true },
+    { id: "agreed", label: "Agreed", standard: true },
+    { id: "date", label: "Expected or achieved", standard: true },
+    { id: "prog", label: "Progress", standard: true },
+    { id: "id", label: "Id" }, { id: "description", label: "Description" }, { id: "workstream", label: "Workstream" }, { id: "owner", label: "Owner" },
+    { id: "forecast", label: "Forecast" }, { id: "order", label: "Order" }, { id: "reason", label: "State reason" },
   ],
 };
 
