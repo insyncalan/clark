@@ -148,17 +148,20 @@ function ConfigureBox({ id, onClose, opener }) {
   const first = useRef(null), v = viewOf(sectionOf(id), false);
   // Two changes in a row (the number, then the switch) must not lose the first: while any save is still being stored, the next builds on the
   // last view asked for, not on what the page has drawn so far. Once none is in flight, a change of the drawn view (an Undo, say) hands the base back to it.
-  const now = useRef(null);       // { view, pending, failed }
+  const now = useRef(null);       // { view, pending, failed, tail }: `view` is the last view that was stored; `tail` runs the saves one after the other
   useEffect(() => { if (now.current && now.current.pending === 0) now.current = null; }, [v.n, v.scroll, v.tracker]);
   const setView = (patch) => {
-    const cur = now.current || { view: givenOf(sectionOf(id)), pending: 0, failed: false };      // only the keys the stored body holds: a tracker-only click then writes the tracker alone
-    cur.view = { ...cur.view, ...patch };
-    if (cur.view.n !== undefined) cur.view = { scroll: v.scroll, tracker: v.tracker, ...cur.view };      // once a number is chosen the body holds all three, as before; a tracker or scroll change before that writes only its own key
+    const cur = now.current || { view: givenOf(sectionOf(id)), pending: 0, failed: false, tail: Promise.resolve() };      // only the keys the stored body holds: a tracker-only click then writes the tracker alone
     cur.pending += 1;
     now.current = cur;
-    saveView(id, cur.view).then((r) => {
+    // Each save is built when its turn comes, on the last view that was stored: a refused or failed one never becomes the base of the next.
+    cur.tail = cur.tail.then(async () => {
+      const next = { ...cur.view, ...patch };
+      if (next.n !== undefined) Object.assign(next, { scroll: v.scroll, tracker: v.tracker, ...next });      // once a number is chosen the body holds all three, as before; a tracker or scroll change before that writes only its own key
+      let r = null;
+      try { r = await saveView(id, next); } catch (e) { r = null; }      // a save that throws counts as refused
+      if (r) cur.view = next; else cur.failed = true;
       cur.pending -= 1;
-      if (!r) cur.failed = true;                                  // refused: the unsaved value must not become the base
       if (cur.pending === 0 && cur.failed && now.current === cur) now.current = null;
     });
   };
