@@ -1,6 +1,7 @@
 """Quote (H3, #96): the content of a section of type 'quote': one quotation and who said it. READY.
 
-Stored (canonical JSON): {"v": 1, "quote": text, "by": text, "role": text}. Typed only. A quote with no words is empty: it
+Stored (canonical JSON): {"v": 1, "quote": text, "by": text, "role": text} and, only when off, "tile": false and/or "heading": false
+(row 1271: Tile and Heading are two independent switches, both on when the field is missing, so every older quote reads as before). Typed only. A quote with no words is empty: it
 starts as '' (no content) and stays out of the published file, whatever its attribution.
 """
 from clark.section_kinds.base import Bad
@@ -28,16 +29,32 @@ def _text(value, most, words):
     return value
 
 
+def _switch(value, name):
+    """True when the switch is on (missing or None is on); Bad when it is not a true or false."""
+    got = value.get(name)
+    if got is None:
+        return True
+    if type(got) is not bool:
+        raise Bad(BAD_FIELD)
+    return got
+
+
 def check(value, rules):
     """The quote rebuilt field by field, or Bad in plain words that never quote it."""
     if not isinstance(value, dict) or value.get("v") != 1:
         raise Bad(NOT_OBJECT)
-    return {"v": 1, "quote": _text(value.get("quote"), QUOTE_MAX, TOO_LONG), "by": _text(value.get("by"), NAME_MAX, TOO_LONG_NAME),
-            "role": _text(value.get("role"), NAME_MAX, TOO_LONG_NAME)}
+    out = {"v": 1, "quote": _text(value.get("quote"), QUOTE_MAX, TOO_LONG), "by": _text(value.get("by"), NAME_MAX, TOO_LONG_NAME),
+           "role": _text(value.get("role"), NAME_MAX, TOO_LONG_NAME)}
+    for name in ("tile", "heading"):
+        if not _switch(value, name):
+            out[name] = False                  # only an off switch is stored: a body with both on is the body it always was
+    return out
 
 
 def published(value, ctx):
-    """{"content": {quote, by, role}}, or None when there are no words to show."""
+    """{"content": {quote, by, role, and tile / heading false when off}}, or None when there are no words to show."""
     if not value.get("quote"):
         return None
-    return {"content": {"quote": value["quote"], "by": value.get("by", ""), "role": value.get("role", "")}}
+    content = {"quote": value["quote"], "by": value.get("by", ""), "role": value.get("role", "")}
+    content.update({name: False for name in ("tile", "heading") if value.get(name) is False})   # the file says so only when a switch is off
+    return {"content": content}

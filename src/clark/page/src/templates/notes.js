@@ -29,7 +29,10 @@ export const calloutEmpty = (c) => !c.title && c.paras.length === 0 && !c.html;
 
 export function tidyQuote(v) {
   const o = v || {};
-  return { quote: text(o.quote), by: text(o.by), role: text(o.role) };
+  const q = { quote: text(o.quote), by: text(o.by), role: text(o.role) };
+  if (o.tile === false) q.tile = false;       // row 1271: an off switch is kept, so an edit of the words does not turn it on again
+  if (o.heading === false) q.heading = false;
+  return q;
 }
 export const quoteEmpty = (q) => !q.quote;
 

@@ -23,6 +23,32 @@ class Data(n.DataChecks):
         self.assertNotIn(ref, self.file_sections())
 
 
+    def test_tile_and_heading_are_two_switches_stored_only_when_off(self):
+        ref = self.section()
+        for off, want in (({}, {}), ({"tile": False}, {"tile": False}), ({"heading": False}, {"heading": False}),
+                          ({"tile": False, "heading": False}, {"tile": False, "heading": False}), ({"tile": True, "heading": None}, {})):
+            with self.subTest(off=off):
+                status, got = self.write(ref, {**GOOD, **off})
+                self.assertEqual(status, 200, got)
+                self.assertEqual(json.loads(self.stored(ref)), {**GOOD, **want})
+                content = self.file_sections()[ref]["content"]
+                self.assertEqual({k: v for k, v in content.items() if k in ("tile", "heading")}, want)
+
+    def test_a_switch_that_is_not_true_or_false_is_refused(self):
+        ref = self.section()
+        for bad in ({"tile": "no"}, {"heading": 0}, {"tile": []}):
+            with self.subTest(bad=bad):
+                before = self.snapshot()
+                status, got = self.write(ref, {**GOOD, **bad})
+                self.assertEqual(status, 400, got)
+                self.assertEqual(self.snapshot(), before)
+
+    def test_a_quote_with_a_switch_off_and_no_words_stays_out_of_the_file(self):
+        ref = self.section()
+        self.write(ref, {"v": 1, "by": "Sam Example", "tile": False, "heading": False})
+        self.assertNotIn(ref, self.file_sections())
+
+
 class Page(n.PageChecks):
     TYPE, GOOD, HOSTILE_BODY = "quote", GOOD, HOSTILE
     SHOWS = ("Fictional words of thanks.", "Sam Example, Fictional sponsor")
