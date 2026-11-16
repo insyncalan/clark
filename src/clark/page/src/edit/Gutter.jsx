@@ -57,9 +57,10 @@ export function Gutter({ section, count }) {
   }, [open]);
 
   const onKeyDown = (e) => {
-    if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    if (!e.altKey || e.ctrlKey || e.metaKey) return;
     const k = e.key;
     if (k !== "ArrowUp" && k !== "ArrowDown" && k !== "ArrowRight" && k !== "ArrowLeft") return;
+    if (e.shiftKey && (k === "ArrowRight" || k === "ArrowLeft")) return;      // Shift changes nothing for the side keys; Up and Down move as before
     e.preventDefault();
     if (k === "ArrowUp") moveUp(section.id, "report", "handle");
     else if (k === "ArrowDown") moveDown(section.id, "report", "handle");

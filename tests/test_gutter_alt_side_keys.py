@@ -125,6 +125,47 @@ class AltSideKeys(Base):
             self.assertEqual(self.beside_flags(), flags)
             self.assertEqual(p.js("document.querySelector('[data-id=\"ABC-S-002\"]').classList.contains('slot-left')"), True)
 
+    def shift_up_down_still_move(self, width):
+        from test_server import chrome
+        with chrome() as cdp:
+            p = self.at(cdp, width)
+            p.js(GRIP % "ABC-S-004" + ".focus()")
+            n = len(self.sent)
+            p.key("ArrowUp", ALT | 8, code="ArrowUp", vk=38)
+            p.order_is(IDS[:2] + ["ABC-S-004", "ABC-S-003"] + IDS[4:], "Shift+Alt+Up")
+            p.saved()
+            self.assertEqual(len(self.sent) - n, 1, "one change")
+            n = len(self.sent)
+            p.key("ArrowDown", ALT | 8, code="ArrowDown", vk=40)
+            p.order_is(IDS, "Shift+Alt+Down")
+            self.assertTrue(wait(lambda: self.ids_in_store() == IDS, 10))
+            self.assertEqual(len(self.sent) - n, 1, "one change")
+
+    def full_width_alt_left_says_nothing(self, width):
+        from test_server import chrome
+        with chrome() as cdp:
+            p = self.at(cdp, width)
+            n = len(self.sent)
+            before = dict(self.beside_flags())
+            p.js(GRIP % "ABC-S-009" + ".focus()")
+            self.left(p)
+            self.drawn(p)
+            self.assertEqual(p.js("document.querySelectorAll('.toast').length"), 0, "no message")
+            self.assertEqual(len(self.sent), n)
+            self.assertEqual(self.beside_flags(), before)
+
+    def test_shift_with_alt_up_or_down_still_moves_at_1400(self):
+        self.shift_up_down_still_move(1400)
+
+    def test_shift_with_alt_up_or_down_still_moves_at_900(self):
+        self.shift_up_down_still_move(900)
+
+    def test_alt_left_on_a_full_width_section_shows_no_message_at_1400(self):
+        self.full_width_alt_left_says_nothing(1400)
+
+    def test_alt_left_on_a_full_width_section_shows_no_message_at_900(self):
+        self.full_width_alt_left_says_nothing(900)
+
     def test_alt_right_on_either_half_of_a_pair_shows_no_message_at_1400(self):
         self.paired_says_nothing(1400)
 
