@@ -546,6 +546,24 @@ class InThePage(PageBase):
         sel = f"[data-id=\"{ref}\"] .wil-table tbody tr" if part == "table" else f"[data-id=\"{ref}\"] .wil-lines li"
         return p.js(f"[...document.querySelectorAll({json.dumps(sel)})].filter(e => e.offsetParent).map(e => e.dataset.id)")
 
+    def test_a_right_click_on_a_column_heading_lists_the_columns_and_a_press_turns_one_off_and_on(self):
+        ref = self.add({"mode": "all", "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.edit()
+            head = f"[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-owner"
+            p.until(f"!!document.querySelector({json.dumps(head)})", "the list drew in Edit")
+            p.js(f"document.querySelector({json.dumps(head)}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
+            p.until("!!document.querySelector('.cols-menu')", "the menu opened")
+            names = p.js("[...document.querySelectorAll('.cols-menu [role=menuitemcheckbox]')].map(b => b.dataset.colName + ':' + b.getAttribute('aria-checked'))")
+            self.assertIn("ID:true", names)
+            self.assertIn("Owner:true", names)
+            self.assertIn("Due:false", names)
+            p.js("document.querySelector('.cols-menu [data-col-name=Due]').click()")
+            p.until(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-due')", "Due was added")
+            p.js("document.querySelector('.cols-menu [data-col-name=ID]').click()")
+            p.until(f"!document.querySelector('[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-id')", "ID was taken off")
+
     def test_view_shows_the_live_rows_the_client_sees_at_both_widths_in_light_and_dark(self):
         every = ["type", "id", "owner", "due", "status", "priority", "workstream", "milestone"]
         ref = self.add({"mode": "all", "columns": every, "owner": ["Pat Demo", "Lee Demo", "Sam Demo"]})          # Sam's three are all kept out

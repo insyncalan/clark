@@ -3,6 +3,7 @@
 // Undo, place "report"). Under it, the rows it lists now, exactly as View and the published page will show them; each row opens
 // its peek (a click, or Enter). An empty match says so here, and only here: View and the published page leave the section out.
 import { useRef, useState } from "preact/hooks";
+import { MenuPanel } from "../../components/Menu.jsx";
 import { data, openPeek } from "../../stores/report.js";
 import { change, say } from "../../stores/changes.js";
 import { Rows, ShowAll, today } from "../../templates/WorkItemsList.jsx";
@@ -13,6 +14,7 @@ import { plural } from "../../workItems.js";
 import { lineOf, chipsOf, readLine } from "../../templates/workItemsLine.js";
 
 export const SAVED = "Work items list changed.";
+export const COLUMNS_MENU = "Columns";      // row 1268: the label of the menu a right click on a column heading opens
 export const NOT_YET = "No filter is set for this section yet. Set one below and it shows here.";
 export const NO_MATCH = "No work items match this filter, so this section is left out of the published page. Change the filter to list some.";
 export const ONLY_SHOWN = "Only work items that go in the published page are listed.";
@@ -81,6 +83,20 @@ export function Edit({ section }) {
     if (!next.length) { say("problem", "Choose at least one column to show."); setTick((n) => n + 1); return; }
     save({ ...cur, columns: next });
   };
+  // Row 1268: a right click on a column heading (or Shift+F10) opens one menu of the columns, each ticked when shown, ID among them; a press does what its box in Configure does.
+  const [at, setAt] = useState(null);
+  const headProps = {
+    onContextMenu: (e) => { e.preventDefault(); setAt(e.target.closest("th") || e.currentTarget); },
+    onKeyDown: (e) => { if (e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) { e.preventDefault(); setAt(e.target.closest("th") || e.currentTarget); } },
+  };
+  const colMenu = at ? (
+    <MenuPanel label={COLUMNS_MENU} cls="cols-menu" anchor={at} fixed="start" onClose={() => setAt(null)}>
+      {COLUMNS.map((c) => { const on = filter.columns.includes(c); return (
+        <button key={c} type="button" role="menuitemcheckbox" aria-checked={on ? "true" : "false"} data-col-name={WORDS.columns[c]} tabIndex={-1} onClick={() => toggleColumn("columns", c)}>
+          <span class="ck" aria-hidden="true">{on ? "\u2713" : ""}</span><span class="cols-name">{WORDS.columns[c]}</span>
+        </button>); })}
+    </MenuPanel>
+  ) : null;
   const pick = (field, v) => save({ ...latest(), [field]: v });
   const commitMax = (e) => {
     const el = e.currentTarget, n = Number(el.value);
@@ -172,7 +188,8 @@ export function Edit({ section }) {
       <p class="quiet" data-wil-say="count">{saved ? `${plural(rows.length, "work item")} listed now. ${ONLY_SHOWN}` : ONLY_SHOWN}</p>
       {saved && !rows.length ? <p class="wil-none" data-wil-say="none" role="status">{NO_MATCH}</p> : null}
       {saved && rows.length && rows.length === list.off.length ? <p class="wil-none" data-wil-say="all-hidden" role="status">{ALL_HIDDEN}</p> : null}
-      {saved && rows.length ? <Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Eye={Eye} /> : null}
+      {saved && rows.length ? <Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Eye={Eye} head={headProps} /> : null}
+      {colMenu}
       {saved && rows.length ? <ShowAll list={list} all={all} onToggle={() => setAll(!all)} /> : null}
       {saved && list.caption && rows.length ? <p class="wil-cap">{list.caption}</p> : null}
       <div class="wil-capbox">
