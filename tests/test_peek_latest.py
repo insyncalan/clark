@@ -439,30 +439,21 @@ class Browser(unittest.TestCase):
         acts = self.data["actions"]
         return (next(a["id"] for a in acts if a.get("client_visible")), next(a["id"] for a in acts if not a.get("client_visible")))
 
-    def test_a_client_visible_action_labels_its_latest_update_shown_to_the_client_in_edit_only(self):
+    def test_no_latest_update_says_shown_to_the_client_row_1258(self):
         shown, internal = self.kinds()
         probe = "(l => l ? l.textContent.trim() : null)(document.querySelector('#peek [data-pk-latest] [data-pk-latest-client]'))"
         for width in (1400, 900):
-            with self.subTest(width=width), chrome() as cdp:
-                sent, sid = self.load(cdp, width, shown)
-                self.assertEqual(cdp.js(probe, sid), "Shown to the client")
-                self.assertTrue(self.inside(cdp, sid, "[data-pk-latest-client]"), "the label fits the peek")
-                click(cdp, sid, self.SHOWN)                                               # still there while the box is open
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .ProseMirror')", sid)))
-                self.assertEqual(cdp.js(probe, sid), "Shown to the client")
-            with self.subTest(width=width, item="internal"), chrome() as cdp:
-                sent, sid = self.load(cdp, width, internal)
-                self.assertTrue(cdp.js("!!document.querySelector('[data-pk-latest] [data-rich=latest_update]')", sid))
-                self.assertIsNone(cdp.js(probe, sid), "an internal action's update is not published, so no label")
-            with self.subTest(width=width, item="view"), chrome() as cdp:
-                sent, sid = self.load(cdp, width, shown, edit=False)
-                self.assertTrue(cdp.js("!!document.querySelector('[data-pk-latest-client]')", sid), "View has the label too (row 824)")
+            for ref, edit in ((shown, True), (internal, True), (shown, False)):
+                with self.subTest(width=width, edit=edit, shown=ref == shown), chrome() as cdp:
+                    sent, sid = self.load(cdp, width, ref, edit=edit)
+                    self.assertTrue(cdp.js("!!document.querySelector('[data-pk-latest]')", sid), "the box is there")
+                    self.assertIsNone(cdp.js(probe, sid), "the mock-up has no 'Shown to the client' label on the box")
+                    self.assertNotIn("Shown to the client", cdp.js("document.querySelector('[data-pk-latest]').textContent", sid))
 
-    def test_the_label_is_in_edit_only_and_never_in_a_published_file(self):
-        built = (ROOT / "src/clark/page/page.html").read_text(encoding="utf-8")
-        view = (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8")
-        self.assertIn("data-pk-latest-client", built)
-        self.assertNotIn("pk-latest-client", view)
+    def test_the_label_is_in_no_built_page_row_1258(self):
+        for name in ("page.html", "page-view.html"):
+            built = (ROOT / "src/clark/page" / name).read_text(encoding="utf-8")
+            self.assertNotIn("pk-latest-client", built, name)
 
     # In dark: what a part is drawn with, read from the page itself. `ink` is the part's text colour, `ground` the colour it is drawn over
     # (its own background, or the first one behind it, transparent layers blended in), and `want(name)` the colour a dark token gives.
