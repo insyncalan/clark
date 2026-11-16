@@ -133,6 +133,13 @@ class ViewOf(unittest.TestCase):
             with self.subTest(file=section):
                 self.assertEqual(self.of(section, True), default)
 
+    def test_a_tracker_only_body_is_not_set_and_a_body_is_written_from_the_keys_given(self):
+        self.assertEqual(self.of({"body": json.dumps({"tracker": "bottom"})}), {"set": False, "n": 5, "scroll": False, "tracker": "bottom"})
+        self.assertEqual(json.loads(run("V.bodyOf({tracker: 'bottom'})")), {"tracker": "bottom"})
+        self.assertEqual(json.loads(run("V.bodyOf({n: 3, tracker: 'bottom'})")), {"n": 3, "tracker": "bottom"})
+        self.assertEqual(run("V.givenOf({body: '{\"tracker\":\"off\"}'})"), {"tracker": "off"})
+        self.assertEqual(run("[V.givenOf(null), V.givenOf({body: ''}), V.givenOf({body: 'x'})]"), [{}, {}, {}])
+
     def test_one_bad_field_falls_back_alone(self):
         self.assertEqual(self.of({"body": json.dumps({"n": 0, "scroll": "yes", "tracker": "left"})}), {"set": True, "n": 5, "scroll": False, "tracker": "top"})
 
