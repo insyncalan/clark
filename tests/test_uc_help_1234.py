@@ -12,7 +12,7 @@ WORDS = SRC / "clark" / "page" / "src" / "edit" / "ucConfigureWords.js"
 
 LABELS = {"Configure", "Configure use cases", "Number shown", "All", "Viewers can scroll the list", "Status tracker", "Top", "Bottom", "Off"}
 SENTENCES = [
-    "Edit uses the same number and scroll, so what you see is what viewers get.",
+    "Edit uses the same number but scrolls whenever a number is set, so you can reach every use case; viewers get the scrolling only when it is On.",
     "On: the list is n rows tall and scrolls up and down to the rest.",
     "Off: viewers see only the first n.",
     "The count by status and the bar.",
@@ -63,7 +63,7 @@ class HelpUsesApprovedWords(unittest.TestCase):
 
     def test_the_approved_strings_are_the_ones_the_panel_draws(self):
         src = WORDS.read_text(encoding="utf-8")
-        for s in ("Edit uses the same number and scroll, so what you see is what viewers get.", "The count by status and the bar. Top or bottom of the list, or off.", "Viewers can scroll the list", "Configure use cases", "Number shown"):
+        for s in ("The count by status and the bar. Top or bottom of the list, or off.", "Viewers can scroll the list", "Configure use cases", "Number shown"):
             self.assertIn(s, src, s)
 
 
