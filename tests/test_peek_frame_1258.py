@@ -47,7 +47,7 @@ class FrameCss(unittest.TestCase):
 
     def test_the_id_tag_and_the_project_line(self):
         tag = rule(EDIT_CSS, ".peek .pkh-id")
-        for want in (r"height:\s*20px", r"border-radius:\s*6px", r"background:\s*#F6F8FC", r"font-size:\s*12px", r"font-weight:\s*600", r"ui-monospace"):
+        for want in (r"height:\s*20px", r"border-radius:\s*6px", r"background:\s*var\(--grey-50\)", r"font-size:\s*12px", r"font-weight:\s*600", r"ui-monospace"):
             self.assertRegex(tag, want)
         self.assertRegex(rule(EDIT_CSS, ".peek .pkh-line"), r"font-size:\s*var\(--size-caption\)")      # 13 px on the scale (the browser test measures 13px)
 
@@ -103,7 +103,7 @@ class FrameBrowser(unittest.TestCase):
                         for b in g["btns"]:
                             self.assertEqual((round(b["w"]), round(b["h"]), b["radius"]), (34, 34, "8px"), f"{where}: toolbar button")
                         tag = g["id"]
-                        self.assertEqual((round(tag["h"]), tag["radius"], tag["bg"], tag["fs"], tag["fw"]), (20, "6px", "rgb(246, 248, 252)", "12px", "600"), where)
+                        self.assertEqual((round(tag["h"]), tag["radius"], tag["bg"], tag["fs"], tag["fw"]), (20, "6px", "rgb(243, 246, 252)", "12px", "600"), where)
                         self.assertIn("monospace", tag["ff"], where)
                         if item == "HRB-A-018" or len(item) == 9:
                             self.assertEqual(round(tag["w"]), 81, f"{where}: 81 px for a nine-character ID")
@@ -124,7 +124,7 @@ class FrameBrowser(unittest.TestCase):
                 self.assertEqual(round(g["tb"]["h"]), 59, width)
                 for b in g["btns"]:
                     self.assertEqual((round(b["w"]), round(b["h"]), b["radius"]), (34, 34, "8px"), width)
-                self.assertEqual((round(g["id"]["h"]), g["id"]["radius"], g["id"]["bg"], g["id"]["fs"], g["id"]["fw"]), (20, "6px", "rgb(246, 248, 252)", "12px", "600"), width)
+                self.assertEqual((round(g["id"]["h"]), g["id"]["radius"], g["id"]["bg"], g["id"]["fs"], g["id"]["fw"]), (20, "6px", "rgb(243, 246, 252)", "12px", "600"), width)
                 self.assertEqual(g["proj"]["fs"], "13px", width)
 
     def test_dark_keeps_the_card_and_the_tag_reads_in_the_dark_tone(self):
@@ -137,7 +137,7 @@ class FrameBrowser(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').getAnimations().length === 0", sid)))
                 g = cdp.js(GEOM, sid)
                 self.assertEqual(g["peek"]["radius"], "16px", width)
-                self.assertNotEqual(g["id"]["bg"], "rgb(246, 248, 252)", f"{width}: the tag is not the light tone in dark")
+                self.assertNotEqual(g["id"]["bg"], "rgb(243, 246, 252)", f"{width}: the tag is not the light tone in dark")
 
 
 if __name__ == "__main__":
