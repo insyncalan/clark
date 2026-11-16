@@ -3,6 +3,7 @@
 // target for REST_MS). No DOM, no signals, no timers: the page gives these functions the rects, the point and the time.
 import { rows, place } from "./placement.js";
 
+export const EDGE = 56;                            // px, the most a top or bottom edge may be, the same as EDGE in placement.js
 export const REST_MS = 110;                        // ms the pointer rests on a new target before the slot moves
 
 // A copy of the rects as they are at the start of the drag. Later changes to the page cannot reach it.
@@ -17,7 +18,8 @@ export function freezeRects(rects) {
 
 // The target for `point` { x, y }, from the start rects `rects` { id: { left, top, right, bottom } } (the sections as drawn when
 // the drag began; a section with no rect is left out). Columns 2: pairs sit side by side; 1: they stack, so there is no half.
-//   top quarter of a row: a full width row above it. bottom quarter: a full width row below it.
+//   top quarter of a row: a full width row above it. bottom quarter: a full width row below it. A quarter is at most 56 px (a tall
+//   row keeps a wide half width zone), the same edge as placement.js.
 //   middle of a section that is alone: half width, left or right of it (left half of it is left, right half is right).
 //   over a pair: only above or below, the nearer of the two.
 // null where a drop would change nothing: over the moved section's own old place, or any target that gives back the same page.
@@ -35,7 +37,7 @@ export function dragTarget(sections, id, rects, point, opts) {
     const next = all[k + 1];
     return next ? { before: next[0].id } : { before: null };
   };
-  const quarter = (bottom - top) / 4;
+  const quarter = Math.min((bottom - top) / 4, EDGE);
   let target;
   if (point.y < top + quarter) target = above();
   else if (point.y > bottom - quarter) target = below();
