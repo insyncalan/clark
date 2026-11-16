@@ -10,7 +10,7 @@ import { isOn, liveOf, refText, refBox, stepsWord } from "../logic/useCasesList.
 import { isOpen, ownerOf } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
 import { CommitChip } from "./CommitChip.jsx";
-import { RAIL, railRows } from "../logic/milestones.js";
+import { viewOf, visibleItems, scrollRows, shownRows, trackerPlace } from "../logic/useCaseView.js";
 import { recall, remember } from "../logic/remember.js";
 import { printing } from "../stores/print.js";
 
@@ -97,34 +97,43 @@ function More({ n }) {
 }
 
 // Row 1108: the summary shows the first 5 use cases, then "Show all N use cases" / "Show the first 5" (as the Milestones list does), kept for this browser.
-export const allWord = (n, all) => (all ? "Show the first 5" : `Show all ${n} use cases`);
+export const allWord = (n, all, first = 5) => (all ? `Show the first ${first}` : `Show all ${n} use cases`);
 
-export function UseCases({ tools }) {
+export function UseCases({ tools, section }) {
   const d = data.value, [open, setOpen] = useState(() => new Set());
   const [all, setAll] = useState(() => !fromFile.value && !!recall("ucAll", false));       // a published file never reads or writes the editor's key
   const toggleAll = () => { if (!fromFile.value) remember("ucAll", !all); setAll(!all); };
   const ed = tools && tools.ucEdit && !fromFile.value && mode.value === "edit" ? tools.ucEdit : null;       // Edit's parts (#455, #485): only in Edit; View and a published file have none
+  const view = viewOf(section, fromFile.value);
   const list = summary(d, rows.value), off = fromFile.value ? 0 : liveOf(d).filter((u) => !isOn(u)).length;
   const fresh = ed ? ed.added.value : "";                                           // a use case just added opens its row
   useEffect(() => {
-    if (ed && fresh && list.some((s) => s.u.id === fresh)) { setOpen(new Set([...open, fresh])); if (list.findIndex((s) => s.u.id === fresh) >= RAIL) setAll(true); ed.added.value = ""; }
+    if (ed && fresh && list.some((s) => s.u.id === fresh)) { setOpen(new Set([...open, fresh])); if (list.findIndex((s) => s.u.id === fresh) >= shownRows(list.length, view).shown) setAll(true); ed.added.value = ""; }
   }, [fresh, list.length]);   // eslint-disable-line react-hooks/exhaustive-deps
   const strip = fromFile.value && d.glance && d.glance.strip;
   const counts = strip ? strip.words : Object.fromEntries(STATUSES.map(([k]) => [k, list.filter((s) => s.u.status === k).length]));
   const total = strip ? strip.total : list.length;
   if (!list.length) return <><p class="muted" data-nouc>{off ? "No use cases are on the dashboard." : "No use cases yet."}</p>{ed ? <ed.FromRecord n={off} /> : null}<More n={off} /></>;
+  // Edit scrolls once a view number is stored; with none stored it keeps the first 5 and Show all.
+  const scrolls = ed ? view.set || view.scroll : view.scroll, rowsHigh = scrollRows({ ...view, scroll: scrolls }), every = all || printing.value;
+  const drawn = scrolls ? list : visibleItems(list, view, every);
   const flip = (id) => { const n = new Set(open); if (n.has(id)) n.delete(id); else n.add(id); setOpen(n); };
+  const side = trackerPlace(view);   // the count pills and the bar: above the rows, below them (after Show all) or not drawn
+  const tracker = (extra) => (
+    <div class={`ucstrip${extra}`}>
+      <b class="uctotal">{total === 1 ? "1 use case" : `${total} use cases`}</b>
+      {STATUSES.filter(([k]) => counts[k]).map(([k, c]) => <span key={k} class={`ucn rag-${c}`} data-count={k}><i class="ragdot" aria-hidden="true"></i>{counts[k]} {k}</span>)}
+      <span class="meter" role="img" aria-label={STATUSES.filter(([k]) => counts[k]).map(([k]) => `${counts[k]} ${k}`).join(", ")}>
+        {STATUSES.flatMap(([k, c]) => Array.from({ length: counts[k] || 0 }, (_, n) => <i key={k + n} class={`m-${c}`}></i>))}
+      </span>
+    </div>
+  );
   return (
     <div class="uc" data-uc-section>
-      <div class="ucstrip">
-        <b class="uctotal">{total === 1 ? "1 use case" : `${total} use cases`}</b>
-        {STATUSES.filter(([k]) => counts[k]).map(([k, c]) => <span key={k} class={`ucn rag-${c}`} data-count={k}><i class="ragdot" aria-hidden="true"></i>{counts[k]} {k}</span>)}
-        <span class="meter" role="img" aria-label={STATUSES.filter(([k]) => counts[k]).map(([k]) => `${counts[k]} ${k}`).join(", ")}>
-          {STATUSES.flatMap(([k, c]) => Array.from({ length: counts[k] || 0 }, (_, n) => <i key={k + n} class={`m-${c}`}></i>))}
-        </span>
-      </div>
-      <ul class="ucrows plain">{railRows(list, all || printing.value).map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} ed={ed} />)}</ul>
-      {list.length > RAIL ? <button type="button" class="link ucall" data-ucall onClick={toggleAll}>{allWord(list.length, all)}</button> : null}
+      {side.above ? tracker("") : null}
+      <ul class="ucrows plain" style={rowsHigh ? { maxHeight: `calc(var(--ucrow-h, 3.25rem) * ${rowsHigh})`, overflowY: "auto" } : undefined}>{drawn.map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} ed={ed} />)}</ul>
+      {!scrolls && list.length > (view.n === "all" ? list.length : view.n) ? <button type="button" class="link ucall" data-ucall onClick={toggleAll}>{allWord(list.length, all, view.n)}</button> : null}
+      {side.below ? tracker(" ucstrip-below") : null}
       {ed ? <ed.FromRecord n={off} /> : null}
       <More n={off} />
     </div>
