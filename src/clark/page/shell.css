@@ -2304,6 +2304,14 @@ button.tpl-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 
 }
 
 .pk-rating { color: var(--text-muted); }   /* a closed risk keeps its rating word beside its Closed pill */
+/* Row 1256-B2 (ticket 2c): inside Details the rows are a plain list, a 130px label and the value (1fr), 2px by 12px gaps, at least 36px tall, no borders,
+   the label 14px in the muted text token, the icon 16px. Only the four property cells above Details stay tiles. */
+.pk-details-body .pk-fields { grid-template-columns: minmax(0, 1fr); column-gap: 0; }
+.pk-details-body .pk-fields > .pk-row, .pk-details-body .pk-fields > .pk-row[data-row] { grid-column: 1 / -1; grid-template-columns: 130px minmax(0, 1fr); gap: 2px 12px; align-items: center; align-content: center; min-height: 36px; margin: 0; padding: 0; border: 0; order: 0; }
+.pk-details-body .pk-fields > .pk-row[data-pk-client-row] { order: 5; }
+.pk-details-body .pk-fields > .pk-row[data-pk-client-row] > dd { grid-column: 1 / -1; }
+.pk-details-body .pk-fields > .pk-row > dt { display: flex; align-items: center; font-size: var(--size-small); color: var(--text-muted); }
+.pk-details-body .pk-rowic svg { width: 16px; height: 16px; }
 /* The peek's coloured icons: one class per tone, each from a design token (iconColours.js picks the tone). The word beside the icon always says the same thing. */
 .pk-val { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .pk-row[data-row=status] .pk-val { flex-wrap: nowrap; white-space: nowrap; }
@@ -2326,14 +2334,6 @@ button.tpl-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 
 .pk-fields > .pk-row[data-row=owner] { order: 3; }
 .pk-fields > .pk-row[data-row=due] { order: 4; }
 .pk-fields > .pk-row[data-row] dd { min-width: 0; }
-/* Row 1256-B2 (ticket 2c): inside Details the rows are a plain list, a 130px label and the value (1fr), 2px by 12px gaps, at least 36px tall, no borders,
-   the label 14px in the muted text token, the icon 16px. Only the four property cells above Details stay tiles. */
-.pk-details-body .pk-fields { grid-template-columns: minmax(0, 1fr); column-gap: 0; }
-.pk-details-body .pk-fields > .pk-row, .pk-details-body .pk-fields > .pk-row[data-row] { grid-column: 1 / -1; grid-template-columns: 130px minmax(0, 1fr); gap: 2px 12px; align-items: center; align-content: center; min-height: 36px; margin: 0; padding: 0; border: 0; order: 0; }
-.pk-details-body .pk-fields > .pk-row[data-pk-client-row] { order: 5; }
-.pk-details-body .pk-fields > .pk-row[data-pk-client-row] > dd { grid-column: 1 / -1; }
-.pk-details-body .pk-fields > .pk-row > dt { display: flex; align-items: center; font-size: var(--size-small); color: var(--text-muted); }
-.pk-details-body .pk-rowic svg { width: 16px; height: 16px; }
 @container (min-width: 600px) { .pk-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
 /* Publish progress: main draws the ring (.spin, a still ring with one strong quarter) and the green tick; clark's own setting
