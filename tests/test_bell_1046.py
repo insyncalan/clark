@@ -56,6 +56,7 @@ class Bell(Base):
                 p.until("!!document.querySelector('#bell-btn')", "the bell is drawn")
                 p.js("document.querySelector('#bell-btn').click()")
                 p.until("!!document.querySelector('#bell-pop')", "the popup opened")
+                p.until("document.querySelector('#bell-pop').contains(document.activeElement)", "focus went into the popup")
                 got = p.js("(function(){var d=document.querySelector('#bell-pop');return [d.getAttribute('role'), d.getAttribute('aria-modal'), d.contains(document.activeElement),"
                            "[...d.querySelectorAll('.bell-sev-w')].map(e => e.textContent), d.querySelectorAll('.bell-item').length, d.getBoundingClientRect().right <= document.documentElement.clientWidth];})()")
                 self.assertEqual([got[0], got[1], got[2], sorted(got[3]), got[4], got[5]], ["dialog", None, True, ["Critical", "Info", "Warning"], 3, True])
@@ -77,6 +78,7 @@ class Bell(Base):
             p.until("!!document.querySelector('#bell-pop')", "the popup opened")
             p.js("document.querySelector('#bell-close').click()")
             p.until("!document.querySelector('#bell-pop')", "Close closed it")
+            p.until("document.activeElement && document.activeElement.id === 'bell-btn'", "focus came back to the bell")
             self.assertEqual(p.js("document.activeElement && document.activeElement.id"), "bell-btn")
             p.js("document.querySelector('#bell-btn').click()")
             p.until("!!document.querySelector('.bell-act')", "the action shows")
