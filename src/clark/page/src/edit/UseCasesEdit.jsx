@@ -187,7 +187,7 @@ function ConfigureBox({ id, onClose, opener }) {
           <label for="ucCfgS">{W.SCROLL_LABEL}</label>
           <input type="checkbox" id="ucCfgS" role="switch" checked={v.scroll} onChange={(e) => setView({ scroll: e.currentTarget.checked })} />
           <span id="ucCfgT">{W.TRACKER_LABEL}</span>
-          <span role="group" aria-labelledby="ucCfgT" aria-label={W.TRACKER_GROUP} class="ucm-seg" data-uc-tracker>
+          <span role="group" aria-labelledby="ucCfgT" class="ucm-seg" data-uc-tracker>
             {TRACKER_POSITIONS.map((t) => <button key={t} type="button" class="pk-btn" data-tracker={t} aria-pressed={v.tracker === t ? "true" : "false"} onClick={() => setView({ tracker: t })}>{W.TRACKER_WORDS[t]}</button>)}
           </span>
         </div>
