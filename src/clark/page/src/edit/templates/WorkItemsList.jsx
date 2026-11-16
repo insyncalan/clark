@@ -3,14 +3,15 @@
 // Undo, place "report"). Under it, the rows it lists now, exactly as View and the published page will show them; each row opens
 // its peek (a click, or Enter). An empty match says so here, and only here: View and the published page leave the section out.
 import { useRef, useState } from "preact/hooks";
-import { data, openPeek } from "../../stores/report.js";
+import { data, openPeek, rows as reportRows, filterCtx } from "../../stores/report.js";
+import { LineBox } from "../../components/FilterLine.jsx";
 import { change, say } from "../../stores/changes.js";
 import { Rows, ShowAll, today } from "../../templates/WorkItemsList.jsx";
 import { KINDS, MODES, STATUSES, DUE, PRIORITIES, NONE, SORTS, COLUMNS, MAX_ROWS, MAX_CAPTION, WORDS, defaults, filterOf, bodyOf,
   editListOf, drawRows, offered, drawn, idsToShow } from "../../templates/workItemsList.js";
 import { Eye } from "../cells/Eye.jsx";
 import { plural } from "../../workItems.js";
-import { lineOf, chipsOf, readLine } from "../../templates/workItemsLine.js";
+import { lineOf, readLine } from "../../templates/workItemsLine.js";
 
 export const SAVED = "Work items list changed.";
 export const NOT_YET = "No filter is set for this section yet. Set one below and it shows here.";
@@ -46,8 +47,6 @@ function Choice({ id, label, field, values, words, value, onPick }) {
     </label>
   );
 }
-
-export const LINE_HINT = "Type a filter, for example: type:risk status:Open owner:\"Pat Demo\"  Press Enter to save it.";
 
 export function Edit({ section }) {
   const [all, setAll] = useState(false);          // row 1199: Show all items
@@ -96,35 +95,15 @@ export function Edit({ section }) {
   };
   // Counted as the store counts: one emoji is one character, not two.
   const capInput = (e) => { if (points(e.currentTarget.value) > MAX_CAPTION) say("problem", LONG_CAPTION); };
-  // The filter line: Enter (or leaving the box) reads the typed words onto the filter and saves it as ONE change; a word the list cannot
-  // use is said in plain words and nothing is saved. A chip's x takes that one choice off.
-  const commitLine = (e) => {
-    const el = e.currentTarget, cur = latest();
-    if (el.value.trim() === lineOf(cur, nameOf)) return;
-    const r = readLine(el.value, cur, known);
+  // The filter line is the Work items page's own box (components/FilterLine.jsx LineBox: chips, suggestions, count, x), row 1268. The typed
+  // line is read onto the filter about 400 ms after the last key and saved as ONE change; a word the list cannot use is said in plain
+  // words and nothing is saved. A chip's x takes that one choice off (the box applies the shorter line).
+  const applyLine = (text) => {
+    const cur = latest();
+    if (text.trim() === lineOf(cur, nameOf)) return;
+    const r = readLine(text, cur, known);
     if (r.problem) { say("problem", r.problem); return; }
     save(r.filter);
-  };
-  const lineKeys = (e) => {
-    if (e.key === "Enter") { e.preventDefault(); commitLine(e); }
-    else if (e.key === "Escape") { e.preventDefault(); e.currentTarget.value = lineOf(filter, nameOf); e.currentTarget.blur(); }
-  };
-  // The chip's x goes with its chip, which drops the focus to the page: it goes to the chip that took its place, the one before it when
-  // that was the last, or the Filter box when none is left.
-  const dropChip = (field, v, e) => {
-    const cur = latest(), root = e.currentTarget.closest("[data-wil-edit]"), had = document.activeElement === e.currentTarget;
-    const at = had ? [...root.querySelectorAll(".wil-chips button")].indexOf(e.currentTarget) : -1;
-    const done = save({ ...cur, [field]: cur[field].filter((x) => x !== v) });
-    const btn = e.currentTarget;
-    const back = (tries) => {      // the list is drawn a moment after the reply: wait until this x is gone, then move the focus
-      const now = document.querySelector(`[data-wil-id="${id}"]`);
-      if (btn.isConnected && document.activeElement === btn) { if (tries > 0) setTimeout(() => back(tries - 1), 30); return; }
-      if (!now || (document.activeElement && document.activeElement !== document.body)) return;
-      const xs = now.querySelectorAll(".wil-chips button");
-      const el = xs.length ? xs[Math.min(at, xs.length - 1)] : now.querySelector("input[name=line]");
-      if (el) el.focus();
-    };
-    if (had) done.then(() => setTimeout(() => back(20), 0));
   };
   const keys = (e) => {
     if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); }
@@ -138,16 +117,8 @@ export function Edit({ section }) {
     <div class="wil wil-edit" key={tick} data-wil-edit="" data-wil-id={id}>
       {saved ? null : <p class="quiet wil-say" data-wil-say="not-yet">{NOT_YET}</p>}
       <div class="wil-line" data-wil-line="">
-        <label class="wil-sel wil-linef"><span>Filter</span>
-          <input type="text" name="line" aria-describedby={`${id}-hint`} value={lineOf(filter, nameOf)} key={lineOf(filter, nameOf)} onChange={commitLine} onKeyDown={lineKeys} autocomplete="off" spellcheck={false} />
-        </label>
-        <p class="quiet" id={`${id}-hint`}>{LINE_HINT}</p>
-        <ul class="wil-chips" aria-label="Choices in this filter">
-          {chipsOf(filter, nameOf).map((c) => (
-            <li key={`${c.field}:${c.value}`} class="wil-chip"><span>{c.label}</span>
-              <button type="button" aria-label={`Take off ${c.label}`} onClick={(e) => dropChip(c.field, c.value, e)}>&times;</button></li>
-          ))}
-        </ul>
+        <LineBox line={lineOf(filter, nameOf)} now={() => lineOf(latest(), nameOf)} apply={applyLine} rows={reportRows.value} ctx={filterCtx()}
+          ids={{ input: `${id}-line`, list: `${id}-line-list`, count: `${id}-line-count`, x: `${id}-line-x`, msg: `${id}-line-msg`, gloss: `${id}-line-gloss`, opt: `${id}-line-o` }} label="Filter" />
       </div>
       <div class="wil-form">
       <details class="wil-more" data-wil-more="">
