@@ -15,7 +15,7 @@ from test_server import chrome, wait  # noqa: E402
 from test_work_filters import click  # noqa: E402
 
 ACTION = "TUL-A-001"
-RISK = "TUL-007"     # item 1181: an action no longer draws Client wording or a Use case picker (ticket, Details rows), so those tests use a risk or issue
+RISK = "TUL-007"     # rows 1181 and 1256: an action no longer draws a Use case picker, and no action, risk or issue draws Client wording; those tests use a risk (Use case) or a decision (Client wording)
 SRC = ROOT / "src/clark/page/src"
 
 
@@ -135,6 +135,11 @@ class Title(Fields):
 
 
 class Wording(Fields):
+    # row 1256: an action, a risk and an issue no longer draw Client wording in the peek (their Details are one body); a decision still does,
+    # and the report rows edit it for the others (test_inline_edits)
+    def decision(self):
+        return self.data["decisions"][0]
+
     BOX = "#peek [data-ce]"            # item 1005: the wording drawn as text; a click opens the one editor (a ProseMirror) in its place, Enter saves
 
     def words(self, cdp, sid):
@@ -146,26 +151,26 @@ class Wording(Fields):
         cdp.js(f"(() => {{ const e = document.activeElement.cxed.editor; e.commands.selectAll(); e.commands.insertContent({json.dumps(text)}); }})()", sid)
 
     def test_the_client_wording_is_changed_in_place_and_undone_in_one_step(self):
-        was = (self.raid(RISK).get("client_message") or "").strip()
+        was = (self.decision().get("client_message") or "").strip()
         for width, dark in self.widths():
             with self.subTest(width=width, dark=dark), chrome() as cdp:
-                sent, sid = self.load(cdp, width, RISK, dark=dark)
+                sent, sid = self.load(cdp, width, self.decision()["id"], dark=dark)
                 self.assertEqual(cdp.js("document.querySelector('#peek [data-ce]').closest('.pk-row').querySelector('dt').textContent", sid), "Client wording")
                 self.assertEqual(self.words(cdp, sid), was)
                 self.assertTrue(self.inside(cdp, sid, BOX_PK), "the box fits the peek")
                 self.type_words(cdp, sid, "Plain words a client can read")
                 key(cdp, sid, "Enter")
                 self.assertTrue(wait(lambda: len(sent) == 1))
-                self.assertEqual((sent[0]["kind"], sent[0]["id"], sent[0]["changes"]), ("raid", RISK, {"client_message": "Plain words a client can read"}))
-                self.assertTrue(wait(lambda: f"Wording of {RISK} changed." in self.toast(cdp, sid)))
+                self.assertEqual((sent[0]["kind"], sent[0]["id"], sent[0]["changes"]), ("decisions", self.decision()["id"], {"client_message": "Plain words a client can read"}))
+                self.assertTrue(wait(lambda: f"Wording of {self.decision()['id']} changed." in self.toast(cdp, sid)))
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.toast [data-undo]')", sid)))
                 cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
                 self.assertTrue(wait(lambda: self.words(cdp, sid) == was), "one Undo puts the old words back")
 
     def test_escape_and_an_empty_text_put_the_old_words_back(self):
-        was = (self.raid(RISK).get("client_message") or "").strip()
+        was = (self.decision().get("client_message") or "").strip()
         with chrome() as cdp:
-            sent, sid = self.load(cdp, 1400, RISK)
+            sent, sid = self.load(cdp, 1400, self.decision()["id"])
             self.type_words(cdp, sid, "Typed and abandoned")
             key(cdp, sid, "Escape")
             self.assertTrue(wait(lambda: self.words(cdp, sid) == was))
@@ -180,7 +185,7 @@ class Wording(Fields):
     def test_the_open_peek_wording_editor_shows_no_toolbar_and_no_keys_line(self):
         for width, dark in self.widths():
             with self.subTest(width=width, dark=dark), chrome() as cdp:
-                sent, sid = self.load(cdp, width, RISK, dark=dark)
+                sent, sid = self.load(cdp, width, self.decision()["id"], dark=dark)
                 cdp.js(f"document.querySelector({json.dumps(self.BOX)}).click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("document.activeElement.classList.contains('ProseMirror')", sid), 15), "the editor opens with the focus in it")
                 shown = cdp.js("['#peek .rt-bar', '#peek .rt-keys'].map(q => { const e = document.querySelector(q); return e ? getComputedStyle(e).display : 'none'; })", sid)

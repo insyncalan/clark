@@ -45,7 +45,7 @@ export function sayLocalUndo(kind, text, fn, code = project.value) {
   toast.value = { ...toast.value, local: entry.local };
 }
 
-export function say(kind, text, undo = null, code = project.value, focusUndo = false) {
+export function say(kind, text, undo = null, code = project.value, focusUndo = false, quiet = false) {      // quiet: the toast is drawn but not announced (Toast.jsx); the caller says it another way (section drop, row 1214)
   if (undo) {
     const at = undoable.findIndex((s) => s.step === undo);
     if (at >= 0) undoable.splice(at, 1);
@@ -54,7 +54,7 @@ export function say(kind, text, undo = null, code = project.value, focusUndo = f
   }
   if (kind === "problem") trouble.n++;
   const id = ++counter;
-  toast.value = { id, kind, text, undo, code, focusUndo };
+  toast.value = { id, kind, text, undo, code, focusUndo, quiet };
   if (kind !== "problem") { shown = id; clock.start(); } else clock.stop();
 }
 
@@ -148,7 +148,7 @@ export function change(req, done, named = null) {
     redraw(code, r.reply);
     if (!(await readAgain(code, "The change was saved"))) return r.reply;
     if (r.reply.apply_id && named && !named.inline) { itemSteps.set(r.reply.apply_id, `Undone: ${done}`); if (named.focus) focusSteps.set(r.reply.apply_id, named.focus); }
-    if (r.reply.apply_id) say("done", done, r.reply.apply_id, code);
+    if (r.reply.apply_id) say("done", done, r.reply.apply_id, code, false, !!(named && named.quiet));      // named.quiet: not announced (a section drop, whose own live region speaks)
     return r.reply;
   });
 }
