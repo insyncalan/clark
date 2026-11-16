@@ -1,6 +1,6 @@
 // The one quiet control of a section (Edit only, #101): a grip with a "+" under it, in the page's left margin, outside the
 // section's own box so it never moves or narrows the section. The grip drags to move (edit/drag.js), a click, Enter or Space opens
-// its menu, and Alt+Up and Alt+Down on it move the section by rows. The "+" adds a section below (edit/addSection.js).
+// its menu, and Alt+Up and Alt+Down on it move the section by rows; Alt+Right puts it beside the next one and Alt+Left makes it full width. The "+" adds a section below (edit/addSection.js).
 // Faint at rest, clear when the section is hovered or has focus, and while the menu is open (shell.css).
 import { useEffect, useRef } from "preact/hooks";
 import { moveUp, moveDown, setHidden, besideNext, fullWidth, canStep, canBeside, inPair, remove } from "./actions.js";
@@ -57,9 +57,14 @@ export function Gutter({ section, count }) {
   }, [open]);
 
   const onKeyDown = (e) => {
-    if (!e.altKey || e.ctrlKey || e.metaKey || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) return;
+    if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    const k = e.key;
+    if (k !== "ArrowUp" && k !== "ArrowDown" && k !== "ArrowRight" && k !== "ArrowLeft") return;
     e.preventDefault();
-    if (e.key === "ArrowUp") moveUp(section.id, "report", "handle"); else moveDown(section.id, "report", "handle");
+    if (k === "ArrowUp") moveUp(section.id, "report", "handle");
+    else if (k === "ArrowDown") moveDown(section.id, "report", "handle");
+    else if (k === "ArrowRight") { if (!inPair(section.id)) besideNext(section.id, "report", "handle"); }      // beside one already: nothing to do; the last section says why (canBeside)
+    else if (inPair(section.id)) fullWidth(section.id, "report", "handle");      // already full width: nothing to do
   };
   const onPointerDown = (e) => { down.current = [e.clientX, e.clientY]; startDrag(e, grip.current, section.id, count); };
   const onClick = (e) => {
@@ -88,7 +93,7 @@ export function Gutter({ section, count }) {
   return (
     <div class={`sec-ctl${open ? " open" : ""}${hinted ? " hint" : ""}`} data-hint={hinted ? "1" : undefined}>
       <button type="button" class="handle" ref={grip} data-edit-only data-drag data-options aria-haspopup="menu" aria-expanded={open ? "true" : "false"}
-        aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown" title="Drag to move · click for options"
+        aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown Alt+ArrowRight Alt+ArrowLeft" title="Drag to move · click for options"
         aria-label={`Move or change ${section.title}`} onKeyDown={onKeyDown} onPointerDown={onPointerDown} onClick={onClick}>
         <svg viewBox="0 0 12 18" width="12" height="18" aria-hidden="true" focusable="false">
           <g fill="currentColor"><circle cx="3" cy="3" r="1.5" /><circle cx="9" cy="3" r="1.5" /><circle cx="3" cy="9" r="1.5" /><circle cx="9" cy="9" r="1.5" /><circle cx="3" cy="15" r="1.5" /><circle cx="9" cy="15" r="1.5" /></g>
