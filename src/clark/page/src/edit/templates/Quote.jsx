@@ -3,6 +3,7 @@
 // one step, one Undo. The view part is templates/Quote.jsx.
 import { source, tidyQuote, quoteShows, LIMITS } from "../../templates/notes.js";
 import { Field, useSaver } from "./noteEdit.jsx";
+import { Icon } from "../../components/Icon.jsx";
 
 // A switch is stored only when off (section_kinds/quote.py): turning it on again writes nothing for it.
 export function Edit({ section }) {
@@ -14,8 +15,8 @@ export function Edit({ section }) {
     <div class="tpl-edit tpl-edit-quote qb" data-tpl="quote">
       <div class="cb-bar" role="toolbar" aria-label="Quote tools">
         <div class="cb-set"><span class="cb-lbl">Show</span>
-          <button type="button" role="switch" class="cb-btn" aria-checked={on.tile ? "true" : "false"} aria-label="Show the tile (the card around the quote)" onClick={() => flip("tile")}>Tile</button>
-          <button type="button" role="switch" class="cb-btn" aria-checked={on.heading ? "true" : "false"} aria-label="Show the heading" onClick={() => flip("heading")}>Heading</button>
+          <button type="button" role="switch" class="cb-btn" aria-checked={on.tile ? "true" : "false"} aria-label="Show the tile (the card around the quote)" onClick={() => flip("tile")}><Icon name={on.tile ? "eye" : "eyeoff"} />Tile</button>
+          <button type="button" role="switch" class="cb-btn" aria-checked={on.heading ? "true" : "false"} aria-label="Show the heading" onClick={() => flip("heading")}><Icon name={on.heading ? "eye" : "eyeoff"} />Heading</button>
         </div>
       </div>
       <figure class="tpl-quote">
