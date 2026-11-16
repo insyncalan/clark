@@ -92,7 +92,29 @@ def hidden_types(sections, deleted=False):
     if not sections and not deleted:
         return set()
     have = {s.get("type") for s in sections or ()}
-    return {s.get("type") for s in sections or () if s.get("hidden")} | {t for t in BUILT_IN_SECTIONS if t not in have}
+    out = {s.get("type") for s in sections or () if s.get("hidden")} | {t for t in BUILT_IN_SECTIONS if t not in have}
+    return out - listed_types(sections)
+
+
+LIST_TABLE = {"action": "actions", "decision": "decisions"}           # a Work items list's kind -> the section type that carries its rows (risk, issue, assumption, dependency: raid)
+
+
+def listed_types(sections):
+    """Item 1268: the built-in work section types (actions, raid, decisions) that a Work items list section in the file can list,
+    from its saved kinds (none chosen: every kind). The client opens those rows through the list, so they are published and
+    counted whether or not the built-in section is on the page. A hidden list, or one whose body does not read, adds nothing."""
+    out = set()
+    for s in sections or ():
+        if s.get("type") != "workitems" or s.get("hidden"):
+            continue
+        try:
+            kinds = json.loads(s.get("body") or "{}").get("kinds") or []
+        except (ValueError, AttributeError):
+            continue
+        if not isinstance(kinds, list):
+            continue
+        out |= {LIST_TABLE.get(k, "raid") for k in kinds if isinstance(k, str)} if kinds else {"actions", "raid", "decisions"}
+    return out
 # "docs" (#74): only while it has a document to show (documents()); needs, tracker and the section templates (#96) carry content: a section of those types stays in only when its
 # body checks again and its published fields are not empty (_content; a template stub is never in the file)
 

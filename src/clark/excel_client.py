@@ -106,6 +106,9 @@ def value_of(table, row, field):
 
 def rows_of(published, table):
     rows = list(published["data"].get(table) or [])
+    if SECTION_OF.get(table) in ("actions", "raid", "decisions") and SECTION_OF[table] not in {s.get("type") for s in published["sections"]}:
+        listed = {i for s in published["sections"] if s.get("type") == "workitems" for i in s.get("items") or ()}
+        rows = [r for r in rows if r.get("id") in listed]      # item 1268: no built-in section for it: only the rows the Work items lists carry
     if table == "milestones":
         rows = [r for r in rows if r.get("status") != "Cancelled"]      # as the page leaves them out
     return rows
@@ -114,6 +117,12 @@ def rows_of(published, table):
 def sheet_tables(published):
     """The tables whose section the page shows, in the export's own sheet order."""
     shown = {s.get("type") for s in published["sections"]}
+    for s in published["sections"]:
+        if s.get("type") == "workitems":      # item 1268: a Work items list opens its rows: the sheet of each table that holds one of its ids
+            ids = set(s.get("items") or ())
+            for table, section in (("actions", "actions"), ("raid", "raid"), ("decisions", "decisions")):
+                if any(r.get("id") in ids for r in published["data"].get(table) or ()):
+                    shown.add(section)
     return [t for t in excel.SHEET_OF if t in COLUMNS and SECTION_OF[t] in shown]
 
 

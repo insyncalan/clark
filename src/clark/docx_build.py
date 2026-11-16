@@ -59,7 +59,7 @@ NOT_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ud800-\udfff￾￿]")
 
 TITLES = {"current": "Current state", "glance": "At a glance", "usecases": "Use cases", "milestones": "Milestones",
           "text": "Notes", "raid": "Risks and issues", "actions": "Actions", "decisions": "Decisions", "gantt": "Gantt",
-          "imagecap": "Image"}                            # row 1223: only a Full width image (body version 2) is written, and it has no heading; an Image with caption (version 1) is left out, as it was
+          "imagecap": "Image", "workitems": "Work items"}                            # row 1223: only a Full width image (body version 2) is written, and it has no heading; an Image with caption (version 1) is left out, as it was
 HIDDEN_BY_KIND = ("actions", "raid", "decisions")
 HEADING_STYLE = {"h1": "Heading2", "h2": "Heading3", "h3": "Heading4"}
 MAX_LEVELS = 4                                           # list levels written
@@ -372,7 +372,13 @@ def _kept(published, shown):
     """The published rows, in the shape glance reads them for a client (so the counts are the page's)."""
     data = published["data"]
     return {"data": data, "rows": glance.work_rows(data), "use_cases": data.get("use_cases") or [],
-            "hidden_types": {t for t in HIDDEN_BY_KIND if t not in shown}}
+            "hidden_types": {t for t in HIDDEN_BY_KIND if t not in shown and t not in _listed(published)}}
+
+
+def _listed(published):
+    """Item 1268: the built-in work types a Work items list in the file carries a row of (the client opens those through the list)."""
+    ids = {i for s in published["sections"] if s.get("type") == "workitems" for i in s.get("items") or ()}
+    return {t for t in HIDDEN_BY_KIND if any(r.get("id") in ids for r in published["data"].get(t) or ())}
 
 
 def section_current(published, ctx, title, sec):
@@ -650,8 +656,46 @@ def section_decisions(published, ctx, title, sec):
     return _heading(title) + table(ctx, ["ID", "Decision", "Status", "Made by", "Date"], [1200, 4138, 1100, 1400, 1800], rows)
 
 
+def section_workitems(published, ctx, title, sec):
+    """Item 1268: a Work items list. The ids are the ones the file's section carries (publish chose them from what it kept, in
+    order); a row is looked up in the published rows by id, so an id the file does not hold prints nothing. The title is always
+    printed, the other columns are the ones the list shows."""
+    by = {}
+    for key, kind in (("actions", "action"), ("raid", None), ("decisions", "decision")):
+        for r in _rows(published, key):
+            by.setdefault(r.get("id"), (key, kind or str(r.get("type") or "").lower(), r))
+    cols = [c for c in (sec.get("columns") or ()) if c in ("type", "id", "owner", "due", "status", "priority")] or ["id", "owner", "due", "priority"]
+    heads = {"type": "Type", "id": "ID", "owner": "Owner", "due": "Due", "status": "Status", "priority": "Priority"}
+    weights = {"type": 1000, "id": 1250, "owner": 1400, "due": 1250, "status": 1100, "priority": 950}
+    rows = []
+    for i in sec.get("items") or ():
+        if i not in by:
+            continue
+        key, kind, r = by[i]
+        decision = key == "decisions"
+        own = "decision" if decision else "description"
+        cells = {"type": word_cell(kind.capitalize(), ctx), "id": word_cell(r.get("id"), ctx),
+                 "owner": word_cell(r.get("made_by") if decision else r.get("owner"), ctx),
+                 "due": _due(key, "needed_by", r, ctx) if decision and r.get("status") == "Pending" else
+                        (word_cell(_date(r.get("date")) if r.get("date") else "", ctx) if decision else _due(key, "due_date", r, ctx)),
+                 "status": word_cell(r.get("status"), ctx) if decision else _status_cell(r, kind, ctx),
+                 "priority": word_cell(r.get("priority"), ctx, colour=colours_table.colour_for(key, "priority", r.get("priority"))) if not decision else word_cell("", ctx)}
+        body = text_paras(_words(r, "client_message", own), ctx)
+        words = sanitise.rich_plain_text(r.get("latest_update"))
+        if words:
+            body += text_paras(f"Latest update: {words}", ctx, color=ctx.tok["grey-700"])
+        rows.append([cells[c] for c in cols if c in ("type", "id")] + [(body, None)] + [cells[c] for c in cols if c not in ("type", "id")])
+    if not rows:
+        return ""
+    lead = [c for c in cols if c in ("type", "id")]
+    rest = [c for c in cols if c not in ("type", "id")]
+    used = sum(weights[c] for c in lead + rest)
+    return _heading(title) + table(ctx, [heads[c] for c in lead] + ["Item"] + [heads[c] for c in rest],
+                                   [weights[c] for c in lead] + [max(TEXT_W - used, 2000)] + [weights[c] for c in rest], rows)
+
+
 SIMPLE = {"imagecap": section_imagecap, "current": section_current, "text": section_text, "milestones": section_milestones, "actions": section_actions,
-          "raid": section_raid, "decisions": section_decisions, "gantt": section_gantt}
+          "raid": section_raid, "decisions": section_decisions, "gantt": section_gantt, "workitems": section_workitems}
 
 
 def title_block(published, ctx):
