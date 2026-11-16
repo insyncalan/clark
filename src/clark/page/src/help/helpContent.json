@@ -480,7 +480,7 @@
     "go": "dashboard+edit",
     "s": [
      "In Edit, each section has a control at the left of its card (in the margin on a wide window, inside the card on a narrow one): a move button and, under it, a **+**. They are faint until you point at the section or tab to them.",
-     "Drag the move button to move the section, or focus it and press [[Alt+Up]] or [[Alt+Down]]. Click it, or press [[Enter]] or [[Space]] on it, to open the section’s menu.",
+     "Drag the move button to move the section, or focus it and press [[Alt+Up]] or [[Alt+Down]]. [[Alt+Right]] puts the section beside the next one, [[Alt+Left]] makes it full width. Click it, or press [[Enter]] or [[Space]] on it, to open the section’s menu.",
      "The menu has **Add a template below…**, then **Template settings** (for a section whose template has settings), **Move up** and **Move down**, **Place beside the next section** (or **Full width** when it is already beside another), then **Leave out of the published page** (or **Include in the published page**) and **Delete section**. A section that is left out shows a small eye mark under its **+** and the tag **Left out of the published page**.",
      "To rearrange the page, pick up a section by its move button and drop it. A line between rows puts it on a row of its own; the left or right half of a section that is on its own puts the two side by side, half the width each. A row never holds more than two. [[Esc]] cancels the move. The section’s title follows the pointer, a faint dashed outline stays where the section was, and a dashed half or a line shows where it will go. The header stays at the top. Each drop is one step you can undo, and on a narrow window a pair stacks.",
      "Click a heading to rename it. [[Enter]] keeps it; [[Esc]] puts it back.",
@@ -621,10 +621,10 @@
     "s": [
      "On **Milestones**, press **+** (**Add milestone**). A new one, called New milestone and agreed 30 days out, opens in the peek. There is no **+** in a published file.",
      "Click any milestone to open it: its mark or label on the timeline, its chip on the calendar, or its row in the details.",
-     "**State**: Forecast, On track, At risk, Slipped or Achieved are buttons under the header line. Overdue follows the dates and can’t be picked.",
+     "**State**: Forecast, On track, At risk, Slipped or Achieved are buttons in the State chip under the title. Overdue follows the dates and isn’t one of them.",
      "**Dates**: the **Agreed date** is shown and the peek does not change it; change the **Forecast date** as things move. A Done milestone also has an **Achieved on** date.",
-     "**Progress** is set by hand with the slider or the number. Add a **Description**, the **Owner** and the **Workstream**.",
-     "**Visible to client** (Yes or No), and the **Client wording** used on the page in place of the name.",
+     "**Progress** is set by hand with the ten blocks in the Progress chip. Add a **Description**, the **Owner** and the **Workstream**.",
+     "**Client visible** (the line under the rows), and the **Client wording** used on the page in place of the name.",
      "To tie a work item to a milestone, open the item’s peek and, in Edit, pick the milestone under Details."
     ],
     "page": [
@@ -1628,12 +1628,12 @@
        "**Archive**: pressing it in the **More actions** menu archives the milestone and closes the peek. A message says, for example, M3 archived. It is out of the lists and the published page. Press **Undo** in that message and it says M3 is back.",
        "**Tabs** (in Edit): Details, then Activity, the history of the milestone.",
        "**The title** is the milestone’s **Name**: in Edit, click it to change it.",
-       "**The header line**: the state, the **Owner** and the progress. Achieved appears only once the milestone is achieved, and picking Achieved sets the progress to 100%. In View it carries its date; in Edit the date is in the Achieved on row, not repeated in the header.",
-       "**State**: Forecast, On track, At risk, Slipped, Overdue and Achieved as buttons under the header line. Overdue is shown but cannot be picked.",
-       "**Dates**: Agreed (the baseline) is shown and not changed here; in Edit, Forecast is a date you pick; in View it is shown only. A milestone that is Done also has an Achieved on date, a row in Edit; in View the header line shows it.",
-       "**Progress**: a slider and a number in the header line, set by hand.",
-       "**The rows**: Description, Agreed date, Forecast date, Workstream, Visible to client and Client wording, label left and value right. Description and Client wording use the rich text editor.",
-       "**Visible to client** (Yes or No) and **Client wording**. A client sees the same peek, read only, without the Visible to client row."
+       "**Under the title**: in Edit, chips for the state, the **Owner**, the progress and the **Forecast date**; in View and in a published file, the header line with the state, the owner and the progress. Achieved appears only once the milestone is achieved, and picking Achieved sets the progress to 100%. In View the header line carries its date; in Edit the date is in the Achieved on row.",
+       "**State**: Forecast, On track, At risk, Slipped, Overdue and Achieved are the states. In Edit the State chip opens the five you can pick: Forecast, On track, At risk, Slipped and Achieved. Overdue is shown when the dates make it so, and cannot be picked.",
+       "**Dates**: Agreed (the baseline) is shown and not changed here; in Edit, the Forecast date chip opens a date you pick; in View it is shown only. A milestone that is Done also has an Achieved on date, a row in Edit; in View the header line shows it.",
+       "**Progress**: in Edit, ten blocks in the Progress chip, set by hand. Press the block that matches the progress to set it back to 0.",
+       "**The rows**: in Edit, Description, Agreed date, Workstream, Use case and Client wording, label left and value right, then the Client visible line; the Latest update box sits above them. In View and in a published file, Description, Agreed date, Forecast date, Workstream and Client wording. Description and Client wording use the rich text editor.",
+       "**Client visible** and **Client wording**. A client sees the same peek, read only, without the Client visible line."
       ]
      ]
     ]
@@ -2153,7 +2153,7 @@
    ],
    [
     "[[Alt+Up]] [[Alt+Down]]",
-    "Dashboard in Edit, on a section’s move button: move the section"
+    "Dashboard in Edit, on a section’s move button: move the section. [[Alt+Right]] puts the section beside the next one, [[Alt+Left]] makes it full width"
    ],
    [
     "[[Enter]] or [[Space]]",
