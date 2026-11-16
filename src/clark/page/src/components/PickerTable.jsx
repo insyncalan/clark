@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from "preact/hooks";
 import { listOf } from "../logic/useCasesList.js";
 import { rowsOf } from "../workItems.js";
 import { emptyState, visible, counts, resultWords, addWords, UNRULED_OPEN_STEPS, activeCount, toggleRow, pickAllShown, clearPicked, pickedIds } from "../logic/useCasePicker.js";
-import { countWords } from "../logic/picker.js";
+import { countWords, NO_MATCH } from "../logic/picker.js";
 import { Icon } from "./Icon.jsx";
 import { PickerFilters, UNRULED_FILTERS, UNRULED_SEARCH } from "./PickerFilters.jsx";
 
@@ -53,6 +53,7 @@ export function PickerTable({ data, onAdd, onClose, title = "Add a use case from
             ))}
           </tbody>
         </table>
+        {rows.length && !shown.length ? <p class="muted pk-none">{NO_MATCH}</p> : null}
       </div>
       <div class="pk-foot">
         <span class="muted pk-count" data-result aria-live="polite">{resultWords(c)}</span>
