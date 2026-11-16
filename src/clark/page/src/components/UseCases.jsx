@@ -111,21 +111,28 @@ export function UseCases({ tools, section }) {
   useEffect(() => {
     if (ed && fresh && list.some((s) => s.u.id === fresh)) { setOpen(new Set([...open, fresh])); if (list.findIndex((s) => s.u.id === fresh) >= shownRows(list.length, view).shown) setAll(true); ed.added.value = ""; }
   }, [fresh, list.length]);   // eslint-disable-line react-hooks/exhaustive-deps
-  useLayoutEffect(() => {
-    const ul = box.current, row = ul && ul.querySelector(":scope > .ucrow:not(.open)");
-    if (row && row.offsetHeight) ul.style.setProperty("--ucrow-h", row.offsetHeight + "px");
-  });
+  const scrolls = ed ? view.set || view.scroll : view.scroll, rowsHigh = scrollRows({ ...view, scroll: scrolls });
+  const shut = useRef(new Map());       // each row's height when closed, by id: a row that is open keeps the height it had closed, so opening one never moves the box
+  const fit = (n) => {
+    const ul = box.current;
+    if (!ul || !n) return;
+    const rows = [...ul.querySelectorAll(":scope > .ucrow")];
+    rows.forEach((r) => { if (!r.classList.contains("open") && r.offsetHeight) shut.current.set(r.dataset.uc, r.offsetHeight); });
+    const first = rows.slice(0, Math.ceil(n)).map((r) => shut.current.get(r.dataset.uc)).filter(Boolean);
+    if (first.length) ul.style.setProperty("--ucrow-h", first.reduce((a, b) => a + b, 0) / first.length + "px");       // n times this is the first n closed rows added up
+  };
+  useLayoutEffect(() => { fit(rowsHigh); });
   useEffect(() => {
-    const again = () => { const ul = box.current, row = ul && ul.querySelector(":scope > .ucrow:not(.open)"); if (row && row.offsetHeight) ul.style.setProperty("--ucrow-h", row.offsetHeight + "px"); };
+    const again = () => { shut.current.clear(); fit(rowsHigh); };
     window.addEventListener("resize", again);
     return () => window.removeEventListener("resize", again);
-  }, []);
+  });
   const strip = fromFile.value && d.glance && d.glance.strip;
   const counts = strip ? strip.words : Object.fromEntries(STATUSES.map(([k]) => [k, list.filter((s) => s.u.status === k).length]));
   const total = strip ? strip.total : list.length;
   if (!list.length) return <><p class="muted" data-nouc>{off ? "No use cases are on the dashboard." : "No use cases yet."}</p>{ed ? <ed.FromRecord n={off} /> : null}<More n={off} /></>;
   // Edit scrolls once a view number is stored; with none stored it keeps the first 5 and Show all. Once a number is set there is no Show all and an old one does not open the rest.
-  const scrolls = ed ? view.set || view.scroll : view.scroll, rowsHigh = scrollRows({ ...view, scroll: scrolls }), every = (view.set ? false : all) || printing.value;
+  const every = (view.set ? false : all) || printing.value;
   const drawn = scrolls ? list : visibleItems(list, view, every);
   const flip = (id) => { const n = new Set(open); if (n.has(id)) n.delete(id); else n.add(id); setOpen(n); };
   const side = trackerPlace(view);   // the count pills and the bar: above the rows, below them (after Show all) or not drawn

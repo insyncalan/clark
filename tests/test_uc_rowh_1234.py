@@ -51,7 +51,7 @@ class Browser(unittest.TestCase):
                 got = cdp.js("(u => { const r = [...u.querySelectorAll(':scope > .ucrow')].map(l => l.getBoundingClientRect()); const b = u.getBoundingClientRect();"
                              " return { box: b.height, rows: r.map(x => x.height), fully: r.filter(x => x.bottom <= b.bottom + 1).length }; })(document.querySelector('.uc .ucrows'))", sid)
                 self.assertEqual(got["fully"], 3, f"n=3 box shows {got['fully']} whole rows: {got}")
-                self.assertAlmostEqual(got["box"], 3 * got["rows"][0], delta=1, msg=f"the box is n measured rows tall, not the fallback: {got}")
+                self.assertAlmostEqual(got["box"], sum(got["rows"][:3]), delta=1, msg=f"the box is the first n measured rows tall, not the fallback: {got}")
 
 
 if __name__ == "__main__":
