@@ -3,9 +3,10 @@
 // Row 1114: the list as the full app's Use cases page draws it, read only: the tabs with their counts (no "On the dashboard" tab, every
 // published row is on it), Sort by and Group by menus (item 1149: the rows are the dashboard summary's) with groups that shut, the count line and the filtered-empty state.
 // A published row carries no work item count, so there is no Work items heading to sort by. The choice lives for the visit only.
+import { StepsBadge } from "./StepsBadge.jsx";
 import { signal } from "@preact/signals";
 import { data, uc, project } from "../stores/report.js";
-import { ucFor, ucKey, refBox, stepsWord, listOf, pickRows, groupsOf, groupLabel, TABS, GROUPS, SORTS, FIRST } from "../logic/useCasesList.js";
+import { ucFor, ucKey, refBox, listOf, pickRows, groupsOf, groupLabel, TABS, GROUPS, SORTS, FIRST } from "../logic/useCasesList.js";
 import { commitWords } from "../logic/commitment.js";
 import { plural } from "../workItems.js";
 import { UseCaseFilePage } from "./UseCaseFilePage.jsx";
@@ -34,7 +35,7 @@ function Item({ p, u, steps, marks }) {
         <span class="uctitle ucp-title">{u.title}</span>
         <span class="uchead ucp-headline">{u.headline}</span>
         <span class="ucstc"><span class={`ucword rag-${(RAGS[u.status] || "n")}`} data-word><i class="ragdot" aria-hidden="true"></i>{u.status}</span><CommitChip u={u} /></span>
-        <span class="ucsteps num">{stepsWord(mine.length)}</span>
+        <span class={`ucsteps num${mine.length ? " some" : ""}`}><StepsBadge n={mine.length} /></span>
       </summary>
       <div class="ucp-body">
         <p><a class="link" data-uc-page href={`#usecases&p=${project.value}&uc=${encodeURIComponent(ucKey(d, u))}`}>Open the page</a></p>
