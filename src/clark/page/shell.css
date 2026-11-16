@@ -2129,6 +2129,9 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .wil-all-b { border: 0; background: none; padding: 4px 0; font: inherit; font-size: var(--size-small); color: var(--status-blue-text); cursor: pointer; text-decoration: underline; }
 .wil-all-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .wil-table .type { white-space: nowrap; }
+.wil-live tbody tr, .wil-live li { cursor: pointer; }      /* row 1268: a row opens the peek, in View and in a published file as in Edit */
+.wil-live tbody tr:hover, .wil-live li:hover { background: var(--grey-50); }
+.wil-live tbody tr:focus-visible, .wil-live li:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .wil-lines { margin: var(--space-1) 0 0; padding: 0; list-style: none; }
 .wil-lines li { display: grid; grid-template-columns: 24px minmax(0, 1fr); column-gap: var(--space-2); row-gap: 2px; padding: var(--space-2) 2px; border-top: 1px solid var(--grey-100); }
 .wil-lines .wil-tile { grid-row: 1 / span 2; align-self: start; }
