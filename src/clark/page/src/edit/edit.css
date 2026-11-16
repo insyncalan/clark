@@ -814,9 +814,7 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .tracker-edit .t-name-form .t-f, .tracker-edit .t-new-group .t-f { width: 260px; max-width: 100%; }
 .tracker-edit .btn:disabled { color: var(--text-muted); cursor: default; }
 
-/* The Dashboard's use case summary in Edit: the status button, the headline and the name changed in place, the growing Add
-   button in the header, the Add a use case box and the link to the picker. Tokens only; no text under 13 px. */
-.uc-add { flex: none; margin-left: auto; }
+/* The Dashboard's use case summary in Edit: the status button, the headline and the name changed in place, the Add a use case box and the link to the picker. Tokens only; no text under 13 px. */
 .ucw-btn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 24px; cursor: pointer; border-radius: var(--radius-sm); padding: 1px 4px; margin: -1px -4px; }
 .ucw-btn:hover { background: var(--grey-200); }
 .ucw-btn:focus-visible { outline: 2px solid var(--brand-blue); }
@@ -1250,6 +1248,7 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
 @media (min-width: 801px) {
   .msl-hd { display: block; margin: var(--d-msl-top) 0 0 var(--space-1); border-left: 2px solid transparent; border-bottom: 1px solid var(--grey-200); font-size: var(--size-caption); font-weight: var(--weight-medium); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); }
   .msl-hc { display: grid; grid-template-columns: minmax(150px, 190px) minmax(160px, 1fr) 150px 130px; column-gap: var(--space-4); align-items: center; padding: 6px var(--space-2) 6px 22px; }
+  .msl-box:not([data-place="page"]) .msl-hc { grid-template-columns: minmax(140px, 1fr) 130px 100px minmax(150px, 190px) 120px; }
   .msl-hc > span { position: relative; min-width: 0; }
   .msl-hd + .msl, .msl-hd ~ .msl { margin-top: 0; }
   .msl-box:has(.msl-row.has-eye) .msl-hc { padding-right: calc(var(--space-2) + 38px); }
@@ -1258,6 +1257,7 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
 }
 @media (min-width: 1201px) {
   .msl-hc { grid-template-columns: minmax(240px, 17rem) minmax(160px, 1fr) 150px 130px; }
+  .msl-box:not([data-place="page"]) .msl-hc { grid-template-columns: minmax(180px, 1fr) 150px 110px minmax(170px, 14rem) 130px; }
   .msl-box[style*="--msl-cols:"] .msl-cells, .msl-box[style*="--msl-cols:"] .msl-hc { grid-template-columns: var(--msl-cols-w); }
 }
 .msl-hc > span:has(> .cgrip) { position: relative; }
