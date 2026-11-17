@@ -246,6 +246,12 @@ class WordExact(unittest.TestCase):
         self.assertEqual([len(cells_of(r)) for r in rows], [4, 4])
         self.assertEqual(tbl.count("<w:p>"), 8)
 
+    def test_the_heading_is_the_section_titles_word(self):
+        self.assertEqual(docx_build.TITLES["glancetemplate"], "At a glance")
+        self.assertIn(docx_build.section_glancetemplate, docx_build.SIMPLE.values())
+        self.assertIs(docx_build.SIMPLE["glancetemplate"], docx_build.section_glancetemplate)
+        self.assertEqual(glance_print.PER_LINE, 4)
+
     def test_nothing_to_show_is_an_empty_string_and_a_row_alone_is_not(self):
         empty = {"type": "glancetemplate", "content": {"health": {"shown": False}, "order": [], "bespoke": []}}
         self.assertEqual(docx_build.section_glancetemplate(select(), mock.Mock(), "T", empty), "")
