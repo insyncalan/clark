@@ -21,8 +21,8 @@ READY = True
 LIMIT = 32768
 EMPTY = ""
 
-BESPOKE_MAX = 12                                  # the one tile cap (open question O1 of the plan: 12 is a proposal)
-LABEL_MAX, FIGURE_MAX, TAG_MAX, NOTE_MAX = 40, 12, 12, 60      # characters
+BESPOKE_MAX = 12                                  # the one tile cap: 12 is FINAL (ruled)
+LABEL_MAX, FIGURE_MAX, TAG_MAX, NOTE_MAX = 40, 12, 12, 60      # characters, the text limits are approved
 BUILT_IN = ("health", "overdue", "risks", "decisions")          # the tiles that count or show the project, in their default order
 SETTLED = BUILT_IN[1:]                                           # the ones with a hidden flag and an outline (health has the eye)
 OUTLINES = ("R", "A", "G", "N")                                  # glance_tiles.outline, '' (automatic) is not stored
