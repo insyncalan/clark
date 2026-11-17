@@ -14,6 +14,7 @@ import { workSelection } from "../../stores/selection.js";
 import { itemRows } from "../../stores/work.js";
 import { cellPlan } from "../bulkLogic.js";
 import { ask, runBulk } from "../Bulk.jsx";
+import { ownToast } from "../BarToast.jsx";
 import { todayIso } from "../../workItems.js";
 import { canPick, changeFor, newPersonChange, pickField, fieldName, people, statusPill, tableOf, whyFixed } from "../itemEdit.js";
 import { OwnerPick } from "./OwnerPick.jsx";
@@ -70,7 +71,7 @@ export function Cell({ row, field, said, keep, tip, children, place }) {
     if (c && c.error) return c.error;
     close(true);
     const around = near(k);
-    if (c) (c.one ? changeRating : changeCell)(tableOf(row), row.id, c.changes, { text: c.words, back: c.back, always: row.kind === "decision" && field === "status" && value === "Made", place: place || "cell" }).then(() => refocus(k, around));
+    if (c) (c.one ? changeRating : changeCell)(tableOf(row), row.id, c.changes, { text: c.words, back: c.back, always: row.kind === "decision" && field === "status" && value === "Made", place: place || "cell" }).then(() => { ownToast(); refocus(k, around); });      // row 1287: a pick made in View (the Dashboard) says what it did, with Undo; in Edit the toast is Edit's own
     return "";
   };
   // Row 986: a name that is not on the list, added and assigned in one step. Resolves to {ok: true} (the picker has closed) or the words to
