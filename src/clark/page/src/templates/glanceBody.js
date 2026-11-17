@@ -9,6 +9,8 @@ import { TONES } from "./glanceLimits.js";
 export const BUILT_IN = ["health", "overdue", "risks", "decisions"];
 export const SETTLED = BUILT_IN.slice(1);
 const OUTLINES = ["R", "A", "G", "N"];
+export const PER_ROWS = [3, 4];       // tiles on a line at full width (row 1264 slice 9), as section_kinds/glancetemplate.py PER_ROW; half width always draws 2
+export const PER_ROW = 4;             // the default, not stored
 const flag = (v, d) => (typeof v === "boolean" ? v : d);
 
 /** The body with every field present, as upgrade() in the Python kind gives it. */
@@ -20,7 +22,7 @@ export function readBody(section) {
   const builtin = {};
   for (const n of SETTLED) { const s = b[n] && typeof b[n] === "object" ? b[n] : {}; builtin[n] = { hidden: flag(s.hidden, false), outline: OUTLINES.includes(s.outline) ? s.outline : "" }; }
   const fresh = !(section && ((section.content && typeof section.content === "object") || (typeof section.body === "string" && section.body)));      // never written: a NEW template starts with the health eye off (ticket 1264); a body with no health field is an existing page and shows it
-  return { v: 1, health: { shown: flag(h.shown, !fresh), own_row: flag(h.own_row, false) }, order, builtin, bespoke };
+  return { v: 1, health: { shown: flag(h.shown, !fresh), own_row: flag(h.own_row, false) }, per_row: PER_ROWS.includes(v.per_row) ? v.per_row : PER_ROW, order, builtin, bespoke };
 }
 
 /** One own tile as it is sent: id and label, the typed fields trimmed and left out when empty, the tone left out when neutral, hidden when true. */
@@ -47,6 +49,7 @@ export function compact(u) {
   if (!u.health.shown) health.shown = false;
   if (u.health.own_row) health.own_row = true;
   if (Object.keys(health).length) out.health = health;
+  if (u.per_row !== PER_ROW) out.per_row = u.per_row;
   if (u.bespoke.length) out.bespoke = u.bespoke.map(cleanTile);
   const built = {};
   for (const n of SETTLED) { const s = {}; if (u.builtin[n].hidden) s.hidden = true; if (u.builtin[n].outline) s.outline = u.builtin[n].outline; if (Object.keys(s).length) built[n] = s; }
@@ -56,7 +59,7 @@ export function compact(u) {
   return out;
 }
 
-/** `u` with one change: {hide: [key, bool]} | {outline: [key, "" | R | A | G]} | {order: [ids]} | {put: tile} (a new own tile goes last in the order, a known
+/** `u` with one change: {hide: [key, bool]} | {outline: [key, "" | R | A | G]} | {order: [ids]} | {ownRow: bool} | {perRow: 3 | 4} | {put: tile} (a new own tile goes last in the order, a known
  * id is replaced where it is) | {drop: id} (an own tile). A new object; `u` is not touched. */
 export function withChange(u, c) {
   const n = { ...u, health: { ...u.health }, builtin: Object.fromEntries(SETTLED.map((k) => [k, { ...u.builtin[k] }])), order: u.order.slice(), bespoke: u.bespoke.map((t) => ({ ...t })) };
@@ -71,6 +74,8 @@ export function withChange(u, c) {
   if (c.drop) { n.bespoke = n.bespoke.filter((t) => t.id !== c.drop); n.order = n.order.filter((i) => i !== c.drop); }
   if (c.outline) n.builtin[c.outline[0]].outline = c.outline[1];
   if (c.order) n.order = c.order;
+  if ("ownRow" in c) n.health.own_row = c.ownRow;
+  if ("perRow" in c) n.per_row = c.perRow;
   return n;
 }
 

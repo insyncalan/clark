@@ -175,6 +175,23 @@ class Base(unittest.TestCase):
         # row 808: the box's list now floats over the cards, so a person who is done with the box has left it before touching a card
         cdp.js("document.activeElement && document.activeElement.blur && document.activeElement.blur()", sid)
         self.until(cdp, sid, "!document.querySelector('#fline-list')", "the list of fields closed")
+        self.settle(cdp, sid)
+
+    def settle(self, cdp, sid, same=5):
+        """The fonts are in and the page has stopped moving: the bar above the board, the board and its first card keep one box for `same`
+        looks in a row (the bar can wrap to another row, and the page grow, as the fonts arrive on a loaded runner; a box measured before
+        that sends the mouse to where a card or a cell no longer is)."""
+        look = ("document.fonts.status === 'loaded' ? JSON.stringify([...document.querySelectorAll('#work .fbar, #work-board, #work-board .bcard, .boardbox')].slice(0, 6)"
+                ".map((e) => { const b = e.getBoundingClientRect(); return [b.x, b.y, b.width, b.height, e.scrollTop || 0]; })) : null")
+        last, run = None, 0
+        for _ in range(400):
+            now = cdp.js(look, sid)
+            run = run + 1 if now is not None and now == last else 0
+            if run >= same:
+                return
+            last = now
+            time.sleep(0.05)
+        self.fail("the page never stopped moving")
 
     def drag(self, cdp, sid, card, cell, steps=8):
         """Pick a card up with the mouse and drop it in a column cell, like a person: the board scrolls itself when the pointer
@@ -330,8 +347,15 @@ class GroupBy(Base):
             self.board(cdp, sid, "status")
             self.assertEqual(cdp.js("(() => { const r = document.querySelector('.toasts'); return r ? [r.getAttribute('role'), r.getAttribute('aria-live')] : null; })()", sid), ["status", "polite"],
                              "the region is there before any message, so a screen reader hears the first one")
-            self.drag(cdp, sid, self.id_of("Supplier slips"), self.cell("Delayed"))
-            self.wait_toast(cdp, sid, "note")
+            # A press right after the reload and blur can be lost while the board still lays out (2 of 6 alone runs failed, no toast ever made).
+            # A refused drop changes no state, so the drag is repeated, up to 3 times, each with an 8 s wait for the toast.
+            card, cell = self.id_of("Supplier slips"), self.cell("Delayed")
+            for _ in range(3):
+                self.drag(cdp, sid, card, cell)
+                if wait(lambda: cdp.js("!!document.querySelector('.toast[data-kind=note]')", sid), 8):
+                    break
+            self.until(cdp, sid, "document.querySelector('.toast[data-kind=note]')", "a toast", secs=1,
+                       why=lambda: cdp.js("(document.querySelector('.toasts') || {outerHTML: 'no .toasts'}).outerHTML + ' | body.className=' + document.body.className", sid))
             self.assertTrue(cdp.js("!!document.querySelector('.toasts[aria-live=polite] > .toast[data-kind=note]')", sid), "the refusal is inside the live region")
             self.assertEqual(cdp.js("document.querySelectorAll('.toasts').length", sid), 1)
 

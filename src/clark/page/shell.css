@@ -2079,6 +2079,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-gt-tile.go { cursor: pointer; transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-state) var(--ease-out); }
 .tpl-gt-tile.go:hover { border-color: var(--brand-blue); box-shadow: var(--shadow); }
 .tpl-gt-tile.go:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.tpl-edit-glancetemplate .tile-empty { margin: 0; padding: var(--space-4); color: var(--text-muted); font-size: var(--size-small); }
 .tpl-gt .tile-empty { flex: 1 1 100%; margin: 0; padding: var(--space-4); color: var(--text-muted); font-size: var(--size-small); }
 .tpl-gt-dot { flex: none; width: var(--space-3); height: var(--space-3); background: var(--shape); }
 .tone-g .tpl-gt-dot { border-radius: 50%; }
@@ -2089,6 +2090,13 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-gt-k, .tpl-gt-note { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
 .tpl-gt-tile .tpl-gt-tag { color: var(--tag); }
 @media (max-width: 760px) { .tpl-gt-tile { flex-basis: 100%; } }
+/* Row 1264 slice 9: the layout. 4 tiles on a line (3 when the section says so), 2 at half width (the slot's two columns), the one breakpoint (760) gives 1.
+   Project health is one tile's place, or the whole row when the section says so. */
+.tpl-gt[data-cols="3"] { --cols: 3; }
+.slot-left .tpl-gt, .slot-right .tpl-gt { --cols: 2; }
+.tpl-gt-health { flex: 0 0 calc((100% - (var(--cols) - 1) * var(--space-3)) / var(--cols)); min-width: 0; box-sizing: border-box; display: flex; }
+.tpl-gt-health.own-row { flex-basis: 100%; }
+@media (max-width: 760px) { .tpl-gt-health { flex-basis: 100%; } }
 .tpl-callout-p:last-child { margin-bottom: 0; }
 .tpl-quote { margin: var(--space-2) 0; padding: var(--space-2) var(--space-4); border-radius: var(--radius); background: var(--grey-50); min-width: 0; overflow-wrap: anywhere; }
 .tpl-quote-q { margin: 0; font-size: var(--size-h3); line-height: 1.4; color: var(--heading); }
