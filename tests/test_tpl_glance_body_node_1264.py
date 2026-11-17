@@ -92,6 +92,11 @@ class ReadBody(unittest.TestCase):
         self.assertEqual(read({}), {"v": 1, "health": {"shown": True, "own_row": False}, "per_row": 4, "order": ["health", "overdue", "risks", "decisions"],
                                     "builtin": {k: {"hidden": False, "outline": ""} for k in ("overdue", "risks", "decisions")}, "bespoke": []})
 
+    def test_a_per_row_that_is_not_3_or_4_reads_as_4_and_3_is_kept(self):
+        for wrong in (9, 5, 0, 2, "3", None, True):
+            self.assertEqual(read({"per_row": wrong})["per_row"], 4, repr(wrong))
+        self.assertEqual(read({"per_row": 3})["per_row"], 3)
+
     def test_every_field_read_back(self):
         got = read({"health": {"shown": False, "own_row": True}, "builtin": {"risks": {"hidden": True, "outline": "A"}, "decisions": {"outline": "N"}},
                     "bespoke": [B1], "order": ["bud", "risks"]})
