@@ -393,6 +393,21 @@ class Line(unittest.TestCase):
             self.assertEqual(self.say(cdp, sid), "Add a value after 'status:'.", "the caret is not in the line, so the token is marked and explained")
             self.assertEqual(self.tokens(cdp, sid, "err"), ["status:"])
 
+    def test_a_half_typed_token_is_not_marked_or_explained_while_the_caret_is_in_the_box(self):
+        s = self.serve()
+        with shared.page() as cdp:
+            sid = self.load(cdp, s.port)
+            self.put(cdp, sid, "is:open status:")
+            self.assertEqual(cdp.js("document.activeElement.id", sid), "fline-input", "the caret stays in the text box")
+            self.settle(cdp, sid)
+            self.assertEqual(self.tokens(cdp, sid, "err"), [], "the person is still typing the token, so it is not marked")
+            self.assertEqual(self.say(cdp, sid), "", "and not explained")
+            cdp.js("document.activeElement.blur()", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "fvAskUpdate"), "the prompt for unsaved changes has the focus")
+            self.settle(cdp, sid)
+            self.assertEqual(self.tokens(cdp, sid, "err"), ["status:"], "with the focus on the prompt the token is marked")
+            self.assertEqual(self.say(cdp, sid), "Add a value after 'status:'.", "and explained")
+
     def test_the_text_is_highlighted_field_names_plain_and_values_as_coloured_chips(self):
         s = self.serve()
         for width in SIZES:
