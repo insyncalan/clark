@@ -36,7 +36,7 @@ class Grip(BrowserBase, unittest.TestCase):
             with chrome() as cdp:
                 sid = self.visit(cdp, width, HASH, port)
                 got = cdp.js("(() => { const g = document.querySelector('[data-grip]'); return [g.getAttribute('role'), g.getAttribute('aria-label'), g.getAttribute('aria-valuenow'), g.getAttribute('aria-valuetext'), g.tabIndex]; })()", sid)
-                self.assertEqual(got, ["slider", "Timeline height", "100", "zoom 100%", 0], width)
+                self.assertEqual(got, ["slider", "Timeline height", "100", "Zoom 100%", 0], width)
 
     def test_arrow_keys_step_the_zoom_home_resets_and_the_ends_hold(self):
         port = self.serve()
@@ -45,7 +45,7 @@ class Grip(BrowserBase, unittest.TestCase):
                 sid = self.visit(cdp, width, HASH, port)
                 self.press(cdp, sid, "ArrowDown")
                 self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "110"), f"{width}: one step bigger")
-                self.assertEqual(cdp.js("document.querySelector('[data-grip]').getAttribute('aria-valuetext')", sid), "zoom 110%")
+                self.assertEqual(cdp.js("document.querySelector('[data-grip]').getAttribute('aria-valuetext')", sid), "Zoom 110%")
                 self.assertEqual(cdp.js("document.querySelector('[data-grip]') === document.activeElement", sid), True, f"{width}: focus stays on the grip")
                 self.press(cdp, sid, "ArrowUp"); self.press(cdp, sid, "ArrowUp")
                 self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "90"), f"{width}: two steps smaller")

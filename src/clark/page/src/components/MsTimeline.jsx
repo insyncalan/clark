@@ -203,7 +203,7 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
             </Tag>))}
         </div>
       </div>
-      {fit ? null : <div class="mv-grip" data-grip role="slider" tabindex="0" aria-orientation="vertical" aria-label="Timeline height" aria-valuemin={70} aria-valuemax={300} aria-valuenow={Math.round(z * 100)} aria-valuetext={`zoom ${Math.round(z * 100)}%`}
+      {fit ? null : <div class="mv-grip" data-grip role="slider" tabindex="0" aria-orientation="vertical" aria-label="Timeline height" aria-valuemin={70} aria-valuemax={300} aria-valuenow={Math.round(z * 100)} aria-valuetext={`Zoom ${Math.round(z * 100)}%`}
         onKeyDown={gripKey} onPointerDown={gripDown} onPointerMove={gripMove} onPointerUp={gripUp} onPointerCancel={gripUp}><span aria-hidden="true" /></div>}
       {R2 ? zoomNote : null}
       </div>
