@@ -350,7 +350,7 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-pills button:disabled { color: var(--text-muted); background: var(--surface); border-color: var(--ask-edge); cursor: default; opacity: .7; }
 .ask-pills button:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .ask-work { display: flex; align-items: center; gap: 10px; margin: 0; font-size: var(--size-caption); font-style: italic; color: var(--text-muted); animation: ask-in 220ms var(--ease-enter); }
-.ask-quip { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ask-step { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ask-dots { display: inline-flex; flex: none; gap: 3px; }
 .ask-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--grey-700); animation: ask-dot 1s var(--ease-toggle) infinite; }
 .ask-dots i:nth-child(2) { animation-delay: 150ms; } .ask-dots i:nth-child(3) { animation-delay: 300ms; }
