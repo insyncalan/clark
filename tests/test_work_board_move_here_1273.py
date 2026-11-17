@@ -8,6 +8,7 @@ import unittest
 import test_work_board_page as wb
 from test_work_board_page import setUpModule, tearDownModule  # noqa: F401  (the one shared Chrome of the board file)
 from test_work_filters import click
+from test_server import chrome  # noqa: F401  (the harness: this file drives Chrome, so the tier reader sees it)
 
 
 class MoveHere(wb.Base):
