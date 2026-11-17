@@ -19,6 +19,25 @@ class Shared:
     def notes(self):
         return self.val("document.querySelectorAll('[data-mail-note]').length")
 
+    def watch_nav(self):
+        self.js("window.__nav = []; if (window.navigation) window.navigation.addEventListener('navigate', (e) => window.__nav.push(e.destination.url));")
+
+    def check_follow(self, click, href):
+        """The plain link is followed only when the server gave no answer at all: not on success, not on a refusal with words."""
+        self.assertTrue(self.val("!!window.navigation"), "the browser reports navigations")
+        self.watch_nav()
+        self.answer(200, {"ok": True})
+        click()
+        self.assertEqual(self.val("window.__nav"), [], "opened by the server: the plain link is not followed as well")
+        self.answer(503, {"ok": False, "message": "x"})
+        click()
+        self.assertEqual(self.val("window.__nav"), [], "refused with words: the note, no plain link")
+        self.answer(0, {}, reject=True)
+        click()
+        nav = self.val("window.__nav")   # the browser may re-encode a character or two, so compare the start
+        self.assertEqual(len(nav), 1, "no answer at all: the plain link is followed")
+        self.assertEqual(nav[0][:60], href[:60])
+
     def check_post(self, href):
         self.assertEqual(self.val("window.__posts.length"), 1)
         url, init = self.val("window.__posts[0]")
@@ -50,6 +69,7 @@ class Feedback(Shared, FB.InBrowser):
         self.click(LINK)
         self.check_post(href)
         self.check_failures(lambda: self.click(LINK))
+        self.check_follow(lambda: self.click(LINK), href)
 
 
 class Draft(Shared, DE.InBrowser):
@@ -60,6 +80,7 @@ class Draft(Shared, DE.InBrowser):
         self.click(".pk-foot a")
         self.check_post(href)
         self.check_failures(lambda: self.click(".pk-foot a"))
+        self.check_follow(lambda: self.click(".pk-foot a"), href)
 
     def test_a_change_clears_the_note_and_the_note_is_a_muted_note_line(self):
         self.mount()
