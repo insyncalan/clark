@@ -63,6 +63,10 @@ ROWS = ("[...document.querySelectorAll('[data-type=%s] .wl-row')].map(r => { con
         " const st = (r.querySelector('.ico-w') || {}).textContent || (i && i.getAttribute('aria-label') || '').split(', ')[1] || (b && b.dataset.tip || '').split(' · ')[1];"
         " return r.dataset.id + '|' + st + '|' + r.querySelector('.wl-title').textContent.trim() + '|' + ['.c-owner', '.c-date', '.c-prio'].map(c => r.querySelector(c).textContent.trim()).join(' ') + '|' + r.dataset.kind; })")
 
+# row 1287: the four values a served View lets the team change in place (status, urgency, date, owner); never the description
+VIEW_PICKS = ["due", "owner", "priority", "status"]
+VIEW_KINDS = "[...new Set([...document.querySelectorAll('[data-cell]')].filter((e) => !e.closest('#report-bar')).map((e) => e.dataset.cell.split(':').pop()))].sort()"
+TITLE_CONTROLS = "document.querySelectorAll('.wl-row .wl-title button, .wl-row .wl-title input, .wl-row .wl-title textarea, .wl-row .wl-title [contenteditable], .wl-row .wl-title [data-cell], .wl-row .c-title button, .wl-row .c-title input, .wl-row .c-title [contenteditable], .wl-row .c-title [data-cell]').length"
 
 class ItemRows(unittest.TestCase):
     def setUp(self):
@@ -437,7 +441,9 @@ class EditRows(unittest.TestCase):
             p.until(f"!document.querySelector('[data-item-rows=raid] [data-id={gone}]')", "off again")
             p.view()
             self.assertFalse(p.js(f"!!document.querySelector('[data-id={gone}]')"), "View does not draw a row taken off the page")
-            self.assertEqual(p.js("document.querySelectorAll('[data-eye],.add-in,[data-add-line],[data-addfrom],[data-showing],[contenteditable],[data-cell]').length"), 0, "View has no Edit control")
+            self.assertEqual(p.js("document.querySelectorAll('[data-eye],.add-in,[data-add-line],[data-addfrom],[data-showing],[contenteditable]').length"), 0, "View has no Edit control")
+            self.assertEqual(p.js(VIEW_KINDS), VIEW_PICKS, "View keeps exactly the four pickers (row 1287) and no other cell control")
+            self.assertEqual(p.js(TITLE_CONTROLS), 0, "View: no control on the description")
 
     def test_the_id_opens_the_item_and_the_row_is_clickable_in_view_only_in_the_page_clark_serves(self):
         first = id_of(self.store, "Supplier delivery may slip")
@@ -501,8 +507,12 @@ class EditRows(unittest.TestCase):
         words = "document.querySelector('#report').innerText"
         internal = (HIDDEN, RESPONSE, NO_WORDING)
         ours = ("Add from your project record", "Take off the page", "Showing ", "Add a risk", "Add an action", "Add a decision", "Select any part to change it")
-        def check(js, where):
-            self.assertEqual(js(edit_only), 0, f"{where}: no Edit control among the rows")
+        served_only = edit_only.replace("[data-cell],", "").replace(".filter((e) => !e.closest('#report-bar'))", ".filter((e) => !e.closest('#report-bar') && !e.closest('[data-cell]') && !e.matches('[data-cell]'))")       # row 1287: the served View keeps the four pickers; the file and the client report keep none
+        def check(js, where, served):
+            self.assertEqual(js(served_only if served else edit_only), 0, f"{where}: no Edit control among the rows")
+            if served:
+                self.assertEqual(js(VIEW_KINDS), VIEW_PICKS, f"{where}: exactly the four pickers")
+                self.assertEqual(js(TITLE_CONTROLS), 0, f"{where}: no control on the description")
             text = js(words)
             for bad in internal + ours:
                 self.assertNotIn(bad, text, f"{where}: {bad!r} is not for a client")
@@ -511,10 +521,10 @@ class EditRows(unittest.TestCase):
         with chrome() as cdp:
             p = Pg.at(self, cdp, s.port)
             p.ready()
-            check(p.js, "View")
+            check(p.js, "View", True)
             p.edit()
             p.view()
-            check(p.js, "View after Edit")
+            check(p.js, "View after Edit", True)
         folder = tempfile.mkdtemp(prefix="clark-pub-")
         self.addCleanup(shutil.rmtree, folder, True)
         done = publish.publish(self.store, "ABC", folder, by_user=USER, now=AS_AT, branding=EMPTY_BRANDING)
@@ -526,7 +536,7 @@ class EditRows(unittest.TestCase):
             sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.wl-row').length > 0", sid)))
-            check(lambda e: cdp.js(e, sid), "the file")
+            check(lambda e: cdp.js(e, sid), "the file", False)
 
 
 if __name__ == "__main__":
