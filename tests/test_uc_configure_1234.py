@@ -145,7 +145,7 @@ class Source(unittest.TestCase):
         for line in text.splitlines():
             if line.startswith("export const") and '"' in line and not line.startswith("//"):
                 name = line.split()[2]
-                if name.startswith("UNRULED_"):
+                if name.startswith("UNRULED_") or name.startswith("MS_"):      # row 1230: the MS_ words are the Milestones section's own, ruled
                     continue
                 self.assertIn(name, {"CONFIGURE", "TITLE", "NUMBER_LABEL", "SHOWN_LABEL", "ALL_WORD", "OF", "SCROLL_LABEL", "SAME_NOTE",
                                      "SCROLL_HELP", "DONE",

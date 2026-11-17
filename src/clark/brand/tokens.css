@@ -32,6 +32,9 @@
   /* how clear a section's control is at rest (#101): faint in light, clearer in dark, where .3 is close to invisible */
   --sh-rest: .3; --tile-ctl: 41px; --tile-tag: 54px;
   --sh-rest-narrow: .85;      /* the same, in the card's padding at 900 px and below: about 5:1 on the white card (#285) */
+  /* hooks for a Theme (item 1260): each default equals today's look, so nothing changes until a Theme or a Brand sets them */
+  --page-bg: var(--bg); --page-grad: none; --band-bg: transparent; --line-soft: var(--grey-200); --gutter-rule: transparent;
+  --sec-number-color: var(--text-muted); --sec-number-size: var(--size-small); --logo-width: auto; --logo-height: auto;
 }
 /* dark mode: the same tokens, redrawn for a dark page; the top bar and the report cover stay dark. The values are written twice because CSS cannot
    share them: once for data-theme=dark (chosen) and once for data-theme=auto (follow the computer). tests/test_page.py keeps the two copies equal. */
@@ -52,6 +55,8 @@
   --tone-grey-text: #C3CBD6; --tone-grey-tint: #2A323D; --tone-urgent: #A8384D; --tone-on-urgent: #FFFFFF;
   --flash: #4A3F1A;
   --sh-rest: .75; --sh-rest-narrow: .75;
+  --page-bg: var(--bg); --page-grad: none; --band-bg: transparent; --line-soft: var(--grey-200); --gutter-rule: transparent;
+  --sec-number-color: var(--text-muted); --sec-number-size: var(--size-small); --logo-width: auto; --logo-height: auto;
   --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 2px 8px rgba(0, 0, 0, .3);
 }
 @media (prefers-color-scheme: dark) {
@@ -72,6 +77,8 @@
     --tone-grey-text: #C3CBD6; --tone-grey-tint: #2A323D; --tone-urgent: #A8384D; --tone-on-urgent: #FFFFFF;
     --flash: #4A3F1A;
     --sh-rest: .75; --sh-rest-narrow: .75;
+    --page-bg: var(--bg); --page-grad: none; --band-bg: transparent; --line-soft: var(--grey-200); --gutter-rule: transparent;
+    --sec-number-color: var(--text-muted); --sec-number-size: var(--size-small); --logo-width: auto; --logo-height: auto;
     --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 2px 8px rgba(0, 0, 0, .3);
   }
 }
