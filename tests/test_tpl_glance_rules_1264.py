@@ -164,13 +164,14 @@ class Reads(unittest.TestCase):                                                 
 
     def test_t15_refusals_use_the_pending_words_and_never_quote_the_value(self):
         self.assertTrue(all(w.startswith("[words pending") for w in gt.WORDS_PENDING.values()))
+        self.assertEqual(set(gt.WORDS), set(gt.KEYS_OF_WORDS))
         got = bad({"v": 1, "bespoke": [tile(label="secret-word" * 10)]})
-        self.assertEqual(got, gt.WORDS_PENDING["label_long"])
+        self.assertEqual(got, gt.WORDS["label_long"])
         self.assertNotIn("secret-word", got)
         for body, key in (([], "not_object"), ({"v": 1, "x": 1}, "unknown_field"), ({"v": 1, "health": {"shown": 1}}, "not_bool"),
                           ({"v": 1, "bespoke": [tile(tone="x")]}, "bad_tone"), ({"v": 1, "bespoke": [tile(), tile()]}, "dup_id"),
                           ({"v": 1, "bespoke": [tile(id=str(i)) for i in range(13)]}, "too_many")):
-            self.assertEqual(bad(body), gt.WORDS_PENDING[key], key)
+            self.assertEqual(bad(body), gt.WORDS[key], key)
 
 
 class Published(unittest.TestCase):                                                   # T13, T14
