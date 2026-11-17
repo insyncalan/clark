@@ -1550,4 +1550,5 @@ table.items .c-x-id, table.items .c-x-type { width: 100px; }
 .ad-menu button:focus-visible { box-shadow: inset 0 0 0 2px var(--focus); }
 .ask-draftcard { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-2); padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); font-size: var(--size-small); }
 .ask-draftcard > span { flex: 1; min-width: 0; }
+.ask-draftcard-title { font-weight: var(--weight-medium); }
 .ask-draftcard-note { color: var(--text-muted); }

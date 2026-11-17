@@ -104,5 +104,10 @@ class Draft(Panel):
             self.assertEqual(p.js("document.querySelector('#ask-draft') === null"), True)
 
 
+for _n in dir(Panel):      # the panel's own tests are not run again here (they use the plain stub)
+    if _n.startswith("test_") and _n not in Draft.__dict__:
+        setattr(Draft, _n, None)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -337,7 +337,7 @@ export function AskPanel() {
             {t.draft ? (
               <div class="ask-draftcard" data-ask-draftcard>
                 <Icon name="doc" />
-                <span><b>{W.DRAFT_READY}</b><br /><span class="ask-draftcard-note">{t.draft.title ? t.draft.title + ". " : ""}{W.DRAFT_READY_LINE}</span></span>
+                <span><span class="ask-draftcard-title">{W.DRAFT_READY}</span><br /><span class="ask-draftcard-note">{t.draft.title ? t.draft.title + ". " : ""}{W.DRAFT_READY_LINE}</span></span>
                 <button type="button" class="btn primary" onClick={() => { draft.value = t.draft; }}>{W.DRAFT_OPEN}</button>
               </div>
             ) : null}
