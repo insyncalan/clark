@@ -272,6 +272,8 @@ MAX_FLAGS = 25              # most flags of one kind that are kept; the rest bec
 MAX_CHECKED_LINE = 2000     # a longer line is not checked for a quoted title or an owner; the id and cite checks still cover it
 
 UNREADABLE = ("The answer came back in a form that couldn't be checked, so it is shown as text and nothing is offered to change. Ask again, or check it against the report yourself.")
+# [D] #1293 A: NEEDS RULING (wording): said when one CHANGE line could not be read and only that change was dropped.
+CHANGE_UNREADABLE = "A change the answer suggested could not be read, so it was left out."
 NOT_SENT = "The answer named a source that was not sent. Ignore that part."
 
 
@@ -441,20 +443,22 @@ def read_reply(text, sent=(), codes=(), exists=lambda ref: False, facts=None):
     if not isinstance(text, str):
         text = ""
     text = text[:MAX_REPLY]
-    answer, cites, changes, ok, disguised = [], [], [], bool(text.strip()), False
+    answer, cites, changes, ok, disguised, dropped = [], [], [], bool(text.strip()), False, 0
     for line in text.splitlines():
         word, rest, fake = _marker(line)
         if fake:
             disguised, ok = True, False
         elif word == "CITE":
-            ids = [p for p in re.split(r"[\s,;]+", rest.strip()) if p]
+            ids = [p.rstrip(".") for p in re.split(r"[\s,;]+", rest.strip().rstrip(".")) if p.rstrip(".")]
+            if [p.lower() for p in ids] == ["none"]:      # [D] #1293 A: "CITE: none" means no passage was used, not an unreadable reply
+                continue
             if not ids or not all(_CITE_ID.fullmatch(p) for p in ids):
                 ok = False
             cites.extend(i for i in ids if i not in cites)
         elif word == "CHANGE":
             change = read_change(rest)
             if change is None or len(changes) >= MAX_CHANGES:
-                ok = False
+                dropped += 1                      # [D] #1293 A: only the bad CHANGE is dropped; the answer and the other changes stand
             else:
                 changes.append(change)
         else:
@@ -469,6 +473,8 @@ def read_reply(text, sent=(), codes=(), exists=lambda ref: False, facts=None):
                 flags.append(Flag("change_left_out", bad[0], f"A change the answer suggested named {bad[0]}, which isn't in this project, so it was left out."))
             else:
                 left.append(change)
+        if dropped:
+            flags.append(Flag("change_unreadable", "", CHANGE_UNREADABLE))
         return Reply("\n".join(answer).strip(), tuple(cites), tuple(left), True, _cap(flags))
     kind = "disguised" if disguised else "unreadable"
     return Reply(text.strip(), (), (), False, _cap([Flag(kind, "", UNREADABLE)] + flags))

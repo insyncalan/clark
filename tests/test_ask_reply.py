@@ -55,25 +55,8 @@ class Form(unittest.TestCase):
             "   \n ",
             "Answer\nCITE: the plan",
             "Answer\nCITE:",
+            "Answer\nCITE: none P1",
             "Answer\nCITE: P0",
-            'Answer\nCHANGE: {"a": }',
-            "Answer\nCHANGE: not json",
-            "Answer\nCHANGE: []",
-            "Answer\nCHANGE: {}",
-            'Answer\nCHANGE: {"a": {"b": 1}}',
-            'Answer\nCHANGE: {"a": [1]}',
-            'Answer\nCHANGE: {"a": 1, "a": 2}',
-            'Answer\nCHANGE: {"a": NaN}',
-            'Answer\nCHANGE: {"a": Infinity}',
-            'Answer\nCHANGE: {"": 1}',
-            'Answer\nCHANGE: {"a": 1} trailing',
-            "Answer\nCHANGE: " + json.dumps({"a": "x" * (ask.MAX_FIELD_VALUE + 1)}),
-            "Answer\nCHANGE: " + json.dumps({"n" * (ask.MAX_FIELD_NAME + 1): 1}),
-            "Answer\nCHANGE: " + json.dumps({f"f{i}": i for i in range(ask.MAX_CHANGE_FIELDS + 1)}),
-            "Answer\nCHANGE: " + json.dumps({"a": "x" * ask.MAX_CHANGE_CHARS}),
-            "\n".join(["Answer"] + ['CHANGE: {"a": 1}'] * (ask.MAX_CHANGES + 1)),
-            'Good\nCHANGE: {"a": 1}\nCHANGE: broken',                    # one good line does not rescue a bad one
-            "CHANGE: " + "[" * 100000,
         ]
         for text in bad:
             r = read(text)
@@ -82,6 +65,27 @@ class Form(unittest.TestCase):
             self.assertEqual(r.answer, text[:ask.MAX_REPLY].strip())
             self.assertEqual(r.flags[0].kind, "unreadable")
             self.assertEqual(r.flags[0].message, ask.UNREADABLE)
+
+    def test_a_cite_of_none_or_with_a_full_stop_still_parses(self):          # #1293 A [D]
+        for line, cites in (("CITE: none", ()), ("CITE: None.", ()), ("CITE: P1 P2.", ("P1", "P2")), ("CITE: P1.", ("P1",))):
+            r = read("Answer.\n" + line)
+            self.assertTrue(r.parsed, line)
+            self.assertEqual((r.cites, r.answer, r.flags), (cites, "Answer.", ()), line)
+
+    def test_a_bad_change_line_is_dropped_alone_the_answer_and_the_good_change_stand(self):          # #1293 A [D]
+        bad = ['CHANGE: {"a": }', "CHANGE: not json", "CHANGE: []", "CHANGE: {}", 'CHANGE: {"a": {"b": 1}}', 'CHANGE: {"a": 1, "a": 2}',
+               'CHANGE: {"a": 1} trailing', "CHANGE: " + json.dumps({"a": "x" * (ask.MAX_FIELD_VALUE + 1)}),
+               "CHANGE: " + json.dumps({f"f{i}": i for i in range(ask.MAX_CHANGE_FIELDS + 1)}), "CHANGE: " + "[" * 100000]
+        for line in bad:
+            r = read("Answer.\n" + line + '\nCHANGE: {"good": 1}')
+            self.assertTrue(r.parsed, line[:40])
+            self.assertEqual((r.answer, r.changes), ("Answer.", ({"good": 1},)), line[:40])
+            self.assertEqual([f.kind for f in r.flags], ["change_unreadable"], line[:40])
+            self.assertEqual(r.flags[0].message, ask.CHANGE_UNREADABLE)
+
+    def test_changes_over_the_limit_are_dropped_and_said(self):          # #1293 A [D]
+        r = read("\n".join(["Answer"] + ['CHANGE: {"a": 1}'] * (ask.MAX_CHANGES + 1)))
+        self.assertEqual((r.parsed, len(r.changes), kinds(r)), (True, ask.MAX_CHANGES, ["change_unreadable"]))
 
     def test_the_most_changes_allowed_are_read(self):
         r = read("\n".join(["Answer"] + ['CHANGE: {"a": 1}'] * ask.MAX_CHANGES))
