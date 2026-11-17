@@ -27,7 +27,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import __version__, activity_read, ai_connect, brands, app_settings, as_at, appfiles, ask_folders, ask_service, backup, changes, demo_seed, draft_email_feed, excel_route, history, idle, log as clog, log_routes, milestone_feed, movement_read, page, past_reports, platform, profile_settings, project_route, publish, publish_flow, safety, same_version, server, sneak, store as clark_store, typed, updater as clark_updater, use_cases_read, word_route
+from clark import __version__, activity_read, ai_connect, brands, app_settings, as_at, appfiles, ask_folders, ask_service, backup, changes, demo_seed, draft_email_feed, excel_route, history, idle, log as clog, log_routes, mail_open, milestone_feed, movement_read, page, past_reports, platform, profile_settings, project_route, publish, publish_flow, safety, same_version, server, sneak, store as clark_store, typed, updater as clark_updater, use_cases_read, word_route
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -596,7 +596,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      milestones=milestone_feed.make_feed(store.data_for),
                      movement=movement_read.make_read(store.milestone_moves, store.data_for),
                      use_cases=use_cases_read.make_read(store.data_for, use_case_ids_on_file(store), use_case_history(store)),
-                     safety=safety.Safety(store.path, roots), logs=logs,
+                     safety=safety.Safety(store.path, roots), logs=logs, mail=mail_open.MailOpen(),
                      ask_folders=ask_folders.AskFolders(store.path, roots, data_dir=store.path.parent),
                      app_settings=app_settings.AppSettings(store.path, roots),
                      ask=ask_service.AskService(store.path, asker, roots), ai_connect=connect,      # #54: Settings › AI applies to every question

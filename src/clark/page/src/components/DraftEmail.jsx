@@ -4,6 +4,7 @@
 // Every word from the data is a text node; the email's own HTML is cleaned (safeHtml) before it is drawn.
 import { useState, useRef, useEffect } from "preact/hooks";
 import { todayIso } from "../workItems.js";
+import { mailClick } from "../edit/mailApi.js";
 import { MODES, LABELS, TONES, chasedWords, NO_BUILDER, safeHtml, blocked, copyNow, browserClip, mailLink, internalNote, pickWords, togglePick, sentEntry, sentWords, NO_OPEN_ITEMS, NO_ADDRESS } from "../logic/draftEmail.js";
 
 export function DraftEmail({ items, state, draft, today, onChange, onSent, sentOff, onClose, clip, none: noneWords }) {
@@ -125,7 +126,7 @@ export function DraftEmail({ items, state, draft, today, onChange, onSent, sentO
       <div class="pk-foot">
         <button type="button" class="pk-btn pri" disabled={!!problem} onClick={() => copy("outlook")}>{LABELS.copyOutlook}</button>
         <button type="button" class="pk-btn" disabled={!!problem} onClick={() => copy("text")}>{LABELS.copyText}</button>
-        {link.href ? <a class="pk-btn" href={link.href}>{LABELS.mail}</a> : null}
+        {link.href ? <a class="pk-btn" href={link.href} onClick={(e) => mailClick(e, link.href, setNote)}>{LABELS.mail}</a> : null}
         <button type="button" class="pk-btn" ref={sentBtn} disabled={!!problem || saving || !!sentOff} aria-describedby={sentOff ? "de-sent-off" : undefined} onClick={sent}>{LABELS.sent}</button>
         <button type="button" class="pk-btn" onClick={() => onClose && onClose()}>{LABELS.close}</button>
       </div>

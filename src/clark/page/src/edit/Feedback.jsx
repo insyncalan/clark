@@ -3,6 +3,7 @@
 // clark. `getVersion`, `platform` and `clip` are seams for the tests; the page passes none of them.
 import { useEffect, useRef, useState } from "preact/hooks";
 import * as L from "../logic/feedback.js";
+import { mailClick } from "./mailApi.js";
 
 async function healthVersion() {
   try {
@@ -51,7 +52,7 @@ export function Feedback({ getVersion = healthVersion, platform, clip = realClip
       <ul class="plain" id="feedback-context">{L.contextLines(ctx).map((l) => <li key={l}>{l}</li>)}</ul>
       <p class="muted small">{L.LABELS.contextNote}</p>
       <div class="row">
-        {link.href ? <a class="btn pri" data-feedback-mail href={link.href}>{L.LABELS.mail}</a> : null}
+        {link.href ? <a class="btn pri" data-feedback-mail href={link.href} onClick={(e) => mailClick(e, link.href, (m) => { setNote(m); setRefused(false); })}>{L.LABELS.mail}</a> : null}
         <button type="button" class="btn" data-feedback-copy disabled={!has} onClick={copy}>{L.LABELS.copy}</button>
       </div>
       <div class="pub-msg" id="feedback-note" role="status" aria-live="polite">{words}</div>
