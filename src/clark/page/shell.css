@@ -2159,6 +2159,27 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-gal.n-1 { grid-template-columns: minmax(0, 1fr); }
 .tpl-gal.n-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .tpl-gal .tpl-fig img { aspect-ratio: 4 / 3; object-fit: cover; max-height: none; }
+/* Row 1233: the published gallery. The columns and the one shape for all come from the section; none said is the old look (n-N, 4:3).
+   A half width section (.slot-left, .slot-right) and a page 900 px wide or less draw two across. The image's own pixels are never filtered. */
+.tpl-gal.c-1 { grid-template-columns: minmax(0, 1fr); }
+.tpl-gal.c-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.tpl-gal.c-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tpl-gal.s11 .tpl-fig img { aspect-ratio: 1 / 1; }
+.tpl-gal.s169 .tpl-fig img { aspect-ratio: 16 / 9; }
+.tpl-gal.swhole .tpl-fig img { aspect-ratio: auto; object-fit: contain; }
+.tpl-gal-fig { break-inside: avoid; page-break-inside: avoid; }
+.tpl-gal-open { display: block; width: 100%; margin: 0; padding: 0; border: 0; border-radius: var(--radius); background: none; font: inherit; color: inherit; cursor: zoom-in; }
+.tpl-gal-open:focus-visible, .tpl-gal-x:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.tpl-gal-large { position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: var(--space-6); border: 0; background: transparent; color: var(--white); overflow: auto; }
+.tpl-gal-large:not([open]) { display: none; }
+.tpl-gal-large[open] { display: grid; place-items: center; }
+.tpl-gal-large::backdrop { background: color-mix(in srgb, var(--brand-navy) 85%, transparent); }
+.tpl-gal-large-in { position: relative; max-width: min(1100px, 92vw); }
+.tpl-gal-large-in img { display: block; max-width: 100%; max-height: 72vh; margin: 0 auto; border-radius: var(--radius); }
+.tpl-gal-large-in p { margin: var(--space-3) var(--space-1) 0; font-size: var(--size-small); }
+.tpl-gal-x { position: fixed; top: var(--space-4); right: var(--space-4); display: inline-grid; place-items: center; width: 36px; height: 36px; padding: 0; border: 0; border-radius: var(--radius-pill); background: var(--surface); color: var(--text); cursor: pointer; }
+.slot-left .tpl-gal.c-3, .slot-right .tpl-gal.c-3, .slot-left .tpl-gal.n-3, .slot-right .tpl-gal.n-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media print { .tpl-gal-large { display: none !important; } }
 .tpl-band { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-5); align-items: center; padding: var(--space-5) var(--space-6); border-radius: var(--radius-lg); background: var(--brand-navy); color: var(--white); }  /* row 946: white on the navy band in both themes */
 .tpl-band.has-pic { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
 .tpl-band-words { margin: 0; font-family: var(--font-head); font-size: var(--size-h2); font-weight: var(--weight-semibold); line-height: 1.25; color: var(--white); }
@@ -2182,7 +2203,8 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 @media (max-width: 900px) {
   .tpl-ti, .tpl-ti.pic-left, .tpl-band.has-pic { grid-template-columns: minmax(0, 1fr); }
   .tpl-ti.pic-left .tpl-fig { order: 0; }
-  .tpl-gal { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tpl-gal, .tpl-gal.c-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tpl-gal.n-1, .tpl-gal.c-1 { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* #96 G7 Files and links templates (Documents and links, One document, Link preview): view parts. Tokens only, so dark mode follows. */
