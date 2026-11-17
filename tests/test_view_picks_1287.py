@@ -5,12 +5,12 @@ Run: python3 dev/run_tests.py test_view_picks_1287   (headless Chrome; fails, ne
 """
 import unittest
 
-from test_tpl_workitems import InThePage
+import test_tpl_workitems as T
 from test_report_editor import Pg, tearDownModule  # noqa: F401
 from test_server import chrome
 
 
-class ViewPicks(InThePage):
+class ViewPicks(T.InThePage):
     def test_view_lists_pick_four_values_and_the_title_opens_the_peek_in_edit_at_both_widths(self):
         ref = self.add({"mode": "all", "columns": ["id", "owner", "due", "status", "priority"], "owner": ["Pat Demo", "Lee Demo"]})
         row = f"[data-id=\"{ref}\"] .wil-table tbody tr[data-id=\"{self.a_due}\"]"
