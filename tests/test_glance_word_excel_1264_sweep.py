@@ -17,8 +17,9 @@ from _paths import ROOT   # noqa: F401
 import _publish_fixture as fx
 from openpyxl import Workbook, load_workbook
 from clark import docx_build, docx_graphics, excel, excel_client, glance_print, publish
-from clark.section_kinds import glancetemplate
+from clark.section_kinds import base, glancetemplate
 from test_glance_word_excel_1264 import BESPOKE, body, select
+from test_tpl_glance_counts_1264 import AS_AT, rows
 
 TOK = docx_build.TOKENS
 GREY = f'<w:color w:val="{TOK["grey-700"]}"/>'
@@ -404,6 +405,51 @@ class Killers(unittest.TestCase):
         ws = excel_client.write_glance_sheet(wb, pub, glance_sec(pub))
         self.assertEqual(ws.title, "At a glance 4")
         self.assertEqual(wb.sheetnames, ["At a glance", "At a glance 3", "At a glance 4"])
+
+
+class SecondRead(unittest.TestCase):
+    """The second read of the slice: sizes, the health eye alone, the label, the sheet position, the two defaults."""
+
+    def _run_of(self, pub, word):
+        runs = re.findall(r"<w:r>.*?</w:r>", doc_xml(pub), re.S)
+        return [r for r in runs if word in r][0]
+
+    def test_the_figure_is_16_points_and_label_tag_and_note_are_8(self):
+        pub = select(body(bespoke=[{"id": "a", "label": "ZQLAB", "figure": "ZQFIG", "tag": "ZQTAG", "note": "ZQNOTE"}]))
+        self.assertIn('w:val="32"', self._run_of(pub, "ZQFIG"))
+        for w in ("ZQLAB", "ZQTAG", "ZQNOTE"):
+            self.assertIn('w:val="16"', self._run_of(pub, w))
+
+    def test_counts_alone_are_published_with_health_off_and_no_typed_tile(self):
+        out = glancetemplate.published({"v": 1, "health": {"shown": False}}, base.Context(rows(), AS_AT))
+        self.assertEqual([c["tile"] for c in out["content"]["counts"]], ["overdue", "risks", "decisions"])
+        self.assertEqual(out["content"]["bespoke"], [])
+
+    def test_the_health_eye_alone_prints_its_row_in_word_and_in_the_sheet(self):
+        pub = select(body(bespoke=[], builtin={n: {"hidden": True} for n in ("overdue", "risks", "decisions")}))
+        sec = glance_sec(pub)
+        self.assertIsNotNone(sec, "the section is in the file")
+        self.assertEqual([t["key"] for t in glance_print.read(pub, sec)["tiles"]], ["health"])
+        self.assertIn("Project health", doc_xml(pub))
+        ws = [w for w in wb_of(pub).worksheets if w.title.startswith("At a glance")][0]
+        self.assertEqual(ws.cell(5, 1).value, "Project health")
+
+    def test_nothing_to_show_at_all_is_no_section(self):
+        pub = select(body(bespoke=[], health={"shown": False}, builtin={n: {"hidden": True} for n in ("overdue", "risks", "decisions")}))
+        self.assertIsNone(next((x for x in pub["sections"] if x["type"] == "glancetemplate"), None))
+
+    def test_the_health_tile_label_is_the_tile_title(self):
+        pub = select()
+        self.assertEqual(glance_print.read(pub, glance_sec(pub))["tiles"][0]["label"], "Project health")
+
+    def test_the_sheet_suffix_is_the_sheets_position(self):
+        pub = select()
+        wb = Workbook()
+        wb.active.title = "Other"
+        wb.create_sheet("Other 2")
+        first = excel_client.write_glance_sheet(wb, pub, glance_sec(pub))
+        second = excel_client.write_glance_sheet(wb, pub, glance_sec(pub))
+        self.assertEqual((first.title, second.title), ("At a glance", "At a glance 4"))
 
 
 if __name__ == "__main__":

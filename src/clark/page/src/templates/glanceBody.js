@@ -17,7 +17,8 @@ export function readBody(section) {
   for (const i of [...(Array.isArray(v.order) ? v.order.filter((i) => ids.includes(i)) : []), ...ids]) if (!order.includes(i)) order.push(i);
   const builtin = {};
   for (const n of SETTLED) { const s = b[n] && typeof b[n] === "object" ? b[n] : {}; builtin[n] = { hidden: flag(s.hidden, false), outline: OUTLINES.includes(s.outline) ? s.outline : "" }; }
-  return { v: 1, health: { shown: flag(h.shown, true), own_row: flag(h.own_row, false) }, order, builtin, bespoke };
+  const fresh = !(section && ((section.content && typeof section.content === "object") || (typeof section.body === "string" && section.body)));      // never written: a NEW template starts with the health eye off (ticket 1264); a body with no health field is an existing page and shows it
+  return { v: 1, health: { shown: flag(h.shown, !fresh), own_row: flag(h.own_row, false) }, order, builtin, bespoke };
 }
 
 /** The body to send: defaults left out, so one content is always the same text. */
