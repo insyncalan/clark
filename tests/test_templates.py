@@ -134,7 +134,7 @@ class Logic(unittest.TestCase):
             "raid-4": ("Four shorter cards: good for “this week’s actions” or “decisions needed”.", ["Heading", "RAID card ×4"], ["full"]),
             "work-items": ("Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed.", ["Heading", "Filter (set in Edit)", "Work item list · live", "Caption (optional)"], ["full", "half"]),
             "docs-links": ("The papers that go with this week’s report.", ["Heading", "File (one or more)", "Link list"], ["full", "half"]),
-            "callout": ("One thing the reader must see.", ["Heading", "Callout · decision"], ["half", "full"]),
+            "callout": ("One thing the reader must see.", ["Heading", "Callout · decision", "Callout · category, colour, icon", "Callout · tile and heading on or off"], ["half", "full"]),
             "key-dates": ("What’s coming, from the milestones.", ["Heading", "Date (from milestones)"], ["half", "full"]),
             "link-preview": ("A web page shown as a card you write: a dashboard, a news item, a recording.", ["Heading", "Link", "Card text"], ["full"]),
             "quote": ("A voice from the business.", ["Heading", "Text (quote)", "Person"], ["half", "full"]),
@@ -341,7 +341,7 @@ class Box(Base):
                              "the page behind cannot be reached")
             self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 23)      # row 1068: + the Plan table card
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.textContent)"),
-                             ["All templates23", "Text and pictures8", "Figures2", "Work items3", "Files and links3", "People and dates5", "Notes2"])      # row 1068: + the Gantt table card, in People and dates
+                             ["All templates23", "Project information1", "Text and pictures8", "Figures2", "Work items3", "Files and links3", "People and dates5", "Notes1"])      # #1272: the Callout is in Project information      # row 1068: + the Gantt table card, in People and dates
             self.assertEqual(self.sent, [], "opening sends nothing")
 
     def test_everything_outside_the_box_is_inert_while_it_is_open_and_restored_when_it_closes(self):
@@ -491,7 +491,7 @@ class Box(Base):
             self.open_box(p, "ABC-S-003")
             p.type("key")
             p.until("document.querySelectorAll('[data-template]').length === 3", "the search narrowed the list")
-            self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.querySelector('.ad-n').textContent)"), ["3", "0", "2", "0", "0", "1", "0"])
+            self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.querySelector('.ad-n').textContent)"), ["3", "0", "0", "2", "0", "0", "1", "0"])
             p.key("ArrowDown", code="ArrowDown", vk=40)
             self.assertTrue(p.js("document.activeElement.matches('input[name=template]:checked') && document.activeElement.value === 'figures-4'"),
                             "a template that cannot be placed yet can still be reached and chosen, so Down goes to it")
@@ -541,12 +541,13 @@ class Box(Base):
             self.assertFalse(p.js("!!document.getElementById('ad-later-prev')"), "no reason to give: it can be placed")
             self.assertIsNone(p.js("document.querySelector('button[data-place]').getAttribute('aria-describedby')"))
             self.assertEqual(self.sent, [], "reading and moving send nothing")
-            p.js("document.querySelector('[data-kind=notes]').click()")
-            p.until("document.querySelectorAll('[data-template]').length === 2", "Notes")
+            p.js("document.querySelector('[data-kind=info]').click()")
+            p.until("document.querySelectorAll('[data-template]').length === 1", "Project information")
             p.js("document.querySelector('[data-template=callout]').click()")
             p.until("document.querySelector('.ad-prev h3').textContent === 'Callout'", "the preview shows it")
             self.assertEqual(p.js("document.querySelector('.ad-prev .ad-lbl').textContent"), "Holds")
-            self.assertEqual(p.js("[...document.querySelectorAll('.ad-prev li')].map(l => l.textContent)"), ["Heading", "Callout · decision"])
+            self.assertEqual(p.js("[...document.querySelectorAll('.ad-prev li')].map(l => l.textContent)"), ["Heading", "Callout · decision", "Callout · category, colour, icon", "Callout · tile and heading on or off"])
+            self.assertEqual(p.js("document.querySelector('.ad-prev .ad-more').textContent"), "Type a category of your own or pick one, then a colour and an icon. Or leave them out.")
 
     def test_the_two_help_links_open_help_at_their_entries(self):
         """'About section templates' opens the how-to and 'See every template explained in Help' the reference table. Each closes the

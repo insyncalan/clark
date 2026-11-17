@@ -249,6 +249,7 @@ class Migrating(Base):
         self.assertEqual(version(path), NOW)
         self.assertGreaterEqual(int(NOW), STEP)                  # later steps follow (#115 is 9)
         after = every_row(path)
+        after["app_settings"] = [r[:-1] for r in after["app_settings"]]      # row 1269 (step 27) adds the theme column at the end
         self.assertEqual({t: after[t] for t in before}, before)
         self.assertIn("'onedoc'", table_sql(path))
         self.assertEqual(len(self.copies()), 1)

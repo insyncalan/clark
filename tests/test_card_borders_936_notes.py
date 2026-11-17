@@ -1,6 +1,6 @@
 """#936, Quote and Link preview borders: in Edit's page neither draws a coloured side stripe (the quote is a quiet panel, the link
 preview a plain frame); the published file is unchanged (it carries no Edit part, and the prototype draws neither).
-The Callout keeps its tone stripe: amber and red say something, and the tone is also written in words.
+The Callout has no side stripe from #1272 (option B: a tinted box, an icon and a word); it is a 1 px edge like the others.
 
 Run: python3 dev/run_tests.py test_card_borders_936_notes
 Needs Chrome. Fictional data only. Laptop widths 1400 and 900 px, light and dark.
@@ -50,15 +50,24 @@ class Notes(PublishedFile, glance.Setup):
                     self.assertNotEqual(got["quoteBg"], "rgba(0, 0, 0, 0)", "the quote is a quiet panel instead")
                     self.assertEqual(got["lc"], got["lcTop"], "the link preview's left edge is as thin as its top")
                     self.assertEqual(got["lc"], "1px")
-                    self.assertEqual(got["callout"], "4px", "the callout keeps its tone stripe")
+                    self.assertEqual(got["callout"], "1px", "the callout has an even edge, no stripe (#1272)")
 
-    def test_the_published_file_draws_the_quiet_marker_and_keeps_the_callout_stripe(self):
+    def test_the_published_file_shows_an_older_callouts_tone_word(self):
+        self.plant_notes()                                  # its callout is an older one: a tone and no category, colour or icon
+        path = self.publish()
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.draw(cdp, path, width, False)
+                self.settled(p)
+                self.assertEqual(p.js("document.querySelector('.tpl-callout-tone').textContent"), "Decision needed")
+
+    def test_the_published_file_draws_the_quiet_marker_and_has_an_even_callout_edge(self):
         self.plant_notes()
         path = self.publish()
         for width, dark in ((1400, False), (900, True)):
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 got = self.settled(self.draw(cdp, path, width, dark))
-                self.assertEqual((got["quote"], got["lc"], got["callout"]), ("0px", "1px", "4px"), "no decorative stripe, the callout keeps its tone")
+                self.assertEqual((got["quote"], got["lc"], got["callout"]), ("0px", "1px", "1px"), "no decorative stripe, the callout has an even edge")
                 self.assertNotEqual(got["quoteBg"], "rgba(0, 0, 0, 0)", "the quote is a quiet panel")
                 self.assertEqual(got["lc"], got["lcTop"], "the link preview's left edge is as thin as its top")
 
