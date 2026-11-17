@@ -1,5 +1,5 @@
-// Quote (#96, item 1271), store type "quote": its Edit part, in place. A toolbar above (Tile and Heading, two switches), then the quote as the reader sees it (look B),
-// with the words, the name and the role typed inside it (one line each; a line break isn't allowed in the store). Each save is one change() (noteEdit.jsx saveContent):
+// Quote (item 96, item 1271), store type "quote": its Edit part, in place. A toolbar above (Tile and Heading, two switches), then the quote as the reader sees it (look B),
+// with the words, the name and the role typed inside it (the words wrap and grow; Enter saves and a line break is never stored; the name and the role are one line each). Each save is one change() (noteEdit.jsx saveContent):
 // one step, one Undo. The view part is templates/Quote.jsx.
 import { source, tidyQuote, quoteShows, LIMITS } from "../../templates/notes.js";
 import { Field, useSaver } from "./noteEdit.jsx";
@@ -20,7 +20,7 @@ export function Edit({ section }) {
         </div>
       </div>
       <figure class="tpl-quote">
-        <Field value={saved.quote} label="Quote words" max={LIMITS.quote} placeholder="Type or paste the quote here" cls="qb-words" onCommit={(quote) => write({ quote })} />
+        <Field value={saved.quote} label="Quote words" max={LIMITS.quote} placeholder="Type or paste the quote here" cls="qb-words" grow onCommit={(quote) => write({ quote })} />
         <div class="qb-who">
           <Field value={saved.by} label="Quote said by" max={LIMITS.name} placeholder="Name (optional)" cls="qb-by" onCommit={(by) => write({ by })} />
           <Field value={saved.role} label="Quote role" max={LIMITS.name} placeholder="Role (optional)" cls="qb-role" onCommit={(role) => write({ role })} />
