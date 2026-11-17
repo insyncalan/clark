@@ -47,7 +47,7 @@ export function Section({ section, index, count, slot, anchor, tools, clean }) {
   const from = editing && dragFrom.value === section.id ? " drag-from" : "";
   const changed = isChanged(section.id);
   const tpl = templateFor(section.type);
-  const qo = section.type === "quote" ? tidyQuote(source(section)) : null;      // item 1271: a quote can show without its tile or its heading
+  const qo = tpl && tpl === templateFor("quote") ? tidyQuote(source(section)) : null;      // item 1271: a quote can show without its tile or its heading
   const offWord = qo && qo.tile === false && qo.heading === false ? "Tile and heading not shown in View" : qo && qo.tile === false ? "Tile not shown in View" : qo && qo.heading === false ? "Heading not shown in View" : "";
   return (
     <article class={`sec slot-${slot}${qo && qo.tile === false ? " no-tile" : ""}${qo && qo.heading === false ? " no-head" : ""}${hidden ? " is-hidden" : ""}${changed ? " is-changed" : ""}${mark}${from}`}
