@@ -13,4 +13,6 @@ class MailOpen:
             self.opener(link if isinstance(link, str) else "")
         except platform.PlatformError as e:
             return 503, {"ok": False, "code": "not_opened", "message": str(e)}
+        except OSError:      # e.g. an argument list too long: the same refusal as the platform's own
+            return 503, {"ok": False, "code": "not_opened", "message": f"The mail app could not be opened. {platform.TRY_AGAIN}"}
         return 200, {"ok": True}

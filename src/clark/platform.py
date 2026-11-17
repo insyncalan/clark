@@ -697,7 +697,7 @@ def open_mail(link, run=None, on=None):
     window letting a mailto: link through). Only a mailto: link is opened; a value starting with "-" is never read as an option."""
     _only_mac("Opening the mail app", on)
     link = str(link)
-    if not re.match(r"mailto:[^\s\x00-\x1f\x7f]*\Z", link):      # no space or control character (a NUL would make the system call raise)
+    if not re.match(r"mailto:[^\s\x00-\x1f\x7f\ud800-\udfff]*\Z", link):      # no space, control character or lone surrogate (each would make the system call raise)
         raise PlatformError(f"Only a mail link starting mailto: can be opened here. {TRY_AGAIN}")
     done = _run_waiting(["open", link], run)
     if done.returncode != 0:
