@@ -162,9 +162,13 @@ class Pg:
             if drops:
                 self.stored(n0)
 
-    def menu(self, ref, act):
+    def open_menu(self, ref):
         self.js(f"document.querySelector('[data-id=\"{ref}\"] [data-options]').click()")
         self.until(f"!!document.querySelector('[data-id=\"{ref}\"] .menu')", "the menu opened")
+        self.until(f"document.querySelector('[data-id=\"{ref}\"] .menu').contains(document.activeElement)", "the menu holds focus (Escape and arrows go to the focused element)")
+
+    def menu(self, ref, act):
+        self.open_menu(ref)
         self.js(f"document.querySelector('[data-id=\"{ref}\"] [data-act={act}]').click()")
 
     def replace_title(self, ref, text, ending="Enter"):
@@ -528,8 +532,7 @@ class Sections(Base):
             p = self.visit(cdp)
             p.edit()
             for ref, act, other in (("ABC-S-001", "up", "down"), ("ABC-S-010", "down", "up")):
-                p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-options]').click()")
-                p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .menu')", "menu")
+                p.open_menu(ref)
                 item = f"document.querySelector('[data-id=\"{ref}\"] [data-act={{}}]')"
                 self.assertEqual(p.js(item.format(act) + ".getAttribute('aria-disabled')"), "true")
                 self.assertIsNone(p.js(item.format(other) + ".getAttribute('aria-disabled')"))
@@ -824,6 +827,19 @@ class Sections(Base):
             for ref in ("ABC-S-005", "ABC-S-007"):
                 self.assertTrue(p.js(f"document.querySelector('[data-id=\"{ref}\"]').classList.contains('slot-full')"), ref)
 
+    def test_escape_right_after_the_menu_opens_closes_it_even_when_focus_is_late(self):
+        """The menu takes focus in an effect after it renders; an Escape sent before that goes to the handle and is dropped.
+        The page's focus() is delayed for menu items here so the window is always open (main was red 2 of 20 runs on this)."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.js("(function(){var f=HTMLElement.prototype.focus;HTMLElement.prototype.focus=function(o){var me=this;"
+                 "if(me.matches&&me.matches('[role=menuitem]')){setTimeout(function(){f.call(me,o);},400);}else{f.call(me,o);}};})()")
+            for ref in ("ABC-S-004", "ABC-S-004"):
+                p.open_menu(ref)
+                p.key("Escape", code="Escape", vk=27)
+                p.until(f"!document.querySelector('[data-id=\"{ref}\"] .menu')", f"Escape closed the menu of {ref}")
+
     def test_delete_a_text_section_only_and_undo_brings_it_back(self):
         with chrome() as cdp:
             p = self.visit(cdp)
@@ -833,6 +849,7 @@ class Sections(Base):
                 p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .menu')", "menu")
                 self.assertIsNotNone(p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-act=delete]')"), f"{ref} offers Delete section too (row 906)")
                 p.key("Escape", code="Escape", vk=27)
+                p.until(f"!document.querySelector('[data-id=\"{ref}\"] .menu')", f"Escape closed the menu of {ref}")
             p.menu("ABC-S-004", "delete")
             p.order_is([i for i in IDS if i != "ABC-S-004"], "deleted")
             self.assertNotIn("ABC-S-004", self.ids_in_store())
