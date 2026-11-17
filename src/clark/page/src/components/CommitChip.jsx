@@ -3,7 +3,9 @@
 // published file; Edit's menu button (edit/CommitMenu.jsx) draws the same chip.
 import { commitWord, commitClass } from "../logic/commitment.js";
 
-export function CommitChip({ u }) {
+// Row 1234: with `dash` (View's use case rows) an empty commitment draws a dash, not a chip. Edit draws "Set commitment" instead (edit/CommitMenu.jsx).
+export function CommitChip({ u, dash }) {
   const w = commitWord(u);
-  return w ? <span class={`cchip ${commitClass(w)}`} data-commit={w} title="Commitment">{w}</span> : null;
+  if (w) return <span class={`cchip ${commitClass(w)}`} data-commit={w} title="Commitment">{w}</span>;
+  return dash ? <span class="cdash muted" data-commit-none title="Commitment" aria-hidden="true">{"\u2014"}</span> : null;
 }

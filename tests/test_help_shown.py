@@ -162,7 +162,7 @@ class AgainstThePage(unittest.TestCase):
 
     def test_every_bold_name_shown_is_on_the_page(self):
         norm = lambda t: re.sub(r"[‘’]", "'", t)
-        code = norm(self.HELPCODE) + norm((ROOT / "src" / "clark" / "default_sections.py").read_text(encoding="utf-8"))      # the starting sections' titles (Summary, This week, Next week) come from the server
+        code = norm(self.HELPCODE) + norm((ROOT / "src" / "clark" / "default_sections.py").read_text(encoding="utf-8"))      # the starting sections' titles (Current state, This week, Next week) come from the server
         missing = sorted({b for t in shown_texts() for b in re.findall(r"\*\*(.+?)\*\*", t) if lacks(code, b)})
         self.assertEqual(missing, [], "Help names buttons the page does not have: hold the entry in helpLater.json, or reword it")
 
@@ -464,6 +464,8 @@ class HelpWordsMatchScreen(unittest.TestCase):
         m = re.search(r"`Show all \$\{n\} (milestones)`", MILESTONES)
         self.assertIsNotNone(m, "the screen's word changed")
         self.assertTrue(any("**Show all N milestones** shows the rest" in s for s in ALL))
+        self.assertTrue(any("**Show all N milestones** shows the rest, unless a number is set in **Configure**" in s for s in ALL))
+        self.assertTrue(any("The first five, then **Show all**, unless a number is set in **Configure**" in s for s in ALL))
         self.assertFalse(any("each milestone with its date" in s and "**Show all** shows" in s for s in ALL))
 
     def test_swimlane_choices(self):

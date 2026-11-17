@@ -76,12 +76,21 @@ class Target(unittest.TestCase):
         self.assertEqual(at("e", 499, 170), {"beside": "b", "side": "left"})
         self.assertEqual(at("e", 500, 170), {"beside": "b", "side": "right"})
 
-    def test_the_quarter_edge_is_a_quarter_of_the_height_and_not_a_fixed_number_of_pixels(self):
+    def test_a_row_taller_than_224_px_has_an_edge_of_56_px_and_not_a_quarter(self):
         rects = json.dumps({**RECTS, "b": dict(left=0, top=120, right=1000, bottom=520)})
         sections = json.dumps(SECTIONS)
         probe = lambda y: run(f"DL.dragTarget({sections}, 'e', {rects}, {{x: 200, y: {y}}})")
-        self.assertEqual(probe(215), {"before": "b"})                      # 95 px in: still the top quarter of 400
-        self.assertEqual(probe(225), {"beside": "b", "side": "left"})      # 105 px in: the middle
+        self.assertEqual(probe(175), {"before": "b"})                      # 55 px in: the top edge
+        self.assertEqual(probe(185), {"beside": "b", "side": "left"})      # 65 px in: beside
+        self.assertEqual(probe(220), {"beside": "b", "side": "left"})      # 100 px in of 400: beside, not above (a quarter would be above)
+        self.assertEqual(probe(175.9), {"before": "b"})                    # 55.9 px in: still the top edge
+        self.assertEqual(probe(176), {"beside": "b", "side": "left"})      # exactly 56 px in: beside (the edge is under 56, not up to it)
+        self.assertEqual(probe(464.1), {"before": "c"})                    # 55.9 px from the bottom: the bottom edge
+        self.assertEqual(probe(464), {"beside": "b", "side": "left"})      # exactly 56 px from the bottom: beside
+
+    def test_a_short_row_still_uses_exactly_a_quarter(self):
+        self.assertEqual(at("e", 200, 144), {"before": "b"})               # b is 100 high: 24 px in is inside the 25 px quarter
+        self.assertEqual(at("e", 200, 146), {"beside": "b", "side": "left"})   # 26 px in: the middle
 
     def test_over_a_pair_only_above_or_below_are_offered_whatever_the_x(self):
         for x in (100, 495, 800):
@@ -127,6 +136,35 @@ class Target(unittest.TestCase):
         self.assertEqual(at("e", 700, 170), {"beside": "b", "side": "right"})
 
 
+def at_with(rects, moving, x, y, columns=2):
+    return run(f"DL.dragTarget({S}, {json.dumps(moving)}, DL.freezeRects({json.dumps(rects)}), {{x: {x}, y: {y}}}, {{columns: {columns}}})")
+
+
+class Pinned(unittest.TestCase):
+    """Single-character changes in dragLayout.js that the tests above let through."""
+
+    def test_the_pointer_exactly_on_the_bottom_quarter_edge_is_in_the_middle_and_not_in_the_bottom_quarter(self):
+        self.assertEqual(at("a", 200, 195), {"beside": "b", "side": "left"})      # row b is 120 to 220: the edge is 220 - 25
+        self.assertEqual(at("a", 800, 195), {"beside": "b", "side": "right"})
+        self.assertEqual(at("a", 500, 195.5), {"before": "c"})
+
+    def test_the_nearest_row_counts_the_sideways_distance_as_well_as_the_vertical_one(self):
+        rects = {**RECTS, "b": dict(left=0, top=120, right=100, bottom=220)}      # b is narrow, on the left; a is wide, 70 px above the point
+        self.assertEqual(at_with(rects, "e", 900, 170), {"before": "b"})          # a is nearest (70 against 800 away): below a
+
+    def test_two_rows_the_same_distance_away_the_first_one_wins(self):
+        far = dict(top=2000, bottom=2100)                                          # the other rows are out of the way
+        rects = {"a": dict(left=0, top=0, right=100, bottom=200), "b": dict(left=300, top=100, right=400, bottom=300),
+                 "c": dict(left=0, right=490, **far), "d": dict(left=510, right=1000, **far), "e": dict(left=0, right=1000, **far)}
+        self.assertEqual(at_with(rects, "e", 200, 150), {"beside": "a", "side": "right"})   # 100 px from a and from b
+
+    def test_a_pair_of_different_heights_is_as_tall_as_the_taller_one(self):
+        rects = {**RECTS, "d": dict(left=510, top=240, right=1000, bottom=400)}   # c ends at 340, d at 400
+        self.assertEqual(at_with(rects, "a", 100, 300), {"before": "c"})         # row is 240 to 400: its middle is 320, so 300 is above it
+        self.assertEqual(at_with(rects, "a", 100, 370), {"before": "e"})         # inside the bottom quarter of 240 to 400 (edge 360)
+        self.assertEqual(at_with(rects, "a", 100, 319), {"before": "c"})         # just above that middle
+
+
 class Rest(unittest.TestCase):
     def go(self, steps):
         """steps: [[target, time]]; returns [[shown key, moved]] after each."""
@@ -163,6 +201,16 @@ class Rest(unittest.TestCase):
     def test_nothing_waits_once_the_shown_target_is_the_wanted_one(self):
         probe = ("(() => { let s = DL.settle(DL.settleStart(), %s, 0); s = DL.settle(s, %s, 110); return [s.moved, DL.restLeft(s, 111)]; })()") % (json.dumps(self.A), json.dumps(self.A))
         self.assertEqual(run(probe), [True, 0])
+
+
+class Shake(unittest.TestCase):
+    def test_a_shake_over_the_right_half_keeps_the_shown_target_and_the_drop_makes_a_pair(self):
+        probe = (f"(() => {{ const f = DL.freezeRects({R}); let s = DL.settleStart(); let moves = 0, now = 0; "
+                 f"for (let i = 0; i < 60; i++) {{ const t = DL.dragTarget({S}, 'e', f, {{x: 700 + (i % 5) - 2, y: 170 + (i % 3) - 1}}); "
+                 f"s = DL.settle(s, t, now); if (s.moved) moves++; now += 10; }} "
+                 f"const p = DL.place({S}, 'e', s.shown); const next = DL.applied({S}, p.payload); "
+                 f"return {{ shown: DL.targetKey(s.shown), moves, rows: DL.rows(next).map((r) => r.map((x) => x.id)) }}; }})()")
+        self.assertEqual(run(probe), {"shown": "beside:b:right", "moves": 1, "rows": [["a"], ["b", "e"], ["c", "d"]]})
 
 
 if __name__ == "__main__":

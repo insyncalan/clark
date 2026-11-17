@@ -6,6 +6,7 @@
 // day); Left and Right move a day, Up and Down a week, into the next period when they leave this one; Enter on a day with milestones goes
 // to its first chip, and Enter or Space on a chip opens it; Shift+Tab or Esc on a chip (no peek open) goes back to its day. The scale is
 // switched by its buttons, as in the prototype. Page Up and Page Down step a whole period (kept from #76: the prototype has no such key).
+import { Fragment } from "preact";
 import { useState, useRef, useEffect } from "preact/hooks";
 import { recall, remember } from "../logic/remember.js";
 import { MsMark } from "./MsMark.jsx";
@@ -135,9 +136,13 @@ export function MsCalendar({ rows, today, open, place, client }) {
         <button type="button" class="ib" data-cal="1" aria-label="Later" onClick={() => go(1)}><Icon name="right" /></button>
         <button type="button" class="btn" data-cal="0" onClick={toToday}>Today</button>
         <b class="cal-t">{here.label}</b>
-        <span class="seg cal-sc" role="group" aria-label="Calendar scale">
-          {SCALES.map(([v, t]) => <button type="button" key={v} data-scale-b={v} aria-current={String(scale === v)} onClick={() => pick(v)}>{t}</button>)}
-        </span>
+        {place && place !== "page"      /* row 1230: the Dashboard's section draws the scale as text tabs, at the right */
+          ? <span class="mv-txt" role="group" aria-label="Calendar scale">
+            {SCALES.map(([v, t], i) => <Fragment key={v}>{i ? <span aria-hidden="true">{"\u00b7"}</span> : null}<button type="button" data-scale-b={v} aria-current={String(scale === v)} onClick={() => pick(v)}>{t}</button></Fragment>)}
+          </span>
+          : <span class="seg cal-sc" role="group" aria-label="Calendar scale">
+            {SCALES.map(([v, t]) => <button type="button" key={v} data-scale-b={v} aria-current={String(scale === v)} onClick={() => pick(v)}>{t}</button>)}
+          </span>}
       </div>
       {far ? <p class="cal-far" role="status" data-cal-far>{RANGE_NOTE} <button type="button" class="btn" data-cal-home onClick={toToday}>Go to today</button></p> : null}
       {body}

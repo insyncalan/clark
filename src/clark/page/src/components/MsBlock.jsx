@@ -12,13 +12,16 @@ import { MsTimeline } from "./MsTimeline.jsx";
 import { MsCalendar } from "./MsCalendar.jsx";
 import { MsList } from "./MsList.jsx";
 import { MsLegend } from "./MsLegend.jsx";
+import { MsTracker } from "./MsTracker.jsx";
+import { msViewOf } from "../logic/msView.js";
+import { trackerPlace } from "../logic/useCaseView.js";
 
 // `tools` is what Edit adds (edit/index.js): the eye on each row, and under the Dashboard's block the line that brings one back. A
 // published file, a page in View and a page with no tools have none.
 // The Dashboard's block (every place but the Milestones page) holds only what is on the page: a milestone taken off it with the eye
 // (report_hidden) or not for the client is not drawn, in View and in Edit, in the timeline, the Calendar and the list alike
 // (system/prototype/views.js:355). The Milestones page keeps every milestone, a left-out one marked in words.
-export function MsBlock({ place, tools }) {
+export function MsBlock({ place, tools, section }) {
   const client = fromFile.value, today = client && asAt.value ? asAt.value : todayIso();
   const dash = !client && place !== "page";
   const Eye = !client && tools && tools.MsEye && isEditing() ? tools.MsEye : null;
@@ -27,6 +30,8 @@ export function MsBlock({ place, tools }) {
   const More = Eye && place === "page" && tools.RecordMore ? ({ row }) => <tools.RecordMore row={row} kind="milestones" cls="ib ms-more" /> : null;      // item 1148: the Milestones page's rows have More actions (Archive, Delete)
   const CW = Eye && tools.colWidths ? tools.colWidths : null;      // row 1104: the Edit part's column widths hook; the published file and View have none
   const CM = Eye && tools.columns ? tools.columns : null;      // row 1222: the columns menu; the page clark serves only
+  const cfg = place !== "page" && section ? msViewOf(section, client) : null;      // row 1230: a Milestones section keeps its number shown, scroll and tracker place in its body (a published file in its entry); the Milestones page has none
+  const side = cfg ? trackerPlace(cfg) : { above: false, below: place !== "page", on: place !== "page" };
   const AddBack = dash && tools && tools.MsAddBack && isEditing() ? tools.MsAddBack : null;
   const [kept, setView] = useState(() => (client ? "line" : recall(`msv.${place}`, "line") === "cal" ? "cal" : "line"));
   const view = client ? (mv.value === "cal" ? "cal" : "line") : kept;      // a published file keeps the choice in its address (storage on file:// is not reliable); the editor keeps it in storage
@@ -43,8 +48,10 @@ export function MsBlock({ place, tools }) {
       <div class="msv-swap" key={view} data-swap={view}>      {/* a new key on a switch: the new view rises a little and fades in */}
         {view === "cal" ? <MsCalendar rows={rows} today={today} open={open} place={place} client={client} /> : <MsTimeline rows={rows} today={today} place={place} open={open} client={client} />}
       </div>
-      <MsList CW={CW} CM={CM} rows={rows} place={place} open={open} internalTag={!client} Eye={Eye} More={More} left={left} legend={<MsLegend client={client} id={place} />} />
+      {side.above ? <MsTracker rows={rows} client={client} /> : null}
+      <MsList CW={CW} CM={CM} view={cfg} rows={rows} place={place} open={open} internalTag={!client} Eye={Eye} Note={tools ? tools.msNote : null} More={More} left={left} legend={place === "page" ? <MsLegend client={client} id={place} /> : null} />
       {AddBack ? <AddBack /> : null}
+      {side.below ? <MsTracker rows={rows} client={client} /> : null}      {/* row 1230: the Dashboard's section ends in the status tracker, which replaces its Legend; the Milestones page keeps the Legend */}
     </div>
   );
 }
