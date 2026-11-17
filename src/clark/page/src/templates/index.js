@@ -22,10 +22,11 @@ import * as checklist from "./Checklist.jsx";
 import * as keydates from "./KeyDates.jsx";
 import * as onedoc from "./OneDoc.jsx";
 import * as reportheadline from "./ReportHeadline.jsx";
+import * as glancetemplate from "./GlanceTemplate.jsx";
 import * as gantt from "../components/GanttSection.jsx";
 import * as gantttable from "../components/GanttTableSection.jsx";
 
-const MODULES = { textimage, headline, figures4, figures3, gallery, table, doclinks, linkcard, raid3, raid4, workitems, callout, imagecap, quote, contacts, checklist, keydates, onedoc, reportheadline };
+const MODULES = { textimage, headline, figures4, figures3, gallery, table, doclinks, linkcard, raid3, raid4, workitems, callout, imagecap, quote, contacts, checklist, keydates, onedoc, reportheadline, glancetemplate };
 
 export const TEMPLATE_PARTS = Object.freeze(Object.fromEntries(TEMPLATE_TYPES.map((t) => [t, Object.freeze({
   view: MODULES[t].View, isEmpty: MODULES[t].isEmpty, ready: MODULES[t].READY === true,

@@ -92,6 +92,7 @@ export const TEMPLATES = [
 // words and its Help row.
 export const LATER = [
   { id: "headline", type: "headline", ready: true },
+  { id: "glance-template", type: "glancetemplate", ready: true },     // row 1264 slice 1: data layer only; View, Edit and the library card come later
   { id: "report-headline", type: "reportheadline", ready: true },     // row 1261 slice 1: View only; Edit and the library card come later
 ];
 
