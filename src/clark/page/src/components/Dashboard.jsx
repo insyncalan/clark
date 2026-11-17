@@ -103,7 +103,7 @@ export function Dashboard({ tools }) {
     <section class={`frame report${rebuilt.value ? " asat-frame" : ""}`} id="report" data-mode={editing ? "edit" : "view"} inert={rebuilt.value ? true : undefined}>{/* item 349: as at a day, nothing in it can be focused or clicked */}
       {list.length === 0 ? <p class="muted" id="no-sections">{emptyWhy}</p> : null}
       <div class={`secs${editing && dropAt.value && dropAt.value.line === "end" && !dragList.value ? " drop-end" : ""}`}>
-        {list.map((s, i) => <Section key={s.id} section={s} index={i} count={list.length} slot={places[i]} anchor={anchors[s.id]} tools={editing ? tools : null} clean={!fromFile.value && tools ? tools.clean : null} />)}
+        {list.map((s, i) => <Section key={s.id} section={s} index={i} count={list.length} slot={places[i]} anchor={anchors[s.id]} tools={editing ? tools : null} clean={!fromFile.value && tools ? tools.clean : null} pick={!editing && !fromFile.value && tools ? tools.Cell : null} />)}
       </div>
       {editing && list.length === 0 ? <tools.Add /> : null}
       <Minimap sections={list} onJump={jump} stickyHeight={topBarHeight} counts={counts} />

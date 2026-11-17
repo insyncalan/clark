@@ -4,7 +4,7 @@
 // View: a row opens the peek (row 1268); text nodes only, never dangerouslySetInnerHTML; only rows that would be published (the served page) or that the file
 // carries (a published file). isEmpty: no row to show, or no filter saved yet; the section then stays out of View and the file.
 import { useState, useRef, useLayoutEffect } from "preact/hooks";
-import { asAt, fromFile, openPeek, openWork } from "../stores/report.js";
+import { asAt, fromFile, openPeek, openPeekEdit, openWork } from "../stores/report.js";
 import { KIND_WORDS, dueCell, pillOf, ownerOf, todayIso } from "../workItems.js";
 import { listOf, drawRows, drawn, idsToShow, filterOf, footWords, reviewWords, pageState, priorityCell, WORDS } from "./workItemsList.js";
 import { clientPill } from "../logic/sectionRows.js";
@@ -45,9 +45,10 @@ function Cell({ row, col, now }) {
 // Row 1268, item 12 (Edit only): `Cell` is the Work items page's own in-place picker (edit/cells/Cell.jsx) round the Owner, Due, Status and Priority cells,
 // and `cw` the page's own column widths (edit/colWidths.jsx: drag a heading's edge, Alt with Left or Right). View and a published file pass neither.
 const PICKED = { owner: "owner", due: "due", status: "status", priority: "priority" };
-export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw }) {
+export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw, edit }) {
   const act = open ? (row) => ({ tabIndex: 0, role: "button", "aria-label": `Open ${row.id}: ${row.title || ""}`, onClick: () => open(row.id),
     onKeyDown: (e) => { if (e.target.closest && e.target.closest("button")) return; if ((e.key === "Enter" || e.key === " ") && !e.defaultPrevented) { e.preventDefault(); open(row.id); } } }) : () => ({});
+  const titleOpen = (row) => (edit ? { onClick: (e) => { e.stopPropagation(); if (!String(window.getSelection()).length) edit(row.id); } } : {});      // row 1287 (View): the title opens the peek in full edit; it is never edited in the list
   const th = (c, text) => <th key={c} class={`wil-c-${c}`} scope="col" style={cw ? cw.style(c) : undefined} {...(cw ? cw.head(c, text) : {})}>{text}{cw ? cw.grip(c, text) : null}</th>;
   const cellOf = (row, c) => (Pick && PICKED[c] ? <Pick row={row} field={PICKED[c]} keep={c === "status"}><Cell row={row} col={c} now={now} /></Pick> : <Cell row={row} col={c} now={now} />);
   // Row 1268: one line as the built-in rows: the letter tile, the title, the chosen columns, the ID last; an item the client eye has taken off is greyed.
@@ -69,7 +70,7 @@ export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw }) {
             <tr key={row.id} data-id={row.id} class={off(row).trim() || undefined} {...act(row)}>
               <td class="wil-c-tile">{tile(row)}</td>
               {before.map((c) => <td key={c} class={`wil-c-${c}`}>{cellOf(row, c)}</td>)}
-              <td class="wil-c-title">{row.title || ""}</td>
+              <td class="wil-c-title" {...titleOpen(row)}>{row.title || ""}</td>
               {after.map((c) => <td key={c} class={`wil-c-${c}`}>{cellOf(row, c)}</td>)}
               {Eye ? <td class="wil-c-eye"><Eye row={row} /></td> : null}
             </tr>
@@ -80,7 +81,7 @@ export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw }) {
         {rows.map((row) => (
           <li key={row.id} data-id={row.id} class={off(row).trim() || undefined} {...act(row)}>
             <span class="wil-tile">{tile(row)}</span>
-            <span class="wil-t">{row.title || ""}</span>
+            <span class="wil-t" {...titleOpen(row)}>{row.title || ""}</span>
             <span class="wil-m">{columns.map((c) => cellText(row, c, now)).filter(Boolean).join(" · ")}</span>
             {Eye ? <span class="wil-eye"><Eye row={row} /></span> : null}
           </li>
@@ -130,7 +131,7 @@ export function isEmpty(section, data) {
   return drawRows(listOf(section, data, today()).items, data).length === 0;
 }
 
-export function View({ section, data }) {
+export function View({ section, data, pick }) {
   const now = today();
   const list = listOf(section, data, now);
   const rows = drawRows(idsToShow(list, !fromFile.value), drawn(data, !fromFile.value));
@@ -138,7 +139,7 @@ export function View({ section, data }) {
   return (
     <div class="wil" data-wil="">
       {list.caption ? <p class="wil-cap">{list.caption}</p> : null}
-      <Scroller max={list.max || rows.length} count={rows.length}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} /></Scroller>      {/* row 1268: a row opens the peek in View and in a published file: read only there (Peek draws no control unless the page is editing), editable in Edit */}
+      <Scroller max={list.max || rows.length} count={rows.length}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Cell={fromFile.value ? undefined : pick || undefined} edit={fromFile.value || !pick ? undefined : openPeekEdit} /></Scroller>      {/* row 1268: a row opens the peek in View and in a published file: read only there (Peek draws no control unless the page is editing), editable in Edit */}
       {fromFile.value ? null : <Foot section={section} total={rows.length} max={list.max} edit={false} />}
     </div>
   );
