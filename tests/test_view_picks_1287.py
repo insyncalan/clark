@@ -23,8 +23,8 @@ class ViewPicks(T.InThePage):
                 for want in ("owner", "due", "status"):
                     self.assertIn(want, fields)
                 self.assertEqual(p.js(f"document.querySelectorAll('{row} .wil-c-title .cell-pick, {row} .wil-c-title input, {row} .wil-c-title textarea').length"), 0, "the title is never a control")
-                p.js(f"document.querySelector('{row} .cell-pick[data-cell$=\":owner\"]').click()")
-                p.until("!!document.querySelector('[data-cell$=\":owner\"][aria-expanded=true]')", "the owner picker opened in View")
+                # a click that lands while the list is still drawing is lost: click again until the picker is open (never while it is open, so it cannot toggle shut)
+                p.until(f"(() => {{ const o = () => !!document.querySelector('[data-cell$=\":owner\"][aria-expanded=true]'); if (!o()) {{ const b = document.querySelector('{row} .cell-pick[data-cell$=\":owner\"]'); if (b) b.click(); }} return o(); }})()", "the owner picker opened in View")
                 p.js("(document.activeElement || document).dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))")
                 p.until("!document.querySelector('[data-cell][aria-expanded=true]')", "the picker closed")
                 p.js(f"document.querySelector('{row} .wil-c-title').click()")
