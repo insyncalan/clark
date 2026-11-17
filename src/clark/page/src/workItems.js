@@ -146,3 +146,11 @@ export function countOf(total, open) { return { total, open, noun: total === 1 ?
 // Grouped by workstream, the group's heading already says it, so the line leaves it out (#947).
 // Row 1222: `own` names the parts that have a column of their own (Id, Use case, Milestone, Workstream), so the line does not say them twice.
 export function metaOf(row, group, own = {}) { return [own.id ? "" : row.id, own.uc ? "" : row.uc, own.milestone ? "" : row.milestone, group === "workstream" || own.workstream ? "" : row.workstream].filter(Boolean).join(" · "); }
+
+// Row 1195, S4: the live Work items page draws the first LIVE_MAX rows (of the rows in the order drawn) and, when the list is longer, a
+// "Show all items" link under the table; once open the link reads "Show only 50". Same words as the section template's link.
+export const LIVE_MAX = 50;
+export function liveWindow(rows, showAll) {
+  if (rows.length <= LIVE_MAX) return { rows, link: "" };
+  return showAll ? { rows, link: `Show only ${LIVE_MAX}` } : { rows: rows.slice(0, LIVE_MAX), link: "Show all items" };
+}

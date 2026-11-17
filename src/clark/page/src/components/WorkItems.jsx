@@ -24,7 +24,7 @@ import { itemRows } from "../stores/work.js";
 import { handing, ticks } from "../stores/handover.js";
 import { ItemIcon, iconWords } from "./ItemRows.jsx";                 // row 1145: the dashboard lists' tinted letter icon, alone, is the Status column
 import { clientPill } from "../logic/sectionRows.js";
-import { sortRows, dueCell, ownerOf, metaOf, isOpen, todayIso, showDate, KIND_WORDS } from "../workItems.js";
+import { sortRows, liveWindow, dueCell, ownerOf, metaOf, isOpen, todayIso, showDate, KIND_WORDS } from "../workItems.js";
 import { defsOf, standardIds } from "../logic/tableColumns.js";
 import { applyFilters, chips, canClear, countText, clearAll, removeFilter, addPlan } from "../filters.js";
 import { Switches, FilterBar } from "./WorkFilters.jsx";
@@ -347,11 +347,13 @@ function PublishedList({ Board, Cell, Eye, Bulk, CW, CM }) {
 }
 
 // The part a filter change redraws: the count, the chips with Clear all, and the table or the board.
+const showAllItems = signal(false);      // row 1195 S4: Show all items is open
 function List({ Board, Cell, Eye, Bulk, HandOver, L, CW, CM }) {
   const today = todayIso(), v = L.view(itemRows.value, filterCtx());
   const st = v.state, filtered = v.rows, clear = v.clear, can = v.can;
   const hand = handing() && !!HandOver, board = !!Board && work.value.view === "board" && !hand;      // #199: Hand over is drawn as the table
   const matching = filtered.map((r) => r.id);
+  const win = liveWindow(sortRows(filtered, today), showAllItems.value), shown = board || hand ? filtered : win.rows;      // row 1195 S4: the table only; the board and Hand over draw every row
   // After each draw: a row no longer drawn (filtered out, its group collapsed) leaves the selection, unless "all matching" is on.
   useLayoutEffect(() => { if (selecting() && !hand) sel.sync(drawnOrder(), matching); });
   return (
@@ -363,7 +365,8 @@ function List({ Board, Cell, Eye, Bulk, HandOver, L, CW, CM }) {
       <span id="work-count" class="sr num" key={countText(filtered.length, st.mode)}>{countText(filtered.length, st.mode)}</span>
       {filtered.length === 0
         ? <div class="empty"><p class="muted">{v.empty.none}</p>{can ? <button type="button" class="link" id="clearFilter" onClick={clear}>{v.empty.clear}</button> : null}{v.empty.hint ? <p class="muted" id="empty-hint">{v.empty.hint}</p> : null}</div>
-        : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={hand ? null : Cell} Eye={Eye} CW={CW} CM={CM} />}
+        : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={shown} today={today} type={st.type} Cell={hand ? null : Cell} Eye={Eye} CW={CW} CM={CM} />}
+      {!board && !hand && win.link ? <p class="wil-all"><button type="button" class="wil-all-b" data-work-all="" aria-expanded={showAllItems.value ? "true" : "false"} onClick={() => { showAllItems.value = !showAllItems.value; }}>{win.link}</button></p> : null}
     </div>
   );
 }
