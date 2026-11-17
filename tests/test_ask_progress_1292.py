@@ -14,6 +14,7 @@ EDIT = ROOT / "src" / "clark" / "page" / "src" / "edit"
 WORDS = (EDIT / "askWords.js").read_text(encoding="utf-8")
 STATE = (EDIT / "askPanelState.js").read_text(encoding="utf-8")
 PANEL = (EDIT / "AskPanel.jsx").read_text(encoding="utf-8")
+CSS = (EDIT / "edit.css").read_text(encoding="utf-8")
 
 
 def run_node(body):
@@ -50,6 +51,15 @@ class Gone(unittest.TestCase):
 
     def test_the_line_is_hidden_from_screen_readers_so_the_clock_is_not_read_each_second(self):
         self.assertRegex(PANEL, r'id="ask-step" aria-hidden="true"')
+
+    def test_the_clock_ticks_each_second_from_the_moment_of_the_send_in_whole_seconds_of_ms(self):
+        self.assertIn("const from = Date.now();", PANEL)
+        self.assertIn("setSecs((Date.now() - from) / 1000), 1000)", PANEL)
+
+    def test_the_line_stays_on_one_row_and_shrinks_with_an_ellipsis(self):
+        rule = re.search(r"\.ask-step \{([^}]*)\}", CSS).group(1)
+        for part in ("min-width: 0", "overflow: hidden", "text-overflow: ellipsis", "white-space: nowrap"):
+            self.assertIn(part, rule)
 
 
 if __name__ == "__main__":
