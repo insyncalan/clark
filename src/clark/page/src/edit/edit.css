@@ -674,6 +674,8 @@ textarea.tpl-field { resize: vertical; }
 /* Row 1268: the Add + at the right end, a dashed square as the one on Work items (the approved mock-up) */
 .wil-add { flex: none; display: flex; justify-content: flex-end; margin: 0 0 var(--space-1) auto; }   /* at the right end of the saved-views row (ticket 1268) */
 .wil-add .newb { border-style: dashed; }
+/* Row 1273: Add milestone, Add project and Add use case take the same dashed look; border only, nothing moves */
+#addMs.newb, #npBtn.newb, #ucAddPage.newb { border: 1px dashed var(--status-blue-text); }
 .wil-line { display: grid; gap: var(--space-1); margin: var(--space-1) 0 var(--space-2); }
 .wil-line p { margin: 0; }
 .wil-more summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
