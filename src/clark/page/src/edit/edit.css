@@ -597,6 +597,36 @@ textarea.tpl-field { resize: vertical; }
 .tpl-table-edit th, .tpl-table-edit td { min-width: 120px; }
 .tpl-table-edit th .btn { margin-top: var(--space-1); }
 .tpl-edit .btn { align-self: flex-start; }
+/* item 1272 Callout, in place: the toolbar above the box, then the box with its title and words inside it. */
+.cb-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); }
+.cb-set, .cb-grp { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); min-width: 0; }
+.cb-lbl { font-size: var(--size-caption); color: var(--text-muted); margin-right: var(--space-1); white-space: nowrap; }
+.cb-btn { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 2.25em; padding: 0 var(--space-2); border: 1px solid var(--control-edge); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-caption); cursor: pointer; }
+.cb-btn .i { width: 1.4em; height: 1.4em; }
+.cb-btn:focus-visible, .cb-opt:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.cb-btn[aria-pressed="true"], .cb-btn[aria-checked="true"], .cb-opt[aria-selected="true"] { background: var(--brand-blue-tint); border-color: var(--brand-blue); color: var(--status-blue-text); font-weight: var(--weight-semibold); }
+.tpl-field.cb-in { width: 12em; min-height: 2.25em; border-color: var(--control-edge); }
+.cb-sw { display: inline-flex; align-items: center; justify-content: center; width: 1.6em; height: 1.6em; box-sizing: border-box; border: 2px solid var(--cc-edge, var(--grey-500)); border-radius: var(--radius-sm); background: var(--cc-fill, var(--surface)); color: var(--cc-ink, var(--text)); }
+.cb-col.k-plain .cb-sw { border-style: dashed; border-color: var(--text-muted); }
+.cb-col.k-violet { --cc-fill: var(--brand-blue-tint); --cc-edge: var(--status-blue); --cc-ink: var(--status-blue-text); }
+.cb-col.k-amber { --cc-fill: var(--status-amber-tint); --cc-edge: var(--status-amber); --cc-ink: var(--status-amber-text); }
+.cb-col.k-red { --cc-fill: var(--status-red-tint); --cc-edge: var(--status-red); --cc-ink: var(--status-red-text); }
+.cb-col.k-green { --cc-fill: var(--status-green-tint); --cc-edge: var(--status-green); --cc-ink: var(--status-green-text); }
+.cb-col.k-grey { --cc-fill: var(--grey-100); --cc-edge: var(--status-grey); --cc-ink: var(--grey-700); }
+.cb-sw .i { width: 1em; height: 1em; }
+.cb-icon { position: relative; }
+.cb-icons { position: absolute; z-index: 5; top: 100%; left: 0; margin-top: var(--space-1); display: grid; grid-template-columns: repeat(auto-fill, minmax(6.5em, 1fr)); gap: var(--space-1); width: max-content; max-width: min(46em, 90vw); padding: var(--space-2); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+.cb-opt { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-2) var(--space-1); border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: var(--text); font: inherit; font-size: var(--size-caption); cursor: pointer; }
+.cb-opt .i { width: 1.6em; height: 1.6em; }
+.cb .tpl-callout { margin: 0; }
+/* row 1272 (mock-up B): the title and the words sit on the category word's left edge; the 1px edge and the padding are pulled back by the same amount. */
+.cb { --cb-pull: calc(var(--space-2) + 1px); }
+.tpl-field.cb-title { width: calc(100% + 2 * var(--cb-pull)); min-height: 2em; margin: 0 calc(-1 * var(--cb-pull)) var(--space-1); padding: 0 var(--space-2); border-color: transparent; background: transparent; color: var(--heading); font-weight: var(--weight-medium); }
+.cb .tpl-callout-main .rt-view { margin: 0 calc(-1 * var(--cb-pull)); padding: 0 var(--space-2); border: 1px solid transparent; }
+.cb .tpl-callout-main .rt-view:hover { outline: 0; border-color: var(--text-muted); }
+.cb-sep { align-self: stretch; width: 1px; margin: var(--space-1); background: var(--grey-200); }
+.cb-count { margin: 0 var(--space-2); font-size: var(--size-caption); color: var(--text-muted); white-space: nowrap; }
+.tpl-field.cb-title:hover { border-color: var(--text-muted); }
 .tpl-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 /* #936: the Quote and the Link preview draw no coloured side stripe in Edit (a quiet panel, a plain frame); the published file keeps its own. Tokens only. */
