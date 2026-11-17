@@ -2074,7 +2074,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-quote-rl { font-size: var(--size-caption); color: var(--text-muted); }
 @container half (max-width: 520px) { .tpl-quote { padding: var(--space-3) var(--space-4); } }      /* a half card (493 at 1400) keeps the panel and the rule; the words wrap, nothing runs wider */
 /* item 1271: no tile (the card around the quote) and no heading. In Edit the card stays, dashed, and the heading struck through, so the section can be found. */
-.sec.no-tile { background: transparent; border-color: transparent; box-shadow: none; }
+.sec.no-tile, html:not([data-density="comfortable"]) .sec.no-tile { background: transparent; border-color: transparent; box-shadow: none; }      /* the compact look's top line is the tile there, so it goes too */
 #report[data-mode="view"] .sec.no-tile { padding-left: 0; padding-right: 0; }
 #report[data-mode="edit"] .sec.no-tile { border: 1px dashed var(--grey-500); }
 #report[data-mode="view"] .sec.no-head > .sec-head { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
