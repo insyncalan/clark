@@ -173,7 +173,8 @@ class EditInThePage(Base):
             self.assertNotIn("comes in the next step", text)
             self.assertIn(HINT, text)
             self.assertEqual(p.js(f"document.querySelector('{self.sel(self.empty, 'textarea[aria-label=Headline]')}').placeholder"), HEAD_PH)
-            self.assertEqual(p.js(f"document.querySelector('{self.sel(self.empty, 'textarea[aria-label=\"Supporting sentence\"]')}').placeholder"), SENT_PH)
+            sentence = self.sel(self.empty, 'textarea[aria-label="Supporting sentence"]')      # outside the f-string: Python 3.9 refuses a backslash inside {}
+            self.assertEqual(p.js(f"document.querySelector('{sentence}').placeholder"), SENT_PH)
             self.assertEqual(p.js(f"document.querySelector('{self.sel(self.empty, '.pillbtn')}').getAttribute('aria-label')"), "Project health: not set. Change it")
             self.assertNotIn(HINT, p.js(f"document.querySelector('{self.sel(self.full)}').textContent"), "the hint is for an empty section only")
 
