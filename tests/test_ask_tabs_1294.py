@@ -48,6 +48,7 @@ class Tabs(unittest.TestCase):
             self.until(js, "!!document.querySelector('[data-ask-switch]') && !!document.querySelector('#ask-used-all')", "the project tab holds the switch and the Used from All projects card")
             self.assertFalse(js("!!document.querySelector('#ai-settings')"), "the connections are not on the project tab")
             self.assertEqual(js("document.querySelector('#ask-used-all h3').textContent"), "Used from All projects")
+            self.assertTrue(js("['#ask-used-all', '#ask-used-all h3', '[data-ask-goall]'].every(q => document.querySelector(q).offsetHeight > 0)"), "the card and its Change button are on show, not hidden")
             for w in WIDTHS:
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
                 self.until(js, "document.documentElement.scrollWidth <= window.innerWidth", f"no sideways scroll at {w}")
