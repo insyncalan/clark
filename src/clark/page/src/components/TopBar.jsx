@@ -64,6 +64,16 @@ export function TopBar({ tools }) {
     later();
     return () => { if (watch) watch.disconnect(); if (frame) cancelAnimationFrame(frame); };
   }, [tabs.value.length]);
+  useEffect(() => {      // row 1239: a long project name wraps instead of ending in an ellipsis, so the bar grows; every offset that reads --topbar follows the bar's real height
+    const bar = document.querySelector("header.top");
+    if (!bar) return undefined;
+    const root = document.documentElement;
+    const read = () => { const h = bar.getBoundingClientRect().height; if (h > 0) root.style.setProperty("--topbar", h + "px"); };
+    const watch = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(read);
+    if (watch) watch.observe(bar);
+    read();
+    return () => { if (watch) watch.disconnect(); root.style.removeProperty("--topbar"); };
+  }, []);
   const vs = tabs.value, stop = vs.includes(view.value) ? view.value : vs[0];      // roving tabindex: one tab is in the Tab order, the open one (the first when none is open)
   const onTabKey = (e) => {      // Left/Right/Home/End move between the tabs and open the one reached, as in Help
     const i = vs.indexOf(e.target && e.target.dataset ? e.target.dataset.view : "");
