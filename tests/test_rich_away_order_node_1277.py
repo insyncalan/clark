@@ -26,7 +26,7 @@ const editor = { id: "editor" }, title = { id: "title" }, body = { id: "body" };
 const inRoot = new Set([editor]);
 const root = { current: { contains: (n) => inRoot.has(n) } };
 const timers = [];
-globalThis.setTimeout = (fn) => { timers.push(fn); return timers.length; };
+globalThis.setTimeout = (fn, ms) => { timers.push([fn, ms || 0]); return timers.length; };
 const doc = { hasFocus: () => scenario.hasFocus, activeElement: scenario.activeAtEvent === "editor" ? editor : title };
 globalThis.document = doc;
 let finished = 0;
@@ -37,8 +37,9 @@ const run = new Function("root", "bubble", "slashBox", "keep", "aiOpen", "finish
   (root, bubble, slashBox, keep, aiOpen, finishRef, doc, globalThis.setTimeout);
 run({ relatedTarget: scenario.to === "title" ? title : null });
 if (scenario.activeAtTimer) doc.activeElement = scenario.activeAtTimer === "editor" ? editor : title;
-while (timers.length) timers.shift()();
-if (scenario.activeLater) doc.activeElement = title;     // too late: nothing looks again
+while (timers.some((t) => t[1] === 0)) timers.splice(timers.findIndex((t) => t[1] === 0), 1)[0][0]();   // the 0 ms timers first
+if (scenario.activeLater) doc.activeElement = title;     // the focus lands after them
+while (timers.length) timers.shift()[0]();                // then the later ones (a re-look)
 console.log(JSON.stringify({ finished }));
 """
 
