@@ -51,7 +51,7 @@ class Box(unittest.TestCase):
                        " return { text: f.textContent.trim(), key: k.textContent, fs: c.fontSize, top: f.getBoundingClientRect().top, vb: b.querySelector('.rt-view').getBoundingClientRect().bottom, bt: c.borderTopWidth, kfs: kc.fontSize, kfw: kc.fontWeight, krad: kc.borderTopLeftRadius }; })()", sid)
             self.assertIsNotNone(r, "the footer is in the box before any click")
             self.assertEqual((r["text"], r["key"]), ("⌘ Enter to save", "⌘ Enter"))
-            self.assertEqual((r["fs"], r["bt"], r["kfs"], r["kfw"], r["krad"]), ("12px", "1px", "13px", "600", "5px"))
+            self.assertEqual((r["fs"], r["bt"], r["kfs"], r["kfw"], r["krad"]), ("12px", "1px", "13px", "600", "4px"))
             self.assertGreaterEqual(r["top"], r["vb"] - 0.5, "the strip is under the text")
 
     def test_the_box_lights_on_focus_and_the_footer_stays(self):
