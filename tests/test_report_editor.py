@@ -154,7 +154,8 @@ class Pg:
             self.mouse("mouseMoved", hx + (x - hx) * step / 8, hy + (y - hy) * step / 8, 1)
         if release:
             if drops:
-                self.until(self.SHOWN, "the drop target is shown before the release")
+                moved_at = self.js("performance.now()")          # the pointer's last move; the slot follows a pointer that has rested 110 ms on its target
+                self.until(f"performance.now() - {moved_at} >= 300 && {self.SHOWN}", "the drop target is shown, for where the pointer rests, before the release")
             self.mouse("mouseReleased", x, y, 0)
             if drops:
                 self.stored(n0)
