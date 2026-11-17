@@ -1,5 +1,5 @@
 """Item 1180: the peek's chip row. The four tall property cells become one flat row of chips; each chip is a coloured icon, the value
-and a small chevron, and opens a popover. The date chip says "overdue 2 days" in red beneath the date; a closed risk's rating chip says
+and a small chevron, and opens a popover. The date chip says "overdue 2 days" in a small red pill (row 1256 changed it from plain red text; the chip itself is no longer red-bordered); a closed risk's rating chip says
 "<colour> kept". The published file and the Dashboard in View draw the same chips with no control.
 
 Run: python3 dev/run_tests.py test_peek_chips_1180
@@ -142,7 +142,7 @@ class Chips(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.toast [data-undo], .toast button')", sid)), "a toast with Undo")
             self.assertNotIn(other, before)
 
-    def test_an_overdue_date_chip_says_overdue_2_days_in_red_under_the_date(self):
+    def test_an_overdue_date_chip_says_overdue_2_days_in_a_red_pill_beside_the_date(self):
         for width in (1400, 900):
             with self.with_overdue(), chrome() as cdp:
                 s, sid = self.load_page(cdp, width)
@@ -153,7 +153,7 @@ class Chips(unittest.TestCase):
                         got = self.open_item(cdp, sid, OVERDUE, view=mode == "view")
                         due = got["chips"]["due"]
                         self.assertEqual(due["sub"], "overdue 2 days")
-                        self.assertEqual(due["subColour"], got["red"], "the sub-line is in the red token")
+                        self.assertEqual(due["subColour"], got["red"], "the sub-line is in the red token (row 1256: its text stays the red token, now inside a red-tint pill)")
                         self.assertIn("26-10-2026", due["text"], "the date stays on the chip")
                         self.assertEqual(due["icons"][0], "cal")
                         self.assertLessEqual(due["h"], 64)
@@ -197,7 +197,7 @@ class Chips(unittest.TestCase):
             self.assertEqual(list(dec["chips"]), ["status", "priority", "owner", "due"], "row 1195: a decision has a priority (peek_priority), so its chip row has Priority")
             self.open_item(cdp, sid, "TUL-007")
             click(cdp, sid, "#peek .pk-chips [data-row=priority]")
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pop].rpick')", sid)), "a risk's priority opens the impact and likelihood picker")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pop].rmatrix .rmx')", sid)), "rows 1182 1183: a risk's rating opens the 3 x 3 impact and likelihood matrix")
 
     def decision(self):
         return next(r["id"] for r in self.data["decisions"])

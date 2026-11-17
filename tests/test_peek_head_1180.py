@@ -53,6 +53,8 @@ class Head(unittest.TestCase):
     def calm(self, cdp, sid):
         self.assertTrue(wait(lambda: cdp.js("(p => !p || p.getAnimations({subtree: true}).every(a => a.playState !== 'running'))(document.querySelector('#peek'))", sid)),
                         "the peek has stopped moving")
+        self.assertTrue(wait(lambda: cdp.js("(a => !a || a.getAttribute('aria-busy') !== 'true')(document.querySelector('#peek .pk-activity'))", sid)),
+                        "the history has arrived, so the peek has its full height (and its scrollbar, or none) before anything is measured")
 
     def value(self, cdp, sid):
         return cdp.js("(t => t ? t.value : null)(document.querySelector('#peek textarea[data-pk-title-in]'))", sid)
@@ -92,8 +94,8 @@ class Head(unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelectorAll('#peek [data-pk-project]').length", sid), 1, "the project once")
                 self.assertEqual(cdp.js("document.querySelector('#peek [data-pk-project]').textContent.trim()", sid), name)
                 outlined = cdp.js("(c => { const s = getComputedStyle(c); return parseFloat(s.borderTopWidth) > 0 && s.borderTopStyle !== 'none' && "
-                                  "(s.backgroundColor === 'rgba(0, 0, 0, 0)' || s.backgroundColor === 'transparent'); })(document.querySelector('#peek [data-pk-id]'))", sid)
-                self.assertTrue(outlined, "the tag is an outline, not a filled chip")
+                                  "s.backgroundColor === 'rgb(246, 248, 252)'; })(document.querySelector('#peek [data-pk-id]'))", sid)      # row 1258: the mockup's tag is outlined AND filled #F6F8FC
+                self.assertTrue(outlined, "the tag is a 1 px outlined tag on mockup's #F6F8FC")
                 order = cdp.js("(() => { const q = (s) => document.querySelector(s), f = Node.DOCUMENT_POSITION_FOLLOWING;"
                                " return [q('#peek .pk-bar').compareDocumentPosition(q('#peek [data-pk-id]')) & f, q('#peek [data-pk-id]').compareDocumentPosition(q('#peek [data-pk-project]')) & f,"
                                " q('#peek [data-pk-project]').compareDocumentPosition(q('#peek h2.pk-title')) & f].map(Boolean); })()", sid)

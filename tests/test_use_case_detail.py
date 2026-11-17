@@ -302,7 +302,7 @@ class Detail(unittest.TestCase):
                 with self.subTest(width=width, scheme=scheme), chrome() as cdp:
                     sid = self.open_detail(cdp, width=width, scheme=scheme, edit=False)
                     self.assertNotEqual(cdp.js("document.querySelector('#report').dataset.mode", sid), "edit", "the page is not in Edit")
-                    self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] textarea').length", sid), 2, "name and headline are boxes")
+                    self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] textarea').length", sid), 3, "name, headline and owner are boxes")
                     for sel in ("#ucd-status", "[data-ucd] [data-eye]", "[data-ucd] #ucd-more", "[data-ucd] [data-rich]", "[data-ucd] [data-uc-commit] button"):
                         self.assertEqual(cdp.js(f"document.querySelectorAll({json.dumps(sel)}).length", sid), 1, sel)
 
@@ -463,6 +463,33 @@ class Detail(unittest.TestCase):
             key(cdp, sid, "Escape")
             self.assertEqual(cdp.js("document.querySelector('[data-ucd] [data-ucd-field=headline]').value", sid), was["headline"])
             self.assertEqual((len(self.sent), cdp.js("location.hash", sid)), (n, "#dashboard&p=TUL"), "Esc in a field only puts the text back")
+
+    def test_the_owner_is_changed_in_place_as_one_change_with_one_undo_and_a_long_owner_is_refused_row_875(self):
+        with chrome() as cdp:
+            sid = self.open_detail(cdp)
+            was = self.row()
+
+            def type_owner(text):
+                cdp.js("(() => { const t = document.querySelector('[data-ucd] [data-ucd-field=owner]'); t.focus(); t.select(); })()", sid)
+                cdp.call("Input.insertText", {"text": text}, sid)
+                key(cdp, sid, "Enter")
+            before = self.steps()
+            type_owner("Pat Example")
+            self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "the toast offers Undo")
+            self.assertEqual((self.row()["owner"], self.steps(), self.toast(cdp, sid)), ("Pat Example", before + 1, "Owner changed."))
+            self.until(cdp, sid, "document.querySelector('[data-ucd] [data-ucd-field=owner]').value === 'Pat Example'", "the page shows it")
+            self.undo(cdp, sid)
+            self.assertEqual(self.row()["owner"], was["owner"])
+            n, before = len(self.sent), self.steps()
+            type_owner("x" * 201)
+            self.until(cdp, sid, "/200 characters at most/.test((document.querySelector('.toast-text') || {}).textContent || '')", "a long owner is refused in plain words")
+            self.assertEqual((len(self.sent), self.steps(), self.row()["owner"]), (n, before, was["owner"]), "nothing was sent")
+            # Esc puts the old owner back and sends nothing
+            cdp.js("(() => { const t = document.querySelector('[data-ucd] [data-ucd-field=owner]'); t.focus(); t.select(); })()", sid)
+            cdp.call("Input.insertText", {"text": "Thrown away"}, sid)
+            key(cdp, sid, "Escape")
+            self.assertEqual(cdp.js("document.querySelector('[data-ucd] [data-ucd-field=owner]').value", sid), was["owner"] or "")
+            self.assertEqual((len(self.sent), self.steps(), self.row()["owner"]), (n, before, was["owner"]), "Esc sent nothing")
 
     def test_the_status_menu_offers_four_words_and_a_pick_is_one_change_with_one_undo(self):
         with chrome() as cdp:
