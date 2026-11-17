@@ -13,7 +13,7 @@ function Cell({ tile, children }) {
   return <div class={`tcell${tile.key === "health" ? " health" : ""}`} data-tile={tile.key}>{children}</div>;
 }
 
-function Figure({ t, file }) {
+export function Figure({ t, file }) {
   const inner = (
     <>
       <span class="k"><i class="ragdot" aria-hidden="true"></i>{t.label}</span>
@@ -40,7 +40,7 @@ export function ReasonText({ reason, file, clean }) {
   return html ? <div class="hreason prose" dangerouslySetInnerHTML={{ __html: html }} /> : null;
 }
 
-function Health({ t, tools, editing, clean }) {
+export function Health({ t, tools, editing, clean }) {
   const G = editing ? tools.glance : null, hrow = useRef(null);
   useSettle(hrow, `${t.pill}|${t.value}|${t.reason || ""}`);
   return (
