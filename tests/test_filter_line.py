@@ -630,6 +630,13 @@ class SavedViews(Line):
         self.assertEqual(got[2], "is:open", "another project keeps the standard line")
         self.assertEqual(got[3], "{}", "the standard line again: nothing is kept")
 
+    def test_row_1265_a_core_view_line_of_600_characters_is_kept_and_one_of_601_is_not(self):
+        fake = "{store: {}, getItem(k) { return k in this.store ? this.store[k] : null; }, setItem(k, v) { this.store[k] = String(v); }}"
+        got = self.val(f"(function(){{ var s = {fake}; var out = []; [600, 601].forEach(function (n) {{ var v = T.fl.viewsGet(s, 'ABC');"
+                       " v = T.fl.saveView(v, 'core-open', 'x'.repeat(n)).views; T.fl.viewsPut(s, 'ABC', v);"
+                       " out.push(T.fl.viewsGet(s, 'ABC').find(function (x) { return x.id === 'core-open'; }).line.length); }); return out; })()")
+        self.assertEqual(got, [600, len("is:open")], "600 characters are kept, 601 fall back to the standard line")
+
     def test_save_over_a_view(self):
         got = self.v(f"saveView({lit(self.v('DEFAULT_VIEWS'))}, 'overdue', 'is:open due:overdue owner:me')")
         self.assertEqual(next(x for x in got["views"] if x["id"] == "overdue")["line"], "is:open due:overdue owner:me")
