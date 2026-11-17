@@ -69,14 +69,6 @@ class Lists(unittest.TestCase):
         self.assertIn("overdue", got)
         self.assertEqual(got["overdue"]["value"], 0)
 
-    def test_a_list_of_dependencies_brings_the_risks_tile_back(self):      # mutation check: KINDS_OF_TILE["risks"] names dependency
-        d = data(raid_=[raid(1, type_="Dependency", priority="High")])
-        self.assertIn("risks", by(run(d, ("raid",), body(kinds=["dependency"]))))
-
-    def test_a_list_of_assumptions_brings_the_risks_tile_back(self):      # mutation check: KINDS_OF_TILE["risks"] names assumption
-        d = data(raid_=[raid(1, type_="Assumption", priority="High")])
-        self.assertIn("risks", by(run(d, ("raid",), body(kinds=["assumption"]))))
-
     def test_each_risk_kind_alone_brings_the_risks_tile_back(self):
         for type_, kind in (("Risk", "risk"), ("Issue", "issue"), ("Assumption", "assumption"), ("Dependency", "dependency")):
             with self.subTest(kind=kind):
