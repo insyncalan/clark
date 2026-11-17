@@ -2,7 +2,7 @@
 
 Run: python3 dev/run_tests.py test_published_plan_summary_empty
 Headless Chrome. The stored body of the Plan summary template (two headings, an empty paragraph, an empty bullet), unedited,
-counts as empty (logic/emptyBody.js, read from templates.js). A typed word in a heading, the paragraph or the bullet, a plain
+counts as empty (logic/emptyBody.js, read from logic/planSummaryBody.js). A typed word in a heading, the paragraph or the bullet, a plain
 Text section with only a typed heading, and a normal heading-and-text section all show. The published file is opened from disk
 at 1400 and 900 px; the View side ("Nothing recorded.") is read from the same function in Section.jsx.
 """
@@ -94,10 +94,15 @@ class PublishedPlanSummary(Base):
             self.assertTrue(self.published_text(PICTURE_ONLY, w), w)
 
     def test_view_side_uses_the_same_rule(self):
-        src = (Path(__file__).resolve().parent.parent / "src/clark/page/src/logic/emptyBody.js").read_text(encoding="utf-8")
-        self.assertIn('find("plan-summary").body', src)
-        self.assertNotIn("Where we are", src.replace("// ", ""), "the skeleton is read from the template, not copied")
-
+        logic = Path(__file__).resolve().parent.parent / "src/clark/page/src/logic"
+        src = (logic / "emptyBody.js").read_text(encoding="utf-8")
+        self.assertIn("markup(PLAN_SUMMARY_BODY)", src)
+        self.assertIn('from "./planSummaryBody.js"', src)
+        self.assertNotIn('from "./templates.js"', src, "the published file must not pull the template words in")
+        self.assertNotIn("Where we are", src.replace("// ", ""), "the skeleton is read from its one module, not copied")
+        tpl = (logic / "templates.js").read_text(encoding="utf-8")
+        self.assertIn("body: PLAN_SUMMARY_BODY,", tpl, "the template and the empty check read the same body")
+        self.assertNotIn("Where we are", tpl, "the template does not keep its own copy")
 
 if __name__ == "__main__":
     unittest.main()

@@ -11,6 +11,7 @@ import { rows } from "./placement.js";
 import { TEMPLATE_TYPES, PENDING_TYPES } from "../templates/types.js";
 import { WORDS } from "./fullImageWords.js";
 import { defaults, bodyOf } from "../templates/workItemsList.js";
+import { PLAN_SUMMARY_BODY } from "./planSummaryBody.js";
 
 // What the store takes in a new section (changes.py NEW_SECTION_TYPES: text
 // and every type in the template registry (#96)). A template whose type is not here is listed but not offered.
@@ -76,7 +77,7 @@ export const TEMPLATES = [
   { id: "current-state", name: "Header and Text", kind: "text", fit: ["full", "half"], type: "text", title: "Current state", body: "", ready: true,
     description: "The state of the project in a few lines, to sit beside another section.", holds: ["Heading", "Text"] },
   { id: "plan-summary", name: "Plan summary", kind: "text", fit: ["full", "half"], type: "text", title: "Plan summary", ready: true,
-    body: "<h2>Where we are</h2><p></p><h2>What is next</h2><ul><li></li></ul>",
+    body: PLAN_SUMMARY_BODY,
     description: "Where the plan stands, in clark’s one editor: headings, lists and links. Starts with two headings to fill in.",
     holds: ["Heading", "Rich text: headings, lists, quote, links"] },
   { id: "gantt", name: "Gantt", kind: "dates", fit: ["full"], type: "gantt", title: "Gantt", body: "", ready: true,
