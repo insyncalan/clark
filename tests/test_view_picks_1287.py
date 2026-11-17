@@ -30,3 +30,13 @@ class ViewPicks(T.InThePage):
                 p.js(f"document.querySelector('{row} .wil-c-title').click()")
                 p.until(f"((document.querySelector('#peek') || {{dataset: {{}}}}).dataset.peek || '') === '{self.a_due}'", "the peek opened")
                 p.until("!!document.querySelector('#peek [data-cell], #peek .cell-pick')", "the peek is the editable one")
+
+    def test_a_list_set_beside_another_has_no_pickers_in_view(self):
+        with self.store.step("dashboard", T.USER) as st:
+            st.create("report_sections", {"project": "ABC", "type": "text", "title": "Fictional notes", "sort_order": 1, "beside": 1})
+            ref = st.create("report_sections", {"project": "ABC", "type": "actions", "title": "Fictional actions", "sort_order": 2})
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width)
+                p.until(f"!!document.querySelector('[data-id=\"{ref}\"].slot-right .wl-row')", "the actions list is the right half")
+                self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .cell-pick').length"), 0, "half width: no pickers")
