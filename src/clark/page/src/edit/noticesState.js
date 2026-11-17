@@ -2,13 +2,14 @@
 // which are shown and how many are unread come from logic/notices.js. Read ids are kept per person in this browser (try/catch: a private window keeps them for this visit only).
 import { signal, computed } from "@preact/signals";
 import { noticesRead } from "./publishApi.js";
+import { todayIso } from "../workItems.js";
 import { visible, unreadIds, markRead, markAllRead, pruneRead, arrivals } from "../logic/notices.js";
 
 const KEY = "clark.notices-read";
 const saved = () => { try { const v = JSON.parse(localStorage.getItem(KEY) || "[]"); return Array.isArray(v) ? v.filter((x) => typeof x === "string") : []; } catch (e) { return []; } };
 const keep = (list) => { try { localStorage.setItem(KEY, JSON.stringify(list)); } catch (e) { /* kept for this visit only */ } };
 
-const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+const today = todayIso; // the clock is read in workItems.js only
 
 export const pushed = signal([]);                 // everything pushed, as given
 export const installed = signal(undefined);       // the installed version, when known (a notice's version test)
