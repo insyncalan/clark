@@ -10,6 +10,8 @@ from _paths import ROOT
 from test_ask_panel import NEVER, Panel
 from test_server import chrome
 
+CSS = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "edit.css").read_text(encoding="utf-8")
+JSX = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "AskPanel.jsx").read_text(encoding="utf-8")
 WORDS = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "askWords.js").read_text(encoding="utf-8")
 CARD = "document.querySelector('#ask-first-run')"
 LINE = "document.querySelectorAll('#ask-first-run p')"
@@ -114,6 +116,33 @@ class Words(unittest.TestCase):
         self.assertIn("never reads your mail, Teams or calendars", said["FIRST_RUN_READS"])
         self.assertIn("Nothing is saved until you press Apply", said["FIRST_RUN_CHANGES"])
         self.assertIn("Claude, which Anthropic runs", said["FIRST_RUN_SENT"], "written for Claude; named() swaps the provider")
+
+
+class Sweep(unittest.TestCase):
+    """Killers for the survivors of the diff-only sweep of the added lines (JS and CSS)."""
+
+    def rule(self, selector):
+        m = re.search(r"^" + re.escape(selector) + r" \{ ([^}]*)\}", CSS, re.M)
+        self.assertIsNotNone(m, selector + " is one rule with the house spacing")
+        return m.group(1)
+
+    def test_the_card_css_keeps_it_inside_the_panel_and_the_link_a_target(self):
+        card = self.rule(".ask-first-run")
+        for part in ("flex: none", "overflow-wrap: anywhere", "border-bottom: 1px solid var(--grey-200)", "color: var(--text-muted)"):
+            self.assertIn(part, card)
+        self.assertIn("margin: 0 0 6px", self.rule(".ask-first-run p"))
+        link = self.rule(".ask-first-link a")
+        for part in ("min-height: 24px", "display: inline-flex", "text-decoration: underline", "color: var(--brand-blue)"):
+            self.assertIn(part, link)
+
+    def test_the_off_line_link_rule_is_untouched_by_the_card(self):
+        self.assertEqual(self.rule(".ask-off a"), "display: inline-flex; align-items: center; min-height: 24px; color: inherit; font-weight: var(--weight-medium); text-decoration: underline; ")
+
+    def test_the_card_shows_only_for_ready_or_off_and_sits_above_the_log(self):
+        m = re.search(r"\{(!showHist && !list\.length && \(state === \"ready\" \|\| state === \"off\"\)) \? \(\s*<section class=\"ask-first-run\"", JSX)
+        self.assertIsNotNone(m, "the card's guard names history, an empty list, and exactly the two states")
+        self.assertLess(JSX.index('id="ask-first-run"'), JSX.index('id="ask-log"'))
+        self.assertIn('href="#settings&s=claude" data-ask-first-settings onClick={toSettings}', JSX)
 
 
 if __name__ == "__main__":
