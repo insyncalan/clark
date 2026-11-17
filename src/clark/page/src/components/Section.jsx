@@ -47,7 +47,7 @@ export function Section({ section, index, count, slot, anchor, tools, clean }) {
   const from = editing && dragFrom.value === section.id ? " drag-from" : "";
   const changed = isChanged(section.id);
   const tpl = templateFor(section.type);
-  const shows = sectionShows(section);      // #1272: a section can show without its tile or its heading
+  const shows = sectionShows(section);      // item 1272: a section can show without its tile or its heading
   return (
     <article class={`sec slot-${slot}${shows.tile ? "" : " no-tile"}${shows.heading ? "" : " no-head"}${hidden ? " is-hidden" : ""}${changed ? " is-changed" : ""}${mark}${from}`}
       id={anchor || anchorId(section.id)} tabIndex={-1} data-id={section.id} data-type={section.type} data-changed={changed ? "1" : undefined}>

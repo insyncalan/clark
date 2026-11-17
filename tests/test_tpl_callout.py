@@ -174,6 +174,33 @@ class Page(n.PageChecks):
             self.assertTrue(p.js(f"!!document.querySelector('[data-id={json.dumps(a)}] .tpl-callout svg[data-icn=shRed]')"))
             self.assertFalse(p.js(f"!!document.querySelector('[data-id={json.dumps(b)}] .tpl-callout svg')"))
 
+    def test_a_colour_with_a_word_and_no_icon_draws_no_shape(self):
+        ref = self.make({**GOOD, "category": "Budget", "colour": "red", "icon": "none"})
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            box = f"document.querySelector('[data-id={json.dumps(ref)}] .tpl-callout')"
+            self.assertEqual(p.js(f"{box}.querySelector('.tpl-callout-tone').textContent"), "Budget")
+            self.assertFalse(p.js(f"!!{box}.querySelector('svg')"), "the word is the second cue: the colour draws no shape of its own")
+            self.assertIn("noic", p.js(f"{box}.className"))
+
+    def test_edit_the_tile_and_heading_switches_show_the_stored_state(self):
+        from test_server import wait
+        ref = self.make({**GOOD, "tile": False, "heading": False})
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            sec = f"[data-id={json.dumps(ref)}]"
+            q = lambda label: f"document.querySelector('{sec} [aria-label=\"{label}\"]')"
+            tile, head = "Show the tile (the card around the callout)", "Show the heading"
+            p.until(f"!!{q(tile)}", "the toolbar")
+            self.assertEqual(p.js(f"{q(tile)}.getAttribute('aria-checked')"), "false")
+            self.assertEqual(p.js(f"{q(head)}.getAttribute('aria-checked')"), "false")
+            p.js(f"{q(tile)}.click()")
+            self.assertTrue(wait(lambda: json.loads(self.body_of(ref)).get("tile") is True, 10), self.body_of(ref))
+            self.assertEqual(p.js(f"{q(tile)}.getAttribute('aria-checked')"), "true")
+            p.js(f"{q(head)}.click()")
+            self.assertTrue(wait(lambda: json.loads(self.body_of(ref)).get("heading") is True, 10), self.body_of(ref))
+
     def test_no_tile_and_no_heading_in_view_and_the_heading_keeps_its_name(self):
         ref = self.make({**GOOD, "tile": False, "heading": False})
         with chrome() as cdp:
@@ -321,6 +348,7 @@ class SharedLook(unittest.TestCase):
 
     def test_the_prompt_words_are_two_placeholders(self):
         self.assertEqual(self.run_js("Object.keys(N.PROMPTS)"), ["title", "words"])
+        self.assertEqual(self.run_js("N.PROMPTS"), {"title": "Add a title: what the reader must see", "words": "Click to write."})
 
 
 if __name__ == "__main__":
