@@ -61,13 +61,13 @@ class B4(Base):
         self.assertIsNone(ref["empty"])
 
     def test_a_shown_tile_means_no_sentence(self):
-        got = self.look(self.make({"v": 1, "builtin": OFF, "bespoke": [B]}))
+        got = self.look(self.make({"v": 1, "health": {"shown": False}, "builtin": OFF, "bespoke": [B]}))        # Project health off: the one own tile is the only tile
         self.assertIsNone(got["empty"])
         self.assertEqual(got["tiles"], 1)
         self.assertNotIn(SENTENCE, got["text"])
 
     def test_a_counting_tile_left_shown_means_no_sentence(self):
-        got = self.look(self.make({"v": 1, "builtin": {"overdue": {"hidden": True}, "risks": {"hidden": True}}}))
+        got = self.look(self.make({"v": 1, "health": {"shown": False}, "builtin": {"overdue": {"hidden": True}, "risks": {"hidden": True}}}))
         self.assertIsNone(got["empty"])
         self.assertEqual(got["tiles"], 1)
 
