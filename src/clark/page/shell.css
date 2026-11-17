@@ -514,6 +514,11 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1
 .ddmenu .who small { display: block; font-size: var(--size-small); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ddmenu .who-link { text-decoration: underline; color: var(--link) !important; max-width: 280px; }
 .ddmenu .lab { padding: 6px 14px; font-size: var(--size-small); color: var(--text-muted, var(--text)); }
+/* Row 1273 (menu answers, prototype wins): the Group by menu's head in capitals, items at body size with the tick before the icon, a wider panel. The words stay "Group by". */
+.ddmenu .lab.caps, .mh.caps { font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; font-weight: var(--weight-medium); }
+#viewMenuList { min-width: 14rem; }
+#viewMenuList [role="menuitemradio"] { display: flex; align-items: center; font-size: var(--size-body); }
+#viewMenuList [role="menuitemradio"] .ck { order: -1; }
 .ddmenu [role="menuitem"]:hover, .ddmenu [role="menuitem"]:focus-visible { background: var(--brand-blue-tint); color: var(--status-blue-text); }
 .ddmenu [role="menuitem"]:focus-visible, .ddmenu [role="menuitemradio"]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }   /* a menu item by Tab shows a ring, not only a pale fill */
 @media (prefers-reduced-motion: reduce) { .newb, .newb .w { transition: none; } }
@@ -966,6 +971,7 @@ table.items tr[data-id]:focus-visible { outline: 2px solid var(--brand-blue); ou
 .bc-move .i { width: 16px; height: 16px; }
 .mh { padding: 6px 14px 2px; font-size: var(--size-small); color: var(--text-muted); }
 .ddmenu [role="menuitem"][aria-disabled="true"] { color: var(--text-muted); cursor: default; }
+.ddmenu [role="menuitem"][aria-disabled="true"][aria-current="true"]:hover { background: transparent; color: var(--text-muted); }      /* row 1273: the ticked line is where the card is, not a choice: the mouse over it gives no choice fill */
 .dpick { position: absolute; z-index: 26; top: 100%; left: 0; right: 0; margin-top: var(--space-1); padding: 10px var(--space-3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-small); }
 .dpick p { margin: 0 0 var(--space-2); }
 .dpick label { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--size-small); color: var(--text-muted); }
