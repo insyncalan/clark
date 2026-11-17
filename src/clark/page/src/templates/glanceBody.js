@@ -1,0 +1,64 @@
+// Glance template (row 1264, slice 4): the body of a "glancetemplate" section as the Edit part reads and writes it. Pure: no DOM, no
+// clock. The same reading as section_kinds/glancetemplate.py upgrade (every field at its default) and the same canonical writing as its
+// check (a field that holds its default is not sent). Typed tiles (bespoke) pass through untouched: the tile editor is a later slice.
+import { tiles, TILE_TITLES, HEALTH_WORDS, shownRag, tileWord } from "../glanceTiles.js";
+import { source } from "./notes.js";
+
+export const BUILT_IN = ["health", "overdue", "risks", "decisions"];
+export const SETTLED = BUILT_IN.slice(1);
+const OUTLINES = ["R", "A", "G", "N"];
+const flag = (v, d) => (typeof v === "boolean" ? v : d);
+
+/** The body with every field present, as upgrade() in the Python kind gives it. */
+export function readBody(section) {
+  const v = source(section), h = v.health && typeof v.health === "object" ? v.health : {}, b = v.builtin && typeof v.builtin === "object" ? v.builtin : {};
+  const bespoke = (Array.isArray(v.bespoke) ? v.bespoke : []).filter((t) => t && typeof t === "object" && typeof t.id === "string" && !BUILT_IN.includes(t.id));
+  const ids = [...BUILT_IN, ...bespoke.map((t) => t.id)], order = [];
+  for (const i of [...(Array.isArray(v.order) ? v.order.filter((i) => ids.includes(i)) : []), ...ids]) if (!order.includes(i)) order.push(i);
+  const builtin = {};
+  for (const n of SETTLED) { const s = b[n] && typeof b[n] === "object" ? b[n] : {}; builtin[n] = { hidden: flag(s.hidden, false), outline: OUTLINES.includes(s.outline) ? s.outline : "" }; }
+  return { v: 1, health: { shown: flag(h.shown, true), own_row: flag(h.own_row, false) }, order, builtin, bespoke };
+}
+
+/** The body to send: defaults left out, so one content is always the same text. */
+export function compact(u) {
+  const out = { v: 1 };
+  const health = {};
+  if (!u.health.shown) health.shown = false;
+  if (u.health.own_row) health.own_row = true;
+  if (Object.keys(health).length) out.health = health;
+  if (u.bespoke.length) out.bespoke = u.bespoke;
+  const built = {};
+  for (const n of SETTLED) { const s = {}; if (u.builtin[n].hidden) s.hidden = true; if (u.builtin[n].outline) s.outline = u.builtin[n].outline; if (Object.keys(s).length) built[n] = s; }
+  if (Object.keys(built).length) out.builtin = built;
+  const def = [...BUILT_IN, ...u.bespoke.map((t) => t.id)];
+  if (u.order.join() !== def.join()) out.order = u.order;
+  return out;
+}
+
+/** `u` with one change: {hide: [key, bool]} | {outline: [key, "" | R | A | G]} | {order: [ids]}. A new object; `u` is not touched. */
+export function withChange(u, c) {
+  const n = { ...u, health: { ...u.health }, builtin: Object.fromEntries(SETTLED.map((k) => [k, { ...u.builtin[k] }])), order: u.order.slice() };
+  if (c.hide) { if (c.hide[0] === "health") n.health.shown = !c.hide[1]; else n.builtin[c.hide[0]].hidden = c.hide[1]; }
+  if (c.outline) n.builtin[c.outline[0]].outline = c.outline[1];
+  if (c.order) n.order = c.order;
+  return n;
+}
+
+/** All ids in `order` with `key` moved before `before` (a drawn id, or null: after the last drawn id). `drawn` are the ids the page shows. */
+export function moved(order, key, before, drawn) {
+  const rest = order.filter((i) => i !== key);
+  const at = before === null ? Math.max(...drawn.filter((i) => i !== key).map((i) => rest.indexOf(i))) + 1 : rest.indexOf(before);
+  rest.splice(at, 0, key);
+  return rest;
+}
+
+/** The built-in tiles to draw, in the section's order, hidden ones kept (Edit draws them dimmed): the shape allTiles (glanceTiles.js) gives. */
+export function builtinTiles(u, rows, today, project) {
+  const by = Object.fromEntries(tiles(rows, today).map((t) => [t.key, t])), health = (project && project.health) || "";
+  by.health = { key: "health", label: TILE_TITLES.health, value: health || "Not set", detail: "", rag: HEALTH_WORDS[health] || "n", filter: null, reason: (project && project.health_reason) || "" };
+  return u.order.filter((k) => BUILT_IN.includes(k)).map((key) => {
+    const outline = key === "health" ? "" : u.builtin[key].outline, rag = shownRag(outline, by[key].rag);
+    return { ...by[key], hidden: key === "health" ? !u.health.shown : u.builtin[key].hidden, outline, auto: by[key].rag, rag, word: tileWord(key, rag, outline, HEALTH_WORDS[health] || "") };
+  });
+}
