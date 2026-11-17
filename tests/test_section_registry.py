@@ -75,9 +75,9 @@ PAGE_FIRST = ("gantt", "gantttable")      # rows 926, 1068: template types with 
 
 
 class PythonSide(unittest.TestCase):
-    def test_the_store_the_schema_and_the_registry_name_the_same_eighteen_types(self):
-        self.assertEqual(len(section_kinds.TYPES), 18)
-        self.assertEqual(len(set(section_kinds.TYPES)), 18)
+    def test_the_store_the_schema_and_the_registry_name_the_same_nineteen_types(self):
+        self.assertEqual(len(section_kinds.TYPES), 19)
+        self.assertEqual(len(set(section_kinds.TYPES)), 19)
         self.assertEqual(store_module.SECTION_TYPES, BUILT_IN + section_kinds.TYPES + PAGE_FIRST, "the store lists them in the registry's order, then the Gantt and the Gantt table (rows 926, 1068: no content, no registry module)")
         self.assertEqual(schema_types(), store_module.SECTION_TYPES)
         self.assertEqual(store_module.ALLOWED[("report_sections", "type")], store_module.SECTION_TYPES)
@@ -400,7 +400,7 @@ class PageSide(unittest.TestCase):
         """Their words are held back with Help's until their slice ships: no name, description or parts on the page."""
         self.assertEqual({k for x in self.val("T.templates.LATER") for k in x}, {"id", "type", "ready"})
         later = [x["id"] for x in self.val("T.templates.LATER")]
-        self.assertEqual(len(later), 1)      # one entry is still held (the headline template: its words wait for an owner decision); the rest are in the box
+        self.assertEqual(len(later), 2)      # two entries are held (headline, and the report headline of row 1261 slice 1: their words wait); the rest are in the box
         listed = [x["id"] for x in self.val("T.templates.list()")]
         self.assertEqual(set(later) & set(listed), set())
         for tid in later:

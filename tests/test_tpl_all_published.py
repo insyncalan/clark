@@ -89,6 +89,7 @@ class AllTemplates(Base):
             "keydates": {"v": 1, "items": [{"milestone": self.ms}, {"label": "Fictional typed date", "date": LATER}]},
             "onedoc": {"v": 1, "file": {"name": "Signed SOW.pdf", "rel": "Report files/Signed SOW.pdf", "bytes": 2048}, "label": "The signed SOW",
                        "text": ["Signed on 12-01-2030."]},
+            "reportheadline": {"v": 1, "health": "on_track", "headline": "Fictional headline", "sentence": "Fictional sentence."},
         }
         self.assertEqual(set(self.bodies), set(section_kinds.TYPES), "one of every template")
         self.refs = {}

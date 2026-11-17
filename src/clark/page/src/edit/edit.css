@@ -1466,3 +1466,11 @@ table.items .c-x-id, table.items .c-x-type { width: 100px; }
 .peek .pk-tabs { gap: 2px; margin: 22px 0 4px; }
 .peek .pk-tab { box-sizing: border-box; height: 40px; min-height: 40px; padding: 9px 12px; margin-bottom: -1px; font-size: var(--size-small); font-weight: 600; line-height: 20px; }
 .peek .pk-tab.on { border-bottom-color: var(--text); font-weight: 600; }
+
+/* Row 1261 slice 2: the Report headline's Edit part. Edit only. Tokens only. */
+.tpl-rh-edit { display: flex; align-items: flex-start; gap: var(--space-3); min-width: 0; }
+.tpl-rh-edit-pill { flex: none; }
+.tpl-rh-edit-text { display: flex; flex-direction: column; gap: var(--space-1); flex: 1 1 auto; min-width: 0; }
+.tpl-rh-edit-text .tpl-lbl:not(:first-child) { margin-top: var(--space-2); }
+.tpl-rh-in { overflow-wrap: anywhere; }
+@media (max-width: 900px) { .tpl-rh-edit { flex-direction: column; gap: var(--space-2); } }
