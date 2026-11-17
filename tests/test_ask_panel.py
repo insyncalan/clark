@@ -200,6 +200,38 @@ class Panel(Base):
             self.assertEqual(p.js("document.querySelectorAll('#ask-instr').length"), 0)
         self.stub.enabled, self.stub.standing = True, None
 
+    def test_s13_the_standing_line_is_a_settings_link_hidden_while_working_shown_when_signed_out_and_only_for_true(self):
+        # #1292 S13 killers: the link's own address and marker, the panel closing on click, the line hidden while an answer is out,
+        # shown on the sign-in state too, hidden while a fresh check is out, and only a real true counts.
+        self.stub.model, self.stub.standing = "Sonnet", True
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.assertEqual(p.js("document.querySelector('#ask-instr').getAttribute('href')"), "#settings&s=claude")
+            self.assertEqual(p.js("document.querySelector('#ask-instr').hasAttribute('data-ask-settings')"), True)
+            self.stub.hold.clear()
+            self.ask(p, "Summarise the risks")
+            p.until("!!document.querySelector('#ask-stop')", "the question is out")
+            self.assertEqual(p.js("document.querySelectorAll('#ask-instr').length"), 0, "no line while an answer is working")
+            self.stub.hold.set()
+            p.until("!!document.querySelector('.ask-turn + .ask-turn, .ask-answer') && !document.querySelector('#ask-stop')", "answered")
+            p.until("!!document.querySelector('#ask-instr')", "the line is back after the answer")
+            p.js("document.querySelector('#ask-instr').click()")
+            p.until("location.hash.indexOf('settings') >= 0", "the line opens Settings")
+            p.until("document.querySelector('#ask-panel') === null", "the panel closes when the link is used")
+            p.until("!!document.activeElement && document.activeElement.tagName === 'H2' && !!document.activeElement.closest('#ask-settings')", "focus on the Asking card's heading, as the other Settings links do")
+        self.stub.connected = False
+        with chrome() as cdp:
+            p = self.opened(cdp, ready=False)
+            p.until("!!document.querySelector('#ask-signed-out')", "the sign-in line")
+            self.assertEqual(p.js("document.querySelectorAll('#ask-instr').length"), 1, "standing instructions are shown while signed out too")
+        self.stub.connected = True
+        for odd in ("yes", 1, "true"):
+            self.stub.standing = odd
+            with chrome() as cdp:
+                p = self.opened(cdp)
+                self.assertEqual(p.js("document.querySelectorAll('#ask-instr').length"), 0, repr(odd))
+        self.stub.standing = None
+
     def test_the_panel_title_reads_ask_clark_and_the_ready_line_is_unchanged(self):
         # row 820: the title is the row's own words; the ready line is a separate sentence and stays
         self.stub.model = ""
