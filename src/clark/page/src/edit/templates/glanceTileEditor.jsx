@@ -42,6 +42,7 @@ export const Shape = ({ tone }) => <svg class={`tpl-shp tone-${TONE_CLASS[tone]}
 const focusAfter = (sel) => setTimeout(() => { const el = document.querySelector(sel); if (el) el.focus(); }, 0);
 const focusTile = (sid, key, part) => focusAfter(`[data-id="${sid}"] [data-tile="${key}"] ${part}`);
 const focusAdd = (sid) => focusAfter(`[data-id="${sid}"] .tileadd`);
+let saving = false;                                         // a Done is on its way: a second Done does nothing
 const cut = (s, most) => Array.from(s).slice(0, most).join("");
 
 function close(e, how) {
@@ -60,7 +61,7 @@ export function tileActions(section, u) {
   return {
     del: async (tile) => {
       const r = await send(section, u, withChange(u, { drop: tile.key }), `Deleted: ${tile.label}`);
-      if (r) { if (editor.value && editor.value.id === tile.key) editor.value = null; focusAdd(section.id); }
+      if (r) { if (editor.value && editor.value.id === tile.key && editor.value.sid === section.id) editor.value = null; focusAdd(section.id); }
     },
     pencil: (tile) => {
       const e = editor.value;
@@ -76,12 +77,14 @@ export function tileActions(section, u) {
     },
     done: async () => {
       const e = editor.value;
-      if (!e) return;
+      if (!e || saving) return;
       const d = e.draft;
       if (!d.label.trim()) { editor.value = { ...e, tried: true }; note(WORDS.notSaved); focusAfter(`[data-id="${section.id}"] [data-tile-editor] [data-f=label]`); return; }
       const old = u.bespoke.find((x) => x.id === e.id) || {};
       const tile = cleanTile({ id: e.id, label: d.label, figure: d.figure, tag: d.tag, note: d.note, tone: d.tone, hidden: old.hidden });
-      const r = await send(section, u, withChange(u, { put: tile }), e.isNew ? `Added: ${tile.label}` : WORDS.saved);
+      saving = true;
+      let r;
+      try { r = await send(section, u, withChange(u, { put: tile }), e.isNew ? `Added: ${tile.label}` : WORDS.saved); } finally { saving = false; }
       if (r === null) return;                                  // it failed: the toast says why, the editor stays with what was typed
       if (r === false) note(WORDS.saved);
       close(e, "done");
@@ -89,6 +92,7 @@ export function tileActions(section, u) {
     },
     remove: async () => {
       const e = editor.value, t = e && u.bespoke.find((x) => x.id === e.id);
+      if (e && e.isNew && !t) { close(e, "cancel"); return; }   // a draft was never stored: drop it, the focus goes where Cancel puts it
       if (!t) return;
       const r = await send(section, u, withChange(u, { drop: e.id }), `Removed: ${t.label}`);
       if (r) { close(e, "removed"); focusAdd(section.id); }
@@ -187,7 +191,7 @@ export function TileEditor({ tools }) {
       </div>
       <p class="live">{WORDS.sentence}</p>
       <div class="foot">
-        {e.isNew ? null : <button type="button" class="rm" data-remove onClick={() => tools.remove()}>{WORDS.remove}</button>}
+        <button type="button" class="rm" data-remove onClick={() => tools.remove()}>{WORDS.remove}</button>
         <button type="button" class="btn" data-cancel onClick={() => close(e, "cancel")}>{WORDS.cancel}</button>
         <button type="button" class="btn pri" data-done onClick={() => tools.done()}>{WORDS.done}</button>
       </div>

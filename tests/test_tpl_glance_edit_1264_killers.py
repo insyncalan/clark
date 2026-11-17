@@ -203,5 +203,17 @@ class Killers(GlanceEdit):
             self.assertEqual(label("risks"), "Move High risks and issues. Press Alt with the left or right arrow, or drag. Right-click for its outline colour.")
 
 
+    def test_K16_a_drag_to_the_end_goes_after_the_last_drawn_tile_not_after_the_typed_ones_and_focus_stays_on_the_grip(self):
+        bespoke = [{"id": "b1", "label": "Fictional green", "figure": "7", "tag": "Fine", "note": "Fictional note", "tone": "green"}]
+        status, got = self.real_change({"project": "ABC", "kind": KIND, "op": "update", "id": self.ref, "changes": {"body": json.dumps({"v": 1, "bespoke": bespoke})}})
+        self.assertEqual(status, 200, got)
+        with chrome() as cdp:
+            p = self.page(cdp)
+            r = self.drag(p, "health", "[data-tile=decisions]", 0.8)
+            p.mouse("mouseReleased", r[0], r[1], 0)
+            self.assertTrue(wait(lambda: self.body().get("order") == ["overdue", "risks", "decisions", "health", "b1"], 10), f"stored: {self.body()}")
+            p.until(f"document.activeElement === document.querySelector('{self.sel('[data-tile=health] [data-tile-grip]')}')", "focus on the moved tile's grip")
+
+
 if __name__ == "__main__":
     unittest.main()
