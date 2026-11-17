@@ -5,7 +5,8 @@ Run: python3 dev/run_tests.py test_tpl_glance_remove_draft_1264
 """
 import unittest
 
-from test_tpl_glance_editor_1264 import Editor, OWN, chrome, wait  # noqa: F401
+from test_server import chrome, wait  # noqa: F401
+from test_tpl_glance_editor_1264 import Editor, OWN
 from test_report_editor import tearDownModule  # noqa: F401
 
 
