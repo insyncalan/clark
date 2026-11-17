@@ -12,7 +12,7 @@ from clark import draft_email_feed, page, publish
 
 from test_item_rows import fill
 from test_report_editor import EMPTY_BRANDING, Pg
-from test_row_menu import key, right_click
+from test_row_menu import right_click
 from test_server import Running, chrome
 from test_work_filters import click
 import test_work_board_page as board
@@ -89,7 +89,8 @@ class DashboardRowMenu(unittest.TestCase):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
                 for name, shift in (("F10", True), ("ContextMenu", False)):
                     p.js("document.querySelector('[data-type=actions] li.wl-row .idl').focus()")
-                    key(cdp, p.sid, name, shift=shift)
+                    # a synthetic keydown: a real key press also makes the browser send a contextmenu event, which would open the menu by the other path
+                    p.js(f"document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {{key: '{name}', shiftKey: {str(shift).lower()}, bubbles: true, cancelable: true}}))")
                     p.until("!!document.querySelector('.rowmenu [role=menu]')", f"{name} opens the menu at {w}")
                     self.assertEqual([e[1] for e in self.entries(p)][1:], WORDS[1:] + ["Delete"], f"{name} at {w}: the same entries as the right click")
                     self.close(p)
