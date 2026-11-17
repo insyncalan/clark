@@ -248,7 +248,7 @@ class IconsBrowser(unittest.TestCase):
         iid, kind, status, priority, due = item
         rows, tokens = got["rows"], got["tokens"]
         want = {"status": rows["status"]["cls"][3:],
-                "priority": {"Urgent": "r", "High": "a", "Medium": "b"}.get(priority, "n"),
+                "priority": ({"Urgent": "r", "High": "r", "Medium": "a", "Low": "g"} if kind in ("risk", "issue") and status not in ("Closed", "Cancelled") and priority else {"Urgent": "r", "High": "a", "Medium": "b"}).get(priority, "n"),      # row 1257: an open rated risk or issue icon takes its colour word's tone
                 "due": expected_date_tone(kind, status, due)}
         self.assertEqual(set(rows), {"status", "due", "priority"}, f"{iid}: every kind has a priority row (row 1195: a decision too)")
         surface = rgb_hex(got["bg"])

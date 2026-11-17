@@ -197,7 +197,7 @@ class Page(n.PageChecks):
             self.assertEqual(p.js(f"{q(head)}.getAttribute('aria-checked')"), "false")
             p.js(f"{q(tile)}.click()")
             self.assertTrue(wait(lambda: json.loads(self.body_of(ref)).get("tile") is True, 10), self.body_of(ref))
-            self.assertEqual(p.js(f"{q(tile)}.getAttribute('aria-checked')"), "true")
+            p.until(f"{q(tile)}.getAttribute('aria-checked') === 'true'", "the tile switch shows the saved state (the page redraws after the save lands, not with it)")
             p.js(f"{q(head)}.click()")
             self.assertTrue(wait(lambda: json.loads(self.body_of(ref)).get("heading") is True, 10), self.body_of(ref))
 
