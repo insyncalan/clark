@@ -20,10 +20,11 @@ import { Edit as checklist } from "./Checklist.jsx";
 import { Edit as keydates } from "./KeyDates.jsx";
 import { Edit as onedoc } from "./OneDoc.jsx";
 import { Edit as reportheadline } from "./ReportHeadline.jsx";
+import { Edit as glancetemplate } from "./GlanceTemplate.jsx";
 import { Edit as gantt } from "./GanttSection.jsx";
 import { Edit as gantttable } from "./GanttTableSection.jsx";
 
-const EDITS = { textimage, headline, figures4, figures3, gallery, table, doclinks, linkcard, raid3, raid4, workitems, callout, imagecap, quote, contacts, checklist, keydates, onedoc, reportheadline };
+const EDITS = { textimage, headline, figures4, figures3, gallery, table, doclinks, linkcard, raid3, raid4, workitems, callout, imagecap, quote, contacts, checklist, keydates, onedoc, reportheadline, glancetemplate };
 export const TEMPLATE_EDITS = Object.freeze(Object.fromEntries(TEMPLATE_TYPES.map((t) => [t, EDITS[t]])));
 
 // The Edit parts of the types the page is ready for before the store takes them (types.js PENDING_TYPES).
