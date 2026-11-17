@@ -6,9 +6,11 @@ the eye on Project health ("hidden completely") and the button that brings it ba
 Run: python3 dev/run_tests.py test_tpl_glance_layout_1264
 """
 import json
+import re
 import unittest
 
 from _demo import USER
+from _paths import SRC
 from test_glance_page import plant
 from test_report_editor import Base, tearDownModule  # noqa: F401
 from test_server import chrome, wait
@@ -304,6 +306,14 @@ class Edit(Layout):
                         self.assertEqual(self.lines(got), [["health"], ["overdue"], ["risks"], ["decisions"]])
                     self.assertNotIn("words pending", p.js(f"document.querySelector('{self.sel()}').textContent").lower())
                     self.assertTrue(p.js(f"[...document.querySelectorAll('{self.sel('.tpl-gt-opts button')}')].every(b => b.getBoundingClientRect().height >= 24)"), "the controls are big enough to hit")
+
+
+class Sketch(unittest.TestCase):
+    def test_the_library_card_sketch_has_three_low_tiles_edged_red_amber_green_in_that_order(self):
+        text = (SRC / "clark" / "page" / "src" / "logic" / "templates.js").read_text(encoding="utf-8")
+        line = next(l for l in text.splitlines() if l.strip().startswith('"glance-template":'))
+        self.assertIn("grid-template-columns:repeat(3,1fr)", line)
+        self.assertEqual(re.findall(r"var\(--status-(\w+)\)", line), ["red", "amber", "green"])
 
 
 if __name__ == "__main__":
