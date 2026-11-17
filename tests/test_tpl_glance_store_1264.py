@@ -62,8 +62,8 @@ class LimitsAtTheEdge(unittest.TestCase):          # T07 to T10: each limit, one
         many = lambda n: {"v": 1, "bespoke": [tile(id=f"t{i}", label=f"T{i}") for i in range(n)]}
         self.assertIsNone(refused(many(11)))
         self.assertIsNone(refused(many(12)))
-        self.assertEqual(refused(many(13)), gt.WORDS_PENDING["too_many"])
-        self.assertEqual(refused({"v": 1, "bespoke": [tile(id=f"t{i}", label="x" * 99) for i in range(13)]}), gt.WORDS_PENDING["too_many"])
+        self.assertEqual(refused(many(13)), gt.WORDS["too_many"])
+        self.assertEqual(refused({"v": 1, "bespoke": [tile(id=f"t{i}", label="x" * 99) for i in range(13)]}), gt.WORDS["too_many"])
 
     def test_five_tones_exactly(self):
         self.assertEqual(set(gt.TONES), {"green", "amber", "red", "blue", "neutral"})
