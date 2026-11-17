@@ -25,7 +25,7 @@ class Current(unittest.TestCase):
 
 class Header(unittest.TestCase):
     def test_the_letter_tile_column_has_a_name_for_a_screen_reader(self):      # mutation check: aria-label on the tile header
-        src = (SRC / "clark" / "page" / "src" / "templates" / "WorkItemsList.jsx").read_text()
+        src = (SRC / "clark" / "page" / "src" / "templates" / "WorkItemsList.jsx").read_text(encoding="utf-8")
         self.assertIn('<th class="wil-c-tile" scope="col" aria-label={WORDS.columns.type} />', src)
 
 

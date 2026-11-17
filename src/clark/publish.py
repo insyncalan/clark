@@ -617,7 +617,8 @@ def select(inputs):
             "use_case": frozenset(u.get("id") for u in d["use_cases"] if not u.get("archived")) if "use_cases" in d else None,
             "gone_owner": frozenset(inputs.get("gone_owners") or ())}      # row 1113: a Work items filter naming what is gone lists nothing
     ctx = section_bodies.Context(for_templates, as_at, live)          # #96: only what is already kept, as the file carries it
-    extra = {s["id"]: _content(s, ctx) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
+    shown_ctx = section_bodies.Context({**for_templates, **{k: out[k] for k in WORK_KINDS if not rows[k]}}, as_at, live)      # row 1268: a hidden built-in section's rows reach a Work items list alone; every other template sees only what the section left in
+    extra = {s["id"]: _content(s, ctx if s.get("type") == "workitems" else shown_ctx) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
     named = {i for s in sections if s.get("type") == "workitems" and extra.get(s["id"]) for i in extra[s["id"]].get("items") or ()}
     for k in WORK_KINDS:
         if not rows[k]:
