@@ -232,7 +232,7 @@ class Workflow(unittest.TestCase):
         self.assertRegex(mac, r"runs-on: macos-latest")
         self.assertIn('python-version: "3.x"', mac)
         self.assertNotIn("--quick", mac)
-        self.assertNotIn("continue-on-error", mac)
+        self.assertNotIn("continue-on-error", mac.replace("continue-on-error: ${{ needs.plan.outputs.advisory == '1' }}", ""))      # advisory only on the Sunday run
         self.assertIn('--shard "$SHARD/$SHARDS" --max-fail 8', mac)
         self.assertIn("name: macos-latest \u00b7 Python 3.x \u00b7 shard ${{ matrix.shard }}/${{ matrix.shards }}", mac)
         self.assertIn("fail-fast: false", mac)
@@ -262,9 +262,25 @@ class Workflow(unittest.TestCase):
         self.assertIn('test "$PLAN" = "success"', passed)
         self.assertIn('test "$TESTS" = "success"', passed)
         self.assertIn('if [ -n "$WANT_PY39" ]; then test "$PY39" = "success"; else test "$PY39" = "skipped"; fi', passed)
-        self.assertIn('if [ -n "$WANT_MACOS" ]; then test "$MACOS" = "success"; else test "$MACOS" = "skipped"; fi', passed)
-        for job, body in self.jobs.items():
-            self.assertNotIn("continue-on-error", body, job)
+        self.assertIn('if [ -n "$WANT_MACOS" ] && [ -z "$ADVISORY" ]; then test "$MACOS" = "success"; elif [ -z "$WANT_MACOS" ]; then test "$MACOS" = "skipped"; fi', passed)
+        self.assertIn('if [ -n "$WANT_SMOKE" ]; then test "$SMOKE" = "success"; else test "$SMOKE" = "skipped"; fi', passed)
+        for job, body in self.jobs.items():      # only the full macOS job may be advisory, and only on the plan's say-so
+            if job == "macos":
+                self.assertIn("continue-on-error: ${{ needs.plan.outputs.advisory == '1' }}", body)
+            else:
+                self.assertNotIn("continue-on-error", body, job)
+
+    def test_the_nightly_runs_the_mac_smoke_set_and_sunday_the_full_macos_advisory(self):
+        wf = WORKFLOW.read_text()
+        self.assertIn('- cron: "0 22 * * *"', wf)
+        self.assertIn('- cron: "0 23 * * 0"', wf)
+        self.assertIn('schedule) FULL=1; if [ "$SCHEDULE" = "0 23 * * 0" ]; then MACOS=1; ADVISORY=1; else SMOKE=1; fi ;;', wf)
+        smoke = self.jobs["macos-smoke"]
+        self.assertIn("if: ${{ needs.plan.outputs.smoke == '1' }}", smoke)
+        self.assertIn("runs-on: macos-latest", smoke)
+        for f in ("test_updates", "test_updater", "test_platform", "test_launcher", "test_doctor", "test_package", "test_main"):
+            self.assertIn(" " + f + " ", smoke + " ")
+        self.assertNotIn("--shard", smoke)
 
     MAC_FILES = ("platform.py", "updates.py", "clark.command", "launch.py", "doctor.py", "release_files.py", "package.py", "__main__.py")
 
@@ -343,7 +359,7 @@ class WideByTestFiles(unittest.TestCase):
         text = WORKFLOW.read_text(encoding="utf-8")
         a = text.index("while IFS= read -r F; do")
         b = text.index('if [ "$NTESTS" -ge 8 ]; then WIDE=1; fi') + len('if [ "$NTESTS" -ge 8 ]; then WIDE=1; fi')
-        script = 'FULL=""; MACOS=""; REL=""; WIDE=""; NTESTS=0\n' + text[a:b].replace("\n              ", "\n") + '\necho "WIDE=$WIDE FULL=$FULL"\n'
+        script = 'FULL=""; MACOS=""; SMOKE=""; ADVISORY=""; REL=""; WIDE=""; NTESTS=0\n' + text[a:b].replace("\n              ", "\n") + '\necho "WIDE=$WIDE FULL=$FULL"\n'
         out = subprocess.run(["bash", "-c", script], input="", capture_output=True, text=True, check=True,
                              env={"PATH": "/usr/bin:/bin", "CHANGED": changed}).stdout
         return out.strip()
