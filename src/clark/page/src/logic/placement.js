@@ -28,7 +28,7 @@ const EDGE = 56;                                   // px: the top and bottom of 
 const refuse = (why) => ({ ok: false, why, message: QUIET[why] ? "" : MESSAGES[why], quiet: !!QUIET[why] });
 
 // A section's title as a person reads it in a message: short, never empty.
-const name = (s) => {
+export const name = (s) => {
   const t = Array.from(String((s && s.title) || "").trim());
   return t.length === 0 ? "This section" : t.length > 40 ? t.slice(0, 39).join("") + "…" : t.join("");
 };

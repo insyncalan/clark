@@ -45,6 +45,16 @@ class Edit(Setup):
         p.mouse("mousePressed", x, y, 1)
         p.mouse("mouseReleased", x, y)
 
+    def open_add(self, p):
+        """Row 1234: the dashboard has no Add tile; the box opens from the Use cases page's + (#ucAddPage)."""
+        p.js("location.hash = '#usecases&p=ABC'")
+        p.until("!!document.querySelector('#ucAddPage')", "the Use cases page")
+        self.click(p, "#ucAddPage")
+
+    def back_to_dashboard(self, p):
+        p.js("location.hash = '#dashboard&p=ABC'")
+        p.until("!!document.querySelector('.glance')", "the dashboard")
+
     def type_in(self, p, selector, text):
         p.js(f"(() => {{ const e = document.querySelector({json.dumps(selector)}); e.focus(); e.select(); }})()")
         p.cdp.call("Input.insertText", {"text": text}, p.sid)
@@ -54,24 +64,13 @@ class Edit(Setup):
             for dark in (False, True):
                 with self.subTest(width=width, dark=dark), chrome() as cdp:
                     p = self.show(cdp, width, dark)
-                    self.assertEqual(p.js("document.querySelectorAll('.uc textarea, #ucAdd, [data-uc-status], [data-uc-back]').length"), 0, "View has none of Edit's parts")
+                    self.assertEqual(p.js("document.querySelectorAll('.uc textarea, [data-uc-configure], [data-uc-status], [data-uc-back]').length"), 0, "View has none of Edit's parts")
                     p.js("document.querySelector('[data-mode=edit]').click()")
                     p.until("!!document.querySelector('.uc [data-uc-status]')", "Edit")
                     self.assertEqual(p.js("document.querySelectorAll('.uc [data-uc-status]').length"), 2)
                     self.assertEqual(p.js("document.querySelectorAll('.ucrow textarea.uchead-in').length"), 2)
-                    self.assertEqual(p.js("document.querySelector('#ucAdd').getAttribute('aria-label')"), "Add use case")
                     self.assertEqual(p.js("document.querySelector('[data-uc-back]').textContent"), "+ Add a use case from your project record (2)")
                     self.assertEqual(p.js("document.querySelector('[data-uc-status] button').getAttribute('aria-label')"), "Status: On track. Change")
-
-    def test_the_add_button_is_a_plus_that_grows_to_its_words_on_the_pointer_and_the_keyboard(self):
-        with chrome() as cdp:
-            p = self.edit(cdp)
-            width = lambda: p.js("document.querySelector('#ucAdd').getBoundingClientRect().width")
-            rest = width()
-            self.assertLess(rest, 40, "a plus at rest")
-            p.js("document.querySelector('#ucAdd').focus()")
-            p.until("document.querySelector('#ucAdd').getBoundingClientRect().width > 90 && document.getAnimations().filter(a => !(a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('toast-bar'))).length === 0", "it grew with the keyboard on it")
-            self.assertEqual(p.js("document.querySelector('#ucAdd .w').textContent"), "Add use case")
 
     def test_the_status_menu_changes_the_status_in_one_step_with_undo(self):
         with chrome() as cdp:
@@ -118,7 +117,7 @@ class Edit(Setup):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.edit(cdp, width)
                 for ref in ("1.10", "   "):
-                    self.click(p, "#ucAdd")
+                    self.open_add(p)
                     p.until("!!document.querySelector('#ucF')", "the box")
                     self.type_in(p, "#ucI", ref)
                     self.type_in(p, "#ucT", "Another one")
@@ -133,7 +132,7 @@ class Edit(Setup):
     def test_add_use_case_opens_the_box_and_adds_it_hidden_from_the_client(self):
         with chrome() as cdp:
             p = self.edit(cdp)
-            self.click(p, "#ucAdd")
+            self.open_add(p)
             p.until("!!document.querySelector('#ucF')", "the box")
             self.assertEqual(p.js("document.querySelector('#ucm-title').textContent"), "Add a use case")
             self.assertEqual(p.js("[...document.querySelectorAll('#ucF label')].map(l => l.textContent)"), ["ID", "Use case", "Status", "Headline"])
@@ -143,9 +142,9 @@ class Edit(Setup):
             self.assertEqual(p.js("!!document.querySelector('#ucF').closest('[inert]')"), False)
             p.key("Escape", code="Escape", vk=27)
             p.until("!document.querySelector('#ucF')", "Esc closed the box")
-            p.until("document.activeElement && document.activeElement.id === 'ucAdd'", "focus went back to the + button")
+            p.until("document.activeElement && document.activeElement.id === 'ucAddPage'", "focus went back to the Use cases page's + button")
             self.assertEqual(p.js("document.querySelector('#main').inert"), False)
-            self.click(p, "#ucAdd")
+            self.open_add(p)
             p.until("!!document.querySelector('#ucF')", "the box again")
             self.type_in(p, "#ucI", "3.1")
             self.type_in(p, "#ucT", "Report checks")
@@ -159,6 +158,9 @@ class Edit(Setup):
             # #455 (the owner, 03-11-2026): a new use case is hidden from the client by default (eye off): it is not on the dashboard,
             # it is counted in "from your project record", and the use cases already there are as they were
             self.assertEqual((made["title"], made["status"], made["headline"], made["client_visible"]), ("Report checks", "Flag", "Two checks left", 0))
+            self.back_to_dashboard(p)
+            p.js("document.querySelector('[data-mode=edit]').click()")
+            p.until("!!document.querySelector('[data-uc-configure]')", "Edit again")
             p.until("document.querySelector('[data-uc-back]').textContent === '+ Add a use case from your project record (3)'", "the new one is counted as off")
             self.assertEqual(p.js("document.querySelectorAll('.ucrow').length"), 2, "the new one is not on the dashboard")
             self.assertEqual(p.js("document.querySelector('.uctotal').textContent"), "2 use cases")
@@ -175,7 +177,7 @@ class Edit(Setup):
                 with self.subTest(width=width, dark=dark), chrome() as cdp:
                     p = self.edit(cdp, width, dark)
                     off = p.js("document.querySelector('[data-uc-back]').textContent")
-                    self.click(p, "#ucAdd")
+                    self.open_add(p)
                     p.until("!!document.querySelector('#ucF')", "the box")
                     # focus is in ID as soon as the box is there, not a paint later: a late focus pulled the typing from Use case back to ID
                     self.assertEqual(p.js("document.activeElement && document.activeElement.id"), "ucI", "focus is in ID when the box opens")
@@ -187,12 +189,15 @@ class Edit(Setup):
                     p.until("(document.querySelector('.toast-text') || {}).textContent === " + json.dumps(want), "the hidden toast")
                     made = {r["ref"]: r for r in self.store.read("use_cases", "ABC")}[ref]
                     self.assertEqual(made["client_visible"], 0)
+                    self.back_to_dashboard(p)
+                    p.js("document.querySelector('[data-mode=edit]').click()")
+                    p.until("!!document.querySelector('[data-uc-configure]')", "Edit again")
                     p.until("document.querySelector('[data-uc-back]').textContent !== " + json.dumps(off), "the count went up")
                     self.assertEqual(p.js("document.querySelectorAll('.ucrow').length"), 2 + n - 1, "not on the dashboard")
                     self.assertEqual(p.js("document.documentElement.scrollWidth <= window.innerWidth"), True, "no sideways scroll")
-                    self.click(p, "[data-uc-back]")
+                    p.js("document.querySelector('[data-uc-back]').click()")
                     p.until("!!document.querySelector('form.picker')", "the picker")
-                    p.js("document.querySelector('form.picker .pick input[value=\"%s\"]').click()" % made["id"])
+                    p.js("document.querySelector('form.picker tbody input[value=\"%s\"]').click()" % made["id"])
                     p.js("document.querySelector('form.picker button[type=submit]').click()")
                     p.until("!document.querySelector('form.picker')", "the picker closed")
                     p.until("document.querySelectorAll('.ucrow').length === %d" % (2 + n), "on the dashboard once its eye is on")
@@ -203,7 +208,7 @@ class Edit(Setup):
         with chrome() as cdp:
             p = self.edit(cdp)
             p.js("window.fetch = (u, o) => (String(u).indexOf('/api/change') >= 0 ? new Promise(() => {}) : Promise.reject(new Error('x')))")
-            self.click(p, "#ucAdd")
+            self.open_add(p)
             p.until("!!document.querySelector('#ucF')", "the box")
             self.type_in(p, "#ucI", "9.9")
             self.type_in(p, "#ucT", "Slow save")
@@ -217,7 +222,7 @@ class Edit(Setup):
         with chrome() as cdp:
             p = self.edit(cdp)
             before = len(self.store.read("use_cases", "ABC"))
-            self.click(p, "#ucAdd")
+            self.open_add(p)
             p.until("!!document.querySelector('#ucF')", "the box")
             self.type_in(p, "#ucI", "1.2")
             self.type_in(p, "#ucT", "Same ID again")
@@ -235,9 +240,9 @@ class Edit(Setup):
             p.until("!!document.querySelector('form.picker')", "the picker")
             self.assertEqual(p.js("document.querySelector('form.picker h2').textContent"), PICKER)
             self.assertEqual(p.js("!!document.querySelector('form.picker').closest('[inert]')"), False, "the picker is not inside the inert page")
-            self.assertEqual(p.js("document.querySelectorAll('form.picker .pick li').length"), 2)
-            self.assertEqual(p.js("document.querySelector('form.picker input[type=search]').placeholder"), "Search by name, ID, owner or use case")
-            p.js("document.querySelector('form.picker .pick input[value=\"%s\"]').click()" % self.uc3)
+            self.assertEqual(p.js("document.querySelectorAll('form.picker tbody tr').length"), 2)
+            self.assertEqual(p.js("document.querySelector('form.picker input[type=search]').placeholder"), "Search by name, ID or status")
+            p.js("document.querySelector('form.picker tbody input[value=\"%s\"]').click()" % self.uc3)
             p.js("document.querySelector('form.picker button[type=submit]').click()")
             p.until("!document.querySelector('form.picker')", "the picker closed")
             p.saved()
@@ -364,13 +369,13 @@ class Edit(Setup):
         with chrome() as cdp:
             p = self.edit(cdp)
             p.js("window.requestAnimationFrame = () => 0")
-            self.click(p, "#ucAdd")
+            self.open_add(p)
             p.until("!!document.querySelector('#ucF')", "the box")
             self.assertEqual(p.js("document.querySelector('#main').inert && document.activeElement.id === 'ucI'"), True,
                              "inert behind and the focus in the ID field, as the box is drawn")
             p.key("Escape", code="Escape", vk=27)
             p.until("!document.querySelector('#ucF')", "Esc closed the box")
-            self.assertEqual(p.js("document.activeElement.id === 'ucAdd' && !document.querySelector('#main').inert"), True,
+            self.assertEqual(p.js("document.activeElement.id === 'ucAddPage' && !document.querySelector('#main').inert"), True,
                              "the focus is back on the + button and <main> is live, as the box closes")
 
     def test_a_toast_that_arrives_while_the_box_is_open_is_inert_and_is_released_on_close(self):
@@ -380,7 +385,7 @@ class Edit(Setup):
                " document.querySelector('.toasts').appendChild(t); })()")
         with chrome() as cdp:
             p = self.edit(cdp)
-            self.click(p, "#ucAdd")
+            self.open_add(p)
             p.until("!!document.querySelector('#ucF')", "the box")
             p.js(add % "'late-1'")
             p.until("document.getElementById('late-1').hasAttribute('inert')", "the late toast is inert while the box is open")
@@ -487,7 +492,7 @@ class PublishedFile(Published):
         self.assertEqual(text.count("data-uc-back"), 1, "only the file page's own crumb")
         with chrome() as cdp:
             p = self.draw(cdp, path)
-            self.assertEqual(p.js("document.querySelectorAll('#ucAdd, [data-uc-status], [data-uc-back], [data-uc-eye], [data-uc-step], [data-uc-link], [data-rich], .uc textarea, .uc button').length"), 0)
+            self.assertEqual(p.js("document.querySelectorAll('[data-uc-configure], [data-uc-status], [data-uc-back], [data-uc-eye], [data-uc-step], [data-uc-link], [data-rich], .uc textarea, .uc button').length"), 0)
 
 
 if __name__ == "__main__":

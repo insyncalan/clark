@@ -321,7 +321,7 @@ class Browser(unittest.TestCase):
                 self.assertTrue(cdp.js("!!document.querySelector('#peek .pk-chips [data-row=owner]') && !!document.querySelector('#peek .pk-chips [data-row=status]')", sid), "Owner and Status are chips")
                 self.assertTrue(cdp.js("!!document.querySelector('#peek [data-pk-client]')", sid), "an internal field shows on Work items in View too (row 824)")
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').getAnimations().length === 0", sid)), "the slide-in has ended")
-                self.assertEqual(cdp.js("document.querySelector('#peek').getBoundingClientRect().right", sid), cdp.js("document.documentElement.clientWidth", sid))
+                self.assertEqual(cdp.js("document.querySelector('#peek').getBoundingClientRect().right", sid), cdp.js("document.documentElement.clientWidth", sid) - 16)      # row 1258: the card is 16 px in from the right edge
                 self.open_words(cdp, sid)
                 self.assertEqual(cdp.js("!!document.querySelector('[data-sneak]')", sid), True, "the words box is in View too (row 824)")
                 key(cdp, sid, "Escape")      # the first Esc closes the box only
@@ -377,11 +377,11 @@ class Browser(unittest.TestCase):
                 client = cdp.js("document.documentElement.clientWidth", sid)
                 self.assertLessEqual(default, cdp.js("document.documentElement.clientWidth", sid))
                 if width < 1000:      # row 847: below 1000 px the peek fills the window, so there is no width to drag, keep or reset
-                    self.assertEqual(default, client, "the peek takes the whole window below 1000 px")
+                    self.assertEqual(default, client - 32, "the peek takes the whole window below 1000 px, less the card's 16 px each side (row 1258)")
                 else:
                     self.assertEqual(default, 640, "the default is 640 px (item 1202)")
                     edge = cdp.js("(() => { const b = document.querySelector('.pk-edge').getBoundingClientRect(); return [b.x + 3, b.y + 200]; })()", sid)
-                    for kind, x in (("mousePressed", edge[0]), ("mouseMoved", client - 700), ("mouseReleased", client - 700)):
+                    for kind, x in (("mousePressed", edge[0]), ("mouseMoved", client - 716), ("mouseReleased", client - 716)):
                         cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": edge[1], "button": "left", "buttons": 1 if kind != "mouseReleased" else 0, "clickCount": 1}, sid)
                     self.assertTrue(wait(lambda: abs(w() - min(700, client)) <= 2), f"dragged to {w()}")
                     reload_to_new_page_cdp(cdp, sid)
@@ -394,7 +394,7 @@ class Browser(unittest.TestCase):
                     cdp.js("document.querySelector('.pk-edge').dispatchEvent(new MouseEvent('dblclick', {bubbles: true}))", sid)
                     self.assertTrue(wait(lambda: w() == default), "double-click resets")
                 click(cdp, sid, "[data-pk-wide]")
-                self.assertTrue(wait(lambda: w() == client), "across the whole screen")
+                self.assertTrue(wait(lambda: w() == client - 32), "across the whole screen, less the card's 16 px each side (row 1258)")
 
     def test_slash_opens_ask_with_no_peek_and_yields_to_the_words_box_in_a_peek(self):
         """The ask panel's "/" and the peek's "//" share a key: with a peek open the two slashes reach the words box and the ask
@@ -891,10 +891,37 @@ class ClosedRiskPublished(unittest.TestCase):
                 path = Path(tmp) / "report.html"
                 path.write_text(text, encoding="utf-8")
                 sid = tp.opened(cdp, path.as_uri() + "#work&p=PUB&item=PUB-001", width)
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-row=priority] .pk-chip-sub')", sid)), "the peek of the closed risk drew")
-                self.assertEqual(cdp.js("document.querySelector('#peek [data-row=status]').textContent.replace(/\\s+/g, ' ').trim() + ' ' + document.querySelector('#peek [data-row=priority] .pk-chip-sub').textContent", sid), "Closed Amber kept")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-row=status] .pk-chip-sub')", sid)), "the peek of the closed risk drew")
+                self.assertEqual(cdp.js("[...document.querySelectorAll('#peek [data-row=status] .pkc-v, #peek [data-row=status] .pkc-sub')].map(e => e.textContent.trim()).join(' ')", sid), "Closed Amber kept")
                 self.assertEqual(cdp.js("document.querySelectorAll('#peek [data-cell], #peek .cell-pick, [data-pop]').length", sid), 0, "no picker in a published file")
                 self.assertEqual(cdp.js("!!document.querySelector('#peek [data-pk-client]')", sid), False, "a published file has no Client visible control")
+                self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, "no sideways scroll")
+
+
+def open_the_rated_risk(plant):
+    """Row 1182: PUB-001, shown to the client, is open and rated High (impact High, likelihood Medium)."""
+    r = next(r for r in plant["data"]["raid"] if r["id"] == "PUB-001")
+    r.update(status="Open", closed="", impact="High", likelihood="Medium", priority="High", client_visible=1)
+
+
+class OpenRatedRiskPublished(unittest.TestCase):
+    """Row 1182 (ruled 16-11): an open risk's Rating chip is the colour word with the level as a small pill in a published file too, with no picker."""
+
+    def test_the_published_peek_draws_the_colour_word_and_the_level_pill(self):
+        import tempfile
+        import test_publish as tp
+        _plant, _pub, text = tp.made(open_the_rated_risk)
+        for width in (1400, 900):
+            with self.subTest(width=width), tempfile.TemporaryDirectory() as tmp, chrome() as cdp:
+                path = Path(tmp) / "report.html"
+                path.write_text(text, encoding="utf-8")
+                sid = tp.opened(cdp, path.as_uri() + "#work&p=PUB&item=PUB-001", width)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-row=priority] .pkc-v')", sid)), "the peek of the open risk drew")
+                got = cdp.js("(() => { const c = document.querySelector('#peek [data-row=priority]'); const s = c.querySelector('.pkc-sub'); return { v: c.querySelector('.pkc-v').textContent.trim(), sub: s ? s.textContent.trim() : '', cls: s ? s.className : '', pill: s ? getComputedStyle(s).borderTopLeftRadius : '' }; })()", sid)
+                self.assertEqual((got["v"], got["sub"]), ("Red", "High"))
+                self.assertIn("lvl", got["cls"].split())
+                self.assertNotEqual(got["pill"], "0px", "the level is drawn as a pill in the published file")
+                self.assertEqual(cdp.js("document.querySelectorAll('#peek [data-cell], #peek .cell-pick, [data-pop]').length", sid), 0, "no picker in a published file")
                 self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, "no sideways scroll")
 
 
@@ -917,8 +944,8 @@ class ClosedUnratedRiskPeek(unittest.TestCase):
                 path.write_text(text, encoding="utf-8")
                 sid = tp.opened(cdp, path.as_uri() + "#work&p=PUB&item=PUB-001", width)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-row=status]')", sid)), "the peek drew")
-                self.assertEqual(cdp.js("document.querySelector('#peek [data-row=status]').textContent.replace(/\\s+/g, ' ').trim() + ' ' + document.querySelector('#peek [data-row=priority] .pk-chip-sub').textContent", sid), "Closed Not rated kept")
-                # #532 follow-up (row 1180): the rating word is the priority chip's second line now, so the status chip is one line
+                self.assertEqual(cdp.js("[...document.querySelectorAll('#peek [data-row=status] .pkc-v, #peek [data-row=status] .pkc-sub')].map(e => e.textContent.trim()).join(' ')", sid), "Closed Not rated kept")
+                # #532 follow-up (row 1180): a closed risk's "<colour> kept" is the Status chip's small line now
                 self.assertLess(cdp.js("document.querySelector('#peek [data-row=status]').getBoundingClientRect().height", sid), 48, "the status chip is one line")
 
 

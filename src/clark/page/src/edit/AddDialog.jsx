@@ -178,6 +178,7 @@ function Box({ after, opener, onClose }) {
                 <h3>{current.name}</h3>
                 <Sketch id={current.id} big />
                 <p>{current.description}</p>
+                {current.more ? <p class="ad-more">{current.more}</p> : null}
                 <p class="ad-lbl">Holds</p>
                 <ul class="ad-els">{current.holds.map((h, i) => <li key={i}>{h}</li>)}</ul>
                 <p class="muted">{fitWords(current)}</p>

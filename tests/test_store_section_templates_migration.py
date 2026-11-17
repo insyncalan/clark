@@ -249,6 +249,7 @@ class Migrating(Base):
         self.assertEqual(version(path), NOW)
         self.assertGreaterEqual(int(NOW), STEP)                  # later steps follow (#115 is 9)
         after = every_row(path)
+        after["app_settings"] = [r[:-1] for r in after["app_settings"]]      # row 1269 (step 27) adds the theme column at the end
         self.assertEqual({t: after[t] for t in before}, before)
         self.assertIn("'onedoc'", table_sql(path))
         self.assertEqual(len(self.copies()), 1)
@@ -434,14 +435,15 @@ class FrozenText(Base):
 
         def squash(text):
             return re.sub(r"\s+", " ", "\n".join(l.split("--")[0] for l in text.splitlines())).strip().rstrip(";")
-        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_GANTT_TABLE), squash(statements[0]))      # row 1068: step 23 is now the newest
-        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_GANTT), squash(statements[0]).replace(",'gantttable'", "", 1))      # row 926: step 19's text is that one without 'gantttable'; this step's own text is that one without 'gantt' too
-        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_TEMPLATE_TYPES), squash(statements[0]).replace(",'gantt','gantttable'", "", 1))      # steps 19 and 21 added their types after this step's text was frozen
+        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_GLANCE_TEMPLATE), squash(statements[0]))      # row 1264: step 29 is now the newest
+        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_REPORT_HEADLINE), squash(statements[0]).replace(",'glancetemplate'", "", 1))      # row 1261: step 28's text is that one without 'glancetemplate'
+        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_GANTT), squash(statements[0]).replace(",'gantttable'", "", 1).replace(",'glancetemplate'", "", 1).replace(",'reportheadline'", "", 1))      # row 926: step 19's text is that one without 'gantttable'; this step's own text is that one without 'gantt' too
+        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_TEMPLATE_TYPES), squash(statements[0]).replace(",'reportheadline','glancetemplate','gantt','gantttable'", "", 1))      # steps 19, 21 and 28 added their types after this step's text was frozen
 
     def test_the_frozen_text_and_the_store_name_the_same_types(self):
         named = re.findall(r"'([a-z0-9]+)'", store_module.REPORT_SECTIONS_WITH_TEMPLATE_TYPES.split("CHECK (type IN (")[1].split("))")[0])
-        self.assertEqual(tuple(named), tuple(t for t in store_module.SECTION_TYPES if t not in ("gantt", "gantttable")))      # row 926: gantt comes with step 19; row 1068: gantttable with step 21
-        self.assertEqual(tuple(w.strip("'") for w in store_module.TEMPLATE_TYPE_WORDS), section_kinds.TYPES)
+        self.assertEqual(tuple(named), tuple(t for t in store_module.SECTION_TYPES if t not in ("gantt", "gantttable", "reportheadline", "glancetemplate")))      # row 926: gantt comes with step 19; row 1068: gantttable with step 21
+        self.assertEqual(tuple(w.strip("'") for w in store_module.TEMPLATE_TYPE_WORDS), tuple(t for t in section_kinds.TYPES if t not in ("reportheadline", "glancetemplate")))      # row 1261: step 28 adds the nineteenth
 
     def test_the_step_does_not_read_the_live_schema(self):
         path = make_before(self.dir)

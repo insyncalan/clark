@@ -80,7 +80,7 @@ class Source(unittest.TestCase):
 
     def test_the_milestone_peek_workstream_is_a_menu_with_icons_not_a_native_select(self):
         text = (SRC / "edit" / "MilestonePeek.jsx").read_text(encoding="utf-8")
-        body = text[text.index("function Workstream"):text.index("function Visible")]
+        body = text[text.index("function Workstream"):text.index("function UseCase")]
         self.assertNotIn("<select", body)
         self.assertIn("MenuPick", body)
         self.assertIn("fieldIcon", body)

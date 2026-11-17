@@ -3,14 +3,15 @@
 // (an accordion): where it stands, the open next steps as "Owner: what it is", and "See all N work items". Read-only here: changing a
 // status, linking a work item and editing the text are other items'. In a published file every use case and linked item on the page
 // is one the file kept (publish.select), so the page counts what it holds and a Sensitive or client-off item is never drawn.
-import { useEffect, useState } from "preact/hooks";
+import { StepsBadge } from "./StepsBadge.jsx";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, rows, openWork, openPeek, fromFile, show, project, mode } from "../stores/report.js";
 import { format } from "../router.js";
-import { isOn, liveOf, refText, refBox, stepsWord } from "../logic/useCasesList.js";
+import { isOn, liveOf, refText, refBox } from "../logic/useCasesList.js";
 import { isOpen, ownerOf } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
 import { CommitChip } from "./CommitChip.jsx";
-import { RAIL, railRows } from "../logic/milestones.js";
+import { viewOf, visibleItems, scrollRows, shownRows, trackerPlace } from "../logic/useCaseView.js";
 import { recall, remember } from "../logic/remember.js";
 import { printing } from "../stores/print.js";
 
@@ -55,14 +56,18 @@ function Row({ s, shown, toggle, ed }) {
       <div class="ucbar" role="button" tabIndex={0} aria-expanded={shown ? "true" : "false"} aria-controls={id}
         onClick={(e) => { if (ed && mine(e)) return; toggle(); }} onKeyDown={(e) => { if (ed && e.target !== e.currentTarget) return; press(e, toggle); }}>
         {ed ? <ed.Eye u={u} /> : null}
-        {u.ref ? <span class="ucref num" data-ref>{refBox(u.ref)}</span> : <span></span>}
-        <span class="uctitle">{u.title}</span>
-        {ed ? <ed.Headline u={u} /> : <span class="uchead">{u.headline}</span>}
-        <span class="ucstc">
-          {ed ? <ed.Status u={u} /> : <span class={`ucword rag-${rag(u.status)}`} data-word><i class="ragdot" aria-hidden="true"></i>{u.status}</span>}
-          {ed ? <ed.Commit u={u} /> : <CommitChip u={u} />}
+        <span class="uccell" data-uccol="ref">{u.ref ? <span class="ucref num" data-ref>{refBox(u.ref)}</span> : null}</span>
+        <span class="uccell uctc" data-uccol="title">
+          <span class="uctitle">{u.title}</span>
+          {ed ? <ed.Headline u={u} /> : <span class="uchead">{u.headline}</span>}
         </span>
-        <span class="ucsteps num">{stepsWord(s.steps.length)}</span>
+        <span class="uccell ucstc" data-uccol="status">
+          {ed ? <ed.Status u={u} /> : <span class={`ucword rag-${rag(u.status)}`} data-word><i class="ragdot" aria-hidden="true"></i>{u.status}</span>}
+        </span>
+        <span class="uccell ucc" data-uccol="commit">
+          {ed ? <ed.Commit u={u} /> : <CommitChip u={u} dash />}
+        </span>
+        <span class={`uccell ucsteps num${s.steps.length ? " some" : ""}`} data-uccol="steps"><StepsBadge n={s.steps.length} /></span>
       </div>
       {shown ? (
         <div class="ucdetail" id={id}>
@@ -97,34 +102,61 @@ function More({ n }) {
 }
 
 // Row 1108: the summary shows the first 5 use cases, then "Show all N use cases" / "Show the first 5" (as the Milestones list does), kept for this browser.
-export const allWord = (n, all) => (all ? "Show the first 5" : `Show all ${n} use cases`);
+export const allWord = (n, all, first = 5) => (all ? `Show the first ${first}` : `Show all ${n} use cases`);
 
-export function UseCases({ tools }) {
+export function UseCases({ tools, section }) {
   const d = data.value, [open, setOpen] = useState(() => new Set());
+  const box = useRef(null);       // the rows box: its --ucrow-h is the height of a real row, measured, so n rows fit exactly
   const [all, setAll] = useState(() => !fromFile.value && !!recall("ucAll", false));       // a published file never reads or writes the editor's key
   const toggleAll = () => { if (!fromFile.value) remember("ucAll", !all); setAll(!all); };
   const ed = tools && tools.ucEdit && !fromFile.value && mode.value === "edit" ? tools.ucEdit : null;       // Edit's parts (#455, #485): only in Edit; View and a published file have none
+  const view = viewOf(section, fromFile.value);
   const list = summary(d, rows.value), off = fromFile.value ? 0 : liveOf(d).filter((u) => !isOn(u)).length;
   const fresh = ed ? ed.added.value : "";                                           // a use case just added opens its row
   useEffect(() => {
-    if (ed && fresh && list.some((s) => s.u.id === fresh)) { setOpen(new Set([...open, fresh])); if (list.findIndex((s) => s.u.id === fresh) >= RAIL) setAll(true); ed.added.value = ""; }
+    if (ed && fresh && list.some((s) => s.u.id === fresh)) { setOpen(new Set([...open, fresh])); if (list.findIndex((s) => s.u.id === fresh) >= shownRows(list.length, view).shown) setAll(true); ed.added.value = ""; }
   }, [fresh, list.length]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const scrolls = ed ? view.set || view.scroll : view.scroll, rowsHigh = scrollRows({ ...view, scroll: scrolls });
+  const shut = useRef(new Map());       // each row's height when closed, by id: a row that is open keeps the height it had closed, so opening one never moves the box
+  const fit = (n) => {
+    const ul = box.current;
+    if (!ul || !n) return;
+    const rows = [...ul.querySelectorAll(":scope > .ucrow")];
+    rows.forEach((r) => { if (!r.classList.contains("open") && r.offsetHeight) shut.current.set(r.dataset.uc, r.offsetHeight); });
+    const first = rows.slice(0, Math.ceil(n)).map((r) => shut.current.get(r.dataset.uc)).filter(Boolean);
+    if (first.length) ul.style.setProperty("--ucrow-h", first.reduce((a, b) => a + b, 0) / first.length + "px");       // n times this is the first n closed rows added up
+  };
+  useLayoutEffect(() => { fit(rowsHigh); });
+  useEffect(() => {
+    const again = () => { shut.current.clear(); fit(rowsHigh); };
+    window.addEventListener("resize", again);
+    return () => window.removeEventListener("resize", again);
+  });
   const strip = fromFile.value && d.glance && d.glance.strip;
   const counts = strip ? strip.words : Object.fromEntries(STATUSES.map(([k]) => [k, list.filter((s) => s.u.status === k).length]));
   const total = strip ? strip.total : list.length;
   if (!list.length) return <><p class="muted" data-nouc>{off ? "No use cases are on the dashboard." : "No use cases yet."}</p>{ed ? <ed.FromRecord n={off} /> : null}<More n={off} /></>;
+  // Edit scrolls once a view number is stored; with none stored it keeps the first 5 and Show all. Once a number is set there is no Show all and an old one does not open the rest.
+  const every = (view.set ? false : all) || printing.value;
+  const drawn = scrolls ? list : visibleItems(list, view, every);
   const flip = (id) => { const n = new Set(open); if (n.has(id)) n.delete(id); else n.add(id); setOpen(n); };
+  const side = trackerPlace(view);   // the count pills and the bar: above the rows, below them (after Show all) or not drawn
+  const tracker = (extra) => (
+    <div class={`ucstrip${extra}`}>
+      <b class="uctotal">{total === 1 ? "1 use case" : `${total} use cases`}</b>
+      {STATUSES.filter(([k]) => counts[k]).map(([k, c]) => <span key={k} class={`ucn rag-${c}`} data-count={k}><i class="ragdot" aria-hidden="true"></i>{counts[k]} {k}</span>)}
+      <span class="meter" role="img" aria-label={STATUSES.filter(([k]) => counts[k]).map(([k]) => `${counts[k]} ${k}`).join(", ")}>
+        {STATUSES.flatMap(([k, c]) => Array.from({ length: counts[k] || 0 }, (_, n) => <i key={k + n} class={`m-${c}`}></i>))}
+      </span>
+    </div>
+  );
   return (
     <div class="uc" data-uc-section>
-      <div class="ucstrip">
-        <b class="uctotal">{total === 1 ? "1 use case" : `${total} use cases`}</b>
-        {STATUSES.filter(([k]) => counts[k]).map(([k, c]) => <span key={k} class={`ucn rag-${c}`} data-count={k}><i class="ragdot" aria-hidden="true"></i>{counts[k]} {k}</span>)}
-        <span class="meter" role="img" aria-label={STATUSES.filter(([k]) => counts[k]).map(([k]) => `${counts[k]} ${k}`).join(", ")}>
-          {STATUSES.flatMap(([k, c]) => Array.from({ length: counts[k] || 0 }, (_, n) => <i key={k + n} class={`m-${c}`}></i>))}
-        </span>
-      </div>
-      <ul class="ucrows plain">{railRows(list, all || printing.value).map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} ed={ed} />)}</ul>
-      {list.length > RAIL ? <button type="button" class="link ucall" data-ucall onClick={toggleAll}>{allWord(list.length, all)}</button> : null}
+      {side.above ? tracker("") : null}
+      <div class={`ucheads${ed ? " ucheads-ed" : ""}`} aria-hidden="true"><span>Ref</span><span>Use case</span><span>Status</span><span>Commitment</span><span>Next steps</span></div>
+      <ul class="ucrows plain" ref={box} style={rowsHigh ? { maxHeight: `calc(var(--ucrow-h, 3.25rem) * ${rowsHigh})`, overflowY: "auto" } : undefined}>{drawn.map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} ed={ed} />)}</ul>
+      {!scrolls && !view.set && list.length > (view.n === "all" ? list.length : view.n) ? <button type="button" class="link ucall" data-ucall onClick={toggleAll}>{allWord(list.length, all, view.n)}</button> : null}
+      {side.below ? tracker(" ucstrip-below") : null}
       {ed ? <ed.FromRecord n={off} /> : null}
       <More n={off} />
     </div>

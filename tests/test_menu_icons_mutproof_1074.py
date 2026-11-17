@@ -211,7 +211,9 @@ class PeekFields(Shown):
             for field, icon, none, ref in (("milestone", "flag", "No milestone", "TUL-A-001"), ("use_case", "doc", "No use case", "TUL-007")):
                 with self.subTest(width=width, field=field), chrome() as cdp:
                     sid = self.open_page(cdp, width, hash_=f"#work&p=TUL&f=mode:all&item={ref}")
-                    self.until(cdp, sid, f"!!document.querySelector('[data-pk-pick={field}]')", "peek pick")
+                    # Row 1249: wait for the real signal, the picker drawn (it has a box in the window), not only present in the page
+                    self.until(cdp, sid, f"(() => {{ const b = document.querySelector('[data-pk-pick={field}]'); if (!b) return false;"
+                               " const r = b.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight; })()", "peek pick drawn")
                     click(cdp, sid, f"[data-pk-pick={field}]")
                     self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "menu")
                     got = cdp.js(self.ICONS, sid)
