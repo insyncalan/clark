@@ -163,6 +163,18 @@ class ShortList(BrowserBase, unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelectorAll('.mv-mk').length", sid), 2, f"{width}: the line is drawn")
                 self.assertEqual(cdp.js("document.querySelectorAll('[data-grip]').length", sid), 0, f"{width}: no useless grip")
 
+    def test_a_stored_zoom_keeps_the_grip_on_a_short_line_so_it_can_be_put_back(self):
+        port = self.serve()
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width, HASH, port)
+                self.assertEqual(cdp.js("document.querySelectorAll('[data-grip]').length", sid), 0, f"{width}: at 100% a short line has no grip")
+                cdp.js("localStorage.setItem('clark.tlZoom.page', '1.5'); true", sid)
+                cdp.call("Page.reload", {}, sid)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-mk').length", sid) == 2), f"{width}: the short line is drawn again")
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-grip]').length", sid) == 1), f"{width}: the grip stays while a zoom other than 100% is stored")
+                self.assertEqual(cdp.js("document.querySelector('[data-grip]').getAttribute('aria-valuenow')", sid), "150", f"{width}: it shows the stored zoom")
+
 
 if __name__ == "__main__":
     unittest.main()
