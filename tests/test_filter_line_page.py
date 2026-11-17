@@ -1865,6 +1865,40 @@ class Line(unittest.TestCase):
                     self.assertIn("priority:Low", cdp.js("JSON.parse(localStorage.getItem('clark.fcore')).TUL.lines['core-decisions']", sid))
                     cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
 
+    def test_row_1265_escape_closes_the_prompt_and_save_as_a_new_view_leaves_the_original_view_alone(self):
+        s = self.serve()
+        dots = "document.querySelectorAll('[data-dot]').length"
+        ask = "document.querySelector('.vask')"
+        saved = "JSON.parse(localStorage.getItem('clark.fcore')).TUL.lines['core-decisions']"
+        for width in SIZES:
+            for theme in THEMES:
+                with self.subTest(width=width, theme=theme), shared.page() as cdp:
+                    sid = self.load(cdp, s.port, width, theme=theme)
+                    click_tab(cdp, sid, ".vtab[data-view-id=core-decisions]")
+                    self.assertTrue(wait(lambda: sorted(self.chips(cdp, sid)) == ["is:open", "type:decision"]))
+                    self.put(cdp, sid, "is:open type:decision priority:High")
+                    self.assertTrue(wait(lambda: cdp.js(dots, sid) == 1))
+                    cdp.js("document.querySelector('#fline-input').focus(); document.body.tabIndex = -1; document.body.focus()", sid)
+                    self.assertTrue(wait(lambda: cdp.js(f"!!{ask}", sid)), "the prompt shows")
+                    self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "fvAskUpdate"))
+                    # Escape closes the prompt and changes nothing: the dot stays, nothing is saved
+                    key(cdp, sid, "Escape")
+                    self.assertTrue(wait(lambda: not cdp.js(f"!!{ask}", sid)), "Escape closes the prompt")
+                    time.sleep(0.3)
+                    self.assertFalse(cdp.js(f"!!{ask}", sid), "and it does not come back")
+                    self.assertEqual(cdp.js(dots, sid), 1, "the changes are still there")
+                    self.assertNotIn("priority:High", str(cdp.js("localStorage.getItem('clark.fcore')", sid)), "Escape saved nothing")
+                    # Save as a new view: a new tab gets the changed line, the original view keeps its saved line
+                    cdp.js("document.querySelector('#fline-input').focus(); document.body.focus()", sid)
+                    self.assertTrue(wait(lambda: cdp.js(f"!!{ask}", sid)), "the prompt shows again")
+                    click(cdp, sid, "#fvAskNew")
+                    self.assertTrue(wait(lambda: cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)[-1] == "View 1"), "a new view is made")
+                    self.assertFalse(cdp.js(f"!!{ask}", sid), "the prompt goes")
+                    self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true] span').textContent", sid), "View 1", "and it is chosen")
+                    self.assertIn("priority:High", cdp.js("localStorage.getItem('clark.fviews')", sid), "the new view holds the changed line")
+                    self.assertNotIn("priority:High", str(cdp.js(saved, sid)), "the original view is not updated")
+                    cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
+
     def test_a_project_with_stored_views_keeps_them_after_the_core_five_and_nothing_stored_is_rewritten(self):
         s = self.serve()
         stored = [{"id": "open", "name": "Open items", "line": "is:open"}, {"id": "mine", "name": "My list", "line": "is:open owner:me"},

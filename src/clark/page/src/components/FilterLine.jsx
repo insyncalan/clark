@@ -305,7 +305,7 @@ function SavedViews({ board }) {
       )}
       </div>
       {asked ? (
-        <div class="vform vask" role="group" aria-label={LEAVE_PROMPT} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); asking.value = false; } }}>
+        <div class="vform vask" role="group" aria-label={LEAVE_PROMPT} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); const f = document.getElementById("fline-input"); if (f) f.focus(); asking.value = false; } }}>      {/* the focus goes to the line first: a prompt removed while it holds the focus would otherwise count as leaving the box and ask again */}
           <span class="vmsg" role="status">{LEAVE_PROMPT}</span>
           <button type="button" class="btn sm" id="fvAskUpdate" onClick={() => act("save")}>Update view</button>
           <button type="button" class="btn sm" id="fvAskNew" onClick={() => act("saveas")}>Save as a new view</button>
