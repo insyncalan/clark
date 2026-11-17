@@ -81,8 +81,8 @@ class A6(Base):
             p = self.page(cdp)
             p.edit()
             p.until("document.querySelector('#report').dataset.mode === 'edit'", "Edit mode")
-            got = p.js(f"[...document.querySelectorAll('{self.sel('.tpl-gt-tile')}, {self.sel('button[data-tile]')}')].length")
-        self.assertEqual(got, 0, "the Edit part draws its own tiles, not the View's buttons")
+            got = p.js(f"[document.querySelectorAll('{self.sel('button[data-tile]')}').length, [...document.querySelectorAll('{self.sel('.tpl-gt-tile')}')].filter(t => t.tagName !== 'DIV' || t.tabIndex >= 0 || t.classList.contains('go') || t.querySelector('button, a')).length]")
+        self.assertEqual(got, [0, 0], "the Edit part draws its own tiles (plain boxes), not the View's buttons")
 
     def test_hover_and_focus_rules_are_the_built_in_ones(self):
         self.assertRegex(SHELL, r"\.tpl-gt-tile\.go \{[^}]*cursor: pointer")
