@@ -106,6 +106,13 @@ class Reading(unittest.TestCase):
                 self.set_theme(bad)
         self.assertEqual(self.store.theme(), "classic")
 
+    def test_the_database_itself_refuses_a_third_name(self):
+        """Kills the mutant that widens schema.sql's CHECK to a third value: the table, not only the store, says two names."""
+        for bad in ("dark", "Classic", ""):
+            with self.assertRaises(sqlite3.IntegrityError, msg=repr(bad)):
+                self.store.con.execute("UPDATE app_settings SET theme = ? WHERE id = 1", (bad,))
+        self.assertEqual(self.store.theme(), "classic")
+
     def test_the_theme_never_fails_toward_classic(self):
         self.store.con.execute("PRAGMA ignore_check_constraints = ON")
         self.store.con.execute("UPDATE app_settings SET theme = 'nonsense' WHERE id = 1")
