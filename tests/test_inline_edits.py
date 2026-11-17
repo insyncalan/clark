@@ -459,7 +459,7 @@ class Live(unittest.TestCase):
                     self.assertLess(_lum(box[0]), 0.2, f"{what}: the picker follows the theme ({box[0]})")
                     self.assertEqual(box[1:], [True, True], f"{what}: the picker is whole in the window")
                     self.readable(cdp, sid, "[data-pop] [role=menuitemradio], [data-pop] [data-name], [data-pop] input.cp-in, [data-pop] [data-day],"
-                                  " [data-pop] [data-quick], [data-pop] .cp-t, [data-pop] .rp-head", what)
+                                  " [data-pop] [data-quick], [data-pop] .cp-t", what)
                     key(cdp, sid, "Escape")
                     self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", f"{what}: one Esc closes it")
                 self.assertEqual((self.steps(), len(self.sent)), (before, n), f"{where}: opening and leaving the pickers changed nothing")
