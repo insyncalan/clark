@@ -169,7 +169,7 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
   // Leaving the whole field (focus goes outside it, and outside its floating boxes) saves.
   const away = (e) => {
     const to = e.relatedTarget;
-    const inside = (n) => !!n && ((root.current && root.current.contains(n)) || (bubble.current && bubble.current.contains(n)) || (slashBox.current && slashBox.current.contains(n)));
+    const inside = (n) => (root.current && root.current.contains(n)) || (bubble.current && bubble.current.contains(n)) || (slashBox.current && slashBox.current.contains(n));   // contains(null) is false
     if (inside(to)) return;
     // No target and the page reports no focus: a window left (the active element stays in the field) unless the focus is already on something outside (macOS order).
     if (!to && document.hasFocus() === false && (!document.activeElement || document.activeElement === document.body || inside(document.activeElement))) return;
@@ -177,7 +177,7 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
     const look = (again) => {
       if (aiOpen.current) return;
       const at = document.activeElement;
-      if (at && at !== document.body && inside(at)) {
+      if (inside(at)) {
         if (again && to) setTimeout(() => look(false), 50);     // the focus was sent outside but the active element has not moved yet (macOS): look once more
         return;
       }
