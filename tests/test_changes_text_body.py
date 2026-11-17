@@ -1,4 +1,4 @@
-"""A text section's body (Summary, This week, Next week) through the change route (src/clark/changes.py; guarded): the write is
+"""A text section's body (Current state, This week, Next week) through the change route (src/clark/changes.py; guarded): the write is
 cleaned by the server, is one step with one Undo, is recorded in the history, and is refused in plain words when it is too long
 or not text. A reply never carries the body.
 
@@ -17,7 +17,7 @@ from _paths import SRC
 from clark import changes, publish, sanitise, server as sv
 from test_changes import Api, KIND
 
-SUMMARY, THIS_WEEK, NEXT_WEEK = "ABC-S-005", "ABC-S-006", "ABC-S-007"
+CURRENT, THIS_WEEK, NEXT_WEEK = "ABC-S-001", "ABC-S-005", "ABC-S-006"
 DIRTY = ('<p onclick="x()">Words <strong>bold</strong> <em>soft</em></p>'
          '<script>window.ZQ_RAN=1</script><style>p{color:red}</style><img src="x" onerror="window.ZQ_RAN=1">'
          '<a href="javascript:window.ZQ_RAN=1">ZQ-BAD-LINK</a><a href="&#106;avascript:window.ZQ_RAN=1">ZQ-ENC-LINK</a>'
@@ -54,7 +54,7 @@ class NewWithBody(TextBody):
     STARTER = "<h2>Where we are</h2><p></p><h2>What is next</h2><ul><li></li></ul>"
 
     def new(self, **values):
-        return self.change(self.req("new", values={"type": "text", "title": "Plan summary", **values}, after=SUMMARY))
+        return self.change(self.req("new", values={"type": "text", "title": "Plan summary", **values}, after=CURRENT))
 
     def test_a_new_text_section_stores_its_body_cleaned(self):
         status, got = self.new(body=DIRTY)
@@ -74,7 +74,7 @@ class NewWithBody(TextBody):
         for kind in ("tracker", "table"):
             with self.subTest(kind=kind):
                 before = self.state()
-                status, got = self.change(self.req("new", values={"type": kind, "title": "x", "body": "<p>x</p>"}, after=SUMMARY))
+                status, got = self.change(self.req("new", values={"type": kind, "title": "x", "body": "<p>x</p>"}, after=CURRENT))
                 self.assertEqual((status, got["message"]), (400, changes.NO_BODY_HERE))
                 self.assertEqual(self.state(), before, "nothing was written")
 
@@ -114,7 +114,7 @@ class NewWithBody(TextBody):
 
 class Writing(TextBody):
     def test_the_three_sections_take_a_body_and_store_it_cleaned(self):
-        for ref in (SUMMARY, THIS_WEEK, NEXT_WEEK):
+        for ref in (CURRENT, THIS_WEEK, NEXT_WEEK):
             with self.subTest(ref=ref):
                 self.assertEqual(self.s.read(KIND, ref=ref)["type"], "text")
                 status, got = self.write(ref, "<p>Hello <strong>there</strong></p>")
@@ -122,9 +122,9 @@ class Writing(TextBody):
                 self.assertEqual(self.stored(ref), "<p>Hello <strong>there</strong></p>")
 
     def test_dirty_html_comes_back_stripped_and_what_is_stored_is_the_cleaned_text(self):
-        status, got = self.write(SUMMARY, DIRTY)
+        status, got = self.write(CURRENT, DIRTY)
         self.assertEqual(status, 200, got)
-        stored = self.stored(SUMMARY)
+        stored = self.stored(CURRENT)
         self.assertEqual(stored, sanitise.clean_html(DIRTY), "the server's own cleaner decides, never the page's")
         for never in ("<script", "ZQ_RAN", "onerror", "onclick", "onmouseover", "javascript:", "avascript:", "<style", "color:red", "<img", "target="):
             self.assertNotIn(never, stored, never)
@@ -133,74 +133,74 @@ class Writing(TextBody):
         self.assertEqual(re.findall(r'href="([^"]*)"', stored), ["https://example.com/notes"], "only the safe address is left")
 
     def test_a_reply_never_carries_the_body(self):
-        status, got = self.write(SUMMARY, "<p>ZQ-IN-A-BODY</p>")
+        status, got = self.write(CURRENT, "<p>ZQ-IN-A-BODY</p>")
         self.assertEqual(status, 200, "the save is accepted")
         self.assertNotIn("ZQ-IN-A-BODY", json.dumps(got), "the reply never repeats the words saved")
         self.assertNotIn("body", got["sections"][0], "a section in the reply has no body field")
         self.assertEqual([r["id"] for r in got["sections"]], [r["id"] for r in self.rows()], "the reply lists every section, in order")
 
     def test_one_save_is_one_step_and_one_undo_puts_the_old_body_back(self):
-        self.write(SUMMARY, "<p>First</p>")
+        self.write(CURRENT, "<p>First</p>")
         steps = self.snapshot()[0]
-        status, got = self.write(SUMMARY, "<p>Second</p>")
+        status, got = self.write(CURRENT, "<p>Second</p>")
         self.assertEqual(status, 200, "the second save is accepted")
         self.assertEqual(self.snapshot()[0], steps + 1, "one save, one step")
         self.assertEqual(self.undone(got["apply_id"])[0], 200, "the step is undone once")
-        self.assertEqual(self.stored(SUMMARY), "<p>First</p>")
+        self.assertEqual(self.stored(CURRENT), "<p>First</p>")
         self.assertEqual(self.undone(got["apply_id"])[0], 409, "the same step can't be undone twice")
 
     def test_a_save_is_recorded_in_the_history_without_the_words_themselves(self):
-        status, got = self.write(SUMMARY, "<p>ZQ-HISTORY-WORDS</p>")
+        status, got = self.write(CURRENT, "<p>ZQ-HISTORY-WORDS</p>")
         self.assertEqual(status, 200, "the save is accepted")
         rows = self.s.con.execute("SELECT item_id, field FROM change_log WHERE apply_id = ?", (got["apply_id"],)).fetchall()
-        self.assertEqual([(r["item_id"], r["field"]) for r in rows], [(SUMMARY, "body")], "the history says which section and field, not the words")
+        self.assertEqual([(r["item_id"], r["field"]) for r in rows], [(CURRENT, "body")], "the history says which section and field, not the words")
         words = self.undone(got["apply_id"])[1]["words"]
         self.assertIn("the content of", words, "the Undo words name the content, not the text")
         self.assertNotIn("ZQ-HISTORY-WORDS", words, "the Undo words never repeat what was written")
 
     def test_saving_the_same_text_again_makes_no_step_and_saving_twice_keeps_the_body(self):
-        first = self.write(SUMMARY, "<p>Same</p>")[1]
+        first = self.write(CURRENT, "<p>Same</p>")[1]
         self.assertIsNotNone(first["apply_id"], "a first save is a step with an Undo")
         before = self.snapshot()
-        again = self.write(SUMMARY, "<p>Same</p>")[1]
+        again = self.write(CURRENT, "<p>Same</p>")[1]
         self.assertIsNone(again["apply_id"], "nothing changed: no Undo")
         self.assertEqual(self.snapshot(), before, "saving the same text again changes nothing")
-        self.write(SUMMARY, "<p>Same</p><p>More</p>")
-        self.assertEqual(self.stored(SUMMARY), "<p>Same</p><p>More</p>", "a longer text replaces the whole body")
+        self.write(CURRENT, "<p>Same</p><p>More</p>")
+        self.assertEqual(self.stored(CURRENT), "<p>Same</p><p>More</p>", "a longer text replaces the whole body")
 
     def test_a_save_leaves_the_other_sections_and_fields_alone(self):
         self.write(THIS_WEEK, "<p>Other</p>")
-        row = self.s.read(KIND, ref=SUMMARY)
+        row = self.s.read(KIND, ref=CURRENT)
         title, beside = row["title"], row["beside"]
-        self.write(SUMMARY, "<p>Mine</p>")
+        self.write(CURRENT, "<p>Mine</p>")
         self.assertEqual(self.stored(THIS_WEEK), "<p>Other</p>", "another section's body is left alone")
-        row = self.s.read(KIND, ref=SUMMARY)
+        row = self.s.read(KIND, ref=CURRENT)
         self.assertEqual((row["title"], row["beside"], row["type"]), (title, beside, "text"), "title, place and type are as they were")
 
     def test_the_title_and_the_body_can_change_in_one_step(self):
-        status, got = self.change(self.req("update", id=SUMMARY, changes={"title": "Overview", "body": "<p>x</p>"}))
+        status, got = self.change(self.req("update", id=CURRENT, changes={"title": "Overview", "body": "<p>x</p>"}))
         self.assertEqual(status, 200, got)
-        self.assertEqual((self.s.read(KIND, ref=SUMMARY)["title"], self.stored(SUMMARY)), ("Overview", "<p>x</p>"), "both the title and the body were saved")
+        self.assertEqual((self.s.read(KIND, ref=CURRENT)["title"], self.stored(CURRENT)), ("Overview", "<p>x</p>"), "both the title and the body were saved")
 
     def test_bidi_marks_are_dropped_and_a_zero_width_joiner_stays(self):
         marks = "\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069"
-        status, got = self.write(SUMMARY, f"<p>abc{marks}def \U0001F468\u200d\U0001F469</p>")
+        status, got = self.write(CURRENT, f"<p>abc{marks}def \U0001F468\u200d\U0001F469</p>")
         self.assertEqual(status, 200, got)
-        self.assertEqual(self.stored(SUMMARY), "<p>abcdef \U0001F468\u200d\U0001F469</p>", "the nine marks are gone and the emoji joiner is kept")
+        self.assertEqual(self.stored(CURRENT), "<p>abcdef \U0001F468\u200d\U0001F469</p>", "the nine marks are gone and the emoji joiner is kept")
 
     def test_a_bidi_mark_cannot_hide_a_script_link_from_the_cleaner(self):
-        status, got = self.write(SUMMARY, '<a href="java\u202escript:window.ZQ_RAN=1">ZQ-HIDDEN-LINK</a><a href="https://example.com/\u202ex">ZQ-OK</a>')
+        status, got = self.write(CURRENT, '<a href="java\u202escript:window.ZQ_RAN=1">ZQ-HIDDEN-LINK</a><a href="https://example.com/\u202ex">ZQ-OK</a>')
         self.assertEqual(status, 200, got)
-        stored = self.stored(SUMMARY)
+        stored = self.stored(CURRENT)
         self.assertNotIn("javascript:", stored, "the link is judged without the mark, so it is dropped")
         self.assertEqual(re.findall(r'href="([^"]*)"', stored), ["https://example.com/x"], "only the safe link stays, with no mark in it")
         self.assertIn("ZQ-HIDDEN-LINK", stored, "the words of the dropped link are kept")
 
     def test_an_empty_body_is_kept_as_empty(self):
-        self.write(SUMMARY, "<p>x</p>")
-        status, got = self.write(SUMMARY, "")
+        self.write(CURRENT, "<p>x</p>")
+        status, got = self.write(CURRENT, "")
         self.assertEqual(status, 200, got)
-        self.assertEqual(self.stored(SUMMARY), "", "an empty body is stored as empty")
+        self.assertEqual(self.stored(CURRENT), "", "an empty body is stored as empty")
 
 
 class Refusing(TextBody):
@@ -212,26 +212,26 @@ class Refusing(TextBody):
     def test_a_body_that_is_not_text_is_refused_in_plain_words(self):
         for bad in (None, 5, ["<p>x</p>"], {"a": 1}):
             with self.subTest(body=bad):
-                self.refused(self.req("update", id=SUMMARY, changes={"body": bad}), changes.BODY_NOT_TEXT)
+                self.refused(self.req("update", id=CURRENT, changes={"body": bad}), changes.BODY_NOT_TEXT)
 
     def test_a_body_over_its_limit_is_refused_in_words_and_nothing_is_written(self):
-        words = self.refused_body(SUMMARY, "<p>" + "a" * changes.TEXT_BODY_MAX + "</p>")
+        words = self.refused_body(CURRENT, "<p>" + "a" * changes.TEXT_BODY_MAX + "</p>")
         self.assertEqual(words, changes.WORDS_TOO_LONG, "the limit refusal is the one set of words")
         self.assertNotIn("Traceback", words, "no error text reaches the person")
         self.assertIn("too long", words, "the words say what is wrong")
 
     def test_the_limit_counts_what_is_stored_and_the_edge_is_accepted(self):
         edge = "a" * (changes.TEXT_BODY_MAX - len("<p></p>"))
-        self.assertEqual(self.write(SUMMARY, f"<p>{edge}</p>")[0], 200, "a body exactly at the limit is saved")
-        self.assertEqual(len(self.stored(SUMMARY).encode("utf-8")), changes.TEXT_BODY_MAX, "and is stored whole")
-        self.refused_body(SUMMARY, f"<p>{edge}a</p>", changes.WORDS_TOO_LONG)
+        self.assertEqual(self.write(CURRENT, f"<p>{edge}</p>")[0], 200, "a body exactly at the limit is saved")
+        self.assertEqual(len(self.stored(CURRENT).encode("utf-8")), changes.TEXT_BODY_MAX, "and is stored whole")
+        self.refused_body(CURRENT, f"<p>{edge}a</p>", changes.WORDS_TOO_LONG)
 
     def test_the_limit_counts_bytes_so_wide_letters_cannot_get_past_it(self):
         wide = "é" * (changes.TEXT_BODY_MAX // 2)           # two bytes each: over the limit in bytes, under it in characters
-        self.refused_body(SUMMARY, f"<p>{wide}</p>", changes.WORDS_TOO_LONG)
+        self.refused_body(CURRENT, f"<p>{wide}</p>", changes.WORDS_TOO_LONG)
 
     def test_text_the_cleaner_refuses_is_refused_in_the_same_words(self):
-        self.refused_body(SUMMARY, "a" * (sanitise.MAX_CHARS + 1), changes.WORDS_TOO_LONG)
+        self.refused_body(CURRENT, "a" * (sanitise.MAX_CHARS + 1), changes.WORDS_TOO_LONG)
 
     def test_a_cleaned_text_body_is_never_larger_than_the_change_route_carries(self):
         # The rule, not a number: what is stored must fit what the route lets in, whatever the route's limit is (it may be raised).
@@ -248,7 +248,7 @@ class Refusing(TextBody):
 
 class Publishing(TextBody):
     def test_the_published_file_shows_the_saved_body_and_a_hidden_section_stays_out(self):
-        self.write(SUMMARY, DIRTY)
+        self.write(CURRENT, DIRTY)
         self.write(NEXT_WEEK, "<p>ZQ-NEXT-WORDS</p>")
         self.write(THIS_WEEK, "<p>ZQ-HIDDEN-WORDS</p>")
         self.ok("update", id=THIS_WEEK, changes={"hidden": 1})
@@ -268,9 +268,9 @@ class Publishing(TextBody):
                 '<ul><li>one</li><li>two</li></ul><ol><li>first</li></ol><blockquote><p>quoted</p></blockquote><hr>'
                 '<p>See <a href="https://example.com/a" rel="noopener noreferrer">the notes</a></p>')
         self.assertEqual(sanitise.clean_html(body), body, "the sample is already clean, so it is what the editor writes")
-        self.write(SUMMARY, body)
-        published = publish.clean_html(self.stored(SUMMARY))
-        self.assertEqual(published, self.stored(SUMMARY), "the file draws the saved text as View does")
+        self.write(CURRENT, body)
+        published = publish.clean_html(self.stored(CURRENT))
+        self.assertEqual(published, self.stored(CURRENT), "the file draws the saved text as View does")
 
 
 class TextBodyDirect(unittest.TestCase):

@@ -61,9 +61,9 @@ class Minimap(Base):
             p.js("document.querySelector('[data-id=\"ABC-S-001\"] [data-add]').click()")
             p.until("!!document.querySelector('button[data-place]') && !document.querySelector('button[data-place]').disabled", "the Add a section box opened with Text chosen")
             p.js("document.querySelector('button[data-place]').click()")
-            p.until("document.querySelectorAll('.secs > .sec').length === 12", "a section was added")
+            p.until("document.querySelectorAll('.secs > .sec').length === 11", "a section was added")
             listed = self.listed(p)
-            self.assertEqual(len(listed), 11)
+            self.assertEqual(len(listed), 10)
             self.assertNotIn("ABC-S-002", listed)
             self.assertEqual(listed[1], p.ids()[1], "the new section is listed in its place")
             p.view()
@@ -84,7 +84,7 @@ class Minimap(Base):
                 before = p.js("[location.hash, history.length]")
                 open_list(p, w)
                 p.until("document.querySelector('.toc').classList.contains('open')", "the list opened")
-                for ref in ("ABC-S-008", "ABC-S-011", "ABC-S-004"):
+                for ref in ("ABC-S-008", "ABC-S-010", "ABC-S-004"):
                     p.js(f"document.querySelector('.toc li button[data-id=\"{ref}\"]').click()")
                     p.until(f"(function(){{var t=document.querySelector('[data-id=\"{ref}\"]').getBoundingClientRect().top;"
                             f"return t >= {TOP}.bottom - 1 && t < window.innerHeight;}})()", f"{ref} is in view at {w}")
@@ -114,7 +114,7 @@ class Minimap(Base):
             p = self.visit(cdp)
             size(cdp, p, 1400)
             p.js("window.scrollTo(0, document.documentElement.scrollHeight)")
-            p.until("document.querySelector('.toc-lines i.on') && document.querySelector('.toc-lines i.on').dataset.tl === 'ABC-S-011'",
+            p.until("document.querySelector('.toc-lines i.on') && document.querySelector('.toc-lines i.on').dataset.tl === 'ABC-S-010'",
                     "the last section is current at the bottom")
             p.js("window.scrollTo(0, 0)")
             p.until("document.querySelector('.toc-lines i.on').dataset.tl === 'ABC-S-001'", "the first is current at the top")
@@ -214,11 +214,11 @@ class Published(unittest.TestCase):
         self.addCleanup(demo.close)
         store = demo.store
         change = changes.make_change(store.path, [], USER)
-        for ref, edit in (("ABC-S-005", {"title": "Hidden secret plan", "hidden": 1}), ("ABC-S-006", {"title": "Shown plan"})):
+        for ref, edit in (("ABC-S-007", {"title": "Hidden secret plan", "hidden": 1}), ("ABC-S-005", {"title": "Shown plan"})):
             status, body = change({"project": "ABC", "kind": "report_sections", "op": "update", "id": ref, "changes": edit})
             self.assertEqual(status, 200, body)
         with store.step("dashboard", USER) as st:
-            for ref in ("ABC-S-006", "ABC-S-007"):
+            for ref in ("ABC-S-005", "ABC-S-006"):
                 st.update("report_sections", ref, {"body": "<p>Some words</p>"})
         folder = tempfile.mkdtemp(prefix="clark-pub-")
         self.addCleanup(shutil.rmtree, folder, True)

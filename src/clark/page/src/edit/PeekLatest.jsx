@@ -95,7 +95,7 @@ export function PeekLatest({ row }) {
 }
 
 /** The box itself, for any kind (row 1184: a milestone's too). `save(value)` sends one change and resolves to its answer (falsy: refused or none). */
-export function LatestBox({ id, now, stamp, save: send, placeholder = "Add the latest update…" }) {
+export function LatestBox({ id, now, stamp, save: send, placeholder = "What changed? Add the latest update…" }) {
   const [open, setOpen] = useState(false);
   const html = (() => { try { return richOrPlain(now); } catch (e) { return "<p>" + String(now).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</p>"; } })();    // item 1005: the editor's HTML, or the plain text an older clark stored
   // The rich editor saves with Cmd/Ctrl+Enter and leaves with Esc. It closes only when clark has saved it: a refusal (the toast says why)
@@ -111,9 +111,11 @@ export function LatestBox({ id, now, stamp, save: send, placeholder = "Add the l
       <div class="pk-lab"><span id={`pk-latest-lab-${id}`}>Latest update</span>
         <DraftButton ai={ai} /></div>
       <DraftPanel ai={ai} place={place} text={richWords(now)} onAccept={(h) => save(h)} />
-      <RichField field="latest_update" id={id} value={html} label="Latest update" empty={placeholder} save={save} ai={place} viewId={`pk-latest-txt-${id}`} labelledBy={`pk-latest-lab-${id} pk-latest-txt-${id}`} />
-      {stamp ? <div class="pk-last" data-pk-last><Icon name="clock" cls="s" /> Last updated {stamp}</div> : null}
-      {open ? <p class="pk-latest-hint" data-pk-latest-hint data-pk-hint>Cmd or Ctrl and Enter saves.</p> : null}
+      <div class="pk-lbox" data-pk-lbox>
+        <RichField field="latest_update" id={id} value={html} label="Latest update" empty={placeholder} save={save} ai={place} viewId={`pk-latest-txt-${id}`} labelledBy={`pk-latest-lab-${id} pk-latest-txt-${id}`} />
+        <div class="pk-lfoot" data-pk-latest-hint data-pk-hint><span><kbd class="pk-key">⌘ Enter</kbd> to save</span></div>
+      </div>
+      {stamp ? <div class="pk-last" data-pk-last>last updated {stamp}</div> : null}
     </div>
   );
 }

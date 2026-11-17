@@ -122,6 +122,8 @@ class Head(Base):
             p.settled("the scroll to the foot finished")
             p.js(f"{find}.scrollIntoView({{block: 'center'}})")
             p.settled("the scroll to the menu item finished")
+            if os.environ.get("CLARK_TEST_LATE_SCROLL") == "1":      # tests only: the wheel's scroll arrives after the page looked still (macOS headless), once per chip
+                p.js("window.__late = window.__late || 0; if (window.__late++ % 6 === 0) window.scrollTo(0, 99999)")
             at = p.js(f"(function(){{ var r = ({find}).getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2, innerWidth, innerHeight]; }})()")
             if 0 <= at[0] <= at[2] and 0 <= at[1] <= at[3]:
                 break
@@ -131,13 +133,16 @@ class Head(Base):
         under = {}
 
         def on_chip():
+            # A scroll that arrived late (the wheel's, on a slow runner) can have put the chip out of the window or under the sticky top bar since it was measured: bring it back (an instant scroll) before the pointer goes to it.
+            p.js(f"(function(){{ var b = {find}, r = b.getBoundingClientRect(); if (document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) !== b) b.scrollIntoView({{block: 'center', behavior: 'instant'}}); }})()")
             now = p.js(f"(function(){{ var b = {find}, r = b.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2; return [x, y, document.elementFromPoint(x, y) === b]; }})()")
             if under.get("at") == now[:2] and now[2]:
                 return True
             under["at"] = now[:2]
+            under["last"] = now
             p.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": now[0], "y": now[1], "button": "none", "buttons": 0, "clickCount": 0}, p.sid)
             return False
-        self.assertTrue(wait(on_chip, 15), f"the pointer is on the {name} menu item and it stopped moving")
+        self.assertTrue(wait(on_chip, 15), f"the pointer is on the {name} menu item and it stopped moving; last read (x, y, chip under it): {under.get('last')}; scrollY={p.js('scrollY')}")
         for kind in ("mousePressed", "mouseReleased"):
             params = {"type": kind, "x": under["at"][0], "y": under["at"][1], "button": "left", "buttons": 1 if kind == "mousePressed" else 0, "clickCount": 1}
             p.cdp.call("Input.dispatchMouseEvent", params, p.sid)

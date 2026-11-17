@@ -55,10 +55,10 @@ class Spacing(unittest.TestCase):
                             cdp.js("document.querySelector('#peek .pk-source').remove()", sid)
                             g = cdp.js(READ, sid)
                         self.assertTrue(8 <= g["latest"]["t"] - max(c["b"] for c in g["cells"].values()) <= 24, f"{where}: chip row to Latest update (row 1180: Latest update follows the chips, the Details rows come after it)")
-                        self.assertTrue(4 <= g["lab"]["t"] - g["latest"]["t"] <= 14, f"{where}: rule to the label")
+                        self.assertTrue(0 <= g["lab"]["t"] - g["latest"]["t"] <= 14, f"{where}: top of the section to the label (row 1257: no rule above)")
                         # row 1005: the area is the rich editor's view, one prompt line (24 px), not the old textarea (44 and up); the ceiling stays
-                        self.assertTrue(20 <= g["text"]["h"] <= 56, f"{where}: the empty Latest update area, {g['text']['h']}")
-                        self.assertTrue(2 <= g["stamp"]["t"] - g["text"]["b"] <= 5, f"{where}: area to Last updated")
+                        self.assertTrue(84 <= g["text"]["h"] <= 100, f"{where}: the empty Latest update area (row 1257: 84 px minimum), {g['text']['h']}")
+                        self.assertTrue(6 <= g["stamp"]["t"] - g["text"]["b"] <= 60, f"{where}: area to the stamp (row 1257: the footer strip and 6 px sit between)")
                         top = g["details"]["t"] - g["body"]["t"]      # row 1180: the top section ends at the Details line; the Details rows and the history follow it
                         self.assertLessEqual(top, 690 if width == 1400 else 625, f"{where}: the whole top section, {top}")
                 cdp.js("document.documentElement.dataset.theme = 'light'", sid)
