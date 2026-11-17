@@ -59,6 +59,18 @@ class Eye(base.InThePage):
                     page = p.js(f"document.querySelector('#work tr[data-id=\"{item}\"] .weye').outerHTML")
                     self.assertEqual(html, page, f"{item}: the eye in the section is the Work items page's eye, word for word")
 
+    def test_row_1268_a_row_is_one_line_with_a_letter_tile_and_an_item_off_is_greyed(self):
+        with chrome() as cdp:
+            p = self.show(cdp, 1400)
+            p.edit()
+            self.edit_rows(p)
+            q = f"[data-id=\"{self.ref}\"] .wil-table tbody tr"
+            got = p.js(f"[...document.querySelectorAll({json.dumps(q)})].map(r => [r.dataset.id, r.classList.contains('wil-off'), !!r.querySelector('td.wil-c-tile .ico'), r.lastElementChild.previousElementSibling.classList.contains('wil-c-id')])")
+            self.assertEqual({r[0]: r[1] for r in got}, {self.a_due: False, self.a_off: True, self.a_eye: True, self.a_later: False, self.risk: False},
+                             "only the items the eye has taken off are greyed")
+            self.assertTrue(all(r[2] and r[3] for r in got), "each row has the letter tile first and the ID last (the eye follows it)")
+            self.assertEqual(p.js(f"[...document.querySelectorAll({json.dumps(q + ' .wil-c-title')})].every(e => getComputedStyle(e).whiteSpace === 'nowrap')"), True, "one line")
+
     def test_a_press_on_the_eye_flips_the_item_and_a_hidden_one_is_shown_again(self):
         with chrome() as cdp:
             p = self.show(cdp)
