@@ -21,7 +21,14 @@ class Parity(base.InThePage):
         with chrome() as cdp:
             p = self.show(cdp)
             p.until(f"!!document.querySelector('[data-id=\"{self.ref}\"] .wil-table tbody tr')", "the list drew")
-            self.assertEqual(self.q(p, "[data-cell]"), 0, "View has no picker")
+            # Row 1287 (ruled 17-11): the served View keeps exactly four pickers per row, never on the description.
+            sel = json.dumps('[data-id="%s"] .wil-table [data-cell]' % self.ref)      # outside the f-string: Python 3.9 refuses a backslash inside {}
+            fields = p.js(f"[...document.querySelectorAll({sel})].map(e => e.dataset.cell.split(':').pop())")
+            rows = self.q(p, ".wil-table tbody tr[data-id]")
+            self.assertGreater(rows, 0, "the list has rows")
+            self.assertEqual(sorted(set(fields)), ["due", "owner", "priority", "status"], "View has exactly the four ruled pickers")
+            self.assertEqual(len(fields), 4 * rows, "each row has one picker per ruled field")
+            self.assertEqual(self.q(p, ".wil-table [data-cell$=\":title\"], .wil-table [data-cell$=\":description\"]"), 0, "the description is never a picker")
             self.assertEqual(self.q(p, ".cgrip"), 0, "View has no width handle")
             p.edit()
             p.until(f"!!document.querySelector('[data-id=\"{self.ref}\"] .wil-table [data-cell]')", "Edit drew the pickers")
