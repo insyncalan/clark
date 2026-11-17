@@ -207,19 +207,45 @@ def check(value, rules):
     return out
 
 
+KIND_OF_TILE = {"overdue": "actions", "risks": "raid", "decisions": "decisions"}     # the rows each built-in count reads (ctx.rows keys)
+
+
+def _counts(u, ctx):
+    """The three built-in tiles as the At a glance tiles work them out (glance.tiles, the one code), from ctx.rows only: the rows
+    publish kept, so a hidden section (its kind has no rows here), a client-hidden, Sensitive, archived or eye-hidden row is never counted
+    and never named in a detail. A tile is left out when its eye is off or when its kind has no kept row (a hidden section, or none).
+    Returns [{tile, title, value, detail, rag}] in the template's order, outline applied. Nothing else of a row is copied."""
+    glance = __import__("clark.glance", fromlist=["tiles"])      # at call time: publish has loaded it; a load-time import would loop (as figures4)
+    rows = ctx.rows if ctx is not None and isinstance(getattr(ctx, "rows", None), dict) else {}
+    as_at = getattr(ctx, "as_at", None)
+    if not isinstance(as_at, str) or not as_at:
+        return []
+    by_kind = {k: [r for r in (rows.get(k) or []) if type(r) is dict] for k in ("actions", "raid", "decisions")}
+    off = {n for n in SETTLED if u["builtin"][n]["hidden"]} | {n for n in SETTLED if not by_kind[KIND_OF_TILE[n]]}
+    kept = {"rows": glance.work_rows(by_kind), "hidden_types": set()}      # nothing is hidden here: a hidden section has no rows in ctx
+    outlines = {n: u["builtin"][n]["outline"] for n in SETTLED}
+    shown = glance.tiles({"project": {}}, as_at, tile_order=[i for i in u["order"] if i in SETTLED], hidden=off, outlines=outlines,
+                         for_client=True, kept=kept)
+    return [{"tile": t["tile"], "title": t["title"], "value": t["value"], "detail": t["detail"], "rag": t["class"]}
+            for t in shown if t["tile"] in SETTLED]
+
+
 def published(value, ctx):
     """What the file carries: {"content": {health, order, builtin, bespoke}}, or None when there is no body or no bespoke tile is left to
-    show. (Slice 1 only: with no counts yet, a section with no own tile has nothing to draw, and the page's isEmpty says the same; the
-    counts slice makes the three built-in tiles content of their own.) A hidden bespoke tile is left out whole (its words and its id),
-    and so is its place in the order. Picked by name from the read body, never passed through. The figures of the built-in tiles are not
-    here (counts come from the rows publish kept, a later slice)."""
+    show. (A section with no own tile and no count has nothing to draw.) A hidden bespoke tile is left out whole (its words and its id),
+    and so is its place in the order. Picked by name from the read body, never passed through. The three built-in figures are "counts", worked out
+    here from ctx.rows (see _counts), never from stored text."""
     if not value:
         return None
     u = upgrade(value)
     shown = [t for t in u["bespoke"] if not t["hidden"]]
-    if not shown:
+    counts = _counts(u, ctx)
+    if not shown and not counts:
         return None
     gone = {t["id"] for t in u["bespoke"] if t["hidden"]}
-    return {"content": {"health": dict(u["health"]), "order": [i for i in u["order"] if i not in gone],
-                        "builtin": {n: dict(u["builtin"][n]) for n in SETTLED},
-                        "bespoke": [{k: t[k] for k in ("id", "label", "figure", "tag", "note", "tone")} for t in shown]}}
+    content = {"health": dict(u["health"]), "order": [i for i in u["order"] if i not in gone],
+               "builtin": {n: dict(u["builtin"][n]) for n in SETTLED},
+               "bespoke": [{k: t[k] for k in ("id", "label", "figure", "tag", "note", "tone")} for t in shown]}
+    if counts:
+        content["counts"] = counts
+    return {"content": content}
