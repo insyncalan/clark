@@ -128,6 +128,15 @@ class WorkItems(Base):
         self.assertIsNone(self.planned({"op": "change", "id": self.action, "owner": "Lee Poe", "why": " \n\x00 "})["why"], "nothing left is no reason")
         self.refused({"op": "change", "id": self.action, "owner": "Lee Poe", "why": 5}, "not_a_change")
 
+    def test_the_card_title_is_the_title_now_even_when_the_change_renames_it(self):         # #1292 sweep A: kills after-for-before
+        plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "title": "Cut-over plan v2"})
+        self.assertEqual(plan["title"], "Draft the cut-over plan")
+        self.assertNotEqual(plan["after"].get("description"), plan["title"])
+
+    def test_the_rule_for_a_change_asks_for_a_short_reason(self):         # #1292 sweep A: the prompt line that makes the model send why
+        rule = [r for r in ask.RULES.split("\n") if r.startswith("7.")][0]
+        self.assertIn('"status": "Closed", "why": "one short reason"}', rule)
+
     def test_an_offer_is_used_once(self):
         plan = self.planned({"op": "change", "id": self.action, "status": "Closed"})
         self.applied(plan["offer"])
