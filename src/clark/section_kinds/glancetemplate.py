@@ -4,6 +4,7 @@ glance section (type glance): the built-in keeps its own tiles table and every e
 Stored (canonical JSON, checked by section_bodies before and after this):
   {"v": 1,
    "health": {"shown": bool, "own_row": bool},                       # the eye on Project health; Project health on its own row (off by default)
+   "per_row": 3 | 4,                                                  # tiles on a line at full width (row 1264 slice 9); 4 is the default and is not stored
    "order": [tile id, ...],                                           # all tiles: the built-in names and the ids of the bespoke tiles
    "builtin": {"overdue" | "risks" | "decisions": {"hidden": bool, "outline": "R" | "A" | "G" | "N"}},
    "bespoke": [{"id", "label", "figure", "tag", "note", "tone", "hidden"}]}
@@ -28,11 +29,13 @@ SETTLED = BUILT_IN[1:]                                           # the ones with
 OUTLINES = ("R", "A", "G", "N")                                  # glance_tiles.outline, '' (automatic) is not stored
 TONES = ("green", "amber", "red", "blue", "neutral")
 ID = re.compile(r"[a-z][a-z0-9]{0,15}\Z")
-KEYS = ("v", "health", "order", "builtin", "bespoke")
+PER_ROW = (3, 4)                                                 # tiles on a line at full width; half width always draws 2 (the page's rule, not stored)
+PER_ROW_DEFAULT = 4
+KEYS = ("v", "health", "per_row", "order", "builtin", "bespoke")
 TILE_KEYS = ("id", "label", "figure", "tag", "note", "tone", "hidden")
 
 KEYS_OF_WORDS = ("not_object", "unknown_field", "not_bool", "bad_outline", "bad_tone", "bad_id", "dup_id", "bad_order", "too_many",
-                 "label_missing", "label_long", "figure_long", "tag_long", "note_long", "bad_text", "too_long")
+                 "label_missing", "label_long", "figure_long", "tag_long", "note_long", "bad_text", "too_long", "bad_per_row")
 
 
 def words():      # words approved 17-11, see PR
@@ -52,6 +55,7 @@ def words():      # words approved 17-11, see PR
         "tag_long": f"The tile tag is too long ({TAG_MAX} characters at most). Shorten it and try again.",
         "note_long": f"The tile note is too long ({NOTE_MAX} characters at most). Shorten it and try again.",
         "bad_text": "A tile in At a glance has text of the wrong kind. Check it and try again.",
+        "bad_per_row": "Tiles on a line is 3 or 4. Choose one of those.",
         "too_long": f"At a glance is too long to keep ({LIMIT // 1024} KB at most in all). Remove a tile or shorten the text and try again.",
     }
 
@@ -108,7 +112,8 @@ def upgrade(value):
     for name in SETTLED:
         s = b.get(name) if type(b.get(name)) is dict else {}
         builtin[name] = {"hidden": _flag(s.get("hidden"), False), "outline": s["outline"] if s.get("outline") in OUTLINES else ""}
-    return {"v": 1, "health": {"shown": _flag(h.get("shown"), True), "own_row": _flag(h.get("own_row"), False)},
+    per_row = int(v.get("per_row")) if type(v.get("per_row")) in (int, float) and v.get("per_row") in PER_ROW else PER_ROW_DEFAULT      # a whole float (3.0) reads as the page reads it: 3
+    return {"v": 1, "health": {"shown": _flag(h.get("shown"), True), "own_row": _flag(h.get("own_row"), False)}, "per_row": per_row,
             "order": _complete(v.get("order"), bespoke), "builtin": builtin, "bespoke": bespoke}
 
 
@@ -155,6 +160,12 @@ def check(value, rules):
             health["own_row"] = True
         if health:
             out["health"] = health
+    per_row = value.get("per_row")
+    if per_row is not None:
+        if type(per_row) is not int or per_row not in PER_ROW:
+            _no("bad_per_row")
+        if per_row != PER_ROW_DEFAULT:
+            out["per_row"] = per_row
     bespoke = []
     raw = value.get("bespoke")
     if raw is not None:
@@ -267,7 +278,7 @@ def published(value, ctx):
     if not shown and not counts and not u["health"]["shown"]:      # the health eye alone still prints its row, as the View shows it
         return None
     gone = {t["id"] for t in u["bespoke"] if t["hidden"]}
-    content = {"health": dict(u["health"]), "order": [i for i in u["order"] if i not in gone],
+    content = {"health": dict(u["health"]), "per_row": u["per_row"], "order": [i for i in u["order"] if i not in gone],
                "builtin": {n: dict(u["builtin"][n]) for n in SETTLED},
                "bespoke": [{k: t[k] for k in ("id", "label", "figure", "tag", "note", "tone")} for t in shown]}
     if counts:

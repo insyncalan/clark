@@ -99,7 +99,7 @@ class Adding(Editor):
             self.assertEqual(got["h"], "Edit tile")
             self.assertEqual(got["fields"], [["Label", "New tile"], ["Figure or short text", "0"], ["Tag text", ""], ["Note", ""]])
             self.assertEqual(got["counters"], ["8 of 40", "1 of 12", "optional, 0 of 12", "optional, 0 of 60"])
-            self.assertEqual(got["buttons"], ["Cancel", "Done"], "a tile not stored yet has no Remove tile")
+            self.assertEqual(got["buttons"], ["Remove tile", "Cancel", "Done"], "a tile not stored yet also has Remove tile, which drops the draft")
             self.fill(p, "label", "Fictional new")
             self.fill(p, "figure", "42")
             self.click(p, "[data-tile-editor] [data-tone=blue]")
@@ -326,7 +326,8 @@ class Editing(Editor):
                                out: [...g.querySelectorAll('.tcell')].filter(c => c.getBoundingClientRect().right > gr.right + 1).map(c => c.dataset.tile),
                                small: [...g.querySelectorAll('.tpl-gt-tile *')].filter(e => parseFloat(getComputedStyle(e).fontSize) < 13 && e.textContent.trim()).length,
                                tones: [...g.querySelectorAll('.tpl-gt-tile')].map(t => getComputedStyle(t).borderTopColor)}}; }})()""")
-                    self.assertFalse(got["overflow"], f"no sideways scroll: {p.js('[...document.querySelectorAll(\'body *\')].filter(e => e.getBoundingClientRect().right > window.innerWidth + 1).slice(0, 6).map(e => e.tagName + \'.\' + e.className + \' \' + Math.round(e.getBoundingClientRect().right) + \' \' + window.innerWidth)')}")
+                    wide = p.js("[...document.querySelectorAll('body *')].filter(e => e.getBoundingClientRect().right > window.innerWidth + 1).slice(0, 6).map(e => e.tagName + '.' + e.className + ' ' + Math.round(e.getBoundingClientRect().right) + ' ' + window.innerWidth)")
+                    self.assertFalse(got["overflow"], f"no sideways scroll: {wide}")
                     self.assertEqual(got["out"], [], "every tile inside the section")
                     self.assertEqual(got["small"], 0, "no text under 13px")
                     self.assertEqual(len(set(got["tones"])), 5, f"five border colours: {got['tones']}")
@@ -363,6 +364,7 @@ class Killers(Editor):
     def pencil(self, p, tid="t1"):
         self.click(p, f"[data-tile={tid}] [data-tile-pencil]")
         self.editor_open(p)
+        p.until("document.activeElement.dataset.f === 'label'", "the label has the focus")  # Esc and the arrow keys go to the focused element: wait for the editor to hold the focus first
 
     def test_K1_amber_is_stored_by_done_and_the_eleventh_tile_can_still_be_added(self):
         self.seed([{"id": f"t{i}", "label": f"Fictional {i}", "figure": str(i)} for i in range(1, 12)])

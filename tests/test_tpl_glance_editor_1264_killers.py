@@ -140,6 +140,7 @@ class Killers(Editor):
             p.js(f"document.querySelector({self.q('[data-tile-editor] [data-tone=green]')}).focus()")
             p.key("ArrowDown", 0, code="ArrowDown", vk=40)
             self.assertTrue(wait(lambda: checked() == "amber", 5), checked())
+            p.until("document.activeElement.dataset.tone === 'amber'", "the focus follows the pick")
             p.key("ArrowUp", 0, code="ArrowUp", vk=38)
             self.assertTrue(wait(lambda: checked() == "green", 5), checked())
             p.until("document.activeElement.dataset.tone === 'green'", "the focus follows the pick")
