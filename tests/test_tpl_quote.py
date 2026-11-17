@@ -74,14 +74,14 @@ class Page(n.PageChecks):
             self.assertEqual(p.js(f"document.querySelector('{base} blockquote').textContent"), "Fictional words of thanks.")
             self.assertEqual(p.js(f"document.querySelector('{base} figcaption').textContent"), "Sam Example, Fictional sponsor")
 
-    def test_enter_in_the_quote_words_saves_them_as_one_line(self):
+    def test_enter_in_the_quote_words_saves_them_as_one_line_and_the_box_grows_with_long_words(self):
         ref = self.make(self.GOOD)
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
             sel = n.field_js(ref, "Quote words")
             p.until(f"!!{sel}", "the field is there")
-            self.assertEqual(p.js(f"{sel}.tagName"), "INPUT", "one line: Enter can't add a line break")
+            self.assertEqual(p.js(f"{sel}.tagName"), "TEXTAREA", "the words wrap and grow")
             p.js(f"(function(){{ var el = {sel}; el.focus(); el.select(); }})()")
             p.until(f"document.activeElement === {sel}", "focus")
             p.type("Fictional enter words")
@@ -89,8 +89,14 @@ class Page(n.PageChecks):
             p.cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13}, p.sid)
             p.saved()
             self.assertEqual(json.loads(self.body_of(ref))["quote"], "Fictional enter words")
+            one = p.js(f"{sel}.getBoundingClientRect().height")
+            p.js(f"(function(){{ var el = {sel}; el.focus(); el.select(); }})()")
+            p.type("Fictional long words " * 25)
+            p.until(f"{sel}.getBoundingClientRect().height > {one} * 2", "the box grows with its words")
+            self.assertEqual(p.js(f"{sel}.scrollHeight <= {sel}.clientHeight + 1"), True, "no inner scrolling: all the words show")
+            self.assertNotIn("\n", p.js(f"{sel}.value"))
 
-    # ---- #1271 slice 2: look B in View, the Tile and Heading switches in Edit ----
+    # ---- item 1271 slice 2: look B in View, the Tile and Heading switches in Edit ----
     def _at(self, cdp, p, width):
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
 
@@ -156,6 +162,17 @@ class Page(n.PageChecks):
             self.assertLessEqual(p.js(f"{sec}.querySelector('.sec-h').getBoundingClientRect().width"), 2)
             self.assertIn("Fictional quote", p.js(f"{sec}.querySelector('.sec-h').textContent"))
 
+    def test_a_quote_with_no_heading_hides_only_the_heading_and_keeps_its_tile(self):
+        for off, head_hidden, tile_kept in (({"heading": False}, True, True), ({"tile": False}, False, False)):
+            ref = self.make({**GOOD, **off})
+            with self.subTest(off=off), chrome() as cdp:
+                p = self.visit(cdp)
+                sec = f"document.querySelector('[data-id={json.dumps(ref)}]')"
+                self.assertEqual(p.js(f"{sec}.classList.contains('no-head')"), head_hidden)
+                self.assertEqual(p.js(f"{sec}.querySelector('.sec-h').getBoundingClientRect().width <= 2"), head_hidden)
+                self.assertEqual(p.js(f"{sec}.querySelector('.sec-head').getBoundingClientRect().height <= 2"), head_hidden)
+                self.assertEqual(p.js(f"getComputedStyle({sec}).backgroundColor !== 'rgba(0, 0, 0, 0)'"), tile_kept)
+
     def test_edit_the_two_switches_save_and_the_off_state_tags_say_so(self):
         from test_server import wait
         for width in (1400, 900):
@@ -184,7 +201,7 @@ class Page(n.PageChecks):
                 self.assertTrue(wait(lambda: "tile" not in json.loads(self.body_of(ref)), 10), self.body_of(ref))
                 p.until(f"document.querySelector('{sec} .tag.hid') && document.querySelector('{sec} .tag.hid').textContent === 'Heading not shown in View'", "heading tag")
 
-    # ---- #1271 gaps: dark theme at 1400 and 900 in View and Edit; the 600 limit in Edit ----
+    # ---- item 1271 gaps: dark theme at 1400 and 900 in View and Edit; the 600 limit in Edit ----
     @staticmethod
     def _lum(css):
         """Relative brightness 0..1 of an 'rgb(r, g, b)' / 'rgba(...)' string."""
