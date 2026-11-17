@@ -1,7 +1,7 @@
 """Row 1273: Add milestone, Add project and Add use case take the dashed look of the Add opener on Work items, border style only.
 
 Reads edit.css (no browser): a rule for the three openers sets a 1px dashed border, and sets nothing that moves the button
-(no margin, padding, width, height or position). The look in a browser is not run here.
+(no margin, padding, width, height or position), and the border colour is the blue text token. The look in a browser is not run here.
 """
 import re
 import unittest
@@ -25,7 +25,7 @@ class AddOpenerDashed(unittest.TestCase):
         for i in IDS:
             body = body_for(i)
             self.assertIsNotNone(body, f"no rule for #{i}")
-            self.assertRegex(body, r"border\s*:\s*1px\s+dashed\s+var\(--", i)
+            self.assertRegex(body, r"border\s*:\s*1px\s+dashed\s+var\(--status-blue-text\)\s*;?\s*$", i)
 
     def test_the_rule_moves_nothing(self):
         for i in IDS:
