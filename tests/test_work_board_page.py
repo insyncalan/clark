@@ -181,7 +181,7 @@ class Base(unittest.TestCase):
         """The fonts are in and the page has stopped moving: the bar above the board, the board and its first card keep one box for `same`
         looks in a row (the bar can wrap to another row, and the page grow, as the fonts arrive on a loaded runner; a box measured before
         that sends the mouse to where a card or a cell no longer is)."""
-        look = ("document.fonts.status === 'loaded' ? JSON.stringify([...document.querySelectorAll('#work .fbar, #work-board, #work-board .bcard, .boardbox')].slice(0, 6)"
+        look = ("document.fonts.status === 'loaded' ? JSON.stringify([...document.querySelectorAll('#work .fbar, #work-board, #work-board .bcard, .boardbox, #work-list tr[data-id]')].slice(0, 8)"
                 ".map((e) => { const b = e.getBoundingClientRect(); return [b.x, b.y, b.width, b.height, e.scrollTop || 0]; })) : null")
         last, run = None, 0
         for _ in range(400):
