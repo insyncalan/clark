@@ -60,6 +60,19 @@ class Killers(Editor):
             self.assertEqual(len({col("t1"), col("t2"), col("t3")}), 3, "green, amber and neutral each have their own border colour")
             self.assertEqual(p.js(f"getComputedStyle(document.querySelector({self.q('[data-tile=t4] .tpl-gt-tile')})).borderTopStyle"), "dashed", "a hidden own tile has a dashed border")
 
+    def test_K5_done_on_a_new_tile_without_a_colour_stores_no_tone(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_add(p)
+            p.js("document.querySelector('.ddmenu[role=menu] [role=menuitem]').click()")
+            self.editor_open(p)
+            self.assertEqual(p.js(f"document.querySelector({self.q('[data-tile-editor] [aria-checked=true]')}).dataset.tone"), "neutral")
+            p.until("document.activeElement.dataset.f === 'label'", "the label takes the focus")
+            p.until("document.activeElement.selectionEnd - document.activeElement.selectionStart === 8", "the label text is selected")
+            self.click(p, "[data-tile-editor] [data-done]")
+            self.assertTrue(wait(lambda: len(self.body().get("bespoke", [])) == 1, 10), f"stored: {self.body()}")
+            self.assertEqual(sorted(self.body()["bespoke"][0]), ["figure", "id", "label"])
+
     def test_K6_the_pencil_shows_the_stored_colour_and_a_second_press_closes_it(self):
         self.seed([{**OWN, "tone": "blue"}])
         with chrome() as cdp:
@@ -237,9 +250,9 @@ class Killers(Editor):
             p = self.page(cdp)
             p.js(f"document.querySelector({self.q('[data-tile=t1]')}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
             p.js("new Promise(r => setTimeout(r, 300))")
-            self.assertEqual(p.js(f"document.querySelectorAll({self.q('[data-tile=t1] [data-outline]')}).length"), 0, "no outline menu on an own tile")
+            self.assertEqual(p.js(f"document.querySelectorAll('[data-outline]').length"), 0, "no outline menu on an own tile")
             p.js(f"document.querySelector({self.q('[data-tile=decisions]')}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
-            p.until(f"document.querySelectorAll({self.q('[data-tile=decisions] [data-outline]')}).length > 0", "a counting tile still has it")
+            p.until(f"document.querySelectorAll('[data-outline]').length > 0", "a counting tile still has it")
 
 
 if __name__ == "__main__":
