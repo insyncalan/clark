@@ -67,6 +67,29 @@ class Words(unittest.TestCase):
         self.assertEqual(callout.words({"v": 1, "icon": "none", "colour": "plain"}), {"category": "", "colour_name": "Plain", "icon_name": ""})
 
 
+class Look(unittest.TestCase):
+    """The callout's rules in shell.css (the page and the published file share them): a tinted box, never a stripe; Plain has no box."""
+
+    def rules(self):
+        from _paths import ROOT
+        css = (ROOT / "src/clark/page/shell.css").read_text(encoding="utf-8")
+        return [line for line in css.splitlines() if line.startswith(".tpl-callout")]
+
+    def test_no_callout_rule_draws_a_stripe_or_a_bare_pixel_or_colour(self):
+        import re
+        rules = self.rules()
+        self.assertGreater(len(rules), 6)
+        for line in rules:
+            self.assertNotRegex(line, r"border-(left|inline-start)", line)
+            self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|\brgba?\(", line), line)
+
+    def test_plain_has_no_box(self):
+        plain = [line for line in self.rules() if ".k-plain" in line]
+        self.assertEqual(len(plain), 1)
+        self.assertIn("--cc-fill: transparent", plain[0])
+        self.assertIn("--cc-edge: transparent", plain[0])
+
+
 class Page(n.PageChecks):
     TYPE, GOOD, HOSTILE_BODY = "callout", GOOD, HOSTILE
     SHOWS = ("Decision needed", "Fictional decision", "Fictional words about the budget.", "A second fictional line.")
@@ -129,6 +152,19 @@ class Page(n.PageChecks):
                 self.assertTrue(p.js(f"!!{box(ref)}.querySelector('svg[data-icn=lock]')"))
                 self.assertEqual(p.js(f"{box(old)}.dataset.colour + ' ' + {box(old)}.dataset.icon"), "amber question", "an older callout draws its tone's look")
                 self.assertEqual(p.js(f"{box(old)}.querySelector('.tpl-callout-tone').textContent"), "Decision needed")
+
+    def test_view_names_the_colour_and_the_icon_in_words(self):
+        full = self.make({**GOOD, "category": "Budget", "colour": "violet", "icon": "bulb"})
+        bare = self.make({**GOOD, "category": "", "colour": "plain", "icon": "none"})
+        old = self.make(GOOD)
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp)
+                self._at(cdp, p, width)
+                words = lambda r: p.js(f"document.querySelector('[data-id={json.dumps(r)}] .tpl-callout .sr-only').textContent")
+                self.assertEqual(words(full), "Colour: Violet. Icon: Light bulb.")
+                self.assertEqual(words(bare), "Colour: Plain.")
+                self.assertEqual(words(old), "Colour: Amber. Icon: Question.", "an older callout names its tone's look")
 
     def test_a_colour_with_no_word_and_no_icon_draws_its_own_shape_and_plain_draws_none(self):
         a = self.make({**GOOD, "category": "", "colour": "red", "icon": "none"})
@@ -260,6 +296,59 @@ class Page(n.PageChecks):
             p.saved()
             got = json.loads(self.body_of(ref))
             self.assertEqual((got["category"], got["colour"], got["icon"]), ("Legal hold", "amber", "question"))
+
+    def test_edit_the_decision_icon_is_the_question_mark_the_title_and_words_line_up_with_the_category_and_the_counter_counts(self):
+        """Row 1272 rulings 17-11 (mock-up B wins): the Decision suggestion keeps the question icon; the title text and the words text start where the
+        category word starts; the toolbar says "Title N of 120" (N = characters typed, Edit only)."""
+        for width in (1400, 900):
+            ref = self.make(GOOD)
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp)
+                self._at(cdp, p, width)
+                p.edit()
+                sec = f"[data-id={json.dumps(ref)}]"
+                p.until(f"!!document.querySelector('{sec} [aria-label=\"Use Decision needed\"]')", "the toolbar")
+                p.js(f"document.querySelector('{sec} [aria-label=\"Use Decision needed\"]').click()")
+                p.saved()
+                self.assertEqual(json.loads(self.body_of(ref))["icon"], "question")
+                p.until(f"!!document.querySelector('{sec} .tpl-callout-tone')", "the category word")
+                left = p.js(f"""(() => {{ const q = (s) => document.querySelector('{sec} ' + s), edge = (el) => {{ const r = el.getBoundingClientRect(), c = getComputedStyle(el);
+                    return Math.round((r.left + parseFloat(c.borderLeftWidth) + parseFloat(c.paddingLeft)) * 10) / 10; }};
+                    return [q('.tpl-callout-tone').getBoundingClientRect().left, edge(q('.cb-title')), edge(q('.tpl-callout-main .rt-view'))].map((x) => Math.round(x * 10) / 10); }})()""")
+                self.assertEqual(len(set(left)), 1, f"the category word, the title text and the words start at one left edge: {left}")
+                self.assertEqual(p.js(f"document.querySelector('{sec} .cb-count').textContent"), f"Title {len(GOOD['title'])} of 120")
+                n.fill(p, n.field_js(ref, "Callout title"), "Four")
+                p.until(f"document.querySelector('{sec} .cb-count').textContent === 'Title 4 of 120'", "the counter follows what is typed")
+
+
+class SharedLook(unittest.TestCase):
+    """#1272 slice 3: the tile and heading flags are read the same way for every section type; the prompt words are one pair of strings (the #1251 hook)."""
+
+    def run_js(self, probe):
+        import shutil, subprocess, tempfile
+        from pathlib import Path
+        import esbuild  # noqa: E402  (dev/tools)
+        if not shutil.which("node"):
+            raise unittest.SkipTest("no node")
+        notes = Path(__file__).resolve().parent.parent / "src" / "clark" / "page" / "src" / "templates" / "notes.js"
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "n.js"
+            done = esbuild.run(["--bundle", "--format=iife", "--global-name=N", str(notes), f"--outfile={out}"], capture_output=True, text=True)
+            self.assertEqual(done.returncode, 0, done.stderr)
+            script = Path(tmp) / "probe.js"
+            script.write_text(out.read_text(encoding="utf-8") + ";\nconsole.log(JSON.stringify(" + probe + "));", encoding="utf-8")
+            got = subprocess.run([shutil.which("node"), str(script)], capture_output=True, text=True)
+            self.assertEqual(got.returncode, 0, got.stderr)
+            return json.loads(got.stdout)
+
+    def test_any_section_type_can_turn_its_tile_and_heading_off(self):
+        got = self.run_js("[N.sectionShows({type: 'text'}), N.sectionShows({type: 'text', tile: false}), N.sectionShows({type: 'raid3', heading: false, tile: false}),"
+                          " N.sectionShows({type: 'callout', body: JSON.stringify({v: 1, tone: 'info', title: 'T', paras: [], html: '', tile: false})})]")
+        self.assertEqual(got, [{"tile": True, "heading": True}, {"tile": False, "heading": True}, {"tile": False, "heading": False}, {"tile": False, "heading": True}])
+
+    def test_the_prompt_words_are_two_placeholders(self):
+        self.assertEqual(self.run_js("Object.keys(N.PROMPTS)"), ["title", "words"])
+        self.assertEqual(self.run_js("N.PROMPTS"), {"title": "Add a title: what the reader must see", "words": "Click to write."})
 
 
 if __name__ == "__main__":

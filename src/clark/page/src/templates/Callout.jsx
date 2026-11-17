@@ -14,6 +14,8 @@ export function mark(k) {
   const name = k.icon !== "none" ? k.icon : k.shape;
   return name ? <Icon name={name} cls="tpl-callout-ic" /> : null;
 }
+// item 1272: the colour and the icon in words (for a reader who cannot tell colours apart, and a screen reader): "Colour: Violet. Icon: Light bulb." Plain has a colour name too; No icon says nothing.
+export const lookWords = (k) => `Colour: ${COLOURS[k.colour]}.${k.icon !== "none" ? ` Icon: ${ICONS[k.icon]}.` : ""}`;
 export const boxClass = (k) => `tpl-callout k-${k.colour}${k.icon === "none" && !k.shape ? " noic" : ""}`;
 
 export function View({ section, clean }) {
@@ -22,6 +24,7 @@ export function View({ section, clean }) {
     <div class={boxClass(k)} role="note" data-colour={k.colour} data-icon={k.icon}>
       {mark(k)}
       <div class="tpl-callout-main">
+        <span class="sr-only">{lookWords(k)}</span>
         {k.word ? <p class="tpl-callout-tone">{k.word}</p> : null}
         {c.title ? <p class="tpl-callout-h">{c.title}</p> : null}
         {c.html ? <CleanProse cls="tpl-callout-p tpl-rich prose" html={c.html} />
