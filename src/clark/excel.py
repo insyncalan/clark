@@ -1181,7 +1181,7 @@ def write_cover(wb, cover, mark=False, pal=None, wave=False):
     """The Cover sheet, first in the workbook and the one it opens on (item 85b): a 12-column grid with the gridlines off, text
     blocks and tiles in merged cells, laid out as Option A of the signed mockup: the navy title band (the logo at its left when
     `mark`, the INTERNAL tag at its right, a subtitle line under the title), Current state, At a glance tiles side by side, the
-    Summary, This week and Next week side by side, and a quiet About this export block. Excel does not fit a merged cell's height
+    This week and Next week side by side, and a quiet About this export block. Excel does not fit a merged cell's height
     to its text, so every row's height is estimated from the text (excel_cover.height). Frozen below the band. The look's office
     font throughout. `cover` is excel_cover.lines(). Not a table: the import never reads it."""
     ws = wb.create_sheet(COVER_NAME, 0)

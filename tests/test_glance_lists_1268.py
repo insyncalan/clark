@@ -1,0 +1,112 @@
+"""Row 1268, slice s1: the At a glance tiles count what a Work items list reaches when a built-in section is hidden.
+
+Run: python3 dev/run_tests.py test_glance_lists_1268
+A list reaches only its own rows (publish.select), so a tile of a hidden section counts those rows and no other; with no list the
+tile stays out as before. Fictional data, the clock fixed (ON).
+"""
+import json
+import unittest
+
+from _paths import ROOT   # noqa: F401
+
+from clark import glance as g, publish
+from clark import store as store_module
+from test_glance import ON, RULES, action, data, decision, raid, sections
+
+
+def body(**kw):
+    return store_module.check_section_body("workitems", json.dumps({"mode": "all", **kw}))
+
+
+def run(d, hide, items_filter=None, tiles=()):
+    secs = sections(*hide)
+    if items_filter is not None:
+        secs.append({"id": "s-list", "type": "workitems", "title": "Mine", "body": items_filter, "beside": 0, "hidden": 0, "sort_order": 50})
+    i = {"data": d, "hidden": [], "sections": secs, "label_rules": RULES, "as_at": ON, "glance_tiles": list(tiles)}
+    return publish.add_glance(publish.select(i), i)["data"]["glance"]["tiles"]
+
+
+def probe():
+    return data(actions=[action(1, "2026-10-20"), action(2, "2026-10-21"), action(3, "2026-10-22", owner="Pat Demo")],
+                raid_=[raid(1, priority="High")], decisions=[decision(1)])
+
+
+def by(tiles):
+    return {t["tile"]: t for t in tiles}
+
+SHOWN = [{"project": "ABC", "tile": "decisions", "hidden": 0, "outline": "", "sort_order": 4}]   # the Decisions needed tile switched on
+
+
+class Lists(unittest.TestCase):
+    def test_a_hidden_section_and_no_list_leaves_the_tile_out_as_before(self):
+        got = by(run(probe(), ("actions",)))
+        self.assertNotIn("overdue", got)
+        self.assertIn("risks", got)
+
+    def test_a_list_brings_the_tile_back_counting_its_own_rows_only(self):
+        got = by(run(probe(), ("actions",), body(owner=["Pat Demo"])))
+        self.assertEqual(got["overdue"]["value"], 1)
+        self.assertEqual(got["overdue"]["detail"], "of 1 open action")
+
+    def test_a_list_of_another_kind_does_not_bring_the_tile_back(self):
+        self.assertNotIn("overdue", by(run(probe(), ("actions",), body(kinds=["risk"]))))
+
+    def test_a_list_that_reaches_nothing_leaves_the_tile_out(self):
+        self.assertNotIn("overdue", by(run(probe(), ("actions",), body(owner=["Nobody Demo"]))))
+
+    def test_a_shown_section_counts_every_row_as_before(self):
+        self.assertEqual(by(run(probe(), (), body(owner=["Pat Demo"])))["overdue"]["value"], 3)
+
+    def test_the_decisions_tile_is_hidden_by_default_and_stays_so(self):
+        self.assertNotIn("decisions", by(run(probe(), ("decisions",), body(kinds=["decision"]))))
+
+    def test_the_risks_tile_counts_the_listed_risks(self):
+        got = by(run(probe(), ("raid",), body(kinds=["risk"])))
+        self.assertEqual(got["risks"]["value"], 1)
+
+    def test_a_shown_section_with_no_rows_keeps_its_tile(self):      # mutation check: the hidden-section guard in glance._section_gone
+        got = by(run(data(raid_=[raid(1, priority="High")]), (), body(kinds=["risk"])))
+        self.assertIn("overdue", got)
+        self.assertEqual(got["overdue"]["value"], 0)
+
+    def test_each_risk_kind_alone_brings_the_risks_tile_back(self):
+        for type_, kind in (("Risk", "risk"), ("Issue", "issue"), ("Assumption", "assumption"), ("Dependency", "dependency")):
+            with self.subTest(kind=kind):
+                d = data(raid_=[raid(1, type_=type_, priority="High")])
+                got = by(run(d, ("raid",), body(kinds=[kind])))
+                self.assertEqual(got["risks"]["value"], 1)
+                self.assertEqual(got["risks"]["detail"], "of 1 open risk or issue")
+
+    def test_a_list_of_actions_does_not_bring_the_risks_tile_back(self):
+        d = data(actions=[action(1, "2026-10-20")], raid_=[raid(1, priority="High")])
+        self.assertNotIn("risks", by(run(d, ("raid",), body(kinds=["action"]))))
+
+    def test_a_list_of_decisions_brings_the_decisions_tile_back_when_it_is_shown(self):
+        d = data(decisions=[decision(1, needed_by="2026-10-30")])
+        got = by(run(d, ("decisions",), body(kinds=["decision"]), SHOWN))
+        self.assertEqual(got["decisions"]["value"], 1)
+
+    def test_a_list_of_risks_does_not_bring_the_decisions_tile_back(self):
+        d = data(decisions=[decision(1)], raid_=[raid(1)])
+        self.assertNotIn("decisions", by(run(d, ("decisions",), body(kinds=["risk"]), SHOWN)))
+
+
+class WordTiles(unittest.TestCase):
+    """docx_build._kept: the rows the Word glance tiles count (mutation check, row 1268)."""
+
+    def kept(self, listed, shown):
+        from clark import docx_build
+        pub = {"data": probe(), "sections": [{"type": "workitems", "items": listed}] if listed is not None else []}
+        return docx_build._kept(pub, shown)
+
+    def test_a_hidden_actions_section_counts_only_the_actions_a_list_names(self):
+        every = {r["id"] for r in self.kept(None, {"actions", "raid", "decisions"})["rows"] if r["kind"] == "action"}
+        self.assertEqual(len(every), 3)
+        one = sorted(every)[0]
+        got = self.kept([one], {"raid", "decisions"})["rows"]
+        self.assertEqual([r["id"] for r in got if r["kind"] == "action"], [one])
+        self.assertEqual([r["id"] for r in self.kept(None, {"raid", "decisions"})["rows"] if r["kind"] == "action"], [])
+
+
+if __name__ == "__main__":
+    unittest.main()

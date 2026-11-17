@@ -136,7 +136,7 @@ class Action(test_peek_latest.Browser):
         with chrome() as cdp:
             sent, sid = self.load(cdp, 1400, OVERDUE)
             self.open_box(cdp, sid)
-            self.assertIn("saves", cdp.js("(document.querySelector('[data-pk-hint]') || {textContent: ''}).textContent", sid), "the hint under the box")
+            self.assertIn("to save", cdp.js("(document.querySelector('[data-pk-hint]') || {textContent: ''}).textContent", sid), "the hint under the box")
             self.type_in(cdp, sid, "Waiting on the vendor")
             self.save_key(cdp, sid)
             self.assertTrue(wait(lambda: len(sent) == 1), "saved once")

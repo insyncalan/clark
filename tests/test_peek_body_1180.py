@@ -79,15 +79,15 @@ class Body(test_peek_latest.Browser):
                 self.assertLess(details, hist, "Details comes before the history")
                 self.assertTrue(self.inside(cdp, sid, "[data-pk-details]") and self.inside(cdp, sid, "[data-pk-htabs]"), "both fit the peek")
 
-    def test_the_hint_under_the_box_names_the_save_key_and_shows_for_the_open_box_only(self):
+    def test_the_footer_in_the_box_names_the_save_key_and_is_shown_before_the_box_opens(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sent, sid = self.load(cdp, width, OVERDUE)
+                self.until(cdp, sid, "the footer [data-pk-hint] shown with the box closed (row 1257)", "!!document.querySelector('[data-pk-hint]')")
                 self.open_box(cdp, sid)
-                self.until(cdp, sid, "the hint [data-pk-hint] shown after the box opened", "!!document.querySelector('[data-pk-hint]')")
                 hint = cdp.js("(document.querySelector('[data-pk-hint]') || {textContent: ''}).textContent", sid)
-                self.assertRegex(hint, r"Cmd or Ctrl and Enter", "the hint names the key")
-                self.assertGreater(self.top(cdp, sid, "[data-pk-hint]"), self.top(cdp, sid, self.BOX), "the hint sits under the box")
+                self.assertRegex(hint, r"⌘ Enter to save", "the footer names the key")
+                self.assertGreater(self.top(cdp, sid, "[data-pk-hint]"), self.top(cdp, sid, self.BOX), "the footer sits under the text")
 
     def test_ctrl_or_cmd_enter_saves_once_and_a_plain_enter_makes_a_new_line(self):
         for width in (1400, 900):

@@ -114,7 +114,7 @@ class DragStatus(tre.Base):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.at(cdp, width)
-                six, seven = IDS[5], IDS[6]                              # This week sits beside Next week
+                six, seven = IDS[4], IDS[5]                              # This week sits beside Next week
                 x, y = self.edge(p, seven, "bottom")
                 self.hold(p, seven, x, y, f'Release to make "{T[seven]}" full width.')
                 self.release_and_hear(p, x, y, f'"{T[seven]}" is now full width.')
