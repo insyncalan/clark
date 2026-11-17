@@ -393,6 +393,7 @@ class Milestone(Base):
                 self.real_key(cdp, p, "Enter")
                 self.saved("percent_complete", 90)
                 p.until("!document.querySelector('[data-pop]')", "Enter set it and closed")
+                p.until("document.querySelector('#peek .pk-chips [data-row=progress]').innerText.trim() === '90%'", "the chip says 90%, so the peek has the new progress before the popover opens again")
                 self.chip(p, "progress")
                 p.until("document.activeElement && document.activeElement.dataset.msBlock === '90'", "the block of the current progress has the focus")
                 self.real_key(cdp, p, "ArrowLeft")
@@ -621,6 +622,8 @@ class Milestone(Base):
             with self.subTest(width=width), chrome() as cdp:
                 self.setUp()
                 p = self.visit(cdp, ms=GO_LIVE, width=width)
+                cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)      # the editor ignores a blur while document.hasFocus() is false (RichText away); a headless page on macOS is not focused
+                p.until("document.hasFocus()", "the page has the focus")
                 row = "#peek [data-ms-row=description] [data-rich=description]"
                 # Enter is a new line, nothing is sent; Cmd or Ctrl and Enter saves
                 self.click(p, row)
@@ -649,7 +652,8 @@ class Milestone(Base):
                 # target while the browser window is not focused is read as 'the person left the window', which keeps the box open (RichText away()): on a
                 # busy CI machine the window is not always focused, so the test says outright that the window has the focus and does not depend on it.
                 p.until("document.querySelector('#peek .ProseMirror').textContent.includes('Third')", "the typed text is in the box")
-                p.js("document.hasFocus = () => true; document.querySelector('#peek .pk-title').focus(); true")
+                self.assertTrue(p.js("document.hasFocus()"), "the page has the focus before the focus moves")
+                p.js("document.querySelector('#peek .pk-title').focus(); true")
                 self.saved("description", "<p>First</p><p>Second Third</p>")
 
     # ---- View and the file's chips ----------------------------------------------------------------------------------------------------------------
