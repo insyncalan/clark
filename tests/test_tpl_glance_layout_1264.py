@@ -153,14 +153,14 @@ class View(Layout):
                 self.assertTrue(all(c["width"] > 150 for c in got["cells"]), "no tile is squeezed")
                 self.assertFalse(got["overflow"])
 
-    def test_V6_at_900_each_tile_takes_a_line_and_half_is_the_full_width(self):
+    def test_V6_at_900_the_one_breakpoint_is_760_so_full_draws_4_a_line_half_draws_2_and_half_is_the_full_width(self):
         full = None
         for half in (False, True):
             if half:
                 self.make_half()
             with chrome() as cdp:
                 got = self.cells(self.page(cdp, 900), False)
-            self.assertEqual(self.lines(got), [["health"], ["overdue"], ["risks"], ["decisions"]])
+            self.assertEqual(self.lines(got), [["health", "overdue"], ["risks", "decisions"]] if half else [["health", "overdue", "risks", "decisions"]])
             self.assertFalse(got["overflow"])
             if full is None:
                 full = got["sec"]
