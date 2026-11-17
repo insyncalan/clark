@@ -108,7 +108,9 @@ class Pg:
         self.until(f"((document.querySelector('.toast-text') || {{}}).textContent || '') === {json.dumps(text)}", f"the toast says: {text}")
 
     def key(self, key, modifiers=0, code=None, vk=0):
-        for kind in ("keyDown", "keyUp"):
+        # Tab goes as rawKeyDown (no text, no char phase): on macOS a plain keyDown is turned into an editing command (insertTab)
+        # and the browser's own Tab focus step never runs. Linux does not translate it, and rawKeyDown is what keyDown becomes there anyway.
+        for kind in ("rawKeyDown" if key == "Tab" else "keyDown", "keyUp"):
             self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code or key, "windowsVirtualKeyCode": vk,
                                                       "modifiers": modifiers}, self.sid)
 
