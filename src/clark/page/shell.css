@@ -2065,30 +2065,34 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
    line, never wrapped), the figure, the tag word and one note line. The edge colour is a token that gives 3:1 against the tile (white in light):
    green, red, blue and neutral use their own tokens; amber uses --status-amber-text, because --status-amber on white is 2.22:1 (the At a glance
    tile's amber outline) and --status-amber-text is 6.39:1; in dark both amber tokens clear 7:1 on the surface. The tag colour is the status TEXT token. */
-.tpl-gt { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); margin: var(--space-2) 0; min-width: 0; }
-.tpl-gt-tile { --edge: var(--grey-500); --tag: var(--text-muted); display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; column-gap: var(--space-2); min-width: 0; max-width: 100%; padding: var(--space-2) var(--space-3); border: 2px solid var(--edge); border-radius: var(--radius); background: var(--surface); }
-.tpl-gt-tile.tone-g { --edge: var(--status-green); --tag: var(--status-green-text); }
-.tpl-gt-tile.tone-a { --edge: var(--status-amber-text); --tag: var(--status-amber-text); }
-.tpl-gt-tile.tone-r { --edge: var(--status-red); --tag: var(--status-red-text); }
-.tpl-gt-tile.tone-b { --edge: var(--brand-blue); --tag: var(--brand-blue-strong); }
-.tpl-gt-dot { width: var(--space-3); height: var(--space-3); background: var(--edge); }
+.tpl-gt { --cols: 4; display: flex; flex-wrap: wrap; align-items: stretch; justify-content: flex-start; gap: var(--space-3); margin: var(--space-2) 0; min-width: 0; }
+/* The tile is the At a glance tile (.fig, the rules at the top of this file: border, edge fade, column layout) at one fixed width, left aligned; a last line does not stretch. */
+.tpl-gt-tile { --edge: transparent; --tag: var(--text-muted); --shape: var(--icon-grey); flex: 0 0 calc((100% - (var(--cols) - 1) * var(--space-3)) / var(--cols)); width: auto; min-width: 0; max-width: 100%; box-sizing: border-box; }
+.tpl-gt-tile::after { border-color: var(--edge); }
+.tpl-gt-tile.tone-g { --edge: var(--status-green); --tag: var(--status-green-text); --shape: var(--icon-green); }
+.tpl-gt-tile.tone-a { --edge: var(--status-amber-text); --tag: var(--status-amber-text); --shape: var(--icon-amber); }
+.tpl-gt-tile.tone-r { --edge: var(--status-red); --tag: var(--status-red-text); --shape: var(--icon-red); }
+.tpl-gt-tile.tone-b { --edge: var(--brand-blue); --tag: var(--brand-blue-strong); --shape: var(--icon-blue); }
+.tpl-gt-tile.go { cursor: pointer; transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-state) var(--ease-out); }
+.tpl-gt-tile.go:hover { border-color: var(--brand-blue); box-shadow: var(--shadow); }
+.tpl-gt-tile.go:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.tpl-gt .tile-empty { flex: 1 1 100%; margin: 0; padding: var(--space-4); color: var(--text-muted); font-size: var(--size-small); }
+.tpl-gt-dot { flex: none; width: var(--space-3); height: var(--space-3); background: var(--shape); }
 .tone-g .tpl-gt-dot { border-radius: 50%; }
 .tone-a .tpl-gt-dot { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
-.tone-r .tpl-gt-dot { border-radius: 0; }
-.tone-b .tpl-gt-dot { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
-.tone-n .tpl-gt-dot { background: transparent; border: 2px solid var(--edge); border-radius: 50%; box-sizing: border-box; }
-.tpl-gt-k, .tpl-gt-tag, .tpl-gt-note { white-space: nowrap; }
-.tpl-gt-k { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); }
-.tpl-gt-v { font-size: var(--size-figure); font-weight: var(--weight-medium); line-height: 1.15; color: var(--heading); }
-.tpl-gt-tag { padding: 1px var(--space-2); border: 1px solid currentColor; border-radius: var(--radius-sm); font-size: var(--size-caption); font-weight: var(--weight-medium); line-height: 1.3; color: var(--tag); }
-.tpl-gt-note { grid-column: 1 / -1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: var(--size-caption); color: var(--text-muted); }
-/* Row 1264 slice 9: the layout. 4 tiles on a line (3 when the section says so), 2 at half width (the slot's two columns, 493 px at the 1400 page),
-   1 at 900, where half is the full width too. Project health is one tile's place, or the whole row when the section says so. */
-.tpl-gt[data-cols="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.slot-left .tpl-gt, .slot-right .tpl-gt { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.tpl-gt-health { display: flex; min-width: 0; }
-.tpl-gt-health.own-row { grid-column: 1 / -1; }
-@media (max-width: 900px) { .tpl-gt, .tpl-gt[data-cols="3"], .slot-left .tpl-gt, .slot-right .tpl-gt { grid-template-columns: minmax(0, 1fr); } }
+.tone-r .tpl-gt-dot { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.tone-b .tpl-gt-dot { border-radius: 2px; }
+.tone-n .tpl-gt-dot { background: transparent; border: 2px solid var(--shape); border-radius: 50%; box-sizing: border-box; }
+.tpl-gt-k, .tpl-gt-note { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+.tpl-gt-tile .tpl-gt-tag { color: var(--tag); }
+@media (max-width: 760px) { .tpl-gt-tile { flex-basis: 100%; } }
+/* Row 1264 slice 9: the layout. 4 tiles on a line (3 when the section says so), 2 at half width (the slot's two columns), the one breakpoint (760) gives 1.
+   Project health is one tile's place, or the whole row when the section says so. */
+.tpl-gt[data-cols="3"] { --cols: 3; }
+.slot-left .tpl-gt, .slot-right .tpl-gt { --cols: 2; }
+.tpl-gt-health { flex: 0 0 calc((100% - (var(--cols) - 1) * var(--space-3)) / var(--cols)); min-width: 0; box-sizing: border-box; display: flex; }
+.tpl-gt-health.own-row { flex-basis: 100%; }
+@media (max-width: 760px) { .tpl-gt-health { flex-basis: 100%; } }
 .tpl-callout-p:last-child { margin-bottom: 0; }
 .tpl-quote { margin: var(--space-2) 0; padding: var(--space-2) var(--space-4); border-radius: var(--radius); background: var(--grey-50); min-width: 0; overflow-wrap: anywhere; }
 .tpl-quote-q { margin: 0; font-size: var(--size-h3); line-height: 1.4; color: var(--heading); }

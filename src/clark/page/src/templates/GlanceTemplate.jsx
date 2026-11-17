@@ -1,7 +1,8 @@
 // Glance template (row 1264, slice 3), store type "glancetemplate": its view part, full width. Draws LOW tiles in the section's order:
 // the three counting tiles (Overdue actions, High risks and issues, Decisions needed) as the At a glance section counts them, then the
-// bespoke tiles. Each tile: a tone border, a dot (its SHAPE says the tone: circle green, triangle amber, square red, diamond blue, ring
-// neutral), the label (one line, never wrapped), the figure, the tag word and one note line. Colour is never the only signal: the shape
+// bespoke tiles. Each tile: a the At a glance tile look (1 px border, a 2 px tone edge fading from the top left, no edge when neutral), a dot (its
+// SHAPE says the tone: circle green, triangle amber, diamond red, rounded square blue, ring neutral), the label and the note (they wrap, as in
+// the approved v2 mock-up), the figure with the tag word at its right. Every tile is one fixed width (4 per line for now), left aligned. Colour is never the only signal: the shape
 // and the tag word say it too. Text nodes only. The words are the At a glance ones that exist already (glanceTiles.js) or what the
 // person typed; the library card and Edit words are the approved ones (section_kinds/glancetemplate.py), none is invented here.
 // Project health (slice 9) is the At a glance health tile, drawn in the section's order when its eye is on; it takes the whole row when the
@@ -10,7 +11,7 @@
 // A published file carries no counts yet (the counts slice), so a file draws only the bespoke tiles; the served View also counts.
 // isEmpty: no tile is left to show. Edit part: edit/templates/GlanceTemplate.jsx; rules: section_kinds/glancetemplate.py.
 import { source } from "./notes.js";
-import { rows, fromFile, data } from "../stores/report.js";
+import { rows, fromFile, data, openWork } from "../stores/report.js";
 import { todayIso } from "../workItems.js";
 import { tiles as counted, shownRag, tileWord, HEALTH_WORDS } from "../glanceTiles.js";
 import { Health } from "../components/Glance.jsx";
@@ -41,7 +42,15 @@ const KIND_OF = { overdue: (r) => r.kind === "action", risks: (r) => r.kind !== 
 const hasRows = (key) => rows.value.some((r) => r && KIND_OF[key](r));
 const showable = (t) => t.kind === "bespoke" || (!fromFile.value && hasRows(t.key));
 const fresh = (section) => Object.keys(source(section)).length === 0;     // no body at all: the published file leaves it out whole
-export const isEmpty = (section) => fresh(section) || plan(section).filter(showable).length === 0;
+// Every tile hidden (the three counting eyes off, no bespoke tile shown) is a section the person emptied on purpose: the View says so, as the
+// approved v2 mock-up does (v2:539), instead of leaving the section out. A fresh section (no body) and a section with no rows and no
+// bespoke tile stay left out: the published file leaves them out, and the mock-up draws sample tiles only because it has sample data.
+export const EMPTY_WORDS = "No tiles on this section.";       // approved word, 1264-words group 11
+const allHidden = (section) => {
+  const set = source(section).builtin;
+  return !!set && typeof set === "object" && COUNTING.every((k) => set[k] && set[k].hidden === true);      // a bespoke tile shown makes a list, so the sentence never meets it
+};
+export const isEmpty = (section) => !allHidden(section) && (fresh(section) || plan(section).filter(showable).length === 0);
 
 // One tile as the part draws it: {key, label, figure, tag, note, tone}.
 export function drawn(section) {
@@ -56,7 +65,7 @@ export function drawn(section) {
     const c = showable(t) ? live.find((x) => x.key === t.key) : null;
     if (!c) continue;
     const tone = shownRag(t.outline, c.rag);
-    out.push({ key: t.key, label: c.label, figure: String(c.value), tag: tileWord(t.key, tone, t.outline), note: c.detail, tone });
+    out.push({ key: t.key, label: c.label, figure: String(c.value), tag: tileWord(t.key, tone, t.outline), note: c.detail, tone, filter: c.filter });
   }
   return out;
 }
@@ -71,7 +80,7 @@ const healthTile = (d) => {
 
 export function View({ section, clean }) {
   const list = drawn(section);
-  if (!list.length) return null;
+  if (!list.length) return allHidden(section) ? <div class="tpl-gt" data-gt><p class="tile-empty">{EMPTY_WORDS}</p></div> : null;
   const u = readBody(section), rank = (k) => { const at = u.order.indexOf(k); return at < 0 ? 1e6 : at; };
   const items = list.map((t) => ({ tile: t, key: t.key }));
   if (u.health.shown) {
@@ -80,19 +89,33 @@ export function View({ section, clean }) {
   }
   return (
     <div class="tpl-gt" data-gt data-cols={u.per_row}>
-      {items.map((i) => i.health ? (
-        <div key="health" class={`tpl-gt-health${u.health.own_row ? " own-row" : ""}`} data-tile="health">
-          <Health t={healthTile(data.value)} tools={null} editing={false} clean={clean} />
-        </div>
-      ) : (
-        <div key={i.key} class={`tpl-gt-tile tone-${i.tile.tone}`} data-tile={i.key}>
-          <i class="tpl-gt-dot" aria-hidden="true"></i>
-          <span class="tpl-gt-k" title={i.tile.label}>{i.tile.label}</span>
-          {i.tile.figure ? <span class="tpl-gt-v num">{i.tile.figure}</span> : null}
-          {i.tile.tag ? <span class="tpl-gt-tag">{i.tile.tag}</span> : null}
-          {i.tile.note ? <span class="tpl-gt-note" title={i.tile.note}>{i.tile.note}</span> : null}
-        </div>
-      ))}
+      {items.map((i) => {
+        if (i.health) return (
+          <div key="health" class={`tpl-gt-health${u.health.own_row ? " own-row" : ""}`} data-tile="health">
+            <Health t={healthTile(data.value)} tools={null} editing={false} clean={clean} />
+          </div>
+        );
+        const t = i.tile;
+        const inner = (
+          <>
+            <span class="k">
+              <i class="tpl-gt-dot" aria-hidden="true"></i>
+              <span class="tpl-gt-k" title={t.label}>{t.label}</span>
+            </span>
+            {t.figure || t.tag ? (
+              <span class="vrow">
+                {t.figure ? <span class="v tpl-gt-v num">{t.figure}</span> : null}
+                {t.tag ? <span class="tw tpl-gt-tag">{t.tag}</span> : null}
+              </span>
+            ) : null}
+            {t.note ? <span class="dd tpl-gt-note" title={t.note}>{t.note}</span> : null}
+          </>
+        );
+        // A counting tile opens Work items with its filter, as the At a glance tile does (Glance.jsx, v2:497); a bespoke tile has no filter and stays plain.
+        return t.filter
+          ? <button key={t.key} type="button" class={`fig go tpl-gt-tile tone-${t.tone}`} data-tile={t.key} onClick={() => openWork(t.filter)} aria-label={`${t.label}: ${t.figure}${t.note ? ", " + t.note : ""}${t.tag ? ". " + t.tag : ""}. Opens Work items showing these`}>{inner}</button>
+          : <div key={t.key} class={`fig tpl-gt-tile tone-${t.tone}`} data-tile={t.key}>{inner}</div>;
+      })}
     </div>
   );
 }
