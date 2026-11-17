@@ -34,6 +34,7 @@ import { splitStep, knownNames, stepValues, linkable, openCount, narrow, KINDS, 
 import { peopleList } from "../stores/handover.js";
 import { CommitMenu } from "./CommitMenu.jsx";
 import { viewOf, bodyOf, givenOf, ALL, TRACKER_POSITIONS } from "../logic/useCaseView.js";
+import { dashRows, msViewOf } from "../logic/msView.js";
 import { isOn, liveOf } from "../logic/useCasesList.js";
 import * as W from "./ucConfigureWords.js";
 
@@ -139,14 +140,15 @@ function AddBox({ onClose, opener }) {
 
 /** Row 1234: the Configure button in the section's header, Edit only (Section.jsx draws it only when `tools.ucEdit` has it). */
 export function Configure({ section }) {
-  return <button type="button" class="pk-btn uc-configure" data-edit-only data-uc-configure onClick={() => openBox("configure", section.id)}>{W.CONFIGURE}</button>;
+  const ms = section.type === "milestones";      // row 1230: the Milestones section's own Configure button (data-ms-configure), the same box
+  return <button type="button" class="pk-btn uc-configure" data-edit-only {...(ms ? { "data-ms-configure": "" } : { "data-uc-configure": "" })} onClick={() => openBox("configure", section.id)}>{W.CONFIGURE}</button>;
 }
 
 const bases = new Map();
 
 // "Configure use cases": the number shown and whether viewers scroll. Each change is kept at once (no Save), so Edit draws what it draws.
 function ConfigureBox({ id, onClose, opener }) {
-  const first = useRef(null), v = viewOf(sectionOf(id), false);
+  const first = useRef(null), sec = sectionOf(id), ms = !!sec && sec.type === "milestones", v = ms ? msViewOf(sec, false) : viewOf(sec, false);
   // Two changes in a row (the number, then the switch) must not lose the first: while any save is still being stored, the next builds on the
   // last view asked for, not on what the page has drawn so far. Once none is in flight, a change of the drawn view (an Undo, say) hands the base back to it.
   // Held per section outside the box: a box shut and opened again while a save is still out must find the same base, not the drawn view.
@@ -167,7 +169,7 @@ function ConfigureBox({ id, onClose, opener }) {
       if (cur.pending === 0 && cur.failed && now.current === cur) now.current = null;
     });
   };
-  const total = liveOf(data.value).filter(isOn).length;
+  const total = ms ? dashRows(data.value, todayIso(), false).length : liveOf(data.value).filter(isOn).length;
   const counts = Array.from({ length: Math.max(total, 1) }, (_, i) => i + 1);
   if (v.n !== ALL && !counts.includes(v.n)) counts.push(v.n);
   const n = v.n === ALL ? total : v.n;
@@ -175,10 +177,10 @@ function ConfigureBox({ id, onClose, opener }) {
   return (
     <Modal onClose={onClose} opener={opener}>
       <div class="ad ucm" id="ucCfg" role="dialog" aria-modal="true" aria-labelledby="uccfg-title">
-        <div class="ad-head"><h2 id="uccfg-title">{W.TITLE}</h2></div>
+        <div class="ad-head"><h2 id="uccfg-title">{ms ? W.MS_TITLE : W.TITLE}</h2></div>
         <div class="ucm-form">
-          <label for="ucCfgN">{W.NUMBER_LABEL}</label>
-          <span><select class="field" id="ucCfgN" ref={first} value={String(v.n)} aria-label={W.SHOWN_LABEL}
+          <label for="ucCfgN">{ms ? W.MS_NUMBER_LABEL : W.NUMBER_LABEL}</label>
+          <span><select class="field" id="ucCfgN" ref={first} value={String(v.n)} aria-label={ms ? W.MS_SHOWN_LABEL : W.SHOWN_LABEL}
             onChange={(e) => setView({ n: e.currentTarget.value === ALL ? ALL : Number(e.currentTarget.value) })}>
             {counts.sort((a, b) => a - b).map((c) => <option key={c} value={String(c)}>{c}</option>)}
             <option value={ALL}>{W.ALL_WORD}</option>
@@ -191,8 +193,8 @@ function ConfigureBox({ id, onClose, opener }) {
           </span>
         </div>
         <p class="muted" data-uc-cfg-help style="margin:0 var(--space-5)">{W.SCROLL_HELP(n)}</p>
-        <p class="muted" data-uc-cfg-tracker style="margin:var(--space-2) var(--space-5) 0">{W.TRACKER_HELP}</p>
-        <p class="muted" data-uc-cfg-same style="margin:var(--space-2) var(--space-5) 0">{W.SAME_NOTE}</p>
+        <p class="muted" data-uc-cfg-tracker style="margin:var(--space-2) var(--space-5) 0">{ms ? W.MS_TRACKER_HELP : W.TRACKER_HELP}</p>
+        <p class="muted" data-uc-cfg-same style="margin:var(--space-2) var(--space-5) 0">{ms ? W.MS_SAME_NOTE : W.SAME_NOTE}</p>
         <div class="ad-foot"><button type="button" class="pk-btn pri" data-cancel onClick={onClose}>{W.DONE}</button></div>
       </div>
     </Modal>

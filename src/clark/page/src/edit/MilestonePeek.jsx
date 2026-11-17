@@ -247,7 +247,7 @@ const isOn = (m) => !(!m.client_visible && m.client_visible !== undefined) && !l
 function MsClientLine({ m }) {
   const internal = !m.client_visible && m.client_visible !== undefined, on = isOn(m);
   return (
-    <button type="button" class={`pk-client${on ? " on" : ""}`} data-pk-client data-ms-visible aria-pressed={on ? "true" : "false"} disabled={internal}
+    <button type="button" class={`pk-client cv${on ? " on" : ""}`} data-pk-client data-ms-visible aria-pressed={on ? "true" : "false"} disabled={internal}
       onClick={() => setMsHidden(m.id, on, m.name).then(() => reread(project.value))}>
       <Icon name={on ? "eye" : "eyeoff"} />{on ? "Client visible" : "Client not visible"}
     </button>
