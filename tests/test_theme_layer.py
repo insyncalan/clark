@@ -5,6 +5,7 @@ Run: python3 dev/run_tests.py test_theme_layer
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from _paths import ROOT  # noqa: F401  (puts src on the path)
 
@@ -33,6 +34,19 @@ class ThemeReading(unittest.TestCase):
     def test_no_name_unknown_name_and_paths_are_not_themes(self):
         for bad in (None, "", "nothing", "../themes/" + NAME, str(theme.THEMES / NAME), 5, NAME + "/"):
             self.assertIsNone(theme.css(bad), bad)
+
+    def test_a_file_over_the_size_limit_is_refused_and_one_just_under_passes(self):
+        biggest = max((theme.THEMES / NAME / f).stat().st_size for f in theme.FILES)
+        with mock.patch.object(theme, "LIMIT", biggest):
+            self.assertIsNotNone(theme.css(NAME))
+        with mock.patch.object(theme, "LIMIT", biggest - 1):
+            self.assertIsNone(theme.css(NAME))
+
+    def test_the_served_text_is_tokens_file_then_rules_file(self):
+        def clean(f):
+            return page.strip_css_comments((theme.THEMES / NAME / f).read_text(encoding="utf-8")).strip()
+        self.assertEqual(theme.css(NAME), page.escape_style(clean("tokens.css") + "\n" + clean("rules.css")))
+        self.assertEqual(theme.FILES, ("tokens.css", "rules.css"))
 
 
 class ThemeLayering(unittest.TestCase):

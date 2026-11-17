@@ -84,7 +84,7 @@ RULE_LINES = [
         '.secs { counter-reset: secn; }',
         '.secs > .sec { counter-increment: secn; }',
         '.secs > .sec.is-hidden { counter-increment: none; }',
-        '.secs .sec-head::before { content: counter(secn); width: auto; height: auto; margin-right: 4px; background: none; color: var(--sec-number-color); font-size: var(--sec-number-size); font-weight: var(--weight-semibold); line-height: 1.25; font-variant-numeric: tabular-nums; }',
+        '.secs .sec-head::before { content: counter(secn); width: auto; height: auto; margin-right: var(--space-1); background: none; color: var(--sec-number-color); font-size: var(--sec-number-size); font-weight: var(--weight-semibold); line-height: 1.25; font-variant-numeric: tabular-nums; }',
         '.col { background: var(--band-bg); border-top: 3px solid var(--line-soft); }',
         '.col-h { background: var(--band-bg); }',
         '.boardbox { scrollbar-width: none; }',
