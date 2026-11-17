@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from openpyxl import Workbook
@@ -49,32 +50,90 @@ def page_consts():
 class LimitsAtTheEdge(unittest.TestCase):          # T07 to T10: each limit, one below, at, one over; a mutant that moves it by one fails here
     def test_each_text_limit_is_exact_and_names_its_own_key(self):
         for field, most in (("label", 40), ("figure", 12), ("tag", 12), ("note", 60)):
-            with self.subTest(field=field):
-                self.assertIsNone(refused({"v": 1, "bespoke": [tile(**{field: "a" * (most - 1)})]}))
-                self.assertIsNone(refused({"v": 1, "bespoke": [tile(**{field: "a" * most})]}))
-                self.assertEqual(refused({"v": 1, "bespoke": [tile(**{field: "a" * (most + 1)})]}), gt.words()[field + "_long"])
+            for n in (most - 1, most, most + 1, most * 2):
+                with self.subTest(field=field, length=n):
+                    got = refused({"v": 1, "bespoke": [tile(**{field: "a" * n})]})
+                    kept = None if got else check({"v": 1, "bespoke": [tile(**{field: "a" * n})]})["bespoke"][0][field]
+                    self.assertEqual((got, kept), (gt.words()[field + "_long"], None) if n > most else (None, "a" * n))
 
-    def test_the_limit_counts_the_trimmed_text(self):
-        self.assertIsNone(refused({"v": 1, "bespoke": [tile(label="  " + "a" * 40 + "  ")]}))
-        self.assertIsNotNone(refused({"v": 1, "bespoke": [tile(label="a" * 41 + "  ")]}))
+    def test_the_limit_counts_the_trimmed_text_and_stores_it_trimmed(self):
+        for pad in ("  ", "\t", "\n "):
+            for label, answer in ((pad + "a" * 40 + pad, "a" * 40), ("a" * 40 + pad, "a" * 40), (pad + "a" * 40, "a" * 40), ("a" * 41 + pad, None), (pad + "a" * 41, None)):
+                with self.subTest(pad=repr(pad), label=len(label)):
+                    got = refused({"v": 1, "bespoke": [tile(label=label)]})
+                    self.assertEqual(got if answer is None else check({"v": 1, "bespoke": [tile(label=label)]})["bespoke"][0]["label"],
+                                     gt.words()["label_long"] if answer is None else answer)
 
     def test_the_tile_cap_is_exact_and_the_tile_count_is_checked_before_any_tile(self):
-        many = lambda n: {"v": 1, "bespoke": [tile(id=f"t{i}", label=f"T{i}") for i in range(n)]}
-        self.assertIsNone(refused(many(11)))
-        self.assertIsNone(refused(many(12)))
-        self.assertEqual(refused(many(13)), gt.WORDS["too_many"])
-        self.assertEqual(refused({"v": 1, "bespoke": [tile(id=f"t{i}", label="x" * 99) for i in range(13)]}), gt.WORDS["too_many"])
+        many = lambda n, label="T": {"v": 1, "bespoke": [tile(id=f"t{i}", label=f"{label}{i}") for i in range(n)]}
+        for n, kept, answer in ((11, 11, None), (12, 12, None), (13, 0, gt.WORDS["too_many"]), (40, 0, gt.WORDS["too_many"])):
+            with self.subTest(tiles=n):
+                self.assertEqual((refused(many(n)), len(check(many(n))["bespoke"]) if answer is None else 0), (answer, kept))
+        with self.subTest(order="count before text"):
+            self.assertEqual(refused({"v": 1, "bespoke": [tile(id=f"t{i}", label="x" * 99) for i in range(13)]}), gt.WORDS["too_many"])
+        with self.subTest(order="count before id"):
+            self.assertEqual(refused({"v": 1, "bespoke": [tile(id="Bad Id")] * 13}), gt.WORDS["too_many"])
 
     def test_five_tones_exactly(self):
-        self.assertEqual(set(gt.TONES), {"green", "amber", "red", "blue", "neutral"})
-        self.assertEqual(len(gt.TONES), 5)
+        self.assertEqual(gt.TONES, ("green", "amber", "red", "blue", "neutral"))
         for t in gt.TONES:
-            self.assertIsNone(refused({"v": 1, "bespoke": [tile(tone=t)]}))
-        self.assertEqual(refused({"v": 1, "bespoke": [tile(tone="grey")]}), gt.words()["bad_tone"])
+            with self.subTest(tone=t):
+                self.assertEqual(refused({"v": 1, "bespoke": [tile(tone=t)]}), None)
+        for t in ("grey", "Green", "", "purple", 1):
+            with self.subTest(tone=t):
+                self.assertEqual(refused({"v": 1, "bespoke": [tile(tone=t)]}), gt.words()["bad_tone"])
 
     def test_an_id_clash_is_refused_with_its_own_key_even_when_the_texts_differ(self):
         self.assertEqual(refused({"v": 1, "bespoke": [tile(), tile(label="Other")]}), gt.words()["dup_id"])
-        self.assertEqual(refused({"v": 1, "bespoke": [tile(id="health")]}), gt.words()["bad_id"])
+        self.assertEqual(refused({"v": 1, "bespoke": [tile(id="a"), tile(id="b"), tile(id="a", label="Other")]}), gt.words()["dup_id"])
+        self.assertIsNone(refused({"v": 1, "bespoke": [tile(id="a"), tile(id="b")]}))
+
+    def test_a_built_in_tile_name_is_never_a_bespoke_id(self):
+        for name in gt.BUILT_IN:
+            with self.subTest(id=name):
+                self.assertEqual(refused({"v": 1, "bespoke": [tile(id=name)]}), gt.words()["bad_id"])
+        self.assertEqual(gt.BUILT_IN, ("health", "overdue", "risks", "decisions"))
+
+
+class IdAndTextKinds(unittest.TestCase):           # survivors of the first read: the id length, bytes at the size limit, and a falsy value that is not text
+    def test_an_id_is_at_most_16_characters(self):
+        for n, answer in ((15, None), (16, None), (17, gt.words()["bad_id"]), (0, gt.words()["bad_id"])):
+            with self.subTest(length=n):
+                tid = "a" + "b" * (n - 1) if n else ""
+                self.assertEqual(refused({"v": 1, "bespoke": [tile(id=tid)]}), answer)
+
+    def test_the_id_is_matched_whole_and_starts_with_a_lower_case_letter(self):
+        for tid, answer in (("a1", None), ("1a", gt.words()["bad_id"]), ("A", gt.words()["bad_id"]), ("a-b", gt.words()["bad_id"]), ("a_b", gt.words()["bad_id"]), ("a b", gt.words()["bad_id"]), ("\u00e9a", gt.words()["bad_id"]), ("a\n", gt.words()["bad_id"])):
+            with self.subTest(id=tid):
+                self.assertEqual(refused({"v": 1, "bespoke": [tile(id=tid)]}), answer)
+
+    def test_a_falsy_value_that_is_not_text_is_refused_not_read_as_empty(self):
+        for field in ("label", "figure", "tag", "note"):
+            for value in (0, False, [], {}, 0.0):
+                with self.subTest(field=field, value=repr(value)):
+                    self.assertEqual(refused({"v": 1, "bespoke": [tile(**{field: value})]}), gt.words()["bad_text"])
+
+    def test_text_that_is_missing_or_null_is_empty_and_is_not_stored(self):
+        for field in ("figure", "tag", "note"):
+            for value in (None, "", "   "):
+                with self.subTest(field=field, value=value):
+                    self.assertNotIn(field, check({"v": 1, "bespoke": [tile(**{field: value})]})["bespoke"][0])
+        self.assertEqual(refused({"v": 1, "bespoke": [tile(label=None)]}), gt.words()["label_missing"])
+        self.assertEqual(refused({"v": 1, "bespoke": [tile(label="   ")]}), gt.words()["label_missing"])
+
+    def test_the_size_limit_counts_bytes_not_characters(self):       # a tile body cannot reach 32 KB (12 tiles stay near 3 KB), so the limit is lowered to the edge
+        body = {"v": 1, "bespoke": [tile(label="\u00e9" * 40, note="\u00e9" * 60)]}
+        kept = check(body)
+        chars, size = len(str(kept)), len(str(kept).encode("utf-8"))
+        self.assertGreater(size, chars)
+        for limit, refuse in ((size, False), (size - 1, True), (chars, True), (size + 1, False)):
+            with self.subTest(limit=limit):
+                with mock.patch.object(gt, "LIMIT", limit):         # the refusal text names the limit, so it is read under the same patch
+                    self.assertEqual(refused(body), gt.words()["too_long"] if refuse else None)
+
+    def test_the_real_size_limit_is_32768_bytes(self):
+        self.assertEqual(gt.LIMIT, 32768)
+        self.assertIn("32 KB", gt.words()["too_long"])
 
 
 class PageCopy(unittest.TestCase):                 # T57: the counters on the page read the numbers the server enforces
@@ -89,8 +148,7 @@ class PageCopy(unittest.TestCase):                 # T57: the counters on the pa
 
     def test_the_page_counts_characters_like_the_server(self):
         line = re.search(r"export const chars = .*", PAGE.read_text(encoding="utf-8")).group(0)
-        self.assertIn("Array.from(", line)
-        self.assertNotIn("s.length", line)
+        self.assertEqual(line, 'export const chars = (s) => Array.from(typeof s === "string" ? s : "").length;')
 
 
 class AsText(unittest.TestCase):                   # T34, T58: the file carries tile words as text, never as something a workbook runs
@@ -120,8 +178,10 @@ class AsText(unittest.TestCase):                   # T34, T58: the file carries 
         self.assertNotIn("leak-word", repr(out))
 
 
-@unittest.skipUnless(shutil.which("node"), "node is needed")
 class PageBehaviour(unittest.TestCase):            # killer: the page's within() and chars() are run, not only read as text
+    def setUp(self):
+        self.assertIsNotNone(shutil.which("node"), "node is needed: without it the page copy is only read as text, so this fails instead of skipping")
+
     def run_js(self, expr):
         with tempfile.TemporaryDirectory() as d:
             m = Path(d) / "g.mjs"
