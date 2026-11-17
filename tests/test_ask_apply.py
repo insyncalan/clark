@@ -122,6 +122,10 @@ class WorkItems(Base):
         self.assertNotIn("why", plan["after"], "why is not a field of the item")
         self.assertIsNone(self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "owner": "Kim Roe"})["why"])
         self.assertEqual(len(self.planned({"op": "change", "id": self.action, "owner": "Lee Poe", "why": "x" * 900})["why"]), ask_apply.MAX_WHY)
+        self.assertEqual(ask_apply.MAX_WHY, 300)
+        self.assertEqual(len(self.planned({"op": "change", "id": self.action, "owner": "Lee Poe", "why": "y" * 300})["why"]), 300)
+        self.assertEqual(self.planned({"op": "change", "id": self.action, "owner": "Lee Poe", "why": "a\x7fb~c"})["why"], "ab~c", "DEL dropped, ~ kept")
+        self.assertIsNone(self.planned({"op": "change", "id": self.action, "owner": "Lee Poe", "why": " \n\x00 "})["why"], "nothing left is no reason")
         self.refused({"op": "change", "id": self.action, "owner": "Lee Poe", "why": 5}, "not_a_change")
 
     def test_an_offer_is_used_once(self):
