@@ -111,7 +111,7 @@ class MilestonePeek(unittest.TestCase):
         dates = find(MSHOW, "**Dates**")
         self.assertIn("does not change it", dates)
         code = (PAGE / "edit" / "MilestonePeek.jsx").read_text(encoding="utf-8")
-        self.assertIn('<Row name="Agreed date" k="baseline">{showDate(', code)
+        self.assertIn('<Row name="Agreed date" k="baseline" icon="cal">{showDate(', code)
 
 
 if __name__ == "__main__":

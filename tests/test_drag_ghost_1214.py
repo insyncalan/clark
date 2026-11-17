@@ -58,7 +58,7 @@ class DragGhost(tre.Base):
                     self.assertAlmostEqual(r[1], ty + 12, delta=1, msg="and down")
                     p.until("!!document.querySelector('.sec-was')", "the old place is outlined")
                     self.assertEqual(p.js("getComputedStyle(document.querySelector('.sec-was')).borderTopStyle"), "dashed")
-                    p.until("!!document.querySelector('.sec.drag-slot[data-id=\"ABC-S-001\"]')", "the slot")
+                    p.until("(function(){var s=document.querySelector('.sec.drag-slot[data-id=\"ABC-S-001\"]');return !!s && !!s.previousElementSibling && s.previousElementSibling.dataset.id === 'ABC-S-003';})()", "the slot sits right after the third section")
                     self.assertEqual(p.js("getComputedStyle(document.querySelector('.sec.drag-slot')).borderTopStyle"), "dashed")
                     after = p.js("[...document.querySelectorAll('.secs > .sec')].map(e => e.dataset.id)")
                     self.assertEqual(after[after.index("ABC-S-001") - 1], "ABC-S-003", "the others made room: it sits right after the third section")

@@ -27,6 +27,7 @@ from openpyxl.xml.functions import tostring
 from clark import excel, glance
 from clark import excel_colours as colours
 from clark import platform, publish, sanitise
+from clark.section_kinds import reportheadline
 
 NAME = re.compile(r'[^\\/:*?"<>|\x00-\x1f]{1,120}')      # what the page accepts as a download name
 # The cap: 1.5 MB of workbook (about 2 MB as base64). The published file is already refused over publish.MAX_BYTES (5 MB), and
@@ -82,6 +83,7 @@ DATE_FIELDS = excel.DATES | {"revisit"}
 BLOCKS = re.compile(r"</(?:p|div|li|h[1-6]|blockquote|pre|tr)>|<br\s*/?>|<hr\s*/?>", re.I)
 TAGS = re.compile(r"<[^>]*>")
 SECTION_OF = {"actions": "actions", "raid": "raid", "decisions": "decisions", "milestones": "milestones", "use_cases": "usecases"}
+WORK_TABLE = {"actions": "actions", "raid": "raid", "decisions": "decisions"}      # row 1268: the tables a Work items list can name
 
 
 def plain(value):
@@ -104,8 +106,16 @@ def value_of(table, row, field):
     return row.get(field)
 
 
+def listed_ids(published, table):
+    """Row 1268: the ids of `table` that a Work items list section of the page names (section_kinds/workitems.published)."""
+    named = {i for s in published.get("sections") or () if s.get("type") == "workitems" for i in s.get("items") or ()}
+    return {r.get("id") for r in published["data"].get(WORK_TABLE.get(table)) or [] if r.get("id") in named} if table in WORK_TABLE else set()
+
+
 def rows_of(published, table):
     rows = list(published["data"].get(table) or [])
+    if table in WORK_TABLE and SECTION_OF[table] not in {s.get("type") for s in published.get("sections") or ()} and published.get("sections") is not None:
+        rows = [r for r in rows if r.get("id") in listed_ids(published, table)]      # row 1268: no built-in section, so only what a list names
     if table == "milestones":
         rows = [r for r in rows if r.get("status") != "Cancelled"]      # as the page leaves them out
     return rows
@@ -114,7 +124,7 @@ def rows_of(published, table):
 def sheet_tables(published):
     """The tables whose section the page shows, in the export's own sheet order."""
     shown = {s.get("type") for s in published["sections"]}
-    return [t for t in excel.SHEET_OF if t in COLUMNS and SECTION_OF[t] in shown]
+    return [t for t in excel.SHEET_OF if t in COLUMNS and (SECTION_OF[t] in shown or listed_ids(published, t))]
 
 
 def title_text(published):
@@ -123,6 +133,33 @@ def title_text(published):
     when = excel.to_cell("date", week) if week else None
     sub = f"Week ending {when if isinstance(when, str) else format(when, '%d-%m-%Y')}" if week else f"As at {glance.show_date(published['as_at'])}"
     return (p.get("name") or p.get("code") or ""), sub
+
+
+def headline_line(published):
+    """Row 1261: the first Report headline section's words on one line, "<health word> · <headline> · <sentence>" with each part only
+    when it is there, or "" when the page has none (or it is empty). The words are the published content's own."""
+    for s in published["sections"]:
+        if s.get("type") == "reportheadline":
+            c = s.get("content") if isinstance(s.get("content"), dict) else {}
+            health = c.get("health")
+            words = (reportheadline.WORDS.get(health) if isinstance(health, str) and health else "", c.get("headline"), c.get("sentence"))
+            line = " · ".join(str(w).strip() for w in words if isinstance(w, str) and w.strip())
+            if line:
+                return line
+    return ""
+
+
+def put_headline(ws, published, columns, palette=None):
+    """The headline on row 3, the free row between the title band and the column heads, filled like the band. Locked text."""
+    line = headline_line(published)
+    if not line:
+        return
+    HEAD, TITLE, SUB, HEAD_FILL = styles(palette)
+    for c in range(1, columns + 1):
+        ws.cell(row=3, column=c).fill = HEAD_FILL
+    cell = ws.cell(row=3, column=1, value=excel.cell_text(line))
+    cell.font = SUB
+    excel.protect_text_cell(cell)
 
 
 def columns(table):
@@ -148,6 +185,7 @@ def write_sheet(wb, published, table, palette=None):
         cell.font = font
         excel.protect_text_cell(cell)
     ws.row_dimensions[1].height = 26
+    put_headline(ws, published, len(cols), palette)
     for i, (label, _, width) in enumerate(cols, start=1):
         head = ws.cell(row=4, column=i, value=label)
         head.font, head.fill = HEAD, HEAD_FILL
@@ -190,6 +228,7 @@ def write_gantt_sheet(wb, published, palette=None):
         cell.font = font
         excel.protect_text_cell(cell)
     ws.row_dimensions[1].height = 26
+    put_headline(ws, published, len(cols), palette)
     for i, (label, _, width) in enumerate(cols, start=1):
         head = ws.cell(row=4, column=i, value=label)
         head.font, head.fill = HEAD, HEAD_FILL
@@ -225,6 +264,7 @@ def workbook_bytes(published, palette=None):
             cell.value = excel.cell_text(text)
             cell.font = BODY
             excel.protect_text_cell(cell)
+        put_headline(ws, published, 1, palette)
         excel.print_setup(ws)
         excel.protect_sheet(ws)
     props = wb.properties

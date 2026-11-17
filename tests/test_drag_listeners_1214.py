@@ -51,10 +51,10 @@ class DragState(unittest.TestCase):
                             "const kept = left(); document.removeEventListener('keydown', f, true); console.log(JSON.stringify({ kept, after: left() }));")
         self.assertEqual(got, {"kept": ["keydown (capture)"], "after": []})
 
-    def test_a_drag_puts_four_listeners_on_the_document_and_a_release_takes_every_one_off(self):
+    def test_a_drag_puts_five_listeners_on_the_document_and_a_release_takes_every_one_off(self):
         got = self.run_node("down(); const during = left(); moveTo(800, 320); docL.pointerup({ pointerId: 1, type: 'pointerup' });"
                             "await new Promise((r) => setImmediate(r)); console.log(JSON.stringify({ during, after: left() }));")
-        self.assertEqual(sorted(got["during"]), ["keydown (capture)", "pointercancel", "pointermove", "pointerup"])
+        self.assertEqual(sorted(got["during"]), ["keydown (capture)", "lostpointercapture", "pointercancel", "pointermove", "pointerup"])
         self.assertEqual(got["after"], [], "the capture listener for Esc must not outlive the drag")
 
     def test_a_release_without_a_move_takes_every_listener_off(self):
@@ -79,7 +79,7 @@ class DragState(unittest.TestCase):
         self.assertEqual(got["shown"], 4, "the preview list was up before the drop")
         self.assertTrue(got["list"], "the preview list is gone")
         self.assertEqual(got["none"], [], "no listener of the first drag is left")
-        self.assertEqual(sorted(got["again"]), ["keydown (capture)", "pointercancel", "pointermove", "pointerup"], "a new drag started: the saving hold is released")
+        self.assertEqual(sorted(got["again"]), ["keydown (capture)", "lostpointercapture", "pointercancel", "pointermove", "pointerup"], "a new drag started: the saving hold is released")
 
     def test_a_drop_that_is_refused_later_lets_go_too(self):
         got = self.run_node(
@@ -89,7 +89,7 @@ class DragState(unittest.TestCase):
             "const list = m.dragList.value === undefined; down();"
             "console.log(JSON.stringify({ list, again: left() }));")
         self.assertTrue(got["list"])
-        self.assertEqual(len(got["again"]), 4, "a new drag can start")
+        self.assertEqual(len(got["again"]), 5, "a new drag can start")
 
 
 if __name__ == "__main__":
