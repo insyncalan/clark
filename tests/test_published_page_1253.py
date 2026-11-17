@@ -40,6 +40,9 @@ class PublishedPage1253(unittest.TestCase):
         self.assertIn("border-bottom: 1px solid var(--grey-200)", r)
         self.assertIn("border-radius: 0", r)
         self.assertNotIn("radius-lg", r)
+        self.assertIn("background: transparent", r)      # no card fill
+        self.assertIn("margin: 0;", r)                   # no gap between sections
+        self.assertIn("padding: var(--space-4) 0;", r)   # room above and below only, none at the sides
         self.assertIn("var(--grey-200)", rule(".pp-where"))
 
     def test_the_table_scrolls_inside_its_own_box(self):
