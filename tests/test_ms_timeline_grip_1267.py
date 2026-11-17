@@ -149,11 +149,13 @@ class ShortList(BrowserBase, unittest.TestCase):
     def serve(self):
         def short(code):
             d = copy.deepcopy(self.store.data_for(code))
-            d["milestones"] = d["milestones"][:2]
+            d["milestones"] = d["milestones"][:self.COUNT]
             return d
         s = Running(data_for=short, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         return s.port
+
+    COUNT = 2
 
     def test_two_milestones_draw_the_line_and_no_grip(self):
         port = self.serve()
@@ -174,6 +176,37 @@ class ShortList(BrowserBase, unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-mk').length", sid) == 2), f"{width}: the short line is drawn again")
                 self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-grip]').length", sid) == 1), f"{width}: the grip stays while a zoom other than 100% is stored")
                 self.assertEqual(cdp.js("document.querySelector('[data-grip]').getAttribute('aria-valuenow')", sid), "150", f"{width}: it shows the stored zoom")
+
+
+class ThreeMilestones(ShortList):
+    COUNT = 3
+
+    def test_three_milestones_are_enough_for_the_grip(self):
+        port = self.serve()
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width, HASH, port)
+                self.assertEqual(cdp.js("document.querySelectorAll('.mv-mk').length", sid), 3, f"{width}: the line is drawn")
+                self.assertEqual(cdp.js("document.querySelectorAll('[data-grip]').length", sid), 1, f"{width}: exactly three milestones keep the grip")
+
+    def test_two_milestones_draw_the_line_and_no_grip(self):
+        pass
+
+    def test_a_stored_zoom_keeps_the_grip_on_a_short_line_so_it_can_be_put_back(self):
+        pass
+
+
+class KeyGuards(BrowserBase, unittest.TestCase):
+    def test_a_modified_key_is_left_to_the_browser_and_a_handled_key_is_claimed(self):
+        port = self.serve()
+        fire = """(init) => { const g = document.querySelector('[data-grip]'); g.focus();
+          return [['ArrowUp', {}], ['ArrowUp', {altKey: true}], ['ArrowUp', {ctrlKey: true}], ['ArrowUp', {metaKey: true}], ['Home', {ctrlKey: true}]].map(([key, m]) => {
+            const e = new KeyboardEvent('keydown', Object.assign({key, bubbles: true, cancelable: true}, m)); g.dispatchEvent(e); return e.defaultPrevented; }); }"""
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width, HASH, port)
+                self.assertEqual(cdp.js(f"({fire})()", sid), [True, False, False, False, False], f"{width}: only the bare key is claimed")
+                self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "110"), f"{width}: one bare Up moved it, the modified ones did not")
 
 
 if __name__ == "__main__":
