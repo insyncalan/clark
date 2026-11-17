@@ -9,6 +9,7 @@ import { colourOf } from "../workItems.js";
 import { richWords } from "../logic/richWords.js";
 
 export const SIZES = { raid3: 3, raid4: 4 };
+export const MANY = 8;          // row 1270: a raid4 body of version 2 (the one library card RAID cards) holds up to eight cards, three or four across
 export const OWN_MAX = 400;
 export const SOURCES = [["client", "Client wording"], ["own", "Own words"], ["latest", "Latest update"]];
 const ID = /^[A-Z][A-Z0-9]{2,6}-(?:([AD])-)?[0-9]{3}$/;
@@ -29,9 +30,24 @@ export function parse(body) {
     .map((c) => ({ id: c.id, source: c.source === "own" || c.source === "latest" ? c.source : "client", own: typeof c.own === "string" ? c.own : "" }));
 }
 
-// The body to save for these cards (the server rebuilds it as the one canonical text).
-export function bodyOf(cards) {
-  return JSON.stringify({ v: 1, cards: cards.map((c) => (c.own ? { id: c.id, source: c.source, own: c.own } : { id: c.id, source: c.source })) });
+// A body's version 2 choice of cards across (3 or 4), or 0 for a body of version 1 (or none), which keeps the number its type has.
+export function acrossOf(body) {
+  let v;
+  try { v = typeof body === "string" && body ? JSON.parse(body) : null; } catch (e) { return 0; }
+  return v && v.v === 2 && (v.across === 3 || v.across === 4) ? v.across : 0;
+}
+
+// What a raid section draws: how many cards across and the most it holds. The file carries `across` for version 2 (section.across).
+export function layoutOf(section, size) {
+  const file = Array.isArray(section && section.cards);
+  const across = file ? (section.across === 3 || section.across === 4 ? section.across : 0) : acrossOf(section && section.body);
+  return across ? { across, max: MANY } : { across: size, max: size };
+}
+
+// The body to save for these cards (the server rebuilds it as the one canonical text). `across` (3 or 4) writes version 2.
+export function bodyOf(cards, across = 0) {
+  const list = cards.map((c) => (c.own ? { id: c.id, source: c.source, own: c.own } : { id: c.id, source: c.source }));
+  return JSON.stringify(across ? { v: 2, across, cards: list } : { v: 1, cards: list });
 }
 
 // The words under a card, as the published file chooses them (raid3.py _words).

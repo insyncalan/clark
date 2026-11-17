@@ -9,25 +9,32 @@ import { legacyToHtml } from "../../logic/richOrPlain.js";
 import { putCard } from "../../logic/putCard.js";
 import { plainLine } from "../../logic/plainLine.js";
 import { publishable } from "../../logic/publishable.js";
-import { OWN_MAX, SOURCES, bodyOf, kindOfId, kindWords, parse, rowOf, rulesOf, titleOf, wordsOf } from "../../templates/raid.js";
+import { MANY, OWN_MAX, SOURCES, acrossOf, bodyOf, kindOfId, kindWords, parse, rowOf, rulesOf, titleOf, wordsOf } from "../../templates/raid.js";
 
 const GROUPS = [["raid", "Risks and issues"], ["actions", "Actions"], ["decisions", "Decisions"]];
 const cut = (s, n) => { const c = Array.from(s); return c.length > n ? `${c.slice(0, n - 1).join("").trimEnd()}…` : s; };
 
-function save(section, cards, words, named = null) {
-  return change({ op: "update", id: section.id, changes: { body: bodyOf(cards) }, place: "report" }, words, named);
+function save(section, cards, words, named = null, across = 0) {
+  return change({ op: "update", id: section.id, changes: { body: bodyOf(cards, across) }, place: "report" }, words, named);
 }
 
-export function RaidEdit({ section, size }) {
+// `choice` (row 1270, the one RAID cards card): three or four across and up to eight cards. An old body (version 1) keeps its shape until the
+// author picks the number across or adds a fifth card; then it is saved as version 2 with four across (what it was drawn with).
+export function RaidEdit({ section, size: base, choice = false }) {
   const d = data.value || {};
+  const size = choice ? MANY : base;
+  const across = choice ? acrossOf(section.body) || base : 0;
   const cards = parse(section.body).slice(0, size);
   const rules = rulesOf(d);
   const slots = Math.min(size, cards.length + 1);
+  const bodyNow = () => { const now = ((data.value && data.value.report_sections) || []).find((s) => s.id === section.id); return now ? now.body : section.body; };      // the body as the page has it now, not as it was drawn
+  const acrossFor = (list, body) => (!choice ? 0 : acrossOf(body) || (list.length > base ? base : 0));
   const put = (i, card, words, named = null) => {
-    const now = ((data.value && data.value.report_sections) || []).find((s) => s.id === section.id);      // the body as the page has it now, not as it was drawn
-    const next = putCard(parse(now ? now.body : section.body).slice(0, size), i, card);
-    return save(section, next, words, named);
+    const body = bodyNow();
+    const next = putCard(parse(body).slice(0, size), i, card);
+    return save(section, next, words, named, acrossFor(next, body));
   };
+  const setAcross = (e) => save(section, parse(bodyNow()).slice(0, size), "Card changed.", null, Number(e.currentTarget.value));
   const options = (current) => {
     const out = [];
     for (const [kind, label] of GROUPS) {
@@ -95,6 +102,13 @@ export function RaidEdit({ section, size }) {
   return (
     <div class="rce" data-edit-only="">
       {cards.length === 0 ? <p class="quiet rce-first">Choose an item for the first card. This section stays out of the published page until a card is chosen.</p> : null}
+      {choice ? (
+        <label class="rce-f rce-across"><span>RAID cards</span>
+          <select aria-label="RAID cards" value={String(across)} onChange={setAcross}>
+            <option value="3">RAID cards, three</option>
+            <option value="4">RAID cards, four</option>
+          </select></label>
+      ) : null}
       <ul class="rce-list">{rows}</ul>
     </div>
   );

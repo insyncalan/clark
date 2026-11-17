@@ -5,12 +5,13 @@ from clark.section_kinds import raid3
 
 READY = True
 SIZE = 4
+ACROSS = (3, 4)                            # row 1270: the one library card RAID cards stores a body of version 2 with the choice, up to eight cards
 LIMIT = raid3.LIMIT
 EMPTY = ""
 
 
 def check(value, rules):
-    return raid3._check(value, rules, SIZE)
+    return raid3._check(value, rules, SIZE, ACROSS)
 
 
 def published(value, ctx):
