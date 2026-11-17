@@ -4,14 +4,18 @@
 // SHAPE says the tone: circle green, triangle amber, diamond red, rounded square blue, ring neutral), the label and the note (they wrap, as in
 // the approved v2 mock-up), the figure with the tag word at its right. Every tile is one fixed width (4 per line for now), left aligned. Colour is never the only signal: the shape
 // and the tag word say it too. Text nodes only. The words are the At a glance ones that exist already (glanceTiles.js) or what the
-// person typed; the library card and Edit words are not approved yet, none is invented here.
-// Project health (the eye, its own row) and the half width version come with later slices, so this part draws no health tile.
+// person typed; the library card and Edit words are the approved ones (section_kinds/glancetemplate.py), none is invented here.
+// Project health (slice 9) is the At a glance health tile, drawn in the section's order when its eye is on; it takes the whole row when the
+// section says so (health.own_row), else one tile's place. The grid has 4 tiles on a line, 3 when the section says so (per_row), 2 at half
+// width (CSS) and 1 at 900. Health alone never makes a section: isEmpty looks at the counting and bespoke tiles only.
 // A published file carries no counts yet (the counts slice), so a file draws only the bespoke tiles; the served View also counts.
 // isEmpty: no tile is left to show. Edit part: edit/templates/GlanceTemplate.jsx; rules: section_kinds/glancetemplate.py.
 import { source } from "./notes.js";
-import { rows, fromFile, openWork } from "../stores/report.js";
+import { rows, fromFile, data, openWork } from "../stores/report.js";
 import { todayIso } from "../workItems.js";
-import { tiles as counted, shownRag, tileWord } from "../glanceTiles.js";
+import { tiles as counted, shownRag, tileWord, HEALTH_WORDS } from "../glanceTiles.js";
+import { Health } from "../components/Glance.jsx";
+import { readBody } from "./glanceBody.js";
 
 export const READY = true;
 const text = (v) => (typeof v === "string" ? v.trim() : "");
@@ -66,12 +70,32 @@ export function drawn(section) {
   return out;
 }
 
-export function View({ section }) {
+// Project health as the At a glance health tile reads it: the pill's word and colour from the project, the reason as it is (a published file's
+// is already cleaned; View's goes through `clean`). Not a counting tile: it has no figure of its own.
+const PILL = { "On track": "g", "At risk": "a", "Off track": "r" };
+const healthTile = (d) => {
+  const h = (d && d.project && d.project.health) || "";
+  return { key: "health", rag: HEALTH_WORDS[h] || "n", value: h || "Not set", reason: (d && d.project && d.project.health_reason) || "", pill: PILL[h] || "n", word: "" };
+};
+
+export function View({ section, clean }) {
   const list = drawn(section);
   if (!list.length) return allHidden(section) ? <div class="tpl-gt" data-gt><p class="tile-empty">{EMPTY_WORDS}</p></div> : null;
+  const u = readBody(section), rank = (k) => { const at = u.order.indexOf(k); return at < 0 ? 1e6 : at; };
+  const items = list.map((t) => ({ tile: t, key: t.key }));
+  if (u.health.shown) {
+    const at = items.findIndex((i) => rank(i.key) > rank("health"));
+    items.splice(at < 0 ? items.length : at, 0, { health: true, key: "health" });
+  }
   return (
-    <div class="tpl-gt" data-gt>
-      {list.map((t) => {
+    <div class="tpl-gt" data-gt data-cols={u.per_row}>
+      {items.map((i) => {
+        if (i.health) return (
+          <div key="health" class={`tpl-gt-health${u.health.own_row ? " own-row" : ""}`} data-tile="health">
+            <Health t={healthTile(data.value)} tools={null} editing={false} clean={clean} />
+          </div>
+        );
+        const t = i.tile;
         const inner = (
           <>
             <span class="k">
