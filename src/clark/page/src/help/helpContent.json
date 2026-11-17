@@ -644,7 +644,7 @@
      "The calendar shows **Week**, **Month** (the standard) or **Quarter**, with the arrows and **Today**. In Quarter, click a month’s name to open that month.",
      "With the keyboard, [[Tab]] reaches the calendar once, on today (or the first day when today is not shown). [[Left]] and [[Right]] move a day at a time, and [[Up]] and [[Down]] a week. [[Enter]] on a day with milestones goes to the first of them, and [[Shift+Tab]] or [[Esc]] comes back to the day.",
      "**Legend**, at the right under the milestones, explains every mark when you point at it or tab to it.",
-     "Under the Legend, the list shows each milestone with its date, state and progress. The first five show; **Show all N milestones** shows the rest. **Hide milestone details** folds the list away and **Show milestone details** brings it back. Your choice is kept. On the Dashboard the list has a heading row: **Milestone**, **State**, **Agreed**, **Expected or achieved** and **Progress**."
+     "Under the Legend, the list shows each milestone with its date, state and progress. The first five show; **Show all N milestones** shows the rest, unless a number is set in **Configure**. **Hide milestone details** folds the list away and **Show milestone details** brings it back. Your choice is kept. On the Dashboard the list has a heading row: **Milestone**, **State**, **Agreed**, **Expected or achieved** and **Progress**."
     ],
     "n": "On the published page, Slipped reads “Expected later” and Overdue reads “Late”.",
     "page": [
@@ -1649,7 +1649,7 @@
        "**Timeline**: months along the top, a line for today, a mark per milestone with its name and date below. Earlier, Later and **Today**; drag the grip below it to zoom (70% to 300%), **Reset** (shown once you have zoomed). A slipped milestone also has a faint mark on its expected date, joined to its agreed date by a dashed line; its label adds, for example, +3 days, and the list below gives the Expected date and how many days later.",
        "**Calendar**: **Week**, **Month** or **Quarter**; earlier, later and **Today**; weekends are muted and today is marked. A slipped milestone shows on its agreed date and again, faintly, as “Expected”. In Quarter, a month’s name opens that month.",
        "**Legend**: point at it or tab to it.",
-       "**Milestone details**: a rail with the date, the name, the state, the progress and, for internal ones, “Internal only”. The first five, then **Show all**. **Hide milestone details** folds it away. On the Dashboard the list has a heading row: **Milestone**, **State**, **Agreed**, **Expected or achieved** and **Progress**."
+       "**Milestone details**: a rail with the date, the name, the state, the progress and, for internal ones, “Internal only”. The first five, then **Show all**, unless a number is set in **Configure**. **Hide milestone details** folds it away. On the Dashboard the list has a heading row: **Milestone**, **State**, **Agreed**, **Expected or achieved** and **Progress**."
       ]
      ]
     ]

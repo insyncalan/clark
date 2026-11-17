@@ -40,7 +40,7 @@ CHIP_ORDER = ["state", "owner", "progress", "forecast"]
 TILES = """(() => { const out = []; for (const r of document.querySelectorAll('#peek .pk-fields .pk-row:has(> dt)')) { const c = getComputedStyle(r);
   const dt = r.querySelector('dt').getBoundingClientRect(), dd = r.querySelector('dd').getBoundingClientRect();
   out.push({ row: r.querySelector('dt').textContent.trim(), left: c.borderLeftWidth, right: c.borderRightWidth, bottom: c.borderBottomWidth, top: c.borderTopWidth,
-             radius: c.borderTopLeftRadius, bg: c.backgroundColor, beside: dt.right <= dd.left + 1 && Math.abs(dt.top - dd.top) < 4 }); } return out; })()"""
+             radius: c.borderTopLeftRadius, bg: c.backgroundColor, beside: dt.right <= dd.left + 1 && (dt.top + dt.bottom) / 2 >= dd.top - 1 && (dt.top + dt.bottom) / 2 <= dd.bottom + 1 }); } return out; })()"""
 
 
 class Sources(unittest.TestCase):
@@ -214,7 +214,7 @@ class Fields(Base):
                     self.assertEqual([r["row"] for r in rows], EDITOR_ROWS)
                     for r in rows:
                         self.assertEqual((r["left"], r["right"], r["bottom"], r["radius"], r["bg"]), ("0px", "0px", "0px", "0px", "rgba(0, 0, 0, 0)"), f"no tile: {r}")
-                        self.assertEqual(r["top"], "1px", f"one hairline between rows: {r}")
+                        self.assertEqual(r["top"], "0px", f"no border between rows (row 1256: the Details rows are a plain list): {r}")
                         self.assertTrue(r["beside"], f"label left, value right: {r}")
                     chips = p.js("(() => { const h = document.querySelector('#peek .pk-chips'), pr = document.querySelector('#peek').getBoundingClientRect(); return { n: h.children.length, inside: [...h.children].every(e => { const r = e.getBoundingClientRect(); return r.right <= pr.right + 1 && r.left >= pr.left - 1; }) }; })()")
                     self.assertEqual(chips["n"], 4)
