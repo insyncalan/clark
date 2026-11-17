@@ -45,3 +45,8 @@ export function keepFocus(e, dash) {
   };
   requestAnimationFrame(give);
 }
+
+// Row 1230: the note under a cut milestone list in Edit (Edit only; MsList reads it from the `Note` function Edit's tools give it, so the published page never imports these words).
+export const MS_EDIT_SCROLL_ON = (n, m) => `Same as the published page: ${n} of ${m} milestones show at a time; scroll the list for the rest. Change this in Configure.`;
+export const MS_EDIT_SCROLL_OFF = (n, m) => `Same as the published page: ${n} of ${m} milestones show at a time. Viewers cannot scroll, so they see only the first ${n}; scroll here to reach the others. Change this in Configure.`;
+export const msNote = (scroll, n, m) => (scroll ? MS_EDIT_SCROLL_ON : MS_EDIT_SCROLL_OFF)(n, m);

@@ -20,7 +20,7 @@ export function Toast() {
   if (mode.value !== "edit" && view.value === "dashboard") return null;      // View and Edit exist only on the Dashboard: the other pages always show it (ruled 02-11-2026)
   const t = toast.value, editing = mode.value === "edit";
   return (
-    <div class="toasts" data-edit-only={editing ? "" : undefined} role="status" aria-live="polite">
+    <div class="toasts" data-edit-only={editing ? "" : undefined} role={t && t.quiet ? undefined : "status"} aria-live={t && t.quiet ? "off" : "polite"}>      {/* a quiet toast (a section drop) is shown, not announced */}
       {t ? (
         <ToastCard t={t} />
       ) : null}

@@ -210,9 +210,10 @@ class Published(Setup):
 
     def test_the_view_build_holds_no_part_of_the_page(self):
         text = (PAGE / "page-view.html").read_text(encoding="utf-8")
+        # The use cases count line (countWords, row 1114) is held out by its ending; "Showing " alone is the milestone list's View word (row 1230) and ships.
         # The two On the dashboard words ship as unused labels (the list's tabs and groups are shared, row 1114); that they are never
         # drawn in a published file is held in the browser by test_publish_uc_list_1114.
-        for mine in ("ucl-row", "ucl-bar", "ucl-eye", "UseCaseDetail", "Narrow the list", "Showing ", "/api/change"):
+        for mine in ("ucl-row", "ucl-bar", "ucl-eye", "UseCaseDetail", "Narrow the list", " on the dashboard`", "/api/change"):
             self.assertNotIn(mine, text, mine)
         live = (PAGE / "page.html").read_text(encoding="utf-8")
         for mine in ("ucl-row", "ucl-eye", "Not on the dashboard"):
