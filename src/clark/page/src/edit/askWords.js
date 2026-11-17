@@ -13,6 +13,7 @@ export const ASK_NOTICE_LINE = "Your question and the passages it needs go to Cl
 export const CHECKING_LINE = "Checking whether you can ask…";
 export const READY_LINE = "Ready. Ask about this project.";
 export const MODEL_LINE = (name) => `Answering with ${name}.`;
+export const STANDING_LINE = "Standing instructions on.";   // #1292 S13, the mock-up's words with the full stop every line of the panel ends in
 export const PLACEHOLDER = "Ask a question about this project";
 export const SEND = "Ask";
 export const STOP = "Stop";

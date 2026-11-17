@@ -31,6 +31,7 @@ class Stub:
 
     def __init__(self, enabled=True, connected=True, model=""):
         self.enabled, self.connected, self.model = enabled, connected, model
+        self.standing = None                     # #1292 S13: None leaves the field out; True/False is what the status route says about standing instructions
         self.calls = []                          # ("status" | "ask" | "stop", body)
         self.hold = threading.Event()            # a question waits here while it is clear()ed
         self.hold.set()
@@ -50,6 +51,8 @@ class Stub:
             body["provider"] = self.provider
         if self.model:
             body["model"] = self.model
+        if self.standing is not None:
+            body["standing_instructions"] = self.standing
         return 200, body
 
     def ask(self, body):
@@ -173,6 +176,29 @@ class Panel(Base):
         with chrome() as cdp:
             p = self.opened(cdp)
             self.assertEqual(p.js("document.querySelector('#ask-status').textContent"), "Ready. Ask about this project.")
+
+    def test_s13_the_status_line_says_standing_instructions_on_only_when_they_are_set(self):
+        # #1292 S13: the line reads the status route's standing_instructions flag; the card that sets them is #1294.
+        for flag, shown in ((True, True), (False, False), (None, False)):
+            self.stub.model, self.stub.standing = "Sonnet", flag
+            with chrome() as cdp:
+                p = self.opened(cdp)
+                self.assertEqual(p.js("document.querySelector('#ask-status').textContent.trim().startsWith('Answering with Sonnet.')"), True)
+                self.assertEqual(p.js("document.querySelectorAll('#ask-instr').length"), 1 if shown else 0, repr(flag))
+                if shown:
+                    self.assertEqual(p.js("document.querySelector('#ask-instr').textContent"), "Standing instructions on.")
+                    self.assertEqual(p.js("document.querySelector('#ask-status').contains(document.querySelector('#ask-instr'))"), True)
+                    p.js("document.querySelector('#ask-instr').click()")
+                    p.until("location.hash.indexOf('settings') >= 0", "the line opens Settings")
+        self.stub.standing = None
+
+    def test_s13_standing_instructions_are_not_claimed_while_asking_is_off(self):
+        self.stub.enabled, self.stub.standing = False, True
+        with chrome() as cdp:
+            p = self.opened(cdp, ready=False)
+            p.until("!!document.querySelector('#ask-off')", "the off line")
+            self.assertEqual(p.js("document.querySelectorAll('#ask-instr').length"), 0)
+        self.stub.enabled, self.stub.standing = True, None
 
     def test_the_panel_title_reads_ask_clark_and_the_ready_line_is_unchanged(self):
         # row 820: the title is the row's own words; the ready line is a separate sentence and stays

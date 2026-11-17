@@ -17,6 +17,7 @@ export const panelOpen = signal(false);
 export const panelDisconnected = signal(false);      // #54: Disconnect was pressed in Settings, so "not signed in" would be untrue
 export const panelState = signal("checking");        // "checking" | "unknown" (the check failed: nothing is claimed) | "off" (the server said off) | "signed-out" | "ready"
 export const panelModel = signal("");                 // the model's name when the status route gives one
+export const panelStanding = signal(false);            // #1292 S13: the status route says standing instructions are set (the card that sets them is #1294)
 export const panelWidth = signal(initialWidth());
 export const panelFocus = signal(0);                  // bumped to ask the panel to focus its question box
 export const turns = signal([]);                       // the chat: [{role: "user" | "assistant", text, kind?}]; kept while the panel is closed
@@ -81,10 +82,11 @@ async function readStatus() {
 function apply(b) {
   // Only a good answer that says "off" reads as off. A check that failed (the request threw, the status was not 200, the body was not a
   // good answer) says nothing about the switch, so the panel claims nothing and sends nothing.
-  if (!b || b.ok !== true || typeof b.ask_enabled !== "boolean") { panelState.value = "unknown"; panelModel.value = ""; return; }
-  if (b.ask_enabled === false) { panelState.value = "off"; panelModel.value = ""; askOn.value = false; return; }
+  if (!b || b.ok !== true || typeof b.ask_enabled !== "boolean") { panelState.value = "unknown"; panelModel.value = ""; panelStanding.value = false; return; }
+  if (b.ask_enabled === false) { panelState.value = "off"; panelModel.value = ""; panelStanding.value = false; askOn.value = false; return; }
   askOn.value = true;
   panelModel.value = typeof b.model === "string" ? b.model.slice(0, 60) : "";
+  panelStanding.value = b.standing_instructions === true;
   panelDisconnected.value = b.why === DISCONNECTED_LINE;
   if (typeof b.provider === "string") askProvider.value = b.provider;
   panelState.value = b.connected === true ? "ready" : "signed-out";
