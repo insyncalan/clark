@@ -2073,6 +2073,10 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-gt-tile.tone-a { --edge: var(--status-amber-text); --tag: var(--status-amber-text); --shape: var(--icon-amber); }
 .tpl-gt-tile.tone-r { --edge: var(--status-red); --tag: var(--status-red-text); --shape: var(--icon-red); }
 .tpl-gt-tile.tone-b { --edge: var(--brand-blue); --tag: var(--brand-blue-strong); --shape: var(--icon-blue); }
+.tpl-gt-tile.go { cursor: pointer; transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-state) var(--ease-out); }
+.tpl-gt-tile.go:hover { border-color: var(--brand-blue); box-shadow: var(--shadow); }
+.tpl-gt-tile.go:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.tpl-gt .tile-empty { flex: 1 1 100%; margin: 0; padding: var(--space-4); color: var(--text-muted); font-size: var(--size-small); }
 .tpl-gt-dot { flex: none; width: var(--space-3); height: var(--space-3); background: var(--shape); }
 .tone-g .tpl-gt-dot { border-radius: 50%; }
 .tone-a .tpl-gt-dot { clip-path: polygon(50% 0, 100% 100%, 0 100%); }
