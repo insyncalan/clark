@@ -2977,6 +2977,8 @@ html:has(.top-hdr) body.board-full .top-hdr { display: none; }
    an amber triangle, a red diamond, a blue square, a neutral ring), so the colour picker shows the same signs. */
 .tcell.own { flex-direction: column; justify-content: flex-end; padding-top: var(--space-6); min-width: min(230px, 100%); }
 .tcell.own .tpl-gt-tile { flex: 1 1 auto; width: 100%; box-sizing: border-box; grid-template-columns: auto minmax(0, 1fr) minmax(0, auto) minmax(0, auto); }
+.tcell.own .tpl-gt-tile { border-color: var(--edge); }   /* the editor draws each tone as the border of the tile itself: green, amber, red, blue; the neutral one takes a grey */
+.tcell.own .tpl-gt-tile.tone-n { border-color: var(--grey-300); }
 .tcell.own .tpl-gt-v, .tcell.own .tpl-gt-tag { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* a tile too narrow for its figure and its tag cuts them with an ellipsis; the editor shows them whole */
 @media (max-width: 900px) { .tcell.own { flex-basis: 100%; } }
 .tcell.own .tgrip { right: 56px; } .tcell.own .teye { right: 30px; top: 4px; }

@@ -112,7 +112,7 @@ export function OwnControls({ tile, title, tools }) {
 export function OwnTile({ t }) {
   const tone = TONE_CLASS[t.tone] || "n", label = (t.label || "").trim() || WORDS.untitled;
   return (
-    <div class={`tpl-gt-tile tone-${tone}`} role="group" aria-label={`${label}: ${t.figure || ""}`}>
+    <div class={`fig tpl-gt-tile tone-${tone}`} role="group" aria-label={`${label}: ${t.figure || ""}`}>
       <i class="tpl-gt-dot" aria-hidden="true"></i>
       <span class="tpl-gt-k" title={label}>{label}</span>
       {t.figure ? <span class="tpl-gt-v num">{t.figure}</span> : null}
