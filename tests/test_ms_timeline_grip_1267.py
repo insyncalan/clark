@@ -37,6 +37,8 @@ class Grip(BrowserBase, unittest.TestCase):
                 sid = self.visit(cdp, width, HASH, port)
                 got = cdp.js("(() => { const g = document.querySelector('[data-grip]'); return [g.getAttribute('role'), g.getAttribute('aria-label'), g.getAttribute('aria-valuenow'), g.getAttribute('aria-valuetext'), g.tabIndex]; })()", sid)
                 self.assertEqual(got, ["slider", "Timeline height", "100", "Zoom 100%", 0], width)
+                bounds = cdp.js("(() => { const g = document.querySelector('[data-grip]'); return [g.getAttribute('aria-orientation'), g.getAttribute('aria-valuemin'), g.getAttribute('aria-valuemax')]; })()", sid)
+                self.assertEqual(bounds, ["vertical", "70", "300"], f"{width}: the slider says which way it moves and where it ends")
 
     def test_arrow_keys_step_the_zoom_home_resets_and_the_ends_hold(self):
         port = self.serve()
@@ -126,9 +128,54 @@ class Grip(BrowserBase, unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "100"), f"{width}: Home resets")
                 self.assertEqual(cdp.js("localStorage.getItem('clark.tlZoom.page')", sid), "1", f"{width}: Home remembered")
                 self.assertNotEqual(cdp.js("getComputedStyle(document.querySelector('[data-grip]')).display", sid), "none", f"{width}: shown on screen")
+                self.assertNotEqual(cdp.js("getComputedStyle(document.querySelector('.mv-box')).paddingBottom", sid), "0px", f"{width}: the screen keeps room for the grip")
                 cdp.js("document.documentElement.classList.add('print-all')", sid)
                 cdp.call("Emulation.setEmulatedMedia", {"media": "print"}, sid)
                 self.assertEqual(cdp.js("getComputedStyle(document.querySelector('[data-grip]')).display", sid), "none", f"{width}: left off the paper")
+                self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.mv-box')).paddingBottom", sid), "0px", f"{width}: no room kept for a grip that is not printed")
+
+    def test_the_zoom_caption_stays_inside_the_strip_above_the_grip(self):
+        port = self.serve()
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width, "#dashboard&p=TUL", port)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.mv-cap')", sid), 10), f"{width}: the Dashboard section draws the caption")
+                lift = cdp.js("(() => { const b = document.querySelector('.mv-box'); return b.getBoundingClientRect().bottom - document.querySelector('.mv-cap').getBoundingClientRect().bottom - parseFloat(getComputedStyle(b).getPropertyValue('--sb')); })()", sid)
+                self.assertGreaterEqual(lift, 18, f"{width}: the caption is lifted over the strip's bottom edge, clear of the grip's room ({lift})")
+
+    def test_the_arrow_keys_are_taken_by_the_grip_and_other_keys_are_not(self):
+        port = self.serve()
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width, HASH, port)
+                fire = "(k) => { const g = document.querySelector('[data-grip]'); g.focus(); return g.dispatchEvent(new KeyboardEvent('keydown', {key: k, bubbles: true, cancelable: true})); }"
+                for k in ("ArrowDown", "ArrowUp", "Home"):
+                    self.assertFalse(cdp.js(f"({fire})('{k}')", sid), f"{width}: {k} is handled, so the page does not scroll")
+                self.assertTrue(cdp.js(f"({fire})('Tab')", sid), f"{width}: Tab is left alone")
+
+    def synth(self, cdp, sid, kind, dy, pid=7, button=0):
+        cdp.js(f"""(() => {{ const g = document.querySelector('[data-grip]'), r = g.getBoundingClientRect();
+          g.dispatchEvent(new PointerEvent('{kind}', {{bubbles: true, cancelable: true, pointerId: {pid}, button: {button}, clientX: r.left + 5, clientY: r.top + 5 + {dy}}})); }})()""", sid)
+
+    def test_a_cancelled_drag_stops_and_a_right_button_press_does_not_start_one(self):
+        port = self.serve()
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width, HASH, port)
+                self.synth(cdp, sid, "pointerdown", 0, button=2)
+                self.synth(cdp, sid, "pointermove", 120)
+                cdp.js("new Promise((r) => setTimeout(r, 200))", sid)
+                self.assertEqual(cdp.js(PCT, sid), "100", f"{width}: the right button starts no drag")
+                self.synth(cdp, sid, "pointerup", 120)
+                self.synth(cdp, sid, "pointerdown", 0)
+                self.assertEqual(cdp.js("document.querySelector('[data-grip]') === document.activeElement", sid), True, f"{width}: pressing the grip focuses it")
+                self.synth(cdp, sid, "pointermove", 60)
+                self.assertTrue(wait(lambda: float(cdp.js(PCT, sid)) > 100), f"{width}: a left press drags")
+                self.synth(cdp, sid, "pointercancel", 60)
+                now = cdp.js(PCT, sid)
+                self.synth(cdp, sid, "pointermove", 200)
+                cdp.js("new Promise((r) => setTimeout(r, 200))", sid)
+                self.assertEqual(cdp.js(PCT, sid), now, f"{width}: after a cancel the grip no longer follows the pointer")
 
 
 if __name__ == "__main__":
