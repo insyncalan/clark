@@ -1428,7 +1428,8 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
   .set-nav { flex-direction: row; flex-wrap: wrap; gap: var(--space-2); }
   .set-chip { display: inline-flex; width: auto; border-radius: var(--radius-pill); }
 }
-.set-nav .plain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; }      /* row 1024: a group of pages under its name */
+.set-nav .plain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; }
+.set-nav .plain li { padding: 0; border-top: 0; }      /* row 1280: the shared list rule gives each li padding and a line; the pages of a group touch, with no line between them */      /* row 1024: a group of pages under its name */
 .set-group { margin-top: var(--space-5); }      /* row 1280: room above a heading, so each group reads as a block */
 .set-group:first-child { margin-top: 0; }
 .set-group-name { display: block; padding: 0 12px var(--space-1); color: var(--text-muted, var(--text)); font-size: var(--size-caption); font-weight: var(--weight-semibold); text-transform: uppercase; letter-spacing: var(--tracking-caps); cursor: default; }      /* row 1280: a heading is a label, not a link: smaller, muted, capitals, no line, never hovered or focused */

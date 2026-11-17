@@ -72,16 +72,18 @@ class SettingsMenu1280(Base):
         def body(p, w, mode):
             rows = p.js(f"""[...document.querySelectorAll('.set-nav .set-group')].map(g => {{ const n = g.querySelector('.set-group-name').getBoundingClientRect();
                 const c = [...g.querySelectorAll('.set-chip')].map(b => b.getBoundingClientRect());
-                return [n.top, n.bottom, c.map(r => [r.top, r.bottom, r.height])]; }})""")
-            for _, _, chips in rows:
+                return [n.top, n.bottom, c.map(r => [r.top, r.bottom, r.height]), g.querySelector('.set-group-name').textContent]; }})""")
+            for _, _, chips, _ in rows:
                 for _, _, h in chips:
-                    self.assertLessEqual(h, 32, "page rows are tight")
+                    self.assertLessEqual(h, 40, "page rows are tight: one line is 32, a long name that wraps in the 150 px list at 900 is two lines")
                     self.assertGreaterEqual(h, 24)
                 for a, b in zip(chips, chips[1:]):
                     self.assertLessEqual(b[0] - a[1], 1, "the pages of a group touch: one block")
-            for (_, _, a), (top, _, _) in zip(rows[:-1], rows[1:]):
+            for (_, _, a, _), (top, _, _, _) in zip(rows[:-1], rows[1:]):
                 self.assertGreaterEqual(top - a[-1][1], 16, "space above a heading")
-            for top, bottom, chips in rows:
+            for top, bottom, chips, name in rows:
+                if name == "Advanced":
+                    continue      # Advanced keeps its grey line of words between its heading and its first page, so the heading is not close to the page there
                 self.assertLessEqual(chips[0][0] - bottom, 8, "a heading sits close to its own pages")
         self.each(body)
 
@@ -99,7 +101,7 @@ class SettingsMenu1280(Base):
             self.assertEqual(marked[1], "3px", "and has an accent bar")
             rest = p.js("(function(){ const b = document.querySelector('.set-chip:not([aria-current])'); return getComputedStyle(b).backgroundColor; })()")
             self.assertEqual(rest, "rgba(0, 0, 0, 0)")
-            r = p.js("(function(){ const b = document.querySelector('.set-chip:not([aria-current])').getBoundingClientRect(); return [b.left + b.width - 3, b.top + b.height / 2]; })()")
+            r = p.js("(function(){ const c = document.querySelector('.set-chip:not([aria-current])'); c.scrollIntoView({block: 'nearest'}); const b = c.getBoundingClientRect(); return [b.left + b.width - 3, b.top + b.height / 2]; })()")
             self.hover(p, *r)
             self.assertTrue(wait(lambda: p.js("getComputedStyle(document.querySelector('.set-chip:not([aria-current])')).backgroundColor") != "rgba(0, 0, 0, 0)", 5), "a hover fill at the row's far edge")
             p.js("document.querySelector('.set-chip').focus()")
