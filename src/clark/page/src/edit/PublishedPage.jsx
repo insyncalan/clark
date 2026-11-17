@@ -1,3 +1,4 @@
+// Row 1253 (default Option A, open question 2 built as the default and marked): the band is the Dashboard's (project name as the title, "Published reports" in the kicker place), the sections under it are flat and line-divided.
 // The Published reports page (row 1087), Edit parts only: reached only from the profile circle's menu (and the Dashboard's "as at a day"
 // choice), no tab and no Dashboard link. It replaces the card that was in Settings. Under the project's own cover band (the brand's
 // picture and colours, as on the Dashboard) it says where the report is saved (the Local and Client folders, as Settings holds them) and
@@ -16,8 +17,8 @@ export function PublishedPage({ name, goSettings = () => show("settings"), ...re
     <div class="pp-page" id="pubs-page">
       <section class="frame pp-frame">
         <header class="cover" id="cover">
-          <h1>{L.TITLE}</h1>
-          <p class="cover-line"><b class="cover-kind">{title}</b></p>
+          <h1>{title}</h1>
+          <p class="cover-line"><b class="cover-kind">{L.TITLE}</b></p>
           <p class="pubs-intro">{L.INTRO}</p>
         </header>
         <div class="pp-where" id="pubs-where">
