@@ -110,6 +110,13 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
   const tableHidden = hiddenForTable(hidden);      // Start, End and Done are never hidden, so Days and Status (worked out from them) are always drawn
   const filters = filtersFor(editing);
 
+  const layouts = dated ? (      // row 1197: two icon buttons, the table and the chart; the chart's own bar carries them beside the scale switches, the table has them here
+    <span class="gt-grp" data-gp-layouts>
+      <button type="button" class="gt-ib" data-gp-layout="table" aria-pressed={layout === "table"} aria-label={W.table} title={W.tableTip} onClick={() => setLayout("table")}><Icon name="table" /></button>
+      <button type="button" class="gt-ib" data-gp-layout="chart" aria-pressed={layout === "chart"} aria-label={W.chart} title={W.chartTip} onClick={() => setLayout("chart")}><Icon name="bars" /></button>
+    </span>
+  ) : null;
+
   const bar = (
     <div class="gt gp-tools" data-gp-tools>
       <div class="gt-bar" role="toolbar" aria-label="Gantt">
@@ -119,10 +126,7 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
             <Icon name={editing ? "eye" : "pencil"} /> {editing ? E.view : E.edit}
           </button>
         ) : null}
-        {dated ? <button type="button" class="gt-wd" data-gp-layout={layout === "chart" ? "table" : "chart"} aria-label={layout === "chart" ? W.table : W.chart}
-          title={layout === "chart" ? W.tableTip : W.chartTip} onClick={() => setLayout(layout === "chart" ? "table" : "chart")}>
-          <Icon name={layout === "chart" ? "table" : "bars"} /> {layout === "chart" ? W.table : W.chart}
-        </button> : null}
+        {dated && layout === "table" ? layouts : null}
         <span class="gt-sp" />
         {layout === "table" ? (
           <span class="gt-showwrap" data-gp-showwrap onKeyDown={(e) => { if (e.key === "Escape" && showOpen) { setShowOpen(false); showBack(); } }}>
@@ -157,10 +161,10 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
       {fromFile.value ? null : <Cover title={editing && Title ? <Title text={title} label={E.titleLabel} onSave={saveTitle} /> : title} lines={coverLine(project, now)} />}      {/* issue 1146: a published file shows these words in its one top bar */}
       {above ? <div class="gp-slot gp-above" data-slot="above">{above}</div> : null}
       <div class="gp-plan" data-gp-plan>
-        {bar}
+        {Toggle || layout === "table" ? bar : null}
         {editing && !stored.length ? <button type="button" class="gt-ib gp-first" data-gp-first aria-label={E.addBelow} title={E.addBelow} onClick={() => onAdd("", "phase")}><Icon name="plus" /></button> : null}      {/* a plan with no line has no row to add below: this starts it (a phase) */}
         {layout === "chart"
-          ? <GanttChart projectKey={project.code || project.name || ""} lines={toChart(stored)} edit={editing} today={now} filter={filter} onFilter={setFilter} defaultRows={settings.gantt_default_rows ?? null}
+          ? <GanttChart lead={layouts} projectKey={project.code || project.name || ""} lines={toChart(stored)} edit={editing} today={now} filter={filter} onFilter={setFilter} defaultRows={settings.gantt_default_rows ?? null}
               onDefaultRows={onDefaultRows} onChange={onChange} onToggleEye={onToggleEye} onAdd={onAdd} onDelete={onDelete} addBelowWord={E.addBelow} eyeWords={{ head: E.eyeHead, on: E.eyeTipOn, off: E.eyeTipOff, detail: E.eyeDetail }} />
           : <GanttTable lines={toTable(stored)} edit={editing} today={now} filter={tableFilter} hidden={tableHidden} onChange={onTable} onHiddenChange={onTableHidden} onUndo={host.serverUndo ? () => host.undoLast() : undefined} addBelowWord={E.addBelow} />}
       </div>
