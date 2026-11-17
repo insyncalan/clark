@@ -21,7 +21,7 @@ class MoveHere(wb.Base):
     def test_the_lane_the_card_is_in_is_listed_ticked_and_not_a_choice(self):
         with wb.shared.page() as cdp:
             sid = self.visit(cdp)
-            a = self._open(cdp, sid, "workstream")
+            self._open(cdp, sid, "workstream")
             lanes = cdp.js("[...document.querySelectorAll('.ddmenu [data-lane=\"1\"]')].map(b => [b.getAttribute('data-to'), b.textContent, b.getAttribute('aria-disabled'), b.getAttribute('aria-current')])", sid)
             here = [l for l in lanes if l[0] == "Data"]
             self.assertEqual(here, [["Data", "✓Data", "true", "true"]], "the card's own lane: listed, ticked, disabled, current")
@@ -39,6 +39,7 @@ class MoveHere(wb.Base):
                 self.assertEqual((self.row(a)["status"], self.row(a)["workstream"]), ("Open", "Data"))
                 if not cdp.js("!!document.querySelector('.ddmenu')", sid):
                     click(cdp, sid, f"[data-move='{a}']")
+                    self.until(cdp, sid, "!!document.querySelector('.ddmenu')", "the menu again")
 
     def test_the_ticked_line_is_the_current_one_for_assistive_tools(self):
         with wb.shared.page() as cdp:
