@@ -540,6 +540,7 @@ class Killers(Editor):
             before = self.applies()
             self.click(p, "[data-tile-editor] [data-done]")
             p.until("!!document.querySelector('.toast-text')", "a note")
+            self.assertEqual(self.toast(p), "Nothing is running behind this page. After a while with nothing open, clark stops by itself. Start it again from clark.command.")
             self.assertEqual(self.applies(), before)
             self.assertTrue(p.js(f"!!document.querySelector({self.q('[data-tile-editor]')})"), "the editor stays")
             self.assertEqual(p.js(f"document.querySelector({self.q('[data-f=label]')}).value"), "Fictional typed")
