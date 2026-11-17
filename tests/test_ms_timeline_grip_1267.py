@@ -84,7 +84,7 @@ class Grip(BrowserBase, unittest.TestCase):
                 self.assertIn("Drag the grip below the timeline to zoom", cap, width)
                 self.assertIn("drag the grip below it to zoom", label, width)
                 self.assertNotIn("bottom edge", cap + label, width)
-        help_text = (pathlib.Path(__file__).resolve().parent.parent / "src/clark/page/src/help/helpContent.json").read_text()
+        help_text = (pathlib.Path(__file__).resolve().parent.parent / "src/clark/page/src/help/helpContent.json").read_text(encoding="utf-8")
         json.loads(help_text)
         self.assertNotIn("bottom edge to zoom", help_text)
         self.assertNotIn("its bottom edge to zoom", help_text)
