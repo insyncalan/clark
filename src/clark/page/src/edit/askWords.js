@@ -72,6 +72,13 @@ export const QUEUE_FULL = "5 messages are already waiting. Wait for one to be se
 export const QUEUE_DROP = (n) => `${waitingCount(n)} waiting and would be dropped. Press again to go on.`;
 export const QUEUE_SAY_ADDED = (n) => `Message queued. ${n} waiting`;
 export const QUEUE_SAY_REMOVED = (n) => `Message removed. ${n} waiting`;
+// Row 1292 (S7): under an answer. These words need approval.
+export const COPY = "Copy";
+export const COPIED = "Copied";
+export const COPY_FAILED = "Copy did not work. Select the text and copy it yourself.";
+export const ASK_AGAIN = "Ask again";
+export const COPY_LABEL = "Copy this answer";
+export const ASK_AGAIN_LABEL = "Ask this question again";
 export const LOG_LABEL = "The chat so far";
 // Row 1292 (S6, no streaming yet): the working line says the one step the page really knows (the question is out to the provider) and how long
 // it has been going, counted from the send. A longer step list waits for real progress from the server. These words need approval.

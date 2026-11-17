@@ -334,6 +334,11 @@ table.items td.c-pick { vertical-align: middle; }
 /* row 1218: the notes about what was left out: one small grey block close under the Sources line (--text-muted, 4.5 to 1 on the panel in light and dark) */
 .ask-notes { margin: -10px 0 0; padding: 0 0 0 var(--space-4); list-style: disc; font-size: var(--size-caption); line-height: 1.35; color: var(--text-muted); overflow-wrap: anywhere; }
 .ask-notes li { margin: 0 0 2px; }
+.ask-actions-row { display: flex; gap: var(--space-2); margin-top: var(--space-2); }
+.ask-act { min-height: 28px; padding: 2px var(--space-3); font: inherit; font-size: var(--size-small); color: var(--text-muted); background: transparent; border: 1px solid transparent; border-radius: var(--radius-pill); cursor: pointer; }
+.ask-act:hover:not(:disabled) { color: var(--text); background: var(--brand-blue-tint); }
+.ask-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ask-act:disabled { opacity: .5; cursor: default; }
 .ask-sources { margin-top: var(--space-2); }
 .ask-sources summary { cursor: pointer; color: var(--text-muted); font-size: var(--size-small); min-height: 24px; }
 .ask-sources summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }

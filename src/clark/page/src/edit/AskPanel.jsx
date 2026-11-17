@@ -14,6 +14,7 @@ import { holdScroll } from "../core/holdScroll.js";
 import { chatId, histOpen, histTick, chats, keepChat, deleteChat, when } from "./askHistory.js";
 import { ChangeCards, fixedLine } from "./AskChange.jsx";
 import { FormattedAnswer } from "./AskFormat.jsx";
+import { copyAnswer, lastQuestion, questionFor, hasActions } from "./askActions.js";
 
 // Row 890: the files an answer used, as the server sends them ({id, label}). A long file is cut into parts labelled "name (part N)":
 // the suffix is dropped and each file is listed once, in the order first seen.
@@ -120,6 +121,13 @@ export function AskPanel() {
   }, [busy]);
 
   if (!open && !leaving) return null;
+
+  // Row 1292 (S7): Copy puts the answer on the clipboard formatted; the result is told to screen readers.
+  async function copy(t) {
+    const ok = await copyAnswer(t.text);
+    setSaid(ok ? W.COPIED : W.COPY_FAILED);
+    if (!ok) setNote(W.COPY_FAILED);
+  }
 
   // Item 943: a source that is a saved PDF opens in the system's viewer at its page; the server judges the file again.
   async function openSource(n) {
@@ -325,6 +333,12 @@ export function AskPanel() {
           <div key={i} class={`ask-turn ${t.role}${t.kind ? " " + t.kind : ""}`} data-role={t.role}>
             <div class="ask-who">{t.role === "user" ? W.YOU : W.REPLY}</div>
             {t.kind === "changes" ? <ChangeCards turn={t} /> : t.role === "assistant" && !t.kind && typeof t.text === "string" ? <FormattedAnswer text={t.text} /> : <div class="ask-text">{t.text}</div>}
+            {hasActions(t) ? (
+              <div class="ask-actions-row">
+                <button type="button" class="ask-act" data-ask-copy title={W.COPY_LABEL} aria-label={W.COPY_LABEL} onClick={() => copy(t)}>{W.COPY}</button>
+                <button type="button" class="ask-act" data-ask-again title={W.ASK_AGAIN_LABEL} aria-label={W.ASK_AGAIN_LABEL} disabled={busy || state !== "ready"} onClick={() => send(null, questionFor(list, list.indexOf(t)))}>{W.ASK_AGAIN}</button>
+              </div>
+            ) : null}
             {t.sources && t.sources.length ? (
               <details class="ask-sources">
                 <summary>{W.SOURCES}</summary>
@@ -370,7 +384,13 @@ export function AskPanel() {
       <form class="ask-form" onSubmit={send}>
         <textarea ref={box} id="ask-box" rows="1" value={text} placeholder={W.PLACEHOLDER} aria-label={W.PLACEHOLDER} disabled={state !== "ready" && state !== "checking"}
           onInput={(e) => setText(e.currentTarget.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) send(e); }} />
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey && !e.isComposing) send(e);
+            else if (e.key === "ArrowUp" && !text && !e.isComposing && !e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey) {   // row 1292: an empty box brings back the last question
+              const q = lastQuestion(turns.value);
+              if (q) { e.preventDefault(); setText(q); }
+            }
+          }} />
         <div class="ask-actions">
           {busy ? (
             <button type="button" key="stop" class="btn primary ask-stop-icon" id="ask-stop" title={W.STOP} aria-label={W.STOP} onClick={stop}>
