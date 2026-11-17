@@ -26,6 +26,7 @@ class Data(n.DataChecks):
 class Page(n.PageChecks):
     TYPE, GOOD, HOSTILE_BODY = "quote", GOOD, HOSTILE
     SHOWS = ("Fictional words of thanks.", "Sam Example, Fictional sponsor")
+    EMPTY_LINE, STAYS_OUT = "", False     # row 1251: its starting text is a field hint, pinned in test_starting_text_1251
     FIELD, TYPED = "Quote words", "Fictional new words"
     CHANGED = lambda self, body: json.loads(body)["quote"] == "Fictional new words"
 

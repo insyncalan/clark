@@ -59,7 +59,7 @@ export function Edit({ section }) {
       <label class="tpl-lbl">Caption (optional)
         <Field value={t.caption} label="Table caption" max={LIMITS.caption} onCommit={(caption) => save({ ...t, caption })} />
       </label>
-      {blank(t) ? <><StartPrompt id="table" /><p class="quiet">Empty for now: type in a heading or a cell. It stays out of the published page until then.</p></> : null}
+      {blank(t) ? <StartPrompt id="table" /> : null}
     </div>
   );
 }

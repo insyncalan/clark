@@ -18,7 +18,6 @@ export function Edit({ section }) {
       <label class="tpl-lbl">Role
         <Field value={saved.role} label="Quote role" max={LIMITS.name} onCommit={(role) => write({ role })} />
       </label>
-      {!saved.quote ? <p class="quiet">Empty for now: add the words. It stays out of the published page until then.</p> : null}
     </div>
   );
 }

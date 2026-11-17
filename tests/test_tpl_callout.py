@@ -70,6 +70,7 @@ class Words(unittest.TestCase):
 class Page(n.PageChecks):
     TYPE, GOOD, HOSTILE_BODY = "callout", GOOD, HOSTILE
     SHOWS = ("Decision needed", "Fictional decision", "Fictional words about the budget.", "A second fictional line.")
+    EMPTY_LINE, STAYS_OUT = "", False     # row 1251: its starting text is a field hint, pinned in test_starting_text_1251
     FIELD, TYPED = "Callout title", "Fictional new title"
     CHANGED = lambda self, body: json.loads(body)["title"] == "Fictional new title"
 

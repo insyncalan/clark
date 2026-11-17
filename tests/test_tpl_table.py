@@ -36,6 +36,7 @@ class Data(n.DataChecks):
 class Page(n.PageChecks):
     TYPE, GOOD, HOSTILE_BODY = "table", GOOD, HOSTILE
     SHOWS = ("Item", "Owner", "Fictional scope", "Alex Example", "Fictional table.")
+    EMPTY_LINE, STAYS_OUT = "Add the first row.", False     # row 1251: the starting text of an empty Table
     FIELD, TYPED = "Row 1 column 1", "Fictional changed scope"
     CHANGED = lambda self, body: json.loads(body)["rows"][0][0] == "Fictional changed scope"
 
