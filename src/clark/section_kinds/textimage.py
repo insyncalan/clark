@@ -28,13 +28,15 @@ from clark.section_kinds.base import Bad
 READY = True
 PICTURE_MAX = 1024 * 1024           # the most bytes one picture may take (decoded); the page shrinks to well under this
 TEXT_LIMIT = 65536                  # the most bytes POST /api/change may send of the body: the words, never the pictures
-LIMIT = 1600 * 1024                 # the stored body: one picture at PICTURE_MAX in base64 (1.37 MB) and the words
 EMPTY = ""
+START = '{"v":2}'                   # row 1232: the body a new Text and Image Side by Side section starts with (changes.py accepts this one body for a new textimage section)
+SEND_MAX = 8 * 1024 * 1024          # row 1232: the most one image may take when SENT to /api/section-image (a version 2 body; a version 1 picture stays held to PICTURE_MAX); a test keeps it equal to imagecap.PICTURE_MAX
 SLOTS = ("image",)
 
 PICTURES = "pictures"
 WORDS_MAX = 20                      # paragraphs
 HTML_MAX = 20 * 2000                # characters of the rich words once cleaned, and of their plain text (the old lines x max length)
+LIMIT = 8 * 1024 * 1024 + 64 * 1024 + 2 * HTML_MAX   # the stored body: version 2 holds the original and the framed copy (3 MiB each, in base64: imagecap's two images) and the words; a version 1 body stays under 1,600 KiB by its own picture limit
 PARAGRAPH_MAX = 2000                # characters in one paragraph
 LINE_MAX = 300                      # characters in a caption, a description or one line
 SIDES = ("right", "left")
@@ -255,6 +257,8 @@ def put(out, key, value):
 # ── This template ─────────────────────────────────────────────────────────────
 
 def check(value, rules):
+    if type(value) is dict and value.get("v") == 2:
+        return _check_v2(value)
     out = frame(value, ("words", "html", "caption", "alt", "side", PICTURES))
     words = paragraphs(value, "words")
     put(out, "html", rich(value))
@@ -272,7 +276,14 @@ def check(value, rules):
 
 
 def with_picture(value, slot, image):
-    """The body with its one picture set or taken out (POST /api/section-image, through changes.py)."""
+    """The body with its one picture set or taken out (POST /api/section-image, through changes.py). A version 2 body (row 1232) takes
+    only `original`, as the Full width image does (the framed copy is made from it and the framing); a version 1 body (or none yet)
+    has its one `image` slot as it always did, held to PICTURE_MAX although the route allows SEND_MAX."""
+    if type(value) is dict and value.get("v") == 2:
+        ic = _full()
+        return ic._in_words_of_images(ic._with_original, value, slot, image, _numbers_view)
+    if image is not None:
+        picture(image, PICTURE_MAX)
     return set_picture(value, slot, image, SLOTS, {"v": 1})
 
 
@@ -280,6 +291,8 @@ def published(value, ctx):
     """The words and the picture (its caption and description only with it); None when there are neither."""
     if type(value) is not dict:
         return None
+    if value.get("v") == 2:
+        return _published_v2(value)
     image = (value.get(PICTURES) or {}).get("image", "")
     try:
         html = rich(value)                           # checked AGAIN: what is stored is never trusted at publish
@@ -293,4 +306,118 @@ def published(value, ctx):
         content["html"] = html
     if image:
         content.update({"image": image, "caption": value.get("caption", ""), "alt": value.get("alt", "")})
+    return {"content": content}
+
+
+# ── Version 2 (row 1232): Text and Image Side by Side ─────────────────────────
+#
+# `{"v": 2, ...}`, the same stored type. Words and one image framed as in the Full width image (imagecap.py): the framing code is
+# imagecap's, used here, not copied (it is imported when needed, because imagecap imports this module). The body keys:
+# - the words: `html` (or the legacy `words`), `heading` (optional, one line, never markup), `caption`, `alt`.
+# - the position, one choice for each width so changing the width and back loses nothing: `side` "left" or "right" (full width;
+#   nothing is "right"), `half` "top" or "bottom" (half width; nothing is "top"); `share` "third", "half" or "two" (the part of
+#   a full width section the image takes; nothing is "half"; not used at half width, where the image spans the section).
+# - the framing, the same for both widths: `shape` "fill" (nothing: the image fills the height of the words; at half width, 16:9),
+#   "4:3", "square" or "whole"; `fx`, `fy`, `crop`, `fit`, `fill`, `from_w` exactly as imagecap.py names them. The image is stored once
+#   whatever the layout; the shapes 4:3, square and whole are cut here, so the framed copy is only what is seen. Fill the height
+#   depends on the height of the words, which only the page knows: its framed copy is the crop only, and the page fits it.
+# - `pictures`: {"original", "image"} as imagecap.py: the framed copy is made here, never accepted from a request.
+HALVES = ("top", "bottom")
+SHARES = ("half", "third", "two")
+SHAPES_V2 = ("fill", "4:3", "square", "whole")
+RATIO_OF = {"4:3": 1333, "square": 1000}                 # width over height in thousandths, as imagecap.py's `ratio`
+KEYS_V2 = ("words", "html", "heading", "caption", "alt", "side", "half", "share", "shape", "fx", "fy", "crop", "fit", "fill", "from_w", PICTURES)
+
+
+def _full():
+    from clark.section_kinds import imagecap
+    return imagecap
+
+
+def _choice(value, key, allowed):
+    """`value[key]` when it is one of `allowed` (the first is the default); the default when it is missing; Bad otherwise."""
+    word = value.get(key, allowed[0])
+    if word not in allowed:
+        raise Bad(_full().BAD_FRAME)
+    return word
+
+
+def _numbers_view(body):
+    """The framing of a version 2 body in imagecap.py's spelling (what its `_frame_numbers` and `_make_framed` read): 4:3 and square
+    are its `free` shape with a ratio; fill and whole cut no shape."""
+    out = {k: body[k] for k in ("fx", "fy", "crop", "fit", "fill", "from_w") if k in body}
+    shape = body.get("shape", "fill")
+    if shape in RATIO_OF:
+        out["shape"], out["ratio"] = "free", RATIO_OF[shape]
+    return out
+
+
+def _check_v2(value):
+    ic = _full()
+    for k in value:
+        if k != "v" and k not in KEYS_V2:
+            raise Bad(UNKNOWN_FIELD)
+    out = {"v": 2}
+    html = rich(value)
+    put(out, "html", html)
+    if not html:
+        put(out, "words", paragraphs(value, "words"))
+    for key in ("heading", "caption", "alt"):
+        put(out, key, line(value, key))
+    for key, allowed in (("side", SIDES), ("half", HALVES), ("share", SHARES), ("shape", SHAPES_V2)):
+        word = _choice(value, key, allowed)
+        if word != allowed[0]:
+            out[key] = word
+    numbers = ic._frame_numbers(_numbers_view(value))
+    for key in ("fx", "fy", "crop", "fit", "fill", "from_w"):
+        if key in numbers:
+            out[key] = numbers[key]
+    pics = ic._in_words_of_images(pictures_of, value, ic.SLOTS, ic.ORIGINAL_MAX)
+    original, image = pics.get("original"), pics.get("image")
+    if image and not original:
+        raise Bad(ic.NOT_ALONE)
+    if original:
+        if not image or not ic._framed_belongs(original, image, numbers):
+            image = ic._in_words_of_images(ic._make_framed, original, numbers)      # the framing changed (or the copy is not ours): made again here
+        elif len(ic._decode_data(image)[1]) > ic.FRAMED_MAX:
+            raise Bad(ic.STILL_BIG)
+        pics["image"] = image
+    put(out, PICTURES, pics)
+    return out
+
+
+def _published_v2(value):
+    """The words, and the framed copy with its caption, description and look (`"v": 2` tells the page to draw the new layout). Only
+    the framed copy is published, never the original; an image whose framed copy is not the one made from the stored original and
+    framing is left out and the words stay. Nothing when there are no words and no image (a heading alone is not a section)."""
+    ic = _full()
+    try:
+        html = rich(value)                           # checked AGAIN: what is stored is never trusted at publish
+    except Bad:
+        html = ""
+    words = [] if html else (value.get("words") or [])
+    pics = value.get(PICTURES) or {}
+    original, image = pics.get("original", ""), pics.get("image", "")
+    numbers = {}
+    try:
+        numbers = ic._frame_numbers(_numbers_view(value))
+        if not original or not image or not ic._framed_belongs(original, image, numbers):
+            image = ""
+    except (Bad, ValueError):
+        image = ""
+    if not image and not words and not html:
+        return None
+    content = {"words": list(words), "v": 2}
+    if html:
+        content["html"] = html
+    for key in ("heading", "side", "half", "share", "shape"):
+        if value.get(key):
+            content[key] = value[key]
+    if image:
+        content.update({"image": image, "caption": value.get("caption", ""), "alt": value.get("alt", "")})
+        for key in ("fit", "fill"):
+            if key in numbers:
+                content[key] = numbers[key]
+        if value.get("shape", "fill") == "fill":
+            content["fx"], content["fy"] = value.get("fx", 500), value.get("fy", 500)
     return {"content": content}

@@ -15,9 +15,9 @@ export function PeekDetails({ summary = [], children, id = "pk-details" }) {
   return (
     <section class="pk-details" data-open={open ? "1" : "0"}>
       <button type="button" class="pk-details-h" data-pk-details aria-expanded={open ? "true" : "false"} aria-controls={id} onClick={() => { write(!open); setOpen(!open); }}>
-        <span class="pk-details-t">Details</span>
-        {open ? null : <span class="pk-details-sum" data-pk-details-sum>{line}</span>}
         <Icon name="chevdown" cls="s pk-details-car" />
+        <span class="pk-details-t" data-pk-details-t>Details</span>
+        {open ? null : <span class="pk-details-sum" data-pk-details-sum>{line}</span>}
       </button>
       {open ? <div id={id} class="pk-details-body" data-pk-details-rows>{children}</div> : null}
     </section>

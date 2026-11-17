@@ -535,6 +535,7 @@ def _text_body(body):
 PICTURES = "pictures"                     # the one field of a picture template's body that only POST /api/section-image sets
 IMAGE_KEYS = ("project", "section", "slot", "image", "place")
 FULL_IMAGE_START = section_kinds.REGISTRY["imagecap"].START         # row 1223: the one body a new imagecap section may be given (the Full width image)
+SIDE_BY_SIDE_START = section_kinds.REGISTRY["textimage"].START   # row 1232: the one body a new textimage section may be given (Text and Image Side by Side)
 NO_PICTURE_HERE = "That section can't hold a picture."
 PICTURE_NOT_TEXT = "Send the picture as text, or nothing to take it out."
 WORDS_TOO_LONG = "That text is too long to save. Shorten it and try again."
@@ -571,6 +572,8 @@ def _keep_pictures(section, body):
     stored = _stored_value(section)
     if type(stored) is dict and stored.get(PICTURES):
         value[PICTURES] = stored[PICTURES]
+        if value.get("v") == 2 and stored.get("v") != 2 and "original" not in value[PICTURES]:
+            value[PICTURES] = {"original": value[PICTURES]["image"]}      # row 1232: a version 1 image becomes the original of a version 2 body; the framed copy is made from it
     return clark_store.check_section_body(section["type"], section_bodies.canonical(value))
 
 
@@ -609,7 +612,7 @@ def _do_section_image(store, by_user, req):
             raise Refused(NO_PICTURE_HERE)
         try:
             if image is not None:
-                pictures.picture(image, module.PICTURE_MAX)
+                pictures.picture(image, getattr(module, "SEND_MAX", module.PICTURE_MAX))
             value = module.with_picture(_stored_value(section), slot, image)
         except section_base.Bad as e:
             raise Refused(str(e)) from None
@@ -794,7 +797,7 @@ def _do_change(store, by_user, req):
         if "body" in values:                                        # #929: a text section may start with its words, in the one step (one Undo)
             if not isinstance(values["body"], str):
                 raise Refused(BODY_NOT_TEXT)
-            if new_type == "imagecap" and values["body"] == FULL_IMAGE_START:
+            if (new_type == "imagecap" and values["body"] == FULL_IMAGE_START) or (new_type == "textimage" and values["body"] == SIDE_BY_SIDE_START):
                 start_body = values["body"]                         # row 1223: the Full width image starts as an imagecap body of version 2, and only with this body
             elif new_type != "text":
                 raise Refused(NO_BODY_HERE)
