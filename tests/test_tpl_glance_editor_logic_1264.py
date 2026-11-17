@@ -46,6 +46,17 @@ class Logic(Editor):
             time.sleep(1.5)
             self.assertEqual(self.applies(), before + 1)
 
+    def test_a_done_after_a_done_is_saved_too(self):
+        self.seed([OWN])
+        with chrome() as cdp:
+            p = self.page(cdp)
+            for word in ("Fictional first", "Fictional second"):
+                self.pencil(p)
+                self.fill(p, "label", word)
+                self.click(p, "[data-tile-editor] [data-done]")
+                self.assertTrue(wait(lambda w=word: self.body()["bespoke"][0]["label"] == w, 10), word)
+                p.until(f"!document.querySelector({self.q('[data-tile-editor]')})", "the editor closed")
+
     def test_a_failed_done_puts_the_focus_on_the_label(self):
         self.seed([OWN])
         with chrome() as cdp:
