@@ -96,16 +96,15 @@ class OneLineInView(Base):
             self.assertEqual([r["letter"] for r in decisions], ["D"])
             first = actions[0]
             self.assertIn("r", first["cls"].split(), "an Overdue action is red")
-            # Row 1287: in View the status icon sits inside the Edit status picker, which carries the words (name, tip, focus); the icon itself is then plain
-            self.assertIsNone(first["aria"])
-            self.assertRegex(first["pkAria"], r"^Status of .+: Overdue\. Change$")
-            self.assertEqual(first["pkTip"], "Action · Overdue")
-            self.assertRegex(raid[0]["pkAria"], r": Urgent, Overdue\. Change$|: Overdue\. Change$|: Red\. Change$")
-            self.assertEqual(raid[0]["pkTip"], "Risk · Urgent · Overdue")
+            # Row 1287: the status icon keeps its words, its tip and its tab stop in View, whether or not the Edit status picker is round it
+            self.assertEqual(first["aria"], "Action, Overdue")
+            self.assertEqual(first["tip"], "Action · Overdue")
+            self.assertEqual(first["tab"], 0, "the icon takes keyboard focus, so the tooltip shows on focus too")
+            self.assertEqual((raid[0]["aria"], raid[0]["tip"]), ("Risk, Urgent, Overdue", "Risk · Urgent · Overdue"))
             self.assertIn("r", raid[0]["cls"].split())
-            self.assertEqual(raid[1]["pkTip"], "Issue · Green")
+            self.assertEqual(raid[1]["aria"], "Issue, Green")
             self.assertIn("g", raid[1]["cls"].split())
-            self.assertEqual(decisions[0]["pkTip"], "Decision · Pending")
+            self.assertEqual(decisions[0]["aria"], "Decision, Pending")
             self.assertRegex(first["late"], r"^\d+ d late$", "the priority column says 'N d late' on a late action")
             self.assertIn("Urgent", raid[0]["late"])
 
