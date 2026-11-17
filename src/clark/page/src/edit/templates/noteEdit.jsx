@@ -6,13 +6,13 @@ import { change } from "../../stores/changes.js";
 import { RichField } from "../RichField.jsx";
 
 // Write a section's content (an object) as its body. Resolves to the reply, or null when it failed (the toast says why).
-export function saveContent(section, value, done) {
-  return change({ op: "update", id: section.id, changes: { body: JSON.stringify(value) }, place: "report" }, done);
+export function saveContent(section, value, done, named = null) {
+  return change({ op: "update", id: section.id, changes: { body: JSON.stringify(value) }, place: "report" }, done, named);
 }
 
 // One saved write for a template whose content is one object (Callout, Quote). A save is built from the latest words, not the last
 // drawn ones: two quick saves (one after another before the first lands) both keep their words. A refused save puts the drawn words back.
-export function useSaver(section, saved, done) {
+export function useSaver(section, saved, done, named = null) {
   const key = JSON.stringify(saved);
   const now = useRef(saved), drawn = useRef(saved), flying = useRef(0);
   drawn.current = saved;
@@ -20,7 +20,7 @@ export function useSaver(section, saved, done) {
   return (patch) => {
     now.current = { ...now.current, ...patch };
     flying.current += 1;
-    const sent = saveContent(section, { v: 1, ...now.current }, done);
+    const sent = saveContent(section, { v: 1, ...now.current }, done, named);
     Promise.resolve(sent).then((reply) => { flying.current -= 1; if (reply === null || !flying.current) now.current = drawn.current; });
     return sent;
   };
@@ -28,13 +28,14 @@ export function useSaver(section, saved, done) {
 
 // A plain text field (one line). `value` is what is saved; `onCommit(text)` is told the new words only when they differ.
 // With `grow` it is a text area that wraps and grows with its words (item 1271); Enter still saves and a pasted line break becomes a space, so the store keeps one line.
-export function Field({ value, onCommit, label, max, cls = "", placeholder, grow = false }) {
+export function Field({ value, onCommit, label, max, cls = "", placeholder, grow = false, onDraft = null }) {
   const [draft, setDraft] = useState(value);
   const box = useRef(null);
   const focused = useRef(false), cancelled = useRef(false), latest = useRef(value);
   latest.current = value;
   useEffect(() => { if (!focused.current) setDraft(value); }, [value]);
   useEffect(() => { const el = box.current; if (grow && el) { el.style.height = "auto"; el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`; } }, [draft, grow]);
+  useEffect(() => { if (onDraft) onDraft((draft || "").length); }, [draft]);   // the length typed so far, for a counter beside the field (callout title)
   const done = (el) => {
     focused.current = false;
     if (cancelled.current) { cancelled.current = false; setDraft(value); return; }

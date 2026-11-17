@@ -21,8 +21,8 @@ DOWN = DOWN[:4] + [MOVER] + DOWN[4:]                                   # the bot
 
 class LiveLayout(Base):
     def flags(self):
-        """The pairs the person made: the demo report's own pair (006 and 007) is left out."""
-        return {k: v for k, v in self.beside_flags().items() if v and k != "ABC-S-006"}
+        """The pairs the person made: the demo report's own pair (005 and 006) is left out."""
+        return {k: v for k, v in self.beside_flags().items() if v and k != "ABC-S-005"}
 
     def classes(self, p):
         return p.js("Object.fromEntries([...document.querySelectorAll('.secs > .sec[data-id]')].map(s => [s.dataset.id, "
