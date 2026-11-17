@@ -4,6 +4,7 @@ Run: python3 dev/run_tests.py test_ask_chats_per_project
 Headless Chrome, the real page, a stub for the server's ask. The chat on screen belongs to the project it was asked in: another
 project shows its own chat (none yet), and coming back shows the first one again. Earlier chats lists only the open project's.
 """
+import time
 import unittest
 
 import test_ask_panel
@@ -70,6 +71,55 @@ class ChatsPerProject(Base):
             p.js("document.querySelector('#ask-history').click()")
             p.until("!!document.querySelector('#ask-hist')", "the list again")
             self.assertEqual(p.js(LISTED), ["When is go-live?"], "one entry for the one chat")
+
+    def test_a_project_change_inside_the_page_swaps_the_chat_too(self):
+        """A hash with no project is applied in the page itself (no page load), so this reaches the swap in askPanelState."""
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.answered(p, "When is go-live?")
+            p.js("location.hash = '#dashboard'")
+            p.until("location.hash.indexOf('p=') < 0 && !document.querySelector('#ask-panel')", "in the page with no project, the panel closed")
+            self.reopen(p)
+            self.assertEqual(p.js(TURNS), 0, "no project, no chat of the first")
+            p.js("document.querySelector('#ask-history').click()")
+            p.until("!!document.querySelector('#ask-hist')", "the list")
+            self.assertFalse(p.js(LISTED), "nothing earlier for no project")
+            p.js("location.hash = '#dashboard&p=ABC'")
+            p.until("location.hash.indexOf('p=ABC') > 0 && !document.querySelector('#ask-panel')", "back on the first project, panel closed")
+            self.reopen(p)
+            self.assertEqual(p.js(TURNS), 2, "the first project's chat is back")
+            self.assertFalse(p.js("!!document.querySelector('#ask-hist')"), "on its chat, not the list")
+
+    def test_a_project_change_inside_the_page_drops_an_answer_still_out_and_the_waiting_messages(self):
+        self.stub.hold.clear()
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.stub.calls.clear()
+            self.ask(p, "First question")
+            p.until("!!document.querySelector('#ask-stop')", "the question is out")
+            p.js("document.querySelector('#ask-box').focus()")
+            p.type("Second question")
+            p.key("Enter", code="Enter", vk=13)
+            p.until("document.querySelectorAll('#ask-queue li[data-queued]').length === 1", "the second is waiting")
+            p.js("location.hash = '#dashboard'")
+            p.until("location.hash.indexOf('p=') < 0 && !document.querySelector('#ask-panel')", "in the page with no project, the panel closed")
+            self.stub.hold.set()
+            time.sleep(2)
+            self.reopen(p)
+            self.assertEqual(p.js(TURNS), 0, "the answer that was out did not land in the chat of the other project")
+            self.assertFalse(p.js("!!document.querySelector('#ask-queue')"), "the waiting message did not follow")
+            self.assertEqual([c[1]["question"] for c in self.stub.calls if c[0] == "ask"], ["First question"], "the waiting message was never sent")
+
+    def test_a_change_of_page_keeps_the_open_list_of_earlier_chats(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.answered(p, "When is go-live?")
+            p.js("document.querySelector('#ask-history').click()")
+            p.until("!!document.querySelector('#ask-hist')", "the list is showing")
+            p.js("location.hash = '#settings&p=ABC'")
+            p.until("location.hash.indexOf('settings') > 0", "on the next page")
+            self.reopen(p)
+            self.assertTrue(p.js("!!document.querySelector('#ask-hist')"), "the list is still showing, as the chat is still the same")
 
     def test_the_list_of_earlier_chats_does_not_follow_to_the_other_project(self):
         with chrome() as cdp:
