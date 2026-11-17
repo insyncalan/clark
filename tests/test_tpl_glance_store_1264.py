@@ -136,6 +136,10 @@ class PageBehaviour(unittest.TestCase):            # killer: the page's within()
                           " g.chars('\\u{1F600}'), g.within('\\u{1F600}'.repeat(g.TAG_MAX), g.TAG_MAX), g.within('\\u{1F600}'.repeat(g.TAG_MAX + 1), g.TAG_MAX), g.chars(null)]")
         self.assertEqual(got, [True, True, False, 1, True, False, 0])
 
+    def test_the_numbers_the_page_runs_with_are_the_server_numbers(self):      # killer: the second reader of every page limit, by running the module (the first reads its text)
+        got = self.run_js("[g.BESPOKE_MAX, g.LABEL_MAX, g.FIGURE_MAX, g.TAG_MAX, g.NOTE_MAX, g.TONES]")
+        self.assertEqual(got, [gt.BESPOKE_MAX, gt.LABEL_MAX, gt.FIGURE_MAX, gt.TAG_MAX, gt.NOTE_MAX, list(gt.TONES)])
+
 
 if __name__ == "__main__":
     unittest.main()
