@@ -1,6 +1,6 @@
 """Row 1264 slice 1: the glance template's data layer (section_kinds/glancetemplate.py): canonical body, defaults, bad values, limits in
 characters, tones, ids, the tile cap, upgrade, same bytes, what is published, the registry, the pins and schema step 29. Fictional data
-only. Every message a person would read is WORDS_PENDING (not approved yet): the tests name the key, never a sentence.
+only. Every refusal message carries the approved text, pinned word for word per key.
 
 Run: python3 dev/run_tests.py test_tpl_glance_rules_1264
 """
@@ -30,6 +30,49 @@ def bad(value):
     with unittest.TestCase().assertRaises(base.Bad) as got:
         check(value)
     return str(got.exception)
+
+
+def _many(n):
+    return {"v": 1, "bespoke": [tile(id=f"t{i}", label=f"Tile {i}") for i in range(n)]}
+
+
+CASES = [
+    ("not_object", []),
+    ("unknown_field", {"v": 1, "extra": 1}),
+    ("not_bool", {"v": 1, "health": {"shown": 1}}),
+    ("bad_outline", {"v": 1, "builtin": {"risks": {"outline": "red"}}}),
+    ("bad_tone", {"v": 1, "bespoke": [tile(tone="purple")]}),
+    ("bad_id", {"v": 1, "bespoke": [tile(id="T 1")]}),
+    ("dup_id", {"v": 1, "bespoke": [tile(), tile()]}),
+    ("bad_order", {"v": 1, "order": ["nope"]}),
+    ("too_many", _many(13)),
+    ("label_missing", {"v": 1, "bespoke": [{"id": "t1", "label": "  "}]}),
+    ("label_long", {"v": 1, "bespoke": [tile(label="a" * 41)]}),
+    ("figure_long", {"v": 1, "bespoke": [tile(figure="a" * 13)]}),
+    ("tag_long", {"v": 1, "bespoke": [tile(tag="a" * 13)]}),
+    ("note_long", {"v": 1, "bespoke": [tile(note="a" * 61)]}),
+    ("bad_text", {"v": 1, "bespoke": [tile(note=5)]}),
+    ("too_long", {"v": 1, "bespoke": [tile(id=f"t{i}", label="a" * 40, figure="a" * 12, tag="a" * 12, note="a" * 60) for i in range(12)]}),
+]
+
+APPROVED_TEXT = {
+    "not_object": "At a glance must be one set of fields. Check it and try again.",
+    "unknown_field": "At a glance has a field it does not keep. Reload the page and try again.",
+    "not_bool": "A yes or no setting in At a glance has the wrong kind of value. Check it and try again.",
+    "bad_outline": "The outline colour of a tile is green, amber, red or no colour. Choose one of those.",
+    "bad_tone": "The colour of a tile is green, amber, red, blue or neutral. Choose one of those.",
+    "bad_id": "A tile in At a glance has a name it cannot keep. Reload the page and try again.",
+    "dup_id": "Two tiles in At a glance have the same name. Reload the page and try again.",
+    "bad_order": "The order of the tiles in At a glance cannot be kept. Reload the page and try again.",
+    "too_many": "You can have up to 12 tiles.",
+    "label_missing": "Give the tile a label.",
+    "label_long": "The tile label is too long (40 characters at most). Shorten it and try again.",
+    "figure_long": "The tile figure is too long (12 characters at most). Shorten it and try again.",
+    "tag_long": "The tile tag is too long (12 characters at most). Shorten it and try again.",
+    "note_long": "The tile note is too long (60 characters at most). Shorten it and try again.",
+    "bad_text": "A tile in At a glance has text of the wrong kind. Check it and try again.",
+    "too_long": "At a glance is too long to keep (32 KB at most in all). Remove a tile or shorten the text and try again.",
+}
 
 
 class Canonical(unittest.TestCase):                                                  # T01, T02
@@ -162,16 +205,71 @@ class Reads(unittest.TestCase):                                                 
         self.assertEqual(one, two)
         self.assertEqual(section_bodies.check("glancetemplate", one, store_module.BODY_RULES), one)
 
-    def test_t15_refusals_use_the_pending_words_and_never_quote_the_value(self):
-        self.assertTrue(all(w.startswith("[words pending") for w in gt.WORDS_PENDING.values()))
+    def test_t15_refusals_use_the_approved_words_and_never_quote_the_value(self):
         self.assertEqual(set(gt.WORDS), set(gt.KEYS_OF_WORDS))
+        self.assertEqual(set(gt.APPROVED), set(gt.KEYS_OF_WORDS))
+        self.assertEqual(len(gt.APPROVED), 16)
         got = bad({"v": 1, "bespoke": [tile(label="secret-word" * 10)]})
         self.assertEqual(got, gt.WORDS["label_long"])
         self.assertNotIn("secret-word", got)
-        for body, key in (([], "not_object"), ({"v": 1, "x": 1}, "unknown_field"), ({"v": 1, "health": {"shown": 1}}, "not_bool"),
-                          ({"v": 1, "bespoke": [tile(tone="x")]}, "bad_tone"), ({"v": 1, "bespoke": [tile(), tile()]}, "dup_id"),
-                          ({"v": 1, "bespoke": [tile(id=str(i)) for i in range(13)]}, "too_many")):
-            self.assertEqual(bad(body), gt.WORDS[key], key)
+
+    def test_t15b_no_message_says_pending_or_is_a_placeholder(self):
+        for key, text in gt.words().items():
+            with self.subTest(key=key):
+                self.assertNotIn("pending", text.lower())
+                self.assertNotIn("[", text)
+                self.assertTrue(text.endswith("."))
+        self.assertFalse(hasattr(gt, "WORDS_PENDING"))
+
+    def test_t15c_no_message_quotes_the_offending_value(self):
+        for key, body in CASES:
+            if key == "too_long":
+                continue
+            marked = json.loads(json.dumps(body).replace("Go-live", "zq-offender"))
+            with self.subTest(key=key):
+                self.assertNotIn("zq-offender", bad(marked))
+        for field in ("label", "figure", "tag", "note"):
+            self.assertNotIn("zq-offender", bad({"v": 1, "bespoke": [tile(**{field: "zq-offender" * 10})]}))
+        for wrong in ("zq-offender", ["zq-offender"], {"zq-offender": 1}):
+            for body in ({"v": 1, "bespoke": [tile(tone=wrong)]}, {"v": 1, "builtin": {"risks": {"outline": wrong}}}, {"v": 1, "order": [wrong]},
+                         {"v": 1, "health": {"shown": wrong}}, {"v": 1, "bespoke": [tile(id=wrong)]}):
+                try:
+                    msg = bad(body)
+                except TypeError:
+                    continue
+                self.assertNotIn("zq-offender", msg)
+
+    def test_t15d_every_key_has_one_case_that_says_exactly_the_approved_text(self):
+        self.assertEqual([k for k, _ in CASES], list(gt.KEYS_OF_WORDS))
+        self.assertEqual({k for k, _ in CASES}, set(APPROVED_TEXT))
+        for key, body in CASES:
+            with self.subTest(key=key):
+                if key == "too_long":
+                    with mock.patch.object(gt, "LIMIT", 1024):
+                        self.assertEqual(bad(body), APPROVED_TEXT[key].replace("32 KB", "1 KB"))
+                else:
+                    self.assertEqual(bad(body), APPROVED_TEXT[key])
+                self.assertEqual(gt.words()[key], APPROVED_TEXT[key])
+                self.assertEqual(gt.APPROVED[key], APPROVED_TEXT[key])
+
+    def test_t15e_the_texts_that_name_a_limit_read_the_constants(self):
+        for const, key, field, was, now in (("LABEL_MAX", "label_long", "label", "40", "7"), ("FIGURE_MAX", "figure_long", "figure", "12", "3"),
+                                            ("TAG_MAX", "tag_long", "tag", "12", "4"), ("NOTE_MAX", "note_long", "note", "60", "9")):
+            with self.subTest(key=key), mock.patch.object(gt, const, int(now)):
+                got = bad({"v": 1, "bespoke": [tile(**{field: "a" * (int(now) + 1)})]})
+                self.assertEqual(got, APPROVED_TEXT[key].replace(f"({was} characters", f"({now} characters"))
+                self.assertIn(f"({now} characters at most)", got)
+        with mock.patch.object(gt, "LIMIT", 4096):
+            self.assertIn("(4 KB at most in all)", gt.words()["too_long"])
+        self.assertEqual((gt.LABEL_MAX, gt.FIGURE_MAX, gt.TAG_MAX, gt.NOTE_MAX, gt.LIMIT), (40, 12, 12, 60, 32768))
+
+    def test_t15f_the_size_check_counts_the_stored_text(self):
+        body = {"v": 1, "bespoke": [tile(note="a" * 50)]}
+        size = len(str(check(body)).encode("utf-8"))
+        with mock.patch.object(gt, "LIMIT", size):
+            self.assertEqual(check(body), check(body))
+        with mock.patch.object(gt, "LIMIT", size - 1):
+            self.assertEqual(bad(body), gt.words()["too_long"])
 
 
 class Published(unittest.TestCase):                                                   # T13, T14

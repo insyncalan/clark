@@ -1,7 +1,7 @@
 """Row 1264 slice 3: the glance template's View, low tiles at full width, in a real browser (1400 and 900 px, light and dark): the three
 counting tiles and the bespoke ones, label on one line, no overflow, shape and tag word beside colour, border contrast read from the tokens.
 Fictional data only. Every word the tests expect is an At a glance word that exists already or text typed into the fixture; the words of
-the library card and of Edit are WORDS_PENDING (section_kinds/glancetemplate.py) and are not shown by this slice.
+the library card and of Edit are not approved yet and are not shown by this slice.
 
 Run: python3 dev/run_tests.py test_tpl_glance_page_1264
 """
