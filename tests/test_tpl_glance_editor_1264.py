@@ -355,3 +355,204 @@ class Css(unittest.TestCase):
         self.assertIn("polygon(50% 0, 100% 50%, 50% 100%, 0 50%)", self.rule(".tone-r .tpl-gt-dot"))
         self.assertIn("border-radius", self.rule(".tone-b .tpl-gt-dot"))
         self.assertNotIn("clip-path", self.rule(".tone-b .tpl-gt-dot"))
+
+
+class Killers(Editor):
+    """Pins the behaviour the first sweep found loose: amber stored, the 11th tile allowed, the pencil toggle, hidden kept on Done, arrow keys on the colours."""
+
+    def pencil(self, p, tid="t1"):
+        self.click(p, f"[data-tile={tid}] [data-tile-pencil]")
+        self.editor_open(p)
+
+    def test_K1_amber_is_stored_by_done_and_the_eleventh_tile_can_still_be_added(self):
+        self.seed([{"id": f"t{i}", "label": f"Fictional {i}", "figure": str(i)} for i in range(1, 12)])
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_add(p)
+            self.assertEqual(p.js("document.querySelector('.ddmenu[role=menu] [role=menuitem]').textContent"),
+                             "Your own tileA label, a figure or short text, a tag and a colour you set")
+            p.js("document.querySelector('.ddmenu[role=menu] [role=menuitem]').click()")
+            self.editor_open(p)
+            self.click(p, "[data-tile-editor] [data-tone=amber]")
+            self.click(p, "[data-tile-editor] [data-done]")
+            self.assertTrue(wait(lambda: len(self.body().get("bespoke", [])) == 12, 10), f"stored: {self.body()}")
+            self.assertEqual(self.body()["bespoke"][-1].get("tone"), "amber")
+
+    def test_K2_the_pencil_opens_and_closes_the_editor_and_says_which(self):
+        self.seed([OWN])
+        with chrome() as cdp:
+            p = self.page(cdp)
+            pen = self.q("[data-tile=t1] [data-tile-pencil]")
+            self.assertEqual(p.js(f"document.querySelector({pen}).getAttribute('aria-expanded')"), "false")
+            self.pencil(p)
+            self.assertEqual(p.js(f"document.querySelector({pen}).getAttribute('aria-expanded')"), "true")
+            self.click(p, "[data-tile=t1] [data-tile-pencil]")
+            p.until(f"!document.querySelector({self.q('[data-tile-editor]')})", "closed by the pencil")
+
+    def test_K3_done_keeps_a_hidden_tile_hidden_and_sends_nothing_when_nothing_changed(self):
+        self.seed([{**OWN, "hidden": True}])
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.pencil(p)
+            before = self.applies()
+            self.click(p, "[data-tile-editor] [data-done]")
+            p.until("!!document.querySelector('.toast-text')", "the note")
+            self.assertEqual(self.toast(p), "Tile saved")
+            self.assertEqual(self.applies(), before, "nothing changed: no step")
+            self.assertTrue(self.body()["bespoke"][0].get("hidden"))
+            self.pencil(p)
+            self.fill(p, "label", "Fictional kept hidden")
+            self.click(p, "[data-tile-editor] [data-done]")
+            self.assertTrue(wait(lambda: self.body()["bespoke"][0].get("label") == "Fictional kept hidden", 10), f"stored: {self.body()}")
+            self.assertTrue(self.body()["bespoke"][0].get("hidden"), "still hidden")
+
+    def test_K4_arrow_keys_move_the_colour_and_wrap_and_only_the_picked_colour_is_a_tab_stop(self):
+        self.seed([OWN])
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.pencil(p)
+            tones = self.q("[data-tile-editor] [role=radio]")
+            tab = lambda: p.js(f"[...document.querySelectorAll({tones})].map(b => b.tabIndex)")  # noqa: E731
+            self.assertEqual(tab(), [0, -1, -1, -1, -1])
+            p.js(f"document.querySelector({self.q('[data-tile-editor] [data-tone=green]')}).focus()")
+            p.key("ArrowLeft", 0, code="ArrowLeft", vk=37)
+            p.until(f"document.querySelector({self.q('[data-tile-editor] [data-tone=neutral]')}).getAttribute('aria-checked') === 'true'", "wrapped to neutral")
+            p.until("document.activeElement.dataset.tone === 'neutral'", "focus follows")
+            self.assertEqual(tab(), [-1, -1, -1, -1, 0])
+            p.key("ArrowRight", 0, code="ArrowRight", vk=39)
+            p.until(f"document.querySelector({self.q('[data-tile-editor] [data-tone=green]')}).getAttribute('aria-checked') === 'true'", "wrapped to green")
+
+    def test_K5_the_bin_closes_an_open_editor_and_an_emptied_label_shows_untitled_in_the_draft(self):
+        self.seed([OWN])
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.pencil(p)
+            self.fill(p, "label", "")
+            self.assertEqual(p.js(f"document.querySelector({self.q('[data-tile=t1] .tpl-gt-k')}).textContent"), "Untitled")
+            self.click(p, "[data-tile=t1] [data-tile-bin]")
+            self.assertTrue(wait(lambda: not self.body().get("bespoke"), 10), f"stored: {self.body()}")
+            p.until(f"!document.querySelector({self.q('[data-tile-editor]')})", "the editor closed")
+            p.until("document.activeElement.classList.contains('tileadd')", "focus on Add a tile")
+            self.undo(p)
+            p.until(f"!!document.querySelector({self.q('[data-tile=t1]')})", "the tile is back")
+            self.assertIsNone(p.js(f"document.querySelector({self.q('[data-tile-editor]')})"), "the deleted tile's editor does not come back with the tile")
+
+    def test_K6_remove_tile_closes_the_editor_puts_focus_on_add_a_tile_and_undo_brings_back_the_tile_alone(self):
+        self.seed([OWN])
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.pencil(p)
+            self.click(p, "[data-tile-editor] [data-remove]")
+            self.assertTrue(wait(lambda: not self.body().get("bespoke"), 10), f"stored: {self.body()}")
+            p.until("document.activeElement.classList.contains('tileadd')", "focus on Add a tile")
+            self.undo(p)
+            p.until(f"!!document.querySelector({self.q('[data-tile=t1]')})", "the tile is back")
+            self.assertIsNone(p.js(f"document.querySelector({self.q('[data-tile-editor]')})"), "no editor comes back")
+
+    def test_K7_done_puts_focus_on_the_pencil_of_the_tile(self):
+        self.seed([OWN])
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.pencil(p)
+            self.fill(p, "label", "Fictional changed")
+            self.click(p, "[data-tile-editor] [data-done]")
+            p.until("document.activeElement.hasAttribute('data-tile-pencil')", "focus on the pencil")
+            self.assertEqual(p.js("document.activeElement.closest('[data-tile]').dataset.tile"), "t1")
+
+    def test_K8_arrow_down_and_up_move_the_colour_like_right_and_left(self):
+        self.seed([OWN])
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.pencil(p)
+            on = lambda t: f"document.querySelector({self.q(f'[data-tile-editor] [data-tone={t}]')}).getAttribute('aria-checked') === 'true'"  # noqa: E731
+            p.js(f"document.querySelector({self.q('[data-tile-editor] [data-tone=green]')}).focus()")
+            p.key("ArrowDown", 0, code="ArrowDown", vk=40)
+            p.until(on("amber"), "down goes to amber")
+            p.until("document.activeElement.dataset.tone === 'amber'", "focus follows down")
+            p.key("ArrowUp", 0, code="ArrowUp", vk=38)
+            p.until(on("green"), "up goes back to green")
+
+    def test_K9_a_new_tile_opens_with_its_label_selected_and_an_old_one_with_the_caret_only(self):
+        self.seed([OWN])
+        with chrome() as cdp:
+            p = self.page(cdp)
+            sel = "(function(){ var i = document.activeElement; return [i.dataset.f, i.selectionStart, i.selectionEnd, i.value.length]; })()"
+            self.open_add(p)
+            p.js("document.querySelector('.ddmenu[role=menu] [role=menuitem]').click()")
+            self.editor_open(p)
+            p.until("document.activeElement.dataset.f === 'label'", "the label has focus")
+            self.assertEqual(p.js(sel), ["label", 0, len("New tile"), len("New tile")])
+            self.click(p, "[data-tile-editor] [data-cancel]")
+            p.until(f"!document.querySelector({self.q('[data-tile-editor]')})", "closed")
+            self.pencil(p)
+            p.until("document.activeElement.dataset.f === 'label'", "the label has focus")
+            a, b = p.js(sel)[1:3]
+            self.assertEqual(a, b, "no selection on an old tile")
+
+    def test_K10_an_empty_label_names_its_error_to_the_field_and_the_editor_pop_button_shows_its_own_icon(self):
+        self.seed([OWN])
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.pencil(p)
+            self.fill(p, "label", "")
+            self.click(p, "[data-tile-editor] [data-done]")
+            p.until(f"!!document.querySelector({self.q('[data-tile-editor] .err')})", "the error")
+            lab = self.q("[data-tile-editor] [data-f=label]")
+            err_id = p.js(f"document.querySelector({self.q('[data-tile-editor] .err')}).id")
+            self.assertTrue(err_id)
+            self.assertEqual(p.js(f"document.querySelector({lab}).getAttribute('aria-describedby')"), err_id)
+            icon = lambda: p.js(f"document.querySelector({self.q('[data-tile-editor] [data-pop]')}).innerHTML")  # noqa: E731
+            before = icon()
+            self.click(p, "[data-tile-editor] [data-pop]")
+            p.until(f"document.querySelector({self.q('[data-tile-editor] [data-pop]')}).getAttribute('aria-pressed') === 'true'", "popped")
+            self.assertNotEqual(icon(), before, "the pop button changes its icon")
+
+    def test_K11_esc_in_the_editor_closes_it_and_is_not_passed_on_to_the_page(self):
+        self.seed([OWN])
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.pencil(p)
+            p.js("window.__esc = 0; document.addEventListener('keydown', function (e) { if (e.key === 'Escape') window.__esc++; });")
+            p.key("Escape", 0, code="Escape", vk=27)
+            p.until(f"!document.querySelector({self.q('[data-tile-editor]')})", "closed by Esc")
+            self.assertEqual(p.js("window.__esc"), 0, "Esc stopped at the editor")
+
+    def test_K12_a_new_tile_draft_shows_only_in_the_section_that_asked(self):
+        with self.store.step("dashboard", USER) as st:
+            other = st.create("report_sections", {"project": "ABC", "type": "glancetemplate", "title": "Fictional other glance", "sort_order": 999})
+        self.seed([OWN])
+        with chrome() as cdp:
+            p = self.page(cdp)
+            p.until(f"!!document.querySelector('[data-id=\"{other}\"] .tileadd')", "the other section drew")
+            self.open_add(p)
+            p.js("document.querySelector('.ddmenu[role=menu] [role=menuitem]').click()")
+            self.editor_open(p)
+            self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{other}\"] .pending, [data-id=\"{other}\"] [data-tile-editor]').length"), 0)
+            self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{self.ref}\"] .pending').length"), 1)
+
+    def test_K13_when_the_change_is_refused_the_editor_stays_with_what_was_typed(self):
+        self.seed([OWN])
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.pencil(p)
+            self.fill(p, "label", "Fictional typed")
+            p.js("window.fetch = function () { return Promise.reject(new Error('down')); };")
+            before = self.applies()
+            self.click(p, "[data-tile-editor] [data-done]")
+            p.until("!!document.querySelector('.toast-text')", "a note")
+            self.assertEqual(self.applies(), before)
+            self.assertTrue(p.js(f"!!document.querySelector({self.q('[data-tile-editor]')})"), "the editor stays")
+            self.assertEqual(p.js(f"document.querySelector({self.q('[data-f=label]')}).value"), "Fictional typed")
+
+    def test_K14_cancel_on_a_new_tile_puts_focus_on_add_a_tile_and_a_picked_colour_gives_the_draft_its_own_class(self):
+        self.seed([OWN])
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_add(p)
+            p.js("document.querySelector('.ddmenu[role=menu] [role=menuitem]').click()")
+            self.editor_open(p)
+            for tone, cls in (("green", "tone-g"), ("amber", "tone-a"), ("red", "tone-r"), ("blue", "tone-b")):
+                self.click(p, f"[data-tile-editor] [data-tone={tone}]")
+                p.until(f"document.querySelector({self.q('.pending .tpl-gt-tile')}).classList.contains('{cls}')", f"the draft is {cls}")
+            self.click(p, "[data-tile-editor] [data-cancel]")
+            p.until("document.activeElement.classList.contains('tileadd')", "focus on Add a tile")
