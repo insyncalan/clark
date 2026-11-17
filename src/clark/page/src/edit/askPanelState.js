@@ -7,7 +7,7 @@ import { helpOpen } from "../help/helpStore.js";
 import { singleKeys } from "../stores/keyPrefs.js";
 import { askOn, askProvider } from "./askState.js";
 import { keptCheck, runCheck } from "./askCheck.js";
-import { chatId, histOpen } from "./askHistory.js";
+import { chatId, histOpen, openChatOf, rememberOpen } from "./askHistory.js";
 import { DISCONNECTED_LINE } from "./askWords.js";
 
 const MIN = 320, DEFAULT = 420;
@@ -133,9 +133,18 @@ export function installAskKeys() {
     const p = document.getElementById("ask-panel");
     if (p && !p.contains(e.target) && !(e.target.closest && e.target.closest("#ask-btn"))) closePanel();     // the ask button closes it itself
   }, true);
-  let seen = view.value + "|" + project.value;
+  // #1292 slice 8: a chat belongs to its project. A change of page keeps the chat; a change of project shows that project's own chat (the one it was left
+  // on, else an empty one) and the first is back on return. The answered chats are kept in Earlier chats, and the one each project is on is kept beside them,
+  // so a page that loads again for another project (a brand of its own) still finds it. An answer still out for the old project is not added to the new chat.
+  let seen = view.value + "|" + project.value, seenProject = project.value;
+  const resume = (p) => { const c = openChatOf(p); turns.value = c ? c.turns.map((t) => ({ ...t })) : []; chatId.value = c ? c.id : null; };
+  resume(seenProject);
+  effect(() => { rememberOpen(seenProject, chatId.value); });
   effect(() => {
-    const now = view.value + "|" + project.value;
-    if (now !== seen) { seen = now; chatEpoch.value++; setQueue([]); turns.value = []; chatId.value = null; histOpen.value = false; if (panelOpen.value) { panelOpen.value = false; opener = null; } }
+    const now = view.value + "|" + project.value, p = project.value;
+    if (now === seen) return;
+    seen = now;
+    if (p !== seenProject) { seenProject = p; chatEpoch.value++; setQueue([]); histOpen.value = false; resume(p); }
+    if (panelOpen.value) { panelOpen.value = false; opener = null; }
   });
 }

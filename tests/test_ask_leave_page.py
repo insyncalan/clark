@@ -1,4 +1,4 @@
-"""Row 1119: an answer that comes back after the page was left must not land in the chat of the next page.
+"""Row 1119 (#1292 slice 8: the project, not the page): an answer that comes back after the project was left must not land in the chat of the next page.
 
 Run: python3 dev/run_tests.py test_ask_leave_page
 A question is held at the server, the person goes to Settings, the answer is let go: the chat they open there is empty.
@@ -27,8 +27,8 @@ class LeavePage(Base):
             p.type("When is go-live?")
             p.js("document.querySelector('#ask-send').click()")
             p.until("!!document.querySelector('#ask-stop')", "the question is out")
-            p.js("location.hash = '#settings&p=ABC'")
-            p.until("document.querySelector('#ask-panel') === null", "leaving the page closed the panel")
+            p.js("location.hash = '#dashboard&p=DEF'")
+            p.until("document.querySelector('#ask-panel') === null", "leaving the project closed the panel")
             self.stub.hold.set()
             time.sleep(1.5)
             time.sleep(0.5)
@@ -73,8 +73,8 @@ class LeavePageChanges(Base):
             while time.time() < deadline and not any(c[0] == "change_dry" for c in self.stub.calls):
                 time.sleep(0.1)
             self.assertTrue(any(c[0] == "change_dry" for c in self.stub.calls), "the dry run was asked for")
-            p.js("location.hash = '#settings&p=ABC'")
-            p.until("document.querySelector('#ask-panel') === null", "leaving the page closed the panel")
+            p.js("location.hash = '#dashboard&p=DEF'")
+            p.until("document.querySelector('#ask-panel') === null", "leaving the project closed the panel")
             self.stub.dry_hold.set()
             time.sleep(2)
             p.key("/", code="Slash", vk=191)

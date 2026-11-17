@@ -12,10 +12,11 @@ export const chatId = signal(null);      // the stored chat the panel is showing
 export const histOpen = signal(false);   // the list of earlier chats is showing in place of the chat
 export const histTick = signal(0);       // bumped when the store changes, so the list is read again
 
-const key = () => "askChats." + (project.value || "");
+const key = (p = project.value) => "askChats." + (p || "");
+const openKey = (p) => "askOpen." + (p || "");
 
-export function chats() {
-  const l = recall(key(), []);
+export function chats(p = project.value) {
+  const l = recall(key(p), []);
   return Array.isArray(l) ? l.filter((c) => c && typeof c.id === "string" && Array.isArray(c.turns)) : [];
 }
 
@@ -42,6 +43,13 @@ export function deleteChat(id) {
   remember(key(), chats().filter((c) => c.id !== id));
   if (chatId.value === id) chatId.value = null;
   histTick.value++;
+}
+
+/** #1292 slice 8: the chat each project was left on (its id, kept like the chats are), so a change of project, or the page loading again for one, comes back to it. */
+export function rememberOpen(p, id) { remember(openKey(p), id || null); }
+export function openChatOf(p) {
+  const id = recall(openKey(p), null);
+  return typeof id === "string" ? chats(p).find((c) => c.id === id) || null : null;
 }
 
 export function when(at) { return new Date(at).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }); }
