@@ -16,17 +16,55 @@ class Data(n.DataChecks):
     TYPE, GOOD, WORDS, HOSTILE_BODY = "callout", GOOD, "Fictional words about the budget.", HOSTILE
     LIMIT_BODY = {"v": 1, "title": "x" * 121}
     BAD = ({"v": 1, "tone": "loud"}, {"v": 1, "title": 5}, {"v": 1, "paras": "one"}, {"v": 1, "paras": [{"a": 1}]},
-           {"v": 1, "paras": ["x"] * 7}, {"v": 1, "paras": ["x" * 601]})
+           {"v": 1, "paras": ["x"] * 7}, {"v": 1, "paras": ["x" * 601]},
+           {"v": 1, "category": "x" * 31}, {"v": 1, "category": 5}, {"v": 1, "colour": "pink"}, {"v": 1, "icon": "emoji"}, {"v": 1, "tile": "yes"}, {"v": 1, "heading": 1})
 
     def test_the_tone_and_empty_paragraphs(self):
         ref = self.section()
         self.write(ref, {"v": 1, "title": "Fictional", "paras": ["", "  ", "Kept"]})
         self.assertEqual(json.loads(self.stored(ref)), {"paras": ["Kept"], "title": "Fictional", "tone": "info", "v": 1})
 
+    def test_the_new_fields_are_kept_and_an_older_callout_is_unchanged(self):
+        ref = self.section()
+        self.write(ref, GOOD)
+        self.assertEqual(json.loads(self.stored(ref)), {"v": 1, "tone": "decision", "title": "Fictional decision", "paras": GOOD["paras"]})
+        self.write(ref, {**GOOD, "category": " Budget ", "colour": "green", "icon": "none", "tile": False, "heading": True})
+        got = json.loads(self.stored(ref))
+        self.assertEqual((got["category"], got["colour"], got["icon"], got["tile"], got["heading"]), ("Budget", "green", "none", False, True))
+
+    def test_the_file_says_the_category_colour_and_icon_in_words(self):
+        ref = self.section()
+        self.write(ref, {**GOOD, "category": "Budget", "colour": "violet", "icon": "bulb"})
+        c = self.file_sections()[ref]["content"]
+        self.assertEqual((c["category"], c["colour_name"], c["icon_name"]), ("Budget", "Violet", "Light bulb"))
+        self.write(ref, GOOD)                       # an older callout: the colour and icon its tone drew
+        c = self.file_sections()[ref]["content"]
+        self.assertEqual((c["category"], c["colour_name"], c["icon_name"], c["tile"], c["heading"]), ("", "Amber", "Question", True, True))
+
     def test_a_tone_alone_is_not_content(self):
         ref = self.section()
         self.write(ref, {"v": 1, "tone": "warning"})
         self.assertNotIn(ref, self.file_sections())
+
+
+class Words(unittest.TestCase):
+    """The named lists and defaults themselves (mutation check): every colour and icon, the tone looks, words() alone."""
+
+    def test_every_colour_and_icon_is_named_and_the_tone_looks_are_kept(self):
+        from clark.section_kinds import callout
+        self.assertEqual(tuple(callout.COLOURS), ("plain", "violet", "amber", "red", "green", "grey"))
+        self.assertEqual(len(callout.ICONS), 21)
+        self.assertIn("shield", callout.ICONS)
+        self.assertEqual(callout.COLOURS["grey"], "Grey")
+        self.assertEqual(callout.TONE_LOOK, {"info": ("violet", "info"), "decision": ("amber", "question"), "warning": ("red", "warning")})
+        self.assertEqual(callout.upgrade({"v": 1, "tone": "warning"}),
+                         {"v": 1, "tone": "warning", "category": "", "colour": "red", "icon": "warning", "tile": True, "heading": True})
+
+    def test_words_alone_carries_the_category_colour_and_icon(self):
+        from clark.section_kinds import callout
+        self.assertEqual(callout.words({"v": 1, "tone": "warning", "category": "Budget", "colour": "grey", "icon": "shield"}),
+                         {"category": "Budget", "colour_name": "Grey", "icon_name": "Shield"})
+        self.assertEqual(callout.words({"v": 1, "icon": "none", "colour": "plain"}), {"category": "", "colour_name": "Plain", "icon_name": ""})
 
 
 class Page(n.PageChecks):

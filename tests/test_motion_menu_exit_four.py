@@ -34,7 +34,7 @@ class Show(GanttPage):
                     self.mount(mode="edit")
                     self.js(ADD)
                     emulate(self.cdp, self.sid, motion)
-                    self.click("[data-gp-layout]")
+                    self.click("[data-gp-layout=table]")
                     self.until("document.querySelector('[data-gp-show]')", "the Show button")
                     self.click("[data-gp-show]")
                     self.until("document.querySelector('[data-gp-showmenu]')", "the menu")
