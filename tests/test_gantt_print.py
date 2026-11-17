@@ -90,7 +90,7 @@ class Print(_PageRig):
                         self.look(w, scheme)
                         self.mount(width=w - 60)
                         if layout == "table":
-                            self.click("[data-gp-layout]")
+                            self.click("[data-gp-layout=table]")
                             self.until("document.querySelector('[data-gp-shown=table]')", "table")
                         self.printing(w, scheme)
                         try:
@@ -333,7 +333,7 @@ class Print(_PageRig):
                         self.look(width, scheme)
                         self.mount()
                         if layout == "table":
-                            self.click("[data-gp-layout]")
+                            self.click("[data-gp-layout=table]")
                             self.until("document.querySelector('[data-gp-shown=table]')", "table")
                         snap = ("JSON.stringify([].slice.call(document.querySelectorAll('#gantt-page *')).map(function (e) { var c = getComputedStyle(e); return "
                                 + "[" + ",".join(f"c.{k}" for k in KEEP) + ", e.getBoundingClientRect().width, e.getBoundingClientRect().height]; }))")
