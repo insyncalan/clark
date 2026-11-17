@@ -236,6 +236,13 @@ class RealBrowser(unittest.TestCase):
             self.assertIn("Urgent", seen)
             self.assertIn("High", seen)
             self.assertTrue(any(w not in ("Urgent", "High") for w in seen), "a grey one too")
+            none = [text for text, word, cls in got if word is None]
+            self.assertTrue(none, "some row has no priority")
+            self.assertEqual(set(none), {"—"}, "no priority: a dash, never an empty pill")
+            self.assertEqual(set(cdp.js("[...document.querySelectorAll('#work tbody tr[data-id] .c-prio')].filter(c => !c.querySelector('.wil-pr'))"
+                                        ".map(c => { const m = c.querySelector('.muted'); return m ? m.textContent : null; })", sid)),
+                             {"—"}, "the dash is the muted one")
+            self.assertEqual(len(none) + sum(1 for t, w, c in got if w is not None), len(got))
 
     def test_work_items_on_a_phone_at_390_px(self):
         """#130 point 5: nothing sideways, compact controls, Status, Due and Priority in each row, targets 24 px, text 12 px."""
