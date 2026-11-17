@@ -127,7 +127,7 @@ COVERED = [
     ("#618", "A refused Word client copy writes nothing in either folder",
      "test_word_client_held_back::Cases::test_the_refusal_writes_nothing_in_either_folder"),
     ("#220", "In Edit each of the three text sections shows an editable field, and View shows none.",
-     "test_one_editor_gate::PageGate::test_only_the_four_text_sections_have_a_rich_field_and_only_in_edit"),
+     "test_one_editor_gate::PageGate::test_only_the_three_text_sections_have_a_rich_field_and_only_in_edit"),
     ("#220", "A saved body is still there when the field is opened again.",
      "test_one_editor_gate::PageGate::test_a_saved_body_is_still_there_when_the_field_is_opened_again_and_the_focus_comes_back"),
     ("#437", "Open Publish: the line under the title reads \"this will be Publication 1\"; after publishing, \"Publication 2 \u00b7 last published <date>, locally\".",

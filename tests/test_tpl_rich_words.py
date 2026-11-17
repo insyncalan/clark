@@ -108,7 +108,8 @@ class Checker(unittest.TestCase):
         ctx = base.Context({}, "2030-01-15")
         self.assertIsNone(section_bodies.published("callout", {"v": 1, "tone": "info", "title": "", "paras": [], "html": ""}, ctx))
         got = section_bodies.published("callout", {"v": 1, "tone": "info", "title": "", "paras": [], "html": "<p>Only words</p>"}, ctx)
-        self.assertEqual(got, {"content": {"tone": "info", "title": "", "paras": [], "html": "<p>Only words</p>"}})
+        # from #1272 the published content also names the category, colour and icon the tone drew, so check the words the editor wrote
+        self.assertEqual({k: got["content"][k] for k in ("tone", "title", "paras", "html")}, {"tone": "info", "title": "", "paras": [], "html": "<p>Only words</p>"})
 
     def test_onedoc_add_file_keeps_the_words_the_editor_wrote(self):
         value = json.loads(check("onedoc", body("onedoc", html="<p>Kept</p>")))

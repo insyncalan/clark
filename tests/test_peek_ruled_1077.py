@@ -74,8 +74,8 @@ class Source(unittest.TestCase):
         self.assertIn("aria-label={DRAFT_WITH_AI}", shared)
         self.assertIn('<Icon name="sparkle"', shared)
         self.assertIn("<AiCard", shared)
-        for f in ("PeekLatest.jsx", "MilestonePeek.jsx"):
-            self.assertIn("<DraftButton", (SRC / "edit" / f).read_text(encoding="utf-8"), f)
+        self.assertIn("<DraftButton", (SRC / "edit" / "PeekLatest.jsx").read_text(encoding="utf-8"), "the one box (LatestBox) every peek draws, the milestone's too since row 1184")
+        self.assertIn("<LatestBox", (SRC / "edit" / "MilestonePeek.jsx").read_text(encoding="utf-8"), "the milestone peek's Latest update is that box")
         css = (SRC / "edit" / "edit.css").read_text(encoding="utf-8")
         self.assertIn(".pk-ai {", css)
         self.assertIn("min-height: 24px", css.split(".pk-ai {", 1)[1].split("}", 1)[0])
@@ -221,14 +221,14 @@ class Browser(Peeks):
                 for sel in (".pk-tabs", "[data-sneak]", "[data-pk-latest]", "[data-pk-title-in]", "[data-pk-needed]"):
                     self.assertFalse(cdp.js(f"!!document.querySelector('#peek {sel}')", sid), f"{sel} is the editor's alone")
                 client = self.labels(cdp, sid)
-                self.assertTrue(len(client) >= 5, client)      # item 1181: Status, Owner, Due and Priority are chips, not rows; a risk keeps Workstream, Milestone, Use case, Raised, Last reviewed
+                self.assertTrue(len(client) >= 4, client)      # rows 1181 and 1256: Status, Owner, Due and Priority are chips, not rows; a risk keeps Workstream, Milestone, Use case and Raised (no Client wording or Last reviewed)
                 self.to_edit(cdp, sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-tabs')", sid)), "Edit: the tabs are drawn")
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-htab=source]')", sid)), "Edit keeps Source (row 1180: it is the Source tab of the history)")
                 self.assertTrue(cdp.js(f"document.querySelector('#peek .pk-fields').querySelectorAll({json.dumps(CONTROLS)}).length > 0", sid), "the editor's fields are controls")
                 editor = self.labels(cdp, sid)
                 self.assertEqual(client, [l for l in editor if l not in EDIT_ONLY_ROWS], "the client's rows are the editor's, in the editor's order")
-                self.assertEqual(sorted(set(editor) - set(client)), sorted(EDIT_ONLY_ROWS), "the editor adds its one control row and nothing else")
+                self.assertEqual(sorted(set(editor) - set(client)), [], "row 1256: the editor's one control row is the Client visible line, which has no label, so it adds no labelled row")
                 self.no_draft(cdp, sid, "Edit")
                 self.open_peek(cdp, sid, ACTION, "item")      # the Latest update is an action's alone
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-latest] [data-rich=latest_update]')", sid)), "the Latest update stays, without its Draft")
@@ -388,7 +388,7 @@ class Flat(Peeks):
                 self.assertTrue(over, "the pointer is over it | " + json.dumps(tries))
                 hover = cdp.js(look, sid)
                 self.assertEqual((hover[0], hover[2]), ("none", "0px"), "under the pointer, no box: " + str(hover))
-                self.assertEqual(hover[3], cdp.js(f"{PROBE}('--grey-50')", sid), "a quiet tint says it can be edited: " + str(hover))
+                self.assertEqual(hover[3], "rgba(0, 0, 0, 0)", "row 1257: the card around the text is what says it can be edited, the text takes no tint of its own: " + str(hover))
 
     def test_the_words_box_placeholder_reads_at_4_5_to_1_in_light_and_dark(self):
         """The browser's default placeholder colour was 3.14:1 in dark: the input's placeholder uses the muted text token."""
@@ -413,7 +413,7 @@ class Flat(Peeks):
     def test_the_words_box_is_a_foot_band_pinned_to_the_bottom_while_the_body_scrolls(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
-                sid = self.work(cdp, width, height=560)                      # a short window: the peek's body is taller than the peek
+                sid = self.work(cdp, width, height=700)                      # a short window: the peek's body is taller than the peek (row 1258: 700, not 560: the card is 32 px shorter than the old flush peek, and at 900 px a 560 px window left it 397 px high, too short for the 118 px foot band to leave its place in the body and pin)
                 self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)))
                 for _ in range(2):
                     cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "/", "code": "Slash", "text": "/", "windowsVirtualKeyCode": 191}, sid)
