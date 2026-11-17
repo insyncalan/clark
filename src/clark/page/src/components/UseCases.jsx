@@ -3,10 +3,11 @@
 // (an accordion): where it stands, the open next steps as "Owner: what it is", and "See all N work items". Read-only here: changing a
 // status, linking a work item and editing the text are other items'. In a published file every use case and linked item on the page
 // is one the file kept (publish.select), so the page counts what it holds and a Sensitive or client-off item is never drawn.
+import { StepsBadge } from "./StepsBadge.jsx";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, rows, openWork, openPeek, fromFile, show, project, mode } from "../stores/report.js";
 import { format } from "../router.js";
-import { isOn, liveOf, refText, refBox, stepsWord } from "../logic/useCasesList.js";
+import { isOn, liveOf, refText, refBox } from "../logic/useCasesList.js";
 import { isOpen, ownerOf } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
 import { CommitChip } from "./CommitChip.jsx";
@@ -66,7 +67,7 @@ function Row({ s, shown, toggle, ed }) {
         <span class="uccell ucc" data-uccol="commit">
           {ed ? <ed.Commit u={u} /> : <CommitChip u={u} dash />}
         </span>
-        <span class="uccell ucsteps num" data-uccol="steps">{stepsWord(s.steps.length)}</span>
+        <span class={`uccell ucsteps num${s.steps.length ? " some" : ""}`} data-uccol="steps"><StepsBadge n={s.steps.length} /></span>
       </div>
       {shown ? (
         <div class="ucdetail" id={id}>

@@ -10,12 +10,14 @@
 import { rows } from "./placement.js";
 import { TEMPLATE_TYPES, PENDING_TYPES } from "../templates/types.js";
 import { WORDS } from "./fullImageWords.js";
+import { defaults, bodyOf } from "../templates/workItemsList.js";
 
 // What the store takes in a new section (changes.py NEW_SECTION_TYPES: text
 // and every type in the template registry (#96)). A template whose type is not here is listed but not offered.
 export const ACCEPTS = { types: ["text", ...TEMPLATE_TYPES, "current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs", ...PENDING_TYPES] };      // row 926: the Gantt section (no body, no registry module) is taken by the store at layout 19; row 1068: the Gantt table section at layout 21
 
 export const KINDS = [
+  { id: "info", name: "Project information" },      // item 1272 (owner 16-11): the group the Callout moves to; the headline and glance cards follow with their rows
   { id: "text", name: "Text and pictures" },
   { id: "figures", name: "Numbers" },
   { id: "work", name: "Work items" },
@@ -48,12 +50,13 @@ export const TEMPLATES = [
     description: "The risks, actions, issues or decisions you want the reader to see, as cards.", holds: ["Heading", "RAID card ×3", "Text source", "Text"] },
   { id: "raid-4", name: "Item cards, four", kind: "work", fit: ["full"], type: "raid4", title: "Risks and issues", body: "", ready: true,
     description: "Four shorter cards: good for “this week’s actions” or “decisions needed”.", holds: ["Heading", "RAID card ×4"] },
-  { id: "work-items", name: "Live work list", kind: "work", fit: ["full", "half"], type: "workitems", title: "Work items", body: "", ready: true,
+  { id: "work-items", name: "Live work list", kind: "work", fit: ["full", "half"], type: "workitems", title: "Work items", body: "", start: bodyOf(defaults()), ready: true,
     description: "Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed.", holds: ["Heading", "Filter (set in Edit)", "Work item list · live", "Caption (optional)"] },
   { id: "docs-links", name: "Files and links", kind: "files", fit: ["full", "half"], type: "doclinks", title: "Documents and links", body: "", ready: true,
     description: "The papers that go with this week’s report.", holds: ["Heading", "File (one or more)", "Link list"] },
-  { id: "callout", name: "Must-see note", kind: "notes", fit: ["half", "full"], type: "callout", title: "Callout", body: "", ready: true,
-    description: "One thing the reader must see.", holds: ["Heading", "Callout · decision"] },
+  { id: "callout", name: "Must-see note", kind: "info", fit: ["half", "full"], type: "callout", title: "Callout", body: "", ready: true,
+    description: "One thing the reader must see.", more: "Type a category of your own or pick one, then a colour and an icon. Or leave them out.",
+    holds: ["Heading", "Callout · decision", "Callout · category, colour, icon", "Callout · tile and heading on or off"] },      // item 1272 G: `more` is the extra line under the description
   { id: "image-caption", name: "One picture", kind: "text", fit: ["half", "full"], type: "imagecap", title: "Image with caption", body: "", ready: true,
     description: "One picture with its caption.", holds: ["Heading", "Image", "Caption"] },
   // Row 1223: the same store type as Image with caption (imagecap), started with a body of version 2 (`start`: changes.py takes exactly this body for a new
@@ -90,6 +93,8 @@ export const TEMPLATES = [
 // words and its Help row.
 export const LATER = [
   { id: "headline", type: "headline", ready: true },
+  { id: "glance-template", type: "glancetemplate", ready: true },     // row 1264 slice 1: data layer only; View, Edit and the library card come later
+  { id: "report-headline", type: "reportheadline", ready: true },     // row 1261 slice 1: View only; Edit and the library card come later
 ];
 
 // The built-in sections (row 906): a deleted one is added again from the box, one of each, with the title and settings it starts

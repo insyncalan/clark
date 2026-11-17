@@ -5,7 +5,7 @@ Essentials holds eight settings on the shared setting row: Your name, Appearance
 Asking on or off. The originals stay in their cards; each control here changes the same state. Chrome is required: these tests fail, never skip, without it."""
 import unittest
 
-from test_settings_head import Head
+import test_settings_head
 from test_server import chrome
 from _new_page import reload_to_new_page
 
@@ -33,7 +33,7 @@ STUB = r"""(() => {
 })()"""
 
 
-class Essentials(Head):
+class Essentials(test_settings_head.Head):
     # Head's own tests belong to test_settings_head; this file borrows only its helpers
     test_C_the_title_the_help_line_and_a_menu_item_for_each_page_that_exists = test_C_a_click_opens_the_page_and_marks_it_and_the_address_keeps_it = None
     test_C_keyboard_tab_to_a_menu_item_and_enter = test_C_the_list_is_at_the_left_at_900_and_wider_and_a_row_of_chips_below_900 = test_C_text_size_and_contrast_in_light_and_dark = None

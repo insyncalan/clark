@@ -120,6 +120,16 @@ class AddedBeyondFive(Setup):
         p.mouse("mousePressed", x, y, 1)
         p.mouse("mouseReleased", x, y)
 
+    def open_add(self, p):
+        """Row 1234: the dashboard has no Add tile; the box opens from the Use cases page's + (#ucAddPage)."""
+        p.js("location.hash = '#usecases&p=ABC'")
+        p.until("!!document.querySelector('#ucAddPage')", "the Use cases page")
+        self.click(p, "#ucAddPage")
+
+    def back_to_dashboard(self, p):
+        p.js("location.hash = '#dashboard&p=ABC'")
+        p.until("!!document.querySelector('.glance')", "the dashboard")
+
     def type_in(self, p, selector, text):
         p.js(f"(() => {{ const e = document.querySelector({json.dumps(selector)}); e.focus(); e.select(); }})()")
         p.cdp.call("Input.insertText", {"text": text}, p.sid)
@@ -130,9 +140,9 @@ class AddedBeyondFive(Setup):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
                 p.js("document.querySelector('[data-mode=edit]').click()")
-                p.until("!!document.querySelector('#ucAdd')", "Edit")
+                p.until("!!document.querySelector('[data-uc-configure]')", "Edit")
                 self.assertEqual(p.js(ROWS), 5)
-                self.click(p, "#ucAdd")
+                self.open_add(p)
                 p.until("!!document.querySelector('#ucF')", "the box")
                 ref = f"9.{width}"
                 self.type_in(p, "#ucI", ref)
@@ -141,7 +151,10 @@ class AddedBeyondFive(Setup):
                 p.until("!document.querySelector('#ucF')", "the box closed")
                 p.until("(document.querySelector('.toast-text') || {}).textContent.indexOf('added, hidden') > 0", "the added toast")
                 made = {r["ref"]: r for r in self.store.read("use_cases", "ABC")}[ref]
-                self.click(p, "[data-uc-back]")
+                self.back_to_dashboard(p)
+                p.js("document.querySelector('[data-mode=edit]').click()")
+                p.until("!!document.querySelector('[data-uc-configure]')", "Edit again")
+                p.js("document.querySelector('[data-uc-back]').click()")
                 p.until("!!document.querySelector('form.picker')", "the picker")
                 p.js("document.querySelector('form.picker tbody input[value=\"%s\"]').click()" % made["id"])
                 p.js("document.querySelector('form.picker button[type=submit]').click()")

@@ -21,8 +21,8 @@ from test_server import Running, chrome, wait
 
 LINE = default_sections.CURRENT_STATE_PREFILL
 HINTS = default_sections.SECTION_HINTS
-TITLES = ("Header", "Summary", "This week", "Next week")                # items 1188, 1193: the four default text sections that start empty
-IDS = dict(zip(TITLES, ("ABC-S-001", "ABC-S-005", "ABC-S-006", "ABC-S-007")))
+TITLES = ("Header", "This week", "Next week")                # items 1188, 1193: the three default text sections that start empty
+IDS = dict(zip(TITLES, ("ABC-S-001", "ABC-S-005", "ABC-S-006")))
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
 FIRST = "ABC-S-001"
 
@@ -60,9 +60,9 @@ class Data(unittest.TestCase):
         rows = {s["title"]: s for s in self.store.data_for("ABC")["report_sections"] if s["type"] == "text"}
         self.assertEqual(list(rows), list(TITLES))
         self.assertEqual({t: rows[t]["id"] for t in TITLES}, IDS)
-        self.assertEqual([rows[t]["body"] for t in TITLES], [""] * 4)
+        self.assertEqual([rows[t]["body"] for t in TITLES], [""] * 3)
         self.assertEqual(rows["This week"]["beside"], 1)
-        self.assertEqual(HINTS["Summary"], "Give the reader the headline: how the project is going, in two or three sentences.")
+        self.assertNotIn("Summary", HINTS)      # row 1266: no default Summary
         self.assertEqual(HINTS["This week"], "List what was done this week, and what moved forward.")
         self.assertEqual(HINTS["Next week"], "List what is planned for next week, and who is doing it.")
 
@@ -80,7 +80,7 @@ class Data(unittest.TestCase):
         self.assertEqual(first.get("body") or "", "")
         self.assertFalse([s for s in rows if LINE in (s.get("body") or "")])
         texts = {s["title"]: s.get("body") or "" for s in rows if s["type"] == "text"}
-        self.assertEqual(texts, {t: "" for t in TITLES}, "item 1193: Summary, This week and Next week start empty on this path too")
+        self.assertEqual(texts, {t: "" for t in TITLES}, "item 1193: This week and Next week start empty on this path too")
         self.assertFalse([s for s in rows if leaks(s.get("body") or "")])
 
     def test_the_published_data_and_file_do_not_carry_the_line(self):
@@ -154,7 +154,7 @@ class Browser(unittest.TestCase):
             cdp.js(f"{first}.querySelector('[data-rich=body]').click()", sid)           # it still opens the editor in place
             self.assertTrue(wait(lambda: cdp.js(f"!!{first}.querySelector('[contenteditable]')", sid), 15), "the editor opens")
         with store.step("dashboard", USER) as st:
-            st.update("report_sections", "ABC-S-006", {"body": "<p>Some words</p>"})
+            st.update("report_sections", "ABC-S-005", {"body": "<p>Some words</p>"})
         folder = tempfile.mkdtemp(prefix="clark-pub-")
         self.addCleanup(shutil.rmtree, folder, True)
         done = publish.publish(store, "ABC", folder, by_user=USER, now="2026-10-28", branding=EMPTY_BRANDING)

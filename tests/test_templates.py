@@ -134,7 +134,7 @@ class Logic(unittest.TestCase):
             "raid-4": ("Four shorter cards: good for “this week’s actions” or “decisions needed”.", ["Heading", "RAID card ×4"], ["full"]),
             "work-items": ("Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed.", ["Heading", "Filter (set in Edit)", "Work item list · live", "Caption (optional)"], ["full", "half"]),
             "docs-links": ("The papers that go with this week’s report.", ["Heading", "File (one or more)", "Link list"], ["full", "half"]),
-            "callout": ("One thing the reader must see.", ["Heading", "Callout · decision"], ["half", "full"]),
+            "callout": ("One thing the reader must see.", ["Heading", "Callout · decision", "Callout · category, colour, icon", "Callout · tile and heading on or off"], ["half", "full"]),
             "key-dates": ("What’s coming, from the milestones.", ["Heading", "Date (from milestones)"], ["half", "full"]),
             "link-preview": ("A web page shown as a card you write: a dashboard, a news item, a recording.", ["Heading", "Link", "Card text"], ["full"]),
             "quote": ("A voice from the business.", ["Heading", "Text (quote)", "Person"], ["half", "full"]),
@@ -341,7 +341,7 @@ class Box(Base):
                              "the page behind cannot be reached")
             self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 23)      # row 1068: + the Plan table card
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.textContent)"),
-                             ["All templates23", "Text and pictures8", "Numbers2", "Work items3", "Files and links3", "People and dates5", "Notes2"])      # row 1068: + the Gantt table card, in People and dates
+                             ["All templates23", "Project information1", "Text and pictures8", "Numbers2", "Work items3", "Files and links3", "People and dates5", "Notes1"])      # #1272: the Callout is in Project information      # row 1068: + the Gantt table card, in People and dates
             self.assertEqual(self.sent, [], "opening sends nothing")
 
     def test_everything_outside_the_box_is_inert_while_it_is_open_and_restored_when_it_closes(self):
@@ -393,7 +393,7 @@ class Box(Base):
             p.key("Escape", code="Escape", vk=27)
             p.until("!document.querySelector('[role=dialog]')", "closed")
             self.assertTrue(wait(lambda: p.js("document.activeElement.matches('[data-id=\"ABC-S-003\"] [data-add]')"), 5), "focus back on the +")
-            p.menu("ABC-S-011", "add")
+            p.menu("ABC-S-010", "add")
             p.until("!!document.querySelector('[role=dialog]')", "the menu entry opened the box")
             self.assertIsNone(p.js("document.querySelector('.toast')"))
 
@@ -489,9 +489,9 @@ class Box(Base):
             p = self.visit(cdp)
             p.edit()
             self.open_box(p, "ABC-S-003")
-            p.type("numbers")
-            p.until("document.querySelectorAll('[data-template]').length === 2", "the search narrowed the list")
-            self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.querySelector('.ad-n').textContent)"), ["2", "0", "2", "0", "0", "0", "0"])
+            p.type("key")
+            p.until("document.querySelectorAll('[data-template]').length === 3", "the search narrowed the list")
+            self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.querySelector('.ad-n').textContent)"), ["3", "0", "0", "2", "0", "0", "1", "0"])
             p.key("ArrowDown", code="ArrowDown", vk=40)
             self.assertTrue(p.js("document.activeElement.matches('input[name=template]:checked') && document.activeElement.value === 'figures-4'"),
                             "a template that cannot be placed yet can still be reached and chosen, so Down goes to it")
@@ -541,12 +541,13 @@ class Box(Base):
             self.assertFalse(p.js("!!document.getElementById('ad-later-prev')"), "no reason to give: it can be placed")
             self.assertIsNone(p.js("document.querySelector('button[data-place]').getAttribute('aria-describedby')"))
             self.assertEqual(self.sent, [], "reading and moving send nothing")
-            p.js("document.querySelector('[data-kind=notes]').click()")
-            p.until("document.querySelectorAll('[data-template]').length === 2", "Notes")
+            p.js("document.querySelector('[data-kind=info]').click()")
+            p.until("document.querySelectorAll('[data-template]').length === 1", "Project information")
             p.js("document.querySelector('[data-template=callout]').click()")
             p.until("document.querySelector('.ad-prev h3').textContent === 'Must-see note'", "the preview shows it")
             self.assertEqual(p.js("document.querySelector('.ad-prev .ad-lbl').textContent"), "Holds")
-            self.assertEqual(p.js("[...document.querySelectorAll('.ad-prev li')].map(l => l.textContent)"), ["Heading", "Callout · decision"])
+            self.assertEqual(p.js("[...document.querySelectorAll('.ad-prev li')].map(l => l.textContent)"), ["Heading", "Callout · decision", "Callout · category, colour, icon", "Callout · tile and heading on or off"])
+            self.assertEqual(p.js("document.querySelector('.ad-prev .ad-more').textContent"), "Type a category of your own or pick one, then a colour and an icon. Or leave them out.")
 
     def test_the_two_help_links_open_help_at_their_entries(self):
         """'About section templates' opens the how-to and 'See every template explained in Help' the reference table. Each closes the
@@ -570,15 +571,15 @@ class Box(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            self.open_box(p, "ABC-S-005")                                  # Summary is alone
+            self.open_box(p, "ABC-S-001")                                  # Current state is alone
             self.assertEqual(p.js("document.querySelector('button[data-place]').textContent"), "Add section", "the prototype's word")
             self.assertEqual(p.js("document.querySelector('.ad-where legend').textContent"), "Where it goes", "one name for the step: the heading is Where it goes, the button is Add section")
-            self.assertEqual(p.js("document.querySelector('input[name=where][value=beside]').parentElement.textContent.trim()"), "Beside “Summary” (half width)")
+            self.assertEqual(p.js("document.querySelector('input[name=where][value=beside]').parentElement.textContent.trim()"), "Beside “Current state” (half width)")
             p.js("document.querySelector('[data-cancel]').click()")
             p.until("!document.querySelector('[role=dialog]')", "closed")
             p.js("document.querySelector('[data-cancel]').click()")
             p.until("!document.querySelector('[role=dialog]')", "closed")
-            self.open_box(p, "ABC-S-006")                                  # the left half of a pair: nothing to name
+            self.open_box(p, "ABC-S-005")                                  # the left half of a pair: nothing to name
             self.assertEqual(p.js("document.querySelector('input[name=where][value=beside]').parentElement.textContent.trim()"), "Beside the section above (half width)")
 
     def test_place_a_text_template_below_and_undo_it(self):
@@ -588,7 +589,7 @@ class Box(Base):
             self.open_box(p, "ABC-S-003")
             self.assertTrue(p.js("document.querySelector('input[name=template]:checked').value === 'text'"), "the first usable template is chosen")
             p.key("Enter", code="Enter", vk=13)                       # Enter places it
-            p.until("document.querySelectorAll('.sec').length === 12", "a section was added")
+            p.until("document.querySelectorAll('.sec').length === 11", "a section was added")
             self.assertFalse(p.js("!!document.querySelector('[role=dialog]')"))
             new = [i for i in p.ids() if i not in IDS][0]
             self.assertEqual(p.ids()[3], new, "just below the third")
@@ -597,7 +598,7 @@ class Box(Base):
             self.assertTrue(wait(lambda: p.js("document.activeElement.matches('[data-title]') && document.activeElement.closest('.sec').dataset.id") == new, 5), "the new title has focus")
             self.assertEqual(p.toast(), "Text added.")
             p.js("document.querySelector('[data-undo]').click()")
-            p.until("document.querySelectorAll('.sec').length === 11", "Undo took it away")
+            p.until("document.querySelectorAll('.sec').length === 10", "Undo took it away")
             self.assertEqual(self.ids_in_store(), IDS)
             self.open_box(p, "ABC-S-001")
             self.assertEqual(p.js("document.querySelector('.ad-kind:nth-child(2)').textContent"), "Recently used1", "Text is now recently used")
@@ -606,17 +607,17 @@ class Box(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            self.open_box(p, "ABC-S-006")                                  # the left half of This week | Next week
+            self.open_box(p, "ABC-S-005")                                  # the left half of This week | Next week
             p.js("document.querySelector('button[data-place]').click()")
-            p.until("document.querySelectorAll('.sec').length === 12", "added")
+            p.until("document.querySelectorAll('.sec').length === 11", "added")
             new = [i for i in p.ids() if i not in IDS][0]
-            self.assertEqual(p.ids().index(new), 7, "below Next week, after the pair")
-            self.assertEqual(self.sent[-1][1]["after"], "ABC-S-007")
-            self.assertEqual(self.beside_flags()["ABC-S-006"], 1, "the pair is still a pair")
+            self.assertEqual(p.ids().index(new), 6, "below Next week, after the pair")
+            self.assertEqual(self.sent[-1][1]["after"], "ABC-S-006")
+            self.assertEqual(self.beside_flags()["ABC-S-005"], 1, "the pair is still a pair")
             self.assertEqual(self.beside_flags()[new], 0)
 
-    def place_beside(self, p, after="ABC-S-005"):
-        self.open_box(p, after)                                        # Summary is alone
+    def place_beside(self, p, after="ABC-S-001"):
+        self.open_box(p, after)                                        # Current state is alone
         self.assertFalse(p.js("document.querySelector('input[name=where][value=beside]').disabled"))
         p.js("document.querySelector('input[name=where][value=beside]').click()")
         p.js("document.querySelector('button[data-place]').click()")
@@ -626,15 +627,15 @@ class Box(Base):
             p = self.visit(cdp)
             p.edit()
             self.place_beside(p)
-            p.until("document.querySelectorAll('.sec').length === 12 && document.querySelectorAll('.sec.slot-left').length === 2 && !!document.querySelector('[data-undo]')", "added beside")
+            p.until("document.querySelectorAll('.sec').length === 11 && document.querySelectorAll('.sec.slot-left').length === 2 && !!document.querySelector('[data-undo]')", "added beside")
             new = [i for i in p.ids() if i not in IDS][0]
-            self.assertEqual(p.ids()[5], new, "just below Summary")
+            self.assertEqual(p.ids()[1], new, "just below Current state")
             self.assertEqual([r[0] for r in self.sent], ["change"], "one request")
             self.assertEqual(self.sent[-1][1], {"project": "ABC", "kind": "report_sections", "op": "new", "values": {"type": "text", "title": "New section"},
-                                                "after": "ABC-S-005", "beside": 1, "place": "report"})
-            self.assertEqual(self.beside_flags()["ABC-S-005"], 1, "Summary is the first half")
+                                                "after": "ABC-S-001", "beside": 1, "place": "report"})
+            self.assertEqual(self.beside_flags()["ABC-S-001"], 1, "Current state is the first half")
             self.assertEqual(self.beside_flags()[new], 0)
-            self.assertEqual(p.js(f"document.querySelector('[data-id=\"ABC-S-005\"]').classList.contains('slot-left') && document.querySelector('[data-id=\"{new}\"]').classList.contains('slot-right')"), True)
+            self.assertEqual(p.js(f"document.querySelector('[data-id=\"ABC-S-001\"]').classList.contains('slot-left') && document.querySelector('[data-id=\"{new}\"]').classList.contains('slot-right')"), True)
             self.assertEqual(p.toast(), "Text added, beside the section above.")
 
     def test_one_undo_takes_back_the_section_and_the_pairing(self):
@@ -643,13 +644,13 @@ class Box(Base):
             p.edit()
             flags = self.beside_flags()
             self.place_beside(p)
-            p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "added beside")
+            p.until("document.querySelectorAll('.sec').length === 11 && !!document.querySelector('[data-undo]')", "added beside")
             self.assertEqual(p.js("document.querySelectorAll('[data-undo]').length"), 1)
             p.js("document.querySelector('[data-undo]').click()")
-            p.until("document.querySelectorAll('.sec').length === 11", "the section is gone after one click")
+            p.until("document.querySelectorAll('.sec').length === 10", "the section is gone after one click")
             self.assertEqual([r[0] for r in self.sent], ["change", "undo"], "one undo")
             self.assertEqual(self.ids_in_store(), IDS)
-            self.assertEqual(self.beside_flags(), flags, "Summary is on its own row again")
+            self.assertEqual(self.beside_flags(), flags, "Current state is on its own row again")
             self.assertEqual(p.js("document.querySelectorAll('.sec.slot-left').length"), 1, "only the first pair is left")
             p.toast_is("Undone.")
             self.assertEqual(p.toast(), "Undone.")
@@ -659,40 +660,40 @@ class Box(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            self.place_beside(p, "ABC-S-011")
-            p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "added beside the last")
+            self.place_beside(p, "ABC-S-010")
+            p.until("document.querySelectorAll('.sec').length === 11 && !!document.querySelector('[data-undo]')", "added beside the last")
             new = [i for i in p.ids() if i not in IDS][0]
             self.assertEqual(p.ids()[-1], new)
             self.assertEqual([r[0] for r in self.sent], ["change"])
-            self.assertEqual(self.beside_flags()["ABC-S-011"], 1)
-            self.assertEqual(p.js(f"document.querySelector('[data-id=\"ABC-S-011\"]').classList.contains('slot-left') && document.querySelector('[data-id=\"{new}\"]').classList.contains('slot-right')"), True)
+            self.assertEqual(self.beside_flags()["ABC-S-010"], 1)
+            self.assertEqual(p.js(f"document.querySelector('[data-id=\"ABC-S-010\"]').classList.contains('slot-left') && document.querySelector('[data-id=\"{new}\"]').classList.contains('slot-right')"), True)
             p.js("document.querySelector('[data-undo]').click()")
-            p.until("document.querySelectorAll('.sec').length === 11", "one Undo")
-            self.assertEqual(self.beside_flags()["ABC-S-011"], 0)
+            p.until("document.querySelectorAll('.sec').length === 10", "one Undo")
+            self.assertEqual(self.beside_flags()["ABC-S-010"], 0)
 
     def test_beside_is_unavailable_with_the_reason_for_a_section_that_has_a_partner(self):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            for after in ("ABC-S-006", "ABC-S-007"):                       # either half of This week | Next week
+            for after in ("ABC-S-005", "ABC-S-006"):                       # either half of This week | Next week
                 self.open_box(p, after)
                 self.assertTrue(p.js("document.querySelector('input[name=where][value=beside]').disabled"))
                 self.assertEqual(p.js("document.getElementById('ad-w-why').textContent"), "That section already shares its row. Place it on its own row.")
                 self.assertEqual(p.js("document.querySelector('input[name=where][value=beside]').getAttribute('aria-describedby')"), "ad-w-why")
                 p.js("document.querySelector('[data-cancel]').click()")
                 p.until("!document.querySelector('[role=dialog]')", "closed")
-            self.open_box(p, "ABC-S-011")                                  # the last section: allowed, so no reason
+            self.open_box(p, "ABC-S-010")                                  # the last section: allowed, so no reason
             self.assertFalse(p.js("document.querySelector('input[name=where][value=beside]').disabled"))
             self.assertEqual(p.js("document.getElementById('ad-w-why').textContent"), "")
             p.js("document.querySelector('button[data-place]').click()")
-            p.until("document.querySelectorAll('.sec').length === 12", "alone at the end")
+            p.until("document.querySelectorAll('.sec').length === 11", "alone at the end")
             self.assertEqual(p.ids()[-1] not in IDS, True)
             self.assertEqual([r[0] for r in self.sent], ["change"])
             self.assertEqual(self.sent[-1][1].get("beside"), None, "alone: no beside")
 
     def stale_flag_on_the_last_section(self):
         """A leftover pairing flag on the last section (the page ignores it)."""
-        code, _ = self.real_change({"project": "ABC", "kind": "report_sections", "op": "update", "id": "ABC-S-011", "changes": {"beside": 1}, "place": "report"})
+        code, _ = self.real_change({"project": "ABC", "kind": "report_sections", "op": "update", "id": "ABC-S-010", "changes": {"beside": 1}, "place": "report"})
         self.assertEqual(code, 200)
 
     def test_a_plain_add_below_a_stale_flag_is_one_request_and_one_undo(self):
@@ -700,19 +701,19 @@ class Box(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            self.open_box(p, "ABC-S-011")
+            self.open_box(p, "ABC-S-010")
             p.js("document.querySelector('button[data-place]').click()")
-            p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "added")
+            p.until("document.querySelectorAll('.sec').length === 11 && !!document.querySelector('[data-undo]')", "added")
             new = [i for i in p.ids() if i not in IDS][0]
             self.assertEqual([r[1]["op"] for r in self.sent], ["new"], "one request")
-            self.assertEqual(self.beside_flags()["ABC-S-011"], 0)
+            self.assertEqual(self.beside_flags()["ABC-S-010"], 0)
             self.assertEqual(p.js(f"document.querySelector('[data-id=\"{new}\"]').classList.contains('slot-full')"), True, "on its own row")
             self.assertEqual(p.js("document.querySelectorAll('[data-undo]').length"), 1)
             p.js("document.querySelector('[data-undo]').click()")
-            p.until("document.querySelectorAll('.sec').length === 11", "the section is gone after one click")
+            p.until("document.querySelectorAll('.sec').length === 10", "the section is gone after one click")
             self.assertEqual([r[0] for r in self.sent].count("undo"), 1, "one undo")
             self.assertEqual(self.ids_in_store(), IDS)
-            self.assertEqual(self.beside_flags()["ABC-S-011"], 1, "the flag is as it was")
+            self.assertEqual(self.beside_flags()["ABC-S-010"], 1, "the flag is as it was")
             p.toast_is("Undone.")
             self.assertEqual(p.toast(), "Undone.")
 
@@ -729,9 +730,9 @@ class Box(Base):
                     return 400, {"ok": False, "message": "x", "code": "refused"}
                 return self.real_change(req)
             self.failure = refuse_after_a_change_elsewhere
-            self.place_beside(p, "ABC-S-011")
+            self.place_beside(p, "ABC-S-010")
             p.until("!!document.querySelector('.toast.problem')", "the toast says it failed")
-            p.until("document.querySelectorAll('.sec').length === 12", "the page was read again and shows the section added elsewhere")
+            p.until("document.querySelectorAll('.sec').length === 11", "the page was read again and shows the section added elsewhere")
 
     def break_reads(self, p):
         p.js("window.__realFetch = window.fetch; window.fetch = (u, o) => String(u).includes('/api/data') ? Promise.reject(new Error('down')) : window.__realFetch(u, o)")
@@ -742,7 +743,7 @@ class Box(Base):
             p.edit()
             self.open_box(p, "ABC-S-003")
             p.js("document.querySelector('button[data-place]').click()")
-            p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "added")
+            p.until("document.querySelectorAll('.sec').length === 11 && !!document.querySelector('[data-undo]')", "added")
             self.break_reads(p)
             p.js("document.querySelector('[data-undo]').click()")
             p.until("!!document.querySelector('.toast.problem')", "the toast says the page could not be refreshed")
@@ -754,10 +755,10 @@ class Box(Base):
             p.edit()
             self.open_box(p, "ABC-S-003")
             p.js("document.querySelector('button[data-place]').click()")
-            p.until("document.querySelectorAll('.sec').length === 12 && !!document.querySelector('[data-undo]')", "added")
+            p.until("document.querySelectorAll('.sec').length === 11 && !!document.querySelector('[data-undo]')", "added")
             self.assertEqual([r[0] for r in self.sent], ["change"], "one request")
             p.js("document.querySelector('[data-undo]').click()")
-            p.until("document.querySelectorAll('.sec').length === 11", "Undo took it away")
+            p.until("document.querySelectorAll('.sec').length === 10", "Undo took it away")
             self.assertEqual([r[0] for r in self.sent], ["change", "undo"], "one undo")
             self.assertEqual(self.ids_in_store(), IDS)
 
@@ -769,7 +770,7 @@ class Box(Base):
             self.open_box(p, "ABC-S-003", focus='[data-id="ABC-S-003"] [data-drag]')
             p.js("document.querySelector('button[data-place]').click()")
             p.until("!!document.querySelector('.toast.problem')", "the toast says it failed")
-            self.assertEqual(p.js("document.querySelectorAll('.sec').length"), 11)
+            self.assertEqual(p.js("document.querySelectorAll('.sec').length"), 10)
             self.assertTrue(wait(lambda: p.js("document.activeElement.matches('[data-drag]')"), 5), "focus went back to the opener")
 
     def test_it_fits_at_desktop_and_900_wide_with_no_text_under_13px(self):
