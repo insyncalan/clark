@@ -131,8 +131,8 @@ export function rowsOf(data) {
     : { raised_on: r.raised || null });      // row 1077: without a history (a published file) the row still knows the date it was raised; under its own name so the Freshness filter is not offered by it
   const common = (r) => ({ ...fresh(r), id: r.id, status: r.status, client: !!r.client_visible, client_message: String(r.client_message || "").trim(),
     uc: r.use_case && ucs[r.use_case] ? `Use case ${ucs[r.use_case]}` : "", milestone: (r.milestone && ms[r.milestone]) || "", workstream: r.workstream || "",
-    source: typeof r.source === "string" ? r.source : "",
-    labels: Array.isArray(labelsOf[r.id]) ? labelsOf[r.id].filter((n) => typeof n === "string" && n) : [] });      // row 1222: the Labels column        // row 1077: a published file's rows carry the source by name; the peek draws it
+    source: typeof r.source === "string" ? r.source : "",        // row 1077: a published file's rows carry the source by name; the peek draws it
+    labels: Array.isArray(labelsOf[r.id]) ? labelsOf[r.id].filter((n) => typeof n === "string" && n) : [] });      // row 1222: the Labels column
   const rows = [];
   for (const r of data.actions || []) rows.push({ ...common(r), latest_update: typeof r.latest_update === "string" ? r.latest_update : "", kind: "action", title: r.description, owner: r.owner, priority: r.priority, due_date: r.due_date, closed: r.closed });
   for (const r of data.raid || []) rows.push({ ...common(r), latest_update: typeof r.latest_update === "string" ? r.latest_update : "", kind: String(r.type).toLowerCase(), title: r.description, owner: r.owner, priority: r.priority, due_date: r.due_date, closed: r.closed,

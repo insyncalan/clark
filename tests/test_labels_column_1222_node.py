@@ -64,7 +64,7 @@ class LabelsColumn(unittest.TestCase):
                          [["X", "Y"], []])
 
     def test_the_cell_text_is_the_names_joined_and_empty_for_none(self):
-        self.assertEqual(run_node("[W.labelsText({labels:['Sensitive','Board']}), W.labelsText({labels:[]}), W.labelsText({})]"), ["Sensitive, Board", "", ""])
+        self.assertEqual(run_node("[W.labelsText({labels:['Sensitive','Board']}), W.labelsText({labels:[]}), W.labelsText({}), W.labelsText(null)]"), ["Sensitive, Board", "", "", ""])
 
     def test_the_work_menu_offers_labels_after_use_case_and_it_is_not_standard_or_locked(self):
         self.assertEqual(run_node("W.TABLE_COLUMNS.work.map((c) => c.id)"),
