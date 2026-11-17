@@ -680,6 +680,14 @@ export const PAGE_VIEWS = {
     { id: "committed", name: "Committed", line: "commitment:Committed" },
     { id: "risk", name: "At risk", line: 'status:Flag,"High risk"' },
   ],
+  // Row 1268: the Work items list template (store type "workitems") keeps the same saved views as the Work items page, in the mock-up's order.
+  workitemslist: [
+    { id: "all", name: "All work items", line: "" },
+    { id: "actions", name: "Actions", line: "type:action" },
+    { id: "risks-issues", name: "Risks and issues", line: "type:risk,issue" },
+    { id: "decisions", name: "Decisions", line: "type:decision" },
+    { id: "overdue", name: "Overdue", line: "due:overdue" },
+  ],
 };
 const pageKey = (page) => `${VIEWS_KEY}.${page}`;
 function pageViewsGet(storage, project, page) {

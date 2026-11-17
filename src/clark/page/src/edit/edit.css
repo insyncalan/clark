@@ -671,6 +671,9 @@ textarea.tpl-field { resize: vertical; }
 .wil-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px var(--space-4); margin: var(--space-1) 0 10px; padding: var(--space-3) 14px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--grey-50); }
 .wil-form > .wil-more { grid-column: 1 / -1; }   /* row 1113: the tick boxes fold inside the one form block; Sort by, Most rows and Columns stay in it; the Caption box moved under the list (wish 2) */
 .wil-form-in { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px var(--space-4); margin: var(--space-1) 0 0; }
+/* Row 1268: the Add + at the right end, a dashed square as the one on Work items (the approved mock-up) */
+.wil-add { flex: none; display: flex; justify-content: flex-end; margin: 0 0 var(--space-1) auto; }   /* at the right end of the saved-views row (ticket 1268) */
+.wil-add .newb { border-style: dashed; }
 .wil-line { display: grid; gap: var(--space-1); margin: var(--space-1) 0 var(--space-2); }
 .wil-line p { margin: 0; }
 .wil-more summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
@@ -682,8 +685,18 @@ textarea.tpl-field { resize: vertical; }
 .wil-opts input:focus-visible, .wil-sel select:focus-visible, .wil-sel input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .wil-sel { display: grid; gap: var(--space-1); align-content: start; min-width: 0; }
 .wil-sel span { font-size: var(--size-caption); color: var(--text-muted); font-weight: var(--weight-medium); }
-.wil-sel select, .wil-sel input { min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-small); }
-.wil-capbox { margin: var(--space-2) 0 0; }
+.wil-sel select, .wil-sel input { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-small); }
+/* row 1268: the gear and its Configure box (Sort by, Most rows, Columns), as the approved mock-up draws them. Tokens only. */
+.wil-cw { position: relative; grid-column: 1 / -1; display: flex; justify-content: flex-end; }
+.wil-gear { display: inline-flex; align-items: center; justify-content: center; min-width: calc(var(--space-6) + var(--space-1)); min-height: calc(var(--space-6) + var(--space-1)); border: 1px solid var(--grey-300); border-radius: 50%; background: var(--surface); color: var(--text); cursor: pointer; }
+.wil-gear:hover, .wil-gear[aria-expanded=true] { background: var(--grey-100); }
+.wil-gear:focus-visible, .wil-cacts button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.wil-cfg { position: absolute; right: 0; top: calc(100% + var(--space-1)); z-index: 20; width: min(calc(var(--space-4) * 20), 100%); box-sizing: border-box; display: grid; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+.wil-cfg[hidden] { display: none; }
+.wil-cfg h4 { margin: 0; font-size: var(--size-body); }
+.wil-cfg .wil-opts { display: grid; grid-template-columns: 1fr 1fr; }
+.wil-cacts { display: flex; justify-content: flex-end; }
+.wil-cacts button { min-height: calc(var(--space-6) + var(--space-1)); padding: 0 var(--space-4); border: 0; border-radius: var(--radius-pill); background: var(--grey-100); color: var(--text); font: inherit; font-weight: var(--weight-medium); cursor: pointer; }
 .wil-none { margin: var(--space-2) 0; padding: 10px var(--space-3); border: 1px dashed var(--grey-300); border-radius: var(--radius); color: var(--text); font-size: var(--size-small); }
 .wil-live tbody tr, .wil-live li { cursor: pointer; }
 .wil-table .wil-c-eye { width: 44px; padding-left: 0; padding-right: 0; text-align: center; }   /* row 1113: the Work items page eye, at the end of each row */
@@ -1447,6 +1460,14 @@ table.items .c-x-id, table.items .c-x-type { width: 100px; }
 
 .ucm-seg { display: inline-flex; gap: var(--space-2); }
 .ucm-seg .pk-btn[aria-pressed="true"] { font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+/* Row 1268: the saved-view tabs of the Work items list (Edit only). */
+.wil-views { margin: 0 0 var(--space-2); }
+.wil-vopts { position: relative; display: inline-block; }
+.wil-vopts > summary { list-style: none; cursor: pointer; min-width: var(--space-5); min-height: calc(var(--space-5) + var(--space-1)); display: inline-flex; align-items: center; justify-content: center; color: var(--text-muted); }
+.wil-vopts > summary::-webkit-details-marker { display: none; }
+.wil-vopts > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.wil-vopts-in { position: absolute; z-index: 5; top: 100%; left: 0; display: grid; min-width: calc(var(--space-8) * 3); padding: var(--space-1); border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); }
+.wil-vopts-in .link { text-align: left; min-height: calc(var(--space-5) + var(--space-1)); padding: 0 var(--space-2); }
 
 /* Row 1258 (v1.1.1), the peeks to the approved mockups, step 3: the title and the tabs as peek-mockup.html layout A draws them (h2.ti, .tabs).
    The title is Inter 24/700 with -.015em, and its in-place box carries a 2 px ring (a shadow, no border); the tabs are 14/600, 40 px high, with an ink underline. */

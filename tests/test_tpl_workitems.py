@@ -620,26 +620,22 @@ class InThePage(PageBase):
                     head = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table th')].map(e => e.textContent)")
                     self.assertEqual(head, ["", "Type", "Item", "Owner", "Due", "Status", "Priority", "Workstream", "Milestone", "ID"])
 
-    def test_show_all_items_opens_every_row_and_show_only_closes_it_in_view_and_in_edit(self):
-        ref = self.add({"mode": "all", "max": 2, "owner": ["Pat Demo", "Lee Demo"]})      # three rows, two shown
-        link = f"[data-id=\"{ref}\"] [data-wil-all]"
+    def test_rows_scroll_in_a_box_as_tall_as_most_rows_with_the_review_link_and_in_edit_the_count(self):
+        ref = self.add({"mode": "all", "max": 2, "owner": ["Pat Demo", "Lee Demo"]})      # three rows, two high
+        box = f"[data-id=\"{ref}\"] [data-wil-scroll]"
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
                 p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table')", "the list drew")
-                self.assertEqual(self.rows(p, ref), [self.a_due, self.a_later])
-                self.assertEqual(p.js(f"document.querySelector({json.dumps(link)}).textContent"), "Show all items")
-                p.js(f"document.querySelector({json.dumps(link)}).click()")
-                p.until(f"document.querySelector({json.dumps(link)}).textContent === 'Show only 2'", "open")
-                self.assertEqual(self.rows(p, ref), [self.a_due, self.a_later, self.risk])
-                p.js(f"document.querySelector({json.dumps(link)}).click()")
-                p.until(f"document.querySelector({json.dumps(link)}).textContent === 'Show all items'", "closed")
-                self.assertEqual(self.rows(p, ref), [self.a_due, self.a_later])
+                self.assertEqual(self.rows(p, ref), [self.a_due, self.a_later, self.risk], "every row the filter lists is drawn")
+                self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-all]')"), "no Show all items: the rows scroll")
+                self.assertTrue(p.js(f"(() => {{ const b = document.querySelector({json.dumps(box)}); return b.scrollHeight > b.clientHeight && b.clientHeight > 0; }})()"), "the box is shorter than its rows")
+                self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-review]').textContent"), "Review all 3 items")
+                self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-count]')"), "View has no count")
                 p.edit()
-                p.until(f"!!document.querySelector({json.dumps(link)})", "Edit has the link too")
-                p.js(f"document.querySelector({json.dumps(link)}).click()")
-                p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr').length === 3", "Edit shows all")
-                self.assertEqual(p.js(f"document.querySelector({json.dumps(link)}).textContent"), "Show only 2")
+                p.until(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-count]')", "Edit has the count")
+                self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-count]').textContent"), "Showing 2 of 3, scroll for the rest")
+                self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr').length"), 3)
 
     def test_no_link_when_every_row_is_already_shown_and_new_columns_start_off(self):
         ref = self.add({"mode": "all", "owner": ["Pat Demo", "Lee Demo"]})
@@ -759,10 +755,13 @@ class InThePage(PageBase):
             p.js(f"(el => {{ el.focus(); el.value = '2'; el.dispatchEvent(new Event('change', {{bubbles: true}})); }})(document.querySelector({json.dumps(sel)}))")
             p.saved()
             self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["max"], 2)
-            p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr .weye[aria-pressed=true]').length === 2", "two rows the client sees")
-            self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr').length"), 4, "and the two the eye took off, listed where they fall")
+            p.until(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-count]').textContent.startsWith('Showing 2 of ')", "the count follows Most rows (row 1268)")
+            self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr').length"), 5, "every row the filter lists, the two the eye took off where they fall")
+            self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr .weye[aria-pressed=true]').length"), 3)
             p.clear_toast()
-            cap = f"[data-id=\"{ref}\"] [data-field=caption] input"
+            cap = f"[data-id=\"{ref}\"] .wil-cfg [data-field=caption] input"
+            p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-gear]').click()")
+            p.until(f"!document.querySelector('[data-id=\"{ref}\"] .wil-cfg').hidden", "Configure opened")
             p.js(f"document.querySelector({json.dumps(cap)}).focus()")
             p.type("Fictional caption")
             p.key("Enter", code="Enter", vk=13)
@@ -788,7 +787,7 @@ class InThePage(PageBase):
                     self.assertEqual(p.js("getComputedStyle(document.activeElement).outlineStyle"), "solid", "the focus ring shows")
                     legends = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-f legend, [data-id=\"{ref}\"] .wil-sel > span')].map(e => e.textContent)")
                     self.assertEqual(legends, ["Kinds", "Show", "Due", "Status", "Priority", "Owner", "Workstream", "Use case", "Sort by",
-                                               "Most rows", "Columns at full width", "Caption (optional)"])
+                                               "Most rows", "Columns at full width", "Footnote (optional)"])
 
     def test_rows_open_their_peek_in_edit_with_a_click_or_enter(self):
         ref = self.add({"mode": "all", "owner": ["Pat Demo", "Lee Demo"]})
@@ -1004,7 +1003,7 @@ class InThePage(PageBase):
             self.assertEqual(body()["mode"], "closed", "a minus sign before is:open reads as closed only")
             p.clear_toast()
 
-    def test_sort_and_rows_and_columns_stay_in_the_one_form_block_and_the_caption_is_under_the_list(self):
+    def test_sort_and_rows_and_columns_stay_in_the_one_form_block_and_the_footnote_is_not_in_it(self):
         ref = self.add({}, title="Form")
         with chrome() as cdp:
             p = self.show(cdp, 1400)
@@ -1014,29 +1013,64 @@ class InThePage(PageBase):
             self.assertEqual(forms, 1, "one form block, as before the line was added")
             self.assertTrue(p.js(f"(f => ['sort', 'max'].every(n => f.querySelector('[name=' + n + '], [data-field=' + n + ']')))"
                                  f"(document.querySelector('[data-id=\"{ref}\"] .wil-form'))"), "Sort by and Most rows sit in it")
-            self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-form [data-field=caption]')"), "the Caption box left the form block")
+            self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-form-in [data-field=caption]')"), "the Footnote box is in Configure, not the filter lists")
 
-    def test_the_caption_box_comes_after_the_list_at_both_widths(self):
-        # Row 1113, wish 2: the caption is shown under the list, so its box is the last thing in the editing panel.
+    def test_the_gear_opens_configure_with_sort_rows_and_columns_and_escape_closes_it(self):
+        # Row 1268 (the approved mock-up): a gear opens "Configure this list"; Sort by, Most rows and the columns are in it.
+        ref = self.add({}, title="Gear")
+        root = f"[data-id=\"{ref}\"]"
+        with chrome() as cdp:
+            p = self.show(cdp, 1400)
+            p.edit()
+            p.until(f"!!document.querySelector('{root} [data-wil-gear]')", "the gear drew")
+            dlg = f"{root} .wil-cfg"
+            self.assertTrue(p.js(f"document.querySelector('{dlg}').hidden"), "closed at first")
+            self.assertEqual(p.js(f"document.querySelector('{root} [data-wil-gear]').getAttribute('aria-expanded')"), "false")
+            p.js(f"document.querySelector('{root} [data-wil-gear]').click()")
+            p.until(f"!document.querySelector('{dlg}').hidden", "the gear opened it")
+            self.assertEqual(p.js(f"document.querySelector('{root} [data-wil-gear]').getAttribute('aria-expanded')"), "true")
+            self.assertEqual(p.js(f"document.querySelector('{dlg} h4').textContent"), "Configure this list")
+            self.assertTrue(p.js(f"['sort', 'max', 'columns'].every(n => !!document.querySelector('{dlg} [data-field=' + n + ']'))"), "Sort by, Most rows, Columns in it")
+            self.assertTrue(p.js(f"!!document.querySelector('{dlg} [data-field=caption]')"), "the Footnote box is in Configure (the head's ruling of 17-11)")
+            p.js(f"document.querySelector('{dlg} select').focus()")
+            p.key("Escape", code="Escape", vk=27)
+            p.until(f"document.querySelector('{dlg}').hidden", "Escape closed it")
+            self.assertTrue(p.js(f"document.activeElement === document.querySelector('{root} [data-wil-gear]')"), "focus back on the gear")
+            p.js(f"document.querySelector('{root} [data-wil-gear]').click()")
+            p.js(f"document.querySelector('{root} [data-wil-cfgdone]').click()")
+            p.until(f"document.querySelector('{dlg}').hidden", "Done closed it")
+
+    def test_the_footnote_box_is_in_configure_after_columns_before_done_and_the_caption_shows_above_the_list(self):
+        # Row 1268, ruled by the head 17-11 (the mock-up wins over Row 1113 wish 2): the field is "Footnote (optional)" in the Configure box,
+        # after the Columns and before Done; the stored field is still "caption"; its text is drawn above the list, in Edit and in View.
         ref = self.add({"mode": "all", "caption": "Fictional caption"})
-        script = ("(() => { const root = document.querySelector('[data-id=\"%s\"] [data-wil-edit]');"
-                  " const box = root && root.querySelector('[data-field=caption]');"
-                  " const table = root && root.querySelector('.wil-table');"
-                  " const form = root && root.querySelector('.wil-form');"
-                  " if (!box || !table || !form) return null;"
-                  " return [box.getBoundingClientRect().top - table.getBoundingClientRect().bottom,"
-                  " box.getBoundingClientRect().top - form.getBoundingClientRect().bottom,"
-                  " !!(table.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING)]; })()") % ref
+        root = f"[data-id=\"{ref}\"]"
+        script = ("(() => { const dlg = document.querySelector('%s .wil-cfg');"
+                  " const box = dlg && dlg.querySelector('[data-field=caption]');"
+                  " const cols = dlg && dlg.querySelector('[data-field=columns]');"
+                  " const done = dlg && dlg.querySelector('[data-wil-cfgdone]');"
+                  " const cap = document.querySelector('%s .wil-cap');"
+                  " const table = document.querySelector('%s .wil-table');"
+                  " if (!box || !cols || !done || !cap || !table) return null;"
+                  " const input = box.querySelector('input');"
+                  " return [box.querySelector('span').textContent, input.placeholder, input.value,"
+                  " !!(cols.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING),"
+                  " !!(box.compareDocumentPosition(done) & Node.DOCUMENT_POSITION_FOLLOWING),"
+                  " cap.textContent, !!(cap.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING),"
+                  " !document.querySelector('%s .wil-capbox') && !document.querySelector('%s [data-field=caption]:not(.wil-cfg *)')]; })()") % ((root,) * 5)
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
                 p.edit()
-                p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table')", "the list drew")
+                p.until(f"!!document.querySelector('{root} .wil-table')", "the list drew")
                 got = p.js(script)
-                self.assertIsNotNone(got, "the Caption box, the list and the form all drew")
-                self.assertTrue(got[2], "the Caption box follows the list in the page order")
-                self.assertGreaterEqual(got[0], 0, "the Caption box sits below the list, not beside or above it")
-                self.assertGreaterEqual(got[1], 0, "the Caption box sits below the form block")
+                self.assertIsNotNone(got, "the Footnote box, the Columns, Done, the caption and the list all drew")
+                self.assertEqual(got[:3], ["Footnote (optional)", "Shown above the list", "Fictional caption"])
+                self.assertTrue(got[3], "the Footnote box follows the Columns")
+                self.assertTrue(got[4], "the Footnote box comes before Done")
+                self.assertEqual(got[5], "Fictional caption")
+                self.assertTrue(got[6], "the caption text is drawn above the list")
+                self.assertTrue(got[7], "no Caption box is left under the list")
 
     def test_two_ticks_made_before_the_first_reply_are_both_kept(self):
         ref = self.add({})
@@ -1063,6 +1097,8 @@ class InThePage(PageBase):
             p.edit()
             cap = f"[data-id=\"{ref}\"] [data-field=caption] input"
             p.until(f"!!document.querySelector({json.dumps(cap)})", "the form drew")
+            p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-gear]').click()")      # the Footnote box is in Configure (row 1268)
+            p.until(f"!document.querySelector('[data-id=\"{ref}\"] .wil-cfg').hidden", "Configure opened")
             self.assertFalse(p.js(f"document.querySelector({json.dumps(cap)}).hasAttribute('maxlength')"))
             p.js(f"document.querySelector({json.dumps(cap)}).focus()")
             p.type(caption)

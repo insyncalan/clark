@@ -4,17 +4,22 @@
 // its peek (a click, or Enter). An empty match says so here, and only here: View and the published page leave the section out.
 import { useRef, useState } from "preact/hooks";
 import { MenuPanel } from "../../components/Menu.jsx";
+import { Icon } from "../../components/Icon.jsx";
+import { columnIcon } from "../../menuIcons.js";
 import { data, openPeek, rows as reportRows, filterCtx } from "../../stores/report.js";
 import { LineBox } from "../../components/FilterLine.jsx";
 import { change, say } from "../../stores/changes.js";
-import { Rows, ShowAll, today } from "../../templates/WorkItemsList.jsx";
+import { Rows, Scroller, Foot, today } from "../../templates/WorkItemsList.jsx";
 import { KINDS, MODES, STATUSES, DUE, PRIORITIES, NONE, SORTS, COLUMNS, MAX_ROWS, MAX_CAPTION, WORDS, defaults, filterOf, bodyOf,
   editListOf, drawRows, offered, drawn, idsToShow } from "../../templates/workItemsList.js";
 import { Eye } from "../cells/Eye.jsx";
 import { Cell } from "../cells/Cell.jsx";
 import { useColWidths } from "../colWidths.jsx";
+import { NewTile } from "../../components/NewTile.jsx";
+import { addItem, ADDABLE } from "../addItem.js";
 import { plural } from "../../workItems.js";
 import { lineOf, readLine } from "../../templates/workItemsLine.js";
+import { Tabs } from "./WorkItemsTabs.jsx";
 
 export const SAVED = "Work items list changed.";
 export const COLUMNS_MENU = "Columns";      // row 1268: the label of the menu a right click on a column heading opens
@@ -52,8 +57,16 @@ function Choice({ id, label, field, values, words, value, onPick }) {
   );
 }
 
+export const CONFIGURE_LABEL = "Configure this list";      // row 1268: the words of the approved mock-up
+
+// Row 1268, the approved Add: a + that opens a short menu (Action, Risk, Issue, Decision); a pick makes the item at once and opens its peek.
+export const ADD_WORD = "Add work item";
+export const ADD_ITEMS = ADDABLE.map((k) => ({ kind: k, word: k[0].toUpperCase() + k.slice(1) }));
+const addOne = (kind) => addItem(kind, "report", true);
+
 export function Edit({ section }) {
-  const [all, setAll] = useState(false);          // row 1199: Show all items
+  const [cfg, setCfg] = useState(false);          // row 1268: the Configure box (the gear) is open
+  const gearRef = useRef(null);
   const cw = useColWidths(`wil-${section.id}`);      // row 1268, item 12: the page's column widths, kept for this list
   const [tick, setTick] = useState(0);              // a refused save draws the form again from what is saved
   const d = data.value || {};
@@ -95,7 +108,7 @@ export function Edit({ section }) {
     <MenuPanel label={COLUMNS_MENU} cls="cols-menu" anchor={at} fixed="start" onClose={() => setAt(null)}>
       {COLUMNS.map((c) => { const on = filter.columns.includes(c); return (
         <button key={c} type="button" role="menuitemcheckbox" aria-checked={on ? "true" : "false"} data-col-name={WORDS.columns[c]} tabIndex={-1} onClick={() => toggleColumn("columns", c)}>
-          <span class="ck" aria-hidden="true">{on ? "\u2713" : ""}</span><span class="cols-name">{WORDS.columns[c]}</span>
+          <Icon name={columnIcon(c)} cls="mi" /><span class="ck" aria-hidden="true">{on ? "\u2713" : ""}</span><span class="cols-name">{WORDS.columns[c]}</span>
         </button>); })}
     </MenuPanel>
   ) : null;
@@ -131,7 +144,7 @@ export function Edit({ section }) {
 
   const now = today();
   const list = editListOf(section, d, now);
-  const rows = drawRows(idsToShow(list, all), drawn(d, true));
+  const rows = drawRows(idsToShow(list, true), drawn(d, true));
   return (
     <div class="wil wil-edit" key={tick} data-wil-edit="" data-wil-id={id}>
       {saved ? null : <p class="quiet wil-say" data-wil-say="not-yet">{NOT_YET}</p>}
@@ -139,6 +152,7 @@ export function Edit({ section }) {
         <LineBox line={lineOf(filter, nameOf)} now={() => lineOf(latest(), nameOf)} apply={applyLine} rows={reportRows.value} ctx={filterCtx()}
           ids={{ input: `${id}-line`, list: `${id}-line-list`, count: `${id}-line-count`, x: `${id}-line-x`, msg: `${id}-line-msg`, gloss: `${id}-line-gloss`, opt: `${id}-line-o` }} label="Filter" />
       </div>
+      <Tabs add={<div class="wil-add" data-wil-add=""><NewTile word={ADD_WORD} kind="" items={ADD_ITEMS} onAdd={addOne} id={`${id}-add`} /></div>} section={section} filter={filter} d={d} now={now} known={known} nameOf={nameOf} apply={(next) => save({ ...latest(), ...next })} />
       <div class="wil-form">
       <details class="wil-more" data-wil-more="">
       <summary>Choose from lists</summary>
@@ -153,24 +167,31 @@ export function Edit({ section }) {
         <Boxes id={id} legend="Use case" field="use_case" values={offered("use_case", d, filter.use_case)} words={none("use_case")} chosen={filter.use_case} onToggle={toggle} />
       </div>
       </details>
-        <Choice id={id} label="Sort by" field="sort" values={SORTS} words={WORDS.sort} value={filter.sort} onPick={pick} />
-        <label class="wil-sel" data-field="max"><span>Most rows</span>
-          <input type="number" name="max" min="1" max={MAX_ROWS} step="1" value={filter.max} onChange={commitMax} onKeyDown={keys} />
-        </label>
-        <Boxes id={id} legend="Columns at full width" field="columns" values={COLUMNS} words={(v) => WORDS.columns[v]} chosen={filter.columns} onToggle={toggleColumn} />
+        <div class="wil-cw" data-wil-cw="" onKeyDown={(e) => { if (e.key === "Escape" && cfg) { e.preventDefault(); e.stopPropagation(); setCfg(false); if (gearRef.current) gearRef.current.focus(); } }}>
+          <button type="button" class="wil-gear" ref={gearRef} data-wil-gear="" aria-haspopup="dialog" aria-expanded={cfg ? "true" : "false"} aria-label={CONFIGURE_LABEL} title="Configure" onClick={() => setCfg(!cfg)}>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>
+          </button>
+          <div class="wil-cfg" role="dialog" aria-label={CONFIGURE_LABEL} hidden={!cfg}>
+            <h4>{CONFIGURE_LABEL}</h4>
+          <Choice id={id} label="Sort by" field="sort" values={SORTS} words={WORDS.sort} value={filter.sort} onPick={pick} />
+          <label class="wil-sel" data-field="max"><span>Most rows</span>
+            <input type="number" name="max" min="1" max={MAX_ROWS} step="1" value={filter.max} onChange={commitMax} onKeyDown={keys} />
+          </label>
+          <Boxes id={id} legend="Columns at full width" field="columns" values={COLUMNS} words={(v) => WORDS.columns[v]} chosen={filter.columns} onToggle={toggleColumn} />
+            <label class="wil-sel wil-capf" data-field="caption"><span>Footnote (optional)</span>
+              <input type="text" name="caption" placeholder="Shown above the list" value={filter.caption} onInput={capInput} onChange={commitCaption} onKeyDown={keys} />
+            </label>
+            <div class="wil-cacts"><button type="button" data-wil-cfgdone="" onClick={() => { setCfg(false); if (gearRef.current) gearRef.current.focus(); }}>Done</button></div>
+          </div>
+        </div>
       </div>
       <p class="quiet" data-wil-say="count">{saved ? `${plural(rows.length, "work item")} listed now. ${ONLY_SHOWN}` : ONLY_SHOWN}</p>
       {saved && !rows.length ? <p class="wil-none" data-wil-say="none" role="status">{NO_MATCH}</p> : null}
       {saved && rows.length && rows.length === list.off.length ? <p class="wil-none" data-wil-say="all-hidden" role="status">{ALL_HIDDEN}</p> : null}
-      {saved && rows.length ? <Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Eye={Eye} Cell={Cell} cw={cw} head={headProps} /> : null}
-      {colMenu}
-      {saved && rows.length ? <ShowAll list={list} all={all} onToggle={() => setAll(!all)} /> : null}
       {saved && list.caption && rows.length ? <p class="wil-cap">{list.caption}</p> : null}
-      <div class="wil-capbox">
-        <label class="wil-sel wil-capf" data-field="caption"><span>Caption (optional)</span>
-          <input type="text" name="caption" value={filter.caption} onInput={capInput} onChange={commitCaption} onKeyDown={keys} />
-        </label>
-      </div>
+      {saved && rows.length ? <Scroller max={list.max} count={rows.length}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Eye={Eye} Cell={Cell} cw={cw} head={headProps} /></Scroller> : null}
+      {colMenu}
+      {saved && rows.length ? <Foot section={section} total={rows.length} max={list.max} edit nameOf={nameOf} /> : null}
     </div>
   );
 }
