@@ -95,7 +95,7 @@ class Killers(Editor):
             self.assertTrue(wait(lambda: self.body()["bespoke"][0].get("label") == "Fictional changed", 10), f"stored: {self.body()}")
             self.assertIs(self.body()["bespoke"][0].get("hidden"), True)
 
-    def test_K8_done_with_nothing_changed_closes_says_saved_and_makes_no_step(self):
+    def test_K8_done_with_nothing_changed_closes_silently_and_makes_no_step(self):
         self.seed([OWN])
         with chrome() as cdp:
             p = self.page(cdp)
@@ -103,8 +103,7 @@ class Killers(Editor):
             before = self.applies()
             self.click(p, "[data-tile-editor] [data-done]")
             p.until(f"!document.querySelector({self.q('[data-tile-editor]')})", "the editor closed")
-            p.until("!!document.querySelector('.toast-text')", "the note")
-            self.assertEqual(self.toast(p), "Tile saved")
+            self.assertEqual(self.toast(p), "", "nothing changed: no toast")
             self.assertEqual(self.applies(), before, "no step")
 
     def test_K9_the_error_mark_is_on_the_label_only_and_only_after_done_was_tried(self):
