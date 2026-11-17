@@ -202,8 +202,10 @@ export function matching(filter, rows, today, live, all) {
 
 // The rules for what the page clark serves may show: the publishable() mirror of publish.select, from what the data carries.
 export function servedRules(data) {
-  return rulesFor({ code: data && data.project && data.project.code, hidden: ((data && data.report_hidden) || []).map((h) => (h && h.item_id) || h),
+  const rules = rulesFor({ code: data && data.project && data.project.code, hidden: ((data && data.report_hidden) || []).map((h) => (h && h.item_id) || h),
     labelRules: (data && data.label_rules) || [], labels: (data && data.labels) || {}, sections: (data && data.report_sections) || [], deleted: !!(data && data.sections_deleted) });
+  for (const k of WORK) rules.hiddenTypes.delete(k);      // row 1268: a list prints its own rows when the built-in section is hidden (publish.select does the same)
+  return rules;
 }
 
 // Only the rows that would be published, of the three work kinds, in a data shape ruleRows reads.

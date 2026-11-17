@@ -310,8 +310,8 @@ class PageRules(unittest.TestCase):
         self.assertEqual(self.val(f"W.listOf({{type: 'workitems', body: {body}}}, {json.dumps(data)}, {json.dumps(TODAY)}).items"),
                          ["ABC-A-003", "ABC-A-006"], "an eye-hidden id is left out when the data carries it")
         data["report_sections"] = [{"id": "ABC-S-001", "type": "actions", "hidden": 1}]
-        self.assertEqual(self.val(f"W.listOf({{type: 'workitems', body: {body}}}, {json.dumps(data)}, {json.dumps(TODAY)}).items"), [],
-                         "a hidden Actions section leaves every action out")
+        self.assertEqual(self.val(f"W.listOf({{type: 'workitems', body: {body}}}, {json.dumps(data)}, {json.dumps(TODAY)}).items"), ["ABC-A-003", "ABC-A-006"],
+                         "row 1268: a hidden Actions section does not stop a list printing the actions it names")
         self.assertEqual(self.val(f"W.listOf({{type: 'workitems', body: ''}}, {json.dumps(data)}, {json.dumps(TODAY)})")["saved"], False)
 
     def test_the_served_page_reads_the_name_of_a_published_milestone_only(self):
@@ -472,12 +472,43 @@ class Saved(Api):
         self.ok(changes.UPDATE, id=self.ref, changes={"hidden": 1})
         self.assertNotIn(self.ref, [s["id"] for s in publish.build(self.s, "ABC", now=TODAY)["published"]["sections"]])
 
-    def test_a_hidden_actions_section_drops_every_action_from_the_list(self):
-        self.save({"mode": "all"})
+    def test_a_hidden_actions_section_still_lets_the_list_print_its_own_actions_and_no_others(self):
+        """Row 1268: the list keeps the actions it names; the hidden section's other actions stay out of the file's data."""
+        self.save({"mode": "all", "owner": ["Pat Demo", "Lee Demo"]})
         with self.s.step("dashboard", USER) as st:
             st.create("report_sections", {"project": "ABC", "type": "actions", "title": "Open actions", "sort_order": 50, "hidden": 1})
-        sec = next(s for s in publish.build(self.s, "ABC", now=TODAY)["published"]["sections"] if s["id"] == self.ref)
-        self.assertEqual(sec["items"], [self.risk])
+        built = publish.build(self.s, "ABC", now=TODAY)["published"]
+        sec = next(s for s in built["sections"] if s["id"] == self.ref)
+        self.assertIn(self.a_due, sec["items"])
+        self.assertEqual([a["id"] for a in built["data"]["actions"]], [i for i in sec["items"] if i in {a["id"] for a in built["data"]["actions"]}])
+        self.assertTrue(built["data"]["actions"])
+        for hidden in (self.a_secret, self.a_off, self.a_arch, self.a_eye):
+            self.assertNotIn(hidden, [a["id"] for a in built["data"]["actions"]])
+
+    def test_a_hidden_actions_section_gives_the_data_only_the_listed_rows(self):
+        self.save({"mode": "all", "owner": ["Pat Demo"]})          # the list names Pat's row alone; Lee's a_later is kept but not named
+        with self.s.step("dashboard", USER) as st:
+            st.create("report_sections", {"project": "ABC", "type": "actions", "title": "Open actions", "sort_order": 50, "hidden": 1})
+        built = publish.build(self.s, "ABC", now=TODAY)["published"]
+        sec = next(s for s in built["sections"] if s["id"] == self.ref)
+        self.assertEqual(sec["items"], [self.a_due, self.risk])
+        self.assertEqual([a["id"] for a in built["data"]["actions"]], [self.a_due], "exactly the named action")
+        self.assertNotIn(self.a_later, [a["id"] for a in built["data"]["actions"]], "a kept row the list does not name stays out")
+
+    def test_the_list_body_is_built_from_the_unfiltered_rows_not_the_published_sections(self):
+        """Row 1268: with the Actions, Risks and issues and Decisions sections hidden, the published-section filter keeps none of their rows,
+        yet the list still reads them (the template is handed the rows as built, not as the sections carry them)."""
+        self.save({"mode": "all", "owner": ["Pat Demo"]})
+        with self.s.step("dashboard", USER) as st:
+            dec = st.create("decisions", {"project": "ABC", "decision": "Pick the vendor", "date": "2026-10-01", "made_by": "Pat Demo", "source": "demo"})
+            for kind, title, order in (("actions", "Open actions", 50), ("raid", "Risks and issues", 51), ("decisions", "Decisions", 52)):
+                st.create("report_sections", {"project": "ABC", "type": kind, "title": title, "sort_order": order, "hidden": 1})
+        built = publish.build(self.s, "ABC", now=TODAY)["published"]
+        sec = next(s for s in built["sections"] if s["id"] == self.ref)
+        self.assertCountEqual(sec["items"], [self.a_due, self.risk, dec], "an action, a risk and a decision, each from a hidden section")
+        self.assertEqual([a["id"] for a in built["data"]["actions"]], [self.a_due])
+        self.assertEqual([r["id"] for r in built["data"]["raid"]], [self.risk])
+        self.assertEqual([r["id"] for r in built["data"]["decisions"]], [dec])
 
 
 class StatusColours(unittest.TestCase):
