@@ -171,6 +171,12 @@ class Word(unittest.TestCase):
         self.assertEqual(grid[0], 1200)
         self.assertEqual(grid[2], 950)
 
+    def test_a_row_of_a_section_left_off_is_counted_only_when_a_list_names_it(self):
+        kept = docx_build._kept(with_list(["PUB-A-001"]), {"workitems"})
+        self.assertEqual([r["id"] for r in kept["rows"]], ["PUB-A-001"])
+        shown = docx_build._kept(with_list(["PUB-A-001"], built_in=True), {"workitems", "actions", "raid", "decisions"})
+        self.assertIn("PUB-A-002", [r["id"] for r in shown["rows"]])
+
     def test_the_built_in_sections_are_as_before(self):
         p = published()
         shown = headings(docx_build.build(p))

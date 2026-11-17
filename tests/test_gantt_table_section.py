@@ -153,7 +153,7 @@ class Migrating(unittest.TestCase):
         def squash(text):
             return " ".join("\n".join(l.split("--")[0] for l in text.splitlines()).replace('"', "").replace("report_sections_table", "report_sections").replace("IF NOT EXISTS ", "").split())
         self.assertEqual(squash(sections_sql(path)), squash(sections_sql(new)))
-        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_GANTT_TABLE), squash(sections_sql(new)))
+        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_REPORT_HEADLINE), squash(sections_sql(new)))
 
     def test_a_failure_after_the_rebuild_rolls_back_and_the_next_open_migrates(self):
         path = self.old_file()
