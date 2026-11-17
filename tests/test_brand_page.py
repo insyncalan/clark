@@ -301,6 +301,9 @@ class Page(InBrowser):
         """The picker on Generic, saves kept, and each save held until T.release(): the choice is on its way."""
         self.js("T.keep = true; T.hold = true; T.slowRender = true")
         self.pick("generic")
+        # The brands come from the fake list call and the page draws them a debounce later (T.slowRender: 100 ms): a choice made before the select
+        # has its second option sets no value and no save is ever recorded (slow macOS runner). Wait for what is drawn.
+        self.assertTrue(wait(lambda: self.val("(document.querySelector('#brand-pick') || {options: []}).options.length") >= 2), "the picker to be drawn with its brands")
 
     def picks(self):
         return self.val("T.calls.filter(c => c[0] === 'pick').map(c => c[1][0])")
