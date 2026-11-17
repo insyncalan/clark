@@ -61,7 +61,7 @@ PICTURE_KINDS = ("textimage", "gallery", "imagecap")
 # The class of the outermost element of each other template (the rules the page has for it start there).
 ROOT_CLASS = {"headline": "tpl-band", "figures4": "tpl-figs", "figures3": "tpl-figs", "table": "tpl-table", "doclinks": "tpl-dl",
               "linkcard": "tpl-lc", "raid3": "raid-cards", "raid4": "raid-cards", "workitems": "wil-table", "callout": "tpl-callout",
-              "quote": "tpl-quote", "contacts": "tpl-contacts", "checklist": "tpl-check", "keydates": "tpl-dates", "onedoc": "tpl-od"}
+              "quote": "tpl-quote", "contacts": "tpl-contacts", "checklist": "tpl-check", "keydates": "tpl-dates", "onedoc": "tpl-od", "reportheadline": "tpl-rh", "glancetemplate": "tpl-gt"}
 
 
 def picture_rules(text):
@@ -116,6 +116,8 @@ class Plain(PublishedFile, glance.Setup):
             "keydates": {"v": 1, "items": [{"label": "Fictional typed date", "date": "2031-02-01"}]},
             "onedoc": {"v": 1, "file": {"name": "Signed SOW.pdf", "rel": "Report files/Signed SOW.pdf", "bytes": 2048}, "label": "The signed SOW",
                        "text": ["Signed."]},
+            "reportheadline": {"v": 1, "health": "at_risk", "headline": "Fictional headline", "sentence": "Fictional sentence."},
+            "glancetemplate": {"v": 1, "bespoke": [{"id": "t1", "label": "Fictional tile", "figure": "3", "tag": "Fictional", "note": "Fictional note", "tone": "amber"}]},
         }
         wanted = set(section_kinds.TYPES) - set(PICTURE_KINDS) - {"linkcard", "raid3", "raid4"}
         self.assertEqual(set(bodies), wanted, "one of every template that is not a picture one")

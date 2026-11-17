@@ -24,7 +24,7 @@ STEP = 20
 BEFORE = str(STEP - 1)
 NOW = str(store_module.SCHEMA_VERSION)
 NEW_COLUMNS = ("brand",)
-LATER_COLUMNS = ("latest_update", "decisions.priority")      # item 1185 (step 25) adds this to raid and milestones
+LATER_COLUMNS = ("latest_update", "decisions.priority", "app_settings.theme")      # item 1185 (step 25) adds this to raid and milestones; row 1269 (step 27) adds the theme
 COLUMN = "brand TEXT NOT NULL DEFAULT 'generic' CHECK (length(brand) BETWEEN 1 AND 60)"
 
 

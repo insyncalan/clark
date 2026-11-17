@@ -173,7 +173,8 @@ test_excel_plain_1060.py 30.0
 test_excel_pre1900.py 1.5
 test_excel_protection.py 48.6
 test_excel_refs.py 46.3
-test_excel_roundtrip.py 262.9
+test_excel_roundtrip.py 130
+test_excel_roundtrip_b.py 130
 test_excel_route.py 106.0
 test_excel_sheet_choice.py 59.0
 test_excel_sheet_followups.py 16.1

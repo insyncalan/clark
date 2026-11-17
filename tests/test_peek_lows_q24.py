@@ -1,5 +1,5 @@
 """Three small looks found by eye (CMD 11-12-024): the milestone peek's empty Progress number box draws the dash the other empty fields draw
-(a placeholder: the saved value stays empty, so clearing and 0 are still two things); the peek's field cards share one left edge with the title and
+(a placeholder: the saved value stays empty, so clearing and 0 are still two things; row 1184: now the Progress chip, which says "Progress not set"); the peek's field cards share one left edge with the title and
 the tab underline (the body no longer adds 20 px of its own inside the peek's padding); and a phase bar on the Gantt is a solid fill that stands
 off the row in dark as it does in light (the dark theme sets --phase-bar; light keeps the navy). No new words.
 
@@ -27,28 +27,17 @@ class Progress(Base):
     cur = GO_LIVE
     visit_peek = Fields.visit_peek
 
-    def test_an_empty_progress_box_draws_the_dash_and_stays_empty(self):
+    def test_an_empty_progress_chip_says_progress_not_set_and_stays_empty(self):
+        """Row 1184: the number box is gone (the Progress chip's ten blocks set it); an empty progress is still empty in the saved data, and the chip says so in the live words."""
         for width in (1400, 900):
             for theme in ("light", "dark"):
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
                     p = self.visit_peek(cdp, width=width, theme=theme)
-                    p.until("!!document.querySelector('#peek [data-ms-num]')", "the number box")
-                    self.assertEqual(p.js("document.querySelector('#peek [data-ms-num]').value"), "", "the saved value is empty")
-                    self.assertEqual(p.js("document.querySelector('#peek [data-ms-num]').placeholder"), "—", "the same dash the other empty fields draw")
-                    self.assertGreaterEqual(p.js("document.querySelector('#peek [data-ms-num]').getBoundingClientRect().width"), 40)
-
-    def test_the_dash_is_drawn_in_the_muted_text_colour_not_the_browsers_default(self):
-        for width in (1400, 900):
-            for theme in ("light", "dark"):
-                with self.subTest(width=width, theme=theme), chrome() as cdp:
-                    p = self.visit_peek(cdp, width=width, theme=theme)
-                    p.until("!!document.querySelector('#peek [data-ms-num]')", "the number box")
-                    got = p.js("""(() => { const i = document.querySelector('#peek [data-ms-num]'); const probe = document.createElement('i');
-                      probe.style.color = 'var(--text-muted)'; document.body.appendChild(probe);
-                      const want = getComputedStyle(probe).color; probe.remove();
-                      return JSON.stringify({got: getComputedStyle(i, '::placeholder').color, want}); })()""")
-                    got = json.loads(got)
-                    self.assertEqual(got["got"], got["want"], "the placeholder rule sets the muted colour at full strength")
+                    p.until("!!document.querySelector('#peek .pk-chips [data-row=progress]')", "the progress chip")
+                    self.assertIsNone(self.row(GO_LIVE)["percent_complete"], "the saved value is empty")
+                    self.assertEqual(p.js("document.querySelector('#peek .pk-chips [data-row=progress]').innerText.trim()"), "Progress not set")
+                    self.assertEqual(p.js("document.querySelectorAll('#peek [data-ms-num], #peek [data-ms-range]').length"), 0, "no number box or slider is left")
+                    self.assertGreaterEqual(p.js("document.querySelector('#peek .pk-chips [data-row=progress] button').getBoundingClientRect().width"), 40)
 
 
 class MilestoneEdges(Base):

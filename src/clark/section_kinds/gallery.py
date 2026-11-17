@@ -15,6 +15,8 @@ SLOTS = ("1", "2", "3", "4", "5", "6")
 PICTURE_MAX = 400 * 1024            # each of six (decoded); in base64 about 534 KB, so six fit the limit with their words
 LIMIT = 3 * 1024 * 1024 + 256 * 1024     # six pictures at PICTURE_MAX in base64 (3.1 MB) and their words
 EMPTY = ""
+COLUMNS = (2, 3)                    # Row 1233: how many across; the view draws two across at half width and at 900 px whatever is said
+SHAPES = ("4:3", "square", "16:9", "whole")     # one shape for every image; none said is 4:3, as in 1.0.7
 __all__ = ("READY", "LIMIT", "EMPTY", "SLOTS", "PICTURE_MAX", "TEXT_LIMIT", "check", "with_picture", "published")
 
 
@@ -66,4 +68,11 @@ def published(value, ctx):
     items = value.get("items") or {}
     shown = [{"image": pics[s], "caption": (items.get(s) or {}).get("caption", ""), "alt": (items.get(s) or {}).get("alt", "")}
              for s in SLOTS if pics.get(s)]
-    return {"content": {"pictures": shown}} if shown else None
+    if not shown:
+        return None
+    content = {"pictures": shown}
+    if value.get("columns") in COLUMNS:
+        content["columns"] = value["columns"]
+    if value.get("shape") in SHAPES:
+        content["shape"] = value["shape"]
+    return {"content": content}
