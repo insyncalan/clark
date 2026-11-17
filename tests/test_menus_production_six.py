@@ -76,6 +76,15 @@ class SixMenusStayProduction(unittest.TestCase):
             for i in ids:
                 self.assertRegex(src, r'<Menu [^\n]*? id="%s" btnCls="btn sm" menuLabel="(Sort|Group) by"' % i)
 
+    def test_use_case_view_menu_delete_is_marked_danger(self):
+        src = source("edit/UseCasesPage.jsx")
+        self.assertIn('{ id: "delete", name: "Delete view", icon: "trash", danger: true }', src)
+
+    def test_the_use_case_page_tab_pickers_keep_their_filtered_lists(self):
+        src = source("components/UseCasesTab.jsx")
+        self.assertIn('const GROUPS_HERE = GROUPS.filter(([id]) => id !== "on");', src)
+        self.assertIn('const SORTS_HERE = SORTS.filter(([id]) => id !== "open");', src)
+
 
 if __name__ == "__main__":
     unittest.main()
