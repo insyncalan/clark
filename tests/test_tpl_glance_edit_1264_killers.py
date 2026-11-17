@@ -163,5 +163,57 @@ class Killers(GlanceEdit):
             self.assertTrue(wait(lambda: self.body().get("order") == ["risks", "health", "overdue", "decisions"], 10), f"stored: {self.body()}")
 
 
+    def drag(self, p, key, target_sel, fx, fy_mid=True, finish="mouseReleased"):
+        p.js(f"document.querySelector('{self.sel()}').scrollIntoView({{block: 'center'}})")
+        gx, gy, _ = p.box(self.sel(f"[data-tile={key}] [data-tile-grip]"))
+        r = p.js(f"(function(){{var r=document.querySelector('{self.sel(target_sel)}').getBoundingClientRect();return [r.left + r.width * {fx}, r.top + r.height / 2];}})()")
+        p.mouse("mousePressed", gx, gy, 1)
+        for step in range(1, 9):
+            p.mouse("mouseMoved", gx + (r[0] - gx) * step / 8, gy + (r[1] - gy) * step / 8, 1)
+        return r
+
+    def test_K13_dropping_a_tile_on_its_own_left_half_changes_nothing_and_is_no_step(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            before = self.applies()
+            r = self.drag(p, "health", "[data-tile=health]", 0.2)
+            p.mouse("mouseReleased", r[0], r[1], 0)
+            import time
+            time.sleep(0.8)
+            self.assertEqual(self.body(), {})
+            self.assertEqual(self.applies(), before)
+            self.assertEqual(self.drawn(p), DEFAULT)
+
+    def test_K14_a_cancelled_pointer_ends_the_drag_with_no_step(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            before = self.applies()
+            self.drag(p, "risks", "[data-tile=health]", 0.2)
+            p.js(f"document.querySelector('{self.sel('[data-tile=risks] [data-tile-grip]')}').dispatchEvent(new PointerEvent('pointercancel', {{bubbles: true}}))")
+            import time
+            time.sleep(0.8)
+            self.assertEqual(self.body(), {})
+            self.assertEqual(self.applies(), before)
+
+    def test_K15_the_grip_says_what_it_does_and_names_the_outline_menu_only_where_there_is_one(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            label = lambda key: p.js(f"document.querySelector('{self.sel(f'[data-tile={key}] [data-tile-grip]')}').getAttribute('aria-label')")
+            self.assertEqual(label("health"), "Move Project health. Press Alt with the left or right arrow, or drag.")
+            self.assertEqual(label("risks"), "Move High risks and issues. Press Alt with the left or right arrow, or drag. Right-click for its outline colour.")
+
+
+    def test_K16_a_drag_to_the_end_goes_after_the_last_drawn_tile_not_after_the_typed_ones_and_focus_stays_on_the_grip(self):
+        bespoke = [{"id": "b1", "label": "Fictional green", "figure": "7", "tag": "Fine", "note": "Fictional note", "tone": "green"}]
+        status, got = self.real_change({"project": "ABC", "kind": KIND, "op": "update", "id": self.ref, "changes": {"body": json.dumps({"v": 1, "bespoke": bespoke})}})
+        self.assertEqual(status, 200, got)
+        with chrome() as cdp:
+            p = self.page(cdp)
+            r = self.drag(p, "health", "[data-tile=decisions]", 0.8)
+            p.mouse("mouseReleased", r[0], r[1], 0)
+            self.assertTrue(wait(lambda: self.body().get("order") == ["overdue", "risks", "decisions", "health", "b1"], 10), f"stored: {self.body()}")
+            p.until(f"document.activeElement === document.querySelector('{self.sel('[data-tile=health] [data-tile-grip]')}')", "focus on the moved tile's grip")
+
+
 if __name__ == "__main__":
     unittest.main()
