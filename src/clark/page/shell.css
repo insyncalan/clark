@@ -426,9 +426,9 @@ html.vdragging, html.vdragging * { cursor: grabbing !important; user-select: non
 /* every field's placeholder reads at the muted text colour (the browser default grey is 3.1:1 on the dark surface) */
 input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1; }
 .fline input::placeholder { color: var(--text-muted); }
-.fchip { display: inline-flex; align-items: center; gap: 4px; padding: 0 2px 0 10px; min-height: 26px; border-radius: var(--radius-pill); background: var(--brand-blue-tint); color: var(--status-blue-text); font-size: var(--size-small); }
+.fchip { display: inline-flex; align-items: center; gap: 4px; padding: 0 2px 0 10px; min-height: 26px; border-radius: var(--radius-sm); background: var(--brand-blue-tint); color: var(--brand-blue); font-size: var(--size-small); }   /* item 1290: a rounded rectangle in the loaded brand (text and cross take the brand colour) */
 .fchip.word { background: var(--grey-100); color: var(--text); }
-.fchip button { all: unset; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; }
+.fchip button { all: unset; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius-sm); cursor: pointer; }
 .fchip button:hover { background: var(--grey-200); }
 .fchip button:focus-visible { outline: 2px solid var(--brand-blue); }
 .flist { position: absolute; z-index: var(--layer-list); left: 0; margin: 4px 0 0; padding: 6px 0; list-style: none; width: min(420px, 100%); max-height: 340px; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-small); }
