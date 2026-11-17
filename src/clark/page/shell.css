@@ -365,8 +365,8 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fbtn.on { color: var(--status-blue-text); }
 .fbtn.on::after { content: ""; position: absolute; top: 4px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--brand-blue); }
 .factive.pub { margin: 14px 0 4px; }
-.factive.pub .fchip { padding: 2px 4px 2px 10px; }
-.factive.pub .fchip button { width: 22px; height: 22px; }
+.factive.pub .fchip { padding: 2px var(--space-1) 2px 9px; }
+.factive.pub .fchip button { width: 24px; height: 24px; }
 /* The one filter line: saved views above, then the line with its chips, its box and its suggestions, then the hint chips. */
 :root { --layer-list: 26; --dur-glide: 160ms; }   /* row 808: the layer of a list that floats over the page: over the drop-down menus (25), under the top bar (30) */
 /* Item 955: the border every menu and floating list shares: grey-500 with a fifth of grey-700, so it is at least 3:1 against the page ground and against a card surface in light (3.4:1 and 3.7:1) and in dark (over 5:1). It was --border (grey-300), 1.46:1 to 2.09:1. It follows the theme because the two greys do. */
@@ -426,9 +426,11 @@ html.vdragging, html.vdragging * { cursor: grabbing !important; user-select: non
 /* every field's placeholder reads at the muted text colour (the browser default grey is 3.1:1 on the dark surface) */
 input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1; }
 .fline input::placeholder { color: var(--text-muted); }
-.fchip { display: inline-flex; align-items: center; gap: 4px; padding: 0 2px 0 10px; min-height: 26px; border-radius: var(--radius-pill); background: var(--brand-blue-tint); color: var(--status-blue-text); font-size: var(--size-small); }
+.fchip { display: inline-flex; align-items: center; gap: 4px; padding: 0 var(--space-1) 0 9px; min-height: 25px; border-radius: 6px; background: var(--brand-blue-tint); color: var(--brand-blue); font-size: var(--size-small); }   /* item 1290: a rounded rectangle, 6px corner as in the approved mock-up (no token for 6px), in the loaded brand (text and cross take the brand colour) */
 .fchip.word { background: var(--grey-100); color: var(--text); }
-.fchip button { all: unset; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; }
+:root[data-theme=dark] .fchip:not(.word) { color: var(--brand-blue-strong); }   /* item 1290: in dark the brand blue is 4.18:1 on the tint, the strong blue 6.57:1 (cross follows the text) */
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .fchip:not(.word) { color: var(--brand-blue-strong); } }
+.fchip button { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 1px; background-clip: content-box; border-radius: var(--radius-sm); cursor: pointer; }   /* item 1290: drawn 22 px (the mock-up), hit box stays 24 px */
 .fchip button:hover { background: var(--grey-200); }
 .fchip button:focus-visible { outline: 2px solid var(--brand-blue); }
 .flist { position: absolute; z-index: var(--layer-list); left: 0; margin: 4px 0 0; padding: 6px 0; list-style: none; width: min(420px, 100%); max-height: 340px; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-small); }
