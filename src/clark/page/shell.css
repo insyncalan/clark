@@ -482,6 +482,7 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1
   table.items .c-prio { grid-column: 3; grid-row: 3; }
   table.items td.c-item, table.items td.c-owner, table.items td.c-due, table.items td.c-prio, table.items td.c-status { width: auto; overflow-wrap: anywhere; }
   table.items td.c-status .pill { white-space: normal; max-width: 100%; }
+  table.items td.c-status .st-word { white-space: normal; overflow-wrap: anywhere; }      /* #1195 S5: in a card (a third of its width) the status word wraps, never wider than its box */
   table.items td .cell-pick[data-cell], table.items td .cell-pick[data-cell] .cell-val { white-space: normal; min-width: 0; max-width: 100%; flex: 0 1 auto; overflow-wrap: anywhere; }   /* issue 442: the pickers now show in View too: in a card they wrap by word and never leave it, even in a very wide font */
   table.items tr.grp { display: block; padding: 0; }
   table.items tr.grp th { display: block; min-width: 0; width: auto; padding: 0; text-align: left; overflow-wrap: anywhere; }
