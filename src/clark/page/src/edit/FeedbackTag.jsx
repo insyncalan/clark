@@ -1,0 +1,83 @@
+// The Feedback tag (#1298): a button on the right edge, a little below the middle, in Help and in Settings only (logic/feedbackTag.js says
+// where). It opens a small dialog that slides in from the right edge: the Feedback card's question, Problem / Idea / Question, the three
+// lines added automatically, Copy as text and Open in your mail app (a plain mailto: link; nothing is sent by clark). Edit parts only.
+// `getVersion`, `nav` and `clip` are seams for the tests; the page passes none of them.
+import { useEffect, useRef, useState } from "preact/hooks";
+import * as L from "../logic/feedbackTag.js";
+import { view, settingsPage, peek, fromFile } from "../stores/report.js";
+import { helpOpen, contextOpen } from "../help/helpStore.js";
+
+async function healthVersion() {
+  try {
+    const r = await fetch("/health", { cache: "no-store" });
+    const b = await r.json();
+    return b && typeof b.version === "string" ? b.version : "";
+  } catch (e) {
+    return "";
+  }
+}
+const realClip = (t) => navigator.clipboard.writeText(t);
+
+function Dialog({ ctx, onClose, clip }) {
+  const [kind, setKind] = useState(L.DEFAULT_KIND);
+  const [message, setMessage] = useState("");
+  const [note, setNote] = useState("");
+  const [refused, setRefused] = useState(false);
+  const box = useRef(null), area = useRef(null), shown = useRef(null);
+  const form = { kind, message };
+  const link = L.mail(form, ctx);
+  const has = !!message.trim();
+  const body = L.copyText(form, ctx);
+  useEffect(() => { if (area.current) area.current.focus(); }, []);
+  useEffect(() => { if (refused && shown.current) shown.current.select(); }, [refused]);
+  function key(e) {
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onClose(); }
+  }
+  async function copy() {
+    try { await clip(body); setNote(L.COPIED); setRefused(false); } catch (e) { setNote(L.COPY_REFUSED); setRefused(true); }
+  }
+  const words = note || (has ? link.message : "");
+  return (
+    <div class="fbt-dlg" id="feedback-tag-dialog" role="dialog" aria-labelledby="fbt-h" ref={box} onKeyDown={key}>
+      <div class="fbt-head"><h2 id="fbt-h">{L.TAG_LABELS.title}</h2><button type="button" class="fbt-x" data-fbt-close aria-label={L.TAG_LABELS.close} onClick={onClose}>&times;</button></div>
+      <p class="muted small">{L.TAG_LABELS.intro}</p>
+      <div role="radiogroup" aria-label={L.TAG_LABELS.kind} class="fbt-kinds">
+        {L.KINDS.map((k) => <button type="button" key={k} role="radio" aria-checked={k === kind} class={`fbt-kind${k === kind ? " on" : ""}`} data-fbt-kind={k} onClick={() => { setKind(k); setNote(""); }}>{k}</button>)}
+      </div>
+      <label for="fbt-message">{L.TAG_LABELS.message}</label>
+      <textarea id="fbt-message" class="grow" rows={4} ref={area} value={message} onInput={(e) => { setMessage(e.currentTarget.value); setNote(""); setRefused(false); }} />
+      <div class="fbt-added" id="fbt-added">
+        <b>{L.TAG_LABELS.addedHead}</b>
+        <ul class="plain">{L.contextLines(ctx).map((l) => <li key={l}>{l}</li>)}</ul>
+        <span>{L.TAG_LABELS.addedNote}</span>
+      </div>
+      <p class="muted small">{L.TAG_LABELS.mailNote}</p>
+      <div class="row">
+        <button type="button" class="btn" data-fbt-copy disabled={!has} onClick={copy}>{L.TAG_LABELS.copy}</button>
+        {link.href ? <a class="btn pri" data-fbt-mail href={link.href}>{L.TAG_LABELS.mail}</a> : null}
+      </div>
+      <div class="pub-msg" id="fbt-note" role="status" aria-live="polite">{words}</div>
+      {refused ? <textarea id="fbt-shown" class="grow" rows={5} readOnly ref={shown} value={body} aria-label={L.TAG_LABELS.copy} /> : null}
+    </div>
+  );
+}
+
+export function FeedbackTag({ getVersion = healthVersion, nav, clip = realClip }) {
+  const where = { view: view.value, page: settingsPage.value, helpOpen: helpOpen.value, fromFile: fromFile.value };
+  const on = L.tagShown(where);
+  const [open, setOpen] = useState(false);
+  const [version, setVersion] = useState("");
+  const tag = useRef(null);
+  useEffect(() => { let live = true; if (on && open) getVersion().then((v) => { if (live) setVersion(v || ""); }); return () => { live = false; }; }, [on, open]);   // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!on) setOpen(false); }, [on]);
+  if (!on) return null;
+  const close = () => { setOpen(false); if (tag.current) tag.current.focus(); };
+  const ctx = { version, platform: L.systemWords(nav), page: L.pageWords(where) };
+  const beside = !!peek.value || contextOpen.value;
+  return (
+    <>
+      <button type="button" class={`fbt-tag${beside ? " beside" : ""}${open ? " open" : ""}`} id="feedback-tag" ref={tag} aria-label={L.TAG_LABELS.tagAria} aria-expanded={open ? "true" : "false"} aria-controls="feedback-tag-dialog" onClick={() => (open ? close() : setOpen(true))}>{L.TAG_LABELS.tag}</button>
+      {open ? <Dialog ctx={ctx} onClose={close} clip={clip} /> : null}
+    </>
+  );
+}
