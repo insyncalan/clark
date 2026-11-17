@@ -12,7 +12,7 @@ export const TABLE_COLUMNS = {
     { id: "due", label: "Due", standard: true },
     { id: "prio", label: "Priority", standard: true },
     { id: "id", label: "Id" }, { id: "type", label: "Type" }, { id: "workstream", label: "Workstream" }, { id: "milestone", label: "Milestone" },
-    { id: "raised", label: "Raised" }, { id: "closed", label: "Closed" }, { id: "usecase", label: "Use case" },
+    { id: "raised", label: "Raised" }, { id: "closed", label: "Closed" }, { id: "usecase", label: "Use case" }, { id: "labels", label: "Labels" },
     { id: "latest", label: "Latest update" }, { id: "wording", label: "Client wording" },
   ],
   // Row 1230 ruling: the Milestones page keeps its list as it was ("milestones"); only the Dashboard section's is the five column table ("msDash").
