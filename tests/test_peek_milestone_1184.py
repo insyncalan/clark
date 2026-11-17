@@ -393,6 +393,7 @@ class Milestone(Base):
                 self.real_key(cdp, p, "Enter")
                 self.saved("percent_complete", 90)
                 p.until("!document.querySelector('[data-pop]')", "Enter set it and closed")
+                p.until("document.querySelector('#peek .pk-chips [data-row=progress]').innerText.trim() === '90%'", "the chip says 90%, so the peek has the new progress before the popover opens again")
                 self.chip(p, "progress")
                 p.until("document.activeElement && document.activeElement.dataset.msBlock === '90'", "the block of the current progress has the focus")
                 self.real_key(cdp, p, "ArrowLeft")
