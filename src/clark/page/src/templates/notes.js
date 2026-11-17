@@ -7,7 +7,13 @@ import { richOf } from "./files.js";
 
 export const TONES = ["info", "decision", "warning"];
 export const TONE_WORDS = { info: "Information", decision: "Decision needed", warning: "Warning" };
-export const LIMITS = { title: 120, para: 600, paras: 6, quote: 600, name: 120, people: 8, cols: 8, rows: 30, cell: 200, caption: 200 };
+// item 1272: the colour and icon names (the words the store keeps, section_kinds/callout.py COLOURS and ICONS) and what an older callout's tone drew.
+export const COLOURS = { plain: "Plain", violet: "Violet", amber: "Amber", red: "Red", green: "Green", grey: "Grey" };
+export const ICONS = { none: "No icon", info: "Information", question: "Question", warning: "Warning", alert: "Alert", check: "Tick", clock: "Clock",
+  cal: "Calendar", flag: "Flag", lock: "Lock", key: "Key", bulb: "Light bulb", star: "Star", bell: "Bell", megaphone: "Megaphone", doc: "Document",
+  link: "Link", people: "People", money: "Money", chart: "Chart", shield: "Shield" };
+export const TONE_LOOK = { info: ["violet", "info"], decision: ["amber", "question"], warning: ["red", "warning"] };
+export const LIMITS = { category: 30, title: 120, para: 600, paras: 6, quote: 600, name: 120, people: 8, cols: 8, rows: 30, cell: 200, caption: 200 };
 
 const text = (v) => (typeof v === "string" ? v.trim() : "");
 const list = (v) => (Array.isArray(v) ? v : []);
@@ -21,9 +27,31 @@ export function source(section) {
   return {};
 }
 
+// A field the callout does not store stays undefined (so a save does not rewrite an older callout); calloutLook gives what the reader draws.
+// Row 1272: the callout's own look (no tile, no heading) for any section; null for other types, so Section.jsx needs no branch on the type.
+export function calloutShape(section) {
+  return section && section.type === "callout" ? tidyCallout(source(section)) : null;
+}
+
 export function tidyCallout(v, clean) {
   const o = v || {};
-  return { tone: TONES.includes(o.tone) ? o.tone : "info", title: text(o.title), paras: list(o.paras).map(text).filter(Boolean).slice(0, LIMITS.paras), html: richOf(o.html, clean) };
+  const tone = TONES.includes(o.tone) ? o.tone : "info";
+  const out = { tone, title: text(o.title), paras: list(o.paras).map(text).filter(Boolean).slice(0, LIMITS.paras), html: richOf(o.html, clean) };
+  if (typeof o.category === "string") out.category = text(o.category).slice(0, LIMITS.category);
+  if (Object.hasOwn(COLOURS, o.colour)) out.colour = o.colour;
+  if (Object.hasOwn(ICONS, o.icon)) out.icon = o.icon;
+  if (typeof o.tile === "boolean") out.tile = o.tile;
+  if (typeof o.heading === "boolean") out.heading = o.heading;
+  return out;
+}
+// What is drawn: the word, the colour, the icon, and whether the tile and the heading show. An older callout (no category, colour or icon stored) draws its
+// tone's word, colour and icon. A colour with no word and no icon draws its own shape (`shape`), so a colour is never alone.
+export function calloutLook(c) {
+  const older = c.category === undefined && c.colour === undefined && c.icon === undefined;
+  const [colour, icon] = TONE_LOOK[c.tone];
+  const k = { word: older ? TONE_WORDS[c.tone] : c.category || "", colour: c.colour || colour, icon: c.icon || icon, tile: c.tile !== false, heading: c.heading !== false };
+  k.shape = k.colour !== "plain" && !k.word && k.icon === "none" ? "sh" + k.colour[0].toUpperCase() + k.colour.slice(1) : "";
+  return k;
 }
 export const calloutEmpty = (c) => !c.title && c.paras.length === 0 && !c.html;
 

@@ -24,7 +24,7 @@ import { MsBlock } from "./MsBlock.jsx";
 import { emptyBody } from "../logic/emptyBody.js";
 import { Documents } from "./Documents.jsx";
 import { Tracker } from "./Tracker.jsx";
-import { source, tidyQuote } from "../templates/notes.js";
+import { source, tidyQuote, calloutShape } from "../templates/notes.js";
 
 // View's text for a text or current section: cleaned HTML in the prose style, or one plain line when there is nothing to read.
 function ViewText({ html }) {
@@ -49,8 +49,9 @@ export function Section({ section, index, count, slot, anchor, tools, clean }) {
   const tpl = templateFor(section.type);
   const qo = tpl && tpl === templateFor("quote") ? tidyQuote(source(section)) : null;      // item 1271: a quote can show without its tile or its heading
   const offWord = qo && qo.tile === false && qo.heading === false ? "Tile and heading not shown in View" : qo && qo.tile === false ? "Tile not shown in View" : qo && qo.heading === false ? "Heading not shown in View" : "";
+  const co = calloutShape(section) || qo;      // item 1272 and item 1271: a callout or a quote can show without its tile or its heading
   return (
-    <article class={`sec slot-${slot}${qo && qo.tile === false ? " no-tile" : ""}${qo && qo.heading === false ? " no-head" : ""}${hidden ? " is-hidden" : ""}${changed ? " is-changed" : ""}${mark}${from}`}
+    <article class={`sec slot-${slot}${co && co.tile === false ? " no-tile" : ""}${co && co.heading === false ? " no-head" : ""}${hidden ? " is-hidden" : ""}${changed ? " is-changed" : ""}${mark}${from}`}
       id={anchor || anchorId(section.id)} tabIndex={-1} data-id={section.id} data-type={section.type} data-changed={changed ? "1" : undefined}>
       {editing ? <tools.Gutter section={section} count={count} /> : null}
       <header class="sec-head">
