@@ -2,7 +2,7 @@
 // heading show), then the box as the reader sees it, with its title and words typed inside it (the one editor, with its / menu). Each save is one change()
 // (noteEdit.jsx saveContent): one step, one Undo. The view part is templates/Callout.jsx.
 import { useEffect, useRef, useState } from "preact/hooks";
-import { source, tidyCallout, calloutLook, TONE_WORDS, COLOURS, ICONS, LIMITS } from "../../templates/notes.js";
+import { source, tidyCallout, calloutLook, PROMPTS, TONE_WORDS, COLOURS, ICONS, LIMITS } from "../../templates/notes.js";
 import { mark, boxClass } from "../../templates/Callout.jsx";
 import { Field, useSaver } from "./noteEdit.jsx";
 import { RichField } from "../RichField.jsx";
@@ -48,6 +48,7 @@ function IconPicker({ value, onPick }) {
 }
 
 export function Edit({ section }) {
+  const [typed, setTyped] = useState(null);
   const saved = tidyCallout(source(section));
   const k = calloutLook(saved);
   const write = useSaver(section, saved, "Callout saved.");
@@ -75,16 +76,18 @@ export function Edit({ section }) {
         </div>
         <div class="cb-set"><span class="cb-lbl">Icon</span><IconPicker value={k.icon} onPick={(icon) => look({ icon })} /></div>
         <div class="cb-set"><span class="cb-lbl">Show</span>
-          <button type="button" role="switch" class="cb-btn" aria-checked={k.tile ? "true" : "false"} aria-label="Show the tile (the card around the callout)" onClick={() => look({ tile: !k.tile })}>Tile</button>
-          <button type="button" role="switch" class="cb-btn" aria-checked={k.heading ? "true" : "false"} aria-label="Show the heading" onClick={() => look({ heading: !k.heading })}>Heading</button>
+          <button type="button" role="switch" class="cb-btn" aria-checked={k.tile ? "true" : "false"} aria-label="Show the tile (the card around the callout)" onClick={() => look({ tile: !k.tile })}><Icon name={k.tile ? "eye" : "eyeoff"} />Tile</button>
+          <button type="button" role="switch" class="cb-btn" aria-checked={k.heading ? "true" : "false"} aria-label="Show the heading" onClick={() => look({ heading: !k.heading })}><Icon name={k.heading ? "eye" : "eyeoff"} />Heading</button>
+          <span class="cb-sep" aria-hidden="true"></span>
+          <span class="cb-count" data-cb-count>{`Title ${typed === null ? (saved.title || "").length : typed} of ${LIMITS.title}`}</span>
         </div>
       </div>
       <div class={boxClass(k)} data-colour={k.colour} data-icon={k.icon}>
         {mark(k)}
         <div class="tpl-callout-main">
           {k.word ? <p class="tpl-callout-tone">{k.word}</p> : null}
-          <Field value={saved.title} label="Callout title" max={LIMITS.title} placeholder="Add a title: what the reader must see" cls="cb-title" onCommit={(title) => write({ title })} />
-          <RichField field="callout" empty="Click to write." id={section.id} value={wordsAsHtml(saved.html, saved.paras)} label="Callout words" save={(html) => write({ html: noBreaks(html), paras: [] })} />
+          <Field value={saved.title} label="Callout title" max={LIMITS.title} placeholder={PROMPTS.title} cls="cb-title" onDraft={setTyped} onCommit={(title) => write({ title })} />
+          <RichField field="callout" empty={PROMPTS.words} id={section.id} value={wordsAsHtml(saved.html, saved.paras)} label="Callout words" save={(html) => write({ html: noBreaks(html), paras: [] })} />
         </div>
       </div>
       {!saved.title && saved.paras.length === 0 && !saved.html ? <p class="quiet">Empty for now: add a title or some words. It stays out of the published page until then.</p> : null}
