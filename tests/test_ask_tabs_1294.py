@@ -21,6 +21,12 @@ from clark import page
 WIDTHS = (1400, 900)
 MONEY = re.compile(r"[$£€]|cost limit|monthly|spend|\bprice\b|\bbudget\b", re.I)
 
+CONTRAST = """(() => {
+  const rgb = s => s.match(/[\\d.]+/g).slice(0, 3).map(Number);
+  const lum = c => { const [r, g, b] = c.map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+  return [...document.querySelectorAll('[data-ask-tab]')].map(b => { const s = getComputedStyle(b); const f = lum(rgb(s.color)), g = lum(rgb(s.backgroundColor)); return (Math.max(f, g) + 0.05) / (Math.min(f, g) + 0.05); });
+})()"""
+
 
 class Tabs(unittest.TestCase):
     def setUp(self):
@@ -108,6 +114,19 @@ class Tabs(unittest.TestCase):
         words = re.findall(r'"([^"\n]*)"', src[src.index("const ALL = "):src.index("const NOT_READY")])
         self.assertFalse([w for w in words if MONEY.search(w)], words)
         self.assertIn("Used from All projects", src)
+
+
+    def test_both_tabs_read_in_light_and_dark_at_1400_and_900(self):
+        for scheme in ("light", "dark"):
+            for w in WIDTHS:
+                with self.subTest(scheme=scheme, width=w), chrome() as cdp:
+                    js = self.show(cdp)
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                    cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, self.sid)
+                    self.until(js, "document.documentElement.scrollWidth <= window.innerWidth", f"no sideways scroll, {scheme} {w}")
+                    ratios = js(CONTRAST)
+                    self.assertEqual(len(ratios), 2)
+                    self.assertTrue(all(r >= 4.5 for r in ratios), f"tab text contrast {ratios} in {scheme} at {w}")
 
 
 if __name__ == "__main__":

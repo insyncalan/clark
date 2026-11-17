@@ -55,7 +55,6 @@ function AskProject() {
   const [msg, setMsg] = useState(null);                  // {kind: "error" | "note", text}
 
   const { switchRef, flip } = useAskFlip(on, busy, setBusy, setMsg);
-  useEffect(() => { loadAsk(true); return leaveSwitch; }, []);      // asked again each time Settings opens, so the page never shows a stale choice
 
   useEffect(() => {
     let live = true;
@@ -176,6 +175,7 @@ function AllProjects() {
 export function AskSettings() {
   const code = project.value;
   const tab = askTab.value === ALL ? ALL : PROJECT;
+  useEffect(() => { loadAsk(true); return leaveSwitch; }, []);      // asked again each time Settings opens, so the page never shows a stale choice; once for the page, not per tab, so a tab change cannot re-read the switch under a click
   return (
     <>
     <div class="ask-tabs" id="ask-tabs" role="group" aria-label="Asking settings for">
