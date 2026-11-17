@@ -85,7 +85,7 @@ class Checker(unittest.TestCase):
 
     def test_hostile_and_outsized_content_is_refused(self):
         self.assertEqual(refused(self, KIND, {"v": 1, "words": ["a"], "script": "x"}), textimage.UNKNOWN_FIELD)
-        self.assertEqual(refused(self, KIND, {"v": 2}), textimage.OLD_VERSION)
+        self.assertEqual(refused(self, KIND, {"v": 3}), textimage.OLD_VERSION)      # row 1232: version 2 is the Text and Image Side by Side body (test_textimage_side_server)
         self.assertEqual(refused(self, KIND, {"v": "1"}), textimage.NOT_CONTENT)
         self.assertEqual(refused(self, KIND, ["not", "an", "object"]), textimage.NOT_CONTENT)
         self.assertEqual(refused(self, KIND, {"v": 1, "words": "one string"}), textimage.NOT_CONTENT)

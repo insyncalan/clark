@@ -47,7 +47,7 @@ export function Section({ section, index, count, slot, anchor, tools, clean }) {
   const from = editing && dragFrom.value === section.id ? " drag-from" : "";
   const changed = isChanged(section.id);
   const tpl = templateFor(section.type);
-  const qo = section.type === "quote" ? tidyQuote(source(section)) : null;      // item 1271: a quote can show without its tile or its heading
+  const qo = tpl && tpl === templateFor("quote") ? tidyQuote(source(section)) : null;      // item 1271: a quote can show without its tile or its heading
   const offWord = qo && qo.tile === false && qo.heading === false ? "Tile and heading not shown in View" : qo && qo.tile === false ? "Tile not shown in View" : qo && qo.heading === false ? "Heading not shown in View" : "";
   return (
     <article class={`sec slot-${slot}${qo && qo.tile === false ? " no-tile" : ""}${qo && qo.heading === false ? " no-head" : ""}${hidden ? " is-hidden" : ""}${changed ? " is-changed" : ""}${mark}${from}`}
@@ -59,8 +59,9 @@ export function Section({ section, index, count, slot, anchor, tools, clean }) {
         {editing && offWord ? <span class="tag hid">{offWord}</span> : null}
         {editing && hidden ? <span class="tag hid">Left out of the published page</span> : null}
         {editing && section.type === "usecases" && tools.ucEdit ? <tools.ucEdit.Configure section={section} /> : null}
+        {editing && section.type === "milestones" && tools.ucEdit ? <tools.ucEdit.Configure section={section} /> : null}
       </header>
-      {section.type === "glance" ? <Glance tools={tools} clean={clean} /> : section.type === "usecases" ? <UseCases tools={tools} section={section} /> : section.type === "milestones" ? <MsBlock place={`sec-${section.id}`} tools={tools} />
+      {section.type === "glance" ? <Glance tools={tools} clean={clean} /> : section.type === "usecases" ? <UseCases tools={tools} section={section} /> : section.type === "milestones" ? <MsBlock place={`sec-${section.id}`} tools={tools} section={section} />
         : tpl ? (editing ? <TemplateEdit section={section} tools={tools} /> : <tpl.view section={section} data={data.value} clean={clean} />)
         : section.type === "docs" ? (editing ? <tools.DocumentsEdit section={section} /> : <Documents />)
         : section.type === "tracker" ? (editing ? <tools.TrackerEdit section={section} slot={slot} /> : <Tracker section={section} slot={slot} />)
