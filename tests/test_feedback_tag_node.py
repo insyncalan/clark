@@ -58,6 +58,11 @@ class Where(unittest.TestCase):
             self.assertTrue(shown(view="settings", page=page), page)
         self.assertFalse(shown(view="settings", page="version"))
 
+    def test_hidden_while_search_shows_the_feedback_card(self):
+        self.assertFalse(shown(view="settings", page="profile", feedbackCard=True))
+        self.assertTrue(shown(view="settings", page="profile", feedbackCard=False))
+        self.assertTrue(shown(helpOpen=True, view="settings", feedbackCard=True))
+
     def test_shown_in_help(self):
         self.assertTrue(shown(view="dashboard", helpOpen=True))
 

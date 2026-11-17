@@ -255,6 +255,23 @@ class FeedbackTagBrowser(unittest.TestCase):
             cdp.js(f"{BAR}.focus()", sid)
             self.assertTrue(cdp.js(f"{BAR}.matches(':focus-visible') && parseFloat(getComputedStyle({BAR}).outlineWidth) >= 2", sid), where)
 
+    def test_no_tag_while_the_search_shows_the_feedback_card(self):
+        """Row 1298 point 4: Settings search shows every matching card; with the Feedback card among them the tag stands aside, and returns when it is gone."""
+        def type_q(cdp, sid, q):
+            cdp.js("var b = document.getElementById('set-search-box'); b.focus(); b.value = %s; b.dispatchEvent(new Event('input', { bubbles: true }))" % json.dumps(q), sid)
+        card = "(function(){var h = document.getElementById('feedback-h'); var c = h && h.closest('section, .setting'); return !!c && !c.hidden && c.getClientRects().length > 0;})()"
+        for cdp, sid, where in self.each():
+            self.go(cdp, sid, "#settings&p=TUL&s=profile")
+            self.assertTrue(wait(lambda: self.has_tag(cdp, sid)), where)
+            type_q(cdp, sid, "feedback")
+            self.assertTrue(wait(lambda: cdp.js(card, sid)), where + ": search shows the Feedback card")
+            self.assertTrue(wait(lambda: not self.has_tag(cdp, sid)), where + ": so no tag")
+            type_q(cdp, sid, "name")
+            self.assertTrue(wait(lambda: not cdp.js(card, sid)), where + ": a search without the card")
+            self.assertTrue(wait(lambda: self.has_tag(cdp, sid)), where + ": the tag is back")
+            type_q(cdp, sid, "")
+            self.assertTrue(wait(lambda: self.has_tag(cdp, sid)), where + ": cleared")
+
     # ---- leaving
     def test_the_dialog_closes_on_leaving_help_or_settings(self):
         for cdp, sid, where in self.each():

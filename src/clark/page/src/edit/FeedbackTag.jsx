@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import * as L from "../logic/feedbackTag.js";
 import { healthVersion } from "./Feedback.jsx";   // the same health check; it asks for no zone, so it is not a zoneFetch
-import { view, settingsPage, peek, fromFile } from "../stores/report.js";
+import { view, settingsPage, settingsFeedbackShown, peek, fromFile } from "../stores/report.js";
 import { helpOpen, contextOpen } from "../help/helpStore.js";
 import { width as peekWidth, wide as peekWide } from "../stores/peekState.js";
 
@@ -56,7 +56,7 @@ function Dialog({ ctx, onClose, clip }) {
 }
 
 export function FeedbackTag({ getVersion = healthVersion, nav, clip = realClip }) {
-  const where = { view: view.value, page: settingsPage.value, helpOpen: helpOpen.value, fromFile: fromFile.value };
+  const where = { view: view.value, page: settingsPage.value, helpOpen: helpOpen.value, fromFile: fromFile.value, feedbackCard: settingsFeedbackShown.value };
   const on = L.tagShown(where);
   const [open, setOpen] = useState(false);
   const [version, setVersion] = useState("");
