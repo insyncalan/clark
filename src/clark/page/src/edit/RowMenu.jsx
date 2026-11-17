@@ -228,7 +228,7 @@ function Fly({ level, entries: shown, owner, focus, wrap, hover, keep, hold, onP
 const REST = 140;      // ms the pointer rests on an entry before its list opens (row 979)
 
 function Panel({ s }) {
-  const row = withOwnerLink(itemOf(s.id), data.value), d = data.value, edit = isEditing();     // Work items are always editable: View and Edit exist only on the Dashboard (ruled 02-11-2026); this menu is an Edit part, so a published file never draws it
+  const row = withOwnerLink(itemOf(s.id), data.value), d = data.value, edit = isEditing();     // edit is isEditing(): View and Edit exist only on the Dashboard (ruled 02-11-2026); this menu is an Edit part, so a published file never draws it
   const wrap = useRef(null), today = todayIso();
   const reg = s.reg;                              // #1048: the People list, read before the menu opens (null when it could not be read)
   const set = (patch) => { state.value = { ...state.value, ...patch }; };
