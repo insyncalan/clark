@@ -8,6 +8,7 @@ page must say the plain words for it and never the server's own text. The non-br
 the published build names no route that changes anything) need no browser.
 """
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -115,8 +116,14 @@ class Pg:
         self.cdp.call("Input.insertText", {"text": text}, self.sid)
 
     def mouse(self, kind, x, y, buttons=0):
+        if kind == "mouseMoved":
+            time.sleep(float(os.environ.get("CLARK_SLOW_CDP", "0")))     # Row 1277: a slow CDP (e.g. CLARK_SLOW_CDP=0.15) puts more than REST_MS between the steps of a drag
         self.cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left", "buttons": buttons,
                                                     "clickCount": 0 if kind == "mouseMoved" else 1}, self.sid)
+
+    def rested(self):
+        """300 ms after the last move: the pointer has rested longer than REST_MS (110), so the shown target is the one it is on (drag.js drops on state.shown, no last aim)."""
+        time.sleep(0.3)
 
     def box(self, selector):
         """[centre x, centre y, bottom] of the first element that matches."""
