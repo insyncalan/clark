@@ -216,7 +216,7 @@ def build_request(question, passages, earlier=(), today="", partial=()):
     P1, P2 ... in order. `earlier` is the chat so far as (role, text) pairs, role "user" or "assistant". Raises `AskRefused` (plain
     words) for an empty or over-long question, a password-looking string in what the person typed, a label that is a path, or more
     text than the budget. Text is carried exactly as given."""
-    turns = check_question(question, earlier)
+    turns, gone = _trim(check_question(question, earlier))
     chosen, kept, secret_out = [], [], 0
     for n, p in enumerate(passages or ()):
         label, text = (p.label, p.text) if isinstance(p, Passage) else (p[0], p[1]) if isinstance(p, (tuple, list)) and len(p) == 2 else (None, None)
