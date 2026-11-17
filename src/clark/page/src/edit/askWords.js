@@ -283,6 +283,16 @@ export const CONFIRM_NO_PASSAGE_LINE = "This answer read your files, so check th
 export const CONFIRM_BOX = "I have checked this change and want to save it";
 export const DONE_LINE = "Done.";
 export const UNDO = "Undo";
+// #1292 S4 (the words follow the mock-up; NEEDS RULING until the one words table is ruled)
+export const WHY = "Why";
+export const NOT_NOW = "Not now";
+export const NOT_NOW_LINE = "Not now. Nothing was changed.";
+export const BRING_BACK = "Bring it back";
+export const APPLY_ALL = (n) => `Apply all ${n}`;
+export const UNDO_ALL = "Undo all";
+export const ALL_DONE_LINE = (n) => `Done. ${n} changes saved.`;
+export const ALL_UNDONE_LINE = "Undone. The old values are back.";
+export const ALL_PARTLY_LINE = (done, n) => `${done} of ${n} changes were saved. The others were not. Check the board and ask again.`;
 export const UNDONE_LINE = "Undone. The old values are back.";
 export const UNDO_FAILED_LINE = "That could not be undone. Open the item and change it back yourself.";
 export const REFUSED_LINE = "That change can't be made by asking. Nothing was changed. Make it yourself on the board.";

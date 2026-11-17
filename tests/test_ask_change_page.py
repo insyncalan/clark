@@ -25,7 +25,7 @@ NEVER = re.compile(r"\w*(Error|Exception)\b|Traceback|JSON|Not allowed|Bad reque
 FILE = ask.Passage("notes/plan.md", "The cut-over plan was signed off on Monday, so it can be closed.")
 NEW_WORDS = ("CHANGE_HEAD", "NEW_HEAD", "FIELD", "NOW", "AFTER", "NOT_SET", "APPLY", "APPLYING_LINE", "FROM_FILE", "CONFIRM_LINE",
              "CONFIRM_NO_PASSAGE_LINE", "CONFIRM_BOX", "DONE_LINE", "UNDO", "UNDONE_LINE", "UNDO_FAILED_LINE", "REFUSED_LINE",
-             "NOT_SAVED_LINE", "CHANGES_GONE_LINE")
+             "NOT_SAVED_LINE", "CHANGES_GONE_LINE", "WHY", "NOT_NOW", "NOT_NOW_LINE", "BRING_BACK", "UNDO_ALL", "ALL_UNDONE_LINE")
 
 
 class Card(Base):
@@ -76,7 +76,7 @@ class TheCard(Card):
             p = self.opened(cdp)
             self.ask_it(p)
             self.card(p)
-            row = "document.querySelector('[data-ask-change] tr[data-field=status]')"
+            row = "document.querySelector('[data-ask-change] [data-field=status]')"
             self.assertEqual(p.js(f"{row}.querySelector('[data-before]').textContent"), "Open")
             self.assertEqual(p.js(f"{row}.querySelector('[data-after]').textContent"), "Closed")
             self.assertEqual(p.js("document.querySelector('[data-ask-change]').dataset.ref"), self.action)
@@ -137,12 +137,12 @@ class TheCard(Card):
             p = self.opened(cdp)
             self.ask_it(p)
             self.card(p)
-            cell = lambda f, w: p.js(f"document.querySelector('[data-ask-change] tr[data-field={f}] [data-{w}]').textContent")
-            label = lambda f: p.js(f"document.querySelector('[data-ask-change] tr[data-field={f}] th').textContent")
+            cell = lambda f, w: p.js(f"document.querySelector('[data-ask-change] [data-field={f}] [data-{w}]').textContent")
+            label = lambda f: p.js(f"document.querySelector('[data-ask-change] [data-field={f}] [data-label]').textContent")
             self.assertEqual((label("status"), cell("status", "before"), cell("status", "after")), ("Status", "On track", "Flag"))
             self.assertEqual((label("standing"), cell("standing", "before"), cell("standing", "after")),
                              ("Where it stands", "Going well", "Two files are late."))
-            self.assertEqual(p.js("document.querySelectorAll('[data-ask-change] tr[data-field=commitment]').length"), 0, "no commitment row")
+            self.assertEqual(p.js("document.querySelectorAll('[data-ask-change] [data-field=commitment]').length"), 0, "no commitment row")
             p.js("document.querySelector('[data-ask-apply]').click()")
             p.until("document.querySelector('[data-ask-line]') && document.querySelector('[data-ask-line]').textContent.startsWith('Done.')", "Done.")
             self.assertEqual(self.store.read("use_cases", ref=uc)["status"], "Flag")
@@ -178,6 +178,106 @@ class TheCard(Card):
             p.js("document.querySelector('[data-ask-apply]').click()")
             p.until("document.querySelector('[data-ask-line]') && document.querySelector('[data-ask-line]').textContent.startsWith('Done.')", "Done.")
             self.assertEqual(self.status(), "Closed")
+
+    # ----- #1292 S4: change cards (item link and title, old struck through, new marked, Why, Apply and Not now, Apply all, one Undo)
+    def test_the_card_names_the_item_strikes_the_old_marks_the_new_and_gives_the_why(self):
+        self.says(self.close_it(why="It was signed off on Monday."))
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            link = "document.querySelector('[data-ask-change] [data-ask-item]')"
+            self.assertEqual(p.js(f"{link}.textContent"), self.action)
+            self.assertIn(f"item={self.action}", p.js(f"{link}.getAttribute('href')"))
+            self.assertEqual(p.js("document.querySelector('[data-ask-change] [data-ask-title]').textContent"), "Draft the cut-over plan")
+            self.assertEqual(p.js("document.querySelector('[data-field=status] del[data-before]').textContent"), "Open")
+            self.assertEqual(p.js("getComputedStyle(document.querySelector('[data-field=status] del[data-before]')).textDecorationLine"), "line-through")
+            self.assertEqual(p.js("document.querySelector('[data-field=status] mark[data-after]').textContent"), "Closed")
+            self.assertEqual(p.js("document.querySelector('[data-ask-why]').textContent"), "Why: It was signed off on Monday.")
+            self.assertEqual(p.js("document.querySelectorAll('[data-ask-change] table').length"), 0, "the table is gone")
+            self.assertEqual(p.js("document.querySelectorAll('[data-ask-apply-all]').length"), 0, "one card: no Apply all")
+
+    def test_a_reason_with_markup_is_drawn_as_text(self):
+        self.says(self.close_it(why="<img src=x onerror=alert(1)> done"))
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            self.assertEqual(p.js("document.querySelectorAll('[data-ask-why] img').length"), 0)
+            self.assertIn("<img", p.js("document.querySelector('[data-ask-why]').textContent"))
+
+    def test_without_a_reason_there_is_no_why_line(self):
+        self.says(self.close_it())
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            self.assertEqual(p.js("document.querySelectorAll('[data-ask-why]').length"), 0)
+
+    def test_not_now_saves_nothing_and_bring_it_back_offers_it_again(self):
+        self.says(self.close_it())
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            p.js("document.querySelector('[data-ask-not-now]').click()")
+            p.until("document.querySelector('[data-ask-line]') && document.querySelector('[data-ask-line]').textContent.startsWith('Not now.')", "Not now")
+            self.assertEqual(p.js("document.querySelectorAll('[data-ask-apply]').length"), 0)
+            self.assertEqual(self.status(), "Open")
+            p.js("document.querySelector('[data-ask-bring-back]').click()")
+            p.until("!!document.querySelector('[data-ask-apply]')", "Apply is back")
+            self.assertEqual(p.js("document.querySelectorAll('[data-ask-line]').length"), 0)
+            p.js("document.querySelector('[data-ask-apply]').click()")
+            p.until("document.querySelector('[data-ask-line]') && document.querySelector('[data-ask-line]').textContent.startsWith('Done.')", "Done.")
+            self.assertEqual(self.status(), "Closed")
+
+    def two_cards(self):
+        self.second = self.demo.action(owner="Kim Roe", description="Order the badges")
+        self.says(self.close_it(), "CHANGE: " + json.dumps({"op": "change", "id": self.second, "current_title": "Order the badges", "status": "Closed"}))
+
+    def test_apply_all_saves_every_card_and_one_undo_puts_them_all_back(self):
+        self.two_cards()
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            p.until("document.querySelectorAll('[data-ask-change]').length === 2", "both cards")
+            self.assertEqual(p.js("document.querySelector('[data-ask-apply-all]').textContent"), "Apply all 2")
+            p.js("document.querySelector('[data-ask-apply-all]').click()")
+            p.until("!!document.querySelector('[data-ask-group-line]') && !!document.querySelector('[data-ask-undo-all]')", "done with one Undo")
+            self.assertEqual(p.js("document.querySelector('[data-ask-group-line]').textContent.startsWith('Done. 2 changes saved.')"), True)
+            self.assertEqual((self.status(), self.store.read("actions", ref=self.second)["status"]), ("Closed", "Closed"))
+            self.assertEqual(p.js("document.querySelectorAll('[data-ask-apply-all], [data-ask-apply], [data-ask-undo]').length"), 0, "one Undo for the lot, none per card")
+            self.assertEqual(p.js("document.querySelectorAll('[data-ask-undo-all]').length"), 1)
+            p.js("document.querySelector('[data-ask-undo-all]').click()")
+            p.until("document.querySelector('[data-ask-group-line]').textContent === 'Undone. The old values are back.'", "Undone")
+            self.assertEqual((self.status(), self.store.read("actions", ref=self.second)["status"]), ("Open", "Open"))
+            self.assertEqual(p.js("document.querySelectorAll('[data-ask-undo-all]').length"), 0)
+
+    def test_apply_all_skips_a_card_put_aside_with_not_now(self):
+        self.two_cards()
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            p.until("document.querySelectorAll('[data-ask-change]').length === 2", "both cards")
+            p.js("document.querySelectorAll('[data-ask-not-now]')[1].click()")
+            p.until("document.querySelectorAll('[data-ask-apply]').length === 1", "one card left")
+            self.assertEqual(p.js("document.querySelectorAll('[data-ask-apply-all]').length"), 0, "one still offered: no Apply all")
+            p.js("document.querySelector('[data-ask-apply]').click()")
+            p.until("document.querySelector('[data-ask-line]').textContent.startsWith('Done.')", "Done.")
+            self.assertEqual((self.status(), self.store.read("actions", ref=self.second)["status"]), ("Closed", "Open"))
+
+    def test_apply_all_is_not_offered_when_a_card_needs_the_confirm_box(self):
+        self.two_cards()
+        self.provider.reply += "\nCITE: P5"
+        self.files = (FILE,)
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            p.until("document.querySelectorAll('[data-ask-change]').length === 2", "both cards")
+            self.assertEqual(p.js("document.querySelectorAll('[data-ask-apply-all]').length"), 0)
 
     def test_a_refusal_is_one_plain_line_with_a_next_step(self):
         self.says("CHANGE: " + json.dumps({"op": "archive", "id": self.action}))
