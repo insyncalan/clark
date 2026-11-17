@@ -132,6 +132,7 @@ class Page(Base):
             if not p.js(f"!!{sec}"):
                 return None
             p.until(f"!!{sec}.querySelector('[data-gt]') || true", "drawn")
+            p.until("document.getAnimations().length === 0", "the colour change of a counting tile (a button with a hover transition) is over")
             return p.js(f"""(function(){{ var s = {sec}, g = s.querySelector('[data-gt]'); if (!g) return {{tiles: []}};
               var box = s.getBoundingClientRect(), gr = g.getBoundingClientRect();
               var tiles = [...g.querySelectorAll('.tpl-gt-tile')].map(function(t){{
@@ -300,11 +301,12 @@ class Page(Base):
         self.assertNotIn("Fictional amber", got["text"])
         self.assertNotIn("Fictional note two", got["text"])
 
-    # T61
-    def test_t61_a_section_with_every_tile_hidden_is_left_out_of_the_page(self):
+    def test_t61_a_section_with_every_tile_hidden_shows_the_mock_up_sentence(self):
         ref = self.make({"v": 1, "builtin": {"overdue": {"hidden": True}, "risks": {"hidden": True}, "decisions": {"hidden": True}},
                          "bespoke": [{**BESPOKE[0], "hidden": True}]})
-        self.assertIsNone(self.look(ref, 1400, "light"), "no tile to show: no section")
+        got = self.look(ref, 1400, "light")
+        self.assertEqual(got["tiles"], [], "no tile is drawn; the sentence is test_tpl_glance_b4_1264")
+        self.assertIn("No tiles on this section.", got["text"])
 
     # T62
     def test_t62_a_label_of_the_longest_length_wraps_inside_the_tile_at_900(self):
