@@ -320,6 +320,16 @@ export function AskPanel() {
         </div>
       ) : null}
       <div class="ask-log" id="ask-log" hidden={showHist} role="log" aria-live="polite" aria-label={W.LOG_LABEL} ref={log}>
+        {list.length === 0 ? (
+          <div class="ask-first" id="ask-first">
+            <h3>{W.FIRST_TITLE}</h3>
+            <ul>
+              <li>{W.FIRST_READS}</li>
+              <li><b>{W.FIRST_SAVES_BOLD}</b>{W.FIRST_SAVES_REST}</li>
+              <li>{W.named(W.FIRST_SENDS, askProvider.value)} <a href="#settings&s=claude" data-ask-settings onClick={toSettings}>{W.FIRST_LINK}</a></li>
+            </ul>
+          </div>
+        ) : null}
         {shownTurns(list).map((t, i) => t.kind === "notes" ? (
           <ul key={i} class="ask-turn assistant ask-notes" data-role="assistant" data-ask-notes>{t.lines.map((n, k) => <li key={k}>{n}</li>)}</ul>
         ) : (
