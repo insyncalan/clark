@@ -6,7 +6,9 @@ Run: python3 dev/run_tests.py test_glance_word_excel_1264_print
 """
 import io
 import json
+import re
 import unittest
+import zipfile
 
 from _paths import ROOT   # noqa: F401
 
@@ -67,11 +69,49 @@ class WordCellsPerRow(unittest.TestCase):
                 self.assertIn(f"ZQ-T{i}", t)
 
 
+def tile_table_xml(pub):
+    x = zipfile.ZipFile(io.BytesIO(docx_build.build(pub))).read("word/document.xml").decode()
+    i = x.find("ZQ-T0")
+    return x[x.rfind("<w:tbl>", 0, i):x.find("</w:tbl>", i)]
+
+
+class WordTableGrid(unittest.TestCase):
+    """The table's own grid and cells, read from the file: the reader's cell count would not see a wrong grid or a clipped extra cell."""
+
+    def test_the_grid_has_a_column_for_each_tile_on_a_line(self):
+        for kw, want in (({}, 4), ({"per_row": 3}, 3), ({"beside": 1}, 2)):
+            self.assertEqual(len(re.findall(r"<w:gridCol ", tile_table_xml(select(10, **kw)))), want, kw)
+
+    def test_every_line_has_exactly_the_grid_s_cells(self):
+        for kw, want in (({}, 4), ({"per_row": 3}, 3), ({"beside": 1}, 2)):
+            rows = re.findall(r"<w:tr[ >].*?</w:tr>", tile_table_xml(select(10, **kw)), re.S)
+            self.assertEqual([len(re.findall(r"<w:tc>", r)) for r in rows], [want] * len(rows), kw)
+
+    def test_each_tile_is_drawn_once_in_order(self):
+        for kw in ({}, {"per_row": 3}, {"beside": 1}):
+            found = re.findall(r"ZQ-T\d+", tile_table_xml(select(10, **kw)))
+            self.assertEqual(found, [f"ZQ-T{i}" for i in range(10)], kw)
+
+    def test_the_padding_cells_are_empty_and_unshaded(self):
+        for kw, pad in (({"per_row": 3}, 2), ({}, 2), ({"beside": 1}, 0)):
+            rows = re.findall(r"<w:tr[ >].*?</w:tr>", tile_table_xml(select(10, **kw)), re.S)
+            cells = re.findall(r"<w:tc>.*?</w:tc>", rows[-1], re.S)
+            tail = cells[len(cells) - pad:] if pad else []
+            self.assertEqual(len(tail), pad, kw)
+            for c in tail:
+                self.assertNotIn("<w:shd", c, kw)
+                self.assertNotIn("<w:t>", c, kw)
+
+
 class ReaderPerLine(unittest.TestCase):
     def test_per_line_is_the_views(self):
         for kw, want in (({}, 4), ({"per_row": 3}, 3), ({"per_row": 4}, 4), ({"beside": 1}, 2), ({"beside": 1, "per_row": 3}, 2)):
             pub = select(5, **kw)
             self.assertEqual(glance_print.read(pub, full_section(pub))["per_line"], want, kw)
+
+    def test_a_beside_that_is_not_one_is_not_half_width(self):
+        for bad in (2, 0, None, "1", False):
+            self.assertEqual(glance_print.read({}, {"beside": bad, "content": {"health": {"shown": False}}})["per_line"], 4, bad)
 
     def test_a_per_row_that_is_not_3_or_4_is_the_default(self):
         for bad in (2, 5, "3", None, True, 3.0):
