@@ -75,7 +75,7 @@ class Form(unittest.TestCase):
     def test_a_bad_change_line_is_dropped_alone_the_answer_and_the_good_change_stand(self):          # #1293 A [D]
         bad = ['CHANGE: {"a": }', "CHANGE: not json", "CHANGE: []", "CHANGE: {}", 'CHANGE: {"a": {"b": 1}}', 'CHANGE: {"a": 1, "a": 2}',
                'CHANGE: {"a": 1} trailing', "CHANGE: " + json.dumps({"a": "x" * (ask.MAX_FIELD_VALUE + 1)}),
-               "CHANGE: " + json.dumps({f"f{i}": i for i in range(ask.MAX_CHANGE_FIELDS + 1)}), "CHANGE: " + "[" * 100000]
+               "CHANGE: " + json.dumps({f"f{i}": i for i in range(ask.MAX_CHANGE_FIELDS + 1)}), "CHANGE: " + "[" * 20000]      # under MAX_REPLY, so the good line after it is still read
         for line in bad:
             r = read("Answer.\n" + line + '\nCHANGE: {"good": 1}')
             self.assertTrue(r.parsed, line[:40])
