@@ -33,7 +33,7 @@ import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-from clark import ask, ask_apply, ask_data, ask_passages, pdf_link, pdf_reader, platform, publish, reach, secret_screen
+from clark import ask, ask_apply, ask_data, ask_files, ask_passages, pdf_link, pdf_reader, platform, publish, reach, secret_screen
 from clark.store import Store, connect
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -53,7 +53,7 @@ MESSAGES = {
     "file_unavailable": "That file can't be opened from here.",
     "folders_unreadable": "Your folders couldn't be read just now, so nothing was sent. Try again, or remove a folder in Settings.",
 }
-FIELDS = {"project", "question", "earlier"}
+FIELDS = {"project", "question", "earlier", "files"}
 DRY_FIELDS = {"project", "reply"}
 PDF_START = b"%PDF-"      # #943: what a PDF file begins with
 OPEN_FIELDS = {"project", "file", "page"}
@@ -145,6 +145,10 @@ class AskService:
             ask.check_question(question, earlier)    # the screen comes first: no data is ranked or read for a question that holds a secret
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
+        try:
+            added = ask_files.passages(body.get("files"))      # #1292 S14: the files of this question only, screened like any passage; nothing is kept
+        except ask.AskRefused as e:
+            return 400, self.fail("refused", str(e))
         with self.lock:
             try:
                 store = self.reader()
@@ -170,7 +174,7 @@ class AskService:
         except Exception:                            # noqa: BLE001 a folder that fails in a way not foreseen sends nothing
             return 200, self.fail("folders_unreadable")
         try:
-            request = ask.build_request(question, tuple(data.passages) + tuple(found.passages), earlier)
+            request = ask.build_request(question, tuple(data.passages) + tuple(found.passages) + tuple(added), earlier)
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         facts = data.facts
@@ -182,7 +186,7 @@ class AskService:
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
                              left_out_note(data.left_out + found.left_out), kinds_note(data.kinds_left_out), *folder_notes(found)) if n]
-        sent = tuple(data.passages) + tuple(found.passages)      # request.kept maps each passage sent to its place here (some may be left out)
+        sent = tuple(data.passages) + tuple(found.passages) + tuple(added)      # (a file added to the question counts as one the answer read, so a change from it needs the separate Confirm)  # request.kept maps each passage sent to its place here (some may be left out)
         folder_ids = {pid for (pid, _label), i in zip(request.passages, request.kept) if i >= len(data.passages)}
         texts = {pid: sent[i].text for (pid, _label), i in zip(request.passages, request.kept)}
         held = self.hold(code, reply, request, folder_ids, texts) if reply.changes else None
