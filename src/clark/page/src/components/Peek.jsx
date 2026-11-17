@@ -77,7 +77,7 @@ function ItemChips({ row, tools, editing }) {
   const late = due.tone === "late", days = late ? /^(\d+) days? late$/.exec(due.words) : null;
   const overdue = late ? `overdue ${days ? days[1] : "1"} ${days && days[1] !== "1" ? "days" : "day"}` : "";
   const prio = row.kind === "decision" ? row.peek_priority : row.priority;      // row 1195: a decision's priority is peek_priority
-  // row 1182: an open risk or issue's chip face is its colour word with the level as a small pill ("Red" + "High"), as in the design image; the icon tone stays the level's.
+  // row 1182: an open risk or issue's chip face is its colour word with the level as a small pill ("Red" + "High"), as in the design image; the icon takes the colour word's own tone (row 1257: Red, Amber, Green, as in the design image).
   const rated = (row.kind === "risk" || row.kind === "issue") && isOpen(row) && !!prio;
   // row 1256: an open risk or issue's Status chip says Open (as Closed and Cancelled say theirs); its colour is on the Rating chip.
   const openRI = (row.kind === "risk" || row.kind === "issue") && isOpen(row);
@@ -85,8 +85,8 @@ function ItemChips({ row, tools, editing }) {
   return (
     <PeekChips>
       <PeekChip Live={Live} id={row.id} field="status" name="Status" icon="half" tone={openRI ? "b" : statusTone(row, today)} value={openRI ? "Open" : pill.text} sub={kept ? `${kept} kept` : ""} subTone={kept ? "kept" : ""} flash={hit("status")} pop={pop("status")} />
-      <PeekChip Live={Live} id={row.id} field="priority" name={(row.kind === "risk" || row.kind === "issue") ? "Rating" : "Priority"} icon="bars" tone={priorityTone(prio)} value={rated ? colourOf(prio).word : text(prio)} sub={rated ? text(prio) : ""} subTone={rated ? `lvl ${colourOf(prio).class}` : ""}
-        flash={hit("priority")} tip={fixed ? "Set from impact and likelihood" : row.kind === "risk" ? "Priority from impact and likelihood" : row.kind === "issue" ? `${colourOf(prio).word} rating, set from impact and likelihood` : undefined} pop={pop("priority")} />
+      <PeekChip Live={Live} id={row.id} field="priority" name={(row.kind === "risk" || row.kind === "issue") ? "Rating" : "Priority"} icon="bars" tone={rated ? colourOf(prio).class : priorityTone(prio)} value={rated ? colourOf(prio).word : text(prio)} sub={rated ? text(prio) : ""} subTone={rated ? `lvl ${colourOf(prio).class}` : ""}
+        flash={hit("priority")} tip={fixed ? "Set from impact and likelihood" : row.kind === "risk" || row.kind === "issue" ? "Priority from impact and likelihood" : undefined} pop={pop("priority")} />
       <PeekChip Live={Live} id={row.id} field="owner" name={row.kind === "decision" ? "Decider" : "Owner"} icon="user" tone="b" value={who.text} flash={hit("owner")} pop={pop("owner")} />
       <PeekChip Live={Live} id={row.id} field="due" name={row.kind !== "decision" ? "Due date" : row.status === "Pending" ? "Needed-by date" : "Decision date"} icon="cal" tone={dateTone(row, today)} value={due.date}
         sub={overdue} subTone={late ? "late" : ""} late={late} flash={hit("due")} pop={pop("due")} />
@@ -363,7 +363,7 @@ export function Peek({ tools }) {
               {row.latest_update ? <Row name="Latest update" ms="latest_update"><Rich html={String(row.latest_update)} /></Row> : null}
               {row.client_message ? <Row name="Client wording" ms="client_message">{row.client_message}</Row> : null}
             </dl> : null}
-            <PeekActionBody row={row} editing={editing} Pick={editing && tools.PeekPick ? tools.PeekPick : null} ClientLine={editing && tools.PeekClientLine ? tools.PeekClientLine : null} />
+            <PeekActionBody row={row} editing={editing} Pick={editing && tools.PeekPick ? tools.PeekPick : null} ClientLine={editing && tools.PeekClientLine ? tools.PeekClientLine : null} onFile={fromFile.value} />
           </> : row ? <ItemFields row={row} editing={editing} slim clientName={editing && tools.clientRowName ? tools.clientRowName : null} ClientLine={editing && tools.PeekClientLine ? tools.PeekClientLine : null} Cell={null} Wording={editing && tools.PeekWording ? tools.PeekWording : null} Pick={editing && tools.PeekPick ? tools.PeekPick : null} /> : msEditing ? <tools.MilestoneEdit m={m} /> : <MilestoneFields m={m} tools={tools} />}
           {Source && !History ? <Source key={`s-${p.id}`} row={row || m} /> : FileSource ? <SourceLine text={(row || m).source} /> : null}      {/* with the history tabs the source is its own tab */}
         </div>
