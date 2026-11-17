@@ -37,6 +37,37 @@ class PlanWidth(E2E):
                             plan = br.js(EDGES + "(document.querySelector('[data-gp-plan]').getBoundingClientRect())")
                             self.assertEqual(plan, band, "the plan's edges are the page band's edges")
 
+    def test_the_plan_is_flush_only_above_900_and_in_comfortable(self):
+        """The breakpoint and the density are the rule's: 901 and 1400 comfortable are flush; 900 comfortable and compact (901, 1400) keep the frame's room."""
+        with chrome() as cdp:
+            br = Browser(self, cdp, self.rig.httpd.server_port)
+            self.settings_and_the_tab(br)
+            for density, width, flush in (("comfortable", 901, True), ("comfortable", 1400, True), ("comfortable", 900, False),
+                                          ("compact", 901, False), ("compact", 1400, False)):
+                with self.subTest(density=density, width=width):
+                    br.js(f"document.documentElement.dataset.density = '{density}'")
+                    br.width(width)
+                    time.sleep(0.4)
+                    band = br.js(EDGES + "(document.querySelector('#gantt-page').getBoundingClientRect())")
+                    plan = br.js(EDGES + "(document.querySelector('[data-gp-plan]').getBoundingClientRect())")
+                    if flush:
+                        self.assertEqual(plan, band, "flush with the band")
+                    else:
+                        self.assertEqual(plan[0] - band[0], band[1] - plan[1], "the sides are even")
+                        self.assertGreaterEqual(plan[0], band[0], "never wider than the band")
+                    self.assertEqual(br.js("getComputedStyle(document.querySelector('[data-gp-plan]')).marginLeft.charAt(0) === '-'"), flush, f"negative side margin only when flush: {plan} {band}")
+
+    def test_an_empty_chart_keeps_the_table_and_chart_buttons(self):
+        with chrome() as cdp:
+            br = Browser(self, cdp, self.rig.httpd.server_port)
+            self.settings_and_the_tab(br)
+            br.until("document.querySelector('#gantt-page').dataset.gpShown === 'chart'", "the chart is the layout")
+            self.assertEqual(br.text("[data-g-none]"), "No lines to show.")
+            for layout in ("table", "chart"):
+                self.assertEqual(br.js(f"document.querySelectorAll('[data-gantt] [data-gp-layout={layout}]').length"), 1, f"the {layout} button is in the empty chart's toolbar")
+            br.click("[data-gp-layout=table]")
+            br.until("document.querySelector('#gantt-page').dataset.gpShown === 'table'", "table switches the layout")
+
 
 del E2E
 if __name__ == "__main__":
