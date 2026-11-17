@@ -8,7 +8,8 @@ import re
 import unittest
 from pathlib import Path
 
-CSS = (Path(__file__).resolve().parent.parent / "src" / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
+CSS_DIR = Path(__file__).resolve().parent.parent / "src" / "clark" / "page"
+CSS = (CSS_DIR / "shell.css").read_text(encoding="utf-8")
 
 
 def rule(selector):
@@ -43,6 +44,20 @@ class FilterChipShape(unittest.TestCase):
         body = rule(".fchip.word")
         self.assertIn("background: var(--grey-100)", body)
         self.assertIn("color: var(--text)", body)
+
+    def test_the_published_page_chip_only_changes_its_padding_and_cross_size(self):
+        self.assertEqual(rule(".factive.pub .fchip").count(":"), 1)
+        self.assertIn("padding:", rule(".factive.pub .fchip"))
+        self.assertNotRegex(rule(".factive.pub .fchip button"), r"radius|color|background")
+
+    def test_all_three_chip_producers_use_the_one_chip_class_with_no_own_look(self):
+        src = CSS_DIR / "src" / "components"
+        for name, count in (("WorkItems.jsx", 2), ("FilterLine.jsx", 1)):
+            text = (src / name).read_text(encoding="utf-8")
+            tags = re.findall(r"<span class=\"fchip\"[^>]*>", text)
+            self.assertEqual(len(tags), count, name)
+            for tag in tags:
+                self.assertNotIn("style=", tag)
 
 
 if __name__ == "__main__":
