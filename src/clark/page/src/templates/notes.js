@@ -28,6 +28,11 @@ export function source(section) {
 }
 
 // A field the callout does not store stays undefined (so a save does not rewrite an older callout); calloutLook gives what the reader draws.
+// Row 1272: the callout's own look (no tile, no heading) for any section; null for other types, so Section.jsx needs no branch on the type.
+export function calloutShape(section) {
+  return section && section.type === "callout" ? tidyCallout(source(section)) : null;
+}
+
 export function tidyCallout(v, clean) {
   const o = v || {};
   const tone = TONES.includes(o.tone) ? o.tone : "info";

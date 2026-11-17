@@ -3,16 +3,18 @@
 export const ALL = "all";
 export const TRACKER_POSITIONS = ["top", "bottom", "off"];
 export const DEFAULT_VIEW = { n: 5, scroll: false, tracker: "top" };
+// Row 1230: the Milestones section keeps the same three settings; its tracker has always been at the bottom, so that is its default.
+export const MILESTONES_VIEW = { n: 5, scroll: false, tracker: "bottom" };
 
 // Any stored value (an object or its JSON string) in, a complete setting out. A bad count, flag or position falls back to the default for that one field.
-export function normalizeView(raw) {
+export function normalizeView(raw, base = DEFAULT_VIEW) {
   let r = raw;
   if (typeof r === "string") { try { r = JSON.parse(r); } catch (e) { r = null; } }
   if (!r || typeof r !== "object") r = {};
   const num = Number(r.n);
-  const n = r.n === ALL ? ALL : Number.isInteger(num) && num >= 1 ? num : DEFAULT_VIEW.n;
-  const scroll = typeof r.scroll === "boolean" ? r.scroll : DEFAULT_VIEW.scroll;
-  const tracker = TRACKER_POSITIONS.includes(r.tracker) ? r.tracker : DEFAULT_VIEW.tracker;
+  const n = r.n === ALL ? ALL : Number.isInteger(num) && num >= 1 ? num : base.n;
+  const scroll = typeof r.scroll === "boolean" ? r.scroll : base.scroll;
+  const tracker = TRACKER_POSITIONS.includes(r.tracker) ? r.tracker : base.tracker;
   return { n, scroll, tracker };
 }
 
@@ -48,12 +50,12 @@ export function trackerPlace(view) {
 
 // The view a section holds, { set, n, scroll, tracker }. `fromFile`: the published section's own entry (its n, scroll and tracker sit beside its id and title).
 // Otherwise the stored body, which is JSON text; text that can't be read gives the default. `set` is true only when a count was written. Never throws.
-export function viewOf(section, fromFile) {
+export function viewOf(section, fromFile, base = DEFAULT_VIEW) {
   let v = null;
   if (fromFile) v = section && typeof section === "object" ? section : null;
   else if (section && typeof section.body === "string" && section.body) { try { v = JSON.parse(section.body); } catch (e) { v = null; } }
   if (!v || typeof v !== "object" || Array.isArray(v)) v = null;
-  return { set: !!v && v.n !== undefined && v.n !== null, ...normalizeView(v) };
+  return { set: !!v && v.n !== undefined && v.n !== null, ...normalizeView(v, base) };
 }
 
 // The section's body for a view: the JSON text of the keys the view holds, only those given (a view with no n writes no n, so a section
