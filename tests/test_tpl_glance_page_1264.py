@@ -19,7 +19,7 @@ TOKENS = (SRC / "clark" / "brand" / "tokens.css").read_text(encoding="utf-8")
 SHELL = (SRC / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
 WORDS_PENDING = "[words pending]"        # the words of the library card and of Edit: not approved, never shown by this slice
 
-SHAPES = {"g": "circle", "a": "triangle", "r": "square", "b": "diamond", "n": "ring"}
+SHAPES = {"g": "circle", "a": "triangle", "r": "diamond", "b": "square", "n": "ring"}
 BESPOKE = [{"id": "b1", "label": "Fictional green", "figure": "7", "tag": "Fine", "note": "Fictional note one", "tone": "green"},
            {"id": "b2", "label": "Fictional amber", "figure": "2", "tag": "Careful", "note": "Fictional note two", "tone": "amber"},
            {"id": "b3", "label": "Fictional red", "figure": "9", "tag": "Late", "tone": "red"},
@@ -172,13 +172,13 @@ class Page(Base):
         shapes = {tone: by[key]["shape"] for tone, key in zip("garbn", ("b1", "b2", "b3", "b4", "b5"))}
         self.assertEqual(len(set(shapes.values())), 5, f"five tones, five shapes: {shapes}")
         self.assertTrue(shapes["g"].startswith("none|50%"), "green is a filled circle")
-        self.assertTrue(shapes["r"].startswith("none|0px"), "red is a filled square")
+        self.assertIn("polygon", shapes["r"], "red is a filled diamond (the approved mock-up)")
         self.assertIn("2px", shapes["n"].split("|")[3], "neutral is a ring")
         for key in ("b1", "b2", "b3", "b4"):
             self.assertTrue(by[key]["tag"], f"{key}: a tag word beside the colour")
         self.assertEqual({k: by[k]["tag"] for k in ("b1", "b2", "b3", "b4")}, {"b1": "Fine", "b2": "Careful", "b3": "Late", "b4": "Info"})
         self.assertIn("polygon", shapes["a"])
-        self.assertIn("polygon", shapes["b"])
+        self.assertTrue(shapes["b"].startswith("none|4px"), "blue is a filled square with the small radius (the approved mock-up)")
         self.assertEqual(SHAPES.keys(), set("garbn"))
 
     # T54

@@ -66,7 +66,7 @@ DRIVE_NAMES = {
     "rowmenu", "rowmenu-status", "rowmenu-due", "rowmenu-owner", "rowmenu-owner-add", "rowmenu-card", "bulk-items", "bulk-items-mixed",
     "bulk-picker-status", "bulk-picker-owner", "bulk-picker-due", "bulk-picker-priority", "bulk-picker-workstream", "bulk-picker-milestone",
     "board-move", "board-move-lanes", "gantt-show-chart", "gantt-show-table", "gantt-add-below-chart", "gantt-add-below-table",
-    "gantt-right-click", "columns", "client", "client-disabled-excel", "text-style", "slash-list", "peek-more", "record-more", "record-ctx", "report-headline-health",
+    "gantt-right-click", "columns", "client", "client-disabled-excel", "text-style", "slash-list", "peek-more", "record-more", "record-ctx", "report-headline-health", "glance-add-tile",
 }
 
 
@@ -87,6 +87,7 @@ class Source(unittest.TestCase):
         "edit/UseCasesEdit.jsx": ("uc-status", "uc-milestone-link"), "components/UseCaseDetail.jsx": ("uc-detail-status",),
         "edit/CommitMenu.jsx": ("commitment",), "edit/RichText.jsx": ("text-style", "slash-list"), "edit/PeekMore.jsx": ("peek-more",), "edit/RecordMore.jsx": ("record-more",), "edit/RecordContextMenu.jsx": ("record-ctx",),
         "edit/templates/ReportHeadline.jsx": ("report-headline-health",),
+        "edit/templates/glanceTileEditor.jsx": ("glance-add-tile",),
         "edit/cells/OwnerPick.jsx": ("owner-pick", "owner-pick-typed"),
         "edit/cells/MenuPick.jsx": ("cell-Due date", "cell-Priority", "cell-Status"),
     }
@@ -308,6 +309,17 @@ class Dashboard(Base):
                 d.button("[id^=rh-pill-]", "report headline health pill")
                 d.check("report-headline-health", "document.querySelector('[id^=rh-pill-]').click()", "[role=menu]", 3)
             d.expect(["report-headline-health"])
+
+    def test_glance_template_add_a_tile_menu(self):      # row 1264, slice 6: the Add a tile menu of the Glance template
+        with self.store.step("dashboard", USER) as st:
+            st.create("report_sections", {"project": "ABC", "type": "glancetemplate", "title": "Fictional glance", "sort_order": 999})
+        with chrome() as cdp:
+            p, d = self.drive(cdp)
+            for w, th in LOOKS:
+                d.look(w, th)
+                d.button("#glance-add", "the Add a tile button")
+                d.check("glance-add-tile", "document.querySelector('#glance-add').click()", "[role=menu]", 1)
+            d.expect(["glance-add-tile"])
 
     def test_the_section_menu_gives_each_line_its_icon_and_keeps_its_words(self):
         want = {"add": "plus", "up": "chevup", "down": "chevdown", "beside": "board", "full": "arrows-out", "hide": "eyeoff",
