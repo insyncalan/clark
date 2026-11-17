@@ -87,6 +87,27 @@ class SettingsMenu1280(Base):
                 self.assertLessEqual(chips[0][0] - bottom, 8, "a heading sits close to its own pages")
         self.each(body)
 
+    def test_C_the_list_has_no_gap_between_groups_at_900(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p, 900, "light")
+            self.assertEqual(p.js("getComputedStyle(document.querySelector('.set-nav')).rowGap"), "0px", "at 900 the list adds no gap of its own: the space above a heading is its margin")
+
+    def test_C_heading_box_and_advanced_line(self):
+        def body(p, w, mode):
+            got = p.js(f"""{NAME}.map(e => {{ const s = getComputedStyle(e); return [s.display, s.fontWeight, s.paddingTop, s.paddingLeft, parseFloat(s.paddingBottom)]; }})""")
+            for display, weight, top, left, bottom in got:
+                self.assertEqual((display, weight, top, left), ("block", "700", "0px", "12px"), "a heading box: block, semibold, indented as a page name")
+                self.assertLessEqual(bottom, 8, "padding under a heading is small")
+            li = p.js("[...document.querySelectorAll('.set-nav .plain li')].map(e => { const s = getComputedStyle(e); return [s.borderTopWidth, s.paddingTop, s.paddingBottom]; })")
+            self.assertTrue(all(x == ["0px", "0px", "0px"] for x in li), "no line or padding on a page's list item")
+            adv = p.js("(function(){ const s = getComputedStyle(document.querySelector('.set-advanced')); return [s.borderTopWidth, parseFloat(s.paddingTop)]; })()")
+            self.assertEqual(adv[0], "1px", "Advanced keeps its line above")
+            self.assertGreater(adv[1], 0, "and room under the line")
+            first = p.js("(function(){ const g = document.querySelector('.set-nav .set-group'); return getComputedStyle(g).marginTop; })()")
+            self.assertEqual(first, "0px", "the first group has no space above it")
+        self.each(body)
+
     def test_C_a_page_row_is_clearly_clickable_and_the_open_one_is_marked(self):
         def body(p, w, mode):
             got = p.js(f"""{CHIPS}.map(b => {{ b.scrollIntoView({{block: 'nearest'}}); const s = getComputedStyle(b), r = b.getBoundingClientRect(), li = b.parentElement.getBoundingClientRect();
