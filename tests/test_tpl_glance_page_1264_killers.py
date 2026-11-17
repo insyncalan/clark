@@ -80,6 +80,23 @@ class Killers(Base):
         ref = self.make({"v": 1})
         self.assertIsNone(self.tiles_in_file(ref), "nothing to show in a file: no section")
 
+    def test_k7_with_no_rows_a_counting_tile_is_not_drawn_but_a_bespoke_one_is(self):
+        ref = self.make({"v": 1, "bespoke": P.BESPOKE[:1]})
+        self.assertEqual([t["key"] for t in self.look(ref, 1400, "light")["tiles"]], ["b1"], "no rows of a kind, no counting tile of it")
+
+    def test_k8_a_figure_of_zero_is_drawn_for_a_bespoke_and_for_a_counting_tile(self):
+        self.demo.action(description="Fictional action not yet due", due_date="2099-01-01")
+        ref = self.make({"v": 1, "builtin": {"risks": {"hidden": True}, "decisions": {"hidden": True}}, "bespoke": [{**P.BESPOKE[0], "figure": "0"}]})
+        by = {t["key"]: t for t in self.look(ref, 1400, "light")["tiles"]}
+        self.assertEqual(by["b1"]["figure"], "0", "a typed 0 is a figure")
+        self.assertEqual(by["overdue"]["figure"], "0", "no overdue action is a 0, not a blank")
+
+    def test_k9_the_neutral_dot_is_a_ring_with_no_fill(self):
+        ref = self.make({"v": 1, "builtin": HIDE3, "bespoke": P.BESPOKE[4:]})
+        shape = {t["key"]: t for t in self.look(ref, 1400, "light")["tiles"]}["b5"]["shape"].split("|")
+        self.assertEqual(shape[2], "rgba(0, 0, 0, 0)", "a ring is empty inside")
+        self.assertEqual(shape[1], "50%")
+
 
 if __name__ == "__main__":
     unittest.main()
