@@ -2078,6 +2078,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-gt-tile.go { cursor: pointer; transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-state) var(--ease-out); }
 .tpl-gt-tile.go:hover { border-color: var(--brand-blue); box-shadow: var(--shadow); }
 .tpl-gt-tile.go:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.tpl-edit-glancetemplate .tile-empty { margin: 0; padding: var(--space-4); color: var(--text-muted); font-size: var(--size-small); }
 .tpl-gt .tile-empty { flex: 1 1 100%; margin: 0; padding: var(--space-4); color: var(--text-muted); font-size: var(--size-small); }
 .tpl-gt-dot { flex: none; width: var(--space-3); height: var(--space-3); background: var(--shape); }
 .tone-g .tpl-gt-dot { border-radius: 50%; }
