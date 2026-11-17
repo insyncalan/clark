@@ -92,6 +92,7 @@ export function tileActions(section, u) {
     },
     remove: async () => {
       const e = editor.value, t = e && u.bespoke.find((x) => x.id === e.id);
+      if (e && e.isNew && !t) { close(e, "cancel"); return; }   // a draft was never stored: drop it, the focus goes where Cancel puts it
       if (!t) return;
       const r = await send(section, u, withChange(u, { drop: e.id }), `Removed: ${t.label}`);
       if (r) { close(e, "removed"); focusAdd(section.id); }
@@ -190,7 +191,7 @@ export function TileEditor({ tools }) {
       </div>
       <p class="live">{WORDS.sentence}</p>
       <div class="foot">
-        {e.isNew ? null : <button type="button" class="rm" data-remove onClick={() => tools.remove()}>{WORDS.remove}</button>}
+        <button type="button" class="rm" data-remove onClick={() => tools.remove()}>{WORDS.remove}</button>
         <button type="button" class="btn" data-cancel onClick={() => close(e, "cancel")}>{WORDS.cancel}</button>
         <button type="button" class="btn pri" data-done onClick={() => tools.done()}>{WORDS.done}</button>
       </div>

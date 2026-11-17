@@ -99,7 +99,7 @@ class Adding(Editor):
             self.assertEqual(got["h"], "Edit tile")
             self.assertEqual(got["fields"], [["Label", "New tile"], ["Figure or short text", "0"], ["Tag text", ""], ["Note", ""]])
             self.assertEqual(got["counters"], ["8 of 40", "1 of 12", "optional, 0 of 12", "optional, 0 of 60"])
-            self.assertEqual(got["buttons"], ["Cancel", "Done"], "a tile not stored yet has no Remove tile")
+            self.assertEqual(got["buttons"], ["Remove tile", "Cancel", "Done"], "a tile not stored yet also has Remove tile, which drops the draft")
             self.fill(p, "label", "Fictional new")
             self.fill(p, "figure", "42")
             self.click(p, "[data-tile-editor] [data-tone=blue]")
