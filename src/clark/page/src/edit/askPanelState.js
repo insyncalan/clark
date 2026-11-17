@@ -25,6 +25,7 @@ export const queue = signal([]);                       // row 1220: messages typ
 export const queueHeld = signal("");                   // row 1220: "" (the queue goes on by itself), "stopped" or "failed" (it waits for Send them or Clear)
 export const queueDrop = signal(0);                    // row 1220: the number of waiting messages the person has been told would be dropped
 export const QUEUE_MAX = 5;
+export const draft = signal(null);                     // row 1292 (S12): the Draft open beside the panel, {html, title, sec} (askDraft.js readDraft), or null; closing the panel or leaving the chat closes it, the report is unchanged
 export const chatEpoch = signal(0);                    // row 1119: bumped when leaving the page drops the chat, so an answer still out is not added to the next one
 
 function room() { return Math.max(MIN, Math.floor(document.documentElement.clientWidth * 0.9)); }     // clientWidth: never the scrollbar's width
@@ -117,6 +118,7 @@ export function mayDrop() {
 export function newChat() {
   if (pending.value || !mayDrop()) return;
   setQueue([]);
+  draft.value = null;
   turns.value = [];
   chatId.value = null; histOpen.value = false;
 }
@@ -125,6 +127,7 @@ export function closePanel(force) {
   if (!panelOpen.value) return;
   if (force !== true && !mayDrop()) return;
   setQueue([]);
+  draft.value = null;
   panelOpen.value = false;
   const back = opener;
   opener = null;
@@ -163,6 +166,6 @@ export function installAskKeys() {
   let seen = view.value + "|" + project.value;
   effect(() => {
     const now = view.value + "|" + project.value;
-    if (now !== seen) { seen = now; chatEpoch.value++; setQueue([]); turns.value = []; chatId.value = null; histOpen.value = false; if (panelOpen.value) { panelOpen.value = false; opener = null; } }
+    if (now !== seen) { seen = now; chatEpoch.value++; setQueue([]); draft.value = null; turns.value = []; chatId.value = null; histOpen.value = false; if (panelOpen.value) { panelOpen.value = false; opener = null; } }
   });
 }

@@ -7,13 +7,15 @@ import { zoneFetch } from "../api.js";
 import { words } from "./publishApi.js";
 import { stopRestore } from "../router.js";
 import { askProvider } from "./askState.js";
-import { panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panelFocus, turns, pending, chatEpoch, queue, queueHeld, queueDrop, QUEUE_MAX, setQueue, closePanel, newChat, setWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
+import { draft, panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panelFocus, turns, pending, chatEpoch, queue, queueHeld, queueDrop, QUEUE_MAX, setQueue, closePanel, newChat, setWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
 import * as W from "./askWords.js";
 import { Icon } from "../components/Icon.jsx";
 import { holdScroll } from "../core/holdScroll.js";
 import { chatId, histOpen, histTick, chats, keepChat, deleteChat, when } from "./askHistory.js";
 import { ChangeCards, fixedLine } from "./AskChange.jsx";
 import { FormattedAnswer } from "./AskFormat.jsx";
+import { AskDraft } from "./AskDraft.jsx";
+import { readDraft } from "./askDraft.js";
 
 // Row 890: the files an answer used, as the server sends them ({id, label}). A long file is cut into parts labelled "name (part N)":
 // the suffix is dropped and each file is listed once, in the order first seen.
@@ -178,8 +180,10 @@ export function AskPanel() {
       // An answer that did not follow the form is shown whole, and its flag (unreadable or disguised) says so: that line is the banner.
       const found = Array.isArray(b.flags) ? b.flags.filter((f) => f && typeof f.message === "string" && f.message).map((f) => f.message) : [];
       const extra = [...(Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : []), ...found];
-      turns.value = [...turns.value, { role: "assistant", text: b.answer, sources: sourceLabels(b.sources) }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))];
+      const made = readDraft(b.draft);      // row 1292: a draft the answer carries opens beside the panel; nothing is in the report until it is added
+      turns.value = [...turns.value, { role: "assistant", text: b.answer, sources: sourceLabels(b.sources), ...(made ? { draft: made } : {}) }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))];
       keepChat(turns.value);
+      if (made) draft.value = made;
       if (typeof b.reply === "string" && b.reply && Array.isArray(b.changes) && b.changes.length) await showChanges(b.reply);
     } else if (r.status === 409 && b && b.code === "asking_off") {
       panelState.value = "off";
@@ -289,6 +293,7 @@ export function AskPanel() {
   }
 
   return (
+    <>
     <aside id="ask-panel" ref={(n) => { if (n) holdScroll(n); }} class={leaving ? "ask-panel leaving" : "ask-panel"} onAnimationEnd={(e) => { if (e.target === e.currentTarget && e.animationName === "ask-down") finish(); }} role="complementary" aria-label={W.PANEL_TITLE} tabindex="-1" style={{ width: clampWidth(width) + "px" }}>
       <div class="ask-grip" id="ask-grip" role="separator" aria-orientation="vertical" aria-label={W.GRIP} aria-valuenow={clampWidth(width)} aria-valuemin={widthRange().min} aria-valuemax={widthRange().max} tabindex="0" onPointerDown={grip} onKeyDown={gripKey} />
       <header class="ask-head">
@@ -329,6 +334,13 @@ export function AskPanel() {
           <div key={i} class={`ask-turn ${t.role}${t.kind ? " " + t.kind : ""}`} data-role={t.role}>
             <div class="ask-who">{t.role === "user" ? W.YOU : W.REPLY}</div>
             {t.kind === "changes" ? <ChangeCards turn={t} /> : t.role === "assistant" && !t.kind && typeof t.text === "string" ? <FormattedAnswer text={t.text} /> : <div class="ask-text">{t.text}</div>}
+            {t.draft ? (
+              <div class="ask-draftcard" data-ask-draftcard>
+                <Icon name="doc" />
+                <span><b>{W.DRAFT_READY}</b><br /><span class="ask-draftcard-note">{t.draft.title ? t.draft.title + ". " : ""}{W.DRAFT_READY_LINE}</span></span>
+                <button type="button" class="btn primary" onClick={() => { draft.value = t.draft; }}>{W.DRAFT_OPEN}</button>
+              </div>
+            ) : null}
             {t.sources && t.sources.length ? (
               <details class="ask-sources">
                 <summary>{W.SOURCES}</summary>
@@ -388,5 +400,7 @@ export function AskPanel() {
         </div>
       </form>
     </aside>
+    <AskDraft />
+    </>
   );
 }

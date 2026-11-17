@@ -256,3 +256,18 @@ export const FIELD_NAMES = {
   headline: "Headline", standing: "Where it stands",      // a use case (issue 729): the words its editor uses
 };
 export const KIND_NAMES = { actions: "Action", decisions: "Decision", milestones: "Milestone", raid: "Risk or issue" };
+
+// Row 1292 (S12): the Draft beside the panel (mock-up image 09).
+export const DRAFT_TITLE = "Draft";
+export const DRAFT_HINT = "Edit it freely. Nothing is in the report yet.";
+export const DRAFT_CLOSE = "Close the draft";
+export const DRAFT_TEXT_LABEL = "Draft text";
+export const DRAFT_ADD = "Add to the report";
+export const DRAFT_COPY = "Copy";
+export const DRAFT_COPIED = "Draft copied.";
+export const DRAFT_COPY_FAILED = "The draft could not be copied. Select the text and copy it yourself.";
+export const DRAFT_MENU_LABEL = "Where the draft goes";
+export const DRAFT_READY = "Draft ready";
+export const DRAFT_READY_LINE = "Nothing is in the report yet.";
+export const DRAFT_OPEN = "Open the draft";
+export const DRAFT_EMPTY = "The draft is empty. Write something, or close it.";
