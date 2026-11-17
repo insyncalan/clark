@@ -7,6 +7,7 @@ import * as L from "../logic/feedbackTag.js";
 import { healthVersion } from "./Feedback.jsx";   // the same health check; it asks for no zone, so it is not a zoneFetch
 import { view, settingsPage, peek, fromFile } from "../stores/report.js";
 import { helpOpen, contextOpen } from "../help/helpStore.js";
+import { width as peekWidth, wide as peekWide } from "../stores/peekState.js";
 
 const realClip = (t) => navigator.clipboard.writeText(t);
 
@@ -69,13 +70,27 @@ export function FeedbackTag({ getVersion = healthVersion, nav, clip = realClip }
     document.addEventListener("keydown", esc);
     return () => document.removeEventListener("keydown", esc);
   }, [open]);
+  // The item peek is a card 16 px in from the edge, as wide as it was dragged, or the window less 32 px (wide, or under 1000 px): the tag reads where its left edge really is.
+  const [gap, setGap] = useState(null);
+  const dragged = peekWidth.value, spans = peekWide.value, shownPeek = !!peek.value;
+  useEffect(() => {
+    const el = shownPeek && on ? document.getElementById("peek") : null;
+    if (!el) { setGap(null); return undefined; }
+    const read = () => setGap(Math.max(0, Math.round(document.documentElement.clientWidth - el.getBoundingClientRect().left)));
+    read();
+    const ro = typeof ResizeObserver === "function" ? new ResizeObserver(read) : null;
+    if (ro) ro.observe(el);
+    window.addEventListener("resize", read);
+    return () => { if (ro) ro.disconnect(); window.removeEventListener("resize", read); };
+  }, [shownPeek, on, dragged, spans]);
   if (!on) return null;
   const close = () => { setOpen(false); if (tag.current) tag.current.focus(); };
   const ctx = { version, platform: L.systemWords(nav), page: L.pageWords(where) };
-  const beside = !!peek.value, besideHelp = !beside && contextOpen.value;      // the item peek is 420 px wide, the Help peek 380
+  const beside = !!peek.value, besideHelp = contextOpen.value;      // the item peek is as wide as it was dragged (or the window less 32 px), the Help peek 380 (--help-peek-w); with both up the inline right below wins
+  const edge = beside && !open && gap != null ? `${gap}px` : "";
   return (
     <>
-      <button type="button" class={`fbt-tag${beside ? " beside" : ""}${besideHelp ? " beside-help" : ""}${open ? " open" : ""}`} id="feedback-tag" ref={tag} aria-label={L.TAG_LABELS.tagAria} aria-expanded={open ? "true" : "false"} aria-controls="feedback-tag-dialog" onClick={() => (open ? close() : setOpen(true))}>{L.TAG_LABELS.tag}</button>
+      <button type="button" class={`fbt-tag${beside ? " beside" : ""}${besideHelp ? " beside-help" : ""}${open ? " open" : ""}`} id="feedback-tag" style={edge ? `right:${edge}` : undefined} ref={tag} aria-label={L.TAG_LABELS.tagAria} aria-expanded={open ? "true" : "false"} aria-controls="feedback-tag-dialog" onClick={() => (open ? close() : setOpen(true))}>{L.TAG_LABELS.tag}</button>
       {open ? <Dialog ctx={ctx} onClose={close} clip={clip} /> : null}
     </>
   );

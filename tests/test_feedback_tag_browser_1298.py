@@ -192,6 +192,36 @@ class FeedbackTagBrowser(unittest.TestCase):
             cdp.js("window.clarkPage.help.peek.close()", sid)
             self.assertTrue(wait(lambda: round(cdp.js(f"{BAR}.getBoundingClientRect().right", sid)) == cdp.js("document.documentElement.clientWidth", sid)), where + ": back at the edge")
 
+    def test_enter_in_the_dialog_does_not_close_it(self):
+        """Only Esc closes: Enter in the message box is a new line, and the dialog stays (kills Escape -> Enter in the dialog's key handler)."""
+        for cdp, sid, where in self.each():
+            self.open_help(cdp, sid)
+            cdp.js(f"{BAR}.click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "fbt-message"), where)
+            cdp.js("document.execCommand('insertText', false, 'One')", sid)
+            self.press(cdp, sid, "Enter")
+            cdp.js("document.execCommand('insertText', false, 'Two')", sid)
+            self.assertTrue(cdp.js(f"!!{DLG}", sid), where + ": still open after Enter")
+            self.assertEqual(cdp.js("document.querySelector('#fbt-message').value", sid).replace("\r", ""), "One\nTwo", where + ": Enter made a new line")
+
+    def test_tag_beside_the_item_peek_at_its_own_width(self):
+        """The item peek is dragged (and can span the screen): the tag follows its real left edge, not a fixed 420 px (Help opens over an open item peek)."""
+        for cdp, sid, where in self.each():
+            rid = cdp.js("[...document.querySelectorAll('#work-list tr[data-id]')].map(r => r.dataset.id)[0]", sid)
+            cdp.js(f"clarkPage.openPeek({json.dumps(rid)}, 'item')", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek')", sid)), where)
+            self.open_help(cdp, sid)
+            edge = "document.querySelector('#peek').getBoundingClientRect().left"
+            still = "document.getAnimations().every(a => a.playState === 'finished')"
+            self.assertTrue(wait(lambda: cdp.js(still, sid) and round(cdp.js(f"{BAR}.getBoundingClientRect().right", sid)) == round(cdp.js(edge, sid))), where + ": at the peek's left edge")
+            if cdp.js("document.documentElement.clientWidth", sid) >= 1000:      # under 1000 px the peek spans the window and cannot be dragged
+                first = round(cdp.js(edge, sid))
+                cdp.js("(e => { e.focus(); e.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowLeft', bubbles: true})); })(document.querySelector('.pk-edge'))", sid)
+                self.assertTrue(wait(lambda: round(cdp.js(edge, sid)) < first), where + ": the peek widened")
+                self.assertTrue(wait(lambda: cdp.js(still, sid) and round(cdp.js(f"{BAR}.getBoundingClientRect().right", sid)) == round(cdp.js(edge, sid))), where + ": the tag followed")
+            cdp.js("clarkPage.closePeek()", sid)
+            self.assertTrue(wait(lambda: round(cdp.js(f"{BAR}.getBoundingClientRect().right", sid)) == cdp.js("document.documentElement.clientWidth", sid)), where + ": back at the edge")
+
     def test_dialog_is_over_the_tag_and_fits_the_window(self):
         for cdp, sid, where in self.each():
             self.open_help(cdp, sid)
