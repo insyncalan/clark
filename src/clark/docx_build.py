@@ -35,7 +35,7 @@ import zipfile
 from datetime import date
 
 from clark import excel_colours as colours_table
-from clark import docx_fullimage, docx_graphics, docx_read, glance, look, platform, sanitise
+from clark import docx_fullimage, docx_graphics, docx_read, glance, glance_print, look, platform, sanitise
 
 MAX_BYTES = 5 * 1024 * 1024               # NFR-8: a file larger than this is refused (as publish.MAX_BYTES)
 NONE = "None recorded."                   # creaite's own words (docx_tools.NONE)
@@ -59,7 +59,8 @@ NOT_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ud800-\udfff￾￿]")
 
 TITLES = {"current": "Current state", "glance": "At a glance", "usecases": "Use cases", "milestones": "Milestones",
           "text": "Notes", "raid": "Risks and issues", "actions": "Actions", "decisions": "Decisions", "gantt": "Gantt",
-          "imagecap": "Image", "workitems": "Work items", "reportheadline": "Report headline"}                            # row 1223: only a Full width image (body version 2) is written, and it has no heading; an Image with caption (version 1) is left out, as it was
+          "imagecap": "Image", "workitems": "Work items", "reportheadline": "Report headline",
+          "glancetemplate": "At a glance"}                            # row 1223: only a Full width image (body version 2) is written, and it has no heading; an Image with caption (version 1) is left out, as it was
 HEALTH_PILL = {"on_track": ("On track", "green"), "at_risk": ("At risk", "amber"), "off_track": ("Off track", "red")}   # row 1261: the pill's words and tone
 HIDDEN_BY_KIND = ("actions", "raid", "decisions")
 HEADING_STYLE = {"h1": "Heading2", "h2": "Heading3", "h3": "Heading4"}
@@ -709,9 +710,48 @@ def section_reportheadline(published, ctx, title, sec):
     return "".join(out)
 
 
+GLANCE_PER_LINE = 4                                       # row 1264: the template's default tiles on a line
+
+
+def section_glancetemplate(published, ctx, title, sec):
+    """Row 1264 slice 7: the glance template as the View draws it: the tiles in the body's order (only the kept ones), the health tile
+    in its place or on a row of its own, each as label, figure, tag and note, four to a line. Nothing to show leaves the section out."""
+    got = glance_print.read(published, sec)
+    out = [_heading(title)]
+    h = got["health_row"]
+    if h:
+        fill = text = None
+        if h["colour"]:
+            fill, text = ctx.hexes(h["colour"])
+        out.append(para(run(h["label"] + ": ", bold=True) + run(h["figure"], bold=True, color=text), fill=fill, spacing=(60, 60)))
+        if h["colour"]:
+            out.append(picture_para(ctx, lambda: (docx_graphics.health_bar(h["colour"], ctx.tok), h["label"] + ": " + h["figure"]), TEXT_W, keep_next=True, spacing=(0, 60)))
+        if h["note"]:
+            out.append(text_paras(h["note"], ctx, style=None))
+    tiles = got["tiles"]
+    if tiles:
+        cells = []
+        for t in tiles:
+            fill = text = None
+            if t["colour"]:
+                fill, text = ctx.hexes(t["colour"])
+            body = para(run(t["label"], color=ctx.tok["grey-700"], size=16), "TableText")
+            if t["figure"]:
+                body += para(run(t["figure"], bold=True, color=text, size=32), "TableText")
+            if t["tag"]:
+                body += para(run(t["tag"], bold=True, size=16), "TableText")
+            if t["note"]:
+                body += para(run(t["note"], size=16), "TableText")
+            cells.append((body, fill))
+        lines = [cells[i:i + GLANCE_PER_LINE] for i in range(0, len(cells), GLANCE_PER_LINE)]
+        lines = [r + [(para("", "TableText"), None)] * (GLANCE_PER_LINE - len(r)) for r in lines]
+        out.append(table(ctx, None, [1] * GLANCE_PER_LINE, lines))
+    return "".join(out) if (h or tiles) else ""
+
+
 SIMPLE = {"workitems": section_workitems, "imagecap": section_imagecap, "current": section_current, "text": section_text, "milestones": section_milestones, "actions": section_actions,
           "raid": section_raid, "decisions": section_decisions, "gantt": section_gantt,
-          "reportheadline": section_reportheadline}
+          "reportheadline": section_reportheadline, "glancetemplate": section_glancetemplate}
 
 
 def title_block(published, ctx):
