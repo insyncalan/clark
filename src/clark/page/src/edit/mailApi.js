@@ -2,6 +2,7 @@
 // app. {ok, message}: never a throw. `message` is the server's own plain words when it refused; "" when there is no answer at all.
 import { token } from "../stores/report.js";
 import { zoneFetch } from "../api.js";
+import { openFile } from "../router.js";
 
 export async function openMail(link) {
   try {
@@ -24,5 +25,5 @@ export async function mailClick(e, href, show) {
   const r = await openMail(href);
   if (r.ok) return;
   if (r.message) show(true);
-  window.location.href = href;
+  openFile(href);   // the plain link, followed through the router (only the router sets the address)
 }
