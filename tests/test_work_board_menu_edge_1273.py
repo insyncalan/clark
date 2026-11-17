@@ -31,6 +31,22 @@ class MenuEdge(wb.Base):
                     cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Escape", "code": "Escape", "windowsVirtualKeyCode": 27}, sid)
                     self.until(cdp, sid, "!document.querySelector('.ddmenu')", "the menu shut")
 
+    def test_the_move_to_panel_of_a_left_most_card_opens_to_the_right_of_its_button_inside_the_window(self):
+        """The panel opens to the right where there is room: a card in the first column has its panel starting at its button, not pushed left of it."""
+        for width in WIDTHS:
+            with self.subTest(width=width), wb.shared.page() as cdp:
+                sid = self.visit(cdp, width=width)
+                self.board(cdp, sid, "status", lane="workstream")
+                cid = cdp.js("document.querySelector('section.col [data-move]').getAttribute('data-move')", sid)
+                click(cdp, sid, f"[data-move='{cid}']")
+                self.until(cdp, sid, "!!document.querySelector('.ddmenu')", "the menu")
+                got = cdp.js(f"(() => {{ const m = document.querySelector('.ddmenu').getBoundingClientRect(), b = document.querySelector(\"[data-move='{cid}']\").getBoundingClientRect(); return [m.left, m.right, b.left, innerWidth]; }})()", sid)
+                self.assertGreaterEqual(got[0], 0, f"{cid} {got}")
+                self.assertLessEqual(got[1], got[3], f"{cid} {got}")
+                self.assertGreaterEqual(got[0], got[2] - 1, f"the panel starts at the button, not left of it: {cid} {got}")
+                cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Escape", "code": "Escape", "windowsVirtualKeyCode": 27}, sid)
+                self.until(cdp, sid, "!document.querySelector('.ddmenu')", "the menu shut")
+
     def test_the_ticked_line_does_not_light_up_on_hover_like_a_choice(self):
         """aria-disabled and aria-current: the line is not a choice, so the mouse over it must not give it the choice fill (.ddmenu [role=menuitem]:hover)."""
         for width in WIDTHS:
