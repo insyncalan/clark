@@ -241,10 +241,11 @@ class Columns(unittest.TestCase):
             sid, js = self.open_table(cdp, 1400, "light", "work")
             self.assertEqual(self.heads(js, "work"), ["status", "item", "owner", "due", "prio", "id"], "the Id column is shown by default, after Priority")
             got = js("""(() => { const r = document.querySelector('#work tbody tr[data-id]'), c = r.querySelector("td[data-col='id']"), t = r.querySelector('.t');
-                return {id: r.dataset.id, cell: c.textContent.trim(), meta: r.querySelector('.meta').textContent, cc: getComputedStyle(c).color, tc: getComputedStyle(t).color}; })()""")
+                return {id: r.dataset.id, cell: c.textContent.trim(), meta: r.querySelector('.meta').textContent, cc: getComputedStyle(c).color, tc: getComputedStyle(t).color, fw: getComputedStyle(c).fontWeight, ws: getComputedStyle(c).whiteSpace}; })()""")
             self.assertEqual(got["cell"], got["id"], "the cell holds the id")
             self.assertNotIn(got["id"], got["meta"], "the id is not under the title")
             self.assertNotEqual(got["cc"], got["tc"], "the id is blue, not the title's colour")
+            self.assertEqual((got["fw"], got["ws"]), ("600", "nowrap"), "the id is semi-bold and stays on one line")
             blue = js("(() => { const p = document.createElement('span'); p.style.color = 'var(--link)'; document.body.append(p); const c = getComputedStyle(p).color; p.remove(); return c; })()")
             self.assertEqual(got["cc"], blue, "the id takes the page's link colour")
 
