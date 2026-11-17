@@ -42,7 +42,7 @@ export function View({ section, data }) {
       <p class="tpl-rh-title">Weekly report</p>
       {meta ? <p class="tpl-rh-meta">{meta}</p> : null}
     <div class="tpl-rh">
-      <span class={`pill hpill tpl-rh-pill ${h[1]}`}><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" data-hl={icon}>{shape}</svg>{h[0]}</span>
+      <span class={`pill hpill tpl-rh-pill ${h[1]}`}><svg class="i" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" data-hl={icon}>{shape}</svg>{h[0]}</span>
       <div class="tpl-rh-text">
         {c.headline ? <p class="tpl-rh-h">{c.headline}</p> : null}
         {c.sentence ? <p class="tpl-rh-p">{c.sentence}</p> : null}
