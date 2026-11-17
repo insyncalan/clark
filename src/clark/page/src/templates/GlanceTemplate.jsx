@@ -1,6 +1,5 @@
 // Glance template (row 1264, slice 1), store type "glancetemplate": its view part, a plain placeholder until the View slice. It draws the
-// bespoke tiles that are not hidden as text nodes (label, figure, tag, note) and nothing else: no words of its own are shown (WORDS_PENDING
-// in section_kinds/glancetemplate.py), no count (counts come with the next slice), no style. isEmpty: no bespoke tile is left to show, so the
+// bespoke tiles that are not hidden as text nodes (label, figure, tag, note) and nothing else: no words of its own are shown, no count (counts come with the next slice), no style. isEmpty: no bespoke tile is left to show, so the
 // section is left out of the served View and the published file alike. The same reading as section_kinds/glancetemplate.py upgrade and
 // published (a hidden tile and a tile with no label are left out). Its Edit part is edit/templates/GlanceTemplate.jsx.
 import { source } from "./notes.js";
