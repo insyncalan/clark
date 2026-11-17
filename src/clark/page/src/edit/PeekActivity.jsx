@@ -13,6 +13,7 @@ import { whyNot, chooseable, stepsOf, CONFIRM_ABOVE, SENT_KIND } from "./activit
 import { UndoBar } from "./ActivityUndo.jsx";
 import { SourceLine } from "../components/Peek.jsx";
 import { Icon } from "../components/Icon.jsx";
+import { showDate } from "../workItems.js";
 
 const TABS = [["details", "Details"], ["activity", "Activity"]];
 const LOADING = "Reading the history…";
@@ -56,6 +57,9 @@ export function PeekSource({ row }) {
   return <SourceLine text={text} />;
 }
 
+// A stored day (YYYY-MM-DD, as a date field keeps it) is read DD-MM-YYYY, as everywhere else and as the approved mockup draws it; any other text is left as it is.
+const dayWords = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) ? showDate(v) : v);
+
 function Change({ r }) {
   if (r.kind === "Created") return <p class="pa-what"><span class="pa-kind">Created</span>{r.to ? <span> {r.to}</span> : null}</p>;
   if (r.kind === "Comment") return <p class="pa-what"><span class="pa-kind">Comment</span> {r.to}</p>;
@@ -67,7 +71,7 @@ function Change({ r }) {
       <span class="pa-f">{r.field}</span>{": "}
       {pieces ? pieces.map((p, i) => (p.op === "removed" ? <del key={i}>{p.text}</del> : p.op === "added" ? <ins key={i}>{p.text}</ins> : <span key={i}>{p.text}</span>))
         : <>
-          <span class="pa-from">{r.from || "nothing"}</span><span aria-hidden="true">{" → "}</span><span class="sr-only"> to </span><span class="pa-to">{r.to || "nothing"}</span>
+          <span class="pa-from">{dayWords(r.from) || "nothing"}</span><span aria-hidden="true">{" → "}</span><span class="sr-only"> to </span><span class="pa-to">{dayWords(r.to) || "nothing"}</span>
         </>}
       {r.diff_note ? <span class="muted pa-note"> {r.diff_note}</span> : null}
     </p>

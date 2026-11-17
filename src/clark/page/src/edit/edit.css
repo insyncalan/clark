@@ -164,19 +164,22 @@
 .pk-pick:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 /* Row 1182: the Risk peek's Rating button and its 3 x 3 matrix (each cell in its colour; the level word is on the cell, so colour is never alone) */
 .pk-rate { display: inline-flex; align-items: center; gap: var(--space-2); }
-.cpop.rmatrix { min-width: 0; }
-.rmx { display: grid; grid-template-columns: auto repeat(3, minmax(64px, 1fr)); gap: var(--space-1); align-items: stretch; }
-.rmx-h { color: var(--text-muted); font-size: var(--size-small); align-self: center; }
+/* Row 1257: the matrix as the approved mockup draws it: 268 wide for Risk and Issue alike, padding 8, radius 12, the grey-200 border; cells radius 6, padding 7 / 2, weight 600; a Low / Medium / High header row UNDER the grid. Sizes stay on the scale (the mockup's 11 and 10 px are under the readable floor, test_font). */
+.cpop.rmatrix { box-sizing: border-box; width: 268px; min-width: 0; padding: var(--space-2); border-color: var(--grey-200); border-radius: 12px; }
+.rmx { display: grid; grid-template-columns: auto repeat(3, minmax(0, 1fr)); gap: 3px; align-items: stretch; }
+.rmx-h { color: var(--text-muted); font-size: var(--size-caption); font-weight: 500; align-self: center; }
 .rmx-corner { text-align: right; padding-right: var(--space-1); }
-.rmx-top { grid-column: 2 / 5; }
-.rmx-l { color: var(--text-muted); font-size: var(--size-small); align-self: center; text-align: right; padding-right: var(--space-1); }
-.rmx-c { min-height: var(--space-6); padding: var(--space-1) var(--space-2); border: 1px solid transparent; border-radius: var(--radius); font: inherit; cursor: pointer; }
+.rmx-top { grid-column: 2 / 5; text-align: center; }
+.rmx-col { text-align: center; }
+.rmx-l { color: var(--text-muted); font-size: var(--size-caption); font-weight: 500; align-self: center; text-align: right; padding-right: 6px; }
+.rmx-c { min-height: var(--space-6); padding: 7px 2px; border: 1.5px solid transparent; border-radius: 6px; font: inherit; font-size: var(--size-caption); font-weight: 600; cursor: pointer; }
 .rmx-c.rmx-r { background: var(--status-red-tint); color: var(--status-red-text); }
 .rmx-c.rmx-a { background: var(--status-amber-tint); color: var(--status-amber-text); }
 .rmx-c.rmx-g { background: var(--status-green-tint); color: var(--status-green-text); }
-.rmx-c[aria-pressed=true] { border-color: currentColor; font-weight: 600; }
+.rmx-c[aria-pressed=true] { border-color: currentColor; }
 .rmx-c:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.rmx-hint { margin: var(--space-2) var(--space-1) 0; color: var(--text-muted); font-size: var(--size-small); }
+.rmx-hint { margin: 6px var(--space-1) 2px; color: var(--text-muted); font-size: var(--size-caption); }
+.rmx-hint b { font-weight: var(--weight-semibold); color: var(--text); }
 .pa-list { list-style: none; margin: 0; padding: 0; }
 .pa-row { padding: var(--space-2) 0; border-top: 1px solid var(--grey-100); }
 .pa-meta { margin: 0; font-size: var(--size-caption); color: var(--text-muted); }
@@ -1314,8 +1317,8 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
 
 /* row 1180 wire: the Details rows' icons and the one Client visible line */
 .pk-rowic { display: inline-flex; margin-right: var(--space-2); vertical-align: -2px; }
-.pk-client { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 28px; padding: 0; border: 0; background: none; font: inherit; color: var(--text-muted); cursor: pointer; }
-.pk-client.on { color: var(--brand-blue); }
+.pk-client { padding: 0; border: 0; background: none; font-family: inherit; line-height: inherit; cursor: pointer; }      /* the look is .cv (shell.css), shared with the read-only line */
+.pk-row[data-ms-row="visible"] .pk-client { font-size: inherit; }      /* the milestone peek: the Client value is the size of every other Details value; the 28 px hit box comes from the .cv min-height, not the font */
 .pk-client:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
 
 /* item 1181 chips: the Action peek's chip row (PeekActionChips.jsx). The chips, popovers and look are the shared frame's (item 1180); the Due chip's overdue sub-line and tint are PeekChip's. */
