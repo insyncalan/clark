@@ -922,8 +922,13 @@ class FullScreen(Base):
                         self.until(cdp, sid, "document.body.classList.contains('board-full')")
                     scroller = "document.querySelector('main')" if full else "document.scrollingElement"
                     self.assertTrue(cdp.js(f"{rows}.filter(s => document.querySelector(s)).every(s => document.querySelector(s).getBoundingClientRect().bottom > 0 || {str(full).lower()})", sid), "at the top the rows show")
-                    cdp.js(f"{scroller}.scrollTop = 600", sid)
-                    self.until(cdp, sid, f"{scroller}.scrollTop > 100", "scrolled")
+                    # The browser can clamp a scrollTop already set (232 became 121 within 50 ms, with no scroll call from the app and scrollHeight 932
+                    # again at once). So the scroll is set again until the page is at its end and has stayed there for a second and a half.
+                    at_end = f"({scroller}.scrollTop = 600, {scroller}.scrollTop > 100 && {scroller}.scrollTop >= {scroller}.scrollHeight - {scroller}.clientHeight - 1)"
+                    for _ in range(3):
+                        self.until(cdp, sid, at_end, "scrolled to the end of the page")
+                        time.sleep(0.5)
+                    self.until(cdp, sid, at_end, "still at the end of the page")
                     got = cdp.js(
                         "(() => { const top = document.querySelector('.top'), bar = top && getComputedStyle(top).display !== 'none' ? top.getBoundingClientRect().bottom : 0;"
                         f" const rows = {rows}.map(s => document.querySelector(s)).filter(e => e && e.getBoundingClientRect().height > 0);"

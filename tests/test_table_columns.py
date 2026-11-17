@@ -121,6 +121,10 @@ class Columns(unittest.TestCase):
                         self.assertEqual(len(got["why"]), len(locked), "each locked column says why")
                         for w in got["why"]:
                             self.assertGreater(len(w), 10)
+                        inside = ("(() => { const r = document.querySelector(%s).getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight + 1; })()"
+                                  % json.dumps(MENU))
+                        wait(lambda: js(inside), 5)      # the menu is placed after it first paints: read where it ended up, not where it started (slow CI runners)
+                        got = self.menu(js)
                         r, win = got["rows"], got["win"]
                         self.assertTrue(r["left"] >= 0 and r["right"] <= win[0] and r["top"] >= 0 and r["bottom"] <= win[1] + 1, "the menu is inside the window")
 
@@ -204,16 +208,18 @@ class Columns(unittest.TestCase):
         """Row 1230: the Dashboard section is its own table ("msDash"); its columns choice and widths do not write the Milestones page's keys."""
         keys = "JSON.stringify(Object.keys(localStorage).filter((k) => k.startsWith('clark.cols')).sort())"
         with chrome() as cdp:
-            sid = self.visit(cdp, 1400, "light", "#dashboard&p=TUL")
+            sid = self.visit(cdp, 1400, "light", "#dashboard&p=TUL", SETTLE)
             js = lambda e: cdp.js(e, sid)  # noqa: E731
+            quiet = f"document.fonts.status === 'loaded' && performance.now() - window.__lastScroll > {QUIET_MS}"      # the menu closes on any scroll: ask for it only after the page has stopped moving
             box = ".msv .msl-box"
             self.assertTrue(wait(lambda: js(f"!!document.querySelector('{box} .msl-row')"), 20), "the Dashboard milestones drew their rows")
             js("document.querySelector('[data-mode=edit]').click()")
             head = f"{box} .msl-hd [data-col='state']"
             self.assertTrue(wait(lambda: js(f"!!document.querySelector({json.dumps(head)})"), 10), "Edit draws the heading row")
             js(f"document.querySelector({json.dumps(head)}).scrollIntoView({{block: 'center'}})")
+            self.assertTrue(wait(lambda: js(quiet), 20), "the page has settled after the scroll")
             self.right_click(cdp, sid, head)
-            self.assertTrue(wait(lambda: self.menu(js), 5))
+            self.assertTrue(wait(lambda: self.menu(js), 5), "the menu opens on the Dashboard heading row")
             self.pick(js, "Workstream")
             self.assertTrue(wait(lambda: js(f"!!document.querySelector({json.dumps(box + ' .msl-hd [data-col=workstream]')})"), 5), "the column appears on the Dashboard")
             chosen = js("localStorage.getItem('clark.cols.show.msDash.TUL')")

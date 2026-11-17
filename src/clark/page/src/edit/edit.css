@@ -1487,3 +1487,28 @@ table.items .c-x-id, table.items .c-x-type { width: 100px; }
 .tpl-rh-edit-text .tpl-lbl:not(:first-child) { margin-top: var(--space-2); }
 .tpl-rh-in { overflow-wrap: anywhere; }
 @media (max-width: 900px) { .tpl-rh-edit { flex-direction: column; gap: var(--space-2); } }
+/* Row 1264 slice 9: the glance template's Edit layout, the same grid as its View (shell.css .tpl-gt): 4 tiles on a line, 3 when the section says
+   so, 2 at half width, 1 at 900; Project health one tile wide, or the whole row (the switch). Controls under the tiles: Tiles on a line, the switch. */
+.tpl-edit-glancetemplate .glance { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tpl-edit-glancetemplate .glance[data-cols="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.slot-left .tpl-edit-glancetemplate .glance, .slot-right .tpl-edit-glancetemplate .glance { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.tpl-edit-glancetemplate .glance .tcell, .tpl-edit-glancetemplate .glance .tcell.health { min-width: 0; }
+.tpl-edit-glancetemplate .glance[data-own-row] > .tcell.health { grid-column: 1 / -1; }
+.gt-showhealth { all: unset; box-sizing: border-box; grid-column: 1 / -1; display: flex; align-items: center; gap: var(--space-3); min-height: 40px; cursor: pointer; color: var(--text); font-size: var(--size-body); }
+.gt-showhealth-eye { display: inline-grid; place-items: center; width: 40px; height: 40px; }
+.gt-showhealth-eye .i { width: 20px; height: 20px; }
+.gt-showhealth:hover .gt-showhealth-eye { color: var(--brand-blue); }
+.gt-showhealth:focus-visible, .gt-per:focus-visible, .gt-own:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.tpl-gt-opts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); margin: var(--space-3) 0 0; font-size: var(--size-small); color: var(--text-muted); }
+.tpl-gt-perrow { display: inline-flex; align-items: center; gap: var(--space-2); }
+.gt-per { all: unset; box-sizing: border-box; min-width: 32px; min-height: 32px; display: inline-grid; place-items: center; cursor: pointer; border: 1px solid var(--control-edge); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--size-small); }
+.gt-per[aria-pressed="true"] { background: var(--brand-blue); border-color: var(--brand-blue); color: var(--text-on-brand); font-weight: var(--weight-medium); }
+.gt-own { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: var(--space-2); min-height: 32px; padding: 0 var(--space-3); cursor: pointer; border: 1px solid var(--control-edge); border-radius: var(--radius-pill); color: var(--text); font-size: var(--size-small); font-weight: var(--weight-medium); }
+.gt-own-sw { position: relative; width: 30px; height: 16px; border-radius: 9px; background: var(--control-edge); flex: none; }
+.gt-own-sw i { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); }
+.gt-own[aria-checked="true"] { border-color: var(--brand-blue); }
+.gt-own[aria-checked="true"] .gt-own-sw { background: var(--brand-blue); }
+.gt-own[aria-checked="true"] .gt-own-sw i { left: 16px; }
+.tpl-gt-halfnote { display: none; }
+.slot-left .tpl-gt-halfnote, .slot-right .tpl-gt-halfnote { display: inline; }
+@media (max-width: 900px) { .slot-left .tpl-edit-glancetemplate .glance, .slot-right .tpl-edit-glancetemplate .glance { grid-template-columns: minmax(0, 1fr); } }
