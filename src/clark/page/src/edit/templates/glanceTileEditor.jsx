@@ -23,7 +23,7 @@ export const WORDS = {
   untitled: "Untitled", newTile: "New tile", zero: "0", done: "Done", cancel: "Cancel",                                               // v2 D and E; Cancel exists in the app
 };
 export const limitWords = () => `You can have up to ${BESPOKE_MAX} tiles.`;                                                          // group 14
-export const COLOURS = [["green", "Green", ""], ["amber", "Amber", ""], ["red", "Red", ""], ["blue", "Blue", "Info"], ["neutral", "Neutral", ""]];   // group 7: Blue has the tag word Info
+export const COLOURS = [["green", "Green", "On track"], ["amber", "Amber", "At risk"], ["red", "Red", "Off track"], ["blue", "Blue", "Info"], ["neutral", "Neutral", ""]];   // each colour has its tag word: On track, At risk, Off track, Info; Neutral has none
 export const TONE_CLASS = { green: "g", amber: "a", red: "r", blue: "b", neutral: "n" };
 const MOST = { label: LABEL_MAX, figure: FIGURE_MAX, tag: TAG_MAX, note: NOTE_MAX };
 

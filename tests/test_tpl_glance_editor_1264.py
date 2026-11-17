@@ -286,7 +286,7 @@ class Editing(Editor):
             self.assertEqual(got["group"], "Tile colour")
             self.assertEqual(got["head"], ["Colour"])
             self.assertEqual(got["live"], "The colour is a shape and the tag word too, never colour alone.")
-            self.assertEqual(got["radios"], [["green", "Green", "true"], ["amber", "Amber", "false"], ["red", "Red", "false"], ["blue", "BlueInfo", "false"], ["neutral", "Neutral", "false"]])
+            self.assertEqual(got["radios"], [["green", "GreenOn track", "true"], ["amber", "AmberAt risk", "false"], ["red", "RedOff track", "false"], ["blue", "BlueInfo", "false"], ["neutral", "Neutral", "false"]])
             shapes = p.js(f"[...document.querySelectorAll({self.q('[data-tile-editor] [role=radio] svg')})].map(s => s.firstElementChild.tagName + ':' + (s.firstElementChild.getAttribute('d') || s.firstElementChild.getAttribute('fill')))")
             self.assertEqual(len(set(shapes)), 5, f"five shapes: {shapes}")
             self.click(p, "[data-tile-editor] [data-tone=blue]")
