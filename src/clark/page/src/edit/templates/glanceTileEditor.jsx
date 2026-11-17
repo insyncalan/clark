@@ -85,8 +85,7 @@ export function tileActions(section, u) {
       saving = true;
       let r;
       try { r = await send(section, u, withChange(u, { put: tile }), e.isNew ? `Added: ${tile.label}` : WORDS.saved); } finally { saving = false; }
-      if (r === null) return;                                  // it failed: the toast says why, the editor stays with what was typed
-      if (r === false) note(WORDS.saved);
+      if (r === null) return;                                  // it failed: the toast says why, the editor stays with what was typed (r false: nothing changed, close silently, no toast)
       close(e, "done");
       focusTile(section.id, e.id, "[data-tile-pencil]");
     },
