@@ -27,6 +27,7 @@ from openpyxl.xml.functions import tostring
 from clark import excel, glance
 from clark import excel_colours as colours
 from clark import platform, publish, sanitise
+from clark.section_kinds import reportheadline
 
 NAME = re.compile(r'[^\\/:*?"<>|\x00-\x1f]{1,120}')      # what the page accepts as a download name
 # The cap: 1.5 MB of workbook (about 2 MB as base64). The published file is already refused over publish.MAX_BYTES (5 MB), and
@@ -134,6 +135,33 @@ def title_text(published):
     return (p.get("name") or p.get("code") or ""), sub
 
 
+def headline_line(published):
+    """Row 1261: the first Report headline section's words on one line, "<health word> · <headline> · <sentence>" with each part only
+    when it is there, or "" when the page has none (or it is empty). The words are the published content's own."""
+    for s in published["sections"]:
+        if s.get("type") == "reportheadline":
+            c = s.get("content") if isinstance(s.get("content"), dict) else {}
+            health = c.get("health")
+            words = (reportheadline.WORDS.get(health) if isinstance(health, str) and health else "", c.get("headline"), c.get("sentence"))
+            line = " · ".join(str(w).strip() for w in words if isinstance(w, str) and w.strip())
+            if line:
+                return line
+    return ""
+
+
+def put_headline(ws, published, columns, palette=None):
+    """The headline on row 3, the free row between the title band and the column heads, filled like the band. Locked text."""
+    line = headline_line(published)
+    if not line:
+        return
+    HEAD, TITLE, SUB, HEAD_FILL = styles(palette)
+    for c in range(1, columns + 1):
+        ws.cell(row=3, column=c).fill = HEAD_FILL
+    cell = ws.cell(row=3, column=1, value=excel.cell_text(line))
+    cell.font = SUB
+    excel.protect_text_cell(cell)
+
+
 def columns(table):
     """The sheet's columns: COLUMNS[table], each only if publish.PUBLISH_FIELDS carries its field (the whitelist; "_words" stands for
     the text field and its client wording), plus the use case flag when the file carries it."""
@@ -157,6 +185,7 @@ def write_sheet(wb, published, table, palette=None):
         cell.font = font
         excel.protect_text_cell(cell)
     ws.row_dimensions[1].height = 26
+    put_headline(ws, published, len(cols), palette)
     for i, (label, _, width) in enumerate(cols, start=1):
         head = ws.cell(row=4, column=i, value=label)
         head.font, head.fill = HEAD, HEAD_FILL
@@ -199,6 +228,7 @@ def write_gantt_sheet(wb, published, palette=None):
         cell.font = font
         excel.protect_text_cell(cell)
     ws.row_dimensions[1].height = 26
+    put_headline(ws, published, len(cols), palette)
     for i, (label, _, width) in enumerate(cols, start=1):
         head = ws.cell(row=4, column=i, value=label)
         head.font, head.fill = HEAD, HEAD_FILL
@@ -234,6 +264,7 @@ def workbook_bytes(published, palette=None):
             cell.value = excel.cell_text(text)
             cell.font = BODY
             excel.protect_text_cell(cell)
+        put_headline(ws, published, 1, palette)
         excel.print_setup(ws)
         excel.protect_sheet(ws)
     props = wb.properties
