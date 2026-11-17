@@ -30,11 +30,11 @@ class RatingTips(unittest.TestCase):
             self.assertEqual(cdp.js(f"document.querySelector('{BTN}').dataset.tip", sid), "Priority from impact and likelihood")
             self.assertEqual(cdp.js(f"document.querySelector('{BTN}').getAttribute('aria-description')", sid), "Priority from impact and likelihood", "a screen reader hears it")
 
-    def test_the_issue_rating_chip_keeps_its_tip(self):
+    def test_the_issue_rating_chip_has_the_risks_tip(self):
         with chrome() as cdp:
             sid = self.open_page(cdp, 1400)
             self.peek(cdp, sid, "TUL-010")
-            self.assertRegex(cdp.js(f"document.querySelector('{BTN}').dataset.tip", sid), r"^(Red|Amber|Green) rating, set from impact and likelihood$")
+            self.assertEqual(cdp.js(f"document.querySelector('{BTN}').dataset.tip", sid), "Priority from impact and likelihood")      # row 1257: the same text as a risk's
             self.assertEqual(cdp.js(f"document.querySelector('{BTN}').getAttribute('aria-description')", sid), cdp.js(f"document.querySelector('{BTN}').dataset.tip", sid))
 
 
