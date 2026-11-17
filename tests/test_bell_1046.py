@@ -65,6 +65,7 @@ class Bell(Base):
                 p.js("document.querySelector('#bell-all').click()")
                 p.until("!document.querySelector('#bell-btn .bell-badge') && !document.querySelector('#bell-all')", "all read: no badge")
                 self.assertEqual(p.js("document.querySelector('.bell-empty') ? 1 : 0"), 0, "the three notices stay listed, read")
+                self.assertTrue(p.js("!!document.querySelector('#bell-btn')"), "the bell stays while the popup is open, even with nothing unread")
                 p.key("Escape", 0, "Escape", 27)
                 p.until("!document.querySelector('#bell-pop')", "Esc closed the popup")
                 p.until("!document.querySelector('#bell-btn')", "nothing unread: the bell is gone")
@@ -85,6 +86,19 @@ class Bell(Base):
             self.assertEqual(p.js("document.querySelector('.bell-act').textContent"), "Open Settings")
             p.js("document.querySelector('.bell-act').click()")
             p.until("!document.querySelector('#bell-pop')", "the action closed the popup")
+
+    def test_a_press_outside_closes_the_popup_and_a_press_inside_does_not(self):
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            self.push(p, 2)
+            p.until("!!document.querySelector('#bell-btn')", "the bell is drawn")
+            p.js("document.querySelector('#bell-btn').click()")
+            p.until("!!document.querySelector('#bell-pop')", "the popup opened")
+            p.js("document.querySelector('.bell-ttl').dispatchEvent(new MouseEvent('mousedown', {bubbles: true}))")
+            p.js("new Promise(r => setTimeout(r, 200))")
+            self.assertTrue(p.js("!!document.querySelector('#bell-pop')"), "a press inside leaves it open")
+            p.js("document.body.dispatchEvent(new MouseEvent('mousedown', {bubbles: true}))")
+            p.until("!document.querySelector('#bell-pop')", "a press outside closed it")
 
     def test_the_popup_shadow_is_the_token_not_a_literal(self):
         import re
