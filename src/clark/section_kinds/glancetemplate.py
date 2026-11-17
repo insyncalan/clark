@@ -19,7 +19,7 @@ from clark.section_kinds.base import Bad
 
 READY = True
 LIMIT = 32768
-EMPTY = ""
+EMPTY = ""                                        # a new template is left out of the file until it is first changed (row 1251); the Edit then writes the health eye OFF (glanceBody.js readBody: a never-written body reads as off, ticket 1264), while a body with no health field (an existing page) reads as shown
 
 BESPOKE_MAX = 12                                  # the one tile cap: 12 is FINAL (ruled)
 LABEL_MAX, FIGURE_MAX, TAG_MAX, NOTE_MAX = 40, 12, 12, 60      # characters, the text limits are approved
@@ -256,7 +256,7 @@ def _counts(u, ctx):
 
 def published(value, ctx):
     """What the file carries: {"content": {health, order, builtin, bespoke}}, or None when there is no body or no bespoke tile is left to
-    show. (A section with no own tile and no count has nothing to draw.) A hidden bespoke tile is left out whole (its words and its id),
+    show. (A section with no own tile, no count and the health eye off has nothing to draw.) A hidden bespoke tile is left out whole (its words and its id),
     and so is its place in the order. Picked by name from the read body, never passed through. The three built-in figures are "counts", worked out
     here from ctx.rows (see _counts), never from stored text."""
     if not value:
@@ -264,7 +264,7 @@ def published(value, ctx):
     u = upgrade(value)
     shown = [t for t in u["bespoke"] if not t["hidden"]]
     counts = _counts(u, ctx)
-    if not shown and not counts:
+    if not shown and not counts and not u["health"]["shown"]:      # the health eye alone still prints its row, as the View shows it
         return None
     gone = {t["id"] for t in u["bespoke"] if t["hidden"]}
     content = {"health": dict(u["health"]), "order": [i for i in u["order"] if i not in gone],
