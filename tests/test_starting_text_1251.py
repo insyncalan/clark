@@ -1,4 +1,4 @@
-"""Row 1251, slice 1: the starting text of the section templates is Edit-only. The words live in edit/startingText.js, are reached through the
+"""Row 1251, slices 1 and 2: the starting text of the section templates is Edit-only. The words live in edit/startingText.js, are reached through the
 edit tools, and are in NO shared source, NOT in page-view.html (the published bundle) and NOT in a published file built from a demo project.
 Run: python3 dev/run_tests.py test_starting_text_1251
 Without a browser: the built page files, the page sources and publish.build.
@@ -24,6 +24,19 @@ WANT = {
     "contacts": {"empty": ["Add a person."]},
     "one-doc": {"empty": ["Add the file."]},
     "current-state": {"empty": ["Say where the project stands."]},
+    # slice 2
+    "figures-4": {"caption": "Say what the numbers cover.", "empty": ["Pick what each number shows."]},
+    "figures-3": {"empty": ["Pick what each number shows."]},
+    "table": {"empty": ["Add the first row."]},
+    "raid-3": {"empty": ["Choose the items to show."]},
+    "raid-4": {"empty": ["Choose the items to show."]},
+    "work-items": {"caption": "Say what the list shows.", "empty": ["Set a filter to choose the rows."]},
+    "docs-links": {"empty": ["Add a file or a link."]},
+    "checklist": {"empty": ["Link the work items to tick off."]},
+    "link-preview": {"empty": ["Paste the link.", "Write what the reader will find there."]},
+    "key-dates": {"empty": ["No milestones to show yet."]},
+    "gantt": {"empty": ["No Gantt lines in the client view yet."]},
+    "gantt-table": {"empty": ["No Gantt lines in the client view yet."]},
 }
 WORDS = sorted({w for t in WANT.values() for v in t.values() for w in ([v] if isinstance(v, str) else v)})
 
@@ -33,7 +46,7 @@ def listed():
     text = DATA.read_text(encoding="utf-8")
     body = text[text.index("export const STARTING_TEXT"):text.index("};", text.index("export const STARTING_TEXT"))]
     out = {}
-    for m in re.finditer(r'"([a-z-]+)": \{ (.*?) \},', body):
+    for m in re.finditer(r'"([a-z0-9-]+)": \{ (.*?) \},', body):
         parts = {}
         for pm in re.finditer(r'(caption|empty): (\[[^\]]*\]|"[^"]*")', m.group(2)):
             vals = re.findall(r'"([^"]*)"', pm.group(2))
@@ -59,6 +72,38 @@ class TheList(unittest.TestCase):
         lib = (PAGE_SRC / "logic" / "templates.js").read_text(encoding="utf-8")
         m = re.search(r'\{ id: "current-state", name: "([^"]+)", kind: "text", fit: \[[^\]]*\], type: "text", title: "([^"]+)"', lib)
         self.assertEqual(m.groups(), ("Header and Text", "Header"))
+
+
+class SliceTwoIsReached(unittest.TestCase):
+    """Each slice 2 template's Edit part draws its words from startingText.js (never typed into the part itself)."""
+    EDIT = PAGE_SRC / "edit" / "templates"
+    REACH = {
+        "FiguresEdit.jsx": ['StartPrompt id={type === "figures4" ? "figures-4" : "figures-3"}'],
+        "Table.jsx": ['<StartPrompt id="table"'],
+        "raidEdit.jsx": ['<StartPrompt id={`raid-${size}`}'],
+        "WorkItemsList.jsx": ['<StartPrompt id="work-items"', 'startText("work-items", "caption")'],
+        "DocLinks.jsx": ['<StartPrompt id="docs-links"'],
+        "Checklist.jsx": ['<StartPrompt id="checklist"'],
+        "KeyDates.jsx": ['<StartPrompt id="key-dates"'],
+        "LinkCard.jsx": ['<StartPrompt id="link-preview"', 'startText("link-preview", "empty", 1)'],
+        "GanttSection.jsx": ['<StartPrompt id="gantt"'],
+        "GanttTableSection.jsx": ['<StartPrompt id="gantt-table"'],
+    }
+
+    def test_every_part_reaches_the_list(self):
+        for name, needles in self.REACH.items():
+            text = (self.EDIT / name).read_text(encoding="utf-8")
+            for n in needles:
+                self.assertIn(n, text, f"{name}: {n}")
+
+    def test_no_slice_two_word_is_typed_into_a_part(self):
+        words = sorted({w for k in ("figures-4", "figures-3", "table", "raid-3", "raid-4", "work-items", "docs-links", "checklist", "link-preview", "key-dates", "gantt", "gantt-table")
+                        for v in WANT[k].values() for w in ([v] if isinstance(v, str) else v)})
+        for p in (PAGE_SRC / "edit").rglob("*"):
+            if p.suffix in (".js", ".jsx") and p.name != "startingText.js":
+                text = p.read_text(encoding="utf-8")
+                for w in words:
+                    self.assertNotIn(w, text, f"{w!r} typed in {p.name}")
 
 
 class NotInTheShared(unittest.TestCase):

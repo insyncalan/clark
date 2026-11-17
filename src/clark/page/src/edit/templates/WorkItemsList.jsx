@@ -2,6 +2,8 @@
 // ticked, a choice picked, the number or the caption left with Enter or Tab) saves the whole filter as ONE change (one step, one
 // Undo, place "report"). Under it, the rows it lists now, exactly as View and the published page will show them; each row opens
 // its peek (a click, or Enter). An empty match says so here, and only here: View and the published page leave the section out.
+import { StartPrompt } from "../StartPrompt.jsx";
+import { startText } from "../startingText.js";
 import { useRef, useState } from "preact/hooks";
 import { data, openPeek } from "../../stores/report.js";
 import { change, say } from "../../stores/changes.js";
@@ -136,7 +138,7 @@ export function Edit({ section }) {
   const rows = drawRows(idsToShow(list, all), drawn(d, true));
   return (
     <div class="wil wil-edit" key={tick} data-wil-edit="" data-wil-id={id}>
-      {saved ? null : <p class="quiet wil-say" data-wil-say="not-yet">{NOT_YET}</p>}
+      {saved ? null : <><StartPrompt id="work-items" /><p class="quiet wil-say" data-wil-say="not-yet">{NOT_YET}</p></>}
       <div class="wil-line" data-wil-line="">
         <label class="wil-sel wil-linef"><span>Filter</span>
           <input type="text" name="line" aria-describedby={`${id}-hint`} value={lineOf(filter, nameOf)} key={lineOf(filter, nameOf)} onChange={commitLine} onKeyDown={lineKeys} autocomplete="off" spellcheck={false} />
@@ -177,7 +179,7 @@ export function Edit({ section }) {
       {saved && list.caption && rows.length ? <p class="wil-cap">{list.caption}</p> : null}
       <div class="wil-capbox">
         <label class="wil-sel wil-capf" data-field="caption"><span>Caption (optional)</span>
-          <input type="text" name="caption" value={filter.caption} onInput={capInput} onChange={commitCaption} onKeyDown={keys} />
+          <input type="text" name="caption" placeholder={startText("work-items", "caption")} value={filter.caption} onInput={capInput} onChange={commitCaption} onKeyDown={keys} />
         </label>
       </div>
     </div>

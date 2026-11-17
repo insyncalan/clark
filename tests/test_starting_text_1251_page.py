@@ -20,6 +20,19 @@ CASES = [
     ("callout", "Fictional callout", ["Write the one thing the reader must see."]),
     ("contacts", "Fictional contacts", ["Add a person."]),
     ("onedoc", "Fictional doc", ["Add the file."]),
+    # slice 2
+    ("figures4", "Fictional fig4", ["Pick what each number shows."]),
+    ("figures3", "Fictional fig3", ["Pick what each number shows."]),
+    ("table", "Fictional table", ["Add the first row."]),
+    ("raid3", "Fictional raid3", ["Choose the items to show."]),
+    ("raid4", "Fictional raid4", ["Choose the items to show."]),
+    ("workitems", "Fictional wi", ["Set a filter to choose the rows.", "Say what the list shows."]),
+    ("doclinks", "Fictional dl", ["Add a file or a link."]),
+    ("checklist", "Fictional check", ["Link the work items to tick off."]),
+    ("linkcard", "Fictional link", ["Paste the link.", "Write what the reader will find there."]),
+    ("keydates", "Fictional kd", ["No milestones to show yet."]),
+    ("gantt", "Fictional gantt", ["No Gantt lines in the client view yet."]),
+    ("gantttable", "Fictional gt", ["No Gantt lines in the client view yet."]),
 ]
 ALL = sorted({w for _, _, ws in CASES for w in ws if w})
 SEEN = "(function(sel){var s=document.querySelector(sel);if(!s)return null;var t=s.innerText+'\\n';s.querySelectorAll('[placeholder]').forEach(function(e){t+=e.getAttribute('placeholder')+'\\n'});return t})"

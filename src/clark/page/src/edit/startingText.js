@@ -12,6 +12,18 @@ export const STARTING_TEXT = {
   "callout": { empty: ["Write the one thing the reader must see."] },
   "contacts": { empty: ["Add a person."] },
   "one-doc": { empty: ["Add the file."] },
+  "figures-4": { caption: "Say what the numbers cover.", empty: ["Pick what each number shows."] },
+  "figures-3": { empty: ["Pick what each number shows."] },
+  "table": { empty: ["Add the first row."] },
+  "raid-3": { empty: ["Choose the items to show."] },
+  "raid-4": { empty: ["Choose the items to show."] },
+  "work-items": { caption: "Say what the list shows.", empty: ["Set a filter to choose the rows."] },
+  "docs-links": { empty: ["Add a file or a link."] },
+  "checklist": { empty: ["Link the work items to tick off."] },
+  "link-preview": { empty: ["Paste the link.", "Write what the reader will find there."] },
+  "key-dates": { empty: ["No milestones to show yet."] },
+  "gantt": { empty: ["No Gantt lines in the client view yet."] },
+  "gantt-table": { empty: ["No Gantt lines in the client view yet."] },
   "current-state": { empty: ["Say where the project stands."] },      // Header and Text: its starting title is "Header" (ruled 16-11, plan issue 1262)
 };
 
