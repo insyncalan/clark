@@ -11,6 +11,7 @@ from clark import glance
 COUNTING = ("overdue", "risks", "decisions")
 TONE = {"g": "green", "a": "amber", "r": "red", "b": "blue", "n": None}
 BESPOKE_TONE = {"green": "green", "amber": "amber", "red": "red", "blue": "blue", "neutral": None}
+PER_LINE, PER_LINE_HALF = 4, 2                                                                                  # glancetemplate.PER_ROW_DEFAULT; half width always draws 2 (shell.css .tpl-gt in a slot)
 TAG = {"overdue": {"r": "Overdue"}, "decisions": {"a": "Waiting"}, "risks": {"a": "Watch", "r": "High"}}      # glanceTiles.js TILE_WORDS_OF
 TAG_ANY = {"g": "On track", "a": "At risk", "r": "Off track"}                                                   # glanceTiles.js TILE_WORDS
 
@@ -26,8 +27,31 @@ def _health(published):
             "colour": (t.get("pill") or {}).get("colour") or None}
 
 
+def _right_half(published, sec):
+    """True when `sec` is the second of a side-by-side pair: only the first carries `beside` 1, so the page's own walk (placement.js) is read again:
+    a section with `beside` 1 and one after it opens a row of two, and the one after it is the right half."""
+    rows = [x for x in (published or {}).get("sections") or [] if isinstance(x, dict)]
+    i = 0
+    while i < len(rows):
+        if rows[i].get("beside") in (1, True) and i + 1 < len(rows):
+            if rows[i + 1].get("id") == sec.get("id") and sec.get("id") is not None:
+                return True
+            i += 1
+        i += 1
+    return False
+
+
+def per_line(sec, c, published=None):
+    """Tiles on a line as the View draws them: 2 at half width (the published section's `beside` is 1, or it is the half after one that is: the page's
+    slot-left or slot-right), else the body's per_row when it is 3 or 4, else 4 (the default is not stored)."""
+    if sec.get("beside") in (1, True) or _right_half(published, sec):
+        return PER_LINE_HALF
+    n = c.get("per_row")
+    return n if type(n) is int and n in (3, 4) else PER_LINE
+
+
 def read(published, sec):
-    """{"health_row": the health tile when it has a row of its own, else None, "tiles": [{key, label, figure, tag, note, colour}] in the
+    """{"per_line": tiles on a line (per_line), "health_row": the health tile when it has a row of its own, else None, "tiles": [{key, label, figure, tag, note, colour}] in the
     section's order (health included there when it is shown and not on its own row)}. Total: a content that is not an object is nothing."""
     c = sec.get("content") if isinstance(sec.get("content"), dict) else {}
     h = c.get("health") if isinstance(c.get("health"), dict) else {}
@@ -59,4 +83,4 @@ def read(published, sec):
         else:
             continue
         tiles.append(t)
-    return {"health_row": row, "tiles": tiles}
+    return {"per_line": per_line(sec, c, published), "health_row": row, "tiles": tiles}
