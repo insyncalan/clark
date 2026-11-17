@@ -543,6 +543,27 @@ class Saved(Api):
         self.assertEqual(sec["items"], [self.risk])
         self.assertEqual([a["id"] for a in built["data"]["actions"]], [self.a_due], "the single kept action stays: the list does not name it")
 
+    def test_a_card_template_naming_a_hidden_sections_action_does_not_see_it_while_a_list_does(self):
+        """Row 1268: a hidden built-in section's rows reach a Work items list alone; a checklist that links one of its actions is left out of the file."""
+        self.save({"mode": "all", "owner": ["Pat Demo"]})
+        with self.s.step("dashboard", USER) as st:
+            st.create("report_sections", {"project": "ABC", "type": "actions", "title": "Open actions", "sort_order": 50, "hidden": 1})
+            st.create("report_sections", {"project": "ABC", "type": "checklist", "title": "Steps", "sort_order": 51,
+                                          "body": json.dumps({"v": 1, "items": [{"item": self.a_due}]})})
+        built = publish.build(self.s, "ABC", now=TODAY)["published"]
+        self.assertNotIn("checklist", [s["type"] for s in built["sections"]], "the hidden section's action is not live to the checklist")
+        self.assertIn(self.a_due, next(s for s in built["sections"] if s["id"] == self.ref)["items"], "the list still names it")
+        self.assertEqual([a["id"] for a in built["data"]["actions"]], [self.a_due])
+
+    def test_a_card_template_naming_a_shown_sections_action_sees_it(self):
+        self.save({"mode": "all", "owner": ["Pat Demo"]})
+        with self.s.step("dashboard", USER) as st:
+            st.create("report_sections", {"project": "ABC", "type": "actions", "title": "Open actions", "sort_order": 50, "hidden": 0})
+            st.create("report_sections", {"project": "ABC", "type": "checklist", "title": "Steps", "sort_order": 51,
+                                          "body": json.dumps({"v": 1, "items": [{"item": self.a_due}]})})
+        built = publish.build(self.s, "ABC", now=TODAY)["published"]
+        self.assertIn("checklist", [s["type"] for s in built["sections"]])
+
     def test_a_key_dates_section_beside_a_list_does_not_disturb_the_rows_the_list_names(self):
         self.save({"mode": "all", "owner": ["Pat Demo"]})
         with self.s.step("dashboard", USER) as st:

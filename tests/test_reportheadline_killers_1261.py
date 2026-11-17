@@ -42,5 +42,22 @@ class Edges(unittest.TestCase):
         self.assertIn("<w:keepNext/>", pill)
 
 
+    def paras(self, body):
+        xml = zipfile.ZipFile(io.BytesIO(docx_build.build(select(body)))).read("word/document.xml").decode("utf-8")
+        return {w: re.search(r"<w:p>(?:(?!</w:p>).)*?" + w + r"(?:(?!</w:p>).)*?</w:p>", xml, re.S).group(0) for w in ("At risk", "Hhead", "Ssent") if w in xml}
+
+    def test_a_pill_with_only_a_headline_keeps_with_it(self):
+        self.assertIn("<w:keepNext/>", self.paras({"v": 1, "health": "at_risk", "headline": "Hhead"})["At risk"])
+
+    def test_a_pill_alone_keeps_with_nothing(self):
+        self.assertNotIn("<w:keepNext/>", self.paras({"v": 1, "health": "at_risk"})["At risk"])
+
+    def test_a_headline_with_no_sentence_does_not_keep_with_the_next(self):
+        self.assertNotIn("<w:keepNext/>", self.paras({"v": 1, "headline": "Hhead"})["Hhead"])
+
+    def test_a_headline_with_a_sentence_keeps_with_it(self):
+        self.assertIn("<w:keepNext/>", self.paras({"v": 1, "headline": "Hhead", "sentence": "Ssent"})["Hhead"])
+
+
 if __name__ == "__main__":
     unittest.main()
