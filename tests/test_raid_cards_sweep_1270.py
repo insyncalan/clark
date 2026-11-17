@@ -105,7 +105,7 @@ class Edit(PageBase):
     def across(self, p, q):
         return p.js(f"document.querySelector('{q} select[aria-label=\"RAID cards\"]').value")
 
-    def open(self, cdp, sec):
+    def show_picker(self, cdp, sec):
         q = f"[data-id={json.dumps(sec)}]"
         cdp.FOCUS_EMULATION = False
         p = self.visit(cdp)
@@ -122,7 +122,7 @@ class Edit(PageBase):
                            (lambda m: "", "4")):
             sec, made = self.make(body)
             with chrome() as cdp:
-                p, q = self.open(cdp, sec)
+                p, q = self.show_picker(cdp, sec)
                 self.assertEqual(self.across(p, q), want)
                 self.assertIn("RAID cards", p.js(f"document.querySelector('{q} .rce-across span').textContent"))
                 self.assertEqual(p.js(f"document.querySelector('{q} .rce-across span').textContent"), "RAID cards")
@@ -130,7 +130,7 @@ class Edit(PageBase):
     def test_a_change_keeps_version_two_and_the_choice(self):
         sec, made = self.make(lambda m: json.dumps({"v": 2, "across": 4, "cards": self.cards(m, 6)}))
         with chrome() as cdp:
-            p, q = self.open(cdp, sec)
+            p, q = self.show_picker(cdp, sec)
             self.set_select(p, f"{q} select[aria-label='Card 2 text']", "own")
             self.assertTrue(self.wait_for(lambda: self.stored(sec)["cards"][1]["source"] == "own"))
             got = self.stored(sec)
@@ -145,7 +145,7 @@ class Edit(PageBase):
     def test_a_body_of_version_one_with_four_cards(self):
         sec, made = self.make(lambda m: json.dumps({"v": 1, "cards": self.cards(m, 4)}))
         with chrome() as cdp:
-            p, q = self.open(cdp, sec)
+            p, q = self.show_picker(cdp, sec)
             self.set_select(p, f"{q} select[aria-label='Card 1 text']", "own")
             self.assertTrue(self.wait_for(lambda: self.stored(sec)["cards"][0]["source"] == "own"))
             self.assertEqual(self.stored(sec)["v"], 1, "four cards, changed: still version one")
@@ -158,7 +158,7 @@ class Edit(PageBase):
     def test_a_second_change_keeps_the_first(self):
         sec, made = self.make(lambda m: json.dumps({"v": 2, "across": 4, "cards": self.cards(m, 6)}))
         with chrome() as cdp:
-            p, q = self.open(cdp, sec)
+            p, q = self.show_picker(cdp, sec)
             for n in (2, 3):
                 self.set_select(p, f"{q} select[aria-label='Card {n} text']", "own")
                 self.assertTrue(self.wait_for(lambda: self.stored(sec)["cards"][n - 1]["source"] == "own"))
