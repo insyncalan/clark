@@ -122,5 +122,62 @@ class Words(unittest.TestCase):
         self.assertEqual(call("FT.systemWords({userAgent:'x', platform:'Linux x86_64'})"), "Linux x86_64")
 
 
+class Killers(unittest.TestCase):
+    """Row 1298 mutation round: tests for the mutants the first 16 left alive."""
+
+    def test_context_values_are_one_line(self):
+        c = call("FT.contextLines({version:'1\\n2',platform:'a\\nb',page:'c\\nd'})")
+        self.assertEqual(len(c), 3)
+        self.assertEqual(c, ["Version of clark: 1 2", "System: a b", "Page: c d"])
+
+    def test_page_words_every_settings_page_name(self):
+        names = {"people": "People", "profile": "Profile", "folder": "Folder", "brand": "Brand", "appearance": "Appearance", "reports": "Reports",
+                 "backups": "Backups", "data": "Export and import", "claude": "Claude and AI", "logs": "Logs and diagnostics",
+                 "version": "Version and updates", "projects": "Projects"}
+        for k, v in names.items():
+            self.assertEqual(call("FT.pageWords({view:'settings',page:'%s'})" % k), "Settings, " + v, k)
+
+    def test_page_words_unknown_page_and_no_page(self):
+        self.assertEqual(call("FT.pageWords({view:'settings',page:'zzz'})"), "Settings, zzz")
+        self.assertEqual(call("FT.pageWords({view:'settings'})"), "Settings, Projects")
+        self.assertEqual(call("FT.pageWords({view:'dashboard'})"), "dashboard")
+
+    def test_help_wins_over_settings(self):
+        self.assertEqual(call("FT.pageWords({view:'settings',page:'brand',helpOpen:true})"), "Help and about")
+
+    def test_system_patch_version_and_separators(self):
+        ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X %s) AppleWebKit"
+        for raw, want in (("14_5_1", "macOS 14.5.1"), ("14_5_0", "macOS 14.5"), ("14.5.1", "macOS 14.5.1"), ("10.15", "macOS 10.15")):
+            self.assertEqual(call("FT.systemWords({userAgent:%s,platform:'MacIntel'})" % json.dumps(ua % raw)), want, raw)
+
+    def test_system_mac_from_the_user_agent_alone(self):
+        self.assertEqual(call("FT.systemWords({userAgent:'X Mac OS X 13_2 Y',platform:'Other'})"), "macOS 13.2")
+
+    def test_system_user_agent_data_platform_wins(self):
+        self.assertEqual(call("FT.systemWords({userAgentData:{platform:'Windows'},platform:'Linux x86_64',userAgent:'x'})"), "Windows")
+
+    def test_subject_uses_the_safe_kind(self):
+        t = call("FT.copyText({kind:'zzz',message:'a'},{})")
+        self.assertIn("Subject: Feedback about clark (Problem)\n", t)
+        self.assertNotIn("zzz", t)
+
+    def test_too_long_gives_no_link_and_words(self):
+        r = call("FT.mail({kind:'Idea',message:'word '.repeat(5000)},{})")
+        self.assertEqual(r["href"], "")
+        self.assertEqual(r["message"], "This is too long for a mail link. Use Copy as text and paste it into an email.")
+        self.assertNotEqual(r["message"], "Write your feedback first.")
+
+    def test_copy_text_carries_the_context(self):
+        t = call("FT.copyText({kind:'Idea',message:'a'},{version:'9.9',platform:'macOS 14.5',page:'Help and about'})")
+        self.assertTrue(t.endswith("Version of clark: 9.9\nSystem: macOS 14.5\nPage: Help and about"))
+
+    def test_dialog_words(self):
+        L = call("FT.TAG_LABELS")
+        self.assertEqual(L["tag"], "Feedback")
+        self.assertEqual(L["kind"], "This is a")
+        self.assertEqual(L["addedNote"], "Nothing from your reports is included.")
+        self.assertIn("Nothing is sent by clark itself.", L["mailNote"])
+
+
 if __name__ == "__main__":
     unittest.main()
