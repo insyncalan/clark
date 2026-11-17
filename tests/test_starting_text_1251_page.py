@@ -1,0 +1,52 @@
+"""Row 1251, slice 1: Edit draws the starting text of an empty template part; View never does.
+Run: python3 dev/run_tests.py test_starting_text_1251_page
+Needs Chrome (the harness): the page tests fail, never skip, without it. Fictional data only.
+"""
+import json
+import unittest
+
+from _demo import USER
+from test_report_editor import Base
+from test_server import chrome
+
+# type, title, the words Edit shows somewhere in the section (text, placeholder or a field's empty line)
+CASES = [
+    ("text", "Fictional plain", ["Write here."]),
+    ("text", "Header", ["Say where the project stands."]),
+    ("textimage", "Fictional ti", ["Write here.", "Add a picture.", "Say what the picture shows."]),
+    ("gallery", "Fictional gal", ["Add a picture.", None]),
+    ("imagecap", "Fictional cap", ["Add a picture.", None]),
+    ("quote", "Fictional quote", ["Write what they said.", "Say who said it."]),
+    ("callout", "Fictional callout", ["Write the one thing the reader must see."]),
+    ("contacts", "Fictional contacts", ["Add a person."]),
+    ("onedoc", "Fictional doc", ["Add the file."]),
+]
+ALL = sorted({w for _, _, ws in CASES for w in ws if w})
+SEEN = "(function(sel){var s=document.querySelector(sel);if(!s)return null;var t=s.innerText+'\\n';s.querySelectorAll('[placeholder]').forEach(function(e){t+=e.getAttribute('placeholder')+'\\n'});return t})"
+
+
+class Page(Base):
+    def make(self, typ, title):
+        with self.store.step("dashboard", USER) as st:
+            return st.create("report_sections", {"project": "ABC", "type": typ, "title": title, "sort_order": 999 + len(title)})
+
+    def test_edit_draws_the_words_and_view_draws_none_of_them(self):
+        refs = [(self.make(t, ti), ws) for t, ti, ws in CASES]
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            for ref, ws in refs:
+                sel = f"[data-id={json.dumps(ref)}]"
+                p.until(f"!!document.querySelector({json.dumps(sel)})", "the section is drawn")
+                text = p.js(f"{SEEN}({json.dumps(sel)})")
+                for w in ws:
+                    if w:
+                        self.assertIn(w, text, f"{ref}: {w}")
+            p.view()
+            body = p.js("document.body.innerText + [...document.querySelectorAll('[placeholder]')].map(e => e.placeholder).join('\\n')")
+            for w in ALL:
+                self.assertNotIn(w, body, f"View shows {w!r}")
+
+
+if __name__ == "__main__":
+    unittest.main()

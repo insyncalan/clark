@@ -4,6 +4,7 @@ import { source, tidyCallout, TONES, TONE_WORDS, LIMITS } from "../../templates/
 import { Field, useSaver } from "./noteEdit.jsx";
 import { RichField } from "../RichField.jsx";
 import { wordsAsHtml, noBreaks } from "./filesEdit.js";
+import { startText } from "../startingText.js";
 
 export function Edit({ section }) {
   const saved = tidyCallout(source(section));
@@ -19,7 +20,7 @@ export function Edit({ section }) {
         <Field value={saved.title} label="Callout title" max={LIMITS.title} onCommit={(title) => write({ title })} />
       </label>
       <div class="tpl-lbl">Words
-        <RichField field="callout" empty="Click to write." id={section.id} value={wordsAsHtml(saved.html, saved.paras)} label="Callout words" save={(html) => write({ html: noBreaks(html), paras: [] })} />
+        <RichField field="callout" empty={startText("callout", "empty")} id={section.id} value={wordsAsHtml(saved.html, saved.paras)} label="Callout words" save={(html) => write({ html: noBreaks(html), paras: [] })} />
       </div>
       {!saved.title && saved.paras.length === 0 && !saved.html ? <p class="quiet">Empty for now: add a title or some words. It stays out of the published page until then.</p> : null}
     </div>

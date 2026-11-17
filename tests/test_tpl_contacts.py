@@ -37,6 +37,7 @@ class Data(n.DataChecks):
 
 class Page(n.PageChecks):
     TYPE, GOOD, HOSTILE_BODY = "contacts", GOOD, HOSTILE
+    EMPTY_LINE = "Add a person."      # row 1251: the starting text of an empty Contacts
     SHOWS = ("Sam Example", "Fictional lead", "sam@example.org", "+44 20 7946 0000", "Alex Example")
     FIELD, TYPED = "Person 1 name", "Sam Changed"
     CHANGED = lambda self, body: json.loads(body)["people"][0]["name"] == "Sam Changed"
