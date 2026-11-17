@@ -4,18 +4,10 @@
 // `getVersion`, `nav` and `clip` are seams for the tests; the page passes none of them.
 import { useEffect, useRef, useState } from "preact/hooks";
 import * as L from "../logic/feedbackTag.js";
+import { healthVersion } from "./Feedback.jsx";   // the same health check; it asks for no zone, so it is not a zoneFetch
 import { view, settingsPage, peek, fromFile } from "../stores/report.js";
 import { helpOpen, contextOpen } from "../help/helpStore.js";
 
-async function healthVersion() {
-  try {
-    const r = await fetch("/health", { cache: "no-store" });
-    const b = await r.json();
-    return b && typeof b.version === "string" ? b.version : "";
-  } catch (e) {
-    return "";
-  }
-}
 const realClip = (t) => navigator.clipboard.writeText(t);
 
 function Dialog({ ctx, onClose, clip }) {
