@@ -13,7 +13,7 @@ never stored: the three built-in figures are worked out from the rows publish ke
 reference to a work item. Fields are picked by name and an unknown one is refused. Limits are in characters, not bytes. The number of
 bespoke tiles is held to BESPOKE_MAX, the one constant the server and (later) the page read.
 
-WORDS_PENDING: every sentence below is a placeholder. The words a person reads have not been approved yet; none is invented here.
+WORDS_PENDING: every sentence without an entry in APPROVED is a placeholder. The words a person reads have not been approved yet; none is invented here.
 """
 import re
 
@@ -35,11 +35,13 @@ TILE_KEYS = ("id", "label", "figure", "tag", "note", "tone", "hidden")
 
 KEYS_OF_WORDS = ("not_object", "unknown_field", "not_bool", "bad_outline", "bad_tone", "bad_id", "dup_id", "bad_order", "too_many",
                  "label_missing", "label_long", "figure_long", "tag_long", "note_long", "bad_text", "too_long")
-WORDS_PENDING = {k: f"[words pending: {k}]" for k in KEYS_OF_WORDS}
+APPROVED = {"label_missing": "Give the tile a label.", "too_many": "You can have up to 12 tiles."}   # approved wording (mock-up group 6; group 14)
+WORDS_PENDING = {k: f"[words pending: {k}]" for k in KEYS_OF_WORDS if k not in APPROVED}
+WORDS = {**WORDS_PENDING, **APPROVED}
 
 
 def _no(key):
-    raise Bad(WORDS_PENDING[key])
+    raise Bad(WORDS[key])
 
 
 def _flag(value, default):
