@@ -845,8 +845,7 @@ class Sections(Base):
             p = self.visit(cdp)
             p.edit()
             for ref in ("ABC-S-001", "ABC-S-002", "ABC-S-004", "ABC-S-007"):
-                p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-options]').click()")
-                p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .menu')", "menu")
+                p.open_menu(ref)
                 self.assertIsNotNone(p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-act=delete]')"), f"{ref} offers Delete section too (row 906)")
                 p.key("Escape", code="Escape", vk=27)
                 p.until(f"!document.querySelector('[data-id=\"{ref}\"] .menu')", f"Escape closed the menu of {ref}")
