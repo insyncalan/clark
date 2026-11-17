@@ -4,6 +4,8 @@
 // its peek (a click, or Enter). An empty match says so here, and only here: View and the published page leave the section out.
 import { useRef, useState } from "preact/hooks";
 import { MenuPanel } from "../../components/Menu.jsx";
+import { Icon } from "../../components/Icon.jsx";
+import { columnIcon } from "../../menuIcons.js";
 import { data, openPeek, rows as reportRows, filterCtx } from "../../stores/report.js";
 import { LineBox } from "../../components/FilterLine.jsx";
 import { change, say } from "../../stores/changes.js";
@@ -106,7 +108,7 @@ export function Edit({ section }) {
     <MenuPanel label={COLUMNS_MENU} cls="cols-menu" anchor={at} fixed="start" onClose={() => setAt(null)}>
       {COLUMNS.map((c) => { const on = filter.columns.includes(c); return (
         <button key={c} type="button" role="menuitemcheckbox" aria-checked={on ? "true" : "false"} data-col-name={WORDS.columns[c]} tabIndex={-1} onClick={() => toggleColumn("columns", c)}>
-          <span class="ck" aria-hidden="true">{on ? "\u2713" : ""}</span><span class="cols-name">{WORDS.columns[c]}</span>
+          <Icon name={columnIcon(c)} cls="mi" /><span class="ck" aria-hidden="true">{on ? "\u2713" : ""}</span><span class="cols-name">{WORDS.columns[c]}</span>
         </button>); })}
     </MenuPanel>
   ) : null;
