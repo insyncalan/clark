@@ -9,3 +9,9 @@ export function richHint(section) {
   return section && section.type === "text" && Object.prototype.hasOwnProperty.call(SECTION_HINTS, section.title) ? SECTION_HINTS[section.title]
     : section && section.type === "text" ? startText(textTemplateId(section), "empty") : undefined;      // row 1251: the Text and Header and Text starting words
 }
+
+/** Row 1251: the prompts under an empty paragraph and an empty list item of a text section with a starter body (Plan summary), else null. */
+export function richPrompts(section) {
+  const id = section && section.type === "text" ? textTemplateId(section) : "";
+  return id === "plan-summary" ? { p: startText(id, "empty", 0), li: startText(id, "empty", 1) } : null;
+}

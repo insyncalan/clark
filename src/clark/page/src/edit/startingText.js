@@ -24,11 +24,12 @@ export const STARTING_TEXT = {
   "key-dates": { empty: ["No milestones to show yet."] },
   "gantt": { empty: ["No Gantt lines in the client view yet."] },
   "gantt-table": { empty: ["No Gantt lines in the client view yet."] },
+  "plan-summary": { empty: ["Write here.", "Add a step."] },      // Plan summary keeps its description; "Write here." sits under an empty paragraph, "Add a step." under an empty list item
   "current-state": { empty: ["Say where the project stands."] },      // Header and Text: its starting title is "Header" (ruled 16-11, plan issue 1262)
 };
 
-// Open decision (1251): is a part left at its starting text hidden when the report is published? Not decided. This ONE switch is where a
-// ruling lands: false is "show as written". Nothing reads a TRUE yet; the words above are never a saved body, so nothing is left at them.
+// Ruled (17-11): a part left at its starting text is hidden on publish by the existing empty-part rule. The prompts are Edit-only hints and
+// never a saved body, so nothing is left at them and nothing extra is built (this switch stays false and nothing reads it): a prompt is never in View or the published file.
 export const HIDE_STARTING_TEXT_ON_PUBLISH = false;
 
 /** The prompt for part `part` ("empty" or "caption") of template `id`; `n` picks one of several empty prompts. "" when there is none. */
@@ -41,5 +42,5 @@ export function startText(id, part = "empty", n = 0) {
 
 /** The template id of a plain text section, by its title: "Header" is Header and Text; every other text section is Text. */
 export function textTemplateId(section) {
-  return section && section.title === "Header" ? "current-state" : "text";
+  return section && section.title === "Header" ? "current-state" : section && section.title === "Plan summary" ? "plan-summary" : "text";
 }

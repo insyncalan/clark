@@ -60,6 +60,21 @@ class Page(Base):
             for w in ALL:
                 self.assertNotIn(w, body, f"View shows {w!r}")
 
+    def test_plan_summary_prompts_sit_under_the_empty_paragraph_and_list_item(self):
+        with self.store.step("dashboard", USER) as st:
+            ref = st.create("report_sections", {"project": "ABC", "type": "text", "title": "Plan summary", "sort_order": 1999,
+                                                "body": "<h2>Where we are</h2><p></p><h2>What is next</h2><ul><li></li></ul>"})
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector({json.dumps(sel)})", "the section is drawn")
+            got = p.js("(function(s){var r=document.querySelector(s);return JSON.stringify([...r.querySelectorAll('[data-tpl-prompt]')].map(function(e){return [e.tagName,e.getAttribute('data-tpl-prompt'),e.textContent]}))})(" + json.dumps(sel) + ")")
+            self.assertEqual(json.loads(got), [["P", "paragraph", "Write here."], ["LI", "item", "Add a step."]])
+            p.view()
+            body = p.js("document.body.innerText")
+            self.assertNotIn("Add a step.", body)
+
 
 if __name__ == "__main__":
     unittest.main()

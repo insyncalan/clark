@@ -23,6 +23,7 @@ WANT = {
     "callout": {"empty": ["Write the one thing the reader must see."]},
     "contacts": {"empty": ["Add a person."]},
     "one-doc": {"empty": ["Add the file."]},
+    "plan-summary": {"empty": ["Write here.", "Add a step."]},
     "current-state": {"empty": ["Say where the project stands."]},
     # slice 2
     "figures-4": {"caption": "Say what the numbers cover.", "empty": ["Pick what each number shows."]},
