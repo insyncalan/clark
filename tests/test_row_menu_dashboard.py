@@ -12,7 +12,7 @@ from clark import draft_email_feed, page, publish
 
 from test_item_rows import fill
 from test_report_editor import EMPTY_BRANDING, Pg
-from test_row_menu import right_click
+from test_row_menu import key, right_click
 from test_server import Running, chrome
 from test_work_filters import click
 import test_work_board_page as board
@@ -78,6 +78,22 @@ class DashboardRowMenu(unittest.TestCase):
                 self.open(p, "[data-type=actions] .wl-row")
                 self.close(p)
                 self.assertTrue(p.js("(() => { const a = document.activeElement; return !!a && a.matches('li.wl-row .idl'); })()"), f"focus is on the id button at {w}")
+
+    def test_the_keys_open_the_dashboard_row_menu_and_escape_returns_focus(self):
+        """Row 1296: the menu key and Shift+F10 on a focused Dashboard row open the same menu as the right click (automated, no by-eye walk)."""
+        with chrome() as cdp:
+            p = Pg.at(self, cdp, self.s.port)
+            p.ready()
+            p.edit()
+            for w in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                for name, shift in (("F10", True), ("ContextMenu", False)):
+                    p.js("document.querySelector('[data-type=actions] li.wl-row .idl').focus()")
+                    key(cdp, p.sid, name, shift=shift)
+                    p.until("!!document.querySelector('.rowmenu [role=menu]')", f"{name} opens the menu at {w}")
+                    self.assertEqual([e[1] for e in self.entries(p)][1:], WORDS[1:] + ["Delete"], f"{name} at {w}: the same entries as the right click")
+                    self.close(p)
+                    self.assertTrue(p.js("(() => { const a = document.activeElement; return !!a && a.matches('li.wl-row .idl'); })()"), f"{name} at {w}: focus is back on the id button")
 
     def test_copy_id_and_open_the_peek_work_from_the_dashboard(self):
         with chrome() as cdp:
