@@ -43,8 +43,10 @@ class FilterChipShape(unittest.TestCase):
     def test_the_chip_padding_and_cross_follow_the_mock_up(self):
         self.assertIn("padding: 0 var(--space-1) 0 9px", rule(".fchip"))
         body = rule(".fchip button")
-        self.assertIn("width: 22px", body)
-        self.assertIn("height: 22px", body)
+        self.assertIn("width: 24px", body)       # the hit box stays 24 px
+        self.assertIn("height: 24px", body)
+        self.assertIn("padding: 1px", body)      # so the cross is drawn 22 px inside it
+        self.assertIn("background-clip: content-box", body)
 
     def test_a_plain_word_chip_stays_grey(self):
         body = rule(".fchip.word")

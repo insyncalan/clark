@@ -366,7 +366,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fbtn.on::after { content: ""; position: absolute; top: 4px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--brand-blue); }
 .factive.pub { margin: 14px 0 4px; }
 .factive.pub .fchip { padding: 2px var(--space-1) 2px 9px; }
-.factive.pub .fchip button { width: 22px; height: 22px; }
+.factive.pub .fchip button { width: 24px; height: 24px; }
 /* The one filter line: saved views above, then the line with its chips, its box and its suggestions, then the hint chips. */
 :root { --layer-list: 26; --dur-glide: 160ms; }   /* row 808: the layer of a list that floats over the page: over the drop-down menus (25), under the top bar (30) */
 /* Item 955: the border every menu and floating list shares: grey-500 with a fifth of grey-700, so it is at least 3:1 against the page ground and against a card surface in light (3.4:1 and 3.7:1) and in dark (over 5:1). It was --border (grey-300), 1.46:1 to 2.09:1. It follows the theme because the two greys do. */
@@ -430,7 +430,7 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1
 .fchip.word { background: var(--grey-100); color: var(--text); }
 :root[data-theme=dark] .fchip:not(.word) { color: var(--brand-blue-strong); }   /* item 1290: in dark the brand blue is 4.18:1 on the tint, the strong blue 6.57:1 (cross follows the text) */
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .fchip:not(.word) { color: var(--brand-blue-strong); } }
-.fchip button { all: unset; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: var(--radius-sm); cursor: pointer; }
+.fchip button { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 1px; background-clip: content-box; border-radius: var(--radius-sm); cursor: pointer; }   /* item 1290: drawn 22 px (the mock-up), hit box stays 24 px */
 .fchip button:hover { background: var(--grey-200); }
 .fchip button:focus-visible { outline: 2px solid var(--brand-blue); }
 .flist { position: absolute; z-index: var(--layer-list); left: 0; margin: 4px 0 0; padding: 6px 0; list-style: none; width: min(420px, 100%); max-height: 340px; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-small); }
