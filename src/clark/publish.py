@@ -616,8 +616,9 @@ def select(inputs):
     live = {"workstream": frozenset(" ".join(str(w.get("name") or "").split()).lower() for w in d["workstreams"] if not w.get("archived")) if "workstreams" in d else None,
             "use_case": frozenset(u.get("id") for u in d["use_cases"] if not u.get("archived")) if "use_cases" in d else None,
             "gone_owner": frozenset(inputs.get("gone_owners") or ())}      # row 1113: a Work items filter naming what is gone lists nothing
-    ctx = section_bodies.Context(for_templates, as_at, live)          # #96: only what is already kept, as the file carries it
-    extra = {s["id"]: _content(s, ctx) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
+    ctx_all = section_bodies.Context(for_templates, as_at, live)          # #96: only what is already kept, as the file carries it; row 1268: a Work items list alone also sees the rows of a hidden built-in section
+    ctx = section_bodies.Context({k: ([] if k in WORK_KINDS and not rows[k] else v) for k, v in for_templates.items()}, as_at, live)      # every other template sees a hidden section's rows as gone
+    extra = {s["id"]: _content(s, ctx_all if s.get("type") == "workitems" else ctx) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
     named = {i for s in sections if s.get("type") == "workitems" and extra.get(s["id"]) for i in extra[s["id"]].get("items") or ()}
     for k in WORK_KINDS:
         if not rows[k]:
