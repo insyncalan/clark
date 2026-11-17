@@ -24,6 +24,7 @@ import { MsBlock } from "./MsBlock.jsx";
 import { emptyBody } from "../logic/emptyBody.js";
 import { Documents } from "./Documents.jsx";
 import { Tracker } from "./Tracker.jsx";
+import { calloutShape } from "../templates/notes.js";
 
 // View's text for a text or current section: cleaned HTML in the prose style, or one plain line when there is nothing to read.
 function ViewText({ html }) {
@@ -46,8 +47,9 @@ export function Section({ section, index, count, slot, anchor, tools, clean }) {
   const from = editing && dragFrom.value === section.id ? " drag-from" : "";
   const changed = isChanged(section.id);
   const tpl = templateFor(section.type);
+  const co = calloutShape(section);      // item 1272: a callout can show without its tile or its heading
   return (
-    <article class={`sec slot-${slot}${hidden ? " is-hidden" : ""}${changed ? " is-changed" : ""}${mark}${from}`}
+    <article class={`sec slot-${slot}${co && co.tile === false ? " no-tile" : ""}${co && co.heading === false ? " no-head" : ""}${hidden ? " is-hidden" : ""}${changed ? " is-changed" : ""}${mark}${from}`}
       id={anchor || anchorId(section.id)} tabIndex={-1} data-id={section.id} data-type={section.type} data-changed={changed ? "1" : undefined}>
       {editing ? <tools.Gutter section={section} count={count} /> : null}
       <header class="sec-head">
