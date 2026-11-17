@@ -8,6 +8,7 @@ and the project's data do not know about it. At 1400 and 900 px, light and dark.
 """
 import json
 import shutil
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -112,6 +113,12 @@ class Columns(unittest.TestCase):
                         self.assertIsNone(self.menu(js), "no menu until it is asked for")
                         self.right_click(cdp, sid, head % ("owner" if table == "work" else "state"))
                         self.assertTrue(wait(lambda: self.menu(js), 5), "the menu opens")
+                        # The menu slides in by a few pixels, so its box is read only once it has stopped (twice the same, 100 ms apart).
+                        seen = []
+                        def still():
+                            seen.append(self.menu(js)["rows"]); time.sleep(.1)
+                            return len(seen) > 1 and seen[-1] == seen[-2]
+                        self.assertTrue(wait(still, 5), "the menu stops moving")
                         got = self.menu(js)
                         self.assertEqual([i["name"] for i in got["items"]], every, "every column the table can show, in the table's own order")
                         for i in got["items"]:

@@ -92,7 +92,7 @@ class Grip(BrowserBase, unittest.TestCase):
                 self.assertIn("Drag the grip below the timeline to zoom", cap, width)
                 self.assertIn("drag the grip below it to zoom", label, width)
                 self.assertNotIn("bottom edge", cap + label, width)
-        help_text = (pathlib.Path(__file__).resolve().parent.parent / "src/clark/page/src/help/helpContent.json").read_text()
+        help_text = (pathlib.Path(__file__).resolve().parent.parent / "src/clark/page/src/help/helpContent.json").read_text(encoding="utf-8")
         json.loads(help_text)
         self.assertNotIn("bottom edge to zoom", help_text)
         self.assertNotIn("its bottom edge to zoom", help_text)
@@ -147,8 +147,8 @@ class ShortList(BrowserBase, unittest.TestCase):
     """A line of fewer than three milestones has nothing to spread: no grip, on the page or in a section."""
 
     def serve(self):
-        def short(code):
-            d = copy.deepcopy(self.store.data_for(code))
+        def short(code, archived="hide"):
+            d = copy.deepcopy(self.store.data_for(code, archived))
             d["milestones"] = d["milestones"][:self.COUNT]
             return d
         s = Running(data_for=short, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
@@ -171,8 +171,9 @@ class ShortList(BrowserBase, unittest.TestCase):
             with chrome() as cdp:
                 sid = self.visit(cdp, width, HASH, port)
                 self.assertEqual(cdp.js("document.querySelectorAll('[data-grip]').length", sid), 0, f"{width}: at 100% a short line has no grip")
-                cdp.js("localStorage.setItem('clark.tlZoom.page', '1.5'); true", sid)
+                cdp.js("localStorage.setItem('clark.tlZoom.page', '1.5'); window.__beforeReload = true; true", sid)
                 cdp.call("Page.reload", {}, sid)
+                self.assertTrue(wait(lambda: cdp.js("window.__beforeReload !== true", sid)), f"{width}: the page reloaded")
                 self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-mk').length", sid) == 2), f"{width}: the short line is drawn again")
                 self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-grip]').length", sid) == 1), f"{width}: the grip stays while a zoom other than 100% is stored")
                 self.assertEqual(cdp.js("document.querySelector('[data-grip]').getAttribute('aria-valuenow')", sid), "150", f"{width}: it shows the stored zoom")
