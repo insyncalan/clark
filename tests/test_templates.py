@@ -129,7 +129,7 @@ class Logic(unittest.TestCase):
             "text-image": ("A story with a picture: a site visit, a design, a screenshot of the new system.", ["Heading", "Text", "Image", "Caption"], ["full", "half"]),
             "figures-3": ("Three numbers with labels, in wider cards, so a short note fits under the change.", ["Heading", "Figure · live", "Figure · live", "Figure · typed"], ["full", "half"]),
             "figures-4": ("Three or four numbers with labels and a change since last week.", ["Heading", "Figure · live", "Figure · live", "Figure · typed", "Figure · typed", "Caption"], ["full", "half"]),
-            "raid-cards": ("The risks, actions, issues or decisions you want the reader to see, as cards.", ["Heading", "RAID card ×3", "Text source", "Text"], ["full"]),
+            "raid-cards": ("The risks, actions, issues or decisions you want the reader to see, as cards.", ["Heading", "RAID cards", "Text source", "Text"], ["full"]),
             "work-items": ("Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed.", ["Heading", "Filter (set in Edit)", "Work item list · live", "Caption (optional)"], ["full", "half"]),
             "docs-links": ("The papers that go with this week’s report.", ["Heading", "File (one or more)", "Link list"], ["full", "half"]),
             "callout": ("One thing the reader must see.", ["Heading", "Callout · decision", "Callout · category, colour, icon", "Callout · tile and heading on or off"], ["half", "full"]),

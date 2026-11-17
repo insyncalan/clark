@@ -49,7 +49,7 @@ export const TEMPLATES = [
   // Row 1270: ONE library card for the two old ones; store type raid4 (a body of version 2 carries three or four across and up to eight cards). The name
   // is the current template's; the description and the parts are the existing three-across words. Sections of type raid3 and raid4 (version 1) are untouched.
   { id: "raid-cards", name: "RAID cards", kind: "work", fit: ["full"], type: "raid4", title: "Risks and issues", body: "", ready: true,
-    description: "The risks, actions, issues or decisions you want the reader to see, as cards.", holds: ["Heading", "RAID card ×3", "Text source", "Text"] },
+    description: "The risks, actions, issues or decisions you want the reader to see, as cards.", holds: ["Heading", "RAID cards", "Text source", "Text"] },
   { id: "work-items", name: "Work items list", kind: "work", fit: ["full", "half"], type: "workitems", title: "Work items", body: "", start: bodyOf(defaults()), ready: true,
     description: "Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed.", holds: ["Heading", "Filter (set in Edit)", "Work item list · live", "Caption (optional)"] },
   { id: "docs-links", name: "Documents and links", kind: "files", fit: ["full", "half"], type: "doclinks", title: "Documents and links", body: "", ready: true,
