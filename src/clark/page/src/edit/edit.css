@@ -96,8 +96,8 @@
 .pk-fix button { min-height: 28px; padding: 3px 10px; border: 1px solid var(--status-amber); border-radius: var(--radius); background: var(--surface); color: var(--status-amber-text); font: inherit; font-size: var(--size-small); font-weight: var(--weight-medium); cursor: pointer; }
 .pk-fix button:hover { background: var(--status-amber-tint); }
 .pk-fix button:focus-visible, .pk-latest-text:focus-visible, .pk-latest-in:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.pk-latest { margin: var(--space-2) 0 0; padding-top: var(--space-2); border-top: 1px solid var(--grey-100); }
-.pk-lab { display: flex; align-items: center; gap: 10px; margin-bottom: var(--space-1); color: var(--text); font-size: var(--size-small); }
+.pk-latest { --lbox-radius: 12px; --lbox-pad-x: 14px; --lbox-min: 84px; --lbox-gap: 6px; margin: var(--space-2) 0 0; }   /* row 1257: the box below is the frame, so no rule above it. Named locals, no token fits: --lbox-radius 12 (the radius scale has 4, 8, 14) and --lbox-pad-x 14 are issue 1257 item 4 "radius 12 ... padding 12 / 14"; --lbox-min 84 is its "text area at least 84 px"; --lbox-gap 6 is the gap under the box in layout A of the approved peek mockup (the ticket gives no number) */
+.pk-lab { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-2); color: var(--heading); font-size: var(--size-caption); font-weight: 700; letter-spacing: .02em; }   /* row 1257: 13 px / 700 like the mockup; the Draft with AI button inside keeps its own 13 / 600 */
 .pk-ai { display: inline-flex; align-items: center; gap: 4px; min-height: 24px; padding: 2px 8px; border: 0; border-radius: var(--radius); background: transparent; color: var(--brand-blue); font: inherit; font-size: var(--size-caption); font-weight: 600; cursor: pointer; }
 .pk-ai:hover, .aim-opt:hover { background: var(--brand-blue-tint); }
 .pk-ai:focus-visible, .aim-opt:focus-visible, .aim-ask input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
@@ -144,10 +144,21 @@
 .pk-ms-block.pv { opacity: .55; }
 .pk-ms-block:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .pk-off { color: var(--text-muted); cursor: not-allowed; }
+/* Row 1257 (layout A of the approved peek mockup): the Latest update is ONE bordered card, the editor on top and a footer strip with the save key always shown. */
+.pk-lbox { overflow: hidden; border: 1px solid var(--grey-200); border-radius: var(--lbox-radius); background: var(--grey-50); }
+.pk-lbox:focus-within { border-color: var(--brand-blue); background: var(--surface); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-blue) 15%, transparent); }
+.pk-lbox .rt-view, .pk-lbox .rt-view:hover { display: block; box-sizing: border-box; min-height: var(--lbox-min); margin: 0; padding: var(--space-3) var(--lbox-pad-x); border: 0; border-radius: 0; background: transparent; font-size: var(--size-small); line-height: 1.45; }
+.pk-lbox .rt-view .quiet, .pk-lbox .rt-view .prose p { margin: 0; }
+.pk-lbox .rt { margin: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.pk-lbox .rt-keys { display: none; }   /* the footer strip says how to save */
+.pk-lbox .rt-host { min-height: var(--lbox-min); resize: none; }
+.pk-lbox .rt-host .ProseMirror { min-height: var(--lbox-min); box-sizing: border-box; padding: var(--space-3) var(--lbox-pad-x); font-size: var(--size-small); line-height: 1.45; }
+.pk-lfoot { display: flex; justify-content: flex-end; gap: var(--space-3); padding: var(--space-2) var(--space-3) var(--space-2) var(--lbox-pad-x); border-top: 1px solid var(--grey-200); color: var(--text-muted); font-size: 12px; }   /* 12 px, under the 13 px floor on purpose: issue 1257 v1.2 item 4 says "a footer strip inside the box: 12 px muted"; also listed in test_size_scale NOT_TEXT */
+.pk-key { display: inline-block; padding: 0 var(--space-1); border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: var(--surface); font: 600 var(--size-caption) ui-monospace, Menlo, monospace; }
 .pk-latest-hint, .pk-latest-err { margin: 4px 0 0; font-size: var(--size-small); }
 .pk-latest-hint { color: var(--text-muted); }
 .pk-latest-err { color: var(--status-red-text); }
-.pk-last { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: var(--space-1); color: var(--text-muted); font-size: var(--size-small); }
+.pk-last { display: flex; align-items: center; justify-content: flex-end; margin-top: var(--lbox-gap); color: var(--text-muted); font-size: 12px; }   /* row 1257: 12 px, under the 13 px floor on purpose (issue 1257 item 4: "last updated dd-mm-yyyy hh:mm under the box, 12 px muted, right-aligned, no icon"; listed in test_size_scale NOT_TEXT), 6 px under the box, no icon, lowercase words */
 /* Issue 1016: the four cells of the peek card are a step shorter above and below and a step closer together (Edit only: the published page keeps shell.css's own). */
 .peek .pk-body:has(.wordsbox) { overflow: visible; }   /* row 1077: with the words box open the peek itself scrolls, so the foot band (.wordsbox, sticky) pins to the peek's bottom edge */
 .peek .wordsbox { bottom: var(--space-2); margin: calc(var(--space-4) + var(--space-1)) calc(-1 * var(--space-5)) calc(-1 * var(--space-5)); padding: var(--space-3) var(--space-5); border: 0; border-top: 1px solid var(--grey-200); border-radius: 0; background: var(--grey-50); box-shadow: none; }   /* row 1077 (the owner's ruling, flat): in the peek it is a foot band the full width of the panel, pinned to its bottom edge while the body scrolls (the peek scrolls; edit.css lets the body show through), a hairline above and a light tint */
@@ -660,14 +671,12 @@ textarea.tpl-field { resize: vertical; }
 .wil-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px var(--space-4); margin: var(--space-1) 0 10px; padding: var(--space-3) 14px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--grey-50); }
 .wil-form > .wil-more { grid-column: 1 / -1; }   /* row 1113: the tick boxes fold inside the one form block; Sort by, Most rows and Columns stay in it; the Caption box moved under the list (wish 2) */
 .wil-form-in { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px var(--space-4); margin: var(--space-1) 0 0; }
+/* Row 1268: the Add + at the right end, a dashed square as the one on Work items (the approved mock-up) */
+.wil-add { flex: none; display: flex; justify-content: flex-end; margin: 0 0 var(--space-1) auto; }   /* at the right end of the saved-views row (ticket 1268) */
+.wil-add .newb { border-style: dashed; }
 .wil-line { display: grid; gap: var(--space-1); margin: var(--space-1) 0 var(--space-2); }
-.wil-linef input { width: 100%; box-sizing: border-box; }
 .wil-line p { margin: 0; }
-.wil-chips { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); margin: 0; padding: 0; list-style: none; }
-.wil-chip { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 28px; padding: 0 0 0 10px; border: 1px solid var(--grey-300); border-radius: 14px; background: var(--grey-50); color: var(--text); font-size: var(--size-small); }
-.wil-chip button { min-width: 28px; min-height: 28px; border: 0; border-radius: 14px; background: transparent; color: var(--text); font: inherit; cursor: pointer; }
-.wil-chip button:hover { background: var(--grey-100); }
-.wil-chip button:focus-visible, .wil-more summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.wil-more summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .wil-more summary { min-height: 28px; display: flex; align-items: center; cursor: pointer; color: var(--text); font-size: var(--size-small); }
 .wil-f { min-width: 0; margin: 0; padding: 0; border: 0; }
 .wil-f legend { padding: 0; margin-bottom: var(--space-1); font-size: var(--size-caption); color: var(--text-muted); font-weight: var(--weight-medium); }
@@ -676,8 +685,18 @@ textarea.tpl-field { resize: vertical; }
 .wil-opts input:focus-visible, .wil-sel select:focus-visible, .wil-sel input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .wil-sel { display: grid; gap: var(--space-1); align-content: start; min-width: 0; }
 .wil-sel span { font-size: var(--size-caption); color: var(--text-muted); font-weight: var(--weight-medium); }
-.wil-sel select, .wil-sel input { min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-small); }
-.wil-capbox { margin: var(--space-2) 0 0; }
+.wil-sel select, .wil-sel input { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-small); }
+/* row 1268: the gear and its Configure box (Sort by, Most rows, Columns), as the approved mock-up draws them. Tokens only. */
+.wil-cw { position: relative; grid-column: 1 / -1; display: flex; justify-content: flex-end; }
+.wil-gear { display: inline-flex; align-items: center; justify-content: center; min-width: calc(var(--space-6) + var(--space-1)); min-height: calc(var(--space-6) + var(--space-1)); border: 1px solid var(--grey-300); border-radius: 50%; background: var(--surface); color: var(--text); cursor: pointer; }
+.wil-gear:hover, .wil-gear[aria-expanded=true] { background: var(--grey-100); }
+.wil-gear:focus-visible, .wil-cacts button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.wil-cfg { position: absolute; right: 0; top: calc(100% + var(--space-1)); z-index: 20; width: min(calc(var(--space-4) * 20), 100%); box-sizing: border-box; display: grid; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+.wil-cfg[hidden] { display: none; }
+.wil-cfg h4 { margin: 0; font-size: var(--size-body); }
+.wil-cfg .wil-opts { display: grid; grid-template-columns: 1fr 1fr; }
+.wil-cacts { display: flex; justify-content: flex-end; }
+.wil-cacts button { min-height: calc(var(--space-6) + var(--space-1)); padding: 0 var(--space-4); border: 0; border-radius: var(--radius-pill); background: var(--grey-100); color: var(--text); font: inherit; font-weight: var(--weight-medium); cursor: pointer; }
 .wil-none { margin: var(--space-2) 0; padding: 10px var(--space-3); border: 1px dashed var(--grey-300); border-radius: var(--radius); color: var(--text); font-size: var(--size-small); }
 .wil-live tbody tr, .wil-live li { cursor: pointer; }
 .wil-table .wil-c-eye { width: 44px; padding-left: 0; padding-right: 0; text-align: center; }   /* row 1113: the Work items page eye, at the end of each row */
@@ -1441,6 +1460,14 @@ table.items .c-x-id, table.items .c-x-type { width: 100px; }
 
 .ucm-seg { display: inline-flex; gap: var(--space-2); }
 .ucm-seg .pk-btn[aria-pressed="true"] { font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+/* Row 1268: the saved-view tabs of the Work items list (Edit only). */
+.wil-views { margin: 0 0 var(--space-2); }
+.wil-vopts { position: relative; display: inline-block; }
+.wil-vopts > summary { list-style: none; cursor: pointer; min-width: var(--space-5); min-height: calc(var(--space-5) + var(--space-1)); display: inline-flex; align-items: center; justify-content: center; color: var(--text-muted); }
+.wil-vopts > summary::-webkit-details-marker { display: none; }
+.wil-vopts > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.wil-vopts-in { position: absolute; z-index: 5; top: 100%; left: 0; display: grid; min-width: calc(var(--space-8) * 3); padding: var(--space-1); border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); }
+.wil-vopts-in .link { text-align: left; min-height: calc(var(--space-5) + var(--space-1)); padding: 0 var(--space-2); }
 
 /* Row 1258 (v1.1.1), the peeks to the approved mockups, step 3: the title and the tabs as peek-mockup.html layout A draws them (h2.ti, .tabs).
    The title is Inter 24/700 with -.015em, and its in-place box carries a 2 px ring (a shadow, no border); the tabs are 14/600, 40 px high, with an ink underline. */

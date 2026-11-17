@@ -323,10 +323,12 @@ def brand_picture_of(name, brand_id=None):
     return None if folder is brands.GENERIC else brand_picture(name, folder)
 
 
-def page_html(branding=None, view=False, brand_id=None):
+def page_html(branding=None, view=False, brand_id=None, theme=None):
     """The page, with the user's own brand tokens layered over the demo ones when they exist. view=True gives the published
     page (page-view.html) in place of the served one. item 1154: `brand_id` is the installed brand's id (None: the one brand folder);
-    the served page gets --image-logo from that brand's assets/logo.png when it has one, and the published page never does."""
+    the served page gets --image-logo from that brand's assets/logo.png when it has one, and the published page never does.
+    row 1260: `theme` is the name of a Theme (clark.theme); None, or a name that is not a Theme, is today's look and the page is byte for
+    byte what it was. A Theme is layered between the committed tokens and the brand."""
     ensure_built()
     html = (VIEW_PAGE if view else PAGE).read_text(encoding="utf-8")
     if not view:
@@ -335,7 +337,11 @@ def page_html(branding=None, view=False, brand_id=None):
             html = html.replace("<html", '<html data-container="1"', 1)
     css = local_tokens(branding)
     logo = None if view or css is None or brand_picture("logo.png", branding) is None else logo_url(brand_id)
-    return layer_brand(html, css, logo)
+    html = layer_brand(html, css, logo)
+    if theme is not None:
+        from clark import theme as themes      # here, not at the top: clark.theme imports this module
+        return layer_theme(html, themes.css(theme))
+    return html
 
 
 # Row 1023: the brand's page background picture, on every page of the app and of the published file. It is drawn from the
@@ -373,3 +379,12 @@ def layer_brand(html, css, logo=None):
     extra = BACKDROP_CSS if HAS_PICTURE.search(css) else ""
     i = after_demo_block(html)
     return html[:i] + f'\n<style id="brand-local">\n{CLIENT_BRAND}{css}\n{extra}</style>' + html[i:]
+
+
+def layer_theme(html, css):
+    """`html` with a Theme's CSS (already comment-free and style-safe, or None) in <style id="theme"> straight after the demo block, so
+    it sits before the brand's block and a Brand that sets a token wins over the Theme (row 1260)."""
+    if css is None:
+        return html
+    i = after_demo_block(html)
+    return html[:i] + f'\n<style id="theme">\n{css}\n</style>' + html[i:]

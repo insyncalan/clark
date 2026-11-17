@@ -388,7 +388,7 @@ class Flat(Peeks):
                 self.assertTrue(over, "the pointer is over it | " + json.dumps(tries))
                 hover = cdp.js(look, sid)
                 self.assertEqual((hover[0], hover[2]), ("none", "0px"), "under the pointer, no box: " + str(hover))
-                self.assertEqual(hover[3], cdp.js(f"{PROBE}('--grey-50')", sid), "a quiet tint says it can be edited: " + str(hover))
+                self.assertEqual(hover[3], "rgba(0, 0, 0, 0)", "row 1257: the card around the text is what says it can be edited, the text takes no tint of its own: " + str(hover))
 
     def test_the_words_box_placeholder_reads_at_4_5_to_1_in_light_and_dark(self):
         """The browser's default placeholder colour was 3.14:1 in dark: the input's placeholder uses the muted text token."""

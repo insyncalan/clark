@@ -337,14 +337,26 @@ class PageSide(unittest.TestCase):
         self.assertTrue(all(p["view"] == "function" and p["isEmpty"] == "function" for p in self.val("T.parts").values()))
         cat = self.val("T.templates.CATALOGUE")
         cat_types = [x["type"] for x in cat if x["type"] not in ("text",) + PAGE_FIRST and not x.get("start")]
+        # row 1268: the Work items list has no entry without a start (its start is the saved filter it begins from), so it counts here by that one entry
+        cat_types += [x["type"] for x in cat if x.get("start") and x["type"] == "workitems"]
         self.assertEqual(sorted(cat_types), sorted(types), "one catalogue entry per template type")
-        self.assertEqual([(x["id"], x["type"], x["start"]) for x in cat if x.get("start")], [("full-image", "imagecap", '{"v":2}')],
+        self.assertEqual([(x["id"], x["type"], x["start"]) for x in cat if x.get("start") and x["type"] != "workitems"], [("full-image", "imagecap", '{"v":2}')],
                          "row 1223: Full width image is the same store type as Image with caption, started with a version 2 body; no type of its own")
         self.assertEqual([x["type"] for x in cat if x["type"] == "text"], ["text", "text", "text"], "Text, Current state and Plan summary (all the type text), in the catalogue's order; item 1158: no Needs from you")
         self.assertEqual(len({x["id"] for x in cat}), len(cat))
         self.assertEqual(self.val("T.templates.TEMPLATES.length + T.templates.LATER.length"), len(cat))
         self.assertTrue(set(store_module.SECTION_TYPES) >= set(x["type"] for x in cat if x["type"] not in PAGE_FIRST))
 
+
+    def test_the_work_items_catalogue_entry_is_the_one_entry_with_its_saved_filter_as_the_start(self):
+        """Row 1268: the Work items list is in the catalogue once, as "work-items", and its start is the saved filter (a version 1 body, open items, with columns) it begins from."""
+        cat = self.val("T.templates.CATALOGUE")
+        wi = [x for x in cat if x["type"] == "workitems"]
+        self.assertEqual([x["id"] for x in wi], ["work-items"])
+        body = json.loads(wi[0].get("start") or "null")
+        self.assertIsInstance(body, dict, "the entry starts from a saved filter")
+        self.assertEqual((body.get("v"), body.get("mode")), (1, "open"))
+        self.assertTrue(body.get("columns"), "the filter names its columns")
     def test_every_template_view_file_and_edit_file_is_there_and_pre_filled(self):
         for t in section_kinds.TYPES:
             self.assertIn(f'store type "{t}"', "".join(p.read_text(encoding="utf-8") for p in (PAGE_SRC / "templates").glob("*.jsx")))
