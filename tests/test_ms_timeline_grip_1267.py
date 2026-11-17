@@ -1,12 +1,15 @@
-"""Row 1267: the Timeline's height grip sits on the centre of the bottom edge (not the browser's corner handle), and drags and keys zoom the line.
+"""Row 1267: the Timeline's height grip sits on the centre of the bottom edge (not the browser's corner handle), drags and keys zoom the line, and a short list has no grip.
 
 Run: python3 dev/run_tests.py test_ms_timeline_grip_1267
 Chrome launches at 1400 and 900 px.
 """
+import copy
+import tempfile
 import unittest
 
+from clark import page
 from test_milestones_page import BrowserBase
-from test_server import chrome, wait
+from test_server import Running, chrome, wait
 
 HASH = "#milestones&p=TUL"
 GEO = """(() => { const w = document.querySelector('.mv-wrap').getBoundingClientRect(), g = document.querySelector('[data-grip]').getBoundingClientRect();
@@ -38,23 +41,30 @@ class Grip(BrowserBase, unittest.TestCase):
                 got = cdp.js("(() => { const g = document.querySelector('[data-grip]'); return [g.getAttribute('role'), g.getAttribute('aria-label'), g.getAttribute('aria-valuenow'), g.getAttribute('aria-valuetext'), g.tabIndex]; })()", sid)
                 self.assertEqual(got, ["slider", "Timeline height", "100", "zoom 100%", 0], width)
 
-    def test_arrow_keys_step_the_zoom_home_resets_and_the_ends_hold(self):
+    def test_slider_keys_up_and_right_raise_down_and_left_lower_home_is_the_least_end_the_most(self):
         port = self.serve()
         for width in (1400, 900):
             with chrome() as cdp:
                 sid = self.visit(cdp, width, HASH, port)
-                self.press(cdp, sid, "ArrowDown")
-                self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "110"), f"{width}: one step bigger")
+                now = "document.querySelector('[data-grip]').getAttribute('aria-valuenow')"
+                self.assertEqual(cdp.js("[document.querySelector('[data-grip]').getAttribute('aria-valuemin'), document.querySelector('[data-grip]').getAttribute('aria-valuemax')]", sid), ["70", "300"])
+                self.press(cdp, sid, "ArrowUp")
+                self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "110"), f"{width}: Up is one step more")
+                self.assertEqual(cdp.js(now, sid), "110")
                 self.assertEqual(cdp.js("document.querySelector('[data-grip]').getAttribute('aria-valuetext')", sid), "zoom 110%")
                 self.assertEqual(cdp.js("document.querySelector('[data-grip]') === document.activeElement", sid), True, f"{width}: focus stays on the grip")
-                self.press(cdp, sid, "ArrowUp"); self.press(cdp, sid, "ArrowUp")
-                self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "90"), f"{width}: two steps smaller")
+                self.press(cdp, sid, "ArrowRight")
+                self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "120"), f"{width}: Right is one step more")
+                self.press(cdp, sid, "ArrowDown"); self.press(cdp, sid, "ArrowLeft"); self.press(cdp, sid, "ArrowDown")
+                self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "90"), f"{width}: Down and Left are one step less each")
                 self.assertEqual(cdp.js("localStorage.getItem('clark.tlZoom.page')", sid), "0.9", f"{width}: remembered")
-                for _ in range(5):
-                    self.press(cdp, sid, "ArrowUp")
-                self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "70"), f"{width}: stops at 70")
+                self.press(cdp, sid, "End")
+                self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "300"), f"{width}: End is the most")
+                self.assertEqual(cdp.js(now, sid), "300")
                 self.press(cdp, sid, "Home")
-                self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "100"), f"{width}: Home resets")
+                self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "70"), f"{width}: Home is the least")
+                self.assertEqual(cdp.js(now, sid), "70")
+                self.assertEqual(cdp.js("(() => { const e = new KeyboardEvent('keydown', {key: 'a', bubbles: true, cancelable: true}); document.querySelector('[data-grip]').dispatchEvent(e); return e.defaultPrevented; })()", sid), False, f"{width}: other keys are left alone")
 
     def test_dragging_the_grip_down_zooms_and_is_remembered(self):
         port = self.serve()
@@ -94,24 +104,47 @@ class Grip(BrowserBase, unittest.TestCase):
             with chrome() as cdp:
                 sid = self.visit(cdp, width, HASH, port)
                 for _ in range(12):
-                    self.press(cdp, sid, "ArrowUp")
+                    self.press(cdp, sid, "ArrowDown")
                 self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "70"), f"{width}: floor")
                 cdp.js("new Promise((r) => setTimeout(r, 400))", sid)
                 self.assertEqual(cdp.js(PCT, sid), "70", f"{width}: the floor holds after settling")
                 self.assertEqual(cdp.js("document.querySelector('[data-grip]').getAttribute('aria-valuenow')", sid), "70")
                 for _ in range(30):
-                    self.press(cdp, sid, "ArrowDown")
+                    self.press(cdp, sid, "ArrowUp")
                 self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "300"), f"{width}: ceiling")
                 cdp.js("new Promise((r) => setTimeout(r, 400))", sid)
                 self.assertEqual(cdp.js(PCT, sid), "300", f"{width}: the ceiling holds after settling")
                 self.assertEqual(cdp.js("localStorage.getItem('clark.tlZoom.page')", sid), "3", f"{width}: ceiling remembered")
                 self.press(cdp, sid, "Home")
-                self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "100"), f"{width}: Home resets")
-                self.assertEqual(cdp.js("localStorage.getItem('clark.tlZoom.page')", sid), "1", f"{width}: Home remembered")
+                self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "70"), f"{width}: Home is the least")
+                self.assertEqual(cdp.js("localStorage.getItem('clark.tlZoom.page')", sid), "0.7", f"{width}: Home remembered")
+                cdp.js("document.querySelector('[data-zreset]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "100"), f"{width}: Reset puts it back")
                 self.assertNotEqual(cdp.js("getComputedStyle(document.querySelector('[data-grip]')).display", sid), "none", f"{width}: shown on screen")
                 cdp.js("document.documentElement.classList.add('print-all')", sid)
                 cdp.call("Emulation.setEmulatedMedia", {"media": "print"}, sid)
                 self.assertEqual(cdp.js("getComputedStyle(document.querySelector('[data-grip]')).display", sid), "none", f"{width}: left off the paper")
+
+
+class ShortList(BrowserBase, unittest.TestCase):
+    """A line of fewer than three milestones has nothing to spread: no grip, on the page or in a section."""
+
+    def serve(self):
+        def short(code):
+            d = copy.deepcopy(self.store.data_for(code))
+            d["milestones"] = d["milestones"][:2]
+            return d
+        s = Running(data_for=short, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        self.addCleanup(s.close)
+        return s.port
+
+    def test_two_milestones_draw_the_line_and_no_grip(self):
+        port = self.serve()
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width, HASH, port)
+                self.assertEqual(cdp.js("document.querySelectorAll('.mv-mk').length", sid), 2, f"{width}: the line is drawn")
+                self.assertEqual(cdp.js("document.querySelectorAll('[data-grip]').length", sid), 0, f"{width}: no useless grip")
 
 
 if __name__ == "__main__":

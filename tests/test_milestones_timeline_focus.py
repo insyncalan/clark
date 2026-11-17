@@ -14,7 +14,7 @@ class TimelineFocus(BrowserBase, unittest.TestCase):
         for width in (1400, 900):
             with chrome() as cdp:
                 sid = self.visit(cdp, width, "#milestones&p=TUL", port)
-                cdp.js("(() => { const g = document.querySelector('[data-grip]'); g.focus(); g.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowDown', bubbles: true, cancelable: true})); })()", sid)   # row 1267: the grip, not the browser's corner handle, sets the zoom
+                cdp.js("(() => { const g = document.querySelector('[data-grip]'); g.focus(); g.dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowUp', bubbles: true, cancelable: true})); })()", sid)   # row 1267: the grip, not the browser's corner handle, sets the zoom
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-zreset]')", sid)))
                 cdp.js("document.querySelector('[data-zreset]').focus()", sid)
                 cdp.js("document.querySelector('[data-zreset]').click()", sid)

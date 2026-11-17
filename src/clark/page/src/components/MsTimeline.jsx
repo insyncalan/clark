@@ -7,7 +7,7 @@ import { Fragment } from "preact";
 import { useRef, useEffect, useLayoutEffect, useState } from "preact/hooks";
 import { MsMark } from "./MsMark.jsx";
 import { Icon } from "./Icon.jsx";
-import { showDate, timelineSpan, monthStarts, clampZoom, labelLines, tierLabels, addDays, farRows, FAR_NOTE, MONTHS } from "../logic/milestones.js";
+import { showDate, timelineSpan, monthStarts, clampZoom, ZOOM_MIN, ZOOM_MAX, labelLines, tierLabels, addDays, farRows, FAR_NOTE, MONTHS } from "../logic/milestones.js";
 import { dayNumber } from "../workItems.js";
 import { recall, remember } from "../logic/remember.js";
 import { printing } from "../stores/print.js";
@@ -24,6 +24,7 @@ const PRINT_TAIL = 60;                          // on paper a month name that wo
 const LY0 = 50, T00 = 64, LANE = 24, GAP = 8;   // the line, the first label lane and each lane's height never shrink: a label is always readable
 
 const LH = 38, TGAP = 10, LEAD = 12, SIDE = 24, CAPROOM = 30;   // row 1230 (the Dashboard section): a two-line label's height, the space between tiers, a leader's first stretch, the label's distance from the line, room under the lowest label for the caption
+const GRIP_MIN = 3;         // fewer drawn milestones than this: the zoom grip is left off
 const MONTH_ROOM = 70;      // px a month name needs to the right of its line (the longest, "Sep 2029", is about 62)
 
 export function MsTimeline({ rows: all, today, place, open, client }) {
@@ -132,13 +133,17 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
     if (Math.abs(d.last - 1) < 0.005 && z === 1 && d.last === 1) return;
     remember(`tlZoom.${place}`, d.last);
   };
-  const gripKey = (e) => {
+  const gripKey = (e) => {                          // a slider's keys: Up and Right raise the value, Down and Left lower it, Home is the lowest, End the highest
     const k = e.key;
-    if (k === "ArrowDown" || k === "ArrowUp") zoomTo(clampZoom(Math.round((z + (k === "ArrowDown" ? 0.1 : -0.1)) * 100) / 100), true);   // down grows the line, as dragging down does
-    else if (k === "Home") zoomTo(1, true);
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    if (k === "ArrowUp" || k === "ArrowRight") zoomTo(clampZoom(Math.round((z + 0.1) * 100) / 100), true);
+    else if (k === "ArrowDown" || k === "ArrowLeft") zoomTo(clampZoom(Math.round((z - 0.1) * 100) / 100), true);
+    else if (k === "Home") zoomTo(ZOOM_MIN, true);
+    else if (k === "End") zoomTo(ZOOM_MAX, true);
     else return;
     e.preventDefault();
   };
+  const useful = labs.length >= GRIP_MIN || zoom !== 1;   // a line of one or two milestones has nothing to spread: no grip (it stays while a zoom is set, so it can be put back)
 
   const reset = () => { centre.current = (wrap.current.scrollLeft + wrap.current.clientWidth / 2) / (wrap.current.scrollWidth || 1); remember(`tlZoom.${place}`, 1); setZoom(1); wrap.current.focus({ preventScroll: true }); };   // the Reset button goes with the zoom: focus stays on the line, not the page
   const step = (k) => { const w = wrap.current; if (w) w.scrollBy({ left: k * 30 * PXD[scale] * z, behavior: reduced() ? "auto" : "smooth" }); };
@@ -204,7 +209,7 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
             </Tag>))}
         </div>
       </div>
-      {fit ? null : <div class="mv-grip" data-grip role="slider" tabindex="0" aria-orientation="vertical" aria-label="Timeline height" aria-valuemin={70} aria-valuemax={300} aria-valuenow={Math.round(z * 100)} aria-valuetext={`zoom ${Math.round(z * 100)}%`}
+      {fit || !useful ? null : <div class="mv-grip" data-grip role="slider" tabindex="0" aria-orientation="vertical" aria-label="Timeline height" aria-valuemin={Math.round(ZOOM_MIN * 100)} aria-valuemax={Math.round(ZOOM_MAX * 100)} aria-valuenow={Math.round(z * 100)} aria-valuetext={`zoom ${Math.round(z * 100)}%`}
         onKeyDown={gripKey} onPointerDown={gripDown} onPointerMove={gripMove} onPointerUp={gripUp} onPointerCancel={gripUp}><span aria-hidden="true" /></div>}
       {R2 ? zoomNote : null}
       </div>
