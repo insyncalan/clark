@@ -395,6 +395,8 @@ html.vdragging, html.vdragging * { cursor: grabbing !important; user-select: non
 .vtab[aria-pressed="true"] em { color: var(--text); }
 .fdot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand-blue); flex: none; }
 .vform { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; flex: 1 1 100%; font-size: var(--size-small); }
+.fviews { position: relative; }
+.vform.vask { position: absolute; top: 100%; left: 0; z-index: 5; flex: none; max-width: 100%; box-sizing: border-box; padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); box-shadow: var(--shadow); }   /* row 1265: drawn over the line, never pushes the page, so a click that took the focus away still lands */
 .vform input { box-sizing: border-box; min-height: calc(var(--space-6) - var(--space-1)); padding: 2px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font-size: var(--size-small); }
 .vform input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .vmsg { color: var(--status-red-text); }
