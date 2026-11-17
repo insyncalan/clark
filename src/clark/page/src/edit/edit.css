@@ -674,7 +674,7 @@ textarea.tpl-field { resize: vertical; }
 .wil-opts input:focus-visible, .wil-sel select:focus-visible, .wil-sel input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .wil-sel { display: grid; gap: var(--space-1); align-content: start; min-width: 0; }
 .wil-sel span { font-size: var(--size-caption); color: var(--text-muted); font-weight: var(--weight-medium); }
-.wil-sel select, .wil-sel input { min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-small); }
+.wil-sel select, .wil-sel input { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-small); }
 /* row 1268: the gear and its Configure box (Sort by, Most rows, Columns), as the approved mock-up draws them. Tokens only. */
 .wil-cw { position: relative; grid-column: 1 / -1; display: flex; justify-content: flex-end; }
 .wil-gear { display: inline-flex; align-items: center; justify-content: center; min-width: calc(var(--space-6) + var(--space-1)); min-height: calc(var(--space-6) + var(--space-1)); border: 1px solid var(--grey-300); border-radius: 50%; background: var(--surface); color: var(--text); cursor: pointer; }
