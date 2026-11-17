@@ -8,7 +8,7 @@
   and a hidden section leave the section out of the file. Planted markers are absent from the file's bytes.
 - The page's rules and section_kinds/workitems.py choose the same ids, in the same order, over the same rows.
 - In a real browser: View shows the rows the client sees (and leaves the section out when nothing matches); Edit saves each
-  committed choice as one step and says when nothing matches; rows open their peek in Edit only; full width draws the table and
+  committed choice as one step and says when nothing matches; rows open their peek (read only outside Edit); full width draws the table and
   half width the two-line rows; 1400 and 900 px, light and dark, no sideways scroll; the published file draws from its own data.
 
 Run: python3 dev/run_tests.py test_tpl_workitems
@@ -117,8 +117,11 @@ ROWS = {
         {"id": "ABC-003", "type": "Dependency", "status": "Closed", "owner": None, "workstream": "Run", "use_case": None, "priority": "Low", "due_date": "2030-01-01"},
     ],
     "decisions": [
-        {"id": "ABC-D-001", "status": "Pending", "made_by": "Pat Demo", "use_case": None, "needed_by": "2030-01-16", "date": None},
-        {"id": "ABC-D-002", "status": "Made", "made_by": "Lee Demo", "use_case": "ABC-U-001", "needed_by": "2030-01-01", "date": "2030-01-05"},
+        {"id": "ABC-D-001", "status": "Pending", "made_by": "Pat Demo", "use_case": None, "needed_by": "2030-01-16", "date": None, "priority": "High"},
+        {"id": "ABC-D-002", "status": "Made", "made_by": "Lee Demo", "use_case": "ABC-U-001", "needed_by": "2030-01-01", "date": "2030-01-05", "priority": "Low"},
+        {"id": "ABC-D-003", "status": "Made", "made_by": "Lee Demo", "use_case": None, "needed_by": None, "date": "2029-12-31", "priority": "Medium"},      # row 1268: 15 days ago, out of "current"
+        {"id": "ABC-D-004", "status": "Made", "made_by": "Lee Demo", "use_case": None, "needed_by": None, "date": "2030-01-01", "priority": "Urgent"},      # 14 days ago, the last day in
+        {"id": "ABC-D-005", "status": "Made", "made_by": "Lee Demo", "use_case": None, "needed_by": None, "date": "2030-01-16", "priority": "Urgent"},      # tomorrow: not yet
     ],
 }
 ROWS["milestones"] = [{"id": "ABC-M-001", "name": "Go live"}, {"id": "ABC-M-002", "name": "Pilot"}]
@@ -132,7 +135,7 @@ ROWS["decisions"][0]["decision"] = "Pick the vendor"
 LEFT = [{"not": {"owner": ["Pat Demo"]}}, {"milestone": ["go LIVE"]}, {"milestone": ["(none)"]}, {"has": [["owner"]]}, {"no": [["due"]]},
         {"text": ["supplier"]}, {"text": ["abc-00"]}, {"not": {"due": ["overdue"]}}, {"has": [["owner", "due"]], "mode": "all"},
         {"no": [["owner", "milestone"]]}, {"not": {"kinds": ["risk", "issue"], "milestone": ["Pilot"]}}, {"text": ["second wave", "plan"]}]
-FILTERS = [{}, {"mode": "all"}, {"mode": "closed"}, {"kinds": ["risk", "issue"]}, {"kinds": ["decision"], "mode": "all"},
+FILTERS = [{}, {"mode": "current"}, {"mode": "current", "kinds": ["decision"]}, {"mode": "all"}, {"mode": "closed"}, {"kinds": ["risk", "issue"]}, {"kinds": ["decision"], "mode": "all"},
            {"due": ["overdue"]}, {"due": ["soon", "none"]}, {"due": ["later"], "mode": "all"}, {"owner": ["Pat Demo"]},
            {"owner": ["(none)"], "mode": "all"}, {"workstream": ["Build", "(none)"]}, {"use_case": ["ABC-U-001"], "mode": "all"},
            {"priority": ["Urgent", "High"]}, {"priority": ["(none)"], "mode": "all"}, {"status": ["Delayed", "Pending"]},
@@ -238,6 +241,25 @@ class PageRules(unittest.TestCase):
                 page = self.val(f"W.matching(W.filterOf({{body: {json.dumps(body)}}}), W.ruleRows({json.dumps(ROWS)}), {json.dumps(TODAY)})")
                 self.assertEqual(page, want)
 
+    def test_current_lists_open_rows_and_a_decision_made_in_the_last_14_days(self):      # row 1268, item 4
+        got = wi.matching(check({"mode": "current", "kinds": ["decision"], "max": 50}), wi.rows_of(ROWS), TODAY)
+        self.assertEqual(sorted(got), ["ABC-D-001", "ABC-D-002", "ABC-D-004"])
+        page = self.val(f"W.matching(W.filterOf({{body: {json.dumps(stored({'mode': 'current', 'kinds': ['decision'], 'max': 50}))}}}), W.ruleRows({json.dumps(ROWS)}), {json.dumps(TODAY)}).sort()")
+        self.assertEqual(page, ["ABC-D-001", "ABC-D-002", "ABC-D-004"])
+
+    def test_current_counts_a_decision_made_today_and_ignores_a_made_row_that_is_not_a_decision(self):      # row 1268, item 4: the survivors of the mutation pass
+        rows = dict(ROWS, decisions=[{"id": "ABC-D-010", "status": "Made", "made_by": "Lee Demo", "use_case": None, "needed_by": None, "date": TODAY, "priority": None}],
+                    raid=[{"id": "ABC-010", "type": "Risk", "status": "Made", "owner": None, "workstream": None, "use_case": None, "priority": "Low", "due_date": TODAY}])
+        for kinds, want in ((["decision"], ["ABC-D-010"]), (["risk"], [])):
+            body = stored({"mode": "current", "kinds": kinds, "max": 50})
+            self.assertEqual(sorted(wi.matching(check({"mode": "current", "kinds": kinds, "max": 50}), wi.rows_of(rows), TODAY)), want)
+            page = self.val(f"W.matching(W.filterOf({{body: {json.dumps(body)}}}), W.ruleRows({json.dumps(rows)}), {json.dumps(TODAY)}).sort()")
+            self.assertEqual(page, want)
+
+    def test_a_decision_has_no_priority_in_the_rules_as_on_the_work_items_page(self):      # row 1268, item 8: the cell shows the peek's priority, the filter and sort still read none
+        got = wi.matching(check({"mode": "all", "kinds": ["decision"], "priority": ["Urgent"], "max": 50}), wi.rows_of(ROWS), TODAY)
+        self.assertEqual(got, [])
+
     def test_a_name_that_is_gone_matches_nothing_and_the_page_and_publish_agree(self):
         every = lambda f: wi.matching(check(f), wi.rows_of(ROWS), TODAY)
         for f, lv, plive, want in (
@@ -310,8 +332,8 @@ class PageRules(unittest.TestCase):
         self.assertEqual(self.val(f"W.listOf({{type: 'workitems', body: {body}}}, {json.dumps(data)}, {json.dumps(TODAY)}).items"),
                          ["ABC-A-003", "ABC-A-006"], "an eye-hidden id is left out when the data carries it")
         data["report_sections"] = [{"id": "ABC-S-001", "type": "actions", "hidden": 1}]
-        self.assertEqual(self.val(f"W.listOf({{type: 'workitems', body: {body}}}, {json.dumps(data)}, {json.dumps(TODAY)}).items"), [],
-                         "a hidden Actions section leaves every action out")
+        self.assertEqual(self.val(f"W.listOf({{type: 'workitems', body: {body}}}, {json.dumps(data)}, {json.dumps(TODAY)}).items"), ["ABC-A-003", "ABC-A-006"],
+                         "row 1268: a hidden Actions section does not stop a list printing the actions it names")
         self.assertEqual(self.val(f"W.listOf({{type: 'workitems', body: ''}}, {json.dumps(data)}, {json.dumps(TODAY)})")["saved"], False)
 
     def test_the_served_page_reads_the_name_of_a_published_milestone_only(self):
@@ -472,12 +494,85 @@ class Saved(Api):
         self.ok(changes.UPDATE, id=self.ref, changes={"hidden": 1})
         self.assertNotIn(self.ref, [s["id"] for s in publish.build(self.s, "ABC", now=TODAY)["published"]["sections"]])
 
-    def test_a_hidden_actions_section_drops_every_action_from_the_list(self):
-        self.save({"mode": "all"})
+    def test_a_hidden_actions_section_still_lets_the_list_print_its_own_actions_and_no_others(self):
+        """Row 1268: the list keeps the actions it names; the hidden section's other actions stay out of the file's data."""
+        self.save({"mode": "all", "owner": ["Pat Demo", "Lee Demo"]})
         with self.s.step("dashboard", USER) as st:
             st.create("report_sections", {"project": "ABC", "type": "actions", "title": "Open actions", "sort_order": 50, "hidden": 1})
-        sec = next(s for s in publish.build(self.s, "ABC", now=TODAY)["published"]["sections"] if s["id"] == self.ref)
+        built = publish.build(self.s, "ABC", now=TODAY)["published"]
+        sec = next(s for s in built["sections"] if s["id"] == self.ref)
+        self.assertIn(self.a_due, sec["items"])
+        self.assertEqual([a["id"] for a in built["data"]["actions"]], [i for i in sec["items"] if i in {a["id"] for a in built["data"]["actions"]}])
+        self.assertTrue(built["data"]["actions"])
+        for hidden in (self.a_secret, self.a_off, self.a_arch, self.a_eye):
+            self.assertNotIn(hidden, [a["id"] for a in built["data"]["actions"]])
+
+    def test_a_hidden_actions_section_gives_the_data_only_the_listed_rows(self):
+        self.save({"mode": "all", "owner": ["Pat Demo"]})          # the list names Pat's row alone; Lee's a_later is kept but not named
+        with self.s.step("dashboard", USER) as st:
+            st.create("report_sections", {"project": "ABC", "type": "actions", "title": "Open actions", "sort_order": 50, "hidden": 1})
+        built = publish.build(self.s, "ABC", now=TODAY)["published"]
+        sec = next(s for s in built["sections"] if s["id"] == self.ref)
+        self.assertEqual(sec["items"], [self.a_due, self.risk])
+        self.assertEqual([a["id"] for a in built["data"]["actions"]], [self.a_due], "exactly the named action")
+        self.assertNotIn(self.a_later, [a["id"] for a in built["data"]["actions"]], "a kept row the list does not name stays out")
+
+    def test_the_list_body_is_built_from_the_unfiltered_rows_not_the_published_sections(self):
+        """Row 1268: with the Actions, Risks and issues and Decisions sections hidden, the published-section filter keeps none of their rows,
+        yet the list still reads them (the template is handed the rows as built, not as the sections carry them)."""
+        self.save({"mode": "all", "owner": ["Pat Demo"]})
+        with self.s.step("dashboard", USER) as st:
+            dec = st.create("decisions", {"project": "ABC", "decision": "Pick the vendor", "date": "2026-10-01", "made_by": "Pat Demo", "source": "demo"})
+            for kind, title, order in (("actions", "Open actions", 50), ("raid", "Risks and issues", 51), ("decisions", "Decisions", 52)):
+                st.create("report_sections", {"project": "ABC", "type": kind, "title": title, "sort_order": order, "hidden": 1})
+        built = publish.build(self.s, "ABC", now=TODAY)["published"]
+        sec = next(s for s in built["sections"] if s["id"] == self.ref)
+        self.assertCountEqual(sec["items"], [self.a_due, self.risk, dec], "an action, a risk and a decision, each from a hidden section")
+        self.assertEqual([a["id"] for a in built["data"]["actions"]], [self.a_due])
+        self.assertEqual([r["id"] for r in built["data"]["raid"]], [self.risk])
+        self.assertEqual([r["id"] for r in built["data"]["decisions"]], [dec])
+
+
+    def test_a_list_naming_one_kind_leaves_the_other_kinds_rows_in_the_data_while_their_section_shows(self):
+        """Row 1268: only a hidden built-in section is trimmed to the rows a list names; a shown one keeps every kept row."""
+        with self.s.step("dashboard", USER) as st:
+            st.archive("actions", self.a_later)
+        self.save({"kinds": ["risk"]})
+        built = publish.build(self.s, "ABC", now=TODAY)["published"]
+        sec = next(s for s in built["sections"] if s["id"] == self.ref)
         self.assertEqual(sec["items"], [self.risk])
+        self.assertEqual([a["id"] for a in built["data"]["actions"]], [self.a_due], "the single kept action stays: the list does not name it")
+
+    def test_a_card_template_naming_a_hidden_sections_action_does_not_see_it_while_a_list_does(self):
+        """Row 1268: a hidden built-in section's rows reach a Work items list alone; a checklist that links one of its actions is left out of the file."""
+        self.save({"mode": "all", "owner": ["Pat Demo"]})
+        with self.s.step("dashboard", USER) as st:
+            st.create("report_sections", {"project": "ABC", "type": "actions", "title": "Open actions", "sort_order": 50, "hidden": 1})
+            st.create("report_sections", {"project": "ABC", "type": "checklist", "title": "Steps", "sort_order": 51,
+                                          "body": json.dumps({"v": 1, "items": [{"item": self.a_due}]})})
+        built = publish.build(self.s, "ABC", now=TODAY)["published"]
+        self.assertNotIn("checklist", [s["type"] for s in built["sections"]], "the hidden section's action is not live to the checklist")
+        self.assertIn(self.a_due, next(s for s in built["sections"] if s["id"] == self.ref)["items"], "the list still names it")
+        self.assertEqual([a["id"] for a in built["data"]["actions"]], [self.a_due])
+
+    def test_a_card_template_naming_a_shown_sections_action_sees_it(self):
+        self.save({"mode": "all", "owner": ["Pat Demo"]})
+        with self.s.step("dashboard", USER) as st:
+            st.create("report_sections", {"project": "ABC", "type": "actions", "title": "Open actions", "sort_order": 50, "hidden": 0})
+            st.create("report_sections", {"project": "ABC", "type": "checklist", "title": "Steps", "sort_order": 51,
+                                          "body": json.dumps({"v": 1, "items": [{"item": self.a_due}]})})
+        built = publish.build(self.s, "ABC", now=TODAY)["published"]
+        self.assertIn("checklist", [s["type"] for s in built["sections"]])
+
+    def test_a_key_dates_section_beside_a_list_does_not_disturb_the_rows_the_list_names(self):
+        self.save({"mode": "all", "owner": ["Pat Demo"]})
+        with self.s.step("dashboard", USER) as st:
+            st.create("report_sections", {"project": "ABC", "type": "actions", "title": "Open actions", "sort_order": 50, "hidden": 1})
+            st.create("report_sections", {"project": "ABC", "type": "keydates", "title": "Key dates", "sort_order": 51,
+                                          "body": json.dumps({"v": 1, "items": [{"label": "Go live", "date": "2030-02-01"}]})})
+        built = publish.build(self.s, "ABC", now=TODAY)["published"]
+        self.assertIn("keydates", [s["type"] for s in built["sections"]])
+        self.assertEqual([a["id"] for a in built["data"]["actions"]], [self.a_due])
 
 
 class StatusColours(unittest.TestCase):
@@ -530,6 +625,24 @@ class InThePage(PageBase):
         sel = f"[data-id=\"{ref}\"] .wil-table tbody tr" if part == "table" else f"[data-id=\"{ref}\"] .wil-lines li"
         return p.js(f"[...document.querySelectorAll({json.dumps(sel)})].filter(e => e.offsetParent).map(e => e.dataset.id)")
 
+    def test_a_right_click_on_a_column_heading_lists_the_columns_and_a_press_turns_one_off_and_on(self):
+        ref = self.add({"mode": "all", "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.edit()
+            head = f"[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-owner"
+            p.until(f"!!document.querySelector({json.dumps(head)})", "the list drew in Edit")
+            p.js(f"document.querySelector({json.dumps(head)}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
+            p.until("!!document.querySelector('.cols-menu')", "the menu opened")
+            names = p.js("[...document.querySelectorAll('.cols-menu [role=menuitemcheckbox]')].map(b => b.dataset.colName + ':' + b.getAttribute('aria-checked'))")
+            self.assertIn("ID:true", names)
+            self.assertIn("Owner:true", names)
+            self.assertIn("Due:false", names)
+            p.js("document.querySelector('.cols-menu [data-col-name=Due]').click()")
+            p.until(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-due')", "Due was added")
+            p.js("document.querySelector('.cols-menu [data-col-name=ID]').click()")
+            p.until(f"!document.querySelector('[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-id')", "ID was taken off")
+
     def test_view_shows_the_live_rows_the_client_sees_at_both_widths_in_light_and_dark(self):
         every = ["type", "id", "owner", "due", "status", "priority", "workstream", "milestone"]
         ref = self.add({"mode": "all", "columns": every, "owner": ["Pat Demo", "Lee Demo", "Sam Demo"]})          # Sam's three are all kept out
@@ -542,33 +655,29 @@ class InThePage(PageBase):
                     text = p.js("document.querySelector('#report').textContent")
                     for planted in ("ZQ-sensitive step", "ZQ-client-off step", "ZQ-archived step"):
                         self.assertNotIn(planted, text)
-                    self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]:not(.ico)').length"), 0,
-                                     "View is read only: no control and no row to open (the status icon takes Tab so its tooltip is reachable: row 1145)")
+                    self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]:not(.ico):not(tr[data-id]):not(li[data-id])').length"), 0,
+                                     "View is read only: no control (a row is focusable, it opens the read only peek, row 1268; the status icon takes Tab so its tooltip is reachable: row 1145)")
                     self.assertEqual(self.rows(p, ref, "lines"), [], "full width draws the table only")
                     self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
                     head = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table th')].map(e => e.textContent)")
-                    self.assertEqual(head, ["Type", "ID", "Item", "Owner", "Due", "Status", "Priority", "Workstream", "Milestone"])
+                    self.assertEqual(head, ["", "Type", "Item", "Owner", "Due", "Status", "Priority", "Workstream", "Milestone", "ID"])
 
-    def test_show_all_items_opens_every_row_and_show_only_closes_it_in_view_and_in_edit(self):
-        ref = self.add({"mode": "all", "max": 2, "owner": ["Pat Demo", "Lee Demo"]})      # three rows, two shown
-        link = f"[data-id=\"{ref}\"] [data-wil-all]"
+    def test_rows_scroll_in_a_box_as_tall_as_most_rows_with_the_review_link_and_in_edit_the_count(self):
+        ref = self.add({"mode": "all", "max": 2, "owner": ["Pat Demo", "Lee Demo"]})      # three rows, two high
+        box = f"[data-id=\"{ref}\"] [data-wil-scroll]"
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
                 p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table')", "the list drew")
-                self.assertEqual(self.rows(p, ref), [self.a_due, self.a_later])
-                self.assertEqual(p.js(f"document.querySelector({json.dumps(link)}).textContent"), "Show all items")
-                p.js(f"document.querySelector({json.dumps(link)}).click()")
-                p.until(f"document.querySelector({json.dumps(link)}).textContent === 'Show only 2'", "open")
-                self.assertEqual(self.rows(p, ref), [self.a_due, self.a_later, self.risk])
-                p.js(f"document.querySelector({json.dumps(link)}).click()")
-                p.until(f"document.querySelector({json.dumps(link)}).textContent === 'Show all items'", "closed")
-                self.assertEqual(self.rows(p, ref), [self.a_due, self.a_later])
+                self.assertEqual(self.rows(p, ref), [self.a_due, self.a_later, self.risk], "every row the filter lists is drawn")
+                self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-all]')"), "no Show all items: the rows scroll")
+                self.assertTrue(p.js(f"(() => {{ const b = document.querySelector({json.dumps(box)}); return b.scrollHeight > b.clientHeight && b.clientHeight > 0; }})()"), "the box is shorter than its rows")
+                self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-review]').textContent"), "Review all 3 items")
+                self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-count]')"), "View has no count")
                 p.edit()
-                p.until(f"!!document.querySelector({json.dumps(link)})", "Edit has the link too")
-                p.js(f"document.querySelector({json.dumps(link)}).click()")
-                p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr').length === 3", "Edit shows all")
-                self.assertEqual(p.js(f"document.querySelector({json.dumps(link)}).textContent"), "Show only 2")
+                p.until(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-count]')", "Edit has the count")
+                self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-count]').textContent"), "Showing 2 of 3, scroll for the rest")
+                self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr').length"), 3)
 
     def test_no_link_when_every_row_is_already_shown_and_new_columns_start_off(self):
         ref = self.add({"mode": "all", "owner": ["Pat Demo", "Lee Demo"]})
@@ -576,7 +685,7 @@ class InThePage(PageBase):
             p = self.show(cdp)
             p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table')", "the list drew")
             self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-all]')"))
-            self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table th')].map(e => e.textContent)"), ["Type", "ID", "Item", "Owner", "Due", "Priority"])
+            self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table th')].map(e => e.textContent)"), ["", "Type", "Item", "Owner", "Due", "Priority", "ID"])
 
     def test_the_status_column_is_a_half_circle_coloured_as_the_status_and_the_word(self):
         ref = self.add({"mode": "all", "columns": ["id", "status"], "owner": ["Pat Demo", "Lee Demo"]})
@@ -688,10 +797,13 @@ class InThePage(PageBase):
             p.js(f"(el => {{ el.focus(); el.value = '2'; el.dispatchEvent(new Event('change', {{bubbles: true}})); }})(document.querySelector({json.dumps(sel)}))")
             p.saved()
             self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["max"], 2)
-            p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr .weye[aria-pressed=true]').length === 2", "two rows the client sees")
-            self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr').length"), 4, "and the two the eye took off, listed where they fall")
+            p.until(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-count]').textContent.startsWith('Showing 2 of ')", "the count follows Most rows (row 1268)")
+            self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr').length"), 5, "every row the filter lists, the two the eye took off where they fall")
+            self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr .weye[aria-pressed=true]').length"), 3)
             p.clear_toast()
-            cap = f"[data-id=\"{ref}\"] [data-field=caption] input"
+            cap = f"[data-id=\"{ref}\"] .wil-cfg [data-field=caption] input"
+            p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-gear]').click()")
+            p.until(f"!document.querySelector('[data-id=\"{ref}\"] .wil-cfg').hidden", "Configure opened")
             p.js(f"document.querySelector({json.dumps(cap)}).focus()")
             p.type("Fictional caption")
             p.key("Enter", code="Enter", vk=13)
@@ -716,8 +828,8 @@ class InThePage(PageBase):
                     self.assertEqual(p.js(f"document.activeElement === document.querySelector({json.dumps(box)})"), True)
                     self.assertEqual(p.js("getComputedStyle(document.activeElement).outlineStyle"), "solid", "the focus ring shows")
                     legends = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-f legend, [data-id=\"{ref}\"] .wil-sel > span')].map(e => e.textContent)")
-                    self.assertEqual(legends, ["Filter", "Kinds", "Show", "Due", "Status", "Priority", "Owner", "Workstream", "Use case", "Sort by",
-                                               "Most rows", "Columns at full width", "Caption (optional)"])
+                    self.assertEqual(legends, ["Kinds", "Show", "Due", "Status", "Priority", "Owner", "Workstream", "Use case", "Sort by",
+                                               "Most rows", "Columns at full width", "Footnote (optional)"])
 
     def test_rows_open_their_peek_in_edit_with_a_click_or_enter(self):
         ref = self.add({"mode": "all", "owner": ["Pat Demo", "Lee Demo"]})
@@ -743,29 +855,27 @@ class InThePage(PageBase):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
                 p.edit()
-                line = f"[data-id=\"{ref}\"] [data-wil-line] input[name=line]"
+                line = f"[data-id=\"{ref}\"] [data-wil-line] input[role=combobox]"
                 p.until(f"!!document.querySelector({json.dumps(line)})", "the line drew")
                 self.assertFalse(p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-more]').open"), "the tick boxes start folded")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
                 steps = self.demo.last_step()
                 p.js(f"document.querySelector({json.dumps(line)}).focus()")
-                p.type("type:risk,issue status:Open")
-                p.key("Enter", code="Enter", vk=13)
+                p.type("type:risk,issue status:Open ")
                 p.saved()
                 body = json.loads(self.store.read("report_sections", ref=ref)["body"])
                 self.assertEqual((body["kinds"], body["status"]), (["risk", "issue"], ["Open"]))
                 self.assertEqual(self.demo.last_step(), steps + 1, "one line, one step")
-                chips = f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-chip')]"
-                p.until(f"{chips}.length === 3", "three chips")
-                self.assertTrue(p.js(f"{chips}.every(c => c.querySelector('button').getBoundingClientRect().height >= 24)"), "24 px targets")
+                chips = f"[...document.querySelectorAll('[data-id=\"{ref}\"] .fchip')]"
+                p.until(f"{chips}.length === 2", "two chips: the type word and the status word")
+                self.assertTrue(p.js(f"{chips}.every(c => c.querySelector('button').getBoundingClientRect().height >= 16)"), "the x can be hit")
                 p.clear_toast()
-                p.js(f"{chips}.find(c => c.textContent.includes('Issues')).querySelector('button').click()")
+                p.js(f"{chips}.find(c => c.textContent.includes('status')).querySelector('button').click()")
                 p.saved()
-                self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["kinds"], ["risk"])
+                self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["status"], [])
                 p.clear_toast()
                 steps = self.demo.last_step()
-                p.js(f"(el => {{ el.focus(); el.value = 'colour:red'; }})(document.querySelector({json.dumps(line)}))")
-                p.key("Enter", code="Enter", vk=13)
+                p.js(f"(el => {{ el.focus(); el.value = 'colour:red'; el.dispatchEvent(new Event('input', {{bubbles: true}})); }})(document.querySelector({json.dumps(line)}))")
                 p.until("document.querySelector('.toast-text') && document.querySelector('.toast-text').textContent.includes('not a word the filter line knows')", "refused in words")
                 self.assertEqual(self.demo.last_step(), steps, "nothing saved")
 
@@ -775,12 +885,24 @@ class InThePage(PageBase):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
                 p.edit()
-                line = f"[data-id=\"{ref}\"] [data-wil-line] input[name=line]"
+                line = f"[data-id=\"{ref}\"] [data-wil-line] input[role=combobox]"
                 p.until(f"!!document.querySelector({json.dumps(line)})", "the line drew")
 
-                def enter(text):
-                    p.js(f"(el => {{ el.focus(); el.value = {json.dumps(text)}; }})(document.querySelector({json.dumps(line)}))")
-                    p.key("Enter", code="Enter", vk=13)
+                def enter(text, fresh=True, chip=True):
+                    # the box takes the words as typed (a space after a word makes its chip) and applies them after its pause; its x clears the line.
+                    # fresh: clear what the box holds first, so the line is exactly `text`; chip False: leave the word in the box (a word the line refuses)
+                    x = f"[data-id=\"{ref}\"] [data-wil-line] .fx"
+                    if (fresh or not text) and p.js(f"!!document.querySelector({json.dumps(x)})"):
+                        p.clear_toast()
+                        p.js(f"document.querySelector({json.dumps(x)}).click()")
+                        p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .fchip').length === 0 && !document.querySelector({json.dumps(x)})", "the box emptied")
+                        wait(lambda: p.js("!!document.querySelector('.toast-text')"), 3)      # the clear saves when it changed anything
+                        p.clear_toast()
+                    if not text:
+                        return
+                    p.js(f"(el => {{ el.focus(); el.value = {json.dumps(text + (' ' if chip else ''))}; el.dispatchEvent(new Event('input', {{bubbles: true}})); }})(document.querySelector({json.dumps(line)}))")
+                    if chip:
+                        wait(lambda: p.js("!!document.querySelector('.toast-text')"), 6)      # the box applies its line after a pause, then the save replies
 
                 def body():
                     return json.loads(self.store.read("report_sections", ref=ref)["body"])
@@ -790,13 +912,13 @@ class InThePage(PageBase):
 
                 # a bad value: named back in words, nothing saved, the old filter stays
                 steps = self.demo.last_step()
-                enter("status:Bogus")
+                enter("status:Bogus", fresh=False, chip=False)
                 said("is not a value status can take here")
                 self.assertEqual(self.demo.last_step(), steps, "nothing saved for status:Bogus")
                 self.assertEqual((body()["status"], body()["kinds"], body()["mode"]), (["Open"], ["risk"], "closed"))
                 p.clear_toast()
                 # a use case that is not there is refused the same way
-                enter("usecase:Nothing")
+                enter("usecase:Nothing", fresh=False, chip=False)
                 said("is not a value usecase can take here")
                 self.assertEqual(self.demo.last_step(), steps, "nothing saved for an unknown use case")
                 p.clear_toast()
@@ -816,12 +938,11 @@ class InThePage(PageBase):
                 # clearing the line empties every choice and goes back to open items only, in one step
                 steps = self.demo.last_step()
                 enter("")
-                p.saved()
                 got = body()
                 self.assertEqual([got[k] for k in ("kinds", "status", "due", "priority", "owner", "workstream", "use_case")], [[]] * 7)
                 self.assertEqual(got["mode"], "open")
                 self.assertEqual(self.demo.last_step(), steps + 1, "clearing is one step")
-                p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-chip').length === 0", "no chips left")
+                p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .fchip').length === 0", "no chips left")
 
     def test_the_filter_line_saves_nothing_when_unchanged_gives_the_text_back_on_escape_and_is_named_for_a_reader(self):
         for width in (1400, 900):
@@ -829,59 +950,59 @@ class InThePage(PageBase):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
                 p.edit()
-                line = f"[data-id=\"{ref}\"] [data-wil-line] input[name=line]"
+                line = f"[data-id=\"{ref}\"] [data-wil-line] input[role=combobox]"
                 p.until(f"!!document.querySelector({json.dumps(line)})", "the line drew")
-                self.assertEqual(p.js(f"document.querySelector({json.dumps(line)}).value"), "type:risk status:Open")
-                # the hint is the box's description, and each chip's x says which choice it takes off
-                self.assertEqual(p.js(f"(el => document.getElementById(el.getAttribute('aria-describedby')).textContent)(document.querySelector({json.dumps(line)}))"),
-                                 "Type a filter, for example: type:risk status:Open owner:\"Pat Demo\"  Press Enter to save it.")
-                self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-chip button')].map(b => b.getAttribute('aria-label'))"),
-                                 ["Take off Type: Risks", "Take off Status: Open"])
-                # the same line (even with spaces round it) is no change: no step
+                self.assertEqual(p.js(f"document.querySelector({json.dumps(line)}).value"), "", "the saved choices stand as chips, the box is for the next word")
+                # each chip's x says which choice it takes off
+                self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .fchip')].map(c => c.dataset.chip)"), ["type:risk", "status:Open"])
+                self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .fchip button')].map(b => b.getAttribute('aria-label'))"),
+                                 ["Remove the Type filter", "Remove the Status filter"])
+                # an edit that leaves the line as it is saved is no change: no step, no message
                 steps = self.demo.last_step()
-                for same in ("type:risk status:Open", "  type:risk status:Open  "):
-                    p.clear_toast()
-                    p.js(f"(el => {{ el.focus(); el.value = {json.dumps(same)}; }})(document.querySelector({json.dumps(line)}))")
-                    p.key("Enter", code="Enter", vk=13)
-                    p.js("new Promise(r => setTimeout(r, 400))")
-                    self.assertFalse(p.js("!!document.querySelector('.toast-text')"), f"{same!r}: no 'changed' message for no change")
-                    self.assertEqual(self.demo.last_step(), steps, f"{same!r} is what is saved: nothing to save")
-                # Escape puts the saved line back and saves nothing
-                p.js(f"(el => {{ el.focus(); el.value = 'type:issue'; }})(document.querySelector({json.dumps(line)}))")
-                p.key("Escape", code="Escape", vk=27)
-                p.until(f"document.querySelector({json.dumps(line)}).value === 'type:risk status:Open'", "Escape gave the saved line back")
-                self.assertEqual(self.demo.last_step(), steps, "Escape saves nothing")
+                for same in ("x", ""):
+                    p.js(f"(el => {{ el.focus(); el.value = {json.dumps(same)}; el.dispatchEvent(new Event('input', {{bubbles: true}})); }})(document.querySelector({json.dumps(line)}))")
+                    p.js("new Promise(r => setTimeout(r, 700))")
+                    self.assertFalse(p.js("!!document.querySelector('.toast-text') && document.querySelector('.toast-text').textContent.includes('changed')"), f"{same!r}: no 'changed' message for no change")
+                    self.assertEqual(self.demo.last_step(), steps, f"{same!r}: nothing to save")
                 self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["kinds"], ["risk"])
 
     def test_taking_a_choice_off_with_the_keyboard_keeps_the_focus_in_the_filter(self):
-        """The x goes with its chip: the focus goes to the chip that took its place, then to the Filter box when none is left."""
+        """The x is a button the keyboard can press; the focus then goes back to the Filter box (the Work items page's own box)."""
         for width in (1400, 900):
             ref = self.add({"status": ["Open"], "kinds": ["risk"]}, title=f"Focus {width}")
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
                 p.edit()
-                line = f"[data-id=\"{ref}\"] [data-wil-line] input[name=line]"
-                xs = f"[data-id=\"{ref}\"] .wil-chip button"
+                line = f"[data-id=\"{ref}\"] [data-wil-line] input[role=combobox]"
+                xs = f"[data-id=\"{ref}\"] .fchip button"
                 p.until(f"!!document.querySelector({json.dumps(line)})", "the line drew")
-                press = lambda: [p.cdp.call("Input.dispatchKeyEvent", {"type": t, "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13, **({"text": "\r"} if t == "keyDown" else {})}, p.sid) for t in ("keyDown", "keyUp")]      # text: a button needs the character to be pressed
-                p.js(f"document.querySelector({json.dumps(line)}).focus()")
-                p.key("Tab", code="Tab", vk=9)
-                self.assertEqual(p.js(f"document.activeElement === document.querySelector({json.dumps(xs)})"), True, "Tab reaches the first x")
+                press = lambda: [p.cdp.call("Input.dispatchKeyEvent", {"type": t, "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13, **({"text": "\r"} if t == "keyDown" else {})}, p.sid) for t in ("keyDown", "keyUp")]
+                p.js(f"document.querySelector({json.dumps(xs)}).focus()")
                 press()
-                p.until(f"document.querySelectorAll({json.dumps(xs)}).length === 1 && document.activeElement === document.querySelector({json.dumps(xs)})", "the focus is on the x that took its place")
-                press()
-                p.until(f"document.querySelectorAll({json.dumps(xs)}).length === 0 && document.activeElement === document.querySelector({json.dumps(line)})", "no chip left: the focus is in the Filter box")
+                p.until(f"document.querySelectorAll({json.dumps(xs)}).length === 1 && document.activeElement === document.querySelector({json.dumps(line)})", "one chip left, the focus in the Filter box")
 
     def _line_session(self, cdp, width, title):
         ref = self.add({}, title=title)
         p = self.show(cdp, width)
         p.edit()
-        line = f"[data-id=\"{ref}\"] [data-wil-line] input[name=line]"
+        line = f"[data-id=\"{ref}\"] [data-wil-line] input[role=combobox]"
         p.until(f"!!document.querySelector({json.dumps(line)})", "the line drew")
 
-        def enter(text):
-            p.js(f"(el => {{ el.focus(); el.value = {json.dumps(text)}; }})(document.querySelector({json.dumps(line)}))")
-            p.key("Enter", code="Enter", vk=13)
+        def enter(text, fresh=True, chip=True):
+            # the box takes the words as typed (a space after a word makes its chip) and applies them after its pause; its x clears the line.
+            # fresh: clear what the box holds first, so the line is exactly `text`; chip False: leave the word in the box (a word the line refuses)
+            x = f"[data-id=\"{ref}\"] [data-wil-line] .fx"
+            if (fresh or not text) and p.js(f"!!document.querySelector({json.dumps(x)})"):
+                p.clear_toast()
+                p.js(f"document.querySelector({json.dumps(x)}).click()")
+                p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .fchip').length === 0 && !document.querySelector({json.dumps(x)})", "the box emptied")
+                wait(lambda: p.js("!!document.querySelector('.toast-text')"), 3)      # the clear saves when it changed anything
+                p.clear_toast()
+            if not text:
+                return
+            p.js(f"(el => {{ el.focus(); el.value = {json.dumps(text + (' ' if chip else ''))}; el.dispatchEvent(new Event('input', {{bubbles: true}})); }})(document.querySelector({json.dumps(line)}))")
+            if chip:
+                wait(lambda: p.js("!!document.querySelector('.toast-text')"), 6)      # the box applies its line after a pause, then the save replies
 
         def body():
             return json.loads(self.store.read("report_sections", ref=ref)["body"])
@@ -896,11 +1017,11 @@ class InThePage(PageBase):
                 with self.subTest(typed=typed):
                     enter(typed)
                     self.assertTrue(wait(lambda: body()["due"] == want), f"{typed}: saved as {body()['due']}, wanted {want}")
-                    p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-chip').length >= 1", "the chip drew")
+                    p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .fchip').length >= 1", "the chip drew")
                     p.clear_toast()
                     enter("")
                     self.assertTrue(wait(lambda: body()["due"] == []), "cleared between words")
-                    p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-chip').length === 0", "the chips went")
+                    p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .fchip').length === 0", "the chips went")
                     p.clear_toast()
 
     def test_the_filter_line_modes_open_and_closed_together_no_repeats_minus(self):
@@ -924,7 +1045,7 @@ class InThePage(PageBase):
             self.assertEqual(body()["mode"], "closed", "a minus sign before is:open reads as closed only")
             p.clear_toast()
 
-    def test_sort_and_rows_and_columns_stay_in_the_one_form_block_and_the_caption_is_under_the_list(self):
+    def test_sort_and_rows_and_columns_stay_in_the_one_form_block_and_the_footnote_is_not_in_it(self):
         ref = self.add({}, title="Form")
         with chrome() as cdp:
             p = self.show(cdp, 1400)
@@ -934,29 +1055,64 @@ class InThePage(PageBase):
             self.assertEqual(forms, 1, "one form block, as before the line was added")
             self.assertTrue(p.js(f"(f => ['sort', 'max'].every(n => f.querySelector('[name=' + n + '], [data-field=' + n + ']')))"
                                  f"(document.querySelector('[data-id=\"{ref}\"] .wil-form'))"), "Sort by and Most rows sit in it")
-            self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-form [data-field=caption]')"), "the Caption box left the form block")
+            self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-form-in [data-field=caption]')"), "the Footnote box is in Configure, not the filter lists")
 
-    def test_the_caption_box_comes_after_the_list_at_both_widths(self):
-        # Row 1113, wish 2: the caption is shown under the list, so its box is the last thing in the editing panel.
+    def test_the_gear_opens_configure_with_sort_rows_and_columns_and_escape_closes_it(self):
+        # Row 1268 (the approved mock-up): a gear opens "Configure this list"; Sort by, Most rows and the columns are in it.
+        ref = self.add({}, title="Gear")
+        root = f"[data-id=\"{ref}\"]"
+        with chrome() as cdp:
+            p = self.show(cdp, 1400)
+            p.edit()
+            p.until(f"!!document.querySelector('{root} [data-wil-gear]')", "the gear drew")
+            dlg = f"{root} .wil-cfg"
+            self.assertTrue(p.js(f"document.querySelector('{dlg}').hidden"), "closed at first")
+            self.assertEqual(p.js(f"document.querySelector('{root} [data-wil-gear]').getAttribute('aria-expanded')"), "false")
+            p.js(f"document.querySelector('{root} [data-wil-gear]').click()")
+            p.until(f"!document.querySelector('{dlg}').hidden", "the gear opened it")
+            self.assertEqual(p.js(f"document.querySelector('{root} [data-wil-gear]').getAttribute('aria-expanded')"), "true")
+            self.assertEqual(p.js(f"document.querySelector('{dlg} h4').textContent"), "Configure this list")
+            self.assertTrue(p.js(f"['sort', 'max', 'columns'].every(n => !!document.querySelector('{dlg} [data-field=' + n + ']'))"), "Sort by, Most rows, Columns in it")
+            self.assertTrue(p.js(f"!!document.querySelector('{dlg} [data-field=caption]')"), "the Footnote box is in Configure (the head's ruling of 17-11)")
+            p.js(f"document.querySelector('{dlg} select').focus()")
+            p.key("Escape", code="Escape", vk=27)
+            p.until(f"document.querySelector('{dlg}').hidden", "Escape closed it")
+            self.assertTrue(p.js(f"document.activeElement === document.querySelector('{root} [data-wil-gear]')"), "focus back on the gear")
+            p.js(f"document.querySelector('{root} [data-wil-gear]').click()")
+            p.js(f"document.querySelector('{root} [data-wil-cfgdone]').click()")
+            p.until(f"document.querySelector('{dlg}').hidden", "Done closed it")
+
+    def test_the_footnote_box_is_in_configure_after_columns_before_done_and_the_caption_shows_above_the_list(self):
+        # Row 1268, ruled by the head 17-11 (the mock-up wins over Row 1113 wish 2): the field is "Footnote (optional)" in the Configure box,
+        # after the Columns and before Done; the stored field is still "caption"; its text is drawn above the list, in Edit and in View.
         ref = self.add({"mode": "all", "caption": "Fictional caption"})
-        script = ("(() => { const root = document.querySelector('[data-id=\"%s\"] [data-wil-edit]');"
-                  " const box = root && root.querySelector('[data-field=caption]');"
-                  " const table = root && root.querySelector('.wil-table');"
-                  " const form = root && root.querySelector('.wil-form');"
-                  " if (!box || !table || !form) return null;"
-                  " return [box.getBoundingClientRect().top - table.getBoundingClientRect().bottom,"
-                  " box.getBoundingClientRect().top - form.getBoundingClientRect().bottom,"
-                  " !!(table.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING)]; })()") % ref
+        root = f"[data-id=\"{ref}\"]"
+        script = ("(() => { const dlg = document.querySelector('%s .wil-cfg');"
+                  " const box = dlg && dlg.querySelector('[data-field=caption]');"
+                  " const cols = dlg && dlg.querySelector('[data-field=columns]');"
+                  " const done = dlg && dlg.querySelector('[data-wil-cfgdone]');"
+                  " const cap = document.querySelector('%s .wil-cap');"
+                  " const table = document.querySelector('%s .wil-table');"
+                  " if (!box || !cols || !done || !cap || !table) return null;"
+                  " const input = box.querySelector('input');"
+                  " return [box.querySelector('span').textContent, input.placeholder, input.value,"
+                  " !!(cols.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING),"
+                  " !!(box.compareDocumentPosition(done) & Node.DOCUMENT_POSITION_FOLLOWING),"
+                  " cap.textContent, !!(cap.compareDocumentPosition(table) & Node.DOCUMENT_POSITION_FOLLOWING),"
+                  " !document.querySelector('%s .wil-capbox') && !document.querySelector('%s [data-field=caption]:not(.wil-cfg *)')]; })()") % ((root,) * 5)
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
                 p.edit()
-                p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table')", "the list drew")
+                p.until(f"!!document.querySelector('{root} .wil-table')", "the list drew")
                 got = p.js(script)
-                self.assertIsNotNone(got, "the Caption box, the list and the form all drew")
-                self.assertTrue(got[2], "the Caption box follows the list in the page order")
-                self.assertGreaterEqual(got[0], 0, "the Caption box sits below the list, not beside or above it")
-                self.assertGreaterEqual(got[1], 0, "the Caption box sits below the form block")
+                self.assertIsNotNone(got, "the Footnote box, the Columns, Done, the caption and the list all drew")
+                self.assertEqual(got[:3], ["Footnote (optional)", "Say what the list shows.", "Fictional caption"])
+                self.assertTrue(got[3], "the Footnote box follows the Columns")
+                self.assertTrue(got[4], "the Footnote box comes before Done")
+                self.assertEqual(got[5], "Fictional caption")
+                self.assertTrue(got[6], "the caption text is drawn above the list")
+                self.assertTrue(got[7], "no Caption box is left under the list")
 
     def test_two_ticks_made_before_the_first_reply_are_both_kept(self):
         ref = self.add({})
@@ -983,6 +1139,8 @@ class InThePage(PageBase):
             p.edit()
             cap = f"[data-id=\"{ref}\"] [data-field=caption] input"
             p.until(f"!!document.querySelector({json.dumps(cap)})", "the form drew")
+            p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-gear]').click()")      # the Footnote box is in Configure (row 1268)
+            p.until(f"!document.querySelector('[data-id=\"{ref}\"] .wil-cfg').hidden", "Configure opened")
             self.assertFalse(p.js(f"document.querySelector({json.dumps(cap)}).hasAttribute('maxlength')"))
             p.js(f"document.querySelector({json.dumps(cap)}).focus()")
             p.type(caption)
@@ -1037,7 +1195,7 @@ class PublishedFile(PageBase):
                 ids = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr')].map(e => e.dataset.id)")
                 self.assertEqual(ids, [self.a_due, self.a_later, self.risk])
                 self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] .wil-cap').textContent"), "Fictional caption")
-                self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]:not(.ico)').length"), 0)
+                self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]:not(.ico):not(tr[data-id]):not(li[data-id])').length"), 0)      # row 1268: a row is focusable (it opens the read only peek)
                 self.assertTrue(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-st')].some(e => /Overdue/.test(e.textContent) && !!e.querySelector('svg.wil-half.ic-r'))"), "the status reads as at the publish date: a red half-circle and the word")
                 self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-all]')"), "a file holds only the first rows, so it has no Show all items link")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")

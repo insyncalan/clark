@@ -280,7 +280,7 @@ CREATE TABLE IF NOT EXISTS report_sections (
   id      TEXT NOT NULL,
   type    TEXT NOT NULL CHECK (type IN ('current','glance','usecases','milestones','text','raid','actions','decisions','docs','needs','tracker',
                                          'textimage','headline','figures4','figures3','gallery','table','doclinks','linkcard','raid3','raid4',
-                                         'workitems','callout','imagecap','quote','contacts','checklist','keydates','onedoc','gantt','gantttable')),
+                                         'workitems','callout','imagecap','quote','contacts','checklist','keydates','onedoc','reportheadline','glancetemplate','gantt','gantttable')),
   title   TEXT NOT NULL,
   body    TEXT NOT NULL DEFAULT '',
   beside  INTEGER NOT NULL DEFAULT 0 CHECK (beside IN (0,1)),
@@ -431,7 +431,8 @@ CREATE TABLE IF NOT EXISTS comments (
 CREATE TABLE IF NOT EXISTS app_settings (
   id          INTEGER PRIMARY KEY CHECK (id = 1),
   ask_enabled INTEGER NOT NULL DEFAULT 1 CHECK (ask_enabled IN (0,1)),
-  updated_at  TEXT                    -- set by the writer when the switch changes; empty until then (a new file is the same every time)
+  updated_at  TEXT,                   -- set by the writer when the switch changes; empty until then (a new file is the same every time)
+  theme       TEXT NOT NULL DEFAULT 'classic' CHECK (theme IN ('classic','cards'))   -- row 1269: the install's Theme; a new file is Clark Classic, migrate_theme gives a file that already exists 'cards'
 );
 
 INSERT OR IGNORE INTO app_settings (id) VALUES (1);
