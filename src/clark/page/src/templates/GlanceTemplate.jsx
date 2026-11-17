@@ -1,7 +1,8 @@
 // Glance template (row 1264, slice 3), store type "glancetemplate": its view part, full width. Draws LOW tiles in the section's order:
 // the three counting tiles (Overdue actions, High risks and issues, Decisions needed) as the At a glance section counts them, then the
-// bespoke tiles. Each tile: a tone border, a dot (its SHAPE says the tone: circle green, triangle amber, square red, diamond blue, ring
-// neutral), the label (one line, never wrapped), the figure, the tag word and one note line. Colour is never the only signal: the shape
+// bespoke tiles. Each tile: a the At a glance tile look (1 px border, a 2 px tone edge fading from the top left, no edge when neutral), a dot (its
+// SHAPE says the tone: circle green, triangle amber, diamond red, rounded square blue, ring neutral), the label and the note (they wrap, as in
+// the approved v2 mock-up), the figure with the tag word at its right. Every tile is one fixed width (4 per line for now), left aligned. Colour is never the only signal: the shape
 // and the tag word say it too. Text nodes only. The words are the At a glance ones that exist already (glanceTiles.js) or what the
 // person typed; the library card and Edit words are not approved yet, none is invented here.
 // Project health (the eye, its own row) and the half width version come with later slices, so this part draws no health tile.
@@ -63,12 +64,18 @@ export function View({ section }) {
   return (
     <div class="tpl-gt" data-gt>
       {list.map((t) => (
-        <div key={t.key} class={`tpl-gt-tile tone-${t.tone}`} data-tile={t.key}>
-          <i class="tpl-gt-dot" aria-hidden="true"></i>
-          <span class="tpl-gt-k" title={t.label}>{t.label}</span>
-          {t.figure ? <span class="tpl-gt-v num">{t.figure}</span> : null}
-          {t.tag ? <span class="tpl-gt-tag">{t.tag}</span> : null}
-          {t.note ? <span class="tpl-gt-note" title={t.note}>{t.note}</span> : null}
+        <div key={t.key} class={`fig tpl-gt-tile tone-${t.tone}`} data-tile={t.key}>
+          <div class="k">
+            <i class="tpl-gt-dot" aria-hidden="true"></i>
+            <span class="tpl-gt-k" title={t.label}>{t.label}</span>
+          </div>
+          {t.figure || t.tag ? (
+            <div class="vrow">
+              {t.figure ? <span class="v tpl-gt-v num">{t.figure}</span> : null}
+              {t.tag ? <span class="tw tpl-gt-tag">{t.tag}</span> : null}
+            </div>
+          ) : null}
+          {t.note ? <span class="dd tpl-gt-note" title={t.note}>{t.note}</span> : null}
         </div>
       ))}
     </div>
