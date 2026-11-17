@@ -350,7 +350,7 @@ class ExcelExact(unittest.TestCase):
 
 
 class Killers(unittest.TestCase):
-    """Stark's read of 1852 (afcd20e6): the survivors he listed."""
+    """The survivors the read of afcd20e6 listed."""
 
     def test_a_content_that_is_not_an_object_is_nothing_whatever_the_section_holds(self):
         sec = {"type": "glancetemplate", "content": "junk", "order": ["bud"], "bespoke": [{"id": "bud", "label": "ZQ"}], "health": {"shown": False}}
