@@ -94,7 +94,7 @@ class Source(unittest.TestCase):
     # Pickers that drew an icon on every line through their own choices (row 1074, test_menu_icons_mutproof_1074), the shared box, and one
     # list that is not a menu of commands.
     OTHER = {
-        "edit/cells/RatingPick.jsx": "row 1074", "edit/cells/StatusPick.jsx": "row 1074", "edit/cells/PriorityPick.jsx": "row 1074",
+        "edit/cells/StatusPick.jsx": "row 1074", "edit/cells/PriorityPick.jsx": "row 1074",
         "edit/PeekPick.jsx": "row 1074", "edit/MilestonePeek.jsx": "row 1074", "components/Menu.jsx": "the shared box and row: every menu above draws through it",
         "edit/ArchivedPeek.jsx": "row 1074", "edit/PeekActivity.jsx": "row 1074", "edit/ArchivedItems.jsx": "row 1074", "components/UseCases.jsx": "row 1074",
         "components/Peek.jsx": "row 1074",

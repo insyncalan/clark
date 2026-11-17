@@ -1036,7 +1036,7 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
   @keyframes m-blink { 50% { transform: scaleY(.1); } }
 }
 
-/* row 962: a cell picker (Pop: MenuPick, RatingPick, the date and owner pickers, the bulk menu) fades out as it closes, as a menu does (row 922). Pop.jsx keeps a copy
+/* row 962: a cell picker (Pop: MenuPick, the rating matrix, the date and owner pickers, the bulk menu) fades out as it closes, as a menu does (row 922). Pop.jsx keeps a copy
    (no id, role=presentation, inert, aria-hidden) for the fade; opacity only, m-out from shell.css, edit-only so the published page carries none of it. */
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-motion="reduce"]) .cpop.leaving { pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
