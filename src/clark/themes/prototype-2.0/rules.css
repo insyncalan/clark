@@ -1,4 +1,4 @@
-/* Theme prototype-2.0 (item 1260): the rules a token cannot carry. Every colour and size is a token, so a Brand reaches them, except three bare widths that have no token: the 2px and 20px of the section gutter and the 3px top rule of a column. */
+/* Theme prototype-2.0 (item 1260): the rules a token cannot carry. Every colour and size is a token, so a Brand reaches them, except three bare widths that have no token: the 2px rule and the 20px padding of the section gutter (the 20px token is 0 in some densities) and the 3px top rule of a column (no border-width token exists). */
 body { background: var(--page-bg) var(--page-grad) fixed no-repeat; }
 @media print { body { background: var(--white); } }
 .sec { background: none; border: 0; border-left: 2px solid var(--gutter-rule); border-radius: 0; box-shadow: none; padding-left: 20px; transition: border-color .2s; }
