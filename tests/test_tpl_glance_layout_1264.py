@@ -92,6 +92,9 @@ class Layout(Base):
     def sel(self, rest=""):
         return f'[data-id="{self.ref}"] {rest}'.strip()
 
+    def per(self, n):
+        return self.sel('[data-gt-per="%d"]' % n)
+
     def body(self):
         raw = self.store.read("report_sections", ref=self.ref)["body"]
         return json.loads(raw) if raw else {}
@@ -299,15 +302,15 @@ class Edit(Layout):
         with chrome() as cdp:
             p = self.page(cdp, edit=True)
             before = self.applies()
-            p.js(f"document.querySelector('{self.sel('[data-gt-per=\"3\"]')}').click()")
+            p.js(f"document.querySelector('{self.per(3)}').click()")
             self.assertTrue(wait(lambda: self.body().get("per_row") == 3, 10), f"stored: {self.body()}")
             self.assertEqual(self.applies(), before + 1)
-            p.until(f"document.querySelector('{self.sel('[data-gt-per=\"3\"]')}').getAttribute('aria-pressed') === 'true'", "pressed")
+            p.until(f"document.querySelector('{self.per(3)}').getAttribute('aria-pressed') === 'true'", "pressed")
             self.assertEqual(self.lines(self.cells(p, True)), [["health", "overdue", "risks"], ["decisions"]])
-            p.js(f"document.querySelector('{self.sel('[data-gt-per=\"4\"]')}').click()")
+            p.js(f"document.querySelector('{self.per(4)}').click()")
             self.assertTrue(wait(lambda: "per_row" not in self.body(), 10), f"4 is the default and is not stored: {self.body()}")
             self.assertEqual(self.applies(), before + 2)
-            p.js(f"document.querySelector('{self.sel('[data-gt-per=\"4\"]')}').click()")      # already 4: no step
+            p.js(f"document.querySelector('{self.per(4)}').click()")      # already 4: no step
             import time
             time.sleep(0.6)
             self.assertEqual(self.applies(), before + 2)
@@ -315,7 +318,7 @@ class Edit(Layout):
     def test_E2b_tiles_on_a_line_shows_no_toast(self):
         with chrome() as cdp:
             p = self.page(cdp, edit=True)
-            p.js(f"document.querySelector('{self.sel('[data-gt-per=\"3\"]')}').click()")
+            p.js(f"document.querySelector('{self.per(3)}').click()")
             self.assertTrue(wait(lambda: self.body().get("per_row") == 3, 10), f"stored: {self.body()}")
             import time
             time.sleep(0.5)
