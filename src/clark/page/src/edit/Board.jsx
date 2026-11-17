@@ -345,18 +345,19 @@ export function Board({ rows, today, type }) {
   b.lanes.forEach((ln) => ln.columns.forEach((c) => c.cards.forEach((cd) => { cardCell[cd.id] = from(cd.id, ln.key, c.key); })));
   live.current.cardCell = cardCell;
 
-  // The items of a card's Move to... menu: every column (and lane) moveFor accepts, not where the card is now.
+  // The items of a card's Move to... menu (row 1273, the prototype's list): every column (and lane) moveFor accepts, and the one the card is in now, ticked and not
+  // a choice. A column moveFor refuses stays out, as before.
   function menuFor(id) {
     const row = byId[id], here = cardCell[id], out = [];
     if (!row || !here) return out;
     const ok = (t) => { const r = moveFor(row, here, t, ctx); return r.ok && !r.noop; };
-    const cols = b.lanes[0].columns.filter((c) => ok({ ...here, key: c.key }));
-    if (cols.length) out.push({ head: `Move to ${groupLabel(g)}` }, ...cols.map((c) => ({ key: c.key, name: c.label })));
+    const cols = b.lanes[0].columns.filter((c) => c.key === here.key || ok({ ...here, key: c.key }));
+    if (cols.length) out.push({ head: `Move to ${groupLabel(g)}` }, ...cols.map((c) => ({ key: c.key, name: c.label, here: c.key === here.key })));
     if (b.lane) {
-      const lanes = b.lanes.filter((l) => ok({ ...here, lane: { group: b.lane, key: l.key } }));
-      if (lanes.length) out.push({ head: `Move to ${LANE_WORDS[b.lane]}` }, ...lanes.map((l) => ({ key: l.key, name: l.label || "No " + LANE_WORDS[b.lane].toLowerCase(), lane: true })));
+      const lanes = b.lanes.filter((l) => (here.lane && l.key === here.lane.key) || ok({ ...here, lane: { group: b.lane, key: l.key } }));
+      if (lanes.length) out.push({ head: `Move to ${LANE_WORDS[b.lane]}` }, ...lanes.map((l) => ({ key: l.key, name: l.label || "No " + LANE_WORDS[b.lane].toLowerCase(), lane: true, here: !!here.lane && l.key === here.lane.key })));
     }
-    return out;
+    return out.some((it) => !it.head && !it.here) ? out : [];     // nothing to choose: the card's "can't move" line alone
   }
 
   const drawn = [];                                   // the cards on screen in reading order: the board's one tab stop (#194)
@@ -380,9 +381,9 @@ export function Board({ rows, today, type }) {
           {menu === cd.id ? (
             <MenuPanel label={`Move ${cd.id} to`} cls="left" fade anchor={document.querySelector(`[data-move="${cd.id}"]`)} onClose={() => { setMenu(null); const el = document.querySelector(`[data-move="${cd.id}"]`); if (el) el.focus(); }}>
               {menuFor(cd.id).map((it, i) => it.head
-                ? <div key={"h" + i} class="mh" role="presentation">{it.head}</div>
+                ? <div key={"h" + i} class="mh caps" role="presentation">{it.head}</div>
                 : <button key={(it.lane ? "l" : "c") + it.key} type="button" role="menuitem" tabIndex={-1} data-to={it.key} data-lane={it.lane ? "1" : undefined}
-                    onClick={() => sendMenu(cd.id, it)}><Icon name={groupIcon(it.lane ? b.lane : g)} cls="mi" />{it.name}</button>)}
+                    aria-disabled={it.here ? "true" : undefined} aria-current={it.here ? "true" : undefined} onClick={() => { if (!it.here) sendMenu(cd.id, it); }}><Icon name={groupIcon(it.lane ? b.lane : g)} cls="mi" />{it.here ? <span class="ck" aria-hidden="true">✓</span> : null}{it.name}</button>)}
               {menuFor(cd.id).length === 0 ? <button type="button" role="menuitem" aria-disabled="true" tabIndex={-1}><Icon name={actionIcon("none")} cls="mi" />{noMove(byId[cd.id])}</button> : null}
             </MenuPanel>
           ) : null}

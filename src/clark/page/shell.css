@@ -512,6 +512,11 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1
 .ddmenu .who small { display: block; font-size: var(--size-small); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ddmenu .who-link { text-decoration: underline; color: var(--link) !important; max-width: 280px; }
 .ddmenu .lab { padding: 6px 14px; font-size: var(--size-small); color: var(--text-muted, var(--text)); }
+/* Row 1273 (menu answers, prototype wins): the Group by menu's head in capitals, items at body size with the tick before the icon, a wider panel. The words stay "Group by". */
+.ddmenu .lab.caps, .mh.caps { font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; font-weight: var(--weight-medium); }
+#viewMenuList { min-width: 14rem; }
+#viewMenuList [role="menuitemradio"] { display: flex; align-items: center; font-size: var(--size-body); }
+#viewMenuList [role="menuitemradio"] .ck { order: -1; }
 .ddmenu [role="menuitem"]:hover, .ddmenu [role="menuitem"]:focus-visible { background: var(--brand-blue-tint); color: var(--status-blue-text); }
 .ddmenu [role="menuitem"]:focus-visible, .ddmenu [role="menuitemradio"]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }   /* a menu item by Tab shows a ring, not only a pale fill */
 @media (prefers-reduced-motion: reduce) { .newb, .newb .w { transition: none; } }
