@@ -360,6 +360,8 @@ export function Board({ rows, today, type }) {
     return out.some((it) => !it.head && !it.here) ? out : [];     // nothing to choose: the card's "can't move" line alone
   }
 
+  // The Move to... panel opens to the right of its button; a card in the right-most columns has no room there, so its panel opens to the left (its right edge on the button's).
+  const roomRight = (id) => { const a = document.querySelector(`[data-move="${id}"]`); return !a || window.innerWidth - a.getBoundingClientRect().left >= 340; };
   const drawn = [];                                   // the cards on screen in reading order: the board's one tab stop (#194)
   b.lanes.forEach((ln) => ln.columns.forEach((c) => { if (!isCollapsed(st, g, c.key)) c.cards.forEach((cd) => drawn.push(cd.id)); }));
   const stopId = stopOf(drawn);
@@ -379,7 +381,7 @@ export function Board({ rows, today, type }) {
               : <Confirm onCancel={() => setAsk(null)} onYes={() => { const { move, row } = ask; setAsk(null); changeItem(move.request, movedWords(move, row)); }} />
             : null}>
           {menu === cd.id ? (
-            <MenuPanel label={`Move ${cd.id} to`} cls="left" fade anchor={document.querySelector(`[data-move="${cd.id}"]`)} onClose={() => { setMenu(null); const el = document.querySelector(`[data-move="${cd.id}"]`); if (el) el.focus(); }}>
+            <MenuPanel label={`Move ${cd.id} to`} cls={roomRight(cd.id) ? "left" : ""} fade anchor={document.querySelector(`[data-move="${cd.id}"]`)} onClose={() => { setMenu(null); const el = document.querySelector(`[data-move="${cd.id}"]`); if (el) el.focus(); }}>
               {menuFor(cd.id).map((it, i) => it.head
                 ? <div key={"h" + i} class="mh caps" role="presentation">{it.head}</div>
                 : <button key={(it.lane ? "l" : "c") + it.key} type="button" role="menuitem" tabIndex={-1} data-to={it.key} data-lane={it.lane ? "1" : undefined}

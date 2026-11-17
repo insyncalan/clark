@@ -972,6 +972,7 @@ table.items tr[data-id]:focus-visible { outline: 2px solid var(--brand-blue); ou
 .bc-move .i { width: 16px; height: 16px; }
 .mh { padding: 6px 14px 2px; font-size: var(--size-small); color: var(--text-muted); }
 .ddmenu [role="menuitem"][aria-disabled="true"] { color: var(--text-muted); cursor: default; }
+.ddmenu [role="menuitem"][aria-disabled="true"][aria-current="true"]:hover { background: transparent; color: var(--text-muted); }      /* row 1273: the ticked line is where the card is, not a choice: the mouse over it gives no choice fill */
 .dpick { position: absolute; z-index: 26; top: 100%; left: 0; right: 0; margin-top: var(--space-1); padding: 10px var(--space-3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-small); }
 .dpick p { margin: 0 0 var(--space-2); }
 .dpick label { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--size-small); color: var(--text-muted); }
