@@ -6,7 +6,7 @@ import json
 import unittest
 
 import _tpl_notes as n
-from test_server import chrome
+from test_server import chrome, wait
 
 GOOD = {"v": 1, "quote": "Fictional words of thanks.", "by": "Sam Example", "role": "Fictional sponsor"}
 HOSTILE = {"v": 1, "quote": n.HOSTILE, "by": n.HOSTILE, "role": n.HOSTILE}
@@ -74,27 +74,72 @@ class Page(n.PageChecks):
             self.assertEqual(p.js(f"document.querySelector('{base} blockquote').textContent"), "Fictional words of thanks.")
             self.assertEqual(p.js(f"document.querySelector('{base} figcaption').textContent"), "Sam Example, Fictional sponsor")
 
-    def test_enter_in_the_quote_words_saves_them_as_one_line_and_the_box_grows_with_long_words(self):
+    def _words_view(self, ref):
+        return f"document.querySelector('[data-id={json.dumps(ref)}] [data-rich=quote]')"
+
+    def test_edit_saves_a_field_as_one_step_and_undo_puts_it_back(self):
+        ref = self.make(self.GOOD)
+        before = self.body_of(ref)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            ed = self._open_words(p, ref)
+            p.js(f"{ed}.commands.selectAll()")
+            p.type(self.TYPED)
+            p.key("Enter", code="Enter", vk=13)
+            p.saved()
+            self.assertTrue(self.CHANGED(self.body_of(ref)), self.body_of(ref))
+            sent = [r for which, r in self.sent if which == "change" and r.get("op") == "update"]
+            self.assertEqual(len(sent), 1, "one save, one request")
+            self.assertEqual(sent[0]["place"], "report")
+            p.js("document.querySelector('[data-undo]').click()")
+            p.until("document.querySelector('.toast-text').textContent === 'Undone.'", "Undo")
+            self.assertEqual(self.body_of(ref), before)
+
+    def test_edit_leaving_a_field_alone_saves_nothing(self):
         ref = self.make(self.GOOD)
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            sel = n.field_js(ref, "Quote words")
-            p.until(f"!!{sel}", "the field is there")
-            self.assertEqual(p.js(f"{sel}.tagName"), "TEXTAREA", "the words wrap and grow")
-            p.js(f"(function(){{ var el = {sel}; el.focus(); el.select(); }})()")
-            p.until(f"document.activeElement === {sel}", "focus")
-            p.type("Fictional enter words")
-            p.cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13, "text": "\r"}, p.sid)
-            p.cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13}, p.sid)
-            p.saved()
-            self.assertEqual(json.loads(self.body_of(ref))["quote"], "Fictional enter words")
-            one = p.js(f"{sel}.getBoundingClientRect().height")
-            p.js(f"(function(){{ var el = {sel}; el.focus(); el.select(); }})()")
-            p.type("Fictional long words " * 25)
-            p.until(f"{sel}.getBoundingClientRect().height > {one} * 2", "the box grows with its words")
-            self.assertEqual(p.js(f"{sel}.scrollHeight <= {sel}.clientHeight + 1"), True, "no inner scrolling: all the words show")
-            self.assertNotIn("\n", p.js(f"{sel}.value"))
+            self._open_words(p, ref)
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('.ProseMirror')", "closed")
+            p.js("new Promise(r => setTimeout(r, 300))")
+            self.assertEqual([r for which, r in self.sent if which == "change" and r.get("op") == "update"], [])
+
+    def _open_words(self, p, ref):
+        """Open the Quote words editor (the RichField view is clicked, as a person does) and return the editor's JS handle."""
+        view = f"document.querySelector('[data-id={json.dumps(ref)}] [data-rich=quote]')"
+        p.until(f"!!{view}", "the words view is there")
+        p.js(f"{view}.click()")
+        p.until("!!document.activeElement.cxed", "the words editor has the focus")
+        return "(document.activeElement.cxed.editor)"
+
+    def test_enter_in_the_quote_words_saves_them_as_one_line_and_the_box_grows_with_long_words(self):
+        ref = self.make(self.GOOD)
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp)
+                self._at(cdp, p, width)
+                p.edit()
+                ed = self._open_words(p, ref)
+                p.js(f"{ed}.commands.selectAll()")
+                p.type("Fictional enter words")
+                p.key("Enter", code="Enter", vk=13)
+                p.saved()
+                self.assertEqual(json.loads(self.body_of(ref))["quote"], "Fictional enter words")
+                p.until(f"!document.querySelector('[data-id={json.dumps(ref)}] .ProseMirror')", "Enter closed the editor")
+                ed = self._open_words(p, ref)
+                p.js(f"{ed}.commands.clearContent()")
+                p.js("(function(){var b = document.activeElement; var d = new DataTransfer(); d.setData('text/plain', 'Fictional first\\n\\nsecond   third');"
+                     " b.dispatchEvent(new ClipboardEvent('paste', {clipboardData: d, bubbles: true, cancelable: true}));})()")
+                p.until(f"{ed}.getText().includes('third')", "pasted")
+                p.key("Enter", code="Enter", vk=13)
+                p.until("!document.querySelector('.ProseMirror')", "closed")
+                self.assertTrue(wait(lambda: json.loads(self.body_of(ref))["quote"] == "Fictional first second third", 10), self.body_of(ref))
+                self.assertNotIn("\n", json.loads(self.body_of(ref))["quote"])
+                # long words wrap in the box and nothing runs wide
+                self.assertLessEqual(p.js("document.documentElement.scrollWidth - document.documentElement.clientWidth"), 0)
 
     # ---- item 1271 slice 2: look B in View, the Tile and Heading switches in Edit ----
     def _at(self, cdp, p, width):
@@ -198,13 +243,27 @@ class Page(n.PageChecks):
 
     def test_edit_stops_the_words_at_600_and_the_name_and_role_at_120(self):
         ref = self.make(GOOD)
-        with chrome() as cdp:
-            p = self.visit(cdp)
-            p.edit()
-            for label, most in (("Quote words", 600), ("Quote said by", 120), ("Quote role", 120)):
-                sel = n.field_js(ref, label)
-                p.until(f"!!{sel}", label)
-                self.assertEqual(p.js(f"{sel}.maxLength"), most, label)
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp)
+                self._at(cdp, p, width)
+                p.edit()
+                for label, most in (("Quote said by", 120), ("Quote role", 120)):
+                    sel = n.field_js(ref, label)
+                    p.until(f"!!{sel}", label)
+                    self.assertEqual(p.js(f"{sel}.maxLength"), most, label)
+                ed = self._open_words(p, ref)
+                before = self.body_of(ref)
+                p.js(f"{ed}.commands.selectAll()")
+                p.type("w" * 601)
+                p.key("Enter", code="Enter", vk=13)
+                p.js("new Promise(r => setTimeout(r, 500))")
+                self.assertEqual(self.body_of(ref), before, "601 characters are not saved")
+                self.assertTrue(p.js("!!document.querySelector('.ProseMirror')"), "the editor stays open on too long words")
+                p.js(f"{ed}.commands.selectAll()")
+                p.type("w" * 600)
+                p.key("Enter", code="Enter", vk=13)
+                self.assertTrue(wait(lambda: json.loads(self.body_of(ref))["quote"] == "w" * 600, 10), "600 characters are saved")
 
 
 if __name__ == "__main__":

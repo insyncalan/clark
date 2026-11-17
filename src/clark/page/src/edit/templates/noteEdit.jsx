@@ -27,14 +27,11 @@ export function useSaver(section, saved, done, named = null) {
 }
 
 // A plain text field (one line). `value` is what is saved; `onCommit(text)` is told the new words only when they differ.
-// With `grow` it is a text area that wraps and grows with its words (item 1271); Enter still saves and a pasted line break becomes a space, so the store keeps one line.
-export function Field({ value, onCommit, label, max, cls = "", placeholder, grow = false, onDraft = null }) {
+export function Field({ value, onCommit, label, max, cls = "", placeholder, onDraft = null }) {
   const [draft, setDraft] = useState(value);
-  const box = useRef(null);
   const focused = useRef(false), cancelled = useRef(false), latest = useRef(value);
   latest.current = value;
   useEffect(() => { if (!focused.current) setDraft(value); }, [value]);
-  useEffect(() => { const el = box.current; if (grow && el) { el.style.height = "auto"; el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`; } }, [draft, grow]);
   useEffect(() => { if (onDraft) onDraft((draft || "").length); }, [draft]);   // the length typed so far, for a counter beside the field (callout title)
   const done = (el) => {
     focused.current = false;
@@ -49,7 +46,7 @@ export function Field({ value, onCommit, label, max, cls = "", placeholder, grow
   const common = {
     class: `tpl-field ${cls}`, value: draft, "aria-label": label, maxLength: max, placeholder, spellcheck: true,
     onFocus: () => { focused.current = true; },
-    onInput: (e) => setDraft(grow ? e.currentTarget.value.replace(/\s*[\r\n]+\s*/g, " ") : e.currentTarget.value),
+    onInput: (e) => setDraft(e.currentTarget.value),
     onBlur: (e) => done(e.currentTarget),
   };
   const keys = (e) => {
@@ -57,5 +54,5 @@ export function Field({ value, onCommit, label, max, cls = "", placeholder, grow
     if (e.key === "Escape") { e.preventDefault(); cancelled.current = true; e.currentTarget.blur(); }
     else if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); }
   };
-  return grow ? <textarea {...common} ref={box} rows={1} onKeyDown={keys} /> : <input {...common} type="text" onKeyDown={keys} />;
+  return <input {...common} type="text" onKeyDown={keys} />;
 }

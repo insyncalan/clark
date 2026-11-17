@@ -1,15 +1,26 @@
 // Quote (item 96, item 1271), store type "quote": its Edit part, in place. A toolbar above (Tile and Heading, two switches), then the quote as the reader sees it (look B),
-// with the words, the name and the role typed inside it (the words wrap and grow; Enter saves and a line break is never stored; the name and the role are one line each). Each save is one change() (noteEdit.jsx saveContent):
+// with the words, the name and the role typed inside it (the words are the one editor and wrap; Enter saves and a line break is never stored; the name and the role are one line each). Each save is one change() (noteEdit.jsx saveContent):
 // one step, one Undo. The view part is templates/Quote.jsx.
 import { source, tidyQuote, quoteShows, LIMITS } from "../../templates/notes.js";
 import { Field, useSaver } from "./noteEdit.jsx";
 import { Icon } from "../../components/Icon.jsx";
+import { RichField } from "../RichField.jsx";
+import { richOrPlain } from "../../logic/richOrPlain.js";
+import { plainFromEditor } from "../plainWords.js";
 
 // A switch is stored only when off (section_kinds/quote.py): turning it on again writes nothing for it.
 export function Edit({ section }) {
   const saved = tidyQuote(source(section));
   const on = quoteShows(saved);
   const write = useSaver(section, saved, "Quote saved.");
+  const quoteHtml = (() => { try { return richOrPlain(saved.quote || ""); } catch (e) { return ""; } })();
+  // Row 1005 and 1271: the words are the one editor (RichField) but the store keeps plain text on one line (QUOTE_MAX), so the editor's HTML is flattened before it is sent.
+  const putWords = async (typed) => {
+    const quote = plainFromEditor(typed, true);
+    if (quote === saved.quote) return true;
+    if (quote.length > LIMITS.quote) return false;
+    return !!(await write({ quote }));
+  };
   const flip = (name) => write({ [name]: on[name] ? false : true });
   return (
     <div class="tpl-edit tpl-edit-quote qb" data-tpl="quote">
@@ -20,7 +31,7 @@ export function Edit({ section }) {
         </div>
       </div>
       <figure class="tpl-quote">
-        <Field value={saved.quote} label="Quote words" max={LIMITS.quote} placeholder="Type or paste the quote here" cls="qb-words" grow onCommit={(quote) => write({ quote })} />
+        <RichField field="quote" id={section.id} value={quoteHtml} label="Quote words" cls="qb-words" empty="Type or paste the quote here" save={putWords} oneLine />
         <div class="qb-who">
           <Field value={saved.by} label="Quote said by" max={LIMITS.name} placeholder="Name (optional)" cls="qb-by" onCommit={(by) => write({ by })} />
           <Field value={saved.role} label="Quote role" max={LIMITS.name} placeholder="Role (optional)" cls="qb-role" onCommit={(role) => write({ role })} />
