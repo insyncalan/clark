@@ -24,14 +24,21 @@ class FilterChipContrast(unittest.TestCase):
         print(f"1290 chip text contrast, light: {r:.2f}:1")
         self.assertGreaterEqual(r, FLOOR)
 
-    @unittest.expectedFailure   # measured 4.18:1, under the floor: colours not changed here; remove this line when the dark token is ruled
     def test_every_dark_block_chip_text_on_the_tint(self):
+        # dark chip text is --brand-blue-strong (--brand-blue itself measures 4.18:1 on the tint and stays as it is)
         blocks = dark_blocks(TOKENS)
         self.assertTrue(blocks)
         for b in blocks:
-            r = ratio(b["--brand-blue"], b["--brand-blue-tint"])
+            r = ratio(b["--brand-blue-strong"], b["--brand-blue-tint"])
             print(f"1290 chip text contrast, dark: {r:.2f}:1")
             self.assertGreaterEqual(r, FLOOR)
+
+    def test_the_dark_chip_rules_use_the_strong_text_token_and_light_keeps_brand_blue(self):
+        css = (ROOT / "src" / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
+        self.assertRegex(css, r"(?m)^\.fchip \{[^}]*color: var\(--brand-blue\);")
+        for sel in (r":root\[data-theme=dark\] \.fchip:not\(\.word\)", r":root\[data-theme=auto\] \.fchip:not\(\.word\)"):
+            self.assertRegex(css, sel + r" \{ color: var\(--brand-blue-strong\); \}")
+        self.assertRegex(css, r"@media \(prefers-color-scheme: dark\) \{ :root\[data-theme=auto\] \.fchip")
 
 
 if __name__ == "__main__":

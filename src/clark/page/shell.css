@@ -428,6 +428,8 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1
 .fline input::placeholder { color: var(--text-muted); }
 .fchip { display: inline-flex; align-items: center; gap: 4px; padding: 0 2px 0 10px; min-height: 26px; border-radius: var(--radius-sm); background: var(--brand-blue-tint); color: var(--brand-blue); font-size: var(--size-small); }   /* item 1290: a rounded rectangle in the loaded brand (text and cross take the brand colour) */
 .fchip.word { background: var(--grey-100); color: var(--text); }
+:root[data-theme=dark] .fchip:not(.word) { color: var(--brand-blue-strong); }   /* item 1290: in dark the brand blue is 4.18:1 on the tint, the strong blue 6.57:1 (cross follows the text) */
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .fchip:not(.word) { color: var(--brand-blue-strong); } }
 .fchip button { all: unset; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius-sm); cursor: pointer; }
 .fchip button:hover { background: var(--grey-200); }
 .fchip button:focus-visible { outline: 2px solid var(--brand-blue); }
