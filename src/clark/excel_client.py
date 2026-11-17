@@ -251,12 +251,12 @@ def write_gantt_sheet(wb, published, palette=None):
 
 
 GLANCE_SHEET = "At a glance"
-GLANCE_HEADS = (("Tile", 28), ("Figure", 14), ("Tag", 16), ("Note", 60))
+GLANCE_HEADS = (("Label", 28), ("Figure", 14), ("Tag", 16), ("Note", 60))
 
 
 def write_glance_sheet(wb, published, sec, palette=None):
     """Row 1264 slice 7: a glance template section as one sheet, a row for each tile in the section's order (the health tile first when
-    it has a row of its own): Tile, Figure, Tag, Note. Locked text. The words are the published content's own."""
+    it has a row of its own): Label, Figure, Tag, Note. Locked text. The words are the published content's own."""
     got = glance_print.read(published, sec)
     rows = ([got["health_row"]] if got["health_row"] else []) + got["tiles"]
     if not rows:

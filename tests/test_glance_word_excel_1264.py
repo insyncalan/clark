@@ -120,7 +120,7 @@ class Word(unittest.TestCase):
         xml = zipfile.ZipFile(io.BytesIO(data)).read("word/document.xml").decode("utf-8")
         self.assertIn("Project health: </w:t>", xml)
         t = lines(pub)
-        self.assertLess(t.index("Project health: At risk") if "Project health: At risk" in t else 0, t.index("ZQ-Morale"))
+        self.assertLess(t.index("Project health: At risk"), t.index("ZQ-Morale"))
         self.assertLess(xml.index("Project health: "), xml.index("ZQ-Morale"))
 
     def test_health_in_its_place_is_not_a_row_of_its_own(self):
