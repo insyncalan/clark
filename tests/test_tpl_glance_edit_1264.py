@@ -188,7 +188,17 @@ class Keys(GlanceEdit):
 
 
 class Health(GlanceEdit):
+    def test_T69a_a_new_template_starts_with_the_health_eye_off_and_the_eye_turns_it_on(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.assertTrue(p.js(f"document.querySelector('{self.sel('[data-tile=health]')}').classList.contains('is-hidden')"), "never written: health starts off")
+            p.js(f"document.querySelector('{self.sel('[data-tile=health] [data-tile-eye]')}').click()")
+            self.assertTrue(wait(lambda: self.body() == {"v": 1}, 10), f"stored: {self.body()}")
+            self.assertFalse(p.js(f"document.querySelector('{self.sel('[data-tile=health]')}').classList.contains('is-hidden')"))
+
     def test_T69_the_eye_on_project_health_hides_the_tile_only_and_undo_shows_it(self):
+        self.store.con.execute("UPDATE report_sections SET body = ? WHERE id = ?", ('{"v":1}', self.ref))      # an existing page: no health field, health shown
+        self.store.con.commit()
         with chrome() as cdp:
             p = self.page(cdp)
             project = self.store.read("projects", ref="ABC")["health"]

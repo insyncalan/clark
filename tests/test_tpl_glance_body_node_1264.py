@@ -73,10 +73,10 @@ class HealthTile(unittest.TestCase):
 
 class Compact(unittest.TestCase):
     def test_the_default_order_is_not_stored(self):
-        self.assertEqual(run_node("G.compact(G.readBody({source: {}}))"), {"v": 1})
+        self.assertEqual(run_node("G.compact(G.readBody({content: {v: 1}}))"), {"v": 1})
 
     def test_a_changed_order_is_stored(self):
-        got = run_node("G.compact(G.withChange(G.readBody({source: {}}), {order: ['risks', 'health', 'overdue', 'decisions']}))")
+        got = run_node("G.compact(G.withChange(G.readBody({content: {v: 1}}), {order: ['risks', 'health', 'overdue', 'decisions']}))")
         self.assertEqual(got, {"v": 1, "order": ["risks", "health", "overdue", "decisions"]})
 
 
@@ -96,6 +96,16 @@ class ReadBody(unittest.TestCase):
         for wrong in (9, 5, 0, 2, "3", None, True):
             self.assertEqual(read({"per_row": wrong})["per_row"], 4, repr(wrong))
         self.assertEqual(read({"per_row": 3})["per_row"], 3)
+
+    def test_a_never_written_body_starts_with_the_health_eye_off_and_a_written_one_without_the_field_shows_it(self):
+        got = run_node("""[{body: ""}, {body: '{"v":1}'}, {body: "{}"}, {body: '{"v":1,"health":{"shown":true}}'}, {}, null, {content: {v: 1}}, {body: '{"v":1,"health":{"shown":false}}'}].map((s) => G.readBody(s).health.shown)""")
+        self.assertEqual(got, [False, True, True, True, False, False, True, False])
+
+    def test_the_first_change_to_a_never_written_body_stores_the_eye_off(self):
+        got = run_node("""G.compact(G.withChange(G.readBody({body: ""}), {outline: ["risks", "A"]}))""")
+        self.assertEqual(got, {"v": 1, "health": {"shown": False}, "builtin": {"risks": {"outline": "A"}}})
+        got = run_node("""G.compact(G.withChange(G.readBody({body: '{"v":1}'}), {outline: ["risks", "A"]}))""")
+        self.assertEqual(got, {"v": 1, "builtin": {"risks": {"outline": "A"}}})
 
     def test_every_field_read_back(self):
         got = read({"health": {"shown": False, "own_row": True}, "builtin": {"risks": {"hidden": True, "outline": "A"}, "decisions": {"outline": "N"}},
