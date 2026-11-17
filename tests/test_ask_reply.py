@@ -83,6 +83,11 @@ class Form(unittest.TestCase):
             self.assertEqual([f.kind for f in r.flags], ["change_unreadable"], line[:40])
             self.assertEqual(r.flags[0].message, ask.CHANGE_UNREADABLE)
 
+    def test_the_dropped_change_flag_says_its_words_and_names_nothing(self):          # #1293 A [D]
+        r = read('Answer.\nCHANGE: not json\nCHANGE: {"good": 1}')
+        self.assertEqual((r.flags[0].kind, r.flags[0].ref), ("change_unreadable", ""))
+        self.assertEqual(r.flags[0].message, "A change the answer suggested could not be read, so it was left out.")
+
     def test_changes_over_the_limit_are_dropped_and_said(self):          # #1293 A [D]
         r = read("\n".join(["Answer"] + ['CHANGE: {"a": 1}'] * (ask.MAX_CHANGES + 1)))
         self.assertEqual((r.parsed, len(r.changes), kinds(r)), (True, ask.MAX_CHANGES, ["change_unreadable"]))

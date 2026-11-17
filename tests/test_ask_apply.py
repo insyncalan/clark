@@ -14,6 +14,13 @@ from _paths import SRC
 from clark import ask, ask_apply, changes, history, store as store_module
 
 
+
+class FoldWords(unittest.TestCase):
+    def test_fold_of_nothing_is_empty_and_html_is_read_as_plain_text(self):          # #1293 A
+        self.assertEqual(ask_apply._fold(None), "")
+        self.assertEqual(ask_apply._fold("<p>Fix  THE   Plan</p>"), "fix the plan")
+
+
 class Base(unittest.TestCase):
     def setUp(self):
         self.demo = DemoStore()
