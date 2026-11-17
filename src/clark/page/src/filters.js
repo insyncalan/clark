@@ -20,6 +20,7 @@ const NO_WORDS = { workstream: "No workstream", status: "No status", owner: "No 
 export const DUE = [["overdue", "Overdue"], ["soon", "Due in 7 days"], ["none", "No date"], ["later", "Later"]];
 const PRIORITIES = ["Urgent", "High", "Medium", "Low"];
 const CLIENT = [["yes", "Shown to the client"], ["no", "Internal only"]];
+export const CLIENT_WORDS = { yes: CLIENT[0][1], no: CLIENT[1][1] };
 
 // #119 (pure part): "Not reviewed in N days". The page has no history yet, so the rule reads dates an item carries when the data
 // has them: `not_reviewed` (true or false, worked out on the server by freshness.py) wins; else `last_reviewed`, else `raised`

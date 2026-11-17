@@ -247,6 +247,15 @@ class PageRules(unittest.TestCase):
         page = self.val(f"W.matching(W.filterOf({{body: {json.dumps(stored({'mode': 'current', 'kinds': ['decision'], 'max': 50}))}}}), W.ruleRows({json.dumps(ROWS)}), {json.dumps(TODAY)}).sort()")
         self.assertEqual(page, ["ABC-D-001", "ABC-D-002", "ABC-D-004"])
 
+    def test_current_counts_a_decision_made_today_and_ignores_a_made_row_that_is_not_a_decision(self):      # row 1268, item 4: the survivors of the mutation pass
+        rows = dict(ROWS, decisions=[{"id": "ABC-D-010", "status": "Made", "made_by": "Lee Demo", "use_case": None, "needed_by": None, "date": TODAY, "priority": None}],
+                    raid=[{"id": "ABC-010", "type": "Risk", "status": "Made", "owner": None, "workstream": None, "use_case": None, "priority": "Low", "due_date": TODAY}])
+        for kinds, want in ((["decision"], ["ABC-D-010"]), (["risk"], [])):
+            body = stored({"mode": "current", "kinds": kinds, "max": 50})
+            self.assertEqual(sorted(wi.matching(check({"mode": "current", "kinds": kinds, "max": 50}), wi.rows_of(rows), TODAY)), want)
+            page = self.val(f"W.matching(W.filterOf({{body: {json.dumps(body)}}}), W.ruleRows({json.dumps(rows)}), {json.dumps(TODAY)}).sort()")
+            self.assertEqual(page, want)
+
     def test_a_decision_has_no_priority_in_the_rules_as_on_the_work_items_page(self):      # row 1268, item 8: the cell shows the peek's priority, the filter and sort still read none
         got = wi.matching(check({"mode": "all", "kinds": ["decision"], "priority": ["Urgent"], "max": 50}), wi.rows_of(ROWS), TODAY)
         self.assertEqual(got, [])

@@ -35,7 +35,7 @@ SEE = """((root) => {
   const rows = [...box.querySelectorAll('.msl-row')].map((r) => {
     const prog = r.querySelector('.msl-prog'), bar = r.querySelector('.pbar'), fill = bar && bar.querySelector('i'), num = prog.querySelector('.num');
     const pr = prog.getBoundingClientRect(), rr = r.getBoundingClientRect();
-    const out = {id: r.dataset.ms, text: prog.textContent.trim(), notSet: !!prog.querySelector('.muted'), bar: !!bar,
+    const out = {id: r.dataset.ms, text: prog.textContent.trim(), notSet: !!prog.querySelector('.muted'), spokenNotSet: (prog.querySelector('.muted [aria-label], .muted[aria-label]') || {getAttribute: () => null}).getAttribute('aria-label'), bar: !!bar,
                  inside: pr.left >= rr.left - 1 && pr.right <= rr.right + 1 && pr.width > 0 && pr.height > 0};
     if (bar) {
       const bw = bar.getBoundingClientRect().width, fw = fill.getBoundingClientRect().width;
@@ -112,7 +112,11 @@ class Block(unittest.TestCase):
                 self.assertGreaterEqual(r["numVsRow"], 4.5, f"{label} {ident}: the figure reads at 4.5:1")
             else:
                 self.assertFalse(r["bar"], f"{label} {ident}: no figure, no bar")
-                self.assertTrue(r["notSet"] and r["text"] == "Progress not set", f"{label} {ident}: it says so in words")
+                if label == "page":
+                    self.assertTrue(r["notSet"] and r["text"] == "Progress not set", f"{label} {ident}: the Milestones page keeps its words")
+                else:
+                    self.assertTrue(r["notSet"] and r["text"] == "\u2014" and r["spokenNotSet"] == "Progress not set",
+                                    f"{label} {ident}: a dash in the Dashboard's table, spoken as 'Progress not set' (row 1230)")
 
     def test_the_dashboard_block_is_the_milestones_block_with_a_bar_and_a_figure_on_each_row(self):
         for width in (1400, 900):

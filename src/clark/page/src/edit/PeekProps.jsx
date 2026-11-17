@@ -42,7 +42,7 @@ export function ClientLine({ row }) {
   const on = !!row.client;
   const run = () => { const c = eyeChange(row); changeCell(c.table, c.id, c.changes, { text: c.words, back: c.back, place: PLACE }); };
   return (
-    <button type="button" class={`pk-client${on ? " on" : ""}`} data-pk-client aria-pressed={on ? "true" : "false"} onClick={run}>
+    <button type="button" class={`pk-client cv${on ? " on" : ""}`} data-pk-client aria-pressed={on ? "true" : "false"} onClick={run}>
       <Icon name={on ? "eye" : "eyeoff"} />{on ? "Client visible" : "Client not visible"}
     </button>
   );
