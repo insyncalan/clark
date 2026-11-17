@@ -1,4 +1,4 @@
-"""Row 1264, Cap's reader addendum on the glance tile editor: what a Done that is still on its way does, run in node with a held send (no browser).
+"""Row 1264, the reader's addendum on the glance tile editor: what a Done that is still on its way does, run in node with a held send (no browser).
 A stand-in for fetch holds each save until the test lets it go, so the order is exact: a Remove while a Done is on its way waits (S1), a Done in
 another section is not stopped and both land (S2), a Done that lands never drops the editor another section has open with its typed draft (S3),
 and the Removed toast of a draft with no label says Untitled (S4). Fictional data only.
