@@ -14,7 +14,7 @@ export function mark(k) {
   const name = k.icon !== "none" ? k.icon : k.shape;
   return name ? <Icon name={name} cls="tpl-callout-ic" /> : null;
 }
-// #1272: the colour and the icon in words (for a reader who cannot tell colours apart, and a screen reader): "Colour: Violet. Icon: Light bulb." Plain has a colour name too; No icon says nothing.
+// item 1272: the colour and the icon in words (for a reader who cannot tell colours apart, and a screen reader): "Colour: Violet. Icon: Light bulb." Plain has a colour name too; No icon says nothing.
 export const lookWords = (k) => `Colour: ${COLOURS[k.colour]}.${k.icon !== "none" ? ` Icon: ${ICONS[k.icon]}.` : ""}`;
 export const boxClass = (k) => `tpl-callout k-${k.colour}${k.icon === "none" && !k.shape ? " noic" : ""}`;
 
