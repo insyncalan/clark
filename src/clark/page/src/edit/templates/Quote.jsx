@@ -1,4 +1,4 @@
-// Quote (#96, #1271), store type "quote": its Edit part, in place. A toolbar above (Tile and Heading, two switches), then the quote as the reader sees it (look B),
+// Quote (#96, item 1271), store type "quote": its Edit part, in place. A toolbar above (Tile and Heading, two switches), then the quote as the reader sees it (look B),
 // with the words, the name and the role typed inside it (one line each; a line break isn't allowed in the store). Each save is one change() (noteEdit.jsx saveContent):
 // one step, one Undo. The view part is templates/Quote.jsx.
 import { source, tidyQuote, quoteShows, LIMITS } from "../../templates/notes.js";

@@ -43,6 +43,17 @@ class Data(n.DataChecks):
                 self.assertEqual(status, 400, got)
                 self.assertEqual(self.snapshot(), before)
 
+    def test_the_limits_are_600_for_the_words_and_120_for_name_and_role_exactly(self):
+        ref = self.section()
+        for field, most in (("quote", 600), ("by", 120), ("role", 120)):
+            with self.subTest(field=field):
+                status, got = self.write(ref, {**GOOD, field: "x" * most})
+                self.assertEqual(status, 200, got)
+                kept = self.stored(ref)
+                status, got = self.write(ref, {**GOOD, field: "x" * (most + 1)})
+                self.assertEqual(status, 400, got)
+                self.assertEqual(self.stored(ref), kept, "a refused save changes nothing")
+
     def test_a_quote_with_a_switch_off_and_no_words_stays_out_of_the_file(self):
         ref = self.section()
         self.write(ref, {"v": 1, "by": "Sam Example", "tile": False, "heading": False})
@@ -133,6 +144,50 @@ class Page(n.PageChecks):
                 p.js(f"{q('Show the tile (the card around the quote)')}.click()")
                 self.assertTrue(wait(lambda: "tile" not in json.loads(self.body_of(ref)), 10), self.body_of(ref))
                 p.until(f"document.querySelector('{sec} .tag.hid') && document.querySelector('{sec} .tag.hid').textContent === 'Heading not shown in View'", "heading tag")
+
+    # ---- #1271 gaps: dark theme at 1400 and 900 in View and Edit; the 600 limit in Edit ----
+    @staticmethod
+    def _lum(css):
+        """Relative brightness 0..1 of an 'rgb(r, g, b)' / 'rgba(...)' string."""
+        r, g, b = [int(float(x)) for x in css[css.index("(") + 1:css.index(")")].split(",")[:3]]
+        return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
+
+    def test_view_and_edit_keep_look_b_readable_in_dark_at_1400_and_900(self):
+        ref = self.make({**GOOD, "quote": "Fictional " + "words " * 90})
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp)
+                self._at(cdp, p, width)
+                q = f"document.querySelector('[data-id={json.dumps(ref)}] .tpl-quote')"
+                for mode in ("view", "edit"):
+                    if mode == "edit":
+                        p.edit()
+                        p.until(f"!!{q}", "the Quote in Edit")
+                    seen = {}
+                    for theme in ("light", "dark"):
+                        p.js(f"document.documentElement.setAttribute('data-theme', '{theme}')")
+                        where = f"{mode} {theme} {width}"
+                        seen[theme] = self._lum(p.js(f"getComputedStyle({q}).backgroundColor"))
+                        self.assertEqual(p.js(f"getComputedStyle({q}, '::before').height"), "3px", f"{where}: the rule")
+                        self.assertLessEqual(p.js(f"{q}.scrollWidth"), p.js(f"{q}.clientWidth"), f"{where}: no sideways overflow")
+                        self.assertLessEqual(p.js("document.documentElement.scrollWidth - document.documentElement.clientWidth"), 0, f"{where}: the page does not scroll sideways")
+                        if mode == "view":
+                            words = self._lum(p.js(f"getComputedStyle({q}.querySelector('.tpl-quote-q')).color"))
+                            name = self._lum(p.js(f"getComputedStyle({q}.querySelector('.tpl-quote-nm')).color"))
+                            role = self._lum(p.js(f"getComputedStyle({q}.querySelector('.tpl-quote-rl')).color"))
+                            for what, ink in (("words", words), ("name", name), ("role", role)):
+                                self.assertGreater(abs(ink - seen[theme]), 0.3, f"{where}: the {what} read against the panel")
+                    self.assertGreater(seen["light"] - seen["dark"], 0.3, f"{mode} {width}: the panel goes dark with the theme")
+
+    def test_edit_stops_the_words_at_600_and_the_name_and_role_at_120(self):
+        ref = self.make(GOOD)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            for label, most in (("Quote words", 600), ("Quote said by", 120), ("Quote role", 120)):
+                sel = n.field_js(ref, label)
+                p.until(f"!!{sel}", label)
+                self.assertEqual(p.js(f"{sel}.maxLength"), most, label)
 
 
 if __name__ == "__main__":

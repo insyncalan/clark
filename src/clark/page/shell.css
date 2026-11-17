@@ -2031,7 +2031,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-callout-h { margin: 0 0 var(--space-1); font-weight: var(--weight-medium); color: var(--heading); }
 .tpl-callout-p { margin: 0 0 var(--space-2); }
 .tpl-callout-p:last-child { margin-bottom: 0; }
-.tpl-quote { margin: var(--space-2) 0; padding: var(--space-4) var(--space-5); border-radius: var(--radius); background: var(--grey-50); min-width: 0; overflow-wrap: anywhere; }      /* #1271 look B: the panel kept, a short blue rule on top, the name in small capitals, the role under it */
+.tpl-quote { margin: var(--space-2) 0; padding: var(--space-4) var(--space-5); border-radius: var(--radius); background: var(--grey-50); min-width: 0; overflow-wrap: anywhere; }      /* item 1271 look B: the panel kept, a short blue rule on top, the name in small capitals, the role under it */
 .tpl-quote::before { content: ""; display: block; width: var(--space-7); height: 3px; margin-bottom: var(--space-3); border-radius: 2px; background: var(--brand-blue); }
 .tpl-quote-q { margin: 0; font-family: var(--font-head); font-size: var(--size-h3); line-height: 1.45; font-weight: var(--weight-regular); color: var(--heading); }
 .tpl-quote-q p { margin: 0; }
@@ -2040,7 +2040,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-quote-by .tpl-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .tpl-quote-rl { font-size: var(--size-caption); color: var(--text-muted); }
 @container half (max-width: 520px) { .tpl-quote { padding: var(--space-3) var(--space-4); } }      /* a half card (493 at 1400) keeps the panel and the rule; the words wrap, nothing runs wider */
-/* #1271: no tile (the card around the quote) and no heading. In Edit the card stays, dashed, and the heading struck through, so the section can be found. */
+/* item 1271: no tile (the card around the quote) and no heading. In Edit the card stays, dashed, and the heading struck through, so the section can be found. */
 .sec.no-tile, html:not([data-density="comfortable"]) .sec.no-tile { background: transparent; border-color: transparent; box-shadow: none; }      /* the compact look's top line is the tile there, so it goes too */
 #report[data-mode="view"] .sec.no-tile { padding-left: 0; padding-right: 0; }
 #report[data-mode="edit"] .sec.no-tile { border: 1px dashed var(--grey-500); }
