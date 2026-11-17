@@ -102,7 +102,7 @@ function Row({ row, today, words, inFile, type, pick: Pick }) {
   const P = (field, said, children, extra) => (Pick ? <Pick row={row} field={field} said={said} {...(extra || {})}>{children}</Pick> : children);      // row 1287: in View the Edit cell picker round the four values (status, owner, date, priority), never round the title
   return (
     <li class={`wl-row${inFile ? "" : " wl-open"}`} data-id={row.id} data-kind={row.kind} onClick={open}>
-      <span class="c-ico">{P("status", pill.text, <ItemIcon row={row} pill={pill} today={today} plain={!!Pick} />, { keep: true })}{inFile ? <span class={`ico-w ${toneOf(row, pill)}`}>{pill.text}</span> : null}</span>
+      <span class="c-ico">{P("status", pill.text, <ItemIcon row={row} pill={pill} today={today} plain={!!Pick} />, { keep: true, tip: iconWords(row, pill, today).tip })}{inFile ? <span class={`ico-w ${toneOf(row, pill)}`}>{pill.text}</span> : null}</span>
       <span class="wl-title c-title" title={title} onClick={Pick ? (e) => { e.stopPropagation(); if (!String(window.getSelection()).length) openPeekEdit(row.id); } : undefined}>{title}</span>
       <span class="c-owner" title={who.initials ? who.text : undefined}>
         {P("owner", who.initials ? who.text : "none", who.initials ? <><span class="av" aria-hidden="true">{who.initials}</span><span class="nm">{who.text}</span></> : <span class="nm muted">No owner</span>)}

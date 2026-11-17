@@ -39,8 +39,8 @@ def fill_more(store):
 # One row's parts, as drawn: the text and the box of each column.
 ROWS = r"""[...document.querySelectorAll('[data-type=%s] .wl-row')].map(r => {
   const q = (s) => r.querySelector(s), box = (e) => { if (!e) return null; const b = e.getBoundingClientRect(); return {x: b.x, w: b.width, h: b.height}; };
-  const ico = q('.ico'), title = q('.wl-title'), nm = q('.c-owner .nm'), prio = q('.c-prio'), id = q('.c-id');
-  return {id: r.dataset.id, h: r.getBoundingClientRect().height, letter: ico && ico.textContent.trim(), cls: ico && ico.className, aria: ico && ico.getAttribute('aria-label'),
+  const ico = q('.ico'), pk = q('.c-ico .cell-pick'), title = q('.wl-title'), nm = q('.c-owner .nm'), prio = q('.c-prio'), id = q('.c-id');
+  return {id: r.dataset.id, h: r.getBoundingClientRect().height, letter: ico && ico.textContent.trim(), cls: ico && ico.className, aria: ico && ico.getAttribute('aria-label'), pkAria: pk && pk.getAttribute('aria-label'), pkTip: pk && pk.dataset.tip, pkTab: pk && pk.tabIndex,
     tip: (ico && ico.dataset.tip) || (q('[data-tip]') && q('[data-tip]').dataset.tip), tab: ico && ico.tabIndex, word: (q('.ico-w') || {}).textContent || '',
     pills: r.querySelectorAll('.pill').length, title: title && title.textContent.trim(), titleAttr: title && title.getAttribute('title'),
     cut: title && title.scrollWidth > title.clientWidth + 1, tov: title && getComputedStyle(title).textOverflow, tws: title && getComputedStyle(title).whiteSpace,
@@ -96,14 +96,16 @@ class OneLineInView(Base):
             self.assertEqual([r["letter"] for r in decisions], ["D"])
             first = actions[0]
             self.assertIn("r", first["cls"].split(), "an Overdue action is red")
-            self.assertEqual(first["aria"], "Action, Overdue")
-            self.assertEqual(first["tip"], "Action · Overdue")
-            self.assertEqual(first["tab"], 0, "the icon takes keyboard focus, so the tooltip shows on focus too")
-            self.assertEqual((raid[0]["aria"], raid[0]["tip"]), ("Risk, Urgent, Overdue", "Risk · Urgent · Overdue"))
+            # Row 1287: in View the status icon sits inside the Edit status picker, which carries the words (name, tip, focus); the icon itself is then plain
+            self.assertIsNone(first["aria"])
+            self.assertRegex(first["pkAria"], r"^Status of .+: Overdue\. Change$")
+            self.assertEqual(first["pkTip"], "Action · Overdue")
+            self.assertRegex(raid[0]["pkAria"], r": Urgent, Overdue\. Change$|: Overdue\. Change$|: Red\. Change$")
+            self.assertEqual(raid[0]["pkTip"], "Risk · Urgent · Overdue")
             self.assertIn("r", raid[0]["cls"].split())
-            self.assertEqual(raid[1]["aria"], "Issue, Green")
+            self.assertEqual(raid[1]["pkTip"], "Issue · Green")
             self.assertIn("g", raid[1]["cls"].split())
-            self.assertEqual(decisions[0]["aria"], "Decision, Pending")
+            self.assertEqual(decisions[0]["pkTip"], "Decision · Pending")
             self.assertRegex(first["late"], r"^\d+ d late$", "the priority column says 'N d late' on a late action")
             self.assertIn("Urgent", raid[0]["late"])
 
