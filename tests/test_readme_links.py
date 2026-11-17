@@ -60,7 +60,8 @@ class ReadmeLinks(unittest.TestCase):
         self.assertNotIn("Themes", para)           # no theme feature is reachable in 1.2
         self.assertNotIn("come later", para)
         self.assertIn("clark runs on a Mac.", para)
-        self.assertIn("The Windows download is a zip you unzip and run in Docker; the release notes say how.", para)
+        self.assertIn("On Windows, unzip the same download and run clark in Docker; the release notes say how.", para)
+        self.assertNotIn("Windows download", para)   # one download only: no separate Windows asset is implied
         zip_readme = (ROOT / "docs" / "zip" / "README.md").read_text(encoding="utf-8")
         self.assertIn(para, zip_readme.splitlines(), "the zip's README carries the same first paragraph")
 
@@ -86,7 +87,7 @@ class ReadmeLinks(unittest.TestCase):
     def test_no_claim_of_what_is_not_shipped(self):
         self.assertNotIn("meet clark", README)
         self.assertNotIn("intake", README)
-        # "Windows download" was here until 1.2.0: from then the first paragraph says what the Windows download is (a zip run in Docker), as the release notes do.
+        self.assertNotIn("Windows download", README)
 
 
 if __name__ == "__main__":
