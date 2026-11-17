@@ -165,6 +165,25 @@ class Word(unittest.TestCase):
         b = body(bespoke=[{"id": "x", "label": "A<b>&", "figure": "1", "tag": "", "note": ""}])
         self.assertIn("A<b>&", lines(select(b)))
 
+    def test_killer_a_counting_tile_is_shaded_in_its_colour_and_the_health_tile_in_the_projects(self):
+        xml = zipfile.ZipFile(io.BytesIO(docx_build.build(select()))).read("word/document.xml").decode("utf-8")
+        cells = re.findall(r"<w:tc>.*?</w:tc>", xml, re.S)
+        for word, tone in (("Overdue actions", "green"), ("High risks and issues", "red"), ("Project health", "amber")):
+            cell = next(c for c in cells if word in c)
+            self.assertIn(f'w:fill="{docx_build.TOKENS["tone-" + tone + "-tint"]}"', cell, word)
+
+    def test_killer_the_risk_tile_says_High_in_its_own_line_and_the_health_reason_is_printed(self):
+        t = lines(select())
+        self.assertEqual(t[t.index("High risks and issues") + 2], "High")
+        self.assertIn("ZQ-HEALTH-REASON", t)
+
+    def test_killer_health_on_its_own_row_keeps_its_reason_and_its_colour(self):
+        pub = select(body(order=["health", "bud"], health={"own_row": True}))
+        self.assertIn("ZQ-HEALTH-REASON", lines(pub))
+        xml = zipfile.ZipFile(io.BytesIO(docx_build.build(pub))).read("word/document.xml").decode("utf-8")
+        para = next(p for p in re.findall(r"<w:p[ >].*?</w:p>", xml, re.S) if "Project health: " in p)
+        self.assertIn(f'w:fill="{docx_build.TOKENS["tone-amber-tint"]}"', para)
+
 
 class Excel(unittest.TestCase):
     def test_the_sheet_has_a_row_for_each_kept_tile_in_order(self):
@@ -214,6 +233,21 @@ class Excel(unittest.TestCase):
         wb = load_workbook(io.BytesIO(excel_client.workbook_bytes(select())))
         self.assertIn("Actions", wb.sheetnames)
 
+    def test_killer_the_risk_tile_status_and_a_label_that_starts_with_an_equals_sign_stays_text(self):
+        rows = {r[0]: r for r in sheet_rows(select(body(bespoke=[{"id": "f", "label": "=1+1", "figure": "-5", "tag": "@x", "note": "+y"}])))}
+        self.assertEqual(rows["High risks and issues"][2], "High")
+        ws = sheet(select(body(bespoke=[{"id": "f", "label": "=1+1", "figure": "-5", "tag": "@x", "note": "+y"}])))
+        cell = next(c for c in ws["A"] if c.value == "=1+1")
+        self.assertEqual(cell.data_type, "s")
+        self.assertTrue(cell.quotePrefix)
+
+    def test_killer_nothing_to_show_gives_no_sheet(self):
+        pub = select()
+        for s in pub["sections"]:
+            if s["type"] == "glancetemplate":
+                s["content"] = {"health": {"shown": False}, "order": [], "bespoke": []}
+        self.assertIsNone(sheet(pub))
+
 
 class Reader(unittest.TestCase):
     def test_a_content_that_is_not_an_object_is_nothing(self):
@@ -229,6 +263,22 @@ class Reader(unittest.TestCase):
         self.assertEqual(glance_print.read(pub, sec)["tiles"][0]["tag"], "On track")
         sec["content"]["counts"][0]["rag"] = "n"
         self.assertEqual(glance_print.read(pub, sec)["tiles"][0]["tag"], "")
+
+    def test_killer_every_count_tag_word_of_the_page(self):
+        pub = select()
+        want = {("overdue", "r"): "Overdue", ("overdue", "a"): "At risk", ("decisions", "a"): "Waiting", ("decisions", "r"): "Off track",
+                ("risks", "a"): "Watch", ("risks", "r"): "High", ("risks", "g"): "On track"}
+        for (key, rag), word in want.items():
+            sec = {"content": {"order": [key], "counts": [{"tile": key, "title": "T", "value": 1, "detail": "d", "rag": rag}], "health": {"shown": False}}}
+            self.assertEqual(glance_print.read(pub, sec)["tiles"][0]["tag"], word, (key, rag))
+
+    def test_killer_a_count_tile_carries_its_colour_and_the_health_tile_the_projects(self):
+        pub = select()
+        sec = {"content": {"order": ["health", "risks"], "counts": [{"tile": "risks", "title": "T", "value": 1, "detail": "d", "rag": "a"}]}}
+        got = glance_print.read(pub, sec)["tiles"]
+        self.assertEqual([t["colour"] for t in got], ["amber", "amber"])
+        sec["content"]["counts"][0]["rag"] = "r"
+        self.assertEqual(glance_print.read(pub, sec)["tiles"][1]["colour"], "red")
 
 
 if __name__ == "__main__":
