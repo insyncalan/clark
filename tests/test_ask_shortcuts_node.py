@@ -199,5 +199,35 @@ class Killers(unittest.TestCase):
         self.assertEqual(js('AS.unfillable({text:"{item} {owner}",scope:"item"})'), [])
 
 
+class KillersRound1(unittest.TestCase):
+    """The survivors of the one mutation sweep of askShortcuts.js (history and new are built-ins, digit 9 in a name, the first problem is the one raised, the 20 limit exactly, copy and remove pick the named one)."""
+
+    def test_history_and_new_are_locked_built_ins(self):
+        self.assertEqual(js('AS.BUILTINS.filter((b) => b.locked).map((b) => [b.name, b.builtin, b.locked])'), [["history", True, True], ["new", True, True]])
+
+    def test_a_name_may_hold_every_digit(self):
+        for n in ("a09", "ab9", "a-9", "z98"):
+            self.assertEqual(js('AS.nameProblem("%s")' % n), "", n)
+
+    def test_save_raises_the_first_problem_not_the_second(self):
+        msg = js('T(()=>AS.save([],{name:"Ab",menu:"",text:"",scope:"anywhere",result:"answer"},B))')
+        self.assertIn("lower case", msg)
+        self.assertNotIn("Say what", msg)
+
+    def test_the_twenty_first_own_shortcut_is_refused_by_save_and_copy(self):
+        own20 = "[" + ",".join('{name:"aa-%d",%s}' % (i, OWN) for i in range(20)) + "]"
+        self.assertIn("You can keep 20", js('T(()=>AS.save(%s,{name:"zz",%s},B))' % (own20, OWN)))
+        self.assertIn("You can keep 20", js('T(()=>AS.copy(%s,{name:"aa-1"},B))' % own20))
+        own19 = "[" + ",".join('{name:"aa-%d",%s}' % (i, OWN) for i in range(19)) + "]"
+        self.assertEqual(js('AS.save(%s,{name:"zz",%s},B).length' % (own19, OWN)), 20)
+        self.assertEqual(js('AS.copy(%s,{name:"aa-1"},B).length' % own19), 20)
+
+    def test_copy_and_remove_act_on_the_named_one_among_several(self):
+        three = '[{name:"alpha",%s,text:"first"},{name:"beta",%s,text:"second"},{name:"who",replaces:"who",%s,text:"mine"}]' % (OWN.replace(',text:"t"', ""), OWN.replace(',text:"t"', ""), OWN.replace(',text:"t"', ""))
+        self.assertEqual(js('AS.copy(%s,{name:"beta"},B)[3].text' % three), "second")
+        self.assertEqual(js('AS.remove(%s,"alpha").map((x) => x.name)' % three), ["beta", "who"])
+        self.assertEqual(js('AS.remove(%s,"beta").map((x) => x.name)' % three), ["alpha", "who"])
+
+
 if __name__ == "__main__":
     unittest.main()
