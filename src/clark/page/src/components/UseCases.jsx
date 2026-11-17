@@ -129,7 +129,7 @@ export function UseCases({ tools, section }) {
   };
   useLayoutEffect(() => { fit(rowsHigh); });
   useEffect(() => {
-    return watchRefit(window, document, box.current, () => { shut.current.clear(); fit(rowsHigh); });       // the resize event, a row or the box changing size, the fonts arriving (#1277)
+    return watchRefit(window, document, box.current, () => { shut.current.clear(); fit(rowsHigh); }, () => fit(rowsHigh));       // the resize event, a row or the box changing size, the fonts arriving (#1277)
   });
   const strip = fromFile.value && d.glance && d.glance.strip;
   const counts = strip ? strip.words : Object.fromEntries(STATUSES.map(([k]) => [k, list.filter((s) => s.u.status === k).length]));

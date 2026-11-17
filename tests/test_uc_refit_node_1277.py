@@ -12,21 +12,23 @@ MOD = (SRC / "clark" / "page" / "src" / "logic" / "ucRefit.js").as_uri()
 
 PROBE = """
 const { watchRefit } = await import(%r);
-const log = [];
+const log = []; const out = {};
 const win = { _l: {}, addEventListener(t, f) { this._l[t] = f; }, removeEventListener(t) { delete this._l[t]; } };
 let obs = null;
 win.ResizeObserver = class { constructor(f) { this.f = f; this.seen = []; this.off = false; obs = this; } observe(e) { this.seen.push(e); } disconnect() { this.off = true; } };
 let fonts; const ready = new Promise((r) => { fonts = r; });
-const doc = { fonts: { ready } };
+const doc = { fonts: { ready, status: "loading" } };
 const ul = { children: ["r1", "r2"] };
-const stop = watchRefit(win, doc, ul, () => log.push("again"));
-const out = {};
+const stop = watchRefit(win, doc, ul, () => log.push("again"), () => log.push("soft"));
+const done = { fonts: { ready: Promise.resolve(), status: "loaded" } }; const lateLog = [];
+const stop2 = watchRefit({ addEventListener() {}, removeEventListener() {} }, done, null, () => lateLog.push("again"), () => lateLog.push("soft"));
+await Promise.resolve(); await Promise.resolve(); out.loadedFontsRefit = lateLog.length; stop2();
 out.observed = obs.seen.length; out.hasResize = !!win._l.resize;
 win._l.resize(); out.afterResize = log.length;
-obs.f([]); out.afterObserver = log.length;
+obs.f([]); out.afterObserver = log.length; out.observerKind = log[log.length - 1];
 fonts(); await ready; await Promise.resolve(); out.afterFonts = log.length;
 stop(); out.listenerGone = !win._l.resize; out.disconnected = obs.off;
-obs.f([]); out.afterStop = log.length;
+obs.f([]); out.afterStop = log.length; out.kinds = log.join();
 console.log(JSON.stringify(out));
 """ % MOD
 
@@ -43,6 +45,9 @@ class Refit(unittest.TestCase):
         self.assertTrue(o["hasResize"])
         self.assertEqual(o["afterResize"], 1)
         self.assertEqual(o["afterObserver"], 2, "a row or the box changing size refits")
+        self.assertEqual(o["observerKind"], "soft", "a row opening or closing must not clear the closed heights the box is fitted to, or the box moves (#1277)")
+        self.assertEqual(o["kinds"], "again,soft,again", "resize and fonts clear and refit; the observer only refits")
+        self.assertEqual(o["loadedFontsRefit"], 0, "fonts already loaded when the effect runs again (a row opened) change nothing, so they must not clear the closed heights")
         self.assertEqual(o["afterFonts"], 3, "the fonts arriving refits")
         self.assertTrue(o["listenerGone"] and o["disconnected"])
         self.assertEqual(o["afterStop"], 3, "after stop nothing refits")
