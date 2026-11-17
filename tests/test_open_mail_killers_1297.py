@@ -39,7 +39,7 @@ class Platform(unittest.TestCase):
 
     def test_the_default_opener_is_open_mail(self):
         with mock.patch.object(platform, "open_mail") as om:
-            mail_open.MailOpen().open({"link": "mailto:a@b.c"})
+            mail_open.MailOpen().handle({"link": "mailto:a@b.c"})
         om.assert_called_once_with("mailto:a@b.c")
 
 

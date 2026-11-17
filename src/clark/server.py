@@ -1250,7 +1250,7 @@ def mail_route(handler, req):
     seam = getattr(handler.server, "mail", None)
     if seam is None:
         return handler.send(404, error_body("not_found"))
-    status, body = seam.open(req)
+    status, body = seam.handle(req)
     return handler.send(status, body)
 
 

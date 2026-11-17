@@ -7,7 +7,7 @@ class MailOpen:
     def __init__(self, opener=None):
         self.opener = opener or platform.open_mail
 
-    def open(self, req):
+    def handle(self, req):
         link = req.get("link") if isinstance(req, dict) else None
         try:
             self.opener(link if isinstance(link, str) else "")

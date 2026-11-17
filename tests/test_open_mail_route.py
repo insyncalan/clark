@@ -11,20 +11,20 @@ from clark import mail_open, platform, server
 class Seam(unittest.TestCase):
     def test_a_good_link_is_opened_once(self):
         seen = []
-        status, body = mail_open.MailOpen(seen.append).open({"link": "mailto:a@b.c?subject=Hi"})
+        status, body = mail_open.MailOpen(seen.append).handle({"link": "mailto:a@b.c?subject=Hi"})
         self.assertEqual((status, body, seen), (200, {"ok": True}, ["mailto:a@b.c?subject=Hi"]))
 
     def test_a_refusal_carries_the_platform_words(self):
         def refuse(link):
             raise platform.PlatformError("The mail app could not be opened. " + platform.TRY_AGAIN)
-        status, body = mail_open.MailOpen(refuse).open({"link": "mailto:a@b.c"})
+        status, body = mail_open.MailOpen(refuse).handle({"link": "mailto:a@b.c"})
         self.assertEqual((status, body["code"]), (503, "not_opened"))
         self.assertTrue(body["message"].startswith("The mail app could not be opened."))
 
     def test_a_body_that_is_not_a_link_never_reaches_the_system(self):
         for req in (None, [], {}, {"link": 5}, {"link": None}):
             seen = []
-            mail_open.MailOpen(lambda l, s=seen: platform.open_mail(l, run=lambda *a, **k: s.append(a), on=platform.MAC)).open(req)
+            mail_open.MailOpen(lambda l, s=seen: platform.open_mail(l, run=lambda *a, **k: s.append(a), on=platform.MAC)).handle(req)
             self.assertEqual(seen, [], req)
 
     def test_only_mailto_and_no_option_reaches_the_system(self):
