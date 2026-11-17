@@ -130,7 +130,6 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
     const d = drag.current;
     if (!d || d.id !== e.pointerId) return;
     drag.current = null;
-    if (Math.abs(d.last - 1) < 0.005 && z === 1 && d.last === 1) return;
     remember(`tlZoom.${place}`, d.last);
   };
   const gripKey = (e) => {                          // a slider's keys: Up and Right raise the value, Down and Left lower it, Home is the lowest, End the highest
@@ -155,7 +154,7 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
   };
   const range = (iso) => `${MONTHS[+iso.slice(5, 7) - 1].slice(0, 3)} ${iso.slice(0, 4)}`;
 
-  const zoomNote = <span class={R2 ? "mv-cap" : "mv-zoom"}>Drag the bottom edge to zoom{z !== 1 ? <> {" · "}<span class="num" data-zoom={Math.round(z * 100)}>{Math.round(z * 100)}%</span> <button type="button" class="link" data-zreset onClick={reset}>Reset</button></> : null}</span>;
+  const zoomNote = <span class={R2 ? "mv-cap" : "mv-zoom"}>Drag the grip below the timeline to zoom{z !== 1 ? <> {" · "}<span class="num" data-zoom={Math.round(z * 100)}>{Math.round(z * 100)}%</span> <button type="button" class="link" data-zreset onClick={reset}>Reset</button></> : null}</span>;
   const tierTop = (t) => (t % 2 ? LY + SIDE + (t >> 1) * (LH + TGAP) : LY - SIDE - LH - (t >> 1) * (LH + TGAP));
   return (
     <div class="mv" data-place={place}>
@@ -173,7 +172,7 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
       {far.length ? <p class="muted mv-far" data-far>{FAR_NOTE}: {far.map((r) => r.name).join(", ")}.</p> : null}
       <div class="mv-box" style={{ "--sb": `${sb + room}px` }}>
       <div class="mv-wrap" ref={wrap} tabindex="0" role="region" data-zoom-pct={Math.round(z * 100)} style={{ height: `${height}px`, maxHeight: `${Math.max(900, height)}px` }}
-        aria-label="Milestone timeline; scroll sideways to see all of it; drag the bottom edge to zoom">
+        aria-label="Milestone timeline; scroll sideways to see all of it; drag the grip below it to zoom">
         <div class="mv-strip" ref={strip} style={{ width: `${W}px` }}>
           {months.map((m) => {
             const say = `${MONTHS[+m.slice(5, 7) - 1].slice(0, 3)}${m.slice(5, 7) === "01" || months.length < allMonths.length ? ` ${m.slice(0, 4)}` : ""}`;
@@ -209,7 +208,7 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
             </Tag>))}
         </div>
       </div>
-      {fit || !useful ? null : <div class="mv-grip" data-grip role="slider" tabindex="0" aria-orientation="vertical" aria-label="Timeline height" aria-valuemin={Math.round(ZOOM_MIN * 100)} aria-valuemax={Math.round(ZOOM_MAX * 100)} aria-valuenow={Math.round(z * 100)} aria-valuetext={`zoom ${Math.round(z * 100)}%`}
+      {fit || !useful ? null : <div class="mv-grip" data-grip role="slider" tabindex="0" aria-orientation="vertical" aria-label="Timeline height" aria-valuemin={Math.round(ZOOM_MIN * 100)} aria-valuemax={Math.round(ZOOM_MAX * 100)} aria-valuenow={Math.round(z * 100)} aria-valuetext={`Zoom ${Math.round(z * 100)}%`}
         onKeyDown={gripKey} onPointerDown={gripDown} onPointerMove={gripMove} onPointerUp={gripUp} onPointerCancel={gripUp}><span aria-hidden="true" /></div>}
       {R2 ? zoomNote : null}
       </div>

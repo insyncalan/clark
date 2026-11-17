@@ -39,7 +39,7 @@ class Grip(BrowserBase, unittest.TestCase):
             with chrome() as cdp:
                 sid = self.visit(cdp, width, HASH, port)
                 got = cdp.js("(() => { const g = document.querySelector('[data-grip]'); return [g.getAttribute('role'), g.getAttribute('aria-label'), g.getAttribute('aria-valuenow'), g.getAttribute('aria-valuetext'), g.tabIndex]; })()", sid)
-                self.assertEqual(got, ["slider", "Timeline height", "100", "zoom 100%", 0], width)
+                self.assertEqual(got, ["slider", "Timeline height", "100", "Zoom 100%", 0], width)
 
     def test_slider_keys_up_and_right_raise_down_and_left_lower_home_is_the_least_end_the_most(self):
         port = self.serve()
@@ -51,7 +51,7 @@ class Grip(BrowserBase, unittest.TestCase):
                 self.press(cdp, sid, "ArrowUp")
                 self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "110"), f"{width}: Up is one step more")
                 self.assertEqual(cdp.js(now, sid), "110")
-                self.assertEqual(cdp.js("document.querySelector('[data-grip]').getAttribute('aria-valuetext')", sid), "zoom 110%")
+                self.assertEqual(cdp.js("document.querySelector('[data-grip]').getAttribute('aria-valuetext')", sid), "Zoom 110%")
                 self.assertEqual(cdp.js("document.querySelector('[data-grip]') === document.activeElement", sid), True, f"{width}: focus stays on the grip")
                 self.press(cdp, sid, "ArrowRight")
                 self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "120"), f"{width}: Right is one step more")
@@ -80,6 +80,23 @@ class Grip(BrowserBase, unittest.TestCase):
                 self.assertTrue(wait(lambda: float(cdp.js(PCT, sid)) > 100), f"{width}: zoomed in")
                 self.assertGreater(cdp.js("document.querySelector('.mv-wrap').offsetHeight", sid), h + 60, f"{width}: taller")
                 self.assertTrue(wait(lambda: cdp.js("localStorage.getItem('clark.tlZoom.page')", sid) not in (None, "1")), f"{width}: remembered")
+
+    def test_the_words_say_what_the_grip_does_not_that_the_edge_drags(self):
+        import json, pathlib
+        port = self.serve()
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width, HASH, port)
+                cap = cdp.js("(document.querySelector('.mv-zoom, .mv-cap') || {}).textContent || ''", sid)
+                label = cdp.js("document.querySelector('.mv-wrap').getAttribute('aria-label')", sid)
+                self.assertIn("Drag the grip below the timeline to zoom", cap, width)
+                self.assertIn("drag the grip below it to zoom", label, width)
+                self.assertNotIn("bottom edge", cap + label, width)
+        help_text = (pathlib.Path(__file__).resolve().parent.parent / "src/clark/page/src/help/helpContent.json").read_text()
+        json.loads(help_text)
+        self.assertNotIn("bottom edge to zoom", help_text)
+        self.assertNotIn("its bottom edge to zoom", help_text)
+        self.assertEqual(help_text.count("grip below it to zoom"), 2, "both Timeline help lines name the grip")
 
     def test_a_touch_drag_on_the_grip_zooms_by_pointer_events(self):
         port = self.serve()
