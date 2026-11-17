@@ -99,7 +99,7 @@ class Tiles(Setup):
           const lum = ([r, g, b]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
           const ratio = (a, b) => { const x = lum(rgb(a)), y = lum(rgb(b)); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
           const out = [];
-          for (const sel of ['[data-fig=overdue] .k', '[data-fig=overdue] .v', '[data-fig=overdue] .dd', '[data-fig=overdue] .tw', '[data-fig=health] .hreason', '[data-fig=health] .pill', '.ucstrip', '.ucbar .uctitle', '.ucbar .uchead', '.ucbar .ucsteps']) {
+          for (const sel of ['[data-fig=overdue] .k', '[data-fig=overdue] .v', '[data-fig=overdue] .dd', '[data-fig=overdue] .tw', '[data-fig=health] .hreason', '[data-fig=health] .pill', '.ucstrip', '.ucbar .uctitle', '.ucbar .uchead', '.ucbar .ucsteps', '.ucbar .ucsteps .ucn-b']) {
             const el = document.querySelector(sel); if (!el) { out.push([sel, 0]); continue; }
             let bg = el, back = 'rgba(0, 0, 0, 0)';
             while (bg && /rgba\\(.*, 0\\)|transparent/.test(back)) { back = getComputedStyle(bg).backgroundColor; bg = bg.parentElement; }

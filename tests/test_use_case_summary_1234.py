@@ -59,7 +59,7 @@ class Demo(Setup):
 
     def edit(self, p):
         p.js("document.querySelector('[data-mode=edit]').click()")
-        p.until("!!document.querySelector('#ucAdd')", "Edit")
+        p.until("!!document.querySelector('[data-uc-configure]')", "Edit")
 
 
 class DemoData(Demo):
