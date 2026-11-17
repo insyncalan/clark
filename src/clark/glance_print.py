@@ -6,7 +6,7 @@ the content's counts (the figures the View draws; a tile the content has no coun
 not in the content at all, so it is not here. No new words: the tag words of a count are the page's (glanceTiles.js tileWord), a bespoke
 tile's are the person's own.
 """
-from clark import glance, sanitise
+from clark import glance
 
 COUNTING = ("overdue", "risks", "decisions")
 TONE = {"g": "green", "a": "amber", "r": "red", "b": "blue", "n": None}
@@ -22,7 +22,7 @@ def _text(v):
 def _health(published):
     project = (published.get("data") or {}).get("project") or {}
     t = glance.tiles({"project": project}, published["as_at"], tile_order=["health"], for_client=True, kept={"rows": [], "hidden_types": set()})[0]
-    return {"key": "health", "label": t["title"], "figure": str(t["value"]), "tag": "", "note": sanitise.rich_plain_text(t.get("reason") or "").strip(),
+    return {"key": "health", "label": t["title"], "figure": str(t["value"]), "tag": "", "note": t.get("reason") or "",         # glance.tiles gives the reason as plain words already
             "colour": (t.get("pill") or {}).get("colour") or None}
 
 
@@ -34,7 +34,6 @@ def read(published, sec):
     shown, own = h.get("shown", True) is not False, h.get("own_row") is True
     counts = {x.get("tile"): x for x in c.get("counts") or [] if isinstance(x, dict)}
     bespoke = {t.get("id"): t for t in c.get("bespoke") or [] if isinstance(t, dict)}
-    outlines = c.get("builtin") if isinstance(c.get("builtin"), dict) else {}
     order = [i for i in c.get("order") or [] if isinstance(i, str)]
     order += [i for i in ("health",) + COUNTING + tuple(bespoke) if i not in order]
     tiles, row = [], None

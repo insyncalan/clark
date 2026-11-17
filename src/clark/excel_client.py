@@ -262,9 +262,9 @@ def write_glance_sheet(wb, published, sec, palette=None):
     if not rows:
         return None
     HEAD, TITLE, SUB, HEAD_FILL = styles(palette)
-    name = GLANCE_SHEET
-    while name in wb.sheetnames:
-        name = f"{GLANCE_SHEET} {len(wb.sheetnames) + 1}"
+    name, n = GLANCE_SHEET, len(wb.sheetnames) + 1
+    while name in wb.sheetnames:      # a second glance sheet is "At a glance 2"; a name taken already gives the next number
+        name, n = f"{GLANCE_SHEET} {n}", n + 1
     ws = wb.create_sheet(name)
     title, sub = title_text(published)
     for r, (text, font) in enumerate(((title, TITLE), (sub, SUB)), start=1):
