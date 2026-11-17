@@ -36,6 +36,8 @@ export const NAME_MAX = 120, HEAD_MAX = 300;
 // The two prompts of the "Where it stands" card (#659), said once: the editing form, the use case page and the row all use these. They are only
 // shown where a person can type; the read-only page draws "No headline yet" / "Not written yet." as text, never a prompt.
 export const HEADLINE_PROMPT = "Today's position, in one line";
+export const OWNER_MAX = 200;                              // row 875: as the server (changes.py UC_OWNER_LIMIT)
+export const OWNER_PROMPT = "Add an owner";                // NEW WORD, awaiting a ruling (row 875)
 export const STANDING_PROMPT = "What is done, what is happening now, and what is next. Add anything that is blocked or at risk.";
 const SHOW = 8;
 const EYE = { on: "On the dashboard", off: "Not on the dashboard" };
@@ -70,7 +72,7 @@ function when(stamp) {
   return { day: `${two(t.getDate())}-${two(t.getMonth() + 1)}-${t.getFullYear()}`, time: `${two(t.getHours())}:${two(t.getMinutes())}` };
 }
 
-const FIELD_WORDS = { title: "name", headline: "headline", status: "status", commitment: "Commitment", standing: "text of where it stands", client_visible: "dashboard choice", archived: "archive state" };
+const FIELD_WORDS = { title: "name", headline: "headline", owner: "owner", status: "status", commitment: "Commitment", standing: "text of where it stands", client_visible: "dashboard choice", archived: "archive state" };
 const HOW = { assistant: "with the assistant", excel: "from Excel", client: "from the client", team: "by the team", migrate: "when the data was moved" };
 const said = (v) => (v === null || v === undefined || v === "" ? "nothing" : String(v).split("\n")[0]);
 
@@ -280,7 +282,10 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
           <section class="ucd-card" aria-labelledby="ucd-h-det">
             <h2 id="ucd-h-det" class="ucd-ch">Details</h2>
             <dl class="ucd-kv">
-              {u.owner ? <><dt>Owner</dt><dd>{u.owner}</dd></> : null}
+              {!ro || u.owner ? <><dt>Owner</dt><dd data-uc-owner>
+                <Line value={u.owner || ""} label={`Owner of ${refWords(u)}`} cls="ucd-owner" field="owner" max={OWNER_MAX} empty={ro ? "" : OWNER_PROMPT} ro={ro}
+                  problem={(t) => (Array.from(t).length > OWNER_MAX ? `An owner can be ${OWNER_MAX} characters at most. The old owner was kept.` : "")}
+                  onSave={(t) => send({ owner: t }, "Owner changed.")} /></dd></> : null}
               {ro ? <><dt>Dashboard</dt><dd data-dash>{archived ? "Archived" : on ? EYE.on : EYE.off}</dd></> : null}
               <dt>Last change</dt><dd>{last || "No changes recorded"}</dd>
             </dl>

@@ -253,6 +253,22 @@ class MsPicker(unittest.TestCase):
             self.assertEqual(self.js(ROWS), 0)
             self.assertEqual(self.js(SUBMIT + ".disabled"), True)
 
+    def test_the_empty_sentence_shows_once_in_the_head_sub_line_in_muted_colour_not_in_the_body(self):
+        """Row 1234-A: Everything is already on the page. sits in the head sub-line only; the body does not repeat it."""
+        self.two_off()
+        self.s.httpd.page_html = lambda: testpage.html()
+        sentence = "Everything is already on the page."
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                self.opened(cdp, width)
+                self.js("window.clarkPage.changeData((d) => ({ ...d, milestones: [] }))")
+                self.until("!!document.querySelector('form.picker .pk-head [data-empty]')", "the sentence in the head")
+                self.assertEqual(self.js("document.querySelector('form.picker .pk-head [data-empty]').textContent"), sentence)
+                self.assertEqual(self.js("document.querySelectorAll('form.picker [data-empty]').length"), 1)
+                self.assertEqual(self.js("document.querySelector('form.picker').textContent.split(" + json.dumps(sentence) + ").length - 1"), 1, "once in the whole picker")
+                self.assertEqual(self.js("document.querySelector('form.picker .pk-body').textContent.includes(" + json.dumps(sentence) + ")"), False, "not in the body")
+                self.assertEqual(self.js("document.querySelector('form.picker .pk-head [data-empty]').classList.contains('muted')"), True, "muted token colour")
+
     def test_the_box_is_about_1080_wide_and_650_tall_at_1400_and_fits_at_900(self):
         for width, (wide, tall) in ((1400, (1080, 650)), (900, (None, 650))):
             with self.subTest(width=width), chrome() as cdp:

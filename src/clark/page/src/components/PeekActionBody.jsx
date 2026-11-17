@@ -23,8 +23,14 @@ export function actionSummary(row, editing) {
   return [row.workstream, row.milestone, raised ? `Raised ${showDate(raised)}` : "", editing ? (row.client ? "Client visible" : "Client not visible") : ""];
 }
 
+/** The Client visible line in View and in a published file: the same eye and words as the Edit line, read only. A published file holds only what a client may see and carries no client flag, so `onFile` draws it as visible. */
+export function ClientRead({ row, onFile = false }) {
+  const on = onFile || !!row.client;
+  return <span class={`cv${on ? " on" : ""}`} data-pk-client-read><Icon name={on ? "eye" : "eyeoff"} />{on ? "Client visible" : "Client not visible"}</span>;
+}
+
 /** Props: row, editing, Pick (the workstream and milestone pickers, or null to draw text), ClientLine (the Client visible line in Edit, or null). */
-export function PeekActionBody({ row, editing = false, Pick = null, ClientLine = null }) {
+export function PeekActionBody({ row, editing = false, Pick = null, ClientLine = null, onFile = false }) {
   const raised = raisedOf(row);
   return (
     <PeekDetails summary={actionSummary(row, editing)}>
@@ -33,7 +39,7 @@ export function PeekActionBody({ row, editing = false, Pick = null, ClientLine =
         <ARow name="Milestone" icon="flag" data="milestone">{Pick ? <Pick row={row} field="milestone" /> : text(row.milestone)}</ARow>
         {row.kind === "risk" || row.kind === "issue" ? <ARow name="Use case" icon="doc" data="use_case">{Pick ? <Pick row={row} field="use_case" /> : text(row.uc)}</ARow> : null}
         <ARow name="Raised" icon="clock" data="raised">{raised ? showDate(raised) : DASH}<span class="muted pk-hint" data-pk-raised-hint> set when it was raised</span></ARow>
-        {editing ? (ClientLine ? <div class="pk-row" data-pk-client-row><dd><ClientLine row={row} /></dd></div> : <ARow name="Shown to client">{row.client ? "Yes" : "No"}</ARow>) : null}
+        {editing ? (ClientLine ? <div class="pk-row" data-pk-client-row><dd><ClientLine row={row} /></dd></div> : <ARow name="Shown to client">{row.client ? "Yes" : "No"}</ARow>) : <div class="pk-row" data-pk-client-row><dd><ClientRead row={row} onFile={onFile} /></dd></div>}
       </dl>
     </PeekDetails>
   );
