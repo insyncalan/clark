@@ -73,6 +73,21 @@ class DashboardRowMenu(unittest.TestCase):
             p.js("document.querySelector('.rowmenu [data-rm=peek]').click()")
             p.until(f"location.href.indexOf({json.dumps(rid)}) >= 0 || !!document.querySelector('[data-peek]')", "the peek opened")
 
+    def test_a_board_card_is_never_drawn_on_the_dashboard(self):
+        """Row 1296 owns the list rows only; the board card menu belongs to the Work items board. The Dashboard has no board to inherit from."""
+        import pathlib
+        src = pathlib.Path(page.__file__).parent / "src"
+        users = sorted(f.name for f in src.rglob("*.jsx") if "<Board " in f.read_text(encoding="utf-8"))
+        self.assertEqual(users, ["WorkItems.jsx"], "only the Work items page draws the board")
+        with chrome() as cdp:
+            p = Pg.at(self, cdp, self.s.port)
+            p.ready()
+            for w in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                self.assertEqual(p.js("document.querySelectorAll('article.bcard').length"), 0, f"no card on the Dashboard at {w}")
+            p.edit()
+            self.assertEqual(p.js("document.querySelectorAll('article.bcard').length"), 0, "none in Edit either")
+
 
 if __name__ == "__main__":
     unittest.main()
