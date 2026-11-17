@@ -62,13 +62,20 @@ export function FeedbackTag({ getVersion = healthVersion, nav, clip = realClip }
   const tag = useRef(null);
   useEffect(() => { let live = true; if (on && open) getVersion().then((v) => { if (live) setVersion(v || ""); }); return () => { live = false; }; }, [on, open]);   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!on) setOpen(false); }, [on]);
+  // Esc closes the dialog from anywhere on the page (focus may still be on the tag), and Help (whose own Esc stands aside while the dialog is open) stays.
+  useEffect(() => {
+    if (!open) return undefined;
+    const esc = (e) => { if (e.key === "Escape" && !e.defaultPrevented) { e.preventDefault(); setOpen(false); if (tag.current) tag.current.focus(); } };
+    document.addEventListener("keydown", esc);
+    return () => document.removeEventListener("keydown", esc);
+  }, [open]);
   if (!on) return null;
   const close = () => { setOpen(false); if (tag.current) tag.current.focus(); };
   const ctx = { version, platform: L.systemWords(nav), page: L.pageWords(where) };
-  const beside = !!peek.value || contextOpen.value;
+  const beside = !!peek.value, besideHelp = !beside && contextOpen.value;      // the item peek is 420 px wide, the Help peek 380
   return (
     <>
-      <button type="button" class={`fbt-tag${beside ? " beside" : ""}${open ? " open" : ""}`} id="feedback-tag" ref={tag} aria-label={L.TAG_LABELS.tagAria} aria-expanded={open ? "true" : "false"} aria-controls="feedback-tag-dialog" onClick={() => (open ? close() : setOpen(true))}>{L.TAG_LABELS.tag}</button>
+      <button type="button" class={`fbt-tag${beside ? " beside" : ""}${besideHelp ? " beside-help" : ""}${open ? " open" : ""}`} id="feedback-tag" ref={tag} aria-label={L.TAG_LABELS.tagAria} aria-expanded={open ? "true" : "false"} aria-controls="feedback-tag-dialog" onClick={() => (open ? close() : setOpen(true))}>{L.TAG_LABELS.tag}</button>
       {open ? <Dialog ctx={ctx} onClose={close} clip={clip} /> : null}
     </>
   );

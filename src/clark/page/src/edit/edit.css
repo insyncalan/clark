@@ -1516,6 +1516,7 @@ table.items .c-x-id, table.items .c-x-type { width: 100px; }
 .fbt-tag:hover, .fbt-tag:focus-visible { padding-right: 12px; }
 .fbt-tag:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .fbt-tag.beside { right: min(420px, 100vw); }
+.fbt-tag.beside-help { right: min(380px, 100vw); }
 .fbt-tag.open { right: min(360px, 100vw); }
 .fbt-dlg { position: fixed; top: 110px; right: 0; z-index: 35; width: min(360px, 100vw); max-height: calc(100vh - 130px); overflow-y: auto; padding: var(--space-4) 18px var(--space-3); background: var(--surface); border: 1px solid var(--grey-200); border-right: 0; border-radius: 14px 0 0 14px; box-shadow: -10px 4px 30px color-mix(in srgb, var(--brand-ink) 20%, transparent); animation: fbt-in .4s cubic-bezier(.22, 1, .36, 1) both; }
 @keyframes fbt-in { from { transform: translateX(100%); } to { transform: translateX(0); } }

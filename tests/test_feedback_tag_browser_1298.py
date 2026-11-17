@@ -1,0 +1,240 @@
+"""Row 1298 (DRAFT, NOT RUN): the Feedback tag as drawn, in headless Chrome. Run: python3 dev/run_tests.py test_feedback_tag_browser_1298
+Where the tag shows (Help, Settings but not Version and updates), the dialog, the keyboard, the slide, the offset beside a peek, light and dark, at 1400 and 900 px only
+(no phone width). Real page over the fictional demo data. Required: fails, never skips, without Chrome. The names of the Settings and Help addresses (#settings&p=TUL&s=...)
+and of the Help peek are read from the code, not yet run; selectors marked ASSUMED must be checked on the first run."""
+import json
+import unittest
+
+import test_filter_line_keys as K
+import _testpage as testpage
+from test_filter_line_keys import tearDownModule  # noqa: F401
+from test_server import chrome, wait
+from test_work_items import page_target
+
+WIDTHS = (1400, 900)
+THEMES = ("light", "dark")
+SETTINGS_PAGES = ("projects", "people", "profile", "folder", "brand", "appearance", "reports", "backups", "data", "claude", "logs")
+BAR = "document.querySelector('#feedback-tag')"
+DLG = "document.querySelector('#feedback-tag-dialog')"
+CLIP = "window.__clip"
+
+
+class FeedbackTagBrowser(unittest.TestCase):
+    def setUp(self):
+        K.Keys.setUp(self)
+        self.s.httpd.page_html = lambda: testpage.html()      # the served page has no window.clarkPage; the test page adds it (as test_bulk_bar does)
+    read = K.Keys.read
+
+    def open_page(self, cdp, width):
+        """The keys test's open_page does not hand back its session, so attach once more to the same page and keep it as self.sid."""
+        K.Keys.open_page(self, cdp, width)
+        self.sid = page_target(cdp)
+        return self.sid
+    press = K.Keys.press
+    who = K.Keys.who
+
+    def look(self, cdp, sid, theme, reduce=True):
+        feats = [{"name": "prefers-color-scheme", "value": theme}, {"name": "prefers-reduced-motion", "value": "reduce" if reduce else "no-preference"}]
+        cdp.call("Emulation.setEmulatedMedia", {"features": feats}, sid)
+
+    def go(self, cdp, sid, hash_):
+        cdp.js(f"location.hash = {json.dumps(hash_)}", sid)
+
+    def has_tag(self, cdp, sid):
+        return cdp.js(f"!!{BAR} && {BAR}.getClientRects().length > 0", sid)
+
+    def open_help(self, cdp, sid):
+        cdp.js("window.clarkPage.help.open()", sid)   # the one door (helpStore.openHelp); "?" on Work opens the Help peek, not Help
+        self.assertTrue(wait(lambda: self.has_tag(cdp, sid)), "Help drew the tag")
+
+    def each(self):
+        """(cdp, sid, where) for width x theme."""
+        with chrome() as cdp:
+            for width in WIDTHS:
+                for theme in THEMES:
+                    self.open_page(cdp, width)
+                    sid = self.sid
+                    self.look(cdp, sid, theme)
+                    yield cdp, sid, f"{width} px {theme}"
+
+    # ---- per view
+    def test_tag_in_help(self):
+        for cdp, sid, where in self.each():
+            self.open_help(cdp, sid)
+            self.assertEqual(cdp.js(f"{BAR}.textContent", sid), "Feedback", where)
+            self.assertEqual(cdp.js(f"{BAR}.getAttribute('aria-label')", sid), "Give feedback", where)
+            self.assertEqual(cdp.js(f"{BAR}.getAttribute('aria-expanded')", sid), "false", where)
+
+    def test_tag_in_each_settings_page_but_version(self):
+        for cdp, sid, where in self.each():
+            for page in SETTINGS_PAGES:
+                self.go(cdp, sid, f"#settings&p=TUL&s={page}")
+                self.assertTrue(wait(lambda: self.has_tag(cdp, sid)), f"{where}: tag on Settings {page}")
+            self.go(cdp, sid, "#settings&p=TUL&s=version")
+            self.assertTrue(wait(lambda: not self.has_tag(cdp, sid)), f"{where}: no tag on Version and updates")
+
+    def test_no_tag_on_work_milestones_dashboard_usecases(self):
+        for cdp, sid, where in self.each():
+            for view in ("work", "milestones", "dashboard", "usecases"):
+                self.go(cdp, sid, f"#{view}&p=TUL")
+                self.assertTrue(wait(lambda: not self.has_tag(cdp, sid)), f"{where}: no tag on {view}")
+
+    def test_tag_position_right_edge_below_middle(self):
+        for cdp, sid, where in self.each():
+            self.open_help(cdp, sid)
+            r = json.loads(cdp.js(f"JSON.stringify({BAR}.getBoundingClientRect())", sid))
+            self.assertEqual(round(r["right"]), cdp.js("document.documentElement.clientWidth", sid), where)   # a vertical scrollbar takes its width off the fixed edge
+            self.assertGreater(r["top"] + r["height"] / 2, 450 * .5, where)
+            self.assertLessEqual(r["bottom"], 900, where)
+
+    # ---- dialog
+    def test_click_opens_dialog_and_focuses_message(self):
+        for cdp, sid, where in self.each():
+            self.open_help(cdp, sid)
+            cdp.js(f"{BAR}.click()", sid)
+            self.assertTrue(wait(lambda: cdp.js(f"!!{DLG}", sid)), where)
+            self.assertEqual(cdp.js(f"{DLG}.getAttribute('role')", sid), "dialog", where)
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "fbt-message"), f"{where}: the message box has the focus, not {cdp.js('document.activeElement.id', sid)!r}")
+            self.assertEqual(cdp.js(f"{BAR}.getAttribute('aria-expanded')", sid), "true", where)
+
+    def test_kinds_default_problem_and_click_changes(self):
+        for cdp, sid, where in self.each():
+            self.open_help(cdp, sid)
+            cdp.js(f"{BAR}.click()", sid)
+            on = "JSON.stringify([...document.querySelectorAll('[data-fbt-kind]')].filter(b => b.getAttribute('aria-checked') === 'true').map(b => b.dataset.fbtKind))"
+            self.assertEqual(json.loads(cdp.js(on, sid)), ["Problem"], where)
+            cdp.js("document.querySelector('[data-fbt-kind=Idea]').click()", sid)
+            self.assertEqual(json.loads(cdp.js(on, sid)), ["Idea"], where)
+
+    def test_mail_link_only_with_words_and_copy_disabled_without(self):
+        for cdp, sid, where in self.each():
+            self.open_help(cdp, sid)
+            cdp.js(f"{BAR}.click()", sid)
+            self.assertFalse(cdp.js("!!document.querySelector('[data-fbt-mail]')", sid), where)
+            self.assertTrue(cdp.js("document.querySelector('[data-fbt-copy]').disabled", sid), where)
+            cdp.js("(() => { const t = document.querySelector('#fbt-message'); t.focus(); document.execCommand('insertText', false, 'The page is slow'); })()", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-fbt-mail]')", sid)), where)
+            self.assertTrue(cdp.js("document.querySelector('[data-fbt-mail]').href.startsWith('mailto:')", sid), where)
+            self.assertFalse(cdp.js("document.querySelector('[data-fbt-copy]').disabled", sid), where)
+
+    def test_copy_refused_shows_the_text(self):
+        for cdp, sid, where in self.each():
+            cdp.js("navigator.clipboard.writeText = () => Promise.reject(new Error('no'))", sid)
+            self.open_help(cdp, sid)
+            cdp.js(f"{BAR}.click()", sid)
+            cdp.js("(() => { const t = document.querySelector('#fbt-message'); t.focus(); document.execCommand('insertText', false, 'Words'); })()", sid)
+            cdp.js("document.querySelector('[data-fbt-copy]').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fbt-shown')", sid)), where)
+            self.assertTrue(cdp.js("document.querySelector('#fbt-shown').value.startsWith('To:')", sid), where)
+
+    # ---- keyboard
+    def test_enter_opens_escape_closes_and_help_stays(self):
+        for cdp, sid, where in self.each():
+            self.open_help(cdp, sid)
+            self.assertTrue(wait(lambda: (cdp.js(f"{BAR}.focus()", sid), cdp.js("document.activeElement.id", sid) == "feedback-tag")[1]), where + ": the tag takes the focus (Help may move it to its search box first)")
+            self.press(cdp, sid, "Enter")
+            self.assertTrue(wait(lambda: cdp.js(f"!!{DLG}", sid)), where + ": Enter opens")
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "fbt-message"), where + ": the dialog has taken the focus (its listeners are in)")
+            self.press(cdp, sid, "Escape")
+            self.assertTrue(wait(lambda: cdp.js(f"!{DLG}", sid)), where + ": Esc closes")
+            self.assertEqual(cdp.js("document.activeElement.id", sid), "feedback-tag", where + ": focus back on the tag")
+            self.assertTrue(self.has_tag(cdp, sid), where + ": Help is still open (first Esc closed only the dialog)")
+
+    def test_close_button_returns_focus_to_tag(self):
+        for cdp, sid, where in self.each():
+            self.open_help(cdp, sid)
+            cdp.js(f"{BAR}.click()", sid)
+            cdp.js("document.querySelector('[data-fbt-close]').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js(f"!{DLG}", sid)), where)
+            self.assertEqual(cdp.js("document.activeElement.id", sid), "feedback-tag", where)
+
+    def test_every_control_in_the_dialog_has_a_name_and_no_positive_tab_stop(self):
+        for cdp, sid, where in self.each():
+            self.open_help(cdp, sid)
+            cdp.js(f"{BAR}.click()", sid)
+            bad = cdp.js(f"JSON.stringify([...{DLG}.querySelectorAll('button, a, textarea')].filter(e => !(e.getAttribute('aria-label') || e.textContent || '').trim() && e.id !== 'fbt-message' || e.tabIndex > 0).map(e => e.outerHTML.slice(0, 60)))", sid)
+            self.assertEqual(json.loads(bad), [], where)
+
+    # ---- slide and offset
+    def test_slide_in_from_the_right_and_tag_moves_beside_it(self):
+        with chrome() as cdp:
+            for width in WIDTHS:
+                for theme in THEMES:
+                    self.open_page(cdp, width)
+                    sid = self.sid
+                    self.look(cdp, sid, theme, reduce=False)
+                    self.open_help(cdp, sid)
+                    cdp.js(f"{BAR}.click()", sid)
+                    self.assertTrue(wait(lambda: cdp.js(f"!!{DLG}", sid)))
+                    self.assertEqual(cdp.js(f"getComputedStyle({DLG}).animationName", sid), "fbt-in", f"{width} {theme}")
+                    self.assertTrue(wait(lambda: cdp.js(f"{DLG}.getAnimations().every(a => a.playState === 'finished')", sid)), "slide finished")
+                    width = cdp.js("document.documentElement.clientWidth", sid)      # the scrollbar's width is off the fixed edge
+                    self.assertEqual(round(cdp.js(f"{DLG}.getBoundingClientRect().right", sid)), width)
+                    self.assertEqual(round(cdp.js(f"{DLG}.getBoundingClientRect().width", sid)), 360)
+                    self.assertTrue(wait(lambda: round(cdp.js(f"{BAR}.getBoundingClientRect().right", sid)) == width - 360), "tag beside the dialog")
+
+    def test_reduced_motion_has_no_slide(self):
+        for cdp, sid, where in self.each():
+            self.open_help(cdp, sid)
+            cdp.js(f"{BAR}.click()", sid)
+            self.assertTrue(wait(lambda: cdp.js(f"!!{DLG}", sid)), where)
+            self.assertEqual(cdp.js(f"getComputedStyle({DLG}).animationName", sid), "none", where)
+
+    def test_tag_beside_the_help_peek_and_back(self):
+        """On a Settings page the Help peek opens through the test page's own door (the tag is not drawn on Work, where the peek mostly is)."""
+        for cdp, sid, where in self.each():
+            self.go(cdp, sid, "#settings&p=TUL&s=profile")
+            self.assertTrue(wait(lambda: self.has_tag(cdp, sid)), where)
+            self.assertTrue(cdp.js("window.clarkPage.help.peek.open()", sid), where + ": the peek opened")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#help-peek') && document.getAnimations().every(a => a.playState === 'finished')", sid)), where + ": the peek is open and still")
+            edge = "document.querySelector('#help-peek').getBoundingClientRect().left"
+            self.assertTrue(wait(lambda: round(cdp.js(f"{BAR}.getBoundingClientRect().right", sid)) == round(cdp.js(edge, sid))), where + ": the tag sits at the peek's left edge")
+            cdp.js("window.clarkPage.help.peek.close()", sid)
+            self.assertTrue(wait(lambda: round(cdp.js(f"{BAR}.getBoundingClientRect().right", sid)) == cdp.js("document.documentElement.clientWidth", sid)), where + ": back at the edge")
+
+    def test_dialog_is_over_the_tag_and_fits_the_window(self):
+        for cdp, sid, where in self.each():
+            self.open_help(cdp, sid)
+            cdp.js(f"{BAR}.click()", sid)
+            r = json.loads(cdp.js(f"JSON.stringify({DLG}.getBoundingClientRect())", sid))
+            self.assertLessEqual(r["bottom"], 900, where)
+            self.assertGreaterEqual(r["left"], 0, where)
+            self.assertGreater(int(cdp.js(f"getComputedStyle({DLG}).zIndex", sid)), int(cdp.js(f"getComputedStyle({BAR}).zIndex", sid)), where)
+
+    # ---- contrast
+    def test_text_contrast_4_5_to_1_in_both_themes(self):
+        lum = """(() => { const L = c => { const [r, g, b] = c.map(v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }); return .2126 * r + .7152 * g + .0722 * b; };
+          const rgb = s => (s.match(/[\\d.]+/g) || [0, 0, 0, 1]).map(Number);
+          const back = el => { for (let e = el; e; e = e.parentElement) { const c = rgb(getComputedStyle(e).backgroundColor); if (c.length < 4 || c[3] > 0) return c.slice(0, 3); } return [255, 255, 255]; };
+          const low = [];
+          for (const el of document.querySelectorAll('#feedback-tag, #feedback-tag-dialog h2, #feedback-tag-dialog label, #feedback-tag-dialog button, #feedback-tag-dialog p, #fbt-added, #fbt-added li')) {
+            if (!el.getClientRects().length || !el.textContent.trim()) continue;
+            const a = L(rgb(getComputedStyle(el).color).slice(0, 3)), b = L(back(el)), ratio = (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
+            if (ratio < 4.5) low.push([el.id || el.className || el.tagName, el.textContent.slice(0, 20), ratio.toFixed(2)]); }
+          return JSON.stringify(low); })()"""
+        for cdp, sid, where in self.each():
+            self.open_help(cdp, sid)
+            cdp.js(f"{BAR}.click()", sid)
+            self.assertEqual(json.loads(cdp.js(lum, sid)), [], where)
+
+    def test_the_tag_shows_a_focus_ring_by_keyboard(self):
+        for cdp, sid, where in self.each():
+            self.open_help(cdp, sid)
+            self.press(cdp, sid, "Tab")
+            self.press(cdp, sid, "Tab", shift=True)
+            cdp.js(f"{BAR}.focus()", sid)
+            self.assertTrue(cdp.js(f"{BAR}.matches(':focus-visible') && parseFloat(getComputedStyle({BAR}).outlineWidth) >= 2", sid), where)
+
+    # ---- leaving
+    def test_the_dialog_closes_on_leaving_help_or_settings(self):
+        for cdp, sid, where in self.each():
+            self.go(cdp, sid, "#settings&p=TUL&s=profile")
+            self.assertTrue(wait(lambda: self.has_tag(cdp, sid)), where)
+            cdp.js(f"{BAR}.click()", sid)
+            self.assertTrue(wait(lambda: cdp.js(f"!!{DLG}", sid)), where)
+            self.go(cdp, sid, "#work&p=TUL&f=mode:all")
+            self.assertTrue(wait(lambda: cdp.js(f"!{DLG} && !{BAR}", sid)), where)
+
+
+if __name__ == "__main__":
+    unittest.main()
