@@ -60,6 +60,18 @@ class Page(Base):
             for w in ALL:
                 self.assertNotIn(w, body, f"View shows {w!r}")
 
+    def test_gallery_caption_prompt_shows_only_under_a_picture(self):
+        # an empty Gallery has no caption field, so its caption words are not drawn; the picture prompt is
+        ref = self.make("gallery", "Fictional gal empty")
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector({json.dumps(sel)})", "the section is drawn")
+            text = p.js(f"{SEEN}({json.dumps(sel)})")
+            self.assertIn("Add a picture.", text)
+            self.assertNotIn("Say what the picture shows.", text)
+
     def test_plan_summary_prompts_sit_under_the_empty_paragraph_and_list_item(self):
         with self.store.step("dashboard", USER) as st:
             ref = st.create("report_sections", {"project": "ABC", "type": "text", "title": "Plan summary", "sort_order": 1999,
