@@ -345,6 +345,7 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
   const [chips, setChipsRaw] = useState(first.current.chips);   // row 845: the complete filters, each a chip with its own remove button
   const [draft, setDraftRaw] = useState(first.current.rest);    // the text in the box (plain words and the word being typed); the line (lineText) is what the list shows, and follows chips and box after a pause
   const [focused, setFocused] = useState(false);
+  const [inBox, setInBox] = useState(false);               // the focus is in the text box itself, not on another control of the line (the leave prompt): only then is a token being typed
   const [caret, setCaret] = useState(0);
   const [active, setActive] = useState(-1);                   // the suggestion the arrows are on (-1: none)
   const [armed, setArmed] = useState(false);                 // row 931: Space or Arrow Down opened the list; entering the box, a choice that ends the word and Esc close it
@@ -378,7 +379,7 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
     if (want.current !== null && input.current) { const at = want.current; want.current = null; input.current.setSelectionRange(at, at); setCaret(at); }
     if (over.current && input.current) over.current.scrollLeft = input.current.scrollLeft;
   });
-  const parsed = Q.parseFor(draft, rows, ctx, extra), shown = Q.pieces(draft, parsed, focused ? caret : undefined, extra);
+  const parsed = Q.parseFor(draft, rows, ctx, extra), shown = Q.pieces(draft, parsed, focused && inBox ? caret : undefined, extra);
   const matches = Q.rowsFor(rows, line, ctx, extra).length;
   const words = shown.filter((p) => p.cls === "err" && p.message).map((p) => p.message);
   const notes = [...words, ...(moreNotes ? moreNotes(Q.parseFor(Q.joinLine(chips, draft), rows, ctx, extra)) : [])];
@@ -477,7 +478,7 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
   ) : null;
   return (
     <div class="fline-wrap" ref={box}
-      onFocusIn={(e) => { setFocused(true); if (onEnter) onEnter(e); }}
+      onFocusIn={(e) => { setFocused(true); setInBox(e.target === input.current); if (onEnter) onEnter(e); }}
       onFocusOut={(e) => { if (!e.relatedTarget || !box.current.contains(e.relatedTarget)) { leave(); if (onLeave) onLeave(); } }}>
       {head}
       <div class="fline-row">

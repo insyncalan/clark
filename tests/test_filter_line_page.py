@@ -382,6 +382,17 @@ class Line(unittest.TestCase):
                 self.assertEqual(self.say(cdp, sid), "")
                 self.assertTrue(wait(lambda: EMPTY_SAYS(cdp.js("document.querySelector('#work-list').innerText", sid))), "the empty list says why")
 
+    def test_a_half_typed_token_is_underlined_and_explained_while_the_leave_prompt_holds_the_focus(self):
+        s = self.serve()
+        with shared.page() as cdp:
+            sid = self.load(cdp, s.port)
+            self.put(cdp, sid, "is:open status:")
+            cdp.js("document.activeElement.blur()", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "fvAskUpdate"), "the prompt for unsaved changes has the focus")
+            self.settle(cdp, sid)
+            self.assertEqual(self.say(cdp, sid), "Add a value after 'status:'.", "the caret is not in the line, so the token is marked and explained")
+            self.assertEqual(self.tokens(cdp, sid, "err"), ["status:"])
+
     def test_the_text_is_highlighted_field_names_plain_and_values_as_coloured_chips(self):
         s = self.serve()
         for width in SIZES:
