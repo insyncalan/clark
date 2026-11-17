@@ -29,6 +29,32 @@ class OneControl(unittest.TestCase):
         self.assertRegex(text, r'function Matrix\(\{[^}]*place = "peek"')
         self.assertIsNone(re.search(r'place: "peek"', text), "the place is the one the caller gave, not fixed to the peek")
 
+    def test_the_list_passes_the_cell_place_and_an_action_keeps_its_plain_list(self):
+        text = (SRC / "cells" / "PriorityPick.jsx").read_text(encoding="utf-8")
+        self.assertIn('place={place || "cell"}', text, "a list change is logged as made in the cell, not the peek")
+        self.assertIn("<MenuPick ", text, "an action keeps the plain list of priorities")
+        self.assertLess(text.index("<Matrix "), text.index("<MenuPick "), "the matrix is for the non-action branch")
+        self.assertIn("place={place}", (SRC / "cells" / "Cell.jsx").read_text(encoding="utf-8"), "the cell hands its place to the picker")
+
+    def test_the_peek_keeps_the_default_place(self):
+        text = (SRC / "PeekProps.jsx").read_text(encoding="utf-8")
+        line = next(ln for ln in text.splitlines() if "<Matrix " in ln)
+        self.assertNotIn("place=", line, "the peek's own use says nothing, so the change is made in the peek")
+
+    def test_the_matrix_sets_both_fields_in_one_change_and_does_nothing_when_unchanged(self):
+        text = (SRC / "PeekRating.jsx").read_text(encoding="utf-8")
+        self.assertRegex(text, r"changeRating\(tableOf\(row\), row\.id, \{ impact, likelihood \}")
+        self.assertRegex(text, r"if \(impact === row\.impact && likelihood === row\.likelihood\) return;")
+        self.assertRegex(text, r"onClose\(true\);\s*\n\s*if \(impact === row\.impact")
+
+    def test_the_old_picker_styles_are_gone(self):
+        css = (SRC.parents[1] / "shell.css").read_text(encoding="utf-8")
+        for name in ("rpick", "rp-head"):
+            self.assertNotIn(name, css)
+        for path in SRC.parent.rglob("*"):
+            if path.suffix in (".jsx", ".js", ".css"):
+                self.assertNotIn("rp-head", path.read_text(encoding="utf-8"), path.name)
+
 
 if __name__ == "__main__":
     unittest.main()
