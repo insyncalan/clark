@@ -8,6 +8,7 @@ import { canPick, changeFor, newPersonChange, pickField, people, tableOf } from 
 import { PICKERS } from "./cells/Cell.jsx";
 import { eyeChange } from "../logic/rowMenu.js";
 import { Icon } from "../components/Icon.jsx";
+import { Matrix } from "./PeekRating.jsx";
 
 const PLACE = "peek";
 
@@ -15,6 +16,7 @@ const PLACE = "peek";
 export function chipPop(row, field) {
   if (!canPick(row, field)) return null;
   const Picker = PICKERS[field];
+  if ((row.kind === "risk" || row.kind === "issue") && field === "priority") return ({ anchor, close }) => <Matrix row={row} anchor={anchor} onClose={close} />;      // rows 1182 1183: a risk's or an issue's rating is set from impact and likelihood only
   return ({ anchor, close }) => {
     const pick = (value) => {
       const c = changeFor(row, pickField(field, value), value, todayIso());
@@ -31,7 +33,7 @@ export function chipPop(row, field) {
       if (r.ok) close(true);
       return r;
     };
-    return <Picker row={row} anchor={anchor} today={todayIso()} names={field === "owner" ? people(data.value) : undefined} onPick={pick} onAdd={field === "owner" ? add : undefined} onClose={close} />;
+    return <Picker row={row} place={PLACE} anchor={anchor} today={todayIso()} names={field === "owner" ? people(data.value) : undefined} onPick={pick} onAdd={field === "owner" ? add : undefined} onClose={close} />;
   };
 }
 
@@ -40,7 +42,7 @@ export function ClientLine({ row }) {
   const on = !!row.client;
   const run = () => { const c = eyeChange(row); changeCell(c.table, c.id, c.changes, { text: c.words, back: c.back, place: PLACE }); };
   return (
-    <button type="button" class={`pk-client${on ? " on" : ""}`} data-pk-client aria-pressed={on ? "true" : "false"} onClick={run}>
+    <button type="button" class={`pk-client cv${on ? " on" : ""}`} data-pk-client aria-pressed={on ? "true" : "false"} onClick={run}>
       <Icon name={on ? "eye" : "eyeoff"} />{on ? "Client visible" : "Client not visible"}
     </button>
   );

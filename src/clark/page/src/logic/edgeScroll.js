@@ -9,7 +9,7 @@ const step = (depth) => Math.min(MAX_STEP, Math.ceil(depth / 3));
 // bottom: the window's height. Returns the pixels to scroll down (positive), up (negative) or 0.
 export function edgeStep(y, top, bottom, edge = EDGE) {
   if (![y, top, bottom].every(Number.isFinite)) return 0;
-  if (bottom - top < edge * 2) return 0;          // a window too short to have two bands: no scrolling, never a jitter
+  // No short-window guard, same as the board: the bottom band is tested first, so where the bands overlap the bottom one wins.
   if (y > bottom - edge) return step(y - (bottom - edge));
   if (y < top + edge) return -step(top + edge - y);
   return 0;

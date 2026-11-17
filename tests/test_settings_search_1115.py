@@ -5,7 +5,7 @@ Typing a name or help word keeps the cards and rows that match and hides the res
 Chrome is required: these tests fail, never skip, without it."""
 import unittest
 
-from test_settings_head import Head
+import test_settings_head
 from test_server import chrome
 
 WIDTHS = (1400, 900)
@@ -14,7 +14,11 @@ SHOWN = """[...document.querySelectorAll('.set-cards > section, .set-cards > .se
 ROWS = """[...document.querySelectorAll('#gantt-setting .set-row')].map(r => r.hidden)"""
 
 
-class Search(Head):
+class Search(test_settings_head.Head):
+    # Head's own tests belong to test_settings_head; this file borrows only its helpers
+    test_C_the_title_the_help_line_and_a_menu_item_for_each_page_that_exists = test_C_a_click_opens_the_page_and_marks_it_and_the_address_keeps_it = None
+    test_C_keyboard_tab_to_a_menu_item_and_enter = test_C_the_list_is_at_the_left_at_900_and_wider_and_a_row_of_chips_below_900 = test_C_text_size_and_contrast_in_light_and_dark = None
+
     def type(self, p, text):
         p.js("""(() => { const b = document.getElementById('set-search-box'); b.focus(); b.value = %r; b.dispatchEvent(new Event('input', {bubbles: true})); })()""" % text)
 
