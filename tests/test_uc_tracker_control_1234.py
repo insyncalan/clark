@@ -28,7 +28,7 @@ class TrackerControl(Setup):
 
     def open_panel(self, p):
         p.js("document.querySelector('[data-mode=edit]').click()")
-        p.until("!!document.querySelector('#ucAdd')", "Edit")
+        p.until("!!document.querySelector('[data-uc-configure]')", "Edit")
         p.js(f"{CFG}.click()")
         p.until("!!document.querySelector('[data-uc-tracker]')", "tracker control")
 
@@ -42,7 +42,8 @@ class TrackerControl(Setup):
                 p = self.show(cdp, width)
                 self.open_panel(p)
                 self.assertEqual(p.js("document.querySelector('#ucCfgT').textContent"), "Status tracker")
-                self.assertEqual(p.js("document.querySelector('[data-uc-tracker]').getAttribute('aria-label')"), "Tracker position")
+                self.assertEqual(p.js("document.querySelector('[data-uc-tracker]').getAttribute('aria-labelledby')"), "ucCfgT", "the group is named by the visible words")
+                self.assertFalse(p.js("document.querySelector('[data-uc-tracker]').hasAttribute('aria-label')"), "one name, not two")
                 self.assertEqual(p.js("[...document.querySelectorAll('[data-uc-tracker] button')].map(b => b.textContent).join('|')"), "Top|Bottom|Off")
                 self.assertEqual(self.pressed(p), "top", "top is the default")
                 self.assertTrue(p.js("(r => r.left >= 0 && r.right <= innerWidth)(document.querySelector('#ucCfg').getBoundingClientRect())"), "fits the width")

@@ -4,12 +4,11 @@ Words are the ruled ones (16-11 00:58); anything else is in an UNRULED_ constant
 """
 import json
 import re
-import time
 import unittest
 
 from _paths import SRC
 from test_glance_page import Setup, tearDownModule  # noqa: F401
-from test_server import chrome
+from test_server import chrome, wait
 
 from _uc_view import put_view
 from clark import page
@@ -25,7 +24,7 @@ PHRASES = ["Configure use cases", "Use cases shown", "Viewers can scroll the lis
 class Configure(Setup):
     def edit(self, p):
         p.js("document.querySelector('[data-mode=edit]').click()")
-        p.until("!!document.querySelector('#ucAdd')", "Edit")
+        p.until("!!document.querySelector('[data-uc-configure]')", "Edit")
 
     def stored(self):
         """The view the server holds: the JSON in the usecases section's body."""
@@ -33,12 +32,8 @@ class Configure(Setup):
         return json.loads(row["body"]) if row["body"] else None
 
     def wait_body(self, p, check, what):
-        for _ in range(100):
-            v = self.stored()
-            if v and check(v):
-                return v
-            time.sleep(0.1)
-        self.fail(what)
+        self.assertTrue(wait(lambda: (lambda v: bool(v) and check(v))(self.stored())), what)
+        return self.stored()
 
     def test_view_has_no_configure_button(self):
         for width in (1400, 900):
@@ -150,13 +145,13 @@ class Source(unittest.TestCase):
         for line in text.splitlines():
             if line.startswith("export const") and '"' in line and not line.startswith("//"):
                 name = line.split()[2]
-                if name.startswith("UNRULED_"):
+                if name.startswith("UNRULED_") or name.startswith("MS_"):      # row 1230: the MS_ words are the Milestones section's own, ruled
                     continue
                 self.assertIn(name, {"CONFIGURE", "TITLE", "NUMBER_LABEL", "SHOWN_LABEL", "ALL_WORD", "OF", "SCROLL_LABEL", "SAME_NOTE",
                                      "SCROLL_HELP", "DONE",
-                                     "TRACKER_LABEL", "TRACKER_GROUP", "TRACKER_WORDS", "TRACKER_HELP"}, f"{name} is neither approved nor UNRULED_")
+                                     "TRACKER_LABEL", "TRACKER_WORDS", "TRACKER_HELP"}, f"{name} is neither approved nor UNRULED_")
         edit = (PAGE_SRC / "edit" / "UseCasesEdit.jsx").read_text(encoding="utf-8")
-        body = edit[edit.index("function ConfigureBox"):edit.index("/** The growing Add button")]
+        body = edit[edit.index("function ConfigureBox"):edit.index("/** The status word of a row")]
         self.assertFalse(re.search(r">\s*[A-Za-z][A-Za-z ]+\s*<", body), "no bare words in the panel markup")
 
     def test_the_words_are_in_no_shared_source(self):

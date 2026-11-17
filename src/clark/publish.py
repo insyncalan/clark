@@ -321,9 +321,9 @@ def _content(s, ctx=None):
     try:
         text = check_section_body(s["type"], s.get("body"))
     except StoreInvalid:
-        return {} if s["type"] == section_bodies.USECASES else None      # row 1234: the use case summary is never left out for its view setting: no setting, or a bad one, is the defaults
+        return {} if s["type"] in section_bodies.VIEW_TYPES else None      # row 1234, row 1230: the use case summary and the Milestones section are never left out for its view setting: no setting, or a bad one, is the defaults
     if not text:
-        return {} if s["type"] == section_bodies.USECASES else None
+        return {} if s["type"] in section_bodies.VIEW_TYPES else None
     return section_bodies.published(s["type"], json.loads(text), ctx)
 
 

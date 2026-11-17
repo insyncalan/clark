@@ -3,12 +3,11 @@ file draws, and the section still counts as "no number chosen". At 1400 and 900 
 Run: ~/ag/slot.sh with, inside tests/: PYTHONPATH=../src:../vendor:. python3 -m unittest test_uc_tracker_only_1234
 """
 import json
-import time
 import unittest
 
 from _publish import PublishedFile
 from test_glance_page import Setup, USER, tearDownModule  # noqa: F401
-from test_server import chrome
+from test_server import chrome, wait
 
 from _uc_view import put_view
 
@@ -28,15 +27,11 @@ class TrackerOnly(PublishedFile, Setup):
 
     def click_tracker(self, p):
         p.js("document.querySelector('[data-mode=edit]').click()")
-        p.until("!!document.querySelector('#ucAdd')", "Edit")
+        p.until("!!document.querySelector('[data-uc-configure]')", "Edit")
         p.js("document.querySelector('[data-uc-configure]').click()")
         p.until("!!document.querySelector('[data-uc-tracker]')", "tracker control")
         p.js("document.querySelector('[data-tracker=bottom]').click()")
-        for _ in range(100):
-            if self.stored():
-                return
-            time.sleep(0.1)
-        self.fail("the tracker choice was not saved")
+        self.assertTrue(wait(self.stored), "the tracker choice was not saved")
 
     def test_a_tracker_click_writes_the_tracker_alone_and_edit_rows_equal_published_rows(self):
         for width in (1400, 900):
@@ -50,7 +45,7 @@ class TrackerOnly(PublishedFile, Setup):
                 p.reload()
                 p.until("!!document.querySelector('.uc')", "the summary drew again")
                 p.js("document.querySelector('[data-mode=edit]').click()")
-                p.until("!!document.querySelector('#ucAdd')", "Edit")
+                p.until("!!document.querySelector('[data-uc-configure]')", "Edit")
                 edit_rows = p.js(ROWS)
                 path = self.publish()
                 q = self.draw(cdp, path, width)

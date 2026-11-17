@@ -82,6 +82,7 @@ DATE_FIELDS = excel.DATES | {"revisit"}
 BLOCKS = re.compile(r"</(?:p|div|li|h[1-6]|blockquote|pre|tr)>|<br\s*/?>|<hr\s*/?>", re.I)
 TAGS = re.compile(r"<[^>]*>")
 SECTION_OF = {"actions": "actions", "raid": "raid", "decisions": "decisions", "milestones": "milestones", "use_cases": "usecases"}
+WORK_TABLE = {"actions": "actions", "raid": "raid", "decisions": "decisions"}      # row 1268: the tables a Work items list can name
 
 
 def plain(value):
@@ -104,8 +105,16 @@ def value_of(table, row, field):
     return row.get(field)
 
 
+def listed_ids(published, table):
+    """Row 1268: the ids of `table` that a Work items list section of the page names (section_kinds/workitems.published)."""
+    named = {i for s in published.get("sections") or () if s.get("type") == "workitems" for i in s.get("items") or ()}
+    return {r.get("id") for r in published["data"].get(WORK_TABLE.get(table)) or [] if r.get("id") in named} if table in WORK_TABLE else set()
+
+
 def rows_of(published, table):
     rows = list(published["data"].get(table) or [])
+    if table in WORK_TABLE and SECTION_OF[table] not in {s.get("type") for s in published.get("sections") or ()} and published.get("sections") is not None:
+        rows = [r for r in rows if r.get("id") in listed_ids(published, table)]      # row 1268: no built-in section, so only what a list names
     if table == "milestones":
         rows = [r for r in rows if r.get("status") != "Cancelled"]      # as the page leaves them out
     return rows
@@ -114,7 +123,7 @@ def rows_of(published, table):
 def sheet_tables(published):
     """The tables whose section the page shows, in the export's own sheet order."""
     shown = {s.get("type") for s in published["sections"]}
-    return [t for t in excel.SHEET_OF if t in COLUMNS and SECTION_OF[t] in shown]
+    return [t for t in excel.SHEET_OF if t in COLUMNS and (SECTION_OF[t] in shown or listed_ids(published, t))]
 
 
 def title_text(published):

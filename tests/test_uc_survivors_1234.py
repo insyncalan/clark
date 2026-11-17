@@ -48,6 +48,38 @@ class Bar(Flags):
                 self.assertNotEqual(muted, title, "the check can tell muted from title")
                 self.assertEqual(dash, muted)
 
+    def test_the_open_count_is_a_pill_badge_dark_in_light_and_light_in_dark(self):
+        """Row 1234-A: n>0 draws the digit as a 24px pill (radius 12px, caption size, medium weight) in --heading with --surface text, contrast >= 4.5 measured here; n=0 has no badge; the text stays the one string stepsWord(n)."""
+        probe = """(() => {
+          const rgb = (c) => c.match(/[\\d.]+/g).slice(0, 3).map(Number);
+          const lum = ([r, g, b]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
+          const ratio = (a, b) => { const x = lum(rgb(a)), y = lum(rgb(b)); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+          const tok = (n) => { const e = document.createElement('i'); e.style.color = `var(${n})`; document.body.append(e); const c = getComputedStyle(e).color; e.remove(); return c; };
+          const medium = (() => { const e = document.createElement('b'); e.style.fontWeight = 'var(--weight-medium)'; document.body.append(e); const w = getComputedStyle(e).fontWeight; e.remove(); return w; })();
+          const all = [...document.querySelectorAll('.ucrow .ucsteps')];
+          const withB = all.filter((e) => e.querySelector('.ucn-b')), without = all.filter((e) => !e.querySelector('.ucn-b'));
+          const b = withB[0] && withB[0].querySelector('.ucn-b'), cs = b && getComputedStyle(b), r = b && b.getBoundingClientRect();
+          return { text: all.map((e) => e.textContent), noBadgeText: without.map((e) => e.textContent), some: withB.length,
+                   fill: cs && cs.backgroundColor, ink: cs && cs.color, heading: tok('--heading'), surface: tok('--surface'), ratio: cs && ratio(cs.color, cs.backgroundColor),
+                   h: r && r.height, w: r && r.width, radius: cs && cs.borderTopLeftRadius, size: cs && cs.fontSize, weight: cs && cs.fontWeight, medium };
+        })()"""
+        for width in (1400, 900):
+            for dark in (False, True):
+                with self.subTest(width=width, dark=dark), chrome() as cdp:
+                    p = self.show(cdp, width)
+                    if dark:
+                        p.js("document.documentElement.dataset.theme = 'dark'")
+                    got = p.js(probe)
+                    self.assertGreaterEqual(got["some"], 1, "a row with open steps has the badge")
+                    self.assertTrue(all(__import__("re").fullmatch(r"\d+ next steps?|No open steps", t) for t in got["text"]), got["text"])
+                    self.assertTrue(all(t == "No open steps" for t in got["noBadgeText"]), "n=0 is plain text, no badge")
+                    self.assertEqual((got["fill"], got["ink"]), (got["heading"], got["surface"]))
+                    self.assertGreaterEqual(got["ratio"], 4.5, f"digit contrast {got['ratio']} (measured in the browser)")
+                    self.assertGreaterEqual(got["h"], 24)
+                    self.assertGreaterEqual(got["w"], 24)
+                    self.assertEqual((got["radius"], got["size"], got["weight"]), ("12px", "13px", got["medium"]))
+                    self.assertEqual(got["heading"] != got["surface"], True)
+
 
 if __name__ == "__main__":
     unittest.main()

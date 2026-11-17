@@ -4,11 +4,28 @@ Run: python3 dev/run_tests.py test_help_import_1205
 The What to import line says which sheets start ticked (the ones ticked last time, every sheet the first time) and the Check the import line says
 that at most 300 changes are listed and a line under the list counts the rest. The 300 is read from the real box. Chrome is required.
 """
+import json
 import unittest
 
-
-from test_help_labels_1205 import TEXT, WIDTHS
+from _paths import SRC
 from test_import_box_keys import ImportBox as _Box
+
+HELP = SRC / "clark" / "page" / "src" / "help" / "helpContent.json"
+WIDTHS = (1400, 900)
+
+
+def every_string(node):
+    if isinstance(node, str):
+        yield node
+    elif isinstance(node, dict):
+        for v in node.values():
+            yield from every_string(v)
+    elif isinstance(node, list):
+        for v in node:
+            yield from every_string(v)
+
+
+TEXT = "\n".join(every_string(json.loads(HELP.read_text(encoding="utf-8"))))
 
 
 class HelpSaysIt(unittest.TestCase):

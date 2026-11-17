@@ -28,10 +28,10 @@ CONFIGURE_WORDS = [
     "The count by status and the bar",
     "Top or bottom of the list, or off",
 ]
+# "scroll the list for the rest" is not here: the View line "Showing N of M \u00b7 scroll the list for the rest" is what the published milestone list says too (row 1230, components/msViewWords.js).
 NOTE_WORDS = [
     "Same as the published page",
     "use cases show at a time",
-    "scroll the list for the rest",
     "Viewers cannot scroll",
     "only the first",
     "scroll here to reach the others",
