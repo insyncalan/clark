@@ -28,6 +28,12 @@ class FilterChipHitBox(unittest.TestCase):
     def test_the_cross_box_is_border_box_so_padding_stays_inside_24(self):
         self.assertIn("box-sizing: border-box", rule(".fchip button"))
 
+    def test_the_published_page_chip_padding_is_2px_space_1_2px_9px(self):
+        self.assertIn("padding: 2px var(--space-1) 2px 9px", rule(".factive.pub .fchip"))
+
+    def test_the_gap_between_the_chip_text_and_cross_is_4px(self):
+        self.assertIn("gap: 4px;", rule(".fchip"))
+
 
 if __name__ == "__main__":
     unittest.main()
