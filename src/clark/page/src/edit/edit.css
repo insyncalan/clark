@@ -1509,4 +1509,4 @@ table.items .c-x-id, table.items .c-x-type { width: 100px; }
 .gt-own[aria-checked="true"] .gt-own-sw i { left: 16px; }
 .tpl-gt-halfnote { display: none; }
 .slot-left .tpl-gt-halfnote, .slot-right .tpl-gt-halfnote { display: inline; }
-@media (max-width: 900px) { .tpl-edit-glancetemplate .glance, .tpl-edit-glancetemplate .glance[data-cols="3"], .slot-left .tpl-edit-glancetemplate .glance, .slot-right .tpl-edit-glancetemplate .glance { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 900px) { .slot-left .tpl-edit-glancetemplate .glance, .slot-right .tpl-edit-glancetemplate .glance { grid-template-columns: minmax(0, 1fr); } }

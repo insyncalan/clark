@@ -18,11 +18,16 @@ DEFAULT = ["health", "overdue", "risks", "decisions"]
 
 
 class GlanceEdit(Base):
+    FRESH = False         # True: the section is never written, so Project health starts off (a new template); False: an existing page, health shown
+
     def setUp(self):
         super().setUp()
         plant(self)
         with self.store.step("dashboard", USER) as st:
             self.ref = st.create("report_sections", {"project": "ABC", "type": "glancetemplate", "title": "Fictional glance", "sort_order": 998})
+        if not self.FRESH:
+            self.store.con.execute("UPDATE report_sections SET body = ? WHERE id = ?", ('{"v":1}', self.ref))      # an existing page: no health field, health shown
+            self.store.con.commit()
 
     def page(self, cdp, width=1400, dark=False):
         p = self.visit(cdp)
@@ -107,7 +112,7 @@ class Steps(GlanceEdit):
             import time
             time.sleep(0.7)
             self.assertEqual(self.applies(), before, "no step for any of the three")
-            self.assertEqual(self.body(), {})
+            self.assertEqual(self.body(), {"v": 1})      # as it was set up: nothing was written
 
     def test_T66_alt_and_the_arrows_move_a_tile_one_step_each_and_the_order_is_stored(self):
         with chrome() as cdp:
@@ -187,15 +192,21 @@ class Keys(GlanceEdit):
             self.assertEqual(self.applies(), before + 1)
 
 
-class Health(GlanceEdit):
-    def test_T69a_a_new_template_starts_with_the_health_eye_off_and_the_eye_turns_it_on(self):
+class FreshHealth(GlanceEdit):
+    FRESH = True
+
+    def test_T69a_a_new_template_starts_with_the_health_eye_off_and_the_button_turns_it_on(self):
         with chrome() as cdp:
             p = self.page(cdp)
-            self.assertTrue(p.js(f"document.querySelector('{self.sel('[data-tile=health]')}').classList.contains('is-hidden')"), "never written: health starts off")
-            p.js(f"document.querySelector('{self.sel('[data-tile=health] [data-tile-eye]')}').click()")
+            self.assertFalse(p.js(f"!!document.querySelector('{self.sel('[data-tile=health]')}')"), "never written: health starts off, so it is not drawn")
+            self.assertTrue(p.js(f"!!document.querySelector('{self.sel('[data-gt-showhealth]')}')"), "the button that brings it back is drawn")
+            p.js(f"document.querySelector('{self.sel('[data-gt-showhealth]')}').click()")
             self.assertTrue(wait(lambda: self.body() == {"v": 1}, 10), f"stored: {self.body()}")
+            p.until(f"!!document.querySelector('{self.sel('[data-tile=health]')}')", "health drawn")
             self.assertFalse(p.js(f"document.querySelector('{self.sel('[data-tile=health]')}').classList.contains('is-hidden')"))
 
+
+class Health(GlanceEdit):
     def test_T69_the_eye_on_project_health_hides_the_tile_only_and_undo_shows_it(self):
         self.store.con.execute("UPDATE report_sections SET body = ? WHERE id = ?", ('{"v":1}', self.ref))      # an existing page: no health field, health shown
         self.store.con.commit()

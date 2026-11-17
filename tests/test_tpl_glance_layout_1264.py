@@ -70,6 +70,7 @@ class Layout(Base):
         plant(self)
         with self.store.step("dashboard", USER) as st:
             self.ref = st.create("report_sections", {"project": "ABC", "type": "glancetemplate", "title": "Fictional glance", "sort_order": 998})
+        self.store.con.execute("UPDATE report_sections SET body = ? WHERE id = ?", ('{"v":1}', self.ref))      # an existing page: no health field, health shown
 
     def set_body(self, body):
         status, got = self.real_change({"project": "ABC", "kind": KIND, "op": "update", "id": self.ref, "changes": {"body": json.dumps(body)}})
@@ -406,10 +407,26 @@ class Edit(Layout):
                     p = self.page(cdp, width, dark, edit=True)
                     got = self.cells(p, True)
                     self.assertFalse(got["overflow"])
-                    if width == 900:
-                        self.assertEqual(self.lines(got), [["health"], ["overdue"], ["risks"], ["decisions"]])
+                    if width == 900:       # mock-up checked: ag-edit-900.png; the default page keeps its tiles sharing one row at 900, as at 1400
+                        self.assertEqual(self.lines(got), [["health", "overdue", "risks", "decisions"]])
                     self.assertNotIn("words pending", p.js(f"document.querySelector('{self.sel()}').textContent").lower())
                     self.assertTrue(p.js(f"[...document.querySelectorAll('{self.sel('.tpl-gt-opts button')}')].every(b => b.getBoundingClientRect().height >= 24)"), "the controls are big enough to hit")
+
+    def test_E9_at_900_edit_keeps_the_three_tile_columns_with_health_on_its_own_row(self):
+        # mock-up checked: ag-edit-900.png (images folder of the 1264 mock-up): health on its own row, then three tiles a row
+        self.set_body({"v": 1, "per_row": 3, "health": {"shown": True, "own_row": True}})
+        for dark in (False, True):
+            with self.subTest(dark=dark), chrome() as cdp:
+                got = self.cells(self.page(cdp, 900, dark, edit=True), True)
+                self.assertEqual(self.lines(got), [["health"], ["overdue", "risks", "decisions"]])
+                self.assertFalse(got["overflow"])
+
+    def test_E10_a_half_glance_at_900_in_edit_stays_one_column(self):
+        # mock-up checked: ag-edit-900.png; the README says 250 px tiles do not fit twice in a half column, so a half slot is one column
+        self.make_half()
+        with chrome() as cdp:
+            got = self.cells(self.page(cdp, 900, False, edit=True), True)
+        self.assertEqual(self.lines(got), [["health"], ["overdue"], ["risks"], ["decisions"]])
 
 
 class Sketch(unittest.TestCase):

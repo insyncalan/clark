@@ -363,6 +363,7 @@ class Killers(Editor):
     def pencil(self, p, tid="t1"):
         self.click(p, f"[data-tile={tid}] [data-tile-pencil]")
         self.editor_open(p)
+        p.until("document.activeElement.dataset.f === 'label'", "the label has the focus")  # Esc and the arrow keys go to the focused element: wait for the editor to hold the focus first
 
     def test_K1_amber_is_stored_by_done_and_the_eleventh_tile_can_still_be_added(self):
         self.seed([{"id": f"t{i}", "label": f"Fictional {i}", "figure": str(i)} for i in range(1, 12)])
