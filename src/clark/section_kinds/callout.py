@@ -19,9 +19,10 @@ TONES = ("info", "decision", "warning")
 # #1272: colour and icon are named, so a reader who cannot tell colours apart is told the name in words (Word, Excel, the published page).
 COLOURS = {"plain": "Plain", "violet": "Violet", "amber": "Amber", "red": "Red", "green": "Green", "grey": "Grey"}
 ICONS = {"none": "No icon", "info": "Information", "question": "Question", "warning": "Warning", "alert": "Alert", "check": "Tick", "clock": "Clock",
-         "calendar": "Calendar", "flag": "Flag", "lock": "Lock", "key": "Key", "bulb": "Light bulb", "star": "Star", "bell": "Bell",
-         "megaphone": "Megaphone", "document": "Document", "link": "Link", "people": "People", "money": "Money", "chart": "Chart", "shield": "Shield"}
+         "cal": "Calendar", "flag": "Flag", "lock": "Lock", "key": "Key", "bulb": "Light bulb", "star": "Star", "bell": "Bell",
+         "megaphone": "Megaphone", "doc": "Document", "link": "Link", "people": "People", "money": "Money", "chart": "Chart", "shield": "Shield"}
 TONE_LOOK = {"info": ("violet", "info"), "decision": ("amber", "question"), "warning": ("red", "warning")}    # what an older callout's tone drew
+TONE_WORDS = {"info": "Information", "decision": "Decision needed", "warning": "Warning"}    # the word an older callout drew
 CATEGORY_MAX = 30
 TITLE_MAX, PARA_MAX, PARAS_MAX = 120, 600, 6
 HTML_MAX = PARA_MAX * PARAS_MAX
@@ -87,9 +88,12 @@ def check(value, rules):
 
 def upgrade(value):
     """The schema step (#1272): a stored callout with every new field filled in. An older callout (no such fields) is tile on, heading on,
-    no category, and the colour and icon its tone drew. The stored text is not changed; a reader asks here."""
-    colour, icon = TONE_LOOK[value.get("tone", "info")]
-    return {**value, "category": value.get("category", ""), "colour": value.get("colour", colour), "icon": value.get("icon", icon),
+    its tone's word as the category, and the colour and icon its tone drew (a callout that stores a colour, an icon or a category of its own,
+    even an empty one, keeps its own words). The stored text is not changed; a reader asks here."""
+    tone = value.get("tone", "info")
+    colour, icon = TONE_LOOK[tone]
+    older = not any(name in value for name in ("category", "colour", "icon"))
+    return {**value, "category": value.get("category", TONE_WORDS[tone] if older else ""), "colour": value.get("colour", colour), "icon": value.get("icon", icon),
             "tile": value.get("tile", True), "heading": value.get("heading", True)}
 
 
