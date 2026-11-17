@@ -139,6 +139,19 @@ class Configure(Setup):
             self.assertTrue(p.js("document.activeElement === document.querySelector('[data-uc-configure]')"))
 
 
+    def test_escape_in_the_step_the_panel_is_drawn_closes_it(self):
+        # Row 1276: a key that arrives before the first paint (a slow runner: the macOS shard) must already find the Esc listener.
+        # The observer fires in the microtask after the DOM change, before any passive effect has run.
+        with chrome() as cdp:
+            p = self.show(cdp)
+            self.edit(p)
+            p.js("(() => { const o = new MutationObserver(() => { if (document.querySelector('#ucCfg')) { o.disconnect();"
+                 " document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true})); } }); o.observe(document.body, {childList: true, subtree: true}); })()")
+            p.js("document.querySelector('[data-uc-configure]').focus(); document.querySelector('[data-uc-configure]').click()")
+            p.until("!document.querySelector('#ucCfg')", "closed")
+            self.assertTrue(p.js("document.activeElement === document.querySelector('[data-uc-configure]')"))
+
+
 class Source(unittest.TestCase):
     def test_unapproved_strings_are_only_in_unruled_constants(self):
         text = WORDS_FILE.read_text(encoding="utf-8")
