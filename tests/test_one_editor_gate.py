@@ -204,7 +204,7 @@ class PageGate(unittest.TestCase):
         self.assertTrue(wait(lambda: js("document.querySelector('#report').dataset.mode === 'edit'"), 10))
         return js, sid
 
-    def test_only_the_four_text_sections_have_a_rich_field_and_only_in_edit(self):
+    def test_only_the_three_text_sections_have_a_rich_field_and_only_in_edit(self):
         s = self.serve(self.page_on)
         with chrome() as cdp:
             sid = navigate(cdp, s.port, for_project("#dashboard&p=ABC"))
@@ -214,7 +214,7 @@ class PageGate(unittest.TestCase):
             js("document.querySelector('[data-mode=edit]').click()")
             self.assertTrue(wait(lambda: js("document.querySelector('#report').dataset.mode === 'edit'"), 10))
             self.assertEqual(js("[...document.querySelectorAll('[data-rich]')].map(function(f){ return f.closest('.sec').dataset.id; })"),
-                             ["ABC-S-001", "ABC-S-005", "ABC-S-006", "ABC-S-007"])      # item 1188: the first section is a text section
+                             ["ABC-S-001", "ABC-S-005", "ABC-S-006"])      # item 1188: the first section is a text section; row 1266: no Summary, so three text sections
             self.assertEqual(js("document.querySelectorAll('.sec[data-type=text] .quiet:not([data-rich] .quiet)').length"), 0)
             js("document.querySelector('[data-mode=view]').click()")
             self.assertTrue(wait(lambda: js("document.querySelector('#report').dataset.mode !== 'edit'"), 10))
@@ -384,6 +384,8 @@ class PageGate(unittest.TestCase):
         s = self.serve(self.page_on)
         with chrome() as cdp:
             js, sid = self.edit(cdp, s)
+            cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)      # the editor ignores a blur while document.hasFocus() is false (RichText away); a headless page on macOS is not focused
+            self.assertTrue(wait(lambda: js("document.hasFocus()"), 10), "the page has the focus")
             self.open_field(cdp, js, sid)
             x, y = js("(() => { const r = document.querySelector('.sec[data-type=milestones] h2, .sec h2').getBoundingClientRect(); return [r.x + 4, r.y + r.height / 2]; })()")
             for kind in ("mousePressed", "mouseReleased"):

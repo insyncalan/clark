@@ -70,6 +70,7 @@ class RealBrowser(unittest.TestCase):
                 self.assertEqual(js("[...document.querySelectorAll('.ucp > summary .ucref')].map(e => e.textContent).join()"), "UC 1.1,UC 9.9")
                 self.assertEqual(js("document.querySelectorAll('.ucp > summary .ucsteps').length"), 2)
                 self.assertTrue(js("/^(No open steps|\\d+ next steps?)$/.test(document.querySelector('.ucp > summary .ucsteps').textContent)"))
+                self.assertEqual(js("[...document.querySelectorAll('.ucp > summary .ucsteps')].every(e => !!e.querySelector('.ucn-b') === /^\\d/.test(e.textContent))"), True, "row 1234-A: the digit is a badge when something is open, plain text when not")
                 self.assertEqual(js("[...document.querySelectorAll('.ucp > summary')].map(s => (s.innerText.match(/UC/g) || []).length).join()"), "1,1", "UC is said once on a row")
                 self.assertEqual(js("getComputedStyle(document.querySelector('.ucp > summary')).display"), "grid")
                 cols = js("getComputedStyle(document.querySelector('.ucp > summary')).gridTemplateColumns").split()

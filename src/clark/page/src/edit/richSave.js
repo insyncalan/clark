@@ -1,5 +1,5 @@
 // The seam between the rich fields and the store (#66). A rich field gets an editor in Edit only when it is listed in RICH_WRITES:
-// field name -> (id, html) => the change request that writes it. A text section's body (Summary, This week, Next week; #220) is
+// field name -> (id, html) => the change request that writes it. A text section's body (Current state, This week, Next week; #220) is
 // listed: its write kind is in changes.py (a text body goes through sanitise.clean_html on the server), and sendChange (api.js)
 // picks the route. A use case's standing has a write kind of its own (#164) and brings its own save. The project's headline has no
 // write kind yet; when it does, it is switched on with one line here.

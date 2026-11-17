@@ -125,7 +125,7 @@ class Server(unittest.TestCase):
 
 
 class Source(unittest.TestCase):
-    LINES = ("Latest update", "Last updated", "Move to Friday", "Move a week on", "Move to Monday", "a working day is usually meant")
+    LINES = ("Latest update", "last updated", "Move to Friday", "Move a week on", "Move to Monday", "a working day is usually meant")
 
     def test_each_line_is_in_the_source_and_the_edit_page_and_not_in_a_published_file(self):
         src = "".join((ROOT / "src/clark/page/src/edit" / f).read_text(encoding="utf-8") for f in ("PeekLatest.jsx", "peekLatest.js"))
@@ -134,7 +134,7 @@ class Source(unittest.TestCase):
         for line in self.LINES:
             self.assertIn(line, src, line)
             self.assertIn(line, built, line)
-        for line in ("Move a week on", "Last updated", "pk-warnbar"):
+        for line in ("Move a week on", "last updated", "pk-warnbar"):
             self.assertNotIn(line, view, "the published page carries none of it: " + line)
 
     def test_the_page_says_the_two_new_refusals_in_its_own_words(self):
@@ -165,9 +165,9 @@ class Source(unittest.TestCase):
         jsx = (ROOT / "src/clark/page/src/edit/PeekLatest.jsx").read_text(encoding="utf-8")
         self.assertNotIn('id="pk-latest-lab"', jsx)
         self.assertNotIn('id="pk-latest-txt"', jsx)
-        self.assertIn("id={`pk-latest-lab-${row.id}`}", jsx)
-        self.assertIn("viewId={`pk-latest-txt-${row.id}`}", jsx)               # item 1005: the text is RichField's view; the id and the label list reach it as props
-        self.assertIn("labelledBy={`pk-latest-lab-${row.id} pk-latest-txt-${row.id}`}", jsx)
+        self.assertIn("id={`pk-latest-lab-${id}`}", jsx)
+        self.assertIn("viewId={`pk-latest-txt-${id}`}", jsx)               # item 1005: the text is RichField's view; the id and the label list reach it as props
+        self.assertIn("labelledBy={`pk-latest-lab-${id} pk-latest-txt-${id}`}", jsx)
         field = (ROOT / "src/clark/page/src/edit/RichField.jsx").read_text(encoding="utf-8")
         self.assertIn("id={viewId}", field)
         self.assertIn("aria-labelledby={labelledBy}", field)
@@ -395,7 +395,7 @@ class Browser(unittest.TestCase):
     def test_the_last_updated_stamp_is_shown_in_local_time_and_follows_a_change(self):
         a = self.action(OVERDUE)
         utc = datetime.strptime(a["updated_at"][:16], "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc).astimezone()
-        want = "Last updated " + utc.strftime("%d-%m-%Y %H:%M")
+        want = "last updated " + utc.strftime("%d-%m-%Y %H:%M")
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sent, sid = self.load(cdp, width, OVERDUE)
@@ -526,7 +526,7 @@ class Browser(unittest.TestCase):
                 self.assertEqual(lab["text"], "Latest update")
                 self.assertGreaterEqual(lab["ratio"], 4.5, lab)
                 stamp = self.look(cdp, sid, "[data-pk-last]")
-                self.assertTrue(stamp["shown"] and stamp["text"].startswith("Last updated "), stamp)
+                self.assertTrue(stamp["shown"] and stamp["text"].startswith("last updated "), stamp)
                 self.assertEqual(stamp["ink"], self.want(cdp, sid, "--text-muted"))
                 self.assertGreaterEqual(stamp["ratio"], 4.5, stamp)
                 self.assertTrue(self.inside(cdp, sid, "[data-pk-last]"))

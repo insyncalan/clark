@@ -28,10 +28,12 @@ const kept = {}; globalThis.localStorage = { getItem: k => kept[k] ?? null, setI
 globalThis.fetch = async () => ({ ok: true, status: 200, json: async () => ({ ok: true }), text: async () => '' });
 const m = require(process.argv[1]);
 m.dragFrom.value = 'A'; m.dropAt.value = { id: 'B', where: 'after' }; m.dragList.value = [{ id: 'B' }, { id: 'A' }];
+let atMove = null; let first = true;
+m.view.subscribe(() => { if (first) { first = false; return; } atMove = { list: m.dragList.value === undefined ? 'undefined' : 'set', from: m.dragFrom.value ?? null }; });
 location.hash = '#settings';
 for (const f of (L.popstate || [])) f({});
 console.log(JSON.stringify({ listeners: (L.popstate || []).length, from: m.dragFrom.value ?? null, drop: m.dropAt.value ?? null,
-  list: m.dragList.value === undefined ? 'undefined' : 'set' }));
+  list: m.dragList.value === undefined ? 'undefined' : 'set', atMove }));
 """
 
 
@@ -40,7 +42,7 @@ class DragLeaveList(unittest.TestCase):
     def setUpClass(cls):
         cls._tmp = tempfile.TemporaryDirectory()
         cls.addClassCleanup(cls._tmp.cleanup)
-        cls.out = bundle('export { dragFrom, dropAt, dragList } from "@src/stores/report.js";', Path(cls._tmp.name), None, "dragleave.cjs")
+        cls.out = bundle('export { dragFrom, dropAt, dragList, view } from "@src/stores/report.js";', Path(cls._tmp.name), None, "dragleave.cjs")
 
     def test_going_back_clears_the_line_the_picked_section_and_the_preview_list(self):
         for w in (1400, 900):
@@ -52,6 +54,17 @@ class DragLeaveList(unittest.TestCase):
                 self.assertIsNone(got["from"])
                 self.assertIsNone(got["drop"])
                 self.assertEqual(got["list"], "undefined", "the others do not stay out of place")
+
+
+    def test_the_drag_is_let_go_before_the_page_moves_to_the_address(self):
+        for w in (1400, 900):
+            with self.subTest(width=w):
+                done = subprocess.run(["node", "-e", DRIVER, str(self.out), json.dumps({"width": w})], capture_output=True, text=True)
+                self.assertEqual(done.returncode, 0, done.stderr[-800:])
+                at = json.loads(done.stdout)["atMove"]
+                self.assertIsNotNone(at, "the page moved to the address")
+                self.assertEqual(at["list"], "undefined", "the preview list is already gone when the page redraws")
+                self.assertIsNone(at["from"], "the picked section is already let go when the page redraws")
 
 
 if __name__ == "__main__":

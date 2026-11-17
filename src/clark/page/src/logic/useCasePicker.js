@@ -12,54 +12,69 @@ export const FIELDS = [
   { key: "total", label: "Work items", more: true, get: (r) => r.total },
 ];
 const text = (v) => (v === undefined || v === null ? "" : String(v));
-const field = (k) => FIELDS.find((f) => f.key === k);
 
-export const emptyState = () => ({ q: "", filters: {}, picked: [] });
+// Row 1230: the add-a-milestone picker is the same machine with other fields. `fields` is [{key, label, more?, get(row), sort?(value), fixed?: [every value offered, in order]}], `hay(row)` the row's
+// words the search looks in, `addWord` the button's word when none is picked. The use-case picker below is one call of this.
+export function makePicker({ fields, hay, addWord }) {
+  const field = (k) => fields.find((f) => f.key === k);
+  const emptyState = () => ({ q: "", filters: {}, picked: [] });
 
-/** Search: every word typed must be in the name, the reference, the id or the status (any case). */
-export function matchesQuery(r, q) {
-  const hay = [r.name, r.ref, r.id, r.status].map((x) => text(x).toLowerCase()).join("\n");
-  return text(q).toLowerCase().split(/\s+/).filter(Boolean).every((w) => hay.includes(w));
+  /** Search: every word typed must be in the name, the reference, the id or the status (any case). */
+  function matchesQuery(r, q) {
+    const h = hay(r).map((x) => text(x).toLowerCase()).join("\n");
+    return text(q).toLowerCase().split(/\s+/).filter(Boolean).every((w) => h.includes(w));
+  }
+
+  /** One filter: "is" keeps rows whose value is any of the chosen; "not" keeps the others. No values chosen = no filter. */
+  function matchesFilter(r, key, f) {
+    const f0 = field(key);
+    if (!f0 || !f || !Array.isArray(f.values) || !f.values.length) return true;
+    const hit = f.values.map(text).includes(text(f0.get(r)));
+    return f.mode === "not" ? !hit : hit;
+  }
+
+  const visible = (rows, s) => rows.filter((r) => matchesQuery(r, s.q) && Object.keys(s.filters).every((k) => matchesFilter(r, k, s.filters[k])));
+
+  /** The values a field's list offers, each with how many of ALL rows hold it (blank values are not offered), sorted for people. */
+  function optionsOf(rows, key) {
+    const f0 = field(key), n = new Map();
+    if (f0.fixed) { for (const r of rows) { const v = text(f0.get(r)); n.set(v, (n.get(v) || 0) + 1); } return f0.fixed.map((value) => ({ value, count: n.get(value) || 0 })); }   // a fixed list: every value, in its order, with 0 where no row holds it
+    for (const r of rows) { const v = text(f0.get(r)); if (v !== "") n.set(v, (n.get(v) || 0) + 1); }
+    return [...n].map(([value, count]) => ({ value, count })).sort((a, b) => (f0.sort ? (f0.sort(a.value) < f0.sort(b.value) ? -1 : f0.sort(a.value) > f0.sort(b.value) ? 1 : 0) : isNaN(a.value - b.value) ? a.value.localeCompare(b.value) : a.value - b.value));
+  }
+
+  function setMode(s, key, mode) {
+    const cur = s.filters[key] || { values: [] };
+    return { ...s, filters: { ...s.filters, [key]: { mode: mode === "not" ? "not" : "is", values: cur.values } } };
+  }
+  function toggleValue(s, key, value) {
+    const cur = s.filters[key] || { mode: "is", values: [] }, v = text(value);
+    const values = cur.values.includes(v) ? cur.values.filter((x) => x !== v) : [...cur.values, v];
+    return { ...s, filters: { ...s.filters, [key]: { mode: cur.mode, values } } };
+  }
+  /** Select all: every value the field offers that some row holds (a value with none is greyed and is not ticked). Clear: none (and the filter goes). */
+  const selectAllValues = (s, key, rows) => ({ ...s, filters: { ...s.filters, [key]: { mode: (s.filters[key] || {}).mode || "is", values: optionsOf(rows, key).filter((o) => o.count).map((o) => o.value) } } });
+  function clearField(s, key) { const filters = { ...s.filters }; delete filters[key]; return { ...s, filters }; }
+  const activeCount = (s) => Object.values(s.filters).filter((f) => f.values.length).length;
+
+  /** Picking: Select all / Clear act on the rows shown now; a row already picked stays picked when a filter hides it. */
+  const toggleRow = (s, id) => ({ ...s, picked: s.picked.includes(id) ? s.picked.filter((x) => x !== id) : [...s.picked, id] });
+  const pickAllShown = (s, rows) => ({ ...s, picked: [...new Set([...s.picked, ...visible(rows, s).map((r) => r.id)])] });
+  const clearPicked = (s) => ({ ...s, picked: [] });
+  /** Only ids that are still rows count (a use case archived meanwhile is dropped). */
+  const pickedIds = (s, rows) => { const ids = new Set(rows.map((r) => r.id)); return s.picked.filter((id) => ids.has(id)); };
+
+  const counts = (rows, s) => ({ shown: visible(rows, s).length, total: rows.length, picked: pickedIds(s, rows).length });
+  const resultWords = (c) => UNRULED_RESULT(c.shown, c.total);
+  const addWords = (c) => (c.picked ? UNRULED_ADD(c.picked) : addWord);
+
+  /** The header tick (row 1230): all shown picked takes the shown ones off the pick, otherwise it picks every one shown. A row picked but hidden by a filter stays picked. */
+  const allShownPicked = (rows, s) => { const v = visible(rows, s); return v.length > 0 && v.every((r) => s.picked.includes(r.id)); };
+  const someShownPicked = (rows, s) => visible(rows, s).some((r) => s.picked.includes(r.id));
+  const toggleAllShown = (s, rows) => (allShownPicked(rows, s) ? { ...s, picked: s.picked.filter((id) => !visible(rows, s).some((r) => r.id === id)) } : pickAllShown(s, rows));
+  return { fields, emptyState, matchesQuery, matchesFilter, visible, optionsOf, setMode, toggleValue, selectAllValues, clearField, activeCount, toggleRow, pickAllShown, clearPicked, pickedIds, counts, resultWords, addWords, allShownPicked, someShownPicked, toggleAllShown };
 }
 
-/** One filter: "is" keeps rows whose value is any of the chosen; "not" keeps the others. No values chosen = no filter. */
-export function matchesFilter(r, key, f) {
-  const f0 = field(key);
-  if (!f0 || !f || !Array.isArray(f.values) || !f.values.length) return true;
-  const hit = f.values.map(text).includes(text(f0.get(r)));
-  return f.mode === "not" ? !hit : hit;
-}
-
-export const visible = (rows, s) => rows.filter((r) => matchesQuery(r, s.q) && Object.keys(s.filters).every((k) => matchesFilter(r, k, s.filters[k])));
-
-/** The values a field's list offers, each with how many of ALL rows hold it (blank values are not offered), sorted for people. */
-export function optionsOf(rows, key) {
-  const f0 = field(key), n = new Map();
-  for (const r of rows) { const v = text(f0.get(r)); if (v !== "") n.set(v, (n.get(v) || 0) + 1); }
-  return [...n].map(([value, count]) => ({ value, count })).sort((a, b) => (isNaN(a.value - b.value) ? a.value.localeCompare(b.value) : a.value - b.value));
-}
-
-export function setMode(s, key, mode) {
-  const cur = s.filters[key] || { values: [] };
-  return { ...s, filters: { ...s.filters, [key]: { mode: mode === "not" ? "not" : "is", values: cur.values } } };
-}
-export function toggleValue(s, key, value) {
-  const cur = s.filters[key] || { mode: "is", values: [] }, v = text(value);
-  const values = cur.values.includes(v) ? cur.values.filter((x) => x !== v) : [...cur.values, v];
-  return { ...s, filters: { ...s.filters, [key]: { mode: cur.mode, values } } };
-}
-/** Select all: every value the field offers. Clear: none (and the filter goes). */
-export const selectAllValues = (s, key, rows) => ({ ...s, filters: { ...s.filters, [key]: { mode: (s.filters[key] || {}).mode || "is", values: optionsOf(rows, key).map((o) => o.value) } } });
-export function clearField(s, key) { const filters = { ...s.filters }; delete filters[key]; return { ...s, filters }; }
-export const activeCount = (s) => Object.values(s.filters).filter((f) => f.values.length).length;
-
-/** Picking: Select all / Clear act on the rows shown now; a row already picked stays picked when a filter hides it. */
-export const toggleRow = (s, id) => ({ ...s, picked: s.picked.includes(id) ? s.picked.filter((x) => x !== id) : [...s.picked, id] });
-export const pickAllShown = (s, rows) => ({ ...s, picked: [...new Set([...s.picked, ...visible(rows, s).map((r) => r.id)])] });
-export const clearPicked = (s) => ({ ...s, picked: [] });
-/** Only ids that are still rows count (a use case archived meanwhile is dropped). */
-export const pickedIds = (s, rows) => { const ids = new Set(rows.map((r) => r.id)); return s.picked.filter((id) => ids.has(id)); };
-
-export const counts = (rows, s) => ({ shown: visible(rows, s).length, total: rows.length, picked: pickedIds(s, rows).length });
-export const resultWords = (c) => UNRULED_RESULT(c.shown, c.total);
-export const addWords = (c) => UNRULED_ADD(c.picked);
+const uc = makePicker({ fields: FIELDS, hay: (r) => [r.name, r.ref, r.id, r.status], addWord: UNRULED_ADD(0) });
+export const { emptyState, matchesQuery, matchesFilter, visible, optionsOf, setMode, toggleValue, selectAllValues, clearField, activeCount, toggleRow, pickAllShown, clearPicked, pickedIds, counts, resultWords, addWords } = uc;
+export const UC_PICKER = uc;

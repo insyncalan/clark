@@ -20,9 +20,11 @@ export function ActionChips({ row, tools, editing }) {
   const late = due.tone === "late", days = late ? /^(\d+) days? late$/.exec(due.words) : null;
   const n = days ? days[1] : "1";
   const overdue = late ? `overdue ${n} ${n === "1" ? "day" : "days"}` : "";
+  // row 1256 (3d): an overdue action's Status chip says Open; the lateness is on the Due chip (red, "overdue N days"). The table pill keeps Overdue.
+  const lateOpen = pill.text === "Overdue";
   return (
     <PeekChips>
-      <PeekChip Live={Live} id={row.id} field="status" name="Status" icon="half" tone={statusTone(row, today)} value={pill.text} flash={hit("status")} pop={pop("status")} />
+      <PeekChip Live={Live} id={row.id} field="status" name="Status" icon="half" tone={lateOpen ? "b" : statusTone(row, today)} value={lateOpen ? "Open" : pill.text} flash={hit("status")} pop={pop("status")} />
       <PeekChip Live={Live} id={row.id} field="priority" name="Priority" icon="bars" tone={priorityTone(row.priority)} value={text(row.priority)} flash={hit("priority")} pop={pop("priority")} />
       <PeekChip Live={Live} id={row.id} field="owner" name="Owner" icon="user" tone="b" value={who.text} flash={hit("owner")} pop={pop("owner")} />
       <PeekChip Live={Live} id={row.id} field="due" name="Due date" icon="cal" tone={dateTone(row, today)} value={due.date} sub={overdue} subTone={late ? "late" : ""} late={late} flash={hit("due")} pop={pop("due")} />

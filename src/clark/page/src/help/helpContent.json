@@ -204,7 +204,7 @@
     "s": [
      "Open the **Dashboard** and press **Edit** at the top. Each change saves on its own.",
      "Set **Week ending** to the Friday the report covers: click the date in the header and pick the day in the calendar. **Friday** takes the next Friday (today, if it is one). Any other day is not accepted.",
-     "Click the text under **Summary**, **This week** or **Next week** and write it. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] puts the old text back.",
+     "Click the text under **Current state**, **This week** or **Next week** and write it. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] puts the old text back.",
      "Set the health on the **Project health** tile: see [Set the project health](#howto-set-the-health).",
      "Check the lists of risks and issues, open actions and decisions. Click any part of a row (the state, the title, the owner, the date) to change it there; the ID opens the whole item in the peek.",
      "Press **View** to read the report as the client will."
@@ -409,7 +409,7 @@
      "In Edit, under the title are **Status**, **Priority**, **Owner** and **Due**. Click **Status** to choose another value. For a risk or issue the chip is **Rating**: click it and pick impact and likelihood on the grid. One click sets both and gives the colour. To change the priority, owner or due date, click it in the list row (the due date offers Today, Tomorrow, Friday, Next week and No date) or use [Change an item with words (Sneak peek)](#howto-change-an-item-in-words).",
      "A warning shows when an action is overdue or due on a weekend, with one-click fixes such as **Move to Friday** and the date.",
      "**Latest update**: click to write it. On an item shown to the client, the box says **Shown to the client**, because the client sees this text.",
-     "In Edit, **Details** is a tab and lists the Type, Workstream, Milestone and Use case (click one to choose another), then Shown to client and Client wording. In View the same fields are listed under the title with no tabs.",
+     "In Edit, **Details** is a tab and lists the Workstream and Milestone (click one to choose another), then Raised and the Client visible line; a risk and an issue also list the Use case. A decision lists its own rows instead: Revisit, Replaces and Use case, and in Edit also Reasoning, Options considered, the Client visible line and Client wording; an open decision also lists Raised and Last reviewed, in Edit and in View, and a made one does not. In View the rows are listed under the title with no tabs; the Client visible line, Reasoning and Options considered are only in Edit.",
      "In Edit, the **Activity** tab under the title shows the item’s history: who changed what, how and when, newest first. **Details** goes back to the fields.",
      "Under **Latest update**, **Show history** lists the changes to that one field; **Hide history** closes it.",
      "With the peek open, click another item anywhere on the page and the peek moves to it. A click elsewhere, or [[Esc]], closes it. **Previous item** and **Next item** at the top step through the list; [[Up]] and [[Down]] do the same only when focus is on one of the peek’s own buttons."
@@ -444,11 +444,11 @@
     "w": "Work items · the peek · Dashboard › Edit",
     "go": "dashboard+edit",
     "s": [
-     "On Work items, the eye in each row’s last column turns client-visible on or off. In the peek, Shown to client (in Details) says Yes or No; change it with the eye in the row.",
+     "On Work items, the eye in each row’s last column turns client-visible on or off. In the peek in Edit, the Client visible line (in Details) says whether the item is shown to the client; change it with the eye in the row.",
      "On the Dashboard in Edit, the eye beside a row takes it off the page. The row greys while **Undo** is offered, then leaves.",
      "**+ Add from your project record** under a list brings items back. A picker opens: search, choose a kind, tick what you want (or **Select all shown**) and press **Add**.",
      "Milestones, use cases, supporting documents and tiles have their own eye and their own **Add back**. A whole section is left out from its options: **Leave out of the published page**.",
-     "An item’s **Client wording** (in the peek’s Details) is used on the page in place of its title. A milestone has the same, as **Client wording** in its peek."
+     "An item’s **Client wording** (on its row in Edit; for a decision also in its peek, in Edit) is used on the page in place of its title. A milestone has the same, as **Client wording** in its peek."
     ],
     "n": "The report’s lists show only client-visible items. Everything else is left out of the published file altogether.",
     "page": [
@@ -480,7 +480,7 @@
     "go": "dashboard+edit",
     "s": [
      "In Edit, each section has a control at the left of its card (in the margin on a wide window, inside the card on a narrow one): a move button and, under it, a **+**. They are faint until you point at the section or tab to them.",
-     "Drag the move button to move the section, or focus it and press [[Alt+Up]] or [[Alt+Down]]. Click it, or press [[Enter]] or [[Space]] on it, to open the section’s menu.",
+     "Drag the move button to move the section, or focus it and press [[Alt+Up]] or [[Alt+Down]]. [[Alt+Right]] puts the section beside the next one, [[Alt+Left]] makes it full width. Click it, or press [[Enter]] or [[Space]] on it, to open the section’s menu.",
      "The menu has **Add a template below…**, then **Template settings** (for a section whose template has settings), **Move up** and **Move down**, **Place beside the next section** (or **Full width** when it is already beside another), then **Leave out of the published page** (or **Include in the published page**) and **Delete section**. A section that is left out shows a small eye mark under its **+** and the tag **Left out of the published page**.",
      "To rearrange the page, pick up a section by its move button and drop it. A line between rows puts it on a row of its own; the left or right half of a section that is on its own puts the two side by side, half the width each. A row never holds more than two. [[Esc]] cancels the move. The section’s title follows the pointer, a faint dashed outline stays where the section was, and a dashed half or a line shows where it will go. The header stays at the top. Each drop is one step you can undo, and on a narrow window a pair stacks.",
      "Click a heading to rename it. [[Enter]] keeps it; [[Esc]] puts it back.",
@@ -621,10 +621,10 @@
     "s": [
      "On **Milestones**, press **+** (**Add milestone**). A new one, called New milestone and agreed 30 days out, opens in the peek. There is no **+** in a published file.",
      "Click any milestone to open it: its mark or label on the timeline, its chip on the calendar, or its row in the details.",
-     "**State**: Forecast, On track, At risk, Slipped or Achieved are buttons under the header line. Overdue follows the dates and can’t be picked.",
+     "**State**: Forecast, On track, At risk, Slipped or Achieved are buttons in the State chip under the title. Overdue follows the dates and isn’t one of them.",
      "**Dates**: the **Agreed date** is shown and the peek does not change it; change the **Forecast date** as things move. A Done milestone also has an **Achieved on** date.",
-     "**Progress** is set by hand with the slider or the number. Add a **Description**, the **Owner** and the **Workstream**.",
-     "**Visible to client** (Yes or No), and the **Client wording** used on the page in place of the name.",
+     "**Progress** is set by hand with the ten blocks in the Progress chip. Add a **Description**, the **Owner** and the **Workstream**.",
+     "**Client visible** (the line under the rows), and the **Client wording** used on the page in place of the name.",
      "To tie a work item to a milestone, open the item’s peek and, in Edit, pick the milestone under Details."
     ],
     "page": [
@@ -644,7 +644,7 @@
      "The calendar shows **Week**, **Month** (the standard) or **Quarter**, with the arrows and **Today**. In Quarter, click a month’s name to open that month.",
      "With the keyboard, [[Tab]] reaches the calendar once, on today (or the first day when today is not shown). [[Left]] and [[Right]] move a day at a time, and [[Up]] and [[Down]] a week. [[Enter]] on a day with milestones goes to the first of them, and [[Shift+Tab]] or [[Esc]] comes back to the day.",
      "**Legend**, at the right of the bar above the milestones, explains every mark when you point at it or tab to it.",
-     "Under that bar, the list shows each milestone with its date, state and progress. The first five show; **Show all N milestones** shows the rest. **Hide milestone details** folds the list away and **Show milestone details** brings it back. Your choice is kept."
+     "Under that bar, the list shows each milestone with its date, state and progress. The first five show; **Show all N milestones** shows the rest, unless a number is set in **Configure**. **Hide milestone details** folds the list away and **Show milestone details** brings it back. Your choice is kept. On the Dashboard the list has a heading row: **Milestone**, **State**, **Agreed**, **Expected or achieved** and **Progress**."
     ],
     "n": "On the published page, Slipped reads “Expected later” and Overdue reads “Late”.",
     "page": [
@@ -979,7 +979,7 @@
         "The timeline or calendar, the legend and the list of milestones."
        ],
        [
-        "Summary, This week, Next week",
+        "Current state, This week, Next week",
         "Text sections. This week and Next week sit side by side to start with; any section can sit beside another."
        ]
       ]
@@ -1157,7 +1157,7 @@
      [
       "ul",
       [
-       "**Raised**: when the item came in, from its first change in the history. Raised and Last reviewed are in the peek of an open action, risk, issue or decision.",
+       "**Raised**: when the item came in, from its first change in the history. Raised is in the peek of an open action, risk, issue or decision; Last reviewed is in an open decision’s peek.",
        "**Last reviewed**: the latest change you made by hand. A change made by clark or an Undo does not count.",
        "**Not reviewed in 14 days**: shown at the top of the peek on an open action, risk, issue or decision that has not been reviewed for that long.",
        "To get **Not reviewed in 14 days** or **No owner or no date**, type **is:** in the filter line and pick it from the list, or save either as a view.",
@@ -1385,7 +1385,7 @@
      ],
      [
       "p",
-      "In Edit, the list of milestones has a heading row over its columns: **Date**, **Milestone**, **State** and **Progress**. Drag the right edge of a heading, or press [[Alt+Left]] or [[Alt+Right]] on it, to change that column’s width; double-click the edge to put it back. View and the published page have no heading row."
+      "In Edit, the list of milestones has a heading row over its columns: **Date**, **Milestone**, **State** and **Progress**. Drag the right edge of a heading, or press [[Alt+Left]] or [[Alt+Right]] on it, to change that column’s width; double-click the edge to put it back. On this screen View and the published page have no heading row. The Dashboard’s list has one in Edit, View and the published page: **Milestone**, **State**, **Agreed**, **Expected or achieved** and **Progress**."
      ]
     ]
    },
@@ -1441,7 +1441,7 @@
        "A warning bar sits above the title (in Edit) when an action is overdue or due on a weekend, with fixes such as **Move to Friday** and the date.",
        "**The title**, then **Status**, **Priority**, **Owner** and **Due**, each with its icon in colour: the state’s colour, the priority’s (a risk or issue says **Rating**), and the date’s (red when late, amber when due within a week).",
        "**Latest update**, and the words **Shown to the client** when the item is shown to the client; then when it was last updated.",
-       "**Details** (in Edit a tab, with Activity; in View the same fields with no tab): Type, Owner, Due, Priority, Status, Workstream, Milestone, Use case, Shown to client and Client wording. An item’s description is its title.",
+       "**Details** (in Edit a tab, with Activity; in View the same rows with no tab): Workstream, Milestone, Raised, and in Edit the Client visible line (a risk and an issue also have Use case); a decision has its own rows instead. Status, Owner, Due and Priority are the chips above it. An item’s description is its title.",
        "**Source** (in Edit, in View and in a published file): under the details, where the item or milestone came from. In Edit and View it ends with by and the name of the person who added it; a published file shows only the name. An item brought in from a Word file reads Word import, then the date (DD-MM-YYYY), the file name and the heading it came under, then by and the name.",
        "**Activity** (in Edit): each change to the item, newest first: who, how and when. How reads, for example, In the peek, By Excel import (plans.xlsx) or By Word import (plan.docx). A change made by a file import also has a line under it, which reads Updated from, then the file name, the date (DD-MM-YYYY) and, after by, the name."
       ]
@@ -1594,7 +1594,7 @@
     "b": [
      [
       "p",
-      "A box that lists what is not on the page yet: work items, milestones, use cases or documents. Type to search by name, ID, owner or use case; a switch narrows it by kind; tick what you want, or **Select all shown**. [[Enter]] in the search ticks the only match, and [[Down]] goes to the list. **Add** puts them on the page in one step, with one **Undo**."
+      "A box that lists what is not on the page yet: work items, milestones, use cases or documents. Type to search by name, ID, owner or use case (in the milestones box: name, ID or state); where there is a switch it narrows by kind; tick what you want, or **Select all shown** (in the milestones box: the tick in the header). [[Enter]] in the search ticks the only match, and [[Down]] goes to the list, except in the milestones box. **Add** puts them on the page in one step, with one **Undo**."
      ]
     ]
    },
@@ -1628,12 +1628,12 @@
        "**Archive**: pressing it in the **More actions** menu archives the milestone and closes the peek. A message says, for example, M3 archived. It is out of the lists and the published page. Press **Undo** in that message and it says M3 is back.",
        "**Tabs** (in Edit): Details, then Activity, the history of the milestone.",
        "**The title** is the milestone’s **Name**: in Edit, click it to change it.",
-       "**The header line**: the state, the **Owner** and the progress. Achieved appears only once the milestone is achieved, and picking Achieved sets the progress to 100%. In View it carries its date; in Edit the date is in the Achieved on row, not repeated in the header.",
-       "**State**: Forecast, On track, At risk, Slipped, Overdue and Achieved as buttons under the header line. Overdue is shown but cannot be picked.",
-       "**Dates**: Agreed (the baseline) is shown and not changed here; in Edit, Forecast is a date you pick; in View it is shown only. A milestone that is Done also has an Achieved on date, a row in Edit; in View the header line shows it.",
-       "**Progress**: a slider and a number in the header line, set by hand.",
-       "**The rows**: Description, Agreed date, Forecast date, Workstream, Visible to client and Client wording, label left and value right. Description and Client wording use the rich text editor.",
-       "**Visible to client** (Yes or No) and **Client wording**. A client sees the same peek, read only, without the Visible to client row."
+       "**Under the title**: in Edit, chips for the state, the **Owner**, the progress and the **Forecast date**; in View and in a published file, the header line with the state, the owner and the progress. Achieved appears only once the milestone is achieved, and picking Achieved sets the progress to 100%. In View the header line carries its date; in Edit the date is in the Achieved on row.",
+       "**State**: Forecast, On track, At risk, Slipped, Overdue and Achieved are the states. In Edit the State chip opens the five you can pick: Forecast, On track, At risk, Slipped and Achieved. Overdue is shown when the dates make it so, and cannot be picked.",
+       "**Dates**: Agreed (the baseline) is shown and not changed here; in Edit, the Forecast date chip opens a date you pick; in View it is shown only. A milestone that is Done also has an Achieved on date, a row in Edit; in View the header line shows it.",
+       "**Progress**: in Edit, ten blocks in the Progress chip, set by hand. Press the block that matches the progress to set it back to 0.",
+       "**The rows**: in Edit, Description, Agreed date, Workstream, Use case and Client wording, label left and value right, then the Client visible line; the Latest update box sits above them. In View and in a published file, Description, Agreed date, Forecast date, Workstream and Client wording. Description and Client wording use the rich text editor.",
+       "**Client visible** and **Client wording**. A client sees the same peek, read only, without the Client visible line."
       ]
      ]
     ]
@@ -1649,7 +1649,7 @@
        "**Timeline**: months along the top, a line for today, a mark per milestone with its name and date below. Earlier, Later and **Today**; drag the bottom edge to zoom (70% to 300%), **Reset** (shown once you have zoomed). A slipped milestone also has a faint mark on its expected date, joined to its agreed date by a dashed line; its label adds, for example, +3 days, and the list below gives the Expected date and how many days later.",
        "**Calendar**: **Week**, **Month** or **Quarter**; earlier, later and **Today**; weekends are muted and today is marked. A slipped milestone shows on its agreed date and again, faintly, as “Expected”. In Quarter, a month’s name opens that month.",
        "**Legend**: point at it or tab to it.",
-       "**Milestone details**: a rail with the date, the name, the state, the progress and, for internal ones, “Internal only”. The first five, then **Show all**. **Hide milestone details** folds it away."
+       "**Milestone details**: a rail with the date, the name, the state, the progress and, for internal ones, “Internal only”. The first five, then **Show all**, unless a number is set in **Configure**. **Hide milestone details** folds it away. On the Dashboard the list has a heading row: **Milestone**, **State**, **Agreed**, **Expected or achieved** and **Progress**."
       ]
      ]
     ]
@@ -2153,7 +2153,7 @@
    ],
    [
     "[[Alt+Up]] [[Alt+Down]]",
-    "Dashboard in Edit, on a section’s move button: move the section"
+    "Dashboard in Edit, on a section’s move button: move the section. [[Alt+Right]] puts the section beside the next one, [[Alt+Left]] makes it full width"
    ],
    [
     "[[Enter]] or [[Space]]",
@@ -2614,7 +2614,7 @@
      "pic": "templates-add-box"
     },
     {
-     "d": "The **Add a section** box opens with the cursor in **Search templates**. On the left, pick a kind: **All templates**, **Text and pictures**, **Figures**, **Work items**, **Files and links**, **People and dates** or **Notes**. Or type a word to find a template by name.",
+     "d": "The **Add a section** box opens with the cursor in **Search templates**. On the left, pick a kind: **All templates**, **Project information**, **Text and pictures**, **Figures**, **Work items**, **Files and links**, **People and dates** or **Notes**. Or type a word to find a template by name.",
      "pic": "templates-dialog"
     },
     {
@@ -2843,7 +2843,7 @@
      "d": "To come back to it later, press its tab. The filter line is set to what you saved. Every project starts with the tabs Open items, Actions, Risks and issues, Decisions and All work items, then Overdue and My actions."
     },
     {
-     "d": "If you change the filter line while a view is open, a small dot shows on its tab, and **Save view** and **Discard changes** appear beside the tabs. Press **Save view** to keep the new filters under the same name, and a message at the foot of the page says View saved with the name. Press **Discard changes** to put the filter line back to what the view had. The small arrow beside the open tab’s name has the same **Save changes**, and **Save as a new view…** keeps the new filters as another view. The five tabs that every project has cannot be saved over, so they have no **Save view**. Use **Save as a new view…** for them. **Discard changes** is there on them too."
+     "d": "If you change the filter line while a view is open, a small dot shows on its tab, and **Save view** and **Discard changes** appear beside the tabs. Press **Save view** to keep the new filters under the same name, and a message at the foot of the page says View saved with the name. Press **Discard changes** to put the filter line back to what the view had. The small arrow beside the open tab’s name has **Update view**, which keeps the new filters under the same name, and **Save as a new view…** keeps the new filters as another view. The five tabs that every project has have no **Save view**; use **Update view** in the small arrow’s menu to keep new filters on them, for this project only. When you leave the filter line with changes you have not saved, a question asks whether to **Update view**, **Save as a new view** or **Discard**."
     },
     {
      "d": "To rename a view, open it, press the small arrow beside its name and choose **Rename view**. Type the new name in the box labelled **New name for this view** and press **Save**. To move a view, pick its tab up with the mouse and drag it left or right, then let go. Or open it, press the small arrow and choose **Move view**: the tab gets a ring, the Left and Right arrows move it, and Enter or Esc finishes. The order is kept in your browser, for this project. To copy a view, open it, press the small arrow and choose **Duplicate view**. The copy is called the same with copy after it, and sits beside it."
