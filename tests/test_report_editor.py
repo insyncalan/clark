@@ -120,6 +120,7 @@ class Pg:
 
     def box(self, selector):
         """[centre x, centre y, bottom] of the first element that matches."""
+        self.until(self.IDLE, "the sections have stopped gliding, so the box is where it is")
         return self.js(f"(function(){{var r=document.querySelector({json.dumps(selector)}).getBoundingClientRect();"
                        "return [r.left + r.width / 2, r.top + r.height / 2, r.bottom];})()")
 
@@ -128,7 +129,9 @@ class Pg:
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 2400, "deviceScaleFactor": 1, "mobile": False}, self.sid)
 
     def rect(self, ref):
-        """{left, top, right, bottom} of section `ref`."""
+        """{left, top, right, bottom} of section `ref`, once the sections have stopped gliding (edit mode, a hide and a resize
+        all move them: a rectangle taken mid-glide aims a drop at where a section was)."""
+        self.until(self.IDLE, "the sections have stopped gliding, so the rectangle is where they are")
         return self.js(f"(function(){{var r=document.querySelector('[data-id=\"{ref}\"]').getBoundingClientRect();"
                        "return {left:r.left, top:r.top, right:r.right, bottom:r.bottom};})()")
 

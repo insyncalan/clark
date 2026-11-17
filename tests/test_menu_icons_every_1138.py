@@ -22,6 +22,7 @@ import test_gantt_page as GP  # noqa: E402
 from test_bulk_bar import Base as BulkBase  # noqa: E402
 from test_work_filters import set_line  # noqa: E402
 from test_multi_select import MOD, peek_away, tap  # noqa: E402
+from _demo import USER  # noqa: E402
 from test_report_editor import Base, IDS  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
 
@@ -65,7 +66,7 @@ DRIVE_NAMES = {
     "rowmenu", "rowmenu-status", "rowmenu-due", "rowmenu-owner", "rowmenu-owner-add", "rowmenu-card", "bulk-items", "bulk-items-mixed",
     "bulk-picker-status", "bulk-picker-owner", "bulk-picker-due", "bulk-picker-priority", "bulk-picker-workstream", "bulk-picker-milestone",
     "board-move", "board-move-lanes", "gantt-show-chart", "gantt-show-table", "gantt-add-below-chart", "gantt-add-below-table",
-    "gantt-right-click", "columns", "client", "client-disabled-excel", "text-style", "slash-list", "peek-more", "record-more", "record-ctx",
+    "gantt-right-click", "columns", "client", "client-disabled-excel", "text-style", "slash-list", "peek-more", "record-more", "record-ctx", "report-headline-health",
 }
 
 
@@ -85,6 +86,7 @@ class Source(unittest.TestCase):
         "components/NewTile.jsx": ("new-tile",), "edit/UseCasesPage.jsx": ("uc-group", "uc-sort"), "components/UseCasesTab.jsx": ("uc-group", "uc-sort"),
         "edit/UseCasesEdit.jsx": ("uc-status", "uc-milestone-link"), "components/UseCaseDetail.jsx": ("uc-detail-status",),
         "edit/CommitMenu.jsx": ("commitment",), "edit/RichText.jsx": ("text-style", "slash-list"), "edit/PeekMore.jsx": ("peek-more",), "edit/RecordMore.jsx": ("record-more",), "edit/RecordContextMenu.jsx": ("record-ctx",),
+        "edit/templates/ReportHeadline.jsx": ("report-headline-health",),
         "edit/cells/OwnerPick.jsx": ("owner-pick", "owner-pick-typed"),
         "edit/cells/MenuPick.jsx": ("cell-Due date", "cell-Priority", "cell-Status"),
     }
@@ -97,6 +99,7 @@ class Source(unittest.TestCase):
         "components/Peek.jsx": "row 1074",
         "edit/Palette.jsx": "the command palette is a search list of what was typed (pages, items and commands found), not a menu of actions",
         "edit/DraftAi.jsx": "row 1179: the AI menu is drawn as in the approved peek mock-up (each line a name and a description, no icon); the icon rule for it is open for the owner",
+        "edit/templates/Callout.jsx": "row 1272: the icon chooser is a picker of swatches (an icon and its name), a choice of look, not a menu of commands",
         "components/UseCaseFilePage.jsx": "only a selector that tells when a menu is open (for Esc); it draws none",
     }
     # By design NOT icon menus, kept here with the reason: lists that follow what is typed, whose lines are text matches.
@@ -294,6 +297,17 @@ class Dashboard(Base):
                 d.button("[id^=uccm-]", "commitment")
                 d.check("commitment", "document.querySelector('[id^=uccm-]').click()", "[role=menu]", 2)
             d.expect(["profile", "project-switch", "section", "outline", "health", "uc-status", "commitment"])
+
+    def test_report_headline_health_menu(self):      # row 1261: the Report headline's health pill menu
+        with self.store.step("dashboard", USER) as st:
+            st.create("report_sections", {"project": "ABC", "type": "reportheadline", "title": "Fictional headline", "sort_order": 999})
+        with chrome() as cdp:
+            p, d = self.drive(cdp)
+            for w, th in LOOKS:
+                d.look(w, th)
+                d.button("[id^=rh-pill-]", "report headline health pill")
+                d.check("report-headline-health", "document.querySelector('[id^=rh-pill-]').click()", "[role=menu]", 3)
+            d.expect(["report-headline-health"])
 
     def test_the_section_menu_gives_each_line_its_icon_and_keeps_its_words(self):
         want = {"add": "plus", "up": "chevup", "down": "chevdown", "beside": "board", "full": "arrows-out", "hide": "eyeoff",
