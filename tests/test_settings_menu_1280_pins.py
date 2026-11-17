@@ -6,6 +6,7 @@ The sibling test keeps loose bounds; these pin the measured values so a bound th
 import unittest
 
 from test_publish_dialog import Base
+from test_server import chrome, wait  # noqa: F401  (the harness: this file drives Chrome, so the tier reader sees it)
 import test_settings_menu_1280 as base
 from test_settings_menu_1280 import NAME
 from test_settings_head import ratio, rgb
