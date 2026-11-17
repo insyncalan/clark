@@ -207,6 +207,10 @@ class Logic(unittest.TestCase):
 
     # ── search, kinds, counts, recently used ─────────────────────────────────
 
+    def test_the_glance_card_makes_a_glancetemplate_section_titled_with_its_name(self):
+        by = {x["id"]: x for x in self.t("TEMPLATES")}
+        self.assertEqual((by["glance-template"]["type"], by["glance-template"]["title"], by["glance-template"]["body"]), ("glancetemplate", "Project at a glance", ""))
+
     def test_search_and_kinds_and_counts(self):
         self.assertEqual(len(self.t("list()")), 24)      # row 1068: + the Plan table card; row 1264 slice 9: + Project at a glance
         self.assertEqual([x["id"] for x in self.t('list({query: "figures"})')], ["figures-4", "figures-3", "glance-template"])      # the kind's name is searched too: Project at a glance is in Figures

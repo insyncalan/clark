@@ -39,6 +39,10 @@ class Rules(unittest.TestCase):
         self.assertEqual(gt.upgrade({"v": 1, "per_row": 3})["per_row"], 3)
         self.assertEqual(gt.upgrade({"v": 1, "per_row": 9})["per_row"], 4, "a wrong value reads as the default")
 
+    def test_upgrade_reads_a_float_per_row_as_the_default(self):
+        self.assertEqual(gt.upgrade({"v": 1, "per_row": 3.0})["per_row"], 4)
+        self.assertIs(type(gt.upgrade({"v": 1, "per_row": 3})["per_row"]), int)
+
     def test_per_row_wrong_values_are_refused_with_the_ruled_words_and_never_quote_the_value(self):
         for wrong in (2, 5, 0, -3, "3", 3.0, True, False, [], {}):
             with self.subTest(wrong=wrong):
@@ -72,6 +76,13 @@ class Layout(Base):
         with self.store.step("dashboard", USER) as st:
             st.create("report_sections", {"project": "ABC", "type": "text", "title": "Fictional partner", "sort_order": 999})
         status, got = self.real_change({"project": "ABC", "kind": KIND, "op": "update", "id": self.ref, "changes": {"beside": 1}})
+        assert status == 200, got
+
+    def make_half_right(self):
+        """The glance in the right slot: its partner comes first and sits beside it."""
+        with self.store.step("dashboard", USER) as st:
+            partner = st.create("report_sections", {"project": "ABC", "type": "text", "title": "Fictional partner", "sort_order": 997})
+        status, got = self.real_change({"project": "ABC", "kind": KIND, "op": "update", "id": partner, "changes": {"beside": 1}})
         assert status == 200, got
 
     def sel(self, rest=""):
@@ -153,6 +164,22 @@ class View(Layout):
                 self.assertTrue(all(c["width"] > 150 for c in got["cells"]), "no tile is squeezed")
                 self.assertFalse(got["overflow"])
 
+    def test_V9_half_width_in_the_right_slot_shows_2_on_a_line_too(self):
+        self.make_half_right()
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.assertTrue(p.js(f"!!document.querySelector('{self.sel()}.slot-right')"), "the glance is in the right slot")
+            got = self.cells(p, False)
+        self.assertEqual(self.lines(got), [["health", "overdue"], ["risks", "decisions"]])
+
+    def test_V10_the_gap_between_tiles_is_the_space_token_both_ways(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            got = self.cells(p, False)
+            token = p.js("(function(){ var d = document.createElement('div'); d.style.width = 'var(--space-3)'; document.body.appendChild(d); var w = d.getBoundingClientRect().width; d.remove(); return w; })()")
+        a, b = got["cells"][0], got["cells"][1]
+        self.assertAlmostEqual(b["left"] - a["right"], token, delta=0.6)
+
     def test_V6_at_900_the_one_breakpoint_is_760_so_full_draws_4_a_line_half_draws_2_and_half_is_the_full_width(self):
         full = None
         for half in (False, True):
@@ -192,6 +219,63 @@ class View(Layout):
                         self.assertTrue(one, f"{label}: one line")
 
 
+class ViewHealth(Layout):
+    """Where Project health sits in the order and what its tile shows."""
+
+    def setUp(self):
+        super().setUp()
+        self.set_body({"v": 1})
+
+    def test_K1_health_is_drawn_where_the_order_puts_it(self):
+        for order, want in ((["overdue", "health", "risks", "decisions"], ["overdue", "health", "risks", "decisions"]),
+                            (["overdue", "risks", "decisions", "health"], ["overdue", "risks", "decisions", "health"])):
+            with self.subTest(order=order):
+                self.set_body({"v": 1, "order": order})
+                with chrome() as cdp:
+                    got = self.cells(self.page(cdp), False)
+                self.assertEqual(self.lines(got), [want])
+
+    def test_K2_the_health_tile_has_the_projects_colour_and_reason(self):
+        for health in ("On track", "At risk", "Off track"):
+            with self.subTest(health=health):
+                with self.store.step("dashboard", USER) as st:
+                    st.update("projects", "ABC", {"health": health, "health_reason": "<p>Fictional reason</p>"})
+                with chrome() as cdp:
+                    p = self.page(cdp)
+                    got = p.js(f"""(function(){{ var t = document.querySelector('{self.sel('[data-tile=health]')}');
+                      return [t.querySelector('.hpill').className, t.querySelector('[data-fig=health]').className, (t.querySelector('.hreason') || {{}}).textContent || '']; }})()""")
+                self.assertEqual(got, EXPECT_K2[health])
+
+
+    def test_K3_3_on_a_line_is_a_third_of_the_row_each(self):
+        self.set_body({"v": 1, "per_row": 3})
+        with chrome() as cdp:
+            got = self.cells(self.page(cdp), False)
+        c = got["cells"]
+        gap = c[1]["left"] - c[0]["right"]
+        for cell in c[:3]:
+            self.assertAlmostEqual(cell["width"], (got["grid"][2] - 2 * gap) / 3, delta=1.5)
+
+    def test_K4_half_width_in_the_right_slot_shows_2_on_a_line(self):
+        with chrome() as cdp:
+            full = self.cells(self.page(cdp), False)["sec"]
+        with self.store.step("dashboard", USER) as st:
+            partner = st.create("report_sections", {"project": "ABC", "type": "text", "title": "Fictional partner", "sort_order": 997})
+        status, got = self.real_change({"project": "ABC", "kind": KIND, "op": "update", "id": partner, "changes": {"beside": 1}})
+        assert status == 200, got
+        with chrome() as cdp:
+            got = self.cells(self.page(cdp), False)
+            self.assertEqual(self.lines(got), [["health", "overdue"], ["risks", "decisions"]])
+            self.assertLess(got["sec"], full * 0.55)
+
+
+EXPECT_K2 = {
+    "On track": ["pill hpill g", "fig health-fig rag-g", "Fictional reason"],
+    "At risk": ["pill hpill a", "fig health-fig rag-a", "Fictional reason"],
+    "Off track": ["pill hpill r", "fig health-fig rag-r", "Fictional reason"],
+}
+
+
 class Edit(Layout):
     def toast(self, p):
         return p.js("(document.querySelector('.toast-text') || {}).textContent || ''")
@@ -223,6 +307,15 @@ class Edit(Layout):
             import time
             time.sleep(0.6)
             self.assertEqual(self.applies(), before + 2)
+
+    def test_E2b_tiles_on_a_line_shows_no_toast(self):
+        with chrome() as cdp:
+            p = self.page(cdp, edit=True)
+            p.js(f"document.querySelector('{self.sel('[data-gt-per=\"3\"]')}').click()")
+            self.assertTrue(wait(lambda: self.body().get("per_row") == 3, 10), f"stored: {self.body()}")
+            import time
+            time.sleep(0.5)
+            self.assertEqual(self.toast(p), "", "a layout setting says nothing")
 
     def test_E3_the_own_row_switch_is_one_step_with_its_two_toasts_and_undo(self):
         with chrome() as cdp:
@@ -271,6 +364,14 @@ class Edit(Layout):
             self.assertFalse(got["overflow"])
             self.assertEqual(p.js(f"(function(){{ var n = document.querySelector('{self.sel('[data-gt-halfnote]')}'); return n && n.offsetParent !== null ? n.textContent : null; }})()"), HALF_NOTE)
 
+    def test_E10_half_width_in_the_right_slot_shows_2_on_a_line_in_edit_and_says_so(self):
+        self.make_half_right()
+        with chrome() as cdp:
+            p = self.page(cdp, edit=True)
+            self.assertTrue(p.js(f"!!document.querySelector('{self.sel()}.slot-right')"), "the glance is in the right slot")
+            self.assertEqual(self.lines(self.cells(p, True)), [["health", "overdue"], ["risks", "decisions"]])
+            self.assertEqual(p.js(f"(function(){{ var n = document.querySelector('{self.sel('[data-gt-halfnote]')}'); return n && n.offsetParent !== null ? n.textContent : null; }})()"), HALF_NOTE)
+
     def test_E9_a_built_in_label_is_whole_in_edit_at_four_on_a_line_and_at_half_width(self):
         for half in (False, True):
             if half:
@@ -314,6 +415,22 @@ class Sketch(unittest.TestCase):
         line = next(l for l in text.splitlines() if l.strip().startswith('"glance-template":'))
         self.assertIn("grid-template-columns:repeat(3,1fr)", line)
         self.assertEqual(re.findall(r"var\(--status-(\w+)\)", line), ["red", "amber", "green"])
+        self.assertEqual(line.count("border-top:3px solid"), 3, "each low tile has the same edge")
+
+    def test_help_has_the_card_row_with_the_ruled_words_and_the_widths(self):
+        rows = json.loads((SRC / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8"))
+        found = []
+        def walk(x):
+            if isinstance(x, list):
+                if len(x) == 3 and x[0] == "Project at a glance":
+                    found.append(x)
+                for y in x:
+                    walk(y)
+            elif isinstance(x, dict):
+                for y in x.values():
+                    walk(y)
+        walk(rows)
+        self.assertEqual(found, [["Project at a glance", "Three counts, an optional project health and tiles of your own.", "Full or half"]])
 
 
 if __name__ == "__main__":
