@@ -11,7 +11,7 @@ from _demo import DemoStore
 from clark import draft_email_feed, page, publish
 
 from test_item_rows import fill
-from test_report_editor import EMPTY_BRANDING, Pg
+from test_report_editor import Pg
 from test_row_menu import right_click
 from test_server import Running, chrome
 from test_work_filters import click
@@ -30,13 +30,13 @@ class DashboardRowMenu(unittest.TestCase):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
         fill(self.demo.store)
-        self.s = Running(data_for=self.demo.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING))
+        self.s = Running(data_for=self.demo.store.data_for, page_html=lambda: testpage.html())
         self.addCleanup(self.s.close)
 
     def entries(self, p):
         return p.js("[...document.querySelectorAll('.rowmenu [role=menuitem]')].map(b => [b.dataset.rm, b.querySelector('b').textContent, b.getAttribute('aria-disabled') === 'true'])")
 
-    def open(self, p, selector):
+    def show_menu(self, p, selector):
         right_click(p.cdp, p.sid, selector)
         p.until("!!document.querySelector('.rowmenu [role=menu]')", "the menu")
 
@@ -51,7 +51,7 @@ class DashboardRowMenu(unittest.TestCase):
             sel = "[data-type=actions] .wl-row"
             for w in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
-                self.open(p, sel)
+                self.show_menu(p, sel)
                 got = self.entries(p)
                 words = [e[1] for e in got]
                 self.assertTrue(words[0].startswith("Draft email to "), f"View at {w}: the first entry")
@@ -65,7 +65,7 @@ class DashboardRowMenu(unittest.TestCase):
             p.edit()
             for w in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
-                self.open(p, sel)
+                self.show_menu(p, sel)
                 got = self.entries(p)
                 self.assertEqual([e[1] for e in got][1:], WORDS[1:] + ["Delete"], f"Edit at {w}")
                 self.assertFalse(any(e[2] for e in got), "Edit: every entry is live")
@@ -79,7 +79,7 @@ class DashboardRowMenu(unittest.TestCase):
             p.edit()
             for w in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
-                self.open(p, "[data-type=actions] .wl-row")
+                self.show_menu(p, "[data-type=actions] .wl-row")
                 self.close(p)
                 self.assertTrue(p.js("(() => { const a = document.activeElement; return !!a && a.matches('li.wl-row .idl'); })()"), f"focus is on the id button at {w}")
 
@@ -106,13 +106,13 @@ class DashboardRowMenu(unittest.TestCase):
             p.ready()
             p.edit()
             p.js("window.__clip = []; Object.defineProperty(navigator, 'clipboard', {value: {writeText: (t) => { window.__clip.push(t); return Promise.resolve(); }}, configurable: true})")
-            self.open(p, "[data-type=actions] .wl-row")
+            self.show_menu(p, "[data-type=actions] .wl-row")
             rid = p.js("document.querySelector('.rowmenu').dataset.rowmenu")
             p.js("document.querySelector('.rowmenu [data-rm=copyid]').click()")
             p.until("window.__clip.length === 1", "the copy")
             self.assertEqual(p.js("window.__clip[0]"), rid, "the item id is what is copied")
             p.until(f"[...document.querySelectorAll('.toast .toast-text')].some(t => t.textContent === {json.dumps(rid + ' copied.')})", "the copied words")
-            self.open(p, "[data-type=actions] .wl-row")
+            self.show_menu(p, "[data-type=actions] .wl-row")
             p.js("document.querySelector('.rowmenu [data-rm=peek]').click()")
             p.until(f"location.hash.split('&').includes('item=' + {json.dumps(rid)})", "the peek of this item")
 
@@ -125,7 +125,7 @@ class DashboardRowMenu(unittest.TestCase):
             for kind in ("raid", "actions", "decisions"):
                 for w in (1400, 900):
                     cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
-                    self.open(p, f"[data-type={kind}] .wl-row")
+                    self.show_menu(p, f"[data-type={kind}] .wl-row")
                     words = [e[1] for e in self.entries(p)]
                     self.assertEqual(words[1:], WORDS[1:] + ["Delete"], f"{kind} at {w}")
                     self.assertTrue(p.js("document.querySelector('.rowmenu').dataset.rowmenu === document.querySelector('[data-type=%s] .wl-row').dataset.id" % kind), f"{kind} at {w}: the menu is for the row clicked")
