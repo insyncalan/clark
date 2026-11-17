@@ -37,6 +37,19 @@ class ColumnsMenu(base.InThePage):
         p.until(f"!!document.querySelector({json.dumps(head)})", "the list drew in Edit")
         return head
 
+    def test_every_column_line_carries_an_icon_named_by_columnIcon(self):
+        ref = self.add({"mode": "all", "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
+        want = {"Type": "table", "ID": "table", "Owner": "user", "Due": "cal", "Status": "half", "Priority": "table", "Workstream": "board", "Milestone": "flag"}
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.edit()
+            head = self.open_menu(p, ref)
+            p.js(f"document.querySelector({json.dumps(head)}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
+            p.until("!!document.querySelector('.cols-menu')", "the menu opened")
+            got = p.js("Object.fromEntries([...document.querySelectorAll('.cols-menu [role=menuitemcheckbox]')].map(b => [b.dataset.colName, [...b.querySelectorAll(':scope > svg.mi')].map(i => i.getAttribute('data-icn'))]))")
+            self.assertEqual(got, {k: [v] for k, v in want.items()}, "each column line has one icon, named as columnIcon names it")
+            self.assertEqual(got["Owner"], ["user"])
+
     def test_plain_f10_does_not_open_the_menu_and_shift_f10_does_and_the_menu_is_named_columns(self):
         ref = self.add({"mode": "all", "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
         with chrome() as cdp:
