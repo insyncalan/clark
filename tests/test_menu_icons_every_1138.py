@@ -97,6 +97,7 @@ class Source(unittest.TestCase):
         "edit/PeekPick.jsx": "row 1074", "edit/MilestonePeek.jsx": "row 1074", "components/Menu.jsx": "the shared box and row: every menu above draws through it",
         "edit/ArchivedPeek.jsx": "row 1074", "edit/PeekActivity.jsx": "row 1074", "edit/ArchivedItems.jsx": "row 1074", "components/UseCases.jsx": "row 1074",
         "components/Peek.jsx": "row 1074",
+        "edit/templates/WorkItemsList.jsx": "the Columns menu is a tick list, no icons; the owner kept production for w-columns (17-11, #1273)",
         "edit/Palette.jsx": "the command palette is a search list of what was typed (pages, items and commands found), not a menu of actions",
         "edit/DraftAi.jsx": "row 1179: the AI menu is drawn as in the approved peek mock-up (each line a name and a description, no icon); the icon rule for it is open for the owner",
         "edit/templates/Callout.jsx": "row 1272: the icon chooser is a picker of swatches (an icon and its name), a choice of look, not a menu of commands",

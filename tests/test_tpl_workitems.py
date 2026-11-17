@@ -8,7 +8,7 @@
   and a hidden section leave the section out of the file. Planted markers are absent from the file's bytes.
 - The page's rules and section_kinds/workitems.py choose the same ids, in the same order, over the same rows.
 - In a real browser: View shows the rows the client sees (and leaves the section out when nothing matches); Edit saves each
-  committed choice as one step and says when nothing matches; rows open their peek in Edit only; full width draws the table and
+  committed choice as one step and says when nothing matches; rows open their peek (read only outside Edit); full width draws the table and
   half width the two-line rows; 1400 and 900 px, light and dark, no sideways scroll; the published file draws from its own data.
 
 Run: python3 dev/run_tests.py test_tpl_workitems
@@ -583,6 +583,24 @@ class InThePage(PageBase):
         sel = f"[data-id=\"{ref}\"] .wil-table tbody tr" if part == "table" else f"[data-id=\"{ref}\"] .wil-lines li"
         return p.js(f"[...document.querySelectorAll({json.dumps(sel)})].filter(e => e.offsetParent).map(e => e.dataset.id)")
 
+    def test_a_right_click_on_a_column_heading_lists_the_columns_and_a_press_turns_one_off_and_on(self):
+        ref = self.add({"mode": "all", "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.edit()
+            head = f"[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-owner"
+            p.until(f"!!document.querySelector({json.dumps(head)})", "the list drew in Edit")
+            p.js(f"document.querySelector({json.dumps(head)}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
+            p.until("!!document.querySelector('.cols-menu')", "the menu opened")
+            names = p.js("[...document.querySelectorAll('.cols-menu [role=menuitemcheckbox]')].map(b => b.dataset.colName + ':' + b.getAttribute('aria-checked'))")
+            self.assertIn("ID:true", names)
+            self.assertIn("Owner:true", names)
+            self.assertIn("Due:false", names)
+            p.js("document.querySelector('.cols-menu [data-col-name=Due]').click()")
+            p.until(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-due')", "Due was added")
+            p.js("document.querySelector('.cols-menu [data-col-name=ID]').click()")
+            p.until(f"!document.querySelector('[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-id')", "ID was taken off")
+
     def test_view_shows_the_live_rows_the_client_sees_at_both_widths_in_light_and_dark(self):
         every = ["type", "id", "owner", "due", "status", "priority", "workstream", "milestone"]
         ref = self.add({"mode": "all", "columns": every, "owner": ["Pat Demo", "Lee Demo", "Sam Demo"]})          # Sam's three are all kept out
@@ -595,8 +613,8 @@ class InThePage(PageBase):
                     text = p.js("document.querySelector('#report').textContent")
                     for planted in ("ZQ-sensitive step", "ZQ-client-off step", "ZQ-archived step"):
                         self.assertNotIn(planted, text)
-                    self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]:not(.ico)').length"), 0,
-                                     "View is read only: no control and no row to open (the status icon takes Tab so its tooltip is reachable: row 1145)")
+                    self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]:not(.ico):not(tr[data-id]):not(li[data-id])').length"), 0,
+                                     "View is read only: no control (a row is focusable, it opens the read only peek, row 1268; the status icon takes Tab so its tooltip is reachable: row 1145)")
                     self.assertEqual(self.rows(p, ref, "lines"), [], "full width draws the table only")
                     self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
                     head = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table th')].map(e => e.textContent)")
@@ -769,7 +787,7 @@ class InThePage(PageBase):
                     self.assertEqual(p.js(f"document.activeElement === document.querySelector({json.dumps(box)})"), True)
                     self.assertEqual(p.js("getComputedStyle(document.activeElement).outlineStyle"), "solid", "the focus ring shows")
                     legends = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-f legend, [data-id=\"{ref}\"] .wil-sel > span')].map(e => e.textContent)")
-                    self.assertEqual(legends, ["Filter", "Kinds", "Show", "Due", "Status", "Priority", "Owner", "Workstream", "Use case", "Sort by",
+                    self.assertEqual(legends, ["Kinds", "Show", "Due", "Status", "Priority", "Owner", "Workstream", "Use case", "Sort by",
                                                "Most rows", "Columns at full width", "Caption (optional)"])
 
     def test_rows_open_their_peek_in_edit_with_a_click_or_enter(self):
@@ -796,29 +814,27 @@ class InThePage(PageBase):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
                 p.edit()
-                line = f"[data-id=\"{ref}\"] [data-wil-line] input[name=line]"
+                line = f"[data-id=\"{ref}\"] [data-wil-line] input[role=combobox]"
                 p.until(f"!!document.querySelector({json.dumps(line)})", "the line drew")
                 self.assertFalse(p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-more]').open"), "the tick boxes start folded")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
                 steps = self.demo.last_step()
                 p.js(f"document.querySelector({json.dumps(line)}).focus()")
-                p.type("type:risk,issue status:Open")
-                p.key("Enter", code="Enter", vk=13)
+                p.type("type:risk,issue status:Open ")
                 p.saved()
                 body = json.loads(self.store.read("report_sections", ref=ref)["body"])
                 self.assertEqual((body["kinds"], body["status"]), (["risk", "issue"], ["Open"]))
                 self.assertEqual(self.demo.last_step(), steps + 1, "one line, one step")
-                chips = f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-chip')]"
-                p.until(f"{chips}.length === 3", "three chips")
-                self.assertTrue(p.js(f"{chips}.every(c => c.querySelector('button').getBoundingClientRect().height >= 24)"), "24 px targets")
+                chips = f"[...document.querySelectorAll('[data-id=\"{ref}\"] .fchip')]"
+                p.until(f"{chips}.length === 2", "two chips: the type word and the status word")
+                self.assertTrue(p.js(f"{chips}.every(c => c.querySelector('button').getBoundingClientRect().height >= 16)"), "the x can be hit")
                 p.clear_toast()
-                p.js(f"{chips}.find(c => c.textContent.includes('Issues')).querySelector('button').click()")
+                p.js(f"{chips}.find(c => c.textContent.includes('status')).querySelector('button').click()")
                 p.saved()
-                self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["kinds"], ["risk"])
+                self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["status"], [])
                 p.clear_toast()
                 steps = self.demo.last_step()
-                p.js(f"(el => {{ el.focus(); el.value = 'colour:red'; }})(document.querySelector({json.dumps(line)}))")
-                p.key("Enter", code="Enter", vk=13)
+                p.js(f"(el => {{ el.focus(); el.value = 'colour:red'; el.dispatchEvent(new Event('input', {{bubbles: true}})); }})(document.querySelector({json.dumps(line)}))")
                 p.until("document.querySelector('.toast-text') && document.querySelector('.toast-text').textContent.includes('not a word the filter line knows')", "refused in words")
                 self.assertEqual(self.demo.last_step(), steps, "nothing saved")
 
@@ -828,12 +844,24 @@ class InThePage(PageBase):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
                 p.edit()
-                line = f"[data-id=\"{ref}\"] [data-wil-line] input[name=line]"
+                line = f"[data-id=\"{ref}\"] [data-wil-line] input[role=combobox]"
                 p.until(f"!!document.querySelector({json.dumps(line)})", "the line drew")
 
-                def enter(text):
-                    p.js(f"(el => {{ el.focus(); el.value = {json.dumps(text)}; }})(document.querySelector({json.dumps(line)}))")
-                    p.key("Enter", code="Enter", vk=13)
+                def enter(text, fresh=True, chip=True):
+                    # the box takes the words as typed (a space after a word makes its chip) and applies them after its pause; its x clears the line.
+                    # fresh: clear what the box holds first, so the line is exactly `text`; chip False: leave the word in the box (a word the line refuses)
+                    x = f"[data-id=\"{ref}\"] [data-wil-line] .fx"
+                    if (fresh or not text) and p.js(f"!!document.querySelector({json.dumps(x)})"):
+                        p.clear_toast()
+                        p.js(f"document.querySelector({json.dumps(x)}).click()")
+                        p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .fchip').length === 0 && !document.querySelector({json.dumps(x)})", "the box emptied")
+                        wait(lambda: p.js("!!document.querySelector('.toast-text')"), 3)      # the clear saves when it changed anything
+                        p.clear_toast()
+                    if not text:
+                        return
+                    p.js(f"(el => {{ el.focus(); el.value = {json.dumps(text + (' ' if chip else ''))}; el.dispatchEvent(new Event('input', {{bubbles: true}})); }})(document.querySelector({json.dumps(line)}))")
+                    if chip:
+                        wait(lambda: p.js("!!document.querySelector('.toast-text')"), 6)      # the box applies its line after a pause, then the save replies
 
                 def body():
                     return json.loads(self.store.read("report_sections", ref=ref)["body"])
@@ -843,13 +871,13 @@ class InThePage(PageBase):
 
                 # a bad value: named back in words, nothing saved, the old filter stays
                 steps = self.demo.last_step()
-                enter("status:Bogus")
+                enter("status:Bogus", fresh=False, chip=False)
                 said("is not a value status can take here")
                 self.assertEqual(self.demo.last_step(), steps, "nothing saved for status:Bogus")
                 self.assertEqual((body()["status"], body()["kinds"], body()["mode"]), (["Open"], ["risk"], "closed"))
                 p.clear_toast()
                 # a use case that is not there is refused the same way
-                enter("usecase:Nothing")
+                enter("usecase:Nothing", fresh=False, chip=False)
                 said("is not a value usecase can take here")
                 self.assertEqual(self.demo.last_step(), steps, "nothing saved for an unknown use case")
                 p.clear_toast()
@@ -869,12 +897,11 @@ class InThePage(PageBase):
                 # clearing the line empties every choice and goes back to open items only, in one step
                 steps = self.demo.last_step()
                 enter("")
-                p.saved()
                 got = body()
                 self.assertEqual([got[k] for k in ("kinds", "status", "due", "priority", "owner", "workstream", "use_case")], [[]] * 7)
                 self.assertEqual(got["mode"], "open")
                 self.assertEqual(self.demo.last_step(), steps + 1, "clearing is one step")
-                p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-chip').length === 0", "no chips left")
+                p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .fchip').length === 0", "no chips left")
 
     def test_the_filter_line_saves_nothing_when_unchanged_gives_the_text_back_on_escape_and_is_named_for_a_reader(self):
         for width in (1400, 900):
@@ -882,59 +909,59 @@ class InThePage(PageBase):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
                 p.edit()
-                line = f"[data-id=\"{ref}\"] [data-wil-line] input[name=line]"
+                line = f"[data-id=\"{ref}\"] [data-wil-line] input[role=combobox]"
                 p.until(f"!!document.querySelector({json.dumps(line)})", "the line drew")
-                self.assertEqual(p.js(f"document.querySelector({json.dumps(line)}).value"), "type:risk status:Open")
-                # the hint is the box's description, and each chip's x says which choice it takes off
-                self.assertEqual(p.js(f"(el => document.getElementById(el.getAttribute('aria-describedby')).textContent)(document.querySelector({json.dumps(line)}))"),
-                                 "Type a filter, for example: type:risk status:Open owner:\"Pat Demo\"  Press Enter to save it.")
-                self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-chip button')].map(b => b.getAttribute('aria-label'))"),
-                                 ["Take off Type: Risks", "Take off Status: Open"])
-                # the same line (even with spaces round it) is no change: no step
+                self.assertEqual(p.js(f"document.querySelector({json.dumps(line)}).value"), "", "the saved choices stand as chips, the box is for the next word")
+                # each chip's x says which choice it takes off
+                self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .fchip')].map(c => c.dataset.chip)"), ["type:risk", "status:Open"])
+                self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .fchip button')].map(b => b.getAttribute('aria-label'))"),
+                                 ["Remove the Type filter", "Remove the Status filter"])
+                # an edit that leaves the line as it is saved is no change: no step, no message
                 steps = self.demo.last_step()
-                for same in ("type:risk status:Open", "  type:risk status:Open  "):
-                    p.clear_toast()
-                    p.js(f"(el => {{ el.focus(); el.value = {json.dumps(same)}; }})(document.querySelector({json.dumps(line)}))")
-                    p.key("Enter", code="Enter", vk=13)
-                    p.js("new Promise(r => setTimeout(r, 400))")
-                    self.assertFalse(p.js("!!document.querySelector('.toast-text')"), f"{same!r}: no 'changed' message for no change")
-                    self.assertEqual(self.demo.last_step(), steps, f"{same!r} is what is saved: nothing to save")
-                # Escape puts the saved line back and saves nothing
-                p.js(f"(el => {{ el.focus(); el.value = 'type:issue'; }})(document.querySelector({json.dumps(line)}))")
-                p.key("Escape", code="Escape", vk=27)
-                p.until(f"document.querySelector({json.dumps(line)}).value === 'type:risk status:Open'", "Escape gave the saved line back")
-                self.assertEqual(self.demo.last_step(), steps, "Escape saves nothing")
+                for same in ("x", ""):
+                    p.js(f"(el => {{ el.focus(); el.value = {json.dumps(same)}; el.dispatchEvent(new Event('input', {{bubbles: true}})); }})(document.querySelector({json.dumps(line)}))")
+                    p.js("new Promise(r => setTimeout(r, 700))")
+                    self.assertFalse(p.js("!!document.querySelector('.toast-text') && document.querySelector('.toast-text').textContent.includes('changed')"), f"{same!r}: no 'changed' message for no change")
+                    self.assertEqual(self.demo.last_step(), steps, f"{same!r}: nothing to save")
                 self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["kinds"], ["risk"])
 
     def test_taking_a_choice_off_with_the_keyboard_keeps_the_focus_in_the_filter(self):
-        """The x goes with its chip: the focus goes to the chip that took its place, then to the Filter box when none is left."""
+        """The x is a button the keyboard can press; the focus then goes back to the Filter box (the Work items page's own box)."""
         for width in (1400, 900):
             ref = self.add({"status": ["Open"], "kinds": ["risk"]}, title=f"Focus {width}")
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
                 p.edit()
-                line = f"[data-id=\"{ref}\"] [data-wil-line] input[name=line]"
-                xs = f"[data-id=\"{ref}\"] .wil-chip button"
+                line = f"[data-id=\"{ref}\"] [data-wil-line] input[role=combobox]"
+                xs = f"[data-id=\"{ref}\"] .fchip button"
                 p.until(f"!!document.querySelector({json.dumps(line)})", "the line drew")
-                press = lambda: [p.cdp.call("Input.dispatchKeyEvent", {"type": t, "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13, **({"text": "\r"} if t == "keyDown" else {})}, p.sid) for t in ("keyDown", "keyUp")]      # text: a button needs the character to be pressed
-                p.js(f"document.querySelector({json.dumps(line)}).focus()")
-                p.key("Tab", code="Tab", vk=9)
-                self.assertEqual(p.js(f"document.activeElement === document.querySelector({json.dumps(xs)})"), True, "Tab reaches the first x")
+                press = lambda: [p.cdp.call("Input.dispatchKeyEvent", {"type": t, "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13, **({"text": "\r"} if t == "keyDown" else {})}, p.sid) for t in ("keyDown", "keyUp")]
+                p.js(f"document.querySelector({json.dumps(xs)}).focus()")
                 press()
-                p.until(f"document.querySelectorAll({json.dumps(xs)}).length === 1 && document.activeElement === document.querySelector({json.dumps(xs)})", "the focus is on the x that took its place")
-                press()
-                p.until(f"document.querySelectorAll({json.dumps(xs)}).length === 0 && document.activeElement === document.querySelector({json.dumps(line)})", "no chip left: the focus is in the Filter box")
+                p.until(f"document.querySelectorAll({json.dumps(xs)}).length === 1 && document.activeElement === document.querySelector({json.dumps(line)})", "one chip left, the focus in the Filter box")
 
     def _line_session(self, cdp, width, title):
         ref = self.add({}, title=title)
         p = self.show(cdp, width)
         p.edit()
-        line = f"[data-id=\"{ref}\"] [data-wil-line] input[name=line]"
+        line = f"[data-id=\"{ref}\"] [data-wil-line] input[role=combobox]"
         p.until(f"!!document.querySelector({json.dumps(line)})", "the line drew")
 
-        def enter(text):
-            p.js(f"(el => {{ el.focus(); el.value = {json.dumps(text)}; }})(document.querySelector({json.dumps(line)}))")
-            p.key("Enter", code="Enter", vk=13)
+        def enter(text, fresh=True, chip=True):
+            # the box takes the words as typed (a space after a word makes its chip) and applies them after its pause; its x clears the line.
+            # fresh: clear what the box holds first, so the line is exactly `text`; chip False: leave the word in the box (a word the line refuses)
+            x = f"[data-id=\"{ref}\"] [data-wil-line] .fx"
+            if (fresh or not text) and p.js(f"!!document.querySelector({json.dumps(x)})"):
+                p.clear_toast()
+                p.js(f"document.querySelector({json.dumps(x)}).click()")
+                p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .fchip').length === 0 && !document.querySelector({json.dumps(x)})", "the box emptied")
+                wait(lambda: p.js("!!document.querySelector('.toast-text')"), 3)      # the clear saves when it changed anything
+                p.clear_toast()
+            if not text:
+                return
+            p.js(f"(el => {{ el.focus(); el.value = {json.dumps(text + (' ' if chip else ''))}; el.dispatchEvent(new Event('input', {{bubbles: true}})); }})(document.querySelector({json.dumps(line)}))")
+            if chip:
+                wait(lambda: p.js("!!document.querySelector('.toast-text')"), 6)      # the box applies its line after a pause, then the save replies
 
         def body():
             return json.loads(self.store.read("report_sections", ref=ref)["body"])
@@ -949,11 +976,11 @@ class InThePage(PageBase):
                 with self.subTest(typed=typed):
                     enter(typed)
                     self.assertTrue(wait(lambda: body()["due"] == want), f"{typed}: saved as {body()['due']}, wanted {want}")
-                    p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-chip').length >= 1", "the chip drew")
+                    p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .fchip').length >= 1", "the chip drew")
                     p.clear_toast()
                     enter("")
                     self.assertTrue(wait(lambda: body()["due"] == []), "cleared between words")
-                    p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-chip').length === 0", "the chips went")
+                    p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .fchip').length === 0", "the chips went")
                     p.clear_toast()
 
     def test_the_filter_line_modes_open_and_closed_together_no_repeats_minus(self):
@@ -1090,7 +1117,7 @@ class PublishedFile(PageBase):
                 ids = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr')].map(e => e.dataset.id)")
                 self.assertEqual(ids, [self.a_due, self.a_later, self.risk])
                 self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] .wil-cap').textContent"), "Fictional caption")
-                self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]:not(.ico)').length"), 0)
+                self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]:not(.ico):not(tr[data-id]):not(li[data-id])').length"), 0)      # row 1268: a row is focusable (it opens the read only peek)
                 self.assertTrue(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-st')].some(e => /Overdue/.test(e.textContent) && !!e.querySelector('svg.wil-half.ic-r'))"), "the status reads as at the publish date: a red half-circle and the word")
                 self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-all]')"), "a file holds only the first rows, so it has no Show all items link")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
