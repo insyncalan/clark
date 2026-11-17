@@ -3,11 +3,16 @@ published, the registry and the step that lets the store keep the type. Fictiona
 
 Run: python3 dev/run_tests.py test_tpl_reportheadline
 """
+import json
 import sqlite3
 import unittest
 
 from clark import section_bodies, section_kinds, store as store_module
 from clark.section_kinds import base, reportheadline as rh
+from _demo import USER
+from test_changes import KIND
+from test_report_editor import Base as PageBase
+from test_server import chrome
 
 
 class Rules:
@@ -70,6 +75,62 @@ class Registered(unittest.TestCase):
         self.assertEqual([r[0] for r in con.execute("SELECT id FROM report_sections ORDER BY sort_order")], ["s1", "s2"])
         store_module.migrate_report_headline_section_type(con)
         self.assertEqual(con.execute("SELECT count(*) FROM report_sections").fetchone()[0], 2)
+
+
+ICONS = {"on_track": ("On track", "g", "check-circle"), "at_risk": ("At risk", "a", "triangle"),
+         "off_track": ("Off track", "r", "cross-circle"), "": ("Not set", "n", "ring")}
+
+
+class Page(PageBase):
+    """Slice 2: the pill carries an icon and its word in every state, and the title and meta line sit above it (View, light and dark,
+    1400 and 900 px). Fictional data only."""
+    def make(self, body, client=None, week="2026-11-06"):
+        with self.store.step("dashboard", USER) as st:
+            ref = st.create("report_sections", {"project": "ABC", "type": "reportheadline", "title": "Fictional headline", "sort_order": 999})
+            st.update("projects", "ABC", {"client_name": client, "week_ending": week})
+        status, got = self.real_change({"project": "ABC", "kind": KIND, "op": "update", "id": ref, "changes": {"body": json.dumps(body)}})
+        assert status == 200, got
+        return ref
+
+    def look(self, ref, width, theme):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+            p.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}")
+            sec = f"document.querySelector('[data-id={json.dumps(ref)}]')"
+            p.until(f"!!{sec}", "the section")
+            return p.js(f"""(function(){{ var s = {sec}, pill = s.querySelector('.tpl-rh-pill'), svg = pill && pill.querySelector('svg');
+              var cs = pill && getComputedStyle(pill), r = svg && svg.getBoundingClientRect();
+              return {{pill: pill && pill.textContent.trim(), icon: svg && svg.getAttribute('data-hl'), hidden: svg && svg.getAttribute('aria-hidden'),
+                       size: r && [Math.round(r.width), Math.round(r.height)], color: cs && cs.color, bg: cs && cs.backgroundColor,
+                       title: (s.querySelector('.tpl-rh-title') || {{}}).textContent, meta: (s.querySelector('.tpl-rh-meta') || {{}}).textContent,
+                       overflow: document.documentElement.scrollWidth > window.innerWidth}}; }})()""")
+
+    def test_the_pill_has_an_icon_and_its_word_in_every_state_in_both_looks_and_widths(self):
+        for health, (word, tone, icon) in ICONS.items():
+            ref = self.make({"v": 1, "health": health, "headline": "Fictional headline words"} if health else {"v": 1, "headline": "Fictional headline words"})
+            for width in (1400, 900):
+                for theme in ("light", "dark"):
+                    with self.subTest(health=health or "unset", width=width, theme=theme):
+                        got = self.look(ref, width, theme)
+                        self.assertEqual(got["pill"], word)
+                        self.assertEqual(got["icon"], icon)
+                        self.assertEqual(got["hidden"], "true")
+                        self.assertTrue(got["size"][0] > 0 and got["size"][1] > 0, got["size"])
+                        self.assertNotEqual(got["color"], got["bg"])
+                        self.assertFalse(got["overflow"], "no sideways scroll")
+
+    def test_the_title_and_meta_line_name_the_project_the_client_and_the_week(self):
+        ref = self.make({"v": 1, "health": "on_track", "headline": "H"}, client="Sample Client")
+        got = self.look(ref, 1400, "light")
+        self.assertEqual(got["title"], "Weekly report")
+        self.assertEqual(got["meta"], "Example Programme for Sample Client \u00b7 Week ending 06-11-2026")
+
+    def test_without_a_client_the_meta_line_has_no_for(self):
+        for client in (None, "   "):
+            ref = self.make({"v": 1, "health": "on_track", "headline": "H"}, client=client)
+            with self.subTest(client=client):
+                self.assertEqual(self.look(ref, 900, "dark")["meta"], "Example Programme \u00b7 Week ending 06-11-2026")
 
 
 if __name__ == "__main__":
