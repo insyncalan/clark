@@ -645,7 +645,11 @@ class Milestone(Base):
                 self.click(p, row)
                 p.until("!!document.querySelector('#peek .ProseMirror') && document.activeElement.classList.contains('ProseMirror')", "the editor opened a third time")
                 p.js("document.querySelector('#peek .ProseMirror').cxed.editor.commands.insertContent(' Third'); true")
-                p.js("document.activeElement.blur(); document.querySelector('#peek .pk-title').focus(); true")
+                # Wait for the typed text, then move the focus straight to another field (one step, so the box sees where the focus goes). A blur with no
+                # target while the browser window is not focused is read as 'the person left the window', which keeps the box open (RichText away()): on a
+                # busy CI machine the window is not always focused, so the test says outright that the window has the focus and does not depend on it.
+                p.until("document.querySelector('#peek .ProseMirror').textContent.includes('Third')", "the typed text is in the box")
+                p.js("document.hasFocus = () => true; document.querySelector('#peek .pk-title').focus(); true")
                 self.saved("description", "<p>First</p><p>Second Third</p>")
 
     # ---- View and the file's chips ----------------------------------------------------------------------------------------------------------------
