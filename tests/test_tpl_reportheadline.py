@@ -13,10 +13,8 @@ from test_server import chrome, wait
 
 from clark import section_bodies, section_kinds, store as store_module
 from clark.section_kinds import base, reportheadline as rh
-from _demo import USER
 from test_changes import KIND
 from test_report_editor import Base as PageBase
-from test_server import chrome
 
 
 class Rules:
@@ -187,10 +185,13 @@ class EditInThePage(Base):
             self.assertEqual(p.js(f"document.querySelector('{box}').value"), "Fictional plan holds")
             self.fill(p, box, "Fictional line one\nFictional line two")
             p.js(f"document.querySelector('{box}').blur()")
-            self.assertTrue(wait(lambda: self.stored().get("headline") == "Fictional line one Fictional line two", 10), f"saved, a pasted line break read as a space: {self.stored()} {p.toast()}")
+            self.assertTrue(wait(lambda: self.stored().get("headline") == "Fictional line one Fictional line two", 10), f"saved, a pasted line break read as a space: {self.stored()}")
             self.assertEqual(self.stored()["sentence"], "Fictional reason.")
             applies = self.store.con.execute("SELECT count(*) FROM applies").fetchone()[0]
-            p.js("document.querySelector('[data-undo]').click()")
+            import time
+            time.sleep(0.7)
+            self.assertFalse(p.js("!!document.querySelector('.toast, .toast-text, [data-undo]')"), "no toast element, no invented words, after the save")
+            p.key("z", modifiers=2, code="KeyZ", vk=90)        # one Undo step, the Cmd/Ctrl+Z the other inline edits have
             self.assertTrue(wait(lambda: self.stored().get("headline") == "Fictional plan holds", 10), "Undo took it back")
             self.assertEqual(self.store.con.execute("SELECT count(*) FROM applies").fetchone()[0], applies + 1, "an Undo is one step")
 

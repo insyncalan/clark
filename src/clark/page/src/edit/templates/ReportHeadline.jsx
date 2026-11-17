@@ -41,7 +41,7 @@ function Area({ value, onCommit, label, placeholder, id }) {
 
 export function Edit({ section }) {
   const saved = tidyReportHeadline(source(section));
-  const write = useSaver(section, saved, "Report headline saved.");
+  const write = useSaver(section, saved, "", { silent: true });      // row 1261: no toast and no new words; the save is one step, undone with Cmd/Ctrl+Z like the others
   const empty = !saved.health && !saved.headline && !saved.sentence;
   const now = ITEMS.find((i) => i[0] === saved.health);
   const name = now ? now[1] : "Not set";
