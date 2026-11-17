@@ -21,7 +21,7 @@ def rule(selector):
 class FilterChipShape(unittest.TestCase):
     def test_the_chip_is_a_rounded_rectangle_not_a_pill(self):
         body = rule(".fchip")
-        self.assertIn("border-radius: var(--radius-sm)", body)
+        self.assertIn("border-radius: 6px", body)
         self.assertNotIn("radius-pill", body)
 
     def test_the_chip_takes_the_brand_tint_and_brand_text(self):
@@ -38,7 +38,13 @@ class FilterChipShape(unittest.TestCase):
         self.assertNotIn("50%", body)
 
     def test_the_chip_stays_about_25_tall(self):
-        self.assertIn("min-height: 26px", rule(".fchip"))
+        self.assertIn("min-height: 25px", rule(".fchip"))
+
+    def test_the_chip_padding_and_cross_follow_the_mock_up(self):
+        self.assertIn("padding: 0 var(--space-1) 0 9px", rule(".fchip"))
+        body = rule(".fchip button")
+        self.assertIn("width: 22px", body)
+        self.assertIn("height: 22px", body)
 
     def test_a_plain_word_chip_stays_grey(self):
         body = rule(".fchip.word")
