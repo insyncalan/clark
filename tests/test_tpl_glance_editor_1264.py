@@ -129,6 +129,22 @@ class Adding(Editor):
             self.assertFalse(self.body().get("bespoke"))
             self.assertTrue(p.js("document.activeElement.classList.contains('tileadd')"), "focus back on Add a tile")
 
+    def test_T72_a_new_tile_takes_the_lowest_unused_id_and_is_drawn_last(self):
+        self.seed([dict(OWN, id="t2")])
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_add(p)
+            p.js("document.querySelector('.ddmenu[role=menu] [role=menuitem]').click()")
+            self.editor_open(p)
+            self.fill(p, "label", "Fictional second")
+            self.click(p, "[data-tile-editor] [data-done]")
+            self.assertTrue(wait(lambda: len(self.body().get("bespoke", [])) == 2, 10), f"stored: {self.body()}")
+            self.assertEqual(sorted(t["id"] for t in self.body()["bespoke"]), ["t1", "t2"])
+            p.until(f"!!document.querySelector({self.q('[data-tile=t1]')})", "the new tile drew")
+            ids = p.js(f"[...document.querySelectorAll({self.q('[data-tile]')})].map(e => e.dataset.tile)")
+            self.assertEqual(ids[-1], "t1", f"the new tile is last: {ids}")
+            self.assertEqual(ids[-2], "t2")
+
     def test_T72_the_limit_of_12_tiles_is_said_and_no_13th_is_made(self):
         self.seed([{"id": f"t{i}", "label": f"Fictional {i}", "figure": str(i)} for i in range(1, 13)])
         with chrome() as cdp:
