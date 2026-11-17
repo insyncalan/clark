@@ -86,7 +86,7 @@ export function FeedbackTag({ getVersion = healthVersion, nav, clip = realClip }
   if (!on) return null;
   const close = () => { setOpen(false); if (tag.current) tag.current.focus(); };
   const ctx = { version, platform: L.systemWords(nav), page: L.pageWords(where) };
-  const beside = !!peek.value, besideHelp = contextOpen.value;      // the item peek is as wide as it was dragged (or the window less 32 px), the Help peek 380 (--help-peek-w); with both up the inline right below wins
+  const beside = !!peek.value, besideHelp = contextOpen.value;      // the item peek is as wide as it was dragged (or the window less 32 px), the Help peek 380 (--hpk-w); with both up the inline right below wins
   const edge = beside && !open && gap != null ? `${gap}px` : "";
   return (
     <>
