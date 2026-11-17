@@ -67,6 +67,29 @@ class Words(unittest.TestCase):
         self.assertEqual(callout.words({"v": 1, "icon": "none", "colour": "plain"}), {"category": "", "colour_name": "Plain", "icon_name": ""})
 
 
+class Look(unittest.TestCase):
+    """The callout's rules in shell.css (the page and the published file share them): a tinted box, never a stripe; Plain has no box."""
+
+    def rules(self):
+        from _paths import ROOT
+        css = (ROOT / "src/clark/page/shell.css").read_text(encoding="utf-8")
+        return [line for line in css.splitlines() if line.startswith(".tpl-callout")]
+
+    def test_no_callout_rule_draws_a_stripe_or_a_bare_pixel_or_colour(self):
+        import re
+        rules = self.rules()
+        self.assertGreater(len(rules), 6)
+        for line in rules:
+            self.assertNotRegex(line, r"border-(left|inline-start)", line)
+            self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|\brgba?\(", line), line)
+
+    def test_plain_has_no_box(self):
+        plain = [line for line in self.rules() if ".k-plain" in line]
+        self.assertEqual(len(plain), 1)
+        self.assertIn("--cc-fill: transparent", plain[0])
+        self.assertIn("--cc-edge: transparent", plain[0])
+
+
 class Page(n.PageChecks):
     TYPE, GOOD, HOSTILE_BODY = "callout", GOOD, HOSTILE
     SHOWS = ("Decision needed", "Fictional decision", "Fictional words about the budget.", "A second fictional line.")
@@ -129,6 +152,19 @@ class Page(n.PageChecks):
                 self.assertTrue(p.js(f"!!{box(ref)}.querySelector('svg[data-icn=lock]')"))
                 self.assertEqual(p.js(f"{box(old)}.dataset.colour + ' ' + {box(old)}.dataset.icon"), "amber question", "an older callout draws its tone's look")
                 self.assertEqual(p.js(f"{box(old)}.querySelector('.tpl-callout-tone').textContent"), "Decision needed")
+
+    def test_view_names_the_colour_and_the_icon_in_words(self):
+        full = self.make({**GOOD, "category": "Budget", "colour": "violet", "icon": "bulb"})
+        bare = self.make({**GOOD, "category": "", "colour": "plain", "icon": "none"})
+        old = self.make(GOOD)
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp)
+                self._at(cdp, p, width)
+                words = lambda r: p.js(f"document.querySelector('[data-id={json.dumps(r)}] .tpl-callout .sr-only').textContent")
+                self.assertEqual(words(full), "Colour: Violet. Icon: Light bulb.")
+                self.assertEqual(words(bare), "Colour: Plain.")
+                self.assertEqual(words(old), "Colour: Amber. Icon: Question.", "an older callout names its tone's look")
 
     def test_a_colour_with_no_word_and_no_icon_draws_its_own_shape_and_plain_draws_none(self):
         a = self.make({**GOOD, "category": "", "colour": "red", "icon": "none"})
