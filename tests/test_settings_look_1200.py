@@ -178,7 +178,7 @@ class SettingsLook(unittest.TestCase):
         for w in WIDTHS:
             with self.subTest(width=w), chrome() as cdp:
                 m = self.look(cdp, w)["menu"]
-                self.assertGreaterEqual(m["minHeight"], 36, f"every menu row is at least 36 px at {w}")
+                self.assertGreaterEqual(m["minHeight"], 32, f"every menu row is at least 32 px at {w}")      # row 1280: tighter rows (was 36), so a group reads as a block
                 self.assertEqual(m["border"], "0px", f"soft rows: no outline at {w}")
                 self.assertEqual(m["curWeight"], "600", f"the marked row is semibold at {w}")
                 self.assertNotEqual(m["curBg"], m["otherBg"], f"the marked row has a tint the others have not at {w}")
