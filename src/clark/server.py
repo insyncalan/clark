@@ -222,7 +222,7 @@ ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/section-body": SECT
                      "/api/publications/archive": 1024, "/api/publications/restore": 1024,     # #345: a project code and a number
                      "/api/people": PEOPLE_BODY_LIMIT, "/api/people/undo": 1024,     # #115: a person's few short fields; #454: or one paste of up to 500 rows; a step number
                      "/api/profile": 2 * 1024,     # #65: a change or an undo is small; over is the 400 "too big"
-                     "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024, "/api/open-mail": 4096,     # #110; row 1297
+                     "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024, "/api/open-mail": 4096,     # item 110; row 1297
                      "/api/draft-email": 16 * 1024,                    # #50: the ticked ids and a few short words
                      "/api/draft-email/sent": 4 * 1024,                # #50: the ids, the mode and the day: never the email's words
                      "/api/word-import": (WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024, "/api/word-export": 1024,      # #48
