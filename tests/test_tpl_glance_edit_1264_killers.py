@@ -6,6 +6,7 @@ import json
 import unittest
 
 from test_report_editor import ALT, tearDownModule  # noqa: F401
+from _demo import USER
 from test_changes import KIND
 from test_server import chrome, wait
 from test_tpl_glance_edit_1264 import DEFAULT, GlanceEdit
@@ -128,6 +129,38 @@ class Killers(GlanceEdit):
             self.assertEqual(self.body(), {})
             self.assertEqual(self.applies(), before, "a cancelled drag is no step")
             self.assertEqual(self.drawn(p), DEFAULT)
+
+    def test_K10_the_right_click_is_kept_by_the_page_only_where_the_outline_menu_opens(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            fired = lambda key: p.js(f"document.querySelector('{self.sel(f'[data-tile={key}]')}').dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
+            self.assertIs(fired("health"), True, "Project health has no outline menu: the browser's own menu is not taken away")
+            self.assertIs(fired("risks"), False, "a counting tile opens the outline menu: the browser's own menu is taken")
+
+    def test_K11_the_counting_tiles_in_edit_open_the_work_items_and_health_does_not(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            tags = p.js(f"[...document.querySelectorAll('{self.sel('[data-fig]')}')].map(e => [e.dataset.fig, e.tagName])")
+            self.assertEqual(tags, [["health", "DIV"], ["overdue", "BUTTON"], ["risks", "BUTTON"], ["decisions", "BUTTON"]])
+
+    def test_K12_a_drag_is_aimed_at_the_tiles_of_its_own_section_only(self):
+        with self.store.step("dashboard", USER) as st:
+            other = st.create("report_sections", {"project": "ABC", "type": "glancetemplate", "title": "Fictional second glance", "sort_order": 999})
+        status, got = self.real_change({"project": "ABC", "kind": KIND, "op": "update", "id": other,
+                                        "changes": {"body": json.dumps({"v": 1, "order": ["decisions", "risks", "overdue", "health"]})}})
+        self.assertEqual(status, 200, got)
+        with chrome() as cdp:
+            p = self.page(cdp)
+            p.until(f"!!document.querySelector('[data-id=\"{other}\"] [data-tile=decisions]')", "the second section drew")
+            p.js(f"document.querySelector('{self.sel()}').scrollIntoView({{block: 'center'}})")
+            gx, gy, _ = p.box(self.sel("[data-tile=risks] [data-tile-grip]"))
+            r = p.js(f"(function(){{var r=document.querySelector('[data-id=\"{other}\"] [data-tile=decisions]').getBoundingClientRect();return [r.left + r.width * 0.2, r.top + r.height / 2];}})()")
+            p.mouse("mousePressed", gx, gy, 1)
+            for step in range(1, 9):
+                p.mouse("mouseMoved", gx + (r[0] - gx) * step / 8, gy + (r[1] - gy) * step / 8, 1)
+            p.mouse("mouseReleased", r[0], r[1], 0)
+            # the first tile of the OTHER section is not a target: the nearest tile of its own section is its first, Project health, left half
+            self.assertTrue(wait(lambda: self.body().get("order") == ["risks", "health", "overdue", "decisions"], 10), f"stored: {self.body()}")
 
 
 if __name__ == "__main__":
