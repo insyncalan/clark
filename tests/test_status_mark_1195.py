@@ -35,13 +35,13 @@ def bundle():
     return _BUNDLE["code"]
 
 
-def mark(row):
+def mark(row, pill=None):
     node = shutil.which("node")
     if not node:
         raise unittest.SkipTest("no node")
     with tempfile.TemporaryDirectory() as tmp:
         script = Path(tmp) / "probe.js"
-        script.write_text(bundle() + ";\nconst row = %s; console.log(JSON.stringify(SM.statusMark(row, SM.clientPill(row, %s))));" % (json.dumps(row), json.dumps(TODAY)),
+        script.write_text(bundle() + ";\nconst row = %s; const pill = %s || SM.clientPill(row, %s); console.log(JSON.stringify(SM.statusMark(row, pill)));" % (json.dumps(row), json.dumps(pill), json.dumps(TODAY)),
                           encoding="utf-8")
         done = subprocess.run([node, str(script)], capture_output=True, text=True)
         assert done.returncode == 0, done.stderr
@@ -87,6 +87,46 @@ class StatusMark(unittest.TestCase):
         r = {"kind": "risk", "status": "Open", "priority": "High"}
         self.assertEqual(mark(r)["tone"], "r")
         self.assertEqual(mark(dict(r, priority="Low"))["tone"], "b")
+
+
+ODD = {"text": "Elsewhere", "class": "n"}   # a pill whose word is not the status, so a mark that reads the pill instead of the status shows
+
+
+class StatusMarkWordsAndSource(unittest.TestCase):
+    def test_finished_and_closed_statuses_say_their_own_word_not_the_pills(self):
+        for status, tone in (("Completed", "g"), ("Made", "g"), ("Closed", "n"), ("Cancelled", "n"), ("Withdrawn", "n")):
+            with self.subTest(status=status):
+                self.assertEqual(mark({"kind": "action", "status": status}, ODD), {"word": status, "tone": tone})
+
+    def test_open_statuses_say_the_pills_word_and_its_red_or_amber(self):
+        row = {"kind": "action", "status": "Open"}
+        self.assertEqual(mark(row, {"text": "Elsewhere", "class": "r"}), {"word": "Elsewhere", "tone": "r"})
+        self.assertEqual(mark(row, {"text": "Elsewhere", "class": "a"}), {"word": "Elsewhere", "tone": "a"})
+        for cls in ("g", "n", "b"):
+            self.assertEqual(mark(row, {"text": "Elsewhere", "class": cls})["tone"], "b", cls)
+
+    def test_each_tone_has_its_own_colour_for_the_icon(self):
+        css = (PAGE_SRC.parent / "shell.css").read_text(encoding="utf-8")
+        for tone, name in (("r", "red"), ("a", "amber"), ("g", "green"), ("b", "blue"), ("n", "grey")):
+            self.assertIn(".st-word.%s .sti { color: var(--tone-%s-text); }" % (tone, name), css)
+        self.assertRegex(css, r"\.st-word \.sti \{[^}]*fill: none;[^}]*stroke: currentColor;")
+
+    def test_status_column_is_wide_enough_for_icon_plus_word(self):
+        shell = (PAGE_SRC.parent / "shell.css").read_text(encoding="utf-8")
+        edit = (PAGE_SRC / "edit" / "edit.css").read_text(encoding="utf-8")
+        self.assertIn("table.items .c-status { width: 156px; }", shell)
+        self.assertIn("table.items .c-prio { width: 93px; } table.items .c-status { width: 146px; }", shell)
+        self.assertIn("table.items .c-prio { width: 101px; } table.items .c-status { width: 146px; }", edit)
+
+    def test_cell_draws_the_half_circle_after_the_icon_for_the_pill(self):
+        jsx = (PAGE_SRC / "components" / "WorkItems.jsx").read_text(encoding="utf-8")
+        self.assertIn('<span class={`st-word ${m.tone}`}><svg class="sti" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" /></svg>{m.word}</span>', jsx)
+        self.assertIn("const m = statusMark(row, pill);", jsx)
+        self.assertEqual(jsx.count("<StatusWord row={row} pill={pill} />"), 1)
+        i = jsx.index("<StatusWord row={row} pill={pill} />")
+        td = jsx[jsx.rindex('<td class="c-status"', 0, i):i]
+        self.assertIn("<ItemIcon", td, "the word follows the icon, inside the status cell")
+        self.assertNotIn("</td>", td)
 
 
 if __name__ == "__main__":
