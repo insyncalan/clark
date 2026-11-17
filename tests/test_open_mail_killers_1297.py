@@ -53,7 +53,7 @@ class Platform(unittest.TestCase):
 
 class Route(unittest.TestCase):
     def serve(self, mail):
-        httpd = server.LocalServer(("127.0.0.1", 0), data_for=lambda c: None, mail=mail)
+        httpd = server.LocalServer(("127.0.0.1", 0), data_for=lambda c, archived="hide": None, mail=mail)
         threading.Thread(target=httpd.serve_forever, daemon=True).start()
         self.addCleanup(httpd.server_close)
         self.addCleanup(httpd.shutdown)

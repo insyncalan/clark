@@ -38,7 +38,7 @@ class Seam(unittest.TestCase):
 class Route(unittest.TestCase):
     def setUp(self):
         self.seen = []
-        self.httpd = server.LocalServer(("127.0.0.1", 0), data_for=lambda c: None, mail=mail_open.MailOpen(self.seen.append))
+        self.httpd = server.LocalServer(("127.0.0.1", 0), data_for=lambda c, archived="hide": None, mail=mail_open.MailOpen(self.seen.append))
         self.port = self.httpd.server_address[1]
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
         self.addCleanup(self.httpd.server_close)

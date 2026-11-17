@@ -5,6 +5,7 @@ import unittest
 
 import test_draft_email_editor as DE
 import test_feedback_tab as FB
+from test_server import chrome  # noqa: F401  (the harness: this file drives Chrome through the base classes above, so the tier reader sees it)
 
 NOTE = "No mail app opened. Use Copy as text and paste it into your mail."
 LINK = "a[data-feedback-mail]"
