@@ -90,8 +90,9 @@ class AllTemplates(Base):
             "onedoc": {"v": 1, "file": {"name": "Signed SOW.pdf", "rel": "Report files/Signed SOW.pdf", "bytes": 2048}, "label": "The signed SOW",
                        "text": ["Signed on 12-01-2030."]},
             "reportheadline": {"v": 1, "health": "on_track", "headline": "Fictional headline", "sentence": "Fictional sentence."},
-            "glancetemplate": {"v": 1, "bespoke": [{"id": "t1", "label": "Fictional tile", "figure": "3", "tag": "Fictional", "note": "Fictional note", "tone": "amber"}]},
+            "glancetemplate": {"v": 1, "builtin": {n: {"hidden": True} for n in ("overdue", "risks", "decisions")}, "bespoke": [{"id": "t1", "label": "Fictional tile", "figure": "3", "tag": "Fictional", "note": "Fictional note", "tone": "amber"}]},
         }
+        # row 1264: the file carries no counts until the counts slice, so the fixture hides the three counting tiles the served View would draw
         self.assertEqual(set(self.bodies), set(section_kinds.TYPES), "one of every template")
         self.refs = {}
         with self.store.step("dashboard", USER) as st:
