@@ -1882,8 +1882,11 @@ class Line(unittest.TestCase):
                     self.assertTrue(wait(lambda: cdp.js(f"!!{ask}", sid)), "the prompt shows")
                     self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "fvAskUpdate"))
                     # Escape closes the prompt and changes nothing: the dot stays, nothing is saved
+                    cdp.js("window.__esc = 0; document.addEventListener('keydown', function (e) { if (e.key === 'Escape') window.__esc++; })", sid)
                     key(cdp, sid, "Escape")
                     self.assertTrue(wait(lambda: not cdp.js(f"!!{ask}", sid)), "Escape closes the prompt")
+                    self.assertEqual(cdp.js("document.activeElement.id", sid), "fline-input", "and the focus goes to the filter line")
+                    self.assertEqual(cdp.js("window.__esc", sid), 0, "the key stops at the prompt: nothing else on the page sees it")
                     time.sleep(0.3)
                     self.assertFalse(cdp.js(f"!!{ask}", sid), "and it does not come back")
                     self.assertEqual(cdp.js(dots, sid), 1, "the changes are still there")
