@@ -114,7 +114,7 @@ class EditAndFile(Demo, PublishedFile):
             p = self.draw(cdp, path)
             self.assertEqual(p.js(ROWS), 3, "the file's own number")
             self.assertEqual(p.js(ORDER), "below", "the file's own tracker place")
-            self.assertFalse(p.js("!!document.querySelector('#ucAdd, [data-mode=edit]')"), "a file has no Edit")
+            self.assertFalse(p.js("!!document.querySelector('[data-uc-configure], [data-mode=edit]')"), "a file has no Edit")
             self.assertIsNone(p.js(BUTTON), "ruled 16-11: a number with scroll off shows only the first n, no Show all")
             self.assertEqual(p.js(ROWS), 3, "still the file's own number")
             self.assertEqual(p.js("Object.keys(localStorage).filter(k => /ucAll/.test(k)).length"), 0, "the file stores nothing of the editor's key")
