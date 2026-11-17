@@ -53,12 +53,16 @@ class ReadmeLinks(unittest.TestCase):
     def test_no_iso_date(self):
         self.assertIsNone(re.search(r"\b\d{4}-\d{2}-\d{2}\b", README))
 
-    def test_the_first_paragraph_is_a_full_release_that_runs_on_a_mac_today(self):
-        # From 1.2.0 clark is a full release. Neither the version number nor the release name (1.2 Themes) is pinned, so the next release does not break this.
+    def test_the_first_paragraph_is_a_full_release_that_runs_on_a_mac_and_says_how_windows_runs(self):
+        # From 1.2.0 clark is a full release. The version number is not pinned, so the next release does not break this; the words are the shipped notes' words.
         para = next(line for line in README.splitlines() if line.startswith("> "))
         self.assertNotIn("Beta", para)
-        self.assertIn("clark runs on a Mac today.", para)
-        self.assertIn("Windows and Linux downloads come later.", para)
+        self.assertNotIn("Themes", para)           # no theme feature is reachable in 1.2
+        self.assertNotIn("come later", para)
+        self.assertIn("clark runs on a Mac.", para)
+        self.assertIn("The Windows download is a zip you unzip and run in Docker; the release notes say how.", para)
+        zip_readme = (ROOT / "docs" / "zip" / "README.md").read_text(encoding="utf-8")
+        self.assertIn(para, zip_readme.splitlines(), "the zip's README carries the same first paragraph")
 
     def test_the_licence_section_is_unchanged(self):
         section = README.split("## Licence", 1)[1].strip()
@@ -82,7 +86,7 @@ class ReadmeLinks(unittest.TestCase):
     def test_no_claim_of_what_is_not_shipped(self):
         self.assertNotIn("meet clark", README)
         self.assertNotIn("intake", README)
-        self.assertNotIn("Windows download", README)
+        # "Windows download" was here until 1.2.0: from then the first paragraph says what the Windows download is (a zip run in Docker), as the release notes do.
 
 
 if __name__ == "__main__":
