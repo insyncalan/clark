@@ -99,6 +99,11 @@ class DecisionsView(unittest.TestCase):
                 "{id:'D-3',kind:'decision',status:'Made',due:'2029-12-31'},{id:'D-4',kind:'decision',status:'Withdrawn',due:'2030-01-10'}]")
         self.assertEqual(run_node("W.matching(W.viewFilter('decisions'), %s, '2030-01-15').sort()" % rows), ["D-1", "D-2"])
 
+    def test_a_decision_made_today_counts_and_a_made_row_that_is_not_a_decision_does_not(self):      # row 1268, item 4: the survivors of the mutation pass
+        rows = "[{id:'D-1',kind:'decision',status:'Made',due:'2030-01-15'},{id:'R-1',kind:'risk',status:'Made',due:'2030-01-15'}]"
+        self.assertEqual(run_node("W.matching(W.viewFilter('decisions'), %s, '2030-01-15').sort()" % rows), ["D-1"])
+        self.assertEqual(run_node("W.matching({...W.viewFilter('all'), mode: 'current', kinds: ['risk']}, %s, '2030-01-15').sort()" % rows), [])
+
 
 class PriorityCell(unittest.TestCase):
     def cell(self, kind, priority):
@@ -120,6 +125,8 @@ class PriorityCell(unittest.TestCase):
         got = run_node("W.priorityCell({kind: 'decision', priority: null, peek_priority: 'High'})")
         self.assertEqual(got, {"text": "High", "class": "r"})
         self.assertEqual(run_node("W.priorityCell({kind: 'decision', priority: 'Low'})"), {"text": "Low", "class": "g"})
+        both = run_node("W.priorityCell({kind: 'decision', priority: 'Low', peek_priority: 'High'})")      # the peek's priority wins over the rule row's
+        self.assertEqual(both, {"text": "High", "class": "r"})
 
 
 class ShowAll(unittest.TestCase):

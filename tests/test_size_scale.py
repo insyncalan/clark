@@ -14,6 +14,7 @@ CSS = {"shell.css": ROOT / "src/clark/page/shell.css", "edit.css": ROOT / "src/c
 # .cp-m (18 px) stays the one glyph exemption: it sizes an icon character, not text.
 NOT_TEXT = {(".cp-m", "18px"),
             (".tr-v", "32px"), (".tr-size-large .tr-v", "44px"), (".tr-size-small .tr-v", "24px"), (".tr-size-compact .tr-v", "18px"),
+            (".peek .pkh-id", "12px"),      # row 1258: the ID tag's own mono 12 px / 600 from the approved peek mockup; the scale has no 12 px step
             (".tr-overall .tr-v", "26px")}  # the progress tracker's headline figures (#160; #930: Large 44, Medium 32, Small 24, Compact 18), on screen and in print
 
 # Fixed boxes that a 14 px label overfills at 900 px: the "As at" date in the top bar, the avatars (initials in a 26 or 24 px
