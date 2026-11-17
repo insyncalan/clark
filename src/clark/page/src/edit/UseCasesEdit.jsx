@@ -76,7 +76,8 @@ function Modal({ onClose, opener, children }) {
     };
   }, []);
   // Esc also on the document: while a save is out the Add button is disabled, the focus drops to the page, and a key there never reaches the box's own handler.
-  useEffect(() => {
+  // A layout effect too: a passive one is added after the first paint, and a key that comes before it (a slow runner) found no listener (row 1276).
+  useLayoutEffect(() => {
     const esc = (e) => { if (e.key === "Escape" && !e.defaultPrevented) { e.preventDefault(); onClose(); } };
     document.addEventListener("keydown", esc);
     return () => document.removeEventListener("keydown", esc);
