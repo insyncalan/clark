@@ -7,6 +7,10 @@ import json
 import sqlite3
 import unittest
 
+from _demo import USER
+from test_report_editor import Base, tearDownModule  # noqa: F401
+from test_server import chrome, wait
+
 from clark import section_bodies, section_kinds, store as store_module
 from clark.section_kinds import base, reportheadline as rh
 from _demo import USER
@@ -131,6 +135,118 @@ class Page(PageBase):
             ref = self.make({"v": 1, "health": "on_track", "headline": "H"}, client=client)
             with self.subTest(client=client):
                 self.assertEqual(self.look(ref, 900, "dark")["meta"], "Example Programme \u00b7 Week ending 06-11-2026")
+
+
+HINT = "Write the headline the report opens with. Until then this section stays out of the published page."
+HEAD_PH = "Headline: say where the project stands (no length limit)"
+SENT_PH = "Why the project has this health (a line or two)"
+
+
+class EditInThePage(Base):
+    """Row 1261 slice 2: the Edit part in a real browser (1400 and 900, light and dark). Fictional data only."""
+
+    def setUp(self):
+        super().setUp()
+        with self.store.step("dashboard", USER) as st:
+            self.full = st.create("report_sections", {"project": "ABC", "type": "reportheadline", "title": "Fictional headline", "sort_order": 998,
+                                                       "body": json.dumps({"v": 1, "health": "at_risk", "headline": "Fictional plan holds", "sentence": "Fictional reason."})})
+            self.empty = st.create("report_sections", {"project": "ABC", "type": "reportheadline", "title": "Fictional empty headline", "sort_order": 999})
+
+    def page(self, cdp):
+        p = self.visit(cdp)
+        cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)
+        p.edit()
+        return p
+
+    def sel(self, ref, rest=""):
+        return f'[data-id="{ref}"] {rest}'.strip()
+
+    def stored(self, ref=None):
+        return json.loads(self.store.read("report_sections", ref=ref or self.full)["body"])
+
+    def fill(self, p, selector, text):
+        p.js(f"(function(){{var e=document.querySelector({json.dumps(selector)}); e.focus(); e.value={json.dumps(text)}; e.dispatchEvent(new Event('input', {{bubbles: true}}));}})()")
+
+    def test_the_stub_line_is_gone_and_the_fields_have_their_labels_and_placeholders(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            p.until(f"!!document.querySelector('{self.sel(self.empty, 'textarea')}')", "the empty section's fields")
+            text = p.js(f"document.querySelector('{self.sel(self.empty)}').textContent")
+            self.assertNotIn("comes in the next step", text)
+            self.assertIn(HINT, text)
+            self.assertEqual(p.js(f"document.querySelector('{self.sel(self.empty, 'textarea[aria-label=Headline]')}').placeholder"), HEAD_PH)
+            self.assertEqual(p.js(f"document.querySelector('{self.sel(self.empty, 'textarea[aria-label=\"Supporting sentence\"]')}').placeholder"), SENT_PH)
+            self.assertEqual(p.js(f"document.querySelector('{self.sel(self.empty, '.pillbtn')}').getAttribute('aria-label')"), "Project health: not set. Change it")
+            self.assertNotIn(HINT, p.js(f"document.querySelector('{self.sel(self.full)}').textContent"), "the hint is for an empty section only")
+
+    def test_leaving_the_headline_saves_it_in_one_step_and_undo_takes_it_back(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            box = self.sel(self.full, "textarea[aria-label=Headline]")
+            p.until(f"!!document.querySelector('{box}')", "the headline field")
+            self.assertEqual(p.js(f"document.querySelector('{box}').value"), "Fictional plan holds")
+            self.fill(p, box, "Fictional line one\nFictional line two")
+            p.js(f"document.querySelector('{box}').blur()")
+            self.assertTrue(wait(lambda: self.stored().get("headline") == "Fictional line one Fictional line two", 10), f"saved, a pasted line break read as a space: {self.stored()} {p.toast()}")
+            self.assertEqual(self.stored()["sentence"], "Fictional reason.")
+            applies = self.store.con.execute("SELECT count(*) FROM applies").fetchone()[0]
+            p.js("document.querySelector('[data-undo]').click()")
+            self.assertTrue(wait(lambda: self.stored().get("headline") == "Fictional plan holds", 10), "Undo took it back")
+            self.assertEqual(self.store.con.execute("SELECT count(*) FROM applies").fetchone()[0], applies + 1, "an Undo is one step")
+
+    def test_enter_leaves_the_headline_and_saves_it_and_escape_puts_the_old_words_back(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            box = self.sel(self.full, "textarea[aria-label=Headline]")
+            p.until(f"!!document.querySelector('{box}')", "the headline field")
+            before = self.stored()
+            self.fill(p, box, "Fictional saved by Enter")
+            p.key("Enter", code="Enter", vk=13)
+            self.assertTrue(wait(lambda: self.stored().get("headline") == "Fictional saved by Enter", 10), "Enter leaves the box and saves")
+            before = self.stored()
+            self.fill(p, box, "Typed then cancelled")
+            p.key("Escape", code="Escape", vk=27)
+            p.until(f"document.querySelector('{box}').value === 'Fictional saved by Enter'", "the saved words are back")
+            import time
+            time.sleep(0.5)
+            self.assertEqual(self.stored(), before)
+
+    def test_the_sentence_saves_and_an_empty_field_is_taken_out(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            box = self.sel(self.full, 'textarea[aria-label="Supporting sentence"]')
+            p.until(f"!!document.querySelector({json.dumps(box)})", "the sentence field")
+            self.fill(p, box, "")
+            p.js(f"document.querySelector({json.dumps(box)}).blur()")
+            self.assertTrue(wait(lambda: "sentence" not in self.stored(), 10), "an empty sentence is not stored")
+            self.assertEqual(self.stored()["headline"], "Fictional plan holds")
+
+    def test_the_health_menu_offers_the_three_words_ticks_the_saved_one_and_a_pick_saves_it(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            pill = self.sel(self.full, ".pillbtn")
+            p.until(f"!!document.querySelector('{pill}')", "the pill")
+            self.assertEqual(p.js(f"document.querySelector('{pill}').getAttribute('aria-label')"), "Project health: at risk. Change it")
+            p.js(f"document.querySelector('{pill}').click()")
+            p.until("document.querySelectorAll('[role=menuitem], [role=menuitemradio]').length === 3", "the menu")
+            self.assertEqual(p.js("[...document.querySelectorAll('[role=menuitem], [role=menuitemradio]')].map(e => e.textContent.replace(/\\s+/g, ' ').trim())"),
+                             ["On track", "At risk", "Off track"])
+            p.js("[...document.querySelectorAll('[role=menuitem], [role=menuitemradio]')].find(e => /Off track/.test(e.textContent)).click()")
+            self.assertTrue(wait(lambda: self.stored().get("health") == "off_track", 10), "the pick was saved")
+            self.assertEqual(self.stored()["headline"], "Fictional plan holds")
+
+    def test_both_sections_fit_at_1400_and_900_in_light_and_dark_with_no_sideways_scroll(self):
+        for width, dark in ((1400, False), (1400, True), (900, False), (900, True)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                p = self.page(cdp)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                if dark:
+                    p.js("document.documentElement.dataset.theme = 'dark'")
+                self.fill(p, self.sel(self.full, "textarea[aria-label=Headline]"), "Fictional long headline " * 40)
+                p.until(f"!!document.querySelector('{self.sel(self.empty, 'textarea')}')", "the fields drew")
+                self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
+                for ref in (self.full, self.empty):
+                    self.assertTrue(p.js(f"[...document.querySelectorAll('{self.sel(ref, 'textarea')}')].every(t => t.getBoundingClientRect().right <= document.querySelector('{self.sel(ref)}').getBoundingClientRect().right + 1)"), "fields inside the section")
 
 
 if __name__ == "__main__":
