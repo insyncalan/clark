@@ -53,6 +53,7 @@ CASES = [
     ("note_long", {"v": 1, "bespoke": [tile(note="a" * 61)]}),
     ("bad_text", {"v": 1, "bespoke": [tile(note=5)]}),
     ("too_long", {"v": 1, "bespoke": [tile(id=f"t{i}", label="a" * 40, figure="a" * 12, tag="a" * 12, note="a" * 60) for i in range(12)]}),
+    ("bad_per_row", {"v": 1, "per_row": 5}),
 ]
 
 APPROVED_TEXT = {
@@ -72,6 +73,7 @@ APPROVED_TEXT = {
     "note_long": "The tile note is too long (60 characters at most). Shorten it and try again.",
     "bad_text": "A tile in At a glance has text of the wrong kind. Check it and try again.",
     "too_long": "At a glance is too long to keep (32 KB at most in all). Remove a tile or shorten the text and try again.",
+    "bad_per_row": "Tiles on a line is 3 or 4. Choose one of those.",
 }
 
 
@@ -208,7 +210,7 @@ class Reads(unittest.TestCase):                                                 
     def test_t15_refusals_use_the_approved_words_and_never_quote_the_value(self):
         self.assertEqual(set(gt.WORDS), set(gt.KEYS_OF_WORDS))
         self.assertEqual(set(gt.APPROVED), set(gt.KEYS_OF_WORDS))
-        self.assertEqual(len(gt.APPROVED), 16)
+        self.assertEqual(len(gt.APPROVED), 17)
         got = bad({"v": 1, "bespoke": [tile(label="secret-word" * 10)]})
         self.assertEqual(got, gt.WORDS["label_long"])
         self.assertNotIn("secret-word", got)

@@ -39,12 +39,12 @@ class Rules(unittest.TestCase):
         self.assertEqual(gt.upgrade({"v": 1, "per_row": 3})["per_row"], 3)
         self.assertEqual(gt.upgrade({"v": 1, "per_row": 9})["per_row"], 4, "a wrong value reads as the default")
 
-    def test_per_row_wrong_values_are_refused_with_the_pending_words_and_never_quote_the_value(self):
+    def test_per_row_wrong_values_are_refused_with_the_ruled_words_and_never_quote_the_value(self):
         for wrong in (2, 5, 0, -3, "3", 3.0, True, False, [], {}):
             with self.subTest(wrong=wrong):
                 with self.assertRaises(gt.Bad) as got:
                     gt.check({"v": 1, "per_row": wrong}, self.R)
-                self.assertEqual(str(got.exception), gt.words()["unknown_field"])
+                self.assertEqual(str(got.exception), "Tiles on a line is 3 or 4. Choose one of those.")
 
     def test_the_file_carries_per_row_and_own_row(self):
         class Ctx:

@@ -35,7 +35,7 @@ KEYS = ("v", "health", "per_row", "order", "builtin", "bespoke")
 TILE_KEYS = ("id", "label", "figure", "tag", "note", "tone", "hidden")
 
 KEYS_OF_WORDS = ("not_object", "unknown_field", "not_bool", "bad_outline", "bad_tone", "bad_id", "dup_id", "bad_order", "too_many",
-                 "label_missing", "label_long", "figure_long", "tag_long", "note_long", "bad_text", "too_long")
+                 "label_missing", "label_long", "figure_long", "tag_long", "note_long", "bad_text", "too_long", "bad_per_row")
 
 
 def words():      # words approved 17-11, see PR
@@ -55,6 +55,7 @@ def words():      # words approved 17-11, see PR
         "tag_long": f"The tile tag is too long ({TAG_MAX} characters at most). Shorten it and try again.",
         "note_long": f"The tile note is too long ({NOTE_MAX} characters at most). Shorten it and try again.",
         "bad_text": "A tile in At a glance has text of the wrong kind. Check it and try again.",
+        "bad_per_row": "Tiles on a line is 3 or 4. Choose one of those.",
         "too_long": f"At a glance is too long to keep ({LIMIT // 1024} KB at most in all). Remove a tile or shorten the text and try again.",
     }
 
@@ -162,7 +163,7 @@ def check(value, rules):
     per_row = value.get("per_row")
     if per_row is not None:
         if type(per_row) is not int or per_row not in PER_ROW:
-            _no("unknown_field")      # no refusal word was approved for this one; the approved "reload" word is used
+            _no("bad_per_row")
         if per_row != PER_ROW_DEFAULT:
             out["per_row"] = per_row
     bespoke = []
