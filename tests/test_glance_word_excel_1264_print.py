@@ -129,5 +129,114 @@ class ExcelNeedsNoChange(unittest.TestCase):
             self.assertEqual([ws.cell(r, 1).value for r in range(5, ws.max_row + 1)], [f"ZQ-T{i}" for i in range(7)], kw)
 
 
+
+class RightSlotPerLine(unittest.TestCase):
+    """READ 1856: publish.select flags only the FIRST of a side-by-side pair `beside` 1, so a glance in the right slot read 4 a line in print while the
+    View draws 2 (shell.css .slot-right .tpl-gt)."""
+
+    def pub(self, left_beside=1):
+        i = fx.inputs()
+        i["sections"] = [x for x in i["sections"] if x["type"] != "glance"]
+        gt = {"project": "PUB", "id": "s-gt", "type": "glancetemplate", "title": "", "beside": 0, "hidden": 0, "sort_order": -1,
+              "body": json.dumps({"v": 1, "bespoke": tiles(6), **ONLY_BESPOKE})}
+        left = {"project": "PUB", "id": "s-left", "type": "text", "title": "L", "beside": left_beside, "hidden": 0, "sort_order": -2, "body": "<p>x</p>"}
+        i["sections"][0:0] = [left, gt]
+        return publish.select(i)
+
+    def test_the_right_half_prints_two_a_line(self):
+        pub = self.pub()
+        self.assertEqual(glance_print.read(pub, full_section(pub))["per_line"], 2)
+        self.assertEqual(cells_per_row(pub), [2, 2, 2])
+
+    def test_the_left_half_still_two(self):
+        i = fx.inputs()
+        i["sections"] = [x for x in i["sections"] if x["type"] != "glance"]
+        i["sections"][0:0] = [{"project": "PUB", "id": "s-gt", "type": "glancetemplate", "title": "", "beside": 1, "hidden": 0, "sort_order": -3,
+                               "body": json.dumps({"v": 1, "bespoke": tiles(6), **ONLY_BESPOKE})},
+                              {"project": "PUB", "id": "s-right", "type": "text", "title": "R", "beside": 0, "hidden": 0, "sort_order": -2, "body": "<p>y</p>"}]
+        pub = publish.select(i)
+        self.assertEqual(glance_print.read(pub, full_section(pub))["per_line"], 2)
+
+    def test_a_glance_alone_after_a_pair_is_not_half(self):
+        i = fx.inputs()
+        i["sections"] = [x for x in i["sections"] if x["type"] != "glance"]
+        i["sections"][0:0] = [{"project": "PUB", "id": "s-a", "type": "text", "title": "A", "beside": 1, "hidden": 0, "sort_order": -3, "body": "<p>a</p>"},
+                              {"project": "PUB", "id": "s-b", "type": "text", "title": "B", "beside": 0, "hidden": 0, "sort_order": -2, "body": "<p>b</p>"},
+                              {"project": "PUB", "id": "s-gt", "type": "glancetemplate", "title": "", "beside": 0, "hidden": 0, "sort_order": -1,
+                               "body": json.dumps({"v": 1, "bespoke": tiles(6), **ONLY_BESPOKE})}]
+        pub = publish.select(i)
+        self.assertEqual(glance_print.read(pub, full_section(pub))["per_line"], 4)
+
+    def test_the_right_half_keeps_beside_0_for_the_page(self):
+        pub = self.pub()
+        self.assertEqual([s["beside"] for s in pub["sections"][:2]], [1, 0])
+
+
+class WordLinesAsHandedToTheTable(unittest.TestCase):
+    """table() zips each row to its column count, so the printed file hides a line cut too wide or padded too long: read the rows the glance section hands it."""
+
+    def handed(self, n, **kw):
+        seen = []
+        real = docx_build.table
+
+        def spy(ctx, headers, weights, rows, borders=True):
+            seen.append((weights, rows))
+            return real(ctx, headers, weights, rows, borders)
+
+        docx_build.table = spy
+        try:
+            docx_build.build(select(n, **kw))
+        finally:
+            docx_build.table = real
+        weights, rows = next((w, r) for w, r in seen if r and any("ZQ-T0" in c[0] for c in r[0]))
+        return weights, rows
+
+    def check(self, n, per, **kw):
+        weights, rows = self.handed(n, **kw)
+        self.assertEqual(weights, [1] * per)
+        self.assertEqual([len(r) for r in rows], [per] * len(rows))
+        texts = [re.findall(r"ZQ-T\d+", c[0]) for r in rows for c in r]
+        self.assertEqual([t[0] for t in texts if t], [f"ZQ-T{i}" for i in range(n)])
+        self.assertEqual(sum(1 for t in texts if not t), len(texts) - n)
+
+    def test_per_2_short_last_line(self):
+        self.check(5, 2, beside=1)
+
+    def test_per_3_short_last_line(self):
+        self.check(10, 3, per_row=3)
+
+    def test_per_3_two_short(self):
+        self.check(11, 3, per_row=3)
+
+    def test_per_4_short_last_line(self):
+        self.check(10, 4, per_row=4)
+
+
+class RightHalfReader(unittest.TestCase):
+    def test_a_last_section_flagged_beside_has_no_right_half(self):
+        pub = {"sections": [{"id": "a", "beside": 0}, {"id": "b", "beside": 1}]}
+        self.assertFalse(glance_print._right_half(pub, {"id": "b"}))
+
+    def test_a_section_without_an_id_is_never_the_right_half(self):
+        pub = {"sections": [{"id": "a", "beside": 1}, {"beside": 0}]}
+        self.assertFalse(glance_print._right_half(pub, {"beside": 0}))
+
+    def test_the_walk_skips_the_right_half_of_a_pair(self):
+        pub = {"sections": [{"id": "a", "beside": 1}, {"id": "b", "beside": 1}, {"id": "c", "beside": 0}]}
+        self.assertTrue(glance_print._right_half(pub, {"id": "b"}))
+        self.assertFalse(glance_print._right_half(pub, {"id": "c"}))
+
+    def test_only_beside_1_opens_a_pair(self):
+        pub = {"sections": [{"id": "a", "beside": 2}, {"id": "b", "beside": 0}]}
+        self.assertFalse(glance_print._right_half(pub, {"id": "b"}))
+
+    def test_a_row_that_is_not_a_section_is_skipped(self):
+        pub = {"sections": ["x", {"id": "a", "beside": 1}, {"id": "b", "beside": 0}]}
+        self.assertTrue(glance_print._right_half(pub, {"id": "b"}))
+
+    def test_no_published_page_is_no_right_half(self):
+        self.assertFalse(glance_print._right_half(None, {"id": "b"}))
+
+
 if __name__ == "__main__":
     unittest.main()

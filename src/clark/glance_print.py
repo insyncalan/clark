@@ -27,10 +27,24 @@ def _health(published):
             "colour": (t.get("pill") or {}).get("colour") or None}
 
 
-def per_line(sec, c):
-    """Tiles on a line as the View draws them: 2 at half width (the published section's `beside` is 1: the page's slot-left or slot-right),
-    else the body's per_row when it is 3 or 4, else 4 (the default is not stored)."""
-    if sec.get("beside") in (1, True):
+def _right_half(published, sec):
+    """True when `sec` is the second of a side-by-side pair: only the first carries `beside` 1, so the page's own walk (placement.js) is read again:
+    a section with `beside` 1 and one after it opens a row of two, and the one after it is the right half."""
+    rows = [x for x in (published or {}).get("sections") or [] if isinstance(x, dict)]
+    i = 0
+    while i < len(rows):
+        if rows[i].get("beside") in (1, True) and i + 1 < len(rows):
+            if rows[i + 1].get("id") == sec.get("id") and sec.get("id") is not None:
+                return True
+            i += 1
+        i += 1
+    return False
+
+
+def per_line(sec, c, published=None):
+    """Tiles on a line as the View draws them: 2 at half width (the published section's `beside` is 1, or it is the half after one that is: the page's
+    slot-left or slot-right), else the body's per_row when it is 3 or 4, else 4 (the default is not stored)."""
+    if sec.get("beside") in (1, True) or _right_half(published, sec):
         return PER_LINE_HALF
     n = c.get("per_row")
     return n if type(n) is int and n in (3, 4) else PER_LINE
@@ -70,4 +84,4 @@ def read(published, sec):
         else:
             continue
         tiles.append(t)
-    return {"per_line": per_line(sec, c), "health_row": row, "tiles": tiles}
+    return {"per_line": per_line(sec, c, published), "health_row": row, "tiles": tiles}
