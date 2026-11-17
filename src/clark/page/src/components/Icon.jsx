@@ -55,6 +55,25 @@ const ICONS = {
   sOver: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
   sClosed: '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>',
   archive: '<rect x="3.6" y="4.8" width="16.8" height="4.8" rx="1.2"/><path d="M5.4 9.6v9.6h13.2V9.6M10.2 13.2h3.6"/>',
+  // Row 1272: the Callout's icons (question to shield) and the five shapes a colour draws when it has no word and no icon.
+  question: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.6 2.3c-.7.4-1.1.9-1.1 1.7M12 16.8v.2"/>',
+  warning: '<path d="M12 3.5 22 20H2z"/><path d="M12 10v5M12 17.4v.2"/>',
+  alert: '<path d="M8.5 3h7L21 8.5v7L15.5 21h-7L3 15.5v-7z"/><path d="M12 8v5M12 16v.2"/>',
+  lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3M12 15v2"/>',
+  key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3M14 9l2 2"/>',
+  bulb: '<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>',
+  star: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+  bell: '<path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/>',
+  megaphone: '<path d="M4 10v4h3l9 5V5L7 10zM19.5 9.5a4 4 0 0 1 0 5"/>',
+  people: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.5 3-5.5 6.5-5.5s6.5 2 6.5 5.5M16 4.8a3.5 3.5 0 0 1 0 6.4M18 14.8c2 .6 3.5 2.2 3.5 5.2"/>',
+  money: '<circle cx="12" cy="12" r="9"/><path d="M14.5 9.2c-.4-.8-1.4-1.2-2.5-1.2-1.4 0-2.5.7-2.5 1.8 0 2.4 5 1.2 5 3.6 0 1.1-1.1 1.8-2.5 1.8-1.1 0-2.1-.4-2.5-1.2M12 6.5V8M12 16v1.5"/>',
+  chart: '<path d="M4 4v16h16M8 15l3-4 3 2 5-6"/>',
+  shield: '<path d="M12 3l8 3v6c0 4.5-3.2 7.8-8 9-4.8-1.2-8-4.5-8-9V6z"/><path d="m9 12 2.2 2.2L15 10"/>',
+  shViolet: '<circle cx="12" cy="12" r="8"/>',
+  shAmber: '<path d="M12 3 21 12 12 21 3 12z"/>',
+  shRed: '<path d="M12 3.5 22 20H2z"/><path d="M12 10v5M12 17.4v.2"/>',
+  shGreen: '<rect x="4.5" y="4.5" width="15" height="15" rx="1.5"/>',
+  shGrey: '<path d="M12 3 20 7.5v9L12 21 4 16.5v-9z"/>',
 };
 const SHAPES = new Set(["path", "circle", "rect", "line", "polyline", "polygon", "ellipse"]);
 const PARSED = {};

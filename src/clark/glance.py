@@ -29,7 +29,7 @@ What the rules are
   exclude, whatever its capitals) or belongs to a hidden section is in no client number. There is no second filter in this
   module; a client can never read a count the page cannot explain, nor learn that a Sensitive item exists. Hidden tiles are
   absent (not dimmed), and the output is built from a whitelist of fields, so no other field of a row can reach it.
-- A tile whose section is hidden in the published page is left out of the client version: Overdue actions when the Actions
+- A tile whose section is hidden in the published page is left out of the client version, unless a Work items list reaches rows it counts (row 1268; then it counts those rows alone): Overdue actions when the Actions
   section is hidden, High risks and issues when Risks and issues is, Decisions needed when Decisions is. (A summary of a
   section the reader cannot see would be a count they cannot check.) Project health has no section and always stays.
 
@@ -72,6 +72,7 @@ TILE_TITLES = {"health": "Project health", "overdue": "Overdue actions", "risks"
                "decisions": "Decisions needed"}
 DEFAULT_HIDDEN = frozenset({"decisions"})
 SECTION_OF_TILE = {"overdue": "actions", "risks": "raid", "decisions": "decisions"}   # the published section a tile summarises
+KINDS_OF_TILE = {"overdue": ("action",), "risks": ("risk", "issue", "assumption", "dependency"), "decisions": ("decision",)}   # row 1268: the rows a tile counts
 OUTLINE_COLOUR = {"R": "red", "A": "amber", "G": "green", "N": None}  # glance_tiles.outline; "" is automatic
 USE_CASE_STATUSES = ("On track", "Flag", "High risk", "Done")         # (use_cases.status, schema.sql)
 USE_CASE_COLOUR = {"On track": "green", "Flag": "amber", "High risk": "red", "Done": "grey"}
@@ -367,6 +368,15 @@ def _decisions_tile(rows):
             "oldest": oldest, "oldest_shown": show_date(oldest) if oldest else "", "auto_colour": "amber" if pending else "green"}
 
 
+def _section_gone(name, kept):
+    """True when the tile's built-in section is left off the page AND no Work items list reaches a row it counts. Row 1268: a
+    hidden section carries only the rows a list names (publish.select), so `kept["rows"]` holds just those, and the tile counts them
+    and no other row."""
+    if SECTION_OF_TILE.get(name) not in kept["hidden_types"]:
+        return False
+    return not any(r["kind"] in KINDS_OF_TILE.get(name, ()) for r in kept["rows"])
+
+
 def tiles(rows_by_table, today, tile_order=None, hidden=None, outlines=None, for_client=False, kept=None):
     """The At a glance tiles, in order. `rows_by_table` is `data_for`'s output (project, actions, raid, decisions), plus
     `glance_tiles` and `report_hidden` rows when the page has them. `tile_order`, `hidden` (tile names) and `outlines`
@@ -393,7 +403,7 @@ def tiles(rows_by_table, today, tile_order=None, hidden=None, outlines=None, for
             "risks": lambda: _risks_tile(rows), "decisions": lambda: _decisions_tile(rows)}
     out = []
     for name in order:
-        if for_client and (name in off or SECTION_OF_TILE.get(name) in kept["hidden_types"]):
+        if for_client and (name in off or _section_gone(name, kept)):
             continue
         t = made[name]()
         outline = choice.get(name) or ""
