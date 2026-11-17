@@ -8,6 +8,7 @@
 // dashboard, Committed, At risk) over one rule, Group by and the + at the row's end, the filter line under it (the Work items box over this
 // page's own fields, edit/UseCasesFilter.jsx), the sort in a menu beside Group by (item 1149: the rows are the dashboard summary's, no column names). The tab, the line, the group and the sort are remembered for
 // each project in this browser (logic/useCasesList.js), never in the address, so they add no Back entry.
+import { StepsBadge } from "../components/StepsBadge.jsx";
 import { signal, computed } from "@preact/signals";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { data, rows as allRows, project, uc, openUseCase, leaveUseCase } from "../stores/report.js";
@@ -16,7 +17,7 @@ import { blink } from "../stores/motion.js";
 import { RecordContextMenu } from "./RecordContextMenu.jsx";
 import { readArchivedUseCase, getArchived } from "../api.js";
 import { cameBackFrom } from "../stores/useCaseFocus.js";
-import { listOf, ucFor, tidy, recalled, keep, narrowed, countWords, rowSay, groupsOf, groupLabel, refBox, stepsWord, ON_WORDS, OFF_WORDS, SORTS, GROUPS, RAG } from "../logic/useCasesList.js";
+import { listOf, ucFor, tidy, recalled, keep, narrowed, countWords, rowSay, groupsOf, groupLabel, refBox, ON_WORDS, OFF_WORDS, SORTS, GROUPS, RAG } from "../logic/useCasesList.js";
 import { commitWords } from "../logic/commitment.js";
 import { UseCaseDetail } from "../components/UseCaseDetail.jsx";
 import { UCEDIT, openAdd } from "./UseCasesEdit.jsx";
@@ -70,7 +71,7 @@ function Row({ r, stop, shown }) {
       <button type="button" class="ucl-go uctitle" tabIndex={stop ? 0 : -1} aria-label={rowSay(r)} title={`Open ${r.name}`} onFocus={() => { current.value = r.id; }} onClick={open}>{r.name}</button>
       <span class="ucl-head uchead" title={r.headline}>{r.headline || "No headline yet"}</span>
       <span class="ucl-st ucstc"><span class={`pill ${RAG[r.status] || "n"}`} data-status>{r.status}</span><CommitChip u={r} /></span>
-      <span class="ucl-steps ucsteps num" data-steps>{stepsWord(r.open)}</span>
+      <span class={`ucl-steps ucsteps num${r.open ? " some" : ""}`} data-steps><StepsBadge n={r.open} /></span>
       <button type="button" class="ucl-eye" tabIndex={-1} data-eye title={eyeWords} aria-label={`${r.ref || "Use case"} ${r.name}: ${eyeWords}. ${r.on ? "Take it off the dashboard" : "Put it on the dashboard"}`}
         onFocus={() => { current.value = r.id; }} onClick={(e) => { blink(e); setEye(r, shown); }}><Icon name={r.on ? "eye" : "eyeoff"} /></button>
     </li>

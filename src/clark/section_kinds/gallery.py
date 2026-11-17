@@ -301,7 +301,14 @@ def published(value, ctx):
     if value.get("v") != 2:
         shown = [{"image": pics[s], "caption": (items.get(s) or {}).get("caption", ""), "alt": (items.get(s) or {}).get("alt", "")}
                  for s in SLOTS if pics.get(s)]
-        return {"content": {"pictures": shown}} if shown else None
+        if not shown:
+            return None
+        content = {"pictures": shown}
+        if value.get("columns") in COLS:          # a version 1 body that says how many across and one shape passes them on (the page draws them)
+            content["columns"] = value["columns"]
+        if value.get("shape") in SHAPES:
+            content["shape"] = value["shape"]
+        return {"content": content}
     shape = value.get("shape", "whole")
     shown = []
     try:
@@ -324,4 +331,4 @@ def published(value, ctx):
         return None
     if not shown:
         return None
-    return {"content": {"pictures": shown, "cols": value.get("cols", 3), "shape": shape}}
+    return {"content": {"pictures": shown, "columns": value.get("cols", 3), "shape": shape}}

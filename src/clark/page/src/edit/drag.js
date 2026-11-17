@@ -14,6 +14,7 @@ import { dragTarget, freezeRects, settle, settleStart, restLeft, REST_MS } from 
 import { placeAt } from "./actions.js";
 import { say } from "../stores/changes.js";
 import { edgeStep } from "../logic/edgeScroll.js";
+import { dragWords } from "../logic/dragWords.js";
 
 const THRESHOLD = 4;                           // px the pointer must travel before it is a drag and not a click
 const HOLD_MS = 400;                           // a finger must rest this long on the grip before the drag starts; a quick swipe scrolls the page
@@ -28,6 +29,19 @@ function rects() {
     out[el.dataset.id] = { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
   }
   return out;
+}
+
+let live = null;                                 // the live region that says what a drop did: made once and kept, so a screen reader hears the change in it
+function announce(text) {
+  if (!live || live.isConnected === false) {
+    live = document.createElement("div");
+    live.className = "sr-only";
+    live.setAttribute("role", "status");
+    live.setAttribute("data-drag-say", "");
+    live.setAttribute("aria-live", "polite");
+    document.body.appendChild(live);
+  }
+  live.textContent = text;
 }
 
 let active = false;                              // one drag at a time: a second finger or pen has no drag of its own, the signals are shared
@@ -48,7 +62,7 @@ export function startDrag(e, handle, id, count) {
   if (!armed) holdTimer = setTimeout(() => { holdTimer = 0; armed = true; }, HOLD_MS);
   const sections = () => ((data.value && data.value.report_sections) || []).filter((s) => s.type !== "needs");      // item 1174: as the Dashboard draws them
   const clear = () => { if (timer) { clearTimeout(timer); timer = 0; } };
-  let ghost = null, was = null;                  // the title that follows the pointer, and the outline at the old place: drawn over the page, never hit by it
+  let ghost = null, was = null, line = null;                  // the title that follows the pointer, and the outline at the old place: drawn over the page, never hit by it
   const follow = (m) => { if (ghost) ghost.style.transform = `translate(${m.clientX + 12}px, ${m.clientY + 12}px)`; };
   const draw = () => {
     const mine = sections().find((s) => s.id === id), r = start[id];
@@ -64,11 +78,19 @@ export function startDrag(e, handle, id, count) {
       Object.assign(was.style, { left: `${r.left + scrollX}px`, top: `${r.top + scrollY}px`, width: `${r.right - r.left}px`, height: `${r.bottom - r.top}px` });
       document.body.appendChild(was);
     }
+    line = document.createElement("div");        // the status line under the page: what a release would do, in words
+    line.className = "sec-drag-line";
+    line.setAttribute("aria-hidden", "true");
+    line.setAttribute("data-drag-line", "");
+    document.body.appendChild(line);
+    say_(null);
     dragFrom.value = id;
     unwatch = dragFrom.subscribe((v) => { if (v === undefined && !cancelled && dragging && active) abort(); });      // the store lets go of the drag (leave): so does the drag
   };
-  const wipe = () => { if (ghost) { ghost.remove(); ghost = null; } if (was) { was.remove(); was = null; } dragFrom.value = undefined; };
+  const wipe = () => { if (line) { line.remove(); line = null; } if (ghost) { ghost.remove(); ghost = null; } if (was) { was.remove(); was = null; } dragFrom.value = undefined; };
+  const say_ = (t) => { if (line) line.textContent = dragWords(sections(), id, t).line; };      // from the target the slot uses
   const show = (t) => {
+    say_(t);
     const here = (t && indicator(sections(), id, t)) || undefined;
     const p = t && place(sections(), id, t);
     noteRects();                                 // so the sections that make room glide
@@ -133,6 +155,7 @@ export function startDrag(e, handle, id, count) {
     document.removeEventListener("pointerup", end);
     document.removeEventListener("pointercancel", end);
     handle.removeEventListener("lostpointercapture", lost);
+    document.removeEventListener("lostpointercapture", lost);
     window.removeEventListener("blur", abort);
     if (unwatch) { unwatch(); unwatch = null; }
     active = false;
@@ -159,11 +182,17 @@ export function startDrag(e, handle, id, count) {
       const failed = () => say("problem", CHANGE_FAILED);     // the page's own sentence for a change that could not be saved, said in the toast the other changes use
       try {
         const done = placeAt(id, target, "report", "handle");      // the others stay where the preview put them until the move is stored, so nothing jumps back and forth
-        Promise.resolve(done).catch(failed).finally(clearList);
+        const said = dragWords(sections(), id, target).said;       // worked out before the store answers: the list is the one the drop was made from
+        Promise.resolve(done).then((r) => { if (r !== null) announce(said); }, failed).finally(clearList);
       } catch (err) { failed(); clearList(); }       // placeAt threw before it started: the preview must not stay
-    } else { noteRects(); dragList.value = undefined; }     // nothing to place (dropped where it already is, Esc, click, pointercancel, no target): placement says nothing
+    } else {
+      noteRects();
+      dragList.value = undefined;
+      if (dragging && !cancelled && u.type === "pointerup") announce(dragWords(sections(), id, null).said);      // let go over its own place: nothing moves, and the person is told so
+    }     // nothing to place (dropped where it already is, Esc, click, pointercancel, no target): placement says nothing
   };
   handle.addEventListener("lostpointercapture", lost);
+  document.addEventListener("lostpointercapture", lost);     // a captured grip that leaves the page loses the capture on the document, not on itself
   window.addEventListener("blur", abort);      // the window lost focus (alt-tab) mid-drag: the release may never reach the page, so the drag ends here and drops nothing
   document.addEventListener("keydown", cancel, true);      // capture: before the handle's own key handler sees it
   document.addEventListener("pointermove", move);      // on the document, not the grip: the preview draws the section as a slot and the grip in it is hidden, so the grip no longer gets the pointer

@@ -63,6 +63,20 @@ class Shape(unittest.TestCase):
                     gallery.check(bad, None)
                 self.assertEqual(str(e.exception), words)
 
+    def test_a_version_the_section_does_not_know_is_refused_by_the_version_check_itself(self):
+        # check() would also refuse these through the version 1 frame, so the version check is tested on its own (the mutant that adds 3 to its list)
+        for bad in (3, 0, 4, 99):
+            with self.subTest(v=bad):
+                with self.assertRaises(Bad) as e:
+                    gallery._version({"v": bad})
+                self.assertEqual(str(e.exception), OLD_VERSION)
+        self.assertEqual((gallery._version({}), gallery._version({"v": 1}), gallery._version({"v": 2})), (1, 1, 2))
+        for bad in ({"v": "2"}, {"v": 2.0}, [], None):
+            with self.subTest(bad=bad):
+                with self.assertRaises(Bad) as e:
+                    gallery._version(bad)
+                self.assertEqual(str(e.exception), NOT_CONTENT)
+
     def test_the_words_are_plain_text_of_a_limited_length(self):
         for bad in ({"v": 2, "items": {"1": {"caption": "x" * 301}}}, {"v": 2, "items": {"1": {"caption": 5}}}):
             with self.assertRaises(Bad):
@@ -180,7 +194,7 @@ class Framing(unittest.TestCase):
         body["items"] = {"1": {"crop": [500, 0, 1000, 1000], "caption": "Fictional"}}
         body = gallery.check(body, None)
         out = gallery.published(body, None)
-        self.assertEqual(out, {"content": {"pictures": [{"image": body["pictures"]["1"], "caption": "Fictional", "alt": ""}], "cols": 3, "shape": "whole"}})
+        self.assertEqual(out, {"content": {"pictures": [{"image": body["pictures"]["1"], "caption": "Fictional", "alt": ""}], "columns": 3, "shape": "whole"}})
         w, h, rows = decode(out["content"]["pictures"][0]["image"])
         self.assertEqual((w, {px for row in rows for px in row}), (20, {BLUE}))
         self.assertNotIn(body["pictures"]["o1"], repr(out))
@@ -255,8 +269,8 @@ class Columns(unittest.TestCase):
     def test_columns_and_shape_are_published_for_the_page_to_draw(self):
         body = gallery.check({**six("square"), "cols": 2}, None)
         content = gallery.published(body, None)["content"]
-        self.assertEqual((content["cols"], content["shape"], len(content["pictures"])), (2, "square", 6))
-        self.assertEqual(gallery.published(six(), None)["content"]["cols"], 3)
+        self.assertEqual((content["columns"], content["shape"], len(content["pictures"])), (2, "square", 6))
+        self.assertEqual(gallery.published(six(), None)["content"]["columns"], 3)
 
 
 class Version1Stays(unittest.TestCase):

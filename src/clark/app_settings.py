@@ -1,6 +1,9 @@
 """The setting that lives in the database for asking (#47): the logic of /api/ask-enabled. Unguarded; server.py only routes to it,
 and the store (store.py) is the only writer.
 
+Row 1269 adds the install's Theme to the same row: GET /api/theme answers {ok, theme, saved} and POST /api/theme takes {"theme": "classic" | "cards"}
+or {"undo": apply_id}, with the same refusals and the same one-step-one-Undo as the ask switch. An Undo is accepted only for a step
+that changed the Theme, and the ask switch's only for one that changed the switch.
 GET /api/ask-enabled answers {ok, ask_enabled, saved}. POST /api/ask-enabled takes {"enabled": true | false} or {"undo": apply_id}.
 The switch belongs to this computer, not to a project: nothing is sent to Claude while it is off, wherever clark is opened, because
 the ask route itself reads store.ask_enabled() before anything is sent (ask_service.py). `saved` is false for a data file that
@@ -14,9 +17,11 @@ import threading
 from pathlib import Path
 
 from clark import platform
-from clark.store import Invalid, open_store
+from clark.store import THEMES, Invalid, open_store
 
-SETTINGS_FIELDS = ("ask_enabled", "updated_at")
+SETTINGS_FIELDS = ("ask_enabled", "updated_at", "theme")
+ASK_FIELDS = ("ask_enabled", "updated_at")
+THEME_FIELDS = ("theme", "updated_at")
 
 MESSAGES = {
     "bad_request": "That request could not be read. Nothing was changed.",
@@ -27,6 +32,7 @@ MESSAGES = {
     "busy": "The saved data could not be opened just now. Wait a moment and try again.",
     "asking_on": "Asking is on.",
     "asking_off": "Asking is off. Nothing is sent.",
+    "bad_theme": "That Theme is not one clark has. Nothing was changed.",
     "same": "That is the setting already in use.",
     "undone": "Undone.",
 }
@@ -117,7 +123,7 @@ class AppSettings:
                 if not store.settings_ready():
                     return 409, self.fail("not_ready")
                 if asked is not None:
-                    if self.undo(store, asked, "app_settings", "1", SETTINGS_FIELDS) is None:
+                    if self.undo(store, asked, "app_settings", "1", ASK_FIELDS) is None:
                         return 409, self.fail("no_undo")
                     return self.answer_ask(store, MESSAGES["undone"])
                 if store.ask_enabled() == enabled:
@@ -126,5 +132,59 @@ class AppSettings:
                 if step is False:
                     return 409, self.fail("cant_save")
                 return self.answer_ask(store, MESSAGES["asking_on" if enabled else "asking_off"], step)
+            finally:
+                store.close()
+
+    # ----- the Theme (row 1269) -----
+    def answer_theme(self, store, message=None, apply_id=None):
+        body = {"ok": True, "theme": store.theme(), "saved": store.settings_ready()}
+        if message:
+            body["message"] = message
+        if apply_id:
+            body["apply_id"] = apply_id
+        return 200, body
+
+    def read_theme(self, _project=""):
+        with self.lock:
+            try:
+                store = self.store()
+            except Invalid:
+                return 409, self.fail("busy", MESSAGES["busy"])
+            try:
+                return self.answer_theme(store)
+            finally:
+                store.close()
+
+    def change_theme(self, body):
+        if not isinstance(body, dict):
+            return 400, self.fail("bad_request")
+        if set(body) == {"undo"}:
+            asked, theme = body["undo"], None
+            if not self.valid_step(asked):
+                return 400, self.fail("no_undo")
+        elif set(body) == {"theme"}:
+            asked, theme = None, body["theme"]
+            if type(theme) is not str or theme not in THEMES:
+                return 400, self.fail("bad_theme")
+        else:
+            return 400, self.fail("bad_request")
+        with self.lock:
+            try:
+                store = self.store()
+            except Invalid:
+                return 409, self.fail("busy", MESSAGES["busy"])
+            try:
+                if not store.settings_ready():
+                    return 409, self.fail("not_ready")
+                if asked is not None:
+                    if self.undo(store, asked, "app_settings", "1", THEME_FIELDS) is None:
+                        return 409, self.fail("no_undo")
+                    return self.answer_theme(store, MESSAGES["undone"])
+                if store.theme() == theme:
+                    return self.answer_theme(store, MESSAGES["same"])
+                step = self.save(store, lambda st: st.update("app_settings", "1", {"theme": theme}))
+                if step is False:
+                    return 409, self.fail("cant_save")
+                return self.answer_theme(store, None, step)
             finally:
                 store.close()
