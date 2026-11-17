@@ -347,8 +347,15 @@ class GroupBy(Base):
             self.board(cdp, sid, "status")
             self.assertEqual(cdp.js("(() => { const r = document.querySelector('.toasts'); return r ? [r.getAttribute('role'), r.getAttribute('aria-live')] : null; })()", sid), ["status", "polite"],
                              "the region is there before any message, so a screen reader hears the first one")
-            self.drag(cdp, sid, self.id_of("Supplier slips"), self.cell("Delayed"))
-            self.wait_toast(cdp, sid, "note")
+            # A press right after the reload and blur can be lost while the board still lays out (2 of 6 alone runs failed, no toast ever made).
+            # A refused drop changes no state, so the drag is repeated, up to 3 times, each with an 8 s wait for the toast.
+            card, cell = self.id_of("Supplier slips"), self.cell("Delayed")
+            for _ in range(3):
+                self.drag(cdp, sid, card, cell)
+                if wait(lambda: cdp.js("!!document.querySelector('.toast[data-kind=note]')", sid), 8):
+                    break
+            self.until(cdp, sid, "document.querySelector('.toast[data-kind=note]')", "a toast", secs=1,
+                       why=lambda: cdp.js("(document.querySelector('.toasts') || {outerHTML: 'no .toasts'}).outerHTML + ' | body.className=' + document.body.className", sid))
             self.assertTrue(cdp.js("!!document.querySelector('.toasts[aria-live=polite] > .toast[data-kind=note]')", sid), "the refusal is inside the live region")
             self.assertEqual(cdp.js("document.querySelectorAll('.toasts').length", sid), 1)
 
