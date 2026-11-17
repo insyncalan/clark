@@ -295,9 +295,11 @@ class Published(unittest.TestCase):                                             
     def test_t14_a_body_that_is_not_there_publishes_nothing(self):
         for empty in ("", None, [], 0):
             self.assertIsNone(gt.published(empty, None))
-        self.assertIsNone(gt.published({"v": 1}, None))      # slice 1: no own tile to draw
-        self.assertIsNone(gt.published(check({"v": 1, "bespoke": [tile(hidden=True)]}), None))
-        self.assertEqual(gt.EMPTY, "")
+        self.assertIsNone(gt.published({"v": 1, "health": {"shown": False}}, None))      # no own tile, no count, health eye off: nothing to draw
+        self.assertEqual(gt.published({"v": 1}, None)["content"]["health"], {"shown": True, "own_row": False})      # an existing body (no health field) shows health
+        self.assertIsNone(gt.published(check({"v": 1, "health": {"shown": False}, "bespoke": [tile(hidden=True)]}), None))
+        self.assertEqual(gt.EMPTY, "")      # fresh stays left out (row 1251); the Edit writes the eye off on the first change (see test_tpl_glance_body_node_1264)
+        self.assertTrue(gt.upgrade({"v": 1})["health"]["shown"])      # no health field (an existing page): shown
 
     def test_t14b_nothing_of_a_bad_stored_body_reaches_the_file(self):
         out = gt.published({"v": 1, "bespoke": [{"id": "t1", "label": "ok", "x": "leak-word"}, 3], "z": "leak-word"}, None)
