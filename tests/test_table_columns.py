@@ -204,7 +204,7 @@ class Columns(unittest.TestCase):
         """Row 1230: the Dashboard section is its own table ("msDash"); its columns choice and widths do not write the Milestones page's keys."""
         keys = "JSON.stringify(Object.keys(localStorage).filter((k) => k.startsWith('clark.cols')).sort())"
         with chrome() as cdp:
-            sid = self.visit(cdp, 1400, "light", "#dashboard&p=TUL")
+            sid = self.visit(cdp, 1400, "light", "#dashboard&p=TUL", SETTLE)
             js = lambda e: cdp.js(e, sid)  # noqa: E731
             box = ".msv .msl-box"
             self.assertTrue(wait(lambda: js(f"!!document.querySelector('{box} .msl-row')"), 20), "the Dashboard milestones drew their rows")
@@ -212,6 +212,9 @@ class Columns(unittest.TestCase):
             head = f"{box} .msl-hd [data-col='state']"
             self.assertTrue(wait(lambda: js(f"!!document.querySelector({json.dumps(head)})"), 10), "Edit draws the heading row")
             js(f"document.querySelector({json.dumps(head)}).scrollIntoView({{block: 'center'}})")
+            # The menu closes on any scroll of the window, and on a slower computer (macOS CI) the page is still scrolling and the fonts still moving the layout
+            # when the heading is first found; so the right-click comes only once the page has been quiet for a while, and its place is measured then.
+            self.assertTrue(wait(lambda: js(f"document.fonts.status === 'loaded' && performance.now() - window.__lastScroll > {QUIET_MS}"), 20), "the page has settled")
             self.right_click(cdp, sid, head)
             self.assertTrue(wait(lambda: self.menu(js), 5))
             self.pick(js, "Workstream")
