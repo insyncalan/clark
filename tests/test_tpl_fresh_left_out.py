@@ -56,6 +56,7 @@ class FreshLeftOut(Base):
             "contacts": {"v": 1, "people": [{"name": "Sam Example", "role": "Fictional lead", "email": "sam@example.org", "phone": "+44 20 7946 0000"}]},
             "checklist": {"v": 1, "items": [{"item": self.act}, {"text": "Fictional typed line", "done": 1}]},
             "keydates": {"v": 1, "items": [{"milestone": self.ms}, {"label": "Fictional typed date", "date": "2031-02-01"}]},
+            "reportheadline": {"v": 1, "health": "on_track", "headline": "Fictional pilot is on track.", "sentence": "Fictional sentence."},
             "onedoc": {"v": 1, "file": {"name": "Signed SOW.pdf", "rel": "Report files/Signed SOW.pdf", "bytes": 2048}, "label": "The signed SOW",
                        "text": ["Signed on 12-01-2030."]},
         }

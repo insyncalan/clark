@@ -59,7 +59,8 @@ NOT_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ud800-\udfff￾￿]")
 
 TITLES = {"current": "Current state", "glance": "At a glance", "usecases": "Use cases", "milestones": "Milestones",
           "text": "Notes", "raid": "Risks and issues", "actions": "Actions", "decisions": "Decisions", "gantt": "Gantt",
-          "imagecap": "Image", "workitems": "Work items"}                            # row 1223: only a Full width image (body version 2) is written, and it has no heading; an Image with caption (version 1) is left out, as it was
+          "imagecap": "Image", "workitems": "Work items", "reportheadline": "Report headline"}                            # row 1223: only a Full width image (body version 2) is written, and it has no heading; an Image with caption (version 1) is left out, as it was
+HEALTH_PILL = {"on_track": ("On track", "green"), "at_risk": ("At risk", "amber"), "off_track": ("Off track", "red")}   # row 1261: the pill's words and tone
 HIDDEN_BY_KIND = ("actions", "raid", "decisions")
 HEADING_STYLE = {"h1": "Heading2", "h2": "Heading3", "h3": "Heading4"}
 MAX_LEVELS = 4                                           # list levels written
@@ -703,8 +704,30 @@ def section_workitems(published, ctx, title, sec):
     return _heading(title) + caption + table(ctx, ["Item" if c == "item" else WORK_COLUMNS[c][0] for c in order], weights, rows)
 
 
+def section_reportheadline(published, ctx, title, sec):
+    """Row 1261: the Report headline as the page draws it, one flat block with no heading: a rule, the health pill (the word, shaded in
+    the health's colour; none when health is not set), the headline in bold, the supporting sentence in grey, a rule. A content with
+    none of the three is left out. The words are the published content's own; none are added."""
+    c = sec.get("content") if isinstance(sec.get("content"), dict) else {}
+    health, headline, sentence = (c[k].strip() if isinstance(c.get(k), str) else "" for k in ("health", "headline", "sentence"))
+    if not (health or headline or sentence):
+        return ""
+    out = [para(rule=True, spacing=(120, 0))]
+    if health in HEALTH_PILL:
+        word, colour = HEALTH_PILL[health]
+        fill, text = ctx.hexes(colour)
+        out.append(para(run(word, bold=True, color=text), fill=fill, keep_next=bool(headline or sentence), spacing=(120, 60)))
+    if headline:
+        out.append(para(run(headline, bold=True, size=28), keep_next=bool(sentence), spacing=(60, 60)))
+    if sentence:
+        out.append(para(run(sentence, color=ctx.tok["grey-700"]), spacing=(0, 60)))
+    out.append(para(rule=True, spacing=(0, 120)))
+    return "".join(out)
+
+
 SIMPLE = {"workitems": section_workitems, "imagecap": section_imagecap, "current": section_current, "text": section_text, "milestones": section_milestones, "actions": section_actions,
-          "raid": section_raid, "decisions": section_decisions, "gantt": section_gantt}
+          "raid": section_raid, "decisions": section_decisions, "gantt": section_gantt,
+          "reportheadline": section_reportheadline}
 
 
 def title_block(published, ctx):

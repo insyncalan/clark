@@ -1,6 +1,6 @@
 """The section template registry (#96): every template store type and the module that holds its content rules.
 
-Filled with all eighteen types up front, so a builder only ever changes their own template's module, never this file,
+Filled with all nineteen types (row 1261 added the nineteenth, reportheadline), so a builder only ever changes their own template's module, never this file,
 section_bodies.py, store.py or changes.py. The order is the store's (store.SECTION_TYPES); the store type, this registry, the
 page's catalogue (page/src/logic/templates.js) and the page's index (page/src/templates/index.js) name the same eighteen
 types (tests/test_section_registry.py).
@@ -23,6 +23,7 @@ from clark.section_kinds import contacts
 from clark.section_kinds import checklist
 from clark.section_kinds import keydates
 from clark.section_kinds import onedoc
+from clark.section_kinds import reportheadline
 
 REGISTRY = {
     "textimage": textimage,
@@ -43,5 +44,6 @@ REGISTRY = {
     "checklist": checklist,
     "keydates": keydates,
     "onedoc": onedoc,
+    "reportheadline": reportheadline,
 }
 TYPES = tuple(REGISTRY)

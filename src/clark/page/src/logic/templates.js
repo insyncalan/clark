@@ -92,6 +92,7 @@ export const TEMPLATES = [
 // words and its Help row.
 export const LATER = [
   { id: "headline", type: "headline", ready: true },
+  { id: "report-headline", type: "reportheadline", ready: true },     // row 1261 slice 1: View only; Edit and the library card come later
 ];
 
 // The built-in sections (row 906): a deleted one is added again from the box, one of each, with the title and settings it starts
