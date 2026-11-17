@@ -16,7 +16,7 @@ import { GLANCE } from "../GlanceEdit.jsx";
 import { note } from "../notes.js";
 import { readBody, compact, withChange, moved, builtinTiles, PER_ROWS } from "../../templates/glanceBody.js";
 import { Icon } from "../../components/Icon.jsx";
-import { tileActions, OwnControls, OwnTile, PendingCell, AddTile, editor } from "./glanceTileEditor.jsx";
+import { tileActions, OwnControls, OwnTile, PendingCell, AddTile, editor, WORDS as TILE_WORDS } from "./glanceTileEditor.jsx";
 
 // The words of slice 9, quoted from the ruled words files (groups 2, 3, 10, 12, 13; v2 A). Nothing else is new here.
 export const WORDS = {
@@ -88,6 +88,7 @@ export function Edit({ section }) {
         ))}
         <PendingCell tools={own} />
       </div>
+      {list.every((t) => t.key === "health" || t.hidden) ? <p class="tile-empty" data-gt-empty>{`No tiles. Use ${TILE_WORDS.add}.`}</p> : null}
       <div class="tpl-gt-opts" data-gt-opts>
         <span class="tpl-gt-perrow" role="group" aria-label={WORDS.perRow}>{WORDS.perRow}
           {PER_ROWS.map((n) => <button type="button" key={n} class="gt-per" data-gt-per={n} aria-pressed={u.per_row === n ? "true" : "false"} onClick={() => act.perRow(n)}>{n}</button>)}
@@ -98,8 +99,7 @@ export function Edit({ section }) {
         <span class="tpl-gt-halfnote" data-gt-halfnote>{WORDS.halfNote}</span>
       </div>
       <AddTile tools={own} count={u.bespoke.length} />
-      <GLANCE.Hint />
-      <p class="glance-hint" data-gt-hint>{WORDS.hintEye} {WORDS.hintAdd}</p>
+      <GLANCE.Hint more={`${WORDS.hintEye} ${WORDS.hintAdd}`} />
     </div>
   );
 }

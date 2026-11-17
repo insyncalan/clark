@@ -112,7 +112,7 @@ def upgrade(value):
     for name in SETTLED:
         s = b.get(name) if type(b.get(name)) is dict else {}
         builtin[name] = {"hidden": _flag(s.get("hidden"), False), "outline": s["outline"] if s.get("outline") in OUTLINES else ""}
-    per_row = v.get("per_row") if type(v.get("per_row")) is int and v.get("per_row") in PER_ROW else PER_ROW_DEFAULT
+    per_row = int(v.get("per_row")) if type(v.get("per_row")) in (int, float) and v.get("per_row") in PER_ROW else PER_ROW_DEFAULT      # a whole float (3.0) reads as the page reads it: 3
     return {"v": 1, "health": {"shown": _flag(h.get("shown"), True), "own_row": _flag(h.get("own_row"), False)}, "per_row": per_row,
             "order": _complete(v.get("order"), bespoke), "builtin": builtin, "bespoke": bespoke}
 

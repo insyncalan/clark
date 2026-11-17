@@ -21,6 +21,8 @@ class RemoveDraft(Editor):
                              ["Remove tile", "Cancel", "Done"])
             self.click(p, "[data-tile-editor] [data-remove]")
             p.until(f"!document.querySelector({self.q('[data-tile-editor]')})", "the editor closed")
+            self.assertEqual(p.js("document.body.innerText.includes('Changes to the tile cancelled')"), False, "not the cancel words")
+            self.assertEqual(p.js("document.body.innerText.includes('Removed: New tile')"), True, "the mock-up words: Removed: and the name")
             p.until("document.activeElement.classList.contains('tileadd')", "focus on Add a tile")
             self.assertEqual(self.applies(), before, "nothing was stored")
             self.assertFalse(self.body().get("bespoke"))

@@ -39,8 +39,11 @@ class Rules(unittest.TestCase):
         self.assertEqual(gt.upgrade({"v": 1, "per_row": 3})["per_row"], 3)
         self.assertEqual(gt.upgrade({"v": 1, "per_row": 9})["per_row"], 4, "a wrong value reads as the default")
 
-    def test_upgrade_reads_a_float_per_row_as_the_default(self):
-        self.assertEqual(gt.upgrade({"v": 1, "per_row": 3.0})["per_row"], 4)
+    def test_upgrade_reads_a_whole_float_per_row_as_the_page_does(self):
+        self.assertEqual(gt.upgrade({"v": 1, "per_row": 3.0})["per_row"], 3)
+        self.assertEqual(gt.upgrade({"v": 1, "per_row": 4.0})["per_row"], 4)
+        self.assertIs(type(gt.upgrade({"v": 1, "per_row": 3.0})["per_row"]), int, "a number, not the float it was read as")
+        self.assertEqual(gt.upgrade({"v": 1, "per_row": 3.5})["per_row"], 4)
         self.assertIs(type(gt.upgrade({"v": 1, "per_row": 3})["per_row"]), int)
 
     def test_per_row_wrong_values_are_refused_with_the_ruled_words_and_never_quote_the_value(self):
