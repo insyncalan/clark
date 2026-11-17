@@ -93,6 +93,16 @@ export function pillOf(row, today) {
   return { text: "Open", class: "b" };
 }
 
+// #1195 S5: the Status cell's half-circle icon and word. The word is the closed or finished status itself (a Completed action past its
+// date still reads Completed), else the pill's word. The colour: red open action past its date, amber due within 7 days or Delayed,
+// green Completed or Made, grey Closed, Cancelled or Withdrawn, blue any other open one.
+export function statusMark(row, pill) {
+  const s = row.status;
+  if (s === "Completed" || s === "Made") return { word: s, tone: "g" };
+  if (s === "Closed" || s === "Cancelled" || s === "Withdrawn") return { word: s, tone: "n" };
+  return { word: pill.text, tone: pill.class === "r" || pill.class === "a" ? pill.class : "b" };
+}
+
 export function ownerOf(name) {
   const text = String(name == null ? "" : name).trim().split(/\s+/).filter(Boolean).join(" ");
   if (!text) return { text: DASH, initials: "" };

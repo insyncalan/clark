@@ -14,7 +14,7 @@ from test_server import chrome  # noqa: E402
 ROWS = r"""[...document.querySelectorAll('#work tbody tr[data-id]')].map(r => {
   const td = r.firstElementChild, ico = td && td.querySelector('.ico');
   return {id: r.dataset.id, cls: td && td.className, pills: r.querySelectorAll('.pill').length, text: td ? td.textContent.trim() : '',
-          has: !!ico, tip: (ico && ico.closest('[data-tip]') || {dataset: {}}).dataset.tip,
+          has: !!ico, ltr: ico ? ico.textContent.trim() : '', word: !!r.querySelector('.st-word') && r.querySelector('.st-word').textContent.trim().length > 1, half: !!r.querySelector('.st-word svg.sti path'), tip: (ico && ico.closest('[data-tip]') || {dataset: {}}).dataset.tip,
           name: ico && (ico.getAttribute('aria-label') || (ico.closest('button') || {getAttribute: () => ''}).getAttribute('aria-label')),
           tab: ico && (ico.closest('button, [tabindex]') || {tabIndex: 99}).tabIndex,
           letters: r.querySelectorAll('.kb').length, w: ico ? Math.round(ico.getBoundingClientRect().width) : 0};
@@ -38,7 +38,8 @@ class IconOnly(_base.Line):
                         self.assertEqual(r["cls"], "c-status", where)
                         self.assertTrue(r["has"], where)
                         self.assertEqual(r["pills"], 0, f"no coloured pill with words: {where}")
-                        self.assertEqual(len(r["text"]), 1, f"the icon holds its letter and no word: {where} {r['text']!r}")
+                        self.assertEqual(r["text"][0], r["ltr"], f"the icon holds its letter first: {where} {r['text']!r}")  # #1195 S5: the status word follows the icon
+                        self.assertTrue(r["word"] and r["half"], f"the half-circle and the status word follow the icon: {where}")
                         self.assertEqual(r["letters"], 0, f"no second letter badge: {where}")
                         self.assertTrue(r["tip"] and " · " in r["tip"], f"tooltip carries the status: {where}")
                         self.assertTrue(r["name"], where)

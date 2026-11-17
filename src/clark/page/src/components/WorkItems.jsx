@@ -24,7 +24,7 @@ import { itemRows } from "../stores/work.js";
 import { handing, ticks } from "../stores/handover.js";
 import { ItemIcon, iconWords } from "./ItemRows.jsx";                 // row 1145: the dashboard lists' tinted letter icon, alone, is the Status column
 import { clientPill } from "../logic/sectionRows.js";
-import { sortRows, dueCell, ownerOf, metaOf, isOpen, todayIso, showDate, KIND_WORDS } from "../workItems.js";
+import { sortRows, dueCell, statusMark, ownerOf, metaOf, isOpen, todayIso, showDate, KIND_WORDS } from "../workItems.js";
 import { defsOf, standardIds } from "../logic/tableColumns.js";
 import { applyFilters, chips, canClear, countText, clearAll, removeFilter, addPlan } from "../filters.js";
 import { Switches, FilterBar } from "./WorkFilters.jsx";
@@ -98,6 +98,12 @@ function focusRow(tr, id, cell) {
 }
 
 // #970: a row deleted in Edit keeps its place for the fade (a copy with no id and no role, inert, hidden from a screen reader), then leaves the DOM.
+// #1195 S5: the half-circle icon before the status word, coloured as the status pill (workItems.statusMark).
+function StatusWord({ row, pill }) {
+  const m = statusMark(row, pill);
+  return <span class={`st-word ${m.tone}`}><svg class="sti" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" /></svg>{m.word}</span>;
+}
+
 function GhostRow({ row, today, Eye, group, onMotionEnd, cols = STD }) {
   const due = dueCell(row, today), pill = clientPill(row, today), o = ownerOf(row.owner);
   return (
@@ -176,7 +182,7 @@ function Row({ row, today, Cell, Eye, stop, pos, size, group, motion, onMotionEn
           </label> : null}
         </td>
       ) : null}
-      <td class="c-status" data-col="status">{Cell ? <Cell row={row} field="status" said={pill.text} keep tip={iconWords(row, pill, today).tip}><ItemIcon row={row} pill={pill} today={today} plain /></Cell> : <ItemIcon row={row} pill={pill} today={today} />}</td>
+      <td class="c-status" data-col="status">{Cell ? <Cell row={row} field="status" said={pill.text} keep tip={iconWords(row, pill, today).tip}><ItemIcon row={row} pill={pill} today={today} plain /></Cell> : <ItemIcon row={row} pill={pill} today={today} />}<StatusWord row={row} pill={pill} /></td>
       <td class="c-item" data-col="item">
         <div class="tcell">
           <span class="tx">
