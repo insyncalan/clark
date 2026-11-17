@@ -165,6 +165,7 @@ class Pg:
         if release:
             if drops:
                 self.until(self.SHOWN, "the drop target is shown before the release")
+                self.rested()                                   # Row 1277: the last move is more than REST_MS ago, so state.shown is the target under the pointer
             self.mouse("mouseReleased", x, y, 0)
             if drops:
                 self.stored(n0)
