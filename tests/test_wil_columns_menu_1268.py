@@ -32,6 +32,18 @@ class ColumnsMenu(base.InThePage):
             p.until("!!document.querySelector('.cols-menu')", "the menu opened again")
             self.assertEqual(self.checked(p)["Due"], "true", "a column the press added is ticked")
 
+    def test_the_list_scroll_box_contains_vertical_overscroll_only_so_the_swipe_still_works(self):
+        """Row 1268: the Work items list's scroll box (.wil-scroll) keeps the page from scrolling under it (vertical containment) and leaves the
+        horizontal overscroll alone, because Chrome's two-finger swipe for Back and Forward is off under overscroll-behavior-x none or contain."""
+        ref = self.add({"mode": "all", "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.edit()
+            box = f"[data-id=\"{ref}\"] [data-wil-scroll]"
+            p.until(f"!!document.querySelector({json.dumps(box)})", "the scroll box drew")
+            got = p.js(f"(() => {{ const c = getComputedStyle(document.querySelector({json.dumps(box)})); return [c.overscrollBehaviorX, c.overscrollBehaviorY]; }})()")
+            self.assertEqual(got, ["auto", "contain"])
+
     def open_menu(self, p, ref):
         head = f"[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-owner"
         p.until(f"!!document.querySelector({json.dumps(head)})", "the list drew in Edit")

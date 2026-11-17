@@ -347,6 +347,16 @@ class PageSide(unittest.TestCase):
         self.assertEqual(self.val("T.templates.TEMPLATES.length + T.templates.LATER.length"), len(cat))
         self.assertTrue(set(store_module.SECTION_TYPES) >= set(x["type"] for x in cat if x["type"] not in PAGE_FIRST))
 
+
+    def test_the_work_items_catalogue_entry_is_the_one_entry_with_its_saved_filter_as_the_start(self):
+        """Row 1268: the Work items list is in the catalogue once, as "work-items", and its start is the saved filter (a version 1 body, open items, with columns) it begins from."""
+        cat = self.val("T.templates.CATALOGUE")
+        wi = [x for x in cat if x["type"] == "workitems"]
+        self.assertEqual([x["id"] for x in wi], ["work-items"])
+        body = json.loads(wi[0].get("start") or "null")
+        self.assertIsInstance(body, dict, "the entry starts from a saved filter")
+        self.assertEqual((body.get("v"), body.get("mode")), (1, "open"))
+        self.assertTrue(body.get("columns"), "the filter names its columns")
     def test_every_template_view_file_and_edit_file_is_there_and_pre_filled(self):
         for t in section_kinds.TYPES:
             self.assertIn(f'store type "{t}"', "".join(p.read_text(encoding="utf-8") for p in (PAGE_SRC / "templates").glob("*.jsx")))
