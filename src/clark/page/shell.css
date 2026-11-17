@@ -1178,6 +1178,12 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .tb-act:not(.tb-ask) { min-width: 38px; height: 28px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); border-radius: var(--radius); }   /* row 772: the search button is a bordered 38 by 28 box, as in the prototype */
 .tb-ask { height: 34px; padding: 0 10px; font-size: var(--size-small); border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); }   /* row 772: the ask clark text at 14 px in a 34 px button */
 .tb-ask .tb-ico { width: 16px; height: 16px; }
+.tb-ask-dots { display: inline-flex; gap: 2px; margin-left: 6px; }   /* #1292: an answer is being made while the panel is closed */
+.tb-ask-dots i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; animation: tb-ask-dot 1.2s infinite ease-in-out; }
+.tb-ask-dots i:nth-child(2) { animation-delay: .2s; } .tb-ask-dots i:nth-child(3) { animation-delay: .4s; }
+@keyframes tb-ask-dot { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .tb-ask-dots i { animation: none; } }
+.tb-ask-ready { margin-left: 6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--white); color: var(--brand-navy); font-size: 11px; line-height: 16px; text-align: center; font-weight: 600; }   /* #1292: an answer is ready */
 .tb-key { font: inherit; font-size: var(--size-small); padding: 1px 6px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); border-radius: var(--radius-sm); }
 @media (max-width: 1100px) { .tb-ask { padding: 0 6px; border-color: transparent; } .tb-ask-w, .tb-key { display: none; } }   /* icon only below 1100 px, so nothing in the bar overlaps */
 /* the Help peek (item 645): the item peek's frame (.peek) below the top bar, so the "?" button stays in view; text only */
