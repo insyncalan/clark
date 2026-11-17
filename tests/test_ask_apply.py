@@ -114,6 +114,16 @@ class WorkItems(Base):
         row = self.s.read("actions", ref=self.action)
         self.assertEqual((row["owner"], row["due_date"]), ("Sam Lee", None))
 
+    def test_a_plan_carries_the_items_title_and_a_plain_why(self):         # #1292 S4: the card's heading and its Why line
+        plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "owner": "Ana Ruiz",
+                             "why": "It was handed over on Monday.\x00 <b>x</b>"})
+        self.assertEqual(plan["title"], "Draft the cut-over plan")
+        self.assertEqual(plan["why"], "It was handed over on Monday. <b>x</b>", "controls dropped; the page draws it as text")
+        self.assertNotIn("why", plan["after"], "why is not a field of the item")
+        self.assertIsNone(self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "owner": "Kim Roe"})["why"])
+        self.assertEqual(len(self.planned({"op": "change", "id": self.action, "owner": "Lee Poe", "why": "x" * 900})["why"]), ask_apply.MAX_WHY)
+        self.refused({"op": "change", "id": self.action, "owner": "Lee Poe", "why": 5}, "not_a_change")
+
     def test_an_offer_is_used_once(self):
         plan = self.planned({"op": "change", "id": self.action, "status": "Closed"})
         self.applied(plan["offer"])
