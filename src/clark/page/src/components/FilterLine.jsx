@@ -25,6 +25,10 @@ export const PAUSE = 400;                                // ms after the last ke
 // Which saved view is chosen, per project, for this visit. A page change keeps it; a reload goes back to the view the line matches.
 const chosen = signal({});
 const viewsRev = signal(0);
+// Row 1265: the prompt shown when the filter line is left with changes not saved. The sentence is one constant, so a ruling on the words is one edit.
+export const LEAVE_PROMPT = "Save your changes to this view?";
+const asking = signal(false);
+let dirtyNow = false;      // set by the saved views at each draw: whether the open view's line has unsaved changes, read when the line is left
 
 function viewsOf(code) { void viewsRev.value; return FL.viewsGet(local(), code); }
 function saveViews(code, views) { FL.viewsPut(local(), code, views); viewsRev.value++; }
@@ -109,7 +113,12 @@ function SavedViews({ board }) {
     window.addEventListener("resize", show);      // a narrower window can push the open tab out of the box
     return () => window.removeEventListener("resize", show);
   }, [active && active.id, shown.length, dirty]);      // dirty: Save view and Discard changes take room beside the tabs, so the open tab is brought into view again
+  dirtyNow = dirty && !fromFile.value;
+  const asked = asking.value && dirty && !fromFile.value;
+  useEffect(() => { if (!dirty) asking.value = false; }, [dirty]);
+  useEffect(() => { if (asked && (!document.activeElement || document.activeElement === document.body)) { const b = document.getElementById("fvAskUpdate"); if (b) b.focus(); } }, [asked]);
   const act = (id) => {
+    asking.value = false;
     const fromNew = !!document.activeElement && document.activeElement.id === "viewNew";      // the + New view button keeps the focus; a menu arrow's focus goes with its list
     if (/^(layout|group|lane):/.test(id)) pickLayout(id);
     else if (id === "discard" && active) { pick(active); const el = document.querySelector('.vtab[aria-pressed="true"]'); if (el) el.focus(); }
@@ -248,10 +257,10 @@ function SavedViews({ board }) {
     const t = setTimeout(() => { if (nameBox.current) nameBox.current.focus(); }, 40);
     return () => clearTimeout(t);
   }, [form && form.mode]);
-  // The open tab's own menu (the small arrow beside its name): Save changes only while the dot shows and never on a core view; Rename and Delete on any view, a core one too. Save view and Discard changes sit beside the tabs while the dot shows (Save view never on a core view).
+  // The open tab's own menu (the small arrow beside its name): Update view only while the dot shows (a core view too); Rename and Delete on any view, a core one too. Save view and Discard changes sit beside the tabs while the dot shows (Save view never on a core view).
   const core = !!active && FL.isCoreView(active);
   const tabItems = [];
-  if (active && dirty && !core) tabItems.push({ id: "save", name: "Save changes", icon: "check" });
+  if (active && dirty) tabItems.push({ id: "save", name: "Update view", icon: "check" });
   tabItems.push({ id: "saveas", name: "Save as a new view…", icon: "plus" });
   if (active) {      // row 1071: the four words the issue approves, each with its icon; Delete view in red
     tabItems.push({ id: "rename", name: "Rename view", icon: "pencil" });
@@ -295,6 +304,14 @@ function SavedViews({ board }) {
         </span>
       )}
       </div>
+      {asked ? (
+        <div class="vform vask" role="group" aria-label={LEAVE_PROMPT} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); const f = document.getElementById("fline-input"); if (f) f.focus(); asking.value = false; } }}>      {/* the focus goes to the line first: a prompt removed while it holds the focus would otherwise count as leaving the box and ask again */}
+          <span class="vmsg" role="status">{LEAVE_PROMPT}</span>
+          <button type="button" class="btn sm" id="fvAskUpdate" onClick={() => act("save")}>Update view</button>
+          <button type="button" class="btn sm" id="fvAskNew" onClick={() => act("saveas")}>Save as a new view</button>
+          <button type="button" class="btn sm" id="fvAskDiscard" onClick={() => act("discard")}>Discard</button>
+        </div>
+      ) : null}
       {form ? (
         <form class="vform" onSubmit={submit} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); closeForm(); } }}>
           {form.mode === "note" ? null : (
@@ -321,13 +338,14 @@ export const WORK_IDS = { input: "fline-input", list: "fline-list", count: "flin
 // schema, filterQueryParse.ownSchema, makes the box know only that page's fields), `ids` its element ids, `label` the box's name, `hints` the Try row
 // (null: no row and no gloss), `meaning(chip)` a chip's plain words for the gloss, `notes(parsed)` more to say under the box, `onClear` what else the x
 // does, `head` what stands over the box inside its focus (the Work items saved views), and `tail` what stands at the right end of the box line (the Work items view icons). The Work items line (FilterLine, below) is this box with its stores.
-export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, ids = WORK_IDS, label, hints = null, meaning = null, notes: moreNotes = null, onClear = null, tail = null }) {
+export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, ids = WORK_IDS, label, hints = null, meaning = null, notes: moreNotes = null, onClear = null, tail = null, onLeave = null, onEnter = null }) {
   const first = useRef(null);
   if (first.current === null) first.current = Q.splitLine(line, rows, ctx, extra);
   const live = useRef({ chips: first.current.chips, draft: first.current.rest });     // what the box holds right now, for a key that comes before the next draw
   const [chips, setChipsRaw] = useState(first.current.chips);   // row 845: the complete filters, each a chip with its own remove button
   const [draft, setDraftRaw] = useState(first.current.rest);    // the text in the box (plain words and the word being typed); the line (lineText) is what the list shows, and follows chips and box after a pause
   const [focused, setFocused] = useState(false);
+  const [inBox, setInBox] = useState(false);               // the focus is in the text box itself, not on another control of the line (the leave prompt): only then is a token being typed
   const [caret, setCaret] = useState(0);
   const [active, setActive] = useState(-1);                   // the suggestion the arrows are on (-1: none)
   const [armed, setArmed] = useState(false);                 // row 931: Space or Arrow Down opened the list; entering the box, a choice that ends the word and Esc close it
@@ -361,7 +379,7 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
     if (want.current !== null && input.current) { const at = want.current; want.current = null; input.current.setSelectionRange(at, at); setCaret(at); }
     if (over.current && input.current) over.current.scrollLeft = input.current.scrollLeft;
   });
-  const parsed = Q.parseFor(draft, rows, ctx, extra), shown = Q.pieces(draft, parsed, focused ? caret : undefined, extra);
+  const parsed = Q.parseFor(draft, rows, ctx, extra), shown = Q.pieces(draft, parsed, focused && inBox ? caret : undefined, extra);
   const matches = Q.rowsFor(rows, line, ctx, extra).length;
   const words = shown.filter((p) => p.cls === "err" && p.message).map((p) => p.message);
   const notes = [...words, ...(moreNotes ? moreNotes(Q.parseFor(Q.joinLine(chips, draft), rows, ctx, extra)) : [])];
@@ -460,8 +478,8 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
   ) : null;
   return (
     <div class="fline-wrap" ref={box}
-      onFocusIn={() => setFocused(true)}
-      onFocusOut={(e) => { if (!e.relatedTarget || !box.current.contains(e.relatedTarget)) leave(); }}>
+      onFocusIn={(e) => { setFocused(true); setInBox(e.target === input.current); if (onEnter) onEnter(e); }}
+      onFocusOut={(e) => { if (!e.relatedTarget || !box.current.contains(e.relatedTarget)) { leave(); if (onLeave) onLeave(); } }}>
       {head}
       <div class="fline-row">
       <div class={`fline${focused ? " on" : ""}${words.length ? " bad" : ""}`} data-fline data-line={Q.joinLine(chips, draft)}>
@@ -524,7 +542,7 @@ export function FilterLine({ board, tools }) {
   const code = project.value, rows = allRows.value, ctx = filterCtx(), line = lineText.value;
   const meaning = (c) => { const p = FL.parse(c, rows, ctx); return p.errors.length || !p.chips[0] ? c : p.chips[0].say; };      // a chip in plain words, as the prototype says it (the word itself when the line cannot read it)
   return (
-    <LineBox head={<SavedViews board={board} />} line={line} now={() => lineText.value} apply={setLine} rows={rows} ctx={ctx} label="Filter work items"
+    <LineBox head={<SavedViews board={board} />} onLeave={() => { if (dirtyNow) asking.value = true; }} onEnter={(e) => { if (!(e.target && e.target.closest && e.target.closest(".vask"))) asking.value = false; }} line={line} now={() => lineText.value} apply={setLine} rows={rows} ctx={ctx} label="Filter work items"
       tail={<ViewIcons board={board} />} meaning={meaning} notes={(p) => (Q.wantsMe(p, ctx) ? [Q.NO_ME] : [])} onClear={() => { chosen.value = { ...chosen.value, [code]: "" }; }} />
   );
 }
