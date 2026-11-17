@@ -175,6 +175,23 @@ class Base(unittest.TestCase):
         # row 808: the box's list now floats over the cards, so a person who is done with the box has left it before touching a card
         cdp.js("document.activeElement && document.activeElement.blur && document.activeElement.blur()", sid)
         self.until(cdp, sid, "!document.querySelector('#fline-list')", "the list of fields closed")
+        self.settle(cdp, sid)
+
+    def settle(self, cdp, sid, same=5):
+        """The fonts are in and the page has stopped moving: the bar above the board, the board and its first card keep one box for `same`
+        looks in a row (the bar can wrap to another row, and the page grow, as the fonts arrive on a loaded runner; a box measured before
+        that sends the mouse to where a card or a cell no longer is)."""
+        look = ("document.fonts.status === 'loaded' ? JSON.stringify([...document.querySelectorAll('#work .fbar, #work-board, #work-board .bcard, .boardbox')].slice(0, 6)"
+                ".map((e) => { const b = e.getBoundingClientRect(); return [b.x, b.y, b.width, b.height, e.scrollTop || 0]; })) : null")
+        last, run = None, 0
+        for _ in range(400):
+            now = cdp.js(look, sid)
+            run = run + 1 if now is not None and now == last else 0
+            if run >= same:
+                return
+            last = now
+            time.sleep(0.05)
+        self.fail("the page never stopped moving")
 
     def drag(self, cdp, sid, card, cell, steps=8):
         """Pick a card up with the mouse and drop it in a column cell, like a person: the board scrolls itself when the pointer
