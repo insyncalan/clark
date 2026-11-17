@@ -2031,7 +2031,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-callout.k-grey { --cc-fill: var(--grey-100); --cc-edge: color-mix(in srgb, var(--status-grey) 45%, var(--grey-100)); --cc-ink: var(--grey-700); }
 .tpl-callout.k-plain { --cc-fill: transparent; --cc-edge: transparent; --cc-ink: var(--text); padding: var(--space-1) 0; }
 .tpl-callout-tone { margin: 0 0 var(--space-1); font-size: var(--size-caption); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--cc-ink); }
-/* #1272: no tile (the card around the callout) and no heading. In Edit the card stays, dashed, and the heading struck through, so the section can be found. */
+/* Row 1272: no tile (the card around the callout) and no heading. In Edit the card stays, dashed, and the heading struck through, so the section can be found. */
 .sec.no-tile { background: transparent; border-color: transparent; box-shadow: none; }
 #report[data-mode="view"] .sec.no-tile { padding-left: 0; padding-right: 0; }
 #report[data-mode="edit"] .sec.no-tile { border: 1px dashed var(--grey-500); }

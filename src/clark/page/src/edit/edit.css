@@ -583,7 +583,7 @@ textarea.tpl-field { resize: vertical; }
 .tpl-table-edit th, .tpl-table-edit td { min-width: 120px; }
 .tpl-table-edit th .btn { margin-top: var(--space-1); }
 .tpl-edit .btn { align-self: flex-start; }
-/* #1272 Callout, in place: the toolbar above the box, then the box with its title and words inside it. */
+/* Row 1272 Callout, in place: the toolbar above the box, then the box with its title and words inside it. */
 .cb-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); }
 .cb-set, .cb-grp { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); min-width: 0; }
 .cb-lbl { font-size: var(--size-caption); color: var(--text-muted); margin-right: var(--space-1); white-space: nowrap; }
