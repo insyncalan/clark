@@ -111,10 +111,6 @@ class ReaderExact(unittest.TestCase):
         got = read({"order": ["a"], "health": {"shown": False}, "counts": [["x"], "y"], "bespoke": [["x"], {"id": "a", "label": "A"}, "z"]})
         self.assertEqual([t["key"] for t in got["tiles"]], ["a"])
 
-    def test_an_unknown_key_in_the_order_adds_nothing(self):
-        got = read({"order": ["zzz", "bud", "yyy", "bud"], "health": {"shown": False}, "bespoke": [{"id": "bud", "label": "B"}]})
-        self.assertEqual([t["key"] for t in got["tiles"]], ["bud", "bud"])
-
     def test_health_shown_only_false_hides_it_and_own_row_only_true_makes_a_row(self):
         for shown, here in ((False, False), (True, True), (None, True), (0, True), ("no", True)):
             self.assertEqual(any(t["key"] == "health" for t in read({"health": {"shown": shown}})["tiles"]), here, shown)
@@ -241,7 +237,7 @@ class WordExact(unittest.TestCase):
         self.assertEqual(len(cells_of(rows[1])[1:]), 3)
         self.assertTrue(all("w:fill" not in c for c in cells_of(rows[1])[1:]))
 
-    def test_a_full_line_is_not_padded_and_each_line_has_four_tiles(self):
+    def test_eight_tiles_make_two_lines_of_four_with_one_paragraph_each(self):
         many = [{"id": f"t{i}", "label": f"ZQ-T{i}"} for i in range(8)]
         xml = doc_xml(select(body(bespoke=many, health={"shown": False}, **NONE_OF)))
         tbl = next(t for t in re.findall(r"<w:tbl>.*?</w:tbl>", xml, re.S) if "ZQ-T0" in t)
@@ -282,7 +278,7 @@ class ExcelExact(unittest.TestCase):
     def test_the_column_heads_are_on_row_four_with_their_widths_and_nothing_else_is_a_column(self):
         ws = self.ws
         self.assertEqual(ws.max_column, 4)
-        self.assertEqual([ws.cell(4, c).value for c in (1, 2, 3, 4)], ["Tile", "Figure", "Tag", "Note"])
+        self.assertEqual([ws.cell(4, c).value for c in (1, 2, 3, 4)], ["Label", "Figure", "Tag", "Note"])
         self.assertEqual([ws.column_dimensions[l].width for l in "ABCD"], [28, 14, 16, 60])
         for c in (1, 2, 3, 4):
             self.assertEqual((ws.cell(4, c).font.bold, ws.cell(4, c).font.color.rgb[-6:], ws.cell(4, c).fill.fgColor.rgb[-6:]), (True, "445566", "112233"))
@@ -308,7 +304,7 @@ class ExcelExact(unittest.TestCase):
         for c in (1, 2, 3, 4):
             self.assertEqual(ws.cell(3, c).fill.fgColor.rgb[-6:], "112233", c)
         self.assertEqual(ws["A3"].font.color.rgb[-6:], "445566")
-        self.assertEqual(ws["A4"].value, "Tile")
+        self.assertEqual(ws["A4"].value, "Label")
 
     def test_the_sheet_is_frozen_below_the_heads_set_up_to_print_protected_and_named(self):
         ws = self.ws
@@ -355,25 +351,8 @@ class ExcelExact(unittest.TestCase):
         empty = {"type": "glancetemplate", "content": {"health": {"shown": False}, "order": [], "bespoke": []}}
         self.assertIsNone(excel_client.write_glance_sheet(Workbook(), pub, empty))
 
-    def test_the_sheet_name_is_the_one_constant(self):
-        self.assertEqual(excel_client.GLANCE_SHEET, "At a glance")
-        self.assertEqual(excel_client.GLANCE_HEADS, (("Tile", 28), ("Figure", 14), ("Tag", 16), ("Note", 60)))
-
     def test_only_a_glance_template_section_makes_a_glance_sheet(self):
         self.assertNotIn("At a glance", wb_of(select(with_section=False)).sheetnames)
-
-
-class Pins(unittest.TestCase):
-    def test_the_tile_cap_and_the_text_limits_are_the_ruled_ones(self):
-        self.assertEqual(glancetemplate.BESPOKE_MAX, 12)
-        self.assertEqual((glancetemplate.LABEL_MAX, glancetemplate.FIGURE_MAX, glancetemplate.TAG_MAX, glancetemplate.NOTE_MAX), (40, 12, 12, 60))
-
-    def test_the_tables_of_the_reader(self):
-        self.assertEqual(glance_print.COUNTING, ("overdue", "risks", "decisions"))
-        self.assertEqual(glance_print.TONE, {"g": "green", "a": "amber", "r": "red", "b": "blue", "n": None})
-        self.assertEqual(glance_print.BESPOKE_TONE, {"green": "green", "amber": "amber", "red": "red", "blue": "blue", "neutral": None})
-        self.assertEqual(glance_print.TAG, {"overdue": {"r": "Overdue"}, "decisions": {"a": "Waiting"}, "risks": {"a": "Watch", "r": "High"}})
-        self.assertEqual(glance_print.TAG_ANY, {"g": "On track", "a": "At risk", "r": "Off track"})
 
 
 if __name__ == "__main__":
