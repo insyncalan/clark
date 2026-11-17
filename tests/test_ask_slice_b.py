@@ -222,7 +222,13 @@ class CountsFromTheData(unittest.TestCase):
             row["description"] = "x " * ask_data.MAX_PASSAGE + "pass" + "word: Welcome" + "2026!"
         with mock.patch.object(publish, "read_inputs", return_value=given):
             got = ask_data.project_data(object(), "PUB", "q", as_at="2026-11-17")
-        self.assertGreaterEqual(got.secret, 1)
+        self.assertEqual(got.secret, len(publish.select(given)["data"]["actions"]))
+
+    def test_the_kinds_left_out_are_carried_on_the_data(self):
+        with mock.patch.object(publish, "read_inputs", return_value=plant.inputs()), \
+                mock.patch.object(ask_data, "kinds_left_out", return_value=("raid",)):
+            got = ask_data.project_data(object(), "PUB", "q", as_at="2026-11-17")
+        self.assertEqual(got.kinds_left_out, ("raid",))
 
 
 if __name__ == "__main__":
