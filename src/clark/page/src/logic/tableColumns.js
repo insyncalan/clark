@@ -11,7 +11,7 @@ export const TABLE_COLUMNS = {
     { id: "owner", label: "Owner", standard: true },
     { id: "due", label: "Due", standard: true },
     { id: "prio", label: "Priority", standard: true },
-    { id: "id", label: "Id" }, { id: "type", label: "Type" }, { id: "workstream", label: "Workstream" }, { id: "milestone", label: "Milestone" },
+    { id: "id", label: "Id", standard: true }, { id: "type", label: "Type" }, { id: "workstream", label: "Workstream" }, { id: "milestone", label: "Milestone" },
     { id: "raised", label: "Raised" }, { id: "closed", label: "Closed" }, { id: "usecase", label: "Use case" },
     { id: "latest", label: "Latest update" }, { id: "wording", label: "Client wording" },
   ],
