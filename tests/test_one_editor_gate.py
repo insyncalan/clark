@@ -214,7 +214,7 @@ class PageGate(unittest.TestCase):
             js("document.querySelector('[data-mode=edit]').click()")
             self.assertTrue(wait(lambda: js("document.querySelector('#report').dataset.mode === 'edit'"), 10))
             self.assertEqual(js("[...document.querySelectorAll('[data-rich]')].map(function(f){ return f.closest('.sec').dataset.id; })"),
-                             ["ABC-S-001", "ABC-S-005", "ABC-S-006", "ABC-S-007"])      # item 1188: the first section is a text section
+                             ["ABC-S-001", "ABC-S-005", "ABC-S-006"])      # item 1188: the first section is a text section; row 1266: no Summary, so three
             self.assertEqual(js("document.querySelectorAll('.sec[data-type=text] .quiet:not([data-rich] .quiet)').length"), 0)
             js("document.querySelector('[data-mode=view]').click()")
             self.assertTrue(wait(lambda: js("document.querySelector('#report').dataset.mode !== 'edit'"), 10))

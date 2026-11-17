@@ -54,7 +54,7 @@ class AddAfterWithStoredNeeds(StoredNeeds):
             p.edit()
             self.open_box(p, FIRST)
             p.js("document.querySelector('button[data-place]').click()")
-            p.until("document.querySelectorAll('.secs > .sec').length === 12", "added")
+            p.until("document.querySelectorAll('.secs > .sec').length === %d" % (len(IDS) + 1), "added")
             new = [i for i in p.ids() if i not in IDS][0]
             self.assertEqual(p.ids()[:3], [FIRST, new, "ABC-S-002"], "directly after the first section, before the second")
             self.assertEqual([r[0] for r in self.sent], ["change"], "one request")
