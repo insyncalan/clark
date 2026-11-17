@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CSS = {"shell.css": ROOT / "src/clark/page/shell.css", "edit.css": ROOT / "src/clark/page/src/edit/edit.css"}
 
-# Row 1257 adds the Latest update card's footer and stamp at 12 px: issue 1257 (v1.2 item 4) says "a footer strip inside the box: 12 px muted" and "last updated ... 12 px muted", so the ticket wins over the 13 px floor.
+# Row 1257 adds the Latest update card's footer and stamp at 12 px: issue 1257 (v1.2 item 4) says "a footer strip inside the box: 12 px muted" and "last updated ... 12 px muted", so the ticket wins over the 13 px floor (no separate owner ruling is needed: the ticket line is the ruling).
 # Not text on the type scale: big figures in the At a glance tiles, and the calendar's month arrows (a glyph sized to its button).
 # .cp-m (18 px) stays the one glyph exemption: it sizes an icon character, not text.
 NOT_TEXT = {(".cp-m", "18px"),
