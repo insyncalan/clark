@@ -256,3 +256,17 @@ export const FIELD_NAMES = {
   headline: "Headline", standing: "Where it stands",      // a use case (issue 729): the words its editor uses
 };
 export const KIND_NAMES = { actions: "Action", decisions: "Decision", milestones: "Milestone", raid: "Risk or issue" };
+
+// #1292 S10: the slash menu. NEEDS RULING: the one-line hint under each command is a draft, to be ruled with the other new words (decision 25).
+export const SLASH_LABEL = "Commands";
+export const SLASH_NONE = "No command by that name";
+export const SLASH_HINT = {
+  check: "Check this report",
+  summary: "Summarise this week",
+  overdue: "What is overdue",
+  risks: "Which risks are red",
+  milestones: "The next milestone",
+  usecases: "Which use cases need attention",
+  history: "Earlier chats",
+  new: "Start a new chat",
+};
