@@ -9,7 +9,7 @@
 // A published file carries no counts yet (the counts slice), so a file draws only the bespoke tiles; the served View also counts.
 // isEmpty: no tile is left to show. Edit part: edit/templates/GlanceTemplate.jsx; rules: section_kinds/glancetemplate.py.
 import { source } from "./notes.js";
-import { rows, fromFile } from "../stores/report.js";
+import { rows, fromFile, openWork } from "../stores/report.js";
 import { todayIso } from "../workItems.js";
 import { tiles as counted, shownRag, tileWord } from "../glanceTiles.js";
 
@@ -38,7 +38,15 @@ const KIND_OF = { overdue: (r) => r.kind === "action", risks: (r) => r.kind !== 
 const hasRows = (key) => rows.value.some((r) => r && KIND_OF[key](r));
 const showable = (t) => t.kind === "bespoke" || (!fromFile.value && hasRows(t.key));
 const fresh = (section) => Object.keys(source(section)).length === 0;     // no body at all: the published file leaves it out whole
-export const isEmpty = (section) => fresh(section) || plan(section).filter(showable).length === 0;
+// Every tile hidden (the three counting eyes off, no bespoke tile shown) is a section the person emptied on purpose: the View says so, as the
+// approved v2 mock-up does (v2:539), instead of leaving the section out. A fresh section (no body) and a section with no rows and no
+// bespoke tile stay left out: the published file leaves them out, and the mock-up draws sample tiles only because it has sample data.
+export const EMPTY_WORDS = "No tiles on this section.";       // approved word, 1264-words group 11
+const allHidden = (section) => {
+  const set = source(section).builtin;
+  return !!set && typeof set === "object" && COUNTING.every((k) => set[k] && set[k].hidden === true);      // a bespoke tile shown makes a list, so the sentence never meets it
+};
+export const isEmpty = (section) => !allHidden(section) && (fresh(section) || plan(section).filter(showable).length === 0);
 
 // One tile as the part draws it: {key, label, figure, tag, note, tone}.
 export function drawn(section) {
@@ -53,31 +61,37 @@ export function drawn(section) {
     const c = showable(t) ? live.find((x) => x.key === t.key) : null;
     if (!c) continue;
     const tone = shownRag(t.outline, c.rag);
-    out.push({ key: t.key, label: c.label, figure: String(c.value), tag: tileWord(t.key, tone, t.outline), note: c.detail, tone });
+    out.push({ key: t.key, label: c.label, figure: String(c.value), tag: tileWord(t.key, tone, t.outline), note: c.detail, tone, filter: c.filter });
   }
   return out;
 }
 
 export function View({ section }) {
   const list = drawn(section);
-  if (!list.length) return null;
+  if (!list.length) return allHidden(section) ? <div class="tpl-gt" data-gt><p class="tile-empty">{EMPTY_WORDS}</p></div> : null;
   return (
     <div class="tpl-gt" data-gt>
-      {list.map((t) => (
-        <div key={t.key} class={`fig tpl-gt-tile tone-${t.tone}`} data-tile={t.key}>
-          <div class="k">
-            <i class="tpl-gt-dot" aria-hidden="true"></i>
-            <span class="tpl-gt-k" title={t.label}>{t.label}</span>
-          </div>
-          {t.figure || t.tag ? (
-            <div class="vrow">
-              {t.figure ? <span class="v tpl-gt-v num">{t.figure}</span> : null}
-              {t.tag ? <span class="tw tpl-gt-tag">{t.tag}</span> : null}
-            </div>
-          ) : null}
-          {t.note ? <span class="dd tpl-gt-note" title={t.note}>{t.note}</span> : null}
-        </div>
-      ))}
+      {list.map((t) => {
+        const inner = (
+          <>
+            <span class="k">
+              <i class="tpl-gt-dot" aria-hidden="true"></i>
+              <span class="tpl-gt-k" title={t.label}>{t.label}</span>
+            </span>
+            {t.figure || t.tag ? (
+              <span class="vrow">
+                {t.figure ? <span class="v tpl-gt-v num">{t.figure}</span> : null}
+                {t.tag ? <span class="tw tpl-gt-tag">{t.tag}</span> : null}
+              </span>
+            ) : null}
+            {t.note ? <span class="dd tpl-gt-note" title={t.note}>{t.note}</span> : null}
+          </>
+        );
+        // A counting tile opens Work items with its filter, as the At a glance tile does (Glance.jsx, v2:497); a bespoke tile has no filter and stays plain.
+        return t.filter
+          ? <button key={t.key} type="button" class={`fig go tpl-gt-tile tone-${t.tone}`} data-tile={t.key} onClick={() => openWork(t.filter)} aria-label={`${t.label}: ${t.figure}${t.note ? ", " + t.note : ""}${t.tag ? ". " + t.tag : ""}. Opens Work items showing these`}>{inner}</button>
+          : <div key={t.key} class={`fig tpl-gt-tile tone-${t.tone}`} data-tile={t.key}>{inner}</div>;
+      })}
     </div>
   );
 }
