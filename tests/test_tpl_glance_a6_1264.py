@@ -81,8 +81,13 @@ class A6(Base):
             p = self.page(cdp)
             p.edit()
             p.until("document.querySelector('#report').dataset.mode === 'edit'", "Edit mode")
-            got = p.js(f"[document.querySelectorAll('{self.sel('button[data-tile]')}').length, [...document.querySelectorAll('{self.sel('.tpl-gt-tile')}')].filter(t => t.tagName !== 'DIV' || t.tabIndex >= 0 || t.classList.contains('go') || t.querySelector('button, a')).length]")
-        self.assertEqual(got, [0, 0], "the Edit part draws its own tiles (plain boxes), not the View's buttons")
+            p.until(f"!!document.querySelector('{self.sel('[data-tile=b1] .tpl-gt-tile')}')", "the own tile drew in Edit")
+            got = p.js(f"[document.querySelectorAll('{self.sel('button[data-tile]')}').length, [...document.querySelectorAll('{self.sel('.tpl-gt-tile')}')].filter(t => t.tagName !== 'DIV' || t.tabIndex >= 0 || t.classList.contains('go') || t.querySelector('button, a')).length, [...document.querySelectorAll('{self.sel('[data-tile]')}')].map(t => t.dataset.tile), document.querySelectorAll('{self.sel('[data-tile=b1] .tpl-gt-tile')}').length, [...document.querySelectorAll('{self.sel('[data-tile] .fig')}')].map(t => [t.closest('[data-tile]').dataset.tile, t.tagName, t.classList.contains('go')])]")
+        self.assertEqual(got[:2], [0, 0], "the Edit part draws its own tiles (plain boxes), not the View's buttons")
+        self.assertEqual(got[2], ["health", "overdue", "risks", "decisions", "b1"], "the counts are over real tiles: the four built-in ones and the own tile")
+        self.assertEqual(got[3], 1, "the own tile that the test planted is one of them")
+        self.assertEqual(got[4], [["health", "DIV", False], ["overdue", "BUTTON", True], ["risks", "BUTTON", True], ["decisions", "BUTTON", True], ["b1", "DIV", False]],
+                         "Edit keeps the counting tiles' own buttons (they open Work items); the health tile and the own tile are plain boxes")
 
     def test_hover_and_focus_rules_are_the_built_in_ones(self):
         self.assertRegex(SHELL, r"\.tpl-gt-tile\.go \{[^}]*cursor: pointer")
