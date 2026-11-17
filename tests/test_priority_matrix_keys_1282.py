@@ -99,7 +99,7 @@ class Live(unittest.TestCase):
             key(cdp, sid, "ArrowDown")
             key(cdp, sid, " ")
             self.until(cdp, sid, GONE, "Space picks and closes it")
-            self.assertEqual(self.row("raid", "TUL-007")["impact"], "Medium")
+            self.assertTrue(ie.wait(lambda: self.row("raid", "TUL-007")["impact"] == "Medium", 10), "Space picked Medium impact")   # the pop closes before the write lands: wait for it
 
     def test_the_cell_it_has_sends_nothing_but_still_closes(self):
         with chrome() as cdp:
