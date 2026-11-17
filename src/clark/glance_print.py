@@ -11,6 +11,7 @@ from clark import glance, sanitise
 COUNTING = ("overdue", "risks", "decisions")
 TONE = {"g": "green", "a": "amber", "r": "red", "b": "blue", "n": None}
 BESPOKE_TONE = {"green": "green", "amber": "amber", "red": "red", "blue": "blue", "neutral": None}
+PER_LINE, PER_LINE_HALF = 4, 2                                                                                  # glancetemplate.PER_ROW_DEFAULT; half width always draws 2 (shell.css .tpl-gt in a slot)
 TAG = {"overdue": {"r": "Overdue"}, "decisions": {"a": "Waiting"}, "risks": {"a": "Watch", "r": "High"}}      # glanceTiles.js TILE_WORDS_OF
 TAG_ANY = {"g": "On track", "a": "At risk", "r": "Off track"}                                                   # glanceTiles.js TILE_WORDS
 
@@ -26,8 +27,17 @@ def _health(published):
             "colour": (t.get("pill") or {}).get("colour") or None}
 
 
+def per_line(sec, c):
+    """Tiles on a line as the View draws them: 2 at half width (the published section's `beside` is 1: the page's slot-left or slot-right),
+    else the body's per_row when it is 3 or 4, else 4 (the default is not stored)."""
+    if sec.get("beside") in (1, True):
+        return PER_LINE_HALF
+    n = c.get("per_row")
+    return n if type(n) is int and n in (3, 4) else PER_LINE
+
+
 def read(published, sec):
-    """{"health_row": the health tile when it has a row of its own, else None, "tiles": [{key, label, figure, tag, note, colour}] in the
+    """{"per_line": tiles on a line (per_line), "health_row": the health tile when it has a row of its own, else None, "tiles": [{key, label, figure, tag, note, colour}] in the
     section's order (health included there when it is shown and not on its own row)}. Total: a content that is not an object is nothing."""
     c = sec.get("content") if isinstance(sec.get("content"), dict) else {}
     h = c.get("health") if isinstance(c.get("health"), dict) else {}
@@ -60,4 +70,4 @@ def read(published, sec):
         else:
             continue
         tiles.append(t)
-    return {"health_row": row, "tiles": tiles}
+    return {"per_line": per_line(sec, c), "health_row": row, "tiles": tiles}

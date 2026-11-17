@@ -253,7 +253,7 @@ class WordExact(unittest.TestCase):
         self.assertEqual(docx_build.TITLES["glancetemplate"], "At a glance")
         self.assertIn(docx_build.section_glancetemplate, docx_build.SIMPLE.values())
         self.assertIs(docx_build.SIMPLE["glancetemplate"], docx_build.section_glancetemplate)
-        self.assertEqual(docx_build.GLANCE_PER_LINE, 4)
+        self.assertEqual(glance_print.PER_LINE, 4)
 
     def test_nothing_to_show_is_an_empty_string_and_a_row_alone_is_not(self):
         empty = {"type": "glancetemplate", "content": {"health": {"shown": False}, "order": [], "bespoke": []}}
