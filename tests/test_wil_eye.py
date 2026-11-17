@@ -119,6 +119,24 @@ class Eye(base.InThePage):
         self.assertNotIn(ref, [s["id"] for s in publish.build(self.store, "ABC", now=TODAY)["published"]["sections"]])
 
 
+    def test_row_1268_an_unrated_risk_or_issue_says_not_rated_and_an_unrated_action_a_dash_full_and_half_width(self):
+        with self.store.step("dashboard", base.USER) as st:
+            risk = st.create("raid", {"project": "ABC", "type": "Risk", "description": "Unrated risk", "raised": "2026-10-01", "source": "demo", "owner": "Pat Demo"})
+            issue = st.create("raid", {"project": "ABC", "type": "Issue", "description": "Unrated issue", "raised": "2026-10-01", "source": "demo", "owner": "Pat Demo"})
+            text = st.create("report_sections", {"project": "ABC", "type": "text", "title": "Fictional notes", "sort_order": 1})
+        body = {"mode": "all", "owner": OWNERS, "columns": ["owner", "priority"]}
+        full, half = self.add(body), self.add(body, after=text, beside=1)
+        with chrome() as cdp:
+            p = self.show(cdp, 1400)
+            p.until(f"document.querySelector('[data-id=\"{half}\"]') && document.querySelector('[data-id=\"{half}\"]').classList.contains('slot-right')", "the list is the right half")
+            for ref, root, sel in ((full, ".wil-table tbody tr", "td.wil-c-priority"), (half, ".wil-lines li", ".wil-m")):
+                q = f"[data-id=\"{ref}\"] {root}"
+                got = p.js(f"Object.fromEntries([...document.querySelectorAll({json.dumps(q)})].filter(e => e.offsetParent).map(e => [e.dataset.id, e.querySelector({json.dumps(sel)}).textContent.trim()]))")
+                self.assertIn("Not rated", got.get(risk, ""), got)
+                self.assertIn("Not rated", got.get(issue, ""), got)
+                self.assertNotIn("Not rated", got.get(self.a_later, "Not rated"), got)
+                self.assertIn("High", got.get(self.a_due, ""), got)
+
 for _name in [n for n in dir(base.InThePage) if n.startswith("test_") and n not in vars(Eye)]:
     setattr(Eye, _name, None)       # the helpers of the list's page tests are reused; their tests are run by test_tpl_workitems
 
