@@ -1,6 +1,6 @@
 """Row 1264 slice 4: the Glance template's Edit part for the built-in tiles, in a real browser (T64-T71): one Undo step per change, a
 change that changes nothing is no step, Alt and the arrows, the tab order, the outline menu's keys, the health eye. The words are the
-At a glance words that exist; WORDS_PENDING lists what has no approved words yet (none is shown by this slice). Fictional data only.
+At a glance words that exist; no placeholder text is shown by this slice. Fictional data only.
 
 Run: python3 dev/run_tests.py test_tpl_glance_edit_1264
 """
@@ -12,7 +12,7 @@ from test_glance_page import plant
 from test_report_editor import ALT, Base, tearDownModule  # noqa: F401
 from test_server import chrome, wait
 
-WORDS_PENDING = "[words pending:"          # the marker no shown word may carry
+PLACEHOLDER = "[words pending:"          # the marker no shown word may carry
 TITLES = {"health": "Project health", "overdue": "Overdue actions", "risks": "High risks and issues", "decisions": "Decisions needed"}
 DEFAULT = ["health", "overdue", "risks", "decisions"]
 
@@ -218,7 +218,7 @@ class Health(GlanceEdit):
         with chrome() as cdp:
             p = self.page(cdp)
             text = p.js(f"document.querySelector('{self.sel()}').textContent")
-            self.assertNotIn(WORDS_PENDING, text)
+            self.assertNotIn(PLACEHOLDER, text)
             self.assertEqual(p.js(f"[...document.querySelectorAll('{self.sel('[data-tile]')}')].map(e => (e.querySelector('.k') || {{}}).textContent.replace(/\\s+/g, ' ').trim())"),
                              [TITLES[k] for k in DEFAULT])
             self.assertEqual(p.js(f"document.querySelector('{self.sel('[data-fig=overdue] .v')}').textContent"), "3")

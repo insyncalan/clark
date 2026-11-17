@@ -15,8 +15,6 @@ import { note } from "../notes.js";
 import { readBody, compact, withChange, moved, builtinTiles } from "../../templates/glanceBody.js";
 import { tileActions, OwnControls, OwnTile, PendingCell, AddTile, editor } from "./glanceTileEditor.jsx";
 
-export const WORDS_PENDING = {};     // the words a person has not been given yet would be listed here as "[words pending: ...]"; slices 4 and 6 need none
-
 const focusLater = (key, part) => setTimeout(() => { const el = document.querySelector(`[data-tile="${key}"] ${part}`); if (el) el.focus(); }, 0);
 const keepFocus = (done, key, part) => Promise.resolve(done).then((r) => { focusLater(key, part); return r; });
 

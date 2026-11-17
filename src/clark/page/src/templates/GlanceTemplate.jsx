@@ -3,7 +3,7 @@
 // bespoke tiles. Each tile: a tone border, a dot (its SHAPE says the tone: circle green, triangle amber, diamond red, square blue, ring
 // neutral), the label (one line, never wrapped), the figure, the tag word and one note line. Colour is never the only signal: the shape
 // and the tag word say it too. Text nodes only. The words are the At a glance ones that exist already (glanceTiles.js) or what the
-// person typed; the library card and Edit words are WORDS_PENDING (section_kinds/glancetemplate.py), none is invented here.
+// person typed; the library card and Edit words are not approved yet, none is invented here.
 // Project health (the eye, its own row) and the half width version come with later slices, so this part draws no health tile.
 // A published file carries no counts yet (the counts slice), so a file draws only the bespoke tiles; the served View also counts.
 // isEmpty: no tile is left to show. Edit part: edit/templates/GlanceTemplate.jsx; rules: section_kinds/glancetemplate.py.

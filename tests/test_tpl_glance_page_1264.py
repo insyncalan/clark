@@ -1,7 +1,7 @@
 """Row 1264 slice 3: the glance template's View, low tiles at full width, in a real browser (1400 and 900 px, light and dark): the three
 counting tiles and the bespoke ones, label on one line, no overflow, shape and tag word beside colour, border contrast read from the tokens.
 Fictional data only. Every word the tests expect is an At a glance word that exists already or text typed into the fixture; the words of
-the library card and of Edit are WORDS_PENDING (section_kinds/glancetemplate.py) and are not shown by this slice.
+the library card and of Edit are not approved yet and are not shown by this slice.
 
 Run: python3 dev/run_tests.py test_tpl_glance_page_1264
 """
@@ -17,7 +17,7 @@ from test_changes import KIND
 
 TOKENS = (SRC / "clark" / "brand" / "tokens.css").read_text(encoding="utf-8")
 SHELL = (SRC / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
-WORDS_PENDING = "[words pending]"        # the words of the library card and of Edit: not approved, never shown by this slice
+PLACEHOLDER = "[words pending]"        # the words of the library card and of Edit: not approved, never shown by this slice
 
 SHAPES = {"g": "circle", "a": "triangle", "r": "diamond", "b": "square", "n": "ring"}
 BESPOKE = [{"id": "b1", "label": "Fictional green", "figure": "7", "tag": "Fine", "note": "Fictional note one", "tone": "green"},
@@ -145,7 +145,7 @@ class Page(Base):
         for t in got["tiles"]:
             self.assertRegex(t["figure"], r"^\d+$")
             self.assertTrue(t["note"], "one note line")
-            self.assertNotIn(WORDS_PENDING, t["label"] + t["note"])
+            self.assertNotIn(PLACEHOLDER, t["label"] + t["note"])
         self.assertNotIn("words pending", got["text"].lower(), "no placeholder word reaches the page")
 
     # T52
