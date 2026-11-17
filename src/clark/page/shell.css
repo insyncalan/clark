@@ -2161,6 +2161,23 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .wil-table th { text-align: left; font-weight: var(--weight-regular); font-size: var(--size-small); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); padding: 6px var(--space-2); border-top: 1px solid var(--grey-200); }
 .wil-table td { padding: var(--space-2); border-top: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; color: var(--text); }
 .wil-table th:first-child, .wil-table td:first-child { padding-left: 2px; }
+.wil-table .wil-c-tile { width: calc(var(--space-5) + var(--space-3)); }
+.wil-table td { vertical-align: middle; }
+.wil-table .wil-c-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; overflow-wrap: normal; }   /* row 1268: one line per item, the title cut with an ellipsis */
+.wil-table .wil-c-id, .wil-table .wil-c-due, .wil-table .wil-c-priority { white-space: nowrap; overflow-wrap: normal; }   /* IDs never break */
+.wil-c-id { font-variant-numeric: tabular-nums; color: var(--status-blue-text); }
+.wil-own { display: inline-flex; align-items: center; gap: var(--space-2); max-width: 100%; }
+.wil-own .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wil-pr { padding: 0 var(--space-2); border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
+.wil-pr.h { background: var(--tone-amber-tint); color: var(--tone-amber-text); }
+.wil-pr.u { background: var(--tone-red-tint); color: var(--tone-red-text); }
+.wil-table .due-l { display: block; font-size: var(--size-caption); color: var(--text-muted); }
+.wil-table .due-l.late { color: var(--status-red-text); }
+/* row 1268: an item the client eye has taken off is greyed, tile, title, owner, date, priority and ID (Edit only; View and a file list none). */
+.wil-off, .wil-off .wil-c-title, .wil-off .wil-c-id, .wil-off .wil-t, .wil-off .wil-m, .wil-off .due-l, .wil-off .due-l.late, .wil-off td { color: var(--text-muted); }
+.wil-off .ico { background: var(--tone-grey-tint); color: var(--tone-grey-text); }
+.wil-off .av { background: var(--grey-300); }
+.wil-off .wil-pr { background: var(--grey-100); color: var(--text-muted); }
 .wil-table .wil-c-type { width: 116px; }
 .wil-table .wil-c-id { width: 108px; }
 .wil-table .wil-c-owner { width: 150px; }
@@ -2173,15 +2190,25 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .wil-half circle { fill: none; }
 .wil-half.ic-r { color: var(--status-red); } .wil-half.ic-a { color: var(--status-amber); } .wil-half.ic-g { color: var(--status-green); }
 .wil-half.ic-b { color: var(--status-blue); } .wil-half.ic-n { color: var(--status-grey); }
+.wil-scroll { overflow-y: auto; overscroll-behavior-y: contain; }
+.wil-scroll:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
+.wil-foot { display: flex; justify-content: space-between; align-items: center; margin-top: var(--space-2); font-size: var(--size-small); color: var(--text-muted); }
+.wil-review { border: 0; background: none; padding: var(--space-1) 0; min-height: var(--space-6); font: inherit; font-weight: 600; color: var(--status-blue-text); cursor: pointer; text-decoration: underline; }
+.wil-review:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .wil-all { margin: var(--space-2) 0 0; }
 .wil-all-b { border: 0; background: none; padding: 4px 0; font: inherit; font-size: var(--size-small); color: var(--status-blue-text); cursor: pointer; text-decoration: underline; }
 .wil-all-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .wil-table .type { white-space: nowrap; }
+.wil-live tbody tr, .wil-live li { cursor: pointer; }      /* row 1268: a row opens the peek, in View and in a published file as in Edit */
+.wil-live tbody tr:hover, .wil-live li:hover { background: var(--grey-50); }
+.wil-live tbody tr:focus-visible, .wil-live li:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 .wil-lines { margin: var(--space-1) 0 0; padding: 0; list-style: none; }
-.wil-lines li { display: flex; flex-direction: column; gap: 2px; padding: var(--space-2) 2px; border-top: 1px solid var(--grey-100); }
+.wil-lines li { display: grid; grid-template-columns: var(--space-5) minmax(0, 1fr); column-gap: var(--space-2); row-gap: 2px; padding: var(--space-2) 2px; border-top: 1px solid var(--grey-100); }
+.wil-lines .wil-tile { grid-row: 1 / span 2; align-self: start; }
+.wil-lines .wil-t, .wil-lines .wil-m { grid-column: 2; }
 .wil-t { color: var(--text); overflow-wrap: anywhere; }
 .wil-m { font-size: var(--size-small); color: var(--text-muted); overflow-wrap: anywhere; }
-.wil-cap { margin: var(--space-2) 0 0; font-size: var(--size-caption); color: var(--text-muted); }
+.wil-cap { margin: 0 0 var(--space-2); font-size: var(--size-caption); color: var(--text-muted); }
 .sec.slot-full .wil-lines, .sec.slot-left .wil-table, .sec.slot-right .wil-table { display: none; }
 @media (max-width: 1100px) {
   .wil-table .wil-c-workstream, .wil-table .wil-c-milestone, .wil-table .wil-c-owner { width: 100px; }

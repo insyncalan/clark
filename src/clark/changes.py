@@ -502,7 +502,7 @@ def _checked_changes(fields):
 def _section_body(section, body):
     """The canonical text of `body` for the stored section `section` (a row of this project), through the one checker registry
     (section_bodies.CHECKERS, keyed by the STORED type: the request never says which type it is). Only a needs or tracker section
-    takes a body here, and a text section (Summary, This week, Next week) through the cleaner (_text_body). A refusal is plain words and never
+    takes a body here, and a text section (Current state, This week, Next week) through the cleaner (_text_body). A refusal is plain words and never
     quotes the content. The store checks it again on write (every write, an Undo too). A section that holds pictures (#96 R1)
     takes its words here and keeps its stored pictures (_keep_pictures)."""
     if section["type"] == "text":
@@ -535,6 +535,7 @@ def _text_body(body):
 PICTURES = "pictures"                     # the one field of a picture template's body that only POST /api/section-image sets
 IMAGE_KEYS = ("project", "section", "slot", "image", "place")
 FULL_IMAGE_START = section_kinds.REGISTRY["imagecap"].START         # row 1223: the one body a new imagecap section may be given (the Full width image)
+WORK_ITEMS_START = section_kinds.REGISTRY["workitems"].START       # row 1268: the one body a new Work items list may be given (the saved filter it starts from)
 SIDE_BY_SIDE_START = section_kinds.REGISTRY["textimage"].START   # row 1232: the one body a new textimage section may be given (Text and Image Side by Side)
 NO_PICTURE_HERE = "That section can't hold a picture."
 PICTURE_NOT_TEXT = "Send the picture as text, or nothing to take it out."
@@ -799,6 +800,8 @@ def _do_change(store, by_user, req):
                 raise Refused(BODY_NOT_TEXT)
             if (new_type == "imagecap" and values["body"] == FULL_IMAGE_START) or (new_type == "textimage" and values["body"] == SIDE_BY_SIDE_START):
                 start_body = values["body"]                         # row 1223: the Full width image starts as an imagecap body of version 2, and only with this body
+            elif new_type == "workitems" and values["body"] == WORK_ITEMS_START:
+                start_body = values["body"]                         # row 1268: a new Work items list starts with a saved filter, and only with this one
             elif new_type != "text":
                 raise Refused(NO_BODY_HERE)
             else:

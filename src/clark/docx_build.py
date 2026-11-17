@@ -373,8 +373,13 @@ def _date(iso):
 def _kept(published, shown):
     """The published rows, in the shape glance reads them for a client (so the counts are the page's)."""
     data = published["data"]
-    return {"data": data, "rows": glance.work_rows(data), "use_cases": data.get("use_cases") or [],
-            "hidden_types": {t for t in HIDDEN_BY_KIND if t not in shown}}
+    hidden = {t for t in HIDDEN_BY_KIND if t not in shown}
+    listed = {i for s in published["sections"] if s.get("type") == "workitems" for i in s.get("items") or ()}
+    rows = glance.work_rows(data)
+    # row 1268: a row of a section left off the file is counted only when a Work items list in the file names it
+    rows = [r for r in rows if r["id"] in listed or not any(r["kind"] in glance.KINDS_OF_TILE[n] and glance.SECTION_OF_TILE[n] in hidden
+                                                          for n in glance.KINDS_OF_TILE)]
+    return {"data": data, "rows": rows, "use_cases": data.get("use_cases") or [], "hidden_types": hidden}
 
 
 def section_current(published, ctx, title, sec):
@@ -652,6 +657,11 @@ def section_decisions(published, ctx, title, sec):
     return _heading(title) + table(ctx, ["ID", "Decision", "Status", "Made by", "Date"], [1200, 4138, 1100, 1400, 1800], rows)
 
 
+WORK_COLUMNS = {"type": ("Type", 1000), "id": ("ID", 1200), "owner": ("Owner", 1350), "due": ("Due", 1200), "status": ("Status", 1200),
+                "priority": ("Priority", 950), "workstream": ("Workstream", 1300), "milestone": ("Milestone", 1500)}      # row 1268: the page's list columns, with the width each needs
+WORK_DEFAULT = ("type", "id", "owner", "due", "priority")
+
+
 def _late_words(iso, ctx):
     """Row 1268: the words the on-screen Work items list puts beside a late date (workItems.js dueCell): Yesterday, or N days late."""
     n = (ctx.today - date.fromisoformat(str(iso)[:10])).days
@@ -663,8 +673,11 @@ def _list_due(iso, late, ctx, extra=()):
 
 
 def section_workitems(published, ctx, title, sec):
-    """Row 1268: a Work items list prints the rows it names, in its order, as one table: the words of the three built-in tables."""
+    """Row 1268: a Work items list prints the rows it names, in its order, as one table: the Item and the columns the list chose (its `columns`, in the page's order)."""
     by_id = {r.get("id"): (t, r) for t in ("actions", "raid", "decisions") for r in _rows(published, t)}
+    names = {m.get("id"): m.get("name") for m in _rows(published, "milestones")}
+    chosen = [c for c in (sec.get("columns") or ()) if c in WORK_COLUMNS] or list(WORK_DEFAULT)
+    order = [c for c in ("type", "id") if c in chosen] + ["item"] + [c for c in WORK_COLUMNS if c in chosen and c not in ("type", "id")]
     rows = []
     for i in sec.get("items") or ():
         if i not in by_id:
@@ -674,19 +687,22 @@ def section_workitems(published, ctx, title, sec):
             pending = r.get("status") == "Pending"
             when = _date(r.get("needed_by") if pending else r.get("date")) if (r.get("needed_by") if pending else r.get("date")) else ""
             late = colours_table.is_late("decisions", "needed_by", r, ctx.today)
-            rows.append([word_cell(i, ctx), (text_paras(_words(r, "client_message", "decision"), ctx), None), word_cell(r.get("made_by"), ctx),
-                         word_cell(None, ctx), word_cell(when + (" " + _late_words(r.get("needed_by"), ctx) if late and when and r.get("status") == "Pending" else ""), ctx, late=late),
-                         word_cell(r.get("status"), ctx, colour=colours_table.colour_for("decisions", "status", r.get("status")))])
+            cells = {"type": word_cell("Decision", ctx), "id": word_cell(i, ctx), "item": (text_paras(_words(r, "client_message", "decision"), ctx), None),
+                     "owner": word_cell(r.get("made_by"), ctx), "priority": word_cell(None, ctx), "workstream": word_cell(None, ctx), "milestone": word_cell(None, ctx),
+                     "due": word_cell(when + (" " + _late_words(r.get("needed_by"), ctx) if late and when and pending else ""), ctx, late=late), "status": word_cell(r.get("status"), ctx, colour=colours_table.colour_for("decisions", "status", r.get("status")))}
         else:
             kind = "action" if t == "actions" else str(r.get("type") or "").lower()
-            rows.append([word_cell(i, ctx), (text_paras(_words(r, "client_message", "description"), ctx), None),
-                         word_cell(r.get("owner"), ctx, extra=[r.get("workstream")]),
-                         word_cell(r.get("priority"), ctx, colour=colours_table.colour_for(t, "priority", r.get("priority"))),
-                         _list_due(r.get("due_date"), colours_table.is_late(t, "due_date", r, ctx.today), ctx), _status_cell(r, kind, ctx)])
+            cells = {"type": word_cell(kind.capitalize(), ctx), "id": word_cell(i, ctx), "item": (text_paras(_words(r, "client_message", "description"), ctx), None),
+                     "owner": word_cell(r.get("owner"), ctx), "workstream": word_cell(r.get("workstream"), ctx), "milestone": word_cell(names.get(r.get("milestone")), ctx),
+                     "priority": word_cell(r.get("priority"), ctx, colour=colours_table.colour_for(t, "priority", r.get("priority"))),
+                     "due": _list_due(r.get("due_date"), colours_table.is_late(t, "due_date", r, ctx.today), ctx), "status": _status_cell(r, kind, ctx)}
+        rows.append([cells[c] for c in order])
     if not rows:
         return ""
     caption = para(run(sec["caption"], color=ctx.tok["grey-700"], size=18)) if sec.get("caption") else ""
-    return _heading(title) + caption + table(ctx, ["ID", "Item", "Owner", "Priority", "Due", "Status"], [1200, 3638, 1350, 950, 1200, 1200], rows)
+    fixed = {c: WORK_COLUMNS[c][1] for c in order if c != "item"}
+    weights = [fixed.get(c, max(2000, TEXT_W - sum(fixed.values()))) for c in order]
+    return _heading(title) + caption + table(ctx, ["Item" if c == "item" else WORK_COLUMNS[c][0] for c in order], weights, rows)
 
 
 def section_reportheadline(published, ctx, title, sec):
