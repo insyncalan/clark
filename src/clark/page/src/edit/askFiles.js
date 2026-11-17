@@ -13,7 +13,7 @@ export const DROP_LINE = "Drop a file or picture to add it to your next question
 export const REMOVE_FILE = (name) => `Remove ${name}`;
 export const TOO_MANY = `${FILE_MAX} files at most for one question. Remove one first.`;
 export const NOT_THIS_KIND = (name) => `${name} cannot be used. Add text, Markdown, CSV, PDF, Word, Excel, PNG or JPEG files.`;
-export const TOO_BIG = (name) => `${name} is over ${sizeText(FILE_BYTES)}. Add a smaller one.`;
+export const TOO_BIG = (name) => `${name} is over ${FILE_BYTES / 1048576} MB. Add a smaller one.`;
 export const EMPTY_FILE = (name) => `${name} is empty. Add one with something in it.`;
 
 export function sizeText(n) {
