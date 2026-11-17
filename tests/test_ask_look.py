@@ -422,13 +422,13 @@ class Look(Base):
             before = p.js("(function(){var r=document.querySelector('.ask-form').getBoundingClientRect();return [r.top, r.height];})()")
             row_top = p.js("document.querySelector('#ask-pills').getBoundingClientRect().top")
             self.ask(p, "Summarise the risks")
-            p.until("!!document.querySelector('#ask-work') && !!document.querySelector('#ask-quip')", "the working line")
+            p.until("!!document.querySelector('#ask-work') && !!document.querySelector('#ask-step')", "the working line")
             self.assertEqual(p.js("document.querySelector('#ask-pills')"), None, "the suggestions went while it works")
             self.assertEqual(p.js("document.querySelector('#ask-log #ask-work')"), None, "the working line is not in the chat")
             self.assertAlmostEqual(p.js("document.querySelector('#ask-work').getBoundingClientRect().top"), row_top, delta=1)
             self.assertEqual(p.js("(function(){var r=document.querySelector('.ask-form').getBoundingClientRect();return [r.top, r.height];})()"), before)
             self.assertIsNone(p.js("document.querySelector('#ask-work').getAttribute('role')"), "the working line is not a live region of its own: the status line announces the work once (read below)")
-            self.assertEqual(p.js("document.querySelector('#ask-quip').getAttribute('aria-hidden')"), "true", "the changing quip is not read out each time")
+            self.assertEqual(p.js("document.querySelector('#ask-step').getAttribute('aria-hidden')"), "true", "the counting line is not read out each second")
             self.assertEqual(p.js("document.querySelector('#ask-status').textContent.trim()"), "Working", "the status line says the work is going on")
             self.assertEqual(p.js("document.querySelector('#ask-status').getAttribute('role')"), "status")
             self.assertEqual(p.js("document.querySelector('#ask-status').getAttribute('aria-live')"), "polite")
@@ -487,7 +487,7 @@ class Strings(Base):
         return p.js("""(function(){var out=[];var panel=document.getElementById('ask-panel');
           [panel].concat([].slice.call(panel.querySelectorAll('*'))).forEach(function(e){
             ['aria-label','placeholder','title'].forEach(function(a){var v=e.getAttribute(a);if(v)out.push(v);});
-            if(e.id==='ask-quip')return;[].forEach.call(e.childNodes,function(n){if(n.nodeType===3&&n.textContent.trim())out.push(n.textContent.trim());});});
+            if(e.id==='ask-step')return;[].forEach.call(e.childNodes,function(n){if(n.nodeType===3&&n.textContent.trim())out.push(n.textContent.trim());});});
           return out;})()""")
 
     def sentences(self, strings):
@@ -516,7 +516,7 @@ class Strings(Base):
             seen["ready"] = self.read(p)
             self.stub.hold.clear()
             Look.ask(self, p, "Summarise the risks")
-            p.until("!!document.querySelector('#ask-quip') && document.querySelector('#ask-quip').textContent !== ''", "working")
+            p.until("!!document.querySelector('#ask-step') && document.querySelector('#ask-step').textContent !== ''", "working")
             seen["working"] = self.read(p)
             p.js("document.querySelector('#ask-stop').click()")
             p.until("document.querySelectorAll('.ask-turn').length === 2", "stopped")
@@ -545,19 +545,14 @@ class Strings(Base):
         # row, kept out of this judge by name so that every other new suggestion is still read.
         self.judge([f for f in found if f != "Which work items hold up the end date?"], "subject suggestions")
 
-    def test_every_suggestion_and_quip_in_the_words_file(self):
+    def test_every_suggestion_in_the_words_file(self):
         def listed(name):
             block = WORDS[WORDS.index(f"export const {name} = ["):]
             return re.findall(r'^  "(.+)",$', block[:block.index("\n];")], re.M)
-        suggestions, quips = listed("SUGGESTIONS"), listed("QUIPS")
+        suggestions = listed("SUGGESTIONS")
         self.assertGreaterEqual(len(suggestions), 5)
-        self.assertGreaterEqual(len(quips), 20)
-        self.assertEqual(len(set(quips)), len(quips), "no quip twice in the list")
-        # item 1094: the 150 quips are a copy of the creaite list, approved by its owner as it is (names, days and office talk included),
-        # so they are not judged for wording; the changing quip is left out of read() for the same reason
         self.judge(suggestions + [WORDS_FOR_JUDGE], "words file")
-        self.assertEqual(len(quips), 150)
-        self.assertFalse([q for q in quips if "!" in q])
+        self.assertNotIn("QUIPS", WORDS)
 
     def test_every_page_suggestion_in_the_words_file(self):
         block = WORDS[WORDS.index("export const PILLS_BY_SUBJECT = {"):]
