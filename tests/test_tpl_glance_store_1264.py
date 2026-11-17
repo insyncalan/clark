@@ -95,7 +95,7 @@ class LimitsAtTheEdge(unittest.TestCase):          # T07 to T10: each limit, one
         self.assertEqual(gt.BUILT_IN, ("health", "overdue", "risks", "decisions"))
 
 
-class IdAndTextKinds(unittest.TestCase):           # survivors of Stark's read: the id length, bytes at the size limit, and a falsy value that is not text
+class IdAndTextKinds(unittest.TestCase):           # survivors of the first read: the id length, bytes at the size limit, and a falsy value that is not text
     def test_an_id_is_at_most_16_characters(self):
         for n, answer in ((15, None), (16, None), (17, gt.words()["bad_id"]), (0, gt.words()["bad_id"])):
             with self.subTest(length=n):
