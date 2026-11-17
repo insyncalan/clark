@@ -1290,8 +1290,8 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
 
 /* row 1180 wire: the Details rows' icons and the one Client visible line */
 .pk-rowic { display: inline-flex; margin-right: var(--space-2); vertical-align: -2px; }
-.pk-client { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 28px; padding: 0; border: 0; background: none; font: inherit; color: var(--text-muted); cursor: pointer; }
-.pk-client.on { color: var(--brand-blue); }
+.pk-client { padding: 0; border: 0; background: none; font-family: inherit; line-height: inherit; cursor: pointer; }      /* the look is .cv (shell.css), shared with the read-only line */
+.pk-row[data-ms-row="visible"] .pk-client { font-size: inherit; }      /* the milestone peek: the Client value is the size of every other Details value; the 28 px hit box comes from the .cv min-height, not the font */
 .pk-client:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
 
 /* item 1181 chips: the Action peek's chip row (PeekActionChips.jsx). The chips, popovers and look are the shared frame's (item 1180); the Due chip's overdue sub-line and tint are PeekChip's. */
