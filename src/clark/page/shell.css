@@ -2664,6 +2664,60 @@ button.tpl-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 
 .ddmenu[aria-label="Projects"] [role="menuitemradio"] > span:not(.ck) { display: block; flex: 1; min-width: 0; }
 .ddmenu[aria-label="Projects"] [role="menuitemradio"] b, .ddmenu[aria-label="Projects"] [role="menuitemradio"] small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ddmenu[aria-label="Projects"] [role="menuitemradio"] small { color: var(--text-muted); }
+
+/* Glance template (row 1264, slice 6): the tile editor in Edit. An own tile has its grip, eye, pencil and bin in a strip above it; the editor
+   opens under it (or, popped out, over the page). Tokens only; no text under --size-caption (13px); the shapes are the View's (a green circle,
+   an amber triangle, a red diamond, a blue square, a neutral ring), so the colour picker shows the same signs. */
+.tcell.own { flex-direction: column; justify-content: flex-end; padding-top: var(--space-6); min-width: min(230px, 100%); }
+.tcell.own .tpl-gt-tile { flex: 1 1 auto; width: 100%; box-sizing: border-box; grid-template-columns: auto minmax(0, 1fr) minmax(0, auto) minmax(0, auto); }
+.tcell.own .tpl-gt-tile { border-color: var(--edge); }   /* the editor draws each tone as the border of the tile itself: green, amber, red, blue; the neutral one takes a grey */
+.tcell.own .tpl-gt-tile.tone-n { border-color: var(--grey-200); }
+.tcell.own .tpl-gt-v, .tcell.own .tpl-gt-tag { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* a tile too narrow for its figure and its tag cuts them with an ellipsis; the editor shows them whole */
+@media (max-width: 760px) { .tcell.own { flex-basis: 100%; } }
+.tcell.own .tgrip { right: 56px; } .tcell.own .teye { right: 30px; top: 4px; }
+.tpen, .tdel { all: unset; box-sizing: border-box; position: absolute; top: 4px; z-index: 2; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius-sm); color: var(--text-muted); cursor: pointer; }
+.tpen { right: 82px; } .tdel { right: 4px; }
+.tpen .i, .tdel .i { width: 16px; height: 16px; }
+.tpen:hover { background: var(--grey-100); color: var(--text); }
+.tdel:hover { background: var(--status-red-tint); color: var(--status-red-text); }
+.tpen:focus-visible, .tdel:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.tcell.own.is-hidden .tpl-gt-tile { border-style: dashed; border-color: var(--grey-300); background: transparent; }
+.tcell.own .thid { position: static; align-self: flex-start; margin-top: var(--space-2); }
+.tpl-shp { width: var(--space-3); height: var(--space-3); flex: none; color: var(--icon-grey); }
+.tpl-shp.tone-g { color: var(--icon-green); } .tpl-shp.tone-a { color: var(--icon-amber); } .tpl-shp.tone-r { color: var(--icon-red); } .tpl-shp.tone-b { color: var(--icon-blue); }
+.tpl-ed { position: absolute; z-index: 8; top: calc(100% + var(--space-2)); left: 0; box-sizing: border-box; width: min(340px, calc(100vw - var(--space-6))); padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-small); color: var(--text); text-align: left; }
+.tpl-ed h4 { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-2); font-size: var(--size-body); font-weight: var(--weight-medium); color: var(--heading); }
+.tpl-ed label, .tpl-ed .lbl { display: flex; justify-content: space-between; margin: var(--space-2) 0 2px; font-size: var(--size-small); font-weight: var(--weight-medium); color: var(--heading); }
+.tpl-ed label small { font-weight: var(--weight-regular); font-size: var(--size-caption); color: var(--text-muted); }
+.tpl-ed .inp { box-sizing: border-box; display: block; width: 100%; min-height: 32px; padding: var(--space-1) var(--space-3); border: 1px solid var(--control-edge); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.tpl-ed .inp:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.tpl-ed .inp.bad { border-color: var(--status-red-text); }
+.tpl-ed .err { margin: var(--space-1) 0 0; font-size: var(--size-caption); color: var(--status-red-text); }
+.tpl-ed .lbl { margin-top: var(--space-3); }
+.tpl-ed .cols { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-2); }
+.tpl-ed .col { all: unset; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); min-width: 0; padding: var(--space-2) var(--space-1); border: 1px solid var(--control-edge); border-radius: var(--radius); font-size: var(--size-caption); line-height: 1.2; color: var(--text); text-align: center; cursor: pointer; }
+.tpl-ed .col small { font-size: var(--size-caption); color: var(--text-muted); }
+.tpl-ed .col .tpl-shp { width: var(--space-4); height: var(--space-4); }
+.tpl-ed .col[aria-checked="true"] { border-color: var(--brand-blue); box-shadow: 0 0 0 2px var(--brand-blue-tint); font-weight: var(--weight-medium); }
+.tpl-ed .col:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.tpl-ed .live { margin: var(--space-2) 0 0; font-size: var(--size-caption); color: var(--text-muted); }
+.tpl-ed .foot { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-3); }
+.tpl-ed .foot .rm { all: unset; box-sizing: border-box; margin-right: auto; padding: var(--space-1) var(--space-2); font-size: var(--size-small); color: var(--status-red-text); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.tpl-ed .foot .rm:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.tpl-ed .foot [data-cancel]:first-child { margin-left: auto; }
+.tpl-ed .popbtn { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: var(--space-6); height: var(--space-6); margin-left: auto; border-radius: var(--radius); color: var(--text); cursor: pointer; }
+.tpl-ed .popbtn:hover { color: var(--brand-blue); }
+.tpl-ed .popbtn:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.tpl-ed .popbtn .i { width: 18px; height: 18px; }
+.tpl-ed.pop { position: fixed; z-index: 50; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(760px, calc(100vw - var(--space-6))); max-height: calc(100vh - var(--space-6)); overflow: auto; padding: var(--space-6); box-shadow: 0 0 0 100vmax color-mix(in srgb, var(--black) 45%, transparent); }
+.tpl-ed.pop h4 { font-size: var(--size-h3); }
+.tpl-ed.pop label, .tpl-ed.pop .lbl { font-size: var(--size-body); }
+.tpl-ed.pop .inp { min-height: 52px; padding: var(--space-3) var(--space-4); font-size: var(--size-h3); }
+.tpl-ed.pop .col { min-height: 64px; font-size: var(--size-body); }
+.tpl-ed.pop .col .tpl-shp { width: var(--space-5); height: var(--space-5); }
+.tpl-add { position: relative; margin: var(--space-3) 0 0; }
+.tpl-add .dd { display: block; }
+.tpl-add .tileadd { margin: 0; }
 /* The project Gantt chart (row 926): src/clark/page/src/gantt/. Tokens only; the bars are the data colours' neighbours (brand blue for a task, grey for a phase, amber and green for milestones), Today is the red status tint. */
 .gt { position: relative; color: var(--text); font-size: var(--size-caption); }
 .gt .i { width: 16px; height: 16px; flex: none; }
@@ -2973,57 +3027,3 @@ html:has(.top-hdr) .sec, html:has(.top-hdr) main [data-id], html:has(.top-hdr) m
 html:has(.top-hdr) body.board-full .top-hdr { display: none; }
 .pkt-name { display: inline-flex; align-items: center; gap: 8px; } .pkt-name .ms-i { width: 16px; height: 16px; flex: none; }
 .pkt-opts label.zero { color: var(--text-muted); opacity: 0.6; cursor: default; }
-
-/* Glance template (row 1264, slice 6): the tile editor in Edit. An own tile has its grip, eye, pencil and bin in a strip above it; the editor
-   opens under it (or, popped out, over the page). Tokens only; no text under --size-caption (13px); the shapes are the View's (a green circle,
-   an amber triangle, a red diamond, a blue square, a neutral ring), so the colour picker shows the same signs. */
-.tcell.own { flex-direction: column; justify-content: flex-end; padding-top: var(--space-6); min-width: min(230px, 100%); }
-.tcell.own .tpl-gt-tile { flex: 1 1 auto; width: 100%; box-sizing: border-box; grid-template-columns: auto minmax(0, 1fr) minmax(0, auto) minmax(0, auto); }
-.tcell.own .tpl-gt-tile { border-color: var(--edge); }   /* the editor draws each tone as the border of the tile itself: green, amber, red, blue; the neutral one takes a grey */
-.tcell.own .tpl-gt-tile.tone-n { border-color: var(--grey-200); }
-.tcell.own .tpl-gt-v, .tcell.own .tpl-gt-tag { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* a tile too narrow for its figure and its tag cuts them with an ellipsis; the editor shows them whole */
-@media (max-width: 760px) { .tcell.own { flex-basis: 100%; } }
-.tcell.own .tgrip { right: 56px; } .tcell.own .teye { right: 30px; top: 4px; }
-.tpen, .tdel { all: unset; box-sizing: border-box; position: absolute; top: 4px; z-index: 2; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius-sm); color: var(--text-muted); cursor: pointer; }
-.tpen { right: 82px; } .tdel { right: 4px; }
-.tpen .i, .tdel .i { width: 16px; height: 16px; }
-.tpen:hover { background: var(--grey-100); color: var(--text); }
-.tdel:hover { background: var(--status-red-tint); color: var(--status-red-text); }
-.tpen:focus-visible, .tdel:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
-.tcell.own.is-hidden .tpl-gt-tile { border-style: dashed; border-color: var(--grey-300); background: transparent; }
-.tcell.own .thid { position: static; align-self: flex-start; margin-top: var(--space-2); }
-.tpl-shp { width: var(--space-3); height: var(--space-3); flex: none; color: var(--icon-grey); }
-.tpl-shp.tone-g { color: var(--icon-green); } .tpl-shp.tone-a { color: var(--icon-amber); } .tpl-shp.tone-r { color: var(--icon-red); } .tpl-shp.tone-b { color: var(--icon-blue); }
-.tpl-ed { position: absolute; z-index: 8; top: calc(100% + var(--space-2)); left: 0; box-sizing: border-box; width: min(340px, calc(100vw - var(--space-6))); padding: var(--space-3) var(--space-4); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-small); color: var(--text); text-align: left; }
-.tpl-ed h4 { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-2); font-size: var(--size-body); font-weight: var(--weight-medium); color: var(--heading); }
-.tpl-ed label, .tpl-ed .lbl { display: flex; justify-content: space-between; margin: var(--space-2) 0 2px; font-size: var(--size-small); font-weight: var(--weight-medium); color: var(--heading); }
-.tpl-ed label small { font-weight: var(--weight-regular); font-size: var(--size-caption); color: var(--text-muted); }
-.tpl-ed .inp { box-sizing: border-box; display: block; width: 100%; min-height: 32px; padding: var(--space-1) var(--space-3); border: 1px solid var(--control-edge); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
-.tpl-ed .inp:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
-.tpl-ed .inp.bad { border-color: var(--status-red-text); }
-.tpl-ed .err { margin: var(--space-1) 0 0; font-size: var(--size-caption); color: var(--status-red-text); }
-.tpl-ed .lbl { margin-top: var(--space-3); }
-.tpl-ed .cols { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--space-2); }
-.tpl-ed .col { all: unset; box-sizing: border-box; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-1); min-width: 0; padding: var(--space-2) var(--space-1); border: 1px solid var(--control-edge); border-radius: var(--radius); font-size: var(--size-caption); line-height: 1.2; color: var(--text); text-align: center; cursor: pointer; }
-.tpl-ed .col small { font-size: var(--size-caption); color: var(--text-muted); }
-.tpl-ed .col .tpl-shp { width: var(--space-4); height: var(--space-4); }
-.tpl-ed .col[aria-checked="true"] { border-color: var(--brand-blue); box-shadow: 0 0 0 2px var(--brand-blue-tint); font-weight: var(--weight-medium); }
-.tpl-ed .col:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
-.tpl-ed .live { margin: var(--space-2) 0 0; font-size: var(--size-caption); color: var(--text-muted); }
-.tpl-ed .foot { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-3); }
-.tpl-ed .foot .rm { all: unset; box-sizing: border-box; margin-right: auto; padding: var(--space-1) var(--space-2); font-size: var(--size-small); color: var(--status-red-text); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
-.tpl-ed .foot .rm:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
-.tpl-ed .foot [data-cancel]:first-child { margin-left: auto; }
-.tpl-ed .popbtn { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: var(--space-6); height: var(--space-6); margin-left: auto; border-radius: var(--radius); color: var(--text); cursor: pointer; }
-.tpl-ed .popbtn:hover { color: var(--brand-blue); }
-.tpl-ed .popbtn:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
-.tpl-ed .popbtn .i { width: 18px; height: 18px; }
-.tpl-ed.pop { position: fixed; z-index: 50; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(760px, calc(100vw - var(--space-6))); max-height: calc(100vh - var(--space-6)); overflow: auto; padding: var(--space-6); box-shadow: 0 0 0 100vmax color-mix(in srgb, var(--black) 45%, transparent); }
-.tpl-ed.pop h4 { font-size: var(--size-h3); }
-.tpl-ed.pop label, .tpl-ed.pop .lbl { font-size: var(--size-body); }
-.tpl-ed.pop .inp { min-height: 52px; padding: var(--space-3) var(--space-4); font-size: var(--size-h3); }
-.tpl-ed.pop .col { min-height: 64px; font-size: var(--size-body); }
-.tpl-ed.pop .col .tpl-shp { width: var(--space-5); height: var(--space-5); }
-.tpl-add { position: relative; margin: var(--space-3) 0 0; }
-.tpl-add .dd { display: block; }
-.tpl-add .tileadd { margin: 0; }
