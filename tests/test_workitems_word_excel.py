@@ -149,6 +149,19 @@ class Word(unittest.TestCase):
         self.assertEqual(rows[1][0], "Action")
         self.assertEqual(rows[2][0], "Risk")
 
+    def test_a_decision_row_has_decision_in_its_type_cell(self):      # row 1268
+        rows = self.any_table(with_list(["PUB-D-001"], columns=("type", "id")))
+        self.assertEqual(rows[1][0], "Decision")
+
+    def test_the_item_column_keeps_its_minimum_width_when_every_column_is_chosen(self):      # row 1268
+        import re
+        import zipfile
+        cols = ("type", "id", "owner", "due", "status", "priority", "workstream", "milestone")
+        xml = zipfile.ZipFile(io.BytesIO(docx_build.build(with_list(["PUB-A-001"], columns=cols)))).read("word/document.xml").decode()
+        xml = xml[xml.index("Open work"):]
+        grid = [int(w) for w in re.findall(r'<w:gridCol w:w="(\d+)"', xml[xml.index("<w:tbl>"):])[:9]]
+        self.assertGreater(grid[2], 1500, "the Item column keeps its 2000 minimum before the table is scaled to the page")
+
     def test_the_priority_column_is_wide_enough_for_its_word(self):
         import re
         import zipfile
