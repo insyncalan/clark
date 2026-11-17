@@ -408,6 +408,71 @@ class Line(unittest.TestCase):
             self.assertEqual(self.tokens(cdp, sid, "err"), ["status:"], "with the focus on the prompt the token is marked")
             self.assertEqual(self.say(cdp, sid), "Add a value after 'status:'.", "and explained")
 
+    def test_a_half_typed_token_is_marked_again_when_the_focus_leaves_the_line_for_a_control_outside_it(self):
+        """Row 1265: the focus leaves the line fully (to a control outside it, not to the leave prompt that sits inside the line): the person is no
+        longer typing the token, so it is marked and explained again. Pins the `focused` operand of the caret test (the box keeps being 'the
+        focus was last in the box' after the focus has gone)."""
+        s = self.serve()
+        with shared.page() as cdp:
+            sid = self.load(cdp, s.port)
+            self.put(cdp, sid, "is:open status:")
+            self.assertEqual(cdp.js("document.activeElement.id", sid), "fline-input")
+            self.settle(cdp, sid)
+            self.assertEqual(self.tokens(cdp, sid, "err"), [], "typing the token: not marked")
+            cdp.js("(() => { const i = document.createElement('input'); i.id = 'outside'; document.body.appendChild(i); i.focus(); })()", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "outside"), "the focus is outside the line")
+            self.assertTrue(wait(lambda: self.tokens(cdp, sid, "err") == ["status:"]), "the focus has left: the token is marked")
+            self.assertEqual(self.say(cdp, sid), "Add a value after 'status:'.", "and explained")
+            cdp.js("document.activeElement.blur()", sid)                                # to the page body: no focus anywhere
+            self.settle(cdp, sid)
+            self.assertEqual(self.tokens(cdp, sid, "err"), ["status:"], "still marked with the focus on nothing")
+            cdp.js("document.querySelector('#fline-input').focus()", sid)               # back into the box: the caret is in the token again
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "fline-input"))
+            key(cdp, sid, "End")
+            self.assertTrue(wait(lambda: self.tokens(cdp, sid, "err") == []), "back in the box with the caret in the token: not marked")
+            self.assertEqual(self.say(cdp, sid), "")
+
+    def test_a_half_typed_token_is_marked_when_the_caret_moves_off_it_and_not_when_it_moves_back_onto_it(self):
+        """Row 1265: the caret test follows the caret inside the box: before the token, on its first and last character, and past the next word."""
+        s = self.serve()
+        with shared.page() as cdp:
+            sid = self.load(cdp, s.port)
+            self.put(cdp, sid, "status: priority:High")                                  # the caret is at the end, after the complete word
+            self.settle(cdp, sid)
+            self.assertEqual(self.tokens(cdp, sid, "err"), ["status:"], "the caret is past the half-typed token: marked")
+            key(cdp, sid, "Home")                                                       # caret 0 = the token's first position
+            self.assertTrue(wait(lambda: self.tokens(cdp, sid, "err") == []), "the caret at the start of the token: not marked")
+            self.assertEqual(self.say(cdp, sid), "", "and not explained")
+            for _ in range(len("status:")):
+                key(cdp, sid, "ArrowRight")                                             # caret 7 = the token's end, right after the colon
+            self.settle(cdp, sid)
+            self.assertEqual(self.tokens(cdp, sid, "err"), [], "the caret right after the colon: not marked")
+            key(cdp, sid, "ArrowRight")                                                 # past the space: one position beyond the token
+            self.assertTrue(wait(lambda: self.tokens(cdp, sid, "err") == ["status:"]), "the caret one past the token: marked")
+            self.assertEqual(self.say(cdp, sid), "Add a value after 'status:'.")
+            key(cdp, sid, "ArrowLeft")
+            self.assertTrue(wait(lambda: self.tokens(cdp, sid, "err") == []), "back on the token's end by the arrow key: not marked")
+            key(cdp, sid, "End")
+            self.assertTrue(wait(lambda: self.tokens(cdp, sid, "err") == ["status:"]), "End: marked")
+            click(cdp, sid, INPUT)                                                      # a click puts the caret too (where: the middle of the box)
+            key(cdp, sid, "Home")
+            self.assertTrue(wait(lambda: self.tokens(cdp, sid, "err") == []), "Home after a click: not marked")
+
+    def test_a_half_typed_token_is_not_marked_again_when_the_focus_returns_from_the_prompt_to_the_box(self):
+        """Row 1265: the leave prompt is a control of the line, so the box is not 'the focus' while it has it; the box has it again after a click."""
+        s = self.serve()
+        with shared.page() as cdp:
+            sid = self.load(cdp, s.port)
+            self.put(cdp, sid, "is:open status:")
+            cdp.js("document.activeElement.blur()", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "fvAskUpdate"), "the prompt for unsaved changes has the focus")
+            self.assertTrue(wait(lambda: self.tokens(cdp, sid, "err") == ["status:"]), "the focus is on the prompt: marked")
+            cdp.js("document.querySelector('#fline-input').focus()", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "fline-input"), "the box has the focus again")
+            key(cdp, sid, "End")
+            self.assertTrue(wait(lambda: self.tokens(cdp, sid, "err") == []), "the caret is in the box again: not marked")
+            self.assertEqual(self.say(cdp, sid), "")
+
     def test_the_text_is_highlighted_field_names_plain_and_values_as_coloured_chips(self):
         s = self.serve()
         for width in SIZES:
