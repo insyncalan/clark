@@ -14,11 +14,15 @@ export async function openMail(link) {
   }
 }
 
-// The click on the mail link: the server opens it; with no answer from the server the plain link is followed as before.
-export async function mailClick(e, href, say) {
+export const MAIL_NOTE = "No mail app opened. Use Copy as text and paste it into your mail.";   // ruled words (row 1297): shown only when the open fails
+
+// The click on the mail link: the server opens it. `show(true)` when the open fails (the plain note under the button), `show(false)` otherwise;
+// with no answer from the server at all the plain link is followed as before.
+export async function mailClick(e, href, show) {
   e.preventDefault();
+  show(false);
   const r = await openMail(href);
   if (r.ok) return;
-  if (r.message) say(r.message);
+  if (r.message) show(true);
   else window.location.href = href;
 }
