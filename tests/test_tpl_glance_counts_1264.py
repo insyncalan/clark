@@ -1,6 +1,6 @@
 """Row 1264 slice 2: the three built-in count tiles of the glance template, in published(). Counts come from ctx.rows (the rows publish
 kept) through glance.tiles, the code of the At a glance section; a hidden section, a client-hidden, Sensitive, archived or eye-hidden row
-is never counted and never named. Fictional data only. Words are the existing ones (glance.py); new words are WORDS_PENDING (none here).
+is never counted and never named. Fictional data only. Words are the existing ones (glance.py); new words are the approved refusal texts (none here).
 
 Run: python3 dev/run_tests.py test_tpl_glance_counts_1264
 """
@@ -74,7 +74,7 @@ class Rules(unittest.TestCase):                                                 
             for c in counts(pub(given=given)).values():
                 self.assertIn(c["title"], allowed)
                 self.assertTrue(c["detail"] in allowed or c["detail"].startswith(("of ", "Oldest needed by ")), c["detail"])
-        self.assertFalse([k for k in gt.WORDS_PENDING if any(k in json.dumps(c) for c in counts(pub()).values())])
+        self.assertFalse([k for k in gt.APPROVED if any(k in json.dumps(c) for c in counts(pub()).values())])
 
     def test_t28_the_outline_choice_sets_the_colour_class_and_the_order_is_followed(self):
         out = pub({"v": 1, "order": ["decisions", "overdue", "risks"], "builtin": {"overdue": {"outline": "G"}, "risks": {"outline": "N"}}})
