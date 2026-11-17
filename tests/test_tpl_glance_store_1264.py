@@ -1,6 +1,6 @@
 """Row 1264 slice 5: bespoke tiles, the store half. The limits live in check() and the page's copy (templates/glanceLimits.js) holds the
 same numbers; what published() carries is text that stays text in a workbook. One test per limit is built to fail when that limit moves.
-Fictional data only. Words a person would read are WORDS_PENDING: the tests name the key, never a sentence.
+Fictional data only. Words a person would read are the approved refusal texts, read by key from glancetemplate.words().
 
 Run: python3 dev/run_tests.py test_tpl_glance_store_1264
 """
@@ -52,7 +52,7 @@ class LimitsAtTheEdge(unittest.TestCase):          # T07 to T10: each limit, one
             with self.subTest(field=field):
                 self.assertIsNone(refused({"v": 1, "bespoke": [tile(**{field: "a" * (most - 1)})]}))
                 self.assertIsNone(refused({"v": 1, "bespoke": [tile(**{field: "a" * most})]}))
-                self.assertEqual(refused({"v": 1, "bespoke": [tile(**{field: "a" * (most + 1)})]}), gt.WORDS_PENDING[field + "_long"])
+                self.assertEqual(refused({"v": 1, "bespoke": [tile(**{field: "a" * (most + 1)})]}), gt.words()[field + "_long"])
 
     def test_the_limit_counts_the_trimmed_text(self):
         self.assertIsNone(refused({"v": 1, "bespoke": [tile(label="  " + "a" * 40 + "  ")]}))
@@ -62,19 +62,19 @@ class LimitsAtTheEdge(unittest.TestCase):          # T07 to T10: each limit, one
         many = lambda n: {"v": 1, "bespoke": [tile(id=f"t{i}", label=f"T{i}") for i in range(n)]}
         self.assertIsNone(refused(many(11)))
         self.assertIsNone(refused(many(12)))
-        self.assertEqual(refused(many(13)), gt.WORDS_PENDING["too_many"])
-        self.assertEqual(refused({"v": 1, "bespoke": [tile(id=f"t{i}", label="x" * 99) for i in range(13)]}), gt.WORDS_PENDING["too_many"])
+        self.assertEqual(refused(many(13)), gt.WORDS["too_many"])
+        self.assertEqual(refused({"v": 1, "bespoke": [tile(id=f"t{i}", label="x" * 99) for i in range(13)]}), gt.WORDS["too_many"])
 
     def test_five_tones_exactly(self):
         self.assertEqual(set(gt.TONES), {"green", "amber", "red", "blue", "neutral"})
         self.assertEqual(len(gt.TONES), 5)
         for t in gt.TONES:
             self.assertIsNone(refused({"v": 1, "bespoke": [tile(tone=t)]}))
-        self.assertEqual(refused({"v": 1, "bespoke": [tile(tone="grey")]}), gt.WORDS_PENDING["bad_tone"])
+        self.assertEqual(refused({"v": 1, "bespoke": [tile(tone="grey")]}), gt.words()["bad_tone"])
 
     def test_an_id_clash_is_refused_with_its_own_key_even_when_the_texts_differ(self):
-        self.assertEqual(refused({"v": 1, "bespoke": [tile(), tile(label="Other")]}), gt.WORDS_PENDING["dup_id"])
-        self.assertEqual(refused({"v": 1, "bespoke": [tile(id="health")]}), gt.WORDS_PENDING["bad_id"])
+        self.assertEqual(refused({"v": 1, "bespoke": [tile(), tile(label="Other")]}), gt.words()["dup_id"])
+        self.assertEqual(refused({"v": 1, "bespoke": [tile(id="health")]}), gt.words()["bad_id"])
 
 
 class PageCopy(unittest.TestCase):                 # T57: the counters on the page read the numbers the server enforces

@@ -42,7 +42,7 @@ class Rules(unittest.TestCase):
             with self.subTest(wrong=wrong):
                 with self.assertRaises(gt.Bad) as got:
                     gt.check({"v": 1, "per_row": wrong}, self.R)
-                self.assertEqual(str(got.exception), gt.WORDS_PENDING["bad_per_row"])
+                self.assertEqual(str(got.exception), gt.words()["unknown_field"])
 
     def test_the_file_carries_per_row_and_own_row(self):
         class Ctx:

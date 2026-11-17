@@ -13,8 +13,6 @@ automatic, tone neutral), and a field that holds its default is not stored, so o
 never stored: the three built-in figures are worked out from the rows publish kept, at publish time (a later slice). Typed only: no
 reference to a work item. Fields are picked by name and an unknown one is refused. Limits are in characters, not bytes. The number of
 bespoke tiles is held to BESPOKE_MAX, the one constant the server and (later) the page read.
-
-WORDS_PENDING: every sentence below is a placeholder. The words a person reads have not been approved yet; none is invented here.
 """
 import re
 
@@ -25,7 +23,7 @@ LIMIT = 32768
 EMPTY = ""
 
 BESPOKE_MAX = 12                                  # the one tile cap (open question O1 of the plan: 12 is a proposal)
-LABEL_MAX, FIGURE_MAX, TAG_MAX, NOTE_MAX = 40, 12, 12, 60      # characters (mock-up proposals, not approved)
+LABEL_MAX, FIGURE_MAX, TAG_MAX, NOTE_MAX = 40, 12, 12, 60      # characters
 BUILT_IN = ("health", "overdue", "risks", "decisions")          # the tiles that count or show the project, in their default order
 SETTLED = BUILT_IN[1:]                                           # the ones with a hidden flag and an outline (health has the eye)
 OUTLINES = ("R", "A", "G", "N")                                  # glance_tiles.outline, '' (automatic) is not stored
@@ -36,13 +34,37 @@ PER_ROW_DEFAULT = 4
 KEYS = ("v", "health", "per_row", "order", "builtin", "bespoke")
 TILE_KEYS = ("id", "label", "figure", "tag", "note", "tone", "hidden")
 
-KEYS_OF_WORDS = ("not_object", "unknown_field", "not_bool", "bad_outline", "bad_tone", "bad_id", "dup_id", "bad_order", "too_many", "bad_per_row",
+KEYS_OF_WORDS = ("not_object", "unknown_field", "not_bool", "bad_outline", "bad_tone", "bad_id", "dup_id", "bad_order", "too_many",
                  "label_missing", "label_long", "figure_long", "tag_long", "note_long", "bad_text", "too_long")
-WORDS_PENDING = {k: f"[words pending: {k}]" for k in KEYS_OF_WORDS}
+
+
+def words():      # words approved 17-11, see PR
+    return {
+        "not_object": "At a glance must be one set of fields. Check it and try again.",
+        "unknown_field": "At a glance has a field it does not keep. Reload the page and try again.",
+        "not_bool": "A yes or no setting in At a glance has the wrong kind of value. Check it and try again.",
+        "bad_outline": "The outline colour of a tile is green, amber, red or no colour. Choose one of those.",
+        "bad_tone": "The colour of a tile is green, amber, red, blue or neutral. Choose one of those.",
+        "bad_id": "A tile in At a glance has a name it cannot keep. Reload the page and try again.",
+        "dup_id": "Two tiles in At a glance have the same name. Reload the page and try again.",
+        "bad_order": "The order of the tiles in At a glance cannot be kept. Reload the page and try again.",
+        "too_many": "You can have up to 12 tiles.",
+        "label_missing": "Give the tile a label.",
+        "label_long": f"The tile label is too long ({LABEL_MAX} characters at most). Shorten it and try again.",
+        "figure_long": f"The tile figure is too long ({FIGURE_MAX} characters at most). Shorten it and try again.",
+        "tag_long": f"The tile tag is too long ({TAG_MAX} characters at most). Shorten it and try again.",
+        "note_long": f"The tile note is too long ({NOTE_MAX} characters at most). Shorten it and try again.",
+        "bad_text": "A tile in At a glance has text of the wrong kind. Check it and try again.",
+        "too_long": f"At a glance is too long to keep ({LIMIT // 1024} KB at most in all). Remove a tile or shorten the text and try again.",
+    }
+
+
+APPROVED = words()
+WORDS = APPROVED
 
 
 def _no(key):
-    raise Bad(WORDS_PENDING[key])
+    raise Bad(words()[key])
 
 
 def _flag(value, default):
@@ -140,7 +162,7 @@ def check(value, rules):
     per_row = value.get("per_row")
     if per_row is not None:
         if type(per_row) is not int or per_row not in PER_ROW:
-            _no("bad_per_row")
+            _no("unknown_field")      # no refusal word was approved for this one; the approved "reload" word is used
         if per_row != PER_ROW_DEFAULT:
             out["per_row"] = per_row
     bespoke = []
@@ -214,6 +236,8 @@ def check(value, rules):
         full = _complete(order, bespoke)
         if full != ids:
             out["order"] = full
+    if len(str(out).encode("utf-8")) > LIMIT:
+        _no("too_long")
     return out
 
 

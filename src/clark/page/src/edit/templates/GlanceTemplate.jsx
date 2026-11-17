@@ -3,7 +3,7 @@
 // report) and, but for Project health, a right-click menu for its outline colour; Project health keeps its pill and reason box. The
 // controls are the At a glance ones (edit/GlanceEdit.jsx); only where they save differs: the section's own body (templates/glanceBody.js),
 // one change() each, so one step and one Undo. A change that leaves the body as it was sends nothing. The words are the At a glance
-// words (the existing toasts); no new word is shown (WORDS_PENDING: none needed yet). The tile editor and the bespoke tiles are a later
+// words (the existing toasts); no new word is shown. The tile editor and the bespoke tiles are a later
 // slice. View part: templates/GlanceTemplate.jsx.
 // Slice 9: the eye on Project health hides it completely and a button then brings it back; "Tiles on a line" (3 or 4) and the switch
 // "Project health on its own row" sit under the tiles. Their words are the ruled ones (words file groups 2, 3, 10, 12, 13 and v2 A), in WORDS.
@@ -25,8 +25,6 @@ export const WORDS = {
   hintEye: "The eye on Project health hides it completely.", hintAdd: "Use Add a tile to make your own. Click the pencil on your own tile to edit it.",   // group 12
   perRow: "Tiles on a line", halfNote: "Half width always shows 2 on a line.",                                                               // group 13
 };
-
-export const WORDS_PENDING = {};     // the words a person has not been given yet would be listed here as "[words pending: ...]"; slice 4 needs none
 
 const focusLater = (at) => setTimeout(() => { const el = document.querySelector(at); if (el) el.focus(); }, 0);
 const keepFocus = (done, at) => Promise.resolve(done).then((r) => { focusLater(at); return r; });

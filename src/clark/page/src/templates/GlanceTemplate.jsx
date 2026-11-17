@@ -3,7 +3,7 @@
 // bespoke tiles. Each tile: a tone border, a dot (its SHAPE says the tone: circle green, triangle amber, square red, diamond blue, ring
 // neutral), the label (one line, never wrapped), the figure, the tag word and one note line. Colour is never the only signal: the shape
 // and the tag word say it too. Text nodes only. The words are the At a glance ones that exist already (glanceTiles.js) or what the
-// person typed; the library card and Edit words are WORDS_PENDING (section_kinds/glancetemplate.py), none is invented here.
+// person typed; the library card and Edit words are the approved ones (section_kinds/glancetemplate.py), none is invented here.
 // Project health (slice 9) is the At a glance health tile, drawn in the section's order when its eye is on; it takes the whole row when the
 // section says so (health.own_row), else one tile's place. The grid has 4 tiles on a line, 3 when the section says so (per_row), 2 at half
 // width (CSS) and 1 at 900. Health alone never makes a section: isEmpty looks at the counting and bespoke tiles only.
