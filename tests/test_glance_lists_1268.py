@@ -71,6 +71,10 @@ class Lists(unittest.TestCase):
         d = data(raid_=[raid(1, type_="Dependency", priority="High")])
         self.assertIn("risks", by(run(d, ("raid",), body(kinds=["dependency"]))))
 
+    def test_a_list_of_assumptions_brings_the_risks_tile_back(self):      # mutation check: KINDS_OF_TILE["risks"] names assumption
+        d = data(raid_=[raid(1, type_="Assumption", priority="High")])
+        self.assertIn("risks", by(run(d, ("raid",), body(kinds=["assumption"]))))
+
 
 class WordTiles(unittest.TestCase):
     """docx_build._kept: the rows the Word glance tiles count (mutation check, row 1268)."""
