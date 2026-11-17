@@ -408,8 +408,11 @@ class PageSide(unittest.TestCase):
 
     def test_a_stub_is_empty_and_a_built_in_type_is_not_a_template(self):
         for t in section_kinds.TYPES:
-            body = '{"v":1,"builtin":{"overdue":{"hidden":true},"risks":{"hidden":true},"decisions":{"hidden":true}}}' if t == "glancetemplate" else '{"v":1}'   # row 1264: its counting tiles show by default; hidden, it has nothing
+            body = '{"v":1}'   # row 1264: the glance template with no rows and no bespoke tile has nothing to show
             self.assertIs(self.val(f"T.templateEmpty({{id: 'x', type: {json.dumps(t)}, body: {json.dumps(body)}}}, {{}})"), True, t)
+        # row 1264 (B4): a glance template with every counting eye off is emptied on purpose; the View says so, so it is not empty
+        allhid = '{"v":1,"builtin":{"overdue":{"hidden":true},"risks":{"hidden":true},"decisions":{"hidden":true}}}'
+        self.assertIs(self.val(f"T.templateEmpty({{id: 'x', type: 'glancetemplate', body: {json.dumps(allhid)}}}, {{}})"), False)
         for t in BUILT_IN:
             self.assertIsNone(self.val(f"T.templateFor({json.dumps(t)})"), t)
             self.assertIs(self.val(f"T.templateEmpty({{id: 'x', type: {json.dumps(t)}}}, {{}})"), False, t)
