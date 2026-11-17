@@ -126,7 +126,7 @@ class Killers(GlanceEdit):
             p.mouse("mouseReleased", tx - 120, ty, 0)
             import time
             time.sleep(0.8)
-            self.assertEqual(self.body(), {})
+            self.assertEqual(self.body(), {"v": 1})      # as it was set up: nothing was written
             self.assertEqual(self.applies(), before, "a cancelled drag is no step")
             self.assertEqual(self.drawn(p), DEFAULT)
 
@@ -180,7 +180,7 @@ class Killers(GlanceEdit):
             p.mouse("mouseReleased", r[0], r[1], 0)
             import time
             time.sleep(0.8)
-            self.assertEqual(self.body(), {})
+            self.assertEqual(self.body(), {"v": 1})      # as it was set up: nothing was written
             self.assertEqual(self.applies(), before)
             self.assertEqual(self.drawn(p), DEFAULT)
 
@@ -192,7 +192,7 @@ class Killers(GlanceEdit):
             p.js(f"document.querySelector('{self.sel('[data-tile=risks] [data-tile-grip]')}').dispatchEvent(new PointerEvent('pointercancel', {{bubbles: true}}))")
             import time
             time.sleep(0.8)
-            self.assertEqual(self.body(), {})
+            self.assertEqual(self.body(), {"v": 1})      # as it was set up: nothing was written
             self.assertEqual(self.applies(), before)
 
     def test_K15_the_grip_says_what_it_does_and_names_the_outline_menu_only_where_there_is_one(self):

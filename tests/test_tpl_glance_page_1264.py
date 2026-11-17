@@ -231,7 +231,7 @@ class Page(Base):
 
     # T56
     def test_t56_every_tile_is_one_fixed_width_left_aligned_four_to_a_line_and_the_last_line_does_not_stretch(self):
-        ref = self.make({"v": 1, "bespoke": BESPOKE[:3]})        # 3 counting + 3 bespoke = 6 tiles
+        ref = self.make({"v": 1, "health": {"shown": False}, "bespoke": BESPOKE[:3]})        # 3 counting + 3 bespoke = 6 tiles (Project health off: it takes a place of its own)
         for width in (1400, 900):
             with self.subTest(width=width):
                 got = self.look(ref, width, "light")

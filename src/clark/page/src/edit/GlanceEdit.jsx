@@ -57,13 +57,14 @@ function startDrag(e, grip, key, order, move_) {
 }
 
 // `act` (row 1264, the glance template): what a tile's controls ask for, when it is not the built-in At a glance section's own table.
-// { hide(key, hidden), outline(key, value), move(key, before, order), step(key, dir, order), outlines(key) -> bool, eye(key) -> bool }.
+// { hide(key, hidden), outline(key, value), move(key, before, order), step(key, dir, order), outlines(key) -> bool, eye(key) -> bool, extra?(tile, title) -> the
+// controls after the eye (the glance template's own tiles: the pencil and the bin) }. A tile with `own` set is one the person typed: its title is its label.
 const OWN = { hide: (k, h) => hideTile(k, h), outline: outlineTile, move: moveTile, step: stepOne, outlines: () => true, eye: (k) => k !== "health" };
 
 function Cell({ tile, order, children, act = OWN }) {
   const [menu, setMenu] = useState(false);
   const grip = useRef(null), box = useRef(null);
-  const title = TILE_TITLES[tile.key], drop = dropTile.value && dropTile.value.key === tile.key ? ` drop-${dropTile.value.side}` : "";
+  const title = tile.own ? tile.label : TILE_TITLES[tile.key], drop = dropTile.value && dropTile.value.key === tile.key ? ` drop-${dropTile.value.side}` : "";
   const onKey = (e) => {
     if (!e.altKey || e.ctrlKey || e.metaKey) return;
     const dir = e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : 0;
@@ -72,7 +73,7 @@ function Cell({ tile, order, children, act = OWN }) {
     act.step(tile.key, dir, order);
   };
   return (
-    <div class={`tcell${tile.key === "health" ? " health" : ""}${tile.hidden ? " is-hidden" : ""}${drop}`} data-tile={tile.key} ref={box}
+    <div class={`tcell${tile.key === "health" ? " health" : ""}${tile.own ? " own" : ""}${tile.hidden ? " is-hidden" : ""}${drop}`} data-tile={tile.key} ref={box}
       onContextMenu={(e) => { if (!act.outlines(tile.key)) return; e.preventDefault(); setMenu(true); }}>
       <button type="button" class="tgrip" ref={grip} data-edit-only data-tile-grip aria-keyshortcuts="Alt+ArrowLeft Alt+ArrowRight"
         aria-label={`Move ${title}. Press Alt with the left or right arrow, or drag.${act.outlines(tile.key) ? " Right-click for its outline colour." : ""}`}
@@ -86,6 +87,7 @@ function Cell({ tile, order, children, act = OWN }) {
           <Icon name={tile.hidden ? "eyeoff" : "eye"} />
         </button>
       )}
+      {act.extra ? act.extra(tile, title) : null}
       {children}
       {tile.hidden ? <span class="tag hid thid">Hidden from the published report</span> : null}
       {menu && act.outlines(tile.key) ? (
@@ -142,8 +144,8 @@ function Reason({ health, reason }) {
 }
 
 // The line under the tiles in Edit: what a tile can do. Edit only; the published page never carries it.
-function Hint() {
-  return <p class="glance-hint" data-glance-hint>Drag a tile to move it, or hold Alt and press an arrow key. Use the eye to hide or show a tile. Right-click a tile to change its colour. Hidden tiles are left out of the published page.</p>;
+function Hint({ more = "" }) {      // `more`: sentences a template adds to the same paragraph (the glance template: one hint, not two)
+  return <p class="glance-hint" data-glance-hint>Drag a tile to move it, or hold Alt and press an arrow key. Use the eye to hide or show a tile. Right-click a tile to change its colour. Hidden tiles are left out of the published page.{more ? ` ${more}` : ""}</p>;
 }
 
 export const GLANCE = { Cell, HealthPill, Reason, Hint };
