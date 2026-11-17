@@ -26,6 +26,14 @@ class Platform(unittest.TestCase):
                 platform.open_mail(link, run=run, on=platform.MAC)
             self.assertEqual(run.calls, [], link)
 
+    def test_a_control_character_is_the_same_refusal_and_nothing_is_run(self):
+        for bad in ("mailto:a@b.c\x00", "mailto:a\x00b", "mailto:a@b.c?body=x\ny", "mailto:a@b.c\x1f", "mailto:a@b.c\x7f", "mailto:a\rb"):
+            run = Calls()
+            with self.assertRaisesRegex(platform.PlatformError, "Only a mail link starting mailto: can be opened here", msg=repr(bad)):
+                platform.open_mail(bad, run=run, on=platform.MAC)
+            self.assertEqual(run.calls, [], repr(bad))
+        self.assertEqual(mail_open.MailOpen(opener=lambda l: platform.open_mail(l, run=Calls(), on=platform.MAC)).handle({"link": "mailto:a\x00b"})[0], 503)
+
     def test_off_the_mac_nothing_is_run(self):
         for on in (platform.WINDOWS, "linux"):
             run = Calls()

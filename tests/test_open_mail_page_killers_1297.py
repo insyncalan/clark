@@ -20,23 +20,25 @@ class Shared:
         return self.val("document.querySelectorAll('[data-mail-note]').length")
 
     def watch_nav(self):
-        self.js("window.__nav = []; if (window.navigation) window.navigation.addEventListener('navigate', (e) => window.__nav.push(e.destination.url));")
+        self.js("const had = !!window.__nav; window.__nav = []; if (!had && window.navigation) window.navigation.addEventListener('navigate', (e) => window.__nav.push(e.destination.url + '|' + e.navigationType));")
 
     def check_follow(self, click, href):
-        """The plain link is followed only when the server gave no answer at all: not on success, not on a refusal with words."""
+        """The plain link is followed whenever the open fails (a refusal, as off the Mac, or no answer at all), never after a success."""
         self.assertTrue(self.val("!!window.navigation"), "the browser reports navigations")
+        self.settle()
         self.watch_nav()
         self.answer(200, {"ok": True})
         click()
         self.assertEqual(self.val("window.__nav"), [], "opened by the server: the plain link is not followed as well")
-        self.answer(503, {"ok": False, "message": "x"})
-        click()
-        self.assertEqual(self.val("window.__nav"), [], "refused with words: the note, no plain link")
-        self.answer(0, {}, reject=True)
-        click()
-        nav = self.val("window.__nav")   # the browser may re-encode a character or two, so compare the start
-        self.assertEqual(len(nav), 1, "no answer at all: the plain link is followed")
-        self.assertEqual(nav[0][:60], href[:60])
+        for i, (status, body, reject, why) in enumerate(((503, {"ok": False}, False, "refused without words"),
+                                          (503, {"ok": False, "message": "x"}, False, "refused with words (off the Mac)"), (0, {}, True, "no answer at all")), 1):
+            self.settle()
+            self.answer(status, body, reject=reject)
+            click()
+            self.settle()
+            nav = self.val("window.__nav")   # the browser may re-encode a character or two, so compare the start
+            self.assertEqual(len(nav), i, why + ": the plain link is followed " + repr([n[-12:] for n in nav]))
+            self.assertEqual(nav[0][:60], href[:60], why)
 
     def check_post(self, href):
         self.assertEqual(self.val("window.__posts.length"), 1)
