@@ -22,6 +22,10 @@ class Current(unittest.TestCase):
         got = self.ids([dec(1, "Made", "2026-10-28"), dec(2, "Made", "2026-10-29"), dec(3, "Made", "2026-10-14"), dec(4, "Made", "2026-10-13")])
         self.assertEqual(got, {"D-1", "D-3"})
 
+    def test_a_recent_closed_decision_that_was_not_made_stays_out(self):      # mutation check: the Made clause of _made_lately
+        got = self.ids([dec(1, "Made", "2026-10-27"), dec(2, "Withdrawn", "2026-10-27"), dec(3, "Cancelled", "2026-10-27"), dec(4, "Pending", "2026-10-27")])
+        self.assertEqual(got, {"D-1", "D-4"})
+
 
 class Header(unittest.TestCase):
     def test_the_letter_tile_column_has_a_name_for_a_screen_reader(self):      # mutation check: aria-label on the tile header
