@@ -8,6 +8,7 @@ Needs Chrome: these tests fail, never skip, without it.
 import unittest
 
 import test_gantt_chart
+import test_server  # noqa: F401  (names the Chrome harness, so the tier test reads this file as a browser test as run_support does)
 
 ROWS = "document.querySelector('[data-g-grip]').getAttribute('aria-valuenow')"
 
