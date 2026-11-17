@@ -100,9 +100,9 @@ class Fields(Base):
     def toast_text(self, p):
         return p.js("(document.querySelector('.toast .toast-text') || {}).textContent || ''")
 
-    def undo(self, p):
-        """The toast lives 5 seconds and a loaded runner can poll late: wait for the Undo button, then record every toast text from the click on, so a short-lived Undone line is never missed."""
-        p.until("!!document.querySelector('.toast [data-undo]')", "the Undo button")
+    def undo(self, p, said=""):
+        """The toast lives 5 seconds and a loaded runner can poll late: wait for the Undo button of THIS change (its words, `said`: the toast of the save before it has an Undo too, and a click on that one is not the change the test asks about), then record every toast text from the click on, so a short-lived Undone line is never missed."""
+        p.until("!!document.querySelector('.toast [data-undo]') && (document.querySelector('.toast .toast-text').textContent || '').includes(%s)" % json.dumps(said), "the Undo button of " + (said or "the toast"))
         p.js("(() => { window.__toastSeen = []; const note = () => { const t = document.querySelector('.toast .toast-text'); if (t) window.__toastSeen.push(t.textContent || ''); };"
              " window.__toastWatch && window.__toastWatch.disconnect(); window.__toastWatch = new MutationObserver(note);"
              " window.__toastWatch.observe(document.body, {subtree: true, childList: true, characterData: true}); document.querySelector('.toast [data-undo]').click(); })()")
@@ -172,7 +172,7 @@ class Fields(Base):
             self.chip(p, "progress")
             self.click(p, "[data-pop] [data-ms-block='70']")
             self.saved(p, "percent_complete", 70)
-            self.undo(p)
+            self.undo(p, "70%")
             self.saved(p, "percent_complete", 0)
 
     def test_state_popover_sets_clears_and_achieved_is_done_with_its_date(self):

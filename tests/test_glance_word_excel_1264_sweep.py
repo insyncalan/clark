@@ -17,8 +17,9 @@ from _paths import ROOT   # noqa: F401
 import _publish_fixture as fx
 from openpyxl import Workbook, load_workbook
 from clark import docx_build, docx_graphics, excel, excel_client, glance_print, publish
-from clark.section_kinds import glancetemplate
+from clark.section_kinds import base, glancetemplate
 from test_glance_word_excel_1264 import BESPOKE, body, select
+from test_tpl_glance_counts_1264 import AS_AT, rows
 
 TOK = docx_build.TOKENS
 GREY = f'<w:color w:val="{TOK["grey-700"]}"/>'
@@ -353,6 +354,108 @@ class ExcelExact(unittest.TestCase):
 
     def test_only_a_glance_template_section_makes_a_glance_sheet(self):
         self.assertNotIn("At a glance", wb_of(select(with_section=False)).sheetnames)
+
+
+class Killers(unittest.TestCase):
+    """The survivors the read of afcd20e6 listed."""
+
+    def test_a_content_that_is_not_an_object_is_nothing_whatever_the_section_holds(self):
+        sec = {"type": "glancetemplate", "content": "junk", "order": ["bud"], "bespoke": [{"id": "bud", "label": "ZQ"}], "health": {"shown": False}}
+        got = glance_print.read(select(), sec)
+        self.assertEqual([t["key"] for t in got["tiles"]], ["health"], "the section's own keys are never read as the content")
+        self.assertIsNone(got["health_row"])
+
+    def test_the_health_note_is_the_reason_as_plain_words_with_no_edge_spaces(self):
+        pub = select()
+        pub["data"]["project"] = {"health": "At risk", "health_reason": "<p>  Fictional <b>reason</b>  </p>"}
+        got = read({}, pub)["tiles"][0]
+        self.assertEqual((got["key"], got["figure"], got["note"]), ("health", "At risk", "Fictional reason"))
+
+    def test_a_hidden_typed_tile_is_in_no_published_content_and_not_in_the_order(self):
+        value = {"v": 1, "order": ["a", "b", "c", "health", "overdue", "risks", "decisions"],
+                 "bespoke": [{"id": "a", "label": "A"}, {"id": "b", "label": "B", "hidden": True}, {"id": "c", "label": "C", "hidden": False}]}
+        got = glancetemplate.published(value, None)["content"]
+        self.assertEqual([t["id"] for t in got["bespoke"]], ["a", "c"])
+        self.assertNotIn("b", got["order"])
+        self.assertEqual(got["order"], ["a", "c", "health", "overdue", "risks", "decisions"])
+
+    def test_a_dozen_typed_tiles_and_the_counts_and_health_all_print_in_word_and_in_the_sheet(self):
+        many = [{"id": f"t{i}", "label": f"ZQ-T{i}"} for i in range(12)]
+        pub = select(body(bespoke=many))
+        words = [t["label"] for t in glance_print.read(pub, glance_sec(pub))["tiles"]]
+        for i in range(12):
+            self.assertIn(f"ZQ-T{i}", words)
+        sheet = [ws for ws in wb_of(pub).worksheets if ws.title.startswith("At a glance")][0]
+        self.assertEqual([sheet.cell(r, 1).value for r in range(5, sheet.max_row + 1)].count(None), 0)
+        self.assertGreaterEqual(sheet.max_row - 4, 12)
+        self.assertEqual(sum(f">ZQ-T{i}<" in doc_xml(pub) for i in range(12)), 12)
+
+    def test_every_character_an_xlsx_cannot_hold_is_dropped_or_spaced_and_the_rest_kept(self):
+        spaced = {"\x0b", "\x0c", "\x1c", "\x1d", "\x1e"}
+        for code in list(range(0x20)) + [0x7f, 0x80, 0x9f, 0xa0, 0xd7ff, 0xe000, 0xfffd, 0xfffe, 0xffff, 0x10000]:
+            ch = chr(code)
+            want = "a b" if ch in spaced else ("ab" if (code < 0x20 and ch not in "\t\n\r") or code in (0xfffe, 0xffff) else "a" + ch + "b")
+            if ch == "\r":
+                want = "a\nb"
+            with self.subTest(code=hex(code)):
+                self.assertEqual(excel.cell_text("a" + ch + "b"), want)
+        for code in (0xd800, 0xdbff, 0xdc00, 0xdfff):
+            with self.subTest(code=hex(code)):
+                self.assertEqual(excel.cell_text("a" + chr(code) + "b"), "ab")
+
+    def test_a_glance_sheet_never_takes_a_name_that_is_already_used(self):
+        pub = select()
+        wb = Workbook()
+        wb.active.title = "At a glance"
+        wb.create_sheet("At a glance 3")
+        ws = excel_client.write_glance_sheet(wb, pub, glance_sec(pub))
+        self.assertEqual(ws.title, "At a glance 4")
+        self.assertEqual(wb.sheetnames, ["At a glance", "At a glance 3", "At a glance 4"])
+
+
+class SecondRead(unittest.TestCase):
+    """The second read of the slice: sizes, the health eye alone, the label, the sheet position, the two defaults."""
+
+    def _run_of(self, pub, word):
+        runs = re.findall(r"<w:r>.*?</w:r>", doc_xml(pub), re.S)
+        return [r for r in runs if word in r][0]
+
+    def test_the_figure_is_16_points_and_label_tag_and_note_are_8(self):
+        pub = select(body(bespoke=[{"id": "a", "label": "ZQLAB", "figure": "ZQFIG", "tag": "ZQTAG", "note": "ZQNOTE"}]))
+        self.assertIn('w:val="32"', self._run_of(pub, "ZQFIG"))
+        for w in ("ZQLAB", "ZQTAG", "ZQNOTE"):
+            self.assertIn('w:val="16"', self._run_of(pub, w))
+
+    def test_counts_alone_are_published_with_health_off_and_no_typed_tile(self):
+        out = glancetemplate.published({"v": 1, "health": {"shown": False}}, base.Context(rows(), AS_AT))
+        self.assertEqual([c["tile"] for c in out["content"]["counts"]], ["overdue", "risks", "decisions"])
+        self.assertEqual(out["content"]["bespoke"], [])
+
+    def test_the_health_eye_alone_prints_its_row_in_word_and_in_the_sheet(self):
+        pub = select(body(bespoke=[], builtin={n: {"hidden": True} for n in ("overdue", "risks", "decisions")}))
+        sec = glance_sec(pub)
+        self.assertIsNotNone(sec, "the section is in the file")
+        self.assertEqual([t["key"] for t in glance_print.read(pub, sec)["tiles"]], ["health"])
+        self.assertIn("Project health", doc_xml(pub))
+        ws = [w for w in wb_of(pub).worksheets if w.title.startswith("At a glance")][0]
+        self.assertEqual(ws.cell(5, 1).value, "Project health")
+
+    def test_nothing_to_show_at_all_is_no_section(self):
+        pub = select(body(bespoke=[], health={"shown": False}, builtin={n: {"hidden": True} for n in ("overdue", "risks", "decisions")}))
+        self.assertIsNone(next((x for x in pub["sections"] if x["type"] == "glancetemplate"), None))
+
+    def test_the_health_tile_label_is_the_tile_title(self):
+        pub = select()
+        self.assertEqual(glance_print.read(pub, glance_sec(pub))["tiles"][0]["label"], "Project health")
+
+    def test_the_sheet_suffix_is_the_sheets_position(self):
+        pub = select()
+        wb = Workbook()
+        wb.active.title = "Other"
+        wb.create_sheet("Other 2")
+        first = excel_client.write_glance_sheet(wb, pub, glance_sec(pub))
+        second = excel_client.write_glance_sheet(wb, pub, glance_sec(pub))
+        self.assertEqual((first.title, second.title), ("At a glance", "At a glance 4"))
 
 
 if __name__ == "__main__":
