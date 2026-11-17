@@ -39,5 +39,19 @@ class SettingsMenu1280Pins(Base):
                     self.assertAlmostEqual(b[0], a[1], delta=0.5, msg="the pages of a group touch exactly")
         self.each(body)
 
+    def test_D_the_heading_type_and_the_marker_inset_are_pinned(self):
+        def body(p, w, mode):
+            got = p.js(f"""{NAME}.map(e => {{ const s = getComputedStyle(e); return [s.fontSize, s.letterSpacing, s.paddingBottom, s.paddingLeft, s.paddingTop]; }})""")
+            for size, spacing, below, left, above in got:
+                self.assertEqual(size, "13px", "the heading is the 13 px caption size")
+                self.assertAlmostEqual(float(spacing[:-2]), 0.78, delta=0.01, msg="capitals are spaced .06em, 0.78 px at 13 px")
+                self.assertEqual((below, left, above), ("4px", "12px", "0px"), "a heading has 4 px under it and 12 px at the left")
+            mark = p.js("""(() => { const c = document.querySelector('.set-nav .set-chip[aria-current]'), s = getComputedStyle(c, '::before'); const r = c.getBoundingClientRect();
+                return [s.top, s.bottom, s.height, r.height]; })()""")
+            self.assertEqual(mark[0], "4px", "the open-page bar starts 4 px under the top of its row")
+            self.assertEqual(mark[1], "4px", "the open-page bar ends 4 px above the foot of its row")
+            self.assertAlmostEqual(float(mark[2][:-2]), mark[3] - 8, delta=0.5, msg="the bar is the row less 4 px at each end")
+        self.each(body)
+
 if __name__ == "__main__":
     unittest.main()
