@@ -326,7 +326,8 @@ class Editing(Editor):
                                out: [...g.querySelectorAll('.tcell')].filter(c => c.getBoundingClientRect().right > gr.right + 1).map(c => c.dataset.tile),
                                small: [...g.querySelectorAll('.tpl-gt-tile *')].filter(e => parseFloat(getComputedStyle(e).fontSize) < 13 && e.textContent.trim()).length,
                                tones: [...g.querySelectorAll('.tpl-gt-tile')].map(t => getComputedStyle(t).borderTopColor)}}; }})()""")
-                    self.assertFalse(got["overflow"], f"no sideways scroll: {p.js('[...document.querySelectorAll(\'body *\')].filter(e => e.getBoundingClientRect().right > window.innerWidth + 1).slice(0, 6).map(e => e.tagName + \'.\' + e.className + \' \' + Math.round(e.getBoundingClientRect().right) + \' \' + window.innerWidth)')}")
+                    wide = p.js("[...document.querySelectorAll('body *')].filter(e => e.getBoundingClientRect().right > window.innerWidth + 1).slice(0, 6).map(e => e.tagName + '.' + e.className + ' ' + Math.round(e.getBoundingClientRect().right) + ' ' + window.innerWidth)")
+                    self.assertFalse(got["overflow"], f"no sideways scroll: {wide}")
                     self.assertEqual(got["out"], [], "every tile inside the section")
                     self.assertEqual(got["small"], 0, "no text under 13px")
                     self.assertEqual(len(set(got["tones"])), 5, f"five border colours: {got['tones']}")
