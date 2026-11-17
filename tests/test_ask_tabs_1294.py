@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -91,8 +92,11 @@ class Tabs(unittest.TestCase):
             js("document.querySelector('[data-ask-tab=all]').click()")
             self.until(js, "!!document.querySelector('#ai-settings')", "All projects")
             before = js("document.querySelector('#ai-settings').innerText")
+            js("window.__ask_seen_checking = false; new MutationObserver(() => { if (/Checking/i.test(document.querySelector('#ask-state') ? document.querySelector('#ask-state').textContent : '')) window.__ask_seen_checking = true; }).observe(document.body, {subtree: true, childList: true, characterData: true, attributes: true})")
             js("document.querySelector('[data-ask-tab=project]').click()")
             self.until(js, "(document.querySelector('[data-ask-switch]') || {disabled: true}).disabled === false", "the switch")
+            time.sleep(0.5)      # the read, if one were made, shows its Checking line within this time
+            self.assertFalse(js("window.__ask_seen_checking"), "showing the project tab again does not read the switch again (no Checking line)")
             js("document.querySelector('[data-ask-switch]').click()")
             self.until(js, "document.querySelector('[data-ask-switch]').getAttribute('aria-pressed') === 'false'", "asking off for the project")
             js("document.querySelector('[data-ask-tab=all]').click()")
