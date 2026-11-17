@@ -156,5 +156,74 @@ class HeadShape(unittest.TestCase):
         self.assertNotIn("#", r.text.split("EARLIER IN THIS CHAT")[1])
 
 
+class IdPattern(unittest.TestCase):
+    def found(self, text):
+        return ask_data.ID_PATTERN.findall(text)
+
+    def test_the_shapes_that_are_ids(self):
+        for ok in ("ABC-A-001", "ABC-001", "ABC-A-1234", "ABCDEFG-A-001", "AB1-A-001", "ABC-A-1"):
+            self.assertEqual(self.found("see " + ok + " now"), [ok], ok)
+
+    def test_the_shapes_that_are_not(self):
+        for bad in ("xABC-A-001", "ABC-A-12345", "ABC-A-", "AB-A-001", "ABCDEFGH-A-001", "ABC-A-001x", "ABC--A-001"):
+            self.assertEqual(self.found(bad), [], bad)
+
+    def test_a_question_id_ranks_when_no_word_separates_the_passages(self):
+        a, b = ask.Passage("x", "ABC-A-1 | go"), ask.Passage("y", "ABC-A-2 | go")
+        chosen, _left = ask_data.choose([ask.Passage("p", "p"), a, b], "ABC-A-2", budget=len(a.text) + 2)
+        self.assertEqual([p.label for p in chosen], ["p", "y"])
+
+
+class Defaults(unittest.TestCase):
+    def test_project_data_defaults_say_nothing(self):
+        d = ask_data.ProjectData((), {}, 0)
+        self.assertEqual((d.today, d.counts, d.secret, d.kinds_left_out), ("", (), 0, ()))
+
+    def test_only_a_text_day_is_a_day(self):
+        self.assertTrue(ask_data._is_day("2026-11-17"))
+        for no in ("soon", "", None, 20261117, ("2026-11-17",)):
+            self.assertFalse(ask_data._is_day(no), no)
+
+    def test_the_fourth_turn_back_counts_the_fifth_does_not(self):
+        turns = [("user", "ABC-A-005")] + [("user", "x")] * 4
+        self.assertEqual(ask_data.ids_in_turns(turns), [])
+        self.assertEqual(ask_data.ids_in_turns(turns[:-1]), ["ABC-A-005"])
+
+    def test_a_repeated_id_is_listed_once_in_first_seen_order(self):
+        turns = [("user", "ABC-A-002 ABC-A-001"), ("user", "ABC-A-002 and ABC-A-003")]
+        self.assertEqual(ask_data.ids_in_turns(turns), ["ABC-A-002", "ABC-A-001", "ABC-A-003"])
+
+    def test_the_partial_line_names_the_kind_then_sent_then_all(self):
+        self.assertEqual(ask_data.partial_lines([("actions", 7, 12), ("raid", 3, 3), ("use_cases", 1, 2)]),
+                         ["actions: 7 of 12 rows sent", "use cases: 1 of 2 rows sent"])
+
+
+class CountsFromTheData(unittest.TestCase):
+    def test_the_totals_are_every_row_of_the_kind_and_a_kind_without_rows_is_absent(self):
+        given = plant.inputs()
+        given["as_at"] = "2026-11-17"
+        given["data"] = dict(given["data"], decisions=[])
+        with mock.patch.object(publish, "read_inputs", return_value=given) as read:
+            got = ask_data.project_data(object(), "PUB", "q", as_at="2026-11-17")
+        read.assert_called_once_with(mock.ANY, "PUB", "2026-11-17")
+        selected = publish.select(given)["data"]
+        self.assertEqual({k: t for k, _s, t in got.counts}, {k: len(selected[k]) for k in ask_data.KIND_ORDER if selected.get(k)})
+        self.assertNotIn("decisions", [k for k, _s, _t in got.counts])
+        self.assertGreater(len(selected["actions"]), 1)
+
+    def test_no_as_at_is_handed_on_as_none(self):
+        with mock.patch.object(publish, "read_inputs", return_value=plant.inputs()) as read:
+            ask_data.project_data(object(), "PUB", "q")
+        read.assert_called_once_with(mock.ANY, "PUB", None)
+
+    def test_a_password_in_a_row_is_counted_in_secret(self):
+        given = plant.inputs()
+        for row in given["data"]["actions"]:
+            row["description"] = "x " * ask_data.MAX_PASSAGE + "pass" + "word: Welcome" + "2026!"
+        with mock.patch.object(publish, "read_inputs", return_value=given):
+            got = ask_data.project_data(object(), "PUB", "q", as_at="2026-11-17")
+        self.assertGreaterEqual(got.secret, 1)
+
+
 if __name__ == "__main__":
     unittest.main()
