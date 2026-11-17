@@ -739,7 +739,7 @@ def section_glancetemplate(published, ctx, title, sec):
         fill = text = None
         if h["colour"]:
             fill, text = ctx.hexes(h["colour"])
-        out.append(para(run(h["label"] + ": ", bold=True) + run(h["figure"], bold=True, color=text), fill=fill, spacing=(60, 60)))
+        out.append(para(run(h["label"] + ": ", bold=True) + run(h["figure"], bold=True, color=text), fill=fill, spacing=(60, 60), keep_next=bool(h["colour"])))
         if h["colour"]:
             out.append(picture_para(ctx, lambda: (docx_graphics.health_bar(h["colour"], ctx.tok), h["label"] + ": " + h["figure"]), TEXT_W, keep_next=True, spacing=(0, 60)))
         if h["note"]:

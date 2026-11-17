@@ -191,7 +191,7 @@ class WordExact(unittest.TestCase):
         pub = select(body(order=["health", "bud"], health={"own_row": True}))
         xml = doc_xml(pub)
         fill, text = TOK["tone-amber-tint"], re.search(r'<w:b/><w:color w:val="([0-9A-F]{6})"/></w:rPr><w:t xml:space="preserve">At risk', xml).group(1)
-        want = (f'<w:p><w:pPr><w:shd w:val="clear" w:color="auto" w:fill="{fill}"/><w:spacing w:before="60" w:after="60"/></w:pPr>'
+        want = (f'<w:p><w:pPr><w:keepNext/><w:shd w:val="clear" w:color="auto" w:fill="{fill}"/><w:spacing w:before="60" w:after="60"/></w:pPr>'
                 f'<w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">Project health: </w:t></w:r>'
                 f'<w:r><w:rPr><w:b/><w:color w:val="{text}"/></w:rPr><w:t xml:space="preserve">At risk</w:t></w:r></w:p>'
                 f'<w:p><w:pPr><w:keepNext/><w:spacing w:before="0" w:after="60"/></w:pPr><w:r><w:drawing>')
@@ -282,7 +282,7 @@ class ExcelExact(unittest.TestCase):
     def test_the_column_heads_are_on_row_four_with_their_widths_and_nothing_else_is_a_column(self):
         ws = self.ws
         self.assertEqual(ws.max_column, 4)
-        self.assertEqual([ws.cell(4, c).value for c in (1, 2, 3, 4)], ["Tile", "Figure", "Status", "Note"])
+        self.assertEqual([ws.cell(4, c).value for c in (1, 2, 3, 4)], ["Tile", "Figure", "Tag", "Note"])
         self.assertEqual([ws.column_dimensions[l].width for l in "ABCD"], [28, 14, 16, 60])
         for c in (1, 2, 3, 4):
             self.assertEqual((ws.cell(4, c).font.bold, ws.cell(4, c).font.color.rgb[-6:], ws.cell(4, c).fill.fgColor.rgb[-6:]), (True, "445566", "112233"))
@@ -357,7 +357,7 @@ class ExcelExact(unittest.TestCase):
 
     def test_the_sheet_name_is_the_one_constant(self):
         self.assertEqual(excel_client.GLANCE_SHEET, "At a glance")
-        self.assertEqual(excel_client.GLANCE_HEADS, (("Tile", 28), ("Figure", 14), ("Status", 16), ("Note", 60)))
+        self.assertEqual(excel_client.GLANCE_HEADS, (("Tile", 28), ("Figure", 14), ("Tag", 16), ("Note", 60)))
 
     def test_only_a_glance_template_section_makes_a_glance_sheet(self):
         self.assertNotIn("At a glance", wb_of(select(with_section=False)).sheetnames)
