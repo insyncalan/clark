@@ -84,7 +84,7 @@ class Contrast(unittest.TestCase):
         self.assertIsNone(re.search(r"#[0-9A-Fa-f]{3,6}\b|rgb", css), "no colour value of its own")
         self.assertIn("font-size: var(--size-caption)", rule(".tpl-gt-k"))
         self.assertIn("white-space: nowrap", rule(".tpl-gt-k, .tpl-gt-tag, .tpl-gt-note"))
-        self.assertRegex(SHELL, r"@media \(max-width: 900px\) \{ \.tpl-gt-tile \{ flex-basis: 100%; \} \}")
+        self.assertRegex(SHELL, r"@media \(max-width: 900px\) \{ \.tpl-gt, \.tpl-gt\[data-cols=\"3\"\], \.slot-left \.tpl-gt, \.slot-right \.tpl-gt \{ grid-template-columns: minmax\(0, 1fr\); \} \}")
 
 
 def seed_rows(test):

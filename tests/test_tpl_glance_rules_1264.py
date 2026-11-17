@@ -147,7 +147,7 @@ class Reads(unittest.TestCase):                                                 
                      {"health": {"shown": "no", "own_row": 7}}, {"builtin": {"overdue": {"outline": "zz", "hidden": 2}}}):
             with self.subTest(junk=junk):
                 u = gt.upgrade(junk)
-                self.assertEqual(set(u), {"v", "health", "order", "builtin", "bespoke"})
+                self.assertEqual(set(u), {"v", "health", "per_row", "order", "builtin", "bespoke"})      # slice 9: + per_row
                 self.assertEqual(u["health"], {"shown": True, "own_row": False})
                 self.assertEqual(sorted(u["order"]), sorted(list(gt.BUILT_IN) + [t["id"] for t in u["bespoke"]]))
         self.assertEqual(gt.upgrade({"bespoke": [None, {"id": "t1", "label": "ok"}, {"id": "t1", "label": "dup"}]})["bespoke"][0]["label"], "ok")
@@ -190,7 +190,7 @@ class Published(unittest.TestCase):                                             
         self.assertEqual(out["health"], {"shown": False, "own_row": True})
         plain = gt.published({"v": 1, "bespoke": [tile()]}, None)["content"]
         self.assertEqual(plain["health"], {"shown": True, "own_row": False})
-        self.assertEqual(set(plain), {"health", "order", "builtin", "bespoke"})
+        self.assertEqual(set(plain), {"health", "per_row", "order", "builtin", "bespoke"})      # slice 9: + per_row
         self.assertEqual(plain["builtin"], {n: {"hidden": False, "outline": ""} for n in gt.SETTLED})
 
     def test_t14_a_body_that_is_not_there_publishes_nothing(self):

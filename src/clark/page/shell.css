@@ -2065,8 +2065,8 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
    line, never wrapped), the figure, the tag word and one note line. The edge colour is a token that gives 3:1 against the tile (white in light):
    green, red, blue and neutral use their own tokens; amber uses --status-amber-text, because --status-amber on white is 2.22:1 (the At a glance
    tile's amber outline) and --status-amber-text is 6.39:1; in dark both amber tokens clear 7:1 on the surface. The tag colour is the status TEXT token. */
-.tpl-gt { display: flex; flex-wrap: wrap; gap: var(--space-3); margin: var(--space-2) 0; min-width: 0; }
-.tpl-gt-tile { --edge: var(--grey-500); --tag: var(--text-muted); display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; column-gap: var(--space-2); flex: 1 1 auto; min-width: 0; max-width: 100%; padding: var(--space-2) var(--space-3); border: 2px solid var(--edge); border-radius: var(--radius); background: var(--surface); }
+.tpl-gt { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); margin: var(--space-2) 0; min-width: 0; }
+.tpl-gt-tile { --edge: var(--grey-500); --tag: var(--text-muted); display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; column-gap: var(--space-2); min-width: 0; max-width: 100%; padding: var(--space-2) var(--space-3); border: 2px solid var(--edge); border-radius: var(--radius); background: var(--surface); }
 .tpl-gt-tile.tone-g { --edge: var(--status-green); --tag: var(--status-green-text); }
 .tpl-gt-tile.tone-a { --edge: var(--status-amber-text); --tag: var(--status-amber-text); }
 .tpl-gt-tile.tone-r { --edge: var(--status-red); --tag: var(--status-red-text); }
@@ -2082,7 +2082,13 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-gt-v { font-size: var(--size-figure); font-weight: var(--weight-medium); line-height: 1.15; color: var(--heading); }
 .tpl-gt-tag { padding: 1px var(--space-2); border: 1px solid currentColor; border-radius: var(--radius-sm); font-size: var(--size-caption); font-weight: var(--weight-medium); line-height: 1.3; color: var(--tag); }
 .tpl-gt-note { grid-column: 1 / -1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: var(--size-caption); color: var(--text-muted); }
-@media (max-width: 900px) { .tpl-gt-tile { flex-basis: 100%; } }
+/* Row 1264 slice 9: the layout. 4 tiles on a line (3 when the section says so), 2 at half width (the slot's two columns, 493 px at the 1400 page),
+   1 at 900, where half is the full width too. Project health is one tile's place, or the whole row when the section says so. */
+.tpl-gt[data-cols="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.slot-left .tpl-gt, .slot-right .tpl-gt { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.tpl-gt-health { display: flex; min-width: 0; }
+.tpl-gt-health.own-row { grid-column: 1 / -1; }
+@media (max-width: 900px) { .tpl-gt, .tpl-gt[data-cols="3"], .slot-left .tpl-gt, .slot-right .tpl-gt { grid-template-columns: minmax(0, 1fr); } }
 .tpl-callout-p:last-child { margin-bottom: 0; }
 .tpl-quote { margin: var(--space-2) 0; padding: var(--space-2) var(--space-4); border-radius: var(--radius); background: var(--grey-50); min-width: 0; overflow-wrap: anywhere; }
 .tpl-quote-q { margin: 0; font-size: var(--size-h3); line-height: 1.4; color: var(--heading); }
