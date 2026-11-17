@@ -202,8 +202,8 @@ class WhenTheStepIsWired(unittest.TestCase):
         self.addCleanup(fresh.close)
         self.addCleanup(migrated.close)
         for table in ("app_settings", "projects"):
-            a = [tuple(r) for r in fresh.con.execute(f"PRAGMA table_info({table})")]
-            b = [tuple(r) for r in migrated.con.execute(f"PRAGMA table_info({table})")]
+            a = [tuple(r) for r in fresh.con.execute(f"PRAGMA table_info({table})") if r[1] != "theme"]      # row 1269: theme's default differs on purpose (new file classic, existing file cards)
+            b = [tuple(r) for r in migrated.con.execute(f"PRAGMA table_info({table})") if r[1] != "theme"]
             self.assertEqual(sorted(a), sorted(b), table)
         self.assertEqual(fresh.con.execute("SELECT count(*) FROM app_settings").fetchone()[0], 1)
 
