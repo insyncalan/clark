@@ -423,7 +423,7 @@ class MarkersAndTheWholePublish(unittest.TestCase):
         d = self.ok(kind="report_sections", op="delete", id=ref)
         built = publish.build(self.s, "ABC", now="2030-01-15")
         self.assertNotIn("gantt", built["published"]["data"])
-        self.assertNotIn('"Dig"', built["body"].decode("utf-8"))
+        self.assertNotIn("Dig", built["body"].decode("utf-8"))
         undo = changes.make_undo(self.s.path, [], USER)
         status, body = undo({"project": "ABC", "apply_id": d["apply_id"]})
         self.assertEqual(status, 200, body)

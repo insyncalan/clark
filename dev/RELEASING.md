@@ -6,7 +6,7 @@ Only a finding marked HIGH holds a release back. Every MEDIUM and LOW gets a Tec
 
 **Why this exists.** v0.3.0 and v0.4.0 were published without a zip: nothing made attaching it a step, and nothing failed when it was missing (found by the check made in pull request 216). v0.1.0 passed on fakes and its `clark.command` failed on a real Mac. So the zip is attached, downloaded back and launched for real before the release is published, and the check at step 20 fails if the zip is missing afterwards.
 
-**Beta.** Every clark release is Beta and a pre-release until version 1.0. The title says so, the Pre-release box is ticked, and the notes say so. From 1.2.0 on a release is a full release: the title is `clark X.Y.Z, Mac`, the Pre-release box is not ticked, the notes have no Beta line, and the release check in step 20 asks for none of the three (it still asks for them on a release before 1.2.0).
+**Beta.** Every clark release is Beta and a pre-release until version 1.0. The title says so, the Pre-release box is ticked, and the notes say so.
 
 **Freeze.** Only the release branch is frozen: `main` keeps merging while the release is cut and gated, but a new commit on `release-X.Y.Z` restarts the gate (step 3), so the tag always sits on the commit the gate ran on.
 

@@ -2,6 +2,7 @@
 // file has no Settings. The switch is askState.js, kept by the server for this computer; the folders are saved by the server too (the
 // page asks the server to open the folder window and shows what the server answers, in its words).
 import { useEffect, useRef, useState } from "preact/hooks";
+import { signal } from "@preact/signals";
 import { project } from "../stores/report.js";
 import { askOn, askStatus, askSaved, askProvider, loadAsk, setAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
 import { named, ASK_NOTICE_LINE } from "./askWords.js";
@@ -11,6 +12,11 @@ import { askFoldersRead, askFoldersChange, askFoldersChoose, words } from "./pub
 
 const ASK_ON_TOAST = "ask clark is on";
 const ASK_OFF_TOAST = "ask clark is off";
+const ALL = "all", PROJECT = "project";
+const ALL_LINE = "What is the same in every project. A project's own tab shows what belongs to that project.";
+const USED_FROM_ALL = "Connections and the model are yours, not this project's. They are the same in every project.";
+export const askTab = signal(PROJECT);
+export function showAskTab(t) { askTab.value = t === ALL ? ALL : PROJECT; }
 const NOT_READY = "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.";
 
 // The asking switch's behaviour, shared by this card and the Essentials card (row 1115): `flip` turns asking on or off and says so in the toast
@@ -37,7 +43,7 @@ export function useAskFlip(on, busy, setBusy, setMsg) {
   return { switchRef, flip };
 }
 
-export function AskSettings() {
+function AskProject() {
   const on = askOn.value;
   const status = askStatus.value;
   const saved = askSaved.value;
@@ -143,7 +149,42 @@ export function AskSettings() {
       ) : null}
       <div class="pub-msg" role={msg && msg.kind === "error" ? "alert" : "status"} aria-live="polite">{msg && msg.text ? <p class={msg.kind}>{msg.text}</p> : null}</div>
     </section>
+    <section class="frame setting" id="ask-used-all">
+      <h3>Used from All projects</h3>
+      <p class="muted">{USED_FROM_ALL}</p>
+      <div class="row"><button type="button" class="btn" data-ask-goall onClick={() => showAskTab(ALL)}>Change</button></div>
+    </section>
+    </>
+  );
+}
+
+// The page's two tabs (row 1294, A8, first slice): "All projects" holds what is the same everywhere (the connections and the model, for now) and the project's
+// own tab holds what belongs to this project. One shows at a time. They are two buttons in a group (aria-current names the one shown), so Tab and Enter work and
+// the cards stay direct children of the Settings page, where Search settings reads them.
+function AllProjects() {
+  return (
+    <>
+    <section class="frame setting" id="ask-all">
+      <h2 id="ask-settings-h" tabIndex={-1}>Asking for all projects</h2>
+      <p class="muted">{ALL_LINE}</p>
+    </section>
     <AiSettings />
+    </>
+  );
+}
+
+export function AskSettings() {
+  const code = project.value;
+  const tab = askTab.value === ALL ? ALL : PROJECT;
+  return (
+    <>
+    <div class="ask-tabs" id="ask-tabs" role="group" aria-label="Asking settings for">
+      <span class="muted ask-tabs-lab" aria-hidden="true">Settings for</span>
+      {[ALL, PROJECT].map((id) => (
+        <button type="button" class="ask-tab" key={id} data-ask-tab={id} aria-current={tab === id ? "true" : undefined} onClick={() => showAskTab(id)}>{id === ALL ? "All projects" : code}</button>
+      ))}
+    </div>
+    {tab === ALL ? <AllProjects /> : <AskProject />}
     </>
   );
 }
