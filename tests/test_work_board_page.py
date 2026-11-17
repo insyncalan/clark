@@ -551,6 +551,23 @@ class Moves(Base):
             self.assertGreaterEqual(cdp.js("document.querySelector('#viewMenuList').getBoundingClientRect().width", sid),
                                     cdp.js("parseFloat(getComputedStyle(document.documentElement).fontSize) * 14", sid) - 1)
 
+    def test_the_group_by_menu_look_holds_at_900(self):
+        """Row 1273 at 900 px: the same head, body size items, tick first, and the panel stays inside the window."""
+        with shared.page() as cdp:
+            sid = self.visit(cdp, width=900)
+            self.board(cdp, sid, "status")
+            click(cdp, sid, "#viewMenu")
+            self.until(cdp, sid, "!!document.querySelector('#viewMenuList')", "the View menu")
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#viewMenuList .lab')).textTransform", sid), "uppercase")
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#viewMenuList [role=menuitemradio]')).fontSize", sid),
+                             cdp.js("getComputedStyle(document.documentElement).getPropertyValue('--size-body').trim()", sid))
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#viewMenuList [role=menuitemradio] .ck')).order", sid), "-1")
+            box = cdp.js("(() => { const r = document.querySelector('#viewMenuList').getBoundingClientRect(); return [r.left, r.right, window.innerWidth]; })()", sid)
+            self.assertGreaterEqual(box[0], 0)
+            self.assertLessEqual(box[1], box[2])
+            self.assertGreaterEqual(cdp.js("document.querySelector('#viewMenuList').getBoundingClientRect().width", sid),
+                                    cdp.js("parseFloat(getComputedStyle(document.documentElement).fontSize) * 14", sid) - 1)
+
     def test_the_menu_offers_lanes_too(self):
         with shared.page() as cdp:
             sid = self.visit(cdp)
