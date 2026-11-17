@@ -42,6 +42,24 @@ class ThemeReading(unittest.TestCase):
         with mock.patch.object(theme, "LIMIT", biggest - 1):
             self.assertIsNone(theme.css(NAME))
 
+    def test_the_limit_is_64_kilobytes(self):
+        self.assertEqual(theme.LIMIT, 64 * 1024)
+
+    def test_a_symlinked_theme_file_is_refused(self):
+        root = Path(tempfile.mkdtemp())
+        real = root / "real.css"
+        real.write_text(":root { --a: 1; }", encoding="utf-8")
+        folder = root / "themes" / "linked"
+        folder.mkdir(parents=True)
+        (folder / "rules.css").write_text(".x { color: red; }", encoding="utf-8")
+        (folder / "tokens.css").symlink_to(real)
+        with mock.patch.object(theme, "THEMES", root / "themes"):
+            self.assertIn("linked", theme.installed())
+            self.assertIsNone(theme.css("linked"))
+            (folder / "tokens.css").unlink()
+            (folder / "tokens.css").write_text(":root { --a: 1; }", encoding="utf-8")
+            self.assertIsNotNone(theme.css("linked"))
+
     def test_the_served_text_is_tokens_file_then_rules_file(self):
         def clean(f):
             return page.strip_css_comments((theme.THEMES / NAME / f).read_text(encoding="utf-8")).strip()
