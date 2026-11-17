@@ -408,6 +408,28 @@ class Line(unittest.TestCase):
             self.assertEqual(self.tokens(cdp, sid, "err"), ["status:"], "with the focus on the prompt the token is marked")
             self.assertEqual(self.say(cdp, sid), "Add a value after 'status:'.", "and explained")
 
+    def test_row_1265_leaving_the_line_closes_the_list_when_the_button_is_up_and_a_control_of_the_line_does_not_reopen_it(self):
+        """Row 1265 (mutants L6, L7): with the button down the closing waits for the button to come up (late flag, then close); and a leave
+        disarms the list, so a later focus on a control of the line that is not the box (the x) does not bring the old list back."""
+        s = self.serve()
+        with shared.page() as cdp:
+            sid = self.load(cdp, s.port)
+            self.focus(cdp, sid)
+            self.put(cdp, sid, "is:open")
+            key(cdp, sid, " ")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fline-list')", sid)), "Space opens the list")
+            cdp.js("document.dispatchEvent(new Event('pointerdown', {bubbles: true}))", sid)       # the button goes down on something outside
+            cdp.js("(() => { const i = document.createElement('input'); i.id = 'outside'; document.body.appendChild(i); i.focus(); })()", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "outside"))
+            self.settle(cdp, sid)
+            self.assertTrue(cdp.js("!!document.querySelector('#fline-list')", sid), "the button is still down: the list waits")
+            cdp.js("document.dispatchEvent(new Event('pointerup', {bubbles: true}))", sid)
+            self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#fline-list')", sid)), "the button is up: the list closes")
+            cdp.js("document.querySelector('#fline-x').focus()", sid)                              # a control of the line, not the box
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "fline-x"))
+            self.settle(cdp, sid)
+            self.no_list(cdp, sid, "the list that was closed by leaving does not come back with the focus on the x")
+
     def test_a_half_typed_token_is_marked_again_when_the_focus_leaves_the_line_for_a_control_outside_it(self):
         """Row 1265: the focus leaves the line fully (to a control outside it, not to the leave prompt that sits inside the line): the person is no
         longer typing the token, so it is marked and explained again. Pins the `focused` operand of the caret test (the box keeps being 'the
@@ -457,6 +479,31 @@ class Line(unittest.TestCase):
             click(cdp, sid, INPUT)                                                      # a click puts the caret too (where: the middle of the box)
             key(cdp, sid, "Home")
             self.assertTrue(wait(lambda: self.tokens(cdp, sid, "err") == []), "Home after a click: not marked")
+
+    def test_a_half_typed_token_is_not_marked_when_a_click_puts_the_caret_on_it_without_a_key(self):
+        """Row 1265 (R4): a click alone moves the caret (no key up follows): the click handler reads it."""
+        s = self.serve()
+        with shared.page() as cdp:
+            sid = self.load(cdp, s.port)
+            self.put(cdp, sid, "status: priority:High")
+            self.settle(cdp, sid)
+            self.assertEqual(self.tokens(cdp, sid, "err"), ["status:"], "the caret is past the token: marked")
+            cdp.js("(() => { const i = document.querySelector('#fline-input'); i.setSelectionRange(3, 3); i.click(); })()", sid)
+            self.assertTrue(wait(lambda: self.tokens(cdp, sid, "err") == []), "the click put the caret on the token: not marked")
+
+    def test_a_half_typed_token_follows_the_caret_the_box_had_when_the_focus_comes_back_to_it(self):
+        """Row 1265 (R5): the focus handler reads the caret (the selection kept by the box while it had no focus)."""
+        s = self.serve()
+        with shared.page() as cdp:
+            sid = self.load(cdp, s.port)
+            self.put(cdp, sid, "status: priority:High")
+            self.settle(cdp, sid)
+            cdp.js("(() => { const o = document.createElement('input'); o.id = 'outside'; document.body.appendChild(o); o.focus(); })()", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "outside"))
+            cdp.js("document.querySelector('#fline-input').setSelectionRange(3, 3)", sid)
+            cdp.js("document.querySelector('#fline-input').focus()", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "fline-input"))
+            self.assertTrue(wait(lambda: self.tokens(cdp, sid, "err") == []), "focus back with the caret on the token: not marked")
 
     def test_a_half_typed_token_is_not_marked_again_when_the_focus_returns_from_the_prompt_to_the_box(self):
         """Row 1265: the leave prompt is a control of the line, so the box is not 'the focus' while it has it; the box has it again after a click."""
@@ -1453,6 +1500,60 @@ class Line(unittest.TestCase):
     def hints_visible(self, cdp, sid):
         return cdp.js("getComputedStyle(document.querySelector('.fhints')).visibility", sid) == "visible"
 
+    def test_row_1265_a_line_nobody_has_entered_is_not_in_the_focused_state(self):
+        """Row 1265: pins the initial `focused` state: before the focus has entered the line it is not drawn as focused and its examples do not show."""
+        s = self.serve()
+        with shared.page() as cdp:
+            sid = self.load(cdp, s.port)
+            self.settle(cdp, sid)
+            self.assertEqual(cdp.js("document.querySelector('[data-fline]').classList.contains('on')", sid), False, "not drawn as focused before any focus")
+            self.assertFalse(self.hints_visible(cdp, sid), "the examples do not show before the line is entered")
+            self.focus(cdp, sid)
+            self.assertEqual(cdp.js("document.querySelector('[data-fline]').classList.contains('on')", sid), True, "drawn as focused once entered")
+
+    def _open_list_with_pointer_down(self, cdp, sid):
+        """Open the field list (Space on the emptied box), then press the pointer button somewhere (a pointerdown on the document body)."""
+        self.focus(cdp, sid)
+        select_line(cdp, sid)
+        key(cdp, sid, "Backspace")
+        self.arm(cdp, sid)
+        self.assertTrue(wait(lambda: self.listed(cdp, sid) == self.FIELDS_ALL), "the list of fields is open")
+        cdp.js("document.body.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true, button: 0, pointerType: 'mouse'}))", sid)
+
+    def test_row_1265_a_press_that_takes_the_focus_out_closes_the_list_when_the_button_comes_up(self):
+        """Row 1265 (lift): the focus leaves the line while the button is down, so the closing waits; when the button comes up with the focus
+        still outside the line, the list closes. Kills `leave()` removed from the lift handler."""
+        s = self.serve()
+        with shared.page() as cdp:
+            sid = self.load(cdp, s.port)
+            self._open_list_with_pointer_down(cdp, sid)
+            cdp.js("(() => { const i = document.createElement('input'); i.id = 'outside'; document.body.appendChild(i); i.focus(); })()", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "outside"), "the focus is outside the line")
+            self.settle(cdp, sid)
+            self.assertTrue(self.listed(cdp, sid), "the button is still down: the list waits")
+            cdp.js("document.dispatchEvent(new PointerEvent('pointerup', {bubbles: true, button: 0, pointerType: 'mouse'}))", sid)
+            self.assertTrue(wait(lambda: cdp.js("!document.querySelector('#fline-list')", sid)), "the button is up with the focus outside: the list closes")
+
+    def test_row_1265_a_press_whose_focus_comes_back_into_the_box_keeps_the_box_focused_when_the_button_comes_up(self):
+        """Row 1265 (lift): the focus left the line while the button was down and came back into the box before it came up: the line is still
+        focused, so the half-typed token under the caret stays unmarked. Kills the dropped negation of `contains(document.activeElement)`."""
+        s = self.serve()
+        with shared.page() as cdp:
+            sid = self.load(cdp, s.port)
+            self.focus(cdp, sid)
+            self.put(cdp, sid, "is:open status:")
+            self.settle(cdp, sid)
+            self.assertEqual(self.tokens(cdp, sid, "err"), [], "typing the token: not marked")
+            cdp.js("document.body.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true, button: 0, pointerType: 'mouse'}))", sid)
+            cdp.js("(() => { const i = document.createElement('input'); i.id = 'outside'; document.body.appendChild(i); i.focus(); })()", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "outside"), "the focus is outside the line")
+            cdp.js("document.querySelector('#fline-input').focus()", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "fline-input"), "the focus is back in the box")
+            key(cdp, sid, "End")
+            cdp.js("document.dispatchEvent(new PointerEvent('pointerup', {bubbles: true, button: 0, pointerType: 'mouse'}))", sid)
+            self.settle(cdp, sid)
+            self.assertEqual(self.tokens(cdp, sid, "err"), [], "the button is up with the focus in the box: still not marked")
+
     def test_focusing_the_empty_box_lists_the_fields_and_the_examples_do_not_show_with_it(self):
         s = self.serve()
         for width in SIZES:
@@ -1540,6 +1641,23 @@ class Line(unittest.TestCase):
             click(cdp, sid, "#viewTabMenuList [data-kind=delete]")
             self.assertTrue(wait(lambda: cdp.js("!document.querySelector('.vtab[data-view-id=core-open]')", sid)), "the tab is gone")
             self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "viewNew"), "the focus goes to + New view, not to the page top")
+
+    def test_row_1265_the_open_list_stays_open_when_the_focus_moves_to_another_control_inside_the_line(self):
+        """Row 1265: only a focus that goes outside the line leaves it (closes the list). The x is a control of the line: the focus moving from the box
+        to it is not leaving. Pins the `contains(relatedTarget)` test of the focus-out handler."""
+        s = self.serve()
+        with shared.page() as cdp:
+            sid = self.load(cdp, s.port)
+            self.focus(cdp, sid)
+            self.put(cdp, sid, "is:open")
+            key(cdp, sid, " ")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fline-list')", sid)), "Space opens the list")
+            cdp.js("document.querySelector('#fline-x').focus()", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "fline-x"), "the focus is on the x, inside the line")
+            self.settle(cdp, sid)
+            self.assertTrue(cdp.js("!!document.querySelector('#fline-list')", sid), "still inside the line: the list stays open")
+            cdp.js("(() => { const i = document.createElement('input'); i.id = 'outside'; document.body.appendChild(i); i.focus(); })()", sid)
+            self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#fline-list')", sid)), "the focus left the line: the list closes")
 
     def test_the_list_opens_after_space_or_arrow_down_and_closes_on_a_choice_or_escape_row_931(self):
         s = self.serve()
