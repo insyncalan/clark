@@ -16,7 +16,9 @@ from test_row_menu import right_click
 from test_server import Running, chrome
 from test_work_filters import click
 import test_work_board_page as board
+from test_server import wait
 from test_work_items import page_target
+import _testpage as testpage
 
 WORDS = ["Draft email to Sara Khan", "Open the peek", "Change status", "Move due date", "Change owner", "Hide from the client",
          "Copy link to this item", "Copy ID", "Duplicate", "Archive"]
@@ -51,7 +53,9 @@ class DashboardRowMenu(unittest.TestCase):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
                 self.open(p, sel)
                 got = self.entries(p)
-                self.assertEqual([e[1] for e in got][:len(WORDS)], [WORDS[0].replace("Sara Khan", got[0][1][len("Draft email to "):])] + WORDS[1:], f"View at {w}")
+                words = [e[1] for e in got]
+                self.assertTrue(words[0].startswith("Draft email to "), f"View at {w}: the first entry")
+                self.assertEqual(words[1:len(WORDS)], WORDS[1:], f"View at {w}")
                 self.assertEqual([e[1] for e in got][-1], "Archive", "no Delete while the page is read only")
                 by = {e[0]: e for e in got}
                 self.assertTrue(all(by[k][2] for k in CHANGES), f"View at {w}: the changes are listed and greyed")
@@ -100,10 +104,32 @@ class DashboardRowMenu(unittest.TestCase):
         with chrome() as cdp:
             p = Pg.at(self, cdp, self.s.port)
             p.ready()
+            p.edit()
+            p.js("window.__clip = []; Object.defineProperty(navigator, 'clipboard', {value: {writeText: (t) => { window.__clip.push(t); return Promise.resolve(); }}, configurable: true})")
             self.open(p, "[data-type=actions] .wl-row")
             rid = p.js("document.querySelector('.rowmenu').dataset.rowmenu")
+            p.js("document.querySelector('.rowmenu [data-rm=copyid]').click()")
+            p.until("window.__clip.length === 1", "the copy")
+            self.assertEqual(p.js("window.__clip[0]"), rid, "the item id is what is copied")
+            p.until(f"[...document.querySelectorAll('.toast .toast-text')].some(t => t.textContent === {json.dumps(rid + ' copied.')})", "the copied words")
+            self.open(p, "[data-type=actions] .wl-row")
             p.js("document.querySelector('.rowmenu [data-rm=peek]').click()")
-            p.until(f"location.href.indexOf({json.dumps(rid)}) >= 0 || !!document.querySelector('[data-peek]')", "the peek opened")
+            p.until(f"location.hash.split('&').includes('item=' + {json.dumps(rid)})", "the peek of this item")
+
+    def test_risks_and_decisions_rows_have_the_same_menu(self):
+        """Row 1296: the three lists (risks, actions, decisions) all open the Work items menu."""
+        with chrome() as cdp:
+            p = Pg.at(self, cdp, self.s.port)
+            p.ready()
+            p.edit()
+            for kind in ("raid", "actions", "decisions"):
+                for w in (1400, 900):
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                    self.open(p, f"[data-type={kind}] .wl-row")
+                    words = [e[1] for e in self.entries(p)]
+                    self.assertEqual(words[1:], WORDS[1:] + ["Delete"], f"{kind} at {w}")
+                    self.assertTrue(p.js("document.querySelector('.rowmenu').dataset.rowmenu === document.querySelector('[data-type=%s] .wl-row').dataset.id" % kind), f"{kind} at {w}: the menu is for the row clicked")
+                    self.close(p)
 
     def test_a_board_card_is_never_drawn_on_the_dashboard(self):
         """Row 1296 owns the list rows only; the board card menu belongs to the Work items board. The Dashboard has no board to inherit from."""
@@ -131,6 +157,7 @@ class DashboardRowWrites(board.Base):
             rules_for=lambda c: draft_email_feed.rules_from_inputs(publish.read_inputs(self.store, c)))
 
     def edit_dashboard(self, cdp):
+        self.s.httpd.page_html = lambda: testpage.html()          # the test page has window.clarkPage
         sid = page_target(cdp)
         cdp.call("Page.enable", {}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
@@ -170,6 +197,48 @@ class DashboardRowWrites(board.Base):
             click(cdp, sid, "[data-undo]")
             self.until(cdp, sid, f"!!document.querySelector('li.wl-row[data-id=\"{first}\"]')", "the row came back")
             self.until(cdp, sid, f"document.activeElement.matches('li.wl-row[data-id=\"{first}\"] .idl')", "focus back on the id button")
+
+    def go(self, cdp, sid, view):
+        click(cdp, sid, f"[role=tab][data-view={view}]")
+
+    def test_a_dashboard_row_outside_the_work_items_search_still_gets_its_menu(self):
+        """RowMenu itemOf falls back to the whole list: a search that matches no Work items row (itemRows empty) does not empty the Dashboard menu."""
+        with chrome() as cdp:
+            sid = self.edit_dashboard(cdp)
+            self.assertTrue(cdp.js("typeof clarkPage.setQuery === 'function'", sid), "the test page")
+            cdp.js("clarkPage.setQuery('zzqxnomatch')", sid)
+            self.until(cdp, sid, "document.querySelectorAll('[data-type=actions] .wl-row').length >= 2", "the Dashboard rows still drawn")
+            rid = self.open_menu(cdp, sid)
+            self.assertEqual(cdp.js("document.querySelector('.rowmenu [data-rm=archive]').getAttribute('aria-disabled')", sid), None, "a live menu")
+            cdp.js("window.__clip = []; Object.defineProperty(navigator, 'clipboard', {value: {writeText: (t) => { window.__clip.push(t); return Promise.resolve(); }}, configurable: true})", sid)
+            cdp.js("document.querySelector('.rowmenu [data-rm=copyid]').click()", sid)
+            self.until(cdp, sid, "window.__clip.length === 1", "the copy")
+            self.assertEqual(cdp.js("window.__clip[0]", sid), rid)
+
+    def test_a_work_selection_blocks_the_row_menu_but_a_dashboard_one_does_not(self):
+        """RowMenu: with rows picked on Work items the menu stays shut (the bulk bar owns the click); on the Dashboard the same picks do not block it."""
+        from test_multi_select import MOD, peek_away, tap
+        with chrome() as cdp:
+            sid = self.edit_dashboard(cdp)
+            self.go(cdp, sid, "work")
+            self.until(cdp, sid, "document.querySelectorAll('#work-list tr[data-id]').length >= 2", "the Work items rows")
+            ids = cdp.js("[...document.querySelectorAll('#work-list tr[data-id]')].map(r => r.dataset.id)", sid)[:2]
+            tap(cdp, sid, f"#work-list tr[data-id='{ids[0]}'] .c-item .t")
+            peek_away(cdp, sid, cdp.js("innerWidth", sid))
+            tap(cdp, sid, f"#work-list tr[data-id='{ids[1]}'] .c-item .t", MOD)
+            self.assertEqual(cdp.js("clarkPage.selected()", sid), ids)
+            right_click(cdp, sid, f"#work-list tr[data-id='{ids[0]}']")
+            self.until(cdp, sid, "!!document.querySelector('.cpop.bmenu')", "the multi-select menu opens instead")
+            self.assertFalse(cdp.js("!!document.querySelector('.rowmenu')", sid), "Work: a selection blocks the row menu")
+            self.go(cdp, sid, "dashboard")
+            self.until(cdp, sid, "document.querySelectorAll('[data-type=actions] .wl-row').length >= 2", "the Dashboard rows")
+            self.assertEqual(cdp.js("clarkPage.selected()", sid), [], "leaving Work items empties the selection, so the Dashboard has none to block it")
+            self.until(cdp, sid, "document.querySelector('#report').dataset.mode === 'edit'", "the Dashboard in Edit")
+            for _ in range(6):          # the page needs a moment after the tab change before its listeners are on
+                right_click(cdp, sid, "[data-type=actions] .wl-row")
+                if wait(lambda: cdp.js("!!document.querySelector('.rowmenu [role=menu]')", sid), 1):
+                    break
+            self.assertTrue(cdp.js("!!document.querySelector('.rowmenu [role=menu]')", sid), "the Dashboard row menu opens: no selection blocks it")
 
 
 if __name__ == "__main__":
