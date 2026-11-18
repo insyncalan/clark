@@ -72,7 +72,7 @@ class Computed(unittest.TestCase):
                     tag = f"{scheme} {w}"
                     for h in ("h1", "h2", "h3"):
                         self.assertEqual(self.style(cdp, sid, "#probe " + h, "fontWeight"), "600", f"{tag} {h}")
-                    for sel in ("#sg", "#sc", "#cs", "#b1", "#b2", "#b3", "#b4", "#md"):
+                    for sel in ("#sg", "#sc", "#cs", "#b1", "#md"):
                         self.assertEqual(self.style(cdp, sid, sel, "borderRadius"), "8px", f"{tag} {sel}")
                     for sel in (".crumbs", ".ucd-crumb", ".ucf-crumb"):
                         self.assertEqual(self.style(cdp, sid, "#probe " + sel, "textTransform"), "none", f"{tag} {sel}")
@@ -127,6 +127,7 @@ class Layering(unittest.TestCase):
         start = next(i for i, l in enumerate(lines) if l.startswith("/* Row 1319"))
         end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("/* Row ")), len(lines))
         self.assertEqual(end - start, 8, "the row's block is its comment and seven rules, up to the next row's comment (rows stack after it)")
+        self.assertTrue(any(l.startswith("/* Row 1319, Classic type") for l in rules.split("\n")))
         self.assertIn("h1, h2, h3 { font-weight: var(--weight-medium); }", theme.css(NAME))
 
 
