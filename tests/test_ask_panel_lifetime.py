@@ -75,6 +75,25 @@ class Lifetime(Base):
             p.until("document.querySelector('#ask-panel') === null", "closed")
             self.assertEqual(p.js("document.querySelector('#ask-btn').getAttribute('aria-label')"), "ask clark")
 
+    def test_the_ready_mark_is_cleared_for_good_when_the_panel_is_opened(self):
+        """Opening resets the count: closing again must not bring the old mark back. The badge shows the number."""
+        self.stub.hold.clear()
+        with chrome() as cdp:
+            p = self.start(cdp)
+            p.until("!!document.querySelector('#ask-stop')", "the question is out")
+            p.js("document.querySelector('#ask-btn').click()")
+            p.until("document.querySelector('#ask-panel') === null", "the ask button closed the panel")
+            self.assertEqual(self.stub.count("stop"), 0, "closing with the ask button does not stop the answer")
+            self.stub.hold.set()
+            p.until("document.querySelector('#ask-btn').getAttribute('aria-label') === 'ask clark, 1 answer ready'", "one answer ready")
+            self.assertEqual(p.js("document.querySelector('#ask-btn .tb-ask-ready').textContent"), "1", "the badge shows the number")
+            p.js("document.querySelector('#ask-btn').click()")
+            p.until("!!document.querySelector('#ask-panel')", "opened")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("document.querySelector('#ask-panel') === null", "closed again")
+            self.assertEqual(p.js("document.querySelector('#ask-btn').getAttribute('aria-label')"), "ask clark", "nothing is marked after the count was cleared")
+            self.assertEqual(p.js("document.querySelectorAll('#ask-btn .tb-ask-ready').length"), 0)
+
 
 if __name__ == "__main__":
     unittest.main()
