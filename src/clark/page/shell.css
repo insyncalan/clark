@@ -2400,9 +2400,7 @@ button.tpl-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 
 .ucp-body h2 { margin: 14px 0 4px; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .ucp-views { margin-top: 16px; }
 .ucp-tools { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-bottom: var(--space-1); }
-.ucp-group { margin-top: 10px; }
-.ucp-grp { display: flex; align-items: center; padding: 10px var(--space-4); background: var(--grey-50); font-size: var(--size-small); color: var(--heading); }
-.ucp-group .ucp { padding-left: var(--space-4); padding-right: var(--space-4); }
+.ucp-grp { display: flex; align-items: flex-start; gap: var(--space-2); padding: 0 0 6px; border-bottom: 1px solid var(--grey-200); font-size: var(--size-small); color: var(--heading); }      /* row 1324: the Work items heading line, as it is (the group is .wgroup.gline) */
 .ucp-empty { margin: 20px 0 4px; overflow-wrap: anywhere; }
 .ucp-empty .btn { margin-top: 4px; }
 .ucp-count { display: block; margin: 10px 0 0; font-size: var(--size-caption); color: var(--text-muted); }

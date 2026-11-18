@@ -119,8 +119,10 @@ GOLDEN_LINES = [
 # the rendered Work items section (Edit; View; the Add menu opened) with its section id folded to REF, at 1400 and 900 (CARDS_DOM below).
 # This row must not change any of them. If one differs after a merge of main, re-measure on origin/main: a difference with no CSS or Work items
 # change in main is a Cards change made by this row.
-CARDS_STYLE_MD5 = {"blocks": ["7195b3107c3b5022f3b40ad1dfbbe484"]}
-_DOM = {"view": "8e6c915d4f6df112000e5150fe406783", "edit": "5f01b907b0a8519810c6ee5ecc0df512", "menu": "b03f939c186bd71f3069fe998036641e"}
+# Row 1324 (Option A heading line) changes the Cards look on purpose (owner ruling 18-11): the style block 7195b3107c3b5022f3b40ad1dfbbe484 became the one below, and the grouped list
+# (one column header table, groups without a tile) changed the View DOM 8e6c915d4f6df112000e5150fe406783 and the Edit DOM 5f01b907b0a8519810c6ee5ecc0df512 to the ones below; the Add menu DOM did not move.
+CARDS_STYLE_MD5 = {"blocks": ["6358d22e17a598376c6a866a8e526ec9"]}
+_DOM = {"view": "147d993d73881b612da972975d98bbc9", "edit": "3012594b1f1c36a0fe3abea708e2fa01", "menu": "b03f939c186bd71f3069fe998036641e"}
 CARDS_DOM_MD5 = {1400: _DOM, 900: _DOM}      # the markup does not depend on the width (the width is CSS); both are measured and kept
 
 

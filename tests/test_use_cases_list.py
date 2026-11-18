@@ -808,8 +808,8 @@ class Line(Setup):
 
 
 class GroupBy(Setup):
-    """Row 1085: Group by (Status, Commitment, On the dashboard, Nothing; Nothing to start) on the tabs row: each group a bordered card with a heading
-    bar (the name, the count, open and shut) and its own column names, as the Work items groups are drawn. Remembered with the rest."""
+    """Row 1085: Group by (Status, Commitment, On the dashboard, Nothing; Nothing to start) on the tabs row: each group a heading line (row 1324: the name, the count,
+    open and shut, one hairline under it, no tile) under the one column header, as the Work items groups are drawn. Remembered with the rest."""
 
     def groups(self, p):
         return p.js("[...document.querySelectorAll('#usecases .ucl-group')].map(g => [g.querySelector('.gl').textContent, g.querySelector('.gc').textContent, [...g.querySelectorAll('.ucl-row[data-uc] .ucl-ref')].map(e => e.textContent)])")
@@ -820,7 +820,7 @@ class GroupBy(Setup):
         p.js(f"[...document.querySelectorAll('.ddmenu [role=menuitemradio]')].find(b => b.textContent.replace('✓', '').trim() === {json.dumps(word)}).click()")
         p.until(f"document.querySelector('#ucl-group').getAttribute('aria-label') === {json.dumps('Group by: ' + word)}", f"grouped by {word}")
 
-    def test_group_by_status_commitment_and_the_dashboard_draws_bordered_groups_with_a_heading_and_a_count(self):
+    def test_group_by_status_commitment_and_the_dashboard_draws_groups_as_heading_lines_with_a_count(self):
         with self.store.step("dashboard", USER) as st:
             st.update("use_cases", self.uc2, {"commitment": "Committed"})
             st.update("use_cases", self.uc4, {"commitment": "Planned 2026"})
@@ -838,7 +838,7 @@ class GroupBy(Setup):
             self.pick(p, "Status")
             self.assertEqual(self.groups(p), [["On track", "2 use cases", ["UC 1.1", "UC 2.1"]], ["Flag", "1 use case", ["UC 1.2"]], ["High risk", "1 use case", ["UC 1.10"]]], "the status words in their order; a group with no row is not drawn")
             self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-group .ucl-hd').length"), 0, "item 1149: no column names in a group either")
-            self.assertEqual(p.js("getComputedStyle(document.querySelector('#usecases .ucl-group')).borderTopStyle"), "solid", "a bordered card")
+            self.assertEqual(p.js("getComputedStyle(document.querySelector('#usecases .ucl-group')).borderTopStyle"), "none", "row 1324: a heading line on the page, not a bordered card")
             self.assertEqual(p.js("[...document.querySelectorAll('#usecases .grp-b')].map(b => b.getAttribute('aria-expanded'))"), ["true", "true", "true"])
             self.assertEqual(self.count(p), "Showing 4 of 4 · 2 on the dashboard")
             self.pick(p, "Commitment")

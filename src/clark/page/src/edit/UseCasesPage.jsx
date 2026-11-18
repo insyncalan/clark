@@ -302,10 +302,10 @@ function UseCasesList() {
             </ul>
           </div>
         ) : (
-          <div class="ucl-box" ref={list} onKeyDown={keys} onContextMenu={rowMenu}>
+          <div class="ucl-box gline" ref={list} onKeyDown={keys} onContextMenu={rowMenu}>
             <ColumnHeads />
             {groups.map((g) => (
-              <div class="wgroup ucl-group" key={g.key} data-group={g.key}>
+              <div class="wgroup gline ucl-group" key={g.key} data-group={g.key}>
                 <div class="ucl-grp">
                   <button type="button" class="grp-b" aria-expanded={g.shut ? "false" : "true"} onClick={() => toggleGroup(g)}>
                     <Icon name="chevdown" cls={g.shut ? "turn" : ""} /><span class="gl">{g.label}</span><span class="gc num">{plural(g.rows.length, "use case")}</span>

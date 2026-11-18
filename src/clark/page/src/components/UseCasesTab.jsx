@@ -79,7 +79,7 @@ function UseCasesList({ d, pages, cases, steps, marks }) {
           <button type="button" class="btn" data-clear-all onClick={() => set({ tab: "all" })}>Clear the filters</button>
         </div>
       ) : f.group === "nothing" ? items(kept) : groups.map((g) => (
-        <div class="wgroup ucp-group" key={g.key} data-group={g.key}>
+        <div class="wgroup gline ucp-group" key={g.key} data-group={g.key}>
           <div class="ucp-grp">
             <button type="button" class="grp-b" aria-expanded={g.shut ? "false" : "true"} onClick={() => toggle(g)}>
               <Icon name="chevdown" cls={g.shut ? "turn" : ""} /><span class="gl">{g.label}</span><span class="gc num">{plural(g.rows.length, "use case")}</span>
