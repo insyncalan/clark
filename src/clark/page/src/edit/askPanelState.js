@@ -100,6 +100,14 @@ export function openPanel() {
   readStatus();
 }
 
+export const handed = signal(null);                    // S11: a question the quick bar handed over, {text, send}, until the panel has taken it
+
+/** S11: the quick bar's ask row. Opens the panel; the panel takes the words (into its box, or asked at once when `send`). */
+export function handOver(text, send) {
+  handed.value = { text: String(text), send: send === true };
+  openPanel();
+}
+
 /** Row 1220: the one place the queue is changed, so a changed list is never held, nor a drop warning kept, for a list it was not about. */
 export function setQueue(list) {
   queue.value = list;

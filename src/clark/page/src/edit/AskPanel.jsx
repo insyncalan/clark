@@ -7,7 +7,7 @@ import { zoneFetch } from "../api.js";
 import { words } from "./publishApi.js";
 import { stopRestore } from "../router.js";
 import { askProvider } from "./askState.js";
-import { draft, panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panelFocus, turns, pending, chatEpoch, queue, queueHeld, queueDrop, QUEUE_MAX, setQueue, closePanel, newChat, setWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
+import { draft, panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panelFocus, turns, pending, chatEpoch, handed, queue, queueHeld, queueDrop, QUEUE_MAX, setQueue, closePanel, newChat, setWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
 import * as W from "./askWords.js";
 import { slashMatches, stepSlash } from "./askSlash.js";
 import { Icon } from "../components/Icon.jsx";
@@ -213,6 +213,16 @@ export function AskPanel() {
     setQueue(rest);
     run(next.text, undefined, next);
   }
+
+  // S11: a question the quick bar handed over is taken once the check has answered. Sent at once when it was handed over with Ctrl or Cmd + Enter and
+  // the panel is ready (queued while an answer is made); otherwise, or when asking cannot answer now, its words go in the box so they are not lost.
+  useEffect(() => {
+    const h = handed.value;
+    if (!h || !open || state === "checking") return;
+    handed.value = null;
+    if (h.send && state === "ready") { if (!busy) run(h.text, h.text, null); else if (queue.value.length < QUEUE_MAX) setQueue([...queue.value, { id: nextId++, text: h.text }]); else setText(h.text); }
+    else setText(h.text);
+  }, [handed.value, open, state]);
 
   // Send them: the first waiting message is sent, and the rest follow as each is answered.
   function sendWaiting() {
