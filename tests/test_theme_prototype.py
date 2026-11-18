@@ -15,6 +15,7 @@ TOKENS = (FOLDER / "tokens.css").read_text(encoding="utf-8")
 RULES = (FOLDER / "rules.css").read_text(encoding="utf-8")
 NAME = re.compile(r"(--[a-z0-9-]+)\s*:")
 DECL = re.compile(r"(--[a-z0-9-]+)\s*:\s*([^;]+);")
+SHELL_DECLARED = {"--sec-pad-t", "--sec-px"}      # row 1195: set by shell.css (the section padding), read by the Work items gear rule
 NEW_NINE = {"--page-bg", "--page-grad", "--band-bg", "--line-soft", "--gutter-rule", "--sec-number-color", "--sec-number-size", "--logo-width", "--logo-height"}
 
 
@@ -54,7 +55,7 @@ class ThemePrototype(unittest.TestCase):
         self.assertTrue((FOLDER / "rules.css").is_file())
 
     def test_it_sets_only_names_the_committed_tokens_declare(self):
-        declared = set(NAME.findall(BASE)) | NEW_NINE      # the nine are declared by the sibling row 1260 tokens PR
+        declared = set(NAME.findall(BASE)) | NEW_NINE | SHELL_DECLARED      # the nine are declared by the sibling row 1260 tokens PR
         self.assertEqual(sorted(set(NAME.findall(TOKENS)) - declared), [], "a Theme sets existing names only")
         used = set(re.findall(r"var\((--[a-z0-9-]+)", RULES))
         self.assertEqual(sorted(used - declared), [], "rules.css reads declared names only")

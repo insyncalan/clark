@@ -119,7 +119,6 @@ function entry(it, close, onPick) {
     <button key={it.id} type="button" class={it.link ? "who-link" : it.pill ? "hp" : it.danger ? "danger" : undefined} role={it.checked === undefined ? "menuitem" : "menuitemradio"} aria-checked={it.checked === undefined ? undefined : it.checked ? "true" : "false"}
       tabIndex={-1} data-kind={it.id} onClick={() => { close("pick"); onPick(it.id); }}>
       {it.icon ? <Icon name={it.icon} cls="mi" /> : null}
-      {it.tile ? <span class={`ico mtile ${it.tone || "n"}`} aria-hidden="true">{it.tile}</span> : null}
       {it.checked === undefined || it.pill ? null : <span class="ck" aria-hidden="true">{it.checked ? "✓" : ""}</span>}
       {it.pill ? <span class={`hpill ${it.pill}`}>{it.name}</span> : it.word ? <span class={`ucword rag-${it.word}`}><i class="ragdot" aria-hidden="true"></i>{it.name}</span> : it.line ? <span><b>{it.name}</b><small>{it.line}</small></span> : it.name}
       {it.pill && it.checked ? <Icon name="check" cls="hck" /> : null}

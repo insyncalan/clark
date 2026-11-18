@@ -10,7 +10,7 @@ import { data, openPeek, rows as reportRows, filterCtx } from "../../stores/repo
 import { LineBox } from "../../components/FilterLine.jsx";
 import { change, say } from "../../stores/changes.js";
 import { Rows, Scroller, Foot, today } from "../../templates/WorkItemsList.jsx";
-import { SORTS, COLUMNS, DESIGN_COLUMNS, MAX_ROWS, MAX_CAPTION, WORDS, defaults, filterOf, bodyOf,
+import { SORTS, COLUMNS, MAX_ROWS, MAX_CAPTION, WORDS, defaults, filterOf, bodyOf,
   editListOf, drawRows, drawn, idsToShow } from "../../templates/workItemsList.js";
 import { Eye } from "../cells/Eye.jsx";
 import { Cell } from "../cells/Cell.jsx";
@@ -61,11 +61,7 @@ export const CONFIGURE_LABEL = "Configure this list";      // row 1268: the word
 
 // Row 1268, the approved Add: a + that opens a short menu (Action, Risk, Issue, Decision); a pick makes the item at once and opens its peek.
 export const ADD_WORD = "Add work item";
-// Row 1195: the Add menu draws each kind as the letter tile the rows use (A, R, I, D); `tone` is the tile's colour class.
-const TILE_TONE = { action: "v", risk: "r", issue: "u", decision: "g" };
-export const ADD_ITEMS = ADDABLE.map((k) => ({ kind: k, word: k[0].toUpperCase() + k.slice(1), tile: k[0].toUpperCase(), tone: TILE_TONE[k] || "n" }));
-// Row 1195: the Configure box lists the columns in the approved mock-up's order (Status, Owner, Due, Priority, Workstream, Milestone, ID); Type, which the mock-up does not draw, follows them. What is saved and its order are unchanged.
-export const SHOWN_COLUMNS = DESIGN_COLUMNS.concat(COLUMNS.filter((c) => !DESIGN_COLUMNS.includes(c)));
+export const ADD_ITEMS = ADDABLE.map((k) => ({ kind: k, word: k[0].toUpperCase() + k.slice(1) }));
 const addOne = (kind) => addItem(kind, "report", true);
 
 export function Edit({ section }) {
@@ -147,6 +143,11 @@ export function Edit({ section }) {
   return (
     <div class="wil wil-edit" key={tick} data-wil-edit="" data-wil-id={id}>
       {saved ? null : <p class="quiet wil-say" data-wil-say="not-yet">{NOT_YET}</p>}
+      <div class="wil-line" data-wil-line="">
+        <LineBox line={lineOf(filter, nameOf)} now={() => lineOf(latest(), nameOf)} apply={applyLine} rows={reportRows.value} ctx={filterCtx()}
+          ids={{ input: `${id}-line`, list: `${id}-line-list`, count: `${id}-line-count`, x: `${id}-line-x`, msg: `${id}-line-msg`, gloss: `${id}-line-gloss`, opt: `${id}-line-o` }} label="Filter" />
+      </div>
+      <Tabs add={<div class="wil-add" data-wil-add=""><NewTile word={ADD_WORD} kind="" items={ADD_ITEMS} onAdd={addOne} id={`${id}-add`} /></div>} section={section} filter={filter} d={d} now={now} known={known} nameOf={nameOf} apply={(next) => save({ ...latest(), ...next })} />
       <div class="wil-form">
         <div class="wil-cw" data-wil-cw="" onKeyDown={(e) => { if (e.key === "Escape" && cfg) { e.preventDefault(); e.stopPropagation(); setCfg(false); if (gearRef.current) gearRef.current.focus(); } }}>
           <button type="button" class="wil-gear" ref={gearRef} data-wil-gear="" aria-haspopup="dialog" aria-expanded={cfg ? "true" : "false"} aria-label={CONFIGURE_LABEL} title="Configure" onClick={() => setCfg(!cfg)}>
@@ -158,18 +159,13 @@ export function Edit({ section }) {
           <label class="wil-sel" data-field="max"><span>Most rows</span>
             <input type="number" name="max" min="1" max={MAX_ROWS} step="1" value={filter.max} onChange={commitMax} onKeyDown={keys} />
           </label>
-          <Boxes id={id} legend="Columns at full width" field="columns" values={SHOWN_COLUMNS} words={(v) => WORDS.columns[v]} chosen={filter.columns} onToggle={toggleColumn} />
+          <Boxes id={id} legend="Columns at full width" field="columns" values={COLUMNS} words={(v) => WORDS.columns[v]} chosen={filter.columns} onToggle={toggleColumn} />
             <label class="wil-sel wil-capf" data-field="caption"><span>Footnote (optional)</span>
               <input type="text" name="caption" placeholder="Shown above the list" value={filter.caption} onInput={capInput} onChange={commitCaption} onKeyDown={keys} />
             </label>
             <div class="wil-cacts"><button type="button" data-wil-cfgdone="" onClick={() => { setCfg(false); if (gearRef.current) gearRef.current.focus(); }}>Done</button></div>
           </div>
         </div>
-      </div>
-      <Tabs add={<div class="wil-add" data-wil-add=""><NewTile word={ADD_WORD} kind="" items={ADD_ITEMS} onAdd={addOne} id={`${id}-add`} /></div>} section={section} filter={filter} d={d} now={now} known={known} nameOf={nameOf} apply={(next) => save({ ...latest(), ...next })} />
-      <div class="wil-line" data-wil-line="">
-        <LineBox line={lineOf(filter, nameOf)} now={() => lineOf(latest(), nameOf)} apply={applyLine} rows={reportRows.value} ctx={filterCtx()}
-          ids={{ input: `${id}-line`, list: `${id}-line-list`, count: `${id}-line-count`, x: `${id}-line-x`, msg: `${id}-line-msg`, gloss: `${id}-line-gloss`, opt: `${id}-line-o` }} label="Filter" />
       </div>
       <p class="quiet" data-wil-say="count">{saved ? `${plural(rows.length, "work item")} listed now. ${ONLY_SHOWN}` : ONLY_SHOWN}</p>
       {saved && !rows.length ? <p class="wil-none" data-wil-say="none" role="status">{NO_MATCH}</p> : null}

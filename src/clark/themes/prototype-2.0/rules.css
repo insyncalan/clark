@@ -16,3 +16,68 @@ body { background: var(--page-bg) var(--page-grad) fixed no-repeat; }
 html[data-mode="view"] .cover { display: none; }
 html[data-mode="view"] .sec { border-left: 2px solid var(--gutter-rule); padding-left: 20px; }
 @media print { html[data-mode="view"] .sec { border-left: 0; padding-left: 0; } }
+/* Row 1195: the Work items section as the approved mock-up draws it, Classic only (Cards keeps today's rules and markup). Table cells, in the page and in Edit. */
+.wil-table th { font-size: var(--size-caption); }
+.wil-table td.wil-c-id, .wil-c-id { font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; color: var(--status-blue-text); }
+.wil-pr { border: 1px solid var(--grey-500); background: var(--surface); color: var(--text); font-weight: var(--weight-semibold); }
+.wil-pr.h, .wil-pr.u { border-color: color-mix(in srgb, currentColor 30%, transparent); }
+.wil-off .wil-pr { border-color: var(--grey-200); }
+.wil-table tr.wil-k-action:not(.wil-off) .ico, .wil-lines li.wil-k-action:not(.wil-off) .ico { background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.wil-table tr.wil-k-risk:not(.wil-off) .ico, .wil-lines li.wil-k-risk:not(.wil-off) .ico { background: var(--tone-red-tint); color: var(--tone-red-text); }
+.wil-table tr.wil-k-issue:not(.wil-off) .ico, .wil-lines li.wil-k-issue:not(.wil-off) .ico { background: var(--tone-urgent); color: var(--tone-on-urgent); }
+.wil-table tr.wil-k-decision:not(.wil-off) .ico, .wil-lines li.wil-k-decision:not(.wil-off) .ico { background: var(--tone-green-tint); color: var(--tone-green-text); }
+.wil-table .wil-c-eye .ib { color: var(--text); }
+.wil-off .wil-c-eye .ib { color: var(--grey-500); }
+@media (max-width: 1100px) { .wil-table .wil-c-owner { width: 150px; } }
+@media (max-width: 1000px) {
+  .wil-table td.wil-c-due { white-space: nowrap; overflow-wrap: normal; }
+  .wil-table .wil-c-due { width: 116px; }
+}
+/* Row 1195: the Edit header order is the gear in the title row, the saved-views tabs, the filter line, then the table (grid order only; the markup is Cards' markup). */
+.wil:has(> .wil-views) { display: grid; grid-template-columns: minmax(0, 1fr); }
+.wil:has(> .wil-views) > * { order: 3; }
+.wil:has(> .wil-views) > .wil-say, .wil:has(> .wil-views) > .wil-form { order: 0; }
+.wil:has(> .wil-views) > .wil-views { order: 1; margin-top: var(--space-3); }
+.wil:has(> .wil-views) > .wil-line { order: 2; margin: 0 0 var(--space-3); }
+.wil-form { display: block; margin: 0; padding: 0; border: 0; background: none; }
+.wil-cw { position: absolute; top: var(--sec-pad-t); right: var(--sec-px); z-index: 6; display: flex; justify-content: flex-end; }
+.wil-gear { border: 1.5px solid var(--grey-200); }
+.wil-cfg { width: min(calc(var(--space-4) * 19), calc(100vw - var(--space-6))); }
+.wil-cfg h4 { font-family: var(--font-head); font-weight: var(--weight-semibold); color: var(--heading); }
+.wil-cfg .wil-sel > span, .wil-cfg .wil-f legend { font-weight: var(--weight-medium); color: var(--text-muted); }
+.wil-cfg .wil-opts input[type="checkbox"] { width: var(--space-4); height: var(--space-4); margin: 0; accent-color: var(--brand-blue); }
+.wil-cfg .wil-sel select:focus-visible, .wil-cfg .wil-sel input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.wil-cacts button { background-color: var(--pill-color); background-image: var(--pill-bg); color: var(--pill-fg); font-weight: var(--weight-semibold); }
+/* Configure lists the columns in the mock-up's order (Status, Owner, Due, Priority, Workstream, Milestone, ID); Type, which the mock-up does not draw, follows. What is saved and its order are unchanged. */
+.wil-cfg .wil-opts label { order: 8; }
+.wil-cfg .wil-opts label:has(> input[value="status"]) { order: 1; }
+.wil-cfg .wil-opts label:has(> input[value="owner"]) { order: 2; }
+.wil-cfg .wil-opts label:has(> input[value="due"]) { order: 3; }
+.wil-cfg .wil-opts label:has(> input[value="priority"]) { order: 4; }
+.wil-cfg .wil-opts label:has(> input[value="workstream"]) { order: 5; }
+.wil-cfg .wil-opts label:has(> input[value="milestone"]) { order: 6; }
+.wil-cfg .wil-opts label:has(> input[value="id"]) { order: 7; }
+/* The + stays the 34 px dashed square at every width and in every state, and the Add menu draws each kind as the letter tile the rows use. */
+.wil-add .newb { box-sizing: border-box; width: 34px; height: 34px; min-width: 0; padding: 0; justify-content: center; border: 1px dashed var(--grey-500); border-radius: var(--radius); background: none; color: var(--status-blue-text); }
+.wil-add .newb:hover, .wil-add .newb:focus-visible, .wil-add .newb[aria-expanded="true"] { background: var(--grey-50); border-color: var(--grey-500); color: var(--status-blue-text); }
+.wil-add .newb:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.wil-add .newb .w, .wil-add .newb:hover .w, .wil-add .newb:focus-visible .w, .wil-add .newb[aria-expanded="true"] .w, .wil-add .newb .nch { display: none; }
+.wil-add .ddmenu { min-width: calc(var(--space-8) * 2); padding: var(--space-1); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }
+.wil-add .ddmenu [role="menuitem"] { display: flex; align-items: center; gap: var(--space-2); min-height: calc(var(--space-6) + var(--space-2)); padding: 0 var(--space-2); border-radius: var(--radius); font-weight: var(--weight-medium); color: var(--text); }
+.wil-add .ddmenu [role="menuitem"]:hover, .wil-add .ddmenu [role="menuitem"]:focus-visible { background: var(--grey-50); color: var(--text); }
+.wil-add .ddmenu [role="menuitem"]:focus-visible { outline: 0; }
+.wil-add .ddmenu [role="menuitem"] .mi { display: none; }
+.wil-add .ddmenu [role="menuitem"]::before { content: attr(data-kind); display: inline-grid; place-items: center; flex: none; width: var(--space-5); height: var(--space-5); border-radius: 6px; font-size: var(--size-caption); font-weight: var(--weight-semibold); line-height: 1; background: var(--tone-grey-tint); color: var(--tone-grey-text); }
+.wil-add .ddmenu [role="menuitem"][data-kind="action"]::before { content: "A"; background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.wil-add .ddmenu [role="menuitem"][data-kind="risk"]::before { content: "R"; background: var(--tone-red-tint); color: var(--tone-red-text); }
+.wil-add .ddmenu [role="menuitem"][data-kind="issue"]::before { content: "I"; background: var(--tone-urgent); color: var(--tone-on-urgent); }
+.wil-add .ddmenu [role="menuitem"][data-kind="decision"]::before { content: "D"; background: var(--tone-green-tint); color: var(--tone-green-text); }
+/* The saved-views tabs: medium-weight tabs, grey count pills, a violet + New view, and the open tab's caret inside its underline. */
+.wil-views .vtab { font-weight: var(--weight-medium); }
+.wil-views .vtab em { font-weight: var(--weight-regular); color: var(--text-muted); }
+.wil-views .vnew { color: var(--status-blue-text); font-weight: var(--weight-medium); }
+.wil-views .vnew:hover { color: var(--status-blue-text); }
+.wil-views .vtabs { flex-wrap: wrap; overflow: visible; }
+.wil-views .vt { gap: 0; }
+.wil-views .vt:has(> .wil-vopts) .vtab { padding-right: calc(var(--space-5) + var(--space-1)); }
+.wil-views .vt > .wil-vopts { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); }

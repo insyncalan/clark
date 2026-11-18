@@ -11,6 +11,6 @@ export function NewTile({ word, kind, items, onAdd, id = "newBtn" }) {
   const list = items || [];
   return (
     <Menu label={word} ariaLabel={word} tip={word} icon="plus" labelCls="w" id={id} btnCls={`newb${list.length ? " hasmenu" : ""}`} menuId={`${id}Menu`}
-      menuLabel={word} chevron={list.length > 0} items={list.map((it) => ({ id: it.kind, name: it.word, ...(it.tile ? { tile: it.tile, tone: it.tone } : { icon: actionIcon("add") }) }))} onPick={(k) => onAdd(k)} onClick={() => onAdd(kind)} />
+      menuLabel={word} chevron={list.length > 0} items={list.map((it) => ({ id: it.kind, name: it.word, icon: actionIcon("add") }))} onPick={(k) => onAdd(k)} onClick={() => onAdd(kind)} />
   );
 }

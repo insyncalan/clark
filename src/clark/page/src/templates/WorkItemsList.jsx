@@ -44,6 +44,8 @@ function Cell({ row, col, now }) {
 // `Eye` (Edit only): the Work items page's own Client-visible eye (edit/cells/Eye.jsx), drawn at the end of each row, so it means the same thing here.
 // Row 1268, item 12 (Edit only): `Cell` is the Work items page's own in-place picker (edit/cells/Cell.jsx) round the Owner, Due, Status and Priority cells,
 // and `cw` the page's own column widths (edit/colWidths.jsx: drag a heading's edge, Alt with Left or Right). View and a published file pass neither.
+// Row 1195: the page layers a Theme in <style id="theme"> (clark.page.layer_theme); Cards layers nothing, so there is no such element.
+const classicTheme = () => typeof document !== "undefined" && !!document.getElementById("theme");
 const PICKED = { owner: "owner", due: "due", status: "status", priority: "priority" };
 export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw }) {
   const act = open ? (row) => ({ tabIndex: 0, role: "button", "aria-label": `Open ${row.id}: ${row.title || ""}`, onClick: () => open(row.id),
@@ -52,7 +54,9 @@ export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw }) {
   const cellOf = (row, c) => (Pick && PICKED[c] ? <Pick row={row} field={PICKED[c]} keep={c === "status"}><Cell row={row} col={c} now={now} /></Pick> : <Cell row={row} col={c} now={now} />);
   // Row 1268: one line as the built-in rows: the letter tile, the title, the chosen columns, the ID last; an item the client eye has taken off is greyed.
   const before = columns.filter((c) => c === "type"), after = columns.filter((c) => c !== "type" && c !== "id").concat(columns.filter((c) => c === "id"));
-  const off = (row) => ` wil-k-${row.kind}${Eye && Eye.isOff && Eye.isOff(row) ? " wil-off" : ""}`;
+  // Row 1195: the Classic theme colours the letter tile by the kind, so a row carries its kind as a class there; the Cards page gets exactly the markup it had.
+  const kinds = classicTheme();
+  const off = (row) => `${kinds ? ` wil-k-${row.kind}` : ""}${Eye && Eye.isOff && Eye.isOff(row) ? " wil-off" : ""}`;
   const tile = (row) => <ItemIcon row={row} pill={clientPill(row, now)} today={now} plain={!!open} />;
   return (
     <>
