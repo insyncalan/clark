@@ -437,6 +437,19 @@ CREATE TABLE IF NOT EXISTS app_settings (
 
 INSERT OR IGNORE INTO app_settings (id) VALUES (1);
 
+-- clark: (row 1300) one row for this computer: the Defaults values, at today's values (settingsDefaults.json). The same statements as
+-- INSTALL_DEFAULTS_DDL in store.py, which brings an older file to version 30.
+CREATE TABLE IF NOT EXISTS install_defaults (
+  id            INTEGER PRIMARY KEY CHECK (id = 1),
+  review_days   INTEGER NOT NULL DEFAULT 14,
+  gantt_editor  INTEGER NOT NULL DEFAULT 0 CHECK (gantt_editor IN (0,1)),
+  gantt_client  INTEGER NOT NULL DEFAULT 0 CHECK (gantt_client IN (0,1)),
+  gantt_name    TEXT NOT NULL DEFAULT 'Gantt',
+  updated_at    TEXT
+);
+
+INSERT OR IGNORE INTO install_defaults (id) VALUES (1);
+
 CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);   -- schema_version, created_at, device, db_id, role (owner|teammate), share_folder; on a teammate's copy base_db_id, base_seq, base_apply_id
 
 -- #115: people belong to the portfolio, not one project. A person is archived, never deleted. Version 9's migrate_people makes the
