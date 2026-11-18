@@ -49,6 +49,10 @@ class ViewBundleNamesNoRoute(unittest.TestCase):
 class AllTemplates(Base):
     def setUp(self):
         super().setUp()
+        # Row 1195: the test page the served View is drawn from carries no Theme, so it draws as Cards; the file draws the Theme of its store
+        # (a new store is Classic, which draws the work items row as the mock-up's half row). Same Theme on both sides: this test is about words.
+        with self.store.con:
+            self.store.con.execute("UPDATE app_settings SET theme = 'cards' WHERE id = 1")
         d = self.demo
         d.plant_builtin_sections()      # a new project's lists are Work items lists; these templates sit with the built-in sections (row 1193)
         self.kept = d.action(description=KEPT, due_date=OVERDUE)
