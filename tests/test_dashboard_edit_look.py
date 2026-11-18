@@ -18,7 +18,7 @@ class EditLook(Setup):
                 with self.subTest(width=width, dark=dark), chrome() as cdp:
                     p = self.show(cdp, width, dark)
                     p.edit()
-                    p.until("!!document.querySelector('#report-hint') && !!document.querySelector('[data-tile=decisions].is-hidden')", "Edit drew")
+                    p.until("!!document.querySelector('#report-hint') && !document.querySelector('[data-tile=decisions]')", "Edit drew")
                     hint = "getComputedStyle(document.querySelector('#report-hint'))"
                     self.assertNotIn(p.js(hint + ".backgroundColor"), ("rgba(0, 0, 0, 0)", "transparent"), "the note is a tinted chip")
                     self.assertGreater(float(p.js(hint + ".borderTopLeftRadius").replace("px", "")), 0)

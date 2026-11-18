@@ -118,7 +118,7 @@ class Fill(Setup):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
                 p.edit()
-                p.until("document.querySelectorAll('.glance > .tcell').length === 4", "the four stored tiles in Edit")
+                p.until("document.querySelectorAll('.glance > .tcell').length === 3", "the three shown tiles in Edit (the hidden one is left out, row 1303)")
                 self.check(p, width, 4)
 
     def test_edit_controls_and_the_hidden_tag_never_cover_the_text_at_900_and_1400_in_light_and_dark(self):
@@ -127,7 +127,7 @@ class Fill(Setup):
                 with self.subTest(width=width, dark=dark), chrome() as cdp:
                     p = self.show(cdp, width, dark)
                     p.edit()
-                    p.until("document.querySelectorAll('.glance > .tcell').length === 4", "the four stored tiles in Edit")
+                    p.until("document.querySelectorAll('.glance > .tcell').length === 3", "the three shown tiles in Edit (the hidden one is left out, row 1303)")
                     found = p.js("""(() => {
                       const box = (r) => ({l: r.left, r: r.right, t: r.top, b: r.bottom});
                       const hit = (a, b) => a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b;
@@ -144,7 +144,7 @@ class Fill(Setup):
                       return out;
                     })()""")
                     self.assertEqual(found, [], f"nothing in a tile sits under its controls or its tag at {width}")
-                    self.assertTrue(p.js("!!document.querySelector('.glance .tgrip') && !!document.querySelector('.glance .teye') && !!document.querySelector('.glance .thid')"), "the controls and the tag were there to check")
+                    self.assertTrue(p.js("!!document.querySelector('.glance .tgrip') && !!document.querySelector('.glance .teye')"), "the controls were there to check")
 
     def test_a_lone_health_tile_fills_the_row(self):
         with chrome() as cdp:

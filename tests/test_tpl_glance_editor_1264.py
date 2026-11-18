@@ -312,7 +312,7 @@ class Editing(Editor):
             self.click(p, "[data-tile=t1] [data-tile-eye]")
             self.assertTrue(wait(lambda: any(t.get("hidden") for t in self.body()["bespoke"]), 10), f"stored: {self.body()}")
             self.assertEqual([t["id"] for t in self.body()["bespoke"] if t.get("hidden")], ["t1"])
-            p.until(f"document.querySelector({self.q('[data-tile=t1]')}).classList.contains('is-hidden')", "the tile drew dimmed")
+            p.until(f"!document.querySelector({self.q('[data-tile=t1]')})", "the hidden tile left Edit (row 1303)")
 
     def test_T79_it_fits_at_1400_and_900_in_light_and_dark_and_the_popped_out_editor_stays_inside_the_window(self):
         self.seed([{**OWN, "id": f"t{i}", "tone": tone, "label": "Fictional label of forty characters ok!!", "figure": "123456789012", "tag": "Twelve words", "note": "n" * 60}
