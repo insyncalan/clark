@@ -201,11 +201,13 @@ class Gutter(g.Setup):
 
 
 class CardsUntouched(unittest.TestCase):
-    def test_the_cards_page_has_none_of_the_raised_selectors_and_keeps_its_hash(self):
-        import hashlib
-        cards = page.page_html(branding=page.NO_BRAND)
+    def test_the_cards_page_has_none_of_the_raised_selectors_and_keeps_its_style_blocks(self):
+        import hashlib, re
+        cards = page.page_html(branding=page.NO_BRAND, theme=None)
         self.assertNotIn(".sec.sec.sec", cards)
-        self.assertTrue(hashlib.sha256(cards.encode()).hexdigest().startswith("b8bbbc7c"))
+        # the whole-page hash moves whenever another row changes the script bundle, so the proof is the style blocks (same pin as test_work_items_mockup_1195)
+        blocks = [hashlib.md5(b.encode()).hexdigest() for b in re.findall(r"<style[^>]*>(.*?)</style>", cards, re.S)]
+        self.assertEqual(blocks, ["7195b3107c3b5022f3b40ad1dfbbe484"])
 
 
 if __name__ == "__main__":
