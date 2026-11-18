@@ -277,8 +277,15 @@ class SourceRules(unittest.TestCase):
                 self.assertNotIn("infinite", ln)
 
     def test_the_rules_hold_no_hash_number(self):
-        text = RULES[RULES.index("Row 1195"):]
-        self.assertIsNone(re.search(r"#\d", text))
+        # only this row's own lines: from a Row 1195 comment to the next comment of another row (other rows stack after it and may hold colours)
+        mine, on = [], False
+        for line in RULES.split("\n"):
+            if line.startswith("/* Row "):
+                on = line.startswith("/* Row 1195")
+            if on:
+                mine.append(line)
+        self.assertTrue(mine)
+        self.assertIsNone(re.search(r"#\d", "\n".join(mine)))
 
 
 class EveryAddedRuleIsPinned(unittest.TestCase):
