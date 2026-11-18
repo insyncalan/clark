@@ -23,7 +23,7 @@ export const TAG_LABELS = {
   close: "Close",
 };
 // Settings pages' names (Views.jsx GROUPS); "" is the first page, Projects.
-const SETTINGS_NAMES = { "": "Projects", projects: "Projects", people: "People", profile: "Profile", folder: "Folder", brand: "Brand", appearance: "Appearance", reports: "Reports", backups: "Backups", data: "Export and import", claude: "Claude and AI", logs: "Logs and diagnostics", version: "Version and updates" };
+const SETTINGS_NAMES = { "": "Projects", projects: "Projects", people: "People", profile: "Profile", folder: "Folder", brand: "Brand", theme: "Theme", appearance: "Appearance", reports: "Reports", backups: "Backups", data: "Export and import", claude: "Claude and AI", logs: "Logs and diagnostics", version: "Version and updates" };
 
 function text(x) { return x == null ? "" : String(x); }
 const kindOf = (k) => (KINDS.includes(k) ? k : DEFAULT_KIND);
