@@ -1,6 +1,6 @@
 """Row 1294, slice 3: the standing instructions of asking, for all projects and for one project (A8).
 
-The store keeps two texts of at most 4,000 characters (app_settings.ask_instructions, projects.ask_instructions; migration step 30). GET and POST
+The store keeps two texts of at most 4,000 characters (app_settings.ask_instructions, projects.ask_instructions; migration step 31). GET and POST
 /api/ask-instructions read and change them, one store step and one Undo each; a text that looks like a password or a key is refused. Every question
 sends them above the question, the one for all projects first, and they count towards the size of the request. Fictional data only.
 
@@ -52,8 +52,8 @@ class Storing(Base):
     def test_a_new_file_has_neither_and_both_are_text(self):
         s = self.store()
         self.assertEqual((s.ask_instructions(), s.ask_instructions(CODE)), ("", ""))
-        self.assertEqual(st.SCHEMA_VERSION, 30)
-        self.assertIn((30, st.migrate_ask_instructions), st.MIGRATIONS)
+        self.assertEqual(st.SCHEMA_VERSION, 31)
+        self.assertIn((31, st.migrate_ask_instructions), st.MIGRATIONS)
 
     def test_the_database_itself_refuses_more_than_4000_characters_in_either_table(self):
         con = self.store().con
