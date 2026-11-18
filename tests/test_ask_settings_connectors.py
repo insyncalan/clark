@@ -16,6 +16,8 @@ from test_server import Running, chrome, wait
 from clark import page
 
 LINE = "Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings."
+ALL_NOTE = ("Only connectors that are set up on this computer are listed, and the list is the same for every project. Off means clark never asks it anything. "
+            "On lets ask clark read from it, read only, when your question needs it; each one it used is listed under the answer. A project can turn a connector off for itself in its own tab.")
 WIDTHS = (1400, 900)
 FAKE = """
 window.__c = {calls: [], list: [{id: 'mail', label: 'Mail', on: false, off_here: false}, {id: 'teams', label: 'Teams', on: false, off_here: false}], fail: false, none: false};
@@ -57,6 +59,9 @@ class Connectors(unittest.TestCase):
             js = self.show(cdp, "all")
             self.assertTrue(wait(lambda: js("document.querySelectorAll('[data-connector]').length") == 2, 10))
             self.assertEqual(js("document.querySelector('#ask-connectors-line').innerText"), LINE)
+            self.assertEqual(js("document.querySelector('#ask-connectors h2').innerText"), "Other connectors found on this computer")
+            self.assertEqual(js("document.querySelector('#ask-connectors-note-all').innerText"), ALL_NOTE)
+            self.assertEqual(js("document.querySelector('#ask-connectors-readonly').innerText"), "A connector is only read from, never changed.")
             self.assertEqual(js("[...document.querySelectorAll('[data-connector]')].map(b => b.innerText + '/' + b.getAttribute('aria-pressed')).join()"),
                              "Off for clark/false,Off for clark/false")
             for w in WIDTHS:
@@ -73,20 +78,26 @@ class Connectors(unittest.TestCase):
             self.assertTrue(wait(lambda: js("!!document.querySelector('[data-connector-here]')"), 10))
             self.assertEqual(js("document.querySelectorAll('[data-connector-here]').length"), 1, "Teams is off for all, so it is not offered")
             self.assertEqual(js("document.querySelector('#ask-connectors-project h2').innerText"), "Connectors in ABC")
-            js("document.querySelector('[data-connector-here=mail]').click()")
-            self.assertTrue(wait(lambda: js("document.querySelector('[data-connector-here=mail]').innerText") == "Off in this project", 10))
+            self.assertEqual(js("document.querySelector('#ask-connectors-note-project').innerText"), "Only the connectors that are On for all projects appear here.")
+            self.assertEqual(js("document.querySelector('#ask-connectors-project li .muted').innerText"), "On for all projects. Turn it off here for ABC only.")
+            sw = "document.querySelector('[data-connector-here=mail]')"
+            self.assertEqual(js(sw + ".getAttribute('role') + '/' + " + sw + ".getAttribute('aria-label') + '/' + " + sw + ".getAttribute('aria-checked')"), "switch/Use Mail in ABC/true")
+            js(sw + ".click()")
+            self.assertTrue(wait(lambda: js(sw + ".getAttribute('aria-checked')") == "false", 10))
             self.assertEqual(js("window.__c.calls.slice(-1)[0].project"), "ABC")
             self.assertEqual(js("window.__c.calls.slice(-1)[0].off_here"), True)
 
-    def test_none_found_and_an_unreachable_server_both_say_so_and_offer_no_switch(self):
+    def test_none_found_says_so_and_an_unreachable_server_offers_no_switch(self):
         with chrome() as cdp:
             js = self.show(cdp, "all", "window.__c.none = true;")
             self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-connectors-none')"), 10))
             self.assertEqual(js("document.querySelectorAll('[data-connector]').length"), 0)
         with chrome() as cdp:
             js = self.show(cdp, "all", "window.__c.fail = true;")
-            self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-connectors-note')"), 10))
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-connectors-note-all')"), 10))
             self.assertEqual(js("document.querySelectorAll('[data-connector]').length"), 0)
+            self.assertFalse(js("!!document.querySelector('#ask-connectors-none')"), "an unreachable server is not 'none found'")
+            self.assertEqual(js("document.querySelector('#ask-connectors-unavailable').innerText"), "Connectors can't be checked just now. None is used until they can be.")
 
     def test_a_refused_change_leaves_the_switch_off_and_says_so(self):
         with chrome() as cdp:
