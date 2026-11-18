@@ -437,6 +437,38 @@ CREATE TABLE IF NOT EXISTS app_settings (
 
 INSERT OR IGNORE INTO app_settings (id) VALUES (1);
 
+-- clark: (row 1300) one row for this computer: the Defaults values, at today's values (settingsDefaults.json). The same statements as
+-- INSTALL_DEFAULTS_DDL in store.py, which brings an older file to version 30.
+CREATE TABLE IF NOT EXISTS install_defaults (
+  id            INTEGER PRIMARY KEY CHECK (id = 1),
+  review_days   INTEGER NOT NULL DEFAULT 14,
+  gantt_editor  INTEGER NOT NULL DEFAULT 0 CHECK (gantt_editor IN (0,1)),
+  gantt_client  INTEGER NOT NULL DEFAULT 0 CHECK (gantt_client IN (0,1)),
+  gantt_name    TEXT NOT NULL DEFAULT 'Gantt',
+  updated_at    TEXT
+);
+
+INSERT OR IGNORE INTO install_defaults (id) VALUES (1);
+
+-- clark: (row 1306) what asking may look at beyond the project's own files: one switch per connector for this computer (is_on 0 = Off, the
+-- starting value) and, per project, the connectors that project keeps Off. Switch state only: nothing about a connector's content, no token,
+-- key or app registration. The same statements as CONNECTOR_SWITCHES_DDL in store.py, which brings an older file to version 31.
+CREATE TABLE IF NOT EXISTS connector_switches (
+  connector  TEXT PRIMARY KEY CHECK (connector IN ('mail','calendar','teams','sharepoint','todoist')),
+  is_on      INTEGER NOT NULL DEFAULT 0 CHECK (is_on IN (0,1)),
+  updated_at TEXT
+);
+
+INSERT OR IGNORE INTO connector_switches (connector) VALUES ('mail'), ('calendar'), ('teams'), ('sharepoint'), ('todoist');
+
+CREATE TABLE IF NOT EXISTS project_connectors (
+  project_id TEXT NOT NULL REFERENCES projects(code),
+  connector  TEXT NOT NULL CHECK (connector IN ('mail','calendar','teams','sharepoint','todoist')),
+  off        INTEGER NOT NULL DEFAULT 1 CHECK (off IN (0,1)),
+  updated_at TEXT,
+  PRIMARY KEY (project_id, connector)
+);
+
 CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);   -- schema_version, created_at, device, db_id, role (owner|teammate), share_folder; on a teammate's copy base_db_id, base_seq, base_apply_id
 
 -- #115: people belong to the portfolio, not one project. A person is archived, never deleted. Version 9's migrate_people makes the
