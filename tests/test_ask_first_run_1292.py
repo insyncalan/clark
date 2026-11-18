@@ -64,7 +64,10 @@ class FirstRun(Panel):
 
     def test_the_card_is_not_shown_when_the_status_check_fails(self):
         """A check that failed says nothing about where a question goes, so the card (which says it) stays away."""
-        self.stub.status = lambda *_: (200, {"ok": False})
+        def failed(*_):
+            self.stub.calls.append(("status", None))     # the replaced method no longer records the ask, so the test does
+            return 200, {"ok": False}
+        self.stub.status = failed
         with chrome() as cdp:
             p = self.opened(cdp, ready=False)
             deadline = time.time() + 10
