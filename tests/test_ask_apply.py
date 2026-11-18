@@ -114,6 +114,29 @@ class WorkItems(Base):
         row = self.s.read("actions", ref=self.action)
         self.assertEqual((row["owner"], row["due_date"]), ("Sam Lee", None))
 
+    def test_a_plan_carries_the_items_title_and_a_plain_why(self):         # row 1292 S4: the card's heading and its Why line
+        plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "owner": "Ana Ruiz",
+                             "why": "It was handed over on Monday.\x00 <b>x</b>"})
+        self.assertEqual(plan["title"], "Draft the cut-over plan")
+        self.assertEqual(plan["why"], "It was handed over on Monday. <b>x</b>", "controls dropped; the page draws it as text")
+        self.assertNotIn("why", plan["after"], "why is not a field of the item")
+        self.assertIsNone(self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "owner": "Kim Roe"})["why"])
+        self.assertEqual(len(self.planned({"op": "change", "id": self.action, "owner": "Lee Poe", "why": "x" * 900})["why"]), ask_apply.MAX_WHY)
+        self.assertEqual(ask_apply.MAX_WHY, 300)
+        self.assertEqual(len(self.planned({"op": "change", "id": self.action, "owner": "Lee Poe", "why": "y" * 300})["why"]), 300)
+        self.assertEqual(self.planned({"op": "change", "id": self.action, "owner": "Lee Poe", "why": "a\x7fb~c"})["why"], "ab~c", "DEL dropped, ~ kept")
+        self.assertIsNone(self.planned({"op": "change", "id": self.action, "owner": "Lee Poe", "why": " \n\x00 "})["why"], "nothing left is no reason")
+        self.refused({"op": "change", "id": self.action, "owner": "Lee Poe", "why": 5}, "not_a_change")
+
+    def test_the_card_title_is_the_title_now_even_when_the_change_renames_it(self):         # row 1292 sweep A: kills after-for-before
+        plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "title": "Cut-over plan v2"})
+        self.assertEqual(plan["title"], "Draft the cut-over plan")
+        self.assertNotEqual(plan["after"].get("description"), plan["title"])
+
+    def test_the_rule_for_a_change_asks_for_a_short_reason(self):         # row 1292 sweep A: the prompt line that makes the model send why
+        rule = [r for r in ask.RULES.split("\n") if r.startswith("7.")][0]
+        self.assertIn('"status": "Closed", "why": "one short reason"}', rule)
+
     def test_an_offer_is_used_once(self):
         plan = self.planned({"op": "change", "id": self.action, "status": "Closed"})
         self.applied(plan["offer"])

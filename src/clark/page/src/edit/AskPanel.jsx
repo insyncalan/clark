@@ -7,12 +7,12 @@ import { zoneFetch } from "../api.js";
 import { words } from "./publishApi.js";
 import { stopRestore } from "../router.js";
 import { askProvider } from "./askState.js";
-import { draft, panelOpen, panelState, panelDisconnected, panelModel, panelStanding, panelWidth, panelFocus, turns, pending, chatEpoch, handed, answersReady, queue, queueHeld, queueDrop, QUEUE_MAX, setQueue, closePanel, newChat, setWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
+import { draft, panelOpen, panelState, panelDisconnected, panelModel, panelStanding, panelWidth, panelFocus, turns, pending, chatEpoch, handed, answersReady, queue, queueHeld, queueDrop, QUEUE_MAX, setQueue, closePanel, newChat, setWidth, clampWidth, widthRange } from "./askPanelState.js";
 import * as W from "./askWords.js";
 import { slashMatches, stepSlash } from "./askSlash.js";
 import { Icon } from "../components/Icon.jsx";
 import { holdScroll } from "../core/holdScroll.js";
-import { chatId, histOpen, histTick, chats, keepChat, deleteChat, when } from "./askHistory.js";
+import { chatId, histOpen, histTick, chats, keepChat, deleteChat, rememberOpen, when } from "./askHistory.js";
 import { ChangeCards, fixedLine } from "./AskChange.jsx";
 import { FormattedAnswer } from "./AskFormat.jsx";
 import { AskDraft } from "./AskDraft.jsx";
@@ -77,9 +77,9 @@ export function AskPanel() {
   const list = turns.value, busy = pending.value;
   const [text, setText] = useState("");
   const [note, setNote] = useState("");
-  const [quip, setQuip] = useState("");
   const [pick, setPick] = useState(0), [shut, setShut] = useState(false);   // #1292 S10: the slash menu's chosen row, and whether Esc has closed it
   const menu = shut ? null : slashMatches(text);
+  const [secs, setSecs] = useState(0);
   const [said, setSaid] = useState("");            // row 1220: what a screen reader is told when a message is queued or removed
   const waiting = queue.value, held = queueHeld.value, dropping = queueDrop.value;
   const showHist = histOpen.value && !busy;
@@ -120,12 +120,11 @@ export function AskPanel() {
     else el.scrollTop = el.scrollHeight;
   }, [list.length, busy]);
   useEffect(() => {
-    if (!busy) { setQuip(""); return undefined; }
-    let t = null;
-    setQuip(drawQuip());
-    const tick = () => { t = setTimeout(() => { setQuip(drawQuip()); tick(); }, quipDelay()); };
-    tick();
-    return () => clearTimeout(t);
+    if (!busy) { setSecs(0); return undefined; }
+    const from = Date.now();
+    setSecs(0);
+    const t = setInterval(() => setSecs((Date.now() - from) / 1000), 1000);
+    return () => clearInterval(t);
   }, [busy]);
 
   if (!open && !leaving) return null;
@@ -189,15 +188,23 @@ export function AskPanel() {
     if (!preset && !from) setText("");
     if (box.current) box.current.focus();         // the suggestion that was pressed is about to be replaced: keep the keyboard's place
     pending.value = true;
-    const epoch = chatEpoch.value;
-    const body = { project: project.value, question: q, earlier };
+    const epoch = chatEpoch.value, askedIn = project.value, askedChat = chatId.value, asked = turns.value;
+    const body = { project: askedIn, question: q, earlier };
     if (att && att.length) body.files = await F.encodeFiles(att);
     const r = await post("/api/ask", body);
     pending.value = false;
     setNote("");                                     // the Stopping line is over once the turn (answer or stopped line) is here
-    if (epoch !== chatEpoch.value) return;           // row 1119: the page was left meanwhile; the answer belongs to a chat that is gone
     const b = r.body;
     const answered = r.status === 200 && b && b.ok === true && typeof b.answer === "string";
+    if (epoch !== chatEpoch.value) {                 // row 1292 slice 8: the project was changed meanwhile; an answer stays in the chat it was asked in (kept there, shown when that project is open again)
+      if (answered) {
+        const extra = Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : [];
+        const id = keepChat([...asked, { role: "assistant", text: b.answer, sources: sourceLabels(b.sources) }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))], undefined, { project: askedIn, id: askedChat });
+        if (id && !askedChat) rememberOpen(askedIn, id);
+        if (id && project.value === askedIn && chatId.value === askedChat && (askedChat || !turns.value.length)) { const c = chats(askedIn).find((x) => x.id === id); if (c) { turns.value = c.turns.map((t) => ({ ...t })); chatId.value = id; } }
+      }
+      return;
+    }
     if (!answered && !preset && !from) {      // nothing was answered: the question goes back in the box unless something new was typed meanwhile, and its turn leaves the transcript so it is not shown twice
       setText((t) => t || q);
       if (att && att.length) setFiles((now) => (now.length ? now : att));
@@ -409,7 +416,7 @@ export function AskPanel() {
       {busy ? (
         <p class="ask-work" id="ask-work">
           <span class="ask-dots" aria-hidden="true"><i /><i /><i /></span>
-          <span class="ask-quip" id="ask-quip" aria-hidden="true">{quip}</span>
+          <span class="ask-step" id="ask-step" aria-hidden="true">{W.workingLine(askProvider.value, secs)}</span>
         </p>
       ) : (state === "ready" || state === "off") && !text.trim() ? (
         <div class="ask-pills" id="ask-pills" role="group" aria-label={W.PILLS_LABEL}>

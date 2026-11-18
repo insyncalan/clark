@@ -1,14 +1,14 @@
 // The ask panel's state and keys (#47a). Edit pages only. "/" outside a field (or Ctrl or Cmd + J anywhere) opens it (not while a peek is open); Esc, Close or the ask button closes it (a click outside does not) and puts
 // focus back; the width is remembered in this browser (a convenience only). Nothing is sent while asking is off: the status route
 // is asked when the panel opens, and until it answers (or when it cannot) the panel reads as off.
-import { signal } from "@preact/signals";
-import { peek } from "../stores/report.js";
+import { signal, effect } from "@preact/signals";
+import { view, project, peek } from "../stores/report.js";
 import { helpOpen } from "../help/helpStore.js";
 import { singleKeys } from "../stores/keyPrefs.js";
 import { askOn, askProvider } from "./askState.js";
 import { keptCheck, runCheck } from "./askCheck.js";
-import { chatId, histOpen } from "./askHistory.js";
-import { QUIPS, DISCONNECTED_LINE } from "./askWords.js";
+import { chatId, histOpen, openChatOf, rememberOpen } from "./askHistory.js";
+import { DISCONNECTED_LINE } from "./askWords.js";
 
 const MIN = 320, DEFAULT = 420;
 const KEY = "clark.askWidth";
@@ -23,7 +23,7 @@ export const panelFocus = signal(0);                  // bumped to ask the panel
 export const turns = signal([]);                       // the chat: [{role: "user" | "assistant", text, kind?}]; kept while the panel is closed
 export const pending = signal(false);                  // a question is out
 export const queue = signal([]);                       // row 1220: messages typed while an answer is made, [{id, text}] in the order they are sent; kept only while the panel is open
-export const queueHeld = signal("");                   // row 1220: "" (the queue goes on by itself), "stopped" or "failed" (it waits for Send them or Clear)
+export const queueHeld = signal("");                   // row 1220: "" (the queue goes on by itself), "stopped" or "failed" (it waits for Send the waiting messages or Clear)
 export const queueDrop = signal(0);                    // row 1220: the number of waiting messages the person has been told would be dropped
 export const QUEUE_MAX = 5;
 export const draft = signal(null);                     // row 1292 (S12): the Draft open beside the panel, {html, title, sec} (askDraft.js readDraft), or null; closing the panel or leaving the chat closes it, the report is unchanged
@@ -42,33 +42,6 @@ export function setWidth(w, keep) {
   panelWidth.value = clampWidth(w);
   if (keep) { try { localStorage.setItem(KEY, String(panelWidth.value)); } catch (e) { /* only a convenience */ } }
 }
-
-/** A deck of every quip index in a random order (Fisher-Yates). `rand` is Math.random's shape. */
-export function quipDeal(rand = Math.random) {
-  const d = QUIPS.map((_, i) => i);
-  for (let i = d.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; }
-  return d;
-}
-/** The next quip from a deck (an array of indexes, dealt from the end): a fresh shuffled deck when it runs out, never the one just
- * shown first. Returns the quip text; the deck is changed in place. */
-export function nextQuip(deck, prev, rand = Math.random) {
-  if (!deck.length) {
-    deck.push(...quipDeal(rand));
-    const top = deck.length - 1;
-    if (deck.length > 1 && QUIPS[deck[top]] === prev) [deck[0], deck[top]] = [deck[top], deck[0]];
-  }
-  return QUIPS[deck.pop()];
-}
-// One deck for the whole session of the panel (not one per question), so no quip comes round again until all have been shown,
-// and the one that ended a question never opens the next.
-let deck = [], lastQuip = "";
-/** The next quip to show, drawn from the one deck. */
-export function drawQuip(rand = Math.random) {
-  lastQuip = nextQuip(deck, lastQuip, rand);
-  return lastQuip;
-}
-/** 5 to 10 seconds, in milliseconds. */
-export const quipDelay = (rand = Math.random) => 5000 + Math.floor(rand() * 5001);
 
 let opener = null;
 
@@ -174,4 +147,17 @@ export function installAskKeys() {
     if (e.key === "/" && singleKeys.value && !e.defaultPrevented && !typing(e.target) && !otherLayer() && !helpOpen.value && !peek.value && !document.querySelector("[data-ucd] .ucd-acts")) { e.preventDefault(); openPanel(); }
   }, true);
   // row 1292 slice 1: a click outside, a change of page or of project no longer closes the panel or drops the chat; only Close, Esc or the ask button close it, and none of them stops an answer.
+  // row 1292 slice 8: a chat belongs to its project. A change of page keeps the chat; a change of project shows that project's own chat (the one it was left
+  // on, else an empty one) and the first is back on return. The answered chats are kept in Earlier chats, and the one each project is on is kept beside them,
+  // so a page that loads again for another project (a brand of its own) still finds it. An answer still out for the old project is not added to the new chat.
+  let seen = view.value + "|" + project.value, seenProject = project.value;
+  const resume = (p) => { const c = openChatOf(p); turns.value = c ? c.turns.map((t) => ({ ...t })) : []; chatId.value = c ? c.id : null; };
+  resume(seenProject);
+  effect(() => { rememberOpen(seenProject, chatId.value); });
+  effect(() => {
+    const now = view.value + "|" + project.value, p = project.value;
+    if (now === seen) return;
+    seen = now;
+    if (p !== seenProject) { seenProject = p; chatEpoch.value++; setQueue([]); histOpen.value = false; resume(p); }
+  });
 }

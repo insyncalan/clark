@@ -24,7 +24,7 @@ class Build(unittest.TestCase):
                      "only a suggestion", '"current_title"', '"current_owner"', "Never suggest archiving", 'DRAFT: {"title"'):
             self.assertIn(line, ask.RULES)
         self.assertEqual(len(ask.RULES.splitlines()), 13)
-        self.assertEqual(hashlib.sha256(ask.RULES.encode("utf-8")).hexdigest(), "e3ecdcd7ec20d387c80843fcfb33cd41d633046564b414279e9f58f1dafe524a")      # a change to the rules is a deliberate edit of this line
+        self.assertEqual(hashlib.sha256(ask.RULES.encode("utf-8")).hexdigest(), "fb7512df1c70070e930ec5145f0742eb8d74f689910897c113a19f7ef8696e04")      # a change to the rules is a deliberate edit of this line
 
     def test_passages_get_ids_in_order_and_the_question_is_carried(self):
         r = ask.build_request("What is late?", P)
