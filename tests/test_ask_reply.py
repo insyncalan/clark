@@ -164,6 +164,22 @@ class Draft(unittest.TestCase):
         self.assertIsNone(read('A.\nDRAFT: {"html": "<p>x</p>", "sec": "' + "s" * 41 + '"}').draft)
         self.assertIsNotNone(read('A.\nDRAFT: {"html": "<p>x</p>", "sec": "' + "s" * 40 + '"}').draft)
 
+    def test_the_draft_limit_is_20000_characters_of_json(self):
+        def line(n):
+            return 'DRAFT: {"html": "' + "a" * n + '"}'
+        fixed = len('{"html": ""}')
+        self.assertIsNotNone(read("A.\n" + line(20000 - fixed)).draft)
+        self.assertIsNone(read("A.\n" + line(20001 - fixed)).draft)
+
+    def test_a_title_or_section_name_with_a_nul_drops_the_draft(self):
+        self.assertIsNone(read('A.\nDRAFT: {"html": "<p>x</p>", "title": "a\\u0000b"}').draft)
+        self.assertIsNone(read('A.\nDRAFT: {"html": "<p>x</p>", "sec": "a\\u0000b"}').draft)
+
+    def test_a_deeply_nested_draft_is_dropped_not_a_crash(self):
+        r = read("A.\nDRAFT: " + "[" * 10000 + "]" * 10000)
+        self.assertIsNone(r.draft)
+        self.assertEqual(r.answer, "A.")
+
     def test_only_the_first_draft_is_kept(self):
         r = read('A.\nDRAFT: {"html": "<p>one</p>"}\nDRAFT: {"html": "<p>two</p>"}')
         self.assertEqual(r.draft["html"], "<p>one</p>")

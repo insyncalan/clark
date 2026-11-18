@@ -175,5 +175,14 @@ class Files(Base):
         self.assertLess(limit, 128 * 1024 + full + 6 * MB)          # and not much more
 
 
+    def test_the_ask_body_limit_is_exact_and_the_other_ask_routes_stay_small(self):
+        from clark import server
+        # 128 KiB for the question + five files, each 10 MB in base64 (13,981,013 bytes) and 1024 bytes of envelope
+        self.assertEqual(server.ASK_BODY_LIMIT, 131072 + 5 * (13981013 + 1024))
+        self.assertEqual(server.ROUTE_BODY_LIMITS["/api/ask"], server.ASK_BODY_LIMIT)
+        for route in ("/api/ask/stop", "/api/ask/change/dry", "/api/ask/change/apply", "/api/ask/open-source", "/api/ask-folders", "/api/ask-enabled"):
+            self.assertLessEqual(server.ROUTE_BODY_LIMITS[route], 4096, route)
+
+
 if __name__ == "__main__":
     unittest.main()
