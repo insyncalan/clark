@@ -195,7 +195,7 @@ function MilestoneFields({ m, tools }) {
 export function Edge() {
   const start = useRef(null);
   const down = (e) => { start.current = true; try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* no capture: the move still follows */ } e.preventDefault(); };
-  const move = (e) => { if (start.current) setWidth(document.documentElement.clientWidth - 16 - e.clientX); };
+  const move = (e) => { if (start.current) setWidth(document.documentElement.clientWidth - e.clientX); };
   const up = () => { start.current = null; };
   const key = (e) => {
     const step = e.shiftKey ? 80 : 20;
