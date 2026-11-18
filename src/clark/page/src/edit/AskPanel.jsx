@@ -180,7 +180,7 @@ export function AskPanel() {
       const extra = [...(Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : []), ...found];
       turns.value = [...turns.value, { role: "assistant", text: b.answer, sources: sourceLabels(b.sources) }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))];
       keepChat(turns.value);
-      if (!panelOpen.value) answersReady.value++;       // #1292: the button says an answer is waiting
+      if (!panelOpen.value) answersReady.value++;       // row 1292: the button says an answer is waiting
       if (typeof b.reply === "string" && b.reply && Array.isArray(b.changes) && b.changes.length) await showChanges(b.reply);
     } else if (r.status === 409 && b && b.code === "asking_off") {
       panelState.value = "off";

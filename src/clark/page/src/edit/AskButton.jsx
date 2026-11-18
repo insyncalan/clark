@@ -9,7 +9,7 @@ import { narrowHeader } from "./narrowHeader.js";
 export function AskButton() {
   useEffect(() => { loadAsk(); }, []);
   if (!askOn.value || narrowHeader.value) return null;      // item 1177: at 900 px and narrower ask clark is the second entry of the profile menu
-  const open = panelOpen.value, ready = answersReady.value, working = !open && pending.value && !ready;      // #1292: dots while an answer is made, a dot and a count when one is ready
+  const open = panelOpen.value, ready = answersReady.value, working = !open && pending.value && !ready;      // row 1292: dots while an answer is made, a dot and a count when one is ready
   const label = open || (!working && !ready) ? "ask clark" : working ? "ask clark, working" : `ask clark, ${ready} ${ready === 1 ? "answer" : "answers"} ready`;
   return (
     <button type="button" class="tb-act tb-ask" id="ask-btn" aria-expanded={panelOpen.value ? "true" : "false"} aria-label={label} title="Open ask clark (/ or Ctrl or Cmd + J)" onClick={() => (panelOpen.value ? closePanel() : openPanel())}>

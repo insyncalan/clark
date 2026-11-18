@@ -25,8 +25,8 @@ export const queue = signal([]);                       // row 1220: messages typ
 export const queueHeld = signal("");                   // row 1220: "" (the queue goes on by itself), "stopped" or "failed" (it waits for Send them or Clear)
 export const queueDrop = signal(0);                    // row 1220: the number of waiting messages the person has been told would be dropped
 export const QUEUE_MAX = 5;
-export const answersReady = signal(0);                 // #1292: answers that landed while the panel was closed; cleared when it opens
-export const chatEpoch = signal(0);                    // row 1119: kept for a chat that is dropped while an answer is out; #1292: leaving a page or project no longer bumps it
+export const answersReady = signal(0);                 // row 1292: answers that landed while the panel was closed; cleared when it opens
+export const chatEpoch = signal(0);                    // row 1119: kept for a chat that is dropped while an answer is out; row 1292: leaving a page or project no longer bumps it
 
 function room() { return Math.max(MIN, Math.floor(document.documentElement.clientWidth * 0.9)); }     // clientWidth: never the scrollbar's width
 
@@ -157,5 +157,5 @@ export function installAskKeys() {
     // An open peek, or a use case open in Edit (it has the words box), keeps "/" for its own two slashes (the words box); the ask button still opens the panel there.
     if (e.key === "/" && singleKeys.value && !e.defaultPrevented && !typing(e.target) && !otherLayer() && !helpOpen.value && !peek.value && !document.querySelector("[data-ucd] .ucd-acts")) { e.preventDefault(); openPanel(); }
   }, true);
-  // #1292 slice 1: a click outside, a change of page or of project no longer closes the panel or drops the chat; only Close, Esc or the ask button close it, and none of them stops an answer.
+  // row 1292 slice 1: a click outside, a change of page or of project no longer closes the panel or drops the chat; only Close, Esc or the ask button close it, and none of them stops an answer.
 }
