@@ -32,7 +32,7 @@ export function Contents({ sections, hiddenSections, onJump, stickyHeight = 0 })
       <ul>
         {list.map((e) => (
           <li key={e.id}>
-            <button type="button" data-entry={e.id} class={e.id === current ? "on" : ""} aria-current={e.id === current ? "true" : undefined} onClick={() => onJump(e.id)}>{e.title}</button>
+            <a href={`#${e.anchor}`} data-entry={e.id} class={e.id === current ? "on" : ""} aria-current={e.id === current ? "true" : undefined} onClick={(ev) => { ev.preventDefault(); onJump(e.id); }}>{e.title}</a>
           </li>
         ))}
       </ul>

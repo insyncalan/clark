@@ -13,7 +13,7 @@ from test_server import chrome
 import _testpage as testpage
 import test_report_editor as tre
 
-NAMES = "[...document.querySelectorAll('.cnt li button')].map(b => b.textContent)"
+NAMES = "[...document.querySelectorAll('.cnt li a')].map(b => b.textContent)"
 TITLES = "[...document.querySelectorAll('#report .secs > .sec')].filter(s => !s.classList.contains('is-hidden')).map(s => s.id)"
 
 
@@ -39,7 +39,7 @@ class Classic(Base):
     def test_at_1400_the_column_is_168_wide_beside_the_content_and_has_the_rail_gone(self):
         with chrome() as cdp:
             p = self.at(cdp, 1400)
-            got = p.js("(function(){var n=document.querySelector('.cnt'), g=document.querySelector('.cnt-grid'), h=n.querySelector('.cnt-h'), b=n.querySelector('li button'), hs=getComputedStyle(h);"
+            got = p.js("(function(){var n=document.querySelector('.cnt'), g=document.querySelector('.cnt-grid'), h=n.querySelector('.cnt-h'), b=n.querySelector('li a'), hs=getComputedStyle(h);"
                        "return [Math.round(n.getBoundingClientRect().width), getComputedStyle(g).display, getComputedStyle(n).position, h.textContent, hs.textTransform, hs.fontSize,"
                        "Math.round(b.getBoundingClientRect().height), n.getBoundingClientRect().right <= document.querySelector('.secs').getBoundingClientRect().left,"
                        "!!document.querySelector('.toc'), !!document.querySelector('.toc-lines'), n.getAttribute('aria-label')];})()")
@@ -52,25 +52,25 @@ class Classic(Base):
             names = p.js(NAMES)
             self.assertGreaterEqual(len(names), 2)
             self.assertEqual(names, [h.strip() for h in heads][:len(names)] if all(heads) else names)
-            ids = p.js("[...document.querySelectorAll('.cnt li button')].map(b => !!document.getElementById('sec-' + b.dataset.entry.replace(/[^A-Za-z0-9_-]/g, '-')))")
+            ids = p.js("[...document.querySelectorAll('.cnt li a')].map(b => !!document.getElementById('sec-' + b.dataset.entry.replace(/[^A-Za-z0-9_-]/g, '-')))")
             self.assertTrue(all(ids))
             self.assertEqual(len(ids), p.js("document.querySelectorAll('#report .secs > .sec:not(.is-hidden)').length"))
 
     def test_the_first_entry_is_marked_at_the_top_with_a_2px_brand_rule_and_a_click_moves_the_mark(self):
         with chrome() as cdp:
             p = self.at(cdp, 1400)
-            first = p.js("(function(){var b=document.querySelector('.cnt li button.on'), s=getComputedStyle(b);return [document.querySelectorAll('.cnt li button.on').length, b.parentNode.parentNode.querySelector('button')===b, b.getAttribute('aria-current'), s.borderLeftWidth, s.borderLeftColor === (function(){var t=document.createElement('i'); t.style.color='var(--brand-blue)'; document.body.appendChild(t); var c=getComputedStyle(t).color; t.remove(); return c;})()];})()")
+            first = p.js("(function(){var b=document.querySelector('.cnt li a.on'), s=getComputedStyle(b);return [document.querySelectorAll('.cnt li a.on').length, b.parentNode.parentNode.querySelector('a')===b, b.getAttribute('aria-current'), s.borderLeftWidth, s.borderLeftColor === (function(){var t=document.createElement('i'); t.style.color='var(--brand-blue)'; document.body.appendChild(t); var c=getComputedStyle(t).color; t.remove(); return c;})()];})()")
             self.assertEqual(first, [1, True, "true", "2px", True])
-            other = p.js("document.querySelector('.cnt li:last-child button').dataset.entry")
-            p.js("document.querySelector('.cnt li:last-child button').click()")
-            p.until(f"(document.querySelector('.cnt li button.on') || {{dataset: {{}}}}).dataset.entry === {other!r}", "the last entry is marked after a click")
+            other = p.js("document.querySelector('.cnt li:last-child a').dataset.entry")
+            p.js("document.querySelector('.cnt li:last-child a').click()")
+            p.until(f"(document.querySelector('.cnt li a.on') || {{dataset: {{}}}}).dataset.entry === {other!r}", "the last entry is marked after a click")
             self.assertEqual(p.js("location.hash"), "#dashboard&p=ABC")      # the address is untouched
 
-    def test_the_entries_take_the_keyboard_as_buttons_with_a_focus_ring(self):
+    def test_the_entries_are_links_that_take_the_keyboard_with_a_focus_ring(self):
         with chrome() as cdp:
             p = self.at(cdp, 1400)
-            got = p.js("(function(){var b=document.querySelector('.cnt li button'); b.focus(); var s=getComputedStyle(b); return [b.tagName, b.type, document.activeElement===b, s.outlineStyle, s.outlineWidth];})()")
-            self.assertEqual(got, ["BUTTON", "button", True, "solid", "2px"])
+            got = p.js("(function(){var b=document.querySelector('.cnt li a'); b.focus(); var s=getComputedStyle(b); return [b.tagName, b.getAttribute('href').startsWith('#sec-'), document.activeElement===b, s.outlineStyle, s.outlineWidth];})()")
+            self.assertEqual(got, ["A", True, True, "solid", "2px"])
 
     def keep_only(self, n):
         rows = self.store.con.execute("SELECT id FROM report_sections WHERE project = 'ABC' AND (hidden IS NULL OR hidden = 0) ORDER BY sort_order, id").fetchall()
@@ -83,7 +83,7 @@ class Classic(Base):
             p = self.visit(cdp)
             size(cdp, p, 1400, 700)
             p.until("document.querySelectorAll('#report .secs > .sec').length >= 1", "drawn")
-            self.assertEqual(p.js("document.querySelectorAll('.cnt li button').length"), 2)
+            self.assertEqual(p.js("document.querySelectorAll('.cnt li a').length"), 2)
         self.keep_only(1)
         with chrome() as cdp:
             p = self.visit(cdp)
@@ -175,8 +175,10 @@ class PublishedFile(unittest.TestCase):
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#report .secs > .sec').length >= 3", sid)), "the file drew its sections")
-            self.assertEqual(cdp.js("[...document.querySelectorAll('.cnt li button')].map(b => b.textContent)", sid), ["At a glance", "Use case summary", "Milestones"])      # what the Classic file draws on clean main too
+            self.assertEqual(cdp.js("[...document.querySelectorAll('.cnt li a')].map(b => b.textContent)", sid), ["At a glance", "Use case summary", "Milestones"])      # what the Classic file draws on clean main too
             self.assertEqual(cdp.js("!!document.querySelector('.toc') || !!document.querySelector('.toc-lines')", sid), False)
+            self.assertEqual(cdp.js("document.querySelectorAll('.cnt button').length", sid), 0, "the entries are links, not buttons: a view-only file has none")
+            self.assertEqual(cdp.js("[...document.querySelectorAll('.cnt li a')].every(a => document.getElementById(a.getAttribute('href').slice(1)))", sid), True, "each link points at a section of the file")
 
 
 if __name__ == "__main__":
