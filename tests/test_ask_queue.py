@@ -160,7 +160,7 @@ class Queue(Base):
                 p.js("document.querySelector('#ask-stop').click()")
                 p.until("!document.querySelector('#ask-stop') && !!document.querySelector('#ask-queue-held')", "stopped, the queue waits", 30)
                 self.assertEqual(p.js("document.querySelector('#ask-queue-held span').textContent"), "Stopped. 2 messages are waiting")
-                self.assertEqual(p.js("document.querySelector('#ask-queue-send').textContent"), "Send them")
+                self.assertEqual(p.js("document.querySelector('#ask-queue-send').textContent"), "Send the waiting messages")
                 self.assertEqual(p.js("document.querySelector('#ask-queue-clear').textContent"), "Clear")
                 self.assertEqual(self.asked(), ["Summarise the risks"], f"{width}: the next did not fire at once")
                 self.assertEqual(self.lines(p), ["Second question", "Third question"])
