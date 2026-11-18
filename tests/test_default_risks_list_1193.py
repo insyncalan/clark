@@ -1,5 +1,5 @@
 """Row 1193-8: the default report's Risks and issues section is a Work items list on a saved filter (risks and issues, open),
-not the built-in raid section. Only new projects get it: a project that already exists keeps what it has (Alan 14-11).
+not the built-in raid section. Only new projects get it: a project that already exists keeps what it has.
 
 Run: python3 dev/run_tests.py test_default_risks_list_1193
 """
