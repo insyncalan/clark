@@ -24,7 +24,11 @@ FLAG_ALLOW, FLAG_DENY = "--allowedTools=", "--disallowedTools="
 # tool that loads connector tools). A deny list only covers the names it knows: a built-in ADDED LATER is not in it. That case is caught after the
 # fact, not prevented: ask_connector_stream refuses the whole run (nothing from it is shown) if any tool_use is not one of the allowed connector tools.
 # Source: the tool names of the command's own tool set (the init event of a real run should be compared with it; see the probe notes).
+# This list is a stopgap: the allow-list form (--tools with only the loader tool, probe F3) replaces it, because an allow-list cannot go stale.
+# tests pin KNOWN_BUILT_INS: a name there that is missing here fails the test.
 BUILT_IN_TOOLS = (
+    "Artifact", "ArtifactCheck", "ArtifactComments", "ArtifactData", "DesignSync", "ListAgents", "ReadMcpResourceDirTool", "ReportFindings", "SendFeedback", "StructuredOutput",
+    "SendToProject", "SendToProjectContext", "TaskCreate", "TaskGet", "TaskList", "TaskUpdate", "PowerShell", "LSP", "REPL", "Tmux", "Sleep",
     "Agent", "AskUserQuestion", "Bash", "BashOutput", "CronCreate", "CronDelete", "CronList", "Edit", "EndConversation", "EnterPlanMode",
     "EnterWorktree", "ExitPlanMode", "ExitWorktree", "Glob", "Grep", "KillBash", "KillShell", "LS", "ListMcpResourcesTool", "MultiEdit",
     "Monitor", "NotebookEdit", "NotebookRead", "PushNotification", "Read", "ReadMcpResourceTool", "RemoteTrigger", "ScheduleWakeup",
