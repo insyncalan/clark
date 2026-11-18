@@ -48,10 +48,10 @@ class DefaultRisksList(unittest.TestCase):
 
     def test_the_other_rows_are_unchanged(self):
         types = [r["type"] for r in order.in_order(self.s.read("report_sections", "ABC"))]
-        self.assertEqual(types[:6] + types[7:], ["text", "glance", "usecases", "milestones", "text", "text", "actions", "decisions", "docs"])
+        self.assertEqual(types[:6] + types[7:], ["text", "glance", "usecases", "milestones", "text", "text", "workitems", "workitems", "docs"])
 
     def test_every_other_default_body_is_still_empty(self):
-        self.assertEqual([e.get("body", "") for e in default_sections.DEFAULT_SECTIONS if e["title"] != "Risks and issues"], [""] * 9)
+        self.assertEqual([e.get("body", "") for e in default_sections.DEFAULT_SECTIONS if e["title"] not in ("Risks and issues", "Open actions", "Decisions")], [""] * 7)
 
     def test_a_work_items_list_is_not_a_built_in_so_more_can_be_added_with_their_own_titles(self):
         from clark import changes
