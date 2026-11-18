@@ -107,18 +107,6 @@ RULE_LINES = [
         '.seg:not(.modes) button[aria-pressed="true"] em, .seg:not(.modes) button[aria-checked="true"] em { color: var(--white); }',
         '.seg:not(.icons):not(.modes) button[aria-pressed="true"]:focus-visible, .seg:not(.icons):not(.modes) button[aria-checked="true"]:focus-visible, .cal-sc button[aria-current="true"]:focus-visible { outline-color: var(--white); outline-offset: -3px; }',
         '.crumbs, .ucd-crumb, .ucf-crumb { text-transform: none; letter-spacing: normal; }',
-        "/* Row 1260 gap G6: At a glance is a flat strip as the prototype has it: label over value, a thin divider between the cells, no tile box, no status edge. The cells keep their widths and their tile words; the status shows in the figure's own colour. */",
-        '.glance { gap: 0; margin-top: var(--space-2); }',
-        '.glance .tcell + .tcell { border-left: 1px solid var(--line-soft); padding-left: var(--space-4); }',
-        '.glance .fig { padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }',
-        '.glance .fig::after, .glance .fig .ragdot { display: none; }',
-        '.glance .fig .k { font-size: 13px; color: var(--text-muted); }',
-        '.glance .fig .v { font-size: 20px; font-weight: 700; }',
-        '.glance .fig .dd { font-size: 14px; }',
-        '.glance .fig.rag-a .v { color: var(--status-amber-text); } .glance .fig.rag-r .v { color: var(--status-red-text); }',
-        '.glance .fig.go:hover { border-color: transparent; box-shadow: none; }',
-        '.glance .fig.go:hover .v { text-decoration: underline; }',
-        '@media (max-width: 1180px) { .glance .tcell.health { flex-basis: 100%; } .glance .tcell.health + .tcell { border-left: 0; padding-left: 0; } }',
     ]
 
 
@@ -140,7 +128,8 @@ class ThemePrototypePinned(unittest.TestCase):
         self.assertEqual(decls(block), DARK)
 
     def test_every_rule_line_is_exact_and_in_order(self):
-        lines = [l for l in RULES.split("\n")[1:] if l.strip()]
+        older = RULES.split("\n/* Row 1318", 1)[0]      # the rows above this one are pinned here; this row's block, and any after it, are pinned in their own test files
+        lines = [l for l in older.split("\n")[1:] if l.strip()]
         self.assertEqual(lines, RULE_LINES)
 
 
