@@ -59,6 +59,12 @@ class Wiring(unittest.TestCase):
         self.assertIn("hidden = editing ? hiddenTiles(every) : []", s)
         self.assertIn("editing && hidden.length ? <tools.glance.AddTile", s)                 # kills: the menu drawn in View, or with nothing to show
 
+    def test_the_health_share_counts_only_visible_other_tiles_and_only_without_a_hidden_one_drawn(self):   # kills: the others / share operands and the data-others attribute
+        s = read("components", "Glance.jsx")
+        self.assertIn('const others = list.filter((t) => t.key !== "health" && !t.hidden).length;', s)
+        self.assertIn('const share = list.some((t) => t.key === "health" && !t.hidden) && !list.some((t) => t.hidden) && (others === 1 || others === 2) ? String(others) : undefined;', s)
+        self.assertIn('<div class="glance" data-glance data-others={share}>', s)
+
     def test_the_live_pick_shows_the_tile_again_through_the_one_hide_change(self):          # kills: show asking hidden = true, or a change of its own
         s = read("edit", "GlanceEdit.jsx")
         self.assertIn("show: (key) => hideTile(key, false)", s)
