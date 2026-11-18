@@ -72,6 +72,48 @@ def default_runner():
         return None
 
 
+NO_SERVERS = re.compile(r"no mcp servers", re.I)
+
+
+def parse_all(text):
+    """(ok, names): EVERY server name on a list line, whatever its status, each once. ok is False when the output cannot be
+    trusted: not text, blank, or no line has the 'name: address - status' shape and it does not say there are no servers."""
+    if not isinstance(text, str) or not text.strip():
+        return False, []
+    names, shaped = [], False
+    for line in text[:MAX_OUT].splitlines()[:MAX_LINES]:
+        m = _LINE.match(line.strip())
+        if m:
+            shaped = True
+            if m.group("name") not in names:
+                names.append(m.group("name"))
+    if not shaped and not NO_SERVERS.search(text[:MAX_OUT]):
+        return False, []
+    return True, names
+
+
+def list_fresh(run=None):
+    """(ok, entries) from a NEW run of the list command, every time: the cache is neither read nor written. entries are
+    [{connector, label, server}] for every listed server of any status; a server outside the fixed table gets connector
+    "other" (its name only is kept). ok is False when the command failed or its output is unreadable: an empty list with ok
+    True means there really are none. Never raises."""
+    try:
+        text = (run or default_runner)()
+    except Exception:
+        return False, []
+    ok, names = parse_all(text)
+    if not ok:
+        return False, []
+    out = []
+    for name in names:
+        rows = TABLE.get(name)
+        if rows:
+            out.extend({"connector": c, "label": l, "server": name} for c, l in rows)
+        else:
+            out.append({"connector": "other", "label": "", "server": name})
+    return True, out
+
+
 _cache = {"at": None, "value": []}
 _lock = threading.Lock()
 
