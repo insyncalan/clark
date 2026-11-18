@@ -26,6 +26,10 @@ ALLOWED_TOOLS = {
                           "find-completed-tasks", "fetch-object", "get-overview")),
 }
 PARTS = tuple(ALLOWED_TOOLS)
+# The tool-name prefix of the server each part lives on (ask_connector_args.prefix of the discovered server name): a tool of ANOTHER server that
+# happens to carry an allowed tool's name is not allowed.
+SERVER_PREFIX = {"Mail": "mcp__claude_ai_Microsoft_365", "Calendar": "mcp__claude_ai_Microsoft_365", "Teams": "mcp__claude_ai_Microsoft_365",
+                 "SharePoint and OneDrive": "mcp__claude_ai_Microsoft_365", "Todoist": "mcp__claude_ai_Todoist"}
 
 OK, REFUSED_HIDDEN, REFUSED_SIZE, REFUSED_TOTAL, REFUSED_TOOL, REFUSED_OFF = (
     "ok", "hidden characters", "too long", "over the total", "tool not allowed", "connector is off")
@@ -43,18 +47,21 @@ _MCP_TOOL = re.compile(r"mcp__(" + _SEG + r")__(" + _SEG + r")")
 
 
 def part_of_tool(tool):
-    """The connector part a tool name belongs to (an exact match; only an mcp__<server>__ prefix is dropped), or None."""
+    """The connector part a tool name belongs to (an exact match), or None. A name with a server prefix must carry the prefix of THAT part's
+    own server (mcp__<server>__<tool>): another server's tool that has an allowed tool's name belongs to no part. A bare name (no prefix, what
+    the plain tests give; the real stream always carries the prefix) is matched by its name alone."""
     if not isinstance(tool, str):
         return None
+    server = None
     if "__" in tool:
         m = _MCP_TOOL.fullmatch(tool)         # only mcp__<server>__<tool> may carry a prefix
         if not m:
             return None
-        name = m.group(2)
+        server, name = f"mcp__{m.group(1)}", m.group(2)
     else:
         name = tool
     for part, names in ALLOWED_TOOLS.items():
-        if name in names:
+        if name in names and (server is None or server == SERVER_PREFIX[part]):
             return part
     return None
 
