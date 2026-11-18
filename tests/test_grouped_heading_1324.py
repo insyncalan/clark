@@ -51,6 +51,27 @@ class Live(LiveBase):
                         self.assertEqual(len(r), len(got["heads"]), f"{tag}: group {n} has the header's columns")
                         self.assertTrue(all(abs(a - b) <= 1 for a, b in zip(r, got["heads"])), f"{tag}: group {n} rows start where the header columns start (within the 1 px of rounding): {r} against {got['heads']}")
 
+    def test_the_header_and_the_rows_sit_on_the_edges_and_the_header_menu_opens(self):
+        with chrome() as cdp:
+            sid = self.work(cdp, 1400, "light", None)
+            got = json.loads(cdp.js("""(() => { const g = (e, k) => getComputedStyle(e)[k], hdr = document.querySelector('#work table.hdr'), th = [...hdr.querySelectorAll('th')];
+              const rows = [...document.querySelectorAll('#work .wgroup tbody')].map((b) => [...b.querySelectorAll('tr[data-id]')].slice(0, 2));
+              const wtab = document.querySelector('#work .wtab').getBoundingClientRect();
+              return JSON.stringify({ hdrLine: th.map((e) => g(e, 'borderBottomWidth') + ' ' + g(e, 'borderBottomStyle') + ' ' + g(e, 'borderTopWidth')),
+                padL: [th[0], rows[0][0].children[0]].map((e) => g(e, 'paddingLeft')), eye: [th[th.length - 1], rows[0][0].lastElementChild].map((e) => g(e, 'paddingRight') + ' ' + g(e, 'paddingLeft')),
+                firstTop: rows.map((r) => g(r[0].children[1], 'borderTopWidth')), secondTop: rows.filter((r) => r[1]).map((r) => g(r[1].children[1], 'borderTopWidth')),
+                left: [Math.round(th[0].getBoundingClientRect().left - wtab.left), Math.round(rows[0][0].children[0].getBoundingClientRect().left - wtab.left)] }); })()""", sid))
+            self.assertEqual(set(got["hdrLine"]), {"1px solid 0px"}, "the one header has a hairline under it and none above")
+            self.assertEqual(got["padL"], ["0px", "0px"], "the first column starts at the edge")
+            self.assertEqual(got["eye"], ["8px 0px", "8px 0px"], "the eye column keeps its own gap")
+            self.assertEqual(set(got["firstTop"]), {"0px"}, "the first row of a group has no line above it (the heading's hairline is there)")
+            self.assertEqual(set(got["secondTop"]), {"1px"}, "the rows after it keep theirs")
+            self.assertEqual(got["left"], [0, 0])
+            self.assertEqual(cdp.js("[document.querySelector('#work table.hdr').hasAttribute('aria-hidden'), [...document.querySelectorAll('#work table.hdr th')].filter((e) => !e.classList.contains('c-eye')).every((e) => e.getAttribute('scope') === 'col')]", sid), [False, True],
+                             "the one header is for a screen reader: not hidden, and its cells are column headings")
+            cdp.js("document.querySelector('#work table.hdr th.c-item').dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }))", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.cols-menu')", sid)), "a right click on the one header opens the columns menu")
+
     def test_alt_arrow_on_a_row_of_any_group_resizes_the_column_of_the_one_header(self):
         """Row 1104's keyboard way (Alt with Right Arrow, from a row) still works now that the column names are one table above the groups."""
         with chrome() as cdp:
@@ -122,10 +143,11 @@ class PublishedWork(Published):
                     p.js("document.documentElement.dataset.theme = %s" % json.dumps(scheme))
                     p.js("[...document.querySelectorAll('.tabs .tab')].find(t => t.textContent === 'Work items').click()")
                     p.until("document.querySelectorAll('table.items tbody tr[data-id]').length > 0", "Work items")
-                    got = json.loads(p.js("JSON.stringify({ colh: document.querySelectorAll('table.items tr.colh').length, tiles: [...document.querySelectorAll('.wgroup:has(table.grouped)')].map(w => getComputedStyle(w).borderTopWidth + getComputedStyle(w).borderTopLeftRadius), line: [...document.querySelectorAll('tr.grp th')].map(h => getComputedStyle(h).borderBottomWidth + getComputedStyle(h).backgroundColor) })"))
+                    got = json.loads(p.js("JSON.stringify({ colh: document.querySelectorAll('table.items tr.colh').length, tiles: [...document.querySelectorAll('.wgroup:has(table.grouped)')].map(w => getComputedStyle(w).borderTopWidth + getComputedStyle(w).borderTopLeftRadius), line: [...document.querySelectorAll('tr.grp th')].map(h => getComputedStyle(h).borderBottomWidth + getComputedStyle(h).backgroundColor), last: [...document.querySelectorAll('table.grouped tbody tr[data-id]')].slice(0, 3).map(r => getComputedStyle(r.lastElementChild).paddingRight) })"))
                     self.assertEqual(got["colh"], 1, f"published Work items: one column header {scheme} {width}")
                     self.assertTrue(got["tiles"] and set(got["tiles"]) == {"0px0px"}, f"published Work items: no tile {scheme} {width}: {got}")
                     self.assertEqual(set(got["line"]), {"1pxrgba(0, 0, 0, 0)"}, f"published Work items: a hairline and no band {scheme} {width}")
+                    self.assertEqual(set(got["last"]), {"0px"}, f"published Work items: the last column ends at the edge {scheme} {width}")
 
 
 if __name__ == "__main__":

@@ -36,6 +36,8 @@ class Live(LiveBase):
                         self.assertEqual(got["lastCount"], got["groups"], tag + ": a last row in every group")
                         self.assertEqual(set(got["lasts"]), {"1px"}, tag + ": the last row of a group keeps its bottom hairline")
                         self.assertEqual(got["rowPadL"], [got["colsPadL"]], tag + ": the rows and the column header start at the same place")
+                        self.assertEqual(json.loads(cdp.js("JSON.stringify([...document.querySelectorAll('#usecases .ucl-grp')].map((e) => [getComputedStyle(e).display, getComputedStyle(e).alignItems, getComputedStyle(e).columnGap]))", sid)),
+                                         [["flex", "flex-start", "8px"]] * got["groups"], tag + ": the heading row is a flex row, top aligned, 8 px between its parts")
 
     def test_use_cases_flat_list_keeps_its_card_under_classic(self):
         with chrome() as cdp:
@@ -87,6 +89,8 @@ class PublishedCases(Published):
                         self.assertEqual((w["color"], w["gcColor"]), (f["heading"], f["muted"]), t)
                     low = contrast_ok(json.loads(p.js("JSON.stringify(%s(['#usecases-file .grp-b .gl', '#usecases-file .grp-b .gc']))" % RATIO)))
                     self.assertEqual(low, [], f"published contrast {scheme} {width}")
+                    self.assertEqual(json.loads(p.js("JSON.stringify([...document.querySelectorAll('.ucp-grp')].map((e) => [getComputedStyle(e).display, getComputedStyle(e).alignItems, getComputedStyle(e).columnGap]))")),
+                                     [["flex", "flex-start", "8px"]] * len(f["groups"]), f"published heading row {scheme} {width}")
 
 
 if __name__ == "__main__":

@@ -27,7 +27,10 @@ FACTS = r"""((scope, groupSel, headSel) => {
       hBg: g(h, 'backgroundColor'), pad: [g(h, 'paddingTop'), g(h, 'paddingRight'), g(h, 'paddingBottom'), g(h, 'paddingLeft')].join(' '),
       hLine: g(h, 'borderBottomWidth') + ' ' + g(h, 'borderBottomStyle'), hTop: g(h, 'borderTopWidth'), hRadius: g(h, 'borderTopLeftRadius'),
       font: g(b, 'fontFamily'), fw: g(b, 'fontWeight'), fs: g(b, 'fontSize'), color: g(b, 'color'),
-      gcSize: g(gc, 'fontSize'), gcColor: g(gc, 'color'), chColor: g(ch, 'color'), label: (w.querySelector('.gl') || {}).textContent };
+      gcSize: g(gc, 'fontSize'), gcColor: g(gc, 'color'), chColor: g(ch, 'color'), label: (w.querySelector('.gl') || {}).textContent,
+      btn: [g(b, 'display'), g(b, 'alignItems'), g(b, 'columnGap'), g(b, 'paddingTop'), g(b, 'paddingBottom'), g(b, 'paddingLeft')].join(' '), chMt: g(ch, 'marginTop'),
+      gcBox: [g(gc, 'marginLeft'), g(gc, 'paddingTop'), g(gc, 'whiteSpace')].join(' '),
+      first: Math.round(h.getBoundingClientRect().left) - Math.round(w.getBoundingClientRect().left) };
   });
   return { groups, heading: col('--heading'), muted: col('--text-muted'), head: g(document.body, 'fontFamily'),
     fit: document.documentElement.scrollWidth <= window.innerWidth };
@@ -133,6 +136,10 @@ class LiveBase(unittest.TestCase):
             self.assertEqual(w["gcSize"], "13px", t + ": the count is 13 px")
             self.assertEqual(w["gcColor"], muted, t + ": the count is muted")
             self.assertEqual(w["chColor"], muted, t + ": the chevron is muted")
+            self.assertIn(w["btn"].split()[0], ("inline-flex", "flex"), t + ": a flex row (a flex item of the heading row is blockified)")
+            self.assertEqual(" ".join(w["btn"].split()[1:]), "flex-start 8px 2px 2px 0px", t + ": the button is a flex row, top aligned, 8 px between chevron and name, padding 2 px 0")
+            self.assertEqual((w["chMt"], w["gcBox"]), ("3px", "2px 2px nowrap"), t + ": the chevron 3 px down; the count 2 px from the name and never wrapped")
+            self.assertEqual(w["first"], 0, t + ": the heading starts at the left edge of its group")
         self.assertTrue(f["fit"], tag + ": nothing sideways")
 
     # ---- K-a, K-b: Work items ----
