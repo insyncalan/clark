@@ -140,7 +140,7 @@ function useRowMotion(lay) {
 }
 
 // Row 1222: the columns beyond the five a table always had. Each is plain text from the row; a column with nothing to say is a muted dash.
-const STD = standardIds("work"), isStd = (id) => id !== "id" && STD.includes(id);   // #1195: the Id is a standard column but is drawn as an extra cell (its own blue column)
+const STD = standardIds("work").filter((id) => id !== "id"), isStd = (id) => STD.includes(id);   // #1195: the Id is on by default in the page clark serves (the column menu) and drawn as an extra cell, its own blue column; a published file keeps its columns without it
 const labelOf = (id) => (defsOf("work").find((c) => c.id === id) || {}).label || id;
 const EXTRA = {
   id: (r) => r.id, type: (r) => KIND_WORDS[r.kind] || "", workstream: (r) => r.workstream, milestone: (r) => r.milestone, usecase: (r) => r.uc,
