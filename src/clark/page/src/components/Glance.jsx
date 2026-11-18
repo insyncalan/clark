@@ -59,9 +59,11 @@ export function Glance({ tools, clean }) {
   const list = fromFile.value ? fileTiles(d.glance, d.project) : allTiles(rows.value, todayIso(), d.project, d.glance_tiles).filter((t) => editing || !t.hidden);
   const Wrap = editing ? tools.glance.Cell : Cell;
   const order = list.map((t) => t.key);
+  const others = list.filter((t) => t.key !== "health" && !t.hidden).length;
+  const share = list.some((t) => t.key === "health" && !t.hidden) && !list.some((t) => t.hidden) && (others === 1 || others === 2) ? String(others) : undefined;   /* row 1303: Project health with 2 visible tiles takes 50% of the row, with 1 tile 75%; a tile hidden with the eye does not count (Edit draws it, so Edit keeps today's four-up while one is there) */
   return (
     <>
-    <div class="glance" data-glance>
+    <div class="glance" data-glance data-others={share}>
       {list.map((t, i) => (
         <Wrap key={t.key} tile={t} order={order} index={i}>
           {t.key === "health" ? <Health t={{ ...t, pill: d.project.health ? ({ "On track": "g", "At risk": "a", "Off track": "r" })[d.project.health] : "n" }} tools={tools} editing={editing} clean={clean} /> : <Figure t={t} file={fromFile.value} />}
