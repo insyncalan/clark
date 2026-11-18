@@ -10,8 +10,8 @@ import { data, openPeek, rows as reportRows, filterCtx } from "../../stores/repo
 import { LineBox } from "../../components/FilterLine.jsx";
 import { change, say } from "../../stores/changes.js";
 import { Rows, Scroller, Foot, today } from "../../templates/WorkItemsList.jsx";
-import { KINDS, MODES, STATUSES, DUE, PRIORITIES, NONE, SORTS, COLUMNS, MAX_ROWS, MAX_CAPTION, WORDS, defaults, filterOf, bodyOf,
-  editListOf, drawRows, offered, drawn, idsToShow } from "../../templates/workItemsList.js";
+import { SORTS, COLUMNS, MAX_ROWS, MAX_CAPTION, WORDS, defaults, filterOf, bodyOf,
+  editListOf, drawRows, drawn, idsToShow } from "../../templates/workItemsList.js";
 import { Eye } from "../cells/Eye.jsx";
 import { Cell } from "../cells/Cell.jsx";
 import { useColWidths } from "../colWidths.jsx";
@@ -76,7 +76,6 @@ export function Edit({ section }) {
   const ucName = Object.fromEntries((d.use_cases || []).map((u) => [u.id, u.ref ? `${u.ref} ${u.title || ""}`.trim() : (u.title || u.id)]));
   const nameOf = (f, v) => ucName[v] || v;
   const known = (d.use_cases || []).map((u) => ({ id: u.id, names: [u.title, u.ref, u.ref ? `${u.ref} ${u.title || ""}`.trim() : ""].filter(Boolean) }));
-  const none = (f) => (v) => (v === NONE ? WORDS.none[f] : f === "use_case" ? (ucName[v] || v) : v);
 
   // The latest filter the page meant to save, kept while saves are still waiting: a second choice made before the first reply is
   // built on the first, not on the body last read. Once nothing is waiting, the saved body is the truth again.
@@ -87,10 +86,6 @@ export function Edit({ section }) {
     return change({ op: "update", id: section.id, changes: { body: bodyOf(next) }, place: "report" }, SAVED)
       .then((reply) => { if (!reply) setTick((n) => n + 1); return reply; })
       .finally(() => { waiting.current -= 1; if (waiting.current <= 0) meant.current = null; });
-  };
-  const toggle = (field, v) => {
-    const cur = latest(), have = cur[field];
-    save({ ...cur, [field]: have.includes(v) ? have.filter((x) => x !== v) : [...have, v] });
   };
   const toggleColumn = (field, v) => {
     const cur = latest();
@@ -154,24 +149,11 @@ export function Edit({ section }) {
       </div>
       <Tabs add={<div class="wil-add" data-wil-add=""><NewTile word={ADD_WORD} kind="" items={ADD_ITEMS} onAdd={addOne} id={`${id}-add`} /></div>} section={section} filter={filter} d={d} now={now} known={known} nameOf={nameOf} apply={(next) => save({ ...latest(), ...next })} />
       <div class="wil-form">
-      <details class="wil-more" data-wil-more="">
-      <summary>Choose from lists</summary>
-      <div class="wil-form-in">
-        <Boxes id={id} legend="Kinds" field="kinds" values={KINDS} words={(v) => WORDS.kinds[v]} chosen={filter.kinds} onToggle={toggle} />
-        <Choice id={id} label="Show" field="mode" values={MODES} words={WORDS.mode} value={filter.mode} onPick={pick} />
-        <Boxes id={id} legend="Due" field="due" values={DUE} words={(v) => WORDS.due[v]} chosen={filter.due} onToggle={toggle} />
-        <Boxes id={id} legend="Status" field="status" values={STATUSES} words={(v) => v} chosen={filter.status} onToggle={toggle} />
-        <Boxes id={id} legend="Priority" field="priority" values={[...PRIORITIES, NONE]} words={none("priority")} chosen={filter.priority} onToggle={toggle} />
-        <Boxes id={id} legend="Owner" field="owner" values={offered("owner", d, filter.owner)} words={none("owner")} chosen={filter.owner} onToggle={toggle} />
-        <Boxes id={id} legend="Workstream" field="workstream" values={offered("workstream", d, filter.workstream)} words={none("workstream")} chosen={filter.workstream} onToggle={toggle} />
-        <Boxes id={id} legend="Use case" field="use_case" values={offered("use_case", d, filter.use_case)} words={none("use_case")} chosen={filter.use_case} onToggle={toggle} />
-      </div>
-      </details>
         <div class="wil-cw" data-wil-cw="" onKeyDown={(e) => { if (e.key === "Escape" && cfg) { e.preventDefault(); e.stopPropagation(); setCfg(false); if (gearRef.current) gearRef.current.focus(); } }}>
           <button type="button" class="wil-gear" ref={gearRef} data-wil-gear="" aria-haspopup="dialog" aria-expanded={cfg ? "true" : "false"} aria-label={CONFIGURE_LABEL} title="Configure" onClick={() => setCfg(!cfg)}>
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>
           </button>
-          <div class="wil-cfg" role="dialog" aria-label={CONFIGURE_LABEL} hidden={!cfg}>
+          <div class="wil-cfg" role={cfg ? "dialog" : undefined} aria-label={CONFIGURE_LABEL} hidden={!cfg}>
             <h4>{CONFIGURE_LABEL}</h4>
           <Choice id={id} label="Sort by" field="sort" values={SORTS} words={WORDS.sort} value={filter.sort} onPick={pick} />
           <label class="wil-sel" data-field="max"><span>Most rows</span>

@@ -38,6 +38,7 @@ class PublishedKeyboard(unittest.TestCase):
         self.addCleanup(self.demo.close)
         self.demo.action(description="Draft the cut-over plan", due_date="2026-11-30", status="Open", owner="Example Owner", client_message="Draft the cut-over plan", client_action=1)
         self.demo.action(description="Sign off the test plan", due_date="2026-12-05", status="Open", owner="Example Owner", client_message="Sign off the test plan", client_action=1)
+        self.demo.plant_builtin_sections()      # a new project's lists are Work items lists; the Work items tab here is the built-in sections' (row 1193)
         folder = tempfile.mkdtemp(prefix="clark-pub-")
         self.addCleanup(shutil.rmtree, folder, True)
         self.path = Path(publish.publish(self.demo.store, "ABC", folder, by_user=USER, now=TODAY, branding=EMPTY_BRANDING)["path"])
