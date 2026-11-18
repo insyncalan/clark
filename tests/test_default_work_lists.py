@@ -7,6 +7,7 @@ the server's checker accepts as it is, and the server's matcher lists exactly th
 
 Run: python3 dev/run_tests.py test_default_work_lists
 """
+import json
 import re
 import unittest
 
@@ -59,11 +60,12 @@ class DefaultWorkLists(unittest.TestCase):
                 self.assertEqual(wi.matching(value, ROWS, TODAY), want)
                 self.assertEqual(wi.check(value, store_module.BODY_RULES), value, "canonical: checking it again changes nothing")
 
-    def test_the_built_ins_stay_the_defaults_until_the_lists_print_everywhere(self):
-        types = [s["type"] for s in default_sections.DEFAULT_SECTIONS]
-        for _, (builtin, _) in DEFAULT_VIEWS.items():
-            self.assertIn(builtin, types, "%s is no longer a default: update tests/test_dashboard_template_built.py PENDING and this file together" % builtin)
-        self.assertNotIn("workitems", types)
+    def test_row_9_open_actions_is_a_list_the_other_two_stay_built_in(self):
+        sections = default_sections.DEFAULT_SECTIONS
+        by_title = {x["title"]: x for x in sections}
+        self.assertEqual(by_title["Open actions"]["type"], "workitems")      # row 1193-9
+        for title, builtin in (("Risks and issues", "raid"), ("Decisions", "decisions")):
+            self.assertEqual(by_title[title]["type"], builtin, "%s is not swapped yet: update tests/test_dashboard_template_built.py PENDING and this file together" % title)
 
 
 if __name__ == "__main__":

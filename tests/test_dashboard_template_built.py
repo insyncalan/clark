@@ -15,7 +15,7 @@ from clark import default_sections
 
 PENDING = {      # built-in type -> the row whose template replaces it
     "glance": 1190, "usecases": 1191, "milestones": 1192,
-    "raid": 1193, "actions": 1193, "decisions": 1193, "docs": 1194,
+    "raid": 1193, "decisions": 1193, "docs": 1194,
 }
 OLDER = {"current", "tracker"}       # still read and drawn, no longer a default: "current" (row 1188) and the Progress tracker (#189)
 PAGE = SRC / "clark" / "page" / "src"

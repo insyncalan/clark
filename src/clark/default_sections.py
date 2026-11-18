@@ -12,6 +12,8 @@ SECTION_HINTS = {          # item 1193: the guiding sentence of each text sectio
     "This week": "List what was done this week, and what moved forward.",
     "Next week": "List what is planned for next week, and who is doing it.",
 }
+# row 1193-9: Open actions starts as a Work items list, filled with that list's own saved filter (open actions, soonest due first, at most 50 so it holds every row the built-in did); new projects only, an existing report keeps its own section
+OPEN_ACTIONS_BODY = '{"caption":"","columns":["type","id","owner","due","priority"],"due":[],"has":[],"kinds":["action"],"max":50,"milestone":[],"mode":"open","no":[],"not":{"due":[],"kinds":[],"milestone":[],"owner":[],"priority":[],"status":[],"use_case":[],"workstream":[]},"owner":[],"priority":[],"sort":"due","status":[],"text":[],"use_case":[],"v":1,"workstream":[]}'   # stored the way the store writes it (keys sorted)
 DEFAULT_SECTIONS = (
     {"type": "text", "title": "Current state", "body": ""},   # item 1188: a text section now; the older type "current" is still read and stored, and existing reports keep it
     {"type": "glance", "title": "At a glance"},
@@ -20,7 +22,7 @@ DEFAULT_SECTIONS = (
     {"type": "text", "title": "This week", "beside": 1},
     {"type": "text", "title": "Next week"},
     {"type": "raid", "title": "Risks and issues"},
-    {"type": "actions", "title": "Open actions"},
+    {"type": "workitems", "title": "Open actions", "body": OPEN_ACTIONS_BODY},   # row 1193-9
     {"type": "decisions", "title": "Decisions"},
     {"type": "docs", "title": "Supporting documents"},
 )
