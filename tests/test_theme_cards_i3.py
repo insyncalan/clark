@@ -28,9 +28,9 @@ class BoardScrollBar(unittest.TestCase):
         self.assertTrue(any(re.search(r"scrollbar-width:\s*none", b) for b in plain), "Firefox-style property on .boardbox")
         wk = rules(".boardbox::-webkit-scrollbar")
         self.assertTrue(wk and re.search(r"display:\s*none", wk[-1][1]), "WebKit pseudo-element on .boardbox")
-        for sel in (".board", ".board::-webkit-scrollbar"):
-            for p, b in rules(sel):
-                self.assertNotIn("scrollbar", b, sel)
+        self.assertEqual(rules(".board::-webkit-scrollbar"), [], "no rule for .board::-webkit-scrollbar")
+        for p, b in rules(".board"):
+            self.assertNotIn("scrollbar", b, ".board")
 
     def test_boardbox_still_scrolls(self):
         base = next(b for p, b in rules(".boardbox") if "overflow" in b)
