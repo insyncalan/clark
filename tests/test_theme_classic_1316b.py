@@ -50,7 +50,7 @@ class Cards(unittest.TestCase):
         classic, cards = html_of(NAME), html_of(None)
         self.assertEqual(re.sub(r'<style id="theme">.*?</style>\n', "", classic, count=1, flags=re.S), cards)
         self.assertNotIn("Row 1316", cards)
-        self.assertNotIn(".ucl-box .ucl-cols", cards)
+        self.assertNotIn("#usecases .ucl-box .ucl-cols", cards)
 
 
 class Computed(unittest.TestCase):
@@ -65,7 +65,7 @@ class Computed(unittest.TestCase):
         end = time.monotonic() + 20
         while cdp.js("document.readyState", sid) != "complete" and time.monotonic() < end:
             time.sleep(0.05)
-        cdp.js("(() => { document.documentElement.setAttribute('data-theme', %r); const d = document.createElement('div'); d.innerHTML = %r; document.body.appendChild(d); })()" % (scheme, ROWS), sid)
+        cdp.js("(() => { document.documentElement.setAttribute('data-theme', %r); const d = document.createElement('div'); d.id = 'usecases'; d.innerHTML = %r; document.body.appendChild(d); })()" % (scheme, ROWS), sid)
         return cdp.js(PROBE, sid)
 
     def test_classic_table_and_status_cell(self):

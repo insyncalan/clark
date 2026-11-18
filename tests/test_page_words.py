@@ -289,6 +289,9 @@ class Words(unittest.TestCase):
                     "Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. "
                     "Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.",
                     "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.",
+                    "Connectors in ABC",      # row 1306 C3: the Connectors block under the folders; this server has no connector route, so it says they cannot be checked
+                    "Connectors can't be checked just now. None is used until they can be.",
+                    "Only the connectors that are On for all projects appear here.",
                     "Used from All projects",      # row 1294: the AI card (connections, model, the AI status line #72) is on the All projects tab; test_ai_settings reads its words
                     "Connections and the model are yours, not this project's. They are the same in every project.", "Change",
                     "Standing instructions",      # row 1294, slice 3: the card for the project's own (this server has no instructions route, so it says they could not be read)

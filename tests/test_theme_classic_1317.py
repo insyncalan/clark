@@ -1,81 +1,112 @@
-"""Row 1317, Projects card (Settings): Add project and the table headers in the Classic Theme, as Chrome computes them, 1400 and 900 px, light and dark.
+"""Row 1317 in the Classic Theme, on the REAL Settings page (the committed page from the real server, demo database, fictional data), as Chrome computes
+it at 1400 and 900 px, light and dark; the same elements under Cards as the control. Listed in issue 1317 (Classic re-audit, Wanda 18-11): the sidebar is a
+grey panel with sentence-case group names and a tinted bar for the open page, the Settings cards have radius 14 and no shadow, the Projects table header is
+bold and sentence case without the divider line, and Add project is a filled blue button with its plus and its word always visible.
 
 Run: python3 dev/run_tests.py test_theme_classic_1317
-Fails, never skips, without Chrome. Classic: Add project is a filled button (solid fill, no dashed border) and the headers are bold, not
-capitals, not tracked. Cards: the same two elements keep the dashed Add and the tracked capitals, and the Cards page is the page it was.
-Prototype files are not on this box: the look comes from the issue table.
-"""
+Fails, never skips, without Chrome. Sizes are by eye (+/-2 px): the prototype files are not on the box that built this."""
 import hashlib
+import shutil
 import tempfile
 import time
 import unittest
-from pathlib import Path
 
-from _paths import ROOT  # noqa: F401
-from test_server import chrome
+from _editor_checks import for_url
 
 from clark import page
-from test_theme_classic_css import rgb
+from test_server import Running, chrome, wait
+from test_work_items import FIXED_DATE, load_demo, page_target
 
+NAME = "prototype-2.0"
+# The Cards page, page_html(branding=NO_BRAND, theme=None), taken from origin/main (3496323b) before this row; rules.css is read only when a Theme is named.
+CARDS_SHA256 = "81b713917205103a8e45c68b75df293f7a0a0effae78a021531497e1447fa24c"
 SIZES = (1400, 900)
-# The Cards page, page_html(branding=NO_BRAND, theme=None), taken from origin/main before this row; rules.css is read only when a Theme is named.
-CARDS_SHA256 = "b8bbbc7c0becd510ecf0d0b5b04167d818a2a9d926528f5a23ec83849b2d5e47"
-JS = """(() => { const q = (s) => document.querySelector(s), g = (e) => getComputedStyle(e);
-  const b = g(q('#npBtn')), h = g(q('#ph'));
-  return {bg: b.backgroundColor, bs: b.borderTopStyle, bc: b.borderTopColor, fg: b.color, ico: !!q('#npBtn svg, #npBtn .i'),
-    tt: h.textTransform, ls: h.letterSpacing, fw: h.fontWeight, text: q('#ph').textContent}; })()"""
+PROBE = """(() => { const q = (s) => document.querySelector(s), g = (e, p) => getComputedStyle(e)[p];
+  const tok = (v, p) => { const i = document.createElement('i'); i.style[p || 'color'] = v; document.body.appendChild(i); const r = getComputedStyle(i)[p || 'color']; i.remove(); return r; };
+  const bar = q('.set-bar'), cur = q('.set-chip[aria-current]'), name = q('.set-group-name'), card = q('.set-cards .frame'), th = q('#projects-table th');
+  const btn = q('#npBtn'), w = btn.querySelector('.w'), wr = w.getBoundingClientRect(), br = btn.getBoundingClientRect();
+  return { barBg: g(bar, 'backgroundColor'), grey100: tok('var(--grey-100)', 'backgroundColor'), grey50: tok('var(--grey-50)', 'backgroundColor'), barPos: g(bar, 'position'),
+    barRadius: g(bar, 'borderTopLeftRadius'), groupCase: g(name, 'textTransform'), groupTrack: g(name, 'letterSpacing'), curRadius: [g(cur, 'borderTopLeftRadius'), g(cur, 'borderTopRightRadius')].join(' '),
+    cardRadius: g(card, 'borderTopLeftRadius'), cardShadow: g(card, 'boxShadow'),
+    thCase: g(th, 'textTransform'), thTrack: g(th, 'letterSpacing'), thWeight: g(th, 'fontWeight'), thBorderTop: g(th, 'borderTopWidth'),
+    btnBg: g(btn, 'backgroundColor'), btnColor: g(btn, 'color'), brand: tok('var(--brand-blue)', 'backgroundColor'), onBrand: tok('var(--text-on-brand)'),
+    wMax: g(w, 'maxWidth'), wOpacity: g(w, 'opacity'), wWidth: Math.round(wr.width), btnW: Math.round(br.width), btnH: Math.round(br.height), word: w.textContent.trim(),
+    icons: btn.querySelectorAll('svg, .i').length, iconW: Math.round((btn.querySelector('svg, .i') || {getBoundingClientRect: () => ({width: 0})}).getBoundingClientRect().width),
+    tint: tok('color-mix(in srgb, var(--grey-500) 15%, var(--grey-100))', 'backgroundColor') }; })()"""
+HOVER = """(() => { const c = [...document.querySelectorAll('.set-chip:not([aria-current])')][0]; const r = c.getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)]; })()"""
+HOVERED = "getComputedStyle([...document.querySelectorAll('.set-chip:not([aria-current])')][0]).backgroundColor"
 
 
-def tint(cdp, sid, scheme):
-    return cdp.js("(() => { const r = document.documentElement; r.setAttribute('data-theme', %r); return 1; })()" % scheme, sid)
+class RealSettings(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.store, cls.folder, cls.ids = load_demo()
+        cls.names = {p["code"]: p["name"] for p in cls.store.read("projects")}
+        cls.data = {c: cls.store.data_for(c) for c in cls.names}
 
+    @classmethod
+    def tearDownClass(cls):
+        cls.store.close()
+        shutil.rmtree(str(cls.folder), ignore_errors=True)
 
-class Projects(unittest.TestCase):
-    def load(self, cdp, width, scheme, theme):
-        html = page.page_html(branding=page.NO_BRAND, theme=theme)
-        path = Path(tempfile.mkdtemp(prefix="clark-test-")) / "p.html"
-        path.write_text(html, encoding="utf-8")
-        self.addCleanup(lambda: (path.unlink(), path.parent.rmdir()))
-        tid = cdp.call("Target.createTarget", {"url": "about:blank"})["targetId"]
-        sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
+    def serve(self, theme):
+        s = Running(data_for=lambda code, **kw: self.data.get(code), projects=lambda archived=False: [{"code": c, "name": n} for c, n in sorted(self.names.items())],
+                    page_html=lambda: page.page_html(tempfile.mkdtemp(), theme=theme))
+        self.addCleanup(s.close)
+        return s
+
+    def look(self, cdp, port, width, scheme):
+        sid = page_target(cdp)
+        cdp.call("Page.enable", {}, sid)
+        cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
-        cdp.call("Page.navigate", {"url": path.as_uri()}, sid)
-        end = time.monotonic() + 20
-        while cdp.js("document.readyState", sid) != "complete" and time.monotonic() < end:
-            time.sleep(0.05)
-        cdp.js("""(() => { document.documentElement.setAttribute('data-theme', %r);
-            const s = document.createElement('section'); s.className = 'frame setting projects';
-            s.innerHTML = '<button type="button" class="newb" id="npBtn"><svg class="i" viewBox="0 0 24 24"></svg><span class="w">Add project</span></button>'
-              + '<table class="items proj-table"><thead><tr><th id="ph" scope="col">Name</th><th scope="col">Code</th></tr></thead></table>';
-            document.body.appendChild(s); })()""" % scheme, sid)
-        return cdp.js(JS, sid), sid
+        cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
+        cdp.call("Page.navigate", {"url": "about:blank"}, sid)
+        cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{port}/#settings&p=TUL")}, sid)
+        self.assertTrue(wait(lambda: bool(cdp.js("!!document.querySelector('#projects-table tbody tr') && !!document.querySelector('#npBtn') && !!document.querySelector('.set-bar')", sid)), 30),
+                        "timed out waiting for the real Settings page")
+        cdp.js("document.querySelectorAll('.set-chip, #npBtn, #npBtn .w').forEach((e) => { e.style.transition = 'none'; })", sid)
+        got = cdp.js(PROBE, sid)
+        x, y = cdp.js(HOVER, sid)
+        cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, sid)
+        time.sleep(0.3)
+        got["chipHover"] = cdp.js(HOVERED, sid)
+        return got
 
-    def test_classic_fills_add_project_and_sets_the_headers_bold_in_their_own_case(self):
-        with chrome() as cdp:
-            for scheme in ("light", "dark"):
-                for w in SIZES:
-                    got, sid = self.load(cdp, w, scheme, "prototype-2.0")
-                    tag = f"classic {scheme} {w}"
-                    want_bg = cdp.js("getComputedStyle(document.documentElement).getPropertyValue('--brand-blue').trim()", sid)
-                    self.assertEqual(got["bg"], rgb(want_bg), tag)
-                    self.assertEqual(got["bs"], "solid", tag)
-                    self.assertEqual(got["bc"], got["bg"], tag)
-                    self.assertNotEqual(got["fg"], got["bg"], tag)
-                    self.assertTrue(got["ico"], tag)
-                    self.assertEqual((got["tt"], got["ls"]), ("none", "normal"), tag)
-                    self.assertIn(got["fw"], ("600", "700"), tag)
-                    self.assertEqual(got["text"], "Name", tag)
+    def each(self, theme):
+        s = self.serve(theme)
+        for scheme in ("light", "dark"):
+            for width in SIZES:
+                with chrome() as cdp:
+                    yield f"{theme or 'cards'} {scheme} {width}", self.look(cdp, s.port, width, scheme)
 
-    def test_cards_keeps_the_dashed_add_and_the_tracked_capitals_on_the_same_elements(self):
-        with chrome() as cdp:
-            for scheme in ("light", "dark"):
-                for w in SIZES:
-                    got, sid = self.load(cdp, w, scheme, None)
-                    tag = f"cards {scheme} {w}"
-                    self.assertEqual(got["bs"], "dashed", tag)
-                    self.assertEqual(got["tt"], "uppercase", tag)
-                    self.assertNotEqual(got["ls"], "normal", tag)
-                    self.assertNotIn(got["fw"], ("600", "700"), tag)
+    def test_classic_settings_sidebar_cards_table_and_add_project(self):
+        for tag, c in self.each(NAME):
+            self.assertEqual(c["barBg"], c["grey100"], tag + ": the sidebar is a grey panel")
+            self.assertEqual(c["barPos"], "sticky", tag + ": the real bar is still sticky")
+            self.assertEqual(c["groupCase"], "none", tag + ": group names in sentence case")
+            self.assertEqual(c["groupTrack"], "normal", tag)
+            self.assertEqual(c["curRadius"], "0px 10px", tag + ": the open page is a bar with its square edge at the marker")
+            self.assertNotEqual(c["chipHover"], c["tint"], tag + ": no hover tint on a sidebar chip (not in the list)")
+            self.assertEqual((c["cardRadius"], c["cardShadow"]), ("14px", "none"), tag + ": Settings cards radius 14, no shadow")
+            self.assertEqual((c["thCase"], c["thTrack"], c["thWeight"], c["thBorderTop"]), ("none", "normal", "700", "0px"), tag + ": bold sentence-case header, no divider")
+            self.assertEqual((c["btnBg"], c["btnColor"]), (c["brand"], c["onBrand"]), tag + ": Add project is a filled blue button")
+            self.assertEqual(c["icons"], 1, tag + ": one plus, as an svg or .i")
+            self.assertGreater(c["iconW"], 0, tag)
+            self.assertEqual(c["wOpacity"], "1", tag + ": the word is visible without a hover")
+            self.assertNotEqual(c["wMax"], "0px", tag)
+            self.assertGreater(c["wWidth"], 30, tag)
+            self.assertEqual(c["word"], "Add project", tag)
+            self.assertGreater(c["btnW"], c["btnH"] * 2, tag + ": a wide button with its word, not a round +")
+
+    def test_cards_keeps_its_own_settings_look(self):
+        for tag, c in self.each(None):
+            self.assertEqual(c["groupCase"], "uppercase", tag)
+            self.assertEqual(c["thCase"], "uppercase", tag)
+            self.assertEqual(c["wMax"], "0px", tag + ": the word grows in on hover under Cards")
+            self.assertNotEqual(c["barBg"], c["grey100"], tag)
+            self.assertNotEqual(c["thBorderTop"], "0px", tag + ": Cards keeps the divider")
+            self.assertNotEqual(c["btnBg"], c["brand"], tag + ": Cards keeps the dashed Add")
 
     def test_the_cards_page_is_byte_for_byte_what_it_was(self):
         html = page.page_html(branding=page.NO_BRAND, theme=None)
