@@ -335,10 +335,10 @@ class RealBrowser(unittest.TestCase):
                               " && getComputedStyle(e, '::before').content !== 'normal').map(e => e.tagName + '.' + e.className)", sid)
             self.assertTrue(labelled)
             self.assertEqual({x.split('.')[0] for x in labelled}, {"TD"}, "only cells carry a label")
-            self.assertEqual({x.split('.')[1] for x in labelled}, {"c-owner", "c-status", "c-due", "c-prio"})
+            self.assertEqual({x.split('.')[1] for x in labelled}, {"c-owner", "c-status", "c-due", "c-prio", "c-x c-x-id"})
             texts = cdp.js("(() => { const tr = document.querySelector('#work tbody tr[data-id]'); return [...tr.children].map(td => { const r = td.getBoundingClientRect(); return [td.className.split(' ')[0], getComputedStyle(td, '::before').content, getComputedStyle(td, '::before').fontSize, Math.round(r.top), r.left]; })"
                            ".filter(x => x[1] !== 'none' && x[1] !== 'normal').sort((p, q) => p[3] - q[3] || p[4] - q[4]).map(x => x.slice(0, 3)); })()", sid)
-            self.assertEqual([(a, b) for a, b, _ in texts], [("c-owner", '"Owner"'), ("c-status", '"Status"'), ("c-due", '"Due"'), ("c-prio", '"Priority"')])
+            self.assertEqual([(a, b) for a, b, _ in texts], [("c-owner", '"Owner"'), ("c-status", '"Status"'), ("c-due", '"Due"'), ("c-prio", '"Priority"'), ("c-x", '"Id"')])
             self.assertTrue(all(c == "14px" for _, _, c in texts), "labels are 14 px (the small size)")
 
     def test_the_phone_rules_leave_900_and_1400_px_as_a_table(self):

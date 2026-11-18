@@ -95,7 +95,8 @@ def arm(cdp, sid):
 def where(cdp, sid, selector):
     # Measure only once the element has stopped changing size: a box measured mid-transition (the Add button shrinking
     # back to its "+" after it loses focus) is gone by the time the mouse gets there, and the click lands beside it.
-    still = f"(e => !e || e.getAnimations({{subtree: true}}).every(a => a.playState !== 'running'))(document.querySelector({json.dumps(selector)}))"
+    # Row 1289: an ancestor moving counts too (the peek slides in for 0.5 s, and a tab inside it is measured where it will not be).
+    still = f"(e => !e || document.getAnimations().every(a => a.playState !== 'running' || !a.effect || !a.effect.target || !(a.effect.target.contains(e) || e.contains(a.effect.target))))(document.querySelector({json.dumps(selector)}))"
     assert wait(lambda: cdp.js(still, sid)), f"{selector} is still moving"
     cdp.js(f"document.querySelector({json.dumps(selector)}).scrollIntoView({{block: 'center'}})", sid)
     box = cdp.js(f"(() => {{ const b = document.querySelector({json.dumps(selector)}).getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; }})()", sid)
