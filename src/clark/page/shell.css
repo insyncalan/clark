@@ -368,7 +368,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .factive.pub .fchip { padding: 2px 4px 2px 10px; }
 .factive.pub .fchip button { width: 22px; height: 22px; }
 /* The one filter line: saved views above, then the line with its chips, its box and its suggestions, then the hint chips. */
-:root { --layer-list: 26; --dur-glide: 160ms; }   /* row 808: the layer of a list that floats over the page: over the drop-down menus (25), under the top bar (30) */
+:root { --layer-list: 26; --dur-glide: 160ms; --hpk-w: 380px; }   /* row 1298: the Help peek's width; the Feedback tag sits at its left edge (the item peek's width is dragged, so the tag reads it from peekState) */   /* row 808: the layer of a list that floats over the page: over the drop-down menus (25), under the top bar (30) */
 /* Item 955: the border every menu and floating list shares: grey-500 with a fifth of grey-700, so it is at least 3:1 against the page ground and against a card surface in light (3.4:1 and 3.7:1) and in dark (over 5:1). It was --border (grey-300), 1.46:1 to 2.09:1. It follows the theme because the two greys do. */
 :root { --menu-border: color-mix(in srgb, var(--grey-500), var(--grey-700) 20%); }
 .fline-wrap { position: relative; margin-top: var(--d-fline-top); }
@@ -512,6 +512,11 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1
 .ddmenu .who small { display: block; font-size: var(--size-small); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ddmenu .who-link { text-decoration: underline; color: var(--link) !important; max-width: 280px; }
 .ddmenu .lab { padding: 6px 14px; font-size: var(--size-small); color: var(--text-muted, var(--text)); }
+/* Row 1273 (menu answers, prototype wins): the Group by menu's head in capitals, items at body size with the tick before the icon, a wider panel. The words stay "Group by". */
+.ddmenu .lab.caps, .mh.caps { font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; font-weight: var(--weight-medium); }
+#viewMenuList { min-width: 14rem; }
+#viewMenuList [role="menuitemradio"] { display: flex; align-items: center; font-size: var(--size-body); }
+#viewMenuList [role="menuitemradio"] .ck { order: -1; }
 .ddmenu [role="menuitem"]:hover, .ddmenu [role="menuitem"]:focus-visible { background: var(--brand-blue-tint); color: var(--status-blue-text); }
 .ddmenu [role="menuitem"]:focus-visible, .ddmenu [role="menuitemradio"]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }   /* a menu item by Tab shows a ring, not only a pale fill */
 @media (prefers-reduced-motion: reduce) { .newb, .newb .w { transition: none; } }
@@ -964,6 +969,7 @@ table.items tr[data-id]:focus-visible { outline: 2px solid var(--brand-blue); ou
 .bc-move .i { width: 16px; height: 16px; }
 .mh { padding: 6px 14px 2px; font-size: var(--size-small); color: var(--text-muted); }
 .ddmenu [role="menuitem"][aria-disabled="true"] { color: var(--text-muted); cursor: default; }
+.ddmenu [role="menuitem"][aria-disabled="true"][aria-current="true"]:hover { background: transparent; color: var(--text-muted); }      /* row 1273: the ticked line is where the card is, not a choice: the mouse over it gives no choice fill */
 .dpick { position: absolute; z-index: 26; top: 100%; left: 0; right: 0; margin-top: var(--space-1); padding: 10px var(--space-3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-small); }
 .dpick p { margin: 0 0 var(--space-2); }
 .dpick label { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--size-small); color: var(--text-muted); }
@@ -1179,7 +1185,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .tb-key { font: inherit; font-size: var(--size-small); padding: 1px 6px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); border-radius: var(--radius-sm); }
 @media (max-width: 1100px) { .tb-ask { padding: 0 6px; border-color: transparent; } .tb-ask-w, .tb-key { display: none; } }   /* icon only below 1100 px, so nothing in the bar overlaps */
 /* the Help peek (item 645): the item peek's frame (.peek) below the top bar, so the "?" button stays in view; text only */
-.hpk { top: var(--topbar); width: 380px; min-width: 0; max-width: 92vw; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4) var(--space-5); color: var(--text); font-size: var(--size-small); line-height: var(--leading); }
+.hpk { top: var(--topbar); width: var(--hpk-w); min-width: 0; max-width: 92vw; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4) var(--space-5); color: var(--text); font-size: var(--size-small); line-height: var(--leading); }
 .hpk-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .hpk-title { margin: 0; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .hpk-line { margin: 0; font-size: var(--size-small); }
@@ -1414,9 +1420,9 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .set-bar { grid-column: 1; position: sticky; top: var(--topbar); z-index: 15; margin-top: var(--space-4); padding: var(--space-2) var(--space-1); background: var(--grey-50); max-height: calc(100vh - var(--topbar) - var(--space-4)); overflow-y: auto; }
 .set-nav { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .set-nav li { display: block; }
-.set-chip { all: unset; box-sizing: border-box; position: relative; display: flex; align-items: center; width: 100%; min-height: 36px; padding: 0 12px; border: 0; border-radius: 10px; background: transparent; color: var(--text); font-size: var(--size-body); line-height: 20px; cursor: pointer; }      /* item 1200: soft 36 px rows; no background transition: a theme switch must not leave a light chip for 120 ms (test_v020 reads the ground at once) */
+.set-chip { all: unset; box-sizing: border-box; position: relative; display: flex; align-items: center; width: 100%; min-height: var(--space-6); padding: 0 var(--space-3); border: 0; border-radius: 10px; background: transparent; color: var(--text); font-size: var(--size-body); line-height: 20px; cursor: pointer; }      /* item 1200: soft rows (row 1280: one space-6 high); no background transition: a theme switch must not leave a light chip for 120 ms (test_v020 reads the ground at once) */
 /* From 900 to 1099 px the list is the narrowest the grid allows (150 px), so the cards are wider at 900 (about 670 px, not 596) and a control keeps more than 420 px beside its label; the four section styles wrap two and two. */
-@media (min-width: 900px) and (max-width: 1099px) { .set-layout { grid-template-columns: 150px minmax(0, 1fr); } .set-nav { gap: 0; } .set-bar { margin-top: var(--space-1); padding-top: var(--space-1); } }      /* item 1177: at 900 the header is 129 px (two rows), so the sixteen links sit edge to edge (each keeps its 36 px, and the first keeps room for its focus ring) and the last one, Quit, is still inside a 900 px high window at the top of the page */
+@media (min-width: 900px) and (max-width: 1099px) { .set-layout { grid-template-columns: 150px minmax(0, 1fr); } .set-nav { gap: 0; } .set-bar { margin-top: var(--space-1); padding-top: var(--space-1); } }      /* item 1177: at 900 the header is 129 px (two rows), so the sixteen links sit edge to edge (each keeps its row height, and the first keeps room for its focus ring) and the last one, Quit, is still inside a 900 px high window at the top of the page */
 @media (max-width: 899px) {
   .set-layout { display: block; }
   .set-bar { position: sticky; padding: var(--space-2) 0; margin-top: var(--space-3); max-height: none; overflow-y: visible; box-shadow: 0 0 0 100vmax var(--grey-50); clip-path: inset(0 -100vmax); }
@@ -1425,16 +1431,17 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
   .set-nav { flex-direction: row; flex-wrap: wrap; gap: var(--space-2); }
   .set-chip { display: inline-flex; width: auto; border-radius: var(--radius-pill); }
 }
-.set-nav .plain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }      /* row 1024: a group of pages under its name */
-.set-group { margin-top: var(--space-3); }
+.set-nav .plain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; }      /* row 1024: a group of pages under its name */
+.set-nav .plain li { padding: 0; border-top: 0; }      /* row 1280: the shared list rule gives each li padding and a line; the pages of a group touch, with no line between them */
+.set-group { margin-top: var(--space-5); }      /* row 1280: room above a heading, so each group reads as a block */
 .set-group:first-child { margin-top: 0; }
-.set-group-name { display: block; padding: 0 12px var(--space-1); color: var(--text-muted, var(--text)); font-size: var(--size-small); font-weight: var(--weight-medium); }
+.set-group-name { display: block; padding: 0 var(--space-3) var(--space-1); color: var(--text-muted, var(--text)); font-size: var(--size-caption); font-weight: var(--weight-semibold); text-transform: uppercase; letter-spacing: var(--tracking-caps); cursor: default; }      /* row 1280: a heading is a label, not a link: smaller, muted, capitals, no line, never hovered or focused */
 .set-group-line { display: block; padding: 0 12px var(--space-1); font-size: var(--size-small); line-height: 1.35; }
 .set-advanced { margin-top: var(--space-5); padding-top: var(--space-3); border-top: 1px solid var(--grey-200, var(--grey-100)); }      /* set apart at the foot */
 .set-advanced .set-chip { color: var(--text-muted, var(--text)); }
 .set-chip:hover { background: var(--grey-100); }
 .set-chip[aria-current], .set-chip[aria-current]:hover { background: var(--brand-blue-tint); color: var(--status-blue-text); font-weight: var(--weight-medium); }
-.set-chip[aria-current]::before { content: ""; position: absolute; left: 0; top: 7px; bottom: 7px; width: 3px; border-radius: 3px; background: var(--brand-blue); }      /* item 1200: the violet marker on the card you are reading */
+.set-chip[aria-current]::before { content: ""; position: absolute; left: 0; top: var(--space-1); bottom: var(--space-1); width: 3px; border-radius: 3px; background: var(--brand-blue); }      /* item 1200: the violet marker on the card you are reading */
 .set-chip:focus-visible, .setting h2[tabindex="-1"]:focus-visible, .personal h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
 .setting, .personal { scroll-margin-top: calc(var(--topbar) + 16px); }
 /* The Settings cards (row 841): the prototype's card, compact: less padding, a smaller heading, a 14 px intro line and no shadow. Later than .frame and its 900 px rule, and more specific. */
