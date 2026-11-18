@@ -52,7 +52,8 @@ class Live(unittest.TestCase):
         with mock.patch.object(sv, "here_route", lambda h, req: (beats.append(1), real(h, req))[1]), chrome() as cdp:
             sid = navigate(cdp, self.s.port, "#dashboard&p=ABC")
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('link[rel=manifest]')", sid)), "no manifest link")
-            self.assertEqual(cdp.js("document.querySelector('link[rel=manifest]').getAttribute('href')", sid), "/manifest.webmanifest")
+            self.assertTrue(wait(lambda: cdp.js("document.querySelector('link[rel=manifest]').getAttribute('href')", sid) == "/manifest.webmanifest"),
+                            "the manifest link names /manifest.webmanifest")
             for width in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
                 for scheme, theme, navy, rgb in (("light", "", "#062F3A", "rgb(6, 47, 58)"), ("dark", "dark", "#04202A", "rgb(4, 32, 42)")):
@@ -70,6 +71,20 @@ class Live(unittest.TestCase):
             self.assertTrue(wait(lambda: len(beats) > before), "and says so again when it becomes visible")
             time.sleep(0.3)
         self.assertEqual(self.blocked, [], "the policy blocked nothing")
+
+    def test_the_beat_carries_the_zone_of_the_computer(self):
+        """item 631: X-Tz is the browser's own IANA zone, and follows it when the computer moves (the next beat)."""
+        seen = []
+        real = sv.here_route
+        with mock.patch.object(sv, "here_route", lambda h, req: (seen.append(h.headers.get("X-Tz")), real(h, req))[1]), chrome() as cdp:
+            sid = navigate(cdp, self.s.port, "#dashboard&p=ABC")
+            for width in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+                for name in ("Asia/Dubai", "America/New_York"):
+                    cdp.call("Emulation.setTimezoneOverride", {"timezoneId": name}, sid)
+                    before = len(seen)
+                    cdp.js("document.dispatchEvent(new Event('visibilitychange'))", sid)
+                    self.assertTrue(wait(lambda: len(seen) > before and seen[-1] == name), f"the beat says {name} at {width}: {seen}")
 
 
 if __name__ == "__main__":

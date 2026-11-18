@@ -182,6 +182,16 @@ class Card(InBrowser):
         self.assertEqual(self.text("#safety-status"), LIST["status"])
         self.assertEqual(self.text("#safety-keep"), "14")
 
+    def test_each_rows_buttons_have_their_own_name_starting_with_the_visible_label(self):
+        self.mount()
+        rows = self.val("[...document.querySelectorAll('#backup-list li')].map(li => [li.querySelector('[data-preview]'), li.querySelector('[data-restore]')].map(b => [b.textContent, b.getAttribute('aria-label')]))")
+        self.assertEqual(len(rows), 2)
+        for i, kind in enumerate(("preview", "restore")):
+            names = [r[i][1] for r in rows]
+            self.assertEqual(len(set(names)), 2, names)
+            for r, when in zip(rows, ("02-10-2030 09:14", "01-10-2030 10:15")):
+                self.assertEqual(r[i][1], f"{r[i][0]} {when}")
+
     def test_preview_shows_counts_and_changes_nothing(self):
         self.mount()
         self.click("[data-backup] [data-preview]")
@@ -215,6 +225,30 @@ class Card(InBrowser):
         self.click("[data-backup] [data-restore]")
         self.assertEqual(self.val("document.activeElement.id"), "backup-panel")
         self.assertTrue(self.in_view("#backup-panel"))
+
+    def test_closing_or_cancelling_the_panel_returns_focus_to_the_row_button_that_opened_it(self):
+        self.mount()
+        self.click("[data-backup] [data-preview]")
+        self.click("[data-cancel]")
+        self.assertFalse(self.present("#backup-panel"))
+        self.assertEqual(self.val("document.activeElement.hasAttribute('data-preview')"), True)
+        self.click("[data-backup] [data-restore]")
+        self.click("[data-cancel]")
+        self.assertFalse(self.present("#backup-panel"))
+        self.assertEqual(self.val("document.activeElement.hasAttribute('data-restore')"), True)
+
+    def test_closing_the_panel_while_a_preview_loads_does_not_reopen_it(self):
+        self.mount()
+        self.click("[data-backup] [data-preview]")
+        self.assertTrue(self.present("#backup-panel"))
+        self.js("window.release = null; T.replies.preview = () => new Promise(r => { window.release = () => r({status: 200, body: Object.assign({}, %s)}); })" % json.dumps(PREVIEW))
+        self.js("document.querySelectorAll('[data-backup] [data-preview]')[1].click()")
+        self.settle()
+        self.click("#backup-panel [data-cancel]")
+        self.assertFalse(self.present("#backup-panel"))
+        self.js("window.release()")
+        self.settle()
+        self.assertFalse(self.present("#backup-panel"), "a late answer must not reopen a closed panel")
 
     def test_the_restored_message_is_in_view_and_focused_after_the_reload(self):       # #1122
         self.js("T.logic.rememberDone('Restored the backup.', T.store)")
@@ -357,8 +391,8 @@ class WhereItIsNamed(unittest.TestCase):
     def test_the_card_is_mounted_in_settings_through_the_edit_tools(self):
         self.assertIn("Safety", (PAGE_SRC / "edit" / "index.js").read_text(encoding="utf-8"))
         views = (PAGE_SRC / "components" / "Views.jsx").read_text(encoding="utf-8")
-        self.assertIn("tools.Safety", views)
-        self.assertIn("<Safety />", views)
+        self.assertIn('["backups", "Backups", ["Safety"]]', views)      # row 1024: the Backups page of the Settings menu holds the card
+        self.assertIn("const Card = tools[tool]", views)      # and the page draws each card it holds from the edit tools
 
 
 if __name__ == "__main__":

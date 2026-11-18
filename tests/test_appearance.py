@@ -14,7 +14,7 @@ import unittest
 from _paths import SRC
 from _new_page import reload_to_new_page
 from test_publish_dialog import Base, PAGE_SRC
-from test_server import chrome
+from test_server import chrome, wait
 
 from clark import page
 
@@ -31,6 +31,8 @@ class Appearance(Base):
         p.js("document.querySelector('#profile-btn').click()")
         p.until("!!document.querySelector('#profile-menu')", "the menu opened")
         p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
+        p.until("!!document.querySelector('.set-chip')", "the Settings menu drew")
+        p.js("[...document.querySelectorAll('.set-nav .set-chip')].find(b => b.textContent === 'Appearance').click()")      # row 1024: Personal is on the Appearance page
         p.until("!!document.querySelector('#personal')", "Settings › Personal drew")
 
     def open_menu(self, p):
@@ -65,7 +67,7 @@ class Appearance(Base):
                 self.assertEqual(p.js("[...document.querySelectorAll('#personal [data-appearance] .seg button')].map(b => b.textContent)"), ORDER)
                 self.assertEqual(self.in_settings(p), ["system"])
                 self.assertEqual(p.js("document.querySelector('#personal [data-appearance-line]').textContent"),
-                                 "Follows your Mac's setting.", "the chosen one's line is under the control")
+                                 "Follows your computer's setting.", "the chosen one's line is under the control")
                 self.assertEqual(p.js("document.documentElement.dataset.theme"), "auto")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
 
@@ -83,6 +85,17 @@ class Appearance(Base):
                 p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=dark]').click()")
                 self.assertEqual(self.in_settings(p), ["dark"], "one is pressed")
                 self.assertEqual(p.js("document.querySelector('#personal [data-appearance-line]').textContent"), "Always dark.", "the line follows the choice")
+
+    def test_C_the_appearance_line_is_not_a_live_region_so_a_change_is_announced_once(self):
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.page(cdp)
+                p.width(w)
+                self.open_settings(p)
+                p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=dark]').click()")
+                self.assertEqual(p.js("document.querySelector('#personal [data-appearance-line]').textContent"), "Always dark.")
+                self.assertIsNone(p.js("document.querySelector('#personal [data-appearance-line]').closest('[aria-live], [role=status], [role=alert]')"),
+                                  "the toast announces the change; the line under the control does not speak as well")
 
     def test_C_appearance_arrow_keys_move_and_pick_row_902(self):
         with chrome() as cdp:
@@ -122,10 +135,16 @@ class Appearance(Base):
                     self.assertIn("gradient", got[0], "the chosen segment has the pill gradient")
                     self.assertNotEqual(got[1], p.js("getComputedStyle(document.querySelector('#personal [data-appearance] button[aria-checked=false]')).color"), "the chosen text colour differs")
                     self.assertNotIn("gradient", got[2], "the others have none")
-                    p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=system]').focus()")
-                    p.cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "End", "code": "End", "windowsVirtualKeyCode": 35}, p.sid)
-                    p.cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "End", "code": "End", "windowsVirtualKeyCode": 35}, p.sid)
-                    p.until("document.documentElement.dataset.theme === 'dark'", "End picks the last")
+                    self.key_until(p, "system", "End", 35, "document.documentElement.dataset.theme === 'dark'", "End picks the last")
+
+    def key_until(self, p, pick, name, code, cond, what):
+        """Focus the button and press the key, pressing again if a slow computer dropped it, until cond holds (up to 6 tries of 2 s)."""
+        for _ in range(6):
+            p.js(f"document.querySelector('#personal [data-appearance] button[data-theme-pick={pick}]').focus()")
+            self.key(p, name, code)
+            if wait(lambda: p.js(cond), 2):
+                return
+        self.fail(what)
 
     def key(self, p, name, code, mods=0):
         for kind in ("keyDown", "keyUp"):
@@ -136,9 +155,7 @@ class Appearance(Base):
             p = self.page(cdp)
             self.open_settings(p)
             p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=dark]').click()")
-            p.js("document.querySelector('#personal [data-appearance] button[data-theme-pick=dark]').focus()")
-            self.key(p, "Home", 36)
-            p.until("document.documentElement.dataset.theme === 'auto'", "Home picks System, the first")
+            self.key_until(p, "dark", "Home", 36, "document.documentElement.dataset.theme === 'auto'", "Home picks System, the first")
             self.assertEqual(self.in_settings(p), ["system"])
             self.assertEqual(p.js("document.activeElement.dataset.themePick"), "system", "focus follows")
 
@@ -181,10 +198,11 @@ class Appearance(Base):
                 p.width(w)
                 self.open_menu(p)
                 roles = p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')})")
-                self.assertEqual(roles[:9], ["menuitem"] * 7 + ["separator", "group"])     # the name line, Publish, Preview, Export to Excel, Export to Word (#48), Published reports (#443), Settings (row 1092); Help follows the group
+                lead = 1 if w == 1400 else 2     # item 1177: the name line, and at 900 'Go to or do' (ProfileMenu.jsx:108-110, asking is off here); no state line any more
+                self.assertEqual(roles[:lead + 6 + 2], ["menuitem"] * (lead + 6) + ["separator", "group"])     # Publish, Preview, Export to Excel, Export to Word (item 48), Published reports (item 443), Settings (row 1092); Help follows the group
                 self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu [role=group]').children, function(e){return e.getAttribute('role')}).join()"),
                                  "presentation,menuitemradio,menuitemradio,menuitemradio", "the label and the three radios are one group")
-                self.assertEqual(p.js("document.querySelectorAll('#profile-menu .lab')[0].textContent"), "Appearance", "the group has the same name in the menu as in Settings")
+                self.assertEqual(p.js("document.querySelectorAll('#profile-menu [role=group] .lab')[0].textContent"), "Appearance", "the group has the same name in the menu as in Settings")
                 self.assertEqual(p.js("[...document.querySelectorAll('#profile-menu [role=menuitemradio]')].map(i => i.textContent.replace('✓', ''))"), ORDER)
                 self.assertEqual(self.in_menu(p), ["System"], "the one in use is marked")
 
@@ -247,7 +265,7 @@ class Source(unittest.TestCase):
 
     def test_the_words_are_pinned(self):
         text = (PAGE_SRC / "edit" / "Personal.jsx").read_text(encoding="utf-8")
-        for words in ('["system", "System", "Follows your Mac\'s setting."]', '["light", "Light", "Always light."]', '["dark", "Dark", "Always dark."]',
+        for words in ('["system", "System", "Follows your computer\'s setting."]', '["light", "Light", "Always light."]', '["dark", "Dark", "Always dark."]',
                       "<legend>Appearance</legend>"):
             self.assertIn(words, text)
         self.assertIn('lab: "Appearance"', (PAGE_SRC / "edit" / "ProfileMenu.jsx").read_text(encoding="utf-8"))

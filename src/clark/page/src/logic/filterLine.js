@@ -41,12 +41,12 @@ const DECISION_STATUSES = ["Made", "Withdrawn"];
 const PRIORITIES = ["Urgent", "High", "Medium", "Low"];
 const DUE_WORDS = [["overdue", "Overdue (the date has passed)"], ["today", "Today"], ["next-7-days", "In the next 7 days"], ["later", "Later than 7 days"], ["none", "No date"]];
 const isWords = () => [["open", "Open"], ["closed", "Closed"], ["overdue", "Open and overdue"], ["quiet", staleWords()],      // #171: the quiet words say the project's own number
-  ["incomplete", "No owner or no date"], ["needed", "Needed from the client"], ["archived", "Archived"]];
+  ["incomplete", "No owner or no date"], ["archived", "Archived"]];
 // `is:` words that match nothing until the page supplies the data behind them. The page turns them on with `ctx.isReady: true`;
 // until then they are not offered and, typed, say so in plain words. Each is [what the page calls it].
 // `is:quiet` is the Freshness filter's "not reviewed" (counted from the same date fields, but N days or more, N being the project's number: filters.js currentReviewDays), so it is on as soon as some row carries
 // a date to count from (hasReviewDates), or when the page says so; `is:incomplete` needs only the owner and the date, so it is always on.
-const NOT_YET = { needed: "Work needed from the client", archived: "Archived work" };
+const NOT_YET = { archived: "Archived work" };
 const quietOn = (rows, ctx) => !!(ctx && ctx.isReady) || (rows || []).some((r) => r && r.reviewed) || hasReviewDates(rows);
 export const isOn = (v, ctx, rows) => (v === "quiet" ? quietOn(rows, ctx) : !own(NOT_YET, v) || !!(ctx && (ctx.isReady || (v === "archived" && ctx.archivedReady))));   // item 1067: the Edit page answers is:archived
 const PLURAL = { owner: "owners", workstream: "workstreams", usecase: "use cases", milestone: "milestones" };
@@ -84,7 +84,6 @@ function isValues(row, ctx) {
     const needsDate = row.kind === "action" || row.kind === "decision";
     if (blank(row.owner) || (needsDate && dayNumber(dueField(row)) === null)) out.push("incomplete");
   }
-  if (row.client_action) out.push("needed");
   if (row.archived) out.push("archived");
   return out;
 }
@@ -528,7 +527,6 @@ export const isCoreView = (view) => !!view && (view.core === true || CORE_IDS.in
 // The views a project starts with after the five core ones; they are the person's own, so they can be renamed and deleted like any other.
 export const DEFAULT_VIEWS = [
   { id: "overdue", name: "Overdue", line: "is:open due:overdue" },
-  { id: "client", name: "Waiting on the client", line: "is:open is:needed" },
   { id: "mine", name: "My actions", line: "is:open type:action owner:me" },
 ];
 export const MAX_VIEWS = 20;                     // the person's own views; the five core ones are not counted
@@ -573,9 +571,9 @@ export function nextViewName(views) {
   while (taken.has(`view ${n}`)) n++;
   return `View ${n}`;
 }
-/** Save the current line over a view (Save). */
+/** Save the current line over a view (Update view). A core view takes it too, for this project only: the standard line is kept apart (CORE_KEY, lines). */
 export function saveView(views, id, line) {
-  if (!findView(views, id) || isCoreView(findView(views, id))) return { ok: false, message: "That view is not there any more." };
+  if (!findView(views, id)) return { ok: false, message: "That view is not there any more." };
   return { ok: true, views: views.map((v) => (v.id === id ? { ...v, line: String(line || "") } : v)) };
 }
 export function renameView(views, id, name) {
@@ -634,7 +632,7 @@ export function viewTrouble(view, rows, ctx) {
 }
 
 /** True for one of the views every project starts with, still as it was given (same id, same line). Such a view that the page cannot
- *  answer yet (Waiting on the client) stays out of the tabs until the page can; any other view that cannot be read stays in (#589). */
+ *  answer (an earlier version's Waiting on the client, item 1158) stays out of the tabs until the page can; any other view that cannot be read stays in (#589). */
 export const isStartingView = (view) => !!view && DEFAULT_VIEWS.some((d) => d.id === view.id && d.line === view.line);
 export const heldBack = (view, rows, ctx) => isStartingView(view) && viewTrouble(view, rows, ctx) !== "";
 
@@ -648,7 +646,7 @@ export const viewCount = (view, rows, ctx) => apply(rows, view.line, ctx).length
 export const LINE_KEY = "clark.fline";
 export const VIEWS_KEY = "clark.fviews";
 export const ORDER_KEY = "clark.forder";          // per project: the ids of the views in the order the person put them (row 1071)
-export const CORE_KEY = "clark.fcore";           // per project: {names: {core id: new name}, gone: [core ids deleted]}
+export const CORE_KEY = "clark.fcore";           // per project: {names: {core id: new name}, gone: [core ids deleted], lines: {core id: line saved over the standard one}}
 
 function readAll(storage, key) {
   try {
@@ -673,12 +671,45 @@ export function linePut(storage, project, line) {
 const sane = (v) => v && typeof v.id === "string" && typeof v.name === "string" && typeof v.line === "string";
 // An older stored set began with its own "Open items" view (id open, as given); the core one replaces it. Any other stored view stays, as it was.
 const oldOpenItems = (v) => v.id === "open" && v.name === "Open items" && v.line === "is:open";
+// Row 1203: a page other than Work items keeps its saved views under its own key (`${VIEWS_KEY}.${page}`), never in the Work items memory, with
+// its own starting views and none of the five core ones. `page` is a key of PAGE_VIEWS; an unknown page has no views and keeps nothing.
+export const PAGE_VIEWS = {
+  usecases: [
+    { id: "all", name: "All use cases", line: "" },
+    { id: "on", name: "On the dashboard", line: "on:yes" },
+    { id: "committed", name: "Committed", line: "commitment:Committed" },
+    { id: "risk", name: "At risk", line: 'status:Flag,"High risk"' },
+  ],
+  // Row 1268: the Work items list template (store type "workitems") keeps the same saved views as the Work items page, in the mock-up's order.
+  workitemslist: [
+    { id: "all", name: "All work items", line: "" },
+    { id: "actions", name: "Actions", line: "type:action" },
+    { id: "risks-issues", name: "Risks and issues", line: "type:risk,issue" },
+    { id: "decisions", name: "Decisions", line: "type:decision" },
+    { id: "overdue", name: "Overdue", line: "due:overdue" },
+  ],
+};
+const pageKey = (page) => `${VIEWS_KEY}.${page}`;
+function pageViewsGet(storage, project, page) {
+  const start = PAGE_VIEWS[page];
+  if (!start) return [];
+  const mine = storage ? readAll(storage, pageKey(page))[project] : null;
+  const got = (Array.isArray(mine) && mine.every(sane) ? mine : start).map((v) => ({ ...v }));
+  return isPublished() ? got.filter((v) => lineIsClientSafe(v.line)) : got;
+}
+function pageViewsPut(storage, project, views, page) {
+  if (!storage || !PAGE_VIEWS[page]) return false;
+  const all = readAll(storage, pageKey(page));
+  all[project] = (views || []).map((v) => ({ ...v }));
+  return writeAll(storage, pageKey(page), all);
+}
 /** A project's views: the five core ones, then its own stored views, or the ones every project starts with. */
-export function viewsGet(storage, project) {
+export function viewsGet(storage, project, page) {
+  if (page) return pageViewsGet(storage, project, page);
   const mine = storage ? readAll(storage, VIEWS_KEY)[project] : null;
   const own = (Array.isArray(mine) && mine.every(sane) ? mine : DEFAULT_VIEWS).filter((v) => !isCoreView(v) && !oldOpenItems(v)).map((v) => ({ ...v }));
-  const kept = storage ? readAll(storage, CORE_KEY)[project] : null, names = (kept && kept.names) || {}, gone = Array.isArray(kept && kept.gone) ? kept.gone : [];
-  const core = CORE_VIEWS.filter((v) => !gone.includes(v.id)).map((v) => ({ ...v, name: typeof names[v.id] === "string" && names[v.id].trim() && names[v.id].length <= MAX_NAME ? names[v.id] : v.name }));
+  const kept = storage ? readAll(storage, CORE_KEY)[project] : null, names = (kept && kept.names) || {}, lines = (kept && kept.lines) || {}, gone = Array.isArray(kept && kept.gone) ? kept.gone : [];
+  const core = CORE_VIEWS.filter((v) => !gone.includes(v.id)).map((v) => ({ ...v, name: typeof names[v.id] === "string" && names[v.id].trim() && names[v.id].length <= MAX_NAME ? names[v.id] : v.name, line: typeof lines[v.id] === "string" && lines[v.id].length <= 600 ? lines[v.id] : v.line }));
   const got = [...core, ...own], order = storage ? readAll(storage, ORDER_KEY)[project] : null;
   if (Array.isArray(order)) {       // row 1071: the person's own order; a view the order does not name (a new one) goes last, in the order it came
     const at = (v) => { const i = order.indexOf(v.id); return i < 0 ? order.length : i; };
@@ -686,15 +717,16 @@ export function viewsGet(storage, project) {
   }
   return isPublished() ? got.filter((v) => lineIsClientSafe(v.line)) : got;
 }
-export function viewsPut(storage, project, views) {
+export function viewsPut(storage, project, views, page) {
+  if (page) return pageViewsPut(storage, project, views, page);
   if (!storage) return false;
   const all = readAll(storage, VIEWS_KEY);
   all[project] = (views || []).filter((v) => !isCoreView(v));            // the core views are never stored with the person's own
   const there = (views || []).filter(isCoreView), gone = CORE_IDS.filter((id) => !there.some((v) => v.id === id));
-  const names = {};
-  for (const v of there) { const was = CORE_VIEWS.find((c) => c.id === v.id); if (was && v.name !== was.name) names[v.id] = v.name; }
+  const names = {}, lines = {};
+  for (const v of there) { const was = CORE_VIEWS.find((c) => c.id === v.id); if (was && v.name !== was.name) names[v.id] = v.name; if (was && v.line !== was.line) lines[v.id] = v.line; }
   const core = readAll(storage, CORE_KEY);
-  if (gone.length || Object.keys(names).length) core[project] = { names, gone }; else delete core[project];
+  if (gone.length || Object.keys(names).length || Object.keys(lines).length) core[project] = Object.keys(lines).length ? { names, gone, lines } : { names, gone }; else delete core[project];
   const order = readAll(storage, ORDER_KEY), natural = [...CORE_VIEWS.filter((c) => there.some((v) => v.id === c.id)), ...all[project]].map((v) => v.id);
   const ids = (views || []).map((v) => v.id);
   if (ids.join("\n") === natural.join("\n")) delete order[project]; else order[project] = ids;      // nothing extra is stored for the order a project starts with

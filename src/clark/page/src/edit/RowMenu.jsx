@@ -9,6 +9,7 @@ import { signal } from "@preact/signals";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, project, view, openPeek, item as peeked, closePeek } from "../stores/report.js";
 import { itemRows, announce } from "../stores/work.js";
+import { rowsFor } from "../logic/board.js";
 import { changeCell, changeNewPerson, changeRecord, say } from "../stores/changes.js";
 import { readDraftEmail, sendEmailSent } from "../api.js";
 import { DraftEmail } from "../components/DraftEmail.jsx";
@@ -16,6 +17,7 @@ import { todayIso } from "../workItems.js";
 import { format } from "../router.js";
 import { MenuPanel, menuMove, menuItemsIn, useFadeOut } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
+import { actionIcon } from "../menuIcons.js";
 import { people, tableOf, canClearDue, newPersonChange } from "./itemEdit.js";
 import { DuePick } from "./cells/DuePick.jsx";
 import { OwnerPick } from "./cells/OwnerPick.jsx";
@@ -25,6 +27,7 @@ import { openCard } from "./Board.jsx";
 import { deleteItem } from "./deleteItem.js";
 import { isEditing } from "../logic/editing.js";
 import { workSelection } from "../stores/selection.js";
+import { handing } from "../stores/handover.js";
 
 // The owner link (a person's id) is read here, in the editor, from the data the item came from: the shared row builder never carries it,
 // so a published file holds no trace of it (#115).
@@ -34,17 +37,19 @@ const withOwnerLink = (row, d) => {
   return src && typeof src.owner_id === "string" ? { ...row, owner_id: src.owner_id } : row;
 };
 
-const ROW = "tr[data-id], article.bcard";
+const ROW = "tr[data-id], article.bcard, li.wl-row[data-id]";      // row 1296: a Dashboard list row (risks, actions, decisions) has the same menu
+const onPage = () => view.value === "work" || view.value === "dashboard";
+const itemOf = (id) => itemRows.value.find((r) => r.id === id) || rowsFor(data.value || {}).find((r) => r.id === id);      // a Dashboard row may be outside the Work items search
 const draftOpen = signal(null);                // null, or { id, items, state, draft, today, from }: the Draft email dialog over the page
 const state = signal(null);                    // null, or { id, x, y, fly: "" | "status" | "due" | "owner" (the short list open beside its entry), focusFly: bool, pick: bool, adding: string (the New person form open over the menu, item 1070), from: the element to give focus back to }
 
 // The element a menu belongs to, and where focus goes back to: a table row, or a card's own button.
-const homeOf = (el) => (el.matches("article.bcard") ? el.querySelector(".bc-main") || el : el);
+const homeOf = (el) => (el.matches("article.bcard") ? el.querySelector(".bc-main") || el : el.matches("li.wl-row") ? el.querySelector(".idl") || el : el);
 function refocus(id) {
   const back = () => {
     const now = document.activeElement;
     if (now && now !== document.body && now.isConnected) return;
-    const el = document.querySelector(`tr[data-id="${CSS.escape(id)}"], article.bcard[data-id="${CSS.escape(id)}"]`);
+    const el = document.querySelector(`tr[data-id="${CSS.escape(id)}"], article.bcard[data-id="${CSS.escape(id)}"], li.wl-row[data-id="${CSS.escape(id)}"]`);
     if (el) homeOf(el).focus({ preventScroll: true });
   };
   setTimeout(back, 0);
@@ -75,7 +80,7 @@ function openFor(el, x, y, pointer) {
 function useOpeners() {
   useEffect(() => {
     const onContext = (e) => {
-      if (view.value !== "work" || !e.target.closest || workSelection.size.value >= 1) return;
+      if (!onPage() || !e.target.closest || (view.value === "work" && workSelection.size.value >= 1) || handing()) return;   // Hand over (item 199) ticks and nothing else
       const el = e.target.closest(ROW);
       if (!el || e.target.isContentEditable || e.target.closest("input, textarea, select, .cpop, .ddmenu, .rowmenu")) return;
       e.preventDefault();
@@ -84,7 +89,7 @@ function useOpeners() {
       openFor(el, kbd ? r.left + 24 : e.clientX, kbd ? r.bottom : e.clientY, !kbd);
     };
     const onKey = (e) => {
-      if (view.value !== "work" || workSelection.size.value >= 1 || !(e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey))) return;
+      if (!onPage() || (view.value === "work" && workSelection.size.value >= 1) || handing() || !(e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey))) return;
       const at = document.activeElement, el = at && at.closest ? at.closest(ROW) : null;
       if (!el || at.isContentEditable || at.closest(".cpop, .ddmenu, .rowmenu, input, textarea")) return;
       e.preventDefault();
@@ -99,42 +104,64 @@ function useOpeners() {
 
 const copied = (text, said) => {
   const done = () => { announce.value = said; say("done", said); };
-  const fail = () => {                          // item 612: the ⌘C hint only when there is a selection to copy
+  const fail = () => {                          // item 612: the copy-key hint only when there is a selection to copy
     const sel = typeof window.getSelection === "function" ? String(window.getSelection() || "") : "";
     announce.value = "The browser did not copy it.";
-    say("note", sel.trim() ? "The browser did not copy it. Select the text and press ⌘C instead." : "The browser did not copy it.");
+    say("note", sel.trim() ? "The browser did not copy it. Press Ctrl+C (Cmd+C on a Mac) to copy the selected text." : "The browser did not copy it.");
   };
   try { navigator.clipboard.writeText(text).then(done, fail); } catch (e) { fail(); }
 };
+
+// The Draft email dialog over a draft clark builds for this one item (nothing is sent). `from`: the element focus returns to when it closes; `failed()` runs when
+// the draft could not be read. Shared by the row menu and the peek's Draft email button.
+function startDraft(row, from, reg, failed) {
+  const code = project.value;
+  const owner = typeof row.owner_id === "string" ? row.owner_id : "";
+  const found = reg ? Promise.resolve(reg) : readPeople().then((r) => (r.ok ? r.people : []));
+  return found.then((list) => { const who = recipientOf(list, owner); return readDraftEmail(code, draftRequest(row.id, null, who)).then((r) => [r, who]); }).then(([r, who]) => {
+    if (!r.ok) { say("note", r.message); if (failed) failed(); return; }
+    if (project.value !== code) return;                      // the person went to another project meanwhile: nothing to open
+    draftOpen.value = { id: row.id, items: r.reply.items, state: draftState(r.reply), draft: r.reply.draft, today: todayIso(), from, who, person: owner };
+  });
+}
+
+/** Row 1180: the peek's Draft email button: {onClick, disabled, reason} (the row menu's entry for this item). The dialog is modal; focus returns to #pk-draft. */
+export function peekDraft(row) {
+  const full = withOwnerLink(row, data.value), dr = draftEntry(full, data.value);
+  return { onClick: () => startDraft(full, document.getElementById("pk-draft"), null, null), disabled: !!dr.disabled, reason: dr.disabled ? dr.reason : "" };
+}
+
+/** Row 1180: the peek's Copy link button: the same link and the same toast as the row menu's Copy link. */
+export function copyLinkFor(row) { copied(linkFor(row, project.value, location.origin + location.pathname, format), `Link to ${row.id} copied.`); }
 
 function entries(row, level, edit, d, today, reg) {
   const dr = draftEntry(row, reg ? { ...d, people: reg } : d), why = edit ? "" : VIEW_ONLY;
   if (!reg && !dr.disabled) dr.reason = "";         // the list is still being read (or could not be): no reason is given yet
   if (level === "status") {
     const l = statusList(row);
-    return [...l.map((s) => ({ id: "s:" + s, name: s })), ...(l.length ? [] : [{ id: "none", lab: "There is no other status to give this item." }])];
+    return [...l.map((s) => ({ id: "s:" + s, name: s, icon: actionIcon("status") })), ...(l.length ? [] : [{ id: "none", lab: "There is no other status to give this item." }])];
   }
   if (level === "owner") {
     const l = ownerList(people(d), row);
-    return [...l.map((n) => ({ id: "o:" + n, name: n })), ...(l.length ? [] : [{ id: "none", lab: "No one else is named in this project yet." }])];
+    return [...l.map((n) => ({ id: "o:" + n, name: n, icon: actionIcon("owner") })), ...(l.length ? [] : [{ id: "none", lab: "No one else is named in this project yet." }])];
   }
   if (level === "due") {
-    return [...dueList(today).map((x) => ({ id: "d:" + x.day, name: x.name, line: x.line })), { id: "pick", name: "Pick a date" },
-      ...(canClearDue(row) ? [{ id: "d:", name: "No date" }] : [])];
+    return [...dueList(today).map((x) => ({ id: "d:" + x.day, name: x.name, line: x.line, icon: actionIcon("due") })), { id: "pick", name: "Pick a date", icon: actionIcon("due") },
+      ...(canClearDue(row) ? [{ id: "d:", name: "No date", icon: actionIcon("none") }] : [])];
   }
   const edits = (id, name, icon) => ({ id, name, icon, sub: edit && id !== "eye", disabled: !edit, why: edit ? "" : "rm-why-view" });
   return [
-    { id: "draft", name: dr.name, icon: "pencil", line: dr.reason, disabled: dr.disabled },
-    { id: "peek", name: "Open the peek", icon: "expand" },
+    { id: "draft", name: dr.name, icon: actionIcon("draft"), line: dr.reason, disabled: dr.disabled },
+    { id: "peek", name: "Open the peek", icon: actionIcon("peek") },
     { id: "sep1", sep: true },
     ...(edit ? [] : [{ id: "lab1", lab: why, dom: "rm-why-view" }]),
-    edits("status", "Change status", "half"), edits("due", "Move due date", "cal"), edits("owner", "Change owner", "user"),
-    edits("eye", eyeChange(row).name, row.client ? "eyeoff" : "eye"),
+    edits("status", "Change status", actionIcon("status")), edits("due", "Move due date", actionIcon("due")), edits("owner", "Change owner", actionIcon("owner")),
+    edits("eye", eyeChange(row).name, actionIcon(row.client ? "hide" : "show")),
     { id: "sep2", sep: true },
-    { id: "link", name: "Copy link to this item", icon: "ext" }, { id: "copyid", name: "Copy ID", icon: "doc" },
+    { id: "link", name: "Copy link to this item", icon: actionIcon("copyLink") }, { id: "copyid", name: "Copy ID", icon: actionIcon("copyId") },
     { id: "sep3", sep: true },
-    { id: "dup", name: "Duplicate", icon: "plus", disabled: !edit, why: edit ? "" : "rm-why-view" }, { id: "archive", name: "Archive", icon: "archive", disabled: !edit, why: edit ? "" : "rm-why-view" },
-    ...(edit ? [{ id: "delete", name: "Delete", icon: "trash", danger: true }] : []),         // item 658: not offered when the page is read only
+    { id: "dup", name: "Duplicate", icon: actionIcon("duplicate"), disabled: !edit, why: edit ? "" : "rm-why-view" }, { id: "archive", name: "Archive", icon: actionIcon("archive"), disabled: !edit, why: edit ? "" : "rm-why-view" },
+    ...(edit ? [{ id: "delete", name: "Delete", icon: actionIcon("delete"), danger: true }] : []),         // item 658: not offered when the page is read only
   ];
 }
 
@@ -156,8 +183,8 @@ function Fly({ level, entries: shown, owner, focus, wrap, hover, keep, hold, onP
   let list = shown;
   if (owner && typed.trim()) {
     const found = ownerChoices(register, owner.names, owner.row, typed);
-    list = [...found.map((n) => ({ id: "o:" + n, name: n })),
-      ...(loaded && canAddPerson(register, owner.names, owner.row, typed) ? [{ id: "addp", name: `Add ${typed.trim()} as a new person` }] : [])];
+    list = [...found.map((n) => ({ id: "o:" + n, name: n, icon: actionIcon("owner") })),
+      ...(loaded && canAddPerson(register, owner.names, owner.row, typed) ? [{ id: "addp", name: `Add ${typed.trim()} as a new person`, icon: actionIcon("add") }] : [])];
   }
   useLayoutEffect(() => {
     const el = box.current, menu = wrap.current, at = menu && menu.querySelector(`[data-rm=${level}]`);
@@ -191,7 +218,7 @@ function Fly({ level, entries: shown, owner, focus, wrap, hover, keep, hold, onP
         placeholder="Type a name" aria-label={`Owner of ${owner.row.id}`} onInput={(e) => setTyped(e.currentTarget.value)} /> : null}
       {list.map((it) => it.lab ? <div key={it.id} class="lab" role="presentation">{it.lab}</div> : (
         <button key={it.id} type="button" role="menuitem" tabIndex={-1} data-rm={it.id} onClick={() => onPick(it.id === "addp" ? "addp:" + typed.trim() : it.id)}>
-          <span class="rm-t"><b>{it.name}</b>{it.line ? <small>{it.line}</small> : null}</span>
+          {it.icon ? <Icon name={it.icon} cls="mi" /> : null}<span class="rm-t"><b>{it.name}</b>{it.line ? <small>{it.line}</small> : null}</span>
         </button>
       ))}
     </div>
@@ -201,14 +228,14 @@ function Fly({ level, entries: shown, owner, focus, wrap, hover, keep, hold, onP
 const REST = 140;      // ms the pointer rests on an entry before its list opens (row 979)
 
 function Panel({ s }) {
-  const row = withOwnerLink(itemRows.value.find((r) => r.id === s.id), data.value), d = data.value, edit = true;     // Work items are always editable: View and Edit exist only on the Dashboard (ruled 02-11-2026); this menu is an Edit part, so a published file never draws it
+  const row = withOwnerLink(itemOf(s.id), data.value), d = data.value, edit = isEditing();     // edit is isEditing(): View and Edit exist only on the Dashboard (ruled 02-11-2026); this menu is an Edit part, so a published file never draws it
   const wrap = useRef(null), today = todayIso();
   const reg = s.reg;                              // #1048: the People list, read before the menu opens (null when it could not be read)
   const set = (patch) => { state.value = { ...state.value, ...patch }; };
   const close = (how) => {
     const from = s.from;
     state.value = null;
-    if ((how === "esc" || how === "pick") && from && from.isConnected) from.focus({ preventScroll: true });
+    if ((how === "esc" || how === "pick" || how === "tab") && from && from.isConnected) from.focus({ preventScroll: true });
   };
   useLayoutEffect(() => {                         // inside the window, the same rule the pickers have
     const el = wrap.current;
@@ -255,22 +282,16 @@ function Panel({ s }) {
       return changeCell(c.table, c.id, c.changes, { text: c.words, back: c.back }).then(() => refocus(row.id));
     }
     if (id === "draft") {
-      const from = s.from, code = project.value;
+      const from = s.from;
       close("pick");
-      const owner = typeof row.owner_id === "string" ? row.owner_id : "";
-      const found = reg ? Promise.resolve(reg) : readPeople().then((r) => (r.ok ? r.people : []));
-      return found.then((list) => { const who = recipientOf(list, owner); return readDraftEmail(code, draftRequest(row.id, null, who)).then((r) => [r, who]); }).then(([r, who]) => {
-        if (!r.ok) { say("note", r.message); refocus(row.id); return; }
-        if (project.value !== code) return;                      // the person went to another project meanwhile: nothing to open
-        draftOpen.value = { id: row.id, items: r.reply.items, state: draftState(r.reply), draft: r.reply.draft, today: todayIso(), from, who, person: typeof row.owner_id === "string" ? row.owner_id : "" };
-      });
+      return startDraft(row, from, reg, () => refocus(row.id));
     }
     if (id === "peek") { close("pick"); openCard(row.id); return undefined; }
     if (id === "link") { close("pick"); copied(linkFor(row, project.value, location.origin + location.pathname, format), `Link to ${row.id} copied.`); return undefined; }
     if (id === "copyid") { close("pick"); copied(row.id, `${row.id} copied.`); return undefined; }
     if (id === "archive") {
       const rows = Array.from(document.querySelectorAll(ROW)), at = rows.findIndex((el) => el.dataset.id === row.id), nb = rows[at + 1] || rows[at - 1];   // row 865: the row leaves, so focus goes to its neighbour
-      const sel = (id) => `tr[data-id="${CSS.escape(id)}"], article.bcard[data-id="${CSS.escape(id)}"] .bc-main`;
+      const sel = (id) => `tr[data-id="${CSS.escape(id)}"], article.bcard[data-id="${CSS.escape(id)}"] .bc-main, li.wl-row[data-id="${CSS.escape(id)}"] .idl`;
       return record({ kind: tableOf(row), op: "archive", id: row.id, place: "menu" }, { text: `${row.id} archived. It is out of the lists and the published page.`, back: `${row.id} is back.`, focus: sel(row.id) })
         .then((r) => { if (r && peeked.value === row.id) closePeek(); if (r && nb && nb.dataset.id) refocus(nb.dataset.id); });
     }
@@ -362,8 +383,8 @@ function DraftHost({ d }) {
     if (box) box.setAttribute("aria-modal", "true");
     return root.current ? holdBehind(root.current) : undefined;
   }, []);
-  useEffect(() => { if (view.value !== "work") draftOpen.value = null; }, [view.value]);        // another page: the dialog goes with it
-  useEffect(() => { if (!data.value || !itemRows.value.some((r) => r.id === d.id)) draftOpen.value = null; }, [itemRows.value]);   // the item went
+  useEffect(() => { if (!onPage()) draftOpen.value = null; }, [view.value]);        // another page: the dialog goes with it
+  useEffect(() => { if (!data.value || !itemOf(d.id)) draftOpen.value = null; }, [itemRows.value]);   // the item went
   const onChange = (next) => {
     const n = ++asked.current;
     draftOpen.value = { ...draftOpen.value, state: next };           // the ticks and options show at once; the email follows

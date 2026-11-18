@@ -35,7 +35,7 @@ SEE = """((root) => {
   const rows = [...box.querySelectorAll('.msl-row')].map((r) => {
     const prog = r.querySelector('.msl-prog'), bar = r.querySelector('.pbar'), fill = bar && bar.querySelector('i'), num = prog.querySelector('.num');
     const pr = prog.getBoundingClientRect(), rr = r.getBoundingClientRect();
-    const out = {id: r.dataset.ms, text: prog.textContent.trim(), notSet: !!prog.querySelector('.muted'), bar: !!bar,
+    const out = {id: r.dataset.ms, text: prog.textContent.trim(), notSet: !!prog.querySelector('.muted'), spokenNotSet: (prog.querySelector('.muted [aria-label], .muted[aria-label]') || {getAttribute: () => null}).getAttribute('aria-label'), bar: !!bar,
                  inside: pr.left >= rr.left - 1 && pr.right <= rr.right + 1 && pr.width > 0 && pr.height > 0};
     if (bar) {
       const bw = bar.getBoundingClientRect().width, fw = fill.getBoundingClientRect().width;
@@ -112,7 +112,11 @@ class Block(unittest.TestCase):
                 self.assertGreaterEqual(r["numVsRow"], 4.5, f"{label} {ident}: the figure reads at 4.5:1")
             else:
                 self.assertFalse(r["bar"], f"{label} {ident}: no figure, no bar")
-                self.assertTrue(r["notSet"] and r["text"] == "Progress not set", f"{label} {ident}: it says so in words")
+                if label == "page":
+                    self.assertTrue(r["notSet"] and r["text"] == "Progress not set", f"{label} {ident}: the Milestones page keeps its words")
+                else:
+                    self.assertTrue(r["notSet"] and r["text"] == "\u2014" and r["spokenNotSet"] == "Progress not set",
+                                    f"{label} {ident}: a dash in the Dashboard's table, spoken as 'Progress not set' (row 1230)")
 
     def test_the_dashboard_block_is_the_milestones_block_with_a_bar_and_a_figure_on_each_row(self):
         for width in (1400, 900):
@@ -176,6 +180,24 @@ class PublishedFile(unittest.TestCase):
             self.assertEqual([b["name"] for b in seen["buttons"]], ["Timeline", "Calendar"])
             self.assertEqual(cdp.js("document.querySelectorAll('.msv .msl-prog button, .msv .msl-prog a, .msv .msl-prog input').length", sid), 0,
                              "the file's progress holds no control")
+
+    def test_the_published_dashboard_draws_the_milestones_section_when_the_file_holds_milestones(self):
+        demo = DemoStore()
+        self.addCleanup(demo.close)
+        with demo.store.step("dashboard", USER) as st:
+            mid = st.create("milestones", {"project": "ABC", "name": "Half done", "baseline_date": "2030-05-01",
+                                           "client_visible": 1, "source": "demo"})
+        folder = tempfile.mkdtemp(prefix="clark-pub-")
+        self.addCleanup(shutil.rmtree, folder, True)
+        done = publish.publish(demo.store, "ABC", folder, by_user=USER, now="2026-10-28", branding=EMPTY_BRANDING)
+        with chrome() as cdp:
+            sid = page_target(cdp)
+            for width in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+                cdp.call("Page.navigate", {"url": "file://" + str(done["path"])}, sid)
+                self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready === '1'", sid)))
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.secs .msv .msl-row[data-ms=\"%s\"]')" % mid, sid)),
+                                "the file's Dashboard draws the Milestones section at %d" % width)
 
 
 if __name__ == "__main__":

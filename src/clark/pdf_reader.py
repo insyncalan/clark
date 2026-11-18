@@ -28,13 +28,28 @@ VENDOR = Path(__file__).resolve().parents[2] / "vendor"
 CHILD = Path(__file__).with_name("pdf_reader_child.py")
 REASONS = ("too_big", "too_many_pages", "timeout", "crash", "corrupt", "unavailable", "scanned", "encrypted")
 
-# Sentences the screen would need, to be approved (NEW-WORDS.md); not used by any screen yet.
-NEW_WORDS = {
-    "scanned": "{n} PDF {was} not read: it holds pictures of pages and no text.",
-    "encrypted": "{n} PDF {was} not read: it is protected with a password.",
-    "not_read": "{n} PDF {was} not read: it could not be read safely.",
-    "sources_page": "{name}, page {page}",
+# The sentences people read (approved, #1052 row 891): why a PDF was not read, the count form (the notes under an answer) and the
+# per-file form, and the label of a source taken from a page. Every reason code has a why; the codes that are only a failure share one.
+WHY = {
+    "scanned": "it holds pictures of pages and no text",
+    "encrypted": "it is protected with a password",
+    "too_big": "it is too big",
+    "too_many_pages": "it has too many pages",
 }
+WHY_OTHER = "it could not be read safely"
+SOURCE_PAGE = "{name}, page {page}"
+
+
+def why(code):
+    return WHY.get(code, WHY_OTHER)
+
+
+def count_note(n, code):
+    return f"{n} PDF {'was' if n == 1 else 'were'} not read: {why(code)}."
+
+
+def file_note(name, code):
+    return f"{name} was not read: {why(code)}."
 
 
 @dataclass(frozen=True)
@@ -42,6 +57,7 @@ class Result:
     status: str                  # "ok" or "not_read" / "scanned" / "encrypted"
     reason: str = ""             # a code from REASONS when not ok
     pages: tuple = ()            # ((page number, text), ...)
+    left_out: int = 0            # pages after the output budget that were not read (0 when all were)
 
 
 def _no(reason):
@@ -67,7 +83,7 @@ def read(raw, vendor=None, truncated=False):
         code = said["status"]
         if code == "ok":
             pages = tuple((int(n), str(t)) for n, t in said["pages"] if int(n) >= 1 and str(t).strip())
-            return Result("ok", "", pages) if pages else _no("scanned")
+            return Result("ok", "", pages, max(0, int(said.get("left", 0)))) if pages else _no("scanned")
         return _no(code if code in REASONS else "crash")
     except Exception:                                  # a faulty answer, a missing python: it is "not read", never an error
         return _no("crash")

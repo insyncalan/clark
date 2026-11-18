@@ -111,7 +111,7 @@ export function milestoneRows(list, today, client) {
       achieved: r.status === "Done" ? r.actual_date || null : null, achievedNote: achievedNote(r),
       percent: r.percent_complete === undefined ? null : r.percent_complete, slip, slipText: slip ? `${plural(slip, "day")} later` : null,
       expected, marks: marksOf(r, state, slip, expected), clientVisible: r.client_visible === undefined ? true : !!r.client_visible,
-      sort_order: r.sort_order || 0,
+      sort_order: r.sort_order || 0, description: r.description || "", workstream: r.workstream || "", reason: r.state_reason || "",      // row 1222: the Milestones table's optional columns
     });
   }
   return out.sort(sortKey);
@@ -213,9 +213,10 @@ export function calendarChips(rows) {
   return out;
 }
 
-/** The Legend: the six states in order, then Expected and Today. A published file says the client's word. */
+/** The Legend: the six states in order, then (in the editor only) Cancelled, then Expected and Today. A published file says the client's word and drops Cancelled rows, so it has no Cancelled entry. */
 export function legend(client) {
   const out = STATES.map((s) => ({ state: s, word: client ? CLIENT_WORD[s] : s, colour: LOOK[s][0], mark: LOOK[s][1], means: LOOK[s][2] }));
+  if (!client) out.push({ state: CANCELLED, word: CANCELLED, colour: LOOK[CANCELLED][0], mark: LOOK[CANCELLED][1], means: LOOK[CANCELLED][2] });
   out.push({ state: "Expected", word: "Expected", colour: null, mark: "ghost", means: "Where a slipped milestone is now expected; a dashed line joins it to its agreed date" });
   out.push({ state: "Today", word: "Today", colour: null, mark: "today-line", means: "The line on the timeline; the blue date on the calendar" });
   return out;
@@ -239,6 +240,41 @@ export function labelLines(xs, width, gap = 0) {
   });
 }
 
+/** Row 1230 (the Dashboard section's timeline): every name is shown. Labels go in tiers, nearest the line first, alternating above (even
+ *  tiers) and below (odd tiers); a tier is 0 above, 1 below, 2 above further out, and so on to twelve (six a side). `items` are in x order, each {x, w}: the
+ *  mark's x and the label's width. A label is placed in the first tier where it overlaps no neighbour and its leader (the thin line from
+ *  label to mark, at x) crosses no other label (if none such, the first tier with no overlap, the leader passing behind a nearer label); it may slide sideways while its mark stays inside it. Returns {cx, t} for each, in order.
+ *  With no room in twelve tiers the last tier is used and it may overlap: nothing is dropped. */
+export const TIER_MAX = 12;
+export function tierLabels(items, width, gap = 8) {
+  const placed = [];
+  return items.map((l) => {
+    const reach = Math.max(0, l.w / 2 - 10), offs = [0];
+    for (let d = 12; d <= reach; d += 12) offs.push(-d, d);
+    const lo = l.w / 2, hi = Math.max(lo, width - l.w / 2);
+    const at = (t, strict) => {
+      const dir = t % 2 ? 1 : -1, lvl = t >> 1;
+      for (const off of offs) {
+        const cx = Math.max(lo, Math.min(hi, l.x + off));
+        if (l.x < cx - l.w / 2 + 6 || l.x > cx + l.w / 2 - 6) continue;      // the mark stays under the label
+        const ok = placed.every((o) => {
+          if (o.t === t) return Math.abs(o.cx - cx) >= (o.w + l.w) / 2 + gap;
+          if (o.dir !== dir || !strict) return true;
+          return o.lvl < lvl ? !(l.x > o.cx - o.w / 2 - 4 && l.x < o.cx + o.w / 2 + 4) : !(o.x > cx - l.w / 2 - 4 && o.x < cx + l.w / 2 + 4);
+        });
+        if (ok) return { cx, t, dir, lvl, x: l.x, w: l.w };
+      }
+      return null;
+    };
+    let got = null;
+    for (let t = 0; t < TIER_MAX && !got; t++) got = at(t, true);
+    for (let t = 0; t < TIER_MAX && !got; t++) got = at(t, false);      // a tight cluster: its marks all lie under each other's labels, so a leader may pass behind a nearer label (they are drawn above the leaders)
+    if (!got) got = { cx: Math.max(lo, Math.min(hi, l.x)), t: TIER_MAX - 1, dir: 1, lvl: (TIER_MAX - 1) >> 1, x: l.x, w: l.w };
+    placed.push(got);
+    return { cx: got.cx, t: got.t };
+  });
+}
+
 // The Milestones page's one-sentence summary (#458; the prototype's, views.js): the last milestone's date (and where it is now
 // expected), then how many are achieved and how many are still to come. Cancelled ones are not counted. null when there is none.
 // `agreed` is false for a last milestone that has only a forecast, so the page does not call that date agreed.
@@ -257,6 +293,19 @@ export function subLine(r) {
   if (r.state === "Forecast") return { text: "Forecast, not agreed", late: false };
   if (r.slip) return { text: `Expected ${showDate(r.expected)} \u00b7 ${r.slipText}`, late: true };
   return { text: r.baseline ? "Agreed" : "No agreed date", late: false };
+}
+
+/** Row 1230 (detail table): the Agreed cell, the baseline date, or the existing words when there is none. */
+export const agreedText = (r) => (r.baseline ? showDate(r.baseline) : "No agreed date");
+
+/** Row 1230: the Expected or achieved cell. `date` is the achieved date, else the expected date (later than agreed when slipped), else the agreed or forecast date;
+ *  `text` is the small line under it (the mock-up's: "Forecast" under a forecast date, "+N days" for a slipped or overdue one; the other lines keep their words); empty for a plain on-track row. */
+export function expectedCell(r) {
+  if (r.state === "Achieved") return { date: r.achieved ? showDate(r.achieved) : "\u2014", text: r.achieved ? r.achievedNote || "Achieved" : "Achieved, date not recorded", late: false };
+  if (r.state === CANCELLED) return { date: showDate(r.baseline || r.forecast), text: "No longer going ahead", late: false };
+  if (r.state === "Forecast") return { date: showDate(r.forecast || r.baseline), text: "Forecast", late: false };
+  if (r.slip) return { date: showDate(r.expected), text: `+${plural(r.slip, "day")}`, late: true };
+  return { date: showDate(r.baseline || r.forecast), text: "", late: false };
 }
 
 /** The Milestones head when headLine gives nothing: 'No milestones yet.' only when there are no rows to draw; if every row is cancelled, say so. */

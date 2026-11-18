@@ -60,6 +60,27 @@ class FollowRule(unittest.TestCase):
 
 
 class BuiltPages(unittest.TestCase):
+    def test_a_stored_day_in_an_activity_row_is_read_day_first_row_1258(self):
+        src = (SRC / "edit" / "PeekActivity.jsx").read_text(encoding="utf-8")
+        self.assertIn("dayWords(r.from)", src)
+        self.assertIn("dayWords(r.to)", src)
+        self.assertIn("showDate(v)", src)
+        self.assertNotIn('{r.from || "nothing"}', src)
+        self.assertNotIn('{r.to || "nothing"}', src)
+
+    def test_dayWords_runs_a_stored_day_to_day_first_and_leaves_other_text_alone_row_1258(self):
+        """Runs the real dayWords line of PeekActivity.jsx in node with the real showDate, so a broken date pattern fails."""
+        node = need_node(self)
+        src = (SRC / "edit" / "PeekActivity.jsx").read_text(encoding="utf-8")
+        line = re.search(r"^const dayWords = .*$", src, re.M)
+        self.assertTrue(line, "dayWords is defined in PeekActivity.jsx")
+        code = (f'import {{ showDate }} from "{(SRC / "workItems.js").as_uri()}"; {line.group(0)}\n'
+                'console.log(JSON.stringify(["2026-11-06", "2026-11-20", "2026-1-6", "2026-11-06T10:00", "20261106", "06-11-2026", "Open", "", null, undefined, "x2026-11-06", "2026-11-06x"].map(dayWords)))')
+        done = subprocess.run([node, "--input-type=module", "-e", code], capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(json.loads(done.stdout), ["06-11-2026", "20-11-2026", "2026-1-6", "2026-11-06T10:00", "20261106", "06-11-2026", "Open", "", None, None,
+                                                    "x2026-11-06", "2026-11-06x"])
+
     def test_the_activity_tab_is_in_the_served_page_only(self):
         served, view = page.PAGE.read_text(encoding="utf-8"), page.VIEW_PAGE.read_text(encoding="utf-8")
         for word in ("/api/activity", "data-activity", "Reading the history", "Item details and history"):
@@ -128,22 +149,21 @@ class ActivityBrowser(unittest.TestCase):
                 key(cdp, sid, "Escape")
                 self.edit_mode(cdp, sid)
                 dblclick(cdp, sid, f"#work tbody tr[data-id='{ids[0]}'] .c-item")
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-tab=activity]')", sid)))
-                click(cdp, sid, "[data-pk-tab=activity]")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-htab=activity]')", sid)))
+                click(cdp, sid, "[data-pk-htab=activity]")
                 self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-activity-row]').length", sid) > 0))
-                self.assertEqual(cdp.js("document.querySelector('[data-pk-tab=activity]').getAttribute('aria-selected')", sid), "true")
+                self.assertEqual(cdp.js("document.querySelector('[data-pk-htab=activity]').getAttribute('aria-selected')", sid), "true")
                 first = cdp.js("document.querySelector('[data-activity-row] .pa-meta').textContent", sid)
                 self.assertRegex(first, r"\d{2}-\d{2}-\d{4}", "the when is a date the person reads")
                 self.assertNotIn("{", cdp.js("document.querySelector('[data-activity]').textContent", sid), "no raw JSON")
                 stamps = cdp.js("Array.from(document.querySelectorAll('[data-activity-row] .pa-meta')).map(e => (e.textContent.match(/\\d{2}-\\d{2}-\\d{4}( \\d{2}:\\d{2})?/) || [''])[0])", sid)
                 keys = [(s[6:10], s[3:5], s[0:2], s[11:]) for s in stamps]
                 self.assertEqual(keys, sorted(keys, reverse=True), "newest first, in the browser")
-                # the keys: Left goes back to Details, focus stays on the tabs
-                cdp.js("document.querySelector('[data-pk-tab=activity]').focus()", sid)
+                # the keys (row 1180): Left goes back one history tab, to All; focus stays on the tabs
+                cdp.js("document.querySelector('[data-pk-htab=activity]').focus()", sid)
                 key(cdp, sid, "ArrowLeft")
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-fields')", sid)))
-                self.assertEqual(cdp.js("document.activeElement.dataset.pkTab", sid), "details")
-                self.assertFalse(cdp.js("!!document.querySelector('[data-activity]')", sid))
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-pk-htab=all]').getAttribute('aria-selected')", sid) == "true"))
+                self.assertEqual(cdp.js("document.activeElement.dataset.pkHtab", sid), "all")
 
     def peek_stays(self, cdp, sid, item, rows=True):
         """The peek is still open on `item` well after the router's 400 ms Back fallback, with Activity rows if asked."""
@@ -168,8 +188,8 @@ class ActivityBrowser(unittest.TestCase):
                     key(cdp, sid, "Escape")
                     self.edit_mode(cdp, sid)
                     dblclick(cdp, sid, one)
-                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-tab=activity]')", sid)))
-                    click(cdp, sid, "[data-pk-tab=activity]")
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-htab=activity]')", sid)))
+                    click(cdp, sid, "[data-pk-htab=activity]")
                     self.peek_stays(cdp, sid, ids[0])
                     # in Edit, Esc and the same row clicked again at once (the same address within 400 ms): still open
                     key(cdp, sid, "Escape")
@@ -180,8 +200,8 @@ class ActivityBrowser(unittest.TestCase):
                     cdp.js("history.back()", sid)
                     self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#peek')", sid)))
                     cdp.js("history.forward()", sid)
-                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-tab=activity]')", sid)))
-                    click(cdp, sid, "[data-pk-tab=activity]")
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-htab=activity]')", sid)))
+                    click(cdp, sid, "[data-pk-htab=activity]")
                     self.peek_stays(cdp, sid, ids[0])
                     # a reload with &item= in the address opens the peek (in View, as every reload is), and it stays
                     reload_to_new_page_cdp(cdp, sid)

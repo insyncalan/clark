@@ -343,6 +343,30 @@ class Card(InBrowser):
         self.cdp.call("Runtime.evaluate", {"expression": "new Promise(r => setTimeout(r, 600))", "awaitPromise": True}, self.sid)
         self.assertEqual(self.focused(), "button[data-undo]", "the ask failed and the focus is still on Undo update")
 
+    def test_the_undo_question_is_what_the_confirm_button_is_described_by(self):
+        last = {**STATUS, "last": {"from": "0.3.0", "to": "0.3.1", "line": "Last update."}}
+        self.replies(status=OK(last), arm=OK({"ok": True, "arm_id": "a1", "choice": "full", "seconds": 5, "line": up.ARMED_FULL.format(to="0.3.0")}))
+        self.mount()
+        self.click("[data-undo]")
+        self.assertEqual(self.val("document.querySelector('[data-undo-confirm]').getAttribute('aria-describedby')"), "update-armed")
+        self.assertEqual(self.text("#update-armed"), up.ARMED_FULL.format(to="0.3.0"))
+
+    def test_the_focus_comes_back_when_an_install_or_undo_fails(self):
+        refused = OK({"ok": False, "code": "space", "message": ui.MESSAGES["space"]}, 409)
+        last = {**STATUS, "last": {"from": "0.3.0", "to": "0.3.1", "line": "Last update."}}
+        with self.subTest(case="install fails"):
+            self.replies(review=OK({"ok": True, "review_id": "r1", "review": REVIEW}), install=refused)
+            self.mount()
+            self.click("[data-review]")
+            self.click("[data-install]")
+            self.assertEqual(self.focused(), "button[data-review]")
+        with self.subTest(case="undo fails"):
+            self.replies(status=OK(last), arm=OK({"ok": True, "arm_id": "a1", "choice": "full", "seconds": 5, "line": "Armed."}), undo=refused)
+            self.mount()
+            self.click("[data-undo]")
+            self.click("[data-undo-confirm]")
+            self.assertEqual(self.focused(), "button[data-undo]")
+
     def test_the_arm_runs_out(self):
         last = {**STATUS, "last": {"from": "0.3.0", "to": "0.3.1", "line": "Last update."}}
         self.replies(status=OK(last), arm=OK({"ok": True, "arm_id": "a1", "choice": "full", "seconds": 5, "line": "Armed."}))
@@ -481,14 +505,14 @@ class WhereItIsNamed(unittest.TestCase):
         self.assertEqual(named, ["updateApi.js"])
         view = (PAGE_PY / "page-view.html").read_text(encoding="utf-8")
         self.assertNotIn("/api/update", view)
-        self.assertNotIn("Version and updates", view)
+        self.assertNotIn("Up to date.", view)      # row 1024: the page name is in the shared menu list now, so the card's own words stand for it
         self.assertIn("/api/update", (PAGE_PY / "page.html").read_text(encoding="utf-8"))
 
     def test_the_card_is_mounted_in_settings_through_the_edit_tools(self):
         self.assertIn("Update", (PAGE_SRC / "edit" / "index.js").read_text(encoding="utf-8"))
         views = (PAGE_SRC / "components" / "Views.jsx").read_text(encoding="utf-8")
-        self.assertIn("tools.Update", views)
-        self.assertIn("<Update />", views)
+        self.assertIn('["version", "Version and updates", ["Update", "Feedback", "Quit"]]', views)      # row 1024: the cards are named in the Settings page list, and drawn from the edit tools by name
+        self.assertIn('Update: "update-h"', views)
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ page must say the plain words for it and never the server's own text. The non-br
 the published build names no route that changes anything) need no browser.
 """
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -29,14 +30,15 @@ import build_page  # noqa: E402
 import esbuild  # noqa: E402
 
 from clark import changes, order, page, publish, server as sv  # noqa: E402
+from clark.default_sections import SECTION_HINTS  # noqa: E402
 from test_page import DATA, navigate  # noqa: E402
 from test_server import Running, chrome, wait, wait_toast  # noqa: E402
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")        # so a brand on this laptop never changes a test
 PAGE_SRC = SRC / "clark" / "page" / "src"
-TITLES = ["Current state", "At a glance", "Use case summary", "Milestones", "Summary", "This week", "Next week",
+TITLES = ["Current state", "At a glance", "Use case summary", "Milestones", "This week", "Next week",
           "Risks and issues", "Open actions", "Decisions", "Supporting documents"]
-IDS = [f"ABC-S-{n:03d}" for n in range(1, 12)]
+IDS = [f"ABC-S-{n:03d}" for n in range(1, 11)]
 SECRET = "Server text that a person must never read"
 NOTHING = "Nothing to show."                  # a work item section with no row to draw (A-D5)
 QUIET = "Not shown on this page yet."                    # the page clark serves, for every type (#74)
@@ -54,8 +56,8 @@ class Pg:
         self.t, self.cdp, self.sid = test, cdp, sid
 
     @classmethod
-    def at(cls, test, cdp, port, hash_="#dashboard&p=ABC", section_style="slim"):
-        return cls(test, cdp, navigate(cdp, port, for_project(hash_), section_style=section_style))
+    def at(cls, test, cdp, port, hash_="#dashboard&p=ABC", section_style="slim", motion=None):
+        return cls(test, cdp, navigate(cdp, port, for_project(hash_), section_style=section_style, motion=motion))
 
     def js(self, expr):
         return self.cdp.js(expr, self.sid)
@@ -106,7 +108,9 @@ class Pg:
         self.until(f"((document.querySelector('.toast-text') || {{}}).textContent || '') === {json.dumps(text)}", f"the toast says: {text}")
 
     def key(self, key, modifiers=0, code=None, vk=0):
-        for kind in ("keyDown", "keyUp"):
+        # Tab goes as rawKeyDown (no text, no char phase): on macOS a plain keyDown is turned into an editing command (insertTab)
+        # and the browser's own Tab focus step never runs. Linux does not translate it, and rawKeyDown is what keyDown becomes there anyway.
+        for kind in ("rawKeyDown" if key == "Tab" else "keyDown", "keyUp"):
             self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code or key, "windowsVirtualKeyCode": vk,
                                                       "modifiers": modifiers}, self.sid)
 
@@ -114,11 +118,18 @@ class Pg:
         self.cdp.call("Input.insertText", {"text": text}, self.sid)
 
     def mouse(self, kind, x, y, buttons=0):
+        if kind == "mouseMoved":
+            time.sleep(float(os.environ.get("CLARK_SLOW_CDP", "0")))     # Row 1277: a slow CDP (e.g. CLARK_SLOW_CDP=0.15) puts more than REST_MS between the steps of a drag
         self.cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left", "buttons": buttons,
                                                     "clickCount": 0 if kind == "mouseMoved" else 1}, self.sid)
 
+    def rested(self):
+        """300 ms after the last move: the pointer has rested longer than REST_MS (110), so the shown target is the one it is on (drag.js drops on state.shown, no last aim)."""
+        time.sleep(0.3)
+
     def box(self, selector):
         """[centre x, centre y, bottom] of the first element that matches."""
+        self.until(self.IDLE, "the sections have stopped gliding, so the box is where it is")
         return self.js(f"(function(){{var r=document.querySelector({json.dumps(selector)}).getBoundingClientRect();"
                        "return [r.left + r.width / 2, r.top + r.height / 2, r.bottom];})()")
 
@@ -127,22 +138,47 @@ class Pg:
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 2400, "deviceScaleFactor": 1, "mobile": False}, self.sid)
 
     def rect(self, ref):
-        """{left, top, right, bottom} of section `ref`."""
+        """{left, top, right, bottom} of section `ref`, once the sections have stopped gliding (edit mode, a hide and a resize
+        all move them: a rectangle taken mid-glide aims a drop at where a section was)."""
+        self.until(self.IDLE, "the sections have stopped gliding, so the rectangle is where they are")
         return self.js(f"(function(){{var r=document.querySelector('[data-id=\"{ref}\"]').getBoundingClientRect();"
                        "return {left:r.left, top:r.top, right:r.right, bottom:r.bottom};})()")
 
-    def drag(self, ref, x, y, release=True):
-        """Press the handle of `ref`, move to (x, y) in steps and (by default) let go there."""
+    SHOWN = "!!document.querySelector('.sec.drag-slot, .sec.drop-before, .sec.drop-left, .sec.drop-right, .secs.drop-end')"    # the preview draws the moved section as the slot
+
+    IDLE = "document.getAnimations().filter((a) => a.effect && a.effect.target && a.effect.target.closest && a.effect.target.closest('.secs')).length === 0"      # the sections' glide is over (a toast's own animation is not waited for)
+    def stored(self, n0):
+        """Wait until the request a drop sent (the ones after the first n0) has been answered by the store and the page has said so in
+        its toast: the page keeps its preview, and takes no new drag, until then."""
+        self.t.assertTrue(wait(lambda: len(self.t.sent) > n0 and self.t.store_answered == len(self.t.sent), 10), "the drop was sent and answered")
+        self.until("!!document.querySelector('.toast')", "the page said the drop is stored")
+
+    def drag(self, ref, x, y, release=True, drops=True):
+        """Press the handle of `ref`, move to (x, y) in steps and (by default) let go there. A drop needs the target to be shown
+        (the pointer has rested on it), so the release waits for the drop indicator; drops=False is for a release that drops nothing."""
+        self.until(self.IDLE, "the sections have stopped gliding, so the rectangles are where they are")
+        n0 = len(self.t.sent)
+        if release and drops:
+            self.clear_toast()                                  # the toast that says this drop is stored must be this drop's
         hx, hy, _ = self.box(f'[data-id="{ref}"] [data-drag]')
         self.mouse("mousePressed", hx, hy, 1)
         for step in range(1, 9):
             self.mouse("mouseMoved", hx + (x - hx) * step / 8, hy + (y - hy) * step / 8, 1)
         if release:
+            if drops:
+                self.until(self.SHOWN, "the drop target is shown before the release")
+                self.rested()                                   # Row 1277: the last move is more than REST_MS ago, so state.shown is the target under the pointer
             self.mouse("mouseReleased", x, y, 0)
+            if drops:
+                self.stored(n0)
 
-    def menu(self, ref, act):
+    def open_menu(self, ref):
         self.js(f"document.querySelector('[data-id=\"{ref}\"] [data-options]').click()")
         self.until(f"!!document.querySelector('[data-id=\"{ref}\"] .menu')", "the menu opened")
+        self.until(f"document.querySelector('[data-id=\"{ref}\"] .menu').contains(document.activeElement)", "the menu holds focus (Escape and arrows go to the focused element)")
+
+    def menu(self, ref, act):
+        self.open_menu(ref)
         self.js(f"document.querySelector('[data-id=\"{ref}\"] [data-act={act}]').click()")
 
     def replace_title(self, ref, text, ending="Enter"):
@@ -169,6 +205,7 @@ class Base(unittest.TestCase):
         self.store = self.demo.store
         self.real_change = changes.make_change(self.store.path, [], USER)
         self.real_undo = changes.make_undo(self.store.path, [], USER)
+        self.store_answered = 0
         self.sent = []                       # every request the page made that reached the seams: (which, request)
         self.failure = None                     # a function (req) -> (status, body) or an exception to raise
         self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: testpage.html(), seam=self.seam)
@@ -180,12 +217,15 @@ class Base(unittest.TestCase):
     def seam(self, real, which):
         def call(req):
             self.sent.append((which, req))
-            if self.failure is not None:
-                got = self.failure(req)
-                if isinstance(got, BaseException):
-                    raise got
-                return got
-            return real(req)
+            try:
+                if self.failure is not None:
+                    got = self.failure(req)
+                    if isinstance(got, BaseException):
+                        raise got
+                    return got
+                return real(req)
+            finally:
+                self.store_answered += 1                  # the store has answered (or the fault was raised): the page can now take it in
         return call
 
     def ids_in_store(self):
@@ -197,8 +237,8 @@ class Base(unittest.TestCase):
     def titles_in_store(self):
         return [r["title"] for r in order.in_order(self.store.read("report_sections", "ABC"))]
 
-    def visit(self, cdp, hash_="#dashboard&p=ABC"):
-        p = Pg.at(self, cdp, self.s.port, hash_)
+    def visit(self, cdp, hash_="#dashboard&p=ABC", motion=None):
+        p = Pg.at(self, cdp, self.s.port, hash_, motion=motion)
         p.ready()
         return p
 
@@ -211,7 +251,7 @@ class Modes(Base):
             p.js("window.marker = 'same page'; window.lengthBefore = history.length")
             hash_before = p.js("location.hash")
             self.assertEqual(p.js("document.querySelector('#report').dataset.mode"), "view", "a page opens in View")
-            pressed = "[...document.querySelectorAll('.mode')].map(b => b.textContent + ':' + b.getAttribute('aria-pressed'))"
+            pressed = "[...document.querySelectorAll('#mode-pill .mode')].map(b => b.title + ':' + b.getAttribute('aria-pressed'))"
             self.assertEqual(p.js(pressed), ["View:true", "Edit:false"])
             for w in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
@@ -235,13 +275,16 @@ class Modes(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             self.assertEqual(edit_elements(cdp, p.sid), [], "View removes the Edit parts")
-            before = p.js("document.querySelector('main').innerHTML")
+            # The on-this-page tick follows the scroll, and Alt+ArrowDown scrolls a page on macOS (Option+Down), so the tick may move: leave the current-section marks out (the tick and the list's "on")
+            main = ("(function(){var m = document.querySelector('main').cloneNode(true);"
+                    "m.querySelectorAll('[data-tl], .toc button[data-id]').forEach(i => { i.removeAttribute('class'); i.removeAttribute('aria-current'); }); return m.innerHTML;})()")
+            before = p.js(main)
             p.key("a", code="KeyA", vk=65)
             p.type("typed in View")
             p.js("document.querySelector('.sec-h').click()")
             p.type("again")
             p.key("ArrowDown", ALT, code="ArrowDown", vk=40)
-            self.assertEqual(p.js("document.querySelector('main').innerHTML"), before, "typing in View changes nothing")
+            self.assertEqual(p.js(main), before, "typing in View changes nothing")
             self.assertEqual(edit_elements(cdp, p.sid), [])
             self.assertEqual(self.sent, [])
             # At a glance, the use case summary (#45), the milestones section (#44, its own block and its own words when empty) and,
@@ -249,8 +292,8 @@ class Modes(Base):
             # drawn says the one plain line
             # #74: Supporting documents draws its own list (and is left out of View while it has no document), so it is not one of these
             sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases', 'text', 'current', 'docs'].includes(s.dataset.type))"
-            texts = "[...document.querySelectorAll('.secs > .sec')].filter(s => ['text', 'current'].includes(s.dataset.type)).map(s => s.querySelector('.quiet').textContent)"
-            self.assertEqual(p.js(texts), ["Nothing recorded."] * 4, "View: a text section with nothing saved says so in plain words")
+            texts = "[...document.querySelectorAll('.secs > .sec')].filter(s => ['text', 'current'].includes(s.dataset.type)).map(s => s.querySelector('.quiet, .sec-body').textContent)"
+            self.assertEqual(p.js(texts), ["Nothing recorded."] * 3, "View: a text section with nothing saved says so in plain words, the four default ones too: their guiding lines are the editor's hint, never a body (items 1188, 1193)")
             quiet = sec + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet, [data-nothing]').textContent)"
             kinds = p.js(sec + ".map(s => s.dataset.type)")
             want = [f"{k}:{NOTHING if k in ('raid', 'actions', 'decisions') else QUIET}" for k in kinds]       # A-D5: those three draw their rows
@@ -260,11 +303,11 @@ class Modes(Base):
             p.edit()
             found = edit_elements(cdp, p.sid)
             for what in ("[data-drag]", "[data-options]", "[data-add]", "[contenteditable=plaintext-only]"):
-                self.assertEqual(len([f for f in found if what in f]), 11, what)        # a title for each section; the three seeded rows have no client wording to edit
+                self.assertEqual(len([f for f in found if what in f]), 10, what)        # a title for each section; the three seeded rows have no client wording to edit
             sec_other = sec + ".filter(s => !['raid', 'actions', 'decisions'].includes(s.dataset.type))"
             self.assertEqual(p.js(sec_other + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet').textContent)"), [w for w in want if w.split(':')[0] not in ('raid', 'actions', 'decisions')], "Edit: the same line")
             self.assertEqual(p.js(sec + ".filter(s => ['raid', 'actions', 'decisions'].includes(s.dataset.type)).map(s => !!s.querySelector('[data-showing]'))"), [True] * 3, "Edit: the three row sections say Showing N of M instead (A-D5)")
-            self.assertEqual(p.js(texts), ["Nothing recorded."] + ["Click to write."] * 3, "Edit: Current state draws its text as View does (row 850); the three text sections open the editor in place (#220)")
+            self.assertEqual(p.js(texts), [SECTION_HINTS[t] for t in ("Current state", "This week", "Next week")], "Edit: the four text sections are empty and each shows its guiding line as the editor's hint (items 1188, 1193)")
             self.assertNotIn("is not shown", p.js("document.querySelector('main').textContent"))
             p.view()
             self.assertEqual(edit_elements(cdp, p.sid), [], "and gone again in View")
@@ -277,7 +320,8 @@ class Modes(Base):
             p.ready()
             self.assertEqual(p.js("document.querySelectorAll('.sec').length"), 0)
             self.assertEqual(p.js("document.querySelector('#no-sections').textContent"), "This report has no sections yet. Switch to Edit to add one.")
-            self.assertEqual(p.js("document.querySelector('h1').textContent"), "Example Programme")
+            # item 1177: the Dashboard has no banner h1 any more; the header's project button (.hdr-project) holds the open project's own name
+            p.until("!!document.querySelector('.top .hdr-project') && document.querySelector('.top .hdr-project').textContent.indexOf('Example Programme') >= 0", "the header names the project")
             p.edit()
             self.assertEqual(p.js("document.querySelectorAll('[data-add]').length"), 1, "an empty report can still get its first section")
             # Only a request that sends something is counted: the page reads the project again after a change (#188), and that GET
@@ -310,8 +354,8 @@ class Keys(Base):
     def test_v_and_e_switch_the_dashboard_and_the_buttons_say_so(self):
         with chrome() as cdp:
             p = self.visit(cdp)
-            self.assertEqual(p.js("[...document.querySelectorAll('.mode')].map(b => b.title + '|' + b.getAttribute('aria-keyshortcuts'))"),
-                             ["View (V)|V", "Edit (E)|E"])
+            self.assertEqual(p.js("[...document.querySelectorAll('#mode-pill .mode')].map(b => b.title + '|' + b.getAttribute('aria-keyshortcuts'))"),
+                             ["View|V", "Edit|E"])      # item 1177: the pill's tooltips are exactly View and Edit (ModePill.jsx:14,17)
             p.js("window.marker = 'same page'; window.lengthBefore = history.length; document.activeElement.blur()")
             self.press(p, "e")
             p.until("document.querySelector('#report').dataset.mode === 'edit'", "E switches to Edit")
@@ -410,7 +454,7 @@ class Sections(Base):
             self.assertEqual(self.sent[-1][1]["changes"], {"hidden": 1}, "0 or 1, never true")
             self.assertEqual(p.toast(), "Section left out of the published page.")
             p.view()
-            self.assertEqual(p.ids(), [i for i in IDS if i not in ("ABC-S-002", "ABC-S-011")], "gone in View (#74: so is Supporting documents, with no document)")
+            self.assertEqual(p.ids(), [i for i in IDS if i not in ("ABC-S-002", "ABC-S-010")], "gone in View (#74: so is Supporting documents, with no document)")
             self.assertNotIn("At a glance", p.js("document.querySelector('main').innerText"))
             p.edit()
             p.clear_toast()
@@ -481,7 +525,7 @@ class Sections(Base):
             p = Pg(self, cdp, sid)
             p.until("!!document.querySelector('.sec')", "drew")
             p.edit()
-            self.assertEqual(p.js("document.querySelectorAll('input[data-title]').length"), 11)
+            self.assertEqual(p.js("document.querySelectorAll('input[data-title]').length"), 10)
             self.assertEqual(p.js("document.querySelectorAll('[contenteditable]').length"), 0)
             p.replace_title("ABC-S-001", "Typed in a field")
             p.saved()
@@ -497,9 +541,8 @@ class Sections(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            for ref, act, other in (("ABC-S-001", "up", "down"), ("ABC-S-011", "down", "up")):
-                p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-options]').click()")
-                p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .menu')", "menu")
+            for ref, act, other in (("ABC-S-001", "up", "down"), ("ABC-S-010", "down", "up")):
+                p.open_menu(ref)
                 item = f"document.querySelector('[data-id=\"{ref}\"] [data-act={{}}]')"
                 self.assertEqual(p.js(item.format(act) + ".getAttribute('aria-disabled')"), "true")
                 self.assertIsNone(p.js(item.format(other) + ".getAttribute('aria-disabled')"))
@@ -519,8 +562,8 @@ class Sections(Base):
             p.menu("ABC-S-001", "down")
             want = ["ABC-S-003", "ABC-S-001", "ABC-S-002"] + IDS[3:]
             p.order_is(want, "Move down")
-            p.menu("ABC-S-011", "up")
-            p.order_is(want[:-2] + ["ABC-S-011", "ABC-S-010"], "the last moves up")
+            p.menu("ABC-S-010", "up")
+            p.order_is(want[:-2] + ["ABC-S-010", "ABC-S-009"], "the last moves up")
             p.js("document.querySelector('[data-undo]').click()")
             p.order_is(want, "Undo of that move")
             p.reload()
@@ -542,7 +585,7 @@ class Sections(Base):
             p.order_is(IDS[:3] + ["ABC-S-004"] + IDS[3:3] + IDS[4:], "Alt+Down")
             self.assertTrue(wait(lambda: p.js(on_handle), 5))
             p.key("ArrowDown", ALT, code="ArrowDown", vk=40)
-            p.order_is(IDS[:3] + ["ABC-S-005", "ABC-S-004"] + IDS[5:], "Alt+Down again")
+            p.order_is(IDS[:3] + ["ABC-S-005", "ABC-S-006", "ABC-S-004"] + IDS[6:], "Alt+Down again")
             self.assertTrue(wait(lambda: p.js(on_handle), 5))
             n = len(self.sent)
             p.key("ArrowDown", 0, code="ArrowDown", vk=40)
@@ -586,12 +629,14 @@ class Sections(Base):
             hx, hy, _ = p.box('[data-id="ABC-S-001"] [data-drag]')
             _, _, bottom = p.box('[data-id="ABC-S-003"]')
             ty = bottom - 3                                  # in the lower half of the third section: it lands before the fourth
+            n0 = len(self.sent)
             p.mouse("mousePressed", hx, hy, 1)
             for step in range(1, 9):
                 p.mouse("mouseMoved", hx, hy + (ty - hy) * step / 8, 1)
-            p.until("!!document.querySelector('.sec.drop-before')", "a drop line while dragging")
-            self.assertEqual(p.js("document.querySelector('.sec.drop-before').dataset.id"), "ABC-S-004")
+            p.until("(function(){var s=document.querySelector('.sec.drag-slot');return !!s && !!s.nextElementSibling && s.nextElementSibling.dataset.id === 'ABC-S-004';})()", "the slot sits before the fourth section")
+            self.assertEqual(p.js("document.querySelector('.sec.drag-slot').nextElementSibling.dataset.id"), "ABC-S-004")
             p.mouse("mouseReleased", hx, ty, 0)
+            p.stored(n0)
             want = ["ABC-S-002", "ABC-S-003", "ABC-S-001"] + IDS[3:]
             p.order_is(want, "dragged")
             self.assertEqual(self.ids_in_store(), want)
@@ -617,50 +662,53 @@ class Sections(Base):
             p.edit()
             r = p.rect("ABC-S-002")                          # At a glance, on its own: any type can be paired
             mid_y = (r["top"] + r["bottom"]) / 2
-            p.drag("ABC-S-008", r["left"] + (r["right"] - r["left"]) * 0.75, mid_y, release=False)
-            p.until("!!document.querySelector('.sec.drop-right')", "the right half is outlined while dragging")
-            self.assertEqual(p.js("document.querySelector('.sec.drop-right').dataset.id"), "ABC-S-002")
-            self.assertIsNone(p.js("document.querySelector('.drop-left')"))
+            p.drag("ABC-S-007", r["left"] + (r["right"] - r["left"]) * 0.75, mid_y, release=False)
+            p.until("(function(){var s=document.querySelector('.sec.drag-slot.slot-right');return !!s && !!s.previousElementSibling && s.previousElementSibling.dataset.id === 'ABC-S-002';})()", "the slot is drawn as the right half beside the second section")
+            self.assertEqual(p.js("document.querySelector('.sec.drag-slot').dataset.id"), "ABC-S-007")
+            self.assertEqual(p.js("document.querySelector('.sec.drag-slot').previousElementSibling.dataset.id"), "ABC-S-002")
+            self.assertIsNone(p.js("document.querySelector('.sec.drag-slot.slot-left')"))
             p.mouse("mouseReleased", r["left"] + (r["right"] - r["left"]) * 0.75, mid_y, 0)
-            p.order_is(IDS[:2] + ["ABC-S-008"] + IDS[2:7] + IDS[8:], "dropped beside")
-            self.assertEqual(self.sent[-1][1], {"project": "ABC", "kind": "report_sections", "op": "move", "id": "ABC-S-008",
+            p.order_is(IDS[:2] + ["ABC-S-007"] + IDS[2:6] + IDS[7:], "dropped beside")
+            self.assertEqual(self.sent[-1][1], {"project": "ABC", "kind": "report_sections", "op": "move", "id": "ABC-S-007",
                                                 "before": "ABC-S-003", "flags": {"ABC-S-002": 1}, "place": "report"})
             self.assertEqual(p.toast(), "Moved Risks and issues beside At a glance, on the right.")
             p.until("document.querySelector('[data-id=\"ABC-S-002\"]').classList.contains('slot-left') && "
-                    "document.querySelector('[data-id=\"ABC-S-008\"]').classList.contains('slot-right')", "two columns")
+                    "document.querySelector('[data-id=\"ABC-S-007\"]').classList.contains('slot-right')", "two columns")
             self.assertIsNone(p.js("document.querySelector('.drop-right')"), "the outline goes")
             n = len(self.sent)
-            r8 = p.rect("ABC-S-008")                         # dropped on itself: nothing is sent and nothing is said
-            p.drag("ABC-S-008", (r8["left"] + r8["right"]) / 2, (r8["top"] + r8["bottom"]) / 2)
+            p.until(p.IDLE, "the sections have stopped gliding, so the rectangle is where they are")
+            r8 = p.rect("ABC-S-007")                         # dropped on itself: nothing is sent and nothing is said
+            p.drag("ABC-S-007", (r8["left"] + r8["right"]) / 2, (r8["top"] + r8["bottom"]) / 2, drops=False)
             self.assertEqual(len(self.sent), n)
             p.js("document.querySelector('[data-undo]').click()")
             p.order_is(IDS, "one Undo puts the order back")
             self.assertEqual(self.beside_flags()["ABC-S-002"], 0)
+            p.until(p.IDLE, "the sections have stopped gliding, so the rectangle is where they are")
             r = p.rect("ABC-S-002")                          # again, then a reload: the layout is in the store
-            p.drag("ABC-S-008", r["left"] + (r["right"] - r["left"]) * 0.25, (r["top"] + r["bottom"]) / 2)
-            p.until("document.querySelector('[data-id=\"ABC-S-008\"]').classList.contains('slot-left')", "beside, on the left")
+            p.drag("ABC-S-007", r["left"] + (r["right"] - r["left"]) * 0.25, (r["top"] + r["bottom"]) / 2)
+            p.until("document.querySelector('[data-id=\"ABC-S-007\"]').classList.contains('slot-left')", "beside, on the left")
             p.reload()
-            self.assertTrue(p.js("document.querySelector('[data-id=\"ABC-S-008\"]').classList.contains('slot-left')"))
-            self.assertEqual(self.ids_in_store()[1:3], ["ABC-S-008", "ABC-S-002"])
+            self.assertTrue(p.js("document.querySelector('[data-id=\"ABC-S-007\"]').classList.contains('slot-left')"))
+            self.assertEqual(self.ids_in_store()[1:3], ["ABC-S-007", "ABC-S-002"])
 
     def test_one_undo_puts_a_dragged_half_back(self):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.tall(cdp)
             p.edit()
-            hx, hy, _ = p.box('[data-id="ABC-S-010"]')
-            r = p.rect("ABC-S-010")
-            p.drag("ABC-S-006", hx, r["bottom"] - 2)         # the bottom edge of Decisions: a row of its own after it
-            p.order_is([i for i in IDS if i != "ABC-S-006"][:9] + ["ABC-S-006", "ABC-S-011"], "left the pair")
-            self.assertEqual(self.sent[-1][1]["flags"], {"ABC-S-006": 0})
-            self.assertEqual(self.sent[-1][1]["before"], "ABC-S-011")
+            hx, hy, _ = p.box('[data-id="ABC-S-009"]')
+            r = p.rect("ABC-S-009")
+            p.drag("ABC-S-005", hx, r["bottom"] - 2)         # the bottom edge of Decisions: a row of its own after it
+            p.order_is([i for i in IDS if i != "ABC-S-005"][:8] + ["ABC-S-005", "ABC-S-010"], "left the pair")
+            self.assertEqual(self.sent[-1][1]["flags"], {"ABC-S-005": 0})
+            self.assertEqual(self.sent[-1][1]["before"], "ABC-S-010")
             self.assertEqual(sum(self.beside_flags().values()), 0, "the partner is on its own, full width")
-            p.until("document.querySelector('[data-id=\"ABC-S-007\"]').classList.contains('slot-full')", "partner full width")
+            p.until("document.querySelector('[data-id=\"ABC-S-006\"]').classList.contains('slot-full')", "partner full width")
             self.assertEqual(self.sent[-1][0], "change")
             n = len(self.sent)
             p.js("document.querySelector('[data-undo]').click()")
             p.order_is(IDS, "one Undo puts the order back")
-            self.assertEqual(self.beside_flags()["ABC-S-006"], 1, "and the pair")
+            self.assertEqual(self.beside_flags()["ABC-S-005"], 1, "and the pair")
             self.assertEqual(len([w for w, _ in self.sent[n:] if w == "undo"]), 1)
 
     def test_esc_cancels_a_drag_and_releasing_drops_nothing(self):
@@ -670,54 +718,55 @@ class Sections(Base):
             p.edit()
             r = p.rect("ABC-S-002")
             n = len(self.sent)
-            p.drag("ABC-S-008", r["left"] + (r["right"] - r["left"]) * 0.75, (r["top"] + r["bottom"]) / 2, release=False)
-            p.until("!!document.querySelector('.sec.drop-right')", "the half is outlined while dragging")
+            p.drag("ABC-S-007", r["left"] + (r["right"] - r["left"]) * 0.75, (r["top"] + r["bottom"]) / 2, release=False)
+            p.until("!!document.querySelector('.sec.drag-slot.slot-right')", "the slot is drawn as the right half while dragging")
             p.key("Escape", code="Escape", vk=27)
-            p.until("!document.querySelector('.sec.drop-right')", "Esc clears the indicator")
+            p.until("!document.querySelector('.sec.drag-slot, .sec.drag-from')", "Esc clears the preview")
             x, y = r["left"] + (r["right"] - r["left"]) * 0.75, (r["top"] + r["bottom"]) / 2
             p.mouse("mouseMoved", x + 1, y + 1, 1)                      # 1 px of jitter after Esc: still cancelled
             p.mouse("mouseMoved", x, y, 1)
-            self.assertFalse(p.js("!!document.querySelector('.sec.drop-right, .sec.drop-left, .sec.drop-before, .secs.drop-end')"), "no indicator comes back")
+            self.assertFalse(p.js("!!document.querySelector('.sec.drag-slot, .sec.drag-from, .sec.drop-right, .sec.drop-left, .sec.drop-before, .secs.drop-end')"), "no indicator comes back")
             p.mouse("mouseReleased", x, y, 0)
             self.assertEqual(len(self.sent), n, "nothing was sent")
             p.order_is(IDS, "the order is as it was")
-            p.drag("ABC-S-008", r["left"] + (r["right"] - r["left"]) * 0.75, (r["top"] + r["bottom"]) / 2)      # the next drag works again
-            p.order_is(IDS[:2] + ["ABC-S-008"] + IDS[2:7] + IDS[8:], "a later drag still drops")
+            p.drag("ABC-S-007", r["left"] + (r["right"] - r["left"]) * 0.75, (r["top"] + r["bottom"]) / 2)      # the next drag works again
+            p.order_is(IDS[:2] + ["ABC-S-007"] + IDS[2:6] + IDS[7:], "a later drag still drops")
 
     def test_one_undo_puts_back_a_drop_where_a_half_is_hidden(self):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.tall(cdp)
             p.edit()
-            p.menu("ABC-S-007", "hide")
-            p.until("!!document.querySelector('[data-id=\"ABC-S-007\"].is-hidden')", "the partner is hidden")
-            hx, hy, _ = p.box('[data-id="ABC-S-010"]')
-            r = p.rect("ABC-S-010")
-            p.drag("ABC-S-006", hx, r["bottom"] - 2)
-            p.order_is([i for i in IDS if i != "ABC-S-006"][:9] + ["ABC-S-006", "ABC-S-011"], "left the pair")
-            self.assertEqual(self.sent[-1][1]["flags"], {"ABC-S-006": 0})
+            p.menu("ABC-S-006", "hide")
+            p.until("!!document.querySelector('[data-id=\"ABC-S-006\"].is-hidden')", "the partner is hidden")
+            hx, hy, _ = p.box('[data-id="ABC-S-009"]')
+            r = p.rect("ABC-S-009")
+            p.drag("ABC-S-005", hx, r["bottom"] - 2)
+            p.order_is([i for i in IDS if i != "ABC-S-005"][:8] + ["ABC-S-005", "ABC-S-010"], "left the pair")
+            self.assertEqual(self.sent[-1][1]["flags"], {"ABC-S-005": 0})
             p.saved()
             p.js("document.querySelector('[data-undo]').click()")
             p.order_is(IDS, "Undo of the drop")
-            self.assertEqual(self.beside_flags()["ABC-S-006"], 1, "the pair is back")
+            self.assertEqual(self.beside_flags()["ABC-S-005"], 1, "the pair is back")
             hidden = {r["id"]: r["hidden"] for r in self.store.read("report_sections", "ABC")}
-            self.assertEqual(hidden["ABC-S-007"], 1, "and the partner is still hidden")
+            self.assertEqual(hidden["ABC-S-006"], 1, "and the partner is still hidden")
 
     def test_a_drop_on_the_middle_of_a_pair_is_a_line_and_a_small_move_sends_nothing(self):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.tall(cdp)
             p.edit()
-            r = p.rect("ABC-S-006")
+            r = p.rect("ABC-S-005")
             p.drag("ABC-S-001", (r["left"] + r["right"]) / 2 - 20, r["top"] + 3, release=False)       # the top of the pair
-            p.until("document.querySelectorAll('.sec.drop-before').length === 2", "a line across the whole pair")
-            self.assertEqual(p.js("[...document.querySelectorAll('.sec.drop-before')].map(e => e.dataset.id)"), ["ABC-S-006", "ABC-S-007"])
+            p.until("(function(){var s=document.querySelector('.sec.drag-slot');return !!s && !!s.nextElementSibling && s.nextElementSibling.dataset.id === 'ABC-S-005';})()", "the slot sits above the whole pair")
+            self.assertEqual(p.js("[document.querySelector('.sec.drag-slot').nextElementSibling.dataset.id, "
+                                  "document.querySelector('.sec.drag-slot').nextElementSibling.nextElementSibling.dataset.id]"), ["ABC-S-005", "ABC-S-006"])
             p.mouse("mouseReleased", r["left"], r["top"] + 3, 0)
-            p.order_is(IDS[1:5] + ["ABC-S-001"] + IDS[5:], "above the pair")
+            p.order_is(IDS[1:4] + ["ABC-S-001"] + IDS[4:], "above the pair")
             self.assertNotIn("flags", self.sent[-1][1])
             n = len(self.sent)
             hx, hy, _ = p.box('[data-id="ABC-S-001"] [data-drag]')
-            p.drag("ABC-S-001", hx, hy + 2)                  # under 4 px: a click
+            p.drag("ABC-S-001", hx, hy + 2, drops=False)                  # under 4 px: a click
             self.assertEqual(len(self.sent), n)
             self.assertIsNone(p.js("document.querySelector('.drop-before')"))
 
@@ -734,9 +783,9 @@ class Sections(Base):
             p.until("document.querySelector('[data-id=\"ABC-S-002\"]').classList.contains('slot-full')", "full width from the second half")
             self.assertEqual(self.sent[-1][1]["flags"], {"ABC-S-002": 0})
             n = len(self.sent)
-            p.js("document.querySelector('[data-id=\"ABC-S-005\"] [data-options]').click()")      # the next row is a pair
-            p.until("!!document.querySelector('[data-id=\"ABC-S-005\"] .menu')", "menu")
-            item = "document.querySelector('[data-id=\"ABC-S-005\"] [data-act=beside]')"
+            p.js("document.querySelector('[data-id=\"ABC-S-004\"] [data-options]').click()")      # the next row is a pair
+            p.until("!!document.querySelector('[data-id=\"ABC-S-004\"] .menu')", "menu")
+            item = "document.querySelector('[data-id=\"ABC-S-004\"] [data-act=beside]')"
             self.assertEqual(p.js(item + ".getAttribute('aria-disabled')"), "true")
             self.assertEqual(p.js(item + ".hasAttribute('title')"), False, "the reason is on screen once, not repeated in a tooltip")
             self.assertEqual(p.js("document.getElementById(" + item + ".getAttribute('aria-describedby')).textContent"),
@@ -749,21 +798,21 @@ class Sections(Base):
             p = self.visit(cdp)
             p.edit()
             on = lambda ref: p.js(f"document.activeElement.matches('[data-drag]') && document.activeElement.closest('.sec').dataset.id === '{ref}'")
-            p.js("document.querySelector('[data-id=\"ABC-S-005\"] [data-drag]').focus()")
+            p.js("document.querySelector('[data-id=\"ABC-S-004\"] [data-drag]').focus()")
             p.key("ArrowDown", ALT, code="ArrowDown", vk=40)           # a section on its own passes the whole pair
-            p.order_is(IDS[:4] + ["ABC-S-006", "ABC-S-007", "ABC-S-005"] + IDS[7:], "past the pair")
-            self.assertEqual(p.toast(), "Moved Summary down.")
-            self.assertTrue(wait(lambda: on("ABC-S-005"), 5))
+            p.order_is(IDS[:3] + ["ABC-S-005", "ABC-S-006", "ABC-S-004"] + IDS[6:], "past the pair")
+            self.assertEqual(p.toast(), "Moved Milestones down.")
+            self.assertTrue(wait(lambda: on("ABC-S-004"), 5))
             p.js("document.querySelector('[data-undo]').click()")
             p.order_is(IDS, "undone")
-            p.js("document.querySelector('[data-id=\"ABC-S-007\"] [data-drag]').focus()")
+            p.js("document.querySelector('[data-id=\"ABC-S-006\"] [data-drag]').focus()")
             p.key("ArrowUp", ALT, code="ArrowUp", vk=38)               # the second half goes just above the pair; the first is alone
-            p.until("document.querySelector('[data-id=\"ABC-S-006\"]').classList.contains('slot-full')", "stepped out")
-            self.assertEqual(self.sent[-1][1]["flags"], {"ABC-S-006": 0})
+            p.until("document.querySelector('[data-id=\"ABC-S-005\"]').classList.contains('slot-full')", "stepped out")
+            self.assertEqual(self.sent[-1][1]["flags"], {"ABC-S-005": 0})
             p.toast_is("Moved Next week up.")
             self.assertEqual(p.toast(), "Moved Next week up.")
-            self.assertTrue(wait(lambda: on("ABC-S-007"), 5))
-            p.js("document.querySelector('[data-id=\"ABC-S-011\"] [data-drag]').focus()")
+            self.assertTrue(wait(lambda: on("ABC-S-006"), 5))
+            p.js("document.querySelector('[data-id=\"ABC-S-010\"] [data-drag]').focus()")
             n = len(self.sent)
             p.key("ArrowDown", ALT, code="ArrowDown", vk=40)
             p.until("!!document.querySelector('.toast.note')", "a note")
@@ -773,7 +822,7 @@ class Sections(Base):
     def test_a_pair_stacks_at_900_and_a_hidden_half_leaves_the_other_full_width(self):
         with chrome() as cdp:
             p = self.visit(cdp)
-            tops = "[document.querySelector('[data-id=\"ABC-S-006\"]').getBoundingClientRect().top, document.querySelector('[data-id=\"ABC-S-007\"]').getBoundingClientRect().top]"
+            tops = "[document.querySelector('[data-id=\"ABC-S-005\"]').getBoundingClientRect().top, document.querySelector('[data-id=\"ABC-S-006\"]').getBoundingClientRect().top]"
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 900, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
             t = p.js(tops)
             self.assertLess(t[0], t[1], "stacked at 900 px")
@@ -781,25 +830,38 @@ class Sections(Base):
             t = p.js(tops)
             self.assertAlmostEqual(t[0], t[1], delta=2)
             p.edit()
-            p.menu("ABC-S-007", "hide")
-            p.until("!!document.querySelector('[data-id=\"ABC-S-007\"].is-hidden')", "hidden")
+            p.menu("ABC-S-006", "hide")
+            p.until("!!document.querySelector('[data-id=\"ABC-S-006\"].is-hidden')", "hidden")
             p.view()
-            self.assertIsNone(p.js("document.querySelector('[data-id=\"ABC-S-007\"]')"))
-            for ref in ("ABC-S-006", "ABC-S-008"):
+            self.assertIsNone(p.js("document.querySelector('[data-id=\"ABC-S-006\"]')"))
+            for ref in ("ABC-S-005", "ABC-S-007"):
                 self.assertTrue(p.js(f"document.querySelector('[data-id=\"{ref}\"]').classList.contains('slot-full')"), ref)
+
+    def test_escape_right_after_the_menu_opens_closes_it_even_when_focus_is_late(self):
+        """The menu takes focus in an effect after it renders; an Escape sent before that goes to the handle and is dropped.
+        The page's focus() is delayed for menu items here so the window is always open (main was red 2 of 20 runs on this)."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.js("(function(){var f=HTMLElement.prototype.focus;HTMLElement.prototype.focus=function(o){var me=this;"
+                 "if(me.matches&&me.matches('[role=menuitem]')){setTimeout(function(){f.call(me,o);},400);}else{f.call(me,o);}};})()")
+            for ref in ("ABC-S-004", "ABC-S-004"):
+                p.open_menu(ref)
+                p.key("Escape", code="Escape", vk=27)
+                p.until(f"!document.querySelector('[data-id=\"{ref}\"] .menu')", f"Escape closed the menu of {ref}")
 
     def test_delete_a_text_section_only_and_undo_brings_it_back(self):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            for ref in ("ABC-S-001", "ABC-S-002", "ABC-S-004", "ABC-S-008"):
-                p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-options]').click()")
-                p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .menu')", "menu")
+            for ref in ("ABC-S-001", "ABC-S-002", "ABC-S-004", "ABC-S-007"):
+                p.open_menu(ref)
                 self.assertIsNotNone(p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-act=delete]')"), f"{ref} offers Delete section too (row 906)")
                 p.key("Escape", code="Escape", vk=27)
-            p.menu("ABC-S-005", "delete")
-            p.order_is([i for i in IDS if i != "ABC-S-005"], "deleted")
-            self.assertNotIn("ABC-S-005", self.ids_in_store())
+                p.until(f"!document.querySelector('[data-id=\"{ref}\"] .menu')", f"Escape closed the menu of {ref}")
+            p.menu("ABC-S-004", "delete")
+            p.order_is([i for i in IDS if i != "ABC-S-004"], "deleted")
+            self.assertNotIn("ABC-S-004", self.ids_in_store())
             self.assertEqual(p.toast(), "Section deleted.")
             self.assertTrue(wait(lambda: p.js("document.activeElement.matches('[data-drag]')"), 5), "focus goes to a neighbour's handle")
             p.js("document.querySelector('[data-undo]').click()")
@@ -809,20 +871,20 @@ class Sections(Base):
     def test_beside_puts_two_sections_in_one_row_and_full_width_undoes_it(self):
         with chrome() as cdp:
             p = self.visit(cdp)
-            row = ("(function(){var a=document.querySelector('[data-id=\"ABC-S-006\"]').getBoundingClientRect(),"
-                   "b=document.querySelector('[data-id=\"ABC-S-007\"]').getBoundingClientRect();"
+            row = ("(function(){var a=document.querySelector('[data-id=\"ABC-S-005\"]').getBoundingClientRect(),"
+                   "b=document.querySelector('[data-id=\"ABC-S-006\"]').getBoundingClientRect();"
                    "return [Math.abs(a.top-b.top)<2, a.right<=b.left+1];})()")
             self.assertEqual(p.js(row), [True, True], "This week sits beside Next week to start with")
             p.edit()
-            p.menu("ABC-S-006", "full")
-            p.until("!document.querySelector('[data-id=\"ABC-S-006\"]').classList.contains('slot-left')", "full width")
+            p.menu("ABC-S-005", "full")
+            p.until("!document.querySelector('[data-id=\"ABC-S-005\"]').classList.contains('slot-left')", "full width")
             self.assertFalse(p.js(row)[0])
-            self.assertEqual(self.sent[-1][1], {"project": "ABC", "kind": "report_sections", "op": "move", "id": "ABC-S-006",
-                                                "before": "ABC-S-007", "flags": {"ABC-S-006": 0}, "place": "menu"})
+            self.assertEqual(self.sent[-1][1], {"project": "ABC", "kind": "report_sections", "op": "move", "id": "ABC-S-005",
+                                                "before": "ABC-S-006", "flags": {"ABC-S-005": 0}, "place": "menu"})
             self.assertEqual(p.toast(), "This week is now full width.")
-            p.menu("ABC-S-006", "beside")
-            p.until("document.querySelector('[data-id=\"ABC-S-006\"]').classList.contains('slot-left')", "beside again")
-            self.assertEqual(self.sent[-1][1]["flags"], {"ABC-S-006": 1})
+            p.menu("ABC-S-005", "beside")
+            p.until("document.querySelector('[data-id=\"ABC-S-005\"]').classList.contains('slot-left')", "beside again")
+            self.assertEqual(self.sent[-1][1]["flags"], {"ABC-S-005": 1})
 
     def test_the_undo_says_so_when_a_later_change_was_left_as_it_is(self):
         with chrome() as cdp:
@@ -959,22 +1021,22 @@ class Gutter(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            self.assertEqual(p.js("document.querySelectorAll('.sec-ctl').length"), 11, "one control for each section")
-            self.assertEqual(p.js("document.querySelectorAll('.sec-ctl > [data-drag]').length"), 11)
-            self.assertEqual(p.js("document.querySelectorAll('.sec-ctl > [data-add]').length"), 11, "a + under each grip")
+            self.assertEqual(p.js("document.querySelectorAll('.sec-ctl').length"), 10, "one control for each section")
+            self.assertEqual(p.js("document.querySelectorAll('.sec-ctl > [data-drag]').length"), 10)
+            self.assertEqual(p.js("document.querySelectorAll('.sec-ctl > [data-add]').length"), 10, "a + under each grip")
             self.assertEqual(p.js("document.querySelectorAll('.sec-add, .opts, .opts-btn').length"), 0,
                              "no Add line between sections and no separate options button")
             self.assertNotIn("Add a text section", p.js("document.querySelector('main').textContent"))
             self.assertNotIn("Add a text section", p.js("document.documentElement.outerHTML"))
-            for ref in ("ABC-S-001", "ABC-S-005"):
+            for ref in ("ABC-S-001", "ABC-S-004"):
                 self.open_menu(p, ref)
                 self.assertFalse([t for t in p.js(self.MENU_TEXTS % ref) if "text section" in t.lower()], "no text-section entry")
                 p.key("Escape", code="Escape", vk=27)
-            # the grip and the + are in the margin, left of the section's own box
-            for ref in ("ABC-S-001", "ABC-S-006"):
+            # the grip and the + are inside the section's own box, in its left padding (row 1152: the tiles run the width of the band)
+            for ref in ("ABC-S-001", "ABC-S-005"):
                 box = p.js(f"(function(){{var s=document.querySelector('[data-id=\"{ref}\"]').getBoundingClientRect(),"
                            f"c=document.querySelector('[data-id=\"{ref}\"] .sec-ctl').getBoundingClientRect();"
-                           "return [c.right <= s.left, c.top >= s.top, c.bottom <= s.bottom];})()")
+                           "return [c.left >= s.left, c.top >= s.top, c.bottom <= s.bottom];})()")
                 self.assertEqual(box, [True, True, True], ref)
 
     def test_faint_at_rest_clear_on_hover_and_focus_and_while_open(self):
@@ -1118,15 +1180,15 @@ class Gutter(Base):
                 p.edit()
                 self.assertEqual({k: v for k, v in rects().items() if k in in_view}, in_view, f"the same left edge and width in View and Edit at {w}")   # #74: an empty Supporting documents is in Edit only
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
-            # the right half: its control sits in the gap between the two columns and covers no content
-            gap = p.js("(function(){var l=document.querySelector('[data-id=\"ABC-S-006\"]').getBoundingClientRect(),"
-                       "r=document.querySelector('[data-id=\"ABC-S-007\"]').getBoundingClientRect(),"
-                       "c=document.querySelector('[data-id=\"ABC-S-007\"] .sec-ctl').getBoundingClientRect();"
-                       "return [c.left >= l.right, c.right <= r.left];})()")
-            self.assertEqual(gap, [True, True], "in the gap")
+            # the right half: its control sits inside its own tile, right of the left column's tile (row 1152)
+            gap = p.js("(function(){var l=document.querySelector('[data-id=\"ABC-S-005\"]').getBoundingClientRect(),"
+                       "r=document.querySelector('[data-id=\"ABC-S-006\"]').getBoundingClientRect(),"
+                       "c=document.querySelector('[data-id=\"ABC-S-006\"] .sec-ctl').getBoundingClientRect();"
+                       "return [c.left >= r.left, c.left >= l.right];})()")
+            self.assertEqual(gap, [True, True], "inside its own tile")
             # opening the menu or hovering moves nothing either
             before = rects()
-            self.open_menu(p, "ABC-S-007")
+            self.open_menu(p, "ABC-S-006")
             self.assertEqual(rects(), before, "an open menu moves nothing")
 
     MEASURE = ("(function(){var out=[];document.querySelectorAll('.secs > .sec').forEach(function(s){var c=s.querySelector('.sec-ctl').getBoundingClientRect(),"
@@ -1147,14 +1209,11 @@ class Gutter(Base):
                     p.until(f"window.innerWidth === {w}", "resized")
                     p.until("document.getAnimations().filter(a => !(a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('toast-bar'))).length === 0", f"the animations ended at {w} in {scheme}")
                     rows = p.js(self.MEASURE)
-                    self.assertEqual(len(rows), 11)
+                    self.assertEqual(len(rows), 10)
                     for ref, ctl_right, head_left, content_left, ctl_left, sec_left in rows:
                         self.assertLessEqual(ctl_right, head_left, f"{ref} at {w} in {scheme}: the control ends before the heading")
                         self.assertLessEqual(ctl_right, content_left, f"{ref} at {w} in {scheme}: and before all content")
-                        if w == 900:
-                            self.assertGreaterEqual(ctl_left, sec_left, f"{ref}: inside the card at 900")
-                        else:
-                            self.assertLessEqual(ctl_right, sec_left, f"{ref}: in the margin at 1400")
+                        self.assertGreaterEqual(ctl_left, sec_left, f"{ref}: inside the card at {w}")      # row 1152: at every width
                     self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w, f"no sideways scroll at {w} in {scheme}")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "light"}]}, p.sid)
             # a left-out section too
@@ -1168,8 +1227,8 @@ class Gutter(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            self.open_menu(p, "ABC-S-005")
-            self.assertEqual(p.js(self.MENU_TEXTS % "ABC-S-005"),
+            self.open_menu(p, "ABC-S-004")
+            self.assertEqual(p.js(self.MENU_TEXTS % "ABC-S-004"),
                              ["Add a template below…", "Move up", "Move down", "Place beside the next section",
                               "Leave out of the published page", "Delete section"])
             self.assertEqual(p.js("[...document.querySelectorAll('.menu-item')].map(e => e.dataset.act)"),
@@ -1185,8 +1244,8 @@ class Gutter(Base):
             self.assertIn("Include in the published page", p.js(self.MENU_TEXTS % "ABC-S-002"))
             self.assertNotIn("Leave out of the published page", p.js(self.MENU_TEXTS % "ABC-S-002"))
             p.key("Escape", code="Escape", vk=27)
-            self.open_menu(p, "ABC-S-007")      # half of a pair
-            self.assertEqual(p.js(self.MENU_TEXTS % "ABC-S-007")[3], "Full width")
+            self.open_menu(p, "ABC-S-006")      # half of a pair
+            self.assertEqual(p.js(self.MENU_TEXTS % "ABC-S-006")[3], "Full width")
             self.assertEqual(p.js("document.querySelector('.menu').getAttribute('role')"), "menu")
 
     def test_the_plus_and_the_menu_entry_ask_for_a_section_below(self):
@@ -1200,7 +1259,7 @@ class Gutter(Base):
             self.assertEqual(p.js("window.asked"), ["ABC-S-003"], "the + announces a request below this section")
             self.assertEqual(p.js("window.openers"), ["plus"], "and hands over the button that was pressed")
             self.assertTrue(p.js("window.cancelable"), "so a dialog can claim it with preventDefault")
-            p.until("document.querySelectorAll('.sec').length === 12", "nobody claimed it, so a plain text section was added below, as before")
+            p.until("document.querySelectorAll('.sec').length === 11", "nobody claimed it, so a plain text section was added below, as before")
             self.assertEqual(self.sent[-1][1]["after"], "ABC-S-003", "below the section whose + was pressed")
             self.assertEqual(self.sent[-1][1]["values"], {"type": "text"})
             p.until("((document.querySelector('.toast-text') || {}).textContent || '') === 'Section added.'", "the toast says Section added.")   # waits: a slow runner paints it late
@@ -1209,35 +1268,35 @@ class Gutter(Base):
             self.assertEqual(len(self.sent), n + 1)
             p.clear_toast()
             p.js("window.claim = true")
-            p.menu("ABC-S-011", "add")
-            self.assertEqual(p.js("window.asked"), ["ABC-S-003", "ABC-S-011"], "the menu entry makes the same request")
+            p.menu("ABC-S-010", "add")
+            self.assertEqual(p.js("window.asked"), ["ABC-S-003", "ABC-S-010"], "the menu entry makes the same request")
             self.assertEqual(p.js("window.openers"), ["plus", "grip"], "with the section's grip as the opener")
             self.assertIsNone(p.js("document.querySelector('.toast')"), "a dialog that claims it says nothing itself")
             self.assertEqual(len(self.sent), n + 1, "and nothing more was added")
-            self.assertEqual(p.js("document.querySelectorAll('.sec').length"), 12)
+            self.assertEqual(p.js("document.querySelectorAll('.sec').length"), 11)
 
     def test_the_fallback_adds_below_the_whole_row_and_a_pair_stays_whole(self):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            self.assertEqual(self.beside_flags()["ABC-S-006"], 1, "006 and 007 are a pair")
-            p.js("document.querySelector('[data-id=\"ABC-S-006\"] [data-add]').click()")      # the + of the pair's first half
+            self.assertEqual(self.beside_flags()["ABC-S-005"], 1, "006 and 007 are a pair")
+            p.js("document.querySelector('[data-id=\"ABC-S-005\"] [data-add]').click()")      # the + of the pair's first half
             p.until("!!document.querySelector('button[data-place]') && !document.querySelector('button[data-place]').disabled", "the box opened with Text chosen")
             p.js("document.querySelector('button[data-place]').click()")
-            p.until("document.querySelectorAll('.sec').length === 12", "a plain text section was added")
+            p.until("document.querySelectorAll('.sec').length === 11", "a plain text section was added")
             new = [i for i in p.ids() if i not in IDS][0]
             ids = p.ids()
-            self.assertEqual(ids[ids.index("ABC-S-006") + 1], "ABC-S-007", "the pair is still side by side")
-            self.assertEqual(ids[ids.index("ABC-S-007") + 1], new, "the new section is below the whole row")
-            self.assertEqual(self.sent[-1][1]["after"], "ABC-S-007", "after the second half")
-            self.assertEqual(self.beside_flags()["ABC-S-006"], 1)
+            self.assertEqual(ids[ids.index("ABC-S-005") + 1], "ABC-S-006", "the pair is still side by side")
+            self.assertEqual(ids[ids.index("ABC-S-006") + 1], new, "the new section is below the whole row")
+            self.assertEqual(self.sent[-1][1]["after"], "ABC-S-006", "after the second half")
+            self.assertEqual(self.beside_flags()["ABC-S-005"], 1)
             self.assertEqual(self.beside_flags()[new], 0, "on its own, full width")
-            self.assertTrue(p.js("document.querySelector('[data-id=\"ABC-S-006\"]').classList.contains('slot-left') && "
-                                 "document.querySelector('[data-id=\"ABC-S-007\"]').classList.contains('slot-right')"))
+            self.assertTrue(p.js("document.querySelector('[data-id=\"ABC-S-005\"]').classList.contains('slot-left') && "
+                                 "document.querySelector('[data-id=\"ABC-S-006\"]').classList.contains('slot-right')"))
             p.js("document.querySelector('[data-undo]').click()")
-            p.until("document.querySelectorAll('.sec').length === 11", "one Undo takes it away")
-            self.assertEqual(self.beside_flags()["ABC-S-006"], 1, "and the pair is as it was")
-            self.assertEqual(len(self.ids_in_store()), 11)
+            p.until("document.querySelectorAll('.sec').length === 10", "one Undo takes it away")
+            self.assertEqual(self.beside_flags()["ABC-S-005"], 1, "and the pair is as it was")
+            self.assertEqual(len(self.ids_in_store()), 10)
 
     def test_keyboard_enter_and_space_open_the_menu_escape_closes_and_returns(self):
         with chrome() as cdp:
@@ -1272,7 +1331,7 @@ class Gutter(Base):
             self.assertEqual(p.js(g % "[data-drag]" + ".getAttribute('aria-label')"), "Move or change Summary".replace("Summary", self.titles_in_store()[3]))
             self.assertEqual(p.js(g % "[data-drag]" + ".title"), "Drag to move · click for options")
             self.assertEqual(p.js(g % "[data-drag]" + ".getAttribute('aria-haspopup')"), "menu")
-            self.assertEqual(p.js(g % "[data-drag]" + ".getAttribute('aria-keyshortcuts')"), "Alt+ArrowUp Alt+ArrowDown")
+            self.assertEqual(p.js(g % "[data-drag]" + ".getAttribute('aria-keyshortcuts')"), "Alt+ArrowUp Alt+ArrowDown Alt+ArrowRight Alt+ArrowLeft")
             self.assertEqual(p.js(g % "[data-add]" + ".getAttribute('aria-label')"), "Add a template below " + self.titles_in_store()[3])
             self.assertEqual(p.js(g % "[data-add]" + ".title"), "Add a template below")
 
@@ -1285,10 +1344,10 @@ class Gutter(Base):
             p.drag("ABC-S-002", bx, bottom - 4)
             p.saved()
             self.assertEqual(p.js("document.querySelectorAll('.menu').length"), 0, "letting go after a drag opens nothing")
-            hx, hy, _ = p.box('[data-id="ABC-S-008"] [data-drag]')
+            hx, hy, _ = p.box('[data-id="ABC-S-007"] [data-drag]')
             p.mouse("mousePressed", hx, hy, 1)
             p.mouse("mouseReleased", hx, hy, 0)
-            p.until("!!document.querySelector('[data-id=\"ABC-S-008\"] .menu')", "a click opens the menu")
+            p.until("!!document.querySelector('[data-id=\"ABC-S-007\"] .menu')", "a click opens the menu")
 
     def test_the_styles_use_tokens_only_and_text_stays_at_13_px(self):
         css = (PAGE_SRC.parent / "shell.css").read_text(encoding="utf-8")
@@ -1364,11 +1423,11 @@ class Published(unittest.TestCase):
         self.addCleanup(demo.close)
         store = demo.store
         change = changes.make_change(store.path, [], USER)
-        for ref, edit in (("ABC-S-005", {"title": "Hidden secret plan", "hidden": 1}), ("ABC-S-006", {"title": "Shown <b>plan</b>"})):
+        for ref, edit in (("ABC-S-001", {"title": "Hidden secret plan", "hidden": 1}), ("ABC-S-005", {"title": "Shown <b>plan</b>"})):
             status, body = change({"project": "ABC", "kind": "report_sections", "op": "update", "id": ref, "changes": edit})
             self.assertEqual(status, 200, body)
         with store.step("dashboard", USER) as st:              # words in This week and Next week: an empty text section is left out
-            for ref in ("ABC-S-006", "ABC-S-007"):
+            for ref in ("ABC-S-005", "ABC-S-006"):
                 st.update("report_sections", ref, {"body": "<p>Some words</p>"})
         folder = tempfile.mkdtemp(prefix="clark-pub-")
         self.addCleanup(shutil.rmtree, folder, True)
@@ -1385,8 +1444,8 @@ class Published(unittest.TestCase):
             titles = cdp.js("[...document.querySelectorAll('.sec-h')].map(e => e.textContent)", sid)
             self.assertNotIn("Hidden secret plan", titles)
             self.assertIn("Shown <b>plan</b>", titles)
-            self.assertEqual(titles, ["At a glance", "Use case summary", "Shown <b>plan</b>", "Next week"],
-                             "At a glance and the use case summary (#45) and the two text sections with words: Summary is hidden, and no other type is drawn in a file yet")
+            self.assertEqual(titles, ["At a glance", "Use case summary", "Milestones", "Shown <b>plan</b>", "Next week"],
+                             "Current state has no words (its starting line is only the editor's hint, item 1188), so it is not drawn; At a glance and the use case summary (#45) and the two text sections with words: the hidden one is left out, and no other type is drawn in a file yet")
             self.assertEqual(edit_elements(cdp, sid), [])
             self.assertEqual(cdp.js("document.querySelectorAll('.mode, [aria-pressed]').length", sid), 0, "no Edit button")
             for key in ("e", "E", "v"):                                           # V and E do nothing in a published file (#103)
@@ -1399,25 +1458,25 @@ class Published(unittest.TestCase):
             self.assertIsNone(cdp.js("document.querySelector('.sec-h b')", sid))
 
     def test_the_published_file_draws_the_three_bodies_read_only_at_1400_and_900(self):
-        """#74: Summary, This week and Next week show their words in the file, view-only; a hostile part planted past the editor
+        """#74: a text section, This week and Next week show their words in the file, view-only; a hostile part planted past the editor
         and a hidden section's body are not there; with This week hidden, Next week takes the whole row."""
         demo = DemoStore()
         self.addCleanup(demo.close)
         store = demo.store
         long_word = "Z" * 400
-        bodies = {"ABC-S-005": f"<p>Summary ZQ-SUMMARY <strong>bold</strong></p><ul><li>one</li></ul><p>{long_word}</p>"
+        bodies = {"ABC-S-001": f"<p>Summary ZQ-SUMMARY <strong>bold</strong></p><ul><li>one</li></ul><p>{long_word}</p>"
                                '<script>window.ZQ_RAN=1</script><img src="x" onerror="window.ZQ_RAN=1">'
                                '<a href="javascript:window.ZQ_RAN=1">ZQ-BAD-LINK</a>'
                                '<a href="&#106;avascript:window.ZQ_RAN=1">ZQ-ENC-LINK</a>'      # an address hidden in an entity
                                "<p>Write to ann&#64;example.com ZQ-AT</p>"                       # an entity in plain words
                                '<p style="color:red;background:url(https://evil.example/x)">ZQ-STYLED</p>'
                                '<a href="https://example.com/notes">ZQ-SAFE-LINK</a>',          # the one link that stays
-                  "ABC-S-006": "<p>ZQ-HIDDEN-THIS-WEEK</p>",
-                  "ABC-S-007": "<p>Next week ZQ-NEXT</p>"}
+                  "ABC-S-005": "<p>ZQ-HIDDEN-THIS-WEEK</p>",
+                  "ABC-S-006": "<p>Next week ZQ-NEXT</p>"}
         with store.step("dashboard", USER) as st:                         # past the editor: the store takes a text body
             for ref, body in bodies.items():
                 st.update("report_sections", ref, {"body": body})
-            st.update("report_sections", "ABC-S-006", {"hidden": 1})
+            st.update("report_sections", "ABC-S-005", {"hidden": 1})
         folder = tempfile.mkdtemp(prefix="clark-pub-")
         self.addCleanup(shutil.rmtree, folder, True)
         done = publish.publish(store, "ABC", folder, by_user=USER, now="2026-10-28", branding=EMPTY_BRANDING)
@@ -1433,17 +1492,17 @@ class Published(unittest.TestCase):
 
             def body(ref):
                 return cdp.js(f"(document.querySelector('[data-id=\"{ref}\"] .sec-body') || {{}}).textContent || null", sid)
-            self.assertIn("Summary ZQ-SUMMARY bold", body("ABC-S-005"))
-            self.assertIn("ZQ-BAD-LINK", body("ABC-S-005"), "an unsafe link keeps its words")
-            self.assertIn("ZQ-ENC-LINK", body("ABC-S-005"), "a link hidden in an entity keeps its words")
-            self.assertIn("Write to ann@example.com ZQ-AT", body("ABC-S-005"), "an entity in the words reads as its letter")
-            self.assertIn("ZQ-STYLED", body("ABC-S-005"), "a styled paragraph keeps its words")
-            links = cdp.js("[...document.querySelectorAll('[data-id=\"ABC-S-005\"] .sec-body a[href]')].map(a => a.getAttribute('href'))", sid)
+            self.assertIn("Summary ZQ-SUMMARY bold", body("ABC-S-001"))
+            self.assertIn("ZQ-BAD-LINK", body("ABC-S-001"), "an unsafe link keeps its words")
+            self.assertIn("ZQ-ENC-LINK", body("ABC-S-001"), "a link hidden in an entity keeps its words")
+            self.assertIn("Write to ann@example.com ZQ-AT", body("ABC-S-001"), "an entity in the words reads as its letter")
+            self.assertIn("ZQ-STYLED", body("ABC-S-001"), "a styled paragraph keeps its words")
+            links = cdp.js("[...document.querySelectorAll('[data-id=\"ABC-S-001\"] .sec-body a[href]')].map(a => a.getAttribute('href'))", sid)
             self.assertEqual(links, ["https://example.com/notes"], "only the safe link has an address")
             self.assertEqual(cdp.js("document.querySelectorAll('.sec-body [style]').length", sid), 0, "no style attribute is left")
-            self.assertEqual(body("ABC-S-007"), "Next week ZQ-NEXT")
-            self.assertIsNone(cdp.js("document.querySelector('[data-id=\"ABC-S-006\"]')", sid), "a hidden section is not drawn")
-            self.assertEqual(cdp.js("document.querySelector('[data-id=\"ABC-S-005\"] .sec-body strong').textContent", sid), "bold")
+            self.assertEqual(body("ABC-S-006"), "Next week ZQ-NEXT")
+            self.assertIsNone(cdp.js("document.querySelector('[data-id=\"ABC-S-005\"]')", sid), "a hidden section is not drawn")
+            self.assertEqual(cdp.js("document.querySelector('[data-id=\"ABC-S-001\"] .sec-body strong').textContent", sid), "bold")
             self.assertIsNone(cdp.js("window.ZQ_RAN || null", sid), "nothing planted ran")
             self.assertEqual(cdp.js("[...document.querySelectorAll('.sec')].filter(s => s.dataset.type !== 'text')"
                                     ".filter(s => s.querySelector('.sec-body')).length", sid), 0, "only a text section has a body")
@@ -1452,7 +1511,7 @@ class Published(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid)),
                                 f"no sideways scroll at {w}, even with a 400-letter word")
                 self.assertEqual(edit_elements(cdp, sid), [], f"nothing to type in at {w}")
-                full = cdp.js("(function(){var s=document.querySelector('[data-id=\"ABC-S-007\"]').getBoundingClientRect(),"
+                full = cdp.js("(function(){var s=document.querySelector('[data-id=\"ABC-S-006\"]').getBoundingClientRect(),"
                               "r=document.querySelector('.secs').getBoundingClientRect();return Math.abs(s.width - r.width) < 2;})()", sid)
                 self.assertTrue(full, f"with This week hidden, Next week takes the whole row at {w}")
 
@@ -1465,10 +1524,10 @@ class Published(unittest.TestCase):
         store = demo.store
         picture = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
         with store.step("dashboard", USER) as st:
-            st.update("report_sections", "ABC-S-005", {"body": f'<p><img src="{picture}" alt=""></p>'})
-            st.update("report_sections", "ABC-S-006", {"body": "<p></p><p> \n </p><br><p>&nbsp;<br></p><div><span> </span></div>",
+            st.update("report_sections", "ABC-S-001", {"body": f'<p><img src="{picture}" alt=""></p>'})
+            st.update("report_sections", "ABC-S-005", {"body": "<p></p><p> \n </p><br><p>&nbsp;<br></p><div><span> </span></div>",
                                                             "beside": 1})
-            st.update("report_sections", "ABC-S-007", {"body": "<p>Next week ZQ-NEXT</p>"})
+            st.update("report_sections", "ABC-S-006", {"body": "<p>Next week ZQ-NEXT</p>"})
         folder = tempfile.mkdtemp(prefix="clark-pub-")
         self.addCleanup(shutil.rmtree, folder, True)
         done = publish.publish(store, "ABC", folder, by_user=USER, now="2026-10-28", branding=EMPTY_BRANDING)
@@ -1476,15 +1535,15 @@ class Published(unittest.TestCase):
             tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
             sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-id=\"ABC-S-007\"] .sec-body')", sid)), "the file drew")
-            self.assertIsNone(cdp.js("document.querySelector('[data-id=\"ABC-S-006\"]')", sid), "an empty This week is not drawn")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-id=\"ABC-S-006\"] .sec-body')", sid)), "the file drew")
+            self.assertIsNone(cdp.js("document.querySelector('[data-id=\"ABC-S-005\"]')", sid), "an empty This week is not drawn")
             self.assertEqual(cdp.js("[...document.querySelectorAll('.sec-h')].filter(h => h.textContent === 'This week').length", sid), 0)
-            self.assertTrue(cdp.js("!!document.querySelector('[data-id=\"ABC-S-005\"] .sec-body img')", sid), "a picture alone is not empty")
-            self.assertTrue(cdp.js("document.querySelector('[data-id=\"ABC-S-007\"]').classList.contains('slot-full')", sid),
+            self.assertTrue(cdp.js("!!document.querySelector('[data-id=\"ABC-S-001\"] .sec-body img')", sid), "a picture alone is not empty")
+            self.assertTrue(cdp.js("document.querySelector('[data-id=\"ABC-S-006\"]').classList.contains('slot-full')", sid),
                             "the rows are worked out again without This week")
             for w in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
-                full = ("(function(){var s=document.querySelector('[data-id=\"ABC-S-007\"]').getBoundingClientRect(),"
+                full = ("(function(){var s=document.querySelector('[data-id=\"ABC-S-006\"]').getBoundingClientRect(),"
                         "r=document.querySelector('.secs').getBoundingClientRect();return Math.abs(s.width - r.width) < 2;})()")
                 self.assertTrue(wait(lambda: cdp.js(full, sid)), f"with This week empty, Next week takes the whole row at {w}")
 
@@ -1497,14 +1556,14 @@ class Published(unittest.TestCase):
         store = demo.store
         sections = order.in_order(store.read("report_sections", "ABC"))
         kinds = {s["type"] for s in sections}
-        self.assertTrue({"current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs"} <= kinds,
+        self.assertTrue({"glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs"} <= kinds,
                         kinds)
         with store.step("dashboard", USER) as st:
             for s in sections:
                 if s["type"] == "text":
                     st.update("report_sections", s["id"], {"body": f"<p>Words ZQ-{s['id']}</p>"})
-            st.update("report_sections", "ABC-S-006", {"beside": 0})          # This week full width
-            st.update("report_sections", "ABC-S-007", {"beside": 1})          # Next week beside Risks and issues
+            st.update("report_sections", "ABC-S-005", {"beside": 0})          # This week full width
+            st.update("report_sections", "ABC-S-006", {"beside": 1})          # Next week beside Risks and issues
         folder = tempfile.mkdtemp(prefix="clark-pub-")
         self.addCleanup(shutil.rmtree, folder, True)
         done = publish.publish(store, "ABC", folder, by_user=USER, now="2026-10-28", branding=EMPTY_BRANDING)
@@ -1515,22 +1574,22 @@ class Published(unittest.TestCase):
             tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
             sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-id=\"ABC-S-005\"] .sec-body')", sid)), "the file drew")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-id=\"ABC-S-001\"] .sec-body')", sid)), "the file drew")
             drawn = cdp.js("[...document.querySelectorAll('.sec')].map(s => s.dataset.type)", sid)
-            self.assertEqual(drawn, ["glance", "usecases"] + ["text"] * len([s for s in sections if s["type"] == "text"]),
-                             "only text sections, At a glance and the use case summary (#45) are drawn")
+            self.assertEqual(drawn, ["text", "glance", "usecases", "milestones"] + ["text"] * (len([s for s in sections if s["type"] == "text"]) - 1),
+                             "only text sections, At a glance, the use case summary (#45) and Milestones are drawn")
             for s in sections:
-                if s["type"] not in ("text", "glance", "usecases"):
+                if s["type"] not in ("text", "glance", "usecases", "milestones"):
                     self.assertIsNone(cdp.js(f"document.querySelector('[data-id=\"{s['id']}\"]')", sid), s["type"])
             page_text = cdp.js("document.body.innerText", sid)
             self.assertNotIn("is not shown", page_text)
             self.assertNotIn(QUIET, page_text)
             self.assertEqual(cdp.js("document.querySelectorAll('.quiet').length", sid), 0, "no quiet line in a file")
-            self.assertTrue(cdp.js("document.querySelector('[data-id=\"ABC-S-007\"]').classList.contains('slot-full')", sid),
+            self.assertTrue(cdp.js("document.querySelector('[data-id=\"ABC-S-006\"]').classList.contains('slot-full')", sid),
                             "the rows are worked out again without Risks and issues")
             for w in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
-                full = ("(function(){var s=document.querySelector('[data-id=\"ABC-S-007\"]').getBoundingClientRect(),"
+                full = ("(function(){var s=document.querySelector('[data-id=\"ABC-S-006\"]').getBoundingClientRect(),"
                         "r=document.querySelector('.secs').getBoundingClientRect();return Math.abs(s.width - r.width) < 2;})()")
                 self.assertTrue(wait(lambda: cdp.js(full, sid)), f"with Risks and issues left out, Next week takes the whole row at {w}")
 

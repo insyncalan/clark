@@ -48,7 +48,7 @@ def every_row(path, leave_out=()):
     try:
         out = {}
         for (n,) in con.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != 'meta' ORDER BY name").fetchall():
-            kept = ", ".join(f'"{c[1]}"' for c in con.execute(f'PRAGMA table_info("{n}")') if c[1] not in leave_out)
+            kept = ", ".join(f'"{c[1]}"' for c in con.execute(f'PRAGMA table_info("{n}")') if c[1] not in leave_out and f"{n}.{c[1]}" not in leave_out)
             out[n] = con.execute(f'SELECT rowid, {kept} FROM "{n}" ORDER BY rowid').fetchall()
         return out
     finally:
@@ -99,7 +99,7 @@ class Migrating(unittest.TestCase):
                                  (0, 0, "Gantt", "", "show,note,budget,effort,baseline_start,baseline_end,owner", None))
         finally:
             s.close()
-        after = every_row(path, NEW_COLUMNS + ("brand",))      # #944: layout 20 adds brand after these
+        after = every_row(path, NEW_COLUMNS + ("brand", "raid.latest_update", "milestones.latest_update", "decisions.priority", "decisions.latest_update", "app_settings.theme"))      # #94; row 1269 (step 27)4: layout 20 adds brand after these; item 1185 (layout 25) adds latest_update to raid and milestones
         self.assertEqual({t: after[t] for t in before}, before, "no existing value changed")
         self.assertEqual(set(after) - set(before) - {"use_case_milestones"}, {"gantt_lines"})      # row 1107 (layout 24) adds the other
         self.assertEqual(after["gantt_lines"], [])

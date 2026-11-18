@@ -45,7 +45,15 @@ export function sayLocalUndo(kind, text, fn, code = project.value) {
   toast.value = { ...toast.value, local: entry.local };
 }
 
-export function say(kind, text, undo = null, code = project.value, focusUndo = false) {
+// Keep one step for Cmd/Ctrl+Z (undoLast) without a message on screen.
+function keepStep(step, code) {
+  const at = undoable.findIndex((s) => s.step === step);
+  if (at >= 0) undoable.splice(at, 1);
+  undoable.push({ step, code });
+  if (undoable.length > MAX_KEPT) undoable.shift();
+}
+
+export function say(kind, text, undo = null, code = project.value, focusUndo = false, quiet = false) {      // quiet: the toast is drawn but not announced (Toast.jsx); the caller says it another way (section drop, row 1214)
   if (undo) {
     const at = undoable.findIndex((s) => s.step === undo);
     if (at >= 0) undoable.splice(at, 1);
@@ -54,7 +62,7 @@ export function say(kind, text, undo = null, code = project.value, focusUndo = f
   }
   if (kind === "problem") trouble.n++;
   const id = ++counter;
-  toast.value = { id, kind, text, undo, code, focusUndo };
+  toast.value = { id, kind, text, undo, code, focusUndo, quiet };
   if (kind !== "problem") { shown = id; clock.start(); } else clock.stop();
 }
 
@@ -147,9 +155,38 @@ export function change(req, done, named = null) {
     if (!r.ok) { say("problem", r.message); return named && named.inline ? r.message : null; }      // inline: the editor that asked says it too (item 1005)
     redraw(code, r.reply);
     if (!(await readAgain(code, "The change was saved"))) return r.reply;
-    if (r.reply.apply_id && named && !named.inline) { itemSteps.set(r.reply.apply_id, `Undone: ${done}`); if (named.focus) focusSteps.set(r.reply.apply_id, named.focus); }
-    if (r.reply.apply_id) say("done", done, r.reply.apply_id, code);
+    if (r.reply.apply_id && named && !named.inline) { itemSteps.set(r.reply.apply_id, done ? `Undone: ${done}` : ""); if (named.focus) focusSteps.set(r.reply.apply_id, named.focus); }
+    if (r.reply.apply_id && named && named.silent) keepStep(r.reply.apply_id, code);      // named.silent: no message at all, the step is kept for Cmd/Ctrl+Z (row 1261: no toast on a headline save)
+    else if (r.reply.apply_id) say("done", done, r.reply.apply_id, code, false, !!(named && named.quiet));      // named.quiet: not announced (a section drop, whose own live region speaks)
     return r.reply;
+  });
+}
+
+// Row 1184: several changes made as one (the milestone peek's Use case: the new link, then the old one's end). They run in order; the first that is
+// refused stops the rest (its toast says why, nothing after it is made). One message when done, with ONE Undo that takes all of the steps back
+// (undoSeveral, #197). A refusal after a step was made puts that step back too (the Use case's add stays out when the old link's end is refused), so no
+// half-made change is left with no Undo. Resolves to true when every change was made.
+export function changeSteps(reqs, done) {
+  const code = project.value;
+  return enqueue(async () => {
+    const steps = [];
+    let ok = true;
+    for (const req of reqs) {
+      const r = await sendChange(code, req);
+      if (!r.ok) { say("problem", r.message); ok = false; break; }
+      redraw(code, r.reply);
+      if (r.reply.apply_id) steps.push(r.reply.apply_id);
+    }
+    if (!ok && steps.length) {
+      const back = await sendUndoMany(code, steps, { confirm: false });      // the refusal's toast stays: the words of the undo are not said
+      if (back.ok) { redraw(code, back.reply); undone.value++; for (const x of steps) { const at = undoable.findIndex((u) => u.step === x); if (at >= 0) undoable.splice(at, 1); } }
+      else say("problem", back.message);
+    }
+    if (!(await readAgain(code, "The change was saved"))) return ok;
+    if (!ok) return false;
+    if (steps.length === 1) say("done", done, steps[0], code);
+    else if (steps.length > 1) sayLocalUndo("done", done, () => { undoSeveral(steps); });
+    return true;
   });
 }
 
@@ -243,7 +280,7 @@ export function undo(applyId, code = project.value) {
     say("done", skipped && typeof r.reply.words === "string" && r.reply.words ? r.reply.words : back || "Undone.", null, code);
     if (focus) setTimeout(() => {         // row 865: where the person was, unless they have already moved on
       const now = document.activeElement, el = document.querySelector(focus);
-      if (el && (!now || now === document.body || !now.isConnected)) el.focus({ preventScroll: true });
+      if (el && (!now || now === document.body || now.id === "main" || !now.isConnected)) el.focus({ preventScroll: true });
     }, 60);
     return r.reply;
   });

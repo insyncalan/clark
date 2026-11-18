@@ -44,6 +44,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 from clark import doclinks, milestones, page, platform, sanitise, section_bodies
+from clark.default_sections import CURRENT_STATE_PREFILL, SECTION_HINTS
 from clark.source_name import source_name
 from clark.store import (COMMITMENTS, GANTT_COLUMNS, GANTT_HIDEABLE, GANTT_DEFAULT_HIDDEN, GANTT_DEFAULT_TAB, GANTT_ID, GANTT_TAB_LIMIT, GANTT_TEXT_LIMITS, Invalid as StoreInvalid,
                          NumberTaken, check_section_body, excluded_label_names, gantt_list, open_store)
@@ -66,6 +67,24 @@ SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", 
 BUILT_IN_SECTIONS = ("current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs")      # row 906: the sections whose data lives elsewhere
 
 
+CURRENT_STATE_TITLE = "Current state"
+
+
+def current_state_section_body(sections):
+    """Item 1188: the cleaned body of the report's text section that is the Current state (the first not hidden text section with
+    that title, casefolded and whitespace-normalised), or "" when there is none. A report that still has the built-in current
+    section, or no section rows, reads the project's current_state column instead (the caller)."""
+    title = CURRENT_STATE_TITLE.casefold()
+    sections = sorted(sections or (), key=lambda s: (s.get("sort_order", 0), str(s.get("id"))))      # display order, as select() sorts
+    instructions = {" ".join(t.split()) for t in (CURRENT_STATE_PREFILL, *SECTION_HINTS.values())}
+    for s in sections:
+        if s.get("type") == "text" and not s.get("hidden") and " ".join(str(s.get("title") or "").split()).casefold() == title:
+            body = clean_html(s.get("body"))
+            text = " ".join(htmllib.unescape(re.sub(r"<[^>]*>", " ", body)).split())
+            return "" if text in instructions else body      # a body that is only an editor hint (stored by an earlier build) never reaches a client
+    return ""
+
+
 def hidden_types(sections, deleted=False):
     """The built-in section types the published file carries nothing of (row 906). A section left out (hidden) is one; so is a
     built-in with no section row, when the project HAS section rows or has had them all deleted (`deleted`). No rows and none ever
@@ -81,14 +100,14 @@ def hidden_types(sections, deleted=False):
 PUBLISH_FIELDS = {
     "projects": ("code", "name", "sponsor", "phase", "health", "health_reason", "client_name", "current_state", "week_ending", "layout"),
     "milestones": ("id", "name", "description", "baseline_date", "forecast_date", "status", "sort_order", "percent_complete",
-                   "state_reason", "owner", "actual_date", "client_message", "workstream", "source"),
+                   "state_reason", "owner", "actual_date", "client_message", "workstream", "latest_update", "source"),
     "workstreams": ("id", "name", "status"),
     "actions": ("id", "description", "workstream", "owner", "priority", "due_date", "status", "raised", "closed",
                 "latest_update", "client_message", "milestone", "use_case", "source"),
     "raid": ("id", "type", "workstream", "description", "owner", "due_date", "impact", "likelihood",
-             "priority", "status", "raised", "closed", "client_message", "milestone", "use_case", "source"),
+             "priority", "status", "raised", "closed", "latest_update", "client_message", "milestone", "use_case", "source"),
     "decisions": ("id", "decision", "made_by", "client_message", "date", "status", "needed_by",
-                  "revisit", "replaces", "use_case", "source"),
+                  "revisit", "replaces", "priority", "latest_update", "use_case", "source"),
     "use_cases": ("id", "ref", "title", "status", "headline", "standing", "sort_order", "commitment"),   # #709: the flag goes with the use case
     "links": ("from_item", "to_item", "kind"),
     "documents": ("title", "kind", "url", "date"),        # #74: never its id, place or archive flag
@@ -99,12 +118,12 @@ PUBLISH_FIELDS = {
 SOURCED = ("milestones", "actions", "raid", "decisions")
 # Row 560 (ruled): a client-visible row with no client wording of its own (blank client_message) publishes its title only:
 # the text fields named here are emptied for it, in the web file and the Word copy alike (both read select()'s rows).
-WORDLESS_DROPS = {"actions": ("latest_update",), "milestones": ("description",)}
-RICH = {"projects": ("current_state",), "use_cases": ("standing",), "actions": ("latest_update",), "milestones": ("description", "client_message")}     # HTML the editor wrote: through clean_html
-LEGACY_RICH = (("actions", "latest_update"), ("milestones", "description"), ("milestones", "client_message"))     # row 1005: rich now, plain text before: a stored value that is not HTML is escaped into paragraphs first (sanitise.rich_or_plain); row 1078: + a milestone's client wording
+WORDLESS_DROPS = {"actions": ("latest_update",), "raid": ("latest_update",), "decisions": ("latest_update",), "milestones": ("description", "latest_update")}     # item 1185: a risk, an issue and a milestone follow the action
+RICH = {"projects": ("current_state",), "use_cases": ("standing",), "actions": ("latest_update",), "raid": ("latest_update",), "decisions": ("latest_update",), "milestones": ("description", "client_message", "latest_update")}     # HTML the editor wrote: through clean_html
+LEGACY_RICH = (("actions", "latest_update"), ("raid", "latest_update"), ("decisions", "latest_update"), ("milestones", "description"), ("milestones", "client_message"), ("milestones", "latest_update"))     # row 1005: rich now, plain text before: a stored value that is not HTML is escaped into paragraphs first (sanitise.rich_or_plain); row 1078: + a milestone's client wording
 # Read from the database as well, only to decide (never copied): the gates, and what a milestone's state is worked out from.
 GATES = {"milestones": ("client_visible", "archived", "state", "state_set"), "workstreams": ("archived",),
-         "actions": ("client_visible", "archived", "client_action"), "raid": ("client_visible", "archived", "client_action"),   # row 811: client_action only decides, it is never copied
+         "actions": ("client_visible", "archived"), "raid": ("client_visible", "archived"),   # item 1158: the needs-from-you flag is no longer read here
          "decisions": ("client_visible", "archived"), "use_cases": ("client_visible", "archived"),
          "gantt_lines": ("show", "project"),      # row 926: a line with show 0 is dropped before anything is copied
          "projects": ("show_gantt_client", "gantt_tab_name", "gantt_title", "gantt_hidden_columns", "gantt_default_rows", "brand")}     # row 926: decide whether the Gantt tab is in the file and what it is called; none is copied as a project field
@@ -302,8 +321,10 @@ def _content(s, ctx=None):
     try:
         text = check_section_body(s["type"], s.get("body"))
     except StoreInvalid:
-        return None
-    return section_bodies.published(s["type"], json.loads(text), ctx) if text else None
+        return {} if s["type"] in section_bodies.VIEW_TYPES else None      # row 1234, row 1230: the use case summary and the Milestones section are never left out for its view setting: no setting, or a bad one, is the defaults
+    if not text:
+        return {} if s["type"] in section_bodies.VIEW_TYPES else None
+    return section_bodies.published(s["type"], json.loads(text), ctx)
 
 
 def _keeper(d, code, hidden_ids, blocked):
@@ -386,27 +407,6 @@ def client_use_cases(data, code, hidden_ids=(), label_rules=(), hidden_types=())
         pages.append({"id": u["id"], "next_steps": [a["id"] for a in mine],
                       "milestones": sorted(named & milestone_ids)})
     return pages
-
-
-def flagged_needs(rows):
-    """Row 811b: the rows the 'Needs from you' list gains from work items flagged client_action. `rows` is select's own kept rows
-    (the gates already met: client_visible, not archived, not report-hidden, no Sensitive or exclude label, section not hidden), so
-    this adds no second rule of what a client may see. Only an action or a risk/issue that is flagged AND still open (OPEN_STEPS;
-    a risk or issue is only Open) is listed; a decision never (it has no flag). Actions first, then risks and issues, each in the
-    order select kept them (by id), so the order is the same every time. A row is {what, kind, from, by} as a hand-typed one is:
-    what is the item's client wording (client_message) when set, else its description, which is the item's title and is published as its name in the Work rows already (hidden characters out, cut at 300), kind 'information', from always blank (an owner here is one of our own people; a typed row's From is who at the client owes it, which is not known), by its due date written DD-MM-YYYY."""
-    out = []
-    for k in ("actions", "raid"):
-        for r in rows[k]:
-            if r.get("client_action") != 1 or r.get("status") not in OPEN_STEPS:
-                continue
-            what = next((t for t in (reason_text(" ".join(str(r.get(f) or "").split())).strip() for f in ("client_message", "description")) if t), "")[:section_bodies.NEEDS_WHAT_MAX].strip()
-            if not what:
-                continue
-            due = r.get("due_date")
-            due = f"{due[8:10]}-{due[5:7]}-{due[:4]}" if isinstance(due, str) and re.fullmatch(r"\d{4}-\d\d-\d\d", due) else ""
-            out.append({"what": what, "kind": "information", "from": "", "by": due})
-    return out
 
 
 # ===== The Gantt (row 926): the client's copy of a project's lines =====
@@ -527,7 +527,7 @@ def gantt_for_client(d, code, project_name, for_section=False):
 
 def select(inputs):
     """What goes in the file, from `inputs` (read_inputs' shape: data as Store.data_for gives it, and hidden, sections,
-    label_rules, changes, undone, as_at). Returns {"data", "sections", "tabs", "as_at", "needs_dropped"} (the count of flagged items the 100-row cap left out; build() takes it out and logs it). Everything not allowed is absent,
+    label_rules, changes, undone, as_at). Returns {"data", "sections", "tabs", "as_at"}. Everything not allowed is absent,
     not hidden: dropped rows, fields outside PUBLISH_FIELDS, and what only they reach (links, labels, workstreams)."""
     d, as_at = inputs["data"], inputs["as_at"]
     project = d.get("project") or {}
@@ -545,6 +545,7 @@ def select(inputs):
 
     rows = {k: ([r for r in d.get(k) or () if keep(r, k)] if SECTION_OF_KIND[k] not in hidden_types else [])
             for k in KINDS}
+    kept_work = {k: [r for r in d.get(k) or () if keep(r, k)] for k in WORK_KINDS}      # row 1268: kept even when the built-in section is hidden, for the Work items lists alone (see `named` below)
     ids = {k: {r["id"] for r in rows[k]} for k in KINDS}
     linkable = ids["milestones"] | ids["actions"] | ids["raid"] | ids["decisions"]
 
@@ -553,10 +554,10 @@ def select(inputs):
         if field in c and c[field] not in ids[kind]:
             c[field] = None
 
-    out = {}
+    out, built = {}, {}
     for k in KINDS:
-        out[k] = []
-        for r in rows[k]:
+        built[k] = []
+        for r in (kept_work[k] if k in WORK_KINDS else rows[k]):
             c = _pick(r, PUBLISH_FIELDS[k])
             if k in SOURCED:                                      # row 1077: the source by name, never a path
                 c["source"] = source_name(c.get("source"), published=True) or None
@@ -579,7 +580,8 @@ def select(inputs):
                 c.update(state=state, state_word=milestones.client_word(state), slip_days=milestones.slip_days(r, as_at),
                          original_date=milestones.original_date(mine, r["id"], r.get("baseline_date"),
                                                                 inputs.get("undone") or ()))
-            out[k].append(c)
+            built[k].append(c)
+        out[k] = built[k] if rows[k] or k not in WORK_KINDS else []      # a hidden built-in section carries no row of its own (trimmed to the lists' own rows below)
     used = {str(r.get("workstream")).casefold() for k in ("milestones", "actions", "raid") for r in rows[k] if r.get("workstream")}
     out["workstreams"] = [_pick(w, PUBLISH_FIELDS["workstreams"]) for w in d.get("workstreams") or ()
                           if w.get("archived") == 0 and (str(w.get("name")).casefold() in used or w.get("id") in used)]
@@ -588,7 +590,7 @@ def select(inputs):
     out["labels"] = {i: list(item_labels[i]) for i in sorted(linkable) if item_labels.get(i)}
     proj = _pick(project, PUBLISH_FIELDS["projects"])
     proj["health_reason"] = reason_html(proj["health_reason"])
-    proj["current_state"] = "" if "current" in hidden_types else clean_html(proj["current_state"])
+    proj["current_state"] = (clean_html(proj["current_state"]) or current_state_section_body(sections)) if "current" not in hidden_types else current_state_section_body(sections)      # item 1188: a report whose Current state is a text section carries that body; a built-in current section with an empty column falls back to it
     out["project"] = proj
     out["documents"] = documents(inputs.get("documents"), code, hidden_ids, hidden_types) if any(
         s.get("type") == "docs" and not s.get("hidden") for s in sections) else []          # #74: carried only with a section to draw them
@@ -601,35 +603,36 @@ def select(inputs):
         proj["gantt_default_rows"] = gantt["default_rows"]
     shown = []
     pairs = set()                  # ids that open a row of two whose halves BOTH show: rows are read from every section, then the hidden are left out
-    for_templates = {k: out[k] for k in KINDS}
+    for_templates = {"use_cases": built["use_cases"]}            # the four work and milestone kinds follow, each with its words made plain
     for_templates["actions"] = [{**r, "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") else r
-                                for r in out["actions"]]                      # row 1005: a template (pure) is handed the words of the latest update, as the file's HTML would be markup to it
-    for_templates["milestones"] = [{**r, "client_message": sanitise.rich_plain_text(r.get("client_message"))} if r.get("client_message") else r
-                                   for r in out["milestones"]]                # row 1078: the same for a milestone's client wording
+                                for r in built["actions"]]                      # row 1005: a template (pure) is handed the words of the latest update, as the file's HTML would be markup to it
+    for_templates["raid"] = [{**r, "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") else r
+                             for r in built["raid"]]                            # item 1185: the same for a risk or issue
+    for_templates["decisions"] = [{**r, "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") else r
+                                  for r in built["decisions"]]                  # row 1195: the same for a decision
+    for_templates["milestones"] = [{**r, "client_message": sanitise.rich_plain_text(r.get("client_message")), "latest_update": sanitise.rich_plain_text(r.get("latest_update"))}
+                                   if r.get("client_message") or r.get("latest_update") else r
+                                   for r in built["milestones"]]                # row 1078: the same for a milestone's client wording
     live = {"workstream": frozenset(" ".join(str(w.get("name") or "").split()).lower() for w in d["workstreams"] if not w.get("archived")) if "workstreams" in d else None,
             "use_case": frozenset(u.get("id") for u in d["use_cases"] if not u.get("archived")) if "use_cases" in d else None,
             "gone_owner": frozenset(inputs.get("gone_owners") or ())}      # row 1113: a Work items filter naming what is gone lists nothing
     ctx = section_bodies.Context(for_templates, as_at, live)          # #96: only what is already kept, as the file carries it
-    extra = {s["id"]: _content(s, ctx) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
-    dropped = 0
-    listed = flagged_needs(rows)         # row 811b: the flagged open items, as rows of the 'Needs from you' list; row 1066: only of a section the editor has (none is made for the file)
-    if listed:
-        needs_sections = [x for x in sections if x.get("type") == section_bodies.NEEDS]
-        mine = next((x for x in needs_sections if not x.get("hidden")), None)
-        if mine is not None:
-            typed = list((extra.get(mine["id"]) or {}).get("rows") or [])
-            room = max(0, section_bodies.NEEDS_MAX_ROWS - len(typed))
-            dropped = max(0, len(listed) - room)           # said by build() only, as a count (see the end of select)
-            extra[mine["id"]] = {**(extra.get(mine["id"]) or {}), "rows": typed + listed[:room]}   # typed rows win: the section never holds more than a typed list may
-    out_of_file = lambda x: (x.get("hidden") or x.get("type") not in SECTION_TYPES or (x.get("type") in section_bodies.CHECKERS and extra.get(x["id"]) is None)
+    shown_ctx = section_bodies.Context({**for_templates, **{k: out[k] for k in WORK_KINDS if not rows[k]}}, as_at, live)      # row 1268: a hidden built-in section's rows reach a Work items list alone; every other template sees only what the section left in
+    extra = {s["id"]: _content(s, ctx if s.get("type") == "workitems" else shown_ctx) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
+    named = {i for s in sections if s.get("type") == "workitems" and extra.get(s["id"]) for i in extra[s["id"]].get("items") or ()}
+    for k in WORK_KINDS:
+        if not rows[k]:
+            out[k] = [c for c in built[k] if c.get("id") in named]      # row 1268: a hidden built-in section still lets a list print the rows it names, and no other row of it
+    out_of_file = lambda x: (x.get("hidden") or x.get("type") not in SECTION_TYPES or x.get("type") == section_bodies.NEEDS or (x.get("type") in section_bodies.CHECKERS and extra.get(x["id"]) is None)
                              or (x.get("type") == "docs" and not out["documents"])       # #74: no document to show, no section
                              or (x.get("type") == "gantt" and not gantt)                 # row 926: no Gantt tab in the file, no Gantt section; the lines are data.gantt's, gated in gantt_for_client
                              or (x.get("type") == "gantttable" and not table))           # row 1068: no eye-on line, nothing to draw, no table section (a template section: the tab's switch is not asked)
+    rowed = [x for x in sections if x.get("type") != section_bodies.NEEDS]      # item 1158: the editor drops a stored Needs section before it reads rows, so the sections either side of one pair as they do there
     i = 0
-    while i < len(sections):
-        if sections[i].get("beside") and i + 1 < len(sections):
-            if all(not out_of_file(x) for x in sections[i:i + 2]):
-                pairs.add(sections[i]["id"])
+    while i < len(rowed):
+        if rowed[i].get("beside") and i + 1 < len(rowed):
+            if all(not out_of_file(x) for x in rowed[i:i + 2]):
+                pairs.add(rowed[i]["id"])
             i += 1
         i += 1
     for s in sections:
@@ -653,7 +656,7 @@ def select(inputs):
         tabs.append("usecases")
     if gantt:
         tabs.append("gantt")                  # row 926: only with the client switch on and at least one line with its eye on
-    return {"data": out, "sections": shown, "tabs": tabs, "as_at": as_at, "needs_dropped": dropped}     # row 811b: build() takes needs_dropped out and logs it; no other caller does
+    return {"data": out, "sections": shown, "tabs": tabs, "as_at": as_at}
 
 
 # ===== The file (pure) =====
@@ -1428,9 +1431,6 @@ def build(store, code, now=None, branding=None, section_style=None, number=None,
     if inputs["data"]["project"].get("archived"):           # #126: checked here, not in select (glance.kept_rows calls select and must still work)
         raise PublishError("An archived project can't be published. Restore it first.")
     published = select(inputs)
-    dropped = published.pop("needs_dropped", 0)         # row 811b: only a publish or preview build says so, as a count and nothing else
-    if dropped:
-        LOG.warning("The Needs from you list is full: %d flagged item(s) are left out of the published file.", dropped)
     published = add_glance(published, inputs)
     if workbook:
         from clark import excel_client           # not at the top: openpyxl is loaded only when a workbook is made

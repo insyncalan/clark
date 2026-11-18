@@ -18,8 +18,19 @@ from test_inline_edits import EMPTY_BRANDING, key, need_chrome, tearDownModule  
 from test_server import chrome, wait
 from test_work_items import FIXED_DATE, load_demo, page_target
 
-PAGES = [("usecases", "#usecases&p=TUL", "#usecases .ucl-hd", "ref", "[data-uc]"), ("work", "#work&p=TUL&f=mode:all", "#work table.items", "owner", "#work tbody tr[data-id]"),
-         ("milestones", "#milestones&p=TUL", "#milestones .msl-hd", "state", "#milestones li.msl-row")]      # row 1104: the Milestones list has a heading row too
+PAGES = [("work", "#work&p=TUL&f=mode:all", "#work table.items", "owner", "#work tbody tr[data-id]"),
+         ("milestones", "#milestones&p=TUL", "#milestones .msl-hd", "state", "#milestones li.msl-row"),
+         ("projects", "#settings&p=TUL", "#projects-table", "c2", "#projects-table tbody tr"),
+         ("published", "#published&p=TUL", "#pubs-table", "c1", "#pubs-table tbody tr"),
+         ("people", "#settings&p=TUL&s=people", "#ppTable", "Email", "#ppTable tbody tr")]      # row 1104: the Projects, Published reports and People tables in Settings too (the same hook); the Milestones list has a heading row too; item 1149: the Use cases page has none now
+
+
+class FakePast:
+    """Stands in for past_reports.PastReports: GET /api/publications answers three rows of the shape the real listing gives."""
+    def listing(self, code, archived=False):
+        rows = [{"number": n, "when": f"{n} Nov 2026, 09:00", "where": "Saved on this computer", "who": "tester", "word": False, "kept": False, "week": None, "day": "2026-11-0%d" % n,
+                 "archived": False} for n in (3, 2, 1)]
+        return 200, {"ok": True, "project": code, "total": 3, "shown": 3, "limit": 10, "archived": 0, "publications": rows}
 
 
 class Widths(unittest.TestCase):
@@ -31,6 +42,10 @@ class Widths(unittest.TestCase):
         self.path = self.folder / "clark.db"
         self.s = real_server(self.path, self.read, projects=lambda archived=False: [{"code": "TUL", "name": "Tulip"}], page_html=lambda: page.page_html(EMPTY_BRANDING))
         self.s.httpd.use_cases = use_cases_read.make_read(self.read, lambda code: set(), launcher.use_case_history(mock.Mock(path=self.path)))
+        self.s.httpd.past = FakePast()      # the Published reports list: three publications, no copy kept on disk
+        with self.store.step("dashboard", "tester", place="menu") as step:      # the People table: two people with all four columns filled
+            step.add_person(name="Person One", email="one@example.com", organisation="Client", role="Programme manager", source="test")
+            step.add_person(name="Person Two", email="two@example.com", organisation="Supplier", role="Delivery lead", source="test")
         self.addCleanup(self.s.close)
         quiet = mock.patch.object(sv.LOG, "disabled", True)
         quiet.start()
@@ -71,10 +86,11 @@ class Widths(unittest.TestCase):
         until = lambda e, what: self.assertTrue(wait(lambda: js(e), 20), what)  # noqa: E731
         until(f"document.querySelectorAll({json.dumps(ready)}).length > 0 && !!document.querySelector('{head} [data-cgrip=\"{col}\"]')", "the heading has its handle")
         grip = f"{head} [data-cgrip=\"{col}\"]"
+        js(f"document.querySelector({json.dumps(grip)}).scrollIntoView({{block: 'center'}})")      # the Settings tables are below the first screen
         cell = f"document.querySelector({json.dumps(grip)}).parentElement.getBoundingClientRect().width"
         box = js(f"(() => {{ const b = document.querySelector({json.dumps(grip)}).getBoundingClientRect(); return [b.width, b.height]; }})()")
         self.assertGreaterEqual(box[1], 24, "the hit area is 24 px tall")
-        hidden = name != "work"      # the Use cases and Milestones heading rows is hidden from a screen reader: no focus and no words on it
+        hidden = name == "milestones"      # only the Milestones heading row is hidden from a screen reader: no focus and no words on it; Use cases and Work items have both
         if not hidden:
             self.assertIn("Width of the", js(f"document.querySelector({json.dumps(grip)}).parentElement.getAttribute('aria-description')"))
         first = js(cell)
@@ -113,20 +129,56 @@ class Widths(unittest.TestCase):
         self.assertNotIn(col, js(f"localStorage.getItem('clark.cols.{name}')"))
 
 
+    def test_saved_widths_from_a_wide_window_do_not_crush_the_item_column_at_900(self):
+        for scheme in ("light", "dark"):
+            with self.subTest(scheme=scheme), chrome() as cdp:
+                sid = self.visit(cdp, 900, scheme, "#work&p=TUL&f=mode:all")
+                js = lambda e: cdp.js(e, sid)  # noqa: E731
+                self.assertTrue(wait(lambda: js("document.querySelectorAll('#work tbody tr[data-id]').length > 0"), 20))
+                saved = '{"owner":400,"due":300}'
+                js(f"localStorage.setItem('clark.cols.work', {json.dumps(saved)})")
+                reload_to_new_page_cdp(cdp, sid, "document.querySelectorAll('#work tbody tr[data-id]').length > 0", "the table is back")
+                got = js("""(() => { const t = document.querySelector('#work table.items'), c = t.parentElement, i = document.querySelector('#work table.items th.c-item, #work table.items thead th');
+                    return {scroll: document.documentElement.scrollWidth, inner: innerWidth, table: t.getBoundingClientRect().width, card: c.clientWidth, item: i.getBoundingClientRect().width,
+                            stored: localStorage.getItem('clark.cols.work')}; })()""")
+                self.assertLessEqual(got["scroll"], got["inner"] + 1, "the page does not scroll sideways")
+                self.assertLessEqual(got["table"], got["card"] + 1, "the table fits its card")
+                self.assertGreaterEqual(got["item"], 150, "the Item column keeps room")
+                self.assertEqual(got["stored"], saved, "the saved widths are left as they were")
+
+    def test_saved_widths_that_fit_are_drawn_as_saved_at_1400_and_shrunk_together_at_900(self):
+        saved = '{"owner":400,"due":300}'
+        drawn = {}
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width, "light", "#work&p=TUL&f=mode:all")
+                js = lambda e: cdp.js(e, sid)  # noqa: E731
+                self.assertTrue(wait(lambda: js("document.querySelectorAll('#work tbody tr[data-id]').length > 0"), 20))
+                js(f"localStorage.setItem('clark.cols.work', {json.dumps(saved)})")
+                reload_to_new_page_cdp(cdp, sid, "document.querySelectorAll('#work tbody tr[data-id]').length > 0", "the table is back")
+                drawn[width] = js("""(() => { const w = (c) => document.querySelector('#work table.items col.c-' + c).getBoundingClientRect().width;
+                    return {owner: w('owner'), due: w('due'), item: w('item')}; })()""")
+        self.assertAlmostEqual(drawn[1400]["owner"], 400, delta=1, msg="room enough: the saved owner width is drawn as saved")
+        self.assertAlmostEqual(drawn[1400]["due"], 300, delta=1, msg="room enough: the saved due width is drawn as saved")
+        self.assertLess(drawn[900]["owner"], 400 - 20, "no room: the saved owner width shrinks")
+        self.assertLess(drawn[900]["due"], 300 - 20, "no room: the saved due width shrinks")
+        self.assertGreaterEqual(drawn[900]["item"], 150, "the Item column keeps its room")
+        self.assertAlmostEqual(drawn[900]["owner"] / drawn[900]["due"], 400 / 300, delta=0.1, msg="and they shrink together, in proportion")
+
     def test_a_drag_writes_the_store_once_when_it_ends_and_starts_from_the_latest_width(self):
         src = (Path(page.__file__).parent / "src" / "edit" / "colWidths.jsx").read_text(encoding="utf-8")
         self.assertIn("now.current", src, "put reads the latest widths, not the render a drag began in")
         with chrome() as cdp:
-            sid = self.visit(cdp, 1400, "light", "#usecases&p=TUL")
+            sid = self.visit(cdp, 1400, "light", "#milestones&p=TUL")
             js = lambda e: cdp.js(e, sid)  # noqa: E731
-            grip = "#usecases .ucl-hd [data-cgrip=\"ref\"]"
+            grip = "#milestones .msl-hd [data-cgrip=\"state\"]"
             self.assertTrue(wait(lambda: js(f"!!document.querySelector('{grip}')"), 20))
             x, y = js(f"(() => {{ const b = document.querySelector('{grip}').getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; }})()")
             for t, px, extra in (("mouseMoved", x, {}), ("mousePressed", x, {"button": "left", "buttons": 1, "clickCount": 1}), ("mouseMoved", x + 20, {"buttons": 1}), ("mouseMoved", x + 40, {"buttons": 1})):
                 cdp.call("Input.dispatchMouseEvent", {"type": t, "x": px, "y": y, **extra}, sid)
-            self.assertIsNone(js("localStorage.getItem('clark.cols.usecases')"), "nothing is written while the drag goes on")
+            self.assertIsNone(js("localStorage.getItem('clark.cols.milestones')"), "nothing is written while the drag goes on")
             cdp.call("Input.dispatchMouseEvent", {"type": "mouseReleased", "x": x + 40, "y": y, "button": "left", "buttons": 0, "clickCount": 1}, sid)
-            self.assertIn("ref", js("localStorage.getItem('clark.cols.usecases')") or "", "the width is written when the drag ends")
+            self.assertIn("state", js("localStorage.getItem('clark.cols.milestones')") or "", "the width is written when the drag ends")
 
     def test_the_milestones_heading_lines_up_with_the_rows(self):
         for width in (1400, 900):

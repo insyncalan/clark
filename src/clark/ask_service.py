@@ -16,7 +16,7 @@ stale tab or anything else that can reach the route.
 
 WHAT IS SENT. The question, the chat's earlier turns as the page holds them (they are kept nowhere else), and passages built only
 from what the published file would carry (ask_data.py, through publish.select), and passages from the project's own saved
-folders (ask_passages.py, every file opened again through reach.read_bytes; PDF is not supported yet and is counted). The
+folders (ask_passages.py, every file opened again through reach.read_bytes; a PDF that cannot be read is counted with its reason). The
 folders are read for the open project only. The reply carries how many files were left out for safety.
 
 READ ONLY. The database is only ever opened read-only here (`connect(path, readonly=True)`), so nothing in this module can write
@@ -33,7 +33,7 @@ import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-from clark import ask, ask_apply, ask_data, ask_passages, pdf_link, platform, publish, reach, secret_screen
+from clark import ask, ask_apply, ask_data, ask_passages, pdf_link, pdf_reader, platform, publish, reach, secret_screen
 from clark.store import Store, connect
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -157,7 +157,7 @@ class AskService:
                 if row.get("archived"):
                     return 409, self.fail("project_archived")
                 try:
-                    data = ask_data.project_data(store, code, question, PROJECT_SHARE)
+                    data = ask_data.project_data(store, code, " ".join([question, *ask_data.ids_in_turns(earlier)]), PROJECT_SHARE)
                 except publish.PublishError:
                     return 404, self.fail("project_not_found")
                 folders = [r["path"] for r in store.read("source_folders", code) if r.get("project", code) == code]
@@ -170,7 +170,8 @@ class AskService:
         except Exception:                            # noqa: BLE001 a folder that fails in a way not foreseen sends nothing
             return 200, self.fail("folders_unreadable")
         try:
-            request = ask.build_request(question, tuple(data.passages) + tuple(found.passages), earlier)
+            request = ask.build_request(question, tuple(data.passages) + tuple(found.passages), earlier,
+                                        today=data.today, partial=ask_data.partial_lines(data.counts))
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         facts = data.facts
@@ -181,7 +182,7 @@ class AskService:
         if isinstance(reply, ask.Failure):
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
-                             left_out_note(data.left_out + found.left_out), *folder_notes(found)) if n]
+                             left_out_note(data.left_out + found.left_out), kinds_note(data.kinds_left_out), *folder_notes(found)) if n]
         sent = tuple(data.passages) + tuple(found.passages)      # request.kept maps each passage sent to its place here (some may be left out)
         folder_ids = {pid for (pid, _label), i in zip(request.passages, request.kept) if i >= len(data.passages)}
         texts = {pid: sent[i].text for (pid, _label), i in zip(request.passages, request.kept)}
@@ -336,6 +337,14 @@ def left_out_note(count):
     return ("Some of the report was too long to send in full, so only the parts closest to your question were used.")
 
 
+def kinds_note(kinds):
+    """Row 1213: the plain line for the kinds the report leaves out, so a missing answer is not read as none exist."""
+    if not kinds:
+        return ""
+    names = ", ".join(ask_data.KIND_WORDS[k] for k in kinds)
+    return f"The report leaves out {names}, so they were not part of what was read and the answer may be missing something."
+
+
 def folder_notes(found):
     """Plain lines about the saved folders: what was left out for safety, and the types not read."""
     out = []
@@ -344,7 +353,12 @@ def folder_notes(found):
     for label in getattr(found, "secret_labels", ()):         # #215: the file's label only, never what matched
         out.append(f"{label} {secret_screen.REASON}, so it was left out and the answer may be missing something. {secret_screen.NEXT_STEP}")
     if found.pdf:
-        out.append(f"{found.pdf} PDF {'file was' if found.pdf == 1 else 'files were'} not read: PDF is not supported yet.")
+        reasons = {}
+        for _label, code in found.pdf_reasons:                 # one line for each reason, in the order first met
+            reasons.setdefault(pdf_reader.why(code), []).append(code)
+        out += [pdf_reader.count_note(len(codes), codes[0]) for codes in reasons.values()]
+        if found.pdf > len(found.pdf_reasons):                 # a count with no reason recorded: still said
+            out.append(pdf_reader.count_note(found.pdf - len(found.pdf_reasons), "crash"))
     if found.other:
         out.append(f"{found.other} {'file was' if found.other == 1 else 'files were'} not read because of its type.")
     if found.stopped:

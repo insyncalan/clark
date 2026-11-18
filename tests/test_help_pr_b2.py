@@ -55,7 +55,7 @@ class Commitment(unittest.TestCase):
         self.assertIn("kind: \"use_cases\", op: \"update\"", menu)           # one change (so one Undo and one History line)
         self.assertIn("commitment set to", menu)
         chip = code("components", "CommitChip.jsx")
-        self.assertIn("return w ? <span", chip)                              # nothing is drawn with no flag
+        self.assertTrue("return w ? <span" in chip or "if (w) return <span" in chip)   # a chip only with a flag; with none, nothing or only the View dash
         self.assertIn(": null;", chip)
         self.assertIn("<CommitChip", code("components", "UseCases.jsx"))     # Dashboard rows
         self.assertIn("<ed.Commit", code("components", "UseCases.jsx"))      # the menu only where Edit is
@@ -78,32 +78,31 @@ class Commitment(unittest.TestCase):
 class WeekEnding(unittest.TestCase):
     def test_step_two(self):
         s = TASKS["write-the-weekly-report"]["s"][1]
-        self.assertEqual(s, "Set **Week ending** to the Friday the report covers: type it as DD-MM-YYYY, press [[Enter]] in the box to use the Friday shown (only while no week is kept yet), or press the calendar button beside the box and pick the day. In the calendar, **Friday** takes the next Friday (today, if it is one). Any other day is not accepted.")
+        self.assertEqual(s, "Set **Week ending** to the Friday the report covers: click the date in the header and pick the day in the calendar. **Friday** takes the next Friday (today, if it is one). Any other day is not accepted.")
         self.assertNotIn("write-the-weekly-report", LATER["howto"])
 
     def test_code(self):
-        bar = code("edit", "ReportBar.jsx")
+        bar = code("edit", "HeaderDate.jsx")      # item 1177: the week box and its calendar button became the header date (HeaderDate.jsx)
         self.assertIn('id="week-ending-pick"', bar)
-        self.assertIn('title="Pick a Friday from the calendar"', bar)
-        self.assertIn("quick={friday}", bar)
-        self.assertIn("const friday = [weekEndingQuick(todayIso())]", bar)
+        self.assertIn('title="Click to change date"', bar)
+        self.assertIn("quick={[weekEndingQuick(todayIso())]}", bar)
         self.assertIn('return ["Friday", addDays(today, (5 - wd + 7) % 7)]', code("edit", "itemEdit.js"))   # 0 days on a Friday
         self.assertIn("isFriday", bar)                                          # a picked day goes through the same Friday check
 
 
 class Pencil(unittest.TestCase):
     def test_icons_row(self):
-        row = ["pencil", "Edit", "Switch the Dashboard to Edit. It is on the **Edit** half of the **View** and **Edit** switch at the left of the report bar.", "Dashboard"]
+        row = ["pencil", "Edit", "Switch the Dashboard to Edit. It is on the **Edit** half of the **View** and **Edit** switch, the floating pill just under the header at the right.", "Dashboard"]
         self.assertIn(json.dumps(row, ensure_ascii=False), json.dumps(RAW, ensure_ascii=False))
         self.assertEqual(json.dumps(RAW).count("Switch the Dashboard to Edit"), 1)
         self.assertIn("icons", LATER["reference"], "still held: this PR unholds nothing")
 
     def test_code(self):
-        tg = code("edit", "Toggle.jsx")
-        self.assertIn('{pill ? <svg class="tb-ico"', tg)
+        tg = code("edit", "ModePill.jsx")      # item 1177: the pill is icon-only and floats under the header
+        self.assertIn('<svg class="tb-ico"', tg)
         self.assertIn('M13.5 3.5l3 3L7 16H4v-3z', tg)
-        self.assertIn('aria-label="View or Edit"', tg)
-        self.assertIn("<Toggle pill />", code("edit", "ReportBar.jsx"))
+        self.assertIn('data-mode="edit"', tg)
+        self.assertIn("<ModePill />", code("edit", "ReportBar.jsx"))
 
 
 class Style(unittest.TestCase):

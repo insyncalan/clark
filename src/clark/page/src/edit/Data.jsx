@@ -28,11 +28,11 @@ export function Data() {
           <button type="button" class="btn gb" id="excel-layout" data-excel-layout onClick={(e) => openBox("layout", { opener: e.currentTarget })}><Icon name="doc" />{L.DATA.layout}</button>
         </div>
         <div>
-          <button type="button" class="btn gb" id="word-export" data-word-export disabled={!data.value} aria-describedby={data.value ? undefined : "word-export-why"} onClick={() => openExport()}><Icon name="dl" />{L.DATA.wordExport}</button>
+          <button type="button" class="btn gb" id="word-export" data-word-export disabled={!data.value} aria-describedby={data.value ? undefined : "word-export-why"} onClick={(e) => openExport(e.currentTarget)}><Icon name="dl" />{L.DATA.wordExport}</button>
           {data.value ? null : <p class="muted dc-note" id="word-export-why">{L.IMPORT_NEEDS_PROJECT}</p>}
         </div>
         <div>
-          <button type="button" class="btn gb" id="word-import" data-word-import disabled={!data.value} aria-describedby={data.value ? undefined : "word-import-why"} onClick={() => openImport()}><Icon name="ul" />{L.DATA.wordImport}</button>
+          <button type="button" class="btn gb" id="word-import" data-word-import disabled={!data.value} aria-describedby={data.value ? undefined : "word-import-why"} onClick={(e) => openImport(e.currentTarget)}><Icon name="ul" />{L.DATA.wordImport}</button>
           {data.value ? null : <p class="muted dc-note" id="word-import-why">{L.IMPORT_NEEDS_PROJECT}</p>}
         </div>
       </div>

@@ -16,23 +16,29 @@ ROWS = {r[0]: r[1] for r in SECTION["b"][1][2]}
 PROFILE_TASK = next(t for t in RAW["howto"]["tasks"] if t["id"] == "set-your-profile")
 
 
+CARD_NAMES = {"Essentials": "Essentials", "Profile": "Profile", "ClientFolder": "Publishing", "Personal": "Personal", "ReviewDays": "Freshness", "GanttSetting": "Gantt", "Diagnostics": "Logs and diagnostics",
+              "Projects": "Projects", "Data": "Data", "Safety": "Backups", "Update": "Version and updates", "Brands": "Brands", "People": "People", "AskSettings": "Asking", "Feedback": "Feedback", "Quit": "Quit"}
+
+
 def chips():
-    """The chip name of each card, in the order the page draws them (Views.jsx CARDS), with the cards that bring their own name."""
-    own = {"Update": "Version and updates", "Brands": "Brands", "Quit": "Quit"}
-    block = re.search(r"const CARDS = \[(.*?)\];", VIEWS, re.S).group(1)
-    return [name or own[tool] for tool, name, _ in re.findall(r'\["(\w+)", "([^"]*)", "([\w-]+)"\]', block)]
+    """The name of each card the page draws, as Help names it (Views.jsx GROUPS: row 1024, one page at a time, lists the cards each page holds)."""
+    block = re.search(r"const GROUPS = \[(.*?)\n\];", VIEWS, re.S).group(1)
+    tools = [t for _, _, lst in re.findall(r'\["([\w-]+)", "([^"]+)", \[([^\]]*)\]\]', block) for t in re.findall(r'"(\w+)"', lst)]
+    return [CARD_NAMES[t] for t in tools]
 
 
 class TheSettingsTable(unittest.TestCase):
-    def test_every_card_has_a_row_in_the_order_the_page_draws_them(self):
+    def test_every_card_has_a_row(self):
+        """Every card the page draws has a row in the table, and the table has no row for a card the page does not draw. The table keeps its own order: the page now draws its cards a page at a time."""
         want = chips()
         want.insert(want.index("Asking") + 1, "AI (under Asking)")      # the AI card is drawn straight after Asking and has no link of its own
-        self.assertEqual(list(ROWS), want)
+        self.assertEqual(sorted(ROWS), sorted(want))
+        self.assertEqual(len(ROWS), len(want), "no card has two rows")
 
     def test_the_intro_lists_the_same_cards(self):
         intro = SECTION["b"][0][1]
         listed = intro.split("): ")[1].split(", in the order")[0].replace(", Feedback and Quit", ", Feedback, Quit").split(", ")
-        self.assertEqual(listed, chips())
+        self.assertEqual(sorted(listed), sorted(chips()))
 
     def test_the_data_row_names_the_buttons_of_the_card(self):
         card = (SRC / "logic" / "dataCard.js").read_text(encoding="utf-8")

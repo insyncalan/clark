@@ -169,6 +169,21 @@ class Dropped(Plant):
         self.assertEqual(flags["s-milestones"], 0)
         self.assertEqual(sum(flags.values()), 0)
 
+    def test_a_partner_left_out_of_the_file_leaves_the_first_alone_and_the_next_section_free(self):
+        for kind in ("gantt", "gantttable", "nosuchtype"):                # no Gantt tab, no eye-on line, a type the file does not know: each has nothing to draw
+            def out_partner(plant, kind=kind):
+                by = {x["id"]: x for x in plant["sections"]}
+                at = by["s-milestones"]["sort_order"]
+                for x in plant["sections"]:
+                    x["sort_order"] += 1 if x["sort_order"] > at else 0      # room for the partner straight after milestones
+                plant["sections"].append({"id": "s-out", "type": kind, "title": "Out", "body": "", "beside": 0, "hidden": 0, "sort_order": at + 1})
+                by["s-milestones"]["beside"] = 1                          # milestones beside a section that is not in the file
+            _, pub, text = made(out_partner)
+            flags = {x["id"]: x["beside"] for x in pub["sections"]}
+            self.assertNotIn("s-out", flags, kind)
+            self.assertEqual((flags["s-milestones"], flags["s-notes"], sum(flags.values())), (0, 0, 0), kind)
+            self.assertEqual({x["id"]: x["beside"] for x in block(text)["sections"]}, flags, kind)
+
     def test_hidden_kind_drops_rows_and_tab(self):
         def hide(*types):
             def go(plant):
@@ -1080,7 +1095,9 @@ class RealBrowser(unittest.TestCase):
             self.assertEqual(cdp.js("document.title", sid), self.name)
             self.assertEqual(cdp.js("[...document.querySelectorAll('.tab')].map(t => t.dataset.view).join()", sid),
                              "dashboard,work,milestones,usecases", "four tabs and no Settings")
-            self.assertEqual(cdp.js("document.querySelector('.asat').textContent", sid), "As at 28-10-2026")
+            self.assertEqual(cdp.js("document.querySelectorAll('.top button.asat').length", sid), 1, "row 1178: the bar has the one date button (the old chip is gone)")
+            cdp.js("document.querySelector('#client-menu-btn').click()", sid)
+            self.assertIn("As at 28-10-2026", cdp.js("document.querySelector('#client-menu').textContent", sid), "the publish date is in the profile menu")
             for view, h1 in (("work", "Work items"), ("milestones", "Milestones"), ("dashboard", self.name)):
                 cdp.js(f"document.querySelector('[data-view={view}]').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1').textContent", sid) == h1), view)
@@ -1162,13 +1179,14 @@ class RealBrowser(unittest.TestCase):
         with chrome() as cdp:
             sid = self.draw(cdp)
             # The milestone block (.msv) holds buttons that only change how the view is drawn: the Timeline / Calendar switch, zoom,
-            # Today, the arrows, the scale, a quarter's month heading, Legend, "Show all" and Reset. Only these are allowed in a file;
+            # Today, the arrows, the scale, a quarter's month heading, Legend, "Show all", Reset and the Hide/Show details fold (row 1114). Only these are allowed in a file;
+            # a timeline mark and its label (.mv-mk, .mv-lab, and the tiered header's .mv-lab2) open the file's read only peek (row 1114), which edits nothing;
             # any other button there (an eye, Export, Hold) is an Edit control and fails, as does every button outside the block.
             # The reader's badge (.cm-wrap, issue 713) is the one other button: it changes only how the page looks for them (their own Light / Dark choice).
-            allow = "[data-msvb], [data-mv], [data-cal], [data-scale-b], [data-goto], [data-msall], [data-zreset], .mlg-b"
+            allow = "[data-msvb], [data-mv], [data-cal], [data-scale-b], [data-goto], [data-msall], [data-zreset], .mlg-b, .mv-mk, .mv-lab, .mv-lab2, [data-msdet]"
             found = cdp.js("({fields: document.querySelectorAll('input, textarea, select, form, [contenteditable]').length, "
                            "design: document.designMode, editable: document.body.isContentEditable, "
-                           "buttons: [...document.querySelectorAll('button')].filter(b => !b.classList.contains('tab') && !b.closest('.msv') && !b.closest('.toc') && !b.closest('.cm-wrap') && !b.closest('.glance')).length, "
+                           "buttons: [...document.querySelectorAll('button')].filter(b => !b.classList.contains('tab') && !b.classList.contains('asat') && !b.closest('.msv') && !b.closest('.toc') && !b.closest('.cm-wrap') && !b.closest('.glance')).length, "
                            f"unlisted: [...document.querySelectorAll('.msv button')].filter(b => !b.matches({json.dumps(allow)})).map(b => b.className + ' ' + b.textContent).length, "
                            "settings: !!document.querySelector('[data-view=settings]'), mode: document.documentElement.dataset.mode})", sid)
             logo = cdp.js("(function(){ var l = document.querySelector('.top .logo'); return l ? l.tagName : null; })()", sid)

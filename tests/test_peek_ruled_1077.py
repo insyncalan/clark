@@ -10,6 +10,7 @@ Run: python3 dev/run_tests.py test_peek_ruled_1077
 The source and the built pages are read first (no browser); then the page in headless Chrome at 1400 and 900 px.
 """
 import json
+import time
 import tempfile
 import unittest
 from pathlib import Path
@@ -29,12 +30,14 @@ import test_publish as tp  # noqa: E402
 SRC = ROOT / "src" / "clark" / "page" / "src"
 LABEL = "Ask clark to update for you"
 OLD_LABEL = "Change an item with words"
-EDIT_ONLY_ROWS = ("Shown to client", "Client wording")            # the two rows that are controls, not fields: the editor's alone
+EDIT_ONLY_ROWS = ("Client wording",)                              # the row that is a control, not a field: the editor's alone (row 1180: Client visible is one clickable line with no label)
+FILE_ONLY_ROWS = ("Client wording", "Latest update")                # row 1111: a published peek adds these two, as text, when the file carries them
 HISTORY_ROWS = ("Last reviewed",)                                  # worked out from the item's history on the live page; a published file carries no history
 CONTROLS = "button, input, textarea, select, [contenteditable], [role=textbox], [role=combobox]"
 ACTION, MILESTONE = "TUL-A-001", "TUL-M-002"
-CELLS = "(() => { const out = {}; for (const k of ['status', 'priority', 'owner', 'due']) { const e = document.querySelector('#peek .pk-fields > [data-row=' + k + ']'); if (!e) continue; const c = getComputedStyle(e); out[k] = [c.borderTopWidth, c.borderLeftWidth, c.borderTopLeftRadius, c.backgroundColor, c.boxShadow]; } return out; })()"
-FLAT = ["0px", "0px", "0px", "rgba(0, 0, 0, 0)", "none"]          # border, border, radius, fill, shadow
+RISK = "TUL-007"     # item 1181: an action keeps only Workstream, Milestone and Raised in Details (ticket, Details rows), so the field-rows test reads a risk
+CELLS = "(() => { const out = {}; for (const k of ['status', 'priority', 'owner', 'due']) { const e = document.querySelector('#peek .pk-chips > [data-row=' + k + ']'); if (!e) continue; const c = getComputedStyle(e); out[k] = c.boxShadow; } return out; })()"
+FLAT = "none"                                                     # row 1180: the chips are a flat row (an outlined pill each, no shadow, no tile round the row)
 SECTIONS = "(() => { const out = {}; for (const s of ['.pk-bar', '.pk-title', '.pk-fields', '.pk-latest', '.pk-tabs', '.pk-source', '.pk-last']) { const e = document.querySelector('#peek ' + s); if (e) out[s] = getComputedStyle(e).boxShadow; } return out; })()"   # the peek's sections draw no shadow (only the panel itself does)
 PROBE = "((name) => { const e = document.createElement('i'); e.style.cssText = 'border:1px solid var(' + name + ')'; document.body.appendChild(e); const c = getComputedStyle(e).borderTopColor; e.remove(); return c; })"
 
@@ -45,19 +48,40 @@ def code_files():
 
 class Source(unittest.TestCase):
     def test_the_draft_chip_and_its_helper_are_gone(self):
-        """Ruling 1: no Draft on any peek. The pill, its hook, its CSS and the helper that wrote its words are gone from the source and the page."""
+        """Ruling 1 (lifted for one control by row 1179, 14-11): the old Draft pill, its hook, its CSS and the helper that wrote its words stay gone
+        from the source and the page. The one thing that came back is the "Draft with AI" button (checked in the next test)."""
+        import re
         latest = (SRC / "edit" / "PeekLatest.jsx").read_text(encoding="utf-8")
         helper = (SRC / "edit" / "peekLatest.js").read_text(encoding="utf-8")
-        for marker in ("draftFor", "pk-draft", "Draft", 'place: "draft"', "drafted"):
+        milestone = (SRC / "edit" / "MilestonePeek.jsx").read_text(encoding="utf-8")
+        for marker in ("draftFor", "pk-draft", 'place: "draft"', "drafted"):
             self.assertNotIn(marker, latest, marker)
+        for name, text in (("PeekLatest", latest), ("MilestonePeek", milestone)):
+            self.assertEqual(re.findall(r"Draft(?! with AI|Button|Panel|Ai)", text), [], f"the word Draft is in {name} only as 'Draft with AI' and the names of its own component and file")
         self.assertNotIn("draftFor", helper)
-        self.assertNotIn("Draft", (SRC / "edit" / "MilestonePeek.jsx").read_text(encoding="utf-8"), "the milestone peek has none either")
-        self.assertNotIn("pk-draft", (SRC / "edit" / "edit.css").read_text(encoding="utf-8"))
+        self.assertNotIn("pk-draft", (SRC / "edit" / "edit.css").read_text(encoding="utf-8"))      # the toolbar's Draft email button (row 1180) keeps the hook data-pk-draft and the id pk-draft, not the class
         for f in code_files():
             self.assertNotIn("draftFor", f.read_text(encoding="utf-8"), str(f))
         built = page.PAGE.read_text(encoding="utf-8")
-        for marker in ("pk-draft", "draftFor", "Latest update drafted"):
+        for marker in ("draftFor", "Latest update drafted", 'class:"pk-draft', ".pk-draft"):
             self.assertNotIn(marker, built, marker)
+
+    def test_the_draft_with_ai_button_is_the_one_allowed_draft(self):
+        """Row 1179 (ruling 1 lifted 14-11 for this button): a quiet text button with a sparkle, the ticket's words, beside Latest update on every peek,
+        opening the AI menu of the place "current" and then AiCard; its rule is in edit.css (24 px target) and the button is not in the published page."""
+        shared = (SRC / "edit" / "DraftAi.jsx").read_text(encoding="utf-8")
+        self.assertIn('export const DRAFT_WITH_AI = "Draft with AI"', shared)
+        self.assertIn("aria-label={DRAFT_WITH_AI}", shared)
+        self.assertIn('<Icon name="sparkle"', shared)
+        self.assertIn("<AiCard", shared)
+        self.assertIn("<DraftButton", (SRC / "edit" / "PeekLatest.jsx").read_text(encoding="utf-8"), "the one box (LatestBox) every peek draws, the milestone's too since row 1184")
+        self.assertIn("<LatestBox", (SRC / "edit" / "MilestonePeek.jsx").read_text(encoding="utf-8"), "the milestone peek's Latest update is that box")
+        css = (SRC / "edit" / "edit.css").read_text(encoding="utf-8")
+        self.assertIn(".pk-ai {", css)
+        self.assertIn("min-height: 24px", css.split(".pk-ai {", 1)[1].split("}", 1)[0])
+        self.assertNotIn(".pk-ai {", page.VIEW_PAGE.read_text(encoding="utf-8"))
+        self.assertIn("Draft with AI", page.PAGE.read_text(encoding="utf-8"))
+        self.assertNotIn("Draft with AI", page.VIEW_PAGE.read_text(encoding="utf-8"), "Edit only")
 
     def test_the_words_box_is_headed_ask_clark_to_update_for_you(self):
         """Ruling 3: the heading and the section's label are the new words, and the old words are in no code (Help keeps its topic title)."""
@@ -177,18 +201,18 @@ class Peeks(unittest.TestCase):
         self.assertEqual(found, [], f"a client's fields are read only ({where})")
 
     def no_draft(self, cdp, sid, where):
-        self.assertFalse(cdp.js("!!document.querySelector('#peek [data-pk-draft], #peek .pk-draft')", sid), where)
+        self.assertFalse(cdp.js("!!document.querySelector('#peek .pk-draft')", sid), where)
         self.assertEqual(cdp.js("[...document.querySelectorAll('#peek button, #peek .pk-chip, #peek .tag')].map(e => e.textContent.trim()).filter(t => t === 'Draft')", sid), [], where)
 
 
 
 class Browser(Peeks):
     def test_the_client_work_item_peek_is_the_editors_read_only_with_source(self):
-        """Rulings 1, 2 and 4 on the live Dashboard: View shows the fields read only, with Source; Edit shows the same rows plus its two control rows."""
+        """Rulings 1, 2 and 4 on the live Dashboard: View shows the fields read only, with Source; Edit shows the same rows plus its one control row."""
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.dashboard_in_view(cdp, width, self.store, self.code)
-                self.open_peek(cdp, sid, ACTION, "item")
+                self.open_peek(cdp, sid, RISK, "item")
                 self.assertTrue(wait(lambda: cdp.js("(s => !!s && s.textContent.startsWith('Source: ') && s.textContent.length > 8)(document.querySelector('#peek [data-pk-source]'))", sid)),
                                 "a client sees where the item came from on the live Dashboard in View: " + str(cdp.js("(s => s && s.textContent)(document.querySelector('#peek [data-pk-source]'))", sid)))
                 self.assertEqual(cdp.js("document.querySelector('#peek [data-pk-source] .pk-source-l').textContent", sid), "Source")
@@ -197,16 +221,17 @@ class Browser(Peeks):
                 for sel in (".pk-tabs", "[data-sneak]", "[data-pk-latest]", "[data-pk-title-in]", "[data-pk-needed]"):
                     self.assertFalse(cdp.js(f"!!document.querySelector('#peek {sel}')", sid), f"{sel} is the editor's alone")
                 client = self.labels(cdp, sid)
-                self.assertTrue(len(client) >= 6, client)
+                self.assertTrue(len(client) >= 4, client)      # rows 1181 and 1256: Status, Owner, Due and Priority are chips, not rows; a risk keeps Workstream, Milestone, Use case and Raised (no Client wording or Last reviewed)
                 self.to_edit(cdp, sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-tabs')", sid)), "Edit: the tabs are drawn")
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-source]')", sid)), "Edit keeps Source")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-htab=source]')", sid)), "Edit keeps Source (row 1180: it is the Source tab of the history)")
                 self.assertTrue(cdp.js(f"document.querySelector('#peek .pk-fields').querySelectorAll({json.dumps(CONTROLS)}).length > 0", sid), "the editor's fields are controls")
                 editor = self.labels(cdp, sid)
                 self.assertEqual(client, [l for l in editor if l not in EDIT_ONLY_ROWS], "the client's rows are the editor's, in the editor's order")
-                self.assertEqual(sorted(set(editor) - set(client)), sorted(EDIT_ONLY_ROWS), "the editor adds its two control rows and nothing else")
+                self.assertEqual(sorted(set(editor) - set(client)), [], "row 1256: the editor's one control row is the Client visible line, which has no label, so it adds no labelled row")
                 self.no_draft(cdp, sid, "Edit")
-                self.assertTrue(cdp.js("!!document.querySelector('#peek [data-pk-latest] [data-rich=latest_update]')", sid), "the Latest update stays, without its Draft")
+                self.open_peek(cdp, sid, ACTION, "item")      # the Latest update is an action's alone
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-latest] [data-rich=latest_update]')", sid)), "the Latest update stays, without its Draft")
 
     def test_the_client_milestone_peek_is_read_only_and_no_peek_has_a_draft(self):
         for width in (1400, 900):
@@ -252,7 +277,7 @@ class Browser(Peeks):
                 self.to_edit(cdp, sid)
                 self.open_peek(cdp, sid, "PUB-A-001", "item")
                 editor = self.labels(cdp, sid)
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-source]')", sid)), "the editor has Source")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-htab=source]')", sid)), "the editor has Source (the history's Source tab, row 1180)")
             with self.subTest(width=width, where="file"), chrome() as cdp:
                 path = folder / "report.html"
                 path.write_text(text, encoding="utf-8")
@@ -264,14 +289,14 @@ class Browser(Peeks):
                 self.no_draft(cdp, sid, "published file")
                 for theme in ("light", "dark"):
                     cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
-                    cells = cdp.js(CELLS, sid)
-                    self.assertEqual(sorted(cells), ["due", "owner", "priority", "status"])
-                    self.assertEqual(set(map(tuple, cells.values())), {tuple(FLAT)}, f"the published cells are flat too, {theme} (ruling of 10-11): " + str(cells))
+                    # item 1181: an action has a chip row (item 1180 frame), not the four property cells: the flat-cell check is dropped
                     shadows = cdp.js(SECTIONS, sid)
                     self.assertTrue(shadows and set(shadows.values()) == {"none"}, f"no shadow on a published peek's sections, {theme}: " + str(shadows))
-                published = self.labels(cdp, sid)
+                shown = self.labels(cdp, sid)
+                self.assertTrue(set(FILE_ONLY_ROWS) <= set(shown), "row 1111: a published peek draws the client wording and latest update the file carries, read only")
+                published = [l for l in shown if l not in FILE_ONLY_ROWS]
                 self.assertEqual(published, [l for l in editor if l not in EDIT_ONLY_ROWS + HISTORY_ROWS], "the published rows are the editor's, read only")
-                self.assertEqual(sorted(set(editor) - set(published)), sorted(EDIT_ONLY_ROWS + HISTORY_ROWS))
+                self.assertEqual(sorted(set(editor) - set(published)), [], "item 1181: an action's Details has no Client wording, Last reviewed or Shown to client row, so the editor adds none")
                 self.assertIn("Raised", published, "the date raised is published, so its row stays")
                 # the milestone peek in the same file: fields only, nothing to press
                 cdp.js("location.hash = '#dashboard&p=PUB&ms=PUB-M-001'", sid)
@@ -318,17 +343,15 @@ class Flat(Peeks):
                 sid = self.work(cdp, width)
                 for theme in ("light", "dark"):
                     cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
-                    cells = cdp.js(CELLS, sid)
-                    self.assertEqual(sorted(cells), ["due", "owner", "priority", "status"])
-                    self.assertEqual(set(map(tuple, cells.values())), {tuple(FLAT)}, f"{theme}: " + str(cells))
+                    # item 1181: an action has a chip row (item 1180 frame), not the four property cells, so the flat-cell check is dropped here
                     shadows = cdp.js(SECTIONS, sid)
                     self.assertTrue(shadows and set(shadows.values()) == {"none"}, f"no shadow on the editor's peek sections, {theme}: " + str(shadows))
                 cdp.js("document.documentElement.dataset.theme = 'light'", sid)
                 # the Activity tab (not selected): a keyboard focus draws an underline in the focus colour and no outline box
                 cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Shift", "code": "ShiftLeft", "windowsVirtualKeyCode": 16}, sid)
                 cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "Shift", "code": "ShiftLeft", "windowsVirtualKeyCode": 16}, sid)
-                cdp.js("document.querySelector('#peek [data-pk-tab=activity]').focus()", sid)
-                self.assertTrue(wait(lambda: cdp.js("document.activeElement.dataset.pkTab", sid) == "activity"))
+                cdp.js("document.querySelector('#peek [data-pk-htab=activity]').focus()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement.dataset.pkHtab", sid) == "activity"))
                 got = cdp.js("(() => { const e = document.activeElement, c = getComputedStyle(e); return [e.matches(':focus-visible'), c.outlineStyle, c.borderBottomWidth, c.borderBottomColor]; })()", sid)
                 self.assertTrue(got[0], "the focus came from the keyboard: " + str(got))
                 self.assertEqual(got[1], "none", "no box round the tab: " + str(got))
@@ -343,12 +366,29 @@ class Flat(Peeks):
                 look = f"(() => {{ const c = getComputedStyle(document.querySelector({json.dumps(sel)})); return [c.outlineStyle, c.outlineWidth, c.borderTopWidth, c.backgroundColor]; }})()"
                 rest = cdp.js(look, sid)
                 self.assertEqual((rest[0], rest[2], rest[3]), ("none", "0px", "rgba(0, 0, 0, 0)"), "at rest, plain text: " + str(rest))
-                x, y = cdp.js(f"(() => {{ const r = document.querySelector({json.dumps(sel)}).getBoundingClientRect(); return [r.left + 20, r.top + r.height / 2]; }})()", sid)
-                cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, sid)
-                self.assertTrue(wait(lambda: cdp.js(f"document.querySelector({json.dumps(sel)}).matches(':hover')", sid)), "the pointer is over it")
+                el = f"document.querySelector({json.dumps(sel)})"
+                cdp.js(f"{el}.scrollIntoView({{block: 'center'}})", sid)      # the point below must be on screen
+                box = f"(() => {{ const r = {el}.getBoundingClientRect(); return [r.left, r.top, r.width, r.height, innerHeight]; }})()"
+
+                def settled():
+                    """True once the box has not moved for 300 ms and is wholly on screen: on a Mac the page above the Latest update may still be growing (the gate run showed the box 31.5 px lower than where it was measured, at both widths)."""
+                    first = cdp.js(box, sid)
+                    time.sleep(0.3)
+                    last = cdp.js(box, sid)
+                    return first == last and last[1] >= 0 and last[1] + last[3] <= last[4]
+                self.assertTrue(wait(settled, 20), "the Latest update is on screen and still: " + str(cdp.js(box, sid)))
+                over, tries = False, []
+                for _ in range(3):      # the point is taken from the box as it is now, and again if the page moved under the pointer
+                    x, y = cdp.js(f"(() => {{ const r = {el}.getBoundingClientRect(); return [r.left + 20, r.top + r.height / 2]; }})()", sid)
+                    cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, sid)
+                    over = wait(lambda: cdp.js(f"{el}.matches(':hover')", sid), 4)
+                    if over:
+                        break
+                    tries.append(cdp.js(f"(() => {{ const e = document.elementFromPoint({x}, {y}), r = {el}.getBoundingClientRect(); return {{point: [{x}, {y}], inner: [innerWidth, innerHeight], rect: [r.left, r.top, r.width, r.height], at: e ? e.tagName + '.' + e.className + '#' + e.id : null}}; }})()", sid))
+                self.assertTrue(over, "the pointer is over it | " + json.dumps(tries))
                 hover = cdp.js(look, sid)
                 self.assertEqual((hover[0], hover[2]), ("none", "0px"), "under the pointer, no box: " + str(hover))
-                self.assertEqual(hover[3], cdp.js(f"{PROBE}('--grey-50')", sid), "a quiet tint says it can be edited: " + str(hover))
+                self.assertEqual(hover[3], "rgba(0, 0, 0, 0)", "row 1257: the card around the text is what says it can be edited, the text takes no tint of its own: " + str(hover))
 
     def test_the_words_box_placeholder_reads_at_4_5_to_1_in_light_and_dark(self):
         """The browser's default placeholder colour was 3.14:1 in dark: the input's placeholder uses the muted text token."""
@@ -373,7 +413,7 @@ class Flat(Peeks):
     def test_the_words_box_is_a_foot_band_pinned_to_the_bottom_while_the_body_scrolls(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
-                sid = self.work(cdp, width, height=560)                      # a short window: the peek's body is taller than the peek
+                sid = self.work(cdp, width, height=700)                      # a short window: the peek's body is taller than the peek (row 1258: 700, not 560: the card is 32 px shorter than the old flush peek, and at 900 px a 560 px window left it 397 px high, too short for the 118 px foot band to leave its place in the body and pin)
                 self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)))
                 for _ in range(2):
                     cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "/", "code": "Slash", "text": "/", "windowsVirtualKeyCode": 191}, sid)

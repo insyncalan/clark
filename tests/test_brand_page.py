@@ -12,9 +12,11 @@ back, and .pub-msg for the one sentence the server last said. Sentences come fro
 drawn as text, never changed.
 """
 import re
+import sys
 import unittest
 
 import test_update_page as up
+from test_server import wait
 from _paths import ROOT
 from test_update_page import InBrowser, OK, lit
 
@@ -125,6 +127,30 @@ class Page(InBrowser):
         self.assertEqual(self.text(".pub-msg"), "")
         self.assertFalse(self.present(".pub-msg [data-dismiss]"))
 
+    def enter_on(self, selector):
+        """A real Enter on the button: it is focused first, and the key carries its character, as a keyboard does."""
+        self.js(f"document.querySelector({lit(selector)}).focus()")
+        for kind in ("keyDown", "keyUp"):
+            self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13,
+                                                      **({"text": "\r"} if kind == "keyDown" else {})}, self.sid)
+        self.settle()
+
+    def test_dismiss_and_install_keep_the_keyboard_focus_in_the_brands_part(self):
+        for width in up.WIDTHS:
+            with self.subTest(width=width):
+                self.load(width=width)
+                self.replies(list=OK(LIST), review=OK(REFUSAL, 409))
+                self.mount()
+                self.enter_on("[data-review]")
+                self.assertTrue(self.present(".pub-msg [data-dismiss]"))
+                self.enter_on(".pub-msg [data-dismiss]")
+                self.assertFalse(self.present(".pub-msg [data-dismiss]"))
+                self.assertTrue(self.val("document.activeElement.hasAttribute('data-review')"), "Dismiss gives the focus back to Review")
+                self.replies(list=OK(LIST), review=OK({"ok": True, "review": REVIEW}), install=OK({"ok": True}))
+                self.enter_on("[data-review]")
+                self.enter_on("[data-install]")
+                self.assertTrue(self.val("!!document.activeElement.closest('#brands')"), "after Install the focus is still in the brands part")
+
     def test_a_calm_line_has_no_dismiss_button(self):
         self.replies(review=OK({"ok": True, "review": None}))
         self.mount()
@@ -180,6 +206,15 @@ class Page(InBrowser):
                     self.assertFalse(self.present("#brands-panel"), "the panel closed")
                     self.assertEqual(self.focused(), f"button[{opener}]", "the focus is back on the button that opened the panel")
 
+    def test_a_refused_or_empty_review_hands_the_focus_back_to_the_button_pressed(self):
+        for what, reply in (("refused", OK(REFUSAL, 409)), ("empty", OK({"ok": True, "review": None}))):
+            with self.subTest(what=what):
+                self.mount()
+                self.replies(review=reply)
+                self.js("document.querySelector('[data-review]').focus()")
+                self.click("[data-review]")
+                self.assertEqual(self.focused(), "button[data-review]", "the focus is back on Review")
+
     def test_undo_is_one_click(self):
         self.replies(list=OK({**LIST, "undo": True}))
         self.mount()
@@ -216,6 +251,238 @@ class Page(InBrowser):
         self.click("[data-review]")
         self.assertFalse(self.val("!!window.pwned"))
         self.assertFalse(self.present("#brands img"))
+
+    def pick(self, saved, project=True):
+        self.js("T.project = %s" % ("{brand: %s}" % lit(saved) if project else "undefined"))
+        self.mount()
+
+    def test_the_project_picker_lists_generic_and_the_added_brands_and_saves_a_choice_at_once(self):
+        self.pick("generic")
+        self.assertEqual(self.val("[...document.querySelectorAll('#brand-pick option')].map(o => [o.value, o.textContent])"),
+                         [["generic", "Generic"], ["example-brand", "Example Brand"]])
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic")
+        self.assertEqual(self.text("[data-brand-gone]"), "")
+        self.assertFalse(self.present("[data-brand-save]"), "no Save button (row 1115 S5)")
+        self.choose("example-brand")
+        self.assertTrue(wait(lambda: self.val("T.calls.filter(c => c[0] === 'pick').length") >= 1), "the first save to be recorded")
+        self.assertEqual(self.val("T.calls.filter(c => c[0] === 'pick')"), [["pick", ["example-brand", "Example Brand"]]])
+
+    def focus_pick(self):
+        # Row 1249: the brands come from the fake list call and the page draws them a debounce later (T.slowRender: 100 ms), so a fixed settle() after
+        # mount can end before the select has its second option; an arrow then moves nothing and no save is ever recorded. Wait for what is drawn.
+        self.assertTrue(wait(lambda: self.val("(document.querySelector('#brand-pick') || {options: []}).options.length") >= 2), "the picker to be drawn with its brands")
+        self.js("document.querySelector('#brand-pick').focus()")
+
+    def step(self, key, vk):
+        """One arrow key on the focused picker. Item 1850: on a Mac, Chrome opens the select's own list on an arrow key and moves nothing
+        (it asks the theme: PopsMenuByArrowKeys), so a real key there sends no change. Elsewhere the key moves the choice by one and
+        fires input and change; on a Mac the test does what the key does elsewhere, so the page's change handling is what is checked."""
+        if sys.platform != "darwin":
+            return self.press(key, vk)
+        self.js("(function () { const s = document.querySelector('#brand-pick'); const i = Math.max(0, Math.min(s.options.length - 1, s.selectedIndex + %d)); "
+                "if (i === s.selectedIndex) return; s.selectedIndex = i; s.dispatchEvent(new Event('input', {bubbles: true})); "
+                "s.dispatchEvent(new Event('change', {bubbles: true})); })()" % (1 if key == "ArrowDown" else -1))
+        self.settle()
+
+    def test_an_arrow_saves_that_one_step_and_the_same_choice_saves_nothing(self):
+        self.pick("generic")
+        self.focus_pick()
+        self.step("ArrowDown", 40)
+        self.assertTrue(wait(lambda: self.val("T.calls.filter(c => c[0] === 'pick').length") >= 1), "the first save to be recorded")
+        self.assertEqual(self.val("T.calls.filter(c => c[0] === 'pick')"), [["pick", ["example-brand", "Example Brand"]]])
+        self.js("const s = document.querySelector('#brand-pick'); s.dispatchEvent(new Event('change', {bubbles: true}))")
+        self.settle()
+        self.assertEqual(self.val("T.calls.filter(c => c[0] === 'pick').length"), 1, "a change to the brand already saved sends nothing")
+
+    def choose(self, brand):
+        self.js("(function () { const s = document.querySelector('#brand-pick'); s.value = %s; s.dispatchEvent(new Event('change', {bubbles: true})); })()" % lit(brand))
+
+    def held(self):
+        """The picker on Generic, saves kept, and each save held until T.release(): the choice is on its way."""
+        self.js("T.keep = true; T.hold = true; T.slowRender = true")
+        self.pick("generic")
+        # The brands come from the fake list call and the page draws them a debounce later (T.slowRender: 100 ms): a choice made before the select
+        # has its second option sets no value and no save is ever recorded (slow macOS runner). Wait for what is drawn.
+        self.assertTrue(wait(lambda: self.val("(document.querySelector('#brand-pick') || {options: []}).options.length") >= 2), "the picker to be drawn with its brands")
+
+    def picks(self):
+        return self.val("T.calls.filter(c => c[0] === 'pick').map(c => c[1][0])")
+
+    def release_and_settle(self):
+        self.js("T.hold = false; T.release()")
+        self.settle()
+
+    def test_the_same_choice_again_while_it_is_saving_sends_nothing_more(self):
+        self.held()
+        self.choose("example-brand")
+        self.choose("example-brand")
+        self.assertTrue(wait(lambda: self.val("T.calls.filter(c => c[0] === 'pick').length") >= 1), "the first save to be recorded")
+        self.settle()
+        self.assertEqual(self.picks(), ["example-brand"], "one save is on its way; the same choice again sends nothing more")
+
+    def test_going_back_to_the_first_brand_while_the_second_saves_ends_on_the_first(self):       # A, B, A
+        self.held()
+        self.choose("example-brand")
+        self.choose("generic")
+        self.assertTrue(wait(lambda: self.val("T.calls.some(c => c[0] === 'pick')")), "the first save to be recorded")      # item 1236: a fixed settle() was too short on a slow Mac, which had not recorded it yet
+        self.assertEqual(self.picks(), ["example-brand"], "the second choice waits for the first save")
+        self.release_and_settle()
+        self.assertTrue(wait(lambda: self.val("T.calls.filter(c => c[0] === 'pick').length") >= 2), "the second save to be recorded")
+        self.assertTrue(wait(lambda: self.val("T.saved()") == "generic"), "the second save to end")
+        self.assertEqual(self.picks(), ["example-brand", "generic"], "the brand is put back, not taken as already saved")
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic")
+        self.assertEqual(self.val("T.saved()"), "generic")
+
+    def test_a_save_that_throws_puts_the_select_back_on_the_saved_brand_and_a_later_choice_still_saves(self):
+        self.held()
+        self.js("T.failNext = true")
+        self.choose("example-brand")
+        self.settle()                           # the page draws the choice, then the save breaks
+        self.release_and_settle()
+        self.assertEqual(self.val("T.saved()"), "generic", "nothing was saved")
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic", "the select does not show a brand that was not saved")
+        self.choose("example-brand")
+        self.settle()
+        self.release_and_settle()
+        self.assertEqual(self.val("T.saved()"), "example-brand", "the next choice is not stuck behind the broken save")
+
+    def test_the_select_keeps_the_waiting_choice_while_its_save_is_on_its_way(self):       # A, B, A: no flash of B after the first save
+        self.held()
+        self.choose("example-brand")
+        self.choose("generic")
+        self.assertTrue(wait(lambda: self.val("T.releases.length") >= 1), "the first save to be on its way")      # item 1850: a slow Mac had not started it yet, and release() then freed nothing
+        self.js("T.release()")                  # the first save ends; the waiting choice's save is held too (T.hold stays on)
+        self.settle()
+        self.assertEqual(self.val("T.saved()"), "example-brand", "the second save has not ended")
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic", "the select shows the choice that is waiting, not the brand just saved")
+        self.release_and_settle()
+        self.assertEqual(self.val("T.saved()"), "generic")
+
+    def test_arrows_down_then_up_while_the_save_is_held_end_on_the_first_brand(self):
+        self.held()
+        self.focus_pick()
+        self.step("ArrowDown", 40)
+        self.step("ArrowUp", 38)
+        self.assertTrue(wait(lambda: self.val("T.calls.filter(c => c[0] === 'pick').length") >= 1), "the first save to be recorded")
+        self.release_and_settle()
+        self.assertTrue(wait(lambda: self.val("T.calls.filter(c => c[0] === 'pick').length") >= 2), "the second save to be recorded")
+        self.assertEqual(self.picks(), ["example-brand", "generic"])
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic")
+
+    def test_a_refused_save_puts_the_select_back_on_the_saved_brand(self):
+        self.pick("generic")      # the fake save changes nothing, as a refused change would
+        self.focus_pick()
+        self.step("ArrowDown", 40)
+        self.settle()
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic")
+
+    def test_undo_of_a_brand_change_puts_the_select_back_on_the_earlier_brand(self):
+        self.js("T.keep = true")
+        self.pick("generic")
+        self.focus_pick()
+        self.step("ArrowDown", 40)
+        self.settle()
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "example-brand", "the kept choice is shown")
+        self.js("T.undoPick('generic')")
+        self.settle()
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic", "Undo shows the earlier brand")
+
+    def test_the_picker_shows_the_saved_brand(self):
+        self.pick("example-brand")
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "example-brand")
+        self.assertEqual(self.text("[data-brand-gone]"), "")
+
+    def test_a_removed_brand_shows_the_note_and_generic(self):
+        self.pick("gone-brand")
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic")
+        self.assertEqual(self.text("[data-brand-gone]"),
+                         "The brand chosen for this project is no longer available, so this project uses Generic.")
+
+    def test_with_no_project_open_there_is_no_picker(self):
+        self.pick(None, project=False)
+        self.assertFalse(self.present("#brand-pick"))
+
+    def test_hunt18_the_focus_stays_on_the_button_while_the_server_answers_and_after_a_refusal(self):
+        """Review and Choose were disabled while the server answered, so the focus fell to the page."""
+        for opener in ("data-review", "data-choose"):
+            with self.subTest(opener):
+                self.mount()
+                self.js("T.replies.review = () => new Promise((ok) => { window.__ok = ok; })")
+                self.js(f"document.querySelector('[{opener}]').focus()")
+                self.click(f"[{opener}]")
+                self.assertEqual(self.focused(), f"button[{opener}]", "the focus stays on the button while it waits")
+                self.assertEqual(self.val(f"document.querySelector('[{opener}]').disabled"), False)
+                self.assertEqual(self.val(f"document.querySelector('[{opener}]').getAttribute('aria-disabled')"), "true")
+                self.js("window.__ok({status: 409, body: " + lit(REFUSAL) + "})")
+                self.settle()
+                self.assertEqual(self.focused(), f"button[{opener}]", "and after the refusal")
+
+    def test_hunt18_after_install_remove_and_undo_the_focus_is_not_dropped_to_the_page(self):
+        self.replies(list=OK({**LIST, "undo": True}))
+        self.mount()
+        self.js("document.querySelector('[data-review]').focus()")
+        self.click("[data-review]")
+        self.click("[data-install]")
+        self.settle()
+        self.assertEqual(self.focused(), "button[data-review]", "Install has gone: the focus is on the button that opened the panel")
+        self.js("document.querySelector('#brands-list [data-remove]').focus()")
+        self.click("#brands-list [data-remove]")
+        self.js("document.querySelector('[data-remove-confirm]').focus()")
+        self.replies(list=OK({"ok": True, "brands": [], "undo": True}))
+        self.click("[data-remove-confirm]")
+        self.settle()
+        self.assertEqual(self.focused(), "button[data-review]", "the confirm button and that brand's Remove have gone: the focus is on Review")
+
+    def test_hunt18_after_remove_that_leaves_the_brand_the_focus_is_on_its_remove_button(self):
+        self.mount()
+        self.js("document.querySelector('#brands-list [data-remove]').focus()")
+        self.click("#brands-list [data-remove]")
+        self.js("document.querySelector('[data-remove-confirm]').focus()")
+        self.click("[data-remove-confirm]")
+        self.assertEqual(self.focused(), "button[data-remove]", "the brand is still listed: the focus goes to its Remove")
+
+    def test_hunt18_after_undo_the_focus_is_on_undo_while_there_is_more_to_put_back_and_on_review_when_not(self):
+        self.replies(list=OK({**LIST, "undo": True}))
+        self.mount()
+        self.js("document.querySelector('[data-undo]').focus()")
+        self.click("[data-undo]")
+        self.assertEqual(self.focused(), "button[data-undo]", "Undo is still there")
+        self.replies(list=OK({**LIST, "undo": False}))
+        self.click("[data-undo]")
+        self.assertFalse(self.present("[data-undo]"))
+        self.assertEqual(self.focused(), "button[data-review]", "Undo has gone: the focus is on Review")
+
+    def test_hunt18_cancel_and_escape_on_remove_fall_back_to_review_when_that_brands_remove_is_gone(self):
+        for how in ("cancel", "escape"):
+            with self.subTest(how=how):
+                self.replies(list=OK({**LIST, "undo": True}))
+                self.mount()
+                self.click("#brands-list [data-remove]")
+                self.js("document.querySelector('[data-remove-confirm]').focus()")
+                self.replies(list=OK({"ok": True, "brands": [], "undo": True}))
+                self.click("[data-undo]")
+                self.assertFalse(self.present("#brands-list [data-remove]"), "the brand has gone while the question was open")
+                self.assertTrue(self.present("[data-remove-confirm]"))
+                self.js("document.querySelector('[data-remove-confirm]').focus()")
+                if how == "cancel":
+                    self.click("[data-remove-confirm] + button")
+                else:
+                    self.press("Escape", 27)
+                self.assertFalse(self.present("[data-remove-confirm]"))
+                self.assertEqual(self.focused(), "button[data-review]")
+
+    def test_hunt18_a_click_while_the_server_is_answering_does_nothing(self):
+        self.replies(list=OK({**LIST, "undo": True}))
+        for first, others in (("[data-review]", ("[data-review]", "[data-choose]", "[data-undo]")),
+                              ("[data-undo]", ("[data-undo]", "[data-review]", "[data-choose]"))):
+            with self.subTest(first=first):
+                self.mount()
+                self.js("T.calls.length = 0; T.replies.review = () => new Promise(() => {}); T.replies.undo = () => new Promise(() => {})")
+                self.click(first)
+                for other in others:
+                    self.click(other)
+                want = "review" if first == "[data-review]" else "undo"
+                self.assertEqual(self.calls(), [want], "only the first click reached the server")
 
     def test_plain_words_only(self):
         words = self.val("Object.values(T.logic).filter(v => typeof v === 'string')")

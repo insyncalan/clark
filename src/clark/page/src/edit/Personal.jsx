@@ -15,7 +15,7 @@ export const DENSITIES = [
 ];
 
 export const APPEARANCES = [                                 // the ruled order: System first, the default
-  ["system", "System", "Follows your Mac's setting."],
+  ["system", "System", "Follows your computer's setting."],
   ["light", "Light", "Always light."],
   ["dark", "Dark", "Always dark."],
 ];
@@ -59,10 +59,13 @@ function AboutYou() {
                alias: ownAlias.current ? (typedIn.current.alias ? t.alias : profile.value.alias || "") : follow(n) };
     });
   }, [profile.value.name, profile.value.email, profile.value.alias, profileRead.value]);
+  const wanted = wantName.value;                                                  // read while drawing, so the link in the menu redraws this box when Settings is already open
   useEffect(() => { if (wantName.value && name.current) { wantName.value = false; name.current.focus(); } });
   useEffect(() => { noteTyped(typed); }, [typed.name, typed.email, typed.alias]);      // the toast's Undo goes once the boxes hold something else (aboutYouToast.js, #429)
   useEffect(() => leave, []);                                             // leaving Settings takes the toast (and its Undo) with it, in View as in Edit
+  const flying = useRef(""), saveNow = useRef(null);
   const save = async (field) => {
+    if (!typedIn.current[field]) return;      // nothing typed since the last save: Enter and then the blur must not send twice
     // the boxes are read as they are now (not from an earlier draw), so a box left a moment ago is never saved over another. An Alias that
     // is not the person's is the suggestion for the name now; before clark has said what Alias it has, none is sent (clark keeps its own)
     const sent = { name: name.current ? name.current.value : typed.name, email: email.current ? email.current.value : typed.email };
@@ -70,10 +73,14 @@ function AboutYou() {
     // Before clark has answered a read, a box nobody has typed in holds only the empty draw, not what is saved: it is not sent, and the
     // store fills it from clark's own answer (#420), so saving one box first never blanks the other.
     const unread = !profileRead.value;
+    const key = JSON.stringify([sent, unread]);
+    if (flying.current === key) return;
+    flying.current = key;
     const r = await setProfile(unread && !typedIn.current.name ? undefined : sent.name, unread && !typedIn.current.email ? undefined : sent.email, sent.alias);
     // One rule: an answer speaks only for the newest save. A late answer to an older save changes nothing on the page (it can neither clear
     // nor replace what a newer save said), so a refusal is never lost and an old refusal never shows over text that was saved. A refusal is
     // also shown only while the box still holds the text that was refused (text typed since has not been sent yet).
+    if (flying.current === key) flying.current = "";
     if (!r.newest) return;
     if (r.ok) {
       // A saved Alias is frozen (item 613): it becomes what clark has, so the name no longer carries it and only the person changes it.
@@ -97,6 +104,12 @@ function AboutYou() {
     if ((mine.current ? mine.current.value : typed[about]) !== sent[about]) return;
     setSaid({ name: about === "name" ? r.message : "", email: about === "email" ? r.message : "", alias: about === "alias" ? r.message : "" });
   };
+  saveNow.current = save;
+  useEffect(() => {      // closing the tab with a box focused and unsaved text saves it
+    const gone = () => { const f = document.activeElement && document.activeElement.getAttribute && document.activeElement.getAttribute("data-about"); if (f) saveNow.current(f); };
+    window.addEventListener("pagehide", gone);
+    return () => window.removeEventListener("pagehide", gone);
+  }, []);
   // The name box carries the Alias with it while the Alias is not the person's; typing in the Alias box makes it theirs.
   const onInput = (field, v) => {
     typedIn.current[field] = true;
@@ -138,6 +151,16 @@ const KEYS_ON = "Single-key shortcuts are on";
 const KEYS_OFF = "Single-key shortcuts are off";
 
 // The switch changes at once; the toast says the new state and its Undo sets it back (row 849). The button is never disabled, so focus stays on it.
+// Appearance and Spacing apply at once too (row 1115 S5): a quiet toast says the new choice, and its Undo puts the old one back.
+function chosen(label, list, set, current, next) {
+  if (next === current) return;
+  const nameOf = (id) => (list.find(([x]) => x === id) || [id, id])[1];
+  set(next);
+  announceSwitch(`${label}: ${nameOf(next)}.`, () => { set(current); return { ok: true }; }, `${label}: ${nameOf(current)}.`);
+}
+const pickAppearance = (next) => chosen("Appearance", APPEARANCES, setAppearance, appearance.value, next);
+export const pickDensity = (next) => chosen("Spacing", DENSITIES, setDensity, density.value, next);
+
 function flipKeys() {
   const now = !singleKeys.value;
   setSingleKeys(now);
@@ -147,15 +170,34 @@ function flipKeys() {
 // Row 902: the Appearance control is a radio group: one stop in the Tab order (the chosen one); the arrows move to the next or previous
 // choice and pick it, wrapping round; Home and End pick the first and last. Enter and Space pick the focused button as a click does.
 function pickByArrow(e) {
+  const group = e.currentTarget;
   if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;     // browser shortcuts (Cmd+arrow and the like) are not ours
   const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
   if (!step && e.key !== "Home" && e.key !== "End") return;
   e.preventDefault();
   const at = APPEARANCES.findIndex(([id]) => id === appearance.value), last = APPEARANCES.length - 1;
   const next = APPEARANCES[e.key === "Home" ? 0 : e.key === "End" ? last : (Math.max(at, 0) + step + APPEARANCES.length) % APPEARANCES.length][0];
-  setAppearance(next);
-  const btn = e.currentTarget.querySelector(`[data-theme-pick="${next}"]`);
+  pickAppearance(next);
+  const btn = [...group.querySelectorAll("button")][APPEARANCES.findIndex(([id]) => id === next)];
   if (btn) btn.focus();
+}
+
+// The Single-key shortcuts switch, shared by the Personal card and the Essentials card (row 1115): one state, two places.
+export function KeysSwitch({ describedby = "keys-line", ...rest }) {
+  return (
+    <button type="button" class="switch" role="switch" aria-label="Single-key shortcuts" aria-checked={singleKeys.value ? "true" : "false"} aria-describedby={describedby || undefined} onClick={flipKeys} {...rest}></button>
+  );
+}
+
+// The Appearance choice, shared by the Personal card and the Essentials card (row 1115). `pick` names the data attribute each button carries.
+export function AppearancePick({ pick = "data-theme-pick", first }) {
+  return (
+    <div class="seg" role="radiogroup" aria-label="Appearance" onKeyDown={pickByArrow}>
+      {APPEARANCES.map(([id, name], i) => (
+        <button key={id} type="button" role="radio" id={i === 0 ? first : undefined} {...{ [pick]: id }} aria-checked={appearance.value === id ? "true" : "false"} tabIndex={appearance.value === id ? 0 : -1} onClick={() => pickAppearance(id)}>{name}</button>
+      ))}
+    </div>
+  );
 }
 
 export function Personal() {
@@ -168,7 +210,7 @@ export function Personal() {
         <legend>Spacing</legend>
         {DENSITIES.map(([id, name, line]) => (
           <label key={id} class={`secpick sk-${id}`}>
-            <input type="radio" name="density" value={id} checked={density.value === id} onChange={() => setDensity(id)} />
+            <input type="radio" name="density" value={id} checked={density.value === id} onChange={() => pickDensity(id)} />
             <span class="secpick-card">
               <span class="secpick-pic" aria-hidden="true"><i></i><i></i><i></i></span>
               <span class="secpick-name"><b>{name}</b>
@@ -180,17 +222,12 @@ export function Personal() {
       </fieldset>
       <fieldset class="styles" data-appearance>
         <legend>Appearance</legend>
-        <div class="seg" role="radiogroup" aria-label="Appearance" onKeyDown={pickByArrow}>
-          {APPEARANCES.map(([id, name]) => (
-            <button key={id} type="button" role="radio" data-theme-pick={id} aria-checked={appearance.value === id ? "true" : "false"} tabIndex={appearance.value === id ? 0 : -1} onClick={() => setAppearance(id)}>{name}</button>
-          ))}
-        </div>
-        <p class="muted appearance-line" data-appearance-line aria-live="polite">{(APPEARANCES.find(([id]) => id === appearance.value) || APPEARANCES[0])[2]}</p>
+        <AppearancePick />
+        <p class="muted appearance-line" data-appearance-line>{(APPEARANCES.find(([id]) => id === appearance.value) || APPEARANCES[0])[2]}</p>
       </fieldset>
       <fieldset class="styles keys">
         <legend>Keys</legend>
-        <label class="sw key-sw"><button type="button" class="switch" role="switch" aria-label="Single-key shortcuts" aria-checked={singleKeys.value ? "true" : "false"} aria-describedby="keys-line"
-          onClick={flipKeys}></button>
+        <label class="sw key-sw"><KeysSwitch />
           <span><b>Single-key shortcuts</b><small id="keys-line">Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.</small></span></label>
       </fieldset>
     </section>

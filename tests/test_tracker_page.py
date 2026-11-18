@@ -246,7 +246,7 @@ class Page(Base):
                         self.assertTrue(p.js(label + ".right <= " + bar + ".right + 1"), "the label's right edge stays over the bar" + where)
 
     def test_view_half_is_the_bar_and_a_short_list_with_no_dates(self):
-        ref = self.make(BODY, after="ABC-S-005", beside=1)
+        ref = self.make(BODY, after="ABC-S-004", beside=1)
         with chrome() as cdp:
             p = self.visit(cdp)
             self.assertEqual(p.js(self.one(ref, "[data-tracker]") + ".dataset.fit"), "half")
@@ -348,9 +348,15 @@ class Page(Base):
             p.edit()
             self.set(p, ref, "[data-overall-edit] [data-f=health]", "ontrack", "change")
             self.assertTrue(self.wait_until(lambda: self.stored(ref)["overall"]["health"] == "ontrack"))
+            # item 1177: the words field is contenteditable="false" while the health save is busy (TrackerWords.jsx, `busy ? "false"`), and the store is read
+            # before the page has set busy back; wait for the page to be free, as the columns step below does, or the typing lands in a field that is off.
+            p.until("!" + self.one(ref, "[data-overall-edit] [data-f=health]") + ".disabled" + " && " + self.one(ref, "[data-tr-words]") + ".isContentEditable", "the words are editable again after the health saved")
             self.assertEqual(p.js(self.count(ref, "[data-overall-edit] input[data-f=note]")), 0, "the words are edited in place now")
-            p.js("(function(){var el=" + self.one(ref, "[data-tr-words]") + "; el.focus(); getSelection().selectAllChildren(el);})()")
-            p.type("All good")
+            for _ in range(3):      # a slow Mac can drop typed keys: type, check the words are there, only then press Enter
+                p.js("(function(){var el=" + self.one(ref, "[data-tr-words]") + "; el.focus(); getSelection().selectAllChildren(el);})()")
+                p.type("All good")
+                if self.wait_until(lambda: p.js(self.one(ref, "[data-tr-words]") + ".textContent.trim()") == "All good", 3):
+                    break
             p.key("Enter", code="Enter", vk=13)
             self.assertTrue(self.wait_until(lambda: self.stored(ref)["overall"]["note"] == "All good"))
             p.until("!" + self.one(ref, "[data-col=tasks]") + ".disabled", "the columns are free again after the words saved")      # a click on a disabled box does nothing
@@ -360,7 +366,7 @@ class Page(Base):
 
     def test_the_words_stop_at_one_line_on_full_and_three_on_half_and_the_link_puts_the_automatic_words_back(self):
         full = self.make(BODY)
-        half = self.make(BODY, after="ABC-S-005", beside=1)
+        half = self.make(BODY, after="ABC-S-004", beside=1)
         with chrome() as cdp:
             p = self.visit(cdp)
             self.resize(cdp, p, 1400, "light")
@@ -574,7 +580,7 @@ class Page(Base):
 
     def test_it_fits_at_1400_and_900_in_light_and_dark_in_view_and_in_edit_full_and_half(self):
         full = self.make(BODY)
-        half = self.make(BODY, after="ABC-S-005", beside=1)
+        half = self.make(BODY, after="ABC-S-004", beside=1)
         with chrome() as cdp:
             p = self.visit(cdp)
             for mode in ("view", "edit"):
@@ -681,6 +687,7 @@ class Source(unittest.TestCase):
         for path in (PAGE / "shell.css", PAGE / "src" / "edit" / "edit.css"):
             css = path.read_text(encoding="utf-8")
             block = re.sub(r"/\*.*?\*/", "", css[css.rindex("/*", 0, css.index("Progress tracker")):], flags=re.S)
+            block = block.replace("background: #F6F8FC", "")      # row 1258: the ID tag's literal, accepted by the owner 17-11 (committed tokens first, then Theme, then Brand)
             self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(", block.split("@media print")[0] if path.name == "shell.css" else block), path.name)
 
 

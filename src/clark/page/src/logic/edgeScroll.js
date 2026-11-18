@@ -1,0 +1,16 @@
+// Row 1214: how far the page scrolls while a section is dragged near the top or bottom of the window. Pure: numbers in, a number out.
+// Same feel as the board's drag (edit/Board.jsx): a 56 px edge band, a step of min(24, ceil(depth / 3)) px per frame.
+export const EDGE = 56;
+export const MAX_STEP = 24;
+
+const step = (depth) => Math.min(MAX_STEP, Math.ceil(depth / 3));
+
+// y: the pointer's height in the window. top: the window's top edge for this purpose (the bottom of the sticky bar).
+// bottom: the window's height. Returns the pixels to scroll down (positive), up (negative) or 0.
+export function edgeStep(y, top, bottom, edge = EDGE) {
+  if (![y, top, bottom].every(Number.isFinite)) return 0;
+  // No short-window guard, same as the board: the bottom band is tested first, so where the bands overlap the bottom one wins.
+  if (y > bottom - edge) return step(y - (bottom - edge));
+  if (y < top + edge) return -step(top + edge - y);
+  return 0;
+}

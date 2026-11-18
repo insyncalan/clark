@@ -9,13 +9,15 @@
 // box; the lead moves each one into TEMPLATES with its Help row.
 import { rows } from "./placement.js";
 import { TEMPLATE_TYPES, PENDING_TYPES } from "../templates/types.js";
-import { WORDS as NEEDS } from "./needs.js";
+import { WORDS } from "./fullImageWords.js";
+import { defaults, bodyOf } from "../templates/workItemsList.js";
 
-// What the store takes in a new section (changes.py NEW_SECTION_TYPES: text, needs since the section that carries content (#121),
+// What the store takes in a new section (changes.py NEW_SECTION_TYPES: text
 // and every type in the template registry (#96)). A template whose type is not here is listed but not offered.
-export const ACCEPTS = { types: ["text", "needs", ...TEMPLATE_TYPES, "current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs", ...PENDING_TYPES] };      // row 926: the Gantt section (no body, no registry module) is taken by the store at layout 19; row 1068: the Gantt table section at layout 21
+export const ACCEPTS = { types: ["text", ...TEMPLATE_TYPES, "current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs", ...PENDING_TYPES] };      // row 926: the Gantt section (no body, no registry module) is taken by the store at layout 19; row 1068: the Gantt table section at layout 21
 
 export const KINDS = [
+  { id: "info", name: "Project information" },      // item 1272 (owner 16-11): the group the Callout moves to; the headline and glance cards follow with their rows
   { id: "text", name: "Text and pictures" },
   { id: "figures", name: "Figures" },
   { id: "work", name: "Work items" },
@@ -40,6 +42,11 @@ export const TEMPLATES = [
     description: "Three or four numbers with labels and a change since last week.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed", "Figure · typed", "Caption"] },
   { id: "figures-3", name: "Key figures, three", kind: "figures", fit: ["full", "half"], type: "figures3", title: "Key figures", body: "", ready: true,
     description: "Three numbers with labels, in wider cards, so a short note fits under the change.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed"] },
+  // Row 1264 slice 9: the glance template (type glancetemplate), its own card beside the built-in At a glance card (that name is taken). The words are
+  // the ruled ones (words file group 1): the name, the description and the holds list, quoted. The new section starts with the card's name as its title.
+  { id: "glance-template", name: "Project at a glance", kind: "figures", fit: ["full", "half"], type: "glancetemplate", title: "Project at a glance", body: "", ready: true,
+    description: "Three counts, an optional project health and tiles of your own.",
+    holds: ["Decisions needed", "High risks and issues", "Overdue actions", "optional Project health", "your own tiles"] },
   { id: "gallery", name: "Image gallery", kind: "text", fit: ["full"], type: "gallery", title: "Image gallery", body: "", ready: true,
     description: "Pictures in a grid, each with a caption.", holds: ["Heading", "Image", "Caption", "Image", "Caption", "Image"] },
   { id: "table", name: "Table", kind: "notes", fit: ["full"], type: "table", title: "Table", body: "", ready: true,
@@ -48,14 +55,19 @@ export const TEMPLATES = [
     description: "The risks, actions, issues or decisions you want the reader to see, as cards.", holds: ["Heading", "RAID card ×3", "Text source", "Text"] },
   { id: "raid-4", name: "RAID cards, four", kind: "work", fit: ["full"], type: "raid4", title: "Risks and issues", body: "", ready: true,
     description: "Four shorter cards: good for “this week’s actions” or “decisions needed”.", holds: ["Heading", "RAID card ×4"] },
-  { id: "work-items", name: "Work items list", kind: "work", fit: ["full", "half"], type: "workitems", title: "Work items", body: "", ready: true,
+  { id: "work-items", name: "Work items list", kind: "work", fit: ["full", "half"], type: "workitems", title: "Work items", body: "", start: bodyOf(defaults()), ready: true,
     description: "Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed.", holds: ["Heading", "Filter (set in Edit)", "Work item list · live", "Caption (optional)"] },
   { id: "docs-links", name: "Documents and links", kind: "files", fit: ["full", "half"], type: "doclinks", title: "Documents and links", body: "", ready: true,
     description: "The papers that go with this week’s report.", holds: ["Heading", "File (one or more)", "Link list"] },
-  { id: "callout", name: "Callout", kind: "notes", fit: ["half", "full"], type: "callout", title: "Callout", body: "", ready: true,
-    description: "One thing the reader must see.", holds: ["Heading", "Callout · decision"] },
+  { id: "callout", name: "Callout", kind: "info", fit: ["half", "full"], type: "callout", title: "Callout", body: "", ready: true,
+    description: "One thing the reader must see.", more: "Type a category of your own or pick one, then a colour and an icon. Or leave them out.",
+    holds: ["Heading", "Callout · decision", "Callout · category, colour, icon", "Callout · tile and heading on or off"] },      // item 1272 G: `more` is the extra line under the description
   { id: "image-caption", name: "Image with caption", kind: "text", fit: ["half", "full"], type: "imagecap", title: "Image with caption", body: "", ready: true,
     description: "One picture with its caption.", holds: ["Heading", "Image", "Caption"] },
+  // Row 1223: the same store type as Image with caption (imagecap), started with a body of version 2 (`start`: changes.py takes exactly this body for a new
+  // imagecap section; section_kinds/imagecap.py START). Full width only. Its name is unruled (logic/fullImageWords.js).
+  { id: "full-image", name: WORDS.name, kind: "text", fit: ["full"], type: "imagecap", title: WORDS.name, body: "", start: '{"v":2}', ready: true,
+    description: WORDS.description, holds: WORDS.holds },
   { id: "quote", name: "Quote", kind: "text", fit: ["half", "full"], type: "quote", title: "Quote", body: "", ready: true,
     description: "A voice from the business.", holds: ["Heading", "Text (quote)", "Person"] },
   { id: "contacts", name: "Contacts", kind: "dates", fit: ["half", "full"], type: "contacts", title: "Contacts", body: "", ready: true,
@@ -64,11 +76,9 @@ export const TEMPLATES = [
     description: "Next steps or readiness, ticked off.", holds: ["Heading", "Checklist · linked to work items"] },
   { id: "key-dates", name: "Key dates", kind: "dates", fit: ["half", "full"], type: "keydates", title: "Key dates", body: "", ready: true,
     description: "What’s coming, from the milestones.", holds: ["Heading", "Date (from milestones)"] },
-  { id: "needs", name: NEEDS.title, kind: "dates", fit: ["full", "half"], type: "needs", title: NEEDS.title, body: "", ready: true,
-    description: "What the project needs from the client: decisions, information and dates, each with who it is from and when it is needed by.", holds: ["Heading", "Row: what is needed", "From", "By"] },
   { id: "link-preview", name: "Link preview", kind: "files", fit: ["full"], type: "linkcard", title: "Link preview", body: "", ready: true,
     description: "A web page shown as a card you write: a dashboard, a news item, a recording.", holds: ["Heading", "Link", "Card text"] },
-  { id: "current-state", name: "Current state", kind: "text", fit: ["full", "half"], type: "text", title: "Current state", body: "", ready: true,
+  { id: "current-state", name: "Header and Text", kind: "text", fit: ["full", "half"], type: "text", title: "Current state", body: "", ready: true,
     description: "The state of the project in a few lines, to sit beside another section.", holds: ["Heading", "Text"] },
   { id: "plan-summary", name: "Plan summary", kind: "text", fit: ["full", "half"], type: "text", title: "Plan summary", ready: true,
     body: "<h2>Where we are</h2><p></p><h2>What is next</h2><ul><li></li></ul>",
@@ -88,19 +98,34 @@ export const TEMPLATES = [
 // words and its Help row.
 export const LATER = [
   { id: "headline", type: "headline", ready: true },
+  { id: "report-headline", type: "reportheadline", ready: true },     // row 1261 slice 1: View only; Edit and the library card come later
 ];
 
 // The built-in sections (row 906): a deleted one is added again from the box, one of each, with the title and settings it starts
 // with (changes.py BUILT_IN_TYPES). Listed only while the report has no section of that type (`list` and `counts` take `sections`).
-const builtIn = (type, title, kind) => ({ id: `built-in-${type}`, name: title, kind, fit: ["full"], type, title, body: "", ready: true, description: "", holds: [], builtIn: true });
+// Item 1190: At a glance has its words, parts and width like any template; the section it makes is the built-in's own (type glance),
+// so the tiles, the edit in place, View, Word, Excel and the published file are the built-in's. Offered while the report has none.
+const GLANCE_CARD = { fit: ["full"], description: "The project’s health, and counts of overdue actions, high risks and issues, and decisions needed.",
+                      holds: ["Heading", "Project health", "Overdue actions", "High risks and issues", "Decisions needed"] };
+// Item 1191: Use case summary has its words, parts and width like any template; the section it makes is the built-in's own (type usecases),
+// so the strip, the rows, the edit in place, View, Word, Excel and the published file are the built-in's. Full width only: a row is a grid of fixed columns.
+const USECASES_CARD = { fit: ["full"], description: "The use cases, with a count for each status and one row for each: its headline, where it stands and the open next steps.",
+                        holds: ["Heading", "Count for each status", "A row for each use case", "Where it stands", "Next steps"] };
+// Item 1192: the Milestones card is a library card like the others; the section it makes is the built-in's own (type milestones, MsBlock),
+// so the timeline or calendar, the list, the edit in place, View, Word, Excel and the published file are the built-in's. Full width only.
+export const MILESTONES_CARD = { fit: ["full"], description: "The milestones on a timeline or a calendar, with the list beneath.",
+                                 holds: ["Heading", "Timeline or Calendar · live", "Milestone list · live"] };
+const builtIn = (type, title, kind, more = {}) => ({ id: `built-in-${type}`, name: title, kind, fit: ["full"], type, title, body: "", ready: true, description: "", holds: [], builtIn: true, ...more });
 export const BUILT_INS = [
-  builtIn("current", "Current state", "text"), builtIn("glance", "At a glance", "figures"), builtIn("usecases", "Use case summary", "work"),
-  builtIn("milestones", "Milestones", "dates"), builtIn("raid", "Risks and issues", "work"), builtIn("actions", "Open actions", "work"),
+  builtIn("current", "Current state", "text"), builtIn("glance", "At a glance", "figures", GLANCE_CARD), builtIn("usecases", "Use case summary", "work", USECASES_CARD),
+  builtIn("milestones", "Milestones", "dates", MILESTONES_CARD), builtIn("raid", "Risks and issues", "work"), builtIn("actions", "Open actions", "work"),
   builtIn("decisions", "Decisions", "work"), builtIn("docs", "Supporting documents", "files"),
 ];
-const missing = (sections) => (sections ? BUILT_INS.filter((b) => !sections.some((s) => s.type === b.type)) : []);
+// Item 1188: the first default section is now the text section "Current state", which "Header and Text" also adds, so the older
+// "current" built-in is not offered (a second card that makes the same heading); a report that has one keeps it.
+const missing = (sections) => (sections ? BUILT_INS.filter((b) => b.type !== "current" && !sections.some((s) => s.type === b.type)) : []);
 
-// Every template entry, in the box or not: one per template type, and Text and Needs from you (#121).
+// Every template entry, in the box or not: one per template type, and Text.
 export const CATALOGUE = [...TEMPLATES, ...LATER];
 
 export const MESSAGES = {
@@ -132,17 +157,21 @@ export const SKETCHES = {
   "docs-links": ["grid-template-rows:repeat(3,1fr)", ["", "", ""]],
   "callout": ["", ["background:var(--status-amber-tint);border-left:3px solid var(--status-amber)"]],
   "image-caption": ["grid-template-rows:2fr 1fr", [IMG, "width:50%"]],
+  "full-image": ["grid-template-rows:3fr 1fr", [IMG, "width:40%"]],
   "quote": ["grid-template-rows:2fr 1fr", ["border-left:3px solid var(--brand-cyan)", "width:40%"]],
   "contacts": ["grid-template-rows:repeat(3,1fr)", ["width:70%", "width:70%", "width:70%"]],
   "checklist": ["grid-template-rows:repeat(3,1fr)", ["width:80%", "width:60%", "width:70%"]],
   "key-dates": ["grid-template-rows:repeat(3,1fr)", ["width:90%", "width:90%", "width:90%"]],
-  "needs": ["grid-template-rows:repeat(3,1fr)", ["border-left:3px solid var(--status-amber)", "border-left:3px solid var(--status-amber);width:80%", "width:55%"]],
   "link-preview": ["grid-template-columns:1fr 2fr", [IMG, ""]],
+  "built-in-milestones": ["grid-template-rows:repeat(3,1fr)", ["width:60%", "width:50%;margin-left:25%", "width:40%;margin-left:55%"]],      // item 1192: bars on a timeline, as the Gantt card's
   "gantt": ["grid-template-rows:repeat(3,1fr)", ["width:60%", "width:50%;margin-left:25%", "width:40%;margin-left:55%"]],
   "gantt-table": ["grid-template-rows:repeat(4,1fr)", ["", "", "", ""]],
   "one-doc": ["grid-template-rows:1fr 1fr", ["", "width:70%"]],
   "current-state": ["grid-template-rows:repeat(3,1fr)", ["width:85%", "width:70%", "width:50%"]],
+  "built-in-usecases": ["grid-template-rows:repeat(4,1fr)", ["width:35%", "width:90%", "width:75%", "width:85%"]],
   "plan-summary": ["grid-template-rows:repeat(4,1fr)", ["width:40%", "width:80%", "width:40%", "width:70%"]],
+  "glance-template": ["grid-template-columns:repeat(3,1fr)", ["border-top:3px solid var(--status-red)", "border-top:3px solid var(--status-amber)", "border-top:3px solid var(--status-green)"]],      // row 1264: low tiles, a tone edge on each
+  "built-in-glance": ["grid-template-columns:repeat(4,1fr)", ["", "border-top:3px solid var(--status-red)", "border-top:3px solid var(--status-amber)", ""]],
 };
 
 export const find = (id) => TEMPLATES.find((t) => t.id === id) || BUILT_INS.find((t) => t.id === id) || null;
@@ -217,9 +246,9 @@ export function plan(sections, id, after, beside = false) {
   if (beside) {
     const b = besideState(sections, after, t);
     if (!b.ok) return b;
-    return { ok: true, requests: [{ op: "new", values: { type: t.type, title: t.title }, after: a.id, beside: 1, place: "report" }],
+    return { ok: true, requests: [{ op: "new", values: { type: t.type, title: t.title, ...(t.start ? { body: t.start } : {}) }, after: a.id, beside: 1, place: "report" }],
              words: `${t.name} added, beside the section above.`, template: t };
   }
   // clark clears a stale pairing flag on the last section in the same step (#244), so this is one request and one Undo.
-  return { ok: true, requests: [{ op: "new", values: { type: t.type, title: t.title }, after: a.id, place: "report" }], words: `${t.name} added.`, template: t };
+  return { ok: true, requests: [{ op: "new", values: { type: t.type, title: t.title, ...(t.start ? { body: t.start } : {}) }, after: a.id, place: "report" }], words: `${t.name} added.`, template: t };
 }

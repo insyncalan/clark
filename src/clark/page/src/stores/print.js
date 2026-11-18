@@ -15,6 +15,7 @@ let wired = false;
 // number (N+1 once N is published), so the box puts the number it was just given there. Without it, the page's own number is used.
 function foot(on) {
   try {
+    if (document.documentElement.hasAttribute("data-pdf-foot")) return;      // the PDF clark makes carries its own foot (pdf.py): a second one would print the page's number beside it
     let el = document.getElementById("print-foot");
     const rule = on ? footRule(footLine(numberAsked(location.search) || publication.value, asAt.value)) : "";
     if (!rule) { if (el) el.remove(); return; }

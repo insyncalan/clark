@@ -54,7 +54,7 @@ class PublishedKeyboard(unittest.TestCase):
             stops.append(st)
         return stops
 
-    def test_tab_goes_skip_link_then_each_tab_and_every_stop_shows_a_ring(self):
+    def test_tab_goes_skip_link_then_the_chosen_tab_and_every_stop_shows_a_ring(self):
         for width in WIDTHS:
             for scheme in ("light", "dark"):
                 for name in ("Dashboard", "Work items", "Milestones", "Use cases"):
@@ -66,7 +66,10 @@ class PublishedKeyboard(unittest.TestCase):
                         stops = self.walk(cdp, sid)
                         names = [s["name"] for s in stops]
                         self.assertTrue(names[0].startswith("A.skip:Skip to content"), names[:2])
-                        self.assertEqual([n.split(":")[1] for n in names[1:5]], ["Dashboard", "Work items", "Milestones", "Use cases"])
+                        # The tabs are one tab stop (roving tabindex, hunt 16): Tab reaches the chosen tab only, and the arrow keys move between tabs.
+                        others = {"Dashboard", "Work items", "Milestones", "Use cases"} - {name}
+                        self.assertEqual(names[1].split(":")[1], name, "Tab goes from the skip link to the chosen tab")
+                        self.assertEqual([n for n in names[2:] if n.startswith("BUTTON.tab") and n.split(":")[1] in others], [], "the other tabs are not tab stops")
                         self.assertEqual([s["name"] for s in stops if not s["ring"]], [], "every stop shows a ring")
                         self.assertEqual([s["name"] for s in stops if not s["on"]], [], "every stop is on screen when reached")
 

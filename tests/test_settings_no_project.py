@@ -57,14 +57,20 @@ class Browser(unittest.TestCase):
         cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{port}/{hash_}"}, sid)
         return sid
 
+    def open_page(self, cdp, sid, slug, ready):
+        """Row 1024: Settings shows one page at a time; open one by its address and wait for what it draws."""
+        cdp.js(f"location.hash = '#settings&s={slug}'", sid)
+        self.until(cdp, sid, f"document.querySelector('.set-cards').getAttribute('data-page') === '{slug}' && ({ready})", f"the {slug} page")
+
     def test_settings_opens_with_no_project_and_has_add_project_and_import_workbook(self):
         s = self.serve()
         for width in (1400, 900):
             for scheme in ("light", "dark"):
                 with self.subTest(width=width, scheme=scheme), chrome() as cdp:
                     sid = self.visit(cdp, s.port, width, scheme, "#settings")
-                    self.until(cdp, sid, "document.querySelector('#npBtn') && document.querySelector('#import-workbook')", "the Projects and Data cards")
+                    self.until(cdp, sid, "document.querySelector('#npBtn')", "the Projects card")
                     self.assertEqual(cdp.js("document.querySelector('#npBtn').getAttribute('aria-label')", sid), "Add project")
+                    self.open_page(cdp, sid, "data", "document.querySelector('#import-workbook')")
                     self.assertEqual(cdp.js("document.querySelector('#import-workbook').textContent.trim()", sid), "Import workbook")
                     self.assertEqual(cdp.js("document.querySelector('h1').textContent", sid), "Settings")
                     self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "row 826: no View | Edit on Settings")
@@ -75,24 +81,25 @@ class Browser(unittest.TestCase):
                     cdp.js("document.querySelector('#profile-btn').click()", sid)
                     self.until(cdp, sid, "!!document.querySelector('#profile-menu')", "the profile menu")
                     cdp.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()", sid)      # row 976: Settings is no tab; the circle's menu opens it
-                    self.until(cdp, sid, "document.querySelector('#npBtn')", "Settings again from its tab")
+                    self.until(cdp, sid, "document.querySelector('.set-cards').getAttribute('data-page') === 'profile' && !!document.querySelector('#ess-name')", "Settings again from the circle's menu, on the Profile page that holds the name box")
 
     def test_item_682_only_the_cards_that_work_show_and_import_says_why(self):
         s = self.serve()
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.visit(cdp, s.port, width, "light", "#settings")
-                self.until(cdp, sid, "document.querySelector('#npBtn') && document.querySelector('#import-workbook')", "the cards")
-                for gone in ("client-folder-h", "review-days-h", "gantt-setting-h"):
-                    self.assertFalse(cdp.js(f"!!document.getElementById('{gone}')", sid), gone)
-                text = cdp.js("document.querySelector('main').innerText", sid)
-                for word in ("Publishing", "Choose folder", "Published reports", "Freshness"):
-                    self.assertNotIn(word, text)
+                self.until(cdp, sid, "document.querySelector('#npBtn')", "the first page")
                 chips = cdp.js("[...document.querySelectorAll('.set-chip')].map(c => c.textContent).join('|')", sid)
-                self.assertNotIn("Publishing", chips)
-                self.assertNotIn("Freshness", chips)
-                for kept in ("personal-h", "data-card-h", "safety-h", "diagnostics-h"):
-                    self.assertTrue(cdp.js(f"!!document.getElementById('{kept}')", sid), kept)
+                for gone in ("Folder", "Reports"):      # the pages whose cards need a project
+                    self.assertNotIn(gone, chips.split("|"))
+                for slug, kept in (("appearance", "personal-h"), ("data", "data-card-h"), ("backups", "safety-h"), ("logs", "diagnostics-h"), ("projects", "projects-h")):
+                    self.open_page(cdp, sid, slug, f"document.getElementById('{kept}')")
+                    for gone in ("client-folder-h", "review-days-h", "gantt-setting-h"):
+                        self.assertFalse(cdp.js(f"!!document.getElementById('{gone}')", sid), gone)
+                    text = cdp.js("document.querySelector('.set-cards').innerText", sid)
+                    for word in ("Choose folder", "Published reports", "Freshness"):
+                        self.assertNotIn(word, text)
+                self.open_page(cdp, sid, "data", "document.querySelector('#import-workbook')")
                 self.assertTrue(cdp.js("document.querySelector('#import-workbook').disabled", sid))
                 self.assertEqual(cdp.js("document.getElementById('import-why').textContent", sid), "Add a project first.")  # logic/dataCard.js IMPORT_NEEDS_PROJECT
                 self.assertEqual(cdp.js("document.querySelector('#import-workbook').getAttribute('aria-describedby')", sid), "import-why")
@@ -126,16 +133,20 @@ class Browser(unittest.TestCase):
             for scheme in ("light", "dark"):
                 with self.subTest(width=width, scheme=scheme), chrome() as cdp:
                     sid = self.visit(cdp, s.port, width, scheme, "#settings")
-                    self.until(cdp, sid, "document.querySelector('#npBtn') && document.querySelector('#import-workbook') && document.querySelector('#import-why')", "the cards")
-                    heads = json.loads(cdp.js("JSON.stringify([...document.querySelectorAll('main h2, main h3')].map(h => h.textContent.trim()))", sid))
+                    self.until(cdp, sid, "document.querySelector('#npBtn')", "the first page")
+                    heads = []
+                    for slug in ("projects", "people", "appearance", "backups", "data", "claude", "logs", "version"):
+                        self.open_page(cdp, sid, slug, "document.querySelector('.set-cards h2')")
+                        heads += json.loads(cdp.js("JSON.stringify([...document.querySelectorAll('main h2, main h3')].map(h => h.textContent.trim()))", sid))
+                    self.open_page(cdp, sid, "data", "document.querySelector('#import-workbook') && document.querySelector('#import-why')")
                     for card, head in self.WORKING.items():
                         self.assertTrue(head in heads, f"{card} card missing from {heads}")
                     for gone in ("Publishing", "Published reports", "Freshness"):
                         self.assertFalse(any(gone in h for h in heads), f"{gone} card still shown: {heads}")
                     chips = json.loads(cdp.js("JSON.stringify([...document.querySelectorAll('.set-chip')].map(c => c.textContent.trim()))", sid))
                     self.assertTrue(chips, "the section chips show")
-                    for gone in ("Publishing", "Published reports", "Freshness"):
-                        self.assertFalse(any(gone in c for c in chips), f"{gone} chip still shown: {chips}")
+                    for gone in ("Folder", "Reports"):
+                        self.assertNotIn(gone, chips, f"{gone} item still shown")
                     probe = json.loads(cdp.js(self.PROBE, sid))
                     for which in ("import", "export"):
                         why = probe[which + "-why"]

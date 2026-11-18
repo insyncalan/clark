@@ -12,7 +12,7 @@ from clark import as_at, changes, client_filters, excel_cover, glance, publish, 
 from test_changes import Api, KIND
 
 DATA_TABLES = ("milestones", "actions", "raid", "decisions", "use_cases", "documents", "glance_tiles", "report_hidden", "people", "projects")
-BUILT_INS = ("current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs")
+BUILT_INS = ("glance", "usecases", "milestones", "raid", "actions", "decisions", "docs")
 
 
 class Base(Api):
@@ -22,6 +22,23 @@ class Base(Api):
             out = {t: con.execute(f"SELECT count(*) FROM {t}").fetchone()[0] for t in DATA_TABLES}
             out["current_state"] = con.execute("SELECT current_state FROM projects WHERE code = 'ABC'").fetchone()[0]
             return out
+        finally:
+            con.close()
+
+    def store_needs_row(self):
+        con = sqlite3.connect(str(self.path))
+        try:
+            con.execute("INSERT INTO report_sections (project, id, type, title, sort_order) SELECT 'ABC', 'ABC-S-500', 'needs', 'Made for the test', COALESCE(MAX(sort_order), 0) + 1000 FROM report_sections WHERE project = 'ABC'")
+            con.commit()
+        finally:
+            con.close()
+
+    def old_current_row(self):
+        """item 1188: a new project no longer starts with a section of the older type "current"; an existing report still has one."""
+        con = sqlite3.connect(str(self.path))
+        try:
+            con.execute("INSERT INTO report_sections (project, id, type, title, sort_order) SELECT 'ABC', 'ABC-S-501', 'current', 'Current state', COALESCE(MAX(sort_order), 0) + 1000 FROM report_sections WHERE project = 'ABC'")
+            con.commit()
         finally:
             con.close()
 
@@ -37,7 +54,10 @@ class RoundTrip(Base):
         for t in ("text",) + tuple(store_module.BODY_TYPES) + BUILT_INS:
             with self.subTest(type=t):
                 if not self.of_type(t):
-                    self.ok("new", values={"type": t, "title": "Made for the test"})
+                    if t == "needs":      # item 1158: the page no longer adds a Needs from you section, but one already stored is still a section that can be deleted and undone
+                        self.store_needs_row()
+                    else:
+                        self.ok("new", values={"type": t, "title": "Made for the test"})
                 row = self.of_type(t)[0]
                 before_rows, before_data = self.s.read(KIND, "ABC"), self.counts()
                 gone = self.ok("delete", id=row["id"])
@@ -79,6 +99,7 @@ class Publish(Base):
         self.assertTrue(got["data"]["actions"], "a section that stays keeps its data")
 
     def test_a_deleted_current_state_glance_and_documents_section_carry_nothing(self):
+        self.old_current_row()
         self.ok("delete", id=self.of_type("current")[0]["id"])
         self.ok("delete", id=self.of_type("docs")[0]["id"])
         got = self.build()["published"]
@@ -182,6 +203,15 @@ class ReAdd(Base):
                 self.assertEqual((row["type"], row["title"], row["body"], row["hidden"], row["beside"]), (t, title, "", 0, 0))
                 self.assertEqual(len(self.of_type(t)), 1)
 
+    def test_a_deleted_older_current_state_section_is_added_again_once(self):
+        """item 1188: the first default is a text section now, but "current" stays a built-in that can be added again."""
+        self.old_current_row()
+        self.ok("delete", id=self.of_type("current")[0]["id"])
+        got = self.ok("new", values={"type": "current", "title": "Something else"})
+        row = self.s.read(KIND, ref=got["ref"])
+        self.assertEqual((row["type"], row["title"], row["body"], row["hidden"], row["beside"]), ("current", "Current state", "", 0, 0))
+        self.refused(self.req("new", values={"type": "current"}), changes.NEW_TYPE_WORDS)
+
     def test_a_built_in_already_in_the_report_is_refused_a_second_time_and_nothing_is_written(self):
         for t in BUILT_INS:
             with self.subTest(type=t):
@@ -195,7 +225,7 @@ class ReAdd(Base):
             self.refused(self.req("new", values={"type": t}), changes.NEW_TYPE_WORDS)
 
     def test_the_new_types_are_exactly_text_the_content_types_and_the_built_ins(self):
-        self.assertEqual(set(changes.NEW_SECTION_TYPES) - set(store_module.BODY_TYPES), set(BUILT_INS) | {"gantt", "gantttable"})
+        self.assertEqual(set(changes.NEW_SECTION_TYPES) - set(store_module.BODY_TYPES), (set(BUILT_INS) - {"usecases", "milestones"}) | {"current", "gantt", "gantttable"})      # row 1234, row 1230: usecases and milestones carry a view setting in their body, so they are body types too
 
 
 if __name__ == "__main__":

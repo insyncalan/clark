@@ -135,6 +135,7 @@ export function installKeys() {
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (e.key === "Escape" && contextOpen.value && !document.querySelector("[role=menu]")) { e.preventDefault(); closeContext(); return; }
     if (e.key === "Escape" && helpOpen.value) {
+      if (document.getElementById("feedback-tag-dialog")) return;          // #1298: the Feedback dialog's own Esc closes it first; Help stays
       e.preventDefault();
       if (helpQuery.value) { helpQuery.value = ""; helpTarget.value = null; helpFocusSearch.value++; return; }    // from the box, a result or a tab: clear the search first
       closeHelp(); return;

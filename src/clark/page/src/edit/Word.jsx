@@ -19,22 +19,29 @@ const nothingNew = (plan) => plan.already > 0 ? `Everything in ${plan.file} has 
 export const count = (n, one, many) => `${n} ${n === 1 ? one : many || one + "s"}`;
 
 // A modal dialog that is shown when it mounts, and gives focus back to the profile circle when it goes.
-function useModal(el) {
+function useModal(el, opener) {
   useEffect(() => {
     const dlg = el.current;
     if (dlg && !dlg.open) dlg.showModal();
     return () => {
       if (dlg && dlg.open) dlg.close();
-      const me = document.getElementById("profile-btn");
+      const me = opener && opener.isConnected ? opener : document.getElementById("profile-btn");      // the button that opened the box (Settings › Data), else the profile circle
       if (me) me.focus();
     };
   }, []);
 }
 
+// Chrome closes a modal on a second Esc with no click between, whatever onCancel says. While a save or a read is running (working) the box is
+// shown again, so the result is never lost behind a closed box that a reopen cannot bring back. A box that is not working stays closed.
+function reshow(el, box, working) {
+  const dlg = el.current;
+  if (dlg && dlg.isConnected && !dlg.open && box.value && working(box.value)) dlg.showModal();
+}
+
 function Export() {
   const s = exportBox.value, el = useRef(null);
   const p = data.value && data.value.project;
-  useModal(el);
+  useModal(el, s.opener);
   // Focus: the To client tick when it can be ticked, else the button; the chosen answer when the name is taken.
   useEffect(() => {
     const dlg = el.current;
@@ -45,7 +52,7 @@ function Export() {
   }, [s.phase]);
   const working = s.phase === "working";
   return (
-    <dialog id="word-export-dialog" class="dlg" aria-modal="true" aria-labelledby="word-x-title" aria-busy={working ? "true" : "false"} ref={el} onCancel={(e) => { e.preventDefault(); cancelExport(); }}>
+    <dialog id="word-export-dialog" class="dlg" aria-modal="true" aria-labelledby="word-x-title" aria-busy={working ? "true" : "false"} ref={el} onCancel={(e) => { e.preventDefault(); cancelExport(); }} onClose={() => reshow(el, exportBox, (v) => v.phase === "working")}>
       <form class="dlg-form" onSubmit={(e) => { e.preventDefault(); goExport(); }}>
         <h2 id="word-x-title">{s.phase === "clash" ? "The Word file name is taken" : "Export to Word"}</h2>
         {s.phase === "clash" ? null : (
@@ -56,7 +63,7 @@ function Export() {
         ) : (
           <div class="pubopts">
             <p class="muted word-where">The report is saved as a Word file in the folder last used for this project. If there is none yet, a window asks you to choose one.</p>
-            <label class={`pubopt${s.saved ? "" : " off"}`}><input type="checkbox" id="word-client" checked={s.ticked} disabled={!s.saved || working} onChange={(e) => tickClient(e.currentTarget.checked)} />
+            <label class={`pubopt${s.saved ? "" : " off"}`}><input type="checkbox" id="word-client" checked={s.ticked} disabled={!s.saved || working || s.phase === "done"} onChange={(e) => tickClient(e.currentTarget.checked)} />
               <span><b>To client</b><small>{s.saved ? `Also copied to the client folder: ${folderName(s.saved)}` : NO_FOLDER}</small></span></label>
           </div>
         )}
@@ -77,7 +84,7 @@ function Export() {
 
 function Import() {
   const s = importBox.value, el = useRef(null);
-  useModal(el);
+  useModal(el, s.opener);
   const busy = s.phase === "reading" || s.phase === "adding";
   useEffect(() => {
     const dlg = el.current;
@@ -93,7 +100,7 @@ function Import() {
   }, [s.file, s.message]);
   const plan = s.plan, n = s.ticks.length;
   return (
-    <dialog id="word-import-dialog" class="dlg wi" aria-modal="true" aria-labelledby="word-i-title" aria-busy={busy ? "true" : "false"} ref={el} onCancel={(e) => { e.preventDefault(); cancelImport(); }}>
+    <dialog id="word-import-dialog" class="dlg wi" aria-modal="true" aria-labelledby="word-i-title" aria-busy={busy ? "true" : "false"} ref={el} onCancel={(e) => { e.preventDefault(); cancelImport(); }} onClose={() => reshow(el, importBox, (v) => v.phase === "reading" || v.phase === "adding")}>
       <form class="dlg-form" onSubmit={(e) => { e.preventDefault(); if (s.phase === "choose") goRead(); else if (s.phase === "plan") goAdd(); }}>
         <h2 id="word-i-title">Import from Word</h2>
         {s.phase === "plan" || s.phase === "adding" ? (

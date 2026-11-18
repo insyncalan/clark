@@ -92,11 +92,11 @@ class Running:
     """A server on a free port in a thread, stopped by close() (which also drops the connections it holds, as stopping would)."""
 
     def __init__(self, data_for=DEMO.get, page_html=None, projects=lambda archived=False: PROJECTS, change=None, undo=None, sneak=None,
-                 publisher=StubPublisher(), section_body=None):
+                 publisher=StubPublisher(), section_body=None, activity=None):
         if section_body is None:
             section_body = change      # #273: a test that stands in for the change handler stands in for a section's content too (the page sends it to its own route)
         self.httpd = Stoppable((sv.HOST, 0), data_for=data_for, page_html=page_html, projects=projects, change=change,
-                               undo=undo, sneak=sneak, publisher=publisher, section_body=section_body)
+                               undo=undo, sneak=sneak, publisher=publisher, section_body=section_body, activity=activity)
         self.port = self.httpd.server_port
         self.httpd.handle_error = self._quiet_when_the_client_leaves(self.httpd.handle_error)
         threading.Thread(target=self.httpd.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True).start()   # shutdown() waits one poll: 0.5 s by default, a test file stops a server per test
@@ -283,7 +283,7 @@ class Token(ServerTest):
             self.assertTrue(r.startswith("/api/"), r)
         free = {("GET", "/health"), ("GET", "/"), ("POST", sv.CSP_REPORT_ROUTE),
                 *(("GET", sv.BRAND_PREFIX + n) for n in page.PICTURES)}
-        self.assertEqual(sorted(page.PICTURES), ["cover.jpeg", "cover.jpg", "cover.png", "cover.webp"])
+        self.assertEqual(sorted(page.PICTURES), ["cover.jpeg", "cover.jpg", "cover.png", "cover.webp", "logo.png"])
         with mock.patch.object(self.s.httpd, "brand_picture", lambda name: (PICTURE, page.PICTURES[name])):
             for method, path in sorted(free):
                 if method == "GET":
@@ -353,7 +353,7 @@ class Saving(ServerTest):
         self.assertEqual(sv.POST_ROUTES["/api/section-body"], sv.section_body_route)      # #273
         self.assertEqual(sv.POST_ROUTES["/api/excel-import"], sv.excel_import_route)      # #444
         self.assertEqual(sv.POST_ROUTES["/api/project"], sv.project_save_route)
-        self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page
+        self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/section-image": 11 * 1024 * 1024,     # #96 R1: one picture, shrunk by the page; row 1223: one Full width image (8 MiB, 11 MiB as text)
                                                 "/api/change": sv.CHANGE_BODY_LIMIT, "/api/section-body": sv.SECTION_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024,
                                                 "/api/backups/restore": 1024, "/api/backups/copy-folder": 4096, "/api/profile": 2 * 1024, "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024,     # #110
                                                  "/api/word-export": 1024,     # #111, #180; #48
@@ -362,7 +362,7 @@ class Saving(ServerTest):
                                                 "/api/excel-import": (sv.EXCEL_FILE_MB * 4 // 3 + 1) * 1024 * 1024,     # #444: a workbook as text
                                                 "/api/project": 4 * 1024,                                               # #444
                                                 "/api/demo/clear": 1024,                                               # #731
-                                                "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024,
+                                                "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/theme": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024,
                                                 "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                                                 "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024, "/api/ask/open-source": 1024,     # #47, #47e, #943
                                                 "/api/section-file": 1024,
@@ -573,7 +573,7 @@ class RealSaving(unittest.TestCase):
         self.assertTrue(all("body" not in r for r in body["sections"]))
         status, body = self.post("/api/undo", {"project": "ABC", "apply_id": body["apply_id"]})
         self.assertEqual((status, body["ok"], body["skipped"]), (200, True, []))
-        self.assertEqual(self.demo.store.read("report_sections", ref="ABC-S-005")["title"], "Summary")
+        self.assertEqual(self.demo.store.read("report_sections", ref="ABC-S-005")["title"], "This week")
         status, body = self.post("/api/change", {**change, "changes": {"hidden": True}})
         self.assertEqual((status, body["message"], body["code"]), (400, "That must be 0 or 1.", "refused"))
         status, body = self.post("/api/change", {**change, "id": "XYZ-S-001"})
@@ -597,11 +597,11 @@ class RealSaving(unittest.TestCase):
             status, body = self.post("/api/change", {"project": "OLD", "kind": "report_sections", "op": "new", "values": {"title": title}})
             self.assertEqual(status, 200, body)
             made.append(body["apply_id"])
-        self.assertEqual(len(self.sections("OLD")), 14)
+        self.assertEqual(len(self.sections("OLD")), 13)
         status, body = self.post("/api/undo", {"project": "OLD", "apply_id": made[0]})
         self.assertEqual((status, body["skipped"]), (200, []))
         titles = self.sections("OLD")
-        self.assertEqual((len(titles), titles[:1], titles[-2:], "x" in titles), (13, ["Current state"], ["y", "Hello"], False))
+        self.assertEqual((len(titles), titles[:1], titles[-2:], "x" in titles), (12, ["Current state"], ["y", "Hello"], False))
 
     def test_a_second_undo_of_an_old_projects_first_change_over_http_is_409_undone_already(self):
         self.old_project("OLD")
@@ -612,7 +612,7 @@ class RealSaving(unittest.TestCase):
         status, again = self.post("/api/undo", {"project": "OLD", "apply_id": body["apply_id"]})
         self.assertEqual((status, again.get("ok"), again.get("message"), again.get("code")), (409, False, "That step has been undone already.", "undone"))
         self.assertEqual(self.demo.store.con.execute("SELECT count(*) FROM applies").fetchone()[0], steps, "no step was written")
-        self.assertEqual(len(self.sections("OLD")), 11, "the starting sections stay")
+        self.assertEqual(len(self.sections("OLD")), 10, "the starting sections stay")
 
     def test_a_rename_that_seeded_and_is_undone_leaves_all_the_starting_sections(self):
         self.old_project("OLD")
@@ -621,7 +621,7 @@ class RealSaving(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(self.post("/api/undo", {"project": "OLD", "apply_id": body["apply_id"]})[0], 200)
         titles = self.sections("OLD")
-        self.assertEqual((len(titles), titles[4]), (11, "Summary"))
+        self.assertEqual((len(titles), titles[4]), (10, "This week"))
 
     def test_two_first_adds_at_once_on_an_old_project_make_one_seed_and_two_steps(self):
         self.old_project("OLD")
@@ -637,7 +637,7 @@ class RealSaving(unittest.TestCase):
             t.join(20)
         self.assertEqual(sorted(r[0] for r in results), [200, 200], results)
         titles = self.sections("OLD")
-        self.assertEqual((len(titles), sorted(titles[-2:])), (13, ["One", "Two"]))
+        self.assertEqual((len(titles), sorted(titles[-2:])), (12, ["One", "Two"]))
         self.assertEqual(titles.count("Current state"), 1, "one seed")
         steps = {r[0] for r in self.demo.store.con.execute("SELECT DISTINCT apply_id FROM change_log WHERE item_id LIKE 'OLD-S-%'")}
         self.assertEqual(len(steps), 2, "one step each")
@@ -649,7 +649,7 @@ class RealSaving(unittest.TestCase):
         for extra in ({"Origin": "https://evil.example"}, {"Origin": "null"}, {"Sec-Fetch-Site": "cross-site"}):
             status, _, data = self.s.api("POST", "/api/change", json.dumps(change).encode("utf-8"), extra=extra)
             self.assertEqual((status, json.loads(data)["code"]), (403, "not_allowed"), extra)
-        self.assertEqual(self.demo.store.read("report_sections", ref="ABC-S-005")["title"], "Summary")
+        self.assertEqual(self.demo.store.read("report_sections", ref="ABC-S-005")["title"], "This week")
         self.assertEqual(self.demo.store.con.execute("SELECT count(*) FROM applies").fetchone()[0], steps)
         status, _, data = self.s.api("POST", "/api/change", json.dumps(change).encode("utf-8"),
                                      extra={"Origin": f"http://127.0.0.1:{self.s.port}"})

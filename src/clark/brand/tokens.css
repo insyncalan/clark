@@ -11,6 +11,7 @@
   --brand-navy: #062F3A; --brand-ink: #0E2430; --brand-cyan: #38E0EE; --brand-charcoal: #3B4A5C;
   --brand-blue: #5B47D8; --brand-blue-strong: #4A37C2; --brand-blue-tint: #ECE9FF;
   --grey-50: #F3F6FC; --grey-100: #E6EBF6; --grey-200: #D9E0EF; --grey-300: #C4CEE3; --grey-500: #8592AD; --grey-700: #475577;
+  --control-edge: #7A859F;      /* item 1200: the edge of a Settings field, button and choice; 3.7:1 on white */
   --heading: #062F3A; --text: #0E2430; --text-muted: #475577; --link: #4A37C2; --focus: #5B47D8; --text-on-brand: #FFFFFF; --bg: #F3F6FC;
   --status-blue: #5B47D8; --status-blue-text: #4A37C2;
   --data-1: #5B47D8; --data-2: #0B8FA3; --data-3: #E59A1F; --data-4: #1B6FD6; --data-5: #D9534A; --data-6: #8592AD;
@@ -31,6 +32,9 @@
   /* how clear a section's control is at rest (#101): faint in light, clearer in dark, where .3 is close to invisible */
   --sh-rest: .3; --tile-ctl: 41px; --tile-tag: 54px;
   --sh-rest-narrow: .85;      /* the same, in the card's padding at 900 px and below: about 5:1 on the white card (#285) */
+  /* hooks for a Theme (item 1260): each default equals today's look, so nothing changes until a Theme or a Brand sets them */
+  --page-bg: var(--bg); --page-grad: none; --band-bg: transparent; --line-soft: var(--grey-200); --gutter-rule: transparent;
+  --sec-number-color: var(--text-muted); --sec-number-size: var(--size-small); --logo-width: auto; --logo-height: auto;
 }
 /* dark mode: the same tokens, redrawn for a dark page; the top bar and the report cover stay dark. The values are written twice because CSS cannot
    share them: once for data-theme=dark (chosen) and once for data-theme=auto (follow the computer). tests/test_page.py keeps the two copies equal. */
@@ -40,7 +44,7 @@
   --data-1: #A99BFF; --data-2: #38E0EE; --data-3: #F0B84A; --data-4: #5BB4F0; --data-5: #F08A7C; --data-6: #7AA3AE;
 
   color-scheme: dark;
-  --surface: #0E2D38; --grey-50: #08232D; --grey-100: #123846; --grey-200: #1A4454; --grey-300: #2B5868; --grey-500: #7AA3AE; --grey-700: #A9CBD4;
+  --surface: #0E2D38; --grey-50: #08232D; --grey-100: #123846; --grey-200: #1A4454; --grey-300: #2B5868; --grey-500: #7AA3AE; --grey-700: #A9CBD4; --control-edge: #7AA3AE;
   --brand-ink: #E8FAFC; --heading: #E8FAFC; --text: #E8FAFC; --text-muted: #A9CBD4; --border: #2B5868; --bg: #08232D;
   --brand-navy: #04202A; --white: #ffffff; --phase-bar: var(--grey-500);
   --status-green: #2FB38F; --status-amber: #F2AC24; --status-red: #E2685A; --status-grey: #7AA3AE;
@@ -51,6 +55,8 @@
   --tone-grey-text: #C3CBD6; --tone-grey-tint: #2A323D; --tone-urgent: #A8384D; --tone-on-urgent: #FFFFFF;
   --flash: #4A3F1A;
   --sh-rest: .75; --sh-rest-narrow: .75;
+  --page-bg: var(--bg); --page-grad: none; --band-bg: transparent; --line-soft: var(--grey-200); --gutter-rule: transparent;
+  --sec-number-color: var(--text-muted); --sec-number-size: var(--size-small); --logo-width: auto; --logo-height: auto;
   --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 2px 8px rgba(0, 0, 0, .3);
 }
 @media (prefers-color-scheme: dark) {
@@ -60,7 +66,7 @@
     --data-1: #A99BFF; --data-2: #38E0EE; --data-3: #F0B84A; --data-4: #5BB4F0; --data-5: #F08A7C; --data-6: #7AA3AE;
 
     color-scheme: dark;
-    --surface: #0E2D38; --grey-50: #08232D; --grey-100: #123846; --grey-200: #1A4454; --grey-300: #2B5868; --grey-500: #7AA3AE; --grey-700: #A9CBD4;
+    --surface: #0E2D38; --grey-50: #08232D; --grey-100: #123846; --grey-200: #1A4454; --grey-300: #2B5868; --grey-500: #7AA3AE; --grey-700: #A9CBD4; --control-edge: #7AA3AE;
     --brand-ink: #E8FAFC; --heading: #E8FAFC; --text: #E8FAFC; --text-muted: #A9CBD4; --border: #2B5868; --bg: #08232D;
     --brand-navy: #04202A; --white: #ffffff; --phase-bar: var(--grey-500);
     --status-green: #2FB38F; --status-amber: #F2AC24; --status-red: #E2685A; --status-grey: #7AA3AE;
@@ -71,6 +77,8 @@
     --tone-grey-text: #C3CBD6; --tone-grey-tint: #2A323D; --tone-urgent: #A8384D; --tone-on-urgent: #FFFFFF;
     --flash: #4A3F1A;
     --sh-rest: .75; --sh-rest-narrow: .75;
+    --page-bg: var(--bg); --page-grad: none; --band-bg: transparent; --line-soft: var(--grey-200); --gutter-rule: transparent;
+    --sec-number-color: var(--text-muted); --sec-number-size: var(--size-small); --logo-width: auto; --logo-height: auto;
     --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 2px 8px rgba(0, 0, 0, .3);
   }
 }

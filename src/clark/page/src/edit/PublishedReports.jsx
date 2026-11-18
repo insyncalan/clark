@@ -6,6 +6,7 @@
 // `api`, `openTab`, `code` and `name` are seams for the tests; the page passes none of them.
 import { useEffect, useState } from "preact/hooks";
 import { project, show } from "../stores/report.js";
+import { useColWidths } from "./colWidths.jsx";
 import { openInNewTab } from "../router.js";
 import { dialog } from "./publishState.js";
 import { say } from "../stores/changes.js";
@@ -20,6 +21,7 @@ export function showPublished() { show("published"); }
 
 export function PublishedReports({ api = REAL, openTab = openInNewTab, code = project.value, withAsAt = true, toast = say, zone }) {
   const [state, setState] = useState({ phase: "loading", list: null, message: "" });
+  const cw = useColWidths("published");
   const [msg, setMsg] = useState(null);                      // {kind: "error" | "note", text}
   const [busy, setBusy] = useState(0);                       // the number being opened, or 0
   const [showArch, setShowArch] = useState(false);           // Show archived (#345): the archived ones are listed too, marked
@@ -34,6 +36,9 @@ export function PublishedReports({ api = REAL, openTab = openInNewTab, code = pr
   }
   useEffect(() => { if (!publishing) load(); }, [code, publishing, showArch]);
 
+  // The button that was pressed is disabled while it works and may leave the table: the focus goes to it again, else to Show archived.
+  const refocus = (...sels) => requestAnimationFrame(() => { const el = sels.map((s) => document.querySelector(`#pubs ${s}`)).find(Boolean); if (el) el.focus(); });
+
   // Archive and Restore (#345): one request, the list read again, and a toast with no Undo (Restore, or Archive, is the way back).
   async function mark(number, archive) {
     if (marking) return;
@@ -43,10 +48,12 @@ export function PublishedReports({ api = REAL, openTab = openInNewTab, code = pr
     setMarking(0);
     if (r.status === 200 && r.body && r.body.ok === true) {
       toast("done", archive ? L.archivedToast(number) : L.restoredToast(number));
-      load();
+      await load();
+      refocus(`[data-pubarchive="${number}"]`, `[data-pubrestore="${number}"]`, "#pubs-archived");
       return;
     }
     setMsg({ kind: "error", text: L.markWords(r.status, r.body) });
+    refocus(`[data-pubarchive="${number}"]`, `[data-pubrestore="${number}"]`, "#pubs-archived");      // refused: the button was disabled while it worked, so it takes the focus again
   }
 
   // The tab is opened first, while the click still counts (a browser blocks one opened after a wait), then pointed at the kept page.
@@ -60,6 +67,7 @@ export function PublishedReports({ api = REAL, openTab = openInNewTab, code = pr
       return r.status === 200 && r.body && r.body.ok === true && typeof r.body.url === "string" ? r.body.url : null;
     });
     setBusy(0);
+    refocus(`[data-pubopen="${number}"]`);
     if (opened) return;
     setMsg({ kind: "error", text: r && r.status === 200 ? L.BLOCKED : L.openWords(r ? r.status : 0, r ? r.body : null) });
   }
@@ -98,8 +106,8 @@ export function PublishedReports({ api = REAL, openTab = openInNewTab, code = pr
       {rows.length ? (
         <div class="pp-block pp-earlier">
           <p class="pp-kicker">{L.PAGE.earlier}</p>
-          <table class="pubs" id="pubs-table">
-            <thead><tr>{L.COLUMNS.map((c, i) => <th scope="col" key={i}>{c || <span class="sr">Open</span>}</th>)}</tr></thead>
+          <table class={`pubs${cw.any() ? " cw-set" : ""}`} id="pubs-table">
+            <thead><tr>{L.COLUMNS.map((c, i) => c ? <th scope="col" key={i} style={cw.style(`c${i}`)} {...cw.head(`c${i}`, c)}>{c}{cw.grip(`c${i}`, c)}</th> : <th scope="col" key={i}><span class="sr">Open</span></th>)}</tr></thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.number} data-pub={r.number} class={r.archived ? "arch-row" : ""}>

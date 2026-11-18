@@ -15,6 +15,7 @@ from test_server import chrome, wait  # noqa: E402
 from test_work_filters import click  # noqa: E402
 
 ACTION = "TUL-A-001"
+RISK = "TUL-007"     # rows 1181 and 1256: an action no longer draws a Use case picker, and no action, risk or issue draws Client wording; those tests use a risk (Use case) or a decision (Client wording)
 SRC = ROOT / "src/clark/page/src"
 
 
@@ -24,6 +25,9 @@ class Fields(unittest.TestCase):
     fresh = _tl.Browser.fresh
     load = _tl.Browser.load
     action = _tl.Browser.action
+
+    def raid(self, ref):
+        return next(r for r in self.data["raid"] if r["id"] == ref)
     toast = _tl.Browser.toast
     _inside_now = _tl.Browser.inside
 
@@ -39,6 +43,12 @@ class Fields(unittest.TestCase):
         wait(lambda: self._inside_now(cdp, sid, selector))
         return self._inside_now(cdp, sid, selector)
 
+    def more_pick(self, cdp, sid, word):
+        """Row 1180: Duplicate, Archive and Delete are items of the toolbar's More menu."""
+        click(cdp, sid, "#pk-more")
+        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[role=menu]')", sid)), "More opens")
+        cdp.js(f"[...document.querySelectorAll('[role=menu] [role^=menuitem]')].find(b => b.textContent.trim().toLowerCase().startsWith({word!r})).click()", sid)
+
     def setUp(self):
         self.fresh()
 
@@ -46,11 +56,14 @@ class Fields(unittest.TestCase):
         return [(w, dark) for w in (1400, 900) for dark in (False, True)]
 
     def title(self, cdp, sid):
-        return cdp.js("(t => t ? t.textContent : '')(document.querySelector('#peek [data-pk-title-in]'))", sid)
+        """The title as shown (row 1180: plain text until a click opens the box; then the box's text)."""
+        return cdp.js("(h => { const t = h.querySelector('[data-pk-title-in]'); return t && t.tagName === 'TEXTAREA' ? t.value : h.textContent.trim(); })(document.querySelector('#peek h2.pk-title'))", sid)
 
     def type_title(self, cdp, sid, text):
-        cdp.js("document.querySelector('#peek [data-pk-title-in]').focus()", sid)
-        cdp.js(f"document.querySelector('#peek [data-pk-title-in]').textContent = {json.dumps(text)}", sid)
+        if not cdp.js("!!document.querySelector('#peek textarea[data-pk-title-in]')", sid):
+            click(cdp, sid, "#peek h2.pk-title .pkh-title-txt")
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement === document.querySelector('#peek textarea[data-pk-title-in]')", sid)), "a click opens the box")
+        cdp.js(f"document.querySelector('#peek textarea[data-pk-title-in]').value = {json.dumps(text)}", sid)
 
 
 class Title(Fields):
@@ -60,13 +73,13 @@ class Title(Fields):
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 sent, sid = self.load(cdp, width, ACTION, dark=dark)
                 self.assertEqual(self.title(cdp, sid), was)
-                self.assertTrue(self.inside(cdp, sid, "[data-pk-title-in]"), "the title box fits the peek")
+                self.assertTrue(self.inside(cdp, sid, "h2.pk-title"), "the title fits the peek")
                 self.type_title(cdp, sid, "A new title for this action")
                 key(cdp, sid, "Enter")
                 self.assertTrue(wait(lambda: len(sent) == 1))
                 self.assertEqual((sent[0]["kind"], sent[0]["id"], sent[0]["changes"]), ("actions", ACTION, {"description": "A new title for this action"}))
                 self.assertTrue(wait(lambda: self.title(cdp, sid) == "A new title for this action"))
-                self.assertTrue(wait(lambda: f"Title of {ACTION} changed." in self.toast(cdp, sid)))
+                self.assertTrue(wait(lambda: "Title changed" in self.toast(cdp, sid)))
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.toast [data-undo]')", sid)))
                 cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
                 self.assertTrue(wait(lambda: self.title(cdp, sid) == was), "one Undo puts the old title back")
@@ -81,9 +94,22 @@ class Title(Fields):
             self.assertTrue(cdp.js("!!document.querySelector('#peek')", sid), "Esc leaves the peek open")
             self.type_title(cdp, sid, "   ")
             key(cdp, sid, "Enter")
-            self.assertTrue(wait(lambda: self.title(cdp, sid) == was))
-            self.assertTrue(wait(lambda: "A title can't be blank" in self.toast(cdp, sid)))
+            self.assertTrue(wait(lambda: self.title(cdp, sid) == was), "a blank title puts the old one back (row 1180)")
             self.assertEqual(sent, [], "nothing was sent")
+
+    def test_a_refused_title_keeps_its_text_and_the_box_gets_focus_back(self):
+        for how in ("Enter", "away"):
+            with self.subTest(how=how), chrome() as cdp:
+                sent, sid = self.load(cdp, 1400, ACTION)
+                text = "x" * 400
+                self.type_title(cdp, sid, text)
+                if how == "Enter":
+                    key(cdp, sid, "Enter")
+                else:
+                    cdp.js("document.querySelector('#peek textarea[data-pk-title-in]').blur()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement === document.querySelector('#peek textarea[data-pk-title-in]')", sid)), "the box has focus again")
+                self.assertEqual(self.title(cdp, sid), text, "the typed text is kept")
+                self.assertEqual(sent, [], "nothing was sent")
 
     def test_enter_and_escape_keep_focus_in_the_peek_not_on_the_page_body(self):
         for keyname in ("Enter", "Escape"):
@@ -103,12 +129,17 @@ class Title(Fields):
 
     def test_the_title_is_plain_in_a_published_file_and_in_view(self):
         peek = (SRC / "components/Peek.jsx").read_text(encoding="utf-8")
-        self.assertIn("editing && forItem && tools.PeekTitle", peek)
+        self.assertIn("TitleBox = editing && forItem && tools.PeekItemTitle", peek)
         view = (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8")
         self.assertNotIn("data-pk-title-in", view)
 
 
 class Wording(Fields):
+    # row 1256: an action, a risk and an issue no longer draw Client wording in the peek (their Details are one body); a decision still does,
+    # and the report rows edit it for the others (test_inline_edits)
+    def decision(self):
+        return self.data["decisions"][0]
+
     BOX = "#peek [data-ce]"            # item 1005: the wording drawn as text; a click opens the one editor (a ProseMirror) in its place, Enter saves
 
     def words(self, cdp, sid):
@@ -120,26 +151,26 @@ class Wording(Fields):
         cdp.js(f"(() => {{ const e = document.activeElement.cxed.editor; e.commands.selectAll(); e.commands.insertContent({json.dumps(text)}); }})()", sid)
 
     def test_the_client_wording_is_changed_in_place_and_undone_in_one_step(self):
-        was = (self.action(ACTION).get("client_message") or "").strip()
+        was = (self.decision().get("client_message") or "").strip()
         for width, dark in self.widths():
             with self.subTest(width=width, dark=dark), chrome() as cdp:
-                sent, sid = self.load(cdp, width, ACTION, dark=dark)
+                sent, sid = self.load(cdp, width, self.decision()["id"], dark=dark)
                 self.assertEqual(cdp.js("document.querySelector('#peek [data-ce]').closest('.pk-row').querySelector('dt').textContent", sid), "Client wording")
                 self.assertEqual(self.words(cdp, sid), was)
                 self.assertTrue(self.inside(cdp, sid, BOX_PK), "the box fits the peek")
                 self.type_words(cdp, sid, "Plain words a client can read")
                 key(cdp, sid, "Enter")
                 self.assertTrue(wait(lambda: len(sent) == 1))
-                self.assertEqual((sent[0]["kind"], sent[0]["id"], sent[0]["changes"]), ("actions", ACTION, {"client_message": "Plain words a client can read"}))
-                self.assertTrue(wait(lambda: f"Wording of {ACTION} changed." in self.toast(cdp, sid)))
+                self.assertEqual((sent[0]["kind"], sent[0]["id"], sent[0]["changes"]), ("decisions", self.decision()["id"], {"client_message": "Plain words a client can read"}))
+                self.assertTrue(wait(lambda: f"Wording of {self.decision()['id']} changed." in self.toast(cdp, sid)))
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.toast [data-undo]')", sid)))
                 cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
                 self.assertTrue(wait(lambda: self.words(cdp, sid) == was), "one Undo puts the old words back")
 
     def test_escape_and_an_empty_text_put_the_old_words_back(self):
-        was = (self.action(ACTION).get("client_message") or "").strip()
+        was = (self.decision().get("client_message") or "").strip()
         with chrome() as cdp:
-            sent, sid = self.load(cdp, 1400, ACTION)
+            sent, sid = self.load(cdp, 1400, self.decision()["id"])
             self.type_words(cdp, sid, "Typed and abandoned")
             key(cdp, sid, "Escape")
             self.assertTrue(wait(lambda: self.words(cdp, sid) == was))
@@ -154,7 +185,7 @@ class Wording(Fields):
     def test_the_open_peek_wording_editor_shows_no_toolbar_and_no_keys_line(self):
         for width, dark in self.widths():
             with self.subTest(width=width, dark=dark), chrome() as cdp:
-                sent, sid = self.load(cdp, width, ACTION, dark=dark)
+                sent, sid = self.load(cdp, width, self.decision()["id"], dark=dark)
                 cdp.js(f"document.querySelector({json.dumps(self.BOX)}).click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("document.activeElement.classList.contains('ProseMirror')", sid), 15), "the editor opens with the focus in it")
                 shown = cdp.js("['#peek .rt-bar', '#peek .rt-keys'].map(q => { const e = document.querySelector(q); return e ? getComputedStyle(e).display : 'none'; })", sid)
@@ -173,7 +204,7 @@ class Picks(Fields):
         return cdp.js(f"(b => b ? b.textContent : null)(document.querySelector('#peek [data-pk-pick={field}]'))", sid)
 
     def test_workstream_milestone_and_use_case_are_chosen_in_the_peek_each_with_one_undo(self):
-        a = self.action(ACTION)
+        a = self.raid(RISK)
         other_ws = next(w["name"] for w in self.data["workstreams"] if w["name"] != a["workstream"] and w["status"] != "Closed" and not w.get("archived"))
         other_ms = next(m for m in self.data["milestones"] if m["id"] != a["milestone"] and not m.get("archived"))
         other_uc = next(u for u in self.data["use_cases"] if u["id"] != a["use_case"] and not u.get("archived"))
@@ -182,7 +213,7 @@ class Picks(Fields):
         for width, dark in self.widths():
             for field, value, words, name in cases:
                 with self.subTest(width=width, dark=dark, field=field), chrome() as cdp:
-                    sent, sid = self.load(cdp, width, ACTION, dark=dark)
+                    sent, sid = self.load(cdp, width, RISK, dark=dark)
                     was = self.shown(cdp, sid, field)
                     self.assertTrue(self.inside(cdp, sid, f"[data-pk-pick={field}]"), "the button fits the peek")
                     click(cdp, sid, f"#peek [data-pk-pick={field}]")
@@ -190,9 +221,9 @@ class Picks(Fields):
                     self.assertTrue(cdp.js("document.querySelector('[role=menu]').contains(document.activeElement)", sid), "the focus is in the list")
                     cdp.js("[...document.querySelectorAll('[role=menu] [data-value]')].find(b => b.dataset.value === " + json.dumps(value) + ").click()", sid)     # by script: a long list may reach below the window
                     self.assertTrue(wait(lambda: len(sent) == 1))
-                    self.assertEqual((sent[0]["kind"], sent[0]["id"], sent[0]["changes"]), ("actions", ACTION, {field: value}))
+                    self.assertEqual((sent[0]["kind"], sent[0]["id"], sent[0]["changes"]), ("raid", RISK, {field: value}))
                     self.assertTrue(wait(lambda: self.shown(cdp, sid, field) == words))
-                    self.assertTrue(wait(lambda: (f"{ACTION}: use case changed to {other_uc['ref']}." if field == "use_case" else f"{name} of {ACTION} changed to {words}.") in self.toast(cdp, sid)))
+                    self.assertTrue(wait(lambda: (f"{RISK}: use case changed to {other_uc['ref']}." if field == "use_case" else f"{name} of {RISK} changed to {words}.") in self.toast(cdp, sid)))
                     if field == "use_case":
                         self.assertNotIn("Use case of", self.toast(cdp, sid))
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.toast [data-undo]')", sid)))
@@ -201,7 +232,7 @@ class Picks(Fields):
 
     def test_none_clears_a_choice_and_escape_leaves_it_as_it_was(self):
         with chrome() as cdp:
-            sent, sid = self.load(cdp, 1400, ACTION)
+            sent, sid = self.load(cdp, 1400, RISK)
             was = self.shown(cdp, sid, "milestone")
             click(cdp, sid, "#peek [data-pk-pick=milestone]")
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[role=menu]')", sid)))
@@ -217,11 +248,11 @@ class Picks(Fields):
 
     def test_the_none_choice_of_a_use_case_says_cleared(self):
         with chrome() as cdp:
-            sent, sid = self.load(cdp, 1400, ACTION)
+            sent, sid = self.load(cdp, 1400, RISK)
             click(cdp, sid, "#peek [data-pk-pick=use_case]")
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[role=menu]')", sid)))
             cdp.js("document.querySelector(\"[role=menu] [data-value='']\").click()", sid)
-            self.assertTrue(wait(lambda: f"Use case of {ACTION} cleared." in self.toast(cdp, sid)))
+            self.assertTrue(wait(lambda: f"Use case of {RISK} cleared." in self.toast(cdp, sid)))
             self.assertTrue(wait(lambda: sent and sent[0]["changes"] == {"use_case": None}))
 
     def test_a_decision_has_a_use_case_choice_and_no_workstream_or_milestone_choice(self):
@@ -243,9 +274,9 @@ class Duplicate(Fields):
         for width, dark in self.widths():
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 sent, sid = self.load(cdp, width, ACTION, dark=dark)
-                self.assertTrue(self.inside(cdp, sid, "[data-pk-dup]"), "the button fits the peek")
+                self.assertTrue(self.inside(cdp, sid, "#pk-more"), "the button fits the peek")
                 self.calm(cdp, sid)
-                click(cdp, sid, "#peek [data-pk-dup]")
+                self.more_pick(cdp, sid, "duplicate")
                 self.assertTrue(wait(lambda: len(sent) == 1))
                 self.assertEqual((sent[0]["kind"], sent[0]["op"], sent[0]["copy_of"]), ("actions", "new", ACTION))
                 self.assertEqual(sent[0]["values"], {"description": a["description"] + " (copy)"})
@@ -258,8 +289,8 @@ class Duplicate(Fields):
                 self.assertTrue(wait(lambda: len(self.store.data_for(self.code)["actions"]) == before), "one Undo takes the copy back")
 
     def test_the_button_is_edit_only(self):
-        self.assertIn("editing && forItem && tools.PeekDuplicate", (SRC / "components/Peek.jsx").read_text(encoding="utf-8"))
-        self.assertNotIn("data-pk-dup", (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8"))
+        self.assertIn("MoreBtn = editing && forItem && tools.PeekMore", (SRC / "components/Peek.jsx").read_text(encoding="utf-8"))
+        self.assertNotIn("PeekDuplicate", (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8"))
 
 
 class Archive(Fields):
@@ -270,9 +301,9 @@ class Archive(Fields):
         for width, dark in self.widths():
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 sent, sid = self.load(cdp, width, ACTION, dark=dark)
-                self.assertTrue(self.inside(cdp, sid, "[data-pk-archive]"), "the button fits the peek")
+                self.assertTrue(self.inside(cdp, sid, "#pk-more"), "the button fits the peek")
                 self.calm(cdp, sid)
-                click(cdp, sid, "#peek [data-pk-archive]")
+                self.more_pick(cdp, sid, "archive")
                 self.assertTrue(wait(lambda: len(sent) == 1))
                 self.assertEqual((sent[0]["kind"], sent[0]["op"], sent[0]["id"]), ("actions", "archive", ACTION))
                 self.assertTrue(wait(lambda: f"{ACTION} archived. It is out of the lists and the published page." in self.toast(cdp, sid)))
@@ -289,16 +320,31 @@ class Archive(Fields):
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 sent, sid = self.load(cdp, width, ACTION, dark=dark)
                 self.calm(cdp, sid)
-                click(cdp, sid, "#peek [data-pk-archive]")
+                self.more_pick(cdp, sid, "archive")
                 self.assertTrue(wait(lambda: cdp.js("document.activeElement === document.querySelector('.toast [data-undo]')", sid)), "the focus is on Undo")
                 key(cdp, sid, "Enter")
                 self.assertTrue(wait(lambda: self.row(ACTION)["archived"] == 0), "Enter on Undo brings it back")
                 row = json.dumps(ACTION)
                 self.assertTrue(wait(lambda: cdp.js(f"(() => {{ const a = document.activeElement, r = a && a.closest('tr[data-id], article.bcard[data-id]'); return !!r && r.dataset.id === {row}; }})()", sid)), "the focus is on the restored item, not the page body")
 
+    def test_undo_puts_the_focus_on_the_restored_row_when_the_page_main_has_it(self):
+        """Focus on <main> counts as nothing focused (stores/changes.js); fails if that acceptance is removed."""
+        for width, dark in self.widths():
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                sent, sid = self.load(cdp, width, ACTION, dark=dark)
+                self.calm(cdp, sid)
+                self.more_pick(cdp, sid, "archive")
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement === document.querySelector('.toast [data-undo]')", sid)), "the focus is on Undo")
+                cdp.js("document.getElementById('main').focus()", sid)
+                self.assertTrue(cdp.js("document.activeElement.id === 'main'", sid), "main has the focus")
+                cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
+                self.assertTrue(wait(lambda: self.row(ACTION)["archived"] == 0), "Undo brings it back")
+                row = json.dumps(ACTION)
+                self.assertTrue(wait(lambda: cdp.js(f"(() => {{ const a = document.activeElement, r = a && a.closest('tr[data-id], article.bcard[data-id]'); return !!r && r.dataset.id === {row}; }})()", sid)), "the focus is on the restored item, not on main")
+
     def test_the_button_is_edit_only(self):
-        self.assertIn("editing && forItem && tools.PeekArchive", (SRC / "components/Peek.jsx").read_text(encoding="utf-8"))
-        self.assertNotIn("data-pk-archive", (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8"))
+        self.assertIn("MoreBtn = editing && forItem && tools.PeekMore", (SRC / "components/Peek.jsx").read_text(encoding="utf-8"))
+        self.assertNotIn("PeekArchive", (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8"))
 
 
 BOX_PK = "#peek [data-ce]"

@@ -6,6 +6,7 @@ answer for the project, a connection that drops), or whose token check is made t
 exact plain wording and never a Python class name, "JSON", "Not allowed", "Bad request" or "report editor"; "Try again" brings
 the page back when the fake does. The server's own messages are #33's file: the page must be safe whatever they say.
 """
+import json
 import re
 import sys
 import tempfile
@@ -33,6 +34,8 @@ WENT_WRONG = "Something went wrong"
 SENTENCE_STARTS_WITH_PRODUCT_NAME = re.compile(r"""(?:[`"'>:;]|[.!?]\s)\s*clark\s+[a-z]""", re.I)
 NEVER = re.compile(r"\w*(Error|Exception)\b|Traceback|JSON|Not allowed|Bad request|[Rr]eport editor|\bClark\b|\bUC\b|!")
 PAGE_SRC = Path(page.PAGE).parent / "src"
+# item 1177: the Dashboard has no banner and no h1 any more; the open project's own name is the header's .hdr-project button
+OPEN_NAME = "(document.querySelector('header .hdr-project') || {}).textContent && document.querySelector('header .hdr-project').textContent.trim()"
 WAIT = 30     # seconds to poll for what the page should show: a busy machine can take far longer than a quiet one
 
 
@@ -61,6 +64,16 @@ def lines(cdp, sid):
     return [x.strip() for x in text.splitlines() if x.strip()]
 
 
+# row 1280: the Settings menu headings are small capitals made by text-transform, so the page's copy of the text gives capitals; the source text stays as written.
+GROUP_NAMES = ("Everyday", "Publishing", "Look and feel", "Data and safety", "Advanced")
+
+
+def group_names_as_written(got):
+    """The lines, with a group name that the page shows in capitals put back to the words as written (the group names only, matched without case)."""
+    by_lower = {g.lower(): g for g in GROUP_NAMES}
+    return [by_lower.get(x.lower(), x) if x.isupper() else x for x in got]
+
+
 class Words(unittest.TestCase):
     def setUp(self):
         self.fake = Fake()
@@ -74,13 +87,13 @@ class Words(unittest.TestCase):
         return navigate(cdp, self.s.port, for_project(hash_))
 
     def shown(self, cdp, sid, expected):
-        self.assertTrue(wait(lambda: lines(cdp, sid) == expected, WAIT), f"wanted {expected}, the page shows {lines(cdp, sid)}")
+        self.assertTrue(wait(lambda: group_names_as_written(lines(cdp, sid)) == expected, WAIT), f"wanted {expected}, the page shows {lines(cdp, sid)}")
         self.assertIsNone(NEVER.search(" ".join(lines(cdp, sid))), lines(cdp, sid))
 
     def recovers(self, cdp, sid):
         self.fake.mode = "ok"
         cdp.js("document.querySelector('.again').click()", sid)
-        self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1') && document.querySelector('h1').textContent", sid)
+        self.assertTrue(wait(lambda: cdp.js(OPEN_NAME, sid)
                              == "Example Programme", WAIT), "Try again brought the report back")
 
     def test_a_fault_in_the_data_shows_no_error_name_and_try_again_recovers(self):
@@ -143,7 +156,7 @@ class Words(unittest.TestCase):
                 sid = self.visit(cdp)
                 self.shown(cdp, sid, [WENT_WRONG, STALE, "Try again"])
             cdp.js("document.querySelector('.again').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1') && document.querySelector('h1').textContent", sid)
+            self.assertTrue(wait(lambda: cdp.js(OPEN_NAME, sid)
                                  == "Example Programme", WAIT), "Try again reloaded the page with this run's token")
 
     def test_a_refusal_with_the_servers_old_words_shows_clark_did_not_accept_that(self):
@@ -155,7 +168,7 @@ class Words(unittest.TestCase):
                 sid = self.visit(cdp)
                 self.shown(cdp, sid, [WENT_WRONG, NOT_ACCEPTED, "Try again"])
             cdp.js("document.querySelector('.again').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1') && document.querySelector('h1').textContent", sid)
+            self.assertTrue(wait(lambda: cdp.js(OPEN_NAME, sid)
                                  == "Example Programme", WAIT), "Try again reloaded the page")
 
     def test_a_message_the_page_does_not_know_is_never_shown(self):
@@ -194,71 +207,109 @@ class Words(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#profile-menu')", sid), WAIT))
             cdp.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()", sid)
             system = cdp.js("(navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || ''", sid).strip() or "unknown"   # what the page itself reads
-            self.shown(cdp, sid, ["Settings",
-                                  "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
-                                  "Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "Brands", "People", "Asking", "Feedback", "Quit",      # the chips: one for each card below, in the order they are on the page
-                                  "Profile",      # row 950: the first card, with the About you boxes that were in Personal
-                                  "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
-                                  "Alias", "Your first name and your initials, worked out from your full name. You can change it.",     # item 613
-                                  "Your email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email.",
-                                  "Publishing", "Where Publish saves the report. Local is always used; the client folder only when you tick To client.",
-                                  "Local folder", "Always saved. Publish's save window opens in this folder; with none chosen, it opens where you last saved this report.",
-                                  "No local folder yet.", "Choose folder",      # row 852: the Local folder is chosen once, like the client folder
-                                  "Client folder",      # #43: the client folder, now one half of the Publishing card (A-S9)
-                                  "This must be a folder OneDrive syncs to the client's SharePoint. Publish copies the finished page "
-                                  "into it when you tick To client; OneDrive then uploads it.",
-                                  "No client folder yet.", "Choose folder", "or paste the folder's path", "Use", "A folder on this computer.",
-                                  "Personal",    # #45: Settings › Personal, the section styles
-                                  "These are for you, on this computer. Your spacing choice is used on the published report too; Light or Dark is yours alone.",
-                                  "Spacing", "Compact", "The Dashboard sections run on in one flat page, with thin lines between them, so more fits on the screen.",
-                                  "Comfortable", "Each Dashboard section is its own card, with room between them.",
-                                  "Appearance", "System", "Light", "Dark", "Follows your Mac's setting.",      # #179
-                                  "Keys", "Single-key shortcuts",            # #193
-                                  "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.",
-                                  "Freshness",          # #160: the project's "Not reviewed after (days)"
-                                  "When an open item counts as not reviewed in this project. It sets the peek's note and the Freshness filter.",
-                                  "Not reviewed after (days)", "A whole number from 1 to 365. The default is 14. Not in the published report.",
-                                  "Gantt",          # #926: the project's Gantt tab setting
-                                  "Whether this project has a Gantt tab, and who sees it. The client sees only the lines you have put on the client view.",
-                                  "Show the Gantt to me", "Show the Gantt to the client", "It appears in a published report only when at least one line is shown to the client.",
-                                  "Tab name", "Up to 30 characters. The default is Gantt. You can also click the tab's name while editing the Gantt page.",
-                                  "Logs and diagnostics",      # #110
-                                  "The log is a short record of what clark does, to help find faults. It never records report text, names, email addresses, notes or anything else you wrote: only counts, times and which part of clark was used. Nothing is sent anywhere.",
-                                  "Normal", "Debug", "Normal records what happened. Debug adds more detail. Warnings and errors are always recorded.",
-                                  "Open folder", "Copy diagnostics", "The log settings could not be read. Reload the page and try again.",
-                                  "Projects", "Show archived (2)", "Add project",      # A-S6: the projects table comes before the Data card (#444: Add project is on it); this server's stub list answers the archived request too (#653), so the table and the archived count show
-                                  "Archive hides a project and everything in it from clark. Nothing is deleted: Show archived brings it back to the list, and Restore puts it back to work.",
-                                  "NAME\tCODE\tCLIENT\tWORKSTREAMS\tITEMS", "Demo programme\tDEMO\t—\t—\t0\tOpenEditArchive", "ABC Open now\tABC\t—\t—\t1\tEditArchive",
-                                  "Data",               # A-S11: the Data card follows the Projects table (the prototype order)
-                                  "Export workbook", "Import workbook", "Excel file layout", "Export to Word…", "Import from Word…",        # #444: Export and Import; row 831: the two Word buttons (the prototype's own words)
-                                  "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",      # item 454: the prototype's one sentence (the owner approved the words)
-                                  "Backups",            # #111: the backups card; this server has no backups to list
-                                  "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
-                                  "Backups can't be shown right now. Restart clark the usual way and try again. Try again",
-                                  "Version and updates",      # Settings › Version and updates: with no updater the server says so
-                                  "Install a newer version from a file you downloaded from the clark releases page. Your projects, "
-                                  "settings and published reports are kept.",
-                                  "Updates can't be shown right now. Restart clark the usual way and try again. Try again",
-                                  "Brands", "Add a brand from a file you were given, and clark uses its colours, fonts and pictures. Nothing changes until you choose Install.",
-                                  "Brands can't be shown right now. Restart clark the usual way and try again. Try again",
-                                  "People", "Paste from Excel",             # #454: the People card; this server has no people routes, so the list can't be read
-                                  "Everyone who owns a work item or a milestone. Owners are still picked by name. Add an email, organisation and role so people can be found and emailed.",
-                                  "The people list could not be read. Reload the page. If it happens again, restart clark. Try again",
-                                  "Asking",             # #47: the switch and its folders, below the client folder
-                                  "Claude is started on this computer for you.",
-                                  "Your question and the passages it needs go to Claude, which Anthropic runs, and are billed to the Claude account signed in on this computer.",
-                                  "Asking is off, because clark could not check the setting just now. Reload the page to try again.",   # this server has no switch route: off
-                                  "Turn on asking", "Folders asking may read",
-                                  "Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. "
-                                  "Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.",
-                                  "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.",
-                                  "AI",                 # #72: the AI status line under Asking (AiSettings.jsx); no /api/ai/status route here: 404, so the later-version line
-                                  "Suggestions for the text you select in the report. Nothing changes until you accept one.",
-                                  "AI suggestions come in a later version.",
-                                  "Feedback", "Tell us what is wrong or what you would like to see. Your mail app opens with the message ready and you press send. Nothing is sent by clark itself.",
-                                  "What is wrong, or what would you suggest?How can we reach you? (optional)", "Added to the email", "Version of clark: unknown", f"System: {system}",
-                                  "Only these lines are added to what you write. Nothing from your reports is included.", "Copy as text",
-                                  "Quit", "Quit clark when you have finished. Nothing is left running.", "Quit clark"])      # #836: the Quit card, last on the page
+            # row 1024: Settings shows one page at a time. The head and the grouped menu are the same words on every page; each page then shows its own cards.
+            head = ["Settings",
+                    "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
+                    "Search settings",      # row 1115 S2: the box under the help line
+                    "Skip to settings"]     # item 1170: the skip link, wording ruled in NEW-WORDS.md
+            menu = ["Everyday", "Projects", "People", "Profile", "Publishing", "Folder", "Brand", "Look and feel", "Appearance", "Reports", "Data and safety", "Backups", "Export and import",
+                    "Advanced", "These are for setting up Claude, and for when something goes wrong. Most people never need them.", "Claude and AI", "Logs and diagnostics", "Version and updates"]
+            pages = [
+                ('profile', 'Profile', [
+                    "Essentials", "Your name", "Appearance", "System", "Light", "Dark", "Spacing", "Compact", "Comfortable", "Motion", "Single-key shortcuts", "Backups", "Publishing folder",      # row 1115 S3: the first card
+                    "No local folder yet.", "Choose folder", "Asking on or off",
+                    "Asking is off, because clark could not check the setting just now. Reload the page to try again.", "Turn on asking",
+                    "Profile",      # row 950: the first card, with the About you boxes that were in Personal
+                    "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
+                    "Alias", "Your first name and your initials, worked out from your full name. You can change it.",     # item 613
+                    "Your email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email."
+                ]),
+                ('projects', 'Projects', [
+                    "Projects", "Show archived (2)", "Add project",      # A-S6: the projects table comes before the Data card (#444: Add project is on it); this server's stub list answers the archived request too (#653), so the table and the archived count show
+                    "Archive hides a project and everything in it from clark. Nothing is deleted: Show archived brings it back to the list, and Restore puts it back to work.",
+                    "NAME", "CODE", "CLIENT", "WORKSTREAMS", "ITEMS", "Demo programme\tDEMO\t—\t—\t0\tOpenEditArchive", "ABC Open now\tABC\t—\t—\t1\tEditArchive"
+                ]),
+                ('people', 'People', [
+                    "People", "Paste from Excel",             # #454: the People card; this server has no people routes, so the list can't be read
+                    "Everyone who owns a work item or a milestone. Owners are still picked by name. Add an email, organisation and role so people can be found and emailed.",
+                    "The people list could not be read. Reload the page. If it happens again, restart clark. Try again"
+                ]),
+                ('folder', 'Folder', [
+                    "Publishing", "Where Publish saves the report. Local is always used; the client folder only when you tick To client.",
+                    "LOCAL FOLDER", "Always saved. Publish's save window opens in this folder; with none chosen, it opens where you last saved this report.",
+                    "No local folder yet.", "Choose folder",      # row 852: the Local folder is chosen once, like the client folder
+                    "CLIENT FOLDER",      # #43: the client folder, now one half of the Publishing card (A-S9)
+                    "This must be a folder OneDrive syncs to the client's SharePoint. Publish copies the finished page "
+                    "into it when you tick To client; OneDrive then uploads it.",
+                    "No client folder yet.", "Choose folder", "or paste the folder's path", "Use", "A folder on this computer."
+                ]),
+                ('brand', 'Brand', [
+                    "Brands", "Add a brand from a file you were given, and clark uses its colours, fonts and pictures. Nothing changes until you choose Install.",
+                    "Brands can't be shown right now. Restart clark the usual way and try again. Try again"
+                ]),
+                ('appearance', 'Appearance', [
+                    "Personal",    # #45: Settings › Personal, the section styles
+                    "These are for you, on this computer. Your spacing choice is used on the published report too; Light or Dark is yours alone.",
+                    "Spacing", "Compact", "The Dashboard sections run on in one flat page, with thin lines between them, so more fits on the screen.",
+                    "Comfortable", "Each Dashboard section is its own card, with room between them.",
+                    "Appearance", "System", "Light", "Dark", "Follows your computer's setting.",      # #179
+                    "Keys", "Single-key shortcuts",            # #193
+                    "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work."
+                ]),
+                ('reports', 'Reports', [
+                    "Freshness",          # #160: the project's "Not reviewed after (days)"
+                    "When an open item counts as not reviewed in this project. It sets the peek's note and the Freshness filter.",
+                    "Not reviewed after (days)", "A whole number from 1 to 365. The default is 14. Not in the published report.",
+                    "Gantt",          # #926: the project's Gantt tab setting
+                    "Whether this project has a Gantt tab, and who sees it. The client sees only the lines you have put on the client view.",
+                    "Show the Gantt to me", "Show the Gantt to the client", "It appears in a published report only when at least one line is shown to the client.",
+                    "Tab name", "Up to 30 characters. The default is Gantt. You can also click the tab's name while editing the Gantt page."
+                ]),
+                ('backups', 'Backups', [
+                    "Backups",            # #111: the backups card; this server has no backups to list
+                    "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
+                    "Backups can't be shown right now. Restart clark the usual way and try again. Try again"
+                ]),
+                ('data', 'Export and import', [
+                    "Data",               # A-S11: the Data card follows the Projects table (the prototype order)
+                    "Export workbook", "Import workbook", "Excel file layout", "Export to Word…", "Import from Word…",        # #444: Export and Import; row 831: the two Word buttons (the prototype's own words)
+                    "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",      # item 454: the prototype's one sentence (the owner approved the words)
+                ]),
+                ('claude', 'Claude and AI', [
+                    "Asking",             # #47: the switch and its folders, below the client folder
+                    "Claude is started on this computer for you.",
+                    "Your question and the passages it needs go to Claude, which Anthropic runs, and are billed to the Claude account signed in on this computer.",
+                    "Asking is off, because clark could not check the setting just now. Reload the page to try again.",   # this server has no switch route: off
+                    "Turn on asking", "FOLDERS ASKING MAY READ",
+                    "Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. "
+                    "Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.",
+                    "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.",
+                    "AI",                 # #72: the AI status line under Asking (AiSettings.jsx); no /api/ai/status route here: 404, so the later-version line
+                    "Suggestions for the text you select in the report. Nothing changes until you accept one.",
+                    "AI suggestions come in a later version."
+                ]),
+                ('logs', 'Logs and diagnostics', [
+                    "Logs and diagnostics",      # #110
+                    "The log is a short record of what clark does, to help find faults. It never records report text, names, email addresses, notes or anything else you wrote: only counts, times and which part of clark was used. Nothing is sent anywhere.",
+                    "Normal", "Debug", "Normal records what happened. Debug adds more detail. Warnings and errors are always recorded.",
+                    "Open folder", "Copy diagnostics", "The log settings could not be read. Reload the page and try again."
+                ]),
+                ('version', 'Version and updates', [
+                    "Version and updates",      # Settings › Version and updates: with no updater the server says so
+                    "Install a newer version from a file you downloaded from the clark releases page. Your projects, "
+                    "settings and published reports are kept.",
+                    "Updates can't be shown right now. Restart clark the usual way and try again. Try again",
+                    "Feedback", "Tell us what is wrong or what you would like to see. Your mail app opens with the message ready and you press send. Nothing is sent by clark itself.",
+                    "What is wrong, or what would you suggest?How can we reach you? (optional)", "ADDED TO THE EMAIL", "Version of clark: unknown", f"System: {system}",
+                    "Only these lines are added to what you write. Nothing from your reports is included.", "Copy as text",
+                    "Quit", "Quit clark when you have finished. Nothing is left running.", "Quit clark"
+                ]),
+            ]
+            system_line = None
+            for slug, name, words in pages:
+                if slug != "profile":
+                    cdp.js("[...document.querySelectorAll('.set-nav .set-chip')].find(b => b.textContent === %s).click()" % json.dumps(name), sid)
+                self.shown(cdp, sid, head + menu + words)
         self.fake.mode = "wait"
         with chrome() as cdp:
             sid = self.visit(cdp)

@@ -39,8 +39,13 @@ class ItemPeek(unittest.TestCase):
             self.assertIn(word, bar)
         for gone in ("eye", "Copy link", "⋯"):
             self.assertNotIn(gone, bar)
-        code = (PAGE / "components" / "Peek.jsx").read_text(encoding="utf-8")
-        self.assertNotIn("Copy link", code.split('class="pk-bar"')[1].split("</div>")[0])
+        # Item 1180: the bar moved from Peek.jsx to PeekToolbar.jsx (class "pk-bar pk-tb"), and the ticket puts Copy link in it (right side),
+        # so the old "no Copy link in the bar" pin is re-pointed: the words Help names for these buttons are the bar's own names, and it still has no eye.
+        code = (PAGE / "components" / "PeekToolbar.jsx").read_text(encoding="utf-8")
+        for word in ("Previous item", "Next item", "Close this panel"):
+            self.assertIn('words="%s"' % word, code)
+        self.assertNotIn('icon="eye"', code)
+        self.assertNotIn('icon="eyeoff"', code)
 
     def test_source_is_in_view_and_published_too(self):
         src = find(ITEM, "**Source**")
@@ -73,7 +78,8 @@ class MilestonePeek(unittest.TestCase):
     def test_top_bar_has_no_eye(self):
         bar = find(MS, "**The top bar**")
         self.assertNotIn("eye", bar)
-        self.assertIn("Archive", bar)          # PeekArchive.jsx: the button is named Archive
+        self.assertIn("More actions", bar)     # item 1148: Archive and Delete sit in the More actions menu; the Archive bullet below names the step
+        self.assertTrue(any(r.startswith("**Archive**") for r in MS))
         self.assertIn("Previous item", bar)
 
     def test_dates_have_no_rebaseline(self):
@@ -105,7 +111,7 @@ class MilestonePeek(unittest.TestCase):
         dates = find(MSHOW, "**Dates**")
         self.assertIn("does not change it", dates)
         code = (PAGE / "edit" / "MilestonePeek.jsx").read_text(encoding="utf-8")
-        self.assertIn('<Row name="Agreed date" k="baseline">{showDate(', code)
+        self.assertIn('<Row name="Agreed date" k="baseline" icon="cal">{showDate(', code)
 
 
 if __name__ == "__main__":

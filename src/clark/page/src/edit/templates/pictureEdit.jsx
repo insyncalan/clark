@@ -6,6 +6,7 @@
 // - Under each picture template, the running total of the pictures in the report against the 5 MB a published page can hold.
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, project, reread, token, plainChange } from "../../stores/report.js";
+import { zoneFetch } from "../../api.js";
 import { change, say } from "../../stores/changes.js";
 import { stored, PICTURE_TYPES } from "../../templates/pictures.jsx";
 import { safeImage } from "../../templates/safe.js";
@@ -25,7 +26,7 @@ export function wordsOf(section) {
   if (pending.has(section.id)) return pending.get(section.id);
   const v = { ...(stored(section) || {}) };
   delete v.pictures;
-  v.v = 1;
+  v.v = v.v === 2 ? 2 : 1;      // row 1223: a Full width image keeps its version
   return v;
 }
 
@@ -54,7 +55,7 @@ function refusal(status, reply) {
 export async function sendPicture(section, slot, image, words) {
   const code = project.value;
   try {
-    const r = await fetch("/api/section-image", {
+    const r = await zoneFetch("/api/section-image", {
       method: "POST",
       headers: { "X-Clark-Token": token(), "Content-Type": "application/json" },
       body: JSON.stringify({ project: code, section: section.id, slot, image, place: PLACE }),
@@ -112,7 +113,7 @@ export function CaptionField({ section, field, label, value, max, words, save })
   return (
     <div class="tpl-pic-field">
       <span class="tpl-pic-lbl" id={`${id}-lbl`}>{label}</span>
-      <RichField field="caption" id={section.id} value={html} label={label} labelledBy={`${id}-lbl`} empty="Click to write." save={put} />
+      <RichField field="caption" id={section.id} value={html} label={label} labelledBy={`${id}-lbl`} empty="Click to write." save={put} oneLine />
     </div>
   );
 }
@@ -160,7 +161,10 @@ export function picturesTotal(sections) {
     if (!s || s.hidden || !PICTURE_TYPES.includes(s.type)) continue;
     const v = stored(s);
     const pics = v && v.pictures && typeof v.pictures === "object" ? v.pictures : {};
-    for (const p of Object.values(pics)) if (typeof p === "string") n += p.length;
+    for (const [slot, p] of Object.entries(pics)) {
+      if (v.v === 2 && slot !== "image") continue;      // row 1223: a Full width image publishes its framed copy only, never its original
+      if (typeof p === "string") n += p.length;
+    }
   }
   return n;
 }

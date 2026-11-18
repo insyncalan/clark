@@ -1,6 +1,6 @@
 """Build the Word report (.docx) from a report's published rows (#48; BRD FR-72; design-48-word.md sections 1 to 3).
 
-A pure function: `build(published)` takes what `publish.select()` returns ({"data", "sections", "tabs", "as_at"}; publish.build() takes a fifth key, "needs_dropped", out before any caller sees the rows) and gives the
+A pure function: `build(published)` takes what `publish.select()` returns ({"data", "sections", "tabs", "as_at"}) and gives the
 file's bytes. It touches no database, file, clock or network. The Word file carries what the HTML file carries and never more:
 the build reads only named fields of the published rows, so a key `select()` did not keep is never written, and a hidden section
 is not in `sections` to begin with. There is one report (FR-82), so there is no separate team file.
@@ -35,7 +35,7 @@ import zipfile
 from datetime import date
 
 from clark import excel_colours as colours_table
-from clark import docx_graphics, docx_read, glance, look, platform, sanitise
+from clark import docx_fullimage, docx_graphics, docx_read, glance, glance_print, look, platform, sanitise
 
 MAX_BYTES = 5 * 1024 * 1024               # NFR-8: a file larger than this is refused (as publish.MAX_BYTES)
 NONE = "None recorded."                   # creaite's own words (docx_tools.NONE)
@@ -58,10 +58,13 @@ HEX = re.compile(r"#?([0-9A-Fa-f]{6})")
 NOT_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ud800-\udfff￾￿]")
 
 TITLES = {"current": "Current state", "glance": "At a glance", "usecases": "Use cases", "milestones": "Milestones",
-          "text": "Notes", "raid": "Risks and issues", "actions": "Actions", "decisions": "Decisions", "gantt": "Gantt"}
+          "text": "Notes", "raid": "Risks and issues", "actions": "Actions", "decisions": "Decisions", "gantt": "Gantt",
+          "imagecap": "Image", "workitems": "Work items", "reportheadline": "Report headline",
+          "glancetemplate": "At a glance"}                            # row 1223: only a Full width image (body version 2) is written, and it has no heading; an Image with caption (version 1) is left out, as it was
+HEALTH_PILL = {"on_track": ("On track", "green"), "at_risk": ("At risk", "amber"), "off_track": ("Off track", "red")}   # row 1261: the pill's words and tone
 HIDDEN_BY_KIND = ("actions", "raid", "decisions")
 HEADING_STYLE = {"h1": "Heading2", "h2": "Heading3", "h3": "Heading4"}
-MAX_LEVELS = 3                                           # list levels written
+MAX_LEVELS = 4                                           # list levels written
 
 
 class WordError(ValueError):
@@ -109,9 +112,9 @@ class _Ctx:
             self.links[address] = self.rid()
         return self.links[address]
 
-    def image(self, png):
+    def image(self, png, ext="png"):
         if png not in self.images:
-            self.images[png] = (self.rid(), f"image{len(self.images) + 1}.png")
+            self.images[png] = (self.rid(), f"image{len(self.images) + 1}.{ext}")
         return self.images[png]
 
     def new_list(self):
@@ -141,7 +144,7 @@ def run(text, bold=False, italic=False, strike=False, color=None, size=None, sty
     return f"<w:r>{'<w:rPr>' + props + '</w:rPr>' if props else ''}{''.join(body)}</w:r>"
 
 
-def para(runs="", style=None, keep_next=False, num=None, rule=False, fill=None, tabs=None, spacing=None):
+def para(runs="", style=None, keep_next=False, num=None, rule=False, fill=None, tabs=None, spacing=None, align=None):
     """One paragraph. `num` is (numId, level) for a list item; `rule` draws a line under it; `fill` shades it."""
     props = (f'<w:pStyle w:val="{style}"/>' if style else "") + ("<w:keepNext/>" if keep_next else "")
     if num:
@@ -154,6 +157,8 @@ def para(runs="", style=None, keep_next=False, num=None, rule=False, fill=None, 
         props += f'<w:tabs><w:tab w:val="right" w:pos="{int(tabs)}"/></w:tabs>'
     if spacing:
         props += f'<w:spacing w:before="{int(spacing[0])}" w:after="{int(spacing[1])}"/>'
+    if align in ("center", "left", "right"):
+        props += f'<w:jc w:val="{align}"/>'
     return f"<w:p>{'<w:pPr>' + props + '</w:pPr>' if props else ''}{runs}</w:p>"
 
 
@@ -205,11 +210,11 @@ NS_PIC = "http://schemas.openxmlformats.org/drawingml/2006/picture"
 EMU_PER_TWIP = 635
 
 
-def picture(ctx, drawn, width_twips, alt):
+def picture(ctx, drawn, width_twips, alt, ext="png"):
     """A run holding an inline picture (a Word drawing) of `drawn` = (png, pixel width, pixel height), `width_twips` wide with
     its shape kept. `alt` is the picture's alternative text, made only of words the report already shows."""
     png, w, h = drawn
-    rid, name = ctx.image(png)
+    rid, name = ctx.image(png, ext)
     ctx.drawings += 1
     cx = int(width_twips) * EMU_PER_TWIP
     cy = max(1, cx * h // w)
@@ -222,7 +227,7 @@ def picture(ctx, drawn, width_twips, alt):
             "</a:graphicData></a:graphic></wp:inline></w:drawing></w:r>")
 
 
-def picture_para(ctx, make, width_twips, style=None, **kw):
+def picture_para(ctx, make, width_twips, style=None, ext="png", **kw):
     """A paragraph holding a picture, or "" when it cannot be made. `make()` gives (drawn, alt text) or None. A picture is only an
     addition to words the report already carries, so any failure in drawing it (a number too large to read, a bug) leaves the
     words alone and writes no picture."""
@@ -231,7 +236,7 @@ def picture_para(ctx, make, width_twips, style=None, **kw):
         if not made:
             return ""
         drawn, alt = made
-        return para(picture(ctx, drawn, width_twips, alt), style, **kw)
+        return para(picture(ctx, drawn, width_twips, alt, ext), style, **kw)
     except Exception:
         return ""
 
@@ -256,8 +261,9 @@ def word_cell(text, ctx, colour=None, late=False, extra=()):
 class _Rich:
     """Maps cleaned rich text (sanitise's allow-list) to paragraphs."""
 
-    def __init__(self, ctx):
+    def __init__(self, ctx, floor=2):
         self.ctx, self.out, self.runs = ctx, [], []
+        self.floor = floor                             # the shallowest heading level inside: below a Heading3 parent nothing may sit higher
         self.fmt = {"strong": 0, "em": 0, "s": 0}
         self.link = None
         self.stack, self.lists = [], []
@@ -275,6 +281,8 @@ class _Rich:
         if not re.sub(r"<[^>]*>", "", runs).strip() and "<w:br/>" not in runs:
             return
         heading = next((HEADING_STYLE[t] for t in reversed(self.stack) if t in HEADING_STYLE), None)
+        if heading and int(heading[-1]) < self.floor:
+            heading = f"Heading{self.floor}"
         if heading:
             self.out.append(para(runs, heading, keep_next=True))
         elif "li" in self.stack and self.lists:
@@ -321,13 +329,13 @@ class _Rich:
             self.lists.pop()
 
 
-def rich(html, ctx):
+def rich(html, ctx, floor=2):
     """Rich text as Word paragraphs, after cleaning it again with the sanitiser. Raises WordError for a text that is too long."""
     try:
         clean = sanitise.clean_html(html)
     except sanitise.SanitiseError as e:
         raise WordError(str(e)) from None
-    r = _Rich(ctx)
+    r = _Rich(ctx, floor)
     for t in sanitise.tokens(clean):
         if t[0] == "text":
             r.add_text(sanitise.decode(t[1]))
@@ -365,8 +373,13 @@ def _date(iso):
 def _kept(published, shown):
     """The published rows, in the shape glance reads them for a client (so the counts are the page's)."""
     data = published["data"]
-    return {"data": data, "rows": glance.work_rows(data), "use_cases": data.get("use_cases") or [],
-            "hidden_types": {t for t in HIDDEN_BY_KIND if t not in shown}}
+    hidden = {t for t in HIDDEN_BY_KIND if t not in shown}
+    listed = {i for s in published["sections"] if s.get("type") == "workitems" for i in s.get("items") or ()}
+    rows = glance.work_rows(data)
+    # row 1268: a row of a section left off the file is counted only when a Work items list in the file names it
+    rows = [r for r in rows if r["id"] in listed or not any(r["kind"] in glance.KINDS_OF_TILE[n] and glance.SECTION_OF_TILE[n] in hidden
+                                                          for n in glance.KINDS_OF_TILE)]
+    return {"data": data, "rows": rows, "use_cases": data.get("use_cases") or [], "hidden_types": hidden}
 
 
 def section_current(published, ctx, title, sec):
@@ -419,7 +432,7 @@ def section_usecases(published, ctx, title, sec, kept):
     out.append(table(ctx, ["Ref", "Use case", "Status", "Commitment", "Headline", "Work items"], [700, 2300, 1100, 1350, 3088, 1100], rows))
     standing = {u["id"]: u.get("standing") for u in kept["use_cases"]}
     for u in strip["rows"]:
-        body = rich(standing.get(u["id"]), ctx)
+        body = rich(standing.get(u["id"]), ctx, floor=4)           # its parent is a Heading3, so a heading inside is Heading4
         linked = [str(r["id"]) for r in glance.use_case_items(kept, u["id"]) if r.get("id")]
         if body or linked:
             out.append(_heading(f"{u['ref'] + ' ' if u['ref'] else ''}{u['title']}".strip(), 3) + body)
@@ -445,12 +458,12 @@ def section_milestones(published, ctx, title, sec):
             name += para(run(f"{m['percent_complete']}% complete", color=ctx.tok["grey-700"], size=16), "TableText")
             name += picture_para(ctx, lambda: (docx_graphics.progress_bar(m["percent_complete"], ctx.tok), f"{m['percent_complete']}% complete"),
                                  1440, "TableText")
-        when = f"Achieved {_date(m.get('actual_date'))}" if achieved else _date(m.get("forecast_date"))
+        when = ("Achieved" + (f" {_date(m['actual_date'])}" if m.get("actual_date") else "")) if achieved else _date(m.get("forecast_date"))
         colour = colours_table.colour_for("milestones", "state", m.get("state"))
         rows.append([word_cell(m.get("id"), ctx), (name, None), word_cell(m.get("owner"), ctx, extra=[m.get("workstream")]),
                      word_cell(_date(m.get("baseline_date")), ctx), word_cell(when, ctx),
                      word_cell(m.get("state_word") or m.get("state"), ctx, colour=colour),
-                     word_cell(f"+{slip} days" if slip and not achieved else "", ctx)])
+                     word_cell(f"+{slip} day{'' if slip == 1 else 's'}" if slip and not achieved else "", ctx)])
     if not rows:
         return _heading(title) + para(run(NONE))
     def plan():                                        # one lane for each milestone, in the order of the table; the words are the table's
@@ -458,12 +471,17 @@ def section_milestones(published, ctx, title, sec):
         if not drawn:
             return None
         image, lanes = drawn
-        return image, "; ".join(f"{r['row'].get('name') or ''}, {_date(r['row'].get('baseline_date'))}, "
-                                f"{r['row'].get('state_word') or r['row'].get('state') or ''}" for r in lanes)
+        words = "; ".join(f"{r['row'].get('name') or ''}, {_date(r['row'].get('baseline_date'))}, "
+                          f"{r['row'].get('state_word') or r['row'].get('state') or ''}" for r in lanes)
+        if len(words) > PLAN_ALT_MAX:                  # 200 long names would make an alt text of many thousand characters: cut at a word
+            words = words[:PLAN_ALT_MAX].rsplit(" ", 1)[0]
+        return image, words
     chart = picture_para(ctx, plan, TEXT_W, keep_next=True, spacing=(0, 60))
     return _heading(title) + chart + table(ctx, ["ID", "Milestone", "Owner", "Agreed", "Forecast", "State", "Slip"],
                                            [1200, 3038, 1150, 1100, 1100, 1100, 950], rows)
 
+
+PLAN_ALT_MAX = 1500
 
 GANTT_STATUS = {"done": "Done", "late": "Late", "inprogress": "In progress", "notstarted": "Not started"}     # the page's WORDS (gantt/logic/gantt.js)
 GANTT_LEGEND = ("Phase", "Task (lighter part = done)", "Milestone", "Achieved", "Today")
@@ -541,6 +559,31 @@ def section_gantt(published, ctx, title, sec):
     return "".join(out)
 
 
+def section_imagecap(published, ctx, title, sec):
+    """Row 1223: the Full width image, as framed (the file holds only the framed copy), as wide as the text; one narrower than the text at its
+    own size, centred (or the full width when its fit is stretch) on its fill (brand colour or grey; Word cannot blur). The caption in small
+    grey type under it, none when there is none. No heading. An Image with caption (no `full` in its content) is not in the Word report, as
+    before. An image that cannot be read leaves the section out; the words alone are never shown without it."""
+    c = sec.get("content") if isinstance(sec.get("content"), dict) else {}
+    if not c.get("full"):
+        return ""
+    got = docx_fullimage.decode(c.get("image"))
+    if not got:
+        return ""
+    raw, ext, w, h = got
+    stretch = c.get("fit") == "stretch"
+    twips = docx_fullimage.width_twips(w, h, TEXT_W, stretch)
+    narrow = twips < TEXT_W and not stretch
+    fill = {"brand": ctx.tok["brand-blue"], "blur": ctx.tok["grey-100"]}.get(c.get("fill", "blur")) if narrow else None
+    caption = str(c.get("caption") or "").strip()
+    alt = str(c.get("alt") or "")
+    pic = picture_para(ctx, lambda: ((raw, w, h), alt), twips, ext=ext, keep_next=bool(caption), fill=fill,
+                       align="center" if narrow else None, spacing=(120, 40))
+    if not pic:
+        return ""
+    return pic + (para(run(caption, color=ctx.tok["grey-700"], size=16), spacing=(0, 120)) if caption else "")
+
+
 def _status_key(word):
     return {v: k for k, v in GANTT_STATUS.items()}[word]
 
@@ -614,8 +657,115 @@ def section_decisions(published, ctx, title, sec):
     return _heading(title) + table(ctx, ["ID", "Decision", "Status", "Made by", "Date"], [1200, 4138, 1100, 1400, 1800], rows)
 
 
-SIMPLE = {"current": section_current, "text": section_text, "milestones": section_milestones, "actions": section_actions,
-          "raid": section_raid, "decisions": section_decisions, "gantt": section_gantt}
+WORK_COLUMNS = {"type": ("Type", 1000), "id": ("ID", 1200), "owner": ("Owner", 1350), "due": ("Due", 1200), "status": ("Status", 1200),
+                "priority": ("Priority", 950), "workstream": ("Workstream", 1300), "milestone": ("Milestone", 1500)}      # row 1268: the page's list columns, with the width each needs
+WORK_DEFAULT = ("type", "id", "owner", "due", "priority")
+
+
+def _late_words(iso, ctx):
+    """Row 1268: the words the on-screen Work items list puts beside a late date (workItems.js dueCell): Yesterday, or N days late."""
+    n = (ctx.today - date.fromisoformat(str(iso)[:10])).days
+    return "Yesterday" if n == 1 else f"{n} days late"
+
+
+def _list_due(iso, late, ctx, extra=()):
+    return word_cell(_date(iso) + (" " + _late_words(iso, ctx) if late and iso else "") if iso else "", ctx, late=late, extra=extra)
+
+
+def section_workitems(published, ctx, title, sec):
+    """Row 1268: a Work items list prints the rows it names, in its order, as one table: the Item and the columns the list chose (its `columns`, in the page's order)."""
+    by_id = {r.get("id"): (t, r) for t in ("actions", "raid", "decisions") for r in _rows(published, t)}
+    names = {m.get("id"): m.get("name") for m in _rows(published, "milestones")}
+    chosen = [c for c in (sec.get("columns") or ()) if c in WORK_COLUMNS] or list(WORK_DEFAULT)
+    order = [c for c in ("type", "id") if c in chosen] + ["item"] + [c for c in WORK_COLUMNS if c in chosen and c not in ("type", "id")]
+    rows = []
+    for i in sec.get("items") or ():
+        if i not in by_id:
+            continue
+        t, r = by_id[i]
+        if t == "decisions":
+            pending = r.get("status") == "Pending"
+            when = _date(r.get("needed_by") if pending else r.get("date")) if (r.get("needed_by") if pending else r.get("date")) else ""
+            late = colours_table.is_late("decisions", "needed_by", r, ctx.today)
+            cells = {"type": word_cell("Decision", ctx), "id": word_cell(i, ctx), "item": (text_paras(_words(r, "client_message", "decision"), ctx), None),
+                     "owner": word_cell(r.get("made_by"), ctx), "priority": word_cell(None, ctx), "workstream": word_cell(None, ctx), "milestone": word_cell(None, ctx),
+                     "due": word_cell(when + (" " + _late_words(r.get("needed_by"), ctx) if late and when and pending else ""), ctx, late=late), "status": word_cell(r.get("status"), ctx, colour=colours_table.colour_for("decisions", "status", r.get("status")))}
+        else:
+            kind = "action" if t == "actions" else str(r.get("type") or "").lower()
+            cells = {"type": word_cell(kind.capitalize(), ctx), "id": word_cell(i, ctx), "item": (text_paras(_words(r, "client_message", "description"), ctx), None),
+                     "owner": word_cell(r.get("owner"), ctx), "workstream": word_cell(r.get("workstream"), ctx), "milestone": word_cell(names.get(r.get("milestone")), ctx),
+                     "priority": word_cell(r.get("priority"), ctx, colour=colours_table.colour_for(t, "priority", r.get("priority"))),
+                     "due": _list_due(r.get("due_date"), colours_table.is_late(t, "due_date", r, ctx.today), ctx), "status": _status_cell(r, kind, ctx)}
+        rows.append([cells[c] for c in order])
+    if not rows:
+        return ""
+    caption = para(run(sec["caption"], color=ctx.tok["grey-700"], size=18)) if sec.get("caption") else ""
+    fixed = {c: WORK_COLUMNS[c][1] for c in order if c != "item"}
+    weights = [fixed.get(c, max(2000, TEXT_W - sum(fixed.values()))) for c in order]
+    return _heading(title) + caption + table(ctx, ["Item" if c == "item" else WORK_COLUMNS[c][0] for c in order], weights, rows)
+
+
+def section_reportheadline(published, ctx, title, sec):
+    """Row 1261: the Report headline as the page draws it, one flat block with no heading: a rule, the health pill (the word, shaded in
+    the health's colour; none when health is not set), the headline in bold, the supporting sentence in grey, a rule. A content with
+    none of the three is left out. The words are the published content's own; none are added."""
+    c = sec.get("content") if isinstance(sec.get("content"), dict) else {}
+    health, headline, sentence = (c[k].strip() if isinstance(c.get(k), str) else "" for k in ("health", "headline", "sentence"))
+    if not (health or headline or sentence):
+        return ""
+    out = [para(rule=True, spacing=(120, 0))]
+    if health in HEALTH_PILL:
+        word, colour = HEALTH_PILL[health]
+        fill, text = ctx.hexes(colour)
+        out.append(para(run(word, bold=True, color=text), fill=fill, keep_next=bool(headline or sentence), spacing=(120, 60)))
+    if headline:
+        out.append(para(run(headline, bold=True, size=28), keep_next=bool(sentence), spacing=(60, 60)))
+    if sentence:
+        out.append(para(run(sentence, color=ctx.tok["grey-700"]), spacing=(0, 60)))
+    out.append(para(rule=True, spacing=(0, 120)))
+    return "".join(out)
+
+
+def section_glancetemplate(published, ctx, title, sec):
+    """Row 1264 slice 7: the glance template as the View draws it: the tiles in the body's order (only the kept ones), the health tile
+    in its place or on a row of its own, each as label, figure, tag and note, as many to a line as the View draws (3 or 4, 2 at half width). Nothing to show leaves the section out."""
+    got = glance_print.read(published, sec)
+    out = [_heading(title)]
+    h = got["health_row"]
+    if h:
+        fill = text = None
+        if h["colour"]:
+            fill, text = ctx.hexes(h["colour"])
+        out.append(para(run(h["label"] + ": ", bold=True) + run(h["figure"], bold=True, color=text), fill=fill, spacing=(60, 60), keep_next=bool(h["colour"])))
+        if h["colour"]:
+            out.append(picture_para(ctx, lambda: (docx_graphics.health_bar(h["colour"], ctx.tok), h["label"] + ": " + h["figure"]), TEXT_W, keep_next=True, spacing=(0, 60)))
+        if h["note"]:
+            out.append(text_paras(h["note"], ctx, style=None))
+    tiles = got["tiles"]
+    if tiles:
+        cells = []
+        for t in tiles:
+            fill = text = None
+            if t["colour"]:
+                fill, text = ctx.hexes(t["colour"])
+            body = para(run(t["label"], color=ctx.tok["grey-700"], size=16), "TableText")
+            if t["figure"]:
+                body += para(run(t["figure"], bold=True, color=text, size=32), "TableText")
+            if t["tag"]:
+                body += para(run(t["tag"], bold=True, size=16), "TableText")
+            if t["note"]:
+                body += para(run(t["note"], size=16), "TableText")
+            cells.append((body, fill))
+        per = got["per_line"]
+        lines = [cells[i:i + per] for i in range(0, len(cells), per)]
+        lines = [r + [(para("", "TableText"), None)] * (per - len(r)) for r in lines]
+        out.append(table(ctx, None, [1] * per, lines))
+    return "".join(out) if (h or tiles) else ""
+
+
+SIMPLE = {"workitems": section_workitems, "imagecap": section_imagecap, "current": section_current, "text": section_text, "milestones": section_milestones, "actions": section_actions,
+          "raid": section_raid, "decisions": section_decisions, "gantt": section_gantt,
+          "reportheadline": section_reportheadline, "glancetemplate": section_glancetemplate}
 
 
 def title_block(published, ctx):
@@ -707,7 +857,7 @@ def numbering_xml(ordered_lists):
     nums = '<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>' + "".join(
         f'<w:num w:numId="{n + 1}"><w:abstractNumId w:val="1"/><w:lvlOverride w:ilvl="0"><w:startOverride w:val="1"/>'
         "</w:lvlOverride></w:num>" for n in range(1, ordered_lists + 1))
-    return HEAD + (f'<w:numbering {ROOT}>' + abstract(0, "bullet", lambda i: "•◦▪"[i])
+    return HEAD + (f'<w:numbering {ROOT}>' + abstract(0, "bullet", lambda i: "•◦▪‣"[i])
                    + abstract(1, "decimal", lambda i: f"%{i + 1}.") + nums + "</w:numbering>")
 
 
@@ -735,7 +885,7 @@ def rels_xml(ctx):
     return HEAD + f'<Relationships xmlns="{NS_REL}">' + "".join(rel) + "</Relationships>"
 
 
-def content_types_xml(pictures=False):
+def content_types_xml(pictures=False, jpeg=False):
     o = [("/word/document.xml", f"{DOC_TYPE}.document.main+xml"), ("/word/styles.xml", f"{DOC_TYPE}.styles+xml"),
          ("/word/numbering.xml", f"{DOC_TYPE}.numbering+xml"), ("/word/settings.xml", f"{DOC_TYPE}.settings+xml"),
          ("/word/footer1.xml", f"{DOC_TYPE}.footer+xml"),
@@ -744,6 +894,7 @@ def content_types_xml(pictures=False):
     return HEAD + (f'<Types xmlns="{NS_CT}"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
                    '<Default Extension="xml" ContentType="application/xml"/>'
                    + ('<Default Extension="png" ContentType="image/png"/>' if pictures else "")
+                   + ('<Default Extension="jpeg" ContentType="image/jpeg"/>' if jpeg else "")
                    + "".join(f'<Override PartName="{p}" ContentType="{t}"/>' for p, t in o) + "</Types>")
 
 
@@ -807,7 +958,7 @@ def build(published, colours=None):
     project = published["data"]["project"]
     ctx = _Ctx(palette(colours), published["as_at"])
     body = title_block(published, ctx) + "".join(xml for _, xml in sections(published, ctx))
-    parts = [("[Content_Types].xml", content_types_xml(bool(ctx.images))), ("_rels/.rels", package_rels_xml()),
+    parts = [("[Content_Types].xml", content_types_xml(any(n.endswith(".png") for _, n in ctx.images.values()), any(n.endswith(".jpeg") for _, n in ctx.images.values()))), ("_rels/.rels", package_rels_xml()),
              ("docProps/core.xml", core_xml(project.get("name") or project["code"], published["as_at"])),
              ("docProps/app.xml", app_xml()), ("word/document.xml", document_xml(body)),
              ("word/styles.xml", styles_xml(ctx.tok)), ("word/numbering.xml", numbering_xml(ctx.lists)),

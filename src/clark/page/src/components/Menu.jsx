@@ -106,7 +106,7 @@ function groupedItems(items, menuId) {
       const kids = [];
       let j = i + 1;
       while (items[j] && items[j].checked !== undefined) kids.push(items[j++]);
-      out.push({ group: true, id: "g-" + it.id, labelId: `${menuId || "menu"}-${it.id}`, lab: it.lab, items: kids });
+      out.push({ group: true, id: "g-" + it.id, labelId: `${menuId || "menu"}-${it.id}`, lab: it.lab, caps: it.caps, items: kids });
       i = j - 1;
     } else out.push({ item: it });
   }
@@ -115,7 +115,7 @@ function groupedItems(items, menuId) {
 
 // One entry of the menu: a separator, the top line, a line of words, or a command or radio item.
 function entry(it, close, onPick) {
-  return it.sep ? <div key={it.id} class="sep" role="separator"></div> : it.head ? <div key={it.id} class="who" role="presentation" title={it.head.title}><b>{it.head.name}</b>{it.head.line ? <small>{it.head.line}</small> : null}</div> : it.lab ? <div key={it.id} class="lab" role="presentation">{it.lab}</div> : (
+  return it.sep ? <div key={it.id} class="sep" role="separator"></div> : it.head ? <div key={it.id} class="who" role="presentation" title={it.head.title}><b>{it.head.name}</b>{it.head.line ? <small>{it.head.line}</small> : null}</div> : it.lab ? <div key={it.id} class={it.caps ? "lab caps" : "lab"} role="presentation">{it.lab}</div> : (
     <button key={it.id} type="button" class={it.link ? "who-link" : it.pill ? "hp" : it.danger ? "danger" : undefined} role={it.checked === undefined ? "menuitem" : "menuitemradio"} aria-checked={it.checked === undefined ? undefined : it.checked ? "true" : "false"}
       tabIndex={-1} data-kind={it.id} onClick={() => { close("pick"); onPick(it.id); }}>
       {it.icon ? <Icon name={it.icon} cls="mi" /> : null}
@@ -126,9 +126,9 @@ function entry(it, close, onPick) {
   );
 }
 
-// items: [{id, name, line?, checked?, pill?}] (`checked` true or false makes it a radio item, marked when it is the one in use; `word` "g", "a" or "r" draws the name as a status word with its coloured dot (the use case rows' own look), `pill` "g", "a" or "r" draws the name as a filled status pill, with a check mark shape after it when in use), or {id, sep: true} for a separator, or {id, lab} for a line of words that is not a command, or {id, head: {name, line, title}} for the top line (a name and, under it, a quiet line), or a command with `link` true, drawn as a link. `onPick(id)` runs after the menu has closed. With no items the button is a plain button and a click
+// items: [{id, name, line?, checked?, pill?}] (`checked` true or false makes it a radio item, marked when it is the one in use; `word` "g", "a" or "r" draws the name as a status word with its coloured dot (the use case rows' own look), `pill` "g", "a" or "r" draws the name as a filled status pill, with a check mark shape after it when in use), or {id, sep: true} for a separator, or {id, lab, caps?} for a line of words that is not a command (`caps` draws it in capitals, the words unchanged), or {id, head: {name, line, title}} for the top line (a name and, under it, a quiet line), or a command with `link` true, drawn as a link. `onPick(id)` runs after the menu has closed. With no items the button is a plain button and a click
 // is `onClick()` (so a button that sometimes has a menu keeps the same element when it has none).
-export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, ariaDescription, id, btnCls, labelCls, menuId, menuLabel, left, fixed, chevron = true, onOpen, focusChecked }) {
+export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, ariaDescription, id, btnCls, labelCls, menuId, menuLabel, left, fixed, chevron = true, onOpen, focusChecked, tab }) {
   const [open, setOpen] = useMenuState();
   const [, redraw] = useState(0);
   const btn = useRef(null);
@@ -151,14 +151,14 @@ export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, aria
   return (
     <span class="dd">
       <button type="button" class={btnCls || "btn"} id={id} ref={btn} aria-haspopup={menu ? "menu" : undefined} aria-expanded={menu ? (open ? "true" : "false") : undefined}
-        aria-label={ariaLabel} aria-description={ariaDescription} title={tip} data-tip={tip} onKeyDown={onBtnKey} onClick={(e) => { e.preventDefault(); if (menu) { if (open) setOpen(false); else opens(); } else if (onClick) onClick(); }}>
+        aria-label={ariaLabel} aria-description={ariaDescription} title={tip} data-tip={tip} tabIndex={tab} onKeyDown={onBtnKey} onClick={(e) => { e.preventDefault(); if (menu) { if (open) setOpen(false); else opens(); } else if (onClick) onClick(); }}>
         {icon ? <Icon name={icon} /> : null}<span class={labelCls}>{label}</span>{chevron ? <Icon name="chevdown" cls="nch" /> : null}
       </button>
       {(open || leaving) && menu ? (
         <MenuPanel key={gen.current} leaving={leaving} onGone={gone} label={menuLabel || ariaLabel || label} id={menuId} cls={left ? "left" : ""} fixed={fixed} focusChecked={focusChecked} anchor={btn.current} onClose={close}>
           {groupedItems(items, menuId).map((n) => n.group
             ? <div key={n.id} role="group" aria-labelledby={n.labelId}>
-                <div class="lab" role="presentation" id={n.labelId}>{n.lab}</div>
+                <div class={n.caps ? "lab caps" : "lab"} role="presentation" id={n.labelId}>{n.lab}</div>
                 {n.items.map((it) => entry(it, close, onPick))}
               </div>
             : entry(n.item, close, onPick))}

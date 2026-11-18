@@ -19,17 +19,25 @@ import { RichField } from "./RichField.jsx";
 import { richOrPlain } from "../logic/richOrPlain.js";
 import { plainFromEditor } from "./plainWords.js";
 import { tableOf } from "./itemEdit.js";
+import { eyeWords } from "../logic/eyeWords.js";
 
 export const WORDS_MAX = __CLARK_ITEM_TITLE_MAX__;      // clark/limits.py ITEM_TITLE_MAX, written in by the build: a work item's text is that many characters at most
 const A = { raid: "a risk", actions: "an action", decisions: "a decision" };
 const PLACEHOLDER = (type) => `+ Add ${A[type]}: type “Owner: what it is”, then Enter`;
+
+const NOT_NAMES = new Set(["note", "notes", "todo", "fyi", "update", "re", "http", "https", "action", "risk", "issue", "decision"]);
 
 // What the add line's text says: "Owner: what it is" gives the owner and the words; with no colon the owner is not known yet.
 export function parseAdd(text) {
   const t = String(text == null ? "" : text).replace(/\s+/g, " ").trim();
   const at = t.indexOf(":");
   if (at < 0) return { owner: "", what: t };
-  return { owner: t.slice(0, at).trim(), what: t.slice(at + 1).trim() };
+  const who = t.slice(0, at).trim();
+  // Only a name before a colon and a space (or the end) is an owner: a time like 10:30, a link or "Note: x" is part of the words.
+  const looksLikeName = who && who.split(" ").length <= 3 && !/\d/.test(who) && !/[/\\@]/.test(who)
+    && (at === t.length - 1 || t[at + 1] === " ") && !NOT_NAMES.has(who.toLowerCase());
+  if (!looksLikeName) return { owner: "", what: t };
+  return { owner: who, what: t.slice(at + 1).trim() };
 }
 
 // The request that adds one row: the words are the row's text and its client wording, because a row with no client wording is
@@ -71,12 +79,12 @@ export function Words({ row, text, cls = "wl-words" }) {
 function EditRow({ row, today, words, type }) {
   const pill = clientPill(row, today), who = ownerOf(row.owner), date = dueField(row), late = lateWord(row, today);
   const risk = row.kind === "risk" || row.kind === "issue";
-  const eye = () => change({ kind: "report_hidden", op: "new", id: row.id, place: "eye" }, `${row.id} is off the page.`);
+  const w = eyeWords(true, row), eye = () => change({ kind: "report_hidden", op: "new", id: row.id, place: "eye" }, w.said);
   return (
     <li class="wl-row" data-id={row.id} data-kind={row.kind}>
       <span class="c-ico"><Cell row={row} field="status" said={pill.text} keep tip={iconWords(row, pill, todayOf()).tip}><ItemIcon row={row} pill={pill} plain /></Cell></span>
       <span class="wl-title c-title" title={words[row.id]}><Words row={row} text={words[row.id]} /></span>
-      <span class="c-owner">
+      <span class="c-owner" title={who.initials ? who.text : undefined}>
         <Cell row={row} field="owner" said={who.initials ? who.text : "none"}>
           {who.initials ? <><span class="av" aria-hidden="true">{who.initials}</span><span class="nm">{who.text}</span></> : <span class="nm muted">No owner</span>}
         </Cell>
@@ -89,7 +97,7 @@ function EditRow({ row, today, words, type }) {
       <span class="c-prio">{risk && row.priority ? <Cell row={row} field="priority" said={row.priority}><span class="prio">{row.priority}</span></Cell> : late ? <span class="late">{late}</span> : null}</span>
       <span class="c-id wl-id num">
         <button type="button" class="idl" data-open aria-label={`Open ${row.id}`} onClick={() => openPeek(row.id, "item")}>{row.id}</button>
-        <button type="button" class="ib" data-eye aria-label={`Take ${row.id} off the page`} title="Take off the page" onClick={eye}><Icon name="eye" /></button>
+        <button type="button" class="ib" data-eye aria-label={w.label} title={w.title} onClick={eye}><Icon name="eye" /></button>
       </span>
     </li>
   );

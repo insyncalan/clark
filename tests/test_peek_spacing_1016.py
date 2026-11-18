@@ -3,7 +3,7 @@
 Run: python3 dev/run_tests.py test_peek_spacing_1016
 
 Measured in a real browser in Edit at 1400 and 900 px, light and dark. The four cells are shorter (a padding step less above and below),
-the gap between the last field and the "Needed from the client" switch is one step smaller, the switch and Latest update sit closer, and
+the gap between the last field and what follows it is one step smaller, and
 the empty "Add the latest update" area is shorter. Ranges, not exact numbers: every box keeps a floor (a touch target is 44 px or more, gaps
 never close up) and a ceiling that the old, looser spacing exceeded. Edit only: the published page's own rules are not read here.
 """
@@ -18,10 +18,10 @@ from test_server import chrome  # noqa: E402
 
 READ = """(() => { const p = document.querySelector('#peek');
   const b = (e) => { if (!e) return null; const r = e.getBoundingClientRect(); return { t: r.top, b: r.bottom, h: r.height }; };
-  const cells = {}; for (const k of ['status', 'priority', 'owner', 'due']) { const e = p.querySelector('.pk-fields > [data-row=' + k + ']'); if (e) cells[k] = b(e); }
+  const cells = {}; for (const k of ['status', 'priority', 'owner', 'due']) { const e = p.querySelector('.pk-chips > [data-row=' + k + ']'); if (e) cells[k] = b(e); }
   const rows = [...p.querySelectorAll('.pk-fields > .pk-row:not([data-row])')].map(b);
-  return { cells, lastRow: rows[rows.length - 1], act: b(p.querySelector('.pk-act')), latest: b(p.querySelector('.pk-latest')), lab: b(p.querySelector('.pk-lab')),
-    text: b(p.querySelector('.pk-latest .rt-view')), src: b(p.querySelector('.pk-latest')?.previousElementSibling?.matches('.pk-source') ? p.querySelector('.pk-source') : null), stamp: b(p.querySelector('.pk-last')), body: b(p.querySelector('.pk-body')) }; })()"""
+  return { cells, lastRow: rows[rows.length - 1], latest: b(p.querySelector('.pk-latest')), lab: b(p.querySelector('.pk-lab')),
+    text: b(p.querySelector('.pk-latest .rt-view')), src: b(p.querySelector('.pk-latest')?.previousElementSibling?.matches('.pk-source') ? p.querySelector('.pk-source') : null), stamp: b(p.querySelector('.pk-last')), body: b(p.querySelector('.pk-body')), details: b(p.querySelector('.pk-details')) }; })()"""
 
 
 class Spacing(unittest.TestCase):
@@ -45,24 +45,22 @@ class Spacing(unittest.TestCase):
                     where = f"{width} {theme}"
                     with self.subTest(where):
                         for k, c in g["cells"].items():
-                            lo, hi = (48, 68) if width == 1400 and k in ("status", "priority") else (48, 88)
+                            lo, hi = (24, 64)      # row 1180: the cells are the chip row, a chip each
                             self.assertGreaterEqual(c["h"], lo, f"{where} {k}: not cramped")
-                            self.assertLessEqual(c["h"], hi, f"{where} {k}: tighter than the old 74.5 / 93")
-                        self.assertTrue(4 <= g["act"]["t"] - g["lastRow"]["b"] <= 10, f"{where}: last field to the switch")
-                        self.assertGreaterEqual(g["act"]["h"], 40, f"{where}: the switch keeps its touch height")
+                            self.assertLessEqual(c["h"], hi, f"{where} {k}: a chip, tighter than the old 74.5 / 93")
+                        # item 1158: the Needed from the client switch is gone, so the Source line (item 1009) or Latest update follows the last field
                         if g["src"]:
-                            # item 1009 put a Source line between the switch and Latest update: pin each gap around it, then take it
-                            # out of the page and pin the switch-to-Latest-update gap itself, exactly as before
-                            self.assertTrue(8 <= g["src"]["t"] - g["act"]["b"] <= 16, f"{where}: switch to the Source line")
+                            self.assertTrue(8 <= g["src"]["t"] - g["lastRow"]["b"] <= 16, f"{where}: last field to the Source line")
                             self.assertTrue(4 <= g["latest"]["t"] - g["src"]["b"] <= 10, f"{where}: Source line to Latest update")
                             cdp.js("document.querySelector('#peek .pk-source').remove()", sid)
                             g = cdp.js(READ, sid)
-                        self.assertTrue(4 <= g["latest"]["t"] - g["act"]["b"] <= 10, f"{where}: switch to Latest update")
-                        self.assertTrue(4 <= g["lab"]["t"] - g["latest"]["t"] <= 14, f"{where}: rule to the label")
+                        self.assertTrue(8 <= g["latest"]["t"] - max(c["b"] for c in g["cells"].values()) <= 24, f"{where}: chip row to Latest update (row 1180: Latest update follows the chips, the Details rows come after it)")
+                        self.assertTrue(0 <= g["lab"]["t"] - g["latest"]["t"] <= 14, f"{where}: top of the section to the label (row 1257: no rule above)")
                         # row 1005: the area is the rich editor's view, one prompt line (24 px), not the old textarea (44 and up); the ceiling stays
-                        self.assertTrue(20 <= g["text"]["h"] <= 56, f"{where}: the empty Latest update area, {g['text']['h']}")
-                        self.assertTrue(2 <= g["stamp"]["t"] - g["text"]["b"] <= 5, f"{where}: area to Last updated")
-                        self.assertLessEqual(g["body"]["h"], 690 if width == 1400 else 625, f"{where}: the whole section, {g['body']['h']}")
+                        self.assertTrue(84 <= g["text"]["h"] <= 100, f"{where}: the empty Latest update area (row 1257: 84 px minimum), {g['text']['h']}")
+                        self.assertTrue(6 <= g["stamp"]["t"] - g["text"]["b"] <= 60, f"{where}: area to the stamp (row 1257: the footer strip and 6 px sit between)")
+                        top = g["details"]["t"] - g["body"]["t"]      # row 1180: the top section ends at the Details line; the Details rows and the history follow it
+                        self.assertLessEqual(top, 690 if width == 1400 else 625, f"{where}: the whole top section, {top}")
                 cdp.js("document.documentElement.dataset.theme = 'light'", sid)
 
 

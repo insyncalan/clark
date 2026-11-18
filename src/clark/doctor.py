@@ -218,7 +218,7 @@ def check_docker(seen):
         return Line(NOT_CHECKED, f"The Docker check couldn't finish. Run {typed.doctor()} again.")
     name = next((part for part in re.split(r"[\\/]+", host) if part.casefold().startswith("onedrive")), None)
     if name is not None:
-        return Line(FIX, f"Your data can't be kept in {host} because it is inside OneDrive ({name}). OneDrive copies files while "
+        return Line(FIX, f"Your data can't be kept in {platform.host_shown(host)} because it is inside OneDrive. OneDrive copies files while "
                          "they are being written, which damages the database. Choose a folder on this computer that OneDrive "
                          "doesn't sync.")
     warning = cloud_folder.cloud_warning(host)

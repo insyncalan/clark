@@ -2,6 +2,7 @@
 // these routes, so the published page (view.jsx) has no way to publish and no mention of them. Nothing here names a folder or a
 // file: the client folder is the one saved in Settings, which the server reads itself.
 import { token, plain } from "../stores/report.js";
+import { zoneFetch } from "../api.js";
 import { density, sectionWord } from "../stores/density.js";
 import { forgetCheck } from "./askCheck.js";
 
@@ -10,7 +11,7 @@ export async function call(method, path, body) {
   try {
     const headers = { "X-Clark-Token": token() };
     if (body !== undefined) headers["Content-Type"] = "application/json";
-    const r = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), cache: "no-store" });
+    const r = await zoneFetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), cache: "no-store" });
     return { status: r.status, body: await r.json().catch(() => null) };
   } catch (e) {
     return { status: 0, body: null };
@@ -36,16 +37,24 @@ export function words(r, what) {
   return `Something went wrong while this was working. ${what === "publish" ? "Some of the report may have been saved: check the folders before you publish again." : "Nothing was changed."} If it happens again, restart clark.`;
 }
 
+// The file name in a Content-Disposition header: filename* (the whole name, percent-encoded UTF-8) when there is one, else filename="...".
+export function givenName(head) {
+  const star = /filename\*=UTF-8''([^;\s]+)/i.exec(head || "");
+  if (star) { try { return decodeURIComponent(star[1]); } catch (e) { /* fall through to the plain name */ } }
+  const plain = /filename="([^"]+)"/.exec(head || "");
+  return plain ? plain[1] : "";
+}
+
 // The workbook (#147): {status, body, blob, name}. A download is a file, so the answer is read as a file when it is one and as
 // words when it is not. Never a throw. `name` is the one the server gave; the page does not make up its own.
 export async function exportRequest(project) {
   try {
-    const r = await fetch(`/api/export?project=${encodeURIComponent(project)}`, { headers: { "X-Clark-Token": token() }, cache: "no-store" });
+    const r = await zoneFetch(`/api/export?project=${encodeURIComponent(project)}`, { headers: { "X-Clark-Token": token() }, cache: "no-store" });
     if (r.status === 200) {
-      const given = /filename="([^"]+)"/.exec(r.headers.get("Content-Disposition") || "");
+      const given = givenName(r.headers.get("Content-Disposition"));
       let warning = "";
       try { warning = decodeURIComponent(r.headers.get("X-Export-Warning") || ""); } catch (e) { warning = ""; }
-      return { status: 200, body: null, blob: await r.blob(), name: given ? given[1] : "", warning };
+      return { status: 200, body: null, blob: await r.blob(), name: given, warning };
     }
     return { status: r.status, body: await r.json().catch(() => null), blob: null, name: "" };
   } catch (e) {
@@ -56,10 +65,10 @@ export async function exportRequest(project) {
 // nothing for it; `name` is the one the server gave. Never a throw.
 export async function templateRequest() {
   try {
-    const r = await fetch("/api/export?template=1", { headers: { "X-Clark-Token": token() }, cache: "no-store" });
+    const r = await zoneFetch("/api/export?template=1", { headers: { "X-Clark-Token": token() }, cache: "no-store" });
     if (r.status === 200) {
-      const given = /filename="([^"]+)"/.exec(r.headers.get("Content-Disposition") || "");
-      return { status: 200, body: null, blob: await r.blob(), name: given ? given[1] : "" };
+      const given = givenName(r.headers.get("Content-Disposition"));
+      return { status: 200, body: null, blob: await r.blob(), name: given };
     }
     return { status: r.status, body: await r.json().catch(() => null), blob: null, name: "" };
   } catch (e) {

@@ -31,14 +31,22 @@ class Decision(unittest.TestCase):
             with self.subTest(path):
                 text = sc.refusal(path)
                 self.assertIsNotNone(text)
-                self.assertIn(f"kept in {path} because it is inside ", text)
+                self.assertNotIn("Fictional", text, "the tenant folder is the company: not said")
+                shown = path.replace(" - Fictional Ltd", "").replace("-Fictional Ltd", "")
+                self.assertIn(f"kept in {shown} because it is inside ", text)
                 self.assertIn("which damages the database", text)
 
     def test_the_onedrive_words_are_the_existing_ones(self):
         text = sc.refusal("/Users/sam/OneDrive - Fictional Ltd/clark")
-        self.assertEqual(text, "Your data can't be kept in /Users/sam/OneDrive - Fictional Ltd/clark because it is inside OneDrive (OneDrive - Fictional Ltd). "
+        self.assertEqual(text, "Your data can't be kept in /Users/sam/OneDrive/clark because it is inside OneDrive. "
                                "OneDrive copies files while they are being written, which damages the database. Choose a folder on this computer "
                                "that OneDrive doesn't sync.")
+
+    def test_a_personal_onedrive_folder_is_said_as_it_is_and_a_tenant_one_is_not(self):
+        for name in ("OneDrive - Personal", "OneDrive-Personal"):
+            text = sc.refusal(f"/Users/sam/{name}/clark")
+            self.assertIn(f"kept in /Users/sam/{name}/clark because", text, name)
+        self.assertIn("kept in /Users/sam/OneDrive/clark because", sc.refusal("/Users/sam/OneDrive - Acme Ltd/clark"))
 
     def test_ordinary_folders_are_allowed(self):
         for path in ALLOWED:
@@ -140,8 +148,11 @@ class Script(unittest.TestCase):
         self.bin.mkdir()
         self.log = Path(self.tmp) / "docker.log"
         stub = self.bin / "docker"
-        stub.write_text('#!/bin/sh\necho "$@" >> "$DOCKER_LOG"\n', encoding="utf-8")
+        stub.write_text('#!/bin/sh\n[ "$1" = info ] && exit 0\necho "$@" >> "$DOCKER_LOG"\n', encoding="utf-8")
         stub.chmod(0o755)
+        for name in ("curl", "open"):       # row 1161: after compose the script waits for the page and opens Chrome; nothing real is reached
+            (self.bin / name).write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            (self.bin / name).chmod(0o755)
 
     def run_script(self, data, *args):
         env = {"PATH": f"{self.bin}:{os.environ['PATH']}", "HOME": self.tmp, "DOCKER_LOG": str(self.log), "CLARK_DATA_DIR": data}

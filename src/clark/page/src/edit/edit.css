@@ -78,6 +78,13 @@
 /* The peek's Details and Activity tabs (#42): Edit only. */
 .pk-tabs { display: flex; gap: var(--space-1); margin: var(--space-1) 0 var(--space-2); border-bottom: 1px solid var(--grey-200); }
 .pk-tab { min-height: 32px; padding: var(--space-1) var(--space-3); border: 0; border-bottom: 2px solid transparent; background: none; color: var(--text-muted); font: inherit; font-size: var(--size-caption); cursor: pointer; }
+.pk-hcount { margin-left: 2px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.pk-history { margin: var(--space-3) 0 0; }
+.pk-hicon { flex: none; margin-top: 2px; color: var(--text-muted); }
+/* the approved peek mockup: the history icon sits in a 30 px tile with an 8 px corner */
+.pk-hrow-tile, .pa-line > .pk-hicon, .pk-hsrc > .pk-hicon { box-sizing: content-box; width: 16px; height: 16px; padding: 6px; border: 1px solid var(--grey-200); border-radius: 8px; margin-top: 0; }
+.pk-hsrc { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin: var(--space-2) 0; }
+.pk-hsrc a, .pk-hsrc .linklike { color: var(--brand-blue); font: inherit; background: none; border: 0; padding: 0; min-height: 24px; text-decoration: underline; cursor: pointer; }
 .pk-tab.on { color: var(--text); border-bottom-color: var(--brand-blue); font-weight: var(--weight-medium); }
 .pk-activity:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .pk-tab:focus-visible { outline: 0; border-bottom-color: var(--focus); }   /* row 1077 (flat): a tab's focus is its underline in the focus colour, not a box */
@@ -89,9 +96,21 @@
 .pk-fix button { min-height: 28px; padding: 3px 10px; border: 1px solid var(--status-amber); border-radius: var(--radius); background: var(--surface); color: var(--status-amber-text); font: inherit; font-size: var(--size-small); font-weight: var(--weight-medium); cursor: pointer; }
 .pk-fix button:hover { background: var(--status-amber-tint); }
 .pk-fix button:focus-visible, .pk-latest-text:focus-visible, .pk-latest-in:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.pk-act { margin: var(--space-2) 0 0; }
-.pk-latest { margin: var(--space-2) 0 0; padding-top: var(--space-2); border-top: 1px solid var(--grey-100); }
-.pk-lab { display: flex; align-items: center; gap: 10px; margin-bottom: var(--space-1); color: var(--text); font-size: var(--size-small); }
+.pk-latest { --lbox-radius: 12px; --lbox-pad-x: 14px; --lbox-min: 84px; --lbox-gap: 6px; margin: var(--space-2) 0 0; }   /* row 1257: the box below is the frame, so no rule above it. Named locals, no token fits: --lbox-radius 12 (the radius scale has 4, 8, 14) and --lbox-pad-x 14 are issue 1257 item 4 "radius 12 ... padding 12 / 14"; --lbox-min 84 is its "text area at least 84 px"; --lbox-gap 6 is the gap under the box in layout A of the approved peek mockup (the ticket gives no number) */
+.pk-lab { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-2); color: var(--heading); font-size: var(--size-caption); font-weight: 700; letter-spacing: .02em; }   /* row 1257: 13 px / 700 like the mockup; the Draft with AI button inside keeps its own 13 / 600 */
+.pk-ai { display: inline-flex; align-items: center; gap: 4px; min-height: 24px; padding: 2px 8px; border: 0; border-radius: var(--radius); background: transparent; color: var(--brand-blue); font: inherit; font-size: var(--size-caption); font-weight: 600; cursor: pointer; }
+.pk-ai:hover, .aim-opt:hover { background: var(--brand-blue-tint); }
+.pk-ai:focus-visible, .aim-opt:focus-visible, .aim-ask input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pk-ai-panel { margin: 0 0 var(--space-1); }
+.aim { display: flex; flex-direction: column; min-width: 240px; max-width: 360px; padding: 4px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); color: var(--text); }
+.aim hr { width: 100%; margin: 4px 0; border: 0; border-top: 1px solid var(--border); }
+.aim-gl { padding: 4px 8px 0; color: var(--text-muted); font-size: var(--size-caption); font-weight: 600; }
+.aim-opt { display: flex; flex-direction: column; align-items: flex-start; gap: 0; min-height: 24px; padding: 4px 8px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.aim-nm { font-size: var(--size-small); }
+.aim-ds { color: var(--text-muted); font-size: var(--size-caption); }
+.aim-ask input { box-sizing: border-box; width: 100%; min-height: 24px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-small); }
+.rt-ai { position: fixed; z-index: 60; max-width: min(360px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow: auto; }
+.rt-ai .aic { margin: 0; }
 .pk-latest-client { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: var(--text-muted); font-size: var(--size-small); }
 .pk-latest-text, .pk-latest-in { display: block; box-sizing: border-box; width: 100%; min-height: var(--space-7); margin: 0; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: var(--text); font: inherit; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }
 .pk-latest-text { cursor: text; }
@@ -102,26 +121,44 @@
 /* Row 828: the milestone peek's own fields (MilestonePeek.jsx). Tokens only; the text fields borrow the Latest update look. */
 .pk-ms-text, .pk-ms-in { min-height: 28px; padding: 3px 8px; }
 .pk-ms-states { display: flex; flex-wrap: wrap; gap: var(--space-1); }
-/* Row 1078: the header line in Edit (shell.css .pk-ms-head draws the line): the owner is the in-place text, the progress its slider and number,
-   and the state buttons are a row of their own under the line. The title is the name, in place, in the title's own type. */
-.pk-ms-head .pk-ms-text, .pk-ms-head .pk-ms-in { display: inline-block; width: auto; min-height: 26px; padding: 2px 6px; }
-.pk-ms-head .pk-ms-progress { flex: 1 1 150px; min-width: 150px; }
-.pk-ms-head + .pk-ms-states { margin: calc(-1 * var(--space-1)) 0 var(--space-3); }
 .pk-title .pk-ms-text, .pk-title .pk-ms-in { display: block; width: 100%; min-height: 1.3em; margin: 0 calc(-1 * var(--space-2)); padding: 0 var(--space-2); font: inherit; line-height: inherit; color: inherit; }
-.pk-ms-state, .pk-ms-eye { min-height: 28px; padding: 2px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-small); cursor: pointer; }
-.pk-ms-state:hover:not(:disabled), .pk-ms-eye:hover:not(:disabled) { background: var(--brand-blue-tint); }
-.pk-ms-state[aria-pressed="true"], .pk-ms-eye[aria-pressed="true"] { border-color: var(--brand-blue); background: var(--brand-blue-tint); color: var(--status-blue-text); }
-.pk-ms-state:disabled, .pk-ms-eye:disabled { cursor: default; color: var(--text-muted); }
-.pk-ms-state:focus-visible, .pk-ms-eye:focus-visible, .pk-ms-select:focus-visible, .pk-ms-num:focus-visible, .pk-ms-progress input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.pk-ms-progress { display: flex; align-items: center; gap: var(--space-2); }
-.pk-ms-progress input[type="range"] { flex: 1; min-width: 0; }
-.pk-ms-num { width: 4em; min-height: 28px; box-sizing: border-box; padding: 2px 6px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
-.pk-ms-num::placeholder { color: var(--text-muted); opacity: 1; }
-.pk-ms-select { max-width: 100%; min-height: 28px; padding: 2px 6px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.pk-ms-state { min-height: 28px; padding: 2px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-small); cursor: pointer; }
+.pk-ms-state:hover { background: var(--brand-blue-tint); }
+.pk-ms-state[aria-pressed="true"] { border-color: var(--brand-blue); background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.pk-ms-state:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* Row 1184: the milestone chips' popovers. The states are a column of buttons, each with its own icon; the progress is ten blocks, each stronger than the one before. */
+.pk-ms-pop .pk-ms-states { flex-direction: column; flex-wrap: nowrap; align-items: stretch; }
+.pk-ms-pop .pk-ms-state { display: flex; align-items: center; gap: var(--space-2); justify-content: flex-start; border-radius: var(--radius); text-align: left; }
+.pk-ms-state .pkc-ic svg { width: 16px; height: 16px; display: block; }
+.pk-ms-blocks { display: flex; gap: 3px; padding: 7px 8px; }
+.pk-ms-block { min-width: 24px; height: 24px; box-sizing: border-box; padding: 0; border: 1px solid var(--grey-300); border-radius: 3px; background: var(--grey-100); cursor: pointer; }   /* the empty block has an edge, so filled and empty read apart in the dark theme too */
+/* Row 1184: the milestone's four chips (State, Owner, Progress, Forecast date, "overdue N days" beside it) share one line in the 640 px peek: a closer gap and padding */
+.pk-chips.ms .pkc-btn { gap: var(--space-1); padding: 0 var(--space-2); }
+.pk-chips.ms .pkc-v { max-width: 9rem; }
+.pk-chips.ms { flex-wrap: nowrap; }                            /* the four chips stay on one line; no gap and no fixed flex, so they fill the row like the other peeks */
+.pk-chips.ms .pkc { min-width: 0; }
+.pk-chips.ms .pkc-btn { min-width: 0; max-width: 100%; }
+.pk-chips.ms .pkc-tx { flex-wrap: nowrap; }                     /* the date and "overdue N days" stay on one line, so the four chips stay on one */
+.pk-chips.ms [data-row="state"], .pk-chips.ms [data-row="forecast"] { flex: none; }   /* the state and the late date are never cut; a long owner or progress is (its full words are the chip's label) */
+.pk-ms-block.on { border-color: var(--brand-blue); background: color-mix(in srgb, var(--brand-blue) var(--p), var(--surface)); }
+.pk-ms-block.pv { opacity: .55; }
+.pk-ms-block:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.pk-off { color: var(--text-muted); cursor: not-allowed; }
+/* Row 1257 (layout A of the approved peek mockup): the Latest update is ONE bordered card, the editor on top and a footer strip with the save key always shown. */
+.pk-lbox { overflow: hidden; border: 1px solid var(--grey-200); border-radius: var(--lbox-radius); background: var(--grey-50); }
+.pk-lbox:focus-within { border-color: var(--brand-blue); background: var(--surface); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-blue) 15%, transparent); }
+.pk-lbox .rt-view, .pk-lbox .rt-view:hover { display: block; box-sizing: border-box; min-height: var(--lbox-min); margin: 0; padding: var(--space-3) var(--lbox-pad-x); border: 0; border-radius: 0; background: transparent; font-size: var(--size-small); line-height: 1.45; }
+.pk-lbox .rt-view .quiet, .pk-lbox .rt-view .prose p { margin: 0; }
+.pk-lbox .rt { margin: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.pk-lbox .rt-keys { display: none; }   /* the footer strip says how to save */
+.pk-lbox .rt-host { min-height: var(--lbox-min); resize: none; }
+.pk-lbox .rt-host .ProseMirror { min-height: var(--lbox-min); box-sizing: border-box; padding: var(--space-3) var(--lbox-pad-x); font-size: var(--size-small); line-height: 1.45; }
+.pk-lfoot { display: flex; justify-content: flex-end; gap: var(--space-3); padding: var(--space-2) var(--space-3) var(--space-2) var(--lbox-pad-x); border-top: 1px solid var(--grey-200); color: var(--text-muted); font-size: 12px; }   /* 12 px, under the 13 px floor on purpose: issue 1257 v1.2 item 4 says "a footer strip inside the box: 12 px muted"; also listed in test_size_scale NOT_TEXT */
+.pk-key { display: inline-block; padding: 0 var(--space-1); border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: var(--surface); font: 600 var(--size-caption) ui-monospace, Menlo, monospace; }
 .pk-latest-hint, .pk-latest-err { margin: 4px 0 0; font-size: var(--size-small); }
 .pk-latest-hint { color: var(--text-muted); }
 .pk-latest-err { color: var(--status-red-text); }
-.pk-last { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: var(--space-1); color: var(--text-muted); font-size: var(--size-small); }
+.pk-last { display: flex; align-items: center; justify-content: flex-end; margin-top: var(--lbox-gap); color: var(--text-muted); font-size: 12px; }   /* row 1257: 12 px, under the 13 px floor on purpose (issue 1257 item 4: "last updated dd-mm-yyyy hh:mm under the box, 12 px muted, right-aligned, no icon"; listed in test_size_scale NOT_TEXT), 6 px under the box, no icon, lowercase words */
 /* Issue 1016: the four cells of the peek card are a step shorter above and below and a step closer together (Edit only: the published page keeps shell.css's own). */
 .peek .pk-body:has(.wordsbox) { overflow: visible; }   /* row 1077: with the words box open the peek itself scrolls, so the foot band (.wordsbox, sticky) pins to the peek's bottom edge */
 .peek .wordsbox { bottom: var(--space-2); margin: calc(var(--space-4) + var(--space-1)) calc(-1 * var(--space-5)) calc(-1 * var(--space-5)); padding: var(--space-3) var(--space-5); border: 0; border-top: 1px solid var(--grey-200); border-radius: 0; background: var(--grey-50); box-shadow: none; }   /* row 1077 (the owner's ruling, flat): in the peek it is a foot band the full width of the panel, pinned to its bottom edge while the body scrolls (the peek scrolls; edit.css lets the body show through), a hairline above and a light tint */
@@ -136,6 +173,24 @@
 .pk-pick { display: inline-block; max-width: 100%; min-height: var(--space-6); padding: calc(var(--space-1) * 3 / 4) var(--space-2); border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: var(--text); font: inherit; text-align: left; overflow-wrap: anywhere; cursor: pointer; }
 .pk-pick:hover { background: var(--grey-100); }   /* row 1077 (flat) */
 .pk-pick:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* Row 1182: the Risk peek's Rating button and its 3 x 3 matrix (each cell in its colour; the level word is on the cell, so colour is never alone) */
+.pk-rate { display: inline-flex; align-items: center; gap: var(--space-2); }
+/* Row 1257: the matrix as the approved mockup draws it: 268 wide for Risk and Issue alike, padding 8, radius 12, the grey-200 border; cells radius 6, padding 7 / 2, weight 600; a Low / Medium / High header row UNDER the grid. Sizes stay on the scale (the mockup's 11 and 10 px are under the readable floor, test_font). */
+.cpop.rmatrix { box-sizing: border-box; width: 268px; min-width: 0; padding: var(--space-2); border-color: var(--grey-200); border-radius: 12px; }
+.rmx { display: grid; grid-template-columns: auto repeat(3, minmax(0, 1fr)); gap: 3px; align-items: stretch; }
+.rmx-h { color: var(--text-muted); font-size: var(--size-caption); font-weight: 500; align-self: center; }
+.rmx-corner { text-align: right; padding-right: var(--space-1); }
+.rmx-top { grid-column: 2 / 5; text-align: center; }
+.rmx-col { text-align: center; }
+.rmx-l { color: var(--text-muted); font-size: var(--size-caption); font-weight: 500; align-self: center; text-align: right; padding-right: 6px; }
+.rmx-c { min-height: var(--space-6); padding: 7px 2px; border: 1.5px solid transparent; border-radius: 6px; font: inherit; font-size: var(--size-caption); font-weight: 600; cursor: pointer; }
+.rmx-c.rmx-r { background: var(--status-red-tint); color: var(--status-red-text); }
+.rmx-c.rmx-a { background: var(--status-amber-tint); color: var(--status-amber-text); }
+.rmx-c.rmx-g { background: var(--status-green-tint); color: var(--status-green-text); }
+.rmx-c[aria-pressed=true] { border-color: currentColor; }
+.rmx-c:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.rmx-hint { margin: 6px var(--space-1) 2px; color: var(--text-muted); font-size: var(--size-caption); }
+.rmx-hint b { font-weight: var(--weight-semibold); color: var(--text); }
 .pa-list { list-style: none; margin: 0; padding: 0; }
 .pa-row { padding: var(--space-2) 0; border-top: 1px solid var(--grey-100); }
 .pa-meta { margin: 0; font-size: var(--size-caption); color: var(--text-muted); }
@@ -152,7 +207,7 @@
 .rowmenu .ddmenu { position: static; min-width: 240px; max-width: min(340px, calc(100vw - 2 * var(--space-2))); }
 .rowmenu [role="menuitem"] { display: flex; align-items: center; gap: var(--space-2); }
 .rowmenu [role="menuitem"]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-.rowmenu .rm-t { flex: 1; min-width: 0; }
+.rowmenu .rm-t { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .rowmenu .rm-t small { display: block; font-size: var(--size-caption); color: var(--text-muted); }
 .rowmenu .rm-ic { flex: none; width: 16px; height: 16px; color: var(--text-muted); }                /* row 978: the entry's icon, before its words, from the existing icon set; it takes the entry's colour on hover and focus */
 .rowmenu [role="menuitem"]:hover .rm-ic, .rowmenu [role="menuitem"]:focus-visible .rm-ic { color: inherit; }
@@ -179,7 +234,8 @@
 .sb-why { font-size: var(--size-caption); }
 .cpop.bmenu { min-width: 220px; }
 .bmenu .bm-h { padding: 6px 12px 4px; font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--heading); }
-.bmenu .bm-why { padding: 6px 12px; font-size: var(--size-caption); color: var(--text-muted); }
+.bmenu .bm-why { display: flex; align-items: center; gap: 10px; padding: 6px 12px; font-size: var(--size-caption); color: var(--text-muted); }
+.bmenu .bm-why .mi { flex: none; width: 16px; height: 16px; color: var(--text-muted); }
 .bmenu .sep { height: 1px; margin: 4px 0; background: var(--border); }
 .bmenu .menu-item { display: flex; flex-wrap: wrap; align-items: center; }
 .bask-back { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.4); }
@@ -209,6 +265,8 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-panel { --ask-edge: color-mix(in srgb, var(--grey-700) 85%, var(--surface)); position: fixed; top: 0; right: 0; bottom: 0; z-index: 45; display: flex; flex-direction: column; max-width: 90%; isolation: isolate; color: var(--text); border-left: 1px solid var(--grey-200); box-shadow: -12px 0 40px color-mix(in srgb, var(--brand-navy) 16%, transparent);
   background: radial-gradient(95% 48% at 100% 100%, color-mix(in srgb, var(--brand-blue) 24%, transparent), transparent 72%), radial-gradient(75% 40% at 0% 96%, color-mix(in srgb, var(--brand-blue) 12%, transparent), transparent 72%), var(--surface); }
 .ask-panel:focus { outline: none; }
+/* row 1219: scrolling over the panel never moves the page behind it (the panel, its answers and its saved chats contain the scroll; core/holdScroll.js covers a panel that does not overflow). Vertical only: the sideways Back and Forward swipe (1136) must still reach the browser. */
+.ask-panel, .ask-hist, .ask-log { overscroll-behavior-y: contain; }
 /* row 885: the panel rises from the bottom of the window as it opens and sinks back as it closes (transform only; its place is unchanged); still under reduced motion */
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-motion="reduce"]) .ask-panel { animation: ask-up var(--dur-layout) var(--ease-enter) 1; }
@@ -262,7 +320,20 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-turn.problem { padding-left: var(--space-3); border-left: 3px solid var(--status-amber); }
 .ask-who { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; color: inherit; }    /* "You" and "Answer" are for a reader that announces; the bubble and the reply place already say it (issue 794) */
 .ask-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+/* row 1217: a formatted answer: blocks carry their own spacing, so the pre-wrap of plain text is off */
+.ask-md { white-space: normal; }
+.ask-md > :first-child { margin-top: 0; } .ask-md > :last-child { margin-bottom: 0; }
+.ask-md p, .ask-md ul, .ask-md ol, .ask-md pre { margin: 0 0 var(--space-2); }
+.ask-md .ask-h { margin: var(--space-3) 0 var(--space-1); font-size: var(--size-body); font-weight: var(--weight-semibold); line-height: 1.35; }
+.ask-md ul, .ask-md ol { padding-left: var(--space-4); }
+.ask-md li { margin: 0 0 4px; }
+.ask-md code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: .92em; padding: 0 3px; border-radius: 3px; background: var(--grey-100); }
+.ask-md pre { overflow-x: auto; padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); background: var(--grey-100); white-space: pre; }
+.ask-md pre code { padding: 0; background: none; }
 /* row 890: the Sources disclosure under an answer, closed by default; the same look as the other disclosures (.docs-left) */
+/* row 1218: the notes about what was left out: one small grey block close under the Sources line (--text-muted, 4.5 to 1 on the panel in light and dark) */
+.ask-notes { margin: -10px 0 0; padding: 0 0 0 var(--space-4); list-style: disc; font-size: var(--size-caption); line-height: 1.35; color: var(--text-muted); overflow-wrap: anywhere; }
+.ask-notes li { margin: 0 0 2px; }
 .ask-sources { margin-top: var(--space-2); }
 .ask-sources summary { cursor: pointer; color: var(--text-muted); font-size: var(--size-small); min-height: 24px; }
 .ask-sources summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
@@ -287,18 +358,35 @@ table.items td.c-pick { vertical-align: middle; }
 @media (prefers-reduced-motion: reduce) { .ask-turn, .ask-work { animation: none; } .ask-dots i { animation: none; opacity: .6; } .ask-grip::before, .ask-grip::after, .ask-pills button, .ask-form textarea { transition: none; } }
 .ask-note { flex: none; margin: 0; padding: 0 20px 6px; font-size: var(--size-caption); color: var(--text-muted); }
 .ask-note:empty { padding: 0; height: 0; overflow: hidden; }
-.ask-form { flex: none; display: flex; flex-direction: row; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4) 14px; border-top: 1px solid var(--grey-200); }
+/* row 1220: the messages waiting to be sent, small and quiet, one line each, above the typing space; a bin at the right end of each */
+.ask-queue { flex: none; padding: 0 20px 6px; font-size: var(--size-caption); color: var(--text-muted); }
+.ask-queue ul { margin: 0; padding: 0; list-style: none; }
+.ask-queue li { display: flex; align-items: center; gap: var(--space-2); min-height: 24px; }
+.ask-queue-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ask-queue-del { flex: none; width: 24px; height: 24px; min-width: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--text-muted); background: transparent; border: 0; border-radius: var(--radius-sm); cursor: pointer; }
+.ask-queue-del:hover { color: var(--text); background: var(--grey-100); }
+.ask-queue-del:focus-visible, .ask-queue-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.ask-queue-del .i { width: 14px; height: 14px; }
+.ask-queue li.ask-queue-more { display: none; }
+.ask-queue-held { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2) var(--space-3); margin: 4px 0 0; }
+.ask-queue-act { min-height: 24px; padding: 0; font: inherit; color: var(--link, var(--brand-blue)); background: none; border: 0; text-decoration: underline; cursor: pointer; }
+.ask-queue-act:disabled { color: var(--text-muted); cursor: default; }
+.ask-queue-drop { flex: none; margin: 0; padding: 0 20px 6px; font-size: var(--size-caption); color: var(--status-amber-text); }
+@media (max-width: 900px) { .ask-queue li[data-queued]:nth-child(n+3) { display: none; } .ask-queue li.ask-queue-more { display: flex; } }
+.ask-form { flex: none; display: flex; flex-direction: row; align-items: flex-end; gap: var(--space-2); padding: var(--space-3) var(--space-4) 14px; border-top: 1px solid var(--grey-200); }
 /* row 1023 (prototype app.css:583): the brand picture, faint, at the panel's foot behind the box, rising from the bottom; nothing without a picture (--image-cover is none) */
 .ask-form { position: relative; }
 .ask-form::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 340px; z-index: -1; pointer-events: none; background: var(--image-cover) 70% bottom / cover no-repeat; opacity: .2; -webkit-mask-image: linear-gradient(0deg, var(--black), transparent); mask-image: linear-gradient(0deg, var(--black), transparent); }
 @media print { .ask-form::before { display: none; } }
-.ask-form textarea { flex: 1 1 auto; min-width: 0; width: 100%; box-sizing: border-box; height: 40px; min-height: 0; max-height: 40px; line-height: 20px; padding: 9px 14px; overflow-y: auto; border: 1px solid var(--ask-edge); border-radius: 12px; background: var(--grey-50); color: var(--text); font: inherit; font-size: var(--size-body); resize: none; outline: none; transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
+.ask-form textarea { flex: 1 1 auto; min-width: 0; width: 100%; box-sizing: border-box; height: 44px; min-height: 44px; max-height: 132px; padding: 10px 14px; overflow-y: auto; border: 1px solid var(--ask-edge); border-radius: 12px; background: var(--grey-50); color: var(--text); font: inherit; font-size: var(--size-body); line-height: 22px; resize: none; outline: none; transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
 .ask-form textarea::placeholder { color: var(--text-muted); opacity: 1; }
 .ask-form textarea:focus-visible { background: var(--surface); border-color: var(--brand-blue); box-shadow: 0 0 0 2px var(--brand-blue), 0 0 0 5px color-mix(in srgb, var(--brand-blue) 20%, transparent); }
 .ask-form textarea:disabled { opacity: .7; }
 .ask-actions { flex: none; display: flex; align-items: center; gap: var(--space-2); }
 .ask-actions .btn.primary { width: 36px; min-width: 36px; height: 36px; min-height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; }
 .ask-actions .btn.primary:disabled, .ask-actions .btn.primary[data-empty] { opacity: .45; cursor: default; box-shadow: none; }
+.ask-actions .ask-stop-icon { opacity: 1; cursor: pointer; }
+.ask-actions .ask-stop-icon svg { display: block; }
 /* #47e: a suggested change in the ask panel */
 .ask-changes { display: flex; flex-direction: column; gap: 10px; margin-top: var(--space-1); }
 .ask-passage { margin: 0; padding: 6px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: var(--surface); }  /* row 936: a quote edge is a hairline all round, no one-side stripe */
@@ -319,19 +407,6 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-change .btn.primary:disabled { opacity: .55; cursor: default; }
 .ask-change-line.problem, .ask-refused { color: var(--text); border-left: 3px solid var(--status-amber); padding-left: var(--space-2); }
 .ask-change-line:focus-visible, .ask-change button:focus-visible, .ask-confirm input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
-/* 'Needs from you' in Edit: the row's own buttons sit under its date; a row being edited is a row of fields; a row left out of the
-   published page is dashed and tagged, never dimmed (dimming lowers the text's contrast). */
-.needs-edit .n-acts { display: flex; flex-wrap: wrap; gap: var(--space-1) 6px; margin-top: 6px; }
-.needs-edit .n-date { display: inline-block; }
-.needs-edit tr.n-left td { border-top-style: dashed; background: var(--grey-50); }
-.needs-edit tr.n-left td .tag.hid { margin-left: var(--space-1); }
-.needs-edit .n-f { display: block; margin: 0 0 6px; }
-.needs-edit .n-f input, .needs-edit .n-f select { box-sizing: border-box; width: 100%; min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
-.needs-edit .n-f input:focus-visible, .needs-edit .n-f select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.needs-edit tr.n-form td { background: var(--grey-50); }
-.needs-edit .n-err { margin: 0; font-size: var(--size-caption); color: var(--status-red-text); }
-.needs-edit .n-add { margin: var(--space-2) 0 var(--space-1); }
-.needs-edit .btn:disabled { color: var(--text-muted); cursor: default; }
 
 /* The command palette (#198), Edit parts only: a modal box with one search box and the results under it. */
 .pal { width: min(620px, calc(100% - 32px)); margin-top: 10vh; max-height: 70vh; display: flex; flex-direction: column; overflow: hidden; }
@@ -370,54 +445,42 @@ table.items td.c-pick { vertical-align: middle; }
 .pa-row.picked { background: color-mix(in srgb, var(--brand-blue-tint) 60%, var(--surface)); }
 .pa-row[data-step] .pa-what { user-select: text; }
 /* Use cases page: list */
-.ucl-sub { margin: 4px 0 0; font-size: var(--size-body); }
 /* Row 1085: the tabs row as Work items draws its saved views, Import, Export and Add use case at its right end, and the filter line (the Work items box) under it */
 .ucl-views { margin-top: 16px; }
+.ucl-views .vtab { padding-left: 8px; padding-right: 8px; }      /* row 1203: with the open tab's menu button and + New view beside four tabs, the strip at 900 was 5 px too narrow and scrolled; two px less each side of a tab fits it */
 .ucl-tools { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-bottom: var(--space-1); }
 .ucl .fline-wrap { margin-top: 0; }
 /* Row 1085: Group by draws each group as a bordered card (.wgroup, as Work items) with a heading bar: the name, the count, open and shut */
 .ucl-group { margin-top: 10px; }
 .ucl-grp { display: flex; align-items: center; padding: 10px var(--space-4); background: var(--grey-50); font-size: var(--size-small); color: var(--heading); }
-.ucl-group .ucl-hd { border-top: 1px solid var(--grey-200); }
 .ucl-group .ucl-row { padding-left: var(--space-4); padding-right: var(--space-4); }
 .ucl-group .ucl-list .ucl-row:last-child { border-bottom: 0; }
 .ucl-count { display: block; margin: 10px 0 0; font-size: var(--size-caption); color: var(--text-muted); }   /* row 1085: under the list */
 /* Row 1085: the sort sits on the column names (Ref, Status, Work items): the pressed one is marked with a small chevron */
-.ucl-sort { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 4px; min-height: 24px; cursor: pointer; font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; }
-.ucl-sort:hover, .ucl-sort[aria-pressed="true"] { color: var(--text); }
-.ucl-sort:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
-.ucl-sort .i { width: 12px; height: 12px; flex: none; }
 .ucl-box { margin-top: 14px; }
+.ucl-cols { display: grid; grid-template-columns: minmax(40px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px 36px; gap: var(--space-3); padding: 6px var(--space-1); border-bottom: 1px solid var(--grey-100); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); }   /* row 1203: the column names over the rows, the same columns */
+.ucl-cols .ucl-c1 { grid-column: 1 / 3; }
 .ucl-list { margin: 0; padding: 0; list-style: none; }
-.ucl-row { display: grid; grid-template-columns: var(--ucl-cols, 84px minmax(0, 1.1fr) minmax(0, 1.6fr) minmax(112px, max-content) 92px minmax(0, .9fr) 36px); gap: 14px; align-items: center; padding: 10px 6px; border-bottom: 1px solid var(--grey-100); cursor: pointer; }
+.ucl-row { display: grid; grid-template-columns: 64px minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px 36px; gap: var(--space-3); align-items: center; min-height: 40px; padding: var(--d-uc-bar-y) var(--space-1); border-bottom: 1px solid var(--grey-100); cursor: pointer; font-size: var(--size-body); }   /* item 1149: the dashboard summary row's columns, then the eye */
 .ucl-list .ucl-row:hover, .ucl-list .ucl-row:focus-within { background: var(--grey-100); }  /* row 936: a hovered row is a tint, no blue one-side stripe (a stripe is for selected) */
-.ucl-hd { cursor: default; padding-top: 8px; padding-bottom: 8px; border-top: 1px solid var(--grey-200); border-bottom-color: var(--grey-200); font-size: var(--size-caption); font-weight: var(--weight-medium); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); }
-.ucl-ref { font-size: var(--size-small); color: var(--text-muted); overflow-wrap: anywhere; }
-.ucl-name { min-width: 0; display: flex; flex-direction: column; }
 .ucl-go { all: unset; box-sizing: border-box; display: block; min-height: 24px; padding: 2px 0; cursor: pointer; font-size: var(--size-body); font-weight: var(--weight-medium); line-height: 1.35; color: var(--heading); overflow-wrap: anywhere; border-radius: 3px; }
 .ucl-go:hover { text-decoration: underline; text-underline-offset: 2px; }
 .ucl-go:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.ucl-name small { display: none; font-size: var(--size-caption); color: var(--text-muted); overflow-wrap: anywhere; }
-.ucl-head, .ucl-ms { min-width: 0; font-size: var(--size-small); color: var(--text-muted); overflow-wrap: anywhere; }
-.ucl-head { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.ucl-hd .ucl-head, .ucl-hd .ucl-ms { display: block; font-size: var(--size-caption); }
-.ucl-st { justify-self: start; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }   /* row 1085: the status chip with the commitment chip beside it */
-.ucl-wi { font-size: var(--size-small); }
-.ucl-wi b { font-weight: var(--weight-medium); }
-.ucl-wi small { display: block; font-size: var(--size-caption); color: var(--text-muted); }
+.ucl-head { min-width: 0; overflow-wrap: anywhere; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }   /* item 1149: where it stands is shown in full on the row, clamped to two lines */
+.ucl-st { justify-self: stretch; }
 .ucl-eye { all: unset; box-sizing: border-box; justify-self: start; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border-radius: var(--radius); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--status-blue-text); cursor: pointer; }
 .ucl-eye .i, .ucl-eye svg { width: 16px; height: 16px; flex: none; }   /* issue 753: the eye alone, its words are the tooltip */
 .ucl-eye:hover { background: var(--grey-100); }
+.ucd-acts .ucd-more { width: 32px; padding: 0; justify-content: center; }
 .ucl-eye:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .ucl-row.off .ucl-eye { color: var(--text-muted); font-weight: var(--weight-regular); }
-.ucl-none { margin: 20px 0 4px; }
+.ucl-none { margin: 20px 0 4px; overflow-wrap: anywhere; }   /* item 1131: a long unbroken search never widens the page */
 .ucl-none .btn { margin-top: 4px; }
 .ucmore { margin: 8px 0 0; font-size: var(--size-small); }
 .ucmore a { display: inline-flex; align-items: center; min-height: 24px; color: var(--link); text-underline-offset: 2px; }
-@media (max-width: 1100px) {
-  .ucl-row { grid-template-columns: var(--ucl-cols-s, 70px minmax(0, 1fr) 112px 92px 36px); gap: 10px; }
-  .ucl-head, .ucl-ms, .ucl-hd .ucl-head, .ucl-hd .ucl-ms { display: none; }
-  .ucl-name small { display: block; }
+@media (max-width: 900px) {
+  .ucl-row, .ucl-cols { grid-template-columns: 64px minmax(0, 1fr) minmax(0, 1fr) 124px 96px 36px; gap: var(--space-2); }
+  .ucl-count { margin-left: 0; flex-basis: 100%; }
 }
 @media (max-width: 640px) {      /* the editor's fifth tab: the tabs scroll inside their own bar, so the mode switch and the profile stay in the window */
   .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
@@ -493,15 +556,11 @@ table.items td.c-pick { vertical-align: middle; }
 .ucd-items { margin: 0; padding: 0; }
 .ucd-items li { padding: 0; border-top: 1px solid var(--grey-100); }
 .ucd-items li:first-child { border-top: 0; }
-.ucd-item { display: grid; grid-template-columns: 112px minmax(0, 1fr) auto minmax(110px, 260px); align-items: center; gap: 4px 12px; width: 100%; min-height: 40px; padding: 6px 4px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.ucd-item { position: relative; display: grid; grid-template-columns: 24px 96px minmax(0, 1fr) minmax(110px, 260px); align-items: center; gap: 4px 12px; width: 100%; min-height: 40px; padding: 6px 4px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
 .ucd-item:hover { background: var(--grey-50); }
+.ucd-item[data-tip]:hover::after, .ucd-item[data-tip]:focus-visible::after { left: 4px; right: auto; }      /* row 1145: the status tip of the icon opens at the row's left */
 .ucd-id { color: var(--text-muted); font-size: var(--size-caption); white-space: nowrap; }
 /* Row 1081: the chip of a work item is tinted like the row 1021 status colours (final: Open green, Made and Closed blue). */
-.ucd-item .pill.r { background: var(--tone-red-tint); color: var(--tone-red-text); } .ucd-item .pill.r::before { background: var(--tone-red-text); }
-.ucd-item .pill.a { background: var(--tone-amber-tint); color: var(--tone-amber-text); } .ucd-item .pill.a::before { background: var(--tone-amber-text); }
-.ucd-item .pill.g { background: var(--tone-green-tint); color: var(--tone-green-text); } .ucd-item .pill.g::before { background: var(--tone-green-text); }
-.ucd-item .pill.b { background: var(--tone-blue-tint); color: var(--tone-blue-text); } .ucd-item .pill.b::before { background: var(--tone-blue-text); }
-.ucd-item .pill.n { background: var(--tone-grey-tint); color: var(--tone-grey-text); } .ucd-item .pill.n::before { background: var(--tone-grey-text); }
 .ucd-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ucd-x { font-size: var(--size-caption); color: var(--text-muted); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ucd-foot { margin: 0; }
@@ -524,7 +583,7 @@ table.items td.c-pick { vertical-align: middle; }
   .ucd-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
-  .ucd-item { grid-template-columns: 112px minmax(0, 1fr) auto; }
+  .ucd-item { grid-template-columns: 24px 96px minmax(0, 1fr); }
   .ucd-x { grid-column: 2 / -1; text-align: left; }
 }
 /* G5 typed notes (#96): the Edit parts of Callout, Quote, Contacts and Table. Edit only. Tokens only. */
@@ -538,6 +597,36 @@ textarea.tpl-field { resize: vertical; }
 .tpl-table-edit th, .tpl-table-edit td { min-width: 120px; }
 .tpl-table-edit th .btn { margin-top: var(--space-1); }
 .tpl-edit .btn { align-self: flex-start; }
+/* item 1272 Callout, in place: the toolbar above the box, then the box with its title and words inside it. */
+.cb-bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); }
+.cb-set, .cb-grp { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); min-width: 0; }
+.cb-lbl { font-size: var(--size-caption); color: var(--text-muted); margin-right: var(--space-1); white-space: nowrap; }
+.cb-btn { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 2.25em; padding: 0 var(--space-2); border: 1px solid var(--control-edge); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-caption); cursor: pointer; }
+.cb-btn .i { width: 1.4em; height: 1.4em; }
+.cb-btn:focus-visible, .cb-opt:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.cb-btn[aria-pressed="true"], .cb-btn[aria-checked="true"], .cb-opt[aria-selected="true"] { background: var(--brand-blue-tint); border-color: var(--brand-blue); color: var(--status-blue-text); font-weight: var(--weight-semibold); }
+.tpl-field.cb-in { width: 12em; min-height: 2.25em; border-color: var(--control-edge); }
+.cb-sw { display: inline-flex; align-items: center; justify-content: center; width: 1.6em; height: 1.6em; box-sizing: border-box; border: 2px solid var(--cc-edge, var(--grey-500)); border-radius: var(--radius-sm); background: var(--cc-fill, var(--surface)); color: var(--cc-ink, var(--text)); }
+.cb-col.k-plain .cb-sw { border-style: dashed; border-color: var(--text-muted); }
+.cb-col.k-violet { --cc-fill: var(--brand-blue-tint); --cc-edge: var(--status-blue); --cc-ink: var(--status-blue-text); }
+.cb-col.k-amber { --cc-fill: var(--status-amber-tint); --cc-edge: var(--status-amber); --cc-ink: var(--status-amber-text); }
+.cb-col.k-red { --cc-fill: var(--status-red-tint); --cc-edge: var(--status-red); --cc-ink: var(--status-red-text); }
+.cb-col.k-green { --cc-fill: var(--status-green-tint); --cc-edge: var(--status-green); --cc-ink: var(--status-green-text); }
+.cb-col.k-grey { --cc-fill: var(--grey-100); --cc-edge: var(--status-grey); --cc-ink: var(--grey-700); }
+.cb-sw .i { width: 1em; height: 1em; }
+.cb-icon { position: relative; }
+.cb-icons { position: absolute; z-index: 5; top: 100%; left: 0; margin-top: var(--space-1); display: grid; grid-template-columns: repeat(auto-fill, minmax(6.5em, 1fr)); gap: var(--space-1); width: max-content; max-width: min(46em, 90vw); padding: var(--space-2); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+.cb-opt { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); padding: var(--space-2) var(--space-1); border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: var(--text); font: inherit; font-size: var(--size-caption); cursor: pointer; }
+.cb-opt .i { width: 1.6em; height: 1.6em; }
+.cb .tpl-callout { margin: 0; }
+/* row 1272 (mock-up B): the title and the words sit on the category word's left edge; the 1px edge and the padding are pulled back by the same amount. */
+.cb { --cb-pull: calc(var(--space-2) + 1px); }
+.tpl-field.cb-title { width: calc(100% + 2 * var(--cb-pull)); min-height: 2em; margin: 0 calc(-1 * var(--cb-pull)) var(--space-1); padding: 0 var(--space-2); border-color: transparent; background: transparent; color: var(--heading); font-weight: var(--weight-medium); }
+.cb .tpl-callout-main .rt-view { margin: 0 calc(-1 * var(--cb-pull)); padding: 0 var(--space-2); border: 1px solid transparent; }
+.cb .tpl-callout-main .rt-view:hover { outline: 0; border-color: var(--text-muted); }
+.cb-sep { align-self: stretch; width: 1px; margin: var(--space-1); background: var(--grey-200); }
+.cb-count { margin: 0 var(--space-2); font-size: var(--size-caption); color: var(--text-muted); white-space: nowrap; }
+.tpl-field.cb-title:hover { border-color: var(--text-muted); }
 .tpl-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 /* #936: the Quote and the Link preview draw no coloured side stripe in Edit (a quiet panel, a plain frame); the published file keeps its own. Tokens only. */
@@ -580,16 +669,16 @@ textarea.tpl-field { resize: vertical; }
 
 /* #96 G3 Work items list (workitems): the Edit part (the filter and the live preview). Tokens only. */
 .wil-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px var(--space-4); margin: var(--space-1) 0 10px; padding: var(--space-3) 14px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--grey-50); }
-.wil-form > .wil-more { grid-column: 1 / -1; }   /* row 1113: the tick boxes fold inside the one form block; Sort by, Most rows, Columns and Caption stay in it where they were */
+.wil-form > .wil-more { grid-column: 1 / -1; }   /* row 1113: the tick boxes fold inside the one form block; Sort by, Most rows and Columns stay in it; the Caption box moved under the list (wish 2) */
 .wil-form-in { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px var(--space-4); margin: var(--space-1) 0 0; }
+/* Row 1268: the Add + at the right end, a dashed square as the one on Work items (the approved mock-up) */
+.wil-add { flex: none; display: flex; justify-content: flex-end; margin: 0 0 var(--space-1) auto; }   /* at the right end of the saved-views row (ticket 1268) */
+.wil-add .newb { border-style: dashed; }
+/* Row 1273: Add milestone, Add project and Add use case take the same dashed look; border only, nothing moves */
+#addMs.newb, #npBtn.newb, #ucAddPage.newb { border: 1px dashed var(--status-blue-text); }
 .wil-line { display: grid; gap: var(--space-1); margin: var(--space-1) 0 var(--space-2); }
-.wil-linef input { width: 100%; box-sizing: border-box; }
 .wil-line p { margin: 0; }
-.wil-chips { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); margin: 0; padding: 0; list-style: none; }
-.wil-chip { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 28px; padding: 0 0 0 10px; border: 1px solid var(--grey-300); border-radius: 14px; background: var(--grey-50); color: var(--text); font-size: var(--size-small); }
-.wil-chip button { min-width: 28px; min-height: 28px; border: 0; border-radius: 14px; background: transparent; color: var(--text); font: inherit; cursor: pointer; }
-.wil-chip button:hover { background: var(--grey-100); }
-.wil-chip button:focus-visible, .wil-more summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.wil-more summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .wil-more summary { min-height: 28px; display: flex; align-items: center; cursor: pointer; color: var(--text); font-size: var(--size-small); }
 .wil-f { min-width: 0; margin: 0; padding: 0; border: 0; }
 .wil-f legend { padding: 0; margin-bottom: var(--space-1); font-size: var(--size-caption); color: var(--text-muted); font-weight: var(--weight-medium); }
@@ -598,10 +687,23 @@ textarea.tpl-field { resize: vertical; }
 .wil-opts input:focus-visible, .wil-sel select:focus-visible, .wil-sel input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .wil-sel { display: grid; gap: var(--space-1); align-content: start; min-width: 0; }
 .wil-sel span { font-size: var(--size-caption); color: var(--text-muted); font-weight: var(--weight-medium); }
-.wil-sel select, .wil-sel input { min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-small); }
-.wil-capf { grid-column: 1 / -1; }
+.wil-sel select, .wil-sel input { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-small); }
+/* row 1268: the gear and its Configure box (Sort by, Most rows, Columns), as the approved mock-up draws them. Tokens only. */
+.wil-cw { position: relative; grid-column: 1 / -1; display: flex; justify-content: flex-end; }
+.wil-gear { display: inline-flex; align-items: center; justify-content: center; min-width: calc(var(--space-6) + var(--space-1)); min-height: calc(var(--space-6) + var(--space-1)); border: 1px solid var(--grey-300); border-radius: 50%; background: var(--surface); color: var(--text); cursor: pointer; }
+.wil-gear:hover, .wil-gear[aria-expanded=true] { background: var(--grey-100); }
+.wil-gear:focus-visible, .wil-cacts button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.wil-cfg { position: absolute; right: 0; top: calc(100% + var(--space-1)); z-index: 20; width: min(calc(var(--space-4) * 20), 100%); box-sizing: border-box; display: grid; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+.wil-cfg[hidden] { display: none; }
+.wil-cfg h4 { margin: 0; font-size: var(--size-body); }
+.wil-cfg .wil-opts { display: grid; grid-template-columns: 1fr 1fr; }
+.wil-cacts { display: flex; justify-content: flex-end; }
+.wil-cacts button { min-height: calc(var(--space-6) + var(--space-1)); padding: 0 var(--space-4); border: 0; border-radius: var(--radius-pill); background: var(--grey-100); color: var(--text); font: inherit; font-weight: var(--weight-medium); cursor: pointer; }
 .wil-none { margin: var(--space-2) 0; padding: 10px var(--space-3); border: 1px dashed var(--grey-300); border-radius: var(--radius); color: var(--text); font-size: var(--size-small); }
 .wil-live tbody tr, .wil-live li { cursor: pointer; }
+.wil-table .wil-c-eye { width: 44px; padding-left: 0; padding-right: 0; text-align: center; }   /* row 1113: the Work items page eye, at the end of each row */
+.wil-lines.wil-live li { position: relative; padding-right: 44px; }
+.wil-lines .wil-eye { position: absolute; top: 2px; right: 0; }
 .wil-live tbody tr:hover, .wil-live li:hover { background: var(--grey-50); }
 .wil-live tbody tr:focus-visible, .wil-live li:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 
@@ -710,7 +812,7 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .docs-arch-text .tpl-facts { color: var(--text-muted); }
 
 /* The bar above the page (A-D2): the week, where the report stands, and in Edit the notes. Tokens only. */
-.rbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 12px; font-size: var(--size-small); color: var(--text-muted); }
+.rbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 0 12px; min-height: 30px; font-size: var(--size-small); color: var(--text-muted); }
 .rbar .modes.seg { margin-left: 0; flex: none; padding: 3px; gap: 2px; background: var(--surface); border: 1px solid var(--grey-300); border-radius: var(--radius-pill); overflow: visible; }   /* #665: the prototype's .seg, on the page background */
 .rbar .seg .mode { min-width: 0; min-height: 28px; padding: 0 14px; border-radius: var(--radius-pill); font-size: var(--size-small); color: var(--text-muted); }
 .rbar .seg .mode:hover { color: var(--text); }
@@ -719,22 +821,14 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .rbar .seg .mode[aria-pressed="true"]:focus-visible { box-shadow: inset 0 0 0 2px var(--pill-fg); }   /* #996: the blue outset ring is under 3:1 on the aqua in dark, so the chosen half also gets an inner ring in the fill's own text colour (--pill-fg); the outset ring stays */
 .rbar .seg .mode { gap: var(--space-1); }
 .rbar .seg .mode .tb-ico { width: 14px; height: 14px; }
-.rbar-week { display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); }
-.rbar-week input { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--grey-300); border-radius: var(--radius); padding: 3px 8px; min-height: 28px; }
-.rbar-week input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
-.rbar-weekbox { display: inline-flex; align-items: center; gap: 8px; }
-.rbar-cal { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; min-height: 28px; padding: 0; color: var(--text-muted); background: var(--surface); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); cursor: pointer; }
-.rbar-cal:hover { color: var(--text); }
-.rbar-cal:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
-/* item 344: the week picker beside Week ending (the prototype's #wkPast), in View and Edit; picking only opens, it changes nothing */
-.rbar-past { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); padding: 3px 8px; min-height: 28px; width: auto; max-width: min(260px, 100%); box-sizing: border-box; }
-.rbar-past:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .rbar-state { font-size: var(--size-caption); padding: 2px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius-pill); background: var(--surface); color: var(--text-muted); }
-.rbar-hint { color: var(--status-blue-text); background: var(--brand-blue-tint); border-radius: var(--radius-sm); padding: 4px 9px; }   /* row 773: the prototype chip */
+/* item 1177: the bar keeps one line's height (30px) with or without the drag hint, so the hint appearing on the first Edit does not move the page (the chip and switch used to hold that height) */
+.rbar-hint { box-sizing: border-box; min-height: 30px; display: inline-flex; align-items: center; color: var(--status-blue-text); background: var(--brand-blue-tint); border-radius: var(--radius-sm); padding: 4px 9px; }   /* row 773: the prototype chip */
 
 /* The eye on a milestone row (edit/MsEye.jsx): the row's cells and the eye sit side by side; the eye is a real button, 28 px square. */
 .msl-row.has-eye { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 4px; padding-right: 6px; }
 .ms-eye.is-left { color: var(--status-blue-text); }
+.msl-row.has-more { grid-template-columns: minmax(0, 1fr) auto auto; }   /* item 1148: the Milestones page's row has More actions after the eye */
 
 /* 'Progress tracker' in Edit (item 189): each group has its own small row of buttons; a line being edited is a form under it; the overall's own fields sit
    under the bar. Only tokens. */
@@ -776,9 +870,7 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .tracker-edit .t-name-form .t-f, .tracker-edit .t-new-group .t-f { width: 260px; max-width: 100%; }
 .tracker-edit .btn:disabled { color: var(--text-muted); cursor: default; }
 
-/* The Dashboard's use case summary in Edit: the status button, the headline and the name changed in place, the growing Add
-   button in the header, the Add a use case box and the link to the picker. Tokens only; no text under 13 px. */
-.uc-add { flex: none; margin-left: auto; }
+/* The Dashboard's use case summary in Edit: the status button, the headline and the name changed in place, the Add a use case box and the link to the picker. Tokens only; no text under 13 px. */
 .ucw-btn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 24px; cursor: pointer; border-radius: var(--radius-sm); padding: 1px 4px; margin: -1px -4px; }
 .ucw-btn:hover { background: var(--grey-200); }
 .ucw-btn:focus-visible { outline: 2px solid var(--brand-blue); }
@@ -801,7 +893,8 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 
 /* The Dashboard's use case row in Edit, part two: the eye on the row, "Where it stands" changed in place, the box that adds a next step
    and the link to the box that links work items. Tokens only; no text under 13 px. */
-.ucrow-ed > .ucbar { grid-template-columns: 32px minmax(40px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px; }
+.ucrow-ed > .ucbar { grid-template-columns: 32px var(--uc-cols); }
+.ucheads-ed { padding-left: calc(var(--space-1) + 32px + var(--uc-gap)); }
 .uceye { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: var(--radius-sm); color: var(--text-muted); cursor: pointer; }
 .uceye:hover { background: var(--grey-200); color: var(--text); }
 .uceye:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
@@ -814,7 +907,7 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .uclink .pk-search .seg { flex: 0 1 auto; }
 .uclink .pick li .type { margin-right: 4px; }
 .uclink .pick li .pill { margin-left: 4px; }
-@media (max-width: 900px) { .ucrow-ed > .ucbar { grid-template-columns: 32px 44px minmax(0, 1fr) minmax(0, 1fr) 124px 96px; } }
+
 @media (max-width: 640px) {      /* the eye, the number and the name share the first line; the headline, the status and the steps each take a full line under it */
   .ucrow-ed > .ucbar { grid-template-columns: 32px auto minmax(0, 1fr); }
   .ucrow-ed > .ucbar > :nth-child(n+4) { grid-column: 1 / -1; min-width: 0; }
@@ -943,7 +1036,7 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
   @keyframes m-blink { 50% { transform: scaleY(.1); } }
 }
 
-/* row 962: a cell picker (Pop: MenuPick, RatingPick, the date and owner pickers, the bulk menu) fades out as it closes, as a menu does (row 922). Pop.jsx keeps a copy
+/* row 962: a cell picker (Pop: MenuPick, the rating matrix, the date and owner pickers, the bulk menu) fades out as it closes, as a menu does (row 922). Pop.jsx keeps a copy
    (no id, role=presentation, inert, aria-hidden) for the fade; opacity only, m-out from shell.css, edit-only so the published page carries none of it. */
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-motion="reduce"]) .cpop.leaving { pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
@@ -968,7 +1061,7 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 /* row 938-1 (motion): the main buttons and the View/Edit pills sink 1 px while pressed, over --dur-instant. Here, not in shell.css, so the
    published page carries none of it. Absent under reduced motion (the computer's setting or <html data-motion="reduce">): no movement. */
 @media (prefers-reduced-motion: no-preference) {
-  :root:not([data-motion="reduce"]) :is(.again, .btn.primary, .btn.pri, .modes.seg .mode):not(:disabled):active { transform: translateY(1px); transition: transform var(--dur-instant) var(--ease-out); }
+  :root:not([data-motion="reduce"]) :is(.again, .btn.primary, .btn.pri, .modes.seg .mode, #mode-pill .mode):not(:disabled):active { transform: translateY(1px); transition: transform var(--dur-instant) var(--ease-out); }
 }
 
 /* row 880: opening a group, its column names and rows rise 4 px and fade in over --dur-layout (transform and opacity only: no height moves). Edit build only: the published file has no glide. */
@@ -1057,7 +1150,7 @@ body > .gt-menu.leaving hr { border: 0; border-top: 1px solid var(--border); mar
 }
 
 /* row 940 (macOS gate, test_edit_cells_layout): in Edit at 900 px and below the Due, priority and status columns are 8 px wider than the bare minimum, so a font a little wider than Linux's (macOS draws these three 2 to 3 px wider) stays inside its box. EDIT ONLY: shell.css is also the published page's, whose Item column must stay at least 280 px (test_published_item_column), so the widths are not set there. Same specificity as shell.css's 900 px rule and later in the page, so these win without !important. */
-@media (max-width: 900px) { table.items .c-due { width: 139px; } table.items .c-prio { width: 101px; } table.items .c-status { width: 150px; } }
+@media (max-width: 900px) { table.items .c-due { width: 139px; } table.items .c-prio { width: 101px; } table.items .c-status { width: 76px; } table.items.arch .c-status { width: 150px; } }
 
 /* row 834: at 900 px an item's meta line (ID, use case, plan) is one line cut short with an ellipsis, as in the prototype (nowrap), so a row is at most two title lines and one meta line (82 px, the prototype's 81) and not three lines of meta. EDIT ONLY: shell.css is also the published page's. */
 @media (max-width: 900px) { table.items .c-owner { width: 130px; } #work table.items .tcell .tx { min-width: 0; } #work table.items .tcell .meta { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
@@ -1123,13 +1216,11 @@ body > .gt-menu.leaving hr { border: 0; border-top: 1px solid var(--border); mar
   .item-rows-edit .wl-meta .late { min-width: 0; overflow-wrap: anywhere; }
   .ucl-go { min-height: 44px; display: flex; align-items: center; }
   .ucl-eye { width: 44px; height: 44px; }
-  .ucl-row { grid-template-columns: 56px minmax(0, 1fr) 44px; gap: 4px 10px; }
-  .ucl-row > .ucl-name { grid-column: 2; }
-  .ucl-row > .ucl-st, .ucl-row > .ucl-wi { grid-column: 2; justify-self: start; }
-  .ucl-row > .ucl-eye { grid-column: 3; grid-row: 1 / span 3; align-self: start; justify-self: end; }
-  .ucl-row > .ucl-ref { grid-row: 1; }
-  .ucl-wi small { display: inline; margin-left: 6px; }
-  .ucl-hd { display: none; }   /* no header row on a phone: each row names its own parts */
+  .ucl-cols { display: none; }
+  .ucl-row { grid-template-columns: auto minmax(0, 1fr) 44px; gap: 4px 10px; }   /* item 1149: the reference and the title share the first line, the eye at the end of it; the rest each take a line under */
+  .ucl-row > .ucl-eye { grid-column: 3; grid-row: 1; justify-self: end; }
+  .ucl-row > .ucl-go { grid-column: 2; }
+  .ucl-row > .ucl-head, .ucl-row > .ucl-st, .ucl-row > .ucl-steps { grid-column: 1 / -1; min-width: 0; }
 }
 
 /* Plan 1022 (EDIT ONLY: the published page draws no editable wording): in the Work items rows a long wording is cut with an ellipsis like the View's title, and shows whole, wrapped, while it is being typed in. The row's title is a flex line so the Risk or Issue tag keeps its width and the wording gives way; its overflow stays visible so the focus ring is not cut off. */
@@ -1202,24 +1293,242 @@ body > .gt-menu.leaving hr { border: 0; border-top: 1px solid var(--border); mar
 [data-ms-range] { height: 24px; }      /* the progress slider is a target of 24 px */
 
 /* Row 1104: the right edge of a heading is a handle for the column's width. The hit area is 24 px tall; the line shows on hover and focus. */
-th:has(> .cgrip), .ucl-hd > :has(> .cgrip) { position: relative; }
+th:has(> .cgrip) { position: relative; }
 .cgrip { position: absolute; top: 50%; right: 0; z-index: 2; width: 24px; height: 24px; margin-top: -12px; cursor: col-resize; touch-action: none; }
 .cgrip::after { content: ""; position: absolute; top: 3px; bottom: 3px; right: 4px; width: 2px; border-radius: 1px; background: var(--grey-300); opacity: 0; }
 .cgrip:hover::after { opacity: 1; background: var(--brand-blue); }
-th[data-cw-head]:focus-visible, .ucl-hd > [data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; border-radius: 3px; }
+th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; border-radius: 3px; }
 
 /* Row 1104: the Milestones list's heading row and its chosen widths (edit/colWidths.jsx). It lines up with the cells of a row: the rail's 2px, the cells' 22px. Wide layouts only; the narrow stacked layout has no columns. */
 .msl-hd { display: none; }
 @media (min-width: 801px) {
   .msl-hd { display: block; margin: var(--d-msl-top) 0 0 var(--space-1); border-left: 2px solid transparent; border-bottom: 1px solid var(--grey-200); font-size: var(--size-caption); font-weight: var(--weight-medium); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); }
   .msl-hc { display: grid; grid-template-columns: minmax(150px, 190px) minmax(160px, 1fr) 150px 130px; column-gap: var(--space-4); align-items: center; padding: 6px var(--space-2) 6px 22px; }
+  .msl-box:not([data-place="page"]) .msl-hc { grid-template-columns: minmax(140px, 1fr) 130px 100px minmax(150px, 190px) 120px; }
   .msl-hc > span { position: relative; min-width: 0; }
   .msl-hd + .msl, .msl-hd ~ .msl { margin-top: 0; }
   .msl-box:has(.msl-row.has-eye) .msl-hc { padding-right: calc(var(--space-2) + 38px); }
+  .msl-box:has(.msl-row.has-more) .msl-hc { padding-right: calc(var(--space-2) + 70px); }
   .msl-box[style*="--msl-cols:"] .msl-cells, .msl-box[style*="--msl-cols:"] .msl-hc { grid-template-columns: var(--msl-cols); }
 }
 @media (min-width: 1201px) {
   .msl-hc { grid-template-columns: minmax(240px, 17rem) minmax(160px, 1fr) 150px 130px; }
+  .msl-box:not([data-place="page"]) .msl-hc { grid-template-columns: minmax(180px, 1fr) 150px 110px minmax(170px, 14rem) 130px; }
   .msl-box[style*="--msl-cols:"] .msl-cells, .msl-box[style*="--msl-cols:"] .msl-hc { grid-template-columns: var(--msl-cols-w); }
 }
 .msl-hc > span:has(> .cgrip) { position: relative; }
+
+/* item 1154: the brand's logo at the right of the report band, 64 px tall, 24 px from the top and 36 px from the right edge. It is drawn from --image-logo, which is none (so nothing is drawn and the band is as it was) until a brand sets it; hidden under 900 px as the prototype has it. Edit only: the published page's one slim bar carries the logo (item 1146). */
+.cover::after { content: ""; position: absolute; top: var(--space-5); right: calc(var(--space-6) + var(--space-1)); width: calc(var(--space-8) * 3); height: var(--space-8); pointer-events: none; background: var(--image-logo) right center / contain no-repeat; }
+@media (max-width: 899px) { .cover::after { display: none; } }
+/* item 1154: with a logo (the server sets --cover-logo-room; 0px when it is not set) the title and the cover line keep the logo box's room free at 900 px and wider, so they wrap before it; under 900 the logo is hidden and no room is kept */
+@media (min-width: 900px) { .frame header.cover h1, .frame header.cover .cover-line { margin-right: var(--cover-logo-room, 0px); } }
+
+/* row 1180 chips: the chip row itself is in shell.css (the published page draws it too) */
+.pkc .cpop { z-index: 30; }
+
+/* row 1180 head: the ID tag and project line, and the title as a textarea (PeekHead.jsx) */
+.pkh-line { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-4) 0 var(--space-1); color: var(--text-muted); font-size: var(--size-small); }
+.pkh-id { display: inline-flex; padding: 1px 7px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: transparent; color: var(--heading); font-size: var(--size-caption); font-weight: var(--weight-medium); }
+.pkh-proj { min-width: 0; overflow-wrap: anywhere; }
+/* row 1258 (v1.1.1): the ID tag and the project line as the approved mockup draws them (peek-mockup.html .id, .crumb): mono 12 px / 600 on #F6F8FC (a literal accepted by the owner 17-11), radius 6, 20 px high; the project line 13 px */
+.peek .pkh-line { font-size: var(--size-caption); }      /* 13 px, the mockup's project line */
+.peek .pkh-id { box-sizing: border-box; align-items: center; height: 20px; padding: 2px 7px; border-radius: 6px; background: #F6F8FC; color: var(--heading); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; font-weight: 600; line-height: 1; }
+:root[data-theme="dark"] .peek .pkh-id { background: var(--grey-50); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .peek .pkh-id { background: var(--grey-50); } }
+.pkh-title-in { display: block; width: calc(100% + 2 * var(--space-2)); box-sizing: border-box; margin: 0 calc(-1 * var(--space-2)); padding: 0 var(--space-2); border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: inherit; font: inherit; line-height: inherit; resize: none; overflow: hidden; cursor: text; overflow-wrap: anywhere; }
+.pkh-title-txt { cursor: text; white-space: pre-wrap; }
+.pkh-title-in:hover { background: var(--grey-50); }
+.pkh-title-in:focus { outline: 2px solid var(--focus); outline-offset: 2px; border-color: var(--brand-blue); background: var(--surface); }
+.pkh-line + .pk-title { margin-top: 0; }
+
+/* row 1180 wire: the Details rows' icons and the one Client visible line */
+.pk-rowic { display: inline-flex; margin-right: var(--space-2); vertical-align: -2px; }
+.pk-client { padding: 0; border: 0; background: none; font-family: inherit; line-height: inherit; cursor: pointer; }      /* the look is .cv (shell.css), shared with the read-only line */
+.pk-row[data-ms-row="visible"] .pk-client { font-size: inherit; }      /* the milestone peek: the Client value is the size of every other Details value; the 28 px hit box comes from the .cv min-height, not the font */
+.pk-client:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+/* item 1181 chips: the Action peek's chip row (PeekActionChips.jsx). The chips, popovers and look are the shared frame's (item 1180); the Due chip's overdue sub-line and tint are PeekChip's. */
+
+/* item 1176: the project name in the editor Dashboard cover is a button that looks like the heading until hover or focus, then shows it can be clicked; the chevron fades in with opacity only (it stays visible to focus) */
+.cover-switch { all: unset; box-sizing: border-box; display: inline; cursor: pointer; color: inherit; font: inherit; border: 0; border-radius: var(--radius); }
+.cover-switch .nch { opacity: 0; margin-left: var(--space-2); vertical-align: middle; }
+.cover-switch:hover, .cover-switch[aria-expanded="true"] { outline: 1px dashed var(--white); outline-offset: 4px; }
+.cover-switch:hover .nch, .cover-switch:focus-visible .nch, .cover-switch[aria-expanded="true"] .nch { opacity: 1; }
+.cover-switch:focus-visible { outline: 2px solid var(--white); outline-offset: 4px; }
+.cover:has(.cover-switch[aria-expanded="true"]) { z-index: 30; }      /* the cover is its own stacking layer (isolate), so while its project list is open the whole band sits above the sections below, or their headings would take the clicks meant for the list rows */
+.cover h1 .ddmenu { font-size: var(--size-body); font-weight: normal; line-height: normal; color: var(--text); text-align: left; letter-spacing: normal; text-transform: none; }
+/* row 1212: the editor's slim header draws the brand's logo ONCE, at the left (the .logo box). The second copy that used to sit at the right, before the search, ask and profile icons (.hdr-end::before, drawn from --image-logo, with the room --cover-logo-room kept as padding), is gone; the report band on the Gantt page keeps its own logo (.cover::after, item 1154). */
+
+/* Item 1177, stage B: the floating View | Edit pill (#mode-pill). Fixed just under the sticky header, at the right edge, above the page's own layers and below the
+   header (z-index 28: the minimap is 25, the header 30). Half see-through at rest, solid on hover and when a button has the focus. Icon buttons only (eye, pencil).
+   It is Edit parts' only (the published file has none), the Dashboard's alone (ReportBar draws it), and it is hidden in the full-screen board, under any dialog and while the profile menu is open. */
+#mode-pill { position: fixed; top: calc(var(--topbar) + 8px); right: 20px; z-index: 28; margin: 0; display: inline-flex; gap: 2px; padding: 3px; overflow: visible; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-pill); box-shadow: var(--shadow); opacity: .72; transition: opacity var(--dur-instant) var(--ease-out); }
+#mode-pill:hover, #mode-pill:focus-within { opacity: 1; }
+#mode-pill .mode { min-width: 0; width: 32px; min-height: 28px; height: 28px; padding: 0; border-radius: var(--radius-pill); color: var(--text-muted); }
+#mode-pill .mode:hover { color: var(--text); }
+#mode-pill .mode[aria-pressed="true"] { background-color: var(--pill-color); background-image: var(--pill-bg); color: var(--pill-fg); }
+#mode-pill .mode .tb-ico { width: 16px; height: 16px; }
+#mode-pill .mode:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+#mode-pill .mode[aria-pressed="true"]:focus-visible { box-shadow: inset 0 0 0 2px var(--pill-fg); }
+body.board-full #mode-pill, body:has(#profile-menu, dialog[open], [role="dialog"], [role="alertdialog"]) #mode-pill { display: none; }
+#report-bar:empty { display: none; }
+/* Switching to Edit must not move the page: the drag hint floats left of the pill (fixed, as the pill is) and the bar takes no room, so drawing or dropping the hint changes no section's place. */
+#report-bar { min-height: 0; margin: 0; }
+#report-bar .rbar-hint { position: fixed; top: calc(var(--topbar) + 8px); right: calc(20px + 74px + 8px); z-index: 28; box-shadow: var(--shadow); }
+body.board-full #report-bar .rbar-hint, body:has(#profile-menu, dialog[open], [role="dialog"], [role="alertdialog"]) #report-bar .rbar-hint { display: none; }
+
+/* row 1104: a table whose column has a chosen width is laid out in fixed mode so the width holds; the other columns share the rest, and a long word breaks inside its cell */
+table.cw-set, .projects table.proj-table.cw-set { table-layout: fixed; width: 100%; }
+table.cw-set td { overflow-wrap: anywhere; white-space: normal; }
+table.cw-set td.acts, .pp-earlier .pubs.cw-set td.files, .pp-earlier .pubs.cw-set td.num { white-space: normal; }
+
+/* Row 1222: the columns menu of a Work items or Milestones table (edit/ColumnsMenu.jsx), the Columns button, and the milestone cells a person can add. */
+.ddmenu.cols-menu { min-width: 260px; max-width: calc(100vw - 16px); max-height: calc(100vh - 16px); overflow-y: auto; }
+.cols-menu [role="menuitemcheckbox"], .cols-menu [role="menuitem"] { all: unset; display: flex; align-items: flex-start; box-sizing: border-box; width: 100%; min-height: 32px; padding: var(--space-2) 14px; cursor: pointer; font-size: var(--size-small); color: var(--text); }
+.cols-menu [role="menuitemcheckbox"]:hover, .cols-menu [role="menuitemcheckbox"]:focus-visible, .cols-menu [role="menuitem"]:hover, .cols-menu [role="menuitem"]:focus-visible { background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.cols-menu [role="menuitemcheckbox"]:focus-visible, .cols-menu [role="menuitem"]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.cols-menu [role="menuitemcheckbox"][aria-disabled="true"] { color: var(--text-muted); cursor: default; }
+.cols-menu [role="menuitemcheckbox"][aria-disabled="true"]:hover { background: none; color: var(--text-muted); }
+.cols-menu .mi { flex: none; width: 16px; height: 16px; margin-right: var(--space-2); color: var(--text-muted); }
+.cols-menu .cols-name { display: block; min-width: 0; }
+.cols-menu .cols-why { display: block; font-size: var(--size-caption); color: var(--text-muted); }
+.cols-btn, .msl-cols-btn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius-sm); cursor: pointer; color: var(--text-muted); vertical-align: middle; text-transform: none; letter-spacing: 0; }
+.cols-btn:hover, .msl-cols-btn:hover, .cols-btn[aria-expanded="true"], .msl-cols-btn[aria-expanded="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.cols-btn:focus-visible, .msl-cols-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; }
+/* the one Columns button outside the work grid: out of sight until the keyboard is on it, so nothing shifts and the grid stays one tab stop */
+.wgroup { position: relative; }
+.cols-btn.cols-kbd { position: absolute; right: var(--space-2); top: 0; z-index: 3; opacity: 0; pointer-events: none; }
+.cols-btn.cols-kbd:focus-visible { opacity: 1; pointer-events: auto; background: var(--surface); }
+.cols-btn svg, .msl-cols-btn svg { width: 16px; height: 16px; }
+table.items th.c-eye { white-space: nowrap; }
+.msl-hdw { position: relative; }
+.msl-cols-btn { display: none; }
+.msl-x { display: none; min-width: 0; overflow-wrap: anywhere; font-size: var(--size-small); }
+@media (min-width: 801px) {
+  .msl-cols-btn { display: inline-flex; position: absolute; right: var(--space-2); top: 50%; transform: translateY(-50%); }
+  .msl-x { display: block; }
+  .msl-hdw + .msl { margin-top: 0; }      /* the heading row is now in a wrapper (it holds the Columns button): the rows still join it */
+  .msl-cells > .cols-off { display: none; }
+  .msl-box[data-nodate] .msl-cells > .msl-sub { grid-column: 1; }
+}
+.wgroup:has(.c-x) { overflow-x: auto; }
+table.items .c-x { width: 130px; }
+table.items .c-x-latest, table.items .c-x-wording { width: 220px; }
+table.items .c-x-id, table.items .c-x-type { width: 100px; }
+@media (max-width: 700px) {
+  table.items td.c-x { grid-column: 1 / -1; width: auto; }
+  table.items td.c-x::before { content: attr(data-label); display: block; font-size: var(--size-small); color: var(--text-muted); }
+}
+
+/* Full width image (row 1223), Edit: the drop area, the stage, the focus dot, the height handle, the ONE icon toolbar, the crop. Tokens only. One block for the
+   framing controls (the View's rules are shell.css .tpl-fullimg). */
+.tpl-full-edit { display: flex; flex-direction: column; gap: var(--space-3); }
+.fi-drop { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); padding: var(--space-6) var(--space-4); border: 1px dashed var(--grey-300); border-radius: var(--radius-lg); background: var(--surface-muted); }
+.fi-drop.over, .fi-stage.over { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.fi-wrap { width: 100%; min-width: 0; }
+.fi-stage { position: relative; display: flex; justify-content: center; align-items: center; overflow: hidden; border-radius: var(--radius-lg); background: var(--surface-muted); }
+.fi-fill-brand { background: var(--brand-blue); }
+.fi-fill-plain { background: var(--surface-muted); }
+.fi-bg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(24px); transform: scale(1.2); opacity: 0.9; }
+.fi-box { position: relative; overflow: hidden; border-radius: var(--radius-lg); flex: none; }
+.fi-pic { position: absolute; max-width: none; height: auto; user-select: none; }
+.fi-dot { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; border: 3px solid var(--white); background: var(--brand-blue); box-shadow: 0 0 0 1px var(--grey-300), var(--shadow); cursor: grab; touch-action: none; }
+.fi-dot:focus-visible, .fi-handle:focus-visible, .fi-btn:focus-visible, .fi-crop-box:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.fi-handle { position: absolute; left: 50%; bottom: 4px; width: 56px; height: 10px; margin-left: -28px; border-radius: 5px; background: var(--white); border: 1px solid var(--grey-300); box-shadow: var(--shadow); cursor: ns-resize; touch-action: none; }
+.fi-bar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1); padding: var(--space-1) var(--space-2); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); }
+.fi-grow { flex: 1; }
+.fi-sep { width: 1px; align-self: stretch; margin: 4px var(--space-1); background: var(--grey-200); }
+.fi-btn { position: relative; display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; padding: 0; border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: var(--text); cursor: pointer; }
+.fi-btn:hover:not(:disabled) { background: var(--brand-blue-tint); }
+.fi-btn.on { background: var(--brand-blue-tint); border-color: var(--brand-blue); color: var(--status-blue-text); }
+.fi-btn:disabled { opacity: 0.4; cursor: default; }
+.fi-btn::after { content: attr(data-tip); position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); padding: 3px 8px; border-radius: var(--radius-sm); background: var(--text); color: var(--surface); font-size: var(--size-caption); white-space: nowrap; pointer-events: none; opacity: 0; z-index: 5; }
+.fi-btn:hover::after, .fi-btn:focus-visible::after { opacity: 1; }
+.fi-file { margin: 0; }
+.fi-red { margin: 0; font-size: var(--size-caption); color: var(--status-red-text); }
+.fi-crop { display: flex; flex-direction: column; gap: var(--space-2); align-items: center; }
+.fi-crop-area { position: relative; max-width: 100%; border-radius: var(--radius-lg); overflow: hidden; user-select: none; }
+.fi-crop-area img { display: block; width: 100%; height: 100%; }
+.fi-crop-box { position: absolute; box-sizing: border-box; border: 2px solid var(--white); box-shadow: 0 0 0 9999px color-mix(in srgb, var(--black) 50%, transparent); cursor: move; touch-action: none; }
+.fi-crop-h { position: absolute; width: 16px; height: 16px; background: var(--white); border: 2px solid var(--brand-blue); border-radius: 3px; touch-action: none; }
+.fi-crop-h.nw { left: -8px; top: -8px; cursor: nwse-resize; } .fi-crop-h.ne { right: -8px; top: -8px; cursor: nesw-resize; }
+.fi-crop-h.sw { left: -8px; bottom: -8px; cursor: nesw-resize; } .fi-crop-h.se { right: -8px; bottom: -8px; cursor: nwse-resize; }
+.fi-crop-acts { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.fi-help { margin: 0; }
+
+/* Row 1184: every value in the milestone's Details rows is the one size: the rich editors' empty words (Add description, Add client wording) take the size of the pickers beside them */
+[data-ms-edit] .pk-row dd .quiet { font-size: inherit; }
+
+.ucm-seg { display: inline-flex; gap: var(--space-2); }
+.ucm-seg .pk-btn[aria-pressed="true"] { font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+/* Row 1268: the saved-view tabs of the Work items list (Edit only). */
+.wil-views { margin: 0 0 var(--space-2); }
+.wil-vopts { position: relative; display: inline-block; }
+.wil-vopts > summary { list-style: none; cursor: pointer; min-width: var(--space-5); min-height: calc(var(--space-5) + var(--space-1)); display: inline-flex; align-items: center; justify-content: center; color: var(--text-muted); }
+.wil-vopts > summary::-webkit-details-marker { display: none; }
+.wil-vopts > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.wil-vopts-in { position: absolute; z-index: 5; top: 100%; left: 0; display: grid; min-width: calc(var(--space-8) * 3); padding: var(--space-1); border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); }
+.wil-vopts-in .link { text-align: left; min-height: calc(var(--space-5) + var(--space-1)); padding: 0 var(--space-2); }
+
+/* Row 1258 (v1.1.1), the peeks to the approved mockups, step 3: the title and the tabs as peek-mockup.html layout A draws them (h2.ti, .tabs).
+   The title is Inter 24/700 with -.015em, and its in-place box carries a 2 px ring (a shadow, no border); the tabs are 14/600, 40 px high, with an ink underline. */
+.peek:not(.hpk) .pk-title { font-family: var(--font-label); font-size: var(--size-h2); font-weight: 700; line-height: 1.2; letter-spacing: -.015em; }
+.peek:not(.hpk) .pkh-title-in { border-width: 0; letter-spacing: inherit; }
+.peek:not(.hpk) .pkh-title-in:focus { outline: 0; box-shadow: 0 0 0 2px var(--brand-blue); }
+.peek .pk-tabs { gap: 2px; margin: 22px 0 4px; }
+.peek .pk-tab { box-sizing: border-box; height: 40px; min-height: 40px; padding: 9px 12px; margin-bottom: -1px; font-size: var(--size-small); font-weight: 600; line-height: 20px; }
+.peek .pk-tab.on { border-bottom-color: var(--text); font-weight: 600; }
+
+/* Row 1261 slice 2: the Report headline's Edit part. Edit only. Tokens only. */
+.tpl-rh-edit { display: flex; align-items: flex-start; gap: var(--space-3); min-width: 0; }
+.tpl-rh-edit-pill { flex: none; }
+.tpl-rh-edit-text { display: flex; flex-direction: column; gap: var(--space-1); flex: 1 1 auto; min-width: 0; }
+.tpl-rh-edit-text .tpl-lbl:not(:first-child) { margin-top: var(--space-2); }
+.tpl-rh-in { overflow-wrap: anywhere; }
+@media (max-width: 900px) { .tpl-rh-edit { flex-direction: column; gap: var(--space-2); } }
+/* Row 1264 slice 9: the glance template's Edit layout, the same grid as its View (shell.css .tpl-gt): 4 tiles on a line, 3 when the section says
+   so, 2 at half width, 1 at 900; Project health one tile wide, or the whole row (the switch). Controls under the tiles: Tiles on a line, the switch. */
+.tpl-edit-glancetemplate .glance { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tpl-edit-glancetemplate .glance[data-cols="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.slot-left .tpl-edit-glancetemplate .glance, .slot-right .tpl-edit-glancetemplate .glance { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.tpl-edit-glancetemplate .glance .tcell, .tpl-edit-glancetemplate .glance .tcell.health { min-width: 0; }
+.tpl-edit-glancetemplate .glance[data-own-row] > .tcell.health { grid-column: 1 / -1; }
+.gt-showhealth { all: unset; box-sizing: border-box; grid-column: 1 / -1; display: flex; align-items: center; gap: var(--space-3); min-height: 40px; cursor: pointer; color: var(--text); font-size: var(--size-body); }
+.gt-showhealth-eye { display: inline-grid; place-items: center; width: 40px; height: 40px; }
+.gt-showhealth-eye .i { width: 20px; height: 20px; }
+.gt-showhealth:hover .gt-showhealth-eye { color: var(--brand-blue); }
+.gt-showhealth:focus-visible, .gt-per:focus-visible, .gt-own:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.tpl-gt-opts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); margin: var(--space-3) 0 0; font-size: var(--size-small); color: var(--text-muted); }
+.tpl-gt-perrow { display: inline-flex; align-items: center; gap: var(--space-2); }
+.gt-per { all: unset; box-sizing: border-box; min-width: 32px; min-height: 32px; display: inline-grid; place-items: center; cursor: pointer; border: 1px solid var(--control-edge); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--size-small); }
+.gt-per[aria-pressed="true"] { background: var(--brand-blue); border-color: var(--brand-blue); color: var(--text-on-brand); font-weight: var(--weight-medium); }
+.gt-own { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: var(--space-2); min-height: 32px; padding: 0 var(--space-3); cursor: pointer; border: 1px solid var(--control-edge); border-radius: var(--radius-pill); color: var(--text); font-size: var(--size-small); font-weight: var(--weight-medium); }
+.gt-own-sw { position: relative; width: 30px; height: 16px; border-radius: 9px; background: var(--control-edge); flex: none; }
+.gt-own-sw i { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); }
+.gt-own[aria-checked="true"] { border-color: var(--brand-blue); }
+.gt-own[aria-checked="true"] .gt-own-sw { background: var(--brand-blue); }
+.gt-own[aria-checked="true"] .gt-own-sw i { left: 16px; }
+.tpl-gt-halfnote { display: none; }
+.slot-left .tpl-gt-halfnote, .slot-right .tpl-gt-halfnote { display: inline; }
+@media (max-width: 900px) { .slot-left .tpl-edit-glancetemplate .glance, .slot-right .tpl-edit-glancetemplate .glance { grid-template-columns: minmax(0, 1fr); } }
+
+/* #1298 the Feedback tag: fixed to the right edge a little below the middle, vertical word; pulls out 5 px on hover or focus. With a peek open it sits at the peek's left edge. The dialog slides in from the right, 0.4 s, the peek's easing. Widths 1400 and 900 only. */
+.fbt-tag { position: fixed; top: 58%; right: 0; z-index: 34; transform: translateY(-50%); writing-mode: vertical-rl; padding: var(--space-3) 7px; border: 0; border-radius: 10px 0 0 10px; background: var(--brand-blue); color: var(--text-on-brand); font-size: var(--size-caption); font-weight: 600; letter-spacing: var(--tracking-caps); cursor: pointer; box-shadow: -2px 2px 10px color-mix(in srgb, var(--brand-ink) 20%, transparent); transition: padding-right .15s var(--ease-out), right .3s cubic-bezier(.22, 1, .36, 1); }
+.fbt-tag:hover, .fbt-tag:focus-visible { padding-right: 12px; }
+.fbt-tag:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.fbt-tag.beside { right: min(420px, 100vw); }   /* the fallback; the tag sets the item peek's real, dragged width inline (FeedbackTag.jsx) */
+.fbt-tag.beside-help { right: min(var(--hpk-w), 100vw); }
+.fbt-tag.open { right: min(360px, 100vw); }
+.fbt-dlg { position: fixed; top: 110px; right: 0; z-index: 35; width: min(360px, 100vw); max-height: calc(100vh - 130px); overflow-y: auto; padding: var(--space-4) 18px var(--space-3); background: var(--surface); border: 1px solid var(--grey-200); border-right: 0; border-radius: 14px 0 0 14px; box-shadow: -10px 4px 30px color-mix(in srgb, var(--brand-ink) 20%, transparent); animation: fbt-in .4s cubic-bezier(.22, 1, .36, 1) both; }
+@keyframes fbt-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.fbt-head { display: flex; justify-content: space-between; align-items: center; }
+.fbt-head h2 { margin: 0; font-size: var(--size-h3); }
+.fbt-x { all: unset; cursor: pointer; font-size: var(--size-figure); line-height: 1; padding: 0 var(--space-1); color: var(--grey-700); }
+.fbt-x:focus-visible, .fbt-kind:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.fbt-kinds { display: flex; gap: 6px; margin: var(--space-2) 0 var(--space-3); }
+.fbt-kind { padding: 4px 12px; border: 0; border-radius: 999px; background: var(--grey-100); color: var(--text); font-size: var(--size-small); cursor: pointer; }
+.fbt-kind.on { background: var(--brand-blue); color: var(--text-on-brand); }
+.fbt-added { margin-top: var(--space-3); padding: var(--space-2) var(--space-3); border-radius: 8px; background: var(--grey-100); font-size: var(--size-caption); color: var(--grey-700); }
+.fbt-added ul { margin: var(--space-1) 0; }
+@media (prefers-reduced-motion: reduce) { .fbt-dlg { animation: none; } .fbt-tag { transition: none; } }

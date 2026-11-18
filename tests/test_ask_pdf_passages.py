@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -186,6 +187,16 @@ class Outcomes(Fake):
         self.assertTrue(0 < len(got.pages) < 20)
         self.assertEqual([n for n, _t in got.pages], list(range(1, len(got.pages) + 1)))
 
+    def test_a_cut_at_the_output_budget_is_counted_as_left_out(self):
+        # pdf-2: the cut was silent; the reader now says pages were left out, and ask counts them so the existing "too long" note shows.
+        with mock.patch.object(pdf_reader, "OUT_BUDGET", 5000):
+            got = self.read(pdf(["ZQ %d " % i + "x" * 900 for i in range(20)]))
+        self.assertEqual(got.left_out, 20 - len(got.pages))
+        self.assertGreater(got.left_out, 0)
+
+    def test_a_pdf_read_in_full_leaves_nothing_out(self):
+        self.assertEqual(self.read(pdf(["ZQ one", "ZQ two"])).left_out, 0)
+
     def test_a_first_page_bigger_than_the_budget_is_still_read(self):
         # The guard keeps at least one page: a lone page over the budget is returned, not dropped to an empty or failed result.
         with mock.patch.object(pdf_reader, "OUT_BUDGET", 100):
@@ -231,11 +242,18 @@ class SeparateProcess(Fake):
         self.assertNotEqual(group, os.getpgrp())
 
     def test_no_process_is_left_after_a_timeout(self):
-        before = subprocess.run(["pgrep", "-f", "pdf_reader_child.py"], capture_output=True).stdout
+        def listed():
+            return set(subprocess.run(["pgrep", "-f", "pdf_reader_child.py"], capture_output=True).stdout.split())
+        before = listed()          # another test's child (or another shard's) may still be leaving: only a pid new since this line counts
         with mock.patch.object(pdf_reader, "SECONDS", 1.0):
             self.read(pdf(["HANG"]))
-        after = subprocess.run(["pgrep", "-f", "pdf_reader_child.py"], capture_output=True).stdout
-        self.assertEqual(before, after)
+        pause, left = threading.Event(), set()
+        for _ in range(100):       # wait on the real condition, up to 10 s: the group is killed, then it is gone from the list
+            left = listed() - before
+            if not left:
+                break
+            pause.wait(0.1)
+        self.assertEqual(left, set(), "a reader child started by this test is still running")
 
 
 class InAsk(Fake):
@@ -263,8 +281,8 @@ class InAsk(Fake):
         got = self.run_it()
         self.assertEqual((got.pdf, got.pdf_reasons, got.safety), (0, (), 0))
         labels = {p.label: p.text for p in got.passages}
-        self.assertEqual(labels, {"saved/Plan.pdf (page 1)": "ZQ budget is agreed", "saved/Plan.pdf (page 2)": "ZQ deadline is May",
-                                  "saved/Plan.pdf (page 3)": "ZQ risks"})
+        self.assertEqual(labels, {"saved/Plan.pdf, page 1": "ZQ budget is agreed", "saved/Plan.pdf, page 2": "ZQ deadline is May",
+                                  "saved/Plan.pdf, page 3": "ZQ risks"})
         self.assertEqual({(p.file, p.page) for p in got.passages}, {("saved/Plan.pdf", 1), ("saved/Plan.pdf", 2), ("saved/Plan.pdf", 3)})   # #943: the open-at-page fields
 
     # mutation hunt (item 1182): part labels, the part cap, the char and byte budgets and the size cap's source were never pinned
@@ -273,7 +291,7 @@ class InAsk(Fake):
         with mock.patch.object(ask_passages.ask_data, "PASSAGE_SIZE", 20):
             got = self.run_it()
         labels = [p.label for p in got.passages]
-        self.assertEqual(labels, ["saved/Plan.pdf (page 1)", "saved/Plan.pdf (page 1, part 2)", "saved/Plan.pdf (page 1, part 3)", "saved/Plan.pdf (page 2)"])
+        self.assertEqual(labels, ["saved/Plan.pdf, page 1", "saved/Plan.pdf, page 1, part 2", "saved/Plan.pdf, page 1, part 3", "saved/Plan.pdf, page 2"])
         self.assertEqual([p.page for p in got.passages], [1, 1, 1, 2])
         self.assertEqual("".join(p.text for p in got.passages[:3]), "ZQ " + "a" * 57)
 
@@ -281,8 +299,20 @@ class InAsk(Fake):
         self.put("Plan.pdf", pdf(["ZQ " + "a" * 197]))
         with mock.patch.object(ask_passages.ask_data, "PASSAGE_SIZE", 20), mock.patch.object(ask_passages, "MAX_PDF_PARTS", 4):
             got = self.run_it()
-        self.assertEqual([p.label for p in got.passages][-1], "saved/Plan.pdf (page 1, part 4)")
+        self.assertEqual([p.label for p in got.passages][-1], "saved/Plan.pdf, page 1, part 4")
         self.assertEqual(len(got.passages), 4)
+
+    def test_parts_cut_by_the_part_cap_are_counted_as_left_out(self):
+        self.put("Plan.pdf", pdf(["ZQ " + "a" * 197]))
+        with mock.patch.object(ask_passages.ask_data, "PASSAGE_SIZE", 20), mock.patch.object(ask_passages, "MAX_PDF_PARTS", 4):
+            got = self.run_it()
+        self.assertGreater(got.left_out, 0)
+
+    def test_pages_cut_by_the_reader_budget_are_counted_as_left_out_in_ask(self):
+        self.put("Plan.pdf", pdf(["ZQ %d " % i + "x" * 900 for i in range(20)]))
+        with mock.patch.object(pdf_reader, "OUT_BUDGET", 5000):
+            got = self.run_it()
+        self.assertGreater(got.left_out, 0)
 
     def test_the_part_cap_leaves_room_for_every_page_of_the_longest_pdf(self):
         self.assertGreaterEqual(ask_passages.MAX_PDF_PARTS, pdf_reader.MAX_PAGES)
@@ -312,7 +342,7 @@ class InAsk(Fake):
         self.put("locked.pdf", pdf(["ZQ x"], encrypted=True))
         self.put("broken.pdf", b"%PDF-1.4 ZQ-BROKEN")
         got = self.run_it()
-        self.assertEqual([p.label for p in got.passages], ["saved/good.pdf (page 1)"])
+        self.assertEqual([p.label for p in got.passages], ["saved/good.pdf, page 1"])
         self.assertEqual(got.pdf, 3)
         self.assertEqual(dict(got.pdf_reasons), {"saved/scan.pdf": "scanned", "saved/locked.pdf": "encrypted", "saved/broken.pdf": "corrupt"})
         self.assertNotIn("ZQ-BROKEN", "\n".join(p.text for p in got.passages))
@@ -337,12 +367,25 @@ class InAsk(Fake):
         self.assertEqual((got.passages, got.safety), ((), 1))
 
 
-class NoNewWords(unittest.TestCase):
-    def test_new_sentences_are_constants_only(self):
-        self.assertTrue(pdf_reader.NEW_WORDS)
-        src = Path(pdf_reader.__file__).parent
-        for name in ("ask_service.py", "ask.py", "ask_data.py"):
-            self.assertNotIn("pdf_reader.NEW_WORDS", (src / name).read_text(encoding="utf-8"))
+class Words(unittest.TestCase):
+    """Row 891: the approved sentences (#1052), for every reason code, in the count form, the per-file form and the source label."""
+    def test_each_reason_has_its_sentence_in_both_forms(self):
+        want = {"scanned": "it holds pictures of pages and no text", "encrypted": "it is protected with a password", "too_big": "it is too big",
+                "too_many_pages": "it has too many pages"}
+        for code in pdf_reader.REASONS:
+            why = want.get(code, "it could not be read safely")
+            self.assertEqual(pdf_reader.count_note(1, code), f"1 PDF was not read: {why}.", code)
+            self.assertEqual(pdf_reader.count_note(3, code), f"3 PDF were not read: {why}.", code)
+            self.assertEqual(pdf_reader.file_note("Plan.pdf", code), f"Plan.pdf was not read: {why}.", code)
+        self.assertEqual(pdf_reader.SOURCE_PAGE.format(name="Plan.pdf", page=2), "Plan.pdf, page 2")
+
+    def test_the_notes_under_an_answer_say_the_reason_for_each_kind(self):
+        from clark import ask_passages, ask_service
+        found = ask_passages.FolderData(pdf=4, pdf_reasons=(("a.pdf", "scanned"), ("b.pdf", "encrypted"), ("c.pdf", "scanned"), ("d.pdf", "crash")))
+        notes = [n for n in ask_service.folder_notes(found) if "PDF" in n]
+        self.assertEqual(notes, ["2 PDF were not read: it holds pictures of pages and no text.", "1 PDF was not read: it is protected with a password.",
+                                 "1 PDF was not read: it could not be read safely."])
+        self.assertFalse(any("not supported" in n for n in ask_service.folder_notes(found)))
 
 
 @unittest.skipUnless((pdf_reader.VENDOR / "pypdf").is_dir(), "the vendored pypdf is not in this checkout")

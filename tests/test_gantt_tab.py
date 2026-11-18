@@ -156,6 +156,13 @@ class Tab(unittest.TestCase):
         self.assertEqual(self.js("document.querySelector('.top .tab[aria-selected=true]').dataset.view"), "gantt")
         self.assertTrue(self.js("!!document.querySelector('#gantt-page')"), "the Gantt page itself is open (the joined page, no longer a one-word stand-in)")
 
+    def test_the_gantt_page_has_exactly_one_h1_its_own_and_the_header_adds_none(self):
+        self.load({"show_gantt_editor": 1})
+        self.go("document.querySelector('.top .tab[data-view=gantt]').click()")
+        self.assertEqual(self.js("document.querySelector('.top .tab[aria-selected=true]').dataset.view"), "gantt")
+        self.assertEqual(self.js("document.querySelectorAll('h1').length"), 1, "one level-1 heading on the Gantt page (its own cover's, not the header's)")
+        self.assertEqual(self.js("document.querySelectorAll('header.top h1').length"), 0, "the header adds none on the Gantt page")
+
     def test_back_and_forward_step_through_the_gantt_page(self):
         self.load({"show_gantt_editor": 1})
         self.go("document.querySelector('.top .tab[data-view=gantt]').click()")
@@ -219,7 +226,7 @@ class Tab(unittest.TestCase):
         for width in (1400, 900):
             with self.subTest(width=width):
                 self.load(edit=True, width=width)
-                self.go("location.hash = '#settings&p=DEMO'")
+                self.go("location.hash = '#settings&p=DEMO&s=reports'")
                 text = self.js("document.querySelector('#gantt-setting').innerText")
                 for words in ("Gantt", "Show the Gantt to me", "Show the Gantt to the client", "Tab name"):
                     self.assertIn(words, text)

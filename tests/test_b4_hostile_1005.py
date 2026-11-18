@@ -12,7 +12,7 @@ import unittest
 
 from _demo import USER
 from test_report_editor import Base as PageBase
-from test_server import chrome
+from test_server import chrome, wait
 import test_movement_page as tmp
 import test_p1005b_eye as eye
 import test_plain_line_hostile as plh
@@ -176,6 +176,10 @@ class Raid(PageBase):
 class Movement(tmp.Base):
     def form(self, cdp, width, theme):
         p = self.visit(cdp, width=width, theme=theme)
+        # A hosted Mac runner does not always give the page the keyboard focus: a Tab then reached the editor but the focus never left it, and a blur()
+        # of a page that never had the focus does not fire. Ask for the page to be focused, as test_appearance does.
+        p.cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)
+        p.cdp.call("Page.bringToFront", {}, p.sid)
         self.open_movement(p)
         p.js("document.querySelector('#mv-move').click()")
         p.until("!!document.querySelector('.mvm-form')", "form %s %s" % (width, theme))
@@ -194,8 +198,12 @@ class Movement(tmp.Base):
         p.until("!!document.querySelector(%s)" % json.dumps(self.box(k)), "editor " + k)
         p.js("document.querySelector(%s).cxed.editor.commands.setContent(%s)" % (json.dumps(self.box(k)), json.dumps(html)))
         if close:
-            p.js("document.querySelector(%s).blur()" % json.dumps(self.box(k)))
-            p.until("!document.querySelector(%s)" % json.dumps(self.box(k)), "closed " + k)
+            # A slow Mac can drop the focus or the blur: focus the box, blur it again until it closes (a closed box needs no more).
+            sel = json.dumps(self.box(k))
+            def blur_once():
+                p.js("(function(){var e = document.querySelector(%s); if (e) { e.focus(); e.blur(); }})()" % sel)
+                return not p.js("!!document.querySelector(%s)" % sel)
+            p.t.assertTrue(wait(blur_once, 30), "closed " + k)
 
     def rebaseline(self):
         for which, req in reversed(self.sent):
@@ -223,12 +231,27 @@ class Movement(tmp.Base):
             with chrome() as cdp:
                 p = self.form(cdp, width, theme)
                 self.put(p, "who", "<p>Pat Example</p>", close=False)
-                p.js("document.querySelector(%s).focus()" % json.dumps(self.box("who")))
+                sel = json.dumps(self.box("who"))
+                p.js("document.querySelector(%s).focus()" % sel)
+                p.js("window.__k = []; addEventListener('keydown', (e) => window.__k.push([Math.round(performance.now()), e.key, e.target.className || e.target.id || e.target.tagName]), true); window.__t0 = Math.round(performance.now())")
+                # The leave handler skips a focusout while the page has no focus, and a Tab with the focus elsewhere never leaves the box: wait for the page to have the focus
+                # and the caret to be in the open editor before the key, so a failure below is the key's and not the setup's. (Tab sent with the editing command insertTab
+                # is swallowed as a tab character and never moves the focus, so the key stays a plain key.)
+                p.t.assertTrue(wait(lambda: p.js("document.hasFocus() && !!document.querySelector(%s) && document.querySelector(%s).contains(document.activeElement)" % (sel, sel)), 15), "page focused with the caret in the open editor")
                 p.key("Tab", code="Tab", vk=9)
-                time.sleep(0.5)
-                self.assertFalse(p.js("!!document.querySelector(%s)" % json.dumps(self.box("who"))), "closed on Tab")
+                # The editor closes when its leave handler has run; on a slow Mac that was after the old fixed half second. Wait for it, and say what the page was doing if it never does.
+                gone = None
+                end = time.monotonic() + 10
+                while time.monotonic() < end:
+                    gone = not p.js("!!document.querySelector(%s)" % sel)
+                    if gone:
+                        break
+                    time.sleep(0.05)
+                seen = "" if gone else " | " + json.dumps(p.js("({focus: document.hasFocus(), open: !!document.querySelector(%s), active: document.activeElement ? (document.activeElement.id || document.activeElement.className || document.activeElement.tagName) : null, keys: window.__k, since: Math.round(performance.now()) - window.__t0})" % sel))
+                self.assertTrue(gone, "closed on Tab" + seen)
                 self.assertIn("Pat Example", p.js("document.getElementById('mv-who').textContent"), "kept")
                 self.assertTrue(p.js("!!document.querySelector('.mvm-form')"), "form stays")
+                self.assertTrue(wait(lambda: p.js("document.activeElement && document.activeElement.id === 'mv-reason'"), 10), "the next field has the focus; got " + json.dumps(p.js("document.activeElement ? (document.activeElement.id || document.activeElement.className || document.activeElement.tagName) : null")))
 
     def test_a_real_click_on_move_right_after_typing_sends_what_was_typed(self, width=1400, theme="light"):
         if True:

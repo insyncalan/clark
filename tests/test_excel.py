@@ -41,15 +41,15 @@ ON = "2030-06-01"
 HEADERS = {
     "Milestones": ["ID", "Milestone", "Project", "Description", "Workstream", "Original", "Agreed", "Forecast", "Status",
                    "Order", "% complete", "Owner", "Shown state", "State", "State set by you", "State reason", "Movement",
-                   "Achieved on", "Client-visible", "Client wording", "Internal note", "Open work items", "Source", "Updated"],
+                   "Achieved on", "Client-visible", "Client wording", "Latest update", "Internal note", "Open work items", "Source", "Updated"],
     "Actions": ["ID", "Description", "Project", "Workstream", "Owner", "Priority", "Due", "Status", "Raised", "Closed",
                 "Latest update", "Client-visible", "Client wording", "Milestone", "Use case", "Labels", "Source", "Updated"],
     "Risks & Issues": ["ID", "Description", "Project", "Type", "Workstream", "Owner", "Response action", "Due", "Impact", "Likelihood",
-             "Priority", "Status", "Raised", "Closed", "Client-visible", "Client wording", "Milestone", "Use case", "Labels",
+             "Priority", "Status", "Raised", "Closed", "Latest update", "Client-visible", "Client wording", "Milestone", "Use case", "Labels",
              "Source", "Updated"],
-    "Decisions": ["ID", "Decision", "Project", "Status", "Made by", "Needed by", "Date", "Reasoning", "Options", "Revisit",
-                  "Replaces", "Client-visible", "Client wording", "Use case", "Labels", "Source", "Updated"],
-    "Use cases": ["ID", "Use case", "Project", "Shown as", "Status", "Commitment", "Headline", "Where it stands", "Order", "Client-visible",
+    "Decisions": ["ID", "Decision", "Project", "Status", "Priority", "Made by", "Needed by", "Date", "Reasoning", "Options", "Revisit",
+                  "Replaces", "Latest update", "Client-visible", "Client wording", "Use case", "Labels", "Source", "Updated"],
+    "Use cases": ["ID", "Reference", "Use case", "Project", "Status", "Commitment", "Headline", "Where it stands", "Order", "Client-visible",
                   "Linked milestones", "Open work items", "Source", "Updated"],
 }
 
@@ -130,7 +130,7 @@ class ExcelTests(unittest.TestCase):
 
     def test_each_sheet_and_its_headers(self):
         wb = load_workbook(self.d.path)
-        self.assertEqual(wb.sheetnames, ["Cover", "Actions", "Risks & Issues", "Decisions", "Milestones", "Use cases", "History", "Lists"])
+        self.assertEqual(wb.sheetnames, ["Cover", "Actions", "Risks & Issues", "Decisions", "Milestones", "Use cases", "History", "Lists", excel.META_NAME])
         for name, header in HEADERS.items():
             self.assertEqual([c.value for c in wb[name][1]], header, name)
 
@@ -166,11 +166,13 @@ class ExcelTests(unittest.TestCase):
 
     def test_round_trip_gives_the_database_values(self):
         back = excel.read_workbook(self.d.path)
+        names = excel._ref_names({t: self.d.store.read(t, "ABC") for t in ("milestones", "use_cases")})
+        shown_ids = {f: {text: i for i, text in m.items()} for f, m in names.items()}
         for _, table, cols, _ in excel.SHEETS:
             fields = [f for _, f in cols if f not in excel.DERIVED and f not in ("labels", "milestones")]
             stored = {r["id"]: {f: (sanitise.rich_plain_text(r[f]) if (table, f) in excel.RICH_WORDS and isinstance(r[f], str) else r[f]) for f in fields} for r in self.d.store.read(table, "ABC")}
-            got = {r["id"]: {f: (r.get(f).split(": ")[0] if f in excel.REF_TABLES and r.get(f) else r.get(f)) for f in fields}
-                   for r in back[table]}      # item 710: the cell reads ID: name
+            got = {r["id"]: {f: (shown_ids[f].get(r.get(f), r.get(f)) if f in excel.REF_TABLES and r.get(f) else r.get(f)) for f in fields}
+                   for r in back[table]}      # item 1150: the cell reads the name; mapped back to the id here
             self.assertEqual(got, stored, table)
         labels = {r["id"]: r["labels"] for r in back["actions"]}
         self.assertEqual(labels, {self.d.action: "Sensitive", self.d.closed: None})
@@ -227,7 +229,7 @@ class ExcelTests(unittest.TestCase):
 
     def test_history_and_lists_are_last_and_unaffected(self):
         wb = load_workbook(self.d.path)
-        self.assertEqual(wb.sheetnames[-2:], ["History", "Lists"])
+        self.assertEqual(wb.sheetnames[-3:-1], ["History", "Lists"])
         self.assertEqual(wb["Lists"].sheet_state, "hidden")
         self.assertEqual(wb["History"].sheet_state, "visible")
 
@@ -476,7 +478,7 @@ class HistorySheetTests(unittest.TestCase):
 
     def test_sheet_is_after_the_data_sheets_before_lists(self):
         names = load_workbook(self.d.path if self.d.export() else None).sheetnames
-        self.assertEqual(names[-3:], ["Use cases", "History", "Lists"])
+        self.assertEqual(names[-4:-1], ["Use cases", "History", "Lists"])
 
     def test_headers_note_and_frozen_header(self):
         ws = self.sheet()

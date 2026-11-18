@@ -18,9 +18,9 @@ K.KEYS.setdefault("ArrowLeft", ("ArrowLeft", 37))
 THEMES = ("light", "dark")
 
 RING = r"""(() => { const a = document.activeElement; if (!a || a === document.body) return JSON.stringify({ body: true });
-  const cs = getComputedStyle(a.tagName === 'INPUT' && a.closest('.fline') ? a.closest('.fline') : a);
+  const cs = getComputedStyle(a), field = a.tagName === 'INPUT' && !!a.closest('.fline');   // issue 1137: the filter field shows no focus mark by the ruling (see test_filter_line_focus_look.py)
   return JSON.stringify({ name: a.getAttribute('aria-label') || a.textContent.trim().slice(0, 30), id: a.id || '', visible: a.matches(':focus-visible'), inLine: !!a.closest('.fviews, .fline-wrap'),
-    ring: (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) >= 1) || (cs.boxShadow !== 'none' && cs.boxShadow !== '') }); })()"""
+    ring: field || (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) >= 1) || (cs.boxShadow !== 'none' && cs.boxShadow !== '') }); })()"""
 UNNAMED = r"""(() => { const out = [];
   for (const e of document.querySelectorAll('.fviews button, .fline button, .fline input, .vicons button, .set-bar button, .ddmenu [role^=menuitem]')) {
     if (!e.getClientRects().length) continue;
@@ -49,10 +49,17 @@ class A11y(unittest.TestCase):
         self.press(cdp, sid, "Tab", shift=True)
 
     def open_tab_menu(self, cdp, sid, where):
-        time.sleep(0.3)      # the row scrolls the new open tab into view; a scroll closes a menu that is open, so let it finish first
-        cdp.js("document.querySelector('#viewTabMenu').focus()", sid)
-        self.press(cdp, sid, "Enter")
-        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewTabMenuList[role=menu]')", sid)), where + ": Enter opens the tab's menu (role=menu)")
+        """Enter on the tab's options button opens its menu, and the menu stays open. The row scrolls the open tab into view when the page settles (a slow
+        runner does that a moment after the open), and a scroll closes a menu that is open, so a menu that opened and then closed is opened again."""
+        is_open = "!!document.querySelector('#viewTabMenuList[role=menu]')"
+        for _ in range(6):
+            if cdp.js(is_open, sid):
+                break
+            cdp.js("document.querySelector('#viewTabMenu').focus()", sid)
+            self.press(cdp, sid, "Enter")
+            if wait(lambda: cdp.js(is_open, sid), 5) and not wait(lambda: not cdp.js(is_open, sid), 0.5):
+                break      # it opened and stayed open for half a second: no late scroll is left to close it
+        self.assertTrue(wait(lambda: cdp.js(is_open, sid)), where + ": Enter opens the tab's menu (role=menu)")
 
     def pick(self, cdp, sid, name, where):
         """Arrow Down to the item with this name, then Enter."""

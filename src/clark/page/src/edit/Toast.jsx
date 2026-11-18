@@ -8,18 +8,19 @@ import { useEffect } from "preact/hooks";
 import { mode, view } from "../stores/report.js";
 import { toast } from "../stores/changes.js";
 import { MenuNote } from "./ProfileMenu.jsx";
-import { undoKey } from "./undoKey.js";
+import { undoKey, dismissKey } from "./undoKey.js";
 import { ToastCard } from "./ToastCard.jsx";
 
 export function Toast() {
   useEffect(() => {                                   // #197: Cmd or Ctrl+Z undoes the last change (undoKey.js)
     document.addEventListener("keydown", undoKey);
-    return () => document.removeEventListener("keydown", undoKey);
+    window.addEventListener("keydown", dismissKey);   // on the window, after the page's own Esc handlers (they say so with preventDefault)
+    return () => { document.removeEventListener("keydown", undoKey); window.removeEventListener("keydown", dismissKey); };
   }, []);
   if (mode.value !== "edit" && view.value === "dashboard") return null;      // View and Edit exist only on the Dashboard: the other pages always show it (ruled 02-11-2026)
   const t = toast.value, editing = mode.value === "edit";
   return (
-    <div class="toasts" data-edit-only={editing ? "" : undefined} role="status" aria-live="polite">
+    <div class="toasts" data-edit-only={editing ? "" : undefined} role={t && t.quiet ? undefined : "status"} aria-live={t && t.quiet ? "off" : "polite"}>      {/* a quiet toast (a section drop) is shown, not announced */}
       {t ? (
         <ToastCard t={t} />
       ) : null}

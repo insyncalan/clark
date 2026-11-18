@@ -32,8 +32,8 @@ class WorkNoMode(unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch off the Dashboard: the page is always editable")
                 # W1: the eye is a button
                 self.assertEqual(cdp.js("document.querySelector('#work tbody tr[data-id] .weye').tagName", sid), "BUTTON", "the eye is a button in View")
-                # W3: Export to Excel is drawn
-                self.assertEqual(cdp.js("document.querySelectorAll('#expBtn').length", sid), 1, "Export is there in View")
+                # W3: no Export icon on the page (item 1142)
+                self.assertEqual(cdp.js("document.querySelectorAll('#expBtn').length", sid), 0, "item 1142: no Export icon on the page; it is in the profile menu and Settings")
                 # a click on a cell opens its picker
                 click(cdp, sid, "#work tbody [data-cell$=':status']")
                 self.until(cdp, sid, "!!document.querySelector('[data-pop]')", "a click on a cell in View opens its picker")
@@ -58,7 +58,7 @@ class WorkNoMode(unittest.TestCase):
                     cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", **common}, sid)
                 self.until(cdp, sid, f"!!document.querySelector({PEEK_PARTS})", "the words box is in the peek in View")
                 self.assertTrue(cdp.js("!!document.querySelector('#peek [role=tablist]')", sid), "the tabs are in the peek in View")
-                self.assertTrue(cdp.js("[...document.querySelectorAll('#peek dt')].some(d => d.textContent === 'Shown to client')", sid), "Shown to client")
+                self.assertTrue(cdp.js("!!document.querySelector('#peek [data-pk-client]')", sid), "Client visible line")
 
     def test_the_eye_click_in_view_writes_and_says_so(self):
         with chrome() as cdp:

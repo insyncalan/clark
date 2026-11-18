@@ -1,9 +1,40 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { openFile } from "../router.js";
 import { ClientMenu } from "./ClientMenu.jsx";
-import { TITLES, SHORT_TITLES, shownTabs as allTabs, view, show, project, data, fromFile, asAt, mode } from "../stores/report.js";
+import { coverLine } from "../logic/cover.js";
+import { pastReportsOf } from "../logic/clientMenu.js";
+import { TITLES, SHORT_TITLES, shownTabs as allTabs, view, show, project, data, fromFile, asAt, mode, status } from "../stores/report.js";
 
 // A calendar date is shown DD-MM-YYYY (RULES.md); stored YYYY-MM-DD. Never shifted by a time zone.
 const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
+
+// Row 1178: the published date in a client's header is a button. A click opens the browser's own calendar (a date box, showPicker). A published
+// file has no clark behind it, so it cannot rebuild a day (the as-at rebuild needs the server): a picked day that has an earlier report in the
+// same folder opens that report; any other day keeps this report and says so in one line.
+function AsAtDate() {
+  const [open, setOpen] = useState(false), [note, setNote] = useState(""), btn = useRef(null), box = useRef(null);
+  useEffect(() => {
+    if (!open || !box.current) return;
+    box.current.focus();
+    try { if (box.current.showPicker) box.current.showPicker(); } catch (e) { /* the box stays focused: its own keys still work */ }
+  }, [open]);
+  // A date box fires change for every typed digit that makes a whole date ("0002-05-05" after one digit of the year): only a year from 1990 on is a pick; a click on the button while the box is open closes it (no blur first).
+  const picked = (day) => {
+    setOpen(false);
+    if (btn.current) btn.current.focus();
+    if (!day || day === asAt.value) { setNote(""); return; }
+    const hit = pastReportsOf(data.value).find((r) => r.iso === day);
+    if (hit) { openFile(hit.href); return; }
+    setNote("No report for " + shownDate(day) + ".");
+  };
+  return (
+    <span class="asat-wrap">
+      <button type="button" class="asat num" ref={btn} title="Click to change date" aria-haspopup="dialog" aria-expanded={open ? "true" : "false"} onMouseDown={(e) => { if (open) e.preventDefault(); }} onClick={() => { setNote(""); setOpen(!open); }}>As at {shownDate(asAt.value)}</button>
+      {open ? <input type="date" class="asat-box" ref={box} aria-label="Date of the report" value={asAt.value} onChange={(e) => { if (/^(199\d|2\d{3})-/.test(e.target.value)) picked(e.target.value); }} onBlur={() => setOpen(false)} /> : null}
+      {note ? <span class="asat-note" role="status">{note}</span> : null}
+    </span>
+  );
+}
 
 export function TopBar({ tools }) {
   const tabs = { value: allTabs.value.filter((v) => v !== "settings" && v !== "published") };      // row 976: Settings is no tab; it opens from the profile circle's menu (and the address, and Published reports); the route and the view stay
@@ -13,6 +44,7 @@ export function TopBar({ tools }) {
   const Publish = tools && tools.Publish && !fromFile.value ? tools.Publish : null;     // only a page clark serves can publish
   const SearchButton = tools && tools.SearchButton && !fromFile.value ? tools.SearchButton : null;     // the search icon: opens the command palette
   const AskButton = tools && tools.AskButton && !fromFile.value ? tools.AskButton : null;     // ask clark: opens the ask panel, only while asking is on
+  const HeaderDate = tools && tools.HeaderDate && !fromFile.value ? tools.HeaderDate : null;     // item 1177: the week as a button that opens the calendar (the editor only)
   const row = useRef(null);
   const [renaming, setRenaming] = useState(false);      // #926: the Gantt tab's name is a box while it is being renamed (Edit, on the Gantt page)
   const GanttName = tools && tools.GanttTabName && !fromFile.value && mode.value === "edit" ? tools.GanttTabName : null;
@@ -32,25 +64,66 @@ export function TopBar({ tools }) {
     later();
     return () => { if (watch) watch.disconnect(); if (frame) cancelAnimationFrame(frame); };
   }, [tabs.value.length]);
-  return (
-    <header class="top">
-      {fromFile.value
-        ? <span class="logo" aria-label="clark"><span class="logo-icon" aria-hidden="true"></span><span class="wm">clark</span></span>      /* a published file has no Home: nothing in it is a button */
-        : <button type="button" class="logo" aria-label="clark" onClick={() => show("dashboard")}><span class="logo-icon" aria-hidden="true"></span><span class="wm">clark</span></button>}      {/* row 854: in the app the logo goes Home, the first tab, same project */}
-      <span class="divider"></span>
-      {ProjectSwitch ? <ProjectSwitch name={name} /> : <span class="proj sr" id="project-name">{name || project.value || "No project open"}</span>}
-      <nav class="tabs" ref={row} role="tablist" aria-label="Views">
-        {tabs.value.map((v) => (v === "gantt" && renaming && GanttName && view.value === "gantt"
-          ? <span class="tab" role="tab" key={v} data-view={v} aria-selected="true"><GanttName onDone={() => setRenaming(false)} /></span>
-          : <button class="tab" role="tab" key={v} data-view={v} aria-selected={view.value === v ? "true" : "false"} onClick={() => (v === "gantt" && GanttName && view.value === "gantt" ? setRenaming(true) : show(v))} title={v === "gantt" && GanttName && view.value === "gantt" ? "Rename the tab" : undefined}>{SHORT_TITLES[v] ? <><span class="tl-full">{TITLES[v]}</span><span class="tl-short">{SHORT_TITLES[v]}</span></> : TITLES[v]}</button>
-        ))}
-      </nav>
-      {fromFile.value && asAt.value ? <span class="asat num">As at {shownDate(asAt.value)}</span> : null}
+  useEffect(() => {      // row 1239: a long project name wraps instead of ending in an ellipsis, so the bar grows; every offset that reads --topbar follows the bar's real height
+    const bar = document.querySelector("header.top");
+    if (!bar) return undefined;
+    const root = document.documentElement;
+    const read = () => {      // the bar's own height never depends on --topbar (its minimum is --bar-min), so the override can be dropped before it is measured against the stylesheet's token
+      const h = bar.getBoundingClientRect().height;
+      root.style.removeProperty("--topbar");
+      const token = parseFloat(getComputedStyle(root).getPropertyValue("--topbar"));
+      if (h > 0 && !(Math.abs(h - token) < 0.01)) root.style.setProperty("--topbar", h + "px");      // only a bar grown past its token (a long name wrapped) needs the override; otherwise the stylesheet's token follows a resize at once, with no frame of lag
+    };
+    const watch = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(read);
+    if (watch) watch.observe(bar);
+    read();
+    return () => { if (watch) watch.disconnect(); root.style.removeProperty("--topbar"); };
+  }, []);
+  const vs = tabs.value, stop = vs.includes(view.value) ? view.value : vs[0];      // roving tabindex: one tab is in the Tab order, the open one (the first when none is open)
+  const onTabKey = (e) => {      // Left/Right/Home/End move between the tabs and open the one reached, as in Help
+    const i = vs.indexOf(e.target && e.target.dataset ? e.target.dataset.view : "");
+    if (i < 0 || e.altKey || e.ctrlKey || e.metaKey) return;      // Alt+Left is the browser's Back, Ctrl/Cmd+arrows are the system's: not ours
+    const j = e.key === "ArrowRight" ? (i + 1) % vs.length : e.key === "ArrowLeft" ? (i + vs.length - 1) % vs.length : e.key === "Home" ? 0 : e.key === "End" ? vs.length - 1 : -1;
+    if (j < 0) return;
+    e.preventDefault(); show(vs[j]);
+    setTimeout(() => { const b = row.current && row.current.querySelector(`[data-view="${vs[j]}"]`); if (b) b.focus(); }, 0);
+  };
+  const file = fromFile.value;
+  const lines = file ? coverLine(data.value && data.value.project, "") : [];      // issue 1146: a published file has one bar; the banner's words ("Weekly report", the week) sit under the name
+  const ganttTitle = data.value && data.value.gantt && typeof data.value.gantt.title === "string" ? data.value.gantt.title : "";
+  const shownName = (view.value === "gantt" && ganttTitle) || name || project.value || "No project open";      // the Gantt page's own title, when the file carries one, as the banner showed it
+  const Name = status.value === "ready" && (view.value === "dashboard" || view.value === "gantt") ? "h1" : "div";      // the Dashboard and Gantt pages had their heading in the banner; the other pages have their own
+  const weekEnding = data.value && data.value.project && data.value.project.week_ending;
+  const tail = (<>
       {Publish ? <Publish /> : null}
       {/* row 804: the top bar never draws View | Edit. It exists only on the Dashboard, as the report bar's pill (ReportBar.jsx, item 665); the other tabs are always editable */}
       {SearchButton ? <SearchButton /> : null}
       {AskButton ? <AskButton /> : null}
       {ProfileMenu ? <ProfileMenu /> : null}
+  </>);
+  return (
+    <header class={file ? "top top-file" : "top top-hdr"}>
+      {fromFile.value
+        ? <span class="logo" aria-label="clark"><span class="logo-icon" aria-hidden="true"></span><span class="wm">clark</span></span>      /* a published file has no Home: nothing in it is a button */
+        : <button type="button" class="logo" aria-label="clark" onClick={() => show("dashboard")}><span class="logo-icon" aria-hidden="true"></span><span class="wm">clark</span></button>}      {/* row 854: in the app the logo goes Home, the first tab, same project */}
+      {file
+        ? <div class="top-id"><Name class="top-name" id="project-name">{shownName}</Name><p class="cover-line top-line"><b class="cover-kind">Weekly report</b>{lines.map((t) => <span key={t}>{t}</span>)}</p></div>
+        : <div class="hdr-id">{/* item 1177: the editor's one header: the project name (a button that opens the project list), then "Weekly report" and the week (a button that opens the calendar); no "for <client>" and no banner under it */}
+            {(() => {
+              const who = ProjectSwitch ? <ProjectSwitch name={name} header /> : <span class="hdr-project hdr-static" id="project-name">{name || project.value || "No project open"}</span>;
+              return view.value === "dashboard" && status.value === "ready" ? <h1 class="hdr-h1">{who}</h1> : who;      /* the Dashboard keeps its one level-1 heading: the project name, same size and same click (item 1177 took its cover); the Gantt page has its own in its cover, and the other pages have theirs */
+            })()}
+            <p class="hdr-line"><b class="hdr-kind">Weekly report</b>{HeaderDate ? <>{" "}<i class="hdr-dot" aria-hidden="true"></i><HeaderDate /></> : weekEnding ? <>{" "}<i class="hdr-dot" aria-hidden="true"></i><span class="hdr-date hdr-static num">Week ending {shownDate(weekEnding)}</span></> : null}</p>
+          </div>}
+      <nav class="tabs" ref={row} role="tablist" aria-label="Views" onKeyDown={onTabKey}>
+        {tabs.value.map((v) => (v === "gantt" && renaming && GanttName && view.value === "gantt"
+          ? <span class="tab" role="tab" key={v} data-view={v} aria-selected="true"><GanttName onDone={() => setRenaming(false)} /></span>
+          : <button class="tab" role="tab" key={v} data-view={v} aria-selected={view.value === v ? "true" : "false"} tabIndex={v === stop ? 0 : -1} onClick={() => (v === "gantt" && GanttName && view.value === "gantt" ? setRenaming(true) : show(v))} title={v === "gantt" && GanttName && view.value === "gantt" ? "Rename the tab" : undefined}>{SHORT_TITLES[v] ? <><span class="tl-full">{TITLES[v]}</span><span class="tl-short">{SHORT_TITLES[v]}</span></> : TITLES[v]}</button>
+        ))}
+      </nav>
+      {file && asAt.value ? <AsAtDate /> : null}      {/* row 1178: the date in a client's header, a button */}
+      {file ? <span class="top-slot" data-slot="theme"></span> : null}      {/* issue 1146: the place for the light and dark switcher icon (issue 1144), after the date and before the profile circle; empty, it takes no room */}
+      {file ? tail : <div class="hdr-end">{tail}</div>}
       {fromFile.value ? <ClientMenu /> : null}      {/* issue 713: the reader's badge and menu, a published file only */}
     </header>
   );

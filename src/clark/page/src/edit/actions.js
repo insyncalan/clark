@@ -9,7 +9,7 @@ import { place, step, beside as besideOf, fullWidth as fullOf, rows } from "../l
 
 export const TITLE_MAX = 120;
 
-const list = () => (data.value && data.value.report_sections) || [];
+const list = () => ((data.value && data.value.report_sections) || []).filter((s) => s.type !== "needs");      // item 1174: the sections the Dashboard draws; a stored Needs section is left out there (item 1158)
 const indexOf = (id) => list().findIndex((s) => s.id === id);
 
 export function titleProblem(text, max = TITLE_MAX) {
@@ -21,17 +21,17 @@ export function titleProblem(text, max = TITLE_MAX) {
 
 // Every move is worked out by logic/placement.js (rows of one or two, never three) and sent as one change with one Undo.
 // A refusal says why in a note, or nothing at all when there is nothing to say (dropped where it already is).
-const run = (result, id, where, part) => {
+const run = (result, id, where, part, quiet = false) => {
   if (!result.ok) {
     if (!result.quiet) note(result.message);
     return Promise.resolve(null);
   }
-  const done = change({ ...result.payload, place: where }, result.words, { focus: `.secs > .sec[data-id="${id}"] [data-drag]` });
+  const done = change({ ...result.payload, place: where }, result.words, { focus: `.secs > .sec[data-id="${id}"] [data-drag]`, quiet });
   return part ? keep(done, id, part) : done;
 };
 
 // Move section `id` to `target`: { before: id | null } (a row of its own) or { beside: id, side: "left" | "right" }.
-export function placeAt(id, target, where, part) { return run(place(list(), id, target), id, where, part); }
+export function placeAt(id, target, where, part) { return run(place(list(), id, target), id, where, part, true); }      // a drop: its toast is not announced, the drag's own live region says what was done (row 1214)
 export function moveUp(id, where, part) { return run(step(list(), id, -1), id, where, part); }
 export function moveDown(id, where, part) { return run(step(list(), id, 1), id, where, part); }
 export function besideNext(id, where, part) { return run(besideOf(list(), id), id, where, part); }

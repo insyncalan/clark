@@ -36,7 +36,7 @@ from test_updater import Rig
 OLD_TAG = "v1.0.4"
 NEW_VERSION = "1.0.5"
 OLD_LAYOUT = 19
-NEW_LAYOUT = 24      # the data layout of this build (schema steps 20 to 23: projects.brand, Planned 2026, use_cases.owner, then the gantttable section type); the test pins the number on purpose
+NEW_LAYOUT = 29      # the data layout of this build (schema steps 20 to 23: projects.brand, Planned 2026, use_cases.owner, then the gantttable section type, use_case_milestones, then latest_update on raid and milestones, then priority and latest_update on decisions); the test pins the number on purpose
 SKIP_WORDS = "layout 20 is not on this tree yet (store.SCHEMA_VERSION is %s): the 19-to-20 update test runs once it is 20"
 
 CHILD = r'''
@@ -263,9 +263,9 @@ class Update19To20(Rig):
         now, done = self.update_to_20()
         self.assertEqual(NEW_LAYOUT, done["layout"])
         self.assertEqual(NEW_LAYOUT, layout(self.db))
-        after = every_row(self.db, leave_out=("brand", "use_cases.owner", "use_cases.owner_id"))
-        self.assertEqual([], after.pop("use_case_milestones"), "row 1107 (layout 24): the new table is there and empty")
-        self.assertEqual(self.base, after, "every row of every table is kept (the new brand and owner columns apart)")
+        after = every_row(self.db, leave_out=("brand", "use_cases.owner", "use_cases.owner_id", "raid.latest_update", "milestones.latest_update", "decisions.priority", "decisions.latest_update", "app_settings.theme"))
+        self.assertEqual([], after.pop("use_case_milestones"), "row 1107 (layout 24, kept in 25): the new table is there and empty")
+        self.assertEqual(self.base, after, "every row of every table is kept (the new brand, owner and latest update columns apart)")
         for table in ("projects", "report_sections", "milestones", "use_cases", "actions", "raid", "decisions", "documents", "publications"):
             self.assertTrue(after[table], table)
         self.assertEqual([("ABC", "generic"), ("DEF", "generic")], self.brands(self.db), "projects.brand is 'generic' for every existing project")

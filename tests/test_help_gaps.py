@@ -49,7 +49,9 @@ class EveryPlaceHelpPointsAtExists(unittest.TestCase):
 
     def test_go_and_page_names_a_screen_or_a_settings_card_the_page_draws(self):
         views = (SRC / "components" / "Views.jsx").read_text(encoding="utf-8")
-        cards = set(re.findall(r'"([\w-]+)-h"\]', views))      # profile, personal, update, people ...
+        heads = re.search(r"const HEADS = \{(.*?)\};", views, re.S).group(1)
+        cards = set(re.findall(r'"([\w-]+)-h"', heads))      # row 1024: the card headings, from the HEADS list; profile, personal, update, people ...
+        cards |= {s for s in re.findall(r'\["(\w+)", "[^"]+", \[', views)}      # and each Settings page's own name, such as data
         cards |= {re.sub(r"-card$", "", c) for c in cards}     # the Data card's heading is data-card-h; Help says settings#data
         for entry in RAW["howto"]["tasks"] + RAW["reference"]["sections"]:
             for where in [entry.get("go")] + entry.get("page", []):
@@ -63,6 +65,40 @@ class EveryPlaceHelpPointsAtExists(unittest.TestCase):
             self.assertIn(c["page"], SCREENS, c["page"])
             if c.get("full"):
                 self.assertIn(c["full"], places())
+
+
+def strings(x):
+    if isinstance(x, str):
+        yield x
+    elif isinstance(x, dict):
+        for v in x.values():
+            yield from strings(v)
+    elif isinstance(x, (list, tuple)):
+        for v in x:
+            yield from strings(v)
+
+
+def one(start):
+    found = [t for t in strings(RAW) if t.startswith(start)]
+    assert len(found) == 1, (start, len(found))
+    return found[0]
+
+
+class WorkItemsHelpMatchesTheCode(unittest.TestCase):
+    def test_peek_top_bar_names_duplicate_and_archive_only(self):
+        text = one("At the top: **Previous item** and **Next item**")
+        self.assertIn("**Duplicate** and **Archive**", text)
+        self.assertNotIn("Delete", text)
+
+    def test_right_click_menu_names_open_the_peek(self):
+        text = one("The right-click menu has a small picture")
+        row_menu = (SRC / "edit" / "RowMenu.jsx").read_text(encoding="utf-8")
+        self.assertIn('name: "Open the peek"', row_menu)
+        self.assertIn("Open the peek", text)
+
+    def test_single_letter_keys_row_says_single_key_shortcuts_switch(self):
+        row = next(r for r in RAW["reference"]["keys"] if isinstance(r, list) and "[[O]]" in r[0])
+        self.assertIn("Single-key shortcuts is off", row[1])
 
 
 if __name__ == "__main__":

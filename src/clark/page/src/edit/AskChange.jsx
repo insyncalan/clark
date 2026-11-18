@@ -2,9 +2,9 @@
 // run of the saved data (never the answer's words), an Apply button, a separate Confirm for a change from an answer that read the
 // person's files, a plain line when it can't be made, and "Done." with Undo (the board's own undo route, through api.js) once saved.
 // Every value is a text node; nothing here is read as markup. While asking is off nothing on a card can be pressed.
-import { useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { project, reread, token } from "../stores/report.js";
-import { sendUndo } from "../api.js";
+import { sendUndo, zoneFetch } from "../api.js";
 import { showDate } from "../workItems.js";
 import { plainText } from "../logic/cleanHtml.js";
 import { panelState, turns } from "./askPanelState.js";
@@ -18,7 +18,7 @@ export const fixedLine = (m, fallback) => (typeof m === "string" && m.length > 0
 
 export async function askPost(path, body) {
   try {
-    const r = await fetch(path, { method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store" });
+    const r = await zoneFetch(path, { method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store" });
     return { status: r.status, body: await r.json().catch(() => null) };
   } catch (e) {
     return { status: 0, body: null };
@@ -57,6 +57,15 @@ function ChangeCard({ plan, turn, index, passages }) {
   };
   const setState = (v) => keep({ state: v }), setLine = (v) => keep({ line: v }), setStep = (v) => keep({ step: v });
   const live = panelState.value === "ready";
+  // Apply and Undo leave the card when pressed; focus goes to the status line (which holds Undo) unless the person has moved on elsewhere.
+  const card = useRef(null), lineRef = useRef(null), was = useRef(state);
+  useEffect(() => {
+    const before = was.current;
+    was.current = state;
+    if (before === state || !["saving", "done", "undoing", "undone", "failed"].includes(state) || !lineRef.current) return;
+    const at = document.activeElement;
+    if (!at || at === document.body || (card.current && card.current.contains(at))) lineRef.current.focus({ preventScroll: true });
+  }, [state]);
 
   if (!plan || plan.ok !== true) {
     return <p class="ask-refused" data-ask-refused>{fixedLine(plan && plan.message, W.REFUSED_LINE)}</p>;
@@ -98,7 +107,7 @@ function ChangeCard({ plan, turn, index, passages }) {
   const applyKey = (e) => { if (confirm && e.key === "Enter") e.preventDefault(); };
 
   return (
-    <section class="ask-change" data-ask-change data-ref={plan.ref || ""}>
+    <section class="ask-change" data-ask-change data-ref={plan.ref || ""} ref={card}>
       <header class="ask-change-head">
         <strong>{plan.new ? W.NEW_HEAD : W.CHANGE_HEAD}</strong>
         <span class="muted">{plan.new ? kind : plan.ref || ""}</span>
@@ -128,7 +137,7 @@ function ChangeCard({ plan, turn, index, passages }) {
         </div>
       ) : null}
       {line ? (
-        <p class={`ask-change-line${state === "failed" ? " problem" : ""}`} data-ask-line role="status">
+        <p class={`ask-change-line${state === "failed" ? " problem" : ""}`} data-ask-line role="status" tabindex="-1" ref={lineRef}>
           {line}
           {state === "done" && step !== null && live ? <> <button type="button" class="btn sm quiet" data-ask-undo onClick={undo}>{W.UNDO}</button></> : null}
         </p>

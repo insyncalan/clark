@@ -19,14 +19,15 @@ export const DATA = {
 export const LAYOUT = {
   title: "Excel file layout",
   client: "This file is for you and your team. It holds internal notes, so do not send it to a client.",
-  cover: ["Cover", "The first sheet: the project, the date it was exported and who exported it, a caution that the file shows the data at that date, and where to send the file back."],
+  cover: ["Cover", "The first sheet: the report as the page shows it (Current state, At a glance and the sections), the date it was exported, who exported it, a caution that the file shows the data at that date, and where to send the file back. Changes made on it are ignored."],
+  gantt: ["Gantt", "The lines of the Gantt, one row each. Days and Status are worked out and never read back."],
   history: ["History", "The changes made to the items. The import leaves this sheet alone."],
   close: "Close",
 };
 
 export const IMPORT = {
   pickTitle: "Import from Excel",
-  pickBody: "Sheets called Actions, Risks & Issues, Decisions, Milestones and Use cases can be imported. You choose which after you pick a file (a History sheet from an export is left alone). A row whose ID exists updates it; a row without an ID adds a new one. You see the changes before anything is saved. If a row breaks a rule, nothing is imported and you are told which rows.",
+  pickBody: "Sheets called Actions, Risks & Issues, Decisions, Milestones and Use cases can be imported. You choose which after you pick a file (a History sheet from an export is left alone). Every sheet needs an ID column. A row whose ID exists updates it; a row with that column blank adds a new one. You see the changes before anything is saved. If a row breaks a rule, nothing is imported and you are told which rows.",
   sheetsTitle: "What to import",
   sheetsBody: "Tick the sheets to import. Anything you leave unticked is not read and not changed.",
   selectAll: "Select all",
@@ -36,6 +37,11 @@ export const IMPORT = {
   changesToCheck: "Changes to check",
   accept: "Accept",
   reject: "Reject",
+  notThere: "Not in clark yet",
+  createIt: "Create it",
+  useExisting: "Use an existing one",
+  chooseOne: "Choose one",
+  needAnswer: "Each milestone and use case that is not in clark needs an answer.",
   acceptAll: "Accept all",
   rejectAll: "Reject all",
   acceptNote: "Accept archives it. It is not deleted.",
@@ -67,13 +73,13 @@ export const sheetWord = (s) => `${s.name} (${s.rows > SHEET_ROWS_SHOWN ? "more 
 
 // The columns the import reads, per sheet, as the prototype lists them in the first box (tests/test_settings_data_page.py checks them
 // against the export's own layout in excel.py, leaving out the ones that are worked out or never read back).
-export const COLUMNS_INTRO = "Columns, in any order (only the name or title is needed):";
+export const COLUMNS_INTRO = "Columns, in any order (the ID column and the name or title are needed):";
 export const IMPORT_COLUMNS = [
   ["Actions", ["ID", "Description", "Workstream", "Owner", "Priority", "Due", "Status", "Raised", "Latest update", "Client-visible", "Client wording", "Milestone", "Use case", "Labels"]],
-  ["Risks & Issues", ["ID", "Description", "Type", "Workstream", "Owner", "Response action", "Due", "Impact", "Likelihood", "Status", "Raised", "Client-visible", "Client wording", "Milestone", "Use case", "Labels"]],
-  ["Decisions", ["ID", "Decision", "Status", "Made by", "Needed by", "Date", "Reasoning", "Options", "Revisit", "Replaces", "Client-visible", "Client wording", "Use case", "Labels"]],
-  ["Milestones", ["ID", "Milestone", "Description", "Workstream", "Agreed", "Forecast", "Status", "Order", "% complete", "Owner", "State", "State reason", "Movement", "Achieved on", "Client-visible", "Client wording", "Internal note"]],
-  ["Use cases", ["ID", "Use case", "Shown as", "Status", "Commitment", "Headline", "Where it stands", "Order", "Client-visible", "Linked milestones"]],
+  ["Risks & Issues", ["ID", "Description", "Type", "Workstream", "Owner", "Response action", "Due", "Impact", "Likelihood", "Status", "Raised", "Latest update", "Client-visible", "Client wording", "Milestone", "Use case", "Labels"]],
+  ["Decisions", ["ID", "Decision", "Status", "Priority", "Made by", "Needed by", "Date", "Reasoning", "Options", "Revisit", "Replaces", "Latest update", "Client-visible", "Client wording", "Use case", "Labels"]],
+  ["Milestones", ["ID", "Milestone", "Description", "Workstream", "Agreed", "Forecast", "Status", "Order", "% complete", "Owner", "State", "State reason", "Movement", "Achieved on", "Client-visible", "Client wording", "Latest update", "Internal note"]],
+  ["Use cases", ["ID", "Reference", "Use case", "Status", "Commitment", "Headline", "Where it stands", "Order", "Client-visible", "Linked milestones"]],
 ];
 
 export const PROJECT = {
@@ -131,6 +137,20 @@ export function nextAfterArchive(live, code) {
   return other ? other.code : null;
 }
 
+// Row 1156: the questions the check asks (milestones and use cases a work item names that clark does not have), and which of them an
+// accepted change still needs answered. `answers` is { unknown id: { do: "new" } or { do: "use", id } }; a "use" with no item chosen is not an answer.
+export const answered = (a) => !!a && (a.do === "new" || (a.do === "use" && !!a.id));
+export const KIND_NAME = { milestone: "Milestone", use_case: "Use case" };
+export function openQuestions(unknowns, accepted, answers) {
+  const on = new Set(accepted);
+  return (unknowns || []).filter((u) => (u.changes || []).some((n) => on.has(n)) && !answered(answers[u.id]));
+}
+export function sentAnswers(unknowns, answers) {
+  const out = {};
+  for (const u of unknowns || []) if (answered(answers[u.id])) out[u.id] = answers[u.id].do === "new" ? { do: "new" } : { do: "use", id: answers[u.id].id };
+  return out;
+}
+
 // The refusal of a whole file (the prototype's, io.js): one row that breaks a rule and nothing is imported.
 export const refusedHead = (k) => `Nothing was imported, because ${k} ${k === 1 ? "row breaks a rule" : "rows break a rule"}:`;
 export const refusedFoot = (k) => `Fix ${k === 1 ? "it" : "them"} in the workbook and import again. Nothing was changed.`;
@@ -149,7 +169,9 @@ export function countsRow(r) {
 export function sheetLine(r) {
   const of = (tables, kind) => ((r && r.items) || []).filter((i) => tables.includes(i.table) && i.kind === kind).length;
   const part = (name, tables) => `${name}: ${of(tables, "new")} new, ${of(tables, "changed")} updated`;
-  return [part("Work items", ["actions", "raid", "decisions"]), part("Milestones", ["milestones"]), part("Use cases", ["use_cases"])].join(" · ");
+  const parts = [part("Work items", ["actions", "raid", "decisions"]), part("Milestones", ["milestones"]), part("Use cases", ["use_cases"])];
+  if (of(["gantt_lines"], "new") + of(["gantt_lines"], "changed")) parts.push(part("Gantt", ["gantt_lines"]));
+  return parts.join(" · ");
 }
 
 // The check's reply as the box shows it: the counts in a line, and the numbers each choice sends.

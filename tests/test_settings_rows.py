@@ -7,7 +7,7 @@ Row 841: a card has 16 px above and below and 24 px at the sides, its heading is
 the gap between two cards is 12 px. Chrome is required: these tests fail, never skip, without it."""
 import unittest
 
-from test_settings_head import Head
+from test_settings_head import PAGES, Head
 from test_server import chrome
 
 WIDTHS = (1400, 900)
@@ -41,12 +41,16 @@ class Rows(Head):
                     with self.subTest(width=w, mode=mode, edit=edit), chrome() as cdp:
                         p = self.page(cdp)
                         self.drawn(p, w, mode, edit)
-                        check(p)
+                        for slug, _, _ in PAGES:      # row 1024: one Settings page at a time, so each is looked at in turn
+                            self.to_page(p, slug)
+                            check(p)
 
     def test_C_row_840_the_label_is_at_the_left_and_the_control_is_beside_it_and_not_capped(self):
+        seen = []
+
         def check(p):
             fields = p.js(FIELDS)
-            self.assertGreaterEqual(len(fields), 3, "the Personal and Freshness fields are drawn")
+            seen.append(len(fields))
             for f in fields:
                 self.assertAlmostEqual(f["label_w"], 128, delta=1, msg=f["id"] + ": the label column is 8 rem")
                 self.assertLess(f["label_left"], 1, "the label is at the left edge of the row")
@@ -59,20 +63,24 @@ class Rows(Head):
                     self.assertAlmostEqual(f["hint_left"], f["input_left"], delta=1, msg="the hint is in the control's column")
                     self.assertTrue(f["hint_below"], "the hint is under the control")
         self.across(check)
+        self.assertGreaterEqual(sum(seen) // (len(WIDTHS) * len(MODES)), 3, "the Personal and Freshness fields are drawn (counted over every page)")
 
     def test_C_row_841_the_cards_are_compact(self):
+        seen = []
+
         def check(p):
             cards = p.js(CARDS)
-            self.assertGreaterEqual(len(cards), 8)
+            seen.append(len(cards))
             for n, c in enumerate(cards):
                 self.assertEqual(c["pad"], ["16px", "24px", "16px", "24px"], c["id"] + ": card padding")
                 self.assertEqual(c["shadow"], "none", c["id"] + ": no shadow")
                 self.assertEqual(c["h2"], "20px", c["id"] + ": heading size")
                 if c["intro"] is not None:
-                    self.assertEqual(c["intro"], "14px", c["id"] + ": intro size")
+                    self.assertEqual(c["intro"], "14px" if c["id"] == "gantt-setting" else "15px", c["id"] + ": intro size (item 1200: 15 px, the Gantt card keeps 14)")
                 if n:
                     self.assertEqual(c["gap"], 12, c["id"] + ": the gap to the card above")
         self.across(check)
+        self.assertGreaterEqual(sum(seen) // (len(WIDTHS) * len(MODES)), 8, "the cards are drawn (counted over every page)")
 
 
 if __name__ == "__main__":

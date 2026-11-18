@@ -20,11 +20,11 @@ async function bitmapOf(file) {
   try { return await createImageBitmap(file, { imageOrientation: "from-image" }); } catch (e) { return null; }
 }
 
-export async function shrink(file, { longest = 1600, most = 1024 * 1024 } = {}) {
+export async function shrink(file, { longest = 1600, most = 1024 * 1024, widest = 0 } = {}) {      // row 1223: `widest` also bounds the width; `from` is the width the file had
   if (!file || !TYPES.includes(file.type)) return { ok: false, message: NOT_A_PICTURE };
   const bmp = await bitmapOf(file);
   if (!bmp || !bmp.width || !bmp.height) return { ok: false, message: UNREADABLE };
-  let scale = Math.min(1, longest / Math.max(bmp.width, bmp.height));
+  let scale = Math.min(1, longest / Math.max(bmp.width, bmp.height), widest ? widest / bmp.width : 1);
   for (let round = 0; round < 6; round++) {
     const width = Math.max(1, Math.round(bmp.width * scale)), height = Math.max(1, Math.round(bmp.height * scale));
     const canvas = document.createElement("canvas");
@@ -33,7 +33,7 @@ export async function shrink(file, { longest = 1600, most = 1024 * 1024 } = {}) 
     if (file.type === "image/png") {
       g.drawImage(bmp, 0, 0, width, height);
       const png = canvas.toDataURL("image/png");
-      if (png.startsWith("data:image/png;base64,") && dataBytes(png) <= most) return { ok: true, data: png, width, height };
+      if (png.startsWith("data:image/png;base64,") && dataBytes(png) <= most) return { ok: true, data: png, width, height, from: bmp.width };
       g.clearRect(0, 0, width, height);
     }
     g.fillStyle = "#ffffff";                   // a transparent part becomes white, not black, in a JPEG
@@ -41,7 +41,7 @@ export async function shrink(file, { longest = 1600, most = 1024 * 1024 } = {}) 
     g.drawImage(bmp, 0, 0, width, height);
     for (const q of [0.86, 0.76, 0.64]) {
       const jpg = canvas.toDataURL("image/jpeg", q);
-      if (jpg.startsWith("data:image/jpeg;base64,") && dataBytes(jpg) <= most) return { ok: true, data: jpg, width, height };
+      if (jpg.startsWith("data:image/jpeg;base64,") && dataBytes(jpg) <= most) return { ok: true, data: jpg, width, height, from: bmp.width };
     }
     scale *= 0.75;
   }

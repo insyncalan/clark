@@ -6,7 +6,7 @@ import { data } from "../../stores/report.js";
 import { say } from "../../stores/changes.js";
 import { useList } from "./useList.js";
 import { rowsOf } from "../../workItems.js";
-import { itemsOf, bodyOf, MAX_ITEMS, TEXT_MAX, problem } from "../../templates/checklist.js";
+import { itemsOf, bodyOf, shownWork, LEFT_OUT, MAX_ITEMS, TEXT_MAX, problem } from "../../templates/checklist.js";
 
 const EMPTY_WORDS = "No lines yet. Type the first line below, or link a work item. It stays out of the published page until it has a line.";
 const cut = (s, n) => { const c = Array.from(String(s)); return c.length > n ? `${c.slice(0, n - 1).join("").trimEnd()}…` : c.join(""); };
@@ -17,6 +17,7 @@ export function Edit({ section }) {
   const d = data.value || {};
   const work = rowsOf(d);
   const byId = new Map(work.map((r) => [r.id, r]));
+  const shown = shownWork(d, false);
   const list = useList(section, items);
   const save = (make, words) => list.put(make, bodyOf, words).then((r) => { if (!r) setTick(tick + 1); return r; });
   const full = () => { if (items.length >= MAX_ITEMS) { say("problem", problem.full); return true; } return false; };
@@ -54,14 +55,16 @@ export function Edit({ section }) {
             <li key={`w${i.item}`} class="tple-row">
               <span class="tple-main">
                 <span class="tple-name">{byId.has(i.item) ? cut(byId.get(i.item).title || i.item, 120) : "A work item that is no longer in the report"}</span>
-                <span class="tple-sub">{i.item}{byId.has(i.item) ? (["Closed", "Made"].includes(byId.get(i.item).status) ? ", done" : ", to do") : ""}, follows the work item</span>
+                <span class="tple-sub">{byId.has(i.item) && (LEFT_OUT.includes(byId.get(i.item).status) || !shown.has(i.item))
+                  ? "Left out of the published page, follows the work item"
+                  : `${i.item}${byId.has(i.item) ? (["Closed", "Made"].includes(byId.get(i.item).status) ? ", done" : ", to do") : ""}, follows the work item`}</span>
               </span>
               <button type="button" class="btn tple-x" aria-label={`Remove the line for ${i.item}`} onClick={() => remove(n)}>Remove</button>
             </li>
           ) : (
             <li key={`t${n}`} class="tple-row">
               <input class="tple-tick" type="checkbox" checked={i.done === 1} aria-label={`Done: ${i.text}`} onChange={(e) => toggle(n, e.currentTarget.checked)} />
-              <input key={`x${n}-${i.text}`} class="tple-in" type="text" defaultValue={i.text} aria-label="Checklist line" onBlur={(e) => retext(n, e.currentTarget)} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />
+              <input key={`x${n}-${i.text}`} class="tple-in" type="text" defaultValue={i.text} aria-label="Checklist line" onBlur={(e) => retext(n, e.currentTarget)} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); else if (e.key === "Escape") { e.preventDefault(); e.currentTarget.value = list.latest()[n]?.text ?? ""; e.currentTarget.blur(); } }} />
               <button type="button" class="btn tple-x" aria-label={`Remove ${i.text}`} onClick={() => remove(n)}>Remove</button>
             </li>
           )))}

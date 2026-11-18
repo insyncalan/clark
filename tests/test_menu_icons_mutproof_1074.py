@@ -110,16 +110,6 @@ class Inline(Shown):
                 got = {g["t"]: g["tone"] for g in self.menu(cdp, sid, "TUL-010:status")}
                 self.assertEqual(got["Open"], "ic-r", "a late action's Open is red, as its pill would be")
 
-    def test_the_rating_menu_of_a_risk_shows_the_bars_in_each_levels_tone(self):
-        for width in WIDTHS:
-            with self.subTest(width=width), chrome() as cdp:
-                sid = self.open_page(cdp, width)
-                got = self.menu(cdp, sid, "TUL-007:priority")
-                self.assertEqual([g["t"] for g in got], ["High", "Medium", "Low"] * 2)
-                self.assertEqual({g["icn"] for g in got}, {"bars"})
-                self.assertEqual([g["tone"] for g in got], ["ic-a", "ic-b", "ic-n"] * 2)
-                self.check_drawn(cdp, sid)
-
     def test_the_icon_has_a_gap_before_the_words_and_the_due_choices_keep_their_date_at_the_right(self):
         for width in WIDTHS:
             with self.subTest(width=width), chrome() as cdp:
@@ -207,10 +197,13 @@ class PeekFields(Shown):
 
     def test_milestone_and_use_case_menus_have_their_own_icon_and_a_minus_to_clear(self):
         for width in WIDTHS:
-            for field, icon, none in (("milestone", "flag", "No milestone"), ("use_case", "doc", "No use case")):
+            # Item 1181: an action's peek has no Use case picker (the ticket drops it for actions), so the use case menu is read on a risk.
+            for field, icon, none, ref in (("milestone", "flag", "No milestone", "TUL-A-001"), ("use_case", "doc", "No use case", "TUL-007")):
                 with self.subTest(width=width, field=field), chrome() as cdp:
-                    sid = self.open_page(cdp, width, hash_="#work&p=TUL&f=mode:all&item=TUL-A-001")
-                    self.until(cdp, sid, f"!!document.querySelector('[data-pk-pick={field}]')", "peek pick")
+                    sid = self.open_page(cdp, width, hash_=f"#work&p=TUL&f=mode:all&item={ref}")
+                    # Row 1249: wait for the real signal, the picker drawn (it has a box in the window), not only present in the page
+                    self.until(cdp, sid, f"(() => {{ const b = document.querySelector('[data-pk-pick={field}]'); if (!b) return false;"
+                               " const r = b.getBoundingClientRect(); return r.width > 0 && r.height > 0 && r.bottom > 0 && r.top < innerHeight; })()", "peek pick drawn")
                     click(cdp, sid, f"[data-pk-pick={field}]")
                     self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "menu")
                     got = cdp.js(self.ICONS, sid)

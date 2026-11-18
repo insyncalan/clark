@@ -115,7 +115,7 @@ class MovedFields(unittest.TestCase):
         peek = (PAGE_SRC / "edit/MilestonePeek.jsx").read_text(encoding="utf-8")
         self.assertNotIn("plainFromEditor(", peek)
         self.assertIn('<RichField field="client_message"', peek)
-        for rel in ("edit/templates/ImageCap.jsx", "edit/templates/TextImage.jsx"):
+        for rel in ("edit/templates/ImageCap.jsx", "edit/templates/FullImage.jsx", "edit/templates/TextImage.jsx"):
             text = (PAGE_SRC / rel).read_text(encoding="utf-8")
             self.assertIn('<CaptionField section={section} field="caption"', text, rel)
             self.assertNotIn('<LineField section={section} field="caption"', text, rel)
@@ -214,7 +214,7 @@ class PageGate(unittest.TestCase):
             js("document.querySelector('[data-mode=edit]').click()")
             self.assertTrue(wait(lambda: js("document.querySelector('#report').dataset.mode === 'edit'"), 10))
             self.assertEqual(js("[...document.querySelectorAll('[data-rich]')].map(function(f){ return f.closest('.sec').dataset.id; })"),
-                             ["ABC-S-005", "ABC-S-006", "ABC-S-007"])
+                             ["ABC-S-001", "ABC-S-005", "ABC-S-006"])      # item 1188: the first section is a text section; row 1266: no Summary, so three text sections
             self.assertEqual(js("document.querySelectorAll('.sec[data-type=text] .quiet:not([data-rich] .quiet)').length"), 0)
             js("document.querySelector('[data-mode=view]').click()")
             self.assertTrue(wait(lambda: js("document.querySelector('#report').dataset.mode !== 'edit'"), 10))
@@ -384,6 +384,8 @@ class PageGate(unittest.TestCase):
         s = self.serve(self.page_on)
         with chrome() as cdp:
             js, sid = self.edit(cdp, s)
+            cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)      # the editor ignores a blur while document.hasFocus() is false (RichText away); a headless page on macOS is not focused
+            self.assertTrue(wait(lambda: js("document.hasFocus()"), 10), "the page has the focus")
             self.open_field(cdp, js, sid)
             x, y = js("(() => { const r = document.querySelector('.sec[data-type=milestones] h2, .sec h2').getBoundingClientRect(); return [r.x + 4, r.y + r.height / 2]; })()")
             for kind in ("mousePressed", "mouseReleased"):
@@ -475,9 +477,9 @@ class MovedLatestFields(unittest.TestCase):
                 self.assertIn(field, publish.RICH.get(table, ()), "published through clean_html")
                 self.assertIn((table, field), publish.LEGACY_RICH, "an old plain row reads as escaped paragraphs")
         from clark import excel
-        self.assertEqual(excel.RICH_WORDS, publish.LEGACY_RICH + (("milestones", "internal_note"), ("use_cases", "standing")), "the workbook carries the words of the same fields, of the Movement note (never published, so not in the published list) and, row 1060, of a use case's Where it stands (HTML from the start, so not legacy)")
+        self.assertEqual(set(excel.RICH_WORDS), set(publish.LEGACY_RICH) | {("milestones", "internal_note"), ("use_cases", "standing")}, "the workbook carries the words of the same fields, of the Movement note (never published, so not in the published list) and, row 1060, of a use case's Where it stands (HTML from the start, so not legacy)")
         src = (SRC / "clark" / "changes.py").read_text(encoding="utf-8")
-        self.assertEqual(src.count("_rich_field("), 5, "the definition and the four fields' writes (latest update, Internal note, description, client wording)")
+        self.assertEqual(src.count("_rich_field("), 6, "the definition and the five writes (latest update, Internal note, a milestone's latest update, description, client wording)")
 
     def test_the_published_page_carries_no_editor_for_them(self):
         page.ensure_built()

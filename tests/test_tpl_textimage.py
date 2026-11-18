@@ -16,6 +16,7 @@ import base64
 import json
 import sqlite3
 import struct
+import time
 import unittest
 
 from _demo import USER
@@ -85,7 +86,7 @@ class Checker(unittest.TestCase):
 
     def test_hostile_and_outsized_content_is_refused(self):
         self.assertEqual(refused(self, KIND, {"v": 1, "words": ["a"], "script": "x"}), textimage.UNKNOWN_FIELD)
-        self.assertEqual(refused(self, KIND, {"v": 2}), textimage.OLD_VERSION)
+        self.assertEqual(refused(self, KIND, {"v": 3}), textimage.OLD_VERSION)      # row 1232: version 2 is the Text and Image Side by Side body (test_textimage_side_server)
         self.assertEqual(refused(self, KIND, {"v": "1"}), textimage.NOT_CONTENT)
         self.assertEqual(refused(self, KIND, ["not", "an", "object"]), textimage.NOT_CONTENT)
         self.assertEqual(refused(self, KIND, {"v": 1, "words": "one string"}), textimage.NOT_CONTENT)
@@ -249,7 +250,7 @@ class Http(unittest.TestCase):
         self.assertEqual(status, 200, got)
         self.assertIsInstance(got["apply_id"], int)
         self.assertEqual(self.post("/api/section-image", {"project": "ABC"}, token="wrong")[0], 403)
-        self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/section-image"], 1536 * 1024)
+        self.assertEqual(sv.ROUTE_BODY_LIMITS["/api/section-image"], 11 * 1024 * 1024)      # row 1223: one Full width image (8 MiB) as text
         for route in ("/api/section-image", "/api/change"):
             over = {sv.TOKEN_HEADER: sv.TOKEN, "Content-Type": "application/json", "Content-Length": str(sv.ROUTE_BODY_LIMITS[route] + 1)}
             status, _, raw = self.s.ask("POST", route, over, b"{}")
@@ -392,6 +393,15 @@ class InThePage(PageBase):
             self.assertEqual(p.js(f"[...document.querySelectorAll('{sel(old)} [data-rich] .prose p')].map(e => e.textContent)"), LEGACY)
             self.assertEqual(p.js(f"document.querySelectorAll('{sel(old)} [data-rich] .prose script').length"), 0)
 
+    def open_caption(self, p, sel, cap, what):
+        """Click the caption until the editor is up: after a save the page redraws the row, and under load a click that lands before the new handler is bound is lost, so one click then a short wait is not enough."""
+        ed = f"!!document.querySelector('{sel} .tpl-pic-field .ProseMirror')"
+        end = time.monotonic() + 40
+        while time.monotonic() < end and not p.js(ed):
+            p.js(f"var c = document.querySelector('{cap}'); if (c) c.click(); true")
+            wait(lambda: p.js(ed), 3)
+        self.assertTrue(p.js(ed), what)
+
     def test_edit_fills_words_in_place_one_step_each_and_adds_a_picture(self):
         ref = self.add()
         sel = f"[data-id={json.dumps(ref)}]"
@@ -414,15 +424,13 @@ class InThePage(PageBase):
             self.assertEqual(p.toast(), "Text saved.")
             p.clear_toast()
             cap = f"{sel} [data-rich=caption]"
-            p.js(f"document.querySelector('{cap}').click()")
-            p.until(f"!!document.querySelector('{sel} .tpl-pic-field .ProseMirror')", "the caption opens on the one editor (item 1005)")
+            self.open_caption(p, sel, cap, "the caption opens on the one editor (item 1005)")
             p.js(f"document.querySelector('{sel} .tpl-pic-field .ProseMirror').cxed.editor.commands.insertContent('Fictional hall'); true")
             p.key("Escape", code="Escape", vk=27)
             p.until(f"!document.querySelector('{sel} .tpl-pic-field .ProseMirror')", "Esc closed it")
             self.assertEqual(p.js(f"document.querySelector('{cap}').textContent.trim()"), "Click to write.", "Esc puts the saved words back")
             self.assertEqual(self.applies(), start + 1, "Esc saves nothing")
-            p.js(f"document.querySelector('{cap}').click()")
-            p.until(f"!!document.querySelector('{sel} .tpl-pic-field .ProseMirror')", "it opens again")
+            self.open_caption(p, sel, cap, "it opens again")
             p.js(f"document.querySelector('{sel} .tpl-pic-field .ProseMirror').cxed.editor.commands.insertContent('Fictional hall'); true")
             p.key("Enter", 4 if p.js("/Mac/.test(navigator.platform)") else 2, code="Enter", vk=13)
             p.saved()

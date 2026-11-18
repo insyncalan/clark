@@ -13,25 +13,14 @@ const ASK_ON_TOAST = "ask clark is on";
 const ASK_OFF_TOAST = "ask clark is off";
 const NOT_READY = "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.";
 
-export function AskSettings() {
-  const on = askOn.value;
-  const status = askStatus.value;
-  const saved = askSaved.value;
-  const code = project.value;
-  const [folders, setFolders] = useState(null);          // null: not read yet; "unavailable"; or the list
-  const [busy, setBusy] = useState(false);
-  const [typing, setTyping] = useState(false);       // the server said no window can open here: a box to type the location into
-  const [typed, setTyped] = useState("");
-  const [msg, setMsg] = useState(null);                  // {kind: "error" | "note", text}
-
+// The asking switch's behaviour, shared by this card and the Essentials card (row 1115): `flip` turns asking on or off and says so in the toast
+// with its Undo; the switch is disabled while the request runs, so focus is put back once it is not (row 849). The caller owns busy and the message line.
+export function useAskFlip(on, busy, setBusy, setMsg) {
   const switchRef = useRef(null);
-  const refocus = useRef(false);                     // row 849: the switch is disabled while the request runs, so focus is put back once it is not
-  useEffect(() => { loadAsk(true); return leaveSwitch; }, []);      // asked again each time Settings opens, so the page never shows a stale choice
-
+  const refocus = useRef(false);
   useEffect(() => {
     if (!busy && refocus.current) { refocus.current = false; if (switchRef.current) switchRef.current.focus(); }
   }, [busy]);
-
   async function flip() {
     const now = !on;
     setBusy(true);
@@ -45,6 +34,22 @@ export function AskSettings() {
       announceSwitch(now ? ASK_ON_TOAST : ASK_OFF_TOAST, () => setAsk(!now), now ? ASK_OFF_TOAST : ASK_ON_TOAST);
     }
   }
+  return { switchRef, flip };
+}
+
+export function AskSettings() {
+  const on = askOn.value;
+  const status = askStatus.value;
+  const saved = askSaved.value;
+  const code = project.value;
+  const [folders, setFolders] = useState(null);          // null: not read yet; "unavailable"; or the list
+  const [busy, setBusy] = useState(false);
+  const [typing, setTyping] = useState(false);       // the server said no window can open here: a box to type the location into
+  const [typed, setTyped] = useState("");
+  const [msg, setMsg] = useState(null);                  // {kind: "error" | "note", text}
+
+  const { switchRef, flip } = useAskFlip(on, busy, setBusy, setMsg);
+  useEffect(() => { loadAsk(true); return leaveSwitch; }, []);      // asked again each time Settings opens, so the page never shows a stale choice
 
   useEffect(() => {
     let live = true;
@@ -84,6 +89,7 @@ export function AskSettings() {
     setBusy(false);
     const b = r.body;
     if (action !== "add") refocusFolders(at);
+    else setTimeout(() => { const i = document.getElementById("ask-folder-path"); if (i) i.focus(); }, 0);   // Add folder is disabled while the request runs: the focus goes to the box
     if (r.status === 200 && b && b.ok === true && Array.isArray(b.folders)) {
       setFolders(b.folders);
       if (b.message) setMsg({ kind: "note", text: b.message });
@@ -107,7 +113,7 @@ export function AskSettings() {
       <h2 id="ask-settings-h" tabIndex={-1}>Asking</h2>
       <p class="muted">{named("Claude is started on this computer for you.", askProvider.value)}</p>
       <p class="muted" id="ask-notice">{named(ASK_NOTICE_LINE, askProvider.value)}</p>
-      <p id="ask-state">{status === "loading" ? ASK_CHECKING_LINE : status === "unavailable" ? ASK_UNAVAILABLE_LINE : on ? named("Asking is on. Your question and the passages it needs go to Claude, which Anthropic runs.", askProvider.value) : ASK_OFF_LINE}</p>
+      <p id="ask-state">{status === "loading" ? ASK_CHECKING_LINE : status === "unavailable" ? ASK_UNAVAILABLE_LINE : on ? "Asking is on." : ASK_OFF_LINE}</p>
       {status === "ready" && !saved ? <p class="muted" id="ask-unsaved">This computer's saved data can't keep this choice yet, so asking stays off. Restart clark to bring the saved data up to date.</p> : null}
       <div class="row">
         <button type="button" class="btn" ref={switchRef} data-ask-switch aria-pressed={on ? "true" : "false"} disabled={busy || status !== "ready"} onClick={flip}>{on ? "Turn off asking" : "Turn on asking"}</button>

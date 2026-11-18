@@ -5,7 +5,7 @@ import { keptRows, rulesFor } from "../logic/publishable.js";
 
 export const MAX_ITEMS = 20;
 export const TEXT_MAX = 200;
-const LEFT_OUT = ["Cancelled", "Withdrawn"];      // a line for a work item that was called off has nothing left to do, so it is not drawn
+export const LEFT_OUT = ["Cancelled", "Withdrawn"];      // a line for a work item that was called off has nothing left to do, so it is not drawn
 
 export function itemsOf(section) {
   let list = null;

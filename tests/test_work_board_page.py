@@ -175,6 +175,23 @@ class Base(unittest.TestCase):
         # row 808: the box's list now floats over the cards, so a person who is done with the box has left it before touching a card
         cdp.js("document.activeElement && document.activeElement.blur && document.activeElement.blur()", sid)
         self.until(cdp, sid, "!document.querySelector('#fline-list')", "the list of fields closed")
+        self.settle(cdp, sid)
+
+    def settle(self, cdp, sid, same=5):
+        """The fonts are in and the page has stopped moving: the bar above the board, the board and its first card keep one box for `same`
+        looks in a row (the bar can wrap to another row, and the page grow, as the fonts arrive on a loaded runner; a box measured before
+        that sends the mouse to where a card or a cell no longer is)."""
+        look = ("document.fonts.status === 'loaded' ? JSON.stringify([...document.querySelectorAll('#work .fbar, #work-board, #work-board .bcard, .boardbox, #work-list tr[data-id]')].slice(0, 8)"
+                ".map((e) => { const b = e.getBoundingClientRect(); return [b.x, b.y, b.width, b.height, e.scrollTop || 0]; })) : null")
+        last, run = None, 0
+        for _ in range(400):
+            now = cdp.js(look, sid)
+            run = run + 1 if now is not None and now == last else 0
+            if run >= same:
+                return
+            last = now
+            time.sleep(0.05)
+        self.fail("the page never stopped moving")
 
     def drag(self, cdp, sid, card, cell, steps=8):
         """Pick a card up with the mouse and drop it in a column cell, like a person: the board scrolls itself when the pointer
@@ -330,8 +347,15 @@ class GroupBy(Base):
             self.board(cdp, sid, "status")
             self.assertEqual(cdp.js("(() => { const r = document.querySelector('.toasts'); return r ? [r.getAttribute('role'), r.getAttribute('aria-live')] : null; })()", sid), ["status", "polite"],
                              "the region is there before any message, so a screen reader hears the first one")
-            self.drag(cdp, sid, self.id_of("Supplier slips"), self.cell("Delayed"))
-            self.wait_toast(cdp, sid, "note")
+            # A press right after the reload and blur can be lost while the board still lays out (2 of 6 alone runs failed, no toast ever made).
+            # A refused drop changes no state, so the drag is repeated, up to 3 times, each with an 8 s wait for the toast.
+            card, cell = self.id_of("Supplier slips"), self.cell("Delayed")
+            for _ in range(3):
+                self.drag(cdp, sid, card, cell)
+                if wait(lambda: cdp.js("!!document.querySelector('.toast[data-kind=note]')", sid), 8):
+                    break
+            self.until(cdp, sid, "document.querySelector('.toast[data-kind=note]')", "a toast", secs=1,
+                       why=lambda: cdp.js("(document.querySelector('.toasts') || {outerHTML: 'no .toasts'}).outerHTML + ' | body.className=' + document.body.className", sid))
             self.assertTrue(cdp.js("!!document.querySelector('.toasts[aria-live=polite] > .toast[data-kind=note]')", sid), "the refusal is inside the live region")
             self.assertEqual(cdp.js("document.querySelectorAll('.toasts').length", sid), 1)
 
@@ -377,10 +401,10 @@ class Cards(Base):
             self.assertEqual((card["letter"], card["move"], card["moveOpacity"]), ("A", True, "1"), "a letter badge named in full, and the ... always there in Edit")
             self.assertRegex(card["due"], r"^In \d+ days$|^\d+ days late$|Today|Tomorrow")
             self.assertTrue(card["eye"])
-            self.assertTrue(card["eyeWords"].startswith("Shown to the client"), card["eyeWords"])
+            self.assertTrue(card["eyeWords"].startswith("Take "), card["eyeWords"])
             self.assertEqual(card["role"], "button")
             self.assertTrue(card["label"].startswith(f"{a} Send the invitations, Delayed"), card["label"])
-            self.assertTrue(cdp.js(f"document.querySelector(\"article[data-id='{self.id_of('Book the training room')}'] button.weye\").getAttribute('aria-label')", sid).startswith("Not shown to the client"), "a hidden card has the crossed-out eye to turn it on")
+            self.assertTrue(cdp.js(f"document.querySelector(\"article[data-id='{self.id_of('Book the training room')}'] button.weye\").getAttribute('aria-label')", sid).startswith("Put "), "a hidden card has the crossed-out eye to turn it on")
             self.assertEqual(cdp.js(f"document.querySelector(\"article[data-id='{self.id_of('Book the training room')}'] .av\")", sid), None, "no initials for an item with no owner")
 
     def test_the_card_eye_is_a_button_that_toggles_in_view_and_edit_with_one_undo(self):
@@ -395,7 +419,7 @@ class Cards(Base):
                 click(cdp, sid, eye)
                 self.until(cdp, sid, f"document.querySelector({json.dumps(eye)}).getAttribute('aria-pressed') === 'false'", "the eye turned off")
                 self.assertEqual(self.steps(), before + 1, "one click is one step")
-                self.assertEqual(cdp.js("document.querySelector('.toast-text').textContent", sid), f"{a} hidden from the client.")
+                self.assertEqual(cdp.js("document.querySelector('.toast-text').textContent", sid), f"{a} is off the page.")
                 self.assertEqual(cdp.js("document.querySelector('#peek') ? 1 : 0", sid), 0, "a click on the eye does not open the peek")
                 click(cdp, sid, "[data-undo]")
                 self.until(cdp, sid, f"document.querySelector({json.dumps(eye)}).getAttribute('aria-pressed') === 'true'", "Undo turned it on again")
@@ -494,10 +518,12 @@ class Moves(Base):
             self.until(cdp, sid, "!!document.querySelector('.ddmenu')", "the menu")
             self.assertEqual(cdp.js("document.querySelector('[data-move]').closest('article') && document.querySelector('.ddmenu').getAttribute('aria-label')", sid), f"Move {a} to")
             items = cdp.js("[...document.querySelectorAll('.ddmenu [role=menuitem]')].map(b => b.textContent)", sid)
-            self.assertEqual(items, ["Delayed", "Closed", "Cancelled"], "only where an action can go, not where it is")
+            self.assertEqual(items, ["\u2713Open", "Delayed", "Closed", "Cancelled"], "row 1273: every column, the one the card is in ticked first (the prototype's list)")
+            self.assertEqual(cdp.js("[...document.querySelectorAll('.ddmenu [role=menuitem]')].map(b => b.getAttribute('aria-disabled'))", sid), ["true", None, None, None], "the card's own column is not a choice")
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.ddmenu .mh')).textTransform", sid), "uppercase", "row 1273: the head is in capitals, the words unchanged")
             self.assertEqual(cdp.js("document.querySelector('.ddmenu .mh').textContent", sid), "Move to Status")
             key(cdp, sid, "ArrowDown")
-            key(cdp, sid, "Enter")                                   # Closed
+            key(cdp, sid, "Enter")                                   # Closed (the keys pass over the ticked line: the column the card is in)
             t = self.wait_toast(cdp, sid, "done")
             self.assertEqual(t["text"], f"{a} is now Closed.")
             self.assertEqual((self.row(a)["status"], self.steps()), ("Closed", before + 1))
@@ -533,6 +559,38 @@ class Moves(Base):
             click(cdp, sid, "[data-undo]")
             self.until(cdp, sid, f"document.querySelector(\"{self.cell('Open', 'Data')} article[data-id='{a}']\")", "both put back")
             self.assertEqual((self.row(a)["status"], self.row(a)["workstream"]), ("Open", "Data"))
+
+    def test_the_group_by_menu_has_the_prototypes_head_font_and_width(self):
+        """Row 1273 (the owner's answer of 17-11, Group by: the prototype wins): the head is drawn in capitals (the words stay "Group by"), the items at body size, the tick before the icon, the panel at least 14rem."""
+        with shared.page() as cdp:
+            sid = self.visit(cdp)
+            self.board(cdp, sid, "status")
+            click(cdp, sid, "#viewMenu")
+            self.until(cdp, sid, "!!document.querySelector('#viewMenuList')", "the View menu")
+            self.assertEqual(cdp.js("document.querySelector('#viewMenuList .lab').textContent", sid), "Group by")
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#viewMenuList .lab')).textTransform", sid), "uppercase")
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#viewMenuList [role=menuitemradio]')).fontSize", sid),
+                             cdp.js("getComputedStyle(document.documentElement).getPropertyValue('--size-body').trim()", sid))
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#viewMenuList [role=menuitemradio] .ck')).order", sid), "-1")
+            self.assertGreaterEqual(cdp.js("document.querySelector('#viewMenuList').getBoundingClientRect().width", sid),
+                                    cdp.js("parseFloat(getComputedStyle(document.documentElement).fontSize) * 14", sid) - 1)
+
+    def test_the_group_by_menu_look_holds_at_900(self):
+        """Row 1273 at 900 px: the same head, body size items, tick first, and the panel stays inside the window."""
+        with shared.page() as cdp:
+            sid = self.visit(cdp, width=900)
+            self.board(cdp, sid, "status")
+            click(cdp, sid, "#viewMenu")
+            self.until(cdp, sid, "!!document.querySelector('#viewMenuList')", "the View menu")
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#viewMenuList .lab')).textTransform", sid), "uppercase")
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#viewMenuList [role=menuitemradio]')).fontSize", sid),
+                             cdp.js("getComputedStyle(document.documentElement).getPropertyValue('--size-body').trim()", sid))
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#viewMenuList [role=menuitemradio] .ck')).order", sid), "-1")
+            box = cdp.js("(() => { const r = document.querySelector('#viewMenuList').getBoundingClientRect(); return [r.left, r.right, window.innerWidth]; })()", sid)
+            self.assertGreaterEqual(box[0], 0)
+            self.assertLessEqual(box[1], box[2])
+            self.assertGreaterEqual(cdp.js("document.querySelector('#viewMenuList').getBoundingClientRect().width", sid),
+                                    cdp.js("parseFloat(getComputedStyle(document.documentElement).fontSize) * 14", sid) - 1)
 
     def test_the_menu_offers_lanes_too(self):
         with shared.page() as cdp:
@@ -574,7 +632,7 @@ class Moves(Base):
         cases = [
             ("workstream", "Use the new tool", "Data", "A decision isn't part of a workstream."),
             ("priority", "Supplier slips", "Low", "A risk or issue's priority comes from its impact and likelihood. Change those in its details."),
-            ("priority", "Use the new tool", "Low", "A decision has no priority."),
+            ("priority", "Use the new tool", "Low", "A decision's priority is set in its details, one at a time."),
             ("type", "Order the laptops", "decisions", "An action can't change its type."),
             ("milestone", "Use the new tool", None, "A decision isn't tied to a milestone."),
             ("due", "Order the laptops", "overdue", "Overdue is worked out from the due date. Drop the card on This week, Next week or Later and choose a date."),
@@ -741,7 +799,7 @@ class Moves(Base):
                     before = self.steps()
                     click(cdp, sid, f"[data-move='{a}']")
                     self.until(cdp, sid, "!!document.querySelector('.ddmenu')", "the menu")
-                    self.assertEqual(cdp.js("[...document.querySelectorAll('.ddmenu [role=menuitem]')].map(b => b.textContent)", sid), ["Delayed", "Closed", "Cancelled"])
+                    self.assertEqual(cdp.js("[...document.querySelectorAll('.ddmenu [role=menuitem]')].map(b => b.textContent)", sid), ["\u2713Open", "Delayed", "Closed", "Cancelled"])
                     click(cdp, sid, ".ddmenu [data-to='Delayed']")
                     t = self.wait_toast(cdp, sid, "done")
                     self.assertEqual(t["text"], f"{a} is now Delayed.")
@@ -888,8 +946,13 @@ class FullScreen(Base):
                         self.until(cdp, sid, "document.body.classList.contains('board-full')")
                     scroller = "document.querySelector('main')" if full else "document.scrollingElement"
                     self.assertTrue(cdp.js(f"{rows}.filter(s => document.querySelector(s)).every(s => document.querySelector(s).getBoundingClientRect().bottom > 0 || {str(full).lower()})", sid), "at the top the rows show")
-                    cdp.js(f"{scroller}.scrollTop = 600", sid)
-                    self.until(cdp, sid, f"{scroller}.scrollTop > 100", "scrolled")
+                    # The browser can clamp a scrollTop already set (232 became 121 within 50 ms, with no scroll call from the app and scrollHeight 932
+                    # again at once). So the scroll is set again until the page is at its end and has stayed there for a second and a half.
+                    at_end = f"({scroller}.scrollTop = 600, {scroller}.scrollTop > 100 && {scroller}.scrollTop >= {scroller}.scrollHeight - {scroller}.clientHeight - 1)"
+                    for _ in range(3):
+                        self.until(cdp, sid, at_end, "scrolled to the end of the page")
+                        time.sleep(0.5)
+                    self.until(cdp, sid, at_end, "still at the end of the page")
                     got = cdp.js(
                         "(() => { const top = document.querySelector('.top'), bar = top && getComputedStyle(top).display !== 'none' ? top.getBoundingClientRect().bottom : 0;"
                         f" const rows = {rows}.map(s => document.querySelector(s)).filter(e => e && e.getBoundingClientRect().height > 0);"

@@ -44,7 +44,7 @@ export function useColWidths(table) {
   };
   /** Props for the heading cell: not a tab stop, but it can hold the focus (a click on it, or the code); it says how its width changes. */
   const head = (id, label, hidden) => hidden ? { "data-cw-head": id, "data-cw-table": table } : { tabIndex: -1, "data-cw-head": id, "data-cw-table": table, "aria-description": `Width of the ${label} column. Alt with Left or Right arrow changes it.` };
-  // hidden: the heading row is hidden from a screen reader (the Use cases list), so it holds no focus and no words; the arrows work from a row.
+  // hidden: the heading row is hidden from a screen reader (the Milestones list), so it holds no focus and no words; the arrows work from a row.
   const latest = useRef();
   latest.current = { put };
   useEffect(() => {
@@ -65,7 +65,15 @@ export function useColWidths(table) {
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
   }, [table]);
-  return { px, style, grip, head };
+  /** The widths to draw in a table `room` px wide (row 1104): the saved widths shrink together when they would leave the first column under `least` px
+   *  next to the columns that have no saved width (`rest`, their drawn px); the saved values themselves are never changed. */
+  const fit = (ids, room, rest, least = 160) => {
+    const own = ids.filter((id) => px(id) !== null), sum = own.reduce((a, id) => a + px(id), 0), free = room - least - rest;
+    return sum > 0 && sum > free ? Math.max(0, free) / sum : 1;
+  };
+  const drawn = (id, k) => (px(id) === null ? undefined : { width: `${k < 1 ? Math.max(MIN_COL, Math.floor(px(id) * k)) : px(id)}px` });
+  const any = () => Object.keys(saved).some((id) => px(id) !== null);       // a table with a chosen width is laid out in fixed mode, so the width holds
+  return { px, style, grip, head, fit, drawn, any };
 }
 
 /** A grid template: each default track, with the track of a column that has a chosen width set to that many pixels. `ids` runs along the tracks. */

@@ -16,7 +16,7 @@ from _paths import ROOT
 
 TESTS = ROOT / "tests"
 VERSION = "1.0.7"
-SCHEMA = 24              # 1.0.6 ended at layout 20; 1.0.7 took steps 21 to 24
+SCHEMA = 29              # 1.0.6 ended at layout 20; 1.0.7 took steps 21 to 24; item 1185 (1.0.9): 25, latest_update on raid and milestones
 
 # Filled with the rows merged so far; the cut bookkeeping adds the rest from the merged list.
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
@@ -98,11 +98,11 @@ COVERED = [
     ('1078', 'A milestone peek has the same rows and header line as a work item peek.',
      'test_milestone_peek_1078::Sources::test_the_editor_draws_the_rows_in_the_ruled_order_with_the_name_as_the_title'),
     ('1079', 'On a use case page a milestone can be added, with one Undo.',
-     'test_use_case_detail::Detail::test_add_a_milestone_is_one_change_with_one_undo_row_1079'),
+     'test_use_case_detail::Detail::test_add_a_milestone_links_it_directly_in_one_change_with_one_undo_row_1141'),
     ('1081', 'On a use case page the Work items card shows one line per item with one tinted status chip.',
      'test_use_case_detail::Detail::test_the_work_items_card_is_one_line_per_item_with_one_tinted_chip_row_1081'),
     ('1084', 'The List, Board and Group by icons follow the clear button and the tabs have the whole row.',
-     'test_work_items_header::Header::test_row_813_no_freshness_pill_and_the_filter_is_still_there_by_typing_and_by_a_saved_view'),
+     'test_view_icons_filter_line::IconsOnTheLine::test_count_x_and_three_icons_share_the_line_without_overlap'),
     ('1085', 'The Use cases page has four tabs over a filter line, with counts that follow the line.',
      'test_use_cases_list::Narrowing::test_the_tabs_counts_follow_the_line_and_narrow_the_list'),
     ('1087', 'Published reports has an address of its own and no peek.',
@@ -160,9 +160,13 @@ COVERED = [
     ('1096', 'The ask clark question box is one line, the suggestions hide while you type, and Ask is a round up arrow.',
      'test_ask_look::Look::test_the_box_is_one_line_the_suggestions_go_while_typing_and_the_send_is_a_round_arrow'),
     ('1128', 'A cancelled milestone says "No longer going ahead", and the head does not say "No milestones yet." over cancelled rows.',
-     'test_ms_cancelled_words::Words::test_a_cancelled_row_says_no_longer_going_ahead'),
+     'test_ms_cancelled_page::Drawn::test_one_cancelled_milestone'),
     ('1026', 'Close the Gantt Show menu, the Gantt table right-click menu and the / list: each fades out.',
-     'test_motion_menu_exit_four::Pins::test_row_1026_each_menu_is_wired_to_the_fade_and_the_css_names_it'),
+     'test_motion_menu_exit_four::Show::test_row_1026_1_the_gantt_show_menu_fades_out'),
+    ('1026', 'The Gantt table right-click menu fades out.',
+     'test_motion_menu_exit_four::Context::test_row_1026_2_the_gantt_table_right_click_menu_fades_out'),
+    ('1026', 'The / list fades out.',
+     'test_motion_menu_exit_four::Slash::test_row_1026_3_the_slash_insert_list_fades_out'),
     ('1027', 'Publish a Gantt whose owner or baseline date is also named in a section: it publishes.',
      'test_gantt_markers_bodies::OwnerAndDates::test_an_owner_that_a_section_body_also_names_publishes'),
     ('1037', 'A long label near the left edge of the Gantt starts inside the chart.',
@@ -195,6 +199,18 @@ COVERED = [
      'test_settings_data_page::Card::test_a_double_click_on_import_and_on_undo_applies_once_and_shows_no_error'),
     ('1044', 'At 900 wide the leftmost label of the Milestones strip is not clipped.',
      'test_milestones_dead_css::LeftLabel::test_the_left_most_label_starts_inside_the_strip'),
+    ('1121', 'In the window that asks what to import, Tab and Shift+Tab move on from Choose a file instead of getting stuck.',
+     'test_settings_data_page::Card::test_tab_and_shift_tab_move_on_from_choose_a_file_and_back_1121'),
+    ('1127', 'On the Gantt, a milestone opens its edit box from the keyboard (Enter or Space), and focus goes back to where you were when a box or menu closes.',
+     'test_gantt_chart::Chart::test_enter_or_space_on_a_milestone_opens_its_edit_box_with_real_keys'),
+    ('1129', 'A long folder path with no spaces in the Backups card wraps inside the card.',
+     'test_long_path_wrap::LongPathWrap::test_these_break_anywhere'),
+    ('1131', 'On the Use cases page a long no-match message wraps, and a long headline or milestone list stays within two lines.',
+     'test_use_cases_long_text_clamp::UseCasesLongTextClamp::test_no_match_message_wraps_anywhere'),
+    ('1132', 'A published file keeps the Timeline or Calendar choice of its Milestones when the page is reloaded.',
+     'test_ms_view_kept_in_file::MsViewKept::test_a_file_choice_goes_to_the_address_and_not_to_storage'),
+    ('1134', 'A filter line with several types, a plain word or is:overdue opens the same list from a copied link in a new tab.',
+     'test_filter_line_page::Line::test_the_address_carries_what_the_older_state_cannot_hold_and_a_new_tab_opens_the_same_list'),
 ]
 
 # The first sentence of each bullet, to find it by: {row id: start of its bullet}. Filled with COVERED.
@@ -247,7 +263,7 @@ BULLET_STARTS = {
     '1104': 'You can change a column\'s width by dragging',
     '831': 'The Data card in Settings has Export to Word and Import',
     '951': 'The Data card also has "Excel file layout". It opens a b',
-    '658': 'A work item or a decision can be deleted from its "..."',
+    '658': 'A work item or a decision can be deleted from its row menu',
     '1094': 'While ask clark is working, it shows a line from a deck',
     '1095': 'In the ask clark panel, New chat, History and Close are',
     '1036': 'The milestone plan picture in the Word file has the lane',
@@ -285,6 +301,12 @@ BULLET_STARTS = {
     '1122': 'After Preview or Restore in the Backups card, the restor',
     '1125': 'A double click on Import, or on its Undo, now counts onc',
     '1044': 'The leftmost label of the Milestones strip no longer cli',
+    '1121': 'In the window that asks what to import, Tab and Shift+Tab',
+    '1127': 'On the Gantt, a milestone now opens its edit box with Enter or Space',
+    '1129': 'A long folder path with no spaces in the Backups card',
+    '1131': 'On the Use cases page, a long message when nothing matches',
+    '1132': 'A published file now keeps the Timeline or Calendar choice',
+    '1134': 'A filter line with several types, a plain word or "is:overdue"',
 }
 
 # Merged rows whose note is another row's bullet or was left out as untrue: covered, but no bullet of their own (1117 repeats 669).

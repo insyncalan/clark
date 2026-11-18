@@ -149,6 +149,80 @@ class Junk(Base):
         self.assertIsNone(self.folder())
 
 
+class WindowsPaste(Base):
+    """The Windows drive-path branch gets the same first checks as pasted_folder: length, control and format characters, link form."""
+
+    def refused_on_windows(self, value, words):
+        with mock.patch.object(publish_flow.host_folders, "windows_host", return_value=True), \
+                mock.patch.object(publish_flow.host_folders, "to_container", side_effect=AssertionError("the path was mapped")) as mapped:
+            self.refused(value, words)
+        mapped.assert_not_called()
+
+    def test_an_over_long_paste_is_refused_unread(self):
+        self.refused_on_windows("C:\\" + "x" * publish_flow.MAX_PASTE, UNKNOWN)
+
+    def test_a_paste_with_a_format_character_is_refused(self):
+        for ch in ("\u202e", "\u200b", "\ufeff"):
+            with self.subTest(char=hex(ord(ch))):
+                self.refused_on_windows("C:\\Users\\Sam\\OneDrive" + ch + "\\Reports", UNKNOWN)
+
+    def test_a_link_form_paste_is_refused_as_a_link(self):
+        self.refused_on_windows("C://fictional.sharepoint.com/sites/HarbourBridge", LINK)
+
+    def test_a_plain_drive_path_still_reaches_the_mapping(self):
+        with mock.patch.object(publish_flow.host_folders, "windows_host", return_value=True), \
+                mock.patch.object(publish_flow.host_folders, "to_container", return_value=(str(self.reports), "")) as mapped, \
+                mock.patch.object(publish_flow.host_folders, "share_root", return_value=str(self.reports.parent)):
+            status, got = self.paste("C:\\Users\\Sam\\OneDrive\\Reports")
+        mapped.assert_called_once()
+
+    def test_the_windows_form_as_typed_is_returned_with_the_saved_folder(self):
+        typed = "C:\\Users\\Sam\\OneDrive\\Reports"
+        with mock.patch.object(publish_flow.host_folders, "windows_host", return_value=True), \
+                mock.patch.object(publish_flow.host_folders, "to_container", return_value=(str(self.reports), typed)), \
+                mock.patch.object(publish_flow.host_folders, "share_root", return_value=str(self.reports.parent)):
+            status, got = self.paste(typed)
+        self.assertEqual((status, got.get("ok")), (200, True), got)
+        self.assertEqual(got["folder_windows"], typed)
+        self.assertNotEqual(got["folder"], typed, "the stored folder is still the container path")
+
+    def paste_through_link(self, target):
+        """Paste a Windows path whose container form is a link, inside a tmp share root, pointing at `target`."""
+        import tempfile
+        share = Path(tempfile.mkdtemp()).resolve()
+        self.addCleanup(__import__("shutil").rmtree, str(share), True)
+        link = share / "link"
+        os.symlink(str(target), str(link))
+        typed = "C:\\Shared\\link"
+        with mock.patch.object(publish_flow.host_folders, "windows_host", return_value=True), \
+                mock.patch.object(publish_flow.host_folders, "to_container", return_value=(str(link), typed)), \
+                mock.patch.object(publish_flow.host_folders, "share_root", return_value=str(share)):
+            return share, self.paste(typed)
+
+    def test_a_link_inside_the_share_that_points_outside_is_refused(self):
+        import tempfile
+        outside = Path(tempfile.mkdtemp()).resolve()
+        self.addCleanup(__import__("shutil").rmtree, str(outside), True)
+        share, (status, got) = self.paste_through_link(outside)
+        self.assertEqual((status, got.get("ok")), (409, False), got)
+        self.assertEqual(got.get("code"), "client_folder_refused", got)
+
+    def test_a_link_inside_the_share_that_stays_inside_is_accepted(self):
+        import tempfile
+        share = Path(tempfile.mkdtemp()).resolve()
+        self.addCleanup(__import__("shutil").rmtree, str(share), True)
+        (share / "real").mkdir()
+        link = share / "link"
+        os.symlink(str(share / "real"), str(link))
+        typed = "C:\\Shared\\link"
+        with mock.patch.object(publish_flow.host_folders, "windows_host", return_value=True), \
+                mock.patch.object(publish_flow.host_folders, "to_container", return_value=(str(link), typed)), \
+                mock.patch.object(publish_flow.host_folders, "share_root", return_value=str(share)):
+            status, got = self.paste(typed)
+        self.assertEqual((status, got.get("ok")), (200, True), got)
+        self.assertEqual(got["folder"], str(share / "real"))
+
+
 class ThePage(unittest.TestCase):
     """The box under Choose folder, at 1400 and 900, light and dark: it pastes, saves and shows a refusal in a role=alert."""
 
@@ -159,7 +233,7 @@ class ThePage(unittest.TestCase):
         rig = Rig(self, saved=False, page_html=testpage.html)
         rig.publisher.onedrive_roots = [str(rig.onedrive)]
         with chrome() as cdp:
-            sid = navigate(cdp, rig.httpd.server_port, "#settings&p=PUB")
+            sid = navigate(cdp, rig.httpd.server_port, "#settings&p=PUB&s=folder")
             js = lambda expr: cdp.js(expr, sid)  # noqa: E731
             until = lambda expr, what: self.assertTrue(wait(lambda: js(expr), 15), what)  # noqa: E731
             until("!!document.querySelector('#client-folder-paste')", "the paste box")

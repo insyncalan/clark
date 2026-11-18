@@ -73,6 +73,7 @@ export const WORDS = {
   filledRight: (n) => `Filled right ${n} cell${n === 1 ? "" : "s"}.`,
   filled: (n) => `Filled ${n} cell${n === 1 ? "" : "s"}.`,
   added: "A line was added with the next free ID",
+  addedHidden: "A line was added. The Show choice hides it.",
   deleted: (ids) => (ids.length === 1 ? `Line ${ids[0]} deleted` : `${ids.length} lines deleted`),
   copied: "Copied. Paste it here or into Excel.",
   changed: (label, row) => `${label} changed on line ${row}.`,

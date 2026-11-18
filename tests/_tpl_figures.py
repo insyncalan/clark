@@ -377,6 +377,26 @@ def make_cases(TYPE, PLACES):
                 p.view()
                 self.assertIn("Users trained", p.js(f"document.querySelector('[data-id={json.dumps(ref)}]').textContent"))
 
+        def test_a_save_of_one_field_does_not_redraw_the_others(self):
+            """Type a label, Tab to the number and type: the save of the label comes back while the number is being typed. The number
+            box must be the same one, still focused, still holding what was typed."""
+            ref = self.add()
+            sec = f"[data-id={json.dumps(ref)}]"
+            num = f"document.querySelector('{sec} [aria-label=\"Figure 1 number\"]')"
+            with chrome() as cdp:
+                p = self.visit(cdp)
+                cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)
+                p.edit()
+                p.until(f"!!document.querySelector('{sec} [data-slot]')", "the places")
+                p.js(f"(function(){{var el=document.querySelector('{sec} [aria-label=\"Figure 1 label\"]'); el.focus(); el.value='Users trained'; window.__num = {num};"
+                     "el.dispatchEvent(new Event('change', {bubbles: true}));})()")
+                p.js(f"{num}.focus()")
+                p.type("12")
+                p.saved()
+                self.assertEqual(p.js(f"{num} === window.__num"), True, "the number box was not replaced")
+                self.assertEqual(p.js(f"document.activeElement === {num}"), True, "it still has the focus")
+                self.assertEqual(p.js(f"{num}.value"), "12", "it still holds what was typed")
+
         def test_a_half_filled_figure_says_it_stays_out(self):
             ref = self.add(typed(label="Only a label", value=""))
             with chrome() as cdp:

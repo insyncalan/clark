@@ -131,20 +131,20 @@ class TypedFilter(unittest.TestCase):
 class SettingsChips(unittest.TestCase):
     TEXT = flat(SECS["settings"])
 
-    def test_the_chip_names_and_order_are_the_pages(self):
+    def test_the_menu_names_and_order_are_the_pages(self):
         views = code("components", "Views.jsx")
-        cards = re.search(r"const CARDS = \[(.*?)\];", views, re.S).group(1)
-        names = [n for n in re.findall(r'\["\w+", "([^"]*)", "[\w-]+"\]', cards)]
-        self.assertEqual(names, ["Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "", "", "People", "Asking", "Feedback", ""])
+        groups = re.search(r"const GROUPS = \[(.*?)\n\];", views, re.S).group(1)
+        names = re.findall(r'\["[\w-]+", "([^"]+)", \[[^\]]*\]\]', groups)
+        self.assertEqual(names, ["Projects", "People", "Profile", "Folder", "Brand", "Appearance", "Reports", "Backups", "Export and import", "Claude and AI", "Logs and diagnostics", "Version and updates"])
+        self.assertEqual(re.findall(r'^  \["([^"]+)", \[\[', groups, re.M), ["Everyday", "Publishing", "Look and feel", "Data and safety", "Advanced"])
         self.assertIn('Update.chip = L.TITLE', code("edit", "Update.jsx"))
         self.assertIn('TITLE = "Version and updates"', code("logic", "update.js"))
-        self.assertIn("Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking, Feedback and Quit, in the order the cards are drawn.", self.TEXT)
         self.assertIn('<nav class="set-bar"', views)
-        self.assertIn('aria-current={here === headId ? "location" : undefined}', views)
+        self.assertIn('aria-current={page[0] === slug ? "page" : undefined}', views)
         self.assertIn('NEEDS_PROJECT = ["ClientFolder", "ReviewDays", "GanttSetting"]', views)
         self.assertIn("Publishing, Freshness and Gantt need an open project.", self.TEXT)
-        self.assertIn("A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title)", self.TEXT)
-        self.assertIn("The link of the card you are reading is marked.", self.TEXT)
+        # the Help words still name the cards, which are the same cards; they are rewritten for the menu in a later stage of row 1024
+        self.assertIn("Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking, Feedback and Quit, in the order the cards are drawn.", self.TEXT)
 
     def test_published_reports_is_no_longer_a_settings_card(self):      # row 1087: it is a page of its own, reached from the profile circle
         views = code("components", "Views.jsx")
@@ -184,14 +184,14 @@ class SettingsChips(unittest.TestCase):
 class AskOff(unittest.TestCase):
     def test_the_button_hides_and_the_slash_still_opens(self):
         text = flat(SECS["ask-clark"])
-        self.assertIn("if (!askOn.value) return null;", code("edit", "AskButton.jsx"))
+        self.assertIn("if (!askOn.value || narrowHeader.value) return null;", code("edit", "AskButton.jsx"))  # item 1177: AskButton.jsx:11 keeps the askOn guard and adds narrowHeader (ask clark is in the profile menu at 900)
         keys = code("edit", "askPanelState.js")
         self.assertIn('e.key === "/"', keys)
         self.assertNotIn("askOn", keys[keys.index("export function installAskKeys"):keys.index("document.addEventListener(\"mousedown\"")])
         words = code("edit", "askWords.js")
         self.assertIn('OFF_LINE = "Asking is off. Turn it on in Settings."', words)
         self.assertIn('OFF_LINK = "Open Settings"', words)
-        self.assertIn("{W.OFF_LINE} <a href=\"#settings\"", code("edit", "AskPanel.jsx"))
+        self.assertIn("{W.OFF_LINE} <a href=\"#settings&s=claude\"", code("edit", "AskPanel.jsx"))      # row 1024: the link opens the Claude and AI page
         self.assertIn("The **ask clark** button shows only while asking is on. With asking off, [[/]] still opens the panel, except while Help is open, and the panel says “Asking is off. Turn it on in Settings.” and has an **Open Settings** link.", text)
         self.assertIn("!helpOpen.value", keys)       # #754: the ask key leaves Help alone, so the sentence says 'except while Help is open'
 

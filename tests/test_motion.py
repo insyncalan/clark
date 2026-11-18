@@ -120,6 +120,8 @@ class Looks(tre.Base):
         _, media, own = mode
         p = tre.Pg.at(self, cdp, self.s.port, hash_)
         cdp.call("Emulation.setEmulatedMedia", {"features": te.REDUCE if media else ALLOW}, p.sid)
+        if not media and not own:
+            p.js("delete document.documentElement.dataset.motion")  # a Mac that reduces motion makes the page paint data-motion=reduce at load
         p.ready() if hash_.startswith('#dashboard') else p.until("!!document.querySelector('#work-count')", 'the list drew')
         if own:
             p.js(OWN)
@@ -194,18 +196,21 @@ class Looks(tre.Base):
                 p = self.go(cdp, "#work&p=ABC", mode)
                 p.until("!!document.querySelector('#work-count')", "the list drew")
                 before = p.js("document.querySelector('#work-count').textContent")
+                # row 1243: the animation is short, so a Mac under load read it after it had ended (0 running): note its start in the page instead
+                p.js("window.__countAnim = null; document.addEventListener('animationstart', e => { if (e.target && e.target.id === 'work-count') window.__countAnim = e.animationName; }, true)")
                 tf.set_line(p.cdp, p.sid, "is:closed")      # row 1059: the Open / Closed / All pills are gone; the line says it
                 p.until(f"document.querySelector('#work-count').textContent !== {before!r}", "the count changed")
                 name, running = self.anim(p, "#work-count")
                 if mode[0] == "allowed":
-                    self.assertEqual(name, "m-in")
-                    self.assertGreater(running, 0)
+                    p.until("window.__countAnim !== null", "the count line's animation started")
+                    self.assertEqual(p.js("window.__countAnim"), "m-in")
                     self.assertEqual(p.js("document.querySelector('#fline-input').disabled"), False, "the filter line stays live")
                 else:
                     self.assertEqual((name, running), ("none", 0))
 
 
-    def test_the_drop_line_eases_in_while_a_section_is_dragged_and_is_still_in_either_reduced_form(self):
+    # row 1214: the drag preview draws the moved section as the dashed slot where it would land (the old line mark is not drawn while a list is dragged)
+    def test_the_drop_slot_eases_in_while_a_section_is_dragged_and_is_still_in_either_reduced_form(self):
         for mode in MODES:
             with self.subTest(mode=mode[0]), chrome() as cdp:
                 p = self.go(cdp, "#dashboard&p=ABC", mode)
@@ -217,15 +222,15 @@ class Looks(tre.Base):
                 p.mouse("mousePressed", hx, hy, 1)
                 for step in range(1, 9):
                     p.mouse("mouseMoved", hx, hy + (ty - hy) * step / 8, 1)
-                p.until("!!document.querySelector('.sec.drop-before')", "a drop line while dragging")
-                name, running = self.anim(p, ".sec.drop-before")
+                p.until("!!document.querySelector('.sec.drag-slot')", "the slot while dragging")
+                name, running = self.anim(p, ".sec.drag-slot")
                 if mode[0] == "allowed":
-                    self.assertEqual(name, "m-line-top")
-                    self.assertEqual(p.js("getComputedStyle(document.querySelector('.sec.drop-before')).pointerEvents"), "auto", "the page stays live")
-                    p.until("document.querySelector('.sec.drop-before').getAnimations().length === 0", "it ends by itself", 3)
+                    self.assertEqual(name, "m-outline")
+                    self.assertEqual(p.js("getComputedStyle(document.querySelector('.sec.drag-slot')).pointerEvents"), "auto", "the page stays live")
+                    p.until("document.querySelector('.sec.drag-slot').getAnimations().length === 0", "it ends by itself", 3)
                 else:
-                    self.assertEqual((name, running), ("none", 0), "the line is simply there")
-                self.assertNotEqual(p.js("getComputedStyle(document.querySelector('.sec.drop-before')).boxShadow"), "none", "the line is drawn")
+                    self.assertEqual((name, running), ("none", 0), "the slot is simply there")
+                self.assertEqual(p.js("getComputedStyle(document.querySelector('.sec.drag-slot')).borderTopStyle"), "dashed", "the slot is drawn")
                 p.key("Escape", code="Escape", vk=27)          # cancel: nothing is dropped, so the next mode starts from the same order
                 p.mouse("mouseReleased", hx, ty, 0)
 
@@ -345,7 +350,7 @@ class More(tre.Base):
                 p.view()
                 p.edit()
                 self.assertFalse(p.js("!!document.querySelector('.sec-hint')"), "only once")
-                self.assertEqual(p.js("JSON.stringify(Object.keys(localStorage).concat(Object.keys(sessionStorage)).filter((k) => k !== 'clark.dragHintSeen'))"), "[]", "the handle hint stores nothing (the report bar's own drag hint keeps its clark.dragHintSeen)")
+                self.assertEqual(p.js("JSON.stringify(Object.keys(localStorage).concat(Object.keys(sessionStorage)).filter((k) => k !== 'clark.dragHintSeen' && k !== 'clark.lastProject'))"), "[]", "the handle hint stores nothing (the report bar's own drag hint keeps its clark.dragHintSeen, and the last opened project its clark.lastProject, item 1135)")
 
     def test_a_timeline_section_stores_no_zoom_until_the_edge_is_dragged(self):
         """Entering Edit (and the 16 px room an overlay scrollbar keeps under the last lane) resizes the timeline box: that is not a drag, so no zoom is stored."""
@@ -393,6 +398,9 @@ class PublishLooks(tpd.Base):
                 p = self.page(cdp)
                 _, media, own = mode
                 cdp.call("Emulation.setEmulatedMedia", {"features": te.REDUCE if media else ALLOW}, p.sid)
+                if not media and not own:
+                    # a Mac that reduces motion makes the page paint data-motion="reduce" at load; the pin comes after, so clear it
+                    p.js("delete document.documentElement.dataset.motion")
                 if own:
                     p.js(OWN)
                 p.js(self.HOLD)
@@ -403,6 +411,8 @@ class PublishLooks(tpd.Base):
                 self.assertEqual(p.js("document.querySelector('[data-go]').disabled"), True, "no second publish while it works")
                 spin = p.js("(function(){var e=document.querySelector('.spin');return [getComputedStyle(e).animationName,e.getAnimations().length];})()")
                 if mode[0] == "allowed":
+                    p.until("getComputedStyle(document.querySelector('.spin')).animationName === 'pub-spin'", "the ring turns when motion is allowed")
+                    spin = p.js("(function(){var e=document.querySelector('.spin');return [getComputedStyle(e).animationName,e.getAnimations().length];})()")
                     self.assertEqual(spin[0], "pub-spin")
                     self.assertGreater(spin[1], 0)
                     self.assertTrue(p.js("document.querySelector('.spin').getAnimations()[0].effect.getComputedTiming().iterations === Infinity"),

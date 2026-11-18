@@ -12,10 +12,11 @@ export function Edit({ section }) {
   const saved = { href: asText(content.href), title: asText(content.title), site: asText(content.site) };
   const [f, setF] = useState(saved);
   const [problem, setProblem] = useState("");
-  const seen = useRef(section.body);
-  useEffect(() => {                       // a save or an Undo brought another body: show it (never on the first draw, which would undo typing)
-    if (seen.current === section.body) return;
-    seen.current = section.body;
+  const seen = useRef(JSON.stringify(saved));
+  useEffect(() => {                       // a save or an Undo brought another link, title or site line: show it. A save of the words alone leaves the typing be (and the first draw never undoes typing)
+    const now = JSON.stringify(saved);
+    if (seen.current === now) return;
+    seen.current = now;
     setF(saved);
   }, [section.body]);
   const set = (k) => (e) => setF({ ...f, [k]: e.currentTarget.value });

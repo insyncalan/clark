@@ -1,4 +1,4 @@
-"""Help names the Work items controls as the screen does (row 1084): List and Board, Group by, and Import and Export, all at the
+"""Help names the Work items controls as the screen does (row 1084): List and Board and Group by, at the
 right end of the filter line. Quick tier: reads files, starts no browser."""
 import json
 import re
@@ -22,10 +22,14 @@ class WorkLineWords(unittest.TestCase):
         self.assertNotIn("beside the saved views", TEXT)
         self.assertNotIn("next to Table and Board", TEXT)
 
-    def test_the_excel_icons_are_on_the_filter_line(self):
+    def test_the_excel_icons_are_not_on_the_filter_line(self):
+        # item 1142: Import and Export are in Settings, Data, and the profile menu, not on the filter line
         self.assertNotIn("Export to Excel** icon in the page header, beside the add button.", TEXT)
         self.assertNotIn("Work items toolbar", TEXT)
-        self.assertIn("**Export to Excel** icon at the right end of the filter line", TEXT)
+        self.assertNotIn("**Export to Excel** icon at the right end of the filter line", TEXT)
+        self.assertNotIn("are the Import and Export icons", TEXT)
+        self.assertIn("At the right end of the filter line are the **List** and **Board** icons and the **Group by** button", TEXT)
+        self.assertIn("With a project open, from any page, including **Work items**, the export is in the profile circle menu or in **Settings**, in the **Data** card", TEXT)
 
     def test_the_icon_list_calls_the_layout_button_list(self):
         self.assertIn('"List",\n    "Work items as a list, in groups"', TEXT)

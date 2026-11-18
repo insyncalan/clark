@@ -5,16 +5,22 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { listBackups, previewBackup, restoreBackup, setCopyFolder } from "./safetyApi.js";
 import * as L from "../logic/safety.js";
 
+// Item 1200: the example shown in the empty copy-folder box (placeholder text, not a value).
+export const COPY_PLACEHOLDER = "/Users/you/OneDrive/clark backups";
+
 const REAL = { list: listBackups, preview: previewBackup, restore: restoreBackup, setCopyFolder };
 
 // Copy my backups to (#622): one optional folder, off until a path is saved. Saved by the Save button or Enter (never by leaving the box,
 // because saving makes the folder when it isn't there). An empty box turns it off. The server decides; a refusal is shown under the box
 // and the box keeps what was typed. The OneDrive folders it found are offered as one-press choices that fill the box.
-function CopyFolder({ list, api, saved }) {
+// `row` (row 1115, Essentials): the box alone, for a setting row that brings the name and the help line; its ids then start with "ess-" so the page never holds one twice.
+export function CopyFolder({ list, api, saved, row }) {
+  const ix = row ? "ess-safety" : "safety";
   const [typed, setTyped] = useState(list.copy_folder || "");
   const [said, setSaid] = useState(null);                    // null, or {kind: "success" | "error", text}
   const [busy, setBusy] = useState(false);
   async function save() {
+    if (busy) return;                                    // not `disabled` while it works: a disabled button drops the keyboard's focus to the page
     setBusy(true);
     setSaid(null);
     const r = await api.setCopyFolder(typed);
@@ -26,17 +32,20 @@ function CopyFolder({ list, api, saved }) {
     } else setSaid({ kind: "error", text: L.answerWords(r.status, r.body) });
   }
   return (
-    <div class="fld copy-fld" id="safety-copy">
-      <label for="safety-copy-box">{list.copy_label}</label>
-      <input id="safety-copy-box" type="text" value={typed} autocomplete="off" spellcheck={false} data-copy-folder aria-describedby="safety-copy-line safety-copy-said"
+    <div class={row ? "copy-fld" : "fld copy-fld"} id={`${ix}-copy`}>
+      {row ? null : <label for="safety-copy-box">{list.copy_label}</label>}
+      <input id={`${ix}-copy-box`} type="text" value={typed} autocomplete="off" spellcheck={false} placeholder={COPY_PLACEHOLDER} {...{ [row ? "data-ess-copy-folder" : "data-copy-folder"]: "" }} aria-describedby={`${row ? "" : ix + "-copy-line "}${ix}-copy-said`}
         aria-invalid={said && said.kind === "error" ? "true" : undefined}
         onInput={(e) => setTyped(e.currentTarget.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (!busy) save(); } }} />
-      <small id="safety-copy-line">{list.copy_help}</small>
+      {row ? null : <small id="safety-copy-line">{list.copy_help}</small>}
       {(list.copy_suggestions || []).map((path) => (
-        <button type="button" class="btn quiet sm" data-copy-suggestion key={path} disabled={busy} onClick={() => setTyped(path)}>Use {path}</button>
+        <div class="copy-sug" key={path}>
+          <span class="copy-sug-path">{path}</span>
+          <button type="button" class="btn" {...{ [row ? "data-ess-copy-suggestion" : "data-copy-suggestion"]: "" }} aria-label={`Use ${path}`} aria-disabled={busy ? "true" : undefined} onClick={() => { if (!busy) setTyped(path); }}>Use</button>
+        </div>
       ))}
-      <div class="row"><button type="button" class="btn sm" data-copy-save disabled={busy} onClick={save}>{L.LABELS.save}</button></div>
-      <div id="safety-copy-said" role={said && said.kind === "error" ? "alert" : "status"} aria-live="polite">{said ? <p class={said.kind === "error" ? "fld-bad" : "success"}>{said.text}</p> : null}</div>
+      <div class="row"><button type="button" class="btn sm" {...{ [row ? "data-ess-copy-save" : "data-copy-save"]: "" }} aria-disabled={busy ? "true" : undefined} onClick={save}>{L.LABELS.save}</button></div>
+      <div id={`${ix}-copy-said`} role={said && said.kind === "error" ? "alert" : "status"} aria-live="polite">{said ? <p class={said.kind === "error" ? "fld-bad" : "success"}>{said.text}</p> : null}</div>
     </div>
   );
 }
@@ -62,11 +71,19 @@ export function Safety({ api = REAL, reload = () => window.location.reload(), st
   useEffect(() => { if (panel) shown(panelEl.current); }, [panel && panel.name, panel && panel.confirming]);
   useEffect(() => { if (msg && state.phase === "ready") shown(msgEl.current); }, [msg, state.phase]);
 
-  async function look(name, confirming) {
+  // Closing the panel hands focus back to the row button that opened it, so the keyboard does not start again from the top.
+  const opener = useRef(null);
+  const asked = useRef(0);                                   // the newest preview asked for; closing the panel makes a late answer stale
+  const closePanel = () => { asked.current += 1; setPanel(null); const el = opener.current; if (el && el.isConnected) el.focus(); };
+
+  async function look(name, confirming, e) {
+    if (e && e.currentTarget) opener.current = e.currentTarget;
+    const mine = ++asked.current;
     setBusy(true);
     setMsg(null);
     const r = await api.preview(name);
     setBusy(false);
+    if (mine !== asked.current) return;
     if (r.status === 200 && r.body && r.body.ok === true) setPanel({ name, preview: r.body, confirming });
     else { setPanel(null); setMsg({ kind: "error", text: L.answerWords(r.status, r.body) }); }
   }
@@ -104,8 +121,8 @@ export function Safety({ api = REAL, reload = () => window.location.reload(), st
                   <li key={v.name} data-backup={v.name}>
                     <span class="when num">{v.when}</span> <span class="kind">{v.kind}</span> <span class="muted size">{v.size}</span>
                     <span class="acts">
-                      <button type="button" class="btn sm" data-preview disabled={busy} onClick={() => look(v.name, false)}>{L.LABELS.preview}</button>
-                      <button type="button" class="btn sm" data-restore disabled={busy} onClick={() => look(v.name, true)}>{L.LABELS.restore}</button>
+                      <button type="button" class="btn sm" data-preview aria-label={`${L.LABELS.preview} ${v.when}`} disabled={busy} onClick={(e) => look(v.name, false, e)}>{L.LABELS.preview}</button>
+                      <button type="button" class="btn sm" data-restore aria-label={`${L.LABELS.restore} ${v.when}`} disabled={busy} onClick={(e) => look(v.name, true, e)}>{L.LABELS.restore}</button>
                     </span>
                   </li>
                 );
@@ -119,20 +136,21 @@ export function Safety({ api = REAL, reload = () => window.location.reload(), st
         </>
       ) : null}
       {panel ? (
-        <div class="backup-panel" id="backup-panel" ref={panelEl} tabIndex={-1} role="region" aria-label="Backup preview">
+        <div class="backup-panel" id="backup-panel" role="region" aria-label="Backup preview" tabIndex={-1} ref={panelEl}
+             onKeyDown={(e) => { if (e.key === "Escape" && !busy) { e.stopPropagation(); closePanel(); } }}>
           {L.previewLines(panel.preview).map((t) => <p key={t}>{t}</p>)}
           {panel.confirming && L.canRestore(panel.preview) ? (
             <>
               <p><b id="backup-confirm">{L.confirmLine(panel.preview)}</b></p>
               <div class="row">
                 <button type="button" class="btn pri" data-put-back disabled={busy} onClick={putBack}>{L.LABELS.putBack}</button>
-                <button type="button" class="btn quiet" data-cancel disabled={busy} onClick={() => setPanel(null)}>{L.LABELS.cancel}</button>
+                <button type="button" class="btn quiet" data-cancel disabled={busy} onClick={closePanel}>{L.LABELS.cancel}</button>
               </div>
             </>
           ) : (
             <div class="row">
               {L.canRestore(panel.preview) ? <button type="button" class="btn" data-restore-from-preview disabled={busy} onClick={() => setPanel({ ...panel, confirming: true })}>{L.LABELS.restore}</button> : null}
-              <button type="button" class="btn quiet" data-cancel onClick={() => setPanel(null)}>{L.LABELS.close}</button>
+              <button type="button" class="btn quiet" data-cancel onClick={closePanel}>{L.LABELS.close}</button>
             </div>
           )}
         </div>

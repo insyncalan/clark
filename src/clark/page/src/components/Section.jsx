@@ -1,8 +1,7 @@
 // One section of the report (#65). In Edit, `tools` (edit/) adds the gutter control (grip, + and menu) and the editable title; View
 // never renders any of them, so they are not in the page at all.
-// A 'Needs from you' section (#121) is a table of rows: view only here and in a published file, edited in place in Edit (edit/NeedsEdit.jsx).
 // A 'Progress tracker' section (#189) is a bar and groups of lines: view only here and in a published file, edited in place in Edit (edit/TrackerEdit.jsx).
-// A text section's body (Summary, This week, Next week; #74) is drawn only in a published file, view-only: the publish build
+// A text section's body (Current state, This week, Next week; #74) is drawn only in a published file, view-only: the publish build
 // cleaned it (publish.clean_html) before it wrote the file, and the file holds nothing else. A published file draws no other type
 // (Dashboard leaves those sections out of it, so a client never reads that something is missing). The page clark serves never
 // draws a saved body as markup in Edit until the one editor arrives (#66); there, every type but the ones below shows one quiet
@@ -13,7 +12,7 @@
 // section and the tools; View and the file: its view part from templates/index.js, given the section and the report's data). Dashboard leaves a template
 // with nothing to show out of View and the file, so its view part is only ever asked to draw something. No branch per template
 // is ever added here. The Supporting documents section (#74) is its links: Documents.jsx in View and a file, tools.DocumentsEdit in Edit.
-import { dropAt, fromFile, data } from "../stores/report.js";
+import { dropAt, dragFrom, dragList, fromFile, data } from "../stores/report.js";
 import { templateFor } from "../templates/index.js";
 import { ItemRows } from "./ItemRows.jsx";
 import { KINDS } from "../logic/sectionRows.js";
@@ -23,9 +22,9 @@ import { Glance } from "./Glance.jsx";
 import { UseCases } from "./UseCases.jsx";
 import { MsBlock } from "./MsBlock.jsx";
 import { emptyBody } from "../logic/emptyBody.js";
-import { Needs } from "./Needs.jsx";
 import { Documents } from "./Documents.jsx";
 import { Tracker } from "./Tracker.jsx";
+import { sectionShows } from "../templates/notes.js";
 
 // View's text for a text or current section: cleaned HTML in the prose style, or one plain line when there is nothing to read.
 function ViewText({ html }) {
@@ -42,27 +41,30 @@ export function Section({ section, index, count, slot, anchor, tools, clean }) {
   const editing = !!tools;
   const hidden = section.hidden ? 1 : 0;
   const drop = editing && dropAt.value ? dropAt.value : null;      // what a drag would draw (#95)
-  const mark = !drop ? "" : drop.line === "before" && drop.ids.includes(section.id) ? " drop-before"
+  const moved = editing && dragList.value && dragFrom.value === section.id;      // row 1214: the place it would land in, drawn dashed
+  const mark = moved ? " drag-slot" : !drop || (editing && dragList.value) ? "" : drop.line === "before" && drop.ids.includes(section.id) ? " drop-before"
     : drop.outline === section.id ? ` drop-${drop.side}` : "";
+  const from = editing && dragFrom.value === section.id ? " drag-from" : "";
   const changed = isChanged(section.id);
   const tpl = templateFor(section.type);
+  const shows = sectionShows(section);      // item 1272: a section can show without its tile or its heading
   return (
-    <article class={`sec slot-${slot}${hidden ? " is-hidden" : ""}${changed ? " is-changed" : ""}${mark}`}
+    <article class={`sec slot-${slot}${shows.tile ? "" : " no-tile"}${shows.heading ? "" : " no-head"}${hidden ? " is-hidden" : ""}${changed ? " is-changed" : ""}${mark}${from}`}
       id={anchor || anchorId(section.id)} tabIndex={-1} data-id={section.id} data-type={section.type} data-changed={changed ? "1" : undefined}>
       {editing ? <tools.Gutter section={section} count={count} /> : null}
       <header class="sec-head">
         <h2 class="sec-h">{editing ? <tools.Title section={section} /> : section.title}</h2>
         {changed ? <span class="tag chg">{WORD}</span> : null}
         {editing && hidden ? <span class="tag hid">Left out of the published page</span> : null}
-        {editing && section.type === "usecases" && tools.ucEdit ? <tools.ucEdit.Add /> : null}
+        {editing && section.type === "usecases" && tools.ucEdit ? <tools.ucEdit.Configure section={section} /> : null}
+        {editing && section.type === "milestones" && tools.ucEdit ? <tools.ucEdit.Configure section={section} /> : null}
       </header>
-      {section.type === "glance" ? <Glance tools={tools} clean={clean} /> : section.type === "usecases" ? <UseCases tools={tools} /> : section.type === "milestones" ? <MsBlock place={`sec-${section.id}`} tools={tools} />
+      {section.type === "glance" ? <Glance tools={tools} clean={clean} /> : section.type === "usecases" ? <UseCases tools={tools} section={section} /> : section.type === "milestones" ? <MsBlock place={`sec-${section.id}`} tools={tools} section={section} />
         : tpl ? (editing ? <TemplateEdit section={section} tools={tools} /> : <tpl.view section={section} data={data.value} clean={clean} />)
-        : section.type === "needs" ? (editing ? <tools.NeedsEdit section={section} /> : <Needs section={section} />)
         : section.type === "docs" ? (editing ? <tools.DocumentsEdit section={section} /> : <Documents />)
         : section.type === "tracker" ? (editing ? <tools.TrackerEdit section={section} slot={slot} /> : <Tracker section={section} slot={slot} />)
         : editing && section.type === "text" && tools.richOn("body")
-        ? <tools.RichField field="body" id={section.id} value={section.body} label={`${section.title} text`} />
+        ? <tools.RichField field="body" id={section.id} value={section.body} label={`${section.title} text`} empty={tools.richHint(section)} />
         : fromFile.value && section.type === "text"
         ? (typeof section.body === "string" && section.body ? <div class="sec-body prose" dangerouslySetInnerHTML={{ __html: section.body }} /> : null)
         : clean && (section.type === "current" || (!editing && section.type === "text"))     // row 850: Edit draws the Current state text too (read only: the project's headline text has no write kind yet, see edit/richSave.js)

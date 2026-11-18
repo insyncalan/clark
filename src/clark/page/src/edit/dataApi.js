@@ -2,11 +2,12 @@
 // published file has no Settings and asks nothing). Each answers { ok, status, body, words }: never a throw, and `words` is the plain
 // sentence to show when it did not work (logic/dataCard.js replyWords). No other file names these routes.
 import { token } from "../stores/report.js";
+import { zoneFetch } from "../api.js";
 import { replyWords } from "../logic/dataCard.js";
 
 async function post(path, payload) {
   try {
-    const r = await fetch(path, { method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" }, body: JSON.stringify(payload), cache: "no-store" });
+    const r = await zoneFetch(path, { method: "POST", headers: { "X-Clark-Token": token(), "Content-Type": "application/json" }, body: JSON.stringify(payload), cache: "no-store" });
     const body = await r.json().catch(() => null);
     const ok = r.ok && !!body && body.ok === true;
     return { ok, status: r.status, body, words: ok ? "" : replyWords(r.status, body) };
@@ -21,5 +22,6 @@ export const checkWorkbook = (project, name, data) => post("/api/excel-import", 
 export const listSheets = (project, name, data) => post("/api/excel-import", { op: "sheets", project, name, data });
 // ...then the check of only the ticked sheets (`tables`: "actions", "raid", "decisions", "milestones", "use_cases") of that kept workbook.
 export const checkSheets = (project, file, tables) => post("/api/excel-import", { op: "check", project, file, sheets: tables });
-export const applyWorkbook = (project, plan, accept, confirm) => post("/api/excel-import", { op: "apply", project, plan, accept, confirm: !!confirm });
+// ...and the apply; `answers` ({ unknown id: { do: "create" } or { do: "use", id } }) is sent only when the check asked about milestones or use cases clark does not have (row 1156).
+export const applyWorkbook = (project, plan, accept, confirm, answers) => post("/api/excel-import", { op: "apply", project, plan, accept, confirm: !!confirm, ...(answers && Object.keys(answers).length ? { answers } : {}) });
 export const undoWorkbook = (project, applyId) => post("/api/excel-import", { op: "undo", project, apply_id: applyId });

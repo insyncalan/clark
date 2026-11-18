@@ -185,7 +185,7 @@ class Launch(unittest.TestCase):
         self.assertEqual((log, cwd), (self.folder / "server.log", str(self.folder)))
         self.assertEqual(f.windows, [("http://clark.localhost:8800/", "/stub/browser")])
         self.assertEqual(f.browser, [])
-        self.assertEqual(f.said, ["Starting clark...", "A minute after the last window closes, clark stops by itself.",
+        self.assertEqual(f.said, ["Starting clark...", "Two minutes after the last window closes, clark stops by itself.",
                                   "Opened clark in Chrome."])
 
     def test_it_asks_with_this_data_folders_mark(self):

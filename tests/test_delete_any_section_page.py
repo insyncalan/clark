@@ -46,11 +46,11 @@ class DeleteAnySection(Base):
             p.edit()
             for w in WIDTHS:
                 self.at(cdp, p, w)
-                for ref in ("ABC-S-004", "ABC-S-008"):                      # Milestones, Risks and issues
+                for ref in ("ABC-S-004", "ABC-S-007"):                      # Milestones, Risks and issues
                     p.menu(ref, "delete")
                     p.order_is([i for i in IDS if i != ref], f"{ref} deleted at {w}")
                     self.assertNotIn(ref, self.ids_in_store())
-                    self.assertEqual(p.toast(), "Section deleted.")
+                    p.toast_is("Section deleted.")      # the toast from the last Ctrl+Z may still be up
                     p.js("document.querySelector('[data-undo]').click()")      # Undo
                     p.order_is(IDS, f"Undo at {w}")
                     p.menu(ref, "delete")
@@ -71,10 +71,10 @@ class DeleteAnySection(Base):
                 self.assertIsNone(p.js("document.querySelector('[data-template=built-in-raid]')"), "a built-in that is there is not offered")
                 p.js("document.querySelector('[data-template=built-in-milestones] input').click()")
                 p.js("document.querySelector('button[data-place]').click()")
-                p.until("document.querySelectorAll('.secs > .sec').length === 11", "added")
+                p.until("document.querySelectorAll('.secs > .sec').length === 10", "added")
                 self.assertEqual(p.titles().count("Milestones"), 1)
                 p.menu(p.ids()[3], "delete")                                    # ready for the next width
-                p.until("document.querySelectorAll('.secs > .sec').length === 10", "deleted again")
+                p.until("document.querySelectorAll('.secs > .sec').length === 9", "deleted again")
 
 
 if __name__ == "__main__":

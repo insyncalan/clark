@@ -58,8 +58,10 @@ from clark import ask, platform
 PROVIDER = "claude"
 # An npm global or nvm install is looked for too (a "*" stands for one nvm node version). Its `claude` is a link: it is followed to the file
 # it names, and that file must still be a Mac program (the native package's own binary); a script is refused as before.
+# Row 1100: the VS Code extension keeps its own Mac program in its folder (the newest version first); it passes the same checks.
 PLACES = ("~/.local/bin/claude", "~/.claude/local/claude", "/opt/homebrew/bin/claude", "/usr/local/bin/claude",
-          "~/.npm-global/bin/claude", "~/.nvm/versions/node/*/bin/claude")
+          "~/.npm-global/bin/claude", "~/.nvm/versions/node/*/bin/claude",
+          "~/.vscode/extensions/anthropic.claude-code-*/resources/native-binary/claude")
 OTHER_ROOTS = ("/opt/homebrew", "/usr/local")       # besides the home folder, where the file a place names may be
 NEEDED_FLAGS = ("--print", "--safe-mode", "--disable-slash-commands", "--tools", "--strict-mcp-config", "--setting-sources",
                 "--no-session-persistence", "--system-prompt", "--output-format", "--max-budget-usd")
@@ -229,9 +231,14 @@ def native_problem(real, roots):
 
 
 def _version_key(path):
-    """Sort key by the numbers in a path (v20.1.0 -> 20, 1, 0), so v10 and v20 come after v9; a name with no number sorts lowest."""
-    nums = tuple(int(n) for n in re.findall(r"\d+", path))
-    return (1, nums) if nums else (0, ())
+    """Sort key by the numbers in a path (v20.1.0 -> 20, 1, 0), so v10 and v20 come after v9; a name with no number sorts lowest.
+    A pre-release suffix (v1.0.8-rc10, 1.0.8a1; not a build name like -arm64 or -bin) sorts below its release (v1.0.8) and above the version before it; its own digits come last."""
+    m = re.search(r"(?<=\d)[-+_]?(?:rc|alpha|beta|pre|dev|a|b)\d*(?![a-z])", path, re.I)
+    core, pre = (path[:m.start()], path[m.start():]) if m else (path, "")
+    nums = tuple(int(n) for n in re.findall(r"\d+", core))
+    if not nums:
+        return (0, (), 0, ())
+    return (1, nums, 0 if m else 1, tuple(int(n) for n in re.findall(r"\d+", pre)))
 
 
 def _expand(places):

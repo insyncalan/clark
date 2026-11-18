@@ -130,7 +130,11 @@ class TheEditorsWorkbook(unittest.TestCase):
 
     def test_the_sheet_is_named_for_the_tab_else_gantt_and_a_project_without_lines_has_none(self):
         self.assertIn("Gantt", self.book(tab=None).sheetnames)
-        self.assertIn("Gantt", self.book(tab="a/b:[c]*?" * 0 or "///").sheetnames)
+        self.assertIn("Gantt", self.book(tab="///").sheetnames)
+        hostile = excel.gantt_sheet_name("a/b:[c]*?" + "x" * 40)
+        self.assertFalse(set(":\\/?*[]") & set(hostile), hostile)
+        self.assertLessEqual(len(hostile), 31)
+        self.assertIn(hostile, self.book(tab="a/b:[c]*?" + "x" * 40).sheetnames)
         self.assertIn("Plan 1", self.book(tab="Plan 1").sheetnames)
         self.assertEqual(excel.gantt_sheet_name("Actions", ["Actions"]), "Gantt")
         self.assertNotIn("Gantt", excel.workbook("PUB", {"gantt_lines": []}, on=ON, gantt_tab="Gantt").sheetnames)

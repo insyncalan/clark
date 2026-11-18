@@ -69,8 +69,8 @@ export function Edit({ section }) {
             </li>
           ) : (
             <li key={`t${n}`} class="tple-row">
-              <input key={`l${n}-${i.label}`} class="tple-in" type="text" defaultValue={i.label} maxLength={LABEL_MAX} aria-label="Date label" onBlur={(e) => edit(n, "label", e.currentTarget)} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />
-              <input key={`d${n}-${i.date}`} class="tple-in tple-day" type="text" defaultValue={dateWords(i.date)} inputMode="numeric" aria-label="Date, DD-MM-YYYY" onBlur={(e) => edit(n, "date", e.currentTarget)} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />
+              <input key={`l${n}-${i.label}`} class="tple-in" type="text" defaultValue={i.label} maxLength={LABEL_MAX} aria-label="Date label" onBlur={(e) => edit(n, "label", e.currentTarget)} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); else if (e.key === "Escape") { e.preventDefault(); e.currentTarget.value = list.latest()[n]?.label ?? ""; e.currentTarget.blur(); } }} />
+              <input key={`d${n}-${i.date}`} class="tple-in tple-day" type="text" defaultValue={dateWords(i.date)} inputMode="numeric" aria-label="Date, DD-MM-YYYY" onBlur={(e) => edit(n, "date", e.currentTarget)} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); else if (e.key === "Escape") { e.preventDefault(); e.currentTarget.value = dateWords(list.latest()[n]?.date); e.currentTarget.blur(); } }} />
               <button type="button" class="btn tple-x" aria-label={`Remove ${i.label}`} onClick={() => remove(n)}>Remove</button>
             </li>
           )))}

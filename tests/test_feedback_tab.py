@@ -208,7 +208,7 @@ class Card(InBrowser):
         self.js("T.refuse = true")
         self.type("#feedback-message", "Hello")
         self.click("button[data-feedback-copy]")
-        self.assertEqual(self.text("#feedback-note"), "The browser did not copy it. Press ⌘C to copy the selected text.")
+        self.assertEqual(self.text("#feedback-note"), "The browser did not copy it. Press Ctrl+C (Cmd+C on a Mac) to copy the selected text.")
         self.assertIn("Hello", self.js("document.querySelector('#feedback-shown').value"))
 
     def test_typing_after_a_copy_clears_the_copied_note(self):
@@ -256,12 +256,12 @@ class Card(InBrowser):
 
 
 class InSettings(unittest.TestCase):
-    """The card is on the Settings page after the others, with a link in the list, and Help names it."""
+    """The card is on the Settings page after the others, with its page in the menu, and Help names it."""
 
     def test_settings_draws_the_card_and_a_link_for_it(self):
         views = (PAGE_SRC / "components" / "Views.jsx").read_text(encoding="utf-8")
-        self.assertIn('["Feedback", "Feedback", "feedback-h"]', views)
-        self.assertIn("<Feedback />", views)
+        self.assertIn('["version", "Version and updates", ["Update", "Feedback", "Quit"]]', views)      # row 1024: the card is on the Version and updates page, which has the menu item
+        self.assertIn('Feedback: "feedback-h"', views)
         self.assertIn("Feedback,", (PAGE_SRC / "edit" / "index.js").read_text(encoding="utf-8"))
 
     def test_help_names_the_card(self):

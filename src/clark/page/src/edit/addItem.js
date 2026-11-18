@@ -10,6 +10,7 @@
 // #449: the prototype adds in View, so a pick made in View stays in View: the item is made, the toast with its Undo is drawn in View
 // too (Toast.jsx), and the panel opens as View draws it (read only). As in the prototype, the list is then set so the new row is drawn: the Open, Closed, All switch, the type,
 // every filter and the search are cleared, and the item's group is opened; the panel opens and its title takes the keyboard (focusTitle: the title box in Edit; in View the heading, which has tabIndex -1 in Peek.jsx, takes it and its words are selected).
+import { whenFound } from "../logic/whenFound.js";
 import { newItem } from "../stores/changes.js";
 import { openPeek, filterState, setFilterState, setQuery, rows } from "../stores/report.js";
 import { work, setWork, contextFor } from "../stores/work.js";
@@ -61,24 +62,26 @@ function showRow(ref, today) {
   }
 }
 
-// The panel's title takes the keyboard and its words are selected, once the panel is drawn (the prototype does the same at 60 ms).
+// The panel's title takes the keyboard and its words are selected, once the panel is drawn (looked for on each frame, a bounded number of times).
 function focusTitle() {
-  setTimeout(() => {
+  whenFound(() => {
     const t = document.querySelector("#peek [data-pk-title-in]") || document.querySelector("#peek .pk-title");      // the title box in Edit, else the heading
-    if (!t) return;
+    if (!t) return null;
     t.focus();
     if (window.getSelection) window.getSelection().selectAllChildren(t);
-  }, 60);
+    return t;
+  }, (f) => requestAnimationFrame(f));
 }
 
-/** Add one item and open it. Resolves to the new id, or null when nothing was added (the toast says why). */
-export async function addItem(kind, place = "menu") {
+/** Add one item and open it. Resolves to the new id, or null when nothing was added (the toast says why). `list` (row 1268): asked from a Work items
+ *  list on the Dashboard, which has no Work items page behind it, so the page's own filters and groups are left as they are. */
+export async function addItem(kind, place = "menu", list = false) {
   const today = todayIso();
   const req = newItemRequest(kind, today, place, workstreamFor(filterState.value, contextFor(today, "all").workstreams));
   if (!req) return null;
   const reply = await newItem(req, placeholderWords(kind));
   if (!reply || typeof reply.ref !== "string") return null;
-  showRow(reply.ref, today);
+  if (!list) showRow(reply.ref, today);
   openPeek(reply.ref, "item");
   focusTitle();
   return reply.ref;

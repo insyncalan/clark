@@ -8,7 +8,7 @@ This is a report editor for programme managers. It keeps a project's actions, ri
 
 ![The clark Dashboard in the light theme, showing a weekly report for the demo project: the current state, the project health and the use case summary.](docs/img/report-light.png)
 
-> **Beta.** This is the 1.0 build. It is still marked Beta because updating from inside clark is not switched on yet: install a new version by downloading it and replacing the old one. It works and is tested, but expect rough edges and changes between versions. It runs on a Mac today. Windows and Linux downloads come later.
+> **Version 1.2.** clark runs on a Mac. On Windows, unzip the same download and run clark in Docker; the release notes say how.
 
 ## What you can do with it
 
@@ -60,7 +60,7 @@ Download the latest `clark-…-mac.zip` from this repository's **Releases** page
 
 **Double-click.** Open the folder called `clark` and double-click `clark.command`. This needs Python 3.9 or newer. Google Chrome works best. The file `START-HERE.md` explains the prompts your Mac may show the first time.
 
-**Docker.** If your Mac will not open `clark.command`, or you would rather not use Python on your computer, install Docker, open Terminal in the unzipped `clark` folder and type `docker compose -f docker/compose.yaml up -d`. Then open http://localhost:8766. To stop it, type `docker compose -f docker/compose.yaml down`. Only your own computer can reach it. `START-HERE.md` has the same steps, with more detail.
+**Docker.** If your Mac will not open `clark.command`, or you would rather not use Python on your computer, install Docker, open Terminal in the unzipped `clark` folder and type `bash docker/start.command`. Then open http://localhost:8766. To stop it, type `docker compose -f docker/compose.yaml down`. Only your own computer can reach it. Use one user per machine: clark is for a computer that one person uses. `START-HERE.md` has the same steps, with more detail.
 
 **Check that your computer is ready.** Open Terminal in the unzipped `clark` folder (type `cd` and a space, drag the folder into the window and press Return), then type `bash clark.command --check`. It tells you what to fix, if anything, and where to get it.
 
@@ -83,7 +83,7 @@ For both:
 - **Safety copies** are made before every Undo, before every Excel import and once a day. The newest 14 are kept. Settings › Backups lists them and puts one back. If clark will not start, close it and type `bash clark.command restore` in Terminal to see them.
 - **A copy off this computer.** In Settings › Backups, type a folder into **Copy my backups to** (a folder in OneDrive is fine). Each finished backup is also put there, and the same number is kept. It is off until you choose one. To read from it, close clark and type `bash clark.command restore --from FOLDER` in Terminal.
 
-To keep your data somewhere else, start clark with `bash clark.command --data FOLDER`. With Docker, put the folder's full path in quotes in `CLARK_DATA_DIR` in front of the command: `CLARK_DATA_DIR="/full/path" docker compose -f docker/compose.yaml up -d`. A folder inside OneDrive cannot be used.
+To keep your data somewhere else, start clark with `bash clark.command --data FOLDER`. With Docker, put the folder's full path in quotes in `CLARK_DATA_DIR` in front of the command: `CLARK_DATA_DIR="/full/path" bash docker/start.command`. A folder inside OneDrive cannot be used.
 
 ## If something goes wrong
 

@@ -19,6 +19,7 @@ function measure(list) {
   });
 }
 
+// stickyHeight is a number, or a function read at every scroll and resize (the bar is taller at 900 than at 1400, so a number kept from the first draw goes stale).
 export function Minimap({ sections, hiddenSections, onJump, stickyHeight = 0, counts = {} }) {
   const list = entries(sections, hiddenSections);
   const [open, setOpen] = useState(false);
@@ -26,7 +27,7 @@ export function Minimap({ sections, hiddenSections, onJump, stickyHeight = 0, co
   const root = useRef(null), button = useRef(null), quiet = useRef(false);
 
   useEffect(() => {
-    const spy = () => setCurrent(activeEntry(measure(list), window.scrollY, window.innerHeight, stickyHeight, document.documentElement.scrollHeight));
+    const spy = () => setCurrent(activeEntry(measure(list), window.scrollY, window.innerHeight, typeof stickyHeight === "function" ? stickyHeight() : stickyHeight, document.documentElement.scrollHeight));
     spy();
     window.addEventListener("scroll", spy, { passive: true });
     window.addEventListener("resize", spy);

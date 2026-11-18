@@ -57,6 +57,15 @@ if PAGES_JS.exists():
     HEADS = {h for k, _, h in ENTRIES if k != "published"}     # Published reports is a page of its own, not a Settings page: no heading is moved to
     am = re.search(r"const SETTINGS_ANCHOR = \{(.*?)\}", STORE, re.S)
     ANCHORS = dict(re.findall(r"(\w+): \"([\w-]+)\"", am.group(1))) if am else {}     # anchor -> Settings page key
+elif "const GROUPS = [" in VIEWS_JSX:
+    # row 1024 stage 1: one Settings page at a time, from Views.jsx GROUPS: [slug, page name, [the cards on it]]; Help still names the cards, so a card's own name is a name too
+    GROUPS = re.search(r"const GROUPS = \[(.*?)\n\];", VIEWS_JSX, re.S).group(1)
+    ENTRIES = [(k, n, [t for t in re.findall(r'"(\w+)"', tools)]) for k, n, tools in re.findall(r'\["([\w-]+)", "([^"]+)", \[([^\]]*)\]\]', GROUPS)]
+    CARD_NAMES = {"Essentials": "Essentials", "Profile": "Profile", "ClientFolder": "Publishing", "Personal": "Personal", "ReviewDays": "Freshness", "GanttSetting": "Gantt", "Diagnostics": "Logs and diagnostics",
+                  "Projects": "Projects", "Data": "Data", "Safety": "Backups", "Update": "Version and updates", "Brands": "Brands", "People": "People", "AskSettings": "Asking", "Feedback": "Feedback", "Quit": "Quit"}
+    NAMES = {n for _, n, _ in ENTRIES} | set(CARD_NAMES.values()) | {k["title"] for k in context_cards()} | {"AI"}
+    HEADS = set(re.findall(r'\w+: "([\w-]+-h)"', re.search(r"const HEADS = \{(.*?)\};", VIEWS_JSX, re.S).group(1)))
+    ANCHORS = {k["card"]: k["card"] for k in context_cards()}
 else:
     # the list of cards: [component, chip name, heading id]
     CARDS = re.findall(r'\["(\w+)", "([^"]*)", "([\w-]+)"\]', re.search(r"const CARDS = \[(.*?)\];", VIEWS_JSX, re.S).group(1))
@@ -162,6 +171,9 @@ class HelpLinksExist(unittest.TestCase):
 
     def test_the_settings_pages_agree_with_each_other(self):
         if not PAGES_JS.exists():
+            if "const GROUPS = [" in VIEWS_JSX:      # row 1024 stage 1: the router's list of pages and the menu's are the same pages
+                self.assertEqual(sorted(SETTINGS_PAGES), sorted(k for k, _, _ in ENTRIES), "router.SETTINGS_PAGES and the pages of Views.jsx GROUPS differ")
+                return
             self.skipTest("this tree has the list of cards, not one page at a time")
         keys = [k for k, _, _ in ENTRIES if k != "published"]
         self.assertEqual(sorted(SETTINGS_PAGES), sorted(keys), "router.SETTINGS_PAGES and settingsPages.js name different pages")

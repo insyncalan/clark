@@ -97,6 +97,22 @@ class Protected(Base):
                 for r in (2, 3, 4, last):
                     self.assertEqual(ws.cell(r, col).protection.locked, locked, f"{name} {label} row {r}")
 
+    def test_every_locked_column_has_the_grey_fill_on_its_data_rows_and_no_other_does(self):
+        """Item 1157: the Project and the worked-out columns are grey too, not only the sheet's own locked set."""
+        grey = excel.colours.TOKENS["grey-100"]
+        seen = 0
+        for name in DATA:
+            ws = self.wb[name]
+            for col, label in enumerate([c.value for c in ws[1]], start=1):
+                for r in range(2, ws.max_row + 1):
+                    c = ws.cell(r, col)
+                    if c.value is None:
+                        continue
+                    shade = c.fill.fgColor.rgb[-6:] if c.fill.fill_type == "solid" else None
+                    self.assertEqual(shade == grey, label in LOCKED_LABELS[name], f"{name} {label} row {r}")
+                    seen += 1
+        self.assertGreater(seen, 10)
+
     def test_the_id_of_a_blank_row_stays_locked_and_the_rest_are_editable(self):
         ws = self.wb["Actions"]
         blank = 3                        # one action: row 2 is its data, row 3 the first blank row

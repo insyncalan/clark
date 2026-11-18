@@ -22,8 +22,12 @@ class TopBarActions(Base):
             con.execute("UPDATE app_settings SET ask_enabled = ? WHERE id = 1", (1 if asking else 0,))
         p = self.visit(cdp)
         size(cdp, p, width, 700)
-        if asking:
+        if asking and width > 900:      # item 1177: at 900 the ask button is the profile menu's second entry (test_hdr1177_900)
             p.until("!!document.querySelector('#ask-btn')", "the ask button shows while asking is on")
+        elif asking:
+            p.until("!!document.querySelector('#profile-btn')", "the profile circle shows")
+            # The page loads wide and size() narrows it after: the header drops the two buttons only once narrowHeader has flipped and the page has redrawn.
+            p.until("document.querySelectorAll('.top #ask-btn, .top #pal-btn').length === 0", "at 900 the header has dropped the search and ask buttons")
         return p
 
     def test_the_two_buttons_have_their_words_and_sit_before_the_avatar(self):
@@ -104,27 +108,40 @@ class TopBarActions(Base):
         for width, shown in ((1400, True), (900, False)):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.at(cdp, width)
+                if width == 900:      # item 1177: at 900 the whole button is out of the header row
+                    self.assertEqual(p.js("document.querySelectorAll('.top #ask-btn, .top #pal-btn').length"), 0, "at 900 px the buttons are not in the header")
+                    continue
                 got = p.js("['.tb-ask-w', '.tb-key'].map(s => getComputedStyle(document.querySelector(s)).display !== 'none')")
                 self.assertEqual(got, [shown, shown], f"at {width} px the ask word and the / key hint should be {'shown' if shown else 'hidden'}; got {got}")
 
+    def test_the_window_resize_event_alone_drops_the_two_buttons(self):
+        """Row 1177: the narrow-header signal follows the window's resize event even when the media query's own change event never fires."""
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            self.assertEqual(p.js("document.querySelectorAll('.top #ask-btn, .top #pal-btn').length"), 2, "at 1400 px both buttons are in the header")
+            # Only the answer of matchMedia changes; the real query list never changes, so its change event cannot fire. Only the resize listener can carry the news.
+            p.js("window.matchMedia = q => ({matches: true, media: q, addEventListener(){}, removeEventListener(){}, addListener(){}, removeListener(){}});"
+                 "window.dispatchEvent(new Event('resize')); 0")
+            p.until("document.querySelectorAll('.top #ask-btn, .top #pal-btn').length === 0", "the resize event alone dropped the search and ask buttons")
+
     def test_a_long_project_name_at_900_px_light_and_dark_keeps_the_bar_inside_the_window(self):
-        # The project name shortens first; the new buttons must not push anything out.
+        # The project name wraps (row 1239: never an ellipsis); the new buttons must not push anything out.
         for width in (900,):
             for theme in ("light", "dark"):
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
                     p = self.at(cdp, width)
                     p.js(f"document.documentElement.setAttribute('data-theme', '{theme}')")
                     p.js("document.querySelector('.top [data-mode=edit]') && document.querySelector('.top [data-mode=edit]').click()")
-                    p.js("(function(){ var s = document.querySelector('.top .projbtn > span') || document.querySelector('.top .proj'); "
+                    p.js("(function(){ var s = document.querySelector('.top .hdr-project > span') || document.querySelector('.top .proj'); "
                          "s.textContent = 'Customer onboarding programme, phase two, northern region'; })()")
                     got = p.js(f"(function(){{var r=[...{ITEMS}].map(e => [e.className || e.id, e.getBoundingClientRect()]), bad=[];"
                                "for (var i=0;i<r.length;i++){ if (r[i][1].right > document.documentElement.clientWidth + 0.5) bad.push('past ' + r[i][0]);"
                                "for (var j=i+1;j<r.length;j++) if (r[i][1].left < r[j][1].right - 0.5 && r[j][1].left < r[i][1].right - 0.5 && r[i][1].top < r[j][1].bottom - 0.5 && r[j][1].top < r[i][1].bottom - 0.5 && r[i][1].width && r[j][1].width) bad.push(r[i][0] + ' over ' + r[j][0]); }"
                                "return bad.concat(document.documentElement.scrollWidth > document.documentElement.clientWidth ? ['sideways scroll'] : []);})()")
                     self.assertEqual(got, [], f"at {width} px, {theme}, long name")
-                    clipped = p.js("(function(){ var s = document.querySelector('.top .projbtn > span'); return s ? [s.textContent.length > 40, s.scrollWidth > s.clientWidth] : null; })()")
-                    self.assertEqual(clipped, [True, True], f"at {width} px, {theme}: the long name is in the bar and is the part that gives way (its ellipsis)")
-                    self.assertTrue(p.js("!!document.querySelector('#ask-btn') && !!document.querySelector('#pal-btn')"), "both buttons are there")
+                    clipped = p.js("(function(){ var s = document.querySelector('.top .hdr-project > span'); return s ? [s.textContent.length > 40, s.scrollWidth > s.clientWidth, getComputedStyle(s).textOverflow === 'ellipsis'] : null; })()")
+                    self.assertEqual(clipped, [True, False, False], f"at {width} px, {theme}: the long name is in the bar, whole (it wraps), never an ellipsis (row 1239)")
+                    self.assertEqual(p.js("document.querySelectorAll('.top #ask-btn, .top #pal-btn').length"), 0, "item 1177: at 900 both buttons are in the profile menu, not the header")
 
 
 if __name__ == "__main__":

@@ -235,6 +235,17 @@ class Rules(unittest.TestCase):
         self.assertEqual(self.g(f'chartRange({lit(short)}, "2027-09-15")'), {"start": "2026-11-01", "end": "2027-09-30"})
         self.assertIsNone(self.g(f"chartRange([], null)"))
 
+    def test_a_plan_in_december_2100_still_has_a_range_and_a_header(self):
+        # 2100 is the last accepted year, so the month after it (2101) is used for arithmetic and must not break it (it once hung the page).
+        late = [ln("A", "Late", "task", "2100-10-01", "2100-12-31")]
+        self.assertEqual(self.g(f'chartRange({lit(late)}, "2100-10-02")'), {"start": "2100-07-01", "end": "2100-12-31"})
+        wide = [ln("A", "Long", "task", "2026-01-01", "2100-12-31")]
+        rng = self.g(f'chartRange({lit(wide)}, {lit(TODAY)})')
+        self.assertEqual(rng, {"start": "2026-01-01", "end": "2100-12-31"})
+        for scale in ("week", "month", "quarter"):
+            cells = self.g(f'headerCells("{scale}", {lit(rng)}, 2)')
+            self.assertEqual(cells["upper"][-1]["iso"][:7], "2100-12" if scale != "quarter" else "2100-10", scale)
+
     def test_a_far_off_year_cannot_stretch_the_range(self):
         far = [ln("A", "Near", "task", "2026-11-02", "2026-11-10"), ln("B", "Far", "milestone", "5000-01-01", "5000-01-01")]
         self.assertEqual(self.g(f"chartRange({lit(far)}, {lit(TODAY)})"), {"start": "2026-11-01", "end": "2027-04-30"})

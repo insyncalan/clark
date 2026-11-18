@@ -3,7 +3,7 @@
 Run: python3 dev/run_tests.py test_ask_passages
 Every file is made in the test from made-up text. What is asserted: only the open project's own saved folders are read; a file
 outside them, a link out of them, a secret file (.env, .pem), a file with two names and a hostile Word file never reach a
-passage; a path swapped between listing and reading is refused when it is opened; PDF is a counted "not supported yet"; the 40,000
+passage; a path swapped between listing and reading is refused when it is opened; an unread PDF is counted with its reason; the 40,000
 character budget holds; the reply says how many files were left out for safety; and the provider is sent nothing but the
 published data and passages from the saved folders.
 """
@@ -18,7 +18,7 @@ from _paths import SRC  # noqa: F401
 
 import test_ask_route as tr
 import test_docx_read as tdx
-from clark import ask, ask_data, ask_passages, reach, store as st
+from clark import ask, ask_data, ask_passages, pdf_reader, reach, store as st
 
 MACRO = {"word/vbaProject.bin": b"\0\1\2"}
 
@@ -128,6 +128,18 @@ class WhatIsRead(Folders):
             got = self.run_it()
         self.assertEqual((got.pdf, got.other, got.passages), (1, 1, ()))
         self.assertEqual([os.path.basename(p) for p in opened], ["scan.pdf"], "only the PDF is opened (#891; tests/test_ask_pdf_passages.py)")
+
+    def test_pages_left_out_of_a_screened_pdf_are_not_counted(self):
+        self.put(self.box, "keys.pdf", b"%PDF-1.4 x", binary=True)
+        self.put(self.box, "ok.pdf", b"%PDF-1.4 y", binary=True)
+        secret = "password = " + "hunter2" * 3
+        def fake(raw, truncated=False, **k):
+            text = secret if b" x" in raw else "ZQ plain page"
+            return pdf_reader.Result("ok", pages=((1, text),), left_out=7)
+        with mock.patch.object(pdf_reader, "read", side_effect=fake):
+            got = self.run_it(folders=[self.box])
+        self.assertEqual(got.safety, 1)
+        self.assertEqual(got.left_out, 7, "only the kept file's cut pages are counted")
 
     def test_a_label_that_could_forge_a_line_is_left_out(self):
         self.put(self.box, "bad‮name.txt", "ZQ-BIDI")
@@ -298,12 +310,13 @@ class OnTheRoute(tr.Base):
         self.assertIn("nothing was sent", got["message"])
         self.assertEqual(self.provider.sent, [])
 
-    def test_pdf_is_said_to_be_not_supported_yet(self):
+    def test_a_pdf_that_cannot_be_read_is_said_with_its_reason(self):
         (self.mine / "scan.pdf").write_bytes(b"%PDF-1.4 ZQ-PDF")
         status, got = self.question("What is the cutover plan?")
         self.assertEqual(status, 200, got)
         self.assertNotIn("ZQ-PDF", self.provider.sent[0])
-        self.assertTrue(any("PDF" in n and "not supported yet" in n for n in got["notes"]), got["notes"])
+        self.assertTrue("1 PDF was not read: it could not be read safely." in got["notes"], got["notes"])
+        self.assertFalse(any("not supported" in n for n in got["notes"]), got["notes"])
 
 
 if __name__ == "__main__":

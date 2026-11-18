@@ -23,6 +23,41 @@ SPY = ("(function(){var f=window.fetch; window.__sent=[]; window.fetch=function(
 SHOWN = "[data-rich=client_message]"
 
 
+def plain_only(test, p, where):
+    """The focused one-line editor offers and makes no formatting: nothing is drawn but Undo and Redo, a selection has no bubble, Cmd+B and Cmd+I,
+    the '/' menu and the markdown input rules ('# ', '- ', '> ') make nothing, and a paste of paragraphs with bold is its words on one line."""
+    ed = "(document.activeElement.cxed.editor)"
+    p.js(f"{ed}.commands.clearContent()")
+    p.type("/")
+    p.until(f"{ed}.getText() === '/'", f"{where}: the slash is typed")          # a positive signal first, then the negative checks
+    test.assertFalse(p.js("!!document.querySelector('.rt-slash')"), f"{where}: no / menu")
+    for typed, tag in (("# ", "h1"), ("- ", "ul"), ("> ", "blockquote"), ("1. ", "ol")):
+        p.js(f"{ed}.commands.clearContent()")
+        p.type(typed + "x")
+        p.until(f"{ed}.getText().endsWith('x')", f"{where}: {typed!r} typed")
+        test.assertEqual(p.js(f"{ed}.getText().slice(0, 1)"), typed[0], f"{where}: {typed!r} stays as typed")
+        test.assertFalse(p.js(f"!!document.activeElement.querySelector({tag!r})"), f"{where}: {typed!r} makes no {tag}")
+    p.js(f"{ed}.commands.setContent('<p>plain words</p>'); {ed}.commands.selectAll()")
+    p.until(f"{ed}.state.selection.from !== {ed}.state.selection.to", f"{where}: all selected")
+    for key, code, vk in (("b", "KeyB", 66), ("i", "KeyI", 73)):
+        p.key(key, modifiers=4 if p.js("/Mac/.test(navigator.platform)") else 2, code=code, vk=vk)
+    test.assertFalse(p.js("!!document.activeElement.querySelector('strong, b, em, i')"), f"{where}: Cmd+B and Cmd+I make nothing")
+    test.assertFalse(p.js("!!document.querySelector('.rt-bubble')"), f"{where}: no bubble over a selection")
+    names = p.js("[...document.querySelectorAll('.rt button')].map(b => b.getAttribute('aria-label')).filter(Boolean)")
+    test.assertTrue(set(names) <= {"Undo", "Redo"}, f"{where}: only Undo and Redo are offered, got {names}")
+    test.assertEqual(p.js("document.querySelectorAll('.rt-bar .rt-sep').length"), 0, f"{where}: no separators left over")
+    p.js(f"{ed}.commands.clearContent()")
+    p.js("(function(){var b = document.activeElement; var d = new DataTransfer(); d.setData('text/html', '<p>One <strong>bold</strong></p><ul><li>two</li></ul>'); d.setData('text/plain', 'One bold\\ntwo');"
+         " b.dispatchEvent(new ClipboardEvent('paste', {clipboardData: d, bubbles: true, cancelable: true}));})()")
+    p.until(f"{ed}.getText().includes('two')", f"{where}: pasted")
+    test.assertEqual(p.js("document.activeElement.innerHTML.replace(/ class=\"[^\"]*\"/g, '')"), "<p>One bold two</p>", f"{where}: a paste is one plain line")
+    p.js(f"{ed}.commands.clearContent()")
+    p.js("(function(){var b = document.activeElement; var d = new DataTransfer(); d.setData('text/plain', 'first\\n\\nsecond   third');"
+         " b.dispatchEvent(new ClipboardEvent('paste', {clipboardData: d, bubbles: true, cancelable: true}));})()")
+    p.until(f"{ed}.getText().includes('third')", f"{where}: text-only pasted")
+    test.assertEqual(p.js("document.activeElement.innerHTML.replace(/ class=\"[^\"]*\"/g, '')"), "<p>first second third</p>", f"{where}: a text-only paste is one plain line too")
+
+
 class RowWords(unittest.TestCase):
     def setUp(self):
         self.demo = DemoStore()
@@ -166,6 +201,18 @@ class RowWords(unittest.TestCase):
             p.toast_is(f"Wording of {ident} changed.")
             self.assertEqual(self.stored("actions", ident), "")
             p.until(f"document.querySelector({row!r} + ' {SHOWN}').textContent.includes('Agree the cut-over plan')", "the title shows")
+
+    def test_the_slash_menu_and_block_buttons_are_not_offered_in_a_wording(self):
+        with chrome() as cdp:
+            p = Pg.at(self, cdp, self.s.port)
+            p.ready()
+            p.edit()
+            row = self.row("actions", id_of(self.store, "Cut-over plan to be agreed"))
+            for theme, w in self.each(p):
+                self.open_editor(p, row)
+                plain_only(self, p, f"{theme} {w}")
+                p.key("Escape", code="Escape", vk=27)
+                p.until(f"!document.querySelector({row!r} + ' .ProseMirror')", "closed")
 
 
 if __name__ == "__main__":

@@ -62,17 +62,17 @@ class TheFourGuides(unittest.TestCase):
             self.assertRegex(code, pat, b)
 
     def test_the_controls_the_steps_name_are_the_ones_the_page_has(self):
-        """The control names, exactly as the page shows them (HandOver.jsx, Bulk.jsx, FilterLine.jsx, WeekPicker.jsx, weekPicker.js, asAt.js, Safety.jsx, safety.js)."""
+        """The control names, exactly as the page shows them (HandOver.jsx, Bulk.jsx, FilterLine.jsx, asAt.js, Safety.jsx, safety.js)."""
         text = {i: " ".join(s["d"] for s in g["steps"]) for i, g in GUIDES.items()}
         for name in ("**Work items**", "**Hand over**", "**All**", "**None**", "**Hand over to**", "**Cancel**", "**Change**", "**Undo**"):
             self.assertIn(name, text["hand-an-item-over"], name)
-        for name in ("**Work items**", "**+ New view**", "**Save**", "**Save changes**", "**Save as a new view…**",
+        for name in ("**Work items**", "**+ New view**", "**Save**", "**Update view**", "**Save as a new view…**",
                      "**Rename view**", "**New name for this view**", "**Move view**", "**Duplicate view**", "**Delete view**", "**Undo**"):
             self.assertIn(name, text["save-a-view"], name)
         self.assertIn("To remove a view you no longer want, open it, press the small arrow and choose **Delete view**. A message at the foot of the page has **Undo**, which puts the view back. This works for the five starting tabs too.", text["save-a-view"])
         self.assertNotIn("Bring back", text["save-a-view"])
         self.assertNotIn("Archive", text["save-a-view"])
-        for name in ("**Dashboard**", "**Week ending**", "**Published weeks**", "**Dashboard as at a day…**", "**Published reports**",
+        for name in ("**Dashboard as at a day…**", "**Published reports**",      # item 1177: step one now points to the profile circle; the report bar's Week ending box and Published weeks list are gone
                      "**Dashboard as at a day**", "**Show**", "**Back to now**"):
             self.assertIn(name, text["see-the-dashboard-as-at-a-day"], name)
         for name in ("**Settings**", "**Backups**", "**Preview**", "**Restore**", "**Close**", "**Put it back**", "**Cancel**"):

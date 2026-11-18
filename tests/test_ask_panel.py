@@ -15,7 +15,7 @@ import unittest
 
 from _paths import ROOT
 from test_report_editor import Base
-from test_server import chrome
+from test_server import chrome, wait
 
 WORDS = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "askWords.js").read_text(encoding="utf-8")
 NEVER = re.compile(r"\w*(Error|Exception)\b|Traceback|JSON|Not allowed|Bad request|[Rr]eport editor|\bUC\b|!|\bAPI\b|\bHTTP\b")
@@ -39,6 +39,7 @@ class Stub:
         self.answer = "The pilot goes live in March."
         self.provider, self.why = "", ""         # #54: who the server says a question goes to, and its reason when nothing can answer
         self.stopped = False
+        self.notes = []                          # row 1218: the plain lines about what was left out
         self.sources = []                        # row 890: [{"id", "label"}] the answer used
 
     def status(self, *_):
@@ -56,7 +57,7 @@ class Stub:
         self.hold.wait(30)
         if self.stopped:
             return 200, {"ok": False, "code": "no_answer", "message": "That was stopped before an answer came back."}
-        return 200, {"ok": True, "answer": self.answer, "parsed": True, "cites": [], "sources": self.sources, "flags": [], "changes": [], "notes": []}
+        return 200, {"ok": True, "answer": self.answer, "parsed": True, "cites": [], "sources": self.sources, "flags": [], "changes": [], "notes": list(self.notes)}
 
     def open_source(self, body):
         self.calls.append(("open_source", body))
@@ -225,6 +226,22 @@ class Panel(Base):
             self.assertEqual(p.js("document.querySelectorAll('.ask-turn')[1].querySelector('.ask-text').textContent"), self.stub.answer)
             self.assertEqual(p.js("typeof window.__pwn"), "undefined")
 
+    def test_row_1217_an_answer_with_marks_is_drawn_formatted_not_as_symbols(self):
+        self.stub.answer = "**Overall health:** steady <b>x</b>\n\n## Main concerns\n- Supplier delay\n- Kit late\n\n1. First\n2. Second"
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask(p, "How is it?")
+            p.until("document.querySelectorAll('.ask-turn').length === 2", "the answer")
+            q = "document.querySelectorAll('.ask-turn')[1]"
+            self.assertEqual(p.js(q + ".querySelectorAll('strong').length"), 1)
+            self.assertEqual(p.js(q + ".querySelectorAll('h4').length"), 1)
+            self.assertEqual(p.js(q + ".querySelectorAll('ul li').length"), 2)
+            self.assertEqual(p.js(q + ".querySelectorAll('ol li').length"), 2)
+            self.assertEqual(p.js(q + ".querySelectorAll('b').length"), 0)
+            self.assertNotIn("**", p.js(q + ".textContent"))
+            self.assertIn("<b>x</b>", p.js(q + ".textContent"))
+            self.assertEqual(p.js("getComputedStyle(" + q + ".querySelector('li')).display"), "list-item")
+
     # ----- row 890: the Sources disclosure under an answer -----
     def answered(self, p):
         self.ask(p, "Where did that come from?")
@@ -297,8 +314,61 @@ class Panel(Base):
             p.until("document.querySelectorAll('.ask-turn').length === 2", "the question stayed and the stopped line followed")
             self.assertEqual(self.stub.count("stop"), 1)
             self.assertEqual(p.js("document.querySelector('.ask-turn .ask-text').textContent"), "Summarise the risks")
-            self.assertEqual(p.js("document.querySelector('#ask-note').textContent"), "Stopping. Your question and the earlier answers stay here.")
+            self.assertEqual(p.js("document.querySelector('#ask-note').textContent"), "", "the Stopping line is gone once the stop has finished")
             self.assertEqual(p.js("document.querySelector('#ask-stop')"), None)
+
+    def test_stop_pressed_puts_focus_back_in_the_question_box(self):
+        self.stub.hold.clear()
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask(p, "Summarise the risks")
+            p.until("!!document.querySelector('#ask-stop')", "Stop appeared while the question was out")
+            p.js("(() => { const b = document.querySelector('#ask-stop'); b.focus(); b.click(); })()")
+            p.until("document.querySelectorAll('.ask-turn').length === 2 && !document.querySelector('#ask-stop')", "stopped", 30)
+            p.until("document.activeElement && document.activeElement.id === 'ask-box'", "focus is in the question box, not on the page body", 30)
+
+    def test_an_answer_landing_does_not_steal_focus_from_another_control_in_the_panel(self):
+        self.stub.hold.clear()
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask(p, "Summarise the risks")
+            p.until("!!document.querySelector('#ask-stop')", "the question is out", 30)
+            p.js("document.querySelector('#ask-close').focus()")
+            held = p.js("document.activeElement.id || document.activeElement.className")
+            self.assertTrue(held, "a control other than Stop holds focus")
+            self.stub.hold.set()
+            p.until("document.querySelectorAll('.ask-turn').length === 2 && !document.querySelector('#ask-stop')", "the answer landed", 30)
+            self.assertEqual(p.js("document.activeElement.id || document.activeElement.className"), held, "focus stayed where the person put it")
+
+    def test_the_ask_button_closes_the_panel_when_it_is_open(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            # the panel covers the button where it sits, so this is the press the keyboard makes (and a click where it is not covered)
+            p.js("(() => { const b = document.querySelector('#ask-btn'); b.dispatchEvent(new MouseEvent('mousedown', {bubbles: true})); b.click(); })()")
+            p.until("document.querySelector('#ask-panel') === null", "the button closed the open panel", 30)
+            p.until("document.querySelector('#ask-btn').getAttribute('aria-expanded') === 'false' && document.querySelector('#ask-panel') === null", "and it stayed closed", 30)
+
+    def test_hunt19_the_grip_says_its_width_to_a_screen_reader(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.assertTrue(p.js("/^\\d+$/.test(document.querySelector('#ask-grip').getAttribute('aria-valuenow') || '')"))
+            before = int(p.js("document.querySelector('#ask-grip').getAttribute('aria-valuenow')"))
+            p.js("document.querySelector('#ask-grip').focus()")
+            p.key("ArrowLeft", code="ArrowLeft", vk=37)
+            p.until(f"+document.querySelector('#ask-grip').getAttribute('aria-valuenow') > {before}", "the value follows the width")
+
+    def test_a_long_answer_opens_at_its_first_line_and_a_short_one_at_the_end(self):
+        self.stub.answer = "\n".join(f"Line {i} of a long answer." for i in range(150))
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.answered(p)
+            read = "(() => { const l = document.querySelector('#ask-log'), a = document.querySelector('.ask-turn.assistant'); return a.getBoundingClientRect().top - l.getBoundingClientRect().top; })()"
+            # A slow Mac can lay the log out after the panel set its scroll: wait for the offset to settle (the page sets the scroll again on its next change), and
+            # say what was measured if it never does.
+            wait(lambda: -2 <= p.js(read) <= 40, 20)
+            top = p.js(read)
+            seen = p.js("(() => { const l = document.querySelector('#ask-log'), a = document.querySelector('.ask-turn.assistant'); return {scrollTop: l.scrollTop, scrollHeight: l.scrollHeight, clientHeight: l.clientHeight, answerOffsetTop: a.offsetTop, logOffsetTop: l.offsetTop, answerHeight: a.offsetHeight, turns: [...l.children].map(e => Math.round(e.getBoundingClientRect().height * 10) / 10), motion: document.documentElement.dataset.motion || null}; })()")
+            self.assertTrue(-2 <= top <= 40, f"the answer's first line is at the top of the log (offset {top}) | " + json.dumps(seen))
 
     def test_off_sends_no_request_and_links_to_settings(self):
         self.stub.enabled = False
@@ -380,7 +450,7 @@ class Panel(Base):
             p.key("Escape", code="Escape", vk=27)
             p.until("document.querySelector('#ask-panel') === null", "closed")
             start = p.js("location.hash")
-            p.js("location.hash = '#settings&p=ABC'")
+            p.js("location.hash = '#settings&p=ABC&s=claude'")      # row 1024: the Asking card is on the Claude and AI page
             # row 872: the switch can read ready from the earlier read before Settings asks again; the folders answer comes after that ask has started
             p.until("!!document.querySelector('[data-ask-switch]') && !document.querySelector('[data-ask-switch]').disabled && !!document.querySelector('#ask-folders, #ask-folders-none, #ask-folders-note')", "Settings has the asking switch")
             p.js("document.querySelector('[data-ask-switch]').click()")          # a change in Settings: the kept check is dropped
@@ -477,6 +547,30 @@ class Panel(Base):
             self.ask(p, "Hello")
             p.until("!!document.querySelector('#ask-off')", "the panel went to the off line")
 
+    def test_a_question_that_got_no_answer_goes_back_in_the_box(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.stub.ask = lambda body: (500, {"ok": False, "message": "Something went wrong."})
+            self.ask(p, "Where did it go?")
+            p.until("!!document.querySelector('.ask-turn.problem')", "a reply line came")
+            p.until("document.querySelector('#ask-box').value === 'Where did it go?'", "the question is back in the box")
+            self.assertEqual(p.js("document.querySelectorAll('.ask-turn.user').length"), 0, "the question is in the box, so it is not also in the transcript")
+
+    def test_a_question_sent_as_asking_went_off_goes_back_in_the_box(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.stub.ask = lambda body: (409, {"ok": False, "code": "asking_off", "message": "Asking is off."})
+            self.ask(p, "Hello again")
+            p.until("!!document.querySelector('#ask-off')", "the off line")
+            p.until("!!document.querySelector('#ask-box') && document.querySelector('#ask-box').value === 'Hello again'", "the question is back in the box")
+
+    def test_escape_during_composition_does_not_close_the_panel(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            p.js("document.querySelector('#ask-box').dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', isComposing: true, bubbles: true, cancelable: true}))")
+            time.sleep(0.5)
+            self.assertTrue(p.js("!!document.querySelector('#ask-panel')"), "Esc that ends a composition leaves the panel open")
+
     def test_not_signed_in_says_so_with_a_link_to_settings(self):
         self.stub.connected = False
         with chrome() as cdp:
@@ -486,6 +580,20 @@ class Panel(Base):
             self.assertTrue(p.js("document.querySelector('#ask-box').disabled"))
             self.assertEqual(p.js("document.querySelectorAll('#ask-signed-out a[data-ask-settings]').length"), 1)
             self.assertEqual(self.stub.count("ask"), 0)
+
+    def test_row_1097_the_open_settings_link_with_no_model_connected_lands_on_the_asking_card(self):
+        self.stub.connected = False
+        with chrome() as cdp:
+            p = self.opened(cdp, ready=False)
+            p.until("!!document.querySelector('#ask-signed-out')", "the sign-in line")
+            self.assertEqual(p.js("document.querySelector('#ask-signed-out a[data-ask-settings]').textContent.trim()"), "Open Settings")
+            p.js("document.querySelector('#ask-signed-out a[data-ask-settings]').click()")
+            p.until("document.querySelector('#ask-panel') === null && location.hash.indexOf('settings') === 1 && !!document.querySelector('#ask-settings')", "Settings, with the Asking card")
+            p.until("!!document.activeElement && document.activeElement.tagName === 'H2' && !!document.activeElement.closest('#ask-settings')", "focus on the Asking card's heading")
+            p.until("(function(){ var t = document.querySelector('#ask-settings').getBoundingClientRect().top; return t >= -2 && t < 200; })()", "the card is scrolled into view at the top, not left below the fold")
+            time.sleep(1)       # the page's own place-restore runs for a moment: it must not set the scroll back
+            top = p.js("document.querySelector('#ask-settings').getBoundingClientRect().top")
+            self.assertTrue(-2 <= top < 200, f"the card is still in view a moment later ({top})")
 
     def test_with_chatgpt_in_use_the_panel_has_no_line_about_where_text_goes(self):
         """#54, #1062: that line lives in Settings now; the panel names neither Claude nor Anthropic nor billing."""
@@ -543,6 +651,37 @@ class Panel(Base):
         quips = re.findall(r'^  "(.+)",$', WORDS[WORDS.index("QUIPS"):], re.M)
         self.assertGreaterEqual(len(quips), 5)
         self.assertEqual(len(set(quips)), len(quips))
+
+    def test_left_out_notes_are_one_small_grey_block_under_the_answer(self):
+        """Row 1218: four notes are one block (one list), smaller than the answer, tighter, grey at 4.5 to 1 or more, at 1400 and 900, light and dark."""
+        self.stub.notes = ["Note one.", "Note two.", "Note three.", "Note four."]
+        self.stub.sources = [{"id": "P1", "label": "plan.xlsx"}]
+        read = """(function(){
+          const rgb = (c) => c.match(/[\\d.]+/g).slice(0, 3).map(Number), lum = (c) => { const [r, g, b] = rgb(c).map((v) => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }); return .2126 * r + .7152 * g + .0722 * b; };
+          const n = document.querySelector('[data-ask-notes]'), a = document.querySelector('.ask-turn.assistant .ask-text'), s = document.querySelector('.ask-sources');
+          let bg = n, bgc = 'rgba(0, 0, 0, 0)'; while (bg && /rgba\\(0, 0, 0, 0\\)|transparent/.test(bgc)) { bgc = getComputedStyle(bg).backgroundColor; bg = bg.parentElement; }
+          const l1 = lum(getComputedStyle(n).color), l2 = lum(bgc), ratio = (Math.max(l1, l2) + .05) / (Math.min(l1, l2) + .05);
+          const nr = n.getBoundingClientRect();
+          return {blocks: document.querySelectorAll('[data-ask-notes]').length, items: n.querySelectorAll('li').length, size: parseFloat(getComputedStyle(n).fontSize), answer: parseFloat(getComputedStyle(a).fontSize),
+                  gapBelowSources: nr.top - s.getBoundingClientRect().bottom, itemGap: n.children[1].getBoundingClientRect().top - n.children[0].getBoundingClientRect().bottom, ratio, color: getComputedStyle(n).color, answerColor: getComputedStyle(a).color};
+        })()"""
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            for width in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                for theme in ("light", "dark"):
+                    p.js(f"document.documentElement.dataset.theme = '{theme}'")
+                    if not p.js("!!document.querySelector('[data-ask-notes]')"):
+                        self.ask(p, "What was left out?")
+                        p.until("!!document.querySelector('[data-ask-notes]')", "the notes block")
+                    r = p.js(read)
+                    where = f"{width} {theme}"
+                    self.assertEqual((r["blocks"], r["items"]), (1, 4), where)
+                    self.assertLess(r["size"], r["answer"], where)
+                    self.assertLessEqual(r["gapBelowSources"], 12, where)
+                    self.assertLessEqual(r["itemGap"], 4, where)
+                    self.assertGreaterEqual(r["ratio"], 4.5, f"{where} {r}")
+                    self.assertNotEqual(r["color"], r["answerColor"], where)
 
     def test_laptop_widths_light_and_dark(self):
         self.stub.hold.clear()

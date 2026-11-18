@@ -32,7 +32,7 @@ class Card(unittest.TestCase):
         self.s.httpd.ai_connect = ai_connect.AiConnect(self.d, self.claude, self.chatgpt)
 
     def show(self, cdp):
-        self.sid = navigate(cdp, self.s.port, "#settings&p=ABC")
+        self.sid = navigate(cdp, self.s.port, "#settings&p=ABC&s=claude")
         js = lambda e: cdp.js(e, self.sid)          # noqa: E731
         self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ai-tile=claude]')"), PAGE_UP), "the card is in Settings")
         return js
@@ -58,6 +58,19 @@ class Card(unittest.TestCase):
             self.assertEqual(js("document.querySelector('#ai-model').innerText"), "Connect Claude or ChatGPT first")
             js("document.querySelector('[data-ai-connect=claude]').click()")
             self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ai-disconnect=claude]')"), 10))
+
+    def test_focus_stays_on_the_button_pressed_and_lands_on_the_one_that_replaces_it(self):
+        with chrome() as cdp:
+            js = self.show(cdp)
+            act = "(document.activeElement.getAttribute('data-ai-connect') || document.activeElement.getAttribute('data-ai-disconnect') || document.activeElement.id || document.activeElement.tagName)"
+            js("document.querySelector('[data-ai-disconnect=claude]').focus()")
+            js("document.querySelector('[data-ai-disconnect=claude]').click()")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ai-connect=claude]')"), 10))
+            self.assertTrue(wait(lambda: js(act + "==='claude' && !!document.querySelector('[data-ai-connect=claude]:focus')"), 5),
+                            "focus is on Connect, not dropped to the page")
+            js("document.querySelector('[data-ai-connect=claude]').click()")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ai-disconnect=claude]')"), 10))
+            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ai-disconnect=claude]:focus')"), 5))
 
     def test_connecting_chatgpt_offers_its_models_and_the_askings_words_follow_the_choice(self):
         with chrome() as cdp:
@@ -129,7 +142,7 @@ class Card(unittest.TestCase):
     def test_without_the_route_shows_no_card(self):
         self.s.httpd.ai_connect = None
         with chrome() as cdp:
-            self.sid = navigate(cdp, self.s.port, "#settings&p=ABC")
+            self.sid = navigate(cdp, self.s.port, "#settings&p=ABC&s=claude")
             js = lambda e: cdp.js(e, self.sid)      # noqa: E731
             self.assertTrue(wait(lambda: js("!!document.querySelector('#ai-settings')"), PAGE_UP))
             self.assertFalse(wait(lambda: js("!!document.querySelector('[data-ai-tile]')"), 1))

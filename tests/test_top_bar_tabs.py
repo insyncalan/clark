@@ -1,11 +1,12 @@
 """#681, row 757: the top bar at 1400 and 900 px (the only widths tested), light and dark, on the Dashboard, Use cases and Settings, in View and Edit, with a long
-project name: every tab label is whole on one line, the bar stays one 56 px row, the project name shortens first, then the tab row scrolls inside
+project name: every tab label is whole on one line, the header is at least 85 px high (129 px at 900) and grows to hold a long project name, which wraps (row 1239), then the tab row scrolls inside
 its own box with the open tab fully inside it, nothing is clipped or overlapped, and the page does not scroll sideways. Chrome is required: these
 tests fail, never skip, without it.
 
 Run: python3 dev/run_tests.py test_top_bar_tabs
 """
 import sqlite3
+import time
 import unittest
 
 from test_inline_67 import size
@@ -17,7 +18,7 @@ WIDTHS = (1400, 900)      # the only widths tested
 # Each tab's box and line count; the bar's top-level items (the tab row among them); the tab row's scroll; the project name's box; the page's sideways scroll.
 MEASURE = """(function(){
   var bar = document.querySelector('header.top').getBoundingClientRect(), out = {tabs: [], items: [], bar: [bar.left, bar.right, bar.top, bar.bottom]};
-  var row = document.querySelector('.top .tabs'), rb = row.getBoundingClientRect(), dd = document.querySelector('.top .dd:has(> .projbtn)');
+  var row = document.querySelector('.top .tabs'), rb = row.getBoundingClientRect(), dd = document.querySelector('.top .dd:has(> .hdr-project)');
   out.row = [rb.left, rb.right, row.scrollWidth, row.clientWidth];
   out.name = dd ? dd.getBoundingClientRect().width : 0;
   document.querySelectorAll('.top .tab').forEach(function(t){
@@ -40,14 +41,14 @@ class TopBarTabs(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             size(cdp, p, width, 700)
-            p.until("!!document.querySelector('#ask-btn')", "the ask button shows")
+            p.until("!!document.querySelector('#ask-btn')" if width > 900 else "!!document.querySelector('#profile-btn')", "the ask button shows", 30)     # the page reads the ask switch once from the server and shows nothing until it answers: a loaded machine needs longer than 10 s (item 1177: at 900 the button is a profile menu entry, so the circle is waited for)
             p.js(f"document.documentElement.setAttribute('data-theme', '{theme}')")
             if edit:
                 p.js("document.querySelector('.top [data-mode=edit]').click()")
             if long_name:       # the longest name a person is likely to give a project: it must shorten, never push a tab out
-                self.assertTrue(p.js("(function(){ var s = document.querySelector('.top .projbtn > span') || document.querySelector('.top .proj'); "
+                self.assertTrue(p.js("(function(){ var s = document.querySelector('.top .hdr-project > span') || document.querySelector('.top .proj'); "
                                      "if (!s) return false; s.textContent = 'Customer onboarding programme, phase two, northern region'; return true; })()"),
-                                f"at {width} px, {theme}: the long-name check found no project name in the top bar ('.top .projbtn > span' or '.top .proj'), "
+                                f"at {width} px, {theme}: the long-name check found no project name in the top bar ('.top .hdr-project > span' or '.top .proj'), "
                                 "so it did not test a long name at all; the bar's markup has changed")
             if active == "Settings":      # row 976: Settings is no tab; it opens from the profile circle's menu
                 p.js("document.querySelector('#profile-btn').click()")
@@ -79,7 +80,7 @@ class TopBarTabs(Base):
                 p.until("!!document.querySelector('.modes')", f"at {width} px, {theme}: the View/Edit switch (.modes; the Dashboard report bar's pill) never appeared")
                 if edit:
                     p.js("document.querySelector('.modes [data-mode=edit]').click()")
-                p.js("document.querySelector('.top .projbtn > span').textContent = 'Customer onboarding programme, phase two, northern region'")
+                p.js("document.querySelector('.top .hdr-project > span').textContent = 'Customer onboarding programme, phase two, northern region'")
                 out.append(self.box(p, ".modes"))
         return out
 
@@ -102,9 +103,8 @@ class TopBarTabs(Base):
                 self.assertLessEqual(t["right"], got["row"][1] + 1, f"{where}: {t['name']!r} is cut off by the tab row's right edge")
         self.assertNotIn("Settings", [t["name"] for t in got["tabs"]], f"{where}: Settings is not a top-bar tab (row 976)")
         self.assertEqual(sum(1 for t in got["tabs"] if t["open"]), 0 if active == "Settings" else 1, where)      # on Settings no tab is pressed: it is not a tab
-        if scrolls:       # the name gives way before the tab row scrolls (row 757)
-            self.assertLessEqual(got["name"], 73, f"{where}: the tab row scrolls while the project name is still {got['name']} px wide")
-        self.assertAlmostEqual(got["bar"][3] - got["bar"][2], 56, delta=0.5, msg=f"{where}: the bar is not one 56 px row")
+        # item 1177: the name is drawn in full in the header (a button with an ellipsis), so the old "name no wider than 73 px while the tabs scroll" rule is gone
+        self.assertGreaterEqual(got["bar"][3] - got["bar"][2], (129 if width <= 900 else 85) - 0.5, f"{where}: item 1177: the header is under 85 px (129 px at 900); row 1239: it grows for a long name")
         self.assertGreaterEqual(got["row"][0], got["bar"][0], f"{where}: the tab row starts left of the bar")
         self.assertLessEqual(got["row"][1], got["bar"][1] + 0.5, f"{where}: the tab row runs past the bar")
         items = got["items"]
@@ -173,7 +173,7 @@ class TopBarTabs(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             size(cdp, p, 900, 700)
-            p.until("!!document.querySelector('#ask-btn') && !!document.querySelector('#profile-btn')", "the ask button and the profile circle show")
+            p.until("!!document.querySelector('#profile-btn')", "the profile circle shows", 30)      # item 1177: at 900 the ask button is a profile menu entry
             p.js("[...document.querySelectorAll('.top .tab')].filter(t => t.textContent.trim() === 'Use cases')[0].click()")      # row 976: the last tab (Settings was it before)
             p.js("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
             p.js("(function(){ var s = document.createElement('span'); s.id = 'test-spacer'; s.style.cssText = 'flex:none;width:90px;height:1px'; "
@@ -254,3 +254,38 @@ for _w in WIDTHS:
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TopBarTabKeys(Base):
+    """Roving tabindex and Left/Right/Home/End on the top bar's tabs (as in Help)."""
+
+    def test_roving_and_arrow_keys(self):
+        key = ("function(k){ document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key: k, bubbles: true, cancelable: true})); }")
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            size(cdp, p, 1400, 700)
+            p.until("document.querySelectorAll('.top .tab').length >= 3", "the tabs show")
+            idx = p.js("[...document.querySelectorAll('.top .tab')].map(t => t.tabIndex)")
+            self.assertEqual(sorted(idx), [-1] * (len(idx) - 1) + [0], f"exactly one tab is in the Tab order: {idx}")
+            self.assertEqual(p.js("document.querySelector('.top .tab[tabindex=\"0\"]').getAttribute('aria-selected')"), "true")
+            p.js("document.querySelector('.top .tab[aria-selected=true]').focus()")
+            names = p.js("[...document.querySelectorAll('.top .tab')].map(t => t.dataset.view)")
+            at = "document.activeElement.dataset.view"
+            for k, want in (("ArrowRight", names[1]), ("End", names[-1]), ("ArrowRight", names[0]), ("ArrowLeft", names[-1]), ("Home", names[0])):
+                p.js(f"({key})('{k}')")
+                p.until(f"{at} === '{want}' && document.activeElement.getAttribute('aria-selected') === 'true'", f"{k} moved to and opened the {want} tab")
+                self.assertEqual(p.js("document.querySelectorAll('.top .tab[tabindex=\"0\"]').length"), 1)
+
+    def test_a_modified_arrow_key_is_left_to_the_browser(self):
+        # Alt+Left is the browser's Back: the tab bar must not swallow it or change the view
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            size(cdp, p, 1400, 700)
+            p.until("document.querySelectorAll('.top .tab').length >= 3", "the tabs show")
+            p.js("document.querySelector('.top .tab[aria-selected=true]').focus()")
+            before = p.js("document.activeElement.dataset.view")
+            for mod in ("altKey", "ctrlKey", "metaKey"):
+                self.assertEqual(p.js(f"(function(){{ var e = new KeyboardEvent('keydown', {{key: 'ArrowRight', {mod}: true, bubbles: true, cancelable: true}}); document.activeElement.dispatchEvent(e); return e.defaultPrevented; }})()"), False, f"{mod}+ArrowRight is not prevented")
+            time.sleep(0.3)
+            self.assertEqual(p.js("document.activeElement.dataset.view"), before)
+            self.assertEqual(p.js("document.querySelector('.top .tab[aria-selected=true]').dataset.view"), before)

@@ -395,7 +395,8 @@ class Restoring(Base):
         before = sha(r.path)
         status, body = r.restore(name, r.live()[1])
         self.assertEqual((status, body["code"]), (400, "other_database"))
-        self.assertEqual(body["message"], f"{name} is a backup of a different database, so it wasn't put back.")
+        self.assertEqual(body["message"], f"{name} is a backup of a different set of data, so it wasn't put back.")
+        self.assertNotIn("database", body["message"])
         self.assertEqual(sha(r.path), before)
 
     def test_a_damaged_copy(self):

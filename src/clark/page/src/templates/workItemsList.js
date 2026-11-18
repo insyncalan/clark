@@ -5,20 +5,21 @@
 //   logic/publishable.js would publish, so View shows exactly what the client sees (FR-11);
 // - a published file holds no filter: its section carries `items` (the ids publish chose, in order, from rows it already kept),
 //   `columns` and `caption`, and the rows are drawn from the file's own data.
-import { dayNumber, rowsOf } from "../workItems.js";
+import { dayNumber, rowsOf, colourOf } from "../workItems.js";
 import { rulesFor, publishable } from "../logic/publishable.js";
 
 export const KINDS = ["action", "risk", "issue", "assumption", "dependency", "decision"];
-export const MODES = ["open", "closed", "all"];
+export const MODES = ["open", "closed", "all", "current"];
 export const STATUSES = ["Open", "Delayed", "Pending", "Closed", "Cancelled", "Made", "Withdrawn"];
 export const DUE = ["overdue", "soon", "none", "later"];
 export const NONE = "(none)";
 export const PRIORITIES = ["Urgent", "High", "Medium", "Low"];
 export const SORTS = ["due", "priority", "id"];
-export const COLUMNS = ["type", "id", "owner", "due", "status", "workstream"];
-export const DEFAULT_COLUMNS = ["type", "id", "owner", "due", "status"];
+export const COLUMNS = ["type", "id", "owner", "due", "status", "priority", "workstream", "milestone"];
+export const DEFAULT_COLUMNS = ["type", "id", "owner", "due", "priority"];      // row 1199: Status, Workstream and Milestone start off in a new list; a saved list keeps its own columns
 export const MAX_ROWS = 50;
 export const DEFAULT_MAX = 10;
+export const RECENT = 14;      // row 1268: "current" lists a decision made in the last 14 days, as the built-in Decisions section does (logic/sectionRows.js)
 export const MAX_CAPTION = 200;
 const CLOSED = ["Closed", "Cancelled", "Made", "Withdrawn"];
 const FILTERS = ["kinds", "status", "due", "owner", "workstream", "use_case", "priority"];
@@ -29,10 +30,10 @@ const WORK = ["actions", "raid", "decisions"];
 // The words a person reads for each choice.
 export const WORDS = {
   kinds: { action: "Actions", risk: "Risks", issue: "Issues", assumption: "Assumptions", dependency: "Dependencies", decision: "Decisions" },
-  mode: { open: "Open", closed: "Closed", all: "Open and closed" },
+  mode: { open: "Open", closed: "Closed", all: "Open and closed", current: "Open, and decisions made in the last 14 days" },
   due: { overdue: "Overdue", soon: "Due in 7 days", none: "No date", later: "Later" },
   sort: { due: "Due date", priority: "Priority", id: "ID" },
-  columns: { type: "Type", id: "ID", owner: "Owner", due: "Due", status: "Status", workstream: "Workstream" },
+  columns: { type: "Type", id: "ID", owner: "Owner", due: "Due", status: "Status", workstream: "Workstream", priority: "Priority", milestone: "Milestone" },
   none: { owner: "No owner", workstream: "No workstream", use_case: "No use case", priority: "No priority" },
 };
 
@@ -41,6 +42,65 @@ const leftOut = () => Object.fromEntries(LEFT_OUT.map((f) => [f, []]));
 export function defaults() {
   return { v: 1, kinds: [], mode: "open", status: [], due: [], owner: [], workstream: [], use_case: [], priority: [], sort: "due",
     max: DEFAULT_MAX, columns: DEFAULT_COLUMNS.slice(), caption: "", milestone: [], not: leftOut(), has: [], no: [], text: [] };
+}
+
+// Item 1195 (the approved design, v1.1). Saved views: each is the filter a tab starts from; "all" is the filter a new list starts from.
+export const VIEWS = [
+  { id: "all", name: "All work items", patch: {} },
+  { id: "actions", name: "Actions", patch: { kinds: ["action"] } },
+  { id: "risks-issues", name: "Risks and issues", patch: { kinds: ["risk", "issue"] } },
+  { id: "decisions", name: "Decisions", patch: { kinds: ["decision"], mode: "current" } },      // row 1268: Pending, and Made in the last 14 days
+  { id: "overdue", name: "Overdue", patch: { due: ["overdue"] } },
+];
+
+// A fresh filter for a view (an unknown id gives the default filter), so a caller can change it without touching the view.
+export function viewFilter(id) {
+  const v = VIEWS.find((x) => x.id === id);
+  const out = defaults();
+  if (v) for (const k of Object.keys(v.patch)) out[k] = v.patch[k].slice();
+  return out;
+}
+
+// The priority cell of a row: the priority word with the colour class of the pills (the Rating chip's colour). A decision's priority
+// is the one its peek sets (row 1195, peek_priority on a drawn row, priority on a rule row); a decision with none says nothing.
+export function priorityCell(row) {
+  const p = row && row.kind === "decision" ? (row.peek_priority || row.priority) : row && row.priority;
+  if (row && row.kind === "decision" && !p) return { text: "", class: "n" };
+  const c = colourOf(p);
+  return { text: p || "Not rated", class: c.class };
+}
+
+// How many rows to draw and which link sits under the table: "Show all items" when the list is longer than Most rows, then "Show only N".
+export function windowOf(total, max, showAll) {
+  if (total <= max) return { count: total, link: "" };
+  return showAll ? { count: total, link: `Show only ${max}` } : { count: max, link: "Show all items" };
+}
+
+// Row 1268 (mock-up work-items-mockup.html, rows()): the foot under the scrolling rows. Edit says how many of the rows are in view and that the
+// rest scroll; View and Edit both carry the link that opens the Work items page on the same filter.
+export const footWords = (total, max) => `Showing ${Math.min(total, max)} of ${total}${total > max ? ", scroll for the rest" : ""}`;
+export const reviewWords = (total) => `Review all ${total} items`;
+
+// The Work items page's filter state (filters.js shape) for a list's saved filter, so "Review all N items" opens the page on the same rows.
+// Open, closed or all; the type when the kinds are one of the page's (Actions, Risks and issues, Decisions); the field choices. The
+// "not", "has", "no" and free-word parts of a list have no place in that state and are left out (the page then shows a few more rows).
+export function pageState(filter, nameOf = (f, v) => v) {
+  const type = !filter.kinds.length ? "all" : filter.kinds.every((k) => k === "action") ? "action" : filter.kinds.every((k) => k === "decision") ? "decision"
+    : filter.kinds.every((k) => k === "risk" || k === "issue") ? "risk" : "all";
+  const filters = {};
+  for (const f of ["workstream", "status", "due", "owner", "priority", "use_case", "milestone"]) {
+    const list = f === "use_case" ? filter[f].map((v) => nameOf(f, v)) : filter[f];
+    if (list.length) filters[f] = list.slice();
+  }
+  return { mode: filter.mode, type, filters, not: {} };
+}
+
+// The columns of the approved design, in its order; Status, Workstream and Milestone are off by default.
+export const DESIGN_COLUMNS = ["status", "owner", "due", "priority", "workstream", "milestone", "id"];
+export const DESIGN_DEFAULT_COLUMNS = ["owner", "due", "priority", "id"];
+export function columnsFor(chosen) {
+  const got = DESIGN_COLUMNS.filter((c) => Array.isArray(chosen) && chosen.includes(c));
+  return got.length ? got : DESIGN_DEFAULT_COLUMNS.slice();
 }
 
 const isList = (v) => Array.isArray(v) && v.every((x) => typeof x === "string");
@@ -79,6 +139,12 @@ export function ruleRows(data) {
 
 const low = (s) => String(s == null ? "" : s).toLowerCase();
 const isOpen = (r) => !CLOSED.includes(r.status);
+// row 1268: a decision Made in the last 14 days (today counts, a date in the future does not), as logic/sectionRows.js listed().
+function madeLately(r, today) {
+  const a = dayNumber(r.due), t = dayNumber(today);
+  return r.kind === "decision" && r.status === "Made" && a !== null && t !== null && t - a >= 0 && t - a <= RECENT;
+}
+const modeFits = (mode, r, today) => mode === "all" || (mode === "current" ? isOpen(r) || madeLately(r, today) : (mode === "open") === isOpen(r));
 const tidy = (v) => (typeof v === "string" ? v.split(/\s+/).filter(Boolean).join(" ") : "");
 
 function bucket(r, today) {
@@ -147,24 +213,26 @@ export function liveOf(data) {
   return { workstream: some("workstreams", (w) => low(tidy(w.name))), use_case: some("use_cases", (u) => u.id), goneOwner: (data && data.gone_owners) || [] };
 }
 
-// The ids of `rows` (ruleRows' shape) that `filter` lists, sorted and cut to its max: section_kinds/workitems.py matching().
-export function matching(filter, rows, today, live) {
+// The ids of `rows` (ruleRows' shape) that `filter` lists, sorted and cut to its max (`all` true: every hit, for Show all items): section_kinds/workitems.py matching().
+export function matching(filter, rows, today, live, all) {
   filter = alive(filter, live);
   if (!filter) return [];
   const hits = rows.filter((r) => typeof r.id === "string" && r.id
-    && (filter.mode === "all" || (filter.mode === "open") === isOpen(r))
+    && modeFits(filter.mode, r, today)
     && FILTERS.every((f) => member(r, f, filter[f], today)) && allowed(r, filter, today));
   const closedLast = (x, y) => cmp(isOpen(x) ? 0 : 1, isOpen(y) ? 0 : 1);
   if (filter.sort === "id") hits.sort((x, y) => cmp(x.id, y.id));
   else if (filter.sort === "priority") hits.sort((x, y) => closedLast(x, y) || cmp(rank(x), rank(y)) || byDue(x, y) || cmp(x.id, y.id));
   else hits.sort((x, y) => closedLast(x, y) || byDue(x, y) || cmp(x.id, y.id));
-  return hits.slice(0, filter.max).map((r) => r.id);
+  return (all ? hits : hits.slice(0, filter.max)).map((r) => r.id);
 }
 
 // The rules for what the page clark serves may show: the publishable() mirror of publish.select, from what the data carries.
 export function servedRules(data) {
-  return rulesFor({ code: data && data.project && data.project.code, hidden: ((data && data.report_hidden) || []).map((h) => (h && h.item_id) || h),
+  const rules = rulesFor({ code: data && data.project && data.project.code, hidden: ((data && data.report_hidden) || []).map((h) => (h && h.item_id) || h),
     labelRules: (data && data.label_rules) || [], labels: (data && data.labels) || {}, sections: (data && data.report_sections) || [], deleted: !!(data && data.sections_deleted) });
+  for (const k of WORK) rules.hiddenTypes.delete(k);      // row 1268: a list prints its own rows when the built-in section is hidden (publish.select does the same)
+  return rules;
 }
 
 // Only the rows that would be published, of the three work kinds, in a data shape ruleRows reads.
@@ -188,7 +256,33 @@ export function listOf(section, data, today) {
   }
   const filter = filterOf(section);
   if (!filter) return { items: [], columns: DEFAULT_COLUMNS.slice(), caption: "", saved: false };
-  return { items: matching(filter, ruleRows(publishedOnly(data)), today, liveOf(data)), columns: filter.columns.length ? filter.columns : DEFAULT_COLUMNS.slice(), caption: filter.caption, saved: true };
+  const every = matching({ ...filter, max: Number.MAX_SAFE_INTEGER }, ruleRows(publishedOnly(data)), today, liveOf(data));
+  return { items: every.slice(0, filter.max), all: every, max: filter.max, more: every.length > filter.max, columns: filter.columns.length ? filter.columns : DEFAULT_COLUMNS.slice(), caption: filter.caption, saved: true };
+}
+
+// What Edit lists: the rows the saved filter lists (as listOf) plus the ones the client eye has taken off (the work item's own client-visible
+// flag, or its hidden entry), so an eye turned off can be turned on again from here. Rows publish keeps out for any other reason (Sensitive,
+// archived, another project, a hidden section) are never listed. Walks the filter's whole match in its order: an eye-off row is listed where
+// it falls, a kept row counts toward the filter's max, and nothing after the max-th kept row is listed. Returns the listOf shape plus `off`
+// (the ids listed that the client does not see).
+export function editListOf(section, data, today) {
+  const base = listOf(section, data, today);
+  const filter = filterOf(section);
+  if (!filter || (section && Array.isArray(section.items))) return { ...base, off: [] };
+  const served = servedRules(data), open = { ...served, hidden: new Set() };
+  const out = { ...data };
+  for (const k of WORK) out[k] = ((data && data[k]) || []).filter((r) => publishable({ ...r, client_visible: 1 }, k, open));
+  const off = new Set(WORK.flatMap((k) => (out[k] || []).filter((r) => !publishable(r, k, served)).map((r) => r.id)));
+  const every = matching({ ...filter, max: Number.MAX_SAFE_INTEGER }, ruleRows(out), today, liveOf(data));
+  const items = [], listedOff = [];
+  let kept = 0, full = false;
+  for (const id of every) {
+    if (full) continue;
+    if (off.has(id)) { items.push(id); listedOff.push(id); }
+    else if (kept < filter.max) { items.push(id); kept += 1; }
+    else full = true;
+  }
+  return { ...base, items, all: every, max: filter.max, more: full, off: listedOff };
 }
 
 // The rows to draw for a list's ids, in the ids' order, from the data (workItems.js rowsOf: title, owner, dates, status).
@@ -206,4 +300,14 @@ export function offered(field, data, chosen) {
   for (const v of chosen || []) seen.add(v);
   const list = [...seen].filter((v) => v !== NONE).sort((a, b) => a.localeCompare(b));
   return seen.has(NONE) ? [...list, NONE] : list;
+}
+
+// Row 1199: the rows the section draws, the first Most rows or, once "Show all items" is open, every row the filter lists (the served page only:
+// a published file carries just the ids publish chose, so it has none to add). `more` is true when there are rows beyond Most rows.
+export const idsToShow = (list, all) => (all && list.all ? list.all : list.items);
+
+// The data a served page draws rows from: a milestone's name is read only when the report would publish that milestone, as in a file.
+export function drawn(data, served) {
+  if (!served) return data;
+  return { ...data, milestones: publishedOnly(data).milestones };
 }

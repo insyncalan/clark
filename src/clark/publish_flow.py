@@ -20,6 +20,7 @@ own sync does the upload.
 
 Standard library only, Python 3.9.
 """
+import datetime
 import getpass
 import hashlib
 import json
@@ -34,7 +35,7 @@ import unicodedata
 from html.parser import HTMLParser
 from pathlib import Path
 
-from clark import brands, changes, milestones, page, past_files, platform, publish, publish_pdf, section_files, to_client
+from clark import brands, changes, host_folders, milestones, page, past_files, platform, publish, publish_pdf, section_files, settings, to_client
 from clark.store import Invalid, NumberTaken, open_store
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -325,7 +326,7 @@ class Publisher:
     never be in)."""
 
     def __init__(self, db_path, onedrive_roots=None, *, fs=None, choose_save_file=None, choose_folder=None, today=None,
-                 by_user=None, data_dir=None, branding=None, backups_dir=None, choose_open_file=None, brand_root=None):
+                 by_user=None, data_dir=None, branding=None, backups_dir=None, choose_open_file=None, brand_root=None, now=None):
         self.db_path = Path(db_path)
         self.onedrive_roots = list(platform.onedrive_roots() if onedrive_roots is None else onedrive_roots)
         self.fs = fs or to_client.RealFs()
@@ -333,6 +334,7 @@ class Publisher:
         self.choose_folder = choose_folder or platform.choose_folder
         self.choose_open_file = choose_open_file or platform.choose_open_file      # #96: a file for a section template
         self.today = today or milestones.today
+        self.now = now or datetime.datetime.now      # row 1143: the local date and time of an Excel export's file name
         self.by_user = by_user or getpass.getuser
         self.data_dir = Path(data_dir) if data_dir else platform.data_dir()
         self.branding, self.backups_dir = branding, backups_dir
@@ -696,7 +698,22 @@ class Publisher:
                 saved = row.get("publish_client") or None
                 if action == "clear":
                     return self.save_folder(store, code, saved, None)
-                if action == "paste":
+                typed_windows = None    # the Windows form of a pasted drive path, returned to the page as it was typed
+                if action == "paste" and host_folders.windows_host(os.environ) and host_folders.is_drive_path(body["value"]):
+                    refused = self.paste_refusal(body["value"].strip())
+                    if refused:
+                        return 409, self.fail(refused)
+                    try:
+                        mapped, typed_windows = host_folders.to_container("client", body["value"], os.environ)
+                        picked = Path(mapped).resolve(strict=True)
+                        host_folders.check_inside("client", picked, typed_windows)    # a link may lead out of the share
+                    except ValueError as e:
+                        return 409, self.fail("client_folder_refused", str(e))
+                    except (OSError, RuntimeError):
+                        return 409, self.fail("paste_unknown")
+                    if not picked.is_dir():
+                        return 409, self.fail("paste_unknown")
+                elif action == "paste":
                     picked, refused = self.pasted_folder(body["value"])
                     if refused:
                         return 409, self.fail(refused)
@@ -714,7 +731,7 @@ class Publisher:
                                               backups_dir=self.backups_dir)
                 if not checked["ok"]:
                     return 409, self.fail("client_folder_refused", checked["message"])
-                return self.save_folder(store, code, saved, checked["folder"], checked.get("warning"))
+                return self.save_folder(store, code, saved, checked["folder"], checked.get("warning"), typed_windows)
             finally:
                 store.close()
 
@@ -724,13 +741,20 @@ class Publisher:
         already exist and be inside one of the OneDrive roots; client_folder then checks it exactly as a chosen one. Anything with
         the form of a link (LINK_FORM) is refused as one: it is never opened, and no folder is guessed from its words."""
         text = value.strip()
-        if not text or len(text) > MAX_PASTE or any(unicodedata.category(ch) in ("Cc", "Cf") for ch in text):
-            return None, "paste_unknown"
-        if LINK_FORM.match(text):
-            return None, "paste_link"
+        refused = self.paste_refusal(text)
+        if refused:
+            return None, refused
         if text.startswith("/") or text == "~" or text.startswith("~/"):
             return self.synced_folder(Path(text).expanduser())
         return None, "paste_unknown"            # a relative path, ~name and every other kind of text
+
+    @staticmethod
+    def paste_refusal(text):
+        """The MESSAGES code that refuses stripped pasted `text` before it is read as a path (empty, over MAX_PASTE, a control or
+        format character, the form of a link), else None. Shared by pasted_folder and the Windows drive-path paste."""
+        if not text or len(text) > MAX_PASTE or any(unicodedata.category(ch) in ("Cc", "Cf") for ch in text):
+            return "paste_unknown"
+        return "paste_link" if LINK_FORM.match(text) else None
 
     def synced_folder(self, path):
         if not path.is_absolute() or ".." in path.parts:
@@ -746,22 +770,28 @@ class Publisher:
             return None, "paste_not_synced"
         return real, None
 
-    def save_folder(self, store, code, saved, folder, warning=None):
+    def save_folder(self, store, code, saved, folder, warning=None, windows=None):
+        """Save the client folder. `windows` is the Windows form of a pasted drive path; it is returned as `folder_windows` (not stored)."""
+        extra = {"folder_windows": windows} if windows else {}
         if folder == saved:
-            return 200, {"ok": True, "changed": False, "folder": saved, "message": MESSAGES["folder_unchanged" if folder else "folder_cleared"]}
+            return 200, {"ok": True, "changed": False, "folder": saved, "message": MESSAGES["folder_unchanged" if folder else "folder_cleared"], **extra}
         try:
             with store.step("dashboard", self.by_user(), place="menu") as st:
                 st.update("projects", code, {"publish_client": folder})
         except Invalid as e:
             return 409, self.fail("settings_failed", MESSAGES["settings_failed"])
         return 200, {"ok": True, "changed": True, "folder": folder, "folder_name": to_client.folder_name(folder),
-                     "warning": warning, "message": MESSAGES["folder_saved" if folder else "folder_cleared"]}
+                     "warning": warning, "message": MESSAGES["folder_saved" if folder else "folder_cleared"], **extra}
 
     # ----- a file for a section template (#96) -----
     def section_file(self, body):
         """POST /api/section-file {project, section}: the system's Open dialog, the copy into the client folder's "Report files"
         folder and the step that adds the file to the section (section_files.py has the rules)."""
         return section_files.attach(self, body)
+
+    def read_section_file(self, code, name):
+        """GET /api/section-file?project=&name= (#1221): (status, body) for one listed file of the project (section_files.read)."""
+        return section_files.read(self, code, name)
 
     # ----- preview and export (#147) -----
     def preview(self, body):
@@ -804,7 +834,7 @@ class Publisher:
 
     def export(self, code):
         """GET /api/export?project=: the project's workbook (excel.export_project), made in a temporary folder that is removed
-        afterwards. On success (200, {"name": "<CODE>-<date>.xlsx", "data": bytes}); a refusal is a plain sentence."""
+        afterwards. On success (200, {"name": "<name>(<CODE>) YYYY.MM.DD HH.MM.SS.xlsx", "data": bytes}); a refusal is a plain sentence."""
         if not isinstance(code, str) or not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code")
         from clark import excel         # here, not at the top: the launcher imports this module before the vendored openpyxl is reachable
@@ -815,7 +845,9 @@ class Publisher:
                 return 404, self.fail("project_not_found")
             today = str(self.today())
             folder = Path(tempfile.mkdtemp(prefix="clark-export-"))
-            name, warnings = f"{code}-{today}.xlsx", []
+            warnings = []
+            name = excel.download_name((store.read("projects", ref=code) or {}).get("name"), code, self.now())      # row 1143; the workbook is made under a plain name, the person is given this one
+            work = f"{code}-{today}.xlsx"
             here = Path(self.db_path).parent                                      # beside clark.db, where the record is kept
             try:
                 # The record of the export (what the import later compares with) is kept beside clark.db under the export id
@@ -823,8 +855,8 @@ class Publisher:
                 # import finds the record by that id, from any folder and after an edit or a re-save); the workbook itself stays
                 # in the temporary folder, which is removed. Each export has its own id, so neither replaces the other, and
                 # save_state and prune_hash_records hold excel.STATE_LOCK, so two exports at once both keep their record.
-                made = excel.export_project(store, code, folder / name, folder / "state.json", on=today, warnings=warnings, branding=self.project_brand(store, code),
-                                       exported_by=self.by_user(), reuse=excel.latest_export(here / excel.STATE_FILE, code))      # the name publish records; the owner has no source yet (projects has none), so the Cover says "the person who sent it to you"
+                made = excel.export_project(store, code, folder / work, folder / "state.json", on=today, warnings=warnings, branding=self.project_brand(store, code),
+                                       exported_by=self.by_user(), exporter_name=settings.profile(here)["name"], reuse=excel.latest_export(here / excel.STATE_FILE, code))      # the name publish records; the owner has no source yet (projects has none), so the Cover says "the person who sent it to you"
                 data = Path(made).read_bytes()
                 record = excel.load_state(folder / "state.json", made)
                 key = (excel.id_key(code, record["export_id"]) if record.get("export_id")

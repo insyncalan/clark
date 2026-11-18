@@ -194,7 +194,7 @@ class Page(unittest.TestCase):
                 self.assertEqual(self.mode(), "view")
                 self.assertEqual(self.text("#cover h1"), "Demo project", "the title defaults to the project name")
                 self.assertIn("Week ending 06-11-2026", self.text("#cover .cover-line"))
-                self.assertIn("for Example client", self.text("#cover .cover-line"))
+                self.assertNotIn("for Example", self.text("#cover .cover-line"), "issue 1178: no client in the line")
                 self.assertEqual(self.count("#cover [contenteditable], #cover input"), 0, "View has no title box")
                 self.assertEqual(self.count("[data-gantt]"), 1)
                 self.assertEqual(self.count("[data-slot=above] #slot-above-box"), 1)
@@ -300,16 +300,38 @@ class Page(unittest.TestCase):
     def test_the_table_toggle_keeps_the_mode_and_the_lines(self):
         self.look(1400)
         self.mount(mode="edit")
-        self.assertEqual(self.text("[data-gp-layout]"), "Table")
-        self.click("[data-gp-layout]")
+        self.assertEqual(self.val("document.querySelector('[data-gp-layout=chart]').getAttribute('aria-pressed')"), "true", "the chart is shown")
+        self.click("[data-gp-layout=table]")
         self.until("document.querySelector('.gt-scroll')", "the table")
         self.assertEqual(self.mode(), "edit", "the mode is kept")
-        self.assertEqual(self.text("[data-gp-layout]"), "Chart")
+        self.assertEqual(self.val("document.querySelector('[data-gp-layout=table]').getAttribute('aria-pressed')"), "true", "the table is shown")
         self.assertEqual(self.count(".gt-scroll tbody tr"), 6, "Edit shows every line in the table")
-        self.click("[data-gp-layout]")
+        self.click("[data-gp-layout=chart]")
         self.until("document.querySelector('[data-g-bar]')", "the chart")
         self.assertEqual(self.mode(), "edit")
         self.assertEqual(self.count("[data-g-row]"), 6)
+
+    def test_the_layout_is_two_icon_buttons_and_the_zoom_sits_beside_the_filter(self):
+        # row 1197: no Table word button; a table icon and a chart icon beside the scale switches; zoom, filter, Today and full screen run on in that order
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                self.look(width)
+                self.mount(mode="edit")
+                self.assertEqual(self.count("button.gt-wd[data-gp-layout]"), 0, "the word button is gone")
+                self.assertEqual(self.val("[...document.querySelectorAll('[data-gp-layout]')].map(b => b.getAttribute('aria-label') + ':' + b.textContent.trim())"),
+                                 ["Table:", "Chart:"], "two buttons with names and no visible words")
+                order = self.val("[...document.querySelectorAll('[data-gantt] .gt-bar [data-gp-layout], [data-gantt] .gt-bar [data-g-scale], [data-gantt] .gt-bar [data-g-zout], "
+                                 "[data-gantt] .gt-bar [data-g-fit], [data-gantt] .gt-bar [data-g-zin], [data-gantt] .gt-bar [data-g-show], [data-gantt] .gt-bar [data-g-today-btn], "
+                                 "[data-gantt] .gt-bar [data-g-expand]')].map(b => b.dataset.gpLayout ? 'layout' : b.dataset.gScale ? 'scale' : Object.keys(b.dataset)[0])")
+                self.assertEqual(order, ["layout", "layout", "scale", "scale", "scale", "gZout", "gFit", "gZin", "gShow", "gTodayBtn", "gExpand"])
+                self.assertEqual(self.val("document.querySelector('[data-gp-layout=chart]').getAttribute('aria-pressed')"), "true")
+                self.assertEqual(self.val("document.querySelector('[data-gp-layout=table]').getAttribute('aria-pressed')"), "false", "only the shown layout is pressed")
+                self.assertEqual(self.count("[data-gantt] .gt-bar .gt-sep"), 1, "one divider between the layout buttons and the scale switches, never two in a row")
+                self.click("[data-gp-layout=table]")
+                self.until("document.querySelector('.gt-scroll')", "the table")
+                self.assertEqual(self.val("document.querySelector('[data-gp-layout=table]').getAttribute('aria-pressed')"), "true")
+                self.assertEqual(self.val("document.querySelector('[data-gp-layout=chart]').getAttribute('aria-pressed')"), "false", "the chart button lets go when the table is shown")
+                self.assertEqual(self.count("[data-g-scale]"), 0, "the scale switches are the chart's only")
 
     def test_the_table_reads_in_full_in_the_published_file_and_in_edit_at_both_widths(self):
         # the real ID carries the project code; the ID cell and the Days, Done % and Depends on headers are not cut
@@ -321,7 +343,7 @@ class Page(unittest.TestCase):
                     with self.subTest(width=width, scheme=scheme, published=published):
                         self.look(width, scheme)
                         self.mount(lines=lines, fromFile=published, mode="edit")
-                        self.click("[data-gp-layout]")
+                        self.click("[data-gp-layout=table]")
                         self.until("document.querySelector('.gt-scroll td[data-k=id]')", "the table")
                         cut = self.val("[...document.querySelectorAll(\"td[data-k=id], th[data-k=id], th[data-k=dur], th[data-k=pct], th[data-k=dep]\")]"
                                        ".filter((e) => { var l = e.querySelector('.gt-hl') || e; return l.scrollWidth > l.clientWidth || l.getBoundingClientRect().right > e.getBoundingClientRect().right; })"
@@ -332,27 +354,20 @@ class Page(unittest.TestCase):
 
     def test_view_in_the_table_shows_the_same_three_lines(self):
         self.mount()
-        self.click("[data-gp-layout]")
+        self.click("[data-gp-layout=table]")
         self.until("document.querySelector('.gt-scroll')", "the table")
         self.assertEqual(self.count(".gt-scroll tbody tr"), 3)
 
-    def test_export_and_import_run_the_editors_own_excel_flows(self):
+    def test_the_page_has_no_import_or_export_icons(self):
         self.mount(mode="edit")
-        self.assertEqual(self.js("document.querySelector('[data-gp-export]').disabled"), False, "Export to Excel is on (row 926)")
-        self.assertEqual(self.js("document.querySelector('[data-gp-export]').title"), "Export to Excel")
-        self.click("[data-gp-export]")
-        self.assertEqual(self.js("window.__exports"), 1, "one press runs the editor's own workbook export once")
-        self.assertEqual(self.count("[data-gp-import]"), 0, "Import is for Edit in the table")
-        self.click("[data-gp-layout]")
-        self.until("document.querySelector('[data-gp-import]')", "Import in the table")
-        self.assertEqual(self.js("document.querySelector('[data-gp-import]').disabled"), False, "Import from Excel is on")
-        self.assertEqual(self.js("document.querySelector('[data-gp-import]').title"), "Import from Excel")
-        self.click("[data-gp-import]")
-        self.assertEqual(self.js("window.__imports"), 1, "one press opens the editor's own import box once")
+        self.assertEqual(self.count("[data-gp-export], [data-gp-import]"), 0, "item 1142: Import and Export are in Settings only, not on the Gantt page (chart)")
+        self.click("[data-gp-layout=table]")
+        self.until("document.querySelector('.gt-scroll')", "the table")
+        self.assertEqual(self.count("[data-gp-export], [data-gp-import]"), 0, "nor in the table")
 
     def test_the_show_menu_filters_the_table_and_ticked_lines_is_for_edit_only(self):
         self.mount(mode="edit")
-        self.click("[data-gp-layout]")
+        self.click("[data-gp-layout=table]")
         self.click("[data-gp-show]")
         self.assertEqual(self.count("[data-gp-filter]"), 4)
         self.click("[data-gp-filter=phases]")
@@ -361,6 +376,42 @@ class Page(unittest.TestCase):
         self.until("document.querySelector('#gantt-page').dataset.mode === 'view'", "View")
         self.click("[data-gp-show]")
         self.assertEqual(self.count("[data-gp-filter]"), 3)
+
+    def test_hunt15_table_show_menu_takes_focus_and_escape_returns_it(self):
+        self.mount(mode="edit")
+        self.click("[data-gp-layout=table]")
+        self.click("[data-gp-show]")
+        self.until("document.activeElement && document.activeElement.hasAttribute('data-gp-filter')", "focus moves into the menu")
+        self.key("ArrowDown", "document.activeElement")
+        self.assertEqual(self.js("document.activeElement.dataset.gpFilter"), self.js("document.querySelectorAll('[data-gp-filter]')[1].dataset.gpFilter"), "ArrowDown moves on")
+        # A person's Escape goes to the focused item, so it is sent there: the menu's own key handler is set at once. The page-wide Escape listener is
+        # added by an effect after the menu is drawn, and on a slow Mac it was not yet there when an Escape sent to the document arrived.
+        self.key("Escape", "document.activeElement")
+        self.until("!document.querySelector('[data-gp-showmenu]')", "Escape closes the menu")
+        self.assertTrue(self.js("document.activeElement === document.querySelector('[data-gp-show]')"), "focus is back on Show")
+
+    def test_the_show_menu_hands_focus_back_to_its_button_on_a_pick_and_on_esc(self):
+        self.mount(mode="edit")
+        self.click("[data-gp-layout=table]")
+        self.js("document.querySelector('[data-gp-show]').focus()")
+        self.click("[data-gp-show]")
+        self.js("document.querySelector('[data-gp-filter=phases]').focus(); document.querySelector('[data-gp-filter=phases]').click()")
+        self.until("document.querySelectorAll('.gt-scroll tbody tr').length === 2", "phases only")
+        self.assertTrue(self.val("document.activeElement === document.querySelector('[data-gp-show]')"), "a pick returns to the Show button")
+        self.click("[data-gp-show]")
+        self.assertEqual(self.count("[data-gp-showmenu]"), 1)
+        self.key("Escape", target="document.querySelector('[data-gp-show]')")
+        self.until("!document.querySelector('[data-gp-showmenu]') || document.querySelector('[data-gp-show]').getAttribute('aria-expanded') === 'false'", "Esc closes the menu")
+        self.assertTrue(self.val("document.activeElement === document.querySelector('[data-gp-show]')"), "Esc returns to the Show button")
+
+    def test_deleting_a_row_in_the_table_keeps_focus_in_the_table(self):
+        self.mount(mode="edit")
+        self.click("[data-gp-layout=table]")
+        self.until("document.querySelector('[data-del]')", "the table")
+        n = self.count(".gt-scroll tbody tr")
+        self.js("document.querySelector('[data-del=\"0\"]').focus(); document.querySelector('[data-del=\"0\"]').click()")
+        self.until(f"document.querySelectorAll('.gt-scroll tbody tr').length === {n - 1}", "the row is gone")
+        self.assertTrue(self.val("document.activeElement === document.querySelector('.gt-scroll')"), "focus stays on the table, not the page top")
 
     # ── changes go to the host ───────────────────────────────────────────────
 
@@ -397,6 +448,17 @@ class Page(unittest.TestCase):
         ops = self.val("P.page.diff(P.lines(), P.page.fromTable(P.page.toTable(P.lines()).map(function(r){ return r.id === 'GNT-002' ? Object.assign({}, r, {o: 'Ada Example'}) : r; })))")
         self.assertEqual(ops, [{"op": "update", "id": "GNT-002", "changes": {"owner": "Ada Example"}}])
         self.assertEqual(len(self.calls()), before)
+
+    def test_clearing_cells_in_the_table_says_plan_changed_not_an_empty_id(self):
+        self.mount(mode="edit")
+        self.click("[data-gp-layout=table]")
+        self.until("document.querySelector('td[data-c]')", "the table")
+        self.js("(function(){ var td = Array.from(document.querySelectorAll('td[data-k=dep]')).find(function(x){ return x.textContent.trim(); }); td.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, button: 0})); document.dispatchEvent(new MouseEvent('mouseup', {bubbles: true})); })()")
+        self.settle()
+        before = len(self.calls())
+        self.key("Delete", "document.querySelector('.gt-scroll')")
+        self.until(f"P.host.calls.length > {before}", "the clear is sent")
+        self.assertEqual(self.calls()[-1][2], "Plan changed.")
 
     def test_a_column_eye_saves_only_hideable_columns_and_the_chart_keeps_its_dates(self):
         self.mount(mode="edit")

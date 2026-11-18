@@ -251,8 +251,7 @@ class Editor(unittest.TestCase):
             self.js("document.querySelector('.secs [data-ms-back]').click()")
             self.until("!!document.querySelector('form.picker')", "the picker opened")
             self.assertEqual(self.js("document.querySelector('form.picker h2').textContent"), "Add a milestone from your project record")
-            self.assertEqual(self.js("[...document.querySelectorAll('form.picker .pk-group h3')].map((h) => h.textContent).join()"), "Milestones", "milestones only")
-            self.assertEqual(self.js("document.querySelectorAll('form.picker .pick li').length"), 2)
+            self.assertEqual(self.js("document.querySelectorAll('form.picker tbody tr').length"), 2, "a table row for each milestone off the page")
             self.until("!!document.activeElement && document.activeElement.type === 'search' && !!document.activeElement.closest('form.picker')", "focus starts in the search box")
             self.js("document.querySelector(\"form.picker input[value='ABC-M-003']\").click()")
             self.js("document.querySelector('form.picker [type=submit]').click()")
@@ -298,6 +297,9 @@ class Editor(unittest.TestCase):
                     self.press("ABC-M-002")
                     self.until("!document.querySelector(\".secs .msl-row[data-ms='ABC-M-002']\")", "the row left the Dashboard")
                     self.until("document.querySelector('.toast .toast-text').textContent === 'Training done taken off the page.'", "the toast")
+                    # The press plans its own focus move (MsEye.jsx keepFocus) and gives it a frame after the row is gone; wait for it to land
+                    # on the next row's eye before the person "moves on", or that late move lands after the blur and Undo finds focus taken.
+                    self.until("!!document.activeElement && document.activeElement.dataset.msEye === 'ABC-M-003'", "focus moved to the next row's eye")
                     self.until("document.getAnimations().length === 0", "the toast finished arriving")
                     self.js("document.activeElement && document.activeElement.blur()")
                     self.key("z", "KeyZ", 90, modifiers=2)
@@ -305,6 +307,28 @@ class Editor(unittest.TestCase):
                     self.until("document.getAnimations().length === 0", "the animations ended before focus is read")
                     self.until("document.activeElement && document.activeElement.dataset.msEye === 'ABC-M-002'", "focus is on the milestone's eye")
                     self.assertEqual(self.left_out(), [])
+
+    def check_eye_focus(self, width):
+        with chrome() as cdp:
+            self.visit(cdp, width=width)
+            order = self.js("[...document.querySelectorAll('.secs .msl-row')].map((r) => r.dataset.ms)")
+            self.assertEqual(len(order), 3)
+            self.press(order[1])
+            self.until(f"!document.querySelector(\".secs .msl-row[data-ms='{order[1]}']\")", "the row left the Dashboard")
+            self.until(f"document.activeElement && document.activeElement.dataset.msEye === '{order[2]}'", "focus moved to the next row's eye")
+            self.press(order[2])
+            self.until(f"!document.querySelector(\".secs .msl-row[data-ms='{order[2]}']\")", "the last of the two went")
+            self.until(f"document.activeElement && document.activeElement.dataset.msEye === '{order[0]}'", "no next row: the previous row's eye")
+            self.press(order[0])
+            self.until("!document.querySelector('.secs .msl-row')", "the block is replaced")
+            self.until("document.activeElement && document.activeElement.classList.contains('handle')", "no rows left: the section's handle")
+
+
+    def test_pressing_the_eye_on_the_dashboard_keeps_focus_on_a_neighbouring_eye_and_on_the_last_row_the_handle_at_1400(self):
+        self.check_eye_focus(1400)
+
+    def test_pressing_the_eye_on_the_dashboard_keeps_focus_on_a_neighbouring_eye_and_on_the_last_row_the_handle_at_900(self):
+        self.check_eye_focus(900)
 
     def test_pressing_again_includes_it_and_that_has_its_own_undo(self):
         self.store_hide("ABC-M-003")

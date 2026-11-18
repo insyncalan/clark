@@ -4,6 +4,7 @@
 // step, so one Undo takes the whole paste back. Edit's page only: a published file has no Settings and no people, and nothing here
 // is in it. The Excel import of work items (the buttons, the box, "Check the import") is not this card's: it follows item 444 and item 449.
 import { useEffect, useRef, useState } from "preact/hooks";
+import { useColWidths } from "./colWidths.jsx";
 import { useGrow } from "./useGrow.js";
 import { data, rows as workRows } from "../stores/report.js";
 import { peopleRows, needDetails, countLine, doneLine, readPaste, planLine, toSend, NONE_TO_ADD, NOTHING_NEW } from "../logic/people.js";
@@ -13,6 +14,7 @@ const PREVIEW_ROWS = 50;                       // the preview draws this many ro
 const WILL = { add: "New person", update: "Update", same: "No change", "": "Not added" };
 
 export function People() {
+  const cw = useColWidths("people");
   const [list, setList] = useState(null);            // null: not read yet; otherwise the people clark holds
   const [failed, setFailed] = useState("");           // why the list could not be read ("" when it could)
   const [only, setOnly] = useState(false);            // the list filtered to those who need details
@@ -21,7 +23,7 @@ export function People() {
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(null);             // {text, step, problem}: what the last paste did, with Undo while its step can be taken back
-  const pasteBtn = useRef(null), box = useRef(null);
+  const pasteBtn = useRef(null), box = useRef(null), doneLn = useRef(null);
   useGrow(box, text);
 
   const load = async () => {
@@ -33,6 +35,7 @@ export function People() {
   const owners = workRows.value.map((r) => r.owner).concat(((data.value && data.value.milestones) || []).map((m) => m.owner));
   const all = peopleRows(list || [], owners);
   const need = needDetails(all).length;
+  useEffect(() => { if (list !== null && need === 0 && only) setOnly(false); }, [list, need, only]);      // nobody left to show: the filter is off, so the button is not left saying the wrong thing
   const filtered = only && need > 0;
   const shown = filtered ? needDetails(all) : all;
   const read = open && text.trim() ? readPaste(text, list || []) : null;
@@ -68,7 +71,9 @@ export function People() {
     setBusy(true);
     const back = await undoPeople(done.step);
     setBusy(false);
-    if (back.ok) { setList(back.people); setDone({ text: "Undone.", step: null, problem: false }); } else setDone({ text: back.message, step: null, problem: true });
+    if (back.ok) { setList(back.people); setDone({ text: "Undone.", step: null, problem: false }); }
+    else setDone({ text: back.message, step: done.step, problem: true });      // kept, so Undo can be tried again
+    setTimeout(() => doneLn.current && doneLn.current.focus(), 0);      // the Undo button is gone or was disabled while it worked: the focus goes to the line that says what happened
   };
 
   const dash = (v) => (v ? v : <span class="muted">—</span>);
@@ -111,7 +116,7 @@ export function People() {
           <span class="muted" id="ppMsg" role="status">{msg}</span>
         </div>
       </div>
-      <p class={`pp-done${done && done.problem ? " error" : ""}`} id="ppDone" role="status" hidden={!done}>
+      <p class={`pp-done${done && done.problem ? " error" : ""}`} id="ppDone" ref={doneLn} tabIndex={-1} role="status" hidden={!done}>
         {done ? <>{done.text}{done.step !== null ? <> <button type="button" class="link" id="ppUndo" disabled={busy} onClick={undo}>Undo</button></> : null}</> : null}
       </p>
       {list === null ? <p class="muted" id="ppLoading">Reading the people list.</p> : null}
@@ -121,10 +126,10 @@ export function People() {
           <>
             <p class="pp-sum" id="ppCount">
               <span>{countLine(need, all.length)}</span>
-              {need || only ? <button type="button" class="link" id="ppOnly" aria-pressed={filtered ? "true" : "false"} onClick={() => setOnly(!only)}>{filtered ? "Show everyone" : "Show only these"}</button> : null}
+              {need > 0 ? <button type="button" class="link" id="ppOnly" aria-pressed={filtered ? "true" : "false"} onClick={() => setOnly(!only)}>{filtered ? "Show everyone" : "Show only these"}</button> : null}
             </p>
-            <table class="pp-table" id="ppTable">
-              <thead><tr><th>Name</th><th>Email</th><th>Organisation</th><th>Role</th></tr></thead>
+            <table class={`pp-table${cw.any() ? " cw-set" : ""}`} id="ppTable">
+              <thead><tr>{["Name", "Email", "Organisation", "Role"].map((w) => <th key={w} style={cw.style(w)} {...cw.head(w, w)}>{w}{cw.grip(w, w)}</th>)}</tr></thead>
               <tbody>
                 {shown.map((r) => (
                   <tr key={r.id || `o:${r.name}`} data-person={r.name}>

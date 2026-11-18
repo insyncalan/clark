@@ -61,16 +61,25 @@ class Browser:
         self.js("(function(){var b=[].find.call(document.querySelectorAll('button'),function(x){return x.textContent.trim()==='Not now'});if(b)b.click()})()")
 
     def where(self, sel):
-        got = self.js(f"(function(){{var e=document.querySelector({json.dumps(sel)});if(!e)return null;e.scrollIntoView({{block:'center',inline:'center'}});"
-                      "var b=e.getBoundingClientRect();return [b.x+b.width/2,b.y+b.height/2,b.width,b.height]})()")
-        self.t.assertIsNotNone(got, f"{sel} is on the page")
-        return got
+        read = (f"(function(){{var e=document.querySelector({json.dumps(sel)});if(!e)return null;"
+                "var b=e.getBoundingClientRect();return [b.x+b.width/2,b.y+b.height/2,b.width,b.height]})()")
+        self.js(f"(function(){{var e=document.querySelector({json.dumps(sel)});if(e)e.scrollIntoView({{block:'center',inline:'center'}})}})()")
+        last = []
+
+        def still():       # the page keeps scrolling and settling after the scroll: aim only at a box that has stopped moving
+            got = self.js(read)
+            last.append(got)
+            return got is not None and len(last) > 1 and last[-2] == got
+        wait(still)
+        self.t.assertIsNotNone(last[-1], f"{sel} is on the page")
+        return last[-1]
 
     def mouse(self, kind, x, y, buttons=0):
         self.cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left" if buttons or kind == "mouseReleased" else "none",
                                                     "buttons": buttons, "clickCount": 1 if kind != "mouseMoved" else 0}, self.sid)
 
     def click(self, sel, dx=0, dy=0):
+        self.cdp.call("Input.dispatchMouseEvent", {"type": "mouseWheel", "x": 5, "y": 5, "deltaX": 0, "deltaY": 1}, self.sid)      # row 1024: a page keeps its own scroll place until a wheel, so the scroll to the control below stays
         x, y, *_ = self.where(sel)
         for kind, b in (("mouseMoved", 0), ("mousePressed", 1), ("mouseReleased", 0)):
             self.mouse(kind, x + dx, y + dy, b)
@@ -202,16 +211,17 @@ class E2E(unittest.TestCase):
     def settings_and_the_tab(self, br):
         br.visit(self.base + f"#settings&p={CODE}", "document.querySelector('#gantt-setting, [data-settings-menu], .setting')")
         self.assertNotIn("Gantt", self.tabs(br), "the tab is off to begin with")
-        br.until("[].some.call(document.querySelectorAll('button, a, li'), function(b){return b.textContent.trim()==='Gantt'})", "Settings lists Gantt")
-        br.js("[].find.call(document.querySelectorAll('button, a'), function(b){return b.textContent.trim()==='Gantt'}).click()")
+        br.until("[].some.call(document.querySelectorAll('.set-chip'), function(b){return b.textContent.trim()==='Reports'})", "Settings lists the Reports page, which holds the Gantt card")      # row 1024: one Settings page at a time
+        br.js("[].find.call(document.querySelectorAll('.set-chip'), function(b){return b.textContent.trim()==='Reports'}).click()")
         br.until("document.querySelector('#gantt-editor')", "the Gantt card")
+        br.until(f"location.search.indexOf('project={CODE}') >= 0 && document.querySelector('#gantt-editor')", "the page has settled on the project (no reload to come)")
         self.assertIn("Show the Gantt to me", br.text("#gantt-setting"))
         self.assertEqual(br.text("#gantt-setting h2"), "Gantt")
         br.snap("settings-gantt-card")
         br.click("#gantt-editor")
         br.until("[].some.call(document.querySelectorAll('.tab'), function(t){return t.textContent.trim()==='Gantt'})", "the tab appears")
         self.assertEqual(self.project()["show_gantt_editor"], 1)
-        self.assertIn("The Gantt tab is on for you.", br.text(".toasts") or "")
+        br.until("document.querySelector('.toasts') && document.querySelector('.toasts').textContent.indexOf('The Gantt tab is on for you.') >= 0", "the toast says the tab is on")      # the tab is drawn from the reply, the toast comes after the page reads the project again
         br.snap("tab-on")
         br.click(".tab[data-view=gantt]")
         br.until("document.querySelector('#gantt-page')", "the Gantt page")
@@ -258,10 +268,11 @@ class E2E(unittest.TestCase):
         br.fill("[data-g-bp]", "40")
         br.snap("gantt-edit-box")
         br.click("[data-g-bsave]")
-        self.assertTrue(wait(lambda: self.line("Scan paper files")["end"] == "2026-11-06"), self.lines())
+        got = lambda: (lambda t: (t["start"], t["end"], t["pct"]))(self.line("Scan paper files"))      # the box's fields reach the store together: wait for all three, not the first
+        self.assertTrue(wait(lambda: got() == ("2026-10-05", "2026-11-06", 40)), self.lines())
         task = self.line("Scan paper files")
         self.assertEqual((task["start"], task["end"], task["pct"]), ("2026-10-05", "2026-11-06", 40), "dates stored as YYYY-MM-DD, done as a whole number")
-        self.assertIn("changed", br.text(".toasts") or "")
+        br.until("document.querySelector('.toasts') && document.querySelector('.toasts').textContent.indexOf('changed') >= 0", "the toast says it changed")      # the store is written before the toast is drawn
         # drag the task's bar a week to the right
         was = (task["start"], task["end"])
         br.drag("[data-g-bar='GNT-002']", 60)
@@ -291,11 +302,7 @@ class E2E(unittest.TestCase):
         br.key("Enter")
         self.assertTrue(wait(lambda: "Handover" in self.names()), self.names())
         self.assertEqual(self.line("Handover")["type"], "milestone")
-        # Import from Excel opens the editor's own two-step box (the one Settings > Data opens), then Cancel puts the page back
-        br.click("[data-gp-import]")
-        br.until("document.querySelector('#import-box')", "Import from Excel opens the editor's own import box")
-        br.js("document.querySelector('#import-box').closest('dialog, [role=dialog], div').querySelector('.btn.quiet:not(.tpl-get)').click()")
-        br.until("!document.querySelector('#import-box')", "Cancel closes the import box")
+        self.assertEqual(br.js("document.querySelectorAll('[data-gp-import], [data-gp-export]').length"), 0, "item 1142: no Excel icons on the Gantt page")
         br.click("[data-gp-layout=chart]")
         br.until("document.querySelector('#gantt-page').dataset.gpShown === 'chart'", "the chart")
         self.assertEqual(br.js("document.querySelector('#gantt-page').dataset.mode"), "edit")
@@ -318,9 +325,13 @@ class E2E(unittest.TestCase):
     def undo_and_reload(self, br):
         before = self.line("Scan paper files")["end"]
         # a change, then Cmd+Z: the server's own history puts it back
+        br.js("[].forEach.call(document.querySelectorAll('.toasts .toast'), function(e){e.setAttribute('data-old-toast','1')})")      # the toasts on screen now are marked; the rename's toast is the one that is not
         br.fill("[data-g-edit='GNT-002:name']", "Scan the paper files")
         br.key("Enter")
         self.assertTrue(wait(lambda: "Scan the paper files" in self.names()), self.names())
+        # the page keeps the step for Cmd+Z only when the server's reply has come in and it draws the toast with its Undo (the store is written first):
+        # wait for a toast element that is new (the old ones are marked), not for different text or the clock
+        br.until("[].some.call(document.querySelectorAll('.toasts .toast:not([data-old-toast])'), function(t){return [].some.call(t.querySelectorAll('button'), function(b){return /Undo/.test(b.textContent)})})", "the rename's toast offers Undo")
         br.js("document.activeElement && document.activeElement.blur()")
         br.key("z", CMD, "KeyZ")
         self.assertTrue(wait(lambda: "Scan paper files" in self.names()), f"Cmd+Z undid the rename: {self.names()}")
@@ -391,7 +402,7 @@ class E2E(unittest.TestCase):
         # the client switch on, then Publish: the file carries the Gantt
         self.send(kind="projects", op="update", changes={"gantt_hidden_columns": "show,note,budget,effort,baseline_start,baseline_end,owner"})
         br.visit(self.base + f"#settings&p={CODE}", "document.querySelector('.setting, #gantt-setting')")
-        br.js("[].find.call(document.querySelectorAll('button, a'), function(b){return b.textContent.trim()==='Gantt'}).click()")
+        br.js("[].find.call(document.querySelectorAll('.set-chip'), function(b){return b.textContent.trim()==='Reports'}).click()")      # row 1024: the Gantt card is on the Reports page
         br.until("document.querySelector('#gantt-client')", "the client tick")
         br.click("#gantt-client")
         self.assertTrue(wait(lambda: self.project()["show_gantt_client"] == 1), "ticked")
@@ -417,8 +428,8 @@ class E2E(unittest.TestCase):
         br.snap("published-table")
         # untick: the next file has no Gantt tab
         br.visit(self.base + f"#settings&p={CODE}", "document.querySelector('.setting, #gantt-setting')")
-        br.js("[].find.call(document.querySelectorAll('button, a'), function(b){return b.textContent.trim()==='Gantt'}).click()")
-        br.until("document.querySelector('#gantt-client')", "the client tick")
+        br.js("[].find.call(document.querySelectorAll('.set-chip'), function(b){return b.textContent.trim()==='Reports'}).click()")      # row 1024: the Gantt card is on the Reports page
+        br.until("document.querySelector('#gantt-client') && document.querySelector('#gantt-client').checked", "the client tick, drawn from the saved project as ticked")      # before the project is read the box is drawn unticked, and a click then ticks it again
         br.click("#gantt-client")
         self.assertTrue(wait(lambda: self.project()["show_gantt_client"] == 0), "unticked")
         second = self.publish(br)

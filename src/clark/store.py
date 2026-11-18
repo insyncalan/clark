@@ -39,13 +39,15 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 24          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1061): the commitment Candidate is stored as Planned 2026; 22 (row 875): use_cases.owner and use_cases.owner_id; 23 (row 1068): report_sections.type takes 'gantttable'; 24 (row 1107): the use_case_milestones table, a use case linked straight to a milestone. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 29          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1061): the commitment Candidate is stored as Planned 2026; 22 (row 875): use_cases.owner and use_cases.owner_id; 23 (row 1068): report_sections.type takes 'gantttable'; 24 (row 1107): the use_case_milestones table, a use case linked straight to a milestone; 25 (item 1185): raid.latest_update and milestones.latest_update; 26 (row 1195): decisions.priority and decisions.latest_update; 27 (row 1269): app_settings.theme, Classic for a new file and Cards for every file that already exists.; 28 (row 1261): report_sections.type takes 'reportheadline'; 29 (row 1264): report_sections.type takes 'glancetemplate'. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
 TABLES = ("projects", "milestones", "workstreams", "actions", "raid", "decisions", "use_cases", "links", "labels",
           "item_labels", "updates", "report_sections", "glance_tiles", "report_hidden", "documents", "source_folders", "people", "gantt_lines", "use_case_milestones")
 SETTINGS_TABLES = ("app_settings",)     # clark (#47): the writer's too, but kept apart from TABLES: what walks TABLES (backups, the demo, publishing) has no use for it
+THEMES = ("classic", "cards")      # row 1269: the install's Theme, Clark Classic or Clark Cards (schema.sql's CHECK says the same)
+THEME_WHEN_MISSING = "cards"   # row 1269: a file with no answer keeps today's look (Cards); it never turns a Theme on by itself
 ASK_WHEN_MISSING = False      # clark (#47): asking reads as OFF when the file holds no answer (no app_settings table or no row): it never fails open
 # clark: - promises, + use_cases, and + the report's own tables (#65, one amendment: the route admits only report_sections)
 KEYS = {"projects": ("code",), "milestones": ("id",), "workstreams": ("id",), "actions": ("id",), "raid": ("id",),
@@ -83,6 +85,8 @@ SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", 
                  "needs", "tracker",
                  "textimage", "headline", "figures4", "figures3", "gallery", "table", "doclinks", "linkcard", "raid3", "raid4",
                  "workitems", "callout", "imagecap", "quote", "contacts", "checklist", "keydates", "onedoc",
+                 "reportheadline",                                           # row 1261: the Report headline template
+                 "glancetemplate",                                           # row 1264: the glance template (its own type; the built-in 'glance' is untouched)
                  "gantt",                                                    # row 926: the Gantt section, which carries no body of its own
                  "gantttable")                                               # row 1068: the Gantt table alone, the same lines and no body of its own
 # the thirty-one of schema.sql's CHECK, the first twenty-nine of them: 'needs', 'tracker' and the eighteen section templates (#96) carry content, through the
@@ -94,6 +98,7 @@ DELETABLE_TYPES = SECTION_TYPES                 # row 906: any section may be de
 # so a fourth word later is a change here and not a layout step.
 COMMITMENTS = ("Planned 2026", "Committed", "Planned 2027")
 ALLOWED = {
+    ("app_settings", "theme"): THEMES,                                  # row 1269
     ("report_sections", "type"): SECTION_TYPES,                         # clark (#65): every type of schema.sql's CHECK
     ("glance_tiles", "tile"): ("health", "overdue", "risks", "decisions"),
     ("glance_tiles", "outline"): ("R", "A", "G", "N"),                  # and '' (a blank is never checked)
@@ -104,6 +109,7 @@ ALLOWED = {
     ("milestones", "movement"): ("hold", "rebaseline", "recover", "escalate"),                     # clark
     ("workstreams", "status"): ("Active", "Closed"),
     ("actions", "priority"): ("Urgent", "High", "Medium", "Low"),
+    ("decisions", "priority"): ("Urgent", "High", "Medium", "Low"),                                # row 1195
     ("raid", "type"): ("Risk", "Assumption", "Issue", "Dependency"),
     ("raid", "impact"): ("High", "Medium", "Low"),
     ("raid", "likelihood"): ("High", "Medium", "Low"),
@@ -1470,6 +1476,8 @@ def _seed_sections(con, code, step):
             values = {"project": code, "type": section["type"], "title": section["title"], "sort_order": GAP * n}
             if section.get("beside"):
                 values["beside"] = 1
+            if section.get("body"):                                   # items 1188, 1193: a default body is written only when it has words; the first section starts empty (its line is the editor hint)
+                values["body"] = section["body"]
             write_item(con, {"table": "report_sections", "op": "new", "values": values}, step)
     finally:
         step.via = was
@@ -1531,7 +1539,7 @@ def all_sections_deleted(con, code):
 def delete_row(con, table, key, current, step, item=False):
     """Remove a links, item_labels, labels (or, #65, report_sections, glance_tiles, report_hidden) row; item 658: or, when `item`
     is true (only delete_item says so), an action, RAID item or decision. The row is kept in change_log (field REMOVED) so undo can put it back."""
-    if table not in DELETED_ON_CANCEL and not (item and table in DELETABLE_ITEMS):
+    if table not in DELETED_ON_CANCEL and not (item and (table in DELETABLE_ITEMS or table == "use_case_milestones")):
         raise Invalid(f"{table} rows are never deleted; close or cancel them instead")
     current = dict(current)
     if table == "labels":
@@ -1547,7 +1555,7 @@ def delete_row(con, table, key, current, step, item=False):
     return key
 
 
-DELETABLE_ITEMS = ("actions", "raid", "decisions")     # item 658: the work items a person may delete (not by cancel: cancel closes them); milestones and use cases are never deleted
+DELETABLE_ITEMS = ("actions", "raid", "decisions", "milestones", "use_cases")     # item 658: the work items a person may delete (not by cancel: cancel closes them); item 1148: and a milestone and a use case, the same way
 
 
 def item_pointer(con, key):
@@ -1556,14 +1564,14 @@ def item_pointer(con, key):
     for table, col in REVERT_REFS:
         if table in ("links", "item_labels") or col not in columns(con, table):
             continue
-        r = con.execute(f"SELECT * FROM {_table(table)} WHERE {col} = ? LIMIT 1", (key,)).fetchone()
+        r = con.execute(f"SELECT * FROM {_table(table)} WHERE {col} = ?" + (" AND removed_at IS NULL" if table == "use_case_milestones" else "") + " LIMIT 1", (key,)).fetchone()   # item 1148: a link taken off is history, not a pointer
         if r:
             return table, key_of(table, r)
     return None
 
 
 def delete_item(con, table, key, current, step):
-    """Item 658: delete one action, RAID item or decision, with its links, its labels and its hiding from the report, in the
+    """Item 658: delete one action, RAID item or decision (item 1148: or a milestone or a use case), with its links, its labels and its hiding from the report, in the
     caller's one step. Each row is kept in change_log (field REMOVED) so one Undo puts all of them back while they are still gone.
     Refused for another table, an archived item or project, or an item another record points at. The ID is never reused
     (next_id reads change_log)."""
@@ -1577,9 +1585,12 @@ def delete_item(con, table, key, current, step):
         raise Invalid(f"{key} can't be deleted: something refers to it ({_REF_WORDS.get(pointer[0], pointer[0])} {pointer[1]}).")
     for t, rows_ in (("links", con.execute("SELECT * FROM links WHERE from_item = ? OR to_item = ?", (key, key)).fetchall()),
                      ("item_labels", con.execute("SELECT * FROM item_labels WHERE item_id = ?", (key,)).fetchall()),
-                     ("report_hidden", con.execute("SELECT * FROM report_hidden WHERE project = ? AND item_id = ?", (current["project"], key)).fetchall())):
+                     ("report_hidden", con.execute("SELECT * FROM report_hidden WHERE project = ? AND item_id = ?", (current["project"], key)).fetchall()),
+                     # item 1148: the links of a milestone or use case that were taken off stay as history; they go with it (no live one is left: that is a pointer)
+                     ("use_case_milestones", con.execute("SELECT * FROM use_case_milestones WHERE use_case = ? OR milestone = ?", (key, key)).fetchall()
+                      if table in ("milestones", "use_cases") else [])):
         for r in rows_:
-            delete_row(con, t, key_of(t, r), dict(r), step)
+            delete_row(con, t, key_of(t, r), dict(r), step, item=(t == "use_case_milestones"))
     return delete_row(con, table, key, current, step, item=True)
 
 
@@ -1958,7 +1969,7 @@ def revert_plan(con, rows, step, undoing_a_revert):
 def _link_end_gone(con, old):
     """Item 658: whether either work item a removed link joined is not in the project now."""
     for end in (old.get("from_item"), old.get("to_item")):
-        if end and not any(fetch(con, t, end) is not None for t in DELETABLE_ITEMS + ("milestones", "use_cases")):
+        if end and not any(fetch(con, t, end) is not None for t in DELETABLE_ITEMS):
             return True
     return False
 
@@ -1978,7 +1989,7 @@ def _return_links(con, step, key, undoing):
             continue
         if con.execute("SELECT 1 FROM change_log WHERE tbl = 'links' AND item_id = ? AND rowid > ?", (lk, r["rowid"])).fetchone():
             continue                                               # the link was put back, or taken away again, since
-        if not con.execute("SELECT 1 FROM change_log WHERE apply_id = ? AND field = ? AND tbl IN ('actions', 'raid', 'decisions')",
+        if not con.execute("SELECT 1 FROM change_log WHERE apply_id = ? AND field = ? AND tbl IN ('actions', 'raid', 'decisions', 'milestones', 'use_cases')",
                            (r["apply_id"], REMOVED)).fetchone():
             continue                                               # not removed by a delete of an item
         back = {k: v for k, v in old.items() if k in columns(con, "links") and v is not None}
@@ -2740,6 +2751,34 @@ def migrate_client_action(con):
         con.execute("ALTER TABLE raid ADD COLUMN client_action INTEGER NOT NULL DEFAULT 0 CHECK (client_action IN (0,1))")
 
 
+LATEST_UPDATE_STEP = 25        # item 1185's step number, written once here and used by MIGRATIONS
+
+
+def migrate_latest_update(con):
+    """Schema version 24 to 25 (item 1185): `raid.latest_update` and `milestones.latest_update`, the peek's Latest update a risk, an issue
+    and a milestone now carry as an action does. Empty on every row already there. A column added at the end of each table, so no table
+    is made again; each is skipped when it is already there (a new database, or a second run). Runs inside the caller's transaction and
+    does not touch the version (the runner does). It is step 25 in MIGRATIONS."""
+    for table in ("raid", "milestones"):
+        if "latest_update" not in columns(con, table):
+            con.execute(f"ALTER TABLE {_table(table)} ADD COLUMN latest_update TEXT")
+
+
+DECISION_PEEK_STEP = 26        # row 1195's step number, written once here and used by MIGRATIONS
+
+
+def migrate_decision_peek(con):
+    """Schema version 25 to 26 (row 1195): `decisions.priority` (Urgent, High, Medium or Low; Medium on every row already there) and
+    `decisions.latest_update` (empty on every row already there), the Decision peek's two new fields. Two columns added at the end of the
+    table, so no table is made again; each is skipped when it is already there (a new database, or a second run). Runs inside the caller's
+    transaction and does not touch the version (the runner does). It is step 26 in MIGRATIONS."""
+    have = columns(con, "decisions")
+    if "priority" not in have:
+        con.execute("ALTER TABLE decisions ADD COLUMN priority TEXT NOT NULL DEFAULT 'Medium' CHECK (priority IN ('Urgent','High','Medium','Low'))")
+    if "latest_update" not in have:
+        con.execute("ALTER TABLE decisions ADD COLUMN latest_update TEXT")
+
+
 GANTT_LINES_INDEX = "CREATE INDEX IF NOT EXISTS gantt_lines_project ON gantt_lines(project, sort_order, id)"
 GANTT_PROJECT_COLUMNS = (          # (name, definition) in the order schema.sql lists them; the same text as schema.sql's projects table
     ("show_gantt_editor", "INTEGER NOT NULL DEFAULT 0 CHECK (show_gantt_editor IN (0,1))"),
@@ -2951,6 +2990,62 @@ def use_case_milestone_history(con, use_case=None, milestone=None):
     return [dict(r) for r in con.execute(sql, args)]
 
 
+THEME_STEP = 27        # row 1269's step number, written once here and used by MIGRATIONS
+THEME_COLUMN = "theme TEXT NOT NULL DEFAULT 'cards' CHECK (theme IN ('classic','cards'))"      # a file that already exists keeps today's look; schema.sql's own default is 'classic' for a new file
+
+
+def migrate_theme(con):
+    """Schema version 26 to 27 (row 1269): app_settings.theme, the install's Theme. Every file that exists when this runs gets 'cards' (today's
+    look), so nothing changes under its owner until they choose; a new file is made from schema.sql, whose default is 'classic'. The column
+    is added at the end of app_settings, so no table is made again; skipped when it is already there (a new database, or a second run), and
+    when the table is missing. Runs inside the caller's transaction and does not touch the version (the runner does). It is step 27 in MIGRATIONS."""
+    have = columns(con, "app_settings")
+    if have and "theme" not in have:
+        con.execute("ALTER TABLE app_settings ADD COLUMN " + THEME_COLUMN)
+
+
+REPORT_HEADLINE_STEP = 28        # row 1261's step number, written once here and used by MIGRATIONS
+REPORT_SECTIONS_WITH_REPORT_HEADLINE = REPORT_SECTIONS_WITH_GANTT_TABLE.replace("'onedoc','gantt','gantttable'", "'onedoc','reportheadline','gantt','gantttable'", 1)
+
+
+def migrate_report_headline_section_type(con):
+    """Schema version 27 to 28 (row 1261): report_sections.type gains 'reportheadline'. Made again from the frozen text above, the rows
+    copied in their order, exactly as step 23 does. Skipped when the table's own definition already names 'reportheadline' (a new
+    database, or a second run). Runs inside the caller's transaction and does not touch the version (the runner does)."""
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'report_sections'").fetchone()
+    if have is None:
+        con.execute(REPORT_SECTIONS_WITH_REPORT_HEADLINE)
+        return
+    if "'reportheadline'" in have[0]:
+        return
+    con.execute(REPORT_SECTIONS_WITH_REPORT_HEADLINE.replace("CREATE TABLE IF NOT EXISTS report_sections (", "CREATE TABLE report_sections_rh (", 1))
+    con.execute("INSERT INTO report_sections_rh (project, id, type, title, body, beside, hidden, sort_order) "
+                "SELECT project, id, type, title, body, beside, hidden, sort_order FROM report_sections ORDER BY rowid")
+    con.execute("DROP TABLE report_sections")
+    con.execute("ALTER TABLE report_sections_rh RENAME TO report_sections")
+
+
+GLANCE_TEMPLATE_STEP = 29        # row 1264's step number, written once here and used by MIGRATIONS
+REPORT_SECTIONS_WITH_GLANCE_TEMPLATE = REPORT_SECTIONS_WITH_REPORT_HEADLINE.replace("'reportheadline','gantt'", "'reportheadline','glancetemplate','gantt'", 1)
+
+
+def migrate_glance_template_section_type(con):
+    """Schema version 28 to 29 (row 1264): report_sections.type gains 'glancetemplate'. Made again from the frozen text above, the rows
+    copied in their order, exactly as step 28 does. Skipped when the table's own definition already names 'glancetemplate' (a new
+    database, or a second run). Runs inside the caller's transaction and does not touch the version (the runner does)."""
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'report_sections'").fetchone()
+    if have is None:
+        con.execute(REPORT_SECTIONS_WITH_GLANCE_TEMPLATE)
+        return
+    if "'glancetemplate'" in have[0]:
+        return
+    con.execute(REPORT_SECTIONS_WITH_GLANCE_TEMPLATE.replace("CREATE TABLE IF NOT EXISTS report_sections (", "CREATE TABLE report_sections_gt (", 1))
+    con.execute("INSERT INTO report_sections_gt (project, id, type, title, body, beside, hidden, sort_order) "
+                "SELECT project, id, type, title, body, beside, hidden, sort_order FROM report_sections ORDER BY rowid")
+    con.execute("DROP TABLE report_sections")
+    con.execute("ALTER TABLE report_sections_gt RENAME TO report_sections")
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
@@ -2960,7 +3055,10 @@ MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies),
               (REVIEW_DAYS_STEP, migrate_review_after_days), (15, migrate_publication_pdf_name), (16, migrate_use_case_commitment),
               (17, migrate_client_action), (18, migrate_gantt), (19, migrate_gantt_section_type), (BRAND_STEP, migrate_brand),
               (21, migrate_commitment_planned_2026), (OWNER_STEP, migrate_use_case_owner), (GANTT_TABLE_STEP, migrate_gantt_table_section_type),
-              (UC_MILESTONES_STEP, migrate_use_case_milestones))
+              (UC_MILESTONES_STEP, migrate_use_case_milestones), (LATEST_UPDATE_STEP, migrate_latest_update),
+              (DECISION_PEEK_STEP, migrate_decision_peek), (THEME_STEP, migrate_theme),
+              (REPORT_HEADLINE_STEP, migrate_report_headline_section_type),
+              (GLANCE_TEMPLATE_STEP, migrate_glance_template_section_type))
 
 
 def migration_plan(version, table=None):
@@ -3975,6 +4073,17 @@ class Store:
         except sqlite3.Error:
             return ASK_WHEN_MISSING
         return row is not None and row[0] == 1
+
+    def theme(self):
+        """The install's Theme, 'classic' or 'cards' (row 1269). Anything but exactly one of those two, a file with no such column, table or row,
+        or any database error, reads as THEME_WHEN_MISSING ('cards': today's look). Read only."""
+        try:
+            if not self.settings_ready() or "theme" not in columns(self.con, "app_settings"):
+                return THEME_WHEN_MISSING
+            row = self.con.execute("SELECT theme FROM app_settings WHERE id = 1").fetchone()
+        except sqlite3.Error:
+            return THEME_WHEN_MISSING
+        return row[0] if row is not None and row[0] in THEMES else THEME_WHEN_MISSING
 
     def milestone_moves(self, code):
         """#136: the date and state history of a project's live milestones, for Movement (owner only: never published, never in

@@ -78,6 +78,9 @@ def esc_on(js, sel):
 
 def motion_of(cdp, sid, value, scheme="light"):
     cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": value}, {"name": "prefers-color-scheme", "value": scheme}]}, sid)
+    if value == "no-preference":
+        # a Mac that reduces motion makes the page paint data-motion="reduce" at load; this pin comes after, so clear it
+        cdp.js("delete document.documentElement.dataset.motion", sid)
 
 
 class Live(rm.Menu):
@@ -169,8 +172,8 @@ class Live(rm.Menu):
                 set_line(cdp, sid, "type:risk,issue,assumption,dependency")      # row 1059: the type pill is gone
                 d.until("!!document.querySelector(\"#work-list tr[data-kind='risk'] [data-cell$=':priority']\")", "a risk row's priority cell")
                 click(cdp, sid, "#work-list tr[data-kind='risk'] [data-cell$=':priority']")
-                d.until("!!document.querySelector('.cpop.rpick')", "the rating picker opened")
-                d.fades(motion, lambda: key(cdp, sid, "Escape"), ".cpop.rpick.leaving")
+                d.until("!!document.querySelector('.cpop.rmatrix')", "the rating picker opened")
+                d.fades(motion, lambda: key(cdp, sid, "Escape"), ".cpop.rmatrix.leaving")
 
     def test_row_962_11_the_decision_box_on_the_board_fades_out(self):
         for motion in ("no-preference", "reduce"):

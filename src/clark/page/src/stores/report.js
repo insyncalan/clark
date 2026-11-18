@@ -55,6 +55,9 @@ export const view = signal(start.view);
 export const item = signal(start.item);              // the open peek: a work item's id, or "" (the peek itself is #42)
 export const ms = signal(start.ms);                  // ... or a milestone's id
 export const uc = signal(start.uc);                  // the open use case's address key on the Use cases page (its reference as written, else its id), or ""
+export const settingsPage = signal(start.s || "");   // Settings: the page shown, its slug from the address ("" is Projects), row 1024
+export const settingsFeedbackShown = signal(false);   // Settings search is showing the Feedback card (set by the search box, Views.jsx); the Feedback tag stands aside then (#1298)
+export const mv = signal(start.mv);                  // a published file's Milestones block view in the address: "cal" or "" (the Timeline); see setMsView()
 const filterText = signal(start.f);                  // the Work items filters' text, opaque to the router (#64a): see setFilters()
 export const f = computed(() => filterText.value);   // read-only: a component changes it only through setFilters()
 export const peek = computed(() => (item.value ? { kind: "item", id: item.value } : ms.value ? { kind: "milestone", id: ms.value } : null));
@@ -73,6 +76,8 @@ export const publication = signal(0);       // a published file: its publication
 export const fromFile = signal(false);       // true when the page is a published file (#39): it never edits and never asks a server
 export const mode = signal("view");          // view | edit (#65): memory only, never in the database or the address, so a reload is View
 export const dropAt = signal(undefined);     // Edit, while a section is dragged: what to draw (logic/placement.js indicator: { line: "before", ids } | { line: "end" } | { outline, side }), undefined for none
+export const dragFrom = signal(undefined);     // Edit, while a section is dragged: its id (edit/drag.js)
+export const dragList = signal(undefined);     // Edit, while a section is dragged and a place is shown: the sections as the drop would leave them, so the others make room (edit/drag.js); undefined for the page as it is
 export const asAt = signal("");              // view mode: the publish date, YYYY-MM-DD; due dates and Overdue read as at this
 export const rebuilt = signal("");           // item 349: the day the Dashboard is shown as at, rebuilt from the change history (YYYY-MM-DD), else "": memory only, never in the address; while set the page is read only
 export const SERVED_TABS = VIEWS;   // the served page offers every view; a published file lists its own, from p.tabs
@@ -111,7 +116,7 @@ export const counts = computed(() => {
 
 let openedF = null;                                  // null: not known (a reload or a restored tab), so closing rewrites the entry
 
-const where = () => ({ view: view.value, project: project.value, item: item.value, ms: ms.value, f: filterText.value, uc: uc.value });
+const where = () => ({ view: view.value, project: project.value, item: item.value, ms: ms.value, f: filterText.value, uc: uc.value, mv: mv.value, s: settingsPage.value });
 
 // Draw the page from an address: the signals follow it, and a project that changed is read again. A published file has one
 // project and only its own tabs: an address that names another project or a tab the file does not have (typed, or a Back to it)
@@ -125,6 +130,8 @@ function apply(s) {
     item.value = s.item;
     ms.value = s.ms;
     uc.value = s.uc || "";
+    settingsPage.value = s.s || "";
+    mv.value = s.mv || "";
     filterText.value = s.f;
   });
   if (s.project !== project.value) {
@@ -140,6 +147,12 @@ function apply(s) {
 // Whether the loaded data has a work item (`milestone` false) or a milestone with this id.
 function known(d, id, milestone) {
   return !!d && (milestone ? d.milestones.some((m) => m.id === id) : [...d.actions, ...d.raid, ...d.decisions].some((r) => r.id === id));
+}
+
+// The published file's Calendar or Timeline choice, kept in the address (`mv`) so a reload brings it back; the entry is rewritten, not added.
+export function setMsView(v) {
+  mv.value = v === "cal" ? "cal" : "";
+  route.navigate(where(), { replace: true });
 }
 
 // Move to `s` through the router and draw it. Drawn from `s` itself (made well-formed as the router makes it), not from the
@@ -173,6 +186,8 @@ function leave() {
   leaveField();
   openFilter.value = "";
   dropAt.value = undefined;
+  dragFrom.value = undefined;
+  dragList.value = undefined;
   moves.value++;
 }
 
@@ -183,6 +198,11 @@ route.onPop((s) => { if (reloadFor(s)) return; backingAt = -Infinity; leave(); a
 /** Go to a page: one new entry; an open peek closes, and so do the filters (they belong to one page). */
 export function show(next) {
   go({ view: next, project: project.value, item: "", ms: "", f: "" });
+}
+
+/** Settings on one of its pages (row 1024): one new entry, as any change of page is. `page` is a slug from router.SETTINGS_PAGES; the first (or none) is plain "#settings". */
+export function showSettings(page) {
+  go({ view: "settings", project: project.value, item: "", ms: "", f: "", s: page || "" });
 }
 
 /** Open Work items with a filter state already set (an At a glance tile, #79): one new entry, as any change of page is. */
@@ -245,7 +265,7 @@ export function setProject(code) {
 // A different project is a fresh page load, GET /?project=<code> (#944): the server sends that project's one brand block with the policy's
 // hashes of exactly those bytes. The page is asked for first: if it cannot be had, this page stays and moves in place as before (as it does
 // for the same project, or an address that cannot be set).
-function loadProject(s) {
+function loadProject(s, replace) {
   if (s.project === project.value || typeof fetch !== "function") { go(s); return; }
   const url = "/?project=" + s.project + route.format(s);
   const since = trouble.n;
@@ -254,7 +274,7 @@ function loadProject(s) {
     if (!r) return;                                        // the save failed or ran past the wait: this page stays, as it is
     if (!r.ok) { go(s); return; }
     try { beforeReload.forEach((f) => f()); } catch (e) {}
-    location.assign(url);
+    location[replace ? "replace" : "assign"](url);          // the auto-open replaces: Back from it leaves, it does not land on the bare address again
   }, () => go(s));
 }
 
@@ -368,7 +388,7 @@ export function plain(code, body) {
 // What the page says when a change or an undo (api.js) failed, by the same rule as plain(): the status picks the words, and a
 // message from the server is used only to pick one of these, never shown. Each says that nothing was changed (or what is
 // still true) and what to do next.
-const CHANGE_FAILED = "That change could not be made, and nothing was changed. Reload the page and try again.";
+export const CHANGE_FAILED = "That change could not be made, and nothing was changed. Reload the page and try again.";
 const CHANGE_KNOWN = {
   "Your page is out of date. Reload it, then try again.": "The report has changed since you opened it, and nothing was changed. Reload the page and try again.",
   "That section isn't in this project.": "That section is no longer in this report, and nothing was changed. Reload the page.",
@@ -390,16 +410,10 @@ const CHANGE_KNOWN = {
     "A decision that has been made can't go back to Pending, and nothing was changed. Record a new decision that replaces it.",
   "A decision that has been made can't be put back. Record a new decision that replaces it.":
     "That decision has been made, so it was left as it is. Record a new decision that replaces it.",
-  "Use plain text, with no line breaks or hidden characters.": "A name can only be plain text, with no line breaks or hidden characters. Nothing was changed.",
+  "Use plain text, with no line breaks or hidden characters.": "That can only be plain text, with no line breaks or hidden characters. Nothing was changed.",
   "That value isn't one clark can use.": "That value can't be used, and nothing was changed. Try another.",
   "A latest update can be at most 1000 characters. Shorten it and try again.": "A latest update can be 1000 characters at most. Nothing was changed. Shorten it and try again.",
   "That has a hidden character in it. Take it out and try again.": "That update has a hidden character in it, often from copying and pasting. Nothing was changed. Type it again, then press Enter.",
-  // #121: a 'Needs from you' list clark would not save (clark/section_bodies.py's words; the page checks first and says the same)
-  "Needs from you can have at most 100 rows.": "A list can have 100 rows at most, and nothing was changed. Remove one to add another.",
-  "Say what is needed.": "Say what is needed. Nothing was changed.",
-  "What is needed can be 300 characters at most.": "What is needed can be 300 characters at most. Nothing was changed.",
-  "From can be 100 characters at most.": "From can be 100 characters at most. Nothing was changed.",
-  "By must be a real day between 2000 and 2100, or empty.": "By must be a real day between 2000 and 2100, or empty. Nothing was changed.",
   // the change route's own limit (server.py MESSAGES change_too_large) is the key at the end of this table
   // row 1005: the Text and picture section's text over its limit (section_kinds/textimage.py's words, said as the server says them)
   "The text can be 40,000 characters at most. Shorten it and try again.": "The text can be 40,000 characters at most. Shorten it and try again.",
@@ -474,6 +488,21 @@ function nameProject(s) {
     route.replaceAddress("/?project=" + s.project + route.format(s));
   } catch (e) {}
 }
+// A bare address (no project named) on the page's first read: the only project opens by itself; with two or more, the last one used here
+// does if it is still there. Otherwise the chooser stays. Later visits to the chooser (the project button, a removed project) never jump.
+const LAST = "clark.lastProject";
+function lastUsed() { try { return localStorage.getItem(LAST) || ""; } catch (e) { return ""; } }
+export function rememberProject(code) { try { if (code) localStorage.setItem(LAST, code); } catch (e) { /* a private window: not remembered */ } }
+function forgetProject() { try { localStorage.removeItem(LAST); } catch (e) { /* not remembered anyway */ } }
+function autoOpen() {
+  const list = projects.value;
+  if (projectsState.value !== "ready" || !list.length) return;
+  if (view.value === "settings" || view.value === "published") return;          // these pages work without a project: opening one would pull the page away
+  const pick = list.length === 1 ? list[0].code : (list.find((p) => p.code === lastUsed()) || {}).code;
+  if (!pick) { if (list.length > 1 && lastUsed()) forgetProject(); return; }          // a remembered project that is gone is dropped
+  if (!route.isProject(pick)) return;
+  loadProject({ view: view.value, project: pick, item: "", ms: "", f: "" }, true);
+}
 let firstLoad = true;          // only the page's first read may go to another page for its brand: a switch that could not get the page stays put (loadProject)
 export async function load() {
   const first = firstLoad; firstLoad = false;
@@ -481,7 +510,7 @@ export async function load() {
   if (p) return openPublished(p);          // a published file never asks a server for anything
   const code = project.value;
   const mine = ++reading;
-  if (!code) { status.value = "none"; return loadProjects(); }
+  if (!code) { status.value = "none"; await loadProjects(); if (first && mine === reading) autoOpen(); return; }
   status.value = "loading";
   try {
     const r = await fetch(`/api/data?project=${encodeURIComponent(code)}`, { headers: { "X-Clark-Token": token() } });
@@ -489,6 +518,7 @@ export async function load() {
     if (mine !== reading) return;
     if (r.status === 404) { status.value = "missing"; message.value = plain(404, body); return; }
     if (!r.ok || !body.ok) { status.value = "failed"; message.value = plain(r.status, body); return; }
+    rememberProject(code);          // only a project that opened is remembered as the last used
     if (first) {
       if (!(body.data && body.data.project && body.data.project.brand === "generic") && reloadFor(where(), false)) return;   // a brand of its own (or none known): the page for it, before anything is drawn
       nameProject(where());          // a Generic project keeps this page; its address names it as the reload would have (no second load)

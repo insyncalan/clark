@@ -559,6 +559,55 @@ class NativeProgram(Fake):
         self.assertEqual(roots[1:], tuple(str(Path(r).resolve()) for r in ("/opt/homebrew", "/usr/local")))
 
 
+class VsCodeExtensionInstall(NativeProgram):
+    """Row 1100: Claude Code installed by the VS Code extension keeps its own Mac program inside the extension's folder."""
+
+    PLACE = "~/.vscode/extensions/anthropic.claude-code-*/resources/native-binary/claude"
+
+    def install(self, version):
+        folder = self.d / ".vscode/extensions" / f"anthropic.claude-code-{version}-darwin-arm64" / "resources/native-binary"
+        return self.program(folder=folder)
+
+    def ext_places(self):
+        return (self.PLACE.replace("~", str(self.d), 1),)
+
+    def test_the_extension_place_is_one_of_the_fixed_places(self):
+        self.assertIn(self.PLACE, ac.PLACES)
+
+    def test_the_extension_program_is_found(self):
+        real = self.install("2.1.323")
+        self.assertEqual(ac.find_command(self.ext_places(), roots=(str(self.d),)), (real, None))
+
+    def test_the_newest_extension_version_is_tried_first(self):
+        self.install("2.1.9")
+        new = self.install("2.1.323")
+        self.assertEqual(ac.find_command(self.ext_places(), roots=(str(self.d),)), (new, None))
+
+    def test_an_extension_script_is_still_refused(self):
+        folder = self.d / ".vscode/extensions/anthropic.claude-code-2.1.323-darwin-arm64/resources/native-binary"
+        self.program(folder=folder, head=b"#!/bin/sh\n")
+        self.assertEqual(ac.find_command(self.ext_places(), roots=(str(self.d),)), (None, ac.NOT_NATIVE))
+
+    @staticmethod
+    def home_places():
+        """The real places list without the fixed system ones, so a program on the machine running the test cannot win."""
+        return tuple(p for p in ac.PLACES if p.startswith("~"))
+
+    def test_the_real_places_list_finds_the_extension_program(self):
+        real = self.install("2.1.323")
+        with mock.patch.dict(os.environ, {"HOME": str(self.d)}):
+            self.assertEqual(ac.find_command(self.home_places(), roots=(str(self.d),)), (real, None))
+
+    def test_the_extension_is_looked_in_last(self):
+        self.assertEqual(ac.PLACES[-1], self.PLACE)
+
+    def test_an_earlier_place_wins_over_the_extension(self):
+        self.install("2.1.323")
+        local = self.program(folder=self.d / ".local/bin")
+        with mock.patch.dict(os.environ, {"HOME": str(self.d)}):
+            self.assertEqual(ac.find_command(self.home_places(), roots=(str(self.d),)), (local, None))
+
+
 class NpmAndNvmInstalls(NativeProgram):
     """An npm global or nvm install: its `claude` is a link, followed to the file it names, which must still be a Mac program."""
 
@@ -919,6 +968,21 @@ class Source(unittest.TestCase):
         self.assertNotIn("\"--bare\"", self.TEXT.split("NEVER_FLAGS")[0])
         self.assertNotIn("shell=True", self.RUN)
         self.assertIn("shell=False", self.RUN)
+
+
+class VersionKey(unittest.TestCase):
+    def test_prerelease_orders_below_its_release_and_by_number(self):
+        paths = ["/n/v1.0.8-rc10/bin", "/n/v1.0.8-rc9/bin", "/n/v1.0.8/bin", "/n/v1.0.9-rc1/bin", "/n/v1.0.7/bin"]
+        got = sorted(paths, key=ac._version_key, reverse=True)
+        self.assertEqual(got, ["/n/v1.0.9-rc1/bin", "/n/v1.0.8/bin", "/n/v1.0.8-rc10/bin", "/n/v1.0.8-rc9/bin", "/n/v1.0.7/bin"])
+
+    def test_build_suffixes_are_not_prereleases_but_a_b_rc_are(self):
+        for tag in ("arm64", "amd64", "bin"):
+            self.assertGreater(ac._version_key("/n/v1.2.3-" + tag), ac._version_key("/n/v1.2.3-rc1"), tag)
+            self.assertEqual(ac._version_key("/n/v1.2.3-" + tag)[2], 1, tag)
+        for tag in ("a1", "b2", "rc1"):
+            self.assertEqual(ac._version_key("/n/v1.2.3" + tag)[2], 0, tag)
+            self.assertLess(ac._version_key("/n/v1.2.3" + tag), ac._version_key("/n/v1.2.3"), tag)
 
 
 if __name__ == "__main__":

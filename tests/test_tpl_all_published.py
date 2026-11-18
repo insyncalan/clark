@@ -89,7 +89,10 @@ class AllTemplates(Base):
             "keydates": {"v": 1, "items": [{"milestone": self.ms}, {"label": "Fictional typed date", "date": LATER}]},
             "onedoc": {"v": 1, "file": {"name": "Signed SOW.pdf", "rel": "Report files/Signed SOW.pdf", "bytes": 2048}, "label": "The signed SOW",
                        "text": ["Signed on 12-01-2030."]},
+            "reportheadline": {"v": 1, "health": "on_track", "headline": "Fictional headline", "sentence": "Fictional sentence."},
+            "glancetemplate": {"v": 1, "builtin": {n: {"hidden": True} for n in ("overdue", "risks", "decisions")}, "bespoke": [{"id": "t1", "label": "Fictional tile", "figure": "3", "tag": "Fictional", "note": "Fictional note", "tone": "amber"}]},
         }
+        # row 1264: the file carries no counts until the counts slice, so the fixture hides the three counting tiles the served View would draw
         self.assertEqual(set(self.bodies), set(section_kinds.TYPES), "one of every template")
         self.refs = {}
         with self.store.step("dashboard", USER) as st:
@@ -134,10 +137,11 @@ class AllTemplates(Base):
 
     def words(self, p):
         """Each template section's words, by id, with white space folded. How late a work item is counts from the day it is read
-        (the served View: today; the file: its as-at day), so that count is folded too."""
+        (the served View: today; the file: its as-at day), so that count is folded too. The served View's "Review all N items" link
+        opens the Work items page, so the file has none (Row 1268): it is folded out too."""
         got = p.js("(function(refs){ try { return JSON.stringify(Object.fromEntries(refs.map(function(id){"
                    " var e = document.querySelector('[data-id=\"' + id + '\"]');"
-                   " return [id, e ? e.textContent.replace(/\\s+/g, ' ').replace(/\\d+ days? late/g, 'N days late').trim() : null]; }))); }"
+                   " return [id, e ? e.textContent.replace(/\\s+/g, ' ').replace(/\\d+ days? late/g, 'N days late').replace(/\\s*Review all \\d+ items$/, '').trim() : null]; }))); }"
                    " catch (x) { return 'ERROR ' + x.message; } })("
                    + json.dumps(sorted(self.refs.values())) + ")")
         self.assertFalse(str(got).startswith("ERROR"), got)

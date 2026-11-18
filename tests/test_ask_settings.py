@@ -27,7 +27,7 @@ from clark import app_settings, page, store as st
 
 PAGE_SRC = Path(page.PAGE).parent / "src"
 WIDTHS = (1400, 900)
-ON = "Asking is on. Your question and the passages it needs go to Claude, which Anthropic runs."
+ON = "Asking is on."
 OFF = "Asking is off. Turn it on in Settings."
 CHECKING = "Checking whether asking is on…"
 UNAVAILABLE = "Asking is off, because clark could not check the setting just now. Reload the page to try again."
@@ -106,14 +106,14 @@ class Settings(unittest.TestCase):
         return d
 
     def show_page(self, cdp, fake=False):
-        sid = navigate(cdp, self.s.port, for_project("#settings&p=ABC"))
+        sid = navigate(cdp, self.s.port, for_project("#settings&p=ABC&s=claude"))
         self.sid = sid
         js = lambda e: cdp.js(e, sid)          # noqa: E731
         if fake:
             js(FAKE)
             js("location.hash = '#dashboard&p=ABC'")
             wait(lambda: js("!document.querySelector('#ask-settings')"), 10)
-            js("location.hash = '#settings&p=ABC'")
+            js("location.hash = '#settings&p=ABC&s=claude'")
         self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-settings')"), 20), "the Asking entry is in Settings")
         return js
 
@@ -155,7 +155,7 @@ class Settings(unittest.TestCase):
 
     def test_a_choice_left_in_the_browsers_storage_by_an_earlier_build_is_ignored(self):
         with chrome() as cdp:
-            sid = navigate(cdp, self.s.port, for_project("#settings&p=ABC"))
+            sid = navigate(cdp, self.s.port, for_project("#settings&p=ABC&s=claude"))
             js = lambda e: cdp.js(e, sid)          # noqa: E731
             js("localStorage.setItem('clark.askEnabled', 'off')")
             reload_to_new_page(js, seconds=20)
@@ -178,7 +178,7 @@ class Settings(unittest.TestCase):
             js("""window.__pending = []; window.__held = () => window.__pending.splice(0).forEach((f) => f()); const real = window.fetch;
                   window.fetch = function (url) { if (String(url).indexOf('/api/ask-enabled') >= 0) { const a = arguments; return new Promise((r) => { window.__pending.push(() => r(real.apply(window, a))); }); }
                                                   return real.apply(this, arguments); };
-                  location.hash = '#settings&p=ABC'""")
+                  location.hash = '#settings&p=ABC&s=claude'""")
             self.assertTrue(wait(lambda: js("(document.querySelector('#ask-state') || {}).innerText") == CHECKING, 10))
             self.assertEqual(js("document.querySelector('[data-ask-switch]').disabled"), True)
             # Release whatever the page has asked so far on every poll, until the answer is on screen (it asks after it draws the words).
@@ -196,11 +196,11 @@ class Settings(unittest.TestCase):
                   window.answer = (i, on) => window.__q[i](new Response(JSON.stringify({ok: true, ask_enabled: on, saved: true}), {status: 200, headers: {'Content-Type': 'application/json'}}));
                   window.fetch = function (url) { if (String(url).indexOf('/api/ask-enabled') >= 0) return new Promise((r) => { window.__q.push(r); });
                                                   return real.apply(this, arguments); };
-                  location.hash = '#settings&p=ABC'""")
+                  location.hash = '#settings&p=ABC&s=claude'""")
             self.assertTrue(wait(lambda: js("window.__q.length") == 1, 10), "the first ask is out")
             js("location.hash = '#dashboard&p=ABC'")
             self.assertTrue(wait(lambda: js("!document.querySelector('#ask-settings')"), 10))
-            js("location.hash = '#settings&p=ABC'")
+            js("location.hash = '#settings&p=ABC&s=claude'")
             self.assertTrue(wait(lambda: js("window.__q.length") == 2, 10), "the second ask is out")
             js("window.answer(1, true)")                                  # the newer ask answers first: on
             self.assertTrue(wait(lambda: js("(document.querySelector('#ask-state') || {}).innerText") == ON, 10), "the newer answer shows")
@@ -233,7 +233,7 @@ class Settings(unittest.TestCase):
                     self.until(lambda: js("window.__q.length"), first + 1, "the change is out")
                     js("location.hash = '#dashboard&p=ABC'")
                     self.assertTrue(wait(lambda: js("!document.querySelector('#ask-settings')"), 10))
-                    js("location.hash = '#settings&p=ABC'")
+                    js("location.hash = '#settings&p=ABC&s=claude'")
                     self.until(lambda: js("window.__q.length"), first + 2, "the newer read is out")
                     js(f"window.answer({first + 1}, 200, {{ok: true, ask_enabled: true, saved: true}})")      # the newer read answers first: on
                     self.until(lambda: js("(document.querySelector('#ask-state') || {}).innerText"), ON, "the newer answer shows")
@@ -356,6 +356,39 @@ class Settings(unittest.TestCase):
                 self.assertEqual(js("window.__ask.calls.filter(Boolean).pop().path"), "/Example/typed")
                 self.assertEqual(js("document.querySelector('#ask-folder-path').value"), "")
                 self.assertLessEqual(js("document.documentElement.scrollWidth"), width)
+
+    def test_add_folder_pressed_with_the_keyboard_keeps_the_focus_in_the_folders_part(self):
+        """Add folder is disabled while it runs, which drops the focus: a real Enter on the button puts it back in the location box. 1400 and 900."""
+        for width in WIDTHS:
+            with chrome() as cdp:
+                js = self.show_page(cdp, fake=True)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-choose]')"), 10))
+                js("window.__ask.choices = ['/nowin']")
+                js("document.querySelector('[data-ask-choose]').click()")
+                self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-folder-path')"), 10))
+                js("(() => { const i = document.querySelector('#ask-folder-path'); i.value = '/Example/typed'; i.dispatchEvent(new Event('input', {bubbles: true})); })()")
+                self.assertTrue(wait(lambda: not js("document.querySelector('[data-ask-add]').disabled"), 10))
+                js("document.querySelector('[data-ask-add]').focus()")
+                for typ in ("keyDown", "keyUp"):
+                    cdp.call("Input.dispatchKeyEvent", {"type": typ, "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13, **({"text": "\r"} if typ == "keyDown" else {})}, self.sid)
+                self.assertTrue(wait(lambda: js("(document.querySelector('#ask-folders') || {innerText: ''}).innerText").startswith("/Example/typed"), 10))
+                self.until(lambda: js("document.activeElement.id"), "ask-folder-path", f"{width}: focus is in the location box after Add folder")
+
+    def test_add_folder_keeps_the_focus_in_the_location_box(self):
+        """Add folder is disabled while the request runs and again once the box is emptied: the focus goes to the box, refused or not."""
+        with chrome() as cdp:
+            js = self.show_page(cdp, fake=True)
+            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-choose]')"), 10))
+            js("window.__ask.choices = ['/nowin']")
+            js("document.querySelector('[data-ask-choose]').click()")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-folder-path')"), 10))
+            put = lambda text: js("(() => { const i = document.querySelector('#ask-folder-path'); i.value = %s; i.dispatchEvent(new Event('input', {bubbles: true})); })()" % json.dumps(text))
+            for text in ("/bad", "/Example/typed"):
+                put(text)
+                self.assertTrue(wait(lambda: not js("document.querySelector('[data-ask-add]').disabled"), 10))
+                js("document.querySelector('[data-ask-add]').focus(); document.querySelector('[data-ask-add]').click()")
+                self.until(lambda: js("document.activeElement === document.querySelector('#ask-folder-path')"), True, f"{text}: focus is in the box")
 
     def test_the_typed_location_is_trimmed_spaces_alone_add_nothing_and_a_refused_one_stays_in_the_box(self):
         with chrome() as cdp:

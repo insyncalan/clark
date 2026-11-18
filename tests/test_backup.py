@@ -867,8 +867,8 @@ class NoUserName(unittest.TestCase):
     def test_6_the_onedrive_refusals_write_the_folder_from_the_home_folder(self):
         root = self.home / "OneDrive-DemoOrg"
         (root / "data").mkdir(parents=True)
-        for what, words in (("backups", "Backups can't be kept in ~/OneDrive-DemoOrg/data because"),
-                            ("data", "Your data can't be kept in ~/OneDrive-DemoOrg/data because")):
+        for what, words in (("backups", "Backups can't be kept in ~/OneDrive/data because"),
+                            ("data", "Your data can't be kept in ~/OneDrive/data because")):
             with self.subTest(what=what), self.assertRaises(pl.PlatformError) as ctx:
                 pl.check_data_dir(root / "data", [root], what=what)
             self.assertIn(words, str(ctx.exception))

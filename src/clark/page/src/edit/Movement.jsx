@@ -211,13 +211,13 @@ function MoveForm({ r }) {
       <h4 id="mv-form-h">{W.MOVE_LABEL}</h4>
       <label class="mvm-f" for="mv-to"><span>{W.FIELDS.to}</span><input id="mv-to" type="text" inputmode="numeric" autocomplete="off" value={f.to} onInput={set("to")} /></label>
       <FormRow k="who">
-        <RichField field="mv_who" value={legacyToHtml(f.who)} label={W.FIELDS.who.toLowerCase()} viewId="mv-who" labelledBy="mv-who-l" save={keepFor("who")} />
+        <RichField field="mv_who" value={legacyToHtml(f.who)} label={W.FIELDS.who.toLowerCase()} viewId="mv-who" labelledBy="mv-who-l" save={keepFor("who")} oneLine />
       </FormRow>
       <FormRow k="reason">
-        <RichField field="mv_reason" value={legacyToHtml(f.reason)} label={W.FIELDS.reason.toLowerCase()} viewId="mv-reason" labelledBy="mv-reason-l" save={keepFor("reason")} />
+        <RichField field="mv_reason" value={legacyToHtml(f.reason)} label={W.FIELDS.reason.toLowerCase()} viewId="mv-reason" labelledBy="mv-reason-l" save={keepFor("reason")} oneLine />
       </FormRow>
       <FormRow k="source">
-        <RichField field="mv_source" value={legacyToHtml(f.source)} label={W.FIELDS.source.toLowerCase()} viewId="mv-source" labelledBy="mv-source-l" save={keepFor("source")} />
+        <RichField field="mv_source" value={legacyToHtml(f.source)} label={W.FIELDS.source.toLowerCase()} viewId="mv-source" labelledBy="mv-source-l" save={keepFor("source")} oneLine />
       </FormRow>
       <p class="mvm-confirm" id="mvm-confirm">{confirm}</p>
       <div class="mvm-problems" role="alert">{f.errors.map((e) => <p key={e}>{e}</p>)}</div>

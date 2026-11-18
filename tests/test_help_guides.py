@@ -351,18 +351,18 @@ class PageKey(unittest.TestCase):
 # The Settings cards on the page, by the part that draws each (components/Views.jsx, Settings): the visible title of the card.
 # A part the page adds that is not here fails the rule below, so the new card's line is written with it.
 # Asking is left out on purpose: it is the ask clark switch, and Help holds every entry about ask clark (helpLater.json).
-SETTINGS_PARTS = {"Profile": "Profile", "ClientFolder": "Publishing", "Personal": "Personal", "ReviewDays": "Freshness", "GanttSetting": "Gantt",
-                  "Diagnostics": "Logs and diagnostics", "Safety": "Backups", "People": "People", "Feedback": "Feedback", "Projects": "Projects", "Data": "Data", "Update": "Version and updates", "Brands": "Brands", "Quit": "Quit"}
-SETTINGS_LEFT_OUT = {"AskSettings"}
+SETTINGS_PARTS = {"Essentials": "Essentials", "Profile": "Profile", "ClientFolder": "Publishing", "Personal": "Personal", "ReviewDays": "Freshness", "GanttSetting": "Gantt",
+                  "Diagnostics": "Logs and diagnostics", "Safety": "Backups", "People": "People", "Feedback": "Feedback", "Projects": "Projects", "Data": "Data", "Update": "Version and updates", "Brands": "Brands", "Quit": "Quit", "AskSettings": "Asking"}
+SETTINGS_LEFT_OUT = set()
 PAGE_SRC = HELP.parent
 WORDS_NOT_USED = re.compile(r"\b(apply|applied|staged|proposal|sweep|tracker|vault|extract)\b", re.I)
 
 
 def settings_parts():
     code = (PAGE_SRC / "components" / "Views.jsx").read_text(encoding="utf-8")
-    body = code[code.index("export function Settings"):]
-    body = body[:body.index("\n}\n")]
-    return set(re.findall(r"\{(\w+) \? <\1 />", body))
+    groups = code[code.index("const GROUPS = ["):]      # row 1024: the Settings pages hold the cards, named in this list
+    groups = groups[:groups.index("\n];")]
+    return {name for lst in re.findall(r'\[("[A-Z]\w*"(?:, "[A-Z]\w*")*)\]', groups) for name in re.findall(r'"(\w+)"', lst)}
 
 
 class ContextText(unittest.TestCase):
@@ -404,7 +404,7 @@ class ContextText(unittest.TestCase):
                 self.assertNotIn("cards", c, page)
 
     def test_each_card_title_is_a_title_the_page_shows(self):
-        names = ("ClientFolder.jsx", "Personal.jsx", "ReviewDays.jsx", "GanttSetting.jsx", "Diagnostics.jsx", "People.jsx", "Safety.jsx", "PublishedReports.jsx", "Projects.jsx", "Data.jsx", "Brands.jsx", "Feedback.jsx", "Quit.jsx")
+        names = ("Essentials.jsx", "ClientFolder.jsx", "Personal.jsx", "ReviewDays.jsx", "GanttSetting.jsx", "Diagnostics.jsx", "People.jsx", "Safety.jsx", "PublishedReports.jsx", "Projects.jsx", "Data.jsx", "Brands.jsx", "Feedback.jsx", "Quit.jsx", "AskSettings.jsx")
         code = " ".join((PAGE_SRC / "edit" / f).read_text(encoding="utf-8") for f in names)
         code += " " + (PAGE_SRC / "logic" / "safety.js").read_text(encoding="utf-8") + (PAGE_SRC / "logic" / "update.js").read_text(encoding="utf-8") + (PAGE_SRC / "logic" / "pastReports.js").read_text(encoding="utf-8")
         for title in SETTINGS_PARTS.values():

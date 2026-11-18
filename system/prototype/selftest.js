@@ -461,6 +461,7 @@
     ok('Overdue actions opens Work items filtered to what it counts', C.UI.view === 'work' && $$('tr[data-id]').length === +C.glanceData(P()).overdue.v && $$('tr[data-id]').every(r => item(r.dataset.id).type === 'A' && window.ClarkDB.days(item(r.dataset.id).due) < 0) && !!$('.fchip'));
     await back(); click($('[data-fig=risks]')); await sleep(80);
     ok('High risks and issues: the urgent and high ones', $$('tr[data-id]').length === +C.glanceData(P()).risks.v && $$('tr[data-id]').every(r => ['R', 'I'].includes(item(r.dataset.id).type) && ['Urgent', 'High'].includes(item(r.dataset.id).priority)));
+    { const g = C.glanceData(P()); ok('#669 the tiles say the build\'s words: risks "of N open risks and issues", decisions "Oldest needed by" or "No date set"', /^(None open|None high|of 1 open risk or issue|of \d+ open risks and issues)$/.test(g.risks.d) && /^(Oldest needed by \d\d-\d\d-\d{4}|No date set|None waiting)$/.test(g.decisions.d)); }
     click($('#clearAll')); await sleep(60);
   });
 

@@ -187,6 +187,7 @@ MESSAGES = {
 ERROR_PAGES = {501: "not_supported", 505: "bad_request", 414: "too_large", 431: "too_large"}
 BODY_LIMIT = 2 * 1024 * 1024          # any request; a route that needs more (an import) adds itself below
 EXCEL_FILE_MB = 25                     # the largest workbook clark reads (excel.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it (#444)
+IMAGE_FILE_MB = 8                      # row 1223: the most one image may take when sent to /api/section-image (section_kinds/imagecap.py PICTURE_MAX, a test keeps them equal); the other picture templates hold their own 1 MiB, checked in changes.py
 WORD_FILE_MB = 25                      # the largest Word file clark reads (docx_read.MAX_FILE_BYTES); sent as text, a third bigger, plus the words around it
 # #247: no tracker-only limit is needed. Every change, tracker or not, is read up to this one limit, which is above the widest
 # tracker the checker accepts (95 KB in the worst letters), so the checker's own words are what a person sees; a request over it
@@ -215,8 +216,8 @@ PEOPLE_ROW_ENVELOPE = 64               # a row's braces, four keys, quotes, colo
 PEOPLE_ROW_BYTES = (PEOPLE_NAME_MAX + PEOPLE_EMAIL_MAX + 2 * PEOPLE_CELL_MAX) * JSON_ESCAPE_BYTES + PEOPLE_ROW_ENVELOPE      # 574 * 6 + 64 = 3508
 PEOPLE_BODY_LIMIT = PEOPLE_ROW_MAX * PEOPLE_ROW_BYTES + REQUEST_ENVELOPE      # 500 * 3508 + 4096 = 1,758,096 bytes (1.68 MiB), under BODY_LIMIT; an add or an edit is a few hundred bytes
 ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/section-body": SECTION_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024, "/api/backups/restore": 1024, "/api/backups/copy-folder": 4096,
-                     "/api/section-image": 1536 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it)
-                     "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
+                     "/api/section-image": (IMAGE_FILE_MB * 4 // 3 + 1) * 1024 * 1024,     # #96 R1: one picture, shrunk by the page, in base64 (the route checks it); row 1223: raised to one Full width image sent (11 MiB), each template keeps its own size limit
+                     "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/theme": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024, "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
                      "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024, "/api/ask/open-source": 1024, "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,
                      "/api/publications/archive": 1024, "/api/publications/restore": 1024,     # #345: a project code and a number
                      "/api/people": PEOPLE_BODY_LIMIT, "/api/people/undo": 1024,     # #115: a person's few short fields; #454: or one paste of up to 500 rows; a step number
@@ -548,7 +549,7 @@ def csp_report_route(handler):
 BRAND_PREFIX = "/assets/"
 APP_ICON_PREFIX = "/app/"                 # the app icons (appfiles.ICONS): an image source too, or the browser cannot show the manifest's icons
 BRAND_ID = re.compile(r"[a-z0-9-]{1,40}")       # #944: a brand's id in /assets/<id>/<name>; only looked up by the seam, never joined onto a path
-BRAND_PICTURES = ("cover.png", "cover.jpg", "cover.jpeg", "cover.webp")     # the fixed allow-list; = page.PICTURES (a test keeps the two equal)
+BRAND_PICTURES = ("logo.png", "cover.png", "cover.jpg", "cover.jpeg", "cover.webp")     # the fixed allow-list; = page.PICTURES (a test keeps the two equal)
 
 
 def brand_picture_route(handler, name, brand_id=None):
@@ -938,14 +939,14 @@ def open_route(handler, route):
 
 # #71: "still here". An open clark page posts to /api/here every few seconds (with the token), and opening the page counts too.
 # Only a server the launcher started has an Idle (clark.idle, given by __main__ with set_idle); it stops that server when no
-# window has said so for a minute and no job is running. A server started by hand has none and never stops by itself.
+# window has said so for two minutes and no job is running. A server started by hand has none and never stops by itself.
 HERE_ROUTE = "/api/here"
 IDLE = None
 BUSY = {"n": 0}
 BUSY_KINDS = {"save": 0, "publish": 0}   # the running POST routes by kind: a Publish is "publish"; a POST that writes data or a file is "save"; any other is not a kind
 PUBLISH_PATHS = ("/api/publish",)
 SAVE_PATHS = ("/api/change", "/api/section-body", "/api/undo", "/api/section-image", "/api/section-file", "/api/client-folder",
-              "/api/backups/restore", "/api/backups/copy-folder", "/api/ask/change/apply", "/api/ask-folders", "/api/ask-enabled",
+              "/api/backups/restore", "/api/backups/copy-folder", "/api/ask/change/apply", "/api/ask-folders", "/api/ask-enabled", "/api/theme",
               "/api/profile", "/api/people", "/api/people/undo", "/api/project", "/api/publications/archive", "/api/publications/restore",
               "/api/draft-email/sent", "/api/word-import", "/api/word-export", "/api/excel-import", "/api/demo/clear",
               "/api/brands/install", "/api/brands/remove", "/api/brands/undo")     # the POST routes that write project data or a file; the rest (ask, suggest, preview, reads) count as busy only
@@ -1078,6 +1079,16 @@ def preview_page_route(handler):
     return handler.send(200, body, "text/html")
 
 
+def content_disposition(name, kind="attachment"):
+    """Row 1143: an attachment header for `name`. A name of plain ASCII is `filename="..."` as before; any other gets an ASCII
+    fallback there and the whole name in `filename*` (RFC 6266), since a header holds no more than latin-1 and the browser
+    reads `filename*` first."""
+    if name.isascii():
+        return f'{kind}; filename="{name}"'
+    plain = re.sub(r'[^\x20-\x7e]', "_", name)
+    return f"{kind}; filename=\"{plain}\"; filename*=UTF-8''{quote(name, safe='')}"
+
+
 def export_route(handler):
     """GET /api/export?project=<CODE>: the workbook as a download, or the publisher's plain refusal as JSON. GET /api/export?template=1
     (#454): the import template instead, an export's workbook with no rows, which names no project and reads nothing from the store;
@@ -1096,9 +1107,38 @@ def export_route(handler):
     handler.send_response(200)
     handler.send_header("Content-Type", XLSX_TYPE)
     handler.send_header("Content-Length", str(len(data)))
-    handler.send_header("Content-Disposition", f'attachment; filename="{body["name"]}"')
+    handler.send_header("Content-Disposition", content_disposition(body["name"]))
     if body.get("warnings"):
         handler.send_header("X-Export-Warning", quote(" ".join(body["warnings"]), safe=" "))        # plain words, any logo warning
+    handler.end_headers()
+    for i in range(0, len(data), DOWNLOAD_CHUNK):
+        handler.wfile.write(data[i:i + DOWNLOAD_CHUNK])
+    return None
+
+
+def section_file_read_route(handler):
+    """GET /api/section-file?project=<CODE>&name=<NAME>[&download=1] (#1221): a file the project lists, as the editor View's Open
+    (inline) or Download (attachment). Each parameter once, nothing else (400); no body (400); the publisher decides the rest
+    (section_files.read: one file name, listed, read from "Report files" only). The bytes are the file's own, typed by its ending,
+    never sniffed."""
+    publisher = getattr(handler.server, "publisher", None)
+    if publisher is None:
+        return handler.send(404, error_body("not_found"))
+    if handler.headers.get("Content-Length") not in (None, "0") or handler.headers.get("Transfer-Encoding"):
+        return handler.send(400, error_body("bad_request"))
+    query = parse_qs(urlsplit(handler.path).query, keep_blank_values=True)
+    if (not {"project", "name"} <= set(query) or set(query) - {"project", "name", "download"}
+            or any(len(v) != 1 for v in query.values()) or query.get("download", ["1"]) != ["1"]):
+        return handler.send(400, error_body("bad_request"))
+    status, body = publisher.read_section_file(query["project"][0], query["name"][0])
+    if status != 200:
+        return handler.send(status, body)
+    data = body["data"]
+    handler.send_response(200)
+    handler.send_header("Content-Type", body["type"])
+    handler.send_header("Content-Length", str(len(data)))
+    handler.send_header("Content-Disposition", content_disposition(body["name"], "attachment" if "download" in query else "inline"))
+    handler.send_header("X-Content-Type-Options", "nosniff")
     handler.end_headers()
     for i in range(0, len(data), DOWNLOAD_CHUNK):
         handler.wfile.write(data[i:i + DOWNLOAD_CHUNK])
@@ -1386,16 +1426,16 @@ class BrandLibrary:
 
 
 GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/publication": publisher_route("latest"),
-              "/api/export": export_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
+              "/api/export": export_route, "/api/section-file": section_file_read_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
               "/api/movement": movement_route, "/api/activity": activity_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"),
-              "/api/ask-enabled": app_settings_route("read_ask"), "/api/providers": ai_connect_route("get"), "/api/ask/status": ask_route("status"), "/api/ai/status": ask_route("status", "ai"),
+              "/api/ask-enabled": app_settings_route("read_ask"), "/api/theme": app_settings_route("read_theme"), "/api/providers": ai_connect_route("get"), "/api/ask/status": ask_route("status"), "/api/ai/status": ask_route("status", "ai"),
               "/api/profile": profile_route("get"), "/api/people": people_route("people_list"), "/api/update": update_route("status"), "/api/diagnostics": logs_route("diagnostics"),
               "/api/publications": past_route("listing"), "/api/past-report": past_route("open"), "/api/as-at": as_at_route, "/api/demo": demo_route("status"),
               "/api/brands": brand_route("listing")}
 POST_ROUTES = {"/api/change": change_route, "/api/section-body": section_body_route, "/api/undo": undo_route, "/api/section-image": section_image_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
                "/api/quit": quit_route, "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"), "/api/backups/copy-folder": safety_route("copy_folder"),
-                "/api/ask-folders": ask_folders_route("change"), "/api/ask-enabled": app_settings_route("change_ask"), "/api/providers/connect": ai_connect_route("connect"),
+                "/api/ask-folders": ask_folders_route("change"), "/api/ask-enabled": app_settings_route("change_ask"), "/api/theme": app_settings_route("change_theme"), "/api/providers/connect": ai_connect_route("connect"),
                 "/api/providers/disconnect": ai_connect_route("disconnect"), "/api/providers/model": ai_connect_route("choose"),
                 "/api/ask": ask_route("ask"), "/api/ask/stop": ask_route("stop"),
                 "/api/ai/suggest": ask_route("suggest", "ai"), "/api/ai/stop": ask_route("stop", "ai"),
@@ -1460,6 +1500,12 @@ class Handler(BaseHTTPRequestHandler):
     def host_ok(self):
         """Whether the Host header is exactly this machine. (creaite host_ok, BL-212; clark: strict, see host_allowed)"""
         return host_allowed(self.headers.get("Host"))
+
+    def follow_zone(self):
+        """item 631: in the container only, the page's time zone (X-Tz) is applied once the token has been checked (never for the page, /health or a refused call); anything that is not
+        an IANA name is ignored. Found by name when asked, so this module imports no other clark module."""
+        if container_mode():
+            importlib.import_module("clark.zone").follow_header(self.headers.get("X-Tz"), True)
 
     def headers_ok(self):
         """No second Host or Content-Length (which one counts would depend on who reads it); sends the 400 when not."""
@@ -1592,6 +1638,7 @@ class Handler(BaseHTTPRequestHandler):
         if api or route.startswith("/api/"):
             if not self.authorised() or updating(self, route):
                 return None
+            self.follow_zone()          # only a request that carried this run's token may change the zone
             if api:
                 return self.run_route(api)
         return self.send(404, error_body("not_found"))
@@ -1610,6 +1657,7 @@ class Handler(BaseHTTPRequestHandler):
             return csp_report_route(self)
         if not self.authorised() or updating(self, route):
             return None
+        self.follow_zone()
         if (self.headers.get("Content-Type") or "").split(";")[0].strip().lower() != "application/json":
             return self.send(415, error_body("send_json"))
         try:
@@ -1689,6 +1737,7 @@ class SetupHandler(Handler):
         if route.startswith("/api/"):
             if not self.authorised():
                 return None
+            self.follow_zone()          # after the token, as on Handler
             api = SETUP_GET_ROUTES.get(route)
             if api:
                 if self.headers.get("Content-Length") not in (None, "0") or self.headers.get("Transfer-Encoding"):

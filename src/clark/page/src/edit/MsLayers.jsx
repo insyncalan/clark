@@ -4,10 +4,12 @@
 import { useEffect } from "preact/hooks";
 import { data } from "../stores/report.js";
 import { isEditing } from "../logic/editing.js";
-import { Picker } from "../components/Picker.jsx";
+import { PickerTable } from "../components/PickerTable.jsx";
+import { MS_KIND, WORDS, offered } from "../logic/msPicker.js";
 import { pickerFrom, offThePage } from "./MsAddBack.jsx";
 import { addMilestonesBack } from "./actions.js";
 import { ArchivedPeek } from "./ArchivedPeek.jsx";
+import { AskLayer } from "./Bulk.jsx";
 
 const BEHIND = ["#main", ".top"];                       // made inert while the picker is open, as the Add a section box does
 
@@ -29,7 +31,7 @@ function PickerBox({ from }) {
   }, []);
   return (
     <div class="ad-scrim" data-ms-picker onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}>
-      <Picker data={only} hiddenIds={left} onAdd={(ids) => { close(); addMilestonesBack(ids); }} onClose={close} title="Add a milestone from your project record" />
+      <PickerTable kind={MS_KIND} rows={offered(only, left)} onAdd={(ids) => { close(); addMilestonesBack(ids); }} onClose={close} title={WORDS.title} />
     </div>
   );
 }
@@ -40,6 +42,7 @@ export function MsLayers() {
     <>
       {from && isEditing() ? <PickerBox key="picker" from={from} /> : null}
       <ArchivedPeek />
+      {isEditing() ? <AskLayer /> : null}
     </>
   );
 }

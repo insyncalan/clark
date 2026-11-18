@@ -165,6 +165,13 @@ class Pure(Browser):
         self.assertEqual(json.loads(got), ["#work&p=PDF&item=A-12", "#milestones&p=PDF&ms=M-3", "#settings", "#dashboard",
                                            "#settings&p=PDF"])
 
+    def test_row_1132_mv_cal_is_carried_in_the_address_and_nothing_else_is_accepted(self):
+        """Row 1132: a published file keeps the Calendar choice in the address (mv=cal); the Timeline leaves no key."""
+        got = self.js_json("""[R.parse('#milestones&p=PDF&mv=cal').mv, R.parse('#milestones&p=PDF&mv=line').mv, R.parse('#milestones&p=PDF').mv,
+            R.format({view:'milestones', project:'PDF', mv:'cal'}), R.format({view:'milestones', project:'PDF', mv:'x'}),
+            R.format({view:'milestones', project:'PDF', ms:'M-3', mv:'cal'})]""")
+        self.assertEqual(got, ["cal", None, None, "#milestones&p=PDF&mv=cal", "#milestones&p=PDF", "#milestones&p=PDF&ms=M-3&mv=cal"])
+
     def test_uc_is_one_use_cases_key_and_no_other_page_has_it(self):
         got = self.run_in_page("""JSON.stringify([R.parse('#usecases&p=PDF&uc=1.2'), R.parse('#usecases&p=PDF'), R.parse('#usecases&p=PDF&uc=PDF-U-003'),
             R.parse('#work&p=PDF&uc=1.2'), R.parse('#usecases&p=PDF&uc=a%20b'), R.parse('#usecases&p=PDF&uc=1.2&uc=1.3'), R.parse('#usecases&p=PDF&uc=' + 'x'.repeat(70)),

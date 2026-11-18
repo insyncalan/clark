@@ -15,6 +15,7 @@
 // Every colour is a token. Bars carry their name as text (beside the bar when the bar is too short), so nothing depends on hover.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { Fade } from "../../components/Menu.jsx";
+import { actionIcon } from "../../menuIcons.js";
 import { Icon } from "../../components/Icon.jsx";
 import { todayIso } from "../../workItems.js";
 import { reduced } from "../../stores/motion.js";
@@ -61,7 +62,7 @@ const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 
 export function GanttChart({
   lines, edit = false, today, filter: filterProp, onFilter, defaultRows = null, onDefaultRows, hiddenCols = [], projectKey = "",
-  onChange, onToggleEye, onAdd, onDelete, addBelowWord = "", eyeWords = {},      // addBelowWord: the Edit-only add button's words (edit/ganttWords.js), given by the page
+  onChange, onToggleEye, onAdd, onDelete, addBelowWord = "", eyeWords = {}, lead = null,      // lead: row 1197, the page's table and chart buttons, drawn first in the bar; addBelowWord: the Edit-only add button's words (edit/ganttWords.js), given by the page
 }) {
   const now = today || todayIso();
   const all = useMemo(() => tidyAll(lines), [lines]);
@@ -78,11 +79,14 @@ export function GanttChart({
   const [menu, setMenu] = useState(null);               // the add menu: { id, left, top }
   const [showOpen, setShowOpen] = useState(false);
   const showBtn = useRef(null);
+  const fitBtn = useRef(null);
+  const zoomOutTo = () => { const z = zoomOut(zoom); setZoom(z); if (z <= 1 && fitBtn.current) fitBtn.current.focus(); };      // the button turns itself off at fit: focus moves to the fit button, not to the page top
   const showBack = () => { if (showBtn.current) showBtn.current.focus(); };      // closing the Show menu hands focus back to its button, not to the page top
   const [msg, setMsg] = useState("");
   const [width, setWidth] = useState(900);
   const [paper, setPaper] = useState(false);               // true while the browser prints: the chart is fitted to the paper, not to the screen it was measured on
   const [cw0, setCw] = useState({ name: 150, start: 92, end: 92, pct: 52 });
+  const [mine, setMine] = useState({});                // columns the person has dragged: their width is kept as set, never capped again
   const gx = useRef(null);
   const dragged = useRef(false);
   const dragNow = useRef(null);
@@ -92,7 +96,8 @@ export function GanttChart({
   // On a narrow page the left columns give up some width so the chart keeps room for its month labels (a person's own widths still win when smaller).
   const fitW = paper ? Math.min(width, PAPER_W) : width;      // the screen is unchanged: only a print narrows it
   const narrow = fitW < 1000;
-  const cwN = narrow ? { name: Math.min(cw0.name, 120), start: Math.min(cw0.start, 94), end: Math.min(cw0.end, 94), pct: Math.min(cw0.pct, 44) } : cw0;
+  const capW = { name: 120, start: 94, end: 94, pct: 44 };
+  const cwN = narrow ? Object.fromEntries(Object.keys(cw0).map((k) => [k, mine[k] ? cw0[k] : Math.min(cw0[k], capW[k])])) : cw0;
   const cw = cwN;
   const filter = onFilter ? filterProp : ownFilter;
   const setFilter = (f) => { setShowOpen(false); showBack(); if (onFilter) onFilter(f); else setOwnFilter(f); };
@@ -140,6 +145,22 @@ export function GanttChart({
   useEffect(() => {      // the first item takes focus once when the add menu opens, not again on every redraw
     if (menu) { const first = document.querySelector("[data-g-addmenu] [role=menuitem]"); if (first) first.focus(); }
   }, [menu]);
+  // A box or a menu that closes takes the focused button with it: focus goes back to what opened it (a deleted line's bar is gone, so to the first bar).
+  const opener = useRef(null);
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    const open = !!(box || menu || showOpen);
+    if (wasOpen.current && !open && gx.current) {
+      const a = document.activeElement;
+      if (!a || a === document.body || !a.isConnected) {
+        const o = opener.current;
+        const to = o && o.isConnected ? o : (menu === null && !showOpen && gx.current.closest("section").querySelector("[data-g-bar]"));
+        if (to) to.focus({ preventScroll: true });
+      }
+    }
+    if (!open) opener.current = null;
+    wasOpen.current = open;
+  }, [box, menu, showOpen]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -166,9 +187,15 @@ export function GanttChart({
 
   const leftW = PAD + (edit ? 28 : 0) + 40 + cw.name + cols.reduce((n, k) => n + 4 + cw[k], 0) + PAD;
   const fit = fitPpd(Math.max(200, fitW - leftW), range);
-  const ppd = ppdFor(scale, fit, zoom);
+  const ppd = ppdFor(scale, fit, paper ? 1 : zoom);      // the paper is fitted at the zoom of 100%: a screen zoom would print several pages wide and be clipped at the floor of the fit
   const W = range ? Math.ceil(xOf(range.end, range, ppd) + ppd + 40) : 0;
   const total = rows.length;
+  useEffect(() => {      // drawn inside the print (Ctrl+P from another tab): beforeprint has gone by, so the chart is fitted as it is drawn
+    if (drawn && document.documentElement.classList.contains("print-all")) fitCharts(document, true);
+  }, [drawn]);
+  useLayoutEffect(() => {      // the beforeprint fit ran before the paper was drawn and measured the chart at its screen zoom; once it is drawn for the paper (paper, ppd) the ratio is taken again
+    if (paper && drawn) fitCharts(document, true);
+  }, [paper, ppd, drawn]);
   const nShown = full ? total : (grip !== null ? grip : rowsShown(total, defaultRows, own, edit));
   const cut = !full && nShown < total;
   const canvasH = total * RH;
@@ -209,7 +236,7 @@ export function GanttChart({
     e.preventDefault(); e.stopPropagation();
     const el = e.currentTarget, x0 = e.clientX, w0 = cw[key];
     el.setPointerCapture(e.pointerId);
-    el.onpointermove = (m) => setCw((c) => ({ ...c, [key]: clamp(w0 + m.clientX - x0, MINW[key], MAXW[key]) }));
+    el.onpointermove = (m) => { setMine((o) => ({ ...o, [key]: true })); setCw((c) => ({ ...c, [key]: clamp(w0 + m.clientX - x0, MINW[key], MAXW[key]) })); };
     const stop = cancellable(el, () => setCw((c) => ({ ...c, [key]: w0 })), () => {});
     el.onpointerup = () => { stop(); };
   };
@@ -258,11 +285,13 @@ export function GanttChart({
 
   const openBox = (id, el) => {
     const r = el.getBoundingClientRect();
+    opener.current = el;
     setMenu(null);
     setBox({ id, left: clamp(r.left, 8, window.innerWidth - 330), top: clamp(r.bottom + 6, 8, window.innerHeight - 340) });
   };
   const openAdd = (id, el) => {
     const r = el.getBoundingClientRect();
+    opener.current = el;
     setBox(null);
     setMenu({ id, left: clamp(r.left, 8, window.innerWidth - 220), top: clamp(r.bottom + 4, 8, window.innerHeight - 150) });
   };
@@ -334,9 +363,7 @@ export function GanttChart({
   return (
     <section class={`gt${full ? " gt-full" : ""}`} data-gantt data-mode={edit ? "edit" : "view"} data-full={full ? "1" : "0"}>
       <div class="gt-bar" role="toolbar" aria-label="Chart">
-        <button type="button" class="gt-ib" onClick={() => setZoom(zoomOut(zoom))} disabled={zoom <= 1} aria-label={WORDS.zoomOut} title={WORDS.zoomOut} data-g-zout><Glyph name="zout" /></button>
-        <button type="button" class="gt-zf" onClick={() => setZoom(1)} aria-label={WORDS.fit} title={WORDS.fit} data-g-fit>{Math.round(zoom * 100)}%</button>
-        <button type="button" class="gt-ib" onClick={() => setZoom(zoomIn(zoom))} aria-label={WORDS.zoomIn} title={WORDS.zoomIn} data-g-zin><Glyph name="zin" /></button>
+        {lead}
         <span class="gt-sep" aria-hidden="true" />
         <span class="gt-grp" role="group" aria-label="Scale">
           {SCALES.map((s) => (
@@ -344,9 +371,12 @@ export function GanttChart({
           ))}
         </span>
         <span class="gt-sp" />
+        <button type="button" class="gt-ib" onClick={zoomOutTo} disabled={zoom <= 1} aria-label={WORDS.zoomOut} title={WORDS.zoomOut} data-g-zout><Glyph name="zout" /></button>
+        <button type="button" class="gt-zf" ref={fitBtn} onClick={() => setZoom(1)} aria-label={WORDS.fit} title={WORDS.fit} data-g-fit>{Math.round(zoom * 100)}%</button>
+        <button type="button" class="gt-ib" onClick={() => setZoom(zoomIn(zoom))} aria-label={WORDS.zoomIn} title={WORDS.zoomIn} data-g-zin><Glyph name="zin" /></button>
         <span class="gt-showwrap" data-g-showwrap>
           <button type="button" class="gt-ib" aria-haspopup="menu" aria-expanded={showOpen} aria-label={`${WORDS.show}: ${filterWord(filter)}`} title={`${WORDS.show}: ${filterWord(filter)}`}
-            data-g-show ref={showBtn} onClick={() => setShowOpen(!showOpen)}><Glyph name="filter" /></button>
+            data-g-show ref={showBtn} onClick={(e) => { opener.current = e.currentTarget; setShowOpen(!showOpen); }}><Glyph name="filter" /></button>
           {showOpen ? (
             <div class="gt-pop" role="menu" aria-label={WORDS.show} data-g-showmenu
               onKeyDown={(e) => {
@@ -358,7 +388,7 @@ export function GanttChart({
               }}>
               {filters.map((f) => (
                 <button type="button" key={f} role="menuitemradio" aria-checked={filter === f || (f === "all" && !filters.includes(filter))} data-g-filter={f} onClick={() => setFilter(f)}>
-                  <span class="gt-ck" aria-hidden="true">{filter === f || (f === "all" && !filters.includes(filter)) ? "✓" : ""}</span>{filterWord(f)}
+                  <span class="gt-ck" aria-hidden="true">{filter === f || (f === "all" && !filters.includes(filter)) ? "✓" : ""}</span><Icon name={actionIcon("filter" + f[0].toUpperCase() + f.slice(1))} cls="mi" />{filterWord(f)}
                 </button>
               ))}
             </div>
@@ -444,7 +474,8 @@ export function GanttChart({
                   <div key={l.id}>
                     <button type="button" class={`gt-ms${l.pct >= 100 ? " done" : ""}${sel === l.id ? " sel" : ""}${edit ? " edit" : ""}`} style={{ left: `${q.x1 + 8}px`, top: `${top + 9}px` }}
                       aria-label={label} data-g-bar={l.id} data-g-type="milestone" onPointerDown={barDown(l)} onClick={() => { if (!dragged.current) setSel(l.id); }}
-                      onDblClick={(e) => { if (edit) openBox(l.id, e.currentTarget); }} />
+                      onDblClick={(e) => { if (edit) openBox(l.id, e.currentTarget); }}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (edit && sel === l.id) openBox(l.id, e.currentTarget); else setSel(l.id); } }} />
                     {ms2(q.x1, `${l.name} · ${formatDate(l.start)}`, top + 6)}
                     {flag}
                   </div>
@@ -477,7 +508,7 @@ export function GanttChart({
       </div>
 
       <div class="gt-grip" role="separator" aria-orientation="horizontal" aria-label={WORDS.gripLabel} aria-valuemin={1} aria-valuemax={total} aria-valuenow={cut ? nShown : total}
-        tabindex="0" title={WORDS.grip} data-g-grip onPointerDown={gripDown} onKeyDown={gripKey}>
+        tabindex="0" aria-disabled={full ? "true" : undefined} title={WORDS.grip} data-g-grip onPointerDown={gripDown} onKeyDown={gripKey}>
         <i />{grip !== null ? <span class="gt-gl2">{grip} of {total}</span> : null}
       </div>
 
@@ -507,7 +538,7 @@ export function GanttChart({
         <Fade class="gt-menu" role="menu" style={{ left: `${menu.left}px`, top: `${menu.top}px` }} data-g-addmenu>
           {[["task", WORDS.addTask], ["phase", WORDS.addPhase], ["milestone", WORDS.addMilestone]].map(([t, w], i) => (
             <button type="button" role="menuitem" key={t} data-g-addtype={t} 
-              onClick={() => { const id = menu.id; setMenu(null); if (onAdd) onAdd(id, t); }}>{w}</button>
+              onClick={() => { const id = menu.id; setMenu(null); if (onAdd) onAdd(id, t); }}><Icon name={actionIcon("add")} cls="mi" /><span>{w}</span></button>
           ))}
         </Fade>
       ) : null}

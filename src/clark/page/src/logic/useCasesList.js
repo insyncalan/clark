@@ -37,6 +37,16 @@ export function ucFor(d, key) {
 // How a reference is written where a person reads it, short form then the number: the one place that does, so no other file spells the short form.
 export const REF_PREFIX = "UC";
 export const refOf = (u) => (u.ref ? REF_PREFIX + " " + u.ref : "");
+/** The reference as it is read in the small box: references that were merged ("1.3, 1.4" or "1.3 and 1.4") read "1.3 + 1.4". */
+export function refText(ref) {
+  return String(ref || "").split(/\s*(?:,|;|\+|\band\b)\s*/i).map((x) => x.trim()).filter(Boolean).join(" + ");
+}
+/** The boxed reference, item 1149: the short form once, then the number (UC, a space, then 1.3 + 1.4); the one string the dashboard, the page and the published tab draw in the box. Empty when there is no reference. */
+export const refBox = (ref) => (refText(ref) ? REF_PREFIX + " " + refText(ref) : "");
+/** The open next steps of a use case, as its row says them. */
+// row 1234-A: the digit of stepsWord(n) apart from its words, for the badge (none when n is 0: "No open steps" stays plain text)
+export const stepsParts = (n) => { const w = stepsWord(n), d = n ? String(n) : ""; return [d, w.slice(d.length)]; };
+export const stepsWord = (n) => (n === 1 ? "1 next step" : n ? `${n} next steps` : "No open steps");
 export const nameOf = (u) => String(u.title || "").split("\n").map((t) => t.trim()).filter(Boolean).join(" · ");
 // The common entities, decoded after the tags are gone (an encoded < is text, not a tag) and the ampersand last (so &amp;lt; stays &lt;).
 const NAMED = { lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
@@ -52,13 +62,14 @@ export function listOf(d, all) {
     if (r.use_case) link[r.id] = r.use_case;
     if (r.use_case && r.milestone && msById[r.milestone]) (ms[r.use_case] = ms[r.use_case] || new Set()).add(r.milestone);
   }
+  for (const l of (d.uc_milestones || [])) if (l.use_case && msById[l.milestone]) (ms[l.use_case] = ms[l.use_case] || new Set()).add(l.milestone);   // linked straight to the milestone (row 1107), as the use case's own page counts it
   const when = (m) => m.baseline_date || m.forecast_date || m.actual_date || "9999";
   return liveOf(d).map((u) => {
     const linked = all.filter((r) => link[r.id] === u.id), open = linked.filter(isOpen);
     const mine = [...(ms[u.id] || [])].map((id) => msById[id]).sort((a, b) => (when(a) < when(b) ? -1 : when(a) > when(b) ? 1 : a.name < b.name ? -1 : 1));
     const row = { u, id: u.id, ref: refOf(u), name: nameOf(u), headline: u.headline || "", status: u.status, commitment: commitWord(u), on: isOn(u), total: linked.length, open: open.length,
       ms: mine.map((m) => ({ id: m.id, name: m.name })) };
-    row.text = [u.ref, row.ref, row.name, row.headline, plainText(u.standing), row.commitment, ...row.ms.map((m) => m.name)].join(" ").toLowerCase();
+    row.text = [u.ref, row.ref, row.name, row.headline, plainText(u.standing), row.commitment, row.status, ...row.ms.map((m) => m.name)].join(" ").toLowerCase();
     return row;
   });
 }
@@ -110,7 +121,7 @@ export function tidy(s) {
   const old = x.line === undefined;
   return {
     line: typeof x.line === "string" ? x.line.slice(0, 600) : old ? lineFromOld(x) : "",
-    tab: TABS.some(([k]) => k === x.tab) ? x.tab : old && x.on === "on" ? "on" : "all",
+    tab: typeof x.tab === "string" && x.tab && x.tab.length <= 60 ? x.tab : old && x.on === "on" ? "on" : "all",
     group: GROUPS.some(([k]) => k === x.group) ? x.group : "nothing",
     sort: SORTS.some(([k]) => k === x.sort) ? x.sort : "ref",
   };
@@ -128,6 +139,11 @@ function byRef(a, b) {
     if (d) return d;
   }
   return String(a.u.ref || "").localeCompare(String(b.u.ref || ""));
+}
+/** The rows a tab keeps (and `test`, the filter line's test, when given), in the chosen order; ties keep the data's order. Shared by the editor's list and the published tab. */
+export function pickRows(rows, f, test) {
+  const keeps = tabKeeps(f.tab);
+  return rows.map((r, i) => [r, i]).filter(([r]) => (!test || test(r)) && keeps(r)).sort((a, b) => (ORDER[f.sort] || ORDER.ref)(a[0], b[0]) || a[1] - b[1]).map(([r]) => r);
 }
 export const ORDER = {
   ref: byRef,
