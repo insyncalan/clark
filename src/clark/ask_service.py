@@ -33,7 +33,7 @@ import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-from clark import ask, ask_apply, ask_data, ask_passages, pdf_link, pdf_reader, platform, publish, reach, secret_screen
+from clark import ask, ask_apply, ask_connector_screen as screen, ask_data, ask_passages, pdf_link, pdf_reader, platform, publish, reach, secret_screen
 from clark.store import Store, connect
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -68,7 +68,7 @@ class AskService:
     """`db_path` is the database; `provider` an ask.Provider (the one provider module's in clark; a stub in tests); `onedrive_roots` as
     the launcher's."""
 
-    def __init__(self, db_path, provider, onedrive_roots=None, *, data_dir=None, home=None, applier=None, clock=time.monotonic, open_pdf=None):
+    def __init__(self, db_path, provider, onedrive_roots=None, *, data_dir=None, home=None, applier=None, clock=time.monotonic, open_pdf=None, connectors=None):
         self.db_path = Path(db_path)
         self.data_dir = Path(data_dir) if data_dir else self.db_path.parent
         self.home = home
@@ -79,6 +79,7 @@ class AskService:
         self.applier = applier or ask_apply.AskApply(self.db_path, self.onedrive_roots)
         self.clock = clock
         self.open_pdf = open_pdf or platform.open_pdf_at      # #943: the one thing that starts a viewer (a stub in tests)
+        self.connectors = connectors                 # row 1306: None (the default, switch off) or a callable(question) -> [(tool, result)] of what the On connectors returned
         self.replies = {}                            # reply ID -> Held: the changes an answer suggested, kept on the server
         self.replies_lock = threading.Lock()
 
@@ -175,6 +176,7 @@ class AskService:
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         facts = data.facts
+        conn = self.connector_used(question)
         if not self.enabled():                       # the gate again, just before anything leaves: a switch turned off meanwhile wins
             return 409, self.fail("asking_off")
         reply = ask.ask_provider(self.provider, replace(request, owner=self.owner), codes=(code,), exists=lambda ref: ref in facts,
@@ -183,16 +185,34 @@ class AskService:
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
                              left_out_note(data.left_out + found.left_out), kinds_note(data.kinds_left_out), *folder_notes(found)) if n]
+        if conn:
+            notes.append(conn["line"])
         sent = tuple(data.passages) + tuple(found.passages)      # request.kept maps each passage sent to its place here (some may be left out)
         folder_ids = {pid for (pid, _label), i in zip(request.passages, request.kept) if i >= len(data.passages)}
         texts = {pid: sent[i].text for (pid, _label), i in zip(request.passages, request.kept)}
         held = self.hold(code, reply, request, folder_ids, texts) if reply.changes else None
-        return 200, {"ok": True, "answer": reply.answer, "parsed": reply.parsed, "cites": list(reply.cites),
+        extra = {"used": conn} if conn else {}                   # row 1306: only when a connector hook ran, so the answer is unchanged otherwise
+        return 200, {**extra, "ok": True, "answer": reply.answer, "parsed": reply.parsed, "cites": list(reply.cites),
                      "sources": [{"id": pid, "label": label, "page": page_of(sent[i]), "file": file_of(sent[i])}
                                  for (pid, label), i in zip(request.passages, request.kept) if pid in reply.cites],
                      "flags": [{"kind": f.kind, "ref": f.ref, "message": f.message} for f in reply.flags],
                      "changes": [dict(c) for c in reply.changes], "notes": notes, "reply": held,
                      "left_out_for_safety": found.safety}
+
+    def connector_used(self, question):
+        """Row 1306 C4: what the connectors returned, screened; only the Used line and the provenance flag are kept (no connector content).
+        None when there is no hook, it raised, or it returned nothing."""
+        if self.connectors is None:
+            return None
+        try:
+            got = screen.screen_all(list(self.connectors(question)))
+            line = screen.used_line(got)
+        except Exception:                            # noqa: BLE001 a connector that fails in a way not foreseen is simply not used
+            return None
+        if not got:
+            return None
+        return {"line": line.text, "used": list(line.used), "not_used": list(line.not_used),
+                "sources": [{"part": g.part, "from_connector": True} for g in got if g.used]}
 
     # ----- POST /api/ask/open-source (#943) -----
     def open_source(self, body):
