@@ -9,6 +9,7 @@ import { stopRestore } from "../router.js";
 import { askProvider } from "./askState.js";
 import { draft, panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panelFocus, turns, pending, chatEpoch, queue, queueHeld, queueDrop, QUEUE_MAX, setQueue, closePanel, newChat, setWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
 import * as W from "./askWords.js";
+import { slashMatches, stepSlash } from "./askSlash.js";
 import { Icon } from "../components/Icon.jsx";
 import { holdScroll } from "../core/holdScroll.js";
 import { chatId, histOpen, histTick, chats, keepChat, deleteChat, when } from "./askHistory.js";
@@ -76,6 +77,8 @@ export function AskPanel() {
   const [text, setText] = useState("");
   const [note, setNote] = useState("");
   const [quip, setQuip] = useState("");
+  const [pick, setPick] = useState(0), [shut, setShut] = useState(false);   // #1292 S10: the slash menu's chosen row, and whether Esc has closed it
+  const menu = shut ? null : slashMatches(text);
   const [said, setSaid] = useState("");            // row 1220: what a screen reader is told when a message is queued or removed
   const waiting = queue.value, held = queueHeld.value, dropping = queueDrop.value;
   const showHist = histOpen.value && !busy;
@@ -147,6 +150,15 @@ export function AskPanel() {
     }
     if (!q) { setNote(W.EMPTY_LINE); return; }
     run(q, preset, null);
+  }
+
+  // #1292 S10: a chosen slash command. A question command sends its question as a suggestion does; /new and /history send nothing.
+  function runSlash(c) {
+    if (!c) return;
+    setText(""); setPick(0); setShut(false);
+    if (c.act === "new") { newChat(); setNote(""); return; }
+    if (c.act === "history") { if (!busy) histOpen.value = true; return; }
+    send(null, c.ask);
   }
 
   // Asks one question and, when it is answered, sends the next queued one. `from` is the queued message this question came from. It reads the
@@ -384,9 +396,27 @@ export function AskPanel() {
       {dropping ? <p class="ask-queue-drop" id="ask-queue-drop" role="status" aria-live="polite">{W.QUEUE_DROP(dropping)}</p> : null}
       <p class="sr-only" id="ask-queue-say" role="status" aria-live="polite">{said}</p>
       <form class="ask-form" onSubmit={send}>
+        {menu ? (
+          <ul class="ask-slash" id="ask-slash" role="listbox" aria-label={W.SLASH_LABEL}>
+            {menu.length ? menu.map((c, i) => (
+              <li key={c.name} role="option" id={"ask-slash-" + c.name} data-name={c.name} aria-selected={i === pick ? "true" : "false"} onMouseDown={(e) => { e.preventDefault(); runSlash(c); }}>
+                <b>{"/" + c.name}</b> <span>{c.hint}</span>
+              </li>
+            )) : <li class="ask-slash-none">{W.SLASH_NONE}</li>}
+          </ul>
+        ) : null}
         <textarea ref={box} id="ask-box" rows="1" value={text} placeholder={W.PLACEHOLDER} aria-label={W.PLACEHOLDER} disabled={state !== "ready" && state !== "checking"}
-          onInput={(e) => setText(e.currentTarget.value)}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) send(e); }} />
+          role={menu ? "combobox" : undefined} aria-expanded={menu ? "true" : undefined} aria-controls={menu ? "ask-slash" : undefined} aria-autocomplete={menu ? "list" : undefined}
+          aria-activedescendant={menu && menu.length ? "ask-slash-" + menu[pick].name : undefined}
+          onInput={(e) => { setText(e.currentTarget.value); setPick(0); setShut(false); }}
+          onKeyDown={(e) => {
+            if (menu && !e.isComposing) {
+              if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setShut(true); return; }       // the menu closes first; the panel stays
+              if (["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key) && menu.length) { e.preventDefault(); setPick(stepSlash(pick, e.key, menu.length)); return; }
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (menu.length) runSlash(menu[pick]); return; }
+            }
+            if (e.key === "Enter" && !e.shiftKey && !e.isComposing) send(e);
+          }} />
         <div class="ask-actions">
           {busy ? (
             <button type="button" key="stop" class="btn primary ask-stop-icon" id="ask-stop" title={W.STOP} aria-label={W.STOP} onClick={stop}>

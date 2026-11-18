@@ -271,3 +271,17 @@ export const DRAFT_READY = "Draft ready";
 export const DRAFT_READY_LINE = "Nothing is in the report yet.";
 export const DRAFT_OPEN = "Open the draft";
 export const DRAFT_EMPTY = "The draft is empty. Write something, or close it.";
+
+// #1292 S10: the slash menu. NEEDS RULING: the one-line hint under each command is a draft, to be ruled with the other new words (decision 25).
+export const SLASH_LABEL = "Commands";
+export const SLASH_NONE = "No command by that name";
+export const SLASH_HINT = {
+  check: "Check this report",
+  summary: "Summarise this week",
+  overdue: "What is overdue",
+  risks: "Which risks are red",
+  milestones: "The next milestone",
+  usecases: "Which use cases need attention",
+  history: "Earlier chats",
+  new: "Start a new chat",
+};
