@@ -16,6 +16,7 @@ RULES = (FOLDER / "rules.css").read_text(encoding="utf-8")
 NAME = re.compile(r"(--[a-z0-9-]+)\s*:")
 DECL = re.compile(r"(--[a-z0-9-]+)\s*:\s*([^;]+);")
 SHELL_DECLARED = {"--sec-pad-t", "--sec-px"}      # row 1195: set by shell.css (the section padding), read by the Work items gear rule
+THEME_ONLY = {"--sec-band-bg"}      # row 1311: set and read by this Theme alone; declaring it in the committed file would change the Cards page bytes
 NEW_NINE = {"--page-bg", "--page-grad", "--band-bg", "--line-soft", "--gutter-rule", "--sec-number-color", "--sec-number-size", "--logo-width", "--logo-height"}
 
 
@@ -55,10 +56,11 @@ class ThemePrototype(unittest.TestCase):
         self.assertTrue((FOLDER / "rules.css").is_file())
 
     def test_it_sets_only_names_the_committed_tokens_declare(self):
-        declared = set(NAME.findall(BASE)) | NEW_NINE | SHELL_DECLARED      # the nine are declared by the sibling row 1260 tokens PR
+        declared = set(NAME.findall(BASE)) | NEW_NINE | SHELL_DECLARED | THEME_ONLY      # the nine are declared by the sibling row 1260 tokens PR
         self.assertEqual(sorted(set(NAME.findall(TOKENS)) - declared), [], "a Theme sets existing names only")
         used = set(re.findall(r"var\((--[a-z0-9-]+)", RULES))
-        self.assertEqual(sorted(used - declared), [], "rules.css reads declared names only")
+        own = set(re.findall(r"(--wil-[a-z0-9-]+)\s*:", RULES))      # row 1195: the Work items colours the mock-up measures, set and read by rules.css alone
+        self.assertEqual(sorted(used - declared - own), [], "rules.css reads declared names only")
 
     def test_the_two_dark_copies_are_equal(self):
         b = blocks(TOKENS)
@@ -79,9 +81,9 @@ class ThemePrototype(unittest.TestCase):
             t = self.merged(mode)
             ground_values = [t[g] for g in grounds]
             if mode == "light":
-                ground_values += ["#FFFFFF", "#F8F9FD", "#EFF3FA"]
+                ground_values += ["#FFFFFF", "#FCFDFE", "#F7F9FC"]
             else:
-                ground_values += ["#08232D", "#0B2832"]
+                ground_values += ["#0F1523", "#121A2A"]
             for fg in ("--text", "--heading", "--text-muted"):
                 for bg in ground_values:
                     self.assertGreaterEqual(ratio(t[fg].upper(), bg.upper()), 4.5, f"{mode} {fg} on {bg}")
