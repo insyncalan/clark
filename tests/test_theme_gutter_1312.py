@@ -28,9 +28,11 @@ READ = """(sel) => { const e = document.querySelector(sel); const c = getCompute
 
 
 def block():
-    """The text of the marked Row 1312 block at the end of rules.css."""
+    """The text of the marked Row 1312 block: from its comment to the next row's comment (later rows are appended after it)."""
     text = RULES.read_text(encoding="utf-8")
-    return text[text.index("/* Row 1312"):]
+    text = text[text.index("/* Row 1312"):]
+    nxt = text.find("\n/* Row ", 1)
+    return text if nxt < 0 else text[:nxt]
 
 
 class Source(unittest.TestCase):
