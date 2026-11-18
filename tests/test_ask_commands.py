@@ -316,5 +316,43 @@ class AskCommandsKillersTest(unittest.TestCase):
         self.assertEqual(self.s.read(), ([], []))
 
 
+class AskCommandsKillersRound2Test(unittest.TestCase):
+    """Row 1295, second independent sweep (~/ag/1883-killers.md): the sentences are pinned whole, and a side file that was never made is no error."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.s = ac.AskCommands(self.root, BI)
+
+    def test_every_sentence_is_exact(self):
+        self.assertEqual(ac.name_problem("Check"), "Use lower case letters only in the name.")
+        self.assertEqual(ac.name_problem("a_b"), "The name can have only lower case letters, numbers and hyphens.")
+        self.assertEqual(ac.name_problem("a b"), "The name cannot have spaces. Use a hyphen instead.")
+        self.assertEqual(ac.problems({**GOOD, "menu": "m" * 71}), ["The line in the menu can be at most 70 characters."])
+        self.assertEqual(ac.problems({**GOOD, "menu": ""}), ["Say what it does in the menu, in a few words."])
+        self.assertEqual(ac.problems({**GOOD, "text": "t" * 1001}), ["The instructions can be at most 1,000 characters."])
+        self.assertEqual(ac.problems({**GOOD, "text": ""}), ["Say what it should do, in plain words."])
+        self.assertEqual(ac.problems({**GOOD, "scope": "x"}), ["Choose where it appears."])
+        self.assertEqual(ac.problems({**GOOD, "result": "x"}), ["Choose what you get."])
+
+    def test_the_refusals_of_write_are_exact(self):
+        with self.assertRaises(ac.Refused) as cm:
+            self.s.write({**GOOD, "replaces": "history"})
+        self.assertEqual(str(cm.exception), "/history is an action, not a question, so it cannot be edited.")
+        for i in range(20):
+            self.s.write({**GOOD, "name": "cmd-%02d" % i})
+        with self.assertRaises(ac.Refused) as cm:
+            self.s.write({**GOOD, "name": "one-more"})
+        self.assertEqual(str(cm.exception), "You can keep 20 shortcuts in a project. Remove one to add another.")
+
+    def test_a_save_that_fails_before_the_side_file_exists_is_refused_not_crashed(self):
+        with mock.patch.object(Path, "write_text", side_effect=OSError("full")):
+            with self.assertRaises(ac.Refused) as cm:
+                self.s.write(GOOD)
+        self.assertEqual(str(cm.exception), "That shortcut could not be saved. Nothing was changed.")
+        self.assertEqual(list(self.root.rglob("*.json*")), [])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -229,5 +229,29 @@ class KillersRound1(unittest.TestCase):
         self.assertEqual(js('AS.remove(%s,"beta").map((x) => x.name)' % three), ["alpha", "who"])
 
 
+class KillersRound2(unittest.TestCase):
+    """Second independent sweep (~/ag/1883-killers.md): the locked sentences whole, a second save of a built-in replaces the first, a taken name is found on a rename, reset returns the records, and a copy keeps hyphens inside the name."""
+
+    def test_the_locked_sentences_are_whole(self):
+        self.assertEqual(js('T(()=>AS.save([],{builtin:true,name:"history",%s},B))' % OWN), "ERR /history is an action, not a question, so it cannot be edited.")
+        self.assertEqual(js('T(()=>AS.copy([],{builtin:true,name:"history"},B))'), "ERR /history is an action, not a question, so it cannot be copied.")
+
+    def test_saving_a_built_in_twice_keeps_one_version(self):
+        r = js('(()=>{const a=AS.save([],{builtin:true,name:"who",menu:"One",text:"t1",scope:"anywhere",result:"answer"},B);'
+               'const b=AS.save(a,{builtin:true,name:"who",menu:"Two",text:"t2",scope:"anywhere",result:"answer"},B);return [b.length,b[0].text]})()')
+        self.assertEqual(r, [1, "t2"])
+
+    def test_a_rename_onto_a_name_you_already_have_is_refused(self):
+        self.assertIn("already have", js('T(()=>AS.save([%s,{name:"other",%s}],{name:"check",was:"other",%s},B))' % (GOOD, OWN, OWN)))
+
+    def test_reset_returns_the_other_records_themselves(self):
+        self.assertEqual(js('AS.reset([{name:"check",%s},{name:"who",replaces:"who",%s}],"who")' % (OWN, OWN)),
+                         [{"name": "check", "menu": "m", "text": "t", "scope": "anywhere", "result": "answer"}])
+
+    def test_copy_keeps_a_hyphen_inside_the_name_and_only_drops_a_trailing_number(self):
+        self.assertEqual(js('AS.copy([{name:"q1-report",%s}],{name:"q1-report"},B)[1].name' % OWN), "q1-report-2")
+        self.assertEqual(js('AS.copy([{name:"a-1-b",%s}],{name:"a-1-b"},B)[1].name' % OWN), "a-1-b-2")
+
+
 if __name__ == "__main__":
     unittest.main()
