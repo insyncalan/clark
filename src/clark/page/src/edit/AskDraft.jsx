@@ -67,7 +67,7 @@ export function AskDraft() {
         <button type="button" class="btn" id="ask-draft-copy" onClick={copy}>{W.DRAFT_COPY}</button>
         {menu ? (
           <div class="ad-menu" id="ask-draft-menu" role="menu" aria-label={W.DRAFT_MENU_LABEL}>
-            {list.map((c, i) => <button type="button" role="menuitem" key={i} data-kind={c.kind} data-id={c.id || undefined} data-after={c.after || undefined} onClick={() => put(c)}>{c.label}</button>)}
+            {list.map((c, i) => <button type="button" role="menuitem" key={i} data-kind={c.kind} data-id={c.id || undefined} data-after={c.after || undefined} onClick={() => put(c)}><Icon name={c.kind === "replace" ? "doc" : "plus"} />{c.label}</button>)}
           </div>
         ) : null}
       </footer>

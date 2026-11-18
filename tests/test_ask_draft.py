@@ -261,6 +261,19 @@ class Draft(Panel):
             self.assertTrue(p.js("!!document.querySelector('#ask-draft')"), "the Draft stays beside it")
 
 
+def _icons_test(self):
+    """Row 1292: every line of the Add to the report menu draws an icon (the menu icon rule of row 1138)."""
+    with chrome() as cdp:
+        p = self.drafted(cdp)
+        p.js("document.querySelector('#ask-draft-add').click()")
+        p.until("document.querySelectorAll('#ask-draft-menu [role=menuitem]').length >= 2", "the menu drew its lines")
+        got = p.js("[...document.querySelectorAll('#ask-draft-menu [role=menuitem]')].map(b => { const s = b.querySelector('svg'); return [b.textContent, !!s, s ? s.getBoundingClientRect().width : 0]; })")
+        for words, has, w in got:
+            self.assertTrue(has and w >= 15, f"the line {words!r} draws no icon")
+
+
+Draft.test_the_add_menu_gives_every_line_an_icon = _icons_test
+
 for _n in dir(Panel):      # the panel's own tests are not run again here (they use the plain stub)
     if _n.startswith("test_") and _n not in Draft.__dict__:
         setattr(Draft, _n, None)
