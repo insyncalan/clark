@@ -51,35 +51,36 @@ class Servers(unittest.TestCase):
 
 
 class Init(Run):
+    """The init event of a real run with `--tools ToolSearch` lists exactly [ToolSearch] (the connector tool is deferred, so it is not listed)."""
     def run_with(self, *lines):
         self.out = stream(*lines)
         return self.provider.ask(ask.Request(text="Q", question="Q", connectors=("mail",)))
 
-    def test_an_init_without_the_allowed_tool_is_refused_with_its_own_words(self):
+    def test_the_words_are_the_approved_ones(self):
         self.assertEqual(ac.CONNECTOR_UNAVAILABLE, "A connector that is turned on was not available in this run, so nothing from it is shown.")
-        r = self.run_with(init("Bash", "Read"), final("Answer"))
-        self.assertEqual(r, ask.Failure(ac.CONNECTOR_UNAVAILABLE))
+        self.assertEqual(ac.CONNECTOR_EXTRA_TOOLS, "This run had tools clark did not allow, so nothing from it is shown.")
 
-    def test_an_init_with_only_the_loader_is_answered_the_tool_is_deferred(self):
-        self.assertEqual(self.run_with(init("Bash", "ToolSearch"), final("Answer")), "Answer")
+    def test_an_init_with_exactly_the_loader_is_answered(self):
+        self.assertEqual(self.run_with(init("ToolSearch"), final("Answer")), "Answer")
 
-    def test_an_init_with_the_allowed_tool_is_answered(self):
-        self.assertEqual(self.run_with(init("ToolSearch", f"{P}__outlook_email_search"), final("Answer")), "Answer")
+    def test_any_other_tool_in_the_init_refuses_with_the_second_words(self):
+        for tools in (("ToolSearch", "DesignSync"), ("ToolSearch", "Bash"), ("ToolSearch", f"{P}__outlook_email_search"), ("DesignSync", "ListAgents", "ReportFindings", "ToolSearch")):
+            self.assertEqual(self.run_with(init(*tools), final("Answer")), ask.Failure(ac.CONNECTOR_EXTRA_TOOLS), tools)
+
+    def test_an_init_without_the_loader_refuses_with_the_first_words(self):
+        self.assertEqual(self.run_with(init(), final("Answer")), ask.Failure(ac.CONNECTOR_UNAVAILABLE))
 
     def test_a_stream_without_an_init_event_is_judged_by_its_calls_alone(self):
         self.assertEqual(self.run_with(final("Answer")), "Answer")
 
-    def test_an_empty_tool_list_is_refused(self):
-        self.assertEqual(self.run_with(init(), final("Answer")), ask.Failure(ac.CONNECTOR_UNAVAILABLE))
-
-    def test_each_part_that_is_on_needs_its_own_tool(self):
-        out = stream(init(f"{P}__outlook_email_search"), final())
-        self.assertTrue(cs.checked(out, {"Mail"})[0])
-        self.assertFalse(cs.checked(out, {"Mail", "Calendar"})[0])
-        self.assertTrue(cs.init_missing(out, {"Mail", "Calendar"}))
-        self.assertFalse(cs.init_missing(out, {"Mail"}))
-        self.assertFalse(cs.init_missing(stream(init("ToolSearch"), final()), {"Mail", "Calendar"}), "the loader reaches every part")
-        self.assertTrue(cs.init_missing(stream(init("Bash"), final()), {"Mail"}))
+    def test_init_problem_names_each_case(self):
+        self.assertEqual(cs.init_problem(stream(init("ToolSearch"), final())), "")
+        self.assertEqual(cs.init_problem(stream(final())), "")
+        self.assertEqual(cs.init_problem(stream(init(), final())), "absent")
+        self.assertEqual(cs.init_problem(stream(init("ToolSearch", "Read"), final())), "extra")
+        self.assertEqual(cs.init_problem(stream(init("Read"), final())), "extra")
+        self.assertFalse(cs.checked(stream(init("ToolSearch", "Read"), final()), {"Mail"})[0])
+        self.assertTrue(cs.checked(stream(init("ToolSearch"), final()), {"Mail"})[0])
 
 
 if __name__ == "__main__":

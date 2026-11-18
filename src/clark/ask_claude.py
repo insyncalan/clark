@@ -174,6 +174,7 @@ def arguments(path, canary="", system=None, model=None):
 
 
 CONNECTOR_TURNS = "6"          # row 1306: a run that may call a connector needs more than the one turn of an ordinary ask
+CONNECTOR_EXTRA_TOOLS = "This run had tools clark did not allow, so nothing from it is shown."
 CONNECTOR_UNAVAILABLE = "A connector that is turned on was not available in this run, so nothing from it is shown."
 CONNECTOR_REFUSED = "A connector gave back something clark would not use, so nothing from this run is shown."
 
@@ -191,13 +192,14 @@ def connector_arguments(base, call):
     args = ask_connector_args.compose(base, call)
     if not call.connectors:
         return args
-    # Probe on a real Mac (row 1306): --tools "" hides the connector tool (it removes the tool that loads it) and --safe-mode hides the account connector
-    # altogether, so a connector run has neither; the default tools stay on and every built-in is denied by name (ask_connector_args.BUILT_IN_TOOLS).
+    # Probes on real Macs (row 1306): --safe-mode hides the account connector altogether, and --tools "" removes the tool that loads connector tools. So a
+    # connector run drops --safe-mode and allows exactly ONE built-in, ToolSearch: `--tools ToolSearch` is an allow-list, no other built-in reaches the model
+    # (the init event lists [ToolSearch] only), and no deny list of built-in names is needed.
     keep = []
     for i, a in enumerate(args):
-        if a == "--safe-mode" or (a == "--tools" and args[i + 1] == "") or (a == "" and args[i - 1] == "--tools"):
+        if a == "--safe-mode":
             continue
-        keep.append(a)
+        keep.append(ask_connector_args.LOADER if (a == "" and args[i - 1] == "--tools") else a)
     args = ["stream-json" if a == "json" and keep[i - 1] == "--output-format" else a for i, a in enumerate(keep)]
     args = [CONNECTOR_TURNS if a == "1" and args[i - 1] == "--max-turns" else a for i, a in enumerate(args)]
     at = args.index("--output-format")
@@ -540,7 +542,8 @@ class ClaudeCommand(ask.Provider):
             self.last_used = line.text
             self.last_line = line
             if not good:
-                return ask.Failure(CONNECTOR_UNAVAILABLE if ask_connector_stream.init_missing(out, {names[c] for c in connectors if c in names}) else CONNECTOR_REFUSED)
+                problem = ask_connector_stream.init_problem(out)
+                return ask.Failure(CONNECTOR_EXTRA_TOOLS if problem == "extra" else CONNECTOR_UNAVAILABLE if problem else CONNECTOR_REFUSED)
             out = result
         if status in ("ok", "failed") and limit_reached(out):
             return limit_failure(model)

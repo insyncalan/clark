@@ -21,14 +21,9 @@ LIST_M365 = f"{M365}: https://example.invalid/m - ✓ Connected"
 LIST_DRIVE = "claude.ai Google Drive: https://example.invalid/d - ✓ Connected"
 
 
-def nobi(a):
-    """The list without the built-in denies (they come first, one per built-in tool; the tests below read the connector part)."""
-    return [x for x in a if x.split("=", 1)[1] not in ca.BUILT_IN_TOOLS]
-
-
 class Args(unittest.TestCase):
     def test_one_on_one_off(self):
-        a = nobi(ca.connector_args(DISC + [DRIVE], ["mail"]))
+        a = ca.connector_args(DISC + [DRIVE], ["mail"])
         self.assertIn("--disallowedTools=mcp__claude_ai_Google_Drive", a)       # a known server is denied whole (the pinned list), found or not
         self.assertEqual(a[a.index(f"--allowedTools={P}__outlook_email_search") - 1], a[[i for i, x in enumerate(a) if x.count("__") == 1][-1]])
         self.assertIn(f"--disallowedTools={P}__outlook_send_mail", a)
@@ -49,7 +44,7 @@ class Args(unittest.TestCase):
         self.assertEqual(a, ["--disallowedTools=mcp__claude_ai_Google_Drive", f"--disallowedTools={P}"])
 
     def test_no_strict_and_equals_form(self):
-        a = nobi(ca.connector_args(DISC + [DRIVE], ["mail", "teams", "sharepoint", "calendar"]))
+        a = ca.connector_args(DISC + [DRIVE], ["mail", "teams", "sharepoint", "calendar"])
         self.assertNotIn("--strict-mcp-config", a)
         for x in a:
             self.assertRegex(x, r"^--(allowedTools|disallowedTools)=mcp__[A-Za-z0-9_]+$")
@@ -84,7 +79,7 @@ class Args(unittest.TestCase):
         a = ca.connector_args(DISC + [DRIVE, TODO], ["mail", "calendar"])
         b = ca.connector_args(list(reversed(DISC + [DRIVE, TODO])), ("calendar", "mail"))
         self.assertEqual(a, b)
-        a = nobi(a)
+        a = a
         kinds = [x.startswith("--allowedTools=") for x in a]
         first_allow = kinds.index(True)
         self.assertTrue(all(x.count("__") == 1 and x.startswith("--disallowedTools=mcp__claude") for x in a[:first_allow]))
@@ -98,11 +93,11 @@ class Args(unittest.TestCase):
         disc.append({"connector": "--bad", "label": "", "server": "claude.ai Fine"})
         disc.append("not a dict")
         a, dropped = ca.connector_plan(disc, ["mail"])
-        a = nobi(a)
+        a = a
         self.assertEqual(dropped, len(hostile) + 2)
         for x in a:
             self.assertRegex(x, r"^--(allowedTools|disallowedTools)=mcp__[A-Za-z0-9_]+$")
-        self.assertEqual(a, nobi(ca.connector_plan(DISC, ["mail"])[0]))
+        self.assertEqual(a, ca.connector_plan(DISC, ["mail"])[0])
 
     def test_on_ids_must_be_clean(self):
         a = ca.connector_args(DISC, ["--mail", "mail=", 7, None])
