@@ -106,7 +106,7 @@ class AskCommandsTest(unittest.TestCase):
 
     def test_unknown_fields_are_not_kept(self):
         self.s.write({**GOOD, "evil": "x"})
-        self.assertNotIn("evil", (self.root / "ask-commands" / "check.json").read_text())
+        self.assertNotIn("evil", (self.root / "ask-commands" / "check.json").read_text(encoding="utf-8"))
 
     def test_ai_flag_kept_only_when_true(self):
         self.s.write({**GOOD, "ai": True})
@@ -197,7 +197,7 @@ class AskCommandsKillersTest(unittest.TestCase):
         out = self.s.write({**GOOD, "name": "ignored", "replaces": "who", "ai": True})
         self.assertEqual(out["name"], "who")
         self.assertNotIn("ai", out)
-        self.assertNotIn("ai", (self.d / "who.json").read_text())
+        self.assertNotIn("ai", (self.d / "who.json").read_text(encoding="utf-8"))
 
     def test_built_in_versions_do_not_count_toward_twenty_or_names(self):
         self.s.write({**GOOD, "replaces": "who"})
@@ -236,13 +236,13 @@ class AskCommandsKillersTest(unittest.TestCase):
 
     def test_a_failed_rename_leaves_the_old_file_whole_and_no_side_file(self):
         self.s.write(GOOD)
-        before = (self.d / "check.json").read_text()
+        before = (self.d / "check.json").read_text(encoding="utf-8")
         with mock.patch.object(ac.os, "replace", side_effect=OSError("disk")):
             with self.assertRaises(ac.Refused) as cm:
                 self.s.write({**GOOD, "menu": "New words"})
         self.assertIn("could not be saved", str(cm.exception))
         self.assertIn("Nothing was changed", str(cm.exception))
-        self.assertEqual((self.d / "check.json").read_text(), before)
+        self.assertEqual((self.d / "check.json").read_text(encoding="utf-8"), before)
         self.assertEqual([p.name for p in self.d.iterdir()], ["check.json"])
 
     def test_only_json_files_are_read(self):
