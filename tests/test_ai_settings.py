@@ -53,10 +53,13 @@ class Line(unittest.TestCase):
     def show(self, cdp):
         self.sid = navigate(cdp, self.s.port, "#settings&p=ABC&s=claude")
         js = lambda e: cdp.js(e, self.sid)          # noqa: E731
+        self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-tab=all]')"), 20), "the All projects tab is on the page")
+        js("document.querySelector('[data-ask-tab=all]').click()")      # row 1294: the connections and the AI line are on the All projects tab
         self.assertTrue(wait(lambda: js("!!document.querySelector('#ai-state')"), 20), "the AI entry is in Settings")
         return js
 
     def line(self, js, words):
+        js("window.__allTab = setInterval(() => { const b = document.querySelector('[data-ask-tab=all]'); if (b && !document.querySelector('#ai-settings')) b.click(); }, 50)")      # row 1294: a fresh page opens on the project's tab
         self.assertTrue(wait(lambda: js("document.querySelector('#ai-state').innerText") == words, 20),
                         js("document.querySelector('#ai-state').innerText"))
 
@@ -78,6 +81,8 @@ class Line(unittest.TestCase):
                 self.line(js, ai_menu.why_off("busy"))
                 self.assertEqual(js("document.querySelector('#ai-state').dataset.state"), "busy")
 
+            js("clearInterval(window.__allTab); document.querySelector('[data-ask-tab=project]').click()")      # row 1294: the switch is on the project's tab
+            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-switch]')"), 10))
             js("document.querySelector('[data-ask-switch]').click()")          # the one switch, under Asking
             self.assertTrue(wait(lambda: js("document.querySelector('#ask-state').innerText") != "", 10))
             reload_to_new_page(js)
@@ -99,7 +104,7 @@ class Line(unittest.TestCase):
                 self.assertTrue(wait(lambda: js("!!document.querySelector('#report')"), 20))
                 js("""const real = window.fetch;
                       window.fetch = function (url) { if (String(url).indexOf('/api/ai/status') >= 0) { %s; } return real.apply(this, arguments); };
-                      location.hash = '#settings&p=ABC&s=claude'""" % replace)
+                      location.hash = '#settings&p=ABC&s=claude'; const t = setInterval(() => { const b = document.querySelector('[data-ask-tab=all]'); if (b) { b.click(); clearInterval(t); } }, 20)""" % replace)
                 self.assertTrue(wait(lambda: js("(document.querySelector('#ai-state') || {}).innerText") == UNAVAILABLE, 20),
                                 js("(document.querySelector('#ai-state') || {}).innerText"))
                 self.assertEqual(js("document.querySelector('#ai-state').dataset.state"), "unavailable")
@@ -112,7 +117,7 @@ class Line(unittest.TestCase):
             js("""window.__pending = []; window.__held = () => window.__pending.splice(0).forEach((f) => f()); const real = window.fetch;
                   window.fetch = function (url) { if (String(url).indexOf('/api/ai/status') >= 0) { const a = arguments; return new Promise((r) => { window.__pending.push(() => r(real.apply(window, a))); }); }
                                                   return real.apply(this, arguments); };
-                  location.hash = '#settings&p=ABC&s=claude'""")
+                  location.hash = '#settings&p=ABC&s=claude'; const t = setInterval(() => { const b = document.querySelector('[data-ask-tab=all]'); if (b) { b.click(); clearInterval(t); } }, 20)""")
             self.assertTrue(wait(lambda: js("(document.querySelector('#ai-state') || {}).innerText") == CHECKING, 10))
             # Release whatever the page has asked so far on every poll, until the answer is on screen: the page asks after it draws
             # the words, and may ask again if it draws again, so one release at one moment can find nothing, or the wrong ask.
@@ -131,7 +136,7 @@ class Line(unittest.TestCase):
                         self.assertEqual(js("document.documentElement.scrollWidth <= window.innerWidth"), True, "no sideways scroll")
                         self.assertEqual(js("var r=document.querySelector('#ai-state').getBoundingClientRect(); r.width > 0 && r.left >= 0 && r.right <= window.innerWidth"), True)
                         self.assertGreaterEqual(js(CONTRAST), 4.5)
-                        self.assertEqual(js("getComputedStyle(document.querySelector('#ai-state')).fontSize"), js("getComputedStyle(document.querySelector('#ask-state')).fontSize"))
+                        self.assertEqual(js("getComputedStyle(document.querySelector('#ai-state')).fontSize"), js("getComputedStyle(document.querySelector('#ask-all p')).fontSize"))
 
     def test_the_page_asks_only_the_status_route_and_keeps_nothing_in_the_browser(self):
         with chrome() as cdp:

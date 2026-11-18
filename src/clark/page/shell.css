@@ -3052,3 +3052,11 @@ html:has(.top-hdr) .sec, html:has(.top-hdr) main [data-id], html:has(.top-hdr) m
 html:has(.top-hdr) body.board-full .top-hdr { display: none; }
 .pkt-name { display: inline-flex; align-items: center; gap: 8px; } .pkt-name .ms-i { width: 16px; height: 16px; flex: none; }
 .pkt-opts label.zero { color: var(--text-muted); opacity: 0.6; cursor: default; }
+
+/* row 1294 (A8, first slice): the two tabs on the ask clark page, "All projects" and the open project; the one shown has the same marker as a Settings page link. */
+.ask-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); }
+.ask-tabs-lab { margin-right: var(--space-1); }
+.ask-tab { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; border-radius: var(--radius-pill); background: var(--grey-100); color: var(--text); font-size: var(--size-body); line-height: 20px; cursor: pointer; }
+.ask-tab:hover { background: var(--grey-200, var(--grey-100)); }
+.ask-tab[aria-current] { background: var(--brand-blue-tint); color: var(--status-blue-text); font-weight: var(--weight-medium); }
+.ask-tab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
