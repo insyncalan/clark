@@ -15,7 +15,7 @@ import html
 import re
 from dataclasses import dataclass
 
-from clark import publish, sanitise
+from clark import glance, publish, sanitise
 from clark import ask
 from clark import timefmt
 from clark.ask import BUDGET, MAX_PASSAGE, Passage
@@ -141,13 +141,32 @@ def choose(passages, question, budget=BUDGET):
     return tuple(passages[i] for i in sorted(keep)), len(passages) - len(keep)
 
 
-def facts_of(selected):
-    """{id: {"title", "owner"}} for every published row, so the claims check can compare a reply's title or owner."""
+def state_of(kind, row, today):
+    """DRAFT contract (row 1332): the words of ask.ITEM_STATES that apply to a published row. overdue: open and due before `today`
+    (a milestone: its own state is Overdue); red: open and rated Urgent or High (a milestone: Slipped or Overdue); no_owner: open
+    and the owner field is blank (a kind without an owner field has none to miss)."""
+    if kind == "milestones":
+        state = row.get("state")
+        live = state != "Achieved"
+        late, red = state == "Overdue", state in ("Slipped", "Overdue")
+    else:
+        full = {**row, "kind": "decision"} if kind == "decisions" else row
+        live = glance.is_open(full)
+        late = glance.is_overdue(full, today)
+        red = live and glance.colour_of_priority(row.get("priority")) == "red"
+    blank = live and kind in OWNER and not plain(row.get(OWNER[kind]) or "").strip()
+    return [w for w, on in (("overdue", late), ("red", red), ("no_owner", blank)) if on]
+
+
+def facts_of(selected, today=None):
+    """{id: {"title", "owner", "state"}} for every published row, so the claims check can compare a reply's title or owner, and the
+    reply's items can say which rows are overdue, red or without an owner. `today` is the report's as-at day (ISO), None for none."""
     out = {}
     for kind in KIND_ORDER:
         for row in selected.get(kind) or ():
             if row.get("id"):
-                out[row["id"]] = {"title": plain(row.get(TITLE[kind]) or ""), "owner": plain(row.get(OWNER.get(kind, "")) or "")}
+                out[row["id"]] = {"title": plain(row.get(TITLE[kind]) or ""), "owner": plain(row.get(OWNER.get(kind, "")) or ""),
+                                  "state": state_of(kind, row, today)}
     return out
 
 
@@ -197,4 +216,4 @@ def project_data(store, code, question="", budget=BUDGET, as_at=None):
         totals[kind] = len(rows)
     chosen, left = choose(passages, question, budget)
     counts = tuple((k, sum(p.text.count("\n") + 1 for p in chosen if p.label == LABELS[k]), t) for k, t in totals.items() if t)
-    return ProjectData(chosen, facts_of(selected), left, secret, timefmt.day_text(inputs.get("as_at")) if _is_day(inputs.get("as_at")) else "", counts, left_kinds)
+    return ProjectData(chosen, facts_of(selected, inputs.get("as_at") if _is_day(inputs.get("as_at")) else None), left, secret, timefmt.day_text(inputs.get("as_at")) if _is_day(inputs.get("as_at")) else "", counts, left_kinds)

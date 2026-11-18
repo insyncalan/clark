@@ -84,6 +84,7 @@ class Request:
     system: str = RULES           # the system prompt the caller wants: ask clark's own RULES unless the caller passes its own (suggestions do); "" is refused
     canary: str = field(default="", repr=False, compare=False)    # #277: this request's private marker; set by ask_provider, never kept
     owner: object = field(default=None, repr=False, compare=False)   # #284: who asked (a service's own token), so Stop can end only that service's run
+    connectors: tuple = field(default=(), repr=False, compare=False)  # row 1306: the connector ids that are On for this install and not Off for this project; set by the service from the store, () means none (the locked-down call)
     cancel: object = field(default=None, repr=False, compare=False)  # #284: a threading.Event; set before the run is registered, the run does not start
 
     @property
@@ -320,6 +321,8 @@ MAX_DRAFT_CHARS = 20000        # one DRAFT line, JSON included
 MAX_DRAFT_TITLE = 200
 MAX_DRAFT_SEC = 40
 MAX_REPLY = 60000
+MAX_ITEMS = 20              # most item IDs a reply's `items` holds (DRAFT contract, row 1332)
+ITEM_STATES = ("overdue", "red", "no_owner")      # the only words an item's state may hold (DRAFT contract, row 1332)
 MAX_FLAGS = 25              # most flags of one kind that are kept; the rest become one "and N more" line
 MAX_CHECKED_LINE = 2000     # a longer line is not checked for a quoted title or an owner; the id and cite checks still cover it
 
@@ -343,13 +346,15 @@ class Flag:
 class Reply:
     """What was read from a reply. `answer` is the text for the person (without the CITE and CHANGE lines when the reply parsed);
     `cites` the passage IDs named; `changes` plain dicts (data only, unchecked against the store); `parsed` whether the form was
-    followed; `flags` what the claims check found; `draft` the text written for a report section ({html, title, sec}) or None."""
+    followed; `flags` what the claims check found; `draft` the text written for a report section ({html, title, sec}) or None;
+    `items` ({"id", "state"} for each real item the answer text names, first mention first, each once; DRAFT contract, row 1332)."""
     answer: str
     cites: tuple = ()
     changes: tuple = ()
     parsed: bool = True
     flags: tuple = ()
     draft: object = None
+    items: tuple = ()
 
 
 _CITE_ID = re.compile(r"P[1-9]\d{0,2}")
@@ -508,6 +513,26 @@ def check_claims(text, sent, codes, exists, facts=None):
     return flags
 
 
+def _items_in(text, codes, exists, facts):
+    """The items a reply's answer text names: strict IDs in the order they first appear, then any loose spelling (sorted), each once,
+    only an ID `_known` vouches for, at most MAX_ITEMS. `state` is the words of ITEM_STATES the row's facts carry (an empty list when none)."""
+    named = list(dict.fromkeys(edit_ai.ID_RE.findall(edit_ai.normal(text))))
+    named += sorted(_ids_in(codes, exists, text) - set(named))
+    out = []
+    for ref in named:
+        if not _known(exists, ref):
+            continue
+        try:
+            held = (facts(ref) or {}).get("state") if facts is not None else None
+        except Exception:  # noqa: BLE001
+            held = None
+        words = [w for w in held if w in ITEM_STATES] if isinstance(held, (list, tuple)) else []
+        out.append({"id": ref, "state": words})
+        if len(out) >= MAX_ITEMS:
+            break
+    return tuple(out)
+
+
 def _cap(flags):
     """At most MAX_FLAGS of each kind, in order, then one `more` flag saying how many were left out."""
     count, kept, left = {}, [], 0
@@ -564,7 +589,8 @@ def read_reply(text, sent=(), codes=(), exists=lambda ref: False, facts=None):
                 left.append(change)
         if dropped:
             flags.append(Flag("change_unreadable", "", CHANGE_UNREADABLE))
-        return Reply("\n".join(answer).strip(), tuple(cites), tuple(left), True, _cap(flags), draft)
+        said = "\n".join(answer).strip()
+        return Reply(said, tuple(cites), tuple(left), True, _cap(flags), draft, _items_in(said, codes, exists, facts))
     kind = "disguised" if disguised else "unreadable"
     return Reply(text.strip(), (), (), False, _cap([Flag(kind, "", UNREADABLE)] + flags))
 
