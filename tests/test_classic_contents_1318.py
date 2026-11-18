@@ -101,6 +101,112 @@ class Classic(Base):
             self.assertIn("Fictional actions title", names)
             self.assertIn("Risks and issues", names)
 
+    # ---- second sweep (k-1907): the survivors of 26 mutants, one assertion each ----
+
+    # where the mark must be: the last section whose top is above the line 30% down the part of the window under the top bar (the minimap's rule, written again here)
+    EXPECT = ("(function(){var bar=document.querySelector('.top').getBoundingClientRect().height, line=window.scrollY+bar+(innerHeight-bar)*0.3, cur=null;"
+              "document.querySelectorAll('.cnt li a').forEach(function(a){var e=document.getElementById(a.getAttribute('href').slice(1)); if(e.getBoundingClientRect().top+window.scrollY<=line) cur=a.dataset.entry;}); return cur;})()")
+    ON = "[...document.querySelectorAll('.cnt li a.on')].map(a => a.dataset.entry)"
+    # scroll so the line sits `past` pixels below the top of the entry numbered k (the window height as it is now)
+    PUT = ("(function(k, past){var bar=document.querySelector('.top').getBoundingClientRect().height, a=document.querySelectorAll('.cnt li a')[k], e=document.getElementById(a.getAttribute('href').slice(1)),"
+           "top=e.getBoundingClientRect().top+window.scrollY; window.scrollTo(0, Math.round(top+past-bar-(innerHeight-bar)*0.3)); return window.scrollY;})")
+
+    def still(self, p):
+        # the scroll may glide: wait until it has stopped, so no half-way mark is read
+        import time
+        seen = []
+        for _ in range(100):
+            seen.append(p.js("window.scrollY"))
+            if len(seen) >= 6 and len(set(seen[-6:])) == 1:
+                break
+            time.sleep(0.1)
+        return seen[-1]
+
+    def test_the_nav_landmark_and_one_current_mark_before_and_after_a_click(self):
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            self.assertEqual(p.js("document.querySelector('.cnt').tagName"), "NAV")      # M06
+            self.assertEqual(p.js("[document.querySelectorAll('.cnt [aria-current]').length, document.querySelectorAll('.cnt a.on').length]"), [1, 1])      # M03
+            p.js("document.querySelector('.cnt li:last-child a').click()")
+            other = p.js("document.querySelector('.cnt li:last-child a').dataset.entry")
+            p.until(f"(document.querySelector('.cnt li a.on') || {{dataset: {{}}}}).dataset.entry === {other!r}", "the last entry is marked")
+            self.assertEqual(p.js("[document.querySelectorAll('.cnt [aria-current]').length, document.querySelectorAll('.cnt a.on').length, document.querySelector('.cnt li:first-child a').hasAttribute('aria-current')]"),
+                             [1, 1, False])      # M03 and M04: the mark left the first entry
+
+    def test_the_mark_counts_the_sticky_bar_height_in_the_line(self):
+        # M09 and M24: with the bar's height left out the line sits about 0.7 of the bar higher; put it 5px past a section top, where only the right line marks it
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            k = 2
+            p.js(self.PUT + f"({k}, 5)")
+            self.assertGreater(self.still(p), 0)
+            entry = p.js(f"document.querySelectorAll('.cnt li a')[{k}].dataset.entry")
+            self.assertEqual(p.js(self.EXPECT), entry)
+            self.assertGreater(p.js("document.querySelector('.top').getBoundingClientRect().height"), 20)
+            p.until(f"{self.ON}.length === 1 && {self.ON}[0] === {entry!r}", "the section 5px past the line is marked")
+            self.still(p)
+            self.assertEqual(p.js(self.ON), [entry])
+
+    def test_a_resize_moves_the_mark(self):
+        # M07: a shorter window moves the 30% line up without any scroll
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            k = 3
+            p.js(self.PUT + f"({k}, 5)")
+            self.still(p)
+            entry = p.js(f"document.querySelectorAll('.cnt li a')[{k}].dataset.entry")
+            p.until(f"{self.ON}[0] === {entry!r}", "the entry is marked")
+            y = p.js("window.scrollY")
+            size(cdp, p, 1400, 300)
+            p.until(f"window.scrollY === {y} && {self.EXPECT} !== {entry!r}", "the line moved above the section")
+            p.until(f"{self.ON}.length === 1 && {self.ON}[0] === {self.EXPECT}", "the mark follows the resize")
+            self.still(p)
+            self.assertEqual(p.js(self.ON), [p.js(self.EXPECT)])
+
+    def test_edit_lists_no_hidden_section_and_the_mark_follows_a_hide(self):
+        # M10: Edit draws a hidden section dimmed but the column must not list it; M08: hiding one while the page is open re-reads the entries
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            p.edit()
+            total = p.js("document.querySelectorAll('.secs > .sec').length")
+            p.menu("ABC-S-004", "hide")
+            p.until("!!document.querySelector('[data-id=\"ABC-S-004\"].is-hidden')", "the section is hidden")
+            entries = p.js("[...document.querySelectorAll('.cnt li a')].map(a => a.dataset.entry)")
+            self.assertEqual(len(entries), total - 1)      # M10
+            self.assertNotIn("ABC-S-004", entries)
+            before = entries[entries.index(p.js("document.querySelector('[data-id=\"ABC-S-004\"]').previousElementSibling.dataset.id"))]
+            p.js("(function(){var e=document.querySelector('[data-id=\"ABC-S-004\"]'), bar=document.querySelector('.top').getBoundingClientRect().height;"
+                 "window.scrollTo(0, Math.round(e.getBoundingClientRect().top+window.scrollY+20-bar-(innerHeight-bar)*0.3));})()")
+            self.assertGreater(self.still(p), 100)      # clear of the top, where the first entry is marked whatever the sections are
+            p.until(f"{self.ON}.length === 1 && {self.ON}[0] === {before!r}", "the section before the hidden one is marked")      # M08
+            self.still(p)
+            self.assertEqual(p.js(self.ON), [before])
+
+    def test_the_column_has_a_gap_sticks_under_the_top_bar_and_scrolls_inside_a_short_window(self):
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            probe = "(function(v){var t=document.createElement('i'); t.style.display='block'; t.style.width='var('+v+')'; document.body.appendChild(t); var w=t.getBoundingClientRect().width; t.remove(); return w;})"
+            gap = p.js("document.querySelector('.secs').getBoundingClientRect().left - document.querySelector('.cnt').getBoundingClientRect().right")
+            self.assertEqual(round(gap), round(p.js(probe + "('--space-5')")))      # M16
+            self.assertGreater(gap, 0)
+            p.js("window.scrollTo(0, 400)")
+            p.until("window.scrollY === 400", "scrolled")
+            off = p.js("document.querySelector('.cnt').getBoundingClientRect().top - document.querySelector('.top').getBoundingClientRect().bottom")
+            self.assertEqual(round(off), round(p.js(probe + "('--space-4')")))      # M17
+            size(cdp, p, 1400, 300)
+            got = p.js("(function(){var n=document.querySelector('.cnt'), s=getComputedStyle(n); return [s.overflowY, s.maxHeight !== 'none', n.getBoundingClientRect().height <= innerHeight, n.scrollHeight > n.clientHeight];})()")
+            self.assertEqual(got, ["auto", True, True, True])      # M18
+
+    def test_the_current_entry_is_heavier_and_a_long_title_stays_on_one_clipped_line(self):
+        ref = self.store.con.execute("SELECT id FROM report_sections WHERE project = 'ABC' AND (hidden IS NULL OR hidden = 0) ORDER BY sort_order, id LIMIT 1 OFFSET 1").fetchone()[0]
+        self.demo.update("report_sections", ref, {"title": "A very long fictional section title that needs far more room than the narrow column gives it"})
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            w = p.js("[getComputedStyle(document.querySelector('.cnt li a.on')).fontWeight, getComputedStyle(document.querySelector('.cnt li a:not(.on)')).fontWeight]")
+            self.assertGreater(int(w[0]), int(w[1]))      # M19
+            got = p.js("(function(){var a=document.querySelectorAll('.cnt li a')[1], s=getComputedStyle(a); return [s.whiteSpace, s.textOverflow, s.overflow, a.scrollHeight <= a.clientHeight, a.scrollWidth > a.clientWidth, Math.round(a.getBoundingClientRect().height)];})()")
+            self.assertEqual(got, ["nowrap", "ellipsis", "hidden", True, True, 28])      # M20
+
     def test_at_900_there_is_no_column_no_rail_and_no_on_this_page_button(self):
         with chrome() as cdp:
             p = self.at(cdp, 900)
@@ -129,11 +235,12 @@ class Source(unittest.TestCase):
         shell = (page.__file__ and __import__("pathlib").Path(page.__file__).parent / "shell.css").read_text(encoding="utf-8")
         self.assertIn(".cnt-grid", rules)
         self.assertIn("168px", rules)
+        self.assertRegex(rules, r"@media \(min-width: 1000px\) \{\s*\.cnt-grid \{ display: grid;")      # M12 and M13: the column shows from 1000px, by the text of the breakpoint
         self.assertNotIn(".cnt", shell)
 
     def test_print_and_print_all_leave_the_column_out(self):
         rules = (theme.THEMES / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
-        self.assertRegex(rules, r"@media print \{ \.cnt \{ display: none; \}")
+        self.assertRegex(rules, r"@media print \{ \.cnt \{ display: none; \} \.cnt-grid \{ display: block; \} \}")      # M14
         self.assertIn("html.print-all .cnt { display: none; }", rules)
 
     def test_the_classic_check_is_the_theme_layer_and_the_minimap_is_left_out_there(self):
