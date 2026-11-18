@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { skeleton, reduced } from "../stores/motion.js";
 import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt, settingsPage, settingsFeedbackShown, showSettings } from "../stores/report.js";
-import { milestoneRows, headLine, emptyHead, showDate, todayIso } from "../logic/milestones.js";
+import { milestoneRows, emptyHead, showDate, todayIso } from "../logic/milestones.js";
 
 import { MsBlock } from "./MsBlock.jsx";
 
@@ -71,22 +71,18 @@ function Empty({ title, children, action }) {
   return <section class="frame empty"><h1>{title}</h1><p class="muted">{children}</p>{action}</section>;
 }
 
-// The head of the Milestones page (#458; the prototype's): the project, the title, a sentence on where the last milestone stands and,
-// in the editor, the Add milestone button. The sentence is worked out from the rows the list shows, so a published file's is the client's.
+// The head of the Milestones page (the prototype's): the project, the title and, in the editor, the Add milestone button. Under the title
+// there is a line only when no milestone is left to list ("No milestones yet." or the cancelled words), never a summary sentence (row 1329).
 function MsHead({ Add }) {
   const client = fromFile.value, today = client && asAt.value ? asAt.value : todayIso();
-  const rows = milestoneRows(data.value.milestones, today, client), line = headLine(rows);
+  const rows = milestoneRows(data.value.milestones, today, client), empty = emptyHead(rows);
   return (
     <>
       <p class="crumbs">{data.value.project.name}</p>
       <div class="head">
         <div>
           <h1>Milestones</h1>
-          <p class={line ? "head-sub head-sub-off" : "head-sub"} id="ms-summary">
-            {line
-              ? <><b>{line.name}</b>{line.date ? ` is ${line.agreed ? "agreed" : "forecast"} for ${showDate(line.date)}` : " has no date yet"}{line.expected ? ` and now expected ${showDate(line.expected)}` : ""}. {line.achieved} achieved, {line.toCome} to come.</>
-              : emptyHead(rows)}
-          </p>
+          {empty ? <p class="head-sub">{empty}</p> : null}
         </div>
         {Add ? <Add /> : null}
       </div>
@@ -95,14 +91,13 @@ function MsHead({ Add }) {
 }
 
 export function Milestones({ tools }) {
-  const Wrap = tools && tools.MilestonesPage;     // the owner's Plan / Movement switch and Movement view (#136, C-M2): the served page only, so a published page has none
   const Archived = tools && tools.ArchivedMilestones;   // Show archived (C-M4): the served page only; a published file holds no archived row
   const Add = tools && !fromFile.value ? tools.MsAdd : null;      // the owner's Add milestone (row 458): always on this page (it has no mode), and never in a published file
-  const plan = <><MsBlock place="page" tools={tools} />{Archived ? <Archived /> : null}</>;
   return (
     <section class={`frame milestones${fromFile.value ? " pub" : ""}`} id="milestones">
       <MsHead Add={Add} />
-      {Wrap ? <Wrap plan={plan} /> : plan}
+      <MsBlock place="page" tools={tools} />
+      {Archived ? <Archived /> : null}
     </section>
   );
 }

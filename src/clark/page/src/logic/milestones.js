@@ -275,16 +275,6 @@ export function tierLabels(items, width, gap = 8) {
   });
 }
 
-// The Milestones page's one-sentence summary (#458; the prototype's, views.js): the last milestone's date (and where it is now
-// expected), then how many are achieved and how many are still to come. Cancelled ones are not counted. null when there is none.
-// `agreed` is false for a last milestone that has only a forecast, so the page does not call that date agreed.
-export function headLine(rows) {
-  const live = (rows || []).filter((r) => r.state !== CANCELLED);
-  if (!live.length) return null;
-  const dated = live.filter((r) => r.baseline || r.forecast), last = (dated.length ? dated : live).slice(-1)[0], achieved = live.filter((r) => r.state === "Achieved").length;
-  return { name: last.name, date: last.baseline || last.forecast, agreed: !!last.baseline, expected: last.slip > 0 ? last.expected : null, achieved, toCome: live.length - achieved };
-}
-
 /** The second line of a list row under its date: what the date means for this state. A cancelled milestone is not described as agreed. */
 export function subLine(r) {
   if (r.state === "Achieved" && r.achieved) return { text: r.achievedNote || "Achieved", late: false };
@@ -308,8 +298,9 @@ export function expectedCell(r) {
   return { date: showDate(r.baseline || r.forecast), text: "", late: false };
 }
 
-/** The Milestones head when headLine gives nothing: 'No milestones yet.' only when there are no rows to draw; if every row is cancelled, say so. */
+/** The Milestones head's one line, only when no milestone is left to list: 'No milestones yet.' when there are no rows to draw; if every row is cancelled, say so. '' otherwise. */
 export function emptyHead(rows) {
-  const n = (rows || []).length;
+  const all = rows || [], n = all.length;
+  if (all.some((r) => r.state !== CANCELLED)) return "";
   return n ? (n === 1 ? "The only milestone is cancelled." : `All ${n} milestones are cancelled.`) : "No milestones yet.";
 }

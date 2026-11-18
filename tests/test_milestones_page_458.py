@@ -63,8 +63,7 @@ class NoBrowser(unittest.TestCase):
     def test_the_published_page_has_the_head_and_none_of_the_owners_parts(self):
         view = page.VIEW_PAGE.read_text(encoding="utf-8")
         served = page.PAGE.read_text(encoding="utf-8")
-        for text in ("ms-summary", "head-sub", "to come", "achieved"):
-            self.assertIn(text, view, text)
+        self.assertIn("head-sub", view)
         for text in OWNERS_WORDS:
             self.assertNotIn(text, view, f"{text!r} is in the published page")
             self.assertIn(text, served, f"{text!r} is not in the served page")
@@ -235,51 +234,17 @@ class Requests(unittest.TestCase):
         self.assertIsNone(self.s.read("milestones", ref=got["ref"]))
 
 
-class Head(unittest.TestCase):
-    """The head's sentence from the page's own rules (logic/milestones.js headLine), in Chrome."""
-
-    @classmethod
-    def setUpClass(cls):
-        script = (bundled(MODULE, "MS") + ";\n(" + """(c) => ({
-            all: MS.headLine(MS.milestoneRows(c.cases, c.today, false)),
-            none: MS.headLine([]),
-            cancelled: MS.headLine(MS.milestoneRows(c.cases.filter((x) => x.status === 'Cancelled'), c.today, false)),
-            client: MS.headLine(MS.milestoneRows(c.cases, c.today, true)),
-        })""" + ")(" + json.dumps({"cases": CASES, "today": TODAY}) + ")")
-        with chrome() as cdp:
-            sid = page_target(cdp)
-            res = cdp.call("Runtime.evaluate", {"expression": script, "returnByValue": True}, sid)
-            assert "exceptionDetails" not in res, res
-            cls.js = res["result"]["value"]
-
-    def test_the_last_milestone_how_many_are_achieved_and_how_many_are_to_come(self):
-        live = [c for c in CASES if not c["archived"] and c["status"] != "Cancelled"]
-        got = self.js["all"]
-        self.assertEqual(got["achieved"] + got["toCome"], len(live))
-        self.assertEqual(got["achieved"], sum(1 for c in live if c["status"] == "Done"))
-        self.assertTrue(got["name"] and got["date"])
-
-    def test_no_milestones_and_only_cancelled_ones_give_no_sentence(self):
-        self.assertIsNone(self.js["none"])
-        self.assertIsNone(self.js["cancelled"])
-
-    def test_a_published_file_counts_what_the_file_holds(self):
-        live = [c for c in CASES if not c["archived"] and c["status"] != "Cancelled"]
-        self.assertLessEqual(self.js["client"]["achieved"] + self.js["client"]["toCome"], len(live))
-
-
 SEE = """(() => {
   const px = (c) => { const k = document.createElement('canvas').getContext('2d', {willReadFrequently: true}); k.clearRect(0, 0, 1, 1); k.fillStyle = c; k.fillRect(0, 0, 1, 1); return [...k.getImageData(0, 0, 1, 1).data]; };
   const lum = (c) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]); };
   const back = (e) => { for (; e; e = e.parentElement) { const c = px(getComputedStyle(e).backgroundColor); if (c[3] === 255) return c; } return [255, 255, 255, 255]; };
   const ratio = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
   const q = (s) => document.querySelector(s), r = (e) => e.getBoundingClientRect();
-  const sub = q('#ms-summary'), h1 = q('#milestones h1'), add = q('#addMs'), crumbs = q('#milestones .crumbs');
-  return {crumbs: crumbs.textContent, title: h1.textContent, summary: sub.textContent, tag: [crumbs.tagName, h1.tagName, sub.tagName],
-          order: r(crumbs).bottom <= r(h1).top + 1, shown: getComputedStyle(sub).display !== 'none' && r(sub).height > 0,
-          ratio: ratio(px(getComputedStyle(sub).color), back(sub)), size: parseFloat(getComputedStyle(sub).fontSize),
+  const h1 = q('#milestones h1'), add = q('#addMs'), crumbs = q('#milestones .crumbs');
+  return {crumbs: crumbs.textContent, title: h1.textContent, tag: [crumbs.tagName, h1.tagName],
+          order: r(crumbs).bottom <= r(h1).top + 1,
           add: add && {w: r(add).width, h: r(add).height, name: add.getAttribute('aria-label'), onScreen: r(add).right <= window.innerWidth && r(add).left >= 0,
-                       apart: r(add).left >= r(sub).right - 1 || r(add).top >= r(sub).bottom - 1 || r(add).bottom <= r(h1).top + 1},
+                       apart: r(add).left >= r(h1).right - 1 || r(add).top >= r(h1).bottom - 1 || r(add).bottom <= r(h1).top + 1},
           noScroll: document.documentElement.scrollWidth <= window.innerWidth,
           note: q('#mvNote') && {w: r(q('#mvNote')).width, h: r(q('#mvNote')).height, onScreen: r(q('#mvNote')).right <= window.innerWidth && r(q('#mvNote')).left >= 0},
           buttons: [...document.querySelectorAll('.mvm-actions .btn')].map((b) => ({id: b.id, onScreen: r(b).right <= window.innerWidth && r(b).left >= 0, h: r(b).height}))};
@@ -287,34 +252,31 @@ SEE = """(() => {
 
 
 class Page(Base):
-    def test_the_head_is_the_project_the_title_and_one_sentence_at_both_widths_in_both_themes(self):
+    def test_the_head_is_the_project_and_the_title_at_both_widths_in_both_themes(self):
         for width in (1400, 900):
             for theme in ("light", "dark"):
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
                     p = self.visit(cdp, width, theme)
-                    p.until("!!document.querySelector('#ms-summary')", "the head drew")
+                    p.until("!!document.querySelector('#milestones h1')", "the head drew")
                     p.until("!!document.querySelector('#addMs')", "View draws the button (row 823: no mode on this page)")
                     seen = p.js(SEE)
                     self.assertEqual(seen["crumbs"], "Example Programme")
                     self.assertEqual(seen["title"], "Milestones")
-                    self.assertEqual(seen["tag"], ["P", "H1", "P"])
-                    self.assertRegex(seen["summary"], r"^.+ is agreed for \d\d-\d\d-\d{4}( and now expected \d\d-\d\d-\d{4})?\. \d+ achieved, \d+ to come\.$")
-                    self.assertIn("0 achieved, 2 to come.", seen["summary"])
+                    self.assertEqual(seen["tag"], ["P", "H1"])
                     self.assertTrue(seen["order"], "the project, then the title")
-                    self.assertFalse(seen["shown"], "the normal 'is agreed for' sentence is hidden; its node stays for the tests")
                     self.assertTrue(seen["add"] and seen["add"]["onScreen"] and seen["add"]["apart"], "the Add milestone button sits clear of the head")
                     self.assertEqual(seen["add"]["name"], "Add milestone")
                     self.assertGreaterEqual(min(seen["add"]["w"], seen["add"]["h"]), 24)
                     self.assertTrue(seen["noScroll"], "no page-wide scroll")
 
-    def test_the_cancelled_sentence_is_shown_while_the_agreed_for_sentence_is_hidden(self):
+    def test_the_cancelled_sentence_is_shown(self):
         with self.store.step("dashboard", USER) as st:
             for r in self.store.read("milestones"):
                 st.update("milestones", r["id"], {"status": "Cancelled"})
         with chrome() as cdp:
             p = self.visit(cdp)
-            p.until("!!document.querySelector('#ms-summary')", "the head drew")
-            seen = p.js("(() => { const s = document.querySelector('#ms-summary'); return {text: s.textContent, display: getComputedStyle(s).display, h: s.getBoundingClientRect().height}; })()")
+            p.until("!!document.querySelector('.head-sub')", "the head drew")
+            seen = p.js("(() => { const s = document.querySelector('.head-sub'); return {text: s.textContent, display: getComputedStyle(s).display, h: s.getBoundingClientRect().height}; })()")
             self.assertRegex(seen["text"], r"cancelled\.$")
             self.assertNotEqual(seen["display"], "none", "the cancelled sentence stays shown")
             self.assertGreater(seen["h"], 0)
@@ -323,7 +285,7 @@ class Page(Base):
         before = {r["id"] for r in self.store.read("milestones")}
         with chrome() as cdp:
             p = self.visit(cdp)
-            p.until("!!document.querySelector('#ms-summary')", "the head drew")
+            p.until("!!document.querySelector('#milestones h1')", "the head drew")
             p.until("!!document.querySelector('#addMs')", "View has Add milestone")
             self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
             self.assertEqual(self.sent, [], "nothing is sent until it is used")
@@ -342,7 +304,7 @@ class Page(Base):
             self.assertEqual((new[0]["name"], new[0]["baseline_date"], new[0]["workstream"]), ("New milestone", iso, "Build"))
             self.assertEqual(self.sent[-1][1]["place"], "report")
             p.until("!!document.querySelector('#peek') && document.querySelector('#peek').dataset.peek === %s" % json.dumps(new[0]["id"]), "it opens in the peek")
-            self.assertIn("New milestone", p.js("document.querySelector('#ms-summary').textContent") + p.js("document.querySelector('#peek').textContent"))
+            self.assertIn("New milestone", p.js("document.querySelector('#peek').textContent"))
             p.js("document.querySelector('.toast [data-undo]').click()")
             p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Undone.'", "Undone")
             self.assertIsNone(self.store.read("milestones", ref=new[0]["id"]))
@@ -561,9 +523,8 @@ class Published(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready === '1'", sid)))
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
             cdp.js("[...document.querySelectorAll('.tab')].find(t => /Milestones/.test(t.textContent)).click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#ms-summary')", sid)), "the head drew")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#milestones h1')", sid)), "the head drew")
             self.assertEqual(cdp.js("document.querySelector('#milestones .crumbs').textContent", sid), "Example Programme")
-            self.assertRegex(cdp.js("document.querySelector('#ms-summary').textContent", sid), r"^.+ is agreed for \d\d-\d\d-\d{4}.* \d+ achieved, 8 to come\.$")
             self.assertEqual(cdp.js("!!document.querySelector('#addMs')", sid), False, "a file has no Add milestone")
             self.assertEqual(cdp.js("document.querySelectorAll('.msl-row').length", sid), 5, "the owner's ruling: five rows")
             self.assertEqual(cdp.js("document.querySelector('.msl-all').textContent", sid), "Show all 8 milestones")

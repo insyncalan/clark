@@ -2,7 +2,7 @@
 
 Run: python3 dev/run_tests.py test_ms_cancelled_page
 The real server over a real store (fictional data) in headless Chrome (required: it fails, never skips, without Chrome).
-Each row's second line says "No longer going ahead" (never "Agreed"), and the head (#ms-summary) says "The only milestone is
+Each row's second line says "No longer going ahead" (never "Agreed"), and the head (.head-sub) says "The only milestone is
 cancelled." for one cancelled milestone and "All N milestones are cancelled." for several, never "No milestones yet.".
 Laptop widths only: 1400 and 900 px.
 """
@@ -20,7 +20,7 @@ EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")        # so a brand 
 SEE = """(() => ({
   subs: [...document.querySelectorAll('.msv .msl-row .msl-sub')].map((e) => e.textContent.trim()),
   rows: document.querySelectorAll('.msv .msl-row').length,
-  summary: (document.querySelector('#ms-summary') || {textContent: null}).textContent.trim(),
+  summary: (document.querySelector('.head-sub') || {textContent: null}).textContent.trim(),
 }))()"""
 
 
