@@ -52,8 +52,8 @@ RULES = """You answer questions about one project's report. Follow these rules e
 9. The fields you may set: title, owner, priority, due, status, workstream and milestone for an action; title, owner, due, status, workstream and milestone for a risk, issue, assumption or dependency, and impact and likelihood for a new one; title, made_by, status, date and needed_by for a decision; for a milestone, forecast_date, achieved_date and status (a new one takes title, owner, agreed_date and workstream); for a use case (its ID has -U- in it), status, headline and standing, but you cannot add one. A use case's status is On track, Flag, High risk or Done. You are shown a use case's commitment flag (Planned 2026, Committed or Planned 2027) so you can read it, but never suggest changing it. Dates are YYYY-MM-DD. "source" names the passage the change came from. Use no other field.
 10. Name a work item only by an ID that appears in the passages. Never invent an ID, a title or an owner.
 11. Do not repeat any password, key or private address you may find.
-12. The request may begin with the person's standing instructions, marked STANDING INSTRUCTIONS. They are the person's own wishes about how to answer, such as length, order or tone. Follow them, but rules 1 to 11 always win over them."""
-
+12. The request may begin with the person's standing instructions, marked STANDING INSTRUCTIONS. They are the person's own wishes about how to answer, such as length, order or tone. Follow them, but rules 1 to 11 always win over them.
+13. When the person asks you to write text for a report section (for example a summary of the week), put it in one line in this exact form, with one JSON object on the line and nothing after it: DRAFT: {"title": "a short title", "html": "<p>the text</p>", "sec": "the ID of the Text section it is for, or empty"}. The html holds paragraphs, lists and bold or italic only. Write at most one DRAFT line, and keep the answer itself short."""
 ROLES = ("user", "assistant")
 
 
@@ -316,6 +316,9 @@ MAX_CHANGE_CHARS = 2000        # one CHANGE line, JSON included
 MAX_CHANGE_FIELDS = 12
 MAX_FIELD_NAME = 40
 MAX_FIELD_VALUE = 1000         # the field limit: one text value in a change
+MAX_DRAFT_CHARS = 20000        # one DRAFT line, JSON included
+MAX_DRAFT_TITLE = 200
+MAX_DRAFT_SEC = 40
 MAX_REPLY = 60000
 MAX_FLAGS = 25              # most flags of one kind that are kept; the rest become one "and N more" line
 MAX_CHECKED_LINE = 2000     # a longer line is not checked for a quoted title or an owner; the id and cite checks still cover it
@@ -340,12 +343,13 @@ class Flag:
 class Reply:
     """What was read from a reply. `answer` is the text for the person (without the CITE and CHANGE lines when the reply parsed);
     `cites` the passage IDs named; `changes` plain dicts (data only, unchecked against the store); `parsed` whether the form was
-    followed; `flags` what the claims check found."""
+    followed; `flags` what the claims check found; `draft` the text written for a report section ({html, title, sec}) or None."""
     answer: str
     cites: tuple = ()
     changes: tuple = ()
     parsed: bool = True
     flags: tuple = ()
+    draft: object = None
 
 
 _CITE_ID = re.compile(r"P[1-9]\d{0,2}")
@@ -394,15 +398,48 @@ def read_change(payload):
     return data
 
 
+def read_draft(payload):
+    """The text after `DRAFT:` as {"html", "title", "sec"} (title and sec may be empty), or None when it isn't one JSON object within the
+    limits: at most MAX_DRAFT_CHARS characters, an `html` that is text with something in it, and a `title` and `sec` that are text if
+    given. Other names are dropped. Nothing is run or looked up; the page cleans the html as it does a section body."""
+    payload = (payload or "").strip()
+    if not payload or len(payload) > MAX_DRAFT_CHARS:
+        return None
+
+    def pairs(items):
+        keys = [k for k, _v in items]
+        if len(keys) != len(set(keys)):
+            raise ValueError("repeated name")
+        return dict(items)
+
+    def refuse_constant(_name):
+        raise ValueError("not a plain number")
+
+    try:
+        data = json.loads(payload, object_pairs_hook=pairs, parse_constant=refuse_constant)
+    except (ValueError, RecursionError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    html, title, sec = data.get("html"), data.get("title", ""), data.get("sec", "")
+    if not isinstance(html, str) or not html.strip() or "\x00" in html:
+        return None
+    if not (isinstance(title, str) and len(title) <= MAX_DRAFT_TITLE and "\x00" not in title):
+        return None
+    if not (isinstance(sec, str) and len(sec) <= MAX_DRAFT_SEC and "\x00" not in sec):
+        return None
+    return {"html": html, "title": title, "sec": sec}
+
+
 def _marker(line):
-    """("CITE" | "CHANGE" | "", rest, disguised) for one line. A line is a marker only when it starts with the word in plain capitals
+    """("CITE" | "CHANGE" | "DRAFT" | "", rest, disguised) for one line. A line is a marker only when it starts with the word in plain capitals
     and a colon. One that only reads as a marker once hidden characters or look-alikes are removed is `disguised`: not acted on."""
     stripped = line.lstrip()
-    for word in ("CITE", "CHANGE"):
+    for word in ("CITE", "CHANGE", "DRAFT"):
         if stripped.startswith(word + ":"):
             return word, stripped[len(word) + 1:], False
     seen = edit_ai.normal(stripped).lstrip()
-    for word in ("CITE", "CHANGE"):
+    for word in ("CITE", "CHANGE", "DRAFT"):
         if seen.startswith(word + ":"):
             return "", "", True
     return "", "", False
@@ -492,7 +529,7 @@ def read_reply(text, sent=(), codes=(), exists=lambda ref: False, facts=None):
     if not isinstance(text, str):
         text = ""
     text = text[:MAX_REPLY]
-    answer, cites, changes, ok, disguised, dropped = [], [], [], bool(text.strip()), False, 0
+    answer, cites, changes, ok, disguised, dropped, draft = [], [], [], bool(text.strip()), False, 0, None
     for line in text.splitlines():
         word, rest, fake = _marker(line)
         if fake:
@@ -510,6 +547,9 @@ def read_reply(text, sent=(), codes=(), exists=lambda ref: False, facts=None):
                 dropped += 1                      # [D] #1293 A: only the bad CHANGE is dropped; the answer and the other changes stand
             else:
                 changes.append(change)
+        elif word == "DRAFT":
+            if draft is None:
+                draft = read_draft(rest)         # a draft that can't be read is left out; the answer still stands
         else:
             answer.append(line)
     flags = check_claims(text, sent, codes, exists, facts)
@@ -524,7 +564,7 @@ def read_reply(text, sent=(), codes=(), exists=lambda ref: False, facts=None):
                 left.append(change)
         if dropped:
             flags.append(Flag("change_unreadable", "", CHANGE_UNREADABLE))
-        return Reply("\n".join(answer).strip(), tuple(cites), tuple(left), True, _cap(flags))
+        return Reply("\n".join(answer).strip(), tuple(cites), tuple(left), True, _cap(flags), draft)
     kind = "disguised" if disguised else "unreadable"
     return Reply(text.strip(), (), (), False, _cap([Flag(kind, "", UNREADABLE)] + flags))
 

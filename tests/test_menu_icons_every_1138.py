@@ -102,6 +102,8 @@ class Source(unittest.TestCase):
         "edit/Palette.jsx": "the command palette is a search list of what was typed (pages, items and commands found), not a menu of actions",
         "edit/DraftAi.jsx": "row 1179: the AI menu is drawn as in the approved peek mock-up (each line a name and a description, no icon); the icon rule for it is open for the owner",
         "edit/templates/Callout.jsx": "row 1272: the icon chooser is a picker of swatches (an icon and its name), a choice of look, not a menu of commands",
+        "edit/AskPanel.jsx": "row 1292: the / list in the ask box completes what is typed (the ask commands), like the command palette: a list of typed matches, not a menu of actions",
+        "edit/AskDraft.jsx": "row 1292: the Add to the report menu draws an icon on every line (doc to replace a section, plus for a new one); driven in test_ask_draft, where the ask answer with a draft exists",
         "components/UseCaseFilePage.jsx": "only a selector that tells when a menu is open (for Esc); it draws none",
     }
     # By design NOT icon menus, kept here with the reason: lists that follow what is typed, whose lines are text matches.
@@ -289,7 +291,7 @@ class Dashboard(Base):
                     d.check("section", f"document.querySelector('[data-id=\"{ref}\"] [data-options]').click()", f"[data-id='{ref}'] .menu", 4)
                 d.button(".tgrip", "outline grip")
                 grips = d.js("document.querySelectorAll('.tgrip').length")
-                self.assertGreaterEqual(grips, 4, "the At a glance tiles are drawn")
+                self.assertGreaterEqual(grips, 3, "the At a glance tiles are drawn (a hidden tile is not drawn in Edit, row 1303)")
                 for n in range(grips):
                     d.check("outline", f"document.querySelectorAll('.tgrip')[{n}].dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))", ".tilemenu", 3)
                 d.button("#health-pill", "health pill")
