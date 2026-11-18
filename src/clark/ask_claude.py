@@ -53,7 +53,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from clark import ask, platform
+from clark import ask, ask_connector_args, ask_connector_stream, platform
 
 PROVIDER = "claude"
 # An npm global or nvm install is looked for too (a "*" stands for one nvm node version). Its `claude` is a link: it is followed to the file
@@ -171,6 +171,29 @@ def arguments(path, canary="", system=None, model=None):
     return [str(path), "--print", "--safe-mode", "--disable-slash-commands", "--tools", "", "--strict-mcp-config",
             "--setting-sources", "", "--no-session-persistence", "--max-turns", "1", "--output-format", "json",
             "--max-budget-usd", MAX_BUDGET_USD, *pick, "--system-prompt", ask.system_prompt(canary, system)]
+
+
+CONNECTOR_TURNS = "6"          # row 1306: a run that may call a connector needs more than the one turn of an ordinary ask
+CONNECTOR_REFUSED = "A connector gave back something clark would not use, so nothing from this run is shown."
+
+
+def part_of():
+    """{connector id: the part's name as ask_connector_screen knows it}, from the discovery table (imported here: ask_connectors itself imports this module)."""
+    from clark import ask_connectors
+    return {c: label for rows in ask_connectors.TABLE.values() for c, label in rows}
+
+
+def connector_arguments(base, call):
+    """The argument list for a run that may read ONE connector: `base` with --strict-mcp-config taken out and the read-only list added
+    (ask_connector_args.compose), the output as a stream so every tool result can be screened, and room for the tool turns. With no
+    connector in the call it is `base`, unchanged."""
+    args = ask_connector_args.compose(base, call)
+    if not call.connectors:
+        return args
+    args = ["stream-json" if a == "json" and args[i - 1] == "--output-format" else a for i, a in enumerate(args)]
+    args = [CONNECTOR_TURNS if a == "1" and args[i - 1] == "--max-turns" else a for i, a in enumerate(args)]
+    at = args.index("--output-format")
+    return args[:at + 2] + ["--verbose"] + args[at + 2:]
 
 
 def roots_for(home=None):
@@ -407,6 +430,8 @@ class ClaudeCommand(ask.Provider):
         self.model_listed = False              # #54: whether the checked command's --help lists MODEL_FLAG
         self.checked = {}                      # (path, size, mtime, inode, device) -> the version and flag check, once per file
         self.failed = None                     # the short code of the check that last failed (see command and login_problem), None when none did
+        self.connector_runner = None           # row 1306: the discovery command's seam for tests (None: the real one)
+        self.last_used = ""                    # row 1306: the Used line of the last connector run (names only), "" when none was used
         self.passed = None                     # (path, when) of the last sign-in check status() passed, used once by ask()
 
     # ----- the checks -----
@@ -489,10 +514,22 @@ class ClaudeCommand(ask.Provider):
         return {"connected": path is not None, "why": words}
 
     # ----- one question -----
-    def answer(self, path, text, canary="", system=None, model=None):
+    def answer(self, path, text, canary="", system=None, model=None, connectors=()):
         """Send `text` to the command at `path` (already checked) and read its answer: the reply text, or an ask.Failure.
         A usage limit gives a `LimitReached` (never a switch to another model: the caller offers, the person chooses)."""
-        status, out, _code = run(arguments(path, canary, system, model), text.encode("utf-8"), self.env, self.limit, self.max_out, stop=self.stop_event)
+        args = arguments(path, canary, system, model)
+        call = ask_connector_args.build_call(list(connectors), self.connector_runner) if connectors else None
+        screened = call is not None and call.ok and call.connectors      # only a connector that is On, and found now, changes the arguments
+        if screened:
+            args = connector_arguments(args, call)
+        status, out, _code = run(args, text.encode("utf-8"), self.env, self.limit, self.max_out, stop=self.stop_event)
+        self.last_used = ""
+        if screened and status == "ok":
+            names = part_of()
+            good, self.last_used, result = ask_connector_stream.checked(out, {names[c] for c in connectors if c in names})
+            if not good:
+                return ask.Failure(CONNECTOR_REFUSED)
+            out = result
         if status in ("ok", "failed") and limit_reached(out):
             return limit_failure(model)
         if status in ("ok", "failed") and model is not None and model_unavailable(out):
@@ -538,7 +575,7 @@ class ClaudeCommand(ask.Provider):
                 if not prefer:
                     return ask.Failure(MODEL_NOT_OFFERED)  # nothing is sent, and a question with no model is unaffected
                 model = None
-            return self.answer(path, self.envelope(request.text), request.canary, system, model)
+            return self.answer(path, self.envelope(request.text), request.canary, system, model, tuple(getattr(request, "connectors", ())))
         finally:
             with self.guard:
                 self.owner = None

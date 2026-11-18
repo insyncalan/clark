@@ -34,7 +34,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from clark import ask, ask_apply, ask_data, ask_files, ask_folders, ask_passages, pdf_link, pdf_reader, platform, publish, reach, secret_screen
-from clark.store import Store, connect
+from clark.store import CONNECTORS, Store, connect
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
 MESSAGES = {
@@ -174,6 +174,7 @@ class AskService:
                 except publish.PublishError:
                     return 404, self.fail("project_not_found")
                 folders = self.folders_for(store, code)
+                on_connectors = tuple(c for c in CONNECTORS if store.connector_allowed(c, code))      # row 1306: switch On and the project has not turned it Off
                 standing = {"all": store.ask_instructions(), "project": store.ask_instructions(code)}      # row 1294: sent with the question, the one for all projects first
             finally:
                 store.close()
@@ -191,7 +192,7 @@ class AskService:
         facts = data.facts
         if not self.enabled():                       # the gate again, just before anything leaves: a switch turned off meanwhile wins
             return 409, self.fail("asking_off")
-        reply = ask.ask_provider(self.provider, replace(request, owner=self.owner), codes=(code,), exists=lambda ref: ref in facts,
+        reply = ask.ask_provider(self.provider, replace(request, owner=self.owner, connectors=on_connectors), codes=(code,), exists=lambda ref: ref in facts,
                                  facts=lambda ref: facts.get(ref))
         if isinstance(reply, ask.Failure):
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}

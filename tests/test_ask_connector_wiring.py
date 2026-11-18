@@ -1,0 +1,347 @@
+"""Row 1306 C4 wiring: the read-only connector argument list is the one the real ask call uses, and only when a connector is On.
+The command is faked (nothing is started); these tests prove clark's argument list, the store switch reaching the request, and the screen
+of what the run did. The real proof is a run on a Mac with the connectors set up. Fictional data only.
+
+Run: python3 dev/run_tests.py test_ask_connector_wiring
+"""
+import json
+import os
+import shutil
+import tempfile
+import unittest
+from pathlib import Path
+from unittest import mock
+
+from _paths import SRC  # noqa: F401
+
+import _publish_fixture as plant
+from clark import ask, ask_claude as ac, ask_connector_args as ca, ask_connector_screen as scr, ask_connector_stream as cs
+from clark import ask_connectors, ask_service
+from clark.store import open_store
+
+M365, TODOIST = "claude.ai Microsoft 365", "claude.ai Todoist"
+P = "mcp__claude_ai_Microsoft_365"
+LIST_M365 = f"{M365}: https://example.invalid/m - ✓ Connected"
+LIST_TODO = f"{TODOIST}: https://example.invalid/t - ✓ Connected"
+LIST_DRIVE = "claude.ai Google Drive: https://example.invalid/d - ✓ Connected"
+PATH = Path("/x/claude")
+TODOIST_WRITES = ("add-tasks", "update-tasks", "complete-tasks", "uncomplete-tasks", "delete-object", "add-comments", "update-comments",
+                  "add-projects", "update-projects", "add-sections", "update-sections", "add-labels", "update-labels", "add-filters",
+                  "update-filters", "add-reminders", "update-reminders", "reschedule-tasks", "reorder-objects", "project-move",
+                  "project-management", "manage-assignments", "import-project-template", "set-user-status")
+
+
+def event(kind, *blocks):
+    return json.dumps({"type": kind, "message": {"content": list(blocks)}})
+
+
+def use(i, name):
+    return event("assistant", {"type": "tool_use", "id": i, "name": name, "input": {}})
+
+
+def got(i, content):
+    return event("user", {"type": "tool_result", "tool_use_id": i, "content": content})
+
+
+def final(text="The plan is on track."):
+    return json.dumps({"type": "result", "subtype": "success", "is_error": False, "result": text})
+
+
+def stream(*lines):
+    return ("\n".join(lines) + "\n").encode("utf-8")
+
+
+class Run(unittest.TestCase):
+    """ClaudeCommand.ask with the command's start faked: `self.args` is what would have been started."""
+    def setUp(self):
+        ask_connectors.clear_cache()
+        self.args, self.discoveries = [], 0
+        self.out = json.dumps({"type": "result", "subtype": "success", "is_error": False, "result": "ok"}).encode()
+        self.listing = LIST_M365
+        self.provider = ac.ClaudeCommand(places=(), env={}, limit=5)
+        self.provider.connector_runner = self.discover
+        for p in (mock.patch.object(self.provider, "usable", return_value=(PATH, None)),
+                  mock.patch.object(ac, "run", side_effect=self.fake_run)):
+            p.start()
+            self.addCleanup(p.stop)
+
+    def discover(self):
+        self.discoveries += 1
+        if isinstance(self.listing, Exception):
+            raise self.listing
+        return self.listing
+
+    status = "ok"
+
+    def fake_run(self, args, *_a, **_k):
+        self.args = list(args)
+        return self.status, self.out, 0
+
+    def ask(self, connectors=()):
+        return self.provider.ask(ask.Request(text="Q", question="Q", connectors=tuple(connectors)))
+
+    def today(self):
+        return ac.arguments(PATH, "", ask.RULES)
+
+
+class Unchanged(Run):
+    def test_no_connector_on_is_byte_identical_to_today_and_discovery_is_never_run(self):
+        self.assertEqual(self.ask(), "ok")
+        self.assertEqual(self.args, self.today())
+        self.assertEqual(self.discoveries, 0)
+        self.assertIn("--strict-mcp-config", self.args)
+        self.assertEqual(self.args[self.args.index("--tools") + 1], "")
+        self.assertEqual(self.args[self.args.index("--max-turns") + 1], "1")
+        self.assertEqual(self.args[self.args.index("--output-format") + 1], "json")
+        self.assertEqual(self.provider.last_used, "")
+
+    def test_the_request_default_is_none_on(self):
+        self.assertEqual(ask.Request(text="a", question="a").connectors, ())
+
+    def test_on_but_not_found_is_exactly_today(self):
+        self.listing = LIST_DRIVE
+        self.ask(["mail"])
+        self.assertEqual(self.args, self.today())
+        self.assertEqual(self.discoveries, 1)
+
+    def test_on_but_discovery_fails_is_exactly_today(self):
+        self.listing = RuntimeError("no command")
+        self.assertEqual(self.ask(["mail"]), "ok")
+        self.assertEqual(self.args, self.today())
+
+    def test_todoist_alone_has_no_allow_table_so_it_is_exactly_today(self):
+        self.listing = LIST_TODO
+        self.ask(["todoist"])
+        self.assertEqual(self.args, self.today())
+
+
+class Killers(Run):
+    def test_an_on_list_with_no_usable_id_is_today_and_not_screened(self):
+        self.out = stream(use("1", f"{P}__outlook_send_mail"), final("Plain"))
+        r = self.ask([None])
+        self.assertEqual(self.args, self.today())
+        self.assertNotEqual(r, ask.Failure(ac.CONNECTOR_REFUSED))
+
+    def test_a_failed_run_is_read_as_today_not_screened(self):
+        self.status = "failed"
+        self.out = stream(json.dumps({"type": "rate_limit_event", "rate_limit_info": {"status": "rejected"}}))
+        r = self.ask(["mail"])
+        self.assertIsInstance(r, ask.Failure)
+        self.assertNotEqual(r, ask.Failure(ac.CONNECTOR_REFUSED))
+
+    def test_the_turns_for_a_connector_run_are_six_and_it_is_a_string(self):
+        self.ask(["mail"])
+        self.assertEqual(self.args[self.args.index("--max-turns") + 1], "6")
+
+    def test_connector_arguments_with_no_connector_in_the_call_is_the_base_unchanged(self):
+        base = self.today()
+        self.assertEqual(ac.connector_arguments(base, ca.Call(True)), base)
+
+    def test_a_discovered_id_outside_the_five_is_ignored_not_an_error(self):
+        self.listing = LIST_M365 + "\n" + LIST_DRIVE
+        self.out = stream(use("1", f"{P}__outlook_email_search"), got("1", "m"), final("Fine"))
+        self.assertEqual(self.ask(["mail", "other"]), "Fine")
+
+    def test_the_used_line_of_an_earlier_run_does_not_carry_over(self):
+        self.out = stream(use("1", f"{P}__outlook_email_search"), got("1", "m"), final("Fine"))
+        self.ask(["mail"])
+        self.assertEqual(self.provider.last_used, "Used: Mail")
+        self.out = json.dumps({"type": "result", "subtype": "success", "is_error": False, "result": "ok"}).encode()
+        self.ask()
+        self.assertEqual(self.provider.last_used, "")
+
+    def test_the_stream_reader_edges(self):
+        t = lambda *b: stream(use("1", f"{P}__outlook_email_search"), got("1", list(b)), final())  # noqa: E731
+        txt = lambda x: {"type": "text", "text": x}  # noqa: E731
+        self.assertFalse(cs.checked(stream(use("1", f"{P}__outlook_email_search"), got("1", []), final()), {"Mail"})[0], "empty list")
+        self.assertFalse(cs.checked(t(txt("a"), {"type": "image"}), {"Mail"})[0], "one block that is not text")
+        self.assertFalse(cs.checked(t({"text": "a"}), {"Mail"})[0], "no type")
+        self.assertFalse(cs.checked(t(txt("x" * 20000), txt("x" * 20000)), {"Mail"})[0], "the newline between blocks counts: 40001")
+        self.assertTrue(cs.checked(t(txt("x" * 20000), txt("x" * 19999)), {"Mail"})[0])
+        self.assertFalse(cs.checked(stream(use("1", f"{P}__outlook_calendar_search"), final()), {"Mail"})[0], "a part that is off, no result")
+        text_block = {"type": "text", "text": "thinking"}
+        ok = stream(event("assistant", text_block), event("user", text_block), final())
+        self.assertTrue(cs.checked(ok, {"Mail"})[0], "blocks that are not tool calls or results are not tools")
+
+
+class Wired(Run):
+    def test_one_on_one_found_uses_the_builders_list(self):
+        self.assertEqual(self.ask(["mail"]), "ok")
+        base = self.today()
+        want = ac.connector_arguments(base, ca.build_call(["mail"], lambda: LIST_M365))
+        self.assertEqual(self.args, want)
+        self.assertNotIn("--strict-mcp-config", self.args)
+        self.assertIn(f"--allowedTools={P}__outlook_email_search", self.args)
+        self.assertEqual(self.discoveries, 1)
+
+    def test_only_the_output_the_turns_and_the_connector_flags_differ_from_today(self):
+        self.ask(["mail"])
+        today = self.today()
+        rest = [a for a in self.args if a not in ("--verbose",) and not a.startswith(("--allowedTools=", "--disallowedTools="))]
+        rest = ["json" if a == "stream-json" else "1" if a == ac.CONNECTOR_TURNS else a for a in rest]
+        self.assertEqual(rest, [a for a in today if a != "--strict-mcp-config"])
+        self.assertEqual(self.args[self.args.index("--output-format") + 1:][:2], ["stream-json", "--verbose"])
+        self.assertEqual(self.args[self.args.index("--tools") + 1], "")
+        self.assertEqual(self.args[self.args.index("--max-turns") + 1], ac.CONNECTOR_TURNS)
+
+    def test_every_other_account_connector_is_denied_whole(self):
+        self.listing = LIST_M365 + "\n" + LIST_DRIVE + "\n" + LIST_TODO
+        self.ask(["mail"])
+        self.assertIn("--disallowedTools=mcp__claude_ai_Google_Drive", self.args)
+        self.assertIn("--disallowedTools=mcp__claude_ai_Todoist", self.args)
+        self.assertFalse([a for a in self.args if a.startswith("--allowedTools=") and "Todoist" in a])
+
+    def test_every_write_tool_of_the_five_parts_is_denied_and_never_allowed(self):
+        self.listing = LIST_M365 + "\n" + LIST_TODO
+        self.ask(["mail", "calendar", "teams", "sharepoint", "todoist"])
+        allowed = {a[len("--allowedTools="):] for a in self.args if a.startswith("--allowedTools=")}
+        denied = {a[len("--disallowedTools="):] for a in self.args if a.startswith("--disallowedTools=")}
+        self.assertEqual(len(ca.WRITE_TOOLS[ca.M365]), 36)
+        for tool in ca.WRITE_TOOLS[ca.M365]:
+            self.assertIn(f"{P}__{tool}", denied, tool)
+            self.assertNotIn(f"{P}__{tool}", allowed, tool)
+            self.assertIsNone(scr.part_of_tool(f"{P}__{tool}"), "the screen would not allow it either")
+        self.assertIn("mcp__claude_ai_Todoist", denied)          # the whole server: so every one of its tools, writes included
+        for tool in TODOIST_WRITES:
+            self.assertIsNone(scr.part_of_tool(tool), tool)
+            self.assertFalse([a for a in allowed if a.endswith(tool)], tool)
+        self.assertTrue(allowed and all(scr.tool_allowed(t) for t in allowed))      # everything allowed is on the screen's read list
+        self.assertTrue(all(a.startswith(("--allowedTools=", "--disallowedTools=")) or not a.startswith("--allow") for a in self.args))
+
+    def test_an_off_connector_keeps_its_read_tools_denied(self):
+        self.ask(["mail"])
+        self.assertIn(f"--disallowedTools={P}__outlook_calendar_search", self.args)
+        self.assertNotIn(f"--allowedTools={P}__outlook_calendar_search", self.args)
+
+    def test_the_prompt_and_rules_stay_in_one_piece_and_the_question_is_never_an_argument(self):
+        self.ask(["mail"])
+        self.assertEqual(self.args[self.args.index("--system-prompt") + 1], ask.system_prompt("", ask.RULES))
+        self.assertFalse([a for a in self.args if a == "Q"])
+
+
+class Screened(Run):
+    def run_with(self, *lines, on=("mail",)):
+        self.out = stream(*lines)
+        return self.provider.ask(ask.Request(text="Q", question="Q", connectors=tuple(on)))
+
+    def test_a_clean_read_is_answered_and_named_on_the_used_line(self):
+        r = self.run_with(use("1", f"{P}__outlook_email_search"), got("1", "three mails"), final("Answer"))
+        self.assertEqual(r, "Answer")
+        self.assertEqual(self.provider.last_used, "Used: Mail")
+
+    def test_a_hidden_character_in_a_result_refuses_the_whole_run(self):
+        r = self.run_with(use("1", f"{P}__outlook_email_search"), got("1", "ok​hidden"), final())
+        self.assertEqual(r, ask.Failure(ac.CONNECTOR_REFUSED))
+        self.assertIn("Not used", self.provider.last_used)
+
+    def test_a_too_big_result_refuses(self):
+        r = self.run_with(use("1", f"{P}__outlook_email_search"), got("1", "x" * (scr.MAX_RESULT + 1)), final())
+        self.assertEqual(r, ask.Failure(ac.CONNECTOR_REFUSED))
+
+    def test_the_total_cap_refuses(self):
+        r = self.run_with(use("1", f"{P}__outlook_email_search"), got("1", "x" * 40000), use("2", f"{P}__outlook_email_search"),
+                          got("2", "y" * 40000), final())
+        self.assertEqual(r, ask.Failure(ac.CONNECTOR_REFUSED))
+
+    def test_a_write_tool_called_refuses_even_with_a_clean_result(self):
+        r = self.run_with(use("1", f"{P}__outlook_send_mail"), got("1", "sent"), final())
+        self.assertEqual(r, ask.Failure(ac.CONNECTOR_REFUSED))
+
+    def test_a_write_tool_called_with_no_result_refuses(self):
+        r = self.run_with(use("1", f"{P}__outlook_send_mail"), final())
+        self.assertEqual(r, ask.Failure(ac.CONNECTOR_REFUSED))
+
+    def test_a_tool_of_a_part_that_is_off_refuses(self):
+        r = self.run_with(use("1", f"{P}__outlook_calendar_search"), got("1", "a meeting"), final())
+        self.assertEqual(r, ask.Failure(ac.CONNECTOR_REFUSED))
+
+    def test_a_result_that_is_not_text_refuses_and_a_list_of_text_blocks_is_joined(self):
+        r = self.run_with(use("1", f"{P}__outlook_email_search"), got("1", [{"type": "image"}]), final())
+        self.assertEqual(r, ask.Failure(ac.CONNECTOR_REFUSED))
+        r = self.run_with(use("1", f"{P}__outlook_email_search"), got("1", [{"type": "text", "text": "a"}, {"type": "text", "text": "b"}]), final("Fine"))
+        self.assertEqual(r, "Fine")
+
+    def test_no_final_result_is_no_answer(self):
+        r = self.run_with(use("1", f"{P}__outlook_email_search"), got("1", "x"))
+        self.assertIsInstance(r, ask.Failure)
+
+    def test_no_tool_used_is_answered(self):
+        self.assertEqual(self.run_with(final("Plain")), "Plain")
+        self.assertEqual(self.provider.last_used, "")
+
+    def test_a_run_with_no_connector_is_not_screened(self):
+        self.out = stream(use("1", f"{P}__outlook_send_mail"), final("Plain"))
+        self.assertIsInstance(self.provider.ask(ask.Request(text="Q", question="Q")), ask.Failure)     # not the stream format: today's reader refuses it
+
+    def test_the_stream_reader_alone(self):
+        ok, line, result = cs.checked(stream(use("1", f"{P}__outlook_email_search"), got("1", "t"), final()), {"Mail"})
+        self.assertTrue(ok)
+        self.assertEqual(json.loads(result)["result"], "The plan is on track.")
+        self.assertEqual(cs.checked(b"\xff", {"Mail"}), (False, "", None))
+        self.assertEqual(cs.checked(stream("not json", "[1]", final()), {"Mail"})[0], True)
+
+
+class Switch(unittest.TestCase):
+    """The service hands the provider the connectors that are On for this install and not Off for the project."""
+    def setUp(self):
+        self.d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
+        self.addCleanup(shutil.rmtree, self.d, True)
+        self.db = plant.build_db(self.d / "clark.db")
+        self.seen = []
+
+        class Spy(ask.StubProvider):
+            def ask(spy, request):
+                self.seen.append(request.connectors)
+                return super().ask(request)
+        self.service = ask_service.AskService(self.db, Spy(reply="Fine.\nCITE: P1"), [])
+
+    def sql(self, text, *args):
+        s = open_store(self.db, onedrive_roots=[])
+        try:
+            s.con.execute(text, args)
+            s.con.commit()
+        finally:
+            s.close()
+
+    def ask(self):
+        status, body = self.service.ask({"project": "PUB", "question": "What is the state of the plan?"})
+        self.assertTrue(body["ok"], body)
+
+    def test_a_new_install_has_none_on(self):
+        self.ask()
+        self.assertEqual(self.seen, [()])
+
+    def test_on_reaches_the_request_in_the_stores_order(self):
+        self.sql("UPDATE connector_switches SET is_on = 1 WHERE connector IN ('teams', 'mail')")
+        self.ask()
+        self.assertEqual(self.seen, [("mail", "teams")])
+
+    def test_off_for_this_project_leaves_it_out_and_the_others_in(self):
+        self.sql("UPDATE connector_switches SET is_on = 1 WHERE connector IN ('teams', 'mail')")
+        self.sql("INSERT INTO project_connectors (project_id, connector, off) VALUES ('PUB', 'mail', 1)")
+        self.ask()
+        self.assertEqual(self.seen, [("teams",)])
+
+    def test_off_everywhere_and_off_here_together_leave_none_and_the_call_is_todays(self):
+        self.sql("UPDATE connector_switches SET is_on = 1 WHERE connector = 'mail'")
+        self.sql("INSERT INTO project_connectors (project_id, connector, off) VALUES ('PUB', 'mail', 1)")
+        self.ask()
+        self.assertEqual(self.seen, [()])
+        ask_connectors.clear_cache()
+        p = ac.ClaudeCommand(places=(), env={}, limit=5)
+        sent = []
+        with mock.patch.object(p, "usable", return_value=(PATH, None)), \
+                mock.patch.object(ac, "run", side_effect=lambda a, *_x, **_k: (sent.append(list(a)), ("ok", b"{}", 0))[1]):
+            p.ask(ask.Request(text="Q", question="Q", connectors=self.seen[0]))
+        self.assertEqual(sent, [ac.arguments(PATH, "", ask.RULES)])
+
+    def test_a_switch_turned_off_again_reads_off(self):
+        self.sql("UPDATE connector_switches SET is_on = 1 WHERE connector = 'mail'")
+        self.ask()
+        self.sql("UPDATE connector_switches SET is_on = 0 WHERE connector = 'mail'")
+        self.ask()
+        self.assertEqual(self.seen, [("mail",), ()])
+
+
+if __name__ == "__main__":
+    unittest.main()
