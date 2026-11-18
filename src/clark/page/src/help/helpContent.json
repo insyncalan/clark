@@ -635,7 +635,7 @@
     "id": "read-the-milestones",
     "g": "Milestones",
     "t": "Read the timeline and calendar",
-    "w": "Milestones › Plan · Dashboard › Milestones",
+    "w": "Milestones · Dashboard › Milestones",
     "go": "milestones",
     "s": [
      "The **Timeline** scrolls sideways. The arrows move along it and **Today** comes back. Drag the grip below it to zoom in or out; **Reset** puts it back.",

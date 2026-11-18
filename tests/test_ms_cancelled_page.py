@@ -20,7 +20,7 @@ EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")        # so a brand 
 SEE = """(() => ({
   subs: [...document.querySelectorAll('.msv .msl-row .msl-sub')].map((e) => e.textContent.trim()),
   rows: document.querySelectorAll('.msv .msl-row').length,
-  summary: (document.querySelector('.head-sub') || {textContent: null}).textContent.trim(),
+  summary: (document.querySelector('.head-sub') || {textContent: ''}).textContent.trim(),
 }))()"""
 
 
@@ -53,6 +53,20 @@ class Drawn(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.msv .msl-row')", sid), 10), "the list drew its rows")
             return cdp.js(SEE, sid)
 
+    def drawn_empty(self, width):
+        """The page of a project with no milestone at all: no rows to wait for, so wait for the head itself."""
+        s = Running(data_for=self.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING))
+        self.addCleanup(s.close)
+        with chrome() as cdp:
+            sid = page_target(cdp)
+            cdp.call("Page.enable", {}, sid)
+            cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+            cdp.call("Page.navigate", {"url": "about:blank"}, sid)
+            cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#milestones&p=ABC"}, sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#milestones .head')", sid), 10), "the head drew")
+            return cdp.js(SEE, sid)
+
     def check(self, extra, summary):
         self.cancel(extra)
         for width in (1400, 900):
@@ -69,6 +83,15 @@ class Drawn(unittest.TestCase):
 
     def test_several_cancelled_milestones(self):
         self.check(2, "All 3 milestones are cancelled.")
+
+    def test_no_milestone_at_all_says_no_milestones_yet(self):
+        # row 1329: blanking "No milestones yet." in emptyHead leaves the head empty; this fails then
+        with self.store.step("dashboard", USER) as st:
+            st.archive("milestones", self.demo.milestone)
+        for width in (1400, 900):
+            seen = self.drawn_empty(width)
+            self.assertEqual(seen["rows"], 0, width)
+            self.assertEqual(seen["summary"], "No milestones yet.", width)
 
 
 if __name__ == "__main__":
