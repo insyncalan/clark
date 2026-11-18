@@ -648,7 +648,7 @@ def select(inputs):
         out["gantt"] = {"columns": table["columns"], "lines": table["lines"]}      # row 1068: the eye-on lines for the table section alone, with no tab (tabs below), no tab name and no title: the same copy the tab would carry
     out["use_case_pages"] = client_use_cases(d, code, hidden_ids, inputs.get("label_rules"), hidden_types)
     tabs = ["dashboard"]
-    if any(SECTION_OF_KIND[k] not in hidden_types for k in WORK_KINDS):
+    if any(SECTION_OF_KIND[k] not in hidden_types for k in WORK_KINDS) or any(x.get("type") == "workitems" for x in shown):      # row 1307: a shown Work items list section brings the tab as a built-in section does, so its glance tiles are buttons
         tabs.append("work")
     if "milestones" not in hidden_types:
         tabs.append("milestones")
