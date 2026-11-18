@@ -1149,7 +1149,7 @@ body > .gt-menu.leaving hr { border: 0; border-top: 1px solid var(--border); mar
 }
 
 /* row 940 (macOS gate, test_edit_cells_layout): in Edit at 900 px and below the Due, priority and status columns are 8 px wider than the bare minimum, so a font a little wider than Linux's (macOS draws these three 2 to 3 px wider) stays inside its box. EDIT ONLY: shell.css is also the published page's, whose Item column must stay at least 280 px (test_published_item_column), so the widths are not set there. Same specificity as shell.css's 900 px rule and later in the page, so these win without !important. */
-@media (max-width: 900px) { table.items .c-due { width: 139px; } table.items .c-prio { width: 101px; } table.items .c-status { width: 76px; } table.items.arch .c-status { width: 150px; } }
+@media (max-width: 900px) { table.items .c-due { width: 139px; } table.items .c-prio { width: 121px; } table.items .c-status { width: 76px; } table.items.arch .c-status { width: 150px; } }
 
 /* row 834: at 900 px an item's meta line (ID, use case, plan) is one line cut short with an ellipsis, as in the prototype (nowrap), so a row is at most two title lines and one meta line (82 px, the prototype's 81) and not three lines of meta. EDIT ONLY: shell.css is also the published page's. */
 @media (max-width: 900px) { table.items .c-owner { width: 130px; } #work table.items .tcell .tx { min-width: 0; } #work table.items .tcell .meta { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
@@ -1370,12 +1370,13 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
 #mode-pill .mode .tb-ico { width: 16px; height: 16px; }
 #mode-pill .mode:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 #mode-pill .mode[aria-pressed="true"]:focus-visible { box-shadow: inset 0 0 0 2px var(--pill-fg); }
-body.board-full #mode-pill, body:has(#profile-menu, dialog[open], [role="dialog"], [role="alertdialog"]) #mode-pill { display: none; }
+/* Row 1320: only an open dialog hides the View | Edit pill: not the first-run Welcome card (a non-modal note) and not one with the hidden attribute (the Work items Configure panel kept role=dialog while shut in 1.3.1). */
+body.board-full #mode-pill, body:has(#profile-menu, dialog[open], [role="dialog"]:not([data-welcome], [hidden]), [role="alertdialog"]:not([hidden])) #mode-pill { display: none; }
 #report-bar:empty { display: none; }
 /* Switching to Edit must not move the page: the drag hint floats left of the pill (fixed, as the pill is) and the bar takes no room, so drawing or dropping the hint changes no section's place. */
 #report-bar { min-height: 0; margin: 0; }
 #report-bar .rbar-hint { position: fixed; top: calc(var(--topbar) + 8px); right: calc(20px + 74px + 8px); z-index: 28; box-shadow: var(--shadow); }
-body.board-full #report-bar .rbar-hint, body:has(#profile-menu, dialog[open], [role="dialog"], [role="alertdialog"]) #report-bar .rbar-hint { display: none; }
+body.board-full #report-bar .rbar-hint, body:has(#profile-menu, dialog[open], [role="dialog"]:not([data-welcome], [hidden]), [role="alertdialog"]:not([hidden])) #report-bar .rbar-hint { display: none; }
 
 /* row 1104: a table whose column has a chosen width is laid out in fixed mode so the width holds; the other columns share the rest, and a long word breaks inside its cell */
 table.cw-set, .projects table.proj-table.cw-set { table-layout: fixed; width: 100%; }

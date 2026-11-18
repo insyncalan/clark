@@ -17,10 +17,10 @@ from test_server import chrome
 from clark import page, publish
 
 PROBE = """(() => {
-  const s = document.querySelector('.sec'), c = document.createElement('header');
+  const all = document.querySelectorAll('.secs > .sec'), s = all[1] || document.querySelector('.sec'), b = all[0], c = document.createElement('header');
   c.className = 'cover'; document.body.appendChild(c);      // no published tab draws the band today: a probe band shows what the rules do to one
   const cs = s && getComputedStyle(s);
-  return {sec: !!s, rule: cs && cs.borderLeftWidth, pad: cs && cs.paddingLeft, cover: getComputedStyle(c).display,
+  return {sec: !!s, band_rule: b && getComputedStyle(b).borderLeftWidth, rule: cs && cs.borderLeftWidth, pad: cs && cs.paddingLeft, cover: getComputedStyle(c).display,
           theme: !!document.getElementById('theme')};
 })()"""
 
@@ -80,7 +80,8 @@ class Look(Base):
             with self.subTest(width=width):
                 dash = self.look(path, width, "dashboard")
                 self.assertTrue(dash["theme"])
-                self.assertEqual((dash["rule"], dash["pad"]), ("2px", "20px"), dash)
+                self.assertEqual((dash["rule"], dash["pad"]), ("2px", "20px"), dash)      # the 2nd section keeps the gutter rule
+                self.assertEqual(dash["band_rule"], "0px", dash)      # row 1311: the 1st is a band, with none
                 gantt = self.look(path, width, "gantt")
                 self.assertEqual(gantt["cover"], "none", gantt)
 

@@ -39,13 +39,13 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 29          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1061): the commitment Candidate is stored as Planned 2026; 22 (row 875): use_cases.owner and use_cases.owner_id; 23 (row 1068): report_sections.type takes 'gantttable'; 24 (row 1107): the use_case_milestones table, a use case linked straight to a milestone; 25 (item 1185): raid.latest_update and milestones.latest_update; 26 (row 1195): decisions.priority and decisions.latest_update; 27 (row 1269): app_settings.theme, Classic for a new file and Cards for every file that already exists.; 28 (row 1261): report_sections.type takes 'reportheadline'; 29 (row 1264): report_sections.type takes 'glancetemplate'. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 31          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1061): the commitment Candidate is stored as Planned 2026; 22 (row 875): use_cases.owner and use_cases.owner_id; 23 (row 1068): report_sections.type takes 'gantttable'; 24 (row 1107): the use_case_milestones table, a use case linked straight to a milestone; 25 (item 1185): raid.latest_update and milestones.latest_update; 26 (row 1195): decisions.priority and decisions.latest_update; 27 (row 1269): app_settings.theme, Classic for a new file and Cards for every file that already exists.; 28 (row 1261): report_sections.type takes 'reportheadline'; 29 (row 1264): report_sections.type takes 'glancetemplate'; 30 (row 1300): install_defaults, the install's one row of Defaults values; 31 (row 1294): app_settings.ask_instructions and projects.ask_instructions. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
 TABLES = ("projects", "milestones", "workstreams", "actions", "raid", "decisions", "use_cases", "links", "labels",
           "item_labels", "updates", "report_sections", "glance_tiles", "report_hidden", "documents", "source_folders", "people", "gantt_lines", "use_case_milestones")
-SETTINGS_TABLES = ("app_settings",)     # clark (#47): the writer's too, but kept apart from TABLES: what walks TABLES (backups, the demo, publishing) has no use for it
+SETTINGS_TABLES = ("app_settings", "install_defaults")     # clark (#47): the writer's too, but kept apart from TABLES: what walks TABLES (backups, the demo, publishing) has no use for it
 THEMES = ("classic", "cards")      # row 1269: the install's Theme, Clark Classic or Clark Cards (schema.sql's CHECK says the same)
 THEME_WHEN_MISSING = "cards"   # row 1269: a file with no answer keeps today's look (Cards); it never turns a Theme on by itself
 ASK_WHEN_MISSING = False      # clark (#47): asking reads as OFF when the file holds no answer (no app_settings table or no row): it never fails open
@@ -54,7 +54,7 @@ KEYS = {"projects": ("code",), "milestones": ("id",), "workstreams": ("id",), "a
         "decisions": ("id",), "use_cases": ("id",), "links": ("from_item", "to_item", "kind"), "labels": ("name",),
         "item_labels": ("item_id", "label"), "updates": ("week_ending", "project"),
         "report_sections": ("id",), "glance_tiles": ("project", "tile"), "report_hidden": ("project", "item_id"),
-        "documents": ("project", "id"), "source_folders": ("project", "path"), "app_settings": ("id",),
+        "documents": ("project", "id"), "source_folders": ("project", "path"), "app_settings": ("id",), "install_defaults": ("id",),
         "people": ("id",), "gantt_lines": ("id",), "use_case_milestones": ("use_case", "milestone", "link_id")}      # row 1107: the key holds both ends, so History finds a link from either item
 # clark (#65): a section's id holds its project's code, so one column finds the row (and next_id and history keep working)
 REQUIRED_NEW = {
@@ -75,6 +75,7 @@ REQUIRED_NEW = {
     "report_hidden": ("project", "item_id"),
     "source_folders": ("project", "path"),                              # clark (#47): its sort_order is a rule (0 is a number)
     "app_settings": ("id",),                                            # clark (#47): the migration makes its one row; a second is refused
+    "install_defaults": ("id",),                                        # row 1300: the same, one row
     "documents": ("project", "title", "url"),                           # clark (#126); #74: added and edited too (_document_rules)
     "gantt_lines": ("project", "type", "name", "start", "end"),   # row 926
     "use_case_milestones": ("use_case", "milestone"),                # row 1107
@@ -197,7 +198,7 @@ PUBLISH_TABLES = ("milestones", "workstreams", "actions", "raid", "decisions", "
 # Columns publish_inputs refuses to read, whatever it is asked for: working notes and folders that no report carries (Head
 # place that reads for a published file.
 NEVER_PUBLISH = frozenset({"internal_note", "movement", "reasoning", "options", "response_action", "keywords",
-                           "aliases", "lead", "publish_local", "publish_client", "by_user", "device"})
+                           "aliases", "lead", "publish_local", "publish_client", "by_user", "device", "ask_instructions"})
 # `source` left this list on row 1077 (the owner's ruling of 10-11-2026): a published file carries a row's source by NAME only; publish.select
 # puts the stored words through source_name.source_name, so a path never reaches a file.
 PUBLISH_ORDER = {"milestones": "sort_order, id", "workstreams": "id", "actions": "id", "raid": "id", "decisions": "id",
@@ -435,7 +436,7 @@ def is_archived(con, code):
 # archive and restore (and the Undo of them) ever set it: refuse_archived_field turns it away from a new row and an update. tests/test_store_flags.py reads schema.sql and fails if a flag column is not named here,
 # so a new flag can't slip past the rule (#89).
 FLAG_COLUMNS = frozenset({"active", "builtin", "suggested", "state_set", "client_visible", "beside", "hidden", "word", "archived", "ask_enabled", "needs_details", "client_action",
-                          "show", "show_gantt_editor", "show_gantt_client"})      # row 926: a Gantt line's eye and the project's two Gantt switches
+                          "show", "show_gantt_editor", "show_gantt_client", "gantt_editor", "gantt_client"})      # row 926: a Gantt line's eye and the project's two Gantt switches; row 1300: the install's two Gantt defaults
 FLAGS_ELSEWHERE = frozenset({"archived"})       # also named here: the flags test still reads it (#89)
 
 
@@ -463,6 +464,7 @@ def check_values(table, values):
         if allowed and v not in allowed:
             raise Invalid(f"{f} must be one of {', '.join(allowed)} (got {v!r})")
         _check_number_and_flags(f, v)
+        _check_instructions(f, v)
         _check_label_value(table, f, v)
     if table == "projects" and "code" in values and not re.fullmatch(CODE_RE, str(values["code"])):
         raise Invalid(f"project code must be 3 to 7 capital letters or digits, starting with a letter "
@@ -486,6 +488,14 @@ def _check_number_and_flags(f, v):
         raise Invalid(f"sort_order must be a whole number (got {v!r})")
     if f == "review_after_days" and (type(v) is not int or not REVIEW_DAYS_RANGE[0] <= v <= REVIEW_DAYS_RANGE[1]):
         raise Invalid(f"review_after_days must be a whole number from 1 to 365 (got {v!r})")
+
+
+INSTRUCTIONS_MAX = 4000      # row 1294 (A8): the most characters of standing instructions, for all projects and for one project (schema.sql's CHECK says the same)
+
+
+def _check_instructions(f, v):
+    if f == "ask_instructions" and (type(v) is not str or len(v) > INSTRUCTIONS_MAX):
+        raise Invalid(f"ask_instructions is text of at most {INSTRUCTIONS_MAX} characters")
 
 
 def _check_label_value(table, f, v):
@@ -1209,7 +1219,7 @@ def write_item(con, item, step):
         refuse_archived_field(item)
     if op not in ("new", "update", "cancel", "archive", "restore", "delete"):
         raise Invalid(f"op must be new, update, cancel, archive, restore or delete (got {op!r})")
-    if table == "app_settings" and op != "update":      # clark (#47): the one row is made by the migration step and only changed
+    if table in SETTINGS_TABLES and op != "update":      # clark (#47): the one row is made by the migration step and only changed
         raise Invalid(SETTINGS_ROW)
     cols = columns(con, table)
     if op == "new":
@@ -3046,6 +3056,44 @@ def migrate_glance_template_section_type(con):
     con.execute("ALTER TABLE report_sections_gt RENAME TO report_sections")
 
 
+INSTALL_DEFAULTS_STEP = 30        # row 1300's step number, written once here and used by MIGRATIONS
+INSTALL_DEFAULTS_DDL = (
+    """CREATE TABLE IF NOT EXISTS install_defaults (
+  id            INTEGER PRIMARY KEY CHECK (id = 1),
+  review_days   INTEGER NOT NULL DEFAULT 14,
+  gantt_editor  INTEGER NOT NULL DEFAULT 0 CHECK (gantt_editor IN (0,1)),
+  gantt_client  INTEGER NOT NULL DEFAULT 0 CHECK (gantt_client IN (0,1)),
+  gantt_name    TEXT NOT NULL DEFAULT 'Gantt',
+  updated_at    TEXT
+)""",
+    "INSERT OR IGNORE INTO install_defaults (id) VALUES (1)",
+)      # frozen here, as EMAIL_SENT_DDL is: tests/test_install_defaults_store.py pins it to what schema.sql creates
+
+
+def migrate_install_defaults(con):
+    """Schema version 29 to 30 (row 1300): install_defaults, one row for this computer holding the Defaults values at today's values
+    (review days 14, Gantt tab off for the editor and the client, the tab called Gantt), so nothing changes. Made only if missing, so a
+    second run changes nothing and a row already there keeps its values. Runs inside the caller's transaction and does not touch the
+    version (the runner does). It is step 30 in MIGRATIONS."""
+    for statement in INSTALL_DEFAULTS_DDL:
+        con.execute(statement)
+
+
+ASK_INSTRUCTIONS_STEP = 31        # row 1294's step number, written once here and used by MIGRATIONS
+ASK_INSTRUCTIONS_COLUMN = f"ask_instructions TEXT NOT NULL DEFAULT '' CHECK (typeof(ask_instructions) = 'text' AND length(ask_instructions) <= {INSTRUCTIONS_MAX})"      # the same text as schema.sql's two tables
+
+
+def migrate_ask_instructions(con):
+    """Schema version 30 to 31 (row 1294): app_settings.ask_instructions (the standing instructions for all projects) and projects.ask_instructions
+    (a project's own), empty for every row that is there. Each is added at the end of its table, so no table is made again and no value changes; a
+    column already there (a new database, or a second run) is skipped, and so is a table that is missing. Runs inside the caller's transaction and
+    does not touch the version (the runner does). It is step 31 in MIGRATIONS."""
+    for table, alter in (("app_settings", "ALTER TABLE app_settings ADD COLUMN "), ("projects", "ALTER TABLE projects ADD COLUMN ")):      # fixed SQL per table
+        have = columns(con, table)
+        if have and "ask_instructions" not in have:
+            con.execute(alter + ASK_INSTRUCTIONS_COLUMN)
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
@@ -3058,7 +3106,8 @@ MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies),
               (UC_MILESTONES_STEP, migrate_use_case_milestones), (LATEST_UPDATE_STEP, migrate_latest_update),
               (DECISION_PEEK_STEP, migrate_decision_peek), (THEME_STEP, migrate_theme),
               (REPORT_HEADLINE_STEP, migrate_report_headline_section_type),
-              (GLANCE_TEMPLATE_STEP, migrate_glance_template_section_type))
+              (GLANCE_TEMPLATE_STEP, migrate_glance_template_section_type),
+              (INSTALL_DEFAULTS_STEP, migrate_install_defaults), (ASK_INSTRUCTIONS_STEP, migrate_ask_instructions))
 
 
 def migration_plan(version, table=None):
@@ -4084,6 +4133,21 @@ class Store:
         except sqlite3.Error:
             return THEME_WHEN_MISSING
         return row[0] if row is not None and row[0] in THEMES else THEME_WHEN_MISSING
+
+    def ask_instructions(self, code=None):
+        """The standing instructions of asking (row 1294): the text for all projects (`code` None), or the project's own. '' when there is none, when
+        the file has no such column, table or row, or on any database error: nothing is ever invented. Read only."""
+        table = "app_settings" if code is None else "projects"
+        try:
+            if "ask_instructions" not in columns(self.con, table):
+                return ""
+            if code is None:      # fixed SQL per table
+                row = self.con.execute("SELECT ask_instructions FROM app_settings WHERE id = 1").fetchone()
+            else:
+                row = self.con.execute("SELECT ask_instructions FROM projects WHERE code = ?", (code,)).fetchone()
+        except sqlite3.Error:
+            return ""
+        return row[0] if row is not None and isinstance(row[0], str) else ""
 
     def milestone_moves(self, code):
         """#136: the date and state history of a project's live milestones, for Movement (owner only: never published, never in
