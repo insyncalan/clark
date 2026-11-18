@@ -15,7 +15,7 @@ from clark import default_sections
 
 PENDING = {      # built-in type -> the row whose template replaces it
     "glance": 1190, "usecases": 1191, "milestones": 1192,
-    "raid": 1193, "actions": 1193, "docs": 1194,      # row 10 of item 1193: Decisions is a Work items list now
+    "raid": 1193, "docs": 1194,      # rows 9 and 10 of item 1193: Open actions and Decisions are Work items lists now
 }
 OLDER = {"current", "tracker"}       # still read and drawn, no longer a default: "current" (row 1188) and the Progress tracker (#189)
 OLD_REPORTS = {"decisions"}      # no longer a default (row 10 of 1193), still drawn for a report that has it

@@ -17,7 +17,7 @@ NINE = ("current", "glance", "usecases", "milestones", "text", "raid", "actions"
 TEN = (
     ("text", "Current state", 0), ("glance", "At a glance", 0), ("usecases", "Use case summary", 0),
     ("milestones", "Milestones", 0), ("text", "This week", 1), ("text", "Next week", 0),
-    ("raid", "Risks and issues", 0), ("actions", "Open actions", 0), ("workitems", "Decisions", 0),   # row 10 of item 1193
+    ("raid", "Risks and issues", 0), ("workitems", "Open actions", 0), ("workitems", "Decisions", 0),   # rows 9 and 10 of item 1193
     ("docs", "Supporting documents", 0))
 
 
@@ -52,6 +52,7 @@ class Seed(Base):
         self.assertEqual([r["id"] for r in rows], [f"ABC-S-{n:03d}" for n in range(1, 11)])
         self.assertEqual([r["sort_order"] for r in rows], [order.GAP * n for n in range(1, 11)])
         self.assertEqual({(r["hidden"], r["body"]) for r in rows[1:] if r["type"] != "workitems"}, {(0, "")})      # item 1188: only the first starts with words
+        self.assertEqual({r["body"] for r in rows if r["title"] == "Open actions"}, {default_sections.OPEN_ACTIONS_BODY})      # row 1193-9
         self.assertEqual({r["project"] for r in rows}, {"ABC"})
 
     def test_the_seed_is_in_the_projects_own_step_and_one_undo_means_one_thing(self):
@@ -89,7 +90,7 @@ class Seed(Base):
 
     def test_the_default_sections_are_pinned(self):
         self.assertEqual([(s["type"], s["title"], s.get("beside", 0)) for s in default_sections.DEFAULT_SECTIONS], list(TEN))
-        self.assertTrue(all(s["type"] in NINE + ("workitems",) for s in default_sections.DEFAULT_SECTIONS))
+        self.assertTrue(all(s["type"] in NINE + ("workitems",) for s in default_sections.DEFAULT_SECTIONS))      # row 1193-9: Open actions is a Work items list
         self.assertIn("current", store_module.SECTION_TYPES)              # item 1188: the older type is still allowed
         from clark.section_kinds import TYPES as TEMPLATE_TYPES
         self.assertEqual(set(store_module.SECTION_TYPES), set(NINE) | {"needs", "tracker", "gantt", "gantttable"} | set(TEMPLATE_TYPES))      # the nine of the starting report, and those that carry content (#96: the section templates too)
@@ -98,9 +99,12 @@ class Seed(Base):
         first = self.sections()[0]
         self.assertEqual((first["type"], first["title"], first["body"]), ("text", "Current state", ""))
         want = [""] * 10
-        want[8] = default_sections.DECISIONS_LIST                                    # row 10 of item 1193: the Decisions list is the only default with a body, its saved view (the writer stores it in canonical form)
-        self.assertEqual([r["body"] for r in self.sections()][:8] + [r["body"] for r in self.sections()][9:], [""] * 9)
-        self.assertEqual(json.loads(self.sections()[8]["body"]), json.loads(default_sections.DECISIONS_LIST))
+        want[7] = default_sections.OPEN_ACTIONS_BODY                                 # row 1193-9
+        want[8] = default_sections.DECISIONS_LIST                                    # row 10 of item 1193: the two lists are the only defaults with a body, their saved views
+        bodies = [r["body"] for r in self.sections()]
+        self.assertEqual(bodies[:7] + bodies[9:], [""] * 8)
+        self.assertEqual(json.loads(bodies[7]), json.loads(default_sections.OPEN_ACTIONS_BODY))
+        self.assertEqual(json.loads(bodies[8]), json.loads(default_sections.DECISIONS_LIST))
         self.assertEqual(default_sections.DEFAULT_SECTIONS[0].get("body", ""), "")
         self.assertEqual([x.get("body", "") for x in default_sections.DEFAULT_SECTIONS], want, "item 1193: This week and Next week start empty too")
         self.assertNotIn("Summary", default_sections.SECTION_HINTS)               # item 1266: no Summary in the default report

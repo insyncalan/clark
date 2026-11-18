@@ -7,6 +7,7 @@ the server's checker accepts as it is, and the server's matcher lists exactly th
 
 Run: python3 dev/run_tests.py test_default_work_lists
 """
+import json
 import re
 import unittest
 
@@ -62,10 +63,14 @@ class DefaultWorkLists(unittest.TestCase):
     def test_the_built_ins_stay_the_defaults_until_the_lists_print_everywhere(self):
         types = [s["type"] for s in default_sections.DEFAULT_SECTIONS]
         for view, (builtin, _) in DEFAULT_VIEWS.items():
-            if view == "decisions":
-                continue                                            # row 10 of item 1193: Decisions is a Work items list now (test below)
+            if view in ("actions", "decisions"):
+                continue                                            # rows 9 and 10 of item 1193: Open actions and Decisions are Work items lists now (test below)
             self.assertIn(builtin, types, "%s is no longer a default: update tests/test_dashboard_template_built.py PENDING and this file together" % builtin)
-        self.assertEqual(types.count("workitems"), 1, "only the Decisions list is a default list so far (rows 8 and 9 are not built)")
+        self.assertEqual(types.count("workitems"), 2, "only the Open actions and Decisions lists are default lists so far (row 8 is not built)")
+        by_title = {x["title"]: x for x in default_sections.DEFAULT_SECTIONS}
+        self.assertEqual(by_title["Open actions"]["type"], "workitems")      # row 1193-9
+        self.assertEqual(by_title["Decisions"]["type"], "workitems")         # row 10 of item 1193
+        self.assertEqual(by_title["Risks and issues"]["type"], "raid", "not swapped yet: update tests/test_dashboard_template_built.py PENDING and this file together")
 
 
 if __name__ == "__main__":
