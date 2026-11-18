@@ -2211,6 +2211,7 @@ table.items td.c-prio .wil-pr { padding: 0 var(--space-1); }      /* row 1195 S2
 .wil-off .ico { background: var(--tone-grey-tint); color: var(--tone-grey-text); }
 .wil-off .av { background: var(--grey-300); }
 .wil-off .wil-pr { background: var(--grey-100); color: var(--text-muted); }
+.wil-pr { border-radius: var(--radius-pill); }   /* row 1314: the Priority tag is a round pill, as the prototype draws it (it was a flat rectangle) */
 .wil-table .wil-c-type { width: 116px; }
 .wil-table .wil-c-id { width: 108px; }
 .wil-table .wil-c-owner { width: 150px; }
