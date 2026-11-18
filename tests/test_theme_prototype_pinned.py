@@ -120,7 +120,7 @@ class ThemePrototypePinned(unittest.TestCase):
         self.assertEqual(decls(block), DARK)
 
     def test_every_rule_line_is_exact_and_in_order(self):
-        older = RULES.split("\n/* Row ", 1)[0]      # each later row's block starts with a "Row N" comment and is pinned in its own test file
+        older = re.split(r"\n/\* Row (?!1311\b)", RULES, maxsplit=1)[0]      # row 1311 is pinned here; each later row's block starts with a "Row N" comment and is pinned in its own test file
         lines = [l for l in older.split("\n")[1:] if l.strip()]
         self.assertEqual(lines, RULE_LINES)
 
