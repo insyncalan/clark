@@ -268,6 +268,24 @@ class TheCard(Card):
             p.until("document.querySelector('[data-ask-line]').textContent.startsWith('Done.')", "Done.")
             self.assertEqual((self.status(), self.store.read("actions", ref=self.second)["status"]), ("Closed", "Open"))
 
+    def test_undo_all_leaves_a_card_put_aside_with_not_now_as_it_was(self):         # #1292 sweep: only a card that was Done is marked Undone
+        self.two_cards()
+        third = self.demo.action(owner="Pat Kay", description="Book the room")
+        self.provider.reply += "\nCHANGE: " + json.dumps({"op": "change", "id": third, "current_title": "Book the room", "status": "Closed"})
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            p.until("document.querySelectorAll('[data-ask-change]').length === 3", "three cards")
+            p.js("document.querySelectorAll('[data-ask-not-now]')[2].click()")
+            p.until("document.querySelectorAll('[data-ask-apply]').length === 2", "two left")
+            p.js("document.querySelector('[data-ask-apply-all]').click()")
+            p.until("!!document.querySelector('[data-ask-undo-all]')", "done with one Undo")
+            p.js("document.querySelector('[data-ask-undo-all]').click()")
+            p.until("document.querySelector('[data-ask-group-line]').textContent === 'Undone. The old values are back.'", "Undone")
+            self.assertEqual(p.js("document.querySelectorAll('[data-ask-bring-back]').length"), 1, "the card put aside is still put aside")
+            self.assertEqual(self.store.read("actions", ref=third)["status"], "Open")
+
     def test_apply_all_is_not_offered_when_a_card_needs_the_confirm_box(self):
         self.two_cards()
         self.provider.reply += "\nCITE: P5"
