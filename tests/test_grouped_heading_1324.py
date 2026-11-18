@@ -1,7 +1,7 @@
 """Row 1324 (Grouped view, Option A), Work items (commit a-b): the group name is a heading line on the page, as Chrome computes it, at 1400 and 900 px, light and dark.
 
 Run: python3 dev/run_tests.py test_grouped_heading_1324
-The approved mock-up is clark-plan mockups/1324-grouped-view-template/. Cards and Classic: no tile (no border, no corners, no fill, nothing that clips), the heading
+The approved mock-up is the plan board's grouped-view page for row 1324. Cards and Classic: no tile (no border, no corners, no fill, nothing that clips), the heading
 Montserrat 600 15 px in the heading colour with one 1 px hairline under it, 18 px above each group, the count 13 px and muted, the column names drawn once on top
 and lined up with the rows of every group, the flat list ("Group by: Nothing") still a card, and the collapse button keeping a visible focus ring and a contrast of
 at least 4.5 to 1. A published Work items list draws the same. Behaviour is not changed here: the collapse tests of the other files stay.
