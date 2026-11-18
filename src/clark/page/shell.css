@@ -1841,7 +1841,7 @@ html:has(.top-file) main [id], html:has(.top-file) .sec { scroll-margin-top: cal
 h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800; letter-spacing: -.01em; line-height: 1.15; }
 .crumbs { font-family: var(--font-label); font-weight: var(--weight-semibold); font-size: var(--size-caption); text-transform: uppercase; letter-spacing: .1em; }
 /* Work items: the project name above the title is plain (not tracked capitals); row 805 took the intro line away */
-#work .crumbs, #milestones.pub .crumbs, #usecases-file .crumbs { font-weight: 400; text-transform: none; letter-spacing: normal; }   /* the published tabs share one plain line (the editor's Milestones keeps its own) */
+#work .crumbs, #milestones .crumbs, #usecases .crumbs, #usecases-file .crumbs { font-weight: 400; text-transform: none; letter-spacing: normal; }   /* the published tabs share one plain line (the editor's Milestones and Use cases too) */
 #work .head h1 { margin: 0; }
 .fig .k, .tile .l { font-family: var(--font-label); font-weight: var(--weight-medium); }
 .tab { font-family: var(--font-label); font-weight: 500; }
