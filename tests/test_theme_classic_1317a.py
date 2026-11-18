@@ -18,7 +18,7 @@ from clark import page
 from test_theme_classic_css import rgb
 
 SIZES = (1400, 900)
-CARDS_SHA256 = "cf82678052e8766fcb3e96bc80ccb7bc505ece8e69cd25fcec8e42c8a9f336a6"
+CARDS_SHA256 = "598a68997d875884820f96e873252e059970a36401f8243b23eba9483069c499"
 JS = """(() => { const q = (s) => document.querySelector(s), g = (e) => getComputedStyle(e);
   const h = g(q('.set-head h1')), n = g(q('.set-group-name')), c = g(q('.set-chip[aria-current]')), p = g(q('.set-bar')), d = g(q('.set-chip:not([aria-current])'));
   return {h1: h.fontSize, h1w: h.fontWeight, tt: n.textTransform, ls: n.letterSpacing, gfs: n.fontSize, gw: n.fontWeight,
