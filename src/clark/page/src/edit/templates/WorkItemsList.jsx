@@ -62,7 +62,7 @@ export const CONFIGURE_LABEL = "Configure this list";      // row 1268: the word
 // Row 1268, the approved Add: a + that opens a short menu (Action, Risk, Issue, Decision); a pick makes the item at once and opens its peek.
 export const ADD_WORD = "Add work item";
 // Row 1195: the Add menu draws each kind as the letter tile the rows use (A, R, I, D); `tone` is the tile's colour class.
-const TILE_TONE = { action: "b", risk: "r", issue: "u", decision: "g" };
+const TILE_TONE = { action: "v", risk: "r", issue: "u", decision: "g" };
 export const ADD_ITEMS = ADDABLE.map((k) => ({ kind: k, word: k[0].toUpperCase() + k.slice(1), tile: k[0].toUpperCase(), tone: TILE_TONE[k] || "n" }));
 // Row 1195: the Configure box lists the columns in the approved mock-up's order (Status, Owner, Due, Priority, Workstream, Milestone, ID); Type, which the mock-up does not draw, follows them. What is saved and its order are unchanged.
 export const SHOWN_COLUMNS = DESIGN_COLUMNS.concat(COLUMNS.filter((c) => !DESIGN_COLUMNS.includes(c)));

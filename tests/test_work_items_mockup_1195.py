@@ -21,7 +21,7 @@ GOLDEN_LINES = {
     "shell.css": [
         ".wil-table th { text-align: left; font-weight: var(--weight-regular); font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); padding: 6px var(--space-2); border-top: 1px solid var(--grey-200); }",
         ".wil-table td.wil-c-id, .wil-c-id { font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; color: var(--status-blue-text); }",
-        ".wil-pr { padding: 0 var(--space-2); border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); font-weight: var(--weight-medium); }",
+        ".wil-pr { padding: 0 var(--space-2); border: 1px solid var(--grey-500); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-weight: var(--weight-semibold); }",
         ".wil-pr.h, .wil-pr.u { border-color: color-mix(in srgb, currentColor 30%, transparent); }",
         ".wil-table .wil-c-workstream, .wil-table .wil-c-milestone { width: 100px; }",
         ".wil-table td.wil-c-due { white-space: nowrap; overflow-wrap: normal; }",
@@ -125,8 +125,31 @@ class SourceRules(unittest.TestCase):
         self.assertIn("monospace", idr)
         self.assertIn("font-weight: var(--weight-medium)", idr)
         self.assertIn("color: var(--status-blue-text)", idr)
-        self.assertIn("border: 1px solid var(--grey-200)", rule(SHELL_CSS, ".wil-pr"))
+        self.assertIn("border: 1px solid var(--grey-500)", rule(SHELL_CSS, ".wil-pr"))
         self.assertIn("border-color:", rule(SHELL_CSS, ".wil-pr.h, .wil-pr.u"))
+
+    def test_the_medium_pill_is_white_with_a_dark_border_and_bold_dark_text(self):
+        pr = rule(SHELL_CSS, ".wil-pr")
+        for want in ("background: var(--surface)", "color: var(--text)", "font-weight: var(--weight-semibold)", "border: 1px solid var(--grey-500)"):
+            self.assertIn(want, pr)
+        self.assertNotIn("grey-100", pr)
+        self.assertIn("background: var(--tone-amber-tint)", rule(SHELL_CSS, ".wil-pr.h"))
+        self.assertIn("background: var(--tone-red-tint)", rule(SHELL_CSS, ".wil-pr.u"))
+
+    def test_the_letter_tile_is_coloured_by_the_kind_in_the_rows_and_in_the_add_menu(self):
+        def tile(kind):
+            return rule(SHELL_CSS, f".wil-table tr.wil-k-{kind}:not(.wil-off) .ico, .wil-lines li.wil-k-{kind}:not(.wil-off) .ico")
+        self.assertIn("background: var(--brand-blue-tint); color: var(--status-blue-text)", rule(SHELL_CSS, ".wil-table tr.wil-k-action:not(.wil-off) .ico, .wil-lines li.wil-k-action:not(.wil-off) .ico, .ico.v"))
+        self.assertIn("background: var(--tone-red-tint); color: var(--tone-red-text)", tile("risk"))
+        self.assertIn("background: var(--tone-urgent); color: var(--tone-on-urgent)", tile("issue"))
+        self.assertIn("background: var(--tone-green-tint); color: var(--tone-green-text)", tile("decision"))
+        self.assertIn('action: "v", risk: "r", issue: "u", decision: "g"', JSX)
+        self.assertIn("wil-k-${row.kind}", (PAGE / "src" / "templates" / "WorkItemsList.jsx").read_text(encoding="utf-8"))
+
+    def test_the_open_tabs_caret_sits_inside_the_tab_underline_right_after_the_tab_words(self):
+        self.assertIn("gap: 0", rule(EDIT_CSS, ".wil-views .vt"))
+        self.assertIn("padding-right: calc(var(--space-5) + var(--space-1))", rule(EDIT_CSS, ".wil-views .vt:has(> .wil-vopts) .vtab"))
+        self.assertIn("margin-left: calc(-1 * (var(--space-5) + var(--space-1)))", rule(EDIT_CSS, ".wil-views .vt > .wil-vopts"))
 
     def test_the_heading_row_is_caption_size_caps(self):
         self.assertIn("font-size: var(--size-caption)", rule(SHELL_CSS, ".wil-table th"))
@@ -201,6 +224,36 @@ class InThePage(T.InThePage):
             due = json.loads(p.js(f"JSON.stringify([...document.querySelectorAll('{sec} .wil-table td.wil-c-due .num')].map(e => e.getClientRects().length))"))
             for n in due:
                 self.assertEqual(n, 1, "a date is on one line")
+
+    def test_the_tiles_are_coloured_by_kind_the_medium_pill_is_white_and_the_caret_is_inside_the_underline(self):
+        ref = self.add({"mode": "all", "columns": ["id", "owner", "due", "priority"], "owner": ["Pat Demo", "Lee Demo"]})
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            sec = f'[data-id="{ref}"]'
+            p.edit()
+            p.until(f"!!document.querySelector('{sec} .vtab')", "tabs")
+            p.js(f"document.querySelector('{sec} .vtab').click()")
+            p.until(f"!!document.querySelector('{sec} .vt .vtabmenu')", "open tab")
+            got = json.loads(p.js("JSON.stringify((() => { const c = (v) => { const e = document.createElement('i'); e.style.color = v; document.body.append(e); const r = getComputedStyle(e).color; e.remove(); return r; };"
+                "const tok = (n) => c('var(' + n + ')');"
+                "const tiles = {}; for (const tr of document.querySelectorAll('" + sec + " .wil-table tbody tr:not(.wil-off)')) { const k = tr.className.match(/wil-k-(\\w+)/)[1], i = getComputedStyle(tr.querySelector('.ico')); tiles[k] = [i.backgroundColor, i.color]; }"
+                "const med = [...document.querySelectorAll('" + sec + " .wil-pr:not(.h):not(.u)')].map((e) => { const s = getComputedStyle(e); return [s.backgroundColor, s.color, s.fontWeight, s.borderTopColor]; });"
+                "const vt = document.querySelector('" + sec + " .vt:has(.vtabmenu)'), tab = vt.querySelector('.vtab').getBoundingClientRect(), car = vt.querySelector('summary').getBoundingClientRect(), em = vt.querySelector('.vtab').lastElementChild.getBoundingClientRect();"
+                "return {tiles, med, want: {a: [tok('--brand-blue-tint'), tok('--status-blue-text')], r: [tok('--tone-red-tint'), tok('--tone-red-text')], i: [tok('--tone-urgent'), tok('--tone-on-urgent')], surface: tok('--surface'), text: tok('--text'), edge: tok('--grey-500')},"
+                "caret: [car.left - tab.left, tab.right - car.right, car.left - em.right]}; })())"))
+            w = got["want"]
+            self.assertEqual(got["tiles"].get("action"), w["a"], got)
+            self.assertEqual(got["tiles"].get("risk"), w["r"], got)
+            if "issue" in got["tiles"]:
+                self.assertEqual(got["tiles"]["issue"], w["i"], got)
+            self.assertTrue(got["med"], "a Medium pill is listed")
+            for bg, fg, weight, edge in got["med"]:
+                self.assertEqual((bg, fg, edge), (w["surface"], w["text"], w["edge"]), got)
+                self.assertGreaterEqual(int(weight), 600, got)
+            left, right, after_count = got["caret"]
+            self.assertGreaterEqual(left, 0, got)
+            self.assertGreaterEqual(right, 0, "the caret is inside the tab's underline")
+            self.assertLess(after_count, 10, "right after the last thing in the tab (the count pill, or the unsaved dot)")
 
 
 if __name__ == "__main__":

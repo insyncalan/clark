@@ -1552,6 +1552,9 @@ table.items td.c-x-id { color: var(--link); font-weight: 600; white-space: nowra
 .wil-views .vnew { color: var(--status-blue-text); font-weight: var(--weight-medium); }
 .wil-views .vnew:hover { color: var(--status-blue-text); }
 .wil-views .vtabs { flex-wrap: wrap; overflow: visible; }
+.wil-views .vt { gap: 0; }
+.wil-views .vt:has(> .wil-vopts) .vtab { padding-right: calc(var(--space-5) + var(--space-1)); }   /* row 1195: the caret sits right after the open tab, inside its violet underline */
+.wil-views .vt > .wil-vopts { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); }
 .wil-edit .wil-line { margin: 0 0 var(--space-3); }
 
 .wil-table .wil-c-eye .ib { color: var(--text); }   /* row 1195: the eye is as dark as the mock-up draws it */

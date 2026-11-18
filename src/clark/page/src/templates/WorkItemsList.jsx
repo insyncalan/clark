@@ -52,7 +52,7 @@ export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw }) {
   const cellOf = (row, c) => (Pick && PICKED[c] ? <Pick row={row} field={PICKED[c]} keep={c === "status"}><Cell row={row} col={c} now={now} /></Pick> : <Cell row={row} col={c} now={now} />);
   // Row 1268: one line as the built-in rows: the letter tile, the title, the chosen columns, the ID last; an item the client eye has taken off is greyed.
   const before = columns.filter((c) => c === "type"), after = columns.filter((c) => c !== "type" && c !== "id").concat(columns.filter((c) => c === "id"));
-  const off = (row) => (Eye && Eye.isOff && Eye.isOff(row) ? " wil-off" : "");
+  const off = (row) => ` wil-k-${row.kind}${Eye && Eye.isOff && Eye.isOff(row) ? " wil-off" : ""}`;
   const tile = (row) => <ItemIcon row={row} pill={clientPill(row, now)} today={now} plain={!!open} />;
   return (
     <>
