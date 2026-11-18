@@ -174,6 +174,7 @@ def arguments(path, canary="", system=None, model=None):
 
 
 CONNECTOR_TURNS = "6"          # row 1306: a run that may call a connector needs more than the one turn of an ordinary ask
+CONNECTOR_UNAVAILABLE = "A connector that is turned on was not available in this run, so nothing from it is shown."
 CONNECTOR_REFUSED = "A connector gave back something clark would not use, so nothing from this run is shown."
 
 
@@ -539,7 +540,7 @@ class ClaudeCommand(ask.Provider):
             self.last_used = line.text
             self.last_line = line
             if not good:
-                return ask.Failure(CONNECTOR_REFUSED)
+                return ask.Failure(CONNECTOR_UNAVAILABLE if ask_connector_stream.init_missing(out, {names[c] for c in connectors if c in names}) else CONNECTOR_REFUSED)
             out = result
         if status in ("ok", "failed") and limit_reached(out):
             return limit_failure(model)

@@ -68,6 +68,19 @@ def search_ok(args, on_parts):
     return q in full or q in bare        # the whole query is one allowed tool name, nothing else
 
 
+def _loaded(tools, on_parts):
+    """True when the init event's tool list holds at least one allowed tool of EACH part that is On."""
+    names = {t for t in tools if isinstance(t, str)}
+    parts = [p for p in screen.PARTS if on_parts is None or p in on_parts]
+    return bool(parts) and all(any(f"{screen.SERVER_PREFIX[p]}__{t}" in names for t in screen.ALLOWED_TOOLS[p]) for p in parts)
+
+
+def init_missing(out, on_parts):
+    """True when the stream has an init event whose tool list lacks the allowed tools of a part that is On (the connector did not load)."""
+    return any(ev.get("type") == "system" and ev.get("subtype") == "init" and isinstance(ev.get("tools"), list) and not _loaded(ev["tools"], on_parts)
+               for ev in _events(out))
+
+
 def checked(out, on_parts):
     """(ok, used_line_text, result_bytes or None) for one connector run's stream output."""
     ok, line, result = inspect(out, on_parts)
@@ -78,9 +91,14 @@ def inspect(out, on_parts):
     """(ok, UsedLine, result_bytes or None): the same as `checked`, with the whole UsedLine (its used and not_used parts) kept."""
     names, pairs, calls, searches = {}, [], [], set()
     bad = False
+    missing = False
     result = None
     for ev in _events(out):
         kind = ev.get("type")
+        if kind == "system" and ev.get("subtype") == "init":
+            tools = ev.get("tools")
+            if isinstance(tools, list) and not _loaded(tools, on_parts):
+                missing = True                     # the run does not have the allowed connector tool at all
         if kind == "result":
             result = ev
         elif kind == "assistant":
@@ -110,6 +128,8 @@ def inspect(out, on_parts):
     verdicts = screen.screen_all(pairs, on_parts)
     verdicts += [screen.screen(name, "", 0, on_parts) for name in calls if name not in {p[0] for p in pairs}]
     line = screen.used_line(verdicts)
+    if missing:
+        return False, line, None
     if bad or result is None or not all(v.used for v in verdicts):
         return False, line, None
     return True, line, json.dumps(result).encode("utf-8")
