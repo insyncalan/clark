@@ -15,17 +15,16 @@ from test_server import Running, chrome, wait
 
 from clark import page
 
-LINE = "Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings."
 ALL_NOTE = ("Only connectors that are set up on this computer are listed, and the list is the same for every project. Off means clark never asks it anything. "
             "On lets ask clark read from it, read only, when your question needs it; each one it used is listed under the answer. A project can turn a connector off for itself in its own tab.")
 WIDTHS = (1400, 900)
 FAKE = """
-window.__c = {calls: [], list: [{id: 'mail', label: 'Mail', on: false, off_here: false}, {id: 'teams', label: 'Teams', on: false, off_here: false}], fail: false, none: false, steps: []};
+window.__c = {calls: [], list: [{id: 'mail', label: 'Mail', on: false, off_here: false}, {id: 'teams', label: 'Teams', on: false, off_here: false}], fail: false, none: false, steps: [], urls: []};
 const real = window.fetch;
 window.fetch = function (url, opts) {
   if (String(url).indexOf('/api/ask-connectors') < 0) return real.apply(this, arguments);
   const body = opts && opts.body ? JSON.parse(opts.body) : null;
-  window.__c.calls.push(body);
+  window.__c.calls.push(body); window.__c.urls.push(String(url));
   const reply = (status, out) => Promise.resolve(new Response(JSON.stringify(out), {status: status, headers: {'Content-Type': 'application/json'}}));
   if (window.__c.fail) return reply(500, null);
   if (body && body.undo !== undefined) { const u = window.__c.steps.pop(); if (u) window.__c.list.forEach((c) => { if (c.id === u.id) { c.on = u.on; c.off_here = u.off_here; } }); return reply(200, {ok: true, connectors: window.__c.list, message: 'Undone.'}); }
@@ -62,7 +61,9 @@ class Connectors(unittest.TestCase):
         with chrome() as cdp:
             js = self.show(cdp, "all")
             self.assertTrue(wait(lambda: js("document.querySelectorAll('[data-connector]').length") == 2, 10))
-            self.assertEqual(js("document.querySelector('#ask-connectors-line').innerText"), LINE)
+            self.assertFalse(js("!!document.querySelector('#ask-connectors-line')"), "the extra row sentence is gone: the footnote says it")
+            self.assertEqual(js("window.__c.urls.filter((u) => u.indexOf('/api/ask-connectors') >= 0).slice(-1)[0]"), "/api/ask-connectors", "the All tab sends no project (the project tab's earlier read is the one with it)")
+            self.assertIn("/api/ask-connectors", js("window.__c.urls.join()"))
             self.assertEqual(js("document.querySelector('#ask-connectors h2').innerText"), "Other connectors found on this computer")
             self.assertEqual(js("document.querySelector('#ask-connectors-note-all').innerText"), ALL_NOTE)
             self.assertEqual(js("document.querySelector('#ask-connectors-readonly').innerText"), "A connector is only read from, never changed.")
@@ -91,6 +92,7 @@ class Connectors(unittest.TestCase):
             js = self.show(cdp, "project", "window.__c.list[0].on = true;")
             self.assertTrue(wait(lambda: js("!!document.querySelector('[data-connector-here]')"), 10))
             self.assertEqual(js("document.querySelectorAll('[data-connector-here]').length"), 1, "Teams is off for all, so it is not offered")
+            self.assertIn("/api/ask-connectors?project=ABC", js("window.__c.urls.join()"), "a project's tab asks with its project")
             self.assertEqual(js("document.querySelector('#ask-connectors-project h2').innerText"), "Connectors in ABC")
             self.assertEqual(js("document.querySelector('#ask-connectors-note-project').innerText"), "Only the connectors that are On for all projects appear here.")
             self.assertEqual(js("document.querySelector('#ask-connectors-project li .muted').innerText"), "On for all projects. Turn it off here for ABC only.")

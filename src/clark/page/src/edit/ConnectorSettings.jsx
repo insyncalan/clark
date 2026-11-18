@@ -3,7 +3,6 @@
 import { useEffect, useState } from "preact/hooks";
 import { askConnectorsRead, askConnectorsChange, words } from "./publishApi.js";
 
-export const CONNECTORS_LINE = "Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings.";
 const READ_ONLY = "A connector is only read from, never changed.";
 const NONE = "No connectors were found on this computer.";
 const NOT_READY = "Connectors can't be checked just now. None is used until they can be.";      // not "they stay off": a saved On stays saved when a check fails; what holds is that none is used until it can be checked
@@ -51,13 +50,12 @@ function Msg({ msg, said, busy, change }) {
 }
 
 /** All projects tab: every connector found, each On or Off for clark. */
-export function ConnectorsAll({ code }) {
-  const { list, busy, msg, said, change } = useConnectors(code);
+export function ConnectorsAll() {
+  const { list, busy, msg, said, change } = useConnectors(null);          // the same list for every project: no project is sent
   const found = Array.isArray(list) ? list : [];
   return (
     <section class="frame setting" id="ask-connectors">
       <h2>Other connectors found on this computer</h2>
-      <p class="muted" id="ask-connectors-line">{CONNECTORS_LINE}</p>
       <p class="muted" id="ask-connectors-readonly">{READ_ONLY}</p>
       {list === "unavailable" ? <p class="muted" id="ask-connectors-unavailable">{NOT_READY}</p> : null}
       {Array.isArray(list) && !found.length ? <p class="muted" id="ask-connectors-none">{NONE}</p> : null}

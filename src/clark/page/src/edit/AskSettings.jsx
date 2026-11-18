@@ -185,7 +185,7 @@ function AllProjects() {
       <p class="muted">{ALL_LINE}</p>
     </section>
     <AiSettings />
-    <ConnectorsAll code={project.value} />
+    <ConnectorsAll />
     <AllInstructions />
     <AllFolders />
     </>
