@@ -27,7 +27,7 @@ MESSAGES = {
     "project_archived": "That project is archived. Restore it before changing its standing instructions. Nothing was changed.",
     "too_long": f"Standing instructions can be {INSTRUCTIONS_MAX:,} characters at most. Make them shorter. Nothing was changed.",
     "odd_character": "Standing instructions can hold text, line breaks and tabs only. Nothing was changed.",
-    "secret": f"That {ask.LOOKS_LIKE}, so it wasn't saved. Take it out and try again. Nothing was changed.",
+    "secret": f"That {ask.LOOKS_LIKE}, so it was not saved. Take it out and try again. Nothing was changed.",
     "no_undo": "There is nothing to undo there. Nothing was changed.",
     "not_ready": "This computer's saved data can't keep that yet. Nothing was changed.",
     "cant_save": "That could not be saved. Wait a moment and try again; if it keeps happening, close clark and start it again. Nothing was changed.",

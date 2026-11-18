@@ -126,6 +126,7 @@ class Service(Base):
         status, got = self.set_all("Use this: " + LOOKS_KEY + " when asked.")
         self.assertEqual((status, got["code"]), (400, "secret"))
         self.assertIn("looks like a password or a key", got["message"])
+        self.assertIn(", so it was not saved. Take it out and try again.", got["message"])      # ruled words: no contraction
         self.assertNotIn("Hunter2", got["message"])
         self.assertEqual(self.store().ask_instructions(), "")
 
