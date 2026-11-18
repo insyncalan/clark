@@ -45,7 +45,7 @@ function Cell({ row, col, now }) {
 // Row 1268, item 12 (Edit only): `Cell` is the Work items page's own in-place picker (edit/cells/Cell.jsx) round the Owner, Due, Status and Priority cells,
 // and `cw` the page's own column widths (edit/colWidths.jsx: drag a heading's edge, Alt with Left or Right). View and a published file pass neither.
 // Row 1195: the page layers a Theme in <style id="theme"> (clark.page.layer_theme); Cards layers nothing, so there is no such element.
-const classicTheme = () => typeof document !== "undefined" && !!document.getElementById("theme");
+export const classicTheme = () => typeof document !== "undefined" && !!document.getElementById("theme");
 const PICKED = { owner: "owner", due: "due", status: "status", priority: "priority" };
 export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw }) {
   const act = open ? (row) => ({ tabIndex: 0, role: "button", "aria-label": `Open ${row.id}: ${row.title || ""}`, onClick: () => open(row.id),
@@ -105,19 +105,27 @@ export function ShowAll({ list, all, onToggle }) {
 // Row 1268: the rows scroll inside a box as tall as the first Most rows (measured from the drawn rows, as the mock-up's fitScroll does), so
 // every row the filter lists is on the page and the rest are a scroll away. Only the table or the lines are visible at a time (shell.css), so
 // the one with a height is measured. No limit when there are no more rows than Most rows.
-export function Scroller({ max, count, children }) {
+export function Scroller({ max, count, children, all }) {
   const box = useRef(null);
   useLayoutEffect(() => {
     const el = box.current;
     if (!el) return;
     el.style.maxHeight = "";
-    if (count <= max) return;
+    if (count <= max || all) return;      // row 1195 (Classic): Show all items has opened the box to every row
     const vis = [...el.querySelectorAll(".wil-table tbody tr, .wil-lines li")].filter((r) => r.offsetHeight > 0);
     const head = el.querySelector(".wil-table thead");
     const h = vis.slice(0, max).reduce((n, r) => n + r.offsetHeight, 0) + (head && head.offsetHeight > 0 ? head.offsetHeight : 0);
     if (h > 0) el.style.maxHeight = `${h}px`;
   });
   return <div class="wil-scroll" data-wil-scroll="" ref={box} tabIndex={count > max ? 0 : undefined} role={count > max ? "region" : undefined} aria-label={count > max ? "Work items, scroll for more" : undefined}>{children}</div>;
+}
+
+// Row 1195 (Classic only, the README's "Show all items"): the scrolling rows and, under them, the link when there are more rows than Most rows; open, the box
+// shows every row and the link reads "Show only N". The Cards page gets the Scroller alone, exactly as before.
+export function Listing({ max, count, children }) {
+  const [all, setAll] = useState(false);
+  const on = classicTheme() && count > max;
+  return <><Scroller max={max} count={count} all={on && all}>{children}</Scroller>{on ? <ShowAll list={{ more: true, max }} all={all} onToggle={() => setAll(!all)} /> : null}</>;
 }
 
 // The foot under the rows (the served page only): "Showing N of M" in Edit, and the link to the Work items page on the same filter.
@@ -144,7 +152,7 @@ export function View({ section, data }) {
   return (
     <div class="wil" data-wil="">
       {list.caption ? <p class="wil-cap">{list.caption}</p> : null}
-      <Scroller max={list.max || rows.length} count={rows.length}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} /></Scroller>      {/* row 1268: a row opens the peek in View and in a published file: read only there (Peek draws no control unless the page is editing), editable in Edit */}
+      <Listing max={list.max || rows.length} count={rows.length}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} /></Listing>      {/* row 1268: a row opens the peek in View and in a published file: read only there (Peek draws no control unless the page is editing), editable in Edit */}
       {fromFile.value ? null : <Foot section={section} total={rows.length} max={list.max} edit={false} />}
     </div>
   );

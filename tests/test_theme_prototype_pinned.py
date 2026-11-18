@@ -159,12 +159,7 @@ RULE_LINES = [
         '.wil-views .vt { gap: 0; }',
         '.wil-views .vt:has(> .wil-vopts) .vtab { padding-right: calc(var(--space-5) + var(--space-1)); }',
         '.wil-views .vt > .wil-vopts { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); }',
-        "/* Row 1195, the mock-up's last changes (Classic only): the + menu is in RAID order by flex order (the markup keeps its order), the View list's scroll bar is hidden, Type is not drawn, an owner name wraps and is never cut, and a half-width row is the mock-up's two lines. */",
-        '.wil-add .ddmenu.on { display: flex; flex-direction: column; }',
-        '.wil-add .ddmenu [role="menuitem"][data-kind="risk"] { order: 1; }',
-        '.wil-add .ddmenu [role="menuitem"][data-kind="action"] { order: 2; }',
-        '.wil-add .ddmenu [role="menuitem"][data-kind="issue"] { order: 3; }',
-        '.wil-add .ddmenu [role="menuitem"][data-kind="decision"] { order: 4; }',
+        "/* Row 1195, the mock-up's last changes (Classic only): the View list's scroll bar is hidden, Type is not drawn, an owner name wraps and is never cut, and a half-width row is the mock-up's two lines. */",
         '#report[data-mode="view"] .wil-scroll { scrollbar-width: none; }',
         '#report[data-mode="view"] .wil-scroll::-webkit-scrollbar { display: none; }',
         '.wil-table .wil-c-type, .wil-cfg .wil-opts label:has(> input[value="type"]) { display: none; }',
@@ -183,6 +178,7 @@ RULE_LINES = [
         '.wil-table .wil-c-due { width: 104px; }',
         '.wil-table .wil-c-priority { width: 84px; }',
         '.wil-table .wil-c-id { width: 84px; }',
+        '.wil-all-b { color: var(--status-blue); font-weight: var(--weight-medium); min-height: var(--space-6); padding: 6px 0; }',
     ]
 
 

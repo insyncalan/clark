@@ -88,11 +88,6 @@ GOLDEN_LINES = [
     ".wil-views .vt { gap: 0; }",
     ".wil-views .vt:has(> .wil-vopts) .vtab { padding-right: calc(var(--space-5) + var(--space-1)); }",
     ".wil-views .vt > .wil-vopts { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); }",
-    ".wil-add .ddmenu.on { display: flex; flex-direction: column; }",
-    ".wil-add .ddmenu [role=\"menuitem\"][data-kind=\"risk\"] { order: 1; }",
-    ".wil-add .ddmenu [role=\"menuitem\"][data-kind=\"action\"] { order: 2; }",
-    ".wil-add .ddmenu [role=\"menuitem\"][data-kind=\"issue\"] { order: 3; }",
-    ".wil-add .ddmenu [role=\"menuitem\"][data-kind=\"decision\"] { order: 4; }",
     "#report[data-mode=\"view\"] .wil-scroll { scrollbar-width: none; }",
     "#report[data-mode=\"view\"] .wil-scroll::-webkit-scrollbar { display: none; }",
     ".wil-table .wil-c-type, .wil-cfg .wil-opts label:has(> input[value=\"type\"]) { display: none; }",
@@ -111,6 +106,7 @@ GOLDEN_LINES = [
     ".wil-table .wil-c-due { width: 104px; }",
     ".wil-table .wil-c-priority { width: 84px; }",
     ".wil-table .wil-c-id { width: 84px; }",
+    ".wil-all-b { color: var(--status-blue); font-weight: var(--weight-medium); min-height: var(--space-6); padding: 6px 0; }",
 ]
 
 # The Cards page as origin/main (7e25b6619) serves it: the md5 of every <style> block of page_html(branding=NO_BRAND, theme=None), and the md5 of
@@ -137,6 +133,26 @@ def style_md5s(html):
     return [hashlib.md5(b.encode("utf-8")).hexdigest() for b in re.findall(r"<style[^>]*>(.*?)</style>", html, re.S)]
 
 
+def menu_walk(test, p, ref):
+    """Open the Add menu in Edit; return (the data-kind of its items in markup order, the kinds the ArrowDown key lands on, in order)."""
+    sec = f'[data-id="{ref}"]'
+    p.edit()
+    p.until(f"!!document.querySelector('{sec} .wil-add .newb')", "drew")
+    p.js(f"document.querySelector('{sec} .wil-add .newb').click()")
+    p.until(f"!!document.querySelector('{sec} .wil-add .ddmenu')", "menu")
+    dom = json.loads(p.js("JSON.stringify([...document.querySelectorAll('" + sec + " .wil-add .ddmenu [role=menuitem]')].map(e => e.dataset.kind))"))
+    walked = []
+    for _ in range(6):
+        kind = p.js("(document.activeElement.dataset || {}).kind || ''")
+        if kind and kind not in walked:
+            walked.append(kind)
+        p.key("ArrowDown", code="ArrowDown", vk=40)
+        kind = p.js("(document.activeElement.dataset || {}).kind || ''")
+        if kind and kind not in walked:
+            walked.append(kind)
+    return dom, walked
+
+
 class SourceRules(unittest.TestCase):
     def test_the_shared_files_carry_none_of_the_mockups_rules(self):
         for css in (SHELL_CSS, EDIT_CSS):
@@ -149,7 +165,7 @@ class SourceRules(unittest.TestCase):
         self.assertLess(0, order[".wil:has(> .wil-views) > .wil-views"])
         self.assertLess(order[".wil:has(> .wil-views) > .wil-views"], order[".wil:has(> .wil-views) > .wil-line"])
         self.assertLess(order[".wil:has(> .wil-views) > .wil-line"], order[".wil:has(> .wil-views) > *"])
-        gear, tabs, line, rows = (JSX.index(x) for x in ('<div class="wil-form">', "<Tabs add=", '<div class="wil-line"', "<Scroller"))
+        gear, tabs, line, rows = (JSX.index(x) for x in ('<div class="wil-form">', "<Tabs add=", '<div class="wil-line"', "<Listing"))
         self.assertLess(line, tabs, "the markup is Cards' markup: the filter line stays before the tabs and the gear form after them")
         self.assertLess(tabs, gear)
         self.assertLess(gear, rows)
@@ -326,7 +342,7 @@ class Classic(Look):
                 p.js(f"document.querySelector('{sec} .wil-add .newb').click()")
                 p.until(f"!!document.querySelector('{sec} .wil-add .ddmenu')", "menu")
                 tiles = p.js("[...document.querySelectorAll('" + sec + " .wil-add .ddmenu [role=menuitem]')].map(e => getComputedStyle(e, '::before').content).join('')")
-                self.assertEqual(tiles, '"A""R""I""D"', "the markup keeps its order")
+                self.assertEqual(tiles, '"R""A""I""D"', "RAID order in the markup, so in the arrow keys too")
                 self.assertEqual(p.js(f"Math.round(document.querySelector('{sec} .wil-add .newb').getBoundingClientRect().width)"), 34, "open: still the square")
 
     def test_configure_lists_the_columns_in_the_mockup_order(self):
@@ -361,18 +377,33 @@ class Classic(Look):
             for n in due:
                 self.assertEqual(n, 1, "a date is on one line")
 
-    def test_the_add_menu_shows_risk_action_issue_decision_by_css_order_and_the_markup_keeps_its_order(self):
+    def test_the_add_menu_is_risk_action_issue_decision_in_the_markup_and_the_arrow_keys_walk_it(self):
         ref = self.add(self.LIST)
         with T.chrome() as cdp:
             p = self.show(cdp, 1400)
-            sec = f'[data-id="{ref}"]'
+            self.assertEqual(menu_walk(self, p, ref), (["risk", "action", "issue", "decision"], ["risk", "action", "issue", "decision"]))
+
+    def test_show_all_items_is_a_link_under_the_table_only_when_there_are_more_rows_than_most_rows(self):
+        few = self.add({"mode": "all", "max": 10, "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
+        many = self.add({"mode": "all", "max": 2, "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            p.until(f"!!document.querySelector('[data-id=\"{many}\"] .wil-scroll')", "View drew")
+            self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{few}\"] .wil-all-b')"), "3 rows, Most rows 10: no link")
+            sec = f'[data-id="{many}"]'
+            word = lambda: p.js(f"document.querySelector('{sec} .wil-all-b').textContent")
+            box = lambda: p.js(f"document.querySelector('{sec} .wil-scroll').style.maxHeight")
+            self.assertEqual(word(), "Show all items")
+            self.assertTrue(box(), "closed: the box is as tall as the first Most rows")
+            self.assertTrue(p.js(f"document.querySelector('{sec} .wil-all-b').getBoundingClientRect().top >= document.querySelector('{sec} .wil-scroll').getBoundingClientRect().bottom - 1"), "under the table")
+            p.js(f"document.querySelector('{sec} .wil-all-b').click()")
+            p.until(f"document.querySelector('{sec} .wil-all-b').textContent === 'Show only 2'", "open reads Show only N")
+            self.assertEqual(box(), "", "open: every row is in view")
+            p.js(f"document.querySelector('{sec} .wil-all-b').click()")
+            p.until(f"document.querySelector('{sec} .wil-all-b').textContent === 'Show all items'", "back")
+            self.assertTrue(box())
             p.edit()
-            p.until(f"!!document.querySelector('{sec} .wil-add .newb')", "drew")
-            p.js(f"document.querySelector('{sec} .wil-add .newb').click()")
-            p.until(f"!!document.querySelector('{sec} .wil-add .ddmenu')", "menu")
-            got = json.loads(p.js("JSON.stringify([...document.querySelectorAll('" + sec + " .wil-add .ddmenu [role=menuitem]')].map(e => [e.dataset.kind, Math.round(e.getBoundingClientRect().top)]))"))
-            self.assertEqual([k for k, _ in sorted(got, key=lambda x: x[1])], ["risk", "action", "issue", "decision"], got)
-            self.assertEqual([k for k, _ in got], ["action", "risk", "issue", "decision"], "the markup (and the arrow keys) keep the page's order")
+            p.until(f"!!document.querySelector('{sec} [data-wil-gear]') && !!document.querySelector('{sec} .wil-all-b')", "Edit has the link too")
 
     def test_the_views_list_scroll_bar_is_hidden_in_view_and_not_in_edit(self):
         ref = self.add({"mode": "all", "max": 2, "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
@@ -550,6 +581,19 @@ class Cards(Look):
             got, html = self.capture(width)
             self.assertNotIn("wil-k-", "".join(html.values()), "a Cards row carries no kind class")
             self.assertEqual(got, CARDS_DOM_MD5[width], width)
+
+    def test_the_cards_add_menu_keeps_the_old_order_in_the_markup_and_for_the_arrow_keys(self):
+        ref = self.add(Classic.LIST)
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            self.assertEqual(menu_walk(self, p, ref), (["action", "risk", "issue", "decision"], ["action", "risk", "issue", "decision"]))
+
+    def test_cards_has_no_show_all_items_link(self):
+        ref = self.add({"mode": "all", "max": 2, "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-scroll')", "View drew")
+            self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-all-b')"))
 
     def test_a_cards_page_has_no_theme_block_and_so_no_kind_class(self):
         self.assertNotIn('id="theme"', testpage.html())
