@@ -8,6 +8,7 @@ A result over MAX_RESULT characters is refused; once MAX_TOTAL is used up, furth
 used_line(): names what was used and what was not, and keeps no connector content. Provenance: `mark(text)` returns a Sourced value
 that carries the flag `from_connector`, so a text that came from a connector can be told apart wherever it travels.
 """
+import json
 import unicodedata
 from dataclasses import dataclass, field
 
@@ -121,22 +122,63 @@ class UsedLine:
     text: str = field(default="")
 
 
+# The words the person reads (approved word for word): part -> (what the line calls it, one, many). `read` is "Read your <what>".
+SHOWN = {
+    "Mail": ("Mail", "mail", "message", "messages"),
+    "Calendar": ("Calendar", "calendar", "event", "events"),
+    "Teams": ("Teams chats", "Teams chats", "message", "messages"),
+    "SharePoint and OneDrive": ("Files", "files", "file", "files"),
+    "Todoist": ("Tasks", "tasks", "task", "tasks"),
+}
+REASON_WORDS = {
+    REFUSED_HIDDEN: "has hidden characters", REFUSED_SIZE: "was too long", REFUSED_TOTAL: "was over the total",
+    REFUSED_TOOL: "is not allowed", REFUSED_OFF: "is off",
+}
+
+
+def count_of(text):
+    """How many things a result lists, only when the answer is a countable list: a JSON list, or a JSON object holding exactly one
+    list. Anything else (plain text, no list, more than one list) is not countable: None."""
+    try:
+        data = json.loads(text)
+    except (ValueError, TypeError):
+        return None
+    if isinstance(data, dict):
+        lists = [v for v in data.values() if isinstance(v, list)]
+        data = lists[0] if len(lists) == 1 else None
+    return len(data) if isinstance(data, list) else None
+
+
 def used_line(screened):
-    """The Used line from Screened verdicts: the connector parts used, and those not used (with the reason). Names only; no
-    connector content, tool arguments or counts of what was inside."""
-    used, skipped = [], []
+    """The Used line from Screened verdicts: 'Used: Read your mail (3 messages)' (the count only when the answer is a countable list)
+    and 'Not used: Mail was too long'. Names and counts only; no connector content or tool arguments. A refusal that belongs to no
+    connector part (a tool not on the list) is in `not_used` as data but is not worded in the line."""
+    counts, skipped, data_skipped = {}, [], []
     for s in screened:
-        label = s.part or "unknown connector"
         if s.used:
-            if label not in used:
-                used.append(label)
-        else:
-            item = f"{label} ({s.reason})"
+            n = count_of(s.text)
+            if s.part in counts:
+                prev = counts[s.part]
+                counts[s.part] = None if prev is None or n is None else prev + n
+            else:
+                counts[s.part] = n
+        elif s.part in SHOWN:
+            item = f"{SHOWN[s.part][0]} {REASON_WORDS[s.reason]}"
             if item not in skipped:
                 skipped.append(item)
+            if item not in data_skipped:
+                data_skipped.append(item)
+        else:
+            item = f"unknown connector ({s.reason})"
+            if item not in data_skipped:
+                data_skipped.append(item)
+    read = []
+    for part, n in counts.items():
+        _, what, one, many = SHOWN.get(part, (part, part, "", ""))
+        read.append(f"Read your {what}" + ("" if n is None else f" ({n} {one if n == 1 else many})"))
     parts = []
-    if used:
-        parts.append("Used: " + ", ".join(used))
+    if read:
+        parts.append("Used: " + ", ".join(read))
     if skipped:
         parts.append("Not used: " + ", ".join(skipped))
-    return UsedLine(tuple(used), tuple(skipped), ". ".join(parts))
+    return UsedLine(tuple(counts), tuple(data_skipped), ". ".join(parts))
