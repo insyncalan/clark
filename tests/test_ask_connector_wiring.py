@@ -309,7 +309,7 @@ class Screened(Run):
         known = ("Agent", "AskUserQuestion", "Bash", "Edit", "Glob", "Grep", "Read", "Write", "WebFetch", "WebSearch", "Skill", "Workflow", "Monitor",
                  "NotebookEdit", "TodoWrite", "TaskStop", "TaskOutput", "SendMessage", "ScheduleWakeup", "RemoteTrigger", "PushNotification",
                  "CronCreate", "CronDelete", "CronList", "EnterPlanMode", "ExitPlanMode", "EnterWorktree", "ExitWorktree", "ListMcpResourcesTool",
-                 "ReadMcpResourceTool", "ReadMcpResourceDirTool", "EndConversation", "Artifact", "ArtifactComments", "ArtifactData", "DesignSync",
+                 "ReadMcpResourceTool", "ReadMcpResourceDirTool", "EndConversation", "Artifact", "ArtifactCheck", "ArtifactComments", "ArtifactData", "DesignSync",
                  "ListAgents", "ReportFindings", "SendFeedback", "StructuredOutput", "SendToProject", "SendToProjectContext")
         missing = [t for t in known if t not in ca.BUILT_IN_TOOLS]
         self.assertEqual(missing, [], "a known built-in tool is missing from the deny list")
