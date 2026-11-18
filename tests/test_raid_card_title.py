@@ -20,6 +20,7 @@ SECRET = "PRIVATEWORDSONLY"
 class RaidCardTitle(PublishedFile, glance.Setup):
     def seed(self):
         rows = {}
+        self.demo.plant_builtin_sections()      # a new project's lists are Work items lists; the cards are drawn beside the built-in sections (row 1193)
         with self.store.step("dashboard", USER) as st:
             rows["empty"] = st.create("raid", {"project": "ABC", "type": "Risk", "description": "Kiln roof may leak", "raised": "2026-10-01",
                                                "source": "demo", "client_message": "", "response_action": SECRET})

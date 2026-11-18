@@ -53,6 +53,7 @@ class Base(unittest.TestCase):
 class LongText(Base):
     def prepare(self, store):
         fill(store)
+        self.demo.plant_builtin_sections()      # a new project's Open actions is a Work items list; this row is in the built-in section (row 1193)
         with store.step("dashboard", USER) as st:
             st.create("actions", {"project": "ABC", "description": LONG, "owner": "Owner " + LONG[:120], "due_date": "2026-11-05",
                                   "raised": "2026-10-01", "client_message": LONG, "source": "demo"})

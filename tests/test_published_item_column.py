@@ -29,6 +29,7 @@ class PublishedItemColumn(unittest.TestCase):
         folder = tempfile.mkdtemp(prefix="clark-pub-")
         self.addCleanup(demo.close)
         self.addCleanup(shutil.rmtree, folder, True)
+        demo.plant_builtin_sections()      # the published Work items tab exists only with a built-in section to show (row 1193)
         for i, title in enumerate(TITLES):
             demo.action(description=title, owner="Example Owner", due_date="2026-11-%02d" % (10 + i), status="Open", priority="High")
         path = Path(publish.publish(demo.store, "ABC", folder, by_user=USER, now=TODAY, branding=EMPTY_BRANDING)["path"])

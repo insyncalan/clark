@@ -25,6 +25,7 @@ class PublishedFrames(unittest.TestCase):
     def setUp(self):
         need_chrome()
         demo, data = make_data()
+        demo.plant_builtin_sections("ABC")      # a new project's lists are Work items lists; the published Work items tab needs a built-in section (row 1193)
         with demo.store.step("dashboard", USER) as st:               # one card the client sees
             st.update("actions", data["actions"][0]["id"], {"client_visible": 1})
         folder = tempfile.mkdtemp(prefix="clark-pub-")

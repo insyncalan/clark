@@ -50,6 +50,7 @@ class AllTemplates(Base):
     def setUp(self):
         super().setUp()
         d = self.demo
+        d.plant_builtin_sections()      # a new project's lists are Work items lists; these templates sit with the built-in sections (row 1193)
         self.kept = d.action(description=KEPT, due_date=OVERDUE)
         self.hid = d.action(description=HIDDEN, due_date=OVERDUE)
         self.arc = d.action(description=ARCHIVED, due_date=OVERDUE)

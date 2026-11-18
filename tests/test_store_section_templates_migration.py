@@ -26,6 +26,11 @@ from clark import backup, changes, section_kinds, store as store_module
 from clark.store import Invalid, connect, migrate, open_store
 from test_store_migration import make_v1, version
 
+
+# The default sections as a file before this step knows them: the Work items lists (row 1193) are a type the check of that file refuses.
+OLD_DEFAULTS = [dict(s, type={"Risks and issues": "raid", "Open actions": "actions", "Decisions": "decisions"}.get(s["title"], s["type"]), body="")
+                if s["type"] == "workitems" else s for s in store_module.DEFAULT_SECTIONS]
+
 STEP = 8                                            # this step's number (see the docstring)
 BEFORE = str(STEP - 1)                              # the version this step brings a file from
 NOW = str(store_module.SCHEMA_VERSION)              # the version a plain open brings a file to (this step and any later one)
@@ -473,7 +478,8 @@ class UndoAcrossTheStep(Base):
         """Test 8: a section made, hidden, moved and deleted at the old version are each undone after the file is brought up."""
         path = make_before(self.dir)
         earlier = tuple(m for m in store_module.MIGRATIONS if m[0] < STEP)
-        with mock.patch.object(store_module, "SCHEMA_VERSION", STEP - 1), mock.patch.object(store_module, "MIGRATIONS", earlier):
+        with mock.patch.object(store_module, "SCHEMA_VERSION", STEP - 1), mock.patch.object(store_module, "MIGRATIONS", earlier), \
+                mock.patch.object(store_module, "DEFAULT_SECTIONS", OLD_DEFAULTS):
             s = open_store(path, onedrive_roots=[])
             with s.step("dashboard", USER) as st:
                 st.create("projects", {"code": "ZZZ", "name": "Other Programme", "health": "On track"})
