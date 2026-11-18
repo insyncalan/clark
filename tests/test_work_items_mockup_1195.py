@@ -29,8 +29,8 @@ ROWS_JSX = (PAGE / "src" / "templates" / "WorkItemsList.jsx").read_text(encoding
 # Every rule line this row adds, as written in the Classic theme's rules.css (comments dropped, white space folded).
 GOLDEN_LINES = [
     ".wil-table th { font-size: var(--size-caption); }",
-    ".wil-table td.wil-c-id, .wil-c-id { font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; color: var(--status-blue-text); }",
-    ".wil-pr { border: 1px solid var(--grey-500); background: var(--surface); color: var(--text); font-weight: var(--weight-semibold); }",
+    ".wil-table td.wil-c-id, .wil-c-id { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: var(--size-caption); font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; color: var(--status-blue); }",
+    ".wil-pr { border: 1px solid var(--grey-500); border-radius: 6px; background: var(--surface); color: var(--text); font-size: calc(var(--size-caption) - 1px); font-weight: var(--weight-medium); }",
     ".wil-pr.h, .wil-pr.u { border-color: color-mix(in srgb, currentColor 30%, transparent); }",
     ".wil-off .wil-pr { border-color: var(--grey-200); }",
     ".wil-table tr.wil-k-action:not(.wil-off) .ico, .wil-lines li.wil-k-action:not(.wil-off) .ico { background: var(--brand-blue-tint); color: var(--status-blue-text); }",
@@ -40,8 +40,10 @@ GOLDEN_LINES = [
     ".wil-table .wil-c-eye .ib { color: var(--text); }",
     ".wil-off .wil-c-eye .ib { color: var(--grey-500); }",
     "@media (max-width: 1100px) { .wil-table .wil-c-owner { width: 150px; } }",
-    ".wil-table td.wil-c-due { white-space: nowrap; overflow-wrap: normal; }",
-    ".wil-table .wil-c-due { width: 116px; }",
+    "@media (max-width: 1000px) {",
+    "  .wil-table td.wil-c-due { white-space: nowrap; overflow-wrap: normal; }",
+    "  .wil-table .wil-c-due { width: 116px; }",
+    "}",
     ".wil:has(> .wil-views) { display: grid; grid-template-columns: minmax(0, 1fr); }",
     ".wil:has(> .wil-views) > * { order: 3; }",
     ".wil:has(> .wil-views) > .wil-say, .wil:has(> .wil-views) > .wil-form { order: 0; }",
@@ -58,16 +60,22 @@ GOLDEN_LINES = [
     ".wil-cacts button { background-color: var(--pill-color); background-image: var(--pill-bg); color: var(--pill-fg); font-weight: var(--weight-semibold); }",
     ".wil-cfg .wil-opts label { order: 8; }",
     ".wil-cfg .wil-opts label:has(> input[value=\"status\"]) { order: 1; }",
+    ".wil-cfg .wil-opts label:has(> input[value=\"owner\"]) { order: 2; }",
+    ".wil-cfg .wil-opts label:has(> input[value=\"due\"]) { order: 3; }",
+    ".wil-cfg .wil-opts label:has(> input[value=\"priority\"]) { order: 4; }",
+    ".wil-cfg .wil-opts label:has(> input[value=\"workstream\"]) { order: 5; }",
+    ".wil-cfg .wil-opts label:has(> input[value=\"milestone\"]) { order: 6; }",
     ".wil-cfg .wil-opts label:has(> input[value=\"id\"]) { order: 7; }",
-    ".wil-add .newb { box-sizing: border-box; width: 34px; height: 34px; min-width: 0; padding: 0; justify-content: center; border: 1px dashed var(--grey-500); border-radius: var(--radius); background: none; color: var(--status-blue-text); }",
+    ".wil-add .newb { box-sizing: border-box; width: 34px; height: 34px; min-width: 0; padding: 0; justify-content: center; border: 1px dashed var(--grey-500); border-radius: 6px; background: none; color: var(--status-blue-text); }",
     ".wil-add .newb:hover, .wil-add .newb:focus-visible, .wil-add .newb[aria-expanded=\"true\"] { background: var(--grey-50); border-color: var(--grey-500); color: var(--status-blue-text); }",
     ".wil-add .newb:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }",
     ".wil-add .newb .w, .wil-add .newb:hover .w, .wil-add .newb:focus-visible .w, .wil-add .newb[aria-expanded=\"true\"] .w, .wil-add .newb .nch { display: none; }",
-    ".wil-add .ddmenu { min-width: calc(var(--space-8) * 2); padding: var(--space-1); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }",
-    ".wil-add .ddmenu [role=\"menuitem\"] { display: flex; align-items: center; gap: var(--space-2); min-height: calc(var(--space-6) + var(--space-2)); padding: 0 var(--space-2); border-radius: var(--radius); font-weight: var(--weight-medium); color: var(--text); }",
+    ".wil-add .ddmenu { min-width: calc(var(--space-8) * 2); padding: var(--space-1); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); box-shadow: 0 10px 30px rgba(6, 47, 58, .2); }",
+    ".wil-add .ddmenu [role=\"menuitem\"] { display: flex; align-items: center; gap: var(--space-2); min-height: calc(var(--space-6) + var(--space-3)); padding: 0 var(--space-2); border-radius: var(--radius); font-weight: var(--weight-medium); color: var(--text); }",
     ".wil-add .ddmenu [role=\"menuitem\"]:hover, .wil-add .ddmenu [role=\"menuitem\"]:focus-visible { background: var(--grey-50); color: var(--text); }",
     ".wil-add .ddmenu [role=\"menuitem\"]:focus-visible { outline: 0; }",
     ".wil-add .ddmenu [role=\"menuitem\"] .mi { display: none; }",
+    ".wil-add .ddmenu [role=\"menuitem\"]::before { content: attr(data-kind); display: inline-grid; place-items: center; flex: none; width: var(--space-5); height: var(--space-5); border-radius: 6px; font-size: var(--size-caption); font-weight: var(--weight-semibold); line-height: 1; background: var(--tone-grey-tint); color: var(--tone-grey-text); }",
     ".wil-add .ddmenu [role=\"menuitem\"][data-kind=\"action\"]::before { content: \"A\"; background: var(--brand-blue-tint); color: var(--status-blue-text); }",
     ".wil-add .ddmenu [role=\"menuitem\"][data-kind=\"risk\"]::before { content: \"R\"; background: var(--tone-red-tint); color: var(--tone-red-text); }",
     ".wil-add .ddmenu [role=\"menuitem\"][data-kind=\"issue\"]::before { content: \"I\"; background: var(--tone-urgent); color: var(--tone-on-urgent); }",
@@ -80,6 +88,29 @@ GOLDEN_LINES = [
     ".wil-views .vt { gap: 0; }",
     ".wil-views .vt:has(> .wil-vopts) .vtab { padding-right: calc(var(--space-5) + var(--space-1)); }",
     ".wil-views .vt > .wil-vopts { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); }",
+    ".wil-add .ddmenu.on { display: flex; flex-direction: column; }",
+    ".wil-add .ddmenu [role=\"menuitem\"][data-kind=\"risk\"] { order: 1; }",
+    ".wil-add .ddmenu [role=\"menuitem\"][data-kind=\"action\"] { order: 2; }",
+    ".wil-add .ddmenu [role=\"menuitem\"][data-kind=\"issue\"] { order: 3; }",
+    ".wil-add .ddmenu [role=\"menuitem\"][data-kind=\"decision\"] { order: 4; }",
+    "#report[data-mode=\"view\"] .wil-scroll { scrollbar-width: none; }",
+    "#report[data-mode=\"view\"] .wil-scroll::-webkit-scrollbar { display: none; }",
+    ".wil-table .wil-c-type, .wil-cfg .wil-opts label:has(> input[value=\"type\"]) { display: none; }",
+    ".wil-table .wil-own .nm { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }",
+    ".wil-lines li { grid-template-columns: calc(var(--space-5) + var(--space-1)) minmax(0, 1fr) auto; }",
+    ".wil-lines .wil-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
+    ".wil-lines .wil-hpr { grid-column: 3; grid-row: 1; justify-self: end; align-self: center; }",
+    ".wil-lines .wil-m { grid-column: 2 / span 2; display: flex; flex-wrap: wrap; gap: 2px var(--space-3); }",
+    ".wil-lines .wil-m > span { white-space: nowrap; }",
+    ".wil-cap { font-size: calc(var(--size-caption) - 1.5px); color: rgb(85, 103, 122); }",
+    ":root[data-theme=dark] .wil-cap { color: var(--text-muted); }",
+    "@media (prefers-color-scheme: dark) { :root[data-theme=auto] .wil-cap { color: var(--text-muted); } }",
+    ".wil-table .ico, .wil-lines .ico { width: calc(var(--space-5) + var(--space-1)); height: calc(var(--space-5) + var(--space-1)); border-radius: 7px; }",
+    ".wil-table tr.wil-off .ico, .wil-lines li.wil-off .ico { background: var(--tone-grey-tint); color: var(--tone-grey-text); }",
+    ".wil-table .wil-c-owner { width: 170px; }",
+    ".wil-table .wil-c-due { width: 104px; }",
+    ".wil-table .wil-c-priority { width: 84px; }",
+    ".wil-table .wil-c-id { width: 84px; }",
 ]
 
 # The Cards page as origin/main (305aa739a) serves it: the md5 of every <style> block of page_html(branding=NO_BRAND, theme=None), and the md5 of
@@ -152,7 +183,7 @@ class SourceRules(unittest.TestCase):
     def test_the_add_menu_is_white_with_a_shadow_medium_labels_and_a_soft_grey_hover(self):
         box = rule(RULES, ".wil-add .ddmenu")
         self.assertIn("background: var(--surface)", box)
-        self.assertIn("box-shadow: var(--shadow)", box)
+        self.assertIn("box-shadow: 0 10px 30px rgba(6, 47, 58, .2)", box)
         self.assertIn("font-weight: var(--weight-medium)", rule(RULES, '.wil-add .ddmenu [role="menuitem"]'))
         hov = rule(RULES, '.wil-add .ddmenu [role="menuitem"]:hover, .wil-add .ddmenu [role="menuitem"]:focus-visible')
         self.assertIn("background: var(--grey-50)", hov)
@@ -176,14 +207,14 @@ class SourceRules(unittest.TestCase):
     def test_the_id_is_bold_mono_violet_and_the_priority_pill_has_a_border(self):
         idr = rule(RULES, ".wil-table td.wil-c-id, .wil-c-id")
         self.assertIn("monospace", idr)
-        self.assertIn("font-weight: var(--weight-medium)", idr)
-        self.assertIn("color: var(--status-blue-text)", idr)
+        self.assertIn("font-weight: var(--weight-medium)", idr)      # the mock-up: 600 13px mono (the medium token), colour var(--blue) = #5B47D8 = the status-blue token
+        self.assertIn("color: var(--status-blue);", idr)
         self.assertIn("border: 1px solid var(--grey-500)", rule(RULES, ".wil-pr"))
         self.assertIn("border-color:", rule(RULES, ".wil-pr.h, .wil-pr.u"))
 
     def test_the_medium_pill_is_white_with_a_dark_border_and_bold_dark_text(self):
         pr = rule(RULES, ".wil-pr")
-        for want in ("background: var(--surface)", "color: var(--text)", "font-weight: var(--weight-semibold)", "border: 1px solid var(--grey-500)"):
+        for want in ("background: var(--surface)", "color: var(--text)", "font-weight: var(--weight-medium)", "border: 1px solid var(--grey-500)", "border-radius: 6px"):
             self.assertIn(want, pr)
         self.assertNotIn("grey-100", pr)
         self.assertIn("background: var(--tone-amber-tint)", rule(SHELL_CSS, ".wil-pr.h"))
@@ -295,7 +326,7 @@ class Classic(Look):
                 p.js(f"document.querySelector('{sec} .wil-add .newb').click()")
                 p.until(f"!!document.querySelector('{sec} .wil-add .ddmenu')", "menu")
                 tiles = p.js("[...document.querySelectorAll('" + sec + " .wil-add .ddmenu [role=menuitem]')].map(e => getComputedStyle(e, '::before').content).join('')")
-                self.assertEqual(tiles, '"A""R""I""D"')
+                self.assertEqual(tiles, '"A""R""I""D"', "the markup keeps its order")
                 self.assertEqual(p.js(f"Math.round(document.querySelector('{sec} .wil-add .newb').getBoundingClientRect().width)"), 34, "open: still the square")
 
     def test_configure_lists_the_columns_in_the_mockup_order(self):
@@ -320,7 +351,7 @@ class Classic(Look):
             idc = json.loads(p.js(f"JSON.stringify((() => {{ const s = getComputedStyle(document.querySelector('{sec} .wil-table td.wil-c-id')); return [s.fontFamily, s.fontWeight, s.color]; }})())"))
             self.assertIn("monospace", idc[0])
             self.assertEqual(idc[1], "600")
-            vio = p.js("(() => { const e = document.createElement('i'); e.style.color = getComputedStyle(document.documentElement).getPropertyValue('--status-blue-text'); document.body.append(e); const c = getComputedStyle(e).color; e.remove(); return c; })()")
+            vio = p.js("(() => { const e = document.createElement('i'); e.style.color = getComputedStyle(document.documentElement).getPropertyValue('--status-blue'); document.body.append(e); const c = getComputedStyle(e).color; e.remove(); return c; })()")
             self.assertEqual(idc[2], vio)
             self.assertNotEqual(p.js(f"getComputedStyle(document.querySelector('{sec} .wil-pr')).borderTopWidth"), "0px")
             own = json.loads(p.js(f"JSON.stringify([...document.querySelectorAll('{sec} .wil-table td.wil-c-owner .nm')].map(e => [e.scrollWidth, e.clientWidth]))"))
@@ -329,6 +360,117 @@ class Classic(Look):
             due = json.loads(p.js(f"JSON.stringify([...document.querySelectorAll('{sec} .wil-table td.wil-c-due .num')].map(e => e.getClientRects().length))"))
             for n in due:
                 self.assertEqual(n, 1, "a date is on one line")
+
+    def test_the_add_menu_shows_risk_action_issue_decision_by_css_order_and_the_markup_keeps_its_order(self):
+        ref = self.add(self.LIST)
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            sec = f'[data-id="{ref}"]'
+            p.edit()
+            p.until(f"!!document.querySelector('{sec} .wil-add .newb')", "drew")
+            p.js(f"document.querySelector('{sec} .wil-add .newb').click()")
+            p.until(f"!!document.querySelector('{sec} .wil-add .ddmenu')", "menu")
+            got = json.loads(p.js("JSON.stringify([...document.querySelectorAll('" + sec + " .wil-add .ddmenu [role=menuitem]')].map(e => [e.dataset.kind, Math.round(e.getBoundingClientRect().top)]))"))
+            self.assertEqual([k for k, _ in sorted(got, key=lambda x: x[1])], ["risk", "action", "issue", "decision"], got)
+            self.assertEqual([k for k, _ in got], ["action", "risk", "issue", "decision"], "the markup (and the arrow keys) keep the page's order")
+
+    def test_the_views_list_scroll_bar_is_hidden_in_view_and_not_in_edit(self):
+        ref = self.add({"mode": "all", "max": 2, "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            sec = f'[data-id="{ref}"]'
+            p.until(f"!!document.querySelector('{sec} .wil-scroll')", "View drew")
+            probe = f"(() => {{ const e = document.querySelector('{sec} .wil-scroll'); return [getComputedStyle(e).scrollbarWidth, e.scrollHeight > e.clientHeight, e.offsetWidth - e.clientWidth]; }})()"
+            width, scrolls, bar = p.js(probe)
+            self.assertTrue(scrolls, "the rows still scroll")
+            self.assertEqual((width, bar), ("none", 0), "View: no scroll bar")
+            p.edit()
+            p.until(f"!!document.querySelector('{sec} .wil-scroll') && document.querySelector('#report').dataset.mode === 'edit'", "Edit drew")
+            self.assertEqual(p.js(probe)[0], "auto", "Edit keeps its scroll bar")
+
+    def test_the_type_column_is_not_drawn_nor_offered_in_configure(self):
+        ref = self.add({"mode": "all", "columns": ["type", "id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            sec = f'[data-id="{ref}"]'
+            p.edit()
+            p.until(f"!!document.querySelector('{sec} [data-wil-gear]') && !!document.querySelector('{sec} .wil-table td.wil-c-id')", "drew")
+            self.assertEqual(p.js(f"[...document.querySelectorAll('{sec} .wil-table .wil-c-type')].filter(e => e.offsetParent).length"), 0, "no Type cell or heading is visible")
+            self.assertTrue(p.js(f"document.querySelectorAll('{sec} .wil-table .wil-c-type').length > 0"), "the saved column stays in the markup, as Cards has it")
+            p.js(f"document.querySelector('{sec} [data-wil-gear]').click()")
+            p.until(f"!!document.querySelector('{sec} .wil-cfg .wil-opts label')", "open")
+            self.assertEqual(p.js(f"[...document.querySelectorAll('{sec} .wil-cfg [data-field=columns] label')].filter(e => e.offsetParent).map(e => [e.querySelector('input').value, Number(getComputedStyle(e).order)]).sort((a, b) => a[1] - b[1]).map(x => x[0]).join()"),
+                             "status,owner,due,priority,workstream,milestone,id")
+
+    def test_a_long_owner_name_is_wrapped_never_cut_at_900_and_1400(self):
+        self.demo.action(description="Long name step", owner="Alexandria Montgomery-Featherstonehaugh", due_date="2030-01-10", priority="High")
+        for width in (1400, 900):
+            ref = self.add({"mode": "all", "columns": ["id", "owner", "due", "priority"], "owner": ["Alexandria Montgomery-Featherstonehaugh"]})
+            with T.chrome() as cdp:
+                p = self.show(cdp, width)
+                sec = f'[data-id="{ref}"]'
+                p.until(f"!!document.querySelector('{sec} .wil-table td.wil-c-owner .nm')", "drew")
+                got = json.loads(p.js(f"JSON.stringify((() => {{ const e = document.querySelector('{sec} .wil-table td.wil-c-owner .nm'), s = getComputedStyle(e); return [e.scrollWidth <= e.clientWidth, s.textOverflow, s.whiteSpace]; }})())"))
+                self.assertEqual(got, [True, "clip", "normal"], (width, got))
+
+    def test_a_half_width_row_is_the_mockups_two_lines_with_the_rating_beside_the_title(self):
+        with self.store.step("dashboard", T.USER) as st:
+            text = st.create("report_sections", {"project": "ABC", "type": "text", "title": "Fictional notes", "sort_order": 1})
+        ref = self.add({"mode": "all", "columns": ["type", "id", "owner", "due", "priority"], "owner": ["Pat Demo", "Lee Demo"]}, after=text, beside=1)
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            sec = f'[data-id="{ref}"]'
+            p.until(f"!!document.querySelector('{sec} .wil-lines li .wil-hpr')", "the half rows drew")
+            got = json.loads(p.js("JSON.stringify((() => { const li = document.querySelector('" + sec + " .wil-lines li'), r = (s) => li.querySelector(s).getBoundingClientRect(), t = r('.wil-t'), h = r('.wil-hpr'), m = r('.wil-m');"
+                "const w = [...li.querySelectorAll('.wil-m > span')].map(e => e.textContent), s = getComputedStyle(li.querySelector('.wil-m'));"
+                "return {words: w, beside: h.left >= t.right - 1 && Math.abs((h.top + h.bottom) / 2 - (t.top + t.bottom) / 2) < 14, below: m.top >= t.bottom - 1, flex: s.display, gap: s.columnGap, pr: li.querySelector('.wil-hpr').textContent}; })())"))
+            self.assertTrue(got["beside"] and got["below"], got)
+            self.assertEqual(got["flex"], "flex")
+            self.assertNotEqual(got["gap"], "0px")
+            self.assertEqual(got["pr"], "High")
+            self.assertNotIn("High", got["words"], "the rating is not repeated on the second line")
+            self.assertNotIn("Action", got["words"], "no Type word")
+            self.assertIn("Pat Demo", got["words"])
+
+    def test_the_measured_values_of_the_mockup_caption_id_pill_tiles_plus_menu_and_columns(self):
+        with self.store.step("dashboard", T.USER) as st:
+            st.create("report_sections", {"project": "ABC", "type": "text", "title": "Fictional notes", "sort_order": 1})
+        ref = self.add({"mode": "all", "columns": ["id", "owner", "due", "priority"], "caption": "What is due", "owner": ["Pat Demo", "Lee Demo", "Kim Demo"]})
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            sec = f'[data-id="{ref}"]'
+            p.edit()
+            p.until(f"!!document.querySelector('{sec} .wil-table td.wil-c-id') && !!document.querySelector('{sec} .wil-pr')", "drew")
+            q = lambda e, *props: json.loads(p.js("JSON.stringify((() => { const s = getComputedStyle(document.querySelector(" + json.dumps(f"{sec} {e}") + ")); return " + json.dumps(list(props)) + ".map(k => s[k]); })())"))
+            self.assertEqual(q(".wil-cap", "fontSize", "color"), ["11.5px", "rgb(85, 103, 122)"], "caption")
+            self.assertEqual(q("td.wil-c-id", "fontSize", "color", "fontWeight"), ["13px", "rgb(91, 71, 216)", "600"], "ID")
+            self.assertIn("monospace", q("td.wil-c-id", "fontFamily")[0])
+            self.assertEqual(q(".wil-pr", "borderTopLeftRadius", "fontSize", "fontWeight"), ["6px", "12px", "600"], "priority pill, in Edit too")
+            self.assertEqual(q(".wil-table tbody tr:not(.wil-off) .ico", "width", "height", "borderTopLeftRadius"), ["28px", "28px", "7px"], "tile")
+            self.assertEqual(q(".wil-add .newb", "borderTopLeftRadius"), ["6px"], "+ button")
+            self.assertEqual(q("th.wil-c-owner", "width"), ["170px"])
+            self.assertEqual(q("th.wil-c-due", "width"), ["104px"])
+            self.assertEqual(q("th.wil-c-priority", "width"), ["84px"])
+            self.assertEqual(q("th.wil-c-id", "width"), ["84px"])
+            p.js(f"document.querySelector('{sec} .wil-add .newb').click()")
+            p.until(f"!!document.querySelector('{sec} .wil-add .ddmenu')", "menu")
+            self.assertEqual(q(".wil-add .ddmenu [role=menuitem]", "height"), ["44px"], "menu item")
+            self.assertEqual(q(".wil-add .ddmenu", "boxShadow"), ["rgba(6, 47, 58, 0.2) 0px 10px 30px 0px"], "menu shadow")
+
+    def test_a_row_the_client_eye_hides_has_a_grey_tile_even_when_its_status_is_green(self):
+        with self.store.step("dashboard", T.USER) as st:
+            item = st.create("decisions", {"project": "ABC", "decision": "Pick the vendor", "date": "2026-10-01", "made_by": "Pat Demo", "source": "demo", "status": "Made"})
+        self.store.con.execute("INSERT INTO report_hidden (project, item_id) VALUES ('ABC', ?)", (item,))
+        self.store.con.commit()
+        ref = self.add({"mode": "all", "columns": ["id", "owner"], "owner": ["Pat Demo"]})
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            sec = f'[data-id="{ref}"]'
+            p.edit()
+            p.until(f"!!document.querySelector('{sec} .wil-table tr.wil-off .ico')", "a hidden row drew")
+            got = json.loads(p.js("JSON.stringify((() => { const c = (v) => { const e = document.createElement('i'); e.style.color = v; document.body.append(e); const r = getComputedStyle(e).color; e.remove(); return r; };"
+                "const s = getComputedStyle(document.querySelector('" + sec + " .wil-table tr.wil-off .ico')); return [s.color, c('var(--tone-grey-text)')]; })())"))
+            self.assertEqual(got[0], got[1])
 
     def test_the_tiles_are_coloured_by_kind_the_medium_pill_is_white_and_the_caret_is_inside_the_underline(self):
         for width in (1400, 900):

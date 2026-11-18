@@ -55,7 +55,7 @@ export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw }) {
   // Row 1268: one line as the built-in rows: the letter tile, the title, the chosen columns, the ID last; an item the client eye has taken off is greyed.
   const before = columns.filter((c) => c === "type"), after = columns.filter((c) => c !== "type" && c !== "id").concat(columns.filter((c) => c === "id"));
   // Row 1195: the Classic theme colours the letter tile by the kind, so a row carries its kind as a class there; the Cards page gets exactly the markup it had.
-  const kinds = classicTheme();
+  const kinds = classicTheme();      // also: Classic draws the mock-up's half row (the rating beside the title, the other columns as separate words on the second line)
   const off = (row) => `${kinds ? ` wil-k-${row.kind}` : ""}${Eye && Eye.isOff && Eye.isOff(row) ? " wil-off" : ""}`;
   const tile = (row) => <ItemIcon row={row} pill={clientPill(row, now)} today={now} plain={!!open} />;
   return (
@@ -85,7 +85,9 @@ export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw }) {
           <li key={row.id} data-id={row.id} class={off(row).trim() || undefined} {...act(row)}>
             <span class="wil-tile">{tile(row)}</span>
             <span class="wil-t">{row.title || ""}</span>
-            <span class="wil-m">{columns.map((c) => cellText(row, c, now)).filter(Boolean).join(" · ")}</span>
+            {kinds && columns.includes("priority") && priorityCell(row).text ? <span class="wil-hpr"><Cell row={row} col="priority" now={now} /></span> : null}
+            {kinds ? <span class="wil-m">{columns.filter((c) => c !== "type" && c !== "priority").map((c) => cellText(row, c, now)).filter(Boolean).map((t, i) => <span key={i}>{t}</span>)}</span>
+              : <span class="wil-m">{columns.map((c) => cellText(row, c, now)).filter(Boolean).join(" · ")}</span>}
             {Eye ? <span class="wil-eye"><Eye row={row} /></span> : null}
           </li>
         ))}
