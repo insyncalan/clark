@@ -91,6 +91,12 @@ KNOWN = {"Claude", "Anthropic", "Settings", "Ask", "Asking", "Apply", "Undo", "S
 SETTLE = "document.querySelector('#ask-box') && !document.querySelector('#ask-send').disabled"
 
 
+def empty_chat(p):
+    if p.js("document.querySelectorAll('.ask-turn').length") > 0:
+        p.js("document.querySelector('#ask-new').click()")
+        p.until("document.querySelectorAll('.ask-turn').length === 0", "a new chat is empty")
+
+
 class Look(Base):
     def setUp(self):
         super().setUp()
@@ -108,6 +114,8 @@ class Look(Base):
         p.until("!!document.querySelector('#ask-panel')", "the panel opened on /")
         if ready:
             p.until(SETTLE, "the panel is ready to take a question")
+            # #1292 slice 1: a chat is kept for the browser, so a panel opened again in the same Chrome starts from the last one: begin empty
+            empty_chat(p)
         return p
 
     def ask(self, p, text):
@@ -262,6 +270,7 @@ class Look(Base):
         self.close_panel(p, f"a move to {page}, then Close")
         p.key("/", code="Slash", vk=191)
         p.until(SETTLE, f"the panel is ready on {page}")
+        empty_chat(p)                      # Close keeps the chat now; the suggestions are read on an empty one
         return p.js("[...document.querySelectorAll('#ask-pills button')].map(b => b.textContent)")
 
     def test_row_1093_every_page_and_subject_has_its_own_six_and_the_last_question_wins(self):
