@@ -3060,3 +3060,14 @@ html:has(.top-hdr) body.board-full .top-hdr { display: none; }
 .ask-tab:hover { background: var(--grey-200, var(--grey-100)); }
 .ask-tab[aria-current] { background: var(--brand-blue-tint); color: var(--status-blue-text); font-weight: var(--weight-medium); }
 .ask-tab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+
+/* row 1294 (A8, third slice): the standing instructions of asking. The box is under its label, as wide as the card, and grows only downward. */
+.ask-instr { display: flex; flex-direction: column; gap: var(--space-1); margin: var(--space-2) 0; }
+.ask-instr-name { font-weight: var(--weight-medium); }
+.ask-instr-box { width: 100%; box-sizing: border-box; min-height: 160px; padding: 10px 12px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; line-height: 1.5; resize: vertical; }
+.ask-instr-box:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.ask-instr-box[aria-invalid="true"] { border-color: var(--status-red-text); }
+.ask-instr-box:disabled { background: var(--grey-100); }
+.ask-instr-foot { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2); font-size: var(--size-caption); }
+.ask-instr-foot .pub-msg { margin-top: 0; min-height: 0; flex: 1 1 240px; text-align: right; }
+.ask-instr-read { white-space: pre-wrap; overflow-wrap: anywhere; margin: var(--space-1) 0 var(--space-2); font-size: var(--size-body); }

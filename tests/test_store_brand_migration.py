@@ -24,7 +24,7 @@ STEP = 20
 BEFORE = str(STEP - 1)
 NOW = str(store_module.SCHEMA_VERSION)
 NEW_COLUMNS = ("brand",)
-LATER_COLUMNS = ("latest_update", "decisions.priority", "app_settings.theme")      # item 1185 (step 25) adds this to raid and milestones; row 1269 (step 27) adds the theme
+LATER_COLUMNS = ("latest_update", "decisions.priority", "app_settings.theme", "ask_instructions")      # row 1294 (step 30) adds ask_instructions; item 1185 (step 25) adds this to raid and milestones; row 1269 (step 27) adds the theme
 COLUMN = "brand TEXT NOT NULL DEFAULT 'generic' CHECK (length(brand) BETWEEN 1 AND 60)"
 
 
@@ -181,7 +181,7 @@ class Migrating(unittest.TestCase):
         path = make_v1(self.dir)
         open_store(path, onedrive_roots=[]).close()
         self.assertEqual(version(path), NOW)
-        self.assertEqual([c[1] for c in project_columns(path)][-1], "brand")
+        self.assertEqual([c[1] for c in project_columns(path)][-2], "brand")
 
     def test_a_brought_up_file_and_a_new_file_have_the_same_columns_in_the_same_order(self):
         path = make_at(self.dir, STEP - 1)

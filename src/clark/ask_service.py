@@ -161,6 +161,7 @@ class AskService:
                 except publish.PublishError:
                     return 404, self.fail("project_not_found")
                 folders = [r["path"] for r in store.read("source_folders", code) if r.get("project", code) == code]
+                standing = {"all": store.ask_instructions(), "project": store.ask_instructions(code)}      # row 1294: sent with the question, the one for all projects first
             finally:
                 store.close()
         used = sum(len(p.text) for p in data.passages)         # the folders get what the project's own data left of the budget
@@ -171,7 +172,7 @@ class AskService:
             return 200, self.fail("folders_unreadable")
         try:
             request = ask.build_request(question, tuple(data.passages) + tuple(found.passages), earlier,
-                                        today=data.today, partial=ask_data.partial_lines(data.counts))
+                                        today=data.today, partial=ask_data.partial_lines(data.counts), instructions=standing)
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         facts = data.facts

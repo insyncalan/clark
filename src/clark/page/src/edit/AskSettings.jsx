@@ -7,6 +7,7 @@ import { project } from "../stores/report.js";
 import { askOn, askStatus, askSaved, askProvider, loadAsk, setAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
 import { named, ASK_NOTICE_LINE } from "./askWords.js";
 import { AiSettings } from "./AiSettings.jsx";
+import { AllInstructions, OwnInstructions } from "./AskInstructions.jsx";
 import { announceSwitch, leaveSwitch } from "./switchToast.js";
 import { askFoldersRead, askFoldersChange, askFoldersChoose, words } from "./publishApi.js";
 
@@ -153,6 +154,7 @@ function AskProject() {
       <p class="muted">{USED_FROM_ALL}</p>
       <div class="row"><button type="button" class="btn" data-ask-goall onClick={() => showAskTab(ALL)}>Change</button></div>
     </section>
+    <OwnInstructions goAll={() => showAskTab(ALL)} />
     </>
   );
 }
@@ -168,6 +170,7 @@ function AllProjects() {
       <p class="muted">{ALL_LINE}</p>
     </section>
     <AiSettings />
+    <AllInstructions />
     </>
   );
 }
