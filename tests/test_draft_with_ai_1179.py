@@ -32,6 +32,13 @@ def read(rel):
 
 
 class Source(unittest.TestCase):
+    def test_the_bubble_last_button_uses_the_existing_words_and_the_style_menu_ticks(self):    # row 1288
+        rt = read("edit/RichText.jsx")
+        self.assertIn("data-rt-bubble-ai", rt)
+        self.assertIn("{DRAFT_WITH_AI}</button>", rt, "the bubble's last button uses the existing words from DraftAi.jsx")
+        self.assertNotIn("Ask AI", rt, "no new words")
+        self.assertIn("checked: current ?", rt, "the Text style menu ticks the current line")
+
     def test_the_button_is_in_every_peek_and_the_menu_is_the_places_menu(self):
         latest, ms, shared = read("edit/PeekLatest.jsx"), read("edit/MilestonePeek.jsx"), read("edit/DraftAi.jsx")
         self.assertIn("<LatestBox", ms, "row 1184: the milestone's Latest update is the work item peek's box (PeekLatest.jsx LatestBox)")
@@ -193,6 +200,25 @@ class Pane(unittest.TestCase):
             self.select_all(cdp, sid, "alpha beta gamma")
             cdp.js(f"document.querySelector({json.dumps(self.BOX)}).dispatchEvent(new KeyboardEvent('keydown', {{key: 'F10', shiftKey: true, bubbles: true, cancelable: true}}))", sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-rt-ai] [data-ai-menu]')", sid)))
+
+    def test_the_bubble_ends_with_draft_with_ai_and_opens_the_same_menu_as_the_right_click(self):    # row 1288, bubble
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                _, sid = self.opened(cdp, width, "TUL-A-001")
+                self.select_all(cdp, sid, "alpha beta gamma")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .rt-bubble [data-rt-bubble-ai]')", sid)), "the bubble has the line")
+                self.assertEqual(cdp.js("(b => b[b.length - 1].textContent)([...document.querySelectorAll('#peek .rt-bubble button')])", sid), "Draft with AI", "it is last")
+                cdp.js("document.querySelector('#peek .rt-bubble [data-rt-bubble-ai]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-rt-ai] [data-ai-menu]')", sid)))
+                self.assertEqual(cdp.js("[...document.querySelectorAll('#peek [data-rt-ai] [data-ai-option]')].map(e => e.dataset.aiOption)", sid), OPTIONS, "the right-click menu's lines")
+
+    def test_the_style_menu_ticks_the_current_line(self):    # row 1288, style menu
+        with chrome() as cdp:
+            _, sid = self.opened(cdp, 1400, "TUL-A-001")
+            self.open_box(cdp, sid)
+            cdp.js("document.querySelector('#peek .rt-style').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[role=menuitemradio][aria-checked=true]')", sid)))
+            self.assertEqual(cdp.js("[...document.querySelectorAll('[role=menuitemradio][aria-checked=true]')].map(b => b.textContent.replace('✓','').trim())", sid), ["Text"])
 
     def test_no_selection_leaves_the_browsers_own_menu(self):
         with chrome() as cdp:
