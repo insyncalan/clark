@@ -212,7 +212,7 @@ class Words(unittest.TestCase):
                     "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
                     "Search settings",      # row 1115 S2: the box under the help line
                     "Skip to settings"]     # item 1170: the skip link, wording ruled in NEW-WORDS.md
-            menu = ["Everyday", "Projects", "People", "Profile", "Publishing", "Folder", "Brand", "Look and feel", "Appearance", "Reports", "Data and safety", "Backups", "Export and import",
+            menu = ["Everyday", "Projects", "People", "Profile", "Publishing", "Folder", "Brand", "Theme", "Look and feel", "Appearance", "Reports", "Data and safety", "Backups", "Export and import",
                     "Advanced", "These are for setting up Claude, and for when something goes wrong. Most people never need them.", "Claude and AI", "Logs and diagnostics", "Version and updates"]
             pages = [
                 ('profile', 'Profile', [
@@ -246,6 +246,10 @@ class Words(unittest.TestCase):
                 ('brand', 'Brand', [
                     "Brands", "Add a brand from a file you were given, and clark uses its colours, fonts and pictures. Nothing changes until you choose Install.",
                     "Brands can't be shown right now. Restart clark the usual way and try again. Try again"
+                ]),
+                ('theme', 'Theme', [
+                    "Theme", "Your choice applies the next time the page loads.",
+                    "The theme could not be read just now. Reload the page to try again."      # this server has no theme route
                 ]),
                 ('appearance', 'Appearance', [
                     "Personal",    # #45: Settings › Personal, the section styles

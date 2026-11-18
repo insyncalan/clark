@@ -1838,7 +1838,7 @@
     "b": [
      [
       "p",
-      "A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title): Essentials, Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking, Feedback and Quit, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project."
+      "A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title): Essentials, Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, Theme, People, Asking, Feedback and Quit, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project."
      ],
      [
       "tbl",
@@ -1894,6 +1894,10 @@
        [
         "Brands",
         "Add a brand from a zip file you were given, and clark uses its colours, fonts and pictures. “Review the brand in Downloads” reads the newest zip in your Downloads folder, and **Choose zip…** lets you pick one yourself. A panel then lists what the file adds, replaces or removes. Press **Install** for a new brand or **Replace** for one already added, or **Cancel**. Nothing changes until you press Install or Replace. If you close the window without choosing a file, it says “No file was chosen, so nothing was changed.” **Remove** on a brand asks you to confirm with “Back to the default look”. **Undo** puts back what the last install, replace or remove changed. Each project uses its own brand on the web page, the preview, the Excel and Word files and the PDF check. The Word letterhead of a brand goes in its branding folder as word/template.docx; the Word report takes its page, header and footer."
+       ],
+       [
+        "Theme",
+        "Choose the look of your pages from the two the card offers. Your choice applies the next time the page loads, and pages you published before keep the look they had."
        ],
        [
         "People",
@@ -2581,6 +2585,11 @@
      "card": "brands",
      "title": "Brands",
      "line": "Add a brand from a zip file, then replace or remove it."
+    },
+    {
+     "card": "theme",
+     "title": "Theme",
+     "line": "Choose the look of your pages."
     },
     {
      "card": "people",
