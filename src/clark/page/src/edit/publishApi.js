@@ -105,6 +105,11 @@ export const askFoldersAllChange = (action, path) => call("POST", "/api/ask-fold
 // The standing instructions of asking (row 1294): GET answers {ok, all, project, saved, max}; POST takes {scope: "all" | "project", project?, text} or {scope, project?, undo}.
 export const askInstructionsRead = (project) => call("GET", `/api/ask-instructions?project=${encodeURIComponent(project || "")}`);
 export const askInstructionsChange = (body) => call("POST", "/api/ask-instructions", body);
+// Connectors set up on this computer (row 1306, slice C3). GET /api/ask-connectors?project= answers {ok, connectors: [{id, label, on, off_here}]}: only the ones found
+// on this computer, `on` the choice for every project (off until turned on), `off_here` the project's own turn-off. POST {id, on} changes the first, {project, id, off_here}
+// the second; both answer the same list. Words and true or false only: nothing about a connector is kept in a project's data and no key is held.
+export const askConnectorsRead = (project) => call("GET", `/api/ask-connectors?project=${encodeURIComponent(project)}`);
+export const askConnectorsChange = (body) => call("POST", "/api/ask-connectors", body);
 
 // Asking's on/off switch for this computer (#47), kept in the database. GET /api/ask-enabled answers {ok, ask_enabled, saved}; POST
 // takes {enabled: true | false}. The server checks the value and keeps it (with history and Undo); the page shows what it answered.
