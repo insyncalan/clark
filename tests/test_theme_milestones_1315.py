@@ -41,20 +41,27 @@ PINNED = [
 ]
 
 
+def own_block():
+    """the row 1315 block: from its first comment to the next row's comment (a later row may append after it)."""
+    tail = RULES[RULES.index("/* Row 1315 frame"):]
+    nxt = tail.find("\n/* Row ", 1)
+    return tail if nxt < 0 else tail[:nxt]
+
+
 class Source(unittest.TestCase):
     def test_the_block_is_exactly_these_lines(self):      # the older pinned test stops at the row 1318 block; a later block is pinned in its own file
-        block = RULES[RULES.index("/* Row 1315 frame"):]
+        block = own_block()
         self.assertEqual([l for l in block.split("\n") if l.strip()], PINNED)
 
     def test_the_rules_sit_in_one_block_after_the_row_1315_comment_and_all_start_at_the_milestones_page(self):
-        block = RULES.split("/* Row 1315 frame", 1)[1].split("*/", 1)[1]
+        block = own_block().split("*/", 1)[1]
         rules = [l for l in block.splitlines() if l.strip()]
         self.assertEqual(len(rules), 2)
         for r in rules:
             self.assertTrue(r.startswith("#milestones ") or r.startswith("@media screen { #milestones"), r)
 
     def test_no_hash_digits_and_no_tmp_path_in_the_rules(self):
-        self.assertIsNone(re.search(r"#\d+", RULES[RULES.index("/* Row 1315 frame"):].replace("#milestones", "")))
+        self.assertIsNone(re.search(r"#\d+", own_block().replace("#milestones", "")))
         self.assertNotIn("/tmp", RULES)
 
 
