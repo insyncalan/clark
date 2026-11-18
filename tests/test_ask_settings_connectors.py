@@ -111,7 +111,7 @@ class Connectors(unittest.TestCase):
             self.assertEqual(js("document.querySelectorAll('[data-connector]').length"), 0)
         with chrome() as cdp:
             js = self.show(cdp, "all", "window.__c.fail = true;")
-            self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-connectors-note-all')"), 10))
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-connectors-unavailable')"), 10))
             self.assertEqual(js("document.querySelectorAll('[data-connector]').length"), 0)
             self.assertFalse(js("!!document.querySelector('#ask-connectors-none')"), "an unreachable server is not 'none found'")
             self.assertEqual(js("document.querySelector('#ask-connectors-unavailable').innerText"), "Connectors can't be checked just now. None is used until they can be.")
