@@ -3,7 +3,7 @@
 Run: python3 dev/run_tests.py test_theme_host_1269b
 Headless Chrome through the shared harness, the committed page with fictional demo data. Cards is the page as it was (no Theme
 block); Classic layers the prototype-2.0 Theme block. Values are read from the drawn page, never written down from memory, except
-the dark gradient stops of the ruling (Alan, item 1269 ruling e: #08232D to #0B2832).
+the dark gradient stops of the ruling (item 1269 ruling e: #08232D to #0B2832).
 """
 import re
 import tempfile
