@@ -57,7 +57,12 @@ class DefaultRisksList(unittest.TestCase):
         from clark import changes
         self.assertNotIn("workitems", changes.BUILT_IN_TYPES)
         self.assertIn("workitems", changes.NEW_SECTION_TYPES)
-        self.assertEqual(changes.BUILT_IN_TITLES["raid"] if "raid" in changes.BUILT_IN_TITLES else None, "Risks and issues")      # the older built-in stays re-addable under its own title
+        self.assertEqual(changes.BUILT_IN_TITLES["raid"], "Risks and issues")      # the older built-in stays re-addable under its own title
+
+    def test_every_built_in_keeps_its_title_whatever_the_defaults_hold(self):
+        from clark import changes
+        self.assertEqual(changes.BUILT_IN_TITLES, {"current": "Current state", "glance": "At a glance", "usecases": "Use case summary", "milestones": "Milestones",
+                                                    "raid": "Risks and issues", "actions": "Open actions", "decisions": "Decisions", "docs": "Supporting documents"})
 
 
 if __name__ == "__main__":
