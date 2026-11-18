@@ -99,6 +99,14 @@ RULE_LINES = [
         '/* Row 1311: every other visible section (the odd ones: the picture bands At a glance, the 1st) is a white panel on the page gradient and has no gutter rule. The served View leaves hidden sections out of the page, so the odd child is the odd visible section there; Edit draws them (dashed, never banded). */',
         '.secs > .sec:nth-child(odd):not(.is-hidden):not(.drag-slot) { background: var(--sec-band-bg); border-left: 0; border-radius: var(--radius-lg); }',
         '@media print { .secs > .sec:nth-child(odd):not(.is-hidden):not(.drag-slot) { background: none; border-radius: 0; } }',
+            "/* Row 1319, Classic type and controls (generic; Cards layers none of this). Weight 600 for headings; buttons and segments take the 8px --radius instead of the pill; the chosen segment (not the top bar's Dashboard and Edit switch) is --brand-navy with --white text instead of aqua; crumbs are plain, not tracked capitals. */",
+        'h1, h2, h3 { font-weight: var(--weight-medium); }',
+        '.btn, .seg, .again, .btn.primary, .btn.pri { border-radius: var(--radius); }',
+        ':root:not([data-motion="reduce"]) .modes.seg.glide::before { border-radius: var(--radius); }',
+        '.seg:not(.modes) button[aria-pressed="true"], .seg:not(.modes) button[aria-checked="true"], .cal-sc button[aria-current="true"] { background-color: var(--brand-navy); background-image: none; color: var(--white); }',
+        '.seg:not(.modes) button[aria-pressed="true"] em, .seg:not(.modes) button[aria-checked="true"] em { color: var(--white); }',
+        '.seg:not(.icons):not(.modes) button[aria-pressed="true"]:focus-visible, .seg:not(.icons):not(.modes) button[aria-checked="true"]:focus-visible, .cal-sc button[aria-current="true"]:focus-visible { outline-color: var(--white); outline-offset: -3px; }',
+        '.crumbs, .ucd-crumb, .ucf-crumb { text-transform: none; letter-spacing: normal; }',
     ]
 
 
@@ -120,7 +128,7 @@ class ThemePrototypePinned(unittest.TestCase):
         self.assertEqual(decls(block), DARK)
 
     def test_every_rule_line_is_exact_and_in_order(self):
-        older = re.split(r"\n/\* Row (?!1311\b)", RULES, maxsplit=1)[0]      # row 1311 is pinned here; every later row's block is pinned in its own test file
+        older = RULES.split("\n/* Row 1313", 1)[0]      # the rows above this one are pinned here; this row's block, and any after it, are pinned in its own test file
         lines = [l for l in older.split("\n")[1:] if l.strip()]
         self.assertEqual(lines, RULE_LINES)
 
