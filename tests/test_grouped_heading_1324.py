@@ -97,6 +97,11 @@ class Live(LiveBase):
             self.assertEqual(card[0], "1px", "the flat list is still a bordered card")
             self.assertNotEqual(card[1], "0px", "with rounded corners")
             self.assertIn(card[2], ("hidden", "auto"))
+            # the grouped list with an extra column scrolls as one (the column names and the groups together), and the heading's focus ring is drawn inside it
+            cdp.js("""(() => { const d = document.createElement('div'); d.className = 'wtab'; d.id = 'probe2'; d.innerHTML = '<div class="wgroup gline"><table class="items grouped"><tbody><tr><td class="c-x">x</td></tr></tbody></table><button type="button" class="grp-b">g</button></div>'; document.body.appendChild(d); })()""", sid)
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#probe2')).overflowX", sid), "auto", "the extra columns scroll the whole grouped list")
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#probe2 .wgroup')).overflowX", sid), "visible", "and a group does not scroll on its own")
+            self.assertEqual(cdp.js("(() => { const b = document.querySelector('#probe2 .grp-b'); b.focus(); return getComputedStyle(b).outlineOffset; })()", sid), "-2px", "inside a scroller the ring is drawn inside the button")
             # a Work items table with an extra column (row 1195) still scrolls sideways inside its box
             cdp.js("(() => { const d = document.createElement('div'); d.className = 'wgroup'; d.id = 'probe'; d.innerHTML = '<table class=\"items\"><tbody><tr><td class=\"c-x\">x</td></tr></tbody></table>'; document.body.appendChild(d); })()", sid)
             self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#probe')).overflowX", sid), "auto")
@@ -119,6 +124,7 @@ class Live(LiveBase):
                         hov = cdp.js("getComputedStyle(document.querySelector('#work .grp-b')).color", sid)
                         rest = cdp.js("(() => { const p = document.createElement('i'); document.body.appendChild(p); p.style.color = 'var(--heading)'; return getComputedStyle(p).color; })()", sid)
                         self.assertNotEqual(hov, rest, f"{scheme} {width} {theme}: hover changes the heading colour")
+                        self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#work .grp-b .i')).color", sid), hov, f"{scheme} {width} {theme}: the chevron takes the hover colour with the name")
                         low = contrast_ok(json.loads(cdp.js("JSON.stringify(%s(['#work .grp-b']))" % RATIO, sid)))
                         self.assertEqual(low, [], f"work hovered heading contrast {scheme} {width} {theme}")
 
