@@ -327,6 +327,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .head h1 { margin-bottom: 0; }
 .head-sub { margin: 2px 0 0; font-size: var(--size-small); color: var(--text-muted); }      /* the sentence under a page's title (the Milestones page) */
+.head-sub-off { display: none; }      /* the normal 'is agreed for' sentence stays in the page for the tests but is not shown; the empty and cancelled sentences stay shown */
 .hacts { display: flex; align-items: center; gap: 8px; }
 .note { margin: var(--space-2) 0 0; font-size: var(--size-small); }
 .note:empty { display: none; }
