@@ -58,6 +58,7 @@ Gaps, in plain words
 - `Store.data_for` does not return `glance_tiles` or `report_hidden`, and the writer has no step kind for them yet (#65).
   Until then the page part passes them in as `rows_by_table["glance_tiles"]` and `["report_hidden"]`.
 """
+import json
 import re
 from datetime import date
 
@@ -226,7 +227,26 @@ def kept_from(chosen, sections=None, deleted=False):
     # select keeps this set to itself; the same one line, with the same default sections. A test checks they agree.
     hidden_types = publish.hidden_types(sections, deleted)      # row 906: a built-in with no section row is hidden too
     return {"data": chosen["data"], "rows": work_rows(chosen["data"]), "use_cases": chosen["data"]["use_cases"],
-            "hidden_types": hidden_types}
+            "hidden_types": hidden_types, "list_kinds": _list_kinds(sections)}
+
+
+def _list_kinds(sections):
+    """Row 1193: the kinds of work item the shown Work items lists (saved filter) are for. A list with no kind chosen is for all of
+    them. A tile is summarised by such a list as by the built-in section (a new report has lists, not the built-in sections)."""
+    out = set()
+    for s in sections or ():
+        if s.get("type") != "workitems" or s.get("hidden"):
+            continue
+        try:
+            body = json.loads(s.get("body") or "")
+        except ValueError:
+            continue
+        if not isinstance(body, dict) or any(body.get(f) for f in ("owner", "workstream", "use_case", "priority", "milestone", "due", "has", "no", "text")):
+            continue      # a list narrowed by more than the kind can reach nothing: its tile stays out (row 1268), only a list as wide as the built-in section stands for it
+        kinds = body.get("kinds")
+        if isinstance(kinds, list):
+            out.update(str(k) for k in kinds) if kinds else out.update(k for ks in KINDS_OF_TILE.values() for k in ks)
+    return out
 
 
 def use_case_items(kept, use_case_id):
@@ -374,7 +394,10 @@ def _section_gone(name, kept):
     and no other row."""
     if SECTION_OF_TILE.get(name) not in kept["hidden_types"]:
         return False
-    return not any(r["kind"] in KINDS_OF_TILE.get(name, ()) for r in kept["rows"])
+    mine = KINDS_OF_TILE.get(name, ())
+    if any(k in mine for k in kept.get("list_kinds") or ()):      # row 1193: a shown list for this kind is the section (counts what it reaches, 0 when none)
+        return False
+    return not any(r["kind"] in mine for r in kept["rows"])
 
 
 def tiles(rows_by_table, today, tile_order=None, hidden=None, outlines=None, for_client=False, kept=None):

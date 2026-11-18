@@ -111,20 +111,20 @@ class Panel(Base):
             p.until("!!document.querySelector('#ask-panel')", "opened on /")
             self.assertEqual(self.stub.count("status"), 1)
 
-    def test_escape_and_a_click_outside_close_it_and_focus_returns(self):
+    def test_escape_closes_it_and_focus_returns_but_a_click_outside_does_not_close_it(self):
+        """#1292 slice 1: only Esc, Close and the ask button close the panel; a click outside leaves it open."""
         with chrome() as cdp:
             p = self.visit(cdp)
-            for how in ("escape", "click"):
-                p.js("document.querySelector('[data-mode=edit]').focus()")
-                p.key("/", code="Slash", vk=191)
-                p.until("!!document.querySelector('#ask-panel')", "opened")
-                if how == "escape":
-                    p.key("Escape", code="Escape", vk=27)
-                else:
-                    p.mouse("mousePressed", 40, 400, 1)
-                    p.mouse("mouseReleased", 40, 400, 0)
-                p.until("document.querySelector('#ask-panel') === null", f"closed by {how}")
-                p.until("document.activeElement && document.activeElement.dataset.mode === 'edit'", f"focus returned after {how}")
+            p.js("document.querySelector('[data-mode=edit]').focus()")
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-panel')", "opened")
+            p.mouse("mousePressed", 40, 400, 1)
+            p.mouse("mouseReleased", 40, 400, 0)
+            time.sleep(0.6)
+            self.assertTrue(p.js("!!document.querySelector('#ask-panel')"), "a click outside left it open")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("document.querySelector('#ask-panel') === null", "closed by escape")
+            p.until("document.activeElement && document.activeElement.dataset.mode === 'edit'", "focus returned after escape")
 
     def test_focus_that_moved_on_after_it_closed_stays_where_it_went(self):
         """Putting focus back waits a moment; if a peek or another control took focus in that moment, it is not pulled away."""
