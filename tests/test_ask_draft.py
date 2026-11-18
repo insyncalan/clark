@@ -88,7 +88,7 @@ class Draft(Panel):
             p.js("document.querySelector('#ask-draft-add').click()")
             p.js("[...document.querySelectorAll('#ask-draft-menu [role=menuitem]')].pop().click()")
             p.until(f"{SECTIONS} === {before + 1}", "the new Text section is in the report")
-            self.assertIn("Edited by hand.", p.js("document.querySelector('.secs').innerText"))
+            p.until("document.querySelector('.secs').innerText.includes('Edited by hand.')", "the new section shows the edited draft")
             p.until("document.querySelector('#ask-draft') === null", "the sheet is done")
             p.js("document.querySelector('[data-undo]').click()")
             p.until(f"{SECTIONS} === {before}", "Undo took the one step back")

@@ -1,7 +1,7 @@
 // Row 1292 (S12): the Draft beside the ask panel (mock-up image 09). It opens to the left of the panel, the text is editable, and nothing is in the
 // report until "Add to the report": a menu offers each Text section (replace its text) and a new Text section (after the one the draft is for, or at
 // the end). One change, so one Undo. Copy puts the formatted text and the plain text on the clipboard. Closing leaves the report as it was.
-import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data } from "../stores/report.js";
 import { change } from "../stores/changes.js";
 import { Icon } from "../components/Icon.jsx";
@@ -15,16 +15,20 @@ export function AskDraft() {
   const [menu, setMenu] = useState(false), [note, setNote] = useState("");
   // A different draft sets the text again; edits to the same one are the person's and are never put back.
   useLayoutEffect(() => { if (d && doc.current) doc.current.innerHTML = d.html; setMenu(false); setNote(""); }, [d]);
-  useEffect(() => {
+  // The Esc listener is put on when the sheet is drawn (a layout effect, not after the paint) and reads the menu from a ref, so an Esc that comes the
+  // moment the sheet or its menu appears is the sheet's: it never sees the menu as shut (and closes the whole sheet) or finds no listener yet.
+  const menuNow = useRef(false);
+  menuNow.current = menu;
+  useLayoutEffect(() => {
     if (!d) return undefined;
     const esc = (e) => {
       if (e.key !== "Escape" || !e.target.closest || !e.target.closest("#ask-draft")) return;
       e.preventDefault(); e.stopPropagation();
-      if (menu) { setMenu(false); if (addBtn.current) addBtn.current.focus(); } else { draft.value = null; const b = document.getElementById("ask-box"); if (b) b.focus(); }
+      if (menuNow.current) { menuNow.current = false; setMenu(false); if (addBtn.current) addBtn.current.focus(); } else { draft.value = null; const b = document.getElementById("ask-box"); if (b) b.focus(); }
     };
     document.addEventListener("keydown", esc, true);
     return () => document.removeEventListener("keydown", esc, true);
-  }, [d, menu]);
+  }, [d]);
   if (!d) return null;
 
   const sections = (data.value && data.value.report_sections) || [];
