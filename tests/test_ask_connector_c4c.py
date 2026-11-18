@@ -57,8 +57,11 @@ class Init(Run):
 
     def test_an_init_without_the_allowed_tool_is_refused_with_its_own_words(self):
         self.assertEqual(ac.CONNECTOR_UNAVAILABLE, "A connector that is turned on was not available in this run, so nothing from it is shown.")
-        r = self.run_with(init("Bash", "ToolSearch"), final("Answer"))
+        r = self.run_with(init("Bash", "Read"), final("Answer"))
         self.assertEqual(r, ask.Failure(ac.CONNECTOR_UNAVAILABLE))
+
+    def test_an_init_with_only_the_loader_is_answered_the_tool_is_deferred(self):
+        self.assertEqual(self.run_with(init("Bash", "ToolSearch"), final("Answer")), "Answer")
 
     def test_an_init_with_the_allowed_tool_is_answered(self):
         self.assertEqual(self.run_with(init("ToolSearch", f"{P}__outlook_email_search"), final("Answer")), "Answer")
@@ -75,6 +78,8 @@ class Init(Run):
         self.assertFalse(cs.checked(out, {"Mail", "Calendar"})[0])
         self.assertTrue(cs.init_missing(out, {"Mail", "Calendar"}))
         self.assertFalse(cs.init_missing(out, {"Mail"}))
+        self.assertFalse(cs.init_missing(stream(init("ToolSearch"), final()), {"Mail", "Calendar"}), "the loader reaches every part")
+        self.assertTrue(cs.init_missing(stream(init("Bash"), final()), {"Mail"}))
 
 
 if __name__ == "__main__":

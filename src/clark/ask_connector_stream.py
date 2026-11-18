@@ -69,14 +69,17 @@ def search_ok(args, on_parts):
 
 
 def _loaded(tools, on_parts):
-    """True when the init event's tool list holds at least one allowed tool of EACH part that is On."""
+    """True when the init event's tool list can reach each part that is On: it names an allowed tool of the part, or it holds ToolSearch (the connector
+    tool is deferred behind it, so it need not be listed by name)."""
     names = {t for t in tools if isinstance(t, str)}
+    if SEARCH_TOOL in names:
+        return True
     parts = [p for p in screen.PARTS if on_parts is None or p in on_parts]
     return bool(parts) and all(any(f"{screen.SERVER_PREFIX[p]}__{t}" in names for t in screen.ALLOWED_TOOLS[p]) for p in parts)
 
 
 def init_missing(out, on_parts):
-    """True when the stream has an init event whose tool list lacks the allowed tools of a part that is On (the connector did not load)."""
+    """True when the stream has an init event whose tool list has neither the allowed tools of a part that is On nor ToolSearch (the connector did not load)."""
     return any(ev.get("type") == "system" and ev.get("subtype") == "init" and isinstance(ev.get("tools"), list) and not _loaded(ev["tools"], on_parts)
                for ev in _events(out))
 
