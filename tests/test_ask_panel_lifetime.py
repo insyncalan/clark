@@ -58,6 +58,21 @@ class Lifetime(Base):
             self.assertEqual(self.stub.count("stop"), 0, "closing does not stop the answer")
             self.assertEqual(p.js("document.querySelectorAll('#ask-btn .tb-ask-dots').length"), 1, "dots on the button")
             self.assertEqual(p.js("document.querySelector('#ask-btn').getAttribute('aria-label')"), "ask clark, working")
+            look = p.js("""(() => { const d = document.querySelector('#ask-btn .tb-ask-dots'), i = [...d.children].map((e) => getComputedStyle(e));
+              return JSON.stringify({disp: getComputedStyle(d).display, name: i.map((s) => s.animationName), delay: i.map((s) => s.animationDelay),
+              dur: i.map((s) => s.animationDuration)}); })()""")
+            import json
+            look = json.loads(look)
+            self.assertNotEqual(look["disp"], "none", "the dots are drawn")
+            self.assertEqual(look["name"], ["tb-ask-dot"] * 3, "each dot pulses")
+            self.assertEqual(look["delay"], ["0s", "0.2s", "0.4s"], "the dots pulse one after the other")
+            self.assertEqual(look["dur"], ["1.2s"] * 3)
+            frames = p.js("""(() => { for (const sh of document.styleSheets) { let rules; try { rules = sh.cssRules; } catch (e) { continue; }
+              for (const r of rules) if (r.type === CSSRule.KEYFRAMES_RULE && r.name === 'tb-ask-dot') return [...r.cssRules].map((k) => k.keyText + ':' + k.style.opacity).join('|'); } return ''; })()""")
+            self.assertEqual(frames, "0%, 80%, 100%:0.25|40%:1", "the dots dim and brighten")
+            reduced = p.js("""(() => { for (const sh of document.styleSheets) { let rules; try { rules = sh.cssRules; } catch (e) { continue; }
+              for (const r of rules) if (r.type === CSSRule.MEDIA_RULE && /prefers-reduced-motion/.test(r.conditionText) && /tb-ask-dots/.test(r.cssText)) return r.cssText; } return ''; })()""")
+            self.assertRegex(reduced, r"animation: auto ease 0s 1 normal none running none", "reduced motion keeps the dots still")
             self.stub.hold.set()
             p.until("document.querySelector('#ask-btn').getAttribute('aria-label') === 'ask clark, 1 answer ready'", "one answer ready")
             self.assertEqual(p.js("document.querySelectorAll('#ask-btn .tb-ask-dots').length"), 0, "the dots are gone")
@@ -94,6 +109,8 @@ class Lifetime(Base):
             self.stub.hold.set()
             p.until("document.querySelector('#ask-btn').getAttribute('aria-label') === 'ask clark, 1 answer ready'", "one answer ready")
             self.assertEqual(p.js("document.querySelector('#ask-btn .tb-ask-ready').textContent"), "1", "the badge shows the number")
+            badge = p.js("(() => { const s = getComputedStyle(document.querySelector('#ask-btn .tb-ask-ready')); return s.height + '|' + (s.backgroundColor === s.color ? 'same' : 'differ'); })()")
+            self.assertEqual(badge, "16px|differ", "the badge is 16px high and its number can be read")
             p.js("document.querySelector('#ask-btn').click()")
             p.until("!!document.querySelector('#ask-panel')", "opened")
             p.key("Escape", code="Escape", vk=27)
