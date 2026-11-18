@@ -1213,8 +1213,8 @@ def app_settings_route(method):
 
 
 def ask_connectors_read_route(handler):
-    """GET /api/ask-connectors[?project=<CODE>] (row 1306): the five connector switches of this computer and, with a project, that project's
-    Off and what is allowed there. The one parameter is checked like data_route's; any other is refused. Read only. Without the server's
+    """GET /api/ask-connectors[?project=<CODE>] (row 1306): the connectors found on this computer with this computer's choice and, with a project,
+    that project's own turn-off. The one parameter is checked like data_route's; any other is refused. Read only. Without the server's
     `app_settings` the route does not exist: not found."""
     service = getattr(handler.server, "app_settings", None)
     if service is None:

@@ -5,15 +5,17 @@ state is stored. A file made before the step gets the tables with every switch O
 
 Run: python3 dev/run_tests.py test_ask_connectors_1306
 """
+import json
 import re
 import shutil
 import sqlite3
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from _paths import SRC
-from clark import store as store_module
+from clark import ask_connectors, store as store_module
 from clark.store import CONNECTORS, Invalid, open_store
 from test_app_settings_route import Base
 from test_store_migration import version
@@ -156,7 +158,19 @@ class StoreMethods(unittest.TestCase):
         self.assertLessEqual(fields, {"is_on", "off", "project_id", "connector", "updated_at"})
 
 
+FOUND = [{"connector": "mail", "label": "Mail", "server": "x"}, {"connector": "todoist", "label": "Todoist", "server": "y"}]
+
+
 class Route(Base):
+    """The page's contract (row 1306): ids and labels of the FOUND connectors only, {id, on} and {project, id, off_here}, one list back."""
+    found = FOUND
+
+    def setUp(self):
+        super().setUp()
+        p = mock.patch.object(ask_connectors, "list_found", lambda *a, **k: [dict(x) if isinstance(x, dict) else x for x in type(self).found])
+        p.start()
+        self.addCleanup(p.stop)
+
     def post(self, body):
         return self.call("POST", "/api/ask-connectors", body)
 
@@ -167,62 +181,80 @@ class Route(Base):
         finally:
             store.close()
 
-    def test_get_gives_five_connectors_all_off(self):
+    def by_id(self, got):
+        return {c["id"]: c for c in got["connectors"]}
+
+    def test_get_gives_only_the_found_connectors_all_off(self):
         status, got = self.call("GET", "/api/ask-connectors")
         self.assertEqual(status, 200)
-        self.assertEqual((got["ok"], got["saved"], list(got["connectors"])), (True, True, list(NAMES)))
-        self.assertTrue(all(v == {"on": False} for v in got["connectors"].values()))
+        self.assertEqual(got["connectors"], [{"id": "mail", "label": "Mail", "on": False, "off_here": False},
+                                             {"id": "todoist", "label": "Todoist", "on": False, "off_here": False}])
         status, got = self.call("GET", "/api/ask-connectors?project=ABC")
-        self.assertEqual(got["project"], "ABC")
-        self.assertTrue(all(v == {"on": False, "project_off": False, "allowed": False} for v in got["connectors"].values()))
+        self.assertEqual([(c["id"], c["on"], c["off_here"]) for c in got["connectors"]], [("mail", False, False), ("todoist", False, False)])
 
-    def test_global_on_then_a_projects_off_wins_then_allowed_again_then_undo(self):
-        status, got = self.post({"connector": "mail", "on": True})
-        self.assertEqual((status, got["connectors"]["mail"]["on"]), (200, True))
+    def test_nothing_found_gives_an_empty_list_and_refuses_a_switch(self):
+        type(self).found = []
+        self.addCleanup(setattr, type(self), "found", FOUND)
+        self.assertEqual(self.call("GET", "/api/ask-connectors")[1]["connectors"], [])
+        self.assertEqual(self.post({"id": "mail", "on": True})[0], 400)
+        self.assertEqual(self.stored()[0]["mail"], False)
+
+    def test_a_connector_not_found_here_cannot_be_switched(self):
+        was = self.stored()
+        for body in ({"id": "teams", "on": True}, {"id": "teams", "project": "ABC", "off_here": True}):
+            status, got = self.post(body)
+            self.assertEqual((status, got["code"]), (400, "bad_connector"), body)
+        self.assertEqual(self.stored(), was)
+
+    def test_global_on_then_a_projects_own_off_then_on_again_then_undo(self):
+        status, got = self.post({"id": "mail", "on": True})
+        self.assertEqual((status, self.by_id(got)["mail"]["on"]), (200, True))
         self.assertIsInstance(got["apply_id"], int)
-        self.assertTrue(self.call("GET", "/api/ask-connectors?project=ABC")[1]["connectors"]["mail"]["allowed"])
-        status, got = self.post({"connector": "mail", "project": "ABC", "off": True})
-        self.assertEqual(status, 200)
-        self.assertEqual(got["connectors"]["mail"], {"on": True, "project_off": True, "allowed": False})
-        self.assertTrue(self.call("GET", "/api/ask-connectors?project=DEF")[1]["connectors"]["mail"]["allowed"])
-        status, got = self.post({"connector": "mail", "project": "ABC", "off": False})
-        self.assertEqual(got["connectors"]["mail"], {"on": True, "project_off": False, "allowed": True})
-        status, got = self.post({"connector": "mail", "project": "ABC", "off": True})        # the row is there now: changed, not made again
-        self.assertTrue(got["connectors"]["mail"]["project_off"])
+        status, got = self.post({"project": "ABC", "id": "mail", "off_here": True})
+        self.assertEqual((status, self.by_id(got)["mail"]), (200, {"id": "mail", "label": "Mail", "on": True, "off_here": True}))
+        self.assertFalse(self.by_id(self.call("GET", "/api/ask-connectors?project=DEF")[1])["mail"]["off_here"])
+        self.assertFalse(self.by_id(self.call("GET", "/api/ask-connectors")[1])["mail"]["off_here"])
+        status, got = self.post({"project": "ABC", "id": "mail", "off_here": False})
+        self.assertFalse(self.by_id(got)["mail"]["off_here"])
+        status, got = self.post({"project": "ABC", "id": "mail", "off_here": True})        # the row is there now: changed, not made again
+        self.assertTrue(self.by_id(got)["mail"]["off_here"])
         status, got = self.post({"undo": got["apply_id"]})
-        self.assertEqual((status, got["connectors"]["mail"]["project_off"]), (200, False))
+        self.assertEqual((status, self.by_id(got)["mail"]["off_here"]), (200, False))
         self.assertEqual(self.stored()[1], ())
 
     def test_a_first_project_off_can_be_undone(self):
-        status, got = self.post({"connector": "todoist", "project": "DEF", "off": True})
+        status, got = self.post({"project": "DEF", "id": "todoist", "off_here": True})
         self.assertEqual(status, 200)
         status, got = self.post({"undo": got["apply_id"]})
-        self.assertEqual((status, got["connectors"]["todoist"]["project_off"]), (200, False))
+        self.assertEqual((status, self.by_id(got)["todoist"]["off_here"]), (200, False))
 
     def test_the_same_value_changes_nothing(self):
         was = self.stored()
-        status, got = self.post({"connector": "mail", "on": False})
+        status, got = self.post({"id": "mail", "on": False})
         self.assertEqual((status, got["message"]), (200, "That is the setting already in use."))
         self.assertEqual(self.stored(), was)
 
-    def test_an_unknown_connector_is_refused_and_nothing_changes(self):
+    def test_a_bad_or_unknown_id_is_refused_and_nothing_changes(self):
         was = self.stored()
-        for body in ({"connector": "slack", "on": True}, {"connector": "", "on": True}, {"connector": None, "on": True}, {"connector": ["mail"], "on": True},
-                     {"connector": "MAIL", "on": True}, {"connector": "slack", "project": "ABC", "off": True}):
+        for body in ({"id": "slack", "on": True}, {"id": "", "on": True}, {"id": None, "on": True}, {"id": ["mail"], "on": True}, {"id": 5, "on": True},
+                     {"id": "MAIL", "on": True}, {"id": "mail ", "on": True}, {"id": "mail\x00", "on": True}, {"id": "../etc", "on": True},
+                     {"id": "slack", "project": "ABC", "off_here": True}):
             status, got = self.post(body)
-            self.assertEqual((status, got["ok"], got["code"]), (400, False, "bad_connector"), body)
+            self.assertEqual((status, got["ok"], got["code"]), (400, False, "bad_connector"), repr(body)[:60])
+        self.assertEqual(self.post({"id": "m" * 5000, "on": True})[1]["code"], "too_large")
         self.assertEqual(self.stored(), was)
 
     def test_other_bodies_are_refused_and_nothing_changes(self):
         was = self.stored()
-        for body in ({"connector": "mail", "on": "true"}, {"connector": "mail", "on": 1}, {"connector": "mail", "on": None},
-                     {"connector": "mail", "project": "ABC", "off": "yes"}, {"connector": "mail", "project": "abc", "off": True},
-                     {"connector": "mail", "project": 7, "off": True}, {"connector": "mail"}, {"on": True}, {}, [], "mail",
-                     {"connector": "mail", "on": True, "token": "x"}, {"connector": "mail", "on": True, "project": "ABC"},
-                     {"connector": "mail", "project": "ABC", "off": True, "on": True}, {"undo": 0}, {"undo": "1"}, {"undo": True}):
+        for body in ({"id": "mail", "on": "true"}, {"id": "mail", "on": 1}, {"id": "mail", "on": 0}, {"id": "mail", "on": None}, {"id": "mail", "on": [True]},
+                     {"id": "mail", "project": "ABC", "off_here": "yes"}, {"id": "mail", "project": "ABC", "off_here": 1}, {"id": "mail", "project": "abc", "off_here": True},
+                     {"id": "mail", "project": 7, "off_here": True}, {"id": "mail", "project": "A" * 500, "off_here": True}, {"id": "mail"}, {"on": True}, {}, [], "mail", None,
+                     {"id": "mail", "on": True, "token": "x"}, {"id": "mail", "on": True, "project": "ABC"}, {"connector": "mail", "on": True},
+                     {"id": "mail", "project": "ABC", "off_here": True, "on": True}, {"id": "mail", "project": "ABC", "off": True}, {"undo": 0}, {"undo": "1"}, {"undo": True}):
             status, got = self.post(body)
-            self.assertEqual((status, got["ok"]), (400, False), body)
-        self.assertEqual(self.post({"connector": "mail", "project": "ZZZ", "off": True})[0], 404)
+            self.assertEqual(got["ok"], False, repr(body)[:60])
+            self.assertIn(status, (400, 415), repr(body)[:60])
+        self.assertEqual(self.post({"id": "mail", "project": "ZZZ", "off_here": True})[0], 404)
         self.assertEqual(self.post({"undo": 99999})[0], 409)
         self.assertEqual(self.stored(), was)
 
@@ -236,14 +268,32 @@ class Route(Base):
         self.assertEqual(self.call("GET", "/api/ask-connectors?project=abc")[0], 400)
         self.assertEqual(self.call("GET", "/api/ask-connectors?other=1")[0], 400)
         self.assertEqual(self.call("GET", "/api/ask-connectors?project=ZZZ")[0], 404)
+        self.assertEqual(self.call("GET", "/api/ask-connectors?project=" + "A" * 5000)[0], 400)
 
     def test_the_body_limit_and_the_token_are_checked(self):
         self.assertEqual(self.call("POST", "/api/ask-connectors", b"x" * 2000)[0], 400, "over the 1 KB limit")
-        self.assertEqual(self.call("POST", "/api/ask-connectors", {"connector": "mail", "on": True}, token="wrong")[0], 403)
+        self.assertEqual(self.call("POST", "/api/ask-connectors", {"id": "mail", "on": True, "pad": "p" * 3000})[0], 400)
+        self.assertEqual(self.call("POST", "/api/ask-connectors", {"id": "mail", "on": True}, token="wrong")[0], 403)
         self.assertEqual(self.stored()[0]["mail"], False)
 
+    def test_discovery_junk_and_failures_never_reach_the_answer(self):
+        type(self).found = [{"connector": "slack", "label": "Slack"}, {"connector": "mail", "label": "Mail", "server": "S", "token": "secret-xyz", "url": "https://h/x"},
+                            {"connector": "mail", "label": "Again"}, "mail", None, {"connector": "todoist", "label": 7}]
+        self.addCleanup(setattr, type(self), "found", FOUND)
+        status, got = self.call("GET", "/api/ask-connectors")
+        self.assertEqual(got["connectors"], [{"id": "mail", "label": "Mail", "on": False, "off_here": False}])
+        self.assertNotIn("secret-xyz", json.dumps(got))
+        with mock.patch.object(ask_connectors, "list_found", side_effect=RuntimeError("boom")):
+            self.assertEqual(self.call("GET", "/api/ask-connectors")[1]["connectors"], [])
+
+    def test_no_answer_holds_a_token_key_or_address(self):
+        for body in ({"id": "mail", "on": True}, {"project": "ABC", "id": "mail", "off_here": True}):
+            text = json.dumps(self.post(body)[1]).lower()
+            for word in ("token", "secret", "http", "key", "server"):
+                self.assertNotIn(word, text)
+
     def test_asking_itself_is_not_touched(self):
-        self.post({"connector": "mail", "on": True})
+        self.post({"id": "mail", "on": True})
         self.assertTrue(self.stored_ask())
         self.assertEqual(self.call("GET", "/api/ask-enabled")[1], {"ok": True, "ask_enabled": True, "saved": True})
 
