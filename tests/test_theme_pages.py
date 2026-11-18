@@ -12,7 +12,9 @@ from pathlib import Path
 import _paths  # noqa: F401
 from _demo import DemoStore
 
-from clark import __main__ as launcher, page, publish, theme
+from unittest import mock
+
+from clark import __main__ as launcher, backup, brands, page, publish, publish_flow, publish_pdf, server, theme
 from clark.store import open_store
 
 NAME = "prototype-2.0"
@@ -26,7 +28,7 @@ class Mapping(unittest.TestCase):
     def test_classic_is_the_shipped_theme_and_cards_is_none(self):
         self.assertEqual(theme.name_for("classic"), NAME)
         self.assertIn(NAME, theme.installed())
-        for other in ("cards", None, "", "Classic", 5, "../x"):
+        for other in ("cards", None, "", "Classic", 5, "../x", [], {}, ["classic"]):
             self.assertIsNone(theme.name_for(other), other)
 
 
@@ -136,6 +138,68 @@ class Published(unittest.TestCase):
         self.assertEqual(publish.theme_of(self.s), NAME)
         self.set_theme("cards")
         self.assertIsNone(publish.theme_of(self.s))
+
+
+class Reads(unittest.TestCase):
+    """The served page's brand lookup, the restore answer, and the marker pages of the two publish paths."""
+
+    def setUp(self):
+        self.demo = DemoStore()
+        self.addCleanup(self.demo.close)
+        self.s = self.demo.store
+
+    def set_theme(self, value):
+        with self.s.con:
+            self.s.con.execute("UPDATE app_settings SET theme = ? WHERE id = 1", (value,))
+
+    def test_a_project_s_brand_is_read_for_the_served_page(self):
+        with self.s.con:
+            self.s.con.execute("UPDATE projects SET brand = ? WHERE code = ?", ("zebra", "ABC"))
+        seen = []
+        real = brands.folder
+        with mock.patch.object(brands, "folder", lambda root, brand: (seen.append(brand), real(root, brand))[1]):
+            launcher.page_of(self.s.path, onedrive_roots=[])("ABC")
+        self.assertEqual(seen, ["zebra"])
+
+    def test_a_restore_under_way_reaches_the_page_as_busy_with_or_without_a_project(self):
+        from clark.store import Invalid
+        for project in (None, "ABC"):
+            with mock.patch.object(launcher.clark_store, "open_store", side_effect=Invalid(backup.RESTORE_BUSY)):
+                with self.assertRaises(server.Busy):
+                    launcher.page_of(self.s.path, onedrive_roots=[])(project)
+
+    def test_a_project_with_an_unreadable_file_still_raises(self):
+        from clark.store import Invalid
+        with mock.patch.object(launcher.clark_store, "open_store", side_effect=Invalid("damaged")):
+            with self.assertRaises(Invalid):
+                launcher.page_of(self.s.path, onedrive_roots=[])("ABC")
+
+    def spy_page(self):
+        seen = []
+        real = page.page_html
+        return seen, mock.patch.object(page, "page_html", lambda *a, **k: (seen.append(k.get("theme")), real(*a, **k))[1])
+
+    def test_the_to_client_marker_page_takes_the_theme_of_the_file(self):
+        built = publish.build(self.s, "ABC", now="2030-01-15", number=1)
+        pub = publish_flow.Publisher(self.s.path, [], by_user=lambda: "x", data_dir=self.s.path.parent)
+        for value, want in (("classic", NAME), ("cards", None)):
+            self.set_theme(value)
+            seen, spy = self.spy_page()
+            with spy, mock.patch.object(publish_flow.to_client, "preflight", return_value={"ok": True}), \
+                    mock.patch.object(publish_flow.to_client, "check_copy", return_value=[]), \
+                    mock.patch.object(publish_flow.to_client, "plan_client_copy", return_value=("copy", {})):
+                pub.client_plan(self.s, "ABC", built, "saved", None, "2030-01-15", "2030-01-17", {})
+            self.assertEqual(seen, [want], value)
+
+    def test_the_pdf_marker_page_takes_the_theme_of_the_file(self):
+        built = publish.build(self.s, "ABC", now="2030-01-15", number=1)
+        pub = publish_flow.Publisher(self.s.path, [], by_user=lambda: "x", data_dir=self.s.path.parent)
+        for value, want in (("classic", NAME), ("cards", None)):
+            self.set_theme(value)
+            seen, spy = self.spy_page()
+            with spy, mock.patch.object(publish_pdf.pdf, "find_chrome", return_value=None):
+                publish_pdf.Step({}, pub).prepare(pub, None, built, "2030-01-15", self.s, "ABC", None, "saved")
+            self.assertEqual(seen, [want], value)
 
 
 if __name__ == "__main__":
