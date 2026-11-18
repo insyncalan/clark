@@ -197,7 +197,7 @@ export function AskPanel() {
     run(next.text, undefined, next);
   }
 
-  // Send them: the first waiting message is sent, and the rest follow as each is answered.
+  // Send the waiting messages: the first waiting message is sent, and the rest follow as each is answered.
   function sendWaiting() {
     if (state !== "ready" || busy || !queue.value.length) return;
     const [next, ...rest] = queue.value;

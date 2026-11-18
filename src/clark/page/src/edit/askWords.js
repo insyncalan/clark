@@ -66,7 +66,7 @@ export const QUEUE_REMOVE = "Remove this message";
 export const QUEUE_MORE = (n) => `and ${n} more`;
 export const QUEUE_STOPPED = (n) => `Stopped. ${waitingCount(n)} waiting`;
 export const QUEUE_FAILED = (n) => `${waitingCount(n)} waiting`;
-export const QUEUE_SEND = "Send them";
+export const QUEUE_SEND = "Send the waiting messages";
 export const QUEUE_CLEAR = "Clear";
 export const QUEUE_FULL = "5 messages are already waiting. Wait for one to be sent, or remove one.";
 export const QUEUE_DROP = (n) => `${waitingCount(n)} waiting and would be dropped. Press again to go on.`;

@@ -4,7 +4,7 @@ Run: python3 dev/run_tests.py test_ask_queue
 Headless Chrome, the real page, a stub for the server's ask. Widths 1400 and 900 only. Covers: Enter queues what is typed (box emptied, the
 question not sent), the lines are small, in send order, one line cut with an ellipsis, each with a bin named "Remove this message" that
 Enter presses with no question asked, the next is sent by itself when the one before is answered and leaves the list, each is its own
-question with its own answer, Stop leaves the queue waiting with "Send them" and "Clear", a failed answer does the same, five at most, the
+question with its own answer, Stop leaves the queue waiting with "Send the waiting messages" and "Clear", a failed answer does the same, five at most, the
 panel closing or a new chat drops the queue only on the second press, screen reader lines, and at 900 only the first two with "and N more".
 """
 import json
@@ -160,13 +160,13 @@ class Queue(Base):
                 p.js("document.querySelector('#ask-stop').click()")
                 p.until("!document.querySelector('#ask-stop') && !!document.querySelector('#ask-queue-held')", "stopped, the queue waits", 30)
                 self.assertEqual(p.js("document.querySelector('#ask-queue-held span').textContent"), "Stopped. 2 messages are waiting")
-                self.assertEqual(p.js("document.querySelector('#ask-queue-send').textContent"), "Send them")
+                self.assertEqual(p.js("document.querySelector('#ask-queue-send').textContent"), "Send the waiting messages")
                 self.assertEqual(p.js("document.querySelector('#ask-queue-clear').textContent"), "Clear")
                 self.assertEqual(self.asked(), ["Summarise the risks"], f"{width}: the next did not fire at once")
                 self.assertEqual(self.lines(p), ["Second question", "Third question"])
                 self.stub.stopped = False
                 p.js("document.querySelector('#ask-queue-send').click()")
-                p.until("document.querySelectorAll('.ask-turn').length === 6 && !document.querySelector('#ask-stop')", "Send them sent both", 30)
+                p.until("document.querySelectorAll('.ask-turn').length === 6 && !document.querySelector('#ask-stop')", "Send the waiting messages sent both", 30)
                 self.assertEqual(self.asked(), ["Summarise the risks", "Second question", "Third question"], f"{width}")
                 self.assertEqual(self.lines(p), [])
 
