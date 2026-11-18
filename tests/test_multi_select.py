@@ -572,7 +572,7 @@ class Page(Base):
         with chrome() as cdp:
             sid = self.load(cdp)
             rows = cdp.js(self.ROWS, sid)
-            self.assertEqual(cdp.js("[...new Set([...document.querySelectorAll('#work table.items')].map(t => t.getAttribute('role') + ':' + t.getAttribute('aria-multiselectable')))]", sid), ["grid:true"], "each group's table is a multiselectable grid")
+            self.assertEqual(cdp.js("[...new Set([...document.querySelectorAll('#work table.items:not(.hdr)')].map(t => t.getAttribute('role') + ':' + t.getAttribute('aria-multiselectable')))]", sid), ["grid:true"], "each group's table is a multiselectable grid (row 1324: the column names' table above them is no grid)")
             self.assertTrue(cdp.js("[...document.querySelectorAll('#work-list tr[data-id]')].every(r => r.getAttribute('aria-selected') === 'false')", sid))
             tap(cdp, sid, self.rsel(rows[0]))
             tap(cdp, sid, self.rsel(rows[1]), MOD)

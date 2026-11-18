@@ -262,12 +262,17 @@ function Table({ rows, today, type, Cell, Eye, CW, CM }) {
   order = drawnRows.map((r) => r.id);
   mo = useRowMotion(groups.map((c) => ({ key: c.key, rows: c.shut ? [] : c.rows })));
   return (
-    <>
+    <div class="wtab">
+      {groups.length && cm ? cm.button("key") : null}
+      {groups.length ? <table class="items hdr">
+        <Cols eye={Eye} hand={hand} cw={cw} cols={cols} />
+        <thead><tr class="colh" {...(cm ? cm.rowProps : {})}><Heads eye={Eye} hand={hand} cw={cw} cm={cm} cols={cols} /></tr></thead>
+      </table> : null}
+      {cm ? cm.menu : null}
       {groups.map((c) => {
         const shut = c.shut;
         return (
-          <div class="wgroup" key={c.key}>
-            {cm && c.key === groups[0].key ? cm.button("key") : null}
+          <div class="wgroup gline" key={c.key}>
             <table class="items grouped" {...grid}>
               <Cols eye={Eye} hand={hand} cw={cw} cols={cols} />
               <thead data-group={c.key} class={justOpened === c.key && !shut && !fromFile.value ? "opening" : undefined} onAnimationEnd={opened(c.key)}>
@@ -278,17 +283,15 @@ function Table({ rows, today, type, Cell, Eye, CW, CM }) {
                     <Icon name="chevdown" cls={shut ? "turn" : ""} /><span class="gl">{c.label}</span><span class="gc num">{c.rows.length} {c.rows.length === 1 ? "item" : "items"}</span>
                   </button>
                 </th></tr>
-                {shut ? null : <tr class="colh" {...(cm ? cm.rowProps : {})}><Heads eye={Eye} hand={hand} cw={cw} cm={cm} cols={cols} /></tr>}
               </thead>
               <tbody data-group={c.key} class={justOpened === c.key && !shut && !fromFile.value ? "opening" : undefined} onAnimationEnd={opened(c.key)}>
                 {shut ? null : rowsOf(c.key, c.rows, stop)}
               </tbody>
             </table>
-            {cm && c.key === groups[0].key ? cm.menu : null}
           </div>
         );
       })}
-    </>
+    </div>
   );
 }
 

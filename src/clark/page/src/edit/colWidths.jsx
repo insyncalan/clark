@@ -54,7 +54,8 @@ export function useColWidths(table) {
       if (!t || !t.closest || t.isContentEditable || t.closest("input, textarea, select, .ProseMirror")) return;
       let cell = t.closest("[data-cw-head]");
       if (!cell) {
-        const box = t.closest("table, .ucl-box, .msl-box");
+        const own = t.closest("table, .ucl-box, .msl-box");
+        const box = own && !own.querySelector("[data-cw-head]") && own.closest(".wtab") ? own.closest(".wtab") : own;      // row 1324: the column names are drawn once, on top of the groups
         const x = t.getBoundingClientRect().left + 1;
         cell = box && Array.from(box.querySelectorAll("[data-cw-head]")).find((h) => { const r = h.getBoundingClientRect(); return x < r.right; });
       }

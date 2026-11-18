@@ -1413,6 +1413,9 @@ table.items th.c-eye { white-space: nowrap; }
   .msl-box[data-nodate] .msl-cells > .msl-sub { grid-column: 1; }
 }
 .wgroup:has(.c-x) { overflow-x: auto; }
+.wtab:has(.c-x) { overflow-x: auto; }      /* row 1324: the column names are one table on top of the groups, so the extra columns scroll the whole list together; a group inside it does not scroll on its own, and the heading's focus ring is drawn inside (nothing outside the scroller to clip) */
+.wtab .wgroup.gline:has(.c-x) { overflow: visible; }
+.wtab:has(.c-x) .grp-b:focus-visible { outline-offset: -2px; }
 table.items .c-x { width: 130px; }
 table.items .c-x-latest, table.items .c-x-wording { width: 220px; }
 table.items .c-x-id, table.items .c-x-type { width: 100px; }

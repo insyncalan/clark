@@ -138,7 +138,7 @@ class Widths(unittest.TestCase):
                 saved = '{"owner":400,"due":300}'
                 js(f"localStorage.setItem('clark.cols.work', {json.dumps(saved)})")
                 reload_to_new_page_cdp(cdp, sid, "document.querySelectorAll('#work tbody tr[data-id]').length > 0", "the table is back")
-                got = js("""(() => { const t = document.querySelector('#work table.items'), c = t.parentElement, i = document.querySelector('#work table.items th.c-item, #work table.items thead th');
+                got = js("""(() => { const t = document.querySelector('#work table.items'), c = t.parentElement, i = document.querySelector('#work table.items th.c-item');      // row 1324: the one header table's Item heading
                     return {scroll: document.documentElement.scrollWidth, inner: innerWidth, table: t.getBoundingClientRect().width, card: c.clientWidth, item: i.getBoundingClientRect().width,
                             stored: localStorage.getItem('clark.cols.work')}; })()""")
                 self.assertLessEqual(got["scroll"], got["inner"] + 1, "the page does not scroll sideways")

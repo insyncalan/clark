@@ -17,12 +17,13 @@ from test_server import chrome
 
 CSS = (SRC / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
 
-TOKENS = ["--d-row-y", "--d-colh-y", "--d-grp-y", "--d-group-gap", "--d-card-gap", "--d-card-row-y", "--d-bcard-y", "--d-colbody-top",
+# row 1324: --d-grp-y (the grey group bar) is gone with the tile; a group heading is a heading line (padding 0 0 6px, 18 px above), set in test_grouped_heading_1324
+TOKENS = ["--d-row-y", "--d-colh-y", "--d-group-gap", "--d-card-gap", "--d-card-row-y", "--d-bcard-y", "--d-colbody-top",
           "--d-colbody-bottom", "--d-fbar-top", "--d-fbar-gap", "--d-fline-top", "--d-fline-y"]
 # the rules that must read the tokens: the start of the rule -> the tokens it uses
 RULES = {
     "table.items th {": ["--d-colh-y"], "table.items td {": ["--d-row-y"], ".fbar {": ["--d-fbar-gap", "--d-fbar-top"],
-    ".fline-wrap {": ["--d-fline-top"], ".fline {": ["--d-fline-y"], "table.items.grouped tr.grp th {": ["--d-grp-y"],
+    ".fline-wrap {": ["--d-fline-top"], ".fline {": ["--d-fline-y"],
     ".wgroup {": ["--d-group-gap"], ".lane + .lane {": ["--d-group-gap"], ".cols {": ["--d-group-gap"],
     ".col-body {": ["--d-card-gap", "--d-colbody-top", "--d-colbody-bottom"], ".bcard {": ["--d-bcard-y"],
 }

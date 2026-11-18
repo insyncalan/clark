@@ -47,7 +47,8 @@ class Source(unittest.TestCase):
         self.assertNotIn(">Type<", jsx)
         self.assertRegex(css, r"\.kb \{[^}]*width: 22px; height: 22px")
         card = re.search(r"\.wgroup \{([^}]*)\}", css)
-        self.assertTrue(card and "border: 1px solid" in card.group(1) and "border-radius" in card.group(1), "each group is a bordered, rounded card")
+        self.assertTrue(card and "border: 1px solid" in card.group(1) and "border-radius" in card.group(1), "the flat list is a bordered, rounded card")
+        self.assertRegex(css, r"\.wgroup\.gline \{[^}]*border: 0; border-radius: 0;", "row 1324: a group of the grouped list is a heading line, not a tile")
 
     def test_the_published_file_carries_no_eye_and_none_of_its_words(self):
         view = (PAGE / "page-view.html").read_text(encoding="utf-8")
@@ -209,8 +210,8 @@ class Table(unittest.TestCase):
                         self.assertEqual(set(got["heads"]), {"Item", "Owner", "Due", "Priority", "Id", "Status", "Client-visible"}, where)   # #1195 S1: the Id is its own column
                         self.assertGreater(len(got["cards"]), 1, where + ": more than one group")
                         for c in got["cards"]:
-                            self.assertEqual((c["bw"], c["tables"], c["groups"], c["head"], c["inside"]), ("1px", 1, 1, True, True), f"{where}: a group is a card of its own")
-                            self.assertGreaterEqual(c["radius"], 8, where + ": the card is rounded")
+                            self.assertEqual((c["bw"], c["tables"], c["groups"], c["head"], c["inside"]), ("0px", 1, 1, True, True), f"{where}: a group is a heading line with its own table (row 1324: no tile)")
+                            self.assertEqual(c["radius"], 0, where + ": no rounded corners")
                             self.assertRegex(c["count"], r"^\d+ items?$", where + ": the heading says N items, not a bare number")
                             if c["rows"]:
                                 self.assertEqual(c["count"], f"{c['rows']} item" + ("" if c["rows"] == 1 else "s"), where + ": one item, or N items")
