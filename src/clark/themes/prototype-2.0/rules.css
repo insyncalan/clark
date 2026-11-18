@@ -188,3 +188,6 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .mv[data-look="classic"] .mv-grip { left: 0; right: 0; bottom: var(--sb); width: auto; height: 10px; margin-left: 0; border-radius: 0; justify-content: flex-end; align-items: flex-end; }
 .mv[data-look="classic"] .mv-grip span { width: 10px; height: 10px; border: 0; border-radius: 0; margin: 0 2px 2px 0; background: linear-gradient(135deg, transparent 0 45%, var(--grey-500) 45% 55%, transparent 55% 70%, var(--grey-500) 70% 80%, transparent 80%); }
 .mv[data-look="classic"] .mv-grip:hover span { background: linear-gradient(135deg, transparent 0 45%, var(--text-muted) 45% 55%, transparent 55% 70%, var(--text-muted) 70% 80%, transparent 80%); }
+/* Row 1315, progress part (Classic only): the Milestones list Progress bar is 145px with a bold right-aligned percent. */
+.msl-box[data-place="page"] .msl-prog .num { min-width: 2.75rem; text-align: right; font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; color: var(--heading); }
+@media (min-width: 1201px) { .msl-box[data-place="page"]:not([style*="--msl-cols:"]) :is(.msl-cells, .msl-hc) { grid-template-columns: minmax(240px, 17rem) minmax(160px, 1fr) 150px calc(145px + var(--space-2) + 2.75rem); } }
