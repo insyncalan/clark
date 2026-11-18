@@ -2186,17 +2186,18 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 /* #96 G3 Work items list (workitems): the view part. Full width draws the table, half width the two-line rows; tokens only. */
 .wil { min-width: 0; }
 .wil-table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: var(--size-small); margin-top: var(--space-1); }
-.wil-table th { text-align: left; font-weight: var(--weight-regular); font-size: var(--size-small); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); padding: 6px var(--space-2); border-top: 1px solid var(--grey-200); }
+.wil-table th { text-align: left; font-weight: var(--weight-regular); font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); padding: 6px var(--space-2); border-top: 1px solid var(--grey-200); }
 .wil-table td { padding: var(--space-2); border-top: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; color: var(--text); }
 .wil-table th:first-child, .wil-table td:first-child { padding-left: 2px; }
 .wil-table .wil-c-tile { width: calc(var(--space-5) + var(--space-3)); }
 .wil-table td { vertical-align: middle; }
 .wil-table .wil-c-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; overflow-wrap: normal; }   /* row 1268: one line per item, the title cut with an ellipsis */
 .wil-table .wil-c-id, .wil-table .wil-c-due, .wil-table .wil-c-priority { white-space: nowrap; overflow-wrap: normal; }   /* IDs never break */
-.wil-c-id { font-variant-numeric: tabular-nums; color: var(--status-blue-text); }
+.wil-table td.wil-c-id, .wil-c-id { font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; color: var(--status-blue-text); }   /* row 1195: bold mono violet, as the mock-up */
 .wil-own { display: inline-flex; align-items: center; gap: var(--space-2); max-width: 100%; }
 .wil-own .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wil-pr { padding: 0 var(--space-2); border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
+.wil-pr { padding: 0 var(--space-2); border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); font-weight: var(--weight-medium); }   /* row 1195: a bordered pill; the tones below set the border from their own text colour */
+.wil-pr.h, .wil-pr.u { border-color: color-mix(in srgb, currentColor 30%, transparent); }
 .wil-pr.h { background: var(--tone-amber-tint); color: var(--tone-amber-text); }
 .wil-pr.u { background: var(--tone-red-tint); color: var(--tone-red-text); }
 table.items td.c-prio .wil-pr { padding: 0 var(--space-1); }      /* row 1195 S2: the pill in the live table's Priority cell (with the edit button's caret) keeps inside the 104 px column */
@@ -2240,7 +2241,7 @@ table.items td.c-prio .wil-pr { padding: 0 var(--space-1); }      /* row 1195 S2
 .wil-cap { margin: 0 0 var(--space-2); font-size: var(--size-caption); color: var(--text-muted); }
 .sec.slot-full .wil-lines, .sec.slot-left .wil-table, .sec.slot-right .wil-table { display: none; }
 @media (max-width: 1100px) {
-  .wil-table .wil-c-workstream, .wil-table .wil-c-milestone, .wil-table .wil-c-owner { width: 100px; }
+  .wil-table .wil-c-workstream, .wil-table .wil-c-milestone { width: 100px; }   /* row 1195: the owner keeps its width, so a name stays readable */
   .wil-table .wil-c-type, .wil-table .wil-c-id, .wil-table .wil-c-due { width: 92px; }
   .wil-table .wil-c-status { width: 96px; }
   .wil-table .wil-c-priority { width: 72px; }
@@ -2248,7 +2249,8 @@ table.items td.c-prio .wil-pr { padding: 0 var(--space-1); }      /* row 1195 S2
 /* row 1193: at 1000 px and below the date and priority cells give their content room (less padding, the pill and the date may wrap), so nothing spills over the next cell */
 @media (max-width: 1000px) {
   .wil-table td.wil-c-due, .wil-table td.wil-c-priority { padding-left: 4px; padding-right: 4px; white-space: normal; overflow-wrap: anywhere; }
-  .wil-table .wil-c-due { width: 104px; }
+  .wil-table td.wil-c-due { white-space: nowrap; overflow-wrap: normal; }   /* row 1195: the date is one line; only the words under it may wrap */
+  .wil-table .wil-c-due { width: 116px; }
   .wil-table .wil-c-priority { width: 80px; }
 }
 
