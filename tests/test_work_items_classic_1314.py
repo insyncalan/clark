@@ -33,8 +33,9 @@ class ClassicRules(unittest.TestCase):
 
     def test_layout_pair_is_square_and_chosen_half_is_grey_not_aqua(self):
         self.assertIn("border-radius: var(--radius-sm)", block(".vicons .lsw, .vicons .btn.sm.vgb"))
-        b = block('.vicons .lsw button[aria-pressed="true"]')
+        b = block('.vicons .seg.lsw button[aria-pressed="true"]')
         self.assertIn("background-color: var(--grey-100)", b)
+        self.assertIn("color: var(--heading)", b)
         self.assertIn("background-image: none", b)
         self.assertIn("outline-offset: -2px", block('.vicons .lsw button[aria-pressed="true"]:focus-visible'))
 
@@ -95,6 +96,23 @@ class Browser(Base):
                 self.assertEqual(got["offset"], "-2px", got)
                 self.assertEqual(got["color"], want, got)
                 self.assertNotEqual(got["style"], "none", got)
+
+    def test_the_pressed_layout_tile_is_grey_in_both_modes(self):
+        # Row 1314 draws the chosen layout tile grey with the heading colour, not navy and white.
+        probe = ("(() => { const b = document.querySelector('#work [data-lay=table]'), s = getComputedStyle(b), t = (v, p) => { const e = document.createElement('i'); e.style[p] = 'var(' + v + ')'; document.body.append(e); const c = getComputedStyle(e)[p]; e.remove(); return c; }; "
+                 "return {pressed: b.getAttribute('aria-pressed'), bg: s.backgroundColor, fg: s.color, wantBg: t('--grey-100', 'backgroundColor'), wantFg: t('--heading', 'color'), icon: getComputedStyle(b.querySelector('svg') || b).color}; })()")
+        for width in (1400, 900):
+            for mode in ("light", "dark"):
+                with self.subTest(width=width, mode=mode), chrome() as cdp:
+                    sid = self.visit(cdp, width=width)
+                    cdp.js("document.documentElement.dataset.theme = %r" % mode, sid)
+                    # the tile eases its colour over a moment: wait until it has settled on the grey of this mode
+                    self.until(cdp, sid, "(() => { const e = document.createElement('i'); e.style.backgroundColor = 'var(--grey-100)'; document.body.append(e); const c = getComputedStyle(e).backgroundColor; e.remove(); return getComputedStyle(document.querySelector('#work [data-lay=table]')).backgroundColor === c; })()", "the tile settled on the grey")
+                    got = cdp.js(probe, sid)
+                    self.assertEqual(got["pressed"], "true", got)
+                    self.assertEqual(got["bg"], got["wantBg"], got)
+                    self.assertEqual(got["fg"], got["wantFg"], got)
+                    self.assertEqual(got["icon"], got["wantFg"], got)
 
     def test_the_view_tabs_wrap_at_900_and_never_scroll_sideways(self):
         probe = ("(() => { const t = document.querySelector('#work .vtabs'), s = getComputedStyle(t); return {wrap: s.flexWrap, ox: s.overflowX, "
