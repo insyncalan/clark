@@ -305,6 +305,16 @@ class Screened(Run):
         self.out = stream(use("1", f"{P}__outlook_send_mail"), final("Plain"))
         self.assertIsInstance(self.provider.ask(ask.Request(text="Q", question="Q")), ask.Failure)     # not the stream format: today's reader refuses it
 
+    def test_every_known_built_in_is_denied_by_name_and_the_loader_is_not(self):
+        known = ("Agent", "AskUserQuestion", "Bash", "Edit", "Glob", "Grep", "Read", "Write", "WebFetch", "WebSearch", "Skill", "Workflow", "Monitor",
+                 "NotebookEdit", "TodoWrite", "TaskStop", "TaskOutput", "SendMessage", "ScheduleWakeup", "RemoteTrigger", "PushNotification",
+                 "CronCreate", "CronDelete", "CronList", "EnterPlanMode", "ExitPlanMode", "EnterWorktree", "ExitWorktree", "ListMcpResourcesTool",
+                 "ReadMcpResourceTool", "ReadMcpResourceDirTool", "EndConversation", "Artifact", "ArtifactComments", "ArtifactData", "DesignSync",
+                 "ListAgents", "ReportFindings", "SendFeedback", "StructuredOutput", "SendToProject", "SendToProjectContext")
+        missing = [t for t in known if t not in ca.BUILT_IN_TOOLS]
+        self.assertEqual(missing, [], "a known built-in tool is missing from the deny list")
+        self.assertNotIn("ToolSearch", ca.BUILT_IN_TOOLS)
+
     def test_tool_search_then_the_allowed_tool_passes_and_anything_else_fails(self):
         # The safe set keeps ToolSearch (the Mail tool needs it to load). Only a ToolSearch that asks for an allowed tool is let through.
         def search(i, query):
