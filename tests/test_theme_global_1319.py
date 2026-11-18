@@ -138,8 +138,9 @@ class Computed(unittest.TestCase):
             for scheme in ("dark", "light"):
                 sid = self.load(cdp, 1400, "auto", html)
                 cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
-                shadow = self.style(cdp, sid, "#sg button[aria-pressed=true]", "boxShadow")
-                self.assertEqual(shadow != "none", scheme == "dark", f"auto {scheme} {shadow}")
+                for sel in ("#sg button[aria-pressed=true]", "#sc button", "#cs button"):
+                    shadow = self.style(cdp, sid, sel, "boxShadow")
+                    self.assertEqual(shadow != "none", scheme == "dark", f"auto {scheme} {sel} {shadow}")
 
     def test_cards_keeps_the_weight_the_pill_the_aqua_and_the_tracked_crumb(self):
         html = page.page_html(branding=page.NO_BRAND)
