@@ -261,7 +261,7 @@ class Update17To18(Rig):
         self.assertEqual(NEW_LAYOUT, done["layout"])
         self.assertEqual(NEW_LAYOUT, layout(self.db))
         after = every_row(self.db, leave_out=GANTT_COLUMNS + ("brand", "use_cases.owner", "use_cases.owner_id", "raid.latest_update", "milestones.latest_update", "decisions.priority", "decisions.latest_update", "app_settings.theme", "ask_instructions"))
-        self.assertEqual(self.base, {t: rows for t, rows in after.items() if t not in ("gantt_lines", "use_case_milestones", "install_defaults")}, "every row of every table is kept")
+        self.assertEqual(self.base, {t: rows for t, rows in after.items() if t not in ("gantt_lines", "use_case_milestones", "install_defaults", "connector_switches", "project_connectors")}, "every row of every table is kept")
         for table in ("report_sections", "milestones", "use_cases", "actions", "raid", "decisions", "documents", "publications"):
             self.assertTrue(after[table], table)
         self.assertEqual([], after["gantt_lines"], "the new table is there and empty")
