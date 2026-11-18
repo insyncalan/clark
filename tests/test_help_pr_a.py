@@ -187,7 +187,7 @@ class AskOff(unittest.TestCase):
         self.assertIn("if (!askOn.value || narrowHeader.value) return null;", code("edit", "AskButton.jsx"))  # item 1177: AskButton.jsx:11 keeps the askOn guard and adds narrowHeader (ask clark is in the profile menu at 900)
         keys = code("edit", "askPanelState.js")
         self.assertIn('e.key === "/"', keys)
-        self.assertNotIn("askOn", keys[keys.index("export function installAskKeys"):keys.index("document.addEventListener(\"mousedown\"")])
+        self.assertNotIn("askOn", keys[keys.index("export function installAskKeys"):])
         words = code("edit", "askWords.js")
         self.assertIn('OFF_LINE = "Asking is off. Turn it on in Settings."', words)
         self.assertIn('OFF_LINK = "Open Settings"', words)

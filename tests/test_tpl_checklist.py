@@ -145,6 +145,7 @@ class Stored(Api):
 class Published(Api):
     def plant(self):
         d = self.demo
+        d.plant_builtin_sections()      # a new project's lists are Work items lists; the linked rows sit with the built-in sections (row 1193)
         self.kept = d.action(description=f"{MARK} kept", due_date="2030-02-01")
         self.done = d.action(description=f"{MARK} finished", due_date="2030-02-01")
         d.update("actions", self.done, {"status": "Closed"})
@@ -210,6 +211,7 @@ class InThePage(Base):
     def setUp(self):
         super().setUp()
         d = self.demo
+        d.plant_builtin_sections()      # a new project's lists are Work items lists; the linked actions sit with the built-in Actions section (row 1193)
         self.a_open = d.action(description="Chase the supplier file", due_date="2030-02-01")
         self.a_done = d.action(description="Book the room", due_date="2030-02-01")
         d.update("actions", self.a_done, {"status": "Closed"})
@@ -399,6 +401,7 @@ class TheFile(Base):
     def setUp(self):
         super().setUp()
         d = self.demo
+        d.plant_builtin_sections()      # a new project's lists are Work items lists; the linked actions sit with the built-in Actions section (row 1193)
         self.a_open = d.action(description="Chase the supplier file", due_date="2030-02-01")
         self.a_done = d.action(description="Book the room", due_date="2030-02-01")
         d.update("actions", self.a_done, {"status": "Closed"})

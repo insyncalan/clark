@@ -7,7 +7,7 @@ import { zoneFetch } from "../api.js";
 import { words } from "./publishApi.js";
 import { stopRestore } from "../router.js";
 import { askProvider } from "./askState.js";
-import { panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panelFocus, turns, pending, chatEpoch, queue, queueHeld, queueDrop, QUEUE_MAX, setQueue, closePanel, newChat, setWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
+import { panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panelFocus, turns, pending, chatEpoch, answersReady, queue, queueHeld, queueDrop, QUEUE_MAX, setQueue, closePanel, newChat, setWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
 import * as W from "./askWords.js";
 import { Icon } from "../components/Icon.jsx";
 import { holdScroll } from "../core/holdScroll.js";
@@ -180,6 +180,7 @@ export function AskPanel() {
       const extra = [...(Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : []), ...found];
       turns.value = [...turns.value, { role: "assistant", text: b.answer, sources: sourceLabels(b.sources) }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))];
       keepChat(turns.value);
+      if (!panelOpen.value) answersReady.value++;       // row 1292: the button says an answer is waiting
       if (typeof b.reply === "string" && b.reply && Array.isArray(b.changes) && b.changes.length) await showChanges(b.reply);
     } else if (r.status === 409 && b && b.code === "asking_off") {
       panelState.value = "off";
@@ -321,6 +322,14 @@ export function AskPanel() {
             ))}</ul>
           ) : <p class="ask-hist-empty" id="ask-hist-empty">{W.HISTORY_EMPTY}</p>}
         </div>
+      ) : null}
+      {!showHist && !list.length && (state === "ready" || state === "off") ? (
+        <section class="ask-first-run" id="ask-first-run" aria-label={W.FIRST_RUN_LABEL}>
+          <p>{W.FIRST_RUN_READS}</p>
+          <p>{W.FIRST_RUN_CHANGES}</p>
+          <p>{W.named(W.FIRST_RUN_SENT, askProvider.value)}</p>
+          <div class="ask-first-link"><a href="#settings&s=claude" data-ask-first-settings onClick={toSettings}>{W.FIRST_RUN_LINK}</a></div>
+        </section>
       ) : null}
       <div class="ask-log" id="ask-log" hidden={showHist} role="log" aria-live="polite" aria-label={W.LOG_LABEL} ref={log}>
         {shownTurns(list).map((t, i) => t.kind === "notes" ? (

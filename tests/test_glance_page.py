@@ -511,6 +511,7 @@ class Published(PublishedFile, Setup):
         self.store.con.commit()
 
     def test_row_1112_a_published_tile_opens_the_files_work_items_with_what_it_counts(self):
+        self.demo.plant_builtin_sections()      # published tiles are buttons only with a built-in section to open (row 1193)
         self.plant_more_work()
         path = self.publish()
         text = path.read_text(encoding="utf-8")
@@ -534,6 +535,7 @@ class Published(PublishedFile, Setup):
     def test_row_1112_each_published_tile_opens_the_work_items_it_counts_and_no_others(self):
         """Each figure tile opens the file's Work items filtered by what ITS number counts: the overdue tile the overdue actions, the
         risks tile the high risks and issues; and a tile whose number is the count of rows shown."""
+        self.demo.plant_builtin_sections()      # published tiles are buttons only with a built-in section to open (row 1193)
         path = self.publish()
         seen = {}
         for width in (1400, 900):
@@ -552,6 +554,7 @@ class Published(PublishedFile, Setup):
         self.assertTrue(seen["overdue"].isdisjoint(seen["risks"]), "the two tiles open different rows")
 
     def test_row_1112_the_risks_tile_opens_exactly_the_rows_it_counted(self):
+        self.demo.plant_builtin_sections()      # published tiles are buttons only with a built-in section to open (row 1193)
         path = self.publish()
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
@@ -568,6 +571,7 @@ class Published(PublishedFile, Setup):
                 p.until("!!document.querySelector('.glance')", "Back returns to the Dashboard")
 
     def test_row_1112_a_tile_button_keeps_its_box_on_paper(self):
+        self.demo.plant_builtin_sections()      # published tiles are buttons only with a built-in section to open (row 1193)
         path = self.publish()
         with chrome() as cdp:
             p = self.draw(cdp, path, 1400)

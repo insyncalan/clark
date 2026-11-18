@@ -77,13 +77,13 @@ class Word(unittest.TestCase):
         # row 1268: WORK_DEFAULT is Type, ID, Item, Owner, Due, Priority (a list that names none gets these)
         got = cells(docx_build.build(with_list(["PUB-A-001"], columns=())))
         self.assertEqual(got[:6], ["Type", "ID", "Item", "Owner", "Due", "Priority"])
-        self.assertEqual(got[6:12], ["Action", "PUB-A-001", "ZQ-KEEP-MESSAGE-1", "Site manager", "06-11-2026", "Medium"])
+        self.assertEqual(got[6:13], ["Action", "PUB-A-001", "ZQ-KEEP-MESSAGE-1", "Latest update: ZQ-KEEP-UPDATE-1", "Site manager", "06-11-2026", "Medium"])      # row 1307: the update line sits in the Item cell
         for word in ("Workstream", "Milestone", "Status"):
             self.assertNotIn(word, got)
 
     def test_a_milestone_id_prints_the_milestones_name(self):
         got = cells(docx_build.build(with_list(["PUB-A-001"], columns=("id", "milestone"))))
-        self.assertEqual(got, ["ID", "Item", "Milestone", "PUB-A-001", "ZQ-KEEP-MESSAGE-1", "Pilot live ZQ-KEEP-MILESTONE-1"])
+        self.assertEqual(got, ["ID", "Item", "Milestone", "PUB-A-001", "ZQ-KEEP-MESSAGE-1", "Latest update: ZQ-KEEP-UPDATE-1", "Pilot live ZQ-KEEP-MILESTONE-1"])
         self.assertNotIn("PUB-M-001", got)
 
     def test_the_item_column_sits_after_type_and_id_and_before_the_rest(self):
@@ -93,7 +93,23 @@ class Word(unittest.TestCase):
 
     def test_the_workstream_cell_prints_the_workstream(self):
         got = cells(docx_build.build(with_list(["PUB-A-001"], columns=("id", "workstream"))))
-        self.assertEqual(got, ["ID", "Item", "Workstream", "PUB-A-001", "ZQ-KEEP-MESSAGE-1", "Delivery"])
+        self.assertEqual(got, ["ID", "Item", "Workstream", "PUB-A-001", "ZQ-KEEP-MESSAGE-1", "Latest update: ZQ-KEEP-UPDATE-1", "Delivery"])
+
+    def test_an_action_with_an_update_shows_its_latest_update_line(self):      # row 1307
+        got = cells(docx_build.build(with_list(["PUB-A-001"])))
+        self.assertIn("Latest update: ZQ-KEEP-UPDATE-1", got)
+
+    def test_an_action_without_an_update_has_no_update_line(self):      # row 1307
+        got = cells(docx_build.build(with_list(["PUB-A-002"])))
+        self.assertFalse([w for w in got if w.startswith("Latest update")])
+
+    def test_a_risk_or_a_decision_row_has_no_update_line(self):      # row 1307
+        p = with_list(["PUB-001", "PUB-D-001"])
+        for t in ("raid", "decisions"):
+            for r in p["data"][t]:
+                r["latest_update"] = "<p>ZQ-NOT-SHOWN</p>"
+        got = cells(docx_build.build(p))
+        self.assertFalse([w for w in got if "Latest update" in w or "ZQ-NOT-SHOWN" in w])
 
     def list_table(self, p):
         return next(b["rows"] for b in blocks(docx_build.build(p)) if b["kind"] == "table" and b["rows"][0][0] == "ID" and b["rows"][0][1] == "Item")
