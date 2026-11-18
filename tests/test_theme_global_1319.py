@@ -72,7 +72,7 @@ class Computed(unittest.TestCase):
                     tag = f"{scheme} {w}"
                     for h in ("h1", "h2", "h3"):
                         self.assertEqual(self.style(cdp, sid, "#probe " + h, "fontWeight"), "600", f"{tag} {h}")
-                    for sel in ("#sg", "#sc", "#cs", "#b1", "#b2", "#b3", "#b4", "#md"):
+                    for sel in ("#sg", "#sc", "#cs", "#b1", "#md"):
                         self.assertEqual(self.style(cdp, sid, sel, "borderRadius"), "8px", f"{tag} {sel}")
                     for sel in (".crumbs", ".ucd-crumb", ".ucf-crumb"):
                         self.assertEqual(self.style(cdp, sid, "#probe " + sel, "textTransform"), "none", f"{tag} {sel}")
@@ -123,7 +123,7 @@ class Layering(unittest.TestCase):
 
     def test_the_classic_block_is_the_end_of_rules_and_reaches_the_page(self):
         rules = (FOLDER / "rules.css").read_text(encoding="utf-8")
-        self.assertTrue(rules.rstrip("\n").split("\n")[-8].startswith("/* Row 1319"))
+        self.assertTrue(any(l.startswith("/* Row 1319, Classic type") for l in rules.split("\n")))
         self.assertIn("h1, h2, h3 { font-weight: var(--weight-medium); }", theme.css(NAME))
 
 

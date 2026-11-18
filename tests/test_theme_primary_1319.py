@@ -1,0 +1,130 @@
+"""Row 1319, Classic theme: the primary buttons .again, .btn.primary and .btn.pri are aqua pills, light and dark.
+
+Run: python3 dev/run_tests.py test_theme_primary_1319
+Fails, never skips, without Chrome. Computed styles at 1400 and 900, light and dark; hover and press are pinned in the CSS source
+(a pointer state cannot be forced reliably); Cards (no Theme layer) keeps the look it has today.
+"""
+import re
+import unittest
+from pathlib import Path
+
+from _paths import ROOT  # noqa: F401
+from test_server import chrome
+import test_theme_global_1319 as g
+from test_theme_global_1319 import Computed, NAME, SIZES, FOLDER, ratio, parse
+
+from clark import page, theme
+
+EXTRA = """(() => { const d = document.createElement('div'); d.id = 'extra';
+  d.innerHTML = '<button class="btn pri ok" id="e-ok">Done</button><button class="btn pri" id="e-off" disabled>Off</button>' +
+    '<button class="again" id="e-aoff" disabled>Off</button><button class="btn pri" id="e-go" data-go><span class="spin"></span>Go</button>' +
+    '<button class="btn pri ok" id="e-tick"><i class="pub-tick"></i></button>';
+  document.body.appendChild(d); })()"""
+PRIMARY = ("#b2", "#b3", "#b4")
+RULES = (FOLDER / "rules.css").read_text(encoding="utf-8")
+BLOCK = RULES[RULES.index("/* Row 1319, primary buttons"):]
+
+
+class PrimaryPill(Computed):
+    def classic(self, cdp, w, scheme, html):
+        sid = self.load(cdp, w, scheme, html)
+        cdp.js(EXTRA, sid)
+        return sid
+
+    def test_each_primary_selector_is_the_aqua_pill_at_each_width_in_light_and_dark(self):
+        html = page.page_html(branding=page.NO_BRAND, theme=NAME)
+        want = {"borderTopWidth": "0px", "borderRadius": "999px", "paddingLeft": "22px", "paddingRight": "22px", "minHeight": "38px",
+                "fontWeight": "800", "letterSpacing": "0.56px", "backgroundColor": "rgb(56, 224, 238)",
+                "backgroundImage": "linear-gradient(90deg, rgb(143, 242, 239), rgb(56, 224, 238))", "color": "rgb(4, 34, 42)",
+                "boxShadow": "rgba(56, 224, 238, 0.35) 0px 0px 30px 0px"}
+        with chrome() as cdp:
+            for scheme in ("light", "dark"):
+                for w in SIZES:
+                    sid = self.classic(cdp, w, scheme, html)
+                    tag = f"{scheme} {w}"
+                    for sel in PRIMARY:
+                        for prop, val in want.items():
+                            self.assertEqual(self.style(cdp, sid, sel, prop), val, f"{tag} {sel} {prop}")
+                        cdp.js("document.querySelector(%r).focus()" % sel, sid)
+                        self.assertEqual(self.style(cdp, sid, sel, "outlineColor"), "rgb(91, 71, 216)", f"{tag} {sel}")
+                        self.assertEqual(self.style(cdp, sid, sel, "outlineStyle"), "solid", f"{tag} {sel}")
+                        self.assertEqual(self.style(cdp, sid, sel, "outlineWidth"), "2px", f"{tag} {sel}")
+                        self.assertEqual(self.style(cdp, sid, sel, "outlineOffset"), "2px", f"{tag} {sel}")
+                    # the plain button keeps its 8px corner
+                    self.assertEqual(self.style(cdp, sid, "#b1", "borderRadius"), "8px", tag)
+                    self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), tag)
+
+    def test_disabled_finished_spinner_and_tick(self):
+        html = page.page_html(branding=page.NO_BRAND, theme=NAME)
+        green = {"light": "rgb(0, 107, 94)", "dark": "rgb(79, 209, 189)"}
+        with chrome() as cdp:
+            for scheme in ("light", "dark"):
+                for w in SIZES:
+                    sid = self.classic(cdp, w, scheme, html)
+                    tag = f"{scheme} {w}"
+                    self.assertEqual(self.style(cdp, sid, "#e-off", "opacity"), "0.55", tag)
+                    self.assertEqual(self.style(cdp, sid, "#e-aoff", "opacity"), "0.55", tag)
+                    self.assertEqual(self.style(cdp, sid, "#e-ok", "backgroundColor"), green[scheme], tag)
+                    self.assertEqual(self.style(cdp, sid, "#e-ok", "backgroundImage"), "none", tag)
+                    self.assertEqual(self.style(cdp, sid, "#e-ok", "color"), "rgb(255, 255, 255)", tag)
+                    self.assertEqual(self.style(cdp, sid, "#e-ok", "borderRadius"), "999px", tag)
+                    self.assertEqual(self.style(cdp, sid, "#e-go .spin", "borderTopColor"), "rgb(4, 34, 42)", tag)
+                    self.assertEqual(self.style(cdp, sid, "#e-tick .pub-tick", "backgroundColor"), "rgb(255, 255, 255)", tag)
+                    self.assertEqual(self.style(cdp, sid, "#e-tick .pub-tick", "color"), green[scheme], tag)
+
+    def test_text_contrast_on_both_gradient_stops_and_the_ring(self):
+        for stop in ((143, 242, 239), (56, 224, 238)):
+            self.assertGreaterEqual(ratio((4, 34, 42), stop), 10, stop)
+        self.assertGreaterEqual(ratio((91, 71, 216), (246, 248, 252)), 5.9)
+        self.assertGreaterEqual(ratio((255, 255, 255), (0, 107, 94)), 6.4)
+
+    def test_reduced_motion_has_no_transform_or_transition(self):
+        html = page.page_html(branding=page.NO_BRAND, theme=NAME)
+        with chrome() as cdp:
+            sid = self.classic(cdp, 1400, "light", html)
+            cdp.js("document.documentElement.setAttribute('data-motion', 'reduce')", sid)
+            for sel in PRIMARY:
+                self.assertEqual(self.style(cdp, sid, sel, "transform"), "none", sel)
+                self.assertEqual(self.style(cdp, sid, sel, "transitionDuration"), "0s", sel)
+            cdp.js("document.documentElement.removeAttribute('data-motion')", sid)
+            self.assertNotEqual(self.style(cdp, sid, "#b2", "transitionDuration"), "0s")
+
+    def test_hover_and_press_are_pinned_in_the_source(self):
+        sels = (".again", ".btn.primary", ".btn.pri")
+        guard = ':root:not([data-motion="reduce"]) '
+        hover = ", ".join(guard + s + (":hover:not(:disabled)" if s == ".btn.pri" else ":hover") for s in sels) + " { transform: translateY(-1px); }"
+        press = ", ".join(guard + s + (":active:not(:disabled)" if s == ".btn.pri" else ":active") for s in sels) + " { transform: translateY(1px); }"
+        glow = ".again:hover, .btn.primary:hover, .btn.pri:hover:not(:disabled) { box-shadow: 0 0 44px rgba(56, 224, 238, .55); }"
+        calm = ':root[data-motion="reduce"] .again, :root[data-motion="reduce"] .btn.primary, :root[data-motion="reduce"] .btn.pri { transition: none; transform: none; }'
+        lines = BLOCK.split("\n")
+        for want in (hover, press, glow, calm):
+            self.assertIn(want, lines)
+        # no transform outside the motion guard
+        for l in lines[1:]:
+            if "transform:" in l and "transform: none" not in l:
+                self.assertTrue(l.startswith(guard), l)
+
+    def test_block_is_separate_and_the_8px_line_no_longer_names_the_primaries(self):
+        self.assertIn(".btn, .seg { border-radius: var(--radius); }", RULES)
+        self.assertNotIn(".again, .btn.primary, .btn.pri { border-radius: var(--radius)", RULES)
+        self.assertEqual(len(re.findall(r"^/\* Row 1319, primary buttons", RULES, re.M)), 1)
+        self.assertNotIn("var(--pill", BLOCK)
+
+    def test_cards_keeps_its_own_primary_buttons(self):
+        html = page.page_html(branding=page.NO_BRAND)
+        with chrome() as cdp:
+            for w in SIZES:
+                sid = self.classic(cdp, w, "light", html)
+                for sel in PRIMARY:
+                    self.assertEqual(self.style(cdp, sid, sel, "borderRadius"), "999px", f"{w} {sel}")
+                self.assertEqual(self.style(cdp, sid, "#b1", "borderRadius"), "999px", w)
+                self.assertEqual(self.style(cdp, sid, "#e-ok", "color"), "rgb(255, 255, 255)", w)
+                self.assertEqual(self.style(cdp, sid, "#e-go .spin", "borderTopColor"), "rgb(4, 34, 42)", w)
+
+    def test_cards_page_has_none_of_the_block(self):
+        self.assertNotIn("color: #04222A; box-shadow: 0 0 30px", page.page_html(branding=page.NO_BRAND))
+        self.assertIn("color: #04222A; box-shadow: 0 0 30px", theme.css(NAME))
+
+
+if __name__ == "__main__":
+    unittest.main()
