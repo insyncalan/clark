@@ -8,6 +8,7 @@ A result over MAX_RESULT characters is refused; once MAX_TOTAL is used up, furth
 used_line(): names what was used and what was not, and keeps no connector content. Provenance: `mark(text)` returns a Sourced value
 that carries the flag `from_connector`, so a text that came from a connector can be told apart wherever it travels.
 """
+import re
 import unicodedata
 from dataclasses import dataclass, field
 
@@ -31,12 +32,27 @@ OK, REFUSED_HIDDEN, REFUSED_SIZE, REFUSED_TOTAL, REFUSED_TOOL, REFUSED_OFF = (
 
 _KEEP = frozenset("\n\t")
 
+# Characters that show nothing but are not Cc/Cf: variation selectors, combining grapheme joiner, Hangul fillers, blank braille,
+# Mongolian free variation selectors and vowel separator, Khmer inherent vowels, halfwidth Hangul filler, object replacement.
+_INVISIBLE = frozenset(
+    [0x034F, 0x115F, 0x1160, 0x17B4, 0x17B5, 0x2800, 0x3164, 0xFFA0, 0xFFFC]
+    + list(range(0x180B, 0x1810)) + list(range(0xFE00, 0xFE10)) + list(range(0xE0100, 0xE01F0)))
+
+_SEG = r"[A-Za-z0-9-]+(?:_[A-Za-z0-9-]+)*"
+_MCP_TOOL = re.compile(r"mcp__(" + _SEG + r")__(" + _SEG + r")")
+
 
 def part_of_tool(tool):
-    """The connector part a tool name belongs to (an exact match, a prefix like mcp__server__ is dropped), or None."""
+    """The connector part a tool name belongs to (an exact match; only an mcp__<server>__ prefix is dropped), or None."""
     if not isinstance(tool, str):
         return None
-    name = tool.rsplit("__", 1)[-1]
+    if "__" in tool:
+        m = _MCP_TOOL.fullmatch(tool)         # only mcp__<server>__<tool> may carry a prefix
+        if not m:
+            return None
+        name = m.group(2)
+    else:
+        name = tool
     for part, names in ALLOWED_TOOLS.items():
         if name in names:
             return part
@@ -52,7 +68,8 @@ def tool_allowed(tool, on_parts=None):
 def hidden_count(text):
     """How many hidden or invisible characters `text` holds: Cc, Cf, Cs, Co, Cn, Zl, Zp except newline and tab (this covers
     zero-width, bidi controls and tag characters)."""
-    return sum(1 for ch in text if ch not in _KEEP and unicodedata.category(ch) in ("Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp"))
+    return sum(1 for ch in text if ch not in _KEEP
+               and (ord(ch) in _INVISIBLE or unicodedata.category(ch) in ("Cc", "Cf", "Cs", "Co", "Cn", "Zl", "Zp")))
 
 
 @dataclass(frozen=True)
