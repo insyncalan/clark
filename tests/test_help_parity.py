@@ -200,10 +200,9 @@ class MovementEntries(unittest.TestCase):
         text = " ".join(strings(entry("howto", "handle-a-slipped-milestone")))
         for name in re.findall(r"\*\*(.+?)\*\*", text):
             base = re.sub(r"\s*\(.*?\)\s*$", "", name)
-            if base == "Plan":      # row 1329: the page has no Plan | Movement switch any more; the help entry's words are for a ruling
-                continue
-            elif base not in ("Milestones", "Undo"):
+            if base not in ("Milestones", "Undo"):
                 self.assertIn(base, self.WORDS + self.BLOCK, name)
+        self.assertNotIn("**Plan**", text)  # row 1329: no Plan | Movement switch on the page
         for gone in ("Rebaseline", "Add a recovery action", "Escalate to steering", "Internal note", "diamond", "red line"):
             self.assertNotIn(gone, text, f"the page has no {gone}")
 
@@ -212,6 +211,38 @@ class MovementEntries(unittest.TestCase):
         self.assertIn("never published", self.WORDS)
         ref = json.dumps(entry("ref", "milestones-page"), ensure_ascii=False)
         self.assertNotIn("switch next to **Plan**", ref)  # row 1329
+
+    def test_no_help_line_names_a_movement_switch_or_plan_tile(self):
+        """Row 1329: the page has no Plan | Movement switch; no Help text in any file says so, or points at it."""
+        raw = (SRC / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
+        for gone in ("Movement switch", "switch next to", "next to **Plan**", "**Plan** shows", "**Movement** shows",
+                     "press **Movement**", "use the **Movement**", "use **Movement**", "**Movement** is the switch"):
+            self.assertNotIn(gone, raw, gone)
+        every = json.dumps(SHOWN, ensure_ascii=False)
+        for gone in ("Movement switch", "switch next to", "**Plan** shows", "press **Movement**", "use the **Movement**"):
+            self.assertNotIn(gone, every, gone)
+
+    def test_the_milestones_tile_and_screen_lines_have_no_movement(self):
+        content = json.loads((SRC / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8"))
+        tiles, screens = [], []
+
+        def walk(x):
+            if isinstance(x, dict):
+                if x.get("page") == "milestones" and "s" in x:
+                    screens.append(x)
+                for v in x.values():
+                    walk(v)
+            elif isinstance(x, list):
+                if len(x) == 3 and x[0] == "Milestones" and x[2] == "milestones" and isinstance(x[1], str):
+                    tiles.append(x)
+                for v in x:
+                    walk(v)
+        walk(content)
+        self.assertEqual(len(tiles), 1)
+        self.assertEqual(len(screens), 1)
+        for text in (tiles[0][1], " ".join(screens[0]["s"])):
+            self.assertNotIn("Movement", text)
+            self.assertNotIn("**Plan**", text)
 
     def test_the_rows_keys_are_the_arrows(self):
         self.assertIn("ArrowDown", self.BLOCK)
