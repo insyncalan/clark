@@ -15,6 +15,7 @@ TOKENS = (FOLDER / "tokens.css").read_text(encoding="utf-8")
 RULES = (FOLDER / "rules.css").read_text(encoding="utf-8")
 NAME = re.compile(r"(--[a-z0-9-]+)\s*:")
 DECL = re.compile(r"(--[a-z0-9-]+)\s*:\s*([^;]+);")
+SHELL_DECLARED = {"--sec-pad-t", "--sec-px"}      # row 1195: set by shell.css (the section padding), read by the Work items gear rule
 THEME_ONLY = {"--sec-band-bg"}      # row 1311: set and read by this Theme alone; declaring it in the committed file would change the Cards page bytes
 NEW_NINE = {"--page-bg", "--page-grad", "--band-bg", "--line-soft", "--gutter-rule", "--sec-number-color", "--sec-number-size", "--logo-width", "--logo-height"}
 
@@ -55,10 +56,11 @@ class ThemePrototype(unittest.TestCase):
         self.assertTrue((FOLDER / "rules.css").is_file())
 
     def test_it_sets_only_names_the_committed_tokens_declare(self):
-        declared = set(NAME.findall(BASE)) | NEW_NINE | THEME_ONLY      # the nine are declared by the sibling row 1260 tokens PR
+        declared = set(NAME.findall(BASE)) | NEW_NINE | SHELL_DECLARED | THEME_ONLY      # the nine are declared by the sibling row 1260 tokens PR
         self.assertEqual(sorted(set(NAME.findall(TOKENS)) - declared), [], "a Theme sets existing names only")
         used = set(re.findall(r"var\((--[a-z0-9-]+)", RULES))
-        self.assertEqual(sorted(used - declared), [], "rules.css reads declared names only")
+        own = set(re.findall(r"(--wil-[a-z0-9-]+)\s*:", RULES))      # row 1195: the Work items colours the mock-up measures, set and read by rules.css alone
+        self.assertEqual(sorted(used - declared - own), [], "rules.css reads declared names only")
 
     def test_the_two_dark_copies_are_equal(self):
         b = blocks(TOKENS)
@@ -71,7 +73,8 @@ class ThemePrototype(unittest.TestCase):
             self.assertTrue({"--page-bg", "--page-grad", "--band-bg", "--line-soft", "--gutter-rule"} <= got, mode)
 
     def test_rules_hold_no_colour_literals_and_no_client_text(self):
-        self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b", RULES), "colours come from tokens")
+        # the primary-buttons block carries three literals from the prototype (gradient start, dark text, ring): see its own comment and test_theme_primary_1319
+        self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b", RULES.split("/* Row 1319, primary buttons")[0]), "colours come from tokens")
         self.assertIsNone(re.search(r"/\*[^*]*#\d", RULES + TOKENS), "no hash-digit in a comment")
 
     def test_body_and_muted_text_reach_4_5_to_1_in_light_and_dark(self):
