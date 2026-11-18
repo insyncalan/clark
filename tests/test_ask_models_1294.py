@@ -97,6 +97,21 @@ class TestTheConnection(unittest.TestCase):
         self.assertEqual([(r["provider"], r["answered"], r["seconds"]) for r in b["results"]], [("claude", True, 2.5), ("chatgpt", True, 2.5)])
         self.assertEqual((self.claude.asked, self.chatgpt.asked), ([ac.RECOMMENDED["claude"]], [ac.RECOMMENDED["chatgpt"]]))
 
+    def test_each_result_is_named_and_the_question_and_log_line_are_the_approved_ones(self):
+        seen = []
+        real = self.claude.ask
+        self.claude.ask = lambda request, model=None, prefer=False: (seen.append(request.text), real(request, model, prefer))[1]
+        self.connect.connect({"provider": "chatgpt"})
+        with self.assertLogs("clark.ai_connect", "INFO") as logged:
+            _, b = self.connect.test({}, clock=Clock())
+        self.assertEqual([r["label"] for r in b["results"]], ["Claude", "ChatGPT"])
+        self.assertEqual(seen, ["Reply with the one word ready."])
+        self.assertIn("ai: claude tested, answered", "\n".join(logged.output))
+        self.claude.ask = lambda request, model=None, prefer=False: ask.Failure("no")
+        with self.assertLogs("clark.ai_connect", "INFO") as logged:
+            self.connect.test({}, clock=Clock())
+        self.assertIn("ai: claude tested, no answer", "\n".join(logged.output))
+
     def test_a_model_that_is_off_is_not_asked(self):
         status, b = self.connect.test({}, clock=Clock())
         self.assertEqual([r["provider"] for r in b["results"]], ["claude"])
@@ -149,7 +164,7 @@ class OnThePage(unittest.TestCase):
         self.addCleanup(self.s.close)
         self.d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
         self.addCleanup(shutil.rmtree, self.d, True)
-        self.claude, self.chatgpt = FakeClaude(), Hold(FakeChatGPT())
+        self.claude, self.chatgpt = Hold(FakeClaude()), Hold(FakeChatGPT())
         self.s.httpd.ai_connect = ac.AiConnect(self.d, self.claude, self.chatgpt)
 
     def show(self, cdp, width):
@@ -200,6 +215,43 @@ class OnThePage(unittest.TestCase):
             self.assertTrue(wait(lambda: re.fullmatch(r"Claude answered in \d+(\.\d)? seconds\.", js("document.querySelector('[data-ai-test-out]').innerText") or ""), 15))
             self.assertNotIn("ChatGPT", js("document.querySelector('[data-ai-test-out]').innerText"), "a model that is off is not tested")
             self.assertIsNone(MONEY.search(js("document.querySelector('#ai-settings').innerText")))
+
+    def test_test_the_connection_waits_says_testing_and_with_nothing_on_stays_disabled_and_does_nothing(self):
+        with chrome() as cdp:
+            js = self.show(cdp, 1400)
+            out = "document.querySelector('[data-ai-test-out]')"
+            self.assertIsNone(js("document.querySelector('[data-ai-test]').getAttribute('aria-disabled')"))
+            self.claude.go.clear()
+            self.claude.hold = True
+            js("document.querySelector('[data-ai-test]').click()")
+            self.assertTrue(wait(lambda: js(out + ".innerText") == "Testing…", 10))
+            self.claude.hold = False
+            self.claude.go.set()
+            self.assertTrue(wait(lambda: "answered in" in js(out + ".innerText"), 15))
+            self.assertEqual(js(out + ".getAttribute('role')"), "status")
+            self.assertFalse(js("!!" + out + ".querySelector('.bad')"))
+            js("document.querySelector('[data-ai-connect=chatgpt]').click()")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ai-disconnect=chatgpt]')"), 10))
+            self.assertEqual(js(out + ".innerText"), "", "turning a model on or off clears the last test")
+            for who in ("chatgpt", "claude"):
+                js(f"document.querySelector('[data-ai-disconnect={who}]').click()")
+                self.assertTrue(wait(lambda: js(f"!!document.querySelector('[data-ai-connect={who}]')"), 10))
+            self.assertEqual(js("document.querySelector('[data-ai-test]').getAttribute('aria-disabled')"), "true")
+            js("document.querySelector('[data-ai-test]').click()")
+            self.assertEqual(js(out + ".innerText"), "", "with nothing on the button does nothing")
+
+    def test_test_the_connection_says_the_servers_words_when_it_is_refused_and_when_a_model_cannot_answer(self):
+        with chrome() as cdp:
+            js = self.show(cdp, 1400)
+            out = "document.querySelector('[data-ai-test-out]')"
+            self.claude.inner.ask = lambda request, model=None, prefer=False: ask.Failure("Claude could not answer just now.")
+            js("document.querySelector('[data-ai-test]').click()")
+            self.assertTrue(wait(lambda: js(out + ".innerText") == "Claude: Claude could not answer just now.", 15))
+            self.s.httpd.ai_connect.disconnect({"provider": "claude"})       # the server now has nothing on, the page does not know
+            js("document.querySelector('[data-ai-test]').click()")
+            self.assertTrue(wait(lambda: js(out + ".innerText") == ac.TEST_NOTHING, 15))
+            self.assertEqual(js(out + ".getAttribute('role')"), "alert")
+            self.assertTrue(js("!!" + out + ".querySelector('p.bad')"))
 
 
 if __name__ == "__main__":
