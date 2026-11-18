@@ -1,5 +1,5 @@
 """Row 1317 in the Classic Theme, on the REAL Settings page (the committed page from the real server, demo database, fictional data), as Chrome computes
-it at 1400 and 900 px, light and dark; the same elements under Cards as the control. Listed in issue 1317 (Classic re-audit, Wanda 18-11): the sidebar is a
+it at 1400 and 900 px, light and dark; the same elements under Cards as the control. Listed in issue 1317 (Classic re-audit, 18-11): the sidebar is a
 grey panel with sentence-case group names and a tinted bar for the open page, the Settings cards have radius 14 and no shadow, the Projects table header is
 bold and sentence case without the divider line, and Add project is a filled blue button with its plus and its word always visible.
 
