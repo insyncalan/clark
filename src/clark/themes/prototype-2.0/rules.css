@@ -13,6 +13,12 @@ body { background: var(--page-bg) var(--page-grad) fixed no-repeat; }
 .col-h { background: var(--band-bg); }
 .boardbox { scrollbar-width: none; }
 .boardbox::-webkit-scrollbar { display: none; }
+.fline { border: 0; border-bottom: 1px solid var(--grey-200); border-radius: 0; background: none; padding-left: 0; padding-right: 0; }
+.fline-tail { margin-right: 0; }
+.vicons .lsw, .vicons .btn.sm.vgb { border-radius: var(--radius-sm); }
+.vicons .lsw button[aria-pressed="true"] { background-color: var(--grey-100); background-image: none; color: var(--heading); }
+.vicons .lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
+table.items thead th + th, .wil-table thead th + th { border-left: 1px solid var(--grey-200); }
 html[data-mode="view"] .cover { display: none; }
 html[data-mode="view"] .sec { border-left: 2px solid var(--gutter-rule); padding-left: 20px; }
 @media print { html[data-mode="view"] .sec { border-left: 0; padding-left: 0; } }
@@ -215,3 +221,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 #usecases .ucl-box .ucl-st .cchip { padding: 2px 9px; border: 1px solid var(--grey-300); border-radius: var(--radius-pill); background: transparent; color: var(--text-muted); font-size: var(--size-small); font-weight: var(--weight-regular); }
 /* Row 1316c (issue 1316, Classic only): the Use cases Next steps count is plain text, not a round badge (prototype "1 next step"; by eye, the prototype files are not on this box). Rebrand only. */
 #usecases .ucsteps .ucn-b { min-width: 0; min-height: 0; padding: 0; margin-right: 0; border-radius: 0; background: none; color: inherit; font-size: inherit; font-weight: inherit; line-height: inherit; }
+/* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
+.fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
+@media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
+.fline.bad, .fline.bad:focus-within { border-bottom-color: var(--status-red); box-shadow: 0 1px 0 var(--status-red); }
