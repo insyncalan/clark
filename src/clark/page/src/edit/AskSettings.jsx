@@ -149,7 +149,7 @@ function AskProject() {
       <div class="pub-msg" role={msg && msg.kind === "error" ? "alert" : "status"} aria-live="polite">{msg && msg.text ? <p class={msg.kind}>{msg.text}</p> : null}</div>
     </section>
     <section class="frame setting" id="ask-used-all">
-      <h3>Used from All projects</h3>
+      <h2>Used from All projects</h2>
       <p class="muted">{USED_FROM_ALL}</p>
       <div class="row"><button type="button" class="btn" data-ask-goall onClick={() => showAskTab(ALL)}>Change</button></div>
     </section>
