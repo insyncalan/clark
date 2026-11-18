@@ -251,15 +251,14 @@ class Draft(Panel):
             time.sleep(0.3)
             self.assertTrue(p.js("document.querySelector('#ask-draft') === null"))
 
-    def test_leaving_the_page_closes_the_draft(self):
+    def test_leaving_the_page_keeps_the_panel_and_the_draft(self):
+        """Row 1292 slice 1: a change of page no longer closes the panel or drops the chat, so the Draft beside it stays too."""
         with chrome() as cdp:
             p = self.drafted(cdp)
             p.js("location.hash = '#settings&p=ABC'")
-            p.until("document.querySelector('#ask-panel') === null", "leaving the page closed the panel")
-            p.key("/", code="Slash", vk=191)
-            p.until("!!document.querySelector('#ask-panel')", "opened again")
-            time.sleep(0.3)
-            self.assertTrue(p.js("document.querySelector('#ask-draft') === null"))
+            time.sleep(0.5)
+            self.assertTrue(p.js("!!document.querySelector('#ask-panel')"), "the panel stays open")
+            self.assertTrue(p.js("!!document.querySelector('#ask-draft')"), "the Draft stays beside it")
 
 
 for _n in dir(Panel):      # the panel's own tests are not run again here (they use the plain stub)
