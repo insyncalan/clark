@@ -1,4 +1,4 @@
-"""Row 1325 KILLERS: killers written first, red on main: the Use cases page redesigned to the approved mock-up (clark-plan mockups/1325-use-cases-template/approved.html).
+"""Row 1325 KILLERS: killers written first, red on main: the Use cases page redesigned to the approved mock-up (mockups/1325-use-cases-template/approved.html on the planning board).
 
 Run: python3 dev/run_tests.py test_use_cases_redesign_1325
 Chrome required (fails, never skips). 1400 and 900 px, light mode, under Cards (shell.css) and under Classic (the prototype-2.0 theme layer):
