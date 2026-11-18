@@ -291,7 +291,7 @@ class Modes(Base):
             # in View, the four text sections (A-D4: the saved text, or "Nothing recorded.") are drawn; every type still not
             # drawn says the one plain line
             # #74: Supporting documents draws its own list (and is left out of View while it has no document), so it is not one of these
-            sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases', 'text', 'current', 'docs', 'workitems'].includes(s.dataset.type))"      # row 1193-8: a Work items list has its own tests (test_tpl_workitems)
+            sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases', 'text', 'current', 'docs', 'workitems'].includes(s.dataset.type))"      # rows 1193-8 to 10: a Work items list has its own tests (test_tpl_workitems)
             texts = "[...document.querySelectorAll('.secs > .sec')].filter(s => ['text', 'current'].includes(s.dataset.type)).map(s => s.querySelector('.quiet, .sec-body').textContent)"
             self.assertEqual(p.js(texts), ["Nothing recorded."] * 3, "View: a text section with nothing saved says so in plain words, the four default ones too: their guiding lines are the editor's hint, never a body (items 1188, 1193)")
             quiet = sec + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet, [data-nothing]').textContent)"
@@ -306,7 +306,7 @@ class Modes(Base):
                 self.assertEqual(len([f for f in found if what in f]), 10, what)        # a title for each section; the three seeded rows have no client wording to edit
             sec_other = sec + ".filter(s => !['raid', 'actions', 'decisions'].includes(s.dataset.type))"
             self.assertEqual(p.js(sec_other + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet').textContent)"), [w for w in want if w.split(':')[0] not in ('raid', 'actions', 'decisions')], "Edit: the same line")
-            self.assertEqual(p.js(sec + ".filter(s => ['raid', 'actions', 'decisions'].includes(s.dataset.type)).map(s => !!s.querySelector('[data-showing]'))"), [True] * 2, "Edit: the two built-in row sections say Showing N of M instead (A-D5; row 1193-8: Risks and issues is a Work items list)")
+            self.assertEqual(p.js(sec + ".filter(s => ['raid', 'actions', 'decisions'].includes(s.dataset.type)).map(s => !!s.querySelector('[data-showing]'))"), [], "Edit: no built-in row section is a default now (A-D5; rows 1193-8 to 10: Risks, actions and decisions are Work items lists)")
             self.assertEqual(p.js(texts), [SECTION_HINTS[t] for t in ("Current state", "This week", "Next week")], "Edit: the four text sections are empty and each shows its guiding line as the editor's hint (items 1188, 1193)")
             self.assertNotIn("is not shown", p.js("document.querySelector('main').textContent"))
             p.view()
@@ -454,7 +454,7 @@ class Sections(Base):
             self.assertEqual(self.sent[-1][1]["changes"], {"hidden": 1}, "0 or 1, never true")
             self.assertEqual(p.toast(), "Section left out of the published page.")
             p.view()
-            self.assertEqual(p.ids(), [i for i in IDS if i not in ("ABC-S-002", "ABC-S-007", "ABC-S-010")], "gone in View (#74: so is Supporting documents, with no document; row 1193-8: so is the Risks and issues list, with no row to show)")
+            self.assertEqual(p.ids(), [i for i in IDS if i not in ("ABC-S-002", "ABC-S-007", "ABC-S-008", "ABC-S-009", "ABC-S-010")], "gone in View (#74: so is Supporting documents, with no document; rows 1193-8 to 10: so are the three lists, with no row to show)")
             self.assertNotIn("At a glance", p.js("document.querySelector('main').innerText"))
             p.edit()
             p.clear_toast()
@@ -1557,7 +1557,7 @@ class Published(unittest.TestCase):
         store = demo.store
         sections = order.in_order(store.read("report_sections", "ABC"))
         kinds = {s["type"] for s in sections}
-        self.assertTrue({"glance", "usecases", "milestones", "text", "workitems", "actions", "decisions", "docs"} <= kinds,
+        self.assertTrue({"glance", "usecases", "milestones", "text", "workitems", "docs"} <= kinds,
                         kinds)
         with store.step("dashboard", USER) as st:
             for s in sections:

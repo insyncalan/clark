@@ -941,12 +941,12 @@ class OlderProject(Api):
         return self.ok(op, project=self.code, **more)
 
     def test_each_first_change_seeds_the_defaults_in_its_own_step_and_undo_takes_back_only_the_change_and_the_seed_stays(self):
-        defaults = [s["title"] for s in default_sections.DEFAULT_SECTIONS if s["type"] not in ("docs", "workitems")]    # publish leaves "docs" out; row 1193-8: and the Risks and issues list, which has no items in a project with no risks
+        defaults = [s["title"] for s in default_sections.DEFAULT_SECTIONS if s["type"] not in ("docs", "workitems")]    # publish leaves "docs" out, and a Work items list with nothing to show (rows 8, 9 and 10 of item 1193: Risks and issues, Open actions and Decisions)
         no_this_week = [t for t in defaults if t != "This week"]
         cases = (                                   # op, what it asks (S-005 is This week, S-008 Open actions), sections and published after
             ("new", {"values": {"title": "Only me"}}, 11, defaults + ["Only me"]),
             ("update", {"id": "S-005", "changes": {"title": "Renamed"}}, 10, ["Renamed" if t == "This week" else t for t in defaults]),
-            ("move", {"id": "S-008", "before": "S-002"}, 10, defaults[:1] + ["Open actions"] + defaults[1:6] + defaults[7:]),
+            ("move", {"id": "S-008", "before": "S-002"}, 10, defaults),      # rows 1193-8 and 9: Risks and issues and Open actions are lists with nothing to show, left out of the file wherever it sits
             ("update", {"id": "S-005", "changes": {"hidden": 1}}, 10, no_this_week),
             ("update", {"id": "S-006", "changes": {"beside": 1}}, 10, defaults),
             ("delete", {"id": "S-005"}, 9, no_this_week),

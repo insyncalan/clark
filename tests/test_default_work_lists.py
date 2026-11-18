@@ -7,6 +7,7 @@ the server's checker accepts as it is, and the server's matcher lists exactly th
 
 Run: python3 dev/run_tests.py test_default_work_lists
 """
+import json
 import re
 import unittest
 
@@ -62,10 +63,13 @@ class DefaultWorkLists(unittest.TestCase):
     def test_the_built_ins_stay_the_defaults_until_the_lists_print_everywhere(self):
         types = [s["type"] for s in default_sections.DEFAULT_SECTIONS]
         for view, (builtin, _) in DEFAULT_VIEWS.items():
-            if view == "risks-issues":
-                continue                                            # row 8 of item 1193: Risks and issues is a Work items list now (test_default_risks_list_1193)
+            if view in ("risks-issues", "actions", "decisions"):
+                continue                                            # rows 8, 9 and 10 of item 1193: Risks and issues, Open actions and Decisions are Work items lists now (tests below)
             self.assertIn(builtin, types, "%s is no longer a default: update tests/test_dashboard_template_built.py PENDING and this file together" % builtin)
-        self.assertEqual(types.count("workitems"), 1, "only the Risks and issues list is a default list so far (rows 9 and 10 are not built)")
+        self.assertEqual(types.count("workitems"), 3, "the Risks and issues, Open actions and Decisions lists are the default lists")
+        by_title = {x["title"]: x for x in default_sections.DEFAULT_SECTIONS}
+        for title in ("Risks and issues", "Open actions", "Decisions"):
+            self.assertEqual(by_title[title]["type"], "workitems", title)      # rows 1193-8, 9 and 10
 
 
 if __name__ == "__main__":
