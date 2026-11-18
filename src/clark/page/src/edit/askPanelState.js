@@ -1,8 +1,8 @@
-// The ask panel's state and keys (#47a). Edit pages only. "/" outside a field (or Ctrl or Cmd + J anywhere) opens it (not while a peek is open); Esc or a click outside closes it and puts
+// The ask panel's state and keys (#47a). Edit pages only. "/" outside a field (or Ctrl or Cmd + J anywhere) opens it (not while a peek is open); Esc, Close or the ask button closes it (a click outside does not) and puts
 // focus back; the width is remembered in this browser (a convenience only). Nothing is sent while asking is off: the status route
 // is asked when the panel opens, and until it answers (or when it cannot) the panel reads as off.
-import { signal, effect } from "@preact/signals";
-import { view, project, peek } from "../stores/report.js";
+import { signal } from "@preact/signals";
+import { peek } from "../stores/report.js";
 import { helpOpen } from "../help/helpStore.js";
 import { singleKeys } from "../stores/keyPrefs.js";
 import { askOn, askProvider } from "./askState.js";
@@ -25,7 +25,8 @@ export const queue = signal([]);                       // row 1220: messages typ
 export const queueHeld = signal("");                   // row 1220: "" (the queue goes on by itself), "stopped" or "failed" (it waits for Send them or Clear)
 export const queueDrop = signal(0);                    // row 1220: the number of waiting messages the person has been told would be dropped
 export const QUEUE_MAX = 5;
-export const chatEpoch = signal(0);                    // row 1119: bumped when leaving the page drops the chat, so an answer still out is not added to the next one
+export const answersReady = signal(0);                 // #1292: answers that landed while the panel was closed; cleared when it opens
+export const chatEpoch = signal(0);                    // row 1119: kept for a chat that is dropped while an answer is out; #1292: leaving a page or project no longer bumps it
 
 function room() { return Math.max(MIN, Math.floor(document.documentElement.clientWidth * 0.9)); }     // clientWidth: never the scrollbar's width
 
@@ -95,6 +96,7 @@ export function openPanel() {
   const a = document.activeElement;
   opener = a && a !== document.body && a !== document.documentElement ? a : null;
   panelOpen.value = true;
+  answersReady.value = 0;
   panelState.value = "checking";           // reads as checking until the server has answered; no off or signed-out line and nothing is sent meanwhile
   readStatus();
 }
@@ -155,14 +157,5 @@ export function installAskKeys() {
     // An open peek, or a use case open in Edit (it has the words box), keeps "/" for its own two slashes (the words box); the ask button still opens the panel there.
     if (e.key === "/" && singleKeys.value && !e.defaultPrevented && !typing(e.target) && !otherLayer() && !helpOpen.value && !peek.value && !document.querySelector("[data-ucd] .ucd-acts")) { e.preventDefault(); openPanel(); }
   }, true);
-  document.addEventListener("mousedown", (e) => {
-    if (!panelOpen.value) return;
-    const p = document.getElementById("ask-panel");
-    if (p && !p.contains(e.target) && !(e.target.closest && e.target.closest("#ask-btn"))) closePanel();     // the ask button closes it itself
-  }, true);
-  let seen = view.value + "|" + project.value;
-  effect(() => {
-    const now = view.value + "|" + project.value;
-    if (now !== seen) { seen = now; chatEpoch.value++; setQueue([]); turns.value = []; chatId.value = null; histOpen.value = false; if (panelOpen.value) { panelOpen.value = false; opener = null; } }
-  });
+  // #1292 slice 1: a click outside, a change of page or of project no longer closes the panel or drops the chat; only Close, Esc or the ask button close it, and none of them stops an answer.
 }
