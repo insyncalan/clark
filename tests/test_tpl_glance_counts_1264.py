@@ -95,8 +95,10 @@ class Absent(unittest.TestCase):                                                
         self.assertEqual(sorted(counts(pub(given=given))), ["decisions", "overdue"])
 
     def test_t31_no_rows_and_no_own_tile_is_no_section(self):
-        self.assertIsNone(pub(given={}))
-        self.assertIsNone(pub(given={"actions": [], "raid": [], "decisions": []}))
+        off = {"v": 1, "health": {"shown": False}}      # the health eye on still prints its row (ruled 17-11), so the eye is off here
+        self.assertIsNone(pub(off, given={}))
+        self.assertIsNone(pub(off, given={"actions": [], "raid": [], "decisions": []}))
+        self.assertNotIn("counts", pub(given={})["content"])      # health on, no rows: the health row only
 
     def test_t32_the_eye_off_on_a_built_in_tile_leaves_it_out_and_names_nothing_of_it(self):
         out = pub({"v": 1, "builtin": {"overdue": {"hidden": True}}})
@@ -105,14 +107,17 @@ class Absent(unittest.TestCase):                                                
 
     def test_t33_all_three_eyes_off_is_no_count_and_no_section_without_own_tiles(self):
         off = {n: {"hidden": True} for n in gt.SETTLED}
-        self.assertIsNone(pub({"v": 1, "builtin": off}))
+        self.assertIsNone(pub({"v": 1, "health": {"shown": False}, "builtin": off}))
+        self.assertNotIn("counts", pub({"v": 1, "builtin": off})["content"])      # health on: the health row only
         out = pub({"v": 1, "builtin": off, "bespoke": [{"id": "t1", "label": "Own"}]})
         self.assertNotIn("counts", out["content"])
 
     def test_t34_a_bad_or_missing_day_counts_nothing_and_does_not_fail(self):
-        self.assertIsNone(pub(as_at=None))
-        self.assertIsNone(pub(as_at=""))
-        self.assertIsNone(gt.published({"v": 1}, None))
+        off = {"v": 1, "health": {"shown": False}}
+        self.assertIsNone(pub(off, as_at=None))
+        self.assertIsNone(pub(off, as_at=""))
+        self.assertIsNone(gt.published(off, None))
+        self.assertNotIn("counts", pub(as_at=None)["content"])
 
     def test_t35_own_tiles_and_counts_come_together(self):
         out = pub({"v": 1, "bespoke": [{"id": "t1", "label": "Own"}]})
