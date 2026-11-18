@@ -27,22 +27,22 @@ class AskRow(Base):
             p.show()
             p.find("pilot")
             rows = p.rows(True)
-            self.assertEqual([rows[-1][0], rows[-1][1]], ["Ask clark", "Ask “pilot” in ask clark"], "last when it does not read like a question")
+            self.assertEqual([rows[-1][0], rows[-1][1]], ["ask clark", "Ask “pilot” in ask clark"], "last when it does not read like a question")
             self.assertEqual(rows[0][0], "Milestone", "the search comes first")
             p.find("what is late?")
-            self.assertEqual(p.rows(True)[0][:2], ["Ask clark", "Ask “what is late?” in ask clark"], "first when it reads like a question")
+            self.assertEqual(p.rows(True)[0][:2], ["ask clark", "Ask “what is late?” in ask clark"], "first when it reads like a question")
             p.find("how do I publish")
-            self.assertEqual(p.rows(True)[0][0], "Ask clark", "a question word first also counts")
+            self.assertEqual(p.rows(True)[0][0], "ask clark", "a question word first also counts")
             p.find("Island")
-            self.assertEqual(p.rows(True)[-1][0], "Ask clark", "a word that only starts like a question word does not count")
+            self.assertEqual(p.rows(True)[-1][0], "ask clark", "a word that only starts like a question word does not count")
 
     def test_nothing_typed_has_no_row_and_nothing_found_still_offers_it(self):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.show()
-            self.assertFalse([r for r in p.rows(True) if r[0] == "Ask clark"], "no row without words")
+            self.assertFalse([r for r in p.rows(True) if r[0] == "ask clark"], "no row without words")
             p.find("zzqx")
-            self.assertEqual([r[:2] for r in p.rows(True)], [["Ask clark", "Ask “zzqx” in ask clark"]])
+            self.assertEqual([r[:2] for r in p.rows(True)], [["ask clark", "Ask “zzqx” in ask clark"]])
             self.assertEqual(p.active(), "Ask “zzqx” in ask clark", "it is the one Enter reaches")
 
     def test_enter_opens_the_panel_with_the_words_and_sends_nothing(self):
@@ -83,11 +83,11 @@ class AskRow(Base):
             p = self.visit(cdp)
             p.show()
             p.find("pilot live?")
-            self.assertEqual(p.rows(True)[0][0], "Ask clark", "a question mark at the end")
+            self.assertEqual(p.rows(True)[0][0], "ask clark", "a question mark at the end")
             p.find("What now")
-            self.assertEqual(p.rows(True)[0][0], "Ask clark", "a capital question word")
+            self.assertEqual(p.rows(True)[0][0], "ask clark", "a capital question word")
             p.find("pilot live")
-            self.assertEqual(p.rows(True)[-1][0], "Ask clark")
+            self.assertEqual(p.rows(True)[-1][0], "ask clark")
 
     def test_a_long_text_is_cut_in_the_row_and_handed_over_whole(self):
         long = "when is the pilot going live and who signs it off " * 3

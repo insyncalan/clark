@@ -84,7 +84,7 @@ export function askRow(query) {
   const q = String(query == null ? "" : query).trim();
   if (!q) return null;
   const shown = q.length > ASK_SHOWN ? q.slice(0, ASK_SHOWN - 1).trimEnd() + "…" : q;
-  return { id: "ask-row", kind: "Ask clark", label: `Ask “${shown}” in ${PANEL_TITLE}`, more: "", disabled: "", question: q, first: /\?$/.test(q) || QUESTION_WORDS.test(q), run: () => handOver(q, false) };
+  return { id: "ask-row", kind: PANEL_TITLE, label: `Ask “${shown}” in ${PANEL_TITLE}`, more: "", disabled: "", question: q, first: /\?$/.test(q) || QUESTION_WORDS.test(q), run: () => handOver(q, false) };
 }
 
 /** The results for `query`, in the order they are shown: pages, actions, projects, commands, then (when words are typed) the data right after the pages. */
