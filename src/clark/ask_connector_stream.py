@@ -44,6 +44,10 @@ def _text(content):
     return None
 
 
+def _prefixed(name):
+    return isinstance(name, str) and name.startswith("mcp__")
+
+
 def checked(out, on_parts):
     """(ok, used_line_text, result_bytes or None) for one connector run's stream output."""
     ok, line, result = inspect(out, on_parts)
@@ -68,6 +72,10 @@ def inspect(out, on_parts):
             for b in _blocks(ev):
                 if b.get("type") == "tool_result":
                     pairs.append((names.get(b.get("tool_use_id")), _text(b.get("content"))))
+    # The real stream names every tool mcp__<server>__<tool>: a bare name is never one of ours, so it is refused here (the screen alone accepts a
+    # bare name by its name, which only its own plain tests use).
+    pairs = [(n if _prefixed(n) else "", t) for n, t in pairs]
+    calls = [n if _prefixed(n) else "" for n in calls]
     verdicts = screen.screen_all(pairs, on_parts)
     verdicts += [screen.screen(name, "", 0, on_parts) for name in calls if name not in {p[0] for p in pairs}]
     line = screen.used_line(verdicts)

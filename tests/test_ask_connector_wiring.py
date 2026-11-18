@@ -275,6 +275,14 @@ class Screened(Run):
         self.out = stream(use("1", f"{P}__outlook_send_mail"), final("Plain"))
         self.assertIsInstance(self.provider.ask(ask.Request(text="Q", question="Q")), ask.Failure)     # not the stream format: today's reader refuses it
 
+    def test_a_bare_tool_name_in_the_stream_is_refused(self):
+        # The real stream names every tool mcp__<server>__<tool>; a bare allowed name (or another server's prefix) is not ours: the run is refused.
+        for name in ("outlook_email_search", "mcp__other_server__outlook_email_search"):
+            for calls in ((use("1", name), got("1", "t")), (use("1", name),)):
+                ok, _line, result = cs.checked(stream(*calls, final()), {"Mail"})
+                self.assertFalse(ok, (name, len(calls)))
+                self.assertIsNone(result)
+
     def test_the_stream_reader_alone(self):
         ok, line, result = cs.checked(stream(use("1", f"{P}__outlook_email_search"), got("1", "t"), final()), {"Mail"})
         self.assertTrue(ok)

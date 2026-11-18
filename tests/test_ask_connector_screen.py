@@ -21,7 +21,7 @@ class Tools(unittest.TestCase):
                 self.assertFalse(any(b in words for b in bad), n)
 
     def test_a_tool_of_another_server_with_an_allowed_name_is_not_allowed(self):
-        # Row 1306 (Stark's note): only mcp__<the part's own server>__<tool> passes; a prefix of any other server does not.
+        # Row 1306: only mcp__<the part's own server>__<tool> passes; a prefix of any other server does not.
         self.assertTrue(cs.tool_allowed("mcp__claude_ai_Microsoft_365__outlook_email_search"))
         self.assertTrue(cs.tool_allowed("mcp__claude_ai_Todoist__find-tasks"))
         for t in ("mcp__other_server__outlook_email_search", "mcp__claude_ai_Todoist__outlook_email_search",
