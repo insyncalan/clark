@@ -1,7 +1,7 @@
 """Row 1269: the Theme card in Settings (Publishing group, next to Brand), in a real browser at 1400 and 900 px, light and dark.
 Run: python3 dev/run_tests.py test_theme_choice_1269
 
-The card shows the server's choice (Clark Classic is the default), choosing the other one POSTs it to /api/theme and it survives a reload,
+The card shows the server's choice (Classic is the default), choosing the other one POSTs it to /api/theme and it survives a reload,
 and a save the server refuses keeps the old choice and says why. The page keeps nothing in the browser's storage. Chrome is required."""
 import re
 import tempfile
@@ -64,17 +64,17 @@ class Choice(unittest.TestCase):
                     js = self.show(cdp, w, mode)
                     self.assertEqual(js("document.querySelector('#theme-settings h2').textContent"), "Theme")
                     self.assertEqual(js("[...document.querySelectorAll('#theme-settings label')].map(l => l.querySelector('span').textContent)"),
-                                     ["Clark Classic (default)", "Clark Cards"])
+                                     ["Classic (default)", "Cards"])
                     self.assertEqual(js(CHECKED), "classic")
                     self.assertTrue(js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
                     js("document.querySelector('#theme-settings input[value=cards]').click()")
-                    self.until(js, CHECKED, "cards", "Clark Cards chosen")
+                    self.until(js, CHECKED, "cards", "Cards chosen")
                     self.assertTrue(wait(lambda: stored(self.db) == "cards", 20), "the server holds it")
                     self.assertEqual(js("Object.keys(localStorage).filter(k => /theme|classic|cards/i.test(k) || /classic|cards/i.test(localStorage.getItem(k))).length"), 0, "the choice is not in the browser's storage")
                     reload_to_new_page(js, seconds=20)
-                    self.until(js, CHECKED, "cards", "still Clark Cards after a reload")
+                    self.until(js, CHECKED, "cards", "still Cards after a reload")
                     js("document.querySelector('#theme-settings input[value=classic]').click()")
-                    self.assertTrue(wait(lambda: stored(self.db) == "classic", 20), "back to Clark Classic")
+                    self.assertTrue(wait(lambda: stored(self.db) == "classic", 20), "back to Classic")
 
     def test_the_card_starts_on_what_the_server_holds(self):
         with chrome() as cdp:

@@ -1,11 +1,11 @@
-// Settings › Theme (row 1269): two choices, Clark Classic (the default) and Clark Cards. The server keeps the choice (themeState.js);
+// Settings › Theme (row 1269): two choices, Classic (the default) and Cards. The server keeps the choice (themeState.js);
 // it applies on the next page load. Edit parts only: a published file has no Settings.
 import { useEffect, useState } from "preact/hooks";
 import { themeChoice, themeStatus, loadTheme, setTheme } from "./themeState.js";
 
 const CHOICES = [
-  ["classic", "Clark Classic (default)", "The same pages, in the folder look."],
-  ["cards", "Clark Cards", "The look clark has had until now."],
+  ["classic", "Classic (default)", "The same pages, in the folder look."],
+  ["cards", "Cards", "The look clark has had until now."],
 ];
 
 export function ThemeSettings() {
