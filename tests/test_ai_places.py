@@ -33,7 +33,7 @@ WANTED = {
 }
 RICH = ("section.body", "current.state", "usecase.standing", "notes.section", "peek.latest_update", "milestone.description", "textimage.text", "movement.internal_note", "glance.health_reason", "linkcard.text", "onedoc.text", "callout.text")
 # The section title is a one-line plain field and stays out of the AI.
-LEFT_OUT = {"edit/Title.jsx", "edit/TrackerWords.jsx"}     # row 930: the tracker's status words are one limited plain-text line, like a title: no AI place
+LEFT_OUT = {"edit/Title.jsx", "edit/TrackerWords.jsx", "edit/AskDraft.jsx"}     # row 930: the tracker's status words are one limited plain-text line, like a title: no AI place; row 1292: the Draft beside the ask panel is the answer's own text, so it offers no AI of its own
 
 
 class Page:

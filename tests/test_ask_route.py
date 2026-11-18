@@ -240,6 +240,16 @@ class TheReply(Base):
         self.assertEqual(got["changes"], [{"id": "PUB-A-001", "status": "Closed"}])
         self.assertEqual(self.counts(), before)
 
+    def test_a_draft_comes_back_as_data_and_is_not_saved(self):
+        before = self.counts()
+        got = self.ask_with('Here.\nDRAFT: {"title": "This week", "html": "<p>Kit ordered.</p>", "sec": "PUB-S-001"}')
+        self.assertEqual(got["draft"], {"title": "This week", "html": "<p>Kit ordered.</p>", "sec": "PUB-S-001"})
+        self.assertEqual(got["answer"], "Here.")
+        self.assertEqual(self.counts(), before)
+
+    def test_an_answer_without_a_draft_says_none(self):
+        self.assertIsNone(self.ask_with("Fine.")["draft"])
+
     def test_the_sources_list_names_only_cited_passages(self):
         got = self.ask_with("Fine.\nCITE: P1")
         self.assertEqual([s["id"] for s in got["sources"]], ["P1"])
