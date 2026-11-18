@@ -215,6 +215,35 @@ class RealBrowser(unittest.TestCase):
                         self.assertIn(f"{len(ids)} items", text)
             self.assertEqual(blocked, [], f"the policy blocked nothing: {blocked}")
 
+    def test_priority_is_a_pill_in_the_priority_colours(self):
+        """Row 1195 S2: the priority column draws the word as the template's pill: Urgent red, High amber, the others grey, none a dash."""
+        s = self.serve()
+        with chrome() as cdp:
+            sid = self.load_page(cdp, s.port, 1400, "#work&p=TUL&f=mode:all")
+            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
+            got = cdp.js("[...document.querySelectorAll('#work tbody tr[data-id] .c-prio')].map(c => { const p = c.querySelector('.wil-pr');"
+                         " return [c.textContent.trim(), p ? p.textContent : null, p ? p.className : null]; })", sid)
+            seen = {}
+            for text, word, cls in got:
+                if word is None:
+                    self.assertIn(text, ("", "—"), "no priority: no pill")
+                    continue
+                self.assertEqual(word, text, "the pill carries the word and nothing else")
+                seen[word] = cls
+            self.assertTrue(seen, "some row has a priority")
+            for word, cls in seen.items():
+                self.assertEqual(cls, "wil-pr" + {"Urgent": " u", "High": " h"}.get(word, ""), word)
+            self.assertIn("Urgent", seen)
+            self.assertIn("High", seen)
+            self.assertTrue(any(w not in ("Urgent", "High") for w in seen), "a grey one too")
+            none = [text for text, word, cls in got if word is None]
+            self.assertTrue(none, "some row has no priority")
+            self.assertEqual(set(none), {"—"}, "no priority: a dash, never an empty pill")
+            self.assertEqual(set(cdp.js("[...document.querySelectorAll('#work tbody tr[data-id] .c-prio')].filter(c => !c.querySelector('.wil-pr'))"
+                                        ".map(c => { const m = c.querySelector('.muted'); return m ? m.textContent : null; })", sid)),
+                             {"—"}, "the dash is the muted one")
+            self.assertEqual(len(none) + sum(1 for t, w, c in got if w is not None), len(got))
+
     def test_work_items_on_a_phone_at_390_px(self):
         """#130 point 5: nothing sideways, compact controls, Status, Due and Priority in each row, targets 24 px, text 12 px."""
         s = self.serve()
