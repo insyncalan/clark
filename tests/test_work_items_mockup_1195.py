@@ -17,6 +17,48 @@ SHELL_CSS = (PAGE / "shell.css").read_text(encoding="utf-8")
 JSX = (PAGE / "src" / "edit" / "templates" / "WorkItemsList.jsx").read_text(encoding="utf-8")
 
 
+GOLDEN_LINES = {
+    "shell.css": [
+        ".wil-table th { text-align: left; font-weight: var(--weight-regular); font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); padding: 6px var(--space-2); border-top: 1px solid var(--grey-200); }",
+        ".wil-table td.wil-c-id, .wil-c-id { font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; color: var(--status-blue-text); }",
+        ".wil-pr { padding: 0 var(--space-2); border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); font-weight: var(--weight-medium); }",
+        ".wil-pr.h, .wil-pr.u { border-color: color-mix(in srgb, currentColor 30%, transparent); }",
+        ".wil-table .wil-c-workstream, .wil-table .wil-c-milestone { width: 100px; }",
+        ".wil-table td.wil-c-due { white-space: nowrap; overflow-wrap: normal; }",
+        ".wil-table .wil-c-due { width: 116px; }",
+    ],
+    "edit.css": [
+        ".wil-form { margin: 0; padding: 0; border: 0; background: none; }",
+        ".wil-add .newb { box-sizing: border-box; width: 34px; height: 34px; min-width: 0; padding: 0; justify-content: center; border: 1px dashed var(--grey-500); border-radius: var(--radius); background: none; color: var(--status-blue-text); }",
+        ".wil-add .newb:hover, .wil-add .newb:focus-visible, .wil-add .newb[aria-expanded=\"true\"] { background: var(--grey-50); border-color: var(--grey-500); color: var(--status-blue-text); }",
+        ".wil-add .newb:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }",
+        ".wil-add .newb .w, .wil-add .newb:hover .w, .wil-add .newb:focus-visible .w, .wil-add .newb[aria-expanded=\"true\"] .w, .wil-add .newb .nch { display: none; }",
+        ".wil-add .ddmenu { min-width: calc(var(--space-8) * 2); padding: var(--space-1); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }",
+        ".wil-add .ddmenu [role=\"menuitem\"] { display: flex; align-items: center; gap: var(--space-2); min-height: calc(var(--space-6) + var(--space-2)); padding: 0 var(--space-2); border-radius: var(--radius); font-weight: var(--weight-medium); color: var(--text); }",
+        ".wil-add .ddmenu [role=\"menuitem\"]:hover, .wil-add .ddmenu [role=\"menuitem\"]:focus-visible { background: var(--grey-50); color: var(--text); }",
+        ".wil-add .ddmenu [role=\"menuitem\"]:focus-visible { outline: 0; }",
+        ".wil-add .ddmenu .mtile { width: var(--space-5); height: var(--space-5); }",
+        ".wil-cw { position: absolute; top: var(--sec-pad-t); right: var(--sec-px); z-index: 6; display: flex; justify-content: flex-end; }",
+        ".wil-gear { display: inline-flex; align-items: center; justify-content: center; min-width: calc(var(--space-6) + var(--space-1)); min-height: calc(var(--space-6) + var(--space-1)); border: 1.5px solid var(--grey-200); border-radius: 50%; background: var(--surface); color: var(--text); cursor: pointer; }",
+        ".wil-cfg { position: absolute; right: 0; top: calc(100% + var(--space-1)); z-index: 20; width: min(calc(var(--space-4) * 19), calc(100vw - var(--space-6))); box-sizing: border-box; display: grid; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }",
+        ".wil-cfg h4 { margin: 0; font-family: var(--font-head); font-size: var(--size-body); font-weight: var(--weight-semibold); color: var(--heading); }",
+        ".wil-cfg .wil-sel > span, .wil-cfg .wil-f legend { font-weight: var(--weight-medium); color: var(--text-muted); }",
+        ".wil-cfg .wil-opts input[type=\"checkbox\"] { width: var(--space-4); height: var(--space-4); margin: 0; accent-color: var(--brand-blue); }",
+        ".wil-cfg .wil-sel select:focus-visible, .wil-cfg .wil-sel input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }",
+        ".wil-cacts button { min-height: calc(var(--space-6) + var(--space-1)); padding: 0 var(--space-4); border: 0; border-radius: var(--radius-pill); background-color: var(--pill-color); background-image: var(--pill-bg); color: var(--pill-fg); font: inherit; font-weight: var(--weight-semibold); cursor: pointer; }",
+        ".wil-edit > .wil-views { margin-top: var(--space-3); }",
+        ".wil-views .vtab { font-weight: var(--weight-medium); }",
+        ".wil-views .vtab em { font-weight: var(--weight-regular); color: var(--text-muted); }",
+        ".wil-views .vnew { color: var(--status-blue-text); font-weight: var(--weight-medium); }",
+        ".wil-views .vnew:hover { color: var(--status-blue-text); }",
+        ".wil-views .vtabs { flex-wrap: wrap; overflow: visible; }",
+        ".wil-edit .wil-line { margin: 0 0 var(--space-3); }",
+        ".wil-table .wil-c-eye .ib { color: var(--text); }",
+        ".wil-off .wil-c-eye .ib { color: var(--grey-500); }",
+    ],
+}
+
+
 def rule(css, selector):
     """The body of the first rule whose selector list is exactly `selector`."""
     m = re.search(r"(?:^|\n)" + re.escape(selector) + r"\s*\{([^}]*)\}", css)
@@ -101,6 +143,18 @@ class SourceRules(unittest.TestCase):
                 if ".wil-add" in ln or ".wil-cfg .wil-" in ln or ".wil-views" in ln:
                     self.assertNotRegex(ln, r"font-size:\s*\d+px")
                     self.assertNotIn("infinite", ln)
+
+
+class EveryAddedRuleIsPinned(unittest.TestCase):
+    """Row 1195: each rule line this row added must stay exactly as drawn (a colour token, a selector, a size, a breakpoint): a changed or dropped declaration fails here."""
+
+    def test_every_added_rule_line_is_present_as_written(self):
+        def norm(s):
+            return re.sub(r"\s+", " ", re.sub(r"/\*.*?\*/", "", s)).strip()
+        for name, css in (("edit.css", EDIT_CSS), ("shell.css", SHELL_CSS)):
+            have = {norm(ln) for ln in css.splitlines()}
+            for want in GOLDEN_LINES[name]:
+                self.assertIn(want, have, name)
 
 
 class InThePage(T.InThePage):
