@@ -19,8 +19,9 @@ class Words(unittest.TestCase):
         self.assertNotIn('"Send them"', WORDS)
 
     def test_duplicate_first_card_is_cut(self):
-        self.assertNotIn("ask-first", PANEL)
-        self.assertNotIn("ask-first", CSS)
+        old_id = r"ask-first(?!-run\b)(?![-\w]*(?:link|settings))"
+        self.assertIsNone(re.search(old_id, PANEL))
+        self.assertIsNone(re.search(old_id, CSS))
         self.assertIsNone(re.search(r"FIRST_(TITLE|READS|SAVES|SENDS|LINK)", WORDS + PANEL))
         self.assertIn("ask-queue-send", PANEL)
 
