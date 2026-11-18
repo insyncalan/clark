@@ -53,12 +53,13 @@ class Row1320(Base):
                 p.until(f"{MODE} === 'view'", "the pill's View works")
 
     def test_a_shut_dialog_with_the_hidden_attribute_leaves_the_pill_and_the_keys_working(self):
-        """The #1320 report (1.3.1, a Dashboard with a Work items list): its Configure panel kept role=dialog while shut, with hidden."""
+        """The row 1320 report (1.3.1, a Dashboard with a Work items list): its Configure panel kept role=dialog while shut, with hidden."""
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show_page(cdp, "window.__clarkWelcome = false;", width)
                 p.js("var d = document.createElement('div'); d.setAttribute('role', 'dialog'); d.hidden = true; d.id = 'shut'; document.body.appendChild(d);"
-                     "var m = document.createElement('div'); m.setAttribute('role', 'menu'); m.hidden = true; m.id = 'shutmenu'; document.body.appendChild(m);")
+                     "var m = document.createElement('div'); m.setAttribute('role', 'menu'); m.hidden = true; m.id = 'shutmenu'; document.body.appendChild(m);"
+                     "var a = document.createElement('div'); a.setAttribute('role', 'alertdialog'); a.hidden = true; a.id = 'shutalert'; document.body.appendChild(a);")
                 self.assertEqual(p.js(PILL), "flex")
                 p.key("e", code="KeyE", vk=69)
                 p.until(f"{MODE} === 'edit'", "E switched to Edit")

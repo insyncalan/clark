@@ -77,10 +77,18 @@ class Header(Base):
 
     # ---- row 808 ----
     def open_list(self, cdp, sid):
-        click(cdp, sid, "#fline-input")
-        select_line(cdp, sid)
-        key(cdp, sid, "Backspace")
-        arm(cdp, sid)
+        """Empty the box and press the arming Space. Under load the page can still be handling the emptying when the Space arrives, and a
+        Space it sees as a key on an old state lists nothing: so the box is checked empty and focused before the Space, and the whole
+        step is tried again (up to 4 times, 8 s each) instead of waiting 30 s for a list that was never asked for."""
+        from test_server import wait
+        for _ in range(4):
+            click(cdp, sid, "#fline-input")
+            select_line(cdp, sid)
+            key(cdp, sid, "Backspace")
+            wait(lambda: cdp.js("document.activeElement === document.querySelector('#fline-input') && document.querySelector('#fline-input').value === ''", sid), 8)
+            arm(cdp, sid)
+            if wait(lambda: bool(cdp.js("!!document.querySelector('#fline-list')", sid)), 8):
+                return
         self.until(cdp, sid, "document.querySelector('#fline-list')", "the suggestion list")
 
     def floats(self, cdp, sid, board):
