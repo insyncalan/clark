@@ -62,7 +62,7 @@ export function ConnectorsAll() {
       {found.length ? (
         <ul class="ask-folders" id="ask-connectors-list">
           {found.map((c) => (
-            <li key={c.id}><span class="folder-now">{c.label}</span> <span class="muted">{c.on ? "On for clark" : "Off for clark"}</span> <button type="button" class="switch" role="switch" data-connector={c.id} aria-checked={c.on ? "true" : "false"} aria-label={`Allow clark to use ${c.label}`} disabled={busy} onClick={() => change({ id: c.id, on: !c.on }, c.on ? `${c.label} turned off for clark. clark never asks it anything.` : `${c.label} turned on for clark.`)} /></li>
+            <li key={c.id}><span class="folder-now">{c.label}</span> <span class="muted">{c.on ? "On for clark" : "Off for clark"}</span> <button type="button" class="switch" role="switch" data-connector={c.id} aria-checked={c.on ? "true" : "false"} aria-label={`Allow clark to use ${c.label}`} disabled={busy} onClick={() => change({ id: c.id, on: !c.on }, c.on ? `${c.label} turned off for clark. It is never asked anything.` : `${c.label} turned on for clark.`)} /></li>
           ))}
         </ul>
       ) : null}

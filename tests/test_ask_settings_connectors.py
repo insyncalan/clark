@@ -85,7 +85,7 @@ class Connectors(unittest.TestCase):
             self.assertFalse(js("!!document.querySelector('[data-connector-said]')"), "the line goes with the Undo")
             js("document.querySelector('[data-connector=mail]').click()")
             js("document.querySelector('[data-connector=mail]').click()")
-            self.assertTrue(wait(lambda: js(said + " && " + said + ".innerText") == "Mail turned off for clark. clark never asks it anything. Undo", 10))
+            self.assertTrue(wait(lambda: js(said + " && " + said + ".innerText") == "Mail turned off for clark. It is never asked anything. Undo", 10))
 
     def test_a_project_tab_shows_only_connectors_on_for_all_and_turns_one_off_for_that_project(self):
         with chrome() as cdp:
