@@ -59,11 +59,13 @@ def search_ok(args, on_parts):
         return False
     full = {f"{screen.SERVER_PREFIX[p]}__{t}" for p in screen.PARTS if on_parts is None or p in on_parts for t in screen.ALLOWED_TOOLS[p]}
     bare = {n.split("__", 2)[2] for n in full}
-    q = query.strip()
+    q = query
+    if q != q.strip() or not all(32 <= ord(c) < 127 for c in q):
+        return False
     if q.startswith("select:"):
         names = [n.strip() for n in q[len("select:"):].split(",")]
         return bool(names) and all(n in full or n in bare for n in names)
-    return any(n in q for n in full | bare)
+    return q in full or q in bare        # the whole query is one allowed tool name, nothing else
 
 
 def checked(out, on_parts):
@@ -75,6 +77,7 @@ def checked(out, on_parts):
 def inspect(out, on_parts):
     """(ok, UsedLine, result_bytes or None): the same as `checked`, with the whole UsedLine (its used and not_used parts) kept."""
     names, pairs, calls, searches = {}, [], [], set()
+    bad = False
     result = None
     for ev in _events(out):
         kind = ev.get("type")
@@ -84,14 +87,21 @@ def inspect(out, on_parts):
             for b in _blocks(ev):
                 if b.get("type") == "tool_use":
                     name = b.get("name")
+                    ident = b.get("id")
+                    if not isinstance(ident, str) or not ident or ident in names or ident in searches:
+                        bad = True                         # no id, or an id used twice: the results could not be told apart
                     if name == SEARCH_TOOL and search_ok(b.get("input"), on_parts):
-                        searches.add(b.get("id"))          # loads the allowed tool; carries no connector content
+                        searches.add(ident)                # loads the allowed tool; its result must still be plain, small text
                         continue
                     names[b.get("id")] = name
                     calls.append(name)
         elif kind == "user":
             for b in _blocks(ev):
-                if b.get("type") == "tool_result" and b.get("tool_use_id") not in searches:
+                if b.get("type") == "tool_result" and b.get("tool_use_id") in searches:
+                    text = _text(b.get("content"))
+                    if text is None or screen.hidden_count(text) or len(text.encode("utf-8")) > screen.MAX_RESULT:
+                        bad = True
+                elif b.get("type") == "tool_result":
                     pairs.append((names.get(b.get("tool_use_id")), _text(b.get("content"))))
     # The real stream names every tool mcp__<server>__<tool>: a bare name is never one of ours, so it is refused here (the screen alone accepts a
     # bare name by its name, which only its own plain tests use).
@@ -100,6 +110,6 @@ def inspect(out, on_parts):
     verdicts = screen.screen_all(pairs, on_parts)
     verdicts += [screen.screen(name, "", 0, on_parts) for name in calls if name not in {p[0] for p in pairs}]
     line = screen.used_line(verdicts)
-    if result is None or not all(v.used for v in verdicts):
+    if bad or result is None or not all(v.used for v in verdicts):
         return False, line, None
     return True, line, json.dumps(result).encode("utf-8")

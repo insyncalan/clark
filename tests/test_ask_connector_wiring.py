@@ -307,6 +307,24 @@ class Screened(Run):
         self.out = stream(use("1", f"{P}__outlook_send_mail"), final("Plain"))
         self.assertIsInstance(self.provider.ask(ask.Request(text="Q", question="Q")), ask.Failure)     # not the stream format: today's reader refuses it
 
+    def test_tool_search_is_strict_about_its_query_its_id_and_its_result(self):
+        mail = f"{P}__outlook_email_search"
+
+        def run(query, *rest, ident="0", extra=None):
+            inp = {"query": query}
+            inp.update(extra or {})
+            return cs.checked(stream(event("assistant", {"type": "tool_use", "id": ident, "name": "ToolSearch", "input": inp}), *rest, final()), {"Mail"})[0]
+        self.assertTrue(run(mail, got("0", "loaded")))
+        for query in ("outlook_email_search outlook_send_mail", "xoutlook_email_search", "outlook_email_search, send draft delete", "+outlook_email_search delete",
+                      "Select:outlook_email_search,outlook_send_mail", "outlook_email_search\u200b", "outlook_email_s\u0435arch", " outlook_email_search",
+                      "outlook_email_search" + " " * 400 + "outlook_send_mail", "x\nselect:outlook_send_mail outlook_email_search"):
+            self.assertFalse(run(query), query)
+        self.assertFalse(run(mail, got("0", "bad\u202etext")), "a hidden character in a search result")
+        self.assertFalse(run(mail, got("0", "x" * 50000)), "a search result over the size cap")
+        self.assertFalse(run(mail, use("0", mail), got("0", "t")), "an id used twice")
+        self.assertFalse(run(mail, ident=""), "no id")
+        self.assertFalse(run(mail, event("user", {"type": "tool_result", "content": "zzz\u202e"}), ident=None), "a search without an id")
+
     def test_every_known_built_in_is_denied_by_name_and_the_loader_is_not(self):
         known = ("Agent", "AskUserQuestion", "Bash", "Edit", "Glob", "Grep", "Read", "Write", "WebFetch", "WebSearch", "Skill", "Workflow", "Monitor",
                  "NotebookEdit", "TodoWrite", "TaskStop", "TaskOutput", "SendMessage", "ScheduleWakeup", "RemoteTrigger", "PushNotification",
@@ -322,7 +340,7 @@ class Screened(Run):
         def search(i, query):
             return event("assistant", {"type": "tool_use", "id": i, "name": "ToolSearch", "input": {"query": query}})
         mail = f"{P}__outlook_email_search"
-        for query in (f"select:{mail}", "select:outlook_email_search", "outlook_email_search", f"find {mail} please"):
+        for query in (f"select:{mail}", "select:outlook_email_search", "outlook_email_search"):
             ok, line, result = cs.checked(stream(search("0", query), got("0", "loaded"), use("1", mail), got("1", "t"), final()), {"Mail"})
             self.assertTrue(ok, query)
             self.assertIsNotNone(result, query)
