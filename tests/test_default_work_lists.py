@@ -61,9 +61,11 @@ class DefaultWorkLists(unittest.TestCase):
 
     def test_the_built_ins_stay_the_defaults_until_the_lists_print_everywhere(self):
         types = [s["type"] for s in default_sections.DEFAULT_SECTIONS]
-        for _, (builtin, _) in DEFAULT_VIEWS.items():
+        for view, (builtin, _) in DEFAULT_VIEWS.items():
+            if view == "decisions":
+                continue                                            # row 10 of item 1193: Decisions is a Work items list now (test below)
             self.assertIn(builtin, types, "%s is no longer a default: update tests/test_dashboard_template_built.py PENDING and this file together" % builtin)
-        self.assertNotIn("workitems", types)
+        self.assertEqual(types.count("workitems"), 1, "only the Decisions list is a default list so far (rows 8 and 9 are not built)")
 
 
 if __name__ == "__main__":

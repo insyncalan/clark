@@ -16,6 +16,19 @@ BUILT_INS = ("glance", "usecases", "milestones", "raid", "actions", "decisions",
 
 
 class Base(Api):
+    def setUp(self):
+        super().setUp()
+        self.old_decisions_row()
+
+    def old_decisions_row(self):
+        """row 1193-10: a new project starts with Decisions as a Work items list; an existing report still has the built-in decisions section, which these tests are about."""
+        con = sqlite3.connect(str(self.path))
+        try:
+            con.execute("UPDATE report_sections SET type = 'decisions', body = '' WHERE project = 'ABC' AND type = 'workitems' AND title = 'Decisions'")
+            con.commit()
+        finally:
+            con.close()
+
     def counts(self):
         con = sqlite3.connect(str(self.path))
         try:

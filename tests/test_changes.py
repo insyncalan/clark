@@ -941,7 +941,7 @@ class OlderProject(Api):
         return self.ok(op, project=self.code, **more)
 
     def test_each_first_change_seeds_the_defaults_in_its_own_step_and_undo_takes_back_only_the_change_and_the_seed_stays(self):
-        defaults = [s["title"] for s in default_sections.DEFAULT_SECTIONS if s["type"] != "docs"]    # publish leaves "docs" out
+        defaults = [s["title"] for s in default_sections.DEFAULT_SECTIONS if s["type"] not in ("docs", "workitems")]    # publish leaves "docs" out, and the Decisions list too: a Work items list with no decision to show is left out (row 10 of item 1193)
         no_this_week = [t for t in defaults if t != "This week"]
         cases = (                                   # op, what it asks (S-005 is This week, S-008 Open actions), sections and published after
             ("new", {"values": {"title": "Only me"}}, 11, defaults + ["Only me"]),

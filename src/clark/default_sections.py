@@ -12,6 +12,9 @@ SECTION_HINTS = {          # item 1193: the guiding sentence of each text sectio
     "This week": "List what was done this week, and what moved forward.",
     "Next week": "List what is planned for next week, and who is doing it.",
 }
+DECISIONS_LIST = ('{"v":1,"kinds":["decision"],"mode":"open","status":[],"due":[],"owner":[],"workstream":[],"use_case":[],"priority":[],"sort":"due","max":10,'
+                  '"columns":["type","id","owner","due","priority"],"caption":"","milestone":[],"not":{"kinds":[],"status":[],"due":[],"owner":[],'
+                  '"workstream":[],"use_case":[],"priority":[],"milestone":[]},"has":[],"no":[],"text":[]}')   # row 10 of item 1193 (1266 row 9): the saved view Decisions, the open ones (Pending); the Work items list's own start body with its kind set (a test pins it equal)
 DEFAULT_SECTIONS = (
     {"type": "text", "title": "Current state", "body": ""},   # item 1188: a text section now; the older type "current" is still read and stored, and existing reports keep it
     {"type": "glance", "title": "At a glance"},
@@ -21,6 +24,6 @@ DEFAULT_SECTIONS = (
     {"type": "text", "title": "Next week"},
     {"type": "raid", "title": "Risks and issues"},
     {"type": "actions", "title": "Open actions"},
-    {"type": "decisions", "title": "Decisions"},
+    {"type": "workitems", "title": "Decisions", "body": DECISIONS_LIST},   # row 10 of item 1193: a Work items list on the saved view Decisions (new projects only; existing reports keep their built-in)
     {"type": "docs", "title": "Supporting documents"},
 )
