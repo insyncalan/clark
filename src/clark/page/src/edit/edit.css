@@ -676,8 +676,6 @@ textarea.tpl-field { resize: vertical; }
 
 /* #96 G3 Work items list (workitems): the Edit part (the filter and the live preview). Tokens only. */
 .wil-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px var(--space-4); margin: var(--space-1) 0 10px; padding: var(--space-3) 14px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--grey-50); }
-.wil-form > .wil-more { grid-column: 1 / -1; }   /* row 1113: the tick boxes fold inside the one form block; Sort by, Most rows and Columns stay in it; the Caption box moved under the list (wish 2) */
-.wil-form-in { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px var(--space-4); margin: var(--space-1) 0 0; }
 /* Row 1268: the Add + at the right end, a dashed square as the one on Work items (the approved mock-up) */
 .wil-add { flex: none; display: flex; justify-content: flex-end; margin: 0 0 var(--space-1) auto; }   /* at the right end of the saved-views row (ticket 1268) */
 .wil-add .newb { border-style: dashed; }
@@ -685,8 +683,6 @@ textarea.tpl-field { resize: vertical; }
 #addMs.newb, #npBtn.newb, #ucAddPage.newb { border: 1px dashed var(--status-blue-text); }
 .wil-line { display: grid; gap: var(--space-1); margin: var(--space-1) 0 var(--space-2); }
 .wil-line p { margin: 0; }
-.wil-more summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.wil-more summary { min-height: 28px; display: flex; align-items: center; cursor: pointer; color: var(--text); font-size: var(--size-small); }
 .wil-f { min-width: 0; margin: 0; padding: 0; border: 0; }
 .wil-f legend { padding: 0; margin-bottom: var(--space-1); font-size: var(--size-caption); color: var(--text-muted); font-weight: var(--weight-medium); }
 .wil-opts { display: flex; flex-wrap: wrap; gap: 2px var(--space-3); }
@@ -1157,7 +1153,7 @@ body > .gt-menu.leaving hr { border: 0; border-top: 1px solid var(--border); mar
 }
 
 /* row 940 (macOS gate, test_edit_cells_layout): in Edit at 900 px and below the Due, priority and status columns are 8 px wider than the bare minimum, so a font a little wider than Linux's (macOS draws these three 2 to 3 px wider) stays inside its box. EDIT ONLY: shell.css is also the published page's, whose Item column must stay at least 280 px (test_published_item_column), so the widths are not set there. Same specificity as shell.css's 900 px rule and later in the page, so these win without !important. */
-@media (max-width: 900px) { table.items .c-due { width: 139px; } table.items .c-prio { width: 101px; } table.items .c-status { width: 76px; } table.items.arch .c-status { width: 150px; } }
+@media (max-width: 900px) { table.items .c-due { width: 139px; } table.items .c-prio { width: 121px; } table.items .c-status { width: 76px; } table.items.arch .c-status { width: 150px; } }
 
 /* row 834: at 900 px an item's meta line (ID, use case, plan) is one line cut short with an ellipsis, as in the prototype (nowrap), so a row is at most two title lines and one meta line (82 px, the prototype's 81) and not three lines of meta. EDIT ONLY: shell.css is also the published page's. */
 @media (max-width: 900px) { table.items .c-owner { width: 130px; } #work table.items .tcell .tx { min-width: 0; } #work table.items .tcell .meta { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
