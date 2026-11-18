@@ -364,7 +364,7 @@ class Saving(ServerTest):
                                                 "/api/project": 4 * 1024,                                               # #444
                                                 "/api/demo/clear": 1024,                                               # #731
                                                 "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/theme": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024, "/api/providers/test": 1024,
-                                                "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
+                                                "/api/ask": 128 * 1024 + 5 * (10 * 1024 * 1024 * 4 // 3 + 1024), "/api/ask/stop": 1024,
                                                 "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024, "/api/ask/open-source": 1024,     # #47, #47e, #943
                                                 "/api/section-file": 1024,
                                                 "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,     # #72
