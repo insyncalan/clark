@@ -34,3 +34,6 @@ h1, h2, h3 { font-weight: var(--weight-medium); }
   .set-chip:hover { background: color-mix(in srgb, var(--grey-500) 15%, var(--grey-100)); }
   .set-chip[aria-current], .set-chip[aria-current]:hover { border-radius: 0 10px 10px 0; }
 }
+/* Row 1317 (Projects card): Add project is a filled button with its plus, and the table headers are bold in the words' own case. Classic only; Cards keeps the dashed Add and the tracked capitals. Prototype files are not on this box: built from the issue table. The word still grows in on hover as before. */
+.projects #npBtn.newb { background: var(--brand-blue); border: 1px solid var(--brand-blue); color: var(--text-on-brand); }
+.projects table.proj-table th { text-transform: none; letter-spacing: normal; font-weight: var(--weight-semibold); }
