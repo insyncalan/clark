@@ -107,21 +107,6 @@ RULE_LINES = [
         '.seg:not(.modes) button[aria-pressed="true"] em, .seg:not(.modes) button[aria-checked="true"] em { color: var(--white); }',
         '.seg:not(.icons):not(.modes) button[aria-pressed="true"]:focus-visible, .seg:not(.icons):not(.modes) button[aria-checked="true"]:focus-visible, .cal-sc button[aria-current="true"]:focus-visible { outline-color: var(--white); outline-offset: -3px; }',
         '.crumbs, .ucd-crumb, .ucf-crumb { text-transform: none; letter-spacing: normal; }',
-        "/* Row 1319, primary buttons: .again, .btn.primary and .btn.pri are aqua pills in Classic, light and dark (the aqua, glow and glow-hover come from the pill tokens; the gradient start, the dark text and the ring are literals from the prototype because the Classic pill tokens carry a flat fill and a different text, and a Theme may not add token names); hover lifts and glows, press sinks, reduced motion keeps both still; the finished state is green with white text. */",
-        '.again, .btn.primary, .btn.pri { border: 0; border-radius: var(--radius-pill); padding: 0 22px; min-height: 38px; font-weight: 800; letter-spacing: .04em; background-color: var(--pill-color); background-image: linear-gradient(90deg, #8FF2EF, var(--pill-color)); color: #04222A; box-shadow: var(--pill-glow); }',
-        '.again:hover, .btn.primary:hover, .btn.pri:hover:not(:disabled) { box-shadow: var(--pill-glow-hover); }',
-        ':root:not([data-motion="reduce"]) .again:hover, :root:not([data-motion="reduce"]) .btn.primary:hover, :root:not([data-motion="reduce"]) .btn.pri:hover:not(:disabled) { transform: translateY(-1px); }',
-        ':root:not([data-motion="reduce"]) .again:active, :root:not([data-motion="reduce"]) .btn.primary:active, :root:not([data-motion="reduce"]) .btn.pri:active:not(:disabled) { transform: translateY(1px); }',
-        ':root[data-motion="reduce"] .again, :root[data-motion="reduce"] .btn.primary, :root[data-motion="reduce"] .btn.pri { transition: none; transform: none; }',
-        '.again:focus-visible, .btn.primary:focus-visible, .btn.pri:focus-visible { outline: 2px solid #5B47D8; outline-offset: 2px; }',
-        '.again:disabled, .btn.primary:disabled, .btn.pri:disabled { opacity: .55; }',
-        '.btn.pri.ok { background-color: var(--status-green-text); background-image: none; color: var(--white); }',
-        '.btn.pri .spin { border-color: color-mix(in srgb, #04222A 30%, transparent); border-top-color: #04222A; }',
-        '.btn.pri .pub-tick { background: #04222A; color: var(--pill-color); }',
-        '.btn.pri.ok .pub-tick { background: var(--white); color: var(--status-green-text); }',
-        ':root[data-theme=dark] .again:focus-visible, :root[data-theme=dark] .btn.primary:focus-visible, :root[data-theme=dark] .btn.pri:focus-visible { outline-color: var(--focus); }',
-        ':root[data-theme=dark] .btn.pri.ok { color: #04222A; }',
-        '@media (prefers-color-scheme: dark) { :root[data-theme=auto] .again:focus-visible, :root[data-theme=auto] .btn.primary:focus-visible, :root[data-theme=auto] .btn.pri:focus-visible { outline-color: var(--focus); } :root[data-theme=auto] .btn.pri.ok { color: #04222A; } }',
     ]
 
 
@@ -143,7 +128,8 @@ class ThemePrototypePinned(unittest.TestCase):
         self.assertEqual(decls(block), DARK)
 
     def test_every_rule_line_is_exact_and_in_order(self):
-        lines = [l for l in RULES.split("\n")[1:] if l.strip()]
+        older = RULES.split("\n/* Row 1318", 1)[0]      # the rows above this one are pinned here; this row's block, and any after it, are pinned in their own test files
+        lines = [l for l in older.split("\n")[1:] if l.strip()]
         self.assertEqual(lines, RULE_LINES)
 
 

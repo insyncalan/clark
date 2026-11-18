@@ -123,6 +123,10 @@ class Layering(unittest.TestCase):
 
     def test_the_classic_block_is_the_end_of_rules_and_reaches_the_page(self):
         rules = (FOLDER / "rules.css").read_text(encoding="utf-8")
+        lines = rules.rstrip("\n").split("\n")
+        start = next(i for i, l in enumerate(lines) if l.startswith("/* Row 1319"))
+        end = next((i for i in range(start + 1, len(lines)) if lines[i].startswith("/* Row ")), len(lines))
+        self.assertEqual(end - start, 8, "the row's block is its comment and seven rules, up to the next row's comment (rows stack after it)")
         self.assertTrue(any(l.startswith("/* Row 1319, Classic type") for l in rules.split("\n")))
         self.assertIn("h1, h2, h3 { font-weight: var(--weight-medium); }", theme.css(NAME))
 

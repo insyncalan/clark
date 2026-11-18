@@ -27,6 +27,22 @@ h1, h2, h3 { font-weight: var(--weight-medium); }
 .seg:not(.modes) button[aria-pressed="true"] em, .seg:not(.modes) button[aria-checked="true"] em { color: var(--white); }
 .seg:not(.icons):not(.modes) button[aria-pressed="true"]:focus-visible, .seg:not(.icons):not(.modes) button[aria-checked="true"]:focus-visible, .cal-sc button[aria-current="true"]:focus-visible { outline-color: var(--white); outline-offset: -3px; }
 .crumbs, .ucd-crumb, .ucf-crumb { text-transform: none; letter-spacing: normal; }
+/* Row 1318 (Classic only): the left Contents column. Everything below is this row's block; the markup (components/Contents.jsx) is drawn only when this Theme is layered. */
+.cnt-grid { display: block; }
+.cnt { display: none; }
+@media (min-width: 1000px) {
+  .cnt-grid { display: grid; grid-template-columns: 168px minmax(0, 1fr); column-gap: var(--space-5); align-items: start; }
+  html[data-density] #report.frame .cnt-grid > .secs { margin-left: 0; }      /* the comfortable-density pull of 28px to the left would run under the column */
+  .cnt { display: block; position: sticky; top: calc(var(--topbar) + var(--space-4)); max-height: calc(100vh - var(--topbar) - var(--space-6)); overflow-y: auto; }
+}
+.cnt-h { margin: 0 0 var(--space-2); font-size: 13px; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); }
+.cnt ul { list-style: none; margin: 0; padding: 0; }
+.cnt li a { all: unset; box-sizing: border-box; display: flex; align-items: center; width: 100%; height: 28px; padding: 0 var(--space-2); border-left: 2px solid transparent; color: var(--text-muted); font-size: var(--size-caption); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cnt li a:hover { color: var(--text); }
+.cnt li a.on { color: var(--heading); font-weight: var(--weight-medium); border-left-color: var(--brand-blue); }
+.cnt li a:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+@media print { .cnt { display: none; } .cnt-grid { display: block; } }
+html.print-all .cnt { display: none; }
 /* Row 1319, primary buttons: .again, .btn.primary and .btn.pri are aqua pills in Classic, light and dark (the aqua, glow and glow-hover come from the pill tokens; the gradient start, the dark text and the ring are literals from the prototype because the Classic pill tokens carry a flat fill and a different text, and a Theme may not add token names); hover lifts and glows, press sinks, reduced motion keeps both still; the finished state is green with white text. */
 .again, .btn.primary, .btn.pri { border: 0; border-radius: var(--radius-pill); padding: 0 22px; min-height: 38px; font-weight: 800; letter-spacing: .04em; background-color: var(--pill-color); background-image: linear-gradient(90deg, #8FF2EF, var(--pill-color)); color: #04222A; box-shadow: var(--pill-glow); }
 .again:hover, .btn.primary:hover, .btn.pri:hover:not(:disabled) { box-shadow: var(--pill-glow-hover); }
