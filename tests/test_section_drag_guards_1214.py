@@ -163,6 +163,7 @@ class Saving(Gated):
                 x, y = (r["left"] + r["right"]) / 2, r["bottom"] - 2
                 p.drag("ABC-S-001", x, y, release=False)
                 p.until(p.SHOWN, f"{width} px: the drop target is shown before the release")
+                p.rested()      # 300 ms after the last move, also with CLARK_SLOW_CDP=0.15 (tests/test_section_drag_release_model_1277.py models the early drop)
                 p.mouse("mouseReleased", x, y, 0)       # the gate is shut: the drop stays being stored, so no wait for it
                 self.assertTrue(wait(lambda: len(self.arrived) == 1, 5), f"{width} px: the drop was sent")
                 self.assertEqual(self.ids_in_store(), IDS, f"{width} px: and is not stored yet")
