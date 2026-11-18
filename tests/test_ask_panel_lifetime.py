@@ -75,6 +75,13 @@ class Lifetime(Base):
             p.until("document.querySelector('#ask-panel') === null", "closed")
             self.assertEqual(p.js("document.querySelector('#ask-btn').getAttribute('aria-label')"), "ask clark")
 
+    def test_a_fresh_page_marks_nothing_before_any_answer(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.until("!!document.querySelector('#ask-btn')", "the ask button is there")
+            self.assertEqual(p.js("document.querySelector('#ask-btn').getAttribute('aria-label')"), "ask clark")
+            self.assertEqual(p.js("document.querySelectorAll('#ask-btn .tb-ask-ready').length"), 0)
+
     def test_the_ready_mark_is_cleared_for_good_when_the_panel_is_opened(self):
         """Opening resets the count: closing again must not bring the old mark back. The badge shows the number."""
         self.stub.hold.clear()
