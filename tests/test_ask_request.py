@@ -90,12 +90,9 @@ class Limits(unittest.TestCase):
         self.assertEqual(ask.TOO_LONG, "That question is too long. It can be 4,000 characters at most. Make it shorter and ask again.")
         ask.build_request("x" * ask.MAX_QUESTION, [])
 
-    def test_a_chat_that_is_too_long_says_so_and_what_to_do(self):
-        self.assertEqual(ask.CHAT_TOO_LONG, "This chat has got too long. Start a new chat and ask again.")
+    def test_a_chat_that_is_too_long_is_trimmed_not_refused(self):          # #1293 B: was a refusal (CHAT_TOO_LONG)
         for earlier in ([("user", "x" * (ask.MAX_TURN + 1))], [("user", "hi")] * (ask.MAX_EARLIER_TURNS + 1)):
-            with self.assertRaises(ask.AskRefused) as cm:
-                ask.build_request("Q?", P, earlier=earlier)
-            self.assertEqual(str(cm.exception), ask.CHAT_TOO_LONG)
+            self.assertLessEqual(len(ask.build_request("Q?", P, earlier=earlier).text), ask.MAX_REQUEST)
 
     def test_the_other_refusals_say_what_to_do(self):
         self.assertEqual(ask.TOO_MUCH, "That needs too much text to send. Ask a narrower question.")
@@ -116,10 +113,7 @@ class Limits(unittest.TestCase):
             ask.build_request("Q?", [ask.Passage("a.md", "x")] * (ask.MAX_PASSAGES + 1))
 
     def test_earlier_turns_are_limited(self):
-        with self.assertRaises(ask.AskRefused):
-            ask.build_request("Q?", [], earlier=[("user", "a")] * (ask.MAX_EARLIER_TURNS + 1))
-        with self.assertRaises(ask.AskRefused):
-            ask.build_request("Q?", [], earlier=[("user", "a" * (ask.MAX_TURN + 1))])
+        self.assertEqual(ask.build_request("Q?", [], earlier=[("user", "a")] * (ask.MAX_EARLIER_TURNS + 1)).dropped_turns, 1)     # #1293 B: trimmed
         for bad in ([("system", "a")], [("user",)], ["text"], [("user", 5)]):
             with self.assertRaises(ask.AskRefused):
                 ask.build_request("Q?", [], earlier=bad)
