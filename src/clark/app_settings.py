@@ -18,7 +18,7 @@ import re
 import threading
 from pathlib import Path
 
-from clark import platform
+from clark import ask_connectors, platform
 from clark.store import CODE_RE, CONNECTORS, THEMES, Invalid, open_store
 
 SETTINGS_FIELDS = ("ask_enabled", "updated_at", "theme")
@@ -200,22 +200,32 @@ class AppSettings:
                 store.close()
 
     # ----- the connector switches (row 1306) -----
-    # GET /api/ask-connectors[?project=CODE] answers {ok, saved, connectors: {name: {on, project_off, allowed}}}; `project_off` and `allowed`
-    # are given only with a project. POST takes exactly one of {"connector", "on": bool} (this computer's switch), {"connector", "project",
-    # "off": bool} (that project's Off) or {"undo": apply_id}. Every connector starts Off; a project's Off wins over the global On. Only switch
-    # state is kept: nothing about a connector's content, no token, key or app registration. Nothing here reads a connector.
-    def answer_connectors(self, store, project=None, message=None, apply_id=None):
+    # GET /api/ask-connectors[?project=CODE] answers {ok, saved, connectors: [{id, label, on, off_here}]}: ONLY the connectors found on this computer
+    # (ask_connectors discovery), `on` this computer's choice (Off until turned on), `off_here` the project's own turn-off (false without a project).
+    # POST takes exactly one of {"id", "on": bool} (this computer's choice for every project), {"project", "id", "off_here": bool} (that project's
+    # own turn-off) or {"undo": apply_id}; every POST answers the same list. Only switch state is kept: no token, key, address or connector content is
+    # stored or returned. Nothing here reads a connector. Discovery can take a while, so it runs before the lock is taken.
+    def found_connectors(self):
+        """[(id, label)] of the connectors found here, each id once, only ids the store knows. Never raises."""
+        try:
+            rows = ask_connectors.list_found()
+        except Exception:
+            rows = []
+        out, seen = [], set()
+        for r in rows if isinstance(rows, list) else []:
+            cid = r.get("connector") if isinstance(r, dict) else None
+            label = r.get("label") if isinstance(r, dict) else None
+            if type(cid) is str and cid in CONNECTORS and cid not in seen and type(label) is str:
+                seen.add(cid)
+                out.append((cid, label))
+        return out
+
+    def answer_connectors(self, store, project=None, message=None, apply_id=None, found=None):
         on = store.connector_switches()
         off_here = set(store.project_connectors_off(project)) if project else set()
-        out = {}
-        for c in CONNECTORS:
-            one = {"on": on[c]}
-            if project:
-                one.update(project_off=c in off_here, allowed=on[c] and c not in off_here)
-            out[c] = one
+        out = [{"id": c, "label": label, "on": bool(on[c]), "off_here": c in off_here}
+               for c, label in (self.found_connectors() if found is None else found)]
         body = {"ok": True, "saved": store.connectors_ready(), "connectors": out}
-        if project:
-            body["project"] = project
         if message:
             body["message"] = message
         if apply_id:
@@ -228,6 +238,7 @@ class AppSettings:
     def read_connectors(self, project=None):
         if project is not None and (type(project) is not str or not CODE_FULL.fullmatch(project)):
             return 400, self.fail("bad_project")
+        found = self.found_connectors()
         with self.lock:
             try:
                 store = self.store()
@@ -236,7 +247,7 @@ class AppSettings:
             try:
                 if project is not None and not self.project_known(store, project):
                     return 404, self.fail("bad_project")
-                return self.answer_connectors(store, project)
+                return self.answer_connectors(store, project, found=found)
             finally:
                 store.close()
 
@@ -248,20 +259,23 @@ class AppSettings:
             if not self.valid_step(body["undo"]):
                 return 400, self.fail("no_undo")
             kind, asked = "undo", body["undo"]
-        elif keys == {"connector", "on"}:
+        elif keys == {"id", "on"}:
             kind, asked = "global", None
             if type(body["on"]) is not bool:
                 return 400, self.fail("bad_value")
-        elif keys == {"connector", "project", "off"}:
+        elif keys == {"id", "project", "off_here"}:
             kind, asked = "project", None
-            if type(body["off"]) is not bool:
+            if type(body["off_here"]) is not bool:
                 return 400, self.fail("bad_value")
             if type(body["project"]) is not str or not CODE_FULL.fullmatch(body["project"]):
                 return 400, self.fail("bad_project")
         else:
             return 400, self.fail("bad_request")
-        if kind != "undo" and (type(body["connector"]) is not str or body["connector"] not in CONNECTORS):
+        if kind != "undo" and (type(body["id"]) is not str or body["id"] not in CONNECTORS):
             return 400, self.fail("bad_connector")
+        found = self.found_connectors()
+        if kind != "undo" and body["id"] not in [c for c, _l in found]:
+            return 400, self.fail("bad_connector")      # a connector that is not set up on this computer cannot be switched
         with self.lock:
             try:
                 store = self.store()
@@ -274,30 +288,30 @@ class AppSettings:
                     undone = self.undo_connector(store, asked)
                     if not undone:
                         return 409, self.fail("no_undo")
-                    return self.answer_connectors(store, undone[1], MESSAGES["undone"])
-                name = body["connector"]
+                    return self.answer_connectors(store, undone[1], MESSAGES["undone"], found=found)
+                name = body["id"]
                 if kind == "global":
                     if store.connector_switches()[name] == body["on"]:
-                        return self.answer_connectors(store, None, MESSAGES["same"])
+                        return self.answer_connectors(store, None, MESSAGES["same"], found=found)
                     step = self.save(store, lambda st: st.update("connector_switches", name, {"is_on": body["on"]}))
                     if step is False:
                         return 409, self.fail("cant_save")
-                    return self.answer_connectors(store, None, MESSAGES["connector_on" if body["on"] else "connector_off"], step)
+                    return self.answer_connectors(store, None, MESSAGES["connector_on" if body["on"] else "connector_off"], step, found=found)
                 project = body["project"]
                 if not self.project_known(store, project):
                     return 404, self.fail("bad_project")
                 now_off = name in store.project_connectors_off(project)
-                if now_off == body["off"]:
-                    return self.answer_connectors(store, project, MESSAGES["same"])
+                if now_off == body["off_here"]:
+                    return self.answer_connectors(store, project, MESSAGES["same"], found=found)
                 have = store.con.execute("SELECT 1 FROM project_connectors WHERE project_id = ? AND connector = ?", (project, name)).fetchone()
                 if have:
-                    make = lambda st: st.update("project_connectors", f"{project}|{name}", {"off": body["off"]})
+                    make = lambda st: st.update("project_connectors", f"{project}|{name}", {"off": body["off_here"]})
                 else:
-                    make = lambda st: st.create("project_connectors", {"project_id": project, "connector": name, "off": body["off"]})
+                    make = lambda st: st.create("project_connectors", {"project_id": project, "connector": name, "off": body["off_here"]})
                 step = self.save(store, make)
                 if step is False:
                     return 409, self.fail("cant_save")
-                return self.answer_connectors(store, project, MESSAGES["project_off" if body["off"] else "project_allowed"], step)
+                return self.answer_connectors(store, project, MESSAGES["project_off" if body["off_here"] else "project_allowed"], step, found=found)
             finally:
                 store.close()
 
