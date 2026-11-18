@@ -98,5 +98,33 @@ class Provenance(unittest.TestCase):
         self.assertFalse(cs.is_from_connector("hi"))
 
 
+class PlainStaysAccepted(unittest.TestCase):
+    def test_plain_text_used(self):
+        for t in ("Hello world", "abc 123", "Meeting at 10:30, room B-2. (Bring notes; ok?) \"quoted\" it's 5% - done!",
+                  "line one\nline two\ttabbed", "caf\u00e9 na\u00efve \u00fcber", "\u65e5\u672c\u8a9e\u306e\u30c6\u30ad\u30b9\u30c8",
+                  "\U0001F600 \U0001F44D \U0001F389 ok", "\u2764 \u2705 done", "\u3042 \u3044"):
+            r = cs.screen("outlook_email_search", t)
+            self.assertTrue(r.used, repr(t))
+            self.assertEqual(cs.hidden_count(t), 0, repr(t))
+
+    def test_invisible_non_format_refused(self):
+        for c in ("\ufe0f", "\ufe00", "\U000e0100", "\U000e01ef", "\u034f", "\u3164", "\u115f", "\u1160", "\u2800",
+                  "\u180b", "\u180e", "\uffa0"):
+            r = cs.screen("outlook_email_search", "a" + c + "b")
+            self.assertFalse(r.used, repr(c))
+            self.assertEqual(r.reason, cs.REFUSED_HIDDEN)
+            self.assertIn("Mail (hidden characters)", cs.used_line([r]).text)
+
+    def test_only_mcp_server_prefix(self):
+        self.assertTrue(cs.tool_allowed("mcp__srv__find-tasks"))
+        self.assertTrue(cs.tool_allowed("mcp__claude_ai_Todoist__find-tasks", {"Todoist"}))
+        for t in ("evil__outlook_email_search", "x__y__outlook_email_search", "a__outlook_email_search",
+                  "mcp__outlook_email_search", "mcp____outlook_email_search", "mcp__srv__x__outlook_email_search",
+                  "MCP__srv__outlook_email_search", "mcp__s rv__outlook_email_search", "__outlook_email_search",
+                  "mcp__srv__outlook_email_search__"):
+            self.assertFalse(cs.tool_allowed(t), t)
+            self.assertIsNone(cs.part_of_tool(t), t)
+
+
 if __name__ == "__main__":
     unittest.main()
