@@ -132,6 +132,11 @@ def select_line(cdp, sid):
 def set_line(cdp, sid, text):
     """Replace the one filter line (issue 662): click its box, select what is in it, type the new line, and wait for the pause after which the
     list follows the box (the box holds the whole line, and the list changes about 400 ms after the last key, not on Enter)."""
+    # The save prompt (row 1265) is drawn over the line once the focus has left it with changes, and at 900 px it covers the middle of the box: a
+    # click aimed there pressed "Save as a new view", which made a view, chose it and moved the focus to its tab a moment later, so the typing
+    # could go to the tab and the line stayed as it was. Put the focus in the box first (that takes the prompt away), then click it.
+    cdp.js("document.querySelector('#fline-input').focus()", sid)
+    wait(lambda: cdp.js("!document.querySelector('.vask')", sid))
     click(cdp, sid, "#fline-input")
     select_line(cdp, sid)
     if text:
