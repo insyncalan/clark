@@ -730,15 +730,16 @@ input.sec-title { width: 100%; }
 /* The peek (#42): a panel on the right edge, below the banner (item 1202); its width is dragged from the left edge and kept in this browser. */
 .peek { position: fixed; top: var(--topbar); right: 0; bottom: 0; z-index: 30; max-width: 100vw; min-width: min(420px, 100vw); overflow-y: auto; overscroll-behavior-y: contain; background: var(--surface); border-left: 1px solid var(--grey-200); box-shadow: var(--shadow); padding: var(--space-3) var(--space-5) var(--space-5); }
 .peek.wide { width: 100%; }
-/* Row 1258 (v1.1.1), the approved peek mockup (peek-mockup.html .panel): the item, milestone and archived peeks float as a card, 16 px in from the right and the bottom, 16 px under the banner, radius 16, a 1 px border and the mockup's shadow. The Help peek keeps its banner-line, flush-right shape. */
-.peek:not(.hpk) { top: calc(var(--topbar) + 16px); right: 16px; bottom: 16px; max-width: calc(100% - 32px); border: 1px solid var(--grey-200); border-radius: 16px; box-shadow: 0 10px 40px rgba(6, 47, 58, .18); }
-.peek.wide:not(.hpk) { width: calc(100% - 32px); }
+/* Row 1289 (v1.3, the owner 17-11 "smooth peek is perfect", reverses the card of row 1258): every peek, Help included, is flush to the right edge, top on the banner's bottom edge, bottom on the window's bottom, square, no gap; the base rule above is the whole frame. Entry is a 0.5 s slide from beyond the right edge (--peek-dur, --peek-ease, keyframe pk-in); the exit stays 120 ms. */
+:root { --peek-dur: 500ms; --peek-ease: cubic-bezier(.22, 1, .36, 1); }
 /* Below 1000 px the peek fills the window over the list (row 847): a side panel would leave the list a strip too narrow to read. Above it the dragged width stays. */
-@media (max-width: 999px) { .peek:not(.hpk) { width: calc(100% - 32px) !important; } .peek:not(.hpk) .pk-edge { display: none; } }      /* row 847: the item and milestone peeks overlay the page below 1000 px; the Help peek keeps its own width (and the button in view) */
+@media (max-width: 999px) { .peek:not(.hpk) { width: 100% !important; } .peek:not(.hpk) .pk-edge { display: none; } }      /* row 847: the item and milestone peeks overlay the page below 1000 px; the Help peek keeps its own width (and the button in view) */
+@keyframes pk-in { from { transform: translateX(100%); } }
 /* The exit: a copy of the closed peek slides out to the right (prototype app.css:416-18); none under reduced motion. */
 .peek.leaving { pointer-events: none; animation: pk-out var(--dur-instant) var(--ease-exit) forwards; }
 @keyframes pk-out { to { transform: translateX(104%); } }
-@media (prefers-reduced-motion: reduce) { .peek.leaving { display: none; } }
+@media (prefers-reduced-motion: reduce) { .peek.leaving { display: none; } .peek:not(.leaving) { animation: pk-fade var(--dur-instant) var(--ease-enter) 1; } }      /* row 1289: no travel under reduced motion, a short fade */
+@keyframes pk-fade { from { opacity: 0; } }
 .pk-edge { position: absolute; left: 0; top: 0; bottom: 0; width: 24px; cursor: ew-resize; touch-action: none; }      /* a 24 px hit box inside the peek's 24 px side padding; the strip that shows is still 8 px */
 .pk-edge:hover { background: linear-gradient(var(--brand-cyan), var(--brand-cyan)) left / 8px 100% no-repeat; opacity: .5; }
 .pk-edge:focus-visible { background: linear-gradient(var(--brand-blue), var(--brand-blue)) left / 8px 100% no-repeat; opacity: 1; outline: 2px solid var(--focus); outline-offset: -2px; }   /* a ring, not only a faint fill, so the keyboard user sees the handle has focus */
@@ -1971,7 +1972,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
     .pk-row.flash { animation: sn-flash calc(var(--dur-enter) * 2 + var(--dur-state)) var(--ease-out) 1; }
     .sn-confirm.flash { animation: sn-flash calc(var(--dur-enter) + var(--dur-state) + var(--dur-instant)) var(--ease-out) 1; }
     /* the peek slides in on opening and its body fades in as Previous or Next steps on */
-    .peek:not(.leaving) { animation: m-slide var(--dur-state) var(--ease-enter) 1; }
+    .peek:not(.leaving) { animation: pk-in var(--peek-dur) var(--peek-ease) 1; }
     .pk-body { animation: m-in var(--dur-instant) var(--ease-enter) 1; }
     /* row 884: the Dashboard pill's thumb slides to the other button (transform only; the buttons keep their places), and the Edit-only chrome fades in as Edit opens */
     .modes.seg.glide { position: relative; }
