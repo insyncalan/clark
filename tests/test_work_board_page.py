@@ -518,10 +518,12 @@ class Moves(Base):
             self.until(cdp, sid, "!!document.querySelector('.ddmenu')", "the menu")
             self.assertEqual(cdp.js("document.querySelector('[data-move]').closest('article') && document.querySelector('.ddmenu').getAttribute('aria-label')", sid), f"Move {a} to")
             items = cdp.js("[...document.querySelectorAll('.ddmenu [role=menuitem]')].map(b => b.textContent)", sid)
-            self.assertEqual(items, ["Delayed", "Closed", "Cancelled"], "only where an action can go, not where it is")
+            self.assertEqual(items, ["\u2713Open", "Delayed", "Closed", "Cancelled"], "row 1273: every column, the one the card is in ticked first (the prototype's list)")
+            self.assertEqual(cdp.js("[...document.querySelectorAll('.ddmenu [role=menuitem]')].map(b => b.getAttribute('aria-disabled'))", sid), ["true", None, None, None], "the card's own column is not a choice")
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.ddmenu .mh')).textTransform", sid), "uppercase", "row 1273: the head is in capitals, the words unchanged")
             self.assertEqual(cdp.js("document.querySelector('.ddmenu .mh').textContent", sid), "Move to Status")
             key(cdp, sid, "ArrowDown")
-            key(cdp, sid, "Enter")                                   # Closed
+            key(cdp, sid, "Enter")                                   # Closed (the keys pass over the ticked line: the column the card is in)
             t = self.wait_toast(cdp, sid, "done")
             self.assertEqual(t["text"], f"{a} is now Closed.")
             self.assertEqual((self.row(a)["status"], self.steps()), ("Closed", before + 1))
@@ -557,6 +559,38 @@ class Moves(Base):
             click(cdp, sid, "[data-undo]")
             self.until(cdp, sid, f"document.querySelector(\"{self.cell('Open', 'Data')} article[data-id='{a}']\")", "both put back")
             self.assertEqual((self.row(a)["status"], self.row(a)["workstream"]), ("Open", "Data"))
+
+    def test_the_group_by_menu_has_the_prototypes_head_font_and_width(self):
+        """Row 1273 (the owner's answer of 17-11, Group by: the prototype wins): the head is drawn in capitals (the words stay "Group by"), the items at body size, the tick before the icon, the panel at least 14rem."""
+        with shared.page() as cdp:
+            sid = self.visit(cdp)
+            self.board(cdp, sid, "status")
+            click(cdp, sid, "#viewMenu")
+            self.until(cdp, sid, "!!document.querySelector('#viewMenuList')", "the View menu")
+            self.assertEqual(cdp.js("document.querySelector('#viewMenuList .lab').textContent", sid), "Group by")
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#viewMenuList .lab')).textTransform", sid), "uppercase")
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#viewMenuList [role=menuitemradio]')).fontSize", sid),
+                             cdp.js("getComputedStyle(document.documentElement).getPropertyValue('--size-body').trim()", sid))
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#viewMenuList [role=menuitemradio] .ck')).order", sid), "-1")
+            self.assertGreaterEqual(cdp.js("document.querySelector('#viewMenuList').getBoundingClientRect().width", sid),
+                                    cdp.js("parseFloat(getComputedStyle(document.documentElement).fontSize) * 14", sid) - 1)
+
+    def test_the_group_by_menu_look_holds_at_900(self):
+        """Row 1273 at 900 px: the same head, body size items, tick first, and the panel stays inside the window."""
+        with shared.page() as cdp:
+            sid = self.visit(cdp, width=900)
+            self.board(cdp, sid, "status")
+            click(cdp, sid, "#viewMenu")
+            self.until(cdp, sid, "!!document.querySelector('#viewMenuList')", "the View menu")
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#viewMenuList .lab')).textTransform", sid), "uppercase")
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#viewMenuList [role=menuitemradio]')).fontSize", sid),
+                             cdp.js("getComputedStyle(document.documentElement).getPropertyValue('--size-body').trim()", sid))
+            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#viewMenuList [role=menuitemradio] .ck')).order", sid), "-1")
+            box = cdp.js("(() => { const r = document.querySelector('#viewMenuList').getBoundingClientRect(); return [r.left, r.right, window.innerWidth]; })()", sid)
+            self.assertGreaterEqual(box[0], 0)
+            self.assertLessEqual(box[1], box[2])
+            self.assertGreaterEqual(cdp.js("document.querySelector('#viewMenuList').getBoundingClientRect().width", sid),
+                                    cdp.js("parseFloat(getComputedStyle(document.documentElement).fontSize) * 14", sid) - 1)
 
     def test_the_menu_offers_lanes_too(self):
         with shared.page() as cdp:
@@ -765,7 +799,7 @@ class Moves(Base):
                     before = self.steps()
                     click(cdp, sid, f"[data-move='{a}']")
                     self.until(cdp, sid, "!!document.querySelector('.ddmenu')", "the menu")
-                    self.assertEqual(cdp.js("[...document.querySelectorAll('.ddmenu [role=menuitem]')].map(b => b.textContent)", sid), ["Delayed", "Closed", "Cancelled"])
+                    self.assertEqual(cdp.js("[...document.querySelectorAll('.ddmenu [role=menuitem]')].map(b => b.textContent)", sid), ["\u2713Open", "Delayed", "Closed", "Cancelled"])
                     click(cdp, sid, ".ddmenu [data-to='Delayed']")
                     t = self.wait_toast(cdp, sid, "done")
                     self.assertEqual(t["text"], f"{a} is now Delayed.")
