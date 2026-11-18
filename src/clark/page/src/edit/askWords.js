@@ -10,6 +10,13 @@ export const named = (text, who) => (who === "ChatGPT" ? text.replace(/Claude, w
 export const DISCONNECTED_LINE = "Nothing is connected in Settings. Connect Claude or ChatGPT there to use this.";   // the server's status words, ai_connect.OFF_WORDS
 // #1062: where a question goes and who pays moved from the panel to the Asking card in Settings.
 export const ASK_NOTICE_LINE = "Your question and the passages it needs go to Claude, which Anthropic runs, and are billed to the Claude account signed in on this computer.";
+// #1292 feature 2: the first-run card in an empty chat, three plain lines. Written for Claude; named() swaps the provider in use.
+// The sentences are a draft: the spec gives the ideas, the words wait for the project head (listed as B1 in the words file).
+export const FIRST_RUN_LABEL = "About ask clark";
+export const FIRST_RUN_READS = "It reads what is in this project. It never reads your mail, Teams or calendars.";
+export const FIRST_RUN_CHANGES = "It can suggest changes. Nothing is saved until you press Apply, and every change can be undone.";
+export const FIRST_RUN_SENT = "Your question goes to Claude, which Anthropic runs.";
+export const FIRST_RUN_LINK = "Open the Asking card in Settings";
 export const CHECKING_LINE = "Checking whether you can ask…";
 export const READY_LINE = "Ready. Ask about this project.";
 export const MODEL_LINE = (name) => `Answering with ${name}.`;

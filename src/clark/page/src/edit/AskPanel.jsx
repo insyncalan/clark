@@ -323,6 +323,14 @@ export function AskPanel() {
           ) : <p class="ask-hist-empty" id="ask-hist-empty">{W.HISTORY_EMPTY}</p>}
         </div>
       ) : null}
+      {!showHist && !list.length && (state === "ready" || state === "off") ? (
+        <section class="ask-first-run" id="ask-first-run" aria-label={W.FIRST_RUN_LABEL}>
+          <p>{W.FIRST_RUN_READS}</p>
+          <p>{W.FIRST_RUN_CHANGES}</p>
+          <p>{W.named(W.FIRST_RUN_SENT, askProvider.value)}</p>
+          <div class="ask-first-link"><a href="#settings&s=claude" data-ask-first-settings onClick={toSettings}>{W.FIRST_RUN_LINK}</a></div>
+        </section>
+      ) : null}
       <div class="ask-log" id="ask-log" hidden={showHist} role="log" aria-live="polite" aria-label={W.LOG_LABEL} ref={log}>
         {shownTurns(list).map((t, i) => t.kind === "notes" ? (
           <ul key={i} class="ask-turn assistant ask-notes" data-role="assistant" data-ask-notes>{t.lines.map((n, k) => <li key={k}>{n}</li>)}</ul>
