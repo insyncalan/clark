@@ -1,10 +1,11 @@
 // The At a glance section (#45): Project health (a pill and the reason, two tile widths) and the tiles after it, in the order, with
-// the outline and the hidden flags that glance_tiles holds. View leaves a hidden tile out; Edit draws it dimmed with its controls
+// the outline and the hidden flags that glance_tiles holds. View leaves a hidden tile out; Edit leaves it out too (row 1303) and lists it in Add a tile
 // (`tools.glance`, edit/GlanceEdit.jsx). A published file draws the figures the file carries (data.glance, worked out at publish
 // time from the rows the file keeps); its tiles that count work items open the file's Work items filtered (row 1112), read only. No control.
 import { data, rows, openWork, fromFile, tabs } from "../stores/report.js";
 import { todayIso } from "../workItems.js";
 import { allTiles, fileTiles } from "../glanceTiles.js";
+import { drawnTiles, hiddenTiles } from "../glanceHidden.js";
 import { useRef } from "preact/hooks";
 import { useSettle } from "../stores/motion.js";
 import { HTML_START } from "../logic/richWords.js";
@@ -56,7 +57,8 @@ export function Health({ t, tools, editing, clean }) {
 
 export function Glance({ tools, clean }) {
   const d = data.value, editing = !!(tools && tools.glance) && !fromFile.value;
-  const list = fromFile.value ? fileTiles(d.glance, d.project) : allTiles(rows.value, todayIso(), d.project, d.glance_tiles).filter((t) => editing || !t.hidden);
+  const every = fromFile.value ? fileTiles(d.glance, d.project) : allTiles(rows.value, todayIso(), d.project, d.glance_tiles);
+  const list = drawnTiles(every), hidden = editing ? hiddenTiles(every) : [];      // row 1303: a hidden tile leaves Edit too; Add a tile lists it
   const Wrap = editing ? tools.glance.Cell : Cell;
   const order = list.map((t) => t.key);
   return (
@@ -68,6 +70,7 @@ export function Glance({ tools, clean }) {
         </Wrap>
       ))}
     </div>
+    {editing && hidden.length ? <tools.glance.AddTile hidden={hidden} onShow={(key) => tools.glance.show(key)} /> : null}
     {editing ? <tools.glance.Hint /> : null}
     </>
   );
