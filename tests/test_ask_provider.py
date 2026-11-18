@@ -159,12 +159,14 @@ def _imports(tree):
 
 class Source(unittest.TestCase):
     PROVIDER_MODULE = "ask_claude.py"                    # the one provider module (commit 5); not built yet
+    # Row 1306: the connector modules are the provider's side (they run its `mcp list` and name the account servers it reports), so they may name it.
+    PROVIDER_SIDE = ("ask_claude.py", "ask_connectors.py", "ask_connector_args.py", "ask_connector_screen.py", "ask_connector_stream.py")
 
     def test_nothing_outside_the_one_provider_module_names_the_company_or_its_model(self):
         mods = _ask_modules()
         self.assertIn("ask.py", [m.name for m in mods])
         for path in mods:
-            if path.name == self.PROVIDER_MODULE:
+            if path.name in self.PROVIDER_SIDE:
                 continue
             text = path.read_text(encoding="utf-8").lower()
             for word in ("claude", "anthropic", "opus", "sonnet", "haiku"):
