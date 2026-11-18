@@ -132,7 +132,7 @@ class Dropped(Host):
         rules = theme.css(NAME)
         drop = re.search(r"(^|\})\s*[^{}]*\.cover\b[^{}]*\{[^}]*display:\s*none", rules)
         self.assertTrue(drop, "the Classic Theme CSS has no rule that drops .cover")
-        self.assertNotRegex(page.page_html(branding=self.brand, theme=None), r"\.cover[^{]*\{[^}]*display:\s*none")
+        self.assertNotIn('html[data-mode="view"] .cover', page.page_html(branding=self.brand, theme=None))      # the committed look has its own .cover::after rule, so only the Theme's view-mode rule is looked for
 
 
 if __name__ == "__main__":
