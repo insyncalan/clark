@@ -94,6 +94,10 @@ RULE_LINES = [
         'html[data-mode="view"] .cover { display: none; }',
         'html[data-mode="view"] .sec { border-left: 2px solid var(--gutter-rule); padding-left: 20px; }',
         '@media print { html[data-mode="view"] .sec { border-left: 0; padding-left: 0; } }',
+        '/* Row 1312: the section gutter on the four editor pages that have no .sec. Work items, Milestones and Use cases are one .frame each (flat, border 0 and padding 0 from shell.css), Settings is the .set-cards column of cards; the rule above names .sec, which only the Dashboard has. Same 2px rule, 20px padding, hover blend and print as .sec. The published frames (.pub) and the Dashboard are not named. */',
+        '.frame.work:not(.pub), .frame.milestones:not(.pub), .frame.ucl, .set-cards { border-left: 2px solid var(--gutter-rule); padding-left: 20px; transition: border-color .2s; }',
+        '.frame.work:not(.pub):hover, .frame.work:not(.pub):focus-within, .frame.milestones:not(.pub):hover, .frame.milestones:not(.pub):focus-within, .frame.ucl:hover, .frame.ucl:focus-within, .set-cards:hover, .set-cards:focus-within { border-left-color: color-mix(in srgb, var(--brand-blue) 35%, var(--gutter-rule)); }',
+        '@media print { .frame.work:not(.pub), .frame.milestones:not(.pub), .frame.ucl, .set-cards { border-left: 0; padding-left: 0; } }',
     ]
 
 
