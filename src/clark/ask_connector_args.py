@@ -20,6 +20,17 @@ from clark import ask_connectors
 M365 = "claude.ai Microsoft 365"
 FLAG_ALLOW, FLAG_DENY = "--allowedTools=", "--disallowedTools="
 
+# Every built-in tool of the command, denied by name when a connector is On (the run then has the default tools, because --tools "" also removes the
+# tool that loads connector tools). A deny list only covers the names it knows: a built-in ADDED LATER is not in it. That case is caught after the
+# fact, not prevented: ask_connector_stream refuses the whole run (nothing from it is shown) if any tool_use is not one of the allowed connector tools.
+# Source: the tool names of the command's own tool set (the init event of a real run should be compared with it; see the probe notes).
+BUILT_IN_TOOLS = (
+    "Agent", "AskUserQuestion", "Bash", "BashOutput", "CronCreate", "CronDelete", "CronList", "Edit", "EndConversation", "EnterPlanMode",
+    "EnterWorktree", "ExitPlanMode", "ExitWorktree", "Glob", "Grep", "KillBash", "KillShell", "LS", "ListMcpResourcesTool", "MultiEdit",
+    "Monitor", "NotebookEdit", "NotebookRead", "PushNotification", "Read", "ReadMcpResourceTool", "RemoteTrigger", "ScheduleWakeup",
+    "SendMessage", "Skill", "SlashCommand", "Task", "TaskOutput", "TaskStop", "TodoWrite", "WebFetch", "WebSearch", "Workflow", "Write",
+)    # ToolSearch is NOT here: it is the one built-in that loads the allowed connector tool
+
 # server -> connector -> read-only tools (fixed order). The only tools that can ever be allowed.
 READ_TOOLS = {
     M365: {
@@ -80,12 +91,14 @@ def connector_plan(discovered, on):
             continue
         servers.setdefault(pair[0], set()).add(pair[1])
     whole, allow, named = [], [], []
+    any_on = False
     for server in sorted(servers):
         table = READ_TOOLS.get(server)
         live = [c for c in table if c in on_ids and c in servers[server]] if table else []
         if not live:
             whole.append(FLAG_DENY + prefix(server))
             continue
+        any_on = True
         p = prefix(server)
         allowed = []
         for c in table:                      # fixed table order
@@ -94,7 +107,8 @@ def connector_plan(discovered, on):
         allow.extend(f"{FLAG_ALLOW}{p}__{t}" for t in allowed)
         names = set(WRITE_TOOLS[server]) | {t for c in table for t in table[c]}
         named.extend(f"{FLAG_DENY}{p}__{t}" for t in sorted(names - set(allowed)))
-    return whole + allow + named, dropped
+    built_in = [FLAG_DENY + t for t in BUILT_IN_TOOLS] if any_on else []
+    return built_in + whole + allow + named, dropped
 
 
 def connector_args(discovered, on):
