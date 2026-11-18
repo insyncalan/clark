@@ -327,7 +327,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .head h1 { margin-bottom: 0; }
 .head-sub { margin: 2px 0 0; font-size: var(--size-small); color: var(--text-muted); }      /* the sentence under a page's title (the Milestones page) */
-.head-sub-off { display: none; }      /* the normal 'is agreed for' sentence stays in the page for the tests but is not shown; the empty and cancelled sentences stay shown */
+.head-sub-off { display: none; }      /* hides the whole last-milestone sentence (its name, its date or "no date yet", the "now expected" part and the achieved / to come counts) whenever the page has such a line; the sentence stays in the page for the tests. The empty and cancelled sentences have no line and stay shown. */
 .hacts { display: flex; align-items: center; gap: 8px; }
 .note { margin: var(--space-2) 0 0; font-size: var(--size-small); }
 .note:empty { display: none; }
@@ -898,7 +898,7 @@ table.items .weye[aria-pressed="true"], table.items .weye.on { color: var(--stat
 .lanebar .fs { margin-left: auto; }
 .lb-hint { font-size: var(--size-small); }
 .boardbox { margin-top: 0; overflow: auto; max-height: calc(100vh - var(--topbar) - 16px); padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); scroll-padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); overscroll-behavior-y: contain; }
-.boardbox { scrollbar-width: none; }      /* row 1269 Cards item 3: the sideways bar is hidden on the scroller (.boardbox), not on .board */
+.boardbox { scrollbar-width: none; }      /* row 1269 Cards item 3: both scroll bars of the board (sideways and down) are hidden on the scroller (.boardbox), not on .board; the board still scrolls both ways */
 .boardbox::-webkit-scrollbar { display: none; }
 .lane { width: max-content; min-width: 100%; }
 .lane + .lane { margin-top: var(--d-group-gap); }
