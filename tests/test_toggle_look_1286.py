@@ -51,7 +51,7 @@ class ToggleLook(BrowserBase, unittest.TestCase):
         got = {}
         with chrome() as cdp:
             sid = self.visit(cdp, width, "#milestones&p=MOSS", port)
-            cdp.js(f"document.documentElement.dataset.theme = '{scheme}'", sid)
+            self.scheme(cdp, sid, scheme)
             got["switch"] = cdp.js(f"({LOOK})('.msv-b[aria-current=true]')", sid)
             cdp.js("document.querySelector('[data-msvb=cal]').click()", sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.cal-sc')", sid)))
@@ -60,13 +60,21 @@ class ToggleLook(BrowserBase, unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#gantt-page')", sid)), "the Gantt page drew")
             cdp.js("document.querySelector('[data-gp-mode=edit]').click()", sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.gt-grp .gt-ib[aria-pressed=true]')", sid)), "the chart's scale buttons drew")
-            cdp.js(f"document.documentElement.dataset.theme = '{scheme}'", sid)
+            self.scheme(cdp, sid, scheme)
             time.sleep(0.3)
             got["gantt"] = cdp.js(f"({LOOK})('.gt-grp .gt-ib[aria-pressed=true][data-g-scale]')", sid)
+            # a pressed button outside the scale group (the zoom button, forced pressed here) is not given the chosen-half look
+            cdp.js("document.querySelector('[data-g-zin]').setAttribute('aria-pressed', 'true')", sid)
+            got["outside"] = cdp.js(f"({LOOK})('[data-g-zin]')", sid)
         return got
 
+    def scheme(self, cdp, sid, scheme):
+        """light, dark, or auto with the system asking for dark (the Theme has a rule for that case too)."""
+        cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "dark" if scheme == "auto" else scheme}]}, sid)
+        cdp.js(f"document.documentElement.dataset.theme = '{scheme}'", sid)
+
     def test_the_chosen_half_looks_the_same_on_the_switch_the_calendar_and_the_gantt(self):
-        for theme, width, scheme in itertools.product(("classic", "cards"), (1400, 900), ("light", "dark")):
+        for theme, width, scheme in itertools.product(("classic", "cards"), (1400, 900), ("light", "dark", "auto")):
             with self.subTest(theme=theme, width=width, scheme=scheme):
                 got = self.looks(theme, width, scheme)
                 for name, look in got.items():
@@ -76,6 +84,9 @@ class ToggleLook(BrowserBase, unittest.TestCase):
                         self.assertEqual(got["switch"], got["calendar"], "Timeline/Calendar switch against the Calendar scale")
                 with self.subTest(pair="gantt"):
                     self.assertEqual(got["gantt"], got["calendar"], "Gantt scale against the Calendar scale")
+                if theme == "classic":
+                    with self.subTest(pair="outside"):
+                        self.assertNotEqual(got["outside"]["paint"], got["gantt"]["paint"], "a pressed button outside the scale group keeps its own look")
 
 
 if __name__ == "__main__":
