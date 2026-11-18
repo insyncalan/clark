@@ -391,21 +391,11 @@ class Killers(Editor):
             self.click(p, "[data-tile=t1] [data-tile-pencil]")
             p.until(f"!document.querySelector({self.q('[data-tile-editor]')})", "closed by the pencil")
 
-    def test_K3_done_keeps_a_hidden_tile_hidden_and_sends_nothing_when_nothing_changed(self):
+    def test_K3_a_hidden_own_tile_is_not_drawn_in_edit_and_stays_hidden(self):
         self.seed([{**OWN, "hidden": True}])
         with chrome() as cdp:
             p = self.page(cdp)
-            self.pencil(p)
-            before = self.applies()
-            self.click(p, "[data-tile-editor] [data-done]")
-            p.until(f"!document.querySelector({self.q('[data-tile-editor]')})", "the editor closed")
-            self.assertEqual(self.toast(p), "", "nothing changed: no toast")
-            self.assertEqual(self.applies(), before, "nothing changed: no step")
-            self.assertTrue(self.body()["bespoke"][0].get("hidden"))
-            self.pencil(p)
-            self.fill(p, "label", "Fictional kept hidden")
-            self.click(p, "[data-tile-editor] [data-done]")
-            self.assertTrue(wait(lambda: self.body()["bespoke"][0].get("label") == "Fictional kept hidden", 10), f"stored: {self.body()}")
+            self.assertEqual(p.js(f"document.querySelectorAll({self.q('[data-tile=t1]')}).length"), 0, "no tile and no pencil in Edit (row 1303)")
             self.assertTrue(self.body()["bespoke"][0].get("hidden"), "still hidden")
 
     def test_K4_arrow_keys_move_the_colour_and_wrap_and_only_the_picked_colour_is_a_tab_stop(self):

@@ -294,11 +294,11 @@ class EditTiles(Setup):
             p.js("document.querySelector('[data-tile=overdue] [data-tile-grip]').focus()")
             p.key("ArrowRight", ALT, code="ArrowRight", vk=39)
             p.saved()
-            p.until("JSON.stringify([...document.querySelectorAll('.glance > .tcell')].map(e => e.dataset.tile)) === JSON.stringify(['health','risks','overdue','decisions'])", "moved")
+            p.until("JSON.stringify([...document.querySelectorAll('.glance > .tcell')].map(e => e.dataset.tile)) === JSON.stringify(['health','risks','overdue'])", "moved")      # row 1303: Decisions needed is hidden and is not drawn in Edit
             order = sorted(self.rows().values(), key=lambda r: r["sort_order"])
-            self.assertEqual([r["tile"] for r in order], ["health", "risks", "overdue", "decisions"])
+            self.assertEqual([r["tile"] for r in order], ["health", "risks", "decisions", "overdue"])      # the hidden Decisions needed keeps its place in the stored order
             self.undo(p)
-            self.assertEqual(self.tiles(p), ["health", "overdue", "risks", "decisions"])
+            self.assertEqual(self.tiles(p), ["health", "overdue", "risks"])
 
     def test_dragging_a_tile_moves_it(self):
         with chrome() as cdp:
@@ -348,7 +348,7 @@ class EditTiles(Setup):
                     self.assertEqual(p.js("document.querySelectorAll('[data-glance-hint]').length"), 0, "View has no hint")
                     p.edit()
                     self.assertEqual(p.js("(document.querySelector('[data-glance-hint]') || {}).textContent"), want)
-                    self.assertEqual(p.js("document.querySelector('[data-glance-hint]').previousElementSibling.matches('[data-glance]')"), True, "it sits right under the tiles")
+                    self.assertEqual(p.js("document.querySelector('[data-glance-hint]').previousElementSibling.matches('[data-glance], [data-glance-add]')"), True, "it sits right under the tiles")
                     self.assertEqual(p.js("document.documentElement.scrollWidth <= window.innerWidth"), True)
 
     def test_view_has_no_tile_control(self):

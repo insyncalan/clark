@@ -94,9 +94,9 @@ class Fill(Setup):
             self.assertEqual(len({round(c["top"]) for c in cells}), 1, f"one line at {width}")
             self.assertAlmostEqual(cells[-1]["left"] + cells[-1]["width"], right, delta=1.5, msg=f"fills the row at {width}")
             if count - 1 == 2:      # row 1303: Project health with 2 visible tiles fills half the row; with 1, three quarters; with 3 it is two shares of four-up
-                self.assertAlmostEqual(health["width"], box["width"] / 2, delta=1.5, msg="health is 50% of the row beside two tiles")
+                self.assertAlmostEqual(health["width"], box["width"] / 2 - box["gap"] / 2, delta=1.5, msg="health is 50% of the row beside two tiles, less its half of the gap")
             elif count - 1 == 1:
-                self.assertAlmostEqual(health["width"], box["width"] * 3 / 4, delta=1.5, msg="health is 75% of the row beside one tile")
+                self.assertAlmostEqual(health["width"], box["width"] * 3 / 4 - box["gap"] * 3 / 4, delta=1.5, msg="health is 75% of the row beside one tile, less its share of the gap")
             else:
                 self.assertAlmostEqual(health["width"], 2 * small["width"] + box["gap"], delta=1.5)
         for c in cells[1:]:
@@ -125,7 +125,7 @@ class Fill(Setup):
                 p = self.show(cdp, width)
                 p.edit()
                 p.until("document.querySelectorAll('.glance > .tcell').length === 3", "the three shown tiles in Edit (the hidden one is left out, row 1303)")
-                self.check(p, width, 4)
+                self.check(p, width, 3)
 
     def test_edit_controls_and_the_hidden_tag_never_cover_the_text_at_900_and_1400_in_light_and_dark(self):
         for width in (1400, 900):
@@ -187,7 +187,7 @@ class Fill(Setup):
     def test_a_lone_health_tile_fills_the_row(self):
         with chrome() as cdp:
             p = self.show(cdp)
-            p.js("document.querySelectorAll('.glance > .tcell:not(.health)').forEach(e => e.remove())")
+            p.js("document.querySelectorAll('.glance > .tcell:not(.health)').forEach(e => e.remove()); document.querySelector('.glance').removeAttribute('data-others')")
             w = p.js("(() => { const g = document.querySelector('.glance').getBoundingClientRect(), h = document.querySelector('.tcell.health').getBoundingClientRect(); return [g.width, h.width]; })()")
             self.assertAlmostEqual(w[0], w[1], delta=1.5)
 

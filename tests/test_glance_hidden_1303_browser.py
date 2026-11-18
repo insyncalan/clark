@@ -29,7 +29,7 @@ class HiddenLeavesEdit(Setup):
                 self.assertFalse(any("Project health" in n for n in names), "Project health is never listed")
                 p.js(f"{ITEMS}.find(b => b.textContent.includes('Overdue actions')).click()")
                 p.saved()
-                self.assertEqual(self.tiles(p), ["health", "overdue", "risks"], "it is back, in its old place")
+                p.until("JSON.stringify([...document.querySelectorAll('.glance > .tcell')].map(e => e.dataset.tile)) === JSON.stringify(['health','overdue','risks'])", "it is back, in its old place")
                 self.assertEqual(self.rows()["overdue"]["hidden"], 0)
 
     def test_with_nothing_hidden_there_is_no_add_a_tile_on_the_live_section(self):
