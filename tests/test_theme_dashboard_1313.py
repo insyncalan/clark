@@ -112,20 +112,24 @@ PROBE = """(() => { const q = (s) => document.querySelector(s), qa = (s) => [...
   const seg = (bs) => bs.map((b) => ({cur: b.getAttribute('aria-current'), bg: cs(b, 'backgroundColor'), color: cs(b, 'color'), radius: cs(b, 'borderTopLeftRadius'), left: cs(b, 'borderLeftWidth'), bottom: cs(b, 'borderBottomWidth')}));
   return {
     frame: (() => { const f = q('.frame.report'); return f ? {bg: cs(f, 'backgroundColor'), border: cs(f, 'borderTopWidth') + cs(f, 'borderLeftWidth'), shadow: cs(f, 'boxShadow'), radius: cs(f, 'borderTopLeftRadius')} : null; })(),
-    theme: !!q('#theme'), heading: cv('--heading'), scrollW: document.documentElement.scrollWidth, innerW: window.innerWidth,
+    theme: !!q('#theme'), heading: cv('--heading'), radius: cv('--radius'), scrollW: document.documentElement.scrollWidth, innerW: window.innerWidth,
     figBorders: figs.map((e) => cs(e, 'borderTopWidth') + cs(e, 'borderLeftWidth')), figBg: figs.map((e) => cs(e, 'backgroundColor')), figRadius: figs.map((e) => cs(e, 'borderTopLeftRadius')),
     figAfter: figs.map((e) => cs(e, 'display', '::after')), tw: qa('.glance[data-glance] .fig .tw').map((e) => cs(e, 'borderTopWidth') + cs(e, 'paddingLeft')),
     gap: cs(q('.glance[data-glance]'), 'columnGap') + cs(q('.glance[data-glance]'), 'rowGap'),
-    cells: cells.map((e) => ({left: Math.round(R(e).left), top: Math.round(R(e).top), bl: cs(e, 'borderLeftWidth'), bb: cs(e, 'borderBottomWidth'), health: e.classList.contains('health'), line: cs(e, 'borderLeftColor')})),
+    cells: cells.map((e) => ({left: Math.round(R(e).left), top: Math.round(R(e).top), bl: cs(e, 'borderLeftWidth'), bb: cs(e, 'borderBottomWidth'), health: e.classList.contains('health'), line: cs(e, 'borderLeftColor'), style: cs(e, 'borderLeftStyle')})),
     lineSoft: cv('--line-soft'),
     sech: {size: cs(sech, 'fontSize'), weight: cs(sech, 'fontWeight'), family: cs(sech, 'fontFamily'), color: cs(sech, 'color'), ratio: ratio(cs(sech, 'color'), under(sech))},
     num: {size: cs(head, 'fontSize', '::before'), weight: cs(head, 'fontWeight', '::before'), family: cs(head, 'fontFamily', '::before'), color: cs(head, 'color', '::before'), blue: cv('--brand-blue'), ratio: ratio(cs(head, 'color', '::before'), under(head)), content: cs(head, 'content', '::before')},
+    narrow: (() => { const root = document.documentElement, t = q('.top-hdr .tabs'), id = q('.top-hdr .hdr-id'); root.style.removeProperty('--topbar'); const token = cv('--topbar'), min = cv('--bar-min'); bar.style.minHeight = '0'; const h = R(bar).height; bar.style.minHeight = '';      // the page's script writes --topbar from the bar's height, so the token is read with that override off, and the declared height with the min-height floor off
+      return {token, min, h, ai: cs(bar, 'alignItems'), gap: cs(bar, 'columnGap'), pad: cs(bar, 'paddingTop') + ' ' + cs(bar, 'paddingRight') + ' ' + cs(bar, 'paddingBottom') + ' ' + cs(bar, 'paddingLeft'),
+              id: cs(id, 'flexGrow') + ' ' + cs(id, 'flexShrink') + ' ' + cs(id, 'flexBasis'),
+              tabs: t ? [cs(t, 'flexGrow'), cs(t, 'flexShrink'), cs(t, 'minWidth'), cs(t, 'marginTop') + cs(t, 'marginLeft'), cs(t, 'paddingTop') + cs(t, 'paddingLeft'), cs(t, 'borderTopWidth'), cs(t, 'alignSelf')].join(' ') : null}; })(),
     bar: {h: R(bar).height, before: cs(bar, 'display', '::before'), bg: cs(bar, 'backgroundImage'), cssTopbar: cv('--topbar'), kids: tops('.top-hdr > *'), flex: cs(bar, 'display'), wrap: cs(bar, 'flexWrap'),
           nameH: R(q('.hdr-project')).height, nameLH: parseFloat(cs(q('.hdr-project'), 'lineHeight')), nameWS: cs(q('.hdr-project > span'), 'whiteSpace'), nameTO: cs(q('.hdr-project > span'), 'textOverflow'),
           nameClip: q('.hdr-project > span').scrollWidth > q('.hdr-project > span').clientWidth, tabsRight: R(q('.top-hdr .tabs')).right, endLeft: R(q('.top-hdr .hdr-end')).left, barRight: R(bar).right, nameText: q('.hdr-project').textContent,
           idRatio: ratio(cs(q('.hdr-project'), 'color'), under(bar))},
-    msvSw: sw.length ? {edge: ratio(cs(sw.find((b) => b.getAttribute('aria-current') === 'true'), 'backgroundColor'), under(q('.msv-sw').parentElement)), ground: under(q('.msv-sw').parentElement), gap: cs(q('.msv-sw'), 'columnGap'), border: cs(q('.msv-sw'), 'borderTopWidth'), bc: cs(q('.msv-sw'), 'borderTopColor'), btns: seg(sw), ratios: sw.map((b) => ratio(cs(b, 'color'), cs(b, 'backgroundColor')))} : null,
-    scale: sc.length ? {edge: ratio(cs(sc.find((b) => b.getAttribute('aria-current') === 'true'), 'backgroundColor'), under(q('.mv-txt').parentElement)), gap: cs(q('.mv-txt'), 'columnGap'), btns: seg(sc), ratios: sc.map((b) => ratio(cs(b, 'color'), cs(b, 'backgroundColor'))), dots: qa('.mv-txt > span').map((e) => cs(e, 'display'))} : null,
+    msvSw: sw.length ? {edge: ratio(cs(sw.find((b) => b.getAttribute('aria-current') === 'true'), 'backgroundColor'), under(q('.msv-sw').parentElement)), ground: under(q('.msv-sw').parentElement), gap: cs(q('.msv-sw'), 'columnGap'), rad: cs(q('.msv-sw'), 'borderTopLeftRadius'), ov: cs(q('.msv-sw'), 'overflow'), pad: cs(sw[0], 'paddingLeft') + ' ' + cs(sw[0], 'paddingRight'), div: cs(sw[1], 'borderLeftColor'), border: cs(q('.msv-sw'), 'borderTopWidth'), bc: cs(q('.msv-sw'), 'borderTopColor'), btns: seg(sw), ratios: sw.map((b) => ratio(cs(b, 'color'), cs(b, 'backgroundColor')))} : null,
+    scale: sc.length ? {edge: ratio(cs(sc.find((b) => b.getAttribute('aria-current') === 'true'), 'backgroundColor'), under(q('.mv-txt').parentElement)), gap: cs(q('.mv-txt'), 'columnGap'), rad: cs(q('.mv-txt'), 'borderTopLeftRadius'), ov: cs(q('.mv-txt'), 'overflow'), pad: cs(sc[0], 'paddingLeft') + ' ' + cs(sc[0], 'paddingRight'), div: cs(sc[1], 'borderLeftColor'), btns: seg(sc), ratios: sc.map((b) => ratio(cs(b, 'color'), cs(b, 'backgroundColor'))), dots: qa('.mv-txt > span').map((e) => cs(e, 'display'))} : null,
   }; })()"""
 
 
@@ -157,8 +161,8 @@ class Classic(Setup):
             p.js("document.querySelectorAll('.secs > .sec').forEach((e) => e.style.setProperty('background', 'rgba(255, 255, 255, %s)', 'important'))" % alpha)      # set through the object model: the page's policy refuses a new style element
             banded = p.js(PROBE)
             got["banded"] = {"sech": banded["sech"]["ratio"], "num": banded["num"]["ratio"]}
-            got["others"] = p.js("""(() => { const out = {}; for (const [k, cls] of [['gantt', 'frame report gp'], ['milestones', 'frame milestones'], ['milestonesPub', 'frame milestones pub'], ['plain', 'frame']]) {
-                const e = document.createElement('section'); e.className = cls; document.body.appendChild(e); const c = getComputedStyle(e);
+            got["others"] = p.js("""(() => { const out = {}; for (const [k, cls] of [['gantt', 'frame report gp'], ['milestones', 'frame milestones'], ['milestonesPub', 'frame milestones pub'], ['plain', 'frame'], ['asat', 'frame report asat-frame']]) {
+                const e = document.createElement('section'); e.className = cls; if (k === 'asat') e.id = 'report'; document.body.appendChild(e); const c = getComputedStyle(e);
                 out[k] = [c.borderTopWidth, c.boxShadow === 'none' ? 'none' : 'shadow']; e.remove(); } return out; })()""")
             got["longname"] = self.long_name(p)
             got["longname_off"] = p.js("""(() => { document.getElementById('report').id = 'report-off'; const n = document.querySelector('.hdr-project'), s = n.querySelector('span') || n, c = getComputedStyle(s); return [c.whiteSpace, c.textOverflow, c.overflow]; })()""")      # a page with no dashboard frame: the project name is not ellipsised
@@ -191,6 +195,8 @@ class Classic(Setup):
                 row.sort(key=lambda c: c["left"])
                 for i, c in enumerate(row):
                     self.assertEqual(c["bl"], "1px" if i else "0px", (width, c))
+                    if i:
+                        self.assertEqual(c["style"], "solid", "a solid rule between figures")
             if width == 900:
                 self.assertGreater(len(rows), 1, "Project health on its own row at 900")
                 self.assertEqual([c["bb"] for r in rows.values() for c in r if c["health"]], ["1px"])
@@ -235,8 +241,14 @@ class Classic(Setup):
             self.assertTrue(long["clip"], "the long title is cut with an ellipsis")
             self.assertEqual(g["longname_off"], ["normal", "clip", "visible"], "only the dashboard title takes the ellipsis; other pages keep the wrapping name")
             self.assertTrue(long["wide"], "no sideways scroll")
+            n = g["narrow"]
+            self.assertEqual((n["token"], n["min"]), (("85px", "85px") if width == 1400 else ("103px", "103px")), "the token the stylesheet gives, with the script's override off")
             if width == 900:
                 self.assertEqual(b["wrap"], "nowrap")
+                self.assertEqual(n["h"], 103, "the declared height, with the min-height floor off")
+                self.assertEqual((n["ai"], n["gap"], n["pad"]), ("center", "12px", "10px 20px 10px 20px"))
+                self.assertEqual(n["id"], "1 1 0px", "the name takes the spare room")
+                self.assertEqual(n["tabs"], "0 1 0px 0px0px 0px0px 0px stretch", "the tabs shrink, sit flush and stretch")
                 tops = b["kids"]
                 self.assertLessEqual(max(tops) - min(tops), 40, "every part of the bar is in the one row")
 
@@ -247,6 +259,10 @@ class Classic(Setup):
             self.assertIsNotNone(sc)
             for grp in (sw, sc):
                 self.assertEqual(grp["gap"], "0px", "joined")
+                self.assertEqual(grp["rad"], g["radius"], "the group keeps the rounded outer corners")
+                self.assertEqual(grp["ov"], "hidden", "the square buttons are clipped to the rounded outer corners")
+                self.assertEqual(grp["pad"], "12px 12px", "each button keeps its side padding")
+                self.assertEqual(grp["div"], rgb_of(g["heading"]), "the rule between neighbours is the heading colour")
                 self.assertEqual({b["radius"] for b in grp["btns"]}, {"0px"})
                 self.assertEqual({b["bottom"] for b in grp["btns"]}, {"0px"}, "no underline")
                 self.assertEqual([b["left"] for b in grp["btns"]], ["0px"] + ["1px"] * (len(grp["btns"]) - 1), "a rule between neighbours")
@@ -266,6 +282,7 @@ class Classic(Setup):
 
     def test_only_the_dashboard_frame_goes_flat_the_gantt_page_the_milestones_frame_and_a_plain_frame_keep_their_card(self):
         for width, dark, g in self.cases():
+            self.assertEqual(g["others"]["asat"][0], "3px", "the as-at-a-day frame keeps its dashed amber border: the flat rule skips it")
             for k in ("gantt", "plain"):
                 self.assertEqual(g["others"][k], ["1px", "shadow"], k)
             self.assertEqual(g["others"]["milestonesPub"], ["1px", "shadow"], "the published Milestones frame is not matched: it carries no report class")

@@ -28,9 +28,11 @@ READ = """(sel) => { const e = document.querySelector(sel); const c = getCompute
 
 
 def block():
-    """The text of the marked Row 1312 block at the end of rules.css."""
+    """The text of the marked Row 1312 block: from its comment to the next row's comment (later rows are appended after it)."""
     text = RULES.read_text(encoding="utf-8")
-    return text[text.index("/* Row 1312"):]
+    text = text[text.index("/* Row 1312"):]
+    nxt = text.find("\n/* Row ", 1)
+    return text if nxt < 0 else text[:nxt]
 
 
 class Source(unittest.TestCase):
@@ -49,6 +51,8 @@ class Source(unittest.TestCase):
             self.assertEqual(len(re.findall(r"\.frame\.%s(?!:not\(\.pub\))\b" % name, rules)), 0, name)
         self.assertEqual(len(re.findall(r"\.frame\.ucl\b", rules)), 4)
         self.assertEqual(len(re.findall(r"\.set-cards\b", rules)), 4)
+        self.assertEqual(rules.count(":hover"), 4)
+        self.assertEqual(rules.count(":focus-within"), 4)
 
     def test_the_values_are_the_sec_rules_values(self):
         b = re.sub(r"/\*.*?\*/", "", block(), flags=re.S)
@@ -92,15 +96,48 @@ class Computed(Base):
                         self.assertEqual((tp, td), ("border-color", "0.2s"))
                         self.assertEqual((top, right), ("0px", "0px"), "only the left side")
 
-    def test_hover_blends_the_brand_in(self):
-        for name, hash_, wait_for, sel in PAGES:
-            with self.subTest(page=name), chrome() as cdp:
-                sid = self.load(hash_, wait_for, 1400, "light", cdp)
-                cdp.js("(() => { const e = document.querySelector(%r); const t = document.createElement('button'); e.appendChild(t); t.focus(); })()" % sel, sid)
-                time.sleep(0.5)
-                r = cdp.js("getComputedStyle(document.querySelector(%r)).borderLeftColor" % sel, sid)
-                self.assertNotEqual(r, LIGHT, "focus inside blends the brand into the rule")
-                self.assertNotEqual(r, "rgba(0, 0, 0, 0)")
+    def blend(self, cdp, sid):
+        """The computed colour of the rule's hover blend (35% --brand-blue into --gutter-rule), read off a probe in the same scheme."""
+        return cdp.js("""(() => { const p = document.createElement('i'); p.style.color = 'color-mix(in srgb, var(--brand-blue) 35%, var(--gutter-rule))';
+            document.body.appendChild(p); const c = getComputedStyle(p).color; p.remove(); return c; })()""", sid)
+
+    def rule_colour(self, cdp, sid, sel):
+        return cdp.js("getComputedStyle(document.querySelector(%r)).borderLeftColor" % sel, sid)
+
+    def test_a_pointer_over_the_element_blends_the_brand_in_and_leaving_restores_it(self):
+        for scheme, colour in (("light", LIGHT), ("dark", DARK)):
+            for name, hash_, wait_for, sel in PAGES:
+                with self.subTest(page=name, scheme=scheme), chrome() as cdp:
+                    sid = self.load(hash_, wait_for, 1400, scheme, cdp)
+                    want = self.blend(cdp, sid)
+                    self.assertNotEqual(want, colour, "the blend differs from the plain rule")
+                    self.assertFalse(cdp.js("document.querySelector(%r).contains(document.activeElement)" % sel, sid), "no focus inside: hover alone")
+                    self.assertEqual(self.rule_colour(cdp, sid, sel), colour)
+                    cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 1, "y": 1}, sid)
+                    time.sleep(0.4)
+                    self.assertEqual(self.rule_colour(cdp, sid, sel), colour, "pointer elsewhere: plain rule")
+                    x, y = cdp.js("""((sel) => { const r = document.querySelector(sel).getBoundingClientRect();
+                        const top = Math.max(r.top, 0), bottom = Math.min(r.bottom, innerHeight);
+                        return [Math.round(r.left + 10), Math.round((top + bottom) / 2)]; })(%r)""" % sel, sid)
+                    cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, sid)
+                    time.sleep(0.5)
+                    self.assertTrue(cdp.js("document.querySelector(%r).matches(':hover')" % sel, sid), "the pointer is over %s" % sel)
+                    self.assertEqual(self.rule_colour(cdp, sid, sel), want, "hover blends 35% brand into the rule")
+                    cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 1, "y": 1}, sid)
+                    time.sleep(0.5)
+                    self.assertEqual(self.rule_colour(cdp, sid, sel), colour, "pointer left: plain rule again")
+
+    def test_focus_inside_blends_the_brand_in_without_a_pointer(self):
+        for scheme, colour in (("light", LIGHT), ("dark", DARK)):
+            for name, hash_, wait_for, sel in PAGES:
+                with self.subTest(page=name, scheme=scheme), chrome() as cdp:
+                    sid = self.load(hash_, wait_for, 1400, scheme, cdp)
+                    want = self.blend(cdp, sid)
+                    cdp.js("(() => { const e = document.querySelector(%r); const t = document.createElement('button'); e.appendChild(t); t.focus(); })()" % sel, sid)
+                    time.sleep(0.5)
+                    self.assertTrue(cdp.js("document.querySelector(%r).matches(':focus-within') && !document.querySelector(%r).matches(':hover')" % (sel, sel), sid))
+                    self.assertEqual(self.rule_colour(cdp, sid, sel), want, "focus inside blends 35% brand into the rule")
+                    self.assertNotEqual(want, colour)
 
     def test_print_has_no_rule_and_no_padding(self):
         for name, hash_, wait_for, sel in PAGES:
