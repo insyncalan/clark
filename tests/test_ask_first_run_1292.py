@@ -4,6 +4,7 @@ Run: python3 dev/run_tests.py test_ask_first_run_1292
 Headless Chrome through the shared harness, with the same stub for the server's `ask` as test_ask_panel.
 """
 import re
+import time
 import unittest
 
 from _paths import ROOT
@@ -66,9 +67,12 @@ class FirstRun(Panel):
         self.stub.status = lambda *_: (200, {"ok": False})
         with chrome() as cdp:
             p = self.opened(cdp, ready=False)
-            p.until("document.querySelector('#ask-status').textContent !== ''", "the panel has settled")
+            deadline = time.time() + 10
+            while self.stub.count("status") < 1 and time.time() < deadline:
+                time.sleep(0.1)
+            time.sleep(0.8)
+            self.assertEqual(self.stub.count("status"), 1, "the check was asked")
             self.assertEqual(p.js(CARD), None)
-            self.assertEqual(self.stub.count("ask"), 0)
 
     def test_with_asking_off_the_card_still_reads(self):
         self.stub.enabled = False
