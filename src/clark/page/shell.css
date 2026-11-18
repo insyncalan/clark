@@ -139,7 +139,7 @@ button.pillbtn { min-height: 28px; border: 0; cursor: pointer; font: inherit; fo
 .tcell.drop-left::before, .tcell.drop-right::before { content: ""; position: absolute; top: 0; bottom: 0; width: 3px; background: var(--brand-cyan); z-index: 3; }
 .tcell.drop-left::before { left: -8px; } .tcell.drop-right::before { right: -8px; }
 .tilemenu { top: 30px; right: auto; left: 0; }
-.ddmenu [role="menuitemradio"] { all: unset; display: block; box-sizing: border-box; width: 100%; padding: var(--space-2) 14px; cursor: pointer; font-size: var(--size-small); color: var(--text); }
+.ddmenu [role="menuitemradio"] { all: unset; display: block; box-sizing: border-box; width: 100%; padding: var(--space-2) 14px; cursor: pointer; font-size: var(--size-body); color: var(--text); }
 .ddmenu [role="menuitemradio"]:hover, .ddmenu [role="menuitemradio"]:focus-visible { background: var(--brand-blue-tint); color: var(--status-blue-text); }
 .ragdot { width: 8px; height: 8px; border-radius: 50%; background: var(--status-grey); }
 .rag-g .ragdot { background: var(--status-green); } .rag-a .ragdot { background: var(--status-amber); } .rag-r .ragdot { background: var(--status-red); }
@@ -497,18 +497,18 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1
 
 /* creaite's Add button (NewTile): a "+" that grows to its words on hover and on keyboard focus. */
 .dd { position: relative; display: inline-block; }
-.newb { height: 32px; min-width: 32px; border: 0; border-radius: var(--radius); background: var(--brand-blue-tint); color: var(--status-blue-text); display: inline-flex; align-items: center; padding: 0 7px; cursor: pointer; font-size: var(--size-small); font-weight: 500; line-height: 18px; overflow: hidden; white-space: nowrap; transition: background var(--dur-instant) var(--ease-out), color var(--dur-instant) var(--ease-out); }
+.newb { height: 28px; min-width: 28px; border: 1px dashed var(--status-blue-text); border-radius: var(--radius); background: transparent; color: var(--status-blue-text); display: inline-flex; align-items: center; padding: 0 4px; cursor: pointer; font-size: var(--size-small); font-weight: 500; line-height: 18px; overflow: hidden; white-space: nowrap; transition: background var(--dur-instant) var(--ease-out), color var(--dur-instant) var(--ease-out); }
 .newb .i { width: 18px; height: 18px; stroke-width: 2.2; }
 .newb .w { max-width: 0; opacity: 0; overflow: hidden; transition: max-width var(--dur-state) var(--ease-out), opacity var(--dur-instant) var(--ease-out), margin var(--dur-state) var(--ease-out); }
-.newb:hover, .newb:focus-visible, .newb[aria-expanded="true"] { background: var(--brand-blue); color: var(--text-on-brand); }
+.newb:hover, .newb:focus-visible, .newb[aria-expanded="true"] { background: var(--brand-blue); border-color: var(--brand-blue); color: var(--text-on-brand); }
 .newb:hover .w, .newb:focus-visible .w, .newb[aria-expanded="true"] .w { max-width: 180px; opacity: 1; margin-left: 6px; margin-right: var(--space-1); }
 .newb:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .newb .nch { display: none; width: 14px; height: 14px; }
 .newb.hasmenu:hover .nch, .newb.hasmenu:focus-visible .nch, .newb.hasmenu[aria-expanded="true"] .nch { display: inline-block; }
-.ddmenu { position: absolute; z-index: 25; top: calc(100% + 4px); right: 0; min-width: 200px; padding: 6px 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+.ddmenu { position: absolute; z-index: 25; top: calc(100% + 4px); right: 0; min-width: 224px; padding: 6px 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
 .ddmenu.left { left: 0; right: auto; }
 .ddmenu:focus { outline: none; }
-.ddmenu [role="menuitem"] { all: unset; display: block; box-sizing: border-box; width: 100%; padding: var(--space-2) 14px; cursor: pointer; font-size: var(--size-small); color: var(--text); }
+.ddmenu [role="menuitem"] { all: unset; display: block; box-sizing: border-box; width: 100%; padding: var(--space-2) 14px; cursor: pointer; font-size: var(--size-body); color: var(--text); }
 .ddmenu .sep { height: 1px; margin: 6px 0; background: var(--border); }
 .ddmenu .who { display: block; padding: var(--space-2) 14px 6px; max-width: 280px; }
 .ddmenu .who b { display: block; font-size: var(--size-small); font-weight: var(--weight-medium); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
