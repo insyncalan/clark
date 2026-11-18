@@ -391,7 +391,7 @@ class Words(unittest.TestCase):
         files = [f for f in PAGE_SRC.rglob("*") if f.is_file()] + [PAGE_SRC.parent / "shell.css"]
         self.assertTrue(files)
         for f in files:
-            text = f.read_text(encoding="utf-8").replace("X-Clark-Token", "")     # the header's name is the server's, not text
+            text = f.read_text(encoding="utf-8").replace("X-Clark-Token", "").replace("Clark Classic", "").replace("Clark Cards", "")     # the header's name is the server's, not text; the two theme names are Alan's words (#1269)
             self.assertNotIn("report editor", text.lower(), f.name)
             self.assertNotIn("Clark", text, f.name)
             self.assertIsNone(re.search(r"\bJSON\b(?!\.)", re.sub(r"//.*", "", text)) if f.suffix == ".jsx" else None, f.name)
@@ -401,7 +401,7 @@ class Words(unittest.TestCase):
         words of Help (the page's and the prototype's), at the start of a string, after a full stop inside one and, since #225 and
         #318, after a colon or semicolon."""
         starts = SENTENCE_STARTS_WITH_PRODUCT_NAME
-        headings = ("Version and updates", "clark version and updates")                                   # a heading in Help's list of Settings entries, not a sentence
+        headings = ("Version and updates", "clark version and updates", "Clark Classic", "Clark Cards")                                   # a heading in Help's list of Settings entries, not a sentence
         files = (sorted(PAGE_SRC.rglob("*.js")) + sorted(PAGE_SRC.rglob("*.jsx")) + [PAGE_SRC / "help" / "helpContent.json",
                  PAGE_SRC.parents[3] / "system" / "prototype" / "help.js"])
         self.assertTrue(files)

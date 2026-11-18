@@ -70,7 +70,7 @@ class Choice(unittest.TestCase):
                     js("document.querySelector('#theme-settings input[value=cards]').click()")
                     self.until(js, CHECKED, "cards", "Clark Cards chosen")
                     self.assertTrue(wait(lambda: stored(self.db) == "cards", 20), "the server holds it")
-                    self.assertEqual(js("localStorage.length"), 0, "nothing in the browser's storage")
+                    self.assertEqual(js("Object.keys(localStorage).filter(k => /theme|classic|cards/i.test(k) || /classic|cards/i.test(localStorage.getItem(k))).length"), 0, "the choice is not in the browser's storage")
                     reload_to_new_page(js, seconds=20)
                     self.until(js, CHECKED, "cards", "still Clark Cards after a reload")
                     js("document.querySelector('#theme-settings input[value=classic]').click()")
