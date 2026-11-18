@@ -26,6 +26,7 @@ PROBE = """(() => {
 
 
 class Base(PublishedFile, Setup):
+    theme = None      # these tests set the Theme themselves (set_theme)
     def setUp(self):
         super().setUp()
         with self.store.step("dashboard", USER) as st:
