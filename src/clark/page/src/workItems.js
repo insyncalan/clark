@@ -124,13 +124,15 @@ function idOrder(p, q) {
 export function rowsOf(data) {
   const ucs = Object.fromEntries((data.use_cases || []).map((u) => [u.id, u.ref]));
   const ms = Object.fromEntries((data.milestones || []).map((m) => [m.id, m.name]));
+  const labelsOf = data.labels && typeof data.labels === "object" ? data.labels : {};      // item id -> its label names
   // #158: when the data carries an item's freshness (worked out from its history), the row carries it too.
   const fresh = (r) => (r.freshness && typeof r.freshness === "object"
     ? { raised: r.freshness.raised || null, last_reviewed: r.freshness.last_reviewed || null, not_reviewed: !!r.freshness.not_reviewed, review_days: r.freshness.days || null }
     : { raised_on: r.raised || null });      // row 1077: without a history (a published file) the row still knows the date it was raised; under its own name so the Freshness filter is not offered by it
   const common = (r) => ({ ...fresh(r), id: r.id, status: r.status, client: !!r.client_visible, client_message: String(r.client_message || "").trim(),
     uc: r.use_case && ucs[r.use_case] ? `Use case ${ucs[r.use_case]}` : "", milestone: (r.milestone && ms[r.milestone]) || "", workstream: r.workstream || "",
-    source: typeof r.source === "string" ? r.source : "" });        // row 1077: a published file's rows carry the source by name; the peek draws it
+    source: typeof r.source === "string" ? r.source : "",        // row 1077: a published file's rows carry the source by name; the peek draws it
+    labels: Array.isArray(labelsOf[r.id]) ? labelsOf[r.id].filter((n) => typeof n === "string" && n) : [] });      // row 1222: the Labels column
   const rows = [];
   for (const r of data.actions || []) rows.push({ ...common(r), latest_update: typeof r.latest_update === "string" ? r.latest_update : "", kind: "action", title: r.description, owner: r.owner, priority: r.priority, due_date: r.due_date, closed: r.closed });
   for (const r of data.raid || []) rows.push({ ...common(r), latest_update: typeof r.latest_update === "string" ? r.latest_update : "", kind: String(r.type).toLowerCase(), title: r.description, owner: r.owner, priority: r.priority, due_date: r.due_date, closed: r.closed,
@@ -139,6 +141,9 @@ export function rowsOf(data) {
   for (const r of data.decisions || []) rows.push({ ...common(r), latest_update: typeof r.latest_update === "string" ? r.latest_update : "", reasoning: r.reasoning || "", options: r.options || "", revisit: r.revisit || "", replaces: r.replaces || "", kind: "decision", title: r.decision, owner: r.made_by, priority: null, peek_priority: r.priority || null, needed_by: r.needed_by, date: r.date, workstream: "", milestone: "" });
   return rows;
 }
+
+// Row 1222: the Labels column's text, the names in the order the data gives them; nothing when the row has none.
+export const labelsText = (row) => (Array.isArray(row && row.labels) ? row.labels.join(", ") : "");
 
 // The count line's parts: "1 work item, 1 open." / "2 work items, 1 open." (one is singular, nought and the rest are plural).
 export function countOf(total, open) { return { total, open, noun: total === 1 ? "work item" : "work items" }; }
