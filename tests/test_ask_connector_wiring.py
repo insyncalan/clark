@@ -305,6 +305,31 @@ class Screened(Run):
         self.out = stream(use("1", f"{P}__outlook_send_mail"), final("Plain"))
         self.assertIsInstance(self.provider.ask(ask.Request(text="Q", question="Q")), ask.Failure)     # not the stream format: today's reader refuses it
 
+    def test_tool_search_then_the_allowed_tool_passes_and_anything_else_fails(self):
+        # The safe set keeps ToolSearch (the Mail tool needs it to load). Only a ToolSearch that asks for an allowed tool is let through.
+        def search(i, query):
+            return event("assistant", {"type": "tool_use", "id": i, "name": "ToolSearch", "input": {"query": query}})
+        mail = f"{P}__outlook_email_search"
+        for query in (f"select:{mail}", "select:outlook_email_search", "outlook_email_search", f"find {mail} please"):
+            ok, line, result = cs.checked(stream(search("0", query), got("0", "loaded"), use("1", mail), got("1", "t"), final()), {"Mail"})
+            self.assertTrue(ok, query)
+            self.assertIsNotNone(result, query)
+        ok, _l, _r = cs.checked(stream(search("0", f"select:{mail}"), final()), {"Mail"})
+        self.assertTrue(ok, "a search alone is fine")
+        for query in ("", "mail", "select:", f"select:{mail},{P}__outlook_send_mail", "select:Bash", "select:outlook_calendar_search", "x" * 600,
+                      "select:mcp__other__outlook_email_search"):
+            ok, _l, result = cs.checked(stream(search("0", query), got("0", "x"), final()), {"Mail"})
+            self.assertFalse(ok, query)
+            self.assertIsNone(result, query)
+        for other in ("Bash", f"{P}__outlook_send_mail", "WebFetch"):
+            ok, _l, result = cs.checked(stream(search("0", f"select:{mail}"), got("0", "loaded"), use("1", other), got("1", "t"), final()), {"Mail"})
+            self.assertFalse(ok, other)
+            self.assertIsNone(result, other)
+        ok, _l, _r = cs.checked(stream(event("assistant", {"type": "tool_use", "id": "0", "name": "ToolSearch", "input": "select:x"}), final()), {"Mail"})
+        self.assertFalse(ok, "a search with no input object")
+        ok, _l, _r = cs.checked(stream(search("0", f"select:{mail}"), final()), {"Calendar"})
+        self.assertFalse(ok, "Mail is Off: a search for its tool is refused")
+
     def test_a_bare_tool_name_in_the_stream_is_refused(self):
         # The real stream names every tool mcp__<server>__<tool>; a bare allowed name (or another server's prefix) is not ours: the run is refused.
         for name in ("outlook_email_search", "mcp__other_server__outlook_email_search"):
