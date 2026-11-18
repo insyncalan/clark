@@ -295,11 +295,6 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-hist h3 { margin: 0; font-size: var(--size-h3); font-weight: var(--weight-medium); }
 .ask-hist ul { list-style: none; margin: 8px 0 0; padding: 0; }
 .ask-hist li { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--grey-200); }
-.ask-first { margin: 0 0 var(--space-2); padding: 14px 16px; border: 1px solid var(--grey-200); border-radius: 12px; background: var(--surface); font-size: var(--size-small); }
-.ask-first h3 { margin: 0 0 6px; font-size: var(--size-body); font-weight: var(--weight-semibold, 600); }
-.ask-first ul { margin: 0; padding-left: 18px; }
-.ask-first li { margin: 5px 0; }
-.ask-first a { display: inline-flex; align-items: center; min-height: 24px; color: inherit; font-weight: var(--weight-medium); text-decoration: underline; }
 .ask-hist-note, .ask-hist-empty { margin: 4px 0 0; color: var(--text-muted); font-size: var(--size-caption); }
 .ask-hist-open { all: unset; box-sizing: border-box; flex: 1 1 auto; min-width: 0; min-height: 44px; display: flex; flex-direction: column; justify-content: center; gap: 2px; cursor: pointer; }
 .ask-hist-open:hover .ask-hist-title { text-decoration: underline; }

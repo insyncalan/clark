@@ -30,13 +30,6 @@ export const DELETE = "Remove";
 export const STOPPING_LINE = "Stopping. Your question and the earlier answers stay here.";
 export const NO_ANSWER_LINE = "No answer came back. Wait a moment and ask again.";
 export const NOT_REACHED_LINE = "The question did not reach clark. Check that its window is still open, then ask again.";
-// #1292 feature 2: the card in an empty chat, three plain lines. The third follows the provider in use (#54).
-export const FIRST_TITLE = "Ask about this project";
-export const FIRST_READS = "I read this project\u2019s work items, milestones and use cases and the folders you named. Mail, Teams and calendars are never read.";
-export const FIRST_SAVES_BOLD = "Nothing is saved until you press Apply";
-export const FIRST_SAVES_REST = ", and every change can be undone.";
-export const FIRST_SENDS = "Your question and what it needs go to Claude.";
-export const FIRST_LINK = "Open Settings";
 export const EMPTY_LINE = "Type a question first, then press Ask.";
 export const YOU = "You";
 export const REPLY = "Answer";
