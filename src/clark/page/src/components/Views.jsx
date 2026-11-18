@@ -82,7 +82,7 @@ function MsHead({ Add }) {
       <div class="head">
         <div>
           <h1>Milestones</h1>
-          <p class="head-sub" id="ms-summary">
+          <p class={line ? "head-sub head-sub-off" : "head-sub"} id="ms-summary">
             {line
               ? <><b>{line.name}</b>{line.date ? ` is ${line.agreed ? "agreed" : "forecast"} for ${showDate(line.date)}` : " has no date yet"}{line.expected ? ` and now expected ${showDate(line.expected)}` : ""}. {line.achieved} achieved, {line.toCome} to come.</>
               : emptyHead(rows)}

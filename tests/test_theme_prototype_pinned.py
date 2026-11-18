@@ -69,10 +69,12 @@ DARK = {
         '--tone-urgent': '#B93A52',
         '--shadow': '0 8px 24px rgba(0, 0, 0, .6)',
         '--page-bg': '#0E1620',
-        '--page-grad': 'linear-gradient(90deg, #0F1523 0%, #121A2A 100%)',
+        '--page-grad': 'linear-gradient(90deg, #08232D 0%, #0B2832 100%)',
         '--band-bg': '#1A2638',
         '--line-soft': '#222E42',
         '--gutter-rule': '#2A2650',
+        '--sec-number-color': 'var(--brand-blue)',
+        '--sec-number-size': '20px',
     }
 RULE_LINES = [
         'body { background: var(--page-bg) var(--page-grad) fixed no-repeat; }',
@@ -89,6 +91,9 @@ RULE_LINES = [
         '.col-h { background: var(--band-bg); }',
         '.boardbox { scrollbar-width: none; }',
         '.boardbox::-webkit-scrollbar { display: none; }',
+        'html[data-mode="view"] .cover { display: none; }',
+        'html[data-mode="view"] .sec { border-left: 2px solid var(--gutter-rule); padding-left: 20px; }',
+        '@media print { html[data-mode="view"] .sec { border-left: 0; padding-left: 0; } }',
     ]
 
 
