@@ -28,6 +28,9 @@ function cellText(row, col, now) {
   return "";
 }
 
+// Row 1195: a rating worth a chip: a word, and "Not rated" only on a risk or an issue (the others show a bare dash, which the half row does not draw).
+const ratedRow = (row) => { const p = priorityCell(row); return !!(p.text && (p.text !== "Not rated" || row.kind === "risk" || row.kind === "issue")); };
+
 function Cell({ row, col, now }) {
   if (col === "type") return <span class={`type k-${row.kind}`}>{KIND_WORDS[row.kind] || row.kind}</span>;
   if (col === "due") {
@@ -85,7 +88,7 @@ export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw }) {
           <li key={row.id} data-id={row.id} class={off(row).trim() || undefined} {...act(row)}>
             <span class="wil-tile">{tile(row)}</span>
             <span class="wil-t">{row.title || ""}</span>
-            {kinds && columns.includes("priority") && priorityCell(row).text ? <span class="wil-hpr"><Cell row={row} col="priority" now={now} /></span> : null}
+            {kinds && columns.includes("priority") && ratedRow(row) ? <span class="wil-hpr"><Cell row={row} col="priority" now={now} /></span> : null}
             {kinds ? <span class="wil-m">{columns.filter((c) => c !== "type" && c !== "priority").map((c) => cellText(row, c, now)).filter(Boolean).map((t, i) => <span key={i}>{t}</span>)}</span>
               : <span class="wil-m">{columns.map((c) => cellText(row, c, now)).filter(Boolean).join(" · ")}</span>}
             {Eye ? <span class="wil-eye"><Eye row={row} /></span> : null}
@@ -107,6 +110,7 @@ export function ShowAll({ list, all, onToggle }) {
 // the one with a height is measured. No limit when there are no more rows than Most rows.
 export function Scroller({ max, count, children, all }) {
   const box = useRef(null);
+  const scrolls = classicTheme() ? count > max && !all : count > max;      // row 1195 (Classic only): open (Show all items) the box no longer scrolls, so it is neither a region nor a tab stop; Cards keeps the old expression
   useLayoutEffect(() => {
     const el = box.current;
     if (!el) return;
@@ -117,14 +121,14 @@ export function Scroller({ max, count, children, all }) {
     const h = vis.slice(0, max).reduce((n, r) => n + r.offsetHeight, 0) + (head && head.offsetHeight > 0 ? head.offsetHeight : 0);
     if (h > 0) el.style.maxHeight = `${h}px`;
   });
-  return <div class="wil-scroll" data-wil-scroll="" ref={box} tabIndex={count > max ? 0 : undefined} role={count > max ? "region" : undefined} aria-label={count > max ? "Work items, scroll for more" : undefined}>{children}</div>;
+  return <div class="wil-scroll" data-wil-scroll="" ref={box} tabIndex={scrolls ? 0 : undefined} role={scrolls ? "region" : undefined} aria-label={scrolls ? "Work items, scroll for more" : undefined}>{children}</div>;
 }
 
-// Row 1195 (Classic only, the README's "Show all items"): the scrolling rows and, under them, the link when there are more rows than Most rows; open, the box
+// Row 1195 (Classic only, the README's "Show all items"): the scrolling rows and, under them (View and Edit, never a published file), the link when there are more rows than Most rows; open, the box
 // shows every row and the link reads "Show only N". The Cards page gets the Scroller alone, exactly as before.
 export function Listing({ max, count, children }) {
   const [all, setAll] = useState(false);
-  const on = classicTheme() && count > max;
+  const on = classicTheme() && !fromFile.value && count > max;      // the served page only, as the Foot is: a published file has no link
   return <><Scroller max={max} count={count} all={on && all}>{children}</Scroller>{on ? <ShowAll list={{ more: true, max }} all={all} onToggle={() => setAll(!all)} /> : null}</>;
 }
 
