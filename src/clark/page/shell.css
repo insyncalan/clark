@@ -1223,7 +1223,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 /* the Timeline / Calendar switch: the icon and its word, in the muted text colour (the bars beside it leave room for it) */
 .msv-b { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 3px 10px; border-radius: var(--radius); font-size: var(--size-caption); color: var(--text-muted); cursor: pointer; }
 .msv-b:hover { color: var(--text); } .msv-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
-.msv-b[aria-current="true"] { color: var(--heading); background: var(--grey-100); font-weight: var(--weight-medium); }
+.msv-b[aria-current="true"] { color: var(--pill-fg); background-color: var(--pill-color); background-image: var(--pill-bg); font-weight: var(--weight-medium); }   /* item 1286: the chosen half is the one capsule look of the Calendar scale (.cal-sc) and the Gantt scale */
 .msv-b .i { width: 16px; height: 16px; }
 @media (max-width: 700px) { .msv-sw { position: static; justify-content: flex-end; margin: 0 0 6px; padding: 0; } .mv-bar, .cal-bar { padding-right: 0; } }   /* narrow: the switch is a row of its own */
 .grow { flex: 1; }
