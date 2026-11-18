@@ -182,22 +182,31 @@ class Wired(Run):
         rest = [a for a in self.args if a not in ("--verbose",) and not a.startswith(("--allowedTools=", "--disallowedTools="))]
         rest = ["json" if a == "stream-json" else "1" if a == ac.CONNECTOR_TURNS else a for a in rest]
         gone = []
-        for i, a in enumerate(today):          # what a connector run leaves out (probe on a real Mac): --strict-mcp-config, --safe-mode, --tools ""
-            if a in ("--strict-mcp-config", "--safe-mode") or (a == "--tools" and today[i + 1] == "") or (a == "" and today[i - 1] == "--tools"):
+        for i, a in enumerate(today):          # what a connector run leaves out (probes on real Macs): --strict-mcp-config, --safe-mode; --tools "" becomes --tools ToolSearch
+            if a in ("--strict-mcp-config", "--safe-mode"):
                 continue
-            gone.append(a)
+            gone.append("ToolSearch" if (a == "" and today[i - 1] == "--tools") else a)
         self.assertEqual(rest, gone)
         self.assertEqual(self.args[self.args.index("--output-format") + 1:][:2], ["stream-json", "--verbose"])
-        self.assertNotIn("--tools", self.args)
+        self.assertEqual(self.args[self.args.index("--tools") + 1], "ToolSearch")
         self.assertNotIn("--safe-mode", self.args)
         self.assertEqual(self.args[self.args.index("--max-turns") + 1], ac.CONNECTOR_TURNS)
 
-    def test_the_built_list_for_mail_on_is_the_safe_set_from_the_probe(self):
-        # APPEARS: the argument list a Mail-On run sends is the set confirmed on a real Mac: default tools (no --tools "", no --safe-mode), the
-        # budget BEFORE every tool list (a list swallows what follows it), every built-in and every other M365 tool denied by name, the one Mail tool allowed.
+    # Every built-in tool name known today. The connector run carries none of them: `--tools ToolSearch` is the allow-list.
+    BUILT_INS = ("Agent", "AskUserQuestion", "Bash", "BashOutput", "Edit", "Glob", "Grep", "KillShell", "LS", "MultiEdit", "NotebookEdit", "Read", "Task", "TodoWrite",
+                 "WebFetch", "WebSearch", "Write", "Skill", "SlashCommand", "Monitor", "Workflow", "CronCreate", "CronDelete", "CronList", "EnterPlanMode",
+                 "ExitPlanMode", "EnterWorktree", "ExitWorktree", "ListMcpResourcesTool", "ReadMcpResourceTool", "ReadMcpResourceDirTool", "EndConversation",
+                 "Artifact", "ArtifactCheck", "ArtifactComments", "ArtifactData", "DesignSync", "ListAgents", "ReportFindings", "SendFeedback", "StructuredOutput",
+                 "SendToProject", "SendToProjectContext", "TaskCreate", "TaskGet", "TaskList", "TaskUpdate", "TaskStop", "TaskOutput", "SendMessage",
+                 "ScheduleWakeup", "RemoteTrigger", "PushNotification", "PowerShell", "LSP", "REPL", "Tmux", "Sleep")
+
+    def test_the_built_list_for_mail_on_is_the_allow_list_form_from_the_probes(self):
+        # APPEARS: the argument list a Mail-On run sends is the set confirmed on real machines: --tools ToolSearch (an allow-list: init lists only that), no
+        # --safe-mode, no empty --tools, the budget BEFORE every tool list (a list swallows what follows it), every other M365 tool and server denied by name or
+        # prefix, the one Mail tool allowed, and NO built-in name anywhere.
         self.ask(["mail"])
         a = self.args
-        self.assertNotIn("--tools", a)
+        self.assertEqual([a[i + 1] for i, x in enumerate(a) if x == "--tools"], ["ToolSearch"])
         self.assertNotIn("--safe-mode", a)
         self.assertNotIn("--strict-mcp-config", a)
         self.assertEqual(a[a.index("--setting-sources") + 1], "")
@@ -205,15 +214,14 @@ class Wired(Run):
         self.assertEqual(a[a.index("--max-turns") + 1], "6")
         lists = [i for i, x in enumerate(a) if x.startswith(("--allowedTools", "--disallowedTools"))]
         self.assertLess(a.index("--max-budget-usd"), min(lists))
-        denied = {x[len("--disallowedTools="):] for x in a if x.startswith("--disallowedTools=")}
-        for name in ca.BUILT_IN_TOOLS:
-            self.assertIn(name, denied, name)
-        self.assertNotIn("ToolSearch", denied)
+        named = {x.split("=", 1)[1] for x in a if x.startswith(("--allowedTools=", "--disallowedTools="))}
+        self.assertEqual(sorted(named & set(self.BUILT_INS)), [], "no built-in name is allowed or denied: the allow-list is the gate")
+        self.assertFalse(hasattr(ca, "BUILT_IN_TOOLS"))
         self.assertEqual([x for x in a if x.startswith("--allowedTools")], [f"--allowedTools={P}__outlook_email_search"])
 
     def test_no_built_in_and_no_denied_write_tool_passes_the_screen(self):
-        # Refused by the run check, not assumed: a tool_use of any built-in, of a denied M365 write tool, or of ToolSearch's neighbours fails the run.
-        for name in ca.BUILT_IN_TOOLS + tuple(f"{P}__{t}" for t in ca.WRITE_TOOLS[ca.M365]):
+        # Refused by the run check, not assumed: a tool_use of any built-in, of a denied M365 write tool, fails the run.
+        for name in self.BUILT_INS + tuple(f"{P}__{t}" for t in ca.WRITE_TOOLS[ca.M365]):
             ok, _line, result = cs.checked(stream(use("1", name), got("1", "t"), final()), {"Mail"})
             self.assertFalse(ok, name)
             self.assertIsNone(result, name)
@@ -324,16 +332,6 @@ class Screened(Run):
         self.assertFalse(run(mail, use("0", mail), got("0", "t")), "an id used twice")
         self.assertFalse(run(mail, ident=""), "no id")
         self.assertFalse(run(mail, event("user", {"type": "tool_result", "content": "zzz\u202e"}), ident=None), "a search without an id")
-
-    def test_every_known_built_in_is_denied_by_name_and_the_loader_is_not(self):
-        known = ("Agent", "AskUserQuestion", "Bash", "Edit", "Glob", "Grep", "Read", "Write", "WebFetch", "WebSearch", "Skill", "Workflow", "Monitor",
-                 "NotebookEdit", "TodoWrite", "TaskStop", "TaskOutput", "SendMessage", "ScheduleWakeup", "RemoteTrigger", "PushNotification",
-                 "CronCreate", "CronDelete", "CronList", "EnterPlanMode", "ExitPlanMode", "EnterWorktree", "ExitWorktree", "ListMcpResourcesTool",
-                 "ReadMcpResourceTool", "ReadMcpResourceDirTool", "EndConversation", "Artifact", "ArtifactCheck", "ArtifactComments", "ArtifactData", "DesignSync",
-                 "ListAgents", "ReportFindings", "SendFeedback", "StructuredOutput", "SendToProject", "SendToProjectContext")
-        missing = [t for t in known if t not in ca.BUILT_IN_TOOLS]
-        self.assertEqual(missing, [], "a known built-in tool is missing from the deny list")
-        self.assertNotIn("ToolSearch", ca.BUILT_IN_TOOLS)
 
     def test_tool_search_then_the_allowed_tool_passes_and_anything_else_fails(self):
         # The safe set keeps ToolSearch (the Mail tool needs it to load). Only a ToolSearch that asks for an allowed tool is let through.
