@@ -71,7 +71,8 @@ class ThemePrototype(unittest.TestCase):
             self.assertTrue({"--page-bg", "--page-grad", "--band-bg", "--line-soft", "--gutter-rule"} <= got, mode)
 
     def test_rules_hold_no_colour_literals_and_no_client_text(self):
-        self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b", RULES), "colours come from tokens")
+        # the primary-buttons block carries three literals from the prototype (gradient start, dark text, ring): see its own comment and test_theme_primary_1319
+        self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b", RULES.split("/* Row 1319, primary buttons")[0]), "colours come from tokens")
         self.assertIsNone(re.search(r"/\*[^*]*#\d", RULES + TOKENS), "no hash-digit in a comment")
 
     def test_body_and_muted_text_reach_4_5_to_1_in_light_and_dark(self):
