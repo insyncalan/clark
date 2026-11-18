@@ -113,11 +113,11 @@ GOLDEN_LINES = [
     ".wil-table .wil-c-id { width: 84px; }",
 ]
 
-# The Cards page as origin/main (305aa739a) serves it: the md5 of every <style> block of page_html(branding=NO_BRAND, theme=None), and the md5 of
+# The Cards page as origin/main (7e25b6619) serves it: the md5 of every <style> block of page_html(branding=NO_BRAND, theme=None), and the md5 of
 # the rendered Work items section (Edit; View; the Add menu opened) with its section id folded to REF, at 1400 and 900 (CARDS_DOM below).
 # This row must not change any of them. If one differs after a merge of main, re-measure on origin/main: a difference with no CSS or Work items
 # change in main is a Cards change made by this row.
-CARDS_STYLE_MD5 = {"blocks": ["a740a0333d7a944d2a661f3cb4c74d33"]}
+CARDS_STYLE_MD5 = {"blocks": ["27680fda7c992965b952b41149c639a7"]}
 _DOM = {"view": "8e6c915d4f6df112000e5150fe406783", "edit": "5f01b907b0a8519810c6ee5ecc0df512", "menu": "b03f939c186bd71f3069fe998036641e"}
 CARDS_DOM_MD5 = {1400: _DOM, 900: _DOM}      # the markup does not depend on the width (the width is CSS); both are measured and kept
 
