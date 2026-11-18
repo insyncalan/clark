@@ -25,6 +25,11 @@ READ = """(() => { const g = (sel, pseudo) => { const e = document.querySelector
   o.menuChev = getComputedStyle(document.querySelector('#usecases .vtabmenu .nch')).display;
   o.menuDots = g('#usecases .vtabmenu', '::after').content;
   s = g('#ucAddPage'); o.plus = s && [s.borderTopStyle, s.borderTopColor, s.color];
+  const grey = document.createElement('i'); grey.style.color = 'var(--grey-500)'; document.body.appendChild(grey); o.grey500 = getComputedStyle(grey).color; grey.remove();
+  const on = document.createElement('i'); on.style.color = 'var(--brand-blue)'; document.body.appendChild(on); o.brand = getComputedStyle(on).color; on.remove();
+  for (const id of ['ucl-group', 'ucl-sort', 'ucAddPage']) { const e = document.getElementById(id); if (e) { e.style.transition = 'none'; e.setAttribute('aria-expanded', 'true'); } }
+  s = g('#ucl-group'); o.groupOpen = s && [s.backgroundColor, s.color];
+  s = g('#ucAddPage'); o.plusOpen = s && [s.borderTopColor, s.backgroundColor];
   const r = document.querySelector('#usecases .fline-row').getBoundingClientRect(); o.rowW = Math.round(r.width);
   o.mag = g('#usecases .fline', '::before').content; o.handle = g('#usecases .fline', '::after').content;
   s = g('#usecases .fline'); o.padL = s.paddingLeft;
@@ -71,6 +76,9 @@ class Top(unittest.TestCase):
                 self.assertEqual((g["groupChev"], g["sortChev"], g["menuChev"]), ("none", "none", "none"), "no chevrons")
                 self.assertEqual(g["menuDots"], '"…"', "the tab menu is the three dots")
                 self.assertEqual(g["plus"][0], "dashed")
+                self.assertEqual(g["plus"][1], g["grey500"], "the dashed + border is the grey")
+                self.assertNotEqual(g["groupOpen"][0], "rgba(0, 0, 0, 0)", "Group by open or hovered gets a fill")
+                self.assertEqual(g["plusOpen"], [g["brand"], g["brand"]], "the + open or hovered fills with the brand colour")
                 self.assertNotEqual(g["plus"][1], g["blue"], "the dashed + border is no longer the purple")
                 self.assertNotEqual(g["plus"][2], g["blue"], "nor its +")
                 self.assertEqual(g["rowW"], 560, "Search: 560 px box")
