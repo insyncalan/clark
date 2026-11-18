@@ -386,6 +386,10 @@ class Saved(Api):
     def setUp(self):
         super().setUp()
         plant(self)
+        with self.s.step("dashboard", USER) as st:       # a new project's default Work items lists name every open row, so they are hidden; these tests name rows with their own list alone (row 1193)
+            for r in self.s.read("report_sections", "ABC"):
+                if r["type"] == "workitems":
+                    st.update("report_sections", r["id"], {"hidden": 1})
         self.ref = self.ok("new", values={"type": "workitems", "title": "Due soon"}, after=None)["ref"]
 
     def body(self):
@@ -537,6 +541,7 @@ class Saved(Api):
         """Row 1268: only a hidden built-in section is trimmed to the rows a list names; a shown one keeps every kept row."""
         with self.s.step("dashboard", USER) as st:
             st.archive("actions", self.a_later)
+            st.create("report_sections", {"project": "ABC", "type": "actions", "title": "Open actions", "sort_order": 50, "hidden": 0})   # the shown built-in section (row 1193: a new project has a list instead)
         self.save({"kinds": ["risk"]})
         built = publish.build(self.s, "ABC", now=TODAY)["published"]
         sec = next(s for s in built["sections"] if s["id"] == self.ref)

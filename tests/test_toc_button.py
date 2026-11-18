@@ -15,6 +15,11 @@ OPEN = "document.querySelector('.toc').classList.contains('open')"
 
 
 class TocButton(Base):
+    def setUp(self):
+        super().setUp()
+        # a new project's Open actions is a Work items list, drawn in View only with a row to list (row 1193); the project has an open action
+        self.demo.action(description="Fictional open action", due_date="2030-01-05", owner="Sara Khan")
+
     def at(self, cdp, width):
         p = self.visit(cdp)
         size(cdp, p, width, 700)

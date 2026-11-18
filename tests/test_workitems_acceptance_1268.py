@@ -102,7 +102,7 @@ class Data(Api):
         p = self.build(True)
         for title, (_, section) in LISTS.items():
             with self.subTest(list=title):
-                named = next(s for s in p["sections"] if s["type"] == "workitems" and s["title"] == title)["items"]
+                named = [s for s in p["sections"] if s["type"] == "workitems" and s["title"] == title][-1]["items"]   # the test's own list, made last; a new project already has a default list of the same title
                 self.assertEqual(sorted(named), built_in_rows(p, section))
         for planted in self.planted:
             self.assertNotIn(planted, json.dumps(p))
@@ -114,7 +114,7 @@ class Data(Api):
         hidden = self.build(True, built_in=False)
         for title, (_, section) in LISTS.items():
             with self.subTest(list=title):
-                named = next(s for s in hidden["sections"] if s["type"] == "workitems" and s["title"] == title)["items"]
+                named = [s for s in hidden["sections"] if s["type"] == "workitems" and s["title"] == title][-1]["items"]   # the test's own list, made last; a new project already has a default list of the same title
                 self.assertEqual(sorted(named), every[section])
                 self.assertEqual(built_in_rows(hidden, section), every[section])
 
