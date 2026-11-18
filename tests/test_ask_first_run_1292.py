@@ -148,7 +148,7 @@ class Sweep(unittest.TestCase):
             self.assertIn(part, card)
         self.assertIn("margin: 0 0 6px", self.rule(".ask-first-run p"))
         link = self.rule(".ask-first-link a")
-        for part in ("min-height: 24px", "display: inline-flex", "text-decoration: underline", "color: var(--brand-blue)"):
+        for part in ("min-height: 24px", "display: inline-flex", "text-decoration: underline", "color: var(--link, var(--brand-blue))"):
             self.assertIn(part, link)
 
     def test_the_off_line_link_rule_is_untouched_by_the_card(self):
