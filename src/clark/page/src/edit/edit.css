@@ -207,7 +207,7 @@
 .rowmenu .ddmenu { position: static; min-width: 240px; max-width: min(340px, calc(100vw - 2 * var(--space-2))); }
 .rowmenu [role="menuitem"] { display: flex; align-items: center; gap: var(--space-2); }
 .rowmenu [role="menuitem"]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-.rowmenu .rm-t { flex: 1; min-width: 0; }
+.rowmenu .rm-t { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .rowmenu .rm-t small { display: block; font-size: var(--size-caption); color: var(--text-muted); }
 .rowmenu .rm-ic { flex: none; width: 16px; height: 16px; color: var(--text-muted); }                /* row 978: the entry's icon, before its words, from the existing icon set; it takes the entry's colour on hover and focus */
 .rowmenu [role="menuitem"]:hover .rm-ic, .rowmenu [role="menuitem"]:focus-visible .rm-ic { color: inherit; }
@@ -674,6 +674,8 @@ textarea.tpl-field { resize: vertical; }
 /* Row 1268: the Add + at the right end, a dashed square as the one on Work items (the approved mock-up) */
 .wil-add { flex: none; display: flex; justify-content: flex-end; margin: 0 0 var(--space-1) auto; }   /* at the right end of the saved-views row (ticket 1268) */
 .wil-add .newb { border-style: dashed; }
+/* Row 1273: Add milestone, Add project and Add use case take the same dashed look; border only, nothing moves */
+#addMs.newb, #npBtn.newb, #ucAddPage.newb { border: 1px dashed var(--status-blue-text); }
 .wil-line { display: grid; gap: var(--space-1); margin: var(--space-1) 0 var(--space-2); }
 .wil-line p { margin: 0; }
 .wil-more summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
@@ -1034,7 +1036,7 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
   @keyframes m-blink { 50% { transform: scaleY(.1); } }
 }
 
-/* row 962: a cell picker (Pop: MenuPick, RatingPick, the date and owner pickers, the bulk menu) fades out as it closes, as a menu does (row 922). Pop.jsx keeps a copy
+/* row 962: a cell picker (Pop: MenuPick, the rating matrix, the date and owner pickers, the bulk menu) fades out as it closes, as a menu does (row 922). Pop.jsx keeps a copy
    (no id, role=presentation, inert, aria-hidden) for the fade; opacity only, m-out from shell.css, edit-only so the published page carries none of it. */
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-motion="reduce"]) .cpop.leaving { pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
@@ -1485,6 +1487,51 @@ table.items .c-x-id, table.items .c-x-type { width: 100px; }
 .tpl-rh-edit-text .tpl-lbl:not(:first-child) { margin-top: var(--space-2); }
 .tpl-rh-in { overflow-wrap: anywhere; }
 @media (max-width: 900px) { .tpl-rh-edit { flex-direction: column; gap: var(--space-2); } }
+/* Row 1264 slice 9: the glance template's Edit layout, the same grid as its View (shell.css .tpl-gt): 4 tiles on a line, 3 when the section says
+   so, 2 at half width, 1 at 900; Project health one tile wide, or the whole row (the switch). Controls under the tiles: Tiles on a line, the switch. */
+.tpl-edit-glancetemplate .glance { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tpl-edit-glancetemplate .glance[data-cols="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.slot-left .tpl-edit-glancetemplate .glance, .slot-right .tpl-edit-glancetemplate .glance { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.tpl-edit-glancetemplate .glance .tcell, .tpl-edit-glancetemplate .glance .tcell.health { min-width: 0; }
+.tpl-edit-glancetemplate .glance[data-own-row] > .tcell.health { grid-column: 1 / -1; }
+.gt-showhealth { all: unset; box-sizing: border-box; grid-column: 1 / -1; display: flex; align-items: center; gap: var(--space-3); min-height: 40px; cursor: pointer; color: var(--text); font-size: var(--size-body); }
+.gt-showhealth-eye { display: inline-grid; place-items: center; width: 40px; height: 40px; }
+.gt-showhealth-eye .i { width: 20px; height: 20px; }
+.gt-showhealth:hover .gt-showhealth-eye { color: var(--brand-blue); }
+.gt-showhealth:focus-visible, .gt-per:focus-visible, .gt-own:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.tpl-gt-opts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); margin: var(--space-3) 0 0; font-size: var(--size-small); color: var(--text-muted); }
+.tpl-gt-perrow { display: inline-flex; align-items: center; gap: var(--space-2); }
+.gt-per { all: unset; box-sizing: border-box; min-width: 32px; min-height: 32px; display: inline-grid; place-items: center; cursor: pointer; border: 1px solid var(--control-edge); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--size-small); }
+.gt-per[aria-pressed="true"] { background: var(--brand-blue); border-color: var(--brand-blue); color: var(--text-on-brand); font-weight: var(--weight-medium); }
+.gt-own { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: var(--space-2); min-height: 32px; padding: 0 var(--space-3); cursor: pointer; border: 1px solid var(--control-edge); border-radius: var(--radius-pill); color: var(--text); font-size: var(--size-small); font-weight: var(--weight-medium); }
+.gt-own-sw { position: relative; width: 30px; height: 16px; border-radius: 9px; background: var(--control-edge); flex: none; }
+.gt-own-sw i { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); }
+.gt-own[aria-checked="true"] { border-color: var(--brand-blue); }
+.gt-own[aria-checked="true"] .gt-own-sw { background: var(--brand-blue); }
+.gt-own[aria-checked="true"] .gt-own-sw i { left: 16px; }
+.tpl-gt-halfnote { display: none; }
+.slot-left .tpl-gt-halfnote, .slot-right .tpl-gt-halfnote { display: inline; }
+@media (max-width: 900px) { .slot-left .tpl-edit-glancetemplate .glance, .slot-right .tpl-edit-glancetemplate .glance { grid-template-columns: minmax(0, 1fr); } }
+
+/* #1298 the Feedback tag: fixed to the right edge a little below the middle, vertical word; pulls out 5 px on hover or focus. With a peek open it sits at the peek's left edge. The dialog slides in from the right, 0.4 s, the peek's easing. Widths 1400 and 900 only. */
+.fbt-tag { position: fixed; top: 58%; right: 0; z-index: 34; transform: translateY(-50%); writing-mode: vertical-rl; padding: var(--space-3) 7px; border: 0; border-radius: 10px 0 0 10px; background: var(--brand-blue); color: var(--text-on-brand); font-size: var(--size-caption); font-weight: 600; letter-spacing: var(--tracking-caps); cursor: pointer; box-shadow: -2px 2px 10px color-mix(in srgb, var(--brand-ink) 20%, transparent); transition: padding-right .15s var(--ease-out), right .3s cubic-bezier(.22, 1, .36, 1); }
+.fbt-tag:hover, .fbt-tag:focus-visible { padding-right: 12px; }
+.fbt-tag:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.fbt-tag.beside { right: min(420px, 100vw); }   /* the fallback; the tag sets the item peek's real, dragged width inline (FeedbackTag.jsx) */
+.fbt-tag.beside-help { right: min(var(--hpk-w), 100vw); }
+.fbt-tag.open { right: min(360px, 100vw); }
+.fbt-dlg { position: fixed; top: 110px; right: 0; z-index: 35; width: min(360px, 100vw); max-height: calc(100vh - 130px); overflow-y: auto; padding: var(--space-4) 18px var(--space-3); background: var(--surface); border: 1px solid var(--grey-200); border-right: 0; border-radius: 14px 0 0 14px; box-shadow: -10px 4px 30px color-mix(in srgb, var(--brand-ink) 20%, transparent); animation: fbt-in .4s cubic-bezier(.22, 1, .36, 1) both; }
+@keyframes fbt-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+.fbt-head { display: flex; justify-content: space-between; align-items: center; }
+.fbt-head h2 { margin: 0; font-size: var(--size-h3); }
+.fbt-x { all: unset; cursor: pointer; font-size: var(--size-figure); line-height: 1; padding: 0 var(--space-1); color: var(--grey-700); }
+.fbt-x:focus-visible, .fbt-kind:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.fbt-kinds { display: flex; gap: 6px; margin: var(--space-2) 0 var(--space-3); }
+.fbt-kind { padding: 4px 12px; border: 0; border-radius: 999px; background: var(--grey-100); color: var(--text); font-size: var(--size-small); cursor: pointer; }
+.fbt-kind.on { background: var(--brand-blue); color: var(--text-on-brand); }
+.fbt-added { margin-top: var(--space-3); padding: var(--space-2) var(--space-3); border-radius: 8px; background: var(--grey-100); font-size: var(--size-caption); color: var(--grey-700); }
+.fbt-added ul { margin: var(--space-1) 0; }
+@media (prefers-reduced-motion: reduce) { .fbt-dlg { animation: none; } .fbt-tag { transition: none; } }
 /* #1292 S14: files and pictures for the next question (chips with a name, a size and a bin; a dashed edge while a file is dragged over) */
 .ask-files { flex: none; margin: 0 var(--space-4) 6px; padding: 4px 4px 4px 10px; border: 1px solid var(--grey-200); border-radius: 10px; background: var(--surface); font-size: var(--size-caption); }
 .ask-files ul { margin: 0; padding: 0; list-style: none; }
