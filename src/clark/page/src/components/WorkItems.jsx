@@ -383,6 +383,9 @@ export function WorkItems({ tools }) {
   // Coming back to Work items: the project's line is the one kept in this session (the address holds the older form of it).
   useEffect(() => { if (L) L.restore(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   const Arch = tools && tools.ArchivedItems && !fromFile.value && L && L.wantsArchived(allRows.value, filterCtx()) ? tools.ArchivedItems : null;   // item 1067: is:archived in the line; Edit parts only
+  const addTile = tools ? <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={adder(tools)} /> : null;
+  // Row 1260 G11: Classic draws the Add tile at the far right of the saved-views tabs row (the mock-up); Cards keeps it in the page head.
+  const addInRow = !!(tools && FilterLine && allRows.value.length > 0 && typeof document !== "undefined" && document.getElementById("theme"));
   return (
     <section class={`frame work${fromFile.value ? " pub" : ""}`} id="work">
       <p class="crumbs">{d.project.name}</p>
@@ -393,7 +396,7 @@ export function WorkItems({ tools }) {
         {tools ? (
           <div class="hacts">
             {tools.HandOver ? <tools.HandOver.Button /> : null}   {/* #199: with the Owner filter on */}
-            <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={adder(tools)} />   {/* a published file is read only: no Add (#204) */}
+            {addInRow ? null : addTile}   {/* a published file is read only: no Add (#204) */}
           </div>
         ) : null}
       </div>
@@ -411,7 +414,7 @@ export function WorkItems({ tools }) {
                 </>
               : <>
                   <Switches L={L} />   {/* item 287: Layout, Group by and the swimlanes are in the filter line's one View menu */}
-                  <FilterLine board={!!Board} tools={tools} />   {/* row 1084: Import and Export are in Settings, on the Data card, not on this line */}
+                  <FilterLine board={!!Board} tools={tools} add={addInRow ? addTile : null} />   {/* row 1084: Import and Export are in Settings, on the Data card, not on this line */}
                   {Arch ? <Arch narrow={(r) => L.apply(r, filterCtx())} /> : <List Board={Board} Cell={Cell} Eye={Eye} CW={CW} CM={CM} Bulk={tools && tools.Bulk} HandOver={tools && tools.HandOver} L={L} />}
                 </>}
           </>}

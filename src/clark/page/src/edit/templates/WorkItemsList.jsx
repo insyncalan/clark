@@ -9,7 +9,7 @@ import { columnIcon } from "../../menuIcons.js";
 import { data, openPeek, rows as reportRows, filterCtx } from "../../stores/report.js";
 import { LineBox } from "../../components/FilterLine.jsx";
 import { change, say } from "../../stores/changes.js";
-import { Rows, Scroller, Foot, today } from "../../templates/WorkItemsList.jsx";
+import { Rows, Listing, Foot, today, classicTheme } from "../../templates/WorkItemsList.jsx";
 import { SORTS, COLUMNS, MAX_ROWS, MAX_CAPTION, WORDS, defaults, filterOf, bodyOf,
   editListOf, drawRows, drawn, idsToShow } from "../../templates/workItemsList.js";
 import { Eye } from "../cells/Eye.jsx";
@@ -62,6 +62,8 @@ export const CONFIGURE_LABEL = "Configure this list";      // row 1268: the word
 // Row 1268, the approved Add: a + that opens a short menu (Action, Risk, Issue, Decision); a pick makes the item at once and opens its peek.
 export const ADD_WORD = "Add work item";
 export const ADD_ITEMS = ADDABLE.map((k) => ({ kind: k, word: k[0].toUpperCase() + k.slice(1) }));
+const RAID = ["risk", "action", "issue", "decision"];      // row 1195: the approved mock-up's order, drawn only under the Classic layer (Cards keeps ADDABLE's order)
+const RAID_ITEMS = RAID.map((k) => ({ kind: k, word: k[0].toUpperCase() + k.slice(1) }));
 const addOne = (kind) => addItem(kind, "report", true);
 
 export function Edit({ section }) {
@@ -147,7 +149,7 @@ export function Edit({ section }) {
         <LineBox line={lineOf(filter, nameOf)} now={() => lineOf(latest(), nameOf)} apply={applyLine} rows={reportRows.value} ctx={filterCtx()}
           ids={{ input: `${id}-line`, list: `${id}-line-list`, count: `${id}-line-count`, x: `${id}-line-x`, msg: `${id}-line-msg`, gloss: `${id}-line-gloss`, opt: `${id}-line-o` }} label="Filter" />
       </div>
-      <Tabs add={<div class="wil-add" data-wil-add=""><NewTile word={ADD_WORD} kind="" items={ADD_ITEMS} onAdd={addOne} id={`${id}-add`} /></div>} section={section} filter={filter} d={d} now={now} known={known} nameOf={nameOf} apply={(next) => save({ ...latest(), ...next })} />
+      <Tabs add={<div class="wil-add" data-wil-add=""><NewTile word={ADD_WORD} kind="" items={classicTheme() ? RAID_ITEMS : ADD_ITEMS} onAdd={addOne} id={`${id}-add`} /></div>} section={section} filter={filter} d={d} now={now} known={known} nameOf={nameOf} apply={(next) => save({ ...latest(), ...next })} />
       <div class="wil-form">
         <div class="wil-cw" data-wil-cw="" onKeyDown={(e) => { if (e.key === "Escape" && cfg) { e.preventDefault(); e.stopPropagation(); setCfg(false); if (gearRef.current) gearRef.current.focus(); } }}>
           <button type="button" class="wil-gear" ref={gearRef} data-wil-gear="" aria-haspopup="dialog" aria-expanded={cfg ? "true" : "false"} aria-label={CONFIGURE_LABEL} title="Configure" onClick={() => setCfg(!cfg)}>
@@ -171,7 +173,7 @@ export function Edit({ section }) {
       {saved && !rows.length ? <p class="wil-none" data-wil-say="none" role="status">{NO_MATCH}</p> : null}
       {saved && rows.length && rows.length === list.off.length ? <p class="wil-none" data-wil-say="all-hidden" role="status">{ALL_HIDDEN}</p> : null}
       {saved && list.caption && rows.length ? <p class="wil-cap">{list.caption}</p> : null}
-      {saved && rows.length ? <Scroller max={list.max} count={rows.length}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Eye={Eye} Cell={Cell} cw={cw} head={headProps} /></Scroller> : null}
+      {saved && rows.length ? <Listing max={list.max} count={rows.length}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Eye={Eye} Cell={Cell} cw={cw} head={headProps} /></Listing> : null}
       {colMenu}
       {saved && rows.length ? <Foot section={section} total={rows.length} max={list.max} edit nameOf={nameOf} /> : null}
     </div>
