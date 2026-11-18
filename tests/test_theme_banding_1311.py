@@ -117,11 +117,11 @@ class Banding(unittest.TestCase):
 
     def test_band_after_the_plain_section_and_view_rules(self):
         at = RULES.index("\n" + SEL)
-        self.assertGreater(at, RULES.index("\n.sec { background: none;"))
-        self.assertGreater(at, RULES.index('\nhtml[data-mode="view"] .sec {'))
+        self.assertGreater(at, RULES.index("\n.sec.sec.sec { background: none;"))
+        self.assertGreater(at, RULES.index('\nhtml[data-mode="view"] .sec.sec {'))
 
     def test_other_sections_keep_the_gutter_rule(self):
-        self.assertIn("border-left: 2px solid var(--gutter-rule)", rule(".sec"))
+        self.assertIn("border-left: 2px solid var(--gutter-rule)", rule(".sec.sec.sec"))
         self.assertEqual(theme("light")["--gutter-rule"], "#EEEBFB")
         self.assertEqual(theme("dark")["--gutter-rule"], "#2A2650")
 

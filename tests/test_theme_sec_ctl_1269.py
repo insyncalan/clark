@@ -92,5 +92,121 @@ class SecCtl(g.Setup):
                 d["id"], " slot-right" if d["right"] else ""))
 
 
+LOOK = """(() => [...document.querySelectorAll('#report .secs > .sec')].map((e) => { const c = getComputedStyle(e), r = e.getBoundingClientRect();
+  return { id: e.dataset.id, w: r.width, odd: e.matches(':nth-child(odd):not(.is-hidden):not(.drag-slot)'), bl: c.borderLeftWidth, bs: c.borderLeftStyle,
+    pl: c.paddingLeft, bt: c.borderTopWidth, bg: c.backgroundColor, col: c.borderLeftColor }; }).filter((d) => d.w > 0))()"""
+
+
+class Gutter(g.Setup):
+    """The Classic gutter (2px rule, 20px padding) on the even sections in both densities; the odd ones keep the panel and no rule (row 1311)."""
+
+    def setUp(self):
+        super().setUp()
+        self.s.httpd.page_html = lambda: page.page_html(branding=page.NO_BRAND, theme=self.theme)
+
+    def look(self, width, density, mode, scheme="light", print_=False, theme=NAME):
+        self.theme = theme
+        with chrome() as cdp:
+            p = self.show(cdp, width=width, standard=True)
+            p.js("document.documentElement.dataset.density = %r; document.documentElement.dataset.theme = %r" % (density, scheme))
+            if mode == "edit":
+                p.edit()
+            if print_:
+                cdp.call("Emulation.setEmulatedMedia", {"media": "print"}, p.sid)
+            import time
+            time.sleep(0.4)
+            return p.js(LOOK)
+
+    def test_even_sections_have_the_two_pixel_rule_and_twenty_pixels_odd_ones_have_none_in_both_densities(self):
+        # the padding is 20 except where the page's own layout rules, which name #report or .slot-right and so outrank the Theme, set it:
+        # Edit in Comfortable is 32 at both widths (room for the control inside the section), Edit in Compact at 900 is 0 (the control is in
+        # the frame's padding), and the right half of a pair in Compact is 24 (the gap between the halves)
+        for width in SIZES:
+            for density in DENSITIES:
+                for mode in ("edit", "view"):
+                    with self.subTest(width=width, density=density, mode=mode):
+                        rows = self.look(width, density, mode)
+                        self.assertGreater(len(rows), 5)
+                        pad = 20
+                        if mode == "edit":
+                            pad = 32 if density == "comfortable" else (0 if width == 900 else 20)
+                        evens = [d for d in rows if not d["odd"]]
+                        odds = [d for d in rows if d["odd"]]
+                        self.assertTrue(evens and odds)
+                        for d in evens:
+                            self.assertEqual((d["bl"], d["bs"], d["bt"]), ("2px", "solid", "0px"), f"{d['id']} even: the rule, no top line")
+                            half = density == "compact" and width == 1400
+                            want = 24 if half and d["id"] == "ABC-S-006" else pad
+                            self.assertEqual(d["pl"], "%dpx" % want, f"{d['id']} even padding")
+                        for d in odds:
+                            self.assertEqual(d["bl"], "0px", f"{d['id']} odd: no rule")
+                            self.assertNotEqual(d["bg"], "rgba(0, 0, 0, 0)", f"{d['id']} odd keeps its panel")
+                            self.assertEqual(d["bt"], "0px", d["id"])
+
+    def test_the_rule_is_blue_in_edit_and_the_gutter_colour_in_view_in_light_and_dark(self):
+        for scheme in ("light", "dark"):
+            edit = self.look(1400, "compact", "edit", scheme)
+            view = self.look(1400, "compact", "view", scheme)
+            self.assertEqual(len({d["col"] for d in edit if not d["odd"]}), 1)
+            self.assertNotEqual(edit[1]["col"], view[1]["col"], scheme + ": Edit is the brand blue, View the quiet gutter colour")
+            self.assertTrue(all(d["bl"] == "2px" for d in view if not d["odd"]), scheme)
+
+    def test_print_has_no_rule_and_no_padding_in_both_densities(self):
+        for density in DENSITIES:
+            for mode in ("view",):      # print is the View page; Edit's own padding rules are not print rules
+                for d in self.look(1400, density, mode, print_=True):
+                    self.assertEqual(d["bl"], "0px", f"{density} {mode} {d['id']}")
+                    self.assertIn(d["pl"], ("0px", "24px") if d["id"] == "ABC-S-006" else ("0px",), f"{density} {mode} {d['id']}")      # 24: the pair gap, not the gutter
+
+
+    def test_hover_and_focus_blend_the_brand_into_the_rule_in_both_densities(self):
+        probe = "(() => { const e = document.querySelectorAll('#report .secs > .sec')[%d]; return getComputedStyle(e).borderLeftColor; })()"
+        for density in DENSITIES:
+            with self.subTest(density=density):
+                self.theme = NAME
+                with chrome() as cdp:
+                    p = self.show(cdp, width=1400, standard=True)
+                    p.js("document.documentElement.dataset.density = %r" % density)
+                    import time
+                    time.sleep(0.4)
+                    rest = p.js(probe % 1)
+                    want = p.js("""(() => { const q = document.createElement('i'); q.style.borderLeft = '2px solid color-mix(in srgb, var(--brand-blue) 35%, var(--gutter-rule))';
+                        document.body.appendChild(q); const c = getComputedStyle(q).borderLeftColor; q.remove(); return c; })()""")
+                    x, y = p.js("(() => { const r = document.querySelectorAll('#report .secs > .sec')[1].getBoundingClientRect(); return [r.left + 60, r.top + Math.min(r.height / 2, 40)]; })()")
+                    cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, p.sid)
+                    time.sleep(0.5)
+                    self.assertTrue(p.js("document.querySelectorAll('#report .secs > .sec')[1].matches(':hover')"))
+                    self.assertEqual(p.js(probe % 1), want, "hover blends 35% brand into the rule")
+                    cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 1, "y": 1}, p.sid)
+                    time.sleep(0.5)
+                    p.js("(() => { const e = document.querySelectorAll('#report .secs > .sec')[1]; const b = document.createElement('button'); e.appendChild(b); b.focus(); })()")
+                    time.sleep(0.5)
+                    self.assertEqual(p.js(probe % 1), want, "focus inside blends it too")
+                    self.assertNotEqual(want, rest)
+
+
+    def test_the_rule_fades_over_two_tenths_of_a_second_and_the_html_view_rule_and_its_print_reset_hold(self):
+        for density in DENSITIES:
+            with self.subTest(density=density):
+                self.theme = NAME
+                with chrome() as cdp:
+                    p = self.show(cdp, width=1400, standard=True)
+                    p.js("document.documentElement.dataset.density = %r; document.documentElement.dataset.mode = 'view'" % density)
+                    got = p.js("(() => { const c = getComputedStyle(document.querySelectorAll('#report .secs > .sec')[1]); return [c.transitionDuration, c.borderLeftWidth, c.paddingLeft]; })()")
+                    self.assertEqual(got[:2], ["0.2s", "2px"])
+                    self.assertEqual(got[2], "20px", "the published page's rule: 20px")
+                    cdp.call("Emulation.setEmulatedMedia", {"media": "print"}, p.sid)
+                    got = p.js("(() => { const c = getComputedStyle(document.querySelectorAll('#report .secs > .sec')[1]); return [c.borderLeftWidth, c.paddingLeft]; })()")
+                    self.assertEqual(got, ["0px", "0px"], "print: no rule, no padding")
+
+
+class CardsUntouched(unittest.TestCase):
+    def test_the_cards_page_has_none_of_the_raised_selectors_and_keeps_its_hash(self):
+        import hashlib
+        cards = page.page_html(branding=page.NO_BRAND)
+        self.assertNotIn(".sec.sec.sec", cards)
+        self.assertTrue(hashlib.sha256(cards.encode()).hexdigest().startswith("b8bbbc7c"))
+
+
 if __name__ == "__main__":
     unittest.main()
