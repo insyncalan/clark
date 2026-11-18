@@ -41,6 +41,11 @@ class Minimap(Base):
 
     def setUp(self):
         super().setUp()
+        # a new project's Risks, Actions and Decisions are Work items lists (row 1193), drawn in View only with a row to list: one of each kind
+        with self.store.step("dashboard", USER) as st:
+            st.create("actions", {"project": "ABC", "description": "Fictional open action", "due_date": "2030-01-05", "raised": "2026-10-01", "source": "demo"})
+            st.create("raid", {"project": "ABC", "type": "Risk", "description": "Fictional open risk", "raised": "2026-10-01", "source": "demo"})
+            st.create("decisions", {"project": "ABC", "decision": "Fictional pending decision", "status": "Pending", "source": "demo"})
         status, body = self.real_change({"project": "ABC", "kind": "documents", "op": "new", "place": "report", "values": {
             "title": "Steering minutes", "kind": "Minutes", "url": "https://example.com/minutes", "date": ""}})
         self.assertEqual(status, 200, body)          # #74: with a document, Supporting documents (the last section) shows in View too

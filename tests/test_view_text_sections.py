@@ -88,9 +88,9 @@ class TheBrowser(unittest.TestCase):
                     # the cleaner dropped the script, the handler and the picture: nothing ran, nothing is left
                     self.assertIsNone(cdp.js("window.pwned", sid) or None, where)
                     self.assertEqual(cdp.js("document.querySelectorAll('[data-id=ABC-S-006] script, [data-id=ABC-S-006] [onclick], [data-id=ABC-S-006] [onerror]').length", sid), 0, where)
-                    # the three work sections draw their rows, or say there is nothing to show
+                    # the two built-in work sections draw their rows, or say there is nothing to show
                     other = cdp.js("[...document.querySelectorAll('.sec')].filter(s => ['raid', 'actions', 'decisions'].includes(s.dataset.type)).map(s => s.querySelector('.quiet').textContent)", sid)
-                    self.assertEqual(other, ["Nothing to show."] * 3, where)       # these three draw their rows (A-D5), or this line when there is none
+                    self.assertEqual(other, [], where)       # rows 1193-8 to 10: Risks and issues, Open actions and Decisions are Work items lists now (their own tests); no built-in row section is a default
                     # readable and in the page: 4.5:1 text, no sideways scroll
                     self.assertGreaterEqual(cdp.js(LUMA % f"[data-id={SUMMARY_ID}] .prose p", sid), 4.5, "text contrast " + where)
                     self.assertGreaterEqual(cdp.js(LUMA % "[data-id=ABC-S-005] .quiet", sid), 4.5, "quiet line contrast " + where)

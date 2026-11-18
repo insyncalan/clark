@@ -386,6 +386,10 @@ class Saved(Api):
     def setUp(self):
         super().setUp()
         plant(self)
+        with self.s.step("dashboard", USER) as st:       # a new project's default Work items lists name every open row, so they are hidden; these tests name rows with their own list alone (row 1193)
+            for r in self.s.read("report_sections", "ABC"):
+                if r["type"] == "workitems":
+                    st.update("report_sections", r["id"], {"hidden": 1})
         self.ref = self.ok("new", values={"type": "workitems", "title": "Due soon"}, after=None)["ref"]
 
     def body(self):
@@ -537,6 +541,7 @@ class Saved(Api):
         """Row 1268: only a hidden built-in section is trimmed to the rows a list names; a shown one keeps every kept row."""
         with self.s.step("dashboard", USER) as st:
             st.archive("actions", self.a_later)
+            st.create("report_sections", {"project": "ABC", "type": "actions", "title": "Open actions", "sort_order": 50, "hidden": 0})   # the shown built-in section (row 1193: a new project has a list instead)
         self.save({"kinds": ["risk"]})
         built = publish.build(self.s, "ABC", now=TODAY)["published"]
         sec = next(s for s in built["sections"] if s["id"] == self.ref)
@@ -1096,6 +1101,24 @@ class InThePage(PageBase):
             p.js(f"document.querySelector('{root} [data-wil-gear]').click()")
             p.js(f"document.querySelector('{root} [data-wil-cfgdone]').click()")
             p.until(f"document.querySelector('{dlg}').hidden", "Done closed it")
+
+    def test_the_configure_box_is_a_dialog_only_while_it_is_open_1193(self):
+        # Row 1193 r8-r10 sweep: the hidden Configure box carries no dialog role (only an open one is a dialog), and the gear still says it opens a dialog.
+        ref = self.add({}, title="Gear role")
+        root = f"[data-id=\"{ref}\"]"
+        role = f"document.querySelector('{root} .wil-cfg').getAttribute('role')"
+        with chrome() as cdp:
+            p = self.show(cdp, 1400)
+            p.edit()
+            p.until(f"!!document.querySelector('{root} [data-wil-gear]')", "the gear drew")
+            self.assertIsNone(p.js(role), "closed: no role")
+            self.assertEqual(p.js(f"document.querySelector('{root} [data-wil-gear]').getAttribute('aria-haspopup')"), "dialog")
+            p.js(f"document.querySelector('{root} [data-wil-gear]').click()")
+            p.until(f"!document.querySelector('{root} .wil-cfg').hidden", "the gear opened it")
+            self.assertEqual(p.js(role), "dialog", "open: a dialog")
+            p.js(f"document.querySelector('{root} [data-wil-cfgdone]').click()")
+            p.until(f"document.querySelector('{root} .wil-cfg').hidden", "Done closed it")
+            self.assertIsNone(p.js(role), "closed again: no role")
 
     def test_the_footnote_box_is_in_configure_after_columns_before_done_and_the_caption_shows_above_the_list(self):
         # Row 1268, ruled by the head 17-11 (the mock-up wins over Row 1113 wish 2): the field is "Footnote (optional)" in the Configure box,
