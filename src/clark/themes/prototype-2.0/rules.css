@@ -24,3 +24,6 @@ h1, h2, h3 { font-weight: var(--weight-medium); }
 .seg:not(.modes) button[aria-pressed="true"] em, .seg:not(.modes) button[aria-checked="true"] em { color: var(--white); }
 .seg:not(.icons):not(.modes) button[aria-pressed="true"]:focus-visible, .seg:not(.icons):not(.modes) button[aria-checked="true"]:focus-visible, .cal-sc button[aria-current="true"]:focus-visible { outline-color: var(--white); outline-offset: -3px; }
 .crumbs, .ucd-crumb, .ucf-crumb { text-transform: none; letter-spacing: normal; }
+/* Row 1319, dark edge: the navy chosen segment is 1.08:1 on the dark ground, so in dark (and auto when the system is dark) it takes a 1px inset ring in --grey-500 (3.8:1 or more on every ground); inset, so nothing moves. Light has no ring. */
+:root[data-theme=dark] .seg:not(.modes) button[aria-pressed="true"], :root[data-theme=dark] .seg:not(.modes) button[aria-checked="true"], :root[data-theme=dark] .cal-sc button[aria-current="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .seg:not(.modes) button[aria-pressed="true"], :root[data-theme=auto] .seg:not(.modes) button[aria-checked="true"], :root[data-theme=auto] .cal-sc button[aria-current="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); } }

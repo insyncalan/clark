@@ -101,6 +101,46 @@ class Computed(unittest.TestCase):
                     self.assertEqual(self.style(cdp, sid, "#sg button[aria-pressed=false]", "backgroundColor"), "rgba(0, 0, 0, 0)", tag)
                     self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), tag)
 
+    def test_dark_chosen_segment_has_a_visible_edge_light_has_none(self):
+        html = page.page_html(branding=page.NO_BRAND, theme=NAME)
+        sels = ("#sg button[aria-pressed=true]", "#sc button", "#cs button")
+        with chrome() as cdp:
+            for scheme in ("light", "dark"):
+                for w in SIZES:
+                    sid = self.load(cdp, w, scheme, html)
+                    tag = f"{scheme} {w}"
+                    grounds = {n: parse(cdp.js("(() => { const d = document.createElement('i'); d.style.background = 'var(%s)'; document.body.appendChild(d); return getComputedStyle(d).backgroundColor; })()" % n, sid)) for n in ("--bg", "--surface", "--band-bg", "--page-bg")}
+                    grad = cdp.js("getComputedStyle(document.documentElement).getPropertyValue('--page-grad')", sid)
+                    for i, hx in enumerate(re.findall(r"#([0-9A-Fa-f]{6})", grad)):
+                        grounds["grad%d" % i] = tuple(int(hx[k:k + 2], 16) for k in (0, 2, 4))
+                    for sel in sels:
+                        shadow = self.style(cdp, sid, sel, "boxShadow")
+                        if scheme == "light":
+                            self.assertEqual(shadow, "none", f"{tag} {sel}")
+                            continue
+                        self.assertRegex(shadow, r"^rgb\(111, 127, 163\) 0px 0px 0px 1px inset$", f"{tag} {sel}")
+                        edge = parse(shadow)
+                        for n, g in grounds.items():
+                            self.assertGreaterEqual(ratio(edge, g), 3.0, f"{tag} {sel} edge on {n} {g}")
+                        self.assertEqual(self.style(cdp, sid, sel, "color"), "rgb(255, 255, 255)", f"{tag} {sel}")
+                        self.assertEqual(self.style(cdp, sid, sel, "borderTopWidth"), "0px", f"{tag} {sel} layout does not move")
+                    self.assertEqual(self.style(cdp, sid, "#sg button[aria-pressed=false]", "boxShadow"), "none", tag)
+                    self.assertEqual(self.style(cdp, sid, "#md button[aria-pressed=true]", "boxShadow") == "none", True, f"{tag} top-bar switch has no ring")
+                    cdp.js("document.querySelector('#sg button').focus()", sid)
+                    self.assertEqual(self.style(cdp, sid, "#sg button[aria-pressed=true]", "outlineColor"), "rgb(255, 255, 255)", tag)
+                    self.assertEqual(self.style(cdp, sid, "#sg button[aria-pressed=true]", "outlineOffset"), "-3px", tag)
+                    if scheme == "dark":
+                        self.assertGreaterEqual(ratio((255, 255, 255), parse(self.style(cdp, sid, "#sg button[aria-pressed=true]", "boxShadow"))), 3.0, tag + " focus ring clear of the edge")
+
+    def test_auto_follows_the_system_scheme(self):
+        html = page.page_html(branding=page.NO_BRAND, theme=NAME)
+        with chrome() as cdp:
+            for scheme in ("dark", "light"):
+                sid = self.load(cdp, 1400, "auto", html)
+                cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
+                shadow = self.style(cdp, sid, "#sg button[aria-pressed=true]", "boxShadow")
+                self.assertEqual(shadow != "none", scheme == "dark", f"auto {scheme} {shadow}")
+
     def test_cards_keeps_the_weight_the_pill_the_aqua_and_the_tracked_crumb(self):
         html = page.page_html(branding=page.NO_BRAND)
         with chrome() as cdp:
@@ -123,7 +163,7 @@ class Layering(unittest.TestCase):
 
     def test_the_classic_block_is_the_end_of_rules_and_reaches_the_page(self):
         rules = (FOLDER / "rules.css").read_text(encoding="utf-8")
-        self.assertTrue(rules.rstrip("\n").split("\n")[-8].startswith("/* Row 1319"))
+        self.assertTrue(rules.rstrip("\n").split("\n")[-11].startswith("/* Row 1319"))
         self.assertIn("h1, h2, h3 { font-weight: var(--weight-medium); }", theme.css(NAME))
 
 
