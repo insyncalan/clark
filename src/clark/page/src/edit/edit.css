@@ -1560,3 +1560,14 @@ table.items .c-x-id, table.items .c-x-type { width: 100px; }
 .ask-slash li b { color: var(--text); font-weight: 600; }
 .ask-slash li[aria-selected="true"] { background: var(--brand-blue-tint); }
 .ask-slash-none { cursor: default; }
+/* #1292 S14: files and pictures for the next question (chips with a name, a size and a bin; a dashed edge while a file is dragged over) */
+.ask-files { flex: none; margin: 0 var(--space-4) 6px; padding: 4px 4px 4px 10px; border: 1px solid var(--grey-200); border-radius: 10px; background: var(--surface); font-size: var(--size-caption); }
+.ask-files ul { margin: 0; padding: 0; list-style: none; }
+.ask-files li { display: flex; align-items: center; gap: var(--space-2); min-height: 32px; }
+.ask-file-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ask-file-size { flex: none; color: var(--text-muted); }
+.ask-file-del { flex: none; width: 28px; height: 28px; min-width: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--text-muted); background: transparent; border: 0; border-radius: var(--radius-sm); cursor: pointer; }
+.ask-files-note { margin: 0 0 4px; color: var(--text-muted); }
+.ask-panel[data-drop] { outline: 2px dashed var(--brand-blue); outline-offset: -6px; }
+.ask-drop-line { flex: none; margin: 0 var(--space-4) 6px; color: var(--status-blue-text, var(--brand-blue)); font-size: var(--size-body); text-align: center; }
+.ask-actions #ask-attach { flex: none; }

@@ -17,6 +17,7 @@ import { ChangeCards, fixedLine } from "./AskChange.jsx";
 import { FormattedAnswer } from "./AskFormat.jsx";
 import { AskDraft } from "./AskDraft.jsx";
 import { readDraft } from "./askDraft.js";
+import * as F from "./askFiles.js";
 
 // Row 890: the files an answer used, as the server sends them ({id, label}). A long file is cut into parts labelled "name (part N)":
 // the suffix is dropped and each file is listed once, in the order first seen.
@@ -83,7 +84,9 @@ export function AskPanel() {
   const waiting = queue.value, held = queueHeld.value, dropping = queueDrop.value;
   const showHist = histOpen.value && !busy;
   const saved = showHist ? (histTick.value, chats()) : [];
-  const box = useRef(null), log = useRef(null), stopped = useRef(false);
+  const [files, setFiles] = useState([]);       // #1292 S14: the files and pictures waiting for the next question (used for that question only)
+  const [dropOver, setDropOver] = useState(false);
+  const box = useRef(null), log = useRef(null), stopped = useRef(false), picker = useRef(null);
   // Row 1215: the box is one line high when empty and grows with its text; the cap and the line height are in edit.css, past the cap it scrolls inside.
   useLayoutEffect(() => { const b = box.current; if (!b) return; b.style.height = "auto"; b.style.height = text ? b.scrollHeight + 2 + "px" : ""; });   // empty: the placeholder never makes it taller
   // Row 885: closing sinks the panel first, and it stays drawn until the animation ends (a 400 ms timer guards it, so no dead overlay is left).
@@ -127,6 +130,19 @@ export function AskPanel() {
 
   if (!open && !leaving) return null;
 
+  // #1292 S14: files come from the paperclip, a drop on the panel or a paste; what cannot be taken says why in plain words.
+  function addFiles(list) {
+    if (!list.length || state !== "ready") return;
+    const r = F.addFiles(files, list);
+    setFiles(r.files); setNote(r.notes.join(" "));
+    if (box.current) box.current.focus();
+  }
+  function removeFile(f) {
+    setFiles(F.removeFile(files, f.id)); setNote("");
+    setTimeout(() => { const left = document.querySelectorAll("#ask-files .ask-file-del"); const to = left[Math.min(files.findIndex((x) => x.id === f.id), left.length - 1)] || box.current; if (to) to.focus(); }, 0);
+  }
+  const hasFiles = (e) => !!e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files");
+
   // Item 943: a source that is a saved PDF opens in the system's viewer at its page; the server judges the file again.
   async function openSource(n) {
     const r = await post("/api/ask/open-source", { project: project.value, file: n.file, page: n.page });
@@ -149,7 +165,7 @@ export function AskPanel() {
       return;
     }
     if (!q) { setNote(W.EMPTY_LINE); return; }
-    run(q, preset, null);
+    run(q, preset, null, files);
   }
 
   // #1292 S10: a chosen slash command. A question command sends its question as a suggestion does; /new and /history send nothing.
@@ -163,8 +179,9 @@ export function AskPanel() {
 
   // Asks one question and, when it is answered, sends the next queued one. `from` is the queued message this question came from. It reads the
   // signals, never this render's values, because a queued question is sent from the end of the one before.
-  async function run(q, preset, from) {
+  async function run(q, preset, from, att) {
     setNote(""); stopped.current = false;
+    if (att && att.length) setFiles([]);          // the chips go with the send; they come back if nothing was answered
     histOpen.value = false;                       // a question asked over Earlier chats: the answer must come back to the chat, not under the list
     const earlier = turns.value.filter((t) => !t.kind).map((t) => ({ role: t.role, text: t.text }));
     const mine = { role: "user", text: q };
@@ -173,7 +190,9 @@ export function AskPanel() {
     if (box.current) box.current.focus();         // the suggestion that was pressed is about to be replaced: keep the keyboard's place
     pending.value = true;
     const epoch = chatEpoch.value;
-    const r = await post("/api/ask", { project: project.value, question: q, earlier });
+    const body = { project: project.value, question: q, earlier };
+    if (att && att.length) body.files = await F.encodeFiles(att);
+    const r = await post("/api/ask", body);
     pending.value = false;
     setNote("");                                     // the Stopping line is over once the turn (answer or stopped line) is here
     if (epoch !== chatEpoch.value) return;           // row 1119: the page was left meanwhile; the answer belongs to a chat that is gone
@@ -181,6 +200,7 @@ export function AskPanel() {
     const answered = r.status === 200 && b && b.ok === true && typeof b.answer === "string";
     if (!answered && !preset && !from) {      // nothing was answered: the question goes back in the box unless something new was typed meanwhile, and its turn leaves the transcript so it is not shown twice
       setText((t) => t || q);
+      if (att && att.length) setFiles((now) => (now.length ? now : att));
       if (!stopped.current) turns.value = turns.value.filter((t) => t !== mine);      // a Stop keeps the question: the stopped line follows it
     }
     if (!answered && from && !stopped.current) {     // a queued question that was not answered goes back to the front of the queue, so nothing typed is lost
@@ -316,7 +336,11 @@ export function AskPanel() {
 
   return (
     <>
-    <aside id="ask-panel" ref={(n) => { if (n) holdScroll(n); }} class={leaving ? "ask-panel leaving" : "ask-panel"} onAnimationEnd={(e) => { if (e.target === e.currentTarget && e.animationName === "ask-down") finish(); }} role="complementary" aria-label={W.PANEL_TITLE} tabindex="-1" style={{ width: clampWidth(width) + "px" }}>
+    <aside id="ask-panel" ref={(n) => { if (n) holdScroll(n); }} class={leaving ? "ask-panel leaving" : "ask-panel"} onAnimationEnd={(e) => { if (e.target === e.currentTarget && e.animationName === "ask-down") finish(); }} role="complementary" aria-label={W.PANEL_TITLE} tabindex="-1" style={{ width: clampWidth(width) + "px" }}
+      data-drop={dropOver ? "true" : undefined}
+      onDragOver={(e) => { if (hasFiles(e)) { e.preventDefault(); setDropOver(true); } }}
+      onDragLeave={(e) => { if (e.target === e.currentTarget || !e.currentTarget.contains(e.relatedTarget)) setDropOver(false); }}
+      onDrop={(e) => { if (!e.dataTransfer || !e.dataTransfer.files.length) return; e.preventDefault(); setDropOver(false); addFiles(Array.from(e.dataTransfer.files)); }}>
       <div class="ask-grip" id="ask-grip" role="separator" aria-orientation="vertical" aria-label={W.GRIP} aria-valuenow={clampWidth(width)} aria-valuemin={widthRange().min} aria-valuemax={widthRange().max} tabindex="0" onPointerDown={grip} onKeyDown={gripKey} />
       <header class="ask-head">
         <h2>{W.PANEL_TITLE}</h2>
@@ -406,6 +430,20 @@ export function AskPanel() {
       ) : null}
       {dropping ? <p class="ask-queue-drop" id="ask-queue-drop" role="status" aria-live="polite">{W.QUEUE_DROP(dropping)}</p> : null}
       <p class="sr-only" id="ask-queue-say" role="status" aria-live="polite">{said}</p>
+      {dropOver ? <p class="ask-drop-line" id="ask-drop-line" aria-hidden="true">{F.DROP_LINE}</p> : null}
+      {files.length ? (
+        <div class="ask-files" id="ask-files">
+          <ul aria-label={F.FILES_LABEL}>
+            {files.map((f) => (
+              <li key={f.id} data-file={f.id}>
+                <span class="ask-file-name" title={f.name}>{f.name}</span><span class="ask-file-size">{F.sizeText(f.size)}</span>
+                <button type="button" class="pkp-btn ask-file-del" title={W.DELETE} aria-label={F.REMOVE_FILE(f.name)} onClick={() => removeFile(f)}><Icon name="trash" /></button>
+              </li>
+            ))}
+          </ul>
+          <p class="ask-files-note">{F.SCREEN_LINE} {F.THIS_QUESTION_LINE}</p>
+        </div>
+      ) : null}
       <form class="ask-form" onSubmit={send}>
         {menu ? (
           <ul class="ask-slash" id="ask-slash" role="listbox" aria-label={W.SLASH_LABEL}>
@@ -420,6 +458,7 @@ export function AskPanel() {
           role={menu ? "combobox" : undefined} aria-expanded={menu ? "true" : undefined} aria-controls={menu ? "ask-slash" : undefined} aria-autocomplete={menu ? "list" : undefined}
           aria-activedescendant={menu && menu.length ? "ask-slash-" + menu[pick].name : undefined}
           onInput={(e) => { setText(e.currentTarget.value); setPick(0); setShut(false); }}
+          onPaste={(e) => { const got = Array.from((e.clipboardData && e.clipboardData.files) || []); if (got.length) { e.preventDefault(); addFiles(got); } }}
           onKeyDown={(e) => {
             if (menu && !e.isComposing) {
               if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setShut(true); return; }       // the menu closes first; the panel stays
@@ -429,6 +468,8 @@ export function AskPanel() {
             if (e.key === "Enter" && !e.shiftKey && !e.isComposing) send(e);
           }} />
         <div class="ask-actions">
+          <input ref={picker} type="file" id="ask-file-input" multiple hidden accept=".txt,.md,.csv,.pdf,.docx,.xlsx,.png,.jpg,.jpeg" tabindex="-1" onChange={(e) => { addFiles(Array.from(e.currentTarget.files)); e.currentTarget.value = ""; }} />
+          <button type="button" class="pkp-btn" id="ask-attach" title={F.ATTACH_LABEL} aria-label={F.ATTACH_LABEL} disabled={state !== "ready"} onClick={() => picker.current && picker.current.click()}><Icon name="paperclip" /></button>
           {busy ? (
             <button type="button" key="stop" class="btn primary ask-stop-icon" id="ask-stop" title={W.STOP} aria-label={W.STOP} onClick={stop}>
               <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="9" height="9" rx="1.5" fill="currentColor" /></svg>
