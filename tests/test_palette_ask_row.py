@@ -146,6 +146,67 @@ class AskRow(Base):
             p.until("document.querySelector('#ask-box').value === 'zzqx'", "the words are kept, not lost")
             self.assertEqual(self.asks(), [])
 
+    def test_handed_over_with_ctrl_enter_keeps_a_draft_that_was_in_the_box(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.show()
+            p.find("draft words")
+            p.key("Enter", 0, "Enter", 13)
+            p.until("!!document.querySelector('#ask-box') && document.querySelector('#ask-box').value === 'draft words'", "the draft is in the box")
+            p.show()
+            p.find("zzqx")
+            p.key("Enter", CTRL, "Enter", 13)
+            self.assertTrue(wait(lambda: self.asks(), 15), "the question was asked")
+            p.until("/The pilot goes live/.test(document.querySelector('#ask-panel').innerText)", "the answer is in the chat")
+            self.assertEqual(p.js("document.querySelector('#ask-box').value"), "draft words", "the send leaves what was typed in the box")
+
+    def test_a_handed_over_question_is_taken_once_and_not_asked_again_when_the_panel_is_closed_and_opened(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.show()
+            p.find("zzqx")
+            p.key("Enter", CTRL, "Enter", 13)
+            self.assertTrue(wait(lambda: self.asks(), 15), "the question was asked")
+            p.until("/The pilot goes live/.test(document.querySelector('#ask-panel').innerText)", "the answer is in the chat")
+            p.js("document.querySelector('#ask-close').click()")
+            p.until("!document.querySelector('#ask-panel')", "the panel closed")
+            p.show()
+            p.find("ask clark")
+            p.key("Enter", 0, "Enter", 13)
+            p.until("!!document.querySelector('#ask-box')", "the panel opened again")
+            self.assertFalse(wait(lambda: len(self.asks()) > 1, 3), "it is not asked a second time")
+
+    def test_ctrl_enter_while_composing_does_nothing_and_a_real_one_is_taken_over_by_the_bar(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.show()
+            p.find("zzqx")
+            send = "(function(c){var q=document.querySelector('#palette-q'); return q.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',ctrlKey:true,isComposing:c,bubbles:true,cancelable:true}));})"
+            p.js(send + "(true)")
+            self.assertTrue(p.js("!!document.querySelector('#palette[open]')"), "a key press that is part of a composition does nothing")
+            self.assertEqual(self.asks(), [])
+            self.assertFalse(p.js(send + "(false)"), "the real Ctrl + Enter is not left to the browser")
+            self.assertTrue(wait(lambda: self.asks(), 15), "and it asks")
+
+    def test_handed_over_when_the_queue_is_full_goes_in_the_box_not_the_queue(self):
+        self.stub.hold.clear()
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            for n in range(6):
+                p.show()
+                p.find(f"question {n}")
+                p.key("Enter", CTRL, "Enter", 13)
+                if n == 0:
+                    self.assertTrue(wait(lambda: self.asks(), 15), "the first was asked")
+                else:
+                    p.until(f"document.querySelectorAll('#ask-queue li[data-queued]').length === {n}", f"{n} wait")
+            p.show()
+            p.find("question 6")
+            p.key("Enter", CTRL, "Enter", 13)
+            p.until("document.querySelector('#ask-box').value === 'question 6'", "the one that does not fit is kept in the box")
+            self.assertEqual(p.js("document.querySelectorAll('#ask-queue li[data-queued]').length"), 5, "the queue stays at its limit")
+            self.stub.hold.set()
+
 
 if __name__ == "__main__":
     unittest.main()
