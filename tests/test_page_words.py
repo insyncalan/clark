@@ -64,6 +64,16 @@ def lines(cdp, sid):
     return [x.strip() for x in text.splitlines() if x.strip()]
 
 
+# row 1280: the Settings menu headings are small capitals made by text-transform, so the page's copy of the text gives capitals; the source text stays as written.
+GROUP_NAMES = ("Everyday", "Publishing", "Look and feel", "Data and safety", "Advanced")
+
+
+def group_names_as_written(got):
+    """The lines, with a group name that the page shows in capitals put back to the words as written (the group names only, matched without case)."""
+    by_lower = {g.lower(): g for g in GROUP_NAMES}
+    return [by_lower.get(x.lower(), x) if x.isupper() else x for x in got]
+
+
 class Words(unittest.TestCase):
     def setUp(self):
         self.fake = Fake()
@@ -77,7 +87,7 @@ class Words(unittest.TestCase):
         return navigate(cdp, self.s.port, for_project(hash_))
 
     def shown(self, cdp, sid, expected):
-        self.assertTrue(wait(lambda: lines(cdp, sid) == expected, WAIT), f"wanted {expected}, the page shows {lines(cdp, sid)}")
+        self.assertTrue(wait(lambda: group_names_as_written(lines(cdp, sid)) == expected, WAIT), f"wanted {expected}, the page shows {lines(cdp, sid)}")
         self.assertIsNone(NEVER.search(" ".join(lines(cdp, sid))), lines(cdp, sid))
 
     def recovers(self, cdp, sid):
