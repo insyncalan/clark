@@ -450,39 +450,68 @@ table.items td.c-pick { vertical-align: middle; }
 /* Use cases page: list */
 /* Row 1085: the tabs row as Work items draws its saved views, Import, Export and Add use case at its right end, and the filter line (the Work items box) under it */
 .ucl-views { margin-top: 16px; }
-.ucl-views .vtab { padding-left: 8px; padding-right: 8px; }      /* row 1203: with the open tab's menu button and + New view beside four tabs, the strip at 900 was 5 px too narrow and scrolled; two px less each side of a tab fits it */
 .ucl-tools { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-bottom: var(--space-1); }
 .ucl .fline-wrap { margin-top: 0; }
 /* Row 1085: Group by draws each group as a bordered card (.wgroup, as Work items) with a heading bar: the name, the count, open and shut */
 .ucl-group { margin-top: 10px; }
 .ucl-grp { display: flex; align-items: center; padding: 10px var(--space-4); background: var(--grey-50); font-size: var(--size-small); color: var(--heading); }
-.ucl-group .ucl-row { padding-left: var(--space-4); padding-right: var(--space-4); }
-.ucl-group .ucl-list .ucl-row:last-child { border-bottom: 0; }
 .ucl-count { display: block; margin: 10px 0 0; font-size: var(--size-caption); color: var(--text-muted); }   /* row 1085: under the list */
-/* Row 1085: the sort sits on the column names (Ref, Status, Work items): the pressed one is marked with a small chevron */
-.ucl-box { margin-top: 14px; }
-.ucl-cols { display: grid; grid-template-columns: minmax(40px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px 36px; gap: var(--space-3); padding: 6px var(--space-1); border-bottom: 1px solid var(--grey-100); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); }   /* row 1203: the column names over the rows, the same columns */
-.ucl-cols .ucl-c1 { grid-column: 1 / 3; }
-.ucl-list { margin: 0; padding: 0; list-style: none; }
-.ucl-row { display: grid; grid-template-columns: 64px minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px 36px; gap: var(--space-3); align-items: center; min-height: 40px; padding: var(--d-uc-bar-y) var(--space-1); border-bottom: 1px solid var(--grey-100); cursor: pointer; font-size: var(--size-body); }   /* item 1149: the dashboard summary row's columns, then the eye */
-.ucl-list .ucl-row:hover, .ucl-list .ucl-row:focus-within { background: var(--grey-100); }  /* row 936: a hovered row is a tint, no blue one-side stripe (a stripe is for selected) */
+/* Row 1325: the list is the Work items table (table.items, shell.css): one column header row, thin row rules, the Columns button in the last header cell. Only what is the page's own is here. */
+.ucl-wrap { margin-top: 14px; }
+.ucl-table.hdr { margin-top: 0; }
+.ucl-table .c-where { width: 27%; }
+.ucl-table .c-status { width: 112px; }
+.ucl-table .c-owner { width: 190px; }
+.ucl-table .c-steps { width: 150px; }
+.ucl-table .c-ms { width: 170px; }
+.ucl-table .c-cm, .ucl-table .c-rel { width: 110px; }
+.ucl-table .c-dash { width: 150px; }
+.ucl-table td { vertical-align: middle; }
+/* the row rule: under the use case cell (drawn as its bottom edge) and over the others (their top edge, as Work items), so it is one line the whole width; the first row has its top rule, the last row its closing one */
+.ucl-table td.c-item { border-top: 0; border-bottom: 1px solid var(--grey-100); }
+.ucl-table tbody tr:first-child td.c-item { border-top: 1px solid var(--grey-100); }
+.ucl-table tbody tr:last-child td { border-bottom: 1px solid var(--grey-100); }
+.ucl-table th.c-eye { position: relative; }
+.ucl-table .t { display: block; }
+.ucl-table .meta2 { display: block; font-size: var(--size-caption); color: var(--text-muted); }
+.ucl-table .where { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }   /* item 1149: where it stands is shown in full on the row, clamped to two lines */
+.ucl-table .where.none { font-style: italic; color: var(--text-muted); }
+.ucl-table .own { display: inline-flex; align-items: center; gap: var(--space-2); max-width: 100%; }
+.ucl-table .own .on { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ucl-table .stp { display: block; }
+.ucl-table .prg { display: block; box-sizing: border-box; width: 88px; max-width: 100%; height: 4px; margin-top: 7px; border-radius: 2px; background: var(--grey-100); overflow: hidden; }
+.ucl-table .prg i { display: block; height: 100%; background: var(--status-green); }
+.ucl-table .mslab { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ucl-table tbody tr:hover, .ucl-table tbody tr:focus-within { background: var(--grey-100); }
+/* A use case the client does not see: every word of the row #667391 (4.74:1 on white), the pill unfilled with a ring, the avatar grey, the eye crossed out. Colour, not opacity. */
+.ucl-table tr.off td, .ucl-table tr.off .t, .ucl-table tr.off .ucl-go, .ucl-table tr.off .where, .ucl-table tr.off .meta2, .ucl-table tr.off .mslab, .ucl-table tr.off .stp, .ucl-table tr.off .on, .ucl-table tr.off .ucn-b, .ucl-table tr.off .muted { color: #667391; }
+.ucl-table tr.off .t .ucl-go { font-weight: var(--weight-regular); }
+.ucl-table tr.off .pill { background: transparent; color: #667391; box-shadow: inset 0 0 0 1px var(--grey-300); }
+.ucl-table tr.off .av { background: #667391; color: var(--white); }
+.ucl-table tr.off .prg { background: var(--grey-100); }
+.ucl-table tr.off .prg i { background: var(--grey-500); }
+.ucl-table tr.off .weye, .ucl-table tr.off .ucl-eye { color: #667391; }
+@media (max-width: 900px) {      /* Milestone, Commitment, Release and On the dashboard are not drawn; the owner shows the avatar only; the commitment returns to the grey line (the page does that) */
+  .ucl-table .c-ms, .ucl-table .c-cm, .ucl-table .c-rel, .ucl-table .c-dash { display: none; }
+  .ucl-table .own .on { display: none; }
+  .ucl-table .c-where { width: 25%; }
+  .ucl-table .c-status { width: 96px; }
+  .ucl-table .c-owner { width: 88px; white-space: nowrap; }
+  .ucl-table .c-steps { width: 124px; }
+}
 .ucl-go { all: unset; box-sizing: border-box; display: block; min-height: 24px; padding: 2px 0; cursor: pointer; font-size: var(--size-body); font-weight: var(--weight-medium); line-height: 1.35; color: var(--heading); overflow-wrap: anywhere; border-radius: 3px; }
 .ucl-go:hover { text-decoration: underline; text-underline-offset: 2px; }
 .ucl-go:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.ucl-head { min-width: 0; overflow-wrap: anywhere; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }   /* item 1149: where it stands is shown in full on the row, clamped to two lines */
-.ucl-st { justify-self: stretch; }
-.ucl-eye { all: unset; box-sizing: border-box; justify-self: start; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border-radius: var(--radius); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--status-blue-text); cursor: pointer; }
+.ucl-eye { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border-radius: var(--radius); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--status-blue-text); cursor: pointer; }
 .ucl-eye .i, .ucl-eye svg { width: 16px; height: 16px; flex: none; }   /* issue 753: the eye alone, its words are the tooltip */
 .ucl-eye:hover { background: var(--grey-100); }
 .ucd-acts .ucd-more { width: 32px; padding: 0; justify-content: center; }
 .ucl-eye:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.ucl-row.off .ucl-eye { color: var(--text-muted); font-weight: var(--weight-regular); }
 .ucl-none { margin: 20px 0 4px; overflow-wrap: anywhere; }   /* item 1131: a long unbroken search never widens the page */
 .ucl-none .btn { margin-top: 4px; }
 .ucmore { margin: 8px 0 0; font-size: var(--size-small); }
 .ucmore a { display: inline-flex; align-items: center; min-height: 24px; color: var(--link); text-underline-offset: 2px; }
 @media (max-width: 900px) {
-  .ucl-row, .ucl-cols { grid-template-columns: 64px minmax(0, 1fr) minmax(0, 1fr) 124px 96px 36px; gap: var(--space-2); }
   .ucl-count { margin-left: 0; flex-basis: 100%; }
 }
 @media (max-width: 640px) {      /* the editor's fifth tab: the tabs scroll inside their own bar, so the mode switch and the profile stay in the window */
@@ -1215,11 +1244,6 @@ body > .gt-menu.leaving hr { border: 0; border-top: 1px solid var(--border); mar
   .item-rows-edit .wl-meta .late { min-width: 0; overflow-wrap: anywhere; }
   .ucl-go { min-height: 44px; display: flex; align-items: center; }
   .ucl-eye { width: 44px; height: 44px; }
-  .ucl-cols { display: none; }
-  .ucl-row { grid-template-columns: auto minmax(0, 1fr) 44px; gap: 4px 10px; }   /* item 1149: the reference and the title share the first line, the eye at the end of it; the rest each take a line under */
-  .ucl-row > .ucl-eye { grid-column: 3; grid-row: 1; justify-self: end; }
-  .ucl-row > .ucl-go { grid-column: 2; }
-  .ucl-row > .ucl-head, .ucl-row > .ucl-st, .ucl-row > .ucl-steps { grid-column: 1 / -1; min-width: 0; }
 }
 
 /* Plan 1022 (EDIT ONLY: the published page draws no editable wording): in the Work items rows a long wording is cut with an ellipsis like the View's title, and shows whole, wrapped, while it is being typed in. The row's title is a flex line so the Risk or Issue tag keeps its width and the wording gives way; its overflow stays visible so the focus ring is not cut off. */
@@ -1391,6 +1415,7 @@ table.cw-set td.acts, .pp-earlier .pubs.cw-set td.files, .pp-earlier .pubs.cw-se
 .cols-menu [role="menuitemcheckbox"][aria-disabled="true"] { color: var(--text-muted); cursor: default; }
 .cols-menu [role="menuitemcheckbox"][aria-disabled="true"]:hover { background: none; color: var(--text-muted); }
 .cols-menu .mi { flex: none; width: 16px; height: 16px; margin-right: var(--space-2); color: var(--text-muted); }
+.cols-menu .ck[data-on]::before { content: "\2713"; }
 .cols-menu .cols-name { display: block; min-width: 0; }
 .cols-menu .cols-why { display: block; font-size: var(--size-caption); color: var(--text-muted); }
 .cols-btn, .msl-cols-btn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius-sm); cursor: pointer; color: var(--text-muted); vertical-align: middle; text-transform: none; letter-spacing: 0; }
