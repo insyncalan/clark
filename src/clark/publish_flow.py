@@ -537,7 +537,7 @@ class Publisher:
                 choice=body.get("on_clash"), new_name=body.get("new_name"), at=today)
             return self.reply(got), None, None, []
         self.folder_warning = pre.get("warning")
-        markers = markers_for(store, code, built["published"], page.page_html(self.project_brand(store, code), view=True))
+        markers = markers_for(store, code, built["published"], page.page_html(self.project_brand(store, code), view=True, theme=publish.theme_of(store)))
         problems = to_client.check_copy(body_bytes, markers=markers, folder=saved)
         if problems:
             held = to_client.MESSAGES["held_back"].format(what=to_client.held_words(problems))
