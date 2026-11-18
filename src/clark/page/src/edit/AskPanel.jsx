@@ -174,7 +174,10 @@ export function AskPanel() {
       setQueue([from, ...queue.value]);
     }
     if (answered) {
-      const extra = Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : [];
+      // #1293 A: what the claims check found follows the answer in the same small block, in the server's own words ([D] a quiet line, not a badge per source).
+      // An answer that did not follow the form is shown whole, and its flag (unreadable or disguised) says so: that line is the banner.
+      const found = Array.isArray(b.flags) ? b.flags.filter((f) => f && typeof f.message === "string" && f.message).map((f) => f.message) : [];
+      const extra = [...(Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : []), ...found];
       turns.value = [...turns.value, { role: "assistant", text: b.answer, sources: sourceLabels(b.sources) }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))];
       keepChat(turns.value);
       if (!panelOpen.value) answersReady.value++;       // #1292: the button says an answer is waiting
