@@ -134,6 +134,8 @@ class Data(Api):
     def test_the_client_workbook_holds_the_rows_of_each_built_in_sheet(self):
         shown = self.build(True)
         every = {t: built_in_rows(shown, t) for t in ("raid", "actions", "decisions")}
+        # row 1307 point 3: the default Decisions list of a new project shows every decision (made ones are the record), so a file with lists only holds them all
+        every["decisions"] = sorted(r["id"] for r in shown["data"]["decisions"])
         self.tearDown(), self.setUp()
         wb = load_workbook(io.BytesIO(excel_client.workbook_bytes(self.build(True, built_in=False))))
         for table in ("raid", "actions", "decisions"):

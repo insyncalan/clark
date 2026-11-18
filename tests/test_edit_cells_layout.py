@@ -34,7 +34,7 @@ MEASURE = r"""(() => {
     const walker = document.createTreeWalker(v, NodeFilter.SHOW_TEXT); let n;
     while ((n = walker.nextNode())) { const re = /\S+/g; let m; while ((m = re.exec(n.textContent))) { const r = document.createRange(); r.setStart(n, m.index); r.setEnd(n, m.index + m[0].length); if (new Set([...r.getClientRects()].filter((x) => x.width > 0).map((x) => Math.round(x.top))).size > 1) broken++; } }
     out.push({ field, text: v.textContent.trim().slice(0, 30), pick: Math.round(b.getBoundingClientRect().height), val: Math.round(v.getBoundingClientRect().height),
-               lines: lines(v), reach: Math.round(v.getBoundingClientRect().right - b.closest('td').getBoundingClientRect().right), broken, over: b.scrollWidth > b.clientWidth + 1, spill: spill(v) });
+               lines: lines(v), reach: Math.round(v.getBoundingClientRect().right - b.closest('td').getBoundingClientRect().right), broken, over: b.scrollWidth > b.clientWidth + 1, spill: spill(v), spare: Math.round((() => { const td = b.closest('td'), cs = getComputedStyle(td); return td.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - b.getBoundingClientRect().width; })()) });
   }
   const pills = [...document.querySelectorAll('table.items td.c-item .kb')].map((p) => ({ text: p.getAttribute('title'), h: Math.round(p.getBoundingClientRect().height), broken: false }));   // #456: the kind is a one-letter badge now
   return JSON.stringify({ cells: out, pills, sw: document.documentElement.scrollWidth, vw: innerWidth });
@@ -90,6 +90,8 @@ class Cells(unittest.TestCase):
                         label = f"{where}: {c['field']} '{c['text']}'"
                         self.assertEqual(c["broken"], 0, label + " has a word broken in the middle")
                         self.assertFalse(c["over"], label + " runs outside its box")
+                        if c["field"] == "priority":      # row 1195 S2: a wider font (the Mac's) must still fit the pill and its caret in the cell
+                            self.assertGreaterEqual(c["spare"], 12, label + " leaves less than 12 px spare in its cell")
                         if c["field"] != "owner":       # an owner's long name is clipped with an ellipsis (#948): its text box reaches past what is drawn, so its reach (below) is measured instead
                             self.assertLessEqual(c["spill"], 1, label + " runs past its value box into the caret")
                         self.assertLessEqual(c["pick"] - c["val"], 12, label + ": the caret has a line of its own (the box is taller than the value)")
