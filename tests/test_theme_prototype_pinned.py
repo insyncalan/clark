@@ -94,6 +94,7 @@ RULE_LINES = [
         'html[data-mode="view"] .cover { display: none; }',
         'html[data-mode="view"] .sec { border-left: 2px solid var(--gutter-rule); padding-left: 20px; }',
         '@media print { html[data-mode="view"] .sec { border-left: 0; padding-left: 0; } }',
+        '.frame.report { background: transparent; border: 0; box-shadow: none; }',
     ]
 
 
