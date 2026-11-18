@@ -6,13 +6,17 @@ import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { token } from "../stores/report.js";
 import { realAiClient } from "./aiClient.js";
 import { askProvider } from "./askState.js";
-import { aiConnectRead, aiConnectSend, aiDisconnectSend, aiModelSend, words } from "./publishApi.js";
+import { aiConnectRead, aiConnectSend, aiDisconnectSend, aiModelSend, aiTestSend, words } from "./publishApi.js";
 
 export const AI_CHECKING_LINE = "Checking whether AI suggestions are on…";
 export const AI_LATER_LINE = "AI suggestions come in a later version.";      // the status route answered 404: no AI service in this version
 export const AI_UNAVAILABLE_LINE = "AI suggestions are off, because clark could not check just now. Reload the page to try again.";
 const client = realAiClient({ token });
 
+export const CONNECTING_LINE = "Connecting…";
+export const CONNECTED_LINE = "Connected. Asking can use its models.";
+export const TEST_LABEL = "Test the connection";
+export const TESTING_LINE = "Testing…";
 const TILES = [
   ["claude", "Claude", "Through your Claude subscription, on this computer."],
   ["chatgpt", "ChatGPT", "Through your ChatGPT subscription, using the Codex command on this computer. What you ask goes to OpenAI."],
@@ -22,6 +26,8 @@ function ConnectCard() {
   const [conn, setConn] = useState(null);                // null: not read yet; "later": no route; "unavailable"; or the server's view
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);                  // {kind: "error" | "note", text}
+  const [pending, setPending] = useState("");            // the tile whose switch was just pressed: "Connecting…" shows while the server checks the sign-in
+  const [test, setTest] = useState(null);                // null: not run; "running"; or {kind: "error" | "note", lines: [string]}
   const [weaker, setWeaker] = useState(null);            // {model, text}: a smaller model asks first
   const back = useRef("");                                // selector of the control to refocus once the card has redrawn
   const busyNow = useRef(false);
@@ -41,15 +47,18 @@ function ConnectCard() {
   if (conn === null || conn === "later") return null;
   if (conn === "unavailable") return <p id="ai-connect-state" class="muted">Could not check the AI connection just now. Reload the page to try again.</p>;
 
-  async function send(request, what, again) {
+  async function send(request, what, again, tile) {
     if (busyNow.current) return null;                  // aria-disabled keeps focus on the control, so the click is ignored here
     busyNow.current = true;
+    setPending(tile || "");
+    setTest(null);
     back.current = again || "";
     setBusy(true);
     setMsg(null);
     const r = await request();
     busyNow.current = false;
     setBusy(false);
+    setPending("");
     const b = r.body;
     if (r.status === 200 && readable(b)) { setConn(b); setWeaker(null); setMsg({ kind: "note", text: b.message }); return null; }
     if (r.status === 409 && b && b.code === "weaker" && typeof b.message === "string") return b.message;
@@ -61,7 +70,21 @@ function ConnectCard() {
     const text = await send(() => aiModelSend(model), "save that choice", "#ai-model");
     if (text) { setConn({ ...conn }); setWeaker({ model, text }); }
   }
-  const c = conn.claude;
+  const anyOn = conn.claude.connected || conn.chatgpt.connected;
+  async function runTest() {
+    if (busyNow.current || !anyOn) return;
+    busyNow.current = true;
+    setBusy(true);
+    setMsg(null);
+    setTest("running");
+    const r = await aiTestSend();
+    busyNow.current = false;
+    setBusy(false);
+    const b = r.body;
+    if (r.status === 200 && b && b.ok === true && Array.isArray(b.results)) {
+      setTest({ kind: "note", lines: b.results.map((x) => (x.answered ? `${x.label} answered in ${x.seconds} seconds.` : `${x.label}: ${x.message}`)) });
+    } else setTest({ kind: "error", lines: [r.status >= 400 && r.status < 500 && b && typeof b.message === "string" ? b.message : words(r, "test the connection")] });
+  }
   return (
     <>
     <p class="muted" data-ai-intro>{conn.intro}</p>
@@ -72,13 +95,20 @@ function ConnectCard() {
           <div class={`ai-prov${c.connected ? " on" : ""}`} data-ai-tile={id} key={id}>
             <h3>{name} <span class={`tag${c.connected ? " cl" : ""}`}>{c.connected ? "Connected" : "Not connected"}</span></h3>
             <p class="muted">{line}</p>
+            {pending === id ? <p data-ai-status role="status">{CONNECTING_LINE}</p> : c.connected ? <p class="muted" data-ai-status>{CONNECTED_LINE}</p> : null}
             {c.why ? <p data-ai-why>{c.why}</p> : null}
             {c.connected
-              ? <button type="button" class="btn sm" data-ai-disconnect={id} aria-disabled={busy ? "true" : undefined} onClick={() => send(() => aiDisconnectSend(id), `disconnect ${name}`, `[data-ai-connect=${id}]`)}>Disconnect</button>
-              : <button type="button" class="btn pri sm" data-ai-connect={id} aria-disabled={busy ? "true" : undefined} onClick={() => send(() => aiConnectSend(id), `connect ${name}`, `[data-ai-disconnect=${id}]`)}>Connect</button>}
+              ? <button type="button" class="btn sm" data-ai-disconnect={id} aria-pressed="true" aria-disabled={busy ? "true" : undefined} onClick={() => send(() => aiDisconnectSend(id), `turn off ${name}`, `[data-ai-connect=${id}]`, "")}>Turn off {name}</button>
+              : <button type="button" class="btn pri sm" data-ai-connect={id} aria-pressed="false" aria-disabled={busy ? "true" : undefined} onClick={() => send(() => aiConnectSend(id), `turn on ${name}`, `[data-ai-disconnect=${id}]`, id)}>Turn on {name}</button>}
           </div>
         );
       })}
+    </div>
+    <div class="row">
+      <button type="button" class="btn sm" data-ai-test aria-disabled={busy || !anyOn ? "true" : undefined} onClick={runTest}>{TEST_LABEL}</button>
+    </div>
+    <div class="ai-msg" data-ai-test-out role={test && test !== "running" && test.kind === "error" ? "alert" : "status"} aria-live="polite">
+      {test === "running" ? <p>{TESTING_LINE}</p> : test ? test.lines.map((l, i) => <p key={i} class={test.kind === "error" ? "bad" : undefined}>{l}</p>) : null}
     </div>
     <div class="ai-model">
       <label for="ai-model">Model for ask clark</label>{" "}
@@ -86,6 +116,7 @@ function ConnectCard() {
         {conn.models.length ? conn.models.map((m) => <option key={m.id} value={m.id}>{m.label}{m.recommended ? " (recommended)" : ""}</option>) : <option value="">Connect Claude or ChatGPT first</option>}
       </select>
     </div>
+    <p class="muted" data-ai-size>{conn.size}</p>
     {weaker ? (
       <div class="ai-msg" role="alert" data-ai-weaker>
         <p>{weaker.text}</p>

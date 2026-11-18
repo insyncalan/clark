@@ -33,7 +33,7 @@ import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-from clark import ask, ask_apply, ask_data, ask_files, ask_passages, pdf_link, pdf_reader, platform, publish, reach, secret_screen
+from clark import ask, ask_apply, ask_data, ask_files, ask_folders, ask_passages, pdf_link, pdf_reader, platform, publish, reach, secret_screen
 from clark.store import Store, connect
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -84,6 +84,15 @@ class AskService:
 
     def fail(self, code, message=None):
         return {"ok": False, "code": code, "message": message or MESSAGES[code]}
+
+    def folders_for(self, store, code):
+        """The folders a question in project `code` may read (row 1294): those for all projects first, then the project's own, at most ask_folders.MAX_FOLDERS."""
+        own = [r["path"] for r in store.read("source_folders", code) if r.get("project", code) == code]
+        out = []
+        for p in [*ask_folders.shared_folders(self.data_dir), *own]:
+            if p not in out:
+                out.append(p)
+        return out[:ask_folders.MAX_FOLDERS]
 
     def reader(self):
         """The store, opened read-only (a write through it fails in SQLite itself)."""
@@ -164,7 +173,8 @@ class AskService:
                     data = ask_data.project_data(store, code, " ".join([question, *ask_data.ids_in_turns(earlier)]), PROJECT_SHARE)
                 except publish.PublishError:
                     return 404, self.fail("project_not_found")
-                folders = [r["path"] for r in store.read("source_folders", code) if r.get("project", code) == code]
+                folders = self.folders_for(store, code)
+                standing = {"all": store.ask_instructions(), "project": store.ask_instructions(code)}      # row 1294: sent with the question, the one for all projects first
             finally:
                 store.close()
         used = sum(len(p.text) for p in data.passages)         # the folders get what the project's own data left of the budget
@@ -175,7 +185,7 @@ class AskService:
             return 200, self.fail("folders_unreadable")
         try:
             request = ask.build_request(question, tuple(data.passages) + tuple(found.passages) + tuple(added), earlier,
-                                        today=data.today, partial=ask_data.partial_lines(data.counts))
+                                        today=data.today, partial=ask_data.partial_lines(data.counts), instructions=standing)
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         facts = data.facts
@@ -225,7 +235,7 @@ class AskService:
             try:
                 if store.read("projects", ref=code) is None:
                     return 404, self.fail("project_not_found")
-                folders = [r["path"] for r in store.read("source_folders", code) if r.get("project", code) == code]
+                folders = self.folders_for(store, code)
             finally:
                 store.close()
         for folder in folders:

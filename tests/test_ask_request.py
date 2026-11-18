@@ -23,8 +23,8 @@ class Build(unittest.TestCase):
         for line in ("Use only the passages in the request", "CITE: P1 P3", 'CHANGE: {"field": "value"}', "You have no tools and no files",
                      "only a suggestion", '"current_title"', '"current_owner"', "Never suggest archiving", 'DRAFT: {"title"'):
             self.assertIn(line, ask.RULES)
-        self.assertEqual(len(ask.RULES.splitlines()), 13)
-        self.assertEqual(hashlib.sha256(ask.RULES.encode("utf-8")).hexdigest(), "e3ecdcd7ec20d387c80843fcfb33cd41d633046564b414279e9f58f1dafe524a")      # a change to the rules is a deliberate edit of this line
+        self.assertEqual(len(ask.RULES.splitlines()), 14)
+        self.assertEqual(hashlib.sha256(ask.RULES.encode("utf-8")).hexdigest(), "58c3443356ed619e54b809966d4b5d91d611814d2f8edac43af29851d2ea7a8c")      # a change to the rules is a deliberate edit of this line
 
     def test_passages_get_ids_in_order_and_the_question_is_carried(self):
         r = ask.build_request("What is late?", P)
