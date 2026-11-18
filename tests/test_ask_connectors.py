@@ -235,5 +235,50 @@ class Discover(unittest.TestCase):
             ac.ask_claude.find_command, ac.platform.run_stoppable = o1, o2
 
 
+    def test_sweep2_line_shape(self):
+        self.assertEqual(ac.parse(": u - Connected"), [])
+        self.assertEqual(ac.parse("n:u - Connected"), [])
+        self.assertEqual(ac.parse("n:  - Connected"), [])
+        self.assertEqual(ac.parse("n: u - Con.nected"), [])
+        self.assertEqual(ac.parse("n: u - Con nected"), [])
+        self.assertEqual(ac.parse("claude.ai Todoist: x: y - Connected"), ["claude.ai Todoist"])
+
+    def test_sweep2_clock_going_back_is_a_miss(self):
+        calls = []
+        clock = [1000.0]
+
+        def run():
+            calls.append(1)
+            return TODO
+        ac.list_found(run=run, now=lambda: clock[0])
+        clock[0] -= 0.5
+        ac.list_found(run=run, now=lambda: clock[0])
+        self.assertEqual(len(calls), 2)
+
+    def test_sweep2_cleared_cache_runs_at_time_zero(self):
+        calls = []
+        ac.list_found(run=lambda: TODO, now=lambda: 0)
+        ac.clear_cache()
+        ac.list_found(run=lambda: calls.append(1) or TODO, now=lambda: 0)
+        self.assertEqual(calls, [1])
+
+    def test_sweep2_fresh_cache_state_and_first_call(self):
+        import importlib
+        fresh = importlib.reload(ac)
+        self.assertEqual(fresh._cache, {"at": None, "value": []})
+        calls = []
+        fresh.list_found(run=lambda: calls.append(1) or TODO, now=lambda: 0)
+        self.assertEqual(calls, [1])
+
+    def test_sweep2_undecodable_byte_elsewhere_is_replaced(self):
+        o1, o2 = ac.ask_claude.find_command, ac.platform.run_stoppable
+        ac.ask_claude.find_command = lambda: ("/x/claude", None)
+        ac.platform.run_stoppable = lambda *a, **k: ("ok", b"claude.ai Todoist: u - Connected\n\xff\xfe", 0)
+        try:
+            self.assertEqual(ac.list_found()[0]["connector"], "todoist")
+        finally:
+            ac.ask_claude.find_command, ac.platform.run_stoppable = o1, o2
+
+
 if __name__ == "__main__":
     unittest.main()
