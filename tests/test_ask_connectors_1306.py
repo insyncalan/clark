@@ -201,10 +201,25 @@ class Route(Base):
 
     def test_a_connector_not_found_here_cannot_be_switched(self):
         was = self.stored()
-        for body in ({"id": "teams", "on": True}, {"id": "teams", "project": "ABC", "off_here": True}):
+        for body in ({"id": "teams", "on": True}, {"id": "teams", "project": "ABC", "off_here": False}):
             status, got = self.post(body)
             self.assertEqual((status, got["code"]), (400, "bad_connector"), body)
         self.assertEqual(self.stored(), was)
+
+    def test_an_off_works_for_a_connector_that_is_not_found_and_when_discovery_fails(self):
+        store = open_store(self.db, onedrive_roots=[])
+        try:
+            with store.step("dashboard", "tester", place="menu") as st:
+                st.update("connector_switches", "teams", {"is_on": True})
+        finally:
+            store.close()
+        with mock.patch.object(ask_connectors, "list_found", side_effect=RuntimeError("boom")):
+            status, got = self.post({"id": "teams", "on": False})
+            self.assertEqual(status, 200, got)
+            status, got = self.post({"project": "ABC", "id": "teams", "off_here": True})
+            self.assertEqual(status, 200, got)
+        self.assertEqual(self.stored()[0]["teams"], False)
+        self.assertEqual(self.stored()[1], ("teams",))
 
     def test_global_on_then_a_projects_own_off_then_on_again_then_undo(self):
         status, got = self.post({"id": "mail", "on": True})
