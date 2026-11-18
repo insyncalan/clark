@@ -118,6 +118,7 @@ class Items(Api):
 
     def setUp(self):
         super().setUp()
+        self.demo.plant_builtin_sections()      # a new project's lists are Work items lists; cards read the built-in sections' rows (row 1193)
         with self.s.step("dashboard", USER) as st:
             self.risk = st.create("raid", {"project": "ABC", "type": "Risk", "description": "Supplier may slip", "raised": "2026-10-01",
                                            "source": "demo", "client_message": "We are watching the supplier."})
@@ -251,6 +252,7 @@ class PageSide(PageBase):
     TYPE, SIZE = "raid3", 3
 
     def seed(self):
+        self.demo.plant_builtin_sections()      # a new project's lists are Work items lists; cards read the built-in sections' rows (row 1193)
         with self.store.step("dashboard", USER) as st:
             ids = {
                 "risk": st.create("raid", {"project": "ABC", "type": "Risk", "description": "Supplier may slip", "raised": "2026-10-01",

@@ -31,6 +31,7 @@ NEW_WORDS = ("CHANGE_HEAD", "NEW_HEAD", "FIELD", "NOW", "AFTER", "NOT_SET", "APP
 class Card(Base):
     def setUp(self):
         super().setUp()
+        self.demo.plant_builtin_sections()      # row 1193: a new project's report has Work items lists, these tests pin the built-in sections
         self.action = self.demo.action(owner="Sam Lee", client_visible=1)
         self.provider = ask.StubProvider(reply="")
         self.files = ()

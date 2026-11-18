@@ -212,7 +212,7 @@ class Words(unittest.TestCase):
                     "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
                     "Search settings",      # row 1115 S2: the box under the help line
                     "Skip to settings"]     # item 1170: the skip link, wording ruled in NEW-WORDS.md
-            menu = ["Everyday", "Projects", "People", "Profile", "Publishing", "Folder", "Brand", "Look and feel", "Appearance", "Reports", "Data and safety", "Backups", "Export and import",
+            menu = ["Everyday", "Projects", "People", "Profile", "Publishing", "Folder", "Brand", "Theme", "Look and feel", "Appearance", "Reports", "Data and safety", "Backups", "Export and import",
                     "Advanced", "These are for setting up Claude, and for when something goes wrong. Most people never need them.", "Claude and AI", "Logs and diagnostics", "Version and updates"]
             pages = [
                 ('profile', 'Profile', [
@@ -247,6 +247,10 @@ class Words(unittest.TestCase):
                     "Brands", "Add a brand from a file you were given, and clark uses its colours, fonts and pictures. Nothing changes until you choose Install.",
                     "Brands can't be shown right now. Restart clark the usual way and try again. Try again"
                 ]),
+                ('theme', 'Theme', [
+                    "Theme", "Your choice applies the next time the page loads.",
+                    "The theme could not be read just now. Reload the page to try again."      # this server has no theme route
+                ]),
                 ('appearance', 'Appearance', [
                     "Personal",    # #45: Settings › Personal, the section styles
                     "These are for you, on this computer. Your spacing choice is used on the published report too; Light or Dark is yours alone.",
@@ -276,6 +280,7 @@ class Words(unittest.TestCase):
                     "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",      # item 454: the prototype's one sentence (the owner approved the words)
                 ]),
                 ('claude', 'Claude and AI', [
+                    "Settings for", "All projects", "ABC",      # row 1294: the two tabs; the project's own opens first
                     "Asking",             # #47: the switch and its folders, below the client folder
                     "Claude is started on this computer for you.",
                     "Your question and the passages it needs go to Claude, which Anthropic runs, and are billed to the Claude account signed in on this computer.",
@@ -284,9 +289,8 @@ class Words(unittest.TestCase):
                     "Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. "
                     "Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.",
                     "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.",
-                    "AI",                 # #72: the AI status line under Asking (AiSettings.jsx); no /api/ai/status route here: 404, so the later-version line
-                    "Suggestions for the text you select in the report. Nothing changes until you accept one.",
-                    "AI suggestions come in a later version."
+                    "Used from All projects",      # row 1294: the AI card (connections, model, the AI status line #72) is on the All projects tab; test_ai_settings reads its words
+                    "Connections and the model are yours, not this project's. They are the same in every project.", "Change",
                 ]),
                 ('logs', 'Logs and diagnostics', [
                     "Logs and diagnostics",      # #110

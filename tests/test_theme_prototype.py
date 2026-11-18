@@ -80,7 +80,7 @@ class ThemePrototype(unittest.TestCase):
             if mode == "light":
                 ground_values += ["#FFFFFF", "#F8F9FD", "#EFF3FA"]
             else:
-                ground_values += ["#0F1523", "#121A2A"]
+                ground_values += ["#08232D", "#0B2832"]
             for fg in ("--text", "--heading", "--text-muted"):
                 for bg in ground_values:
                     self.assertGreaterEqual(ratio(t[fg].upper(), bg.upper()), 4.5, f"{mode} {fg} on {bg}")

@@ -37,3 +37,18 @@ def css(name):
         except (OSError, UnicodeDecodeError):
             return None
     return page.escape_style("\n".join(parts))
+
+
+# Row 1269 slice B: the install's Theme setting (store.theme(): 'classic' or 'cards') to the Theme folder the page layers.
+# Classic is the prototype-2.0 folder; Cards is today's look, so it layers nothing and the page is byte for byte what it was.
+FOLDER_OF = {"classic": "prototype-2.0", "cards": None}
+
+
+def name_for(setting):
+    """The Theme folder name page.page_html(theme=...) takes for an install setting, or None (today's look) for 'cards' and anything else."""
+    return FOLDER_OF.get(setting) if isinstance(setting, str) else None
+
+
+def of_store(store):
+    """The Theme folder name for the Theme the open `store` holds now (read only; a store that cannot say reads as Cards, so None)."""
+    return name_for(store.theme())
