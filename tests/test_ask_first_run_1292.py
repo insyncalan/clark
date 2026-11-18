@@ -61,6 +61,15 @@ class FirstRun(Panel):
             p.until("!!document.querySelector('#ask-signed-out')", "signed out")
             self.assertEqual(p.js(CARD), None)
 
+    def test_the_card_is_not_shown_when_the_status_check_fails(self):
+        """A check that failed says nothing about where a question goes, so the card (which says it) stays away."""
+        self.stub.status = lambda *_: (200, {"ok": False})
+        with chrome() as cdp:
+            p = self.opened(cdp, ready=False)
+            p.until("document.querySelector('#ask-status').textContent !== ''", "the panel has settled")
+            self.assertEqual(p.js(CARD), None)
+            self.assertEqual(self.stub.count("ask"), 0)
+
     def test_with_asking_off_the_card_still_reads(self):
         self.stub.enabled = False
         with chrome() as cdp:
