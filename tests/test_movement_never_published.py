@@ -174,7 +174,7 @@ class Unchanged(unittest.TestCase):
             "state_reason", "owner", "actual_date", "client_message", "workstream", "latest_update", "source"))      # item 1185: + Latest update
         self.assertEqual(clark_store.NEVER_PUBLISH, frozenset({
             "internal_note", "movement", "reasoning", "options", "response_action", "keywords", "aliases", "lead",
-            "publish_local", "publish_client", "by_user", "device"}))
+            "publish_local", "publish_client", "by_user", "device", "ask_instructions"}))      # row 1294: the standing instructions are never published
 
     def test_no_publishing_module_names_the_read_the_view_or_the_route(self):
         names = ("milestone_moves", "movement_view", "movement_read", "milestone_rows.movement", "/api/movement", "MOVE_FIELDS",

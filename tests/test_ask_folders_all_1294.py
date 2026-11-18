@@ -35,7 +35,7 @@ class AllFolders(Base):
         self.assertEqual(body["message"], ask_folders.MESSAGES["added"])
         self.assertEqual(all_post(self, "add", self.more)[1]["folders"], [str(self.docs), str(self.more)])
         self.assertEqual(self.read_all()[1]["folders"], [str(self.docs), str(self.more)])
-        (self.docs / "keep.txt").write_text("x")
+        (self.docs / "keep.txt").write_text("x", encoding="utf-8")
         status, body = all_post(self, "remove", self.docs)
         self.assertEqual((status, body["folders"], body["message"]), (200, [str(self.more)], ask_folders.MESSAGES["removed"]))
         self.assertTrue((self.docs / "keep.txt").exists(), "Remove touches no file")
@@ -151,7 +151,7 @@ class AllFolders(Base):
         store = st.open_store(self.db, onedrive_roots=[])
         try:
             self.assertEqual(svc.folders_for(store, "ABC"), [str(self.docs)])
-            (self.data / ask_folders.SHARED_FILE).write_text(json.dumps([f"/Example/n{n}" for n in range(25)]))
+            (self.data / ask_folders.SHARED_FILE).write_text(json.dumps([f"/Example/n{n}" for n in range(25)]), encoding="utf-8")
             self.add(self.more)
             got = svc.folders_for(store, "ABC")
             self.assertEqual(len(got), ask_folders.MAX_FOLDERS)
@@ -165,11 +165,11 @@ class AllFolders(Base):
         self.assertEqual(self.read_all()[1]["folders"], [])
 
     def test_a_broken_shared_file_reads_as_none_and_the_list_can_be_added_to_again(self):
-        (self.data / ask_folders.SHARED_FILE).write_text("{not json")
+        (self.data / ask_folders.SHARED_FILE).write_text("{not json", encoding="utf-8")
         self.assertEqual(self.read_all()[1]["folders"], [])
-        (self.data / ask_folders.SHARED_FILE).write_text(json.dumps({"a": 1}))
+        (self.data / ask_folders.SHARED_FILE).write_text(json.dumps({"a": 1}), encoding="utf-8")
         self.assertEqual(self.read_all()[1]["folders"], [])
-        (self.data / ask_folders.SHARED_FILE).write_text(json.dumps(["relative", 3, str(self.docs)]))
+        (self.data / ask_folders.SHARED_FILE).write_text(json.dumps(["relative", 3, str(self.docs)]), encoding="utf-8")
         self.assertEqual(self.read_all()[1]["folders"], [str(self.docs)])
         self.assertEqual(all_post(self, "add", self.more)[1]["folders"], [str(self.docs), str(self.more)])
 

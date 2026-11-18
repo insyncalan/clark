@@ -18,7 +18,7 @@ import logging
 import threading
 import time
 
-from clark import ai_codex, ai_providers, ask, ask_claude, settings
+from clark import ai_codex, ai_providers, ask, ask_claude, platform, settings
 
 LOG = logging.getLogger("clark.ai_connect")
 CLAUDE, CHATGPT = ask_claude.PROVIDER, ai_codex.PROVIDER
@@ -158,7 +158,7 @@ class AiConnect:
         st = ask.answer_status(self.providers[name])
         if not st["connected"]:
             log_check(name, self.providers[name])
-            return fail(409, "not_signed_in", NOT_SIGNED_IN.get(name) or st["why"])
+            return fail(409, "not_signed_in", st["why"] if st["why"] == platform.needs_mac_words() else NOT_SIGNED_IN.get(name) or st["why"])
         with self.lock:
             saved = settings.ai_read(self.data_dir)
             before = self.pick()

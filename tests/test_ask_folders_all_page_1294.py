@@ -84,7 +84,7 @@ class Page(unittest.TestCase):
     def test_remove_on_the_all_projects_tab_leaves_the_folder_on_disk_and_a_projects_own_alone(self):
         self.svc.change({"project": "ABC", "action": "add", "path": str(self.own)})
         ask_folders.AskFolders.change_all(self.svc, {"scope": "all", "action": "add", "path": str(self.shared)})
-        (self.shared / "keep.txt").write_text("x")
+        (self.shared / "keep.txt").write_text("x", encoding="utf-8")
         with chrome() as cdp:
             js = self.show(cdp, "all")
             self.until(js, "!!document.querySelector('[data-ask-all-remove]')", "listed")
