@@ -11,7 +11,7 @@ import { panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panel
 import * as W from "./askWords.js";
 import { Icon } from "../components/Icon.jsx";
 import { holdScroll } from "../core/holdScroll.js";
-import { chatId, histOpen, histTick, chats, keepChat, deleteChat, when } from "./askHistory.js";
+import { chatId, histOpen, histTick, chats, keepChat, deleteChat, rememberOpen, when } from "./askHistory.js";
 import { ChangeCards, fixedLine } from "./AskChange.jsx";
 import { FormattedAnswer } from "./AskFormat.jsx";
 
@@ -157,13 +157,21 @@ export function AskPanel() {
     if (!preset && !from) setText("");
     if (box.current) box.current.focus();         // the suggestion that was pressed is about to be replaced: keep the keyboard's place
     pending.value = true;
-    const epoch = chatEpoch.value;
-    const r = await post("/api/ask", { project: project.value, question: q, earlier });
+    const epoch = chatEpoch.value, askedIn = project.value, askedChat = chatId.value, asked = turns.value;
+    const r = await post("/api/ask", { project: askedIn, question: q, earlier });
     pending.value = false;
     setNote("");                                     // the Stopping line is over once the turn (answer or stopped line) is here
-    if (epoch !== chatEpoch.value) return;           // row 1119: the page was left meanwhile; the answer belongs to a chat that is gone
     const b = r.body;
     const answered = r.status === 200 && b && b.ok === true && typeof b.answer === "string";
+    if (epoch !== chatEpoch.value) {                 // #1292 slice 8: the project was changed meanwhile; an answer stays in the chat it was asked in (kept there, shown when that project is open again)
+      if (answered) {
+        const extra = Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : [];
+        const id = keepChat([...asked, { role: "assistant", text: b.answer, sources: sourceLabels(b.sources) }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))], undefined, { project: askedIn, id: askedChat });
+        if (id && !askedChat) rememberOpen(askedIn, id);
+        if (id && project.value === askedIn && chatId.value === askedChat && (askedChat || !turns.value.length)) { const c = chats(askedIn).find((x) => x.id === id); if (c) { turns.value = c.turns.map((t) => ({ ...t })); chatId.value = id; } }
+      }
+      return;
+    }
     if (!answered && !preset && !from) {      // nothing was answered: the question goes back in the box unless something new was typed meanwhile, and its turn leaves the transcript so it is not shown twice
       setText((t) => t || q);
       if (!stopped.current) turns.value = turns.value.filter((t) => t !== mine);      // a Stop keeps the question: the stopped line follows it

@@ -90,7 +90,7 @@ class ChatsPerProject(Base):
             self.assertEqual(p.js(TURNS), 2, "the first project's chat is back")
             self.assertFalse(p.js("!!document.querySelector('#ask-hist')"), "on its chat, not the list")
 
-    def test_a_project_change_inside_the_page_drops_an_answer_still_out_and_the_waiting_messages(self):
+    def test_a_project_change_inside_the_page_keeps_an_answer_still_out_in_its_own_chat_and_drops_the_waiting_messages(self):
         self.stub.hold.clear()
         with chrome() as cdp:
             p = self.opened(cdp)
@@ -109,6 +109,11 @@ class ChatsPerProject(Base):
             self.assertEqual(p.js(TURNS), 0, "the answer that was out did not land in the chat of the other project")
             self.assertFalse(p.js("!!document.querySelector('#ask-queue')"), "the waiting message did not follow")
             self.assertEqual([c[1]["question"] for c in self.stub.calls if c[0] == "ask"], ["First question"], "the waiting message was never sent")
+            p.js("location.hash = '#dashboard&p=ABC'")
+            p.until("location.hash.indexOf('p=ABC') > 0 && !document.querySelector('#ask-panel')", "back on the first project, panel closed")
+            self.reopen(p)
+            p.until(f"{TURNS} === 2", "the answer that was out is in the chat it was asked in")
+            self.assertEqual(p.js("document.querySelector('.ask-turn.user .ask-text').textContent"), "First question")
 
     def test_a_change_of_page_keeps_the_open_list_of_earlier_chats(self):
         with chrome() as cdp:

@@ -23,20 +23,22 @@ export function chats(p = project.value) {
 const plain = (t) => ({ role: t.role, text: String(t.text).slice(0, MAX_TEXT), ...(t.kind ? { kind: t.kind } : {}), ...(t.sources && t.sources.length ? { sources: t.sources } : {}) });
 
 /** Keeps the chat as it stands: a new entry the first time, the same entry after. Only a chat that has an answer is kept. */
-export function keepChat(turns, now = nowMs()) {
+export function keepChat(turns, now = nowMs(), into = null) {
   const kept = turns.filter((t) => t && (t.role === "user" || t.role === "assistant") && (!t.kind || t.kind === "note") && typeof t.text === "string");
   const first = kept.find((t) => t.role === "user");
   if (!first || !kept.some((t) => t.role === "assistant" && !t.kind)) return;
-  const all = chats(), id = chatId.value || String(now);
+  // `into` ({ project, id }): an answer that came back after the project was changed is kept in the chat of the project it was asked in, not in the one on screen.
+  const pr = into ? into.project : project.value, all = chats(pr), id = (into ? into.id : chatId.value) || String(now);
   const entry = { id, at: now, title: first.text.trim().slice(0, 120) || HISTORY_UNTITLED(when(now)), turns: kept.map(plain) };
-  chatId.value = id;
+  if (!into) chatId.value = id;
   // The store can be full: drop the oldest other chat and try again, until the newest chat itself is kept (or nothing more can go).
   const others = all.filter((c) => c.id !== id).slice(0, KEEP - 1);
   for (;;) {
-    if (remember(key(), [entry, ...others]) || !others.length) break;
+    if (remember(key(pr), [entry, ...others]) || !others.length) break;
     others.pop();
   }
   histTick.value++;
+  return id;
 }
 
 export function deleteChat(id) {
