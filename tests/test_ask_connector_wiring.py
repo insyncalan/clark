@@ -145,10 +145,12 @@ class Killers(Run):
     def test_the_used_line_of_an_earlier_run_does_not_carry_over(self):
         self.out = stream(use("1", f"{P}__outlook_email_search"), got("1", "m"), final("Fine"))
         self.ask(["mail"])
-        self.assertEqual(self.provider.last_used, "Used: Mail")
+        self.assertEqual(self.provider.last_used, "Used: Read your mail")
+        self.assertEqual(self.provider.last_line.used, ("Mail",))
         self.out = json.dumps({"type": "result", "subtype": "success", "is_error": False, "result": "ok"}).encode()
         self.ask()
         self.assertEqual(self.provider.last_used, "")
+        self.assertIsNone(self.provider.last_line)
 
     def test_the_stream_reader_edges(self):
         t = lambda *b: stream(use("1", f"{P}__outlook_email_search"), got("1", list(b)), final())  # noqa: E731
@@ -227,7 +229,7 @@ class Screened(Run):
     def test_a_clean_read_is_answered_and_named_on_the_used_line(self):
         r = self.run_with(use("1", f"{P}__outlook_email_search"), got("1", "three mails"), final("Answer"))
         self.assertEqual(r, "Answer")
-        self.assertEqual(self.provider.last_used, "Used: Mail")
+        self.assertEqual(self.provider.last_used, "Used: Read your mail")
 
     def test_a_hidden_character_in_a_result_refuses_the_whole_run(self):
         r = self.run_with(use("1", f"{P}__outlook_email_search"), got("1", "ok​hidden"), final())

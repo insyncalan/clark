@@ -285,8 +285,8 @@ class Leaks(unittest.TestCase):
 
     def test_unknown_tool_label_in_line(self):
         line = cs.used_line([cs.screen("outlook_send_mail", "x")])
-        self.assertIn("Not used", line.text)
-        self.assertNotIn("Used:", line.text)
+        self.assertEqual(line.not_used, ("unknown connector (tool not allowed)",))      # data only: it has no approved word, so no line
+        self.assertEqual(line.text, "")
 
 
 class _Null:

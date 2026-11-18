@@ -432,6 +432,7 @@ class ClaudeCommand(ask.Provider):
         self.failed = None                     # the short code of the check that last failed (see command and login_problem), None when none did
         self.connector_runner = None           # row 1306: the discovery command's seam for tests (None: the real one)
         self.last_used = ""                    # row 1306: the Used line of the last connector run (names only), "" when none was used
+        self.last_line = None                  # row 1306: the whole UsedLine of the last run that had a connector On and found, None otherwise
         self.passed = None                     # (path, when) of the last sign-in check status() passed, used once by ask()
 
     # ----- the checks -----
@@ -524,9 +525,12 @@ class ClaudeCommand(ask.Provider):
             args = connector_arguments(args, call)
         status, out, _code = run(args, text.encode("utf-8"), self.env, self.limit, self.max_out, stop=self.stop_event)
         self.last_used = ""
+        self.last_line = None
         if screened and status == "ok":
             names = part_of()
-            good, self.last_used, result = ask_connector_stream.checked(out, {names[c] for c in connectors if c in names})
+            good, line, result = ask_connector_stream.inspect(out, {names[c] for c in connectors if c in names})
+            self.last_used = line.text
+            self.last_line = line
             if not good:
                 return ask.Failure(CONNECTOR_REFUSED)
             out = result

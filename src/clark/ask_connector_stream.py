@@ -46,6 +46,12 @@ def _text(content):
 
 def checked(out, on_parts):
     """(ok, used_line_text, result_bytes or None) for one connector run's stream output."""
+    ok, line, result = inspect(out, on_parts)
+    return ok, line.text, result
+
+
+def inspect(out, on_parts):
+    """(ok, UsedLine, result_bytes or None): the same as `checked`, with the whole UsedLine (its used and not_used parts) kept."""
     names, pairs, calls = {}, [], []
     result = None
     for ev in _events(out):
@@ -66,5 +72,5 @@ def checked(out, on_parts):
     verdicts += [screen.screen(name, "", 0, on_parts) for name in calls if name not in {p[0] for p in pairs}]
     line = screen.used_line(verdicts)
     if result is None or not all(v.used for v in verdicts):
-        return False, line.text, None
-    return True, line.text, json.dumps(result).encode("utf-8")
+        return False, line, None
+    return True, line, json.dumps(result).encode("utf-8")
