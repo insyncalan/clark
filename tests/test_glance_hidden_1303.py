@@ -17,13 +17,13 @@ NODE = shutil.which("node")
 
 
 def read(*parts):
-    return PAGE.joinpath(*parts).read_text()
+    return PAGE.joinpath(*parts).read_text(encoding="utf-8")
 
 
 def run_node(expr):
     with tempfile.TemporaryDirectory() as d:
         mod = Path(d) / "hidden.mjs"
-        mod.write_text(read("glanceHidden.js"))
+        mod.write_text(read("glanceHidden.js"), encoding="utf-8")
         out = subprocess.run([NODE, "--input-type=module", "-e", f"import * as H from {json.dumps(mod.as_uri())}; console.log(JSON.stringify({expr}));"],
                              capture_output=True, text=True, timeout=60, check=True)
     return json.loads(out.stdout)
