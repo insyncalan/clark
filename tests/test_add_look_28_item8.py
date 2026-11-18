@@ -22,7 +22,7 @@ from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
 LOOK = r"""(sel) => { const e = document.querySelector(sel); if (!e) return null; const cs = getComputedStyle(e); const r = e.getBoundingClientRect(); const i = e.querySelector('.i');
-  return JSON.stringify({h: r.height, style: cs.borderTopStyle, bw: cs.borderTopWidth, bg: cs.backgroundColor, icon: i ? i.getBoundingClientRect().width : null, w: r.width}); }"""
+  return JSON.stringify({h: r.height, style: cs.borderTopStyle, bw: cs.borderTopWidth, bg: cs.backgroundColor, icon: i ? i.getBoundingClientRect().width : null, ioff: i ? i.getBoundingClientRect().left - r.left : null, bc: cs.borderTopColor, w: r.width}); }"""
 
 
 def tearDownModule():
@@ -81,6 +81,8 @@ class Add28(unittest.TestCase):
                 self.assertEqual((rest["style"], rest["bw"]), ("dashed", "1px"), f"{width}: border")
                 self.assertIn(rest["bg"], ("rgba(0, 0, 0, 0)", "transparent"), f"{width}: no fill at rest")
                 self.assertGreaterEqual(rest["w"], rest["icon"], f"{width}: icon not clipped")
+                self.assertEqual(rest["w"], 28, f"{width}: drawn width at rest is the 28 px minimum")
+                self.assertEqual(rest["ioff"], 5, f"{width}: icon sits 1 px border + 4 px padding from the left edge")
                 cdp.js("document.querySelector('.newb').focus()", sid)
                 cdp.js("document.querySelector('.newb').dispatchEvent(new MouseEvent('mouseover', {bubbles: true}))", sid)
                 cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 0, "y": 0}, sid)
@@ -89,6 +91,8 @@ class Add28(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid)), "motion finished")
                 hov = json.loads(cdp.js(f"({LOOK})('.newb')", sid))
                 self.assertNotIn(hov["bg"], ("rgba(0, 0, 0, 0)", "transparent"), f"{width}: filled on hover")
+                self.assertEqual(hov["bc"], hov["bg"], f"{width}: border takes the fill colour on hover")
+                self.assertNotEqual(hov["bc"], rest["bc"], f"{width}: border colour changed from rest")
 
 
 if __name__ == "__main__":
