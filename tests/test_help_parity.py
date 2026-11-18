@@ -211,7 +211,7 @@ class MovementEntries(unittest.TestCase):
         self.assertIn("data-edit-only", self.BLOCK)
         self.assertIn("never published", self.WORDS)
         ref = json.dumps(entry("ref", "milestones-page"), ensure_ascii=False)
-        self.assertIn("**Movement** is the switch next to **Plan** at the top", ref)
+        self.assertNotIn("switch next to **Plan**", ref)  # row 1329
 
     def test_the_rows_keys_are_the_arrows(self):
         self.assertIn("ArrowDown", self.BLOCK)
