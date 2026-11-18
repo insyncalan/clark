@@ -16,3 +16,5 @@ body { background: var(--page-bg) var(--page-grad) fixed no-repeat; }
 html[data-mode="view"] .cover { display: none; }
 html[data-mode="view"] .sec { border-left: 2px solid var(--gutter-rule); padding-left: 20px; }
 @media print { html[data-mode="view"] .sec { border-left: 0; padding-left: 0; } }
+/* Row 1260 G4: Classic shows no sentence under the Milestones title in the Plan view; the Movement hint stays. */
+.wbar:has([data-mspv="plan"][aria-pressed="true"]) [data-mspage-hint] { display: none; }
