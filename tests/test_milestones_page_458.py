@@ -307,6 +307,18 @@ class Page(Base):
                     self.assertGreaterEqual(min(seen["add"]["w"], seen["add"]["h"]), 24)
                     self.assertTrue(seen["noScroll"], "no page-wide scroll")
 
+    def test_the_cancelled_sentence_is_shown_while_the_agreed_for_sentence_is_hidden(self):
+        with self.store.step("dashboard", USER) as st:
+            for r in self.store.read("milestones"):
+                st.update("milestones", r["id"], {"status": "Cancelled"})
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.until("!!document.querySelector('#ms-summary')", "the head drew")
+            seen = p.js("(() => { const s = document.querySelector('#ms-summary'); return {text: s.textContent, display: getComputedStyle(s).display, h: s.getBoundingClientRect().height}; })()")
+            self.assertRegex(seen["text"], r"cancelled\.$")
+            self.assertNotEqual(seen["display"], "none", "the cancelled sentence stays shown")
+            self.assertGreater(seen["h"], 0)
+
     def test_view_has_add_milestone_and_sends_no_request_until_it_is_used(self):
         before = {r["id"] for r in self.store.read("milestones")}
         with chrome() as cdp:
