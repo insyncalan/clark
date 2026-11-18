@@ -1516,9 +1516,11 @@ class Menu(board.Base):
                 for t, b, bs in (("mouseMoved", "none", 0), ("mousePressed", "right", 2), ("mouseReleased", "right", 0)):
                     cdp.call("Input.dispatchMouseEvent", {"type": t, "x": px, "y": py, "button": b, "buttons": bs, "clickCount": 1}, sid)
                 self.until(cdp, sid, "!!document.querySelector('.rowmenu [role=menu]')", "the menu")
-                left, top = self.box(cdp, sid)[:2]
+                left, top, w, h = self.box(cdp, sid)
+                room = cdp.js("window.innerHeight", sid)
+                want = min(py, room - h - 8)      # row 1269 item 7: the menu is taller now, so near the bottom of the window it is held 8 px inside it, as the code says
                 self.assertLessEqual(abs(left - px), 2, (width, left, px))
-                self.assertLessEqual(abs(top - py), 2, (width, top, py))
+                self.assertLessEqual(abs(top - want), 2, (width, top, py, want))
 
     def test_a_list_opens_on_hover_stays_while_the_pointer_travels_and_the_menu_does_not_move(self):
         for width in (1400, 900):

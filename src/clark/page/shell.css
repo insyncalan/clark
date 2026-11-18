@@ -139,7 +139,7 @@ button.pillbtn { min-height: 28px; border: 0; cursor: pointer; font: inherit; fo
 .tcell.drop-left::before, .tcell.drop-right::before { content: ""; position: absolute; top: 0; bottom: 0; width: 3px; background: var(--brand-cyan); z-index: 3; }
 .tcell.drop-left::before { left: -8px; } .tcell.drop-right::before { right: -8px; }
 .tilemenu { top: 30px; right: auto; left: 0; }
-.ddmenu [role="menuitemradio"] { all: unset; display: block; box-sizing: border-box; width: 100%; padding: var(--space-2) 14px; cursor: pointer; font-size: var(--size-small); color: var(--text); }
+.ddmenu [role="menuitemradio"] { all: unset; display: block; box-sizing: border-box; width: 100%; padding: var(--space-2) 14px; cursor: pointer; font-size: var(--size-body); color: var(--text); }
 .ddmenu [role="menuitemradio"]:hover, .ddmenu [role="menuitemradio"]:focus-visible { background: var(--brand-blue-tint); color: var(--status-blue-text); }
 .ragdot { width: 8px; height: 8px; border-radius: 50%; background: var(--status-grey); }
 .rag-g .ragdot { background: var(--status-green); } .rag-a .ragdot { background: var(--status-amber); } .rag-r .ragdot { background: var(--status-red); }
@@ -327,6 +327,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .head h1 { margin-bottom: 0; }
 .head-sub { margin: 2px 0 0; font-size: var(--size-small); color: var(--text-muted); }      /* the sentence under a page's title (the Milestones page) */
+.head-sub-off { display: none; }      /* hides the whole last-milestone sentence (its name, its date or "no date yet", the "now expected" part and the achieved / to come counts) whenever the page has such a line; the sentence stays in the page for the tests. The empty and cancelled sentences have no line and stay shown. */
 .hacts { display: flex; align-items: center; gap: 8px; }
 .note { margin: var(--space-2) 0 0; font-size: var(--size-small); }
 .note:empty { display: none; }
@@ -496,18 +497,18 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1
 
 /* creaite's Add button (NewTile): a "+" that grows to its words on hover and on keyboard focus. */
 .dd { position: relative; display: inline-block; }
-.newb { height: 32px; min-width: 32px; border: 0; border-radius: var(--radius); background: var(--brand-blue-tint); color: var(--status-blue-text); display: inline-flex; align-items: center; padding: 0 7px; cursor: pointer; font-size: var(--size-small); font-weight: 500; line-height: 18px; overflow: hidden; white-space: nowrap; transition: background var(--dur-instant) var(--ease-out), color var(--dur-instant) var(--ease-out); }
+.newb { height: 28px; min-width: 28px; border: 1px dashed var(--status-blue-text); border-radius: var(--radius); background: var(--surface); color: var(--status-blue-text); display: inline-flex; align-items: center; padding: 0 4px; cursor: pointer; font-size: var(--size-small); font-weight: 500; line-height: 18px; overflow: hidden; white-space: nowrap; transition: background var(--dur-instant) var(--ease-out), color var(--dur-instant) var(--ease-out); }
 .newb .i { width: 18px; height: 18px; stroke-width: 2.2; }
 .newb .w { max-width: 0; opacity: 0; overflow: hidden; transition: max-width var(--dur-state) var(--ease-out), opacity var(--dur-instant) var(--ease-out), margin var(--dur-state) var(--ease-out); }
-.newb:hover, .newb:focus-visible, .newb[aria-expanded="true"] { background: var(--brand-blue); color: var(--text-on-brand); }
+.newb:hover, .newb:focus-visible, .newb[aria-expanded="true"] { background: var(--brand-blue); border-color: var(--brand-blue); color: var(--text-on-brand); }
 .newb:hover .w, .newb:focus-visible .w, .newb[aria-expanded="true"] .w { max-width: 180px; opacity: 1; margin-left: 6px; margin-right: var(--space-1); }
 .newb:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .newb .nch { display: none; width: 14px; height: 14px; }
 .newb.hasmenu:hover .nch, .newb.hasmenu:focus-visible .nch, .newb.hasmenu[aria-expanded="true"] .nch { display: inline-block; }
-.ddmenu { position: absolute; z-index: 25; top: calc(100% + 4px); right: 0; min-width: 200px; padding: 6px 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+.ddmenu { position: absolute; z-index: 25; top: calc(100% + 4px); right: 0; min-width: 224px; padding: 6px 0; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
 .ddmenu.left { left: 0; right: auto; }
 .ddmenu:focus { outline: none; }
-.ddmenu [role="menuitem"] { all: unset; display: block; box-sizing: border-box; width: 100%; padding: var(--space-2) 14px; cursor: pointer; font-size: var(--size-small); color: var(--text); }
+.ddmenu [role="menuitem"] { all: unset; display: block; box-sizing: border-box; width: 100%; padding: var(--space-2) 14px; cursor: pointer; font-size: var(--size-body); color: var(--text); }
 .ddmenu .sep { height: 1px; margin: 6px 0; background: var(--border); }
 .ddmenu .who { display: block; padding: var(--space-2) 14px 6px; max-width: 280px; }
 .ddmenu .who b { display: block; font-size: var(--size-small); font-weight: var(--weight-medium); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -897,6 +898,8 @@ table.items .weye[aria-pressed="true"], table.items .weye.on { color: var(--stat
 .lanebar .fs { margin-left: auto; }
 .lb-hint { font-size: var(--size-small); }
 .boardbox { margin-top: 0; overflow: auto; max-height: calc(100vh - var(--topbar) - 16px); padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); scroll-padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); overscroll-behavior-y: contain; }
+.boardbox { scrollbar-width: none; }      /* row 1269 Cards item 3: both scroll bars of the board (sideways and down) are hidden on the scroller (.boardbox), not on .board; the board still scrolls both ways */
+.boardbox::-webkit-scrollbar { display: none; }
 .lane { width: max-content; min-width: 100%; }
 .lane + .lane { margin-top: var(--d-group-gap); }
 .lane-h { position: sticky; top: 0; z-index: 4; height: 40px; display: flex; align-items: center; background: var(--surface); border-bottom: 1px solid var(--grey-200); font-size: var(--size-small); font-weight: var(--weight-medium); color: var(--heading); }
@@ -1848,7 +1851,7 @@ html:has(.top-file) main [id], html:has(.top-file) .sec { scroll-margin-top: cal
 h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800; letter-spacing: -.01em; line-height: 1.15; }
 .crumbs { font-family: var(--font-label); font-weight: var(--weight-semibold); font-size: var(--size-caption); text-transform: uppercase; letter-spacing: .1em; }
 /* Work items: the project name above the title is plain (not tracked capitals); row 805 took the intro line away */
-#work .crumbs, #milestones.pub .crumbs, #usecases-file .crumbs { font-weight: 400; text-transform: none; letter-spacing: normal; }   /* the published tabs share one plain line (the editor's Milestones keeps its own) */
+#work .crumbs, #milestones .crumbs, #usecases .crumbs, #usecases-file .crumbs { font-weight: 400; text-transform: none; letter-spacing: normal; }   /* the published tabs share one plain line (the editor's Milestones and Use cases too) */
 #work .head h1 { margin: 0; }
 .fig .k, .tile .l { font-family: var(--font-label); font-weight: var(--weight-medium); }
 .tab { font-family: var(--font-label); font-weight: 500; }
