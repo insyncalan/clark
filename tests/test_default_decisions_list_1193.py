@@ -34,7 +34,7 @@ class DefaultDecisionsList(unittest.TestCase):
         self.assertEqual(default_sections.DECISIONS_LIST, wi.START.replace('"kinds":[]', '"kinds":["decision"]', 1))
         value = json.loads(default_sections.DECISIONS_LIST)
         self.assertEqual(wi.check(value, store_module.BODY_RULES), value)
-        self.assertEqual((value["kinds"], value["mode"]), (["decision"], "open"))
+        self.assertEqual((value["kinds"], value["mode"], value["sort"], value["max"]), (["decision"], "open", "due", 10))
         self.assertEqual(wi.matching(value, ROWS, TODAY), ["D-1"])
 
     def test_a_new_project_stores_the_list_in_the_same_place(self):

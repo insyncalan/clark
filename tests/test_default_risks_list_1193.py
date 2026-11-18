@@ -39,6 +39,8 @@ class DefaultRisksList(unittest.TestCase):
         self.assertEqual(json.dumps(checked, separators=(",", ":")), body)
         self.assertEqual((checked["kinds"], checked["mode"], checked["status"]), (["risk", "issue"], "open", []))
         self.assertGreaterEqual(checked["max"], 50)           # every open one, as the built-in section showed
+        self.assertEqual((checked["sort"], checked["max"]), ("priority", 50))
+        self.assertEqual(checked["columns"], ["type", "id", "owner", "due", "status", "priority"])
 
     def test_a_new_project_stores_the_list_in_the_same_place_with_its_filter(self):
         rows = self.risks()

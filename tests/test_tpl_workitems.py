@@ -1087,6 +1087,24 @@ class InThePage(PageBase):
             p.js(f"document.querySelector('{root} [data-wil-cfgdone]').click()")
             p.until(f"document.querySelector('{dlg}').hidden", "Done closed it")
 
+    def test_the_configure_box_is_a_dialog_only_while_it_is_open_1193(self):
+        # Row 1193 r8-r10 sweep: the hidden Configure box carries no dialog role (only an open one is a dialog), and the gear still says it opens a dialog.
+        ref = self.add({}, title="Gear role")
+        root = f"[data-id=\"{ref}\"]"
+        role = f"document.querySelector('{root} .wil-cfg').getAttribute('role')"
+        with chrome() as cdp:
+            p = self.show(cdp, 1400)
+            p.edit()
+            p.until(f"!!document.querySelector('{root} [data-wil-gear]')", "the gear drew")
+            self.assertIsNone(p.js(role), "closed: no role")
+            self.assertEqual(p.js(f"document.querySelector('{root} [data-wil-gear]').getAttribute('aria-haspopup')"), "dialog")
+            p.js(f"document.querySelector('{root} [data-wil-gear]').click()")
+            p.until(f"!document.querySelector('{root} .wil-cfg').hidden", "the gear opened it")
+            self.assertEqual(p.js(role), "dialog", "open: a dialog")
+            p.js(f"document.querySelector('{root} [data-wil-cfgdone]').click()")
+            p.until(f"document.querySelector('{root} .wil-cfg').hidden", "Done closed it")
+            self.assertIsNone(p.js(role), "closed again: no role")
+
     def test_the_footnote_box_is_in_configure_after_columns_before_done_and_the_caption_shows_above_the_list(self):
         # Row 1268, ruled by the head 17-11 (the mock-up wins over Row 1113 wish 2): the field is "Footnote (optional)" in the Configure box,
         # after the Columns and before Done; the stored field is still "caption"; its text is drawn above the list, in Edit and in View.

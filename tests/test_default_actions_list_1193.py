@@ -40,6 +40,7 @@ class DefaultActionsList(unittest.TestCase):
         value = wi.check(json.loads(default_sections.OPEN_ACTIONS_BODY), store_module.BODY_RULES)
         self.assertEqual(json.dumps(value, separators=(",", ":"), sort_keys=True), default_sections.OPEN_ACTIONS_BODY)
         self.assertEqual((value["kinds"], value["mode"], value["sort"], value["max"]), (["action"], "open", "due", 50))
+        self.assertEqual(value["columns"], ["type", "id", "owner", "due", "priority"])
         self.assertEqual(wi.matching(value, ROWS, TODAY), ["A-1"])
 
     def test_a_new_project_stores_the_list_in_the_same_place_with_its_filter(self):
