@@ -17,22 +17,22 @@ def state(kind, **row):
 
 class State(unittest.TestCase):
     def test_overdue_is_open_and_due_before_today(self):
-        self.assertEqual(state("actions", status="Open", owner="Sam", due_date="2026-11-18"), ["overdue"])
-        self.assertEqual(state("actions", status="Open", owner="Sam", due_date="2026-11-19"), [])
-        self.assertEqual(state("actions", status="Open", owner="Sam", due_date="2026-11-20"), [])
+        self.assertEqual(state("actions", status="Open", owner="Pat", due_date="2026-11-18"), ["overdue"])
+        self.assertEqual(state("actions", status="Open", owner="Pat", due_date="2026-11-19"), [])
+        self.assertEqual(state("actions", status="Open", owner="Pat", due_date="2026-11-20"), [])
 
     def test_a_finished_row_is_never_overdue_red_or_unowned(self):
         self.assertEqual(state("actions", status="Closed", owner="", due_date="2026-01-01", priority="High"), [])
-        self.assertEqual(state("actions", status="Completed", owner="Sam", due_date="2026-01-01"), [])
+        self.assertEqual(state("actions", status="Completed", owner="Pat", due_date="2026-01-01"), [])
 
     def test_red_is_urgent_or_high_and_open(self):
         for p, want in (("Urgent", ["red"]), ("High", ["red"]), ("Medium", []), ("Low", []), (None, [])):
-            self.assertEqual(state("raid", status="Open", owner="Sam", priority=p), want, p)
+            self.assertEqual(state("raid", status="Open", owner="Pat", priority=p), want, p)
 
     def test_no_owner_is_a_blank_owner_on_an_open_row(self):
         self.assertEqual(state("actions", status="Open", owner="", due_date=None), ["no_owner"])
         self.assertEqual(state("actions", status="Open", owner="  ", due_date=None), ["no_owner"])
-        self.assertEqual(state("actions", status="Open", owner="Sam", due_date=None), [])
+        self.assertEqual(state("actions", status="Open", owner="Pat", due_date=None), [])
 
     def test_tbc_is_no_owner_as_the_page_reads_it(self):
         for tbc in ("TBC", "tbc", " Tbc "):
@@ -42,31 +42,31 @@ class State(unittest.TestCase):
 
     def test_red_is_the_page_tile_rows_only(self):
         # the page counts open risks, issues, assumptions and dependencies rated Urgent or High: an action or a decision is never red
-        self.assertEqual(state("actions", status="Open", owner="Sam", priority="High"), [])
-        self.assertEqual(state("decisions", status="Pending", made_by="Sam", priority="Urgent"), [])
-        self.assertEqual(state("raid", status="Closed", owner="Sam", priority="High"), [])
+        self.assertEqual(state("actions", status="Open", owner="Pat", priority="High"), [])
+        self.assertEqual(state("decisions", status="Pending", made_by="Pat", priority="Urgent"), [])
+        self.assertEqual(state("raid", status="Closed", owner="Pat", priority="High"), [])
 
     def test_the_words_come_in_the_order_overdue_red_no_owner(self):
         self.assertEqual(state("raid", status="Open", owner="", due_date="2026-11-01", priority="High"), ["overdue", "red", "no_owner"])
 
     def test_a_milestone_reads_its_own_state(self):
-        self.assertEqual(state("milestones", state="Overdue", owner="Sam"), ["overdue"])
-        self.assertEqual(state("milestones", state="Slipped", owner="Sam"), [])
+        self.assertEqual(state("milestones", state="Overdue", owner="Pat"), ["overdue"])
+        self.assertEqual(state("milestones", state="Slipped", owner="Pat"), [])
         self.assertEqual(state("milestones", state="On track", owner=""), ["no_owner"])
         self.assertEqual(state("milestones", state="Achieved", owner=""), [])
 
     def test_a_pending_decision_is_late_by_its_needed_by_date(self):
-        self.assertEqual(state("decisions", status="Pending", made_by="Sam", needed_by="2026-11-01"), ["overdue"])
+        self.assertEqual(state("decisions", status="Pending", made_by="Pat", needed_by="2026-11-01"), ["overdue"])
         self.assertEqual(state("decisions", status="Made", made_by="", needed_by="2026-11-01"), [])
 
     def test_a_use_case_has_no_owner_field_to_miss(self):
         self.assertEqual(state("use_cases", title="x"), [])
 
     def test_no_as_at_day_is_never_overdue(self):
-        self.assertEqual(ask_data.state_of("actions", {"status": "Open", "owner": "Sam", "due_date": "2000-01-01"}, None), [])
+        self.assertEqual(ask_data.state_of("actions", {"status": "Open", "owner": "Pat", "due_date": "2000-01-01"}, None), [])
 
 
-class Cap(unittest.TestCase):
+class ItemsLimit(unittest.TestCase):
     def test_items_are_cut_at_the_cap_in_order(self):
         ids = [f"PUB-A-{n:03d}" for n in range(1, ask.MAX_ITEMS + 6)]
         r = ask.read_reply(" ".join(ids), (), CODES, lambda ref: True)
