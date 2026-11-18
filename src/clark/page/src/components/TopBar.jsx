@@ -68,7 +68,12 @@ export function TopBar({ tools }) {
     const bar = document.querySelector("header.top");
     if (!bar) return undefined;
     const root = document.documentElement;
-    const read = () => { const h = bar.getBoundingClientRect().height; if (h > 0) root.style.setProperty("--topbar", h + "px"); };
+    const read = () => {      // the bar's own height never depends on --topbar (its minimum is --bar-min), so the override can be dropped before it is measured against the stylesheet's token
+      const h = bar.getBoundingClientRect().height;
+      root.style.removeProperty("--topbar");
+      const token = parseFloat(getComputedStyle(root).getPropertyValue("--topbar"));
+      if (h > 0 && !(Math.abs(h - token) < 0.01)) root.style.setProperty("--topbar", h + "px");      // only a bar grown past its token (a long name wrapped) needs the override; otherwise the stylesheet's token follows a resize at once, with no frame of lag
+    };
     const watch = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(read);
     if (watch) watch.observe(bar);
     read();
