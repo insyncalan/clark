@@ -94,6 +94,18 @@ RULE_LINES = [
         'html[data-mode="view"] .cover { display: none; }',
         'html[data-mode="view"] .sec { border-left: 2px solid var(--gutter-rule); padding-left: 20px; }',
         '@media print { html[data-mode="view"] .sec { border-left: 0; padding-left: 0; } }',
+        "/* Row 1260 gap G6: At a glance is a flat strip as the prototype has it: label over value, a thin divider between the cells, no tile box, no status edge. The cells keep their widths and their tile words; the status shows in the figure's own colour. */",
+        '.glance { gap: 0; margin-top: var(--space-2); }',
+        '.glance .tcell + .tcell { border-left: 1px solid var(--line-soft); padding-left: var(--space-4); }',
+        '.glance .fig { padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; }',
+        '.glance .fig::after, .glance .fig .ragdot { display: none; }',
+        '.glance .fig .k { font-size: 13px; color: var(--text-muted); }',
+        '.glance .fig .v { font-size: 20px; font-weight: 700; }',
+        '.glance .fig .dd { font-size: 14px; }',
+        '.glance .fig.rag-a .v { color: var(--status-amber-text); } .glance .fig.rag-r .v { color: var(--status-red-text); }',
+        '.glance .fig.go:hover { border-color: transparent; box-shadow: none; }',
+        '.glance .fig.go:hover .v { text-decoration: underline; }',
+        '@media (max-width: 1180px) { .glance .tcell.health { flex-basis: 100%; } .glance .tcell.health + .tcell { border-left: 0; padding-left: 0; } }',
     ]
 
 
