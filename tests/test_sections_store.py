@@ -16,7 +16,7 @@ NINE = ("current", "glance", "usecases", "milestones", "text", "raid", "actions"
 TEN = (
     ("text", "Current state", 0), ("glance", "At a glance", 0), ("usecases", "Use case summary", 0),
     ("milestones", "Milestones", 0), ("text", "This week", 1), ("text", "Next week", 0),
-    ("raid", "Risks and issues", 0), ("actions", "Open actions", 0), ("decisions", "Decisions", 0),
+    ("workitems", "Risks and issues", 0), ("actions", "Open actions", 0), ("decisions", "Decisions", 0),
     ("docs", "Supporting documents", 0))
 
 
@@ -50,7 +50,7 @@ class Seed(Base):
         self.assertEqual([(r["type"], r["title"], r["beside"]) for r in rows], list(TEN))
         self.assertEqual([r["id"] for r in rows], [f"ABC-S-{n:03d}" for n in range(1, 11)])
         self.assertEqual([r["sort_order"] for r in rows], [order.GAP * n for n in range(1, 11)])
-        self.assertEqual({(r["hidden"], r["body"]) for r in rows[1:]}, {(0, "")})      # item 1188: only the first starts with words
+        self.assertEqual({(r["hidden"], r["body"]) for r in rows[1:] if r["type"] != "workitems"}, {(0, "")})      # item 1188: only the first starts with words
         self.assertEqual({r["project"] for r in rows}, {"ABC"})
 
     def test_the_seed_is_in_the_projects_own_step_and_one_undo_means_one_thing(self):
@@ -88,7 +88,7 @@ class Seed(Base):
 
     def test_the_default_sections_are_pinned(self):
         self.assertEqual([(s["type"], s["title"], s.get("beside", 0)) for s in default_sections.DEFAULT_SECTIONS], list(TEN))
-        self.assertTrue(all(s["type"] in NINE for s in default_sections.DEFAULT_SECTIONS))
+        self.assertTrue(all(s["type"] in NINE + ("workitems",) for s in default_sections.DEFAULT_SECTIONS))      # row 1193-8: Risks and issues is a Work items list
         self.assertIn("current", store_module.SECTION_TYPES)              # item 1188: the older type is still allowed
         from clark.section_kinds import TYPES as TEMPLATE_TYPES
         self.assertEqual(set(store_module.SECTION_TYPES), set(NINE) | {"needs", "tracker", "gantt", "gantttable"} | set(TEMPLATE_TYPES))      # the nine of the starting report, and those that carry content (#96: the section templates too)
@@ -96,9 +96,9 @@ class Seed(Base):
     def test_the_first_default_section_starts_with_an_empty_body(self):         # item 1188: instruction text never reaches a client; the line is the editor's hint only
         first = self.sections()[0]
         self.assertEqual((first["type"], first["title"], first["body"]), ("text", "Current state", ""))
-        self.assertEqual([r["body"] for r in self.sections()], [""] * 10)
+        self.assertEqual([r["body"] for r in self.sections() if r["type"] != "workitems"], [""] * 9)      # row 1193-8: only the Risks and issues list starts with its saved filter
         self.assertEqual(default_sections.DEFAULT_SECTIONS[0].get("body", ""), "")
-        self.assertEqual([x.get("body", "") for x in default_sections.DEFAULT_SECTIONS], [""] * 10, "item 1193: This week and Next week start empty too")
+        self.assertEqual([x.get("body", "") for x in default_sections.DEFAULT_SECTIONS if x["type"] != "workitems"], [""] * 9, "item 1193: This week and Next week start empty too")
         self.assertNotIn("Summary", default_sections.SECTION_HINTS)               # item 1266: no Summary in the default report
         self.assertEqual(default_sections.SECTION_HINTS["This week"], "List what was done this week, and what moved forward.")
         self.assertEqual(default_sections.SECTION_HINTS["Next week"], "List what is planned for next week, and who is doing it.")
@@ -260,8 +260,8 @@ class Rules(Base):
         self.assertEqual(self.s.read("report_sections", ref=ref)["type"], "text")
 
     def test_only_a_text_section_has_a_body(self):
-        raid = self.sections()[6]["id"]
-        self.assertEqual(self.s.read("report_sections", ref=raid)["type"], "raid")
+        raid = self.sections()[7]["id"]                                 # row 1193-8: the seventh is a Work items list now (it has its own body, its saved filter); the eighth is Open actions
+        self.assertEqual(self.s.read("report_sections", ref=raid)["type"], "actions")
         with self.assertRaises(Invalid):
             self.change(raid, body="words")
         self.change(raid, hidden=1)                                     # hiding is for every type
