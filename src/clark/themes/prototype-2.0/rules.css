@@ -195,7 +195,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .glance .fig.go:hover { box-shadow: none; }
 .glance .fig.go:hover .v { text-decoration: underline; }
 @media (max-width: 1180px) { .glance .tcell.health { flex-basis: 100%; } .glance .tcell.health + .tcell { padding-left: 0; } }
-/* Item 1316a (issue 1316: Crumb, Tabs and menus, Search; the prototype files are not on this box, so the sizes are by eye, +/-2 px, from the issue table). Classic only; the Cards look layers none of this. Bare lengths with no token: the 560px search width, the 34px left padding that clears the magnifier, the 9px/2px magnifier ring and the 5px handle, the 1px clip box of the visually hidden count. */
+/* Row 1316a (issue 1316: Crumb, Tabs and menus, Search; the prototype files are not on this box, so the sizes are by eye, +/-2 px, from the issue table). Classic only; the Cards look layers none of this. Bare lengths with no token: the 560px search width, the 34px left padding that clears the magnifier, the 9px/2px magnifier ring and the 5px handle, the 1px clip box of the visually hidden count. */
 .ucd-crumb, .ucf-crumb { font-weight: var(--weight-regular); font-size: var(--size-caption); text-transform: none; letter-spacing: normal; }
 #usecases #ucl-group .nch, #usecases #ucl-sort .nch, #usecases .vtabmenu .nch { display: none; }
 #usecases #ucl-group, #usecases #ucl-sort { border-color: transparent; background: none; border-radius: var(--radius-sm); color: var(--text-muted); }
