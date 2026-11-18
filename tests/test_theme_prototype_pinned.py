@@ -112,6 +112,8 @@ RULE_LINES = [
         '.ucl-box .ucl-cols { padding: 10px var(--space-4); background: var(--grey-50); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-caps); text-transform: uppercase; }',
         '.ucl-box .ucl-list .ucl-row { padding-left: var(--space-4); padding-right: var(--space-4); }',
         '.ucl-box .ucl-st .cchip { padding: 2px 9px; border: 1px solid var(--grey-300); border-radius: var(--radius-pill); background: transparent; color: var(--text-muted); font-size: var(--size-small); font-weight: var(--weight-regular); }',
+        '/* Row 1316c (issue 1316, Classic only): the Use cases Next steps count is plain text, not a round badge (prototype "1 next step"; by eye, the prototype files are not on this box). Rebrand only. */',
+        '#usecases .ucsteps .ucn-b { min-width: 0; min-height: 0; padding: 0; margin-right: 0; border-radius: 0; background: none; color: inherit; font-size: inherit; font-weight: inherit; line-height: inherit; }',
     ]
 
 
