@@ -256,8 +256,7 @@ class EditTiles(Setup):
         with chrome() as cdp:
             p = self.show(cdp)
             p.edit()
-            self.assertEqual(self.tiles(p), ["health", "overdue", "risks", "decisions"], "Edit draws the hidden Decisions tile too")
-            self.assertEqual(p.js("document.querySelector('[data-tile=decisions]').classList.contains('is-hidden')"), True)
+            self.assertEqual(self.tiles(p), ["health", "overdue", "risks"], "Edit leaves the hidden Decisions tile out (row 1303)")
             p.js("document.querySelector('[data-tile=risks] [data-tile-eye]').click()")
             p.saved()
             self.assertEqual(self.rows()["risks"]["hidden"], 1)
@@ -277,37 +276,12 @@ class EditTiles(Setup):
             p.view()
             self.assertEqual(self.tiles(p)[0], "health")
 
-    def test_a_hidden_tiles_text_is_at_least_4_5_to_1_in_edit_at_1400_and_900_in_light_and_dark(self):
-        script = """(() => {
-          const rgb = (c) => c.match(/[\\d.]+/g).slice(0, 3).map(Number);
-          const lum = ([r, g, b]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
-          const ratio = (a, b) => { const x = lum(rgb(a)), y = lum(rgb(b)); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
-          const out = [];
-          if (!document.querySelector('[data-tile=decisions].is-hidden')) return [['hidden tile missing', 0]];
-          for (const sel of ['.k', '.v', '.dd', '.tw', '.thid']) {
-            const el = document.querySelector('[data-tile=decisions] ' + sel); if (!el) { out.push([sel, 0]); continue; }
-            let bg = el, back = 'rgba(0, 0, 0, 0)', op = 1;
-            for (let e = el; e; e = e.parentElement) op *= parseFloat(getComputedStyle(e).opacity);
-            while (bg && /rgba\\(.*, 0\\)|transparent/.test(back)) { back = getComputedStyle(bg).backgroundColor; bg = bg.parentElement; }
-            out.push([sel, op < 1 ? 0 : ratio(getComputedStyle(el).color, back)]);
-          }
-          return out;
-        })()"""
-        for width in (1400, 900):
-            for dark in (False, True):
-                with self.subTest(width=width, dark=dark), chrome() as cdp:
-                    p = self.show(cdp, width, dark)
-                    p.edit()
-                    p.until("!!document.querySelector('[data-tile=decisions].is-hidden')", "the hidden tile drew")
-                    for sel, r in p.js(script):
-                        self.assertGreaterEqual(r, 4.5, f"hidden Decisions {sel} (a ratio of 0 means missing or dimmed by opacity)")
-                    self.assertEqual(p.js("getComputedStyle(document.querySelector('[data-tile=decisions] .fig')).borderTopStyle"), "dashed")
-
     def test_decisions_needed_can_be_shown(self):
         with chrome() as cdp:
             p = self.show(cdp)
             p.edit()
-            p.js("document.querySelector('[data-tile=decisions] [data-tile-eye]').click()")
+            p.js("document.querySelector('[data-glance-add] .tileadd').click()")        # row 1303: the hidden tile is shown again from Add a tile
+            p.js("[...document.querySelectorAll('#glance-add-menu [role^=menuitem]')].find(b => b.textContent.includes('Decisions needed')).click()")
             p.saved()
             p.view()
             self.assertEqual(self.tiles(p), ["health", "overdue", "risks", "decisions"])
@@ -320,11 +294,11 @@ class EditTiles(Setup):
             p.js("document.querySelector('[data-tile=overdue] [data-tile-grip]').focus()")
             p.key("ArrowRight", ALT, code="ArrowRight", vk=39)
             p.saved()
-            p.until("JSON.stringify([...document.querySelectorAll('.glance > .tcell')].map(e => e.dataset.tile)) === JSON.stringify(['health','risks','overdue','decisions'])", "moved")
+            p.until("JSON.stringify([...document.querySelectorAll('.glance > .tcell')].map(e => e.dataset.tile)) === JSON.stringify(['health','risks','overdue'])", "moved")      # row 1303: Decisions needed is hidden and is not drawn in Edit
             order = sorted(self.rows().values(), key=lambda r: r["sort_order"])
-            self.assertEqual([r["tile"] for r in order], ["health", "risks", "overdue", "decisions"])
+            self.assertEqual([r["tile"] for r in order], ["health", "risks", "decisions", "overdue"])      # the hidden Decisions needed keeps its place in the stored order
             self.undo(p)
-            self.assertEqual(self.tiles(p), ["health", "overdue", "risks", "decisions"])
+            self.assertEqual(self.tiles(p), ["health", "overdue", "risks"])
 
     def test_dragging_a_tile_moves_it(self):
         with chrome() as cdp:
@@ -374,7 +348,7 @@ class EditTiles(Setup):
                     self.assertEqual(p.js("document.querySelectorAll('[data-glance-hint]').length"), 0, "View has no hint")
                     p.edit()
                     self.assertEqual(p.js("(document.querySelector('[data-glance-hint]') || {}).textContent"), want)
-                    self.assertEqual(p.js("document.querySelector('[data-glance-hint]').previousElementSibling.matches('[data-glance]')"), True, "it sits right under the tiles")
+                    self.assertEqual(p.js("document.querySelector('[data-glance-hint]').previousElementSibling.matches('[data-glance], [data-glance-add]')"), True, "it sits right under the tiles")
                     self.assertEqual(p.js("document.documentElement.scrollWidth <= window.innerWidth"), True)
 
     def test_view_has_no_tile_control(self):
