@@ -188,7 +188,7 @@ class EveryRouteThatSendsText(unittest.TestCase):
                 if re.search(r"\bprovider\.ask\(", line) and not line.lstrip().startswith(("#", "def ", '"""')):
                     found[path.name] = found.get(path.name, 0) + 1
         # #54, on purpose: ai_providers.Chosen sits between those three and the command. It builds no text: the next test holds it to that.
-        self.assertEqual(found, {"ai_menu.py": 1, "ai_providers.py": 1, "ai_service.py": 1, "ask.py": 1})
+        self.assertEqual(found, {"ai_connect.py": 1, "ai_menu.py": 1, "ai_providers.py": 1, "ai_service.py": 1, "ask.py": 1})      # row 1294: ai_connect.Pinned (the connection test) hands the request on, and ask.ask_provider screens it first
 
     def test_the_chain_hands_on_the_very_request_it_was_given(self):
         got = []

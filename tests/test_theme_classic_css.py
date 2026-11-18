@@ -14,11 +14,11 @@ from _paths import ROOT  # noqa: F401
 from test_server import chrome
 
 from clark import page, theme
-from test_theme_prototype import blocks, decls, TOKENS, BASE
+from test_theme_prototype import blocks, decls, TOKENS
 
 NAME = "prototype-2.0"
 SIZES = (1400, 900)
-DARK_FROM, DARK_TO = "#08232D", "#0B2832"
+DARK_FROM, DARK_TO = "#0f1523", "#121a2a"       # Whisper (rows 1310, 1311), dark
 
 
 def rgb(hex_colour):
@@ -29,14 +29,13 @@ def rgb(hex_colour):
 class Tokens(unittest.TestCase):
     def test_the_dark_gradient_is_the_ruled_pair_in_both_dark_copies_and_they_are_equal(self):
         b = blocks(TOKENS)
-        want = f"linear-gradient(90deg, {DARK_FROM} 0%, {DARK_TO} 100%)"
+        want = f"linear-gradient(90deg, {DARK_FROM}, {DARK_TO})"
         self.assertEqual(decls(b["dark"])["--page-grad"], want)
         self.assertEqual(decls(b["auto"])["--page-grad"], want)
         self.assertEqual(decls(b["dark"]), decls(b["auto"]))
 
-    def test_the_ruled_pair_is_made_of_dark_tokens_the_committed_file_already_has(self):
-        dark = decls(blocks(BASE)["dark"])
-        self.assertEqual(dark["--bg"].upper(), DARK_FROM)
+    def test_the_page_colour_is_the_end_of_the_dark_gradient(self):
+        self.assertEqual(decls(blocks(TOKENS)["dark"])["--page-bg"], DARK_TO)
 
 
 class Computed(unittest.TestCase):

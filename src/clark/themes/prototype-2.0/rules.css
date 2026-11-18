@@ -16,6 +16,9 @@ body { background: var(--page-bg) var(--page-grad) fixed no-repeat; }
 html[data-mode="view"] .cover { display: none; }
 html[data-mode="view"] .sec { border-left: 2px solid var(--gutter-rule); padding-left: 20px; }
 @media print { html[data-mode="view"] .sec { border-left: 0; padding-left: 0; } }
+/* Row 1311: every other visible section (the odd ones: the picture bands At a glance, the 1st) is a white panel on the page gradient and has no gutter rule. The served View leaves hidden sections out of the page, so the odd child is the odd visible section there; Edit draws them (dashed, never banded). */
+.secs > .sec:nth-child(odd):not(.is-hidden):not(.drag-slot) { background: var(--sec-band-bg); border-left: 0; border-radius: var(--radius-lg); }
+@media print { .secs > .sec:nth-child(odd):not(.is-hidden):not(.drag-slot) { background: none; border-radius: 0; } }
 /* Row 1313 block (dashboard style gaps vs prototype 2.0), Classic only. Kept apart from the rules above so it merges cleanly. Bare values with no token, as for row 1260: the 103px height of the narrow bar, the 1px divider width and the 1180px break (the shell's own break for Project health). The sizes are those the issue gives; the prototype files were not available to measure. The title is one line with an ellipsis here by ruling (replaces row 1239 for the dashboard title on screen only; the published file bar, .top-file, keeps row 1239 and wraps). Not here: section heading weight (row 1319), the Milestones frame (row 1315). */
 .glance[data-glance] { gap: 0; }
 .glance[data-glance] .fig { border: 0; border-radius: 0; background: none; }
