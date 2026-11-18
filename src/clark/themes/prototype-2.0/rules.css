@@ -128,6 +128,8 @@ h1, h2, h3 { font-weight: var(--weight-medium); }
 .seg:not(.modes) button[aria-pressed="true"] em, .seg:not(.modes) button[aria-checked="true"] em { color: var(--white); }
 .seg:not(.icons):not(.modes) button[aria-pressed="true"]:focus-visible, .seg:not(.icons):not(.modes) button[aria-checked="true"]:focus-visible, .cal-sc button[aria-current="true"]:focus-visible { outline-color: var(--white); outline-offset: -3px; }
 .crumbs, .ucd-crumb, .ucf-crumb { text-transform: none; letter-spacing: normal; }
+/* Row 1260 G4: Classic shows no sentence under the Milestones title in the Plan view; the Movement hint stays. */
+.wbar:has([data-mspv="plan"][aria-pressed="true"]) [data-mspage-hint] { display: none; }
 /* Row 1318 (Classic only): the left Contents column. Everything below is this row's block; the markup (components/Contents.jsx) is drawn only when this Theme is layered. */
 .cnt-grid { display: block; }
 .cnt { display: none; }
@@ -187,3 +189,15 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 /* Row 1319, dark edge: the navy chosen segment is 1.08:1 on the dark ground, so in dark (and auto when the system is dark) it takes a 1px inset ring in --grey-500 (3.8:1 or more on every ground); inset, so nothing moves. Light has no ring. */
 :root[data-theme=dark] .seg:not(.modes) button[aria-pressed="true"], :root[data-theme=dark] .seg:not(.modes) button[aria-checked="true"], :root[data-theme=dark] .cal-sc button[aria-current="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .seg:not(.modes) button[aria-pressed="true"], :root[data-theme=auto] .seg:not(.modes) button[aria-checked="true"], :root[data-theme=auto] .cal-sc button[aria-current="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); } }
+/* Row 1260 gap G6, what the At a glance strip still needs beyond the Row 1313 block above (flat cells, divider, no tile box stay there): label over value in the prototype's sizes, the divider's inner space, the status shown in the figure's own colour (no dot), the link underline on hover. */
+.glance { margin-top: var(--space-2); }
+.glance .tcell + .tcell { padding-left: var(--space-4); }
+.glance .fig { padding: 0; box-shadow: none; }
+.glance .fig .ragdot { display: none; }
+.glance .fig .k { font-size: 13px; color: var(--text-muted); }
+.glance .fig .v { font-size: 20px; font-weight: 700; }
+.glance .fig .dd { font-size: 14px; }
+.glance .fig.rag-a .v { color: var(--status-amber-text); } .glance .fig.rag-r .v { color: var(--status-red-text); }
+.glance .fig.go:hover { box-shadow: none; }
+.glance .fig.go:hover .v { text-decoration: underline; }
+@media (max-width: 1180px) { .glance .tcell.health { flex-basis: 100%; } .glance .tcell.health + .tcell { padding-left: 0; } }
