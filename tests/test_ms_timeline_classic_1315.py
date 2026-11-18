@@ -63,11 +63,18 @@ class Classic(Base, unittest.TestCase):
                 self.assertAlmostEqual(lab["mid"], lab["markMid"], delta=2, msg="centred on the mark unless it is held inside the line")
             self.assertLess(max(g["months"]) + 17, min(l["bottom"] for l in g["labs"]) - 22, "month row clear of the names")
 
+    def test_every_visible_name_is_in_the_one_lane_28px_below_the_top_of_the_strip(self):
+        for cdp, sid, w in self.every():
+            tops = cdp.js("[...document.querySelectorAll('.mv-lab')].map((l) => Math.round(l.getBoundingClientRect().top - document.querySelector('.mv-strip').getBoundingClientRect().top))", sid)
+            self.assertGreater(len(tops), 1)
+            self.assertEqual(set(tops), {28}, f"each name's top edge is 28px under the strip's top at {w}: {tops}")
+
     def test_the_today_name_is_under_the_line(self):
         for cdp, sid, w in self.every():
             g = cdp.js(GEOM, sid)
             self.assertGreater(g["today"]["top"], g["lineTop"] + 8, "under the line")
             self.assertLess(g["today"]["top"] + 18, g["wrapBottom"] + 1, "inside the strip")
+            self.assertAlmostEqual(g["today"]["top"] - g["lineTop"], 14, delta=0.5, msg=f"the Today name is 14px under the line at {w}")
 
     def test_the_hint_and_the_name_of_the_strip_say_bottom_edge(self):
         for cdp, sid, w in self.every():
