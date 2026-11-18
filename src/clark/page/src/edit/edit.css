@@ -668,10 +668,19 @@ textarea.tpl-field { resize: vertical; }
 .rce-first { margin: 0 0 var(--space-3); }
 
 /* #96 G3 Work items list (workitems): the Edit part (the filter and the live preview). Tokens only. */
-.wil-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px var(--space-4); margin: var(--space-1) 0 10px; padding: var(--space-3) 14px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--grey-50); }
+.wil-form { margin: 0; padding: 0; border: 0; background: none; }   /* row 1195: no pale bar; it only holds the gear, which sits in the title row (.wil-cw) */
 /* Row 1268: the Add + at the right end, a dashed square as the one on Work items (the approved mock-up) */
 .wil-add { flex: none; display: flex; justify-content: flex-end; margin: 0 0 var(--space-1) auto; }   /* at the right end of the saved-views row (ticket 1268) */
-.wil-add .newb { border-style: dashed; }
+/* Row 1195 (B): the + stays the 34 px dashed square at every width and in every state (open or not): no filled Add pill, no words growing out of it. */
+.wil-add .newb { box-sizing: border-box; width: 34px; height: 34px; min-width: 0; padding: 0; justify-content: center; border: 1px dashed var(--grey-500); border-radius: var(--radius); background: none; color: var(--status-blue-text); }
+.wil-add .newb:hover, .wil-add .newb:focus-visible, .wil-add .newb[aria-expanded="true"] { background: var(--grey-50); border-color: var(--grey-500); color: var(--status-blue-text); }
+.wil-add .newb:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.wil-add .newb .w, .wil-add .newb:hover .w, .wil-add .newb:focus-visible .w, .wil-add .newb[aria-expanded="true"] .w, .wil-add .newb .nch { display: none; }
+.wil-add .ddmenu { min-width: calc(var(--space-8) * 2); padding: var(--space-1); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }
+.wil-add .ddmenu [role="menuitem"] { display: flex; align-items: center; gap: var(--space-2); min-height: calc(var(--space-6) + var(--space-2)); padding: 0 var(--space-2); border-radius: var(--radius); font-weight: var(--weight-medium); color: var(--text); }
+.wil-add .ddmenu [role="menuitem"]:hover, .wil-add .ddmenu [role="menuitem"]:focus-visible { background: var(--grey-50); color: var(--text); }
+.wil-add .ddmenu [role="menuitem"]:focus-visible { outline: 0; }
+.wil-add .ddmenu .mtile { width: var(--space-5); height: var(--space-5); }
 /* Row 1273: Add milestone, Add project and Add use case take the same dashed look; border only, nothing moves */
 #addMs.newb, #npBtn.newb, #ucAddPage.newb { border: 1px dashed var(--status-blue-text); }
 .wil-line { display: grid; gap: var(--space-1); margin: var(--space-1) 0 var(--space-2); }
@@ -685,16 +694,19 @@ textarea.tpl-field { resize: vertical; }
 .wil-sel span { font-size: var(--size-caption); color: var(--text-muted); font-weight: var(--weight-medium); }
 .wil-sel select, .wil-sel input { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-small); }
 /* row 1268: the gear and its Configure box (Sort by, Most rows, Columns), as the approved mock-up draws them. Tokens only. */
-.wil-cw { position: relative; grid-column: 1 / -1; display: flex; justify-content: flex-end; }
-.wil-gear { display: inline-flex; align-items: center; justify-content: center; min-width: calc(var(--space-6) + var(--space-1)); min-height: calc(var(--space-6) + var(--space-1)); border: 1px solid var(--grey-300); border-radius: 50%; background: var(--surface); color: var(--text); cursor: pointer; }
+.wil-cw { position: absolute; top: var(--sec-pad-t); right: var(--sec-px); z-index: 6; display: flex; justify-content: flex-end; }   /* row 1195: the gear is in the title row, top right of the card; Configure opens under it */
+.wil-gear { display: inline-flex; align-items: center; justify-content: center; min-width: calc(var(--space-6) + var(--space-1)); min-height: calc(var(--space-6) + var(--space-1)); border: 1.5px solid var(--grey-200); border-radius: 50%; background: var(--surface); color: var(--text); cursor: pointer; }
 .wil-gear:hover, .wil-gear[aria-expanded=true] { background: var(--grey-100); }
 .wil-gear:focus-visible, .wil-cacts button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.wil-cfg { position: absolute; right: 0; top: calc(100% + var(--space-1)); z-index: 20; width: min(calc(var(--space-4) * 20), 100%); box-sizing: border-box; display: grid; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
+.wil-cfg { position: absolute; right: 0; top: calc(100% + var(--space-1)); z-index: 20; width: min(calc(var(--space-4) * 19), calc(100vw - var(--space-6))); box-sizing: border-box; display: grid; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); }
 .wil-cfg[hidden] { display: none; }
-.wil-cfg h4 { margin: 0; font-size: var(--size-body); }
+.wil-cfg h4 { margin: 0; font-family: var(--font-head); font-size: var(--size-body); font-weight: var(--weight-semibold); color: var(--heading); }
+.wil-cfg .wil-sel > span, .wil-cfg .wil-f legend { font-weight: var(--weight-medium); color: var(--text-muted); }
+.wil-cfg .wil-opts input[type="checkbox"] { width: var(--space-4); height: var(--space-4); margin: 0; accent-color: var(--brand-blue); }
+.wil-cfg .wil-sel select:focus-visible, .wil-cfg .wil-sel input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .wil-cfg .wil-opts { display: grid; grid-template-columns: 1fr 1fr; }
 .wil-cacts { display: flex; justify-content: flex-end; }
-.wil-cacts button { min-height: calc(var(--space-6) + var(--space-1)); padding: 0 var(--space-4); border: 0; border-radius: var(--radius-pill); background: var(--grey-100); color: var(--text); font: inherit; font-weight: var(--weight-medium); cursor: pointer; }
+.wil-cacts button { min-height: calc(var(--space-6) + var(--space-1)); padding: 0 var(--space-4); border: 0; border-radius: var(--radius-pill); background-color: var(--pill-color); background-image: var(--pill-bg); color: var(--pill-fg); font: inherit; font-weight: var(--weight-semibold); cursor: pointer; }
 .wil-none { margin: var(--space-2) 0; padding: 10px var(--space-3); border: 1px dashed var(--grey-300); border-radius: var(--radius); color: var(--text); font-size: var(--size-small); }
 .wil-live tbody tr, .wil-live li { cursor: pointer; }
 .wil-table .wil-c-eye { width: 44px; padding-left: 0; padding-right: 0; text-align: center; }   /* row 1113: the Work items page eye, at the end of each row */
@@ -1529,3 +1541,15 @@ table.items td.c-x-id { color: var(--link); font-weight: 600; white-space: nowra
 .fbt-added { margin-top: var(--space-3); padding: var(--space-2) var(--space-3); border-radius: 8px; background: var(--grey-100); font-size: var(--size-caption); color: var(--grey-700); }
 .fbt-added ul { margin: var(--space-1) 0; }
 @media (prefers-reduced-motion: reduce) { .fbt-dlg { animation: none; } .fbt-tag { transition: none; } }
+
+/* Row 1195 (A): the saved-views tabs as the approved mock-up draws them: semibold tabs, grey count pills, a violet bold + New view. The active tab's violet underline is the shared .vtab rule. */
+.wil-edit > .wil-views { margin-top: var(--space-3); }   /* the gear has the title row to itself; the tabs start under it */
+.wil-views .vtab { font-weight: var(--weight-medium); }
+.wil-views .vtab em { font-weight: var(--weight-regular); color: var(--text-muted); }
+.wil-views .vnew { color: var(--status-blue-text); font-weight: var(--weight-medium); }
+.wil-views .vnew:hover { color: var(--status-blue-text); }
+.wil-views .vtabs { flex-wrap: wrap; overflow: visible; }
+.wil-edit .wil-line { margin: 0 0 var(--space-3); }
+
+.wil-table .wil-c-eye .ib { color: var(--text); }   /* row 1195: the eye is as dark as the mock-up draws it */
+.wil-off .wil-c-eye .ib { color: var(--grey-500); }
