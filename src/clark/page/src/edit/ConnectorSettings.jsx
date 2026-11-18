@@ -6,7 +6,7 @@ import { askConnectorsRead, askConnectorsChange, words } from "./publishApi.js";
 export const CONNECTORS_LINE = "Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings.";
 const READ_ONLY = "A connector is only read from, never changed.";
 const NONE = "No connectors were found on this computer.";
-const NOT_READY = "Connectors can't be checked just now. None is used until they can be.";      // wording proposed to Jarvis 18-11 20:1x: the first approved sentence said they stay off, which is not true of a saved On
+const NOT_READY = "Connectors can't be checked just now. None is used until they can be.";      // not "they stay off": a saved On stays saved when a check fails; what holds is that none is used until it can be checked
 const ALL_NOTE = "Only connectors that are set up on this computer are listed, and the list is the same for every project. Off means clark never asks it anything. On lets ask clark read from it, read only, when your question needs it; each one it used is listed under the answer. A project can turn a connector off for itself in its own tab.";
 const PROJECT_NOTE = "Only the connectors that are On for all projects appear here.";
 
@@ -14,6 +14,7 @@ function useConnectors(code) {
   const [list, setList] = useState(null);          // null: not read yet; "unavailable"; or the list
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
+  const [said, setSaid] = useState(null);          // the line after a change, with the Undo step: {text, undo}
   useEffect(() => {
     let live = true;
     setList(null);
@@ -24,25 +25,34 @@ function useConnectors(code) {
     });
     return () => { live = false; };
   }, [code]);
-  async function change(body) {
+  // The mock-up's own lines (design A8), built here from the name: the server's message is not shown.
+  async function change(body, text) {
     setBusy(true);
     setMsg(null);
+    setSaid(null);
     const r = await askConnectorsChange(body);
     setBusy(false);
     const b = r.body;
-    if (r.status === 200 && b && b.ok === true && Array.isArray(b.connectors)) setList(b.connectors);
-    else setMsg(words(r, "save that connector choice"));
+    if (r.status === 200 && b && b.ok === true && Array.isArray(b.connectors)) {
+      setList(b.connectors);
+      if (text && b.apply_id) setSaid({ text, undo: b.apply_id });
+    } else setMsg(words(r, "save that connector choice"));
   }
-  return { list, busy, msg, change };
+  return { list, busy, msg, said, change };
 }
 
-function Msg({ msg }) {
-  return <div class="pub-msg" role="alert" aria-live="polite">{msg ? <p class="error">{msg}</p> : null}</div>;
+function Msg({ msg, said, busy, change }) {
+  return (
+    <div class="pub-msg" role="alert" aria-live="polite">
+      {msg ? <p class="error">{msg}</p> : null}
+      {said ? <p class="muted" data-connector-said>{said.text} <button type="button" class="link" data-connector-undo disabled={busy} onClick={() => change({ undo: said.undo }, null)}>Undo</button></p> : null}
+    </div>
+  );
 }
 
 /** All projects tab: every connector found, each On or Off for clark. */
 export function ConnectorsAll({ code }) {
-  const { list, busy, msg, change } = useConnectors(code);
+  const { list, busy, msg, said, change } = useConnectors(code);
   const found = Array.isArray(list) ? list : [];
   return (
     <section class="frame setting" id="ask-connectors">
@@ -54,19 +64,19 @@ export function ConnectorsAll({ code }) {
       {found.length ? (
         <ul class="ask-folders" id="ask-connectors-list">
           {found.map((c) => (
-            <li key={c.id}><span class="folder-now">{c.label}</span> <button type="button" class="btn sm" data-connector={c.id} aria-pressed={c.on ? "true" : "false"} disabled={busy} onClick={() => change({ id: c.id, on: !c.on })}>{c.on ? "On for clark" : "Off for clark"}</button></li>
+            <li key={c.id}><span class="folder-now">{c.label}</span> <span class="muted">{c.on ? "On for clark" : "Off for clark"}</span> <button type="button" class="switch" role="switch" data-connector={c.id} aria-checked={c.on ? "true" : "false"} aria-label={`Allow clark to use ${c.label}`} disabled={busy} onClick={() => change({ id: c.id, on: !c.on }, c.on ? `${c.label} turned off for clark. clark never asks it anything.` : `${c.label} turned on for clark.`)} /></li>
           ))}
         </ul>
       ) : null}
       <p class="muted" id="ask-connectors-note-all">{ALL_NOTE}</p>
-      <Msg msg={msg} />
+      <Msg msg={msg} said={said} busy={busy} change={change} />
     </section>
   );
 }
 
 /** A project's tab: only the connectors that are On for all projects, each with a turn-off for this project alone. */
 export function ConnectorsProject({ code }) {
-  const { list, busy, msg, change } = useConnectors(code);
+  const { list, busy, msg, said, change } = useConnectors(code);
   const on = Array.isArray(list) ? list.filter((c) => c.on) : [];
   return (
     <section class="frame setting" id="ask-connectors-project">
@@ -76,12 +86,12 @@ export function ConnectorsProject({ code }) {
       {on.length ? (
         <ul class="ask-folders" id="ask-connectors-list">
           {on.map((c) => (
-            <li key={c.id}><span class="folder-now">{c.label}</span> <span class="muted">{`On for all projects. Turn it off here for ${code} only.`}</span> <button type="button" class="switch" role="switch" data-connector-here={c.id} aria-checked={c.off_here ? "false" : "true"} aria-label={`Use ${c.label} in ${code}`} disabled={busy} onClick={() => change({ project: code, id: c.id, off_here: !c.off_here })} /></li>
+            <li key={c.id}><span class="folder-now">{c.label}</span> <span class="muted">{`On for all projects. Turn it off here for ${code} only.`}</span> <button type="button" class="switch" role="switch" data-connector-here={c.id} aria-checked={c.off_here ? "false" : "true"} aria-label={`Use ${c.label} in ${code}`} disabled={busy} onClick={() => change({ project: code, id: c.id, off_here: !c.off_here }, c.off_here ? `${c.label} turned back on for ${code}.` : `${c.label} turned off for ${code} only.`)} /></li>
           ))}
         </ul>
       ) : null}
       <p class="muted" id="ask-connectors-note-project">{PROJECT_NOTE}</p>
-      <Msg msg={msg} />
+      <Msg msg={msg} said={said} busy={busy} change={change} />
     </section>
   );
 }

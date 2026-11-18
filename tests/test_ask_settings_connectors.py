@@ -20,7 +20,7 @@ ALL_NOTE = ("Only connectors that are set up on this computer are listed, and th
             "On lets ask clark read from it, read only, when your question needs it; each one it used is listed under the answer. A project can turn a connector off for itself in its own tab.")
 WIDTHS = (1400, 900)
 FAKE = """
-window.__c = {calls: [], list: [{id: 'mail', label: 'Mail', on: false, off_here: false}, {id: 'teams', label: 'Teams', on: false, off_here: false}], fail: false, none: false};
+window.__c = {calls: [], list: [{id: 'mail', label: 'Mail', on: false, off_here: false}, {id: 'teams', label: 'Teams', on: false, off_here: false}], fail: false, none: false, steps: []};
 const real = window.fetch;
 window.fetch = function (url, opts) {
   if (String(url).indexOf('/api/ask-connectors') < 0) return real.apply(this, arguments);
@@ -28,9 +28,13 @@ window.fetch = function (url, opts) {
   window.__c.calls.push(body);
   const reply = (status, out) => Promise.resolve(new Response(JSON.stringify(out), {status: status, headers: {'Content-Type': 'application/json'}}));
   if (window.__c.fail) return reply(500, null);
+  if (body && body.undo !== undefined) { const u = window.__c.steps.pop(); if (u) window.__c.list.forEach((c) => { if (c.id === u.id) { c.on = u.on; c.off_here = u.off_here; } }); return reply(200, {ok: true, connectors: window.__c.list, message: 'Undone.'}); }
+  if (!body) return reply(200, {ok: true, connectors: window.__c.none ? [] : window.__c.list});
+  const keep = window.__c.list.map((c) => Object.assign({}, c));
   if (body && body.on !== undefined) window.__c.list.forEach((c) => { if (c.id === body.id) c.on = body.on; });
   if (body && body.off_here !== undefined) window.__c.list.forEach((c) => { if (c.id === body.id) c.off_here = body.off_here; });
-  return reply(200, {ok: true, connectors: window.__c.none ? [] : window.__c.list});
+  window.__c.steps.push(keep.filter((c) => c.id === body.id)[0]);
+  return reply(200, {ok: true, connectors: window.__c.none ? [] : window.__c.list, message: 'SERVER LINE', apply_id: 'step-' + window.__c.steps.length});
 };
 """
 
@@ -62,15 +66,25 @@ class Connectors(unittest.TestCase):
             self.assertEqual(js("document.querySelector('#ask-connectors h2').innerText"), "Other connectors found on this computer")
             self.assertEqual(js("document.querySelector('#ask-connectors-note-all').innerText"), ALL_NOTE)
             self.assertEqual(js("document.querySelector('#ask-connectors-readonly').innerText"), "A connector is only read from, never changed.")
-            self.assertEqual(js("[...document.querySelectorAll('[data-connector]')].map(b => b.innerText + '/' + b.getAttribute('aria-pressed')).join()"),
-                             "Off for clark/false,Off for clark/false")
+            self.assertEqual(js("[...document.querySelectorAll('[data-connector]')].map(b => b.closest('li').querySelector('.muted').innerText + '/' + b.getAttribute('aria-checked') + '/' + b.getAttribute('aria-label') + '/' + b.getAttribute('role')).join()"),
+                             "Off for clark/false/Allow clark to use Mail/switch,Off for clark/false/Allow clark to use Teams/switch")
             for w in WIDTHS:
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
                 self.assertTrue(wait(lambda: js("document.documentElement.scrollWidth <= window.innerWidth"), 10), f"no sideways scroll at {w}")
             js("document.querySelector('[data-connector=mail]').click()")
-            self.assertTrue(wait(lambda: js("document.querySelector('[data-connector=mail]').innerText") == "On for clark", 10))
+            state = lambda i: js("document.querySelector('[data-connector=" + i + "]').closest('li').querySelector('.muted').innerText")          # noqa: E731
+            self.assertTrue(wait(lambda: state("mail") == "On for clark", 10))
             self.assertEqual(js("window.__c.calls.slice(-1)[0].on"), True)
-            self.assertEqual(js("document.querySelector('[data-connector=teams]').innerText"), "Off for clark")
+            self.assertEqual(state("teams"), "Off for clark")
+            said = "document.querySelector('[data-connector-said]')"
+            self.assertEqual(js(said + ".innerText"), "Mail turned on for clark. Undo", "the mock-up's own line, not the server's")
+            js("document.querySelector('[data-connector-undo]').click()")
+            self.assertTrue(wait(lambda: state("mail") == "Off for clark", 10))
+            self.assertEqual(js("window.__c.calls.slice(-1)[0].undo"), "step-1")
+            self.assertFalse(js("!!document.querySelector('[data-connector-said]')"), "the line goes with the Undo")
+            js("document.querySelector('[data-connector=mail]').click()")
+            js("document.querySelector('[data-connector=mail]').click()")
+            self.assertTrue(wait(lambda: js(said + " && " + said + ".innerText") == "Mail turned off for clark. clark never asks it anything. Undo", 10))
 
     def test_a_project_tab_shows_only_connectors_on_for_all_and_turns_one_off_for_that_project(self):
         with chrome() as cdp:
@@ -84,6 +98,7 @@ class Connectors(unittest.TestCase):
             self.assertEqual(js(sw + ".getAttribute('role') + '/' + " + sw + ".getAttribute('aria-label') + '/' + " + sw + ".getAttribute('aria-checked')"), "switch/Use Mail in ABC/true")
             js(sw + ".click()")
             self.assertTrue(wait(lambda: js(sw + ".getAttribute('aria-checked')") == "false", 10))
+            self.assertEqual(js("document.querySelector('[data-connector-said]').innerText"), "Mail turned off for ABC only. Undo")
             self.assertEqual(js("window.__c.calls.slice(-1)[0].project"), "ABC")
             self.assertEqual(js("window.__c.calls.slice(-1)[0].off_here"), True)
 
@@ -105,7 +120,7 @@ class Connectors(unittest.TestCase):
             self.assertTrue(wait(lambda: js("!!document.querySelector('[data-connector=mail]')"), 10))
             js("window.__c.fail = true; document.querySelector('[data-connector=mail]').click()")
             self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-connectors .pub-msg .error')"), 10))
-            self.assertEqual(js("document.querySelector('[data-connector=mail]').innerText"), "Off for clark")
+            self.assertEqual(js("document.querySelector('[data-connector=mail]').closest('li').querySelector('.muted').innerText"), "Off for clark")
 
 
 if __name__ == "__main__":
