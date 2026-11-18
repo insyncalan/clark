@@ -28,7 +28,7 @@ KEYS = {"Tab": 9, "ContextMenu": 93, "F10": 121, "Escape": 27, "Enter": 13}
 # name, address, the heading row's cells, a heading cell by column id, a body cell by column id, a row, every label, the locked labels, the standard labels
 TABLES = {
     "work": ("#work&p=TUL&f=mode:all", "#work table.items thead th", "#work th[data-col='%s']", "#work tbody tr[data-id] td[data-col='%s']", "#work tbody tr[data-id]",
-             WORK_ALL, ["Status", "Item"], ["Status", "Item", "Owner", "Due", "Priority"]),
+             WORK_ALL, ["Status", "Item"], ["Status", "Item", "Owner", "Due", "Priority", "Id"]),
     "milestones": ("#milestones&p=TUL", "#milestones .msl-hd [data-col]", "#milestones .msl-hd [data-col='%s']", "#milestones .msl-cells [data-col='%s']:not(.cols-off)", "#milestones li.msl-row",
                    MS_ALL, ["Milestone", "State"], ["Date", "Milestone", "State", "Progress"]),
 }
@@ -171,7 +171,7 @@ class Columns(unittest.TestCase):
                 was = self.heads(js, table)
                 self.right_click(cdp, sid, head % ("owner" if table == "work" else "state"))
                 self.assertTrue(wait(lambda: self.menu(js), 5))
-                self.pick(js, "Id")
+                self.pick(js, "Type" if table == "work" else "Id")
                 self.pick(js, "Workstream")
                 self.assertTrue(wait(lambda: len(self.heads(js, table)) == len(was) + 2, 5))
                 js(f"document.querySelector({json.dumps(MENU + ' [data-cols-standard]')}).click()")
@@ -243,14 +243,27 @@ class Columns(unittest.TestCase):
             self.assertIsNone(js("localStorage.getItem('clark.cols.milestones')"), "the Milestones page's widths are untouched")
             self.assertIsNone(js("localStorage.getItem('clark.cols.show.milestones.TUL')"), "and so is its choice")
 
+    def test_the_work_table_shows_the_id_in_its_own_blue_column_and_not_under_the_title(self):
+        with chrome() as cdp:
+            sid, js = self.open_table(cdp, 1400, "light", "work")
+            self.assertEqual(self.heads(js, "work"), ["status", "item", "owner", "due", "prio", "id"], "the Id column is shown by default, after Priority")
+            got = js("""(() => { const r = document.querySelector('#work tbody tr[data-id]'), c = r.querySelector("td[data-col='id']"), t = r.querySelector('.t');
+                return {id: r.dataset.id, cell: c.textContent.trim(), meta: r.querySelector('.meta').textContent, cc: getComputedStyle(c).color, tc: getComputedStyle(t).color, fw: getComputedStyle(c).fontWeight, ws: getComputedStyle(c).whiteSpace}; })()""")
+            self.assertEqual(got["cell"], got["id"], "the cell holds the id")
+            self.assertNotIn(got["id"], got["meta"], "the id is not under the title")
+            self.assertNotEqual(got["cc"], got["tc"], "the id is blue, not the title's colour")
+            self.assertEqual((got["fw"], got["ws"]), ("600", "nowrap"), "the id is semi-bold and stays on one line")
+            blue = js("(() => { const p = document.createElement('span'); p.style.color = 'var(--link)'; document.body.append(p); const c = getComputedStyle(p).color; p.remove(); return c; })()")
+            self.assertEqual(got["cc"], blue, "the id takes the page's link colour")
+
     def test_a_blocked_store_still_lets_the_table_redraw(self):
         block = "Storage.prototype.setItem = function () { throw new Error('blocked'); };"
         with chrome() as cdp:
             sid, js = self.open_table(cdp, 1400, "light", "work", early=block)
             self.right_click(cdp, sid, "#work th[data-col='owner']")
             self.assertTrue(wait(lambda: self.menu(js), 5))
-            self.pick(js, "Id")
-            self.assertTrue(wait(lambda: "id" in self.heads(js, "work"), 5), "the table redraws although nothing can be kept")
+            self.pick(js, "Type")
+            self.assertTrue(wait(lambda: "type" in self.heads(js, "work"), 5), "the table redraws although nothing can be kept")
 
     def test_the_menu_key_and_shift_f10_open_the_same_menu_from_a_focused_heading(self):
         for table, (_, _, head, _, _, every, _, _) in TABLES.items():
