@@ -313,7 +313,7 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-off { flex: none; margin: 0; padding: 10px 20px; font-size: var(--size-small); color: var(--status-amber-text); background: var(--status-amber-tint); border-bottom: 1px solid var(--grey-200); }
 .ask-first-run { flex: none; margin: 0; padding: 12px 20px; font-size: var(--size-small); color: var(--text-muted); border-bottom: 1px solid var(--grey-200); overflow-wrap: anywhere; }
 .ask-first-run p { margin: 0 0 6px; }
-.ask-first-link a { display: inline-flex; align-items: center; min-height: 24px; color: var(--brand-blue); font-weight: var(--weight-medium); text-decoration: underline; }
+.ask-first-link a { display: inline-flex; align-items: center; min-height: 24px; color: var(--link, var(--brand-blue)); font-weight: var(--weight-medium); text-decoration: underline; }
 .ask-off a { display: inline-flex; align-items: center; min-height: 24px; color: inherit; font-weight: var(--weight-medium); text-decoration: underline; }
 .ask-panel a:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .ask-log { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; padding: 22px 20px var(--space-3); }
