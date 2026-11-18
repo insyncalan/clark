@@ -109,7 +109,7 @@ class Panel(Base):
             self.assertEqual(self.stub.count("status"), 1)
 
     def test_escape_closes_it_and_focus_returns_but_a_click_outside_does_not_close_it(self):
-        """#1292 slice 1: only Esc, Close and the ask button close the panel; a click outside leaves it open."""
+        """row 1292 slice 1: only Esc, Close and the ask button close the panel; a click outside leaves it open."""
         with chrome() as cdp:
             p = self.visit(cdp)
             p.js("document.querySelector('[data-mode=edit]').focus()")

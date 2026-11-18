@@ -180,7 +180,7 @@ class TheCard(Card):
             p.until("document.querySelector('[data-ask-line]') && document.querySelector('[data-ask-line]').textContent.startsWith('Done.')", "Done.")
             self.assertEqual(self.status(), "Closed")
 
-    # ----- #1292 S4: change cards (item link and title, old struck through, new marked, Why, Apply and Not now, Apply all, one Undo)
+    # ----- row 1292 S4: change cards (item link and title, old struck through, new marked, Why, Apply and Not now, Apply all, one Undo)
     def test_the_card_names_the_item_strikes_the_old_marks_the_new_and_gives_the_why(self):
         self.says(self.close_it(why="It was signed off on Monday."))
         with chrome() as cdp:
@@ -269,7 +269,7 @@ class TheCard(Card):
             p.until("document.querySelector('[data-ask-line]').textContent.startsWith('Done.')", "Done.")
             self.assertEqual((self.status(), self.store.read("actions", ref=self.second)["status"]), ("Closed", "Open"))
 
-    def test_undo_all_leaves_a_card_put_aside_with_not_now_as_it_was(self):         # #1292 sweep: only a card that was Done is marked Undone
+    def test_undo_all_leaves_a_card_put_aside_with_not_now_as_it_was(self):         # row 1292 sweep: only a card that was Done is marked Undone
         self.two_cards()
         third = self.demo.action(owner="Pat Kay", description="Book the room")
         self.provider.reply += "\nCHANGE: " + json.dumps({"op": "change", "id": third, "current_title": "Book the room", "status": "Closed"})

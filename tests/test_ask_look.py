@@ -114,7 +114,7 @@ class Look(Base):
         p.until("!!document.querySelector('#ask-panel')", "the panel opened on /")
         if ready:
             p.until(SETTLE, "the panel is ready to take a question")
-            # #1292 slice 1: a chat is kept for the browser, so a panel opened again in the same Chrome starts from the last one: begin empty
+            # row 1292 slice 1: a chat is kept for the browser, so a panel opened again in the same Chrome starts from the last one: begin empty
             empty_chat(p)
         return p
 
@@ -193,7 +193,7 @@ class Look(Base):
                     self.check_measures(p, f"{what} not set up link")
 
     def close_panel(self, p, what):
-        """#1292 slice 1: a move to another page no longer closes the panel, so these tests close it with Close to start a fresh chat on the new page."""
+        """row 1292 slice 1: a move to another page no longer closes the panel, so these tests close it with Close to start a fresh chat on the new page."""
         p.js("document.querySelector('#ask-close').click()")
         p.until("!document.querySelector('#ask-panel')", what)
 
@@ -270,7 +270,7 @@ class Look(Base):
         p.js(f"location.hash = location.hash.replace(/^#[a-z]+/, '#{page}')")
         self.close_panel(p, f"a move to {page}, then Close")
         p.key("/", code="Slash", vk=191)
-        # #1292 slice 8: a move of page keeps the chat, so a new chat is started to see the suggestions of the page
+        # row 1292 slice 8: a move of page keeps the chat, so a new chat is started to see the suggestions of the page
         p.js("(function(){var n=document.querySelector('#ask-new');if(n&&!n.disabled)n.click();})()")
         p.until(SETTLE, f"the panel is ready on {page}")
         empty_chat(p)                      # Close keeps the chat now; the suggestions are read on an empty one

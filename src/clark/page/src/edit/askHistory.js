@@ -47,7 +47,7 @@ export function deleteChat(id) {
   histTick.value++;
 }
 
-/** #1292 slice 8: the chat each project was left on (its id, kept like the chats are), so a change of project, or the page loading again for one, comes back to it. */
+/** row 1292 slice 8: the chat each project was left on (its id, kept like the chats are), so a change of project, or the page loading again for one, comes back to it. */
 export function rememberOpen(p, id) { remember(openKey(p), id || null); }
 export function openChatOf(p) {
   const id = recall(openKey(p), null);

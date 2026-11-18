@@ -1,4 +1,4 @@
-"""#1292 slice 8: chats are kept per project and never cleared by changing page or project.
+"""row 1292 slice 8: chats are kept per project and never cleared by changing page or project.
 
 Run: python3 dev/run_tests.py test_ask_chats_per_project
 Headless Chrome, the real page, a stub for the server's ask. The chat on screen belongs to the project it was asked in: another

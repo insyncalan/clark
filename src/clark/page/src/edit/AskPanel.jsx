@@ -163,7 +163,7 @@ export function AskPanel() {
     setNote("");                                     // the Stopping line is over once the turn (answer or stopped line) is here
     const b = r.body;
     const answered = r.status === 200 && b && b.ok === true && typeof b.answer === "string";
-    if (epoch !== chatEpoch.value) {                 // #1292 slice 8: the project was changed meanwhile; an answer stays in the chat it was asked in (kept there, shown when that project is open again)
+    if (epoch !== chatEpoch.value) {                 // row 1292 slice 8: the project was changed meanwhile; an answer stays in the chat it was asked in (kept there, shown when that project is open again)
       if (answered) {
         const extra = Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : [];
         const id = keepChat([...asked, { role: "assistant", text: b.answer, sources: sourceLabels(b.sources) }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))], undefined, { project: askedIn, id: askedChat });

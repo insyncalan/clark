@@ -102,7 +102,7 @@ export const CONFIRM_NO_PASSAGE_LINE = "This answer read your files, so check th
 export const CONFIRM_BOX = "I have checked this change and want to save it";
 export const DONE_LINE = "Done.";
 export const UNDO = "Undo";
-// #1292 S4 (the words follow the mock-up; NEEDS RULING until the one words table is ruled)
+// row 1292 S4 (the words follow the mock-up; NEEDS RULING until the one words table is ruled)
 export const WHY = "Why";
 export const NOT_NOW = "Not now";
 export const NOT_NOW_LINE = "Not now. Nothing was changed.";

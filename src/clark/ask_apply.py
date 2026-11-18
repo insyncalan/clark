@@ -37,7 +37,7 @@ MAX_OFFERS = 50
 OP_NEW, OP_CHANGE = "new", "change"
 NOT_YET_OPS = tuple("archive remove restore".split()) + (changes.DELETE,)      # made, not spelt: a lone delete string reads as SQL to the writer test
 CLAIMS = ("current_title", "current_owner")
-MAX_WHY = 300                     # #1292 S4: the card's one-line reason, plain text
+MAX_WHY = 300                     # row 1292 S4: the card's one-line reason, plain text
 FORM = ("op", "kind", "id", "project", "source", "why") + CLAIMS
 KINDS = {"action": ("actions", None), "risk": ("raid", "Risk"), "issue": ("raid", "Issue"),
          "assumption": ("raid", "Assumption"), "dependency": ("raid", "Dependency"), "decision": ("decisions", None),
