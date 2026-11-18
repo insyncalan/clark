@@ -14,6 +14,7 @@ from _paths import ROOT  # noqa: F401
 from test_glance_page import Setup
 from test_report_editor import tearDownModule  # noqa: F401
 from test_server import chrome
+from _publish import PublishedFile
 import _testpage as testpage
 from clark import page, theme
 
@@ -22,7 +23,7 @@ FOLDER = ROOT / "src" / "clark" / "themes" / NAME
 RULES = (FOLDER / "rules.css").read_text(encoding="utf-8")
 TOKENS = (FOLDER / "tokens.css").read_text(encoding="utf-8")
 MARK = "/* Row 1313 block"
-BLOCK = RULES[RULES.index(MARK):]
+BLOCK = RULES[RULES.index(MARK):].split("\n/* Row ", 1)[0] + "\n"      # from its comment up to the next row comment, so stacked row blocks do not break the pin
 LINES = [
     '.glance[data-glance] { gap: 0; }',
     '.glance[data-glance] .fig { border: 0; border-radius: 0; background: none; }',
@@ -36,8 +37,8 @@ LINES = [
     '.mv-txt > span { display: none; }',
     '.msv-sw .msv-b + .msv-b, .mv-txt button:not(:first-of-type) { border-left: 1px solid var(--heading); }',
     '.msv-sw .msv-b[aria-current="true"], .mv-txt button[aria-current="true"] { background: var(--heading); color: var(--surface); }',
-    '.hdr-project, .hdr-project > span, .top-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
-    '@media screen { .frame.report:not(.asat-frame) { background: transparent; border: 0; box-shadow: none; } }',
+    '.hdr-project, .hdr-project > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
+    '@media screen { #report.frame.report:not(.asat-frame) { background: transparent; border: 0; box-shadow: none; } }',
     '@media (max-width: 900px) {',
     '  html:has(.top-hdr) { --topbar: 103px; --bar-min: 103px; }',
     '  .top-hdr { display: flex; flex-wrap: nowrap; align-items: center; gap: 12px; padding: 10px 20px; height: 103px; }',
@@ -77,7 +78,7 @@ class Cards(unittest.TestCase):
     def test_cards_has_none_of_the_block(self):
         cards = page.page_html(branding=page.NO_BRAND)
         self.assertNotIn('id="theme"', cards)
-        for needle in (".glance[data-glance] .fig::after", "--topbar: 103px", ".msv-sw .msv-b[aria-current", ".frame.report:not(.asat-frame)"):
+        for needle in (".glance[data-glance] .fig::after", "--topbar: 103px", ".msv-sw .msv-b[aria-current", "#report.frame.report:not(.asat-frame)"):
             self.assertNotIn(needle, cards)
         self.assertEqual(cards, page.page_html(branding=page.NO_BRAND, theme="not-a-theme"))
         self.assertEqual(page.page_html(branding=page.NO_BRAND, view=True), page.page_html(branding=page.NO_BRAND, view=True, theme=None))
@@ -102,7 +103,9 @@ PROBE = """(() => { const q = (s) => document.querySelector(s), qa = (s) => [...
   const rgb = (c) => c.match(/[\\d.]+/g).slice(0, 3).map(Number);
   const lum = ([r, g, b]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
   const ratio = (a, b) => { const x = lum(rgb(a)), y = lum(rgb(b)); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
-  const under = (e) => { for (; e; e = e.parentElement) { const c = cs(e, 'backgroundColor'); if (!/rgba\\(.*, 0\\)|transparent/.test(c)) return c; } return cs(document.body, 'backgroundColor'); };
+  const rgba = (c) => { const m = c.match(/[\\d.]+/g).map(Number); return [m[0], m[1], m[2], m.length > 3 ? m[3] : 1]; };
+  const under = (e) => { const layers = []; for (; e; e = e.parentElement) { const c = rgba(cs(e, 'backgroundColor')); if (c[3] > 0) { layers.push(c); if (c[3] >= 1) break; } }
+    let acc = [255, 255, 255]; for (const c of layers.reverse()) acc = acc.map((v, i) => i < 3 ? c[i] * c[3] + v * (1 - c[3]) : 1); return 'rgb(' + acc.slice(0, 3).map((v) => Math.round(v)).join(', ') + ')'; };      // translucent layers (a band at .72 white) are composited over what is behind them, from the back, up to the first opaque one
   const R = (e) => e.getBoundingClientRect(), tops = (sel) => qa(sel).map((e) => Math.round(R(e).top)), bar = q('.top-hdr');
   const figs = qa('.glance[data-glance] .fig'), cells = qa('.glance[data-glance] > .tcell');
   const sw = qa('.msv-sw .msv-b'), sc = qa('.mv-txt button'), head = q('.sec-head'), sech = q('.sec-h');
@@ -116,13 +119,13 @@ PROBE = """(() => { const q = (s) => document.querySelector(s), qa = (s) => [...
     cells: cells.map((e) => ({left: Math.round(R(e).left), top: Math.round(R(e).top), bl: cs(e, 'borderLeftWidth'), bb: cs(e, 'borderBottomWidth'), health: e.classList.contains('health'), line: cs(e, 'borderLeftColor')})),
     lineSoft: cv('--line-soft'),
     sech: {size: cs(sech, 'fontSize'), weight: cs(sech, 'fontWeight'), family: cs(sech, 'fontFamily'), color: cs(sech, 'color'), ratio: ratio(cs(sech, 'color'), under(sech))},
-    num: {size: cs(head, 'fontSize', '::before'), weight: cs(head, 'fontWeight', '::before'), family: cs(head, 'fontFamily', '::before'), color: cs(head, 'color', '::before'), blue: cv('--brand-blue'), content: cs(head, 'content', '::before')},
+    num: {size: cs(head, 'fontSize', '::before'), weight: cs(head, 'fontWeight', '::before'), family: cs(head, 'fontFamily', '::before'), color: cs(head, 'color', '::before'), blue: cv('--brand-blue'), ratio: ratio(cs(head, 'color', '::before'), under(head)), content: cs(head, 'content', '::before')},
     bar: {h: R(bar).height, before: cs(bar, 'display', '::before'), bg: cs(bar, 'backgroundImage'), cssTopbar: cv('--topbar'), kids: tops('.top-hdr > *'), flex: cs(bar, 'display'), wrap: cs(bar, 'flexWrap'),
           nameH: R(q('.hdr-project')).height, nameLH: parseFloat(cs(q('.hdr-project'), 'lineHeight')), nameWS: cs(q('.hdr-project > span'), 'whiteSpace'), nameTO: cs(q('.hdr-project > span'), 'textOverflow'),
           nameClip: q('.hdr-project > span').scrollWidth > q('.hdr-project > span').clientWidth, tabsRight: R(q('.top-hdr .tabs')).right, endLeft: R(q('.top-hdr .hdr-end')).left, barRight: R(bar).right, nameText: q('.hdr-project').textContent,
           idRatio: ratio(cs(q('.hdr-project'), 'color'), under(bar))},
-    msvSw: sw.length ? {gap: cs(q('.msv-sw'), 'columnGap'), border: cs(q('.msv-sw'), 'borderTopWidth'), bc: cs(q('.msv-sw'), 'borderTopColor'), btns: seg(sw), ratios: sw.map((b) => ratio(cs(b, 'color'), cs(b, 'backgroundColor')))} : null,
-    scale: sc.length ? {gap: cs(q('.mv-txt'), 'columnGap'), btns: seg(sc), ratios: sc.map((b) => ratio(cs(b, 'color'), cs(b, 'backgroundColor'))), dots: qa('.mv-txt > span').map((e) => cs(e, 'display'))} : null,
+    msvSw: sw.length ? {edge: ratio(cs(sw.find((b) => b.getAttribute('aria-current') === 'true'), 'backgroundColor'), under(q('.msv-sw').parentElement)), ground: under(q('.msv-sw').parentElement), gap: cs(q('.msv-sw'), 'columnGap'), border: cs(q('.msv-sw'), 'borderTopWidth'), bc: cs(q('.msv-sw'), 'borderTopColor'), btns: seg(sw), ratios: sw.map((b) => ratio(cs(b, 'color'), cs(b, 'backgroundColor')))} : null,
+    scale: sc.length ? {edge: ratio(cs(sc.find((b) => b.getAttribute('aria-current') === 'true'), 'backgroundColor'), under(q('.mv-txt').parentElement)), gap: cs(q('.mv-txt'), 'columnGap'), btns: seg(sc), ratios: sc.map((b) => ratio(cs(b, 'color'), cs(b, 'backgroundColor'))), dots: qa('.mv-txt > span').map((e) => cs(e, 'display'))} : null,
   }; })()"""
 
 
@@ -150,6 +153,13 @@ class Classic(Setup):
                 p.js("document.documentElement.dataset.theme = 'dark'")
                 p.until("getComputedStyle(document.documentElement).getPropertyValue('--heading').trim().toUpperCase() === '#F2F5FB'", "dark applied")
             got = p.js(PROBE)
+            alpha = ".04" if dark else ".72"      # the odd-section bands of the stacked rows: translucent white over the page, composited, not read as solid
+            p.js("document.querySelectorAll('.secs > .sec').forEach((e) => e.style.setProperty('background', 'rgba(255, 255, 255, %s)', 'important'))" % alpha)      # set through the object model: the page's policy refuses a new style element
+            banded = p.js(PROBE)
+            got["banded"] = {"sech": banded["sech"]["ratio"], "num": banded["num"]["ratio"]}
+            got["others"] = p.js("""(() => { const out = {}; for (const [k, cls] of [['gantt', 'frame report gp'], ['milestones', 'frame milestones'], ['milestonesPub', 'frame milestones pub'], ['plain', 'frame']]) {
+                const e = document.createElement('section'); e.className = cls; document.body.appendChild(e); const c = getComputedStyle(e);
+                out[k] = [c.borderTopWidth, c.boxShadow === 'none' ? 'none' : 'shadow']; e.remove(); } return out; })()""")
             got["longname"] = self.long_name(p)
             return got
 
@@ -192,11 +202,20 @@ class Classic(Setup):
 
     def test_the_section_number_is_20px_montserrat_bold_in_the_brand_colour(self):
         for width, dark, g in self.cases():
-            self.assertGreaterEqual(g["sech"]["ratio"], 4.5, "heading text on its ground")
+            print("row 1313 heading contrast", width, "dark" if dark else "light", "%.2f" % g["sech"]["ratio"])
+            self.assertGreaterEqual(g["sech"]["ratio"], 4.5, "heading text on its composited ground")
+            self.assertGreaterEqual(g["num"]["ratio"], 3.0, "the section number (large bold text) on its composited ground")
             self.assertEqual((g["num"]["size"], g["num"]["weight"]), ("20px", "700"))
             self.assertTrue(g["num"]["family"].startswith("Montserrat"))
             self.assertEqual(g["num"]["color"], rgb_of(g["num"]["blue"]))
             self.assertNotEqual(g["num"]["content"], "none")
+
+    def test_the_heading_and_number_stay_readable_over_a_translucent_band(self):
+        for width, dark, g in self.cases():
+            print("row 1313 composited over a band", width, "dark" if dark else "light", "heading %.2f" % g["banded"]["sech"], "number %.2f" % g["banded"]["num"])
+            self.assertGreaterEqual(g["banded"]["sech"], 4.5)
+            self.assertGreaterEqual(g["banded"]["num"], 3.0)
+            self.assertNotAlmostEqual(g["banded"]["sech"], 1.0, delta=0.5, msg="a translucent band read as solid would give about 1")
 
     def test_the_top_bar_is_85_tall_at_1400_and_one_row_103_tall_at_900(self):
         for width, dark, g in self.cases():
@@ -235,15 +254,58 @@ class Classic(Setup):
                 for r in grp["ratios"]:
                     self.assertGreaterEqual(r, 4.5)
                 self.assertNotEqual(active[0]["bg"], [b for b in grp["btns"] if b["cur"] != "true"][0]["bg"])
+            for grp in (sw, sc):
+                self.assertGreaterEqual(grp["edge"], 3.0, "the dark fill against the page beside it, as a control edge")
+            print("row 1313 contrast", width, "dark" if dark else "light", "switch edge %.2f" % sw["edge"], "scale edge %.2f" % sc["edge"],
+                  "active text %.2f" % min(r for r, b in zip(sw["ratios"], sw["btns"]) if b["cur"] == "true"), "ground", sw["ground"])
             self.assertEqual(sw["border"], "1px")
             self.assertEqual(sw["bc"], rgb_of(g["heading"]))
             self.assertEqual(set(sc["dots"]), {"none"}, "the dots between scales are gone")
+
+    def test_only_the_dashboard_frame_goes_flat_the_gantt_page_the_milestones_frame_and_a_plain_frame_keep_their_card(self):
+        for width, dark, g in self.cases():
+            for k in ("gantt", "plain"):
+                self.assertEqual(g["others"][k], ["1px", "shadow"], k)
+            self.assertEqual(g["others"]["milestonesPub"], ["1px", "shadow"], "the published Milestones frame is not matched: it carries no report class")
+            self.assertEqual(g["others"]["milestones"][0], "0px", "the editor Milestones frame keeps the shell's own rule (frame.milestones:not(.pub), border 0); its Classic look is row 1315's")
 
     def test_the_report_frame_is_not_a_card(self):
         for width, dark, g in self.cases():
             f = g["frame"]
             self.assertIsNotNone(f)
             self.assertEqual((f["bg"], f["border"], f["shadow"]), ("rgba(0, 0, 0, 0)", "0px0px", "none"))
+
+
+class Published(PublishedFile, Setup):
+    theme = None      # set per case below
+    """Row 1239 still rules the published file: a long name wraps on the bar, in Classic as in Cards. Only the dashboard title is one line."""
+
+    def look(self, theme_name, width):
+        with self.store.con:
+            self.store.con.execute("UPDATE app_settings SET theme = ? WHERE id = 1", (theme_name,))
+        path = self.publish()
+        with chrome() as cdp:
+            p = self.draw(cdp, path, width)
+            p.until("!!document.querySelector('.top-file .top-name')", "the bar drew")
+            before = p.js("document.querySelector('.top-file').getBoundingClientRect().height")
+            p.js("document.querySelector('.top-name').textContent = 'A very long project name that goes on and on and on and on and on and on and on and on and on'")
+            got = p.js("""(() => { const b = document.querySelector('.top-file'), n = document.querySelector('.top-name'), c = getComputedStyle(n);
+              return {theme: !!document.getElementById('theme'), ws: c.whiteSpace, to: c.textOverflow, ov: c.overflow, bar: b.getBoundingClientRect().height,
+                      name: n.getBoundingClientRect().height, lh: parseFloat(c.lineHeight), clip: n.scrollWidth > n.clientWidth, wide: document.documentElement.scrollWidth <= window.innerWidth}; })()""")
+            got["before"] = before
+            return got
+
+    def test_the_published_title_still_wraps_in_classic_and_cards_at_1400_and_900(self):
+        for name, classic in (("classic", True), ("cards", False)):
+            for width in (1400, 900):
+                with self.subTest(theme=name, width=width):
+                    g = self.look(name, width)
+                    self.assertEqual(g["theme"], classic)
+                    self.assertEqual((g["ws"], g["to"], g["ov"]), ("normal", "clip", "visible"), "no nowrap, no ellipsis, no clipping")
+                    self.assertGreater(g["name"], g["lh"] * 1.5, "the 90 character name wraps to more than one line")
+                    self.assertFalse(g["clip"], "nothing is cut off")
+                    self.assertGreater(g["bar"], g["before"], "the bar grows with the wrapped name (row 1239)")
+                    self.assertTrue(g["wide"])
 
 
 def rgb_of(hex_colour):
