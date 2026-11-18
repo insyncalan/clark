@@ -36,3 +36,6 @@ h1, h2, h3 { font-weight: var(--weight-medium); }
 .btn.pri .spin { border-color: color-mix(in srgb, #04222A 30%, transparent); border-top-color: #04222A; }
 .btn.pri .pub-tick { background: #04222A; color: var(--pill-color); }
 .btn.pri.ok .pub-tick { background: var(--white); color: var(--status-green-text); }
+:root[data-theme=dark] .again:focus-visible, :root[data-theme=dark] .btn.primary:focus-visible, :root[data-theme=dark] .btn.pri:focus-visible { outline-color: var(--focus); }
+:root[data-theme=dark] .btn.pri.ok { color: #04222A; }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .again:focus-visible, :root[data-theme=auto] .btn.primary:focus-visible, :root[data-theme=auto] .btn.pri:focus-visible { outline-color: var(--focus); } :root[data-theme=auto] .btn.pri.ok { color: #04222A; } }

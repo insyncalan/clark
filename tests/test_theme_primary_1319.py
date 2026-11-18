@@ -46,7 +46,7 @@ class PrimaryPill(Computed):
                         for prop, val in want.items():
                             self.assertEqual(self.style(cdp, sid, sel, prop), val, f"{tag} {sel} {prop}")
                         cdp.js("document.querySelector(%r).focus()" % sel, sid)
-                        self.assertEqual(self.style(cdp, sid, sel, "outlineColor"), "rgb(91, 71, 216)", f"{tag} {sel}")
+                        self.assertEqual(self.style(cdp, sid, sel, "outlineColor"), "rgb(91, 71, 216)" if scheme == "light" else "rgb(143, 123, 255)", f"{tag} {sel}")
                         self.assertEqual(self.style(cdp, sid, sel, "outlineStyle"), "solid", f"{tag} {sel}")
                         self.assertEqual(self.style(cdp, sid, sel, "outlineWidth"), "2px", f"{tag} {sel}")
                         self.assertEqual(self.style(cdp, sid, sel, "outlineOffset"), "2px", f"{tag} {sel}")
@@ -66,11 +66,34 @@ class PrimaryPill(Computed):
                     self.assertEqual(self.style(cdp, sid, "#e-aoff", "opacity"), "0.55", tag)
                     self.assertEqual(self.style(cdp, sid, "#e-ok", "backgroundColor"), green[scheme], tag)
                     self.assertEqual(self.style(cdp, sid, "#e-ok", "backgroundImage"), "none", tag)
-                    self.assertEqual(self.style(cdp, sid, "#e-ok", "color"), "rgb(255, 255, 255)", tag)
+                    self.assertEqual(self.style(cdp, sid, "#e-ok", "color"), "rgb(255, 255, 255)" if scheme == "light" else "rgb(4, 34, 42)", tag)
                     self.assertEqual(self.style(cdp, sid, "#e-ok", "borderRadius"), "999px", tag)
                     self.assertEqual(self.style(cdp, sid, "#e-go .spin", "borderTopColor"), "rgb(4, 34, 42)", tag)
                     self.assertEqual(self.style(cdp, sid, "#e-tick .pub-tick", "backgroundColor"), "rgb(255, 255, 255)", tag)
                     self.assertEqual(self.style(cdp, sid, "#e-tick .pub-tick", "color"), green[scheme], tag)
+
+    def test_dark_ring_and_finished_text_are_fixed_and_light_is_as_proto(self):
+        html = page.page_html(branding=page.NO_BRAND, theme=NAME)
+        with chrome() as cdp:
+            for w in SIZES:
+                sid = self.classic(cdp, w, "dark", html)
+                for sel in PRIMARY:
+                    cdp.js("document.querySelector(%r).focus()" % sel, sid)
+                    ring = self.style(cdp, sid, sel, "outlineColor")
+                    self.assertEqual(ring, "rgb(143, 123, 255)", f"dark {w} {sel}")
+                    self.assertGreaterEqual(ratio(parse(ring), (14, 22, 32)), 3, f"dark {w} {sel}")
+                ok = self.style(cdp, sid, "#e-ok", "color")
+                self.assertEqual(ok, "rgb(4, 34, 42)", w)
+                self.assertGreaterEqual(ratio(parse(ok), parse(self.style(cdp, sid, "#e-ok", "backgroundColor"))), 8.8, w)
+                self.assertEqual(self.style(cdp, sid, "#e-tick .pub-tick", "backgroundColor"), "rgb(255, 255, 255)", w)
+                sid = self.classic(cdp, w, "light", html)
+                cdp.js("document.querySelector('#b2').focus()", sid)
+                self.assertEqual(self.style(cdp, sid, "#b2", "outlineColor"), "rgb(91, 71, 216)", f"light {w}")
+                self.assertEqual(self.style(cdp, sid, "#e-ok", "color"), "rgb(255, 255, 255)", f"light {w}")
+
+    def test_dark_rules_exist_for_dark_and_auto(self):
+        self.assertIn(":root[data-theme=dark] .btn.pri.ok { color: #04222A; }", BLOCK)
+        self.assertIn("@media (prefers-color-scheme: dark) { :root[data-theme=auto] .again:focus-visible, :root[data-theme=auto] .btn.primary:focus-visible, :root[data-theme=auto] .btn.pri:focus-visible { outline-color: var(--focus); } :root[data-theme=auto] .btn.pri.ok { color: #04222A; } }", BLOCK)
 
     def test_text_contrast_on_both_gradient_stops_and_the_ring(self):
         for stop in ((143, 242, 239), (56, 224, 238)):
@@ -108,7 +131,7 @@ class PrimaryPill(Computed):
         self.assertIn(".btn, .seg { border-radius: var(--radius); }", RULES)
         self.assertNotIn(".again, .btn.primary, .btn.pri { border-radius: var(--radius)", RULES)
         self.assertEqual(len(re.findall(r"^/\* Row 1319, primary buttons", RULES, re.M)), 1)
-        self.assertEqual(sorted(re.findall(r"#[0-9a-fA-F]{3,8}\b", BLOCK)), ["#04222A"] * 4 + ["#5B47D8", "#8FF2EF"])
+        self.assertEqual(sorted(re.findall(r"#[0-9a-fA-F]{3,8}\b", BLOCK)), ["#04222A"] * 6 + ["#5B47D8", "#8FF2EF"])
 
     def test_cards_keeps_its_own_primary_buttons(self):
         html = page.page_html(branding=page.NO_BRAND)
