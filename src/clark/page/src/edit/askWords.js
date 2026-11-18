@@ -20,6 +20,7 @@ export const FIRST_RUN_LINK = "Open the Asking card in Settings";
 export const CHECKING_LINE = "Checking whether you can ask…";
 export const READY_LINE = "Ready. Ask about this project.";
 export const MODEL_LINE = (name) => `Answering with ${name}.`;
+export const STANDING_LINE = "Standing instructions on.";   // #1292 S13, the mock-up's words with the full stop every line of the panel ends in
 export const PLACEHOLDER = "Ask a question about this project";
 export const SEND = "Ask";
 export const STOP = "Stop";
@@ -263,3 +264,32 @@ export const FIELD_NAMES = {
   headline: "Headline", standing: "Where it stands",      // a use case (issue 729): the words its editor uses
 };
 export const KIND_NAMES = { actions: "Action", decisions: "Decision", milestones: "Milestone", raid: "Risk or issue" };
+
+// Row 1292 (S12): the Draft beside the panel (mock-up image 09).
+export const DRAFT_TITLE = "Draft";
+export const DRAFT_HINT = "Edit it freely. Nothing is in the report yet.";
+export const DRAFT_CLOSE = "Close the draft";
+export const DRAFT_TEXT_LABEL = "Draft text";
+export const DRAFT_ADD = "Add to the report";
+export const DRAFT_COPY = "Copy";
+export const DRAFT_COPIED = "Draft copied.";
+export const DRAFT_COPY_FAILED = "The draft could not be copied. Select the text and copy it yourself.";
+export const DRAFT_MENU_LABEL = "Where the draft goes";
+export const DRAFT_READY = "Draft ready";
+export const DRAFT_READY_LINE = "Nothing is in the report yet.";
+export const DRAFT_OPEN = "Open the draft";
+export const DRAFT_EMPTY = "The draft is empty. Write something, or close it.";
+
+// #1292 S10: the slash menu. NEEDS RULING: the one-line hint under each command is a draft, to be ruled with the other new words (decision 25).
+export const SLASH_LABEL = "Commands";
+export const SLASH_NONE = "No command by that name";
+export const SLASH_HINT = {
+  check: "Check this report",
+  summary: "Summarise this week",
+  overdue: "What is overdue",
+  risks: "Which risks are red",
+  milestones: "The next milestone",
+  usecases: "Which use cases need attention",
+  history: "Earlier chats",
+  new: "Start a new chat",
+};
