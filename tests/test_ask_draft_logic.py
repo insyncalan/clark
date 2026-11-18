@@ -65,10 +65,21 @@ class ReadDraft(unittest.TestCase):
         self.assertEqual(d["sec"], "")
 
 
+    def test_text_the_cleaner_refuses_is_kept_as_plain_paragraphs(self):
+        padded = "x & y\nz\n\n<q>www" + " " * 200001      # too long as written, so cleanHtml refuses it; the blank padding is gone in paragraphs
+        d = call("readDraft", {"html": padded})
+        self.assertEqual(d["html"], "<p>x &amp; y<br>z</p><p>&lt;q&gt;www</p>")
+
+    def test_a_draft_too_long_for_a_field_is_no_draft_and_does_not_throw(self):
+        self.assertIsNone(call("readDraft", {"html": "<p>" + "w" * 200001 + "</p>", "title": "T"}))
+        self.assertIsNone(call("readDraft", {"html": "x\n\n" + "w" * 200001}))
+
+
 class Words(unittest.TestCase):
     def test_count(self):
         self.assertEqual(call("wordsIn", "<p>One two three.</p>"), 3)
         self.assertEqual(call("wordsIn", "<p>a</p><p>b c</p>"), 3)
+        self.assertEqual(call("wordsIn", "<p>a   b</p>"), 2)
         self.assertEqual(call("wordsIn", ""), 0)
         self.assertEqual(call("wordsIn", None), 0)
 
@@ -107,6 +118,10 @@ class Request(unittest.TestCase):
         r = call("request", {"kind": "replace", "id": "s1"}, "<p>New words</p>", "", SECTIONS)
         self.assertEqual(r["req"], {"op": "update", "id": "s1", "changes": {"body": "<p>New words</p>"}, "place": "report"})
         self.assertEqual(r["done"], "Draft put in Summary.")
+
+    def test_a_section_with_no_title_is_called_the_section_in_the_message(self):
+        r = call("request", {"kind": "replace", "id": "s4"}, "<p>New words</p>", "", SECTIONS)
+        self.assertEqual(r["done"], "Draft put in the section.")
 
     def test_add_is_one_new_text_section_with_its_body(self):
         r = call("request", {"kind": "add", "id": "", "after": "s1"}, "<p>New</p>", "This week's summary", SECTIONS)

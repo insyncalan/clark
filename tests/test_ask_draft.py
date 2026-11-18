@@ -104,6 +104,156 @@ class Draft(Panel):
             self.assertEqual(p.js("document.querySelector('#ask-draft') === null"), True)
 
 
+    # The sweep's killers: the parts of the sheet the first tests did not look at.
+    CLIP = ("window.__clip = null; window.ClipboardItem = function (o) { this.o = o; };"
+            "Object.defineProperty(navigator, 'clipboard', {configurable: true, value: {"
+            "write: async (items) => { window.__clip = {types: Object.keys(items[0].o), html: await items[0].o['text/html'].text(), plain: await items[0].o['text/plain'].text()}; },"
+            "writeText: async (t) => { window.__clip = {text: t}; } }});")
+    NOTE = "document.querySelector('#ask-draft-note').textContent"
+
+    def test_copy_puts_formatted_and_plain_text_on_the_clipboard_and_says_so(self):
+        with chrome() as cdp:
+            p = self.drafted(cdp)
+            p.js(self.CLIP)
+            p.js("document.querySelector('#ask-draft-copy').click()")
+            p.until("window.__clip !== null", "the clipboard was written")
+            self.assertEqual(p.js("window.__clip.types"), ["text/html", "text/plain"])
+            self.assertIn("<p>The pilot is on track.</p>", p.js("window.__clip.html"))
+            self.assertIn("The pilot is on track.", p.js("window.__clip.plain"))
+            self.assertNotIn("<p>", p.js("window.__clip.plain"))
+            p.until(self.NOTE + " === 'Draft copied.'", "the note says so")
+
+    def test_copy_without_formatted_clipboard_items_puts_the_plain_text(self):
+        with chrome() as cdp:
+            p = self.drafted(cdp)
+            p.js(self.CLIP + "window.ClipboardItem = undefined;")
+            p.js("document.querySelector('#ask-draft-copy').click()")
+            p.until("window.__clip !== null", "the plain text was written")
+            self.assertIn("The pilot is on track.", p.js("window.__clip.text"))
+            self.assertNotIn("<p>", p.js("window.__clip.text"))
+            p.until(self.NOTE + " === 'Draft copied.'", "the note says so")
+
+    def test_a_copy_that_fails_says_so(self):
+        with chrome() as cdp:
+            p = self.drafted(cdp)
+            p.js("Object.defineProperty(navigator, 'clipboard', {configurable: true, value: {write: async () => { throw new Error('no'); }, writeText: async () => { throw new Error('no'); }}});")
+            p.js("document.querySelector('#ask-draft-copy').click()")
+            p.until(self.NOTE + " === 'The draft could not be copied. Select the text and copy it yourself.'", "the note says it failed")
+
+    def test_the_add_button_opens_and_closes_the_menu_and_says_which(self):
+        with chrome() as cdp:
+            p = self.drafted(cdp)
+            self.assertEqual(p.js("document.querySelector('#ask-draft-add').getAttribute('aria-expanded')"), "false")
+            p.js("document.querySelector('#ask-draft-add').click()")
+            p.until("!!document.querySelector('#ask-draft-menu')", "opened")
+            self.assertEqual(p.js("document.querySelector('#ask-draft-add').getAttribute('aria-expanded')"), "true")
+            p.js("document.querySelector('#ask-draft-add').click()")
+            p.until("document.querySelector('#ask-draft-menu') === null", "a second press closes it")
+            self.assertEqual(p.js("document.querySelector('#ask-draft-add').getAttribute('aria-expanded')"), "false")
+
+    def test_the_menu_items_say_what_they_are(self):
+        with chrome() as cdp:
+            p = self.drafted(cdp)
+            p.js("document.querySelector('#ask-draft-add').click()")
+            p.until("!!document.querySelector('#ask-draft-menu')", "opened")
+            self.assertTrue(p.js("document.querySelector('#ask-draft-menu [data-kind=replace]').getAttribute('data-id')"))
+            last = "[...document.querySelectorAll('#ask-draft-menu [role=menuitem]')].pop()"
+            self.assertEqual(p.js(last + ".getAttribute('data-kind')"), "add")
+            self.assertIsNone(p.js(last + ".getAttribute('data-id')"))
+            self.assertIsNone(p.js(last + ".getAttribute('data-after')"))
+
+    def test_esc_closes_the_menu_first_and_only_in_the_draft(self):
+        with chrome() as cdp:
+            p = self.drafted(cdp)
+            p.js("document.addEventListener('keydown', e => { if (e.key === 'Escape') window.__esc = (window.__esc || 0) + 1; })")
+            p.js("document.querySelector('#ask-draft-add').click()")
+            p.until("!!document.querySelector('#ask-draft-menu')", "opened")
+            p.js("document.querySelector('#ask-draft-menu [role=menuitem]').focus()")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("document.querySelector('#ask-draft-menu') === null", "Esc closed the menu")
+            self.assertTrue(p.js("!!document.querySelector('#ask-draft')"), "the draft stays")
+            self.assertEqual(p.js("document.activeElement.id"), "ask-draft-add", "focus goes back to the button")
+            time.sleep(0.8)
+            self.assertTrue(p.js("!!document.querySelector('#ask-panel')"), "the panel stays (a closing panel is gone after its animation)")
+            p.js("document.querySelector('#ask-draft-doc').focus()")
+            p.key("a", code="KeyA", vk=65)
+            self.assertTrue(p.js("!!document.querySelector('#ask-draft')"), "another key does not close it")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("document.querySelector('#ask-draft') === null", "Esc closed the draft")
+            self.assertEqual(p.js("document.activeElement.id"), "ask-box", "focus goes back to the question box")
+            time.sleep(0.8)
+            self.assertTrue(p.js("!!document.querySelector('#ask-panel')"), "the panel stays")
+            self.assertFalse(p.js("window.__esc || 0"), "the Esc that closed the menu and the draft went no further")
+
+    def test_a_new_draft_starts_with_the_menu_shut_and_the_note_empty(self):
+        with chrome() as cdp:
+            p = self.drafted(cdp)
+            p.js(self.CLIP)
+            p.js("document.querySelector('#ask-draft-copy').click()")
+            p.until(self.NOTE + " === 'Draft copied.'", "a note")
+            p.js("document.querySelector('#ask-draft-add').click()")
+            p.until("!!document.querySelector('#ask-draft-menu')", "opened")
+            self.ask(p, "And next week?")
+            p.until("document.querySelectorAll('[data-ask-draftcard]').length === 2", "the second answer is in")
+            p.until("document.querySelector('#ask-draft-menu') === null", "the menu is shut")
+            self.assertEqual(p.js(self.NOTE), "")
+
+    def test_a_refused_change_shuts_the_menu_and_keeps_the_draft(self):
+        with chrome() as cdp:
+            p = self.drafted(cdp)
+            before = p.js(SECTIONS)
+            p.js("const real = window.fetch; window.fetch = function (u) { if (/section-body|api\\/change/.test(String(u))) return Promise.reject(new TypeError('network down')); return real.apply(this, arguments); };")
+            p.js("document.querySelector('#ask-draft-add').click()")
+            p.until("!!document.querySelector('#ask-draft-menu')", "opened")
+            p.js("document.querySelector('#ask-draft-menu [data-kind=replace]').click()")
+            p.until("document.querySelector('#ask-draft-menu') === null", "the menu is shut")
+            time.sleep(0.3)
+            self.assertTrue(p.js("!!document.querySelector('#ask-draft')"), "the draft stays")
+            self.assertEqual(p.js(SECTIONS), before)
+
+    def test_text_too_long_to_save_says_the_draft_is_empty_and_stays(self):
+        with chrome() as cdp:
+            p = self.drafted(cdp)
+            p.js("document.querySelector('#ask-draft-doc').innerHTML = '<p>' + 'a'.repeat(200001) + '</p>'")
+            p.js("document.querySelector('#ask-draft-add').click()")
+            p.until("!!document.querySelector('#ask-draft-menu')", "opened")
+            p.js("[...document.querySelectorAll('#ask-draft-menu [role=menuitem]')].pop().click()")
+            p.until(self.NOTE + " === 'The draft is empty. Write something, or close it.'", "the note")
+            self.assertTrue(p.js("!!document.querySelector('#ask-draft')"))
+
+    def test_the_card_names_the_draft(self):
+        with chrome() as cdp:
+            p = self.drafted(cdp)
+            self.assertIn("This week's summary. Nothing is in the report yet.", p.js("document.querySelector('[data-ask-draftcard]').textContent"))
+
+    def test_a_new_chat_closes_the_draft(self):
+        with chrome() as cdp:
+            p = self.drafted(cdp)
+            p.until("!document.querySelector('#ask-new').disabled", "the chat is idle")
+            p.js("document.querySelector('#ask-new').click()")
+            p.until("document.querySelector('#ask-draft') === null", "the draft went with the chat")
+
+    def test_closing_the_panel_and_opening_it_again_shows_no_draft(self):
+        with chrome() as cdp:
+            p = self.drafted(cdp)
+            p.js("document.querySelector('#ask-close').click()")
+            p.until("document.querySelector('#ask-panel') === null", "closed")
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-panel')", "opened again")
+            time.sleep(0.3)
+            self.assertTrue(p.js("document.querySelector('#ask-draft') === null"))
+
+    def test_leaving_the_page_closes_the_draft(self):
+        with chrome() as cdp:
+            p = self.drafted(cdp)
+            p.js("location.hash = '#settings&p=ABC'")
+            p.until("document.querySelector('#ask-panel') === null", "leaving the page closed the panel")
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-panel')", "opened again")
+            time.sleep(0.3)
+            self.assertTrue(p.js("document.querySelector('#ask-draft') === null"))
+
+
 for _n in dir(Panel):      # the panel's own tests are not run again here (they use the plain stub)
     if _n.startswith("test_") and _n not in Draft.__dict__:
         setattr(Draft, _n, None)
