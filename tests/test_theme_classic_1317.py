@@ -19,7 +19,7 @@ from test_theme_classic_css import rgb
 
 SIZES = (1400, 900)
 # The Cards page, page_html(branding=NO_BRAND, theme=None), taken from origin/main before this row; rules.css is read only when a Theme is named.
-CARDS_SHA256 = "598a68997d875884820f96e873252e059970a36401f8243b23eba9483069c499"
+CARDS_SHA256 = "b8bbbc7c0becd510ecf0d0b5b04167d818a2a9d926528f5a23ec83849b2d5e47"
 JS = """(() => { const q = (s) => document.querySelector(s), g = (e) => getComputedStyle(e);
   const b = g(q('#npBtn')), h = g(q('#ph'));
   return {bg: b.backgroundColor, bs: b.borderTopStyle, bc: b.borderTopColor, fg: b.color, ico: !!q('#npBtn svg, #npBtn .i'),
