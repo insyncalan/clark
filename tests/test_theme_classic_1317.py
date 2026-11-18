@@ -24,6 +24,8 @@ SIZES = (1400, 900)
 PROBE = """(() => { const q = (s) => document.querySelector(s), g = (e, p) => getComputedStyle(e)[p];
   const tok = (v, p) => { const i = document.createElement('i'); i.style[p || 'color'] = v; document.body.appendChild(i); const r = getComputedStyle(i)[p || 'color']; i.remove(); return r; };
   const bar = q('.set-bar'), cur = q('.set-chip[aria-current]'), name = q('.set-group-name'), card = q('.set-cards .frame'), th = q('#projects-table th');
+  const mc = q('#projects-table tr[data-project="MOSS"] td.num'), rg = document.createRange(); rg.selectNodeContents(mc);
+  const lines = new Set([...rg.getClientRects()].map((r) => Math.round(r.top))).size, mtr = mc.parentElement;
   const btn = q('#npBtn'), w = btn.querySelector('.w'), wr = w.getBoundingClientRect(), br = btn.getBoundingClientRect();
   return { barBg: g(bar, 'backgroundColor'), grey100: tok('var(--grey-100)', 'backgroundColor'), grey50: tok('var(--grey-50)', 'backgroundColor'), barPos: g(bar, 'position'),
     barRadius: g(bar, 'borderTopLeftRadius'), groupCase: g(name, 'textTransform'), groupTrack: g(name, 'letterSpacing'), curRadius: [g(cur, 'borderTopLeftRadius'), g(cur, 'borderTopRightRadius')].join(' '),
@@ -32,6 +34,8 @@ PROBE = """(() => { const q = (s) => document.querySelector(s), g = (e, p) => ge
     btnBg: g(btn, 'backgroundColor'), btnColor: g(btn, 'color'), brand: tok('var(--brand-blue)', 'backgroundColor'), onBrand: tok('var(--text-on-brand)'),
     wMax: g(w, 'maxWidth'), wOpacity: g(w, 'opacity'), wWidth: Math.round(wr.width), btnW: Math.round(br.width), btnH: Math.round(br.height), word: w.textContent.trim(),
     icons: btn.querySelectorAll('svg, .i').length, iconW: Math.round((btn.querySelector('svg, .i') || {getBoundingClientRect: () => ({width: 0})}).getBoundingClientRect().width),
+    codeText: mc.textContent.trim(), codeLines: lines, codeW: Math.round(mc.getBoundingClientRect().width), rowH: Math.round(mtr.getBoundingClientRect().height),
+    codeWs: g(mc, 'whiteSpace'), codeWrap: g(mc, 'overflowWrap'),
     tint: tok('color-mix(in srgb, var(--grey-500) 15%, var(--grey-100))', 'backgroundColor') }; })()"""
 HOVER = """(() => { const c = [...document.querySelectorAll('.set-chip:not([aria-current])')][0]; const r = c.getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)]; })()"""
 HOVERED = "getComputedStyle([...document.querySelectorAll('.set-chip:not([aria-current])')][0]).backgroundColor"
@@ -99,6 +103,12 @@ class RealSettings(unittest.TestCase):
             self.assertEqual(c["word"], "Add project", tag)
             self.assertGreater(c["btnW"], c["btnH"] * 2, tag + ": a wide button with its word, not a round +")
 
+    def test_classic_projects_code_cell_stays_on_one_line(self):
+        for tag, c in self.each(NAME):
+            self.assertEqual(c["codeText"], "MOSS", tag)
+            self.assertEqual(c["codeLines"], 1, tag + f": the Code cell MOSS is one line, not broken (cell {c['codeW']} px, row {c['rowH']} px)")
+            self.assertEqual((c["codeWs"], c["codeWrap"]), ("nowrap", "normal"), tag)
+
     def test_cards_keeps_its_own_settings_look(self):
         for tag, c in self.each(None):
             self.assertEqual(c["groupCase"], "uppercase", tag)
@@ -107,6 +117,7 @@ class RealSettings(unittest.TestCase):
             self.assertNotEqual(c["barBg"], c["grey100"], tag)
             self.assertNotEqual(c["thBorderTop"], "0px", tag + ": Cards keeps the divider")
             self.assertNotEqual(c["btnBg"], c["brand"], tag + ": Cards keeps the dashed Add")
+            self.assertEqual((c["codeWs"], c["codeWrap"]), ("normal", "anywhere"), tag + ": Cards Code cell unchanged")
 
     def test_the_cards_page_is_byte_for_byte_what_it_was(self):
         html = page.page_html(branding=page.NO_BRAND, theme=None)
