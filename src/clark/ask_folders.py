@@ -5,6 +5,7 @@ The page sends {project, action: "choose" | "remove", path} ("choose" opens the 
 Every change is one store step, so it is one entry in the history and one Undo. The folder list is the store's `source_folders`
 table; the store's own rule (reach.never_inside) is the last check, this module's checks come first and say why in plain words.
 """
+import json
 import os
 import re
 import threading
@@ -17,6 +18,7 @@ from clark.store import Invalid, open_store
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
 PATH_LIMIT = 1000
 MAX_FOLDERS = 20
+SHARED_FILE = "ask_folders_all.json"      # row 1294: the folders for all projects, kept beside the data (a list of full paths, in the order they were added)
 ACTIONS = ("add", "remove", "undo", "choose")
 PICK_PROMPT = "Choose a folder asking may read"
 WIDE_PLACES = ("/Volumes", "/private/var", "/var", "/private/var/folders", "/private/tmp", "/tmp")   # other disks, and the system's working files (a teammate: LOW)
@@ -46,6 +48,7 @@ MESSAGES = {
     "cant_save": "That folder could not be saved. Try Choose folder again; if it keeps happening, close clark and start it again. Nothing was changed.",
     "added": "Added. Asking may now read the files in that folder.",
     "already": "That folder is already in the list.",
+    "all_too_many": "That is as many folders for all projects as asking can have. Remove one first. Nothing was changed.",
     "removed": "Removed. Asking no longer reads that folder.",
     "undone": "Undone.",
 }
@@ -58,6 +61,16 @@ def same_folder(a, b):
         return os.path.samefile(str(a), str(b))
     except (OSError, ValueError, TypeError):
         return False
+
+
+def shared_folders(data_dir):
+    """The folders for all projects (row 1294): read in every project and counted towards each project's MAX_FOLDERS. [] when none are set or the
+    file can't be read (it never fails open: a folder not listed is not read)."""
+    try:
+        got = json.loads((Path(data_dir) / SHARED_FILE).read_text(encoding="utf-8"))
+    except (OSError, ValueError, TypeError):
+        return []
+    return [p for p in got if isinstance(p, str) and p.startswith("/")] if isinstance(got, list) else []
 
 
 def odd_character(c):
@@ -99,7 +112,7 @@ class AskFolders:
             try:
                 if store.read("projects", ref=code) is None:
                     return 404, self.fail("project_not_found")
-                return 200, {"ok": True, "folders": self.listed(store, code)}
+                return 200, {"ok": True, "folders": self.listed(store, code), "shared": shared_folders(self.data_dir)}
             finally:
                 store.close()
 
@@ -146,6 +159,68 @@ class AskFolders:
             finally:
                 store.close()
 
+    # ----- the folders for all projects (row 1294) -----
+    def read_all(self):
+        return 200, {"ok": True, "folders": shared_folders(self.data_dir)}
+
+    def save_shared(self, folders):
+        """One atomic write of the list; False when it can't be written. No folder on disk is touched."""
+        target = self.data_dir / SHARED_FILE
+        part = self.data_dir / (SHARED_FILE + ".part")
+        try:
+            part.write_text(json.dumps(folders), encoding="utf-8")
+            os.replace(part, target)
+        except OSError:
+            return False
+        return True
+
+    def change_all(self, body):
+        """{scope: "all", action: "add" | "remove" | "choose", path}: the same checks as a project's folder, then the list for all projects."""
+        if not isinstance(body, dict) or body.get("scope") != "all":
+            return 400, self.fail("bad_request")
+        action = body.get("action")
+        if action not in ("add", "remove", "choose"):
+            return 400, self.fail("bad_action")
+        need = {"scope", "action"} if action == "choose" else {"scope", "action", "path"}
+        if set(body) != need:
+            return 400, self.fail("bad_request")
+        asked = None if action == "choose" else body["path"]
+        if action != "choose" and (not isinstance(asked, str) or not asked or len(asked) > PATH_LIMIT or any(odd_character(c) for c in asked)):
+            return 400, self.fail("not_a_path")
+        with self.lock:
+            now = shared_folders(self.data_dir)
+            if action == "choose":
+                start = now[-1] if now else next(iter(self.onedrive_roots), None)
+                try:
+                    picked = self.choose_folder(PICK_PROMPT, start=start)
+                except platform.NotBuiltYet:
+                    return 409, self.fail("no_window", MESSAGES["no_window_docker" if platform.container_mode() else "no_window"])
+                except platform.PlatformError as e:
+                    return 409, self.fail("dialog_failed", platform.refusal_words(e, MESSAGES["dialog_failed"]))
+                if picked is None:
+                    return 200, {"ok": True, "folders": now}
+                asked = str(picked)
+                if not asked or len(asked) > PATH_LIMIT or any(odd_character(c) for c in asked):
+                    return 400, self.fail("not_a_path")
+                action = "add"
+            if action == "remove":
+                target = asked if asked in now else os.path.realpath(asked) if asked.startswith("/") else None
+                if target not in now:
+                    return 409, self.fail("not_in_list")
+                if not self.save_shared([p for p in now if p != target]):
+                    return 409, self.fail("cant_save")
+                return 200, {"ok": True, "folders": shared_folders(self.data_dir), "message": MESSAGES["removed"]}
+            real, why = self.checked(asked)
+            if why:
+                return (409 if why in ("not_a_folder", "closed_place") else 400), self.fail(why)
+            if any(same_folder(real, p) for p in now):
+                return 200, {"ok": True, "folders": now, "message": MESSAGES["already"]}
+            if len(now) >= MAX_FOLDERS:
+                return 409, self.fail("all_too_many")
+            if not self.save_shared([*now, real]):
+                return 409, self.fail("cant_save")
+            return 200, {"ok": True, "folders": shared_folders(self.data_dir), "message": MESSAGES["added"]}
+
     def checked(self, typed):
         """(real path, None) for a folder asking may read, else (None, the refusal's code)."""
         if not typed.startswith("/"):
@@ -184,7 +259,10 @@ class AskFolders:
         now = self.listed(store, code)
         if any(same_folder(real, p) for p in now):           # the same folder however it is spelt (case, composed accents)
             return 200, {"ok": True, "folders": now, "message": MESSAGES["already"]}
-        if len(now) >= MAX_FOLDERS:
+        shared = shared_folders(self.data_dir)
+        if any(same_folder(real, p) for p in shared):        # already read in every project
+            return 200, {"ok": True, "folders": now, "message": MESSAGES["already"]}
+        if len(now) + len(shared) >= MAX_FOLDERS:            # the folders for all projects count towards the project's 20
             return 409, self.fail("too_many")
         order = len(now)
         step = self.save(store, lambda st: st.create("source_folders", {"project": code, "path": real, "sort_order": order}))
