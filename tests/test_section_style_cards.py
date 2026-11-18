@@ -164,7 +164,7 @@ class Cards(Base):
                 p.key(key, code=key, vk=39 if key == "ArrowRight" else 37)
                 p.until(f"document.documentElement.dataset.density === '{want}'", f"{key} chose {want}, applied at once")
                 self.assertEqual(self.chosen(p), [want], "one choice")
-                self.assertEqual(p.js("document.activeElement.value"), want, "focus went with it")
+                p.until(f"document.activeElement.value === '{want}'", f"focus went with {key} to {want}")     # focus follows the choice a tick later on a loaded box
             self.assertEqual(p.js("localStorage.getItem('clark.density')"), "comfortable")
             p.js("window.__before = 1; location.reload()")
             settled(p, "window.__before === undefined && !!document.querySelector('#profile-btn')", "reloaded")
