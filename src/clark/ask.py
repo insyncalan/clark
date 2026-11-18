@@ -198,18 +198,26 @@ def check_question(question, earlier=()):
         if not (isinstance(turn, (tuple, list)) and len(turn) == 2 and turn[0] in ROLES and isinstance(turn[1], str)):
             raise AskRefused(BAD_INPUT)
         turns.append((turn[0], turn[1]))
-    if len(turns) > MAX_EARLIER_TURNS or any(len(t) > MAX_TURN for _r, t in turns):
-        raise AskRefused(CHAT_TOO_LONG)
-    check_secrets(question, turns)
+    check_secrets(question, turns)       # the whole chat is screened first; a long or old turn is trimmed after, never refused (#1293 B)
     return turns
 
 
-def build_request(question, passages, earlier=()):
+def _trim(turns):
+    """(the newest MAX_EARLIER_TURNS turns, each cut to MAX_TURN characters, how many old turns went). Run after the secret screen."""
+    gone = max(0, len(turns) - MAX_EARLIER_TURNS)
+    return [(r, t[:MAX_TURN]) for r, t in turns[gone:]], gone
+
+
+_DAY_TEXT = re.compile(r"\d{2}-\d{2}-\d{4}")
+_PARTIAL_LINE = re.compile(r"[a-z][a-z ]{0,40}: \d{1,6} of \d{1,6} rows sent")
+
+
+def build_request(question, passages, earlier=(), today="", partial=()):
     """Build the one request text. `passages` is a sequence of `Passage` (or (label, text) pairs); the builder gives them the IDs
     P1, P2 ... in order. `earlier` is the chat so far as (role, text) pairs, role "user" or "assistant". Raises `AskRefused` (plain
     words) for an empty or over-long question, a password-looking string in what the person typed, a label that is a path, or more
     text than the budget. Text is carried exactly as given."""
-    turns = check_question(question, earlier)
+    turns, gone = _trim(check_question(question, earlier))
     chosen, kept, secret_out = [], [], 0
     for n, p in enumerate(passages or ()):
         label, text = (p.label, p.text) if isinstance(p, Passage) else (p[0], p[1]) if isinstance(p, (tuple, list)) and len(p) == 2 else (None, None)
@@ -225,21 +233,33 @@ def build_request(question, passages, earlier=()):
     if len(chosen) > MAX_PASSAGES or sum(len(t) for _l, t in chosen) > BUDGET:
         raise AskRefused(TOO_MUCH)
 
+    head = _head(today, partial)
     dropped = 0
     while True:                     # a long chat gives up its oldest turns first, so a narrow question isn't refused for them
-        body, ids, hidden = _assemble(question, turns[dropped:], chosen)
+        body, ids, hidden = _assemble(question, turns[dropped:], chosen, head)
         if len(body) <= MAX_REQUEST:
             break
         if dropped >= len(turns):
             raise AskRefused(TOO_MUCH)
         dropped += 1
-    return Request(text=body, question=question, passages=tuple(ids), hidden=hidden, dropped_turns=dropped, left_out_secret=secret_out, kept=tuple(kept))
+    return Request(text=body, question=question, passages=tuple(ids), hidden=hidden, dropped_turns=dropped + gone, left_out_secret=secret_out, kept=tuple(kept))
 
 
-def _assemble(question, turns, chosen):
+def _head(today, partial):
+    """The lines clark itself writes above the question (never from a passage): today's date, and how much of the rows were sent."""
+    lines = []
+    if isinstance(today, str) and _DAY_TEXT.fullmatch(today):
+        lines.append(f"Today is {today}.")    # [D] 1293 Q4: DD-MM-YYYY
+    lines += [x for x in partial or () if isinstance(x, str) and _PARTIAL_LINE.fullmatch(x)]
+    if any(_PARTIAL_LINE.fullmatch(x) for x in partial or () if isinstance(x, str)):
+        lines.append("Only some rows were sent, so give no totals or counts of the whole; say how many you read.")
+    return lines
+
+
+def _assemble(question, turns, chosen, head=()):
     """The request text, the (id, label) pairs and the hidden counts, for these turns and passages."""
     fence = _fence([question] + [t for _r, t in turns] + [t for _l, t in chosen] + [l for l, _t in chosen])
-    parts = ["QUESTION", fence, question, fence]       # no rules here: they are the system prompt, and hold the CITE and CHANGE lines
+    parts = list(head) + ([""] if head else []) + ["QUESTION", fence, question, fence]       # no rules here: they are the system prompt, and hold the CITE and CHANGE lines
     if turns:
         parts += ["", "EARLIER IN THIS CHAT"]
         for role, text in turns:
@@ -276,6 +296,8 @@ MAX_FLAGS = 25              # most flags of one kind that are kept; the rest bec
 MAX_CHECKED_LINE = 2000     # a longer line is not checked for a quoted title or an owner; the id and cite checks still cover it
 
 UNREADABLE = ("The answer came back in a form that couldn't be checked, so it is shown as text and nothing is offered to change. Ask again, or check it against the report yourself.")
+# [D] #1293 A: NEEDS RULING (wording): said when one CHANGE line could not be read and only that change was dropped.
+CHANGE_UNREADABLE = "A change the answer suggested could not be read, so it was left out."
 NOT_SENT = "The answer named a source that was not sent. Ignore that part."
 
 
@@ -479,20 +501,22 @@ def read_reply(text, sent=(), codes=(), exists=lambda ref: False, facts=None):
     if not isinstance(text, str):
         text = ""
     text = text[:MAX_REPLY]
-    answer, cites, changes, ok, disguised, draft = [], [], [], bool(text.strip()), False, None
+    answer, cites, changes, ok, disguised, dropped, draft = [], [], [], bool(text.strip()), False, 0, None
     for line in text.splitlines():
         word, rest, fake = _marker(line)
         if fake:
             disguised, ok = True, False
         elif word == "CITE":
-            ids = [p for p in re.split(r"[\s,;]+", rest.strip()) if p]
+            ids = [p.rstrip(".") for p in re.split(r"[\s,;]+", rest.strip().rstrip(".")) if p.rstrip(".")]
+            if [p.lower() for p in ids] == ["none"]:      # [D] #1293 A: "CITE: none" means no passage was used, not an unreadable reply
+                continue
             if not ids or not all(_CITE_ID.fullmatch(p) for p in ids):
                 ok = False
             cites.extend(i for i in ids if i not in cites)
         elif word == "CHANGE":
             change = read_change(rest)
             if change is None or len(changes) >= MAX_CHANGES:
-                ok = False
+                dropped += 1                      # [D] #1293 A: only the bad CHANGE is dropped; the answer and the other changes stand
             else:
                 changes.append(change)
         elif word == "DRAFT":
@@ -510,6 +534,8 @@ def read_reply(text, sent=(), codes=(), exists=lambda ref: False, facts=None):
                 flags.append(Flag("change_left_out", bad[0], f"A change the answer suggested named {bad[0]}, which isn't in this project, so it was left out."))
             else:
                 left.append(change)
+        if dropped:
+            flags.append(Flag("change_unreadable", "", CHANGE_UNREADABLE))
         return Reply("\n".join(answer).strip(), tuple(cites), tuple(left), True, _cap(flags), draft)
     kind = "disguised" if disguised else "unreadable"
     return Reply(text.strip(), (), (), False, _cap([Flag(kind, "", UNREADABLE)] + flags))

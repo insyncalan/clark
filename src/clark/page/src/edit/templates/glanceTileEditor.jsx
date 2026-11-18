@@ -42,12 +42,17 @@ export const Shape = ({ tone }) => <svg class={`tpl-shp tone-${TONE_CLASS[tone]}
 const focusAfter = (sel) => setTimeout(() => { const el = document.querySelector(sel); if (el) el.focus(); }, 0);
 const focusTile = (sid, key, part) => focusAfter(`[data-id="${sid}"] [data-tile="${key}"] ${part}`);
 const focusAdd = (sid) => focusAfter(`[data-id="${sid}"] .tileadd`);
-let saving = false;                                         // a Done is on its way: a second Done does nothing
+const saving = new Set();                                   // ids of the sections with a Done on its way: a second Done in the same section does nothing, another section is free
 const cut = (s, most) => Array.from(s).slice(0, most).join("");
 
+// Close the editor `e` was opened as. When another tile (or another section's tile) has its editor open by now, that one is not this one: it stays, with
+// what was typed in it, and the focus is left where the person is typing. Returns whether it closed.
 function close(e, how) {
+  const now = editor.value;
+  if (!now || now.sid !== e.sid || now.id !== e.id) return false;
   editor.value = null;
   if (how === "cancel") { note(WORDS.cancelled); if (e.isNew) focusAdd(e.sid); else focusTile(e.sid, e.id, "[data-tile-pencil]"); }
+  return true;
 }
 
 // Send one new body. `words` is the toast; resolves to the reply, or null when it failed (the toast says why).
@@ -65,7 +70,7 @@ export function tileActions(section, u) {
     },
     pencil: (tile) => {
       const e = editor.value;
-      if (e && e.id === tile.key) { close(e, "cancel"); return; }
+      if (e && e.id === tile.key && e.sid === section.id) { close(e, "cancel"); return; }      // the same tile of this section: a second press closes it (tile ids repeat across sections)
       const t = u.bespoke.find((x) => x.id === tile.key) || {};
       editor.value = { sid: section.id, id: tile.key, isNew: false, pop: false, tried: false,
         draft: { label: t.label || "", figure: t.figure || "", tag: t.tag || "", note: t.note || "", tone: t.tone || "neutral" } };
@@ -77,23 +82,24 @@ export function tileActions(section, u) {
     },
     done: async () => {
       const e = editor.value;
-      if (!e || saving) return;
+      if (!e || saving.has(section.id)) return;
       const d = e.draft;
       if (!d.label.trim()) { editor.value = { ...e, tried: true }; note(WORDS.notSaved); focusAfter(`[data-id="${section.id}"] [data-tile-editor] [data-f=label]`); return; }
       const old = u.bespoke.find((x) => x.id === e.id) || {};
       const tile = cleanTile({ id: e.id, label: d.label, figure: d.figure, tag: d.tag, note: d.note, tone: d.tone, hidden: old.hidden });
-      saving = true;
+      saving.add(section.id);
       let r;
-      try { r = await send(section, u, withChange(u, { put: tile }), e.isNew ? `Added: ${tile.label}` : WORDS.saved); } finally { saving = false; }
+      try { r = await send(section, u, withChange(u, { put: tile }), e.isNew ? `Added: ${tile.label}` : WORDS.saved); } finally { saving.delete(section.id); }
       if (r === null) return;                                  // it failed: the toast says why, the editor stays with what was typed (r false: nothing changed, close silently, no toast)
-      close(e, "done");
-      focusTile(section.id, e.id, "[data-tile-pencil]");
+      if (close(e, "done")) focusTile(section.id, e.id, "[data-tile-pencil]");
     },
     remove: async () => {
       const e = editor.value, t = e && u.bespoke.find((x) => x.id === e.id);
+      if (e && saving.has(section.id)) return;                  // its Done is on its way: Remove waits, so the tile is not stored after Remove
+      if (e && e.isNew && !t) { close(e, "removed"); note(`Removed: ${e.draft.label.trim() || WORDS.untitled}`); focusAdd(e.sid); return; }   // a draft was never stored: drop it with the Removed words, not the cancel ones
       if (!t) return;
       const r = await send(section, u, withChange(u, { drop: e.id }), `Removed: ${t.label}`);
-      if (r) { close(e, "removed"); focusAdd(section.id); }
+      if (r && close(e, "removed")) focusAdd(section.id);
     },
   };
 }
@@ -189,7 +195,7 @@ export function TileEditor({ tools }) {
       </div>
       <p class="live">{WORDS.sentence}</p>
       <div class="foot">
-        {e.isNew ? null : <button type="button" class="rm" data-remove onClick={() => tools.remove()}>{WORDS.remove}</button>}
+        <button type="button" class="rm" data-remove onClick={() => tools.remove()}>{WORDS.remove}</button>
         <button type="button" class="btn" data-cancel onClick={() => close(e, "cancel")}>{WORDS.cancel}</button>
         <button type="button" class="btn pri" data-done onClick={() => tools.done()}>{WORDS.done}</button>
       </div>

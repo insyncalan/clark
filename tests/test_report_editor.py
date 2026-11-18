@@ -8,6 +8,7 @@ page must say the plain words for it and never the server's own text. The non-br
 the published build names no route that changes anything) need no browser.
 """
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -107,7 +108,9 @@ class Pg:
         self.until(f"((document.querySelector('.toast-text') || {{}}).textContent || '') === {json.dumps(text)}", f"the toast says: {text}")
 
     def key(self, key, modifiers=0, code=None, vk=0):
-        for kind in ("keyDown", "keyUp"):
+        # Tab goes as rawKeyDown (no text, no char phase): on macOS a plain keyDown is turned into an editing command (insertTab)
+        # and the browser's own Tab focus step never runs. Linux does not translate it, and rawKeyDown is what keyDown becomes there anyway.
+        for kind in ("rawKeyDown" if key == "Tab" else "keyDown", "keyUp"):
             self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code or key, "windowsVirtualKeyCode": vk,
                                                       "modifiers": modifiers}, self.sid)
 
@@ -115,8 +118,14 @@ class Pg:
         self.cdp.call("Input.insertText", {"text": text}, self.sid)
 
     def mouse(self, kind, x, y, buttons=0):
+        if kind == "mouseMoved":
+            time.sleep(float(os.environ.get("CLARK_SLOW_CDP", "0")))     # Row 1277: a slow CDP (e.g. CLARK_SLOW_CDP=0.15) puts more than REST_MS between the steps of a drag
         self.cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left", "buttons": buttons,
                                                     "clickCount": 0 if kind == "mouseMoved" else 1}, self.sid)
+
+    def rested(self):
+        """300 ms after the last move: the pointer has rested longer than REST_MS (110), so the shown target is the one it is on (drag.js drops on state.shown, no last aim)."""
+        time.sleep(0.3)
 
     def box(self, selector):
         """[centre x, centre y, bottom] of the first element that matches."""
@@ -158,6 +167,7 @@ class Pg:
         if release:
             if drops:
                 self.until(self.SHOWN, "the drop target is shown before the release")
+                self.rested()                                   # Row 1277: the last move is more than REST_MS ago, so state.shown is the target under the pointer
             self.mouse("mouseReleased", x, y, 0)
             if drops:
                 self.stored(n0)

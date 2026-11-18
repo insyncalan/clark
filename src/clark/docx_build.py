@@ -726,12 +726,9 @@ def section_reportheadline(published, ctx, title, sec):
     return "".join(out)
 
 
-GLANCE_PER_LINE = 4                                       # row 1264: the template's default tiles on a line
-
-
 def section_glancetemplate(published, ctx, title, sec):
     """Row 1264 slice 7: the glance template as the View draws it: the tiles in the body's order (only the kept ones), the health tile
-    in its place or on a row of its own, each as label, figure, tag and note, four to a line. Nothing to show leaves the section out."""
+    in its place or on a row of its own, each as label, figure, tag and note, as many to a line as the View draws (3 or 4, 2 at half width). Nothing to show leaves the section out."""
     got = glance_print.read(published, sec)
     out = [_heading(title)]
     h = got["health_row"]
@@ -759,9 +756,10 @@ def section_glancetemplate(published, ctx, title, sec):
             if t["note"]:
                 body += para(run(t["note"], size=16), "TableText")
             cells.append((body, fill))
-        lines = [cells[i:i + GLANCE_PER_LINE] for i in range(0, len(cells), GLANCE_PER_LINE)]
-        lines = [r + [(para("", "TableText"), None)] * (GLANCE_PER_LINE - len(r)) for r in lines]
-        out.append(table(ctx, None, [1] * GLANCE_PER_LINE, lines))
+        per = got["per_line"]
+        lines = [cells[i:i + per] for i in range(0, len(cells), per)]
+        lines = [r + [(para("", "TableText"), None)] * (per - len(r)) for r in lines]
+        out.append(table(ctx, None, [1] * per, lines))
     return "".join(out) if (h or tiles) else ""
 
 

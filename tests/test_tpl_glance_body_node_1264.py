@@ -89,8 +89,13 @@ B1 = {"id": "bud", "label": "Fictional", "figure": "1"}
 
 class ReadBody(unittest.TestCase):
     def test_a_body_with_nothing_has_every_field_at_its_default(self):
-        self.assertEqual(read({}), {"v": 1, "health": {"shown": True, "own_row": False}, "order": ["health", "overdue", "risks", "decisions"],
+        self.assertEqual(read({}), {"v": 1, "health": {"shown": True, "own_row": False}, "per_row": 4, "order": ["health", "overdue", "risks", "decisions"],
                                     "builtin": {k: {"hidden": False, "outline": ""} for k in ("overdue", "risks", "decisions")}, "bespoke": []})
+
+    def test_a_per_row_that_is_not_3_or_4_reads_as_4_and_3_is_kept(self):
+        for wrong in (9, 5, 0, 2, "3", None, True):
+            self.assertEqual(read({"per_row": wrong})["per_row"], 4, repr(wrong))
+        self.assertEqual(read({"per_row": 3})["per_row"], 3)
 
     def test_a_never_written_body_starts_with_the_health_eye_off_and_a_written_one_without_the_field_shows_it(self):
         got = run_node("""[{body: ""}, {body: '{"v":1}'}, {body: "{}"}, {body: '{"v":1,"health":{"shown":true}}'}, {}, null, {content: {v: 1}}, {body: '{"v":1,"health":{"shown":false}}'}].map((s) => G.readBody(s).health.shown)""")

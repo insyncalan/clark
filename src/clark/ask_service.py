@@ -157,7 +157,7 @@ class AskService:
                 if row.get("archived"):
                     return 409, self.fail("project_archived")
                 try:
-                    data = ask_data.project_data(store, code, question, PROJECT_SHARE)
+                    data = ask_data.project_data(store, code, " ".join([question, *ask_data.ids_in_turns(earlier)]), PROJECT_SHARE)
                 except publish.PublishError:
                     return 404, self.fail("project_not_found")
                 folders = [r["path"] for r in store.read("source_folders", code) if r.get("project", code) == code]
@@ -170,7 +170,8 @@ class AskService:
         except Exception:                            # noqa: BLE001 a folder that fails in a way not foreseen sends nothing
             return 200, self.fail("folders_unreadable")
         try:
-            request = ask.build_request(question, tuple(data.passages) + tuple(found.passages), earlier)
+            request = ask.build_request(question, tuple(data.passages) + tuple(found.passages), earlier,
+                                        today=data.today, partial=ask_data.partial_lines(data.counts))
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         facts = data.facts

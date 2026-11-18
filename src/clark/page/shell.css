@@ -17,7 +17,7 @@ a { color: var(--status-blue-text); }
 .skip:focus, .skip:focus-visible { transform: none; outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .skip-cards { position: fixed; border: 0; cursor: pointer; font-family: inherit; }   /* item 1170: the Settings skip link is a button, and stays at the top of the window when the page has scrolled */
 #main:focus { outline: none; }   /* row 862: <main> takes focus from the skip link; it is a landing place, not a control */
-.top { position: sticky; top: 0; z-index: 30; height: var(--topbar); background: var(--brand-navy); color: var(--white); display: flex; align-items: center; gap: 18px; padding: 0 20px; }
+.top { position: sticky; top: 0; z-index: 30; height: auto; min-height: var(--bar-min, var(--topbar)); background: var(--brand-navy); color: var(--white); display: flex; align-items: center; gap: 18px; padding: 0 20px; }
 .logo { all: unset; display: inline-flex; align-items: center; cursor: pointer; }   /* a button since row 854: it goes Home */
 .logo:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 4px; border-radius: 6px; }
 .logo-icon { display: var(--logo-icon); width: 28px; height: 28px; margin-right: var(--space-2); background: center / contain no-repeat; }   /* the image is added by dev/tools/build_page.py */
@@ -365,10 +365,10 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fbtn.on { color: var(--status-blue-text); }
 .fbtn.on::after { content: ""; position: absolute; top: 4px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--brand-blue); }
 .factive.pub { margin: 14px 0 4px; }
-.factive.pub .fchip { padding: 2px 4px 2px 10px; }
-.factive.pub .fchip button { width: 22px; height: 22px; }
+.factive.pub .fchip { padding: 2px var(--space-1) 2px 9px; }
+.factive.pub .fchip button { width: 24px; height: 24px; }
 /* The one filter line: saved views above, then the line with its chips, its box and its suggestions, then the hint chips. */
-:root { --layer-list: 26; --dur-glide: 160ms; }   /* row 808: the layer of a list that floats over the page: over the drop-down menus (25), under the top bar (30) */
+:root { --layer-list: 26; --dur-glide: 160ms; --hpk-w: 380px; }   /* row 1298: the Help peek's width; the Feedback tag sits at its left edge (the item peek's width is dragged, so the tag reads it from peekState) */   /* row 808: the layer of a list that floats over the page: over the drop-down menus (25), under the top bar (30) */
 /* Item 955: the border every menu and floating list shares: grey-500 with a fifth of grey-700, so it is at least 3:1 against the page ground and against a card surface in light (3.4:1 and 3.7:1) and in dark (over 5:1). It was --border (grey-300), 1.46:1 to 2.09:1. It follows the theme because the two greys do. */
 :root { --menu-border: color-mix(in srgb, var(--grey-500), var(--grey-700) 20%); }
 .fline-wrap { position: relative; margin-top: var(--d-fline-top); }
@@ -426,9 +426,11 @@ html.vdragging, html.vdragging * { cursor: grabbing !important; user-select: non
 /* every field's placeholder reads at the muted text colour (the browser default grey is 3.1:1 on the dark surface) */
 input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1; }
 .fline input::placeholder { color: var(--text-muted); }
-.fchip { display: inline-flex; align-items: center; gap: 4px; padding: 0 2px 0 10px; min-height: 26px; border-radius: var(--radius-pill); background: var(--brand-blue-tint); color: var(--status-blue-text); font-size: var(--size-small); }
+.fchip { display: inline-flex; align-items: center; gap: 4px; padding: 0 var(--space-1) 0 9px; min-height: 25px; border-radius: 6px; background: var(--brand-blue-tint); color: var(--brand-blue); font-size: var(--size-small); }   /* item 1290: a rounded rectangle, 6px corner as in the approved mock-up (no token for 6px), in the loaded brand (text and cross take the brand colour) */
 .fchip.word { background: var(--grey-100); color: var(--text); }
-.fchip button { all: unset; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; cursor: pointer; }
+:root[data-theme=dark] .fchip:not(.word) { color: var(--brand-blue-strong); }   /* item 1290: in dark the brand blue is 4.18:1 on the tint, the strong blue 6.57:1 (cross follows the text) */
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .fchip:not(.word) { color: var(--brand-blue-strong); } }
+.fchip button { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 1px; background-clip: content-box; border-radius: var(--radius-sm); cursor: pointer; }   /* item 1290: drawn 22 px (the mock-up), hit box stays 24 px */
 .fchip button:hover { background: var(--grey-200); }
 .fchip button:focus-visible { outline: 2px solid var(--brand-blue); }
 .flist { position: absolute; z-index: var(--layer-list); left: 0; margin: 4px 0 0; padding: 6px 0; list-style: none; width: min(420px, 100%); max-height: 340px; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-small); }
@@ -512,6 +514,11 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1
 .ddmenu .who small { display: block; font-size: var(--size-small); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ddmenu .who-link { text-decoration: underline; color: var(--link) !important; max-width: 280px; }
 .ddmenu .lab { padding: 6px 14px; font-size: var(--size-small); color: var(--text-muted, var(--text)); }
+/* Row 1273 (menu answers, prototype wins): the Group by menu's head in capitals, items at body size with the tick before the icon, a wider panel. The words stay "Group by". */
+.ddmenu .lab.caps, .mh.caps { font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; font-weight: var(--weight-medium); }
+#viewMenuList { min-width: 14rem; }
+#viewMenuList [role="menuitemradio"] { display: flex; align-items: center; font-size: var(--size-body); }
+#viewMenuList [role="menuitemradio"] .ck { order: -1; }
 .ddmenu [role="menuitem"]:hover, .ddmenu [role="menuitem"]:focus-visible { background: var(--brand-blue-tint); color: var(--status-blue-text); }
 .ddmenu [role="menuitem"]:focus-visible, .ddmenu [role="menuitemradio"]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }   /* a menu item by Tab shows a ring, not only a pale fill */
 @media (prefers-reduced-motion: reduce) { .newb, .newb .w { transition: none; } }
@@ -824,9 +831,6 @@ body:not(.board-view) #sel-bar { position: sticky; top: calc(var(--topbar) + var
 .cpop .mi-note { flex-basis: 100%; order: 2; font-size: var(--size-caption); color: var(--text-muted); }
 .cpop [role="menuitemradio"][aria-checked="true"]::after { content: "✓"; margin-left: auto; padding-left: 14px; color: var(--status-blue-text); }
 .cpop .menu-item:focus-visible, .cpop button:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
-.cpop.rpick [role="group"] { display: flex; flex-direction: column; }   /* item 210: a risk's Priority picker, Impact then Likelihood */
-.cpop .rp-head { padding: 6px 12px 2px; font-size: var(--size-small); color: var(--text-muted); }
-.cpop.rpick [role="group"] + [role="group"] { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 2px; }
 .cowner { width: 260px; padding: 6px; }
 .cp-l { display: block; }
 .cp-in { box-sizing: border-box; width: 100%; min-height: 32px; padding: var(--space-1) var(--space-2); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
@@ -967,6 +971,7 @@ table.items tr[data-id]:focus-visible { outline: 2px solid var(--brand-blue); ou
 .bc-move .i { width: 16px; height: 16px; }
 .mh { padding: 6px 14px 2px; font-size: var(--size-small); color: var(--text-muted); }
 .ddmenu [role="menuitem"][aria-disabled="true"] { color: var(--text-muted); cursor: default; }
+.ddmenu [role="menuitem"][aria-disabled="true"][aria-current="true"]:hover { background: transparent; color: var(--text-muted); }      /* row 1273: the ticked line is where the card is, not a choice: the mouse over it gives no choice fill */
 .dpick { position: absolute; z-index: 26; top: 100%; left: 0; right: 0; margin-top: var(--space-1); padding: 10px var(--space-3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow); font-size: var(--size-small); }
 .dpick p { margin: 0 0 var(--space-2); }
 .dpick label { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--size-small); color: var(--text-muted); }
@@ -1182,7 +1187,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .tb-key { font: inherit; font-size: var(--size-small); padding: 1px 6px; border: 1px solid color-mix(in srgb, var(--white) 35%, transparent); border-radius: var(--radius-sm); }
 @media (max-width: 1100px) { .tb-ask { padding: 0 6px; border-color: transparent; } .tb-ask-w, .tb-key { display: none; } }   /* icon only below 1100 px, so nothing in the bar overlaps */
 /* the Help peek (item 645): the item peek's frame (.peek) below the top bar, so the "?" button stays in view; text only */
-.hpk { top: var(--topbar); width: 380px; min-width: 0; max-width: 92vw; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4) var(--space-5); color: var(--text); font-size: var(--size-small); line-height: var(--leading); }
+.hpk { top: var(--topbar); width: var(--hpk-w); min-width: 0; max-width: 92vw; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4) var(--space-5); color: var(--text); font-size: var(--size-small); line-height: var(--leading); }
 .hpk-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
 .hpk-title { margin: 0; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .hpk-line { margin: 0; font-size: var(--size-small); }
@@ -1417,9 +1422,9 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .set-bar { grid-column: 1; position: sticky; top: var(--topbar); z-index: 15; margin-top: var(--space-4); padding: var(--space-2) var(--space-1); background: var(--grey-50); max-height: calc(100vh - var(--topbar) - var(--space-4)); overflow-y: auto; }
 .set-nav { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
 .set-nav li { display: block; }
-.set-chip { all: unset; box-sizing: border-box; position: relative; display: flex; align-items: center; width: 100%; min-height: 36px; padding: 0 12px; border: 0; border-radius: 10px; background: transparent; color: var(--text); font-size: var(--size-body); line-height: 20px; cursor: pointer; }      /* item 1200: soft 36 px rows; no background transition: a theme switch must not leave a light chip for 120 ms (test_v020 reads the ground at once) */
+.set-chip { all: unset; box-sizing: border-box; position: relative; display: flex; align-items: center; width: 100%; min-height: var(--space-6); padding: 0 var(--space-3); border: 0; border-radius: 10px; background: transparent; color: var(--text); font-size: var(--size-body); line-height: 20px; cursor: pointer; }      /* item 1200: soft rows (row 1280: one space-6 high); no background transition: a theme switch must not leave a light chip for 120 ms (test_v020 reads the ground at once) */
 /* From 900 to 1099 px the list is the narrowest the grid allows (150 px), so the cards are wider at 900 (about 670 px, not 596) and a control keeps more than 420 px beside its label; the four section styles wrap two and two. */
-@media (min-width: 900px) and (max-width: 1099px) { .set-layout { grid-template-columns: 150px minmax(0, 1fr); } .set-nav { gap: 0; } .set-bar { margin-top: var(--space-1); padding-top: var(--space-1); } }      /* item 1177: at 900 the header is 129 px (two rows), so the sixteen links sit edge to edge (each keeps its 36 px, and the first keeps room for its focus ring) and the last one, Quit, is still inside a 900 px high window at the top of the page */
+@media (min-width: 900px) and (max-width: 1099px) { .set-layout { grid-template-columns: 150px minmax(0, 1fr); } .set-nav { gap: 0; } .set-bar { margin-top: var(--space-1); padding-top: var(--space-1); } }      /* item 1177: at 900 the header is 129 px (two rows), so the sixteen links sit edge to edge (each keeps its row height, and the first keeps room for its focus ring) and the last one, Quit, is still inside a 900 px high window at the top of the page */
 @media (max-width: 899px) {
   .set-layout { display: block; }
   .set-bar { position: sticky; padding: var(--space-2) 0; margin-top: var(--space-3); max-height: none; overflow-y: visible; box-shadow: 0 0 0 100vmax var(--grey-50); clip-path: inset(0 -100vmax); }
@@ -1428,16 +1433,17 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
   .set-nav { flex-direction: row; flex-wrap: wrap; gap: var(--space-2); }
   .set-chip { display: inline-flex; width: auto; border-radius: var(--radius-pill); }
 }
-.set-nav .plain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }      /* row 1024: a group of pages under its name */
-.set-group { margin-top: var(--space-3); }
+.set-nav .plain { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0; }      /* row 1024: a group of pages under its name */
+.set-nav .plain li { padding: 0; border-top: 0; }      /* row 1280: the shared list rule gives each li padding and a line; the pages of a group touch, with no line between them */
+.set-group { margin-top: var(--space-5); }      /* row 1280: room above a heading, so each group reads as a block */
 .set-group:first-child { margin-top: 0; }
-.set-group-name { display: block; padding: 0 12px var(--space-1); color: var(--text-muted, var(--text)); font-size: var(--size-small); font-weight: var(--weight-medium); }
+.set-group-name { display: block; padding: 0 var(--space-3) var(--space-1); color: var(--text-muted, var(--text)); font-size: var(--size-caption); font-weight: var(--weight-semibold); text-transform: uppercase; letter-spacing: var(--tracking-caps); cursor: default; }      /* row 1280: a heading is a label, not a link: smaller, muted, capitals, no line, never hovered or focused */
 .set-group-line { display: block; padding: 0 12px var(--space-1); font-size: var(--size-small); line-height: 1.35; }
 .set-advanced { margin-top: var(--space-5); padding-top: var(--space-3); border-top: 1px solid var(--grey-200, var(--grey-100)); }      /* set apart at the foot */
 .set-advanced .set-chip { color: var(--text-muted, var(--text)); }
 .set-chip:hover { background: var(--grey-100); }
 .set-chip[aria-current], .set-chip[aria-current]:hover { background: var(--brand-blue-tint); color: var(--status-blue-text); font-weight: var(--weight-medium); }
-.set-chip[aria-current]::before { content: ""; position: absolute; left: 0; top: 7px; bottom: 7px; width: 3px; border-radius: 3px; background: var(--brand-blue); }      /* item 1200: the violet marker on the card you are reading */
+.set-chip[aria-current]::before { content: ""; position: absolute; left: 0; top: var(--space-1); bottom: var(--space-1); width: 3px; border-radius: 3px; background: var(--brand-blue); }      /* item 1200: the violet marker on the card you are reading */
 .set-chip:focus-visible, .setting h2[tabindex="-1"]:focus-visible, .personal h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
 .setting, .personal { scroll-margin-top: calc(var(--topbar) + 16px); }
 /* The Settings cards (row 841): the prototype's card, compact: less padding, a smaller heading, a 14 px intro line and no shadow. Later than .frame and its 900 px rule, and more specific. */
@@ -1790,12 +1796,12 @@ html:not([data-density="comfortable"]) .sec.drop-before { box-shadow: 0 -3px 0 v
 /* Issue 1146: a published file has ONE slim bar, 68 px high and sticky: the logo, the project name with the report line under it, the tabs, the
    date, the place for the switcher icon (.top-slot, issue 1144) and the profile circle. The brand picture is a soft wash over its right 45 percent,
    faded in from the left (the ruling: about 42 percent strength); with no picture the bar is the navy gradient. The editor keeps its own bar. */
-html:has(.top-file) { --topbar: 85px; }      /* issue 1178: 25 percent taller than the 68 px of issue 1146 */
-.top-file { height: var(--topbar); }
+html:has(.top-file) { --topbar: 85px; --bar-min: 85px; }      /* issue 1178: 25 percent taller than the 68 px of issue 1146 */
+.top-file { height: auto; min-height: var(--bar-min); }
 .top-file::before { content: ""; position: absolute; inset: 0 0 0 55%; z-index: -1; pointer-events: none; background: var(--image-cover) center right / cover no-repeat; -webkit-mask-image: var(--image-fade); mask-image: var(--image-fade); opacity: .42; }
 .top-id { flex: 0 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
-.top-name { margin: 0; font-family: var(--font-head); letter-spacing: -.01em; font-size: var(--size-h2); line-height: 1.2; font-weight: var(--weight-medium); color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.top-line { margin: 0; flex-wrap: nowrap; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--size-caption); line-height: 1.2; }
+.top-name { margin: 0; font-family: var(--font-head); letter-spacing: -.01em; font-size: var(--size-h2); line-height: 1.2; font-weight: var(--weight-medium); color: var(--white); white-space: normal; overflow-wrap: anywhere; }      /* row 1239: the name is never cut with an ellipsis: a long one wraps and the bar grows (TopBar.jsx hands the bar's height to --topbar) */
+.top-line { margin: 0; flex-wrap: wrap; white-space: normal; overflow-wrap: anywhere; font-size: var(--size-caption); line-height: 1.2; }
 .top-file .tabs { height: auto; align-self: center; }
 .top-file .tab { padding-block: 8px 9px; line-height: 1.3; }      /* only as tall as its text, 8 px above and 9 px below, so the underline sits right under the label */
 .top-file .tab:focus-visible { outline-offset: 2px; }
@@ -1809,7 +1815,7 @@ html:has(.top-file) .frame.report { padding-top: 0; }
 html:has(.top-file) .frame.report .secs { margin-top: 0; }
 html:has(.top-file) main [id], html:has(.top-file) .sec { scroll-margin-top: calc(var(--topbar) + 16px); }      /* a jump to a section stops below the bar: the bar's height and some air (84 px) */
 @media (max-width: 900px) {      /* the ruling (A, provisional): two rows 125 px high, the tabs as a strip under, no date. The only place the narrow bar is set. */
-  html:has(.top-file) { --topbar: 125px; }
+  html:has(.top-file) { --topbar: 125px; --bar-min: 125px; }
   .top-file { flex-wrap: wrap; align-content: center; row-gap: 4px; padding-block: 4px; }
   .top-file .logo { width: 120px; height: 18px; }
   .top-file .logo-icon { width: 18px; height: 18px; }
@@ -2078,6 +2084,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-gt-tile.go { cursor: pointer; transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-state) var(--ease-out); }
 .tpl-gt-tile.go:hover { border-color: var(--brand-blue); box-shadow: var(--shadow); }
 .tpl-gt-tile.go:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.tpl-edit-glancetemplate .tile-empty { margin: 0; padding: var(--space-4); color: var(--text-muted); font-size: var(--size-small); }
 .tpl-gt .tile-empty { flex: 1 1 100%; margin: 0; padding: var(--space-4); color: var(--text-muted); font-size: var(--size-small); }
 .tpl-gt-dot { flex: none; width: var(--space-3); height: var(--space-3); background: var(--shape); }
 .tone-g .tpl-gt-dot { border-radius: 50%; }
@@ -2088,6 +2095,13 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-gt-k, .tpl-gt-note { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
 .tpl-gt-tile .tpl-gt-tag { color: var(--tag); }
 @media (max-width: 760px) { .tpl-gt-tile { flex-basis: 100%; } }
+/* Row 1264 slice 9: the layout. 4 tiles on a line (3 when the section says so), 2 at half width (the slot's two columns), the one breakpoint (760) gives 1.
+   Project health is one tile's place, or the whole row when the section says so. */
+.tpl-gt[data-cols="3"] { --cols: 3; }
+.slot-left .tpl-gt, .slot-right .tpl-gt { --cols: 2; }
+.tpl-gt-health { flex: 0 0 calc((100% - (var(--cols) - 1) * var(--space-3)) / var(--cols)); min-width: 0; box-sizing: border-box; display: flex; }
+.tpl-gt-health.own-row { flex-basis: 100%; }
+@media (max-width: 760px) { .tpl-gt-health { flex-basis: 100%; } }
 .tpl-callout-p:last-child { margin-bottom: 0; }
 .tpl-quote { margin: var(--space-2) 0; padding: var(--space-2) var(--space-4); border-radius: var(--radius); background: var(--grey-50); min-width: 0; overflow-wrap: anywhere; }
 .tpl-quote-q { margin: 0; font-size: var(--size-h3); line-height: 1.4; color: var(--heading); }
@@ -2981,7 +2995,7 @@ button.tpl-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 
 /* Item 1177: the editor's ONE slim sticky header (.top-hdr): the logo, the project name (a button that opens the project list), the line "Weekly report" and
    the week (a button that opens the calendar), the tabs, then search, ask clark and the profile circle. 85 px high at 1400 and 129 px at 900, set through the
    --topbar token so every offset that reads it follows. The published file keeps its own bar (.top-file, above). */
-html:has(.top-hdr) { --topbar: 85px; }
+html:has(.top-hdr) { --topbar: 85px; --bar-min: 85px; }
 .top-hdr { gap: 22px; padding: 10px 28px; }      /* row 1212: 10 px above and below, so the tabs (they stretch) end 10 px above the bottom edge: the underline sits 10 px up and the labels about 8 px higher than before, as in the option C reference */
 .top-hdr::before { content: ""; position: absolute; inset: 0 0 0 55%; z-index: -1; pointer-events: none; background: var(--image-cover) center right / cover no-repeat; -webkit-mask-image: var(--image-fade); mask-image: var(--image-fade); opacity: .42; }
 .top-hdr { isolation: isolate; }
@@ -2991,12 +3005,12 @@ html:has(.top-hdr) { --topbar: 85px; }
 .hdr-id { flex: 0 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
 .hdr-id .dd { display: block; min-width: 0; }
 .hdr-id > .hdr-h1 { all: unset; display: block; min-width: 0; }      /* the editor header's level-1 heading (Dashboard): it only carries the role, the button inside keeps its look */
-.hdr-project { all: unset; box-sizing: border-box; display: block; min-width: 0; max-width: 100%; margin: 0 -5px; padding: 0 5px; border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font-head); font-size: var(--size-h2); line-height: 1.2; font-weight: 800; letter-spacing: -.01em; color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hdr-project > span { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hdr-project { all: unset; box-sizing: border-box; display: block; min-width: 0; max-width: 100%; margin: 0 -5px; padding: 0 5px; border-radius: var(--radius-sm); cursor: pointer; font-family: var(--font-head); font-size: var(--size-h2); line-height: 1.2; font-weight: 800; letter-spacing: -.01em; color: var(--white); white-space: normal; overflow-wrap: anywhere; }      /* row 1239: whole, wrapped, never an ellipsis */
+.hdr-project > span { display: block; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
 .hdr-project.hdr-static { cursor: default; }
 .hdr-project:not(.hdr-static):hover, .hdr-project[aria-expanded="true"] { background: color-mix(in srgb, var(--white) 14%, transparent); text-decoration: underline dotted; text-decoration-thickness: 2px; text-underline-offset: 6px; }
 .hdr-project:focus-visible, .hdr-date:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
-.hdr-line { margin: 0; display: flex; align-items: baseline; gap: 10px; white-space: nowrap; font-size: var(--size-caption); line-height: 1.3; color: var(--white); }
+.hdr-line { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 10px; white-space: normal; font-size: var(--size-caption); line-height: 1.3; color: var(--white); }
 .hdr-kind { font-weight: var(--weight-medium); letter-spacing: .08em; text-transform: uppercase; color: var(--brand-cyan); }
 .hdr-dot::before { content: "\00b7"; opacity: .6; }
 .hdr-date { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 24px; margin: -4px -5px; padding: 0 5px; border-radius: var(--radius-sm); cursor: pointer; color: inherit; font-size: inherit; line-height: inherit; }
@@ -3007,14 +3021,14 @@ html:has(.top-hdr) { --topbar: 85px; }
 .top-hdr .tab:focus-visible { outline-offset: -4px; }
 .hdr-end { margin-left: 0; flex: none; display: flex; align-items: center; gap: 10px; }
 @media (max-width: 900px) {      /* two rows: the logo, the name with its line and the buttons on top, the tabs as a strip under */
-  html:has(.top-hdr) { --topbar: 129px; }
+  html:has(.top-hdr) { --topbar: 129px; --bar-min: 129px; }
   .top-hdr { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: 1fr auto; grid-template-areas: "logo id end" "tabs tabs tabs"; gap: 0 16px; padding: 22px 20px 0; align-items: center; }
   .top-hdr .logo { grid-area: logo; width: 120px; height: 24px; margin-block: -3px; }      /* row 1212: 24 px target; the picture stays the 18 px option C reference size */
   .top-hdr .logo-icon { width: 18px; height: 18px; }
   .top-hdr .logo .wm { font-size: var(--size-body); line-height: 18px; }
   .top-hdr .hdr-id { grid-area: id; }
-  .top-hdr .hdr-line { min-width: 0; }   /* item 1177: the week gives way (an ellipsis) so a 390 px window has no sideways page scroll */
-  .top-hdr .hdr-date { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .top-hdr .hdr-line { min-width: 0; }   /* item 1177: the line may shrink so a 390 px window has no sideways page scroll; row 1239: it wraps, never an ellipsis */
+  .top-hdr .hdr-date { min-width: 0; overflow-wrap: anywhere; }
   .top-hdr .hdr-end { grid-area: end; margin-left: 0; gap: 6px; }
   .top-hdr .tabs { grid-area: tabs; margin: 0 -20px; padding: 0 14px; border-top: 1px solid color-mix(in srgb, var(--white) 14%, transparent); overflow-x: auto; scrollbar-width: none; align-self: end; }
   .top-hdr .tabs::-webkit-scrollbar { display: none; }
