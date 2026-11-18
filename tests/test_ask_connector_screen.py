@@ -20,6 +20,15 @@ class Tools(unittest.TestCase):
                 words = n.lower().replace("-", "_").split("_")
                 self.assertFalse(any(b in words for b in bad), n)
 
+    def test_a_tool_of_another_server_with_an_allowed_name_is_not_allowed(self):
+        # Row 1306 (Stark's note): only mcp__<the part's own server>__<tool> passes; a prefix of any other server does not.
+        self.assertTrue(cs.tool_allowed("mcp__claude_ai_Microsoft_365__outlook_email_search"))
+        self.assertTrue(cs.tool_allowed("mcp__claude_ai_Todoist__find-tasks"))
+        for t in ("mcp__other_server__outlook_email_search", "mcp__claude_ai_Todoist__outlook_email_search",
+                  "mcp__claude_ai_Microsoft_365__find-tasks", "mcp__claude_ai_Microsoft_365_2__outlook_email_search"):
+            self.assertFalse(cs.tool_allowed(t), t)
+            self.assertIsNone(cs.part_of_tool(t), t)
+
     def test_writes_refused(self):
         for t in ("outlook_send_mail", "outlook_delete_event", "teams_send_chat_message", "sharepoint_delete_item",
                   "add-tasks", "outlook_create_draft", "Bash", "", None, 5):
@@ -150,7 +159,7 @@ class PlainStaysAccepted(unittest.TestCase):
             self.assertIn("Mail has hidden characters", cs.used_line([r]).text)
 
     def test_only_mcp_server_prefix(self):
-        self.assertTrue(cs.tool_allowed("mcp__srv__find-tasks"))
+        self.assertFalse(cs.tool_allowed("mcp__srv__find-tasks"), "row 1306: a server that is not the part's own is refused")
         self.assertTrue(cs.tool_allowed("mcp__claude_ai_Todoist__find-tasks", {"Todoist"}))
         for t in ("evil__outlook_email_search", "x__y__outlook_email_search", "a__outlook_email_search",
                   "mcp__outlook_email_search", "mcp____outlook_email_search", "mcp__srv__x__outlook_email_search",
