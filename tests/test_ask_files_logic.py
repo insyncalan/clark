@@ -69,6 +69,41 @@ class Limits(unittest.TestCase):
         self.assertEqual(got["names"], [])
         self.assertEqual(got["notes"], ["empty.txt is empty. Add one with something in it."])
 
+    # Killers (#1292 S14 mutation sweep)
+    def test_the_limit_sentence_is_said_once_however_many_files_are_over(self):
+        five = [("f%d.txt" % i, 10) for i in range(5)]
+        got = add(five, [("x.txt", 10), ("y.txt", 10), ("z.txt", 10)])
+        self.assertEqual(got["notes"], ["5 files at most for one question. Remove one first."])
+
+    def test_an_empty_file_does_not_stop_the_ones_after_it(self):
+        got = add([], [("empty.txt", 0), ("ok.txt", 5)])
+        self.assertEqual(got["names"], ["ok.txt"])
+        self.assertEqual(len(got["notes"]), 1)
+
+    def test_a_refused_kind_does_not_stop_the_ones_after_it(self):
+        got = add([], [("odd.exe", 5), ("ok.txt", 5)])
+        self.assertEqual(got["names"], ["ok.txt"])
+
+    def test_the_list_that_waits_is_not_changed_by_adding(self):
+        got = run_node("(function(){var cur=[{id:1,name:'a.txt',size:5}];var r=AF.addFiles(cur,[{name:'b.txt',size:5}]);return {kept:cur.length,now:r.files.length}})()")
+        self.assertEqual(got, {"kept": 1, "now": 2})
+
+    def test_the_bytes_are_sent_whole_in_base64_even_past_one_chunk(self):
+        import base64
+        raw = bytes((i * 7 + i // 251) % 256 for i in range(100000))          # three chunks of 0x8000 and a rest, every byte value
+        want = base64.b64encode(raw).decode()
+        if not shutil.which("node"):
+            self.skipTest("no node")
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "af.js"
+            done = esbuild.run(["--bundle", "--format=iife", "--global-name=AF", str(EDIT / "askFiles.js"), f"--outfile={out}"], capture_output=True, text=True)
+            self.assertEqual(done.returncode, 0, done.stderr)
+            script = Path(tmp) / "probe.js"
+            script.write_text(out.read_text(encoding="utf-8") + ";\nvar data=new Uint8Array(%s);AF.encodeFiles([{name:'x.bin',file:{arrayBuffer:function(){return Promise.resolve(data.buffer)}}}]).then(function(o){console.log(JSON.stringify(o))});" % json.dumps(list(raw)), encoding="utf-8")
+            ran = subprocess.run([shutil.which("node"), str(script)], capture_output=True, text=True)
+        self.assertEqual(ran.returncode, 0, ran.stderr)
+        self.assertEqual(json.loads(ran.stdout), [{"name": "x.bin", "data": want}])
+
 
 class Kinds(unittest.TestCase):
     def test_each_kind(self):

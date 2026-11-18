@@ -104,6 +104,73 @@ class Files(Base):
             for n in names:
                 self.assertNotEqual(n, "keep.txt")
 
+    # Killers (#1292 S14 mutation sweep)
+    def test_a_name_with_a_slash_in_it_is_refused(self):
+        status, got = self.question(files=[f("a/b.txt", b"x")])
+        self.assertEqual(status, 400, got)
+        self.assertEqual(self.sent(), [])
+
+    def test_a_secret_in_the_file_name_alone_is_refused_naming_the_file(self):
+        status, got = self.question(files=[f("password=Hunter2xyz99.txt", b"harmless words")])
+        self.assertEqual(status, 400, got)
+        self.assertEqual(self.sent(), [])
+        self.assertNotIn("Hunter2", got["message"].replace("password=Hunter2xyz99.txt", ""))
+
+    def test_a_kind_that_is_not_text_at_all_is_refused_in_the_same_words(self):
+        for name in ("a.exe", "noextension", "a.txt.exe", "a.txtx", "a.md.pdf"):
+            status, got = self.question(files=[f(name, b"x")])
+            self.assertEqual(status, 400, name)
+            self.assertIn("cannot be read yet", got["message"], name)
+        self.assertEqual(self.sent(), [])
+
+    def test_the_kind_is_judged_in_any_letter_case(self):
+        status, got = self.question(files=[f("NOTES.TXT", b"ZQ-UPPER-OK"), f("Plan.Md", b"x"), f("T.CsV", b"y")])
+        self.assertEqual(status, 200, got)
+        self.assertIn("ZQ-UPPER-OK", self.sent()[0])
+
+    def test_bytes_that_are_not_base64_are_refused_even_when_a_strict_reader_would_skip_the_stray_mark(self):
+        status, got = self.question(files=[{"name": "a.txt", "data": "e!A=="}])
+        self.assertEqual(status, 400, got)
+        self.assertIn("could not be read", got["message"])
+        self.assertEqual(self.sent(), [])
+
+    def test_a_huge_body_is_refused_for_its_size_before_it_is_decoded(self):
+        status, got = self.question(files=[{"name": "a.txt", "data": "!" * (14 * MB)}])
+        self.assertEqual(status, 400, got)
+        self.assertIn("over 10 MB", got["message"])
+
+    def test_exactly_ten_mb_is_not_refused_for_its_size(self):          # the rule itself (a 10 MB body through the whole route is too slow for a test)
+        from clark import ask, ask_files
+        (one,) = ask_files.passages([f("ten.txt", raw=b"\n" * (10 * MB))])
+        self.assertEqual(one.label, "ten.txt")
+        with self.assertRaises(ask.AskRefused) as caught:
+            ask_files.passages([f("ten.txt", raw=b"\n" * (10 * MB + 1))])
+        self.assertIn("over 10 MB", str(caught.exception))
+
+    def test_a_file_that_is_not_valid_utf8_is_still_read(self):
+        status, got = self.question(files=[f("latin.txt", raw=b"ZQ-LATIN caf\xe9 ok")])
+        self.assertEqual(status, 200, got)
+        self.assertIn("ZQ-LATIN", self.sent()[0])
+
+    def test_the_whole_text_of_a_file_is_sent_not_its_start(self):
+        status, got = self.question(files=[f("long.txt", raw=b"ordinary words here. " * 40 + b"ZQ-LAST-LINE")])
+        self.assertEqual(status, 200, got)
+        self.assertIn("ZQ-LAST-LINE", self.sent()[0])
+
+    def test_a_value_of_the_wrong_type_is_a_plain_refusal_not_a_crash(self):
+        for bad in (7, True, 1.5, [{"name": "a.txt", "data": 5}], [{"name": "a.txt", "data": None}]):
+            status, got = self.question(files=bad)
+            self.assertEqual(status, 400, bad)
+            self.assertEqual(got["code"], "refused", bad)
+        self.assertEqual(self.sent(), [])
+
+    def test_the_ask_route_takes_a_question_and_five_full_files(self):
+        from clark import ask_files, server
+        full = ask_files.FILE_MAX * (ask_files.FILE_BYTES * 4 // 3 + 8)          # five files of 10 MB, in base64
+        limit = server.ROUTE_BODY_LIMITS["/api/ask"]
+        self.assertGreaterEqual(limit, 128 * 1024 + full)
+        self.assertLess(limit, 128 * 1024 + full + 6 * MB)          # and not much more
+
 
 if __name__ == "__main__":
     unittest.main()

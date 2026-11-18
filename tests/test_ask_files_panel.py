@@ -8,6 +8,7 @@ chip and leaves the others, the files go in the question's request (name and bas
 that is not answered gives the chips back, and a drop shows the dashed edge and the drop line only while a file is over the panel.
 """
 import json
+import time
 import unittest
 
 from test_ask_panel import Stub
@@ -42,6 +43,13 @@ class Files(Base):
         p.until("!!document.querySelector('#ask-panel')", "the panel opened on /")
         p.until(SETTLE, "the panel is ready to take a question")
         return p
+
+    def asked(self):
+        """The ask requests the stub has seen; the bytes are read before the request goes, so give it a moment (no fixed sleep)."""
+        end = time.time() + 10
+        while time.time() < end and not [b for k, b in self.stub.calls if k == "ask"]:
+            time.sleep(0.05)
+        return [b for k, b in self.stub.calls if k == "ask"]
 
     def chips(self, p):
         return json.loads(p.js(CHIPS))
@@ -111,7 +119,7 @@ class Files(Base):
             self.stub.calls.clear()
             p.js("document.querySelector('#ask-send').click()")
             p.until("!document.querySelector('#ask-files')", "the chip left with the send")
-            asked = [b for k, b in self.stub.calls if k == "ask"]
+            asked = self.asked()
             self.assertEqual(asked[0]["files"], [{"name": "a.txt", "data": "YWFh"}])
 
     def test_a_question_with_no_files_sends_no_files_field(self):
@@ -122,7 +130,7 @@ class Files(Base):
             p.type("How is the plan?")
             p.js("document.querySelector('#ask-send').click()")
             p.until("document.querySelectorAll('.ask-turn.assistant').length>=1", "answered")
-            asked = [b for k, b in self.stub.calls if k == "ask"]
+            asked = self.asked()
             self.assertNotIn("files", asked[0])
 
     def test_the_drop_edge_shows_only_while_a_file_is_over(self):
@@ -140,6 +148,50 @@ class Files(Base):
             p.js(PICK % "[mk('a-very-long-name-for-a-file-that-keeps-going-and-going-and-going.txt',10)]")
             p.until("!!document.querySelector('#ask-files')", "a chip")
             self.assertTrue(p.js("(function(){var l=document.querySelector('#ask-files li').getBoundingClientRect(),b=document.querySelector('.ask-file-del').getBoundingClientRect(),a=document.querySelector('#ask-panel').getBoundingClientRect();return b.right<=a.right&&l.width>0})()"))
+
+    def test_while_asking_is_off_a_drop_adds_nothing(self):          # killer: the state check in addFiles
+        self.stub.enabled = False
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-panel') && !!document.querySelector('#ask-off')", "the off line")
+            p.js(DROP % "[mk('a.txt',100)]")
+            self.assertEqual(p.js("document.querySelectorAll('#ask-files li[data-file]').length"), 0)
+            self.assertEqual(p.js("document.querySelector('#ask-attach').disabled"), True)
+
+    def test_pasting_plain_text_is_left_alone(self):          # killer: only a paste that holds files is taken over
+        with chrome() as cdp:
+            p = self.open_panel(cdp)
+            got = p.js("(function(){var dt=new DataTransfer();dt.setData('text/plain','just words');var b=document.querySelector('#ask-box');"
+                       "var e=new ClipboardEvent('paste',{clipboardData:dt,bubbles:true,cancelable:true});b.dispatchEvent(e);return e.defaultPrevented})()")
+            self.assertEqual(got, False)
+            self.assertFalse(p.js("!!document.querySelector('#ask-files')"))
+
+    def test_the_picker_is_emptied_so_the_same_file_can_be_chosen_again(self):          # killer: the reset of the input
+        with chrome() as cdp:
+            p = self.open_panel(cdp)
+            p.js(PICK % "[mk('a.txt',10)]")
+            p.until("!!document.querySelector('#ask-files')", "a chip")
+            self.assertEqual(p.js("document.querySelector('#ask-file-input').files.length"), 0)
+
+    def test_the_keyboard_goes_back_to_the_box_after_a_file_is_added(self):          # killer: the focus after addFiles
+        with chrome() as cdp:
+            p = self.open_panel(cdp)
+            p.js("document.querySelector('#ask-attach').focus()")
+            p.js(PICK % "[mk('a.txt',10)]")
+            p.until("!!document.querySelector('#ask-files')", "a chip")
+            self.assertEqual(p.js("document.activeElement && document.activeElement.id"), "ask-box")
+
+    def test_removing_a_chip_clears_the_old_refusal_line(self):          # killer: the note after the bin
+        with chrome() as cdp:
+            p = self.open_panel(cdp)
+            p.js(PICK % "[mk('a.txt',10),mk('run.exe',10)]")
+            p.until("document.querySelectorAll('#ask-files li[data-file]').length===1", "one chip, one refusal")
+            self.assertIn("run.exe cannot be used.", p.js("document.querySelector('#ask-note').textContent"))
+            p.js("document.querySelector('.ask-file-del').click()")
+            p.until("!document.querySelector('#ask-files')", "the chip is gone")
+            self.assertEqual(p.js("document.querySelector('#ask-note').textContent"), "")
 
 
 if __name__ == "__main__":
