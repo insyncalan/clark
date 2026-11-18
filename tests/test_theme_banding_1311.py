@@ -19,7 +19,7 @@ FOLDER = ROOT / "src" / "clark" / "themes" / "prototype-2.0"
 TOKENS = (FOLDER / "tokens.css").read_text(encoding="utf-8")
 RULES = (FOLDER / "rules.css").read_text(encoding="utf-8")
 BRAND = (ROOT / "src" / "clark" / "brand" / "tokens.css").read_text(encoding="utf-8")
-SEL = ".secs > .sec:nth-child(odd):not(.is-hidden):not(.drag-slot)"
+SEL = ".secs > .sec:nth-child(odd of :not(.is-hidden)):not(.is-hidden):not(.drag-slot)"
 BLOCKS = {
     "light": r"^:root \{(.*?)^\}",
     "dark": r":root\[data-theme=dark\]\s*\{(.*?)\n\}",
@@ -110,7 +110,7 @@ class Banding(unittest.TestCase):
         self.assertEqual(rule(SEL, prefix=r"^@media print \{ "), ["background: none", "border-radius: 0"])
 
     def test_odd_visible_sections_only(self):
-        self.assertIn(":nth-child(odd)", SEL)
+        self.assertIn(":nth-child(odd of :not(.is-hidden))", SEL)
         self.assertIn(":not(.is-hidden)", SEL)
         self.assertIn(":not(.drag-slot)", SEL)
         self.assertNotIn(":nth-child(even)", RULES)
@@ -204,6 +204,22 @@ class RealColours(unittest.TestCase):
                             r = ratio(c, panel)
                             print(f"real {tag} {n} {r:.2f}")
                             self.assertGreaterEqual(r, 4.5, f"{tag} {n}")
+
+
+class HiddenSectionsKeepTheAlternation(unittest.TestCase):
+    """Row 1311 follow-up: the section numbers skip hidden sections, so the band must too (Edit draws hidden sections, dashed, in the list)."""
+
+    load = RealColours.load
+
+    def test_edit_with_hidden_sections_bands_the_odd_numbered_sections(self):
+        with chrome() as cdp:
+            for scheme in ("light", "dark"):
+                sid = self.load(cdp, 1400, scheme)
+                cdp.js("""(() => { document.documentElement.setAttribute('data-mode', 'edit');
+                    document.querySelector('.secs').innerHTML = ['sec', 'sec is-hidden', 'sec', 'sec', 'sec is-hidden', 'sec'].map((c) => '<div class="' + c + '"><div class="sec-head">T</div></div>').join(''); })()""", sid)
+                got = cdp.js("[...document.querySelectorAll('.secs > .sec')].map((e) => getComputedStyle(e).backgroundColor !== 'rgba(0, 0, 0, 0)')", sid)
+                # visible sections are numbered 1, 2, 3, 4: the 1st and 3rd are banded (DOM positions 0 and 3), never a hidden one
+                self.assertEqual(got, [True, False, False, True, False, False], scheme)
 
 
 if __name__ == "__main__":

@@ -96,9 +96,9 @@ RULE_LINES = [
         'html[data-mode="view"] .cover { display: none; }',
         'html[data-mode="view"] .sec { border-left: 2px solid var(--gutter-rule); padding-left: 20px; }',
         '@media print { html[data-mode="view"] .sec { border-left: 0; padding-left: 0; } }',
-        '/* Row 1311: every other visible section (the odd ones: the picture bands At a glance, the 1st) is a white panel on the page gradient and has no gutter rule. The served View leaves hidden sections out of the page, so the odd child is the odd visible section there; Edit draws them (dashed, never banded). */',
-        '.secs > .sec:nth-child(odd):not(.is-hidden):not(.drag-slot) { background: var(--sec-band-bg); border-left: 0; border-radius: var(--radius-lg); }',
-        '@media print { .secs > .sec:nth-child(odd):not(.is-hidden):not(.drag-slot) { background: none; border-radius: 0; } }',
+        '/* Row 1311: every other visible section (the odd-numbered ones, hidden sections do not count, as in the section numbers: the picture bands At a glance, the 1st) is a white panel on the page gradient and has no gutter rule. The served View leaves hidden sections out of the page, so the odd child is the odd visible section there; Edit draws them (dashed, never banded). */',
+        '.secs > .sec:nth-child(odd of :not(.is-hidden)):not(.is-hidden):not(.drag-slot) { background: var(--sec-band-bg); border-left: 0; border-radius: var(--radius-lg); }',
+        '@media print { .secs > .sec:nth-child(odd of :not(.is-hidden)):not(.is-hidden):not(.drag-slot) { background: none; border-radius: 0; } }',
     ]
 
 
