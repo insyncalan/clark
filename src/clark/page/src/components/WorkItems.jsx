@@ -24,7 +24,7 @@ import { itemRows } from "../stores/work.js";
 import { handing, ticks } from "../stores/handover.js";
 import { ItemIcon, iconWords } from "./ItemRows.jsx";                 // row 1145: the dashboard lists' tinted letter icon, alone, is the Status column
 import { clientPill } from "../logic/sectionRows.js";
-import { sortRows, dueCell, ownerOf, metaOf, isOpen, todayIso, showDate, KIND_WORDS } from "../workItems.js";
+import { sortRows, dueCell, ownerOf, metaOf, isOpen, todayIso, showDate, KIND_WORDS, labelsText } from "../workItems.js";
 import { defsOf, standardIds } from "../logic/tableColumns.js";
 import { applyFilters, chips, canClear, countText, clearAll, removeFilter, addPlan } from "../filters.js";
 import { Switches, FilterBar } from "./WorkFilters.jsx";
@@ -145,7 +145,7 @@ const labelOf = (id) => (defsOf("work").find((c) => c.id === id) || {}).label ||
 const EXTRA = {
   id: (r) => r.id, type: (r) => KIND_WORDS[r.kind] || "", workstream: (r) => r.workstream, milestone: (r) => r.milestone, usecase: (r) => r.uc,
   raised: (r) => { const d = r.raised || r.raised_on; return d ? showDate(d) : ""; }, closed: (r) => (r.closed ? showDate(r.closed) : ""),
-  latest: (r) => r.latest_update, wording: (r) => r.client_message,
+  labels: labelsText, latest: (r) => r.latest_update, wording: (r) => r.client_message,
 };
 const extraCell = (id, row) => { const t = String((EXTRA[id] || (() => ""))(row) || "").trim(); return t ? (id === "id" || id === "raised" || id === "closed" ? <span class="num">{t}</span> : t) : <span class="muted">{"—"}</span>; };
 const extras = (cols) => cols.filter((id) => !isStd(id));

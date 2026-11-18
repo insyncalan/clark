@@ -2,7 +2,7 @@
 // "Make Dashboard same width as work items"). The Work items list is WorkItems.jsx (#36).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { skeleton, reduced } from "../stores/motion.js";
-import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt, settingsPage, showSettings } from "../stores/report.js";
+import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt, settingsPage, settingsFeedbackShown, showSettings } from "../stores/report.js";
 import { milestoneRows, headLine, emptyHead, showDate, todayIso } from "../logic/milestones.js";
 
 import { MsBlock } from "./MsBlock.jsx";
@@ -145,6 +145,8 @@ function searchCards(root, query) {
     else { for (const r of rows) r.hidden = false; if (!show) show = hit(card); }
     card.hidden = !show;
   }
+  const fb = document.getElementById("feedback-h"), card = fb && fb.closest("section, .setting");
+  settingsFeedbackShown.value = !!card && root.contains(card) && !card.hidden;   // #1298: the Feedback tag stands aside while the search shows the Feedback card
 }
 
 function SettingsSearch({ onQuery }) {
@@ -157,7 +159,7 @@ function SettingsSearch({ onQuery }) {
     const seen = window.MutationObserver ? new MutationObserver(run) : null;
     if (seen) seen.observe(root, { childList: true, subtree: true });
     onQuery(q.trim() !== "");
-    return () => { if (seen) seen.disconnect(); };
+    return () => { if (seen) seen.disconnect(); settingsFeedbackShown.value = false; };
   }, [q]);
   return (
     <div class="set-search">
