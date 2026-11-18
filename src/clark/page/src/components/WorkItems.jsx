@@ -140,7 +140,7 @@ function useRowMotion(lay) {
 }
 
 // Row 1222: the columns beyond the five a table always had. Each is plain text from the row; a column with nothing to say is a muted dash.
-const STD = standardIds("work"), isStd = (id) => STD.includes(id);
+const STD = standardIds("work").filter((id) => id !== "id"), isStd = (id) => STD.includes(id);   // #1195: the Id is on by default in the page clark serves (the column menu) and drawn as an extra cell, its own blue column; a published file keeps its columns without it
 const labelOf = (id) => (defsOf("work").find((c) => c.id === id) || {}).label || id;
 const EXTRA = {
   id: (r) => r.id, type: (r) => KIND_WORDS[r.kind] || "", workstream: (r) => r.workstream, milestone: (r) => r.milestone, usecase: (r) => r.uc,
@@ -187,7 +187,7 @@ function Row({ row, today, Cell, Eye, stop, pos, size, group, motion, onMotionEn
       </td>
       {cols.includes("owner") ? <td class="c-owner" data-col="owner">{cell("owner", ownerOf(row.owner).text === "—" ? "none" : ownerOf(row.owner).text, <Owner name={row.owner} />)}</td> : null}
       {cols.includes("due") ? <td class="c-due" data-col="due">{cell("due", due.date === "—" ? "none" : due.date, <><span class="num">{due.date}</span>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}>{due.words}</span> : null}</>)}</td> : null}
-      {cols.includes("prio") ? <td class="c-prio" data-col="prio">{cell("priority", row.priority || "none", row.priority || <span class="muted">{"—"}</span>)}</td> : null}
+      {cols.includes("prio") ? <td class="c-prio" data-col="prio">{cell("priority", row.priority || "none", row.priority ? <span class={`wil-pr${row.priority === "Urgent" ? " u" : row.priority === "High" ? " h" : ""}`}>{row.priority}</span> : <span class="muted">{"—"}</span>)}</td> : null}
       {extras(cols).map((id) => <td key={id} class={`c-x c-x-${id}`} data-col={id} data-label={labelOf(id)}>{extraCell(id, row)}</td>)}
       {Eye ? <td class="c-eye"><Eye row={row} /></td> : null}
     </tr>

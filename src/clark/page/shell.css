@@ -2196,6 +2196,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .wil-pr { padding: 0 var(--space-2); border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
 .wil-pr.h { background: var(--tone-amber-tint); color: var(--tone-amber-text); }
 .wil-pr.u { background: var(--tone-red-tint); color: var(--tone-red-text); }
+table.items td.c-prio .wil-pr { padding: 0 var(--space-1); }      /* row 1195 S2: the pill in the live table's Priority cell (with the edit button's caret) keeps inside the 104 px column */
 .wil-table .due-l { display: block; font-size: var(--size-caption); color: var(--text-muted); }
 .wil-table .due-l.late { color: var(--status-red-text); }
 /* row 1268: an item the client eye has taken off is greyed, tile, title, owner, date, priority and ID (Edit only; View and a file list none). */
