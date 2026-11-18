@@ -289,7 +289,7 @@ class Dashboard(Base):
                     d.check("section", f"document.querySelector('[data-id=\"{ref}\"] [data-options]').click()", f"[data-id='{ref}'] .menu", 4)
                 d.button(".tgrip", "outline grip")
                 grips = d.js("document.querySelectorAll('.tgrip').length")
-                self.assertGreaterEqual(grips, 4, "the At a glance tiles are drawn")
+                self.assertGreaterEqual(grips, 3, "the At a glance tiles are drawn (a hidden tile is not drawn in Edit, row 1303)")
                 for n in range(grips):
                     d.check("outline", f"document.querySelectorAll('.tgrip')[{n}].dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))", ".tilemenu", 3)
                 d.button("#health-pill", "health pill")
