@@ -2245,6 +2245,12 @@ table.items td.c-prio .wil-pr { padding: 0 var(--space-1); }      /* row 1195 S2
   .wil-table .wil-c-status { width: 96px; }
   .wil-table .wil-c-priority { width: 72px; }
 }
+/* row 1193: at 1000 px and below the date and priority cells give their content room (less padding, the pill and the date may wrap), so nothing spills over the next cell */
+@media (max-width: 1000px) {
+  .wil-table td.wil-c-due, .wil-table td.wil-c-priority { padding-left: 4px; padding-right: 4px; white-space: normal; overflow-wrap: anywhere; }
+  .wil-table .wil-c-due { width: 104px; }
+  .wil-table .wil-c-priority { width: 80px; }
+}
 
 /* Pictures group (#96): Text and image, Image with caption, Image gallery, Headline band. View and the published file; tokens only. */
 .tpl-fig { margin: 0; min-width: 0; }

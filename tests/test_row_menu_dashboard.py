@@ -30,6 +30,7 @@ class DashboardRowMenu(unittest.TestCase):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
         fill(self.demo.store)
+        self.demo.plant_builtin_sections()      # the rows are in the built-in sections, which a new project no longer has (row 1193)
         self.s = Running(data_for=self.demo.store.data_for, page_html=lambda: testpage.html())
         self.addCleanup(self.s.close)
 
@@ -152,6 +153,7 @@ class DashboardRowWrites(board.Base):
 
     def setUp(self):
         super().setUp()
+        self.demo.plant_builtin_sections()      # the rows are in the built-in sections, which a new project no longer has (row 1193)
         self.s.httpd.draft_email = draft_email_feed.make(
             self.store.data_for, profile=lambda: {"name": "Sam Example", "own_domains": []}, clock=lambda: "2026-10-05 09:00",
             rules_for=lambda c: draft_email_feed.rules_from_inputs(publish.read_inputs(self.store, c)))

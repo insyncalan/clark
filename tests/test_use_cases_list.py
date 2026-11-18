@@ -180,6 +180,11 @@ class Tab(Setup):
 
 
 class Published(Setup):
+    def setUp(self):
+        super().setUp()
+        # a new project's report has Work items lists and the published file has no Work items tab for them (row 1193); the built-in sections bring it back
+        self.demo.plant_builtin_sections(project="ABC")
+
     def publish(self):
         out = tempfile.mkdtemp(prefix="clark-157a-")
         self.addCleanup(shutil.rmtree, out, ignore_errors=True)
