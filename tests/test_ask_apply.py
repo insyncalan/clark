@@ -14,6 +14,13 @@ from _paths import SRC
 from clark import ask, ask_apply, changes, history, store as store_module
 
 
+
+class FoldWords(unittest.TestCase):
+    def test_fold_of_nothing_is_empty_and_html_is_read_as_plain_text(self):          # #1293 A
+        self.assertEqual(ask_apply._fold(None), "")
+        self.assertEqual(ask_apply._fold("<p>Fix  THE   Plan</p>"), "fix the plan")
+
+
 class Base(unittest.TestCase):
     def setUp(self):
         self.demo = DemoStore()
@@ -175,6 +182,12 @@ class Forged(Base):
 
     def test_a_title_matches_however_it_is_spaced_or_cased(self):
         self.planned({"op": "change", "id": self.action, "current_title": "  draft THE cut-over   plan ", "status": "Closed"})
+
+    def test_a_title_the_editor_saved_with_html_matches_the_plain_words_the_model_was_shown(self):          # #1293 A
+        ref = self.demo.action(description="<p>Order the <b>test</b> kit</p>", owner="<p>Sam&nbsp;Lee</p>")
+        self.planned({"op": "change", "id": ref, "current_title": "Order the test kit", "current_owner": "Sam Lee", "status": "Closed"})
+        self.refused({"op": "change", "id": ref, "current_title": "Order the kit", "status": "Closed"}, "wrong_title")
+        self.refused({"op": "change", "id": ref, "current_owner": "Kit Moss", "status": "Closed"}, "wrong_owner")
 
     def test_an_unknown_id_is_refused(self):
         self.refused({"op": "change", "id": "ABC-A-099", "status": "Closed"}, "unknown_id")
