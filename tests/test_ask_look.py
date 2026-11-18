@@ -195,6 +195,7 @@ class Look(Base):
                     p.until("!document.querySelector('#ask-panel')", "a move to another page closes the panel")
                     p.key("/", code="Slash", vk=191)
                     p.until(SETTLE, "the panel is ready again")
+                    p.js("(function(){var n=document.querySelector('#ask-new');if(n&&!n.disabled)n.click();})()")
                     p.until(f"({pills}).indexOf('milestones are') > -1", f"{width} {theme}: milestone suggestions on the Milestones page")
                     self.assertNotEqual(p.js(pills), first)
                     p.js("location.hash = location.hash.replace(/^#[a-z]+/, '#work')")
@@ -252,10 +253,12 @@ class Look(Base):
                     self.check_measures(p, f"{width} {theme} dashboard suggestions")
 
     def pills_on(self, p, page):
-        """Open the panel afresh on a page (a move closes it and clears the chat) and return the suggestions drawn."""
+        """Open the panel afresh on a page (a move closes it and keeps the chat; a new chat is started) and return the suggestions drawn."""
         p.js(f"location.hash = location.hash.replace(/^#[a-z]+/, '#{page}')")
         p.until("!document.querySelector('#ask-panel')", f"a move to {page} closes the panel")
         p.key("/", code="Slash", vk=191)
+        # #1292 slice 8: a move of page keeps the chat, so a new chat is started to see the suggestions of the page
+        p.js("(function(){var n=document.querySelector('#ask-new');if(n&&!n.disabled)n.click();})()")
         p.until(SETTLE, f"the panel is ready on {page}")
         return p.js("[...document.querySelectorAll('#ask-pills button')].map(b => b.textContent)")
 
