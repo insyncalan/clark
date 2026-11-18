@@ -269,7 +269,7 @@ table.items th:first-child, table.items td:first-child { padding-left: var(--spa
 table.items .c-eye { width: 44px; white-space: nowrap; }
 table.items .c-owner { width: 170px; }
 table.items .c-due { width: 134px; }
-table.items .c-prio { width: 104px; }
+table.items .c-prio { width: 122px; }
 table.items .c-status { width: 76px; }      /* row 1145: the icon alone */
 table.items.arch .c-status { width: 152px; }      /* the archived list still reads its status in words */
 table.items tr.done .t { color: var(--text-muted); }
