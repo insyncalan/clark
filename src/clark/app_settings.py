@@ -274,8 +274,9 @@ class AppSettings:
         if kind != "undo" and (type(body["id"]) is not str or body["id"] not in CONNECTORS):
             return 400, self.fail("bad_connector")
         found = self.found_connectors()
-        if kind != "undo" and body["id"] not in [c for c, _l in found]:
-            return 400, self.fail("bad_connector")      # a connector that is not set up on this computer cannot be switched
+        turning_off = (kind == "global" and body["on"] is False) or (kind == "project" and body["off_here"] is True)
+        if kind != "undo" and not turning_off and body["id"] not in [c for c, _l in found]:
+            return 400, self.fail("bad_connector")      # a connector that is not set up on this computer cannot be turned On; an Off always works (also when discovery fails)
         with self.lock:
             try:
                 store = self.store()

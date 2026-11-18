@@ -266,7 +266,7 @@ class Update19To20(Rig):
         after = every_row(self.db, leave_out=("brand", "use_cases.owner", "use_cases.owner_id", "raid.latest_update", "milestones.latest_update", "decisions.priority", "decisions.latest_update", "app_settings.theme", "ask_instructions"))
         self.assertEqual([], after.pop("use_case_milestones"), "row 1107 (layout 24, kept in 25): the new table is there and empty")
         self.assertEqual([(1, 1, 14, 0, 0, "Gantt")], [r[:6] for r in after.pop("install_defaults")], "row 1300 (layout 30): the one row of Defaults values, at today's values")
-        self.assertEqual([("mail", 0), ("calendar", 0), ("teams", 0), ("sharepoint", 0), ("todoist", 0)], [r[:2] for r in after.pop("connector_switches")], "row 1306 (layout 32): five switches, all Off")
+        self.assertEqual([("mail", 0), ("calendar", 0), ("teams", 0), ("sharepoint", 0), ("todoist", 0)], [r[1:3] for r in after.pop("connector_switches")], "row 1306 (layout 32): five switches, all Off")
         self.assertEqual([], after.pop("project_connectors"), "row 1306 (layout 32): no project keeps anything yet")
         self.assertEqual(self.base, after, "every row of every table is kept (the new brand, owner and latest update columns apart)")
         for table in ("projects", "report_sections", "milestones", "use_cases", "actions", "raid", "decisions", "documents", "publications"):

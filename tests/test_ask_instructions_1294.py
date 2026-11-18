@@ -52,7 +52,7 @@ class Storing(Base):
     def test_a_new_file_has_neither_and_both_are_text(self):
         s = self.store()
         self.assertEqual((s.ask_instructions(), s.ask_instructions(CODE)), ("", ""))
-        self.assertEqual(st.SCHEMA_VERSION, 31)
+        self.assertGreaterEqual(st.SCHEMA_VERSION, 31)
         self.assertIn((31, st.migrate_ask_instructions), st.MIGRATIONS)
 
     def test_the_database_itself_refuses_more_than_4000_characters_in_either_table(self):

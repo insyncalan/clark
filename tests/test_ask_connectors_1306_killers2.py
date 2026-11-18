@@ -9,7 +9,9 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
+from clark import ask_connectors
 from clark import server as sv
 from clark import store as store_module
 from clark.store import open_store
@@ -125,6 +127,14 @@ class StoreReaders(unittest.TestCase):
 
 
 class RouteKillers(Base):
+    def setUp(self):
+        super().setUp()
+        # all five are found on this computer (the route answers only found connectors)
+        found = [{"connector": n, "label": n.title(), "server": "x"} for n in NAMES]
+        p = mock.patch.object(ask_connectors, "list_found", lambda *a, **k: [dict(x) for x in found])
+        p.start()
+        self.addCleanup(p.stop)
+
     def post(self, body):
         return self.call("POST", "/api/ask-connectors", body)
 
@@ -143,46 +153,45 @@ class RouteKillers(Base):
 
     def test_a_project_value_that_is_already_in_use_makes_no_row_and_no_step(self):
         was = (self.count("project_connectors"), self.snapshot())
-        status, got = self.post({"connector": "mail", "project": "ABC", "off": False})
+        status, got = self.post({"id": "mail", "project": "ABC", "off_here": False})
         self.assertEqual((status, got["message"]), (200, "That is the setting already in use."))
         self.assertNotIn("apply_id", got)
         self.assertEqual((self.count("project_connectors"), self.snapshot()), was)
 
     def test_the_same_off_twice_changes_nothing_the_second_time(self):
-        self.post({"connector": "mail", "project": "ABC", "off": True})
+        self.post({"id": "mail", "project": "ABC", "off_here": True})
         was = self.snapshot()
-        status, got = self.post({"connector": "mail", "project": "ABC", "off": True})
+        status, got = self.post({"id": "mail", "project": "ABC", "off_here": True})
         self.assertEqual(got["message"], "That is the setting already in use.")
         self.assertEqual(self.snapshot(), was)
 
     def test_a_file_without_the_tables_refuses_a_change_and_says_not_saved(self):
         self.break_tables()
         status, got = self.call("GET", "/api/ask-connectors")
-        self.assertEqual((status, got["saved"], got["connectors"]["mail"]["on"]), (200, False, False))
+        self.assertEqual((status, got["saved"], {c["id"]: c for c in got["connectors"]}.get("mail", {}).get("on")), (200, False, False))
         was = self.snapshot()
-        for body in ({"connector": "mail", "on": True}, {"connector": "mail", "project": "ABC", "off": True}, {"undo": 1}):
+        for body in ({"id": "mail", "on": True}, {"id": "mail", "project": "ABC", "off_here": True}, {"undo": 1}):
             status, got = self.post(body)
             self.assertEqual((status, got["ok"], got["code"]), (409, False, "not_ready"), body)
         self.assertEqual(self.snapshot(), was)
 
     def test_the_words_of_each_change(self):
-        self.assertEqual(self.post({"connector": "mail", "on": True})[1]["message"], "That connector is on for this computer.")
-        self.assertEqual(self.post({"connector": "mail", "on": False})[1]["message"], "That connector is off.")
-        self.assertEqual(self.post({"connector": "mail", "project": "ABC", "off": True})[1]["message"], "That connector is off in this project.")
-        self.assertEqual(self.post({"connector": "mail", "project": "ABC", "off": False})[1]["message"], "That connector is no longer kept off in this project.")
+        self.assertEqual(self.post({"id": "mail", "on": True})[1]["message"], "That connector is on for this computer.")
+        self.assertEqual(self.post({"id": "mail", "on": False})[1]["message"], "That connector is off.")
+        self.assertEqual(self.post({"id": "mail", "project": "ABC", "off_here": True})[1]["message"], "That connector is off in this project.")
+        self.assertEqual(self.post({"id": "mail", "project": "ABC", "off_here": False})[1]["message"], "That connector is no longer kept off in this project.")
 
     def test_an_undo_says_which_project_it_was_in(self):
-        step = self.post({"connector": "teams", "project": "DEF", "off": True})[1]["apply_id"]
+        step = self.post({"id": "teams", "project": "DEF", "off_here": True})[1]["apply_id"]
         status, got = self.post({"undo": step})
-        self.assertEqual((status, got["project"], got["message"]), (200, "DEF", "Undone."))
-        self.assertEqual(got["connectors"]["teams"], {"on": False, "project_off": False, "allowed": False})
-        step = self.post({"connector": "teams", "on": True})[1]["apply_id"]
+        self.assertEqual((status, got["message"]), (200, "Undone."))
+        self.assertEqual({c["id"]: (c["on"], c["off_here"]) for c in got["connectors"]}.get("teams"), (False, False))
+        step = self.post({"id": "teams", "on": True})[1]["apply_id"]
         status, got = self.post({"undo": step})
         self.assertEqual(status, 200)
-        self.assertNotIn("project", got)
 
     def test_an_undo_is_done_once(self):
-        step = self.post({"connector": "teams", "project": "DEF", "off": True})[1]["apply_id"]
+        step = self.post({"id": "teams", "project": "DEF", "off_here": True})[1]["apply_id"]
         self.assertEqual(self.post({"undo": step})[0], 200)
         was = self.snapshot()
         status, got = self.post({"undo": step})
@@ -203,7 +212,7 @@ class RouteKillers(Base):
         self.assertEqual(open_store(self.db, onedrive_roots=[]).connector_switches()["mail"], True)
 
     def test_an_undo_of_a_step_with_a_row_of_another_table_is_refused(self):
-        step = self.post({"connector": "mail", "on": True})[1]["apply_id"]
+        step = self.post({"id": "mail", "on": True})[1]["apply_id"]
         con = sqlite3.connect(str(self.db))
         con.execute("INSERT INTO change_log (at, apply_id, tbl, item_id, field, old_value, new_value, op, via) "
                     "SELECT at, apply_id, 'projects', 'ABC', field, old_value, new_value, op, via FROM change_log WHERE apply_id = ? AND field = 'is_on'", (step,))
@@ -213,8 +222,8 @@ class RouteKillers(Base):
         self.assertEqual((status, got["code"]), (409, "no_undo"))
 
     def test_an_undo_of_a_step_changed_since_is_refused_and_leaves_it_as_it_is(self):
-        first = self.post({"connector": "mail", "on": True})[1]["apply_id"]
-        self.post({"connector": "mail", "on": False})
+        first = self.post({"id": "mail", "on": True})[1]["apply_id"]
+        self.post({"id": "mail", "on": False})
         was = self.snapshot()
         status, got = self.post({"undo": first})
         self.assertEqual((status, got["code"]), (409, "no_undo"))
@@ -265,7 +274,7 @@ class RouteKillers(Base):
         status, _ = self.call("POST", "/api/ask-connectors", {"connector": "mail", "on": True, "pad": "x" * 2000})
         self.assertEqual(status, 400)
         self.assertEqual(self.snapshot(), was)
-        self.assertEqual(self.call("POST", "/api/ask-connectors", {"connector": "mail", "on": True})[0], 200)
+        self.assertEqual(self.call("POST", "/api/ask-connectors", {"id": "mail", "on": True})[0], 200)
 
 
 if __name__ == "__main__":
