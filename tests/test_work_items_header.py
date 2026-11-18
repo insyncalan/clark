@@ -143,7 +143,9 @@ class Header(Base):
             self.assertEqual([t[1] for t in got["tabs"]].count(True), 1, "one tab is open")
             self.assertEqual(got["made"]["radius"], got["tabs"][0][2]["radius"], "the made view looks like a predefined one")
             self.assertEqual(got["made"]["b"], got["tabs"][0][2]["b"])
-            self.assertEqual(got["made"]["color"], got["neu"]["color"], "a view that is not open is drawn in the one muted colour")
+            others = [t[2]["color"] for t in got["tabs"] if not t[1]]
+            self.assertEqual({got["made"]["color"]}, set(others) | {got["made"]["color"]}, "a view that is not open is drawn in the one muted colour")
+            self.assertNotEqual(got["neu"]["color"], got["made"]["color"], "row 1314: + New view is violet, not the muted tab colour")
             self.assertNotEqual(got["badge"]["radius"], "0px", "the count is in a round badge")
             self.assertNotEqual(got["badge"]["bg"], "rgba(0, 0, 0, 0)")
             # the made view can be opened, and then it is the one with the underline

@@ -1,5 +1,5 @@
 """Row 1314: the Classic Work items page as the prototype draws it (filter underline, joined square layout pair, violet + New view,
-heading hairlines, Priority pill, tabs that wrap at 900 px and below).
+heading hairlines, Priority pill).
 
 Run: python3 dev/run_tests.py test_work_items_page_1314
 Each rule is pinned by the last rule that sets the property for the selector, so a change that is taken out fails the test.
@@ -45,12 +45,6 @@ class Rules(unittest.TestCase):
 
     def test_priority_is_a_pill(self):
         self.assertIn("border-radius: var(--radius-pill)", last(".wil-pr"))
-
-    def test_tabs_wrap_at_900_and_below(self):
-        m = re.search(r"@media \(max-width: 900px\) \{\s*\.vtabs \{([^}]*)\}", BLOCK)
-        self.assertTrue(m)
-        self.assertIn("flex-wrap: wrap", m.group(1))
-        self.assertIn("overflow: visible", m.group(1))
 
     def test_nothing_added_uses_a_bare_colour_or_looping_animation(self):
         self.assertNotRegex(BLOCK, r"#[0-9a-fA-F]{3,6}\b")

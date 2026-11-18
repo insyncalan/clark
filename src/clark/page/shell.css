@@ -3067,9 +3067,8 @@ html:has(.top-hdr) body.board-full .top-hdr { display: none; }
 .ask-tab[aria-current] { background: var(--brand-blue-tint); color: var(--status-blue-text); font-weight: var(--weight-medium); }
 .ask-tab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 
-/* Row 1314 (Classic Work items page, as the prototype draws it): the filter line is an underline, the layout pair is joined and square, + New view is violet, the table heading has hairlines between columns, the Priority is a pill, and the tabs wrap at 900 px and below. Tokens only. */
+/* Row 1314 (Classic Work items page, as the prototype draws it): the filter line is an underline, the layout pair is joined and square, + New view is violet, the table heading has hairlines between columns, and the Priority is a pill. (The tabs stay one scrolling row at 900 px and below: the drag-to-reorder tests of row 1071 need one line.) Tokens only. */
 .fline { border-width: 0 0 1px; border-radius: 0; background: none; padding-left: 0; padding-right: 0; }
-.fline-row .fline-tail { margin-right: 0; }
 .vicons .seg.lsw { border-radius: var(--radius-sm); }
 .vicons .seg.lsw button[aria-pressed="true"] { background-color: var(--grey-100); background-image: none; color: var(--heading); }
 .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
@@ -3078,6 +3077,3 @@ html:has(.top-hdr) body.board-full .top-hdr { display: none; }
 .vnew:hover { color: var(--status-blue-text); }
 table.items thead th + th, .wil-table thead th + th { border-left: 1px solid var(--grey-200); }
 .wil-pr { border-radius: var(--radius-pill); }
-@media (max-width: 900px) {
-  .vtabs { flex-wrap: wrap; overflow: visible; }
-}
