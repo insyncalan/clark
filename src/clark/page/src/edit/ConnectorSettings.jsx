@@ -6,7 +6,9 @@ import { askConnectorsRead, askConnectorsChange, words } from "./publishApi.js";
 export const CONNECTORS_LINE = "Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings.";
 const READ_ONLY = "A connector is only read from, never changed.";
 const NONE = "No connectors were found on this computer.";
-const NOT_READY = "Connectors can't be checked just now. They stay off.";
+const NOT_READY = "Connectors can't be checked just now. None is used until they can be.";      // not "they stay off": a saved On stays saved when a check fails; what holds is that none is used until it can be checked
+const ALL_NOTE = "Only connectors that are set up on this computer are listed, and the list is the same for every project. Off means clark never asks it anything. On lets ask clark read from it, read only, when your question needs it; each one it used is listed under the answer. A project can turn a connector off for itself in its own tab.";
+const PROJECT_NOTE = "Only the connectors that are On for all projects appear here.";
 
 function useConnectors(code) {
   const [list, setList] = useState(null);          // null: not read yet; "unavailable"; or the list
@@ -44,10 +46,10 @@ export function ConnectorsAll({ code }) {
   const found = Array.isArray(list) ? list : [];
   return (
     <section class="frame setting" id="ask-connectors">
-      <h2>Connectors</h2>
+      <h2>Other connectors found on this computer</h2>
       <p class="muted" id="ask-connectors-line">{CONNECTORS_LINE}</p>
-      <p class="muted">{READ_ONLY}</p>
-      {list === "unavailable" ? <p class="muted" id="ask-connectors-note">{NOT_READY}</p> : null}
+      <p class="muted" id="ask-connectors-readonly">{READ_ONLY}</p>
+      {list === "unavailable" ? <p class="muted" id="ask-connectors-unavailable">{NOT_READY}</p> : null}
       {Array.isArray(list) && !found.length ? <p class="muted" id="ask-connectors-none">{NONE}</p> : null}
       {found.length ? (
         <ul class="ask-folders" id="ask-connectors-list">
@@ -56,6 +58,7 @@ export function ConnectorsAll({ code }) {
           ))}
         </ul>
       ) : null}
+      <p class="muted" id="ask-connectors-note-all">{ALL_NOTE}</p>
       <Msg msg={msg} />
     </section>
   );
@@ -68,15 +71,16 @@ export function ConnectorsProject({ code }) {
   return (
     <section class="frame setting" id="ask-connectors-project">
       <h2>{`Connectors in ${code}`}</h2>
-      {list === "unavailable" ? <p class="muted" id="ask-connectors-note">{NOT_READY}</p> : null}
+      {list === "unavailable" ? <p class="muted" id="ask-connectors-unavailable">{NOT_READY}</p> : null}
       {Array.isArray(list) && !on.length ? <p class="muted" id="ask-connectors-none">No connector is on for all projects.</p> : null}
       {on.length ? (
         <ul class="ask-folders" id="ask-connectors-list">
           {on.map((c) => (
-            <li key={c.id}><span class="folder-now">{c.label}</span> <button type="button" class="btn sm" data-connector-here={c.id} aria-pressed={c.off_here ? "true" : "false"} disabled={busy} onClick={() => change({ project: code, id: c.id, off_here: !c.off_here })}>{c.off_here ? "Off in this project" : "Turn off in this project"}</button></li>
+            <li key={c.id}><span class="folder-now">{c.label}</span> <span class="muted">{`On for all projects. Turn it off here for ${code} only.`}</span> <button type="button" class="switch" role="switch" data-connector-here={c.id} aria-checked={c.off_here ? "false" : "true"} aria-label={`Use ${c.label} in ${code}`} disabled={busy} onClick={() => change({ project: code, id: c.id, off_here: !c.off_here })} /></li>
           ))}
         </ul>
       ) : null}
+      <p class="muted" id="ask-connectors-note-project">{PROJECT_NOTE}</p>
       <Msg msg={msg} />
     </section>
   );
