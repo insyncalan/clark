@@ -94,7 +94,7 @@ class PrimaryPill(Computed):
         guard = ':root:not([data-motion="reduce"]) '
         hover = ", ".join(guard + s + (":hover:not(:disabled)" if s == ".btn.pri" else ":hover") for s in sels) + " { transform: translateY(-1px); }"
         press = ", ".join(guard + s + (":active:not(:disabled)" if s == ".btn.pri" else ":active") for s in sels) + " { transform: translateY(1px); }"
-        glow = ".again:hover, .btn.primary:hover, .btn.pri:hover:not(:disabled) { box-shadow: 0 0 44px rgba(56, 224, 238, .55); }"
+        glow = ".again:hover, .btn.primary:hover, .btn.pri:hover:not(:disabled) { box-shadow: var(--pill-glow-hover); }"
         calm = ':root[data-motion="reduce"] .again, :root[data-motion="reduce"] .btn.primary, :root[data-motion="reduce"] .btn.pri { transition: none; transform: none; }'
         lines = BLOCK.split("\n")
         for want in (hover, press, glow, calm):
@@ -108,7 +108,7 @@ class PrimaryPill(Computed):
         self.assertIn(".btn, .seg { border-radius: var(--radius); }", RULES)
         self.assertNotIn(".again, .btn.primary, .btn.pri { border-radius: var(--radius)", RULES)
         self.assertEqual(len(re.findall(r"^/\* Row 1319, primary buttons", RULES, re.M)), 1)
-        self.assertNotIn("var(--pill", BLOCK)
+        self.assertEqual(sorted(re.findall(r"#[0-9a-fA-F]{3,8}\b", BLOCK)), ["#04222A"] * 4 + ["#5B47D8", "#8FF2EF"])
 
     def test_cards_keeps_its_own_primary_buttons(self):
         html = page.page_html(branding=page.NO_BRAND)
@@ -122,8 +122,8 @@ class PrimaryPill(Computed):
                 self.assertEqual(self.style(cdp, sid, "#e-go .spin", "borderTopColor"), "rgb(4, 34, 42)", w)
 
     def test_cards_page_has_none_of_the_block(self):
-        self.assertNotIn("color: #04222A; box-shadow: 0 0 30px", page.page_html(branding=page.NO_BRAND))
-        self.assertIn("color: #04222A; box-shadow: 0 0 30px", theme.css(NAME))
+        self.assertNotIn("color: #04222A; box-shadow: var(--pill-glow)", page.page_html(branding=page.NO_BRAND))
+        self.assertIn("color: #04222A; box-shadow: var(--pill-glow)", theme.css(NAME))
 
 
 if __name__ == "__main__":
