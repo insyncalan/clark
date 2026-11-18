@@ -93,6 +93,11 @@ html[data-density="comfortable"] .frame.report .cover { border-radius: var(--rad
 .tcell.health { flex: 2 1 12px; min-width: min(292px, 100%); }   /* 12px: the gap above; 292 = 2 x 140 + 12 */
 /* A-D14 as the prototype has it: at 1180 px and below Project health sits on its own row and the other tiles share the row under it. */
 @media (max-width: 1180px) { .tcell.health { flex-basis: 100%; } }
+/* row 1303: above 1180 px Project health with two visible tiles fills half the row and with one visible tile three quarters (the gap taken off its share, the tiles share the rest); with three it stays two shares of four-up. Hidden tiles do not count (data-others is set in Glance.jsx). */
+@media (min-width: 1181px) {
+  .glance[data-others="2"] > .tcell.health { flex: 0 0 calc(50% - var(--space-3) / 2); }
+  .glance[data-others="1"] > .tcell.health { flex: 0 0 calc(75% - var(--space-3) * 3 / 4); }
+}
 .fig { position: relative; display: flex; flex-direction: column; gap: 2px; width: 100%; padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); font: inherit; text-align: left; color: inherit; }
 .fig::after { content: ""; position: absolute; inset: -1px; border: 2px solid transparent; border-radius: inherit; pointer-events: none; -webkit-mask-image: linear-gradient(45deg, currentColor 0%, transparent 75%); mask-image: linear-gradient(45deg, currentColor 0%, transparent 75%); }
 .fig.rag-g::after { border-color: var(--status-green); } .fig.rag-a::after { border-color: var(--status-amber); } .fig.rag-r::after { border-color: var(--status-red); }
@@ -3069,3 +3074,14 @@ html:has(.top-hdr) body.board-full .top-hdr { display: none; }
 .ask-tab:hover { background: var(--grey-200, var(--grey-100)); }
 .ask-tab[aria-current] { background: var(--brand-blue-tint); color: var(--status-blue-text); font-weight: var(--weight-medium); }
 .ask-tab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+
+/* row 1294 (A8, third slice): the standing instructions of asking. The box is under its label, as wide as the card, and grows only downward. */
+.ask-instr { display: flex; flex-direction: column; gap: var(--space-1); margin: var(--space-2) 0; }
+.ask-instr-name { font-weight: var(--weight-medium); }
+.ask-instr-box { width: 100%; box-sizing: border-box; min-height: 160px; padding: 10px 12px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; line-height: 1.5; resize: vertical; }
+.ask-instr-box:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.ask-instr-box[aria-invalid="true"] { border-color: var(--status-red-text); }
+.ask-instr-box:disabled { background: var(--grey-100); }
+.ask-instr-foot { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2); font-size: var(--size-caption); }
+.ask-instr-foot .pub-msg { margin-top: 0; min-height: 0; flex: 1 1 240px; text-align: right; }
+.ask-instr-read { white-space: pre-wrap; overflow-wrap: anywhere; margin: var(--space-1) 0 var(--space-2); font-size: var(--size-body); }

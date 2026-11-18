@@ -66,7 +66,7 @@ class NotReviewed(Setup):
                 self.assertEqual(p.js("document.querySelectorAll('[data-fig=stale]').length"), 0)
                 self.assertEqual(self.tiles(p), ["health", "overdue", "risks"], "View: the shown stored tiles only")
                 p.edit()
-                self.assertEqual(self.tiles(p), ["health", "overdue", "risks", "decisions"], "Edit: the four stored tiles, no Not reviewed tile")
+                self.assertEqual(self.tiles(p), ["health", "overdue", "risks"], "Edit: the shown stored tiles (Decisions needed is hidden and is not drawn, row 1303), no Not reviewed tile")
                 self.assertEqual(self.stale(p), 0)
 
     def test_a_bad_value_keeps_the_old_one_and_a_good_one_is_saved(self):
