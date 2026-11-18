@@ -1,8 +1,8 @@
 // The ask panel's state and keys (#47a). Edit pages only. "/" outside a field (or Ctrl or Cmd + J anywhere) opens it (not while a peek is open); Esc, Close or the ask button closes it (a click outside does not) and puts
 // focus back; the width is remembered in this browser (a convenience only). Nothing is sent while asking is off: the status route
 // is asked when the panel opens, and until it answers (or when it cannot) the panel reads as off.
-import { signal } from "@preact/signals";
-import { peek } from "../stores/report.js";
+import { signal, effect } from "@preact/signals";
+import { view, project, peek } from "../stores/report.js";
 import { helpOpen } from "../help/helpStore.js";
 import { singleKeys } from "../stores/keyPrefs.js";
 import { askOn, askProvider } from "./askState.js";
