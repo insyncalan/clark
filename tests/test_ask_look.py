@@ -86,9 +86,15 @@ DATE = re.compile(r"\b\d{4}-\d{1,2}-\d{1,2}\b|\b\d{1,2}[/.]\d{1,2}[/.]\d{2,4}\b|
 PRODUCT = re.compile(r"^(ask )?clark\b", re.I)
 TITLE = "ask clark"                      # row 820: the one string allowed to start with the product's name
 # A capital letter inside a sentence is a name unless it is a word the panel is known to use.
-KNOWN = {"Claude", "Anthropic", "Settings", "Ask", "Apply", "Undo", "Stop", "Wi", "Fi", "HDMI", "IT"}
+KNOWN = {"Claude", "Anthropic", "Settings", "Ask", "Asking", "Apply", "Undo", "Stop", "Wi", "Fi", "HDMI", "IT", "Teams"}
 
 SETTLE = "document.querySelector('#ask-box') && !document.querySelector('#ask-send').disabled"
+
+
+def empty_chat(p):
+    if p.js("document.querySelectorAll('.ask-turn').length") > 0:
+        p.js("document.querySelector('#ask-new').click()")
+        p.until("document.querySelectorAll('.ask-turn').length === 0", "a new chat is empty")
 
 
 class Look(Base):
@@ -108,6 +114,8 @@ class Look(Base):
         p.until("!!document.querySelector('#ask-panel')", "the panel opened on /")
         if ready:
             p.until(SETTLE, "the panel is ready to take a question")
+            # #1292 slice 1: a chat is kept for the browser, so a panel opened again in the same Chrome starts from the last one: begin empty
+            empty_chat(p)
         return p
 
     def ask(self, p, text):
@@ -184,6 +192,11 @@ class Look(Base):
                     self.assertTrue(got["ul"] != "none" or got["col"] != got["line"], f"{what}: the link looks different from the words around it")
                     self.check_measures(p, f"{what} not set up link")
 
+    def close_panel(self, p, what):
+        """#1292 slice 1: a move to another page no longer closes the panel, so these tests close it with Close to start a fresh chat on the new page."""
+        p.js("document.querySelector('#ask-close').click()")
+        p.until("!document.querySelector('#ask-panel')", what)
+
     def test_row_1093_the_suggestions_follow_the_page_and_the_last_question(self):
         pills = "[...document.querySelectorAll('#ask-pills button')].map(b => b.textContent).join('|')"
         with chrome() as cdp:
@@ -192,13 +205,13 @@ class Look(Base):
                     p = self.open_panel(cdp, width, theme)
                     first = p.js(pills)
                     p.js("location.hash = location.hash.replace(/^#[a-z]+/, '#milestones')")
-                    p.until("!document.querySelector('#ask-panel')", "a move to another page closes the panel")
+                    self.close_panel(p, "a move to another page, then Close")
                     p.key("/", code="Slash", vk=191)
                     p.until(SETTLE, "the panel is ready again")
                     p.until(f"({pills}).indexOf('milestones are') > -1", f"{width} {theme}: milestone suggestions on the Milestones page")
                     self.assertNotEqual(p.js(pills), first)
                     p.js("location.hash = location.hash.replace(/^#[a-z]+/, '#work')")
-                    p.until("!document.querySelector('#ask-panel')", "a move to another page closes the panel")
+                    self.close_panel(p, "a move to another page, then Close")
                     p.key("/", code="Slash", vk=191)
                     p.until(SETTLE, "the panel is ready again")
                     p.until(f"({pills}).indexOf('work items') > -1", f"{width} {theme}: work item suggestions on the Work items page")
@@ -254,9 +267,10 @@ class Look(Base):
     def pills_on(self, p, page):
         """Open the panel afresh on a page (a move closes it and clears the chat) and return the suggestions drawn."""
         p.js(f"location.hash = location.hash.replace(/^#[a-z]+/, '#{page}')")
-        p.until("!document.querySelector('#ask-panel')", f"a move to {page} closes the panel")
+        self.close_panel(p, f"a move to {page}, then Close")
         p.key("/", code="Slash", vk=191)
         p.until(SETTLE, f"the panel is ready on {page}")
+        empty_chat(p)                      # Close keeps the chat now; the suggestions are read on an empty one
         return p.js("[...document.querySelectorAll('#ask-pills button')].map(b => b.textContent)")
 
     def test_row_1093_every_page_and_subject_has_its_own_six_and_the_last_question_wins(self):
@@ -320,7 +334,7 @@ class Look(Base):
                     p = self.open_panel(cdp, width)
                     if page != "dashboard":              # the page opens on the Dashboard
                         p.js(f"location.hash = location.hash.replace(/^#[a-z]+/, '#{page}')")
-                        p.until("!document.querySelector('#ask-panel')", f"a move to {page} closes the panel ({p.js('location.hash')})")
+                        self.close_panel(p, f"a move to {page}, then Close ({p.js('location.hash')})")
                         p.key("/", code="Slash", vk=191)
                         p.until(SETTLE, "the panel is ready again")
                     self.assertEqual(p.js("location.hash.split('&')[0]"), "#" + page)
