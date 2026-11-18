@@ -135,7 +135,7 @@ class SettingsChips(unittest.TestCase):
         views = code("components", "Views.jsx")
         groups = re.search(r"const GROUPS = \[(.*?)\n\];", views, re.S).group(1)
         names = re.findall(r'\["[\w-]+", "([^"]+)", \[[^\]]*\]\]', groups)
-        self.assertEqual(names, ["Projects", "People", "Profile", "Folder", "Brand", "Appearance", "Reports", "Backups", "Export and import", "Claude and AI", "Logs and diagnostics", "Version and updates"])
+        self.assertEqual(names, ["Projects", "People", "Profile", "Folder", "Brand", "Theme", "Appearance", "Reports", "Backups", "Export and import", "Claude and AI", "Logs and diagnostics", "Version and updates"])
         self.assertEqual(re.findall(r'^  \["([^"]+)", \[\[', groups, re.M), ["Everyday", "Publishing", "Look and feel", "Data and safety", "Advanced"])
         self.assertIn('Update.chip = L.TITLE', code("edit", "Update.jsx"))
         self.assertIn('TITLE = "Version and updates"', code("logic", "update.js"))
@@ -144,7 +144,7 @@ class SettingsChips(unittest.TestCase):
         self.assertIn('NEEDS_PROJECT = ["ClientFolder", "ReviewDays", "GanttSetting"]', views)
         self.assertIn("Publishing, Freshness and Gantt need an open project.", self.TEXT)
         # the Help words still name the cards, which are the same cards; they are rewritten for the menu in a later stage of row 1024
-        self.assertIn("Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking, Feedback and Quit, in the order the cards are drawn.", self.TEXT)
+        self.assertIn("Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, Theme, People, Asking, Feedback and Quit, in the order the cards are drawn.", self.TEXT)
 
     def test_published_reports_is_no_longer_a_settings_card(self):      # row 1087: it is a page of its own, reached from the profile circle
         views = code("components", "Views.jsx")

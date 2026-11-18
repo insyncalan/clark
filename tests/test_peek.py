@@ -321,7 +321,7 @@ class Browser(unittest.TestCase):
                 self.assertTrue(cdp.js("!!document.querySelector('#peek .pk-chips [data-row=owner]') && !!document.querySelector('#peek .pk-chips [data-row=status]')", sid), "Owner and Status are chips")
                 self.assertTrue(cdp.js("!!document.querySelector('#peek [data-pk-client]')", sid), "an internal field shows on Work items in View too (row 824)")
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').getAnimations().length === 0", sid)), "the slide-in has ended")
-                self.assertEqual(cdp.js("document.querySelector('#peek').getBoundingClientRect().right", sid), cdp.js("document.documentElement.clientWidth", sid) - 16)      # row 1258: the card is 16 px in from the right edge
+                self.assertEqual(cdp.js("document.querySelector('#peek').getBoundingClientRect().right", sid), cdp.js("document.documentElement.clientWidth", sid))      # row 1289: the peek is flush to the right edge (reverses the 16 px card of row 1258)
                 self.open_words(cdp, sid)
                 self.assertEqual(cdp.js("!!document.querySelector('[data-sneak]')", sid), True, "the words box is in View too (row 824)")
                 key(cdp, sid, "Escape")      # the first Esc closes the box only
@@ -377,11 +377,11 @@ class Browser(unittest.TestCase):
                 client = cdp.js("document.documentElement.clientWidth", sid)
                 self.assertLessEqual(default, cdp.js("document.documentElement.clientWidth", sid))
                 if width < 1000:      # row 847: below 1000 px the peek fills the window, so there is no width to drag, keep or reset
-                    self.assertEqual(default, client - 32, "the peek takes the whole window below 1000 px, less the card's 16 px each side (row 1258)")
+                    self.assertEqual(default, client, "the peek takes the whole window below 1000 px, flush both sides (row 1289)")
                 else:
                     self.assertEqual(default, 640, "the default is 640 px (item 1202)")
                     edge = cdp.js("(() => { const b = document.querySelector('.pk-edge').getBoundingClientRect(); return [b.x + 3, b.y + 200]; })()", sid)
-                    for kind, x in (("mousePressed", edge[0]), ("mouseMoved", client - 716), ("mouseReleased", client - 716)):
+                    for kind, x in (("mousePressed", edge[0]), ("mouseMoved", client - 700), ("mouseReleased", client - 700)):
                         cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": edge[1], "button": "left", "buttons": 1 if kind != "mouseReleased" else 0, "clickCount": 1}, sid)
                     self.assertTrue(wait(lambda: abs(w() - min(700, client)) <= 2), f"dragged to {w()}")
                     reload_to_new_page_cdp(cdp, sid)
@@ -394,7 +394,7 @@ class Browser(unittest.TestCase):
                     cdp.js("document.querySelector('.pk-edge').dispatchEvent(new MouseEvent('dblclick', {bubbles: true}))", sid)
                     self.assertTrue(wait(lambda: w() == default), "double-click resets")
                 click(cdp, sid, "[data-pk-wide]")
-                self.assertTrue(wait(lambda: w() == client - 32), "across the whole screen, less the card's 16 px each side (row 1258)")
+                self.assertTrue(wait(lambda: w() == client), "across the whole screen, flush both sides (row 1289)")
 
     def test_slash_opens_ask_with_no_peek_and_yields_to_the_words_box_in_a_peek(self):
         """The ask panel's "/" and the peek's "//" share a key: with a peek open the two slashes reach the words box and the ask
