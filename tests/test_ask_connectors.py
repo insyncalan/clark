@@ -144,6 +144,96 @@ class Discover(unittest.TestCase):
         finally:
             ac.ask_claude.find_command, ac.platform.run_stoppable = o1, o2
 
+    def test_labels_exact(self):
+        got = {g["connector"]: g["label"] for g in self.found(M365 + "\n" + TODO)}
+        self.assertEqual(got, {"mail": "Mail", "calendar": "Calendar", "teams": "Teams",
+                               "sharepoint": "SharePoint and OneDrive", "todoist": "Todoist"})
+
+    def test_parse_name_and_status_length_limits(self):
+        self.assertEqual(ac.parse("n" * 100 + ": u - Connected"), ["n" * 100])
+        self.assertEqual(ac.parse("n" * 101 + ": u - Connected"), [])
+        self.assertEqual(ac.parse("n: u - " + "!" * 91 + "Connected"), ["n"])
+        self.assertEqual(ac.parse("n: u - " + "!" * 92 + "Connected"), [])
+
+    def test_parse_marker_of_several_symbols_and_edges(self):
+        self.assertEqual(ac.parse("n: u - \u2714\ufe0f Connected"), ["n"])
+        self.assertEqual(ac.parse("  n: u - Connected  "), ["n"])
+        self.assertEqual(ac.parse("n: u - Connected\nn: v - Connected"), ["n"])
+        self.assertEqual(ac.parse(None), [])
+        self.assertEqual(ac.parse(b"n: u - Connected"), [])
+        self.assertEqual(ac.map_found([" claude.ai Todoist"]), [])
+
+    def test_parse_byte_and_line_limits(self):
+        line = "claude.ai Todoist: u - Connected"
+        pad = "#" * (ac.MAX_OUT - len(line) - 1)
+        self.assertEqual(ac.parse(pad + "\n" + line), ["claude.ai Todoist"])
+        self.assertEqual(ac.parse(pad + "#\n" + line), [])
+        self.assertEqual(ac.parse("\n" * 199 + line), ["claude.ai Todoist"])
+        self.assertEqual(ac.parse("\n" * 200 + line), [])
+
+    def test_cache_edges(self):
+        calls = []
+        clock = [1000.0]
+
+        def run():
+            calls.append(1)
+            return TODO
+        ac.list_found(run=run, now=lambda: clock[0])
+        clock[0] += 60
+        ac.list_found(run=run, now=lambda: clock[0])
+        self.assertEqual(len(calls), 2)
+        clock[0] -= 500
+        ac.list_found(run=run, now=lambda: clock[0])
+        self.assertEqual(len(calls), 3)
+        ac.clear_cache()
+        ticks = iter([0, 70, 100])
+        calls.clear()
+        ac.list_found(run=run, now=lambda: next(ticks))
+        ac.list_found(run=run, now=lambda: next(ticks))
+        self.assertEqual(len(calls), 1)
+
+    def test_cached_list_is_a_copy_too(self):
+        self.found(TODO)
+        b = ac.list_found(run=lambda: "")
+        b[0]["connector"] = "x"
+        self.assertEqual(ac.list_found(run=lambda: "")[0]["connector"], "todoist")
+
+    def test_default_runner_details(self):
+        seen = {}
+        out = [b"claude.ai Todoist: u - Connected"]
+        status = ["ok"]
+
+        def fake(args, data, env, limit, max_out, **kw):
+            seen.update(data=data, max_out=max_out, kw=kw)
+            return status[0], out[0], 0
+        o1, o2 = ac.ask_claude.find_command, ac.platform.run_stoppable
+        ac.ask_claude.find_command = lambda: ("/x/claude", None)
+        ac.platform.run_stoppable = fake
+        try:
+            self.assertIn("Todoist", ac.default_runner())
+            self.assertEqual(seen["data"], b"")
+            self.assertEqual(seen["max_out"], 64 * 1024)
+            self.assertEqual(seen["kw"]["prefix"], "clark-mcp-")
+            status[0] = "slow"
+            self.assertIsNone(ac.default_runner())
+            self.assertEqual(ac.list_found(), [])
+            status[0] = "ok"
+            out[0] = b"claude.ai Todo\xffist: u - Connected"
+            self.assertEqual(ac.list_found(), [])
+
+            def boom(*a, **k):
+                raise RuntimeError("x")
+            ac.platform.run_stoppable = boom
+            self.assertIsNone(ac.default_runner())
+
+            ran = []
+            ac.platform.run_stoppable = lambda *a, **k: ran.append(1) or ("ok", b"", 0)
+            ac.ask_claude.find_command = lambda: (None, "missing")
+            self.assertIsNone(ac.default_runner())
+            self.assertEqual(ran, [])
+        finally:
+            ac.ask_claude.find_command, ac.platform.run_stoppable = o1, o2
+
 
 if __name__ == "__main__":
     unittest.main()
