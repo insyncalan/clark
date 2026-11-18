@@ -65,6 +65,14 @@ class Draft(Panel):
             self.assertTrue(p.js("!!document.querySelector('#ask-panel')"), "Esc in the draft does not close the panel")
             self.assertEqual(p.js(SECTIONS), before)
 
+    def test_a_real_mouse_press_inside_the_draft_keeps_the_panel_and_the_draft(self):      # the outside-press rule of the panel must not count the Draft as outside
+        with chrome() as cdp:
+            p = self.drafted(cdp)
+            r = p.js("(() => { const b = document.querySelector('#ask-draft-doc').getBoundingClientRect(); return [b.left + b.width / 2, b.top + 20]; })()")
+            for kind in ("mousePressed", "mouseReleased"):
+                cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": r[0], "y": r[1], "button": "left", "buttons": 1 if kind == "mousePressed" else 0, "clickCount": 1}, p.sid)
+            self.assertTrue(p.js("!!document.querySelector('#ask-panel') && !!document.querySelector('#ask-draft')"), "the panel and the draft stay")
+
     def test_closing_the_panel_closes_the_draft(self):
         with chrome() as cdp:
             p = self.drafted(cdp)
