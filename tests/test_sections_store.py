@@ -270,8 +270,8 @@ class Rules(Base):
         self.assertEqual(self.s.read("report_sections", ref=ref)["type"], "text")
 
     def test_only_a_text_section_has_a_body(self):
-        raid = self.sections()[7]["id"]                                 # row 1193-8: the seventh is a Work items list now (it has its own body, its saved filter); the eighth is Open actions
-        self.assertEqual(self.s.read("report_sections", ref=raid)["type"], "actions")
+        raid = self.sections()[1]["id"]                                 # rows 1193-8 to 10: the raid, actions and decisions defaults are Work items lists now (they have their own body), so the second, At a glance, stands in
+        self.assertEqual(self.s.read("report_sections", ref=raid)["type"], "glance")
         with self.assertRaises(Invalid):
             self.change(raid, body="words")
         self.change(raid, hidden=1)                                     # hiding is for every type

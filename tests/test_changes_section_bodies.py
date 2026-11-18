@@ -93,7 +93,7 @@ class Adding(Content):
                 self.assertNotIn(ref, self.ids_now())
 
     def test_every_other_type_is_still_refused(self):
-        for bad in ("actions", "docs", "needs", "Needs", "NEEDS", "needs ", "tracker\n", "template", "", None, ["needs"], {"a": 1}, 5):   # item 1188: "current" is a built-in that can be added again, so it is no longer here; row 1193-8: nor is "raid" (a new project has none, so it can be added), and "actions" stands in as a built-in the default report already has
+        for bad in ("glance", "docs", "needs", "Needs", "NEEDS", "needs ", "tracker\n", "template", "", None, ["needs"], {"a": 1}, 5):   # item 1188: "current" is a built-in that can be added again, so it is no longer here; row 1193-8: nor is "raid" (a new project has none, so it can be added), and "glance" stands in as a built-in the default report already has
             with self.subTest(type=bad):
                 self.refused(self.req("new", values={"type": bad, "title": "x"}), changes.NEW_TYPE_WORDS)
 

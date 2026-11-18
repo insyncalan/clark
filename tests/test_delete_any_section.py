@@ -20,6 +20,16 @@ class Base(Api):
         super().setUp()
         self.old_actions_row()
         self.old_decisions_row()
+        self.old_raid_row()
+
+    def old_raid_row(self):
+        """row 1193-8: a new project starts with Risks and issues as a Work items list; an existing report still has the built-in raid section, which these tests are about."""
+        con = sqlite3.connect(str(self.path))
+        try:
+            con.execute("UPDATE report_sections SET type = 'raid', body = '' WHERE project = 'ABC' AND type = 'workitems' AND title = 'Risks and issues'")
+            con.commit()
+        finally:
+            con.close()
 
     def old_actions_row(self):
         """row 1193-9: a new project starts with Open actions as a Work items list; an existing report still has the built-in actions section, which these tests are about."""

@@ -135,7 +135,7 @@ class Pg:
 
     def tall(self, cdp, width=1400):
         """A window tall enough for every section, so a drag never needs the page to scroll."""
-        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 2400, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 3600, "deviceScaleFactor": 1, "mobile": False}, self.sid)      # rows 1193-8 to 10: three Work items lists in Edit make the page taller than 2400 px
 
     def rect(self, ref):
         """{left, top, right, bottom} of section `ref`, once the sections have stopped gliding (edit mode, a hide and a resize
@@ -835,7 +835,7 @@ class Sections(Base):
             p.until("!!document.querySelector('[data-id=\"ABC-S-006\"].is-hidden')", "hidden")
             p.view()
             self.assertIsNone(p.js("document.querySelector('[data-id=\"ABC-S-006\"]')"))
-            for ref in ("ABC-S-005", "ABC-S-008"):      # row 1193-8: View leaves the Risks and issues list (S-007) out when it has no row to show
+            for ref in ("ABC-S-005", "ABC-S-004"):      # rows 1193-8 to 10: View leaves the three lists (S-007 to S-009) out when they have no row to show
                 self.assertTrue(p.js(f"document.querySelector('[data-id=\"{ref}\"]').classList.contains('slot-full')"), ref)
 
     def test_escape_right_after_the_menu_opens_closes_it_even_when_focus_is_late(self):

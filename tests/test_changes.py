@@ -135,7 +135,7 @@ class Refusals(Api):
         self.refused(self.req("new", values={"hidden": 1}), "The field 'hidden' can't be set here.")
         self.refused(self.req("new", values={"type": "tracker", "body": "x"}), changes.NO_BODY_HERE)      # #929: a body on new is for a text section only
         self.refused(self.req("new", values={"type": "needs"}), changes.NEW_TYPE_WORDS)      # item 1158: no new Needs from you section
-        self.refused(self.req("new", values={"type": "actions"}), changes.NEW_TYPE_WORDS)      # row 1193-8: a built-in the report already has (a new project has no raid section now)
+        self.refused(self.req("new", values={"type": "glance"}), changes.NEW_TYPE_WORDS)      # rows 1193-8 to 10: a built-in the report already has (a new project has no raid, actions or decisions section now, so those can be added)
         self.refused(self.req("new", values={"type": "docs", "title": "x"}), changes.NEW_TYPE_WORDS)
         self.refused(self.req("new", values={"type": ["text"]}), changes.NEW_TYPE_WORDS)
         self.refused(self.req("new", id="ABC-S-001"), "That change doesn't take 'id'.")
