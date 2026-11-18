@@ -41,6 +41,7 @@ SHOWN = {
     "use_cases": ("ref", "status", "commitment", "headline", "standing"),
 }
 WORDS = re.compile(r"[^\W_]{3,}", re.UNICODE)
+ID_PATTERN = re.compile(r"\b[A-Z][A-Z0-9]{2,6}-[A-Z]?-?\d{1,4}\b")
 _TAG = re.compile(r"<[^>]*>")
 
 
@@ -53,7 +54,13 @@ class ProjectData:
     facts: dict
     left_out: int
     secret: int = 0
+    today: str = ""                     # #1293 B: the report's as-at day as DD-MM-YYYY ("" when it is not a day)
+    counts: tuple = ()                  # #1293 B: (kind, rows sent, rows in all) for each kind that has rows
     kinds_left_out: tuple = ()          # row 1213: the kinds whose whole section is left out of the report (named in a passage and a note)
+
+
+def _is_day(value):
+    return isinstance(value, str) and timefmt.day_text(value) != value
 
 
 def plain(value):
@@ -123,7 +130,7 @@ def choose(passages, question, budget=BUDGET):
     counts most), kept in their original order. Returns (chosen, left_out_count). The first passage (the project) always goes
     first when it fits."""
     words = {w.casefold() for w in WORDS.findall(question or "")}
-    ids = set(re.findall(r"\b[A-Z][A-Z0-9]{2,6}-[A-Z]?-?\d{1,4}\b", question or ""))
+    ids = set(ID_PATTERN.findall(question or ""))
     ranked = sorted(range(len(passages)), key=lambda i: (i != 0, -_score(words, ids, passages[i]), i))
     keep, used = set(), 0
     for i in ranked:
@@ -157,18 +164,37 @@ def left_out_line(kinds):
             "Do not say there are none; say they were not part of what you were given.")
 
 
-def project_data(store, code, question="", budget=BUDGET):
+def ids_in_turns(turns, last=4):
+    """The item IDs named in the last few turns of a chat, in order, so a follow-up ("and when is it due?") ranks the same items."""
+    found = []
+    for _role, text in list(turns or ())[-last:]:
+        for i in ID_PATTERN.findall(text):
+            if i not in found:
+                found.append(i)
+    return found
+
+
+def partial_lines(counts):
+    """One line per kind that was sent in part: "actions: 7 of 12 rows sent". Nothing for a kind sent whole."""
+    return [f"{KIND_WORDS[k]}: {sent} of {total} rows sent" for k, sent, total in counts if sent < total]
+
+
+def project_data(store, code, question="", budget=BUDGET, as_at=None):
     """The open project's data for one question, from what the published file would carry (publish.select). Raises
     publish.PublishError (plain words) for a code that isn't a project."""
-    inputs = publish.read_inputs(store, code)
+    inputs = publish.read_inputs(store, code, as_at)
     selected = publish.select(inputs)["data"]
     passages, secret = _cut_screened(LABELS["project"], project_lines(selected.get("project") or {}))
     left_kinds = kinds_left_out(inputs)
     if left_kinds:
         passages += _cut(LABELS["left_out"], [left_out_line(left_kinds)])
+    totals = {}
     for kind in KIND_ORDER:
-        more, n = _cut_screened(LABELS[kind], [row_line(kind, r) for r in selected.get(kind) or ()])
+        rows = [row_line(kind, r) for r in selected.get(kind) or ()]
+        more, n = _cut_screened(LABELS[kind], rows)
         passages += more
         secret += n
+        totals[kind] = len(rows)
     chosen, left = choose(passages, question, budget)
-    return ProjectData(chosen, facts_of(selected), left, secret, left_kinds)
+    counts = tuple((k, sum(p.text.count("\n") + 1 for p in chosen if p.label == LABELS[k]), t) for k, t in totals.items() if t)
+    return ProjectData(chosen, facts_of(selected), left, secret, timefmt.day_text(inputs.get("as_at")) if _is_day(inputs.get("as_at")) else "", counts, left_kinds)
