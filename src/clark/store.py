@@ -39,13 +39,14 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 30          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1061): the commitment Candidate is stored as Planned 2026; 22 (row 875): use_cases.owner and use_cases.owner_id; 23 (row 1068): report_sections.type takes 'gantttable'; 24 (row 1107): the use_case_milestones table, a use case linked straight to a milestone; 25 (item 1185): raid.latest_update and milestones.latest_update; 26 (row 1195): decisions.priority and decisions.latest_update; 27 (row 1269): app_settings.theme, Classic for a new file and Cards for every file that already exists.; 28 (row 1261): report_sections.type takes 'reportheadline'; 29 (row 1264): report_sections.type takes 'glancetemplate'; 30 (row 1300): install_defaults, the install's one row of Defaults values. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 31          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1061): the commitment Candidate is stored as Planned 2026; 22 (row 875): use_cases.owner and use_cases.owner_id; 23 (row 1068): report_sections.type takes 'gantttable'; 24 (row 1107): the use_case_milestones table, a use case linked straight to a milestone; 25 (item 1185): raid.latest_update and milestones.latest_update; 26 (row 1195): decisions.priority and decisions.latest_update; 27 (row 1269): app_settings.theme, Classic for a new file and Cards for every file that already exists.; 28 (row 1261): report_sections.type takes 'reportheadline'; 29 (row 1264): report_sections.type takes 'glancetemplate'; 30 (row 1300): install_defaults, the install's one row of Defaults values; 31 (row 1306): connector_switches and project_connectors, asking's connector switches (Off). The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
 TABLES = ("projects", "milestones", "workstreams", "actions", "raid", "decisions", "use_cases", "links", "labels",
           "item_labels", "updates", "report_sections", "glance_tiles", "report_hidden", "documents", "source_folders", "people", "gantt_lines", "use_case_milestones")
-SETTINGS_TABLES = ("app_settings", "install_defaults")     # clark (#47): the writer's too, but kept apart from TABLES: what walks TABLES (backups, the demo, publishing) has no use for it
+SETTINGS_TABLES = ("app_settings", "install_defaults", "connector_switches", "project_connectors")     # clark (#47): the writer's too, but kept apart from TABLES: what walks TABLES (backups, the demo, publishing) has no use for it
+CONNECTORS = ("mail", "calendar", "teams", "sharepoint", "todoist")      # row 1306: the connectors asking may one day be allowed to read; the same five words as schema.sql's CHECKs
 THEMES = ("classic", "cards")      # row 1269: the install's Theme, Clark Classic or Clark Cards (schema.sql's CHECK says the same)
 THEME_WHEN_MISSING = "cards"   # row 1269: a file with no answer keeps today's look (Cards); it never turns a Theme on by itself
 ASK_WHEN_MISSING = False      # clark (#47): asking reads as OFF when the file holds no answer (no app_settings table or no row): it never fails open
@@ -55,6 +56,7 @@ KEYS = {"projects": ("code",), "milestones": ("id",), "workstreams": ("id",), "a
         "item_labels": ("item_id", "label"), "updates": ("week_ending", "project"),
         "report_sections": ("id",), "glance_tiles": ("project", "tile"), "report_hidden": ("project", "item_id"),
         "documents": ("project", "id"), "source_folders": ("project", "path"), "app_settings": ("id",), "install_defaults": ("id",),
+        "connector_switches": ("connector",), "project_connectors": ("project_id", "connector"),
         "people": ("id",), "gantt_lines": ("id",), "use_case_milestones": ("use_case", "milestone", "link_id")}      # row 1107: the key holds both ends, so History finds a link from either item
 # clark (#65): a section's id holds its project's code, so one column finds the row (and next_id and history keep working)
 REQUIRED_NEW = {
@@ -76,6 +78,8 @@ REQUIRED_NEW = {
     "source_folders": ("project", "path"),                              # clark (#47): its sort_order is a rule (0 is a number)
     "app_settings": ("id",),                                            # clark (#47): the migration makes its one row; a second is refused
     "install_defaults": ("id",),                                        # row 1300: the same, one row
+    "connector_switches": ("connector",),                               # row 1306: the five rows are made by the migration step; a sixth is refused
+    "project_connectors": ("project_id", "connector"),                  # row 1306: a project's Off (off is a flag: 0 is a value, so it is not required)
     "documents": ("project", "title", "url"),                           # clark (#126); #74: added and edited too (_document_rules)
     "gantt_lines": ("project", "type", "name", "start", "end"),   # row 926
     "use_case_milestones": ("use_case", "milestone"),                # row 1107
@@ -100,6 +104,8 @@ DELETABLE_TYPES = SECTION_TYPES                 # row 906: any section may be de
 COMMITMENTS = ("Planned 2026", "Committed", "Planned 2027")
 ALLOWED = {
     ("app_settings", "theme"): THEMES,                                  # row 1269
+    ("connector_switches", "connector"): CONNECTORS,                    # row 1306
+    ("project_connectors", "connector"): CONNECTORS,
     ("report_sections", "type"): SECTION_TYPES,                         # clark (#65): every type of schema.sql's CHECK
     ("glance_tiles", "tile"): ("health", "overdue", "risks", "decisions"),
     ("glance_tiles", "outline"): ("R", "A", "G", "N"),                  # and '' (a blank is never checked)
@@ -233,6 +239,7 @@ REVERT_CREATED = ("actions", "raid", "decisions", "milestones", "use_cases", "li
                   "report_sections", "source_folders", "people")      # #115: a person is never deleted; only the Undo of the step that made them takes the row away
 # a creation of these may be undone. clark: + use cases, and + links and labels, which creaite left to "undo last apply";
 # clark has only this one undo.
+REVERT_CREATED += ("project_connectors",)      # row 1306: a project's first Off can be undone
 REVERT_CREATED += ("report_hidden", "documents", "gantt_lines", "use_case_milestones")    # #67: hiding a row from the report adds a report_hidden row; Undo takes it away (kept apart, so it merges with the other additions to the list above)
 REVERT_REFS = (("actions", "milestone"), ("raid", "milestone"), ("decisions", "replaces"), ("links", "from_item"),
                ("links", "to_item"), ("item_labels", "item_id"),
@@ -436,7 +443,7 @@ def is_archived(con, code):
 # archive and restore (and the Undo of them) ever set it: refuse_archived_field turns it away from a new row and an update. tests/test_store_flags.py reads schema.sql and fails if a flag column is not named here,
 # so a new flag can't slip past the rule (#89).
 FLAG_COLUMNS = frozenset({"active", "builtin", "suggested", "state_set", "client_visible", "beside", "hidden", "word", "archived", "ask_enabled", "needs_details", "client_action",
-                          "show", "show_gantt_editor", "show_gantt_client"})      # row 926: a Gantt line's eye and the project's two Gantt switches
+                          "show", "show_gantt_editor", "show_gantt_client", "is_on", "off", "gantt_editor", "gantt_client"})      # row 926: a Gantt line's eye and the project's two Gantt switches
 FLAGS_ELSEWHERE = frozenset({"archived"})       # also named here: the flags test still reads it (#89)
 
 
@@ -717,6 +724,14 @@ def _document_rules(con, table, row, changed):
         n = con.execute("SELECT count(*) FROM documents WHERE project = ? AND id IS NOT ?", (row.get("project"), row.get("id"))).fetchone()[0]
         if n >= MAX_DOCUMENTS:
             raise Invalid(f"A project can have at most {MAX_DOCUMENTS} documents.")
+
+
+def _project_connector(con, table, row, changed):
+    """Row 1306: a project's connector switch names a project that is here and one of the five connectors; nothing else is kept in it."""
+    if not con.execute("SELECT 1 FROM projects WHERE code = ?", (row.get("project_id"),)).fetchone():
+        raise Invalid(f"project {row.get('project_id')} isn't here")
+    if row.get("connector") not in CONNECTORS:
+        raise Invalid("That is not a connector clark knows.")
 
 
 def _source_folder(con, table, row, changed):
@@ -1009,6 +1024,7 @@ ROW_RULES = {
     "glance_tiles": (_project_exists, _tile_rules),
     "report_hidden": (_project_exists, _hidden_item),
     "source_folders": (_project_exists, _source_folder),                     # clark (#47)
+    "project_connectors": (_project_connector,),                             # row 1306
     "gantt_lines": (_project_exists, _gantt_rules),                          # row 926
     "use_case_milestones": (_uc_milestone_rules,),                           # row 1107
 }
@@ -1210,7 +1226,7 @@ def write_item(con, item, step):
         refuse_archived_field(item)
     if op not in ("new", "update", "cancel", "archive", "restore", "delete"):
         raise Invalid(f"op must be new, update, cancel, archive, restore or delete (got {op!r})")
-    if table in SETTINGS_TABLES and op != "update":      # clark (#47): the one row is made by the migration step and only changed
+    if table in SETTINGS_TABLES and table != "project_connectors" and op != "update":      # clark (#47): the one row is made by the migration step and only changed
         raise Invalid(SETTINGS_ROW)
     cols = columns(con, table)
     if op == "new":
@@ -3070,6 +3086,32 @@ def migrate_install_defaults(con):
         con.execute(statement)
 
 
+CONNECTOR_SWITCHES_STEP = 31        # row 1306's step number (30 is row 1300's install_defaults), written once here and used by MIGRATIONS
+CONNECTOR_SWITCHES_DDL = (
+    """CREATE TABLE IF NOT EXISTS connector_switches (
+  connector  TEXT PRIMARY KEY CHECK (connector IN ('mail','calendar','teams','sharepoint','todoist')),
+  is_on      INTEGER NOT NULL DEFAULT 0 CHECK (is_on IN (0,1)),
+  updated_at TEXT
+)""",
+    "INSERT OR IGNORE INTO connector_switches (connector) VALUES ('mail'), ('calendar'), ('teams'), ('sharepoint'), ('todoist')",
+    """CREATE TABLE IF NOT EXISTS project_connectors (
+  project_id TEXT NOT NULL REFERENCES projects(code),
+  connector  TEXT NOT NULL CHECK (connector IN ('mail','calendar','teams','sharepoint','todoist')),
+  off        INTEGER NOT NULL DEFAULT 1 CHECK (off IN (0,1)),
+  updated_at TEXT,
+  PRIMARY KEY (project_id, connector)
+)""",
+)      # frozen here, as INSTALL_DEFAULTS_DDL is: tests/test_connector_switches_store.py pins it to what schema.sql creates
+
+
+def migrate_connector_switches(con):
+    """Schema version 30 to 31 (row 1306): connector_switches (the five connectors, each Off) and project_connectors (empty). Made only if
+    missing, so a second run changes nothing and a switch already set keeps its value. Switch state only. Runs inside the caller's
+    transaction and does not touch the version (the runner does). It is step 31 in MIGRATIONS."""
+    for statement in CONNECTOR_SWITCHES_DDL:
+        con.execute(statement)
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
@@ -3083,7 +3125,8 @@ MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies),
               (DECISION_PEEK_STEP, migrate_decision_peek), (THEME_STEP, migrate_theme),
               (REPORT_HEADLINE_STEP, migrate_report_headline_section_type),
               (GLANCE_TEMPLATE_STEP, migrate_glance_template_section_type),
-              (INSTALL_DEFAULTS_STEP, migrate_install_defaults))
+              (INSTALL_DEFAULTS_STEP, migrate_install_defaults),
+              (CONNECTOR_SWITCHES_STEP, migrate_connector_switches))
 
 
 def migration_plan(version, table=None):
@@ -3463,7 +3506,7 @@ class Store:
                             "DELETE FROM use_case_milestones WHERE use_case IN (SELECT id FROM use_cases WHERE project = ?)",
                             "DELETE FROM use_cases WHERE project = ?", "DELETE FROM milestones WHERE project = ?", "DELETE FROM workstreams WHERE project = ?",
                             "DELETE FROM updates WHERE project = ?", "DELETE FROM report_sections WHERE project = ?", "DELETE FROM glance_tiles WHERE project = ?",
-                            "DELETE FROM report_hidden WHERE project = ?", "DELETE FROM documents WHERE project = ?", "DELETE FROM source_folders WHERE project = ?", "DELETE FROM gantt_lines WHERE project = ?",
+                            "DELETE FROM report_hidden WHERE project = ?", "DELETE FROM documents WHERE project = ?", "DELETE FROM source_folders WHERE project = ?", "DELETE FROM project_connectors WHERE project_id = ?", "DELETE FROM gantt_lines WHERE project = ?",
                             "DELETE FROM projects WHERE code = ?"):
                     con.execute(sql, (code,))
                 con.executemany("DELETE FROM change_log WHERE tbl = ? AND item_id = ?", sorted(keys))
@@ -4086,6 +4129,45 @@ class Store:
             return bool(have and self.con.execute("SELECT 1 FROM app_settings WHERE id = 1").fetchone())
         except sqlite3.Error:
             return False
+
+    def connectors_ready(self):
+        """True when this file has the connector switches' step (row 1306): both tables, and a row for each of the five connectors."""
+        try:
+            have = {r[0] for r in self.con.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('connector_switches', 'project_connectors')")}
+            return have == {"connector_switches", "project_connectors"} and \
+                self.con.execute("SELECT count(*) FROM connector_switches").fetchone()[0] == len(CONNECTORS)
+        except sqlite3.Error:
+            return False
+
+    def connector_switches(self):
+        """{connector: bool}, the global switch of each of the five connectors. A file without the step, a row that is missing, a value that
+        is not exactly 1 and any database error all read as Off: it never fails open. Read only."""
+        out = {c: False for c in CONNECTORS}
+        try:
+            if self.connectors_ready():
+                for c, v in self.con.execute("SELECT connector, is_on FROM connector_switches"):
+                    if c in out:
+                        out[c] = v == 1
+        except sqlite3.Error:
+            return {c: False for c in CONNECTORS}
+        return out
+
+    def project_connectors_off(self, project):
+        """The connectors this project keeps Off, as a tuple in CONNECTORS' order. Read only; an unknown project has none."""
+        try:
+            if not self.connectors_ready():
+                return ()
+            got = {r[0] for r in self.con.execute("SELECT connector FROM project_connectors WHERE project_id = ? AND off = 1", (project,))}
+        except sqlite3.Error:
+            return ()
+        return tuple(c for c in CONNECTORS if c in got)
+
+    def connector_allowed(self, connector, project):
+        """True only when the connector's global switch is On and the project has not turned it Off: Off wins. An unknown name, an unknown
+        project, a file without the step and any database error read as False. Read only."""
+        if connector not in CONNECTORS:
+            return False
+        return self.connector_switches()[connector] and connector not in self.project_connectors_off(project)
 
     def ask_enabled(self):
         """True only while asking is on for this computer (#47): the one row's switch is 1. The server calls this before anything is
