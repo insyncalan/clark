@@ -43,6 +43,27 @@ h1, h2, h3 { font-weight: var(--weight-medium); }
 .cnt li a:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 @media print { .cnt { display: none; } .cnt-grid { display: block; } }
 html.print-all .cnt { display: none; }
+/* Row 1313 block (dashboard style gaps vs prototype 2.0), Classic only. Kept apart from the rules above so it merges cleanly. Bare values with no token, as for row 1260: the 103px height of the narrow bar, the 1px divider width and the 1180px break (the shell's own break for Project health). The sizes are those the issue gives; the prototype files were not available to measure. The title is one line with an ellipsis here by ruling (replaces row 1239 for the dashboard title on screen only; the published file bar, .top-file, keeps row 1239 and wraps). Not here: section heading weight (row 1319), the Milestones frame (row 1315). */
+.glance[data-glance] { gap: 0; }
+.glance[data-glance] .fig { border: 0; border-radius: 0; background: none; }
+.glance[data-glance] .fig::after { display: none; }
+.glance[data-glance] .tcell + .tcell { border-left: 1px solid var(--line-soft); }
+.glance[data-glance] .fig .tw { padding: 0; border: 0; }
+@media (max-width: 1180px) { .glance[data-glance] .tcell.health + .tcell { border-left: 0; } .glance[data-glance] .tcell.health { border-bottom: 1px solid var(--line-soft); } }
+.secs .sec-head::before { font-family: var(--font-head); }
+.msv-sw, .mv-txt { gap: 0; padding: 0; border: 1px solid var(--heading); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+.msv-sw .msv-b, .mv-txt button { border-radius: 0; border-bottom: 0; background: var(--surface); color: var(--text); padding: 0 var(--space-3); }
+.mv-txt > span { display: none; }
+.msv-sw .msv-b + .msv-b, .mv-txt button:not(:first-of-type) { border-left: 1px solid var(--heading); }
+.msv-sw .msv-b[aria-current="true"], .mv-txt button[aria-current="true"] { background: var(--heading); color: var(--surface); }
+html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media screen { #report.frame.report:not(.asat-frame) { background: transparent; border: 0; box-shadow: none; } }
+@media (max-width: 900px) {
+  html:has(.top-hdr) { --topbar: 103px; --bar-min: 103px; }
+  .top-hdr { display: flex; flex-wrap: nowrap; align-items: center; gap: 12px; padding: 10px 20px; height: 103px; }
+  .top-hdr .hdr-id { flex: 1 1 0; }
+  .top-hdr .tabs { flex: 0 1 auto; min-width: 0; margin: 0; padding: 0; border-top: 0; align-self: stretch; }
+}
 /* Row 1319, primary buttons: .again, .btn.primary and .btn.pri are aqua pills in Classic, light and dark (the aqua, glow and glow-hover come from the pill tokens; the gradient start, the dark text and the ring are literals from the prototype because the Classic pill tokens carry a flat fill and a different text, and a Theme may not add token names); hover lifts and glows, press sinks, reduced motion keeps both still; the finished state is green with white text. */
 .again, .btn.primary, .btn.pri { border: 0; border-radius: var(--radius-pill); padding: 0 22px; min-height: 38px; font-weight: 800; letter-spacing: .04em; background-color: var(--pill-color); background-image: linear-gradient(90deg, #8FF2EF, var(--pill-color)); color: #04222A; box-shadow: var(--pill-glow); }
 .again:hover, .btn.primary:hover, .btn.pri:hover:not(:disabled) { box-shadow: var(--pill-glow-hover); }
