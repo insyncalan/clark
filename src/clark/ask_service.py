@@ -206,6 +206,7 @@ class AskService:
                      "sources": [{"id": pid, "label": label, "page": page_of(sent[i]), "file": file_of(sent[i])}
                                  for (pid, label), i in zip(request.passages, request.kept) if pid in reply.cites],
                      "flags": [{"kind": f.kind, "ref": f.ref, "message": f.message} for f in reply.flags],
+                     "items": [{"id": i["id"], "state": list(i["state"])} for i in reply.items],
                      "changes": [dict(c) for c in reply.changes], "notes": notes, "reply": held, "draft": reply.draft,
                      "left_out_for_safety": found.safety}
 
