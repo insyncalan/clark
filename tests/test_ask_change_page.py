@@ -9,6 +9,7 @@ Fictional data only.
 """
 import json
 import re
+import threading
 import time
 import unittest
 from unittest import mock
@@ -307,6 +308,55 @@ class TheCard(Card):
             self.assertIn("isn't available yet", text)
             self.assertIn("Nothing was changed", text)
             self.assertEqual(p.js("document.querySelectorAll('[data-ask-apply]').length"), 0)
+
+    def test_the_card_says_it_is_saving_while_the_save_is_under_way(self):         # row 1292 sweep: the transient saving state
+        self.says(self.close_it())
+        gate, real = threading.Event(), self.service.change_apply
+
+        def slow(body):
+            gate.wait(20)
+            return real(body)
+        with chrome() as cdp, mock.patch.object(self.service, "change_apply", slow):
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            p.js("document.querySelector('[data-ask-apply]').click()")
+            try:
+                p.until("!!document.querySelector('[data-ask-line]') && document.querySelector('[data-ask-line]').textContent === 'Saving the change\u2026'", "the saving line")
+            finally:
+                gate.set()
+            p.until("document.querySelector('[data-ask-line]').textContent.startsWith('Done.')", "Done.")
+
+    def test_a_busy_refusal_shows_its_own_sentence_on_the_card_and_keeps_the_panel_on(self):         # row 1292 sweep: 409 other than asking_off
+        self.says(self.close_it())
+        busy = (409, {"ok": False, "code": "busy", "message": "Another change is being saved. Try again in a moment."})
+        with chrome() as cdp, mock.patch.object(self.service, "change_apply", lambda body: busy):
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            p.js("document.querySelector('[data-ask-apply]').click()")
+            p.until("!!document.querySelector('[data-ask-line].problem')", "the failed line")
+            self.assertEqual(p.js("document.querySelector('[data-ask-line]').textContent"), "Another change is being saved. Try again in a moment.")
+            self.assertEqual(p.js("document.querySelectorAll('#ask-off').length"), 0, "only asking_off turns the panel off")
+
+    def test_apply_all_says_how_many_were_saved_when_one_was_not(self):         # row 1292 sweep: saved === offered.length
+        self.two_cards()
+        calls, real = [], self.service.change_apply
+
+        def second_fails(body):
+            calls.append(1)
+            if len(calls) == 2:
+                return 409, {"ok": False, "code": "busy", "message": "Another change is being saved. Try again in a moment."}
+            return real(body)
+        with chrome() as cdp, mock.patch.object(self.service, "change_apply", second_fails):
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            p.until("document.querySelectorAll('[data-ask-change]').length === 2", "both cards")
+            p.js("document.querySelector('[data-ask-apply-all]').click()")
+            p.until("!!document.querySelector('[data-ask-group-line]')", "the group line")
+            self.assertEqual(p.js("document.querySelector('[data-ask-group-line]').textContent.startsWith('1 of 2 changes were saved.')"), True)
+            self.assertEqual((self.status(), self.store.read("actions", ref=self.second)["status"]), ("Closed", "Open"))
 
     def test_off_leaves_nothing_to_press(self):
         self.says(self.close_it())
