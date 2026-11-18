@@ -12,6 +12,9 @@ SECTION_HINTS = {          # item 1193: the guiding sentence of each text sectio
     "This week": "List what was done this week, and what moved forward.",
     "Next week": "List what is planned for next week, and who is doing it.",
 }
+RISKS_AND_ISSUES_LIST = ('{"v":1,"kinds":["risk","issue"],"mode":"open","status":[],"due":[],"owner":[],"workstream":[],"use_case":[],"priority":[],"sort":"priority","max":50,'
+                        '"columns":["type","id","owner","due","status","priority"],"caption":"","milestone":[],"not":{"kinds":[],"status":[],"due":[],"owner":[],'
+                        '"workstream":[],"use_case":[],"priority":[],"milestone":[]},"has":[],"no":[],"text":[]}')   # row 1193-8: the saved filter of the Risks and issues list (open risks and issues, most urgent first), canonical as section_kinds/workitems.check gives it; a test pins that
 DEFAULT_SECTIONS = (
     {"type": "text", "title": "Current state", "body": ""},   # item 1188: a text section now; the older type "current" is still read and stored, and existing reports keep it
     {"type": "glance", "title": "At a glance"},
@@ -19,7 +22,7 @@ DEFAULT_SECTIONS = (
     {"type": "milestones", "title": "Milestones"},
     {"type": "text", "title": "This week", "beside": 1},
     {"type": "text", "title": "Next week"},
-    {"type": "raid", "title": "Risks and issues"},
+    {"type": "workitems", "title": "Risks and issues", "body": RISKS_AND_ISSUES_LIST},   # row 1193-8: a Work items list on a saved filter; new projects only, an existing report keeps its raid section
     {"type": "actions", "title": "Open actions"},
     {"type": "decisions", "title": "Decisions"},
     {"type": "docs", "title": "Supporting documents"},
