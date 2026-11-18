@@ -1,8 +1,8 @@
-"""Theme Cards item 8 (optional per the ticket): the Add button is dashed, 28 px high, with no fill at rest, and fills on hover and keyboard focus.
+"""Theme Cards item 8 (optional per the ticket): the Add button is dashed, 28 px high, with the plain surface ground at rest (no brand fill; opaque so the text stays 4.5 to 1 over a brand picture), and fills on hover and keyboard focus.
 
 Run: python3 dev/run_tests.py test_add_look_28_item8
 The real page over the fictional demo data in Edit at 1400 and 900 px. The first .newb on the Work items page is measured: computed height 28 px, border
-style dashed 1px, transparent background at rest; on hover it takes the filled brand colour. Chrome is required.
+style dashed 1px, the surface ground at rest; on hover it takes the filled brand colour. Chrome is required.
 """
 import json
 import re
@@ -79,7 +79,8 @@ class Add28(unittest.TestCase):
                 rest = self.look(cdp, sid, ".newb")
                 self.assertEqual(rest["h"], 28, f"{width}: height")
                 self.assertEqual((rest["style"], rest["bw"]), ("dashed", "1px"), f"{width}: border")
-                self.assertIn(rest["bg"], ("rgba(0, 0, 0, 0)", "transparent"), f"{width}: no fill at rest")
+                ground = cdp.js("(() => { const p = document.createElement('i'); p.style.background = 'var(--surface)'; document.body.append(p); const c = getComputedStyle(p).backgroundColor; p.remove(); return c; })()", sid)
+                self.assertEqual(rest["bg"], ground, f"{width}: at rest the button has the page's surface ground, not a brand fill, so its blue stays readable over a brand picture (test_brand_backdrop)")
                 self.assertGreaterEqual(rest["w"], rest["icon"], f"{width}: icon not clipped")
                 self.assertEqual(rest["w"], 28, f"{width}: drawn width at rest is the 28 px minimum")
                 self.assertEqual(rest["ioff"], 5, f"{width}: icon sits 1 px border + 4 px padding from the left edge")

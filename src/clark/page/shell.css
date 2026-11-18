@@ -497,7 +497,7 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1
 
 /* creaite's Add button (NewTile): a "+" that grows to its words on hover and on keyboard focus. */
 .dd { position: relative; display: inline-block; }
-.newb { height: 28px; min-width: 28px; border: 1px dashed var(--status-blue-text); border-radius: var(--radius); background: transparent; color: var(--status-blue-text); display: inline-flex; align-items: center; padding: 0 4px; cursor: pointer; font-size: var(--size-small); font-weight: 500; line-height: 18px; overflow: hidden; white-space: nowrap; transition: background var(--dur-instant) var(--ease-out), color var(--dur-instant) var(--ease-out); }
+.newb { height: 28px; min-width: 28px; border: 1px dashed var(--status-blue-text); border-radius: var(--radius); background: var(--surface); color: var(--status-blue-text); display: inline-flex; align-items: center; padding: 0 4px; cursor: pointer; font-size: var(--size-small); font-weight: 500; line-height: 18px; overflow: hidden; white-space: nowrap; transition: background var(--dur-instant) var(--ease-out), color var(--dur-instant) var(--ease-out); }
 .newb .i { width: 18px; height: 18px; stroke-width: 2.2; }
 .newb .w { max-width: 0; opacity: 0; overflow: hidden; transition: max-width var(--dur-state) var(--ease-out), opacity var(--dur-instant) var(--ease-out), margin var(--dur-state) var(--ease-out); }
 .newb:hover, .newb:focus-visible, .newb[aria-expanded="true"] { background: var(--brand-blue); border-color: var(--brand-blue); color: var(--text-on-brand); }
