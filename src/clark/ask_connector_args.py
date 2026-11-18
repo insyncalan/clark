@@ -20,20 +20,9 @@ from clark import ask_connectors
 M365 = "claude.ai Microsoft 365"
 FLAG_ALLOW, FLAG_DENY = "--allowedTools=", "--disallowedTools="
 
-# Every built-in tool of the command, denied by name when a connector is On (the run then has the default tools, because --tools "" also removes the
-# tool that loads connector tools). A deny list only covers the names it knows: a built-in ADDED LATER is not in it. That case is caught after the
-# fact, not prevented: ask_connector_stream refuses the whole run (nothing from it is shown) if any tool_use is not one of the allowed connector tools.
-# Source: the tool names of the command's own tool set (the init event of a real run should be compared with it; see the probe notes).
-# This list is a stopgap: the allow-list form (--tools with only the loader tool, probe F3) replaces it, because an allow-list cannot go stale.
-# tests pin KNOWN_BUILT_INS: a name there that is missing here fails the test.
-BUILT_IN_TOOLS = (
-    "Artifact", "ArtifactCheck", "ArtifactComments", "ArtifactData", "DesignSync", "ListAgents", "ReadMcpResourceDirTool", "ReportFindings", "SendFeedback", "StructuredOutput",
-    "SendToProject", "SendToProjectContext", "TaskCreate", "TaskGet", "TaskList", "TaskUpdate", "PowerShell", "LSP", "REPL", "Tmux", "Sleep",
-    "Agent", "AskUserQuestion", "Bash", "BashOutput", "CronCreate", "CronDelete", "CronList", "Edit", "EndConversation", "EnterPlanMode",
-    "EnterWorktree", "ExitPlanMode", "ExitWorktree", "Glob", "Grep", "KillBash", "KillShell", "LS", "ListMcpResourcesTool", "MultiEdit",
-    "Monitor", "NotebookEdit", "NotebookRead", "PushNotification", "Read", "ReadMcpResourceTool", "RemoteTrigger", "ScheduleWakeup",
-    "SendMessage", "Skill", "SlashCommand", "Task", "TaskOutput", "TaskStop", "TodoWrite", "WebFetch", "WebSearch", "Workflow", "Write",
-)    # ToolSearch is NOT here: it is the one built-in that loads the allowed connector tool
+# The one built-in a connector run keeps: it loads the allowed connector tool (the tool is deferred behind it). The run passes `--tools ToolSearch`, an
+# allow-list of built-ins (see ask_claude.connector_arguments), so a built-in added later cannot reach the model and no deny list of built-in names exists.
+LOADER = "ToolSearch"
 
 # server -> connector -> read-only tools (fixed order). The only tools that can ever be allowed.
 READ_TOOLS = {
@@ -111,8 +100,7 @@ def connector_plan(discovered, on):
         allow.extend(f"{FLAG_ALLOW}{p}__{t}" for t in allowed)
         names = set(WRITE_TOOLS[server]) | {t for c in table for t in table[c]}
         named.extend(f"{FLAG_DENY}{p}__{t}" for t in sorted(names - set(allowed)))
-    built_in = [FLAG_DENY + t for t in BUILT_IN_TOOLS] if any_on else []
-    return built_in + whole + allow + named, dropped
+    return whole + allow + named, dropped
 
 
 def connector_args(discovered, on):

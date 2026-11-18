@@ -190,13 +190,14 @@ def connector_arguments(base, call):
     args = ask_connector_args.compose(base, call)
     if not call.connectors:
         return args
-    # Probe on a real Mac (row 1306): --tools "" hides the connector tool (it removes the tool that loads it) and --safe-mode hides the account connector
-    # altogether, so a connector run has neither; the default tools stay on and every built-in is denied by name (ask_connector_args.BUILT_IN_TOOLS).
+    # Probes on real Macs (row 1306): --safe-mode hides the account connector altogether, and --tools "" removes the tool that loads connector tools. So a
+    # connector run drops --safe-mode and allows exactly ONE built-in, ToolSearch: `--tools ToolSearch` is an allow-list, no other built-in reaches the model
+    # (the init event lists [ToolSearch] only), and no deny list of built-in names is needed.
     keep = []
     for i, a in enumerate(args):
-        if a == "--safe-mode" or (a == "--tools" and args[i + 1] == "") or (a == "" and args[i - 1] == "--tools"):
+        if a == "--safe-mode":
             continue
-        keep.append(a)
+        keep.append(ask_connector_args.LOADER if (a == "" and args[i - 1] == "--tools") else a)
     args = ["stream-json" if a == "json" and keep[i - 1] == "--output-format" else a for i, a in enumerate(keep)]
     args = [CONNECTOR_TURNS if a == "1" and args[i - 1] == "--max-turns" else a for i, a in enumerate(args)]
     at = args.index("--output-format")
