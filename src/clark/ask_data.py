@@ -143,18 +143,20 @@ def choose(passages, question, budget=BUDGET):
 
 def state_of(kind, row, today):
     """DRAFT contract (row 1332): the words of ask.ITEM_STATES that apply to a published row. overdue: open and due before `today`
-    (a milestone: its own state is Overdue); red: open and rated Urgent or High (a milestone: Slipped or Overdue); no_owner: open
-    and the owner field is blank (a kind without an owner field has none to miss)."""
+    (a milestone: its own state is Overdue); red: an open risk, issue, assumption or dependency rated Urgent or High, the same rows the
+    page's High risks and issues tile counts (an action, a decision or a milestone is never red); no_owner: open and the owner field is blank
+    or TBC, as the page reads an owner (a kind without an owner field has none to miss)."""
     if kind == "milestones":
         state = row.get("state")
         live = state != "Achieved"
-        late, red = state == "Overdue", state in ("Slipped", "Overdue")
+        late, red = state == "Overdue", False
     else:
         full = {**row, "kind": "decision"} if kind == "decisions" else row
         live = glance.is_open(full)
         late = glance.is_overdue(full, today)
-        red = live and glance.colour_of_priority(row.get("priority")) == "red"
-    blank = live and kind in OWNER and not plain(row.get(OWNER[kind]) or "").strip()
+        red = live and kind == "raid" and glance.colour_of_priority(row.get("priority")) == "red"
+    owner = plain(row.get(OWNER.get(kind, "")) or "").strip()
+    blank = live and kind in OWNER and (not owner or owner.upper() == "TBC")
     return [w for w, on in (("overdue", late), ("red", red), ("no_owner", blank)) if on]
 
 

@@ -34,12 +34,24 @@ class State(unittest.TestCase):
         self.assertEqual(state("actions", status="Open", owner="  ", due_date=None), ["no_owner"])
         self.assertEqual(state("actions", status="Open", owner="Sam", due_date=None), [])
 
+    def test_tbc_is_no_owner_as_the_page_reads_it(self):
+        for tbc in ("TBC", "tbc", " Tbc "):
+            self.assertEqual(state("actions", status="Open", owner=tbc, due_date=None), ["no_owner"], tbc)
+        self.assertEqual(state("actions", status="Open", owner="Tbca", due_date=None), [])
+        self.assertEqual(state("decisions", status="Pending", made_by="TBC", needed_by=None), ["no_owner"])
+
+    def test_red_is_the_page_tile_rows_only(self):
+        # the page counts open risks, issues, assumptions and dependencies rated Urgent or High: an action or a decision is never red
+        self.assertEqual(state("actions", status="Open", owner="Sam", priority="High"), [])
+        self.assertEqual(state("decisions", status="Pending", made_by="Sam", priority="Urgent"), [])
+        self.assertEqual(state("raid", status="Closed", owner="Sam", priority="High"), [])
+
     def test_the_words_come_in_the_order_overdue_red_no_owner(self):
-        self.assertEqual(state("actions", status="Open", owner="", due_date="2026-11-01", priority="High"), ["overdue", "red", "no_owner"])
+        self.assertEqual(state("raid", status="Open", owner="", due_date="2026-11-01", priority="High"), ["overdue", "red", "no_owner"])
 
     def test_a_milestone_reads_its_own_state(self):
-        self.assertEqual(state("milestones", state="Overdue", owner="Sam"), ["overdue", "red"])
-        self.assertEqual(state("milestones", state="Slipped", owner="Sam"), ["red"])
+        self.assertEqual(state("milestones", state="Overdue", owner="Sam"), ["overdue"])
+        self.assertEqual(state("milestones", state="Slipped", owner="Sam"), [])
         self.assertEqual(state("milestones", state="On track", owner=""), ["no_owner"])
         self.assertEqual(state("milestones", state="Achieved", owner=""), [])
 

@@ -75,6 +75,13 @@ export const PILLS_STATE = {
   risks: { red: "Which risks are red?", noOwner: "Which risks have no owner?" },
   gantt: { overdue: "Which work items are running late?", red: "Which milestones are at risk?" },
 };
+// Row 1332 rows 3 and 11: after an answer that names items, the suggestions open with what can be done about THOSE items (DRAFT contract: items=[{id,state}],
+// state words overdue / red / no_owner). The two questions about one item or a few carry the ids in brackets; the rest are plain questions.
+export const PILLS_ITEM_DUE = "Change the due date";
+export const PILLS_ITEM_URGENCY = "Raise the urgency";
+export const PILLS_ITEM_REPORT = "Add to the weekly report";
+export const PILLS_ITEM_OWNERS = "Who owns these?";
+export const PILLS_ITEM_LATE = "Why are these late?";
 export const PILLS_MAX = 6;
 export const PILLS_PAGE = { dashboard: "dashboard", work: "work", milestones: "milestones", usecases: "usecases", gantt: "gantt" };
 // Words in a question that name a subject. The first one found in the last question wins.
