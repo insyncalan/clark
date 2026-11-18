@@ -218,6 +218,8 @@ class Published(unittest.TestCase):
         demo = DemoStore()
         self.addCleanup(demo.close)
         store = demo.store
+        with store.con:      # row 1318: the Classic file draws the left Contents column instead of the minimap; this test is about the minimap, which Cards keeps
+            store.con.execute("UPDATE app_settings SET theme = 'cards' WHERE id = 1")
         change = changes.make_change(store.path, [], USER)
         for ref, edit in (("ABC-S-007", {"title": "Hidden secret plan", "hidden": 1}), ("ABC-S-005", {"title": "Shown plan"})):
             status, body = change({"project": "ABC", "kind": "report_sections", "op": "update", "id": ref, "changes": edit})

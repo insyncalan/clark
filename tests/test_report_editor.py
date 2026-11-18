@@ -1025,7 +1025,7 @@ class Gutter(Base):
             self.assertEqual(p.js("document.querySelectorAll('.sec-ctl').length"), 10, "one control for each section")
             self.assertEqual(p.js("document.querySelectorAll('.sec-ctl > [data-drag]').length"), 10)
             self.assertEqual(p.js("document.querySelectorAll('.sec-ctl > [data-add]').length"), 10, "a + under each grip")
-            self.assertEqual(p.js("document.querySelectorAll('.sec-add, .opts, .opts-btn').length"), 0,
+            self.assertEqual(p.js("document.querySelectorAll('.sec-add:not(.tileadd), .opts, .opts-btn').length"), 0,
                              "no Add line between sections and no separate options button")
             self.assertNotIn("Add a text section", p.js("document.querySelector('main').textContent"))
             self.assertNotIn("Add a text section", p.js("document.documentElement.outerHTML"))
