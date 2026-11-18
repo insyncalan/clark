@@ -18,7 +18,7 @@ class Focus(Setup):
                 p.until("!!document.querySelector('#usecases [data-clear-all]')", "the empty state")
                 p.js("document.querySelector('[data-clear-all]').focus()")
                 self.press(p, "Enter")
-                p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 4", "all four are back")
+                p.until("document.querySelectorAll('#usecases tr.ucr').length === 4", "all four are back")
                 p.until("document.activeElement && document.activeElement.id === 'ucl-q'", "the search box has the focus")
 
     def test_restore_hands_the_focus_on(self):

@@ -341,7 +341,7 @@ class Pins(unittest.TestCase):
                 self.assertIn(n + ":not(.leaving)", text, f"{path}: {n} in the list of open layers ignores a copy that is fading")
 
     def test_row_962_every_one_of_the_eleven_is_wired_to_the_fade(self):
-        wired = {"components/FilterLine.jsx": r'<Fade tag="ul" class="flist"', "edit/UseCasesPage.jsx": r'<Menu label="Group by"[^>]*id="ucl-group"', "edit/RowMenu.jsx": r'useFadeOut\(box, true, "rowmenu"\)',
+        wired = {"components/FilterLine.jsx": r'<Fade tag="ul" class="flist"', "edit/UseCasesPage.jsx": r'<Menu label=""[^>]*id="ucl-group"', "edit/RowMenu.jsx": r'useFadeOut\(box, true, "rowmenu"\)',
                  "edit/Board.jsx": r"fade ", "edit/GlanceEdit.jsx": r'cls="left tilemenu" fade ',
                  "edit/Gutter.jsx": r'useFadeOut\(boxRef, true, ""\)', "gantt/components/GanttChart.jsx": r'<Fade class="gt-menu"',
                  "edit/TemplateSettings.jsx": r'<Fade class="tset"', "edit/cells/Pop.jsx": r"fadeOut\(box\.current\)"}

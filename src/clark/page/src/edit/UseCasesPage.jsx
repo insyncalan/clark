@@ -75,12 +75,12 @@ function Row({ r, stop, shown, cols }) {
   const cell = {
     item: <td class="c-item" data-col="item">
       <span class="t"><button type="button" class="ucl-go uctitle" tabIndex={stop ? 0 : -1} aria-label={rowSay(r)} title={`Open ${r.name}`} onFocus={() => { current.value = r.id; }} onClick={open}>{r.name}</button></span>
-      {ref || (r.commitment && !cmCol) ? <span class="meta2 num" data-ref>{ref}{r.commitment && !cmCol ? <span class="cm">{ref ? " \u00b7 " : ""}{r.commitment}</span> : null}</span> : null}
+      {ref || (r.commitment && !cmCol) ? <span class="meta2 num">{ref ? <span class="ucl-ref" data-ref>{ref}</span> : null}{r.commitment && !cmCol ? <span class="cm">{ref ? " \u00b7 " : ""}{r.commitment}</span> : null}</span> : null}
     </td>,
-    where: <td class="c-where" data-col="where"><span class={`where uchead${r.headline ? "" : " none"}`} title={r.headline}>{r.headline || "No headline yet"}</span></td>,
-    status: <td class="c-status" data-col="status"><span class={`pill ${RAG[r.status] || "n"}`} data-status>{r.status}</span></td>,
+    where: <td class="c-where" data-col="where"><span class={`where ucl-head uchead${r.headline ? "" : " none"}`} title={r.headline}>{r.headline || "No headline yet"}</span></td>,
+    status: <td class="c-status ucl-st" data-col="status"><span class={`pill ${RAG[r.status] || "n"}`} data-status>{r.status}</span></td>,
     owner: <td class="c-owner" data-col="owner">{own.initials ? <span class="own"><span class="av" aria-hidden="true" title={own.text}>{own.initials}</span><span class="on">{own.text}</span></span> : own.text ? <span class="muted">{own.text}</span> : <span class="muted">{"\u2014"}</span>}</td>,
-    steps: <td class="c-steps" data-col="steps"><span class={`stp ucsteps num${r.open ? " some" : ""}`} data-steps><StepsBadge n={r.open} /></span>
+    steps: <td class="c-steps" data-col="steps"><span class={`stp ucl-steps ucsteps num${r.open ? " some" : ""}`} data-steps><StepsBadge n={r.open} /></span>
       <span class="prg" role="img" aria-label={`${r.total - r.open} of ${plural(r.total, "work item")} closed`}><i style={{ width: `${closedPct(r)}%` }}></i></span></td>,
     ms: <td class="c-ms" data-col="ms">{r.ms.length ? <span class="mslab" title={r.ms.map((m) => m.name).join(", ")}>{r.ms[0].name}{r.ms.length > 1 ? ` +${r.ms.length - 1}` : ""}</span> : <span class="muted">{"\u2014"}</span>}</td>,
     cm: <td class="c-cm" data-col="cm">{r.commitment || <span class="muted">{"\u2014"}</span>}</td>,
@@ -280,7 +280,7 @@ function UseCasesList() {
     </span>
   ) : null;
   const cols = cm.shown;
-  const table = (heads, body, cls = "") => <table class={`items ucl-table${cls}${cols.includes("cm") ? " cmcol" : ""}`}><Cols cols={cols} />{heads ? <thead><Heads cols={cols} cm={cm} /></thead> : null}{body}</table>;
+  const table = (heads, body, cls = "", label = "Use cases") => <table aria-label={label} class={`items ucl-table${cls}${cols.includes("cm") ? " cmcol" : ""}`}><Cols cols={cols} />{heads ? <thead><Heads cols={cols} cm={cm} /></thead> : null}{body}</table>;
   return (
     <section class="frame ucl" id="usecases">
       <p class="crumbs">{data.value.project.name}</p>
@@ -341,7 +341,7 @@ function UseCasesList() {
                     <Icon name="chevdown" cls={g.shut ? "turn" : ""} /><span class="gl">{g.label}</span><span class="gc num">{plural(g.rows.length, "use case")}</span>
                   </button>
                 </div>
-                {g.shut ? null : table(false, <tbody>{g.rows.map((r) => <Row key={r.id} r={r} stop={r.id === stop} shown={shown} cols={cols} />)}</tbody>)}
+                {g.shut ? null : table(false, <tbody>{g.rows.map((r) => <Row key={r.id} r={r} stop={r.id === stop} shown={shown} cols={cols} />)}</tbody>, "", g.label)}
               </div>
             ))}
           </div>

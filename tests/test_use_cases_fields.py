@@ -151,7 +151,7 @@ class Live(unittest.TestCase):
     def test_head_buttons_and_the_add_box_with_no_edit_mode(self):
         for n, (cdp, window, scheme) in enumerate(self.each()):
             sid = self.visit(cdp, window, scheme, LIST)
-            self.until(cdp, sid, "document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0", "the list drew")
+            self.until(cdp, sid, "document.querySelectorAll('#usecases tr.ucr[data-uc]').length > 0", "the list drew")
             self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch: the page has no mode")
             # row 1085: Add use case (the growing +) sits at the right end of the tabs row, not in the head, with the Work items word; the head's
             # Export to Excel button is gone from the head (the ruling puts the Import and Export icons on the tabs row with the +)
@@ -160,14 +160,14 @@ class Live(unittest.TestCase):
             self.assertEqual(cdp.js("document.querySelectorAll('#usecases .head button, #usecases #ucExp').length", sid), 0, "the head holds the title alone")
             self.assertEqual(cdp.js("document.querySelectorAll('#usecases .fvrow #expBtn, #usecases .fvrow #impBtn').length", sid), 0, "item 1142: no Import or Export on the tabs row")
             self.no_sideways(cdp, sid)
-            rows = cdp.js("document.querySelectorAll('#usecases .ucl-row[data-uc]').length", sid)
+            rows = cdp.js("document.querySelectorAll('#usecases tr.ucr[data-uc]').length", sid)
             before, ref, title = self.steps(), f"9.{n}", f"Row 830 case {n}"
             click(cdp, sid, "#ucAddPage")
             self.until(cdp, sid, "!!document.querySelector('#ucF')", "the Add box opened")
             cdp.js(f"(() => {{ for (const [id, v] of [['ucI', {json.dumps(ref)}], ['ucT', {json.dumps(title)}]]) {{ const e = document.getElementById(id); e.value = v; e.dispatchEvent(new Event('input', {{bubbles: true}})); }} }})()", sid)
             click(cdp, sid, "#ucF [data-place]")
             self.until(cdp, sid, "/hidden from the client/.test((document.querySelector('.toast-text') || {}).textContent || '')", "the toast said it starts hidden")
-            self.until(cdp, sid, f"document.querySelectorAll('#usecases .ucl-row[data-uc]').length === {rows + 1}", "the new row is in the list")
+            self.until(cdp, sid, f"document.querySelectorAll('#usecases tr.ucr[data-uc]').length === {rows + 1}", "the new row is in the list")
             made_row = self.sql("SELECT client_visible FROM use_cases WHERE title=?", title)
             self.assertEqual(len(made_row), 1)
             self.assertFalse(made_row[0][0], "hidden from the client")
@@ -181,7 +181,7 @@ class Live(unittest.TestCase):
             sid = self.visit(cdp, window, scheme, LIST)
             self.until(cdp, sid, "!!document.querySelector('#usecases [data-archived-uc] [data-arch-toggle]')", "the Show archived footer drew")
             self.assertEqual(re.sub(r"\s+", " ", cdp.js("document.querySelector('[data-archived-uc] .ucx-foot').textContent", sid)).strip(), "1 archived use case is hidden. Show archived")
-            self.assertFalse(cdp.js(f"!!document.querySelector('#usecases .ucl-row[data-uc={json.dumps(UC)}]')", sid), "not in the live list")
+            self.assertFalse(cdp.js(f"!!document.querySelector('#usecases tr.ucr[data-uc={json.dumps(UC)}]')", sid), "not in the live list")
             click(cdp, sid, "[data-arch-toggle]")
             self.until(cdp, sid, f"!!document.querySelector('.ucl-arch [data-arch-uc={json.dumps(UC)}] [data-restore]')", "the archived list with Restore")
             self.assertEqual(re.sub(r"\s+", " ", cdp.js("document.querySelector('[data-archived-uc] .ucx-foot').textContent", sid)).strip(), "Showing 1 archived use case. Hide archived")
@@ -189,11 +189,11 @@ class Live(unittest.TestCase):
             self.assertRegex(cdp.js("document.querySelector('.ucl-arch [data-restore]').getAttribute('aria-label')", sid), r"^Restore .+ · .+")       # each button names its use case
             before = self.steps()
             click(cdp, sid, ".ucl-arch [data-restore]")
-            self.until(cdp, sid, f"!!document.querySelector('#usecases .ucl-row[data-uc={json.dumps(UC)}]')", "Restore brought it back to the list")
+            self.until(cdp, sid, f"!!document.querySelector('#usecases tr.ucr[data-uc={json.dumps(UC)}]')", "Restore brought it back to the list")
             self.until(cdp, sid, "document.activeElement && document.activeElement.classList.contains('ucl-go')", "the last Restore moved the focus to the restored row's name (main's restore())")
             self.assertEqual((self.archived(), self.steps()), (False, before + 1), "Restore is one step")
             click(cdp, sid, "[data-undo]")
-            self.until(cdp, sid, f"!document.querySelector('#usecases .ucl-row[data-uc={json.dumps(UC)}]')", "Undo put it back in the archive")
+            self.until(cdp, sid, f"!document.querySelector('#usecases tr.ucr[data-uc={json.dumps(UC)}]')", "Undo put it back in the archive")
             self.assertEqual((self.archived(), self.steps()), (True, before + 2), "Undo is one step")
 
     def test_detail_offers_next_step_and_link_with_no_edit_mode(self):

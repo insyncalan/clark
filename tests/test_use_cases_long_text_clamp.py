@@ -18,7 +18,7 @@ class UseCasesLongTextClamp(unittest.TestCase):
 
     def test_headline_clamps_to_two_lines(self):
         # item 1149: where it stands is shown in full on the row, clamped to two lines (the milestones left the row)
-        body = " ".join(rule(".ucl-head"))
+        body = " ".join(rule(".ucl-table .where"))
         self.assertIn("-webkit-line-clamp: 2", body)
         self.assertIn("overflow: hidden", body)
         self.assertIn("-webkit-box-orient: vertical", body)

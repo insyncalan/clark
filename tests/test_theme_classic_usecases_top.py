@@ -72,8 +72,7 @@ class Top(unittest.TestCase):
                 for k in ("group", "sort"):
                     self.assertEqual(g[k][0], "rgba(0, 0, 0, 0)", k + ": no border")
                     self.assertEqual(g[k][1], "rgba(0, 0, 0, 0)", k + ": no fill")
-                    self.assertEqual(g[k][2], "4px", k + ": not a pill")
-                self.assertEqual((g["groupChev"], g["sortChev"], g["menuChev"]), ("none", "none", "none"), "no chevrons")
+                self.assertEqual((g["groupChev"], g["sortChev"], g["menuChev"]), (False, False, "none"), "no chevrons (row 1325: Group by and Sort by are icon buttons)")
                 self.assertEqual(g["menuDots"], '"…"', "the tab menu is the three dots")
                 self.assertEqual(g["plus"][0], "dashed")
                 self.assertEqual(g["plus"][1], g["grey500"], "the dashed + border is the grey")
@@ -93,10 +92,8 @@ class Top(unittest.TestCase):
             with self.subTest(width=w, scheme=scheme):
                 g = self.read(None, w, scheme)
                 self.assertEqual(g["crumb"][:3], ["uppercase", "1.3px", "700"], "Cards keeps the tracked capitals on the use case page")
-                for k in ("group", "sort"):
-                    self.assertEqual(g[k][2], "999px", k + ": the pill")
-                    self.assertNotEqual(g[k][0], "rgba(0, 0, 0, 0)", k + ": its border")
-                self.assertNotIn("none", (g["groupChev"], g["sortChev"], g["menuChev"]), "chevrons stay")
+                self.assertEqual((g["groupChev"], g["sortChev"]), (False, False), "row 1325: Group by and Sort by are icon buttons with no chevron; their look is measured against Work items in test_use_cases_redesign_1325")
+                self.assertNotEqual(g["menuChev"], "none", "the tab menu's chevron stays")
                 self.assertEqual(g["menuDots"], "none")
                 self.assertEqual(g["plus"][0], "dashed")
                 self.assertEqual((g["plus"][1], g["plus"][2]), (g["blue"], g["blue"]), "Cards: the purple dashed +")

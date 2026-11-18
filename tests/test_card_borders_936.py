@@ -34,14 +34,14 @@ class Source(unittest.TestCase):
     def test_edit_css_carries_the_overrides_and_the_row_hover_has_no_stripe(self):
         css = read(PAGE / "src" / "edit" / "edit.css")
         self.assertIn(".hp-note { border: 1px solid var(--grey-200); border-radius: var(--radius); }", css)
-        line = next(l for l in css.splitlines() if l.startswith(".ucl-list .ucl-row:hover"))
+        line = next(l for l in css.splitlines() if l.startswith(".ucl-table tbody tr:hover"))
         self.assertNotIn("inset", line)
         self.assertNotIn("box-shadow", line)
 
     def test_the_published_page_has_no_edit_override_and_shell_css_has_the_quiet_note(self):
         view = read(PAGE / "page-view.html")
         self.assertNotIn(".hp-note { border: 1px solid", view)
-        self.assertNotIn(".ucl-list .ucl-row:hover", view)
+        self.assertNotIn(".ucl-table tbody tr:hover", view)
         note = next(l for l in read(PAGE / "shell.css").splitlines() if l.startswith(".hp-note {"))
         self.assertIn("border: 1px solid var(--grey-200)", note)
         self.assertNotIn("border-left", note)

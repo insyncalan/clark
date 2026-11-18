@@ -73,8 +73,8 @@ class SixMenusStayProduction(unittest.TestCase):
         # the Group by change for the Work items menu (row 1273, prototype wins) must not reach these: they pass their own menuLabel and ids
         for rel, ids in (("components/UseCasesTab.jsx", ("ucp-sort", "ucp-group")), ("edit/UseCasesPage.jsx", ("ucl-sort", "ucl-group"))):
             src = source(rel)
-            for i in ids:
-                self.assertRegex(src, r'<Menu [^\n]*? id="%s" btnCls="btn sm" menuLabel="(Sort|Group) by"' % i)
+            for i in ids:      # row 1325: the page's two are icon buttons at the right end of the filter line (btnCls "btn sm vgb")
+                self.assertRegex(src, r'<Menu [^\n]*? id="%s" btnCls="btn sm( vgb)?" menuLabel="(Sort|Group) by"' % i)
 
     def test_use_case_view_menu_delete_is_marked_danger(self):
         src = source("edit/UseCasesPage.jsx")

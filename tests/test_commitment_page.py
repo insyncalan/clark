@@ -114,13 +114,14 @@ class View(Flags):
     def test_the_use_cases_page_row_and_search(self):
         with chrome() as cdp:
             p = self.show(cdp, 1400, False, "#usecases&p=ABC", settings=True)
-            p.until("!!document.querySelector('.ucl-row[data-uc]')", "the list drew")
-            self.assertEqual(p.js(CHIPS % ".ucl-list"), ["Committed"])
-            self.assertEqual(p.js("document.querySelector('.ucl-row[data-uc]').getAttribute('data-uc') && document.querySelectorAll('.ucl-list .ucl-row').length"), 2)
+            p.until("!!document.querySelector('tr.ucr[data-uc]')", "the list drew")
+            CM = "[...document.querySelectorAll('#usecases tr.ucr .meta2 .cm')].map((e) => e.textContent.replace(/^[\\s\\u00b7]+/, ''))"      # row 1325: the commitment is in the grey line under the name
+            self.assertEqual(p.js(CM), ["Committed"])
+            self.assertEqual(p.js("document.querySelector('tr.ucr[data-uc]').getAttribute('data-uc') && document.querySelectorAll('#usecases tr.ucr').length"), 2)
             self.assertIn("Committed", p.js("document.querySelector('.ucl-go').getAttribute('aria-label')"))
             p.js("(() => { const q = document.querySelector('#ucl-q'); q.value = 'committed'; q.dispatchEvent(new Event('input', {bubbles: true})); })()")
-            p.until("document.querySelectorAll('.ucl-list .ucl-row').length === 1", "the search finds the flagged one by its word")
-            self.assertEqual(p.js(CHIPS % ".ucl-list"), ["Committed"])
+            p.until("document.querySelectorAll('#usecases tr.ucr').length === 1", "the search finds the flagged one by its word")
+            self.assertEqual(p.js(CM), ["Committed"])
 
     def test_the_detail_commitment_is_the_menu_with_no_edit_mode_row_825(self):
         with self.store.step("dashboard", USER) as st:
@@ -152,8 +153,8 @@ class Fit(Flags):
                     p.until("!!document.querySelector('[data-uc-commit]')", "Edit drew the chip button")
                     self.assertEqual(p.js(f"{OVERLAP}('.ucbar', '.ucstc')"), [], f"Edit, dashboard, {where}")
                     p.js("location.hash = '#usecases&p=ABC'")
-                    p.until("!!document.querySelector('.ucl-row[data-uc]')", "the list drew")
-                    self.assertEqual(p.js(f"{OVERLAP}('.ucl-row[data-uc]', '.ucl-st')"), [], f"Use cases page, {where}")
+                    p.until("!!document.querySelector('tr.ucr[data-uc]')", "the list drew")
+                    self.assertEqual(p.js("document.documentElement.scrollWidth <= innerWidth"), True, f"Use cases page, no sideways scroll, {where}")      # row 1325: the cells of a table row cannot overlap; the old grid check has nothing to measure
 
 
 class Edit(Flags):

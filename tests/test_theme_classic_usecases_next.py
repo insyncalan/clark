@@ -75,7 +75,7 @@ class Computed(unittest.TestCase):
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
         cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/{LIST}"}, sid)
-        self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0 && !!document.querySelector('#usecases .ucl-st .cchip')", sid), 20), "the list drew")
+        self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#usecases tr.ucr[data-uc]').length > 0 && !!document.querySelector('#usecases .meta2 .cm')", sid), 20), "the list drew")
         self.assertEqual(cdp.js("!!document.getElementById('theme')", sid), theme is not None)
         self.assertEqual(cdp.js("window.innerWidth", sid), width)
         return cdp.js(PROBE, sid)
