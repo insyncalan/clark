@@ -3,7 +3,7 @@
 Run: python3 dev/run_tests.py test_theme_host_1269b
 Headless Chrome through the shared harness, the committed page with fictional demo data. Cards is the page as it was (no Theme
 block); Classic layers the prototype-2.0 Theme block. Values are read from the drawn page, never written down from memory, except
-the dark gradient stops of the ruling (item 1269 ruling e: #08232D to #0B2832).
+the dark gradient stops of the ruling (Whisper, rows 1310 and 1311).
 """
 import re
 import tempfile
@@ -21,7 +21,7 @@ from clark import page, theme
 NAME = "prototype-2.0"
 SIZES = (1400, 900)
 MODES = ("light", "dark")
-GRAD_DARK = ("rgb(8, 35, 45)", "rgb(11, 40, 50)")
+GRAD_DARK = ("rgb(15, 21, 35)", "rgb(18, 26, 42)")       # Whisper (rows 1310, 1311)
 
 
 def hex_rgb(h):
@@ -58,8 +58,8 @@ class Host(Base):
 
 
 BODY = "(() => { const s = getComputedStyle(document.body); return [s.backgroundImage, s.backgroundColor]; })()"
-SEC = ("(() => { const s = getComputedStyle(document.querySelector('.secs > .sec')); "
-       "return [s.borderLeftWidth, s.borderTopWidth, s.boxShadow, s.borderLeftStyle]; })()")
+SEC = ("(() => [...document.querySelectorAll('.secs > .sec')].map((e) => { const s = getComputedStyle(e); "
+       "return [s.borderLeftWidth, s.borderTopWidth, s.boxShadow, s.borderLeftStyle]; }))()")
 NUM = "getComputedStyle(document.querySelector('.secs .sec-head'), '::before').content"
 COVER = "(() => { const c = document.querySelector('.cover'); if (!c) return null; const s = getComputedStyle(c); return [s.display, s.backgroundColor]; })()"
 OVERFLOW = "[document.documentElement.scrollWidth, document.documentElement.clientWidth]"
@@ -83,7 +83,7 @@ class Classic(Host):
         for (w, m), (img, _c) in got.items():
             self.assertIn("linear-gradient", img, f"{w} {m}: a gradient ground")
         light = re.findall(r"rgb\([^)]*\)", got[(1400, "light")][0])
-        self.assertEqual(light, [hex_rgb("#F8F9FD"), hex_rgb("#EFF3FA")])
+        self.assertEqual(light, [hex_rgb("#fcfdfe"), hex_rgb("#f7f9fc")])
 
     def test_3_the_dark_gradient_is_the_ruled_one(self):
         got = self.every(BODY)
@@ -91,9 +91,12 @@ class Classic(Host):
             self.assertEqual(re.findall(r"rgb\([^)]*\)", got[(w, "dark")][0]), list(GRAD_DARK), f"{w}: dark ruling e")
 
     def test_4_a_section_has_the_gutter_rule_and_no_card_in_every_size_and_mode(self):
-        for (w, m), (lw, tw, shadow, style) in self.every(SEC).items():
-            self.assertEqual((lw, tw, style), ("2px", "0px", "solid"), f"{w} {m}")
-            self.assertEqual(shadow, "none", f"{w} {m}")
+        for (w, m), rows in self.every(SEC).items():
+            self.assertTrue(rows, f"{w} {m}: sections")
+            for i, (lw, tw, shadow, style) in enumerate(rows):
+                want = ("0px", "0px", "none") if i % 2 == 0 else ("2px", "0px", "solid")      # row 1311: the 1st, 3rd... are bands with no gutter rule
+                self.assertEqual((lw, tw, style), want, f"{w} {m} section {i + 1}")
+                self.assertEqual(shadow, "none", f"{w} {m}")
 
     def test_5_sections_are_numbered_and_nothing_overflows_sideways(self):
         for (w, m), c in self.every(NUM).items():
@@ -117,8 +120,9 @@ class Cards(Host):
         self.assertNotIn('id="theme"', page.page_html(branding=self.brand, theme=None))
         for (w, m), (img, _c) in self.every(BODY).items():
             self.assertEqual(img, "none", f"{w} {m}: no gradient ground in Cards")
-        for (w, m), (lw, tw, shadow, style) in self.every(SEC).items():
-            self.assertNotEqual((lw, style), ("2px", "solid"), f"{w} {m}: no gutter rule in Cards")
+        for (w, m), rows in self.every(SEC).items():
+            for lw, tw, shadow, style in rows:
+                self.assertNotEqual((lw, style), ("2px", "solid"), f"{w} {m}: no gutter rule in Cards")
             self.assertEqual(self.every_one(OVERFLOW, w, m)[0] <= self.every_one(OVERFLOW, w, m)[1], True)
 
     def every_one(self, js, w, m):
