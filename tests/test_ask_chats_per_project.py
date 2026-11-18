@@ -28,7 +28,7 @@ class ChatsPerProject(Base):
     ask = test_ask_panel.Panel.ask
 
     def reopen(self, p):
-        """The panel stays or closes depending on the slice that lands it; either way it is open after this."""
+        """The panel stays open on a change of page or project; if it is not open, it is opened."""
         p.until("!!document.querySelector('#ask-btn')", "the page is up with its ask button", 20)
         if not p.js("!!document.querySelector('#ask-panel')"):
             p.key("/", code="Slash", vk=191)
@@ -78,14 +78,14 @@ class ChatsPerProject(Base):
             p = self.opened(cdp)
             self.answered(p, "When is go-live?")
             p.js("location.hash = '#dashboard'")
-            p.until("location.hash.indexOf('p=') < 0 && !document.querySelector('#ask-panel')", "in the page with no project, the panel closed")
+            p.until("location.hash.indexOf('p=') < 0", "in the page with no project")
             self.reopen(p)
             self.assertEqual(p.js(TURNS), 0, "no project, no chat of the first")
             p.js("document.querySelector('#ask-history').click()")
             p.until("!!document.querySelector('#ask-hist')", "the list")
             self.assertFalse(p.js(LISTED), "nothing earlier for no project")
             p.js("location.hash = '#dashboard&p=ABC'")
-            p.until("location.hash.indexOf('p=ABC') > 0 && !document.querySelector('#ask-panel')", "back on the first project, panel closed")
+            p.until("location.hash.indexOf('p=ABC') > 0", "back on the first project")
             self.reopen(p)
             self.assertEqual(p.js(TURNS), 2, "the first project's chat is back")
             self.assertFalse(p.js("!!document.querySelector('#ask-hist')"), "on its chat, not the list")
@@ -102,7 +102,7 @@ class ChatsPerProject(Base):
             p.key("Enter", code="Enter", vk=13)
             p.until("document.querySelectorAll('#ask-queue li[data-queued]').length === 1", "the second is waiting")
             p.js("location.hash = '#dashboard'")
-            p.until("location.hash.indexOf('p=') < 0 && !document.querySelector('#ask-panel')", "in the page with no project, the panel closed")
+            p.until("location.hash.indexOf('p=') < 0", "in the page with no project")
             self.stub.hold.set()
             time.sleep(2)
             self.reopen(p)
@@ -110,7 +110,7 @@ class ChatsPerProject(Base):
             self.assertFalse(p.js("!!document.querySelector('#ask-queue')"), "the waiting message did not follow")
             self.assertEqual([c[1]["question"] for c in self.stub.calls if c[0] == "ask"], ["First question"], "the waiting message was never sent")
             p.js("location.hash = '#dashboard&p=ABC'")
-            p.until("location.hash.indexOf('p=ABC') > 0 && !document.querySelector('#ask-panel')", "back on the first project, panel closed")
+            p.until("location.hash.indexOf('p=ABC') > 0", "back on the first project")
             self.reopen(p)
             p.until(f"{TURNS} === 2", "the answer that was out is in the chat it was asked in")
             self.assertEqual(p.js("document.querySelector('.ask-turn.user .ask-text').textContent"), "First question")
