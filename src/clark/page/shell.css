@@ -897,6 +897,8 @@ table.items .weye[aria-pressed="true"], table.items .weye.on { color: var(--stat
 .lanebar .fs { margin-left: auto; }
 .lb-hint { font-size: var(--size-small); }
 .boardbox { margin-top: 0; overflow: auto; max-height: calc(100vh - var(--topbar) - 16px); padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); scroll-padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); overscroll-behavior-y: contain; }
+.boardbox { scrollbar-width: none; }      /* row 1269 Cards item 3: the sideways bar is hidden on the scroller (.boardbox), not on .board */
+.boardbox::-webkit-scrollbar { display: none; }
 .lane { width: max-content; min-width: 100%; }
 .lane + .lane { margin-top: var(--d-group-gap); }
 .lane-h { position: sticky; top: 0; z-index: 4; height: 40px; display: flex; align-items: center; background: var(--surface); border-bottom: 1px solid var(--grey-200); font-size: var(--size-small); font-weight: var(--weight-medium); color: var(--heading); }
