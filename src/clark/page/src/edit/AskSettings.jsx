@@ -6,6 +6,7 @@ import { signal } from "@preact/signals";
 import { project } from "../stores/report.js";
 import { askOn, askStatus, askSaved, askProvider, loadAsk, setAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
 import { named, ASK_NOTICE_LINE } from "./askWords.js";
+import { ConnectorsAll, ConnectorsProject } from "./ConnectorSettings.jsx";
 import { AiSettings } from "./AiSettings.jsx";
 import { announceSwitch, leaveSwitch } from "./switchToast.js";
 import { askFoldersRead, askFoldersChange, askFoldersChoose, words } from "./publishApi.js";
@@ -148,6 +149,7 @@ function AskProject() {
       ) : null}
       <div class="pub-msg" role={msg && msg.kind === "error" ? "alert" : "status"} aria-live="polite">{msg && msg.text ? <p class={msg.kind}>{msg.text}</p> : null}</div>
     </section>
+    <ConnectorsProject code={code} />
     <section class="frame setting" id="ask-used-all">
       <h2>Used from All projects</h2>
       <p class="muted">{USED_FROM_ALL}</p>
@@ -168,6 +170,7 @@ function AllProjects() {
       <p class="muted">{ALL_LINE}</p>
     </section>
     <AiSettings />
+    <ConnectorsAll code={project.value} />
     </>
   );
 }
