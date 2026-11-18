@@ -114,6 +114,66 @@ class Form(unittest.TestCase):
         self.assertLessEqual(len(r.answer), ask.MAX_REPLY)
 
 
+class Draft(unittest.TestCase):
+    """Row 1292 S12: a DRAFT line carries the text the person may put into a report section; it is data, kept apart from the answer."""
+    LINE = 'DRAFT: {"title": "This week", "html": "<p>Kit ordered.</p>", "sec": "ABC-S-001"}'
+
+    def test_a_draft_line_is_read_and_taken_out_of_the_answer(self):
+        r = read("Here is a summary.\n" + self.LINE + "\nCITE: P1")
+        self.assertEqual(r.answer, "Here is a summary.")
+        self.assertEqual(r.draft, {"title": "This week", "html": "<p>Kit ordered.</p>", "sec": "ABC-S-001"})
+        self.assertTrue(r.parsed)
+
+    def test_no_draft_line_is_no_draft(self):
+        self.assertIsNone(read("Plain.").draft)
+        self.assertIsNone(read("Plain.\nCHANGE: {\"a\": 1}").draft)
+
+    def test_title_and_section_are_optional_and_other_fields_are_dropped(self):
+        r = read('A.\nDRAFT: {"html": "<p>x</p>", "extra": "no"}')
+        self.assertEqual(r.draft, {"html": "<p>x</p>", "title": "", "sec": ""})
+
+    def test_a_bad_draft_is_dropped_and_the_answer_still_parses(self):
+        bad = ['DRAFT: not json', 'DRAFT: {"html": ""}', 'DRAFT: {"html": "   "}', 'DRAFT: {"title": "t"}', 'DRAFT: {"html": 5}',
+               'DRAFT: {"html": "<p>x</p>", "title": 3}', 'DRAFT: {"html": "<p>x</p>", "sec": ["a"]}', 'DRAFT: ["<p>x</p>"]', 'DRAFT:',
+               'DRAFT: {"html": "<p>x</p>", "html": "<p>y</p>"}', 'DRAFT: {"html": "a\\u0000b"}']
+        for line in bad:
+            r = read("A.\n" + line)
+            self.assertIsNone(r.draft, line)
+            self.assertTrue(r.parsed, line)
+            self.assertEqual(r.answer, "A.", line)
+
+    def test_the_longest_draft_is_read_and_a_longer_one_is_not(self):
+        def line(n):
+            return 'DRAFT: {"html": "' + "a" * n + '"}'
+        n = ask.MAX_DRAFT_CHARS - len('{"html": ""}')
+        self.assertEqual(len(read("A.\n" + line(n)).draft["html"]), n)
+        self.assertIsNone(read("A.\n" + line(n + 1)).draft)
+
+    def test_a_title_or_section_name_that_is_too_long_drops_the_draft(self):
+        self.assertIsNone(read('A.\nDRAFT: {"html": "<p>x</p>", "title": "' + "t" * 201 + '"}').draft)
+        self.assertIsNotNone(read('A.\nDRAFT: {"html": "<p>x</p>", "title": "' + "t" * 200 + '"}').draft)
+        self.assertIsNone(read('A.\nDRAFT: {"html": "<p>x</p>", "sec": "' + "s" * 41 + '"}').draft)
+        self.assertIsNotNone(read('A.\nDRAFT: {"html": "<p>x</p>", "sec": "' + "s" * 40 + '"}').draft)
+
+    def test_only_the_first_draft_is_kept(self):
+        r = read('A.\nDRAFT: {"html": "<p>one</p>"}\nDRAFT: {"html": "<p>two</p>"}')
+        self.assertEqual(r.draft["html"], "<p>one</p>")
+        self.assertEqual(r.answer, "A.")
+
+    def test_a_disguised_draft_marker_is_not_acted_on_and_the_reply_is_text(self):
+        r = read('A.\nD\u200bRAFT: {"html": "<p>x</p>"}')
+        self.assertIsNone(r.draft)
+        self.assertFalse(r.parsed)
+
+    def test_a_reply_that_does_not_parse_offers_no_draft(self):
+        r = read("A.\n" + self.LINE + "\nCITE: the plan")
+        self.assertFalse(r.parsed)
+        self.assertIsNone(r.draft)
+
+    def test_the_rules_tell_the_model_the_form(self):
+        self.assertIn("DRAFT:", ask.RULES)
+
+
 class NeverRun(unittest.TestCase):
     def test_a_change_line_is_data_only(self):
         bad = {"item": "ABC-A-001", "status": "__import__('os').system('echo hi')", "sql": "DROP TABLE actions", "path": "/etc/passwd"}
