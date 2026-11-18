@@ -436,7 +436,7 @@ def is_archived(con, code):
 # archive and restore (and the Undo of them) ever set it: refuse_archived_field turns it away from a new row and an update. tests/test_store_flags.py reads schema.sql and fails if a flag column is not named here,
 # so a new flag can't slip past the rule (#89).
 FLAG_COLUMNS = frozenset({"active", "builtin", "suggested", "state_set", "client_visible", "beside", "hidden", "word", "archived", "ask_enabled", "needs_details", "client_action",
-                          "show", "show_gantt_editor", "show_gantt_client"})      # row 926: a Gantt line's eye and the project's two Gantt switches
+                          "show", "show_gantt_editor", "show_gantt_client", "gantt_editor", "gantt_client"})      # row 926: a Gantt line's eye and the project's two Gantt switches; row 1300: the install's two Gantt defaults
 FLAGS_ELSEWHERE = frozenset({"archived"})       # also named here: the flags test still reads it (#89)
 
 
@@ -3088,10 +3088,10 @@ def migrate_ask_instructions(con):
     (a project's own), empty for every row that is there. Each is added at the end of its table, so no table is made again and no value changes; a
     column already there (a new database, or a second run) is skipped, and so is a table that is missing. Runs inside the caller's transaction and
     does not touch the version (the runner does). It is step 31 in MIGRATIONS."""
-    for table in ("app_settings", "projects"):
+    for table, alter in (("app_settings", "ALTER TABLE app_settings ADD COLUMN "), ("projects", "ALTER TABLE projects ADD COLUMN ")):      # fixed SQL per table
         have = columns(con, table)
         if have and "ask_instructions" not in have:
-            con.execute(f"ALTER TABLE {table} ADD COLUMN " + ASK_INSTRUCTIONS_COLUMN)
+            con.execute(alter + ASK_INSTRUCTIONS_COLUMN)
 
 
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
@@ -4137,11 +4137,14 @@ class Store:
     def ask_instructions(self, code=None):
         """The standing instructions of asking (row 1294): the text for all projects (`code` None), or the project's own. '' when there is none, when
         the file has no such column, table or row, or on any database error: nothing is ever invented. Read only."""
-        table, where, args = ("app_settings", "id = 1", ()) if code is None else ("projects", "code = ?", (code,))
+        table = "app_settings" if code is None else "projects"
         try:
             if "ask_instructions" not in columns(self.con, table):
                 return ""
-            row = self.con.execute(f"SELECT ask_instructions FROM {table} WHERE {where}", args).fetchone()
+            if code is None:      # fixed SQL per table
+                row = self.con.execute("SELECT ask_instructions FROM app_settings WHERE id = 1").fetchone()
+            else:
+                row = self.con.execute("SELECT ask_instructions FROM projects WHERE code = ?", (code,)).fetchone()
         except sqlite3.Error:
             return ""
         return row[0] if row is not None and isinstance(row[0], str) else ""
