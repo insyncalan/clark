@@ -128,12 +128,12 @@ class Panel(Base):
                 p.until("!!document.querySelector('.hp-none')", f"a held word ({word}) finds nothing")
             self.assertIn("Nothing in Help for", p.js("document.querySelector('.hp-none b').textContent"))
 
-    def test_a_search_for_movement_or_diagnostics_finds_its_entry_and_opens_it(self):
-        """Row 65: these two words found nothing; each now finds the entries about it, and a result opens in place."""
+    def test_a_search_for_diagnostics_finds_its_entry_and_opens_it(self):
+        """Row 65: this word found nothing; it now finds the entries about it, and a result opens in place."""
         from test_server import chrome
         with chrome() as cdp:
             p = self.in_help(cdp)
-            for word, first, where in (("movement", "Milestones and Movement", "ref-milestones-page"), ("diagnostics", "Diagnostics and logs", "ref-diagnostics")):
+            for word, first, where in (("diagnostics", "Diagnostics and logs", "ref-diagnostics"),):
                 p.js("var q=document.querySelector('#hpQ'); q.value=''; q.focus()")
                 p.type(word)
                 p.until("document.querySelectorAll('#hpRes a.hp-r').length > 0", f"results for {word}")

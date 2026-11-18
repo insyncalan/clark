@@ -44,9 +44,9 @@ class Real(base.Base):
 
     def test_every_live_screen_has_context_text(self):
         self.assertEqual(sorted(BY), sorted(LIVE_SCREENS))
-        # Measured on the merged tree (v10-integration): 5 screens, 20 sentences (4, 4, 4, 5, 3), 9 Settings cards. A floor, never lowered without a reason.
+        # Measured on the merged tree (v10-integration): 5 screens, 20 sentences (4, 4, 4, 5, 3), 9 Settings cards. A floor, never lowered without a reason: 19 since row 1329, when the Milestones screen lost its Movement sentence (4, 4, 4, 4, 3).
         self.assertGreaterEqual(len(BY), 5)
-        self.assertGreaterEqual(sum(len(c["s"]) for c in CONTEXT), 20)
+        self.assertGreaterEqual(sum(len(c["s"]) for c in CONTEXT), 19)
         self.assertGreaterEqual(len(BY["settings"]["cards"]), 9)
 
     def test_each_screen_opens_with_its_real_text_and_closes_by_every_rule(self):

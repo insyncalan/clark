@@ -22,7 +22,7 @@ class Words(unittest.TestCase):
             const rows = MS.milestoneRows(c.cases, c.today, false);
             const can = rows.filter((r) => r.state === 'Cancelled');
             return {sub: can.map((r) => MS.subLine(r)), n: can.length,
-                    none: MS.emptyHead([]), many: MS.emptyHead(can.concat(can)), one: MS.emptyHead(can.slice(0, 1)),
+                    none: MS.emptyHead([]), nul: MS.emptyHead(null), undef: MS.emptyHead(undefined), many: MS.emptyHead(can.concat(can)), one: MS.emptyHead(can.slice(0, 1)),
                     agreed: MS.subLine({state: 'Planned', baseline: '2026-01-01', slip: null})};
         }""" + ")(" + json.dumps({"cases": CASES, "today": TODAY}) + ")")
         with chrome() as cdp:
@@ -39,6 +39,8 @@ class Words(unittest.TestCase):
 
     def test_the_head_says_no_milestones_only_when_there_are_none(self):
         self.assertEqual(self.js["none"], "No milestones yet.")
+        self.assertEqual(self.js["nul"], "No milestones yet.", "no rows list at all reads as none")
+        self.assertEqual(self.js["undef"], "No milestones yet.")
         self.assertEqual(self.js["one"], "The only milestone is cancelled.")
         self.assertEqual(self.js["many"], f"All {2 * self.js['n']} milestones are cancelled.")
 

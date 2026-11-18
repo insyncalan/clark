@@ -652,40 +652,6 @@
     ]
    },
    {
-    "id": "handle-a-slipped-milestone",
-    "g": "Milestones",
-    "t": "Deal with a slipped milestone",
-    "w": "Milestones › Movement",
-    "go": "milestones",
-    "s": [
-     "Movement is for you and the team: it is never published.",
-     "The first line says how many open milestones are behind their agreed date. The line under it names the one furthest behind.",
-     "Each open milestone has a row, the furthest behind first: its state, its agreed date, a small bar with a mark for the agreed date, one for the forecast and one for today, how far after the agreed date it is, and how often the agreed date has moved. Click a row, or move between rows with [[Up]] and [[Down]] and press [[Enter]], to choose it.",
-     "Its card shows the original, agreed and forecast dates, its progress and its owner, then **What changed**: each change, with who made it and when.",
-     "Under **Decide what to do**, choose **Hold: keep the forecast, agreed date unchanged**, or **Move the agreed date**. A move asks for **New agreed date (DD-MM-YYYY)**, **Who agreed it**, a **Reason** and a **Source**, and says what will happen before you press **Move the agreed date**. **Keep the date** closes it with no change. A milestone that has not slipped cannot be moved.",
-     "**Hold** and **Move the agreed date** each change the record at once, and each has its own **Undo**. A move keeps the original date and records a decision."
-    ],
-    "page": [
-     "milestones"
-    ]
-   },
-   {
-    "id": "act-on-a-slipped-milestone",
-    "g": "Milestones",
-    "t": "Add a recovery action, escalate or write a note on a slipped milestone",
-    "w": "Milestones › Movement",
-    "go": "milestones",
-    "s": [
-     "Movement is for you and the team: it is never published.",
-     "Click a row to choose it. Its card shows the dates, how often it moved, and **What changed**.",
-     "Then decide: **Hold** (adds a dated line to the **Internal note** and keeps the agreed date), **Move the agreed date** (you say who agreed it, why and where; the original date is kept), **Add a recovery action** (a High priority action due in 7 days, linked to the milestone, in its workstream or the first open one) or **Escalate to steering** (a Pending decision needed in 7 days, named for the milestone: a decision can’t be linked to a milestone). Each new item opens in the peek, with a line saying how far behind the milestone is. A new item starts hidden from the client (its eye is off), so neither it nor that line reaches the client until you show it.",
-     "Write an **Internal note**. It saves when you leave the box and is never published."
-    ],
-    "page": [
-     "milestones"
-    ]
-   },
-   {
     "id": "format-text",
     "g": "Writing",
     "t": "Write and format text",
@@ -1378,15 +1344,11 @@
    {
     "id": "milestones-page",
     "g": "Screens",
-    "t": "Milestones and Movement",
+    "t": "Milestones",
     "b": [
      [
       "p",
       "The Milestones screen shows every milestone, internal ones too. Switch between **Timeline** and **Calendar** at the top right. The **Legend** and the list of milestones are below; a milestone that is not shown to the client has the tag **Internal only**."
-     ],
-     [
-      "p",
-      "Movement is never published. See [Deal with a slipped milestone](#howto-handle-a-slipped-milestone)."
      ],
      [
       "p",
@@ -1693,7 +1655,7 @@
        ],
        [
         "One-line fields",
-        "One-line fields (the Client wording on a row, picture captions, Movement words and the Own words of risks and issues) have no / menu and no formatting buttons. Enter or a click away saves."
+        "One-line fields (the Client wording on a row, picture captions and the Own words of risks and issues) have no / menu and no formatting buttons. Enter or a click away saves."
        ]
       ]
      ]

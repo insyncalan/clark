@@ -31,7 +31,8 @@ WAITS = {
     "howto-check-before-you-publish": ("the stale and incomplete notes with Show them in the Publish box", r"Show them"),
 }
 # prototype entries the owner dropped (#919; item 1158 for the three Needs from you ones): the prototype still draws them, the build will never have them
-DROPPED = {"howto-start-from-last-report", "ref-since-last-report", "ref-needs-from-you", "howto-ask-the-client-for-something"}
+DROPPED = {"howto-start-from-last-report", "ref-since-last-report", "ref-needs-from-you", "howto-ask-the-client-for-something",
+           "howto-handle-a-slipped-milestone", "howto-act-on-a-slipped-milestone"}   # row 1329: the page has no way into Movement
 # prototype entries the build has under another id, written for what the page does
 REPLACED = {
     "howto-work-the-use-cases": "howto-find-a-use-case",
@@ -85,7 +86,7 @@ class EveryPrototypeEntryIsAccountedFor(unittest.TestCase):
             self.assertIn(new, shown_ids(), f"{new} replaces the prototype's {old}")
 
     def test_the_prototype_entries_released_here_are_shown(self):
-        want = {"howto-set-the-health", "howto-handle-a-slipped-milestone", "ref-sections", "ref-freshness", "ref-milestones-page", "ref-diagnostics"}
+        want = {"howto-set-the-health", "ref-sections", "ref-freshness", "ref-milestones-page", "ref-diagnostics"}
         self.assertEqual(sorted(want - shown_ids()), [])
         self.assertEqual(sorted(want & held_ids()), [])
 
@@ -192,19 +193,28 @@ class TheWeekEndsOnAFriday(unittest.TestCase):
 
 
 class MovementEntries(unittest.TestCase):
-    """Row 65: a search for movement finds Help, and what it says is what the Movement block has."""
+    """Row 1329: the page has no way into Movement, so Help has no entry that teaches it."""
     WORDS = read("page", "src", "edit", "movementWords.js")
     BLOCK = read("page", "src", "edit", "Movement.jsx")
 
-    def test_the_two_entries_name_only_buttons_and_fields_the_block_has(self):
-        text = " ".join(strings(entry("howto", "handle-a-slipped-milestone")))
-        for name in re.findall(r"\*\*(.+?)\*\*", text):
-            base = re.sub(r"\s*\(.*?\)\s*$", "", name)
-            if base not in ("Milestones", "Undo"):
-                self.assertIn(base, self.WORDS + self.BLOCK, name)
-        self.assertNotIn("**Plan**", text)  # row 1329: no Plan | Movement switch on the page
-        for gone in ("Rebaseline", "Add a recovery action", "Escalate to steering", "Internal note", "diamond", "red line"):
-            self.assertNotIn(gone, text, f"the page has no {gone}")
+    def test_no_entry_teaches_movement_and_nothing_links_to_one(self):
+        raw = (SRC / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
+        later = (SRC / "page" / "src" / "help" / "helpLater.json").read_text(encoding="utf-8")
+        for gone in ("slipped-milestone", "Milestones › Movement", "Milestones and Movement", "Deal with a slipped milestone"):
+            self.assertNotIn(gone, raw, gone)
+            self.assertNotIn(gone, later, gone)
+        self.assertNotIn("Movement words", raw)
+
+    def test_the_milestones_screen_entry_and_the_kept_lines_read_as_before(self):
+        text = " ".join(strings(entry("ref", "milestones-page")))
+        self.assertEqual(entry("ref", "milestones-page")["t"], "Milestones")
+        self.assertIn("Switch between **Timeline** and **Calendar** at the top right.", text)
+        self.assertIn("a milestone that is not shown to the client has the tag **Internal only**.", text)
+        self.assertIn("a heading row over its columns: **Date**, **Milestone**, **State** and **Progress**.", text)
+        self.assertNotIn("Movement", text)
+        raw = (SRC / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
+        self.assertIn("(the Client wording on a row, picture captions and the Own words of risks and issues) have no / menu", raw)
+        self.assertIn("Every milestone on a timeline or calendar.", raw)
 
     def test_the_block_is_edit_only_and_never_published(self):
         self.assertIn("data-edit-only", self.BLOCK)
@@ -243,14 +253,6 @@ class MovementEntries(unittest.TestCase):
         for text in (tiles[0][1], " ".join(screens[0]["s"])):
             self.assertNotIn("Movement", text)
             self.assertNotIn("**Plan**", text)
-
-    def test_the_rows_keys_are_the_arrows(self):
-        self.assertIn("ArrowDown", self.BLOCK)
-        self.assertIn("move between rows with [[Up]] and [[Down]] and press [[Enter]], to choose it.", " ".join(strings(entry("howto", "handle-a-slipped-milestone"))))
-
-    def test_a_move_is_only_open_when_it_has_slipped(self):
-        self.assertIn("can_move", self.BLOCK)
-        self.assertIn("A milestone that has not slipped cannot be moved.", " ".join(strings(entry("howto", "handle-a-slipped-milestone"))))
 
 
 class DiagnosticsEntry(unittest.TestCase):
