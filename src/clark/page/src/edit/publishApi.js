@@ -101,3 +101,7 @@ export const askFoldersChange = (project, action, path) => call("POST", "/api/as
 // takes {enabled: true | false}. The server checks the value and keeps it (with history and Undo); the page shows what it answered.
 export const askEnabledRead = () => call("GET", "/api/ask-enabled");
 export const askEnabledChange = (enabled) => changing("POST", "/api/ask-enabled", { enabled });
+
+// The theme for this computer (row 1269): GET /api/theme answers {ok, theme: "classic" | "cards", saved}; POST takes {theme}.
+export const themeRead = () => call("GET", "/api/theme");
+export const themeChange = (theme) => call("POST", "/api/theme", { theme });

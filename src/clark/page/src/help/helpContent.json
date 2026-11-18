@@ -638,7 +638,7 @@
     "w": "Milestones › Plan · Dashboard › Milestones",
     "go": "milestones",
     "s": [
-     "The **Timeline** scrolls sideways. The arrows move along it and **Today** comes back. Drag its bottom edge to zoom in or out; **Reset** puts it back.",
+     "The **Timeline** scrolls sideways. The arrows move along it and **Today** comes back. Drag the grip below it to zoom in or out; **Reset** puts it back.",
      "A slipped milestone keeps its mark on the agreed date, with a dashed ring where it is now expected and a dashed line between them.",
      "The two buttons at the top right, **Timeline** and **Calendar**, switch between them. Your choice is kept.",
      "The calendar shows **Week**, **Month** (the standard) or **Quarter**, with the arrows and **Today**. In Quarter, click a month’s name to open that month.",
@@ -1651,7 +1651,7 @@
      [
       "ul",
       [
-       "**Timeline**: months along the top, a line for today, a mark per milestone with its name and date below. Earlier, Later and **Today**; drag the bottom edge to zoom (70% to 300%), **Reset** (shown once you have zoomed). A slipped milestone also has a faint mark on its expected date, joined to its agreed date by a dashed line; its label adds, for example, +3 days, and the list below gives the Expected date and how many days later.",
+       "**Timeline**: months along the top, a line for today, a mark per milestone with its name and date below. Earlier, Later and **Today**; drag the grip below it to zoom (70% to 300%), **Reset** (shown once you have zoomed). A slipped milestone also has a faint mark on its expected date, joined to its agreed date by a dashed line; its label adds, for example, +3 days, and the list below gives the Expected date and how many days later.",
        "**Calendar**: **Week**, **Month** or **Quarter**; earlier, later and **Today**; weekends are muted and today is marked. A slipped milestone shows on its agreed date and again, faintly, as “Expected”. In Quarter, a month’s name opens that month.",
        "**Legend**: point at it or tab to it.",
        "**Milestone details**: a rail with the date, the name, the state, the progress and, for internal ones, “Internal only”. The first five, then **Show all**, unless a number is set in **Configure**. **Hide milestone details** folds it away. On the Dashboard the list has a heading row: **Milestone**, **State**, **Agreed**, **Expected or achieved** and **Progress**."
@@ -1838,7 +1838,7 @@
     "b": [
      [
       "p",
-      "A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title): Essentials, Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking, Feedback and Quit, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project."
+      "A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title): Essentials, Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, Theme, People, Asking, Feedback and Quit, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project."
      ],
      [
       "tbl",
@@ -1894,6 +1894,10 @@
        [
         "Brands",
         "Add a brand from a zip file you were given, and clark uses its colours, fonts and pictures. “Review the brand in Downloads” reads the newest zip in your Downloads folder, and **Choose zip…** lets you pick one yourself. A panel then lists what the file adds, replaces or removes. Press **Install** for a new brand or **Replace** for one already added, or **Cancel**. Nothing changes until you press Install or Replace. If you close the window without choosing a file, it says “No file was chosen, so nothing was changed.” **Remove** on a brand asks you to confirm with “Back to the default look”. **Undo** puts back what the last install, replace or remove changed. Each project uses its own brand on the web page, the preview, the Excel and Word files and the PDF check. The Word letterhead of a brand goes in its branding folder as word/template.docx; the Word report takes its page, header and footer."
+       ],
+       [
+        "Theme",
+        "Choose the look of your pages from the two the card offers. Your choice applies the next time the page loads, and pages you published before keep the look they had."
        ],
        [
         "People",
@@ -2581,6 +2585,11 @@
      "card": "brands",
      "title": "Brands",
      "line": "Add a brand from a zip file, then replace or remove it."
+    },
+    {
+     "card": "theme",
+     "title": "Theme",
+     "line": "Choose the look of your pages."
     },
     {
      "card": "people",

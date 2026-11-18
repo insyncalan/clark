@@ -84,7 +84,7 @@ class CardBrowser(unittest.TestCase):
                                 if it == item:
                                     click(cdp, sid, "[data-pk-wide]")
                                     self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').classList.contains('wide')", sid)))
-                                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').getBoundingClientRect().width", sid) >= cdp.js("document.documentElement.clientWidth", sid) - 33))      # row 1258: the card keeps 16 px each side
+                                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').getBoundingClientRect().width", sid) >= cdp.js("document.documentElement.clientWidth", sid) - 1))      # row 1289: flush, full width
                                     self.check(cdp.js(READ, sid), where + " wide", across=True)
                                     click(cdp, sid, "[data-pk-wide]")
                                     self.assertTrue(wait(lambda: not cdp.js("document.querySelector('#peek').classList.contains('wide')", sid)))
