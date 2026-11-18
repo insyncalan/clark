@@ -43,6 +43,27 @@ h1, h2, h3 { font-weight: var(--weight-medium); }
 .cnt li a:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 @media print { .cnt { display: none; } .cnt-grid { display: block; } }
 html.print-all .cnt { display: none; }
+/* Row 1313 block (dashboard style gaps vs prototype 2.0), Classic only. Kept apart from the rules above so it merges cleanly. Bare values with no token, as for row 1260: the 103px height of the narrow bar, the 1px divider width and the 1180px break (the shell's own break for Project health). The sizes are those the issue gives; the prototype files were not available to measure. The title is one line with an ellipsis here by ruling (replaces row 1239 for the dashboard title on screen only; the published file bar, .top-file, keeps row 1239 and wraps). Not here: section heading weight (row 1319), the Milestones frame (row 1315). */
+.glance[data-glance] { gap: 0; }
+.glance[data-glance] .fig { border: 0; border-radius: 0; background: none; }
+.glance[data-glance] .fig::after { display: none; }
+.glance[data-glance] .tcell + .tcell { border-left: 1px solid var(--line-soft); }
+.glance[data-glance] .fig .tw { padding: 0; border: 0; }
+@media (max-width: 1180px) { .glance[data-glance] .tcell.health + .tcell { border-left: 0; } .glance[data-glance] .tcell.health { border-bottom: 1px solid var(--line-soft); } }
+.secs .sec-head::before { font-family: var(--font-head); }
+.msv-sw, .mv-txt { gap: 0; padding: 0; border: 1px solid var(--heading); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+.msv-sw .msv-b, .mv-txt button { border-radius: 0; border-bottom: 0; background: var(--surface); color: var(--text); padding: 0 var(--space-3); }
+.mv-txt > span { display: none; }
+.msv-sw .msv-b + .msv-b, .mv-txt button:not(:first-of-type) { border-left: 1px solid var(--heading); }
+.msv-sw .msv-b[aria-current="true"], .mv-txt button[aria-current="true"] { background: var(--heading); color: var(--surface); }
+html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media screen { #report.frame.report:not(.asat-frame) { background: transparent; border: 0; box-shadow: none; } }
+@media (max-width: 900px) {
+  html:has(.top-hdr) { --topbar: 103px; --bar-min: 103px; }
+  .top-hdr { display: flex; flex-wrap: nowrap; align-items: center; gap: 12px; padding: 10px 20px; height: 103px; }
+  .top-hdr .hdr-id { flex: 1 1 0; }
+  .top-hdr .tabs { flex: 0 1 auto; min-width: 0; margin: 0; padding: 0; border-top: 0; align-self: stretch; }
+}
 /* Row 1319, dark edge: the navy chosen segment is 1.08:1 on the dark ground, so in dark (and auto when the system is dark) it takes a 1px inset ring in --grey-500 (3.8:1 or more on every ground); inset, so nothing moves. Light has no ring. */
 :root[data-theme=dark] .seg:not(.modes) button[aria-pressed="true"], :root[data-theme=dark] .seg:not(.modes) button[aria-checked="true"], :root[data-theme=dark] .cal-sc button[aria-current="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .seg:not(.modes) button[aria-pressed="true"], :root[data-theme=auto] .seg:not(.modes) button[aria-checked="true"], :root[data-theme=auto] .cal-sc button[aria-current="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); } }
