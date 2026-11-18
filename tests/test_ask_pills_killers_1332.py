@@ -32,7 +32,7 @@ def bundle():
             assert (EDIT / name).is_file(), name + " does not exist"
         with tempfile.TemporaryDirectory() as tmp:
             entry = Path(tmp) / "entry.js"
-            entry.write_text('export { pills } from "%s";\nexport { stateOf } from "%s";\n' % ((EDIT / "askPills.js").as_posix(), (EDIT / "askPillState.js").as_posix()), encoding="utf-8")
+            entry.write_text('export { pills, asking } from "%s";\nexport { stateOf } from "%s";\n' % ((EDIT / "askPills.js").as_posix(), (EDIT / "askPillState.js").as_posix()), encoding="utf-8")
             out = Path(tmp) / "k.js"
             done = esbuild.run(["--bundle", "--format=iife", "--global-name=K", str(entry), f"--outfile={out}"], capture_output=True, text=True)
             assert done.returncode == 0, done.stderr

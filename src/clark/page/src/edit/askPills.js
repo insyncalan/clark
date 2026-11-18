@@ -8,7 +8,7 @@ const ORDER = ["overdue", "red", "noOwner"];
 export function pills(view, turns, help, state) {
   if (help) return W.PILLS_HELP.slice(0, W.PILLS_MAX);
   const list = Array.isArray(turns) ? turns : [];
-  const acts = actionsFor(lastItems(list));
+  const acts = actionsFor(lastItems(list)).map((a) => a.label);
   const asked = [...list].reverse().find((t) => t && t.role === "user" && typeof t.text === "string");
   const said = asked ? asked.text.toLowerCase().replace(/[-_\s]+/g, " ") : "";
   // A whole word (or its plural), with the space inside a two-word name optional: "use-case", "usecase" and "use case" all match.
@@ -17,6 +17,13 @@ export function pills(view, turns, help, state) {
   const subject = hit ? hit[1] : W.PILLS_PAGE[view];
   const set = W.PILLS_BY_SUBJECT[subject] || W.SUGGESTIONS;
   return [...new Set([...acts, ...inOrder(set, W.PILLS_STATE[subject], state)])].slice(0, W.PILLS_MAX);
+}
+
+/** The question a clicked suggestion sends. The shown words never change; the two that act on named items send them with the ids in brackets. */
+export function asking(label, turns) {
+  const list = Array.isArray(turns) ? turns : [];
+  const hit = actionsFor(lastItems(list)).find((a) => a.label === label);
+  return hit ? hit.ask : label;
 }
 
 // The items of the last answer: the newest assistant turn that is an answer (a note is not), its items that have an id and only the known words.
@@ -36,11 +43,11 @@ function actionsFor(items) {
   const late = items.filter((i) => has(i, "overdue"));
   const soft = late.filter((i) => !has(i, "red"));
   return [
-    late.length ? `${W.PILLS_ITEM_DUE} (${ids(late)})` : "",
-    soft.length ? `${W.PILLS_ITEM_URGENCY} (${ids(soft)})` : "",
-    late.length ? W.PILLS_ITEM_LATE : "",
-    W.PILLS_ITEM_OWNERS,
-    W.PILLS_ITEM_REPORT,
+    late.length ? { label: W.PILLS_ITEM_DUE, ask: `${W.PILLS_ITEM_DUE} (${ids(late)})` } : null,
+    soft.length ? { label: W.PILLS_ITEM_URGENCY, ask: `${W.PILLS_ITEM_URGENCY} (${ids(soft)})` } : null,
+    late.length ? { label: W.PILLS_ITEM_LATE, ask: W.PILLS_ITEM_LATE } : null,
+    { label: W.PILLS_ITEM_OWNERS, ask: W.PILLS_ITEM_OWNERS },
+    { label: W.PILLS_ITEM_REPORT, ask: W.PILLS_ITEM_REPORT },
   ].filter(Boolean);
 }
 

@@ -96,6 +96,9 @@ class ItemStub(Stub):
     items = ()
 
     def ask(self, body):
+        if not self.enabled:                 # the server's own answer when the switch is turned off while a chat is open
+            self.calls.append(("ask", body))
+            return 409, {"ok": False, "code": "asking_off", "message": "Asking is off."}
         code, got = super().ask(body)
         if got.get("ok"):
             got["items"] = [dict(i) for i in self.items]
@@ -277,7 +280,7 @@ class Look(Base):
 
     def test_row_1332_the_panel_draws_the_help_set_the_state_order_and_the_actions_of_the_last_answer(self):
         """AskPanel's pills(...) call, in the real page: Help open draws the Help six, the project's rows order the page's own six, and the items an answer
-        carries put their actions in front (a click sends the words shown)."""
+        carries put their actions in front (the words shown carry no id; a click sends the ids with them)."""
         pills = "[...document.querySelectorAll('#ask-pills button')].map(b => b.textContent)"
         help_six = re.findall(r'"([^"]+)"', WORDS[WORDS.index("export const PILLS_HELP = ["):].split("];")[0])
         self.assertEqual(len(help_six), 6)
@@ -303,7 +306,7 @@ class Look(Base):
             self.stub.items = [{"id": "ZZ-A-1", "state": []}, {"id": "ZZ-A-2", "state": ["overdue"]}]
             self.ask(p, "Which items matter?")
             p.until("document.querySelectorAll('.ask-turn').length === 2", "the answer")
-            want = ["Change the due date (ZZ-A-2)", "Raise the urgency (ZZ-A-2)", "Why are these late?", "Who owns these?", "Add to the weekly report"]
+            want = ["Change the due date", "Raise the urgency", "Why are these late?", "Who owns these?", "Add to the weekly report"]
             p.until(f"JSON.stringify(({pills}).slice(0, 5)) === {json.dumps(json.dumps(want, separators=(',', ':')))}", "the actions of the second item come first")
             self.assertEqual(len(p.js(pills)), 6)
             p.js("window.clarkPage.help.open()")
@@ -313,6 +316,51 @@ class Look(Base):
             p.js("[...document.querySelectorAll('#ask-pills button')].find(b => b.textContent === 'Who owns these?').click()")
             p.until("document.querySelectorAll('.ask-turn').length === 4", "the second answer")
             self.assertEqual([c[1].get("question") or c[1].get("text") for c in self.stub.calls if c[0] == "ask"][-1], "Who owns these?")
+            # the shown words carry no id; the question sent does
+            self.assertEqual(p.js(f"({pills}).filter(t => /[()]|ZZ-/.test(t)).length"), 0)
+            p.js("[...document.querySelectorAll('#ask-pills button')].find(b => b.textContent === 'Change the due date').click()")
+            p.until("document.querySelectorAll('.ask-turn').length === 6", "the third answer")
+            self.assertEqual([c[1].get("question") or c[1].get("text") for c in self.stub.calls if c[0] == "ask"][-1], "Change the due date (ZZ-A-2)")
+
+    def test_row_1332_asking_off_keeps_the_chat_and_its_actions_disabled_and_help_still_wins(self):
+        pills = "[...document.querySelectorAll('#ask-pills button')]"
+        names = f"JSON.stringify({pills}.map(b => b.textContent))"
+        help_six = re.findall(r'"([^"]+)"', WORDS[WORDS.index("export const PILLS_HELP = ["):].split("];")[0])
+        with chrome() as cdp:
+            p = self.open_panel(cdp)
+            self.stub.items = [{"id": "ZZ-A-1", "state": ["overdue"]}]
+            self.ask(p, "Which items matter?")
+            p.until("document.querySelectorAll('.ask-turn').length === 2", "the answer")
+            self.stub.enabled = False
+            self.ask(p, "And now?")                  # the server answers 409: asking is off
+            p.until("!!document.querySelector('#ask-off')", "asking is off")
+            self.assertGreaterEqual(p.js("document.querySelectorAll('.ask-turn').length"), 2, "the kept chat is still there")
+            p.js("document.querySelector('#ask-box').value = ''; document.querySelector('#ask-box').dispatchEvent(new Event('input'))")   # the refused question went back in the box
+            want = ["Change the due date", "Raise the urgency", "Why are these late?", "Who owns these?", "Add to the weekly report"]
+            p.until(f"JSON.stringify({pills}.map(b => b.textContent).slice(0, 5)) === {json.dumps(json.dumps(want, separators=(',', ':')))}", "the actions are drawn while off")
+            self.assertTrue(p.js(f"{pills}.every(b => b.disabled)"), "every suggestion is disabled while off")
+            before = len([c for c in self.stub.calls if c[0] == "ask"])
+            p.js(f"{pills}[0].click()")
+            self.assertEqual(len([c for c in self.stub.calls if c[0] == "ask"]), before, "a disabled suggestion asks nobody")
+            p.js("window.clarkPage.help.open()")
+            p.until(f"{names} === {json.dumps(json.dumps(help_six, separators=(',', ':')))}", "Help open draws the Help six while off")
+            self.assertTrue(p.js(f"{pills}.every(b => b.disabled)"), "the Help six is disabled while off")
+            p.js("window.clarkPage.help.close()")
+
+    def test_row_1332_the_counts_order_the_suggestions_of_a_page_other_than_the_dashboard(self):
+        pills = "JSON.stringify([...document.querySelectorAll('#ask-pills button')].map(b => b.textContent)[0])"
+        add = "window.clarkPage.changeData((d) => ({ ...d, actions: [...(d.actions || []), ...%s] }))"
+        row = lambda n, owner, due: {"id": f"ZZ-W-{n}", "description": "x", "status": "Open", "owner": owner, "priority": "Low", "due_date": due}
+        orphans = [row(n, "", "2099-01-01") for n in (1, 2, 3)]
+        late = [row(n, "Sam Lee", "2020-01-01") for n in (4, 5)]
+        with chrome() as cdp:
+            p = self.open_panel(cdp)
+            p.js(add % json.dumps(orphans + late))
+            self.pills_on(p, "work")
+            p.until(f"{pills} === '\"Which work items have no owner?\"'", "three with no owner against two late puts no owner first on Work")
+            p.js(add % json.dumps([row(n, "Sam Lee", "2020-01-01") for n in (6, 7, 8)]))
+            p.until(f"{pills} === '\"What is overdue?\"'", "five late against three with no owner puts overdue first on Work")
+            self.assertEqual(p.js("location.hash.split('&')[0]"), "#work")
 
     def pills_on(self, p, page):
         """Open the panel afresh on a page (a move closes it and clears the chat) and return the suggestions drawn."""

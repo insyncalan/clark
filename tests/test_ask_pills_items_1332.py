@@ -31,17 +31,17 @@ class Actions(unittest.TestCase):
         # two items named, only B is overdue: the due date and the urgency name B and never A
         turns = [user("Q"), answer((A, []), (B, ["overdue"]))]
         have = got(turns)
-        self.assertEqual(have[:4], [f"{DUE} ({B})", f"{URGENCY} ({B})", LATE, OWNERS])
+        self.assertEqual(have[:4], [DUE, URGENCY, LATE, OWNERS])
         self.assertFalse([p for p in have if A in p], have)
 
     def test_every_overdue_item_is_named_in_order_and_a_red_one_is_not_raised(self):
         turns = [user("Q"), answer((A, ["overdue", "red"]), (B, ["overdue"]), ("PUB-C-003", ["overdue", "no_owner"]))]
         have = got(turns)
-        self.assertEqual(have[:2], [f"{DUE} ({A}, {B}, PUB-C-003)", f"{URGENCY} ({B}, PUB-C-003)"])
+        self.assertEqual(have[:2], [DUE, URGENCY])
 
     def test_the_state_words_decide_which_actions_are_offered(self):
         late_red = got([user("Q"), answer((A, ["overdue", "red"]))])
-        self.assertEqual(late_red[:4], [f"{DUE} ({A})", LATE, OWNERS, REPORT])
+        self.assertEqual(late_red[:4], [DUE, LATE, OWNERS, REPORT])
         self.assertNotIn(URGENCY, " ".join(late_red))
         calm = got([user("Q"), answer((A, []), (B, ["red", "no_owner"]))])
         self.assertEqual(calm[:2], [OWNERS, REPORT])
@@ -61,7 +61,7 @@ class Actions(unittest.TestCase):
         have = got(turns)
         self.assertEqual(len(have), 6)
         self.assertEqual(len(set(have)), 6)
-        self.assertEqual(have[:5], [f"{DUE} ({A})", f"{URGENCY} ({A})", LATE, OWNERS, REPORT])
+        self.assertEqual(have[:5], [DUE, URGENCY, LATE, OWNERS, REPORT])
         self.assertEqual(have[5], L["dashboard"][0], "the page's own list fills what is left")
         # the cap is exactly six: five actions and the whole page list would be eleven
         self.assertEqual(one("K.pills('dashboard', %s, false).length" % json.dumps(turns)), 6)
@@ -71,12 +71,12 @@ class Actions(unittest.TestCase):
         new = answer((B, []))
         self.assertEqual(got([user("Q"), old, user("R"), new])[:2], [OWNERS, REPORT])
         note = {"role": "assistant", "text": "A note.", "kind": "note"}
-        self.assertEqual(got([user("Q"), old, note])[0], f"{DUE} ({A})")
+        self.assertEqual(got([user("Q"), old, note])[0], DUE)
 
     def test_help_beats_the_items(self):
         turns = [user("Q"), answer((A, ["overdue"]))]
         self.assertEqual(got(turns, help_open=True), got([], help_open=True))
-        self.assertNotIn(DUE + f" ({A})", got(turns, help_open=True))
+        self.assertNotIn(DUE, got(turns, help_open=True))
 
     def test_the_state_order_and_the_subject_still_apply_after_the_actions(self):
         turns = [user("Any risks?"), answer((A, []))]
@@ -87,6 +87,56 @@ class Actions(unittest.TestCase):
     def test_the_input_is_not_changed(self):
         turns = [user("Q"), answer((A, ["overdue"]))]
         self.assertEqual(probe(["(function(){var t=%s;K.pills('work',t,false).push('x');return t})()" % json.dumps(turns)]), [turns])
+
+    def test_the_click_sends_the_ids_and_the_shown_words_carry_none(self):
+        turns = [user("Q"), answer((A, ["overdue", "red"]), (B, ["overdue"]), ("PUB-C-003", []))]
+        have = got(turns)
+        for shown in have:
+            self.assertNotRegex(shown, r"[()]|PUB-", shown)
+        ask = lambda label: one("K.asking(%s, %s)" % (json.dumps(label), json.dumps(turns)))
+        self.assertEqual(ask(DUE), f"{DUE} ({A}, {B})")
+        self.assertEqual(ask(URGENCY), f"{URGENCY} ({B})")
+        for plain in (LATE, OWNERS, REPORT, L["dashboard"][0], "Not a suggestion"):
+            self.assertEqual(ask(plain), plain)
+        self.assertEqual(one("K.asking(%s, 'no')" % json.dumps(DUE)), DUE, "no chat, no ids")
+
+    def test_a_state_that_is_not_a_list_counts_as_none(self):
+        for bad in ("overdue", 5, {"0": "overdue"}, None, True):
+            turns = [user("Q"), {"role": "assistant", "text": "x", "items": [{"id": A, "state": bad}]}]
+            self.assertEqual(got(turns)[:2], [OWNERS, REPORT], bad)
+        for turns in ("Q", 5, {"role": "user"}, None):
+            self.assertEqual(one("K.pills('dashboard', %s, false)" % json.dumps(turns)), L["dashboard"], turns)
+        for counts in ("x", 5, [1, 2], True):
+            self.assertEqual(one("K.pills('dashboard', [], false, %s)" % json.dumps(counts)), L["dashboard"], counts)
+
+    def test_a_number_is_not_an_id(self):
+        turns = [user("Q"), {"role": "assistant", "text": "x", "items": [{"id": 7, "state": ["overdue"]}, {"id": 0, "state": ["overdue"]}]}]
+        self.assertEqual(got(turns), L["dashboard"])
+        mixed = [user("Q"), {"role": "assistant", "text": "x", "items": [{"id": 7, "state": ["overdue"]}, {"id": A, "state": ["overdue"]}]}]
+        self.assertEqual(one("K.asking(%s, %s)" % (json.dumps(DUE), json.dumps(mixed))), f"{DUE} ({A})")
+
+    def test_a_newest_answer_without_items_clears_the_actions_of_the_one_before(self):
+        old = answer((A, ["overdue"]))
+        self.assertEqual(got([user("Q"), old, user("R"), reply()]), L["dashboard"])
+        self.assertEqual(got([user("Q"), old, user("R"), answer()]), L["dashboard"])
+        self.assertEqual(one("K.asking(%s, %s)" % (json.dumps(DUE), json.dumps([user("Q"), old, user("R"), reply()]))), DUE)
+
+    def test_the_actions_come_first_then_the_state_order_with_the_larger_count_first(self):
+        turns = [user("Any risks?"), answer((A, []))]
+        have = got(turns, "work", state={"overdue": 1, "red": 2, "noOwner": 3})
+        self.assertEqual(have[:2], [OWNERS, REPORT])
+        self.assertEqual(have[2:4], [L["risks"][1], L["risks"][0]], "no owner (3) before red (2), both from the risks list")
+        tie = got(turns, "work", state={"overdue": 0, "red": 3, "noOwner": 3})
+        self.assertEqual(tie[2:4], [L["risks"][0], L["risks"][1]], "a tie: red before no owner")
+
+    def test_six_at_most_with_the_state_and_the_actions_together(self):
+        turns = [user("Q"), answer((A, ["overdue"]))]
+        have = got(turns, "work", state={"overdue": 0, "red": 0, "noOwner": 4})
+        self.assertEqual(len(have), 6)
+        self.assertEqual(len(set(have)), 6)
+        self.assertEqual(have[:5], [DUE, URGENCY, LATE, OWNERS, REPORT])
+        self.assertEqual(have[5], "Which work items have no owner?", "the one the state puts first takes the last place")
+        self.assertEqual(one("K.pills('work', %s, false, %s).length" % (json.dumps(turns), json.dumps({"overdue": 9, "red": 9, "noOwner": 9}))), 6)
 
 
 if __name__ == "__main__":

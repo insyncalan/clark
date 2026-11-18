@@ -76,7 +76,7 @@ export const PILLS_STATE = {
   gantt: { overdue: "Which work items are running late?", red: "Which milestones are at risk?" },
 };
 // Row 1332 rows 3 and 11: after an answer that names items, the suggestions open with what can be done about THOSE items (DRAFT contract: items=[{id,state}],
-// state words overdue / red / no_owner). The two questions about one item or a few carry the ids in brackets; the rest are plain questions.
+// state words overdue / red / no_owner). The two questions about one item or a few carry the ids in brackets only in the question sent, never in the shown words; the rest are plain questions.
 export const PILLS_ITEM_DUE = "Change the due date";
 export const PILLS_ITEM_URGENCY = "Raise the urgency";
 export const PILLS_ITEM_REPORT = "Add to the weekly report";
