@@ -10,6 +10,8 @@ import json
 import re
 import unittest
 
+import test_server  # noqa: F401  this file drives Chrome through the template harness (the browser tier reads this line)
+
 from _paths import SRC
 from clark import page, theme
 import test_tpl_workitems as T
