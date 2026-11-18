@@ -4,8 +4,8 @@ import { useEffect, useState } from "preact/hooks";
 import { themeChoice, themeStatus, loadTheme, setTheme } from "./themeState.js";
 
 const CHOICES = [
-  ["classic", "Clark Classic (default)", "The look clark has had until now."],
-  ["cards", "Clark Cards", "The same pages, drawn as cards."],
+  ["classic", "Clark Classic (default)", "The same pages, in the folder look."],
+  ["cards", "Clark Cards", "The look clark has had until now."],
 ];
 
 export function ThemeSettings() {
