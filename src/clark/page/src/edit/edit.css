@@ -1416,7 +1416,7 @@ table.items th.c-eye { white-space: nowrap; }
 table.items .c-x { width: 130px; }
 table.items .c-x-latest, table.items .c-x-wording { width: 220px; }
 table.items .c-x-id, table.items .c-x-type { width: 100px; }
-table.items td.c-x-id { color: var(--link); font-weight: 600; white-space: nowrap; }        /* #1195: the mock-up's blue ID column */
+table.items td.c-x-id { color: var(--link); font-weight: 600; white-space: nowrap; }        /* row 1195: the mock-up's blue ID column */
 @media (max-width: 700px) {
   table.items td.c-x { grid-column: 1 / -1; width: auto; }
   table.items td.c-x::before { content: attr(data-label); display: block; font-size: var(--size-small); color: var(--text-muted); }
