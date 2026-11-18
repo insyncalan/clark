@@ -7,6 +7,7 @@ stylesheet's token (85 px at 1400, 129 px at 900), nothing is set, so a resize c
 Run: python3 dev/run_tests.py test_topbar_token_no_lag_1239
 Browser tests: headless Chrome through the harness against a real server, fictional data, at 1400 and 900 px only.
 """
+import time
 import unittest
 
 from test_inline_67 import size
@@ -44,6 +45,27 @@ class NoLag(Base):
             p.until(f"Math.round({BAR}) === {HEIGHT[900]}", "the bar is back to its token")
             p.until(f"{INLINE} === ''", "the override is dropped")
             self.assertEqual(p.js(VAR), HEIGHT[900])
+
+    def test_a_bar_a_few_pixels_taller_than_its_token_carries_its_real_height(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            size(cdp, p, 1400)
+            p.until(f"Math.round({BAR}) === {HEIGHT[1400]}", "the bar at 1400")
+            p.js("document.querySelector('header.top').style.minHeight = '88px'")
+            p.until(f"{VAR} === {BAR}", "the token follows a bar 3 px past its token")
+            self.assertNotEqual(p.js(INLINE), "", "3 px past the token is an override")
+            p.js("document.querySelector('header.top').style.minHeight = ''")
+            p.until(f"{INLINE} === ''", "the override is dropped again")
+
+    def test_a_hidden_bar_sets_no_zero_height(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            size(cdp, p, 1400)
+            p.until(f"Math.round({BAR}) === {HEIGHT[1400]}", "the bar at 1400")
+            p.js("document.querySelector('header.top').style.display = 'none'")
+            p.until(f"{BAR} === 0", "the bar is hidden")
+            time.sleep(0.6)      # the observer has had its frames
+            self.assertNotEqual(p.js(INLINE), "0px", "a hidden bar never sets a 0 px token")
 
 
 if __name__ == "__main__":
