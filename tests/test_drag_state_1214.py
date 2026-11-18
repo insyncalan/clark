@@ -34,7 +34,7 @@ class DragState(unittest.TestCase):
                          'export { data, dropAt, dragFrom, dragList } from "@src/stores/report.js";', Path(cls._tmp.name), None, "dragstate.cjs")
 
     def run_script(self, steps, width=1400):
-        """steps: [x, y, ms] or [x, y, ms, pointerId] (a move, then the clock runs ms), "esc", "blur" (the window loses focus), "up", "up2" (a release of pointer 2), "lost", "lost2" (the handle, taken off the page, loses the capture of pointer 1, 2), "hidden" (the handle stays on the page but loses the capture, as when the preview hides it), "hiddenaway" (that, and no grip for the section can be found by the page's query), "swap" (the page draws a new grip for the section and takes the old one off, nothing else), "swaplost" (that, and the old grip loses the capture). Returns one snapshot after the start and one after each step."""
+        """steps: [x, y, ms] or [x, y, ms, pointerId] (a move, then the clock runs ms), "esc", "blur" (the window loses focus), "up", "up2" (a release of pointer 2), "lost", "lost2" (the handle, taken off the page, loses the capture of pointer 1, 2), "hidden" (the handle stays on the page but loses the capture, as when the preview hides it), "gone" (the grip is taken off the page and the browser says nothing: no lostpointercapture), "hiddenaway" (that, and no grip for the section can be found by the page's query), "swap" (the page draws a new grip for the section and takes the old one off, nothing else), "swaplost" (that, and the old grip loses the capture). Returns one snapshot after the start and one after each step."""
         js = (STAND_IN
               + "const m = require(process.argv[1]); const L = {}, W = {}, body = [], notes = [];"
               "globalThis.addEventListener = (t, f) => { W[t] = f; }; globalThis.removeEventListener = (t, f) => { if (W[t] === f) delete W[t]; };"
@@ -58,6 +58,7 @@ class DragState(unittest.TestCase):
               "for (const s of " + json.dumps(steps) + ") {"
               "  if (s === 'esc') L.keydown && L.keydown({ key: 'Escape' });"
               "  else if (s === 'lost' || s === 'lost2' || s === 'hidden' || s === 'hiddenaway') { if (H.lostpointercapture) { const f = H.lostpointercapture; if (s === 'hiddenaway') grips.delete('d'); if (s !== 'hidden' && s !== 'hiddenaway') { handle.isConnected = false; grips.delete('d'); } f({ pointerId: s === 'lost2' ? 2 : 1, type: 'lostpointercapture' }); } }"
+              "  else if (s === 'gone') { handle.isConnected = false; grips.delete('d'); }"
               "  else if (s === 'blur') W.blur && W.blur({ type: 'blur' });"
               "  else if (s === 'swap' || s === 'swaplost') { handle.isConnected = false; if (s === 'swaplost') H.lostpointercapture && H.lostpointercapture({ pointerId: 1, type: 'lostpointercapture' }); }"
               "  else if (s === 'up' || s === 'up2') L.pointerup && L.pointerup({ pointerId: s === 'up' ? 1 : 2, type: 'pointerup' });"
@@ -71,6 +72,24 @@ class DragState(unittest.TestCase):
         done = subprocess.run(["node", "-e", js, str(self.out)], capture_output=True, text=True)
         self.assertEqual(done.returncode, 0, done.stderr[-800:])
         return json.loads(done.stdout)
+
+    def test_a_grip_taken_off_the_page_ends_the_drag_at_the_next_move_without_any_lost_capture_event(self):
+        # Row 1277: headless Chrome on macOS never fires lostpointercapture for a removed grip, so the move is what ends the drag.
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                got = self.run_script([[200, 330, REST], "gone", [200, 420, REST]], width)
+                self.assertEqual(got[1]["drawn"], 3, "the drag is on before the grip goes")
+                self.assertEqual(got[2]["drawn"], 3, "nothing ends it until the pointer moves: no event came")
+                self.assertEqual((got[3]["from"], got[3]["drop"], got[3]["list"], got[3]["drawn"]), (None, None, None, 0))
+                self.assertEqual((got[3]["listeners"], got[3]["onWindow"], got[3]["onHandle"]), ([], [], []))
+                self.assertEqual(got[-1]["sent"], 0, "and a release after it drops nothing")
+                got = self.run_script([[200, 330, REST], "gone", [200, 420, REST], "up"], width)
+                self.assertEqual((got[-1]["sent"], got[-1]["drawn"]), (0, 0))
+
+    def test_a_grip_the_page_drew_again_does_not_end_the_drag_at_a_move(self):
+        got = self.run_script([[200, 330, REST], "swap", [200, 420, REST]])
+        self.assertEqual(got[3]["from"], "d")
+        self.assertEqual(got[3]["drawn"], 3)
 
     def test_while_dragging_the_store_names_the_section_and_the_ghost_and_outline_are_drawn(self):
         for width in (1400, 900):

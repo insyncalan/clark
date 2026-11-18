@@ -169,15 +169,21 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
   // Leaving the whole field (focus goes outside it, and outside its floating boxes) saves.
   const away = (e) => {
     const to = e.relatedTarget;
-    if (to && (root.current.contains(to) || (bubble.current && bubble.current.contains(to)) || (slashBox.current && slashBox.current.contains(to)))) return;
-    if (!to && document.hasFocus() === false) return;
+    const inside = (n) => (root.current && root.current.contains(n)) || (bubble.current && bubble.current.contains(n)) || (slashBox.current && slashBox.current.contains(n));   // contains(null) is false
+    if (inside(to)) return;
+    // No target and the page reports no focus: a window left (the active element stays in the field) unless the focus is already on something outside (macOS order).
+    if (!to && document.hasFocus() === false && (!document.activeElement || document.activeElement === document.body || inside(document.activeElement))) return;
     if (keep.current || aiOpen.current) return;                  // a menu or the link box just closed: its focus is being put back (the AI menu and card are part of the field)
-    setTimeout(() => {
+    const look = (again) => {
       if (aiOpen.current) return;
       const at = document.activeElement;
-      if (at && at !== document.body && (root.current.contains(at) || (bubble.current && bubble.current.contains(at)))) return;
+      if (inside(at)) {
+        if (again && to) setTimeout(() => look(false), 50);     // the focus was sent outside but the active element has not moved yet (macOS): look once more
+        return;
+      }
       finishRef.current(false);
-    }, 0);
+    };
+    setTimeout(() => look(true), 0);
   };
 
   // Focus back to the text after a menu or the link box closed: after their own focus handling has finished.
