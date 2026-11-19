@@ -500,12 +500,12 @@ class NewTile(unittest.TestCase):
         doc = self.cdp.call("Runtime.evaluate", {"expression": "document"}, self.sid)["result"]["objectId"]
         return any(h["type"] == "pointerdown" for h in self.cdp.call("DOMDebugger.getEventListeners", {"objectId": doc}, self.sid)["listeners"])
 
-    def test_every_add_word_is_the_label_and_the_tooltip_and_a_click_says_what_was_added(self):
+    def test_every_add_word_is_the_label_and_has_no_tooltip_and_a_click_says_what_was_added(self):
         for word, kind in (("Add action", "action"), ("Add milestone", "milestone"), ("Add project", "project"), ("Add use case", "use_case")):
             with self.subTest(word):
                 self.mount(word=word, kind=kind)
-                self.assertEqual(self.cdp.js("(() => { const b = document.querySelector('#newBtn'); return [b.getAttribute('aria-label'), b.title, b.dataset.tip, b.textContent, b.hasAttribute('aria-haspopup')]; })()", self.sid),
-                                 [word, word, word, word, False])
+                self.assertEqual(self.cdp.js("(() => { const b = document.querySelector('#newBtn'); return [b.getAttribute('aria-label'), b.getAttribute('title'), b.getAttribute('data-tip'), b.textContent, b.hasAttribute('aria-haspopup')]; })()", self.sid),
+                                 [word, None, None, word, False])
                 click(self.cdp, self.sid, "#newBtn")
                 self.assertEqual(self.cdp.js("CALLS", self.sid), [kind])
 
@@ -606,8 +606,8 @@ class RealBrowser(unittest.TestCase):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.load_page(cdp, s.port, width, "#work&p=TUL")
                 js = lambda e: cdp.js(e, sid)
-                tile = lambda: js("(() => { const b = document.querySelector('#newBtn'); return [b.getAttribute('aria-label'), b.title, b.textContent, b.getAttribute('aria-haspopup')]; })()")
-                self.assertEqual(tile(), ["Add item", "Add item", "Add item", "menu"])
+                tile = lambda: js("(() => { const b = document.querySelector('#newBtn'); return [b.getAttribute('aria-label'), b.getAttribute('title'), b.getAttribute('data-tip'), b.textContent, b.getAttribute('aria-haspopup')]; })()")
+                self.assertEqual(tile(), ["Add item", None, None, "Add item", "menu"])      # Row 1410: no tooltip
                 click(cdp, sid, "#newBtn")                                                    # All: a menu of every type
                 self.assertTrue(wait(lambda: js("!!document.querySelector('#newBtnMenu')")))
                 self.assertEqual(js("[...document.querySelectorAll('#newBtnMenu [role=menuitem]')].map(b => b.textContent)"), ["Add action", "Add risk", "Add issue", "Add decision"])

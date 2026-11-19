@@ -4,9 +4,11 @@ Run: python3 dev/run_tests.py test_menu_tooltip
 The tip is the CSS one drawn from data-tip (shell.css). It must hide when its menu opens, on pointer leave, on Esc and on blur, and
 sit under every menu.
 """
+import re
 import unittest
 
 from test_report_editor import Base, tearDownModule  # noqa: F401
+from _paths import ROOT
 from test_server import chrome
 
 AFTER = "getComputedStyle(document.querySelector('#profile-btn'), '::after')"
@@ -68,35 +70,28 @@ class MenuTooltip(Base):
                         self.point(p, x, y, True, "the pointer is back on the button")
                         p.until(AFTER + ".content !== 'none'", "the tip is back on hover")
 
-    def test_the_add_item_menu_on_work_items_never_has_a_tip_over_it(self):
+    def test_the_add_item_button_on_work_items_has_no_tip_at_all(self):
+        """Row 1410: the button says "Add item" in its own text (it grows to its words on hover), so it has no drawn tip and no native title,
+        before, during and after its menu; it keeps its accessible name."""
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width, False)
                 p.js("location.hash = '#work&p=ABC'")
                 p.until("!!document.querySelector('#newBtn[aria-haspopup=menu]')", "the Add item button drew on Work items")
-                self.assertEqual(p.js("document.querySelector('#newBtn').dataset.tip"), "Add item")
-                shows_add = "['none', 'normal'].indexOf(" + ADD + ".content) < 0"
+                self.assertEqual(p.js("document.querySelector('#newBtn').getAttribute('aria-label')"), "Add item", "the accessible name stays")
+                self.assertIsNone(p.js("document.querySelector('#newBtn').getAttribute('data-tip')"), "no drawn tip")
+                self.assertIsNone(p.js("document.querySelector('#newBtn').getAttribute('title')"), "no native title")
                 x, y, _ = p.box("#newBtn")
                 p.mouse("mouseMoved", x, y)
                 p.until("document.querySelector('#newBtn').matches(':hover')", "the pointer is on the Add item button")
-                p.until(ADD + ".content !== 'none'", "the tip shows on hover")
-                self.assertLess(int(p.js(ADD + ".zIndex")), 20, "under every menu")
+                self.stays_absent(p, "no tip on hover", sample="['none', 'normal'].indexOf(" + ADD + ".content) < 0")
+                self.assertEqual(p.js(ADD + ".content"), "none", "nothing is drawn under the button")
                 p.mouse("mousePressed", x, y, buttons=1)
                 p.mouse("mouseReleased", x, y)
                 p.until("!!document.querySelector('#newBtnMenu')", "the menu opened")
-                p.until("document.querySelector('#newBtnMenu').contains(document.activeElement)", "focus went into the menu")
-                self.stays_absent(p, "no tip over the open Add item menu while the pointer is still on the button", sample=shows_add)
                 p.key("Escape", code="Escape", vk=27)
                 p.until("!document.querySelector('#newBtnMenu')", "Esc closed the menu")
-                p.until("document.documentElement.hasAttribute('data-tip-off')", "Esc switched the tip off")
-                p.until(ADD + ".content === 'none'", "the Add item tip is off after Esc")
-                self.stays_absent(p, "no tip after Esc, though focus came back to the button", sample=shows_add)
-                p.mouse("mouseMoved", 5, int(p.js("window.innerHeight")) - 5)
-                p.until("!document.querySelector('#newBtn').matches(':hover')", "the pointer has left the button")
-                p.js("document.querySelector('#newBtn').blur()")
-                p.until(ADD + ".content === 'none'", "no tip after the pointer leaves and focus goes")
-                p.mouse("mouseMoved", x, y)
-                p.until(ADD + ".content !== 'none'", "the tip is back on hover")
+                self.assertEqual(p.js(ADD + ".content"), "none", "no tip after Esc either")
 
     def test_the_section_grip_menu_never_has_a_tip_over_it(self):
         """The grip carries a native title, not a data-tip: no drawn tip may appear on it, before, during or after its menu."""
@@ -129,3 +124,15 @@ class MenuTooltip(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NewTileSource(unittest.TestCase):
+    def test_row_1410_only_the_icon_only_work_items_list_plus_has_a_tip(self):
+        """Row 1410: Add item, Add milestone, Add use case, Add action and Add project show their words, so NewTile gives them no tip;
+        the 34 px + of a Work items list never draws its words, so it alone passes `tip`."""
+        page = ROOT / "src" / "clark" / "page" / "src"
+        tile = (page / "components" / "NewTile.jsx").read_text(encoding="utf-8")
+        self.assertNotIn("tip={word}", tile)
+        self.assertIn("tip={tip ? word : undefined}", tile)
+        users = {f.relative_to(page).as_posix(): f.read_text(encoding="utf-8") for f in page.rglob("*.jsx") if "<NewTile" in f.read_text(encoding="utf-8")}
+        self.assertEqual(sorted(k for k, v in users.items() if re.search(r"<NewTile[^>]*\btip\b[ =/]", v)), ["edit/templates/WorkItemsList.jsx"])
