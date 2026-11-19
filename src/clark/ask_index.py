@@ -116,6 +116,7 @@ def refresh(data_dir, code, folders, home=None, stop=None, progress=None):
     db.commit()
     kept = {r[0]: (r[1], r[2], r[3]) for r in db.execute("SELECT label, size, mtime_ns, state FROM files")}
     seen, now_state = set(), {}
+    db.execute("DELETE FROM left")
     type_n, online, safety = 0, 0, len(bad)
     stopped_listing = False
     for folder in usable:
@@ -143,6 +144,9 @@ def refresh(data_dir, code, folders, home=None, stop=None, progress=None):
             if not low.endswith(ask_passages.TEXT_TYPES + ask_passages.WORD_TYPES):
                 type_n += 1
                 c["type"] += 1
+                root = next((r for r in roots if reach.inside(path, r)), None)
+                if root is not None:
+                    db.execute("INSERT OR REPLACE INTO left VALUES(?,?)", (ask_passages._label(root, path), REASON_TYPE))
             else:
                 root = next((r for r in roots if reach.inside(path, r)), None)
                 label = ask_passages._label(root, path) if root is not None else None
@@ -168,6 +172,7 @@ def refresh(data_dir, code, folders, home=None, stop=None, progress=None):
                 progress(str(folder), done, total)
     for gone in set(kept) - seen:
         _drop(db, gone)
+    db.execute("INSERT OR REPLACE INTO left SELECT label, ? FROM files WHERE state='safety'", (REASON_SAFETY,))
     states = [r[0] for r in db.execute("SELECT state FROM files")]
     counts = dict.fromkeys(NAMES, 0)
     counts.update(indexed=states.count("indexed"), type=type_n, online_only=online, safety=safety + states.count("safety"))
