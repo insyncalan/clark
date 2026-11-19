@@ -8,7 +8,7 @@ from test_server import chrome
 class NewView(Browser):
     def test_new_view_is_blue_and_at_the_far_right(self):
         probe = ("(() => { const v = document.querySelector('#viewNew'), b = document.querySelector('#newBtn'), r = document.querySelector('#work .fvrow').getBoundingClientRect(), "
-                 "e = document.createElement('i'); e.style.color = 'var(--status-blue-text)'; document.body.append(e); const want = getComputedStyle(e).color; e.remove(); "
+                 "e = document.createElement('i'); e.style.color = 'var(--brand-blue)'; document.body.append(e); const want = getComputedStyle(e).color; e.remove(); "
                  "const a = v.getBoundingClientRect(), c = b.getBoundingClientRect(); return {color: getComputedStyle(v).color, want, vRight: Math.round(a.right), btnLeft: Math.round(c.left), btnRight: Math.round(c.right), rowRight: Math.round(r.right)}; })()")
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
