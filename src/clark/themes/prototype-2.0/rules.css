@@ -375,6 +375,9 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 /* Row 1312 keeps its 20px gutter padding on the Settings window (screen only; print has none): the window padding above is shorter. */
 @media screen { .set-layout.set-win { padding-left: 20px; } }
 @media print { .set-layout.set-win { padding-left: 0; } }
+/* Row 1285: Close, focused as a peek opens with no key pressed (a click, a script), shows no focus ring until a key is pressed or the focus moves on. */
+#peek .pkp-btn[data-quiet]:focus-visible { outline: none; }
+
 /* Row 1350 part 2 (Classic only; Cards keeps the shared quick bar rules): the quick bar list as the prototype draws it (mock-up app.css lines 1562-1565). The query box keeps its 12px and 14px (var(--space-3), the shared rule); the input is 38px tall with 15px text and 6px 10px padding; the list has 6px padding (shared) and stops at min(52vh, 420px); a row is a grid of a 96px kind, the label and the hint, gap 4px 12px, padding 8px 10px, radius 6px, text var(--size-body) (14px); the kind and the hint are one px under the caption size (12px), the kind with .04em spacing and muted. The chosen row (grey-100 fill, 2px focus ring, offset -2px) is the shared rule and is not repeated. The bare lengths have no token: 38px, 15px, 6px, 10px, 96px, 420px, 52vh, .04em. */
 .pal-q input { min-height: 38px; padding: 6px 10px; font-size: 15px; }
 .pal-list { max-height: min(52vh, 420px); }
