@@ -8,7 +8,7 @@ import unittest
 from _paths import SRC
 from test_ask_apply import Base
 
-from clark import ask, ask_files
+from clark import ask, ask_files, changes
 
 JSX = (SRC / "clark" / "page" / "src" / "edit" / "AskSettings.jsx").read_text(encoding="utf-8")
 LOOKS_KEY = "pass" + "word = Hunter2-Zebra-9"      # built in two pieces so the repository's own secret scan has nothing to match here
@@ -58,6 +58,18 @@ class Approval(Base):
         status, body = self.undo({"project": "ABC", "apply_id": applied["apply_id"]})
         self.assertEqual(status, 200, body)
         self.assertEqual(self.s.read("actions", ref=self.action)["status"], "Open")
+
+    def test_a_decision_marked_made_is_not_undone_and_a_new_decision_replaces_it(self):
+        with self.s.step("dashboard", "t") as st:
+            ref = st.create("decisions", {"project": "ABC", "decision": "Use the shared calendar", "status": "Pending", "source": "demo"})
+        applied = self.applied(self.planned({"op": "change", "id": ref, "status": "Made", "date": "2026-10-29", "made_by": "Sara Khan"})["offer"])
+        self.assertEqual(self.s.read("decisions", ref=ref)["status"], "Made")
+        status, body = self.undo({"project": "ABC", "apply_id": applied["apply_id"]})
+        self.assertFalse(applied["undoable"], "the apply says itself there is no Undo for a Made decision")
+        self.assertEqual((status, body["code"], body["message"]), (400, "refused", "That step can't be undone from here."))
+        self.assertEqual(self.s.read("decisions", ref=ref)["status"], "Made", "still Made after the refused Undo")
+        self.assertIn("Record a new decision that replaces it", changes.MADE_CANT_BE_PUT_BACK)
+        self.assertIn("except a decision marked Made, which a new decision replaces", JSX)
 
     def test_a_decision_marked_made_has_no_undo(self):
         with self.s.step("dashboard", "tester") as st:
