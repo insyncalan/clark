@@ -10,7 +10,7 @@ import { data, openPeek, rows as reportRows, filterCtx } from "../../stores/repo
 import { LineBox } from "../../components/FilterLine.jsx";
 import { change, say } from "../../stores/changes.js";
 import { Rows, Listing, Foot, today, classicTheme } from "../../templates/WorkItemsList.jsx";
-import { SORTS, COLUMNS, MAX_ROWS, MAX_CAPTION, WORDS, defaults, filterOf, bodyOf,
+import { sortChoices, COLUMNS, MAX_ROWS, MAX_CAPTION, WORDS, defaults, filterOf, bodyOf,
   editListOf, drawRows, drawn, idsToShow } from "../../templates/workItemsList.js";
 import { Eye } from "../cells/Eye.jsx";
 import { Cell } from "../cells/Cell.jsx";
@@ -157,7 +157,7 @@ export function Edit({ section }) {
           </button>
           <div class="wil-cfg" role={cfg ? "dialog" : undefined} aria-label={CONFIGURE_LABEL} hidden={!cfg}>
             <h4>{CONFIGURE_LABEL}</h4>
-          <Choice id={id} label="Sort by" field="sort" values={SORTS} words={WORDS.sort} value={filter.sort} onPick={pick} />
+          <Choice id={id} label="Sort by" field="sort" values={sortChoices(classicTheme(), filter.sort)} words={WORDS.sort} value={filter.sort} onPick={pick} />
           <label class="wil-sel" data-field="max"><span>Most rows</span>
             <input type="number" name="max" min="1" max={MAX_ROWS} step="1" value={filter.max} onChange={commitMax} onKeyDown={keys} />
           </label>
