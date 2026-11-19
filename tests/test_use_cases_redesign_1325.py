@@ -108,7 +108,7 @@ class Redesign:
     """The tests, run under the Classic theme layer (Cards is pinned unchanged in CardsAsOnMain)."""
     css = None
 
-    def open(self, cdp, width, hash_="#usecases&p=ABC", ready=None):
+    def open_page(self, cdp, width, hash_="#usecases&p=ABC", ready=None):
         p = Pg.at(self, cdp, self.s.port, hash_)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1000, "deviceScaleFactor": 1, "mobile": False}, p.sid)
@@ -136,7 +136,7 @@ class Redesign:
     def test_r1_the_page_is_one_flat_table_like_work_items(self):
         for w in self.widths():
             with self.subTest(width=w), chrome() as cdp:
-                p = self.open(cdp, w)
+                p = self.open_page(cdp, w)
                 g = p.js(STRUCT)
                 self.assertTrue(g["table"], "a table.items, as Work items")
                 self.assertEqual(g["oldList"], 0, "the old list (ul, its own column-name strip, li rows) is gone")
@@ -181,7 +181,7 @@ class Redesign:
     def test_r1_the_look_is_the_work_items_look_measured_on_both_pages(self):
         for w in self.widths():
             with self.subTest(width=w), chrome() as cdp:
-                p = self.open(cdp, w)
+                p = self.open_page(cdp, w)
                 uc = p.js(LOOK + "('#usecases')")
                 p.js("location.hash = '#work&p=ABC'")
                 p.until("!!document.querySelector('#work table.items tbody tr')", "Work items drew")
@@ -194,7 +194,7 @@ class Redesign:
     def test_r2_a_row_hidden_from_the_client_is_greyed_whole_and_still_visible(self):
         for w in self.widths():
             with self.subTest(width=w), chrome() as cdp:
-                p = self.open(cdp, w)
+                p = self.open_page(cdp, w)
                 g = p.js(OFFLOOK)
                 on, off = [v for v in g.values() if not v["off"]], [v for v in g.values() if v["off"]]
                 self.assertEqual((len(on), len(off)), (2, 2), "two rows on the dashboard, two hidden from the client")
@@ -221,7 +221,7 @@ class Redesign:
     def test_r3_the_column_chooser(self):
         for w in self.widths():
             with self.subTest(width=w), chrome() as cdp:
-                p = self.open(cdp, w)
+                p = self.open_page(cdp, w)
                 self.assertEqual(p.js("(() => { const b = document.querySelector('#usecases thead th:last-child button[aria-label=Columns]'); const r = b.getBoundingClientRect(); const o = [...document.querySelectorAll('#usecases thead th')].map((t) => t.getBoundingClientRect().right); return [b.title, b.getAttribute('aria-haspopup'), b.getAttribute('aria-expanded'), r.right >= Math.max(...o) - 12, r.width >= 24]; })()"),
                                  ["Choose the columns", "menu", "false", True, True], "the Columns icon at the right end of the header row")
                 p.js("document.querySelector('#usecases button[aria-label=Columns]').click()")
@@ -248,7 +248,7 @@ class Redesign:
     def test_r3_commitment_replaces_the_commitment_text_in_the_grey_line(self):
         for w in self.widths():
             with self.subTest(width=w), chrome() as cdp:
-                p = self.open(cdp, w)
+                p = self.open_page(cdp, w)
                 grey = "(() => document.querySelector('#usecases tr[data-uc] .meta2').textContent)()"
                 self.assertEqual(p.js(grey), "UC 1.1 · Committed")
                 p.js("document.querySelector('#usecases button[aria-label=Columns]').click()")
@@ -271,7 +271,7 @@ class Redesign:
         How the heading line itself is drawn (name, count, hairline, no tile) belongs to the grouped-heading row and is pinned in its own tests."""
         for w in self.widths():
             with self.subTest(width=w), chrome() as cdp:
-                p = self.open(cdp, w, ready="true")
+                p = self.open_page(cdp, w, ready="true")
                 p.js("localStorage.setItem('clark.ucPage', JSON.stringify({ABC: {line: '', tab: 'all', group: 'status', sort: 'status'}}))")
                 reload_to_new_page(p.js, "document.querySelectorAll('#usecases .grp-b').length > 0", "grouped by Status")
                 self.assertEqual(p.js("document.querySelectorAll('#usecases .grp-b').length"), 3, "one heading button per status group")
