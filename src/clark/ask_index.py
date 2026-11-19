@@ -4,9 +4,11 @@ ONE FILE PER PROJECT: `<data folder>/ask-index/<project code>.db`, 0600 in a 070
 It is a copy that can always be rebuilt: delete it and `build` makes the same passages again. A question calls `search` and opens no file.
 
 WHAT GETS IN. Files are listed and opened only through `reach` (`readable_files`, `read_bytes`), the same gates as `ask_passages`.
-Text, Markdown, CSV, TSV, RST and Word are read like `ask_passages` reads them. A file whose name or text looks like a password or
+Text, Markdown, CSV, TSV, RST and Word are read like `ask_passages` reads them. PDF goes through `pdf_reader` (its own process, a passage per
+page: "<file>, page n"); Excel (.xlsx, .xlsm) through vendored openpyxl, read-only, stored values, a passage run per sheet ("<file>, sheet S"); a PDF with no
+readable text (scanned, encrypted, damaged) counts as `type` and is listed as left out, a damaged workbook as `safety`. A file whose name or text looks like a password or
 a key is screened by `secret_screen` BEFORE any of it is stored: it leaves a row with no text (label and size only). Every
-other type (PDF, Excel, PowerPoint, HTML, pictures) is counted as `type` until its own slice. No per-question file, byte or time limit.
+other type (PowerPoint, HTML, pictures) is counted as `type` until its own slice. No per-question file, byte or time limit.
 
 FRESH. `refresh` compares each file's size and modified time with the row kept and reads again only what changed; a file that is gone,
 or a folder no longer in the project, loses its passages (and the free pages are wiped, so no copy of the text stays in the file).
@@ -15,7 +17,7 @@ LABELS. Each passage is labelled "<folder>/<name> (part n), modified YYYY-MM-DD"
 equal matches rank the newer file first.
 
 `status` gives counts that add up to the files of the folders: indexed, type, online_only, too_long, safety, not_yet (and `stopped`).
-Not in this slice: PDF, Excel, PowerPoint, HTML, OCR, the page budget, online-only reads, lifting `reach`'s 20,000-file listing cap,
+Not in this slice: PowerPoint, HTML, OCR, the page budget, online-only reads, lifting `reach`'s 20,000-file listing cap,
 running in the background, the Settings text.
 """
 import json
@@ -26,10 +28,15 @@ import threading
 import time
 from pathlib import Path
 
-from clark import ask, ask_data, ask_passages, docx_read, reach, secret_screen
+from clark import ask, ask_data, ask_passages, docx_read, pdf_reader, reach, secret_screen
 
 MAX_RESULTS = ask.MAX_PASSAGES
 MAX_PARTS_PER_FILE = 5000
+EXCEL_TYPES = (".xlsx", ".xlsm")
+INDEXED_TYPES = ask_passages.TEXT_TYPES + ask_passages.WORD_TYPES + ask_passages.PDF_TYPES + EXCEL_TYPES
+MAX_EXCEL_BYTES = 25 * 1024 * 1024
+MAX_EXCEL_ROWS = 50000                   # per sheet
+MAX_EXCEL_CELLS = 1000000                # per file
 NAMES = ("indexed", "type", "online_only", "too_long", "safety", "not_yet")
 _WORD = re.compile(r"\w+", re.UNICODE)
 _CODE = re.compile(r"[^A-Za-z0-9._-]")
@@ -69,6 +76,36 @@ def _lines(raw, truncated, low, name):
             raise docx_read.WordRefused("too big")
         return ask_passages._lines_of_word(raw, name)
     return ask_passages._lines_of_text(raw, truncated)
+
+
+def _excel_groups(raw, truncated):
+    """[(part name, lines)] one group per sheet: stored values (not formulas), cells joined with ' | '."""
+    if truncated or len(raw) > MAX_EXCEL_BYTES:
+        raise ValueError("too big")
+    import io
+    import openpyxl
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
+    except Exception as e:                     # a damaged or unsafe workbook is left out, never an error
+        raise ValueError("excel") from e
+    out, cells = [], 0
+    try:
+        for ws in wb.worksheets:
+            lines = []
+            for n, row in enumerate(ws.iter_rows(values_only=True)):
+                if n >= MAX_EXCEL_ROWS or cells >= MAX_EXCEL_CELLS:
+                    break
+                vals = [str(v).replace("\n", " ") for v in row if v is not None and str(v).strip()]
+                cells += len(row)
+                if vals:
+                    lines.append(" | ".join(vals))
+            if lines:
+                out.append((f"sheet {ws.title}", lines))
+    except Exception as e:
+        raise ValueError("excel") from e
+    finally:
+        wb.close()
+    return out
 
 
 def _drop(db, label):
@@ -141,7 +178,7 @@ def refresh(data_dir, code, folders, home=None, stop=None, progress=None):
                 return False
             done += 1
             low = str(path).lower()
-            if not low.endswith(ask_passages.TEXT_TYPES + ask_passages.WORD_TYPES):
+            if not low.endswith(INDEXED_TYPES):
                 type_n += 1
                 c["type"] += 1
                 root = next((r for r in roots if reach.inside(path, r)), None)
@@ -159,7 +196,7 @@ def refresh(data_dir, code, folders, home=None, stop=None, progress=None):
                     safety += 1
                     c["safety"] += 1
                 elif label in now_state:
-                    c["indexed" if now_state[label] == "indexed" else "safety"] += 1
+                    c[now_state[label] if now_state[label] in ("indexed", "type") else "safety"] += 1
                 else:
                     seen.add(label)
                     if kept.get(label, (None,))[:2] == (st.st_size, st.st_mtime_ns):
@@ -167,15 +204,16 @@ def refresh(data_dir, code, folders, home=None, stop=None, progress=None):
                     else:
                         state = _read_one(db, path, label, low, st, usable, data_dir, home)
                     now_state[label] = state
-                    c["indexed" if state == "indexed" else "safety"] += 1
+                    c[state if state in ("indexed", "type") else "safety"] += 1
             if progress:
                 progress(str(folder), done, total)
     for gone in set(kept) - seen:
         _drop(db, gone)
     db.execute("INSERT OR REPLACE INTO left SELECT label, ? FROM files WHERE state='safety'", (REASON_SAFETY,))
+    db.execute("INSERT OR REPLACE INTO left SELECT label, ? FROM files WHERE state='type'", (REASON_TYPE,))
     states = [r[0] for r in db.execute("SELECT state FROM files")]
     counts = dict.fromkeys(NAMES, 0)
-    counts.update(indexed=states.count("indexed"), type=type_n, online_only=online, safety=safety + states.count("safety"))
+    counts.update(indexed=states.count("indexed"), type=type_n + states.count("type"), online_only=online, safety=safety + states.count("safety"))
     counts["stopped"] = stopped_listing
     _set(db, "counts", counts)
     _set(db, "folders", per)
@@ -190,21 +228,40 @@ def refresh(data_dir, code, folders, home=None, stop=None, progress=None):
 
 
 def _read_one(db, path, label, low, st, usable, data_dir, home):
-    """Read one changed file into the index; returns its state ("indexed" or "safety")."""
+    """Read one changed file into the index; returns its state ("indexed", "safety", or "type" for a PDF with no text to read)."""
     _drop(db, label)
     state = "indexed"
+    groups = []                                  # [(part name or None, lines)]
+    is_pdf, is_excel, is_word = low.endswith(ask_passages.PDF_TYPES), low.endswith(EXCEL_TYPES), low.endswith(ask_passages.WORD_TYPES)
+    limit = pdf_reader.MAX_BYTES if is_pdf else MAX_EXCEL_BYTES if is_excel else docx_read.MAX_FILE_BYTES if is_word else ask_passages.MAX_TEXT_BYTES
     try:
-        raw, truncated = reach.read_bytes(path, usable, data_dir, docx_read.MAX_FILE_BYTES if low.endswith(ask_passages.WORD_TYPES) else ask_passages.MAX_TEXT_BYTES, home)
-        lines = _lines(raw, truncated, low, os.path.basename(str(path)))
+        raw, truncated = reach.read_bytes(path, usable, data_dir, limit, home)
+        if is_pdf:
+            got = pdf_reader.read(raw, truncated=truncated)
+            if got.status != "ok":
+                state = "type"
+            else:
+                groups = [(f"page {n}", t.splitlines()) for n, t in got.pages]
+        elif is_excel:
+            groups = _excel_groups(raw, truncated)
+        else:
+            groups = [(None, _lines(raw, truncated, low, os.path.basename(str(path))))]
     except (reach.Never, docx_read.WordRefused, ValueError, UnicodeError):
         state = "safety"
-        lines = ()
-    if state == "indexed" and (secret_screen.name_looks_like_secret(label) or secret_screen.looks_like_secret("\n".join(lines))):
-        state = "safety"
     if state == "indexed":
-        parts = ask_data._cut(label, list(ask_passages._chunks(lines)))[:MAX_PARTS_PER_FILE]
-        for i, part in enumerate(parts, 1):
-            db.execute("INSERT INTO p(text, file, part, mtime) VALUES(?,?,?,?)", (part.text, label, i if len(parts) > 1 else 0, int(st.st_mtime)))
+        every = "\n".join("\n".join(lines) for _n, lines in groups)
+        if secret_screen.name_looks_like_secret(label) or secret_screen.looks_like_secret(every):
+            state = "safety"
+    if state == "indexed":
+        left = MAX_PARTS_PER_FILE
+        for name, lines in groups:
+            parts = ask_data._cut(label, list(ask_passages._chunks(lines)))[:left]
+            left -= len(parts)
+            for i, part in enumerate(parts, 1):
+                mark = i if len(parts) > 1 else 0
+                if name is not None:
+                    mark = name if mark == 0 else f"{name}, part {mark}"
+                db.execute("INSERT INTO p(text, file, part, mtime) VALUES(?,?,?,?)", (part.text, label, mark, int(st.st_mtime)))
     db.execute("INSERT INTO files VALUES(?,?,?,?)", (label, st.st_size, st.st_mtime_ns, state))
     return state
 
@@ -234,7 +291,7 @@ def search(data_dir, code, question, limit=MAX_RESULTS):
         db.close()
     out = []
     for text, file, part, mtime in rows:
-        label = f"{file} (part {part})" if part else file
+        label = (f"{file} (part {part})" if isinstance(part, int) else f"{file}, {part}") if part else file
         out.append(ask.Passage(f"{label}, modified {time.strftime('%Y-%m-%d', time.gmtime(mtime))}", text, file=file))
     return out
 
