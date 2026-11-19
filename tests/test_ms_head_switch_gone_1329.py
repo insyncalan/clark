@@ -135,8 +135,8 @@ class Served(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.js("localStorage.setItem('clark.msp.view', JSON.stringify('move'))")
-            p.js("location.reload()")
-            p.until("!!document.querySelector('#milestones .msl-row')", "the plan list drew after the reload")
+            p.js("window.__before_reload = true; location.reload()")
+            p.until("window.__before_reload === undefined && !!document.querySelector('#milestones .msl-row')", "the NEW page drew its plan list after the reload (the marker of the old page is gone)")
             self.assertEqual(p.js("!!document.querySelector('#movement')"), False, "no Movement section")
             self.assertEqual(self.reads, [], "no Movement request is made")
 
