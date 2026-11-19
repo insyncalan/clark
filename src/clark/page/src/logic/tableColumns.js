@@ -15,6 +15,16 @@ export const TABLE_COLUMNS = {
     { id: "raised", label: "Raised" }, { id: "closed", label: "Closed" }, { id: "usecase", label: "Use case" }, { id: "labels", label: "Labels" },
     { id: "latest", label: "Latest update" }, { id: "wording", label: "Client wording" },
   ],
+  // Row 1325: the Use cases page. Use case and Status are locked; the order here is the order of the columns and of the menu; Commitment, Release and On the dashboard start off.
+  uc: [
+    { id: "item", label: "Use case", locked: true, standard: true },
+    { id: "where", label: "Where it stands", standard: true },
+    { id: "status", label: "Status", locked: true, standard: true },
+    { id: "owner", label: "Owner", standard: true },
+    { id: "steps", label: "Next steps", standard: true },
+    { id: "ms", label: "Milestone", standard: true },
+    { id: "cm", label: "Commitment" }, { id: "rel", label: "Release" }, { id: "dash", label: "On the dashboard" },
+  ],
   // Row 1230 ruling: the Milestones page keeps its list as it was ("milestones"); only the Dashboard section's is the five column table ("msDash").
   milestones: [
     { id: "date", label: "Date", standard: true },

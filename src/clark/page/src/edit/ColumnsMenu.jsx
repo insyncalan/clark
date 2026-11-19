@@ -16,7 +16,8 @@ import * as W from "../logic/columnsWords.js";
 const asked = (e) => e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey);
 const typing = (t) => !!(t && t.closest && (t.isContentEditable || t.closest("input, textarea, select")));
 
-export function useColumns(table) {
+// `css`: the tick is drawn by the stylesheet and the reason is set off by a space, so a row reads "Status Always shown..." as text (the Use cases table, row 1325).
+export function useColumns(table, css = false) {
   const code = project.value, [mem, setMem] = useState({}), [at, setAt] = useState(null), box = useRef(null);
   const shown = mem[code] || readChoice(table, code);
   // The menu is placed under the heading it was opened from (MenuPanel); a long one is moved up, or cut and scrolled, so all of it is inside the window.
@@ -55,8 +56,8 @@ export function useColumns(table) {
           <button key={c.id} type="button" role="menuitemcheckbox" aria-checked={on ? "true" : "false"} aria-disabled={c.locked ? "true" : undefined} data-keep={c.locked ? "" : undefined}
             data-col-name={c.label} tabIndex={-1} aria-describedby={c.locked ? `cols-why-${c.id}` : undefined} onClick={() => { if (!c.locked) press(c.id, c.label); }}>
             <Icon name={columnIcon(c.id)} cls="mi" />
-            <span class="ck" aria-hidden="true">{on ? "✓" : ""}</span>
-            <span class="cols-name">{c.label}{c.locked ? <small class="cols-why" id={`cols-why-${c.id}`}>{W.UNRULED_LOCKED_REASON}</small> : null}</span>
+            <span class="ck" aria-hidden="true" data-on={css && on ? "" : undefined}>{css ? "" : on ? "✓" : ""}</span>
+            <span class="cols-name">{c.label}{c.locked && css ? " " : null}{c.locked ? <small class="cols-why" id={`cols-why-${c.id}`}>{W.UNRULED_LOCKED_REASON}</small> : null}</span>
           </button>
         );
       })}

@@ -17,6 +17,11 @@
 # full Ubuntu matrix and no macOS until it is on a release branch. macOS is REQUIRED whenever it runs: clark is Mac first. A macOS
 # runner that fails to start is re-run once before anyone calls it a failure.
 #
+# 17-11-2026 (owner's order: ship without waiting for the shards, reuse the nightly macOS run, start with 1.3):
+# a release branch, and a pull request into one, runs the full Ubuntu matrix and Python 3.9 but NO macOS, so a release never waits for the
+# Mac shards. macOS runs in the nightly on main, on a Mac-specific pull request, with the label full-ci, and by hand (macos=true); a
+# red nightly is a defect for the next minor release, not a hold.
+#
 # macOS shards: one job with a matrix of three, so `needs.macos.result` is ONE value for the whole matrix (success only if all
 # shards pass; skipped when the job's `if` is false). Each runs two test files at a time (JOBS 2): three Chrome tests at once on the
 # 3-vCPU, 7 GB runner starved each other, which made the flake. The gate reads that result, so it never depends on a shard's name.
@@ -95,7 +100,7 @@ jobs:
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          FULL=""; MACOS=""; WIDE=""; NTESTS=0
+          FULL=""; MACOS=""; REL=""; WIDE=""; NTESTS=0
           case "$EVENT" in
             merge_group) FULL=1 ;;      # a merge-queue run: the same Ubuntu matrix as a push to main, NO macOS
             push) FULL=1 ;;      # a push to main: the full Ubuntu matrix; macOS runs at the release gate, not on every merge
@@ -103,11 +108,11 @@ jobs:
             schedule) FULL=1; MACOS=1 ;;      # the nightly run on main: the full matrix with macOS, the same path as the release gate
           esac
           case "$BRANCH" in
-            release-*|v*-release*) FULL=1; MACOS=1 ;;
+            release-*|v*-release*) FULL=1; REL=1 ;;
           esac
           # A pull request that TARGETS a release branch is part of the release line too (its base, not only its head branch).
           case "$BASE_REF" in
-            release-*|v*-release*) FULL=1; MACOS=1 ;;
+            release-*|v*-release*) FULL=1; REL=1 ;;
           esac
           case ",$LABELS," in
             *,full-ci,*) FULL=1; MACOS=1 ;;
@@ -150,7 +155,7 @@ jobs:
           # Mac-specific files), NOT on a push to main (owner's order 08-11: Python 3.9 and macOS only on a release or a Mac-relevant PR); a guarded pull request that is not Mac-specific gets Ubuntu 3.x only (about 12 percent of the Ubuntu minutes).
           PY39=""
           case "$EVENT" in workflow_dispatch) PY39=1 ;; esac
-          if [ -n "$MACOS" ]; then PY39=1; fi
+          if [ -n "$MACOS" ] || [ -n "$REL" ]; then PY39=1; fi
           # Ubuntu 3.x shards: four on the full path (every file, see below), six for a pull request that touches a stylesheet or the page (it reaches
           # nearly every test file); THREE on the cheap path otherwise (few files reach: six shards were mostly empty and each one
           # costs a runner slot, a checkout and a setup). Fewer jobs per push means the queue clears sooner (#908 grew it from three).

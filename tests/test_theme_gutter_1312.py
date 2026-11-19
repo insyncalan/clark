@@ -2,7 +2,7 @@
 
 Run: python3 dev/run_tests.py test_theme_gutter_1312
 Chrome computes the left border of the one element that carries the gutter on each page (.frame.work, .frame.milestones, .frame.ucl,
-.set-cards), at 1400 and 900, light and dark, over the demo data (fictional). The Dashboard has none of it; Cards (no Theme layer)
+.set-layout), at 1400 and 900, light and dark, over the demo data (fictional). The Dashboard has none of it; Cards (no Theme layer)
 is the page byte for byte. Fails, never skips, without Chrome.
 """
 import json
@@ -22,7 +22,7 @@ LIGHT, DARK = "rgb(238, 235, 251)", "rgb(42, 38, 80)"      # --gutter-rule #EEEB
 PAGES = (("work", "#work&p=ABC", "#work", ".frame.work"),
          ("milestones", "#milestones&p=ABC", "#milestones", ".frame.milestones"),
          ("usecases", "#usecases&p=ABC", "#usecases", ".frame.ucl"),
-         ("settings", "#settings", "#projects", ".set-cards"))
+         ("settings", "#settings", "#projects", ".set-layout"))
 READ = """(sel) => { const e = document.querySelector(sel); const c = getComputedStyle(e);
     return JSON.stringify([c.borderLeftWidth, c.borderLeftStyle, c.borderLeftColor, c.paddingLeft, c.borderTopWidth, c.borderRightWidth, c.transitionProperty, c.transitionDuration]); }"""
 
@@ -50,7 +50,7 @@ class Source(unittest.TestCase):
         for name in ("work", "milestones"):
             self.assertEqual(len(re.findall(r"\.frame\.%s(?!:not\(\.pub\))\b" % name, rules)), 0, name)
         self.assertEqual(len(re.findall(r"\.frame\.ucl\b", rules)), 4)
-        self.assertEqual(len(re.findall(r"\.set-cards\b", rules)), 4)
+        self.assertEqual(len(re.findall(r"\.set-layout\b", rules)), 4)
         self.assertEqual(rules.count(":hover"), 4)
         self.assertEqual(rules.count(":focus-within"), 4)
 
@@ -157,7 +157,7 @@ class Computed(Base):
                         if cdp.js("!!document.querySelector(%r)" % sel, sid):
                             w, style, col, pad, top, right, tp, td = self.read(cdp, sid, sel)
                             self.assertFalse(w == "2px" and col == colour, sel)
-                    self.assertEqual(cdp.js("document.querySelectorAll('.set-cards, .frame.work, .frame.milestones, .frame.ucl').length", sid), 0)
+                    self.assertEqual(cdp.js("document.querySelectorAll('.set-layout, .frame.work, .frame.milestones, .frame.ucl').length", sid), 0)
 
 
 if __name__ == "__main__":

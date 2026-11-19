@@ -124,7 +124,7 @@ class Workflow(unittest.TestCase):
         docs = (ROOT / "docs" / "handoff" / "how-to-run-v0.1.md").read_text(encoding="utf-8")
         self.assertIn("v0.1-release", docs)
         plan = self.jobs["plan"]
-        self.assertIn("release-*|v*-release*) FULL=1; MACOS=1 ;;", plan)
+        self.assertIn("release-*|v*-release*) FULL=1; REL=1 ;;", plan)
         self.assertIn("BRANCH: ${{ github.head_ref || github.ref_name }}", plan)
         self.assertIn("*,full-ci,*) FULL=1; MACOS=1 ;;", plan)
         self.assertIn("LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}", plan)
@@ -290,7 +290,7 @@ class Workflow(unittest.TestCase):
     def test_a_pull_request_that_targets_a_release_branch_gets_macos_too(self):
         plan = self.jobs["plan"]
         self.assertIn("BASE_REF: ${{ github.base_ref }}", plan)
-        self.assertRegex(plan, r'case "\$BASE_REF" in\s+release-\*\|v\*-release\*\) FULL=1; MACOS=1 ;;')
+        self.assertRegex(plan, r'case "\$BASE_REF" in\s+release-\*\|v\*-release\*\) FULL=1; REL=1 ;;')
 
     def test_the_macos_job_runs_two_files_at_a_time(self):
         """Three Chrome tests at once on the 3-vCPU, 7 GB macOS runner starve each other: that was the flake."""
@@ -343,7 +343,7 @@ class WideByTestFiles(unittest.TestCase):
         text = WORKFLOW.read_text(encoding="utf-8")
         a = text.index("while IFS= read -r F; do")
         b = text.index('if [ "$NTESTS" -ge 8 ]; then WIDE=1; fi') + len('if [ "$NTESTS" -ge 8 ]; then WIDE=1; fi')
-        script = 'FULL=""; MACOS=""; WIDE=""; NTESTS=0\n' + text[a:b].replace("\n              ", "\n") + '\necho "WIDE=$WIDE FULL=$FULL"\n'
+        script = 'FULL=""; MACOS=""; REL=""; WIDE=""; NTESTS=0\n' + text[a:b].replace("\n              ", "\n") + '\necho "WIDE=$WIDE FULL=$FULL"\n'
         out = subprocess.run(["bash", "-c", script], input="", capture_output=True, text=True, check=True,
                              env={"PATH": "/usr/bin:/bin", "CHANGED": changed}).stdout
         return out.strip()

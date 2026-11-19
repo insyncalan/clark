@@ -1,4 +1,4 @@
-"""Row 1319, Classic theme: the primary buttons .again, .btn.primary and .btn.pri are aqua pills, light and dark.
+"""Row 1319, Classic theme: the primary buttons .again, .btn.primary and .btn.pri are 8px navy rectangles (white text), not aqua pills, light and dark.
 
 Run: python3 dev/run_tests.py test_theme_primary_1319
 Fails, never skips, without Chrome. Computed styles at 1400 and 900, light and dark; hover and press are pinned in the CSS source
@@ -25,18 +25,18 @@ RULES = (FOLDER / "rules.css").read_text(encoding="utf-8")
 BLOCK = RULES[RULES.index("/* Row 1319, primary buttons"):].split("\n/* Row 1316", 1)[0]     # rows stacked after the Row 1316 blocks are not this row's
 
 
-class PrimaryPill(Computed):
+class PrimaryRect(Computed):
     def classic(self, cdp, w, scheme, html):
         sid = self.load(cdp, w, scheme, html)
         cdp.js(EXTRA, sid)
         return sid
 
-    def test_each_primary_selector_is_the_aqua_pill_at_each_width_in_light_and_dark(self):
+    def test_each_primary_selector_is_the_navy_rect_at_each_width_in_light_and_dark(self):
         html = page.page_html(branding=page.NO_BRAND, theme=NAME)
-        want = {"borderTopWidth": "0px", "borderRadius": "999px", "paddingLeft": "22px", "paddingRight": "22px", "minHeight": "38px",
-                "fontWeight": "800", "letterSpacing": "0.56px", "backgroundColor": "rgb(56, 224, 238)",
-                "backgroundImage": "linear-gradient(90deg, rgb(143, 242, 239), rgb(56, 224, 238))", "color": "rgb(4, 34, 42)",
-                "boxShadow": "rgba(56, 224, 238, 0.35) 0px 0px 30px 0px"}
+        want = {"borderTopWidth": "0px", "borderRadius": "8px", "paddingLeft": "22px", "paddingRight": "22px", "minHeight": "38px",
+                "fontWeight": "800", "letterSpacing": "0.56px", "backgroundColor": {"light": "rgb(6, 47, 58)", "dark": "rgb(4, 32, 42)"},
+                "backgroundImage": "none", "color": "rgb(255, 255, 255)",
+                "boxShadow": {"light": "none", "dark": "rgb(111, 127, 163) 0px 0px 0px 1px inset"}}
         with chrome() as cdp:
             for scheme in ("light", "dark"):
                 for w in SIZES:
@@ -44,6 +44,7 @@ class PrimaryPill(Computed):
                     tag = f"{scheme} {w}"
                     for sel in PRIMARY:
                         for prop, val in want.items():
+                            val = val[scheme] if isinstance(val, dict) else val
                             self.assertEqual(self.style(cdp, sid, sel, prop), val, f"{tag} {sel} {prop}")
                         cdp.js("document.querySelector(%r).focus()" % sel, sid)
                         self.assertEqual(self.style(cdp, sid, sel, "outlineColor"), "rgb(91, 71, 216)" if scheme == "light" else "rgb(143, 123, 255)", f"{tag} {sel}")
@@ -67,8 +68,8 @@ class PrimaryPill(Computed):
                     self.assertEqual(self.style(cdp, sid, "#e-ok", "backgroundColor"), green[scheme], tag)
                     self.assertEqual(self.style(cdp, sid, "#e-ok", "backgroundImage"), "none", tag)
                     self.assertEqual(self.style(cdp, sid, "#e-ok", "color"), "rgb(255, 255, 255)" if scheme == "light" else "rgb(4, 34, 42)", tag)
-                    self.assertEqual(self.style(cdp, sid, "#e-ok", "borderRadius"), "999px", tag)
-                    self.assertEqual(self.style(cdp, sid, "#e-go .spin", "borderTopColor"), "rgb(4, 34, 42)", tag)
+                    self.assertEqual(self.style(cdp, sid, "#e-ok", "borderRadius"), "8px", tag)
+                    self.assertEqual(self.style(cdp, sid, "#e-go .spin", "borderTopColor"), "rgb(255, 255, 255)", tag)
                     self.assertEqual(self.style(cdp, sid, "#e-tick .pub-tick", "backgroundColor"), "rgb(255, 255, 255)", tag)
                     self.assertEqual(self.style(cdp, sid, "#e-tick .pub-tick", "color"), green[scheme], tag)
 
@@ -95,9 +96,9 @@ class PrimaryPill(Computed):
         self.assertIn(":root[data-theme=dark] .btn.pri.ok { color: #04222A; }", BLOCK)
         self.assertIn("@media (prefers-color-scheme: dark) { :root[data-theme=auto] .again:focus-visible, :root[data-theme=auto] .btn.primary:focus-visible, :root[data-theme=auto] .btn.pri:focus-visible { outline-color: var(--focus); } :root[data-theme=auto] .btn.pri.ok { color: #04222A; } }", BLOCK)
 
-    def test_text_contrast_on_both_gradient_stops_and_the_ring(self):
-        for stop in ((143, 242, 239), (56, 224, 238)):
-            self.assertGreaterEqual(ratio((4, 34, 42), stop), 10, stop)
+    def test_text_contrast_on_both_navy_fills_and_the_ring(self):
+        for fill in ((6, 47, 58), (4, 32, 42)):
+            self.assertGreaterEqual(ratio((255, 255, 255), fill), 12, fill)
         self.assertGreaterEqual(ratio((91, 71, 216), (246, 248, 252)), 5.9)
         self.assertGreaterEqual(ratio((255, 255, 255), (0, 107, 94)), 6.4)
 
@@ -117,10 +118,9 @@ class PrimaryPill(Computed):
         guard = ':root:not([data-motion="reduce"]) '
         hover = ", ".join(guard + s + (":hover:not(:disabled)" if s == ".btn.pri" else ":hover") for s in sels) + " { transform: translateY(-1px); }"
         press = ", ".join(guard + s + (":active:not(:disabled)" if s == ".btn.pri" else ":active") for s in sels) + " { transform: translateY(1px); }"
-        glow = ".again:hover, .btn.primary:hover, .btn.pri:hover:not(:disabled) { box-shadow: var(--pill-glow-hover); }"
         calm = ':root[data-motion="reduce"] .again, :root[data-motion="reduce"] .btn.primary, :root[data-motion="reduce"] .btn.pri { transition: none; transform: none; }'
         lines = BLOCK.split("\n")
-        for want in (hover, press, glow, calm):
+        for want in (hover, press, calm):
             self.assertIn(want, lines)
         # no transform outside the motion guard
         for l in lines[1:]:
@@ -131,7 +131,7 @@ class PrimaryPill(Computed):
         self.assertIn(".btn, .seg { border-radius: var(--radius); }", RULES)
         self.assertNotIn(".again, .btn.primary, .btn.pri { border-radius: var(--radius)", RULES)
         self.assertEqual(len(re.findall(r"^/\* Row 1319, primary buttons", RULES, re.M)), 1)
-        self.assertEqual(sorted(re.findall(r"#[0-9a-fA-F]{3,8}\b", BLOCK)), ["#04222A"] * 6 + ["#5B47D8", "#8FF2EF"])
+        self.assertEqual(sorted(re.findall(r"#[0-9a-fA-F]{3,8}\b", BLOCK)), ["#04222A"] * 2 + ["#5B47D8"])
 
     def test_cards_keeps_its_own_primary_buttons(self):
         html = page.page_html(branding=page.NO_BRAND)
@@ -145,8 +145,8 @@ class PrimaryPill(Computed):
                 self.assertEqual(self.style(cdp, sid, "#e-go .spin", "borderTopColor"), "rgb(4, 34, 42)", w)
 
     def test_cards_page_has_none_of_the_block(self):
-        self.assertNotIn("color: #04222A; box-shadow: var(--pill-glow)", page.page_html(branding=page.NO_BRAND))
-        self.assertIn("color: #04222A; box-shadow: var(--pill-glow)", theme.css(NAME))
+        self.assertNotIn("background-color: var(--brand-navy); background-image: none; color: var(--white); box-shadow: none", page.page_html(branding=page.NO_BRAND))
+        self.assertIn("background-color: var(--brand-navy); background-image: none; color: var(--white); box-shadow: none", theme.css(NAME))
 
 
 if __name__ == "__main__":
