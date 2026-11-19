@@ -547,6 +547,105 @@ class Classic(Look):
             self.assertEqual(self._heads(p, ref), ["title", "owner", "due", "id"], "and did not move it")
             self.assertIn("Ctrl", p.js(f"{h('owner')}.getAttribute('aria-description')"))
 
+    def _edit(self, cdp, columns):
+        ref = self.add({"mode": "all", "columns": columns, "owner": ["Pat Demo", "Lee Demo"]})
+        p = self.show(cdp, 1400)
+        p.edit()
+        p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=due]')", "Edit drew")
+        return p, ref
+
+    def _where(self, p, ref, c, at="mid"):
+        """[x, y] of a heading: near its left end, or with at="grip" the middle of its width handle."""
+        sel = f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head={c}]')"
+        p.js(f"{sel}.scrollIntoView({{block: 'center'}})")      # the list sits low on the page: a mouse press needs the heading on screen
+        if at == "grip":
+            return p.js(f"(() => {{ const r = {sel}.querySelector('.cgrip').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }})()")
+        return p.js(f"(() => {{ const r = {sel}.getBoundingClientRect(); return [r.left + 12, r.top + r.height / 2]; }})()")
+
+    def _pointer_drag(self, p, x0, y0, x1, y1, steps=12, release=True):
+        """A real press and moves through Input.dispatchMouseEvent: the browser itself starts the drag (a real dragstart on the pressed heading).
+        Chrome does not run its own drag loop under automation, so the drag is intercepted (Input.setInterceptDrags) and the target
+        is then reached with Input.dispatchDragEvent; the test never makes a DragEvent itself."""
+        data = {"items": [], "dragOperationsMask": 1}
+        p.cdp.call("Input.setInterceptDrags", {"enabled": True}, p.sid)
+        p.mouse("mouseMoved", x0, y0)
+        p.mouse("mousePressed", x0, y0, buttons=1)
+        for i in range(1, steps + 1):
+            x, y = x0 + (x1 - x0) * i / steps, y0 + (y1 - y0) * i / steps
+            p.mouse("mouseMoved", x, y, buttons=1)
+            if p.js("!!window.__drag") or i == steps:
+                break
+        for kind in ("dragEnter", "dragOver"):
+            p.cdp.call("Input.dispatchDragEvent", {"type": kind, "x": x1, "y": y1, "data": data}, p.sid)
+        if release:
+            p.cdp.call("Input.dispatchDragEvent", {"type": "drop", "x": x1, "y": y1, "data": data}, p.sid)
+            p.mouse("mouseReleased", x1, y1, buttons=1)
+
+    def test_a_real_pointer_drag_of_a_heading_moves_the_column_and_the_item_heading_neither_drags_nor_takes_a_drop(self):      # row 1195 spec check defect 3
+        with T.chrome() as cdp:
+            p, ref = self._edit(cdp, ["owner", "due", "priority", "id"])
+            self.assertEqual(self._heads(p, ref), ["title", "owner", "due", "priority", "id"])
+            p.js("window.__drag = 0; document.addEventListener('dragstart', (e) => { if (e.isTrusted) window.__drag++; }, true)")
+            x0, y0 = self._where(p, ref, "id")
+            x1, y1 = self._where(p, ref, "owner")
+            self._pointer_drag(p, x0, y0, x1, y1)
+            self.assertEqual(p.js("window.__drag"), 1, "the browser started one real drag")
+            self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "id", "owner", "due", "priority"]), "a pointer drag of ID onto Owner put ID before Owner")
+            self.assertEqual(p.js("document.querySelectorAll('.wil-dragging, .wil-drop').length"), 0, "no drag mark is left after the drop")
+            body = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr:first-child td')].map(c => c.className.replace('wil-c-', ''))")
+            self.assertEqual([c for c in body if c in ("id", "owner", "due", "priority")], ["id", "owner", "due", "priority"], "the cells follow")
+            self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=title]').draggable"), False)
+            tx, ty = self._where(p, ref, "title")
+            ox, oy = self._where(p, ref, "due")
+            self._pointer_drag(p, tx, ty, ox, oy)
+            self.assertEqual(self._heads(p, ref), ["title", "id", "owner", "due", "priority"], "dragging the Item heading changed no order")
+            self._pointer_drag(p, ox, oy, tx, ty)
+            self.assertEqual(self._heads(p, ref)[0], "title", "nothing is dropped before the Item column")
+
+    def test_the_drag_marks_show_during_a_real_pointer_drag_and_the_width_handle_never_starts_a_move(self):      # row 1195 spec check defect 3
+        with T.chrome() as cdp:
+            p, ref = self._edit(cdp, ["owner", "due", "id"])
+            p.js("window.__drag = 0; document.addEventListener('dragstart', (e) => { if (e.isTrusted) window.__drag++; }, true)")
+            x0, y0 = self._where(p, ref, "id")
+            x1, y1 = self._where(p, ref, "owner")
+            self._pointer_drag(p, x0, y0, x1, y1, release=False)
+            p.until(f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=id]').classList.contains('wil-dragging')", "the dragged heading is dimmed")
+            p.until(f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=owner]').classList.contains('wil-drop')", "the target heading carries the drop mark")
+            p.cdp.call("Input.dispatchDragEvent", {"type": "drop", "x": x1, "y": y1, "data": {"items": [], "dragOperationsMask": 1}}, p.sid)
+            p.mouse("mouseReleased", x1, y1, buttons=1)
+            p.until("document.querySelectorAll('.wil-dragging, .wil-drop').length === 0", "the marks go at the drop")
+            self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "id", "owner", "due"]), "and the drop moved ID before Owner")
+        with T.chrome() as cdp:
+            p, ref = self._edit(cdp, ["owner", "due", "id"])
+            width = lambda: p.js(f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=owner]').getBoundingClientRect().width")
+            w0 = width()
+            gx, gy = self._where(p, ref, "owner", "grip")
+            p.js("window.__ds = 0; window.__drag = 0; document.addEventListener('dragstart', () => { window.__ds++; }, true)")
+            self._pointer_drag(p, gx, gy, gx + 40, gy)
+            self.assertTrue(wait(lambda: abs(width() - (w0 + 40)) < 2), "the handle drag widened Owner by the distance")
+            self.assertEqual(p.js("window.__ds"), 0, "no drag started from the handle")
+            self.assertEqual(self._heads(p, ref), ["title", "owner", "due", "id"], "the order is unchanged")
+
+    def test_ctrl_with_an_arrow_steps_12_px_and_stops_at_the_minimum_and_alt_moves_without_resizing(self):      # row 1195 spec check defect 3
+        with T.chrome() as cdp:
+            p, ref = self._edit(cdp, ["owner", "due", "id"])
+            w = lambda c: p.js(f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head={c}]').getBoundingClientRect().width")
+            CTRL = 2                                                       # Input.dispatchKeyEvent modifiers: Ctrl
+            p.js(f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=owner]').focus()")
+            start = w("owner")
+            p.key("ArrowRight", CTRL, code="ArrowRight", vk=39)
+            self.assertTrue(wait(lambda: abs(w("owner") - (start + 12)) < 1), "one Ctrl+Right is 12 px wider")
+            p.key("ArrowLeft", CTRL, code="ArrowLeft", vk=37)
+            p.key("ArrowLeft", CTRL, code="ArrowLeft", vk=37)
+            self.assertTrue(wait(lambda: abs(w("owner") - (start - 12)) < 1), "two Ctrl+Left are 24 px back")
+            for _ in range(60):
+                p.key("ArrowLeft", CTRL, code="ArrowLeft", vk=37)
+            self.assertTrue(wait(lambda: abs(w("owner") - 48) < 1), "the width stops at the minimum of 48 px")
+            before = w("owner")
+            p.key("ArrowRight", 1, code="ArrowRight", vk=39)               # Alt+Right moves the heading, it never resizes
+            self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "due", "owner", "id"]), "Alt+Right moved Owner")
+            self.assertLess(abs(w("owner") - before), 1, "and left its width alone")
+
     def test_the_type_column_is_not_drawn_nor_offered_in_configure(self):
         ref = self.add({"mode": "all", "columns": ["type", "id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
         with T.chrome() as cdp:
