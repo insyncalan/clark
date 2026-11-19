@@ -3,7 +3,7 @@ width 560, the magnifier inside. Ruling 1137 stays about focus: no ring and no c
 Border colour is --grey-500 (Classic #8794B3 light, #6F7FA3 dark: the prototype's --ui to the digit, tokens.css lines 4 and 16).
 
 Run: python3 dev/run_tests.py test_theme_classic_usecases_filter_1316
-Chrome required (fails, never skips). 1400 and 900 px, light and dark. Cards (no Theme) is read too and must keep the underline. No new words.
+Chrome required (fails, never skips). 1400 and 900 px, light and dark. Cards (no Theme) is read too and must stay unchanged. The rule lines are pinned in test_theme_classic_1316_filter_pinned and test_theme_classic_1316_pinned. No new words.
 """
 import tempfile
 import unittest
@@ -98,12 +98,12 @@ class Box(unittest.TestCase):
                     self.assertEqual(hov["sh"], "none", "no ring on hover")
                     self.assertEqual(hov["bg"], rest["bg"])
 
-    def test_cards_keeps_the_underline(self):
+    def test_cards_unchanged(self):
         for w, scheme in VARIANTS:
             with self.subTest(width=w, scheme=scheme):
                 g = self.read(None, w, scheme, CARDS)
-                self.assertNotEqual(g["c"], g["g"], "Cards border colour is not the Classic neutral")
-                self.assertNotEqual(g["h"], 34, "Cards height unchanged")
+                self.assertNotEqual(g["c"], g["g"], "Cards unchanged: border colour is not the Classic neutral")
+                self.assertNotEqual(g["h"], 34, "Cards unchanged: height is not the box 34px")
 
 
 if __name__ == "__main__":
