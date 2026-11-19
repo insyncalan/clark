@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { project } from "../stores/report.js";
 import { askOn, askStatus, askSaved, askProvider, loadAsk, setAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
-import { named, ASK_NOTICE_LINE, PEOPLE_CONTRACT_HEAD, PEOPLE_CONTRACT_SAVED, PEOPLE_CONTRACT_BODY, PEOPLE_CONTRACT_CHOOSE, PEOPLE_CONTRACT_KEEP } from "./askWords.js";
+import { named, ASK_NOTICE_LINE, PEOPLE_CONTRACT_HEAD, PEOPLE_CONTRACT_SAVED, PEOPLE_CONTRACT_COUNT, PEOPLE_CONTRACT_AND, PEOPLE_CONTRACT_REST, PEOPLE_CONTRACT_CHOOSE, PEOPLE_CONTRACT_KEEP } from "./askWords.js";
 import { ConnectorsAll, ConnectorsProject } from "./ConnectorSettings.jsx";
 import { AiSettings } from "./AiSettings.jsx";
 import { AllInstructions, OwnInstructions } from "./AskInstructions.jsx";
@@ -20,7 +20,6 @@ const USED_FROM_ALL = "Connections and the model are yours, not this project's. 
 export const askTab = signal(PROJECT);
 export function showAskTab(t) { askTab.value = t === ALL ? ALL : PROJECT; }
 const MAX_FOLDERS = 20;
-const WARN_BOX = { marginTop: "var(--space-3)", padding: "var(--space-3)", border: "1px solid var(--border)", borderRadius: "var(--radius)", background: "var(--surface)" };   // row 1365: tokens only
 const ALL_FOLDERS_COUNT = "Counts towards each project's 20.";
 const ALL_FOLDERS_NONE = "No folders are set for all projects.";
 const NOT_READY = "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.";
@@ -112,10 +111,18 @@ function AskProject() {
       const fresh = Array.isArray(b.warnings) ? b.warnings.map((w) => ({ ...w, fresh: true })) : [];
       setWarns((old) => [...old.filter((w) => b.folders.includes(w.folder) && !fresh.some((f) => f.folder === w.folder)).map((w) => ({ ...w, fresh: false })), ...fresh]);
       if (b.message) setFmsg({ kind: "note", text: b.message });
-      return true;
+      return { added: b.folders };
     }
     if (b && b.code === "no_window") setTyping(true);
     setFmsg({ kind: "error", text: failure(r) });
+  }
+
+  // Row 1365: Choose other folders REPLACES the flagged folder. The same picker as Choose folder; a cancel (or a pick that is already listed) changes nothing;
+  // a new pick is saved first, then the flagged folder is taken off the list (the list only: nothing on disk is touched).
+  async function replaceFlagged(flagged) {
+    const before = Array.isArray(folders) ? folders : [];
+    const r = await change("choose");
+    if (r && r.added.some((f) => !before.includes(f))) await change("remove", flagged);
   }
 
   async function addTyped(e) {
@@ -159,21 +166,25 @@ function AskProject() {
       ) : null}
       {list.length ? (
         <ul class="ask-folders" id="ask-folders">
-          {list.map((p) => (
-            <li key={p}><span class="folder-now">{p}</span> <button type="button" class="btn sm quiet" data-ask-remove={p} disabled={busy} onClick={() => change("remove", p)}>Remove</button></li>
-          ))}
+          {list.flatMap((p) => {
+            const w = warns.find((x) => x.folder === p);
+            const row = <li key={p}><span class="folder-now">{p}</span> <button type="button" class="btn sm quiet" data-ask-remove={p} disabled={busy} onClick={() => change("remove", p)}>Remove</button></li>;
+            if (!w) return [row];
+            const names = w.items.map((i, k) => <span key={i.name}>{k ? PEOPLE_CONTRACT_AND : null}<span data-ask-warn-name>{i.name}</span></span>);
+            return [row, (
+              <li class="ask-warn" data-ask-warn={p} key={p + "-warn"} role={w.fresh ? "alert" : "region"} aria-label={w.fresh ? undefined : `${PEOPLE_CONTRACT_HEAD} ${p}`}>
+                <p>{w.fresh ? null : PEOPLE_CONTRACT_SAVED(p) + " "}{PEOPLE_CONTRACT_HEAD} {PEOPLE_CONTRACT_COUNT(w.items.reduce((n, i) => n + i.readable_files, 0))}{names}{named(PEOPLE_CONTRACT_REST, askProvider.value)}</p>
+                {kept.includes(p) ? null : (
+                  <div class="ask-warn-btns">
+                    <button type="button" class="btn pri" data-ask-warn-choose disabled={busy} onClick={() => replaceFlagged(p)}>{PEOPLE_CONTRACT_CHOOSE}</button>
+                    <button type="button" class="btn" data-ask-warn-keep onClick={() => setKept((k) => [...k, p])}>{PEOPLE_CONTRACT_KEEP}</button>
+                  </div>
+                )}
+              </li>
+            )];
+          })}
         </ul>
       ) : null}
-      {Array.isArray(folders) ? warns.filter((w) => list.includes(w.folder) && !kept.includes(w.folder)).map((w) => (
-        <div class="ask-warn" style={WARN_BOX} data-ask-warn={w.folder} key={w.folder} role={w.fresh ? "alert" : "region"} aria-label={w.fresh ? undefined : `${PEOPLE_CONTRACT_HEAD} ${w.folder}`}>
-          <p><strong>{PEOPLE_CONTRACT_HEAD}</strong></p>
-          <p>{w.fresh ? null : PEOPLE_CONTRACT_SAVED(w.folder) + " "}{named(PEOPLE_CONTRACT_BODY(w.items.map((i) => i.name), w.items.reduce((n, i) => n + i.readable_files, 0)), askProvider.value)}</p>
-          <div class="row">
-            <button type="button" class="btn" data-ask-warn-choose disabled={busy} onClick={() => change("choose")}>{PEOPLE_CONTRACT_CHOOSE}</button>
-            <button type="button" class="btn quiet" data-ask-warn-keep onClick={() => setKept((k) => [...k, w.folder])}>{PEOPLE_CONTRACT_KEEP}</button>
-          </div>
-        </div>
-      )) : null}
       {Array.isArray(folders) && shared.length + list.length ? <p class="muted" id="ask-folders-count">{shared.length + list.length} of {MAX_FOLDERS}</p> : null}
       {Array.isArray(folders) ? (
         <div class="row">
