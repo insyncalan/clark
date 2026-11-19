@@ -346,6 +346,8 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 /* Item 1354, one chosen-segment look: the chosen half of the Milestones switch and scale is navy with white text, like every other segment (the .seg rule above), with the same thin edge in dark. Classic only. */
 :root[data-theme=dark] .msv-sw .msv-b[aria-current="true"], :root[data-theme=dark] .mv-txt button[aria-current="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .msv-sw .msv-b[aria-current="true"], :root[data-theme=auto] .mv-txt button[aria-current="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); } }
+/* Row 1355 (Milestones page, Classic only): the Timeline / Calendar switch is a row of its own at the top left above the controls, as the prototype's (pm-sw, margin 0 0 8px), not at the top right over the Today row. */
+@media screen { #milestones.frame.milestones:not(.pub) .msv-sw { position: static; display: inline-flex; margin: 0 0 var(--space-2); } }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
