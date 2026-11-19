@@ -26,7 +26,8 @@ class ClassicRules(unittest.TestCase):
     def test_filter_line_is_underline_only(self):
         b = block(".fline")
         self.assertIn("border: 0;", b)
-        self.assertIn("border-bottom: 1px solid var(--grey-500)", b)
+        self.assertIn("border-bottom: 1px solid #8994b0", b)   # item 1343 final table: the mock-up line colour, not a token
+        self.assertIn("padding: 8px 0; gap: 6px", b)
         self.assertIn("border-radius: 0", b)
         self.assertIn("background: none", b)
         self.assertIn("margin-right: 0", block(".fline-tail"))
@@ -44,7 +45,7 @@ class ClassicRules(unittest.TestCase):
         self.assertIn("border-left: 1px solid var(--grey-200)", b)
 
     def test_only_tokens(self):
-        for sel in (".fline", ".fline-tail", ".vicons .lsw, .vicons .btn.sm.vgb", "table.items thead th + th, .wil-table thead th + th"):
+        for sel in (".fline-tail", ".vicons .lsw, .vicons .btn.sm.vgb", "table.items thead th + th, .wil-table thead th + th"):
             self.assertNotRegex(block(sel), r"#[0-9a-fA-F]{3,6}\b")
 
     def test_cards_stylesheet_has_none_of_it(self):
@@ -150,26 +151,38 @@ class Browser(Base):
                     self.assertEqual(got["shadow"], red + " 0px 1px 0px 0px", f"an underline 1 px thicker, no frame: {got}")
 
     def test_the_typed_word_is_boxed_and_the_line_is_mid_grey(self):
-        # Item 1343: a typed word is boxed like a word chip; the line under the filter is the mid grey (grey-500), not the light rule grey.
-        probe = ("(() => { const t = (v, p) => { const e = document.createElement('i'); e.style[p] = 'var(' + v + ')'; document.body.append(e); const c = getComputedStyle(e)[p]; e.remove(); return c; };"
-                 "const w = document.querySelector('#work .fk.k-txt'), s = getComputedStyle(w), l = getComputedStyle(document.querySelector('#work .fline'));"
-                 "return {text: w.textContent, bg: s.backgroundColor, fg: s.color, radius: s.borderTopLeftRadius, shadow: s.boxShadow, wantBg: t('--grey-100', 'backgroundColor'), wantFg: t('--text', 'color'), wantR: t('--radius-sm', 'borderTopLeftRadius'),"
-                 "line: l.borderBottomColor, wantLine: t('--grey-500', 'borderBottomColor'), lightLine: t('--grey-200', 'borderBottomColor')}; })()")
+        # Item 1343 (final table, light): a typed word is a real box, fill rgb(238, 240, 246), text rgb(29, 36, 51), radius 6, min-height 25, padding 0 4px 0 9px, gap 4; the filter line is 1px rgb(137, 148, 176) with padding 8px 0 and gap 6px. Dark keeps the Theme tokens.
+        probe = ("(() => { const w = document.querySelector('#work .fk.k-txt'), s = getComputedStyle(w), l = getComputedStyle(document.querySelector('#work .fline'));"
+                 "return {text: w.textContent, bg: s.backgroundColor, fg: s.color, radius: s.borderTopLeftRadius, shadow: s.boxShadow, display: s.display, minH: s.minHeight, h: w.getBoundingClientRect().height, pad: s.paddingTop + ' ' + s.paddingRight + ' ' + s.paddingBottom + ' ' + s.paddingLeft, gap: s.columnGap,"
+                 "line: l.borderBottomColor, lineW: l.borderBottomWidth, linePad: l.paddingTop + ' ' + l.paddingRight + ' ' + l.paddingBottom + ' ' + l.paddingLeft, lineGap: l.columnGap + ' ' + l.rowGap, maxW: l.maxWidth}; })()")
         for width in (1400, 900):
-            for mode in ("light", "dark"):
-                with self.subTest(width=width, mode=mode), chrome() as cdp:
-                    sid = self.visit(cdp, width=width)
-                    cdp.js("document.documentElement.dataset.theme = %r" % mode, sid)
-                    self.line(cdp, sid, "late")
-                    self.until(cdp, sid, "!!document.querySelector('#work .fk.k-txt')", "the typed word is drawn")
-                    got = cdp.js(probe, sid)
-                    self.assertEqual(got["text"], "late", got)
-                    self.assertEqual(got["bg"], got["wantBg"], got)
-                    self.assertEqual(got["fg"], got["wantFg"], got)
-                    self.assertEqual(got["radius"], got["wantR"], got)
-                    self.assertEqual(got["shadow"], got["wantBg"] + " 0px 0px 0px 2px", got)
-                    self.assertEqual(got["line"], got["wantLine"], got)
-                    self.assertNotEqual(got["line"], got["lightLine"], got)
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, width=width)
+                cdp.js("document.documentElement.dataset.theme = 'light'", sid)
+                self.line(cdp, sid, "late")
+                self.until(cdp, sid, "!!document.querySelector('#work .fk.k-txt')", "the typed word is drawn")
+                got = cdp.js(probe, sid)
+                self.assertEqual(got["text"], "late", got)
+                self.assertEqual(got["bg"], "rgb(238, 240, 246)", got)
+                self.assertEqual(got["fg"], "rgb(29, 36, 51)", got)
+                self.assertEqual(got["radius"], "6px", got)
+                self.assertEqual(got["shadow"], "none", f"a real box, not a ring: {got}")
+                self.assertEqual((got["display"], got["minH"], got["gap"]), ("inline-flex", "25px", "4px"), got)
+                self.assertGreaterEqual(got["h"], 25, got)
+                self.assertEqual(got["pad"], "0px 4px 0px 9px", got)
+                self.assertEqual(got["line"], "rgb(137, 148, 176)", got)
+                self.assertEqual(got["lineW"], "1px", got)
+                self.assertEqual(got["linePad"], "8px 0px 8px 0px", got)
+                self.assertEqual(got["lineGap"], "6px 6px", got)
+                self.assertEqual(got["maxW"], "none", "the real line fills its section, no 420 cap")
+        for mode in ("dark",):
+            with self.subTest(mode=mode), chrome() as cdp:
+                sid = self.visit(cdp, width=1400)
+                cdp.js("document.documentElement.dataset.theme = 'dark'", sid)
+                self.line(cdp, sid, "late")
+                self.until(cdp, sid, "!!document.querySelector('#work .fk.k-txt')", "the typed word is drawn")
+                got = cdp.js(probe, sid)
+                self.assertNotEqual(got["bg"], "rgb(238, 240, 246)", f"dark keeps the Theme tokens: {got}")
 
 
 class CardsControl(Base):
