@@ -13,6 +13,7 @@ import { pills, asking } from "./askPills.js";
 import { stateOf } from "./askPillState.js";
 import { helpOpen } from "../help/helpStore.js";
 import { slashMatches, stepSlash } from "./askSlash.js";
+import { classicTheme } from "../components/Contents.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { holdScroll } from "../core/holdScroll.js";
 import { chatId, histOpen, histTick, chats, keepChat, deleteChat, when } from "./askHistory.js";
@@ -386,7 +387,7 @@ export function AskPanel() {
               <div class="ask-draftcard" data-ask-draftcard>
                 <Icon name="doc" />
                 <span><span class="ask-draftcard-title">{W.DRAFT_READY}</span><br /><span class="ask-draftcard-note">{t.draft.title ? t.draft.title + ". " : ""}{W.DRAFT_READY_LINE}</span></span>
-                <button type="button" class="btn primary" onClick={() => { draft.value = t.draft; }}>{W.DRAFT_OPEN}</button>
+                <button type="button" class={classicTheme() ? "btn sm pri ask-draftcard-open" : "btn primary"} onClick={() => { draft.value = t.draft; }}>{W.DRAFT_OPEN}</button>
               </div>
             ) : null}
             {t.sources && t.sources.length ? (
