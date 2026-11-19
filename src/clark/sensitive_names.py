@@ -3,7 +3,8 @@
 scan(folder) walks folder and file names with os.scandir. It never opens or reads a file, never calls the network, and
 never warns for size or depth (a library root with thousands of files gives nothing unless a name matches).
 Matching is whole word, upper or lower case alike, accents folded: "Corporates" does not match "rates", "Résumé" matches "resume".
-Links are not followed. It stops after MAX_ENTRIES names or MAX_DEPTH folders deep.
+Links are not followed. It stops after MAX_ENTRIES names or MAX_DEPTH folders deep; when the names run out the result has truncated=True.
+Only top-level files are listed by name (decision); files inside folders are counted under the folder.
 """
 import os
 import re
@@ -11,9 +12,10 @@ import unicodedata
 
 # WORDING FOR APPROVAL: the one place for the word list (proposed from the ticket; not decided by clark).
 WORDS = (
-    "candidate", "cv", "resume", "interview", "salary", "payroll", "hr", "performance", "disciplinary",
-    "grievance", "contract", "sow", "nda", "agreement", "proposal", "pricing", "rates", "commercial",
-    "invoice", "purchase order", "legal",
+    "candidate", "candidates", "cv", "cvs", "resume", "resumes", "interview", "interviews", "salary", "payroll",
+    "hr", "performance", "disciplinary", "grievance", "contract", "contracts", "sow", "nda", "agreement",
+    "agreements", "proposal", "proposals", "pricing", "rates", "commercial", "invoice", "invoices",
+    "purchase order", "legal",
 )
 
 READABLE_TYPES = (".txt", ".md", ".markdown", ".csv", ".tsv", ".rst", ".docx", ".pdf")
@@ -42,9 +44,12 @@ def _readable(name):
 class _Budget:
     def __init__(self):
         self.left = MAX_ENTRIES
+        self.truncated = False
 
     def take(self):
         self.left -= 1
+        if self.left < 0:
+            self.truncated = True
         return self.left >= 0
 
 
@@ -100,8 +105,17 @@ def _walk(root, rel, depth, budget, out):
                         "readable_files": 1 if _readable(e.name) else 0})
 
 
+class ScanResult(list):
+    """The found rows, with .truncated True when MAX_ENTRIES stopped the scan early."""
+    truncated = False
+
+
 def scan(folder):
-    """[{name, path_rel, words, readable_files}] for each folder (any depth) and each top-level file named with a listed word."""
-    out = []
-    _walk(str(folder), "", 0, _Budget(), out)
+    """[{name, path_rel, words, readable_files}] for each folder (any depth) and each top-level file named with a listed word.
+
+    The list has a truncated attribute: True when the scan stopped at MAX_ENTRIES names."""
+    out = ScanResult()
+    budget = _Budget()
+    _walk(str(folder), "", 0, budget, out)
+    out.truncated = budget.truncated
     return out
