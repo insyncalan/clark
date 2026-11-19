@@ -14,7 +14,7 @@ P = ("(function(){var g=function(e){return getComputedStyle(e)}, m=g(document.qu
      "h=g(document.querySelector('#report .secs > .sec:not(.is-hidden) .sec-h')), cs=[...document.querySelectorAll('.glance[data-glance] > .tcell')].filter(e => e.offsetWidth > 0), out=[];"
      "return {main: [m.paddingTop, m.paddingRight, m.paddingBottom, m.paddingLeft], head: [h.fontSize, h.lineHeight, h.fontWeight], sec: [s.paddingTop, s.paddingRight, s.paddingBottom, s.paddingLeft],"
      "cells: cs.map(function(e){var c=g(e); return [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft, c.marginRight, c.marginLeft, c.borderRightWidth, c.borderRightStyle, c.borderRightColor, c.borderLeftWidth];}),"
-     "line: (function(){var t=document.createElement('i'); t.style.color='var(--line-soft)'; document.body.appendChild(t); var c=g(t).color; t.remove(); return c;})(), n: cs.length};})()")
+     "line: (function(){var t=document.createElement('i'); t.style.color='var(--grey-200)'; document.body.appendChild(t); var c=g(t).color; t.remove(); return c;})(), n: cs.length};})()")
 
 
 class Layout(Dash):
@@ -79,7 +79,7 @@ LINES = [
     '}',
     'html:not([data-density="comfortable"]) .rbar + #report .secs > .sec:not(.slot-right) { padding-right: 22px; padding-bottom: 18px; }',
     'html:not([data-density="comfortable"]) .rbar + #report .sec-h { line-height: 1.25; }',
-    'html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tcell { padding: 0 20px 0 0; margin: 0 20px 0 0; border-left: 0; border-right: 1px solid var(--line-soft); }',
+    'html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tcell { padding: 0 20px 0 0; margin: 0 20px 0 0; border-left: 0; border-right: 1px solid var(--grey-200); }',
     'html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tcell:last-child { border-right: 0; margin-right: 0; padding-right: 0; }',
     '@media (max-width: 1180px) { html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tcell.health { border-right: 0; } }',
 ]
