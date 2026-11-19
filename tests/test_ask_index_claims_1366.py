@@ -260,9 +260,9 @@ class Question(RouteBase):
 
 
 class Rebuild(Base):
-    """Claim 5, the part that is NOT true: nothing builds a deleted index again by itself."""
+    """Claim 5: clark builds a deleted index again. The behaviour is pinned in test_ask_index_rebuild_1366; here the Help sentence and the run."""
 
-    def test_deleting_the_file_starts_no_read_until_the_folder_list_changes(self):
+    def test_deleting_the_file_starts_a_read_and_the_file_is_there_again(self):
         self.put("a.txt", "zqdel")
         folders = [str(self.box)]
         w = ix.mod().Indexer(self.data, None)
@@ -270,11 +270,14 @@ class Rebuild(Base):
         w.start("P1", folders)
         self.assertTrue(w.wait_idle(10))
         ix.path_for(self.data, "P1").unlink()
-        w.checked.clear()
-        w.status_for("P1", folders)
-        self.assertFalse(w.current("P1", folders))
-        self.assertTrue(w.wait_idle(2))
-        self.assertFalse(ix.path_for(self.data, "P1").exists(), "this is why the Help does not say clark builds it again by itself")
+        self.assertFalse(w.current("P1", folders), "the question that finds it missing reads the folders")
+        self.assertTrue(w.wait_idle(10))
+        self.assertTrue(ix.path_for(self.data, "P1").exists(), "the rebuild started and finished")
+        self.assertTrue(w.current("P1", folders))
+
+    def test_the_help_says_clark_builds_it_again_if_you_delete_it(self):
+        t = paragraph("The index of your source folders.")
+        self.assertIn("it is only a copy, and clark builds it again if you delete it.", t)
 
 
 class StatusLine(Base):
@@ -343,10 +346,17 @@ class HelpWordsAreTheAppsWords(unittest.TestCase):
                       "looks like a password or a key"):
             self.assertIn(words, line)
 
-    def test_the_claims_that_are_not_true_are_not_in_the_help(self):
+    def test_the_help_carries_the_qualifier_once_the_index_is_up_to_date(self):
         t = paragraph("The index of your source folders.")
-        for cut in ("no file is opened while you ask", "answered from the index", "builds it again", "build it again"):
-            self.assertNotIn(cut, t)
+        self.assertIn("Once the index is up to date, a question is answered from the index and no file is opened while you ask.", t)
+
+    def test_exemption_the_two_claims_once_cut_are_back_with_their_pins(self):
+        """Named exemption of the earlier guard test_the_claims_that_are_not_true_are_not_in_the_help: it listed 'no file is opened while you ask'
+        and 'builds it again' as cut. Both are true now (rebuild when missing; qualified by the index being up to date) and are pinned by
+        test_with_a_finished_index_no_source_file_is_opened_while_you_ask and Rebuild above. The claim without the qualifier stays out."""
+        t = paragraph("The index of your source folders.")
+        self.assertNotIn(". A question is answered from the index", t)
+        self.assertNotIn("a question never opens a file", t)
 
     def test_the_settings_asking_row_says_the_index_is_kept(self):
         ref = json.loads(HELP.read_text(encoding="utf-8"))
