@@ -64,7 +64,7 @@ export const PILLS_BY_SUBJECT = {
   gantt: ["What is the next milestone?", "Which work items are running late?", "Which work items hold up the end date?", "Which work items start next week?", "Which milestones are at risk?", "What ends this month?"],
 };
 // Row 1332: with Help open the suggestions are about Help, not about the page behind it.
-export const PILLS_HELP = ["How do I add a work item?", "How do I change the view?", "How do I publish a report?", "What does Preview do?", "How do I turn Ask clark off?", "Where are my settings?"];
+export const PILLS_HELP = ["How do I add a work item?", "How do I change the view?", "How do I publish a report?", "What does Preview do?", "How do I turn ask clark off?", "Where are my settings?"];
 // Row 1332: what the project holds puts one of a subject's own questions first. Only a question already in that subject's list is named here, so the
 // state reorders the set and never adds to it. States: overdue (late open items), red (high risks), noOwner (open items with no owner).
 export const PILLS_STATE = {
