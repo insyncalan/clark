@@ -57,6 +57,7 @@ def _open(data_dir, code, create=True):
     if not p.exists() and not create:
         return None
     p.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    os.chmod(p.parent, 0o700)                # a folder made earlier (or by another tool) is put right too
     if not p.exists():
         os.close(os.open(p, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600))
     os.chmod(p, 0o600)
