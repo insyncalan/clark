@@ -82,3 +82,18 @@ class Reasons(Base):
         self.assertEqual(sum(c.get(n, 0) for n in ix.mod().NAMES), 2)
         self.assertEqual(ix.mod().line_for(c), "Indexed 0 of 2 files. 1 is of a type clark can't read yet. 1 PDF is too long.")
         self.assertEqual(dict(ix.mod().files_left_out(self.data, "P1", 200)["files"])["saved/big.pdf"], ix.mod().REASON_TOO_LONG)
+
+
+class Readers(Base):
+    def test_a_reader_gets_an_empty_answer_not_an_error_when_the_index_cannot_be_opened(self):
+        import sqlite3
+        from clark import ask_index
+        self.put("a.txt", "zqone")
+        ix.build(self.data, "P1", [self.box])
+        with mock.patch.object(ask_index, "_open", side_effect=sqlite3.OperationalError("database is locked")):
+            self.assertEqual(ask_index.search(self.data, "P1", "zqone"), [])
+            self.assertEqual(ask_index.status(self.data, "P1")["indexed"], 0)
+            self.assertEqual(ask_index.files_left_out(self.data, "P1"), {"files": [], "more": 0})
+            self.assertEqual(ask_index.folder_status(self.data, "P1", [self.box]), {})
+            self.assertFalse(ask_index.current(self.data, "P1", [self.box]))
+

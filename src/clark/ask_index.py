@@ -132,6 +132,14 @@ def _unusable(folders, data_dir, home):
     return usable, bad
 
 
+def _open_read(data_dir, code):
+    """The index for a reader (a question, the Settings poll): None when there is none or it cannot be opened now (a refresh holds it locked)."""
+    try:
+        return _open(data_dir, code, create=False)
+    except (sqlite3.Error, OSError):
+        return None
+
+
 def _set(db, k, v):
     db.execute("INSERT OR REPLACE INTO meta VALUES(?, ?)", (k, v if isinstance(v, str) else json.dumps(v)))
 
@@ -301,7 +309,7 @@ def search(data_dir, code, question, limit=MAX_RESULTS):
     words = _WORD.findall(question or "")
     if not words:
         return []
-    db = _open(data_dir, code, create=False)
+    db = _open_read(data_dir, code)
     if db is None:
         return []
     try:
@@ -321,7 +329,7 @@ def search(data_dir, code, question, limit=MAX_RESULTS):
 def status(data_dir, code, folders=None):
     """The counts kept by the last refresh (all 0 when there is no index yet)."""
     counts = dict.fromkeys(NAMES, 0)
-    db = _open(data_dir, code, create=False)
+    db = _open_read(data_dir, code)
     if db is not None:
         try:
             row = db.execute("SELECT v FROM meta WHERE k='counts'").fetchone()
@@ -336,7 +344,7 @@ def status(data_dir, code, folders=None):
 
 def files_left_out(data_dir, code, limit=MAX_LEFT_OUT_SHOWN):
     """{"files": [(name, plain reason)] (at most `limit`, by name), "more": how many are not in that list}. Names only, never any text."""
-    db = _open(data_dir, code, create=False)
+    db = _open_read(data_dir, code)
     if db is None:
         return {"files": [], "more": 0}
     try:
@@ -396,7 +404,7 @@ def folder_status(data_dir, code, folders, live=None):
     """{folder: {"state": "reading" | "done", "line": text}} for the folders that have something to say. `live` is the worker's
     {folder: (done, total)} for the run in progress; a folder with no index yet and no run says nothing."""
     saved = {}
-    db = _open(data_dir, code, create=False)
+    db = _open_read(data_dir, code)
     if db is not None:
         try:
             row = db.execute("SELECT v FROM meta WHERE k='folders'").fetchone()
@@ -417,7 +425,7 @@ def folder_status(data_dir, code, folders, live=None):
 
 def current(data_dir, code, folders):
     """True when the index was finished for exactly these folders (a question may then use it and read no file)."""
-    db = _open(data_dir, code, create=False)
+    db = _open_read(data_dir, code)
     if db is None:
         return False
     try:
