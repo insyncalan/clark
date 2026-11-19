@@ -383,6 +383,9 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .ddmenu .lab.caps, .mh.caps { font-size: var(--size-body); letter-spacing: normal; text-transform: none; font-weight: var(--weight-regular); }
 .gt-pop button, .gt-menu button, [data-gt] .gt-menu button { padding-left: var(--space-3); padding-right: var(--space-3); font-size: var(--size-body); }
 .ddmenu .lab, .ddmenu .who, .ddmenu .mh, .mh { padding-left: 16px; padding-right: 16px; }
+/* Row 1285: Close, focused as a peek opens with no key pressed (a click, a script), shows no focus ring until a key is pressed or the focus moves on. */
+#peek .pkp-btn[data-quiet]:focus-visible { outline: none; }
+
 /* Row 1350 part 2 (Classic only; Cards keeps the shared quick bar rules): the quick bar list as the prototype draws it (mock-up app.css lines 1562-1565). The query box keeps its 12px and 14px (var(--space-3), the shared rule); the input is 38px tall with 15px text and 6px 10px padding; the list has 6px padding (shared) and stops at min(52vh, 420px); a row is a grid of a 96px kind, the label and the hint, gap 4px 12px, padding 8px 10px, radius 6px, text var(--size-body) (14px); the kind and the hint are one px under the caption size (12px), the kind with .04em spacing and muted. The chosen row (grey-100 fill, 2px focus ring, offset -2px) is the shared rule and is not repeated. The bare lengths have no token: 38px, 15px, 6px, 10px, 96px, 420px, 52vh, .04em. */
 .pal-q input { min-height: 38px; padding: 6px 10px; font-size: 15px; }
 .pal-list { max-height: min(52vh, 420px); }
@@ -399,8 +402,31 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .fbt-tag { padding-top: 14px; padding-bottom: 14px; }
 /* Row 1342 part 2: the empty-send error (red 13px, 4 above) as the 1298 mockup draws it. */
 .fbt-error { margin-top: 4px; color: var(--status-red-text); font-size: 13px; }
+/* Row 1327 slice 2 (Classic only: Cards keeps its Settings Version panel as on main): the download panel's tinted block and 140 x 8 progress bar from the approved mock-up. */
+.upd-c .upd-up { padding: 6px 12px 10px; border-radius: 8px; background: var(--brand-blue-tint); }      /* 1327 s2, the mock-up's .row.up: a tinted block for the version that is ready, downloading or downloaded */
+.upd-c .upd-up > p:first-child { margin: 0 0 4px; }
+.upd-pg { display: inline-block; vertical-align: middle; width: 140px; height: 8px; border-radius: 4px; background: var(--grey-100); overflow: hidden; margin-right: 8px; }      /* the mock-up's .pg: 140 x 8, radius 4 */
+.upd-pg i { display: block; height: 100%; background: var(--brand-blue); }
+.upd-c .upd-up .row { align-items: center; }
 /* Row 1375: a wheel over the Dashboard's Work items box that has reached its top or bottom keeps scrolling the page (the shared rule's overscroll-behavior-y: contain made it stall inside the box); the box still scrolls its own rows. */
 .wil-scroll { overscroll-behavior-y: auto; }
+/* Row 1403 (Classic only, Cards unchanged; prototype index.html lines 160-169, widths over 900, 900 and below keep the shared rules): the Dashboard Use cases list as the prototype draws it. No column heading row. The row grid is ref | title | headline | status over commitment | next steps (minmax(52px,max-content) 1fr 1.5fr 132px 112px, gap 12, padding 9px 8px, no minimum height); the title cell gives its two lines to the grid (display: contents), the commitment sits under the status word. Hover is the band tint, the ID badge a 1px grey-500 outline at 400 with 1px 8px padding, the commitment a quiet pill (1px grey-200 line, muted, 400, line height 18; the Committed ink fill keeps its own colours). */
+.uc .ucheads:not(.ucheads-ed) { display: none; }
+@media (min-width: 901px) {
+  .uc .ucrow:not(.ucrow-ed) > .ucbar { grid-template-columns: minmax(52px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 132px 112px; column-gap: 12px; row-gap: 0; padding: 9px var(--space-2); min-height: 0; }
+  .uc .ucrow:not(.ucrow-ed) > .ucbar > .uctc { display: contents; }
+  .uc .ucrow:not(.ucrow-ed) > .ucbar > .uccell { grid-row: 1 / span 2; }
+  .uc .ucrow:not(.ucrow-ed) > .ucbar > [data-uccol="status"] { grid-column: 4; grid-row: 1; align-self: end; }
+  .uc .ucrow:not(.ucrow-ed) > .ucbar > [data-uccol="commit"] { grid-column: 4; grid-row: 2; align-self: start; margin-top: 3px; }
+  .uc .ucrow:not(.ucrow-ed) > .ucbar > [data-uccol="steps"] { grid-column: 5; }
+  .uc .ucrow:not(.ucrow-ed) > .ucbar > .uctitle, .uc .ucrow:not(.ucrow-ed) > .ucbar > .uchead { grid-row: 1 / span 2; }
+  .uc .ucrow:not(.ucrow-ed) > .ucbar > .uctitle { grid-column: 2; }
+  .uc .ucrow:not(.ucrow-ed) > .ucbar > .uchead { grid-column: 3; }
+}
+.uc .ucbar:hover, .uc .ucrow.open > .ucbar { background: var(--band-bg); }
+.uc .ucref { padding: 1px var(--space-2); border: 1px solid var(--grey-500); font-weight: var(--weight-regular); }
+.uc .cchip { border-radius: var(--radius-pill); font-weight: var(--weight-regular); line-height: 18px; }
+.uc .cchip:not(.cc-committed) { border-color: var(--grey-200); color: var(--text-muted); }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
