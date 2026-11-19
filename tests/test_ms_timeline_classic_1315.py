@@ -39,7 +39,7 @@ class Base(BrowserBase):
         self.addCleanup(s.close)
         return s.port
 
-    def open(self, cdp, width, mode):
+    def show(self, cdp, width, mode):
         sid = self.visit(cdp, width, HASH, self.serve())
         cdp.js(f"document.documentElement.dataset.theme = '{mode}'", sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-lab').length > 0", sid)))
@@ -49,7 +49,7 @@ class Base(BrowserBase):
         for width in (1400, 900):
             for mode in ("light", "dark"):
                 with self.subTest(width=width, mode=mode), chrome() as cdp:
-                    yield cdp, self.open(cdp, width, mode), width
+                    yield cdp, self.show(cdp, width, mode), width
 
 
 class Classic(Base, unittest.TestCase):
