@@ -104,6 +104,8 @@ export const LATER = [
 
 // The built-in sections (row 906): a deleted one is added again from the box, one of each, with the title and settings it starts
 // with (changes.py BUILT_IN_TYPES). Listed only while the report has no section of that type (`list` and `counts` take `sections`).
+// Row 1407: Risks and issues, Open actions and Decisions are not in this list; the Work items list (its views in filterLine.js) covers them.
+// Row 1411: the built-in At a glance card is gone too (the glance template is its own card).
 // Item 1191: Use case summary has its words, parts and width like any template; the section it makes is the built-in's own (type usecases),
 // so the strip, the rows, the edit in place, View, Word, Excel and the published file are the built-in's. Full width only: a row is a grid of fixed columns.
 const USECASES_CARD = { fit: ["full"], description: "The use cases, with a count for each status and one row for each: its headline, where it stands and the open next steps.",
@@ -115,8 +117,7 @@ export const MILESTONES_CARD = { fit: ["full"], description: "The milestones on 
 const builtIn = (type, title, kind, more = {}) => ({ id: `built-in-${type}`, name: title, kind, fit: ["full"], type, title, body: "", ready: true, description: "", holds: [], builtIn: true, ...more });
 export const BUILT_INS = [
   builtIn("current", "Current state", "text"), builtIn("usecases", "Use case summary", "work", USECASES_CARD),
-  builtIn("milestones", "Milestones", "dates", MILESTONES_CARD), builtIn("raid", "Risks and issues", "work"), builtIn("actions", "Open actions", "work"),
-  builtIn("decisions", "Decisions", "work"), builtIn("docs", "Supporting documents", "files"),
+  builtIn("milestones", "Milestones", "dates", MILESTONES_CARD), builtIn("docs", "Supporting documents", "files"),      // row 1407: no Risks and issues, Open actions or Decisions card: the Work items list covers them
 ];
 // Item 1188: the first default section is now the text section "Current state", which "Header and Text" also adds, so the older
 // "current" built-in is not offered (a second card that makes the same heading); a report that has one keeps it.

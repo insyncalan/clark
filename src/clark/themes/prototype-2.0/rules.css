@@ -260,7 +260,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .ucl-group .grp-b:hover, .ucp-group .grp-b:hover, .ucl-group .grp-b:hover .i, .ucp-group .grp-b:hover .i { color: var(--brand-blue); }
 /* Row 1317 (Settings sidebar): the menu is a grey panel (the Classic page ground equals the Cards panel fill, so it showed no panel), the group names are in sentence case, and the open page is a tinted bar with its square edge at the marker. The issue table names the grey panel and the tinted bar; it names no hover tint on a chip, so there is none. Classic only; Cards keeps its look. The Settings title is already 30 px in both Themes (measured), so it is not touched. Prototype files are not on this box: */
 @media (min-width: 900px) {
-  .set-bar { background: var(--grey-100); border-radius: var(--radius-lg); }
+  .set-bar { background: var(--grey-50); border-radius: 10px; }   /* Row 1356: the prototype's panel fill (soft, F6F8FC) and radius 10 */
   .set-group-name { text-transform: none; letter-spacing: normal; }
   .set-chip[aria-current], .set-chip[aria-current]:hover { border-radius: 0 10px 10px 0; }
 }
@@ -401,6 +401,22 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .fbt-tag { padding-top: 14px; padding-bottom: 14px; }
 /* Row 1342 part 2: the empty-send error (red 13px, 4 above) as the 1298 mockup draws it. */
 .fbt-error { margin-top: 4px; color: var(--status-red-text); font-size: 13px; }
+
+/* Row 1355 (Milestones page, Classic only): the View switch (Timeline / Calendar) and the Zoom hint share ONE row, the switch at the top left and the Zoom hint at the far right (spread apart as justify-content: space-between does), as the prototype does; the controls row sits under that row. */
+@media screen { #milestones.frame.milestones:not(.pub) .msv-sw { position: absolute; top: 0; left: 0; right: auto; display: inline-flex; margin: 0; } #milestones.frame.milestones:not(.pub) .mv-bar { padding-right: 0; row-gap: var(--space-2); } #milestones.frame.milestones:not(.pub) .mv-zoom { order: -1; flex: 0 0 100%; display: flex; align-items: center; justify-content: flex-end; min-height: 30px; box-sizing: border-box; } }
+/* Item 1352: the first-run card of ask clark as the prototype draws it, Classic only (Cards keeps its own rules): a bordered card with a heading, three bullets with the link in the third, and a quiet tip. The status line is the same line with the standing-instructions link at 13px. */
+.ask-first-run { margin: 22px 20px 0; padding: 14px 16px; border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); font-size: var(--size-body); }
+.ask-first-run h3 { margin: 0 0 6px; font-size: calc(var(--size-body) + 1px); font-weight: var(--weight-medium); line-height: var(--leading); color: inherit; }
+.ask-first-run ul { margin: 0 0 8px; padding: 0 0 0 18px; }
+.ask-first-run li { margin: 5px 0; }
+.ask-first-run b { font-weight: var(--weight-medium); }
+.ask-first-run li a { display: inline-flex; align-items: center; min-height: 24px; font-weight: inherit; text-decoration: none; }
+.ask-first-run li a:hover { text-decoration: underline; }
+.ask-first-run p.ask-first-tip { margin: 0; font-size: var(--size-caption); color: var(--text-muted); }
+.ask-first-run kbd { padding: 0 5px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: var(--grey-50); font: inherit; font-size: calc(var(--size-caption) - 1px); }
+.ask-status { flex-wrap: wrap; }
+.ask-status a { font-size: var(--size-caption); text-decoration: none; }
+.ask-status a:hover { text-decoration: underline; text-underline-offset: 2px; }
 /* Row 1327 slice 2 (Classic only: Cards keeps its Settings Version panel as on main): the download panel's tinted block and 140 x 8 progress bar from the approved mock-up. */
 .upd-c .upd-up { padding: 6px 12px 10px; border-radius: 8px; background: var(--brand-blue-tint); }      /* 1327 s2, the mock-up's .row.up: a tinted block for the version that is ready, downloading or downloaded */
 .upd-c .upd-up > p:first-child { margin: 0 0 4px; }
@@ -409,6 +425,8 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .upd-c .upd-up .row { align-items: center; }
 /* Row 1375: a wheel over the Dashboard's Work items box that has reached its top or bottom keeps scrolling the page (the shared rule's overscroll-behavior-y: contain made it stall inside the box); the box still scrolls its own rows. */
 .wil-scroll { overscroll-behavior-y: auto; }
+/* Row menu-radius, Classic menus: every menu panel (.ddmenu, .menu, .cpop, .gt-pop, .gt-menu) takes the prototype popover radius, 10px (design/prototype-clark-classic/index.html line 63, .pop), where the shared rule drew 12px. The Work items add menu keeps its own approved rule above. */
+.ddmenu, .menu, .cpop, .gt-pop, .gt-menu, [data-gt] .gt-menu { border-radius: 10px; }
 /* Row 1403 (Classic only, Cards unchanged; prototype index.html lines 160-169, widths over 900, 900 and below keep the shared rules): the Dashboard Use cases list as the prototype draws it. No column heading row. The row grid is ref | title | headline | status over commitment | next steps (minmax(52px,max-content) 1fr 1.5fr 132px 112px, gap 12, padding 9px 8px, no minimum height); the title cell gives its two lines to the grid (display: contents), the commitment sits under the status word. Hover is the band tint, the ID badge a 1px grey-500 outline at 400 with 1px 8px padding, the commitment a quiet pill (1px grey-200 line, muted, 400, line height 18; the Committed ink fill keeps its own colours). */
 .uc .ucheads:not(.ucheads-ed) { display: none; }
 @media (min-width: 901px) {
