@@ -1,4 +1,4 @@
-"""Row 1410: in Classic the Add buttons whose words grow into the button (Add item, Add action, Add milestone, Add use case) carry no
+"""Row 1410: in Classic the Add buttons whose words grow into the button (Add item, Add action, Add milestone, Add use case, Add project) carry no
 tooltip (no title, no data-tip); the accessible name stays. A Work items list tile whose words never show keeps its tip; Cards is unchanged.
 
 Run: python3 dev/run_tests.py test_add_no_tip_1410
@@ -9,8 +9,9 @@ import tempfile
 import unittest
 
 from _real_server import real_server
-from clark import page
+from clark import page, theme
 from test_server import chrome
+import test_tpl_workitems as base
 from test_work_board_page import Base, setUpModule, tearDownModule  # noqa: F401
 
 ATTRS = "(() => { const b = document.getElementById(%s); return JSON.stringify(b ? {title: b.getAttribute('title'), tip: b.getAttribute('data-tip'), name: b.getAttribute('aria-label')} : null); })()"
@@ -47,12 +48,44 @@ class AddNoTip(Base):
     def test_milestones_add_milestone_has_no_tip_and_keeps_its_name(self):
         self.check("#milestones&p=ABC", "#milestones", "addMs", "Add milestone")
 
-    def test_source_gates_the_tip_on_classic_and_keeps_it_for_the_icon_only_tile(self):
-        from pathlib import Path
-        root = Path(page.__file__).parent / "src"
-        tile = (root / "components" / "NewTile.jsx").read_text()
-        self.assertIn("classicTheme() && !iconOnly ? undefined : word", tile)
-        self.assertIn("iconOnly />", (root / "edit" / "templates" / "WorkItemsList.jsx").read_text())
+    def test_work_items_add_action_has_no_tip_and_keeps_its_name(self):
+        """With the filter line on actions, the button says Add action (filters.js addPlan) and carries no tip."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, width=width)
+                self.line(cdp, sid, "type:action")
+                self.until(cdp, sid, "document.getElementById('newBtn') && document.getElementById('newBtn').getAttribute('aria-label') === 'Add action'", "the button says Add action")
+                got = self.attrs(cdp, sid, "newBtn")
+                self.assertIsNone(got["title"], got)
+                self.assertIsNone(got["tip"], got)
+
+    def test_projects_add_project_has_no_tip_and_keeps_its_name(self):
+        self.check("#settings&p=ABC", "#projects-table", "npBtn", "Add project")
+
+
+class IconOnlyKeepsItsTip(base.PageBase):
+    """The Work items list tile in Edit shows only a "+" (its words never show), so in Classic its tip stays."""
+    add, show = base.InThePage.add, base.InThePage.show
+
+    def setUp(self):
+        super().setUp()
+        self.s.close()
+        css = theme.css("prototype-2.0")
+        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: page.layer_theme(page.page_html(tempfile.mkdtemp()), css), seam=self.seam)
+        self.addCleanup(self.s.close)
+        base.plant(self)
+
+    def test_the_list_plus_keeps_title_and_tip_in_classic_at_1400_and_900(self):
+        ref = self.add({"mode": "all", "owner": ["Pat Demo"]})
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width)
+                p.edit()
+                btn = f"[data-id=\"{ref}\"] [data-wil-add] button"
+                p.until(f"!!document.querySelector({json.dumps(btn)})", "the + is drawn")
+                self.assertTrue(p.js("!!document.getElementById('theme')"), "the Classic layer is on")
+                got = json.loads(p.js(f"(() => {{ const b = document.querySelector({json.dumps(btn)}); return JSON.stringify({{title: b.getAttribute('title'), tip: b.getAttribute('data-tip')}}); }})()"))
+                self.assertTrue(got["title"] and got["tip"], got)
 
 
 if __name__ == "__main__":
