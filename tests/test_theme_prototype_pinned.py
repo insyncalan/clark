@@ -44,6 +44,7 @@ LIGHT = {
         '--sec-number-color': 'var(--brand-blue)',
         '--sec-number-size': '20px',
         '--sec-band-bg': 'rgba(255, 255, 255, .72)',
+        '--ms-amber-shape': '#C58A00',
     }
 DARK = {
         '--bg': '#0E1620',
@@ -78,6 +79,7 @@ DARK = {
         '--sec-number-color': 'var(--brand-blue)',
         '--sec-number-size': '20px',
         '--sec-band-bg': 'rgba(255, 255, 255, .04)',
+        '--ms-amber-shape': '#E0A620',
     }
 RULE_LINES = [
         'body { background: var(--page-bg) var(--page-grad) fixed no-repeat; }',
