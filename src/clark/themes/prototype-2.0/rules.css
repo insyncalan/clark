@@ -425,6 +425,8 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .upd-c .upd-up .row { align-items: center; }
 /* Row 1375: a wheel over the Dashboard's Work items box that has reached its top or bottom keeps scrolling the page (the shared rule's overscroll-behavior-y: contain made it stall inside the box); the box still scrolls its own rows. */
 .wil-scroll { overscroll-behavior-y: auto; }
+/* Row menu-radius, Classic menus: every menu panel (.ddmenu, .menu, .cpop, .gt-pop, .gt-menu) takes the prototype popover radius, 10px (design/prototype-clark-classic/index.html line 63, .pop), where the shared rule drew 12px. The Work items add menu keeps its own approved rule above. */
+.ddmenu, .menu, .cpop, .gt-pop, .gt-menu, [data-gt] .gt-menu { border-radius: 10px; }
 /* Row 1403 (Classic only, Cards unchanged; prototype index.html lines 160-169, widths over 900, 900 and below keep the shared rules): the Dashboard Use cases list as the prototype draws it. No column heading row. The row grid is ref | title | headline | status over commitment | next steps (minmax(52px,max-content) 1fr 1.5fr 132px 112px, gap 12, padding 9px 8px, no minimum height); the title cell gives its two lines to the grid (display: contents), the commitment sits under the status word. Hover is the band tint, the ID badge a 1px grey-500 outline at 400 with 1px 8px padding, the commitment a quiet pill (1px grey-200 line, muted, 400, line height 18; the Committed ink fill keeps its own colours). */
 .uc .ucheads:not(.ucheads-ed) { display: none; }
 @media (min-width: 901px) {
