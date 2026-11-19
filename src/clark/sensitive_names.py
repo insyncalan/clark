@@ -3,20 +3,24 @@
 scan(folder) walks folder and file names with os.scandir. It never opens or reads a file, never calls the network, and
 never warns for size or depth (a library root with thousands of files gives nothing unless a name matches).
 Matching is whole word, upper or lower case alike, accents folded: "Corporates" does not match "rates", "Résumé" matches "resume".
-Links are not followed. It stops after MAX_ENTRIES names or MAX_DEPTH folders deep; when the names run out the result has truncated=True.
+Links (symlinks, Windows junctions and other reparse points) are not followed, so the walk stays inside the folder. It stops after MAX_ENTRIES names or MAX_DEPTH folders deep; when the names run out the result has truncated=True.
 Only top-level files are listed by name (decision); files inside folders are counted under the folder.
 """
 import os
 import re
+import sys
 import unicodedata
+
+from clark import ask_passages
 
 # The one place for the word list: strong words only (a false-alarm check on real folder names: weak words such as rates, proposal, legal, performance, commercial, agreement, pricing, hr, candidate, interview are left out).
 WORDS = (
     "cv", "cvs", "resume", "resumes", "salary", "payroll", "passport", "passports", "ssn", "disciplinary", "grievance",
-    "redundancy", "contract", "contracts", "sow", "nda", "purchase order",
+    "redundancy", "contract", "contracts", "sow", "sows", "nda", "ndas", "purchase order", "purchase orders",
 )
 
-READABLE_TYPES = (".txt", ".md", ".markdown", ".csv", ".tsv", ".rst", ".docx", ".pdf")
+# One source: the types ask clark reads (ask_passages), so the two lists cannot drift.
+READABLE_TYPES = ask_passages.TEXT_TYPES + ask_passages.WORD_TYPES + ask_passages.PDF_TYPES
 MAX_ENTRIES = 100000
 MAX_DEPTH = 64
 
@@ -33,6 +37,22 @@ def words_in(name, words=WORDS):
     toks = _tokens(name)
     joined = " " + " ".join(toks) + " "
     return [w for w in words if f" {w} " in joined]
+
+
+_REPARSE_POINT = 0x400
+
+
+def _is_link(entry):
+    """True for a symlink or a Windows junction / reparse point: never followed, never counted, never listed."""
+    if entry.is_symlink():
+        return True
+    is_junction = getattr(entry, "is_junction", None)
+    if is_junction is not None and is_junction():
+        return True
+    if sys.platform == "win32":
+        attrs = getattr(entry.stat(follow_symlinks=False), "st_file_attributes", 0)
+        return bool(attrs & _REPARSE_POINT)
+    return False
 
 
 def _readable(name):
@@ -63,7 +83,7 @@ def _count(path, depth, budget):
         if not budget.take():
             break
         try:
-            if e.is_symlink():
+            if _is_link(e):
                 continue
             if e.is_dir(follow_symlinks=False):
                 if depth < MAX_DEPTH:
@@ -85,7 +105,7 @@ def _walk(root, rel, depth, budget, out):
         if not budget.take():
             return
         try:
-            if e.is_symlink():
+            if _is_link(e):
                 continue
             is_dir = e.is_dir(follow_symlinks=False)
         except OSError:

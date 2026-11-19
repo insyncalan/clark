@@ -15,10 +15,17 @@ from _paths import SRC  # noqa: F401
 
 from clark import sensitive_names as sn
 
-EXPECTED = (
+# The approved list (WO-M7225), stated literally here and not read from the module.
+APPROVED = (
     "cv", "cvs", "resume", "resumes", "salary", "payroll", "passport", "passports", "ssn", "disciplinary", "grievance",
     "redundancy", "contract", "contracts", "sow", "nda", "purchase order",
 )
+PLURALS_ADDED = ("sows", "ndas", "purchase orders")
+EXPECTED = (
+    "cv", "cvs", "resume", "resumes", "salary", "payroll", "passport", "passports", "ssn", "disciplinary", "grievance",
+    "redundancy", "contract", "contracts", "sow", "sows", "nda", "ndas", "purchase order", "purchase orders",
+)
+EXPECTED_READABLE = (".txt", ".md", ".markdown", ".csv", ".tsv", ".rst", ".docx", ".pdf")
 
 
 def tree(root, paths):
@@ -60,11 +67,25 @@ class Scan(unittest.TestCase):
         tree(self.root, ["Contract/a.txt", "Passport/b.docx", "top salary.csv"])
         def boom(*a, **k):
             raise AssertionError("scan must not open files or the network")
-        with mock.patch.object(builtins, "open", boom), mock.patch.object(socket.socket, "connect", boom), \
+        with mock.patch.object(builtins, "open", boom), mock.patch.object(os, "open", boom), \
+                mock.patch.object(os, "stat", boom), mock.patch.object(socket.socket, "connect", boom), \
                 mock.patch("urllib.request.urlopen", boom), mock.patch.object(Path, "read_text", boom), \
                 mock.patch.object(Path, "open", boom):
             r = sn.scan(self.root)
         self.assertEqual(len(r), 3)
+
+    def test_name_matching_touches_no_file_system(self):
+        calls = []
+        def spy(name):
+            def f(*a, **k):
+                calls.append(name)
+                raise AssertionError(name)
+            return f
+        with mock.patch.object(builtins, "open", spy("open")), mock.patch.object(os, "open", spy("os.open")), \
+                mock.patch.object(os, "scandir", spy("os.scandir")), mock.patch.object(os, "stat", spy("os.stat")):
+            self.assertEqual(sn.words_in("Candidate CVs"), ["cvs"])
+            self.assertEqual(sn.words_in("Photos"), [])
+        self.assertEqual(calls, [])
 
     def test_whole_words_only(self):
         tree(self.root, ["Corporates/a.txt", "shrunk/a.txt", "driver/a.txt", "Standard/a.txt", "Chrome/a.txt"])
@@ -181,6 +202,84 @@ class Scan(unittest.TestCase):
             (r,) = sn.scan(self.root)
         self.assertEqual(r["readable_files"], 1)
 
+    def test_unreadable_entry_in_count_is_skipped_and_count_goes_on(self):
+        tree(self.root, ["Contract/a.txt", "Contract/b.txt", "Contract/c.txt", "Contract/d.txt"])
+        real = sn._is_link
+        seen = []
+        def flaky(e):
+            if e.name.endswith(".txt") and not seen:
+                seen.append(e.name)
+                raise PermissionError(e.name)
+            return real(e)
+        with mock.patch.object(sn, "_is_link", flaky):
+            (r,) = sn.scan(self.root)
+        self.assertEqual(len(seen), 1)
+        self.assertEqual(r["readable_files"], 3)
+
+    def test_unreadable_entry_in_walk_is_skipped_and_walk_goes_on(self):
+        tree(self.root, ["Contract/a.txt", "Payroll/b.txt", "Passport/c.txt"])
+        real = sn._is_link
+        n = []
+        def flaky(e):
+            n.append(e.name)
+            if len(n) == 1:
+                raise PermissionError(e.name)
+            return real(e)
+        with mock.patch.object(sn, "_is_link", flaky):
+            names = [r["name"] for r in sn.scan(self.root)]
+        self.assertEqual(names, ["Passport", "Payroll"])  # the first entry (Contract) was skipped, the others kept
+
+    def test_count_stops_at_the_budget_and_says_truncated(self):
+        tree(self.root, ["Contract/a.txt", "Contract/b.txt", "Contract/c.txt", "Contract/d.txt", "Contract/e.txt"])
+        with mock.patch.object(sn, "MAX_ENTRIES", 3):
+            (r,) = sn.scan(self.root)
+            truncated = sn.scan(self.root).truncated
+        self.assertEqual(r["readable_files"], 2)  # one name for Contract, two for its files, then the budget is spent
+        self.assertTrue(truncated)
+
+    def test_count_within_budget_is_whole_and_not_truncated(self):
+        tree(self.root, ["Contract/a.txt", "Contract/b.txt"])
+        with mock.patch.object(sn, "MAX_ENTRIES", 3):
+            res = sn.scan(self.root)
+        self.assertEqual(res[0]["readable_files"], 2)
+        self.assertFalse(res.truncated)
+
+    def test_link_loop_is_finished_and_not_counted(self):
+        tree(self.root, ["Contract/a.txt"])
+        os.symlink(os.path.join(self.root, "Contract"), os.path.join(self.root, "Contract", "again"))
+        os.symlink(self.root, os.path.join(self.root, "Contract", "up"))
+        res = sn.scan(self.root)
+        self.assertEqual([(r["name"], r["readable_files"]) for r in res], [("Contract", 1)])
+        self.assertFalse(res.truncated)
+
+    def test_link_out_of_the_folder_is_not_walked_or_counted(self):
+        outside = tempfile.TemporaryDirectory()
+        self.addCleanup(outside.cleanup)
+        tree(outside.name, ["Payroll/p.txt", "q.txt", "r.txt"])
+        tree(self.root, ["Contract/a.txt"])
+        os.symlink(outside.name, os.path.join(self.root, "Contract", "out"))
+        os.symlink(os.path.join(outside.name, "Payroll"), os.path.join(self.root, "Payroll"))
+        os.symlink(outside.name, os.path.join(self.root, "Elsewhere"))
+        res = sn.scan(self.root)
+        self.assertEqual([(r["name"], r["readable_files"]) for r in res], [("Contract", 1)])
+
+    def test_junction_and_reparse_point_count_as_links(self):
+        class E:
+            def __init__(self, junction, attrs):
+                self._j, self._a = junction, attrs
+            def is_symlink(self):
+                return False
+            def is_junction(self):
+                return self._j
+            def stat(self, follow_symlinks=True):
+                return mock.Mock(st_file_attributes=self._a)
+        self.assertTrue(sn._is_link(E(True, 0)))
+        self.assertFalse(sn._is_link(E(False, 0x400)))  # not on this platform: attributes are read on Windows only
+        with mock.patch.object(sn.sys, "platform", "win32"):
+            self.assertTrue(sn._is_link(E(False, 0x400 | 0x10)))
+            self.assertFalse(sn._is_link(E(False, 0x10)))
+        self.assertFalse(sn._is_link(E(False, 0)))
+
     def test_missing_folder_is_empty(self):
         self.assertEqual(sn.scan(os.path.join(self.root, "nope")), [])
 
@@ -188,6 +287,21 @@ class Scan(unittest.TestCase):
 class Words(unittest.TestCase):  # test 6
     def test_words_pinned(self):
         self.assertEqual(sn.WORDS, EXPECTED)
+        self.assertEqual(len(sn.WORDS), 20)
+
+    def test_final_words_are_the_approved_ones_plus_plurals(self):
+        self.assertEqual(len(APPROVED), 17)
+        self.assertEqual(sorted(APPROVED + PLURALS_ADDED), sorted(EXPECTED))
+
+    def test_sow_nda_purchase_order_plurals_match(self):
+        for name, word in (("NDAs", "ndas"), ("SOWs 2026", "sows"), ("Purchase Orders", "purchase orders"),
+                           ("NDA", "nda"), ("SOW", "sow"), ("purchase order 4", "purchase order")):
+            self.assertEqual(sn.words_in(name), [word], name)
+
+    def test_readable_types_come_from_the_ask_reader(self):
+        from clark import ask_passages
+        self.assertEqual(sn.READABLE_TYPES, EXPECTED_READABLE)
+        self.assertEqual(sn.READABLE_TYPES, ask_passages.TEXT_TYPES + ask_passages.WORD_TYPES + ask_passages.PDF_TYPES)
 
     def test_words_live_in_one_module(self):
         src = Path(SRC, "clark")
@@ -196,6 +310,8 @@ class Words(unittest.TestCase):  # test 6
                 continue
             text = p.read_text(encoding="utf-8")
             self.assertNotIn('"disciplinary", "grievance"', text, p.name)
+            self.assertNotIn('"redundancy"', text, p.name)
+            self.assertNotIn('"payroll", "passport"', text, p.name)
             self.assertNotIn("sensitive_names.WORDS =", text, p.name)
 
     def test_words_are_lower_ascii(self):
@@ -239,6 +355,20 @@ class MutationSurvivors(unittest.TestCase):
     def test_rows_come_in_name_order_capitals_first(self):
         tree(self.root, ["salary/a.txt", "Payroll/a.txt", "Contract/a.txt", "cv/a.txt"])
         self.assertEqual([r["name"] for r in sn.scan(self.root)], ["Contract", "Payroll", "cv", "salary"])
+
+    def test_order_does_not_depend_on_the_disk_order(self):
+        tree(self.root, ["Payroll/a.txt", "Contract/a.txt", "Passport/a.txt"])
+        real = os.scandir
+        class Rev:
+            def __init__(self, p):
+                self.it = real(p)
+            def __enter__(self):
+                return sorted(self.it.__enter__(), key=lambda e: e.name, reverse=True)
+            def __exit__(self, *a):
+                return self.it.__exit__(*a)
+        with mock.patch.object(os, "scandir", Rev):
+            names = [r["name"] for r in sn.scan(self.root)]
+        self.assertEqual(names, ["Contract", "Passport", "Payroll"])
 
 
 if __name__ == "__main__":
