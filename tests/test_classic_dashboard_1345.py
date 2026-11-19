@@ -108,7 +108,6 @@ LINES = [
     '@media screen and (min-width: 1000px) {',
     '  html:has(.cnt-grid) main { max-width: none; margin: 0; padding-left: 66px; padding-right: max(var(--space-5), calc(50vw - 616px)); }',
     '  html:has(.cnt-grid) #report.frame.report { padding-left: 0; padding-right: 0; }',
-    '  html:has(.cnt-grid) .cnt-grid { column-gap: 28px; }',
     '  html[data-density] #report.frame .cnt-grid > .secs { margin-right: 0; }',
     '}',
     'html:not([data-density="comfortable"]) .rbar + #report { --sec-pad-t: 20px; --size-sec: var(--size-h3); }',

@@ -187,7 +187,7 @@ class Classic(Base):
             p = self.at(cdp, 1400)
             probe = "(function(v){var t=document.createElement('i'); t.style.display='block'; t.style.width='var('+v+')'; document.body.appendChild(t); var w=t.getBoundingClientRect().width; t.remove(); return w;})"
             gap = p.js("document.querySelector('.secs').getBoundingClientRect().left - document.querySelector('.cnt').getBoundingClientRect().right")
-            self.assertEqual(round(gap), 28)      # row 1345: the prototype's 28 px (was the --space-5 token, 24)
+            self.assertEqual(round(gap), 28)      # M16 (row 1318 by-eye: 28, was --space-5 = 24)
             self.assertGreater(gap, 0)
             p.js("window.scrollTo(0, 400)")
             p.until("window.scrollY === 400", "scrolled")
@@ -206,6 +206,20 @@ class Classic(Base):
             self.assertGreater(int(w[0]), int(w[1]))      # M19
             got = p.js("(function(){var a=document.querySelectorAll('.cnt li a')[1], s=getComputedStyle(a); return [s.whiteSpace, s.textOverflow, s.overflow, a.scrollHeight <= a.clientHeight, a.scrollWidth > a.clientWidth, Math.round(a.getBoundingClientRect().height)];})()")
             self.assertEqual(got, ["nowrap", "ellipsis", "hidden", True, True, 28])      # M20
+
+    def test_by_eye_gaps_a_1px_rule_down_the_list_12px_link_padding_heading_weight_500_and_the_28px_gap(self):
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            got = p.js("(function(){var u=document.querySelector('.cnt ul'), us=getComputedStyle(u), a=document.querySelector('.cnt li a:not(.on)'), as=getComputedStyle(a), h=getComputedStyle(document.querySelector('.cnt-h')), g=getComputedStyle(document.querySelector('.cnt-grid'));"
+                       "return [us.borderLeftWidth, us.borderLeftStyle, us.borderLeftColor, as.paddingLeft, as.paddingRight, h.fontWeight, g.columnGap, u.getBoundingClientRect().height > 0];})()")
+            border = p.js("(function(){var t=document.createElement('i'); t.style.color='var(--border)'; document.body.appendChild(t); var c=getComputedStyle(t).color; t.remove(); return c;})()")
+            self.assertEqual(got, ["1px", "solid", border, "12px", "12px", "500", "28px", True])
+
+    def test_the_mark_of_the_current_entry_sits_over_the_rule_not_beside_it(self):
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            left = p.js("Math.round(document.querySelector('.cnt li a.on').getBoundingClientRect().left - document.querySelector('.cnt ul').getBoundingClientRect().left)")
+            self.assertEqual(left, 0)      # the 2px mark covers the 1px rule: it starts at the list's outer edge, where the rule is
 
     def test_at_900_there_is_no_column_no_rail_and_no_on_this_page_button(self):
         with chrome() as cdp:

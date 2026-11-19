@@ -65,7 +65,9 @@ def lines(cdp, sid):
 
 
 # row 1280: the Settings menu headings are small capitals made by text-transform, so the page's copy of the text gives capitals; the source text stays as written.
-GROUP_NAMES = ("Everyday", "Publishing", "Look and feel", "Data and safety", "Advanced")
+FOUR_GROUPS = '["You", [[' in (PAGE_SRC / "components" / "Views.jsx").read_text(encoding="utf-8")      # row 1299 1a: the Settings menu is in four groups when Views.jsx has them
+GROUP_NAMES = ("You", "All projects", "Project settings", "Help and about") if FOUR_GROUPS else ("Everyday", "Publishing", "Look and feel", "Data and safety", "Advanced")
+ASK_PAGE = "ask clark" if FOUR_GROUPS else "Claude and AI"
 
 
 def group_names_as_written(got):
@@ -212,8 +214,9 @@ class Words(unittest.TestCase):
                     "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
                     "Search settings",      # row 1115 S2: the box under the help line
                     "Skip to settings"]     # item 1170: the skip link, wording ruled in NEW-WORDS.md
-            menu = ["Everyday", "Projects", "People", "Profile", "Publishing", "Folder", "Brand", "Theme", "Look and feel", "Appearance", "Reports", "Data and safety", "Backups", "Export and import",
-                    "Advanced", "These are for setting up Claude, and for when something goes wrong. Most people never need them.", "Claude and AI", "Logs and diagnostics", "Version and updates"]
+            menu = (["You", "Profile", "Appearance", "Theme", "All projects", "Projects", "Backups", "Project settings", "Reports", "Folder", "Brand", "People", "ask clark", "Export and import", "Help and about", "Version and updates", "Logs and diagnostics"] if FOUR_GROUPS else
+                    ["Everyday", "Projects", "People", "Profile", "Publishing", "Folder", "Brand", "Theme", "Look and feel", "Appearance", "Reports", "Data and safety", "Backups", "Export and import",
+                     "Advanced", "These are for setting up Claude, and for when something goes wrong. Most people never need them.", "Claude and AI", "Logs and diagnostics", "Version and updates"])
             pages = [
                 ('profile', 'Profile', [
                     "Essentials", "Your name", "Appearance", "System", "Light", "Dark", "Spacing", "Compact", "Comfortable", "Motion", "Single-key shortcuts", "Backups", "Publishing folder",      # row 1115 S3: the first card
@@ -279,7 +282,7 @@ class Words(unittest.TestCase):
                     "Export workbook", "Import workbook", "Excel file layout", "Export to Word…", "Import from Word…",        # #444: Export and Import; row 831: the two Word buttons (the prototype's own words)
                     "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",      # item 454: the prototype's one sentence (the owner approved the words)
                 ]),
-                ('claude', 'Claude and AI', [
+                ('claude', ASK_PAGE, [
                     "Settings for", "All projects", "ABC",      # row 1294: the two tabs; the project's own opens first
                     "Asking",             # #47: the switch and its folders, below the client folder
                     "Claude is started on this computer for you.",
