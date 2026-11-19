@@ -312,6 +312,12 @@ export function openProjectAt(code, next) {
   loadProject({ view: next, project: code, item: "", ms: "", f: "" });
 }
 
+// Settings on one page for one project (Settings > Projects overview, row 1299 slice 2): one new entry; another project than the open one is loaded first.
+export function openSettingsOf(code, page) {
+  if (!route.isProject(code)) return;
+  loadProject({ view: "settings", project: code, item: "", ms: "", f: "", s: page || "" });
+}
+
 // The published file's data block: null when the page is the editor's, "bad" when the block is there but is not ours.
 function published() {
   const el = document.getElementById("clark-data");

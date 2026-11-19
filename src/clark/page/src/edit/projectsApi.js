@@ -25,4 +25,10 @@ export async function readProject(code) {
   return b && b.data && typeof b.data === "object" ? b.data : null;
 }
 
+// Settings > Projects overview (row 1299 slice 2): GET /api/projects-overview, the reply ({asking, last_backup, projects}), or null.
+export async function overviewRead() {
+  const b = await get("/api/projects-overview");
+  return b && Array.isArray(b.projects) ? b : null;
+}
+
 export { sendProjectArchive };
