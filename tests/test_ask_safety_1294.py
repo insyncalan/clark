@@ -3,10 +3,14 @@
 Run: python3 dev/run_tests.py test_ask_safety_1294
 Each of the four statements is pinned to the code behind it; the words are read from the page source."""
 import re
+import time
 import unittest
 
 from _paths import SRC
+from _publish import PublishedFile
+import test_glance_page as glance
 from test_ask_apply import Base
+from test_server import chrome
 
 from clark import ask, ask_files, changes
 
@@ -23,7 +27,7 @@ class Words(unittest.TestCase):
         block = JSX[JSX.index("export const SAFETY"):JSX.index("const ALL_FOLDERS_COUNT")]
         titles = re.findall(r'^  \["([^"]+)"', block, re.M)
         self.assertEqual(titles, ["Every change needs your approval",
-                                  "A change taken from one of your own files or passages needs an extra tick",
+                                  "A change taken from a file or passage needs an extra tick",
                                   "ask clark is never on a published report",
                                   "Passwords and keys are never sent"])
         self.assertIn("<Safety />", JSX[JSX.index("function AllProjects"):JSX.index("function AllFolders")])
@@ -102,11 +106,22 @@ class ExtraTick(Base):
         self.assertIn("(confirm && !ticked)", jsx)
 
 
-class Published(unittest.TestCase):
-    def test_a_published_file_has_no_ask_button_and_asks_no_server(self):
-        self.assertIn("a published file has none", page("components", "App.jsx"))
-        self.assertIn("tools.AskButton && !fromFile.value", page("components", "TopBar.jsx"))
-        self.assertIn("it never edits and never asks a server", page("stores", "report.js"))
+class Published(PublishedFile, glance.Setup):
+    def test_a_published_file_has_no_ask_button_no_panel_and_the_slash_opens_nothing(self):
+        path = self.publish()
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.draw(cdp, path, width)
+                p.key("/", code="Slash", vk=191)
+                time.sleep(0.5)
+                got = p.js("""({btn: !!document.querySelector('#ask-btn, .tb-ask'), panel: !!document.querySelector('#ask-panel'),
+                                label: [...document.querySelectorAll('button,a')].some(e => /ask clark/i.test(e.getAttribute('aria-label') || e.textContent))})""")
+                self.assertEqual(got, {"btn": False, "panel": False, "label": False})
+
+    def test_the_card_has_no_bullets_like_the_folders_list_in_classic(self):
+        css = (SRC / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+        self.assertIn(".ask-safety { margin: var(--space-2) 0 0; padding: 0; list-style: none; }", css)
+        self.assertLess(css.index(".ask-safety {"), css.index("/* Row 1314"))
 
 
 class Secrets(unittest.TestCase):

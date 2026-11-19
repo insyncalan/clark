@@ -23,9 +23,9 @@ export function showAskTab(t) { askTab.value = t === ALL ? ALL : PROJECT; }
 const MAX_FOLDERS = 20;
 // Changes and safety (row 1294, area 5): four statements about the code, not switches. Each is pinned by tests/test_ask_safety_1294.py.
 export const SAFETY = [
-  ["Every change needs your approval", "ask clark only suggests; a panel shows the change and you press Apply. A change can be taken back with Undo, except a decision marked Made, which a new decision replaces."],
-  ["A change taken from one of your own files or passages needs an extra tick", "You confirm \u201cI have checked this change and want to save it\u201d first."],
-  ["ask clark is never on a published report", "A published file has no ask clark button or panel, and it asks nothing."],
+  ["Every change needs your approval", "ask clark only suggests; a panel shows the change and you press Apply. Every change has an Undo, except a decision marked Made, which a new decision replaces."],
+  ["A change taken from a file or passage needs an extra tick", "You confirm \u201cI have checked this change and want to save it\u201d first."],
+  ["ask clark is never on a published report", "The published report has none."],
   ["Passwords and keys are never sent", "A question or a file that looks like one is stopped, and you are told."],
 ];
 const SAFETY_NOTE = "These are not switches.";
