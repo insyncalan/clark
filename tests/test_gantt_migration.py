@@ -185,7 +185,7 @@ class Migrating(unittest.TestCase):
         path = make_v1(self.dir)
         open_store(path, onedrive_roots=[]).close()
         self.assertEqual(version(path), NOW)
-        self.assertEqual([c[1] for c in project_columns(path)][-8:-2], list(NEW_COLUMNS))
+        self.assertEqual([c[1] for c in project_columns(path)][-9:-3], list(NEW_COLUMNS))
         self.assertEqual([c[1] for c in project_columns(path)][-3], "brand")      # #944: the brand column comes after the Gantt ones; row 1294 (step 31) adds ask_instructions after it, step 33 ask_files_off
 
     def test_a_brought_up_file_and_a_new_file_have_the_same_columns_in_the_same_order(self):
