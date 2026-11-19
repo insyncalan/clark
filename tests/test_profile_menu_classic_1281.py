@@ -61,7 +61,7 @@ class Classic(Base):
             self.assertEqual(p.js("document.querySelectorAll('#profile-menu [data-kind=word-export]').length"), 0)
             self.assertEqual(self.menu(p), [WHO] + ITEMS[:5] + ITEMS[5:])
         src = ROOT / "src" / "clark" / "page" / "src" / "edit" / "Data.jsx"
-        self.assertIn("Export to Word", src.read_text(encoding="utf-8"), "Settings > Data still has it")
+        self.assertIn("data-word-export", src.read_text(encoding="utf-8"), "Settings > Data still has its Export to Word button")
 
     # The pill
     def test_C_the_pill_is_one_line_group_of_three_radios_with_the_mockup_values(self):
@@ -78,8 +78,8 @@ class Classic(Base):
                 got = p.js("(function(){var q=function(s){return getComputedStyle(document.querySelector('#profile-menu '+s))};"
                            "var w=[...document.querySelectorAll('#profile-menu .pr')].map(function(e){return Math.round(e.getBoundingClientRect().width)});"
                            "return {lab:q('.ap .lab').fontSize,r:q('.ptrack').borderRadius,pad:q('.ptrack').padding,gap:q('.ptrack').columnGap,cell:q('.pr').padding,fs:q('.pr').fontSize,"
-                           "rad:q('.pr').borderRadius,on:q('.pr[aria-checked=true]').fontWeight,eq:Math.max.apply(null,w)-Math.min.apply(null,w)<=1}})()")
-                self.assertEqual(got, {"lab": "13px", "r": "999px", "pad": "3px", "gap": "2px", "cell": "6px 4px", "fs": "14px", "rad": "999px", "on": "600", "eq": True})
+                           "rad:q('.pr').borderRadius,on:q('.pr[aria-checked=true]').fontWeight,eq:Math.max.apply(null,w)-Math.min.apply(null,w)<=1?1:w.join()}})()")
+                self.assertEqual(got, {"lab": "13px", "r": "999px", "pad": "3px", "gap": "2px", "cell": "6px 4px", "fs": "14px", "rad": "999px", "on": "600", "eq": 1})
 
     def test_C_the_chosen_cell_is_a_raised_surface_pill_with_accent_text_in_light_and_dark(self):
         for w in WIDTHS:
