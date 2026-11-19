@@ -16,6 +16,7 @@ Nothing else of a project reaches the Cover; every line is built from the fields
 
 The sentences are constants so that changing one is one edit: CAUTION, RETURN_WITH, RETURN_ANYONE, WHERE_TO_EDIT, IDS, LOCKED_CELLS.
 """
+from clark import excel_gallery
 from clark import sanitise
 from clark import timefmt
 
@@ -172,6 +173,8 @@ def lines(project, sections, tiles, exported, by=None, owner=None, email=None, i
             part = [_tile(t) for t in tiles or [] if not t.get("hidden")]
             if part:
                 out += [_line("heading", cut(sec.get("title") or "At a glance", 200)), _line("tiles", "", tiles=part)]
+        elif kind == "gallery":
+            out += [dict(x, text=cut(x["text"], 200 if x["kind"] == "heading" else LIMIT)) for x in excel_gallery.gallery_block(sec)]
         elif kind == "text":
             body = plain(sec.get("body"))
             nxt = shown[i + 1] if i + 1 < len(shown) else {}
