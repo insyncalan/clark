@@ -17,7 +17,7 @@ export const HINT = "Write the headline the report opens with. Until then this s
 // Words from the approved mock-up (mockups/1261-headline-template/headline-approved.html): the row label, its hidden form, the warning.
 export const EYE_WORDS = { hide: "Hide project health from the Report headline", show: "Show project health in the Report headline",
   label: "Show project health here", labelHidden: "Show project health here (hidden)",
-  warnLead: "Health is also on in At a glance.", warn: " It would show twice on this page. Turn it off here or hide the Project health tile in At a glance." };
+  warnLead: "Health is also on in At a glance.", warn: " It would show twice on this page. Turn it off here." };
 const ITEMS = [["on_track", "On track", "g"], ["at_risk", "At risk", "a"], ["off_track", "Off track", "r"]];
 
 // A multi-line box. `value` is what is saved; `onCommit(text)` is told the new words only when they differ.

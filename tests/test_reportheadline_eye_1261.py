@@ -190,7 +190,7 @@ class Eye(Base):
     def warn(self, p, ref):
         return p.js(f"""(function(){{ var e = document.querySelector('[data-id="{ref}"] [data-rh-warn]'); return e ? e.textContent : null; }})()""")
 
-    WARNING = "Health is also on in At a glance. It would show twice on this page. Turn it off here or hide the Project health tile in At a glance."
+    WARNING = "Health is also on in At a glance. It would show twice on this page. Turn it off here."
 
     def test_no_other_health_no_warning(self):
         self.hide_glance()
