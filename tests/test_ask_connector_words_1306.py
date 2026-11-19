@@ -12,6 +12,7 @@ from _paths import SRC
 SENTENCE = "Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings."
 OLD = re.compile(r"never (?:reads? )?(?:your )?mail, Teams or calendars|Mail, Teams and calendars are never", re.I)
 PAGE = SRC / "clark" / "page" / "src"
+DOCS = SRC.parent / "docs"
 
 
 def strings(node):
@@ -40,6 +41,15 @@ class Words(unittest.TestCase):
     def test_no_other_source_file_has_the_old_words(self):
         bad = [str(p) for p in PAGE.rglob("*") if p.suffix in (".js", ".jsx", ".json") and "shown" not in p.parts
                and OLD.search(p.read_text(encoding="utf-8", errors="replace"))]
+        self.assertEqual(bad, [])
+
+    def test_the_settings_connector_note_says_the_decided_sentence(self):
+        text = (PAGE / "edit" / "ConnectorSettings.jsx").read_text(encoding="utf-8")
+        self.assertIn(SENTENCE, text)
+
+    def test_the_design_docs_do_not_say_mail_teams_and_calendars_are_out_of_scope(self):
+        bad = [f for f in ("BRD.md", "PROJECT-BRIEF.md", "ARCHITECTURE.md")
+               if re.search(r"(?:Reading|Left out on purpose:) mail, Teams, calendars", (DOCS / f).read_text(encoding="utf-8"), re.I)]
         self.assertEqual(bad, [])
 
 

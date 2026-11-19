@@ -15,7 +15,7 @@ from test_server import Running, chrome, wait
 
 from clark import page
 
-ALL_NOTE = ("Only connectors that are set up on this computer are listed, and the list is the same for every project. Off means clark never asks it anything. "
+ALL_NOTE = ("Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings. Only connectors that are set up on this computer are listed, and the list is the same for every project. Off means clark never asks it anything. "
             "On lets ask clark read from it, read only, when your question needs it; each one it used is listed under the answer. A project can turn a connector off for itself in its own tab.")
 WIDTHS = (1400, 900)
 FAKE = """
