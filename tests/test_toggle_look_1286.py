@@ -54,11 +54,13 @@ class ToggleLook(BrowserBase, unittest.TestCase):
             self.scheme(cdp, sid, scheme)
             got["switch"] = cdp.js(f"({LOOK})('.msv-b[aria-current=true]')", sid)
             # the chosen half is set in the medium weight of the type scale (the Calendar scale's own semibold is not part of the shared look)
+            got["switch_bg"] = cdp.js("getComputedStyle(document.querySelector('.msv-b[aria-current=true]')).backgroundColor", sid)
             got["switch_weight"] = cdp.js("[getComputedStyle(document.querySelector('.msv-b[aria-current=true]')).fontWeight, "
                                           "getComputedStyle(document.documentElement).getPropertyValue('--weight-medium').trim()]", sid)
             cdp.js("document.querySelector('[data-msvb=cal]').click()", sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.cal-sc')", sid)))
             got["calendar"] = cdp.js(f"({LOOK})('.cal-sc button[aria-current=true]')", sid)
+            got["calendar_bg"] = cdp.js("getComputedStyle(document.querySelector('.cal-sc button[aria-current=true]')).backgroundColor", sid)
             cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{port}/#gantt&p=MOSS")}, sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#gantt-page')", sid)), "the Gantt page drew")
             cdp.js("document.querySelector('[data-gp-mode=edit]').click()", sid)
@@ -87,6 +89,8 @@ class ToggleLook(BrowserBase, unittest.TestCase):
                 if theme == "cards":          # Classic's switch is the Row 1313 heading fill, pinned by test_theme_dashboard_1313
                     with self.subTest(pair="switch"):
                         self.assertEqual(got["switch"], got["calendar"], "Timeline/Calendar switch against the Calendar scale")
+                    with self.subTest(pair="switch colour under the gradient"):
+                        self.assertEqual(got["switch_bg"], got["calendar_bg"], "Timeline/Calendar switch keeps the Calendar scale's fill colour under its gradient")
                 with self.subTest(pair="gantt"):
                     self.assertEqual(got["gantt"], got["calendar"], "Gantt scale against the Calendar scale")
                 if theme == "classic":
