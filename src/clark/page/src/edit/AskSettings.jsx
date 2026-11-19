@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { project } from "../stores/report.js";
 import { askOn, askStatus, askSaved, askProvider, loadAsk, setAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
-import { named, ASK_NOTICE_LINE } from "./askWords.js";
+import { named, ASK_NOTICE_LINE, PEOPLE_CONTRACT_HEAD, PEOPLE_CONTRACT_SAVED, PEOPLE_CONTRACT_BODY, PEOPLE_CONTRACT_CHOOSE, PEOPLE_CONTRACT_KEEP } from "./askWords.js";
 import { ConnectorsAll, ConnectorsProject } from "./ConnectorSettings.jsx";
 import { AiSettings } from "./AiSettings.jsx";
 import { AllInstructions, OwnInstructions } from "./AskInstructions.jsx";
@@ -20,6 +20,7 @@ const USED_FROM_ALL = "Connections and the model are yours, not this project's. 
 export const askTab = signal(PROJECT);
 export function showAskTab(t) { askTab.value = t === ALL ? ALL : PROJECT; }
 const MAX_FOLDERS = 20;
+const WARN_BOX = { marginTop: "var(--space-3)", padding: "var(--space-3)", border: "1px solid var(--border)", borderRadius: "var(--radius)", background: "var(--surface)" };   // row 1365: tokens only
 const ALL_FOLDERS_COUNT = "Counts towards each project's 20.";
 const ALL_FOLDERS_NONE = "No folders are set for all projects.";
 const NOT_READY = "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.";
@@ -60,6 +61,8 @@ function AskProject() {
   const [typed, setTyped] = useState("");
   const [msg, setMsg] = useState(null);                  // {kind: "error" | "note", text}: the switch's
   const [fmsg, setFmsg] = useState(null);                // the same, for the folders
+  const [warns, setWarns] = useState([]);                // row 1365: [{folder, items, fresh}] from the server's name-only scan
+  const [kept, setKept] = useState([]);                  // folders whose notice was answered with Keep it, for this window
 
   const { switchRef, flip } = useAskFlip(on, busy, setBusy, setMsg);
 
@@ -71,6 +74,7 @@ function AskProject() {
       const b = r.body;
       setFolders(r.status === 200 && b && b.ok === true && Array.isArray(b.folders) ? b.folders : "unavailable");
       setShared(r.status === 200 && b && Array.isArray(b.shared) ? b.shared : []);
+      setWarns(r.status === 200 && b && Array.isArray(b.warnings) ? b.warnings : []);
     });
     return () => { live = false; };
   }, [code]);
@@ -105,6 +109,8 @@ function AskProject() {
     else setTimeout(() => { const i = document.getElementById("ask-folder-path"); if (i) i.focus(); }, 0);   // Add folder is disabled while the request runs: the focus goes to the box
     if (r.status === 200 && b && b.ok === true && Array.isArray(b.folders)) {
       setFolders(b.folders);
+      const fresh = Array.isArray(b.warnings) ? b.warnings.map((w) => ({ ...w, fresh: true })) : [];
+      setWarns((old) => [...old.filter((w) => b.folders.includes(w.folder) && !fresh.some((f) => f.folder === w.folder)).map((w) => ({ ...w, fresh: false })), ...fresh]);
       if (b.message) setFmsg({ kind: "note", text: b.message });
       return true;
     }
@@ -158,6 +164,16 @@ function AskProject() {
           ))}
         </ul>
       ) : null}
+      {Array.isArray(folders) ? warns.filter((w) => list.includes(w.folder) && !kept.includes(w.folder)).map((w) => (
+        <div class="ask-warn" style={WARN_BOX} data-ask-warn={w.folder} key={w.folder} role={w.fresh ? "alert" : "region"} aria-label={w.fresh ? undefined : `${PEOPLE_CONTRACT_HEAD} ${w.folder}`}>
+          <p><strong>{PEOPLE_CONTRACT_HEAD}</strong></p>
+          <p>{w.fresh ? null : PEOPLE_CONTRACT_SAVED(w.folder) + " "}{named(PEOPLE_CONTRACT_BODY(w.items.map((i) => i.name), w.items.reduce((n, i) => n + i.readable_files, 0)), askProvider.value)}</p>
+          <div class="row">
+            <button type="button" class="btn" data-ask-warn-choose disabled={busy} onClick={() => change("choose")}>{PEOPLE_CONTRACT_CHOOSE}</button>
+            <button type="button" class="btn quiet" data-ask-warn-keep onClick={() => setKept((k) => [...k, w.folder])}>{PEOPLE_CONTRACT_KEEP}</button>
+          </div>
+        </div>
+      )) : null}
       {Array.isArray(folders) && shared.length + list.length ? <p class="muted" id="ask-folders-count">{shared.length + list.length} of {MAX_FOLDERS}</p> : null}
       {Array.isArray(folders) ? (
         <div class="row">

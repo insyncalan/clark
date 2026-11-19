@@ -312,3 +312,10 @@ export const SLASH_HINT = {
   history: "Earlier chats",
   new: "Start a new chat",
 };
+
+// Row 1365 S2: the warning for a source folder that holds people or contract material. WORDING FOR APPROVAL: drafted by clark, not decided; this is its one place.
+export const PEOPLE_CONTRACT_HEAD = "This folder holds people or contract material.";
+export const PEOPLE_CONTRACT_SAVED = (path) => `Saved folder: ${path}.`;
+export const PEOPLE_CONTRACT_BODY = (names, count) => `This folder holds a folder called ${names.join(" and another called ")}, ${count} files asking can read. When you ask a question, passages from these files that match it are sent to Claude. Choose the folders you want asking to use instead, or keep this one.`;
+export const PEOPLE_CONTRACT_CHOOSE = "Choose other folders";
+export const PEOPLE_CONTRACT_KEEP = "Keep it";
