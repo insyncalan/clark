@@ -257,3 +257,15 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
 .fline.bad, .fline.bad:focus-within { border-bottom-color: var(--status-red); box-shadow: 0 1px 0 var(--status-red); }
+/* Row 1345 block (Classic Dashboard layout vs prototype 2.0), Classic only. Bare values with no token: the 66px left edge of the Contents list, the 28px gap, the 616px half-column of the right margin, the 20px and 22px section paddings, the 1000px break (the Contents column's own, row 1318). Compact spacing and the editor Dashboard only (the report bar sits before its #report, as for row 1152): Comfortable and a published file keep their own paddings and heading size. Not here: the page title and headline block (a content decision, open). */
+@media screen and (min-width: 1000px) {
+  html:has(.cnt-grid) main { max-width: none; margin: 0; padding-left: 66px; padding-right: max(var(--space-5), calc(50vw - 616px)); }
+  html:has(.cnt-grid) #report.frame.report { padding-left: 0; padding-right: 0; }
+  html:has(.cnt-grid) .cnt-grid { column-gap: 28px; }
+  html[data-density] #report.frame .cnt-grid > .secs { margin-right: 0; }
+}
+html:not([data-density="comfortable"]) .rbar + #report { --sec-pad-t: 20px; --size-sec: var(--size-h3); }
+html:not([data-density="comfortable"]) .rbar + #report .secs > .sec:not(.slot-right) { padding-left: 22px; }
+.glance .fig .tw { display: none; }
+.glance .fig .hpill { padding: 0; background: none; font-size: 20px; font-weight: 700; letter-spacing: 0; text-transform: none; }
+.glance .fig .hpill.g { color: var(--status-green-text); } .glance .fig .hpill.a { color: var(--status-amber-text); } .glance .fig .hpill.r { color: var(--status-red-text); } .glance .fig .hpill.n { color: var(--text-muted); }

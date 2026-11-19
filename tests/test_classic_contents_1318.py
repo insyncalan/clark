@@ -187,7 +187,7 @@ class Classic(Base):
             p = self.at(cdp, 1400)
             probe = "(function(v){var t=document.createElement('i'); t.style.display='block'; t.style.width='var('+v+')'; document.body.appendChild(t); var w=t.getBoundingClientRect().width; t.remove(); return w;})"
             gap = p.js("document.querySelector('.secs').getBoundingClientRect().left - document.querySelector('.cnt').getBoundingClientRect().right")
-            self.assertEqual(round(gap), round(p.js(probe + "('--space-5')")))      # M16
+            self.assertEqual(round(gap), 28)      # row 1345: the prototype's 28 px (was the --space-5 token, 24)
             self.assertGreater(gap, 0)
             p.js("window.scrollTo(0, 400)")
             p.until("window.scrollY === 400", "scrolled")
