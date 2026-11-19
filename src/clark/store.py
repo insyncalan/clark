@@ -908,6 +908,25 @@ def _gantt_rules(con, table, row, changed):
         return fresh or bool(set(names) & set(changed))
     if row.get("type") not in ALLOWED[("gantt_lines", "type")]:
         raise Invalid(GANTT_BAD_TYPE)
+    _gantt_text_rules(row, touched)
+    _gantt_value_rules(row, fresh, touched)
+    _gantt_date_rules(row, touched)
+    row_id, project = row.get("id"), row.get("project")
+    here = fetch(con, table, row_id) if row_id else None              # the row as stored now (None for a new row, or one an undo puts back)
+    parent = row.get("parent") or None
+    row["parent"] = parent
+    if touched("parent", "type"):
+        _gantt_parent_rules(con, table, row, here, row_id, project, parent)
+    if touched("depends"):
+        _gantt_depends_rules(con, table, row, here, row_id, project)
+    if fresh:
+        n = con.execute("SELECT count(*) FROM gantt_lines WHERE project = ? AND id IS NOT ?", (project, row_id)).fetchone()[0]
+        if n >= MAX_GANTT_LINES:
+            raise Invalid(GANTT_TOO_MANY)
+
+
+def _gantt_text_rules(row, touched):
+    """The line's texts: the name, the plain texts and the note, checked and tidied."""
     if touched("name"):
         row["name"] = gantt_plain(row.get("name"), GANTT_TEXT_LIMITS["name"], GANTT_NO_NAME)
     for f in ("owner", "workstream", "deliverable"):
@@ -915,6 +934,10 @@ def _gantt_rules(con, table, row, changed):
             row[f] = gantt_plain(row.get(f), GANTT_TEXT_LIMITS[f], GANTT_BAD_TEXT, blank_ok=True)
     if touched("note"):
         row["note"] = gantt_plain(row.get("note"), GANTT_TEXT_LIMITS["note"], GANTT_BAD_TEXT, blank_ok=True, lines=True)
+
+
+def _gantt_value_rules(row, fresh, touched):
+    """The done %, the health and priority words, the effort and budget numbers and the place in the list."""
     if fresh and row.get("pct") is None:
         row["pct"] = 0                                   # a new line starts at 0 % done
     if touched("pct") and (type(row.get("pct")) is not int or not 0 <= row["pct"] <= 100):
@@ -930,6 +953,10 @@ def _gantt_rules(con, table, row, changed):
             _gantt_number(row, f)
     if touched("sort_order") and type(row.get("sort_order")) is not int:
         raise Invalid(GANTT_BAD_PLACE)
+
+
+def _gantt_date_rules(row, touched):
+    """The dates are real days with the end not before the start and a milestone on one day; the baseline end is not before its start."""
     start, end = row.get("start"), row.get("end")
     if touched("start", "end", "type"):
         if not start or not end:
@@ -941,42 +968,41 @@ def _gantt_rules(con, table, row, changed):
     base_start, base_end = row.get("baseline_start"), row.get("baseline_end")
     if touched("baseline_start", "baseline_end") and base_start and base_end and base_end < base_start:
         raise Invalid(GANTT_BAD_BASELINE)
-    row_id, project = row.get("id"), row.get("project")
-    here = fetch(con, table, row_id) if row_id else None              # the row as stored now (None for a new row, or one an undo puts back)
-    parent = row.get("parent") or None
-    row["parent"] = parent
-    if touched("parent", "type"):
-        if parent is not None:
-            if row["type"] == "phase":
-                raise Invalid(GANTT_PHASE_TOP)
-            found = fetch(con, table, parent) if GANTT_ID.fullmatch(str(parent)) else None
-            if found is None or found["project"] != project or parent == row_id:
-                raise Invalid(GANTT_NO_PARENT.format(_gantt_said(parent)))
-            if found["type"] != "phase":
-                raise Invalid(GANTT_PARENT_PHASE)
-        if row["type"] != "phase" and here is not None and here["type"] == "phase" and \
-                con.execute("SELECT 1 FROM gantt_lines WHERE parent = ? LIMIT 1", (row_id,)).fetchone():
-            raise Invalid(GANTT_PHASE_KEEPS)
-    if touched("depends"):
-        wanted = gantt_list(row.get("depends"))
-        had = gantt_list(here["depends"]) if here is not None else []
-        if len(wanted) > MAX_GANTT_DEPENDS:
-            raise Invalid(GANTT_TOO_MANY_DEPENDS)
-        for d in wanted:
-            if d == row_id:
-                raise Invalid(GANTT_SELF_DEPENDS)
-            if d in had:
-                continue
-            found = fetch(con, table, d) if GANTT_ID.fullmatch(d) else None
-            if found is None or found["project"] != project:
-                raise Invalid(GANTT_NO_DEPEND.format(_gantt_said(d)))
-        if row_id and any(_gantt_reaches(_gantt_graph(con, project, row_id, wanted), d, row_id) for d in wanted if d not in had):
-            raise Invalid(GANTT_LOOP)
-        row["depends"] = ",".join(wanted)
-    if fresh:
-        n = con.execute("SELECT count(*) FROM gantt_lines WHERE project = ? AND id IS NOT ?", (project, row_id)).fetchone()[0]
-        if n >= MAX_GANTT_LINES:
-            raise Invalid(GANTT_TOO_MANY)
+
+
+def _gantt_parent_rules(con, table, row, here, row_id, project, parent):
+    """The parent is a phase of this project and the line is not one; a phase with lines under it stays a phase."""
+    if parent is not None:
+        if row["type"] == "phase":
+            raise Invalid(GANTT_PHASE_TOP)
+        found = fetch(con, table, parent) if GANTT_ID.fullmatch(str(parent)) else None
+        if found is None or found["project"] != project or parent == row_id:
+            raise Invalid(GANTT_NO_PARENT.format(_gantt_said(parent)))
+        if found["type"] != "phase":
+            raise Invalid(GANTT_PARENT_PHASE)
+    if row["type"] != "phase" and here is not None and here["type"] == "phase" and \
+            con.execute("SELECT 1 FROM gantt_lines WHERE parent = ? LIMIT 1", (row_id,)).fetchone():
+        raise Invalid(GANTT_PHASE_KEEPS)
+
+
+def _gantt_depends_rules(con, table, row, here, row_id, project):
+    """Depends names other lines of this project, never the line itself, and never goes round in a circle (an id already in the list is
+    not asked about again); the list is stored tidy."""
+    wanted = gantt_list(row.get("depends"))
+    had = gantt_list(here["depends"]) if here is not None else []
+    if len(wanted) > MAX_GANTT_DEPENDS:
+        raise Invalid(GANTT_TOO_MANY_DEPENDS)
+    for d in wanted:
+        if d == row_id:
+            raise Invalid(GANTT_SELF_DEPENDS)
+        if d in had:
+            continue
+        found = fetch(con, table, d) if GANTT_ID.fullmatch(d) else None
+        if found is None or found["project"] != project:
+            raise Invalid(GANTT_NO_DEPEND.format(_gantt_said(d)))
+    if row_id and any(_gantt_reaches(_gantt_graph(con, project, row_id, wanted), d, row_id) for d in wanted if d not in had):
+        raise Invalid(GANTT_LOOP)
+    row["depends"] = ",".join(wanted)
 
 
 def _gantt_detach(con, gone, step):
