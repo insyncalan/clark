@@ -33,8 +33,8 @@ import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-from clark import ask, ask_apply, ask_data, ask_passages, pdf_link, pdf_reader, platform, publish, reach, secret_screen
-from clark.store import Store, connect
+from clark import ask, ask_apply, ask_data, ask_files, ask_folders, ask_passages, pdf_link, pdf_reader, platform, publish, reach, secret_screen
+from clark.store import CONNECTORS, Store, connect
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
 MESSAGES = {
@@ -53,7 +53,7 @@ MESSAGES = {
     "file_unavailable": "That file can't be opened from here.",
     "folders_unreadable": "Your folders couldn't be read just now, so nothing was sent. Try again, or remove a folder in Settings.",
 }
-FIELDS = {"project", "question", "earlier"}
+FIELDS = {"project", "question", "earlier", "files"}
 DRY_FIELDS = {"project", "reply"}
 PDF_START = b"%PDF-"      # #943: what a PDF file begins with
 OPEN_FIELDS = {"project", "file", "page"}
@@ -84,6 +84,15 @@ class AskService:
 
     def fail(self, code, message=None):
         return {"ok": False, "code": code, "message": message or MESSAGES[code]}
+
+    def folders_for(self, store, code):
+        """The folders a question in project `code` may read (row 1294): those for all projects first, then the project's own, at most ask_folders.MAX_FOLDERS."""
+        own = [r["path"] for r in store.read("source_folders", code) if r.get("project", code) == code]
+        out = []
+        for p in [*ask_folders.shared_folders(self.data_dir), *own]:
+            if p not in out:
+                out.append(p)
+        return out[:ask_folders.MAX_FOLDERS]
 
     def reader(self):
         """The store, opened read-only (a write through it fails in SQLite itself)."""
@@ -145,6 +154,10 @@ class AskService:
             ask.check_question(question, earlier)    # the screen comes first: no data is ranked or read for a question that holds a secret
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
+        try:
+            added = ask_files.passages(body.get("files"))      # #1292 S14: the files of this question only, screened like any passage; nothing is kept
+        except ask.AskRefused as e:
+            return 400, self.fail("refused", str(e))
         with self.lock:
             try:
                 store = self.reader()
@@ -157,10 +170,12 @@ class AskService:
                 if row.get("archived"):
                     return 409, self.fail("project_archived")
                 try:
-                    data = ask_data.project_data(store, code, question, PROJECT_SHARE)
+                    data = ask_data.project_data(store, code, " ".join([question, *ask_data.ids_in_turns(earlier)]), PROJECT_SHARE)
                 except publish.PublishError:
                     return 404, self.fail("project_not_found")
-                folders = [r["path"] for r in store.read("source_folders", code) if r.get("project", code) == code]
+                folders = self.folders_for(store, code)
+                on_connectors = tuple(c for c in CONNECTORS if store.connector_allowed(c, code))      # row 1306: switch On and the project has not turned it Off
+                standing = {"all": store.ask_instructions(), "project": store.ask_instructions(code)}      # row 1294: sent with the question, the one for all projects first
             finally:
                 store.close()
         used = sum(len(p.text) for p in data.passages)         # the folders get what the project's own data left of the budget
@@ -170,27 +185,33 @@ class AskService:
         except Exception:                            # noqa: BLE001 a folder that fails in a way not foreseen sends nothing
             return 200, self.fail("folders_unreadable")
         try:
-            request = ask.build_request(question, tuple(data.passages) + tuple(found.passages), earlier)
+            request = ask.build_request(question, tuple(data.passages) + tuple(found.passages) + tuple(added), earlier,
+                                        today=data.today, partial=ask_data.partial_lines(data.counts), instructions=standing)
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         facts = data.facts
         if not self.enabled():                       # the gate again, just before anything leaves: a switch turned off meanwhile wins
             return 409, self.fail("asking_off")
-        reply = ask.ask_provider(self.provider, replace(request, owner=self.owner), codes=(code,), exists=lambda ref: ref in facts,
+        reply = ask.ask_provider(self.provider, replace(request, owner=self.owner, connectors=on_connectors), codes=(code,), exists=lambda ref: ref in facts,
                                  facts=lambda ref: facts.get(ref))
         if isinstance(reply, ask.Failure):
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
-                             left_out_note(data.left_out + found.left_out), kinds_note(data.kinds_left_out), *folder_notes(found)) if n]
-        sent = tuple(data.passages) + tuple(found.passages)      # request.kept maps each passage sent to its place here (some may be left out)
+                             left_out_note(found.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found)) if n]
+        conn = connector_used(getattr(self.provider, "last_line", None))      # row 1306: what the real run did (None: no connector in the run)
+        if conn and conn["line"]:
+            notes.append(conn["line"])
+        sent = tuple(data.passages) + tuple(found.passages) + tuple(added)      # (a file added to the question counts as one the answer read, so a change from it needs the separate Confirm)  # request.kept maps each passage sent to its place here (some may be left out)
         folder_ids = {pid for (pid, _label), i in zip(request.passages, request.kept) if i >= len(data.passages)}
         texts = {pid: sent[i].text for (pid, _label), i in zip(request.passages, request.kept)}
         held = self.hold(code, reply, request, folder_ids, texts) if reply.changes else None
-        return 200, {"ok": True, "answer": reply.answer, "parsed": reply.parsed, "cites": list(reply.cites),
+        return 200, {**({"used": conn} if conn else {}), "ok": True, "answer": reply.answer, "parsed": reply.parsed, "cites": list(reply.cites),
                      "sources": [{"id": pid, "label": label, "page": page_of(sent[i]), "file": file_of(sent[i])}
                                  for (pid, label), i in zip(request.passages, request.kept) if pid in reply.cites],
                      "flags": [{"kind": f.kind, "ref": f.ref, "message": f.message} for f in reply.flags],
-                     "changes": [dict(c) for c in reply.changes], "notes": notes, "reply": held,
+                     "items": [{"id": i["id"], "state": list(i["state"])} for i in reply.items],
+                     "read": ask_data.read_counts(data),
+                     "changes": [dict(c) for c in reply.changes], "notes": notes, "reply": held, "draft": reply.draft,
                      "left_out_for_safety": found.safety}
 
     # ----- POST /api/ask/open-source (#943) -----
@@ -220,7 +241,7 @@ class AskService:
             try:
                 if store.read("projects", ref=code) is None:
                     return 404, self.fail("project_not_found")
-                folders = [r["path"] for r in store.read("source_folders", code) if r.get("project", code) == code]
+                folders = self.folders_for(store, code)
             finally:
                 store.close()
         for folder in folders:
@@ -336,12 +357,13 @@ def left_out_note(count):
     return ("Some of the report was too long to send in full, so only the parts closest to your question were used.")
 
 
-def kinds_note(kinds):
-    """Row 1213: the plain line for the kinds the report leaves out, so a missing answer is not read as none exist."""
-    if not kinds:
-        return ""
-    names = ", ".join(ask_data.KIND_WORDS[k] for k in kinds)
-    return f"The report leaves out {names}, so they were not part of what was read and the answer may be missing something."
+def connector_used(line):
+    """Row 1306: the answer's `used` data from the UsedLine of a run that had a connector in it: the line, what was used and not used,
+    and the parts read with the provenance flag. No connector content. None when no connector was in the run."""
+    if line is None:
+        return None
+    return {"line": line.text, "used": list(line.used), "not_used": list(line.not_used),
+            "sources": [{"part": part, "from_connector": True} for part in line.used]}
 
 
 def folder_notes(found):

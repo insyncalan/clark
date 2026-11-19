@@ -692,7 +692,11 @@ def section_workitems(published, ctx, title, sec):
                      "due": word_cell(when + (" " + _late_words(r.get("needed_by"), ctx) if late and when and pending else ""), ctx, late=late), "status": word_cell(r.get("status"), ctx, colour=colours_table.colour_for("decisions", "status", r.get("status")))}
         else:
             kind = "action" if t == "actions" else str(r.get("type") or "").lower()
-            cells = {"type": word_cell(kind.capitalize(), ctx), "id": word_cell(i, ctx), "item": (text_paras(_words(r, "client_message", "description"), ctx), None),
+            body = text_paras(_words(r, "client_message", "description"), ctx)
+            words = sanitise.rich_plain_text(r.get("latest_update")) if t == "actions" else ""
+            if words:
+                body += text_paras(f"Latest update: {words}", ctx, color=ctx.tok["grey-700"])      # row 1307: an action's update line under its text, as in the Actions section
+            cells = {"type": word_cell(kind.capitalize(), ctx), "id": word_cell(i, ctx), "item": (body, None),
                      "owner": word_cell(r.get("owner"), ctx), "workstream": word_cell(r.get("workstream"), ctx), "milestone": word_cell(names.get(r.get("milestone")), ctx),
                      "priority": word_cell(r.get("priority"), ctx, colour=colours_table.colour_for(t, "priority", r.get("priority"))),
                      "due": _list_due(r.get("due_date"), colours_table.is_late(t, "due_date", r, ctx.today), ctx), "status": _status_cell(r, kind, ctx)}
@@ -726,12 +730,9 @@ def section_reportheadline(published, ctx, title, sec):
     return "".join(out)
 
 
-GLANCE_PER_LINE = 4                                       # row 1264: the template's default tiles on a line
-
-
 def section_glancetemplate(published, ctx, title, sec):
     """Row 1264 slice 7: the glance template as the View draws it: the tiles in the body's order (only the kept ones), the health tile
-    in its place or on a row of its own, each as label, figure, tag and note, four to a line. Nothing to show leaves the section out."""
+    in its place or on a row of its own, each as label, figure, tag and note, as many to a line as the View draws (3 or 4, 2 at half width). Nothing to show leaves the section out."""
     got = glance_print.read(published, sec)
     out = [_heading(title)]
     h = got["health_row"]
@@ -759,9 +760,10 @@ def section_glancetemplate(published, ctx, title, sec):
             if t["note"]:
                 body += para(run(t["note"], size=16), "TableText")
             cells.append((body, fill))
-        lines = [cells[i:i + GLANCE_PER_LINE] for i in range(0, len(cells), GLANCE_PER_LINE)]
-        lines = [r + [(para("", "TableText"), None)] * (GLANCE_PER_LINE - len(r)) for r in lines]
-        out.append(table(ctx, None, [1] * GLANCE_PER_LINE, lines))
+        per = got["per_line"]
+        lines = [cells[i:i + per] for i in range(0, len(cells), per)]
+        lines = [r + [(para("", "TableText"), None)] * (per - len(r)) for r in lines]
+        out.append(table(ctx, None, [1] * per, lines))
     return "".join(out) if (h or tiles) else ""
 
 

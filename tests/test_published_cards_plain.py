@@ -32,7 +32,7 @@ FINDINGS = r"""(() => {
     kinds[name] = (kinds[name] || 0) + 1;
     const here = el.tagName.toLowerCase() + "." + name;
     for (const part of [el, ...el.querySelectorAll("*")]) {
-      const stateMark = part.tagName.toLowerCase() === "svg" && (part.classList.contains("ms-i") || part.classList.contains("i"));   // the Milestones section's state marks and the page's small line icons (chevrons): drawn shapes in token colours, not pictures
+      const stateMark = part.tagName.toLowerCase() === "svg" && (part.classList.contains("ms-i") || part.classList.contains("i") || part.classList.contains("wil-half"));   // the Milestones section's state marks and a Work items list's status half-circle (row 1199) and the page's small line icons (chevrons): drawn shapes in token colours, not pictures
       if (!stateMark && /^(img|picture|video|canvas|image|source|object|embed|iframe|svg)$/i.test(part.tagName)) out.push(here + " holds <" + part.tagName.toLowerCase() + ">");
       for (const a of part.attributes) if (bad.test(a.value)) out.push(here + " has " + a.name + " with a picture value");
       for (const pseudo of [null, "::before", "::after", "::marker", "::first-line", "::first-letter"]) {
@@ -84,6 +84,7 @@ def findings_js():
 class Plain(PublishedFile, glance.Setup):
     def every_kind(self):
         """Four glance tiles, a use case (planted by Setup), RAID cards at three and four across and a link preview."""
+        self.demo.plant_builtin_sections()      # a new project's lists are Work items lists; the RAID cards here sit with the built-in sections' (row 1193)
         status, _ = self.real_change({"project": "ABC", "kind": "glance_tiles", "op": "update", "id": "decisions", "changes": {"hidden": 0}})
         self.assertEqual(status, 200)
         with self.store.step("dashboard", USER) as st:

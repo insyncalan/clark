@@ -13,3 +13,470 @@ body { background: var(--page-bg) var(--page-grad) fixed no-repeat; }
 .col-h { background: var(--band-bg); }
 .boardbox { scrollbar-width: none; }
 .boardbox::-webkit-scrollbar { display: none; }
+.fline { border: 0; border-bottom: 1px solid #8994b0; border-radius: 0; background: none; padding: 8px 0; gap: 6px; }
+.fk.k-txt { display: inline-flex; align-items: center; gap: 4px; box-sizing: border-box; min-height: 25px; padding: 0 4px 0 9px; margin: 0 -4px 0 -9px; border-radius: 6px; background: #eef0f6; color: #1d2433; box-shadow: none; }
+.fhi { inset: 0 0 0 -9px; padding-left: 9px; }
+:root[data-theme=dark] .fline { border-bottom-color: var(--grey-500); }
+:root[data-theme=dark] .fk.k-txt { background: var(--grey-100); color: var(--text); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .fline { border-bottom-color: var(--grey-500); } :root[data-theme=auto] .fk.k-txt { background: var(--grey-100); color: var(--text); } }
+.fline-tail { margin-right: 0; }
+.vicons .lsw, .vicons .btn.sm.vgb { border-radius: var(--radius); }
+.vicons .seg.lsw button[aria-pressed="true"] { background-color: var(--grey-100); background-image: none; color: var(--heading); }
+.vicons .lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
+table.items thead th + th, .wil-table thead th + th { border-left: 1px solid var(--grey-200); }
+html[data-mode="view"] .cover { display: none; }
+html[data-mode="view"] .sec { border-left: 2px solid var(--gutter-rule); padding-left: 20px; }
+@media print { html[data-mode="view"] .sec { border-left: 0; padding-left: 0; } }
+/* Row 1195: the Work items section as the approved mock-up draws it, Classic only (Cards keeps today's rules and markup). Table cells, in the page and in Edit. */
+/* Row 1195: the mock-up's measured colours, light; dark keeps the Theme's own tokens. */
+.wil { --wil-th: rgb(85, 103, 122); --wil-pr-bg: rgb(246, 248, 252); --wil-pr-fg: rgb(14, 36, 48); --wil-pr-bd: rgb(217, 224, 239); --wil-prh-bg: rgb(254, 240, 199); --wil-prh-fg: rgb(181, 71, 8); --wil-prh-bd: rgb(242, 217, 138); --wil-pru-bg: rgb(253, 236, 234); --wil-pru-fg: rgb(180, 35, 24); --wil-pru-bd: rgb(244, 199, 194); --wil-ta-bg: rgb(237, 233, 255); --wil-ta-fg: rgb(75, 58, 181); --wil-tr-bg: rgb(253, 236, 234); --wil-tr-fg: rgb(180, 35, 24); --wil-ti-bg: rgb(107, 31, 42); --wil-ti-fg: rgb(255, 255, 255); --wil-td-bg: rgb(231, 246, 236); --wil-td-fg: rgb(6, 118, 71); --wil-th-bg: rgb(238, 240, 244); --wil-th-fg: rgb(152, 162, 179); --wil-add-bd: rgb(152, 162, 179); --wil-add-fg: rgb(91, 71, 216); }
+:root[data-theme=dark] .wil { --wil-th: var(--text-muted); --wil-pr-bg: var(--surface); --wil-pr-fg: var(--text); --wil-pr-bd: var(--grey-500); --wil-prh-bg: var(--tone-amber-tint); --wil-prh-fg: var(--tone-amber-text); --wil-prh-bd: color-mix(in srgb, var(--tone-amber-text) 30%, transparent); --wil-pru-bg: var(--tone-red-tint); --wil-pru-fg: var(--tone-red-text); --wil-pru-bd: color-mix(in srgb, var(--tone-red-text) 30%, transparent); --wil-ta-bg: var(--brand-blue-tint); --wil-ta-fg: var(--status-blue-text); --wil-tr-bg: var(--tone-red-tint); --wil-tr-fg: var(--tone-red-text); --wil-ti-bg: var(--tone-urgent); --wil-ti-fg: var(--tone-on-urgent); --wil-td-bg: var(--tone-green-tint); --wil-td-fg: var(--tone-green-text); --wil-th-bg: var(--tone-grey-tint); --wil-th-fg: var(--tone-grey-text); --wil-add-bd: var(--grey-500); --wil-add-fg: var(--status-blue-text); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .wil { --wil-th: var(--text-muted); --wil-pr-bg: var(--surface); --wil-pr-fg: var(--text); --wil-pr-bd: var(--grey-500); --wil-prh-bg: var(--tone-amber-tint); --wil-prh-fg: var(--tone-amber-text); --wil-prh-bd: color-mix(in srgb, var(--tone-amber-text) 30%, transparent); --wil-pru-bg: var(--tone-red-tint); --wil-pru-fg: var(--tone-red-text); --wil-pru-bd: color-mix(in srgb, var(--tone-red-text) 30%, transparent); --wil-ta-bg: var(--brand-blue-tint); --wil-ta-fg: var(--status-blue-text); --wil-tr-bg: var(--tone-red-tint); --wil-tr-fg: var(--tone-red-text); --wil-ti-bg: var(--tone-urgent); --wil-ti-fg: var(--tone-on-urgent); --wil-td-bg: var(--tone-green-tint); --wil-td-fg: var(--tone-green-text); --wil-th-bg: var(--tone-grey-tint); --wil-th-fg: var(--tone-grey-text); --wil-add-bd: var(--grey-500); --wil-add-fg: var(--status-blue-text); } }
+.wil-table th { font-size: calc(var(--size-caption) - 1.5px); color: var(--wil-th); }
+.wil-table td.wil-c-id, .wil-c-id { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: var(--size-caption); font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; color: var(--status-blue); }
+.wil-pr { border: 1px solid var(--wil-pr-bd); border-radius: 6px; background: var(--wil-pr-bg); color: var(--wil-pr-fg); font-size: calc(var(--size-caption) - 1px); font-weight: var(--weight-medium); }
+.wil-pr.h { border-color: var(--wil-prh-bd); background: var(--wil-prh-bg); color: var(--wil-prh-fg); }
+.wil-pr.u { border-color: var(--wil-pru-bd); background: var(--wil-pru-bg); color: var(--wil-pru-fg); }
+.wil-off .wil-pr { border-color: var(--grey-200); }
+.wil-table tr.wil-k-action:not(.wil-off) .ico, .wil-lines li.wil-k-action:not(.wil-off) .ico { background: var(--wil-ta-bg); color: var(--wil-ta-fg); }
+.wil-table tr.wil-k-risk:not(.wil-off) .ico, .wil-lines li.wil-k-risk:not(.wil-off) .ico { background: var(--wil-tr-bg); color: var(--wil-tr-fg); }
+.wil-table tr.wil-k-issue:not(.wil-off) .ico, .wil-lines li.wil-k-issue:not(.wil-off) .ico { background: var(--wil-ti-bg); color: var(--wil-ti-fg); }
+.wil-table tr.wil-k-decision:not(.wil-off) .ico, .wil-lines li.wil-k-decision:not(.wil-off) .ico { background: var(--wil-td-bg); color: var(--wil-td-fg); }
+.wil-table .wil-c-eye .ib { color: var(--text); }
+.wil-off .wil-c-eye .ib { color: var(--grey-500); }
+@media (max-width: 1100px) { .wil-table .wil-c-owner { width: 150px; } }
+@media (max-width: 1000px) {
+  .wil-table td.wil-c-due { white-space: nowrap; overflow-wrap: normal; }
+  .wil-table .wil-c-due { width: 116px; }
+}
+/* Row 1195: the Edit header order is the gear in the title row, the saved-views tabs, the filter line, then the table (grid order only; the markup is Cards' markup). */
+.wil:has(> .wil-views) { display: grid; grid-template-columns: minmax(0, 1fr); }
+.wil:has(> .wil-views) > * { order: 3; }
+.wil:has(> .wil-views) > .wil-say, .wil:has(> .wil-views) > .wil-form { order: 0; }
+.wil:has(> .wil-views) > .wil-views { order: 1; margin-top: var(--space-3); }
+.wil:has(> .wil-views) > .wil-line { order: 2; margin: 0 0 var(--space-3); }
+.wil-form { display: block; margin: 0; padding: 0; border: 0; background: none; }
+.wil-cw { position: absolute; top: var(--sec-pad-t); right: var(--sec-px); z-index: 6; display: flex; justify-content: flex-end; }
+.wil-gear { border: 0; background: transparent; color: var(--text-muted); }
+.wil-gear:hover, .wil-gear[aria-expanded=true] { background: var(--grey-100); color: var(--text); }
+/* Row 1338: the gear is the mock-up's 32 px, and the title row keeps its right end free for it, so the Changed tag stands left of the gear and never under it. */
+.wil-gear { min-width: var(--space-6); min-height: var(--space-6); }
+.sec:has(.wil-cw) > .sec-head { padding-right: calc(var(--space-6) + var(--space-2) + 2px); }
+.wil-cfg { width: min(calc(var(--space-4) * 19), calc(100vw - var(--space-6))); }
+.wil-cfg h4 { font-family: var(--font-head); font-weight: var(--weight-semibold); color: var(--heading); }
+.wil-cfg .wil-sel > span, .wil-cfg .wil-f legend { font-weight: var(--weight-medium); color: var(--text-muted); }
+.wil-cfg .wil-opts input[type="checkbox"] { width: var(--space-4); height: var(--space-4); margin: 0; accent-color: var(--brand-blue); }
+.wil-cfg .wil-sel select:focus-visible, .wil-cfg .wil-sel input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.wil-cacts button { background-color: var(--pill-color); background-image: var(--pill-bg); color: var(--pill-fg); font-weight: var(--weight-semibold); }
+/* Configure lists the columns in the mock-up's order (Status, Owner, Due, Priority, Workstream, Milestone, ID); Type, which the mock-up does not draw, follows. What is saved and its order are unchanged. */
+.wil-cfg .wil-opts label { order: 8; }
+.wil-cfg .wil-opts label:has(> input[value="status"]) { order: 1; }
+.wil-cfg .wil-opts label:has(> input[value="owner"]) { order: 2; }
+.wil-cfg .wil-opts label:has(> input[value="due"]) { order: 3; }
+.wil-cfg .wil-opts label:has(> input[value="priority"]) { order: 4; }
+.wil-cfg .wil-opts label:has(> input[value="workstream"]) { order: 5; }
+.wil-cfg .wil-opts label:has(> input[value="milestone"]) { order: 6; }
+.wil-cfg .wil-opts label:has(> input[value="id"]) { order: 7; }
+/* The + stays the 34 px dashed square at every width and in every state, and the Add menu draws each kind as the letter tile the rows use. */
+.wil-add .newb { box-sizing: border-box; width: 34px; height: 34px; min-width: 0; padding: 0; justify-content: center; border: 1px dashed var(--wil-add-bd); border-radius: 6px; background: none; color: var(--wil-add-fg); }
+.wil-add .newb:hover, .wil-add .newb:focus-visible, .wil-add .newb[aria-expanded="true"] { background: var(--grey-50); border-color: var(--wil-add-bd); color: var(--wil-add-fg); }
+.wil-add .newb:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.wil-add .newb .w, .wil-add .newb:hover .w, .wil-add .newb:focus-visible .w, .wil-add .newb[aria-expanded="true"] .w, .wil-add .newb .nch { display: none; }
+.wil-add .ddmenu { min-width: calc(var(--space-8) * 2); padding: var(--space-1); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); box-shadow: 0 10px 30px rgba(6, 47, 58, .2); }
+.wil-add .ddmenu [role="menuitem"] { display: flex; align-items: center; gap: var(--space-2); min-height: calc(var(--space-6) + var(--space-3)); padding: 0 var(--space-2); border-radius: var(--radius); font-weight: var(--weight-medium); color: var(--text); }
+.wil-add .ddmenu [role="menuitem"]:hover, .wil-add .ddmenu [role="menuitem"]:focus-visible { background: var(--grey-50); color: var(--text); }
+.wil-add .ddmenu [role="menuitem"]:focus-visible { outline: 0; }
+.wil-add .ddmenu [role="menuitem"] .mi { display: none; }
+.wil-add .ddmenu [role="menuitem"]::before { content: attr(data-kind); display: inline-grid; place-items: center; flex: none; width: var(--space-5); height: var(--space-5); border-radius: 6px; font-size: var(--size-caption); font-weight: var(--weight-semibold); line-height: 1; background: var(--tone-grey-tint); color: var(--tone-grey-text); }
+.wil-add .ddmenu [role="menuitem"][data-kind="action"]::before { content: "A"; background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.wil-add .ddmenu [role="menuitem"][data-kind="risk"]::before { content: "R"; background: var(--tone-red-tint); color: var(--tone-red-text); }
+.wil-add .ddmenu [role="menuitem"][data-kind="issue"]::before { content: "I"; background: var(--tone-urgent); color: var(--tone-on-urgent); }
+.wil-add .ddmenu [role="menuitem"][data-kind="decision"]::before { content: "D"; background: var(--tone-green-tint); color: var(--tone-green-text); }
+/* The saved-views tabs: medium-weight tabs, grey count pills, a violet + New view, and the open tab's caret inside its underline. */
+.wil-views .vtab { font-weight: var(--weight-medium); }
+.wil-views .vtab em { font-weight: var(--weight-regular); color: var(--text-muted); }
+.wil-views .vnew { color: var(--status-blue-text); font-weight: var(--weight-medium); }
+.wil-views .vnew:hover { color: var(--status-blue-text); }
+.wil-views .vtabs { flex-wrap: wrap; overflow: visible; }
+.wil-views .vt { gap: 0; }
+.wil-views .vt:has(> .wil-vopts) .vtab { padding-right: calc(var(--space-5) + var(--space-1)); }
+.wil-views .vt > .wil-vopts { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); }
+/* Row 1195, the mock-up's last changes (Classic only): the View list's scroll bar is hidden, Type is not drawn, an owner name is one line with an ellipsis, and a half-width row is the mock-up's two lines. */
+#report[data-mode="view"] .wil-scroll { scrollbar-width: none; }
+#report[data-mode="view"] .wil-scroll::-webkit-scrollbar { display: none; }
+.wil-table .wil-c-type, .wil-cfg .wil-opts label:has(> input[value="type"]) { display: none; }
+.wil-table .wil-own .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wil-lines li { grid-template-columns: calc(var(--space-5) + var(--space-1)) minmax(0, 1fr) auto; }
+.wil-lines .wil-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wil-lines .wil-hpr { grid-column: 3; grid-row: 1; justify-self: end; align-self: center; }
+.wil-lines .wil-m { grid-column: 2 / span 2; display: flex; flex-wrap: wrap; gap: 2px var(--space-3); }
+.wil-lines .wil-m > span { white-space: nowrap; }
+.wil-cap { font-size: calc(var(--size-caption) - 1.5px); color: rgb(85, 103, 122); }
+:root[data-theme=dark] .wil-cap { color: var(--text-muted); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .wil-cap { color: var(--text-muted); } }
+.wil-table .ico, .wil-lines .ico { width: calc(var(--space-5) + var(--space-1)); height: calc(var(--space-5) + var(--space-1)); border-radius: 7px; }
+.wil-table tr.wil-off .ico, .wil-lines li.wil-off .ico { background: var(--wil-th-bg); color: var(--wil-th-fg); }
+.wil-table .wil-c-owner { width: 170px; }
+.wil-table .wil-c-due { width: 104px; }
+.wil-table .wil-c-priority { width: 84px; }
+.wil-table .wil-c-id { width: 84px; }
+.wil-all-b { color: var(--status-blue); font-weight: var(--weight-medium); min-height: var(--space-6); padding: 6px 0; }
+/* Row 1311 (ruling 19-11): every other visible section, the summary (the Current state block, type current) left out, is a white panel on the page gradient: the class .band is set by logic/banding.js (CSS cannot count only the visible sections), so it follows a section shown or hidden. A pair (This week | Next week) is banded as one row. No radius, no left rule; a line between each visible section and the one above. */
+.secs > .sec.band { --sec-pad-t: 20px; --sec-px: 22px; background: var(--sec-band-bg); border-left: 0; border-radius: 0; padding: 20px 22px 18px; }
+.secs > .sec:not(.is-hidden):not(.drag-slot) ~ .sec:not(.is-hidden):not(.drag-slot) { border-top: 1px solid var(--line-soft); }
+.secs > .sec[data-type="current"] { padding: 0 0 18px; border-left: 0; }
+.secs > .sec.band .wil-cw { right: 22px; }      /* Edit sets --sec-px to 32px on a section, but the band's right padding is the literal 22px, so the gear stays 22px from the edge and the 10px gap to the Changed tag holds */
+@media (min-width: 901px) { html[data-density="comfortable"] .secs > .sec.slot-left.band { box-shadow: var(--space-5) 0 0 0 var(--sec-band-bg); } }
+@media print { .secs > .sec.band, .secs > .sec.slot-left, .secs > .sec.slot-right { background: none; border-radius: 0; box-shadow: none; } .secs > .sec.band, .secs > .sec[data-type="current"] { padding: 0; } }
+.wil-table td { padding-top: 9px; padding-bottom: 9px; }
+.wil-table tbody tr { height: 49px; }
+.wil-table td.wil-c-due { font-size: var(--size-caption); line-height: normal; }
+.wil-table .num { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: var(--size-caption); line-height: normal; }
+.wil-table .due-l { font-size: calc(var(--size-caption) - 1.5px); line-height: normal; }
+/* Row 1319, Classic type and controls (generic; Cards layers none of this). Weight 600 for headings; buttons and segments take the 8px --radius instead of the pill (the three primary buttons keep the pill, see the block below); the chosen segment (not the top bar's Dashboard and Edit switch) is --brand-navy with --white text instead of aqua; crumbs are plain, not tracked capitals. */
+h1, h2, h3 { font-weight: var(--weight-medium); }
+.btn, .seg { border-radius: var(--radius); }
+:root:not([data-motion="reduce"]) .modes.seg.glide::before { border-radius: var(--radius); }
+.seg:not(.modes) button[aria-pressed="true"], .seg:not(.modes) button[aria-checked="true"], .cal-sc button[aria-current="true"] { background-color: var(--brand-navy); background-image: none; color: var(--white); }
+.seg:not(.modes) button[aria-pressed="true"] em, .seg:not(.modes) button[aria-checked="true"] em { color: var(--white); }
+.seg:not(.icons):not(.modes) button[aria-pressed="true"]:focus-visible, .seg:not(.icons):not(.modes) button[aria-checked="true"]:focus-visible, .cal-sc button[aria-current="true"]:focus-visible { outline-color: var(--white); outline-offset: -3px; }
+.crumbs, .ucd-crumb, .ucf-crumb { text-transform: none; letter-spacing: normal; }
+/* Row 1260 G4: Classic shows no sentence under the Milestones title in the Plan view; the Movement hint stays. */
+.wbar:has([data-mspv="plan"][aria-pressed="true"]) [data-mspage-hint] { display: none; }
+/* Row 1318 (Classic only): the left Contents column. Everything below is this row's block; the markup (components/Contents.jsx) is drawn only when this Theme is layered. */
+.cnt-grid { display: block; }
+.cnt { display: none; }
+@media (min-width: 1000px) {
+  .cnt-grid { display: grid; grid-template-columns: 168px minmax(0, 1fr); column-gap: 28px; align-items: start; }
+  html[data-density] #report.frame .cnt-grid > .secs { margin-left: 0; }      /* the comfortable-density pull of 28px to the left would run under the column */
+  .cnt { display: block; position: sticky; top: calc(var(--topbar) + var(--space-4)); max-height: calc(100vh - var(--topbar) - var(--space-6)); overflow-y: auto; }
+}
+.cnt-h { margin: 0 0 var(--space-2); font-size: 13px; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: 500; }
+.cnt ul { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--border); }      /* row 1318: the 1px rule down the list; the 2px mark of the current entry sits over it */
+.cnt li a { all: unset; box-sizing: border-box; display: flex; align-items: center; height: 28px; padding: 0 var(--space-3); margin-left: -1px; width: calc(100% + 1px); border-left: 2px solid transparent; color: var(--text-muted); font-size: var(--size-caption); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cnt li a:hover { color: var(--text); }
+.cnt li a.on { color: var(--heading); font-weight: var(--weight-medium); border-left-color: var(--brand-blue); }
+.cnt li a:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+@media print { .cnt { display: none; } .cnt-grid { display: block; } }
+html.print-all .cnt { display: none; }
+/* Row 1313 block (dashboard style gaps vs prototype 2.0), Classic only. Kept apart from the rules above so it merges cleanly. Bare values with no token, as for row 1260: the 103px height of the narrow bar, the 1px divider width and the 1180px break (the shell's own break for Project health). The sizes are those the issue gives; the prototype files were not available to measure. The title is one line with an ellipsis here by ruling (replaces row 1239 for the dashboard title on screen only; the published file bar, .top-file, keeps row 1239 and wraps). Not here: section heading weight (row 1319), the Milestones frame (row 1315). */
+.glance[data-glance] { gap: 0; }
+.glance[data-glance] .fig { border: 0; border-radius: 0; background: none; }
+.glance[data-glance] .fig::after { display: none; }
+.glance[data-glance] .tcell + .tcell { border-left: 1px solid var(--line-soft); }
+.glance[data-glance] .fig .tw { padding: 0; border: 0; }
+@media (max-width: 1180px) { .glance[data-glance] .tcell.health + .tcell { border-left: 0; } .glance[data-glance] .tcell.health { border-bottom: 1px solid var(--line-soft); } }
+.secs .sec-head::before { font-family: var(--font-head); }
+.msv-sw, .mv-txt { gap: 0; padding: 0; border: 1px solid var(--heading); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+.msv-sw .msv-b, .mv-txt button { border-radius: 0; border-bottom: 0; background: var(--surface); color: var(--text); padding: 0 var(--space-3); }
+.mv-txt > span { display: none; }
+.msv-sw .msv-b + .msv-b, .mv-txt button:not(:first-of-type) { border-left: 1px solid var(--heading); }
+.msv-sw .msv-b[aria-current="true"], .mv-txt button[aria-current="true"] { background: var(--heading); color: var(--surface); }
+html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media screen { #report.frame.report:not(.asat-frame) { background: transparent; border: 0; box-shadow: none; } }
+@media (max-width: 900px) {
+  html:has(.top-hdr) { --topbar: 103px; --bar-min: 103px; }
+  .top-hdr { display: flex; flex-wrap: nowrap; align-items: center; gap: 12px; padding: 10px 20px; height: 103px; }
+  .top-hdr .hdr-id { flex: 1 1 0; }
+  .top-hdr .tabs { flex: 0 1 auto; min-width: 0; margin: 0; padding: 0; border-top: 0; align-self: stretch; }
+}
+/* Row 1312: the section gutter on the four editor pages that have no .sec. Work items, Milestones and Use cases are one .frame each (flat, border 0 and padding 0 from shell.css), Settings is the whole page (.set-layout: head, links and cards, as the prototype draws it); the rule above names .sec, which only the Dashboard has. Same 2px rule, 20px padding, hover blend and print as .sec. The published frames (.pub) and the Dashboard are not named. */
+.frame.work:not(.pub), .frame.milestones:not(.pub), .frame.ucl, .set-layout { border-left: 2px solid var(--gutter-rule); padding-left: 20px; transition: border-color .2s; }
+.frame.work:not(.pub):hover, .frame.work:not(.pub):focus-within, .frame.milestones:not(.pub):hover, .frame.milestones:not(.pub):focus-within, .frame.ucl:hover, .frame.ucl:focus-within, .set-layout:hover, .set-layout:focus-within { border-left-color: color-mix(in srgb, var(--brand-blue) 35%, var(--gutter-rule)); }
+@media print { .frame.work:not(.pub), .frame.milestones:not(.pub), .frame.ucl, .set-layout { border-left: 0; padding-left: 0; } }
+/* Row 1319, primary buttons: .again, .btn.primary and .btn.pri take the 8px --radius (a rectangle, not a pill) and the --brand-navy fill with --white text, as the chosen segment does; in dark the navy is 1.08:1 on the ground so the same 1px inset --grey-500 ring is added (light has none). Hover lifts, press sinks, reduced motion keeps both still; the finished state is green with white text (dark text in dark). */
+.again, .btn.primary, .btn.pri { border: 0; border-radius: var(--radius); padding: 0 22px; min-height: 38px; font-weight: 800; letter-spacing: .04em; background-color: var(--brand-navy); background-image: none; color: var(--white); box-shadow: none; }
+:root:not([data-motion="reduce"]) .again:hover, :root:not([data-motion="reduce"]) .btn.primary:hover, :root:not([data-motion="reduce"]) .btn.pri:hover:not(:disabled) { transform: translateY(-1px); }
+:root:not([data-motion="reduce"]) .again:active, :root:not([data-motion="reduce"]) .btn.primary:active, :root:not([data-motion="reduce"]) .btn.pri:active:not(:disabled) { transform: translateY(1px); }
+:root[data-motion="reduce"] .again, :root[data-motion="reduce"] .btn.primary, :root[data-motion="reduce"] .btn.pri { transition: none; transform: none; }
+.again:focus-visible, .btn.primary:focus-visible, .btn.pri:focus-visible { outline: 2px solid #5B47D8; outline-offset: 2px; }
+.again:disabled, .btn.primary:disabled, .btn.pri:disabled { opacity: .55; }
+.btn.pri.ok { background-color: var(--status-green-text); background-image: none; color: var(--white); }
+.btn.pri .spin { border-color: color-mix(in srgb, var(--white) 30%, transparent); border-top-color: var(--white); }
+.btn.pri .pub-tick { background: var(--white); color: var(--brand-navy); }
+.btn.pri.ok .pub-tick { background: var(--white); color: var(--status-green-text); }
+:root[data-theme=dark] .again:focus-visible, :root[data-theme=dark] .btn.primary:focus-visible, :root[data-theme=dark] .btn.pri:focus-visible { outline-color: var(--focus); }
+:root[data-theme=dark] .btn.pri.ok { color: #04222A; }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .again:focus-visible, :root[data-theme=auto] .btn.primary:focus-visible, :root[data-theme=auto] .btn.pri:focus-visible { outline-color: var(--focus); } :root[data-theme=auto] .btn.pri.ok { color: #04222A; } }
+:root[data-theme=dark] .again, :root[data-theme=dark] .btn.primary, :root[data-theme=dark] .btn.pri { box-shadow: inset 0 0 0 1px var(--grey-500); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .again, :root[data-theme=auto] .btn.primary, :root[data-theme=auto] .btn.pri { box-shadow: inset 0 0 0 1px var(--grey-500); } }
+/* Row 1319, dark edge: the navy chosen segment is 1.08:1 on the dark ground, so in dark (and auto when the system is dark) it takes a 1px inset ring in --grey-500 (3.8:1 or more on every ground); inset, so nothing moves. Light has no ring. */
+:root[data-theme=dark] .seg:not(.modes) button[aria-pressed="true"], :root[data-theme=dark] .seg:not(.modes) button[aria-checked="true"], :root[data-theme=dark] .cal-sc button[aria-current="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .seg:not(.modes) button[aria-pressed="true"], :root[data-theme=auto] .seg:not(.modes) button[aria-checked="true"], :root[data-theme=auto] .cal-sc button[aria-current="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); } }
+/* Row 1260 gap G6, what the At a glance strip still needs beyond the Row 1313 block above (flat cells, divider, no tile box stay there): label over value in the prototype's sizes, the divider's inner space, the status shown in the figure's own colour (no dot), the link underline on hover. */
+.glance { margin-top: var(--space-2); }
+.glance .tcell + .tcell { padding-left: var(--space-4); }
+.glance .fig { padding: 0; box-shadow: none; }
+.glance .fig .ragdot { display: none; }
+.glance .fig .k { font-size: 13px; color: var(--text-muted); }
+.glance .fig .v { font-size: 20px; font-weight: 700; }
+.glance .fig .dd { font-size: 14px; }
+.glance .fig.rag-a .v { color: var(--status-amber-text); } .glance .fig.rag-r .v { color: var(--status-red-text); }
+.glance .fig.go:hover { box-shadow: none; }
+.glance .fig.go:hover .v { text-decoration: underline; }
+@media (max-width: 1180px) { .glance .tcell.health { flex-basis: 100%; } .glance .tcell.health + .tcell { padding-left: 0; } }
+
+/* Row 1316a (issue 1316: Crumb, Tabs and menus, Search; the prototype files are not on this box, so the sizes are by eye, +/-2 px, from the issue table). Classic only; the Cards look layers none of this. Bare lengths with no token: the 560px search width, the 34px left padding that clears the magnifier, the 9px/2px magnifier ring and the 5px handle, the 1px clip box of the visually hidden count. */
+.ucd-crumb, .ucf-crumb { font-weight: var(--weight-regular); font-size: var(--size-caption); text-transform: none; letter-spacing: normal; }
+#usecases #ucl-group .nch, #usecases #ucl-sort .nch, #usecases .vtabmenu .nch { display: none; }
+#usecases #ucl-group, #usecases #ucl-sort { border-color: transparent; background: none; border-radius: var(--radius-sm); color: var(--text-muted); }
+#usecases #ucl-group:hover, #usecases #ucl-sort:hover, #usecases #ucl-group[aria-expanded="true"], #usecases #ucl-sort[aria-expanded="true"] { background: var(--grey-100); color: var(--text); }
+#usecases .vtabmenu::after { content: "\2026"; font-size: var(--size-body); line-height: 1; letter-spacing: .05em; }
+#usecases #ucAddPage.newb { border-color: var(--grey-500); color: var(--text-muted); }
+#usecases #ucAddPage.newb:hover, #usecases #ucAddPage.newb:focus-visible, #usecases #ucAddPage.newb[aria-expanded="true"] { border-color: var(--grey-500); background: var(--surface); color: var(--text-muted); }
+#usecases .fline-row { max-width: 560px; }
+#usecases .fline { padding-left: 34px; }
+#usecases .fline::before { content: ""; position: absolute; left: 12px; top: 50%; width: 9px; height: 9px; margin-top: -8px; border: 2px solid var(--text-muted); border-radius: 50%; box-sizing: content-box; }
+#usecases .fline::after { content: ""; position: absolute; left: 23px; top: 50%; width: 5px; height: 2px; margin-top: 4px; background: var(--text-muted); transform: rotate(45deg); transform-origin: 0 50%; }
+#usecases .fcount { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* Row 1316 (Table and Status cell; sizes by eye, +/-2 px, no prototype file on this box): the use cases list as a framed card with a grey capitals header strip, the commitment as a quiet pill under the status pill (which the base already stacks). */
+#usecases .ucl-box { border: 1px solid var(--line-soft); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
+#usecases .ucl-box .ucl-cols { padding: 10px var(--space-4); background: var(--grey-50); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
+#usecases .ucl-box .ucl-list .ucl-row { padding-left: var(--space-4); padding-right: var(--space-4); }
+#usecases .ucl-box .ucl-st .cchip { padding: 2px 9px; border: 1px solid var(--grey-300); border-radius: var(--radius-pill); background: transparent; color: var(--text-muted); font-size: var(--size-small); font-weight: var(--weight-regular); }
+/* Row 1316c (issue 1316, Classic only): the Use cases Next steps count is plain text, not a round badge (prototype "1 next step"; by eye, the prototype files are not on this box). Rebrand only. */
+#usecases .ucsteps .ucn-b { min-width: 0; min-height: 0; padding: 0; margin-right: 0; border-radius: 0; background: none; color: inherit; font-size: inherit; font-weight: inherit; line-height: inherit; }
+/* Row 1316d (issue 1316, ruling 00:31; Classic only, Cards unchanged): the Use cases filter at rest is a box as in the prototype (pages/usecases.css:47: 34px high, 1px border, radius 6px). The border is --grey-500, the Classic token that equals the prototype --ui in light and in dark. Focus adds no ring and no colour (ruling 1137); a line the filter cannot read keeps its red. Bare lengths: 34px box height, 6px radius. */
+#usecases .fline { min-height: 34px; padding-top: 0; padding-bottom: 0; border: 1px solid var(--grey-500); border-radius: 6px; background: var(--surface); }
+#usecases .fline.bad, #usecases .fline.bad:focus-within { border-color: var(--status-red); box-shadow: none; }
+
+/* Row 1324-A (Option A, ruling 18-11; Classic only, Cards keeps its bordered group cards): Group by draws a heading on the page, no card: the name, the count, one hairline under it; the column names once on top (the published list draws them only in this Theme, see UseCasesTab.jsx); 18 px above each group. The name column is 64 px, the rows' own width. */
+.wgroup.ucl-group, .wgroup.ucp-group { background: none; border: 0; border-radius: 0; overflow: visible; margin: 18px 0 0; }
+.ucp-cols + .ucp-group { margin-top: 14px; }
+.ucl-wrap > .wgroup:not(.ucl-group):has(+ .ucl-group) { margin-bottom: 0; border-left: 0; border-right: 0; border-radius: 0; }   /* the grouped list draws the column header as a flat band, so its columns are the groups' */
+.ucl-wrap > .wgroup:not(.ucl-group) + .ucl-group { margin-top: 13px; }   /* the header card's own 1 px border under it makes the 14 px of the mock-up */
+.ucl-grp, .ucp-grp { display: flex; align-items: flex-start; gap: var(--space-2); padding: 0 0 6px; border-bottom: 1px solid var(--grey-200); background: none; font-size: var(--size-small); color: var(--heading); }
+.ucp-group .ucp { padding-left: 0; padding-right: 0; }
+.ucp > summary.ucp-bar { grid-template-columns: minmax(64px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px; }
+.ucp-cols { display: grid; grid-template-columns: minmax(64px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px; gap: var(--space-3); padding: 6px var(--space-1); border-bottom: 1px solid var(--grey-200); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); }   /* the editor's column names, over the published list */
+.ucp-cols .ucl-c1 { grid-column: 1 / 3; }
+@media (max-width: 900px) { .ucp > summary.ucp-bar, .ucp-cols { grid-template-columns: minmax(64px, max-content) minmax(0, 1fr) minmax(0, 1fr) 124px 96px; gap: var(--space-2); } }
+@media (max-width: 640px) { .ucp-cols { display: none; } }
+.ucl-group .grp-b, .ucp-group .grp-b { font-family: var(--font-head); font-weight: var(--weight-medium); font-size: 15px; color: var(--heading); align-items: flex-start; text-align: left; padding: 2px 0; gap: var(--space-2); min-width: 0; }
+.ucl-group .grp-b .i, .ucp-group .grp-b .i { flex: none; margin-top: 3px; color: var(--text-muted); }
+.ucl-group .grp-b .gc, .ucp-group .grp-b .gc { flex: none; white-space: nowrap; font-size: 13px; margin-left: 4px; }   /* spec 19-11: the count is 13 px with 4 px before it (Work items keeps 2 px) */
+.ucl-group .grp-b:focus-visible, .ucp-group .grp-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: 6px; }   /* spec 19-11: 6 px radius on the group heading only; the global ring stays 4 px */
+.ucp-grp + .ucp { border-top: 0; }   /* spec 19-11: the group's hairline is the only line over its first row */
+.ucl-group .grp-b:hover, .ucp-group .grp-b:hover, .ucl-group .grp-b:hover .i, .ucp-group .grp-b:hover .i { color: var(--brand-blue); }
+/* Row 1317 (Settings sidebar): the menu is a grey panel (the Classic page ground equals the Cards panel fill, so it showed no panel), the group names are in sentence case, and the open page is a tinted bar with its square edge at the marker. The issue table names the grey panel and the tinted bar; it names no hover tint on a chip, so there is none. Classic only; Cards keeps its look. The Settings title is already 30 px in both Themes (measured), so it is not touched. Prototype files are not on this box: */
+@media (min-width: 900px) {
+  .set-bar { background: var(--grey-100); border-radius: var(--radius-lg); }
+  .set-group-name { text-transform: none; letter-spacing: normal; }
+  .set-chip[aria-current], .set-chip[aria-current]:hover { border-radius: 0 10px 10px 0; }
+}
+
+/* Row 1317 (Settings cards): the cards have radius 14 and no shadow (re-audit line "cards radius 12 + shadow vs radius 14 none"). Classic only. */
+.set-cards .frame { border-radius: 14px; box-shadow: none; }
+
+/* Row 1317 (Projects card): Add project is a filled blue button with its plus and its word always shown (shell.css hides the word until hover; the override is Classic only), and the table headers are bold, in the words' own case, without the divider line above them. Classic only; Cards keeps the dashed Add and the tracked capitals. Prototype files are not on this box: built from the issue table. */
+.projects #npBtn.newb { background: var(--brand-blue); border: 1px solid var(--brand-blue); color: var(--text-on-brand); }
+.projects #npBtn.newb .w { max-width: 180px; opacity: 1; margin-left: 6px; margin-right: var(--space-1); }
+.projects table.proj-table th { text-transform: none; letter-spacing: normal; font-weight: 700; border-top: 0; }
+
+/* Row 1317 (Projects Code cell): the Code cell stays on one line. shell.css/edit.css let the cell break anywhere, so MOSS broke as MOS / S once the sentence-case header made the column narrow. Classic only. */
+.projects table.proj-table td.num { white-space: nowrap; }
+.projects table.proj-table td:not(.acts) { overflow-wrap: normal; }
+
+/* Row 1315, timeline part (Classic only): the Milestones page's line as prototype 2.0 draws it. MsTimeline.jsx reads --tl-classic and sets data-look on the line, so Cards draws what it always did. */
+:root { --tl-classic: 1; }
+.mv[data-look="classic"] .mv-box { padding-bottom: 0; }
+.mv[data-look="classic"] .mv-today b { top: calc(var(--ly) + 14px); left: 6px; }
+.mv[data-look="classic"] .mv-grip { left: 0; right: 0; bottom: var(--sb); width: auto; height: 10px; margin-left: 0; border-radius: 0; justify-content: flex-end; align-items: flex-end; }
+.mv[data-look="classic"] .mv-grip span { width: 10px; height: 10px; border: 0; border-radius: 0; margin: 0 2px 2px 0; background: linear-gradient(135deg, transparent 0 45%, var(--grey-500) 45% 55%, transparent 55% 70%, var(--grey-500) 70% 80%, transparent 80%); }
+.mv[data-look="classic"] .mv-grip:hover span { background: linear-gradient(135deg, transparent 0 45%, var(--text-muted) 45% 55%, transparent 55% 70%, var(--text-muted) 70% 80%, transparent 80%); }
+/* Row 1315, progress part (Classic only): the Milestones list Progress bar is 145px with a bold right-aligned percent. */
+.msl-box[data-place="page"] .msl-prog .num { min-width: 2.75rem; text-align: right; font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; color: var(--heading); }
+@media (min-width: 1201px) { .msl-box[data-place="page"]:not([style*="--msl-cols:"]) :is(.msl-cells, .msl-hc) { grid-template-columns: minmax(240px, 17rem) minmax(160px, 1fr) 150px calc(145px + var(--space-2) + 2.75rem); } }
+/* Row 1315 frame and switches (Milestones page, Classic only): the sentence under the title is hidden, and the white card around the timeline and list is flat on screen. The Timeline / Calendar and Week / Month / Quarter switches are already joined with a dark active button by the rules above (rows 1313 and 1319), so nothing is added for them. Scoped to the Milestones page, so the Dashboard section is not touched. */
+#milestones .head-sub { display: none; }      /* the sentence under the title is removed (decided 16-11); also the empty and cancelled sentences, which the shared rule leaves shown; it stays in the page for the tests */
+@media screen { #milestones.frame.milestones:not(.pub) .msv { background: transparent; border: 0; box-shadow: none; padding: 0; } #milestones.frame.milestones:not(.pub) .msv-sw { top: 0; right: 0; } }      /* row 1315: the white card around the timeline and list (the .msv box, not the frame, which is already bare) is gone on screen, flat like the dashboard frame; the switch moves to the corner of the flat page; print keeps its look */
+/* Row 1325 (Classic only; the Cards look layers none of this): the Use cases list is the Work items table, drawn by the page only while this Theme is on. */
+.ucl-wrap { margin-top: 14px; }
+.ucl-table.hdr { margin-top: 0; }
+.ucl-table .c-where { width: 27%; }
+.ucl-table .c-status { width: 112px; }
+.ucl-table .c-owner { width: 190px; }
+.ucl-table .c-steps { width: 150px; }
+.ucl-table .c-ms { width: 170px; }
+.ucl-table .c-cm, .ucl-table .c-rel { width: 110px; }
+.ucl-table .c-dash { width: 150px; }
+.ucl-table td { vertical-align: middle; }
+/* the row rule: under the use case cell (drawn as its bottom edge) and over the others (their top edge, as Work items), so it is one line the whole width; the first row has its top rule, the last row its closing one */
+.ucl-table td.c-item { border-top: 0; border-bottom: 1px solid var(--grey-100); }
+.ucl-table tbody tr:first-child td.c-item { border-top: 1px solid var(--grey-100); }
+.ucl-table tbody tr:last-child td { border-bottom: 1px solid var(--grey-100); }
+.ucl-table th.c-eye { position: relative; }
+.ucl-table .t { display: block; }
+.ucl-table .meta2 { display: block; font-size: var(--size-caption); color: var(--text-muted); }
+.ucl-table .where { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }   /* item 1149: where it stands is shown in full on the row, clamped to two lines */
+.ucl-table .where.none { font-style: italic; color: var(--text-muted); }
+.ucl-table .own { display: inline-flex; align-items: center; gap: var(--space-2); max-width: 100%; }
+.ucl-table .own .on { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ucl-table .stp { display: block; }
+.ucl-table .prg { display: block; box-sizing: border-box; width: 88px; max-width: 100%; height: 4px; margin-top: 7px; border-radius: 2px; background: var(--grey-100); overflow: hidden; }
+.ucl-table .prg i { display: block; height: 100%; background: var(--status-green); }
+.ucl-table .mslab { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ucl-table tbody tr:hover, .ucl-table tbody tr:focus-within { background: var(--grey-100); }
+#usecases .ucl-table { --wil-uc-off: #667391; }
+:root[data-theme=dark] #usecases .ucl-table { --wil-uc-off: var(--text-muted); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] #usecases .ucl-table { --wil-uc-off: var(--text-muted); } }
+/* A use case the client does not see: every word of the row the fixed grey 667391 (4.74:1 on white), the pill unfilled with a ring, the avatar grey, the eye crossed out. Colour, not opacity. */
+.ucl-table tr.off td, .ucl-table tr.off .t, .ucl-table tr.off .ucl-go, .ucl-table tr.off .where, .ucl-table tr.off .meta2, .ucl-table tr.off .mslab, .ucl-table tr.off .stp, .ucl-table tr.off .on, .ucl-table tr.off .ucn-b, .ucl-table tr.off .muted { color: var(--wil-uc-off); }
+.ucl-table tr.off .t .ucl-go { font-weight: var(--weight-regular); }
+.ucl-table tr.off .pill { background: transparent; color: var(--wil-uc-off); box-shadow: inset 0 0 0 1px var(--grey-300); }
+.ucl-table tr.off .av { background: var(--wil-uc-off); color: var(--white); }
+.ucl-table tr.off .prg { background: var(--grey-100); }
+.ucl-table tr.off .prg i { background: var(--grey-500); }
+.ucl-table tr.off .weye, .ucl-table tr.off .ucl-eye { color: var(--wil-uc-off); }
+@media (max-width: 900px) {      /* Milestone, Commitment, Release and On the dashboard are not drawn; the owner shows the avatar only; the commitment returns to the grey line (the page does that) */
+  .ucl-table .c-ms, .ucl-table .c-cm, .ucl-table .c-rel, .ucl-table .c-dash { display: none; }
+  .ucl-table .own .on { display: none; }
+  .ucl-table .c-where { width: 25%; }
+  .ucl-table .c-status { width: 96px; }
+  .ucl-table .c-owner { width: 88px; white-space: nowrap; }
+  .ucl-table .c-steps { width: 124px; }
+}
+.cols-menu .ck[data-on]::before { content: "\2713"; }
+/* Row 1325 (Classic only): the view tabs are as wide as on Work items (the shared rule narrows them by two px a side; the Columns and Group by buttons moved off this row, so they fit). */
+#usecases .ucl-views .vtab { padding-left: 10px; padding-right: 10px; }
+/* Row 1351, the ask clark page tabs: 29 px high in Classic (the Settings mock-up's tab pills; the base, which Cards keeps, is 36). Only the height moves; the pill shape, padding and colours stay as they are. */
+.ask-tab { min-height: 29px; }
+
+/* Row 1351 part 2, the ask clark page tabs and the Model line (Classic only; Cards is unmaintained and keeps the base rules). The pill: padding 5px 14px, 13.5px type, 19px line so the pill is 29 px high, 6 px between pills; the chosen pill is --brand-blue with --text-on-brand text at weight 600; "Settings for" is 12.5px, muted, 6 px to its right. The Model line in the Used from All projects card: the name, the note, and Change as a link with a dashed underline. */
+.ask-tabs { gap: 6px; }
+.ask-tabs .ask-tabs-lab { margin-right: 6px; font-size: 12.5px; color: var(--text-muted); }
+.ask-tab { padding: 5px 14px; font-size: 13.5px; line-height: 19px; min-height: 29px; border-radius: 999px; }
+.ask-tab[aria-current] { background: var(--brand-blue); color: var(--text-on-brand); font-weight: 600; }
+@media (max-width: 900px) { #main:has(#ask-tabs) { padding: 6px 16px 30px; } }
+.ask-model { align-items: baseline; column-gap: 12px; }
+.ask-model .ask-model-name { font-weight: 600; color: var(--text); }
+.ask-model .ask-model-change { all: unset; cursor: pointer; color: var(--text); font-size: var(--size-small); border-bottom: 1px dashed var(--text-muted); }
+.ask-model .ask-model-change:hover { color: var(--brand-blue); border-bottom-color: var(--brand-blue); }
+.ask-model .ask-model-change:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+
+/* Row 1344: the peek as the approved peek mock-up draws it, Classic only (Cards keeps today's rules): a 1 px edge and a shadow thrown to the left in light (dark keeps the Theme's own tokens), and the 0.5 s slide fades in while it travels, opaque at 60 %. Reduced motion keeps the short fade of the base rules. */
+.peek { border-left-color: rgb(205, 211, 224); box-shadow: -10px 0 30px rgba(19, 35, 42, .14); }
+:root[data-theme=dark] .peek { border-left-color: var(--grey-200); box-shadow: var(--shadow); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .peek { border-left-color: var(--grey-200); box-shadow: var(--shadow); } }
+@keyframes pk-in-fade { from { opacity: 0; transform: translateX(100%); } 60% { opacity: 1; } }
+@media (prefers-reduced-motion: no-preference) { :root:not([data-motion="reduce"]) .peek:not(.leaving) { animation: pk-in-fade 500ms cubic-bezier(.22, 1, .36, 1) 1; } }
+/* Row 1348: the Ask clark panel opens from the right edge and leaves to it in 200 ms, as the prototype's does (Cards keeps its rise from the bottom). The shared rule keeps its names, gate, durations and curves (the panel's code waits for the animation named ask-down); only the two keyframes are laid again, later, from the side. 104 percent clears the panel's own shadow. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes ask-up { from { transform: translateX(104%); } to { transform: none; } }
+  @keyframes ask-down { from { transform: none; } to { transform: translateX(104%); } }
+}
+/* The close takes exactly 200 ms, as the prototype's does (--dur-state is not for this panel); the curve stays ease-exit. */
+:root:not([data-motion="reduce"]) .ask-panel.leaving { animation: ask-down 200ms var(--ease-exit) forwards; }
+/* Row 1286 (impeccable audit B-M2 and B-M3, menus; Classic only, Cards keeps every menu rule it has). One grid for every menu: the pick menu's, an icon 17px in from the panel edge, 8px from its words. The approved mock-up menus win over production on the points they draw: the tick on the right of the word (the Columns menu and the Gantt Show menus keep it on the left, as their mock-ups draw it), a plain head ("Group by", not capitals), 200px menus and 240px for Group by. Item size stays the Classic body size, 14px. The bare lengths have no token: the 16px side padding, the 200px and 240px menus. */
+.ddmenu { min-width: 200px; }
+.cpop.cmenu:not(.bmenu) { min-width: 200px; }
+.ddmenu[aria-label="Group by"] { min-width: 240px; }
+.ddmenu [role="menuitem"], .ddmenu [role="menuitemradio"]:not(.hp), .cols-menu [role="menuitemcheckbox"] { padding-left: 16px; padding-right: 16px; }
+.ddmenu .mi { margin-right: var(--space-2); }
+.rowmenu .mi { margin-right: 0; }
+.menu .menu-item, .bmenu .menu-item, .bmenu .bm-why { gap: var(--space-2); }
+.ddmenu [role="menuitemradio"]:not(.hp), .ddmenu [role="menuitem"]:has(> .ck) { display: flex; align-items: center; }
+.ddmenu [role="menuitemradio"]:not(.hp) .ck, .ddmenu [role="menuitem"] > .ck, #viewMenuList [role="menuitemradio"] .ck { order: 1; margin-left: auto; margin-right: 0; padding-left: var(--space-3); }
+.ddmenu .lab.caps, .mh.caps { font-size: var(--size-body); letter-spacing: normal; text-transform: none; font-weight: var(--weight-regular); }
+.gt-pop button, .gt-menu button, [data-gt] .gt-menu button { padding-left: var(--space-3); padding-right: var(--space-3); font-size: var(--size-body); }
+.ddmenu .lab, .ddmenu .who, .ddmenu .mh, .mh { padding-left: 16px; padding-right: 16px; }
+/* Row 1372 (Classic only; the Cards look keeps its width): the item and milestone peeks open 62% of the window wide, at least 300px, as the approved peek mock-up draws it, instead of 640px. From 1000px up; below it the peek fills the window as before. A width the person dragged (the peek carries data-sized) is kept. Bare lengths with no token: the 300px least width and the 1000px switch. */
+@media (min-width: 1000px) { .peek:not(.hpk):not(.wide):not([data-sized]) { width: 62% !important; min-width: min(300px, 100vw); } }
+/* Row 1285: Close, focused as a peek opens with no key pressed (a click, a script), shows no focus ring until a key is pressed or the focus moves on. */
+#peek .pkp-btn[data-quiet]:focus-visible { outline: none; }
+
+/* Row 1350 part 2 (Classic only; Cards keeps the shared quick bar rules): the quick bar list as the prototype draws it (mock-up app.css lines 1562-1565). The query box keeps its 12px and 14px (var(--space-3), the shared rule); the input is 38px tall with 15px text and 6px 10px padding; the list has 6px padding (shared) and stops at min(52vh, 420px); a row is a grid of a 96px kind, the label and the hint, gap 4px 12px, padding 8px 10px, radius 6px, text var(--size-body) (14px); the kind and the hint are one px under the caption size (12px), the kind with .04em spacing and muted. The chosen row (grey-100 fill, 2px focus ring, offset -2px) is the shared rule and is not repeated. The bare lengths have no token: 38px, 15px, 6px, 10px, 96px, 420px, 52vh, .04em. */
+.pal-q input { min-height: 38px; padding: 6px 10px; font-size: 15px; }
+.pal-list { max-height: min(52vh, 420px); }
+.pal-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: var(--space-1) var(--space-3); min-height: 0; padding: var(--space-2) 10px; border-radius: 6px; font-size: var(--size-body); }
+.pal-kind { min-width: 0; font-size: calc(var(--size-caption) - 1px); letter-spacing: .04em; }
+.pal-more, .pal-why { font-size: calc(var(--size-caption) - 1px); }
+.pal-why { grid-column: 2 / -1; padding-left: 0; }
+/* Row 1336, the At a glance template in Edit, Classic only (the published View keeps the flat Row 1260 strip): the tile takes the mock-up's inner padding (12px top and bottom, 16px sides; the Row 1260 padding 0 removed it, and with it the pill touched the border) and shows its status dot 8x8 before the label (the Row 1260 rule hid it; the colour of the figure alone is the View's way). Not here, waiting for a ruling: the bin on built-in tiles, the grip and eye positions that go with it, the help text wording, the empty fourth column. */
+.tpl-edit-glancetemplate .glance .fig { padding: 12px 16px; }
+.tpl-edit-glancetemplate .glance .fig .ragdot { display: inline-block; flex: none; }
+/* Row 1342: the Feedback tag dialog as the 1298 mockup draws it: heading 17px / 600 with 2px under it, the dialog and the tag one step roomier (bottom padding 14, tag top and bottom padding 14). */
+.fbt-head h2 { margin: 0 0 2px; font-size: 17px; font-weight: 600; color: var(--heading); }
+.fbt-dlg { padding-bottom: 14px; }
+.fbt-tag { padding-top: 14px; padding-bottom: 14px; }
+/* Row 1342 part 2: the empty-send error (red 13px, 4 above) as the 1298 mockup draws it. */
+.fbt-error { margin-top: 4px; color: var(--status-red-text); font-size: 13px; }
+
+/* Row 1355 (Milestones page, Classic only): the View switch (Timeline / Calendar) and the Zoom hint share ONE row, the switch at the top left and the Zoom hint at the far right (spread apart as justify-content: space-between does), as the prototype does; the controls row sits under that row. */
+@media screen { #milestones.frame.milestones:not(.pub) .msv-sw { position: absolute; top: 0; left: 0; right: auto; display: inline-flex; margin: 0; } #milestones.frame.milestones:not(.pub) .mv-bar { padding-right: 0; row-gap: var(--space-2); } #milestones.frame.milestones:not(.pub) .mv-zoom { order: -1; flex: 0 0 100%; display: flex; align-items: center; justify-content: flex-end; min-height: 30px; box-sizing: border-box; } }
+/* Item 1352: the first-run card of ask clark as the prototype draws it, Classic only (Cards keeps its own rules): a bordered card with a heading, three bullets with the link in the third, and a quiet tip. The status line is the same line with the standing-instructions link at 13px. */
+.ask-first-run { margin: 22px 20px 0; padding: 14px 16px; border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); font-size: var(--size-body); }
+.ask-first-run h3 { margin: 0 0 6px; font-size: calc(var(--size-body) + 1px); font-weight: var(--weight-medium); line-height: var(--leading); color: inherit; }
+.ask-first-run ul { margin: 0 0 8px; padding: 0 0 0 18px; }
+.ask-first-run li { margin: 5px 0; }
+.ask-first-run b { font-weight: var(--weight-medium); }
+.ask-first-run li a { display: inline-flex; align-items: center; min-height: 24px; font-weight: inherit; text-decoration: none; }
+.ask-first-run li a:hover { text-decoration: underline; }
+.ask-first-run p.ask-first-tip { margin: 0; font-size: var(--size-caption); color: var(--text-muted); }
+.ask-first-run kbd { padding: 0 5px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: var(--grey-50); font: inherit; font-size: calc(var(--size-caption) - 1px); }
+.ask-status { flex-wrap: wrap; }
+.ask-status a { font-size: var(--size-caption); text-decoration: none; }
+.ask-status a:hover { text-decoration: underline; text-underline-offset: 2px; }
+/* Row 1327 slice 2 (Classic only: Cards keeps its Settings Version panel as on main): the download panel's tinted block and 140 x 8 progress bar from the approved mock-up. */
+.upd-c .upd-up { padding: 6px 12px 10px; border-radius: 8px; background: var(--brand-blue-tint); }      /* 1327 s2, the mock-up's .row.up: a tinted block for the version that is ready, downloading or downloaded */
+.upd-c .upd-up > p:first-child { margin: 0 0 4px; }
+.upd-pg { display: inline-block; vertical-align: middle; width: 140px; height: 8px; border-radius: 4px; background: var(--grey-100); overflow: hidden; margin-right: 8px; }      /* the mock-up's .pg: 140 x 8, radius 4 */
+.upd-pg i { display: block; height: 100%; background: var(--brand-blue); }
+.upd-c .upd-up .row { align-items: center; }
+/* Row 1375: a wheel over the Dashboard's Work items box that has reached its top or bottom keeps scrolling the page (the shared rule's overscroll-behavior-y: contain made it stall inside the box); the box still scrolls its own rows. */
+.wil-scroll { overscroll-behavior-y: auto; }
+/* Row menu-radius, Classic menus: every menu panel (.ddmenu, .menu, .cpop, .gt-pop, .gt-menu) takes the prototype popover radius, 10px (design/prototype-clark-classic/index.html line 63, .pop), where the shared rule drew 12px. The Work items add menu keeps its own approved rule above. */
+.ddmenu, .menu, .cpop, .gt-pop, .gt-menu, [data-gt] .gt-menu { border-radius: 10px; }
+/* Row 1403 (Classic only, Cards unchanged; prototype index.html lines 160-169, widths over 900, 900 and below keep the shared rules): the Dashboard Use cases list as the prototype draws it. No column heading row. The row grid is ref | title | headline | status over commitment | next steps (minmax(52px,max-content) 1fr 1.5fr 132px 112px, gap 12, padding 9px 8px, no minimum height); the title cell gives its two lines to the grid (display: contents), the commitment sits under the status word. Hover is the band tint, the ID badge a 1px grey-500 outline at 400 with 1px 8px padding, the commitment a quiet pill (1px grey-200 line, muted, 400, line height 18; the Committed ink fill keeps its own colours). */
+.uc .ucheads:not(.ucheads-ed) { display: none; }
+@media (min-width: 901px) {
+  .uc .ucrow:not(.ucrow-ed) > .ucbar { grid-template-columns: minmax(52px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 132px 112px; column-gap: 12px; row-gap: 0; padding: 9px var(--space-2); min-height: 0; }
+  .uc .ucrow:not(.ucrow-ed) > .ucbar > .uctc { display: contents; }
+  .uc .ucrow:not(.ucrow-ed) > .ucbar > .uccell { grid-row: 1 / span 2; }
+  .uc .ucrow:not(.ucrow-ed) > .ucbar > [data-uccol="status"] { grid-column: 4; grid-row: 1; align-self: end; }
+  .uc .ucrow:not(.ucrow-ed) > .ucbar > [data-uccol="commit"] { grid-column: 4; grid-row: 2; align-self: start; margin-top: 3px; }
+  .uc .ucrow:not(.ucrow-ed) > .ucbar > [data-uccol="steps"] { grid-column: 5; }
+  .uc .ucrow:not(.ucrow-ed) > .ucbar > .uctitle, .uc .ucrow:not(.ucrow-ed) > .ucbar > .uchead { grid-row: 1 / span 2; }
+  .uc .ucrow:not(.ucrow-ed) > .ucbar > .uctitle { grid-column: 2; }
+  .uc .ucrow:not(.ucrow-ed) > .ucbar > .uchead { grid-column: 3; }
+}
+.uc .ucbar:hover, .uc .ucrow.open > .ucbar { background: var(--band-bg); }
+.uc .ucref { padding: 1px var(--space-2); border: 1px solid var(--grey-500); font-weight: var(--weight-regular); }
+.uc .cchip { border-radius: var(--radius-pill); font-weight: var(--weight-regular); line-height: 18px; }
+.uc .cchip:not(.cc-committed) { border-color: var(--grey-200); color: var(--text-muted); }
+/* Row 1292 (Classic only: the sparkle is drawn only when the Theme layer is on, so Cards has none): Ask about this, the numbered citations, the Used line and the read line, read off the approved ask clark prototype. The sparkle is faint until the pointer or the keyboard is on its row, section or card; a peek opened from an answer sits left of the panel (--ask-w is the panel's width, 0 while it is shut). */
+.ask-about { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: var(--radius-sm); cursor: pointer; opacity: 0; transition: opacity var(--dur-instant) var(--ease-out); }
+.ask-about .i { color: var(--brand-blue); width: 16px; height: 16px; }
+.ask-about:hover { background: var(--brand-blue-tint); }
+.ask-about:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; opacity: 1; }
+.wl-row:hover .ask-about, .wl-row:focus-within .ask-about, table.items tr:hover .ask-about, table.items tr:focus-within .ask-about, .wil-table tr:hover .ask-about, .wil-table tr:focus-within .ask-about, .sec:hover .ask-about, .sec:focus-within .ask-about, .ucrow:hover .ask-about, .ucrow:focus-within .ask-about, .ucr:hover .ask-about, .ucr:focus-within .ask-about, .bcard:hover .ask-about, .bcard:focus-within .ask-about { opacity: 1; }
+table.items .c-eye, .wil-table .wil-c-eye { width: 76px; }
+.c-eye .ask-about, .wil-c-eye .ask-about { vertical-align: middle; }
+.sec-head > .ask-about { margin-left: auto; }
+.ucsteps .ask-about { vertical-align: middle; margin-left: var(--space-1); }
+.bc-top .ask-about { width: 24px; height: 24px; margin-left: auto; }
+.peek { right: var(--ask-w, 0px); }
+.ask-chip { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; max-width: 100%; margin: 0 0 var(--space-2); padding: 2px 2px 2px 8px; border-radius: 8px; background: var(--brand-blue-tint); color: var(--status-blue-text); font-size: 13px; }
+.ask-chip .i { flex: none; width: 14px; height: 14px; }
+.ask-chip-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ask-chip-x { all: unset; box-sizing: border-box; flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius-sm); color: inherit; cursor: pointer; }
+.ask-chip-x .i { width: 14px; height: 14px; }
+.ask-chip-x:focus-visible, .ask-cite:focus-visible, .ask-used-chip:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.ask-about-line { margin-top: var(--space-1); font-size: 12px; color: var(--text-muted); }
+.ask-cite { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 6px; margin: -4px 2px; border-radius: 12px; background: var(--brand-blue-tint); color: var(--status-blue-text); font-size: 12px; font-weight: 700; vertical-align: middle; cursor: pointer; }
+.ask-cite:hover { background: var(--brand-blue); color: var(--surface); }
+.ask-used { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 0; font-size: 13px; }
+.ask-used-h { color: var(--text-muted); }
+.ask-used-chip { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 5px; min-height: 24px; padding: 1px 9px; border: 1px solid var(--grey-200); border-radius: 999px; background: var(--grey-50); font-size: 12.5px; cursor: pointer; }
+.ask-used-chip:hover { border-color: var(--brand-blue); background: var(--brand-blue-tint); }
+.ask-read { margin: 6px 0 0; font-size: 12px; color: var(--text-muted); }
+/* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
+.fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
+@media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
+.fline.bad, .fline.bad:focus-within { border-bottom-color: var(--status-red); box-shadow: 0 1px 0 var(--status-red); }
+/* Item 1286, one chosen-segment look: the Gantt chart's scale takes the same navy chosen half as every other segment (the .seg rule above), with the same dark ring. Classic only; Cards has its own in shell.css. The Timeline and Calendar switch keeps the Row 1313 heading fill, which Row 1313's test pins. */
+.gt-grp .gt-ib[aria-pressed="true"] { background-color: var(--brand-navy); background-image: none; color: var(--white); }
+:root[data-theme=dark] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); } }
+#viewMenuList { min-width: 240px; }
+[data-gt] .gt-menu button, .gt-pop button { display: flex; align-items: center; gap: var(--space-2); }

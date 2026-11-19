@@ -11,6 +11,7 @@ import { rows } from "./placement.js";
 import { TEMPLATE_TYPES, PENDING_TYPES } from "../templates/types.js";
 import { WORDS } from "./fullImageWords.js";
 import { defaults, bodyOf } from "../templates/workItemsList.js";
+import { PLAN_SUMMARY_BODY } from "./planSummaryBody.js";
 
 // What the store takes in a new section (changes.py NEW_SECTION_TYPES: text
 // and every type in the template registry (#96)). A template whose type is not here is listed but not offered.
@@ -42,6 +43,11 @@ export const TEMPLATES = [
     description: "Three or four numbers with labels and a change since last week.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed", "Figure · typed", "Caption"] },
   { id: "figures-3", name: "Key figures, three", kind: "figures", fit: ["full", "half"], type: "figures3", title: "Key figures", body: "", ready: true,
     description: "Three numbers with labels, in wider cards, so a short note fits under the change.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed"] },
+  // Row 1264 slice 9: the glance template (type glancetemplate), its own card beside the built-in At a glance card (that name is taken). The words are
+  // the ruled ones (words file group 1): the name, the description and the holds list, quoted. The new section starts with the card's name as its title.
+  { id: "glance-template", name: "Project at a glance", kind: "figures", fit: ["full", "half"], type: "glancetemplate", title: "Project at a glance", body: "", ready: true,
+    description: "Three counts, an optional project health and tiles of your own.",
+    holds: ["Decisions needed", "High risks and issues", "Overdue actions", "optional Project health", "your own tiles"] },
   { id: "gallery", name: "Image gallery", kind: "text", fit: ["full"], type: "gallery", title: "Image gallery", body: "", ready: true,
     description: "Pictures in a grid, each with a caption.", holds: ["Heading", "Image", "Caption", "Image", "Caption", "Image"] },
   { id: "table", name: "Table", kind: "notes", fit: ["full"], type: "table", title: "Table", body: "", ready: true,
@@ -76,7 +82,7 @@ export const TEMPLATES = [
   { id: "current-state", name: "Header and Text", kind: "text", fit: ["full", "half"], type: "text", title: "Current state", body: "", ready: true,
     description: "The state of the project in a few lines, to sit beside another section.", holds: ["Heading", "Text"] },
   { id: "plan-summary", name: "Plan summary", kind: "text", fit: ["full", "half"], type: "text", title: "Plan summary", ready: true,
-    body: "<h2>Where we are</h2><p></p><h2>What is next</h2><ul><li></li></ul>",
+    body: PLAN_SUMMARY_BODY,
     description: "Where the plan stands, in clark’s one editor: headings, lists and links. Starts with two headings to fill in.",
     holds: ["Heading", "Rich text: headings, lists, quote, links"] },
   { id: "gantt", name: "Gantt", kind: "dates", fit: ["full"], type: "gantt", title: "Gantt", body: "", ready: true,
@@ -93,7 +99,6 @@ export const TEMPLATES = [
 // words and its Help row.
 export const LATER = [
   { id: "headline", type: "headline", ready: true },
-  { id: "glance-template", type: "glancetemplate", ready: true },     // row 1264 slice 1: data layer only; View, Edit and the library card come later
   { id: "report-headline", type: "reportheadline", ready: true },     // row 1261 slice 1: View only; Edit and the library card come later
 ];
 
@@ -166,6 +171,7 @@ export const SKETCHES = {
   "current-state": ["grid-template-rows:repeat(3,1fr)", ["width:85%", "width:70%", "width:50%"]],
   "built-in-usecases": ["grid-template-rows:repeat(4,1fr)", ["width:35%", "width:90%", "width:75%", "width:85%"]],
   "plan-summary": ["grid-template-rows:repeat(4,1fr)", ["width:40%", "width:80%", "width:40%", "width:70%"]],
+  "glance-template": ["grid-template-columns:repeat(3,1fr)", ["border-top:3px solid var(--status-red)", "border-top:3px solid var(--status-amber)", "border-top:3px solid var(--status-green)"]],      // row 1264: low tiles, a tone edge on each
   "built-in-glance": ["grid-template-columns:repeat(4,1fr)", ["", "border-top:3px solid var(--status-red)", "border-top:3px solid var(--status-amber)", ""]],
 };
 

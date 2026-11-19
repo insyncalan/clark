@@ -28,6 +28,7 @@ class ClearWordingInPlace(unittest.TestCase):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
         self.store = self.demo.store
+        self.demo.plant_builtin_sections()      # row 1193: a new project's report has Work items lists, this test pins the built-in sections
         fill(self.store)
         self.s = edit_server(self, self.store)
 

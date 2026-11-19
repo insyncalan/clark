@@ -95,7 +95,8 @@ def arm(cdp, sid):
 def where(cdp, sid, selector):
     # Measure only once the element has stopped changing size: a box measured mid-transition (the Add button shrinking
     # back to its "+" after it loses focus) is gone by the time the mouse gets there, and the click lands beside it.
-    still = f"(e => !e || e.getAnimations({{subtree: true}}).every(a => a.playState !== 'running'))(document.querySelector({json.dumps(selector)}))"
+    # Row 1289: an ancestor moving counts too (the peek slides in for 0.5 s, and a tab inside it is measured where it will not be).
+    still = f"(e => !e || document.getAnimations().every(a => a.playState !== 'running' || !a.effect || !a.effect.target || !(a.effect.target.contains(e) || e.contains(a.effect.target))))(document.querySelector({json.dumps(selector)}))"
     assert wait(lambda: cdp.js(still, sid)), f"{selector} is still moving"
     cdp.js(f"document.querySelector({json.dumps(selector)}).scrollIntoView({{block: 'center'}})", sid)
     box = cdp.js(f"(() => {{ const b = document.querySelector({json.dumps(selector)}).getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; }})()", sid)
@@ -131,6 +132,11 @@ def select_line(cdp, sid):
 def set_line(cdp, sid, text):
     """Replace the one filter line (issue 662): click its box, select what is in it, type the new line, and wait for the pause after which the
     list follows the box (the box holds the whole line, and the list changes about 400 ms after the last key, not on Enter)."""
+    # The save prompt (row 1265) is drawn over the line once the focus has left it with changes, and at 900 px it covers the middle of the box: a
+    # click aimed there pressed "Save as a new view", which made a view, chose it and moved the focus to its tab a moment later, so the typing
+    # could go to the tab and the line stayed as it was. Put the focus in the box first (that takes the prompt away), then click it.
+    cdp.js("document.querySelector('#fline-input').focus()", sid)
+    wait(lambda: cdp.js("!document.querySelector('.vask')", sid))
     click(cdp, sid, "#fline-input")
     select_line(cdp, sid)
     if text:

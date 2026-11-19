@@ -24,7 +24,7 @@ import { itemRows } from "../stores/work.js";
 import { handing, ticks } from "../stores/handover.js";
 import { ItemIcon, iconWords } from "./ItemRows.jsx";                 // row 1145: the dashboard lists' tinted letter icon, alone, is the Status column
 import { clientPill } from "../logic/sectionRows.js";
-import { sortRows, dueCell, ownerOf, metaOf, isOpen, todayIso, showDate, KIND_WORDS } from "../workItems.js";
+import { sortRows, liveWindow, dueCell, ownerOf, metaOf, isOpen, todayIso, showDate, KIND_WORDS, labelsText } from "../workItems.js";
 import { defsOf, standardIds } from "../logic/tableColumns.js";
 import { applyFilters, chips, canClear, countText, clearAll, removeFilter, addPlan } from "../filters.js";
 import { Switches, FilterBar } from "./WorkFilters.jsx";
@@ -140,12 +140,12 @@ function useRowMotion(lay) {
 }
 
 // Row 1222: the columns beyond the five a table always had. Each is plain text from the row; a column with nothing to say is a muted dash.
-const STD = standardIds("work"), isStd = (id) => STD.includes(id);
+const STD = standardIds("work").filter((id) => id !== "id"), isStd = (id) => STD.includes(id);   // #1195: the Id is on by default in the page clark serves (the column menu) and drawn as an extra cell, its own blue column; a published file keeps its columns without it
 const labelOf = (id) => (defsOf("work").find((c) => c.id === id) || {}).label || id;
 const EXTRA = {
   id: (r) => r.id, type: (r) => KIND_WORDS[r.kind] || "", workstream: (r) => r.workstream, milestone: (r) => r.milestone, usecase: (r) => r.uc,
   raised: (r) => { const d = r.raised || r.raised_on; return d ? showDate(d) : ""; }, closed: (r) => (r.closed ? showDate(r.closed) : ""),
-  latest: (r) => r.latest_update, wording: (r) => r.client_message,
+  labels: labelsText, latest: (r) => r.latest_update, wording: (r) => r.client_message,
 };
 const extraCell = (id, row) => { const t = String((EXTRA[id] || (() => ""))(row) || "").trim(); return t ? (id === "id" || id === "raised" || id === "closed" ? <span class="num">{t}</span> : t) : <span class="muted">{"—"}</span>; };
 const extras = (cols) => cols.filter((id) => !isStd(id));
@@ -187,9 +187,9 @@ function Row({ row, today, Cell, Eye, stop, pos, size, group, motion, onMotionEn
       </td>
       {cols.includes("owner") ? <td class="c-owner" data-col="owner">{cell("owner", ownerOf(row.owner).text === "—" ? "none" : ownerOf(row.owner).text, <Owner name={row.owner} />)}</td> : null}
       {cols.includes("due") ? <td class="c-due" data-col="due">{cell("due", due.date === "—" ? "none" : due.date, <><span class="num">{due.date}</span>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}>{due.words}</span> : null}</>)}</td> : null}
-      {cols.includes("prio") ? <td class="c-prio" data-col="prio">{cell("priority", row.priority || "none", row.priority || <span class="muted">{"—"}</span>)}</td> : null}
+      {cols.includes("prio") ? <td class="c-prio" data-col="prio">{cell("priority", row.priority || "none", row.priority ? <span class={`wil-pr${row.priority === "Urgent" ? " u" : row.priority === "High" ? " h" : ""}`}>{row.priority}</span> : <span class="muted">{"—"}</span>)}</td> : null}
       {extras(cols).map((id) => <td key={id} class={`c-x c-x-${id}`} data-col={id} data-label={labelOf(id)}>{extraCell(id, row)}</td>)}
-      {Eye ? <td class="c-eye"><Eye row={row} /></td> : null}
+      {Eye ? <td class="c-eye"><Eye row={row} />{Eye.Ask ? <Eye.Ask row={row} /> : null}</td> : null}
     </tr>
   );
 }
@@ -347,11 +347,13 @@ function PublishedList({ Board, Cell, Eye, Bulk, CW, CM }) {
 }
 
 // The part a filter change redraws: the count, the chips with Clear all, and the table or the board.
+const showAllItems = signal(false);      // row 1195 S4: Show all items is open
 function List({ Board, Cell, Eye, Bulk, HandOver, L, CW, CM }) {
   const today = todayIso(), v = L.view(itemRows.value, filterCtx());
   const st = v.state, filtered = v.rows, clear = v.clear, can = v.can;
   const hand = handing() && !!HandOver, board = !!Board && work.value.view === "board" && !hand;      // #199: Hand over is drawn as the table
   const matching = filtered.map((r) => r.id);
+  const win = liveWindow(sortRows(filtered, today), showAllItems.value), shown = board || hand ? filtered : win.rows;      // row 1195 S4: the table only; the board and Hand over draw every row
   // After each draw: a row no longer drawn (filtered out, its group collapsed) leaves the selection, unless "all matching" is on.
   useLayoutEffect(() => { if (selecting() && !hand) sel.sync(drawnOrder(), matching); });
   return (
@@ -363,7 +365,8 @@ function List({ Board, Cell, Eye, Bulk, HandOver, L, CW, CM }) {
       <span id="work-count" class="sr num" key={countText(filtered.length, st.mode)}>{countText(filtered.length, st.mode)}</span>
       {filtered.length === 0
         ? <div class="empty"><p class="muted">{v.empty.none}</p>{can ? <button type="button" class="link" id="clearFilter" onClick={clear}>{v.empty.clear}</button> : null}{v.empty.hint ? <p class="muted" id="empty-hint">{v.empty.hint}</p> : null}</div>
-        : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={hand ? null : Cell} Eye={Eye} CW={CW} CM={CM} />}
+        : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={shown} today={today} type={st.type} Cell={hand ? null : Cell} Eye={Eye} CW={CW} CM={CM} />}
+      {!board && !hand && win.link ? <p class="wil-all"><button type="button" class="wil-all-b" data-work-all="" aria-expanded={showAllItems.value ? "true" : "false"} onClick={() => { showAllItems.value = !showAllItems.value; }}>{win.link}</button></p> : null}
     </div>
   );
 }
@@ -380,6 +383,9 @@ export function WorkItems({ tools }) {
   // Coming back to Work items: the project's line is the one kept in this session (the address holds the older form of it).
   useEffect(() => { if (L) L.restore(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   const Arch = tools && tools.ArchivedItems && !fromFile.value && L && L.wantsArchived(allRows.value, filterCtx()) ? tools.ArchivedItems : null;   // item 1067: is:archived in the line; Edit parts only
+  const addTile = tools ? <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={adder(tools)} /> : null;
+  // Row 1260 G11: Classic draws the Add tile at the far right of the saved-views tabs row (the mock-up); Cards keeps it in the page head.
+  const addInRow = !!(tools && FilterLine && allRows.value.length > 0 && typeof document !== "undefined" && document.getElementById("theme"));
   return (
     <section class={`frame work${fromFile.value ? " pub" : ""}`} id="work">
       <p class="crumbs">{d.project.name}</p>
@@ -390,7 +396,7 @@ export function WorkItems({ tools }) {
         {tools ? (
           <div class="hacts">
             {tools.HandOver ? <tools.HandOver.Button /> : null}   {/* #199: with the Owner filter on */}
-            <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={adder(tools)} />   {/* a published file is read only: no Add (#204) */}
+            {addInRow ? null : addTile}   {/* a published file is read only: no Add (#204) */}
           </div>
         ) : null}
       </div>
@@ -408,7 +414,7 @@ export function WorkItems({ tools }) {
                 </>
               : <>
                   <Switches L={L} />   {/* item 287: Layout, Group by and the swimlanes are in the filter line's one View menu */}
-                  <FilterLine board={!!Board} tools={tools} />   {/* row 1084: Import and Export are in Settings, on the Data card, not on this line */}
+                  <FilterLine board={!!Board} tools={tools} add={addInRow ? addTile : null} />   {/* row 1084: Import and Export are in Settings, on the Data card, not on this line */}
                   {Arch ? <Arch narrow={(r) => L.apply(r, filterCtx())} /> : <List Board={Board} Cell={Cell} Eye={Eye} CW={CW} CM={CM} Bulk={tools && tools.Bulk} HandOver={tools && tools.HandOver} L={L} />}
                 </>}
           </>}

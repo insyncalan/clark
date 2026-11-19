@@ -355,20 +355,21 @@ class Saving(ServerTest):
         self.assertEqual(sv.POST_ROUTES["/api/project"], sv.project_save_route)
         self.assertEqual(sv.ROUTE_BODY_LIMITS, {"/api/section-image": 11 * 1024 * 1024,     # #96 R1: one picture, shrunk by the page; row 1223: one Full width image (8 MiB, 11 MiB as text)
                                                 "/api/change": sv.CHANGE_BODY_LIMIT, "/api/section-body": sv.SECTION_BODY_LIMIT, "/api/undo": 8 * 1024, "/api/sneak/read": 4 * 1024, "/api/backups/preview": 1024,
-                                                "/api/backups/restore": 1024, "/api/backups/copy-folder": 4096, "/api/profile": 2 * 1024, "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024,     # #110
+                                                "/api/backups/restore": 1024, "/api/backups/copy-folder": 4096, "/api/profile": 2 * 1024, "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024, "/api/open-mail": 4096,     # item 110; row 1297
                                                  "/api/word-export": 1024,     # #111, #180; #48
                                                 "/api/draft-email": 16 * 1024, "/api/draft-email/sent": 4 * 1024,     # #50
+                                                "/api/ask-instructions": 24 * 1024,     # row 1294: 4,000 characters of any width, as text
                                                 "/api/word-import": (sv.WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024,
                                                 "/api/excel-import": (sv.EXCEL_FILE_MB * 4 // 3 + 1) * 1024 * 1024,     # #444: a workbook as text
                                                 "/api/project": 4 * 1024,                                               # #444
                                                 "/api/demo/clear": 1024,                                               # #731
-                                                "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/theme": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024,
-                                                "/api/ask": 128 * 1024, "/api/ask/stop": 1024,
+                                                "/api/ask-folders": 4096, "/api/ask-enabled": 1024, "/api/ask-connectors": 1024, "/api/theme": 1024, "/api/providers/connect": 1024, "/api/providers/disconnect": 1024, "/api/providers/model": 1024, "/api/providers/test": 1024,
+                                                "/api/ask": 128 * 1024 + 5 * (10 * 1024 * 1024 * 4 // 3 + 1024), "/api/ask/stop": 1024,
                                                 "/api/ask/change/dry": 1024, "/api/ask/change/apply": 1024, "/api/ask/open-source": 1024,     # #47, #47e, #943
                                                 "/api/section-file": 1024,
                                                 "/api/ai/suggest": 80 * 1024, "/api/ai/stop": 1024,     # #72
                                                 "/api/people": sv.PEOPLE_BODY_LIMIT, "/api/people/undo": 1024,     # #454: /api/people takes a paste of up to 500 rows (worked out in server.py)
-                                                "/api/update/review": 1024, "/api/update/install": 1024, "/api/update/arm-undo": 1024,
+                                                "/api/update/review": 1024, "/api/update/install": 1024, "/api/update/arm-undo": 1024, "/api/update/check": 1024, "/api/update/download": 1024, "/api/update/cancel": 1024,
                                                 "/api/update/undo": 1024,
                                                 "/api/brands/review": 1024, "/api/brands/install": 1024, "/api/brands/remove": 1024, "/api/brands/undo": 1024,     # #944
                                                 "/api/publications/archive": 1024, "/api/publications/restore": 1024})     # #345: a project code and a number; #96: a project and a section only
