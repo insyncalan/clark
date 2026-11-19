@@ -184,6 +184,22 @@ class Browser(Base):
                 got = cdp.js(probe, sid)
                 self.assertNotEqual(got["bg"], "rgb(238, 240, 246)", f"dark keeps the Theme tokens: {got}")
 
+    def test_a_typed_word_first_on_the_line_is_not_clipped_and_stays_on_the_caret(self):
+        # Item 1343: the word box reaches 9px left of its text; the overlay is widened 9px to the left so the box is whole (left radius 6px visible) and the text stays on the input's text x.
+        probe = ("(() => { const w = document.querySelector('#work .fk.k-txt'), o = document.querySelector('#work .fhi'), i = document.querySelector('#fline-input'),"
+                 "wr = w.getBoundingClientRect(), or = o.getBoundingClientRect(), r = document.createRange(); r.selectNodeContents(w.lastChild || w);"
+                 "return {chipL: wr.left, overL: or.left, textX: r.getBoundingClientRect().left, inputX: i.getBoundingClientRect().left, radius: getComputedStyle(w).borderTopLeftRadius, first: !w.previousElementSibling}; })()")
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, width=width)
+                cdp.js("document.documentElement.dataset.theme = 'light'", sid)
+                self.line(cdp, sid, "late")
+                self.until(cdp, sid, "!!document.querySelector('#work .fk.k-txt')", "the typed word is drawn")
+                got = cdp.js(probe, sid)
+                self.assertGreaterEqual(got["chipL"], got["overL"], f"the chip's left edge is inside the overlay: {got}")
+                self.assertEqual(got["radius"], "6px", got)
+                self.assertAlmostEqual(got["textX"], got["inputX"], delta=0.5, msg=f"overlay text x equals input text x: {got}")
+
 
 class CardsControl(Base):
     """The same page without the Classic layer: the typed word stays plain text and the line keeps the base colour (the Cards pins hold)."""
