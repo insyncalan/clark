@@ -73,6 +73,6 @@ def check(value, rules):
 def published(value, ctx):
     """What the file carries: {"content": {health, headline, sentence, pill}} with every field present, or None when there is nothing to show."""
     u = upgrade(value)
-    if not (u["health"] or u["headline"] or u["sentence"]):
+    if not ((u["health"] and u["pill"]) or u["headline"] or u["sentence"]):      # a health with its pill hidden shows nothing
         return None
     return {"content": {"health": u["health"], "headline": u["headline"], "sentence": u["sentence"], "pill": u["pill"]}}

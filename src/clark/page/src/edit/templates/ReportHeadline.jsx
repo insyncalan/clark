@@ -46,13 +46,13 @@ function Area({ value, onCommit, label, placeholder, id }) {
 }
 
 // Does an At a glance section of this report show Project health too? The built-in section (type glance) always does; the template (type
-// glancetemplate) does while its own eye is on (glanceBody.js readBody: a never-written one starts off).
-export const glanceShowsHealth = (sections) => (sections || []).some((s) => s.type === "glance" || (s.type === "glancetemplate" && readBody(s).health.shown));
+// glancetemplate) does while its own eye is on (glanceBody.js readBody: a never-written one starts off). A section hidden from the published report does not count.
+export const glanceShowsHealth = (sections) => (sections || []).filter((s) => !s.hidden).some((s) => s.type === "glance" || (s.type === "glancetemplate" && readBody(s).health.shown));
 
 export function Edit({ section }) {
   const saved = tidyReportHeadline(source(section));
   const write = useSaver(section, saved, "", { silent: true });      // row 1261: no toast and no new words; the save is one step, undone with Cmd/Ctrl+Z like the others
-  const empty = !saved.health && !saved.headline && !saved.sentence;
+  const empty = !(saved.health && saved.pill) && !saved.headline && !saved.sentence;      // a health whose pill is hidden shows nothing, so it does not make the section non-empty
   const now = ITEMS.find((i) => i[0] === saved.health);
   const twice = saved.pill && glanceShowsHealth(data.value && data.value.report_sections);
   const name = now ? now[1] : "Not set";

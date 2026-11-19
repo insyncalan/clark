@@ -60,8 +60,8 @@ export const TEMPLATES = [
     description: "Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed.", holds: ["Heading", "Filter (set in Edit)", "Work item list · live", "Caption (optional)"] },
   { id: "docs-links", name: "Documents and links", kind: "files", fit: ["full", "half"], type: "doclinks", title: "Documents and links", body: "", ready: true,
     description: "The papers that go with this week’s report.", holds: ["Heading", "File (one or more)", "Link list"] },
-  // Row 1261: the Report headline card (type reportheadline). Name: the one #1262 rules for it (final names, Alan 17-11 "naming approved": "Headline (#1261) -> Headline"). Description:
-  // the ticket's own title words (#1261: "health pill, headline and supporting sentence at the top of the report"); `holds` are the Edit part's fields.
+  // Row 1261: the Report headline card (type reportheadline). Name: the one Row 1262 rules for it ("Headline"). Description:
+  // the ticket's own title words (Row 1261: "health pill, headline and supporting sentence at the top of the report"); `holds` are the Edit part's fields.
   { id: "report-headline", name: "Headline", kind: "info", fit: ["full", "half"], type: "reportheadline", title: "Headline", body: "", ready: true,
     description: "A health pill, a headline and a supporting sentence at the top of the report.", holds: ["Health pill · optional", "Headline", "Supporting sentence"] },
   { id: "callout", name: "Callout", kind: "info", fit: ["half", "full"], type: "callout", title: "Callout", body: "", ready: true,

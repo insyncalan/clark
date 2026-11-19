@@ -45,6 +45,9 @@ class Stored(unittest.TestCase):
                          {"health": "at_risk", "headline": "H", "sentence": "", "pill": False})
         self.assertTrue(rh.published({"v": 1, "health": "at_risk", "headline": "H"}, None)["content"]["pill"])
         self.assertIsNone(rh.published({"v": 1, "pill": False}, None))
+        self.assertIsNone(rh.published({"v": 1, "health": "on_track", "pill": False}, None), "a health whose pill is hidden shows nothing")
+        self.assertIsNotNone(rh.published({"v": 1, "health": "on_track"}, None))
+        self.assertIsNotNone(rh.published({"v": 1, "sentence": "S", "pill": False}, None))
 
     def test_the_registry_still_holds_it(self):
         self.assertIs(section_kinds.REGISTRY["reportheadline"], rh)
@@ -56,8 +59,7 @@ class Exports(unittest.TestCase):
     def test_word_leaves_the_pill_out_and_keeps_the_words(self):
         on = ex.doc_xml(docx_build.build(ex.select()))
         off = ex.doc_xml(docx_build.build(ex.select(body=self.BODY)))
-        self.assertIn("At risk", on)
-        self.assertNotIn("At risk", off)
+        self.assertEqual(on.count(">At risk<"), off.count(">At risk<") + 1, "the page's health may be named elsewhere in the file; this section's pill is the one that goes")
         self.assertIn("Go live moves one week", on)
         self.assertIn("Fictional line", off)
         self.assertIn("Fictional reason.", off)
@@ -88,6 +90,13 @@ class Eye(Base):
     def add(self, type_, body, order=992):
         with self.store.step("dashboard", USER) as st:
             return st.create("report_sections", {"project": "ABC", "type": type_, "title": "Fictional glance", "sort_order": order, "body": json.dumps(body) if body else ""})
+
+    def hide_glance(self):
+        """The demo report starts with the built-in At a glance (its health tile cannot be hidden), which makes the warning true; hide it for the tests that need none."""
+        with self.store.step("dashboard", USER) as st:
+            for r in self.store.read("report_sections", "ABC"):
+                if r["type"] in ("glance", "glancetemplate"):
+                    st.update("report_sections", r["id"], {"hidden": 1})
 
     def stored(self, ref):
         return json.loads(self.store.read("report_sections", ref=ref)["body"])
@@ -184,6 +193,7 @@ class Eye(Base):
     WARNING = "Health is also on in At a glance. It would show twice on this page. Turn it off here or hide the Project health tile in At a glance."
 
     def test_no_other_health_no_warning(self):
+        self.hide_glance()
         with chrome() as cdp:
             p = self.sized(cdp, 1400, "light")
             p.edit()
@@ -192,21 +202,27 @@ class Eye(Base):
 
     def test_the_built_in_at_a_glance_and_a_template_with_the_health_on_warn_a_template_with_it_off_does_not(self):
         cases = ((None, None, False), ("glance", "", True), ("glancetemplate", {"v": 1}, True),
-                 ("glancetemplate", {"v": 1, "health": {"shown": True}}, True), ("glancetemplate", {"v": 1, "health": {"shown": False}}, False))
+                 ("glancetemplate", {"v": 1, "health": {"shown": True}}, True), ("glancetemplate", {"v": 1, "health": {"shown": False}}, False),
+                 ("hidden-glance", "", False))
         for type_, body, warns in cases:
             with self.subTest(type=type_, body=body), chrome() as cdp:
-                if type_:
-                    self.add(type_, body)
+                self.hide_glance()
+                if type_ == "hidden-glance":
+                    self.add("glance", body)
+                    with self.store.step("dashboard", USER) as st:
+                        for r in self.store.read("report_sections", "ABC"):
+                            st.update("report_sections", r["id"], {"hidden": 1}) if r["type"] == "glance" else None
+                elif type_:
+                    ref = self.add(type_, body)
                 p = self.sized(cdp, 1400, "light")
                 p.edit()
                 p.until(f"!!document.querySelector('[data-id=\"{self.on}\"] [data-rh-eye]')", "the eye")
                 self.assertEqual(self.warn(p, self.on), self.WARNING if warns else None)
                 self.assertIsNone(self.warn(p, self.off), "a section with its pill off never warns")
-            if type_:
-                with self.store.step("dashboard", USER) as st:
-                    for r in self.store.read("report_sections", "ABC"):
-                        if r["type"] == type_:
-                            st.delete("report_sections", r["id"])
+            with self.store.step("dashboard", USER) as st:
+                for r in self.store.read("report_sections", "ABC"):
+                    if r["sort_order"] == 992:
+                        st.update("report_sections", r["id"], {"hidden": 1})
 
     def test_the_warning_goes_when_the_pill_is_turned_off_and_is_the_mock_ups_look(self):
         self.add("glance", "")
@@ -229,6 +245,7 @@ class Eye(Base):
 
     # --- Defaults -------------------------------------------------------------------------------------------------------------
     def test_defaults_a_new_headline_has_the_pill_on_and_a_new_glance_template_has_its_health_off(self):
+        self.hide_glance()      # the built-in At a glance a new project starts with keeps its tile (it cannot be hidden); the template is the one with the eye
         self.assertTrue(rh.upgrade("")["pill"], "a new Report headline starts with the pill on")
         self.assertTrue(rh.upgrade({"v": 1})["pill"])
         with chrome() as cdp:
@@ -285,7 +302,7 @@ class Eye(Base):
                 p.until(f"!!document.querySelector('[data-id=\"{self.on}\"] textarea')", "edit drew")
                 for ref in (self.on, self.off):
                     block = self.box(p, ref, ".tpl-edit")
-                    for rest in ("textarea[aria-label=Headline]", "textarea[aria-label='Supporting sentence']", "[data-rh-eye]"):
+                    for rest in ("textarea[aria-label=Headline]", "textarea:nth-of-type(2)", "[data-rh-eye]"):
                         part = self.box(p, ref, rest)
                         self.assertLessEqual(part["right"], block["right"] + 1, f"{rest} inside the section in Edit")
 

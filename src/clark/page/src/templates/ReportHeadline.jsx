@@ -30,7 +30,7 @@ export function tidyReportHeadline(v) {
   const o = v && typeof v === "object" ? v : {};
   return { health: Object.prototype.hasOwnProperty.call(HEALTHS, o.health) ? o.health : "", headline: text(o.headline), sentence: text(o.sentence), pill: o.pill !== false };      // pill: the eye (row 1261), only false when the author hid it; an older body has no field and shows it
 }
-export const isEmpty = (section) => { const c = tidyReportHeadline(source(section)); return !c.health && !c.headline && !c.sentence; };
+export const isEmpty = (section) => { const c = tidyReportHeadline(source(section)); return !(c.health && c.pill) && !c.headline && !c.sentence; };
 
 export function View({ section, data }) {
   const c = tidyReportHeadline(source(section));
