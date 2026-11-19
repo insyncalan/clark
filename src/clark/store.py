@@ -657,11 +657,11 @@ def _html_ok(text):
 BODY_RULES = section_bodies.Rules(plain=_plain_ok, visible=_visible_ok, html=_html_ok)
 
 
-def check_section_body(kind, body):
+def check_section_body(kind, body, stored=None):
     """The content of a `kind` section (needs or tracker) as it is stored, or Invalid in plain words (never quoting it). The one
     door to section_bodies.check: _section_rules (every write, an Undo too) and publish (a second look, at publish time) use it."""
     try:
-        return section_bodies.check(kind, body, BODY_RULES)
+        return section_bodies.check(kind, body, BODY_RULES, stored)
     except section_bodies.Bad as e:
         raise Invalid(str(e)) from None
 
@@ -680,7 +680,8 @@ def _section_rules(con, table, row, changed):
         # content: the type's own checker whenever the body is written, a new row is made or a deleted one is put back (an Undo too);
         # what is stored is its canonical text, never the request's. A write that leaves the body alone (a rename, hide, move or
         # renumber) does not re-check it, so a body saved under an older, looser checker never locks its section; publish checks it again
-        row["body"] = check_section_body(row["type"], row.get("body"))
+        was = con.execute("SELECT body FROM report_sections WHERE id = ?", (row.get("id"),)).fetchone() if row.get("id") else None
+        row["body"] = check_section_body(row["type"], row.get("body"), was[0] if was else None)      # what the section holds now: an old entry sent back unchanged stays
     if row.get("id") and not str(row["id"]).startswith(f"{row.get('project')}-S-"):
         raise Invalid("That section's id doesn't belong to its project.")
     if "id" in changed or not row.get("id"):          # a new section, or one put back by an undo: never count the row itself
