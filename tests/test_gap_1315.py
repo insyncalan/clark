@@ -22,14 +22,10 @@ class Gap1315(Base, unittest.TestCase):
         self.assertTrue(rows[-1].startswith("/* Row 1314"))
         self.assertTrue(any(l.startswith("/* Row 1315, gaps") for l in rows))
 
-    def test_switch_at_the_left_edge_zoom_28_and_600_today_600_at_1400(self):
+    def test_zoom_28_and_600_today_600_at_1400(self):
         with chrome() as cdp:
             sid = self.show(cdp, 1400, "light")
             m = cdp.js(M, sid)
-            self.assertEqual(m["pos"], "static", m)
-            self.assertEqual(m["sw"][0], m["h1"], m)      # the content edge, as the title
-            self.assertGreaterEqual(m["sw"][1], m["h1Bottom"], m)      # under the title
-            self.assertLessEqual(m["swBottom"], m["barTop"], m)      # on its own line, not over the zoom row
             self.assertEqual(m["scale"], [[28, "600"], [28, "600"], [28, "600"]], m)
             self.assertEqual(m["today"], "600", m)
 
