@@ -104,8 +104,8 @@ class Static(unittest.TestCase):
     def test_the_rules_are_in_the_classic_theme_only(self):
         self.assertIn("Row 1286", RULES)
         cards = page.page_html(branding=page.NO_BRAND, theme=None)
-        self.assertNotIn("menu-pad-x", cards, "Cards holds no Row 1286 rule")
-        self.assertIn("--menu-pad-x", page.page_html(branding=page.NO_BRAND, theme=NAME))
+        self.assertNotIn("Row 1286", cards, "Cards holds no Row 1286 rule")
+        self.assertIn(".ddmenu .mi { margin-right: var(--space-2); }", page.page_html(branding=page.NO_BRAND, theme=NAME))
 
     def test_no_style_block_of_cards_names_the_row(self):
         for block in re.findall(r"<style[^>]*>(.*?)</style>", page.page_html(branding=page.NO_BRAND, theme=None), re.S):
