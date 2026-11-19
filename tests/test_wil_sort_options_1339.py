@@ -40,6 +40,22 @@ class Rules(unittest.TestCase):
             T.check({"sort": "ZQ-sort"})
 
 
+ODD = [  # fictional rows: owners in mixed case with spaces, an unknown kind, one with no owner
+    {"id": "Z-1", "kind": "action", "owner": "bo Demo", "status": "Open", "due": None},
+    {"id": "Z-2", "kind": "action", "owner": "  Al Demo ", "status": "Open", "due": None},
+    {"id": "Z-3", "kind": "zzkind", "owner": "Cy Demo", "status": "Open", "due": None},
+    {"id": "Z-4", "kind": "risk", "owner": "", "status": "Open", "due": None},
+    {"id": "Z-5", "kind": "decision", "owner": "AL Demo", "status": "Pending", "due": None}]
+
+
+class Odd(unittest.TestCase):
+    def test_owner_ignores_case_and_edge_spaces_and_an_unknown_kind_sorts_after_every_known_one(self):
+        f = T.check({"sort": "owner", "mode": "all", "max": 50})
+        self.assertEqual(wi.matching(f, ODD, T.TODAY), ["Z-2", "Z-5", "Z-1", "Z-3", "Z-4"])
+        f = T.check({"sort": "type", "mode": "all", "max": 50})
+        self.assertEqual(wi.matching(f, ODD, T.TODAY), ["Z-1", "Z-2", "Z-4", "Z-5", "Z-3"])
+
+
 class PageRules(T.PageRules):
     def test_the_page_and_publish_choose_the_same_ids_in_the_same_order(self):
         for f in SORTS:
@@ -53,6 +69,13 @@ class PageRules(T.PageRules):
         self.assertEqual(self.val("W.sortChoices(false, 'due')"), ["due", "priority", "id"])
         self.assertEqual(self.val("W.sortChoices(true, 'id')"), ["due", "priority", "type", "owner", "id"])
         self.assertEqual(self.val("W.sortChoices(false, 'owner')"), ["due", "priority", "id", "owner"])
+
+    def test_the_page_orders_odd_owners_and_an_unknown_kind_as_publish_does(self):
+        for sort in ("owner", "type"):
+            f = T.check({"sort": sort, "mode": "all", "max": 50})
+            want = wi.matching(f, ODD, T.TODAY)
+            page = self.val(f"W.matching(W.filterOf({{body: {json.dumps(T.stored({'sort': sort, 'mode': 'all', 'max': 50}))}}}), {json.dumps(ODD)}, {json.dumps(T.TODAY)})")
+            self.assertEqual(page, want, sort)
     test_current_lists_open_rows_and_a_decision_made_in_the_last_14_days = None
     test_a_decision_has_no_priority_in_the_rules_as_on_the_work_items_page = None
 
