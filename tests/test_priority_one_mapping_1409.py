@@ -14,7 +14,7 @@ from clark import page, theme
 from test_server import chrome
 from test_report_editor import tearDownModule  # noqa: F401
 
-RULES = (Path(__file__).resolve().parent.parent / "src/clark/themes/prototype-2.0/rules.css").read_text()
+RULES = (Path(__file__).resolve().parent.parent / "src/clark/themes/prototype-2.0/rules.css").read_text(encoding="utf-8")
 LEVELS = {"Low": "low", "Medium": "medium", "High": "high", "Urgent": "urgent"}
 COMBOS = {"Low": ("Low", "Low"), "Medium": ("Medium", "Low"), "High": ("High", "Medium"), "Urgent": ("High", "High")}
 
