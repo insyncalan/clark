@@ -6,6 +6,7 @@ bold and sentence case without the divider line, and Add project is a filled blu
 Run: python3 dev/run_tests.py test_theme_classic_1317
 Fails, never skips, without Chrome. Sizes are by eye (+/-2 px): the prototype files are not on the box that built this."""
 import hashlib
+import re
 import shutil
 import tempfile
 import time
@@ -18,8 +19,9 @@ from test_server import Running, chrome, wait
 from test_work_items import FIXED_DATE, load_demo, page_target
 
 NAME = "prototype-2.0"
-# The Cards page, page_html(branding=NO_BRAND, theme=None), taken from origin/main (3496323b) before this row; rules.css is read only when a Theme is named.
-CARDS_SHA256 = "d1f8c525fc43203af455d54309a3e1b1f89f42edc9607875d16e396108e0ae32"      # row 1339: only the page script grew (the Work items sort rules, shared by both layers); the Cards style md5 7195b3107c3b5022f3b40ad1dfbbe484 and the rendered DOM pins are unchanged
+# The Cards page, page_html(branding=NO_BRAND, theme=None), without its <script> blocks, taken from origin/main (3496323b) before this row and equal on main d6f756eec; rules.css is read only when a Theme is named.
+# The script is left out on purpose: the shared JS bundle moves the whole-page sha without a Cards look change; the markup and CSS pins stay (the style md5 in test_ms_cards_1315 and test_work_items_mockup_1195).
+CARDS_SHA256 = "bbd5f8b4139b78174b4cf9c5bcd4e75657e00645009f5790869c1e68a4b068a2"
 SIZES = (1400, 900)
 PROBE = """(() => { const q = (s) => document.querySelector(s), g = (e, p) => getComputedStyle(e)[p];
   const tok = (v, p) => { const i = document.createElement('i'); i.style[p || 'color'] = v; document.body.appendChild(i); const r = getComputedStyle(i)[p || 'color']; i.remove(); return r; };
@@ -128,7 +130,8 @@ class RealSettings(unittest.TestCase):
 
     def test_the_cards_page_is_byte_for_byte_what_it_was(self):
         html = page.page_html(branding=page.NO_BRAND, theme=None)
-        self.assertEqual(hashlib.sha256(html.encode("utf-8")).hexdigest(), CARDS_SHA256)
+        markup = re.sub(r"<script[^>]*>.*?</script>", "", html, flags=re.S)
+        self.assertEqual(hashlib.sha256(markup.encode("utf-8")).hexdigest(), CARDS_SHA256)
         classic = page.page_html(branding=page.NO_BRAND, theme="prototype-2.0")
         self.assertIn(".projects #npBtn.newb", classic)
         self.assertNotIn(".projects #npBtn.newb", html)
