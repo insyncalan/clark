@@ -8,7 +8,7 @@ RULES = (SRC / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(enc
 START = "/* Row 1316d"
 
 RULE_LINES = [
-    '#usecases .fline { min-height: 34px; padding-top: 0; padding-bottom: 0; border: 1px solid var(--grey-500); border-radius: 6px; }',
+    '#usecases .fline { min-height: 34px; padding-top: 0; padding-bottom: 0; border: 1px solid var(--grey-500); border-radius: 6px; background: var(--surface); }',
     '#usecases .fline.bad, #usecases .fline.bad:focus-within { border-color: var(--status-red); box-shadow: none; }',
 ]
 
