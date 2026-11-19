@@ -351,7 +351,7 @@ def _button_test(self):
 Draft.test_the_open_the_draft_button_is_the_prototypes_blue_rectangle_in_classic_only = _button_test
 
 def _empty_test(self):
-    """Row 1347: in Classic the Add menu says (empty) or (N words now) with the title bold; Cards keeps (N words now), (0 words now) included, and plain text."""
+    """Row 1347: in Classic the Add menu says (empty) or (N words now) with the title bold; Cards says the same words with a plain label (no bold title), and never (0 words now)."""
     for theme in ("prototype-2.0", None):
         if theme:
             self.s.httpd.page_html = lambda: page.layer_theme(testpage.html(), themes.css(theme))
@@ -364,10 +364,10 @@ def _empty_test(self):
             if theme:
                 self.assertTrue(all(x[1] and (x[0].endswith(" now)") or x[0].endswith(" (empty)")) and "(0 words now)" not in x[0] for x in got), got)
             else:
-                self.assertTrue(all((not x[1]) and x[0].endswith(" now)") and "(empty)" not in x[0] for x in got), got)
+                self.assertTrue(all((not x[1]) and (x[0].endswith(" now)") or x[0].endswith(" (empty)")) and "(0 words now)" not in x[0] for x in got), got)
 
 
-Draft.test_the_add_menu_says_empty_in_classic_only = _empty_test
+Draft.test_the_add_menu_says_empty_in_classic_and_cards = _empty_test
 
 for _n in dir(Panel):      # the panel's own tests are not run again here (they use the plain stub)
     if _n.startswith("test_") and _n not in Draft.__dict__:

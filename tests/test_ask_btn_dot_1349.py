@@ -20,9 +20,10 @@ READY = "!!document.querySelector('#ask-panel') && !document.querySelector('#ask
 LOOK = """(() => { const b = document.querySelector('#ask-btn'), br = b.getBoundingClientRect(), tok = (v) => { const i = document.createElement('i'); i.style.backgroundColor = v;
   document.body.appendChild(i); const c = getComputedStyle(i).backgroundColor; i.remove(); return c; };
   const d = b.querySelector('.tb-ask-ready, .tb-ask-dots'); if (!d) return JSON.stringify({dot: false, btn: [Math.round(br.width), Math.round(br.height)]});
-  const r = d.getBoundingClientRect(), s = getComputedStyle(d), w = getComputedStyle(b.querySelector('.tb-ask-w'));
+  const s = getComputedStyle(d), anim = [s.animationName, s.animationDuration, s.animationIterationCount, s.animationTimingFunction]; d.style.animation = 'none';      /* the corner is measured at rest, the pulse moves it by up to 3 px */
+  const r = d.getBoundingClientRect(), w = getComputedStyle(b.querySelector('.tb-ask-w'));
   return JSON.stringify({dot: true, cls: d.className, size: [Math.round(r.width), Math.round(r.height)], top: Math.round(r.top - br.top), right: Math.round(br.right - r.right),
-    bg: s.backgroundColor, cyan: tok('var(--brand-cyan)'), amber: tok('var(--status-amber)'), ring: s.boxShadow, navy: tok('var(--brand-navy)'), pos: s.position, radius: s.borderTopLeftRadius,
+    bg: s.backgroundColor, cyan: tok('var(--brand-cyan)'), amber: tok('var(--status-amber)'), ring: s.boxShadow, navy: tok('var(--brand-navy)'), pos: s.position, anim, radius: s.borderTopLeftRadius,
     inner: [...d.children].map((e) => getComputedStyle(e).display), text: d.textContent.trim(), fs: s.fontSize, word: w.display, label: b.getAttribute('aria-label'), btn: [Math.round(br.width), Math.round(br.height)]}); })()"""
 IN_BAR = "(function(){var e=document.querySelector('.top #ask-btn'); return !!e && e.getClientRects().length > 0 && e.getBoundingClientRect().width > 0;})()"
 
@@ -83,13 +84,15 @@ class Classic1400(Dot):
         for got, colour, cls in ((working, working["amber"], "tb-ask-dots"), (ready, ready["cyan"], "tb-ask-ready")):
             self.assertEqual(got["cls"], cls)
             self.assertEqual(got["size"], [9, 9])
-            self.assertEqual((got["top"], got["right"]), (4, 4))
+            self.assertEqual((got["top"], got["right"]), (5, 5))
             self.assertEqual(got["bg"], colour)
             self.assertEqual(got["pos"], "absolute")
             self.assertEqual(got["radius"], "50%")
             self.assertEqual(got["text"] if got is working else got["fs"], "" if got is working else "0px", "no number is drawn in the dot")
             self.assertIn("2px", got["ring"])
             self.assertIn(got["navy"], got["ring"])
+        self.assertEqual(working["anim"], ["tb-ask-pulse", "1s", "infinite", "cubic-bezier(0.65, 0, 0.35, 1)"], "the working dot pulses as the prototype's does")
+        self.assertEqual(ready["anim"][0], "none", "the ready dot is still")
         self.assertEqual(working["inner"], ["none"] * 3, "the three small dots inside the working dot are not drawn: the dot is one amber circle")
         self.assertNotEqual(working["amber"], working["cyan"])
         self.assertEqual(ready["label"], "ask clark, 1 answer ready")
@@ -106,7 +109,7 @@ class Classic900(Dot):
         self.assertTrue(in_bar, "item 1349: at 900 the ask clark button is in the header row")
         self.assertEqual(ready["word"], "none", "the words are hidden at 900")
         self.assertEqual(ready["size"], [9, 9])
-        self.assertEqual((ready["top"], ready["right"]), (4, 4))
+        self.assertEqual((ready["top"], ready["right"]), (5, 5))
         self.assertEqual(ready["bg"], ready["cyan"])
         self.assertEqual(working["bg"], working["amber"])
         self.assertEqual(ready["label"], "ask clark, 1 answer ready")

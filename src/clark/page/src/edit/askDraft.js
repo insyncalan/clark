@@ -32,7 +32,7 @@ export function choices(sections, pref, classic = false) {
   const text = textSections(sections);
   const out = [...text.filter((s) => s.id === pref), ...text.filter((s) => s.id !== pref)].map((s) => {
     const n = wordsIn(s.body);
-    const title = s.title || "this section", tail = n || !classic ? `(${n} ${n === 1 ? "word" : "words"} now)` : "(empty)";      // row 1347 (Classic only): the prototype says (empty) for a section with no text; Cards keeps (0 words now)
+    const title = s.title || "this section", tail = n ? `(${n} ${n === 1 ? "word" : "words"} now)` : "(empty)";      // row 1347: the ask clark prototype says (empty) for a section with no text, in Classic and Cards
     return { kind: "replace", id: s.id, after: null, title, tail, label: `Replace the text of ${title} ${tail}` };
   });
   const at = text.find((s) => s.id === pref);
