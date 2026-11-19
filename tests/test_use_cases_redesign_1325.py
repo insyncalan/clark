@@ -12,7 +12,7 @@ Contract the build must meet (the names are the Work items names, so the build c
       head, tabs with counts, `.fline` filter box, `.fline-tail` with the List/Board pair and the Group by / Sort by icon buttons.
   R2  a use case hidden from the client: `tr.off`, all row text #667391, pill unfilled with a ring, grey avatar, crossed-out eye.
   R3  `button[aria-label=Columns]` in the last th; its menu `.cols-menu` of role=menuitemcheckbox rows; Use case and Status locked.
-  R4  grouped = Option A of 1324: `tr.grp th > button.grp-b` with `.gl` (name) and `.gc` (count), no tile, one hairline, header row once on top.
+  R4  grouped by Status: one heading button per group, one column header, shut group hides its rows (the heading look is the grouped-heading row's).
 """
 import hashlib
 import json
@@ -266,26 +266,17 @@ class Redesign:
                 self.assertEqual(p.js("[...document.querySelectorAll('#usecases thead th')].some((t) => t.textContent.trim() === 'Commitment')"), True, "saved for this table and project in this browser")
 
     # R4 ---------------------------------------------------------------------------------------------------------------------------
-    def test_r4_grouped_is_option_a_of_1324(self):
+    def test_r4_grouped_list_keeps_its_headings_and_the_new_columns(self):
+        """Grouped by Status the new table still draws one heading button per group, opens and shuts it, and keeps one column header on top.
+        How the heading line itself is drawn (name, count, hairline, no tile) belongs to the grouped-heading row and is pinned in its own tests."""
         for w in self.widths():
             with self.subTest(width=w), chrome() as cdp:
                 p = self.open(cdp, w, ready="true")
                 p.js("localStorage.setItem('clark.ucPage', JSON.stringify({ABC: {line: '', tab: 'all', group: 'status', sort: 'status'}}))")
                 reload_to_new_page(p.js, "document.querySelectorAll('#usecases .grp-b').length > 0", "grouped by Status")
-                g = p.js(GROUPS)
-                self.assertEqual([[x["gl"], x["gc"]] for x in g], [["On track", "2 use cases"], ["Flag", "1 use case"], ["High risk", "1 use case"]], "the heading line: name, then the count")
+                self.assertEqual(p.js("document.querySelectorAll('#usecases .grp-b').length"), 3, "one heading button per status group")
                 self.assertEqual(p.js("document.querySelectorAll('#usecases tr.colh').length"), 1, "the column header is drawn once, on top")
-                self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-group').length"), 0, "no tile")
-                for x in g:
-                    self.assertTrue(x["inTr"] and x["chev"], "a heading row with its chevron")
-                    self.assertEqual(x["exp"], "true")
-                    self.assertEqual(x["font"], ["600", "15px"], "a bold small heading")
-                    self.assertEqual(x["th"][1:3], ["0px", "0px"], "no frame")
-                    self.assertEqual(x["th"][3:5], ["1px", "solid"], "one hairline under it")
-                    self.assertEqual(x["th"][0], "rgba(0, 0, 0, 0)", "on the page background: no band")
-                    self.assertEqual(x["th"][5], "0px", "no rounded corners")
-                    for tag, top, left, rad, shadow in x["chain"]:
-                        self.assertEqual((top, left, rad, shadow), ("0px", "0px", "0px", "none"), "no tile, no border on " + tag)
+                self.assertEqual(p.js("document.querySelectorAll('#usecases tr[data-uc]').length"), 4, "all four rows are drawn")
                 p.js("document.querySelector('#usecases .grp-b').click()")
                 p.until("document.querySelector('#usecases .grp-b').getAttribute('aria-expanded') === 'false'", "collapsed")
                 self.assertEqual(p.js("document.querySelectorAll('#usecases tr[data-uc]').length"), 2, "a shut group hides its two rows")
