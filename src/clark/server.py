@@ -101,9 +101,9 @@ CONTAINER_BIND = "0.0.0.0"            # item 427: only inside the shipped contai
 
 
 def container_mode():
-    """item 427: True only when CLARK_CONTAINER=1 is set (by docker/compose.yaml, which runs a stock Python image) AND this really is a
-    container (Docker makes /.dockerenv in every container, Podman /run/.containerenv). Never by the setting alone; never on a Mac."""
-    return os.environ.get("CLARK_CONTAINER") == "1" and (os.path.exists("/.dockerenv") or os.path.exists("/run/.containerenv"))
+    """item 575: the one rule lives in platform.container_mode (CLARK_CONTAINER=1 AND /.dockerenv or /run/.containerenv); this asks it, found by
+    name at the call so the server still imports no clark module at the top. Kept here so the server's own patches and callers read one name."""
+    return importlib.import_module("clark.platform").container_mode()
 
 
 def container_gateway():
