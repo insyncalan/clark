@@ -302,6 +302,7 @@ def make_cases(TYPE, PLACES):
             self.assertEqual(offered(self.data(report_sections=everything)), ["overdue", "risks", "decisions"])
             self.assertEqual(offered(self.data(report_sections=[])), ["overdue", "risks", "decisions"])      # an older project with no section rows keeps its built-ins
             self.assertEqual(offered(self.data(report_sections=[], sections_deleted=True)), [])
+            self.assertEqual(self.val("F.figures.metricsOffered(null)"), [], "no data yet: nothing is offered")
 
         def test_a_low_only_project_is_amber_in_the_page_figure_and_in_the_file(self):
             """Item 391: the live High risks and issues figure takes the tile's colour, so it is the file's colour too."""
