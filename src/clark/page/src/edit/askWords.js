@@ -63,6 +63,25 @@ export const PILLS_BY_SUBJECT = {
   risks: ["Which risks are red?", "Which risks have no owner?", "Which issues are open?", "What changed in the risks this week?", "Which risks are new this week?", "Which risks are due soon?"],
   gantt: ["What is the next milestone?", "Which work items are running late?", "Which work items hold up the end date?", "Which work items start next week?", "Which milestones are at risk?", "What ends this month?"],
 };
+// Row 1332: with Help open the suggestions are about Help, not about the page behind it.
+export const PILLS_HELP = ["How do I add a work item?", "How do I change the view?", "How do I publish a report?", "What does Preview do?", "How do I turn ask clark off?", "Where are my settings?"];
+// Row 1332: what the project holds puts one of a subject's own questions first. Only a question already in that subject's list is named here, so the
+// state reorders the set and never adds to it. States: overdue (late open items), red (high risks), noOwner (open items with no owner).
+export const PILLS_STATE = {
+  dashboard: { overdue: "What is overdue?", red: "Which risks are red?" },
+  work: { overdue: "What is overdue?", noOwner: "Which work items have no owner?" },
+  milestones: { overdue: "Which milestones are late?" },
+  usecases: { red: "Which use cases have open risks?", noOwner: "Which use cases have no owner?" },
+  risks: { red: "Which risks are red?", noOwner: "Which risks have no owner?" },
+  gantt: { overdue: "Which work items are running late?", red: "Which milestones are at risk?" },
+};
+// Row 1332 rows 3 and 11: after an answer that names items, the suggestions open with what can be done about THOSE items (DRAFT contract: items=[{id,state}],
+// state words overdue / red / no_owner). The two questions about one item or a few carry the ids in brackets only in the question sent, never in the shown words; the rest are plain questions.
+export const PILLS_ITEM_DUE = "Change the due date";
+export const PILLS_ITEM_URGENCY = "Raise the urgency";
+export const PILLS_ITEM_OWNERS = "Who owns these?";
+export const PILLS_ITEM_LATE = "Why are these late?";
+export const PILLS_MAX = 6;
 export const PILLS_PAGE = { dashboard: "dashboard", work: "work", milestones: "milestones", usecases: "usecases", gantt: "gantt" };
 // Words in a question that name a subject. The first one found in the last question wins.
 export const PILLS_WORDS = [["milestone", "milestones"], ["use case", "usecases"], ["risk", "risks"], ["issue", "risks"], ["work item", "work"], ["task", "work"]];

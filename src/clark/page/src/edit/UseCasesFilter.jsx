@@ -10,6 +10,6 @@ const IDS = { input: "ucl-q", list: "ucl-q-list", count: "ucl-q-count", x: "ucl-
 const CTX = {};
 
 /** `f` is the page's state, `rows` its rows, `now()` reads the line as it is this moment and `apply(text)` makes `text` the line. */
-export function UseCasesFilter({ f, rows, now, apply }) {
-  return <LineBox line={f.line} now={now} apply={apply} rows={rows} ctx={CTX} extra={LINE} ids={IDS} label="Search use cases" />;
+export function UseCasesFilter({ f, rows, now, apply, tail = null }) {
+  return <LineBox line={f.line} now={now} apply={apply} rows={rows} ctx={CTX} extra={LINE} ids={IDS} label="Search use cases" tail={tail} />;
 }

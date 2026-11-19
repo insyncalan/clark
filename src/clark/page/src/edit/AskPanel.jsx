@@ -2,13 +2,16 @@
 // is #102's light panel with a soft wash (#214), built from the page's own tokens (edit.css). The reply is drawn as text only: it is
 // never read as markup (row 1217: a listed set of marks becomes elements clark makes itself, see askFormat.js). Nothing is sent while asking is off.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { project, showSettings, token, view } from "../stores/report.js";
+import { project, showSettings, token, view, rows, filterCtx } from "../stores/report.js";
 import { zoneFetch } from "../api.js";
 import { words } from "./publishApi.js";
 import { stopRestore } from "../router.js";
 import { askProvider } from "./askState.js";
 import { draft, panelOpen, panelState, panelDisconnected, panelModel, panelStanding, panelWidth, panelFocus, turns, pending, chatEpoch, handed, answersReady, queue, queueHeld, queueDrop, QUEUE_MAX, setQueue, closePanel, newChat, setWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
 import * as W from "./askWords.js";
+import { pills, asking } from "./askPills.js";
+import { stateOf } from "./askPillState.js";
+import { helpOpen } from "../help/helpStore.js";
 import { slashMatches, stepSlash } from "./askSlash.js";
 import { Icon } from "../components/Icon.jsx";
 import { holdScroll } from "../core/holdScroll.js";
@@ -46,17 +49,6 @@ async function post(path, body) {
 }
 
 const stillMotion = () => document.documentElement.dataset.motion === "reduce" || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-
-// Row 1093: the suggestions for the page that is open, or for the subject the last question was about.
-function pillsFor(list, page) {
-  const asked = [...list].reverse().find((t) => t && t.role === "user" && typeof t.text === "string");
-  const said = asked ? asked.text.toLowerCase().replace(/[-_\s]+/g, " ") : "";
-  // A whole word (or its plural), with the space inside a two-word name optional: "use-case", "usecase" and "use case" all match.
-  const named = (word) => new RegExp("(^|[^a-z])" + word.replace(/ /g, " ?") + "s?([^a-z]|$)").test(said);
-  const hit = W.PILLS_WORDS.find(([word]) => named(word));
-  const subject = hit ? hit[1] : W.PILLS_PAGE[page];
-  return W.PILLS_BY_SUBJECT[subject] || W.SUGGESTIONS;
-}
 
 let nextId = 1;
 
@@ -213,7 +205,7 @@ export function AskPanel() {
       const found = Array.isArray(b.flags) ? b.flags.filter((f) => f && typeof f.message === "string" && f.message).map((f) => f.message) : [];
       const extra = [...(Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : []), ...found];
       const made = readDraft(b.draft);      // row 1292: a draft the answer carries opens beside the panel; nothing is in the report until it is added
-      turns.value = [...turns.value, { role: "assistant", text: b.answer, sources: sourceLabels(b.sources), ...(made ? { draft: made } : {}) }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))];
+      turns.value = [...turns.value, { role: "assistant", text: b.answer, sources: sourceLabels(b.sources), items: Array.isArray(b.items) ? b.items : [], ...(made ? { draft: made } : {}) }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))];
       keepChat(turns.value);
       if (made) draft.value = made;
       if (!panelOpen.value) answersReady.value++;       // row 1292: the button says an answer is waiting
@@ -413,7 +405,7 @@ export function AskPanel() {
         </p>
       ) : (state === "ready" || state === "off") && !text.trim() ? (
         <div class="ask-pills" id="ask-pills" role="group" aria-label={W.PILLS_LABEL}>
-          {pillsFor(list, view.value).map((q) => <button type="button" key={q} disabled={state === "off"} aria-disabled={state === "off" ? "true" : undefined} onClick={() => send(null, q)}>{q}</button>)}
+          {pills(view.value, list, helpOpen.value, stateOf(rows.value, filterCtx().today)).map((q) => <button type="button" key={q} disabled={state === "off"} aria-disabled={state === "off" ? "true" : undefined} onClick={() => send(null, asking(q, list))}>{q}</button>)}
         </div>
       ) : null}
       <p class="ask-note" id="ask-note" role="status" aria-live="polite">{note}</p>
