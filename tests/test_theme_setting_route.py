@@ -22,14 +22,28 @@ class Theme(Base):
         finally:
             store.close()
 
-    def test_classic_to_start_with_then_cards_then_classic(self):
+    def keep_cards(self):
+        """A value an earlier version stored (row 1363: Cards can no longer be chosen, but a stored one is left alone)."""
+        store = st.open_store(self.db, onedrive_roots=[])
+        try:
+            with store.con:
+                store.con.execute("UPDATE app_settings SET theme = 'cards' WHERE id = 1")
+        finally:
+            store.close()
+
+    def test_classic_to_start_with_and_cards_cannot_be_chosen(self):
         self.assertEqual(self.call("GET", "/api/theme"), (200, {"ok": True, "theme": "classic", "saved": True}))
         status, got = self.theme("cards")
-        self.assertEqual((status, got["ok"], got["theme"]), (200, True, "cards"))
-        self.assertIsInstance(got["apply_id"], int)
-        self.assertEqual(self.stored(), "cards")
+        self.assertEqual((status, got["code"]), (400, "bad_theme"))
+        self.assertEqual(self.stored(), "classic")
+
+    def test_a_stored_cards_value_is_read_back_and_can_be_changed_to_classic(self):
+        self.keep_cards()
         self.assertEqual(self.call("GET", "/api/theme")[1]["theme"], "cards")
-        self.assertEqual(self.theme("classic")[1]["theme"], "classic")
+        self.assertEqual(self.stored(), "cards")
+        status, got = self.theme("classic")
+        self.assertEqual((status, got["theme"]), (200, "classic"))
+        self.assertIsInstance(got["apply_id"], int)
 
     def test_the_same_value_changes_nothing(self):
         before = self.snapshot()
@@ -38,11 +52,12 @@ class Theme(Base):
         self.assertEqual(self.snapshot(), before)
 
     def test_undo_takes_the_change_back_once(self):
-        step = self.theme("cards")[1]["apply_id"]
+        self.keep_cards()
+        step = self.theme("classic")[1]["apply_id"]
         status, got = self.call("POST", "/api/theme", {"undo": step})
-        self.assertEqual((status, got["theme"]), (200, "classic"))
+        self.assertEqual((status, got["theme"]), (200, "cards"))
         self.assertEqual(self.call("POST", "/api/theme", {"undo": step})[0], 409)
-        self.assertEqual(self.stored(), "classic")
+        self.assertEqual(self.stored(), "cards")
 
     def test_an_undo_of_the_ask_switch_is_not_accepted_here_and_the_other_way_round(self):
         ask_step = self.ask(False)[1]["apply_id"]
@@ -50,14 +65,15 @@ class Theme(Base):
         status, got = self.call("POST", "/api/theme", {"undo": ask_step})
         self.assertEqual((status, got["code"]), (409, "no_undo"))
         self.assertEqual(self.snapshot(), before)
-        theme_step = self.theme("cards")[1]["apply_id"]
+        self.keep_cards()
+        theme_step = self.theme("classic")[1]["apply_id"]
         status, got = self.call("POST", "/api/ask-enabled", {"undo": theme_step})
         self.assertEqual((status, got["code"]), (409, "no_undo"))
-        self.assertEqual(self.stored(), "cards")
+        self.assertEqual(self.stored(), "classic")
 
     def test_bad_bodies_are_refused_and_nothing_changes(self):
         before = self.snapshot()
-        for body in ({"theme": "Classic"}, {"theme": "dark"}, {"theme": 1}, {"theme": None}, {"theme": ["cards"]}):
+        for body in ({"theme": "Classic"}, {"theme": "dark"}, {"theme": 1}, {"theme": None}, {"theme": ["cards"]}, {"theme": "cards"}):
             status, got = self.call("POST", "/api/theme", body)
             self.assertEqual((status, got["code"]), (400, "bad_theme"), body)
         for body in ({}, {"theme": "cards", "x": 1}, {"enabled": True}, [], "cards", {"undo": "1"}, {"undo": True}, {"undo": 0}):

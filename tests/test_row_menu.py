@@ -584,6 +584,38 @@ class Menu(board.Base):
                 self.assertNotEqual(cdp.js("document.activeElement.className", sid), "skip", "Tab from the menu must not throw focus to the top of the page")
                 self.assertNotEqual(cdp.js("document.activeElement.tagName", sid), "BODY", "focus is still on the page")
 
+    def test_row_1362_shift_f10_and_the_menu_key_open_the_menu_and_escape_returns_focus_to_the_row_at_1400_and_900(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, width=width)
+                a = self.id_of("Order the laptops")
+                for name, shift in (("F10", True), ("ContextMenu", False)):
+                    cdp.js(f"document.querySelector(\"{self.TABLE % a}\").focus()", sid)
+                    key(cdp, sid, name, shift=shift)
+                    self.until(cdp, sid, "!!document.querySelector('.rowmenu [role=menu]')", f"{width}: {name} opens it")
+                    self.settled(cdp, sid)
+                    key(cdp, sid, "Escape")
+                    self.shut(cdp, sid)
+                    self.until(cdp, sid, f"document.activeElement.dataset.id === {json.dumps(a)}", f"{width}: focus back on the row after {name}")
+
+    def test_row_1362_the_work_page_row_menu_has_the_same_entries_as_the_dashboard_row_menu(self):
+        self.demo.plant_builtin_sections()      # the Dashboard's Actions list needs its built-in section (row 1193)
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            self.open_menu(cdp, sid, self.TABLE % self.id_of("Order the laptops"))
+            work = [e[1] for e in self.entries(cdp, sid)]
+            key(cdp, sid, "Escape")
+            self.shut(cdp, sid)
+            cdp.js("location.hash = '#dashboard&p=ABC'", sid)
+            self.until(cdp, sid, "!!document.querySelector('[data-mode=edit]')", "the Dashboard")
+            cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
+            self.until(cdp, sid, "!!document.querySelector('[data-type=actions] .wl-row')", "a Dashboard row")
+            self.calm(cdp, sid)
+            self.open_menu(cdp, sid, "[data-type=actions] .wl-row")
+            dash = [e[1] for e in self.entries(cdp, sid)]
+            self.assertEqual(dash[1:], work[1:], "the same entries after the Draft email entry, which names the row's owner")
+            self.assertTrue(dash[0].startswith("Draft email to "))
+
     def test_the_keys_open_the_menu_walk_it_and_run_an_entry(self):
         with chrome() as cdp:
             sid = self.visit(cdp)
