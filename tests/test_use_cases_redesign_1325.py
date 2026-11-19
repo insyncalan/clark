@@ -168,9 +168,7 @@ class Redesign:
                 self.assertEqual(one["av"], "PD")
                 self.assertEqual(g["rows"][3]["av"], None, "no owner, no avatar")
                 self.assertEqual(one["stp"], "1 next step")
-                self.assertEqual(one["prgH"], 4)
-                self.assertAlmostEqual(one["prgFill"], 0.5, delta=0.02, msg="1 of 2 work items closed")
-                self.assertAlmostEqual(g["rows"][1]["prgFill"], 0.0, delta=0.02)
+                self.assertEqual(one["prgH"], 0, "Row 1399: the prototype draws no progress bar under the next steps (it stays in the markup, not drawn)")
                 if w == 1400:
                     self.assertTrue(one["onVis"] and one["onText"] == "Pat Demo", "1400: the owner's name beside the avatar")
                     self.assertTrue(one["msVis"] and (one["ms"] or "").strip(), "the milestone cell names the linked milestone")
@@ -186,7 +184,7 @@ class Redesign:
                 p.js("location.hash = '#work&p=ABC'")
                 p.until("!!document.querySelector('#work table.items tbody tr')", "Work items drew")
                 wk = p.js(LOOK + "('#work')")
-                for k in ("th", "td", "av", "vtab", "gutter"):   # not fline: Row 1316 ruled the Classic Use cases filter a boxed input (the prototype's), Work items keeps its line
+                for k in ("th", "av", "gutter"):   # Row 1399: td (padding, title weight) and vtab (15px, 6px 8px) are the prototype's on Use cases and no longer equal to Work items (pinned in test_use_cases_rows_1399); # not fline: Row 1316 ruled the Classic Use cases filter a boxed input (the prototype's), Work items keeps its line
                     self.assertIsNotNone(uc[k], k + ": drawn on Use cases")
                     self.assertEqual(uc[k], wk[k], k + ": the same as Work items, measured on both pages")
 

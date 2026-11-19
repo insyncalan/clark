@@ -333,8 +333,8 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
   .ucl-table .c-steps { width: 124px; }
 }
 .cols-menu .ck[data-on]::before { content: "\2713"; }
-/* Row 1325 (Classic only): the view tabs are as wide as on Work items (the shared rule narrows them by two px a side; the Columns and Group by buttons moved off this row, so they fit). */
-#usecases .ucl-views .vtab { padding-left: 10px; padding-right: 10px; }
+/* Row 1325 (Classic only): the view tabs are as wide as on Work items (Row 1399 then sets them as the prototype's: 15px, 6px 8px). */
+#usecases .ucl-views .vtab { padding-left: 8px; padding-right: 8px; }
 /* Row 1344: the peek as the approved peek mock-up draws it, Classic only (Cards keeps today's rules): a 1 px edge and a shadow thrown to the left in light (dark keeps the Theme's own tokens), and the 0.5 s slide fades in while it travels, opaque at 60 %. Reduced motion keeps the short fade of the base rules. */
 .peek { border-left-color: rgb(205, 211, 224); box-shadow: -10px 0 30px rgba(19, 35, 42, .14); }
 :root[data-theme=dark] .peek { border-left-color: var(--grey-200); box-shadow: var(--shadow); }
@@ -372,6 +372,15 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .fbt-error { margin-top: 4px; color: var(--status-red-text); font-size: 13px; }
 /* Row 1375: a wheel over the Dashboard's Work items box that has reached its top or bottom keeps scrolling the page (the shared rule's overscroll-behavior-y: contain made it stall inside the box); the box still scrolls its own rows. */
 .wil-scroll { overscroll-behavior-y: auto; }
+/* Row 1399 (Use cases rows audit, Classic only): the rows as the prototype draws them. Cell padding 6px 12px with a 40px row, the hover tint, the title at 500, the reference as a chip, no progress bar under the next steps, and the view tabs 15px with 6px 8px. */
+#usecases .ucl-table td { padding: 6px 12px; height: 40px; }
+#usecases .ucl-table tbody tr:hover, #usecases .ucl-table tbody tr:focus-within { background: #F3F5FB; }
+:root[data-theme=dark] #usecases .ucl-table tbody tr:hover, :root[data-theme=dark] #usecases .ucl-table tbody tr:focus-within { background: var(--grey-100); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] #usecases .ucl-table tbody tr:hover, :root[data-theme=auto] #usecases .ucl-table tbody tr:focus-within { background: var(--grey-100); } }
+#usecases .ucl-table .ucl-go, #usecases .ucl-table .uctitle { font-weight: 500; }
+#usecases .ucl-table .ucl-ref { display: inline-block; box-sizing: border-box; border: 1px solid var(--grey-500); border-radius: 4px; padding: 2px 8px; font-size: 13px; font-weight: 500; line-height: 1.3; }
+#usecases .ucl-table .prg { display: none; }
+#usecases .ucl-views .vtab { font-size: 15px; padding-top: 6px; padding-bottom: 6px; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
