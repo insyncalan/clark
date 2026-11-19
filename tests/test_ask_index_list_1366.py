@@ -141,10 +141,12 @@ class Cards(Base):
     classic = False
 
     def test_cards_has_no_button(self):
+        """Re-pinned (named exemption): this test used to wait for the status line under Cards, which was the leak (its rules are Classic's,
+        so on Cards it showed as unstyled text and changed the page). Cards now has no line, no button and no list."""
         with chrome() as cdp:
-            js = self.show(cdp)
-            self.assertTrue(wait(lambda: js("[...document.querySelectorAll('.ask-folder-line')].every(e => e.innerText.startsWith('Indexed'))"), 20))
-            self.assertFalse(js("!!document.querySelector('.ask-left-btn, .ask-left-list')"))
+            js = self.show(cdp, ready="document.querySelectorAll('.folder-now').length >= 2")
+            self.assertTrue(wait(lambda: js("document.querySelectorAll('.folder-now').length >= 1"), 20))
+            self.assertFalse(js("!!document.querySelector('.ask-folder-line, .ask-left-btn, .ask-left-list')"))
 
 
 class Note(unittest.TestCase):

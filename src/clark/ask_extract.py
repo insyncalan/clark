@@ -1,10 +1,10 @@
 """ask index (Row 1366 slice c rest): PowerPoint (.pptx) and web page (.html, .htm) text, standard library only.
 
 Both return [(part name, lines)] like the Excel reader in `ask_index`, and raise ValueError for a file that is hostile or damaged
-(the index counts that as `safety`). A file with no text returns [] (the index counts it as `type`, like a PDF with no text).
+(the index counts that as `type`, never as a password). A file with no text returns [] (the index counts it as `type`, like a PDF with no text).
 
 PPTX: `zipfile` + `xml.parsers.expat`. Only ppt/slides/slideN.xml and ppt/notesSlides/notesSlideN.xml are opened, one passage run per
-slide ("slide N": its text, then its notes). Limits: MAX_MEMBERS entries in the zip, MAX_UNCOMPRESSED bytes in all (declared sizes
+slide ("slide N": its text, then its notes; a hidden slide, show="0", and its notes are not read). Limits: MAX_MEMBERS entries in the zip, MAX_UNCOMPRESSED bytes in all (declared sizes
 AND the bytes really read, since a header can lie), MAX_XML bytes per part. A DOCTYPE or any entity declaration is refused, so no
 entity is expanded and none is fetched.
 
@@ -26,8 +26,8 @@ _SLIDE = re.compile(r"^ppt/slides/slide(\d+)\.xml$")
 _NOTES = re.compile(r"^ppt/notesSlides/notesSlide(\d+)\.xml$")
 
 
-def _xml_lines(data):
-    """Lines of text in a DrawingML part: the text of each a:t, one line per a:p."""
+def _xml_lines(data, root=None):
+    """Lines of text in a DrawingML part: the text of each a:t, one line per a:p. `root`, a dict, gets the attributes of the first element."""
     p = expat.ParserCreate()
     p.buffer_text = True
     lines, cur, state = [], [], {"in_t": False}
@@ -35,7 +35,9 @@ def _xml_lines(data):
     def refuse(*_a):
         raise ValueError("xml declares a doctype or entity")
 
-    def start(name, _attrs):
+    def start(name, attrs):
+        if root is not None and not root:
+            root.update(attrs)
         if name.endswith(":t") or name == "t":
             state["in_t"] = True
 
@@ -97,7 +99,11 @@ def pptx_groups(raw, truncated=False):
                 if info is None:
                     continue
                 data = _member(z, info)
-                lines += _xml_lines(data)
+                head = {}
+                lines += _xml_lines(data, head)
+                if info is slides.get(n) and head.get("show") in ("0", "false"):
+                    lines = []                       # a hidden slide is not shown to anyone: neither it nor its notes are indexed
+                    break
             if lines:
                 out.append((f"slide {n}", lines))
         return out

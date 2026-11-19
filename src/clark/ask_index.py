@@ -8,7 +8,7 @@ Text, Markdown, CSV, TSV, RST and Word are read like `ask_passages` reads them. 
 page: "<file>, page n"); Excel (.xlsx, .xlsm) through vendored openpyxl, read-only, stored values, a passage run per sheet ("<file>, sheet S"); a PDF with no
 readable text (scanned, encrypted, damaged) counts as `type` and is listed as left out, a damaged workbook or a PDF over the page or size limit as `type`, `too_long` (never as a password).
 PowerPoint (.pptx: slide text and notes, a passage run per slide, "<file>, slide n") and web pages (.html, .htm: the visible text) are read by `ask_extract`;
-a file with no text counts as `type`, a hostile or damaged one (zip bomb, too many parts, an entity declaration, broken XML, too big) as `safety`. A file whose name or text looks like a password or
+a file with no text, and a hostile or damaged one (zip bomb, too many parts, an entity declaration, broken XML, too big), count as `type`, never as a password. A file whose name or text looks like a password or
 a key is screened by `secret_screen` BEFORE any of it is stored: it leaves a row with no text (label and size only). Every
 other type (pictures) is counted as `type` until its own slice. No per-question file, byte or time limit.
 
@@ -469,13 +469,18 @@ def line_for(counts, reading=None):
 
 def _left_by_folder(data_dir, code, folders, limit=MAX_LEFT_OUT_SHOWN):
     """{folder: {"files": [[name inside the folder, plain reason]] (at most `limit`), "more": n}} for the folders with a file left out.
-    A left-out label is "<folder name>/<name>", so it goes to the folder with that name."""
+    A left-out label is "<folder name>/<name>", so it goes to the folder with that name (the whole "name/" with its separator). Two folders
+    with the same name (a/docs, b/docs) share that prefix, so there a file is given to the folder that really holds it."""
     whole = files_left_out(data_dir, code, 10 ** 9)["files"]
     out = {}
+    names = [os.path.basename(str(f).rstrip("/\\")) for f in folders or ()]
     for f in folders or ():
         f = str(f)
-        prefix = os.path.basename(f.rstrip("/\\")) + "/"
+        name = os.path.basename(f.rstrip("/\\"))
+        prefix = name + "/"
         mine = [[label[len(prefix):], reason] for label, reason in whole if label.startswith(prefix)]
+        if names.count(name) > 1:
+            mine = [m for m in mine if os.path.lexists(os.path.join(f, *m[0].split("/")))]
         if mine:
             out[f] = {"files": mine[:limit], "more": max(len(mine) - limit, 0)}
     return out

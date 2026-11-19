@@ -65,6 +65,7 @@ function LeftOut({ line, id }) {
   );
 }
 function FolderLine({ line, id }) {
+  if (!classicTheme()) return null;                  // its rules are the Classic theme's: Cards keeps the card as it was
   return <><div class="ask-folder-line" role="status" aria-live="polite">{line ? line.line : ""}</div><LeftOut line={line} id={id} /></>;
 }
 
