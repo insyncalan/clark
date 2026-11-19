@@ -364,7 +364,7 @@ class Box(Base):
                              "the page behind cannot be reached")
             self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 28)      # row 1261: + the Headline card; row 1193: + the three built-in cards, offered while the report lacks them (a new project has Work items lists)
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.textContent)"),
-                             ["All templates27", "Project information1", "Text and pictures8", "Figures3", "Work items6", "Files and links3", "People and dates5", "Notes1"])      # #1272: the Callout is in Project information      # row 1068: + the Gantt table card, in People and dates
+                             ["All templates28", "Project information2", "Text and pictures8", "Figures3", "Work items6", "Files and links3", "People and dates5", "Notes1"])      # #1272: the Callout is in Project information      # row 1068: + the Gantt table card, in People and dates
             self.assertEqual(self.sent, [], "opening sends nothing")
 
     def test_everything_outside_the_box_is_inert_while_it_is_open_and_restored_when_it_closes(self):
@@ -565,7 +565,7 @@ class Box(Base):
             self.assertIsNone(p.js("document.querySelector('button[data-place]').getAttribute('aria-describedby')"))
             self.assertEqual(self.sent, [], "reading and moving send nothing")
             p.js("document.querySelector('[data-kind=info]').click()")
-            p.until("document.querySelectorAll('[data-template]').length === 1", "Project information")
+            p.until("document.querySelectorAll('[data-template]').length === 2", "Project information")
             p.js("document.querySelector('[data-template=callout]').click()")
             p.until("document.querySelector('.ad-prev h3').textContent === 'Callout'", "the preview shows it")
             self.assertEqual(p.js("document.querySelector('.ad-prev .ad-lbl').textContent"), "Holds")

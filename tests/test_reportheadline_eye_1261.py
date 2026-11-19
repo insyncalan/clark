@@ -243,6 +243,19 @@ class Eye(Base):
                 p.js(f"document.querySelector('[data-id=\"{self.on}\"] [data-rh-eye]').click()")      # put it back for the next width
                 self.assertTrue(wait(lambda: "pill" not in self.stored(self.on), 10))
 
+    def test_cards_keeps_its_edit_as_it_was_no_eye_and_no_warning_and_a_hidden_pill_still_has_its_menu(self):
+        self.s.close()
+        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: testpage.html(), seam=self.seam)
+        self.addCleanup(self.s.close)
+        with chrome() as cdp:
+            p = self.sized(cdp, 1400, "light")
+            p.edit()
+            p.until(f"!!document.querySelector('[data-id=\"{self.off}\"] textarea')", "drew")
+            for ref in (self.on, self.off):
+                self.assertIsNone(self.box(p, ref, "[data-rh-eye]"), "Cards: no eye")
+                self.assertIsNone(self.warn(p, ref), "Cards: no warning")
+                self.assertIsNotNone(self.box(p, ref, ".pillbtn"), "Cards: the pill menu stays, as on main")
+
     # --- Defaults -------------------------------------------------------------------------------------------------------------
     def test_defaults_a_new_headline_has_the_pill_on_and_a_new_glance_template_has_its_health_off(self):
         self.hide_glance()      # the built-in At a glance a new project starts with keeps its tile (it cannot be hidden); the template is the one with the eye

@@ -10,6 +10,7 @@ import { actionIcon } from "../../menuIcons.js";
 import { useSaver } from "./noteEdit.jsx";
 import { Icon } from "../../components/Icon.jsx";
 import { data } from "../../stores/report.js";
+import { classicTheme } from "../../components/Contents.jsx";
 import { readBody } from "../../templates/glanceBody.js";
 
 export const HINT = "Write the headline the report opens with. Until then this section stays out of the published page.";
@@ -54,21 +55,22 @@ export function Edit({ section }) {
   const write = useSaver(section, saved, "", { silent: true });      // row 1261: no toast and no new words; the save is one step, undone with Cmd/Ctrl+Z like the others
   const empty = !(saved.health && saved.pill) && !saved.headline && !saved.sentence;      // a health whose pill is hidden shows nothing, so it does not make the section non-empty
   const now = ITEMS.find((i) => i[0] === saved.health);
-  const twice = saved.pill && glanceShowsHealth(data.value && data.value.report_sections);
+  const eye = classicTheme();      // Row 1261 is Classic only: the Cards theme keeps its Edit as it was (no eye, no warning); a stored "pill": false is still honoured by View
+  const twice = eye && saved.pill && glanceShowsHealth(data.value && data.value.report_sections);
   const name = now ? now[1] : "Not set";
   return (
     <div class="tpl-edit tpl-edit-reportheadline" data-tpl="reportheadline">
       {empty ? <p class="quiet tpl-hint">{HINT}</p> : null}
-      <div class="tpl-rh-eyerow">
+      {eye ? <div class="tpl-rh-eyerow">
         <button type="button" class="teye inl" data-edit-only data-rh-eye aria-pressed={saved.pill ? "false" : "true"}
           aria-label={saved.pill ? EYE_WORDS.hide : EYE_WORDS.show} title={saved.pill ? EYE_WORDS.hide : EYE_WORDS.show} onClick={() => write({ pill: !saved.pill })}>
           <Icon name={saved.pill ? "eye" : "eyeoff"} />
         </button>
         <span>{saved.pill ? EYE_WORDS.label : EYE_WORDS.labelHidden}</span>
-      </div>
+      </div> : null}
       {twice ? <p class="tpl-rh-warn" role="status" data-rh-warn><b>{EYE_WORDS.warnLead}</b>{EYE_WORDS.warn}</p> : null}
       <div class="tpl-rh-edit">
-        {saved.pill ? <div class="tpl-rh-edit-pill">
+        {saved.pill || !eye ? <div class="tpl-rh-edit-pill">
           <Menu label={name} btnCls={`pill hpill ${now ? now[2] : "n"} pillbtn`} ariaLabel={`Project health: ${name.toLowerCase()}. Change it`}
             id={`rh-pill-${section.id}`} menuId={`rh-menu-${section.id}`} menuLabel="Project health" chevron={false}
             items={ITEMS.map(([key, word, rag]) => ({ id: key, name: word, pill: rag, icon: actionIcon("status"), checked: key === saved.health }))}
