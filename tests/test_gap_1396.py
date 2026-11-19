@@ -3,7 +3,7 @@
 Run: python3 dev/run_tests.py test_gap_1396
 Fails, never skips, without Chrome. Value table (ticket 1396): row padding 9px 8px 9px 20px, divider and hover from the line-soft / band-bg tokens, name in the heading
 colour, heading row 13px / 500 / .08em with padding 4px 8px 4px 20px, percent min-width 36 and weight 600, only the name of a left-out row greyed (the row keeps opacity 1),
-the four state colours. Not built: columns (decided out), the Dashboard legend row (the Dashboard has the status tracker, the page legend is a pinned popover).
+the four state colours. Not built: columns (decided out). The Legend row (ruling 20-11, row 8): the six states in one always-visible 13px row on the Milestones page and on the Dashboard, in addition to the status tracker.
 Cards (theme None) keeps the installed values. Every colour is read through the token it must equal.
 """
 import re
@@ -167,6 +167,72 @@ class Computed(unittest.TestCase):
         self.assertEqual(got["states"]["amber"]["node"], "rgb(232, 160, 19)")
         self.assertEqual(got["head"]["w"], "600")
         self.assertEqual(got["num"]["minW"], "auto")
+
+
+LEGEND = r"""(() => {
+  const row = document.querySelector('.msl-bar .mlg-row');
+  if (!row) return null;
+  const r = row.getBoundingClientRect(), st = getComputedStyle(row), items = [...row.querySelectorAll('[data-legend-state]')];
+  const pop = document.querySelector('.msl-bar .mlg');
+  return {display: st.display, size: st.fontSize, visible: r.width > 0 && r.height > 0 && st.visibility === 'visible', inView: r.left >= 0 && r.right <= innerWidth,
+    words: items.map((e) => e.textContent.trim()), sizes: items.map((e) => getComputedStyle(e).fontSize), marks: items.every((e) => !!e.querySelector('svg')),
+    popover: pop ? getComputedStyle(pop).display : 'absent', tracker: !!document.querySelector('[data-tracker]'),
+    barTop: document.querySelector('.msl-bar').getBoundingClientRect().bottom <= document.querySelector('.msl').getBoundingClientRect().top + 1,
+    pageScroll: document.documentElement.scrollWidth > innerWidth};
+})()"""
+SIX = ["Achieved", "On track", "At risk", "Slipped", "Overdue", "Forecast"]
+
+
+class Legend(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.store, cls.folder, _ = load_demo()
+        cls.projects = cls.store.read("projects")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.store.close()
+        shutil.rmtree(str(cls.folder), ignore_errors=True)
+
+    def legend(self, theme, width, route):
+        s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp(), theme=theme))
+        self.addCleanup(s.close)
+        with chrome() as cdp:
+            sid = open_page(cdp, width, "light", theme)
+            cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#{route}&p={CODE}"}, sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.msl-row')", sid)), "the list drew")
+            return cdp.js(LEGEND, sid)
+
+    def check_classic(self, got, where):
+        self.assertIsNotNone(got, where)
+        self.assertEqual(got["words"], SIX, where)
+        self.assertEqual(got["display"], "flex", where)
+        self.assertEqual(got["size"], "13px", where)
+        self.assertEqual(set(got["sizes"]), {"13px"}, where)
+        self.assertTrue(got["visible"] and got["inView"] and got["marks"], where)
+        self.assertIn(got["popover"], ("none", "absent"), where)
+        self.assertTrue(got["barTop"], where)
+        self.assertFalse(got["pageScroll"], where)
+
+    def test_classic_page_1400(self):
+        self.check_classic(self.legend(NAME, 1400, "milestones"), "page 1400")
+
+    def test_classic_page_900(self):
+        self.check_classic(self.legend(NAME, 900, "milestones"), "page 900")
+
+    def test_classic_dashboard_1400_keeps_the_tracker(self):
+        got = self.legend(NAME, 1400, "dashboard")
+        self.check_classic(got, "dash 1400")
+        self.assertTrue(got["tracker"])
+
+    def test_classic_dashboard_900(self):
+        self.check_classic(self.legend(NAME, 900, "dashboard"), "dash 900")
+
+    def test_cards_draws_no_legend_row_and_keeps_the_popover(self):
+        for route in ("milestones", "dashboard"):
+            got = self.legend(None, 1400, route)
+            self.assertEqual(got["display"], "none", route)
+        self.assertNotEqual(self.legend(None, 1400, "milestones")["popover"], "none")
 
 
 if __name__ == "__main__":

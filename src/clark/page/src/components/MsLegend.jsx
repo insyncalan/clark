@@ -6,6 +6,17 @@ import { Icon } from "./Icon.jsx";
 import { MsMark } from "./MsMark.jsx";
 import { legend } from "../logic/milestones.js";
 
+// The Legend as one row (row 1396): the six states, each with its mark and word, always shown. Classic draws it; Cards hides it (shell.css).
+export function MsLegendRow({ client }) {
+  return (
+    <div class="mlg-row" role="group" aria-label="Legend" data-legend-row>
+      {legend(client).filter((it) => it.colour && it.state !== "Cancelled").map((it) => (
+        <span key={it.state} class={`mst c-${it.colour}`} data-legend-state={it.state}><MsMark name={it.mark} />{it.word}</span>
+      ))}
+    </div>
+  );
+}
+
 export function MsLegend({ client, id }) {
   const items = legend(client);
   const [shut, setShut] = useState(false);
@@ -23,6 +34,8 @@ export function MsLegend({ client, id }) {
     </li>
   );
   return (
+    <>
+    <MsLegendRow client={client} />
     <div class={`mlg${shut ? " mlg-shut" : ""}`} onKeyDown={onKey} onMouseLeave={() => setShut(false)}
       onFocusOut={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setShut(false); }}>
       <button ref={button} type="button" class="mlg-b" aria-describedby={`mlg-${id}`}><Icon name="info" />Legend</button>
@@ -31,5 +44,6 @@ export function MsLegend({ client, id }) {
         <ul class="mlg-sym">{items.filter((it) => !it.colour).map(row)}</ul>
       </div>
     </div>
+    </>
   );
 }
