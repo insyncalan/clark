@@ -210,7 +210,7 @@ class AskService:
                                  for (pid, label), i in zip(request.passages, request.kept) if pid in reply.cites],
                      "flags": [{"kind": f.kind, "ref": f.ref, "message": f.message} for f in reply.flags],
                      "items": [{"id": i["id"], "state": list(i["state"])} for i in reply.items],
-                     "changes": [dict(c) for c in reply.changes], "notes": notes, "reply": held, "draft": reply.draft,
+                     "changes": [dict(c) for c in reply.changes], "notes": notes, "reply": held, "draft": draft_via(reply.draft, conn),
                      "left_out_for_safety": found.safety}
 
     # ----- POST /api/ask/open-source (#943) -----
@@ -363,6 +363,14 @@ def kinds_note(kinds):
         return ""
     names = ", ".join(ask_data.KIND_WORDS[k] for k in kinds)
     return f"The report leaves out {names}, so they were not part of what was read and the answer may be missing something."
+
+
+def draft_via(draft, conn):
+    """Row 1306 F6: a draft written in a run that read a connector carries the names of the parts read (`via`), so the page can say so above it.
+    Nothing the connector returned is kept. The draft is otherwise unchanged and is still only a card the person adds."""
+    if not isinstance(draft, dict) or not conn or not conn.get("used"):
+        return draft
+    return {**draft, "via": [str(p) for p in conn["used"]]}
 
 
 def connector_used(line):
