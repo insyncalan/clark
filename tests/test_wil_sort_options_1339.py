@@ -9,6 +9,7 @@ import test_tpl_workitems as T
 import test_work_items_mockup_1195 as M
 from clark.section_kinds import base, workitems as wi
 from test_report_editor import tearDownModule  # noqa: F401
+import test_server  # noqa: F401  this file drives Chrome through the template harness (the browser tier reads this line)
 
 SORTS = [{"sort": "type", "mode": "all"}, {"sort": "owner", "mode": "all"}, {"sort": "type"}, {"sort": "owner", "max": 3},
          {"sort": "owner", "mode": "all", "kinds": ["risk", "issue", "decision"]}]
