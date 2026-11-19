@@ -22,7 +22,7 @@ EXTRA = """(() => { const d = document.createElement('div'); d.id = 'extra';
   document.body.appendChild(d); })()"""
 PRIMARY = ("#b2", "#b3", "#b4")
 RULES = (FOLDER / "rules.css").read_text(encoding="utf-8")
-BLOCK = RULES[RULES.index("/* Row 1319, primary buttons"):]
+BLOCK = RULES[RULES.index("/* Row 1319, primary buttons"):].split("\n/* Row 1316", 1)[0]     # rows stacked after the Row 1316 blocks are not this row's
 
 
 class PrimaryPill(Computed):
