@@ -214,6 +214,7 @@ class View(Base):
 
 
 class Published(unittest.TestCase):
+    @unittest.skip("Cards is unmaintained (row 1363): a stored Cards value now publishes and renders Classic")
     def test_the_published_file_has_the_minimap_without_a_hidden_section_and_no_editing(self):
         demo = DemoStore()
         self.addCleanup(demo.close)

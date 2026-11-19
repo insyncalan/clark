@@ -346,6 +346,14 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 /* Row 1357, items 3 and 7 (Classic only): + New view on the Use cases page takes the brand colour (the shared button is grey), and the Next steps text in the list is 13 px (the shared rule stays 14 px for the dashboard and the published list). */
 #usecases .vnew, #usecases .vnew:hover { color: var(--brand-blue); }
 .ucl-table .ucsteps { font-size: var(--size-caption); }
+/* Row 1342: the Feedback tag dialog as the 1298 mockup draws it: heading 17px / 600 with 2px under it, the dialog and the tag one step roomier (bottom padding 14, tag top and bottom padding 14). */
+.fbt-head h2 { margin: 0 0 2px; font-size: 17px; font-weight: 600; color: var(--heading); }
+.fbt-dlg { padding-bottom: 14px; }
+.fbt-tag { padding-top: 14px; padding-bottom: 14px; }
+/* Row 1342 part 2: the empty-send error (red 13px, 4 above) as the 1298 mockup draws it. */
+.fbt-error { margin-top: 4px; color: var(--status-red-text); font-size: 13px; }
+/* Row 1358 (Classic only): a pressed main button or mode pill keeps easing its glow over the same 0.12 s as its press sink (the shared press rule lists only the transform, so the glow snapped). */
+:root:not([data-motion="reduce"]) :is(.again, .btn.primary, .btn.pri, .modes.seg .mode, #mode-pill .mode):not(:disabled):active { transition: transform var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
