@@ -4,14 +4,12 @@ Run: python3 dev/run_tests.py test_menus_one_look_1286
 Classic only. Cards is proved unchanged without a browser: its page is byte for byte the page of main, and no Cards style block holds a Row 1286 rule.
 The browser part opens every menu of tests/test_menu_icons_every_1138.py (the dashboard, the Work items page and board, the Use cases pages, the row and
 bulk menus, the Gantt menus, the rich text style menu) at 1400 and 900, light and dark, with the Classic theme layered, and reads each open menu:
-  - the grid: every icon 16px wide, 17px in from the panel edge (+/-1: 1px border, 6px popup padding, 10px line padding) and 10px (+/-0.5: an 8px
-    gap and a 2px icon margin) from the next thing drawn on its line (its words, or the tick of a menu whose tick is on the left); the same for the
-    pick menus, the row menus, the section menu, the bulk menu, the Gantt menus
-  - the type: 15px on every line (the prototype menu line; the body is 14)
-  - the line: padding 7px 10px, radius 6px; the popup: radius 10px, padding 6px (the date and owner pickers are forms, not menus, and are left out)
+  - Group by (the View menu), Add and Move to (ruling 17-11, the prototype's values): lines 15px, padding 7px 10px, radius 6px, the icon 16px wide,
+    17px in from the panel edge and 10px (an 8px gap and a 2px icon margin) from its words; the popup 224px at least, radius 10px, padding 6px
+  - every other menu keeps production: lines 14px, not the prototype's padding and radius, the icon 17px in from the edge and 8px from its words
+    (the date and owner pickers are forms, not menus, and are left out)
   - the tick of the line in use is on the right of the words, except in the three menus whose mock-ups draw it on the left (Columns, the Gantt Show menus)
   - the head of a group is plain: no capitals, no letter spacing
-  - the width: no menu narrower than 224px, the Group by menus too (ruling 19-11, from the prototype's work.css 81 and menu-icons.css 22-23)
 Words and icons are not read here (test_menu_icons_every_1138 does that); nothing here changes a word.
 """
 import json
@@ -34,6 +32,7 @@ RULES = (ROOT / "src" / "clark" / "themes" / NAME / "rules.css").read_text(encod
 TICK_LEFT = {"columns", "gantt-show-chart", "gantt-show-table"}          # their mock-ups draw the tick before the word (1195 Columns, 1197 Show)
 NO_ICON_GRID = {"owner-pick", "owner-pick-typed", "health", "report-headline-health"}    # an initials circle or a coloured pill, not an icon
 MIN_W = 224
+THREE = {"view", "new-tile", "board-move", "board-move-lanes"}     # Group by (the View menu), Add, Move to: the prototype's values (ruling 17-11)
 PICKERS = {"owner-pick", "owner-pick-typed", "bulk-picker-due", "cell-Due date"}     # forms with their own look, not menus of lines
 PILL_MENU = {"health", "report-headline-health"}
 
@@ -64,19 +63,30 @@ MEASURE = r"""(root => {
 def check(test, name, look, m):
     where = f"{name} at {look[0]} {look[1]}"
     test.assertTrue(m, where)
-    test.assertGreaterEqual(m["w"], MIN_W, f"{where}: the menu is {m['w']}px wide")
-    if name not in PICKERS and name not in PILL_MENU:
+    if os.environ.get("CLARK_MENU_DUMP"):
+        with open(os.environ["CLARK_MENU_DUMP"], "a", encoding="utf-8") as out:
+            lines = [r for r in m["rows"] if r["icon"]] or m["rows"]
+            out.write(json.dumps({"menu": name, "look": list(look), "w": m["w"], "rad": m["rad"], "pad": m["pad"], "fs": sorted({r["fs"] for r in m["rows"]}),
+                                  "line": sorted({r["pad"] + " r" + r["rad"] for r in lines}), "gap": sorted({r["gap"] for r in lines if r["gap"] is not None})}) + "\n")
+    three = name in THREE
+    if three:
+        test.assertGreaterEqual(m["w"], MIN_W, f"{where}: the menu is {m['w']}px wide")
         test.assertEqual((m["rad"], m["pad"]), ("10px", "6px 6px 6px 6px"), f"{where}: the popup radius and padding")
     for r in m["rows"]:
         if name in PICKERS or name in PILL_MENU:
             continue
-        test.assertEqual(r["fs"], "15px", f"{where}: the line {r['t']!r} is not 15px")
+        test.assertEqual(r["fs"], "15px" if three else "14px", f"{where}: the line {r['t']!r} is {r['fs']}, the {'prototype' if three else 'production'} size is {'15' if three else '14'}px")
+        if not three:
+            test.assertNotEqual((r["pad"], r["rad"]), ("7px 10px 7px 10px", "6px"), f"{where}: the line {r['t']!r} has the prototype padding and radius, only Group by, Add and Move to have it")
         if r["icon"] and name not in NO_ICON_GRID:
-            test.assertEqual((r["pad"], r["rad"]), ("7px 10px 7px 10px", "6px"), f"{where}: the line {r['t']!r} padding and radius")
-            test.assertEqual(r["iw"], 16, f"{where}: the icon of {r['t']!r} is {r['iw']}px wide")
             test.assertIsNotNone(r["gap"], f"{where}: {r['t']!r} has nothing after its icon")
             test.assertAlmostEqual(r["il"], 17, delta=1, msg=f"{where}: the icon of {r['t']!r} is {r['il']}px in from the edge, the grid is 17")
-            test.assertAlmostEqual(r["gap"], 10, delta=0.5, msg=f"{where}: {r['t']!r} has {r['gap']}px between its icon and the next thing, the grid is 10")
+            if three:
+                test.assertEqual((r["pad"], r["rad"]), ("7px 10px 7px 10px", "6px"), f"{where}: the line {r['t']!r} padding and radius")
+                test.assertEqual(r["iw"], 16, f"{where}: the icon of {r['t']!r} is {r['iw']}px wide")
+                test.assertAlmostEqual(r["gap"], 10, delta=0.5, msg=f"{where}: {r['t']!r} has {r['gap']}px between its icon and the next thing, the grid is 10")
+            else:
+                test.assertAlmostEqual(r["gap"], 8, delta=0.5, msg=f"{where}: {r['t']!r} has {r['gap']}px between its icon and the next thing, production's grid is 8")
         if r.get("side"):
             test.assertEqual(r["side"], "left" if name in TICK_LEFT else "right", f"{where}: the tick of {r['t']!r}")
     for h in m["heads"]:
@@ -117,10 +127,17 @@ class Static(unittest.TestCase):
         cards = page.page_html(branding=page.NO_BRAND, theme=None)
         self.assertNotIn("Row 1286", cards, "Cards holds no Row 1286 rule")
         classic = page.page_html(branding=page.NO_BRAND, theme=NAME)
-        self.assertIn(".ddmenu, .cpop.cmenu:not(.bmenu), .cpop.bmenu, .gt-pop, .gt-menu, [data-gt] .gt-menu { min-width: 224px; }", classic)
-        self.assertIn(".ddmenu, .cpop.cmenu, .gt-pop, .gt-menu, [data-gt] .gt-menu, .menu { padding: 6px; border-radius: 10px; }", classic)
-        self.assertIn("padding: 7px 10px; border-radius: 6px; font-size: 15px; }", classic)
-        self.assertNotIn("240px", RULES.split("/* Row 1286")[1].split("/* Row 1314")[0], "no 240px menu is left in the block")
+        scope = '#viewMenuList, #newBtnMenu, .ddmenu[aria-label^="Add "], .ddmenu[aria-label^="Move "][aria-label$=" to"]'
+        self.assertIn(scope + " { min-width: 224px; padding: 6px; border-radius: 10px; }", classic)
+
+    def test_the_15px_and_224_menu_rules_name_only_the_three_menus(self):
+        css = re.sub(r"/\*.*?\*/", "", RULES, flags=re.S)
+        found = 0
+        for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", css):
+            if re.search(r"menu|ddmenu|\.gt-|\.mi\b|\.cpop", sel) and re.search(r"font-size: 15px|min-width: 224px|[^-]width: 224px|padding: 7px 10px", body):
+                found += 1
+                self.assertRegex(sel, r"#viewMenuList|#newBtnMenu|aria-label\^=", f"a 15px, 224px or 7px 10px menu rule names a menu other than the three: {sel.strip()[:90]}")
+        self.assertGreaterEqual(found, 2)
 
     def test_no_style_block_of_cards_names_the_row(self):
         for block in re.findall(r"<style[^>]*>(.*?)</style>", page.page_html(branding=page.NO_BRAND, theme=None), re.S):
