@@ -184,5 +184,71 @@ class Files(Base):
             self.assertLessEqual(server.ROUTE_BODY_LIMITS[route], 4096, route)
 
 
+class TheFilesSwitch(Base):
+    """Row 1294: the Files switch (all projects) and a project's own turn-off. It is read again for every question that carries files."""
+
+    def setUp(self):
+        super().setUp()
+        from clark import app_settings
+        self.s.httpd.app_settings = app_settings.AppSettings(self.db, [])
+
+    def sent(self):
+        return self.provider.sent
+
+    def flags(self, on=None, off_here=None):
+        from clark import store as st
+        store = st.open_store(self.db, onedrive_roots=[])
+        try:
+            with store.step("dashboard", "tester", place="menu") as s:
+                if on is not None:
+                    s.update("app_settings", "1", {"ask_files": on})
+                if off_here is not None:
+                    s.update("projects", "PUB", {"ask_files_off": off_here})
+        finally:
+            store.close()
+
+    def test_files_are_on_for_a_new_file_and_the_route_says_so(self):
+        self.assertEqual(self.s.api("GET", "/api/ask-files?project=PUB")[1]["allowed"], True)
+        status, got = self.s.api("GET", "/api/ask-files")
+        self.assertEqual((status, got["on"], got["off_here"], got["allowed"]), (200, True, False, False), "no project: nothing is allowed there")
+
+    def test_the_switch_off_refuses_every_file_and_sends_nothing(self):
+        self.flags(on=0)
+        status, got = self.question(files=[f("notes.txt", b"ZQ-FILE-LINE")])
+        self.assertEqual((status, got["code"]), (400, "refused"), got)
+        self.assertEqual(self.sent(), [])
+        self.assertEqual(self.question("A plain question")[0], 200, "a question without files still goes")
+
+    def test_a_project_turned_off_refuses_files_and_another_project_still_takes_them(self):
+        self.flags(off_here=1)
+        self.assertEqual(self.question(files=[f("notes.txt", b"ZQ-FILE-LINE")])[0], 400)
+        self.assertEqual(self.sent(), [])
+        self.assertEqual(self.question(project="OTH", files=[f("notes.txt", b"ZQ-FILE-LINE")])[0], 200)
+
+    def test_the_post_sets_each_flag_with_one_undo_and_refuses_anything_else(self):
+        api = self.s.api
+        status, got = api("POST", "/api/ask-files", {"on": False})
+        self.assertEqual((status, got["on"], got["allowed"]), (200, False, False))
+        status, undone = api("POST", "/api/ask-files", {"undo": got["apply_id"]})
+        self.assertEqual((status, undone["on"]), (200, True))
+        status, got = api("POST", "/api/ask-files", {"project": "PUB", "off_here": True})
+        self.assertEqual((status, got["off_here"], got["allowed"]), (200, True, False))
+        self.assertEqual(api("POST", "/api/ask-files", {"undo": got["apply_id"]})[1]["off_here"], False)
+        self.assertEqual(api("POST", "/api/ask-files", {"on": "yes"})[0], 400)
+        self.assertEqual(api("POST", "/api/ask-files", {"on": True, "extra": 1})[0], 400)
+        self.assertEqual(api("POST", "/api/ask-files", {"project": "NOPE", "off_here": True})[0], 404)
+        self.assertEqual(api("POST", "/api/ask-files", {"undo": 999999})[0], 409)
+        self.assertEqual(api("GET", "/api/ask-files?project=PUB&x=1")[0], 400)
+
+    def test_a_file_that_cannot_say_reads_as_off(self):
+        from clark import store as st
+        con = st.connect(self.db)
+        con.execute("UPDATE app_settings SET ask_files = 0")
+        con.close()
+        reader = st.Store(st.connect(self.db, readonly=True), self.db, [])
+        self.assertEqual((reader.ask_files_on(), reader.ask_files_allowed("PUB"), reader.ask_files_off_here("NOPE")), (False, False, True))
+        reader.close()
+
+
 if __name__ == "__main__":
     unittest.main()
