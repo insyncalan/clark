@@ -32,12 +32,25 @@ export function bodyOf(slots) {
   return list.length ? JSON.stringify({ v: 1, figures: list }) : "";
 }
 
+// The rules the live figures work under (the same ones the published file is cut with).
+function rulesOf(d) {
+  return rulesFor({ code: d.project && d.project.code, hidden: (d.report_hidden || []).map((h) => (h && h.item_id) || h),
+    labelRules: d.label_rules || [], labels: d.labels || {}, sections: d.report_sections || [], deleted: !!d.sections_deleted });
+}
+
+// The metrics Edit offers (item 1337): a live one only while the section of its kind is there (the project has it and it is not
+// left out), the same test that keeps its rows in View and in the file. A project with no such section offers none.
+export function metricsOffered(d) {
+  if (!d) return [];
+  const left = rulesOf(d).hiddenTypes;
+  return METRICS.filter(([k]) => !left.has(KIND_OF[k]));
+}
+
 // The live figures by metric, from the rows the file would keep: { overdue, risks, decisions } each { label, value, detail, rag }.
 // A metric with no row of its kind to count is absent (a hidden section, or none at all).
 export function liveFigures(d, today) {
   if (!d || dayNumber(today) === null) return {};
-  const rules = rulesFor({ code: d.project && d.project.code, hidden: (d.report_hidden || []).map((h) => (h && h.item_id) || h),
-    labelRules: d.label_rules || [], labels: d.labels || {}, sections: d.report_sections || [], deleted: !!d.sections_deleted });
+  const rules = rulesOf(d);
   const kept = Object.fromEntries(Object.values(KIND_OF).map((k) => [k, keptRows(d, k, rules)]));
   const rows = rowsOf({ ...kept, use_cases: d.use_cases || [], milestones: d.milestones || [] });
   const by = Object.fromEntries(tiles(rows, today).map((t) => [t.key, t]));
