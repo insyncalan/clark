@@ -354,10 +354,10 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 /* Row 1315, gaps (Classic only): the Week / Month / Quarter buttons are 28px high with weight 600 on all three, and the Today name is weight 600. The switch position is Row 1355's and its fill is Row 1313's / the ruling of 19-11: not touched here. */
 #milestones .cal-sc button, #milestones .cal-sc button[aria-current="true"] { min-height: 28px; font-weight: var(--weight-medium); }
 #milestones .mv[data-look="classic"] .mv-today b { font-weight: var(--weight-medium); }
-/* Row 1315 fill (ruling 19-11, Classic only): the Timeline / Calendar and Week / Month / Quarter switches take the prototype's navy chosen half with white text, a 1px --ui (grey-200) frame, radius 6 (replaces the Row 1313 pin of 8; the bare 6px has no token), buttons 28 high with padding 0 12 and weight 600, a 1px rule between the halves. The switch position is Row 1355's; dark is the dark audit's. */
-#milestones .msv-sw, #milestones .cal-sc { border: 1px solid var(--grey-200); border-radius: 6px; overflow: hidden; }
+/* Row 1315 fill (ruling 19-11, Classic only): the Timeline / Calendar and Week / Month / Quarter switches take the prototype's navy chosen half with white text, a 1px --ui (--grey-500, #8794B3) frame, radius 6 (replaces the Row 1313 pin of 8; the bare 6px has no token), buttons 28 high with padding 0 12 and weight 600, a 1px rule between the halves. The switch position is Row 1355's; dark is the dark audit's. */
+#milestones .msv-sw, #milestones .cal-sc { border: 1px solid var(--grey-500); border-radius: 6px; overflow: hidden; }
 #milestones .msv-b, #milestones .cal-sc button { min-height: 28px; padding: 0 12px; font-weight: var(--weight-medium); }
-#milestones .msv-b + .msv-b, #milestones .cal-sc button + button { border-left: 1px solid var(--grey-200); }
+#milestones .msv-b + .msv-b, #milestones .cal-sc button + button { border-left: 1px solid var(--grey-500); }
 :root:not([data-theme="dark"]) #milestones .msv-b[aria-current="true"], :root:not([data-theme="dark"]) #milestones .cal-sc button[aria-current="true"] { background: var(--brand-navy); color: var(--white); }
 @media (prefers-color-scheme: dark) { :root[data-theme="auto"] #milestones .msv-b[aria-current="true"] { background: var(--heading); color: var(--surface); } }
 /* Row 1318 (Classic only): the Contents heading is spaced .08em and the current entry is the body text colour, as in the prototype list. */
