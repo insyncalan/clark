@@ -22,8 +22,10 @@ WIDTHS = (1400, 900)
 
 
 class Settings(unittest.TestCase):
+    THEME = "prototype-2.0"           # Classic: the rows for new projects and the long words are drawn only here
+
     def setUp(self):
-        self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.page_html(tempfile.mkdtemp(), theme=self.THEME))
         self.addCleanup(self.s.close)
         d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
         self.addCleanup(shutil.rmtree, d, True)
@@ -76,6 +78,56 @@ class Settings(unittest.TestCase):
             for w in WIDTHS:
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
                 self.until(js, "document.documentElement.scrollWidth <= window.innerWidth", f"no sideways scroll at {w}")
+
+
+    def test_essentials_row_names_all_projects(self):
+        with chrome() as cdp:
+            self.sid = navigate(cdp, self.s.port, for_project("#settings&p=ABC&s=profile"))
+            js = lambda e: cdp.js(e, self.sid)          # noqa: E731
+            self.until(js, "!!document.querySelector('[data-ess-ask]') && !document.querySelector('[data-ess-ask]').disabled", "the Asking row")
+            self.assertTrue(js("document.getElementById('theme') !== null"), "this is the Classic page")
+            self.assertEqual(js("document.querySelector('[data-ess-ask]').innerText"), "Turn off asking for all projects")
+            self.assertEqual(js("document.querySelector('#ess-ask-line').textContent"), "Asking is on for all projects.")
+
+
+class CardsSettings(Settings):
+    """Cards is frozen (ruling of 20-11 03:26): main's words, no rows for new projects, on the Settings page and in Essentials."""
+    THEME = None
+
+    def test_the_all_projects_row_is_a_switch_that_saves_and_undoes(self):
+        with chrome() as cdp:
+            js = self.show(cdp)
+            self.assertFalse(js("document.getElementById('theme') !== null"), "this is the Cards page")
+            js("document.querySelector('[data-ask-tab=all]').click()")
+            self.until(js, "!!document.querySelector('#ask-all')", "the All projects card")
+            self.assertFalse(js("!!document.querySelector('#ask-new-all, [data-new-switch]')"), "no row for new projects under Cards")
+            self.assertNotIn("Asking for new projects", js("document.body.innerText"))
+
+    def test_the_project_tab_has_its_own_button_and_the_computer_wide_switch_keeps_its_words(self):
+        with chrome() as cdp:
+            js = self.show(cdp)
+            self.until(js, "!!document.querySelector('[data-ask-switch]')", "the project's card")
+            self.assertEqual(js("document.querySelector('[data-ask-switch]').innerText"), "Turn off asking")
+            self.until(js, "document.querySelector('#ask-state').textContent === 'Asking is on.'", "the card's line, main's words")
+            self.assertFalse(js("!!document.querySelector('#ask-new-here, [data-ask-here], #ask-here-state')"), "no per-project row under Cards")
+            body = js("document.body.innerText")
+            for word in ("Turn off asking for all projects", "Turn on asking for all projects", "Asking is on for all projects."):
+                self.assertNotIn(word, body, "the long words are Classic only")
+            self.assertNotIn("Asking is on for", body)
+            for w in WIDTHS:
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                self.until(js, "document.documentElement.scrollWidth <= window.innerWidth", f"no sideways scroll at {w}")
+
+    def test_essentials_row_names_all_projects(self):
+        with chrome() as cdp:
+            self.sid = navigate(cdp, self.s.port, for_project("#settings&p=ABC&s=profile"))
+            js = lambda e: cdp.js(e, self.sid)          # noqa: E731
+            self.until(js, "!!document.querySelector('[data-ess-ask]') && !document.querySelector('[data-ess-ask]').disabled", "the Asking row")
+            self.assertFalse(js("document.getElementById('theme') !== null"))
+            for w in WIDTHS:
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                self.assertEqual(js("document.querySelector('[data-ess-ask]').innerText"), "Turn off asking")
+                self.assertEqual(js("document.querySelector('#ess-ask-line').textContent"), "Asking is on.")
 
 
 class Panel(Base):

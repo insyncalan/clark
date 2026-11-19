@@ -221,7 +221,7 @@ class Words(unittest.TestCase):
                 ('profile', 'Profile', [
                     "Essentials", "Your name", "Appearance", "System", "Light", "Dark", "Spacing", "Compact", "Comfortable", "Motion", "Single-key slash commands", "Backups", "Publishing folder",      # row 1115 S3: the first card
                     "No local folder yet.", "Choose folder", "Asking on or off",
-                    "Asking is off, because clark could not check the setting just now. Reload the page to try again.", "Turn on asking for all projects",
+                    "Asking is off, because clark could not check the setting just now. Reload the page to try again.", "Turn on asking",
                     "Profile",      # row 950: the first card, with the About you boxes that were in Personal
                     "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
                     "Alias", "Your first name and your initials, worked out from your full name. You can change it.",     # item 613
@@ -287,7 +287,7 @@ class Words(unittest.TestCase):
                     "Claude is started on this computer for you.",
                     "Your question and the passages it needs go to Claude, which Anthropic runs, and are billed to the Claude account signed in on this computer.",
                     "Asking is off, because clark could not check the setting just now. Reload the page to try again.",   # this server has no switch route: off
-                    "Turn on asking for all projects",
+                    "Turn on asking",
                     "Used from All projects",      # row 1294: the AI card (connections, model, the AI status line #72) is on the All projects tab; test_ai_settings reads its words
                     "Connections and the model are yours, not this project's. They are the same in every project.", "Change",
                     "Connectors in ABC",      # row 1306 C3: the Connectors block; this server has no connector route, so it says they cannot be checked

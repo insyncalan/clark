@@ -62,6 +62,9 @@ export const askProvider = signal("Claude");           // #54: who a question go
 export const ASK_ON_ALL_LINE = "Asking is on for all projects.";
 export const ASK_TURN_OFF_ALL = "Turn off asking for all projects";
 export const ASK_TURN_ON_ALL = "Turn on asking for all projects";
+// Cards keeps the words it always had (frozen); only Classic says "for all projects". Pass classicTheme().
+export const askOnLine = (classic) => (classic ? ASK_ON_ALL_LINE : "Asking is on.");
+export const askTurnWord = (on, classic) => (classic ? (on ? ASK_TURN_OFF_ALL : ASK_TURN_ON_ALL) : on ? "Turn off asking" : "Turn on asking");
 export const ASK_OFF_LINE = "Asking is off. Turn it on in Settings.";
 export const ASK_CHECKING_LINE = "Checking whether asking is on…";
 export const ASK_UNAVAILABLE_LINE = "Asking is off, because clark could not check the setting just now. Reload the page to try again.";
