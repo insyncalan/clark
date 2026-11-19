@@ -334,7 +334,7 @@ jobs:
         run: python3 dev/run_tests.py -j "$JOBS" --shard "$SHARD/$SHARDS" --max-fail 8 $FILES
 
   macos-smoke:
-    # The Mac smoke set (Alan 17-11: the nightly macOS is always red, so the gate is a small stable set): only the files that test what
+    # The Mac smoke set (17-11, the owner's order: the nightly macOS is always red, so the gate is a small stable set): only the files that test what
     # is Mac-specific (the installer, the updater, the launcher, the package, the platform paths, the doctor), one job, required when the
     # plan asks for it (the nightly on main). A failed file is re-run alone up to twice before it counts; the full macOS suite runs on Sundays, advisory.
     if: ${{ needs.plan.outputs.smoke == '1' }}
