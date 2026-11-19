@@ -305,7 +305,7 @@ class Export(Case):
         _, _, raw = get(self.rig, "/api/export?project=PUB")
         f = Path(self.rig.root) / "cover.xlsx"
         f.write_bytes(raw)
-        text = " | ".join(str(c.value) for row in load_workbook(f)["Cover"].iter_rows() for c in row if c.value)
+        text = " | ".join(str(c.value) for row in load_workbook(f)["Report"].iter_rows() for c in row if c.value)
         self.assertIn("by " + base.USER, text)        # the name publish records (the rig's by_user)
         self.assertIn("send the file back to the person who sent it to you", text)
 
