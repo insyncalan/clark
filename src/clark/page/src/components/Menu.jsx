@@ -23,6 +23,11 @@ export function menuMove(e, items) {
   return true;
 }
 
+function fitHeight(el, room) {
+  if (el.offsetHeight <= room) return;
+  el.style.boxSizing = "border-box"; el.style.maxHeight = `${Math.max(room, 96)}px`; el.style.overflowY = "auto";
+}
+
 // The role="menu" box: focus to its first item (or, with `focusChecked`, the marked one) when it opens, the keys, and a click away.
 export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focusChecked, leaving, onGone, fade, children }) {
   const own = useRef(null), box = boxRef || own;
@@ -32,7 +37,9 @@ export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focu
   // there is no room below), its right edge on the button's (`fixed="start"`: its left edge). It is placed once, so any scroll (the row's own included) or a resize closes it.
   useLayoutEffect(() => {
     if (!fixed || !anchor || !box.current) return;
-    const el = box.current, a = anchor.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
+    const el = box.current, a = anchor.getBoundingClientRect(), w = el.offsetWidth;
+    fitHeight(el, window.innerHeight - 16);
+    const h = el.offsetHeight;
     el.style.position = "fixed"; el.style.right = "auto";
     const below = Math.round(a.bottom + 4), above = Math.round(a.top - 4 - h);
     el.style.top = `${below + h > window.innerHeight && above >= 0 ? above : below}px`;
@@ -43,6 +50,15 @@ export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focu
     window.addEventListener("resize", shut);
     return () => { window.removeEventListener("scroll", shut, true); window.removeEventListener("resize", shut); };
   }, []);
+  // Row 1286 (B-M5): a menu that opens under its button (not `fixed`) and would run past the bottom of the window: it goes above the button when there
+  // is more room there, and a list still taller than the room scrolls inside its own box (the look is the same where it fits).
+  useLayoutEffect(() => {
+    if (fixed || !box.current) return;
+    const el = box.current, r = el.getBoundingClientRect();
+    if (r.bottom <= window.innerHeight - 8) return;
+    const a = anchor ? anchor.getBoundingClientRect() : null, below = window.innerHeight - 8 - r.top, above = a ? a.top - 4 - 8 : 0;
+    if (above > below) { el.style.top = "auto"; el.style.bottom = "calc(100% + 4px)"; fitHeight(el, above); } else fitHeight(el, below);
+  }, []);                                        // eslint-disable-line react-hooks/exhaustive-deps
   // Row 800: opened with the mouse (the button does not show a focus ring), the first item takes the focus without a ring until a key is used.
   useLayoutEffect(() => {
     if (anchor && !anchor.matches(":focus-visible")) box.current.dataset.pointer = "1";

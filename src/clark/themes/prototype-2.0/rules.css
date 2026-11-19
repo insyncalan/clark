@@ -234,6 +234,24 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 #usecases .fline { min-height: 34px; padding-top: 0; padding-bottom: 0; border: 1px solid var(--grey-500); border-radius: 6px; background: var(--surface); }
 #usecases .fline.bad, #usecases .fline.bad:focus-within { border-color: var(--status-red); box-shadow: none; }
 
+/* Row 1324-A (Option A, ruling 18-11; Classic only, Cards keeps its bordered group cards): Group by draws a heading on the page, no card: the name, the count, one hairline under it; the column names once on top (the published list draws them only in this Theme, see UseCasesTab.jsx); 18 px above each group. The name column is 64 px, the rows' own width. */
+.wgroup.ucl-group, .wgroup.ucp-group { background: none; border: 0; border-radius: 0; overflow: visible; margin: 18px 0 0; }
+.ucp-cols + .ucp-group { margin-top: 14px; }
+.ucl-wrap > .wgroup:not(.ucl-group):has(+ .ucl-group) { margin-bottom: 0; border-left: 0; border-right: 0; border-radius: 0; }   /* the grouped list draws the column header as a flat band, so its columns are the groups' */
+.ucl-wrap > .wgroup:not(.ucl-group) + .ucl-group { margin-top: 13px; }   /* the header card's own 1 px border under it makes the 14 px of the mock-up */
+.ucl-grp, .ucp-grp { display: flex; align-items: flex-start; gap: var(--space-2); padding: 0 0 6px; border-bottom: 1px solid var(--grey-200); background: none; font-size: var(--size-small); color: var(--heading); }
+.ucp-group .ucp { padding-left: 0; padding-right: 0; }
+.ucp > summary.ucp-bar { grid-template-columns: minmax(64px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px; }
+.ucp-cols { display: grid; grid-template-columns: minmax(64px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px; gap: var(--space-3); padding: 6px var(--space-1); border-bottom: 1px solid var(--grey-200); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); }   /* the editor's column names, over the published list */
+.ucp-cols .ucl-c1 { grid-column: 1 / 3; }
+@media (max-width: 900px) { .ucp > summary.ucp-bar, .ucp-cols { grid-template-columns: minmax(64px, max-content) minmax(0, 1fr) minmax(0, 1fr) 124px 96px; gap: var(--space-2); } }
+@media (max-width: 640px) { .ucp-cols { display: none; } }
+.ucl-group .grp-b, .ucp-group .grp-b { font-family: var(--font-head); font-weight: var(--weight-medium); font-size: 15px; color: var(--heading); align-items: flex-start; text-align: left; padding: 2px 0; gap: var(--space-2); min-width: 0; }
+.ucl-group .grp-b .i, .ucp-group .grp-b .i { flex: none; margin-top: 3px; color: var(--text-muted); }
+.ucl-group .grp-b .gc, .ucp-group .grp-b .gc { flex: none; white-space: nowrap; font-size: 13px; margin-left: 4px; }   /* spec 19-11: the count is 13 px with 4 px before it (Work items keeps 2 px) */
+.ucl-group .grp-b:focus-visible, .ucp-group .grp-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: 6px; }   /* spec 19-11: 6 px radius on the group heading only; the global ring stays 4 px */
+.ucp-grp + .ucp { border-top: 0; }   /* spec 19-11: the group's hairline is the only line over its first row */
+.ucl-group .grp-b:hover, .ucp-group .grp-b:hover, .ucl-group .grp-b:hover .i, .ucp-group .grp-b:hover .i { color: var(--brand-blue); }
 /* Row 1317 (Settings sidebar): the menu is a grey panel (the Classic page ground equals the Cards panel fill, so it showed no panel), the group names are in sentence case, and the open page is a tinted bar with its square edge at the marker. The issue table names the grey panel and the tinted bar; it names no hover tint on a chip, so there is none. Classic only; Cards keeps its look. The Settings title is already 30 px in both Themes (measured), so it is not touched. Prototype files are not on this box: */
 @media (min-width: 900px) {
   .set-bar { background: var(--grey-100); border-radius: var(--radius-lg); }
@@ -328,6 +346,12 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .ddmenu .lab.caps, .mh.caps { font-size: var(--size-body); letter-spacing: normal; text-transform: none; font-weight: var(--weight-regular); }
 .gt-pop button, .gt-menu button, [data-gt] .gt-menu button { padding-left: var(--space-3); padding-right: var(--space-3); font-size: var(--size-body); }
 .ddmenu .lab, .ddmenu .who, .ddmenu .mh, .mh { padding-left: 16px; padding-right: 16px; }
+/* Row 1342: the Feedback tag dialog as the 1298 mockup draws it: heading 17px / 600 with 2px under it, the dialog and the tag one step roomier (bottom padding 14, tag top and bottom padding 14). */
+.fbt-head h2 { margin: 0 0 2px; font-size: 17px; font-weight: 600; color: var(--heading); }
+.fbt-dlg { padding-bottom: 14px; }
+.fbt-tag { padding-top: 14px; padding-bottom: 14px; }
+/* Row 1342 part 2: the empty-send error (red 13px, 4 above) as the 1298 mockup draws it. */
+.fbt-error { margin-top: 4px; color: var(--status-red-text); font-size: 13px; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }

@@ -576,7 +576,7 @@ class Published(PublishedFile, Setup):
         with chrome() as cdp:
             p = self.draw(cdp, path, 1400)
             p.js("document.documentElement.classList.add('print-all')")
-            self.assertEqual(p.js("getComputedStyle(document.querySelector('button[data-fig=overdue]')).borderTopWidth"), "1px", "the print reset does not strip the tile")
+            self.assertEqual(p.js("getComputedStyle(document.querySelector('button[data-fig=overdue]')).borderTopWidth"), "0px", "the print reset does not strip the tile")      # Cards is unmaintained (row 1363): the Classic tile has no border; Cards had 1px
             self.assertEqual(p.js("getComputedStyle(document.querySelector('.glance .fig .v')).display === 'none'"), False)
 
     def test_the_file_draws_both_sections_view_only_with_the_files_own_figures(self):
@@ -591,7 +591,8 @@ class Published(PublishedFile, Setup):
                 self.assertEqual(p.js("document.querySelectorAll('[data-tile-grip], [data-tile-eye], [data-reason], #health-pill').length"), 0)
                 self.assertEqual(p.js("document.querySelector('.uctotal').textContent"), "2 use cases")
                 health, overdue = (p.js(f"document.querySelector('[data-tile={t}]').getBoundingClientRect().width") for t in ("health", "overdue"))
-                self.assertAlmostEqual(health, 2 * overdue + 12, delta=1.5)
+                # Classic draws the wide health tile and the overdue tile in the measured widths (row 1363: measured on the Classic page, 11-19)
+                self.assertEqual((round(health), round(overdue)), {1400: (474, 243), 900: (801, 392)}[width], "the Classic tile widths")
 
     def test_the_file_draws_done_with_its_word_count_and_grey_mark(self):
         """#412: the published page shows a Done use case as the dashboard does, from the file's own figures."""
