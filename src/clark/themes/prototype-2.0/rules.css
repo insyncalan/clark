@@ -262,3 +262,9 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .gt-grp .gt-ib[aria-pressed="true"] { background-color: var(--brand-navy); background-image: none; color: var(--white); }
 :root[data-theme=dark] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); } }
+/* Row 1344: the peek as the approved peek mock-up draws it, Classic only (Cards keeps today's rules): a 1 px edge and a shadow thrown to the left in light (dark keeps the Theme's own tokens), and the 0.5 s slide fades in while it travels, opaque at 60 %. Reduced motion keeps the short fade of the base rules. */
+.peek { border-left-color: rgb(205, 211, 224); box-shadow: -10px 0 30px rgba(19, 35, 42, .14); }
+:root[data-theme=dark] .peek { border-left-color: var(--grey-200); box-shadow: var(--shadow); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .peek { border-left-color: var(--grey-200); box-shadow: var(--shadow); } }
+@keyframes pk-in-fade { from { opacity: 0; transform: translateX(100%); } 60% { opacity: 1; } }
+@media (prefers-reduced-motion: no-preference) { :root:not([data-motion="reduce"]) .peek:not(.leaving) { animation: pk-in-fade 500ms cubic-bezier(.22, 1, .36, 1) 1; } }
