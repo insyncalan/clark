@@ -19,7 +19,7 @@ VARIANTS = [(w, s) for w in (1400, 900) for s in ("light", "dark")]
 READ = """(() => { const o = {}; const f = document.querySelector('#usecases .fline'); const rd = () => { const s = getComputedStyle(f);
     return {w: [s.borderTopWidth, s.borderRightWidth, s.borderBottomWidth, s.borderLeftWidth], st: [s.borderTopStyle, s.borderRightStyle, s.borderBottomStyle, s.borderLeftStyle],
       c: [s.borderTopColor, s.borderRightColor, s.borderBottomColor, s.borderLeftColor], r: [s.borderTopLeftRadius, s.borderTopRightRadius, s.borderBottomRightRadius, s.borderBottomLeftRadius],
-      sh: s.boxShadow, ol: s.outlineStyle + ' ' + s.outlineWidth, bg: s.backgroundColor}; };
+      pad: [s.paddingTop, s.paddingBottom], sh: s.boxShadow, ol: s.outlineStyle + ' ' + s.outlineWidth, bg: s.backgroundColor}; };
   f.style.transition = 'none'; const col = (v) => { const i = document.createElement('i'); i.style.color = 'var(' + v + ')'; document.body.appendChild(i); const c = getComputedStyle(i).color; i.remove(); return c; };
   o.grey500 = col('--grey-500'); o.red = col('--status-red'); o.surface = col('--surface');
   o.rest = rd(); const r = f.getBoundingClientRect(), w = document.querySelector('#usecases .fline-row').getBoundingClientRect(); o.box = [Math.round(r.width), r.height, Math.round(w.width)];
@@ -60,6 +60,7 @@ class Box(unittest.TestCase):
                 self.assertEqual(rest["c"], [g["grey500"]] * 4, "the neutral border is --grey-500")
                 self.assertEqual(rest["r"], ["6px"] * 4, "radius 6px")
                 self.assertEqual(rest["bg"], g["surface"], "surface background")
+                self.assertEqual(rest["pad"], ["0px", "0px"], "no vertical padding: the 34px box is its height, not padding around the line")
                 self.assertEqual(g["box"][1], 34, "34px high")
                 self.assertLessEqual(g["box"][2], 560, "the row is at most 560 wide")
                 if w == 1400:
