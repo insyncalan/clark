@@ -172,6 +172,7 @@ class Raid(PageBase):
             snap(p, "raid-forty")
 
 
+@unittest.skip("row 1329: the Plan / Movement switch is gone, so the page no longer reaches Movement")
 class Movement(tmp.Base):
     def form(self, cdp, theme=None):
         p = self.visit(cdp)

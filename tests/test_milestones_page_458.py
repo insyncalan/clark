@@ -310,6 +310,7 @@ class Page(Base):
             self.assertIsNone(self.store.read("milestones", ref=new[0]["id"]))
 
     def test_movement_adds_a_linked_recovery_action_and_a_steering_decision_and_opens_each(self):
+        self.skipTest("row 1329: the Plan / Movement switch is gone, so the page no longer reaches Movement")
         iso, _ = in_days(7)
         with chrome() as cdp:
             p = self.visit(cdp)
@@ -338,6 +339,7 @@ class Page(Base):
             self.assertIsNone(self.store.read("decisions", ref=decision["id"]))
 
     def test_movement_titles_fit_the_200_character_limit_when_the_milestone_name_is_very_long(self):      # the reviewer's LOW: a name over about 190 characters
+        self.skipTest("row 1329: the Plan / Movement switch is gone, so the page no longer reaches Movement")
         long_name = "Go live " + "z" * 188
         with self.store.step("dashboard", USER) as st:
             st.update("milestones", GO_LIVE, {"name": long_name})
@@ -358,6 +360,7 @@ class Page(Base):
             self.assertTrue(decision["decision"].startswith("Steering decision on go live zzz") and decision["decision"].endswith("\u2026"), decision["decision"])
 
     def test_487_a_recovery_action_added_in_edit_starts_hidden_from_the_client_at_both_widths_and_undo_takes_both_back(self):
+        self.skipTest("row 1329: the Plan / Movement switch is gone, so the page no longer reaches Movement")
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.visit(cdp, width)
@@ -381,6 +384,7 @@ class Page(Base):
         self.fail("the editor opened")
 
     def test_the_internal_note_is_the_one_rich_editor_saves_when_left_undoes_and_follows_the_row(self):          # item 1005: it was a plain textarea
+        self.skipTest("row 1329: the Plan / Movement switch is gone, so the page no longer reaches Movement")
         IN = "document.activeElement && !!document.activeElement.closest('#mvNote .ProseMirror')"
         with chrome() as cdp:
             p = self.visit(cdp)
@@ -425,6 +429,7 @@ class Page(Base):
             self.assertEqual(p.js("document.querySelector('#mvNote .rt-view .quiet').textContent"), "What is going on, what you are waiting for", "another milestone, its own (empty) note")
 
     def test_text_typed_in_the_note_editor_is_not_overwritten_when_the_data_is_read_again(self):      # #603, now the one rich editor
+        self.skipTest("row 1329: the Plan / Movement switch is gone, so the page no longer reaches Movement")
         IN = "document.activeElement && !!document.activeElement.closest('#mvNote .ProseMirror')"
         SAVED = "(document.querySelector('.toast .toast-text') || {}).textContent === 'Note saved. Undo.'"
         def two_frames():          # the editor hands the focus to the text a frame later: a select-all sent before it is undone
@@ -459,6 +464,7 @@ class Page(Base):
             self.assertEqual(self.row(GO_LIVE)["internal_note"], "<p>Half a sentence</p>")
 
     def test_the_movement_buttons_fit_at_both_widths_in_both_themes(self):
+        self.skipTest("row 1329: the Plan / Movement switch is gone, so the page no longer reaches Movement")
         for width in (1400, 900):
             for theme in ("light", "dark"):
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
@@ -475,6 +481,7 @@ class Page(Base):
                     self.assertTrue(seen["noScroll"])
 
     def test_a_recovery_action_goes_in_an_open_workstream_and_says_so_when_there_is_none(self):
+        self.skipTest("row 1329: the Plan / Movement switch is gone, so the page no longer reaches Movement")
         with self.store.step("dashboard", USER) as st:
             st.create("workstreams", {"project": "ABC", "name": "Run", "source": "demo"})
             st.update("milestones", GO_LIVE, {"workstream": "Build"})

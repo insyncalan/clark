@@ -173,6 +173,7 @@ class Raid(PageBase):
             self.assertIn("Old words", p.js(f"document.querySelector({json.dumps(view)}).textContent"))
 
 
+@unittest.skip("row 1329: the Plan / Movement switch is gone, so the page no longer reaches Movement")
 class Movement(tmp.Base):
     def form(self, cdp, width, theme):
         p = self.visit(cdp, width=width, theme=theme)
