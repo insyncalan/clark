@@ -132,8 +132,7 @@ class OneHint(unittest.TestCase):
 
     def test_k3b_the_one_hint_carries_the_slice_9_words(self):
         body = tpl_edit()
-        self.assertIn("WORDS.hintEye", body)
-        self.assertIn("WORDS.hintAdd", body)
+        self.assertIn("<GLANCE.Hint text={WORDS.hint} />", body)      # row 1336: the approved line replaces the two slice 9 sentences
         self.assertNotIn('<p class="glance-hint"', body)
 
 
@@ -178,7 +177,7 @@ class HintParts(unittest.TestCase):
     src = (PAGE / "src" / "edit" / "GlanceEdit.jsx").read_text(encoding="utf-8")
 
     def test_h1_the_hint_adds_a_template_s_sentences_after_one_space_and_adds_nothing_by_default(self):
-        self.assertIn('function Hint({ more = "" })', self.src)
+        self.assertIn('function Hint({ more = "", text = "" })', self.src)
         self.assertIn('{more ? ` ${more}` : ""}', self.src)
 
 

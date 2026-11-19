@@ -144,7 +144,8 @@ function Reason({ health, reason }) {
 }
 
 // The line under the tiles in Edit: what a tile can do. Edit only; the published page never carries it.
-function Hint({ more = "" }) {      // `more`: sentences a template adds to the same paragraph (the glance template: one hint, not two)
+function Hint({ more = "", text = "" }) {      // `more`: sentences a template adds to the same paragraph; `text`: the whole line instead (the glance template, row 1336: its own approved words)
+  if (text) return <p class="glance-hint" data-glance-hint>{text}</p>;
   return <p class="glance-hint" data-glance-hint>Drag a tile to move it, or hold Alt and press an arrow key. Use the eye to hide or show a tile. Right-click a tile to change its colour. Hidden tiles are left out of the published page.{more ? ` ${more}` : ""}</p>;
 }
 
