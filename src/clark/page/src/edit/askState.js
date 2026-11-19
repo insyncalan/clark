@@ -58,7 +58,7 @@ export async function setAsk(on) {
 
 // What the page says to the owner while asking is off (one place, so every place that shows the off state says the same).
 export const askProvider = signal("Claude");           // #54: who a question goes to now, from the server; every line that says so reads this (askWords.named)
-// Row 1294: the computer-wide switch (the master) names what it covers; wording approved by Jarvis 20-11 02:39.
+// Row 1294: the computer-wide switch (the master) names what it covers;.
 export const ASK_ON_ALL_LINE = "Asking is on for all projects.";
 export const ASK_TURN_OFF_ALL = "Turn off asking for all projects";
 export const ASK_TURN_ON_ALL = "Turn on asking for all projects";
