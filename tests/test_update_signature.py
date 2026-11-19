@@ -210,10 +210,10 @@ class SignatureCheckTest(SignedBase):
         self.assertFalse(updates.signature_required())
         self.assertTrue(updates.signature_required(sg.TEST_PUBLIC))
 
-    def test_the_shipped_key_is_still_the_placeholder_until_the_release_key_exists(self):
+    def test_the_shipped_key_is_written_as_the_release_key_hex_in_the_source(self):
         source = (SRC / "clark" / "updates.py").read_text(encoding="utf-8")
-        self.assertIn("REPLACE WITH THE RELEASE KEY BEFORE THE FIRST SIGNED RELEASE", source)
-        self.assertIn("RELEASE_PUBLIC_KEY = PLACEHOLDER_KEY", source)
+        self.assertIn('RELEASE_PUBLIC_KEY = bytes.fromhex("683bc5ffab41a172e3efe524034d500378cb84dad0d9bbb50071d74432449e0c")', source)
+        self.assertNotIn("RELEASE_PUBLIC_KEY = PLACEHOLDER_KEY", source)
 
 
 class VersionRuleTest(SignedBase):
@@ -497,16 +497,12 @@ class PlaceholderKeyTest(Base):
         self.refuses(path, "badsig")
         self.assertTrue(updates.signature_required())
 
-    def test_the_shipped_release_key_is_the_placeholder_in_the_source(self):
-        source = (SRC / "clark" / "updates.py").read_text(encoding="utf-8")
-        self.assertIn("RELEASE_PUBLIC_KEY = PLACEHOLDER_KEY\n", source)
-        self.assertEqual("5245504c4143452d574954482d5448452d52454c454153452d4b455921212121", updates.PLACEHOLDER_KEY.hex())
 
 
 class ShippedKeyTest(unittest.TestCase):
     # AFTER `sign_release.py keygen` (the owner, offline): set this to hashlib.sha256(<the key>).hexdigest(), the digest published
     # in that release's notes. Until then it is None, and the test below accepts only the exact placeholder. #473 LOW 5.
-    PINNED_KEY_SHA256 = None
+    PINNED_KEY_SHA256 = "56b6fffccd67562f0b53d2b57e80dd9644d8b36becadddf2cac4efe7b24afd77"   # sha256 of the 32 RAW key bytes (not of the hex text)
     PLACEHOLDER_HEX = "5245504c4143452d574954482d5448452d52454c454153452d4b455921212121"
 
     def test_the_pinned_key_is_exactly_the_placeholder_until_the_owner_pins_a_real_one(self):
@@ -527,6 +523,13 @@ class ShippedKeyTest(unittest.TestCase):
         self.assertNotIn(key, (sg.TEST_PUBLIC, sg.OTHER_PUBLIC) + tuple(bytes.fromhex(v[1]) for v in VECTORS))
         self.assertIsNotNone(ev.decode(key), "the pinned key is not a point on the curve")
         self.assertFalse(ev.small_order(ev.decode(key)))
+
+    def test_the_shipped_release_key_is_the_real_key_and_the_placeholder_is_kept_only_to_refuse_it(self):
+        source = (SRC / "clark" / "updates.py").read_text(encoding="utf-8")
+        self.assertEqual("683bc5ffab41a172e3efe524034d500378cb84dad0d9bbb50071d74432449e0c", updates.RELEASE_PUBLIC_KEY.hex())
+        self.assertEqual(32, len(updates.RELEASE_PUBLIC_KEY))
+        self.assertNotEqual(updates.PLACEHOLDER_KEY, updates.RELEASE_PUBLIC_KEY)
+        self.assertEqual("5245504c4143452d574954482d5448452d52454c454153452d4b455921212121", updates.PLACEHOLDER_KEY.hex())
 
     def test_the_test_key_is_not_trusted_unless_a_test_asks_for_it(self):
         self.assertNotEqual(sg.TEST_PUBLIC, updates.RELEASE_PUBLIC_KEY)

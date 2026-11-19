@@ -83,10 +83,10 @@ SIGNATURE_BYTES = 64                   # an Ed25519 signature is exactly this lo
 SIGNATURE_SUFFIX = ".sig"
 FIRST_SIGNED = (1, 3, 4)               # the first release that must carry a verifying .sig; 1.3.3 and older are accepted unsigned
 PLACEHOLDER_KEY = b"REPLACE-WITH-THE-RELEASE-KEY!!"[:30].ljust(32, b"!")
-# REPLACE WITH THE RELEASE KEY BEFORE THE FIRST SIGNED RELEASE: the 32-byte Ed25519 public key made offline with
-# `python3 dev/tools/sign_release.py keygen` (the private key goes straight into the Keychain, never a file). While this is still the placeholder no signature is asked for
-# (unsigned downloads are accepted; see signature_required); from FIRST_SIGNED (1.3.4) up every update must be signed, so a copy that still holds the placeholder refuses it (nokey). A release-key change is a new manual install (see sign_release.py).
-RELEASE_PUBLIC_KEY = PLACEHOLDER_KEY
+# The release key: the 32-byte Ed25519 public key made offline with `python3 dev/tools/sign_release.py keygen` (the private key lives in the
+# owner's Keychain, never in a file). From FIRST_SIGNED (1.3.4) up every update must carry a .sig that verifies against this key.
+# Its sha256 (of the 32 raw bytes) is pinned in tests/test_update_signature.py.
+RELEASE_PUBLIC_KEY = bytes.fromhex("683bc5ffab41a172e3efe524034d500378cb84dad0d9bbb50071d74432449e0c")
 
 NO_NOTES = "No notes were written for this release."
 KEPT = "Your projects, settings and published reports are kept. A copy of your data is made first."
