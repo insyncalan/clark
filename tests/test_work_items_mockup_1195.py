@@ -116,11 +116,11 @@ GOLDEN_LINES = [
 ]
 
 # The Cards page as origin/main (7e25b6619) serves it: the md5 of every <style> block of page_html(branding=NO_BRAND, theme=None), and the md5 of
-# the rendered Work items section (Edit; View; the Add menu opened) with its section id folded to REF, at 1400 and 900 (CARDS_DOM below).
+# the rendered Work items section (Edit; View; the Add menu opened) with its section id folded to REF and the day count of a due date ("In 1149 days", it changes every day) folded to "In N days", at 1400 and 900 (CARDS_DOM below).
 # This row must not change any of them. If one differs after a merge of main, re-measure on origin/main: a difference with no CSS or Work items
 # change in main is a Cards change made by this row.
 CARDS_STYLE_MD5 = {"blocks": ["7195b3107c3b5022f3b40ad1dfbbe484"]}
-_DOM = {"view": "8e6c915d4f6df112000e5150fe406783", "edit": "5f01b907b0a8519810c6ee5ecc0df512", "menu": "b03f939c186bd71f3069fe998036641e"}
+_DOM = {"view": "64d2815a7699b1d8efb201c8607c24c8", "edit": "5b1ebb0f52c9019e2270e46bf675aaab", "menu": "b03f939c186bd71f3069fe998036641e"}
 CARDS_DOM_MD5 = {1400: _DOM, 900: _DOM}      # the markup does not depend on the width (the width is CSS); both are measured and kept
 
 
@@ -633,7 +633,7 @@ class Cards(Look):
             p.js(f"document.querySelector('{sec} .wil-add .newb').click()")
             p.until(f"!!document.querySelector('{sec} .wil-add .ddmenu')", "menu")
             out["menu"] = p.js(f"document.querySelector('{sec} .wil-add').outerHTML")
-        return {k: hashlib.md5(v.replace(ref, "REF").encode("utf-8")).hexdigest() for k, v in out.items()}, out
+        return {k: hashlib.md5(re.sub(r"In \d+ days", "In N days", v.replace(ref, "REF")).encode("utf-8")).hexdigest() for k, v in out.items()}, out
 
     def test_the_rendered_work_items_dom_is_the_dom_main_renders_at_1400_and_900(self):
         for width in (1400, 900):
