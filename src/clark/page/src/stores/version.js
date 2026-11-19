@@ -1,4 +1,4 @@
-// The running version of clark, as /health gives it (row 1281: "Version x.x" on the profile menu's Help line). Read when the profile
+// The running version of clark, as /health gives it (row 1281: "clark ver. x.x" on the Classic profile menu's Help line). Read when the profile
 // menu mounts (ProfileMenu calls this once, in its mount effect); "" until it arrives or when it cannot be read, so the menu shows nothing rather than a guess. A later call asks again after a failed read, but nothing makes one today. Never written in the page.
 import { signal } from "@preact/signals";
 
