@@ -290,6 +290,20 @@ def make_cases(TYPE, PLACES):
                                      {"label": t["title"], "value": t["value"], "detail": t["detail"]}, t["tile"])
                     self.assertEqual(page[t["tile"]]["rag"], t["class"], t["tile"])
 
+        def test_edit_offers_a_live_figure_only_while_its_section_is_there(self):
+            """Row 1337: a new project has no built-in Actions, RAID or Decisions section, so Edit offers no live figure for them."""
+            offered = lambda d: [k for k, _ in self.val(f"F.figures.metricsOffered({json.dumps(d)})")]
+            sec = lambda t, **m: dict({"type": t, "hidden": 0}, **m)
+            new_project = [sec(t) for t in ("current", "glance", "usecases", "milestones", "workitems", "docs")]
+            self.assertEqual(offered(self.data(report_sections=new_project)), [])
+            self.assertEqual(offered(self.data(report_sections=new_project + [sec("raid")])), ["risks"])
+            self.assertEqual(offered(self.data(report_sections=new_project + [sec("actions"), sec("decisions", hidden=1)])), ["overdue"])
+            everything = new_project + [sec("actions"), sec("raid"), sec("decisions")]
+            self.assertEqual(offered(self.data(report_sections=everything)), ["overdue", "risks", "decisions"])
+            self.assertEqual(offered(self.data(report_sections=[])), ["overdue", "risks", "decisions"])      # an older project with no section rows keeps its built-ins
+            self.assertEqual(offered(self.data(report_sections=[], sections_deleted=True)), [])
+            self.assertEqual(self.val("F.figures.metricsOffered(null)"), [], "no data yet: nothing is offered")
+
         def test_a_low_only_project_is_amber_in_the_page_figure_and_in_the_file(self):
             """Item 391: the live High risks and issues figure takes the tile's colour, so it is the file's colour too."""
             raid_ = [{"id": "ABC-001", "project": "ABC", "type": "Risk", "status": "Open", "priority": "Low", "archived": 0, "client_visible": 1,
@@ -415,5 +429,22 @@ def make_cases(TYPE, PLACES):
                 p.edit()
                 p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] [data-slot]')", "Edit")
                 self.assertEqual(p.js(f"document.querySelector('[data-id={json.dumps(ref)}] [aria-label=\"Figure 1 live figure\"]').value"), "overdue")
+
+        def test_edit_offers_no_live_source_for_a_new_project_and_all_three_for_one_with_the_sections(self):
+            """Row 1337: the source select of an empty place offers Live only while a built-in section of a kind exists."""
+            ref = self.add()
+            sel = f"document.querySelector('[data-id={json.dumps(ref)}] [data-slot=\"0\"] select')"
+            def options():
+                with chrome() as cdp:
+                    p = self.visit(cdp)
+                    p.edit()
+                    p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] [data-slot]')", "Edit")
+                    return p.js(f"Array.from({sel}.options).map(o => o.value).join()")
+            self.assertEqual(options(), "typed,live")      # setUp gave the project the built-in sections
+            with self.store.step("dashboard", USER) as st:
+                for r in self.store.read("report_sections", "ABC"):
+                    if r["type"] in ("actions", "raid", "decisions"):
+                        st.update("report_sections", r["id"], {"hidden": 1})
+            self.assertEqual(options(), "typed")
 
     return Contract, Published, ThroughTheStore, PageSide, InThePage
