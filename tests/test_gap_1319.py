@@ -20,6 +20,7 @@ READ = """(() => JSON.stringify({h1: [...document.querySelectorAll('h1')].filter
 H1_30 = ["30px", "36px", "4px", "600"]
 H1_HEAD = ["30px", "36px", "0px", "600"]
 TEXT_SEG = ["3px 14px", "28px", "600", 28]
+MILESTONES_SEG = ["0px 12px", "28px", "600", 28]   # Row 1315 fill (ruling 19-11) pins the Milestones switches at padding 0 12, so they are the exemption to the 3px 14px text segment
 ICON_SEG = ["2px 8px", "32px"]
 
 
@@ -55,7 +56,7 @@ class Computed(Base):
         self.assertEqual(m["h1"], [H1_HEAD])
         self.assertEqual(len(m["seg"]), 5)
         for row in m["seg"]:
-            self.assertEqual(row[1:], TEXT_SEG, row)
+            self.assertEqual(row[1:], MILESTONES_SEG if ("cal-sc" in row[0] or "msv-sw" in row[0]) else TEXT_SEG, row)
 
     def test_layout_switch_keeps_its_own(self):
         w = self.read("#work&p=ABC", "#work")
