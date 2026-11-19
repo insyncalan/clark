@@ -1,0 +1,57 @@
+"""Row 1402 in the Classic Theme: the Settings Projects card as the prototype draws it (issue 1402, Classic audit 19-11), on the REAL Settings page, as Chrome
+computes it at 1400 (the spec) and 900 (also checked), light and dark; Cards as the control.
+Values (light, 1400): header rule 1px rgb(217, 224, 239) under the header, no vertical dividers between header cells; cell padding 8px 10px 8px 0 (header and body);
+Add project is navy rgb(6, 47, 58), white text, radius 8. Dark keeps the Theme's tokens for colours.
+
+Run: python3 dev/run_tests.py test_settings_projects_1402"""
+import unittest
+
+import test_theme_classic_1317 as t13
+from test_theme_classic_1317 import NAME, page_target, for_url, wait, FIXED_DATE
+
+PROBE = """(() => { const q = (s) => document.querySelector(s), g = (e, p) => getComputedStyle(e)[p];
+  const ths = [...document.querySelectorAll('#projects-table thead th')], th = ths[0], th2 = ths[1], td = q('#projects-table tbody td'), td2 = q('#projects-table tbody td + td'), btn = q('#npBtn');
+  const pad = (e) => ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'].map((p) => g(e, p)).join(' ');
+  const tok = (v, p) => { const i = document.createElement('i'); i.style[p] = v; document.body.appendChild(i); const r = getComputedStyle(i)[p]; i.remove(); return r; };
+  return { thBottom: [g(th, 'borderBottomWidth'), g(th, 'borderBottomStyle'), g(th, 'borderBottomColor')].join(' '), thLeft2: g(th2, 'borderLeftWidth'), thRight: g(th, 'borderRightWidth'),
+    tdLeft: g(td2, 'borderLeftWidth'), thPad: pad(th), thPad2: pad(th2), tdPad: pad(td), tdPad2: pad(td2),
+    btnBg: g(btn, 'backgroundColor'), btnColor: g(btn, 'color'), btnRadius: g(btn, 'borderTopLeftRadius'), brand: tok('var(--brand-blue)', 'backgroundColor'), grey200: tok('var(--grey-200)', 'borderTopColor') }; })()"""
+
+
+class ProjectsCard(t13.RealSettings):
+    test_classic_settings_sidebar_cards_table_and_add_project = test_classic_projects_code_cell_stays_on_one_line = None
+    test_classic_projects_table_never_breaks_a_word_in_the_middle = test_cards_keeps_its_own_settings_look = test_the_cards_page_is_byte_for_byte_what_it_was = None
+
+    def look(self, cdp, port, width, scheme):
+        sid = page_target(cdp)
+        cdp.call("Page.enable", {}, sid)
+        cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
+        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+        cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
+        cdp.call("Page.navigate", {"url": "about:blank"}, sid)
+        cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{port}/#settings&p=TUL")}, sid)
+        self.assertTrue(wait(lambda: bool(cdp.js("!!document.querySelector('#projects-table tbody tr') && !!document.querySelector('#npBtn')", sid)), 30), "timed out waiting for Settings")
+        cdp.js("document.querySelectorAll('#npBtn').forEach((e) => { e.style.transition = 'none'; })", sid)
+        return cdp.js(PROBE, sid)
+
+    def test_classic_projects_card(self):
+        for tag, c in self.each(NAME):
+            light = "light" in tag
+            self.assertEqual((c["thLeft2"], c["thRight"], c["tdLeft"]), ("0px", "0px", "0px"), tag + ": no dividers between cells")
+            self.assertTrue(c["thBottom"].startswith("1px solid "), tag + ": 1px rule under the header, got " + c["thBottom"])
+            self.assertEqual(c["thBottom"], "1px solid " + ("rgb(217, 224, 239)" if light else c["grey200"]), tag)
+            self.assertEqual((c["thPad"], c["thPad2"], c["tdPad"], c["tdPad2"]), ("8px 10px 8px 0px",) * 4, tag + ": cell padding 8px 10px 8px 0")
+            self.assertEqual(c["btnRadius"], "8px", tag)
+            if light:
+                self.assertEqual((c["btnBg"], c["btnColor"]), ("rgb(6, 47, 58)", "rgb(255, 255, 255)"), tag + ": navy Add project, white text")
+            else:
+                self.assertEqual(c["btnBg"], c["brand"], tag + ": dark keeps the Theme's brand token")
+
+    def test_cards_projects_card_unchanged(self):
+        for tag, c in self.each(None):
+            self.assertNotEqual(c["btnBg"], "rgb(6, 47, 58)", tag)
+            self.assertNotEqual(c["thPad2"], "8px 10px 8px 0px", tag)
+
+
+if __name__ == "__main__":
+    unittest.main()
