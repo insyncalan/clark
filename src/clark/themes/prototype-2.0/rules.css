@@ -288,7 +288,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .ucl-table .stp { display: block; }
 .ucl-table .prg { display: block; box-sizing: border-box; width: 88px; max-width: 100%; height: 4px; margin-top: 7px; border-radius: 2px; background: var(--grey-100); overflow: hidden; }
 .ucl-table .prg i { display: block; height: 100%; background: var(--status-green); }
-.ucl-table .mslab { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ucl-table .mslab { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--text-muted); }   /* slice B: 13px, the muted grey (spec: base.css .mslab) */
 .ucl-table tbody tr:hover, .ucl-table tbody tr:focus-within { background: var(--grey-100); }
 #usecases .ucl-table { --wil-uc-off: #667391; }
 :root[data-theme=dark] #usecases .ucl-table { --wil-uc-off: var(--text-muted); }
@@ -305,11 +305,13 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
   .ucl-table .c-ms, .ucl-table .c-cm, .ucl-table .c-rel, .ucl-table .c-dash { display: none; }
   .ucl-table .own .on { display: none; }
   .ucl-table .c-where { width: 25%; }
-  .ucl-table .c-status { width: 96px; }
-  .ucl-table .c-owner { width: 88px; white-space: nowrap; }
+  .ucl-table.items .c-status { width: 96px; }      /* slice B: .items makes these as strong as the shared 900px rules (76, 130), which came later and won */
+  .ucl-table.items .c-owner { width: 88px; white-space: nowrap; }
   .ucl-table .c-steps { width: 124px; }
 }
 .cols-menu .ck[data-on]::before { content: "\2713"; }
+#usecases .ddmenu.cols-menu { width: 280px; }      /* slice B: the Use cases Columns menu is 280px wide, 260px at 900 and narrower (spec: extra.css .cols-menu) */
+@media (max-width: 900px) { #usecases .ddmenu.cols-menu { width: 260px; } }
 /* Row 1325 (Classic only): the view tabs are as wide as on Work items (the shared rule narrows them by two px a side; the Columns and Group by buttons moved off this row, so they fit). */
 #usecases .ucl-views .vtab { padding-left: 10px; padding-right: 10px; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
