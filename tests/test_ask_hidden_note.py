@@ -50,11 +50,24 @@ class ThroughTheService(route.Base):
             return self.question("what actions are there?")
 
     def test_a_zero_width_character_in_a_row_is_noted_and_sent_unchanged(self):
-        status, got = self.ask_with("Agree the plan​​\U000e0041 ZQ-KEEP")
+        text = "Agree the plan\u200b\u200b\U000e0041 ZQ-KEEP"
+        status, got = self.ask_with(text)
         self.assertEqual((status, got["ok"]), (200, True), got)
         self.assertTrue([n for n in got["notes"] if n.endswith("this passage has 3 hidden characters.")], got["notes"])
         (sent,) = self.provider.sent
-        self.assertIn("​​\U000e0041", sent)
+        self.assertIn(text, sent)                                            # the whole passage, byte for byte, as the provider got it
+        self.assertEqual(sent.encode("utf-8").count(text.encode("utf-8")), 1)
+        self.assertEqual(sum(sent.count(c) for c in ("\u200b", "\U000e0041")), 3)   # none stripped, none added
+
+    def test_one_hidden_character_says_character_and_two_say_characters(self):
+        for text, want in (("Agree\u200b the plan ZQ-KEEP", "1 hidden character."), ("Agree\u200b\u200b the plan ZQ-KEEP", "2 hidden characters.")):
+            self.provider.sent.clear()
+            status, got = self.ask_with(text)
+            self.assertEqual(status, 200, got)
+            lines = [n for n in got["notes"] if "this passage has" in n]
+            self.assertEqual(len(lines), 1, got["notes"])
+            self.assertTrue(lines[0].endswith(": this passage has " + want), lines[0])
+            self.assertIn(text, self.provider.sent[0])
 
     def test_a_clean_project_has_no_such_note(self):
         status, got = self.ask_with("Agree the plan ZQ-KEEP")
