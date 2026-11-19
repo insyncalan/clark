@@ -20,6 +20,7 @@ EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")        # so a brand 
 SEE = """(() => ({
   subs: [...document.querySelectorAll('.msv .msl-row .msl-sub')].map((e) => e.textContent.trim()),
   rows: document.querySelectorAll('.msv .msl-row').length,
+  sub: (() => { const e = document.querySelector('.head-sub'); if (!e) return null; const c = getComputedStyle(e), r = e.getBoundingClientRect(); return {display: c.display, size: c.fontSize, small: (() => { const t = document.createElement('span'); t.style.fontSize = 'var(--size-small)'; document.body.appendChild(t); const v = getComputedStyle(t).fontSize; t.remove(); return v; })(), h: r.height}; })(),
   summary: (document.querySelector('.head-sub') || {textContent: ''}).textContent.trim(),
 }))()"""
 
@@ -74,6 +75,9 @@ class Drawn(unittest.TestCase):
             self.assertEqual(seen["rows"], extra + 1, width)
             self.assertEqual(seen["subs"], ["No longer going ahead"] * (extra + 1), width)
             self.assertEqual(seen["summary"], summary, width)
+            self.assertNotEqual(seen["sub"]["display"], "none", "the line is shown")
+            self.assertGreater(seen["sub"]["h"], 0, "the line takes room")
+            self.assertEqual(seen["sub"]["size"], seen["sub"]["small"], "the line is in the small text size")
             for text in seen["subs"] + [seen["summary"]]:
                 self.assertNotIn("Agreed", text)
                 self.assertNotIn("No milestones yet", text)

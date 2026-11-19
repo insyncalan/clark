@@ -18,7 +18,7 @@ from _paths import SRC
 
 from clark import page, publish
 from test_milestones_page import EMPTY_BRANDING, TODAY
-from test_movement_page import Base
+from test_movement_page import GO_LIVE, PILOT, Base
 from test_server import chrome, wait
 from test_work_items import page_target
 
@@ -59,6 +59,19 @@ class Sources(unittest.TestCase):
             self.assertNotIn("head-sub-off", text)
             self.assertNotIn("ms-summary", text, f"the summary paragraph is in the {'published' if view else 'served'} page")
 
+    # Equivalent mutant, no test: adding `if (fromFile.value && tools) { }` (an empty statement) after the Archived line in Views.jsx changes no behaviour.
+    def test_mutant_views_import_line_takes_back_a_dead_name(self):
+        # kills: showDate imported again into Views.jsx (unused: the bundler drops it, so only the source shows it)
+        views = self.read("components", "Views.jsx")
+        found = re.search(r"import \{([^}]*)\} from \"\.\./logic/milestones\.js\"", views)
+        self.assertIsNotNone(found, "the import from logic/milestones.js")
+        self.assertEqual(sorted(n.strip() for n in found.group(1).split(",")), ["emptyHead", "milestoneRows", "todayIso"])
+
+    def test_mutant_milestone_edit_left_out_of_the_editor_parts(self):
+        # kills: MilestoneEdit dropped from the EDIT list in edit/index.js (the peek then draws the read-only fields)
+        index = self.read("edit", "index.js")
+        self.assertRegex(index, r"MsAdd, MilestoneEdit, MsEye")
+
     def test_the_empty_head_words_stay_in_the_source(self):
         # guard (passes today and must keep passing): only the forecast sentence goes, the empty and all-cancelled lines are not part of the ask
         words = self.read("logic", "milestones.js")
@@ -85,6 +98,26 @@ class Served(Base):
                         self.assertNotIn(word, body)
                     for word in ("Plan", "Movement"):
                         self.assertEqual(p.js("[...document.querySelectorAll('#milestones button')].filter(b => b.textContent.trim() === %s).length" % json.dumps(word)), 0, word)
+
+    def test_mutant_h1_gap_under_the_title_is_zero(self):
+        # kills: .head h1 { margin-bottom } given a value (the title then floats away from the list at both widths)
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp, width=width)
+                p.until("!!document.querySelector('#milestones .msl-row')", "the list drew")
+                self.assertEqual(p.js("getComputedStyle(document.querySelector('#milestones .head h1')).marginBottom"), "0px")
+
+    def test_mutant_the_served_page_lost_the_archived_button_or_the_peek_its_editor(self):
+        # kills: {Archived ? <Archived /> : null} replaced by null (Show archived gone from the page); MilestoneEdit missing (the peek reads only)
+        with self.store.step("dashboard", USER) as st:
+            st.archive("milestones", PILOT)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.until("!!document.querySelector('#milestones .msl-row')", "the list drew")
+            p.until("!!document.querySelector('#milestones #ms-archived-pill')", "Show archived is on the Milestones page")
+            p.js(f"location.hash = '#milestones&p=ABC&ms={GO_LIVE}'")
+            p.until("!!document.querySelector('#peek')", "the peek drew")
+            p.until("!!document.querySelector('#peek [data-ms-edit], #peek textarea[data-ms-field], #peek .pk-title .pkh-title-txt')", "the milestone peek is the editor's")
 
     def test_mutant_the_head_lost_more_than_the_sentence(self):
         # kills: title, crumbs, Add milestone, the list or the timeline removed together with the sentence
