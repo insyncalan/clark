@@ -133,6 +133,7 @@ class Look(PublishedFile, Setup):
                 self.assertEqual(got["cells"].split()[2], "150px")
         self.assertIn('.msl-box[style*="--msl-cols:"] .msl-cells', _EDIT, "Edit's saved-width rule uses the same attribute test")
 
+    @unittest.skip("Cards is unmaintained (row 1363): a stored Cards value now publishes and renders Classic")
     def test_cards_keeps_the_list_as_it_was(self):
         self.store.con.execute("UPDATE app_settings SET theme = 'cards' WHERE id = 1")
         self.store.con.commit()
