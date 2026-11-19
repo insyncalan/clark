@@ -318,7 +318,8 @@ class AskService:
         self.usage.record(code, getattr(self.provider, "last_tokens", None), self.today())      # row 1294: one answered question, with the tokens the command reported
         index_note = {}
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
-                             left_out_note(found.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found)) if n]
+                             left_out_note(found.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found),
+                             *hidden_notes(request.hidden, request.passages)) if n]
         notes += [n for n in (ask_words.LONG_ROWS if data.cut else "", ask_words.REPLY_CUT if reply.reply_cut else "",
                               ask_words.sent_about(len(request.text))) if n]      # Row 1293: said only when it happened
         if folders and self.indexer is not None:        # row 7 of Row 1366: only while the index is still being read, never once it is complete
@@ -500,6 +501,17 @@ def draft_via(draft, conn):
     if not isinstance(draft, dict) or not conn or not conn.get("used"):
         return draft
     return {**draft, "via": [str(p) for p in conn["used"]]}
+
+
+def hidden_notes(hidden, passages):
+    """Row 1293: one plain line for each passage sent that holds hidden characters (the counts of Request.hidden, which the passage
+    keeps: it is sent unchanged). The question's own count is not a passage and gets none."""
+    out = []
+    for pid, label in passages:
+        n = hidden.get(pid) if isinstance(hidden, dict) else None
+        if isinstance(n, int) and not isinstance(n, bool) and n >= 1:
+            out.append(f"{label}: this passage has {n} hidden {'character' if n == 1 else 'characters'}.")
+    return out
 
 
 def connector_used(line):
