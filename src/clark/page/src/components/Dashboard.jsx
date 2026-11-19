@@ -71,16 +71,15 @@ export function Dashboard({ tools }) {
   const editing = !!(tools && tools.Gutter) && mode.value === "edit" && !fromFile.value;
   const was = useRef({ editing, at: null });
   if (was.current.editing !== editing) was.current = { editing, at: nearestTop() };
-  // row 1311: the Classic bands follow the visible sections: on every render (a section shown or hidden redraws), on hashchange and when a class changes
+  // row 1311: the Classic bands follow the visible sections: on every render (a section shown or hidden redraws) and when a class or the type of a section changes. Classic only: Cards draws exactly what it drew. No address or history is touched.
   useLayoutEffect(() => {
-    const secs = document.querySelector(".secs");
+    const secs = classicTheme() && document.querySelector(".secs");
     if (!secs) return undefined;
     const run = () => applyBands(document);
     run();
-    addEventListener("hashchange", run);
     const watch = new MutationObserver(run);
-    watch.observe(secs, { subtree: true, attributes: true, attributeFilter: ["class"] });
-    return () => { removeEventListener("hashchange", run); watch.disconnect(); };
+    watch.observe(secs, { subtree: true, attributes: true, attributeFilter: ["class", "data-type"] });
+    return () => watch.disconnect();
   });
   useLayoutEffect(() => { glide(document.querySelector(".secs")); }, [dragList.value]);      // row 1214: the sections that moved glide to their new place
   useLayoutEffect(() => {

@@ -131,9 +131,9 @@ class Follows(unittest.TestCase):
             self.assertEqual(got, [False, True, False, True])      # type current is the plain summary; At a glance is the first counted section, banded
 
     def test_hiding_needs_no_manual_call_in_the_page_wiring(self):
-        """Dashboard.jsx wires applyBands on render, hashchange and a class change (read from the source: Chrome's page has no dashboard data here)."""
+        """Dashboard.jsx wires applyBands on render and a class or type change, Classic only, no address or history touched (read from the source: Chrome's page has no dashboard data here)."""
         src = (Path(__file__).resolve().parents[1] / "src" / "clark" / "page" / "src" / "components" / "Dashboard.jsx").read_text(encoding="utf-8")
-        for part in ("applyBands(document)", '"hashchange"', "MutationObserver", 'attributeFilter: ["class"]'):
+        for part in ("applyBands(document)", 'classicTheme() && ', "MutationObserver", 'attributeFilter: ["class", "data-type"]'):
             self.assertIn(part, src)
 
 

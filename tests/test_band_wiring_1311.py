@@ -5,11 +5,12 @@ Run: python3 dev/run_tests.py test_band_wiring_1311
 Real dashboard (the test fixture: a summary, three full sections, one pair), served by the test server, at 1400 and 900 px. Three wires, each with its own check:
 - on render: bands are on when the sections first draw (nothing else has touched a class yet);
 - on a class change: a section hidden by toggling is-hidden (no re-render) re-bands the rest, and shown again puts them back;
-- on hashchange: a change the observer cannot see (data-type, not class) is picked up when location.hash changes.
+- on a type change: a section that becomes the summary (data-type) is picked up; no address or history is touched.
 """
 import json
 import unittest
 
+from clark import page
 from test_report_editor import Base, tearDownModule  # noqa: F401
 from test_server import chrome
 
@@ -36,6 +37,15 @@ RIGHT = "[...document.querySelectorAll('.secs > .sec')].flatMap((e, i) => e.clas
 
 
 class BandWiring(Base):
+    theme = "prototype-2.0"      # Classic: the bands are Classic only
+
+    def setUp(self):
+        super().setUp()
+        self.s.close()
+        from _real_server import real_server
+        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: page.page_html(branding=page.NO_BRAND, theme=self.theme), seam=self.seam)
+        self.addCleanup(self.s.close)
+
     def show(self, cdp, width):
         p = self.visit(cdp)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, p.sid)
@@ -62,16 +72,26 @@ class BandWiring(Base):
                 p.until(f"JSON.stringify({BANDED}) === JSON.stringify({json.dumps(before)})", "shown again, the bands are back")
                 self.assertEqual(p.js("window.marker"), "same page", "no reload")
 
-    def test_a_hash_change_re_bands(self):
+    def test_a_type_change_re_bands(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
                 n, right = len(p.js(BANDED)), p.js(RIGHT)
-                # data-type is not a class: the observer does not see it. Only the hashchange listener can pick it up.
                 p.js("document.querySelectorAll('.secs > .sec')[0].dataset.type = 'current'")
-                p.js("location.hash = location.hash + '&x=1'")
                 want = expect([True] * n, p.js(SUMMARY), right)
-                p.until(f"JSON.stringify({BANDED}) === JSON.stringify({json.dumps(want)})", "the hashchange re-banded")
+                p.until(f"JSON.stringify({BANDED}) === JSON.stringify({json.dumps(want)})", "the type change re-banded")
+
+class CardsKeepsItsDom(BandWiring):
+    theme = None
+
+    def test_cards_is_never_banded(self):
+        with chrome() as cdp:
+            p = self.show(cdp, 1400)
+            self.assertFalse(any(p.js(BANDED)), "Cards draws no band class")
+            p.js("document.querySelectorAll('.secs > .sec')[2].classList.add('is-hidden')")
+            self.assertFalse(any(p.js(BANDED)))
+
+    test_bands_are_on_when_the_sections_first_draw = test_a_class_change_inside_secs_re_bands_without_a_reload = test_a_type_change_re_bands = None
 
 
 if __name__ == "__main__":
