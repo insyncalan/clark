@@ -729,7 +729,7 @@
     "s": [
      "In **Settings**, open the **Projects** card and press **+** (**Add project**). Give it a name, a short code (3 to 7 letters or digits, suggested from the name; it can’t change later), the client and its workstreams, separated by commas.",
      "Each project has **Open**, **Edit** and **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
-     "Under the projects, set this project’s **Publishing** folders. The folders asking may read are in the **Asking** card, under **Folders asking may read**.",
+     "Under the projects, set this project’s **Publishing** folders. The folders asking may read are in the **Source folders for** card of that project.",
      "The project name in the top bar, beside the logo, is a button that opens the project list to switch projects, and shows each one’s open items. Adding a project and a project’s settings are in **Settings**, in the **Projects** card."
     ],
     "page": [
@@ -1905,7 +1905,7 @@
        ],
        [
         "Asking",
-        "The switch for asking (**Turn off asking**; it is on from the first start) and the folders asking may read for this project (**Folders asking may read**). It only reads them. If the folder window cannot open (for example when clark runs in Docker), type the folder’s location in the box that appears and press **Add folder**. It reads Word, PDF, text, Markdown and CSV files; a PDF that cannot be read (scanned pictures, password-protected, damaged, or too big) is skipped, and the answer says how many were skipped."
+        "The switch for asking (**Turn off asking**; it is on from the first start) and the folders asking may read for this project (the **Source folders for** card). It only reads them. If the folder window cannot open (for example when clark runs in Docker), type the folder’s location in the box that appears and press **Add folder**. It reads Word, PDF, text, Markdown and CSV files; a PDF that cannot be read (scanned pictures, password-protected, damaged, or too big) is skipped, and the answer says how many were skipped."
        ],
        [
         "AI (under Asking)",
@@ -2599,7 +2599,7 @@
     {
      "card": "asking",
      "title": "Asking",
-     "line": "Turn asking on or off, and choose the Folders asking may read."
+     "line": "Turn asking on or off, and choose the Source folders asking may read."
     },
     {
      "card": "feedback",
