@@ -215,6 +215,17 @@ class CheckTest(Base):
         self.check()
         self.assertEqual(4, self.fetch.latest_calls, "the cache ends after sixty seconds")
 
+    def test_check_now_while_a_download_runs_makes_no_lookup_and_keeps_the_state(self):
+        self.fetch.gate = threading.Event()
+        self.addCleanup(self.fetch.gate.set)
+        self.begin()
+        calls = self.fetch.latest_calls
+        status, body = self.check(force=True)
+        self.assertEqual((200, "downloading"), (status, body["state"]))
+        self.assertEqual(calls, self.fetch.latest_calls, "no outbound lookup while a download runs")
+        self.fetch.gate.set()
+        self.wait()
+
     def test_an_offline_lookup_says_so_in_plain_words_with_no_reason_and_no_address(self):
         self.fetch.error = FetchError("offline", "boom https://secret.example/x?q=1 /home/someone/clark")
         status, body = self.check()

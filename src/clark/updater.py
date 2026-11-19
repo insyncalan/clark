@@ -341,7 +341,7 @@ class Updater:
             offer, state = fetch.latest(self.system), None
         except Exception as e:                             # the lookup's reason goes to the log by kind only: never a URL or a path
             kind = e.kind if isinstance(e, getattr(fetch, "FetchError", ())) and e.kind in ("offline", "unavailable") else "unavailable"
-            LOG.info("looking for a newer version failed: %s %s", kind, e)
+            LOG.info("looking for a newer version failed: %s", kind)
             offer, state = None, kind
         with self._dl_lock:
             if self._state in ("downloading", "checked"):          # a download began while this one looked: its state stands
