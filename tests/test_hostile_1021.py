@@ -68,7 +68,10 @@ class OutOfOrder(unittest.TestCase):
 class OldNewCrossing(unittest.TestCase):
     def test_every_colour_name_resolves_to_a_tone_token_in_both_copies(self):
         for name, (fill, text) in excel_colours.COLOURS.items():
-            self.assertTrue(fill.startswith("tone-") and text.startswith("tone-"), name)
+            if name == "maroon":      # item 1390: Urgent, the solid tone-urgent tile with white text
+                self.assertEqual((fill, text), ("tone-urgent", "white"))
+            else:
+                self.assertTrue(fill.startswith("tone-") and text.startswith("tone-"), name)
             self.assertIn(fill, excel_colours.TOKENS)
             self.assertIn(text, excel_colours.TOKENS)
 

@@ -19,7 +19,7 @@ from clark import page
 
 ON = "2030-06-01"
 SHEET = "Milestones"
-FIELDS = {"Milestone": "name", "Owner": "owner", "Workstream": "workstream", "% complete": "percent_complete", "Description": "description"}
+FIELDS = {"Milestone": "name", "Owner": "owner", "Workstream": "workstream", "Progress %": "percent_complete", "Description": "description"}
 _NO_BRAND = tempfile.mkdtemp(prefix="clark-no-brand-")
 
 
@@ -73,7 +73,7 @@ class RoundTrip(unittest.TestCase):
         ws = wb[SHEET]
         head = {c.value: c.column for c in ws[1]}
         row = next(r for r in range(2, ws.max_row + 1) if ws.cell(r, head["ID"]).value == self.m)
-        for label, value in (("Owner", "Sam Example"), ("% complete", 55), ("Description", "From the sheet")):
+        for label, value in (("Owner", "Sam Example"), ("Progress %", 55), ("Description", "From the sheet")):
             ws.cell(row, head[label]).value = value
         wb.save(str(self.path))
         p = xi.read_workbook(self.s, self.path, "ABC", state_path=self.state)

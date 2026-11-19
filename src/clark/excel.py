@@ -65,7 +65,7 @@ from clark import excel_palette
 from clark import excel_picture
 from clark import look
 from clark import platform, sanitise
-from clark.milestones import STATES, milestone_state
+from clark.milestones import milestone_state
 from clark.store import COMMITMENTS
 from clark.timefmt import local_text, parse
 
@@ -83,40 +83,40 @@ STATE_LOCK = threading.RLock()
 # and Shown state are worked out, not columns (see DERIVED); no Labels on milestones or use cases, as in creaite.
 SHEETS = [
     ("Actions", "actions", [
-        ("ID", "id"), ("Description", "description"), ("Project", "project"), ("Workstream", "workstream"),
+        ("ID", "id"), ("Title", "description"), ("Project", "project"), ("Workstream", "workstream"),
         ("Owner", "owner"), ("Priority", "priority"), ("Due", "due_date"), ("Status", "status"),
         ("Raised", "raised"), ("Closed", "closed"), ("Latest update", "latest_update"),
-        ("Client-visible", "client_visible"), ("Client wording", "client_message"), ("Milestone", "milestone"),
-        ("Use case", "use_case"), ("Labels", "labels"), ("Source", "source"), ("Updated", "updated_at")],
+        ("Client visible", "client_visible"), ("Client wording", "client_message"), ("Milestone", "milestone"),
+        ("Use case", "use_case"), ("Labels", "labels"), ("Added from", "source"), ("Last updated", "updated_at")],
      {"id", "source", "updated_at"}),
     ("Risks & Issues", "raid", [
-        ("ID", "id"), ("Description", "description"), ("Project", "project"), ("Type", "type"),
+        ("ID", "id"), ("Title", "description"), ("Project", "project"), ("Type", "type"),
         ("Workstream", "workstream"), ("Owner", "owner"), ("Response action", "response_action"),
         ("Due", "due_date"), ("Impact", "impact"), ("Likelihood", "likelihood"), ("Priority", "priority"),
-        ("Status", "status"), ("Raised", "raised"), ("Closed", "closed"), ("Latest update", "latest_update"), ("Client-visible", "client_visible"),
+        ("Status", "status"), ("Raised", "raised"), ("Closed", "closed"), ("Latest update", "latest_update"), ("Client visible", "client_visible"),
         ("Client wording", "client_message"), ("Milestone", "milestone"), ("Use case", "use_case"), ("Labels", "labels"),
-        ("Source", "source"), ("Updated", "updated_at")],
+        ("Added from", "source"), ("Last updated", "updated_at")],
      {"id", "priority", "source", "updated_at"}),
     ("Decisions", "decisions", [
         ("ID", "id"), ("Decision", "decision"), ("Project", "project"), ("Status", "status"), ("Priority", "priority"), ("Made by", "made_by"),
-        ("Needed by", "needed_by"), ("Date", "date"), ("Reasoning", "reasoning"), ("Options", "options"),
-        ("Revisit", "revisit"), ("Replaces", "replaces"), ("Latest update", "latest_update"), ("Client-visible", "client_visible"),
-        ("Client wording", "client_message"), ("Use case", "use_case"), ("Labels", "labels"), ("Source", "source"),
-        ("Updated", "updated_at")],
+        ("Needed by", "needed_by"), ("Decided on", "date"), ("Reasoning", "reasoning"), ("Options considered", "options"),
+        ("Revisit", "revisit"), ("Replaces", "replaces"), ("Latest update", "latest_update"), ("Client visible", "client_visible"),
+        ("Client wording", "client_message"), ("Use case", "use_case"), ("Labels", "labels"), ("Added from", "source"),
+        ("Last updated", "updated_at")],
      {"id", "source", "updated_at"}),
     ("Milestones", "milestones", [
         ("ID", "id"), ("Milestone", "name"), ("Project", "project"), ("Description", "description"),
         ("Workstream", "workstream"), ("Original", "original_date"), ("Agreed", "baseline_date"),
-        ("Forecast", "forecast_date"), ("Status", "status"), ("Order", "sort_order"), ("% complete", "percent_complete"),
-        ("Owner", "owner"), ("Shown state", "shown_state"), ("State", "state"), ("State set by you", "state_set"),
+        ("Forecast", "forecast_date"), ("Status", "status"), ("Sort order", "sort_order"), ("Progress %", "percent_complete"),
+        ("Owner", "owner"), ("State", "shown_state"),
         ("State reason", "state_reason"), ("Movement", "movement"), ("Achieved on", "actual_date"),
-        ("Client-visible", "client_visible"), ("Client wording", "client_message"), ("Latest update", "latest_update"), ("Internal note", "internal_note"),
-        ("Open work items", "open_items"), ("Source", "source"), ("Updated", "updated_at")],
+        ("Client visible", "client_visible"), ("Client wording", "client_message"), ("Latest update", "latest_update"), ("Internal note", "internal_note"),
+        ("Open work items", "open_items"), ("Added from", "source"), ("Last updated", "updated_at")],
      {"id", "original_date", "shown_state", "source", "updated_at", "open_items"}),
     ("Use cases", "use_cases", [                                       # clark's own table, in creaite's style
         ("ID", "id"), ("Reference", "ref"), ("Use case", "title"), ("Project", "project"), ("Status", "status"),
-        ("Commitment", "commitment"), ("Headline", "headline"), ("Where it stands", "standing"), ("Order", "sort_order"),
-        ("Client-visible", "client_visible"), ("Linked milestones", "milestones"), ("Open work items", "open_items"), ("Source", "source"), ("Updated", "updated_at")],
+        ("Commitment", "commitment"), ("Headline", "headline"), ("Where it stands", "standing"), ("Sort order", "sort_order"),
+        ("On the dashboard", "client_visible"), ("Linked milestones", "milestones"), ("Open work items", "open_items"), ("Added from", "source"), ("Last updated", "updated_at")],
      {"id", "source", "updated_at", "open_items"}),
 ]
 TABLES = tuple(t for _, t, _, _ in SHEETS)
@@ -126,7 +126,7 @@ SHEET_OF = {table: name for name, table, _, _ in SHEETS}
 COLUMN_OF = {table: {label: field for label, field in cols} for _, table, cols, _ in SHEETS}
 DATES = {"due_date", "raised", "closed", "date", "baseline_date", "forecast_date", "needed_by", "actual_date",
          "original_date"}
-YES_NO = {"client_visible", "state_set"}
+YES_NO = {"client_visible"}
 LABELLED = ("actions", "raid", "decisions")
 RICH_WORDS = (("actions", "latest_update"), ("raid", "latest_update"), ("decisions", "latest_update"), ("milestones", "latest_update"), ("milestones", "description"), ("milestones", "client_message"), ("milestones", "internal_note"), ("use_cases", "standing"))     # rows 1005, 1060 (row 1078: + a milestone's client wording): rich now (the editor's HTML or an older plain text); the sheet carries its words, and the import compares a cell with the words (publish.LEGACY_RICH is the same list without the Movement note, which comes last; row 1060: a use case's Where it stands is HTML too)
 DERIVED = {"original_date", "shown_state", "open_items"}    # clark: worked out for the sheet, never read back as a change
@@ -139,7 +139,6 @@ CHOICES = {
     ("actions", "status"): ["Open", "Delayed", "Closed", "Cancelled"],
     ("raid", "status"): ["Open", "Closed", "Cancelled"],
     ("milestones", "status"): ["Planned", "Done", "Cancelled"],
-    ("milestones", "state"): [s for s in STATES if s != "Achieved"] + ["Achieved"],   # clark: + Forecast
     ("milestones", "movement"): ["hold", "rebaseline", "recover", "escalate"],         # clark: FR-53
     ("decisions", "status"): ["Pending", "Made", "Withdrawn"],
     ("use_cases", "status"): ["On track", "Flag", "High risk", "Done"],                  # clark
@@ -172,7 +171,7 @@ TITLE_OF = {"milestones": "name", "actions": "description", "raid": "description
             "use_cases": "title"}
 SHORT_NAMES = {"owner", "made_by", "workstream", "labels"}      # people, streams and labels: a little wider than a status
 NUMBERS = {"sort_order", "percent_complete"}
-LOCKED = PatternFill("solid", fgColor=colours.TOKENS["grey-100"])      # the page's quiet grey, for a column the import never reads
+LOCKED = PatternFill("solid", fgColor=colours.TOKENS["locked-fill"])      # item 1390: the Cover's grey (E7E7E7), for a column the import never reads
 # The default (committed, no brand) palette, which the constants above and the functions below use when no `pal` is given. An export
 # builds its own with excel_palette.palette(branding=...) (item 711): the local brand's light values over the committed ones.
 DEFAULT_PAL = excel_palette.committed()
@@ -185,7 +184,7 @@ class Styles:
         self.header = PatternFill("solid", fgColor=pal.header_fill)
         self.header_font = Font(name=pal.font, bold=True, color=pal.header_text)
         self.body_font = Font(name=pal.font, size=11)
-        self.locked = PatternFill("solid", fgColor=pal.tokens["grey-100"])
+        self.locked = PatternFill("solid", fgColor=pal.tokens["locked-fill"])
 
 
 def _pal(pal):
@@ -193,7 +192,7 @@ def _pal(pal):
 # The ID column (#85d, BRD FR-70d). Every sheet is protected with no password (item 727), so a locked cell is not changed by
 # mistake; Excel then refuses to sort a protected range, and a person who needs to sort chooses Review, Unprotect Sheet.
 # The protection is a convenience only: the import never reads it and is still the guard (a changed existing ID is refused for
-# that row; a row with no ID is a new item and gets the next free ID). The ID column is shaded (LOCKED fill) and these words
+# that row; a row with no ID is a new item and gets the next free ID). The ID column is shaded grey (LOCKED fill, E7E7E7) and these words
 # are pinned by a test.
 ID_NOTE = ("IDs are given by clark. Don't change or move an ID, and don't sort the ID column on its own: an ID moved to "
            "another row takes that row's details with it when the file is imported. Leave the ID empty on a new row.")
@@ -752,6 +751,25 @@ def add_colour_rules(ws, col, n_rows, values, pal=None):
         ws.conditional_formatting.add(f"{col}2:{col}{n_rows}", rule)
 
 
+def add_open_by_priority_rules(ws, col, n_rows, priority_col, pal=None):
+    """Item 1390: an open Risk or Issue takes the colour of its own Priority (the page's workItems.js colourOf): one rule per priority word,
+    each reading the Priority cell of the same row, so a Priority changed in Excel recolours the Status. The words are fixed literals."""
+    for value, name in colours.OPEN_BY_PRIORITY.items():
+        rule = Rule(type="expression", formula=[f'AND(${col}2="Open",${priority_col}2="{value}")'], dxf=_dxf(name, pal))
+        ws.conditional_formatting.add(f"{col}2:{col}{n_rows}", rule)
+
+
+# Item 1390: a tab's colour, by sheet: (fill token). Actions blue, Risks & Issues red, Decisions green, Milestones amber, Use cases the
+# brand blue, Gantt grey; read from the palette, so a brand's own look reaches the tabs.
+TAB_TOKEN = {"actions": "tone-blue-text", "raid": "tone-red-text", "decisions": "tone-green-text", "milestones": "tone-amber-text",
+             "use_cases": "brand-blue", "gantt": "tone-grey-text"}
+
+
+def tab_colour(ws, key, pal=None):
+    """Set the sheet's tab colour for a sheet key of TAB_TOKEN."""
+    ws.sheet_properties.tabColor = _pal(pal).tokens[TAB_TOKEN[key]]
+
+
 def add_late_status_rule(ws, col, n_rows, date_col, open_states, pal=None):
     """Row 1021: an open item past its date reads Overdue (red) on the page and in Word, so its Status cell is red here too, ahead of the
     green Open rule (stop if true). A formula rule evaluated by Excel against today's date; the sheet's words are unchanged."""
@@ -894,7 +912,7 @@ GANTT_SHEET_COLUMNS = (
     ("ID", "id"), ("Line", "name"), ("Type", "type"), ("Parent", "parent"), ("Start", "start"), ("End", "end"), ("Days", "_days"),
     ("Done %", "pct"), ("Status", "_status"), ("Health", "health"), ("Depends on", "depends"), ("Owner", "owner"),
     ("Workstream", "workstream"), ("Priority", "priority"), ("Baseline start", "baseline_start"), ("Baseline end", "baseline_end"),
-    ("Effort (days)", "effort"), ("Budget", "budget"), ("Deliverable", "deliverable"), ("On dashboard", "show"), ("Notes", "note"))
+    ("Effort (days)", "effort"), ("Budget", "budget"), ("Deliverable", "deliverable"), ("On the dashboard", "show"), ("Notes", "note"))
 GANTT_DATES = {"start", "end", "baseline_start", "baseline_end"}
 GANTT_WIDTHS = {"id": 18, "name": 32, "type": 12, "parent": 18, "_days": 8, "pct": 10, "_status": 14, "depends": 30, "owner": 18, "workstream": 18,
                 "deliverable": 30, "show": 14, "note": 40}
@@ -962,6 +980,7 @@ def write_gantt(wb, lines, fields, name, today, pal=None):
     header row, frozen after the Line column."""
     st = Styles(_pal(pal))
     ws = wb.create_sheet(gantt_sheet_name(name, wb.sheetnames))
+    tab_colour(ws, "gantt", pal)
     cols = [(label, f) for label, f in GANTT_SHEET_COLUMNS if f in fields]
     ws.append([label for label, _ in cols])
     for line in lines:
@@ -1382,6 +1401,8 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
                                      colours.LATE[(table, "due_date")][1], pal)
             if (table, field) in colours.BY_FIELD:      # clark (#85c): colour follows the value, by conditional format
                 add_colour_rules(ws, col, n_rows, colours.BY_FIELD[(table, field)], pal)
+            if (table, field) == ("raid", "status"):      # item 1390: an open item takes its Priority's colour
+                add_open_by_priority_rules(ws, col, n_rows, get_column_letter([f for _, f in cols].index("priority") + 1), pal)
             if (table, field) in colours.LATE:
                 status_field, open_states = colours.LATE[(table, field)]
                 add_late_rule(ws, col, n_rows, col, get_column_letter([f for _, f in cols].index(status_field) + 1),
@@ -1390,6 +1411,7 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
             note = Comment(INTERNAL_NOTE + "\n\n" + ID_NOTE, FIXED_NAME)    # one note per cell: both go on Milestones A1
             note.width, note.height = 320, 120
             ws["A1"].comment = note
+        tab_colour(ws, table, pal)
         ws.freeze_panes = freeze_cell(table, cols)
         ws.auto_filter.ref = f"A1:{get_column_letter(len(cols))}{len(rows) + 1}"
         protect_sheet(ws)

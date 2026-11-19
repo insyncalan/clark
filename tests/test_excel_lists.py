@@ -29,22 +29,21 @@ WS, MS, UC = "Workstreams", "Milestones", "Use cases"      # the Lists columns, 
 # sheet -> {column label: (values, or the Lists column it is read from; allow_blank)}. Everything not here has no list.
 EXPECTED = {
     "Milestones": {"Project": (["ABC"], False), "Workstream": (WS, True), "Status": (["Planned", "Done", "Cancelled"], False),
-                   "State": (["On track", "At risk", "Slipped", "Overdue", "Forecast", "Achieved"], True),
-                   "State set by you": (YES_NO, False), "Movement": (["hold", "rebaseline", "recover", "escalate"], True),
-                   "Client-visible": (YES_NO, False)},
+                   "Movement": (["hold", "rebaseline", "recover", "escalate"], True),
+                   "Client visible": (YES_NO, False)},
     "Actions": {"Project": (["ABC"], False), "Workstream": (WS, True), "Priority": (PRIORITY, False),
-                "Status": (["Open", "Delayed", "Closed", "Cancelled"], False), "Client-visible": (YES_NO, False),
+                "Status": (["Open", "Delayed", "Closed", "Cancelled"], False), "Client visible": (YES_NO, False),
                 "Milestone": (MS, True), "Use case": (UC, True)},
     "Risks & Issues": {"Project": (["ABC"], False), "Type": (["Risk", "Assumption", "Issue", "Dependency"], False),
              "Workstream": (WS, True), "Impact": (RATING, True), "Likelihood": (RATING, True),
-             "Status": (["Open", "Closed", "Cancelled"], False), "Client-visible": (YES_NO, False),
+             "Status": (["Open", "Closed", "Cancelled"], False), "Client visible": (YES_NO, False),
              "Milestone": (MS, True), "Use case": (UC, True)},
     "Decisions": {"Project": (["ABC"], False), "Status": (["Pending", "Made", "Withdrawn"], False),
                   "Priority": (["Urgent", "High", "Medium", "Low"], False),      # row 1195
-                  "Client-visible": (YES_NO, False), "Use case": (UC, True)},
+                  "Client visible": (YES_NO, False), "Use case": (UC, True)},
     "Use cases": {"Project": (["ABC"], False), "Status": (["On track", "Flag", "High risk", "Done"], False),
                   "Commitment": (["Planned 2026", "Committed", "Planned 2027"], True),       # #709: the store's own words; no flag is allowed
-                  "Client-visible": (YES_NO, False)},
+                  "On the dashboard": (YES_NO, False)},
 }
 # Free text on purpose: people (until the people table, #115), names, notes and dates. Priority on RAID is worked out (locked).
 FREE = {"Owner", "Made by", "Description", "Decision", "Milestone", "Due", "Labels"}
@@ -126,7 +125,7 @@ class Lists(unittest.TestCase):
         schema = (Path(__file__).resolve().parent.parent / "src" / "clark" / "schema.sql").read_text(encoding="utf-8")
         checks = {("actions", "status"), ("raid", "status"), ("milestones", "status"), ("decisions", "status"),
                   ("use_cases", "status"), ("actions", "priority"), ("decisions", "priority"), ("raid", "type"), ("raid", "impact"),
-                  ("raid", "likelihood"), ("raid", "priority"), ("milestones", "state"), ("milestones", "movement")}
+                  ("raid", "likelihood"), ("raid", "priority"), ("milestones", "movement")}
         for table, field in sorted(checks):
             table_sql = schema[schema.index(f"CREATE TABLE IF NOT EXISTS {table} ("):]
             table_sql = table_sql[:table_sql.index(");")]

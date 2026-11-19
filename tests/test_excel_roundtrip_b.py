@@ -22,7 +22,7 @@ class NotTwice(RoundTrip):
     """A no-id row an import already made is not made again when the same content is read from other bytes (review LOW)."""
 
     def make(self, **cells):
-        add_row(self.path, "Actions", **(cells or {"Description": "Brand new"}))
+        add_row(self.path, "Actions", **(cells or {"Title": "Brand new"}))
         p = self.read()
         p.accept_all()
         res = xi.apply_import(self.s, p, USER, state_path=self.state)
@@ -51,7 +51,7 @@ class NotTwice(RoundTrip):
         row = ws.max_row
         for text in texts:
             row += 1
-            ws.cell(row, head["Description"]).value = text
+            ws.cell(row, head["Title"]).value = text
             for label, value in more.items():
                 ws.cell(row, head[label]).value = value
         wb.save(str(self.path))
@@ -88,8 +88,8 @@ class NotTwice(RoundTrip):
         wb = load_workbook(str(self.path))
         ws = wb["Actions"]
         head = {c.value: c.column for c in ws[1]}
-        row = next(r for r in range(2, ws.max_row + 1) if ws.cell(r, head["ID"]).value is None and ws.cell(r, head["Description"]).value)
-        ws.cell(row, head["Description"]).value = "Brand new, reworded"
+        row = next(r for r in range(2, ws.max_row + 1) if ws.cell(r, head["ID"]).value is None and ws.cell(r, head["Title"]).value)
+        ws.cell(row, head["Title"]).value = "Brand new, reworded"
         wb.save(str(self.path))
         p = self.read()
         self.assertEqual([c.kind for c in p.changes], ["new"])
@@ -109,7 +109,7 @@ class NotTwice(RoundTrip):
         again = self.read()
         self.assertEqual(again.changes, [])                         # each recorded row covers one workbook row
         self.assertEqual(again.already_created, 2)
-        add_row(self.path, "Actions", Description="Same text")      # a third identical row typed later is a new row
+        add_row(self.path, "Actions", Title="Same text")      # a third identical row typed later is a new row
         third = self.read()
         self.assertEqual([c.kind for c in third.changes], ["new"])
         self.assertEqual(third.already_created, 2)
@@ -139,7 +139,7 @@ class NotTwice(RoundTrip):
         self.assertNotIn("created", held)
 
     def test_nothing_is_recorded_when_the_store_refuses_to_open_the_step(self):
-        add_row(self.path, "Actions", Description="Fine")
+        add_row(self.path, "Actions", Title="Fine")
         p = self.read()
         p.accept_all()
 
@@ -172,7 +172,7 @@ class NotTwice(RoundTrip):
         self.assertNotIn("created", excel.load_state(self.state, self.path))
 
     def test_a_workbook_saved_again_after_it_was_read_still_records_the_rows_it_made(self):
-        add_row(self.path, "Actions", Description="Brand new")
+        add_row(self.path, "Actions", Title="Brand new")
         p = self.read()
         p.accept_all()
         edit(self.path, "Actions", self.a2, Owner="Alex Example")               # saved again after the plan was read
@@ -299,7 +299,7 @@ class Idempotent(RoundTrip):
     """Importing the same file twice must change nothing the second time (review HIGH)."""
 
     def test_a_second_import_of_the_same_file_changes_and_cancels_nothing(self):
-        add_row(self.path, "Actions", Description="Brand new")
+        add_row(self.path, "Actions", Title="Brand new")
         p = self.read()
         p.accept_all()
         res = xi.apply_import(self.s, p, USER, state_path=self.state)
@@ -320,7 +320,7 @@ class Idempotent(RoundTrip):
         self.assertEqual(self.s.read("actions", ref=new[0]["id"])["status"], "Open")     # the new item was not cancelled
 
     def test_two_plans_of_one_file_apply_only_once(self):
-        add_row(self.path, "Actions", Description="Brand new")
+        add_row(self.path, "Actions", Title="Brand new")
         first, second = self.read(), self.read()
         first.accept_all()
         second.accept_all()
@@ -331,7 +331,7 @@ class Idempotent(RoundTrip):
         self.assertEqual(self.steps(), n)
 
     def test_the_file_saved_again_does_not_turn_the_item_it_made_into_one_removed_from_the_workbook(self):
-        add_row(self.path, "Actions", Description="Brand new")
+        add_row(self.path, "Actions", Title="Brand new")
         p = self.read()
         p.accept_all()
         self.assertTrue(xi.apply_import(self.s, p, USER, state_path=self.state).applied)
@@ -413,7 +413,7 @@ class UndoAndRestore(RoundTrip):
         self.assertEqual(old.read("actions", ref=self.a1)["owner"], "Sam Example")
 
     def test_a_fingerprint_counts_only_while_its_step_is_in_force(self):
-        add_row(self.path, "Actions", Description="Brand new")
+        add_row(self.path, "Actions", Title="Brand new")
         old = self.restored_store()
         self.addCleanup(old.close)
         p = self.read()
@@ -437,14 +437,14 @@ class UndoAndRestore(RoundTrip):
 class Clash(RoundTrip):
     def test_only_the_cells_the_person_edited_are_staged_and_newer_values_in_clark_are_left_alone(self):
         self.demo.update("actions", self.a1, {"owner": "Kim Example"})                   # changed in clark after the export
-        edit(self.path, "Actions", self.a1, Description="Draft the cut-over plan v2")    # the person edits one cell
+        edit(self.path, "Actions", self.a1, Title="Draft the cut-over plan v2")    # the person edits one cell
         p = self.read()
         (c,) = p.changes
         self.assertEqual((c.state, c.clash, c.from_snapshot), ("clash", True, True))
         self.assertEqual(c.after, {"description": "Draft the cut-over plan v2"})
         self.assertEqual(c.kept, {"owner": "Kim Example"})
         text = p.report()
-        self.assertIn("You edited Description", text)
+        self.assertIn("You edited Title", text)
         self.assertIn("Newer in clark and left alone: Owner (now Kim Example)", text)
         p.accept(c.n)
         self.assertTrue(xi.apply_import(self.s, p, USER, state_path=self.state).applied)
@@ -461,7 +461,7 @@ class Clash(RoundTrip):
 
     def test_without_the_export_snapshot_the_clash_says_unedited_fields_are_also_reverted(self):
         self.demo.update("actions", self.a1, {"owner": "Kim Example"})
-        edit(self.path, "Actions", self.a1, Description="Draft the cut-over plan v2")
+        edit(self.path, "Actions", self.a1, Title="Draft the cut-over plan v2")
         state = json.loads(self.state.read_text(encoding="utf-8"))
         for rec in state["workbooks"].values():
             rec["rows"] = None

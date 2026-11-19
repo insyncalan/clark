@@ -252,12 +252,12 @@ class Reading(RoundTrip):
         self.assertEqual(p.unchanged, 8)      # 2 actions, 1 risk, 2 decisions (one from the rebaseline), 2 milestones, 1 use case
 
     def test_the_two_worked_out_columns_are_never_read_back(self):
-        edit(self.path, "Milestones", self.m2, Original=date(2031, 1, 1), **{"Shown state": "Achieved"})
+        edit(self.path, "Milestones", self.m2, Original=date(2031, 1, 1), **{"State": "Achieved"})
         p = self.read()
         self.assertEqual((p.changes, p.problems), ([], []))
 
     def test_labels_flags_and_dates_typed_as_text_are_read(self):
-        edit(self.path, "Actions", self.a1, Due="20-05-2030", **{"Client-visible": "No", "Labels": None})
+        edit(self.path, "Actions", self.a1, Due="20-05-2030", **{"Client visible": "No", "Labels": None})
         (c,) = self.read().changes
         self.assertEqual(c.after, {"due_date": "2030-05-20", "client_visible": 0, "labels": None})
         edit(self.path, "Actions", self.a1, Labels="sensitive")          # the same label in another case: no change on its own
@@ -345,7 +345,7 @@ class Importing(RoundTrip):
         ws = wb["Actions"]
         head = {c.value: c.column for c in ws[1]}
         row = ws.max_row + 1
-        ws.cell(row, head["Description"]).value = "Order the laptops"
+        ws.cell(row, head["Title"]).value = "Order the laptops"
         ws.cell(row, head["Owner"]).value = "Sam Example"
         wb.save(str(self.path))
         p = self.read()
@@ -380,7 +380,7 @@ class Importing(RoundTrip):
 
 
 class ClientView(RoundTrip):
-    """The import honours the Client-visible column: Yes shows, No hides, a blank cell shows, for a use case as for a work item.
+    """The import honours the Client visible column: Yes shows, No hides, a blank cell shows, for a use case as for a work item.
     (A use case added by hand in clark starts hidden; an Excel import does not follow that, it follows the column.)"""
 
     def add_all(self):
@@ -389,13 +389,13 @@ class ClientView(RoundTrip):
         for n, cv in enumerate((None, "Yes", "No")):
             tag = {None: "blank", "Yes": "yes", "No": "no"}[cv]
             for sheet, cells in (("Use cases", {"Use case": f"UC {tag}", "Reference": f"9.{n}", "Status": "On track"}),
-                                 ("Actions", {"Description": f"A {tag}"}),
-                                 ("Risks & Issues", {"Type": "Risk", "Description": f"R {tag}", "Impact": "High", "Likelihood": "Low"}),
+                                 ("Actions", {"Title": f"A {tag}"}),
+                                 ("Risks & Issues", {"Type": "Risk", "Title": f"R {tag}", "Impact": "High", "Likelihood": "Low"}),
                                  ("Decisions", {"Decision": f"D {tag}", "Status": "Pending"})):
                 ws = wb[sheet]
                 head = {c.value: c.column for c in ws[1]}
                 row = ws.max_row + 1                    # under the data, one row per cell set; no ID, so a new item
-                for label, value in {**cells, "Client-visible": cv}.items():
+                for label, value in {**cells, ("On the dashboard" if sheet == "Use cases" else "Client visible"): cv}.items():
                     ws.cell(row, head[label]).value = value
         wb.save(str(self.path))
 
@@ -432,12 +432,12 @@ class ClientView(RoundTrip):
         self.export_again()
         ws = load_workbook(str(self.path))["Use cases"]
         head = {c.value: c.column for c in ws[1]}
-        self.assertEqual(ws.cell(2, head["Client-visible"]).value, "No")
+        self.assertEqual(ws.cell(2, head["On the dashboard"]).value, "No")
         before = self.snapshot()
         p = self.read()
         self.assertEqual((p.changes, p.problems), ([], []))
-        edit(self.path, "Use cases", self.demo.use_case, **{"Client-visible": "Yes"})
-        edit(self.path, "Actions", self.a2, **{"Client-visible": "Yes"})
+        edit(self.path, "Use cases", self.demo.use_case, **{"On the dashboard": "Yes"})
+        edit(self.path, "Actions", self.a2, **{"Client visible": "Yes"})
         p = self.read()
         p.accept_all()
         res = xi.apply_import(self.s, p, USER, state_path=self.state)
@@ -491,7 +491,7 @@ class Wording(RoundTrip):
             plan = self.read()
             self.assertEqual([p.message for p in plan.problems], [], n)
             self.assertEqual(plan.changes, [], n)
-        edit(self.path, "Actions", self.a1, Description="y" * 12000)
+        edit(self.path, "Actions", self.a1, Title="y" * 12000)
         self.assertTrue(any("too long (12,000 characters" in m for m in self.problems()))
 
     def test_a_time_in_a_date_cell_is_named_as_a_time(self):

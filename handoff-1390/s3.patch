@@ -1,0 +1,1224 @@
+diff --git a/src/clark/page/src/components/Dashboard.jsx b/src/clark/page/src/components/Dashboard.jsx
+index ec5ba2f6c..754a9c9c4 100644
+--- a/src/clark/page/src/components/Dashboard.jsx
++++ b/src/clark/page/src/components/Dashboard.jsx
+@@ -13,7 +13,6 @@ import { scrollTargets, entries, countOf } from "../logic/minimap.js";
+ import { todayIso } from "../workItems.js";
+ import { slots as slotsOf } from "../logic/placement.js";
+ import { emptyBody } from "../logic/emptyBody.js";
+-import { applyBands } from "../logic/banding.js";
+ export { emptyBody };
+ import { templateFor, templateEmpty } from "../templates/index.js";
+ import { rowsFor } from "./ItemRows.jsx";
+@@ -71,16 +70,6 @@ export function Dashboard({ tools }) {
+   const editing = !!(tools && tools.Gutter) && mode.value === "edit" && !fromFile.value;
+   const was = useRef({ editing, at: null });
+   if (was.current.editing !== editing) was.current = { editing, at: nearestTop() };
+-  // row 1311: the Classic bands follow the visible sections: on every render (a section shown or hidden redraws) and when a class or the type of a section changes. Classic only: Cards draws exactly what it drew. No address or history is touched.
+-  useLayoutEffect(() => {
+-    const secs = classicTheme() && document.querySelector(".secs");
+-    if (!secs) return undefined;
+-    const run = () => applyBands(document);
+-    run();
+-    const watch = new MutationObserver(run);
+-    watch.observe(secs, { subtree: true, attributes: true, attributeFilter: ["class", "data-type"] });
+-    return () => watch.disconnect();
+-  });
+   useLayoutEffect(() => { glide(document.querySelector(".secs")); }, [dragList.value]);      // row 1214: the sections that moved glide to their new place
+   useLayoutEffect(() => {
+     const at = was.current.at;
+diff --git a/src/clark/page/src/components/Menu.jsx b/src/clark/page/src/components/Menu.jsx
+index e0b74f082..196370b97 100644
+--- a/src/clark/page/src/components/Menu.jsx
++++ b/src/clark/page/src/components/Menu.jsx
+@@ -28,9 +28,6 @@ function fitHeight(el, room) {
+   el.style.boxSizing = "border-box"; el.style.maxHeight = `${Math.max(room, 96)}px`; el.style.overflowY = "auto";
+ }
+ 
+-// Row 1286 (M5c): the bottom edge of the sticky page header (read from the DOM, 0 when there is none): a menu never sits above this line.
+-const headerBottom = () => { const t = document.querySelector(".top"); return t ? Math.max(0, Math.round(t.getBoundingClientRect().bottom)) : 0; };
+-
+ // The role="menu" box: focus to its first item (or, with `focusChecked`, the marked one) when it opens, the keys, and a click away.
+ export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focusChecked, leaving, onGone, fade, children }) {
+   const own = useRef(null), box = boxRef || own;
+@@ -41,12 +38,11 @@ export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focu
+   useLayoutEffect(() => {
+     if (!fixed || !anchor || !box.current) return;
+     const el = box.current, a = anchor.getBoundingClientRect(), w = el.offsetWidth;
+-    const lo = Math.max(8, headerBottom() + 8);        // the menu stays under the sticky header
+-    fitHeight(el, window.innerHeight - lo - 8);
++    fitHeight(el, window.innerHeight - 16);
+     const h = el.offsetHeight;
+     el.style.position = "fixed"; el.style.right = "auto";
+     const below = Math.round(a.bottom + 4), above = Math.round(a.top - 4 - h);
+-    el.style.top = `${Math.max(lo, below + h > window.innerHeight && above >= lo ? above : below)}px`;
++    el.style.top = `${below + h > window.innerHeight && above >= 0 ? above : below}px`;
+     const edge = fixed === "start" ? a.left : a.right - w;       // "start": the menu's left edge on the button's (a button near the page's left edge), else its right edge on the button's
+     el.style.left = `${Math.round(Math.max(8, Math.min(edge, window.innerWidth - w - 8)))}px`;
+     const shut = () => closeRef.current("away");
+@@ -59,9 +55,8 @@ export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focu
+   useLayoutEffect(() => {
+     if (fixed || !box.current) return;
+     const el = box.current, r = el.getBoundingClientRect();
+-    const lo = headerBottom() + 8;
+-    if (r.bottom <= window.innerHeight - 8 && r.top >= lo) return;
+-    const a = anchor ? anchor.getBoundingClientRect() : null, below = window.innerHeight - 8 - r.top, above = a ? a.top - 4 - lo : 0;
++    if (r.bottom <= window.innerHeight - 8) return;
++    const a = anchor ? anchor.getBoundingClientRect() : null, below = window.innerHeight - 8 - r.top, above = a ? a.top - 4 - 8 : 0;
+     if (above > below) { el.style.top = "auto"; el.style.bottom = "calc(100% + 4px)"; fitHeight(el, above); } else fitHeight(el, below);
+   }, []);                                        // eslint-disable-line react-hooks/exhaustive-deps
+   // Row 800: opened with the mouse (the button does not show a focus ring), the first item takes the focus without a ring until a key is used.
+diff --git a/src/clark/page/src/components/Peek.jsx b/src/clark/page/src/components/Peek.jsx
+index 99c99f85a..5557ecfec 100644
+--- a/src/clark/page/src/components/Peek.jsx
++++ b/src/clark/page/src/components/Peek.jsx
+@@ -17,7 +17,6 @@ import { closesPeek } from "../peek/outside.js";
+ import { itemIds, milestoneIds, around, placeIn } from "../peek/list.js";
+ import { holdScroll } from "../core/holdScroll.js";
+ import { Icon } from "./Icon.jsx";
+-import { classicTheme } from "./Contents.jsx";
+ import { wordsOpen, flashed, askFrom } from "../stores/wordsState.js";
+ import { singleKeys } from "../stores/keyPrefs.js";
+ import { statusTone, priorityTone, dateTone, iconClass } from "../iconColours.js";
+@@ -41,11 +40,6 @@ const say = (text) => { said.value = { text, n: said.value.n + 1 }; };
+ 
+ // Where the peek takes an arrow (#289): only Up and Down, only plain, only on one of its own buttons. A box, the width edge, a tab,
+ // a menu, a dialog, the words box, the activity list and the palette keep their arrows; so does the page's own scrolling, which is why a key aimed at nothing is left too.
+-// Row 1285: a decision's date chip names its date under the value, as the approved mock-up does ("needed by" while Pending, "made on" once Made, "was needed by" once Withdrawn); an overdue date keeps its own red "overdue N days".
+-const decisionDateWord = (row) => (!classicTheme() || row.kind !== "decision" ? "" : row.status === "Made" ? "made on" : row.status === "Withdrawn" ? "was needed by" : "needed by");
+-// Row 1285: whether the last thing the person did was a key press (a keyboard open keeps the ring on Close; a mouse open does not draw one).
+-let keyedLast = false;
+-if (typeof document !== "undefined") { document.addEventListener("keydown", () => { keyedLast = true; }, true); document.addEventListener("pointerdown", () => { keyedLast = false; }, true); }
+ const OWN = "[role=textbox],[role=combobox],[role=listbox],[role=menu],[role=dialog],[role=alertdialog],[role=tab],[role=separator],[role=toolbar]:not(.pk-tb),dialog,.wordsbox,.pk-activity";
+ function peekOwnsArrow(e) {
+   if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return false;
+@@ -93,9 +87,9 @@ function ItemChips({ row, tools, editing }) {
+       <PeekChip Live={Live} id={row.id} field="status" name="Status" icon="half" tone={openRI ? "b" : statusTone(row, today)} value={openRI ? "Open" : pill.text} sub={kept ? `${kept} kept` : ""} subTone={kept ? "kept" : ""} flash={hit("status")} pop={pop("status")} />
+       <PeekChip Live={Live} id={row.id} field="priority" name={(row.kind === "risk" || row.kind === "issue") ? "Rating" : "Priority"} icon="bars" tone={rated ? colourOf(prio).class : priorityTone(prio)} value={rated ? colourOf(prio).word : text(prio)} sub={rated ? text(prio) : ""} subTone={rated ? `lvl ${colourOf(prio).class}` : ""}
+         flash={hit("priority")} tip={fixed ? "Set from impact and likelihood" : row.kind === "risk" || row.kind === "issue" ? "Priority from impact and likelihood" : undefined} pop={pop("priority")} />
+-      <PeekChip Live={Live} id={row.id} field="owner" name={row.kind === "decision" ? "Decider" : "Owner"} icon="user" tone="b" value={who.text} sub={classicTheme() && row.kind === "decision" ? "made by" : ""} flash={hit("owner")} pop={pop("owner")} />
++      <PeekChip Live={Live} id={row.id} field="owner" name={row.kind === "decision" ? "Decider" : "Owner"} icon="user" tone="b" value={who.text} flash={hit("owner")} pop={pop("owner")} />
+       <PeekChip Live={Live} id={row.id} field="due" name={row.kind !== "decision" ? "Due date" : row.status === "Pending" ? "Needed-by date" : "Decision date"} icon="cal" tone={dateTone(row, today)} value={due.date}
+-        sub={overdue || decisionDateWord(row)} subTone={late ? "late" : ""} late={late} flash={hit("due")} pop={pop("due")} />
++        sub={overdue} subTone={late ? "late" : ""} late={late} flash={hit("due")} pop={pop("due")} />
+     </PeekChips>
+   );
+ }
+@@ -240,15 +234,7 @@ export function Peek({ tools }) {
+     opened.current = p.id;
+     said.value = { text: "", n: 0 };
+     const close = box.current && box.current.querySelector("[data-pk-close]");
+-    if (close) {
+-      close.focus();
+-      // Row 1285: Close takes the focus when a peek opens; with no key pressed (a click, a script) it shows no focus ring until a key is pressed or the focus moves on.
+-      if (classicTheme() && !keyedLast) {
+-        close.setAttribute("data-quiet", "");
+-        const off = () => { close.removeAttribute("data-quiet"); close.removeEventListener("blur", off); document.removeEventListener("keydown", off, true); };
+-        close.addEventListener("blur", off); document.addEventListener("keydown", off, true);
+-      }
+-    }
++    if (close) close.focus();
+     return () => {
+       wordsOpen.value = false;
+       unsaved.value = false;
+diff --git a/src/clark/page/src/help/helpContent.json b/src/clark/page/src/help/helpContent.json
+index d4a49523d..458df7e1b 100644
+--- a/src/clark/page/src/help/helpContent.json
++++ b/src/clark/page/src/help/helpContent.json
+@@ -1817,7 +1817,7 @@
+       [
+        "**The top bar**: the logo, the project name, then Weekly report and the week, and As at with the date of this report. The date is a button: it opens a calendar, and picking the day of an earlier report kept in the same folder opens that report; any other day says No report for that day and stays on this one. Nothing else in it is a button.",
+        "**The tabs**: Dashboard always, then Work items and Milestones unless you hid them, then Use cases when the client can see any, and Gantt when its switch is on with at least one line shown.",
+-       "The round button at the top right opens the **Report menu**: **Profile**, **Export to Excel** (only when the file holds a workbook; when the report is too large to include one, the row is greyed and a note says so), **Export to PDF** and **Past reports**. **Profile** keeps the reader’s name in their own browser only, and the button then shows their initials. **Past reports** lists earlier reports kept in the same folder as this one, newest first, and opens the one you press; with none it says No earlier reports.",
++       "The round button at the top right opens the **Report menu**: **Profile**, **Export to Excel** (only when the file holds a workbook; when the report is too large to include one, the row is greyed and a note says so), **Export to PDF** and **Past reports**. **Profile** keeps the reader’s name in their own browser only, and the button then shows their initials. **Past reports** lists earlier reports kept in the same folder as this one, newest first, and opens the one you press; with none it says No earlier reports. The Excel file is the client copy: it holds only the rows the report shows, has no Client visible or On the dashboard columns, no Internal note and no History sheet, and cannot be imported back.",
+        "**Dashboard**: the report in the Spacing you chose, with **On this page** at the right.",
+        "**Work items**: actions, risks and issues, and decisions shown to the client, with the type and Open, Closed or All switches, Filter by, a search box and Group by. Your choices are kept in your own browser only.",
+        "**Milestones**: the Timeline and Calendar switch, the legend and every client-visible milestone, in client words.",
+@@ -2750,7 +2750,7 @@
+      "d": "After the Cover come the sheets of rows: Actions, Risks & Issues, Decisions, Milestones and Use cases, and a Gantt sheet when the project has Gantt lines. Each row is one item, with its ID in the first column. A History sheet follows with the record of changes, read only. Changes made on the Cover are ignored."
+     },
+     {
+-     "d": "The workbook includes internal notes and Sensitive items, so never send it to a client. To send changes back, edit the rows on the data sheets, leave every ID as it is, and import the file with **Import workbook**."
++     "d": "The workbook includes internal notes and Sensitive items, so never send it to a client. A client who presses **Export to Excel** on a published report gets a different file, made when you published: it leaves out every row that is not shown to the client and every column that says who may see a row, and it has no Internal note, no History sheet and no way to import it back. To send changes back, edit the rows on the data sheets, leave every ID as it is, and import the file with **Import workbook**."
+     }
+    ],
+    "result": "A single Excel workbook is saved by your browser, opening on a Cover sheet, with one sheet for each kind of work and one row for each item.",
+diff --git a/src/clark/page/src/logic/banding.js b/src/clark/page/src/logic/banding.js
+deleted file mode 100644
+index fb51fbc9c..000000000
+--- a/src/clark/page/src/logic/banding.js
++++ /dev/null
+@@ -1,42 +0,0 @@
+-// Row 1311 (ruling 19-11): the Classic dashboard bands every other VISIBLE section. CSS cannot count only the visible ones, so this sets the
+-// class `band`, as the prototype's tag() does. A hidden section does not count; the summary (the Current state block, type current) is never banded and does not count;
+-// a This week | Next week pair (slot-left then slot-right) counts and bands as ONE. Pure: items are { id, hidden, summary, slot } in page order.
+-
+-// The ids that are banded: the first counted section, then every other one.
+-export function bandIds(items) {
+-  const out = [];
+-  let n = 0;
+-  let pairRight = false;      // the right half of a pair takes the band of its left half
+-  let prev = null;
+-  for (const it of items) {
+-    if (it.hidden) continue;
+-    if (it.summary) { prev = null; continue; }
+-    if (it.slot === "right" && prev && prev.slot === "left" && prev.banded !== undefined) {
+-      if (prev.banded) out.push(it.id);
+-      prev = null;
+-      continue;
+-    }
+-    const on = n % 2 === 0;
+-    n += 1;
+-    if (on) out.push(it.id);
+-    prev = { slot: it.slot, banded: on };
+-  }
+-  return out;
+-}
+-
+-// The summary is the Current state block: the older type "current", or the default text section titled "Current state" (item 1188).
+-export function isSummary(e) {
+-  if (e.dataset.type === "current") return true;
+-  const h = e.querySelector(".sec-h");
+-  return e.dataset.type === "text" && !!h && h.textContent.trim() === "Current state";
+-}
+-
+-// The DOM side: read the sections of `.secs` under root, set or clear .band on each. Returns the ids banded.
+-export function applyBands(root) {
+-  const els = [...root.querySelectorAll(".secs > .sec")];
+-  const ids = new Set(bandIds(els.map((e, i) => ({
+-    id: i, hidden: e.classList.contains("is-hidden") || e.classList.contains("drag-slot"), summary: isSummary(e),
+-    slot: e.classList.contains("slot-left") ? "left" : e.classList.contains("slot-right") ? "right" : "full" }))));
+-  els.forEach((e, i) => { if (e.classList.contains("band") !== ids.has(i)) e.classList.toggle("band", ids.has(i)); });
+-  return [...ids];
+-}
+diff --git a/src/clark/themes/prototype-2.0/rules.css b/src/clark/themes/prototype-2.0/rules.css
+index f1ea2746e..9353bb8ed 100644
+--- a/src/clark/themes/prototype-2.0/rules.css
++++ b/src/clark/themes/prototype-2.0/rules.css
+@@ -121,13 +121,9 @@ html[data-mode="view"] .sec { border-left: 2px solid var(--gutter-rule); padding
+ .wil-table .wil-c-priority { width: 84px; }
+ .wil-table .wil-c-id { width: 84px; }
+ .wil-all-b { color: var(--status-blue); font-weight: var(--weight-medium); min-height: var(--space-6); padding: 6px 0; }
+-/* Row 1311 (ruling 19-11): every other visible section, the summary (the Current state block, type current) left out, is a white panel on the page gradient: the class .band is set by logic/banding.js (CSS cannot count only the visible sections), so it follows a section shown or hidden. A pair (This week | Next week) is banded as one row. No radius, no left rule; a line between each visible section and the one above. */
+-.secs > .sec.band { --sec-pad-t: 20px; --sec-px: 22px; background: var(--sec-band-bg); border-left: 0; border-radius: 0; padding: 20px 22px 18px; }
+-.secs > .sec:not(.is-hidden):not(.drag-slot) ~ .sec:not(.is-hidden):not(.drag-slot) { border-top: 1px solid var(--line-soft); }
+-.secs > .sec[data-type="current"] { padding: 0 0 18px; border-left: 0; }
+-.secs > .sec.band .wil-cw { right: 22px; }      /* Edit sets --sec-px to 32px on a section, but the band's right padding is the literal 22px, so the gear stays 22px from the edge and the 10px gap to the Changed tag holds */
+-@media (min-width: 901px) { html[data-density="comfortable"] .secs > .sec.slot-left.band { box-shadow: var(--space-5) 0 0 0 var(--sec-band-bg); } }
+-@media print { .secs > .sec.band, .secs > .sec.slot-left, .secs > .sec.slot-right { background: none; border-radius: 0; box-shadow: none; } .secs > .sec.band, .secs > .sec[data-type="current"] { padding: 0; } }
++/* Row 1311: every other visible section (the odd ones: the picture bands At a glance, the 1st) is a white panel on the page gradient and has no gutter rule. The served View leaves hidden sections out of the page, so the odd child is the odd visible section there; Edit draws them (dashed, never banded). */
++.secs > .sec:nth-child(odd):not(.is-hidden):not(.drag-slot) { background: var(--sec-band-bg); border-left: 0; border-radius: var(--radius-lg); }
++@media print { .secs > .sec:nth-child(odd):not(.is-hidden):not(.drag-slot) { background: none; border-radius: 0; } }
+ .wil-table td { padding-top: 9px; padding-bottom: 9px; }
+ .wil-table tbody tr { height: 49px; }
+ .wil-table td.wil-c-due { font-size: var(--size-caption); line-height: normal; }
+@@ -365,16 +361,6 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
+ .ddmenu .lab.caps, .mh.caps { font-size: var(--size-body); letter-spacing: normal; text-transform: none; font-weight: var(--weight-regular); }
+ .gt-pop button, .gt-menu button, [data-gt] .gt-menu button { padding-left: var(--space-3); padding-right: var(--space-3); font-size: var(--size-body); }
+ .ddmenu .lab, .ddmenu .who, .ddmenu .mh, .mh { padding-left: 16px; padding-right: 16px; }
+-/* Row 1285: Close, focused as a peek opens with no key pressed (a click, a script), shows no focus ring until a key is pressed or the focus moves on. */
+-#peek .pkp-btn[data-quiet]:focus-visible { outline: none; }
+-
+-/* Row 1350 part 2 (Classic only; Cards keeps the shared quick bar rules): the quick bar list as the prototype draws it (mock-up app.css lines 1562-1565). The query box keeps its 12px and 14px (var(--space-3), the shared rule); the input is 38px tall with 15px text and 6px 10px padding; the list has 6px padding (shared) and stops at min(52vh, 420px); a row is a grid of a 96px kind, the label and the hint, gap 4px 12px, padding 8px 10px, radius 6px, text var(--size-body) (14px); the kind and the hint are one px under the caption size (12px), the kind with .04em spacing and muted. The chosen row (grey-100 fill, 2px focus ring, offset -2px) is the shared rule and is not repeated. The bare lengths have no token: 38px, 15px, 6px, 10px, 96px, 420px, 52vh, .04em. */
+-.pal-q input { min-height: 38px; padding: 6px 10px; font-size: 15px; }
+-.pal-list { max-height: min(52vh, 420px); }
+-.pal-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: var(--space-1) var(--space-3); min-height: 0; padding: var(--space-2) 10px; border-radius: 6px; font-size: var(--size-body); }
+-.pal-kind { min-width: 0; font-size: calc(var(--size-caption) - 1px); letter-spacing: .04em; }
+-.pal-more, .pal-why { font-size: calc(var(--size-caption) - 1px); }
+-.pal-why { grid-column: 2 / -1; padding-left: 0; }
+ /* Row 1336, the At a glance template in Edit, Classic only (the published View keeps the flat Row 1260 strip): the tile takes the mock-up's inner padding (12px top and bottom, 16px sides; the Row 1260 padding 0 removed it, and with it the pill touched the border) and shows its status dot 8x8 before the label (the Row 1260 rule hid it; the colour of the figure alone is the View's way). Not here, waiting for a ruling: the bin on built-in tiles, the grip and eye positions that go with it, the help text wording, the empty fourth column. */
+ .tpl-edit-glancetemplate .glance .fig { padding: 12px 16px; }
+ .tpl-edit-glancetemplate .glance .fig .ragdot { display: inline-block; flex: none; }
+diff --git a/tests/test_band_logic_1311.py b/tests/test_band_logic_1311.py
+deleted file mode 100644
+index 1dd01e05c..000000000
+--- a/tests/test_band_logic_1311.py
++++ /dev/null
+@@ -1,141 +0,0 @@
+-"""Row 1311 (ruling 19-11): src/clark/page/src/logic/banding.js, the class .band on every other VISIBLE section of the Classic dashboard.
+-
+-Run: python3 dev/run_tests.py test_band_logic_1311
+-The pure function runs in headless Chrome (the repo has no Node) from the pinned esbuild bundle; the toggling test hides a section and reads the computed
+-style: the banding follows the section shown or hidden.
+-"""
+-import json
+-import tempfile
+-import time
+-import unittest
+-from pathlib import Path
+-
+-from clark import page
+-from test_server import chrome
+-from test_theme_banding_1311 import bundle
+-
+-
+-def it(id, slot="full", hidden=False, summary=False):
+-    return {"id": id, "slot": slot, "hidden": hidden, "summary": summary}
+-
+-
+-def run(cdp, sid, expr):
+-    return cdp.js("(() => { const B = BD; return JSON.stringify(%s); })()" % expr, sid)
+-
+-
+-def target(cdp):
+-    html = page.page_html(branding=page.NO_BRAND, theme="prototype-2.0")
+-    path = Path(tempfile.mkdtemp(prefix="clark-test-")) / "p.html"
+-    path.write_text(html, encoding="utf-8")
+-    tid = cdp.call("Target.createTarget", {"url": "about:blank"})["targetId"]
+-    sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
+-    cdp.call("Page.navigate", {"url": path.as_uri()}, sid)
+-    end = time.monotonic() + 20
+-    while cdp.js("document.readyState", sid) != "complete" and time.monotonic() < end:
+-        time.sleep(0.05)
+-    cdp.js(bundle(), sid)
+-    return sid, path
+-
+-
+-class Pure(unittest.TestCase):
+-    def ids(self, items):
+-        with chrome() as cdp:
+-            sid, path = target(cdp)
+-            self.addCleanup(lambda: (path.unlink(), path.parent.rmdir()))
+-            return json.loads(run(cdp, sid, "B.bandIds(%s)" % json.dumps(items)))
+-
+-    def test_every_other_one_starting_with_the_first(self):
+-        self.assertEqual(self.ids([it(1), it(2), it(3), it(4), it(5)]), [1, 3, 5])
+-
+-    def test_hidden_sections_do_not_count(self):
+-        self.assertEqual(self.ids([it(1), it(2, hidden=True), it(3), it(4)]), [1, 4])
+-        self.assertEqual(self.ids([it(1, hidden=True), it(2), it(3)]), [2])
+-
+-    def test_the_summary_is_skipped_and_the_next_is_the_first(self):
+-        self.assertEqual(self.ids([it(1, summary=True), it(2), it(3), it(4)]), [2, 4])
+-
+-    def test_a_pair_counts_and_bands_as_one(self):
+-        self.assertEqual(self.ids([it(1), it(2, "left"), it(3, "right"), it(4), it(5)]), [1, 4])      # the pair is the 2nd: plain, both halves
+-
+-    def test_a_pair_on_a_banded_place_bands_both_halves(self):
+-        self.assertEqual(self.ids([it(1, "left"), it(2, "right"), it(3), it(4)]), [1, 2, 4])
+-        self.assertEqual(self.ids([it(1), it(2), it(3, "left"), it(4, "right")]), [1, 3, 4])      # the pair is the 3rd
+-
+-    def test_a_hidden_section_between_the_halves_changes_nothing(self):
+-        self.assertEqual(self.ids([it(1, "left"), it(2, hidden=True), it(3, "right"), it(4)]), [1, 3])
+-
+-    def test_a_left_half_with_no_right_is_one_section(self):
+-        self.assertEqual(self.ids([it(1, "left"), it(2), it(3)]), [1, 3])
+-
+-    def test_a_summary_between_the_halves_splits_the_pair(self):
+-        # left, summary, right: the right half is its own section (the summary resets the pair state), here the 2nd: plain
+-        self.assertEqual(self.ids([it(1, "left"), it(2, summary=True), it(3, "right"), it(4)]), [1, 4])
+-
+-    def test_a_right_half_after_a_full_section_is_its_own_section(self):
+-        self.assertEqual(self.ids([it(1), it(2, "right"), it(3)]), [1, 3])
+-
+-    def test_a_second_right_half_does_not_join_the_first_pair(self):
+-        self.assertEqual(self.ids([it(1, "left"), it(2, "right"), it(3, "right"), it(4)]), [1, 2, 4])      # the 3rd right is the 2nd section: plain; 4 is the 3rd: banded
+-
+-    def test_empty(self):
+-        self.assertEqual(self.ids([]), [])
+-
+-
+-class Follows(unittest.TestCase):
+-    def test_hiding_a_section_moves_the_banding(self):
+-        with chrome() as cdp:
+-            sid, path = target(cdp)
+-            self.addCleanup(lambda: (path.unlink(), path.parent.rmdir()))
+-            cdp.js("""(() => { document.documentElement.setAttribute('data-mode', 'view');
+-                const secs = document.createElement('div'); secs.className = 'secs';
+-                secs.innerHTML = ['current', 'text', 'text', 'text', 'text'].map((t, i) => '<div class="sec slot-full" data-type="' + t + '" id="s' + i + '"><div class="sec-head">S' + i + '</div></div>').join('');
+-                document.body.appendChild(secs); BD.applyBands(document); })()""", sid)
+-            fills = "[...document.querySelectorAll('.secs > .sec')].map((e) => getComputedStyle(e).backgroundColor !== 'rgba(0, 0, 0, 0)')"
+-            self.assertEqual(cdp.js(fills, sid), [False, True, False, True, False])      # the summary is plain, then every other one
+-            cdp.js("document.getElementById('s1').classList.add('is-hidden'); BD.applyBands(document)", sid)
+-            self.assertEqual(cdp.js(fills, sid), [False, False, True, False, True])      # S1 hidden: S2 is now the first
+-            cdp.js("document.getElementById('s1').classList.remove('is-hidden'); BD.applyBands(document)", sid)
+-            self.assertEqual(cdp.js(fills, sid), [False, True, False, True, False])
+-            # the border-top line: every visible section but the first has it
+-            lines = cdp.js("[...document.querySelectorAll('.secs > .sec')].map((e) => getComputedStyle(e).borderTopWidth)", sid)
+-            self.assertEqual(lines, ["0px", "1px", "1px", "1px", "1px"])
+-
+-    def test_a_drag_slot_does_not_count(self):
+-        with chrome() as cdp:
+-            sid, path = target(cdp)
+-            self.addCleanup(lambda: (path.unlink(), path.parent.rmdir()))
+-            got = cdp.js("""(() => { const secs = document.createElement('div'); secs.className = 'secs';
+-                secs.innerHTML = '<div class="sec" data-type="text"></div><div class="sec drag-slot" data-type="text"></div><div class="sec" data-type="text"></div><div class="sec" data-type="text"></div>';
+-                document.body.appendChild(secs); BD.applyBands(document);
+-                return [...secs.children].map((e) => e.classList.contains('band')); })()""", sid)
+-            self.assertEqual(got, [True, False, False, True])      # the drag slot is skipped: the 3rd child is the 2nd counted (plain), the 4th the 3rd (banded)
+-
+-    def test_only_direct_children_of_secs_are_banded(self):
+-        with chrome() as cdp:
+-            sid, path = target(cdp)
+-            self.addCleanup(lambda: (path.unlink(), path.parent.rmdir()))
+-            got = cdp.js("""(() => { const secs = document.createElement('div'); secs.className = 'secs';
+-                secs.innerHTML = '<div class="sec" data-type="text"><div class="sec" id="inner"></div></div><div class="sec" data-type="text"></div>';
+-                document.body.appendChild(secs); BD.applyBands(document);
+-                return [secs.children[0].classList.contains('band'), document.getElementById('inner').classList.contains('band'), secs.children[1].classList.contains('band')]; })()""", sid)
+-            self.assertEqual(got, [True, False, False])
+-
+-    def test_at_a_glance_is_a_normal_banded_section_and_current_is_the_plain_summary(self):
+-        with chrome() as cdp:
+-            sid, path = target(cdp)
+-            self.addCleanup(lambda: (path.unlink(), path.parent.rmdir()))
+-            got = cdp.js("""(() => { const secs = document.createElement('div'); secs.className = 'secs';
+-                secs.innerHTML = ['current', 'glance', 'text', 'text'].map((t) => '<div class="sec" data-type="' + t + '"></div>').join('');
+-                document.body.appendChild(secs); BD.applyBands(document);
+-                return [...secs.children].map((e) => e.classList.contains('band')); })()""", sid)
+-            self.assertEqual(got, [False, True, False, True])      # type current is the plain summary; At a glance is the first counted section, banded
+-
+-    def test_hiding_needs_no_manual_call_in_the_page_wiring(self):
+-        """Dashboard.jsx wires applyBands on render and a class or type change, Classic only, no address or history touched (read from the source: Chrome's page has no dashboard data here)."""
+-        src = (Path(__file__).resolve().parents[1] / "src" / "clark" / "page" / "src" / "components" / "Dashboard.jsx").read_text(encoding="utf-8")
+-        for part in ("applyBands(document)", 'classicTheme() && ', "MutationObserver", 'attributeFilter: ["class", "data-type"]'):
+-            self.assertIn(part, src)
+-
+-
+-if __name__ == "__main__":
+-    unittest.main()
+diff --git a/tests/test_band_wiring_1311.py b/tests/test_band_wiring_1311.py
+deleted file mode 100644
+index 6a0a1e088..000000000
+--- a/tests/test_band_wiring_1311.py
++++ /dev/null
+@@ -1,114 +0,0 @@
+-"""Row 1311: the Dashboard keeps .band on every other visible section without a reload (the wiring in Dashboard.jsx, not the pure function).
+-
+-Run: python3 dev/run_tests.py test_band_wiring_1311
+-
+-Real dashboard (the test fixture: a summary, three full sections, one pair), served by the test server, at 1400 and 900 px. Three wires, each with its own check:
+-- on render: bands are on when the sections first draw (nothing else has touched a class yet);
+-- on a class change: a section hidden by toggling is-hidden (no re-render) re-bands the rest, and shown again puts them back;
+-- on a type change: a section that becomes the summary (data-type) is picked up; no address or history is touched.
+-"""
+-import json
+-import unittest
+-
+-from clark import page
+-from test_report_editor import Base, tearDownModule  # noqa: F401
+-from test_server import chrome
+-
+-BANDED = "[...document.querySelectorAll('.secs > .sec')].map(e => e.classList.contains('band'))"
+-SHOWN = "[...document.querySelectorAll('.secs > .sec')].map(e => !e.classList.contains('is-hidden'))"
+-
+-
+-def expect(shown, summary=(), right=()):
+-    """Banded flags per section, worked out here from the rule: hidden and summary ones skipped and not counted; the right half of a pair takes its left half's flag."""
+-    out, n = [], 0
+-    for i, s in enumerate(shown):
+-        if not s or i in summary:
+-            out.append(False)
+-        elif i in right:
+-            out.append(out[-1])
+-        else:
+-            out.append(n % 2 == 0)
+-            n += 1
+-    return out
+-
+-
+-SUMMARY = "[...document.querySelectorAll('.secs > .sec')].flatMap((e, i) => e.dataset.type === 'current' || (e.dataset.type === 'text' && e.querySelector('.sec-h').textContent.trim() === 'Current state') ? [i] : [])"
+-RIGHT = "[...document.querySelectorAll('.secs > .sec')].flatMap((e, i) => e.classList.contains('slot-right') ? [i] : [])"
+-
+-
+-class BandWiring(Base):
+-    theme = "prototype-2.0"      # Classic: the bands are Classic only
+-
+-    def setUp(self):
+-        super().setUp()
+-        self.s.close()
+-        from _real_server import real_server
+-        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: page.page_html(branding=page.NO_BRAND, theme=self.theme), seam=self.seam)
+-        self.addCleanup(self.s.close)
+-
+-    def show(self, cdp, width):
+-        p = self.visit(cdp)
+-        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+-        p.until("document.querySelectorAll('.secs > .sec').length >= 4", "the sections drew")
+-        return p
+-
+-    def test_bands_are_on_when_the_sections_first_draw(self):
+-        for width in (1400, 900):
+-            with self.subTest(width=width), chrome() as cdp:
+-                p = self.show(cdp, width)
+-                self.assertTrue(any(p.js(BANDED)), "some section is banded")
+-                self.assertEqual(p.js(BANDED), expect(p.js(SHOWN), p.js(SUMMARY), p.js(RIGHT)))
+-
+-    def test_a_class_change_inside_secs_re_bands_without_a_reload(self):
+-        for width in (1400, 900):
+-            with self.subTest(width=width), chrome() as cdp:
+-                p = self.show(cdp, width)
+-                p.js("window.marker = 'same page'")
+-                before = p.js(BANDED)
+-                summary, right = p.js(SUMMARY), p.js(RIGHT)
+-                p.js("document.querySelectorAll('.secs > .sec')[2].classList.add('is-hidden')")
+-                p.until(f"JSON.stringify({BANDED}) === JSON.stringify({json.dumps(expect([i != 2 for i in range(len(before))], summary, right))})", "the band follows the hidden section")
+-                p.js("document.querySelectorAll('.secs > .sec')[2].classList.remove('is-hidden')")
+-                p.until(f"JSON.stringify({BANDED}) === JSON.stringify({json.dumps(before)})", "shown again, the bands are back")
+-                self.assertEqual(p.js("window.marker"), "same page", "no reload")
+-
+-    def test_the_default_text_section_titled_current_state_is_the_summary(self):
+-        """ruling 19-11: the default summary is a TEXT section titled Current state (item 1188); it is never banded and does not count."""
+-        for width in (1400, 900):
+-            with self.subTest(width=width), chrome() as cdp:
+-                p = self.show(cdp, width)
+-                n, right = len(p.js(BANDED)), p.js(RIGHT)
+-                p.js("(() => { const e = document.querySelectorAll('.secs > .sec')[0]; e.dataset.type = 'text'; e.querySelector('.sec-h').textContent = 'Current state'; })()")
+-                S = "[...document.querySelectorAll('.secs > .sec')].flatMap((e, i) => e.dataset.type === 'text' && e.querySelector('.sec-h').textContent.trim() === 'Current state' ? [i] : [])"
+-                self.assertEqual(p.js(S), [0])
+-                want = expect([True] * n, p.js(S), right)
+-                p.until(f"JSON.stringify({BANDED}) === JSON.stringify({json.dumps(want)})", "the Current state text section is left out of the bands")
+-                self.assertFalse(p.js("document.querySelectorAll('.secs > .sec')[0].classList.contains('band')"))
+-
+-    def test_a_type_change_re_bands(self):
+-        for width in (1400, 900):
+-            with self.subTest(width=width), chrome() as cdp:
+-                p = self.show(cdp, width)
+-                n, right = len(p.js(BANDED)), p.js(RIGHT)
+-                p.js("document.querySelectorAll('.secs > .sec')[0].dataset.type = 'current'")
+-                want = expect([True] * n, p.js(SUMMARY), right)
+-                p.until(f"JSON.stringify({BANDED}) === JSON.stringify({json.dumps(want)})", "the type change re-banded")
+-
+-class CardsKeepsItsDom(BandWiring):
+-    theme = None
+-
+-    def test_the_default_text_section_titled_current_state_is_the_summary(self):
+-        self.skipTest("Cards is never banded (ruling 19-11)")
+-
+-    def test_cards_is_never_banded(self):
+-        with chrome() as cdp:
+-            p = self.show(cdp, 1400)
+-            self.assertFalse(any(p.js(BANDED)), "Cards draws no band class")
+-            p.js("document.querySelectorAll('.secs > .sec')[2].classList.add('is-hidden')")
+-            self.assertFalse(any(p.js(BANDED)))
+-
+-    test_bands_are_on_when_the_sections_first_draw = test_a_class_change_inside_secs_re_bands_without_a_reload = test_a_type_change_re_bands = None
+-
+-
+-if __name__ == "__main__":
+-    unittest.main()
+diff --git a/tests/test_client_export_by_source.py b/tests/test_client_export_by_source.py
+new file mode 100644
+index 000000000..2a0204e4a
+--- /dev/null
++++ b/tests/test_client_export_by_source.py
+@@ -0,0 +1,155 @@
++"""Row 1390 slice 3: two exports by source. The editor export carries every row and every column; the workbook made from the
++published client page leaves out the rows a client may not see, the columns that say who may see a row, the Internal note, and
++the History sheet, and the import refuses it.
++
++Run: python3 dev/run_tests.py test_client_export_by_source
++Fictional data only (tests/fixtures/publish-plant.json). Headings are matched without caring about the hyphen, so a rename of
++"Client-visible" to "Client visible" does not change what is pinned.
++"""
++import io
++import re
++import shutil
++import tempfile
++import unittest
++from pathlib import Path
++
++from _paths import ROOT, SRC, TOOLS  # noqa: F401
++
++import _publish_fixture as fx  # noqa: E402
++import test_gantt_excel_export as ge  # noqa: E402
++from _demo import USER, DemoStore  # noqa: E402
++from clark import changes, excel, excel_client, publish  # noqa: E402
++from clark import excel_import as xi  # noqa: E402
++from openpyxl import load_workbook  # noqa: E402
++
++FLAG = re.compile(r"client[\s_-]*visible|on (?:the )?dashboard", re.I)
++NOTE = re.compile(r"internal[\s_-]*note", re.I)
++NOT_FOR_CLIENT = re.compile(r"labels?|response action|sensitive", re.I)
++TABLES = ("actions", "raid", "decisions", "milestones", "use_cases")
++
++
++def heads(wb):
++    """Every cell text on every sheet of a workbook, with its sheet."""
++    return [(ws.title, str(c.value)) for ws in wb.worksheets for row in ws.iter_rows() for c in row if c.value is not None]
++
++
++class ClientCopy(unittest.TestCase):
++    @classmethod
++    def setUpClass(cls):
++        cls.plant = fx.load()
++        inputs = ge.plant()
++        cls.inputs = inputs
++        cls.pub = publish.select(inputs)
++        cls.data = excel_client.workbook_bytes(cls.pub)
++        cls.wb = load_workbook(io.BytesIO(cls.data))
++        cls.text = heads(cls.wb)
++
++    def test_every_data_sheet_is_in_the_copy(self):
++        got = set(self.wb.sheetnames)
++        self.assertTrue({excel.SHEET_OF[t] for t in TABLES} <= got, got)
++        self.assertIn("Plan", got)
++
++    def test_a_row_with_client_visible_no_is_on_no_sheet(self):
++        hidden = {r["id"] for t in TABLES for r in self.plant["data"][t] if r.get("client_visible") == 0}
++        self.assertTrue(hidden, "the plant has hidden rows")
++        for sheet, cell in self.text:
++            for ident in hidden:
++                self.assertNotIn(ident, cell, f"{ident} is on {sheet}")
++
++    def test_a_gantt_line_with_its_eye_off_is_not_on_the_gantt_sheet(self):
++        off = [r for r in self.inputs["data"]["gantt_lines"] if r.get("show") == 0]
++        on = [r for r in self.inputs["data"]["gantt_lines"] if r.get("show") == 1]
++        self.assertTrue(off and on)
++        ids = {str(c.value) for row in self.wb["Plan"].iter_rows() for c in row if c.value is not None}
++        for r in off:
++            self.assertNotIn(r["id"], ids)
++        for r in on:
++            self.assertIn(r["id"], ids)
++
++    def test_the_gantt_flag_column_is_left_out_even_when_no_column_is_hidden(self):
++        inputs = ge.plant(gantt_hidden_columns="")
++        wb = load_workbook(io.BytesIO(excel_client.workbook_bytes(publish.select(inputs))))
++        labels = [str(c.value) for c in wb["Plan"][4] if c.value]
++        self.assertIn("Line", labels)
++        self.assertIn("Notes", labels, "no column was hidden, so the others are all there")
++        self.assertEqual([x for x in labels if FLAG.fullmatch(x)], [])
++
++    def test_no_heading_says_client_visible_or_internal_note_on_any_sheet(self):
++        for sheet, cell in self.text:
++            self.assertIsNone(FLAG.fullmatch(cell.strip()), f"{sheet}: {cell}")
++            self.assertIsNone(NOTE.fullmatch(cell.strip()), f"{sheet}: {cell}")
++        for ws in self.wb.worksheets:
++            for row in ws.iter_rows(min_row=1, max_row=4):
++                for c in row:
++                    self.assertFalse(c.value and (FLAG.search(str(c.value)) or NOTE.search(str(c.value))), f"{ws.title}!{c.coordinate}")
++
++    def test_no_labels_response_action_or_sensitive_column_in_the_copy(self):
++        for ws in self.wb.worksheets:
++            for c in ws[4]:
++                self.assertFalse(c.value and NOT_FOR_CLIENT.fullmatch(str(c.value).strip()), f"{ws.title}: {c.value}")
++
++    def test_the_copy_has_no_history_sheet_and_no_internal_tag(self):
++        self.assertNotIn("History", self.wb.sheetnames)
++        self.assertFalse([w for w in self.wb.sheetnames if w.lower() in ("history", "lists", "cover")], self.wb.sheetnames)
++        for ws in self.wb.worksheets:
++            self.assertEqual(ws.sheet_state, "visible")
++        for sheet, cell in self.text:
++            self.assertNotIn("INTERNAL", cell, sheet)
++
++    def test_the_client_wording_stays(self):
++        ws = self.wb[excel.SHEET_OF["actions"]]
++        self.assertIn("ZQ-KEEP-MESSAGE-1", {str(c.value) for row in ws.iter_rows(min_row=5) for c in row})
++
++
++class EditorExport(unittest.TestCase):
++    """The same plant through the editor's own sheets: the flag and the Internal note are there, in the headings."""
++
++    def test_every_editor_sheet_has_the_flag_heading_and_milestones_the_note(self):
++        for sheet, table, columns, _ in excel.SHEETS:
++            labels = [label for label, _ in columns]
++            self.assertTrue([x for x in labels if FLAG.fullmatch(x)], f"{sheet}: {labels}")
++            self.assertEqual(bool([x for x in labels if NOTE.fullmatch(x)]), table == "milestones", sheet)
++        self.assertTrue([label for label, _ in excel.GANTT_SHEET_COLUMNS if FLAG.fullmatch(label)])
++
++    def test_a_real_editor_export_carries_the_hidden_rows_and_the_note(self):
++        demo = DemoStore()
++        self.addCleanup(demo.close)
++        tmp = Path(tempfile.mkdtemp(prefix="clark-cx-"))
++        self.addCleanup(shutil.rmtree, str(tmp), True)
++        change = changes.make_change(demo.store.path, [], USER)
++        status, body = change({"project": "ABC", "kind": "actions", "op": "new", "values": {"description": "Kept off the client page"}})
++        self.assertEqual(status, 200, body)
++        status, body = change({"project": "ABC", "kind": "actions", "op": "update", "id": body["ref"], "changes": {"client_visible": 0}})
++        self.assertEqual(status, 200, body)
++        path = tmp / "editor.xlsx"
++        excel.export_project(demo.store, "ABC", path, tmp / "state.json", on="2030-06-01")
++        wb = load_workbook(str(path))
++        seen = {sheet: cell for sheet, cell in heads(wb)}
++        self.assertTrue(any(FLAG.fullmatch(cell.strip()) for _, cell in heads(wb)))
++        self.assertTrue(any(NOTE.fullmatch(cell.strip()) for sheet, cell in heads(wb) if sheet == "Milestones"), seen.keys())
++        self.assertIn("History", wb.sheetnames)
++        hidden = [r["id"] for r in demo.store.read("actions", project="ABC") if r.get("client_visible") == 0]
++        self.assertEqual(len(hidden), 1)
++        got = {cell for _, cell in heads(wb)}
++        for ident in hidden:
++            self.assertIn(ident, got, f"the editor export keeps {ident}")
++
++
++class ImportOfAClientCopy(unittest.TestCase):
++    def test_the_import_refuses_every_sheet_and_stages_nothing(self):
++        demo = DemoStore()
++        self.addCleanup(demo.close)
++        tmp = Path(tempfile.mkdtemp(prefix="clark-cx-"))
++        self.addCleanup(shutil.rmtree, str(tmp), True)
++        path = tmp / "client.xlsx"
++        path.write_bytes(excel_client.workbook_bytes(publish.select(fx.inputs())))
++        self.assertIsNone(excel.export_id_of(path))
++        plan = xi.read_workbook(demo.store, path, "ABC", state_path=tmp / "state.json")
++        self.assertEqual(plan.changes, [])
++        for table in TABLES:
++            sheet = excel.SHEET_OF[table]
++            self.assertTrue(any(p.sheet == sheet and "no id column" in p.message for p in plan.problems), (sheet, plan.problems))
++
++
++if __name__ == "__main__":
++    unittest.main()
+diff --git a/tests/test_glance_page.py b/tests/test_glance_page.py
+index a68939113..e396462e5 100644
+--- a/tests/test_glance_page.py
++++ b/tests/test_glance_page.py
+@@ -592,7 +592,7 @@ class Published(PublishedFile, Setup):
+                 self.assertEqual(p.js("document.querySelector('.uctotal').textContent"), "2 use cases")
+                 health, overdue = (p.js(f"document.querySelector('[data-tile={t}]').getBoundingClientRect().width") for t in ("health", "overdue"))
+                 # Classic draws the wide health tile and the overdue tile in the measured widths (row 1363: measured on the Classic page, 11-19)
+-                self.assertEqual((round(health), round(overdue)), {1400: (462, 237), 900: (777, 380)}[width], "the Classic tile widths")
++                self.assertEqual((round(health), round(overdue)), {1400: (474, 243), 900: (801, 392)}[width], "the Classic tile widths")
+ 
+     def test_the_file_draws_done_with_its_word_count_and_grey_mark(self):
+         """#412: the published page shows a Done use case as the dashboard does, from the file's own figures."""
+diff --git a/tests/test_menu_fit_1286.py b/tests/test_menu_fit_1286.py
+index 0da6e154a..5846cbf00 100644
+--- a/tests/test_menu_fit_1286.py
++++ b/tests/test_menu_fit_1286.py
+@@ -124,7 +124,7 @@ class MenuFit(Base):
+             self.close(cdp, sid)
+ 
+     def test_the_view_menu_goes_above_its_button_and_scrolls_when_short_of_room(self):
+-        """The View menu opens under its button; in a short window it goes above the button (8 px clear of it) and its height is the room above the button, under the sticky header, minus 12 px (96 px at least), and it scrolls."""
++        """The View menu opens under its button; in a short window it goes above the button (8 px clear of it) and its height is the room above the button minus 12 px, and it scrolls."""
+         with chrome() as cdp:
+             sid = self.loaded(cdp)
+             for h in (240, 280):
+@@ -132,12 +132,12 @@ class MenuFit(Base):
+                 tap(cdp, sid, "#viewMenu")
+                 self.inside(cdp, sid, "#viewMenuList", "View menu", (900, h, "light"))
+                 got = cdp.js(f"({MEASURE})('#viewMenuList')", sid)
+-                btn = cdp.js("(() => { const r = document.querySelector('#viewMenu').getBoundingClientRect(); return {top: Math.round(r.top), bottom: Math.round(r.bottom), header: Math.round(document.querySelector('.top').getBoundingClientRect().bottom)}; })()", sid)
++                btn = cdp.js("(() => { const r = document.querySelector('#viewMenu').getBoundingClientRect(); return {top: Math.round(r.top), bottom: Math.round(r.bottom)}; })()", sid)
+                 self.assertGreater(got["scroll"], got["client"], got)
+                 self.assertIn(got["oy"], ("auto", "scroll"), got)
+                 self.assertLessEqual(got["bottom"], got["h"] - 8, got)
+                 self.assertLessEqual(abs(got["bottom"] - (btn["top"] - 8)), 1, (got, btn))       # above the button: 4 px calc offset from its wrapper, which sits 4 px over the button
+-                self.assertLessEqual(abs((got["bottom"] - got["top"]) - max(96, btn["top"] - 12 - btn["header"])), 1, (got, btn))  # the room above the button, under the sticky header, less 4 + 8 px (never under 96 px; the header is read from the page, M5c)
++                self.assertLessEqual(abs((got["bottom"] - got["top"]) - (btn["top"] - 12)), 1, (got, btn))  # the room above the button less 4 + 8 px
+                 self.close(cdp, sid)
+ 
+ 
+diff --git a/tests/test_menu_under_header_1286.py b/tests/test_menu_under_header_1286.py
+deleted file mode 100644
+index 26a924903..000000000
+--- a/tests/test_menu_under_header_1286.py
++++ /dev/null
+@@ -1,68 +0,0 @@
+-"""Row 1286 (M5c): a menu never sits under the sticky page header.
+-
+-Run: python3 dev/run_tests.py test_menu_under_header_1286
+-The real page in headless Chrome (Classic) over a demo database. The window is 420 high (a View menu cannot be whole there), 1400 wide first, then 900.
+-The View menu (Group by, Workstream and the other lines) is opened; the box must start at or below the bottom of the sticky header (read from the DOM)
+-and every line of the menu must be clickable: elementFromPoint at the centre of each line (scrolled into the box) is that line or inside it.
+-Chrome is required: the test fails, never skips, without it.
+-"""
+-import json
+-import unittest
+-
+-from test_bulk_bar import Base  # noqa: E402
+-from test_multi_select import tap  # noqa: E402
+-from test_server import chrome  # noqa: E402
+-from test_work_board_page import tearDownModule, setUpModule  # noqa: E402,F401
+-from test_work_filters import set_line  # noqa: E402
+-
+-# Header bottom, menu box and, for each line, whether the point at its centre (after scrolling it into the box) hits the line itself.
+-MEASURE = """(() => {
+-  const top = document.querySelector('.top'), hb = top ? Math.round(top.getBoundingClientRect().bottom) : 0;
+-  const el = [...document.querySelectorAll('#viewMenuList')].filter(e => e.getBoundingClientRect().height > 0).pop();
+-  if (!el) return null;
+-  const r = el.getBoundingClientRect(), c = getComputedStyle(el);
+-  const kids = [...el.querySelectorAll('[role^=menuitem]')];
+-  const covered = [];
+-  for (const k of kids) {
+-    k.scrollIntoView({block: 'nearest'});
+-    const b = k.getBoundingClientRect(), x = b.left + b.width / 2, y = b.top + b.height / 2, hit = document.elementFromPoint(x, y);
+-    if (!hit || !(hit === k || k.contains(hit))) covered.push(k.dataset.kind || k.textContent.trim());
+-  }
+-  el.scrollTop = 0;
+-  const r2 = el.getBoundingClientRect();
+-  return { headerBottom: hb, menuTop: Math.round(r2.top), menuBottom: Math.round(r2.bottom), overlap: Math.max(0, hb - Math.round(r2.top)), h: innerHeight,
+-           oy: c.overflowY, scroll: el.scrollHeight, client: el.clientHeight, lines: kids.length, covered, ids: kids.map(k => k.dataset.kind) };
+-})()"""
+-
+-
+-class MenuUnderHeader(Base):
+-    def look(self, cdp, sid, width, height):
+-        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": height, "deviceScaleFactor": 1, "mobile": False}, sid)
+-        self.until(cdp, sid, f"innerWidth === {width} && innerHeight === {height}", "the window size")
+-
+-    def check(self, width):
+-        with chrome() as cdp:
+-            sid = self.visit(cdp, width=width, height=900)
+-            set_line(cdp, sid, "type:action")
+-            self.until(cdp, sid, "document.querySelectorAll('#work-list tr[data-id]').length >= 3", "the rows")
+-            self.look(cdp, sid, width, 420)
+-            tap(cdp, sid, "#viewMenu")
+-            self.until(cdp, sid, "!!document.querySelector('#viewMenuList') && document.querySelector('#viewMenuList').getBoundingClientRect().height > 0", "the View menu opened")
+-            got = cdp.js(MEASURE, sid)
+-            print(f"MEASURE width={width} height=420: {json.dumps(got)}")
+-            self.assertGreaterEqual(got["lines"], 3, got)
+-            self.assertGreaterEqual(got["headerBottom"], 40, got)
+-            self.assertGreaterEqual(got["menuTop"], got["headerBottom"], got)
+-            self.assertEqual(got["overlap"], 0, got)
+-            self.assertLessEqual(got["menuBottom"], got["h"], got)
+-            self.assertEqual(got["covered"], [], got)
+-
+-    def test_the_view_menu_is_not_under_the_header_at_1400(self):
+-        self.check(1400)
+-
+-    def test_the_view_menu_is_not_under_the_header_at_900(self):
+-        self.check(900)
+-
+-
+-if __name__ == "__main__":
+-    unittest.main()
+diff --git a/tests/test_palette_look_1350p2.py b/tests/test_palette_look_1350p2.py
+deleted file mode 100644
+index 31d75645c..000000000
+--- a/tests/test_palette_look_1350p2.py
++++ /dev/null
+@@ -1,95 +0,0 @@
+-"""Row 1350 part 2: the quick bar list look in the Classic Theme, as the prototype draws it (mock-up app.css lines 1562-1565), at 1400 and 900.
+-
+-Run: python3 dev/run_tests.py test_palette_look_1350p2
+-The real page with the Classic Theme layered, in Chrome, fictional data; computed styles are read off the drawn quick bar. Pinned: the query box padding
+-12px 14px, the input (38px tall, 15px text, padding 6px 10px), the list (padding 6px, longest 420px = min(52vh, 420px) on a 900px-tall window), the row
+-(grid 96px / flexible / auto, gap 4px 12px, padding 8px 10px, radius 6px, text 14px), the kind (12px, uppercase, .04em, muted), the hint (12px), the chosen
+-row (grey-100 fill, 2px focus ring, offset -2px). Cards, which is unmaintained, is the control: its quick bar keeps today's flex row. Chrome is required:
+-it fails, never skips, without it (set CLARK_CHROME)."""
+-import json
+-import re
+-import tempfile
+-import unittest
+-
+-from _paths import ROOT
+-from clark import page, theme
+-from test_palette import DATA, LIST, Base
+-from test_server import Running, chrome
+-
+-RULES = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+-PROBE = """(() => { const q = (s) => document.querySelector(s), g = (e, k) => getComputedStyle(e)[k];
+-  const tok = (v, k) => { const i = document.createElement('i'); i.style[k] = v; document.body.appendChild(i); const r = getComputedStyle(i)[k]; i.remove(); return r; };
+-  const row = q('#palette .pal-row.on'), hint = q('#palette .pal-row .pal-more'), hrow = hint.parentElement, kind = row.querySelector('.pal-kind'), inp = q('.pal-q input'), box = q('.pal-q'), list = q('.pal-list');
+-  return { qPad: ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'].map((k) => g(box, k)).join(' '),
+-    inMin: g(inp, 'minHeight'), inH: g(inp, 'height'), inFont: g(inp, 'fontSize'), inPad: ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'].map((k) => g(inp, k)).join(' '),
+-    listPad: ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'].map((k) => g(list, k)).join(' '), listMax: g(list, 'maxHeight'), vh: innerHeight,
+-    display: g(row, 'display'), cols: g(hrow, 'gridTemplateColumns').split(' '), gap: g(row, 'rowGap') + ' ' + g(row, 'columnGap'),
+-    pad: ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft'].map((k) => g(row, k)).join(' '), radius: g(row, 'borderTopLeftRadius'), font: g(row, 'fontSize'),
+-    kindFont: g(kind, 'fontSize'), kindCase: g(kind, 'textTransform'), kindTrack: g(kind, 'letterSpacing'), kindColor: g(kind, 'color'), hintFont: g(hint, 'fontSize'),
+-    onBg: g(row, 'backgroundColor'), onOutline: g(row, 'outlineWidth') + ' ' + g(row, 'outlineStyle') + ' ' + g(row, 'outlineColor'), onOffset: g(row, 'outlineOffset'),
+-    grey100: tok('var(--grey-100)', 'backgroundColor'), focus: tok('var(--focus)', 'outlineColor'), muted: tok('var(--text-muted)', 'color'), px12: tok('12px', 'fontSize'), em04: 0.04 * 12 + 'px' }; })()"""
+-
+-
+-class Look(Base):
+-    classic = True
+-
+-    def setUp(self):
+-        css = theme.css("prototype-2.0") if self.classic else None
+-        self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.layer_theme(page.page_html(tempfile.mkdtemp()), css), projects=lambda archived=False: LIST)
+-        self.addCleanup(self.s.close)
+-
+-    def measure(self):
+-        out = {}
+-        with chrome() as cdp:
+-            p = self.visit(cdp)
+-            for w in (1400, 900):
+-                p.width(w)
+-                p.show()
+-                p.key("ArrowDown", 0, "ArrowDown", 40)
+-                out[w] = p.js(PROBE)
+-                p.key("Escape", 0, "Escape", 27)
+-                p.until("!document.querySelector('#palette[open]')", "the palette closed")
+-        return out
+-
+-    def test_classic_quick_bar_list_look(self):
+-        for w, m in self.measure().items():
+-            at = f"at {w} px: {json.dumps(m)}"
+-            self.assertEqual(m["qPad"], "12px 14px 12px 14px", at)
+-            self.assertEqual((m["inMin"], m["inH"], m["inFont"], m["inPad"]), ("38px", "38px", "15px", "6px 10px 6px 10px"), at)
+-            self.assertEqual(m["listPad"], "6px 6px 6px 6px", at)
+-            self.assertEqual(m["vh"], 900, at)
+-            self.assertEqual(m["listMax"], "420px", "min(52vh, 420px) with 52vh = 468px: " + at)
+-            self.assertEqual(m["display"], "grid", at)
+-            self.assertEqual(m["cols"][0], "96px", at)
+-            self.assertGreater(float(m["cols"][2][:-2]), 0, "the hint column is as wide as its text: " + at)
+-            self.assertEqual(m["gap"], "4px 12px", at)
+-            self.assertEqual(m["pad"], "8px 10px 8px 10px", at)
+-            self.assertEqual((m["radius"], m["font"]), ("6px", "14px"), at)
+-            self.assertEqual((m["kindFont"], m["kindCase"], m["kindTrack"], m["kindColor"]), ("12px", "uppercase", "0.48px", m["muted"]), at)
+-            self.assertEqual(m["hintFont"], "12px", at)
+-            self.assertEqual(m["onBg"], m["grey100"], at)
+-            self.assertEqual(m["onOutline"], "2px solid " + m["focus"], at)
+-            self.assertEqual(m["onOffset"], "-2px", at)
+-
+-
+-class CardsControl(Look):
+-    classic = False
+-
+-    def test_classic_quick_bar_list_look(self):
+-        for w, m in self.measure().items():
+-            at = f"at {w} px: {json.dumps(m)}"
+-            self.assertEqual((m["display"], m["radius"], m["pad"], m["gap"]), ("flex", "4px", "6px 10px 6px 10px", "4px 10px"), "Cards keeps the flex row: " + at)
+-            self.assertEqual((m["kindFont"], m["inMin"], m["listMax"]), ("13px", "36px", "none"), at)
+-
+-
+-class Source(unittest.TestCase):
+-    def test_the_block_sits_before_row_1314_which_stays_the_last_row_block(self):
+-        heads = [m.group(1) for m in re.finditer(r"^/\* (Row [0-9]+)", RULES, re.M)]
+-        self.assertEqual(heads[-1], "Row 1314")
+-        self.assertIn("Row 1350", heads)
+-        self.assertLess(RULES.index("/* Row 1350 part 2"), RULES.index("/* Row 1314"))
+-        self.assertNotRegex(RULES[RULES.index("/* Row 1350 part 2"):RULES.index("/* Row 1314")], r"#\d")
+-
+-
+-if __name__ == "__main__":
+-    unittest.main()
+diff --git a/tests/test_peek_gaps_1285.py b/tests/test_peek_gaps_1285.py
+deleted file mode 100644
+index a7e4aeb51..000000000
+--- a/tests/test_peek_gaps_1285.py
++++ /dev/null
+@@ -1,105 +0,0 @@
+-"""Row 1285 (v1.3), the parts that need no new words: the peek's focus on open, the milestone header tiles and the decision chips' small words, measured at 1400 and 900.
+-Run: python3 dev/run_tests.py test_peek_gaps_1285
+-
+-1. Opening a peek with the mouse (no key pressed) draws no focus ring on its first toolbar button (the focus stays inside the dialog; the ring is for keys).
+-2. The milestone header line's owner and progress are never cut: no ellipsis and the text fits its own box (scrollWidth not above clientWidth).
+-"""
+-import unittest
+-from unittest import mock
+-
+-import _testpage
+-from clark import page, theme as themes
+-
+-import test_peek_latest
+-import test_server  # noqa: F401  (a test that drives Chrome carries this import)
+-from test_server import chrome, wait
+-import test_milestone_peek_1078 as _m
+-
+-_B = test_peek_latest.Browser
+-del test_peek_latest
+-ITEMS = (("TUL-A-002", "action"), ("TUL-007", "risk"), ("TUL-010", "issue"))
+-RING = ("(() => { const a = document.activeElement; if (!a || !a.closest('#peek')) return {inside: false};"
+-        " const c = getComputedStyle(a); return {inside: true, tag: a.tagName, cls: a.className, vis: a.matches(':focus-visible'),"
+-        " outline: c.outlineStyle, w: c.outlineWidth, shadow: c.boxShadow}; })()")
+-
+-
+-def classic():
+-    """The test page with the Classic theme layered on, as the served page draws it (Classic only: Cards is unmaintained)."""
+-    real = _testpage.html
+-    return mock.patch.object(_testpage, "html", lambda branding=None: page.layer_theme(real(), themes.css("prototype-2.0")))
+-
+-
+-class Focus(unittest.TestCase):
+-    load, fresh, refused = _B.load, _B.fresh, _B.refused
+-    _base_setup = _B.setUp
+-
+-    def setUp(self):
+-        self._base_setup()
+-        p = classic()
+-        p.start()
+-        self.addCleanup(p.stop)
+-
+-    def test_opening_a_peek_by_the_mouse_shows_no_ring_on_the_first_toolbar_button(self):
+-        for width in (1400, 900):
+-            for ref, kind in ITEMS:
+-                with self.subTest(width=width, kind=kind), chrome() as cdp:
+-                    sent, sid = self.load(cdp, width, ref, edit=True)
+-                    got = cdp.js(RING, sid)
+-                    if got["inside"]:       # the focus may sit in the dialog; then no ring on it
+-                        ringed = got["vis"] and got["outline"] != "none" and got["w"] != "0px"
+-                        self.assertFalse(ringed, f"a ring on open: {got}")
+-                        self.assertNotIn("rgb(", got["shadow"] if got["vis"] else "", f"a ring on open: {got}")
+-                    first = cdp.js("(() => { const b = document.querySelector('#peek .pk-tb button, #peek .pk-tb [role=button]'); if (!b) return null;"
+-                                   " const c = getComputedStyle(b); return {vis: b.matches(':focus-visible'), outline: c.outlineStyle, w: c.outlineWidth, shadow: c.boxShadow}; })()", sid)
+-                    self.assertIsNotNone(first, "the toolbar has a first button")
+-                    self.assertEqual(first["outline"], "none", f"the first toolbar button draws no ring on a mouse open: {first}")
+-                    self.assertEqual(first["shadow"], "none", f"no ring drawn as a shadow either: {first}")
+-
+-
+-class DecisionChips(unittest.TestCase):
+-    load, fresh, refused = _B.load, _B.fresh, _B.refused
+-    _base_setup = _B.setUp
+-
+-    def setUp(self):
+-        self._base_setup()
+-        p = classic()
+-        p.start()
+-        self.addCleanup(p.stop)
+-
+-    def test_a_decision_peek_names_its_owner_and_date_chips_under_their_values(self):
+-        """The approved mock-up's decision chips say "made by" under the owner and "needed by" under the date of a Pending decision (TUL-D-016); an action's chips keep no such word."""
+-        for width in (1400, 900):
+-            for ref, owner, date in (("TUL-D-016", "made by", "needed by"), ("TUL-A-002", "", "overdue 6 days")):
+-                with self.subTest(width=width, ref=ref), chrome() as cdp:
+-                    sent, sid = self.load(cdp, width, ref, edit=True)
+-                    got = cdp.js("(() => { const g = (r) => { const s = document.querySelector('#peek .pk-chips > [data-row=' + r + '] .pk-chip-sub'); return s ? s.textContent.trim() : ''; };"
+-                                 " return {owner: g('owner'), due: g('due')}; })()", sid)
+-                    self.assertEqual(got, {"owner": owner, "due": date})
+-
+-
+-_Fields = _m.Fields
+-
+-
+-class Milestone(_Fields):
+-
+-    def test_owner_and_progress_in_the_header_line_are_not_cut(self):
+-        for width, VIEW in ((1400, "dashboard"), (900, "dashboard"), (1400, "milestones"), (900, "milestones")):
+-            with self.subTest(width=width, view=VIEW), chrome() as cdp:
+-                p = self.visit_peek(cdp, width=width, view=VIEW)
+-                got = p.js("[...document.querySelectorAll('#peek [data-ms-head] [data-ms-head=owner], #peek [data-ms-head] [data-ms-head=progress], #peek .pk-chips > [data-row]')].map(e => { const c = getComputedStyle(e);"
+-                           " return {k: e.dataset.msHead || e.dataset.row, cut: e.scrollWidth > e.clientWidth + 1, ell: c.textOverflow, ov: c.overflowX}; })")
+-                self.assertTrue(got, "the header line draws an owner or a progress")
+-                for g in got:
+-                    self.assertFalse(g["cut"], f"cut text: {g}")
+-                    self.assertNotEqual(g["ell"], "ellipsis", f"an ellipsis: {g}")
+-
+-
+-for _n in [n for n in dir(_Fields) if n.startswith('test')]:
+-    setattr(Milestone, _n, None)      # only this file's own test runs, not the base class's
+-
+-
+-del _m, _B, _Fields
+-
+-
+-if __name__ == "__main__":
+-    unittest.main()
+diff --git a/tests/test_peek_icons.py b/tests/test_peek_icons.py
+index 5b278cb32..bb683ca96 100644
+--- a/tests/test_peek_icons.py
++++ b/tests/test_peek_icons.py
+@@ -287,8 +287,7 @@ class IconsBrowser(unittest.TestCase):
+             for text in (row["words"], row["under"]):
+                 self.assertNotRegex(text, JARGON, f"{iid}: {text!r}")
+         if rows["due"]["under"]:
+-            # row 1285: a decision's date chip names its date under the value when it is not overdue (the approved mock-up's "needed by", "made on", "was needed by")
+-            self.assertRegex(rows["due"]["under"], r"^(overdue \d+ days?|needed by|made on|was needed by)$" if "-D-" in iid else r"^overdue \d+ days?$", iid)
++            self.assertRegex(rows["due"]["under"], r"^overdue \d+ days?$", iid)
+ 
+     def test_the_data_has_every_tone_to_check(self):
+         """The check below is only as good as the data: the demo items must reach more than one tone in each row."""
+diff --git a/tests/test_section_style_cards.py b/tests/test_section_style_cards.py
+index c04695d04..1442f56c0 100644
+--- a/tests/test_section_style_cards.py
++++ b/tests/test_section_style_cards.py
+@@ -376,8 +376,8 @@ class Cards(Base):
+                 cdp.call("Page.navigate", {"url": path.as_uri()}, sid)
+                 f = type(p)(self, cdp, sid)
+                 f.until("document.documentElement.dataset.ready === '1' && !!document.querySelector('.secs .sec')", "the file drew")
+-                drawn[pick] = f.js("(() => { const s = getComputedStyle(document.querySelector('.secs .sec')); const r = getComputedStyle(document.documentElement); return [document.documentElement.dataset.density,"
+-                                   " parseFloat(r.getPropertyValue('--sec-pad-t')) + parseFloat(r.getPropertyValue('--sec-pad-b')), s.boxShadow === 'none']; })()")      # the density tokens: a banded section's own padding is the ruled literal 20/18 in both densities (row 1311, ruling 19-11)
++                drawn[pick] = f.js("(() => { const s = getComputedStyle(document.querySelector('.secs .sec')); return [document.documentElement.dataset.density,"
++                                   " parseFloat(s.paddingTop) + parseFloat(s.paddingBottom), s.boxShadow === 'none']; })()")
+                 drawn[pick + "-stored"] = f.js("localStorage.getItem('clark.density')")
+         self.assertEqual(drawn["compact"][0], "compact")
+         self.assertEqual(drawn["comfortable"][0], "comfortable", "a file published at Comfortable opens Comfortable, though it carries the word roomy")
+diff --git a/tests/test_theme_banding_1311.py b/tests/test_theme_banding_1311.py
+index 35dfa998c..8c13dd701 100644
+--- a/tests/test_theme_banding_1311.py
++++ b/tests/test_theme_banding_1311.py
+@@ -12,8 +12,6 @@ import unittest
+ from pathlib import Path
+ 
+ from _paths import ROOT
+-
+-import esbuild  # noqa: E402  (dev/tools)
+ from clark import page
+ from test_server import chrome
+ 
+@@ -21,10 +19,7 @@ FOLDER = ROOT / "src" / "clark" / "themes" / "prototype-2.0"
+ TOKENS = (FOLDER / "tokens.css").read_text(encoding="utf-8")
+ RULES = (FOLDER / "rules.css").read_text(encoding="utf-8")
+ BRAND = (ROOT / "src" / "clark" / "brand" / "tokens.css").read_text(encoding="utf-8")
+-LOGIC = ROOT / "src" / "clark" / "page" / "src" / "logic" / "banding.js"
+-SEL = ".secs > .sec.band"
+-HID = ":not(.is-hidden):not(.drag-slot)"
+-CMF = 'html[data-density="comfortable"] '
++SEL = ".secs > .sec:nth-child(odd):not(.is-hidden):not(.drag-slot)"
+ BLOCKS = {
+     "light": r"^:root \{(.*?)^\}",
+     "dark": r":root\[data-theme=dark\]\s*\{(.*?)\n\}",
+@@ -32,23 +27,6 @@ BLOCKS = {
+ }
+ 
+ 
+-def bundled():
+-    with tempfile.TemporaryDirectory() as tmp:
+-        out = Path(tmp) / "bd.js"
+-        done = esbuild.run(["--bundle", "--format=iife", "--global-name=BD", str(LOGIC), f"--outfile={out}"], capture_output=True, text=True)
+-        assert done.returncode == 0, done.stderr
+-        return out.read_text(encoding="utf-8")
+-
+-
+-BUNDLE = None
+-
+-
+-def bundle():
+-    global BUNDLE
+-    BUNDLE = BUNDLE or bundled()
+-    return BUNDLE
+-
+-
+ def decls(text):
+     return {n: re.sub(r"\s+", " ", v.strip()) for n, v in re.findall(r"(--[a-z0-9-]+)\s*:\s*([^;]+);", text)}
+ 
+@@ -126,25 +104,21 @@ class Banding(unittest.TestCase):
+         self.assertEqual(theme("auto")["--sec-band-bg"], theme("dark")["--sec-band-bg"])
+ 
+     def test_band_declarations(self):
+-        self.assertEqual(rule(SEL), ["--sec-pad-t: 20px", "--sec-px: 22px", "background: var(--sec-band-bg)", "border-left: 0", "border-radius: 0", "padding: 20px 22px 18px"])
+-
++        self.assertEqual(rule(SEL), ["background: var(--sec-band-bg)", "border-left: 0", "border-radius: var(--radius-lg)"])
+ 
+-    def test_band_is_a_class_not_a_count(self):
+-        """Ruling 19-11: CSS cannot count only the visible sections, so no :nth-child band rule is left."""
+-        self.assertNotIn("nth-child", RULES)
+-
+-    def test_line_between_visible_sections(self):
+-        self.assertEqual(rule(".secs > .sec" + HID + " ~ .sec" + HID), ["border-top: 1px solid var(--line-soft)"])
+-
+-    def test_summary_keeps_no_padding_top_left_right(self):
+-        self.assertEqual(rule('.secs > .sec[data-type="current"]'), ["padding: 0 0 18px", "border-left: 0"])
++    def test_print_has_no_band(self):
++        self.assertEqual(rule(SEL, prefix=r"^@media print \{ "), ["background: none", "border-radius: 0"])
+ 
+-    def test_pair_fills_the_comfortable_gap_from_the_left_half(self):
+-        self.assertEqual(rule(CMF + ".secs > .sec.slot-left.band", prefix=r"^@media \(min-width: 901px\) \{ "), ["box-shadow: var(--space-5) 0 0 0 var(--sec-band-bg)"])
++    def test_odd_visible_sections_only(self):
++        self.assertIn(":nth-child(odd)", SEL)
++        self.assertIn(":not(.is-hidden)", SEL)
++        self.assertIn(":not(.drag-slot)", SEL)
++        self.assertNotIn(":nth-child(even)", RULES)
+ 
+-    def test_print_has_no_band(self):
+-        self.assertEqual(rule(".secs > .sec.band, .secs > .sec.slot-left, .secs > .sec.slot-right", prefix=r"^@media print \{ "),
+-                         ["background: none", "border-radius: 0", "box-shadow: none"])
++    def test_band_after_the_plain_section_and_view_rules(self):
++        at = RULES.index("\n" + SEL)
++        self.assertGreater(at, RULES.index("\n.sec { background: none;"))
++        self.assertGreater(at, RULES.index('\nhtml[data-mode="view"] .sec {'))
+ 
+     def test_other_sections_keep_the_gutter_rule(self):
+         self.assertIn("border-left: 2px solid var(--gutter-rule)", rule(".sec"))
+@@ -152,7 +126,7 @@ class Banding(unittest.TestCase):
+         self.assertEqual(theme("dark")["--gutter-rule"], "#2A2650")
+ 
+     def test_band_has_no_literal_colour_in_rules(self):
+-        self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(", "\n".join(l for l in RULES.split("\n") if SEL in l or "slot-left" in l and "sec-band-bg" in l)))
++        self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(", "\n".join(l for l in RULES.split("\n") if SEL in l)))
+ 
+ 
+ class Contrast(unittest.TestCase):
+@@ -201,7 +175,6 @@ class RealColours(unittest.TestCase):
+             const secs = document.createElement('div'); secs.className = 'secs';
+             secs.innerHTML = '<div class="sec"><div class="sec-head">One</div><p class="muted">m</p></div><div class="sec"><div class="sec-head">Two</div></div><div class="sec"><div class="sec-head">Three</div></div><div class="sec"><div class="sec-head">Four</div></div><div class="sec is-hidden"><div class="sec-head">Hidden</div></div>';
+             document.body.appendChild(secs); })()""" % scheme, sid)
+-        cdp.js(bundle() + "; BD.applyBands(document)", sid)
+         return sid
+ 
+     def test_the_band_follows_the_odd_visible_sections_and_text_reaches_4_5(self):
+@@ -219,7 +192,7 @@ class RealColours(unittest.TestCase):
+                     self.assertNotEqual(rows[2][0], "rgba(0, 0, 0, 0)", tag)      # the 3rd is
+                     self.assertEqual(rows[3][0], "rgba(0, 0, 0, 0)", tag)
+                     self.assertEqual(rows[4][0], "rgba(0, 0, 0, 0)", tag)      # an odd hidden one is not banded
+-                    self.assertEqual(rows[0][2], "0px", tag)      # row 1311: square corners
++                    self.assertNotEqual(rows[0][2], "0px", tag)
+                     grad = cdp.js("getComputedStyle(document.body).backgroundImage", sid)
+                     stops = [nums(x)[:3] for x in re.findall(r"rgb\([^)]*\)", grad)]
+                     band = nums(rows[0][0])
+@@ -232,36 +205,6 @@ class RealColours(unittest.TestCase):
+                             print(f"real {tag} {n} {r:.2f}")
+                             self.assertGreaterEqual(r, 4.5, f"{tag} {n}")
+ 
+-    def test_pair_is_banded_whole_row_with_square_corners_at_1400(self):
+-        nums = lambda v: [float(x) for x in re.findall(r"[\d.]+", v)]
+-        with chrome() as cdp:
+-            for lead, dens in ((0, "compact"), (1, "compact"), (0, "comfortable"), (1, "comfortable")):      # the pair starts at an odd place (1st, 2nd child) or an even one
+-                sid = self.load(cdp, 1400, "light")
+-                cdp.js("document.documentElement.setAttribute('data-density', %r)" % dens, sid)
+-                cdp.js("""(() => { const secs = document.querySelector('.secs'); secs.innerHTML = %s
+-                    + '<div class="sec slot-left"><div class="sec-head">This week</div></div><div class="sec slot-right"><div class="sec-head">Next week</div></div><div class="sec slot-full"><div class="sec-head">After</div></div>'; BD.applyBands(document); })()""" % ("''" if lead == 0 else "'<div class=\"sec slot-full\"><div class=\"sec-head\">Lead</div></div>'"), sid)
+-                rows = cdp.js("[...document.querySelectorAll('.secs > .sec')].map((e) => { const s = getComputedStyle(e), r = e.getBoundingClientRect(); return [s.backgroundColor, s.borderTopLeftRadius, s.borderTopRightRadius, s.borderBottomLeftRadius, s.borderBottomRightRadius, s.boxShadow, r.left, r.right, r.top, r.bottom]; })", sid)
+-                a, b = rows[lead], rows[lead + 1]
+-                tag = f"lead {lead} {dens}"
+-                gap = b[6] - a[7]
+-                self.assertAlmostEqual(gap, 24 if dens == "comfortable" else 0, delta=1.5, msg=f"{tag} {rows}")
+-                for r in rows:
+-                    self.assertEqual(r[1:5], ["0px"] * 4, tag)
+-                if lead == 0:
+-                    self.assertEqual([r[0] == "rgba(0, 0, 0, 0)" for r in rows], [False, False, True], tag)      # the pair is the 1st, After the 2nd
+-                else:
+-                    self.assertEqual([r[0] == "rgba(0, 0, 0, 0)" for r in rows], [False, True, True, False], tag)      # Lead 1st, the pair 2nd (both halves plain), After 3rd
+-                self.assertEqual(a[0], b[0], tag)
+-                if dens == "comfortable" and lead == 1:
+-                    self.assertEqual(a[5], "none", tag + " (a plain pair has no shadow)")
+-                elif dens == "comfortable":
+-                    self.assertTrue(a[5].endswith("24px 0px 0px 0px"), tag + " (the left half fills the gap) " + a[5])
+-                    self.assertEqual(b[5], "none", tag)
+-                else:
+-                    self.assertEqual(a[5], "none", tag + " (no gap, no shadow)")
+-                self.assertEqual(a[8], b[8], tag)
+-                self.assertEqual(a[9], b[9], tag)
+-
+ 
+ if __name__ == "__main__":
+     unittest.main()
+diff --git a/tests/test_theme_host_1269b.py b/tests/test_theme_host_1269b.py
+index 50243871c..21dfeaa30 100644
+--- a/tests/test_theme_host_1269b.py
++++ b/tests/test_theme_host_1269b.py
+@@ -59,7 +59,7 @@ class Host(Base):
+ 
+ BODY = "(() => { const s = getComputedStyle(document.body); return [s.backgroundImage, s.backgroundColor]; })()"
+ SEC = ("(() => [...document.querySelectorAll('.secs > .sec')].map((e) => { const s = getComputedStyle(e); "
+-       "return [s.borderLeftWidth, s.borderTopWidth, s.boxShadow, s.borderLeftStyle, e.classList.contains('band') || e.dataset.type === 'current', e.classList.contains('slot-left')]; }))()")
++       "return [s.borderLeftWidth, s.borderTopWidth, s.boxShadow, s.borderLeftStyle]; }))()")
+ NUM = "getComputedStyle(document.querySelector('.secs .sec-head'), '::before').content"
+ COVER = "(() => { const c = document.querySelector('.cover'); if (!c) return null; const s = getComputedStyle(c); return [s.display, s.backgroundColor]; })()"
+ OVERFLOW = "[document.documentElement.scrollWidth, document.documentElement.clientWidth]"
+@@ -93,12 +93,10 @@ class Classic(Host):
+     def test_4_a_section_has_the_gutter_rule_and_no_card_in_every_size_and_mode(self):
+         for (w, m), rows in self.every(SEC).items():
+             self.assertTrue(rows, f"{w} {m}: sections")
+-            for i, (lw, tw, shadow, style, bare, left) in enumerate(rows):
+-                # row 1311 (ruling 19-11): a banded section and the summary have no gutter rule; the others keep it; a line above every section but the first
+-                want = ("0px", "1px" if i else "0px", "none") if bare else ("2px", "1px" if i else "0px", "solid")
++            for i, (lw, tw, shadow, style) in enumerate(rows):
++                want = ("0px", "0px", "none") if i % 2 == 0 else ("2px", "0px", "solid")      # row 1311: the 1st, 3rd... are bands with no gutter rule
+                 self.assertEqual((lw, tw, style), want, f"{w} {m} section {i + 1}")
+-                if not left:
+-                    self.assertEqual(shadow, "none", f"{w} {m}")
++                self.assertEqual(shadow, "none", f"{w} {m}")
+ 
+     def test_5_sections_are_numbered_and_nothing_overflows_sideways(self):
+         for (w, m), c in self.every(NUM).items():
+@@ -123,7 +121,7 @@ class Cards(Host):
+         for (w, m), (img, _c) in self.every(BODY).items():
+             self.assertEqual(img, "none", f"{w} {m}: no gradient ground in Cards")
+         for (w, m), rows in self.every(SEC).items():
+-            for lw, tw, shadow, style, *_ in rows:
++            for lw, tw, shadow, style in rows:
+                 self.assertNotEqual((lw, style), ("2px", "solid"), f"{w} {m}: no gutter rule in Cards")
+             self.assertEqual(self.every_one(OVERFLOW, w, m)[0] <= self.every_one(OVERFLOW, w, m)[1], True)
+ 
+diff --git a/tests/test_theme_prototype_pinned.py b/tests/test_theme_prototype_pinned.py
+index ed7755924..b013517a9 100644
+--- a/tests/test_theme_prototype_pinned.py
++++ b/tests/test_theme_prototype_pinned.py
+@@ -202,13 +202,9 @@ RULE_LINES = [
+         '.wil-table .wil-c-priority { width: 84px; }',
+         '.wil-table .wil-c-id { width: 84px; }',
+         '.wil-all-b { color: var(--status-blue); font-weight: var(--weight-medium); min-height: var(--space-6); padding: 6px 0; }',
+-        '/* Row 1311 (ruling 19-11): every other visible section, the summary (the Current state block, type current) left out, is a white panel on the page gradient: the class .band is set by logic/banding.js (CSS cannot count only the visible sections), so it follows a section shown or hidden. A pair (This week | Next week) is banded as one row. No radius, no left rule; a line between each visible section and the one above. */',
+-        '.secs > .sec.band { --sec-pad-t: 20px; --sec-px: 22px; background: var(--sec-band-bg); border-left: 0; border-radius: 0; padding: 20px 22px 18px; }',
+-        '.secs > .sec:not(.is-hidden):not(.drag-slot) ~ .sec:not(.is-hidden):not(.drag-slot) { border-top: 1px solid var(--line-soft); }',
+-        '.secs > .sec[data-type="current"] { padding: 0 0 18px; border-left: 0; }',
+-        '.secs > .sec.band .wil-cw { right: 22px; }      /* Edit sets --sec-px to 32px on a section, but the band\'s right padding is the literal 22px, so the gear stays 22px from the edge and the 10px gap to the Changed tag holds */',
+-        '@media (min-width: 901px) { html[data-density="comfortable"] .secs > .sec.slot-left.band { box-shadow: var(--space-5) 0 0 0 var(--sec-band-bg); } }',
+-        '@media print { .secs > .sec.band, .secs > .sec.slot-left, .secs > .sec.slot-right { background: none; border-radius: 0; box-shadow: none; } .secs > .sec.band, .secs > .sec[data-type="current"] { padding: 0; } }',
++        '/* Row 1311: every other visible section (the odd ones: the picture bands At a glance, the 1st) is a white panel on the page gradient and has no gutter rule. The served View leaves hidden sections out of the page, so the odd child is the odd visible section there; Edit draws them (dashed, never banded). */',
++        '.secs > .sec:nth-child(odd):not(.is-hidden):not(.drag-slot) { background: var(--sec-band-bg); border-left: 0; border-radius: var(--radius-lg); }',
++        '@media print { .secs > .sec:nth-child(odd):not(.is-hidden):not(.drag-slot) { background: none; border-radius: 0; } }',
+         '.wil-table td { padding-top: 9px; padding-bottom: 9px; }',
+         '.wil-table tbody tr { height: 49px; }',
+         '.wil-table td.wil-c-due { font-size: var(--size-caption); line-height: normal; }',
