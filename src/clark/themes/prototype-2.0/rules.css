@@ -233,17 +233,15 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 
 /* Row 1324-A (Option A, ruling 18-11; Classic only, Cards keeps its bordered group cards): Group by draws a heading on the page, no card: the name, the count, one hairline under it; the column names once on top (the published list draws them only in this Theme, see UseCasesTab.jsx); 18 px above each group. The name column is 64 px, the rows' own width. */
 .wgroup.ucl-group, .wgroup.ucp-group { background: none; border: 0; border-radius: 0; overflow: visible; margin: 18px 0 0; }
-.ucl-cols + .ucl-group, .ucp-cols + .ucp-group { margin-top: 14px; }
+.ucp-cols + .ucp-group { margin-top: 14px; }
+.ucl-wrap > .wgroup:not(.ucl-group):has(+ .ucl-group) { margin-bottom: 0; border-left: 0; border-right: 0; border-radius: 0; }   /* the grouped list draws the column header as a flat band, so its columns are the groups' */
+.ucl-wrap > .wgroup:not(.ucl-group) + .ucl-group { margin-top: 13px; }   /* the header card's own 1 px border under it makes the 14 px of the mock-up */
 .ucl-grp, .ucp-grp { display: flex; align-items: flex-start; gap: var(--space-2); padding: 0 0 6px; border-bottom: 1px solid var(--grey-200); background: none; font-size: var(--size-small); color: var(--heading); }
-.ucl-group .ucl-row { padding-left: var(--space-1); padding-right: var(--space-1); }
-.ucl-group .ucl-list .ucl-row:last-child { border-bottom: 1px solid var(--grey-100); }
 .ucp-group .ucp { padding-left: 0; padding-right: 0; }
-.ucl-cols { grid-template-columns: 64px minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px 36px; border-bottom: 1px solid var(--grey-200); }
 .ucp > summary.ucp-bar { grid-template-columns: minmax(64px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px; }
 .ucp-cols { display: grid; grid-template-columns: minmax(64px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px; gap: var(--space-3); padding: 6px var(--space-1); border-bottom: 1px solid var(--grey-200); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); }   /* the editor's column names, over the published list */
 .ucp-cols .ucl-c1 { grid-column: 1 / 3; }
 @media (max-width: 900px) { .ucp > summary.ucp-bar, .ucp-cols { grid-template-columns: minmax(64px, max-content) minmax(0, 1fr) minmax(0, 1fr) 124px 96px; gap: var(--space-2); } }
-@media (max-width: 900px) { .ucl-cols { grid-template-columns: 64px minmax(0, 1fr) minmax(0, 1fr) 124px 96px 36px; } }
 @media (max-width: 640px) { .ucp-cols { display: none; } }
 .ucl-group .grp-b, .ucp-group .grp-b { font-family: var(--font-head); font-weight: var(--weight-medium); font-size: 15px; color: var(--heading); align-items: flex-start; text-align: left; padding: 2px 0; gap: var(--space-2); min-width: 0; }
 .ucl-group .grp-b .i, .ucp-group .grp-b .i { flex: none; margin-top: 3px; color: var(--text-muted); }

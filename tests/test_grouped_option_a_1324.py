@@ -41,9 +41,9 @@ def rules(css, selector):
 
 # One probe for both pages. `pre` is the page's group class prefix (ucl or ucp), `root` its container, `row` its row, `cols` its column names.
 PROBE = """((pre, root, row, cols) => { const q = (s, r) => (r || document).querySelector(s), qa = (s, r) => [...(r || document).querySelectorAll(s)], g = (e, p) => getComputedStyle(e)[p];
-  const groups = qa(root + ' .' + pre + '-group'), hdr = qa(root + ' .' + pre + '-cols'), top = (e) => e.getBoundingClientRect().top, left = (e) => Math.round(e.getBoundingClientRect().left);
-  const c = hdr[0] ? [...hdr[0].children] : [];
-  const cell = (r) => pre === 'ucl' ? [q('.ucl-ref', r), q('.ucl-head', r), q('.ucl-st', r), q('.ucl-steps', r)] : [q('.ucref', r), q('.ucp-headline', r), q('.ucstc', r), q('.ucsteps', r)];
+  const groups = qa(root + ' .' + pre + '-group'), hdr = qa(root + (pre === 'ucl' ? ' .ucl-table.hdr' : ' .ucp-cols')), top = (e) => e.getBoundingClientRect().top, left = (e) => Math.round(e.getBoundingClientRect().left);
+  const c = hdr[0] ? (pre === 'ucl' ? ['item', 'where', 'status', 'steps'].map((k) => q('th.c-' + k, hdr[0])) : [...hdr[0].children]) : [];
+  const cell = (r) => pre === 'ucl' ? [q('td.c-item', r), q('td.c-where', r), q('td.c-status', r), q('td.c-steps', r)] : [q('.ucref', r), q('.ucp-headline', r), q('.ucstc', r), q('.ucsteps', r)];
   const heads = [c[0], c[1], c[2], c[3]];
   return { n: groups.length, cols: hdr.length,
     tile: groups.map((e) => [g(e, 'borderTopWidth'), g(e, 'borderBottomWidth'), g(e, 'borderTopLeftRadius'), g(e, 'backgroundColor'), g(e, 'overflow'), g(e, 'marginBottom')]),
@@ -119,9 +119,10 @@ class Static(unittest.TestCase):
     def test_k5_the_column_names_come_before_the_groups_and_once(self):
         self.assertEqual(TAB.count('class="ucp-cols"'), 1, "one column-names row in the published tab")
         self.assertLess(TAB.index('class="ucp-cols"'), TAB.index("groups.map"), "drawn before the groups, not inside them")
-        self.assertEqual(LIST.count("<ColumnHeads />"), 2)
-        self.assertLess(LIST.index("<ColumnHeads />", LIST.index('f.group === "nothing"') + 200), LIST.index("groups.map"), "the grouped list draws them above the groups")
-        self.assertNotIn("ColumnHeads", LIST[LIST.index("groups.map"):LIST.index("</section>")], "none inside a group")
+        grouped = LIST[LIST.index("{table(true, null"):LIST.index("</section>")]
+        self.assertLess(grouped.index("table(true, null"), grouped.index("groups.map"), "the Classic grouped list draws the header table above the groups")
+        self.assertEqual(grouped.count("table(true"), 1, "the header is drawn once")
+        self.assertIn("table(false", grouped[grouped.index("groups.map"):], "the group tables have no header")
 
     def test_k9_a_shut_group_draws_no_rows(self):
         self.assertIn("g.shut ? null", TAB)
@@ -134,6 +135,7 @@ class Static(unittest.TestCase):
 
 
 class App(ucl.Setup):
+    THEME = "prototype-2.0"
     """The editor's Use cases page, grouped by Status (three groups in the sample), then by Commitment with one long name."""
 
     def pick(self, p, word):
@@ -143,7 +145,7 @@ class App(ucl.Setup):
         p.until(f"document.querySelector('#ucl-group').getAttribute('aria-label') === {json.dumps('Group by: ' + word)}", f"grouped by {word}")
 
     def probe(self, p):
-        return p.js(f"({PROBE})('ucl', '#usecases', '.ucl-row[data-uc]', '.ucl-cols')")
+        return p.js(f"({PROBE})('ucl', '#usecases', 'tr.ucr[data-uc]', '.ucl-table.hdr')")
 
     def test_option_a_at_1400_and_900_in_light_and_dark(self):
         for scheme in ("light", "dark"):
@@ -190,7 +192,7 @@ class App(ucl.Setup):
         with chrome() as cdp:
             p = self.show(cdp)
             self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-group, #usecases .grp-b').length"), 0)
-            self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-cols').length"), 1, "K18 one column-names row")
+            self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-table thead').length"), 1, "K18 one column-names row")
 
 
 class Published(unittest.TestCase):

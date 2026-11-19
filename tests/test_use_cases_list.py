@@ -74,11 +74,12 @@ def themed(theme):
 
 
 class Setup(Base):
-    THEME = "prototype-2.0"      # row 1324-A: the grouped look is Classic only
+    THEME = None      # a subclass names a Theme to layer (row 1324-A: the grouped look is Classic only)
 
     def setUp(self):
         super().setUp()
-        self.s.httpd.page_html = lambda: themed(self.THEME)
+        if self.THEME:
+            self.s.httpd.page_html = lambda: themed(self.THEME)
         plant(self)
 
     def show(self, cdp, width=1400, dark=False, edit=False, hash_="#usecases&p=ABC"):
@@ -88,7 +89,7 @@ class Setup(Base):
         if dark:
             p.js("document.documentElement.dataset.theme = 'dark'")
         if hash_ == "#usecases&p=ABC":
-            p.until("document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0 || !!document.querySelector('#usecases [data-empty]')", "the list drew")
+            p.until("document.querySelectorAll('#usecases .ucl-row[data-uc], #usecases tr.ucr[data-uc]').length > 0 || !!document.querySelector('#usecases [data-empty]')", "the list drew")
         if hash_.startswith("#dashboard"):
             p.until("document.querySelectorAll('[data-mode]').length === 3", "the Dashboard drew its whole View | Edit switch (row 804)")
             self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 3, "the View | Edit switch is on the Dashboard")      # row 804: the Dashboard has it, so the page must have drawn before anything is read (a race on a slow runner)
@@ -818,7 +819,8 @@ class Line(Setup):
 
 
 class GroupBy(Setup):
-    """Row 1085: Group by (Status, Commitment, On the dashboard, Nothing; Nothing to start) on the tabs row: each group a heading on the page (row 1324-A: no card; the name, the count, open and shut) under the column names drawn once. Remembered with the rest."""
+    """Row 1085: Group by (Status, Commitment, On the dashboard, Nothing; Nothing to start) on the tabs row: each group a bordered card with a heading
+    bar (the name, the count, open and shut) and its own column names, as the Work items groups are drawn. Remembered with the rest."""
 
     def groups(self, p):
         return p.js("[...document.querySelectorAll('#usecases .ucl-group')].map(g => [g.querySelector('.gl').textContent, g.querySelector('.gc').textContent, [...g.querySelectorAll('.ucl-row[data-uc] .ucl-ref')].map(e => e.textContent)])")
@@ -829,7 +831,7 @@ class GroupBy(Setup):
         p.js(f"[...document.querySelectorAll('.ddmenu [role=menuitemradio]')].find(b => b.textContent.replace('✓', '').trim() === {json.dumps(word)}).click()")
         p.until(f"document.querySelector('#ucl-group').getAttribute('aria-label') === {json.dumps('Group by: ' + word)}", f"grouped by {word}")
 
-    def test_group_by_status_commitment_and_the_dashboard_draws_groups_with_a_heading_and_a_count(self):
+    def test_group_by_status_commitment_and_the_dashboard_draws_bordered_groups_with_a_heading_and_a_count(self):
         with self.store.step("dashboard", USER) as st:
             st.update("use_cases", self.uc2, {"commitment": "Committed"})
             st.update("use_cases", self.uc4, {"commitment": "Planned 2026"})
@@ -847,7 +849,7 @@ class GroupBy(Setup):
             self.pick(p, "Status")
             self.assertEqual(self.groups(p), [["On track", "2 use cases", ["UC 1.1", "UC 2.1"]], ["Flag", "1 use case", ["UC 1.2"]], ["High risk", "1 use case", ["UC 1.10"]]], "the status words in their order; a group with no row is not drawn")
             self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-group .ucl-hd').length"), 0, "item 1149: no column names in a group either")
-            self.assertEqual(p.js("getComputedStyle(document.querySelector('#usecases .ucl-group')).borderTopStyle"), "none", "row 1324-A (Option A): no card, a heading on the page (tests/test_grouped_option_a_1324.py)")
+            self.assertEqual(p.js("getComputedStyle(document.querySelector('#usecases .ucl-group')).borderTopStyle"), "solid", "a bordered card")
             self.assertEqual(p.js("[...document.querySelectorAll('#usecases .grp-b')].map(b => b.getAttribute('aria-expanded'))"), ["true", "true", "true"])
             self.assertEqual(self.count(p), "Showing 4 of 4 · 2 on the dashboard")
             self.pick(p, "Commitment")
