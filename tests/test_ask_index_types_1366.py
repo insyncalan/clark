@@ -2,13 +2,14 @@
 Pictures, PowerPoint, HTML and OCR are not in this slice."""
 import io
 import unittest
+import zipfile
 from unittest import mock
 
 from _paths import SRC  # noqa: F401
 
 from test_ask_index_1366 import Base, ix
 from test_ask_pdf_passages import FAKE_PYPDF, pdf
-from clark import pdf_reader
+from clark import ask_extract, pdf_reader
 
 
 def xlsx(sheets):
@@ -21,6 +22,26 @@ def xlsx(sheets):
             ws.append(r)
     out = io.BytesIO()
     wb.save(out)
+    return out.getvalue()
+
+
+NS = 'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"'
+
+
+def sxml(*paras):
+    body = "".join(f"<a:p><a:r><a:t>{p}</a:t></a:r></a:p>" for p in paras)
+    return f'<?xml version="1.0"?><p:sld {NS} xmlns:p="p"><p:txBody>{body}</p:txBody></p:sld>'.encode()
+
+
+def pptx(slides, notes=None, extra=None, compression=zipfile.ZIP_DEFLATED):
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", compression) as z:
+        for n, paras in slides.items():
+            z.writestr(f"ppt/slides/slide{n}.xml", sxml(*paras))
+        for n, paras in (notes or {}).items():
+            z.writestr(f"ppt/notesSlides/notesSlide{n}.xml", sxml(*paras))
+        for name, data in (extra or {}).items():
+            z.writestr(name, data)
     return out.getvalue()
 
 
@@ -87,6 +108,132 @@ class Types(Base):
         ix.refresh(self.data, "P1", [self.box])
         self.assertFalse(self.found("zqxlold"))
         self.assertTrue(self.found("zqxlnew"))
+
+    def test_pptx_slides_and_notes_are_found_with_slide_number(self):
+        self.put("deck.pptx", pptx({1: ["zqppone title"], 2: ["zqpptwo body", "second para"]}, {2: ["zqppnote spoken"]}), binary=True)
+        self.build()
+        a, b, c = self.found("zqppone"), self.found("zqpptwo"), self.found("zqppnote")
+        self.assertEqual((len(a), len(b), len(c)), (1, 1, 1))
+        self.assertIn("deck.pptx, slide 1", a[0][0])
+        self.assertIn("deck.pptx, slide 2", b[0][0])
+        self.assertIn("deck.pptx, slide 2", c[0][0])
+        self.assertEqual(ix.status(self.data, "P1", [self.box])["indexed"], 1)
+
+    def test_pptx_with_no_text_counts_as_type(self):
+        self.put("empty.pptx", pptx({1: []}), binary=True)
+        self.build()
+        s = ix.status(self.data, "P1", [self.box])
+        self.assertEqual((s["indexed"], s["type"], s["safety"]), (0, 1, 0))
+
+    def test_a_truncated_pptx_is_safety_not_an_error(self):
+        self.put("cut.pptx", pptx({1: ["zqpptcut"]})[:-30], binary=True)
+        self.build()
+        s = ix.status(self.data, "P1", [self.box])
+        self.assertEqual((s["indexed"], s["safety"]), (0, 1))
+
+    def test_a_pptx_with_broken_xml_is_safety(self):
+        self.put("x.pptx", pptx({}, extra={"ppt/slides/slide1.xml": b"<a:p><a:t>zqpptbad</a:p>"}), binary=True)
+        self.build()
+        self.assertFalse(self.found("zqpptbad"))
+        self.assertEqual(ix.status(self.data, "P1", [self.box])["safety"], 1)
+
+    def test_a_pptx_with_an_entity_declaration_is_safety_and_nothing_is_expanded(self):
+        evil = b'<?xml version="1.0"?><!DOCTYPE s [<!ENTITY e "zqpptlol">]><a:p %s><a:r><a:t>&e;</a:t></a:r></a:p>' % NS.encode()
+        self.put("e.pptx", pptx({}, extra={"ppt/slides/slide1.xml": evil}), binary=True)
+        self.build()
+        self.assertFalse(self.found("zqpptlol"))
+        self.assertEqual(ix.status(self.data, "P1", [self.box])["safety"], 1)
+
+    def test_a_zip_bomb_pptx_is_safety(self):
+        big = b"<a:p %s><a:r><a:t>zqpptbomb</a:t></a:r></a:p>" % NS.encode() + b" " * (ask_extract.MAX_XML + 10)
+        self.put("bomb.pptx", pptx({}, extra={"ppt/slides/slide1.xml": big}), binary=True)
+        self.build()
+        self.assertFalse(self.found("zqpptbomb"))
+        self.assertEqual(ix.status(self.data, "P1", [self.box])["safety"], 1)
+
+    def test_a_pptx_with_a_forged_small_header_is_still_limited(self):
+        big = b"<a:p %s><a:r><a:t>zqpptforge</a:t></a:r></a:p>" % NS.encode() + b" " * 4000
+        raw = pptx({}, extra={"ppt/slides/slide1.xml": big})
+        with mock.patch.object(ask_extract, "MAX_XML", 1000):
+            with self.assertRaises(ValueError):
+                ask_extract.pptx_groups(raw)
+
+    def test_a_pptx_with_too_many_members_or_slides_or_bytes_is_refused(self):
+        raw = pptx({1: ["zqpptmany"], 2: ["b"]}, extra={"junk1": b"x", "junk2": b"y"})
+        for name, small in (("MAX_MEMBERS", 3), ("MAX_SLIDES", 1), ("MAX_UNCOMPRESSED", 100)):
+            with mock.patch.object(ask_extract, name, small):
+                with self.assertRaises(ValueError, msg=name):
+                    ask_extract.pptx_groups(raw)
+        self.assertTrue(ask_extract.pptx_groups(raw))
+
+    def test_pptx_limits_allow_exactly_the_limit(self):
+        raw = pptx({1: ["a"], 2: ["b"]})
+        n = len(zipfile.ZipFile(io.BytesIO(raw)).infolist())
+        size = sum(i.file_size for i in zipfile.ZipFile(io.BytesIO(raw)).infolist())
+        with mock.patch.object(ask_extract, "MAX_MEMBERS", n), mock.patch.object(ask_extract, "MAX_SLIDES", 2), mock.patch.object(ask_extract, "MAX_UNCOMPRESSED", size):
+            self.assertEqual(len(ask_extract.pptx_groups(raw)), 2)
+
+    def test_pptx_truncated_read_and_slide_order(self):
+        with self.assertRaises(ValueError):
+            ask_extract.pptx_groups(pptx({1: ["a"]}), truncated=True)
+        got = ask_extract.pptx_groups(pptx({10: ["ten"], 2: ["two"], 1: ["one"]}, {3: ["note three"]}))
+        self.assertEqual(got, [("slide 1", ["one"]), ("slide 2", ["two"]), ("slide 3", ["note three"]), ("slide 10", ["ten"])])
+        self.assertEqual(ask_extract.pptx_groups(pptx({1: ["a"]}, {1: ["n"]})), [("slide 1", ["a", "n"])])
+
+    def test_pptx_ignores_other_members_and_text_outside_a_t(self):
+        x = b'<a:p %s><a:pPr>zzhid</a:pPr><a:r><a:t>shown</a:t></a:r></a:p>' % NS.encode()
+        raw = pptx({}, extra={"ppt/slides/slide1.xml": x, "ppt/slides/slide1.xml.rels": b"zzrels", "docProps/slide9.xml": sxml("zzother")})
+        self.assertEqual(ask_extract.pptx_groups(raw), [("slide 1", ["shown"])])
+
+    def test_html_visible_text_only(self):
+        page = (b"<html><head><title>zzhead</title><style>.a{}zzstyle</style></head><body><h1>zqhtone Title</h1>"
+                b"<script>var zzscript=1;</script><p>zqhttwo <b>bold</b> &amp; more</p><noscript>zznos</noscript>"
+                b"<!-- zzcomment --><ul><li>one</li><li>two</li></ul></body></html>")
+        self.put("p.html", page, binary=True)
+        self.put("q.htm", b"<p>zqhtthree</p>", binary=True)
+        self.build()
+        self.assertEqual(len(self.found("zqhtone")), 1)
+        self.assertIn("p.html", self.found("zqhtone")[0][0])
+        self.assertTrue(self.found("zqhtthree"))
+        self.assertIn("zqhttwo bold & more", self.found("zqhttwo")[0][1])
+        for w in ("zzhead", "zzstyle", "zzscript", "zznos", "zzcomment"):
+            self.assertFalse(self.found(w), w)
+        self.assertEqual(ix.status(self.data, "P1", [self.box])["indexed"], 2)
+
+    def test_html_lines_follow_blocks_and_ignore_nesting_of_skip(self):
+        got = ask_extract.html_groups(b"<div>a<p>b</p>c<br>d<script><script>x</script>e</div>f<style>y</style>g")
+        self.assertEqual(got, [(None, ["a", "b", "c", "de", "fg"])])
+        self.assertEqual(ask_extract.html_groups(b"<p>x</p><hr/><p>y</p>"), [(None, ["x", "y"])])
+        self.assertEqual(ask_extract.html_groups(b"<p>a  \n b</p>"), [(None, ["a b"])])
+        self.assertEqual(ask_extract.html_groups(b"<img><p>a</p>"), [(None, ["a"])])
+
+    def test_html_with_no_text_counts_as_type_and_bad_bytes_are_replaced(self):
+        self.put("e.html", b"<html><script>x</script></html>", binary=True)
+        self.put("b.html", b"<p>zqhtbad \xff\xfe ok</p>", binary=True)
+        self.build()
+        s = ix.status(self.data, "P1", [self.box])
+        self.assertEqual((s["indexed"], s["type"]), (1, 1))
+        self.assertTrue(self.found("zqhtbad"))
+
+    def test_a_huge_html_file_is_safety_and_unclosed_tags_are_fine(self):
+        with self.assertRaises(ValueError):
+            ask_extract.html_groups(b"<p>a</p>", truncated=True)
+        with mock.patch.object(ask_extract, "MAX_HTML_BYTES", 10):
+            with self.assertRaises(ValueError):
+                ask_extract.html_groups(b"x" * 11)
+            self.assertEqual(ask_extract.html_groups(b"x" * 10), [(None, ["x" * 10])])
+        self.put("big.html", b"<p>zqhtbig</p>" + b" " * (ask_extract.MAX_HTML_BYTES + 5), binary=True)
+        self.put("deep.html", b"<div>" * 20000 + b"zqhtdeep" + b"<script>", binary=True)
+        self.build()
+        s = ix.status(self.data, "P1", [self.box])
+        self.assertEqual((s["safety"], s["indexed"]), (1, 1))
+        self.assertFalse(self.found("zqhtbig"))
+        self.assertTrue(self.found("zqhtdeep"))
+
+    def test_html_line_count_is_capped(self):
+        with mock.patch.object(ask_extract, "MAX_HTML_LINES", 3):
+            got = ask_extract.html_groups(b"".join(b"<p>l%d</p>" % i for i in range(10)))
+        self.assertEqual(got, [(None, ["l0", "l1", "l2"])])
 
 
 if __name__ == "__main__":

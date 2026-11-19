@@ -6,9 +6,11 @@ It is a copy that can always be rebuilt: delete it and `build` makes the same pa
 WHAT GETS IN. Files are listed and opened only through `reach` (`readable_files`, `read_bytes`), the same gates as `ask_passages`.
 Text, Markdown, CSV, TSV, RST and Word are read like `ask_passages` reads them. PDF goes through `pdf_reader` (its own process, a passage per
 page: "<file>, page n"); Excel (.xlsx, .xlsm) through vendored openpyxl, read-only, stored values, a passage run per sheet ("<file>, sheet S"); a PDF with no
-readable text (scanned, encrypted, damaged) counts as `type` and is listed as left out, a damaged workbook as `safety`. A file whose name or text looks like a password or
+readable text (scanned, encrypted, damaged) counts as `type` and is listed as left out, a damaged workbook as `safety`.
+PowerPoint (.pptx: slide text and notes, a passage run per slide, "<file>, slide n") and web pages (.html, .htm: the visible text) are read by `ask_extract`;
+a file with no text counts as `type`, a hostile or damaged one (zip bomb, too many parts, an entity declaration, broken XML, too big) as `safety`. A file whose name or text looks like a password or
 a key is screened by `secret_screen` BEFORE any of it is stored: it leaves a row with no text (label and size only). Every
-other type (PowerPoint, HTML, pictures) is counted as `type` until its own slice. No per-question file, byte or time limit.
+other type (pictures) is counted as `type` until its own slice. No per-question file, byte or time limit.
 
 FRESH. `refresh` compares each file's size and modified time with the row kept and reads again only what changed; a file that is gone,
 or a folder no longer in the project, loses its passages (and the free pages are wiped, so no copy of the text stays in the file).
@@ -17,7 +19,7 @@ LABELS. Each passage is labelled "<folder>/<name> (part n), modified YYYY-MM-DD"
 equal matches rank the newer file first.
 
 `status` gives counts that add up to the files of the folders: indexed, type, online_only, too_long, safety, not_yet (and `stopped`).
-Not in this slice: PowerPoint, HTML, OCR, the page budget, online-only reads, lifting `reach`'s 20,000-file listing cap,
+Not in this slice: OCR, the page budget, online-only reads, lifting `reach`'s 20,000-file listing cap,
 running in the background, the Settings text.
 """
 import json
@@ -28,12 +30,15 @@ import threading
 import time
 from pathlib import Path
 
-from clark import ask, ask_data, ask_passages, docx_read, pdf_reader, reach, secret_screen
+from clark import ask, ask_data, ask_extract, ask_passages, docx_read, pdf_reader, reach, secret_screen
 
 MAX_RESULTS = ask.MAX_PASSAGES
 MAX_PARTS_PER_FILE = 5000
 EXCEL_TYPES = (".xlsx", ".xlsm")
-INDEXED_TYPES = ask_passages.TEXT_TYPES + ask_passages.WORD_TYPES + ask_passages.PDF_TYPES + EXCEL_TYPES
+PPTX_TYPES = (".pptx",)
+HTML_TYPES = (".html", ".htm")
+INDEXED_TYPES = ask_passages.TEXT_TYPES + ask_passages.WORD_TYPES + ask_passages.PDF_TYPES + EXCEL_TYPES + PPTX_TYPES + HTML_TYPES
+MAX_PPTX_BYTES = 50 * 1024 * 1024
 MAX_EXCEL_BYTES = 25 * 1024 * 1024
 MAX_EXCEL_ROWS = 50000                   # per sheet
 MAX_EXCEL_CELLS = 1000000                # per file
@@ -233,7 +238,8 @@ def _read_one(db, path, label, low, st, usable, data_dir, home):
     state = "indexed"
     groups = []                                  # [(part name or None, lines)]
     is_pdf, is_excel, is_word = low.endswith(ask_passages.PDF_TYPES), low.endswith(EXCEL_TYPES), low.endswith(ask_passages.WORD_TYPES)
-    limit = pdf_reader.MAX_BYTES if is_pdf else MAX_EXCEL_BYTES if is_excel else docx_read.MAX_FILE_BYTES if is_word else ask_passages.MAX_TEXT_BYTES
+    is_pptx, is_html = low.endswith(PPTX_TYPES), low.endswith(HTML_TYPES)
+    limit = pdf_reader.MAX_BYTES if is_pdf else MAX_EXCEL_BYTES if is_excel else MAX_PPTX_BYTES if is_pptx else ask_extract.MAX_HTML_BYTES if is_html else docx_read.MAX_FILE_BYTES if is_word else ask_passages.MAX_TEXT_BYTES
     try:
         raw, truncated = reach.read_bytes(path, usable, data_dir, limit, home)
         if is_pdf:
@@ -244,6 +250,10 @@ def _read_one(db, path, label, low, st, usable, data_dir, home):
                 groups = [(f"page {n}", t.splitlines()) for n, t in got.pages]
         elif is_excel:
             groups = _excel_groups(raw, truncated)
+        elif is_pptx or is_html:
+            groups = (ask_extract.pptx_groups if is_pptx else ask_extract.html_groups)(raw, truncated)
+            if not groups:
+                state = "type"                   # no text to read, like a scanned PDF
         else:
             groups = [(None, _lines(raw, truncated, low, os.path.basename(str(path))))]
     except (reach.Never, docx_read.WordRefused, ValueError, UnicodeError):
