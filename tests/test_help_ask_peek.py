@@ -77,10 +77,11 @@ class HelpAskAndSneakPeek(unittest.TestCase):
         self.assertNotRegex(ASK + json.dumps(RAW["start"]) + json.dumps(RAW["reference"]["keys"]), r"(?i)off until|until you (switch|turn) (it )?on|Turn on asking|switch(ed)? on (in|from) Settings")
         ref = entry("reference", "ask-clark")
         self.assertIn("on from the first start", ref)
-        self.assertIn("**Turn off asking**", ref)
+        self.assertIn("**Turn off asking for all projects**", ref)
         settings = (PAGE / "edit" / "AskSettings.jsx").read_text(encoding="utf-8")
-        for name in ("Turn off asking", "Source folders for ", "Asking in "):
+        for name in ("Source folders for ", "Asking in "):
             self.assertIn(name, settings)
+        self.assertIn("Turn off asking for all projects", (PAGE / "edit" / "askState.js").read_text(encoding="utf-8"))
 
     def test_ask_clark_changes_work_items_and_milestones_not_use_cases(self):
         self.assertNotRegex(ASK, r"(?i)change[^\"]{0,40}use cases?\b(?! need)")

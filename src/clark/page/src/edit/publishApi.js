@@ -110,6 +110,8 @@ export const askInstructionsChange = (body) => call("POST", "/api/ask-instructio
 // the second; both answer the same list. Words and true or false only: nothing about a connector is kept in a project's data and no key is held.
 export const askConnectorsRead = (project) => call("GET", project ? `/api/ask-connectors?project=${encodeURIComponent(project)}` : "/api/ask-connectors");
 export const askConnectorsChange = (body) => call("POST", "/api/ask-connectors", body);
+export const askNewRead = (project) => call("GET", project ? `/api/ask-new-projects?project=${encodeURIComponent(project)}` : "/api/ask-new-projects");
+export const askNewChange = (body) => call("POST", "/api/ask-new-projects", body);
 
 // Asking's on/off switch for this computer (#47), kept in the database. GET /api/ask-enabled answers {ok, ask_enabled, saved}; POST
 // takes {enabled: true | false}. The server checks the value and keeps it (with history and Undo); the page shows what it answered.
