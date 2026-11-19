@@ -315,7 +315,7 @@ class Published(PublishedFile, Setup):
             return got
 
     def test_the_published_title_still_wraps_in_classic_and_cards_at_1400_and_900(self):
-        for name, classic in (("classic", True), ("cards", False)):
+        for name, classic in (("classic", True), ("cards", True)):      # row 1363: a stored Cards value publishes Classic
             for width in (1400, 900):
                 with self.subTest(theme=name, width=width):
                     g = self.look(name, width)
