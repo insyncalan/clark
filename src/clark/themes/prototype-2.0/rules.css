@@ -394,6 +394,19 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .mv[data-look="classic"] .mv-today b { font-size: 13px; font-weight: 600; color: var(--brand-blue); background: none; }
 .mv[data-look="classic"] .mv-mk .ms-i { width: 20px; height: 20px; }
 #milestones .msv-b { font-size: 14px; }
+/* Row 1398: the Classic Milestones calendar as the prototype draws it. A day cell is 78 high (900 and below keep their own 64), the out-of-month cells are clear and only the weekend columns are tinted, the rules are the soft line, today is a bold number in a 2px brand box on the cell (not a filled pill), the weekday names are 13px 600 in bordered cells, not capitals, and a chip is 13px, 1px 4px, one line with an ellipsis. Classic only; Cards keeps its own in shell.css. */
+@media (min-width: 901px) { .cal-d { min-height: 78px; } }
+.cal-g { border-top-color: var(--line-soft); border-left-color: var(--line-soft); }
+.cal-d { border-right-color: var(--line-soft); border-bottom-color: var(--line-soft); }
+.cal-d.out { background: transparent; }
+.cal-g > .cal-d:nth-child(7n+6), .cal-g > .cal-d:nth-child(7n) { background: var(--grey-50); }
+.cal-d.today { box-shadow: inset 0 0 0 2px var(--brand-blue); }
+.cal-d.today .cal-n { background: transparent; color: var(--brand-blue); font-weight: var(--weight-semibold); }
+.cal-dow span { font-size: var(--size-caption); font-weight: var(--weight-medium); letter-spacing: 0; text-transform: none; padding: 4px 6px; border-right: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); }
+.cal-dow { border-top: 1px solid var(--line-soft); border-left: 1px solid var(--line-soft); }
+.cal-ms { font-size: var(--size-caption); padding: 1px 4px; }
+.cal-ms:not(:hover):not(.ghost) { background: var(--band-bg); }
+.cal-ms span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
