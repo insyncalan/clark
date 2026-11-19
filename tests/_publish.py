@@ -16,10 +16,10 @@ from clark import publish as publish_module
 
 
 class PublishedFile:
-    theme = "cards"      # row 1269: a fresh store is Classic, but these tests are about the Cards look of a published file; a test about Classic says so (theme = "classic")
+    theme = "classic"      # Cards is unmaintained (Alan 19-11, row 1363): a stored cards value renders Classic, so published-file tests use Classic
 
     def publish(self):
-        theme = getattr(self, "theme", "cards")
+        theme = getattr(self, "theme", "classic")
         if theme:      # None: the test has set the Theme itself
             self.store.con.execute("UPDATE app_settings SET theme = ? WHERE id = 1", (theme,))
         self.out = tempfile.mkdtemp(prefix="clark-45-")
