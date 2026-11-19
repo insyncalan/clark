@@ -176,7 +176,7 @@ def _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, prog
     db.commit()
     kept = {r[0]: (r[1], r[2], r[3]) for r in db.execute("SELECT label, size, mtime_ns, state FROM files")}
     seen, now_state = set(), {}
-    db.execute("DELETE FROM left")
+    type_labels = set()                          # `left` is kept as it was until the run ends, so a stopped run leaves the whole list, not part of it
     type_n, online, safety = 0, 0, len(bad)
     stopped_listing = False
     for folder in usable:
@@ -205,7 +205,7 @@ def _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, prog
                 c["type"] += 1
                 root = next((r for r in roots if reach.inside(path, r)), None)
                 if root is not None:
-                    db.execute("INSERT OR REPLACE INTO left VALUES(?,?)", (ask_passages._label(root, path), REASON_TYPE))
+                    type_labels.add(ask_passages._label(root, path))
             else:
                 root = next((r for r in roots if reach.inside(path, r)), None)
                 label = ask_passages._label(root, path) if root is not None else None
@@ -231,6 +231,8 @@ def _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, prog
                 progress(str(folder), done, total)
     for gone in set(kept) - seen:
         _drop(db, gone)
+    db.execute("DELETE FROM left")
+    db.executemany("INSERT OR REPLACE INTO left VALUES(?,?)", [(x, REASON_TYPE) for x in type_labels])
     db.execute("INSERT OR REPLACE INTO left SELECT label, ? FROM files WHERE state='safety'", (REASON_SAFETY,))
     db.execute("INSERT OR REPLACE INTO left SELECT label, ? FROM files WHERE state='type'", (REASON_TYPE,))
     db.execute("INSERT OR REPLACE INTO left SELECT label, ? FROM files WHERE state='too_long'", (REASON_TOO_LONG,))
