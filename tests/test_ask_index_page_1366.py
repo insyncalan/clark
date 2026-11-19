@@ -17,7 +17,7 @@ from test_ask_settings import make_db, service
 from test_page import DATA, navigate
 from test_server import Running, chrome, wait
 
-from clark import ask_folders, ask_index, page, platform as pl
+from clark import ask_folders, ask_index, page, platform as pl, theme
 
 WIDTHS = (1400, 900)
 
@@ -27,7 +27,8 @@ class Page(unittest.TestCase):
         patch = mock.patch.object(pl, "system", return_value=pl.MAC)
         patch.start()
         self.addCleanup(patch.stop)
-        self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        html = page.layer_theme(page.page_html(tempfile.mkdtemp()), theme.css("prototype-2.0"))      # the status-line rules are Classic-only
+        self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: html)
         self.addCleanup(self.s.close)
         self.d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
         self.addCleanup(shutil.rmtree, self.d, True)
