@@ -25,7 +25,7 @@ from test_work_items import page_target
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
 SENTENCE = re.compile(r"(forecast for|agreed for|has no date yet|now expected|\d+ achieved|\d+ to come)")
-HINTS = ("Every milestone is on the timeline", "The list shows where each one stands", "Milestones view")
+HINTS = ("Every milestone is on the timeline. ", "The list shows where each one stands", "Milestones view")
 REAL_PAGE_HTML = page.page_html
 SWITCH = "[data-mspage-switch], [data-mspv], [data-mspage-hint], #milestones .seg:not(.cal-sc)"
 

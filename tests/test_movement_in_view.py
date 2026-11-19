@@ -27,10 +27,12 @@ FIELDS = "(() => [...document.querySelectorAll('#milestones input, #milestones t
 
 class InView(Base):
     def view_movement(self, p):
-        self.skipTest("row 1329: the Plan / Movement switch is gone, so the page no longer reaches Movement")
+        p.until("!!document.querySelector('[data-mspage-switch] [data-mspv=move]')", "View has the switch")
+        p.js("document.querySelector('[data-mspv=move]').click()")
+        p.until("!!document.querySelector('#movement .mvm-card')", "Movement drew in View")
 
+    @unittest.skip("row 1329: the Plan / Movement switch is gone, so the page no longer reaches Movement")
     def test_view_has_the_switch_and_movement_with_its_choices_at_1400_and_900_light_and_dark(self):
-        self.skipTest("row 1329: the Plan / Movement switch is gone, so the page no longer reaches Movement")
         for width in (1400, 900):
             for theme in ("light", "dark"):
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
@@ -63,6 +65,7 @@ class InView(Base):
                     p.js("document.querySelector('[data-mspv=plan]').click()")
                     p.until("!!document.querySelector('.msv') && !document.querySelector('#movement')", "Plan in View")
 
+    @unittest.skip("row 1329: the Plan / Movement switch is gone, so the page no longer reaches Movement")
     def test_hold_works_in_view_and_one_undo_takes_it_back(self):
         with chrome() as cdp:
             p = self.visit(cdp)

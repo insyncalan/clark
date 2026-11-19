@@ -214,7 +214,7 @@ class MovementEntries(unittest.TestCase):
         self.assertNotIn("Movement", text)
         raw = (SRC / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
         self.assertIn("(the Client wording on a row, picture captions and the Own words of risks and issues) have no / menu", raw)
-        self.assertIn("Every milestone on a timeline or calendar.", raw)
+        self.assertIn("Every milestone is on the timeline or the calendar.", raw)
 
     def test_the_block_is_edit_only_and_never_published(self):
         self.assertIn("data-edit-only", self.BLOCK)
