@@ -6,9 +6,11 @@ beside the panel with the words of the mock-up and an editable body; nothing is 
 section and a new one; a replace and an add are each one step that Undo takes back; Esc and the close button leave the report as it was; closing
 the panel closes the draft. Fictional text only.
 """
+import json
 import time
 import unittest
 
+from clark import theme
 from test_ask_panel import Panel, Stub
 from test_server import chrome
 
@@ -51,10 +53,11 @@ class Draft(Panel):
             self.assertAlmostEqual(left, panel, delta=2, msg="the draft's right edge is the panel's left edge")
 
     def test_the_draft_stays_inside_the_window_at_1400_and_900(self):
-        """Ticket 1346: at 900 the Draft was at x=-80 (width 560); it is at x=24, width 456 now, and 560 wide beside the panel at 1400."""
+        """Ticket 1346 (Classic): at 900 the Draft was at x=-80 (width 560); it is at x=24, width 456 now, and 560 wide beside the panel at 1400."""
         with chrome() as cdp:
             p = self.visit(cdp)
             p.js("document.querySelector('[data-mode=edit]').click()")
+            p.js("(function(){var s=new CSSStyleSheet();s.replaceSync(" + json.dumps(theme.css("prototype-2.0")) + ");document.adoptedStyleSheets=[s]})()")      # the Classic theme layer (a constructed sheet: the page's policy lets no inline style element in)
             for width, want_w in ((1400, 560), (900, None)):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
                 p.key("/", code="Slash", vk=191)
