@@ -325,3 +325,9 @@ export const SLASH_HINT = {
   history: "Earlier chats",
   new: "Start a new chat",
 };
+
+// Row 1292 (feature 9): the words under each answer (mock-up ask.js, Copy, Ask again and their notices).
+export const ANSWER_COPY = "Copy";
+export const ANSWER_AGAIN = "Ask again";
+export const ANSWER_COPIED = "Copied. It pastes into Word or an email with its formatting.";
+export const ANSWER_COPY_FAILED = "Could not copy. Select the text and copy it yourself.";
