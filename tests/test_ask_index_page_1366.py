@@ -22,12 +22,16 @@ from clark import ask_folders, ask_index, page, platform as pl, theme
 WIDTHS = (1400, 900)
 
 
-class Page(unittest.TestCase):
+class Fixture(unittest.TestCase):
+    CLASSIC = True
+
     def setUp(self):
         patch = mock.patch.object(pl, "system", return_value=pl.MAC)
         patch.start()
         self.addCleanup(patch.stop)
-        html = page.layer_theme(page.page_html(tempfile.mkdtemp()), theme.css("prototype-2.0"))      # the status-line rules are Classic-only
+        html = page.page_html(tempfile.mkdtemp())
+        if self.CLASSIC:
+            html = page.layer_theme(html, theme.css("prototype-2.0"))      # the status-line rules are Classic-only
         self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: html)
         self.addCleanup(self.s.close)
         self.d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
@@ -72,6 +76,8 @@ class Page(unittest.TestCase):
             "return {size: c.fontSize, weight: c.fontWeight, color: c.color, mt: c.marginTop, role: e.getAttribute('role'), live: e.getAttribute('aria-live'), "
             "below: e.getBoundingClientRect().top >= r.bottom - 1, text: e.innerText}; })()")
 
+
+class Page(Fixture):
     def test_the_line_in_the_project_card_for_an_own_and_a_shared_folder_at_both_widths(self):
         ask_folders.AskFolders.change_all(self.svc, {"scope": "all", "action": "add", "path": str(self.shared)})
         self.svc.change({"project": "ABC", "action": "add", "path": str(self.own)})
@@ -107,6 +113,22 @@ class Page(unittest.TestCase):
             js("document.querySelector('[data-ask-all-remove]').click()")
             self.until(js, "!!document.querySelector('#ask-all-folders-none')", "removed with its line")
             self.assertFalse(js("!!document.querySelector('#ask-all-folders .ask-folder-line')"))
+
+
+class CardsPage(Fixture):
+    """The status line and the left-out list are the Classic theme's: the Cards page is as it was (no line, no button), in every card."""
+    CLASSIC = False
+
+    def test_cards_has_no_status_line_and_no_left_out_button_in_any_card(self):
+        ask_folders.AskFolders.change_all(self.svc, {"scope": "all", "action": "add", "path": str(self.shared)})
+        self.svc.change({"project": "ABC", "action": "add", "path": str(self.own)})
+        self.assertTrue(self.ix.wait_idle(10))
+        self.assertTrue(ask_index.status(self.data, "ABC", [str(self.own)])["type"], "the folder has a file left out, so Classic would show the button")
+        with chrome() as cdp:
+            for tab in ("project", "all"):
+                js = self.show(cdp, tab)
+                self.until(js, "document.querySelectorAll('.folder-now').length >= 1", f"the folders are listed ({tab})")
+                self.assertEqual(js("document.querySelectorAll('.ask-folder-line, .ask-left-out, .ask-left-btn').length"), 0, tab)
 
 
 if __name__ == "__main__":
