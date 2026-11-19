@@ -3,6 +3,7 @@
 Run: python3 dev/run_tests.py test_ask_safety_1294
 Each of the four statements is pinned to the code behind it; the words are read from the page source."""
 import re
+import tempfile
 import time
 import unittest
 
@@ -10,9 +11,13 @@ from _paths import SRC
 from _publish import PublishedFile
 import test_glance_page as glance
 from test_ask_apply import Base
-from test_server import chrome
+import test_ask_settings as settings
+from _editor_checks import for_project
+from test_page import DATA, navigate
+from test_server import Running, chrome, wait
 
-from clark import ask, ask_files, changes
+from clark import ask, ask_files, changes, theme
+from clark import page as page_module
 
 JSX = (SRC / "clark" / "page" / "src" / "edit" / "AskSettings.jsx").read_text(encoding="utf-8")
 LOOKS_KEY = "pass" + "word = Hunter2-Zebra-9"      # built in two pieces so the repository's own secret scan has nothing to match here
@@ -90,6 +95,34 @@ class Approval(Base):
         self.assertTrue(self.applied(plan["offer"])["undoable"])
 
 
+class OnlyOffered(Base):
+    def test_an_id_that_was_never_offered_is_refused_and_nothing_is_written(self):
+        before = self.counts()
+        for fake in ("never-offered", "", "0" * 32):
+            status, body = self.ask.apply(fake, "ABC")
+            self.assertEqual((status, body["code"]), (409, "no_offer"), fake)
+        self.assertEqual(self.counts(), before, "nothing was written")
+        self.assertEqual(self.s.read("actions", ref=self.action)["status"], "Open")
+
+    def test_an_offer_applies_once_and_the_second_try_writes_nothing_more(self):
+        plan = self.planned({"op": "change", "id": self.action, "status": "Closed"})
+        before = self.counts()
+        self.applied(plan["offer"])
+        after_first = self.counts()
+        self.assertEqual(after_first[0], before[0] + 1, "one apply row")
+        status, body = self.ask.apply(plan["offer"], "ABC")
+        self.assertEqual((status, body["code"]), (409, "no_offer"))
+        self.assertEqual(self.counts(), after_first, "the second apply wrote nothing")
+
+    def test_one_offer_cannot_stand_in_for_another(self):
+        one = self.planned({"op": "change", "id": self.action, "status": "Closed"})
+        before = self.counts()
+        status, body = self.ask.apply(one["offer"] + "x", "ABC")
+        self.assertEqual((status, body["code"]), (409, "no_offer"))
+        self.assertEqual(self.counts(), before)
+        self.assertEqual(self.s.read("actions", ref=self.action)["status"], "Open")
+
+
 class ExtraTick(Base):
     def test_only_a_change_taken_from_a_source_needs_the_tick(self):
         own = self.planned({"op": "change", "id": self.action, "status": "Closed"})
@@ -122,6 +155,42 @@ class Published(PublishedFile, glance.Setup):
         css = (SRC / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
         self.assertIn(".ask-safety { margin: var(--space-2) 0 0; padding: 0; list-style: none; }", css)
         self.assertLess(css.index(".ask-safety {"), css.index("/* Row 1314"))
+
+
+class CardLayout(unittest.TestCase):
+    ready = True
+    folder, until = (settings.Settings.__dict__[n] for n in ("folder", "until"))
+
+    def setUp(self):             # as Settings.setUp, but with the page served in Classic, the only look applied (clark.theme.CLASSIC)
+        self.s = Running(data_for=lambda code, archived=None: DATA.get(code),
+                         page_html=lambda: page_module.page_html(tempfile.mkdtemp(), theme=theme.CLASSIC))
+        self.addCleanup(self.s.close)
+        self.db = settings.make_db(self.folder(), ready=True, cleanup=self.addCleanup)
+        self.s.httpd.app_settings = settings.service(self.db)
+
+    """The card as drawn on the running page, at 1400 and 900."""
+    def test_the_card_is_on_the_all_projects_tab_with_four_plain_statements_and_fits(self):
+        with chrome() as cdp:
+            self.sid = navigate(cdp, self.s.port, for_project("#settings&p=ABC&s=claude"))
+            js = lambda e: cdp.js(e, self.sid)          # noqa: E731
+            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-tab=all]')"), 20))
+            self.assertFalse(js("!!document.querySelector('#ask-safety')"), "not on the project's own tab")
+            js("document.querySelector('[data-ask-tab=all]').click()")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-safety')"), 20), "on the All projects tab")
+            for w in settings.WIDTHS:
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                self.until(lambda: js("document.documentElement.scrollWidth <= window.innerWidth"), True, f"no sideways scroll at {w}")
+                got = js("""(() => { const c = document.querySelector('#ask-safety'), r = c.getBoundingClientRect(), ul = c.querySelector('ul.ask-safety');
+                  return {heading: c.querySelector('h2').innerText, n: ul.children.length, style: getComputedStyle(ul).listStyleType,
+                         
+                          left: r.left, right: r.right, vw: window.innerWidth, over: c.scrollWidth > c.clientWidth,
+                          titles: [...ul.querySelectorAll('li > strong')].map(e => e.innerText)}; })()""")
+                self.assertEqual(got["heading"], "Changes and safety", w)
+                self.assertEqual(got["n"], 4, w)
+                self.assertEqual(len(got["titles"]), 4, w)
+                self.assertEqual(got["style"], "none", f"no bullets at {w}")
+                self.assertTrue(got["left"] >= 0 and got["right"] <= got["vw"], f"the card is inside the page at {w}: {got}")
+                self.assertFalse(got["over"], f"the card does not scroll sideways at {w}")
 
 
 class Secrets(unittest.TestCase):
