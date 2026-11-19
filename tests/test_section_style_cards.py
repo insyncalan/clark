@@ -383,7 +383,7 @@ class Cards(Base):
         self.assertEqual(drawn["comfortable"][0], "comfortable", "a file published at Comfortable opens Comfortable, though it carries the word roomy")
         self.assertGreater(drawn["comfortable"][1], drawn["compact"][1], "its sections have more room above and below")
         self.assertEqual((drawn["compact-stored"], drawn["comfortable-stored"]), (None, None), "a published file never remembers its density as a reader's choice")
-        self.assertEqual((drawn["compact"][2], drawn["comfortable"][2]), (True, False), "Compact sections run on flat, Comfortable ones are cards")
+        self.assertEqual((drawn["compact"][2], drawn["comfortable"][2]), (True, True), "Classic draws no card shadow in either density")      # Cards is unmaintained (row 1363): the Comfortable card shadow is a Cards look
 
     def test_the_reading_of_a_files_word_is_roomy_for_comfortable_and_compact_for_the_rest(self):
         src = (SRC / "clark" / "page" / "src" / "stores" / "density.js").read_text(encoding="utf-8")
