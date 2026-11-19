@@ -10,9 +10,17 @@ export const named = (text, who) => (who === "ChatGPT" ? text.replace(/Claude, w
 export const DISCONNECTED_LINE = "Nothing is connected in Settings. Connect Claude or ChatGPT there to use this.";   // the server's status words, ai_connect.OFF_WORDS
 // #1062: where a question goes and who pays moved from the panel to the Asking card in Settings.
 export const ASK_NOTICE_LINE = "Your question and the passages it needs go to Claude, which Anthropic runs, and are billed to the Claude account signed in on this computer.";
+// row 1292 feature 2: the first-run card in an empty chat, three plain lines. Written for Claude; named() swaps the provider in use.
+// The sentences are a draft: the spec gives the ideas, the words wait for the project head (listed as B1 in the words file).
+export const FIRST_RUN_LABEL = "About ask clark";
+export const FIRST_RUN_READS = "It reads what is in this project. It never reads your mail, Teams or calendars.";
+export const FIRST_RUN_CHANGES = "It can suggest changes. Nothing is saved until you press Apply, and every change can be undone.";
+export const FIRST_RUN_SENT = "Your question goes to Claude, which Anthropic runs.";
+export const FIRST_RUN_LINK = "Open the Asking card in Settings";
 export const CHECKING_LINE = "Checking whether you can ask…";
 export const READY_LINE = "Ready. Ask about this project.";
 export const MODEL_LINE = (name) => `Answering with ${name}.`;
+export const STANDING_LINE = "Standing instructions on.";   // #1292 S13, the mock-up's words with the full stop every line of the panel ends in
 export const PLACEHOLDER = "Ask a question about this project";
 export const SEND = "Ask";
 export const STOP = "Stop";
@@ -66,7 +74,7 @@ export const QUEUE_REMOVE = "Remove this message";
 export const QUEUE_MORE = (n) => `and ${n} more`;
 export const QUEUE_STOPPED = (n) => `Stopped. ${waitingCount(n)} waiting`;
 export const QUEUE_FAILED = (n) => `${waitingCount(n)} waiting`;
-export const QUEUE_SEND = "Send them";
+export const QUEUE_SEND = "Send the waiting messages";
 export const QUEUE_CLEAR = "Clear";
 export const QUEUE_FULL = "5 messages are already waiting. Wait for one to be sent, or remove one.";
 export const QUEUE_DROP = (n) => `${waitingCount(n)} waiting and would be dropped. Press again to go on.`;
@@ -256,3 +264,32 @@ export const FIELD_NAMES = {
   headline: "Headline", standing: "Where it stands",      // a use case (issue 729): the words its editor uses
 };
 export const KIND_NAMES = { actions: "Action", decisions: "Decision", milestones: "Milestone", raid: "Risk or issue" };
+
+// Row 1292 (S12): the Draft beside the panel (mock-up image 09).
+export const DRAFT_TITLE = "Draft";
+export const DRAFT_HINT = "Edit it freely. Nothing is in the report yet.";
+export const DRAFT_CLOSE = "Close the draft";
+export const DRAFT_TEXT_LABEL = "Draft text";
+export const DRAFT_ADD = "Add to the report";
+export const DRAFT_COPY = "Copy";
+export const DRAFT_COPIED = "Draft copied.";
+export const DRAFT_COPY_FAILED = "The draft could not be copied. Select the text and copy it yourself.";
+export const DRAFT_MENU_LABEL = "Where the draft goes";
+export const DRAFT_READY = "Draft ready";
+export const DRAFT_READY_LINE = "Nothing is in the report yet.";
+export const DRAFT_OPEN = "Open the draft";
+export const DRAFT_EMPTY = "The draft is empty. Write something, or close it.";
+
+// #1292 S10: the slash menu. NEEDS RULING: the one-line hint under each command is a draft, to be ruled with the other new words (decision 25).
+export const SLASH_LABEL = "Commands";
+export const SLASH_NONE = "No command by that name";
+export const SLASH_HINT = {
+  check: "Check this report",
+  summary: "Summarise this week",
+  overdue: "What is overdue",
+  risks: "Which risks are red",
+  milestones: "The next milestone",
+  usecases: "Which use cases need attention",
+  history: "Earlier chats",
+  new: "Start a new chat",
+};

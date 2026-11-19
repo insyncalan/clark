@@ -27,7 +27,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import __version__, activity_read, ai_connect, brands, app_settings, as_at, appfiles, ask_folders, ask_service, backup, changes, demo_seed, draft_email_feed, excel_route, history, idle, log as clog, log_routes, mail_open, milestone_feed, movement_read, page, past_reports, platform, profile_settings, project_route, publish, publish_flow, safety, same_version, server, sneak, store as clark_store, typed, updater as clark_updater, use_cases_read, word_route
+from clark import __version__, activity_read, ai_connect, brands, app_settings, as_at, appfiles, ask_folders, ask_service, backup, changes, demo_seed, draft_email_feed, excel_route, history, idle, log as clog, log_routes, mail_open, milestone_feed, movement_read, page, past_reports, platform, profile_settings, project_route, publish, publish_flow, safety, same_version, server, sneak, standing_instructions, store as clark_store, theme, typed, updater as clark_updater, use_cases_read, word_route
 
 LOG = logging.getLogger("clark.main")
 DB_NAME = "clark.db"
@@ -309,20 +309,25 @@ def page_of(path, onedrive_roots=None):
     brand-local block or none (Generic, no project, an unknown code, a removed brand). The brand is read from the project's row."""
     def page_html(project=None):
         brand = "generic"
-        if project is not None:
-            try:
-                found = clark_store.open_store(path, onedrive_roots=onedrive_roots)
-            except clark_store.Invalid as e:
-                if str(e) == backup.RESTORE_BUSY:
-                    raise server.Busy(str(e)) from None
+        try:
+            found = clark_store.open_store(path, onedrive_roots=onedrive_roots)
+        except clark_store.Invalid as e:
+            if str(e) == backup.RESTORE_BUSY:
+                raise server.Busy(str(e)) from None
+            if project is not None:
                 raise
+            found = None            # row 1269: no readable file yet, so no Theme setting: today's look (Cards)
+        look = None
+        if found is not None:
             try:
-                brand = next((r["brand"] for r in found.read("projects") if r["code"] == project), "generic")
+                look = theme.of_store(found)        # row 1269: the install's Theme, read at every request
+                if project is not None:
+                    brand = next((r["brand"] for r in found.read("projects") if r["code"] == project), "generic")
             finally:
                 found.close()
         folder = brands.folder(page.BRANDING.parent, brand)
         return page.page_html(branding=page.NO_BRAND if folder is brands.GENERIC else folder,
-                              brand_id=None if folder is brands.GENERIC or folder == page.BRANDING else brand)
+                              brand_id=None if folder is brands.GENERIC or folder == page.BRANDING else brand, theme=look)
     return page_html
 
 
@@ -598,6 +603,7 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                      use_cases=use_cases_read.make_read(store.data_for, use_case_ids_on_file(store), use_case_history(store)),
                      safety=safety.Safety(store.path, roots), logs=logs, mail=mail_open.MailOpen(),
                      ask_folders=ask_folders.AskFolders(store.path, roots, data_dir=store.path.parent),
+                     ask_instructions=standing_instructions.StandingInstructions(store.path, roots),
                      app_settings=app_settings.AppSettings(store.path, roots),
                      ask=ask_service.AskService(store.path, asker, roots), ai_connect=connect,      # #54: Settings › AI applies to every question
                      # No ai= here on purpose: the /api/ai/* routes answer 404 until suggestions run under their own system

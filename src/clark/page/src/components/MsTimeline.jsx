@@ -100,27 +100,44 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
     const w = wrap.current;
     if (w && centre.current !== null) { w.scrollLeft = centre.current * W - w.clientWidth / 2; centre.current = null; }
   }, [zoom, scale]);
-  // The user drags the bottom edge (CSS resize): the line zooms to the new height, as creaite's milestone line does.
-  useEffect(() => {
+  // The grip on the centre of the bottom edge (row 1267; was the browser's own corner handle): drag it, or use the arrow keys, and the line zooms to the new height, as creaite's milestone line does.
+  const drag = useRef(null);
+  const zoomTo = (next, keep) => {
     const w = wrap.current;
-    if (!w || typeof ResizeObserver === "undefined") return undefined;
-    let timer = 0;
-    const ro = new ResizeObserver(() => {
-      const h = w.offsetHeight;
-      if (!h || Math.abs(h - height) < 4) return;
-      if (height < h && h <= (parseFloat(getComputedStyle(w).minHeight) || 0) + 1) return;   // the box is held up by its CSS minimum (taller than the lanes need): not a drag
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        const next = clampZoom(Math.round((h - sb - room) / UNIT * 100) / 100);
-        if (Math.abs(next - z) < 0.02) return;           // the box only changed by the room kept under an overlay scrollbar: not a drag
-        centre.current = (w.scrollLeft + w.clientWidth / 2) / (w.scrollWidth || 1);
-        remember(`tlZoom.${place}`, next);
-        setZoom(next);
-      }, 120);
-    });
-    ro.observe(w);
-    return () => { clearTimeout(timer); ro.disconnect(); };
-  }, [height, nLines, place, sb, room, UNIT]);
+    if (w) centre.current = (w.scrollLeft + w.clientWidth / 2) / (w.scrollWidth || 1);
+    if (keep) remember(`tlZoom.${place}`, next);
+    setZoom(next);
+    return next;
+  };
+  const gripDown = (e) => {
+    if (e.button) return;
+    const w = wrap.current;
+    if (!w) return;
+    drag.current = { y: e.clientY, h: w.offsetHeight, id: e.pointerId, last: z };
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* a pointer that is already gone */ }
+    e.preventDefault();
+    e.currentTarget.focus({ preventScroll: true });
+  };
+  const gripMove = (e) => {
+    const d = drag.current;
+    if (!d || d.id !== e.pointerId) return;
+    const next = clampZoom(Math.round((d.h + e.clientY - d.y - sb - room) / UNIT * 100) / 100);
+    if (Math.abs(next - d.last) < 0.01) return;
+    d.last = zoomTo(next, false);
+  };
+  const gripUp = (e) => {
+    const d = drag.current;
+    if (!d || d.id !== e.pointerId) return;
+    drag.current = null;
+    remember(`tlZoom.${place}`, d.last);
+  };
+  const gripKey = (e) => {
+    const k = e.key;
+    if (k === "ArrowDown" || k === "ArrowUp") zoomTo(clampZoom(Math.round((z + (k === "ArrowDown" ? 0.1 : -0.1)) * 100) / 100), true);   // down grows the line, as dragging down does
+    else if (k === "Home") zoomTo(1, true);
+    else return;
+    e.preventDefault();
+  };
 
   const reset = () => { centre.current = (wrap.current.scrollLeft + wrap.current.clientWidth / 2) / (wrap.current.scrollWidth || 1); remember(`tlZoom.${place}`, 1); setZoom(1); wrap.current.focus({ preventScroll: true }); };   // the Reset button goes with the zoom: focus stays on the line, not the page
   const step = (k) => { const w = wrap.current; if (w) w.scrollBy({ left: k * 30 * PXD[scale] * z, behavior: reduced() ? "auto" : "smooth" }); };
@@ -132,8 +149,7 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
   };
   const range = (iso) => `${MONTHS[+iso.slice(5, 7) - 1].slice(0, 3)} ${iso.slice(0, 4)}`;
 
-  const zoomNote = <span class={R2 ? "mv-cap" : "mv-zoom"}>Drag the bottom edge to zoom{z !== 1 ? <> {" · "}<span class="num" data-zoom={Math.round(z * 100)}>{Math.round(z * 100)}%</span> <button type="button" class="link" data-zreset onClick={reset}>Reset</button></> : null}</span>;
-  const Box = R2 ? "div" : Fragment;
+  const zoomNote = <span class={R2 ? "mv-cap" : "mv-zoom"}>Drag the grip below the timeline to zoom{z !== 1 ? <> {" · "}<span class="num" data-zoom={Math.round(z * 100)}>{Math.round(z * 100)}%</span> <button type="button" class="link" data-zreset onClick={reset}>Reset</button></> : null}</span>;
   const tierTop = (t) => (t % 2 ? LY + SIDE + (t >> 1) * (LH + TGAP) : LY - SIDE - LH - (t >> 1) * (LH + TGAP));
   return (
     <div class="mv" data-place={place}>
@@ -149,9 +165,9 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
         {R2 ? null : zoomNote}
       </div>
       {far.length ? <p class="muted mv-far" data-far>{FAR_NOTE}: {far.map((r) => r.name).join(", ")}.</p> : null}
-      <Box {...(R2 ? { class: "mv-box", style: { "--sb": `${sb + room}px` } } : {})}>
+      <div class="mv-box" style={{ "--sb": `${sb + room}px` }}>
       <div class="mv-wrap" ref={wrap} tabindex="0" role="region" data-zoom-pct={Math.round(z * 100)} style={{ height: `${height}px`, maxHeight: `${Math.max(900, height)}px` }}
-        aria-label="Milestone timeline; scroll sideways to see all of it; drag the bottom edge to zoom">
+        aria-label="Milestone timeline; scroll sideways to see all of it; drag the grip below it to zoom">
         <div class="mv-strip" ref={strip} style={{ width: `${W}px` }}>
           {months.map((m) => {
             const say = `${MONTHS[+m.slice(5, 7) - 1].slice(0, 3)}${m.slice(5, 7) === "01" || months.length < allMonths.length ? ` ${m.slice(0, 4)}` : ""}`;
@@ -187,8 +203,10 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
             </Tag>))}
         </div>
       </div>
+      {fit ? null : <div class="mv-grip" data-grip role="slider" tabindex="0" aria-orientation="vertical" aria-label="Timeline height" aria-valuemin={70} aria-valuemax={300} aria-valuenow={Math.round(z * 100)} aria-valuetext={`Zoom ${Math.round(z * 100)}%`}
+        onKeyDown={gripKey} onPointerDown={gripDown} onPointerMove={gripMove} onPointerUp={gripUp} onPointerCancel={gripUp}><span aria-hidden="true" /></div>}
       {R2 ? zoomNote : null}
-      </Box>
+      </div>
     </div>
   );
 }

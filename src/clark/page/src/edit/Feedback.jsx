@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import * as L from "../logic/feedback.js";
 import { mailClick, MAIL_NOTE } from "./mailApi.js";
 
-async function healthVersion() {
+export async function healthVersion() {
   try {
     const r = await fetch("/health", { cache: "no-store" });
     const b = await r.json();

@@ -183,7 +183,7 @@ class Both(Base):
         self.claude.signed_in = False
         _, b = self.connect.connect({"provider": "chatgpt"})
         self.assertEqual(b["model"], "gpt-6.1-sol")
-        self.assertIn("GPT-6.1 Sol", b["message"])
+        self.assertEqual(b["message"], ac.CONNECTED)
         self.chain.ask(self.request())
         self.assertEqual(self.chatgpt.asked, ["gpt-6.1-sol"])
 

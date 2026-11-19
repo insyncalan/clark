@@ -37,6 +37,17 @@ class DemoStore:
     def last_step(self):
         return self.store.con.execute("SELECT max(apply_id) FROM applies").fetchone()[0]
 
+    def plant_builtin_sections(self, project="ABC"):
+        """A new project's report has Work items lists where the built-in Actions, RAID and Decisions sections used to be (row 1193), and a list
+        reaches only the rows it names. Tests that pin the built-in sections give the project section rows: the default sections but those lists,
+        then the three built-in ones."""
+        from clark.default_sections import DEFAULT_SECTIONS
+        rows = [dict(s) for s in DEFAULT_SECTIONS if s["type"] != "workitems"]
+        rows += [{"type": "actions", "title": "Open actions"}, {"type": "raid", "title": "Risks and issues"}, {"type": "decisions", "title": "Decisions"}]
+        with self.store.step("dashboard", USER) as st:
+            for i, r in enumerate(rows):
+                st.create("report_sections", {"project": project, "sort_order": i, **r})
+
     def action(self, **values):
         base = {"project": "ABC", "description": "Draft the cut-over plan", "raised": "2026-10-01", "source": "demo"}
         with self.store.step("dashboard", USER) as st:

@@ -312,7 +312,7 @@ class Editing(Editor):
             self.click(p, "[data-tile=t1] [data-tile-eye]")
             self.assertTrue(wait(lambda: any(t.get("hidden") for t in self.body()["bespoke"]), 10), f"stored: {self.body()}")
             self.assertEqual([t["id"] for t in self.body()["bespoke"] if t.get("hidden")], ["t1"])
-            p.until(f"document.querySelector({self.q('[data-tile=t1]')}).classList.contains('is-hidden')", "the tile drew dimmed")
+            p.until(f"!document.querySelector({self.q('[data-tile=t1]')})", "the hidden tile left Edit (row 1303)")
 
     def test_T79_it_fits_at_1400_and_900_in_light_and_dark_and_the_popped_out_editor_stays_inside_the_window(self):
         self.seed([{**OWN, "id": f"t{i}", "tone": tone, "label": "Fictional label of forty characters ok!!", "figure": "123456789012", "tag": "Twelve words", "note": "n" * 60}
@@ -391,21 +391,11 @@ class Killers(Editor):
             self.click(p, "[data-tile=t1] [data-tile-pencil]")
             p.until(f"!document.querySelector({self.q('[data-tile-editor]')})", "closed by the pencil")
 
-    def test_K3_done_keeps_a_hidden_tile_hidden_and_sends_nothing_when_nothing_changed(self):
+    def test_K3_a_hidden_own_tile_is_not_drawn_in_edit_and_stays_hidden(self):
         self.seed([{**OWN, "hidden": True}])
         with chrome() as cdp:
             p = self.page(cdp)
-            self.pencil(p)
-            before = self.applies()
-            self.click(p, "[data-tile-editor] [data-done]")
-            p.until(f"!document.querySelector({self.q('[data-tile-editor]')})", "the editor closed")
-            self.assertEqual(self.toast(p), "", "nothing changed: no toast")
-            self.assertEqual(self.applies(), before, "nothing changed: no step")
-            self.assertTrue(self.body()["bespoke"][0].get("hidden"))
-            self.pencil(p)
-            self.fill(p, "label", "Fictional kept hidden")
-            self.click(p, "[data-tile-editor] [data-done]")
-            self.assertTrue(wait(lambda: self.body()["bespoke"][0].get("label") == "Fictional kept hidden", 10), f"stored: {self.body()}")
+            self.assertEqual(p.js(f"document.querySelectorAll({self.q('[data-tile=t1]')}).length"), 0, "no tile and no pencil in Edit (row 1303)")
             self.assertTrue(self.body()["bespoke"][0].get("hidden"), "still hidden")
 
     def test_K4_arrow_keys_move_the_colour_and_wrap_and_only_the_picked_colour_is_a_tab_stop(self):

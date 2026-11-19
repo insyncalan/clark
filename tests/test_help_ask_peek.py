@@ -46,8 +46,8 @@ class HelpAskAndSneakPeek(unittest.TestCase):
             self.assertEqual(about_bar, [])
             return
         code = BUTTON.read_text(encoding="utf-8")
-        label = re.search(r'aria-label="([^"]+)"', code).group(1)
-        self.assertEqual(label, "ask clark")
+        self.assertIn('"ask clark" : working', code)       # row 1292: the label is "ask clark" at rest; it adds "working" or the count of ready answers
+        self.assertIn("aria-label={label}", code)
         self.assertIn("<svg", code)                       # the button draws a speech bubble (a rounded outline with a tail)
         self.assertIn("M4 5.5A2.5 2.5 0 0 1 6.5 3h7", code)
         self.assertIn("<kbd", code)                       # and shows its key, "/"
