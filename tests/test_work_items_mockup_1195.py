@@ -672,7 +672,10 @@ class Classic(Look):
             self.assertTrue(wait(lambda: abs(w("owner") - (start - 12)) < 1), "two Ctrl+Left are 24 px back")
             for _ in range(60):
                 p.key("ArrowLeft", CTRL, code="ArrowLeft", vk=37)
-            self.assertTrue(wait(lambda: abs(w("owner") - 48) < 1), "the width stops at the minimum of 48 px")
+            self.assertTrue(wait(lambda: abs(w("owner") - 60) < 1), "the width stops at the mock-up's minimum of 60 px (ruling 20-11; the older 48 px minimum was the shared default)")
+            for _ in range(40):
+                p.key("ArrowRight", CTRL, code="ArrowRight", vk=39)
+            self.assertTrue(wait(lambda: abs(w("owner") - 360) < 1), "and at the maximum of 360 px, not 1200")
             before = w("owner")
             p.key("ArrowRight", 1, code="ArrowRight", vk=39)               # Alt+Right moves the heading, it never resizes
             self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "due", "owner", "id"]), "Alt+Right moved Owner")

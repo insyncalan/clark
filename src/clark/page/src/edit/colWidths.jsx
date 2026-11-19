@@ -10,9 +10,12 @@ export const MIN_COL = 48;      // a column cannot be made narrower than this, s
 const STEP = 12;                // one arrow press
 const MAX_COL = 1200;
 
-const clamp = (n) => Math.max(MIN_COL, Math.min(MAX_COL, Math.round(n)));
+const clampTo = (lo, hi) => (n) => Math.max(lo, Math.min(hi, Math.round(n)));
+export const LIST_MIN = 60;      // row 1195: the Classic Work items list keeps a width between 60 and 360 px, as the approved mock-up does
+export const LIST_MAX = 360;
 
 export function useColWidths(table, ctrl = false) {      // row 1195: ctrl true (the Work items list under Classic): Ctrl with an arrow changes the width, Alt with an arrow is left to moving the column
+  const clamp = ctrl ? clampTo(LIST_MIN, LIST_MAX) : clampTo(MIN_COL, MAX_COL);
   const key = `cols.${table}`;
   const [saved, setSaved] = useState(() => {
     const v = recall(key, {});
