@@ -372,6 +372,12 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .fbt-error { margin-top: 4px; color: var(--status-red-text); font-size: 13px; }
 /* Row 1375: a wheel over the Dashboard's Work items box that has reached its top or bottom keeps scrolling the page (the shared rule's overscroll-behavior-y: contain made it stall inside the box); the box still scrolls its own rows. */
 .wil-scroll { overscroll-behavior-y: auto; }
+/* Row 1395: the Work items toolbar as the prototype draws it at 1400, Classic only (the page is #work). The filter box types 15px (its drawn copy, .fhi, follows so the caret stays on the letters) and its count 13px; the chosen layout tile is 36 x 32 with the brand tint and the brand blue glyph (--tile-on-bg, --tile-on-fg, set in tokens.css); the Add tile is a dashed grey-500 box, radius 6, no fill, brand blue. Hover and focus of the Add tile stay as they are. */
+#work .fedit input, #work .fhi { font-size: 15px; }
+#work .fcount { font-size: var(--size-caption); }
+#work .vicons .seg.lsw button { box-sizing: border-box; width: 36px; height: 32px; }
+#work .vicons .seg.lsw button[aria-pressed="true"] { background-color: var(--tile-on-bg); color: var(--tile-on-fg); }
+#work .newb:not(:hover):not(:focus-visible):not([aria-expanded="true"]) { border-color: var(--grey-500); border-radius: 6px; background: transparent; color: var(--brand-blue); }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
