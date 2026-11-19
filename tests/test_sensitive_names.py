@@ -16,9 +16,10 @@ from _paths import SRC  # noqa: F401
 from clark import sensitive_names as sn
 
 EXPECTED = (
-    "candidate", "cv", "resume", "interview", "salary", "payroll", "hr", "performance", "disciplinary",
-    "grievance", "contract", "sow", "nda", "agreement", "proposal", "pricing", "rates", "commercial",
-    "invoice", "purchase order", "legal",
+    "candidate", "candidates", "cv", "cvs", "resume", "resumes", "interview", "interviews", "salary", "payroll",
+    "hr", "performance", "disciplinary", "grievance", "contract", "contracts", "sow", "nda", "agreement",
+    "agreements", "proposal", "proposals", "pricing", "rates", "commercial", "invoice", "invoices",
+    "purchase order", "legal",
 )
 
 
@@ -127,6 +128,53 @@ class Scan(unittest.TestCase):
     def test_count_depth_limit(self):
         tree(self.root, ["Contract/a/x.txt", "Contract/y.txt"])
         with mock.patch.object(sn, "MAX_DEPTH", 1):
+            (r,) = sn.scan(self.root)
+        self.assertEqual(r["readable_files"], 1)
+
+    def test_ticket_example_and_plurals(self):
+        tree(self.root, ["ODC Candidates_CVs/a.docx"])
+        (r,) = sn.scan(self.root)
+        self.assertEqual((r["name"], r["words"]), ("ODC Candidates_CVs", ["candidates", "cvs"]))
+        for plural in ("Contracts", "Resumes", "Invoices", "Agreements", "Proposals", "Interviews", "Candidates", "CVs"):
+            self.assertEqual(len(sn.words_in(plural)), 1, plural)
+
+    def test_entry_cap_stops_scan_and_flags_truncated(self):
+        tree(self.root, ["A1.txt", "A2.txt", "A3.txt", "Contract/x.txt", "z/Legal/y.txt"])
+        with mock.patch.object(sn, "MAX_ENTRIES", 3):
+            r = sn.scan(self.root)
+        self.assertTrue(r.truncated)
+        self.assertEqual(r, [])  # the cap hit before Contract and z were reached
+
+    def test_cap_not_hit_is_not_truncated(self):
+        tree(self.root, ["Contract/x.txt", "b.txt"])
+        with mock.patch.object(sn, "MAX_ENTRIES", 3):
+            r = sn.scan(self.root)
+        self.assertFalse(r.truncated)
+        self.assertEqual(len(r), 1)
+
+    def test_cap_exactly_met_is_not_truncated(self):
+        tree(self.root, ["a.txt", "b.txt"])
+        with mock.patch.object(sn, "MAX_ENTRIES", 2):
+            self.assertFalse(sn.scan(self.root).truncated)
+
+    def test_count_depth_two_counts_one_level_down(self):
+        tree(self.root, ["Contract/a/x.txt", "Contract/a/b/z.txt", "Contract/y.txt"])
+        with mock.patch.object(sn, "MAX_DEPTH", 2):
+            (r,) = sn.scan(self.root)
+        self.assertEqual(r["readable_files"], 2)
+
+    def test_digits_make_one_word(self):
+        tree(self.root, ["CV2/a.txt", "2cv/a.txt", "hr5/a.txt"])
+        self.assertEqual(sn.scan(self.root), [])
+
+    def test_unreadable_folder_under_match_counts_zero(self):
+        tree(self.root, ["Contract/locked/a.txt", "Contract/b.txt"])
+        real = os.scandir
+        def fake(p):
+            if str(p).endswith("locked"):
+                raise PermissionError(p)
+            return real(p)
+        with mock.patch.object(os, "scandir", fake):
             (r,) = sn.scan(self.root)
         self.assertEqual(r["readable_files"], 1)
 
