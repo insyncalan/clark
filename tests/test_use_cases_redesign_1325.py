@@ -186,7 +186,7 @@ class Redesign:
                 p.js("location.hash = '#work&p=ABC'")
                 p.until("!!document.querySelector('#work table.items tbody tr')", "Work items drew")
                 wk = p.js(LOOK + "('#work')")
-                for k in ("av", "vtab", "gutter"):   # not fline: Row 1316 ruled the Classic Use cases filter a boxed input (the prototype's), Work items keeps its line; not th, not td: Row 1316 follow-up (ruling 19-11) made the Use cases header flat, 13px/500, rule below only, and the item line a rule under the row, not over it (pinned in test_gap_1316b); Work items keeps both
+                for k in ("th", "td", "av", "vtab", "gutter"):   # not fline: Row 1316 ruled the Classic Use cases filter a boxed input (the prototype's), Work items keeps its line
                     self.assertIsNotNone(uc[k], k + ": drawn on Use cases")
                     self.assertEqual(uc[k], wk[k], k + ": the same as Work items, measured on both pages")
 
