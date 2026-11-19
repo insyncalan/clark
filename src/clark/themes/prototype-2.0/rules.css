@@ -380,14 +380,14 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .ddmenu .lab.caps, .mh.caps { font-size: var(--size-body); letter-spacing: normal; text-transform: none; font-weight: var(--weight-regular); }
 .gt-pop button, .gt-menu button, [data-gt] .gt-menu button { padding-left: var(--space-3); padding-right: var(--space-3); font-size: var(--size-body); }
 .ddmenu .lab, .ddmenu .who, .ddmenu .mh, .mh { padding-left: 16px; padding-right: 16px; }
-/* Row 1299 slice 1b (W4, Classic only: Cards keeps the Settings page it had): the Settings window. The page's menu and cards sit in one rounded window on its own ground (no overflow clipping: the sidebar is sticky and a focus ring reaches outside its entry); each menu entry starts with an icon tile in its group's colour, the glyph in the on-brand ink (3:1 in light and dark, test_settings_window_1299b). */
+/* Row 1299 slice 1b (W4, Classic only: Cards keeps the Settings page it had): the Settings window. The page's menu and cards sit in one window on the surface ground: 12px corners (--radius-lg) and a 1px ring in the border colour drawn as a shadow, with no overflow clipping (the sidebar is sticky and a focus ring reaches outside its entry); each menu entry starts with an icon tile in its group's colour, the glyph in the on-brand ink (3:1 in light and dark, test_settings_window_1299b). */
 .set-win { background: var(--surface); box-shadow: 0 0 0 1px var(--border); border-radius: var(--radius-lg); padding: var(--space-4) var(--space-4) var(--space-5); }
 .set-tile { flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; margin-right: var(--space-2); border-radius: 6px; background: var(--brand-blue); color: var(--text-on-brand); }
 .set-tile .i { width: 16px; height: 16px; }
 .set-tile-2 { background: var(--status-green); } .set-tile-3 { background: var(--status-red); } .set-tile-4 { background: var(--brand-blue-strong); }
 .set-win > .set-head { border: 0; box-shadow: none; background: transparent; padding: 0 0 var(--space-2); }      /* the window is the frame: the heading is not a second box in it */
 @media (min-width: 900px) and (max-width: 1099px) { .set-layout.set-win { grid-template-columns: 164px minmax(0, 1fr); } }
-/* Row 1312 keeps its 20px gutter padding on the Settings window (screen only; print has none): the window padding above is shorter. */
+/* Row 1312's 20px left gutter wins over the window's 16px left padding on screen; print has no left padding. The 164px menu column above is for 900 to 1099 only. */
 @media screen { .set-layout.set-win { padding-left: 20px; } }
 @media print { .set-layout.set-win { padding-left: 0; } }
 /* Row 1324 gap, Work items (Option A, ruling 18-11; Classic only, Cards keeps its group tiles): Group by draws a heading on the page, no tile: the name, the count 13 px with 2 px before it, one 1 px hairline under it; the column names once on top (WorkItems.jsx, only in this Theme) with 1 px under them and 14 px of space before the first group; 18 px above each group; the first and last cell of a row have no side padding and the first row of a group has no line over it; the heading goes brand on hover and has a 2 px brand ring, offset 2 px, radius 6 px. Rows, collapse, counts and keys are untouched. */

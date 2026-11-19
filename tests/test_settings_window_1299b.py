@@ -16,7 +16,7 @@ from test_publish_dialog import Base
 from test_publish_route import Rig
 from test_server import chrome
 from test_settings_bar import calm
-from test_settings_head import PAGES, address, ratio, rgb
+from test_settings_head import GROUPS, PAGES, address, ratio, rgb
 
 WIDTHS = (1400, 900)
 MODES = ("light", "dark")
@@ -115,6 +115,95 @@ class Window(Base):
                     self.assertGreaterEqual(r["top"], ring, "room above the first entry for the ring")
                     self.assertGreaterEqual(r["right"], ring, "room at the right of the first entry for the ring")
                     self.assertGreaterEqual(r["rightL"], ring, "room at the right of the last entry for the ring")
+
+    def token(self, p, css):
+        """What a CSS value (a token) resolves to on this page, as the browser computes it: a probe element takes it as its ground and its width."""
+        return p.js("(() => { const e = document.createElement('i'); e.style.cssText = 'position:absolute;background:%s;width:%s'; document.body.appendChild(e);"
+                    " const cs = getComputedStyle(e), out = {bg: cs.backgroundColor, w: cs.width}; e.remove(); return out; })()" % (css, css))
+
+    def test_W4_each_tile_takes_its_groups_colour_and_each_page_has_one_icon_of_its_own(self):
+        tokens = ["--brand-blue", "--status-green", "--status-red", "--brand-blue-strong", "--brand-blue"]      # groups 1 to 4 have a colour of their own; the fifth (Advanced) has no .set-tile-5 rule and keeps the tile's base colour, the first group's
+        slugs = [(i + 1, slug) for i, (_, pages) in enumerate(GROUPS) for slug, _, _ in pages]
+        for w in WIDTHS:
+            for mode in MODES:
+                with self.subTest(width=w, mode=mode), chrome() as cdp:
+                    p = self.page(cdp)
+                    self.open_settings(p, w, mode)
+                    got = p.js("[...document.querySelectorAll('.set-win .set-chip')].map(b => { const t = b.querySelector('.set-tile');"
+                               " return {cls: t.className, bg: getComputedStyle(t).backgroundColor, svgs: t.querySelectorAll('svg').length, art: t.querySelector('svg').innerHTML}; })")
+                    self.assertEqual(len(got), len(slugs))
+                    self.assertEqual(len({n for n, _ in slugs}), len(tokens), "five groups")
+                    for g, (n, slug) in zip(got, slugs):
+                        self.assertEqual(g["cls"], f"set-tile set-tile-{n}", slug + ": the tile carries its group's number")
+                        self.assertEqual(g["bg"], self.token(p, f"var({tokens[n - 1]})")["bg"], f"{slug}: group {n} is {tokens[n - 1]} in {mode}")
+                        self.assertEqual(g["svgs"], 1, slug + ": one icon in the tile")
+                    self.assertEqual(len({g["art"] for g in got}), len(got), "every page has an icon of its own (no two tiles draw the same glyph)")
+
+    def test_W4_the_window_is_twelve_pixels_round_with_a_one_pixel_ring_and_its_own_padding(self):
+        for w in WIDTHS:
+            for mode in MODES:
+                with self.subTest(width=w, mode=mode), chrome() as cdp:
+                    p = self.page(cdp)
+                    self.open_settings(p, w, mode)
+                    r = p.js("(() => { const cs = getComputedStyle(document.querySelector('.set-win')); return {radius: cs.borderTopLeftRadius, shadow: cs.boxShadow, bg: cs.backgroundColor,"
+                             " pt: cs.paddingTop, pr: cs.paddingRight, pb: cs.paddingBottom, pl: cs.paddingLeft, border: cs.borderTopWidth}; })()")
+                    self.assertEqual(r["radius"], self.token(p, "var(--radius-lg)")["w"], "the radius is the large-radius token")
+                    self.assertEqual(r["radius"], "12px", "the radius as built (a ruling on 12 against the mock-up's 18 is pending)")
+                    ring = self.token(p, "var(--border)")["bg"]
+                    self.assertEqual(r["shadow"], f"{ring} 0px 0px 0px 1px", "a one pixel ring in the border colour, drawn as a shadow so it takes no room")
+                    self.assertEqual(r["bg"], self.token(p, "var(--surface)")["bg"], "the ground is the surface token")
+                    self.assertEqual(r["border"], "0px", "the ring is not a border")
+                    self.assertEqual((r["pt"], r["pr"], r["pb"]), (self.token(p, "var(--space-4)")["w"], self.token(p, "var(--space-4)")["w"], self.token(p, "var(--space-5)")["w"]), "padding: space-4 above and right, space-5 below")
+                    self.assertEqual(r["pl"], "20px", "on screen the left padding is Row 1312's 20px gutter")
+
+    def test_W4_the_heading_is_flat_inside_the_window(self):
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.page(cdp)
+                self.open_settings(p, w)
+                r = p.js("(() => { const cs = getComputedStyle(document.querySelector('.set-win > .set-head')); return {border: cs.borderTopWidth + cs.borderBottomWidth + cs.borderLeftWidth + cs.borderRightWidth,"
+                         " shadow: cs.boxShadow, bg: cs.backgroundColor, pt: cs.paddingTop, pl: cs.paddingLeft, pr: cs.paddingRight}; })()")
+                self.assertEqual(r["border"], "0px0px0px0px", "no border on the heading")
+                self.assertEqual(r["shadow"], "none", "no shadow on the heading")
+                self.assertEqual(r["bg"], "rgba(0, 0, 0, 0)", "no ground on the heading: the window is the frame")
+                self.assertEqual((r["pt"], r["pl"], r["pr"]), ("0px", "0px", "0px"), "the heading has no padding above or at the sides")
+
+    def test_W4_between_900_and_1099_the_menu_column_is_164px_and_at_1400_it_is_not(self):
+        for w, want in ((900, "164px"), (1400, None)):
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.page(cdp)
+                self.open_settings(p, w)
+                col = p.js("getComputedStyle(document.querySelector('.set-win')).gridTemplateColumns.split(' ')[0]")
+                if want:
+                    self.assertEqual(col, want, "the menu column")
+                else:
+                    self.assertNotEqual(col, "164px", "164px is for 900 to 1099 only")
+                    self.assertGreaterEqual(float(col[:-2]), 150, "at 1400 the column keeps the shared rule's width")
+
+    def test_W4_print_drops_the_left_gutter_padding(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p, 1400)
+            self.assertEqual(p.js("getComputedStyle(document.querySelector('.set-win')).paddingLeft"), "20px")
+            cdp.call("Emulation.setEmulatedMedia", {"media": "print"}, p.sid)
+            p.until("getComputedStyle(document.querySelector('.set-win')).paddingLeft === '0px'", "print has no left padding")
+
+
+class CardsWindow(Base):
+    """The Cards file draws the Settings page it drew: no window and no tiles (those are Classic only)."""
+
+    def test_W4_cards_has_no_window_and_no_tiles(self):
+        self.rig = Rig(self, saved=self.saved)
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.page(cdp)
+                p.width(w)
+                calm(p, "light")
+                p.js(f"location.hash = '{address('people')}'")
+                p.until("!!document.querySelector('.set-layout .set-chip[aria-current]') && !!document.querySelector('.set-cards').children.length", "Settings drew")
+                self.assertEqual(p.js("document.querySelectorAll('.set-win').length"), 0, "no .set-win")
+                self.assertEqual(p.js("document.querySelectorAll('.set-tile, [class*=\"set-tile-\"]').length"), 0, "no .set-tile")
+                self.assertGreater(p.js("document.querySelectorAll('.set-chip').length"), 0, "the menu itself is there")
 
 
 if __name__ == "__main__":
