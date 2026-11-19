@@ -15,10 +15,11 @@ from test_milestones_page import BrowserBase, EMPTY_BRANDING
 from test_server import Running, chrome, wait
 
 HASH = "#milestones&p=TUL"
-CARDS_STYLE_MD5 = {"blocks": ["7195b3107c3b5022f3b40ad1dfbbe484"]}
+# Row 1329 re-pin: Cards theme is unmaintained (ruling 19-11); the Milestones page lost the forecast sentence and the Plan | Movement switch, so these Cards pins moved (the "move" capture now shows the Plan page, as the switch is gone).
+CARDS_STYLE_MD5 = {"blocks": ["cfc2c2fcee21c65176ee1cd090adf9e8"]}
 CARDS_DOM_MD5 = {
-    1400: {"plan": "884d48fa51c42a792db825a88e2d5390", "open": "f880cee0281bb5a0f2ed6cbcb7c44e39", "calendar": "489268a179f71d1b61c6a35aa6444408", "move": "4e910e9f8f41236bc3810c2ae74045f3"},
-    900: {"plan": "884d48fa51c42a792db825a88e2d5390", "open": "a47b575a7ad86e2e18674c92043a9ff6", "calendar": "489268a179f71d1b61c6a35aa6444408", "move": "4e910e9f8f41236bc3810c2ae74045f3"},
+    1400: {"plan": "7dc6551649eaf9612010ed3d997ff304", "open": "ea5f011fba38fdb877eac517f5cce9cb", "calendar": "3f2221128b450d07738b2e89a9dc74df", "move": "3f2221128b450d07738b2e89a9dc74df"},
+    900: {"plan": "7dc6551649eaf9612010ed3d997ff304", "open": "b3d666fa6bf1cf17c5e11da7b9d652b1", "calendar": "3f2221128b450d07738b2e89a9dc74df", "move": "3f2221128b450d07738b2e89a9dc74df"},
 }
 
 
