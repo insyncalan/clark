@@ -27,7 +27,7 @@ from clark import app_settings, page, store as st
 
 PAGE_SRC = Path(page.PAGE).parent / "src"
 WIDTHS = (1400, 900)
-ON = "Asking is on for all projects."
+ON = "Asking is on."
 OFF = "Asking is off. Turn it on in Settings."
 CHECKING = "Checking whether asking is on…"
 UNAVAILABLE = "Asking is off, because clark could not check the setting just now. Reload the page to try again."
@@ -142,7 +142,7 @@ class Settings(unittest.TestCase):
             self.assertEqual(js("localStorage.getItem('clark.askEnabled')"), None)
             js("document.querySelector('[data-ask-switch]').click()")
             self.until(lambda: js(state), OFF, "asking is off after the press")
-            self.until(lambda: js("(document.querySelector('[data-ask-switch]') || {}).innerText"), "Turn on asking for all projects", "the switch offers to turn it on")
+            self.until(lambda: js("(document.querySelector('[data-ask-switch]') || {}).innerText"), "Turn on asking", "the switch offers to turn it on")
             self.until(lambda: read(self.db)[0], False, "the database holds it, for this computer")
             self.assertEqual(js("localStorage.getItem('clark.askEnabled')"), None, "nothing is kept in the browser")
             js("localStorage.clear()")

@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { project } from "../stores/report.js";
-import { askOn, askStatus, askSaved, askProvider, loadAsk, setAsk, ASK_OFF_LINE, ASK_ON_ALL_LINE, ASK_TURN_OFF_ALL, ASK_TURN_ON_ALL, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
+import { askOn, askStatus, askSaved, askProvider, loadAsk, setAsk, ASK_OFF_LINE, askOnLine, askTurnWord, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
 import { named, ASK_NOTICE_LINE } from "./askWords.js";
 import { ConnectorsAll, ConnectorsProject } from "./ConnectorSettings.jsx";
 import { AiSettings } from "./AiSettings.jsx";
@@ -135,18 +135,19 @@ function AskProject() {
   }
 
   const list = Array.isArray(folders) ? folders : [];
+  const classic = classicTheme();
   return (
     <>
     <section class="frame setting" id="ask-settings">
       <h2 id="ask-settings-h" tabIndex={-1}>{`Asking in ${code}`}</h2>
       <p class="muted">{named("Claude is started on this computer for you.", askProvider.value)}</p>
       <p class="muted" id="ask-notice">{named(ASK_NOTICE_LINE, askProvider.value)}</p>
-      <p id="ask-state">{status === "loading" ? ASK_CHECKING_LINE : status === "unavailable" ? ASK_UNAVAILABLE_LINE : on ? ASK_ON_ALL_LINE : ASK_OFF_LINE}</p>
+      <p id="ask-state">{status === "loading" ? ASK_CHECKING_LINE : status === "unavailable" ? ASK_UNAVAILABLE_LINE : on ? askOnLine(classic) : ASK_OFF_LINE}</p>
       {status === "ready" && !saved ? <p class="muted" id="ask-unsaved">This computer's saved data can't keep this choice yet, so asking stays off. Restart clark to bring the saved data up to date.</p> : null}
       <div class="row">
-        <button type="button" class="btn" ref={switchRef} data-ask-switch aria-pressed={on ? "true" : "false"} disabled={busy || status !== "ready"} onClick={flip}>{on ? ASK_TURN_OFF_ALL : ASK_TURN_ON_ALL}</button>
+        <button type="button" class="btn" ref={switchRef} data-ask-switch aria-pressed={on ? "true" : "false"} disabled={busy || status !== "ready"} onClick={flip}>{askTurnWord(on, classic)}</button>
       </div>
-      <AskHere code={code} />
+      {classic ? <AskHere code={code} /> : null}
       <div class="pub-msg" role={msg && msg.kind === "error" ? "alert" : "status"} aria-live="polite">{msg && msg.text ? <p class={msg.kind}>{msg.text}</p> : null}</div>
     </section>
     <section class="frame setting" id="ask-used-all">
@@ -211,7 +212,7 @@ function AllProjects() {
     <section class="frame setting" id="ask-all">
       <h2 id="ask-settings-h" tabIndex={-1}>Asking for all projects</h2>
       <p class="muted">{ALL_LINE}</p>
-      <NewProjectsAll />
+      {classicTheme() ? <NewProjectsAll /> : null}
     </section>
     <AiSettings />
     <ConnectorsAll />
