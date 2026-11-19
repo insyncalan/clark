@@ -300,6 +300,11 @@ class TheMenuFeed(unittest.TestCase):
         self.assertEqual(menu, ["milestones", "monday"])
         self.assertEqual(js('AS.slashMatches("/", []).length'), 8)
 
+    def test_the_built_in_questions_are_answers_that_may_be_anywhere_and_an_act_is_kept_by_its_name(self):
+        """Row 1295 mutation sweep: BUILTINS' scope and result, and withOwn keeping a built-in act when a name clashes."""
+        self.assertEqual(js('AS.BUILTINS.map((b) => [b.scope, b.result, b.builtin])'), [["anywhere", "answer", True]] * 8)
+        self.assertEqual(js('AS.withOwn([{name:"history",hint:"x",ask:"y"}]).find((c) => c.name === "history").act'), "history")
+
     def test_history_and_new_cannot_be_replaced(self):
         mine = '{name:"history",replaces:"history",menu:"x",text:"y",scope:"anywhere",result:"answer"}'
         self.assertEqual(js('AS.menuCommands({all:[%s],project:[]})' % mine), [])

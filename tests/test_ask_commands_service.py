@@ -7,11 +7,13 @@ import re
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from _paths import ROOT  # noqa: F401  (puts src/ on the path)
 from test_server import Running
 
 from clark import ask_commands_service as svc
+from clark import server as sv
 
 GOOD = {"name": "monday", "menu": "Monday summary", "text": "Group {today} overdue items by owner.", "scope": "anywhere", "result": "answer"}
 
@@ -113,6 +115,38 @@ class Service(unittest.TestCase):
             self.assertEqual((st, b["ok"]), (400, False), body)
         self.assertEqual(list(self.root.rglob("*")), [])
         self.assertEqual(self.get("bad!")[0], 400)
+
+    def test_each_bad_field_is_a_bad_request_with_its_own_code_and_writes_nothing(self):
+        """Row 1295 mutation sweep: the checks of change() and read() each answer bad_request / bad_project_code, not a later refusal or a save."""
+        cases = (({"scope": "everywhere", "action": "save", "record": GOOD}, "bad_request"),
+                 ({"scope": "all", "action": "save", "record": GOOD, "was": 5}, "bad_request"),
+                 ({"scope": "all", "action": "save", "record": {**GOOD, "name": 5}}, "bad_request"),
+                 ({"scope": "all", "action": "save", "record": {**GOOD, "text": ["x"]}}, "bad_request"),
+                 ({"scope": "project", "project": "ABC!", "action": "save", "record": GOOD}, "bad_project_code"),
+                 ({"scope": "project", "project": "ABCDEFGH", "action": "save", "record": GOOD}, "bad_project_code"),
+                 ({"scope": "project", "project": "ABC\n", "action": "save", "record": GOOD}, "bad_project_code"),
+                 ({"scope": "project", "project": 5, "action": "save", "record": GOOD}, "bad_project_code"))
+        for body, code in cases:
+            st, b = self.post(body)
+            self.assertEqual((st, b["code"]), (400, code), body)
+        self.assertEqual(list(self.root.rglob("*")), [])
+        for project in ("ABC!", "ABCDEFGH", "abc", "AB", "ABC%0A"):
+            st, b = self.get(project)
+            self.assertEqual((st, b["code"]), (400, "bad_project_code"), project)
+
+    def test_a_read_has_no_message_and_the_route_is_a_save_path_with_room_for_a_full_command(self):
+        st, b = self.get()
+        self.assertNotIn("message", b)
+        self.assertIn("/api/ask-commands", sv.SAVE_PATHS)
+        full = {**GOOD, "text": "x" * 1000, "menu": "m" * 70}
+        self.assertEqual(self.post({"scope": "all", "action": "save", "record": full})[0], 200)
+        st, b = self.post({"scope": "all", "action": "save", "record": GOOD, "pad": "x" * 9000})
+        self.assertEqual((st, b["code"]), (400, "too_large"))
+
+    def test_a_disk_that_cannot_be_written_is_a_409_with_its_own_code(self):
+        with mock.patch.object(svc.ac.AskCommands, "write", side_effect=OSError("disk")):
+            st, b = self.post({"scope": "all", "action": "save", "record": GOOD})
+        self.assertEqual((st, b["code"], b["ok"]), (409, "cant_save", False))
 
     def test_a_damaged_file_is_listed_and_the_rest_still_read(self):
         self.post({"scope": "all", "action": "save", "record": GOOD})
