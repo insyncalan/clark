@@ -326,7 +326,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .gt-pop button, .gt-menu button, [data-gt] .gt-menu button { padding-left: var(--space-3); padding-right: var(--space-3); font-size: var(--size-body); }
 .ddmenu .lab, .ddmenu .who, .ddmenu .mh, .mh { padding-left: 16px; padding-right: 16px; }
 /* Row 1342: the Feedback tag dialog as the 1298 mockup draws it: heading 17px / 600 with 2px under it, the dialog and the tag one step roomier (bottom padding 14, tag top and bottom padding 14). */
-.fbt-head h2 { margin: 0 0 2px; font-size: 17px; font-weight: 600; }
+.fbt-head h2 { margin: 0 0 2px; font-size: 17px; font-weight: 600; color: var(--heading); }
 .fbt-dlg { padding-bottom: 14px; }
 .fbt-tag { padding-top: 14px; padding-bottom: 14px; }
 /* Row 1342 part 2: the Proposed tag (11px, 1 7, pill, tint, brand, 500, 4 left), the empty-send error (red 13px, 4 above) and the icon tag (horizontal, 10 8, 12 0 0 12, 18px) as the 1298 mockup draws them. */
