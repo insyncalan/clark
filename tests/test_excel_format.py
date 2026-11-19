@@ -218,14 +218,14 @@ class Formatting(unittest.TestCase):
         wb = load_workbook(path)
         ws = wb["Actions"]
         c = self.cell(ws, "DEMO-A-001", "Priority")
-        self.assertEqual(look_of(ws, c.column_letter, c.value), colours.hexes("red"))
+        self.assertEqual(look_of(ws, c.column_letter, c.value), colours.hexes("maroon"))
         c.value = "Low"
         wb.save(path)
         ws = load_workbook(path)["Actions"]
         c = self.cell(ws, "DEMO-A-001", "Priority")
         self.assertEqual(c.value, "Low")
         self.assertEqual(look_of(ws, c.column_letter, c.value), colours.hexes("grey"))
-        self.assertEqual(look_of(ws, c.column_letter, "High"), colours.hexes("amber"))
+        self.assertEqual(look_of(ws, c.column_letter, "High"), colours.hexes("red"))
 
     def test_the_words_stay_and_no_cell_carries_a_static_colour(self):
         """Colour is only ever a rule: the cell keeps its word and has no fill of its own (the sheet reads without colour)."""
@@ -244,19 +244,18 @@ class Formatting(unittest.TestCase):
         self.assertIn(f"G2:G{last}", ranges)                  # Due (the overdue rule)
 
     def test_the_colours_themselves(self):
-        """RAID follows D-12 (Urgent and High red, Medium amber, Low green); Actions follow the page's .prio pills
-        (Urgent red, High amber, Medium and Low grey); the tokens' hex."""
+        """Item 1390: RAID (Urgent maroon, High red, Medium amber, Low green); Actions (Urgent maroon, High red, Medium and Low grey)."""
         self.assertEqual({k: colours.PRIORITY[k] for k in ("Urgent", "High", "Medium", "Low")},
-                         {"Urgent": "red", "High": "red", "Medium": "amber", "Low": "green"})
+                         {"Urgent": "maroon", "High": "red", "Medium": "amber", "Low": "green"})
         self.assertEqual({k: colours.ACTION_PRIORITY[k] for k in ("Urgent", "High", "Medium", "Low")},
-                         {"Urgent": "red", "High": "amber", "Medium": "grey", "Low": "grey"})
+                         {"Urgent": "maroon", "High": "red", "Medium": "grey", "Low": "grey"})
         self.assertIs(colours.BY_FIELD[("raid", "priority")], colours.PRIORITY)
         self.assertIs(colours.BY_FIELD[("actions", "priority")], colours.ACTION_PRIORITY)
         self.assertEqual(colours.hexes("red"), ("F4DEDB", "B3392F"))
         self.assertEqual(colours.hexes("amber"), ("FBF0D2", "8A5A12"))
         self.assertEqual(colours.hexes("green"), ("DFF1EA", "2F6E57"))
         self.assertEqual(colours.MILESTONE_STATE["At risk"], "amber")
-        self.assertEqual(colours.DECISION_STATUS, {"Pending": "green", "Made": "blue", "Withdrawn": "grey"})
+        self.assertEqual(colours.DECISION_STATUS, {"Pending": "blue", "Made": "green", "Withdrawn": "grey"})
 
     def test_use_case_status_is_green_amber_red_and_done_grey(self):
         """#412: Done is grey on the Use cases sheet, as the page draws it; the word is always in the cell."""
@@ -269,8 +268,8 @@ class Formatting(unittest.TestCase):
 
     def test_action_and_raid_status_follow_the_pages_tones(self):
         self.assertEqual(colours.BY_FIELD[("actions", "status")],
-                         {"Open": "green", "Delayed": "amber", "Closed": "blue", "Cancelled": "grey"})
-        self.assertEqual(colours.BY_FIELD[("raid", "status")], {"Open": "green", "Closed": "blue", "Cancelled": "grey"})
+                         {"Open": "blue", "Delayed": "amber", "Closed": "grey", "Cancelled": "grey"})
+        self.assertEqual(colours.BY_FIELD[("raid", "status")], {"Closed": "grey", "Cancelled": "grey"})
         wb = load_workbook(self.build(self.everything()))
         for sheet, label, table in (("Actions", "Status", "actions"), ("Risks & Issues", "Status", "raid")):
             ws = wb[sheet]
@@ -288,7 +287,9 @@ class Formatting(unittest.TestCase):
             m = re.search(r"\.prio\." + level + r"\s*\{\s*background:\s*var\(--([a-z0-9-]+)\)", css)
             self.assertIsNotNone(m, level)
             found[level] = family[m.group(1)]
-        self.assertEqual(found, colours.ACTION_PRIORITY)
+        # Item 1390: the export is ahead of the page for Urgent (maroon) and High (red); the page chip moves in the page slice (3 of 11),
+        # which then makes this a full comparison again. Medium and Low are grey on both.
+        self.assertEqual({k: found[k] for k in ("Medium", "Low")}, {k: colours.ACTION_PRIORITY[k] for k in ("Medium", "Low")})
 
     def test_every_pair_reads_at_4_5_to_1(self):
         for name in colours.COLOURS:

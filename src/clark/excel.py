@@ -752,6 +752,26 @@ def add_colour_rules(ws, col, n_rows, values, pal=None):
         ws.conditional_formatting.add(f"{col}2:{col}{n_rows}", rule)
 
 
+def add_open_by_priority_rules(ws, col, n_rows, priority_col, pal=None):
+    """Item 1390: an open Risk or Issue takes the colour of its own Priority (the page's workItems.js colourOf): one rule per priority word,
+    each reading the Priority cell of the same row, so a Priority changed in Excel recolours the Status. The words are fixed literals."""
+    for value, name in colours.OPEN_BY_PRIORITY.items():
+        rule = Rule(type="expression", formula=[f'AND(${col}2="Open",${priority_col}2="{value}")'], dxf=_dxf(name, pal))
+        ws.conditional_formatting.add(f"{col}2:{col}{n_rows}", rule)
+
+
+# Item 1390: a tab's colour, by sheet key: the token it reads from the palette, so a brand's own look reaches the tabs.
+# Actions blue 2456A8, Risks & Issues red B3392F, Decisions green 2F6E57, Milestones amber 8A5A12, Use cases brand blue, Gantt grey 4F5865.
+# Report (062F3A, the page heading) and Documents (8592AD, data-6) have no sheet yet: they are listed for the slices that add them.
+TAB_TOKEN = {"actions": "tone-blue-text", "raid": "tone-red-text", "decisions": "tone-green-text", "milestones": "tone-amber-text",
+             "use_cases": "brand-blue", "gantt": "tone-grey-text"}
+
+
+def tab_colour(ws, key, pal=None):
+    """Set the sheet's tab colour for a sheet key of TAB_TOKEN."""
+    ws.sheet_properties.tabColor = _pal(pal).tokens[TAB_TOKEN[key]]
+
+
 def add_late_status_rule(ws, col, n_rows, date_col, open_states, pal=None):
     """Row 1021: an open item past its date reads Overdue (red) on the page and in Word, so its Status cell is red here too, ahead of the
     green Open rule (stop if true). A formula rule evaluated by Excel against today's date; the sheet's words are unchanged."""
@@ -962,6 +982,7 @@ def write_gantt(wb, lines, fields, name, today, pal=None):
     header row, frozen after the Line column."""
     st = Styles(_pal(pal))
     ws = wb.create_sheet(gantt_sheet_name(name, wb.sheetnames))
+    tab_colour(ws, "gantt", pal)
     cols = [(label, f) for label, f in GANTT_SHEET_COLUMNS if f in fields]
     ws.append([label for label, _ in cols])
     for line in lines:
@@ -1382,6 +1403,8 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
                                      colours.LATE[(table, "due_date")][1], pal)
             if (table, field) in colours.BY_FIELD:      # clark (#85c): colour follows the value, by conditional format
                 add_colour_rules(ws, col, n_rows, colours.BY_FIELD[(table, field)], pal)
+            if (table, field) == ("raid", "status") and (table, field) in colours.BY_FIELD:      # item 1390: an open item takes its Priority's colour
+                add_open_by_priority_rules(ws, col, n_rows, get_column_letter([f for _, f in cols].index("priority") + 1), pal)
             if (table, field) in colours.LATE:
                 status_field, open_states = colours.LATE[(table, field)]
                 add_late_rule(ws, col, n_rows, col, get_column_letter([f for _, f in cols].index(status_field) + 1),
@@ -1390,6 +1413,7 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
             note = Comment(INTERNAL_NOTE + "\n\n" + ID_NOTE, FIXED_NAME)    # one note per cell: both go on Milestones A1
             note.width, note.height = 320, 120
             ws["A1"].comment = note
+        tab_colour(ws, table, pal)
         ws.freeze_panes = freeze_cell(table, cols)
         ws.auto_filter.ref = f"A1:{get_column_letter(len(cols))}{len(rows) + 1}"
         protect_sheet(ws)

@@ -138,8 +138,8 @@ class Copies(Base):
 
 class ExcelStatus(unittest.TestCase):
     def test_open_is_green_closed_is_blue_cancelled_is_grey(self):
-        self.assertEqual(excel_colours.ACTION_STATUS, {"Open": "green", "Delayed": "amber", "Closed": "blue", "Cancelled": "grey"})
-        self.assertEqual(excel_colours.RAID_STATUS, {"Open": "green", "Closed": "blue", "Cancelled": "grey"})
+        self.assertEqual(excel_colours.ACTION_STATUS, {"Open": "blue", "Delayed": "amber", "Closed": "grey", "Cancelled": "grey"})
+        self.assertEqual(excel_colours.RAID_STATUS, {"Closed": "grey", "Cancelled": "grey"})      # Open takes its Priority's colour (1390)
 
 
 class ExcelOverdueStatus(unittest.TestCase):
@@ -230,7 +230,7 @@ class FileWordAndWordCopy(Base):
         cells = re.findall(r"<w:tc>(?:(?!</w:tc>).)*</w:tc>", doc, re.S)
         grey = excel_colours.TOKENS["tone-grey-tint"]
         self.assertTrue([c for c in cells if f'w:fill="{grey}"' in c and "Not rated" in c], "Not rated has the grey fill")
-        self.assertEqual(excel_colours.DECISION_STATUS, {"Pending": "green", "Made": "blue", "Withdrawn": "grey"})
+        self.assertEqual(excel_colours.DECISION_STATUS, {"Pending": "blue", "Made": "green", "Withdrawn": "grey"})
 
 
 if __name__ == "__main__":

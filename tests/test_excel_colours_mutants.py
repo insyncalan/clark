@@ -10,17 +10,17 @@ from clark import excel_colours as ec, look
 TODAY = date(2026, 11, 11)
 
 EXPECTED = {
-    ("actions", "priority"): {"Urgent": "red", "High": "amber", "Medium": "grey", "Low": "grey"},
-    ("raid", "priority"): {"Urgent": "red", "High": "red", "Medium": "amber", "Low": "green"},
-    ("actions", "status"): {"Open": "green", "Delayed": "amber", "Closed": "blue", "Cancelled": "grey"},
-    ("raid", "status"): {"Open": "green", "Closed": "blue", "Cancelled": "grey"},
+    ("actions", "priority"): {"Urgent": "maroon", "High": "red", "Medium": "grey", "Low": "grey"},
+    ("raid", "priority"): {"Urgent": "maroon", "High": "red", "Medium": "amber", "Low": "green"},
+    ("actions", "status"): {"Open": "blue", "Delayed": "amber", "Closed": "grey", "Cancelled": "grey"},
+    ("raid", "status"): {"Closed": "grey", "Cancelled": "grey"},
     ("raid", "impact"): {"High": "red", "Medium": "amber", "Low": "green"},
     ("raid", "likelihood"): {"High": "red", "Medium": "amber", "Low": "green"},
     ("milestones", "shown_state"): {"Achieved": "green", "On track": "green", "At risk": "amber", "Slipped": "red",
                                     "Overdue": "red", "Forecast": "blue"},
     ("milestones", "state"): {"Achieved": "green", "On track": "green", "At risk": "amber", "Slipped": "red",
                               "Overdue": "red", "Forecast": "blue"},
-    ("decisions", "status"): {"Pending": "green", "Made": "blue", "Withdrawn": "grey"},
+    ("decisions", "status"): {"Pending": "blue", "Made": "green", "Withdrawn": "grey"},
     ("use_cases", "status"): {"On track": "green", "Flag": "amber", "High risk": "red", "Done": "grey"},
 }
 
@@ -40,6 +40,14 @@ class Tables(unittest.TestCase):
         self.assertEqual(ec.LATE, {("actions", "due_date"): ("status", {"Open", "Delayed"}),
                                    ("raid", "due_date"): ("status", {"Open"}),
                                    ("decisions", "needed_by"): ("status", {"Pending"})})
+
+    def test_maroon_is_the_urgent_tile_with_a_white_letter(self):
+        self.assertEqual(ec.COLOURS["maroon"], ("tone-urgent", "white"))
+        self.assertEqual(ec.hexes("maroon"), ("6B1D2A", "FFFFFF"))
+
+    def test_an_open_risk_takes_its_priority_colour(self):
+        self.assertEqual(ec.OPEN_BY_PRIORITY, {"Urgent": "maroon", "High": "red", "Medium": "amber", "Low": "green"})
+        self.assertEqual(ec.colour_for("raid", "status", "Open"), None)
 
     def test_every_colour_is_fill_tint_then_text_and_the_header_and_late_tokens_are_the_looks(self):
         for name in ("red", "amber", "green", "blue", "grey"):
