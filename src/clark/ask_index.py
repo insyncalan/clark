@@ -6,7 +6,7 @@ It is a copy that can always be rebuilt: delete it and `build` makes the same pa
 WHAT GETS IN. Files are listed and opened only through `reach` (`readable_files`, `read_bytes`), the same gates as `ask_passages`.
 Text, Markdown, CSV, TSV, RST and Word are read like `ask_passages` reads them. PDF goes through `pdf_reader` (its own process, a passage per
 page: "<file>, page n"); Excel (.xlsx, .xlsm) through vendored openpyxl, read-only, stored values, a passage run per sheet ("<file>, sheet S"); a PDF with no
-readable text (scanned, encrypted, damaged) counts as `type` and is listed as left out, a damaged workbook as `safety`.
+readable text (scanned, encrypted, damaged) counts as `type` and is listed as left out, a damaged workbook or a PDF over the page or size limit as `type`, `too_long` (never as a password).
 PowerPoint (.pptx: slide text and notes, a passage run per slide, "<file>, slide n") and web pages (.html, .htm: the visible text) are read by `ask_extract`;
 a file with no text counts as `type`, a hostile or damaged one (zip bomb, too many parts, an entity declaration, broken XML, too big) as `safety`. A file whose name or text looks like a password or
 a key is screened by `secret_screen` BEFORE any of it is stored: it leaves a row with no text (label and size only). Every
@@ -49,6 +49,8 @@ MAX_LEFT_OUT_SHOWN = 200
 LEFT_OUT_BUTTON = "Show the files left out"
 REASON_TYPE = "of a type clark can't read yet"
 REASON_SAFETY = "looks like a password or a key"
+REASON_TOO_LONG = "is a PDF that is too long to read"
+COUNTED = ("indexed", "type", "too_long")          # the states that have their own count; any other state is a safety one
 
 
 def path_for(data_dir, code):
@@ -62,6 +64,7 @@ def _open(data_dir, code, create=True):
     if not p.exists() and not create:
         return None
     p.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    os.chmod(p.parent, 0o700)                # a folder made earlier (or by another tool) is put right too
     if not p.exists():
         os.close(os.open(p, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600))
     os.chmod(p, 0o600)
@@ -154,6 +157,13 @@ def refresh(data_dir, code, folders, home=None, stop=None, progress=None):
             db.close()
         return True
     db = _open(data_dir, code)
+    try:
+        return _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, progress)
+    finally:
+        db.close()                               # also when a read fails half way: no connection is left open by the worker
+
+
+def _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, progress):
     _set(db, "complete", "0")
     db.commit()
     kept = {r[0]: (r[1], r[2], r[3]) for r in db.execute("SELECT label, size, mtime_ns, state FROM files")}
@@ -179,7 +189,6 @@ def refresh(data_dir, code, folders, home=None, stop=None, progress=None):
         for path in listing.files:
             if stop is not None and stop.is_set():
                 db.commit()
-                db.close()
                 return False
             done += 1
             low = str(path).lower()
@@ -201,7 +210,7 @@ def refresh(data_dir, code, folders, home=None, stop=None, progress=None):
                     safety += 1
                     c["safety"] += 1
                 elif label in now_state:
-                    c[now_state[label] if now_state[label] in ("indexed", "type") else "safety"] += 1
+                    c[now_state[label] if now_state[label] in COUNTED else "safety"] += 1
                 else:
                     seen.add(label)
                     if kept.get(label, (None,))[:2] == (st.st_size, st.st_mtime_ns):
@@ -209,16 +218,17 @@ def refresh(data_dir, code, folders, home=None, stop=None, progress=None):
                     else:
                         state = _read_one(db, path, label, low, st, usable, data_dir, home)
                     now_state[label] = state
-                    c[state if state in ("indexed", "type") else "safety"] += 1
+                    c[state if state in COUNTED else "safety"] += 1
             if progress:
                 progress(str(folder), done, total)
     for gone in set(kept) - seen:
         _drop(db, gone)
     db.execute("INSERT OR REPLACE INTO left SELECT label, ? FROM files WHERE state='safety'", (REASON_SAFETY,))
     db.execute("INSERT OR REPLACE INTO left SELECT label, ? FROM files WHERE state='type'", (REASON_TYPE,))
+    db.execute("INSERT OR REPLACE INTO left SELECT label, ? FROM files WHERE state='too_long'", (REASON_TOO_LONG,))
     states = [r[0] for r in db.execute("SELECT state FROM files")]
     counts = dict.fromkeys(NAMES, 0)
-    counts.update(indexed=states.count("indexed"), type=type_n + states.count("type"), online_only=online, safety=safety + states.count("safety"))
+    counts.update(indexed=states.count("indexed"), type=type_n + states.count("type"), too_long=states.count("too_long"), online_only=online, safety=safety + states.count("safety"))
     counts["stopped"] = stopped_listing
     _set(db, "counts", counts)
     _set(db, "folders", per)
@@ -228,7 +238,6 @@ def refresh(data_dir, code, folders, home=None, stop=None, progress=None):
     db.execute("INSERT INTO p(p) VALUES('optimize')")     # merges the segments so deleted rows are really gone
     db.commit()
     db.execute("VACUUM")                         # wipes freed pages: text of a removed file is not left behind
-    db.close()
     return True
 
 
@@ -245,7 +254,7 @@ def _read_one(db, path, label, low, st, usable, data_dir, home):
         if is_pdf:
             got = pdf_reader.read(raw, truncated=truncated)
             if got.status != "ok":
-                state = "type"
+                state = "too_long" if got.reason in ("too_big", "too_many_pages") else "type"
             else:
                 groups = [(f"page {n}", t.splitlines()) for n, t in got.pages]
         elif is_excel:
@@ -256,8 +265,11 @@ def _read_one(db, path, label, low, st, usable, data_dir, home):
                 state = "type"                   # no text to read, like a scanned PDF
         else:
             groups = [(None, _lines(raw, truncated, low, os.path.basename(str(path))))]
-    except (reach.Never, docx_read.WordRefused, ValueError, UnicodeError):
+    except reach.Never:
         state = "safety"
+    except (docx_read.WordRefused, ValueError, UnicodeError):
+        # damaged or too big Word/Excel: left out as `type`, never said to look like a password; a hostile PowerPoint or web page stays `safety` (slice c)
+        state = "safety" if (is_pptx or is_html) else "type"
     if state == "indexed":
         every = "\n".join("\n".join(lines) for _n, lines in groups)
         if secret_screen.name_looks_like_secret(label) or secret_screen.looks_like_secret(every):
