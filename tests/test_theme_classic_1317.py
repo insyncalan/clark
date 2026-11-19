@@ -19,7 +19,7 @@ from test_work_items import FIXED_DATE, load_demo, page_target
 
 NAME = "prototype-2.0"
 # The Cards page, page_html(branding=NO_BRAND, theme=None), taken from origin/main (3496323b) before this row; rules.css is read only when a Theme is named.
-CARDS_SHA256 = "fd9922e54e3e8c391ea143c6e45b93b8503c1c31b4467023d3a70d49d71881cc"
+CARDS_SHA256 = "d1f8c525fc43203af455d54309a3e1b1f89f42edc9607875d16e396108e0ae32"      # row 1339: only the page script grew (the Work items sort rules, shared by both layers); the Cards style md5 7195b3107c3b5022f3b40ad1dfbbe484 and the rendered DOM pins are unchanged
 SIZES = (1400, 900)
 PROBE = """(() => { const q = (s) => document.querySelector(s), g = (e, p) => getComputedStyle(e)[p];
   const tok = (v, p) => { const i = document.createElement('i'); i.style[p || 'color'] = v; document.body.appendChild(i); const r = getComputedStyle(i)[p || 'color']; i.remove(); return r; };
