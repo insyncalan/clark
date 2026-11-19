@@ -33,7 +33,7 @@ import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-from clark import ask, ask_apply, ask_data, ask_files, ask_folders, ask_passages, pdf_link, pdf_reader, platform, publish, reach, secret_screen
+from clark import ask, ask_apply, ask_data, ask_files, ask_folders, ask_index, ask_passages, pdf_link, pdf_reader, platform, publish, reach, secret_screen
 from clark.store import CONNECTORS, Store, connect
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -68,7 +68,7 @@ class AskService:
     """`db_path` is the database; `provider` an ask.Provider (the one provider module's in clark; a stub in tests); `onedrive_roots` as
     the launcher's."""
 
-    def __init__(self, db_path, provider, onedrive_roots=None, *, data_dir=None, home=None, applier=None, clock=time.monotonic, open_pdf=None):
+    def __init__(self, db_path, provider, onedrive_roots=None, *, data_dir=None, home=None, applier=None, clock=time.monotonic, open_pdf=None, indexer=None):
         self.db_path = Path(db_path)
         self.data_dir = Path(data_dir) if data_dir else self.db_path.parent
         self.home = home
@@ -78,6 +78,7 @@ class AskService:
         self.lock = threading.Lock()                 # the store is opened by one question at a time
         self.applier = applier or ask_apply.AskApply(self.db_path, self.onedrive_roots)
         self.clock = clock
+        self.indexer = indexer                       # ask_index.Indexer or None (#1366): a finished index answers a question without opening a file
         self.open_pdf = open_pdf or platform.open_pdf_at      # #943: the one thing that starts a viewer (a stub in tests)
         self.replies = {}                            # reply ID -> Held: the changes an answer suggested, kept on the server
         self.replies_lock = threading.Lock()
@@ -180,8 +181,11 @@ class AskService:
                 store.close()
         used = sum(len(p.text) for p in data.passages)         # the folders get what the project's own data left of the budget
         try:
-            found = ask_passages.folder_data(folders, self.data_dir, question, ask.BUDGET - used, self.home,
-                                             ask.MAX_PASSAGES - len(data.passages))
+            if folders and self.indexer is not None and self.indexer.current(code, folders):
+                found = ask_index.folder_data(self.data_dir, code, question, ask.BUDGET - used, ask.MAX_PASSAGES - len(data.passages))
+            else:
+                found = ask_passages.folder_data(folders, self.data_dir, question, ask.BUDGET - used, self.home,
+                                                 ask.MAX_PASSAGES - len(data.passages))
         except Exception:                            # noqa: BLE001 a folder that fails in a way not foreseen sends nothing
             return 200, self.fail("folders_unreadable")
         try:

@@ -22,6 +22,7 @@ import json
 import os
 import re
 import sqlite3
+import threading
 import time
 from pathlib import Path
 
@@ -75,89 +76,132 @@ def _drop(db, label):
     db.execute("DELETE FROM files WHERE label=?", (label,))
 
 
-def refresh(data_dir, code, folders, home=None):
-    """Bring the index up to date with `folders`; reads again only the files whose size or modified time changed."""
-    usable, unusable = [], 0
+def _unusable(folders, data_dir, home):
+    usable, bad = [], []
     for f in folders or ():
         try:
             why = reach.never_inside(f, data_dir, home)
         except (OSError, ValueError, RuntimeError):
             why = "unusable"
-        if why:
-            unusable += 1
-        else:
-            usable.append(f)
+        (bad if why else usable).append(f)
+    return usable, bad
+
+
+def _set(db, k, v):
+    db.execute("INSERT OR REPLACE INTO meta VALUES(?, ?)", (k, v if isinstance(v, str) else json.dumps(v)))
+
+
+def refresh(data_dir, code, folders, home=None, stop=None, progress=None):
+    """Bring the index up to date with `folders`; reads again only the files whose size or modified time changed.
+    `stop` (a threading.Event) ends it early (False is returned, the index is not marked complete); `progress(folder, done, total)` is
+    called after each file. Returns True when it ran to the end."""
+    listed = sorted(str(f) for f in folders or ())
+    usable, bad = _unusable(folders, data_dir, home)
+    per = {str(f): {**dict.fromkeys(NAMES, 0), "safety": 1} for f in bad}
     if not usable:
         p = path_for(data_dir, code)
         if p.exists():
             p.unlink()                       # no folder left: no copy of its text stays
-        if unusable:
+        if bad:
             db = _open(data_dir, code)
-            db.execute("INSERT OR REPLACE INTO meta VALUES('counts', ?)", (json.dumps({**dict.fromkeys(NAMES, 0), "safety": unusable}),))
+            _set(db, "counts", {**dict.fromkeys(NAMES, 0), "safety": len(bad)})
+            _set(db, "folders", per)
+            _set(db, "listed", listed)
+            _set(db, "complete", "1")
             db.commit()
             db.close()
-        return
-    reasons = {}
-    listing = reach.readable_files(usable, data_dir, reasons, home)
-    roots = reach.roots(usable, home)
+        return True
     db = _open(data_dir, code)
+    _set(db, "complete", "0")
+    db.commit()
     kept = {r[0]: (r[1], r[2], r[3]) for r in db.execute("SELECT label, size, mtime_ns, state FROM files")}
-    left = {}
-    seen, type_n, safety = set(), 0, unusable + listing.skipped - reasons.get(reach.ONLINE, 0)
-    for path in listing.files:
-        low = str(path).lower()
-        if not low.endswith(ask_passages.TEXT_TYPES + ask_passages.WORD_TYPES):
-            type_n += 1
-            root = next((r for r in roots if reach.inside(path, r)), None)
-            name = ask_passages._label(root, path) if root is not None else None
-            if name is not None:
-                left[name] = REASON_TYPE
-            continue
-        root = next((r for r in roots if reach.inside(path, r)), None)
-        label = ask_passages._label(root, path) if root is not None else None
-        if label is None:
-            safety += 1
-            continue
-        try:
-            st = os.stat(path)
-        except OSError:
-            safety += 1
-            continue
-        seen.add(label)
-        if kept.get(label, (None,))[:2] == (st.st_size, st.st_mtime_ns):
-            continue
-        _drop(db, label)
-        state = "indexed"
-        try:
-            raw, truncated = reach.read_bytes(path, usable, data_dir, docx_read.MAX_FILE_BYTES if low.endswith(ask_passages.WORD_TYPES) else ask_passages.MAX_TEXT_BYTES, home)
-            lines = _lines(raw, truncated, low, os.path.basename(str(path)))
-        except (reach.Never, docx_read.WordRefused, ValueError, UnicodeError):
-            state = "safety"
-            lines = ()
-        if state == "indexed" and (secret_screen.name_looks_like_secret(label) or secret_screen.looks_like_secret("\n".join(lines))):
-            state = "safety"
-        if state == "indexed":
-            parts = ask_data._cut(label, list(ask_passages._chunks(lines)))[:MAX_PARTS_PER_FILE]
-            for i, part in enumerate(parts, 1):
-                db.execute("INSERT INTO p(text, file, part, mtime) VALUES(?,?,?,?)", (part.text, label, i if len(parts) > 1 else 0, int(st.st_mtime)))
-        db.execute("INSERT INTO files VALUES(?,?,?,?)", (label, st.st_size, st.st_mtime_ns, state))
+    seen, now_state = set(), {}
+    type_n, online, safety = 0, 0, len(bad)
+    stopped_listing = False
+    for folder in usable:
+        reasons = {}
+        listing = reach.readable_files([folder], data_dir, reasons, home)
+        stopped_listing = stopped_listing or bool(listing.stopped)
+        roots = reach.roots([folder], home)
+        c = dict.fromkeys(NAMES, 0)
+        c["online_only"] = reasons.get(reach.ONLINE, 0)
+        c["safety"] = listing.skipped - c["online_only"]
+        online += c["online_only"]
+        safety += c["safety"]
+        per[str(folder)] = c
+        done = c["online_only"] + c["safety"]
+        total = done + len(listing.files)
+        if progress:
+            progress(str(folder), done, total)
+        for path in listing.files:
+            if stop is not None and stop.is_set():
+                db.commit()
+                db.close()
+                return False
+            done += 1
+            low = str(path).lower()
+            if not low.endswith(ask_passages.TEXT_TYPES + ask_passages.WORD_TYPES):
+                type_n += 1
+                c["type"] += 1
+            else:
+                root = next((r for r in roots if reach.inside(path, r)), None)
+                label = ask_passages._label(root, path) if root is not None else None
+                state = None
+                try:
+                    st = os.stat(path) if label is not None else None
+                except OSError:
+                    st = None
+                if label is None or st is None:
+                    safety += 1
+                    c["safety"] += 1
+                elif label in now_state:
+                    c["indexed" if now_state[label] == "indexed" else "safety"] += 1
+                else:
+                    seen.add(label)
+                    if kept.get(label, (None,))[:2] == (st.st_size, st.st_mtime_ns):
+                        state = kept[label][2]
+                    else:
+                        state = _read_one(db, path, label, low, st, usable, data_dir, home)
+                    now_state[label] = state
+                    c["indexed" if state == "indexed" else "safety"] += 1
+            if progress:
+                progress(str(folder), done, total)
     for gone in set(kept) - seen:
         _drop(db, gone)
     states = [r[0] for r in db.execute("SELECT state FROM files")]
-    for (name,) in db.execute("SELECT label FROM files WHERE state='safety'"):
-        left[name] = REASON_SAFETY
-    db.execute("DELETE FROM left")
-    db.executemany("INSERT INTO left VALUES(?,?)", sorted(left.items()))
     counts = dict.fromkeys(NAMES, 0)
-    counts.update(indexed=states.count("indexed"), type=type_n, online_only=reasons.get(reach.ONLINE, 0),
-                  safety=safety + states.count("safety"))
-    counts["stopped"] = bool(listing.stopped)
-    db.execute("INSERT OR REPLACE INTO meta VALUES('counts', ?)", (json.dumps(counts),))
+    counts.update(indexed=states.count("indexed"), type=type_n, online_only=online, safety=safety + states.count("safety"))
+    counts["stopped"] = stopped_listing
+    _set(db, "counts", counts)
+    _set(db, "folders", per)
+    _set(db, "listed", listed)
+    _set(db, "complete", "1")
     db.commit()
     db.execute("INSERT INTO p(p) VALUES('optimize')")     # merges the segments so deleted rows are really gone
     db.commit()
     db.execute("VACUUM")                         # wipes freed pages: text of a removed file is not left behind
     db.close()
+    return True
+
+
+def _read_one(db, path, label, low, st, usable, data_dir, home):
+    """Read one changed file into the index; returns its state ("indexed" or "safety")."""
+    _drop(db, label)
+    state = "indexed"
+    try:
+        raw, truncated = reach.read_bytes(path, usable, data_dir, docx_read.MAX_FILE_BYTES if low.endswith(ask_passages.WORD_TYPES) else ask_passages.MAX_TEXT_BYTES, home)
+        lines = _lines(raw, truncated, low, os.path.basename(str(path)))
+    except (reach.Never, docx_read.WordRefused, ValueError, UnicodeError):
+        state = "safety"
+        lines = ()
+    if state == "indexed" and (secret_screen.name_looks_like_secret(label) or secret_screen.looks_like_secret("\n".join(lines))):
+        state = "safety"
+    if state == "indexed":
+        parts = ask_data._cut(label, list(ask_passages._chunks(lines)))[:MAX_PARTS_PER_FILE]
+        for i, part in enumerate(parts, 1):
+            db.execute("INSERT INTO p(text, file, part, mtime) VALUES(?,?,?,?)", (part.text, label, i if len(parts) > 1 else 0, int(st.st_mtime)))
+    db.execute("INSERT INTO files VALUES(?,?,?,?)", (label, st.st_size, st.st_mtime_ns, state))
+    return state
 
 
 def build(data_dir, code, folders, home=None):
@@ -238,3 +282,165 @@ def answer_note(counts):
     if n <= 0:
         return ""
     return f"Still reading {n} file{'' if n == 1 else 's'}, so this answer may miss some."
+
+
+# ----- the per-folder status line (#1366 slice a; the words are the approved ones) -----
+
+def _plural(n, one, many):
+    return one if n == 1 else many
+
+
+def line_for(counts, reading=None):
+    """The status line of one folder. `reading` is (done, total) while it is being read; `counts` the counts of its last full read."""
+    if reading is not None:
+        return f"Reading {reading[0]} of {reading[1]} files."
+    total = sum(counts.get(n, 0) for n in NAMES)
+    out = [f"Indexed {counts.get('indexed', 0)} of {total} files."]
+    t, o, long_, s = (counts.get(k, 0) for k in ("type", "online_only", "too_long", "safety"))
+    if t:
+        out.append(f"{t} {_plural(t, 'is', 'are')} of a type clark can't read yet.")
+    if o:
+        out.append(f"{o} {_plural(o, 'is', 'are')} online only and {_plural(o, 'was', 'were')} not opened.")
+    if long_:
+        out.append(f"{long_} {_plural(long_, 'PDF is', 'PDFs are')} too long.")
+    if s:
+        out.append(f"{s} {_plural(s, 'looks', 'look')} like a password or a key and {_plural(s, 'was', 'were')} left out.")
+    return " ".join(out)
+
+
+def folder_status(data_dir, code, folders, live=None):
+    """{folder: {"state": "reading" | "done", "line": text}} for the folders that have something to say. `live` is the worker's
+    {folder: (done, total)} for the run in progress; a folder with no index yet and no run says nothing."""
+    saved = {}
+    db = _open(data_dir, code, create=False)
+    if db is not None:
+        try:
+            row = db.execute("SELECT v FROM meta WHERE k='folders'").fetchone()
+            saved = json.loads(row[0]) if row else {}
+        except (sqlite3.Error, ValueError):
+            saved = {}
+        finally:
+            db.close()
+    out = {}
+    for f in folders or ():
+        f = str(f)
+        if live and f in live:
+            out[f] = {"state": "reading", "line": line_for(None, live[f])}
+        elif f in saved:
+            out[f] = {"state": "done", "line": line_for(saved[f])}
+    return out
+
+
+def current(data_dir, code, folders):
+    """True when the index was finished for exactly these folders (a question may then use it and read no file)."""
+    db = _open(data_dir, code, create=False)
+    if db is None:
+        return False
+    try:
+        meta = dict(db.execute("SELECT k, v FROM meta WHERE k IN ('complete', 'listed')").fetchall())
+        return meta.get("complete") == "1" and json.loads(meta.get("listed", "null")) == sorted(str(f) for f in folders or ())
+    except (sqlite3.Error, ValueError):
+        return False
+    finally:
+        db.close()
+
+
+def folder_data(data_dir, code, question, budget=ask.BUDGET, max_passages=ask.MAX_PASSAGES):
+    """The passages of the index for a question, in the shape `ask_passages.folder_data` gives. Opens no source file and has no
+    per-question file, byte or time limit."""
+    found = search(data_dir, code, question, max_passages * 4)
+    chosen, left = ask_data.choose(found, question, budget)
+    if len(chosen) > max_passages:
+        left += len(chosen) - max_passages
+        chosen = chosen[:max_passages]
+    counts = status(data_dir, code)
+    return ask_passages.FolderData(tuple(chosen), left, counts.get("safety", 0), 0, counts.get("type", 0), bool(counts.get("stopped")))
+
+
+class Indexer:
+    """One background thread that keeps the indexes up to date. `start(code, folders)` queues a run (the newest request for a project
+    replaces an older one still waiting); `busy` counts runs queued or running; `shutdown()` stops the run at the next file and ends the thread."""
+
+    def __init__(self, data_dir, home=None, refresh_fn=None):
+        self.data_dir = Path(data_dir)
+        self.home = home
+        self.refresh = refresh_fn or refresh
+        self.wake = threading.Condition()
+        self.queue = {}                      # code -> folders, in the order asked
+        self.live = {}                       # code -> {folder: (done, total)} for the run in progress
+        self.busy = 0
+        self.stop = threading.Event()
+        self.thread = None
+
+    def start(self, code, folders):
+        with self.wake:
+            if self.stop.is_set():
+                return False
+            if code not in self.queue:
+                self.busy += 1
+            self.queue[code] = list(folders)
+            if self.thread is None or not self.thread.is_alive():
+                self.thread = threading.Thread(target=self._work, name="ask-index", daemon=True)
+                self.thread.start()
+            self.wake.notify_all()
+        return True
+
+    def _work(self):
+        while True:
+            with self.wake:
+                while not self.queue and not self.stop.is_set():
+                    if not self.wake.wait(timeout=5):
+                        self.thread = None
+                        return
+                if self.stop.is_set():
+                    self.thread = None
+                    return
+                code = next(iter(self.queue))
+                folders = self.queue.pop(code)
+                self.live[code] = {}
+            try:
+                try:
+                    os.nice(10)
+                except (OSError, AttributeError):
+                    pass
+                self.refresh(self.data_dir, code, folders, self.home, stop=self.stop, progress=lambda f, d, t, c=code: self._note(c, f, d, t))
+            except Exception:              # noqa: BLE001 a run that fails leaves the index not current; the next start tries again
+                pass
+            finally:
+                with self.wake:
+                    self.live.pop(code, None)
+                    self.busy -= 1
+                    self.wake.notify_all()
+
+    def _note(self, code, folder, done, total):
+        with self.wake:
+            if code in self.live:
+                self.live[code][folder] = (done, total)
+
+    def status_for(self, code, folders):
+        with self.wake:
+            live = dict(self.live[code]) if code in self.live else None
+        return folder_status(self.data_dir, code, folders, live)
+
+    def current(self, code, folders):
+        with self.wake:
+            if code in self.queue or code in self.live:
+                return False
+        return current(self.data_dir, code, folders)
+
+    def wait_idle(self, timeout=10):
+        end = time.monotonic() + timeout
+        with self.wake:
+            while self.busy and time.monotonic() < end:
+                self.wake.wait(timeout=0.05)
+            return not self.busy
+
+    def shutdown(self, timeout=5):
+        with self.wake:
+            self.stop.set()
+            self.busy -= len(self.queue)
+            self.queue.clear()
+            self.wake.notify_all()
+            t = self.thread
+        if t is not None:
+            t.join(timeout)

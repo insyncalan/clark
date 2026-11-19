@@ -24,6 +24,32 @@ const ALL_FOLDERS_COUNT = "Counts towards each project's 20.";
 const ALL_FOLDERS_NONE = "No folders are set for all projects.";
 const NOT_READY = "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.";
 
+// The status line under each folder (#1366): the server says what it has read ("Reading 180 of 422 files." then "Indexed ..."). It is asked again
+// every 2 seconds while a folder is being read, and for a few more turns after a change, because the read starts just after the folder is saved.
+function useIndexLines(read, deps) {
+  const [index, setIndex] = useState({});
+  const [tick, setTick] = useState(0);
+  const grace = useRef(0);
+  useEffect(() => {
+    let live = true, t = null;
+    read().then((r) => {
+      if (!live) return;
+      const ix = r.status === 200 && r.body && r.body.index && typeof r.body.index === "object" ? r.body.index : {};
+      setIndex(ix);
+      const reading = Object.keys(ix).some((k) => ix[k] && ix[k].state === "reading");
+      if (reading || grace.current > 0) {
+        if (!reading) grace.current -= 1;
+        t = setTimeout(() => setTick((n) => n + 1), 2000);
+      }
+    });
+    return () => { live = false; if (t) clearTimeout(t); };
+  }, [tick, ...deps]);
+  return { index, again: () => { grace.current = 3; setTick((n) => n + 1); } };
+}
+function FolderLine({ line }) {
+  return <div class="ask-folder-line" role="status" aria-live="polite">{line ? line.line : ""}</div>;
+}
+
 // The asking switch's behaviour, shared by this card and the Essentials card (row 1115): `flip` turns asking on or off and says so in the toast
 // with its Undo; the switch is disabled while the request runs, so focus is put back once it is not (row 849). The caller owns busy and the message line.
 export function useAskFlip(on, busy, setBusy, setMsg) {
@@ -61,6 +87,7 @@ function AskProject() {
   const [msg, setMsg] = useState(null);                  // {kind: "error" | "note", text}
 
   const { switchRef, flip } = useAskFlip(on, busy, setBusy, setMsg);
+  const { index, again } = useIndexLines(() => askFoldersRead(code), [code]);
 
   useEffect(() => {
     let live = true;
@@ -104,6 +131,7 @@ function AskProject() {
     else setTimeout(() => { const i = document.getElementById("ask-folder-path"); if (i) i.focus(); }, 0);   // Add folder is disabled while the request runs: the focus goes to the box
     if (r.status === 200 && b && b.ok === true && Array.isArray(b.folders)) {
       setFolders(b.folders);
+      again();
       if (b.message) setMsg({ kind: "note", text: b.message });
       return true;
     }
@@ -137,14 +165,14 @@ function AskProject() {
       {shared.length && Array.isArray(folders) ? (
         <ul class="ask-folders" id="ask-folders-shared">
           {shared.map((p) => (
-            <li key={p}><span class="folder-now">{p}</span> <span class="muted">All projects</span> <button type="button" class="btn sm quiet" data-ask-change-shared onClick={() => showAskTab(ALL)}>Change</button></li>
+            <li key={p}><span class="folder-now">{p}</span> <span class="muted">All projects</span> <button type="button" class="btn sm quiet" data-ask-change-shared onClick={() => showAskTab(ALL)}>Change</button><FolderLine line={index[p]} /></li>
           ))}
         </ul>
       ) : null}
       {list.length ? (
         <ul class="ask-folders" id="ask-folders">
           {list.map((p) => (
-            <li key={p}><span class="folder-now">{p}</span> <button type="button" class="btn sm quiet" data-ask-remove={p} disabled={busy} onClick={() => change("remove", p)}>Remove</button></li>
+            <li key={p}><span class="folder-now">{p}</span> <button type="button" class="btn sm quiet" data-ask-remove={p} disabled={busy} onClick={() => change("remove", p)}>Remove</button><FolderLine line={index[p]} /></li>
           ))}
         </ul>
       ) : null}
@@ -200,6 +228,8 @@ function AllFolders() {
   const [typing, setTyping] = useState(false);
   const [typed, setTyped] = useState("");
   const [msg, setMsg] = useState(null);
+  const code = project.value;
+  const { index, again } = useIndexLines(() => askFoldersAllRead(code), [code]);
 
   useEffect(() => {
     let live = true;
@@ -232,6 +262,7 @@ function AllFolders() {
     else setTimeout(() => { const i = document.getElementById("ask-all-folder-path"); if (i) i.focus(); }, 0);
     if (r.status === 200 && b && b.ok === true && Array.isArray(b.folders)) {
       setFolders(b.folders);
+      again();
       if (b.message) setMsg({ kind: "note", text: b.message });
       return true;
     }
@@ -256,7 +287,7 @@ function AllFolders() {
       {list.length ? (
         <ul class="ask-folders" id="ask-all-folder-list">
           {list.map((p) => (
-            <li key={p}><span class="folder-now">{p}</span> <button type="button" class="btn sm quiet" data-ask-all-remove={p} disabled={busy} onClick={() => change("remove", p)}>Remove</button></li>
+            <li key={p}><span class="folder-now">{p}</span> <button type="button" class="btn sm quiet" data-ask-all-remove={p} disabled={busy} onClick={() => change("remove", p)}>Remove</button><FolderLine line={index[p]} /></li>
           ))}
         </ul>
       ) : null}
