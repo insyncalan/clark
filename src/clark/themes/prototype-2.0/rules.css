@@ -372,6 +372,15 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .fbt-error { margin-top: 4px; color: var(--status-red-text); font-size: 13px; }
 /* Row 1375: a wheel over the Dashboard's Work items box that has reached its top or bottom keeps scrolling the page (the shared rule's overscroll-behavior-y: contain made it stall inside the box); the box still scrolls its own rows. */
 .wil-scroll { overscroll-behavior-y: auto; }
+/* Row 1402 (Settings Projects card, Classic only; Cards keeps its look): the prototype's header has a 1px rule under it and no dividers between cells, the cells are padded 8px 10px 8px 0, and Add project is the primary navy button with white text and radius 8. Dark keeps the Theme's own tokens for the colours. */
+.projects table.proj-table thead th { border-left: 0; border-bottom: 1px solid rgb(217, 224, 239); }
+:root[data-theme=dark] .projects table.proj-table thead th { border-bottom-color: var(--grey-200); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .projects table.proj-table thead th { border-bottom-color: var(--grey-200); } }
+.projects table.proj-table :is(th, td), .projects table.proj-table :is(th, td):first-child { padding: 8px 10px 8px 0; }
+.projects #npBtn.newb { background: rgb(6, 47, 58); border-color: rgb(6, 47, 58); border-radius: 8px; }
+:root[data-theme=dark] .projects #npBtn.newb { background: var(--brand-blue); border-color: var(--brand-blue); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .projects #npBtn.newb { background: var(--brand-blue); border-color: var(--brand-blue); } }
+
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
