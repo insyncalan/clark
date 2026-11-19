@@ -109,6 +109,37 @@ class MenuFit(Base):
                 self.inside(cdp, sid, ".cpop[role=menu]", "status list", (w, h, th))
                 self.close(cdp, sid)
 
+    def test_the_row_menu_takes_the_whole_short_window_minus_the_margin(self):
+        """A row menu taller than a 280 px window is cut to the window minus 16 px (not 0, not 32) and scrolls inside itself."""
+        with chrome() as cdp:
+            sid = self.loaded(cdp)
+            rows = self.rows(cdp, sid)
+            self.look(cdp, sid, 900, 280, "light")
+            self.right_click(cdp, sid, f"#work-list tr[data-id='{rows[2]}'] .c-item .t")
+            self.inside(cdp, sid, ".rowmenu .ddmenu", "row menu", (900, 280, "light"))
+            got = cdp.js(f"({MEASURE})('.rowmenu .ddmenu')", sid)
+            self.assertGreater(got["scroll"], got["client"], got)
+            self.assertIn(got["oy"], ("auto", "scroll"), got)
+            self.assertLessEqual(abs((got["bottom"] - got["top"]) - (got["h"] - 16)), 1, got)
+            self.close(cdp, sid)
+
+    def test_the_view_menu_goes_above_its_button_and_scrolls_when_short_of_room(self):
+        """The View menu opens under its button; in a short window it goes above the button (8 px clear of it) and its height is the room above the button minus 12 px, and it scrolls."""
+        with chrome() as cdp:
+            sid = self.loaded(cdp)
+            for h in (240, 280):
+                self.look(cdp, sid, 900, h, "light")
+                tap(cdp, sid, "#viewMenu")
+                self.inside(cdp, sid, "#viewMenuList", "View menu", (900, h, "light"))
+                got = cdp.js(f"({MEASURE})('#viewMenuList')", sid)
+                btn = cdp.js("(() => { const r = document.querySelector('#viewMenu').getBoundingClientRect(); return {top: Math.round(r.top), bottom: Math.round(r.bottom)}; })()", sid)
+                self.assertGreater(got["scroll"], got["client"], got)
+                self.assertIn(got["oy"], ("auto", "scroll"), got)
+                self.assertLessEqual(got["bottom"], got["h"] - 8, got)
+                self.assertLessEqual(abs(got["bottom"] - (btn["top"] - 8)), 1, (got, btn))       # above the button: 4 px calc offset from its wrapper, which sits 4 px over the button
+                self.assertLessEqual(abs((got["bottom"] - got["top"]) - (btn["top"] - 12)), 1, (got, btn))  # the room above the button less 4 + 8 px
+                self.close(cdp, sid)
+
 
 if __name__ == "__main__":
     unittest.main()
