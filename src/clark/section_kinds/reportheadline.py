@@ -14,6 +14,7 @@ from clark.section_kinds.base import Bad
 READY = True
 LIMIT = 32768
 EMPTY = ""
+START = '{"pill":false,"v":1}'      # the body a new Report headline starts with when At a glance already shows the health (changes.py accepts this one body for a new reportheadline section; row 1261: health shows once); canonical, as the store writes it
 
 HEALTHS = ("on_track", "at_risk", "off_track")
 WORDS = {"": "Not set", "on_track": "On track", "at_risk": "At risk", "off_track": "Off track"}

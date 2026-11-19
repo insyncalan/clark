@@ -14,6 +14,8 @@ const ICONS = {
   off_track: ["cross-circle", <><circle cx="7" cy="7" r="7" fill="currentColor" /><path d="M4.5 4.5l5 5M9.5 4.5l-5 5" stroke="var(--pill-bg)" stroke-width="1.8" /></>],
   "": ["ring", <circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" stroke-width="2" />],
 };
+// The pill's icon alone (the Edit pill draws the same shape as the View capsule).
+export const HealthIcon = ({ health }) => { const [icon, shape] = ICONS[health] || ICONS[""]; return <svg class="i" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" data-hl={icon}>{shape}</svg>; };
 const dmy = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
 
 // The meta line: "<project> for <client> · Week ending <date>"; the client only when the Settings Client field is filled, each part only when known.

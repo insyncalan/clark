@@ -219,7 +219,7 @@ class Logic(unittest.TestCase):
         by = {x["id"]: x for x in self.t("TEMPLATES")}
         card = by["report-headline"]
         self.assertEqual((card["name"], card["kind"], card["fit"], card["type"], card["title"], card["body"], card["ready"]),
-                         ("Headline", "info", ["full", "half"], "reportheadline", "Headline", "", True))
+                         ("Report headline", "info", ["full", "half"], "reportheadline", "Headline", "", True))      # row 1261 ruling 20-11: the card is named Report headline (the section's own default title stays Headline)
         self.assertEqual(card["description"], "A health pill, a headline and a supporting sentence at the top of the report.")
         self.assertNotIn("report-headline", [x["id"] for x in self.t("LATER")])
         self.assertIn("headline", [x["id"] for x in self.t("LATER")], "the navy band stays out of the box")
@@ -228,6 +228,16 @@ class Logic(unittest.TestCase):
         p = self.t(f"plan({lit(S)}, 'report-headline', 'a', false)")
         self.assertEqual(p["requests"], [{"op": "new", "values": {"type": "reportheadline", "title": "Headline"}, "after": "a", "place": "report"}])
         self.assertTrue(self.t("SKETCHES")["report-headline"], "it has a sketch")
+        self.assertEqual(self.t('list({query: "report headline"})')[0]["id"], "report-headline", "found by its name")
+        # ruling 20-11 (3): health shows once. With the built-in At a glance in the report the new Report headline starts with its pill off; without any health tile it starts with it on.
+        with_glance = S + [sec("g", "At a glance", type="glance")]
+        p = self.t(f"plan({lit(with_glance)}, 'report-headline', 'a', false)")
+        self.assertEqual(p["requests"][0]["values"], {"type": "reportheadline", "title": "Headline", "body": '{"pill":false,"v":1}'})
+        hidden_glance = S + [{**sec("g", "At a glance", type="glance"), "hidden": 1}]
+        p = self.t(f"plan({lit(hidden_glance)}, 'report-headline', 'a', false)")
+        self.assertNotIn("body", p["requests"][0]["values"], "an At a glance left out of the published page does not show the health")
+        p = self.t(f"plan({lit(with_glance)}, 'report-headline', 'a', true)")
+        self.assertEqual(p["requests"][0]["values"]["body"], '{"pill":false,"v":1}', "beside, the same")
 
     def test_search_and_kinds_and_counts(self):
         self.assertEqual(len(self.t("list()")), 25)      # row 1261: + the Headline card; row 1068: + the Plan table card; row 1264 slice 9: + Project at a glance

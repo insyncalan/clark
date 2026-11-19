@@ -2071,7 +2071,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-callout-p { margin: 0 0 var(--space-2); }
 .tpl-rh { display: flex; align-items: flex-start; gap: var(--space-4); margin: var(--space-2) 0; padding: var(--space-3) 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
 .tpl-rh-block { margin: var(--space-2) 0; }
-.tpl-rh-title { margin: 0; font-size: var(--size-h1); font-weight: var(--weight-medium); color: var(--heading); }
+.tpl-rh-title { margin: 0; font-family: var(--font-head); font-size: var(--size-h1); font-weight: var(--weight-medium); color: var(--heading); }
 .tpl-rh-meta { margin: var(--space-1) 0 var(--space-3); color: var(--text-muted); }
 .tpl-rh-block .tpl-rh { margin-top: 0; }
 .tpl-rh-pill { flex: none; gap: var(--space-2); border-radius: var(--radius-pill); }

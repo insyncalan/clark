@@ -273,6 +273,93 @@ class Eye(Base):
             self.assertEqual(p.js(f"document.querySelector('[data-id=\"{new}\"] [data-rh-eye]').getAttribute('aria-pressed')"), "false", "pill on")
             self.assertEqual(p.js(f"document.querySelector('[data-id=\"{new_glance}\"] [data-tile=health]') === null"), True, "the At a glance health tile starts off")
             self.assertIsNone(self.warn(p, new), "so a new page shows health once and warns about nothing")
+    # --- Ruling 20-11 (2): no section heading in View and in the published page -------------------------------------------------------
+    def test_view_has_no_visible_section_heading_for_the_headline_but_keeps_its_name_and_edit_keeps_it(self):
+        gone = "(function(h){var r=h.getBoundingClientRect();return [r.width,r.height,h.textContent]})(document.querySelector('[data-id=\"%s\"] > .sec-head'))"
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.sized(cdp, width, "light")
+                p.until(f"!!document.querySelector('[data-id=\"{self.on}\"] .tpl-rh-text')", "drew")
+                w, h, text = p.js(gone % self.on)
+                self.assertLessEqual((w, h), (1, 1), "View: the heading is visually hidden (the mock-up has only the page title)")
+                self.assertEqual(text.strip().split()[-2:], ["Fictional", "on"], "but it is still in the page, so the section keeps its accessible name")
+                self.assertEqual(p.js(f"document.querySelector('[data-id=\"{self.on}\"] .sec-h').textContent"), "Fictional on")
+                other = p.js("(function(){var s=document.querySelector('#report .sec:not([data-type=reportheadline]) > .sec-head');return s.getBoundingClientRect().width})()")
+                self.assertGreater(other, 50, "another section keeps its visible heading")
+                p.edit()
+                p.until(f"!!document.querySelector('[data-id=\"{self.on}\"] textarea')", "edit drew")
+                w, h, _ = p.js(gone % self.on)
+                self.assertGreater(w, 50, "Edit keeps the heading")
+
+    def test_cards_view_keeps_the_heading(self):
+        self.s.close()
+        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: testpage.html(), seam=self.seam)
+        self.addCleanup(self.s.close)
+        with chrome() as cdp:
+            p = self.sized(cdp, 1400, "light")
+            p.until(f"!!document.querySelector('[data-id=\"{self.on}\"] .tpl-rh-text')", "drew")
+            self.assertGreater(p.js(f"document.querySelector('[data-id=\"{self.on}\"] > .sec-head').getBoundingClientRect().width"), 50, "Cards is unchanged")
+
+    def test_the_published_page_hides_the_heading_the_same_way(self):
+        css = open(page.__file__.replace("__init__.py", "") + "../themes/prototype-2.0/rules.css", encoding="utf-8").read()
+        self.assertIn('#report[data-mode="view"] .sec[data-type="reportheadline"] > .sec-head', css, "one rule for View and the published page (both draw #report in view mode)")
+        self.assertLess(css.index('.sec[data-type="reportheadline"] > .sec-head'), css.index("/* Row 1314"), "Classic CSS before the Row 1314 block")
+
+    # --- Ruling 20-11 (3): the pill default follows the health tile ------------------------------------------------------------------
+    def test_the_server_takes_the_pill_off_start_body_and_no_other_body_for_a_new_report_headline(self):
+        self.assertEqual(rh.START, '{"pill":false,"v":1}')
+        self.assertEqual(json.dumps(rh.check(json.loads(rh.START), Rules), sort_keys=True, separators=(",", ":")), rh.START, "canonical, as the store writes it")
+        from clark import changes
+        self.assertEqual(changes.REPORT_HEADLINE_START, rh.START)
+
+    def test_a_new_headline_with_the_pill_off_start_is_stored_and_shows_no_pill_and_one_with_no_body_shows_it(self):
+        with self.store.step("dashboard", USER) as st:
+            ref = st.create("report_sections", {"project": "ABC", "type": "reportheadline", "title": "Headline", "sort_order": 995, "body": rh.START})
+        self.assertEqual(self.stored(ref), {"pill": False, "v": 1})
+        self.assertFalse(rh.upgrade(self.stored(ref))["pill"])
+        self.assertTrue(rh.upgrade("")["pill"], "no health tile showing: a new Report headline has the pill on")
+
+    def test_the_change_api_takes_the_pill_off_start_body_for_a_new_report_headline_and_refuses_any_other_body(self):
+        from clark import changes
+        change = changes.make_change(self.store.path, [], USER)
+        req = lambda body: {"project": "ABC", "kind": "report_sections", "op": "new", "place": "report", "values": {"type": "reportheadline", "title": "Headline", "body": body}}
+        status, got = change(req('{"pill":false,"v":1}'))
+        self.assertEqual((status, got.get("message")), (200, None), got)
+        made = [r for r in self.store.read("report_sections", "ABC") if r["type"] == "reportheadline" and r["title"] == "Headline"]
+        self.assertEqual([json.loads(r["body"]) for r in made], [{"pill": False, "v": 1}], "stored with the pill off")
+        for other in ('{"v":1,"headline":"x"}', '{"pill":true,"v":1}', "x"):
+            status, got = change(req(other))
+            self.assertEqual((status, got["message"]), (400, changes.NO_BODY_HERE), other)
+        status, got = change({"project": "ABC", "kind": "report_sections", "op": "new", "place": "report", "values": {"type": "reportheadline", "title": "Headline"}})
+        self.assertEqual(status, 200, "with no health tile showing the card sends no body: the pill is on")
+
+    # --- Ruling 20-11 (4): the Edit pill and fields match the mock-up ----------------------------------------------------------------
+    def test_the_edit_pill_is_the_view_capsule_with_an_arrow_and_the_fields_are_the_mock_ups_boxes(self):
+        with chrome() as cdp:
+            p = self.sized(cdp, 1400, "light")
+            p.until(f"!!document.querySelector('[data-id=\"{self.on}\"] .tpl-rh-pill')", "drew")
+            view = self.box(p, self.on, ".tpl-rh-pill")
+            p.edit()
+            p.until(f"!!document.querySelector('[data-id=\"{self.on}\"] textarea')", "edit drew")
+            pill = self.box(p, self.on, "button.pillbtn")
+            self.assertEqual(pill["h"], 28, "28px high, as the View capsule")
+            self.assertEqual(pill["bg"], view["bg"], "the same tint as the View capsule, not the old solid amber")
+            self.assertEqual((pill["fs"], pill["fw"], pill["pad"]), (view["fs"], view["fw"], view["pad"]))
+            self.assertEqual(p.js(f"getComputedStyle(document.querySelector('[data-id=\"{self.on}\"] button.pillbtn')).borderTopLeftRadius"), p.js(f"getComputedStyle(document.querySelector('[data-id=\"{self.on}\"] .tpl-rh-pill')).borderTopLeftRadius"), "pill radius")
+            self.assertEqual(p.js(f"document.querySelector('[data-id=\"{self.on}\"] button.pillbtn svg[data-hl=triangle]') !== null"), True, "the state's icon")
+            self.assertEqual(p.js(f"document.querySelector('[data-id=\"{self.on}\"] button.pillbtn .nch') !== null"), True, "plus a small arrow")
+            self.assertEqual(p.js(f"document.querySelector('[data-id=\"{self.on}\"] button.pillbtn').getAttribute('aria-label')"), "Project health: at risk. Change it")
+            f = p.js(f"""(function(){{ var a = document.querySelector('[data-id="{self.on}"] textarea[aria-label=Headline]'), b = document.querySelector('[data-id="{self.on}"] textarea[aria-label="Supporting sentence"]'),
+              c = getComputedStyle(a), d = getComputedStyle(b), l = document.querySelector('[data-id="{self.on}"] .tpl-lbl').getBoundingClientRect();
+              return [c.borderTopColor, c.borderTopWidth, c.borderTopLeftRadius, parseFloat(c.minHeight), c.paddingTop + ' ' + c.paddingRight, c.fontWeight, d.fontWeight, Math.round(a.getBoundingClientRect().top - l.bottom)]; }})()""")
+            self.assertEqual(f, ["rgb(135, 148, 179)", "1px", "6px", 64, "6px 10px", "700", "400", 2], "mock-up field: 1px rgb(135,148,179) edge, radius 6, min-height 64, padding 6px 10px, headline bold, 2px under its label")
+
+    # --- Ruling 20-11 (5): the card's name ---------------------------------------------------------------------------------------------
+    def test_the_picker_card_is_named_report_headline_and_keeps_its_approved_words(self):
+        src = open(page.__file__.replace("__init__.py", "src/logic/templates.js"), encoding="utf-8").read()
+        self.assertIn('{ id: "report-headline", name: "Report headline"', src)
+        self.assertIn('"A health pill, a headline and a supporting sentence at the top of the report."', src)
+        self.assertIn('"Health pill · optional"', src)
 
     # --- Sizes against the approved mock-up -------------------------------------------------------------------------------------
     def test_the_view_sizes_are_the_mock_ups_at_1400_and_900_in_light_and_dark(self):
@@ -284,7 +371,9 @@ class Eye(Base):
                 pill, head = self.box(p, self.on, ".tpl-rh-pill"), self.box(p, self.on, ".tpl-rh-h")
                 self.assertEqual((title["fs"], title["fw"], title["margin"]), ("30px", "600", "4px"), f"mock-up h1 30px 600, 4px under: {title}")
                 self.assertEqual(p.js(f"getComputedStyle(document.querySelector('[data-id=\"{self.on}\"] .tpl-rh-title')).lineHeight"), "36px", "line height 1.2")
-                self.assertEqual(meta["margin"], "16px", "mock-up .meta 16px under")
+                self.assertTrue(p.js(f"getComputedStyle(document.querySelector('[data-id=\"{self.on}\"] .tpl-rh-title')).fontFamily").startswith("Montserrat"), "mock-up h1 is Montserrat")
+                self.assertEqual(meta["margin"], "4px", "the rendered mock-up: 4px under the meta line (ruling 20-11; its .top p rule beats .meta 16px)")
+                self.assertAlmostEqual(row["y"] - title["y"], 65, delta=0.6, msg=f"title top to the top rule is 65px in the rendered mock-up, not 77: {row['y'] - title['y']}")
                 self.assertEqual((row["gap"], row["pad"]), ("12px", "12px 0px"), "mock-up .health gap 12px, padding 12px 0")
                 self.assertEqual(row["border"][:3], "1px")
                 self.assertEqual((pill["fs"], pill["fw"], pill["pad"], pill["gap"]), ("14px", "700", "2px 12px", "6px"), f"mock-up .rag 14px bold, 2px 12px, gap 6px: {pill}")
