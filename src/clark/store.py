@@ -2027,78 +2027,84 @@ def _return_links(con, step, key, undoing):
     return out
 
 
-def revert_group(con, apply_id, table, key, rows_, step):
-    """One item's rows from one step (`apply_id`), put back under `step`. Returns (done, skipped)."""
-    def entry(r, **k):
-        return {"rowid": r["rowid"], "ref": key, "field": r["field"], **k}
+def _revert_entry(key, r, **k):
+    return {"rowid": r["rowid"], "ref": key, "field": r["field"], **k}
 
-    created = [r for r in rows_ if r["op"] == OP_MADE]
-    if created:                                        # the step created the row: remove it, only if untouched since
-        made = con.execute("SELECT rowid, * FROM change_log WHERE apply_id = ? AND tbl = ? AND item_id = ? AND op = 'insert' "
-                           "ORDER BY rowid", (apply_id, table, key)).fetchall()
-        whole = con.execute("SELECT rowid, * FROM change_log WHERE apply_id = ? AND tbl = ? AND item_id = ? ORDER BY rowid",
-                            (apply_id, table, key)).fetchall()
-        final = list({c["field"]: c for c in whole}.values())      # the step's last word on each field: a row made and then
-        #                                                            changed (or deleted) in the same step still goes back whole
-        later = changed_after(con, whole[-1]["rowid"], table, key, skip=(apply_id, step.peek_apply_id()))
-        if not holds(con, table, key, final) or later:
-            return [], [entry(rows_[0], field=None, why="has changed since: left as it is", by_step=later)]
-        if final[-1]["field"] == REMOVED:                          # made and deleted in this one step: nothing is there to remove
-            return [entry(r, change="removed") for r in rows_], []
-        ref = referred_to(con, key)
-        if ref:
-            return [], [entry(rows_[0], field=None, by_step=None,
-                              why=f"something refers to it now ({_REF_WORDS.get(ref[0], ref[0])} {ref[1]}): left as it is")]
-        current = fetch(con, table, key)
-        if table == "milestones":                          # a link taken off is kept, marked removed; it must go before the row it names
-            con.execute("DELETE FROM use_case_milestones WHERE milestone = ? AND removed_at IS NOT NULL", (key,))
-        elif table == "use_cases":
-            con.execute("DELETE FROM use_case_milestones WHERE use_case = ? AND removed_at IS NOT NULL", (key,))
-        con.execute(f"DELETE FROM {_table(table)} WHERE {where_key(table)}", key_values(table, key))
-        log(con, step, table, key, REMOVED, json.dumps(dict(current), ensure_ascii=False), None, "update",
-            undoes=made[0]["rowid"])
-        return [entry(r, change="removed") for r in rows_], []
-    removed = [r for r in rows_ if r["field"] == REMOVED]
-    if removed:                                        # the step deleted a link or a label: put it back while it is still gone
-        r = removed[0]
-        if fetch(con, table, key) is not None:
-            return [], [entry(x, why="is back already: left as it is", by_step=None) for x in rows_]
-        old = json.loads(r["old_value"])
-        if table == "links" and _link_end_gone(con, old):          # item 658: the other end of the link is still deleted; the link comes back
-            return [], []                                          # with that item's own Undo (_return_links), so nothing is lost
-        back = {k: v for k, v in old.items() if k in columns(con, table) and v is not None}
-        before = {}                                    # #197: a field the step changed before the delete goes back to its first old value
-        for x in rows_:
-            if x["rowid"] < r["rowid"] and x["field"] in columns(con, table) and x["field"] not in before:
-                before[x["field"]] = x["old_value"]
-        back.update(_typed(con, table, before))       # a first old value of NULL is put back as NULL, never the column's default
-        check_row(con, table, dict(back), set(back))
-        _insert_sql(con, table, back)
-        for f, v in back.items():
-            log(con, step, table, key, f, None, v, OP_MADE, undoes=r["rowid"])
-        out = [entry(x, change="put back") for x in rows_]
-        if table in DELETABLE_ITEMS:
-            out += _return_links(con, step, key, apply_id)
-        return out, []
-    done, skipped, changes, undoes = [], [], {}, {}
-    row = fetch(con, table, key)
-    if row is None:
-        return [], [entry(rows_[0], field=None, why="no longer exists", by_step=None)]
-    if "archived" in row.keys() and row["archived"] and not any(r["field"] == "archived" for r in rows_):
-        raise Invalid(f"{key} is archived. Restore it first.")        # #126: an older step's edit is not put back onto an archived row
+
+def _revert_created(con, apply_id, table, key, rows_, step):
+    """The step created the row: remove it, only if untouched since. Returns (done, skipped)."""
+    made = con.execute("SELECT rowid, * FROM change_log WHERE apply_id = ? AND tbl = ? AND item_id = ? AND op = 'insert' "
+                       "ORDER BY rowid", (apply_id, table, key)).fetchall()
+    whole = con.execute("SELECT rowid, * FROM change_log WHERE apply_id = ? AND tbl = ? AND item_id = ? ORDER BY rowid",
+                        (apply_id, table, key)).fetchall()
+    final = list({c["field"]: c for c in whole}.values())      # the step's last word on each field: a row made and then
+    #                                                            changed (or deleted) in the same step still goes back whole
+    later = changed_after(con, whole[-1]["rowid"], table, key, skip=(apply_id, step.peek_apply_id()))
+    if not holds(con, table, key, final) or later:
+        return [], [_revert_entry(key, rows_[0], field=None, why="has changed since: left as it is", by_step=later)]
+    if final[-1]["field"] == REMOVED:                          # made and deleted in this one step: nothing is there to remove
+        return [_revert_entry(key, r, change="removed") for r in rows_], []
+    ref = referred_to(con, key)
+    if ref:
+        return [], [_revert_entry(key, rows_[0], field=None, by_step=None,
+                          why=f"something refers to it now ({_REF_WORDS.get(ref[0], ref[0])} {ref[1]}): left as it is")]
+    current = fetch(con, table, key)
+    if table == "milestones":                          # a link taken off is kept, marked removed; it must go before the row it names
+        con.execute("DELETE FROM use_case_milestones WHERE milestone = ? AND removed_at IS NOT NULL", (key,))
+    elif table == "use_cases":
+        con.execute("DELETE FROM use_case_milestones WHERE use_case = ? AND removed_at IS NOT NULL", (key,))
+    con.execute(f"DELETE FROM {_table(table)} WHERE {where_key(table)}", key_values(table, key))
+    log(con, step, table, key, REMOVED, json.dumps(dict(current), ensure_ascii=False), None, "update",
+        undoes=made[0]["rowid"])
+    return [_revert_entry(key, r, change="removed") for r in rows_], []
+
+
+def _revert_removed(con, table, key, rows_, step, apply_id, removed):
+    """The step deleted a link, a label or an item: put it back while it is still gone. Returns (done, skipped)."""
+    r = removed[0]
+    if fetch(con, table, key) is not None:
+        return [], [_revert_entry(key, x, why="is back already: left as it is", by_step=None) for x in rows_]
+    old = json.loads(r["old_value"])
+    if table == "links" and _link_end_gone(con, old):          # item 658: the other end of the link is still deleted; the link comes back
+        return [], []                                          # with that item's own Undo (_return_links), so nothing is lost
+    back = {k: v for k, v in old.items() if k in columns(con, table) and v is not None}
+    before = {}                                    # #197: a field the step changed before the delete goes back to its first old value
+    for x in rows_:
+        if x["rowid"] < r["rowid"] and x["field"] in columns(con, table) and x["field"] not in before:
+            before[x["field"]] = x["old_value"]
+    back.update(_typed(con, table, before))       # a first old value of NULL is put back as NULL, never the column's default
+    check_row(con, table, dict(back), set(back))
+    _insert_sql(con, table, back)
+    for f, v in back.items():
+        log(con, step, table, key, f, None, v, OP_MADE, undoes=r["rowid"])
+    out = [_revert_entry(key, x, change="put back") for x in rows_]
+    if table in DELETABLE_ITEMS:
+        out += _return_links(con, step, key, apply_id)
+    return out, []
+
+
+def _revert_judge_fields(con, table, key, rows_, row, step, skipped):
+    """Each field the step changed: put back to its first old value unless it has changed since (then named in `skipped`).
+    Returns (by_field, changes, undoes)."""
+    changes, undoes = {}, {}
     by_field = {}                                     # a field changed twice in one step: judged by its last value, put back
-    for r in rows_:                                   # to its first old value (creaite's whole-step cmd_undo)
+    for r in rows_:                                   # to its first old value (the whole-step Undo)
         by_field.setdefault(r["field"], []).append(r)
     for f, rs in sorted(by_field.items(), key=lambda kv: kv[0] == "owner_id"):     # #620: the link is judged after its owner text
         if text(row[f]) != rs[-1]["new_value"]:
-            skipped.append(entry(rs[-1], why="has changed since: left as it is",
+            skipped.append(_revert_entry(key, rs[-1], why="has changed since: left as it is",
                                  by_step=changed_after(con, rs[-1]["rowid"], table, key, skip=(step.peek_apply_id(),))))
         elif f == "owner_id" and any(x["field"] == OWNER_TEXT.get(table) and x["why"].startswith("has changed since") for x in skipped):
             gone = next(x for x in skipped if x["field"] == OWNER_TEXT[table])     # #620: an owner_id rides with its owner text. When the
-            skipped.append(entry(rs[-1], why=gone["why"], by_step=gone["by_step"]))     # name was changed since, the link stays beside it and is
+            skipped.append(_revert_entry(key, rs[-1], why=gone["why"], by_step=gone["by_step"]))     # name was changed since, the link stays beside it and is
         else:                                                                       # never put back alone (the old link beside a new name)
             changes[f] = rs[0]["old_value"]
             undoes[f] = rs[-1]["rowid"]
+    return by_field, changes, undoes
+
+
+def _revert_health_reason(con, apply_id, table, key, row, changes, undoes, by_field):
+    """A project's health change takes its reason back too, or leaves the reason as it stands."""
     if table == "projects" and "health" in changes and "health_reason" not in changes:    # a health change takes its reason back too
         hr = con.execute("SELECT rowid, * FROM change_log WHERE apply_id = ? AND tbl = 'projects' AND item_id = ? "
                          "AND field = 'health_reason' AND op = 'update' ORDER BY rowid", (apply_id, key)).fetchall()
@@ -2108,6 +2114,18 @@ def revert_group(con, apply_id, table, key, rows_, step):
             by_field["health_reason"] = [dict(x) for x in hr]
     if table == "projects" and "health" in changes and "health_reason" not in changes:
         changes["health_reason"] = row["health_reason"]       # the pick kept the reason as it stood: put it back as it stands (no change)
+
+
+def _revert_changed(con, apply_id, table, key, rows_, step):
+    """The step changed fields of a row that is still there: put each back unless it has changed since. Returns (done, skipped)."""
+    done, skipped = [], []
+    row = fetch(con, table, key)
+    if row is None:
+        return [], [_revert_entry(key, rows_[0], field=None, why="no longer exists", by_step=None)]
+    if "archived" in row.keys() and row["archived"] and not any(r["field"] == "archived" for r in rows_):
+        raise Invalid(f"{key} is archived. Restore it first.")        # #126: an older step's edit is not put back onto an archived row
+    by_field, changes, undoes = _revert_judge_fields(con, table, key, rows_, row, step, skipped)
+    _revert_health_reason(con, apply_id, table, key, row, changes, undoes, by_field)
     if not changes:
         return done, skipped
     write_item(con, {"table": table, "op": "update", "id": key, "changes": _typed(con, table, changes), "revert": True,
@@ -2117,10 +2135,20 @@ def revert_group(con, apply_id, table, key, rows_, step):
         if f not in changes:
             continue
         if text(after[f]) == rs[0]["old_value"]:
-            done.extend(entry(r, change="set", **{"from": r["new_value"], "to": rs[0]["old_value"]}) for r in rs)
+            done.extend(_revert_entry(key, r, change="set", **{"from": r["new_value"], "to": rs[0]["old_value"]}) for r in rs)
         else:                                          # derived (a RAID priority, a closed date): it follows other fields
-            skipped.append(entry(rs[-1], why="it follows other fields: left as it is", by_step=None))
+            skipped.append(_revert_entry(key, rs[-1], why="it follows other fields: left as it is", by_step=None))
     return done, skipped
+
+
+def revert_group(con, apply_id, table, key, rows_, step):
+    """One item's rows from one step (`apply_id`), put back under `step`. Returns (done, skipped)."""
+    if any(r["op"] == OP_MADE for r in rows_):
+        return _revert_created(con, apply_id, table, key, rows_, step)
+    removed = [r for r in rows_ if r["field"] == REMOVED]
+    if removed:
+        return _revert_removed(con, table, key, rows_, step, apply_id, removed)
+    return _revert_changed(con, apply_id, table, key, rows_, step)
 
 
 _REF_WORDS = {"actions": "an action", "raid": "a RAID item", "decisions": "a decision", "links": "a link",
