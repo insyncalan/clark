@@ -39,16 +39,17 @@ def css(name):
     return page.escape_style("\n".join(parts))
 
 
-# Row 1269 slice B: the install's Theme setting (store.theme(): 'classic' or 'cards') to the Theme folder the page layers.
-# Classic is the prototype-2.0 folder; Cards is today's look, so it layers nothing and the page is byte for byte what it was.
-FOLDER_OF = {"classic": "prototype-2.0", "cards": None}
+# Row 1269 slice B, changed by row 1363: Classic (the prototype-2.0 folder) is the only theme applied. The install's stored setting
+# ('classic' or 'cards') is only read and is never rewritten; a stored 'cards' value stays in the file, unused, so bringing Cards back needs no migration.
+# The Cards page is still what page.page_html(theme=None) draws; nothing in the app asks for it.
+CLASSIC = "prototype-2.0"
 
 
 def name_for(setting):
-    """The Theme folder name page.page_html(theme=...) takes for an install setting, or None (today's look) for 'cards' and anything else."""
-    return FOLDER_OF.get(setting) if isinstance(setting, str) else None
+    """The Theme folder name page.page_html(theme=...) takes for an install setting: Classic for every value, a stored 'cards' included (row 1363)."""
+    return CLASSIC
 
 
 def of_store(store):
-    """The Theme folder name for the Theme the open `store` holds now (read only; a store that cannot say reads as Cards, so None)."""
+    """The Theme folder name for the Theme the open `store` holds now (read only; Classic whatever it holds)."""
     return name_for(store.theme())
