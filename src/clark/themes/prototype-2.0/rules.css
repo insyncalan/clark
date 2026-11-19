@@ -13,7 +13,12 @@ body { background: var(--page-bg) var(--page-grad) fixed no-repeat; }
 .col-h { background: var(--band-bg); }
 .boardbox { scrollbar-width: none; }
 .boardbox::-webkit-scrollbar { display: none; }
-.fline { border: 0; border-bottom: 1px solid var(--grey-200); border-radius: 0; background: none; padding-left: 0; padding-right: 0; }
+.fline { border: 0; border-bottom: 1px solid #8994b0; border-radius: 0; background: none; padding: 8px 0; gap: 6px; }
+.fk.k-txt { display: inline-flex; align-items: center; gap: 4px; box-sizing: border-box; min-height: 25px; padding: 0 4px 0 9px; margin: 0 -4px 0 -9px; border-radius: 6px; background: #eef0f6; color: #1d2433; box-shadow: none; }
+.fhi { inset: 0 0 0 -9px; padding-left: 9px; }
+:root[data-theme=dark] .fline { border-bottom-color: var(--grey-500); }
+:root[data-theme=dark] .fk.k-txt { background: var(--grey-100); color: var(--text); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .fline { border-bottom-color: var(--grey-500); } :root[data-theme=auto] .fk.k-txt { background: var(--grey-100); color: var(--text); } }
 .fline-tail { margin-right: 0; }
 .vicons .lsw, .vicons .btn.sm.vgb { border-radius: var(--radius-sm); }
 .vicons .seg.lsw button[aria-pressed="true"] { background-color: var(--grey-100); background-image: none; color: var(--heading); }
@@ -231,6 +236,24 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 #usecases .fline { min-height: 34px; padding-top: 0; padding-bottom: 0; border: 1px solid var(--grey-500); border-radius: 6px; background: var(--surface); }
 #usecases .fline.bad, #usecases .fline.bad:focus-within { border-color: var(--status-red); box-shadow: none; }
 
+/* Row 1324-A (Option A, ruling 18-11; Classic only, Cards keeps its bordered group cards): Group by draws a heading on the page, no card: the name, the count, one hairline under it; the column names once on top (the published list draws them only in this Theme, see UseCasesTab.jsx); 18 px above each group. The name column is 64 px, the rows' own width. */
+.wgroup.ucl-group, .wgroup.ucp-group { background: none; border: 0; border-radius: 0; overflow: visible; margin: 18px 0 0; }
+.ucp-cols + .ucp-group { margin-top: 14px; }
+.ucl-wrap > .wgroup:not(.ucl-group):has(+ .ucl-group) { margin-bottom: 0; border-left: 0; border-right: 0; border-radius: 0; }   /* the grouped list draws the column header as a flat band, so its columns are the groups' */
+.ucl-wrap > .wgroup:not(.ucl-group) + .ucl-group { margin-top: 13px; }   /* the header card's own 1 px border under it makes the 14 px of the mock-up */
+.ucl-grp, .ucp-grp { display: flex; align-items: flex-start; gap: var(--space-2); padding: 0 0 6px; border-bottom: 1px solid var(--grey-200); background: none; font-size: var(--size-small); color: var(--heading); }
+.ucp-group .ucp { padding-left: 0; padding-right: 0; }
+.ucp > summary.ucp-bar { grid-template-columns: minmax(64px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px; }
+.ucp-cols { display: grid; grid-template-columns: minmax(64px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px; gap: var(--space-3); padding: 6px var(--space-1); border-bottom: 1px solid var(--grey-200); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--text-muted); }   /* the editor's column names, over the published list */
+.ucp-cols .ucl-c1 { grid-column: 1 / 3; }
+@media (max-width: 900px) { .ucp > summary.ucp-bar, .ucp-cols { grid-template-columns: minmax(64px, max-content) minmax(0, 1fr) minmax(0, 1fr) 124px 96px; gap: var(--space-2); } }
+@media (max-width: 640px) { .ucp-cols { display: none; } }
+.ucl-group .grp-b, .ucp-group .grp-b { font-family: var(--font-head); font-weight: var(--weight-medium); font-size: 15px; color: var(--heading); align-items: flex-start; text-align: left; padding: 2px 0; gap: var(--space-2); min-width: 0; }
+.ucl-group .grp-b .i, .ucp-group .grp-b .i { flex: none; margin-top: 3px; color: var(--text-muted); }
+.ucl-group .grp-b .gc, .ucp-group .grp-b .gc { flex: none; white-space: nowrap; font-size: 13px; margin-left: 4px; }   /* spec 19-11: the count is 13 px with 4 px before it (Work items keeps 2 px) */
+.ucl-group .grp-b:focus-visible, .ucp-group .grp-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: 6px; }   /* spec 19-11: 6 px radius on the group heading only; the global ring stays 4 px */
+.ucp-grp + .ucp { border-top: 0; }   /* spec 19-11: the group's hairline is the only line over its first row */
+.ucl-group .grp-b:hover, .ucp-group .grp-b:hover, .ucl-group .grp-b:hover .i, .ucp-group .grp-b:hover .i { color: var(--brand-blue); }
 /* Row 1317 (Settings sidebar): the menu is a grey panel (the Classic page ground equals the Cards panel fill, so it showed no panel), the group names are in sentence case, and the open page is a tinted bar with its square edge at the marker. The issue table names the grey panel and the tinted bar; it names no hover tint on a chip, so there is none. Classic only; Cards keeps its look. The Settings title is already 30 px in both Themes (measured), so it is not touched. Prototype files are not on this box: */
 @media (min-width: 900px) {
   .set-bar { background: var(--grey-100); border-radius: var(--radius-lg); }
@@ -327,6 +350,43 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .ask-model .ask-model-change:hover { color: var(--brand-blue); border-bottom-color: var(--brand-blue); }
 .ask-model .ask-model-change:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 
+/* Row 1344: the peek as the approved peek mock-up draws it, Classic only (Cards keeps today's rules): a 1 px edge and a shadow thrown to the left in light (dark keeps the Theme's own tokens), and the 0.5 s slide fades in while it travels, opaque at 60 %. Reduced motion keeps the short fade of the base rules. */
+.peek { border-left-color: rgb(205, 211, 224); box-shadow: -10px 0 30px rgba(19, 35, 42, .14); }
+:root[data-theme=dark] .peek { border-left-color: var(--grey-200); box-shadow: var(--shadow); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .peek { border-left-color: var(--grey-200); box-shadow: var(--shadow); } }
+@keyframes pk-in-fade { from { opacity: 0; transform: translateX(100%); } 60% { opacity: 1; } }
+@media (prefers-reduced-motion: no-preference) { :root:not([data-motion="reduce"]) .peek:not(.leaving) { animation: pk-in-fade 500ms cubic-bezier(.22, 1, .36, 1) 1; } }
+/* Row 1348: the Ask clark panel opens from the right edge and leaves to it in 200 ms, as the prototype's does (Cards keeps its rise from the bottom). The shared rule keeps its names, gate, durations and curves (the panel's code waits for the animation named ask-down); only the two keyframes are laid again, later, from the side. 104 percent clears the panel's own shadow. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes ask-up { from { transform: translateX(104%); } to { transform: none; } }
+  @keyframes ask-down { from { transform: none; } to { transform: translateX(104%); } }
+}
+/* The close takes exactly 200 ms, as the prototype's does (--dur-state is not for this panel); the curve stays ease-exit. */
+:root:not([data-motion="reduce"]) .ask-panel.leaving { animation: ask-down 200ms var(--ease-exit) forwards; }
+/* Row 1286 (impeccable audit B-M2 and B-M3, menus; Classic only, Cards keeps every menu rule it has). One grid for every menu: the pick menu's, an icon 17px in from the panel edge, 8px from its words. The approved mock-up menus win over production on the points they draw: the tick on the right of the word (the Columns menu and the Gantt Show menus keep it on the left, as their mock-ups draw it), a plain head ("Group by", not capitals), 200px menus and 240px for Group by. Item size stays the Classic body size, 14px. The bare lengths have no token: the 16px side padding, the 200px and 240px menus. */
+.ddmenu { min-width: 200px; }
+.cpop.cmenu:not(.bmenu) { min-width: 200px; }
+.ddmenu[aria-label="Group by"] { min-width: 240px; }
+.ddmenu [role="menuitem"], .ddmenu [role="menuitemradio"]:not(.hp), .cols-menu [role="menuitemcheckbox"] { padding-left: 16px; padding-right: 16px; }
+.ddmenu .mi { margin-right: var(--space-2); }
+.rowmenu .mi { margin-right: 0; }
+.menu .menu-item, .bmenu .menu-item, .bmenu .bm-why { gap: var(--space-2); }
+.ddmenu [role="menuitemradio"]:not(.hp), .ddmenu [role="menuitem"]:has(> .ck) { display: flex; align-items: center; }
+.ddmenu [role="menuitemradio"]:not(.hp) .ck, .ddmenu [role="menuitem"] > .ck, #viewMenuList [role="menuitemradio"] .ck { order: 1; margin-left: auto; margin-right: 0; padding-left: var(--space-3); }
+.ddmenu .lab.caps, .mh.caps { font-size: var(--size-body); letter-spacing: normal; text-transform: none; font-weight: var(--weight-regular); }
+.gt-pop button, .gt-menu button, [data-gt] .gt-menu button { padding-left: var(--space-3); padding-right: var(--space-3); font-size: var(--size-body); }
+.ddmenu .lab, .ddmenu .who, .ddmenu .mh, .mh { padding-left: 16px; padding-right: 16px; }
+/* Row 1336, the At a glance template in Edit, Classic only (the published View keeps the flat Row 1260 strip): the tile takes the mock-up's inner padding (12px top and bottom, 16px sides; the Row 1260 padding 0 removed it, and with it the pill touched the border) and shows its status dot 8x8 before the label (the Row 1260 rule hid it; the colour of the figure alone is the View's way). Not here, waiting for a ruling: the bin on built-in tiles, the grip and eye positions that go with it, the help text wording, the empty fourth column. */
+.tpl-edit-glancetemplate .glance .fig { padding: 12px 16px; }
+.tpl-edit-glancetemplate .glance .fig .ragdot { display: inline-block; flex: none; }
+/* Row 1342: the Feedback tag dialog as the 1298 mockup draws it: heading 17px / 600 with 2px under it, the dialog and the tag one step roomier (bottom padding 14, tag top and bottom padding 14). */
+.fbt-head h2 { margin: 0 0 2px; font-size: 17px; font-weight: 600; color: var(--heading); }
+.fbt-dlg { padding-bottom: 14px; }
+.fbt-tag { padding-top: 14px; padding-bottom: 14px; }
+/* Row 1342 part 2: the empty-send error (red 13px, 4 above) as the 1298 mockup draws it. */
+.fbt-error { margin-top: 4px; color: var(--status-red-text); font-size: 13px; }
+/* Row 1375: a wheel over the Dashboard's Work items box that has reached its top or bottom keeps scrolling the page (the shared rule's overscroll-behavior-y: contain made it stall inside the box); the box still scrolls its own rows. */
+.wil-scroll { overscroll-behavior-y: auto; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
@@ -335,3 +395,5 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .gt-grp .gt-ib[aria-pressed="true"] { background-color: var(--brand-navy); background-image: none; color: var(--white); }
 :root[data-theme=dark] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); } }
+#viewMenuList { min-width: 240px; }
+[data-gt] .gt-menu button, .gt-pop button { display: flex; align-items: center; gap: var(--space-2); }

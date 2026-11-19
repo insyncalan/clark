@@ -2599,7 +2599,7 @@
     {
      "card": "asking",
      "title": "Asking",
-     "line": "Turn asking on or off, and choose the Folders asking may read."
+     "line": "Turn asking on or off, and choose the Source folders asking may read."
     },
     {
      "card": "feedback",
