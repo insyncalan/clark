@@ -1492,11 +1492,6 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .upd-c > p:first-child { margin-top: 0; padding-top: 6px; }
 .upd-c > .row:first-child { margin-top: 0; }
 .upd-c .upd-hint { margin-top: 4px; font-size: var(--size-small); }
-.upd-c .upd-up { padding: 6px 12px 10px; border-radius: 8px; background: var(--brand-blue-tint); }      /* 1327 s2, the mock-up's .row.up: a tinted block for the version that is ready, downloading or downloaded */
-.upd-c .upd-up > p:first-child { margin: 0 0 4px; }
-.upd-pg { display: inline-block; vertical-align: middle; width: 140px; height: 8px; border-radius: 4px; background: var(--grey-200); overflow: hidden; margin-right: 8px; }      /* the mock-up's .pg: 140 x 8, radius 4 */
-.upd-pg i { display: block; height: 100%; background: var(--brand-blue); }
-.upd-c .upd-up .row { align-items: center; }
 @media (max-width: 600px) { .upd-rows { grid-template-columns: minmax(0, 1fr); gap: 4px; } .upd-rows .upd-l { padding-top: var(--space-2); } }
 /* item 443: Settings > Published reports: a plain table, the same look as the work items table; it wraps instead of scrolling sideways. */
 .pubs { width: 100%; border-collapse: collapse; font-size: var(--size-small); margin-top: 8px; }
