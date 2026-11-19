@@ -21,11 +21,13 @@ from clark.ask import BUDGET, MAX_PASSAGE, Passage
 
 PASSAGE_SIZE = 1200          # characters a passage is cut to, about (one or a few rows)
 KIND_WORDS = {"milestones": "milestones", "actions": "actions", "raid": "risks and issues", "decisions": "decisions",
-              "use_cases": "use cases"}
+              "use_cases": "use cases", "workstreams": "workstreams"}
 LABELS = {"project": "report: the project", "milestones": "report: milestones", "actions": "report: actions",
-          "raid": "report: risks and issues", "decisions": "report: decisions", "use_cases": "report: use cases"}
-KIND_ORDER = ("milestones", "actions", "raid", "decisions", "use_cases")
-TITLE = {"milestones": "name", "actions": "description", "raid": "description", "decisions": "decision", "use_cases": "title"}
+          "raid": "report: risks and issues", "decisions": "report: decisions", "use_cases": "report: use cases",
+          "workstreams": "report: workstreams"}
+KIND_ORDER = ("milestones", "actions", "raid", "decisions", "use_cases", "workstreams")
+TITLE = {"milestones": "name", "actions": "description", "raid": "description", "decisions": "decision", "use_cases": "title",
+         "workstreams": "name"}
 OWNER = {"milestones": "owner", "actions": "owner", "raid": "owner", "decisions": "made_by"}
 DATES = ("baseline_date", "forecast_date", "actual_date", "due_date", "raised", "closed", "date", "needed_by", "revisit",
          "week_ending")
@@ -38,6 +40,7 @@ SHOWN = {
              "workstream", "milestone", "use_case"),
     "decisions": ("status", "made_by", "date", "needed_by", "revisit", "replaces", "client_message", "use_case"),
     "use_cases": ("ref", "status", "commitment", "headline", "standing"),
+    "workstreams": ("status",),          # the lead, keywords and aliases are never read for a report (store.NEVER_PUBLISH)
 }
 WORDS = re.compile(r"[^\W_]{3,}", re.UNICODE)
 ID_PATTERN = re.compile(r"\b[A-Z][A-Z0-9]{2,6}-[A-Z]?-?\d{1,4}\b")
