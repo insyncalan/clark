@@ -58,7 +58,13 @@ class Focus(unittest.TestCase):
 
 class DecisionChips(unittest.TestCase):
     load, fresh, refused = _B.load, _B.fresh, _B.refused
-    setUp = _B.setUp
+    _base_setup = _B.setUp
+
+    def setUp(self):
+        self._base_setup()
+        p = classic()
+        p.start()
+        self.addCleanup(p.stop)
 
     def test_a_decision_peek_names_its_owner_and_date_chips_under_their_values(self):
         """The approved mock-up's decision chips say "made by" under the owner and "needed by" under the date of a Pending decision (TUL-D-016); an action's chips keep no such word."""
