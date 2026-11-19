@@ -186,7 +186,7 @@ class Redesign:
                 p.js("location.hash = '#work&p=ABC'")
                 p.until("!!document.querySelector('#work table.items tbody tr')", "Work items drew")
                 wk = p.js(LOOK + "('#work')")
-                for k in ("th", "td", "av", "vtab", "fline", "gutter"):
+                for k in ("th", "td", "av", "vtab", "gutter"):   # not fline: Row 1316 ruled the Classic Use cases filter a boxed input (the prototype's), Work items keeps its line
                     self.assertIsNotNone(uc[k], k + ": drawn on Use cases")
                     self.assertEqual(uc[k], wk[k], k + ": the same as Work items, measured on both pages")
 
