@@ -3,7 +3,7 @@ Run: python3 dev/run_tests.py test_ask_slide_1348
 
 The page is the real edit page (the committed test build) with the Classic Theme layered in, as the server layers it. As Chrome computes it at 1400 and 900 px,
 light and dark: the opening animation moves the panel along x only, from 104 percent of its width to rest, over --dur-layout with --ease-enter; the closing one
-moves it back along x over --dur-state with --ease-exit and the panel is removed afterwards; under reduced motion nothing animates. The Cards page (no Theme) still
+moves it back along x over exactly 200 ms with --ease-exit and the panel is removed afterwards; under reduced motion nothing animates. The Cards page (no Theme) still
 rises along y, and its stylesheet is the one main has. The prototype's text and data are test content here, only its motion is the reference."""
 import hashlib
 import re
@@ -87,8 +87,9 @@ class Slide(Base):
             self.assertEqual((o["name"], c["name"]), ("ask-up", "ask-down"), "the panel's code still waits for ask-down")
             self.assertEqual((o["from"], o["to"]), ("translateX(104%)", "none"), "opens from the right edge to rest")
             self.assertEqual((c["from"], c["to"]), ("none", "translateX(104%)"), "leaves to the right edge")
-            self.assertEqual((o["dur"], c["dur"]), (ms(tok["layout"]), ms(tok["state"])), "380 ms in, 220 ms out: the tokens")
+            self.assertEqual((o["dur"], c["dur"]), (ms(tok["layout"]), 200), "380 ms in (the layout token), exactly 200 ms out")
             self.assertEqual((eased(o["ease"]), eased(c["ease"])), (eased(tok["enter"]), eased(tok["exit"])), "ease-enter in, ease-exit out")
+            self.assertEqual((eased(o["ease"]), eased(c["ease"])), ("cubic-bezier(.16,1,.3,1)", "cubic-bezier(.7,0,.84,0)"), "the prototype's curves, spelled out")
             self.assertEqual(o["w"], 420, "the panel keeps its 420 px")
             self.assertGreater(h["x"], 0, "half way it is still right of its place")
             self.assertAlmostEqual(h["x"], h["w"] * 1.04 * 0.5, delta=h["w"] * 0.5, msg="and moved by less than the full 104 percent")
