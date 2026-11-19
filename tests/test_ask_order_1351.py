@@ -44,6 +44,22 @@ class Order(unittest.TestCase):
                 order = [got.index(h) for h in ("Asking in ABC", "Used from All projects", "Connectors in ABC", "Source folders for ABC", "Standing instructions")]
                 self.assertEqual(order, sorted(order), f"project tab order at {w}: {got}")
                 self.assertTrue(js("document.querySelector('#ask-used-all [data-ask-goall]').offsetHeight > 0"), "the Change link is on show")
+                # Tab from the first card's switch walks forward through the cards in the page order
+                js("document.querySelector('#ask-folders-card').scrollIntoView()")
+                js("(document.querySelector('[data-ask-tab=project]')).focus()")
+                seen = []
+                for _ in range(40):
+                    for kind in ("keyDown", "keyUp"):
+                        cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "Tab", "code": "Tab", "windowsVirtualKeyCode": 9}, sid)
+                    seen.append(js("(()=>{const s=document.activeElement && document.activeElement.closest('#ask-tabs ~ section.frame.setting'); const h=s && s.querySelector('h2'); return h ? h.textContent : null;})()"))
+                heads_seen = []
+                for h in seen:
+                    if h and h in got and (not heads_seen or heads_seen[-1] != h):
+                        if heads_seen and got.index(h) < got.index(heads_seen[-1]):
+                            break          # focus left the last card and wrapped round the page
+                        heads_seen.append(h)
+                self.assertEqual(heads_seen, [x for x in got if x in heads_seen], f"Tab moves through the cards in page order at {w}: {heads_seen}")
+                self.assertGreaterEqual(len(set(heads_seen)), 2, f"Tab reached more than one card at {w}: {heads_seen}")
                 js("document.querySelector('[data-ask-tab=all]').click()")
                 self.assertTrue(wait(lambda: js("!!document.querySelector('#ai-settings') && !!document.querySelector('#ask-all-folders')"), 20), f"all tab at {w}")
                 got = js(HEADS)
