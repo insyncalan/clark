@@ -92,8 +92,14 @@ class Computed(unittest.TestCase):
                     sid = self.load(cdp, w, scheme, "prototype-2.0")
                     tag = f"{scheme} {w}"
                     c = lambda s, p: self.css(cdp, sid, s, p)
-                    dark = c("#milestones h1", "color")      # the heading colour is the active fill, as in the Dashboard
+                    navy = cdp.js("(() => { const d = document.createElement('i'); d.style.color = getComputedStyle(document.documentElement).getPropertyValue('--brand-navy'); document.body.appendChild(d); const v = getComputedStyle(d).color; d.remove(); return v; })()", sid)
+                    dark = navy      # item 1354: the chosen half is navy with white text, not the heading colour
                     self.assertEqual(c('#milestones .msv-b[data-msvb="line"]', "backgroundColor"), dark, tag)
+                    self.assertEqual(c('#milestones .msv-b[data-msvb="line"]', "color"), "rgb(255, 255, 255)", tag)
+                    self.assertEqual(c('#milestones [data-scale-b="month"]', "backgroundColor"), dark, tag)
+                    self.assertEqual(c('#milestones [data-scale-b="month"]', "color"), "rgb(255, 255, 255)", tag)
+                    for sel in ('#milestones .msv-b[data-msvb="line"]', '#milestones [data-scale-b="month"]'):
+                        self.assertEqual("inset" in c(sel, "boxShadow"), scheme == "dark", tag + " the thin edge is there in dark only")
                     self.assertNotEqual(c('#milestones .msv-b[data-msvb="cal"]', "backgroundColor"), dark, tag)
                     self.assertEqual(c('#milestones [data-scale-b="month"]', "backgroundImage"), "none", tag)      # a filled active scale button, the rows 1313 and 1319 rules
                     self.assertNotEqual(c('#milestones [data-scale-b="month"]', "backgroundColor"), c('#milestones [data-scale-b="week"]', "backgroundColor"), tag)
