@@ -376,8 +376,8 @@ class Cards(Base):
                 cdp.call("Page.navigate", {"url": path.as_uri()}, sid)
                 f = type(p)(self, cdp, sid)
                 f.until("document.documentElement.dataset.ready === '1' && !!document.querySelector('.secs .sec')", "the file drew")
-                drawn[pick] = f.js("(() => { const s = getComputedStyle(document.querySelector('.secs .sec')); return [document.documentElement.dataset.density,"
-                                   " parseFloat(s.paddingTop) + parseFloat(s.paddingBottom), s.boxShadow === 'none']; })()")
+                drawn[pick] = f.js("(() => { const s = getComputedStyle(document.querySelector('.secs .sec')); const r = getComputedStyle(document.documentElement); return [document.documentElement.dataset.density,"
+                                   " parseFloat(r.getPropertyValue('--sec-pad-t')) + parseFloat(r.getPropertyValue('--sec-pad-b')), s.boxShadow === 'none']; })()")      # the density tokens: a banded section's own padding is the ruled literal 20/18 in both densities (row 1311, ruling 19-11)
                 drawn[pick + "-stored"] = f.js("localStorage.getItem('clark.density')")
         self.assertEqual(drawn["compact"][0], "compact")
         self.assertEqual(drawn["comfortable"][0], "comfortable", "a file published at Comfortable opens Comfortable, though it carries the word roomy")
