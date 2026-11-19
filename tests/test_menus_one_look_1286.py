@@ -9,6 +9,7 @@ bulk menus, the Gantt menus, the rich text style menu) at 1400 and 900, light an
   - the type: 14px on every line (the Classic body size)
   - the tick of the line in use is on the right of the words, except in the three menus whose mock-ups draw it on the left (Columns, the Gantt Show menus)
   - the head of a group is plain: no capitals, no letter spacing
+  - the panel radius: 10px as the prototype .pop (Row menu-radius)
   - the width: no menu narrower than 200px, the Group by menus 240px at least
 Words and icons are not read here (test_menu_icons_every_1138 does that); nothing here changes a word.
 """
@@ -55,7 +56,7 @@ MEASURE = r"""(root => {
    return {t: b.textContent.trim().slice(0, 22), fs: cs(b).fontSize, icon: true, il: Math.round((Math.min(...before) - br.left) * 10) / 10, gap: after.length ? Math.round((Math.min(...after) - ir.right) * 10) / 10 : null, side};
  });
  const heads = [...box.querySelectorAll('.lab,.mh,.menu-head')].filter(ok).map(h => ({t: h.textContent.trim().slice(0, 24), tt: cs(h).textTransform, ls: cs(h).letterSpacing}));
- return {w: Math.round(br.width), rows, heads}; })"""
+ return {w: Math.round(br.width), rows, heads, rad: cs(box).borderTopLeftRadius}; })"""
 
 
 def check(test, name, look, m):
@@ -63,6 +64,7 @@ def check(test, name, look, m):
     test.assertTrue(m, where)
     three = name in PROTOTYPE_THREE
     test.assertGreaterEqual(m["w"], THREE_W if three else GROUP_W if name in GROUP_BY else MIN_W, f"{where}: the menu is {m['w']}px wide")
+    test.assertEqual(m["rad"], "10px", f"{where}: the panel radius is {m['rad']}, the prototype popover (.pop) draws 10px")
     for r in m["rows"]:
         test.assertEqual(r["fs"], THREE_FS if three else "14px", f"{where}: the line {r['t']!r} is not {THREE_FS if three else '14px'}")
         if r["icon"] and three:
