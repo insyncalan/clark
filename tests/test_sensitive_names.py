@@ -16,10 +16,8 @@ from _paths import SRC  # noqa: F401
 from clark import sensitive_names as sn
 
 EXPECTED = (
-    "candidate", "candidates", "cv", "cvs", "resume", "resumes", "interview", "interviews", "salary", "payroll",
-    "hr", "performance", "disciplinary", "grievance", "contract", "contracts", "sow", "nda", "agreement",
-    "agreements", "proposal", "proposals", "pricing", "rates", "commercial", "invoice", "invoices",
-    "purchase order", "legal",
+    "cv", "cvs", "resume", "resumes", "salary", "payroll", "passport", "passports", "ssn", "disciplinary", "grievance",
+    "redundancy", "contract", "contracts", "sow", "nda", "purchase order",
 )
 
 
@@ -44,7 +42,7 @@ class Scan(unittest.TestCase):
                          "Photos/e.jpg"])
         found = {r["name"]: r for r in sn.scan(self.root)}
         self.assertEqual(set(found), {"Candidate CV", "Contract"})
-        self.assertEqual(found["Candidate CV"]["words"], ["candidate", "cv"])
+        self.assertEqual(found["Candidate CV"]["words"], ["cv"])
         self.assertEqual(found["Contract"]["words"], ["contract"])
 
     def test_none_when_no_word(self):
@@ -59,7 +57,7 @@ class Scan(unittest.TestCase):
         self.assertEqual(sn.scan(self.root), [])
 
     def test_opens_nothing_and_sends_nothing(self):  # test 3
-        tree(self.root, ["Contract/a.txt", "HR/b.docx", "top salary.csv"])
+        tree(self.root, ["Contract/a.txt", "Passport/b.docx", "top salary.csv"])
         def boom(*a, **k):
             raise AssertionError("scan must not open files or the network")
         with mock.patch.object(builtins, "open", boom), mock.patch.object(socket.socket, "connect", boom), \
@@ -73,8 +71,8 @@ class Scan(unittest.TestCase):
         self.assertEqual(sn.scan(self.root), [])
 
     def test_case_accent_and_separators(self):
-        tree(self.root, ["RÉSUMÉ/a.txt", "my_cv_2026/a.txt", "Purchase-Order 7/a.txt", "pricing.xlsx", "x/NDA.txt"])
-        self.assertEqual(self.names(), ["Purchase-Order 7", "RÉSUMÉ", "my_cv_2026", "pricing.xlsx"])
+        tree(self.root, ["RÉSUMÉ/a.txt", "my_cv_2026/a.txt", "Purchase-Order 7/a.txt", "payroll.xlsx", "pricing.xlsx", "x/NDA.txt"])
+        self.assertEqual(self.names(), ["Purchase-Order 7", "RÉSUMÉ", "my_cv_2026", "payroll.xlsx"])
 
     def test_phrase_needs_both_words(self):
         tree(self.root, ["purchase/a.txt", "order/a.txt"])
@@ -91,9 +89,9 @@ class Scan(unittest.TestCase):
         self.assertEqual([(x["path_rel"], x["readable_files"]) for x in r], [("Payroll 2026.csv", 1)])
 
     def test_nested_match_reports_relative_path(self):
-        tree(self.root, ["Work/Legal/a.txt"])
+        tree(self.root, ["Work/Payroll/a.txt"])
         (r,) = sn.scan(self.root)
-        self.assertEqual((r["name"], r["path_rel"]), ("Legal", os.path.join("Work", "Legal")))
+        self.assertEqual((r["name"], r["path_rel"]), ("Payroll", os.path.join("Work", "Payroll")))
 
     def test_links_not_followed(self):
         tree(self.root, ["real/a.txt"])
@@ -115,7 +113,7 @@ class Scan(unittest.TestCase):
         self.assertEqual((r["name"], r["readable_files"]), ("Contract", 1))
 
     def test_unreadable_top_level_file_counts_zero(self):
-        tree(self.root, ["pricing.xlsx"])
+        tree(self.root, ["payroll.xlsx"])
         self.assertEqual([r["readable_files"] for r in sn.scan(self.root)], [0])
 
     def test_depth_limit(self):
@@ -131,11 +129,16 @@ class Scan(unittest.TestCase):
             (r,) = sn.scan(self.root)
         self.assertEqual(r["readable_files"], 1)
 
+    def test_weak_words_do_not_warn(self):
+        tree(self.root, ["Rates/a.txt", "Proposal/a.txt", "Legal/a.txt", "Performance review/a.txt", "Pricing/a.txt", "Agreement/a.txt",
+                         "Commercial/a.txt", "HR/a.txt", "Release candidate/a.txt"])
+        self.assertEqual(sn.scan(self.root), [])
+
     def test_ticket_example_and_plurals(self):
         tree(self.root, ["ODC Candidates_CVs/a.docx"])
         (r,) = sn.scan(self.root)
-        self.assertEqual((r["name"], r["words"]), ("ODC Candidates_CVs", ["candidates", "cvs"]))
-        for plural in ("Contracts", "Resumes", "Invoices", "Agreements", "Proposals", "Interviews", "Candidates", "CVs"):
+        self.assertEqual((r["name"], r["words"]), ("ODC Candidates_CVs", ["cvs"]))
+        for plural in ("Contracts", "Resumes", "Passports", "CVs"):
             self.assertEqual(len(sn.words_in(plural)), 1, plural)
 
     def test_entry_cap_stops_scan_and_flags_truncated(self):

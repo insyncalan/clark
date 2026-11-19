@@ -10,12 +10,10 @@ import os
 import re
 import unicodedata
 
-# WORDING FOR APPROVAL: the one place for the word list (proposed from the ticket; not decided by clark).
+# The one place for the word list: strong words only (a false-alarm check on real folder names: weak words such as rates, proposal, legal, performance, commercial, agreement, pricing, hr, candidate, interview are left out).
 WORDS = (
-    "candidate", "candidates", "cv", "cvs", "resume", "resumes", "interview", "interviews", "salary", "payroll",
-    "hr", "performance", "disciplinary", "grievance", "contract", "contracts", "sow", "nda", "agreement",
-    "agreements", "proposal", "proposals", "pricing", "rates", "commercial", "invoice", "invoices",
-    "purchase order", "legal",
+    "cv", "cvs", "resume", "resumes", "salary", "payroll", "passport", "passports", "ssn", "disciplinary", "grievance",
+    "redundancy", "contract", "contracts", "sow", "nda", "purchase order",
 )
 
 READABLE_TYPES = (".txt", ".md", ".markdown", ".csv", ".tsv", ".rst", ".docx", ".pdf")
