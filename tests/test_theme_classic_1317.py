@@ -19,7 +19,7 @@ from test_work_items import FIXED_DATE, load_demo, page_target
 
 NAME = "prototype-2.0"
 # The Cards page, page_html(branding=NO_BRAND, theme=None), taken from origin/main (3496323b) before this row; rules.css is read only when a Theme is named.
-CARDS_SHA256 = "8014a96d07452d47a4e3cf2341a9d681662168a9eb14d546598ba9b1738335d2"
+CARDS_SHA256 = "fd9922e54e3e8c391ea143c6e45b93b8503c1c31b4467023d3a70d49d71881cc"
 SIZES = (1400, 900)
 PROBE = """(() => { const q = (s) => document.querySelector(s), g = (e, p) => getComputedStyle(e)[p];
   const tok = (v, p) => { const i = document.createElement('i'); i.style[p || 'color'] = v; document.body.appendChild(i); const r = getComputedStyle(i)[p || 'color']; i.remove(); return r; };

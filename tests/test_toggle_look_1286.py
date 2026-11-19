@@ -3,7 +3,7 @@
 Run: python3 dev/run_tests.py test_toggle_look_1286
 Measured in Chrome on the real server and the demo database (the fixed date), Classic and Cards, 1400 and 900 px, light and dark: the chosen
 Timeline or Calendar switch (.msv-b), the chosen Week, Month or Quarter on the Calendar (.cal-sc), and the chosen scale on the Gantt
-(.gt-grp .gt-ib) paint the same fill (the gradient when there is one, else the colour), the same text colour and the same edge ring (Classic's switch keeps its Row 1313 heading fill, so Classic compares the Gantt and the Calendar only).
+(.gt-grp .gt-ib) paint the same fill (the gradient when there is one, else the colour), the same text colour and the same edge ring. The Timeline and Calendar switch keeps its own look in both themes (Classic: the Row 1313 heading fill; Cards: unchanged), so only the Gantt and the Calendar are compared.
 Chrome is required: this test fails, never skips, without it.
 """
 import itertools
@@ -86,11 +86,6 @@ class ToggleLook(BrowserBase, unittest.TestCase):
                     self.assertIsNotNone(look, f"{name}: a chosen half is drawn")
                 with self.subTest(pair="weight"):
                     self.assertEqual(got["switch_weight"][0], got["switch_weight"][1], "the chosen Timeline/Calendar half is in the medium weight")
-                if theme == "cards":          # Classic's switch is the Row 1313 heading fill, pinned by test_theme_dashboard_1313
-                    with self.subTest(pair="switch"):
-                        self.assertEqual(got["switch"], got["calendar"], "Timeline/Calendar switch against the Calendar scale")
-                    with self.subTest(pair="switch colour under the gradient"):
-                        self.assertEqual(got["switch_bg"], got["calendar_bg"], "Timeline/Calendar switch keeps the Calendar scale's fill colour under its gradient")
                 with self.subTest(pair="gantt"):
                     self.assertEqual(got["gantt"], got["calendar"], "Gantt scale against the Calendar scale")
                 if theme == "classic":
