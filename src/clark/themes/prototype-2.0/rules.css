@@ -312,6 +312,20 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .cols-menu .ck[data-on]::before { content: "\2713"; }
 /* Row 1325 (Classic only): the view tabs are as wide as on Work items (the shared rule narrows them by two px a side; the Columns and Group by buttons moved off this row, so they fit). */
 #usecases .ucl-views .vtab { padding-left: 10px; padding-right: 10px; }
+/* Row 1347: the ask clark Draft sheet as the prototype draws it. It slides in from the right over --dur-layout (translateX 110% of its width, to none; transform only, so its place is unchanged) and its close button draws the arrow, not the X. Classic only; none of it under reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduce"]) .ask-draft { animation: ask-draft-in var(--dur-layout) var(--ease-enter) 1; }
+  @keyframes ask-draft-in { from { transform: translateX(110%); } to { transform: none; } }
+}
+#ask-draft-close svg path { d: path("M5 12h14M13 6l6 6-6 6"); }
+/* Row 1347 (Classic only; Cards is not touched): the draft-ready card and its Open the draft button as the prototype draws them. The button is a blue rectangle, not the aqua pill; the prototype's blue has no token here, so its hex. */
+.ask-draftcard { margin-top: 10px; gap: 10px; padding: 10px 12px; border-radius: 10px; }
+.ask-draftcard .btn.pri.sm.ask-draftcard-open { margin-left: auto; flex: none; min-height: 0; padding: 4px 10px; font-size: 13px; border-radius: 6px; background: #3B5BDB; background-image: none; border: 1px solid #3B5BDB; color: #fff; box-shadow: none; }
+.ask-draftcard .btn.pri.sm.ask-draftcard-open:hover { background: #2F4AC0; border-color: #2F4AC0; box-shadow: 0 4px 12px rgba(57,98,254,.22); transform: none; }
+.ask-draftcard .btn.pri.sm.ask-draftcard-open:active { transform: scale(.98); }
+:root[data-theme=dark] .ask-draftcard .btn.pri.sm.ask-draftcard-open { background: #3962FE; border-color: #3962FE; }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .ask-draftcard .btn.pri.sm.ask-draftcard-open { background: #3962FE; border-color: #3962FE; } }
+.ad-count { color: var(--text-muted); }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
@@ -327,17 +341,3 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .tb-ask .tb-ask-dots i { display: none; }
 /* Ticket 1346: the Ask clark Draft sheet leaves 24px at the window's left edge, beside the panel, instead of running off screen at 900 (the panel's width reaches it as --ask-pw). */
 .ask-draft { width: min(560px, calc(100% - var(--ask-pw, 320px) - var(--space-5))); }
-/* Row 1347: the ask clark Draft sheet as the prototype draws it. It slides in from the right over --dur-layout (translateX 110% of its width, to none; transform only, so its place is unchanged) and its close button draws the arrow, not the X. Classic only; none of it under reduced motion. */
-@media (prefers-reduced-motion: no-preference) {
-  :root:not([data-motion="reduce"]) .ask-draft { animation: ask-draft-in var(--dur-layout) var(--ease-enter) 1; }
-  @keyframes ask-draft-in { from { transform: translateX(110%); } to { transform: none; } }
-}
-#ask-draft-close svg path { d: path("M5 12h14M13 6l6 6-6 6"); }
-/* Row 1347 (Classic only; Cards is not touched): the draft-ready card and its Open the draft button as the prototype draws them. The button is a blue rectangle, not the aqua pill; the prototype's blue has no token here, so its hex. */
-.ask-draftcard { margin-top: 10px; gap: 10px; padding: 10px 12px; border-radius: 10px; }
-.ask-draftcard .btn.pri.sm.ask-draftcard-open { margin-left: auto; flex: none; min-height: 0; padding: 4px 10px; font-size: 13px; border-radius: 6px; background: #3B5BDB; background-image: none; border: 1px solid #3B5BDB; color: #fff; box-shadow: none; }
-.ask-draftcard .btn.pri.sm.ask-draftcard-open:hover { background: #2F4AC0; border-color: #2F4AC0; box-shadow: 0 4px 12px rgba(57,98,254,.22); transform: none; }
-.ask-draftcard .btn.pri.sm.ask-draftcard-open:active { transform: scale(.98); }
-:root[data-theme=dark] .ask-draftcard .btn.pri.sm.ask-draftcard-open { background: #3962FE; border-color: #3962FE; }
-@media (prefers-color-scheme: dark) { :root[data-theme=auto] .ask-draftcard .btn.pri.sm.ask-draftcard-open { background: #3962FE; border-color: #3962FE; } }
-.ad-count { color: var(--text-muted); }
