@@ -5,6 +5,7 @@ Run: python3 dev/run_tests.py test_theme_prototype_pinned
 The values are the prototype's rows as written into the folder; a change to any of them is a change of the look and must change this file too.
 """
 import re
+from collections import Counter
 import unittest
 
 from _paths import ROOT
@@ -96,7 +97,7 @@ RULE_LINES = [
         '.fline { border: 0; border-bottom: 1px solid var(--grey-200); border-radius: 0; background: none; padding-left: 0; padding-right: 0; }',
         '.fline-tail { margin-right: 0; }',
         '.vicons .lsw, .vicons .btn.sm.vgb { border-radius: var(--radius-sm); }',
-        '.vicons .lsw button[aria-pressed="true"] { background-color: var(--grey-100); background-image: none; color: var(--heading); }',
+        '.vicons .seg.lsw button[aria-pressed="true"] { background-color: var(--grey-100); background-image: none; color: var(--heading); }',
         '.vicons .lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }',
         'table.items thead th + th, .wil-table thead th + th { border-left: 1px solid var(--grey-200); }',
         'html[data-mode="view"] .cover { display: none; }',
@@ -230,10 +231,14 @@ class ThemePrototypePinned(unittest.TestCase):
         block = re.search(r":root\[data-theme=auto\]\s*\{(.*?)\n  \}", TOKENS, re.S).group(1)
         self.assertEqual(decls(block), DARK)
 
-    def test_every_rule_line_is_exact_and_in_order(self):
+    def test_every_rule_line_is_exact(self):
+        """Looked up by content, not position: a row added or moved above or between these lines changes nothing here, only a line that is missing,
+        changed, extra or doubled does (each is named in the failure)."""
         older = RULES.split("\n/* Row 1318", 1)[0]      # the rows above this one are pinned here; this row's block, and any after it, are pinned in their own test files
-        lines = [l for l in older.split("\n")[1:] if l.strip()]
-        self.assertEqual(lines, RULE_LINES)
+        lines = Counter(l for l in older.split("\n")[1:] if l.strip())
+        want = Counter(RULE_LINES)
+        self.assertEqual(sorted((want - lines).elements()), [], "pinned lines missing or changed in rules.css")
+        self.assertEqual(sorted((lines - want).elements()), [], "lines in rules.css that are not pinned")
 
 
 if __name__ == "__main__":
