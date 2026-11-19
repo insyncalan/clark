@@ -74,7 +74,10 @@ class ThemePrototype(unittest.TestCase):
 
     def test_rules_hold_no_colour_literals_and_no_client_text(self):
         # the primary-buttons block carries three literals from the prototype (gradient start, dark text, ring): see its own comment and test_theme_primary_1319
-        self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b", RULES.split("/* Row 1319, primary buttons")[0]), "colours come from tokens")
+        # one named exemption (row 1343 final table): the filter-line underline is the mock-up's rgb(137,148,176) and no token holds that value (--grey-500 is rgb(135,148,179))
+        fline_underline = ".fline { border: 0; border-bottom: 1px solid #8994b0;"
+        self.assertEqual(RULES.count(fline_underline), 1, "the exempt literal is on the one .fline rule")
+        self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b", RULES.replace(fline_underline, "").split("/* Row 1319, primary buttons")[0]), "colours come from tokens")
         self.assertIsNone(re.search(r"/\*[^*]*#\d", RULES + TOKENS), "no hash-digit in a comment")
 
     def test_body_and_muted_text_reach_4_5_to_1_in_light_and_dark(self):
