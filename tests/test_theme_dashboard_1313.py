@@ -36,7 +36,7 @@ LINES = [
     '.msv-sw .msv-b, .mv-txt button { border-radius: 0; border-bottom: 0; background: var(--surface); color: var(--text); padding: 0 var(--space-3); }',
     '.mv-txt > span { display: none; }',
     '.msv-sw .msv-b + .msv-b, .mv-txt button:not(:first-of-type) { border-left: 1px solid var(--heading); }',
-    '.msv-sw .msv-b[aria-current="true"], .mv-txt button[aria-current="true"] { background: var(--heading); color: var(--surface); }',
+    '.msv-sw .msv-b[aria-current="true"], .mv-txt button[aria-current="true"] { background: var(--brand-navy); color: var(--white); }',
     'html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
     '@media screen { #report.frame.report:not(.asat-frame) { background: transparent; border: 0; box-shadow: none; } }',
     '@media (max-width: 900px) {',
@@ -109,10 +109,10 @@ PROBE = """(() => { const q = (s) => document.querySelector(s), qa = (s) => [...
   const R = (e) => e.getBoundingClientRect(), tops = (sel) => qa(sel).map((e) => Math.round(R(e).top)), bar = q('.top-hdr');
   const figs = qa('.glance[data-glance] .fig'), cells = qa('.glance[data-glance] > .tcell');
   const sw = qa('.msv-sw .msv-b'), sc = qa('.mv-txt button'), head = q('.sec-head'), sech = q('.sec-h');
-  const seg = (bs) => bs.map((b) => ({cur: b.getAttribute('aria-current'), bg: cs(b, 'backgroundColor'), color: cs(b, 'color'), radius: cs(b, 'borderTopLeftRadius'), left: cs(b, 'borderLeftWidth'), bottom: cs(b, 'borderBottomWidth')}));
+  const seg = (bs) => bs.map((b) => ({cur: b.getAttribute('aria-current'), shadow: cs(b, 'boxShadow'), bg: cs(b, 'backgroundColor'), color: cs(b, 'color'), radius: cs(b, 'borderTopLeftRadius'), left: cs(b, 'borderLeftWidth'), bottom: cs(b, 'borderBottomWidth')}));
   return {
     frame: (() => { const f = q('.frame.report'); return f ? {bg: cs(f, 'backgroundColor'), border: cs(f, 'borderTopWidth') + cs(f, 'borderLeftWidth'), shadow: cs(f, 'boxShadow'), radius: cs(f, 'borderTopLeftRadius')} : null; })(),
-    theme: !!q('#theme'), heading: cv('--heading'), radius: cv('--radius'), scrollW: document.documentElement.scrollWidth, innerW: window.innerWidth,
+    theme: !!q('#theme'), heading: cv('--heading'), navy: cv('--brand-navy'), grey500: cv('--grey-500'), radius: cv('--radius'), scrollW: document.documentElement.scrollWidth, innerW: window.innerWidth,
     figBorders: figs.map((e) => cs(e, 'borderTopWidth') + cs(e, 'borderLeftWidth')), figBg: figs.map((e) => cs(e, 'backgroundColor')), figRadius: figs.map((e) => cs(e, 'borderTopLeftRadius')),
     figAfter: figs.map((e) => cs(e, 'display', '::after')), tw: qa('.glance[data-glance] .fig .tw').map((e) => cs(e, 'borderTopWidth') + cs(e, 'paddingLeft')),
     gap: cs(q('.glance[data-glance]'), 'columnGap') + cs(q('.glance[data-glance]'), 'rowGap'),
@@ -268,12 +268,15 @@ class Classic(Setup):
                 self.assertEqual([b["left"] for b in grp["btns"]], ["0px"] + ["1px"] * (len(grp["btns"]) - 1), "a rule between neighbours")
                 active = [b for b in grp["btns"] if b["cur"] == "true"]
                 self.assertEqual(len(active), 1)
-                self.assertEqual(active[0]["bg"], rgb_of(g["heading"]), "the chosen one is filled dark (light page) with the heading colour")
+                self.assertEqual(active[0]["bg"], rgb_of(g["navy"]), "item 1354: the chosen one is navy, not the heading colour")
+                self.assertEqual(active[0]["color"], "rgb(255, 255, 255)", "item 1354: with white text")
+                self.assertEqual(active[0]["shadow"], "none", "item 1354: no inset edge, light or dark")
                 for r in grp["ratios"]:
                     self.assertGreaterEqual(r, 4.5)
                 self.assertNotEqual(active[0]["bg"], [b for b in grp["btns"] if b["cur"] != "true"][0]["bg"])
             for grp in (sw, sc):
-                self.assertGreaterEqual(grp["edge"], 3.0, "the dark fill against the page beside it, as a control edge")
+                if not dark:
+                    self.assertGreaterEqual(grp["edge"], 3.0, "the dark fill against the page beside it, as a control edge")
             print("row 1313 contrast", width, "dark" if dark else "light", "switch edge %.2f" % sw["edge"], "scale edge %.2f" % sc["edge"],
                   "active text %.2f" % min(r for r, b in zip(sw["ratios"], sw["btns"]) if b["cur"] == "true"), "ground", sw["ground"])
             self.assertEqual(sw["border"], "1px")

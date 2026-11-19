@@ -92,8 +92,15 @@ class Computed(unittest.TestCase):
                     sid = self.load(cdp, w, scheme, "prototype-2.0")
                     tag = f"{scheme} {w}"
                     c = lambda s, p: self.css(cdp, sid, s, p)
-                    dark = c("#milestones h1", "color")      # the heading colour is the active fill, as in the Dashboard
+                    navy = cdp.js("(() => { const d = document.createElement('i'); d.style.color = getComputedStyle(document.documentElement).getPropertyValue('--brand-navy'); document.body.appendChild(d); const v = getComputedStyle(d).color; d.remove(); return v; })()", sid)
+                    dark = navy      # item 1354: the chosen half is navy with white text, not the heading colour
                     self.assertEqual(c('#milestones .msv-b[data-msvb="line"]', "backgroundColor"), dark, tag)
+                    self.assertEqual(c('#milestones .msv-b[data-msvb="line"]', "color"), "rgb(255, 255, 255)", tag)
+                    self.assertEqual(c('#milestones [data-scale-b="month"]', "backgroundColor"), dark, tag)
+                    self.assertEqual(c('#milestones [data-scale-b="month"]', "color"), "rgb(255, 255, 255)", tag)
+                    for sel in ('#milestones .msv-b[data-msvb="line"]', '#milestones [data-scale-b="month"]'):
+                        if scheme == "light":
+                            self.assertNotIn("inset", c(sel, "boxShadow"), tag + " item 1354: light has no inset edge (dark is not changed by this item)")
                     self.assertNotEqual(c('#milestones .msv-b[data-msvb="cal"]', "backgroundColor"), dark, tag)
                     self.assertEqual(c('#milestones [data-scale-b="month"]', "backgroundImage"), "none", tag)      # a filled active scale button, the rows 1313 and 1319 rules
                     self.assertNotEqual(c('#milestones [data-scale-b="month"]', "backgroundColor"), c('#milestones [data-scale-b="week"]', "backgroundColor"), tag)
@@ -134,8 +141,7 @@ class Computed(unittest.TestCase):
                     self.assertEqual(c("#milestones .msv", "borderTopWidth"), "0px", tag)
                     self.assertEqual(c("#milestones .msv", "boxShadow"), "none", tag)
                     self.assertEqual(c("#milestones .msv", "paddingLeft"), "0px", tag)
-                    self.assertEqual(c("#milestones .msv-sw", "right"), "0px", tag)
-                    self.assertEqual(c("#milestones .msv-sw", "top"), "0px", tag)
+                    self.assertEqual(c("#milestones .msv-sw", "position"), "absolute", tag)      # row 1355: at the top left of the page, not in the right corner
                     self.assertEqual(c("#pubm", "borderTopWidth"), "1px", tag)      # a published file keeps its card
                     self.assertEqual(c("#other .msv", "borderTopWidth"), "1px", tag)
                     self.assertNotEqual(c("#other .msv", "boxShadow"), "none", tag)
