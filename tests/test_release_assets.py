@@ -412,6 +412,23 @@ class FirstSigned(unittest.TestCase):
         self.assertEqual(len(out), 1)
         self.assertIn("nokey", out[0])
 
+    def test_a_sig_that_cannot_be_downloaded_fails_whichever_of_the_two_is_missing(self):
+        rel = self.release("v1.3.4", sig=True)
+        for missing in (1, 2):
+            fetch = lambda asset, m=missing: None if asset["id"] == m else b"x"
+            out = self.check([rel], None, fetch, _signing.TEST_PUBLIC)
+            self.assertEqual(len(out), 1, missing)
+            self.assertIn("could not be downloaded", out[0])
+
+    def test_the_command_says_on_stderr_that_the_key_is_still_the_placeholder_only_then(self):
+        for key, said in ((mod.updates.PLACEHOLDER_KEY, True), (_signing.TEST_PUBLIC, False)):
+            err = io.StringIO()
+            run = mock.Mock(returncode=0, stdout=json.dumps([self.release("v1.3.3")]))
+            with mock.patch.object(mod.subprocess, "run", return_value=run), mock.patch.object(mod.updates, "RELEASE_PUBLIC_KEY", key), \
+                    contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+                mod.main([])
+            self.assertEqual(said, "still the placeholder" in err.getvalue(), key)
+
     def test_the_no_argument_command_passes_an_unsigned_1_3_3_and_fails_an_unsigned_1_3_4(self):
         for tag, code in (("v1.3.3", 0), ("v1.3.4", 1)):
             run = mock.Mock(returncode=0, stdout=json.dumps([self.release(tag)]))

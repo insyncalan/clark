@@ -653,6 +653,23 @@ class SignedFromFirstSignedTest(Served2):
                 self.assertEqual(("failed", self.WORDS), (fetch["state"], fetch["message"]))
                 self.assertIsNone(self.up.fetched)
 
+    def test_1_3_4_asks_for_its_signature_by_the_release_version_even_with_the_placeholder_key(self):
+        self.release("1.3.4")
+        with mock.patch.object(updates, "RELEASE_PUBLIC_KEY", updates.PLACEHOLDER_KEY):
+            self.fetch_state()
+        self.assertIn(self.sig_url, [c[0].full_url for c in self.net.calls])
+
+    def test_a_cancel_while_the_signature_comes_is_a_cancel_not_a_failed_check(self):
+        self.release("1.3.4")
+        real = rf.download
+        def download(url, *a, **k):
+            if url == self.sig_url:
+                raise rf.FetchError("cancelled", "stopped")
+            return real(url, *a, **k)
+        with mock.patch.object(rf, "download", side_effect=download):
+            self.up.download({})
+        self.assertEqual("idle", self.up.status()[1]["fetch"]["state"])
+
     def test_1_3_4_signature_that_cannot_be_reached_is_still_offline_not_the_check(self):
         self.release("1.3.4")
         self.net.routes[self.sig_url] = OSError("down")

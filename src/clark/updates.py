@@ -408,7 +408,7 @@ def signature_required(public_key=None, version=None):
     if version is None:
         return RELEASE_PUBLIC_KEY != PLACEHOLDER_KEY
     try:
-        return version_key(version) >= FIRST_SIGNED
+        return version_key(version)[:3] >= FIRST_SIGNED
     except ValueError:
         return True
 

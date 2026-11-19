@@ -356,6 +356,17 @@ class FirstSignedTest(SignedBase):
         for v in ("1.3.4", "1.3.5", "1.3.10", "1.4.0", "2.0.0", "10.0.0"):
             self.assertTrue(updates.signature_required(version=v), v)
 
+    def test_a_version_that_cannot_be_read_asks_for_a_signature(self):
+        for v in ("abc", "1.3", "", "1.3.4.dev", "9" * 5000):
+            self.assertTrue(updates.signature_required(version=v), v)
+
+    def test_check_signature_with_a_key_passed_in_is_not_the_placeholder_refusal(self):
+        mock.patch.object(updates, "RELEASE_PUBLIC_KEY", sg.TEST_PUBLIC).start()
+        for passed in (updates.PLACEHOLDER_KEY, sg.OTHER_PUBLIC):
+            with self.assertRaises(UpdateError) as said:
+                updates.check_signature(b"x", None, passed)
+            self.assertEqual("unsigned", said.exception.key)
+
     def test_a_key_given_by_a_test_always_asks(self):
         self.assertTrue(updates.signature_required(sg.TEST_PUBLIC, "1.3.3"))
 
