@@ -26,7 +26,7 @@ class ClassicRules(unittest.TestCase):
     def test_filter_line_is_underline_only(self):
         b = block(".fline")
         self.assertIn("border: 0;", b)
-        self.assertIn("border-bottom: 1px solid var(--grey-200)", b)
+        self.assertIn("border-bottom: 1px solid var(--grey-500)", b)
         self.assertIn("border-radius: 0", b)
         self.assertIn("background: none", b)
         self.assertIn("margin-right: 0", block(".fline-tail"))
@@ -148,6 +148,44 @@ class Browser(Base):
                     self.assertEqual(got["bottom"], red, got)
                     self.assertEqual((got["top"], got["left"]), ("0px", "0px"), got)
                     self.assertEqual(got["shadow"], red + " 0px 1px 0px 0px", f"an underline 1 px thicker, no frame: {got}")
+
+    def test_the_typed_word_is_boxed_and_the_line_is_mid_grey(self):
+        # Item 1343: a typed word is boxed like a word chip; the line under the filter is the mid grey (grey-500), not the light rule grey.
+        probe = ("(() => { const t = (v, p) => { const e = document.createElement('i'); e.style[p] = 'var(' + v + ')'; document.body.append(e); const c = getComputedStyle(e)[p]; e.remove(); return c; };"
+                 "const w = document.querySelector('#work .fk.k-txt'), s = getComputedStyle(w), l = getComputedStyle(document.querySelector('#work .fline'));"
+                 "return {text: w.textContent, bg: s.backgroundColor, fg: s.color, radius: s.borderTopLeftRadius, shadow: s.boxShadow, wantBg: t('--grey-100', 'backgroundColor'), wantFg: t('--text', 'color'), wantR: t('--radius-sm', 'borderTopLeftRadius'),"
+                 "line: l.borderBottomColor, wantLine: t('--grey-500', 'borderBottomColor'), lightLine: t('--grey-200', 'borderBottomColor')}; })()")
+        for width in (1400, 900):
+            for mode in ("light", "dark"):
+                with self.subTest(width=width, mode=mode), chrome() as cdp:
+                    sid = self.visit(cdp, width=width)
+                    cdp.js("document.documentElement.dataset.theme = %r" % mode, sid)
+                    self.line(cdp, sid, "late")
+                    self.until(cdp, sid, "!!document.querySelector('#work .fk.k-txt')", "the typed word is drawn")
+                    got = cdp.js(probe, sid)
+                    self.assertEqual(got["text"], "late", got)
+                    self.assertEqual(got["bg"], got["wantBg"], got)
+                    self.assertEqual(got["fg"], got["wantFg"], got)
+                    self.assertEqual(got["radius"], got["wantR"], got)
+                    self.assertEqual(got["shadow"], got["wantBg"] + " 0px 0px 0px 2px", got)
+                    self.assertEqual(got["line"], got["wantLine"], got)
+                    self.assertNotEqual(got["line"], got["lightLine"], got)
+
+
+class CardsControl(Base):
+    """The same page without the Classic layer: the typed word stays plain text and the line keeps the base colour (the Cards pins hold)."""
+
+    def test_cards_typed_word_stays_plain_and_line_keeps_the_frame(self):
+        probe = ("(() => { const w = document.querySelector('#work .fk.k-txt'), s = getComputedStyle(w), l = getComputedStyle(document.querySelector('#work .fline'));"
+                 "return {bg: s.backgroundColor, shadow: s.boxShadow, radius: s.borderTopLeftRadius, line: l.borderBottomColor, top: l.borderTopWidth}; })()")
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, width=width)
+                self.line(cdp, sid, "late")
+                self.until(cdp, sid, "!!document.querySelector('#work .fk.k-txt')", "the typed word is drawn")
+                got = cdp.js(probe, sid)
+                self.assertEqual((got["bg"], got["shadow"], got["radius"]), ("rgba(0, 0, 0, 0)", "none", "0px"), got)
+                self.assertEqual(got["top"], "1px", got)
 
 
 if __name__ == "__main__":
