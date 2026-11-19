@@ -18,7 +18,7 @@ LONG = "Example Client Records Migration Programme, phase two, northern region, 
 PROBE = """(() => { const R = (e) => e.getBoundingClientRect(), bar = document.querySelector('.top-hdr'), n = document.querySelector('.hdr-project'),
   s = n.querySelector('span') || n, l = document.querySelector('.hdr-line'), c = getComputedStyle(s), b = R(bar), nn = R(n), ll = R(l);
   return {view: document.querySelector('.tab[aria-selected=true]') ? document.querySelector('.tab[aria-selected=true]').dataset.view : null, text: s.textContent,
-    nameH: nn.height, lh: parseFloat(getComputedStyle(n).lineHeight), ws: c.whiteSpace, to: c.textOverflow, ov: c.overflow,
+    nameH: nn.height, tip: n.getAttribute('title') || n.parentElement.getAttribute('title') || '', nameTop: nn.top, lh: parseFloat(getComputedStyle(n).lineHeight), ws: c.whiteSpace, to: c.textOverflow, ov: c.overflow,
     lineInside: ll.top >= b.top - 0.5 && ll.bottom <= b.bottom + 0.5 && ll.right <= b.right + 0.5, lineBottom: ll.bottom, barBottom: b.bottom, barH: b.height,
     nameInside: nn.bottom <= b.bottom + 0.5 && nn.right <= b.right + 0.5, wide: document.documentElement.scrollWidth <= innerWidth}; })()"""
 
@@ -49,6 +49,11 @@ class Title(Setup):
         self.assertTrue(g["lineInside"], "Weekly report stays in the bar: %r" % (g,))
         self.assertTrue(g["nameInside"])
         self.assertTrue(g["wide"], "no sideways scroll")
+        self.assertEqual(g["tip"], "Click to change project", "the existing tooltip (item 1177): unchanged, the full name is in the aria-label")
+        if width == 1400:
+            self.assertEqual(g["barH"], 85, "row 1341 ruling: the bar is 85 px at 1400 (Classic prototype)")
+        else:
+            self.assertEqual(g["barH"], 103, "the 900 bar stays at its fixed 103 px (note, not ruled)")
 
     def test_the_static_title_with_no_inner_span_is_one_line(self):
         """The bar's plain name (Settings with no project open) is the .hdr-project element itself, with no span inside."""
