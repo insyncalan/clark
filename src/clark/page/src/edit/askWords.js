@@ -79,6 +79,7 @@ export const PILLS_STATE = {
 // state words overdue / red / no_owner). The two questions about one item or a few carry the ids in brackets only in the question sent, never in the shown words; the rest are plain questions.
 export const PILLS_ITEM_DUE = "Change the due date";
 export const PILLS_ITEM_URGENCY = "Raise the urgency";
+export const PILLS_ITEM_REPORT = "Add to the weekly report";
 export const PILLS_ITEM_OWNERS = "Who owns these?";
 export const PILLS_ITEM_LATE = "Why are these late?";
 export const PILLS_MAX = 6;
