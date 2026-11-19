@@ -206,6 +206,7 @@ RULE_LINES = [
         '.secs > .sec.band { --sec-pad-t: 20px; --sec-px: 22px; background: var(--sec-band-bg); border-left: 0; border-radius: 0; padding: 20px 22px 18px; }',
         '.secs > .sec:not(.is-hidden):not(.drag-slot) ~ .sec:not(.is-hidden):not(.drag-slot) { border-top: 1px solid var(--line-soft); }',
         '.secs > .sec[data-type="current"] { padding: 0 0 18px; border-left: 0; }',
+        '.secs > .sec.band .wil-cw { right: 22px; }      /* Edit sets --sec-px to 32px on a section, but the band\'s right padding is the literal 22px, so the gear stays 22px from the edge and the 10px gap to the Changed tag holds */',
         '@media (min-width: 901px) { html[data-density="comfortable"] .secs > .sec.slot-left.band { box-shadow: var(--space-5) 0 0 0 var(--sec-band-bg); } }',
         '@media print { .secs > .sec.band, .secs > .sec.slot-left, .secs > .sec.slot-right { background: none; border-radius: 0; box-shadow: none; } .secs > .sec.band, .secs > .sec[data-type="current"] { padding: 0; } }',
         '.wil-table td { padding-top: 9px; padding-bottom: 9px; }',
