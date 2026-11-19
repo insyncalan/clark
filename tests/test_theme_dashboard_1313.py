@@ -37,7 +37,7 @@ LINES = [
     '.mv-txt > span { display: none; }',
     '.msv-sw .msv-b + .msv-b, .mv-txt button:not(:first-of-type) { border-left: 1px solid var(--heading); }',
     '.msv-sw .msv-b[aria-current="true"], .mv-txt button[aria-current="true"] { background: var(--heading); color: var(--surface); }',
-    'html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
+    'html:has(.top-hdr) :is(.hdr-project, .hdr-project > span) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }',
     '@media screen { #report.frame.report:not(.asat-frame) { background: transparent; border: 0; box-shadow: none; } }',
     '@media (max-width: 900px) {',
     '  html:has(.top-hdr) { --topbar: 103px; --bar-min: 103px; }',
@@ -239,7 +239,7 @@ class Classic(Setup):
             self.assertLessEqual(long["name"], long["lh"] + 1, "one line")
             self.assertEqual((long["ws"], long["to"], long["ov"]), ("nowrap", "ellipsis", "hidden"))
             self.assertTrue(long["clip"], "the long title is cut with an ellipsis")
-            self.assertEqual(g["longname_off"], ["normal", "clip", "visible"], "only the dashboard title takes the ellipsis; other pages keep the wrapping name")
+            self.assertEqual(g["longname_off"], ["nowrap", "ellipsis", "hidden"], "issue 1341: the one-line title does not depend on the Dashboard frame")
             self.assertTrue(long["wide"], "no sideways scroll")
             n = g["narrow"]
             self.assertEqual((n["token"], n["min"]), (("85px", "85px") if width == 1400 else ("103px", "103px")), "the token the stylesheet gives, with the script's override off")
@@ -297,7 +297,7 @@ class Classic(Setup):
 
 class Published(PublishedFile, Setup):
     theme = None      # set per case below
-    """Row 1239 still rules the published file: a long name wraps on the bar, in Classic as in Cards. Only the dashboard title is one line."""
+    """Row 1239 still rules the published file: a long name wraps on the bar, in Classic as in Cards. Only the editor bar title is one line."""
 
     def look(self, theme_name, width):
         with self.store.con:
