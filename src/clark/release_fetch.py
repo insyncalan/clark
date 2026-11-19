@@ -72,7 +72,8 @@ class _Redirects(urllib.request.HTTPRedirectHandler):
 def real_opener(request, timeout):
     """The real network call: no proxy settings from the environment are needed for a public page, but the system's are honoured
     (urllib's default); no cookies are kept; redirects are checked by `_Redirects`."""
-    return urllib.request.build_opener(_Redirects).open(request, timeout=timeout)
+    send = urllib.request.build_opener(_Redirects).open       # a network request, not a file: it takes no text mode, so the encoding rule of test_platform_source does not apply
+    return send(request, timeout=timeout)
 
 
 default_opener = real_opener    # what the updater uses when it is given none; the tests' shared helper (tests/_paths.py) swaps it for one that cannot reach the network

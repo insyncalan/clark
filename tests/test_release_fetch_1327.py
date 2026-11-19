@@ -518,7 +518,7 @@ class DownloadFlowTest(Served2):
         self.assertEqual((200, True), (status, done["restart"]))
         code, _ = self.run_helper()
         self.assertEqual(0, code)
-        self.assertEqual("0.3.2", json.loads((self.app / "release.json").read_text())["version"] if (self.app / "release.json").exists() else "0.3.2")
+        self.assertEqual("0.3.2", json.loads((self.app / "release.json").read_text(encoding="utf-8"))["version"] if (self.app / "release.json").exists() else "0.3.2")
         self.assertEqual("idle", self.up.status()[1]["fetch"]["state"])          # the review was used once
 
     def test_install_without_the_review_is_refused_and_changes_nothing(self):
