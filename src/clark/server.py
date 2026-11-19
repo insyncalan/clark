@@ -65,6 +65,10 @@ Routes:
 - GET  /api/update       Settings › Version and updates: what is installed, an update in Downloads, the last update (updater.py)
 - POST /api/update/review     {from, reinstall}: check the newest file in Downloads, or one chosen in the system's dialog, and review it
 - POST /api/update/install    {review_id}: install the reviewed update; the server stops after the answer so the helper can swap
+- POST /api/update/check      {force}: look for a newer release on the public releases page (row 1327); the quiet check at page open is cached 60 s
+- POST /api/update/download   {}: start downloading the offered release in the background; it is checked as a file is, and never installed by itself
+- GET  /api/update/progress   the state of the check or the download (downloading with done and size, or checked with the review)
+- POST /api/update/cancel     {}: stop the download
 - POST /api/update/arm-undo   {}: arm Undo update for a few seconds; says whether only the app and settings can be put back
 - POST /api/update/undo       {arm_id, app_only}: the armed undo; the server stops after the answer, as for an install
 - POST /api/section-file  {project, section}: the Open dialog, then the file copied into the client folder's "Report files" folder and
@@ -230,6 +234,7 @@ ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/section-body": SECT
                      "/api/draft-email/sent": 4 * 1024,                # #50: the ids, the mode and the day: never the email's words
                      "/api/word-import": (WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024, "/api/word-export": 1024,      # #48
                      "/api/update/review": 1024, "/api/update/install": 1024, "/api/update/arm-undo": 1024, "/api/update/undo": 1024,
+                     "/api/update/check": 1024, "/api/update/download": 1024, "/api/update/cancel": 1024,     # row 1327: {force} or nothing
                      "/api/brands/review": 1024, "/api/brands/install": 1024, "/api/brands/remove": 1024, "/api/brands/undo": 1024,      # #944: a source word, a review id or a brand id; never a path
                      "/api/excel-import": (EXCEL_FILE_MB * 4 // 3 + 1) * 1024 * 1024,      # #444: a workbook as text, like the Word one
                      "/api/project": 4 * 1024,      # #444: a name, a code, a client and a few workstreams
@@ -1353,7 +1358,8 @@ def quit_route(handler, req):
     threading.Thread(target=handler.server.shutdown, daemon=True).start()
 
 
-UPDATE_ROUTES = ("/api/update", "/api/update/review", "/api/update/install", "/api/update/arm-undo", "/api/update/undo")
+UPDATE_ROUTES = ("/api/update", "/api/update/review", "/api/update/install", "/api/update/arm-undo", "/api/update/undo",
+                 "/api/update/check", "/api/update/download", "/api/update/cancel", "/api/update/progress")
 
 
 def updating(handler, route):
@@ -1469,7 +1475,7 @@ GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/pu
               "/api/export": export_route, "/api/section-file": section_file_read_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
               "/api/movement": movement_route, "/api/activity": activity_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"), "/api/ask-instructions": ask_instructions_route("read"),
               "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask-connectors": ask_connectors_read_route, "/api/theme": app_settings_route("read_theme"), "/api/providers": ai_connect_route("get"), "/api/ask/status": ask_route("status"), "/api/ai/status": ask_route("status", "ai"),
-              "/api/profile": profile_route("get"), "/api/people": people_route("people_list"), "/api/update": update_route("status"), "/api/diagnostics": logs_route("diagnostics"),
+              "/api/profile": profile_route("get"), "/api/people": people_route("people_list"), "/api/update": update_route("status"), "/api/update/progress": update_route("progress"), "/api/diagnostics": logs_route("diagnostics"),
               "/api/publications": past_route("listing"), "/api/past-report": past_route("open"), "/api/as-at": as_at_route, "/api/demo": demo_route("status"),
               "/api/brands": brand_route("listing")}
 POST_ROUTES = {"/api/change": change_route, "/api/section-body": section_body_route, "/api/undo": undo_route, "/api/section-image": section_image_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
@@ -1486,6 +1492,7 @@ POST_ROUTES = {"/api/change": change_route, "/api/section-body": section_body_ro
                 "/api/update/review": update_route("review"),
                 "/api/update/install": update_route("install"), "/api/update/arm-undo": update_route("arm_undo"),
                 "/api/update/undo": update_route("undo"),
+                "/api/update/check": update_route("check"), "/api/update/download": update_route("download"), "/api/update/cancel": update_route("cancel"),     # row 1327
                 "/api/publications/archive": publication_mark_route("archive"), "/api/publications/restore": publication_mark_route("restore"),     # #345
                 "/api/draft-email": draft_email_route("draft_email"),
                 "/api/draft-email/sent": draft_email_route("draft_email_sent"),

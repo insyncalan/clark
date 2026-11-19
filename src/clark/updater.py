@@ -16,6 +16,13 @@ Open dialog on this computer, and an install or an undo names only the review or
                   the undo for ARM_SECONDS
   undo(req)       {"arm_id", "app_only": bool}: the armed undo only, within ARM_SECONDS; refuses the full undo when the data
                   changed since, and offers the app and settings only
+  check(req)      {"force": bool}: look for a newer release on the public releases page (update_fetch.latest), once; the quiet
+                  check at page open is cached for CHECK_CACHE_SECONDS, Check now (force) is not. Answers the state: ready,
+                  uptodate, offline, unavailable (or the running download's own state)
+  download(req)   {}: start the one download of the offered release in the background; it goes through the same checks as a
+                  file (take_in, read_taken, plan) and then waits as a held review. It never installs by itself
+  progress()      GET: the state again (downloading with done and size; checked with the review and its review_id)
+  cancel(req)     {}: stop a running download, remove its half file, state ready again
   settle()        once the helper has finished (no marker): records what happened (the update went in, or the undo did and the
                   settings are put back), keeps the line for status() to say once, tidies clark's own folders and keeps the last
                   three. A thread started by watch() calls it when the new version starts; status() calls it too.
@@ -28,6 +35,7 @@ import json
 import logging
 import os
 import secrets
+import shutil
 import threading
 import time
 from pathlib import Path
@@ -41,6 +49,9 @@ ARM_SECONDS = 5
 PENDING = "pending.json"
 NOTICE = "notice.json"
 WATCH_SECONDS = 120
+CHECK_CACHE_SECONDS = 60            # the quiet check at page open is answered from the last look for this long; Check now is not
+CANCEL_WAIT_SECONDS = 5             # how long Cancel waits for the download thread to stop and remove its half file
+INCOMING = "incoming"               # <data>/releases/incoming: where a download is written before the checks keep it
 WRITES_WAIT_SECONDS = 30            # how long an install or undo waits for saves already running before it backs up
 
 MESSAGES = {
@@ -52,7 +63,18 @@ MESSAGES = {
     "not_here": "Updates can't be installed on this computer yet. Download the latest release and replace the clark folder by hand.",
     "dialog": "The window to choose a file could not be opened. Try again; if it keeps happening, restart clark.",
     "generic": "Something went wrong, and nothing was changed. Try again, or restart clark.",
+    "check_first": "Look for a newer version first, then download it.",
 }
+READY = "Version {to} is ready to download."
+DOWNLOADING = "Downloading version {to}."
+CHECKED = "Downloaded and checked."
+NEWEST = "You have the newest version."
+OFFLINE = "Couldn't reach the releases page. Check your connection, then try again, or use a file instead."
+FAILED_CHECK = "This download didn't pass the checks, so nothing was installed. Download it again."
+CHECK_FIRST = MESSAGES["check_first"]
+# the refusals that mean "these bytes are not a good copy": a downloaded file says FAILED_CHECK for them (the old sentences tell the
+# person to download by hand from the releases page, which is wrong here); every other refusal keeps its own sentence
+BAD_COPY = ("unreadable", "damaged", "incomplete", "unsafe", "unsigned", "badsig", "nokey", "name", "source")
 UP_TO_DATE = "Up to date."
 INSTALLING = "Installing version {to}. One moment while clark restarts. Don't close this window."
 UNDOING = "Putting back version {to}. One moment while clark restarts. Don't close this window."
@@ -91,11 +113,11 @@ def app_folder():
 
 
 class Updater:
-    """One per server. `choose`, `downloads`, `clock`, `python`, `start` and `server_pid` are seams for the tests."""
+    """One per server. `choose`, `downloads`, `fetch`, `clock`, `python`, `start` and `server_pid` are seams for the tests."""
 
     def __init__(self, data_dir, db_path, port, app_dir=None, system=None, version=None, schema=None, choose=None,
                  downloads=None, clock=time.monotonic, python=None, start=None, server_pid=None, home=None, migration_backup=None, open_db=None,
-                 writes_running=None, sleep=time.sleep):
+                 writes_running=None, sleep=time.sleep, fetch=None):
         self.data = Path(data_dir)
         self.db = Path(db_path)
         self.port = port
@@ -117,6 +139,11 @@ class Updater:
         self._installing = False
         self.reviewed = None
         self.armed = None
+        self.fetch = fetch                                 # update_fetch (row 1327-A), or a fake; None: imported when first needed
+        self._dl_lock = threading.Lock()                   # guards the five fields below
+        self._state, self._offer, self._looked, self._found_at = "idle", None, None, None
+        self._job = None                                   # the running or last download: {"done", "size", "cancel", ...}
+        self._thread = None
 
     # --- the maintenance flag ---
 
@@ -251,6 +278,183 @@ class Updater:
         rid = secrets.token_urlsafe(18)
         self.reviewed = {"id": rid, "path": kept, "digest": digest, "reinstall": reinstall, "at": self.clock(), "to": release.version}
         return 200, {"ok": True, "review_id": rid, "review": updates.review(release, plan, self.version)}
+
+    # --- POST /api/update/check, /download, /cancel and GET /api/update/progress (row 1327-B) ---
+
+    def _fetch(self):
+        if self.fetch is None:
+            from clark import update_fetch                 # the only module that opens an outbound request: loaded when first used
+            self.fetch = update_fetch
+        return self.fetch
+
+    def _refuse(self, req, allowed=()):
+        """A 400 reply when `req` is not exactly {} (or None, or only `allowed` keys), else None."""
+        if req is None or (isinstance(req, dict) and not set(req) - set(allowed)):
+            return None
+        return reply(400, "bad_request")
+
+    def _state_body(self):
+        """The state the page shows, as a body. Caller holds _dl_lock."""
+        state, offer, job = self._state, self._offer, self._job
+        body = {"ok": True, "state": state, "checked_at": self._found_at}
+        if state == "checked":
+            held = self.reviewed
+            if not (held and job and held["id"] == job.get("rid") and self.clock() - held["at"] <= REVIEW_SECONDS):
+                state = body["state"] = self._state = "ready"      # the review ran out, or another file was reviewed: download again
+        if state in ("ready", "downloading", "checked", "failed") and offer:
+            date = offer.get("date")
+            body.update(version=offer["version"], size=offer["size"], notes=offer["notes"],
+                        date=updates.date_text(date) if isinstance(date, str) and len(date) == 10 and date[4] == "-" else None)
+        if state == "ready":
+            body["message"] = READY.format(to=offer["version"])
+        elif state == "uptodate":
+            body["message"] = NEWEST
+        elif state in ("offline", "unavailable"):
+            body["message"] = OFFLINE
+        elif state == "downloading":
+            body.update(done=job["done"], size=job["size"] or offer["size"], message=DOWNLOADING.format(to=offer["version"]))
+        elif state == "checked":
+            body.update(message=CHECKED, review_id=job["rid"], review=job["review"])
+        elif state == "failed":
+            body.update(message=job["message"], code=job["code"])
+        return body
+
+    def _quiet_blocked(self):
+        blocked = self._blocked()
+        return reply(409, "blocked", blocked) if blocked else None
+
+    def check(self, req):
+        if (bad := self._refuse(req, ("force",))) or not isinstance((req or {}).get("force", False), bool):
+            return bad or reply(400, "bad_request")
+        if self._installing:
+            return reply(409, "busy")
+        if (blocked := self._quiet_blocked()):
+            return blocked
+        force = bool((req or {}).get("force", False))
+        with self._dl_lock:
+            if self._state in ("downloading", "checked"):
+                return 200, self._state_body()
+            if not force and self._looked is not None and self.clock() - self._looked < CHECK_CACHE_SECONDS:
+                return 200, self._state_body()
+        fetch = self._fetch()
+        try:
+            offer, state = fetch.latest(self.system), None
+        except Exception as e:                             # the lookup's reason goes to the log by kind only: never a URL or a path
+            kind = e.kind if isinstance(e, getattr(fetch, "FetchError", ())) and e.kind in ("offline", "unavailable") else "unavailable"
+            LOG.info("looking for a newer version failed: %s %s", kind, e)
+            offer, state = None, kind
+        with self._dl_lock:
+            if self._state in ("downloading", "checked"):          # a download began while this one looked: its state stands
+                return 200, self._state_body()
+            self._looked, self._found_at = self.clock(), int(time.time())
+            if state is None:
+                try:
+                    newer = offer is not None and updates.version_key(offer["version"]) > updates.version_key(self.version)
+                except (ValueError, KeyError, TypeError):
+                    offer, state = None, "unavailable"
+                    newer = False
+                if state is None:
+                    offer = dict(offer, notes=updates.clean_notes(str(offer.get("notes") or "")).strip() or updates.NO_NOTES) if newer else None
+                    state = "ready" if newer else "uptodate"
+            self._state, self._offer = state, offer
+            return 200, self._state_body()
+
+    def progress(self, *req):
+        with self._dl_lock:
+            return 200, self._state_body()
+
+    def download(self, req):
+        if (bad := self._refuse(req)):
+            return bad
+        if self._installing:
+            return reply(409, "busy")
+        if (blocked := self._quiet_blocked()):
+            return blocked
+        with self._dl_lock:
+            if self._state in ("downloading", "checked"):
+                return 200, self._state_body()
+            if self._offer is None or self._state not in ("ready", "failed"):
+                return reply(409, "check_first", CHECK_FIRST)
+            job = {"done": 0, "size": self._offer["size"], "cancel": threading.Event(), "offer": dict(self._offer)}
+            self._job, self._state = job, "downloading"
+            self._thread = threading.Thread(target=self._download_run, args=(job,), daemon=True)
+            self._thread.start()
+            return 200, self._state_body()
+
+    def cancel(self, req):
+        if (bad := self._refuse(req)):
+            return bad
+        with self._dl_lock:
+            if self._state != "downloading":
+                return 200, self._state_body()
+            job, thread = self._job, self._thread
+            job["cancel"].set()
+            self._state = "ready"                          # at once: the thread's late end never changes it (it checks its job)
+        if thread is not None:
+            thread.join(CANCEL_WAIT_SECONDS)
+        self._clear_incoming()
+        with self._dl_lock:
+            return 200, self._state_body()
+
+    def _incoming(self):
+        return self.data / ui.RELEASES / INCOMING
+
+    def _clear_incoming(self):
+        shutil.rmtree(self._incoming(), ignore_errors=True)
+
+    def _finish(self, job, state, **extra):
+        """Set the end state of `job`, unless it was cancelled or replaced meanwhile."""
+        with self._dl_lock:
+            if self._job is job and self._state == "downloading":
+                self._state = state
+                job.update(extra)
+
+    def _download_run(self, job):
+        fetch, offer = self._fetch(), job["offer"]
+        folder = None
+
+        def progress(done, size):
+            job["done"], job["size"] = done, size or job["size"]
+        try:
+            folder = platform.private_folder(self._incoming())
+            path, digest = fetch.download(offer, folder, progress, job["cancel"].is_set)
+            if job["cancel"].is_set():
+                return
+            kept = None
+            try:
+                kept, kept_digest = ui.take_in(path, self.data, self.system)
+                if kept_digest != digest:
+                    raise updates.UpdateError("damaged", "the kept copy is not the bytes the download reported")
+                release = ui.read_taken(kept, kept_digest, self.system, self.version, self.schema)
+                plan = updates.plan(release, self.app)
+            except updates.UpdateError as e:
+                if kept is not None:
+                    kept.unlink(missing_ok=True)           # a copy that failed is not kept: Download again starts clean
+                    Path(str(kept) + updates.SIGNATURE_SUFFIX).unlink(missing_ok=True)
+                LOG.info("a downloaded update was refused: %s", e.key)
+                LOG.debug("a downloaded update was refused: %s", e.detail)
+                self._finish(job, "failed", code=e.key, message=FAILED_CHECK if e.key in BAD_COPY else e.message)
+                return
+            rid = secrets.token_urlsafe(18)
+            review = updates.review(release, plan, self.version)
+            with self._dl_lock:
+                if self._job is not job or self._state != "downloading":
+                    return
+                self.reviewed = {"id": rid, "path": kept, "digest": kept_digest, "reinstall": False, "at": self.clock(), "to": release.version}
+                job.update(rid=rid, review=review)
+                self._state = "checked"
+        except Exception as e:                             # a Cancelled, a FetchError, anything else: said by kind only, never the text
+            if isinstance(e, getattr(fetch, "Cancelled", ())):
+                return
+            kind = getattr(e, "kind", None) if isinstance(e, getattr(fetch, "FetchError", ())) else None
+            LOG.info("a download stopped: %s", kind or type(e).__name__)
+            if kind == "offline":
+                self._finish(job, "offline")
+            else:
+                self._finish(job, "failed", code="generic", message=MESSAGES["generic"])
+        finally:
+            if self._job is job:
+                self._clear_incoming()
 
     # --- POST /api/update/install ---
 

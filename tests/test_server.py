@@ -371,6 +371,7 @@ class Saving(ServerTest):
                                                 "/api/people": sv.PEOPLE_BODY_LIMIT, "/api/people/undo": 1024,     # #454: /api/people takes a paste of up to 500 rows (worked out in server.py)
                                                 "/api/update/review": 1024, "/api/update/install": 1024, "/api/update/arm-undo": 1024,
                                                 "/api/update/undo": 1024,
+                                                "/api/update/check": 1024, "/api/update/download": 1024, "/api/update/cancel": 1024,     # row 1327
                                                 "/api/brands/review": 1024, "/api/brands/install": 1024, "/api/brands/remove": 1024, "/api/brands/undo": 1024,     # #944
                                                 "/api/publications/archive": 1024, "/api/publications/restore": 1024})     # #345: a project code and a number; #96: a project and a section only
         for route in ("/api/save", "/api/changes", "/api/change/", "/api/import", "/api/word-imports", "/api/word"):
