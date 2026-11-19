@@ -67,6 +67,8 @@ Routes:
 - POST /api/update/install    {review_id}: install the reviewed update; the server stops after the answer so the helper can swap
 - POST /api/update/arm-undo   {}: arm Undo update for a few seconds; says whether only the app and settings can be put back
 - POST /api/update/undo       {arm_id, app_only}: the armed undo; the server stops after the answer, as for an install
+- POST /api/update/check      {}: look again for the newest release on the public releases page (release_fetch.py)
+- POST /api/update/download   {}: download that release, then check it as /review does; /cancel {}: stop it, or put it away
 - POST /api/section-file  {project, section}: the Open dialog, then the file copied into the client folder's "Report files" folder and
                          added to the section in one step (#96; publish_flow.py and section_files.py). The request never names a file
 - POST /csp-report       the browser's reports of what the script policy blocked: local only, rate-limited, small
@@ -230,6 +232,7 @@ ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/section-body": SECT
                      "/api/draft-email/sent": 4 * 1024,                # #50: the ids, the mode and the day: never the email's words
                      "/api/word-import": (WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024, "/api/word-export": 1024,      # #48
                      "/api/update/review": 1024, "/api/update/install": 1024, "/api/update/arm-undo": 1024, "/api/update/undo": 1024,
+                     "/api/update/check": 1024, "/api/update/download": 1024, "/api/update/cancel": 1024,
                      "/api/brands/review": 1024, "/api/brands/install": 1024, "/api/brands/remove": 1024, "/api/brands/undo": 1024,      # #944: a source word, a review id or a brand id; never a path
                      "/api/excel-import": (EXCEL_FILE_MB * 4 // 3 + 1) * 1024 * 1024,      # #444: a workbook as text, like the Word one
                      "/api/project": 4 * 1024,      # #444: a name, a code, a client and a few workstreams
@@ -1363,7 +1366,8 @@ def quit_route(handler, req):
     threading.Thread(target=handler.server.shutdown, daemon=True).start()
 
 
-UPDATE_ROUTES = ("/api/update", "/api/update/review", "/api/update/install", "/api/update/arm-undo", "/api/update/undo")
+UPDATE_ROUTES = ("/api/update", "/api/update/review", "/api/update/install", "/api/update/arm-undo", "/api/update/undo",
+                 "/api/update/check", "/api/update/download", "/api/update/cancel")
 
 
 def updating(handler, route):
@@ -1497,6 +1501,7 @@ POST_ROUTES = {"/api/change": change_route, "/api/section-body": section_body_ro
                 "/api/update/review": update_route("review"),
                 "/api/update/install": update_route("install"), "/api/update/arm-undo": update_route("arm_undo"),
                 "/api/update/undo": update_route("undo"),
+                "/api/update/check": update_route("check"), "/api/update/download": update_route("download"), "/api/update/cancel": update_route("cancel"),
                 "/api/publications/archive": publication_mark_route("archive"), "/api/publications/restore": publication_mark_route("restore"),     # #345
                 "/api/draft-email": draft_email_route("draft_email"),
                 "/api/draft-email/sent": draft_email_route("draft_email_sent"),

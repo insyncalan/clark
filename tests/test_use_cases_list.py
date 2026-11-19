@@ -18,6 +18,7 @@ from _paths import SRC
 from _new_page import reload_to_new_page
 from test_report_editor import EMPTY_BRANDING, Base, Pg, tearDownModule  # noqa: F401
 from test_server import chrome, wait
+import _testpage as testpage
 
 from clark import publish
 
@@ -66,9 +67,19 @@ def contrast_script(selectors):
     })()""" % json.dumps(selectors)
 
 
+def themed(theme):
+    """The test page with a Theme layered (None: the page as it is)."""
+    from clark import page, theme as themes
+    return testpage.html() if theme is None else page.layer_theme(testpage.html(), themes.css(theme))
+
+
 class Setup(Base):
+    THEME = None      # a subclass names a Theme to layer (row 1324-A: the grouped look is Classic only)
+
     def setUp(self):
         super().setUp()
+        if self.THEME:
+            self.s.httpd.page_html = lambda: themed(self.THEME)
         plant(self)
 
     def show(self, cdp, width=1400, dark=False, edit=False, hash_="#usecases&p=ABC"):
@@ -78,7 +89,7 @@ class Setup(Base):
         if dark:
             p.js("document.documentElement.dataset.theme = 'dark'")
         if hash_ == "#usecases&p=ABC":
-            p.until("document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0 || !!document.querySelector('#usecases [data-empty]')", "the list drew")
+            p.until("document.querySelectorAll('#usecases .ucl-row[data-uc], #usecases tr.ucr[data-uc]').length > 0 || !!document.querySelector('#usecases [data-empty]')", "the list drew")
         if hash_.startswith("#dashboard"):
             p.until("document.querySelectorAll('[data-mode]').length === 3", "the Dashboard drew its whole View | Edit switch (row 804)")
             self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 3, "the View | Edit switch is on the Dashboard")      # row 804: the Dashboard has it, so the page must have drawn before anything is read (a race on a slow runner)
