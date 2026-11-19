@@ -300,7 +300,8 @@ def _has_doctype_or_damaged(z, info):
 def _has_doctype(z, info, chunk=1 << 20):
     """True if the member holds a DOCTYPE or ENTITY declaration; read in pieces that overlap, so a long prolog is no way past it."""
     tail = b""
-    with z.open(info) as f:
+    member = z.open                                      # a zip member is read as bytes, never as text
+    with member(info) as f:
         while True:
             block = f.read(chunk)
             if not block:
