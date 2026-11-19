@@ -325,6 +325,20 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .ddmenu .lab.caps, .mh.caps { font-size: var(--size-body); letter-spacing: normal; text-transform: none; font-weight: var(--weight-regular); }
 .gt-pop button, .gt-menu button, [data-gt] .gt-menu button { padding-left: var(--space-3); padding-right: var(--space-3); font-size: var(--size-body); }
 .ddmenu .lab, .ddmenu .who, .ddmenu .mh, .mh { padding-left: 16px; padding-right: 16px; }
+/* Row 1324 gap, Work items (Option A, ruling 18-11; Classic only, Cards keeps its group tiles): Group by draws a heading on the page, no tile: the name, the count 13 px with 2 px before it, one 1 px hairline under it; the column names once on top (WorkItems.jsx, only in this Theme) with 1 px under them and 14 px of space before the first group; 18 px above each group; the first and last cell of a row have no side padding and the first row of a group has no line over it; the heading goes brand on hover and has a 2 px brand ring, offset 2 px, radius 6 px. Rows, collapse, counts and keys are untouched. */
+.wgroup:has(> table.items.grouped) { background: none; border: 0; border-radius: 0; overflow: visible; margin: 18px 0 0; }
+.wgroup.wcolh { background: none; border: 0; border-radius: 0; overflow: visible; margin: 0; }
+.wgroup.wcolh + .wgroup:has(> table.items.grouped) { margin-top: 14px; }
+.wgroup.wcolh table.items th { border-top: 0; border-bottom: 1px solid var(--grey-200); }
+.wgroup table.items.grouped tr.grp th { padding: 0 0 6px; border-bottom: 1px solid var(--grey-200); background: none; }
+.wgroup table.items.grouped tbody tr:first-child td { border-top: 0; }
+.wgroup:is(.wcolh, :has(> table.items.grouped)) table.items :is(th, td):first-child { padding-left: 0; }
+.wgroup:is(.wcolh, :has(> table.items.grouped)) table.items tr:not(.grp) :is(th, td):last-child { padding-right: 0; }
+.wgroup table.items.grouped .grp-b { font-family: var(--font-head); font-weight: var(--weight-medium); font-size: 15px; color: var(--heading); align-items: flex-start; text-align: left; padding: 2px 0; gap: var(--space-2); min-width: 0; }
+.wgroup table.items.grouped .grp-b .i { flex: none; margin-top: 3px; color: var(--text-muted); }
+.wgroup table.items.grouped .grp-b .gc { flex: none; white-space: nowrap; font-size: 13px; margin-left: 2px; }
+.wgroup table.items.grouped .grp-b:hover, .wgroup table.items.grouped .grp-b:hover .i { color: var(--brand-blue); }
+.wgroup table.items.grouped .grp-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: 6px; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
