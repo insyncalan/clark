@@ -22,7 +22,7 @@ from test_server import chrome, wait  # noqa: E402
 SRC = ROOT / "src" / "clark" / "page" / "src"
 SHELL = ROOT / "src" / "clark" / "page" / "shell.css"
 TOKENS = ROOT / "src" / "clark" / "brand" / "tokens.css"
-TONES = ("r", "a", "g", "b", "n")
+TONES = ("r", "a", "g", "b", "n", "m")      # m: row 1390, the Classic Urgent priority icon
 ICON_TOKENS = {"r": "--icon-red", "a": "--icon-amber", "g": "--icon-green", "b": "--icon-blue", "n": "--icon-grey"}
 ROW_ICON = {"status": "half", "priority": "bars", "due": "cal"}
 SHELL_MARK = "/* The peek's coloured icons"
