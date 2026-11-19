@@ -290,7 +290,7 @@ export const NOT_NOW_LINE = "Not now. Nothing was changed.";
 export const BRING_BACK = "Bring it back";
 export const APPLY_ALL = (n) => `Apply all ${n}`;
 export const UNDO_ALL = "Undo all";
-export const ALL_DONE_LINE = (n) => `Done. ${n} changes saved.`;
+export const ALL_DONE_LINE = (n) => (n === 1 ? "Done. 1 change saved." : `Done. ${n} changes saved.`);
 export const ALL_UNDONE_LINE = "Undone. The old values are back.";
 export const ALL_PARTLY_LINE = (done, n) => `${done} of ${n} changes were saved. The others were not. Check the board and ask again.`;
 export const UNDONE_LINE = "Undone. The old values are back.";
