@@ -320,3 +320,8 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .gt-grp .gt-ib[aria-pressed="true"] { background-color: var(--brand-navy); background-image: none; color: var(--white); }
 :root[data-theme=dark] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); } }
+/* Item 1349, ask clark button in Classic: the badge is a 9 by 9 dot at the top right corner of the button (cyan when an answer is ready, amber while one is made), ringed in the bar colour; the words stay in the button's aria-label. Bare values with no token: the 9px dot, the 3px offset (4px from the button edge, past its 1px border) and the 2px ring, as in the prototype. */
+.tb-ask { position: relative; }
+.tb-ask .tb-ask-ready, .tb-ask .tb-ask-dots { position: absolute; top: 3px; right: 3px; margin: 0; width: 9px; height: 9px; min-width: 0; padding: 0; border-radius: 50%; background: var(--brand-cyan); box-shadow: 0 0 0 2px var(--brand-navy); font-size: 0; line-height: 0; overflow: hidden; }
+.tb-ask .tb-ask-dots { background: var(--status-amber); }
+.tb-ask .tb-ask-dots i { display: none; }
