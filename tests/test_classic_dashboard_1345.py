@@ -21,14 +21,6 @@ M = ("(function(){var r=function(e){var b=e.getBoundingClientRect();return [Math
 
 
 class Dash(Base):
-    pass
-
-
-for _n in [n for n in dir(Base) if n.startswith('test_')]:      # the 1318 tests run in their own file
-    setattr(Dash, _n, None)
-
-
-class Measured(Dash):
     def measure(self, width, density="compact"):
         with chrome() as cdp:
             p = self.at(cdp, width)
@@ -36,6 +28,12 @@ class Measured(Dash):
             p.until("getComputedStyle(document.querySelector('.sec-h')).fontSize !== ''", "the density is applied")
             return p.js(M)
 
+
+for _n in [n for n in dir(Base) if n.startswith('test_')]:      # the 1318 tests run in their own file
+    setattr(Dash, _n, None)
+
+
+class Measured(Dash):
     def test_at_1400_compact_contents_at_66_and_the_column_at_262_to_the_right_margin(self):
         got = self.measure(1400)
         self.assertEqual(got["vw"], 1385)
@@ -66,6 +64,30 @@ class Measured(Dash):
             p = self.at(cdp, 1400)
             got = p.js("(function(){var e=document.querySelector('.glance .hpill'), c=getComputedStyle(e);return [c.fontSize, c.fontWeight, c.textTransform, c.backgroundColor, c.paddingLeft];})()")
         self.assertEqual(got, ["20px", "700", "none", "rgba(0, 0, 0, 0)", "0px"])
+
+
+class Killers(Dash):
+    def test_the_health_word_keeps_no_tracking_and_has_its_own_colour_for_each_state(self):
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            got = p.js("(function(){var e=document.querySelector('.glance .hpill'), out=[getComputedStyle(e).letterSpacing];"
+                       "['g','a','r','n'].forEach(function(k){e.className='pill hpill '+k; out.push(getComputedStyle(e).color);});"
+                       "var v=function(n){var t=document.createElement('i'); t.style.color='var('+n+')'; document.body.appendChild(t); var c=getComputedStyle(t).color; t.remove(); return c;};"
+                       "return out.concat(['--status-green-text','--status-amber-text','--status-red-text','--text-muted'].map(v));})()")
+        self.assertEqual(got[0], "normal")
+        self.assertEqual(got[1:5], got[5:9])
+        self.assertEqual(len(set(got[1:5])), 4)
+
+    def test_a_section_in_the_right_half_of_a_pair_keeps_its_own_padding(self):
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            p.js("document.documentElement.dataset.density = 'compact'; document.querySelectorAll('#report .secs > .sec')[1].classList.add('slot-right')")
+            got = p.js("getComputedStyle(document.querySelectorAll('#report .secs > .sec')[1]).paddingLeft")
+        self.assertNotEqual(got, "22px")
+
+    def test_at_900_the_page_keeps_its_margins(self):
+        got = self.measure(900)
+        self.assertEqual(got["secs"][0], 32)
 
 
 class Text(unittest.TestCase):
