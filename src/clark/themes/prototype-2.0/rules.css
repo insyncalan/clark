@@ -266,8 +266,8 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .ddmenu .mi { margin-right: var(--space-2); }
 .rowmenu .mi { margin-right: 0; }
 .menu .menu-item, .bmenu .menu-item, .bmenu .bm-why { gap: var(--space-2); }
-.ddmenu [role="menuitemradio"]:not(.hp) { display: flex; align-items: center; }
-.ddmenu [role="menuitemradio"]:not(.hp) .ck, #viewMenuList [role="menuitemradio"] .ck { order: 1; margin-left: auto; margin-right: 0; padding-left: var(--space-3); }
+.ddmenu [role="menuitemradio"]:not(.hp), .ddmenu [role="menuitem"]:has(> .ck) { display: flex; align-items: center; }
+.ddmenu [role="menuitemradio"]:not(.hp) .ck, .ddmenu [role="menuitem"] > .ck, #viewMenuList [role="menuitemradio"] .ck { order: 1; margin-left: auto; margin-right: 0; padding-left: var(--space-3); }
 .ddmenu .lab.caps, .mh.caps { font-size: var(--size-body); letter-spacing: normal; text-transform: none; font-weight: var(--weight-regular); }
 .gt-pop button, .gt-menu button, [data-gt] .gt-menu button { padding-left: var(--space-3); padding-right: var(--space-3); font-size: var(--size-body); }
 .ddmenu .lab, .ddmenu .who, .ddmenu .mh, .mh { padding-left: var(--menu-pad-x); padding-right: var(--menu-pad-x); }
@@ -275,3 +275,5 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .gt-grp .gt-ib[aria-pressed="true"] { background-color: var(--brand-navy); background-image: none; color: var(--white); }
 :root[data-theme=dark] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); } }
+#viewMenuList { min-width: var(--menu-min-group); }
+[data-gt] .gt-menu button, .gt-pop button { display: flex; align-items: center; gap: var(--space-2); }

@@ -41,13 +41,16 @@ MEASURE = r"""(root => {
  const items = [...new Set(box.querySelectorAll('[role=menuitem],[role=menuitemcheckbox],[role=menuitemradio],[role=option],.menu-item,.cm-row,.cp-name,.cp-q button'))].filter(ok);
  const rows = items.map(b => {
    const icon = [...b.querySelectorAll('svg.i')].find(s => !s.closest('.ck') && ok(s)); if (!icon) return {t: b.textContent.trim().slice(0, 22), fs: cs(b).fontSize, icon: false};
-   const ir = icon.getBoundingClientRect(); const after = [];
+   const ir = icon.getBoundingClientRect(); const after = [], before = [ir.left];
+   for (const d of b.querySelectorAll('.ragdot')) { const dr = d.getBoundingClientRect(); if (dr.width && dr.left >= ir.right - 0.5) after.push(dr.left); }   // the status dot of a word row is the next thing drawn
    const w = document.createTreeWalker(b, NodeFilter.SHOW_TEXT); let n;
-   while ((n = w.nextNode())) { if (!n.textContent.trim() || n.parentElement.closest('svg')) continue; const r = document.createRange(); r.selectNodeContents(n); const x = r.getBoundingClientRect(); if (x.width && x.left >= ir.right - 0.5) after.push(x.left); }
-   const ck = b.querySelector('.ck'); const ckr = ck && ok(ck) ? ck.getBoundingClientRect() : null; if (ckr && ckr.left >= ir.right - 0.5) after.push(ckr.left);
+   while ((n = w.nextNode())) { if (!n.textContent.trim() || n.parentElement.closest('svg')) continue; const r = document.createRange(); r.selectNodeContents(n); const x = r.getClientRects()[0]; if (!x || !x.width) continue; if (x.left >= ir.right - 0.5) after.push(x.left); else if (x.right <= ir.left + 0.5) before.push(x.left); }
+   const ck = b.querySelector('.ck, .gt-ck'); const ckr = ck ? ck.getBoundingClientRect() : null;
+   if (ckr && ckr.width > 0) { if (ckr.left >= ir.right - 0.5) after.push(ckr.left); else if (ckr.right <= ir.left + 0.5) before.push(ckr.left); }
+   const dot = b.querySelector('.ragdot'); if (dot) { const d = dot.getBoundingClientRect(); if (d.width > 0 && d.left >= ir.right - 0.5) after.push(d.left); }      // the coloured dot of a status word is drawn before the word
    const checked = b.getAttribute('aria-checked') === 'true' || b.getAttribute('aria-current') === 'true';
-   const side = !checked ? null : (ckr && ck.textContent.trim()) ? (ckr.left + ckr.width / 2 > br.left + br.width / 2 ? 'right' : 'left') : (getComputedStyle(b, '::after').content.length > 4 ? 'right' : null);
-   return {t: b.textContent.trim().slice(0, 22), fs: cs(b).fontSize, icon: true, il: Math.round((ir.left - br.left) * 10) / 10, gap: after.length ? Math.round((Math.min(...after) - ir.right) * 10) / 10 : null, side};
+   const side = !checked ? null : (ck && ck.textContent.trim() && ckr) ? (ckr.left + ckr.width / 2 > br.left + br.width / 2 ? 'right' : 'left') : (getComputedStyle(b, '::after').content.length > 4 ? 'right' : null);
+   return {t: b.textContent.trim().slice(0, 22), fs: cs(b).fontSize, icon: true, il: Math.round((Math.min(...before) - br.left) * 10) / 10, gap: after.length ? Math.round((Math.min(...after) - ir.right) * 10) / 10 : null, side};
  });
  const heads = [...box.querySelectorAll('.lab,.mh,.menu-head')].filter(ok).map(h => ({t: h.textContent.trim().slice(0, 24), tt: cs(h).textTransform, ls: cs(h).letterSpacing}));
  return {w: Math.round(br.width), rows, heads}; })"""
