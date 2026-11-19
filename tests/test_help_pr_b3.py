@@ -1,5 +1,5 @@
 """Help PR B3: the words for the client Report menu in a published file (#681, #687) and for the Excel export cells (#672): 'ID: name',
-'Open work items', the Cover and the sheet name 'Risks & Issues'. Each sentence is pinned against the code that makes it true.
+'Open work items', the Report sheet (once the Cover) and the sheet name 'Risks & Issues'. Each sentence is pinned against the code that makes it true.
 Reads files only; starts no browser.
 
 Run: python3 dev/run_tests.py test_help_pr_b3
@@ -105,15 +105,14 @@ class ExcelCells(unittest.TestCase):
     def test_the_cover_step(self):
         step = GUIDES["send-the-workbook-out"]["steps"][4]["d"]
         for sentence in (
-            "Open the file. It opens on the Cover: a title band with the project name, tagged INTERNAL, and under it a line with Weekly report, the week ending and who it is for.",
-            "Then come the sections the published page shows, in the report’s order: the current state, the At a glance tiles side by side (the health is one of them) and the text sections, with This week and Next week side by side when both have words.",
-            "A quiet About this export block comes last: when it was exported and by whom, a caution that it shows the project as it was on that date, who to send changes back to, where to make changes, and a note on IDs.",
+            "Open the file. It opens on the Report sheet: a title band with the project name, tagged INTERNAL, and under it the same line as the top of the Dashboard.",
+            "Then come the sections the published page shows, in the Dashboard’s order.",
+            "ends with a quiet About this export block: when it was exported and by whom, a caution that it shows the project as it was on that date, who to send changes back to, where to make changes, and a note on IDs.",
         ):
             self.assertIn(sentence, step)
         cv, ex = py("excel_cover.py"), py("excel.py")
         self.assertIn('SUBTITLE_KIND', cv)
         self.assertIn('parts.append(f"Week ending {long_date(week)}")', cv)
-        self.assertIn('parts.append(f"for {client}")', cv)
         self.assertIn('title["tag"] = INTERNAL_TAG', cv)
         self.assertIn('== "this week" and nxt.get("type") == "text"', cv)
         self.assertIn('shown = [s for s in sections or [] if not s.get("hidden")]', cv)

@@ -101,7 +101,7 @@ class TheThreeGuides(unittest.TestCase):
 class SearchFindsThem(unittest.TestCase):
     def test_a_search_finds_each_guide_by_its_title_and_by_a_word_in_a_step(self):
         probes = {"bring-in-an-excel-workbook": ("bring in an excel workbook", "get the template"),
-                  "send-the-workbook-out": ("send the workbook out", "cover sheet"),
+                  "send-the-workbook-out": ("send the workbook out", "report sheet"),
                   "publish-to-the-client": ("publish to the client", "placeholder title")}
         for gid, (title, step_word) in probes.items():
             r = run_node(RAW, "(() => { const idx = HL.buildIndex(); const f = (q) => HL.search(idx, q).map((x) => x.id); return [f(%s), f(%s)]; })()"
@@ -117,7 +117,7 @@ class SearchFindsThem(unittest.TestCase):
 
     def test_a_held_guide_leaves_the_search(self):
         r = run_node(RAW, "(() => { HL.useHeld({ guides: { 'send-the-workbook-out': 'later' } }); const idx = HL.buildIndex();"
-                     " return { found: HL.search(idx, 'cover sheet').map((x) => x.id), ids: HL.guides().map((g) => g.id), next: HL.nextOf(['guide-send-the-workbook-out']) }; })()")
+                     " return { found: HL.search(idx, 'report sheet').map((x) => x.id), ids: HL.guides().map((g) => g.id), next: HL.nextOf(['guide-send-the-workbook-out']) }; })()")
         self.assertNotIn("guide-send-the-workbook-out", r["found"])
         self.assertNotIn("send-the-workbook-out", r["ids"])
         self.assertEqual(r["next"], [])
