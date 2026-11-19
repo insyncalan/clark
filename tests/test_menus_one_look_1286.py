@@ -31,8 +31,10 @@ NAME = "prototype-2.0"
 RULES = (ROOT / "src" / "clark" / "themes" / NAME / "rules.css").read_text(encoding="utf-8")
 TICK_LEFT = {"columns", "gantt-show-chart", "gantt-show-table"}          # their mock-ups draw the tick before the word (1195 Columns, 1197 Show)
 NO_ICON_GRID = {"owner-pick", "owner-pick-typed", "health", "report-headline-health"}    # an initials circle or a coloured pill, not an icon
-GROUP_BY = {"view", "uc-group"}
+GROUP_BY = {"uc-group"}
 MIN_W, GROUP_W = 200, 240
+PROTOTYPE_THREE = {"view", "board-move", "board-move-lanes", "new-tile"}       # row 1273: Group by (the View menu's), Move to and the Add menu: 15px, 224 wide, 26px icon gap, the tick before the icon
+THREE_W, THREE_FS, THREE_GAP = 224, "15px", 26
 
 MEASURE = r"""(root => {
  const ok = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
@@ -59,18 +61,22 @@ MEASURE = r"""(root => {
 def check(test, name, look, m):
     where = f"{name} at {look[0]} {look[1]}"
     test.assertTrue(m, where)
-    test.assertGreaterEqual(m["w"], GROUP_W if name in GROUP_BY else MIN_W, f"{where}: the menu is {m['w']}px wide")
+    three = name in PROTOTYPE_THREE
+    test.assertGreaterEqual(m["w"], THREE_W if three else GROUP_W if name in GROUP_BY else MIN_W, f"{where}: the menu is {m['w']}px wide")
     for r in m["rows"]:
-        test.assertEqual(r["fs"], "14px", f"{where}: the line {r['t']!r} is not 14px")
-        if r["icon"] and name not in NO_ICON_GRID:
+        test.assertEqual(r["fs"], THREE_FS if three else "14px", f"{where}: the line {r['t']!r} is not {THREE_FS if three else '14px'}")
+        if r["icon"] and three:
+            test.assertAlmostEqual(r["gap"], THREE_GAP, delta=0.5, msg=f"{where}: {r['t']!r} has {r['gap']}px between its icon and its words, row 1273 draws {THREE_GAP}")
+        elif r["icon"] and name not in NO_ICON_GRID:
             test.assertIsNotNone(r["gap"], f"{where}: {r['t']!r} has nothing after its icon")
             test.assertAlmostEqual(r["il"], 17, delta=1, msg=f"{where}: the icon of {r['t']!r} is {r['il']}px in from the edge, the grid is 17")
             test.assertAlmostEqual(r["gap"], 8, delta=0.5, msg=f"{where}: {r['t']!r} has {r['gap']}px between its icon and the next thing, the grid is 8")
         if r.get("side"):
-            test.assertEqual(r["side"], "left" if name in TICK_LEFT else "right", f"{where}: the tick of {r['t']!r}")
+            test.assertEqual(r["side"], "left" if name in TICK_LEFT or three else "right", f"{where}: the tick of {r['t']!r}")
     for h in m["heads"]:
-        test.assertEqual(h["tt"], "none", f"{where}: the head {h['t']!r} is in capitals")
-        test.assertIn(h["ls"], ("normal", "0px"), f"{where}: the head {h['t']!r} is letter-spaced")
+        test.assertEqual(h["tt"], "uppercase" if name.startswith("board-move") else "none", f"{where}: the head {h['t']!r} is in the wrong case")
+        if not name.startswith("board-move"):
+            test.assertIn(h["ls"], ("normal", "0px"), f"{where}: the head {h['t']!r} is letter-spaced")
 
 
 class Seen:

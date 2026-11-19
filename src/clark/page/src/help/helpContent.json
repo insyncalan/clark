@@ -388,7 +388,7 @@
      "The two icons before the **Group by** button, **List** and **Board**, switch between the list and the board. The board’s columns follow Group by (Status when it is Nothing).",
      "On the board, the **Group by** button also has **Swimlanes**: rows across the board: choose **No lanes**, **Workstream lanes** or **Type lanes**.",
      "Drag a card to another column to change that field. **Due** asks for the new date (never a past one); **Overdue** isn’t a place to drop; **No date** clears it. A move across a lane and a column changes both in one step.",
-     "From the keyboard, or for a precise move, press the three-dots button on a card and choose from the **Move to** lists: first the columns (such as **Move to Status**), then the lanes.",
+     "From the keyboard, or for a precise move, press the three-dots button on a card and choose from the **Move to** lists: first the columns, then the lanes.",
      "Press a column’s heading to collapse it, and again to open it. The full-screen icon gives the board the whole window; [[Esc]] leaves it.",
      "Every move has **Undo** in the message. Click a card, or press [[Enter]] on it, to open it."
     ],

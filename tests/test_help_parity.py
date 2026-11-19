@@ -92,7 +92,6 @@ class EveryPrototypeEntryIsAccountedFor(unittest.TestCase):
 
 # Words a shown Reference entry quotes that the page builds from data, so no source file holds them whole (each with the reason).
 COMPUTED = {
-    "Move to Status": "the board card menu's heading, built from the Group by word (edit/Board.jsx menuFor)",
     "Workstream lanes": "a Swimlanes choice, built from the group's word (components/FilterLine.jsx)",
     "Type lanes": "a Swimlanes choice, built from the group's word (components/FilterLine.jsx)",
     "8 of 8 people need details": "the People card's line above its table, built from the counts (logic/people.js)",

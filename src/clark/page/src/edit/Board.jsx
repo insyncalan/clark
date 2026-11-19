@@ -345,14 +345,14 @@ export function Board({ rows, today, type }) {
   b.lanes.forEach((ln) => ln.columns.forEach((c) => c.cards.forEach((cd) => { cardCell[cd.id] = from(cd.id, ln.key, c.key); })));
   live.current.cardCell = cardCell;
 
-  // The items of a card's Move to... menu (row 1273, the prototype's list): every column (and lane) moveFor accepts, and the one the card is in now, ticked and not
+  // The items of a card's Move to... menu (row 1273, the prototype's list; its first head is the prototype's "Move <card id> to", drawn in capitals by the head style): every column (and lane) moveFor accepts, and the one the card is in now, ticked and not
   // a choice. A column moveFor refuses stays out, as before.
   function menuFor(id) {
     const row = byId[id], here = cardCell[id], out = [];
     if (!row || !here) return out;
     const ok = (t) => { const r = moveFor(row, here, t, ctx); return r.ok && !r.noop; };
     const cols = b.lanes[0].columns.filter((c) => c.key === here.key || ok({ ...here, key: c.key }));
-    if (cols.length) out.push({ head: `Move to ${groupLabel(g)}` }, ...cols.map((c) => ({ key: c.key, name: c.label, here: c.key === here.key })));
+    if (cols.length) out.push({ head: `Move ${id} to` }, ...cols.map((c) => ({ key: c.key, name: c.label, here: c.key === here.key })));
     if (b.lane) {
       const lanes = b.lanes.filter((l) => (here.lane && l.key === here.lane.key) || ok({ ...here, lane: { group: b.lane, key: l.key } }));
       if (lanes.length) out.push({ head: `Move to ${LANE_WORDS[b.lane]}` }, ...lanes.map((l) => ({ key: l.key, name: l.label || "No " + LANE_WORDS[b.lane].toLowerCase(), lane: true, here: !!here.lane && l.key === here.lane.key })));
