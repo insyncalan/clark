@@ -638,7 +638,11 @@ class Indexer:
             due = idle and time.monotonic() - self.checked.get(code, -STALE_POLL_SECONDS) >= STALE_POLL_SECONDS
             if due:
                 self.checked[code] = time.monotonic()
-        if due and current(self.data_dir, code, folders) and stale(self.data_dir, code, folders, self.home):
+        if due and folders and not path_for(self.data_dir, code).exists():
+            self.start(code, folders)               # the index file is gone: build it again, so the line and the next question have it
+            with self.wake:
+                live = dict(self.live[code]) if code in self.live else None
+        elif due and current(self.data_dir, code, folders) and stale(self.data_dir, code, folders, self.home):
             self.start(code, folders)               # a file changed since the last read: read again, so the line stays right
             with self.wake:
                 live = dict(self.live[code]) if code in self.live else None
@@ -653,6 +657,9 @@ class Indexer:
         with self.wake:
             if code in self.queue or code in self.live:
                 return False
+        if folders and not path_for(self.data_dir, code).exists():
+            self.start(code, folders)               # no index file: build it in the background, this question reads the folders
+            return False
         if not current(self.data_dir, code, folders):
             return False
         if stale(self.data_dir, code, folders, self.home):
