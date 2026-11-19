@@ -1,5 +1,5 @@
 // Row 1311 (ruling 19-11): the Classic dashboard bands every other VISIBLE section. CSS cannot count only the visible ones, so this sets the
-// class `band`, as the prototype's tag() does. A hidden section does not count; the summary (At a glance) is never banded and does not count;
+// class `band`, as the prototype's tag() does. A hidden section does not count; the summary (the Current state block, type current) is never banded and does not count;
 // a This week | Next week pair (slot-left then slot-right) counts and bands as ONE. Pure: items are { id, hidden, summary, slot } in page order.
 
 // The ids that are banded: the first counted section, then every other one.
@@ -28,7 +28,7 @@ export function bandIds(items) {
 export function applyBands(root) {
   const els = [...root.querySelectorAll(".secs > .sec")];
   const ids = new Set(bandIds(els.map((e, i) => ({
-    id: i, hidden: e.classList.contains("is-hidden") || e.classList.contains("drag-slot"), summary: e.dataset.type === "glance",
+    id: i, hidden: e.classList.contains("is-hidden") || e.classList.contains("drag-slot"), summary: e.dataset.type === "current",
     slot: e.classList.contains("slot-left") ? "left" : e.classList.contains("slot-right") ? "right" : "full" }))));
   els.forEach((e, i) => { if (e.classList.contains("band") !== ids.has(i)) e.classList.toggle("band", ids.has(i)); });
   return [...ids];

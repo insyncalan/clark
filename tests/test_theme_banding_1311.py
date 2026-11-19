@@ -136,7 +136,7 @@ class Banding(unittest.TestCase):
         self.assertEqual(rule(".secs > .sec" + HID + " ~ .sec" + HID), ["border-top: 1px solid var(--line-soft)"])
 
     def test_summary_keeps_no_padding_top_left_right(self):
-        self.assertEqual(rule('.secs > .sec[data-type="glance"]'), ["padding: 0 0 18px", "border-left: 0"])
+        self.assertEqual(rule('.secs > .sec[data-type="current"]'), ["padding: 0 0 18px", "border-left: 0"])
 
     def test_pair_fills_the_comfortable_gap_from_the_left_half(self):
         self.assertEqual(rule(CMF + ".secs > .sec.slot-left.band", prefix=r"^@media \(min-width: 901px\) \{ "), ["box-shadow: var(--space-5) 0 0 0 var(--sec-band-bg)"])

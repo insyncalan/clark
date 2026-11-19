@@ -88,7 +88,7 @@ class Follows(unittest.TestCase):
             self.addCleanup(lambda: (path.unlink(), path.parent.rmdir()))
             cdp.js("""(() => { document.documentElement.setAttribute('data-mode', 'view');
                 const secs = document.createElement('div'); secs.className = 'secs';
-                secs.innerHTML = ['glance', 'text', 'text', 'text', 'text'].map((t, i) => '<div class="sec slot-full" data-type="' + t + '" id="s' + i + '"><div class="sec-head">S' + i + '</div></div>').join('');
+                secs.innerHTML = ['current', 'text', 'text', 'text', 'text'].map((t, i) => '<div class="sec slot-full" data-type="' + t + '" id="s' + i + '"><div class="sec-head">S' + i + '</div></div>').join('');
                 document.body.appendChild(secs); BD.applyBands(document); })()""", sid)
             fills = "[...document.querySelectorAll('.secs > .sec')].map((e) => getComputedStyle(e).backgroundColor !== 'rgba(0, 0, 0, 0)')"
             self.assertEqual(cdp.js(fills, sid), [False, True, False, True, False])      # the summary is plain, then every other one
@@ -119,6 +119,16 @@ class Follows(unittest.TestCase):
                 document.body.appendChild(secs); BD.applyBands(document);
                 return [secs.children[0].classList.contains('band'), document.getElementById('inner').classList.contains('band'), secs.children[1].classList.contains('band')]; })()""", sid)
             self.assertEqual(got, [True, False, False])
+
+    def test_at_a_glance_is_a_normal_banded_section_and_current_is_the_plain_summary(self):
+        with chrome() as cdp:
+            sid, path = target(cdp)
+            self.addCleanup(lambda: (path.unlink(), path.parent.rmdir()))
+            got = cdp.js("""(() => { const secs = document.createElement('div'); secs.className = 'secs';
+                secs.innerHTML = ['current', 'glance', 'text', 'text'].map((t) => '<div class="sec" data-type="' + t + '"></div>').join('');
+                document.body.appendChild(secs); BD.applyBands(document);
+                return [...secs.children].map((e) => e.classList.contains('band')); })()""", sid)
+            self.assertEqual(got, [False, True, False, True])      # type current is the plain summary; At a glance is the first counted section, banded
 
     def test_hiding_needs_no_manual_call_in_the_page_wiring(self):
         """Dashboard.jsx wires applyBands on render, hashchange and a class change (read from the source: Chrome's page has no dashboard data here)."""
