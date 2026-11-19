@@ -32,6 +32,10 @@ MAX_PARTS_PER_FILE = 5000
 NAMES = ("indexed", "type", "online_only", "too_long", "safety", "not_yet")
 _WORD = re.compile(r"\w+", re.UNICODE)
 _CODE = re.compile(r"[^A-Za-z0-9._-]")
+MAX_LEFT_OUT_SHOWN = 200
+LEFT_OUT_BUTTON = "Show the files left out"
+REASON_TYPE = "of a type clark can't read yet"
+REASON_SAFETY = "looks like a password or a key"
 
 
 def path_for(data_dir, code):
@@ -53,6 +57,7 @@ def _open(data_dir, code, create=True):
     db.executescript(
         "CREATE TABLE IF NOT EXISTS files(label TEXT PRIMARY KEY, size INTEGER, mtime_ns INTEGER, state TEXT);"
         "CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT);"
+        "CREATE TABLE IF NOT EXISTS left(label TEXT PRIMARY KEY, reason TEXT);"
         "CREATE VIRTUAL TABLE IF NOT EXISTS p USING fts5(text, file UNINDEXED, part UNINDEXED, mtime UNINDEXED);")
     return db
 
@@ -97,11 +102,16 @@ def refresh(data_dir, code, folders, home=None):
     roots = reach.roots(usable, home)
     db = _open(data_dir, code)
     kept = {r[0]: (r[1], r[2], r[3]) for r in db.execute("SELECT label, size, mtime_ns, state FROM files")}
+    left = {}
     seen, type_n, safety = set(), 0, unusable + listing.skipped - reasons.get(reach.ONLINE, 0)
     for path in listing.files:
         low = str(path).lower()
         if not low.endswith(ask_passages.TEXT_TYPES + ask_passages.WORD_TYPES):
             type_n += 1
+            root = next((r for r in roots if reach.inside(path, r)), None)
+            name = ask_passages._label(root, path) if root is not None else None
+            if name is not None:
+                left[name] = REASON_TYPE
             continue
         root = next((r for r in roots if reach.inside(path, r)), None)
         label = ask_passages._label(root, path) if root is not None else None
@@ -134,6 +144,10 @@ def refresh(data_dir, code, folders, home=None):
     for gone in set(kept) - seen:
         _drop(db, gone)
     states = [r[0] for r in db.execute("SELECT state FROM files")]
+    for (name,) in db.execute("SELECT label FROM files WHERE state='safety'"):
+        left[name] = REASON_SAFETY
+    db.execute("DELETE FROM left")
+    db.executemany("INSERT INTO left VALUES(?,?)", sorted(left.items()))
     counts = dict.fromkeys(NAMES, 0)
     counts.update(indexed=states.count("indexed"), type=type_n, online_only=reasons.get(reach.ONLINE, 0),
                   safety=safety + states.count("safety"))
@@ -190,3 +204,37 @@ def status(data_dir, code, folders=None):
         finally:
             db.close()
     return counts
+
+
+def files_left_out(data_dir, code, limit=MAX_LEFT_OUT_SHOWN):
+    """{"files": [(name, plain reason)] (at most `limit`, by name), "more": how many are not in that list}. Names only, never any text."""
+    db = _open(data_dir, code, create=False)
+    if db is None:
+        return {"files": [], "more": 0}
+    try:
+        total = db.execute("SELECT count(*) FROM left").fetchone()[0]
+        rows = db.execute("SELECT label, reason FROM left ORDER BY label LIMIT ?", (max(int(limit), 0),)).fetchall()
+    except sqlite3.Error:
+        return {"files": [], "more": 0}
+    finally:
+        db.close()
+    return {"files": [tuple(r) for r in rows], "more": total - len(rows)}
+
+
+def more_line(n):
+    return f"and {n} more"
+
+
+def left_out_line(reason, n):
+    """The approved sentence for `n` files left out for one reason (only "safety" so far)."""
+    if reason == "safety":
+        return f"{n} look like a password or a key and were left out." if n != 1 else "1 looks like a password or a key and was left out."
+    raise ValueError(reason)
+
+
+def answer_note(counts):
+    """The note under an answer while files are still being read; "" once the index is complete."""
+    n = int((counts or {}).get("not_yet") or 0)
+    if n <= 0:
+        return ""
+    return f"Still reading {n} file{'' if n == 1 else 's'}, so this answer may miss some."
