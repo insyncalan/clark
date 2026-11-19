@@ -188,6 +188,10 @@ class Redesign:
                 wk = p.js(LOOK + "('#work')")
                 for k in ("th", "td", "av", "vtab", "gutter"):   # not fline: Row 1316 ruled the Classic Use cases filter a boxed input (the prototype's), Work items keeps its line
                     self.assertIsNotNone(uc[k], k + ": drawn on Use cases")
+                    if k == "vtab":   # row 1394: the Work items tab is the prototype's 15px, padding 9px 10px 8px, 3px underline (its own look); the weight, colours and side padding stay the same on both pages
+                        keep = (1, 2, 4, 6)
+                        self.assertEqual([uc[k][i] for i in keep], [wk[k][i] for i in keep], k + ": weight, colour, side padding and underline colour the same as Work items")
+                        continue
                     self.assertEqual(uc[k], wk[k], k + ": the same as Work items, measured on both pages")
 
     # R2 ---------------------------------------------------------------------------------------------------------------------------
