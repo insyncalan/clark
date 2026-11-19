@@ -54,7 +54,7 @@ export function AskDraft() {
 
   const list = choices(sections, d.sec);
   return (
-    <section id="ask-draft" class="ask-draft" role="complementary" aria-label={W.DRAFT_TITLE} style={{ right: clampWidth(panelWidth.value) + "px" }}>
+    <section id="ask-draft" class="ask-draft" role="complementary" aria-label={W.DRAFT_TITLE} style={{ right: clampWidth(panelWidth.value) + "px", "--ask-pw": clampWidth(panelWidth.value) + "px" }}>
       <header class="ad-h">
         <h2>{W.DRAFT_TITLE}</h2>
         <span class="ad-hint">{W.DRAFT_HINT}</span>
