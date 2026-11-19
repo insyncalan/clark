@@ -38,6 +38,21 @@ def run_node(probe):
         return json.loads(got.stdout)
 
 
+def run_node_async(expr):
+    node = shutil.which("node")
+    if not node:
+        raise unittest.SkipTest("no node")
+    with tempfile.TemporaryDirectory() as tmp:
+        out = Path(tmp) / "aa.js"
+        done = esbuild.run(["--bundle", "--format=iife", "--global-name=AA", str(EDIT / "askActions.js"), f"--outfile={out}"], capture_output=True, text=True)
+        assert done.returncode == 0, done.stderr
+        script = Path(tmp) / "probe.js"
+        script.write_text(out.read_text(encoding="utf-8") + ";\n(" + expr + ").then((v) => console.log(JSON.stringify(v)));", encoding="utf-8")
+        got = subprocess.run([node, str(script)], capture_output=True, text=True)
+        assert got.returncode == 0, got.stderr
+        return json.loads(got.stdout)
+
+
 class Logic(unittest.TestCase):
     def test_html_is_formatted_and_every_word_is_escaped(self):
         h = run_node("AA.answerHtml(" + json.dumps(ANSWER) + ")")
@@ -109,9 +124,31 @@ class Logic(unittest.TestCase):
             assert got.returncode == 0, got.stderr
         self.assertEqual(json.loads(got.stdout), {"none": False, "nonav": False, "fb": True, "plain": ["Hi x"]})
 
+    def test_missing_clipboard_item_with_write_present_uses_plain_text(self):
+        got = run_node_async("""(async () => {
+  const plain = [], wrote = [];
+  const ok = await AA.copyAnswer("Hi **x**", { clipboard: { write: async () => { wrote.push(1); }, writeText: async (t) => { plain.push(t); } } }, null);
+  return { ok, plain, wrote };
+})()""")
+        self.assertEqual(got, {"ok": True, "plain": ["Hi x"], "wrote": []})
+
+    def test_blocks_the_copy_must_keep(self):
+        a = "### Third\n\n#### Fourth\n\n###### Sixth\n\n3. Three\n4. Four\n\n```\na <b>\n  c\n```\n\nOne *soft* and `a<b` here\nnext line"
+        h = run_node_async("(async () => AA.answerHtml(" + json.dumps(a) + "))()")
+        t = run_node_async("(async () => AA.answerPlain(" + json.dumps(a) + "))()")
+        self.assertEqual(h, "<h5>Third</h5><h5>Fourth</h5><h5>Sixth</h5><ol start=\"3\"><li>Three</li><li>Four</li></ol><pre><code>a &lt;b&gt;\n  c</code></pre><p>One <em>soft</em> and <code>a&lt;b</code> here<br>next line</p>")
+        self.assertEqual(t, "Third\n\nFourth\n\nSixth\n\n3. Three\n4. Four\n\na <b>\n  c\n\nOne soft and a<b here\nnext line")
+
+    def test_heading_levels_one_and_two(self):
+        h = run_node_async("(async () => AA.answerHtml(" + json.dumps("# One\n\n## Two") + "))()")
+        self.assertEqual(h, "<h3>One</h3><h4>Two</h4>")
+
 
 FAKE = """(function () { window.__clip = []; window.ClipboardItem = function (o) { this.o = o; };
   Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { write: function (l) { var o = l[0].o, r = {}; return Promise.all(Object.keys(o).map(function (k) { return o[k].text().then(function (t) { r[k] = t; }); })).then(function () { window.__clip.push(r); }); }, writeText: function (t) { window.__clip.push({ 'text/plain': t }); return Promise.resolve(); } } }); })()"""
+
+FAKE_FAIL = "(function () { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: function () { return Promise.reject(new Error('no')); } } }); window.ClipboardItem = undefined; })()"
+UP = "document.querySelector('#ask-box').value"
 
 
 class Page(Classic):
@@ -179,6 +216,101 @@ class Cards(Page):
 
     def test_a_box_with_words_keeps_up_arrow_to_itself(self):
         pass
+
+    def test_up_arrow_in_an_empty_box_recalls_nothing_under_cards_at_1400_and_900(self):
+        for w in (1400, 900):
+            with chrome() as cdp:
+                p = self.visit(cdp)
+                self.at(p, w)
+                self.open(p)
+                self.ask(p, "First?")
+                p.until("document.querySelectorAll('.ask-turn.assistant').length === 1 && !document.querySelector('#ask-work')", f"{w}: answered")
+                p.js("document.querySelector('#ask-box').focus()")
+                p.key("ArrowUp", code="ArrowUp", vk=38)
+                p.key("ArrowUp", code="ArrowUp", vk=38)
+                self.assertEqual(p.js(UP), "", f"{w}: nothing brought back under Cards")
+
+
+class More(Classic):
+    ask = Page.ask
+    open = Page.open
+
+    def answered(self, p, n, what):
+        p.until(f"document.querySelectorAll('.ask-turn.assistant').length === {n} && !document.querySelector('#ask-work')", what)
+
+    def test_modifiers_and_composing_leave_the_box_alone_at_1400_and_900(self):
+        for w in (1400, 900):
+            with chrome() as cdp:
+                p = self.visit(cdp)
+                self.at(p, w)
+                self.open(p)
+                self.ask(p, "First?")
+                self.answered(p, 1, f"{w}: answered")
+                p.js("document.querySelector('#ask-box').focus()")
+                for mod, name in ((8, "shift"), (1, "alt"), (2, "ctrl"), (4, "meta")):
+                    p.key("ArrowUp", modifiers=mod, code="ArrowUp", vk=38)
+                    self.assertEqual(p.js(UP), "", f"{w}: {name} leaves it empty")
+                p.js("document.querySelector('#ask-box').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', isComposing: true, bubbles: true, cancelable: true }))")
+                self.assertEqual(p.js(UP), "", f"{w}: composing leaves it empty")
+                p.key("ArrowUp", code="ArrowUp", vk=38)
+                self.assertEqual(p.js(UP), "First?", f"{w}: a plain Up-arrow brings it back")
+
+    def test_typing_and_sending_start_the_walk_again_at_1400_and_900(self):
+        for w in (1400, 900):
+            with chrome() as cdp:
+                p = self.visit(cdp)
+                self.at(p, w)
+                self.open(p)
+                self.ask(p, "One?")
+                self.answered(p, 1, f"{w}: first")
+                self.ask(p, "Two?")
+                self.answered(p, 2, f"{w}: second")
+                p.js("document.querySelector('#ask-box').focus()")
+                p.key("ArrowUp", code="ArrowUp", vk=38)
+                p.key("ArrowUp", code="ArrowUp", vk=38)
+                self.assertEqual(p.js(UP), "One?", f"{w}: two back")
+                p.js("document.querySelector('#ask-box').select()")
+                p.key("Backspace", code="Backspace", vk=8)
+                self.assertEqual(p.js(UP), "", f"{w}: cleared")
+                p.key("ArrowUp", code="ArrowUp", vk=38)
+                self.assertEqual(p.js(UP), "Two?", f"{w}: typing started the walk again")
+                p.js("document.querySelector('#ask-send').click()")
+                self.answered(p, 3, f"{w}: third")
+                p.js("document.querySelector('#ask-box').focus()")
+                p.key("ArrowUp", code="ArrowUp", vk=38)
+                self.assertEqual(p.js(UP), "Two?", f"{w}: a send started the walk again")
+
+    def test_ask_again_waits_while_a_question_is_being_answered_at_1400_and_900(self):
+        for w in (1400, 900):
+            self.stub.hold.set()
+            with chrome() as cdp:
+                p = self.visit(cdp)
+                self.at(p, w)
+                self.open(p)
+                self.ask(p, "Slow?")
+                self.answered(p, 1, f"{w}: answered")
+                self.stub.hold.clear()
+                self.ask(p, "Next?")
+                p.until("!!document.querySelector('#ask-work')", f"{w}: working")
+                self.assertEqual(p.js("document.querySelector('[data-ask-again]').disabled"), True, f"{w}: disabled while working")
+                n = len(self.stub.calls)
+                p.js("document.querySelector('[data-ask-again]').click()")
+                self.assertEqual(len(self.stub.calls), n, f"{w}: a click sends nothing")
+                self.stub.hold.set()
+                self.answered(p, 2, f"{w}: done")
+                self.assertEqual(p.js("document.querySelector('[data-ask-again]').disabled"), False, f"{w}: enabled again")
+
+    def test_the_failure_notice_is_shown_at_1400_and_900(self):
+        for w in (1400, 900):
+            with chrome() as cdp:
+                p = self.visit(cdp)
+                self.at(p, w)
+                self.open(p)
+                p.js(FAKE_FAIL)
+                self.ask(p, "Q?")
+                self.answered(p, 1, f"{w}: answered")
+                p.js("document.querySelector('[data-ask-copy]').click()")
+                p.until("document.body.textContent.includes('Could not copy. Select the text and copy it yourself.')", f"{w}: the failure notice")
 
 
 if __name__ == "__main__":
