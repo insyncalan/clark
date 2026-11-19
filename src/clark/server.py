@@ -227,7 +227,7 @@ ROUTE_BODY_LIMITS = {"/api/change": CHANGE_BODY_LIMIT, "/api/section-body": SECT
                      "/api/publications/archive": 1024, "/api/publications/restore": 1024,     # #345: a project code and a number
                      "/api/people": PEOPLE_BODY_LIMIT, "/api/people/undo": 1024,     # #115: a person's few short fields; #454: or one paste of up to 500 rows; a step number
                      "/api/profile": 2 * 1024,     # #65: a change or an undo is small; over is the 400 "too big"
-                     "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024,     # #110
+                     "/api/page-error": 4 * 1024, "/api/logging": 1024, "/api/logging/open-folder": 1024, "/api/open-mail": 4096,     # item 110; row 1297
                      "/api/draft-email": 16 * 1024,                    # #50: the ticked ids and a few short words
                      "/api/draft-email/sent": 4 * 1024,                # #50: the ids, the mode and the day: never the email's words
                      "/api/word-import": (WORD_FILE_MB * 4 // 3 + 1) * 1024 * 1024, "/api/word-export": 1024,      # #48
@@ -1287,6 +1287,16 @@ def logs_route(method):
     return route
 
 
+def mail_route(handler, req):
+    """POST /api/open-mail (row 1297): the finished mailto: link, handed to the server's `mail` seam (mail_open.MailOpen), which answers (status, body).
+    Without one: not found. Checked like change_route before this runs (token, Host, Origin, JSON only, the route's own 4 KiB limit)."""
+    seam = getattr(handler.server, "mail", None)
+    if seam is None:
+        return handler.send(404, error_body("not_found"))
+    status, body = seam.handle(req)
+    return handler.send(status, body)
+
+
 def word_import_route(handler, req):
     """POST /api/word-import (#48). Checked like change_route before this runs: the token, the Host, no other site's Origin, JSON
     only, a Content-Length and the route's own size limit."""
@@ -1487,6 +1497,7 @@ POST_ROUTES = {"/api/change": change_route, "/api/section-body": section_body_ro
                 "/api/ask/open-source": ask_route("open_source"),     # #943
                 "/api/profile": profile_route("save"), "/api/people": people_route("people"), "/api/people/undo": people_route("people_undo"), "/api/page-error": logs_route("page_error"),
                 "/api/logging": logs_route("set_level"), "/api/logging/open-folder": logs_route("open_folder"),     # #110
+                "/api/open-mail": mail_route,     # row 1297
                 "/api/update/review": update_route("review"),
                 "/api/update/install": update_route("install"), "/api/update/arm-undo": update_route("arm_undo"),
                 "/api/update/undo": update_route("undo"),
@@ -1812,7 +1823,8 @@ class LocalServer(ThreadingHTTPServer):
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
                  publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
                  draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, ask_instructions=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
-                 people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None, setup=None):
+                 people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None, setup=None, mail=None):
+        self.mail = mail                      # mail_open.MailOpen (row 1297); None: that route answers not found
         if server_address[0] != HOST and not (container_mode() and server_address[0] == CONTAINER_BIND):
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
@@ -1881,7 +1893,7 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
           publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
           draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, ask_instructions=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
-          people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None, setup=None):
+          people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None, setup=None, mail=None):
     """Start the server on 127.0.0.1 (in the container, on its own addresses: see container_mode) and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     if brands is None and BRAND_PATHS["root"] is not None:
@@ -1892,7 +1904,7 @@ def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, logs=logs, sneak=sneak, activity=activity,
                             word_import=word_import, word_export=word_export, excel_import=excel_import, project_save=project_save, draft_email=draft_email, draft_email_sent=draft_email_sent,
                             milestones=milestones, ask_folders=ask_folders, ask_instructions=ask_instructions, app_settings=app_settings, ask=ask, ai=ai, ai_connect=ai_connect, updater=updater,
-                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, section_body=section_body, past=past, as_at=as_at, publication_mark=publication_mark, demo=demo, brands=brands, setup=setup)
+                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, section_body=section_body, past=past, as_at=as_at, publication_mark=publication_mark, demo=demo, brands=brands, setup=setup, mail=mail)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)

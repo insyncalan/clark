@@ -312,6 +312,25 @@ class Component(InBrowser):
         self.mount()
         self.assertEqual(self.text(".pk-foot a"), "Open in your mail app")
 
+    def _answer(self, status, body):
+        self.js("window.__posts = []; window.fetch = (u, i) => { window.__posts.push([String(u), i && i.body]); return Promise.resolve(new Response(JSON.stringify({BODY}), {status: {STATUS}})); }".replace("{BODY}", json.dumps(body)).replace("{STATUS}", str(status)))
+
+    def test_the_ruled_note_shows_under_the_button_only_when_the_open_fails_1297(self):
+        self.mount()
+        note = "No mail app opened. Use Copy as text and paste it into your mail."
+        self.assertEqual(self.text("[data-mail-note]"), "", "nothing before a click")
+        self._answer(200, {"ok": True})
+        self.click(".pk-foot a")
+        self.assertEqual(self.val("window.__posts.length"), 1)
+        self.assertEqual(self.val("document.querySelectorAll('[data-mail-note]').length"), 0, "hidden on success")
+        self._answer(503, {"ok": False, "code": "not_opened", "message": "The mail app could not be opened."})
+        self.click(".pk-foot a")
+        self.assertEqual(self.text("[data-mail-note]"), note)
+        self.assertEqual(self.val("document.querySelectorAll('[data-mail-note]').length"), 1)
+        self._answer(200, {"ok": True})
+        self.click(".pk-foot a")
+        self.assertEqual(self.val("document.querySelectorAll('[data-mail-note]').length"), 0, "a good open clears the note")
+
     def test_over_the_mail_limit_the_button_gives_way_to_the_too_long_message(self):
         self.mount()
         self.assertEqual(self.val("document.querySelectorAll('.pk-foot a').length"), 1)
