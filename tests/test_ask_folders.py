@@ -520,6 +520,35 @@ class PeopleContractWarning(Base):
         status, got = self.post({"project": "ABC", "action": "choose"})
         self.assertEqual((status, [w["folder"] for w in got["warnings"]]), (200, [str(root)]))
 
+    def test_mutation_survivors_the_warning_names_each_hit_in_order_by_its_own_name_and_only_the_added_folder(self):
+        root = self.tree()
+        self.add(root)
+        (self.more / "Salary").mkdir()
+        (self.more / "Salary" / "a.txt").write_text("x")
+        (self.more / "archive" / "Payroll").mkdir(parents=True)
+        (self.more / "archive" / "Payroll" / "b.txt").write_text("x")
+        (self.more / "archive" / "Payroll" / "c.md").write_text("x")
+        status, got = self.add(self.more)
+        self.assertEqual(status, 200)
+        self.assertEqual(got["warnings"], [{"folder": str(self.more), "items": [
+            {"name": "Salary", "readable_files": 1}, {"name": "Payroll", "readable_files": 2}]}],
+            "the added folder only; every hit; in scan order; the name, not the path")
+
+    def test_mutation_survivors_the_list_warns_for_every_project_folder_and_not_for_the_all_projects_folders(self):
+        first = self.tree()
+        self.add(first)
+        (self.more / "Payroll").mkdir()
+        (self.more / "Payroll" / "a.txt").write_text("x")
+        self.add(self.more)
+        other = self.docs / "shared"
+        (other / "Passport").mkdir(parents=True)
+        (other / "Passport" / "a.txt").write_text("x")
+        (self.data / ask_folders.SHARED_FILE).write_text(json.dumps([str(other)]), encoding="utf-8")
+        status, got = self.get()
+        self.assertEqual(status, 200)
+        self.assertEqual([w["folder"] for w in got["warnings"]], [str(first), str(self.more)],
+                         "each folder of the project, in list order; the all-projects folders are not part of this warning")
+
     def test_no_provider_is_involved_in_the_warning(self):
         root = self.tree()
         with mock.patch("socket.socket.connect", side_effect=AssertionError("no network")):
