@@ -60,7 +60,7 @@ class ThemePrototype(unittest.TestCase):
         self.assertEqual(sorted(set(NAME.findall(TOKENS)) - declared), [], "a Theme sets existing names only")
         used = set(re.findall(r"var\((--[a-z0-9-]+)", RULES))
         own = set(re.findall(r"(--wil-[a-z0-9-]+)\s*:", RULES))      # row 1195: the Work items colours the mock-up measures, set and read by rules.css alone
-        self.assertEqual(sorted(used - declared - own - {"--ly", "--sb"}), [], "rules.css reads declared names only, and two the milestone line sets itself: --ly inline, --sb on its box (row 1315)")
+        self.assertEqual(sorted(used - declared - own - {"--ly", "--sb", "--ask-w"}), [], "rules.css reads declared names only, and three the page sets itself: --ly inline and --sb on its box (row 1315), --ask-w on the root while the ask panel is open (row 1292, askPanelState.js)")
 
     def test_the_two_dark_copies_are_equal(self):
         b = blocks(TOKENS)
