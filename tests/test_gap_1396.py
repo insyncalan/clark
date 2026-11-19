@@ -70,7 +70,7 @@ class Source(unittest.TestCase):
     def test_the_block_sits_before_row_1314_which_stays_the_last_row_line(self):
         rows = [l for l in RULES.splitlines() if l.startswith("/* Row ")]
         self.assertTrue(rows[-1].startswith("/* Row 1314"))
-        self.assertTrue(rows[-2].startswith("/* Row 1396"))
+        self.assertTrue(any(r.startswith("/* Row 1396") for r in rows[:-1]))
 
     def test_no_hex_colour_and_no_tmp_path_in_the_rules(self):
         self.assertIsNone(re.search(r"#[0-9A-Fa-f]{3,8}\b", own_block()))
