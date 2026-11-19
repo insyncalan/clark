@@ -10,7 +10,10 @@ Widths 1400 and 900 only. Chrome is required: these tests fail, never skip, with
 """
 import unittest
 
+from clark import page, theme
+import _testpage as testpage
 from test_publish_dialog import Base
+from test_publish_route import Rig
 from test_server import chrome
 from test_settings_bar import calm
 from test_settings_head import PAGES, address, ratio, rgb
@@ -21,6 +24,12 @@ LAID = "!!document.querySelector('.set-win .set-nav .set-chip[aria-current]') &&
 
 
 class Window(Base):
+    """Under the Classic theme layer: the window and the tiles are Classic only (Cards draws the Settings page it drew, pinned by its own tests)."""
+
+    def setUp(self):
+        css = theme.css("prototype-2.0")
+        self.rig = Rig(self, saved=self.saved, page_html=lambda: page.layer_theme(testpage.html(), css))
+
     def open_settings(self, p, w, mode="light", page="people"):
         p.width(w)
         calm(p, mode)
