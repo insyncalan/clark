@@ -49,6 +49,7 @@ class FolderData:
     stopped: bool = False      # the listing was cut short by a cap
     secret_labels: tuple = ()  # labels of files left out because they look like a password or a key (already counted in `safety`)
     pdf_reasons: tuple = ()    # (label, code) for each PDF not read; codes are pdf_reader.REASONS
+    limit: int = 0             # readable files not opened because a read cap was reached (files, bytes, characters or time); never counted in `other`
 
 
 def _lines_of_word(data, name):
@@ -88,7 +89,7 @@ def _label(root, path):
 
 def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, max_passages=ask.MAX_PASSAGES):
     """Passages from the saved `folders` (a list of paths) for one question; `data_dir` is clark's own folder. See the module note."""
-    safety = pdf = other = 0
+    safety = pdf = other = limit = 0
     secret_labels, pdf_reasons = [], []
     cut = 0                                   # PDF pages and parts that were not read or did not fit the part cap
     usable = []
@@ -121,7 +122,7 @@ def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, ma
             safety += 1
             continue
         if files_read >= MAX_FILES_READ or bytes_read >= MAX_BYTES_READ or chars >= MAX_CHARS or time.monotonic() > deadline:
-            other += 1
+            limit += 1
             continue
         files_read += 1
         try:
@@ -175,4 +176,4 @@ def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, ma
     if len(chosen) > max_passages:
         left += len(chosen) - max_passages
         chosen = chosen[:max_passages]
-    return FolderData(chosen, left, safety, pdf, other, bool(listing.stopped), tuple(secret_labels), tuple(pdf_reasons))
+    return FolderData(chosen, left, safety, pdf, other, bool(listing.stopped), tuple(secret_labels), tuple(pdf_reasons), limit)

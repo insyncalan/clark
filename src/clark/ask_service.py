@@ -389,6 +389,8 @@ def folder_notes(found):
             out.append(pdf_reader.count_note(found.pdf - len(found.pdf_reasons), "crash"))
     if found.other:
         out.append(f"{found.other} {'file was' if found.other == 1 else 'files were'} not read because of its type.")
+    if getattr(found, "limit", 0):
+        out.append(f"{found.limit} {'file was' if found.limit == 1 else 'files were'} not opened because the limit for one question was reached.")
     if found.stopped:
         out.append("Not every file in your folders was looked at.")
     return out
