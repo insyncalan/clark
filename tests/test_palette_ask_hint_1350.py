@@ -23,6 +23,11 @@ class SendKeyPick(AskRowLogic):
         got = self.js("return " + json.dumps(cases) + ".map((n) => PAL.sendKey(n));")
         self.assertEqual(got, ["Cmd+Enter", "Cmd+Enter", "Cmd+Enter", "Ctrl+Enter", "Ctrl+Enter", "Ctrl+Enter", "Ctrl+Enter", "Cmd+Enter", "Ctrl+Enter", "Ctrl+Enter"])
 
+    def test_no_argument_reads_the_page_navigator_and_null_means_no_navigator(self):
+        got = self.js("Object.defineProperty(navigator, 'userAgentData', {value: undefined, configurable: true}); Object.defineProperty(navigator, 'platform', {value: 'MacIntel', configurable: true});"
+                      " return [PAL.sendKey(), PAL.sendKey(null), PAL.askRow('zzqx').more];")
+        self.assertEqual(got, ["Cmd+Enter", "Ctrl+Enter", "Cmd+Enter"])
+
     def test_the_row_carries_the_word_and_the_rest_of_the_row_is_unchanged(self):
         got = self.js("const r = PAL.askRow('zzqx'); return [r.more, r.label, r.kind, r.first];")
         self.assertEqual(got, ["Ctrl+Enter", "Ask “zzqx” in ask clark", "ask clark", False], "headless Chrome here reports Linux")
