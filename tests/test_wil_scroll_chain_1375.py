@@ -4,6 +4,7 @@ stall inside the box. The box keeps scrolling its own rows while it can still mo
 real wheel at 1400 and 900 px.
 Run: TZ=UTC python3 dev/run_tests.py test_wil_scroll_chain_1375
 """
+import json
 import tempfile
 import time
 import unittest
@@ -55,6 +56,22 @@ class Chain(base.PageBase):
         with chrome() as cdp:
             p = self.load(cdp, 1400)
             self.assertEqual(p.js(f"getComputedStyle(document.querySelector('{BOX % self.ref}')).overscrollBehaviorY"), "auto")
+
+    def test_every_dashboard_section_scroll_box_passes_the_wheel_on_and_overlays_keep_contain(self):
+        probe = ("(() => { const host = document.querySelector('#report .sec-body') || document.querySelector('#report'); const got = {};"
+                 " for (const k of %s) { const d = document.createElement('div'); d.className = k; host.appendChild(d); got[k] = getComputedStyle(d).overscrollBehaviorY; d.remove(); }"
+                 " return got; })()")
+        boxes = ["wil-scroll", "mv-wrap", "msl-scroll", "gt-scroll", "gt-gx", "tpl-table-wrap"]
+        keep = ["boardbox", "dlg", "peek", "pk-body"]          # the Work items board page and the overlays: unchanged
+        with chrome() as cdp:
+            p = self.load(cdp, 1400)
+            for k, v in p.js(probe % json.dumps(boxes)).items():
+                self.assertEqual(v, "auto", f"{k}: a Dashboard section scroll box passes the wheel on")
+            for k, v in p.js(probe % json.dumps(keep)).items():
+                self.assertEqual(v, "contain", f"{k}: keeps its own containment")
+            real = p.js("[...document.querySelectorAll('#report *')].filter(e => /auto|scroll/.test(getComputedStyle(e).overflowY + getComputedStyle(e).overflowX)).map(e => getComputedStyle(e).overscrollBehaviorY)")
+            self.assertTrue(real)
+            self.assertEqual(set(real), {"auto"}, "every scrolling element drawn in the Dashboard passes the wheel on")
 
     def test_wheel_at_the_end_of_the_box_moves_the_page_both_ways_1400_900(self):
         for width in (1400, 900):
