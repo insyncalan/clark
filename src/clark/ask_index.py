@@ -150,6 +150,13 @@ def refresh(data_dir, code, folders, home=None, stop=None, progress=None):
             db.close()
         return True
     db = _open(data_dir, code)
+    try:
+        return _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, progress)
+    finally:
+        db.close()                               # also when a read fails half way: no connection is left open by the worker
+
+
+def _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, progress):
     _set(db, "complete", "0")
     db.commit()
     kept = {r[0]: (r[1], r[2], r[3]) for r in db.execute("SELECT label, size, mtime_ns, state FROM files")}
@@ -175,7 +182,6 @@ def refresh(data_dir, code, folders, home=None, stop=None, progress=None):
         for path in listing.files:
             if stop is not None and stop.is_set():
                 db.commit()
-                db.close()
                 return False
             done += 1
             low = str(path).lower()
@@ -224,7 +230,6 @@ def refresh(data_dir, code, folders, home=None, stop=None, progress=None):
     db.execute("INSERT INTO p(p) VALUES('optimize')")     # merges the segments so deleted rows are really gone
     db.commit()
     db.execute("VACUUM")                         # wipes freed pages: text of a removed file is not left behind
-    db.close()
     return True
 
 

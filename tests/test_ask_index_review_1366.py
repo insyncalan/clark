@@ -22,3 +22,38 @@ class Modes(Base):
         ix.build(self.data, "P1", [self.box])
         self.assertEqual(stat.S_IMODE(d.stat().st_mode), 0o700)
         self.assertEqual(stat.S_IMODE(f.stat().st_mode), 0o600)
+
+
+class Closes(Base):
+    def test_a_read_that_fails_half_way_does_not_leave_the_connection_open(self):
+        import sqlite3
+        from clark import ask_index
+        self.put("a.txt", "zqone")
+        opened = []
+        real = ask_index._open
+
+        def spy(*a, **k):
+            db = real(*a, **k)
+            opened.append(db)
+            return db
+        with mock.patch.object(ask_index, "_open", spy), mock.patch.object(ask_index, "_read_one", side_effect=RuntimeError("boom")):
+            with self.assertRaises(RuntimeError):
+                ask_index.refresh(self.data, "P1", [self.box])
+        self.assertTrue(opened)
+        with self.assertRaises(sqlite3.ProgrammingError):
+            opened[0].execute("SELECT 1")
+
+    def test_a_stopped_run_closes_too(self):
+        import sqlite3
+        import threading
+        from clark import ask_index
+        self.put("a.txt", "zqone")
+        opened = []
+        real = ask_index._open
+        ask_index_open = lambda *a, **k: opened.append(real(*a, **k)) or opened[-1]
+        stop = threading.Event()
+        stop.set()
+        with mock.patch.object(ask_index, "_open", ask_index_open):
+            self.assertFalse(ask_index.refresh(self.data, "P1", [self.box], stop=stop))
+        with self.assertRaises(sqlite3.ProgrammingError):
+            opened[0].execute("SELECT 1")
