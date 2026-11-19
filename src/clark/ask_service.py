@@ -197,7 +197,8 @@ class AskService:
         if isinstance(reply, ask.Failure):
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
-                             left_out_note(data.left_out + found.left_out), kinds_note(data.kinds_left_out), *folder_notes(found)) if n]
+                             left_out_note(data.left_out + found.left_out), kinds_note(data.kinds_left_out), *folder_notes(found),
+                             *hidden_notes(request.hidden, request.passages)) if n]
         conn = connector_used(getattr(self.provider, "last_line", None))      # row 1306: what the real run did (None: no connector in the run)
         if conn and conn["line"]:
             notes.append(conn["line"])
@@ -354,6 +355,17 @@ def left_out_note(count):
     if not isinstance(count, int) or isinstance(count, bool) or count < 1:
         return ""
     return ("Some of the report was too long to send in full, so only the parts closest to your question were used.")
+
+
+def hidden_notes(hidden, passages):
+    """Row 1293: one plain line for each passage sent that holds hidden characters (the counts of Request.hidden, which the passage
+    keeps: it is sent unchanged). The question's own count is not a passage and gets none."""
+    out = []
+    for pid, label in passages:
+        n = hidden.get(pid) if isinstance(hidden, dict) else None
+        if isinstance(n, int) and not isinstance(n, bool) and n >= 1:
+            out.append(f"{label}: this passage has {n} hidden {'character' if n == 1 else 'characters'}.")
+    return out
 
 
 def kinds_note(kinds):
