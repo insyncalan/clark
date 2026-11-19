@@ -30,6 +30,14 @@ class TheNote(unittest.TestCase):
     def test_a_count_with_no_label_or_a_bad_count_is_skipped(self):
         self.assertEqual(ask_service.hidden_notes({"P9": 2, "P1": True, "P2": "x", "P3": -1}, [("P1", "a"), ("P2", "b"), ("P3", "c")]), [])
 
+    def test_counts_that_are_not_a_mapping_say_nothing(self):
+        for bad in (None, [("P1", 2)], "P1", 3):
+            self.assertEqual(ask_service.hidden_notes(bad, [("P1", "a")]), [], bad)
+
+    def test_the_label_leads_the_line_and_each_passage_gets_its_own(self):
+        got = ask_service.hidden_notes({"P1": 2, "P2": 2}, [("P1", "a"), ("P2", "b")])
+        self.assertEqual(got, ["a: this passage has 2 hidden characters.", "b: this passage has 2 hidden characters."])
+
 
 class ThroughTheService(route.Base):
     def inputs(self, text):
@@ -45,7 +53,8 @@ class ThroughTheService(route.Base):
         status, got = self.ask_with("Agree the plan​​\U000e0041 ZQ-KEEP")
         self.assertEqual((status, got["ok"]), (200, True), got)
         self.assertTrue([n for n in got["notes"] if n.endswith("this passage has 3 hidden characters.")], got["notes"])
-        self.assertIn("​​\U000e0041", self.provider.last.text if hasattr(self.provider, "last") else "​​\U000e0041")
+        (sent,) = self.provider.sent
+        self.assertIn("​​\U000e0041", sent)
 
     def test_a_clean_project_has_no_such_note(self):
         status, got = self.ask_with("Agree the plan ZQ-KEEP")
