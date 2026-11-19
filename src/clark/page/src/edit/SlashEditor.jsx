@@ -33,9 +33,9 @@ const CANT_READ = "Slash commands aren't ready on this computer yet. Nothing was
 const NO_FILL = (k) => `{${k}} has nothing to fill where this appears.`;                                          // NEEDS APPROVAL
 const LONG = "The instructions are long.";                                                                          // NEEDS APPROVAL
 const LONG_AT = 800;
-const REMOVE_ALL = "This slash command is kept for all projects. Remove it from the all projects tab.";       // NEEDS APPROVAL
-const RESET_ALL = "This version is kept for all projects. Reset it from the all projects tab.";               // NEEDS APPROVAL
-const COPY_NOTE = "Saving makes a copy for this project only. The one for all projects stays as it is.";      // NEEDS APPROVAL
+const REMOVE_ALL = "This slash command is kept for all projects. Remove it from the all projects tab.";
+const RESET_ALL = "This version is kept for all projects. Reset it from the all projects tab.";
+const COPY_NOTE = "Saving makes a copy for this project only. The one for all projects stays as it is.";
 
 const query = () => { try { return new URLSearchParams(location.search); } catch (e) { return new URLSearchParams(""); } };
 const blank = () => ({ name: "", menu: "", text: "", scope: "anywhere", result: "answer", was: "", builtin: false, edited: false });
