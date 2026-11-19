@@ -161,7 +161,7 @@ class Computed(unittest.TestCase):
 class Layering(unittest.TestCase):
     def test_cards_page_is_the_page_with_no_theme_layer(self):
         plain = page.page_html(branding=page.NO_BRAND)
-        self.assertEqual(plain, page.page_html(branding=page.NO_BRAND, theme=theme.name_for("cards")))
+        self.assertEqual(plain, page.page_html(branding=page.NO_BRAND, theme=None))      # row 1363: the function still draws it; theme.name_for no longer asks for it
         self.assertNotIn('id="theme"', plain)
         self.assertNotIn("--weight-medium); }\n.btn, .seg", plain)
 
