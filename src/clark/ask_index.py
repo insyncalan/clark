@@ -32,7 +32,7 @@ import threading
 import time
 from pathlib import Path
 
-from clark import ask, ask_data, ask_extract, ask_passages, ask_picture, docx_read, pdf_reader, reach, secret_screen
+from clark import ask, ask_data, ask_extract, ask_passages, ask_picture, ask_vision_mac, docx_read, pdf_reader, reach, secret_screen
 
 MAX_RESULTS = ask.MAX_PASSAGES
 MAX_PARTS_PER_FILE = 5000
@@ -40,6 +40,7 @@ EXCEL_TYPES = (".xlsx", ".xlsm")
 PPTX_TYPES = (".pptx",)
 HTML_TYPES = (".html", ".htm")
 PICTURE_TYPES = ask_picture.PICTURE_TYPES
+ask_vision_mac.register()          # the Mac's own text recognition for pictures; nothing is registered on another system
 INDEXED_TYPES = ask_passages.TEXT_TYPES + ask_passages.WORD_TYPES + ask_passages.PDF_TYPES + EXCEL_TYPES + PPTX_TYPES + HTML_TYPES
 TRACKED_TYPES = INDEXED_TYPES + PICTURE_TYPES          # the files that have a row in the index (a picture too, read or left out)
 MAX_PPTX_BYTES = 50 * 1024 * 1024

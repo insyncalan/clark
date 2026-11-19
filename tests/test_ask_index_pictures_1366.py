@@ -18,6 +18,12 @@ def fake_reader(raw):
 
 
 class Pictures(Base):
+    def setUp(self):
+        super().setUp()
+        p = mock.patch.object(ask_picture, "_READER", None)        # on a Mac ask_index registers the real reader at import: these tests start with none
+        p.start()
+        self.addCleanup(p.stop)
+
     def reader(self, on=pl.MAC, fn=fake_reader):
         for p in (mock.patch.object(ask_picture.platform, "system", return_value=on), mock.patch.object(ask_picture, "_READER", fn)):
             p.start()

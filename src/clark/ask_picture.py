@@ -4,8 +4,8 @@ A picture is read on this Mac only, with the Mac's own text recognition, and is 
 where no reader is set, `reader()` is None and the index leaves the picture out ("is a picture and this computer cannot read pictures").
 
 THE INTERFACE. A reader is a function `read(raw: bytes) -> str` (the text found, "" for none) that raises `PictureUnreadable` for a
-picture it cannot read (damaged, too big). It starts no program of its own here: a Mac reader is registered with `set_reader` by the
-module that is allowed to start one (platform.py). No Mac reader is built yet, so nothing is registered and every picture is left out.
+picture it cannot read (damaged, too big). It starts no program of its own: the Mac reader (ask_vision_mac, started through platform.py) is registered with `set_reader` by
+ask_index on a Mac only; elsewhere nothing is registered and every picture is left out.
 """
 from clark import platform
 
