@@ -387,6 +387,13 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .msl-box .node.c-green { border-color: var(--status-green-text); } .msl-box .node.c-amber { border-color: var(--ms-amber-shape); } .msl-box .node.c-red { border-color: var(--status-red-text); } .msl-box .node.c-blue { border-color: var(--tone-blue-text); }
 .msl-box .node.fill.c-green { background: var(--status-green-text); }
 .msl-box .mst.c-blue { color: var(--tone-blue-text); }
+/* Row 1397 (Milestones timeline strip and switch, Classic only; Cards unchanged): the strip has no fill, the line is 2px --grey-500, the Today line is 1.5px --brand-blue and its name is 13px, weight 600, --brand-blue, with no fill; the drawn mark is 20x20 inside its 24x24 button (the 24px target stays); the Timeline / Calendar switch text is 14px (its frame, radius 6 and padding are Row 1315's). Bare lengths: 1.5px line, 20px mark, 14px text. */
+.mv[data-look="classic"] .mv-wrap { background: transparent; }
+.mv[data-look="classic"] .mv-line { background: var(--grey-500); }
+.mv[data-look="classic"] .mv-today { width: 1.5px; background: var(--brand-blue); }
+.mv[data-look="classic"] .mv-today b { font-size: 13px; font-weight: 600; color: var(--brand-blue); background: none; }
+.mv[data-look="classic"] .mv-mk .ms-i { width: 20px; height: 20px; }
+#milestones .msv-b { font-size: 14px; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
