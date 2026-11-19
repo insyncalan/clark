@@ -146,13 +146,14 @@ class PublishedCards(g.Setup):
     publish = g.Published.publish          # the finished file, written the way test_glance_page writes it
     draw = g.Published.draw
 
-    def test_the_published_file_draws_the_same_cards(self):
+    def test_the_published_file_draws_classic_sections(self):
+        """Cards is unmaintained (row 1363): a project with a stored 'cards' theme publishes Classic sections, no Cards square and no card border."""
         path = self.publish()
         with chrome() as cdp:
             p = self.draw(cdp, path)
             p.js("document.documentElement.dataset.density = 'comfortable'")      # a file with no word opens Compact; cards are Comfortable
             w, h, bg, border, radius, _, _ = p.js(SQUARE)
-            self.assertEqual((w, h, border), ("10px", "10px", "1px"))
+            self.assertEqual((w, h, border), ("14px", "25px", "0px"))      # measured on the Classic file; the Cards values were 10px, 10px, 1px
 
 
 if __name__ == "__main__":
