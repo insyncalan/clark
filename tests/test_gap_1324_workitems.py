@@ -22,11 +22,11 @@ PROBE = """(() => { const q = (s, r) => (r || document).querySelector(s), qa = (
     btn: [c(b).fontWeight, c(b).fontSize, c(b).fontFamily.split(',')[0]],
     count: [c(gc).fontSize, c(gc).marginLeft, c(gc).color], chev: [c(ic).marginTop, c(ic).color, c(b).alignItems],
     gaps: gs.map((e, i) => Math.round(top(e) - (i ? bot(gs[i - 1]) : bot(q('#work .wcolh'))))), margins: gs.map((e) => c(e).marginTop),
-    colhLine: [c(th).borderBottomWidth, c(th).borderBottomStyle, c(th).borderTopWidth],
+    colhLine: [c(q('#work .wcolh')).borderBottomWidth, c(q('#work .wcolh')).borderBottomStyle, c(th).borderTopWidth],
     pad: [c(cells[0]).paddingLeft, c(cells[cells.length - 1]).paddingRight, c(hc[0]).paddingLeft, c(hc[hc.length - 1]).paddingRight],
     firstRowTop: c(cells[0]).borderTopWidth, secondRowTop: (() => { const r = qa('#work table.grouped tbody tr[data-id]', gs[0])[1]; return r ? c(q('td', r)).borderTopWidth : null; })(),
     line: (() => { const i = document.createElement('i'); i.style.borderBottom = '1px solid var(--grey-200)'; document.body.appendChild(i); const v = c(i).borderBottomColor; i.remove(); return v; })(),
-    lineOf: [c(gh).borderBottomColor, c(th).borderBottomColor], wide: document.documentElement.scrollWidth <= window.innerWidth,
+    lineOf: [c(gh).borderBottomColor, c(q('#work .wcolh')).borderBottomColor], wide: document.documentElement.scrollWidth <= window.innerWidth,
     aligned: qa('#work .wcolh th[data-col]').map((h) => { const t = q('td.' + h.className.split(' ')[0], first); return t ? Math.abs(h.getBoundingClientRect().left - t.getBoundingClientRect().left) + Math.abs(h.getBoundingClientRect().width - t.getBoundingClientRect().width) : 0; }) }; })()"""
 
 
