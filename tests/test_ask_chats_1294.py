@@ -48,6 +48,7 @@ class Chats(Tabs):
             self.assertEqual(js("document.querySelector('#ask-chats-keep').value"), "30")
             self.assertEqual(js("document.querySelector('#ask-chats-line').textContent"),
                              "The most recent chats kept for each project, in this browser. Clearing them is done in a project's tab.")
+            self.assertEqual(js("document.querySelector('#ask-chats-older').textContent"), "Older chats go the next time a chat is saved.")
             js("var s = document.querySelector('#ask-chats-keep'); s.value = '10'; s.dispatchEvent(new Event('change', {bubbles: true}))")
             self.until(js, "localStorage.getItem('clark.askChatsKeep') === '10'", "the choice is kept")
             reload_to_new_page(js, seconds=20)
