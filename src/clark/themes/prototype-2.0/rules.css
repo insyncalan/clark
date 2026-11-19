@@ -20,7 +20,7 @@ body { background: var(--page-bg) var(--page-grad) fixed no-repeat; }
 :root[data-theme=dark] .fk.k-txt { background: var(--grey-100); color: var(--text); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .fline { border-bottom-color: var(--grey-500); } :root[data-theme=auto] .fk.k-txt { background: var(--grey-100); color: var(--text); } }
 .fline-tail { margin-right: 0; }
-.vicons .lsw, .vicons .btn.sm.vgb { border-radius: var(--radius-sm); }
+.vicons .lsw, .vicons .btn.sm.vgb { border-radius: var(--radius); }
 .vicons .seg.lsw button[aria-pressed="true"] { background-color: var(--grey-100); background-image: none; color: var(--heading); }
 .vicons .lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 table.items thead th + th, .wil-table thead th + th { border-left: 1px solid var(--grey-200); }
@@ -397,6 +397,8 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 /* Row 1319, spec 19-11: the page h1 sits 4px above what follows (the .head h1 and cover h1 keep their own margins), and a text segment button is 3px 14px, 28px tall, weight 600 (the two-icon switch, icon tiles and the top bar's switch keep theirs). */
 .frame h1:not(.head h1):not(.cover h1) { margin-bottom: 4px; }
 .seg:not(.lsw):not(.icons):not(.modes) button { padding: 3px 14px; min-height: 28px; font-weight: 600; }
+/* Row 1372 (Classic only; the Cards look keeps its width): the item and milestone peeks open 62% of the window wide, at least 300px, as the approved peek mock-up draws it, instead of 640px. From 1000px up; below it the peek fills the window as before. A width the person dragged (the peek carries data-sized) is kept. Bare lengths with no token: the 300px least width and the 1000px switch. */
+@media (min-width: 1000px) { .peek:not(.hpk):not(.wide):not([data-sized]) { width: 62% !important; min-width: min(300px, 100vw); } }
 /* Row 1285: Close, focused as a peek opens with no key pressed (a click, a script), shows no focus ring until a key is pressed or the focus moves on. */
 #peek .pkp-btn[data-quiet]:focus-visible { outline: none; }
 
