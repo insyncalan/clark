@@ -256,6 +256,24 @@ class Columns(unittest.TestCase):
             blue = js("(() => { const p = document.createElement('span'); p.style.color = 'var(--link)'; document.body.append(p); const c = getComputedStyle(p).color; p.remove(); return c; })()")
             self.assertEqual(got["cc"], blue, "the id takes the page's link colour")
 
+    def test_the_open_menu_closes_when_the_page_scrolls(self):
+        """Row 1276: the settle waits of the other tests exist because a scroll closes the menu; so a scroll must close it (MenuPanel listens to the window)."""
+        with chrome() as cdp:
+            sid, js = self.open_table(cdp, 1400, "light", "work")
+            self.right_click(cdp, sid, "#work th[data-col='owner']")
+            self.assertTrue(wait(lambda: self.menu(js), 5), "the menu opens")
+            js("window.dispatchEvent(new Event('scroll'))")
+            self.assertTrue(wait(lambda: not self.menu(js), 5), "a scroll of the page closes it")
+
+    def test_a_right_click_inside_a_text_field_of_the_heading_row_leaves_the_browsers_own_menu_alone(self):
+        """Row 1276: typing in a field (copy, paste) keeps the browser's menu; the Columns menu is for the heading itself."""
+        with chrome() as cdp:
+            sid, js = self.open_table(cdp, 1400, "light", "work")
+            got = js("""(() => { const th = document.querySelector("#work th[data-col='owner']"); const i = document.createElement('input'); th.appendChild(i);
+                const ev = new MouseEvent('contextmenu', {bubbles: true, cancelable: true}); i.dispatchEvent(ev); i.remove(); return ev.defaultPrevented; })()""")
+            self.assertFalse(got, "the page leaves the event alone")
+            self.assertIsNone(self.menu(js), "and opens no Columns menu")
+
     def test_a_blocked_store_still_lets_the_table_redraw(self):
         block = "Storage.prototype.setItem = function () { throw new Error('blocked'); };"
         with chrome() as cdp:
