@@ -251,8 +251,7 @@ class Words(unittest.TestCase):
                     "Brands can't be shown right now. Restart clark the usual way and try again. Try again"
                 ]),
                 ('theme', 'Theme', [
-                    "Theme", "Your choice applies the next time the page loads.",
-                    "The theme could not be read just now. Reload the page to try again."      # this server has no theme route
+                    "Theme", "Classic", "The only theme clark has."      # row 1363: one choice, nothing read from the server
                 ]),
                 ('appearance', 'Appearance', [
                     "Personal",    # #45: Settings › Personal, the section styles

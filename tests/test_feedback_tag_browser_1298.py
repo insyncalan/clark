@@ -106,14 +106,14 @@ class FeedbackTagBrowser(unittest.TestCase):
             cdp.js("document.querySelector('[data-fbt-kind=Idea]').click()", sid)
             self.assertEqual(json.loads(cdp.js(on, sid)), ["Idea"], where)
 
-    def test_mail_link_only_with_words_and_copy_disabled_without(self):
+    def test_mail_link_href_only_with_words_and_empty_press_shows_the_error(self):
         for cdp, sid, where in self.each():
             self.open_help(cdp, sid)
             cdp.js(f"{BAR}.click()", sid)
-            self.assertFalse(cdp.js("!!document.querySelector('[data-fbt-mail]')", sid), where)
-            self.assertTrue(cdp.js("document.querySelector('[data-fbt-copy]').disabled", sid), where)
+            self.assertFalse(cdp.js("document.querySelector('[data-fbt-mail]').hasAttribute('href')", sid), where)     # row 1342: shown always, no address until there are words
+            self.assertFalse(cdp.js("document.querySelector('[data-fbt-copy]').disabled", sid), where)
             cdp.js("(() => { const t = document.querySelector('#fbt-message'); t.focus(); document.execCommand('insertText', false, 'The page is slow'); })()", sid)
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-fbt-mail]')", sid)), where)
+            self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fbt-mail]').hasAttribute('href')", sid)), where)
             self.assertTrue(cdp.js("document.querySelector('[data-fbt-mail]').href.startsWith('mailto:')", sid), where)
             self.assertFalse(cdp.js("document.querySelector('[data-fbt-copy]').disabled", sid), where)
 
