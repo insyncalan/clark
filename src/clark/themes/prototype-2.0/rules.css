@@ -116,9 +116,10 @@ html[data-mode="view"] .sec { border-left: 2px solid var(--gutter-rule); padding
 .wil-table .wil-c-priority { width: 84px; }
 .wil-table .wil-c-id { width: 84px; }
 .wil-all-b { color: var(--status-blue); font-weight: var(--weight-medium); min-height: var(--space-6); padding: 6px 0; }
-/* Row 1311: every other visible section (the odd ones: the picture bands At a glance, the 1st) is a white panel on the page gradient and has no gutter rule. The served View leaves hidden sections out of the page, so the odd child is the odd visible section there; Edit draws them (dashed, never banded). */
-.secs > .sec:nth-child(odd):not(.is-hidden):not(.drag-slot) { background: var(--sec-band-bg); border-left: 0; border-radius: var(--radius-lg); }
-@media print { .secs > .sec:nth-child(odd):not(.is-hidden):not(.drag-slot) { background: none; border-radius: 0; } }
+/* Row 1311, row 1335: every other horizontal row (the 1st, 3rd...: the picture bands At a glance, the 1st) is a white panel on the page gradient and has no gutter rule. Dashboard.jsx numbers the rows (data-band 0 or 1); the two halves of a pair share one number. The served View leaves hidden sections out of the page, so rows are counted over the visible ones there; Edit draws hidden ones (dashed, never banded). */
+@media (min-width: 901px) { .secs > .sec[data-band="0"]:not(.is-hidden):not(.drag-slot) { background: var(--sec-band-bg); border-left: 0; border-radius: var(--radius-lg); } }
+@media (max-width: 900px) { .secs > .sec:nth-child(odd):not(.is-hidden):not(.drag-slot) { background: var(--sec-band-bg); border-left: 0; border-radius: var(--radius-lg); } }      /* stacked (one column), each section is its own row: every other section, as before */
+@media print { .secs > .sec[data-band="0"]:not(.is-hidden):not(.drag-slot), .secs > .sec:nth-child(odd):not(.is-hidden):not(.drag-slot) { background: none; border-radius: 0; } }
 .wil-table td { padding-top: 9px; padding-bottom: 9px; }
 .wil-table tbody tr { height: 49px; }
 .wil-table td.wil-c-due { font-size: var(--size-caption); line-height: normal; }

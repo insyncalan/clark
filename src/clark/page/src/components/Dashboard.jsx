@@ -99,9 +99,11 @@ export function Dashboard({ tools }) {
   const jump = (id) => { if (anchors[id]) jumpTo(anchors[id]); };
   const Bar = tools && tools.ReportBar && !fromFile.value ? tools.ReportBar : null;      // a page clark serves only (A-D2)
   const classic = classicTheme();      // row 1318: Classic has the left Contents column and no Minimap; Cards (no Theme layer) keeps the Minimap and draws exactly what it drew
+  let row = -1;      // row 1335: the horizontal row of each section (a left half starts one, its right half shares it); Classic bands on this, not on the section's place in the list
+  const bands = places.map((p) => { if (p !== "right") row++; return row; });
   const secs = (
     <div class={`secs${editing && dropAt.value && dropAt.value.line === "end" && !dragList.value ? " drop-end" : ""}`}>
-      {list.map((s, i) => <Section key={s.id} section={s} index={i} count={list.length} slot={places[i]} anchor={anchors[s.id]} tools={editing ? tools : null} clean={!fromFile.value && tools ? tools.clean : null} />)}
+      {list.map((s, i) => <Section key={s.id} section={s} index={i} count={list.length} slot={places[i]} band={classic ? bands[i] % 2 : undefined} anchor={anchors[s.id]} tools={editing ? tools : null} clean={!fromFile.value && tools ? tools.clean : null} />)}
     </div>
   );
   return (

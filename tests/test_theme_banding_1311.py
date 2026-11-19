@@ -19,7 +19,10 @@ FOLDER = ROOT / "src" / "clark" / "themes" / "prototype-2.0"
 TOKENS = (FOLDER / "tokens.css").read_text(encoding="utf-8")
 RULES = (FOLDER / "rules.css").read_text(encoding="utf-8")
 BRAND = (ROOT / "src" / "clark" / "brand" / "tokens.css").read_text(encoding="utf-8")
-SEL = ".secs > .sec:nth-child(odd):not(.is-hidden):not(.drag-slot)"
+NOT = ":not(.is-hidden):not(.drag-slot)"
+WIDE = ".secs > .sec[data-band=\"0\"]" + NOT      # row 1335: from 901 px, the band follows the horizontal row (Dashboard.jsx numbers it)
+SEL = ".secs > .sec:nth-child(odd)" + NOT      # at 900 and under the sections stack, each is its own row
+WIDE_AT, NARROW_AT = r"^@media \(min-width: 901px\) \{ ", r"^@media \(max-width: 900px\) \{ "
 BLOCKS = {
     "light": r"^:root \{(.*?)^\}",
     "dark": r":root\[data-theme=dark\]\s*\{(.*?)\n\}",
@@ -104,21 +107,26 @@ class Banding(unittest.TestCase):
         self.assertEqual(theme("auto")["--sec-band-bg"], theme("dark")["--sec-band-bg"])
 
     def test_band_declarations(self):
-        self.assertEqual(rule(SEL), ["background: var(--sec-band-bg)", "border-left: 0", "border-radius: var(--radius-lg)"])
+        want = ["background: var(--sec-band-bg)", "border-left: 0", "border-radius: var(--radius-lg)"]
+        self.assertEqual(rule(WIDE, prefix=WIDE_AT), want)
+        self.assertEqual(rule(SEL, prefix=NARROW_AT), want)
 
     def test_print_has_no_band(self):
-        self.assertEqual(rule(SEL, prefix=r"^@media print \{ "), ["background: none", "border-radius: 0"])
+        self.assertEqual(rule(WIDE + ", " + SEL, prefix=r"^@media print \{ "), ["background: none", "border-radius: 0"])
 
-    def test_odd_visible_sections_only(self):
+    def test_wide_bands_the_even_numbered_rows_and_stacked_every_other_section(self):
+        for sel in (WIDE, SEL):
+            self.assertIn(":not(.is-hidden)", sel)
+            self.assertIn(":not(.drag-slot)", sel)
+        self.assertIn('[data-band="0"]', WIDE)
+        self.assertNotIn(":nth-child", WIDE)
         self.assertIn(":nth-child(odd)", SEL)
-        self.assertIn(":not(.is-hidden)", SEL)
-        self.assertIn(":not(.drag-slot)", SEL)
         self.assertNotIn(":nth-child(even)", RULES)
 
     def test_band_after_the_plain_section_and_view_rules(self):
-        at = RULES.index("\n" + SEL)
-        self.assertGreater(at, RULES.index("\n.sec { background: none;"))
-        self.assertGreater(at, RULES.index('\nhtml[data-mode="view"] .sec {'))
+        for at in (RULES.index("\n@media (min-width: 901px) { " + WIDE), RULES.index("\n@media (max-width: 900px) { " + SEL)):
+            self.assertGreater(at, RULES.index("\n.sec { background: none;"))
+            self.assertGreater(at, RULES.index('\nhtml[data-mode="view"] .sec {'))
 
     def test_other_sections_keep_the_gutter_rule(self):
         self.assertIn("border-left: 2px solid var(--gutter-rule)", rule(".sec"))
@@ -126,7 +134,7 @@ class Banding(unittest.TestCase):
         self.assertEqual(theme("dark")["--gutter-rule"], "#2A2650")
 
     def test_band_has_no_literal_colour_in_rules(self):
-        self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(", "\n".join(l for l in RULES.split("\n") if SEL in l)))
+        self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(", "\n".join(l for l in RULES.split("\n") if SEL in l or WIDE in l)))
 
 
 class Contrast(unittest.TestCase):
@@ -173,7 +181,7 @@ class RealColours(unittest.TestCase):
             time.sleep(0.05)
         cdp.js("""(() => { document.documentElement.setAttribute('data-theme', %r); document.documentElement.setAttribute('data-mode', 'view');
             const secs = document.createElement('div'); secs.className = 'secs';
-            secs.innerHTML = '<div class="sec"><div class="sec-head">One</div><p class="muted">m</p></div><div class="sec"><div class="sec-head">Two</div></div><div class="sec"><div class="sec-head">Three</div></div><div class="sec"><div class="sec-head">Four</div></div><div class="sec is-hidden"><div class="sec-head">Hidden</div></div>';
+            secs.innerHTML = '<div class="sec" data-band="0"><div class="sec-head">One</div><p class="muted">m</p></div><div class="sec" data-band="1"><div class="sec-head">Two</div></div><div class="sec" data-band="0"><div class="sec-head">Three</div></div><div class="sec" data-band="1"><div class="sec-head">Four</div></div><div class="sec is-hidden" data-band="0"><div class="sec-head">Hidden</div></div>';
             document.body.appendChild(secs); })()""" % scheme, sid)
         return sid
 

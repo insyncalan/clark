@@ -59,7 +59,7 @@ class Host(Base):
 
 BODY = "(() => { const s = getComputedStyle(document.body); return [s.backgroundImage, s.backgroundColor]; })()"
 SEC = ("(() => [...document.querySelectorAll('.secs > .sec')].map((e) => { const s = getComputedStyle(e); "
-       "return [s.borderLeftWidth, s.borderTopWidth, s.boxShadow, s.borderLeftStyle]; }))()")
+       "return [s.borderLeftWidth, s.borderTopWidth, s.boxShadow, s.borderLeftStyle, e.classList.contains('slot-right')]; }))()")
 NUM = "getComputedStyle(document.querySelector('.secs .sec-head'), '::before').content"
 COVER = "(() => { const c = document.querySelector('.cover'); if (!c) return null; const s = getComputedStyle(c); return [s.display, s.backgroundColor]; })()"
 OVERFLOW = "[document.documentElement.scrollWidth, document.documentElement.clientWidth]"
@@ -93,10 +93,29 @@ class Classic(Host):
     def test_4_a_section_has_the_gutter_rule_and_no_card_in_every_size_and_mode(self):
         for (w, m), rows in self.every(SEC).items():
             self.assertTrue(rows, f"{w} {m}: sections")
-            for i, (lw, tw, shadow, style) in enumerate(rows):
-                want = ("0px", "0px", "none") if i % 2 == 0 else ("2px", "0px", "solid")      # row 1311: the 1st, 3rd... are bands with no gutter rule
+            row = -1
+            for i, (lw, tw, shadow, style, right) in enumerate(rows):
+                if w == 900 or not right:      # row 1335: from 901 px the two halves of a pair share one row (one band colour); stacked at 900, each section is its own row
+                    row += 1
+                want = ("0px", "0px", "none") if row % 2 == 0 else ("2px", "0px", "solid")      # row 1311: the 1st, 3rd... rows are bands with no gutter rule
                 self.assertEqual((lw, tw, style), want, f"{w} {m} section {i + 1}")
                 self.assertEqual(shadow, "none", f"{w} {m}")
+
+    def test_4b_the_two_halves_of_a_pair_share_one_band_colour_and_rows_alternate(self):
+        js = ("(() => [...document.querySelectorAll('.secs > .sec:not(.is-hidden)')].map((e) => [getComputedStyle(e).backgroundColor, e.classList.contains('slot-right'), e.dataset.band || null]))()")
+        for (w, m), rows in self.every(js).items():
+            seen_pair, prev_row = False, None
+            for i, (bg, right, band) in enumerate(rows):
+                if right and w == 1400:
+                    seen_pair = True
+                    self.assertEqual(bg, rows[i - 1][0], f"{w} {m}: the right half has the left half's colour (section {i + 1})")
+                    self.assertEqual(band, rows[i - 1][2], f"{w} {m}: one data-band per row")
+                elif prev_row is not None and w == 1400:
+                    self.assertNotEqual(bg == "rgba(0, 0, 0, 0)", prev_row, f"{w} {m}: the next row has the other colour (section {i + 1})")
+                if not right or w == 900:
+                    prev_row = bg == "rgba(0, 0, 0, 0)"
+            if w == 1400:
+                self.assertTrue(seen_pair, "the demo report has a pair of half-width sections")
 
     def test_5_sections_are_numbered_and_nothing_overflows_sideways(self):
         for (w, m), c in self.every(NUM).items():
@@ -116,12 +135,18 @@ class Classic(Host):
 class Cards(Host):
     theme = None
 
+    def test_8_cards_sections_carry_no_band_mark(self):
+        js = "(() => [document.querySelectorAll('.secs > .sec').length, document.querySelectorAll('[data-band]').length])()"      # row 1335: Classic only
+        for (w, m), (n, marked) in self.every(js).items():
+            self.assertGreater(n, 0, f"{w} {m}: sections")
+            self.assertEqual(marked, 0, f"{w} {m}: Cards DOM has no data-band")
+
     def test_7_cards_is_the_page_as_it_was_drawn(self):
         self.assertNotIn('id="theme"', page.page_html(branding=self.brand, theme=None))
         for (w, m), (img, _c) in self.every(BODY).items():
             self.assertEqual(img, "none", f"{w} {m}: no gradient ground in Cards")
         for (w, m), rows in self.every(SEC).items():
-            for lw, tw, shadow, style in rows:
+            for lw, tw, shadow, style, _right in rows:
                 self.assertNotEqual((lw, style), ("2px", "solid"), f"{w} {m}: no gutter rule in Cards")
             self.assertEqual(self.every_one(OVERFLOW, w, m)[0] <= self.every_one(OVERFLOW, w, m)[1], True)
 

@@ -37,7 +37,7 @@ function TemplateEdit({ section, tools }) {
   return Edit ? <Edit section={section} tools={tools} /> : <p class="quiet">Not shown on this page yet.</p>;
 }
 
-export function Section({ section, index, count, slot, anchor, tools, clean }) {
+export function Section({ section, index, count, slot, band, anchor, tools, clean }) {
   const editing = !!tools;
   const hidden = section.hidden ? 1 : 0;
   const drop = editing && dropAt.value ? dropAt.value : null;      // what a drag would draw (#95)
@@ -50,7 +50,7 @@ export function Section({ section, index, count, slot, anchor, tools, clean }) {
   const shows = sectionShows(section);      // item 1272: a section can show without its tile or its heading
   return (
     <article class={`sec slot-${slot}${shows.tile ? "" : " no-tile"}${shows.heading ? "" : " no-head"}${hidden ? " is-hidden" : ""}${changed ? " is-changed" : ""}${mark}${from}`}
-      id={anchor || anchorId(section.id)} tabIndex={-1} data-id={section.id} data-type={section.type} data-changed={changed ? "1" : undefined}>
+      id={anchor || anchorId(section.id)} tabIndex={-1} data-id={section.id} data-type={section.type} data-band={band} data-changed={changed ? "1" : undefined}>
       {editing ? <tools.Gutter section={section} count={count} /> : null}
       <header class="sec-head">
         <h2 class="sec-h">{editing ? <tools.Title section={section} /> : section.title}</h2>
