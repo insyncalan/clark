@@ -40,8 +40,15 @@ HTML_TYPES = (".html", ".htm")
 INDEXED_TYPES = ask_passages.TEXT_TYPES + ask_passages.WORD_TYPES + ask_passages.PDF_TYPES + EXCEL_TYPES + PPTX_TYPES + HTML_TYPES
 MAX_PPTX_BYTES = 50 * 1024 * 1024
 MAX_EXCEL_BYTES = 25 * 1024 * 1024
+STALE_POLL_SECONDS = 5
 MAX_EXCEL_ROWS = 50000                   # per sheet
 MAX_EXCEL_CELLS = 1000000                # per file
+MAX_EXCEL_MEMBERS = 2000                 # parts in the zip
+MAX_EXCEL_TOTAL = 50 * 1024 * 1024       # all parts together, unpacked
+MAX_EXCEL_SHARED = 8 * 1024 * 1024       # the shared strings part, unpacked: openpyxl parses it whole before the first row, about 0.65 s per MB
+MAX_EXCEL_PART = 30 * 1024 * 1024        # any other part, unpacked
+MAX_EXCEL_SECONDS = 20                   # wall clock for one workbook
+CLOCK = time.monotonic
 NAMES = ("indexed", "type", "online_only", "too_long", "safety", "not_yet")
 _WORD = re.compile(r"\w+", re.UNICODE)
 _CODE = re.compile(r"[^A-Za-z0-9._-]")
@@ -86,12 +93,53 @@ def _lines(raw, truncated, low, name):
     return ask_passages._lines_of_text(raw, truncated)
 
 
+class TooLong(ValueError):
+    """A file over a size, part or time limit: counted `too_long`, the same word as a PDF with too many pages."""
+
+
+def _check_excel_zip(raw):
+    """Refuse a workbook that would unpack to too much BEFORE openpyxl parses anything: the parts declared in the zip, and the bytes
+    really unpacked (a forged header says less than the data holds). Raises TooLong, or ValueError("excel") for a damaged zip."""
+    import io
+    import zipfile
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(raw))
+        infos = zf.infolist()
+    except (zipfile.BadZipFile, OSError, EOFError, NotImplementedError) as e:
+        raise ValueError("excel") from e
+    if len(infos) > MAX_EXCEL_MEMBERS:
+        raise TooLong("too many parts")
+
+    def cap(info):
+        return MAX_EXCEL_SHARED if "sharedstrings" in info.filename.lower() else MAX_EXCEL_PART
+    if sum(i.file_size for i in infos) > MAX_EXCEL_TOTAL or any(i.file_size > cap(i) for i in infos):
+        raise TooLong("too big once unpacked")
+    total = 0
+    try:
+        for info in infos:
+            got = 0
+            with zf.open(info) as f:
+                while True:
+                    chunk = f.read(1 << 20)
+                    if not chunk:
+                        break
+                    got += len(chunk)
+                    total += len(chunk)
+                    if got > cap(info) or total > MAX_EXCEL_TOTAL:
+                        raise TooLong("too big once unpacked")
+    except (zipfile.BadZipFile, OSError, EOFError, NotImplementedError, RuntimeError) as e:
+        raise ValueError("excel") from e
+
+
 def _excel_groups(raw, truncated):
-    """[(part name, lines)] one group per sheet: stored values (not formulas), cells joined with ' | '."""
+    """[(part name, lines)] one group per sheet: stored values (not formulas), cells joined with ' | '.
+    Limits are checked before and while reading: file bytes, parts and unpacked sizes (`_check_excel_zip`), rows, cells and MAX_EXCEL_SECONDS."""
     if truncated or len(raw) > MAX_EXCEL_BYTES:
-        raise ValueError("too big")
+        raise TooLong("too big")
+    _check_excel_zip(raw)
     import io
     import openpyxl
+    began = CLOCK()
     try:
         wb = openpyxl.load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
     except Exception as e:                     # a damaged or unsafe workbook is left out, never an error
@@ -103,12 +151,16 @@ def _excel_groups(raw, truncated):
             for n, row in enumerate(ws.iter_rows(values_only=True)):
                 if n >= MAX_EXCEL_ROWS or cells >= MAX_EXCEL_CELLS:
                     break
+                if CLOCK() - began > MAX_EXCEL_SECONDS:
+                    raise TooLong("too slow")
                 vals = [str(v).replace("\n", " ") for v in row if v is not None and str(v).strip()]
                 cells += len(row)
                 if vals:
                     lines.append(" | ".join(vals))
             if lines:
                 out.append((f"sheet {ws.title}", lines))
+    except TooLong:
+        raise
     except Exception as e:
         raise ValueError("excel") from e
     finally:
@@ -277,6 +329,8 @@ def _read_one(db, path, label, low, st, usable, data_dir, home):
             groups = [(None, _lines(raw, truncated, low, os.path.basename(str(path))))]
     except reach.Never:
         state = "safety"
+    except TooLong:
+        state = "too_long"
     except (docx_read.WordRefused, ValueError, UnicodeError):
         # damaged, too big or hostile Word/Excel/PowerPoint/web page: left out as `type`, never said to look like a password (a real secret inside still screens as `safety` below)
         state = "type"
@@ -456,6 +510,43 @@ def current(data_dir, code, folders):
         db.close()
 
 
+def stale(data_dir, code, folders, home=None):
+    """True when the files now in `folders` differ from the ones the index holds: a file new, gone (or no longer readable), or with another
+    size or modified time. Lists the folders the way `refresh` does and reads no file. A file changed to the same size AND the same modified
+    time cannot be seen this way (no content hash: that would mean reading every file on every question)."""
+    db = _open_read(data_dir, code)
+    if db is None:
+        return True
+    try:
+        kept = {r[0]: (r[1], r[2]) for r in db.execute("SELECT label, size, mtime_ns FROM files")}
+    except sqlite3.Error:
+        return True
+    finally:
+        db.close()
+    usable, _bad = _unusable(folders, data_dir, home)
+    seen = set()
+    try:
+        for folder in usable:
+            listing = reach.readable_files([folder], data_dir, None, home)
+            roots = reach.roots([folder], home)
+            for path in listing.files:
+                if not str(path).lower().endswith(INDEXED_TYPES):
+                    continue
+                root = next((r for r in roots if reach.inside(path, r)), None)
+                if root is None:
+                    continue
+                label = ask_passages._label(root, path)
+                if label is None:
+                    continue
+                st = os.stat(path)
+                if kept.get(label) != (st.st_size, st.st_mtime_ns):
+                    return True
+                seen.add(label)
+    except OSError:
+        return True
+    return bool(set(kept) - seen)
+
+
 def folder_data(data_dir, code, question, budget=ask.BUDGET, max_passages=ask.MAX_PASSAGES):
     """The passages of the index for a question, in the shape `ask_passages.folder_data` gives. Opens no source file and has no
     per-question file, byte or time limit."""
@@ -480,6 +571,7 @@ class Indexer:
         self.queue = {}                      # code -> folders, in the order asked
         self.live = {}                       # code -> {folder: (done, total)} for the run in progress
         self.busy = 0
+        self.checked = {}                    # code -> when the Settings poll last looked for changed files
         self.stop = threading.Event()
         self.thread = None
 
@@ -531,6 +623,14 @@ class Indexer:
     def status_for(self, code, folders):
         with self.wake:
             live = dict(self.live[code]) if code in self.live else None
+            idle = code not in self.queue and code not in self.live
+            due = idle and time.monotonic() - self.checked.get(code, -STALE_POLL_SECONDS) >= STALE_POLL_SECONDS
+            if due:
+                self.checked[code] = time.monotonic()
+        if due and current(self.data_dir, code, folders) and stale(self.data_dir, code, folders, self.home):
+            self.start(code, folders)               # a file changed since the last read: read again, so the line stays right
+            with self.wake:
+                live = dict(self.live[code]) if code in self.live else None
         return folder_status(self.data_dir, code, folders, live)
 
     def not_yet(self, code):
@@ -542,7 +642,12 @@ class Indexer:
         with self.wake:
             if code in self.queue or code in self.live:
                 return False
-        return current(self.data_dir, code, folders)
+        if not current(self.data_dir, code, folders):
+            return False
+        if stale(self.data_dir, code, folders, self.home):
+            self.start(code, folders)               # never answer from text that may be old: this question reads the folders, the index is read again
+            return False
+        return True
 
     def wait_idle(self, timeout=10):
         end = time.monotonic() + timeout
