@@ -117,7 +117,7 @@ class Fixture(Base):
             self.assertTrue(self.found("zqquiet"))
 
     def test_15_newer_version_ranks_first_and_label_has_date(self):
-        old, new = 1762732800, 1763164800        # 10-11-2026 and 15-11-2026 00:00 UTC
+        old, new = 1794268800, 1794700800        # 10-11-2026 and 15-11-2026 00:00 UTC
         self.put("SoW v1.5.txt", "zqscope the supplier delivers the report", mtime=old)
         self.put("SoW v1.6.txt", "zqscope the supplier delivers the report", mtime=new)
         self.build()
