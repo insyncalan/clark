@@ -426,10 +426,10 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .uc .ucref { padding: 1px var(--space-2); border: 1px solid var(--grey-500); font-weight: var(--weight-regular); }
 .uc .cchip { border-radius: var(--radius-pill); font-weight: var(--weight-regular); line-height: 18px; }
 .uc .cchip:not(.cc-committed) { border-color: var(--grey-200); color: var(--text-muted); }
-/* Row 1354: the chosen half of the Milestones switch (Timeline / Calendar) and of the Dashboard scale is navy with white text as the prototype draws it. Dark: the cell is the line colour 2b3850 (--grey-200) with white text; that is 1.46 to 1 against the --surface 121c28 beside it (below 3 to 1), so it takes a 1px inset edge in --ui (--grey-500 6f7fa3) and nothing else. Classic only. */
+/* Row 1354: the chosen half of the Milestones switch (Timeline / Calendar) and of the Dashboard scale is navy with white text as the prototype draws it (index.html lines 189-193). Dark: the cell is the line colour --grey-200 (the prototype's 2b3850) with white text, and nothing else: no ring, border or shadow, as the prototype has none. Classic only. */
 .msv-sw .msv-b[aria-current="true"], .mv-txt button[aria-current="true"] { background: var(--brand-navy); color: var(--white); }
-:root[data-theme=dark] .msv-sw .msv-b[aria-current="true"], :root[data-theme=dark] .mv-txt button[aria-current="true"] { background: var(--grey-200); box-shadow: inset 0 0 0 1px var(--grey-500); }
-@media (prefers-color-scheme: dark) { :root[data-theme=auto] .msv-sw .msv-b[aria-current="true"], :root[data-theme=auto] .mv-txt button[aria-current="true"] { background: var(--grey-200); box-shadow: inset 0 0 0 1px var(--grey-500); } }
+:root[data-theme=dark] .msv-sw .msv-b[aria-current="true"], :root[data-theme=dark] .mv-txt button[aria-current="true"] { background: var(--grey-200); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .msv-sw .msv-b[aria-current="true"], :root[data-theme=auto] .mv-txt button[aria-current="true"] { background: var(--grey-200); } }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
