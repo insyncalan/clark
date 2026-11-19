@@ -104,6 +104,7 @@ class Chosen(ask.Provider):
 
     def __init__(self, providers, pick, off_words):
         self.providers, self.pick, self.off_words = tuple(providers), pick, off_words
+        self.last_tokens = None            # row 1294: the tokens the chosen command reported for the last answered question, None when none were
         self.lock = threading.Lock()       # one run at a time across providers, even if the person switches while a question runs (ai_service.busy reads it)
         for provider in self.providers:
             provider.command.lock = self.lock
@@ -122,9 +123,12 @@ class Chosen(ask.Provider):
 
     def ask(self, request):
         provider, model, prefer = self._active()
+        self.last_tokens = None
         if provider is None:
             return ask.Failure(self.off_words)
-        return provider.ask(request, model, prefer=prefer)
+        got = provider.ask(request, model, prefer=prefer)
+        self.last_tokens = getattr(provider.command, "last_tokens", None) if isinstance(got, str) else None      # row 1294: read at once, before a choice can change
+        return got
 
     def stop(self, owner=None):
         return any([p.stop(owner) for p in self.providers])     # every one: a run may have started before the choice changed

@@ -19,7 +19,7 @@ from pathlib import Path
 from _paths import SRC
 
 import _publish_fixture as plant
-from clark import ask, ask_claude as ac, ask_service, ask_usage, server as sv, store as st
+from clark import ai_providers, ask, ask_claude as ac, ask_service, ask_usage, server as sv, store as st
 from test_ask_instructions_1294 import Running
 
 DAY = datetime.date(2026, 11, 20)
@@ -157,6 +157,58 @@ class Counted(unittest.TestCase):
         self.assertEqual((self.d / "clark.db").read_bytes(), before)
         self.assertFalse((self.d / ask_usage.FILE).exists())
         self.assertNotEqual(self.s.api("POST", "/api/ask-usage", {})[0], 200)
+
+
+class FakeCommand:
+    """Stands in for the Claude command: each answer is the command's own JSON result, read with the real read_answer and read_tokens, and the
+    count is kept in `last_tokens` as ClaudeCommand.ask does. No `last_tokens` is set by the test."""
+    provider = ac.PROVIDER
+    models = ("sonnet",)
+
+    def __init__(self, out):
+        self.out, self.last_tokens, self.lock = out, None, None
+
+    def status(self):
+        return {"connected": True, "why": ""}
+
+    def ask(self, request, model=None, prefer=False):
+        self.last_tokens = None
+        reply = ac.read_answer(self.out)
+        if reply is None:
+            return ask.Failure("No answer.")
+        self.last_tokens = ac.read_tokens(self.out)
+        return reply
+
+    def stop(self, owner=None):
+        return False
+
+
+class ThroughTheChosenProvider(unittest.TestCase):
+    """The real path: AskService -> ai_providers.Chosen -> ClaudeSubscription -> the command's result. The count must arrive, not be set on a mock."""
+    ask, usage = Counted.ask, Counted.usage
+
+    def setUp(self):
+        Counted.setUp(self)
+        self.command = FakeCommand(result())
+        sub = ai_providers.ClaudeSubscription(self.command)
+        self.service.provider = ai_providers.Chosen([sub], lambda: (sub, None, True), "Not connected.")
+
+    def test_the_count_in_the_command_result_reaches_the_usage_record(self):
+        self.assertEqual(self.ask()[0], 200)
+        self.assertEqual(self.usage()["all"], {"questions": 1, "tokens": 9829})
+
+    def test_a_result_with_no_or_a_damaged_count_is_counted_with_no_tokens(self):
+        for usage in (None, {"input_tokens": 3}, {"input_tokens": "3", "output_tokens": 1}):
+            self.command.out = result(usage)
+            self.assertEqual(self.ask()[1]["ok"], True, usage)
+        self.assertEqual(self.usage()["all"], {"questions": 3, "tokens": 0})
+
+    def test_a_failed_question_does_not_leave_the_last_count_behind(self):
+        self.ask()
+        self.command.out = b"garbage"
+        self.assertEqual(self.ask()[1]["ok"], False)
+        self.assertEqual(self.service.provider.last_tokens, None)
+        self.assertEqual(self.usage()["all"], {"questions": 1, "tokens": 9829})
 
 
 class TheWords(unittest.TestCase):
