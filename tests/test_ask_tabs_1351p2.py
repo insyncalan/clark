@@ -70,6 +70,22 @@ class Tabs(unittest.TestCase):
             self.assertEqual(js("document.querySelector('[data-ask-goall]').innerText"), "Change")
             self.assertEqual(js("[...document.querySelectorAll('#ask-used-all .ask-model > *')].map(e => e.className.split(' ').pop())"), ["ask-model-name", "ask-model-note", "ask-model-change"], "name, note, link in that order")
 
+    def test_cards_keeps_the_card_as_it_was(self):
+        self.s.close()
+        self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.page_html(tempfile.mkdtemp(), theme=None))
+        self.addCleanup(self.s.close)
+        d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
+        self.addCleanup(shutil.rmtree, d, True)
+        self.s.httpd.app_settings = service(make_db(d))
+        self.s.httpd.ai_connect = ai_connect.AiConnect(d, FakeClaude(), FakeChatGPT())
+        with chrome() as cdp:
+            sid = navigate(cdp, self.s.port, for_project("#settings&p=ABC&s=claude"))
+            js = lambda e: cdp.js(e, sid)          # noqa: E731
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-used-all')"), 30), "the card is on the page")
+            self.assertEqual(js("document.querySelector('#ask-used-all .ask-model') === null && document.querySelector('[data-ask-model]') === null"), True, "Cards: no model line")
+            self.assertEqual(js("document.querySelector('#ask-used-all > p.muted').innerText"), NOTE, "Cards: the note is its own paragraph, as on main")
+            self.assertEqual(js("document.querySelector('#ask-used-all .row > button.btn[data-ask-goall]').innerText"), "Change", "Cards: Change is the button, as on main")
+
     def test_the_page_padding_at_900(self):
         with chrome() as cdp:
             js = self.show(cdp, 900)
