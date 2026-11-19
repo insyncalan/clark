@@ -343,6 +343,10 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .ddmenu .lab.caps, .mh.caps { font-size: var(--size-body); letter-spacing: normal; text-transform: none; font-weight: var(--weight-regular); }
 .gt-pop button, .gt-menu button, [data-gt] .gt-menu button { padding-left: var(--space-3); padding-right: var(--space-3); font-size: var(--size-body); }
 .ddmenu .lab, .ddmenu .who, .ddmenu .mh, .mh { padding-left: 16px; padding-right: 16px; }
+/* Item 1314 gap, + New view (Classic only): the brand-blue link at the far right of the tab row, as the prototype's .vnew; the dashed + square after it sits right beside it, not apart. */
+.fvrow > .vnew { margin-left: auto; color: var(--status-blue-text); }
+.fvrow > .vnew:hover { color: var(--status-blue-text); }
+.fvrow > .vnew + * { margin-left: 0; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
