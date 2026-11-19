@@ -315,6 +315,18 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 /* Row 1351, the ask clark page tabs: 29 px high in Classic (the Settings mock-up's tab pills; the base, which Cards keeps, is 36). Only the height moves; the pill shape, padding and colours stay as they are. */
 .ask-tab { min-height: 29px; }
 
+/* Row 1351 part 2, the ask clark page tabs and the Model line (Classic only; Cards is unmaintained and keeps the base rules). The pill: padding 5px 14px, 13.5px type, 19px line so the pill is 29 px high, 6 px between pills; the chosen pill is --brand-blue with --text-on-brand text at weight 600; "Settings for" is 12.5px, muted, 6 px to its right. The Model line in the Used from All projects card: the name, the note, and Change as a link with a dashed underline. */
+.ask-tabs { gap: 6px; }
+.ask-tabs .ask-tabs-lab { margin-right: 6px; font-size: 12.5px; color: var(--text-muted); }
+.ask-tab { padding: 5px 14px; font-size: 13.5px; line-height: 19px; min-height: 29px; border-radius: 999px; }
+.ask-tab[aria-current] { background: var(--brand-blue); color: var(--text-on-brand); font-weight: 600; }
+@media (max-width: 900px) { #main:has(#ask-tabs) { padding: 6px 16px 30px; } }
+.ask-model { align-items: baseline; column-gap: 12px; }
+.ask-model .ask-model-name { font-weight: 600; color: var(--text); }
+.ask-model .ask-model-change { all: unset; cursor: pointer; color: var(--text); font-size: var(--size-small); border-bottom: 1px dashed var(--text-muted); }
+.ask-model .ask-model-change:hover { color: var(--brand-blue); border-bottom-color: var(--brand-blue); }
+.ask-model .ask-model-change:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
