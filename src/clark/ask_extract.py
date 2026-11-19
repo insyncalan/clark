@@ -1,4 +1,4 @@
-"""ask index (#1366 slice c rest): PowerPoint (.pptx) and web page (.html, .htm) text, standard library only.
+"""ask index (Row 1366 slice c rest): PowerPoint (.pptx) and web page (.html, .htm) text, standard library only.
 
 Both return [(part name, lines)] like the Excel reader in `ask_index`, and raise ValueError for a file that is hostile or damaged
 (the index counts that as `safety`). A file with no text returns [] (the index counts it as `type`, like a PDF with no text).

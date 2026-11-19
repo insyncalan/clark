@@ -89,7 +89,7 @@ class AskFolders:
         self.by_user = by_user or platform.login_name
         self.choose_folder = choose_folder or platform.choose_folder      # the system's folder window (a seam for tests)
         self.lock = threading.Lock()
-        self.indexer = indexer                                # ask_index.Indexer or None: the background reader of the saved folders (#1366)
+        self.indexer = indexer                                # ask_index.Indexer or None: the background reader of the saved folders (Row 1366)
 
     def fail(self, code, message=None):
         return {"ok": False, "code": code, "message": message or MESSAGES[code]}

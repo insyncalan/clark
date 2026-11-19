@@ -1,4 +1,4 @@
-"""#1366 slice (c): the index reads PDF and Excel (vendored pypdf through pdf_reader, vendored openpyxl). Made-up files only.
+"""Row 1366 slice (c): the index reads PDF and Excel (vendored pypdf through pdf_reader, vendored openpyxl). Made-up files only.
 Pictures, PowerPoint, HTML and OCR are not in this slice."""
 import io
 import unittest
@@ -79,6 +79,35 @@ class Types(Base):
         self.assertIn("Plan", a[0][0])
         self.assertIn("Late", b[0][0])
         self.assertIn("zqxlone", a[0][1])
+
+    def test_excel_hidden_sheet_is_not_read(self):
+        import io
+        import openpyxl
+        wb = openpyxl.Workbook()
+        wb.active.title = "Shown"
+        wb.active.append(["zqxlshown"])
+        h = wb.create_sheet("Secret")
+        h.append(["zqxlhidden"])
+        h.sheet_state = "hidden"
+        vh = wb.create_sheet("Deep")
+        vh.append(["zqxlverydeep"])
+        vh.sheet_state = "veryHidden"
+        buf = io.BytesIO()
+        wb.save(buf)
+        self.put("h.xlsx", buf.getvalue(), binary=True)
+        self.build()
+        self.assertTrue(self.found("zqxlshown"))
+        self.assertFalse(self.found("zqxlhidden"))
+        self.assertFalse(self.found("zqxlverydeep"))
+
+    def test_excel_every_row_carries_the_header_row_into_its_passage(self):
+        rows = [["item", "owner", "due"]] + [[f"task{i}", f"zqxlowner{i}", f"day{i}"] for i in range(400)]
+        self.put("tasks.xlsx", xlsx({"Plan": rows}), binary=True)
+        self.build()
+        got = self.found("zqxlowner399")
+        self.assertEqual(len(got), 1)
+        self.assertIn("owner: zqxlowner399", got[0][1])
+        self.assertIn("due: day399", got[0][1])
 
     def test_excel_formulas_give_their_stored_values_not_the_formula(self):
         self.put("f.xlsx", xlsx({"S": [[1, 2, "=A1+B1"], ["zqxlname"]]}), binary=True)
