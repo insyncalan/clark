@@ -7,6 +7,7 @@ import { project } from "../stores/report.js";
 import { askOn, askStatus, askSaved, askProvider, loadAsk, setAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
 import { named, ASK_NOTICE_LINE } from "./askWords.js";
 import { ConnectorsAll, ConnectorsProject } from "./ConnectorSettings.jsx";
+import { FilesAll, FilesProject } from "./FilesSettings.jsx";
 import { AiSettings } from "./AiSettings.jsx";
 import { AllInstructions, OwnInstructions } from "./AskInstructions.jsx";
 import { announceSwitch, leaveSwitch } from "./switchToast.js";
@@ -161,6 +162,7 @@ function AskProject() {
       </>)}
     </section>
     <ConnectorsProject code={code} />
+    <FilesProject code={code} />
     <section class="frame setting" id="ask-folders-card">
       <h2>{`Source folders for ${code}`}</h2>
       <p class="muted">{named("Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.", askProvider.value)}</p>
@@ -212,6 +214,7 @@ function AllProjects() {
     </section>
     <AiSettings />
     <ConnectorsAll />
+    <FilesAll />
     <AllInstructions />
     <AllFolders />
     </>
