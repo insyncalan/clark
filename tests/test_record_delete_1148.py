@@ -112,7 +112,7 @@ class Delete(unittest.TestCase):
         row = f"#usecases [data-uc={json.dumps(self.uc)}]"
         for width in (1400, 900):
             with self.subTest(width), chrome() as cdp:
-                sid = self.visit(cdp, "#usecases&p=TUL", f"document.querySelectorAll('#usecases tr.ucr[data-uc]').length > 0 && !!document.querySelector('{row}')", width)
+                sid = self.visit(cdp, "#usecases&p=TUL", f"document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0 && !!document.querySelector('{row}')", width)
                 self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), "no sideways scroll")
                 names = self.pick(cdp, sid, f"{row} .ucl-go", "delete")
                 self.assertEqual(names, ["archive", "delete"])
@@ -150,8 +150,8 @@ class Delete(unittest.TestCase):
         for width in (1400, 900):
             with self.subTest(width), chrome() as cdp:
                 sid = self.visit(cdp, "#usecases&p=TUL", f"!!document.querySelector('{row}')", width)
-                heads = cdp.js("[...document.querySelectorAll('#usecases thead tr.colh th')].map(s => s.textContent.trim()).filter(Boolean)", sid)
-                self.assertEqual(heads[:6], ["Use case", "Where it stands", "Status", "Owner", "Next steps", "Milestone"])      # row 1325: the table's one header row
+                heads = cdp.js("[...document.querySelectorAll('#usecases .ucl-cols > span')].map(s => s.textContent).filter(Boolean)", sid)
+                self.assertEqual(heads, ["Use case", "Where it stands", "Status", "Next steps"])
                 self.assertEqual(cdp.js("document.querySelectorAll('#usecases .ucl-more').length", sid), 0, "no More button on a row")
                 cdp.js(f"document.querySelector({json.dumps(row + ' .ucl-go')}).focus()", sid)
                 cdp.js(f"document.querySelector({json.dumps(row + ' .ucl-go')}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true, clientX: 0, clientY: 0}}))", sid)      # the menu key or Shift+F10: no pointer
@@ -206,20 +206,26 @@ class Delete(unittest.TestCase):
     def test_row_1203_the_column_names_are_over_the_rows_in_both_groupings_with_the_rows_six_columns(self):
         for width in (1400, 900):
             with self.subTest(width), chrome() as cdp:
-                sid = self.visit(cdp, "#usecases&p=TUL", "document.querySelectorAll('#usecases tr.ucr[data-uc]').length > 0", width)
+                sid = self.visit(cdp, "#usecases&p=TUL", "document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0", width)
                 for grouping in ("status", "nothing"):
                     cdp.js(f"localStorage.setItem('clark.ucPage', JSON.stringify({{TUL: {{line: '', tab: 'all', group: '{grouping}', sort: 'ref'}}}}))", sid)
-                    reload_to_new_page_cdp(cdp, sid, "document.querySelectorAll('#usecases tr.ucr[data-uc]').length > 0", "the rows again on the new page")
+                    reload_to_new_page_cdp(cdp, sid, "document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0", "the rows again on the new page")
                     got = cdp.js("""(() => {
-                        const heads = [...document.querySelectorAll('#usecases tr.colh')], first = document.querySelector('#usecases tr.ucr[data-uc]');
-                        const th = heads[0].querySelector('th.c-item'), td = first.querySelector('td.c-item');
-                        return { n: heads.length, names: [...heads[0].children].map((s) => s.textContent.trim()).slice(0, 6),
-                                 above: heads[0].getBoundingClientRect().bottom <= first.getBoundingClientRect().top + 1, left: Math.round(th.getBoundingClientRect().left) === Math.round(td.getBoundingClientRect().left) };
-                    })()""", sid)      # row 1325: one header row of the table (the look is measured in test_use_cases_redesign_1325)
+                        const box = document.querySelector('#usecases .ucl-box'), cols = box.querySelectorAll('.ucl-cols'), first = box.querySelector('.ucl-row[data-uc]');
+                        const tracks = (el) => getComputedStyle(el).gridTemplateColumns.split(' ').length;
+                        const w = (el) => getComputedStyle(el).gridTemplateColumns;
+                        return { n: cols.length, hidden: cols[0].getAttribute('aria-hidden'), heads: [...cols[0].children].map(s => s.textContent),
+                                 headTracks: tracks(cols[0]), rowTracks: tracks(first), same: w(cols[0]).split(' ').slice(-3).join(' ') === w(first).split(' ').slice(-3).join(' ') && w(first).split(' ').slice(-3).join(' '),  above: cols[0].getBoundingClientRect().bottom <= first.getBoundingClientRect().top,
+                                 span: getComputedStyle(cols[0].querySelector('.ucl-c1')).gridColumnStart + '/' + getComputedStyle(cols[0].querySelector('.ucl-c1')).gridColumnEnd };
+                    })()""", sid)
                     self.assertEqual(got["n"], 1, f"one line of column names ({grouping})")
-                    self.assertEqual(got["names"], ["Use case", "Where it stands", "Status", "Owner", "Next steps", "Milestone"])
+                    self.assertEqual(got["hidden"], "true")
+                    self.assertEqual(got["heads"], ["Use case", "Where it stands", "Status", "Next steps", ""])
+                    self.assertEqual((got["headTracks"], got["rowTracks"]), (6, 6), "six columns in the names and in a row")
+                    self.assertTrue(got["same"], "the names sit on the rows' three fixed columns")
+                    self.assertIn(got["same"], ("124px 112px 36px", "124px 96px 36px"), "the fixed columns are the rows' own")
                     self.assertTrue(got["above"], "the names are over the rows")
-                    self.assertTrue(got["left"], "the first name sits over the first column")
+                    self.assertEqual(got["span"], "1/3", "the first name spans the reference and the title columns")
 
     def test_row_1203_a_row_has_no_more_button_in_source_or_page_and_arrows_go_name_then_eye_only(self):
         here = __import__("pathlib").Path(page.__file__).parent

@@ -13,7 +13,7 @@ def rule(selector):
 
 def narrow_block():
     """The text of the first @media (max-width: 900px) block that holds the .ucl rules, braces matched."""
-    start = CSS.index("@media (max-width: 900px) {\n  .ucl-count")
+    start = CSS.index("@media (max-width: 900px) {\n  .ucl-row")
     depth, k = 0, CSS.index("{", start)
     for end in range(k, len(CSS)):
         depth += {"{": 1, "}": -1}.get(CSS[end], 0)
@@ -31,10 +31,10 @@ class LongText(unittest.TestCase):
 
     def test_headline_clamps_to_two_lines_at_every_width(self):
         # item 1149: where it stands is shown in full on the row, clamped; the one rule is the base rule, so no width turns it off
-        body = rule(".ucl-table .where")
+        body = rule(".ucl-head")
         self.assertIn("-webkit-line-clamp: 2", body)
         self.assertIn("overflow: hidden", body)
-        self.assertNotIn(".ucl-table .where", NARROW_RULES, "the narrow block keeps the headline on the row")
+        self.assertNotIn(".ucl-head", NARROW_RULES, "the narrow block keeps the headline on the row")
 
     def test_narrow_count_line_takes_its_own_row(self):
         body = NARROW_RULES[".ucl-count"]

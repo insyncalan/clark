@@ -60,7 +60,7 @@ class Commitment(unittest.TestCase):
         self.assertIn("<CommitChip", code("components", "UseCases.jsx"))     # Dashboard rows
         self.assertIn("<ed.Commit", code("components", "UseCases.jsx"))      # the menu only where Edit is
         self.assertIn("<CommitChip", code("components", "UseCasesTab.jsx"))  # the published Use cases tab
-        self.assertIn("r.commitment", code("edit", "UseCasesPage.jsx"))       # the Use cases page (row 1325: the commitment is in the grey line and the Commitment column)
+        self.assertIn("<CommitChip", code("edit", "UseCasesPage.jsx"))       # the Use cases page
         detail = code("components", "UseCaseDetail.jsx")
         self.assertIn("ro ? <CommitChip u={u} /> : <CommitMenu u={u} left />", detail)
         self.assertIn("Commit: CommitMenu", code("edit", "UseCasesEdit.jsx"))

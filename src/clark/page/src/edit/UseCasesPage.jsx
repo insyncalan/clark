@@ -33,6 +33,8 @@ import { groupIcon, sortIcon } from "../menuIcons.js";
 import { useColumns } from "./ColumnsMenu.jsx";
 import { narrowHeader as narrow } from "./narrowHeader.js";
 import { ownerOf } from "../workItems.js";
+import { CommitChip } from "../components/CommitChip.jsx";
+import { classicTheme } from "../components/Contents.jsx";
 
 const kept = {};                                              // project -> state: a browser that refuses storage still narrows the list
 const tick = signal(0);
@@ -68,7 +70,7 @@ function setEye(r, rowsShown) {
 const COLS = { item: "Use case", where: "Where it stands", status: "Status", owner: "Owner", steps: "Next steps", ms: "Milestone", cm: "Commitment", rel: "Release", dash: "On the dashboard" };
 const closedPct = (r) => (r.total ? Math.round(((r.total - r.open) / r.total) * 100) : 0);
 
-function Row({ r, stop, shown, cols }) {
+function ClassicRow({ r, stop, shown, cols }) {
   const open = () => { returning = r.id; openUseCase(r.id); };
   const eyeWords = r.on ? ON_WORDS : OFF_WORDS;
   const own = ownerOf(r.u.owner), cmCol = cols.includes("cm") && !narrow.value, ref = refBox(r.u.ref);
@@ -108,13 +110,43 @@ function Heads({ cols, cm }) {
 }
 const Cols = ({ cols }) => <colgroup>{cols.map((id) => <col key={id} class={`c-${id}`} />)}<col class="c-eye" /></colgroup>;
 
+// Cards (no Theme layer): the list exactly as it is on main. Classic (the Theme layer is on) draws the table.
+function CardsRow({ r, stop, shown }) {
+  const open = () => { returning = r.id; openUseCase(r.id); };
+  const eyeWords = r.on ? ON_WORDS : OFF_WORDS;
+  // Item 1149: the dashboard summary's row (reference box, title, where it stands, status word with the commitment, the next steps) and the eye; the counts sit behind the click.
+  return (
+    <li class={`ucl-row${r.on ? "" : " off"}`} data-uc={r.id}
+      onClick={(e) => { if (e.target.closest("button, a, input") || String(getSelection()).trim()) return; open(); }}>
+      {r.u.ref ? <span class="ucref ucl-ref num" data-ref>{refBox(r.u.ref)}</span> : <span class="ucl-ref"></span>}
+      <button type="button" class="ucl-go uctitle" tabIndex={stop ? 0 : -1} aria-label={rowSay(r)} title={`Open ${r.name}`} onFocus={() => { current.value = r.id; }} onClick={open}>{r.name}</button>
+      <span class="ucl-head uchead" title={r.headline}>{r.headline || "No headline yet"}</span>
+      <span class="ucl-st ucstc"><span class={`pill ${RAG[r.status] || "n"}`} data-status>{r.status}</span><CommitChip u={r} /></span>
+      <span class={`ucl-steps ucsteps num${r.open ? " some" : ""}`} data-steps><StepsBadge n={r.open} /></span>
+      <button type="button" class="ucl-eye" tabIndex={-1} data-eye title={eyeWords} aria-label={`${r.ref || "Use case"} ${r.name}: ${eyeWords}. ${r.on ? "Take it off the dashboard" : "Put it on the dashboard"}`}
+        onFocus={() => { current.value = r.id; }} onClick={(e) => { blink(e); setEye(r, shown); }}><Icon name={r.on ? "eye" : "eyeoff"} /></button>
+    </li>
+  );
+}
+
+// Row 1203: the column names over the rows (the rows' own columns; the eye has none). Not read out: each row says its own parts.
+function ColumnHeads() {
+  return (
+    <div class="ucl-cols" aria-hidden="true">
+      <span class="ucl-c1">Use case</span><span>Where it stands</span><span>Status</span><span>Next steps</span><span></span>
+    </div>
+  );
+}
+
+function Row(p) { return p.cols ? <ClassicRow {...p} /> : <CardsRow {...p} />; }
+
 // The list's keys, taken only when focus is on a row's name or eye, so the search box and the filters keep their own keys.
 function keys(e) {
   const t = e.target, k = e.key;
   if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.isComposing || e.defaultPrevented || !t.closest) return;
-  const row = t.closest("tr.ucr");
+  const row = t.closest(".ucl-row, tr.ucr");
   if (!row || !t.matches(".ucl-go, .ucl-eye")) return;
-  const eye = t.classList.contains("ucl-eye"), rows = [...e.currentTarget.querySelectorAll("tbody tr.ucr")], at = rows.indexOf(row);
+  const eye = t.classList.contains("ucl-eye"), rows = [...e.currentTarget.querySelectorAll(".ucl-list .ucl-row, tbody tr.ucr")], at = rows.indexOf(row);
   const focus = (el) => { if (el) { e.preventDefault(); el.focus(); } };
   if (k === "ArrowRight") return focus(eye ? null : row.querySelector(".ucl-eye"));      // the name, then the eye (Archive and Delete are in the row's right-click menu, the menu key or Shift+F10)
   if (k === "ArrowLeft") return focus(eye ? row.querySelector(".ucl-go") : null);
@@ -242,7 +274,7 @@ function UseCasesList() {
     { id: "duplicate", name: "Duplicate view", icon: "copy" }, { id: "delete", name: "Delete view", icon: "trash", danger: true }];
   const [menu, setMenu] = useState(null);      // row 1203: the right-click menu on a row (the record, the point, the element that takes the focus back)
   const rowMenu = (e) => {      // a right click, the menu key or Shift+F10 on a row
-    const el = e.target.closest && e.target.closest(".ucr[data-uc]");
+    const el = e.target.closest && e.target.closest(".ucl-row[data-uc], .ucr[data-uc]");
     if (!el) return;
     const rec = rows.find((x) => x.id === el.dataset.uc);
     if (!rec) return;
@@ -266,10 +298,17 @@ function UseCasesList() {
   const parts = lineParts(f.line, rows), filtered = parts.chips.length > 0 || f.tab !== "all";     // the empty state: the plain words said back, and whether filters narrowed it too
   // Row 1085: the tabs row as Work items draws its saved views (the tabs with their counts over one rule), with Group by and Add use case
   // (the growing +) at its right end (Import and Export are in Settings, on the Data card); the filter line under it. The tabs' counts follow the line.
-  const tools = <span class="ucl-tools"><NewTile word="Add use case" kind="use_case" id="ucAddPage" onAdd={openAdd} /></span>;
+  const classic = classicTheme();
+  const tools = classic ? <span class="ucl-tools"><NewTile word="Add use case" kind="use_case" id="ucAddPage" onAdd={openAdd} /></span> : (
+    <span class="ucl-tools">
+      {rows.length ? <Menu label="Group by" ariaLabel={`Group by: ${groupLabel(f.group)}`} id="ucl-group" btnCls="btn sm" menuLabel="Group by" items={GROUPS.map(([k, w]) => ({ id: k, name: w, icon: groupIcon(k), checked: f.group === k }))} onPick={(k) => set({ group: k })} /> : null}
+      {rows.length ? <Menu label="Sort by" ariaLabel={`Sort by: ${(SORTS.find(([k]) => k === f.sort) || SORTS[0])[1]}`} id="ucl-sort" btnCls="btn sm" menuLabel="Sort by" items={SORTS.map(([k, w]) => ({ id: k, name: w, icon: sortIcon(k), checked: f.sort === k }))} onPick={(k) => set({ sort: k })} /> : null}
+      <NewTile word="Add use case" kind="use_case" id="ucAddPage" onAdd={openAdd} />
+    </span>
+  );
   // Row 1325: the layout pair, Group by and Sort by are icon buttons at the right end of the filter line, as on Work items. There is no board for use cases: its button is drawn
   // (the approved mock-up has it) and cannot be pressed.
-  const tail = rows.length ? (
+  const tail = classic && rows.length ? (
     <span class="vicons">
       <div class="seg lsw" role="group" aria-label="Layout">
         <button type="button" data-lay="table" aria-label="List" title="List" aria-pressed="true"><Icon name="table" /></button>
@@ -323,7 +362,8 @@ function UseCasesList() {
             <p class="muted">No use cases match {parts.words ? `“${parts.words}”` : "these filters"}{parts.words && filtered ? " with these filters" : ""}.</p>
             {narrowed(f) ? <button type="button" class="btn" data-clear-all onClick={clear}>Clear the filters</button> : null}
           </div>
-        ) : f.group === "nothing" ? (
+        ) : classic ? (
+          f.group === "nothing" ? (
           <div class="ucl-wrap" ref={list} onKeyDown={keys} onContextMenu={rowMenu}>
             <div class="wgroup">
               {table(true, <tbody>{shown.map((r) => <Row key={r.id} r={r} stop={r.id === stop} shown={shown} cols={cols} />)}</tbody>)}
@@ -342,6 +382,34 @@ function UseCasesList() {
                   </button>
                 </div>
                 {g.shut ? null : table(false, <tbody>{g.rows.map((r) => <Row key={r.id} r={r} stop={r.id === stop} shown={shown} cols={cols} />)}</tbody>, "", g.label)}
+              </div>
+            ))}
+          </div>
+          )
+        ) : f.group === "nothing" ? (
+          <div class="ucl-box" ref={list} onKeyDown={keys} onContextMenu={rowMenu}>
+            <ColumnHeads />
+            <ul class="ucl-list" aria-label="Use cases">
+              {shown.map((r) => <Row key={r.id} r={r} stop={r.id === stop} shown={shown} />)}
+            </ul>
+          </div>
+        ) : (
+          <div class="ucl-box" ref={list} onKeyDown={keys} onContextMenu={rowMenu}>
+            <ColumnHeads />
+            {groups.map((g) => (
+              <div class="wgroup ucl-group" key={g.key} data-group={g.key}>
+                <div class="ucl-grp">
+                  <button type="button" class="grp-b" aria-expanded={g.shut ? "false" : "true"} onClick={() => toggleGroup(g)}>
+                    <Icon name="chevdown" cls={g.shut ? "turn" : ""} /><span class="gl">{g.label}</span><span class="gc num">{plural(g.rows.length, "use case")}</span>
+                  </button>
+                </div>
+                {g.shut ? null : (
+                  <>
+                    <ul class="ucl-list" aria-label={g.label}>
+                      {g.rows.map((r) => <Row key={r.id} r={r} stop={r.id === stop} shown={shown} />)}
+                    </ul>
+                  </>
+                )}
               </div>
             ))}
           </div>

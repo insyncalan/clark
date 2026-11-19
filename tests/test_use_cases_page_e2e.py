@@ -85,7 +85,7 @@ class Walk(unittest.TestCase):
         cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
         cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/{LIST}"}, sid)
-        self.until(cdp, sid, f"location.hash === {json.dumps(LIST)} && document.querySelectorAll('#usecases tr.ucr[data-uc]').length > 0", "the list drew at its own address")
+        self.until(cdp, sid, f"location.hash === {json.dumps(LIST)} && document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0", "the list drew at its own address")
         self.assertEqual(js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
         self.until(cdp, sid, "!!document.querySelector('#usecases [data-eye]')", "the page is editable")
         ref = js(f"document.querySelector('[data-uc={json.dumps(UC)}] .ucl-ref').textContent.replace(/^UC /, '')")
@@ -120,8 +120,8 @@ class Walk(unittest.TestCase):
         # Esc leaves for the list and the row it came from takes the focus
         js("document.activeElement && document.activeElement.blur && document.activeElement.blur()")
         key(cdp, sid, "Escape")
-        self.until(cdp, sid, f"location.hash === {json.dumps(LIST)} && document.querySelectorAll('#usecases tr.ucr[data-uc]').length > 0", "Esc leaves for the list")
-        self.until(cdp, sid, f"!!document.activeElement.closest && !!document.activeElement.closest('tr.ucr') && document.activeElement.closest('tr.ucr').dataset.uc === {json.dumps(UC)}", "the row takes the focus")
+        self.until(cdp, sid, f"location.hash === {json.dumps(LIST)} && document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0", "Esc leaves for the list")
+        self.until(cdp, sid, f"!!document.activeElement.closest && !!document.activeElement.closest('.ucl-row') && document.activeElement.closest('.ucl-row').dataset.uc === {json.dumps(UC)}", "the row takes the focus")
         self.assertTrue(js("document.activeElement.classList.contains('ucl-go')"), "on the name")
 
         # Back goes to the use case, Forward to the list
@@ -129,7 +129,7 @@ class Walk(unittest.TestCase):
         self.until(cdp, sid, f"location.hash === {json.dumps(detail)} && !!document.querySelector('[data-ucd] [data-word]')", "Back to the use case")
         self.assertEqual(js("getComputedStyle(document.querySelector('.ucd-grid')).gridTemplateColumns.split(' ').length"), 2 if width == 1400 else 1)
         js("history.forward()")
-        self.until(cdp, sid, f"location.hash === {json.dumps(LIST)} && document.querySelectorAll('#usecases tr.ucr[data-uc]').length > 0", "Forward to the list")
+        self.until(cdp, sid, f"location.hash === {json.dumps(LIST)} && document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0", "Forward to the list")
 
 
     def test_an_archived_use_case_address_opens_it_read_only_with_restore(self):
