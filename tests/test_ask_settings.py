@@ -97,10 +97,14 @@ class Settings(unittest.TestCase):
     ready = True
 
     def setUp(self):
-        self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.page_html(tempfile.mkdtemp(), theme=self.theme()))
         self.addCleanup(self.s.close)
         self.db = make_db(self.folder(), ready=self.ready, cleanup=self.addCleanup)
         self.s.httpd.app_settings = service(self.db)
+
+    def theme(self):
+        """Row 1365: the amber notice is a Classic rule (themes/prototype-2.0/rules.css), so its test layers the Classic theme; the rest stay as they were."""
+        return "prototype-2.0" if "amber" in self._testMethodName else None
 
     def folder(self):
         d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
