@@ -98,10 +98,13 @@ class Both(unittest.TestCase):
             colour = re.search(r"c-(green|amber|red|blue)", r["cls"])
             if colour:
                 want = {"green": c["green"], "red": c["red"], "amber": c["amber"]}.get(colour.group(1))
-                if want:
+                if want and not published:      # a published file is Classic: its four ring colours are pinned in test_gap_1396
                     self.assertEqual(r["ring"], want, f"{where}: the ring is the state's colour ({r['cls']})")
             filled = " fill" in r["cls"]
-            self.assertEqual(r["fill"] == c["green"], filled, f"{where}: only an achieved milestone is filled green ({r['cls']})")
+            if not published:
+                self.assertEqual(r["fill"] == c["green"], filled, f"{where}: only an achieved milestone is filled green ({r['cls']})")
+            else:
+                self.assertEqual(r["fill"] != c["surface"], filled, f"{where}: only an achieved milestone is filled ({r['cls']})")
             if not filled:
                 self.assertEqual(r["fill"], c["surface"], where)
             seen.add((colour.group(1) if colour else None, filled))
