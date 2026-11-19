@@ -145,15 +145,39 @@ class Limits(unittest.TestCase):
         with self.assertRaises(ask.AskRefused):
             ask.build_request("Q?", [ask.Passage("a.md", "x" * 4000)] * 10, earlier=turns)
 
-    def test_when_no_turn_is_left_to_drop_the_ceiling_still_refuses(self):
+    def test_when_no_turn_is_left_to_drop_passages_are_left_out_before_anything_is_refused(self):
         old = ask.MAX_REQUEST
         ask.MAX_REQUEST = 1200
         try:
+            r = ask.build_request("Q?", [ask.Passage("a.md", "x" * 200), ask.Passage("b.md", "y" * 4000)], earlier=[("user", "hi")])
+            self.assertEqual(r.dropped_turns, 1)                       # the turn goes first
+            self.assertEqual((r.left_out, list(r.kept)), (1, [0]))     # then the passage that does not fit, and it is counted
+            self.assertLessEqual(len(r.text), ask.MAX_REQUEST)
+            ask.MAX_REQUEST = 50                                       # nothing left to leave out: only now is it refused
             with self.assertRaises(ask.AskRefused) as cm:
                 ask.build_request("Q?", [ask.Passage("a.md", "x" * 4000)], earlier=[("user", "hi")])
             self.assertEqual(str(cm.exception), ask.TOO_MUCH)
         finally:
             ask.MAX_REQUEST = old
+
+    def test_the_least_related_passage_is_the_one_left_out_for_the_ceiling(self):
+        old = ask.MAX_REQUEST
+        ask.MAX_REQUEST = 1500
+        try:
+            r = ask.build_request("Quasar?", [ask.Passage("a.md", "plan " + "x" * 500), ask.Passage("b.md", "tea " + "y" * 500),
+                                              ask.Passage("c.md", "Quasar " + "z" * 500)])
+            self.assertEqual((r.left_out, list(r.kept)), (1, [0, 2]))
+        finally:
+            ask.MAX_REQUEST = old
+
+    def test_one_passage_over_the_ceiling_is_left_out_and_counted_not_refused(self):
+        r = ask.build_request("Q?", [ask.Passage("a.md", "x" * (ask.MAX_PASSAGE + 1)), ask.Passage("b.md", "fine")])
+        self.assertEqual((r.left_out, list(r.kept), [p[1] for p in r.passages]), (1, [1], ["b.md"]))
+        self.assertNotIn("a.md", r.text)
+
+    def test_the_count_of_passages_has_a_ceiling_and_the_rest_are_left_out(self):
+        r = ask.build_request("Q?", [ask.Passage("a.md", "x")] * (ask.MAX_PASSAGES + 1))
+        self.assertEqual((len(r.passages), r.left_out), (ask.MAX_PASSAGES, 1))
 
 
 class NoPaths(unittest.TestCase):

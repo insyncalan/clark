@@ -228,6 +228,14 @@ class NoteThroughTheRoute(route.Base):
         self.assertTrue([n for n in got["notes"] if n.startswith("Sent ") and "left out." in n], got["notes"])
         self.assertFalse([n for n in got["notes"] if "too long to send in full" in n], got["notes"])
 
+    def test_the_reply_notes_say_how_many_passages_were_left_out(self):
+        with mock.patch.object(ask_service, "folder_notes", return_value=[]), mock.patch.object(ask, "MAX_PASSAGES", 1):
+            status, got = self.question("what is late?")
+        self.assertEqual(status, 200, got)
+        lines = [n for n in got["notes"] if n.startswith("Left out to keep this question under the size limit: ")]
+        self.assertEqual(len(lines), 1, got["notes"])
+        self.assertRegex(lines[0], r": [1-9][0-9]* passages\.$")
+
     def test_a_whole_project_gives_no_counts_line(self):
         status, got = self.question("what is late?")
         self.assertEqual(status, 200, got)

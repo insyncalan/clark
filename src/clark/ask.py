@@ -246,21 +246,22 @@ def build_request(question, passages, earlier=(), today="", partial=(), instruct
     words) for an empty or over-long question, a password-looking string in what the person typed, a label that is a path, or more
     text than the budget. Text is carried exactly as given."""
     turns, gone = _trim(check_question(question, earlier))
-    chosen, kept, secret_out = [], [], 0
+    chosen, kept, secret_out, left_out = [], [], 0, 0
     for n, p in enumerate(passages or ()):
         label, text = (p.label, p.text) if isinstance(p, Passage) else (p[0], p[1]) if isinstance(p, (tuple, list)) and len(p) == 2 else (None, None)
         if not _label_ok(label) or not isinstance(text, str):
             raise AskRefused(BAD_INPUT)
-        if len(text) > MAX_PASSAGE:
-            raise AskRefused(TOO_MUCH)
+        if len(text) > MAX_PASSAGE:                  # one passage over the ceiling is left out and counted; the question goes on without it
+            left_out += 1
+            continue
         if _secret(text) or _secret(label):          # the last point before the provider: a passage that looks like a key is dropped, not sent
             secret_out += 1
             continue
         chosen.append((label, text))
         kept.append(n)
-    left_out = 0
     if len(chosen) > MAX_PASSAGES or sum(len(t) for _l, t in chosen) > BUDGET:      # leave out the least relevant and say so; never send over the limit
-        keep, left_out = choose(chosen, question, BUDGET, MAX_PASSAGES)
+        keep, more = choose(chosen, question, BUDGET, MAX_PASSAGES)
+        left_out += more
         kept = [kept[i] for i in keep]
         chosen = [chosen[i] for i in keep]
 
@@ -271,9 +272,14 @@ def build_request(question, passages, earlier=(), today="", partial=(), instruct
         body, ids, hidden = _assemble(question, turns[dropped:], chosen, head, standing)
         if len(body) <= MAX_REQUEST:
             break
-        if dropped >= len(turns):
+        if dropped < len(turns):
+            dropped += 1
+        elif chosen:                 # no turn is left to drop: leave out the least relevant passage (and say so) before anything is refused
+            gone_at = _ranked(chosen, question)[-1]
+            del chosen[gone_at], kept[gone_at]
+            left_out += 1
+        else:
             raise AskRefused(TOO_MUCH)
-        dropped += 1
     return Request(text=body, question=question, passages=tuple(ids), hidden=hidden, dropped_turns=dropped + gone, left_out_secret=secret_out, kept=tuple(kept), left_out=left_out)
 
 
@@ -288,19 +294,23 @@ def _head(today, partial):
     return lines
 
 
-def choose(chosen, question, budget=BUDGET, limit=MAX_PASSAGES):
-    """Which of `chosen` ((label, text) pairs) fit `budget` characters and `limit` passages: the most relevant first (plain keyword
-    overlap with the question; an item ID it names counts most), the first always first. Returns (positions kept, in their original
-    order, how many were left out)."""
+def _ranked(chosen, question):
+    """The positions in `chosen`, best first: plain keyword overlap with the question (an item ID it names counts most), the first always first."""
     words = {w.casefold() for w in WORDS.findall(question or "")}
     ids = set(re.findall(r"\b[A-Z][A-Z0-9]{2,6}-[A-Z]?-?\d{1,4}\b", question or ""))
 
     def score(i):
         text = chosen[i][1].casefold()
         return sum(5 for x in ids if x.casefold() in text) + sum(1 for w in words if w in text)
-    ranked = sorted(range(len(chosen)), key=lambda i: (i != 0, -score(i), i))
+    return sorted(range(len(chosen)), key=lambda i: (i != 0, -score(i), i))
+
+
+def choose(chosen, question, budget=BUDGET, limit=MAX_PASSAGES):
+    """Which of `chosen` ((label, text) pairs) fit `budget` characters and `limit` passages: the most relevant first (plain keyword
+    overlap with the question; an item ID it names counts most), the first always first. Returns (positions kept, in their original
+    order, how many were left out)."""
     keep, used = set(), 0
-    for i in ranked:
+    for i in _ranked(chosen, question):
         size = len(chosen[i][1])
         if used + size <= budget and len(keep) < limit:
             keep.add(i)
