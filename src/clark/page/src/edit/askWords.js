@@ -21,7 +21,7 @@ export const CHECKING_LINE = "Checking whether you can ask…";
 export const READY_LINE = "Ready. Ask about this project.";
 export const MODEL_LINE = (name) => `Answering with ${name}.`;
 export const STANDING_LINE = "Standing instructions on.";   // #1292 S13, the mock-up's words with the full stop every line of the panel ends in
-export const PLACEHOLDER = "Ask a question about this project";
+export const PLACEHOLDER = "Ask a question or give an instruction... (type / for shortcuts)";
 export const SEND = "Ask";
 export const STOP = "Stop";
 export const CLOSE = "Close";
@@ -304,8 +304,8 @@ export const SLASH_LABEL = "Commands";
 export const SLASH_NONE = "No command by that name";
 export const SLASH_HINT = {
   check: "Check this report",
-  summary: "Summarise this week",
-  overdue: "What is overdue",
+  summary: "Summarise this week into a draft",
+  overdue: "What is overdue?",
   risks: "Which risks are red",
   milestones: "The next milestone",
   usecases: "Which use cases need attention",
