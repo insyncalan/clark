@@ -1,4 +1,4 @@
-"""#1292 slice 2 (the first-run card of ask clark): three plain lines in an empty chat, the old "A question sends" line stays gone.
+"""#1292 slice 2, item 1352 (the first-run card of ask clark): a heading, three bullets and a tip in an empty chat, the old "A question sends" line stays gone.
 
 Run: python3 dev/run_tests.py test_ask_first_run_1292
 Headless Chrome through the shared harness, with the same stub for the server's `ask` as test_ask_panel.
@@ -15,18 +15,23 @@ CSS = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "edit.css").read_text(
 JSX = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "AskPanel.jsx").read_text(encoding="utf-8")
 WORDS = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "askWords.js").read_text(encoding="utf-8")
 CARD = "document.querySelector('#ask-first-run')"
-LINE = "document.querySelectorAll('#ask-first-run p')"
+LINE = "document.querySelectorAll('#ask-first-run li')"
 
 
 class FirstRun(Panel):
-    def test_an_empty_chat_shows_the_card_with_three_lines(self):
+    def test_an_empty_chat_shows_the_card_with_a_heading_three_bullets_and_a_tip(self):
         with chrome() as cdp:
             p = self.opened(cdp)
             self.assertEqual(p.js(f"{CARD}.getAttribute('aria-label')"), "About ask clark")
             self.assertEqual(p.js(f"{LINE}.length"), 3)
-            self.assertEqual(p.js(f"{LINE}[0].textContent.trim()"), "It reads what is in this project. It never reads your mail, Teams or calendars.")
-            self.assertEqual(p.js(f"{LINE}[1].textContent.trim()"), "It can suggest changes. Nothing is saved until you press Apply, and every change can be undone.")
-            self.assertEqual(p.js(f"{LINE}[2].textContent.trim()"), "Your question goes to Claude, which Anthropic runs.")
+            self.assertEqual(p.js(f"{CARD}.querySelector('h3').textContent"), "Ask about this project")
+            self.assertEqual(p.js(f"{LINE}[0].textContent.trim()"), "I read this project\u2019s work items, milestones and use cases. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings.")
+            self.assertEqual(p.js(f"{LINE}[1].textContent.trim()"), "I can suggest changes. Nothing is saved until you press Apply, and every change can be undone.")
+            self.assertEqual(p.js(f"{LINE}[1].querySelector('b').textContent"), "Nothing is saved until you press Apply")
+            self.assertEqual(p.js(f"{LINE}[2].textContent.trim()"), "Your question and what it needs go to Claude. What will be sent? (Settings)")
+            self.assertEqual(p.js(f"{CARD}.querySelector('p.ask-first-tip').textContent"), "Tip: press the sparkle on a work item, a section or a use case to ask about just that. Type / in the box for shortcuts.")
+            self.assertEqual(p.js(f"{CARD}.querySelector('p.ask-first-tip kbd').textContent"), "/")
+            self.assertEqual(p.js(f"{CARD}.textContent.indexOf('never read')"), -1, "rule 11: the older wording stays gone")
             self.assertEqual(p.js("document.querySelector('#ask-panel').textContent.indexOf('A question sends')"), -1, "rule 9: the old line stays gone")
             self.assertEqual(p.js("document.querySelector('#ask-panel').textContent.indexOf('Show details')"), -1)
 
@@ -89,7 +94,7 @@ class FirstRun(Panel):
         with chrome() as cdp:
             p = self.opened(cdp)
             text = p.js(f"{CARD}.textContent")
-            self.assertIn("Your question goes to ChatGPT, which OpenAI runs.", text)
+            self.assertIn("Your question and what it needs go to ChatGPT.", text)
             self.assertNotIn("Anthropic", text)
             self.assertNotIn("Claude", text)
 
@@ -97,7 +102,7 @@ class FirstRun(Panel):
         with chrome() as cdp:
             p = self.opened(cdp)
             link = "document.querySelector('#ask-first-run a[data-ask-first-settings]')"
-            self.assertEqual(p.js(f"{link}.textContent"), "Open the Asking card in Settings")
+            self.assertEqual(p.js(f"{link}.textContent"), "What will be sent? (Settings)")
             p.js(f"{link}.click()")
             p.until("document.querySelector('#ask-panel') === null && location.hash.indexOf('settings') === 1", "went to Settings")
 
@@ -123,15 +128,16 @@ class FirstRun(Panel):
 class Words(unittest.TestCase):
     def test_the_first_run_sentences_are_plain_and_complete(self):
         said = dict(re.findall(r'export const (FIRST_RUN_[A-Z_]+) = "((?:[^"\\]|\\.)*)"', WORDS))
-        self.assertEqual(sorted(said), ["FIRST_RUN_CHANGES", "FIRST_RUN_LABEL", "FIRST_RUN_LINK", "FIRST_RUN_READS", "FIRST_RUN_SENT"])
+        self.assertEqual(sorted(said), ["FIRST_RUN_CHANGES", "FIRST_RUN_CHANGES_BOLD", "FIRST_RUN_HEAD", "FIRST_RUN_LABEL", "FIRST_RUN_LINK", "FIRST_RUN_READS",
+                                        "FIRST_RUN_SENT", "FIRST_RUN_TIP_AFTER", "FIRST_RUN_TIP_BEFORE", "FIRST_RUN_TIP_KEY"])
         for name, text in said.items():
             self.assertIsNone(NEVER.search(text), f"{name}: {text}")
             self.assertFalse(text.lower().startswith("clark"), name)
-            if name not in ("FIRST_RUN_LABEL", "FIRST_RUN_LINK"):
-                self.assertRegex(text, r"\.$", name)
-        self.assertIn("never reads your mail, Teams or calendars", said["FIRST_RUN_READS"])
-        self.assertIn("Nothing is saved until you press Apply", said["FIRST_RUN_CHANGES"])
-        self.assertIn("Claude, which Anthropic runs", said["FIRST_RUN_SENT"], "written for Claude; named() swaps the provider")
+        for name in ("FIRST_RUN_READS", "FIRST_RUN_CHANGES", "FIRST_RUN_SENT", "FIRST_RUN_TIP_AFTER"):
+            self.assertRegex(said[name], r"\.$", name)
+        self.assertIn("used only if you turn that connector on in Settings", said["FIRST_RUN_READS"])
+        self.assertIn(said["FIRST_RUN_CHANGES_BOLD"], said["FIRST_RUN_CHANGES"], "the bold part is a piece of the sentence, so the split keeps every word")
+        self.assertIn("go to Claude", said["FIRST_RUN_SENT"], "written for Claude; named() swaps the provider")
 
 
 class Sweep(unittest.TestCase):
@@ -147,9 +153,7 @@ class Sweep(unittest.TestCase):
         for part in ("flex: none", "overflow-wrap: anywhere", "border-bottom: 1px solid var(--grey-200)", "color: var(--text-muted)"):
             self.assertIn(part, card)
         self.assertIn("margin: 0 0 6px", self.rule(".ask-first-run p"))
-        link = self.rule(".ask-first-link a")
-        for part in ("min-height: 24px", "display: inline-flex", "text-decoration: underline", "color: var(--link, var(--brand-blue))"):
-            self.assertIn(part, link)
+        self.assertNotIn("ask-first-link", JSX, "item 1352: the link sits in the third bullet, not in a block of its own")
 
     def test_the_off_line_link_rule_is_untouched_by_the_card(self):
         self.assertEqual(self.rule(".ask-off a"), "display: inline-flex; align-items: center; min-height: 24px; color: inherit; font-weight: var(--weight-medium); text-decoration: underline; ")

@@ -7,7 +7,7 @@ import { zoneFetch } from "../api.js";
 import { words } from "./publishApi.js";
 import { stopRestore } from "../router.js";
 import { askProvider } from "./askState.js";
-import { draft, panelOpen, panelState, panelDisconnected, panelModel, panelStanding, panelWidth, panelFocus, turns, pending, chatEpoch, handed, answersReady, queue, queueHeld, queueDrop, QUEUE_MAX, setQueue, closePanel, newChat, setWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
+import { draft, panelOpen, panelState, panelDisconnected, panelStanding, panelWidth, panelFocus, turns, pending, chatEpoch, handed, answersReady, queue, queueHeld, queueDrop, QUEUE_MAX, setQueue, closePanel, newChat, setWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
 import * as W from "./askWords.js";
 import { pills, asking } from "./askPills.js";
 import { stateOf } from "./askPillState.js";
@@ -65,7 +65,7 @@ function shownTurns(list) {
 }
 
 export function AskPanel() {
-  const open = panelOpen.value, state = panelState.value, model = panelModel.value, width = panelWidth.value;
+  const open = panelOpen.value, state = panelState.value, width = panelWidth.value;
   const list = turns.value, busy = pending.value;
   const [text, setText] = useState("");
   const [note, setNote] = useState("");
@@ -344,7 +344,7 @@ export function AskPanel() {
         </div>
       </header>
       <p class="ask-status" id="ask-status" role="status" aria-live="polite">
-        {busy ? W.WORKING : state === "checking" ? W.CHECKING_LINE : state === "unknown" ? null : state === "off" ? W.READY_LINE : state === "signed-out" ? null : model ? W.MODEL_LINE(model) : W.READY_LINE}
+        {busy ? W.WORKING : state === "checking" ? W.CHECKING_LINE : state === "unknown" ? null : state === "off" ? W.READY_LINE : state === "signed-out" ? null : W.READY_LINE}
         {panelStanding.value && !busy && (state === "ready" || state === "signed-out") ? <> <a href="#settings&s=claude" id="ask-instr" data-ask-settings onClick={toSettings}>{W.STANDING_LINE}</a></> : null}
       </p>
       {state === "off" ? (
@@ -369,10 +369,13 @@ export function AskPanel() {
       ) : null}
       {!showHist && !list.length && (state === "ready" || state === "off") ? (
         <section class="ask-first-run" id="ask-first-run" aria-label={W.FIRST_RUN_LABEL}>
-          <p>{W.FIRST_RUN_READS}</p>
-          <p>{W.FIRST_RUN_CHANGES}</p>
-          <p>{W.named(W.FIRST_RUN_SENT, askProvider.value)}</p>
-          <div class="ask-first-link"><a href="#settings&s=claude" data-ask-first-settings onClick={toSettings}>{W.FIRST_RUN_LINK}</a></div>
+          <h3>{W.FIRST_RUN_HEAD}</h3>
+          <ul>
+            <li>{W.FIRST_RUN_READS}</li>
+            <li>{W.FIRST_RUN_CHANGES.split(W.FIRST_RUN_CHANGES_BOLD)[0]}<b>{W.FIRST_RUN_CHANGES_BOLD}</b>{W.FIRST_RUN_CHANGES.split(W.FIRST_RUN_CHANGES_BOLD)[1]}</li>
+            <li>{W.named(W.FIRST_RUN_SENT, askProvider.value)} <a href="#settings&s=claude" data-ask-first-settings onClick={toSettings}>{W.FIRST_RUN_LINK}</a></li>
+          </ul>
+          <p class="ask-first-tip">{W.FIRST_RUN_TIP_BEFORE}<kbd>{W.FIRST_RUN_TIP_KEY}</kbd>{W.FIRST_RUN_TIP_AFTER}</p>
         </section>
       ) : null}
       <div class="ask-log" id="ask-log" hidden={showHist} role="log" aria-live="polite" aria-label={W.LOG_LABEL} ref={log}>

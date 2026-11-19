@@ -86,7 +86,7 @@ DATE = re.compile(r"\b\d{4}-\d{1,2}-\d{1,2}\b|\b\d{1,2}[/.]\d{1,2}[/.]\d{2,4}\b|
 PRODUCT = re.compile(r"^(ask )?clark\b", re.I)
 TITLE = "ask clark"                      # row 820: the one string allowed to start with the product's name
 # A capital letter inside a sentence is a name unless it is a word the panel is known to use.
-KNOWN = {"Claude", "Anthropic", "Settings", "Ask", "Asking", "Apply", "Undo", "Stop", "Wi", "Fi", "HDMI", "IT", "Teams"}
+KNOWN = {"Claude", "Anthropic", "Settings", "Ask", "Asking", "Apply", "Undo", "Stop", "Wi", "Fi", "HDMI", "IT", "Teams", "SharePoint", "Share", "Point"}
 
 SETTLE = "document.querySelector('#ask-box') && !document.querySelector('#ask-send').disabled"
 
@@ -180,7 +180,7 @@ class Look(Base):
                         p.js(f"document.documentElement.dataset.theme = '{theme}'")
                         self.check_measures(p, f"{width} {theme} {state}")
                         if state == "off":                  # row 795: asking off keeps the greeting and the suggestions, disabled
-                            self.assertEqual(p.js("document.querySelector('#ask-status').textContent.trim()"), "Ready. Ask about this project.")
+                            self.assertEqual(p.js("document.querySelector('#ask-status').textContent.trim()"), "Ready. Reading this project\u2019s report data.")
                             self.assertEqual(p.js("document.querySelectorAll('#ask-pills button').length"), 6)
                             self.assertTrue(p.js("[...document.querySelectorAll('#ask-pills button')].every(b => b.disabled)"), f"{width} {theme}: pills disabled")
                             self.assertEqual(p.js("document.querySelector('#ask-pills').scrollWidth > 0 && document.documentElement.scrollWidth <= document.documentElement.clientWidth"), True)

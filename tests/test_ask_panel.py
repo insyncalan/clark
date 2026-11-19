@@ -167,15 +167,13 @@ class Panel(Base):
             self.assertEqual(p.js("document.querySelector('#ask-panel').getBoundingClientRect().width"), wide, "the width was kept")
             self.assertLessEqual(wide, p.js("document.documentElement.clientWidth"))
 
-    def test_the_status_line_names_the_model_when_there_is_one(self):
-        self.stub.model = "Sonnet"
-        with chrome() as cdp:
-            p = self.opened(cdp)
-            self.assertEqual(p.js("document.querySelector('#ask-status').textContent"), "Answering with Sonnet.")
-        self.stub.model = ""
-        with chrome() as cdp:
-            p = self.opened(cdp)
-            self.assertEqual(p.js("document.querySelector('#ask-status').textContent"), "Ready. Ask about this project.")
+    def test_the_status_line_is_the_prototypes_whether_or_not_the_server_names_a_model(self):
+        """Item 1352: the line no longer says "Answering with <model>"; it reads what the prototype reads."""
+        for model in ("Sonnet", ""):
+            self.stub.model = model
+            with chrome() as cdp:
+                p = self.opened(cdp)
+                self.assertEqual(p.js("document.querySelector('#ask-status').textContent"), "Ready. Reading this project\u2019s report data.", repr(model))
 
     def test_s13_the_status_line_says_standing_instructions_on_only_when_they_are_set(self):
         # #1292 S13: the line reads the status route's standing_instructions flag; the card that sets them is #1294.
@@ -183,10 +181,10 @@ class Panel(Base):
             self.stub.model, self.stub.standing = "Sonnet", flag
             with chrome() as cdp:
                 p = self.opened(cdp)
-                self.assertEqual(p.js("document.querySelector('#ask-status').textContent.trim().startsWith('Answering with Sonnet.')"), True)
+                self.assertEqual(p.js("document.querySelector('#ask-status').textContent.trim().startsWith('Ready. Reading this project\u2019s report data.')"), True)
                 self.assertEqual(p.js("document.querySelectorAll('#ask-instr').length"), 1 if shown else 0, repr(flag))
                 if shown:
-                    self.assertEqual(p.js("document.querySelector('#ask-instr').textContent"), "Standing instructions on.")
+                    self.assertEqual(p.js("document.querySelector('#ask-instr').textContent"), "Standing instructions on")
                     self.assertEqual(p.js("document.querySelector('#ask-status').contains(document.querySelector('#ask-instr'))"), True)
                     p.js("document.querySelector('#ask-instr').click()")
                     p.until("location.hash.indexOf('settings') >= 0", "the line opens Settings")
@@ -232,14 +230,14 @@ class Panel(Base):
                 self.assertEqual(p.js("document.querySelectorAll('#ask-instr').length"), 0, repr(odd))
         self.stub.standing = None
 
-    def test_the_panel_title_reads_ask_clark_and_the_ready_line_is_unchanged(self):
-        # row 820: the title is the row's own words; the ready line is a separate sentence and stays
+    def test_the_panel_title_reads_ask_clark_and_the_ready_line_is_the_prototypes(self):
+        # row 820: the title is the row's own words; the ready line is a separate sentence (item 1352: the prototype's)
         self.stub.model = ""
         with chrome() as cdp:
             p = self.opened(cdp)
             self.assertEqual(p.js("document.querySelector('#ask-panel h2').textContent.trim()"), "ask clark")
             self.assertEqual(p.js("document.querySelector('#ask-panel').getAttribute('aria-label')"), "ask clark")
-            self.assertIn("Ask about this project", p.js("document.querySelector('#ask-status').textContent"))
+            self.assertIn("Reading this project\u2019s report data", p.js("document.querySelector('#ask-status').textContent"))
 
     def test_a_reply_is_shown_and_sent_with_the_project_and_the_earlier_turns(self):
         with chrome() as cdp:
@@ -433,7 +431,7 @@ class Panel(Base):
         with chrome() as cdp:
             p = self.opened(cdp, ready=False)
             p.until("document.querySelector('#ask-off') && document.querySelector('#ask-status').textContent !== ''", "the off line")
-            self.assertEqual(p.js("document.querySelector('#ask-status').textContent"), "Ready. Ask about this project.", "row 795: the greeting stays while asking is off")
+            self.assertEqual(p.js("document.querySelector('#ask-status').textContent"), "Ready. Reading this project\u2019s report data.", "row 795: the greeting stays while asking is off")
             self.assertTrue(p.js("document.querySelector('#ask-status').compareDocumentPosition(document.querySelector('#ask-off')) & Node.DOCUMENT_POSITION_FOLLOWING"), "the amber line sits under the status line")
             self.assertEqual(p.js("document.querySelector('#ask-off').firstChild.textContent.trim()"), "Asking is off. Turn it on in Settings.")
             self.assertTrue(p.js("document.querySelector('#ask-box').disabled"))
@@ -579,7 +577,7 @@ class Panel(Base):
                     p.until("!!document.querySelector('#ask-panel')", "reopened")
                     if label == "ready":
                         p.until("!document.querySelector('#ask-send').disabled", "ready")
-                        self.assertEqual(p.js("document.querySelector('#ask-status').textContent"), "Ready. Ask about this project.")
+                        self.assertEqual(p.js("document.querySelector('#ask-status').textContent"), "Ready. Reading this project\u2019s report data.")
                         self.ask(p, "Hello")
                         p.until("document.querySelector('#ask-panel').innerText.indexOf('The pilot goes live in March.') >= 0", "the answer")
                         self.assertEqual(self.stub.count("ask"), 1)
@@ -780,7 +778,7 @@ class Words(unittest.TestCase):
             self.assertIsNone(NEVER.search(text), f"{name}: {text}")
             self.assertFalse(text.startswith("clark") or text.startswith("Clark"), f"{name} starts with the product name")
         for name, plain, tpl in lines:
-            if name.endswith("_LINE") and name not in ("CHECKING_LINE", "READY_LINE", "MODEL_LINE"):
+            if name.endswith("_LINE") and name not in ("CHECKING_LINE", "READY_LINE", "STANDING_LINE"):
                 self.assertRegex(plain or tpl, r"[.…]$", name)
         said = dict((n, p or t) for n, p, t in lines)
         self.assertEqual(said["OFF_LINE"], "Asking is off. Turn it on in Settings.")

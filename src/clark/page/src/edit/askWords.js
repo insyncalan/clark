@@ -10,17 +10,21 @@ export const named = (text, who) => (who === "ChatGPT" ? text.replace(/Claude, w
 export const DISCONNECTED_LINE = "Nothing is connected in Settings. Connect Claude or ChatGPT there to use this.";   // the server's status words, ai_connect.OFF_WORDS
 // #1062: where a question goes and who pays moved from the panel to the Asking card in Settings.
 export const ASK_NOTICE_LINE = "Your question and the passages it needs go to Claude, which Anthropic runs, and are billed to the Claude account signed in on this computer.";
-// row 1292 feature 2: the first-run card in an empty chat, three plain lines. Written for Claude; named() swaps the provider in use.
-// The sentences are a draft: the spec gives the ideas, the words wait for the project head (listed as B1 in the words file).
+// row 1292 feature 2, item 1352: the first-run card in an empty chat, as the prototype draws it: a heading, three bullets and a tip. Written for Claude; named() swaps the provider in use.
+// The connector sentence is rule 11 of the 1292 rules: the connectors are used only when they are turned on in Settings.
 export const FIRST_RUN_LABEL = "About ask clark";
-export const FIRST_RUN_READS = "It reads what is in this project. It never reads your mail, Teams or calendars.";
-export const FIRST_RUN_CHANGES = "It can suggest changes. Nothing is saved until you press Apply, and every change can be undone.";
-export const FIRST_RUN_SENT = "Your question goes to Claude, which Anthropic runs.";
-export const FIRST_RUN_LINK = "Open the Asking card in Settings";
-export const CHECKING_LINE = "Checking whether you can ask…";
-export const READY_LINE = "Ready. Ask about this project.";
-export const MODEL_LINE = (name) => `Answering with ${name}.`;
-export const STANDING_LINE = "Standing instructions on.";   // #1292 S13, the mock-up's words with the full stop every line of the panel ends in
+export const FIRST_RUN_HEAD = "Ask about this project";
+export const FIRST_RUN_READS = "I read this project\u2019s work items, milestones and use cases. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings.";
+export const FIRST_RUN_CHANGES = "I can suggest changes. Nothing is saved until you press Apply, and every change can be undone.";
+export const FIRST_RUN_CHANGES_BOLD = "Nothing is saved until you press Apply";      // drawn in the heavier weight, as the prototype does
+export const FIRST_RUN_SENT = "Your question and what it needs go to Claude.";
+export const FIRST_RUN_LINK = "What will be sent? (Settings)";
+export const FIRST_RUN_TIP_BEFORE = "Tip: press the sparkle on a work item, a section or a use case to ask about just that. Type ";
+export const FIRST_RUN_TIP_KEY = "/";
+export const FIRST_RUN_TIP_AFTER = " in the box for shortcuts.";
+export const CHECKING_LINE = "Checking whether you can ask\u2026";
+export const READY_LINE = "Ready. Reading this project\u2019s report data.";   // item 1352: the prototype's status line; it no longer names the model
+export const STANDING_LINE = "Standing instructions on";   // item 1352: the prototype's words, no full stop (the line is a button there)
 export const PLACEHOLDER = "Ask a question about this project";
 export const SEND = "Ask";
 export const STOP = "Stop";
