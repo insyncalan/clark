@@ -31,7 +31,7 @@ WAITS = {
     "howto-check-before-you-publish": ("the stale and incomplete notes with Show them in the Publish box", r"Show them"),
 }
 # prototype entries the owner dropped (#919; item 1158 for the three Needs from you ones): the prototype still draws them, the build will never have them
-DROPPED = {"howto-start-from-last-report", "ref-since-last-report", "ref-needs-from-you", "howto-ask-the-client-for-something", "howto-handle-a-slipped-milestone"}   # the last: Row 1329, Jarvis ruling 01:01, the Movement how-tos left the Help
+DROPPED = {"howto-start-from-last-report", "ref-since-last-report", "ref-needs-from-you", "howto-ask-the-client-for-something", "howto-handle-a-slipped-milestone"}   # the last: Row 1329: the Movement how-tos left the Help
 # prototype entries the build has under another id, written for what the page does
 REPLACED = {
     "howto-work-the-use-cases": "howto-find-a-use-case",
