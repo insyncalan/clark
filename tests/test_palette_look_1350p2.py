@@ -38,11 +38,11 @@ class Look(Base):
         self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.layer_theme(page.page_html(tempfile.mkdtemp()), css), projects=lambda archived=False: LIST)
         self.addCleanup(self.s.close)
 
-    def measure(self):
+    def measure(self, widths=(1400, 900)):
         out = {}
         with chrome() as cdp:
             p = self.visit(cdp)
-            for w in (1400, 900):
+            for w in widths:
                 p.width(w)
                 p.show()
                 p.key("ArrowDown", 0, "ArrowDown", 40)
@@ -72,8 +72,29 @@ class Look(Base):
             self.assertEqual(m["onOffset"], "-2px", at)
 
 
+    def test_the_row_changes_only_at_700px_and_below_the_kind_takes_a_line_of_its_own(self):
+        probe = "(() => { const r = document.querySelector('#palette .pal-row'), k = r.querySelector('.pal-kind'); return { cols: getComputedStyle(r).gridTemplateColumns.split(' ').length, kind: getComputedStyle(k).gridColumnStart + ' / ' + getComputedStyle(k).gridColumnEnd, first: getComputedStyle(r).gridTemplateColumns.split(' ')[0] }; })()"
+        out = {}
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            for w in (1400, 900, 701, 700, 600):
+                p.width(w)
+                p.show()
+                out[w] = p.js(probe)
+                p.key("Escape", 0, "Escape", 27)
+                p.until("!document.querySelector('#palette[open]')", "the palette closed")
+        for w in (1400, 900, 701):
+            self.assertEqual((out[w]["cols"], out[w]["first"], out[w]["kind"]), (3, "96px", "auto / auto"), f"at {w} px: {out[w]}")
+        for w in (700, 600):
+            self.assertEqual((out[w]["cols"], out[w]["kind"]), (2, "1 / -1"), f"at {w} px: {out[w]}")
+
+
 class CardsControl(Look):
     classic = False
+
+    def test_the_row_changes_only_at_700px_and_below_the_kind_takes_a_line_of_its_own(self):
+        m = self.measure((700,))[700]
+        self.assertEqual((m["display"], m["pad"]), ("flex", "6px 10px 6px 10px"), "Cards keeps the flex row at 700 px: " + json.dumps(m))
 
     def test_classic_quick_bar_list_look(self):
         for w, m in self.measure().items():

@@ -77,7 +77,7 @@ function dataResults(query, ws) {
   return out;
 }
 
-const QUESTION_WORDS = /^(what|who|whom|whose|when|where|why|how|which|is|are|was|were|can|could|do|does|did|should|will|would|has|have)\s/i;
+const QUESTION_WORDS = /^(what|who|whom|whose|when|where|why|how|which|is|are|was|were|can|could|do|does|did|should|will|would|has|have|summar\w*|check|draft)\s/i;          // row 1350: the prototype also lists summar (a stem), check and draft
 const ASK_SHOWN = 60;          // the typed words are cut here in the row's label; the whole text is handed over
 /** The word for the send key in the row's hint: "Cmd+Enter" on a Mac, "Ctrl+Enter" elsewhere. `nav` is the browser's navigator (a plain object in tests). */
 export function sendKey(nav) {

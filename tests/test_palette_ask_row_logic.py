@@ -36,6 +36,11 @@ class AskRowLogic(unittest.TestCase):
         for w in WORDS:
             self.assertEqual(got[w], [True, True, False, False], w)
 
+    def test_summar_check_and_draft_make_it_first_as_the_prototype_lists_them(self):
+        # row 1350 (the prototype's list: summar, check, draft); summar is a stem, so summarise and summary count; the word must stand whole as the others do
+        got = self.js("const f = (q) => PAL.askRow(q).first; return [f('summarise zzqx'), f('Summary zzqx'), f('SUMMARIZE zzqx'), f('check zzqx'), f('Draft zzqx'), f('drafts zzqx'), f('checkpoint zzqx'), f('zzqx draft'), f('draftzzqx')];")
+        self.assertEqual(got, [True, True, True, True, True, False, False, False, False])
+
     def test_a_question_mark_counts_only_at_the_end(self):
         got = self.js("return [PAL.askRow('zzqx?').first, PAL.askRow('zzqx? yes').first, PAL.askRow('zzqx').first, PAL.askRow('  zzqx?  ').first];")
         self.assertEqual(got, [True, False, False, True])
