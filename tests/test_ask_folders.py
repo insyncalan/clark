@@ -117,7 +117,7 @@ class Base(unittest.TestCase):
 
 class Allowed(Base):
     def test_an_empty_list_then_add_then_read_then_remove(self):
-        self.assertEqual(self.get(), (200, {"ok": True, "folders": [], "shared": []}))
+        self.assertEqual(self.get(), (200, {"ok": True, "folders": [], "shared": [], "warnings": []}))
         status, body = self.add(self.docs)
         self.assertEqual((status, body["ok"], body["folders"]), (200, True, [str(self.docs)]))
         self.assertTrue(body["message"])
@@ -486,3 +486,41 @@ class Choosing(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PeopleContractWarning(Base):
+    """Row 1365 tests 4: the save and the list carry the S1 scan's warning; the folder is saved either way; no provider is involved."""
+
+    def tree(self):
+        root = self.docs / "work"
+        (root / "Contract 2026").mkdir(parents=True)
+        (root / "Contract 2026" / "terms.txt").write_text("x")
+        (root / "plain").mkdir()
+        return root
+
+    def test_adding_a_folder_with_a_contract_subfolder_returns_the_warning_and_saves_the_folder(self):
+        root = self.tree()
+        status, got = self.add(root)
+        self.assertEqual(status, 200)
+        self.assertEqual(got["warnings"], [{"folder": str(root), "items": [{"name": "Contract 2026", "readable_files": 1}]}])
+        self.assertEqual(self.stored(), [str(root)], "a warning is not a block: the folder is saved")
+
+    def test_the_list_carries_the_same_warning_on_every_read(self):
+        root = self.tree()
+        self.add(root)
+        for _ in range(2):
+            status, got = self.get()
+            self.assertEqual((status, got["warnings"]), (200, [{"folder": str(root), "items": [{"name": "Contract 2026", "readable_files": 1}]}]))
+
+    def test_a_folder_without_such_names_has_an_empty_warning_and_the_choose_route_carries_it_too(self):
+        (self.more / "notes").mkdir()
+        self.assertEqual(self.add(self.more)[1]["warnings"], [])
+        root = self.tree()
+        self.service.choose_folder = lambda prompt, start=None: root
+        status, got = self.post({"project": "ABC", "action": "choose"})
+        self.assertEqual((status, [w["folder"] for w in got["warnings"]]), (200, [str(root)]))
+
+    def test_no_provider_is_involved_in_the_warning(self):
+        root = self.tree()
+        with mock.patch("socket.socket.connect", side_effect=AssertionError("no network")):
+            self.assertEqual(self.service.add(st.open_store(self.db, onedrive_roots=[]), "ABC", str(root))[0], 200)

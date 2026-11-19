@@ -12,7 +12,7 @@ import threading
 import unicodedata
 from pathlib import Path
 
-from clark import platform, reach
+from clark import platform, reach, sensitive_names
 from clark.store import Invalid, open_store
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -96,6 +96,15 @@ class AskFolders:
     def store(self):
         return open_store(self.db_path, onedrive_roots=self.onedrive_roots)
 
+    def warned(self, folders):
+        """Row 1365 S2: [{folder, items: [{name, readable_files}]}] for each folder whose names hold a people or contract word (S1 scan, names only)."""
+        out = []
+        for f in folders:
+            items = [{"name": h["name"], "readable_files": h["readable_files"]} for h in sensitive_names.scan(f)]
+            if items:
+                out.append({"folder": f, "items": items})
+        return out
+
     def listed(self, store, code):
         rows = store.read("source_folders", code)
         return [r["path"] for r in sorted(rows, key=lambda r: (r.get("sort_order") or 0, r["path"]))]
@@ -112,7 +121,8 @@ class AskFolders:
             try:
                 if store.read("projects", ref=code) is None:
                     return 404, self.fail("project_not_found")
-                return 200, {"ok": True, "folders": self.listed(store, code), "shared": shared_folders(self.data_dir)}
+                return 200, {"ok": True, "folders": self.listed(store, code), "shared": shared_folders(self.data_dir),
+                                  "warnings": self.warned(self.listed(store, code))}
             finally:
                 store.close()
 
@@ -268,7 +278,8 @@ class AskFolders:
         step = self.save(store, lambda st: st.create("source_folders", {"project": code, "path": real, "sort_order": order}))
         if step is False:
             return 409, self.fail("cant_save")
-        return 200, {"ok": True, "folders": self.listed(store, code), "message": MESSAGES["added"], "apply_id": step}
+        return 200, {"ok": True, "folders": self.listed(store, code), "message": MESSAGES["added"], "apply_id": step,
+                     "warnings": self.warned([real])}
 
     def choose(self, store, code):
         """The system's folder window, then the same checks and the same one step as an added folder. Cancelled: nothing changes."""
