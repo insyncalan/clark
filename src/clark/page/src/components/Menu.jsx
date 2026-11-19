@@ -28,6 +28,9 @@ function fitHeight(el, room) {
   el.style.boxSizing = "border-box"; el.style.maxHeight = `${Math.max(room, 96)}px`; el.style.overflowY = "auto";
 }
 
+// Row 1286 (M5c): the bottom edge of the sticky page header (read from the DOM, 0 when there is none): a menu never sits above this line.
+const headerBottom = () => { const t = document.querySelector(".top"); return t ? Math.max(0, Math.round(t.getBoundingClientRect().bottom)) : 0; };
+
 // The role="menu" box: focus to its first item (or, with `focusChecked`, the marked one) when it opens, the keys, and a click away.
 export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focusChecked, leaving, onGone, fade, children }) {
   const own = useRef(null), box = boxRef || own;
@@ -38,11 +41,12 @@ export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focu
   useLayoutEffect(() => {
     if (!fixed || !anchor || !box.current) return;
     const el = box.current, a = anchor.getBoundingClientRect(), w = el.offsetWidth;
-    fitHeight(el, window.innerHeight - 16);
+    const lo = Math.max(8, headerBottom() + 8);        // the menu stays under the sticky header
+    fitHeight(el, window.innerHeight - lo - 8);
     const h = el.offsetHeight;
     el.style.position = "fixed"; el.style.right = "auto";
     const below = Math.round(a.bottom + 4), above = Math.round(a.top - 4 - h);
-    el.style.top = `${below + h > window.innerHeight && above >= 0 ? above : below}px`;
+    el.style.top = `${Math.max(lo, below + h > window.innerHeight && above >= lo ? above : below)}px`;
     const edge = fixed === "start" ? a.left : a.right - w;       // "start": the menu's left edge on the button's (a button near the page's left edge), else its right edge on the button's
     el.style.left = `${Math.round(Math.max(8, Math.min(edge, window.innerWidth - w - 8)))}px`;
     const shut = () => closeRef.current("away");
@@ -55,8 +59,9 @@ export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focu
   useLayoutEffect(() => {
     if (fixed || !box.current) return;
     const el = box.current, r = el.getBoundingClientRect();
-    if (r.bottom <= window.innerHeight - 8) return;
-    const a = anchor ? anchor.getBoundingClientRect() : null, below = window.innerHeight - 8 - r.top, above = a ? a.top - 4 - 8 : 0;
+    const lo = headerBottom() + 8;
+    if (r.bottom <= window.innerHeight - 8 && r.top >= lo) return;
+    const a = anchor ? anchor.getBoundingClientRect() : null, below = window.innerHeight - 8 - r.top, above = a ? a.top - 4 - lo : 0;
     if (above > below) { el.style.top = "auto"; el.style.bottom = "calc(100% + 4px)"; fitHeight(el, above); } else fitHeight(el, below);
   }, []);                                        // eslint-disable-line react-hooks/exhaustive-deps
   // Row 800: opened with the mouse (the button does not show a focus ring), the first item takes the focus without a ring until a key is used.
