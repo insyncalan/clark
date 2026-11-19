@@ -30,7 +30,7 @@ TITLE = {"milestones": "name", "actions": "description", "raid": "description", 
          "workstreams": "name"}
 OWNER = {"milestones": "owner", "actions": "owner", "raid": "owner", "decisions": "made_by"}
 DATES = ("baseline_date", "forecast_date", "actual_date", "due_date", "raised", "closed", "date", "needed_by", "revisit",
-         "week_ending")
+         "week_ending", "created")
 SHOWN = {
     "milestones": ("status", "owner", "baseline_date", "forecast_date", "actual_date", "percent_complete", "state_word",
                    "state_reason", "description", "client_message", "workstream"),
@@ -40,7 +40,7 @@ SHOWN = {
              "workstream", "milestone", "use_case"),
     "decisions": ("status", "made_by", "date", "needed_by", "revisit", "replaces", "client_message", "use_case"),
     "use_cases": ("ref", "status", "commitment", "headline", "standing"),
-    "workstreams": ("status",),          # the lead, keywords and aliases are never read for a report (store.NEVER_PUBLISH)
+    "workstreams": ("status", "created"),          # the lead, keywords and aliases are never read for a report (store.NEVER_PUBLISH)
 }
 WORDS = re.compile(r"[^\W_]{3,}", re.UNICODE)
 ID_PATTERN = re.compile(r"\b[A-Z][A-Z0-9]{2,6}-[A-Z]?-?\d{1,4}\b")

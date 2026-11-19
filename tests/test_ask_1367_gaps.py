@@ -28,11 +28,11 @@ class Workstreams(unittest.TestCase):
         self.assertEqual(ask_data.KIND_WORDS["workstreams"], "workstreams")
         self.assertEqual(ask_data.LABELS["workstreams"], "report: workstreams")
         self.assertEqual(ask_data.TITLE["workstreams"], "name")
-        self.assertEqual(ask_data.SHOWN["workstreams"], ("status",))
+        self.assertEqual(ask_data.SHOWN["workstreams"], ("status", "created"))
 
     def test_a_workstream_is_read_with_its_id_name_and_status(self):
         line = [x for x in text_of(read("workstreams?")[0]).split("\n") if "PUB-W-001" in x][0]
-        self.assertEqual(line, "PUB-W-001 Delivery | status: Active")
+        self.assertEqual(line, "PUB-W-001 Delivery | status: Active | created: 01-09-2026")
 
     def test_a_workstream_is_read_whatever_the_report_shows(self):
         def hide_all(given):
