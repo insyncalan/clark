@@ -203,5 +203,43 @@ class Words(unittest.TestCase):  # test 6
             self.assertRegex(w, r"^[a-z]+( [a-z]+)?$")
 
 
+class MutationSurvivors(unittest.TestCase):
+    """Mutation sweep (non-UI): each test below kills a mutant that the first tests let live."""
+
+    def setUp(self):
+        self._t = tempfile.TemporaryDirectory()
+        self.root = self._t.name
+        self.addCleanup(self._t.cleanup)
+
+    def test_every_readable_type_is_counted(self):
+        for ending in (".txt", ".md", ".markdown", ".csv", ".tsv", ".rst", ".docx", ".pdf"):
+            with self.subTest(ending=ending):
+                d = Path(self.root, "Contract " + ending.strip("."))
+                d.mkdir()
+                (d / ("a" + ending)).write_text("x", encoding="utf-8")
+                rows = [r for r in sn.scan(self.root) if r["name"] == d.name]
+                self.assertEqual(rows[0]["readable_files"], 1, ending)
+        d = Path(self.root, "Contract other")
+        d.mkdir()
+        (d / "a.jpg").write_text("x", encoding="utf-8")
+        self.assertEqual([r for r in sn.scan(self.root) if r["name"] == d.name][0]["readable_files"], 0)
+
+    def test_the_limits_are_pinned(self):
+        self.assertEqual((sn.MAX_ENTRIES, sn.MAX_DEPTH), (100000, 64))
+
+    def test_a_link_named_with_a_word_is_never_listed(self):
+        target = Path(self.root, "plain.txt")
+        target.write_text("x", encoding="utf-8")
+        try:
+            os.symlink(target, Path(self.root, "contract link.txt"))
+        except (OSError, NotImplementedError):
+            self.skipTest("no links here")
+        self.assertEqual(sn.scan(self.root), [])
+
+    def test_rows_come_in_name_order_capitals_first(self):
+        tree(self.root, ["salary/a.txt", "Payroll/a.txt", "Contract/a.txt", "cv/a.txt"])
+        self.assertEqual([r["name"] for r in sn.scan(self.root)], ["Contract", "Payroll", "cv", "salary"])
+
+
 if __name__ == "__main__":
     unittest.main()
