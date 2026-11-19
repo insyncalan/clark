@@ -11,6 +11,7 @@ import os
 import re
 import unittest
 
+from _paths import ROOT
 from test_appearance import scheme
 from test_publish_dialog import Base
 from test_server import chrome, wait
@@ -23,16 +24,26 @@ CARDS = [("Essentials", "essentials-h"), ("Profile", "profile-h"), ("Publishing"
 
 
 # Row 1024: Settings shows one page at a time. The pages by group, as the menu names them, with the cards (name, heading id) each draws.
-GROUPS = [("Everyday", [("projects", "Projects", [("Projects", "projects-h")]), ("people", "People", [("People", "people-h")]),
+OLD_GROUPS = [("Everyday", [("projects", "Projects", [("Projects", "projects-h")]), ("people", "People", [("People", "people-h")]),
                         ("profile", "Profile", [("Essentials", "essentials-h"), ("Profile", "profile-h")])]),
           ("Publishing", [("folder", "Folder", [("Publishing", "client-folder-h")]), ("brand", "Brand", [("Brands", "brands-h")]), ("theme", "Theme", [("Theme", "theme-settings-h")])]),
           ("Look and feel", [("appearance", "Appearance", [("Personal", "personal-h")]), ("reports", "Reports", [("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h")])]),
           ("Data and safety", [("backups", "Backups", [("Backups", "safety-h")]), ("data", "Export and import", [("Data", "data-card-h")])]),
           ("Advanced", [("claude", "Claude and AI", [("Asking", "ask-settings-h")]), ("logs", "Logs and diagnostics", [("Logs and diagnostics", "diagnostics-h")]),
                         ("version", "Version and updates", [("Version and updates", "update-h"), ("Feedback", "feedback-h"), ("Quit", "quit-h")])])]
+NEW_GROUPS = [("You", [("profile", "Profile", [("Essentials", "essentials-h"), ("Profile", "profile-h")]), ("appearance", "Appearance", [("Personal", "personal-h")]),
+                       ("theme", "Theme", [("Theme", "theme-settings-h")])]),      # row 1299 1a: the mock-up's four groups, in its order
+              ("All projects", [("projects", "Projects", [("Projects", "projects-h")]), ("backups", "Backups", [("Backups", "safety-h")])]),
+              ("Project settings", [("reports", "Reports", [("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h")]), ("folder", "Folder", [("Publishing", "client-folder-h")]),
+                                    ("brand", "Brand", [("Brands", "brands-h")]), ("people", "People", [("People", "people-h")]), ("claude", "ask clark", [("Asking", "ask-settings-h")]),
+                                    ("data", "Export and import", [("Data", "data-card-h")])]),
+              ("Help and about", [("version", "Version and updates", [("Version and updates", "update-h"), ("Feedback", "feedback-h"), ("Quit", "quit-h")]),
+                                  ("logs", "Logs and diagnostics", [("Logs and diagnostics", "diagnostics-h")])])]
+VIEWS = ROOT / "src" / "clark" / "page" / "src" / "components" / "Views.jsx"
+GROUPS = NEW_GROUPS if '["You", [[' in VIEWS.read_text(encoding="utf-8") else OLD_GROUPS      # the menu is in four groups when Views.jsx has them
 PAGES = [page for _, pages in GROUPS for page in pages]      # (slug, menu name, cards)
 PAGE_OF = {head: slug for slug, _, cards in PAGES for _, head in cards}      # which page a card's heading is on
-FIRST = PAGES[0][0]
+FIRST = "projects"      # the plain address is the Projects page (router.SETTINGS_PAGES[0]); the old slugs all work
 
 
 def address(slug, project="PUB"):
@@ -175,7 +186,7 @@ class Head(Base):
                     self.assertEqual(p.js("document.querySelector('.set-head p').textContent"), HELP)
                     self.assertEqual(self.chips(p), [name for _, name, _ in PAGES])
                     self.assertEqual(p.js("[...document.querySelectorAll('.set-group-name')].map(e => e.textContent)"), [g for g, _ in GROUPS])
-                    self.assertEqual(p.js("document.querySelector('.set-chip[aria-current]').textContent"), PAGES[0][1], "the first page is the marked one")
+                    self.assertEqual(p.js("document.querySelector('.set-chip[aria-current]').textContent"), next(n for sl, n, _ in PAGES if sl == FIRST), "the plain address marks Projects, the page the router starts on")
                     for slug, name, cards in PAGES:
                         self.go_page(p, slug)
                         self.assertEqual(p.js("[...document.querySelectorAll('.set-chip[aria-current]')].map(b => b.textContent)"), [name], "one marked item")
