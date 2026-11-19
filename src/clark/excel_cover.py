@@ -16,7 +16,7 @@ Nothing else of a project reaches the Cover; every line is built from the fields
 
 The sentences are constants so that changing one is one edit: CAUTION, RETURN_WITH, RETURN_ANYONE, WHERE_TO_EDIT, IDS, LOCKED_CELLS.
 """
-from clark import sanitise
+from clark import excel_text_section, sanitise
 from clark import timefmt
 
 CAUTION = "This workbook shows the project as it was on the date above. It does not include changes made in clark since."
@@ -182,8 +182,8 @@ def lines(project, sections, tiles, exported, by=None, owner=None, email=None, i
                 right = {"title": cut(nxt.get("title"), 200), "text": plain(nxt.get("body"))}
                 out.append(_line("pair", "", left=left, right=right))
                 skip = i + 1
-            elif body.strip():
-                out += [_line("heading", cut(sec.get("title") or "", 200))] + _text(body)
+            else:
+                out += [_line(x["kind"], x["text"]) for x in excel_text_section.text_lines(sec, lambda _body: body)]
     stamp = str(exported).strip()
     out += [_line("about", ABOUT),
             _line("exported", cut(f"{stamp} by {str(by).strip()}" if by and str(by).strip() else stamp, 400)),
