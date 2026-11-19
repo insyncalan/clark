@@ -21,7 +21,16 @@ export const TAG_LABELS = {
   mail: LABELS.mail,
   copy: LABELS.copy,
   close: "Close",
+  proposed: "Proposed",
+  iconTag: "\u2709",
 };
+/** The error under the message box when Copy or Open in your mail app is pressed with nothing written (the 1298 mock-up's words). */
+export const EMPTY_SEND = "Please write a line first.";
+/** True when a send (copy or mail) has nothing to send: the message is empty or only spaces. */
+export function emptySend(form) { return !text(form && form.message).trim(); }
+/** The tag is a small envelope icon, not the word, when the window is this narrow or less (px). */
+export const ICON_TAG_MAX = 600;
+export const iconTag = (width) => Number(width) > 0 && Number(width) <= ICON_TAG_MAX;
 // Settings pages' names (Views.jsx GROUPS); "" is the first page, Projects.
 const SETTINGS_NAMES = { "": "Projects", projects: "Projects", people: "People", profile: "Profile", folder: "Folder", brand: "Brand", theme: "Theme", appearance: "Appearance", reports: "Reports", backups: "Backups", data: "Export and import", claude: "Claude and AI", logs: "Logs and diagnostics", version: "Version and updates" };
 
