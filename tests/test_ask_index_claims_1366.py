@@ -350,6 +350,16 @@ class HelpWordsAreTheAppsWords(unittest.TestCase):
         t = paragraph("The index of your source folders.")
         self.assertIn("Once the index is up to date, a question is answered from the index and no file is opened while you ask.", t)
 
+    def test_the_help_says_when_the_index_is_brought_up_to_date_and_the_code_does_it_there(self):
+        t = paragraph("The index of your source folders.")
+        self.assertIn("The index is brought up to date when you open Settings or ask a question.", t)
+        from _paths import ROOT
+        src = ROOT / "src" / "clark"
+        # opening Settings: the folders read asks the indexer for its status, which starts a run when the files changed
+        self.assertIn("self.indexer.status_for(", (src / "ask_folders.py").read_text(encoding="utf-8"))
+        # asking a question: the service asks the indexer if it is current, which starts a run when it is not
+        self.assertIn("self.indexer.current(", (src / "ask_service.py").read_text(encoding="utf-8"))
+
     def test_exemption_the_two_claims_once_cut_are_back_with_their_pins(self):
         """Named exemption of the earlier guard test_the_claims_that_are_not_true_are_not_in_the_help: it listed 'no file is opened while you ask'
         and 'builds it again' as cut. Both are true now (rebuild when missing; qualified by the index being up to date) and are pinned by
