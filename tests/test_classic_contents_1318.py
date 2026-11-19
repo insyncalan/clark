@@ -45,6 +45,12 @@ class Classic(Base):
                        "!!document.querySelector('.toc'), !!document.querySelector('.toc-lines'), n.getAttribute('aria-label')];})()")
             self.assertEqual(got, [168, "grid", "sticky", "Contents", "uppercase", "13px", 28, True, False, False, "Contents"])
 
+    def test_gap_at_1400_the_heading_spacing_is_1_04px_and_the_current_entry_is_the_text_colour(self):
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            got = p.js("[getComputedStyle(document.querySelector('.cnt-h')).letterSpacing, getComputedStyle(document.querySelector('.cnt li a.on')).color]")
+            self.assertEqual(got, ["1.04px", "rgb(29, 36, 51)"])
+
     def test_the_entries_are_the_visible_sections_in_page_order_with_their_own_titles(self):
         with chrome() as cdp:
             p = self.at(cdp, 1400)
