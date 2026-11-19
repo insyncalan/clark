@@ -40,6 +40,11 @@ const say = (text) => { said.value = { text, n: said.value.n + 1 }; };
 
 // Where the peek takes an arrow (#289): only Up and Down, only plain, only on one of its own buttons. A box, the width edge, a tab,
 // a menu, a dialog, the words box, the activity list and the palette keep their arrows; so does the page's own scrolling, which is why a key aimed at nothing is left too.
+// Row 1285: a decision's date chip names its date under the value, as the approved mock-up does ("needed by" while Pending, "made on" once Made, "was needed by" once Withdrawn); an overdue date keeps its own red "overdue N days".
+const decisionDateWord = (row) => (row.kind !== "decision" ? "" : row.status === "Made" ? "made on" : row.status === "Withdrawn" ? "was needed by" : "needed by");
+// Row 1285: whether the last thing the person did was a key press (a keyboard open keeps the ring on Close; a mouse open does not draw one).
+let keyedLast = false;
+if (typeof document !== "undefined") { document.addEventListener("keydown", () => { keyedLast = true; }, true); document.addEventListener("pointerdown", () => { keyedLast = false; }, true); }
 const OWN = "[role=textbox],[role=combobox],[role=listbox],[role=menu],[role=dialog],[role=alertdialog],[role=tab],[role=separator],[role=toolbar]:not(.pk-tb),dialog,.wordsbox,.pk-activity";
 function peekOwnsArrow(e) {
   if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return false;
@@ -87,9 +92,9 @@ function ItemChips({ row, tools, editing }) {
       <PeekChip Live={Live} id={row.id} field="status" name="Status" icon="half" tone={openRI ? "b" : statusTone(row, today)} value={openRI ? "Open" : pill.text} sub={kept ? `${kept} kept` : ""} subTone={kept ? "kept" : ""} flash={hit("status")} pop={pop("status")} />
       <PeekChip Live={Live} id={row.id} field="priority" name={(row.kind === "risk" || row.kind === "issue") ? "Rating" : "Priority"} icon="bars" tone={rated ? colourOf(prio).class : priorityTone(prio)} value={rated ? colourOf(prio).word : text(prio)} sub={rated ? text(prio) : ""} subTone={rated ? `lvl ${colourOf(prio).class}` : ""}
         flash={hit("priority")} tip={fixed ? "Set from impact and likelihood" : row.kind === "risk" || row.kind === "issue" ? "Priority from impact and likelihood" : undefined} pop={pop("priority")} />
-      <PeekChip Live={Live} id={row.id} field="owner" name={row.kind === "decision" ? "Decider" : "Owner"} icon="user" tone="b" value={who.text} flash={hit("owner")} pop={pop("owner")} />
+      <PeekChip Live={Live} id={row.id} field="owner" name={row.kind === "decision" ? "Decider" : "Owner"} icon="user" tone="b" value={who.text} sub={row.kind === "decision" ? "made by" : ""} flash={hit("owner")} pop={pop("owner")} />
       <PeekChip Live={Live} id={row.id} field="due" name={row.kind !== "decision" ? "Due date" : row.status === "Pending" ? "Needed-by date" : "Decision date"} icon="cal" tone={dateTone(row, today)} value={due.date}
-        sub={overdue} subTone={late ? "late" : ""} late={late} flash={hit("due")} pop={pop("due")} />
+        sub={overdue || decisionDateWord(row)} subTone={late ? "late" : ""} late={late} flash={hit("due")} pop={pop("due")} />
     </PeekChips>
   );
 }
@@ -234,7 +239,15 @@ export function Peek({ tools }) {
     opened.current = p.id;
     said.value = { text: "", n: 0 };
     const close = box.current && box.current.querySelector("[data-pk-close]");
-    if (close) close.focus();
+    if (close) {
+      close.focus();
+      // Row 1285: Close takes the focus when a peek opens; with no key pressed (a click, a script) it shows no focus ring until a key is pressed or the focus moves on.
+      if (!keyedLast) {
+        close.setAttribute("data-quiet", "");
+        const off = () => { close.removeAttribute("data-quiet"); close.removeEventListener("blur", off); document.removeEventListener("keydown", off, true); };
+        close.addEventListener("blur", off); document.addEventListener("keydown", off, true);
+      }
+    }
     return () => {
       wordsOpen.value = false;
       unsaved.value = false;
