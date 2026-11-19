@@ -1865,6 +1865,13 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 .ask-folders li { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-top: var(--space-1); }
 .ask-folder-line { flex: 0 0 100%; margin-top: 2px; font-size: var(--size-caption); font-weight: 400; color: var(--text-muted); }   /* #1366: the status line under a saved folder; empty until the server has something to say */
 .ask-folder-line:empty { position: absolute; width: 0; height: 0; margin: 0; overflow: hidden; }   /* stays in the page for screen readers, takes no room */
+.ask-left-out { flex: 0 0 100%; }   /* #1366 row 6 (Classic): the files left out of a folder */
+.ask-left-btn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 24px; color: var(--brand-blue); font-size: 14px; cursor: pointer; }
+.ask-left-btn:hover { text-decoration: underline; text-underline-offset: 2px; }
+.ask-left-btn:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: 3px; }
+.ask-left-list { list-style: none; margin: 2px 0 0; padding: 0; font-size: var(--size-caption); color: var(--text-muted); }
+.ask-folders .ask-left-list li { display: block; margin: 0 0 2px; overflow-wrap: anywhere; }
+.ask-left-name { color: var(--text); }
 #ask-folder-path { flex: 1 1 260px; min-height: 32px; padding: var(--space-1) var(--space-2); border: 1px solid var(--border); border-radius: var(--radius); font-size: var(--size-small); }
 /* The Add a section box (#96): a modal over the page, desktop and 900 px. Tokens only; no text under 13 px. */
 .ad-scrim { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: calc(var(--topbar) + var(--space-6)) var(--space-4) var(--space-6); background: color-mix(in srgb, var(--black) 45%, transparent); overflow: auto; overscroll-behavior-y: contain; }   /* row 758: a box starts below the top bar, never over it */

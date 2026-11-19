@@ -9,6 +9,7 @@ import { named, ASK_NOTICE_LINE } from "./askWords.js";
 import { ConnectorsAll, ConnectorsProject } from "./ConnectorSettings.jsx";
 import { AiSettings } from "./AiSettings.jsx";
 import { AllInstructions, OwnInstructions } from "./AskInstructions.jsx";
+import { classicTheme } from "../components/Contents.jsx";
 import { announceSwitch, leaveSwitch } from "./switchToast.js";
 import { askFoldersRead, askFoldersChange, askFoldersChoose, askFoldersAllRead, askFoldersAllChange, askFoldersAllChoose, words } from "./publishApi.js";
 
@@ -46,8 +47,25 @@ function useIndexLines(read, deps) {
   }, [tick, ...deps]);
   return { index, again: () => { grace.current = 3; setTick((n) => n + 1); } };
 }
-function FolderLine({ line }) {
-  return <div class="ask-folder-line" role="status" aria-live="polite">{line ? line.line : ""}</div>;
+// The files left out of a folder (#1366 row 6, Classic only): a text button opens a plain list, name then reason; collapsed by default; the server cuts it at 200 and says how many more.
+function LeftOut({ line, id }) {
+  const [open, setOpen] = useState(false);
+  const left = line && line.left && Array.isArray(line.left.files) ? line.left : null;
+  if (!left || !left.files.length || !classicTheme()) return null;
+  return (
+    <div class="ask-left-out">
+      <button type="button" class="ask-left-btn" aria-expanded={open ? "true" : "false"} aria-controls={id} onClick={() => setOpen(!open)}>Show the files left out</button>
+      {open ? (
+        <ul class="ask-left-list" id={id}>
+          {left.files.map((f, i) => <li key={i}><span class="ask-left-name">{f[0]}</span> <span class="ask-left-why">{f[1]}</span></li>)}
+          {left.more > 0 ? <li class="ask-left-more">{`and ${left.more} more`}</li> : null}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+function FolderLine({ line, id }) {
+  return <><div class="ask-folder-line" role="status" aria-live="polite">{line ? line.line : ""}</div><LeftOut line={line} id={id} /></>;
 }
 
 // The asking switch's behaviour, shared by this card and the Essentials card (row 1115): `flip` turns asking on or off and says so in the toast
@@ -174,15 +192,15 @@ function AskProject() {
       {folders !== "unavailable" && folders !== null && !list.length ? <p class="muted" id="ask-folders-none">No folders are set. Asking uses only this project's data.</p> : null}
       {shared.length && Array.isArray(folders) ? (
         <ul class="ask-folders" id="ask-folders-shared">
-          {shared.map((p) => (
-            <li key={p}><span class="folder-now">{p}</span> <span class="muted">All projects</span> <button type="button" class="btn sm quiet" data-ask-change-shared onClick={() => showAskTab(ALL)}>Change</button><FolderLine line={index[p]} /></li>
+          {shared.map((p, i) => (
+            <li key={p}><span class="folder-now">{p}</span> <span class="muted">All projects</span> <button type="button" class="btn sm quiet" data-ask-change-shared onClick={() => showAskTab(ALL)}>Change</button><FolderLine line={index[p]} id={"ask-left-s" + i} /></li>
           ))}
         </ul>
       ) : null}
       {list.length ? (
         <ul class="ask-folders" id="ask-folders">
-          {list.map((p) => (
-            <li key={p}><span class="folder-now">{p}</span> <button type="button" class="btn sm quiet" data-ask-remove={p} disabled={busy} onClick={() => change("remove", p)}>Remove</button><FolderLine line={index[p]} /></li>
+          {list.map((p, i) => (
+            <li key={p}><span class="folder-now">{p}</span> <button type="button" class="btn sm quiet" data-ask-remove={p} disabled={busy} onClick={() => change("remove", p)}>Remove</button><FolderLine line={index[p]} id={"ask-left-o" + i} /></li>
           ))}
         </ul>
       ) : null}
@@ -290,8 +308,8 @@ function AllFolders() {
       {folders !== "unavailable" && folders !== null && !list.length ? <p class="muted" id="ask-all-folders-none">{ALL_FOLDERS_NONE}</p> : null}
       {list.length ? (
         <ul class="ask-folders" id="ask-all-folder-list">
-          {list.map((p) => (
-            <li key={p}><span class="folder-now">{p}</span> <button type="button" class="btn sm quiet" data-ask-all-remove={p} disabled={busy} onClick={() => change("remove", p)}>Remove</button><FolderLine line={index[p]} /></li>
+          {list.map((p, i) => (
+            <li key={p}><span class="folder-now">{p}</span> <button type="button" class="btn sm quiet" data-ask-all-remove={p} disabled={busy} onClick={() => change("remove", p)}>Remove</button><FolderLine line={index[p]} id={"ask-left-a" + i} /></li>
           ))}
         </ul>
       ) : null}

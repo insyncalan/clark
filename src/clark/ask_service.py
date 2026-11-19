@@ -202,6 +202,10 @@ class AskService:
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
                              left_out_note(data.left_out + found.left_out), kinds_note(data.kinds_left_out), *folder_notes(found)) if n]
+        if folders and self.indexer is not None:        # row 7 of #1366: only while the index is still being read, never once it is complete
+            note = ask_index.answer_note({"not_yet": self.indexer.not_yet(code)})
+            if note:
+                notes.append(note)
         conn = connector_used(getattr(self.provider, "last_line", None))      # row 1306: what the real run did (None: no connector in the run)
         if conn and conn["line"]:
             notes.append(conn["line"])

@@ -402,6 +402,20 @@ def line_for(counts, reading=None):
     return " ".join(out)
 
 
+def _left_by_folder(data_dir, code, folders, limit=MAX_LEFT_OUT_SHOWN):
+    """{folder: {"files": [[name inside the folder, plain reason]] (at most `limit`), "more": n}} for the folders with a file left out.
+    A left-out label is "<folder name>/<name>", so it goes to the folder with that name."""
+    whole = files_left_out(data_dir, code, 10 ** 9)["files"]
+    out = {}
+    for f in folders or ():
+        f = str(f)
+        prefix = os.path.basename(f.rstrip("/\\")) + "/"
+        mine = [[label[len(prefix):], reason] for label, reason in whole if label.startswith(prefix)]
+        if mine:
+            out[f] = {"files": mine[:limit], "more": max(len(mine) - limit, 0)}
+    return out
+
+
 def folder_status(data_dir, code, folders, live=None):
     """{folder: {"state": "reading" | "done", "line": text}} for the folders that have something to say. `live` is the worker's
     {folder: (done, total)} for the run in progress; a folder with no index yet and no run says nothing."""
@@ -415,6 +429,7 @@ def folder_status(data_dir, code, folders, live=None):
             saved = {}
         finally:
             db.close()
+    left = _left_by_folder(data_dir, code, folders) if saved else {}
     out = {}
     for f in folders or ():
         f = str(f)
@@ -422,6 +437,8 @@ def folder_status(data_dir, code, folders, live=None):
             out[f] = {"state": "reading", "line": line_for(None, live[f])}
         elif f in saved:
             out[f] = {"state": "done", "line": line_for(saved[f])}
+            if left.get(f):
+                out[f]["left"] = left[f]
     return out
 
 
@@ -515,6 +532,11 @@ class Indexer:
         with self.wake:
             live = dict(self.live[code]) if code in self.live else None
         return folder_status(self.data_dir, code, folders, live)
+
+    def not_yet(self, code):
+        """How many files of the run in progress for `code` are not read yet (0 when no run is going)."""
+        with self.wake:
+            return sum(max(t - d, 0) for d, t in self.live.get(code, {}).values())
 
     def current(self, code, folders):
         with self.wake:
