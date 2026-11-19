@@ -343,6 +343,13 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .ddmenu .lab.caps, .mh.caps { font-size: var(--size-body); letter-spacing: normal; text-transform: none; font-weight: var(--weight-regular); }
 .gt-pop button, .gt-menu button, [data-gt] .gt-menu button { padding-left: var(--space-3); padding-right: var(--space-3); font-size: var(--size-body); }
 .ddmenu .lab, .ddmenu .who, .ddmenu .mh, .mh { padding-left: 16px; padding-right: 16px; }
+/* Row 1299 slice 1b (W4, Classic only: Cards keeps the Settings page it had): the Settings window. The page's menu and cards sit in one rounded window on its own ground (no overflow clipping: the sidebar is sticky and a focus ring reaches outside its entry); each menu entry starts with an icon tile in its group's colour, the glyph in the on-brand ink (3:1 in light and dark, test_settings_window_1299b). */
+.set-win { background: var(--surface); box-shadow: 0 0 0 1px var(--border); border-radius: var(--radius-lg); padding: var(--space-4) var(--space-4) var(--space-5); }
+.set-tile { flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; margin-right: var(--space-2); border-radius: 6px; background: var(--brand-blue); color: var(--text-on-brand); }
+.set-tile .i { width: 16px; height: 16px; }
+.set-tile-2 { background: var(--status-green); } .set-tile-3 { background: var(--status-red); } .set-tile-4 { background: var(--brand-blue-strong); }
+.set-win > .set-head { border: 0; box-shadow: none; background: transparent; padding: 0 0 var(--space-2); }      /* the window is the frame: the heading is not a second box in it */
+@media (min-width: 900px) and (max-width: 1099px) { .set-layout.set-win { grid-template-columns: 164px minmax(0, 1fr); } }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }

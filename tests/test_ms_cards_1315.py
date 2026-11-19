@@ -15,7 +15,7 @@ from test_milestones_page import BrowserBase, EMPTY_BRANDING
 from test_server import Running, chrome, wait
 
 HASH = "#milestones&p=TUL"
-CARDS_STYLE_MD5 = {"blocks": ["49c101bde49ff6b80e6f073d92a37867"]}
+CARDS_STYLE_MD5 = {"blocks": ["7195b3107c3b5022f3b40ad1dfbbe484"]}
 CARDS_DOM_MD5 = {
     1400: {"plan": "884d48fa51c42a792db825a88e2d5390", "open": "f880cee0281bb5a0f2ed6cbcb7c44e39", "calendar": "489268a179f71d1b61c6a35aa6444408", "move": "4e910e9f8f41236bc3810c2ae74045f3"},
     900: {"plan": "884d48fa51c42a792db825a88e2d5390", "open": "a47b575a7ad86e2e18674c92043a9ff6", "calendar": "489268a179f71d1b61c6a35aa6444408", "move": "4e910e9f8f41236bc3810c2ae74045f3"},

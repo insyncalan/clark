@@ -7,6 +7,7 @@ import { milestoneRows, headLine, emptyHead, showDate, todayIso } from "../logic
 
 import { MsBlock } from "./MsBlock.jsx";
 import { Icon } from "./Icon.jsx";
+import { classicTheme } from "./Contents.jsx";
 
 // The placeholder shown while a project's data is on its way: grey blocks in the shape of the screen, always still (no shimmer), and only if the wait is longer than SKELETON_AFTER_MS, so data that arrives at once never flashes one. A published
 // file has its data inside it and no wait, so it never draws one. The words are for a screen reader; the blocks are hidden from it.
@@ -190,7 +191,7 @@ function SettingsHead({ groups, page, searching, setSearching }) {
               <span class="set-group-name">{group}</span>
               {group === "Advanced" ? <span class="set-group-line muted">{ADVANCED_LINE}</span> : null}
               <ul class="plain">{pages.map(([slug, name]) => (
-                <li key={slug}><button type="button" class="set-chip" aria-current={page[0] === slug ? "page" : undefined} onClick={() => go(slug)}><span class={`set-tile set-tile-${GROUPS.findIndex(([g]) => g === group) + 1}`} aria-hidden="true"><Icon name={SET_ICON[slug] || "circleminus"} /></span>{name}</button></li>
+                <li key={slug}><button type="button" class="set-chip" aria-current={page[0] === slug ? "page" : undefined} onClick={() => go(slug)}>{classicTheme() ? <span class={`set-tile set-tile-${GROUPS.findIndex(([g]) => g === group) + 1}`} aria-hidden="true"><Icon name={SET_ICON[slug] || "circleminus"} /></span> : null}{name}</button></li>
               ))}</ul>
             </li>
           ))}</ul>
@@ -208,7 +209,7 @@ export function Settings({ tools }) {
   const page = all.find(([slug]) => slug === (settingsPage.value || "projects")) || all[0] || ["", "", []];
   const shown = searching ? all.flatMap(([, , list]) => list) : page[2];
   return (
-    <div class="set-layout set-win">
+    <div class={classicTheme() ? "set-layout set-win" : "set-layout"}>
       <SettingsHead groups={groups} page={page} searching={searching} setSearching={setSearching} />
       <div class="set-cards" data-page={searching ? undefined : page[0]}>
         {shown.map((tool) => { const Card = tools[tool]; return <Card key={tool} />; })}

@@ -1440,7 +1440,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .set-nav li { display: block; }
 .set-chip { all: unset; box-sizing: border-box; position: relative; display: flex; align-items: center; width: 100%; min-height: var(--space-6); padding: 0 var(--space-3); border: 0; border-radius: 10px; background: transparent; color: var(--text); font-size: var(--size-body); line-height: 20px; cursor: pointer; }      /* item 1200: soft rows (row 1280: one space-6 high); no background transition: a theme switch must not leave a light chip for 120 ms (test_v020 reads the ground at once) */
 /* From 900 to 1099 px the list is the narrowest the grid allows (150 px), so the cards are wider at 900 (about 670 px, not 596) and a control keeps more than 420 px beside its label; the four section styles wrap two and two. */
-@media (min-width: 900px) and (max-width: 1099px) { .set-layout { grid-template-columns: 164px minmax(0, 1fr); } .set-nav { gap: 0; } .set-bar { margin-top: var(--space-1); padding-top: var(--space-1); } }      /* item 1177 (row 1299 1b W4: 164 px, was 150: the icon tile, 32 px with its gap, left Appearance 2 px too wide): at 900 the header is 129 px (two rows), so the sixteen links sit edge to edge (each keeps its row height, and the first keeps room for its focus ring) and the last one, Quit, is still inside a 900 px high window at the top of the page */
+@media (min-width: 900px) and (max-width: 1099px) { .set-layout { grid-template-columns: 150px minmax(0, 1fr); } .set-nav { gap: 0; } .set-bar { margin-top: var(--space-1); padding-top: var(--space-1); } }      /* item 1177: at 900 the header is 129 px (two rows), so the sixteen links sit edge to edge (each keeps its row height, and the first keeps room for its focus ring) and the last one, Quit, is still inside a 900 px high window at the top of the page */
 @media (max-width: 899px) {
   .set-layout { display: block; }
   .set-bar { position: sticky; padding: var(--space-2) 0; margin-top: var(--space-3); max-height: none; overflow-y: visible; box-shadow: 0 0 0 100vmax var(--grey-50); clip-path: inset(0 -100vmax); }
@@ -1461,12 +1461,6 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .set-chip[aria-current], .set-chip[aria-current]:hover { background: var(--brand-blue-tint); color: var(--status-blue-text); font-weight: var(--weight-medium); }
 .set-chip[aria-current]::before { content: ""; position: absolute; left: 0; top: var(--space-1); bottom: var(--space-1); width: 3px; border-radius: 3px; background: var(--brand-blue); }      /* item 1200: the violet marker on the card you are reading */
 .set-chip:focus-visible, .setting h2[tabindex="-1"]:focus-visible, .personal h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
-/* Row 1299 slice 1b (W4): the Settings window. The page's menu and cards sit in one rounded window on its own ground (no overflow clipping: the sidebar is sticky and a focus ring reaches outside its entry); each menu entry starts with an icon tile in its group's colour, the glyph in the on-brand ink (3:1 in light and dark, test_settings_window_1299b). */
-.set-win { background: var(--surface); box-shadow: 0 0 0 1px var(--border); border-radius: var(--radius-lg); padding: var(--space-4) var(--space-4) var(--space-5); }
-.set-tile { flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; margin-right: var(--space-2); border-radius: 6px; background: var(--brand-blue); color: var(--text-on-brand); }
-.set-tile .i { width: 16px; height: 16px; }
-.set-tile-2 { background: var(--status-green); } .set-tile-3 { background: var(--status-red); } .set-tile-4 { background: var(--brand-blue-strong); }
-.set-win > .set-head { border: 0; box-shadow: none; background: transparent; padding: 0 0 var(--space-2); }      /* the window is the frame: the heading is not a second box in it */
 .setting, .personal { scroll-margin-top: calc(var(--topbar) + 16px); }
 /* The Settings cards (row 841): the prototype's card, compact: less padding, a smaller heading, a 14 px intro line and no shadow. Later than .frame and its 900 px rule, and more specific. */
 .set-cards .frame { padding: var(--d-set-card-y) var(--space-5); box-shadow: none; }
