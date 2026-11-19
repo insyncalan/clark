@@ -77,7 +77,10 @@ class ThemePrototype(unittest.TestCase):
         # one named exemption (row 1343 final table): the filter-line underline is the mock-up's rgb(137,148,176) and no token holds that value (--grey-500 is rgb(135,148,179))
         fline_underline = ".fline { border: 0; border-bottom: 1px solid #8994b0;"
         self.assertEqual(RULES.count(fline_underline), 1, "the exempt literal is on the one .fline rule")
-        self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b", RULES.replace(fline_underline, "").split("/* Row 1319, primary buttons")[0]), "colours come from tokens")
+        # and the typed-word box on that line (row 1343): background rgb(238,240,246) has no token; text rgb(29,36,51) is the mock-up pair, kept literal so the box reads the same in dark
+        ftxt = "border-radius: 6px; background: #eef0f6; color: #1d2433; box-shadow: none; }"
+        self.assertEqual(RULES.count(ftxt), 1, "the exempt literals are on the one .fk.k-txt rule")
+        self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b", RULES.replace(fline_underline, "").replace(ftxt, "").split("/* Row 1319, primary buttons")[0]), "colours come from tokens")
         self.assertIsNone(re.search(r"/\*[^*]*#\d", RULES + TOKENS), "no hash-digit in a comment")
 
     def test_body_and_muted_text_reach_4_5_to_1_in_light_and_dark(self):
