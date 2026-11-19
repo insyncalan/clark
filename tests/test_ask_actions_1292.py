@@ -124,10 +124,12 @@ class Panel(unittest.TestCase):
         self.assertIn('e.key === "ArrowUp"', PANEL)
         self.assertIn("!text &&", PANEL)
         self.assertIn("lastQuestion(turns.value)", PANEL)
+        self.assertIn("!e.isComposing && !e.altKey && !e.ctrlKey && !e.metaKey && !e.shiftKey)", PANEL)
 
     def test_the_result_of_a_copy_is_told_to_screen_readers(self):
         self.assertIn("setSaid(", PANEL)
-        self.assertIn("W.COPIED", PANEL)
+        self.assertIn("setSaid(ok ? W.COPIED : W.COPY_FAILED)", PANEL)
+        self.assertIn("if (!ok) setNote(W.COPY_FAILED)", PANEL)
 
 
 if __name__ == "__main__":

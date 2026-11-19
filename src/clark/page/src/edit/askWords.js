@@ -112,7 +112,7 @@ export const QUEUE_FULL = "5 messages are already waiting. Wait for one to be se
 export const QUEUE_DROP = (n) => `${waitingCount(n)} waiting and would be dropped. Press again to go on.`;
 export const QUEUE_SAY_ADDED = (n) => `Message queued. ${n} waiting`;
 export const QUEUE_SAY_REMOVED = (n) => `Message removed. ${n} waiting`;
-// Row 1292 (S7): under an answer. These words need approval.
+// Row 1292 (S7): under an answer. // NEEDS APPROVAL
 export const COPY = "Copy";
 export const COPIED = "Copied";
 export const COPY_FAILED = "Copy did not work. Select the text and copy it yourself.";
