@@ -79,6 +79,24 @@ class Box(unittest.TestCase):
                 self.assertEqual(bad["sh"], "none", "red is the border alone, no extra ring")
                 self.assertTrue(g["noScroll"])
 
+    def test_hover_keeps_the_box_and_the_x_is_shown(self):
+        for w, scheme in VARIANTS:
+            with self.subTest(width=w, scheme=scheme):
+                s = Running(data_for=self.demo.store.data_for, page_html=lambda: page.page_html(tempfile.mkdtemp(), theme=NAME))
+                self.addCleanup(s.close)
+                with chrome() as cdp:
+                    sid = open_page(cdp, f"http://127.0.0.1:{s.port}/#usecases&p=ABC", w, scheme)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#ucl-group') && !!document.querySelector('#usecases .fline')", sid), 45), "the page drew")
+                    rd = "(() => { const s = getComputedStyle(document.querySelector('#usecases .fline')); return {c: s.borderTopColor, sh: s.boxShadow, bg: s.backgroundColor}; })()"
+                    rest = cdp.js(rd, sid)
+                    r = cdp.js("(() => { const r = document.querySelector('#usecases .fline').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()", sid)
+                    cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": r[0], "y": r[1]}, sid)
+                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('#usecases .fline').matches(':hover')", sid), 10), "the pointer is over the box")
+                    hov = cdp.js(rd, sid)
+                    self.assertEqual(hov["c"], rest["c"], "hover keeps the neutral border")
+                    self.assertEqual(hov["sh"], "none", "no ring on hover")
+                    self.assertEqual(hov["bg"], rest["bg"])
+
     def test_cards_keeps_the_underline(self):
         for w, scheme in VARIANTS:
             with self.subTest(width=w, scheme=scheme):

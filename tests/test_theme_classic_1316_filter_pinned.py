@@ -1,5 +1,6 @@
 """Row 1316d: the rule lines of the Classic Use cases filter box, exact and in order, from '/* Row 1316d' to the next row comment. Source only, no browser.
 Run: python3 dev/run_tests.py test_theme_classic_1316_filter_pinned"""
+import re
 import unittest
 
 from _paths import SRC
@@ -38,6 +39,19 @@ class Pinned1316Filter(unittest.TestCase):
         names = [l.split()[2].rstrip(":") for l in RULES.split("\n") if l.startswith("/* Row ")]
         self.assertEqual(names[-1], "1314")
         self.assertEqual(names[-2], "1316d")
+
+    def test_no_other_rule_touches_the_usecases_filter(self):
+        lines = RULES.split("\n")
+        i = next(n for n, l in enumerate(lines) if l.startswith(START))
+        j = next(n for n in range(i + 1, len(lines)) if lines[n].startswith("/* Row "))
+        outside = [l for n, l in enumerate(lines) if not (i <= n < j) and not l.startswith("/*")]
+        pat = re.compile(r"#usecases \.fline(?!-)|\.fline\.on|(^|[ ,])\.fx\b")
+        allowed = {
+            "#usecases .fline { padding-left: 34px; }",
+            ".fline.bad, .fline.bad:focus-within { border-bottom-color: var(--status-red); box-shadow: 0 1px 0 var(--status-red); }",
+        }
+        hits = [l for l in outside if pat.search(l.split("{")[0]) and l not in allowed and not l.startswith("#usecases .fline::")]
+        self.assertEqual(hits, [])
 
 
 if __name__ == "__main__":
