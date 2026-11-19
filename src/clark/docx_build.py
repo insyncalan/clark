@@ -715,6 +715,8 @@ def section_reportheadline(published, ctx, title, sec):
     none of the three is left out. The words are the published content's own; none are added."""
     c = sec.get("content") if isinstance(sec.get("content"), dict) else {}
     health, headline, sentence = (c[k].strip() if isinstance(c.get(k), str) else "" for k in ("health", "headline", "sentence"))
+    if c.get("pill") is False:      # row 1261: the eye is off, so the pill is not drawn (the page and the file leave it out)
+        health = ""
     if not (health or headline or sentence):
         return ""
     out = [para(rule=True, spacing=(120, 0))]

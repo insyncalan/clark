@@ -28,7 +28,7 @@ const text = (v) => (typeof v === "string" ? v.trim() : "");
 // The stored fields with every default filled (the same reading as section_kinds/reportheadline.py upgrade).
 export function tidyReportHeadline(v) {
   const o = v && typeof v === "object" ? v : {};
-  return { health: Object.prototype.hasOwnProperty.call(HEALTHS, o.health) ? o.health : "", headline: text(o.headline), sentence: text(o.sentence) };
+  return { health: Object.prototype.hasOwnProperty.call(HEALTHS, o.health) ? o.health : "", headline: text(o.headline), sentence: text(o.sentence), pill: o.pill !== false };      // pill: the eye (row 1261), only false when the author hid it; an older body has no field and shows it
 }
 export const isEmpty = (section) => { const c = tidyReportHeadline(source(section)); return !c.health && !c.headline && !c.sentence; };
 
@@ -36,13 +36,14 @@ export function View({ section, data }) {
   const c = tidyReportHeadline(source(section));
   const h = HEALTHS[c.health] || NOT_SET;
   const [icon, shape] = ICONS[c.health];
+  const pill = c.pill ? <span class={`pill hpill tpl-rh-pill ${h[1]}`}><svg class="i" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" data-hl={icon}>{shape}</svg>{h[0]}</span> : null;
   const meta = metaLine(data && data.project);
   return (
     <div class="tpl-rh-block">
       <p class="tpl-rh-title">Weekly report</p>
       {meta ? <p class="tpl-rh-meta">{meta}</p> : null}
-    <div class="tpl-rh">
-      <span class={`pill hpill tpl-rh-pill ${h[1]}`}><svg class="i" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" data-hl={icon}>{shape}</svg>{h[0]}</span>
+    <div class={`tpl-rh${c.pill ? "" : " nopill"}`}>
+      {pill}
       <div class="tpl-rh-text">
         {c.headline ? <p class="tpl-rh-h">{c.headline}</p> : null}
         {c.sentence ? <p class="tpl-rh-p">{c.sentence}</p> : null}

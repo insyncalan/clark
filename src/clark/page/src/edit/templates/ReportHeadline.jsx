@@ -1,16 +1,22 @@
 // Report headline (row 1261, slice 2), store type "reportheadline": its Edit part, filled in place. The health (a pill with a menu of
 // On track, At risk, Off track), the headline (a multi-line box, no length limit) and the supporting sentence (the same kind of box).
-// Each save is one change() (noteEdit.jsx useSaver): one step, one Undo, place "report". A box saves when it is left or on Enter (the store keeps no hard
-// line break: a pasted one becomes a space); Esc puts the saved words back. The words are the mock-up's (the row 1261 headline template mock-up). The eye toggle, the
-// warning beside At a glance and the library card are not here (not approved or not in this slice). View part: templates/ReportHeadline.jsx.
+// Row 1261: the pill has an eye (aria-pressed true = hidden, as the At a glance tiles' eye) and Edit warns when At a glance also shows the health. Each save is one change() (noteEdit.jsx useSaver): one step, one Undo, place "report". A box saves when it is left or on Enter (the store keeps no hard
+// line break: a pasted one becomes a space); Esc puts the saved words back. The words are the mock-up's (the row 1261 headline template mock-up). View part: templates/ReportHeadline.jsx.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { tidyReportHeadline } from "../../templates/ReportHeadline.jsx";
 import { source } from "../../templates/notes.js";
 import { Menu } from "../../components/Menu.jsx";
 import { actionIcon } from "../../menuIcons.js";
 import { useSaver } from "./noteEdit.jsx";
+import { Icon } from "../../components/Icon.jsx";
+import { data } from "../../stores/report.js";
+import { readBody } from "../../templates/glanceBody.js";
 
 export const HINT = "Write the headline the report opens with. Until then this section stays out of the published page.";
+// Words from the approved mock-up (mockups/1261-headline-template/headline-approved.html): the row label, its hidden form, the warning.
+export const EYE_WORDS = { hide: "Hide project health from the Report headline", show: "Show project health in the Report headline",
+  label: "Show project health here", labelHidden: "Show project health here (hidden)",
+  warnLead: "Health is also on in At a glance.", warn: " It would show twice on this page. Turn it off here or hide the Project health tile in At a glance." };
 const ITEMS = [["on_track", "On track", "g"], ["at_risk", "At risk", "a"], ["off_track", "Off track", "r"]];
 
 // A multi-line box. `value` is what is saved; `onCommit(text)` is told the new words only when they differ.
@@ -39,22 +45,35 @@ function Area({ value, onCommit, label, placeholder, id }) {
   );
 }
 
+// Does an At a glance section of this report show Project health too? The built-in section (type glance) always does; the template (type
+// glancetemplate) does while its own eye is on (glanceBody.js readBody: a never-written one starts off).
+export const glanceShowsHealth = (sections) => (sections || []).some((s) => s.type === "glance" || (s.type === "glancetemplate" && readBody(s).health.shown));
+
 export function Edit({ section }) {
   const saved = tidyReportHeadline(source(section));
   const write = useSaver(section, saved, "", { silent: true });      // row 1261: no toast and no new words; the save is one step, undone with Cmd/Ctrl+Z like the others
   const empty = !saved.health && !saved.headline && !saved.sentence;
   const now = ITEMS.find((i) => i[0] === saved.health);
+  const twice = saved.pill && glanceShowsHealth(data.value && data.value.report_sections);
   const name = now ? now[1] : "Not set";
   return (
     <div class="tpl-edit tpl-edit-reportheadline" data-tpl="reportheadline">
       {empty ? <p class="quiet tpl-hint">{HINT}</p> : null}
+      <div class="tpl-rh-eyerow">
+        <button type="button" class="teye inl" data-edit-only data-rh-eye aria-pressed={saved.pill ? "false" : "true"}
+          aria-label={saved.pill ? EYE_WORDS.hide : EYE_WORDS.show} title={saved.pill ? EYE_WORDS.hide : EYE_WORDS.show} onClick={() => write({ pill: !saved.pill })}>
+          <Icon name={saved.pill ? "eye" : "eyeoff"} />
+        </button>
+        <span>{saved.pill ? EYE_WORDS.label : EYE_WORDS.labelHidden}</span>
+      </div>
+      {twice ? <p class="tpl-rh-warn" role="status" data-rh-warn><b>{EYE_WORDS.warnLead}</b>{EYE_WORDS.warn}</p> : null}
       <div class="tpl-rh-edit">
-        <div class="tpl-rh-edit-pill">
+        {saved.pill ? <div class="tpl-rh-edit-pill">
           <Menu label={name} btnCls={`pill hpill ${now ? now[2] : "n"} pillbtn`} ariaLabel={`Project health: ${name.toLowerCase()}. Change it`}
             id={`rh-pill-${section.id}`} menuId={`rh-menu-${section.id}`} menuLabel="Project health" chevron={false}
             items={ITEMS.map(([key, word, rag]) => ({ id: key, name: word, pill: rag, icon: actionIcon("status"), checked: key === saved.health }))}
             onPick={(key) => write({ health: key })} />
-        </div>
+        </div> : null}
         <div class="tpl-rh-edit-text">
           <label class="tpl-lbl" for={`rh-h-${section.id}`}>Headline</label>
           <Area id={`rh-h-${section.id}`} value={saved.headline} label="Headline" placeholder="Headline: say where the project stands (no length limit)" onCommit={(headline) => write({ headline })} />
