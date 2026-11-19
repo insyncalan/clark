@@ -277,6 +277,17 @@ class Types(Base):
         self.assertEqual(ask_extract.html_groups(b"<p>shown</p><style>hidden"), [(None, ["shown"])])
         self.assertEqual(ask_extract.html_groups(b"<head><p>no</p></head><p>yes</p>"), [(None, ["yes"])])
 
+    def test_a_pptx_or_html_file_over_one_megabyte_is_still_read_and_old_ppt_is_a_type(self):
+        import os
+        self.put("big.pptx", pptx({1: ["zqppbig"]}, extra={"ppt/media/image1.bin": os.urandom(1300000)}), binary=True)
+        self.put("big.html", b"<p>zqhtmeg</p>" + b"<!-- " + b"x" * 1300000 + b" -->", binary=True)
+        self.put("old.ppt", b"\xd0\xcf\x11\xe0 zqpptold", binary=True)
+        self.build()
+        s = ix.status(self.data, "P1", [self.box])
+        self.assertEqual((s["indexed"], s["type"], s["safety"]), (2, 1, 0))
+        self.assertTrue(self.found("zqppbig"))
+        self.assertTrue(self.found("zqhtmeg"))
+
 
 if __name__ == "__main__":
     unittest.main()
