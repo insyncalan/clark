@@ -64,11 +64,13 @@ class Tabs(unittest.TestCase):
             js = self.show(cdp, 1400)
             self.assertEqual(js("document.querySelector('[data-ask-model]').innerText"), "Claude Sonnet", "the model name")
             self.assertEqual(js("document.querySelector('#ask-used-all .ask-model-note').innerText"), NOTE, "the existing production note, unchanged")
-            self.assertNotIn("Same for every project.", js("document.querySelector('#ask-used-all').innerText"))
+            self.assertEqual(js("document.querySelector('#ask-used-all .ask-model-label').innerText"), "Model", "row label")
+            self.assertEqual(js("document.querySelector('#ask-used-all .ask-model-same').innerText"), "Same for every project.", "approved words, logged in NEW-WORDS")
+            self.assertTrue(js("(() => { const r = document.querySelector('#ask-used-all .ask-model').getBoundingClientRect(), n = document.querySelector('#ask-used-all .ask-model-note').getBoundingClientRect(); return n.top >= r.bottom; })()"), "the production note sits under the row")
             self.assertEqual(js("(() => { const s = getComputedStyle(document.querySelector('[data-ask-goall]')); return [s.borderBottomStyle, s.borderBottomWidth, s.backgroundColor, s.paddingLeft]; })()"),
                              ["dashed", "1px", "rgba(0, 0, 0, 0)", "0px"], "Change is a link with a dashed underline, not a button")
             self.assertEqual(js("document.querySelector('[data-ask-goall]').innerText"), "Change")
-            self.assertEqual(js("[...document.querySelectorAll('#ask-used-all .ask-model > *')].map(e => e.className.split(' ').pop())"), ["ask-model-name", "ask-model-note", "ask-model-change"], "name, note, link in that order")
+            self.assertEqual(js("[...document.querySelectorAll('#ask-used-all .ask-model > *')].map(e => e.className.split(' ').pop())"), ["ask-model-label", "ask-model-same", "ask-model-name", "ask-model-change"], "name, note, link in that order")
 
     def test_cards_keeps_the_card_as_it_was(self):
         self.s.close()
