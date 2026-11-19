@@ -66,6 +66,29 @@ class Counts(tp.Folders):
         self.assertEqual(ask_service.folder_notes(ask_passages.FolderData(limit=1))[0].split()[:3], ["1", "file", "was"])
 
 
+    def test_byte_cap_stops_at_exactly_the_cap(self):
+        self.make(20, size=1000)
+        one = self.box.joinpath("f000.md").stat().st_size
+        with mock.patch.object(ask_passages, "MAX_BYTES_READ", 12 * one):   # the 12th file brings the total to exactly the cap
+            got = self.run_it(budget=10**9, max_passages=10**9)
+        self.assertEqual(len({p.file for p in got.passages}), 12)
+        self.assertEqual((got.other, got.limit), (0, 8))
+
+    def test_character_cap_stops_at_exactly_the_cap(self):
+        self.make(20, size=1000)
+        one = self.run_it(folders=[self.box], budget=10**9, max_passages=10**9)
+        per = sum(len(p.text) for p in one.passages) // 20
+        with mock.patch.object(ask_passages, "MAX_CHARS", 12 * per):         # the 12th file brings the kept text to exactly the cap
+            got = self.run_it(budget=10**9, max_passages=10**9)
+        self.assertEqual(len({p.file for p in got.passages}), 12)
+        self.assertEqual((got.other, got.limit), (0, 8))
+
+    def test_limit_note_comes_with_the_listing_cut_note(self):
+        notes = ask_service.folder_notes(ask_passages.FolderData(limit=2, stopped=True))
+        self.assertEqual(len(notes), 2)
+        self.assertEqual(notes[1], "Not every file in your folders was looked at.")
+
+
 class Budget(unittest.TestCase):
     def passages(self, sizes):
         return [ask.Passage(f"p{i}", "x" * n) for i, n in enumerate(sizes)]
