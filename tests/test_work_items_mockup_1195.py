@@ -60,7 +60,8 @@ GOLDEN_LINES = [
     ".wil:has(> .wil-views) > .wil-line { order: 2; margin: 0 0 var(--space-3); }",
     ".wil-form { display: block; margin: 0; padding: 0; border: 0; background: none; }",
     ".wil-cw { position: absolute; top: var(--sec-pad-t); right: var(--sec-px); z-index: 6; display: flex; justify-content: flex-end; }",
-    ".wil-gear { border: 1.5px solid var(--grey-200); }",
+    ".wil-gear { border: 0; background: transparent; color: var(--text-muted); }",
+    ".wil-gear:hover, .wil-gear[aria-expanded=true] { background: var(--grey-100); color: var(--text); }",
     ".wil-cfg { width: min(calc(var(--space-4) * 19), calc(100vw - var(--space-6))); }",
     ".wil-cfg h4 { font-family: var(--font-head); font-weight: var(--weight-semibold); color: var(--heading); }",
     ".wil-cfg .wil-sel > span, .wil-cfg .wil-f legend { font-weight: var(--weight-medium); color: var(--text-muted); }",
@@ -100,7 +101,7 @@ GOLDEN_LINES = [
     "#report[data-mode=\"view\"] .wil-scroll { scrollbar-width: none; }",
     "#report[data-mode=\"view\"] .wil-scroll::-webkit-scrollbar { display: none; }",
     ".wil-table .wil-c-type, .wil-cfg .wil-opts label:has(> input[value=\"type\"]) { display: none; }",
-    ".wil-table .wil-own .nm { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }",
+    ".wil-table .wil-own .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
     ".wil-lines li { grid-template-columns: calc(var(--space-5) + var(--space-1)) minmax(0, 1fr) auto; }",
     ".wil-lines .wil-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
     ".wil-lines .wil-hpr { grid-column: 3; grid-row: 1; justify-self: end; align-self: center; }",
@@ -186,7 +187,7 @@ class SourceRules(unittest.TestCase):
         form = rule(RULES, ".wil-form")
         for gone in ("background: var(--grey-50)", "border: 1px solid", "padding: var(--space-3)"):
             self.assertNotIn(gone, form)
-        self.assertIn("border: 1.5px solid var(--grey-200)", rule(RULES, ".wil-gear"))
+        self.assertIn("border: 0", rule(RULES, ".wil-gear"))
 
     def test_tabs_are_medium_with_grey_count_pills_and_a_violet_new_view(self):
         self.assertIn("font-weight: var(--weight-medium)", rule(RULES, ".wil-views .vtab"))
@@ -494,7 +495,7 @@ class Classic(Look):
             self.assertEqual(p.js(f"[...document.querySelectorAll('{sec} .wil-cfg [data-field=columns] label')].filter(e => e.offsetParent).map(e => [e.querySelector('input').value, Number(getComputedStyle(e).order)]).sort((a, b) => a[1] - b[1]).map(x => x[0]).join()"),
                              "status,owner,due,priority,workstream,milestone,id")
 
-    def test_a_long_owner_name_is_wrapped_never_cut_at_900_and_1400(self):
+    def test_a_long_owner_name_is_one_line_with_an_ellipsis_at_900_and_1400(self):
         self.demo.action(description="Long name step", owner="Alexandria Montgomery-Featherstonehaugh", due_date="2030-01-10", priority="High")
         for width in (1400, 900):
             ref = self.add({"mode": "all", "columns": ["id", "owner", "due", "priority"], "owner": ["Alexandria Montgomery-Featherstonehaugh"]})
@@ -502,8 +503,8 @@ class Classic(Look):
                 p = self.show(cdp, width)
                 sec = f'[data-id="{ref}"]'
                 p.until(f"!!document.querySelector('{sec} .wil-table td.wil-c-owner .nm')", "drew")
-                got = json.loads(p.js(f"JSON.stringify((() => {{ const e = document.querySelector('{sec} .wil-table td.wil-c-owner .nm'), s = getComputedStyle(e); return [e.scrollWidth <= e.clientWidth, s.textOverflow, s.whiteSpace]; }})())"))
-                self.assertEqual(got, [True, "clip", "normal"], (width, got))
+                got = json.loads(p.js(f"JSON.stringify((() => {{ const e = document.querySelector('{sec} .wil-table td.wil-c-owner .nm'), s = getComputedStyle(e); return [e.scrollWidth > e.clientWidth, s.textOverflow, s.whiteSpace]; }})())"))
+                self.assertEqual(got, [True, "ellipsis", "nowrap"], (width, got))
 
     def test_a_half_width_row_is_the_mockups_two_lines_with_the_rating_beside_the_title(self):
         with self.store.step("dashboard", T.USER) as st:
