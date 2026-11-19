@@ -397,6 +397,10 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 /* Row 1406: the Settings card controls take the prototype's line colour for their 1px border (the field, the search box, the button, the choice and its dividers), as the prototype draws them; Cards keeps its control-edge token. Gantt card unchanged. */
 .set-cards .frame:not(#gantt-setting) .fld input, .set-cards .frame:not(#gantt-setting) .set-row-ctl input[type="text"], .set-cards .frame:not(#gantt-setting) .folder-paste input, .set-cards .frame:not(#gantt-setting) .set-reset, .set-cards .frame:not(#gantt-setting) .seg, .set-cards .frame:not(#gantt-setting) .btn:not(.pri):not(.ok), .set-cards .frame:not(#gantt-setting) .btn:not(.pri):not(.ok):hover, .set-search input { border-color: var(--grey-200); }
 .set-cards .frame:not(#gantt-setting) .seg button + button { border-left-color: var(--grey-200); }
+/* Row 1400 (Settings cards, Classic only): the card sub-heading is 15 px, 600, in the heading colour and face, sentence case; the field and row labels and the Update rows' labels are 15 px, 600; the spacing cards have a 1 px grey-500 border and radius 14 (the chosen and hover borders of shell.css still win). */
+.set-cards .setting > h3, .set-cards .setting-part > h3 { font-family: var(--font-head); font-size: 15px; font-weight: 600; color: var(--heading); text-transform: none; letter-spacing: normal; }
+.set-cards .fld > label, .set-cards .set-row-text label, .upd-rows p.upd-l { font-size: 15px; font-weight: 600; }
+.set-cards .secpick-card { border-color: var(--grey-500); border-radius: 14px; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
