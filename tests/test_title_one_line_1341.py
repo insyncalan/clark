@@ -50,16 +50,20 @@ class Title(Setup):
         self.assertTrue(g["nameInside"])
         self.assertTrue(g["wide"], "no sideways scroll")
 
-    def test_no_project_open_is_one_line(self):
+    def test_the_static_title_with_no_inner_span_is_one_line(self):
+        """The bar's plain name (Settings with no project open) is the .hdr-project element itself, with no span inside."""
         for width in (1400, 900):
-            with chrome() as cdp:
-                p = self.show(cdp, width, False, standard=True)
-                p.js("location.hash = '#settings'")
-                p.until("!!document.querySelector('.set-cards, [data-view=settings]') || location.hash.startsWith('#settings')", "Settings opened")
-                p.js("(() => { const n = document.querySelector('.hdr-project'); (n.querySelector('span') || n).textContent = 'No project open'; })()")
-                g = p.js(PROBE)
-                self.assertLessEqual(g["nameH"], g["lh"] + 1, (width, g))
-                self.assertTrue(g["lineInside"])
+            for text in ("No project open", LONG):
+                with chrome() as cdp:
+                    p = self.show(cdp, width, False, standard=True)
+                    p.js("location.hash = '#settings'")
+                    p.until("location.hash.startsWith('#settings')", "Settings opened")
+                    p.js("document.querySelector('.hdr-project').textContent = %r" % text)
+                    g = p.js(PROBE.replace("s = n.querySelector('span') || n", "s = n"))
+                    self.assertEqual(g["text"], text)
+                    self.assertLessEqual(g["nameH"], g["lh"] + 1, (width, text, g))
+                    self.assertEqual((g["ws"], g["to"], g["ov"]), ("nowrap", "ellipsis", "hidden"), (width, text))
+                    self.assertTrue(g["lineInside"] and g["wide"], (width, text, g))
 
 
 for _w in (1400, 900):
