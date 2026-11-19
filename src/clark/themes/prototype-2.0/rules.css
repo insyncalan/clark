@@ -372,6 +372,21 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .fbt-error { margin-top: 4px; color: var(--status-red-text); font-size: 13px; }
 /* Row 1375: a wheel over the Dashboard's Work items box that has reached its top or bottom keeps scrolling the page (the shared rule's overscroll-behavior-y: contain made it stall inside the box); the box still scrolls its own rows. */
 .wil-scroll { overscroll-behavior-y: auto; }
+/* Row 1396: the Milestones list as the prototype draws it (Classic only; shell.css and edit.css, Cards, are untouched). Rows 9px above and below with 20px at the left, a light divider and hover, the name in the heading colour, a 13px / 500 / .08em heading row, a 36px percent, only the name of a left-out row greyed, and the prototype's four state colours. */
+.msl-box .msl-cells { padding: 9px var(--space-2) 9px 20px; }
+.msl-box :not(.msl-hdw) + .msl { margin-top: 6px; }
+.msl-box .msl-row:not(:last-child)::after { background: var(--line-soft); }
+.msl-box .msl-row:hover { background: var(--band-bg); }
+.msl-box .msl-name { color: var(--heading); }
+.msl-box .msl-hd { border-bottom-color: var(--line-soft); }
+.msl-box .msl-hc { padding-top: 4px; padding-bottom: 4px; padding-left: 20px; font-weight: 500; letter-spacing: .08em; }
+.msl-box[data-place="page"] .msl-prog .num { min-width: 2.25rem; font-weight: var(--weight-medium); }
+@media (min-width: 1201px) { .msl-box[data-place="page"]:not([style*="--msl-cols:"]) :is(.msl-cells, .msl-hc) { grid-template-columns: minmax(240px, 17rem) minmax(160px, 1fr) 150px calc(145px + var(--space-2) + 2.25rem); } }
+.msl-box .msl-row.out { opacity: 1; }
+.msl-box .msl-row.out .msl-name { color: var(--text-muted); }
+.msl-box .node.c-green { border-color: var(--status-green-text); } .msl-box .node.c-amber { border-color: var(--ms-amber-shape); } .msl-box .node.c-red { border-color: var(--status-red-text); } .msl-box .node.c-blue { border-color: var(--tone-blue-text); }
+.msl-box .node.fill.c-green { background: var(--status-green-text); }
+.msl-box .mst.c-blue { color: var(--tone-blue-text); }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
