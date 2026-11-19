@@ -170,6 +170,9 @@ def menu_walk(test, p, ref):
     return dom, walked
 
 
+HEAD_LABEL = "%s column. Drag to move it; Alt with an arrow key moves it; drag its right edge or press Ctrl with an arrow key to resize"      # the mock-up's words (work-items-mockup.html, the .hc heading)
+
+
 class SourceRules(unittest.TestCase):
     def test_the_shared_files_carry_none_of_the_mockups_rules(self):
         for css in (SHELL_CSS, EDIT_CSS):
@@ -380,6 +383,32 @@ class ClassicFile(T.PublishedFile):
             self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-all]')"), "a file has no Show all items link")
 
 
+    def test_a_classic_file_has_no_draggable_headings_no_tab_stops_and_no_width_handles(self):      # row 1195 ruling: the published page is out
+        self.store.con.execute("UPDATE app_settings SET theme = 'classic' WHERE id = 1")
+        status, got = self.real_change({"project": "ABC", "kind": "report_sections", "op": changes.NEW, "values": {"type": "workitems", "title": "Due soon"}, "after": None})
+        ref = got["ref"]
+        body = {"mode": "all", "columns": ["owner", "due", "id"], "owner": ["Pat Demo", "Lee Demo"]}
+        status, got = self.real_change({"project": "ABC", "kind": "report_sections", "op": changes.UPDATE, "id": ref, "changes": {"body": json.dumps(body)}})
+        self.assertEqual(status, 200, got)
+        out = tempfile.mkdtemp(prefix="clark-1195-file-")
+        self.addCleanup(shutil.rmtree, out, ignore_errors=True)
+        path = Path(publish.publish(self.store, "ABC", out, by_user=T.USER, now=T.TODAY, branding=T.EMPTY_BRANDING)["path"])
+        text = path.read_text(encoding="utf-8")
+        self.assertNotIn("cgrip", text)
+        self.assertNotIn("Drag to move it", text)
+        with T.chrome() as cdp:
+            tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
+            sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, sid)
+            cdp.call("Page.navigate", {"url": path.as_uri()}, sid)
+            p = Pg(self, cdp, sid)
+            p.until("document.documentElement.dataset.ready === '1' && !!document.querySelector('h1')", "the file drew")
+            p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table thead th').length > 3", "the list drew its headings")
+            self.assertTrue(p.js("!!document.getElementById('theme')"), "the file is Classic")
+            sec = f'[data-id="{ref}"] .wil-table thead'
+            self.assertEqual(p.js(f"document.querySelectorAll('{sec} [draggable=true], {sec} [tabindex], {sec} [data-cw-head], {sec} .cgrip, {sec} [aria-label*=\"Drag\"]').length"), 0)
+
+
 class Classic(Look):
     LIST = {"mode": "all", "columns": ["id", "owner", "due", "priority"], "owner": ["Pat Demo", "Lee Demo"]}
 
@@ -545,7 +574,10 @@ class Classic(Look):
             key("owner", "ArrowRight", ctrlKey=True)
             p.until(f"{h('owner')}.style.width !== ''", "Ctrl+Right sets the Owner width")
             self.assertEqual(self._heads(p, ref), ["title", "owner", "due", "id"], "and did not move it")
-            self.assertIn("Ctrl", p.js(f"{h('owner')}.getAttribute('aria-description')"))
+            self.assertIsNone(p.js(f"{h('owner')}.getAttribute('aria-description')"), "the old sentence is gone")
+            self.assertEqual(p.js(f"{h('owner')}.tabIndex"), 0, "the heading is a tab stop")
+            self.assertEqual(p.js(f"{h('owner')}.getAttribute('aria-label')"), HEAD_LABEL % "Owner")
+            self.assertEqual(p.js(f"{h('title')}.getAttribute('aria-label')"), "Item column. Drag its right edge or press Ctrl with an arrow key to resize", "the Item heading does not move")
 
     def _edit(self, cdp, columns):
         ref = self.add({"mode": "all", "columns": columns, "owner": ["Pat Demo", "Lee Demo"]})
@@ -645,6 +677,61 @@ class Classic(Look):
             p.key("ArrowRight", 1, code="ArrowRight", vk=39)               # Alt+Right moves the heading, it never resizes
             self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "due", "owner", "id"]), "Alt+Right moved Owner")
             self.assertLess(abs(w("owner") - before), 1, "and left its width alone")
+
+    def _view(self, cdp, columns):
+        ref = self.add({"mode": "all", "columns": columns, "owner": ["Pat Demo", "Lee Demo"]})
+        p = self.show(cdp, 1400)
+        p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=due]')", "View drew")
+        self.assertEqual(p.js("document.querySelector('#report').dataset.mode"), "view")
+        return p, ref
+
+    def _bodies(self):
+        return self.store.con.execute("SELECT id, body FROM report_sections ORDER BY id").fetchall()
+
+    def test_view_a_real_pointer_drag_of_a_heading_moves_the_column_and_saves_nothing_in_the_document(self):      # row 1195 ruling: View too, unsaved
+        with T.chrome() as cdp:
+            p, ref = self._view(cdp, ["owner", "due", "priority", "id"])
+            before = self._bodies()
+            self.assertEqual(self._heads(p, ref), ["title", "owner", "due", "priority", "id"])
+            self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=id]').draggable"), True)
+            p.js("window.__drag = 0; document.addEventListener('dragstart', (e) => { if (e.isTrusted) window.__drag++; }, true)")
+            x0, y0 = self._where(p, ref, "id")
+            x1, y1 = self._where(p, ref, "owner")
+            self._pointer_drag(p, x0, y0, x1, y1)
+            self.assertEqual(p.js("window.__drag"), 1, "the browser started one real drag in View")
+            self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "id", "owner", "due", "priority"]), "ID moved before Owner in View")
+            body = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr:first-child td')].map(c => c.className.replace('wil-c-', ''))")
+            self.assertEqual([c for c in body if c in ("id", "owner", "due", "priority")], ["id", "owner", "due", "priority"], "the cells follow")
+            self.assertEqual(p.js("document.querySelector('#report').dataset.mode"), "view", "still View")
+            self.assertEqual(self._bodies(), before, "nothing was written to the document")
+            p.js("location.reload()")
+            p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=due]')", "View drew again")
+            self.assertEqual(self._heads(p, ref), ["title", "id", "owner", "due", "priority"], "kept on this computer")
+
+    def test_view_the_width_handle_alt_move_and_ctrl_resize_work_and_the_heading_says_so(self):      # row 1195 ruling: View too, unsaved
+        with T.chrome() as cdp:
+            p, ref = self._view(cdp, ["owner", "due", "id"])
+            before = self._bodies()
+            h = lambda c: f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head={c}]')"
+            w = lambda c: p.js(f"{h(c)}.getBoundingClientRect().width")
+            self.assertEqual(p.js(f"{h('owner')}.tabIndex"), 0, "a heading is a tab stop in View")
+            self.assertEqual(p.js(f"{h('owner')}.getAttribute('aria-label')"), HEAD_LABEL % "Owner")
+            self.assertIsNone(p.js(f"{h('owner')}.getAttribute('aria-description')"))
+            w0 = w("owner")
+            gx, gy = self._where(p, ref, "owner", "grip")
+            self._pointer_drag(p, gx, gy, gx + 40, gy)
+            self.assertTrue(wait(lambda: abs(w("owner") - (w0 + 40)) < 2), "the handle drag widened Owner in View")
+            self.assertEqual(self._heads(p, ref), ["title", "owner", "due", "id"], "and moved nothing")
+            CTRL = 2
+            p.js(f"{h('due')}.focus()")
+            start = w("due")
+            p.key("ArrowRight", CTRL, code="ArrowRight", vk=39)
+            self.assertTrue(wait(lambda: abs(w("due") - (start + 12)) < 1), "one Ctrl+Right is 12 px wider in View")
+            before_w = w("due")
+            p.key("ArrowRight", 1, code="ArrowRight", vk=39)
+            self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "owner", "id", "due"]), "Alt+Right moved Due in View")
+            self.assertLess(abs(w("due") - before_w), 1, "without resizing it")
+            self.assertEqual(self._bodies(), before, "nothing was written to the document")
 
     def test_the_type_column_is_not_drawn_nor_offered_in_configure(self):
         ref = self.add({"mode": "all", "columns": ["type", "id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})

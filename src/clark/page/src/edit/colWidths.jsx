@@ -42,8 +42,8 @@ export function useColWidths(table, ctrl = false) {      // row 1195: ctrl true 
     };
     return <span class="cgrip" aria-hidden="true" data-cgrip={id} onPointerDown={start} onClick={(e) => e.stopPropagation()} onDblClick={(e) => { e.stopPropagation(); put(id, null); }}></span>;
   };
-  /** Props for the heading cell: not a tab stop, but it can hold the focus (a click on it, or the code); it says how its width changes. */
-  const head = (id, label, hidden) => hidden ? { "data-cw-head": id, "data-cw-table": table } : { tabIndex: -1, "data-cw-head": id, "data-cw-table": table, "aria-description": `Width of the ${label} column. ${ctrl ? "Ctrl" : "Alt"} with Left or Right arrow changes it.` };
+  /** Props for the heading cell (row 1195, Classic Work items list: a tab stop, labelled with the mock-up's words, the Item heading without the move words). Otherwise: not a tab stop, but it can hold the focus (a click on it, or the code); it says how its width changes. */
+  const head = (id, label, hidden) => hidden ? { "data-cw-head": id, "data-cw-table": table } : ctrl ? { tabIndex: 0, "data-cw-head": id, "data-cw-table": table, "aria-label": `${label} column. ${id === "title" ? "" : "Drag to move it; Alt with an arrow key moves it; "}${id === "title" ? "D" : "d"}rag its right edge or press Ctrl with an arrow key to resize` } : { tabIndex: -1, "data-cw-head": id, "data-cw-table": table, "aria-description": `Width of the ${label} column. ${ctrl ? "Ctrl" : "Alt"} with Left or Right arrow changes it.` };
   // hidden: the heading row is hidden from a screen reader (the Milestones list), so it holds no focus and no words; the arrows work from a row.
   const latest = useRef();
   latest.current = { put, ctrl };

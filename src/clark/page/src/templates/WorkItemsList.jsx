@@ -158,16 +158,26 @@ export function isEmpty(section, data) {
   return drawRows(listOf(section, data, today()).items, data).length === 0;
 }
 
+// Row 1195 (Classic, the served View): the headings drag, move (Alt with an arrow) and resize (Ctrl with an arrow) as in Edit, kept on this computer and never saved in the document.
+// The hooks are the Edit part's (edit/colWidths.jsx), handed over by edit/templates/WorkItemsList.jsx when the page clark serves loads it; a published file has none of that code, so it has no handles.
+export const colTools = { current: null };
+
+function Live({ draw, hooks, id }) {
+  const cw = hooks.useColWidths(`wil-${id}`, true), ord = hooks.useColOrder(`wil-${id}`);
+  return draw(cw, ord);
+}
+
 export function View({ section, data }) {
   const now = today();
   const list = listOf(section, data, now);
   const rows = drawRows(idsToShow(list, !fromFile.value), drawn(data, !fromFile.value));
   if (!rows.length) return null;
-  return (
+  const draw = (cw, ord) => (
     <div class="wil" data-wil="">
       {list.caption ? <p class="wil-cap">{list.caption}</p> : null}
-      <Listing max={list.max || rows.length} count={rows.length}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} /></Listing>      {/* row 1268: a row opens the peek in View and in a published file: read only there (Peek draws no control unless the page is editing), editable in Edit */}
+      <Listing max={list.max || rows.length} count={rows.length}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} cw={cw} ord={ord} /></Listing>      {/* row 1268: a row opens the peek in View and in a published file: read only there (Peek draws no control unless the page is editing), editable in Edit */}
       {fromFile.value ? null : <Foot section={section} total={rows.length} max={list.max} edit={false} />}
     </div>
   );
+  return !fromFile.value && classicTheme() && colTools.current ? <Live draw={draw} hooks={colTools.current} id={section.id} /> : draw(undefined, undefined);
 }
