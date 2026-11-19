@@ -13,7 +13,6 @@ body { background: var(--page-bg) var(--page-grad) fixed no-repeat; }
 .col-h { background: var(--band-bg); }
 .boardbox { scrollbar-width: none; }
 .boardbox::-webkit-scrollbar { display: none; }
-/* item 1343: the line is the mid grey of the mock-up, not the light rule grey; a typed word is boxed like a word chip (grey fill, text colour), the 2px spread keeps the letters where the input draws them */
 .fline { border: 0; border-bottom: 1px solid var(--grey-500); border-radius: 0; background: none; padding-left: 0; padding-right: 0; }
 .fk.k-txt { border-radius: var(--radius-sm); background: var(--grey-100); color: var(--text); box-shadow: 0 0 0 2px var(--grey-100); }
 .fline-tail { margin-right: 0; }
