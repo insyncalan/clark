@@ -6,6 +6,7 @@ import { signal } from "@preact/signals";
 import { project } from "../stores/report.js";
 import { askOn, askStatus, askSaved, askProvider, loadAsk, setAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
 import { named, ASK_NOTICE_LINE } from "./askWords.js";
+import { ChatsAll, ChatsProject } from "./ChatsSettings.jsx";
 import { ConnectorsAll, ConnectorsProject } from "./ConnectorSettings.jsx";
 import { AiSettings } from "./AiSettings.jsx";
 import { AllInstructions, OwnInstructions } from "./AskInstructions.jsx";
@@ -195,6 +196,7 @@ function AskProject() {
       ) : null}
       <div class="pub-msg" role={fmsg && fmsg.kind === "error" ? "alert" : "status"} aria-live="polite">{fmsg && fmsg.text ? <p class={fmsg.kind}>{fmsg.text}</p> : null}</div>
     </section>
+    <ChatsProject />
     <OwnInstructions goAll={() => showAskTab(ALL)} />
     </>
   );
@@ -212,6 +214,7 @@ function AllProjects() {
     </section>
     <AiSettings />
     <ConnectorsAll />
+    <ChatsAll />
     <AllInstructions />
     <AllFolders />
     </>
