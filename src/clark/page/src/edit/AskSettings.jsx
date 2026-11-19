@@ -9,6 +9,7 @@ import { named, ASK_NOTICE_LINE } from "./askWords.js";
 import { ConnectorsAll, ConnectorsProject } from "./ConnectorSettings.jsx";
 import { AiSettings } from "./AiSettings.jsx";
 import { AllInstructions, OwnInstructions } from "./AskInstructions.jsx";
+import { SlashList } from "./SlashCommandsList.jsx";
 import { announceSwitch, leaveSwitch } from "./switchToast.js";
 import { classicTheme } from "../components/Contents.jsx";
 import { aiConnectRead, askFoldersRead, askFoldersChange, askFoldersChoose, askFoldersAllRead, askFoldersAllChange, askFoldersAllChoose, words } from "./publishApi.js";
@@ -196,6 +197,7 @@ function AskProject() {
       <div class="pub-msg" role={fmsg && fmsg.kind === "error" ? "alert" : "status"} aria-live="polite">{fmsg && fmsg.text ? <p class={fmsg.kind}>{fmsg.text}</p> : null}</div>
     </section>
     <OwnInstructions goAll={() => showAskTab(ALL)} />
+    {classicTheme() ? <SlashList scope="project" code={code} /> : null}
     </>
   );
 }
@@ -213,6 +215,7 @@ function AllProjects() {
     <AiSettings />
     <ConnectorsAll />
     <AllInstructions />
+    {classicTheme() ? <SlashList scope="all" code="" /> : null}
     <AllFolders />
     </>
   );

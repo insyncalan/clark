@@ -14,12 +14,18 @@ export const COMMANDS = [
   { name: "new", hint: W.SLASH_HINT.new, act: "new" },
 ];
 
-/** The commands the box text matches, or null when the menu is not open. Open only for "/" at the start followed by letters (no space yet). */
-export function slashMatches(text) {
+/** The menu's commands with the person's own (row 1295; askOwn.js): their version of a built-in question replaces it, their new ones follow. */
+export function withOwn(own) {
+  const mine = new Map((own || []).map((m) => [m.name, m]));
+  return [...COMMANDS.map((c) => (c.ask && mine.has(c.name) ? mine.get(c.name) : c)), ...[...mine.values()].filter((m) => !COMMANDS.some((c) => c.name === m.name))];
+}
+
+/** The commands the box text matches, or null when the menu is not open. Open only for "/" at the start followed by letters (no space yet). `own` is the person's own commands. */
+export function slashMatches(text, own) {
   const m = /^\/([a-z]*)$/i.exec(String(text || ""));
   if (!m) return null;
   const typed = m[1].toLowerCase();
-  return COMMANDS.filter((c) => c.name.startsWith(typed));
+  return withOwn(own).filter((c) => c.name.startsWith(typed));
 }
 
 /** The next highlighted row for ArrowDown / ArrowUp, wrapping round; Home and End go to the ends. */

@@ -13,6 +13,7 @@ import { pills, asking } from "./askPills.js";
 import { stateOf } from "./askPillState.js";
 import { helpOpen } from "../help/helpStore.js";
 import { slashMatches, stepSlash } from "./askSlash.js";
+import { ownCommands, loadOwnCommands } from "./askOwn.js";
 import { Icon } from "../components/Icon.jsx";
 import { holdScroll } from "../core/holdScroll.js";
 import { chatId, histOpen, histTick, chats, keepChat, deleteChat, when } from "./askHistory.js";
@@ -71,7 +72,8 @@ export function AskPanel() {
   const [note, setNote] = useState("");
   const [quip, setQuip] = useState("");
   const [pick, setPick] = useState(0), [shut, setShut] = useState(false);   // #1292 S10: the slash menu's chosen row, and whether Esc has closed it
-  const menu = shut ? null : slashMatches(text);
+  const menu = shut ? null : slashMatches(text, ownCommands.value);
+  useEffect(() => { if (open) loadOwnCommands(project.value); }, [open, project.value]);      // row 1295: the person's own commands join the / menu
   const [said, setSaid] = useState("");            // row 1220: what a screen reader is told when a message is queued or removed
   const waiting = queue.value, held = queueHeld.value, dropping = queueDrop.value;
   const showHist = histOpen.value && !busy;
@@ -450,7 +452,7 @@ export function AskPanel() {
           <ul class="ask-slash" id="ask-slash" role="listbox" aria-label={W.SLASH_LABEL}>
             {menu.length ? menu.map((c, i) => (
               <li key={c.name} role="option" id={"ask-slash-" + c.name} data-name={c.name} aria-selected={i === pick ? "true" : "false"} onMouseDown={(e) => { e.preventDefault(); runSlash(c); }}>
-                <b>{"/" + c.name}</b> <span>{c.hint}</span>
+                <b>{"/" + c.name}</b> <span>{c.hint}</span>{c.own ? <em class="ask-slash-own">{W.SLASH_YOURS}</em> : null}
               </li>
             )) : <li class="ask-slash-none">{W.SLASH_NONE}</li>}
           </ul>

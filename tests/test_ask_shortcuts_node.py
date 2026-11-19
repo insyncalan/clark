@@ -1,10 +1,11 @@
-"""#1295: the rules of ask clark shortcuts (logic/askShortcuts.js): the name rules, built-ins edited, reset and copied, /history and /new locked,
+"""#1295: the rules of ask clark slash commands (logic/askShortcuts.js): the name rules, built-ins edited, reset and copied, /history and /new locked,
 placeholders filled or reported, the limits. The editor screens, the slash menu, the live test and the AI help are not here (browser tests, not built).
 
 Run: python3 dev/run_tests.py test_ask_shortcuts_node
 Quick tier: no browser. Bundled by the pinned esbuild and run in node (skipped when node is not on the machine).
 """
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -104,8 +105,8 @@ class Builtins(unittest.TestCase):
 class Limits(unittest.TestCase):
     def test_twenty_shortcuts_at_most(self):
         many = "[" + ",".join('{name:"aa-%d",menu:"m",text:"t",scope:"anywhere",result:"answer"}' % i for i in range(20)) + "]"
-        self.assertIn("20 shortcuts", js('T(()=>AS.save(%s,%s,B))' % (many, GOOD)))
-        self.assertIn("20 shortcuts", js('T(()=>AS.copy(%s,{name:"aa-1"},B))' % many))
+        self.assertIn("20 slash commands", js('T(()=>AS.save(%s,%s,B))' % (many, GOOD)))
+        self.assertIn("20 slash commands", js('T(()=>AS.copy(%s,{name:"aa-1"},B))' % many))
 
     def test_lengths_say_why(self):
         self.assertIn("at most 70", js('AS.problems({...%s,menu:"m".repeat(71)},[],B)[0]' % GOOD))
@@ -255,3 +256,50 @@ class KillersRound2(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class BuiltinsAreTheMenus(unittest.TestCase):
+    """Row 1295: the built-in slash commands the rules know are the ones the / menu lists (edit/askSlash.js COMMANDS), with the same menu line and question."""
+
+    def test_names_menu_lines_and_questions_agree(self):
+        src = (PAGE_SRC / "edit" / "askSlash.js").read_text(encoding="utf-8")
+        words = (PAGE_SRC / "edit" / "askWords.js").read_text(encoding="utf-8")
+        hints = dict(re.findall(r'^  ([a-z]+): "([^"]+)",$', words.split("export const SLASH_HINT = {", 1)[1].split("};", 1)[0], re.M))
+        menu = re.findall(r'\{ name: "([a-z]+)", hint: W\.SLASH_HINT\.[a-z]+,(?: ask: "([^"]+)"| act: "([a-z]+)") \}', src)
+        got = js('AS.BUILTINS.map((b) => [b.name, b.menu, b.text])')
+        self.assertEqual(got, [[n, hints[n], ask] for n, ask, _ in menu])
+        self.assertEqual([n for n, _, act in menu if act], ["history", "new"])
+
+
+class TheMenuFeed(unittest.TestCase):
+    """Row 1295: what the / menu gets from the person's files (edit/askOwn.js menuCommands, askSlash.js withOwn)."""
+    REC = '{name:"monday",menu:"Monday summary",text:"Overdue by owner on {today}",scope:"anywhere",result:"answer"}'
+
+    def test_an_own_command_is_filled_with_today_and_marked_yours(self):
+        got = js('AS.menuCommands({all:[%s],project:[]}, new Date(2026,10,17))' % self.REC)
+        self.assertEqual(got, [{"name": "monday", "hint": "Monday summary", "ask": "Overdue by owner on 17-11-2026", "own": True}])
+
+    def test_only_what_runs_from_the_box_as_it_is_is_listed(self):
+        recs = ",".join('{...%s,name:"%s",%s}' % (self.REC, n, extra) for n, extra in (("a-item", 'scope:"item"'), ("a-chg", 'result:"changes"'), ("a-inp", 'text:"Who is {input}"')))
+        self.assertEqual(js('AS.menuCommands({all:[%s],project:[]}).map((m) => m.name)' % recs), [])
+
+    def test_a_project_command_wins_over_the_same_name_for_all_projects(self):
+        got = js('AS.menuCommands({all:[%s],project:[{...%s,menu:"Own line"}]}).map((m) => [m.name, m.hint])' % (self.REC, self.REC))
+        self.assertEqual(got, [["monday", "Own line"]])
+
+    def test_an_edited_built_in_replaces_the_question_and_is_not_marked_yours(self):
+        mine = '{name:"check",replaces:"check",menu:"My check",text:"Check my way",scope:"anywhere",result:"answer"}'
+        own = js('AS.menuCommands({all:[%s],project:[]})' % mine)
+        self.assertEqual(own, [{"name": "check", "hint": "My check", "ask": "Check my way", "own": False}])
+        menu = js('AS.withOwn(AS.menuCommands({all:[%s],project:[]})).map((c) => [c.name, c.hint, c.ask || c.act])' % mine)
+        self.assertEqual(menu[0], ["check", "My check", "Check my way"])
+        self.assertEqual([m[0] for m in menu], ["check", "summary", "overdue", "risks", "milestones", "usecases", "history", "new"])
+
+    def test_a_new_one_follows_the_built_ins_and_a_typed_prefix_filters(self):
+        menu = js('AS.slashMatches("/m", AS.menuCommands({all:[%s],project:[]})).map((c) => c.name)' % self.REC)
+        self.assertEqual(menu, ["milestones", "monday"])
+        self.assertEqual(js('AS.slashMatches("/", []).length'), 8)
+
+    def test_history_and_new_cannot_be_replaced(self):
+        mine = '{name:"history",replaces:"history",menu:"x",text:"y",scope:"anywhere",result:"answer"}'
+        self.assertEqual(js('AS.menuCommands({all:[%s],project:[]})' % mine), [])
