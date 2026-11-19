@@ -70,9 +70,10 @@ class Top(unittest.TestCase):
                 self.assertEqual(g["crumb"][3], "13px", "Crumb: 13 px")
                 self.assertEqual(g["listCrumb"], ["none", "normal", "400", "13px"])
                 for k in ("group", "sort"):
-                    self.assertEqual(g[k][0], "rgba(0, 0, 0, 0)", k + ": no border")
+                    # Row 1316 follow-up (ticket table: labelled buttons, 1px --ui border, transparent): was a transparent border (icon buttons, Row 1325)
+                    self.assertEqual(g[k][0], g["grey500"], k + ": 1px grey border (labelled button, Row 1316 follow-up)")
                     self.assertEqual(g[k][1], "rgba(0, 0, 0, 0)", k + ": no fill")
-                self.assertEqual((g["groupChev"], g["sortChev"], g["menuChev"]), (False, False, "none"), "no chevrons (row 1325, Classic only: Group by and Sort by are icon buttons)")
+                self.assertEqual((g["groupChev"], g["sortChev"], g["menuChev"]), (False, False, "none"), "no chevrons (row 1325, Classic only: Group by and Sort by are labelled buttons since Row 1316 follow-up)")
                 self.assertEqual(g["menuDots"], '"…"', "the tab menu is the three dots")
                 self.assertEqual(g["plus"][0], "dashed")
                 self.assertEqual(g["plus"][1], g["grey500"], "the dashed + border is the grey")

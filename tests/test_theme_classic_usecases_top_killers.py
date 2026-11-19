@@ -60,8 +60,9 @@ class Killers(unittest.TestCase):
                     sid = open_page(cdp, f"http://127.0.0.1:{s.port}/#usecases&p=ABC", w, scheme)
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#ucl-group') && !!document.querySelector('#usecases .vtabmenu')", sid)))
                     g = cdp.js(STATE, sid)
-                    self.assertEqual(g["groupRest"][0], g["muted"], "Group by: muted text")
-                    self.assertEqual(g["sortRest"][0], g["muted"], "Sort by: muted text")
+                    # Row 1316 follow-up (prototype usecases.css .ucl-btn): the labelled buttons are ink (--text), not muted
+                    self.assertEqual(g["groupRest"][0], g["text"], "Group by: ink text (labelled button, Row 1316 follow-up)")
+                    self.assertEqual(g["sortRest"][0], g["text"], "Sort by: ink text (labelled button, Row 1316 follow-up)")
                     self.assertEqual(g["groupRest"][1], "1px")
                     self.assertEqual(g["plusRest"][0], g["muted"], "+ is muted")
                     self.assertNotEqual(g["plusRest"][1], g["brand"], "+ has no brand fill at rest")
