@@ -98,7 +98,7 @@ class Look(PublishedFile, Setup):
                         self.assertTrue(r["hasBar"])
                         self.assertAlmostEqual(r["fillW"] / r["barW"], pct / 100, delta=.01, msg=name)
                         self.assertEqual(r["barH"], 6)
-                        self.assertEqual(r["weight"], "700", "the percent is bold")
+                        self.assertEqual(r["weight"], "600", "the percent is 600 since Row 1396 (36px min-width)")
                         self.assertEqual(r["numAlign"], "right")
                         self.assertEqual(r["tab"], "tabular-nums")
                         self.assertEqual(r["numColor"], r["heading"], "the percent is the heading colour (row 1315)")
@@ -118,7 +118,7 @@ class Look(PublishedFile, Setup):
             self.assertAlmostEqual(r["barW"], 145, delta=2, msg=r["name"])
         self.assertTrue(got["rows"])
         self.assertEqual(got["head"].split()[2:], got["cells"].split()[2:], "Edit's heading row takes the same State and Progress tracks as the cells")
-        self.assertEqual(got["cells"].split()[3], "197px")
+        self.assertEqual(got["cells"].split()[3], "189px")
         self.assertEqual(self.heads(1100)["cells"].split()[3], "130px", "below 1201 px the column is as it was")
         self.assertEqual(len(got["cells"].split()), 4)
 
@@ -128,7 +128,7 @@ class Look(PublishedFile, Setup):
         for saved in (False, True):
             got = self.heads(1400, saved=saved)
             last = got["cells"].split()[3]
-            self.assertEqual(last, "130px" if saved else "197px", f"saved={saved}: the Classic default track applies only with no saved width ({got['cells']})")
+            self.assertEqual(last, "130px" if saved else "189px", f"saved={saved}: the Classic default track applies only with no saved width ({got['cells']})")
             if not saved:
                 self.assertEqual(got["cells"].split()[2], "150px")
         self.assertIn('.msl-box[style*="--msl-cols:"] .msl-cells', _EDIT, "Edit's saved-width rule uses the same attribute test")
