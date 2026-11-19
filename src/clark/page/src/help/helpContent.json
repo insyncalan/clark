@@ -1133,11 +1133,6 @@
         "Full or half"
        ],
        [
-        "At a glance",
-        "The project’s health, and counts of overdue actions, high risks and issues, and decisions needed.",
-        "Full"
-       ],
-       [
         "Use case summary",
         "The use cases, with a count for each status and one row for each: its headline, where it stands and the open next steps.",
         "Full"
