@@ -45,7 +45,7 @@ class Build(unittest.TestCase):
 
     def test_a_request_holds_text_only(self):
         names = {f.name for f in dataclasses.fields(ask.Request)}
-        self.assertEqual(names, {"text", "question", "passages", "hidden", "dropped_turns", "left_out_secret", "kept", "system", "canary", "owner", "connectors", "cancel"})   # dropped_turns and left_out_secret are counts, kept is positions; system is the caller's fixed rules text ("" = ask clark's own); canary (#277) is the random marker ask_provider sets; connectors (row 1306) are the connector ids that are On, set by the service from the store; owner and cancel (#284) let a Stop end only its own service's run
+        self.assertEqual(names, {"text", "question", "passages", "hidden", "dropped_turns", "left_out_secret", "kept", "left_out", "system", "canary", "owner", "connectors", "cancel"})   # dropped_turns and left_out_secret are counts, kept is positions, left_out is how many passages were cut to keep under BUDGET; system is the caller's fixed rules text ("" = ask clark's own); canary (#277) is the random marker ask_provider sets; connectors (row 1306) are the connector ids that are On, set by the service from the store; owner and cancel (#284) let a Stop end only its own service's run
         for bad in ("tool", "file", "path", "key", "tools", "files", "env"):
             self.assertNotIn(bad, names)
 
@@ -101,16 +101,27 @@ class Limits(unittest.TestCase):
     def test_the_passage_budget_is_forty_thousand_characters(self):
         self.assertEqual(ask.BUDGET, 40000)
         each = ask.Passage("a.md", "x" * 4000)
-        ask.build_request("Q?", [each] * 10)                                        # exactly 40,000
-        with self.assertRaises(ask.AskRefused) as cm:
-            ask.build_request("Q?", [each] * 10 + [ask.Passage("b.md", "y")])
-        self.assertEqual(str(cm.exception), ask.TOO_MUCH)
+        r = ask.build_request("Q?", [each] * 10)                                    # exactly 40,000: none left out
+        self.assertEqual((len(r.passages), r.left_out), (10, 0))
+        r = ask.build_request("Q?", [each] * 10 + [ask.Passage("b.md", "y")])       # one character over: the passage that does not fit is left out
+        self.assertEqual((len(r.passages), r.left_out), (10, 1))
+        self.assertNotIn("b.md", r.text)
 
-    def test_one_passage_and_the_count_of_passages_have_a_ceiling(self):
-        with self.assertRaises(ask.AskRefused):
-            ask.build_request("Q?", [ask.Passage("a.md", "x" * (ask.MAX_PASSAGE + 1))])
-        with self.assertRaises(ask.AskRefused):
-            ask.build_request("Q?", [ask.Passage("a.md", "x")] * (ask.MAX_PASSAGES + 1))
+    def test_over_the_budget_the_least_relevant_go_and_the_order_stays(self):
+        each = lambda name, word: ask.Passage(name, word + " " + "x" * 3990)
+        ps = [each("a.md", "plan"), each("b.md", "tea"), each("c.md", "Quasar"), each("d.md", "coffee"), each("e.md", "Quasar"),
+              each("f.md", "milk"), each("g.md", "Quasar"), each("h.md", "sugar"), each("i.md", "Quasar"), each("j.md", "cups"),
+              each("k.md", "Quasar"), each("l.md", "spoons")]
+        r = ask.build_request("What about the Quasar?", ps)
+        self.assertEqual(r.left_out, 2)
+        self.assertEqual([i for i in (2, 4, 6, 8, 10) if i in r.kept], [2, 4, 6, 8, 10])    # every relevant one stays
+        self.assertEqual(list(r.kept), sorted(r.kept))                                       # order unchanged for those kept
+        self.assertEqual(len(r.kept), 10)
+
+    def test_the_left_out_line_uses_the_ruled_words(self):
+        self.assertEqual(ask.left_out_text(3), "Left out to keep this question under the size limit: 3 passages.")
+        self.assertEqual(ask.left_out_text(0), "")
+        self.assertEqual(ask.left_out_text(True), "")
 
     def test_earlier_turns_are_limited(self):
         self.assertEqual(ask.build_request("Q?", [], earlier=[("user", "a")] * (ask.MAX_EARLIER_TURNS + 1)).dropped_turns, 1)     # #1293 B: trimmed

@@ -120,25 +120,12 @@ def _cut_screened(label, lines):
     return _cut(label, keep), len(lines) - len(keep)
 
 
-def _score(words, ids, passage):
-    text = passage.text.casefold()
-    return sum(5 for i in ids if i.casefold() in text) + sum(1 for w in words if w in text)
-
-
 def choose(passages, question, budget=BUDGET):
     """The passages that fit `budget` characters, best first by plain keyword overlap with the question (an item ID it names
     counts most), kept in their original order. Returns (chosen, left_out_count). The first passage (the project) always goes
     first when it fits."""
-    words = {w.casefold() for w in WORDS.findall(question or "")}
-    ids = set(ID_PATTERN.findall(question or ""))
-    ranked = sorted(range(len(passages)), key=lambda i: (i != 0, -_score(words, ids, passages[i]), i))
-    keep, used = set(), 0
-    for i in ranked:
-        size = len(passages[i].text)
-        if used + size <= budget:
-            keep.add(i)
-            used += size
-    return tuple(passages[i] for i in sorted(keep)), len(passages) - len(keep)
+    keep, left = ask.choose([(p.label, p.text) for p in passages], question, budget, len(passages))
+    return tuple(passages[i] for i in keep), left
 
 
 def state_of(kind, row, today):

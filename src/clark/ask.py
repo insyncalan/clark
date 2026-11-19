@@ -36,6 +36,8 @@ EMPTY = "Type a question first."
 LOOKS_LIKE = "looks like a password or a key"   # the one phrase every "looks like a password" note uses (ai_menu and secret_screen too)
 SECRET = f"That {LOOKS_LIKE}, so it wasn't sent. Take it out and try again."      # the typed question and the selected text (ai_menu.SECRET_MESSAGE is this same note)
 SECRET_EARLIER = f"An earlier message {LOOKS_LIKE}, so this chat can't be sent. Start a new chat and try again."
+LEFT_OUT = "Left out to keep this question under the size limit: {n} passages."   # the ruled words (row 1294); the page shows it as it comes
+WORDS = re.compile(r"[^\W_]{3,}", re.UNICODE)
 TOO_MUCH = "That needs too much text to send. Ask a narrower question."
 INSTRUCTIONS_SECRET = f"The standing instructions {LOOKS_LIKE}, so nothing was sent. Take it out in Settings and ask again."
 BAD_INPUT = "That could not be sent. Nothing was changed. Try again; if it keeps happening, restart clark."
@@ -81,6 +83,7 @@ class Request:
     dropped_turns: int = 0        # how many of the oldest earlier turns were left out to fit MAX_REQUEST (the panel may say so)
     left_out_secret: int = 0      # how many passages were left out because they looked like a key or a password (a count only; never shown as a number)
     kept: tuple = ()              # the position (in the passages as given) of each passage sent, in order, so a caller can match them
+    left_out: int = 0             # how many passages were left out to keep the question under BUDGET (the panel says so, with this number)
     system: str = RULES           # the system prompt the caller wants: ask clark's own RULES unless the caller passes its own (suggestions do); "" is refused
     canary: str = field(default="", repr=False, compare=False)    # #277: this request's private marker; set by ask_provider, never kept
     owner: object = field(default=None, repr=False, compare=False)   # #284: who asked (a service's own token), so Stop can end only that service's run
@@ -255,8 +258,11 @@ def build_request(question, passages, earlier=(), today="", partial=(), instruct
             continue
         chosen.append((label, text))
         kept.append(n)
-    if len(chosen) > MAX_PASSAGES or sum(len(t) for _l, t in chosen) > BUDGET:
-        raise AskRefused(TOO_MUCH)
+    left_out = 0
+    if len(chosen) > MAX_PASSAGES or sum(len(t) for _l, t in chosen) > BUDGET:      # leave out the least relevant and say so; never send over the limit
+        keep, left_out = choose(chosen, question, BUDGET, MAX_PASSAGES)
+        kept = [kept[i] for i in keep]
+        chosen = [chosen[i] for i in keep]
 
     head = _head(today, partial)
     standing = _standing(instructions)
@@ -268,7 +274,7 @@ def build_request(question, passages, earlier=(), today="", partial=(), instruct
         if dropped >= len(turns):
             raise AskRefused(TOO_MUCH)
         dropped += 1
-    return Request(text=body, question=question, passages=tuple(ids), hidden=hidden, dropped_turns=dropped + gone, left_out_secret=secret_out, kept=tuple(kept))
+    return Request(text=body, question=question, passages=tuple(ids), hidden=hidden, dropped_turns=dropped + gone, left_out_secret=secret_out, kept=tuple(kept), left_out=left_out)
 
 
 def _head(today, partial):
@@ -280,6 +286,26 @@ def _head(today, partial):
     if any(_PARTIAL_LINE.fullmatch(x) for x in partial or () if isinstance(x, str)):
         lines.append("Only some rows were sent, so give no totals or counts of the whole; say how many you read.")
     return lines
+
+
+def choose(chosen, question, budget=BUDGET, limit=MAX_PASSAGES):
+    """Which of `chosen` ((label, text) pairs) fit `budget` characters and `limit` passages: the most relevant first (plain keyword
+    overlap with the question; an item ID it names counts most), the first always first. Returns (positions kept, in their original
+    order, how many were left out)."""
+    words = {w.casefold() for w in WORDS.findall(question or "")}
+    ids = set(re.findall(r"\b[A-Z][A-Z0-9]{2,6}-[A-Z]?-?\d{1,4}\b", question or ""))
+
+    def score(i):
+        text = chosen[i][1].casefold()
+        return sum(5 for x in ids if x.casefold() in text) + sum(1 for w in words if w in text)
+    ranked = sorted(range(len(chosen)), key=lambda i: (i != 0, -score(i), i))
+    keep, used = set(), 0
+    for i in ranked:
+        size = len(chosen[i][1])
+        if used + size <= budget and len(keep) < limit:
+            keep.add(i)
+            used += size
+    return sorted(keep), len(chosen) - len(keep)
 
 
 def _assemble(question, turns, chosen, head=(), standing=()):
@@ -638,6 +664,13 @@ def secret_note(count):
         return ""
     return (f"Part of your report {LOOKS_LIKE}, so it was left out and the answer may be missing something. "
             "Take it out of the item if you want it included.")
+
+
+def left_out_text(count):
+    """The ruled line for passages left out to keep a question under the size limit. "" for none."""
+    if not isinstance(count, int) or isinstance(count, bool) or count < 1:
+        return ""
+    return LEFT_OUT.format(n=count)
 
 
 def dropped_note(count):
