@@ -25,11 +25,11 @@ def style_ids(html):
 
 
 class Mapping(unittest.TestCase):
-    def test_classic_is_the_shipped_theme_and_cards_is_none(self):
+    def test_classic_is_the_shipped_theme_and_the_only_one_applied(self):      # row 1363
         self.assertEqual(theme.name_for("classic"), NAME)
         self.assertIn(NAME, theme.installed())
         for other in ("cards", None, "", "Classic", 5, "../x", [], {}, ["classic"]):
-            self.assertIsNone(theme.name_for(other), other)
+            self.assertEqual(theme.name_for(other), NAME, other)
 
 
 class Served(unittest.TestCase):
@@ -54,25 +54,25 @@ class Served(unittest.TestCase):
         self.assertEqual(html.count('id="theme"'), 1)
         self.assertEqual(html, page.page_html(branding=page.NO_BRAND, theme=NAME))
 
-    def test_cards_is_the_page_as_it_was(self):
+    def test_a_stored_cards_value_is_served_in_classic(self):      # row 1363
         open_store(self.db, onedrive_roots=[]).close()
         self.set_theme("cards")
         html = self.served()
-        self.assertNotIn('id="theme"', html)
-        self.assertEqual(html, page.page_html(branding=page.NO_BRAND))
+        self.assertEqual(html.count('id="theme"'), 1)
+        self.assertEqual(html, page.page_html(branding=page.NO_BRAND, theme=NAME))
 
     def test_a_change_is_read_at_the_next_request(self):
         open_store(self.db, onedrive_roots=[]).close()
         self.assertIn('id="theme"', self.served())
         self.set_theme("cards")
-        self.assertNotIn('id="theme"', self.served())
+        self.assertIn('id="theme"', self.served())      # row 1363: Cards is stored but Classic is applied
         self.set_theme("classic")
         self.assertIn('id="theme"', self.served())
 
-    def test_a_file_made_before_the_step_is_served_in_cards(self):
+    def test_a_file_made_before_the_step_is_served_in_classic(self):      # row 1363
         from test_store_use_case_done_migration import make_at
         self.db = make_at(self.dir, 26)
-        self.assertNotIn('id="theme"', self.served())
+        self.assertIn('id="theme"', self.served())
 
     def test_no_file_that_can_be_read_is_today_s_page(self):
         self.db.write_text("not a database", encoding="utf-8")
@@ -113,20 +113,10 @@ class Published(unittest.TestCase):
         self.assertEqual(text.count('id="theme"'), 1)
         self.assertLess(text.index('id="brand-demo"'), text.index('id="theme"'))
 
-    def test_cards_file_has_no_theme_block(self):
+    def test_a_stored_cards_value_publishes_the_classic_file(self):      # row 1363
         self.set_theme("cards")
-        self.assertNotIn('id="theme"', self.file().decode("utf-8"))
+        self.assertEqual(self.file().decode("utf-8").count('id="theme"'), 1)
 
-    def test_a_new_publish_takes_the_choice_of_that_moment_and_an_old_file_is_untouched(self):
-        self.set_theme("cards")
-        old = self.file()
-        self.set_theme("classic")
-        new = self.file()
-        self.assertNotIn(b'id="theme"', old)
-        self.assertIn(b'id="theme"', new)
-        self.set_theme("cards")
-        self.assertEqual(self.file(), old)
-        self.assertNotIn(b'id="theme"', old)
 
     def test_the_policy_hashes_cover_the_theme_block(self):
         self.set_theme("classic")
@@ -137,7 +127,7 @@ class Published(unittest.TestCase):
         self.set_theme("classic")
         self.assertEqual(publish.theme_of(self.s), NAME)
         self.set_theme("cards")
-        self.assertIsNone(publish.theme_of(self.s))
+        self.assertEqual(publish.theme_of(self.s), NAME)      # row 1363
 
 
 class Reads(unittest.TestCase):
@@ -182,7 +172,7 @@ class Reads(unittest.TestCase):
     def test_the_to_client_marker_page_takes_the_theme_of_the_file(self):
         built = publish.build(self.s, "ABC", now="2030-01-15", number=1)
         pub = publish_flow.Publisher(self.s.path, [], by_user=lambda: "x", data_dir=self.s.path.parent)
-        for value, want in (("classic", NAME), ("cards", None)):
+        for value, want in (("classic", NAME), ("cards", NAME)):
             self.set_theme(value)
             seen, spy = self.spy_page()
             with spy, mock.patch.object(publish_flow.to_client, "preflight", return_value={"ok": True}), \
@@ -194,7 +184,7 @@ class Reads(unittest.TestCase):
     def test_the_pdf_marker_page_takes_the_theme_of_the_file(self):
         built = publish.build(self.s, "ABC", now="2030-01-15", number=1)
         pub = publish_flow.Publisher(self.s.path, [], by_user=lambda: "x", data_dir=self.s.path.parent)
-        for value, want in (("classic", NAME), ("cards", None)):
+        for value, want in (("classic", NAME), ("cards", NAME)):
             self.set_theme(value)
             seen, spy = self.spy_page()
             with spy, mock.patch.object(publish_pdf.pdf, "find_chrome", return_value=None):
