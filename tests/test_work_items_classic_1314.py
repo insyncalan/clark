@@ -1,7 +1,7 @@
 """Row 1314: the Classic Work items page as the prototype draws it, in the Classic theme layer only.
 
 Run: python3 dev/run_tests.py test_work_items_classic_1314
-Covers the filter underline, the joined square layout pair with a grey chosen half, and the heading hairlines. Cards (shell.css) must not carry any of it.
+Covers the filter underline, the joined layout pair at radius 8 (item 1392) with a grey chosen half, and the heading hairlines. Cards (shell.css) must not carry any of it.
 """
 import re
 import unittest
@@ -32,8 +32,8 @@ class ClassicRules(unittest.TestCase):
         self.assertIn("background: none", b)
         self.assertIn("margin-right: 0", block(".fline-tail"))
 
-    def test_layout_pair_is_square_and_chosen_half_is_grey_not_aqua(self):
-        self.assertIn("border-radius: var(--radius-sm)", block(".vicons .lsw, .vicons .btn.sm.vgb"))
+    def test_layout_pair_is_radius_8_and_chosen_half_is_grey_not_aqua(self):
+        self.assertIn("border-radius: var(--radius)", block(".vicons .lsw, .vicons .btn.sm.vgb"))
         b = block('.vicons .seg.lsw button[aria-pressed="true"]')
         self.assertIn("background-color: var(--grey-100)", b)
         self.assertIn("color: var(--heading)", b)

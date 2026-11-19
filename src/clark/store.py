@@ -908,6 +908,25 @@ def _gantt_rules(con, table, row, changed):
         return fresh or bool(set(names) & set(changed))
     if row.get("type") not in ALLOWED[("gantt_lines", "type")]:
         raise Invalid(GANTT_BAD_TYPE)
+    _gantt_text_rules(row, touched)
+    _gantt_value_rules(row, fresh, touched)
+    _gantt_date_rules(row, touched)
+    row_id, project = row.get("id"), row.get("project")
+    here = fetch(con, table, row_id) if row_id else None              # the row as stored now (None for a new row, or one an undo puts back)
+    parent = row.get("parent") or None
+    row["parent"] = parent
+    if touched("parent", "type"):
+        _gantt_parent_rules(con, table, row, here, row_id, project, parent)
+    if touched("depends"):
+        _gantt_depends_rules(con, table, row, here, row_id, project)
+    if fresh:
+        n = con.execute("SELECT count(*) FROM gantt_lines WHERE project = ? AND id IS NOT ?", (project, row_id)).fetchone()[0]
+        if n >= MAX_GANTT_LINES:
+            raise Invalid(GANTT_TOO_MANY)
+
+
+def _gantt_text_rules(row, touched):
+    """The line's texts: the name, the plain texts and the note, checked and tidied."""
     if touched("name"):
         row["name"] = gantt_plain(row.get("name"), GANTT_TEXT_LIMITS["name"], GANTT_NO_NAME)
     for f in ("owner", "workstream", "deliverable"):
@@ -915,6 +934,10 @@ def _gantt_rules(con, table, row, changed):
             row[f] = gantt_plain(row.get(f), GANTT_TEXT_LIMITS[f], GANTT_BAD_TEXT, blank_ok=True)
     if touched("note"):
         row["note"] = gantt_plain(row.get("note"), GANTT_TEXT_LIMITS["note"], GANTT_BAD_TEXT, blank_ok=True, lines=True)
+
+
+def _gantt_value_rules(row, fresh, touched):
+    """The done %, the health and priority words, the effort and budget numbers and the place in the list."""
     if fresh and row.get("pct") is None:
         row["pct"] = 0                                   # a new line starts at 0 % done
     if touched("pct") and (type(row.get("pct")) is not int or not 0 <= row["pct"] <= 100):
@@ -930,6 +953,10 @@ def _gantt_rules(con, table, row, changed):
             _gantt_number(row, f)
     if touched("sort_order") and type(row.get("sort_order")) is not int:
         raise Invalid(GANTT_BAD_PLACE)
+
+
+def _gantt_date_rules(row, touched):
+    """The dates are real days with the end not before the start and a milestone on one day; the baseline end is not before its start."""
     start, end = row.get("start"), row.get("end")
     if touched("start", "end", "type"):
         if not start or not end:
@@ -941,42 +968,41 @@ def _gantt_rules(con, table, row, changed):
     base_start, base_end = row.get("baseline_start"), row.get("baseline_end")
     if touched("baseline_start", "baseline_end") and base_start and base_end and base_end < base_start:
         raise Invalid(GANTT_BAD_BASELINE)
-    row_id, project = row.get("id"), row.get("project")
-    here = fetch(con, table, row_id) if row_id else None              # the row as stored now (None for a new row, or one an undo puts back)
-    parent = row.get("parent") or None
-    row["parent"] = parent
-    if touched("parent", "type"):
-        if parent is not None:
-            if row["type"] == "phase":
-                raise Invalid(GANTT_PHASE_TOP)
-            found = fetch(con, table, parent) if GANTT_ID.fullmatch(str(parent)) else None
-            if found is None or found["project"] != project or parent == row_id:
-                raise Invalid(GANTT_NO_PARENT.format(_gantt_said(parent)))
-            if found["type"] != "phase":
-                raise Invalid(GANTT_PARENT_PHASE)
-        if row["type"] != "phase" and here is not None and here["type"] == "phase" and \
-                con.execute("SELECT 1 FROM gantt_lines WHERE parent = ? LIMIT 1", (row_id,)).fetchone():
-            raise Invalid(GANTT_PHASE_KEEPS)
-    if touched("depends"):
-        wanted = gantt_list(row.get("depends"))
-        had = gantt_list(here["depends"]) if here is not None else []
-        if len(wanted) > MAX_GANTT_DEPENDS:
-            raise Invalid(GANTT_TOO_MANY_DEPENDS)
-        for d in wanted:
-            if d == row_id:
-                raise Invalid(GANTT_SELF_DEPENDS)
-            if d in had:
-                continue
-            found = fetch(con, table, d) if GANTT_ID.fullmatch(d) else None
-            if found is None or found["project"] != project:
-                raise Invalid(GANTT_NO_DEPEND.format(_gantt_said(d)))
-        if row_id and any(_gantt_reaches(_gantt_graph(con, project, row_id, wanted), d, row_id) for d in wanted if d not in had):
-            raise Invalid(GANTT_LOOP)
-        row["depends"] = ",".join(wanted)
-    if fresh:
-        n = con.execute("SELECT count(*) FROM gantt_lines WHERE project = ? AND id IS NOT ?", (project, row_id)).fetchone()[0]
-        if n >= MAX_GANTT_LINES:
-            raise Invalid(GANTT_TOO_MANY)
+
+
+def _gantt_parent_rules(con, table, row, here, row_id, project, parent):
+    """The parent is a phase of this project and the line is not one; a phase with lines under it stays a phase."""
+    if parent is not None:
+        if row["type"] == "phase":
+            raise Invalid(GANTT_PHASE_TOP)
+        found = fetch(con, table, parent) if GANTT_ID.fullmatch(str(parent)) else None
+        if found is None or found["project"] != project or parent == row_id:
+            raise Invalid(GANTT_NO_PARENT.format(_gantt_said(parent)))
+        if found["type"] != "phase":
+            raise Invalid(GANTT_PARENT_PHASE)
+    if row["type"] != "phase" and here is not None and here["type"] == "phase" and \
+            con.execute("SELECT 1 FROM gantt_lines WHERE parent = ? LIMIT 1", (row_id,)).fetchone():
+        raise Invalid(GANTT_PHASE_KEEPS)
+
+
+def _gantt_depends_rules(con, table, row, here, row_id, project):
+    """Depends names other lines of this project, never the line itself, and never goes round in a circle (an id already in the list is
+    not asked about again); the list is stored tidy."""
+    wanted = gantt_list(row.get("depends"))
+    had = gantt_list(here["depends"]) if here is not None else []
+    if len(wanted) > MAX_GANTT_DEPENDS:
+        raise Invalid(GANTT_TOO_MANY_DEPENDS)
+    for d in wanted:
+        if d == row_id:
+            raise Invalid(GANTT_SELF_DEPENDS)
+        if d in had:
+            continue
+        found = fetch(con, table, d) if GANTT_ID.fullmatch(d) else None
+        if found is None or found["project"] != project:
+            raise Invalid(GANTT_NO_DEPEND.format(_gantt_said(d)))
+    if row_id and any(_gantt_reaches(_gantt_graph(con, project, row_id, wanted), d, row_id) for d in wanted if d not in had):
+        raise Invalid(GANTT_LOOP)
+    row["depends"] = ",".join(wanted)
 
 
 def _gantt_detach(con, gone, step):
@@ -2027,78 +2053,84 @@ def _return_links(con, step, key, undoing):
     return out
 
 
-def revert_group(con, apply_id, table, key, rows_, step):
-    """One item's rows from one step (`apply_id`), put back under `step`. Returns (done, skipped)."""
-    def entry(r, **k):
-        return {"rowid": r["rowid"], "ref": key, "field": r["field"], **k}
+def _revert_entry(key, r, **k):
+    return {"rowid": r["rowid"], "ref": key, "field": r["field"], **k}
 
-    created = [r for r in rows_ if r["op"] == OP_MADE]
-    if created:                                        # the step created the row: remove it, only if untouched since
-        made = con.execute("SELECT rowid, * FROM change_log WHERE apply_id = ? AND tbl = ? AND item_id = ? AND op = 'insert' "
-                           "ORDER BY rowid", (apply_id, table, key)).fetchall()
-        whole = con.execute("SELECT rowid, * FROM change_log WHERE apply_id = ? AND tbl = ? AND item_id = ? ORDER BY rowid",
-                            (apply_id, table, key)).fetchall()
-        final = list({c["field"]: c for c in whole}.values())      # the step's last word on each field: a row made and then
-        #                                                            changed (or deleted) in the same step still goes back whole
-        later = changed_after(con, whole[-1]["rowid"], table, key, skip=(apply_id, step.peek_apply_id()))
-        if not holds(con, table, key, final) or later:
-            return [], [entry(rows_[0], field=None, why="has changed since: left as it is", by_step=later)]
-        if final[-1]["field"] == REMOVED:                          # made and deleted in this one step: nothing is there to remove
-            return [entry(r, change="removed") for r in rows_], []
-        ref = referred_to(con, key)
-        if ref:
-            return [], [entry(rows_[0], field=None, by_step=None,
-                              why=f"something refers to it now ({_REF_WORDS.get(ref[0], ref[0])} {ref[1]}): left as it is")]
-        current = fetch(con, table, key)
-        if table == "milestones":                          # a link taken off is kept, marked removed; it must go before the row it names
-            con.execute("DELETE FROM use_case_milestones WHERE milestone = ? AND removed_at IS NOT NULL", (key,))
-        elif table == "use_cases":
-            con.execute("DELETE FROM use_case_milestones WHERE use_case = ? AND removed_at IS NOT NULL", (key,))
-        con.execute(f"DELETE FROM {_table(table)} WHERE {where_key(table)}", key_values(table, key))
-        log(con, step, table, key, REMOVED, json.dumps(dict(current), ensure_ascii=False), None, "update",
-            undoes=made[0]["rowid"])
-        return [entry(r, change="removed") for r in rows_], []
-    removed = [r for r in rows_ if r["field"] == REMOVED]
-    if removed:                                        # the step deleted a link or a label: put it back while it is still gone
-        r = removed[0]
-        if fetch(con, table, key) is not None:
-            return [], [entry(x, why="is back already: left as it is", by_step=None) for x in rows_]
-        old = json.loads(r["old_value"])
-        if table == "links" and _link_end_gone(con, old):          # item 658: the other end of the link is still deleted; the link comes back
-            return [], []                                          # with that item's own Undo (_return_links), so nothing is lost
-        back = {k: v for k, v in old.items() if k in columns(con, table) and v is not None}
-        before = {}                                    # #197: a field the step changed before the delete goes back to its first old value
-        for x in rows_:
-            if x["rowid"] < r["rowid"] and x["field"] in columns(con, table) and x["field"] not in before:
-                before[x["field"]] = x["old_value"]
-        back.update(_typed(con, table, before))       # a first old value of NULL is put back as NULL, never the column's default
-        check_row(con, table, dict(back), set(back))
-        _insert_sql(con, table, back)
-        for f, v in back.items():
-            log(con, step, table, key, f, None, v, OP_MADE, undoes=r["rowid"])
-        out = [entry(x, change="put back") for x in rows_]
-        if table in DELETABLE_ITEMS:
-            out += _return_links(con, step, key, apply_id)
-        return out, []
-    done, skipped, changes, undoes = [], [], {}, {}
-    row = fetch(con, table, key)
-    if row is None:
-        return [], [entry(rows_[0], field=None, why="no longer exists", by_step=None)]
-    if "archived" in row.keys() and row["archived"] and not any(r["field"] == "archived" for r in rows_):
-        raise Invalid(f"{key} is archived. Restore it first.")        # #126: an older step's edit is not put back onto an archived row
+
+def _revert_created(con, apply_id, table, key, rows_, step):
+    """The step created the row: remove it, only if untouched since. Returns (done, skipped)."""
+    made = con.execute("SELECT rowid, * FROM change_log WHERE apply_id = ? AND tbl = ? AND item_id = ? AND op = 'insert' "
+                       "ORDER BY rowid", (apply_id, table, key)).fetchall()
+    whole = con.execute("SELECT rowid, * FROM change_log WHERE apply_id = ? AND tbl = ? AND item_id = ? ORDER BY rowid",
+                        (apply_id, table, key)).fetchall()
+    final = list({c["field"]: c for c in whole}.values())      # the step's last word on each field: a row made and then
+    #                                                            changed (or deleted) in the same step still goes back whole
+    later = changed_after(con, whole[-1]["rowid"], table, key, skip=(apply_id, step.peek_apply_id()))
+    if not holds(con, table, key, final) or later:
+        return [], [_revert_entry(key, rows_[0], field=None, why="has changed since: left as it is", by_step=later)]
+    if final[-1]["field"] == REMOVED:                          # made and deleted in this one step: nothing is there to remove
+        return [_revert_entry(key, r, change="removed") for r in rows_], []
+    ref = referred_to(con, key)
+    if ref:
+        return [], [_revert_entry(key, rows_[0], field=None, by_step=None,
+                          why=f"something refers to it now ({_REF_WORDS.get(ref[0], ref[0])} {ref[1]}): left as it is")]
+    current = fetch(con, table, key)
+    if table == "milestones":                          # a link taken off is kept, marked removed; it must go before the row it names
+        con.execute("DELETE FROM use_case_milestones WHERE milestone = ? AND removed_at IS NOT NULL", (key,))
+    elif table == "use_cases":
+        con.execute("DELETE FROM use_case_milestones WHERE use_case = ? AND removed_at IS NOT NULL", (key,))
+    con.execute(f"DELETE FROM {_table(table)} WHERE {where_key(table)}", key_values(table, key))
+    log(con, step, table, key, REMOVED, json.dumps(dict(current), ensure_ascii=False), None, "update",
+        undoes=made[0]["rowid"])
+    return [_revert_entry(key, r, change="removed") for r in rows_], []
+
+
+def _revert_removed(con, table, key, rows_, step, apply_id, removed):
+    """The step deleted a link, a label or an item: put it back while it is still gone. Returns (done, skipped)."""
+    r = removed[0]
+    if fetch(con, table, key) is not None:
+        return [], [_revert_entry(key, x, why="is back already: left as it is", by_step=None) for x in rows_]
+    old = json.loads(r["old_value"])
+    if table == "links" and _link_end_gone(con, old):          # item 658: the other end of the link is still deleted; the link comes back
+        return [], []                                          # with that item's own Undo (_return_links), so nothing is lost
+    back = {k: v for k, v in old.items() if k in columns(con, table) and v is not None}
+    before = {}                                    # #197: a field the step changed before the delete goes back to its first old value
+    for x in rows_:
+        if x["rowid"] < r["rowid"] and x["field"] in columns(con, table) and x["field"] not in before:
+            before[x["field"]] = x["old_value"]
+    back.update(_typed(con, table, before))       # a first old value of NULL is put back as NULL, never the column's default
+    check_row(con, table, dict(back), set(back))
+    _insert_sql(con, table, back)
+    for f, v in back.items():
+        log(con, step, table, key, f, None, v, OP_MADE, undoes=r["rowid"])
+    out = [_revert_entry(key, x, change="put back") for x in rows_]
+    if table in DELETABLE_ITEMS:
+        out += _return_links(con, step, key, apply_id)
+    return out, []
+
+
+def _revert_judge_fields(con, table, key, rows_, row, step, skipped):
+    """Each field the step changed: put back to its first old value unless it has changed since (then named in `skipped`).
+    Returns (by_field, changes, undoes)."""
+    changes, undoes = {}, {}
     by_field = {}                                     # a field changed twice in one step: judged by its last value, put back
-    for r in rows_:                                   # to its first old value (creaite's whole-step cmd_undo)
+    for r in rows_:                                   # to its first old value (the whole-step Undo)
         by_field.setdefault(r["field"], []).append(r)
     for f, rs in sorted(by_field.items(), key=lambda kv: kv[0] == "owner_id"):     # #620: the link is judged after its owner text
         if text(row[f]) != rs[-1]["new_value"]:
-            skipped.append(entry(rs[-1], why="has changed since: left as it is",
+            skipped.append(_revert_entry(key, rs[-1], why="has changed since: left as it is",
                                  by_step=changed_after(con, rs[-1]["rowid"], table, key, skip=(step.peek_apply_id(),))))
         elif f == "owner_id" and any(x["field"] == OWNER_TEXT.get(table) and x["why"].startswith("has changed since") for x in skipped):
             gone = next(x for x in skipped if x["field"] == OWNER_TEXT[table])     # #620: an owner_id rides with its owner text. When the
-            skipped.append(entry(rs[-1], why=gone["why"], by_step=gone["by_step"]))     # name was changed since, the link stays beside it and is
+            skipped.append(_revert_entry(key, rs[-1], why=gone["why"], by_step=gone["by_step"]))     # name was changed since, the link stays beside it and is
         else:                                                                       # never put back alone (the old link beside a new name)
             changes[f] = rs[0]["old_value"]
             undoes[f] = rs[-1]["rowid"]
+    return by_field, changes, undoes
+
+
+def _revert_health_reason(con, apply_id, table, key, row, changes, undoes, by_field):
+    """A project's health change takes its reason back too, or leaves the reason as it stands."""
     if table == "projects" and "health" in changes and "health_reason" not in changes:    # a health change takes its reason back too
         hr = con.execute("SELECT rowid, * FROM change_log WHERE apply_id = ? AND tbl = 'projects' AND item_id = ? "
                          "AND field = 'health_reason' AND op = 'update' ORDER BY rowid", (apply_id, key)).fetchall()
@@ -2108,6 +2140,18 @@ def revert_group(con, apply_id, table, key, rows_, step):
             by_field["health_reason"] = [dict(x) for x in hr]
     if table == "projects" and "health" in changes and "health_reason" not in changes:
         changes["health_reason"] = row["health_reason"]       # the pick kept the reason as it stood: put it back as it stands (no change)
+
+
+def _revert_changed(con, apply_id, table, key, rows_, step):
+    """The step changed fields of a row that is still there: put each back unless it has changed since. Returns (done, skipped)."""
+    done, skipped = [], []
+    row = fetch(con, table, key)
+    if row is None:
+        return [], [_revert_entry(key, rows_[0], field=None, why="no longer exists", by_step=None)]
+    if "archived" in row.keys() and row["archived"] and not any(r["field"] == "archived" for r in rows_):
+        raise Invalid(f"{key} is archived. Restore it first.")        # #126: an older step's edit is not put back onto an archived row
+    by_field, changes, undoes = _revert_judge_fields(con, table, key, rows_, row, step, skipped)
+    _revert_health_reason(con, apply_id, table, key, row, changes, undoes, by_field)
     if not changes:
         return done, skipped
     write_item(con, {"table": table, "op": "update", "id": key, "changes": _typed(con, table, changes), "revert": True,
@@ -2117,10 +2161,20 @@ def revert_group(con, apply_id, table, key, rows_, step):
         if f not in changes:
             continue
         if text(after[f]) == rs[0]["old_value"]:
-            done.extend(entry(r, change="set", **{"from": r["new_value"], "to": rs[0]["old_value"]}) for r in rs)
+            done.extend(_revert_entry(key, r, change="set", **{"from": r["new_value"], "to": rs[0]["old_value"]}) for r in rs)
         else:                                          # derived (a RAID priority, a closed date): it follows other fields
-            skipped.append(entry(rs[-1], why="it follows other fields: left as it is", by_step=None))
+            skipped.append(_revert_entry(key, rs[-1], why="it follows other fields: left as it is", by_step=None))
     return done, skipped
+
+
+def revert_group(con, apply_id, table, key, rows_, step):
+    """One item's rows from one step (`apply_id`), put back under `step`. Returns (done, skipped)."""
+    if any(r["op"] == OP_MADE for r in rows_):
+        return _revert_created(con, apply_id, table, key, rows_, step)
+    removed = [r for r in rows_ if r["field"] == REMOVED]
+    if removed:
+        return _revert_removed(con, table, key, rows_, step, apply_id, removed)
+    return _revert_changed(con, apply_id, table, key, rows_, step)
 
 
 _REF_WORDS = {"actions": "an action", "raid": "a RAID item", "decisions": "a decision", "links": "a link",
