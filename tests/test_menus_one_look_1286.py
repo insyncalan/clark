@@ -10,6 +10,7 @@ bulk menus, the Gantt menus, the rich text style menu) at 1400 and 900, light an
     (the date and owner pickers are forms, not menus, and are left out)
   - the tick of the line in use is on the right of the words, except in the three menus whose mock-ups draw it on the left (Columns, the Gantt Show menus)
   - the head of a group is plain: no capitals, no letter spacing
+  - the panel radius: 10px on every menu, as the prototype .pop (Row menu-radius)
 Words and icons are not read here (test_menu_icons_every_1138 does that); nothing here changes a word.
 """
 import json
@@ -63,15 +64,11 @@ MEASURE = r"""(root => {
 def check(test, name, look, m):
     where = f"{name} at {look[0]} {look[1]}"
     test.assertTrue(m, where)
-    if os.environ.get("CLARK_MENU_DUMP"):
-        with open(os.environ["CLARK_MENU_DUMP"], "a", encoding="utf-8") as out:
-            lines = [r for r in m["rows"] if r["icon"]] or m["rows"]
-            out.write(json.dumps({"menu": name, "look": list(look), "w": m["w"], "rad": m["rad"], "pad": m["pad"], "fs": sorted({r["fs"] for r in m["rows"]}),
-                                  "line": sorted({r["pad"] + " r" + r["rad"] for r in lines}), "gap": sorted({r["gap"] for r in lines if r["gap"] is not None})}) + "\n")
     three = name in THREE
+    test.assertEqual(m["rad"], "10px", f"{where}: the panel radius is {m['rad']}, the prototype popover (.pop) draws 10px")
     if three:
         test.assertGreaterEqual(m["w"], MIN_W, f"{where}: the menu is {m['w']}px wide")
-        test.assertEqual((m["rad"], m["pad"]), ("10px", "6px 6px 6px 6px"), f"{where}: the popup radius and padding")
+        test.assertEqual(m["pad"], "6px 6px 6px 6px", f"{where}: the popup padding")
     for r in m["rows"]:
         if name in PICKERS or name in PILL_MENU:
             continue
