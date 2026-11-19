@@ -174,7 +174,7 @@ class AppSettings:
                 return 400, self.fail("no_undo")
         elif set(body) == {"theme"}:
             asked, theme = None, body["theme"]
-            if type(theme) is not str or theme not in THEMES:
+            if type(theme) is not str or theme not in THEMES or theme == "cards":     # row 1363: Cards cannot be chosen any more
                 return 400, self.fail("bad_theme")
         else:
             return 400, self.fail("bad_request")
