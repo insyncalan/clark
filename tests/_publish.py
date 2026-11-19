@@ -16,7 +16,7 @@ from clark import publish as publish_module
 
 
 class PublishedFile:
-    theme = "classic"      # Cards is unmaintained (Alan 19-11, row 1363): a stored cards value renders Classic, so published-file tests use Classic
+    theme = "classic"      # Cards is unmaintained (row 1363): a stored cards value renders Classic, so published-file tests use Classic
 
     def publish(self):
         theme = getattr(self, "theme", "classic")

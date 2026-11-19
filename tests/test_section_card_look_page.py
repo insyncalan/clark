@@ -147,7 +147,7 @@ class PublishedCards(g.Setup):
     draw = g.Published.draw
 
     def test_the_published_file_draws_classic_sections(self):
-        """Cards is unmaintained (Alan 19-11, row 1363): a project with a stored 'cards' theme publishes Classic sections, no Cards square and no card border."""
+        """Cards is unmaintained (row 1363): a project with a stored 'cards' theme publishes Classic sections, no Cards square and no card border."""
         path = self.publish()
         with chrome() as cdp:
             p = self.draw(cdp, path)
