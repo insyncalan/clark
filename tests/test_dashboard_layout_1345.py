@@ -68,7 +68,8 @@ class Layout(Dash):
 class Text(unittest.TestCase):
     def test_the_layout_block_is_one_comment_then_these_lines(self):
         rules = (theme_folder() / "rules.css").read_text(encoding="utf-8")
-        block = rules[rules.index(MARK):rules.index("/* Row 1314:")]
+        start = rules.index(MARK)
+        block = rules[start:rules.index("/* Row ", start + 1)]
         self.assertEqual(rules.count(MARK), 1)
         self.assertEqual([l for l in block.split("\n")[1:] if l.strip()], LINES)
 
