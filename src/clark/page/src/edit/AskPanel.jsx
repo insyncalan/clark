@@ -20,7 +20,6 @@ import { chatId, histOpen, histTick, chats, keepChat, deleteChat, when } from ".
 import { ChangeCards, fixedLine } from "./AskChange.jsx";
 import { FormattedAnswer } from "./AskFormat.jsx";
 import { sourcesOf, kindOf } from "./askCite.js";
-import { classicTheme } from "../components/Contents.jsx";
 import { AskDraft } from "./AskDraft.jsx";
 import { readDraft } from "./askDraft.js";
 import * as F from "./askFiles.js";
