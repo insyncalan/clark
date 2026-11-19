@@ -32,7 +32,7 @@ def expect(shown, summary=(), right=()):
     return out
 
 
-SUMMARY = "[...document.querySelectorAll('.secs > .sec')].flatMap((e, i) => e.dataset.type === 'current' ? [i] : [])"
+SUMMARY = "[...document.querySelectorAll('.secs > .sec')].flatMap((e, i) => e.dataset.type === 'current' || (e.dataset.type === 'text' && e.querySelector('.sec-h').textContent.trim() === 'Current state') ? [i] : [])"
 RIGHT = "[...document.querySelectorAll('.secs > .sec')].flatMap((e, i) => e.classList.contains('slot-right') ? [i] : [])"
 
 
@@ -73,7 +73,7 @@ class BandWiring(Base):
                 self.assertEqual(p.js("window.marker"), "same page", "no reload")
 
     def test_the_default_text_section_titled_current_state_is_the_summary(self):
-        """Stark and Romanoff 19-11: the default summary is a TEXT section titled Current state (item 1188); it is never banded and does not count."""
+        """ruling 19-11: the default summary is a TEXT section titled Current state (item 1188); it is never banded and does not count."""
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.show(cdp, width)
@@ -96,6 +96,9 @@ class BandWiring(Base):
 
 class CardsKeepsItsDom(BandWiring):
     theme = None
+
+    def test_the_default_text_section_titled_current_state_is_the_summary(self):
+        self.skipTest("Cards is never banded (ruling 19-11)")
 
     def test_cards_is_never_banded(self):
         with chrome() as cdp:

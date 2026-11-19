@@ -198,7 +198,7 @@ RULE_LINES = [
         '.wil-table .wil-c-id { width: 84px; }',
         '.wil-all-b { color: var(--status-blue); font-weight: var(--weight-medium); min-height: var(--space-6); padding: 6px 0; }',
         '/* Row 1311 (ruling 19-11): every other visible section, the summary (the Current state block, type current) left out, is a white panel on the page gradient: the class .band is set by logic/banding.js (CSS cannot count only the visible sections), so it follows a section shown or hidden. A pair (This week | Next week) is banded as one row. No radius, no left rule; a line between each visible section and the one above. */',
-        '.secs > .sec.band { background: var(--sec-band-bg); border-left: 0; border-radius: 0; padding: var(--sec-pad-t, 20px) var(--sec-px, 22px) 18px; }',
+        '.secs > .sec.band { --sec-pad-t: 20px; --sec-px: 22px; background: var(--sec-band-bg); border-left: 0; border-radius: 0; padding: 20px 22px 18px; }',
         '.secs > .sec:not(.is-hidden):not(.drag-slot) ~ .sec:not(.is-hidden):not(.drag-slot) { border-top: 1px solid var(--line-soft); }',
         '.secs > .sec[data-type="current"] { padding: 0 0 18px; border-left: 0; }',
         '@media (min-width: 901px) { html[data-density="comfortable"] .secs > .sec.slot-left.band { box-shadow: var(--space-5) 0 0 0 var(--sec-band-bg); } }',
