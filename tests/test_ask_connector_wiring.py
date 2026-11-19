@@ -43,6 +43,17 @@ def got(i, content):
     return event("user", {"type": "tool_result", "tool_use_id": i, "content": content})
 
 
+def found(i, *names, matches=True, content=None, extra=None):
+    """A ToolSearch result in the shape a real run wrote (probe on a real machine): one tool_reference block per tool, and tool_use_result with the matches."""
+    block = {"type": "tool_result", "tool_use_id": i,
+             "content": content if content is not None else [{"type": "tool_reference", "tool_name": n} for n in names]}
+    ev = {"type": "user", "message": {"content": [block]}}
+    if matches:
+        ev["tool_use_result"] = {"matches": list(names), "total_deferred_tools": 9}
+    ev.update(extra or {})
+    return json.dumps(ev)
+
+
 def final(text="The plan is on track."):
     return json.dumps({"type": "result", "subtype": "success", "is_error": False, "result": text})
 
@@ -145,10 +156,12 @@ class Killers(Run):
     def test_the_used_line_of_an_earlier_run_does_not_carry_over(self):
         self.out = stream(use("1", f"{P}__outlook_email_search"), got("1", "m"), final("Fine"))
         self.ask(["mail"])
-        self.assertEqual(self.provider.last_used, "Used: Mail")
+        self.assertEqual(self.provider.last_used, "Used: Read your mail")
+        self.assertEqual(self.provider.last_line.used, ("Mail",))
         self.out = json.dumps({"type": "result", "subtype": "success", "is_error": False, "result": "ok"}).encode()
         self.ask()
         self.assertEqual(self.provider.last_used, "")
+        self.assertIsNone(self.provider.last_line)
 
     def test_the_stream_reader_edges(self):
         t = lambda *b: stream(use("1", f"{P}__outlook_email_search"), got("1", list(b)), final())  # noqa: E731
@@ -267,7 +280,7 @@ class Screened(Run):
     def test_a_clean_read_is_answered_and_named_on_the_used_line(self):
         r = self.run_with(use("1", f"{P}__outlook_email_search"), got("1", "three mails"), final("Answer"))
         self.assertEqual(r, "Answer")
-        self.assertEqual(self.provider.last_used, "Used: Mail")
+        self.assertEqual(self.provider.last_used, "Used: Read your mail")
 
     def test_a_hidden_character_in_a_result_refuses_the_whole_run(self):
         r = self.run_with(use("1", f"{P}__outlook_email_search"), got("1", "ok​hidden"), final())
@@ -320,16 +333,45 @@ class Screened(Run):
             inp = {"query": query}
             inp.update(extra or {})
             return cs.checked(stream(event("assistant", {"type": "tool_use", "id": ident, "name": "ToolSearch", "input": inp}), *rest, final()), {"Mail"})[0]
-        self.assertTrue(run(mail, got("0", "loaded")))
+        self.assertTrue(run(mail, found("0", mail)))
         for query in ("outlook_email_search outlook_send_mail", "xoutlook_email_search", "outlook_email_search, send draft delete", "+outlook_email_search delete",
                       "Select:outlook_email_search,outlook_send_mail", "outlook_email_search\u200b", "outlook_email_s\u0435arch", " outlook_email_search",
                       "outlook_email_search" + " " * 400 + "outlook_send_mail", "x\nselect:outlook_send_mail outlook_email_search"):
             self.assertFalse(run(query), query)
+        self.assertFalse(run(mail, got("0", "loaded")), "plain text is no longer a search result")
         self.assertFalse(run(mail, got("0", "bad\u202etext")), "a hidden character in a search result")
-        self.assertFalse(run(mail, got("0", "x" * 50000)), "a search result over the size cap")
         self.assertFalse(run(mail, use("0", mail), got("0", "t")), "an id used twice")
         self.assertFalse(run(mail, ident=""), "no id")
         self.assertFalse(run(mail, event("user", {"type": "tool_result", "content": "zzz\u202e"}), ident=None), "a search without an id")
+
+    def test_the_real_search_result_shape_passes_and_every_other_shape_fails(self):
+        mail = f"{P}__outlook_email_search"
+        cal = f"{P}__outlook_calendar_search"
+        send = f"{P}__outlook_send_mail"
+
+        def run(*rest, on=("Mail",)):
+            q = event("assistant", {"type": "tool_use", "id": "0", "name": "ToolSearch", "input": {"query": f"select:{mail}"}})
+            return cs.checked(stream(q, *rest, use("1", mail), got("1", "three mails"), final()), set(on))
+        self.assertTrue(run(found("0", mail))[0], "the shape of a real run")
+        self.assertTrue(run(found("0", mail, matches=False))[0], "content alone, exactly the reference")
+        self.assertTrue(run(found("0", mail, content=[{"type": "tool_reference", "tool_name": mail}]))[0])
+        for label, ev in (("another tool", found("0", send)),
+                          ("a tool of a part that is Off", found("0", cal)),
+                          ("a bare name", found("0", "outlook_email_search")),
+                          ("two references, one not allowed", found("0", mail, send)),
+                          ("an extra block", found("0", mail, content=[{"type": "tool_reference", "tool_name": mail}, {"type": "text", "text": "hi"}])),
+                          ("an extra key in the block", found("0", mail, content=[{"type": "tool_reference", "tool_name": mail, "note": "x"}])),
+                          ("text", found("0", mail, content="outlook_email_search")),
+                          ("no content", found("0", mail, content=[])),
+                          ("matches differ", found("0", mail, extra={"tool_use_result": {"matches": [send], "total_deferred_tools": 9}})),
+                          ("matches with an extra", found("0", mail, extra={"tool_use_result": {"matches": [mail, send], "total_deferred_tools": 9}})),
+                          ("an extra key in the result", found("0", mail, extra={"tool_use_result": {"matches": [mail], "total_deferred_tools": 9, "x": 1}})),
+                          ("the total is not a number", found("0", mail, extra={"tool_use_result": {"matches": [mail], "total_deferred_tools": "9"}})),
+                          ("a result with no matches key", found("0", mail, extra={"tool_use_result": {"total_deferred_tools": 9}}))):
+            ok, _l, result = run(ev)
+            self.assertFalse(ok, label)
+            self.assertIsNone(result, label)
+        self.assertFalse(run(found("0", mail), on=("Calendar",))[0], "Mail is Off")
 
     def test_tool_search_then_the_allowed_tool_passes_and_anything_else_fails(self):
         # The safe set keeps ToolSearch (the Mail tool needs it to load). Only a ToolSearch that asks for an allowed tool is let through.
@@ -337,7 +379,7 @@ class Screened(Run):
             return event("assistant", {"type": "tool_use", "id": i, "name": "ToolSearch", "input": {"query": query}})
         mail = f"{P}__outlook_email_search"
         for query in (f"select:{mail}", "select:outlook_email_search", "outlook_email_search"):
-            ok, line, result = cs.checked(stream(search("0", query), got("0", "loaded"), use("1", mail), got("1", "t"), final()), {"Mail"})
+            ok, line, result = cs.checked(stream(search("0", query), found("0", mail), use("1", mail), got("1", "t"), final()), {"Mail"})
             self.assertTrue(ok, query)
             self.assertIsNotNone(result, query)
         ok, _l, _r = cs.checked(stream(search("0", f"select:{mail}"), final()), {"Mail"})
@@ -348,7 +390,7 @@ class Screened(Run):
             self.assertFalse(ok, query)
             self.assertIsNone(result, query)
         for other in ("Bash", f"{P}__outlook_send_mail", "WebFetch"):
-            ok, _l, result = cs.checked(stream(search("0", f"select:{mail}"), got("0", "loaded"), use("1", other), got("1", "t"), final()), {"Mail"})
+            ok, _l, result = cs.checked(stream(search("0", f"select:{mail}"), found("0", mail), use("1", other), got("1", "t"), final()), {"Mail"})
             self.assertFalse(ok, other)
             self.assertIsNone(result, other)
         ok, _l, _r = cs.checked(stream(event("assistant", {"type": "tool_use", "id": "0", "name": "ToolSearch", "input": "select:x"}), final()), {"Mail"})

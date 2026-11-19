@@ -90,13 +90,47 @@ class Line(unittest.TestCase):
                              ("outlook_send_mail", "z")])
         ul = cs.used_line(out)
         self.assertEqual(ul.used, ("Mail",))
-        self.assertIn("Used: Mail", ul.text)
-        self.assertIn("Not used: Teams (hidden characters)", ul.text)
-        self.assertIn("tool not allowed", ul.text)
+        self.assertEqual(ul.text, "Used: Read your mail. Not used: Teams chats has hidden characters")
+        self.assertIn("unknown connector (tool not allowed)", ul.not_used)
+        self.assertNotIn("not allowed", ul.text, "a tool on no part has no approved word, so it is data only")
         self.assertNotIn("SECRET", ul.text)
 
     def test_empty(self):
         self.assertEqual(cs.used_line([]).text, "")
+
+    def line(self, *pairs):
+        return cs.used_line(cs.screen_all(list(pairs))).text
+
+    def test_a_countable_list_shows_its_count_with_the_right_noun(self):
+        self.assertEqual(self.line(("outlook_email_search", '[1, 2, 3]')), "Used: Read your mail (3 messages)")
+        self.assertEqual(self.line(("outlook_email_search", '[1]')), "Used: Read your mail (1 message)")
+        self.assertEqual(self.line(("outlook_calendar_search", '{"value": [1, 2]}')), "Used: Read your calendar (2 events)")
+        self.assertEqual(self.line(("outlook_calendar_search", '[1]')), "Used: Read your calendar (1 event)")
+        self.assertEqual(self.line(("teams_list_chats", '[1, 2]')), "Used: Read your Teams chats (2 messages)")
+        self.assertEqual(self.line(("sharepoint_search", '[1, 2]')), "Used: Read your files (2 files)")
+        self.assertEqual(self.line(("sharepoint_search", '[1]')), "Used: Read your files (1 file)")
+        self.assertEqual(self.line(("find-tasks", '[1, 2]')), "Used: Read your tasks (2 tasks)")
+        self.assertEqual(self.line(("find-tasks", '[1]')), "Used: Read your tasks (1 task)")
+        self.assertEqual(self.line(("outlook_email_search", '[]')), "Used: Read your mail (0 messages)")
+
+    def test_an_answer_that_is_not_a_countable_list_shows_no_count(self):
+        for text in ("Subject: Lunch", '{"a": 1}', '{"a": [1], "b": [2]}', '"x"', "3", "null"):
+            self.assertEqual(self.line(("outlook_email_search", text)), "Used: Read your mail", text)
+
+    def test_two_results_of_one_part_add_up_and_one_uncountable_drops_the_count(self):
+        self.assertEqual(self.line(("outlook_email_search", "[1, 2]"), ("outlook_email_search", "[3]")),
+                         "Used: Read your mail (3 messages)")
+        self.assertEqual(self.line(("outlook_email_search", "[1, 2]"), ("outlook_email_search", "text")), "Used: Read your mail")
+
+    def test_every_not_used_reason_has_its_approved_words(self):
+        self.assertEqual(self.line(("outlook_email_search", "x" * 40001)), "Not used: Mail was too long")
+        self.assertEqual(self.line(("outlook_email_search", "a\u200bb")), "Not used: Mail has hidden characters")
+        self.assertEqual(self.line(("outlook_email_search", "x" * 35000), ("outlook_calendar_search", "y" * 35000),
+                                   ("find-tasks", "z" * 35000)), "Used: Read your mail, Read your calendar. Not used: Tasks was over the total")
+        self.assertEqual(cs.used_line([cs.screen("sharepoint_search", "x", on_parts={"Mail"})]).text, "Not used: Files is off")
+        self.assertEqual(cs.used_line([cs.screen("find-tasks", "x", on_parts={"Mail"})]).text, "Not used: Tasks is off")
+        self.assertEqual(cs.used_line([cs.screen("teams_list_chats", "x", on_parts={"Mail"})]).text, "Not used: Teams chats is off")
+        self.assertEqual(cs.used_line([cs.screen("outlook_calendar_search", "x", on_parts={"Mail"})]).text, "Not used: Calendar is off")
 
 
 class Provenance(unittest.TestCase):
@@ -122,7 +156,7 @@ class PlainStaysAccepted(unittest.TestCase):
             r = cs.screen("outlook_email_search", "a" + c + "b")
             self.assertFalse(r.used, repr(c))
             self.assertEqual(r.reason, cs.REFUSED_HIDDEN)
-            self.assertIn("Mail (hidden characters)", cs.used_line([r]).text)
+            self.assertIn("Mail has hidden characters", cs.used_line([r]).text)
 
     def test_only_mcp_server_prefix(self):
         self.assertFalse(cs.tool_allowed("mcp__srv__find-tasks"), "row 1306: a server that is not the part's own is refused")

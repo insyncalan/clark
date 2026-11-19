@@ -24,8 +24,8 @@ LIST_DRIVE = "claude.ai Google Drive: https://example.invalid/d - ✓ Connected"
 class Args(unittest.TestCase):
     def test_one_on_one_off(self):
         a = ca.connector_args(DISC + [DRIVE], ["mail"])
-        self.assertEqual(a[0], "--disallowedTools=mcp__claude_ai_Google_Drive")
-        self.assertEqual(a[1], f"--allowedTools={P}__outlook_email_search")
+        self.assertIn("--disallowedTools=mcp__claude_ai_Google_Drive", a)       # a known server is denied whole (the pinned list), found or not
+        self.assertEqual(a[a.index(f"--allowedTools={P}__outlook_email_search") - 1], a[[i for i, x in enumerate(a) if x.count("__") == 1][-1]])
         self.assertIn(f"--disallowedTools={P}__outlook_send_mail", a)
         self.assertIn(f"--disallowedTools={P}__outlook_calendar_search", a)   # Off connector of the On server: read tools denied too
 
@@ -130,7 +130,7 @@ class Fresh(unittest.TestCase):
         first = ca.build_call(["mail"], run)
         second = ca.build_call(["mail"], run)
         self.assertTrue(first.ok and second.ok)
-        self.assertNotIn("--disallowedTools=mcp__claude_ai_Google_Drive", first.args)
+        self.assertIn("--disallowedTools=mcp__claude_ai_Google_Drive", first.args)       # a known server is denied whole even before it is found
         self.assertIn("--disallowedTools=mcp__claude_ai_Google_Drive", second.args)
 
     def test_stale_cache_not_used_and_not_refreshed(self):

@@ -24,6 +24,11 @@ FLAG_ALLOW, FLAG_DENY = "--allowedTools=", "--disallowedTools="
 # allow-list of built-ins (see ask_claude.connector_arguments), so a built-in added later cannot reach the model and no deny list of built-in names exists.
 LOADER = "ToolSearch"
 
+# Every claude.ai server known today (the Connected ones the command can show, and those that only offer an authorize tool). When a connector is On, each of
+# these is denied whole by its prefix, except the server of the part that is On. A server that is NOT in this list (a new one) is not denied here: the
+# stream check catches a call to it after the fact (nothing is shown), it cannot prevent it.
+KNOWN_SERVERS = ("Claude_Docs", "Gmail", "Google_Calendar", "Google_Drive", "Linear", "Microsoft_365", "Plaud", "Slides_AI", "Todoist", "Uber", "Vercel")
+
 # server -> connector -> read-only tools (fixed order). The only tools that can ever be allowed.
 READ_TOOLS = {
     M365: {
@@ -100,6 +105,11 @@ def connector_plan(discovered, on):
         allow.extend(f"{FLAG_ALLOW}{p}__{t}" for t in allowed)
         names = set(WRITE_TOOLS[server]) | {t for c in table for t in table[c]}
         named.extend(f"{FLAG_DENY}{p}__{t}" for t in sorted(names - set(allowed)))
+    if any_on:
+        have = {a[len(FLAG_DENY):] for a in whole}
+        on_servers = {prefix(sv) for sv in servers if READ_TOOLS.get(sv) and any(c in on_ids and c in servers[sv] for c in READ_TOOLS[sv])}
+        whole = sorted(set(whole) | {FLAG_DENY + "mcp__claude_ai_" + k for k in KNOWN_SERVERS
+                                     if "mcp__claude_ai_" + k not in on_servers and "mcp__claude_ai_" + k not in have})
     return whole + allow + named, dropped
 
 
