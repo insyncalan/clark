@@ -287,7 +287,8 @@ class IconsBrowser(unittest.TestCase):
             for text in (row["words"], row["under"]):
                 self.assertNotRegex(text, JARGON, f"{iid}: {text!r}")
         if rows["due"]["under"]:
-            self.assertRegex(rows["due"]["under"], r"^overdue \d+ days?$", iid)
+            # row 1285: a decision's date chip names its date under the value when it is not overdue (the approved mock-up's "needed by", "made on", "was needed by")
+            self.assertRegex(rows["due"]["under"], r"^(overdue \d+ days?|needed by|made on|was needed by)$" if "-D-" in iid else r"^overdue \d+ days?$", iid)
 
     def test_the_data_has_every_tone_to_check(self):
         """The check below is only as good as the data: the demo items must reach more than one tone in each row."""
