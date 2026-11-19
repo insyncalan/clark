@@ -222,8 +222,6 @@ RULE_LINES = [
         '.seg:not(.modes) button[aria-pressed="true"] em, .seg:not(.modes) button[aria-checked="true"] em { color: var(--white); }',
         '.seg:not(.icons):not(.modes) button[aria-pressed="true"]:focus-visible, .seg:not(.icons):not(.modes) button[aria-checked="true"]:focus-visible, .cal-sc button[aria-current="true"]:focus-visible { outline-color: var(--white); outline-offset: -3px; }',
         '.crumbs, .ucd-crumb, .ucf-crumb { text-transform: none; letter-spacing: normal; }',
-        '/* Row 1260 G4: Classic shows no sentence under the Milestones title in the Plan view; the Movement hint stays. */',
-        '.wbar:has([data-mspv="plan"][aria-pressed="true"]) [data-mspage-hint] { display: none; }',
     ]
 
 
