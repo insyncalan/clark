@@ -9,7 +9,7 @@ import { stopRestore } from "../router.js";
 import { askProvider } from "./askState.js";
 import { draft, panelOpen, panelState, panelDisconnected, panelModel, panelStanding, panelWidth, panelFocus, turns, pending, chatEpoch, handed, answersReady, queue, queueHeld, queueDrop, QUEUE_MAX, setQueue, closePanel, newChat, setWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
 import * as W from "./askWords.js";
-import { copyAnswer, questionBefore, recallStep } from "./askActions.js";
+import { copyAnswer, hasActions, questionBefore, recallStep } from "./askActions.js";
 import { classicTheme } from "../components/Contents.jsx";
 import { pills, asking } from "./askPills.js";
 import { stateOf } from "./askPillState.js";
@@ -404,7 +404,7 @@ export function AskPanel() {
                 <button type="button" class="btn primary" onClick={() => { draft.value = t.draft; }}>{W.DRAFT_OPEN}</button>
               </div>
             ) : null}
-            {classic && t.role === "assistant" && !t.kind && typeof t.text === "string" ? (
+            {classic && hasActions(t) ? (
               <div class="ask-turn-acts" data-ask-acts>
                 <button type="button" class="ask-act" data-ask-copy onClick={async () => setNote((await copyAnswer(t.text)) ? W.ANSWER_COPIED : W.ANSWER_COPY_FAILED)}>{W.ANSWER_COPY}</button>
                 <button type="button" class="ask-act" data-ask-again disabled={busy || state !== "ready"} onClick={() => { const q = questionBefore(list, list.indexOf(t)); if (q) send(null, q); }}>{W.ANSWER_AGAIN}</button>

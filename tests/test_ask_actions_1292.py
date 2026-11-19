@@ -77,6 +77,38 @@ class Logic(unittest.TestCase):
         got = run_node("(() => { const t = " + json.dumps(t) + "; const s1 = AA.recallStep(t, 0), s2 = AA.recallStep(t, s1.at), s3 = AA.recallStep(t, s2.at); return [s1, s2, s3, AA.recallStep([], 0)]; })()")
         self.assertEqual(got, [{"text": "b", "at": 1}, {"text": "a", "at": 2}, {"text": "a", "at": 2}, None])
 
+    def test_blank_and_kind_turns_are_not_questions(self):
+        t = [{"role": "user", "text": "a"}, {"role": "user", "text": "  "}, {"role": "user", "text": "k", "kind": "note"}, {"role": "assistant", "text": "x"}]
+        j = json.dumps(t)
+        self.assertEqual(run_node("[AA.questionBefore(" + j + ", 3), AA.recallStep(" + j + ", 0), AA.recallStep(" + j + ", 5)]"), ["a", {"text": "a", "at": 1}, {"text": "a", "at": 1}])
+        self.assertEqual(run_node("[AA.questionBefore([{role: 'user', text: ''}, {role: 'assistant', text: 'x'}], 1), AA.recallStep([{role: 'user', text: ' '}], 0)]"), ["", None])
+
+    def test_actions_only_under_an_answer_in_words(self):
+        got = run_node("[{role:'assistant',text:'Hi'}, {role:'assistant',text:''}, {role:'assistant',text:'  '}, {role:'assistant',text:'x',kind:'changes'}, {role:'user',text:'q'}, {role:'assistant'}].map(AA.hasActions)")
+        self.assertEqual(got, [True, False, False, False, False, False])
+
+    def test_copy_without_a_clipboard_is_false_and_write_missing_falls_back(self):
+        node = shutil.which("node")
+        if not node:
+            raise unittest.SkipTest("no node")
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "aa.js"
+            done = esbuild.run(["--bundle", "--format=iife", "--global-name=AA", str(EDIT / "askActions.js"), f"--outfile={out}"], capture_output=True, text=True)
+            assert done.returncode == 0, done.stderr
+            script = Path(tmp) / "probe.js"
+            script.write_text(out.read_text(encoding="utf-8") + """;
+(async () => {
+  class Item { constructor(o) { this.o = o; } }
+  const plain = [];
+  const none = await AA.copyAnswer("Hi", {}, Item);
+  const nonav = await AA.copyAnswer("Hi");
+  const fb = await AA.copyAnswer("Hi **x**", { clipboard: { writeText: async (t) => { plain.push(t); } } }, Item);
+  console.log(JSON.stringify({ none, nonav, fb, plain }));
+})();""", encoding="utf-8")
+            got = subprocess.run([node, str(script)], capture_output=True, text=True)
+            assert got.returncode == 0, got.stderr
+        self.assertEqual(json.loads(got.stdout), {"none": False, "nonav": False, "fb": True, "plain": ["Hi x"]})
+
 
 FAKE = """(function () { window.__clip = []; window.ClipboardItem = function (o) { this.o = o; };
   Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { write: function (l) { var o = l[0].o, r = {}; return Promise.all(Object.keys(o).map(function (k) { return o[k].text().then(function (t) { r[k] = t; }); })).then(function () { window.__clip.push(r); }); }, writeText: function (t) { window.__clip.push({ 'text/plain': t }); return Promise.resolve(); } } }); })()"""

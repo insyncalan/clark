@@ -31,25 +31,32 @@ export function answerPlain(text) {
 }
 
 /** Puts both forms on the clipboard (the plain form alone where the browser cannot take both). Resolves true when it worked. */
-export async function copyAnswer(text, nav = navigator, Item = typeof ClipboardItem === "undefined" ? null : ClipboardItem) {
+export async function copyAnswer(text, nav = typeof navigator === "undefined" ? null : navigator, Item = typeof ClipboardItem === "undefined" ? null : ClipboardItem) {
   try {
     const html = answerHtml(text), plain = answerPlain(text);
-    if (Item) await nav.clipboard.write([new Item({ "text/html": new Blob([html], { type: "text/html" }), "text/plain": new Blob([plain], { type: "text/plain" }) })]);
-    else await nav.clipboard.writeText(plain);
+    const cb = nav && nav.clipboard;
+    if (!cb) return false;
+    if (Item && typeof cb.write === "function") await cb.write([new Item({ "text/html": new Blob([html], { type: "text/html" }), "text/plain": new Blob([plain], { type: "text/plain" }) })]);
+    else await cb.writeText(plain);
     return true;
   } catch (e) { return false; }
 }
 
+const isQuestion = (t) => !!t && t.role === "user" && !t.kind && typeof t.text === "string" && t.text.trim() !== "";
+
+/** Copy and Ask again go under an answer in words, not under a problem line, a change card, or the person's own turn. */
+export const hasActions = (t) => !!t && t.role === "assistant" && !t.kind && typeof t.text === "string" && t.text.trim() !== "";
+
 /** The question that gave answer `i`: the nearest question before it. "" when there is none. */
 export function questionBefore(turns, i) {
-  for (let k = i - 1; k >= 0; k--) if (turns[k].role === "user" && typeof turns[k].text === "string") return turns[k].text;
+  for (let k = i - 1; k >= 0; k--) if (isQuestion(turns[k])) return turns[k].text;
   return "";
 }
 
 /** Up-arrow in an empty box: the person's questions, newest first. `at` is how many were brought back already (0 for the first press);
  *  returns {text, at} for the next one, stopping at the oldest, or null when there is no question. */
 export function recallStep(turns, at) {
-  const mine = turns.filter((t) => t.role === "user" && !t.kind && typeof t.text === "string");
+  const mine = turns.filter(isQuestion);
   if (!mine.length) return null;
   const n = Math.min(mine.length, at + 1);
   return { text: mine[mine.length - n].text, at: n };
