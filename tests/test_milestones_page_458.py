@@ -561,9 +561,8 @@ class Published(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready === '1'", sid)))
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
             cdp.js("[...document.querySelectorAll('.tab')].find(t => /Milestones/.test(t.textContent)).click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#ms-summary')", sid)), "the head drew")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#milestones h1')", sid)), "the head drew")      # row 1329: a published file is drawn with Classic, which has no sentence
             self.assertEqual(cdp.js("document.querySelector('#milestones .crumbs').textContent", sid), "Example Programme")
-            self.assertRegex(cdp.js("document.querySelector('#ms-summary').textContent", sid), r"^.+ is agreed for \d\d-\d\d-\d{4}.* \d+ achieved, 8 to come\.$")
             self.assertEqual(cdp.js("!!document.querySelector('#addMs')", sid), False, "a file has no Add milestone")
             self.assertEqual(cdp.js("document.querySelectorAll('.msl-row').length", sid), 5, "the owner's ruling: five rows")
             self.assertEqual(cdp.js("document.querySelector('.msl-all').textContent", sid), "Show all 8 milestones")
