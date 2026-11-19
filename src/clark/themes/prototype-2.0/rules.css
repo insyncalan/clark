@@ -402,8 +402,6 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 
 /* Row 1355 (Milestones page, Classic only): the View switch (Timeline / Calendar) and the Zoom hint share ONE row, the switch at the top left and the Zoom hint at the far right (spread apart as justify-content: space-between does), as the prototype does; the controls row sits under that row. */
 @media screen { #milestones.frame.milestones:not(.pub) .msv-sw { position: absolute; top: 0; left: 0; right: auto; display: inline-flex; margin: 0; } #milestones.frame.milestones:not(.pub) .mv-bar { padding-right: 0; row-gap: var(--space-2); } #milestones.frame.milestones:not(.pub) .mv-zoom { order: -1; flex: 0 0 100%; display: flex; align-items: center; justify-content: flex-end; min-height: 30px; box-sizing: border-box; } }
-/* Row 1375: a wheel over the Dashboard's Work items box that has reached its top or bottom keeps scrolling the page (the shared rule's overscroll-behavior-y: contain made it stall inside the box); the box still scrolls its own rows. */
-.wil-scroll { overscroll-behavior-y: auto; }
 /* Item 1352: the first-run card of ask clark as the prototype draws it, Classic only (Cards keeps its own rules): a bordered card with a heading, three bullets with the link in the third, and a quiet tip. The status line is the same line with the standing-instructions link at 13px. */
 .ask-first-run { margin: 22px 20px 0; padding: 14px 16px; border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); font-size: var(--size-body); }
 .ask-first-run h3 { margin: 0 0 6px; font-size: calc(var(--size-body) + 1px); font-weight: var(--weight-medium); line-height: var(--leading); color: inherit; }
