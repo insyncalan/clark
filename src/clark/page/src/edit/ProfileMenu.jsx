@@ -85,8 +85,8 @@ export function ProfileMenu() {
   // Row 786: with no project open the circle is still there, with the entries that need no project (Settings, Appearance, Help); Publish and the rest wait for the report, or Publish would open without the project's client folder
   const open = !!data.value;
   if (!open && status.value !== "none") return null;      // while the report loads (or failed) there is still no circle, as before
-  const items = open ? [{ id: "publish", name: "Publish…", tip: "Publish", icon: actionIcon("publish") }, { id: "preview", name: "Preview the page in a new tab", tip: "Preview", icon: actionIcon("preview") },
-    { id: "export", name: "Export to Excel", tip: "Export", icon: actionIcon("exportExcel") }, { id: "word-export", name: "Export to Word", icon: actionIcon("exportWord") }] : [];
+  const items = open ? [{ id: "preview", name: "Preview the page in a new tab", tip: "Preview", icon: actionIcon("preview") }, { id: "export", name: "Export to Excel", tip: "Export", icon: actionIcon("exportExcel") },
+    { id: "word-export", name: "Export to Word", icon: actionIcon("exportWord") }, { id: "publish", name: "Publish…", tip: "Publish", icon: actionIcon("publish") }] : [];      // row 1281: Preview, Export to Excel, Publish… (the Word export leaves in the next part)
   if (open && tabs.value.includes("published")) items.push({ id: "published", name: "Published reports", icon: actionIcon("published") });
   if (tabs.value.includes("settings")) items.push({ id: "settings", name: "Settings", icon: actionIcon("settings") });      // row 1092: after Published reports, before the Appearance group, always (no short word, so the tooltip is as it was)
   items.push({ id: "help", name: "Help", icon: actionIcon("help") });

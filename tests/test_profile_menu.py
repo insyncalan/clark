@@ -16,9 +16,9 @@ from test_page import navigate
 from clark import excel, page as clark_page, server as sv
 
 # The tooltip is built from the entries that carry a short word, so it follows them; the test below pins the two together.
-TIP = "Your menu: Publish, Preview, Export"                                                                 # Settings has no short word, so the tooltip is the same with or without a name
+TIP = "Your menu: Preview, Export, Publish"                                                                 # Settings has no short word, so the tooltip is the same with or without a name
 NAME = "Your menu"
-ITEMS = ["Publish…", "Preview the page in a new tab", "Export to Excel", "Export to Word", "Published reports", "Settings", "Help"]       # the commands (#443: Published reports, after Export; row 826: Import from Word, after Export to Word, in View too)
+ITEMS = ["Preview the page in a new tab", "Export to Excel", "Export to Word", "Publish…", "Published reports", "Settings", "Help"]       # the commands (#443: Published reports, after Export; row 826: Import from Word, after Export to Word, in View too)
 LOOK = ["System", "Light", "Dark"]                                                                            # the Appearance group (#179), radio items between Export and Settings
 WHO = "Add your name in Settings"                                                                          # the top line while no name is typed (#180): a link
 NAMED = r"^.+\(PUB\) \d{4}\.\d\d\.\d\d \d\d\.\d\d\.\d\d\.xlsx$"                                  # row 1143: what excel.download_name gives
