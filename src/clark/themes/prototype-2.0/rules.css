@@ -366,6 +366,15 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .fbt-tag { padding-top: 14px; padding-bottom: 14px; }
 /* Row 1342 part 2: the empty-send error (red 13px, 4 above) as the 1298 mockup draws it. */
 .fbt-error { margin-top: 4px; color: var(--status-red-text); font-size: 13px; }
+/* Row 1316 follow-up (ruling 19-11; Classic only; 1400, 900 has no separate rule): the Use cases table is FLAT as the prototype's (usecases.css:59, :62): no frame, no grey header, the header 13px/500 uppercase .08em muted over a 1px rule, each item at least 40 high over a hairline. The prototype --line is --grey-200 here, --line2 is --grey-100 and --ui is --grey-500 (as the Row 1316d note). Bare lengths: 13px and the 500 weight (no token), 40px row, 28px button, 10px/6px padding and radius, 6px gap. */
+.ucl-wrap > .wgroup:not(.ucl-group) { background: none; border: 0; border-radius: 0; overflow: visible; }
+.ucl-table thead th { background: none; border-top: 0; border-left: 0; border-bottom: 1px solid var(--grey-200); font-size: var(--size-caption); font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); }
+.ucl-table thead th + th { border-left: 0; }
+.ucl-table td { border-top: 0; border-bottom: 1px solid var(--grey-100); }
+.ucl-table tbody tr:first-child td.c-item { border-top: 0; }
+.ucl-table tbody tr { height: 40px; }
+#usecases #ucl-group, #usecases #ucl-sort { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: auto; min-width: 0; height: auto; min-height: 28px; padding: 0 10px; border: 1px solid var(--grey-500); border-radius: 6px; background: transparent; color: var(--text); font-size: var(--size-body); font-weight: 500; }      /* wins over the 1316a quiet-icon rule above (same ids, later) */
+#usecases #ucl-group:hover, #usecases #ucl-sort:hover, #usecases #ucl-group[aria-expanded="true"], #usecases #ucl-sort[aria-expanded="true"] { background: var(--grey-100); }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
