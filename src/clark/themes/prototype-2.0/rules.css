@@ -386,6 +386,8 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .fbt-error { margin-top: 4px; color: var(--status-red-text); font-size: 13px; }
 /* Row 1375: a wheel over the Dashboard's Work items box that has reached its top or bottom keeps scrolling the page (the shared rule's overscroll-behavior-y: contain made it stall inside the box); the box still scrolls its own rows. */
 .wil-scroll { overscroll-behavior-y: auto; }
+/* Row menu-radius, Classic menus: every menu panel (.ddmenu, .menu, .cpop, .gt-pop, .gt-menu) takes the prototype popover radius, 10px (design/prototype-clark-classic/index.html line 63, .pop), where the shared rule drew 12px. The Work items add menu keeps its own approved rule above. */
+.ddmenu, .menu, .cpop, .gt-pop, .gt-menu, [data-gt] .gt-menu { border-radius: 10px; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
