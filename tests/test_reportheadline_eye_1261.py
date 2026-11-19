@@ -376,6 +376,8 @@ class Eye(Base):
                 self.assertAlmostEqual(row["y"] - title["y"], 65, delta=0.6, msg=f"title top to the top rule is 65px in the rendered mock-up, not 77: {row['y'] - title['y']}")
                 self.assertEqual((row["gap"], row["pad"]), ("12px", "12px 0px"), "mock-up .health gap 12px, padding 12px 0")
                 self.assertEqual(row["border"][:3], "1px")
+                want = p.js("(function(){ var e = document.createElement('i'); e.style.borderTop = '1px solid var(--grey-200)'; document.body.appendChild(e); var c = getComputedStyle(e).borderTopColor; e.remove(); return c; })()")
+                self.assertEqual(row["border"][4:], want, "the rule colour is the mock-up's: --grey-200 (rgb 217, 224, 239 in light), not --border")
                 self.assertEqual((pill["fs"], pill["fw"], pill["pad"], pill["gap"]), ("14px", "700", "2px 12px", "6px"), f"mock-up .rag 14px bold, 2px 12px, gap 6px: {pill}")
                 self.assertGreaterEqual(pill["h"], 28, "mock-up .rag min-height 28px")
                 self.assertEqual(pill["ls"], "0.42px", "mock-up .rag tracking .03em of 14px")
