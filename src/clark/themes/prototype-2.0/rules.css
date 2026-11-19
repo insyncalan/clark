@@ -433,6 +433,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .tpl-rh.nopill .tpl-rh-text { flex: 1 1 100%; width: 100%; }
 /* Row 1261 (Classic only): the Report headline's View sizes are the approved mock-up's, not the shared tokens' (mock-up .health, h1, .meta, .rag, .lead): title 30px, weight 600, line 1.2, 4px under it; meta 4px under (the rendered mock-up: its `.top p` rule beats the `.meta` 16px, ruling 20-11), so the title top to the rule is 65px; the row gap 12px; the pill 14px bold, 2px 12px, at least 28px high, icon gap 6px, tracking .03em; the headline 16px bold. The pill stays beside the text at 900 and in a half column (the mock-up has no stacking rule), so the shared column rule at 900 is undone. */
 .tpl-rh-title { line-height: 1.2; letter-spacing: -.01em; margin-bottom: 4px; }
+.tpl-rh-title { font-family: var(--font-head); }
 .tpl-rh-meta { margin: 0 0 4px; }
 .tpl-rh { gap: 12px; padding: 12px 0; border-top-color: var(--grey-200); border-bottom-color: var(--grey-200); }
 .tpl-rh-pill { gap: 6px; min-height: 28px; padding: 2px 12px; font-size: 14px; font-weight: 700; letter-spacing: .03em; }
