@@ -8,7 +8,7 @@ import { singleKeys } from "../stores/keyPrefs.js";
 import { askOn, askProvider } from "./askState.js";
 import { keptCheck, runCheck } from "./askCheck.js";
 import { chatId, histOpen } from "./askHistory.js";
-import { QUIPS, DISCONNECTED_LINE } from "./askWords.js";
+import { DISCONNECTED_LINE } from "./askWords.js";
 
 const MIN = 320, DEFAULT = 420;
 const KEY = "clark.askWidth";
@@ -42,33 +42,6 @@ export function setWidth(w, keep) {
   panelWidth.value = clampWidth(w);
   if (keep) { try { localStorage.setItem(KEY, String(panelWidth.value)); } catch (e) { /* only a convenience */ } }
 }
-
-/** A deck of every quip index in a random order (Fisher-Yates). `rand` is Math.random's shape. */
-export function quipDeal(rand = Math.random) {
-  const d = QUIPS.map((_, i) => i);
-  for (let i = d.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; }
-  return d;
-}
-/** The next quip from a deck (an array of indexes, dealt from the end): a fresh shuffled deck when it runs out, never the one just
- * shown first. Returns the quip text; the deck is changed in place. */
-export function nextQuip(deck, prev, rand = Math.random) {
-  if (!deck.length) {
-    deck.push(...quipDeal(rand));
-    const top = deck.length - 1;
-    if (deck.length > 1 && QUIPS[deck[top]] === prev) [deck[0], deck[top]] = [deck[top], deck[0]];
-  }
-  return QUIPS[deck.pop()];
-}
-// One deck for the whole session of the panel (not one per question), so no quip comes round again until all have been shown,
-// and the one that ended a question never opens the next.
-let deck = [], lastQuip = "";
-/** The next quip to show, drawn from the one deck. */
-export function drawQuip(rand = Math.random) {
-  lastQuip = nextQuip(deck, lastQuip, rand);
-  return lastQuip;
-}
-/** 5 to 10 seconds, in milliseconds. */
-export const quipDelay = (rand = Math.random) => 5000 + Math.floor(rand() * 5001);
 
 let opener = null;
 

@@ -7,7 +7,7 @@ import { zoneFetch } from "../api.js";
 import { words } from "./publishApi.js";
 import { stopRestore } from "../router.js";
 import { askProvider } from "./askState.js";
-import { draft, panelOpen, panelState, panelDisconnected, panelModel, panelStanding, panelWidth, panelFocus, turns, pending, chatEpoch, handed, answersReady, queue, queueHeld, queueDrop, QUEUE_MAX, setQueue, closePanel, newChat, setWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
+import { draft, panelOpen, panelState, panelDisconnected, panelModel, panelStanding, panelWidth, panelFocus, turns, pending, chatEpoch, handed, answersReady, queue, queueHeld, queueDrop, QUEUE_MAX, setQueue, closePanel, newChat, setWidth, clampWidth, widthRange } from "./askPanelState.js";
 import * as W from "./askWords.js";
 import { classicTheme } from "../components/Contents.jsx";
 import { pills, asking } from "./askPills.js";
@@ -71,9 +71,9 @@ export function AskPanel() {
   const classic = classicTheme();
   const [text, setText] = useState("");
   const [note, setNote] = useState("");
-  const [quip, setQuip] = useState("");
   const [pick, setPick] = useState(0), [shut, setShut] = useState(false);   // #1292 S10: the slash menu's chosen row, and whether Esc has closed it
   const menu = shut ? null : slashMatches(text);
+  const [secs, setSecs] = useState(0);
   const [said, setSaid] = useState("");            // row 1220: what a screen reader is told when a message is queued or removed
   const waiting = queue.value, held = queueHeld.value, dropping = queueDrop.value;
   const showHist = histOpen.value && !busy;
@@ -114,12 +114,11 @@ export function AskPanel() {
     else el.scrollTop = el.scrollHeight;
   }, [list.length, busy]);
   useEffect(() => {
-    if (!busy) { setQuip(""); return undefined; }
-    let t = null;
-    setQuip(drawQuip());
-    const tick = () => { t = setTimeout(() => { setQuip(drawQuip()); tick(); }, quipDelay()); };
-    tick();
-    return () => clearTimeout(t);
+    if (!busy) { setSecs(0); return undefined; }
+    const from = Date.now();
+    setSecs(0);
+    const t = setInterval(() => setSecs((Date.now() - from) / 1000), 1000);
+    return () => clearInterval(t);
   }, [busy]);
 
   if (!open && !leaving) return null;
@@ -413,7 +412,7 @@ export function AskPanel() {
       {busy ? (
         <p class="ask-work" id="ask-work">
           <span class="ask-dots" aria-hidden="true"><i /><i /><i /></span>
-          <span class="ask-quip" id="ask-quip" aria-hidden="true">{quip}</span>
+          <span class="ask-quip ask-step" id="ask-step" aria-hidden="true">{W.workingLine(askProvider.value, secs)}</span>
         </p>
       ) : (state === "ready" || state === "off") && !text.trim() ? (
         <div class="ask-pills" id="ask-pills" role="group" aria-label={W.PILLS_LABEL}>
