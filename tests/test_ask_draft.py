@@ -69,6 +69,7 @@ class Draft(Panel):
                 p.until("!document.querySelector('#ask-send').disabled", "ready")
                 self.ask(p, "Summarise this week")
                 p.until("!!document.querySelector('#ask-draft')", f"the draft opened at {width}")
+                p.until("document.querySelector('#ask-draft').getAnimations().length === 0", f"the slide-in has finished at {width}")      # row 1347: Classic slides in; measure it at rest
                 r = p.js("(function(){var r=document.querySelector('#ask-draft').getBoundingClientRect();return {l:r.left,w:r.width,r:r.right}})()")
                 panel = p.js("document.querySelector('#ask-panel').getBoundingClientRect().left")
                 self.assertGreaterEqual(r["l"], 0, f"{width}: the draft starts inside the window")
