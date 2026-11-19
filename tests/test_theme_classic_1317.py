@@ -96,11 +96,12 @@ class RealSettings(unittest.TestCase):
 
     def test_classic_settings_sidebar_cards_table_and_add_project(self):
         for tag, c in self.each(NAME):
-            self.assertEqual(c["barBg"], c["grey50"], tag + ": the sidebar is the --grey-50 panel (ruling 19-11, #1356)")
+            self.assertEqual(c["barBg"], c["grey50"], tag + ": the sidebar is the soft grey panel (row 1356)")
+            self.assertEqual(c["barRadius"], "10px", tag + ": the panel radius is 10 (row 1356)")
             self.assertEqual(c["barPos"], "sticky", tag + ": the real bar is still sticky")
             self.assertEqual(c["groupCase"], "none", tag + ": group names in sentence case")
             self.assertEqual(c["groupTrack"], "normal", tag)
-            self.assertEqual(c["curRadius"], "10px 10px", tag + ": the open page chip has radius 10 on all corners (ruling 19-11, prototype settings.css:36)")
+            self.assertEqual(c["curRadius"], "0px 10px", tag + ": the open page is a bar with its square edge at the marker")
             self.assertEqual((c["barRadius"], c["groupSize"], c["groupWeight"]), ("10px", "14px", "600"), tag + ": panel radius 10, group name 14px 600")
             if width_is_wide(tag):
                 self.assertEqual(c["chipH"], 36, tag + ": sidebar row 36px high")
