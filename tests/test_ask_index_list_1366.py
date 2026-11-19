@@ -179,15 +179,25 @@ class Note(unittest.TestCase):
     def notes(self):
         status, body = self.service.ask({"project": "PUB", "question": "What is the state of the plan?"})
         self.assertEqual(status, 200, body)
+        self.last = body
         return body["notes"]
 
     def test_the_note_is_there_while_reading_singular_and_plural_and_gone_when_complete(self):
+        """Re-pinned (named exemption): this test read the note from the shared notes list; it is now its own field (`index_note`, at `index_note_at`),
+        so the Cards page, which draws the shared list, never gets it."""
         self.not_yet = 120
-        self.assertIn("Still reading 120 files, so this answer may miss some.", self.notes())
+        notes = self.notes()
+        self.assertEqual(self.last["index_note"], "Still reading 120 files, so this answer may miss some.")
+        self.assertNotIn(self.last["index_note"], notes)
+        self.assertEqual(self.last["index_note_at"], len(notes), "it comes after the notes before it, as before")
         self.not_yet = 1
-        self.assertIn("Still reading 1 file, so this answer may miss some.", self.notes())
+        self.notes()
+        self.assertEqual(self.last["index_note"], "Still reading 1 file, so this answer may miss some.")
         self.not_yet = 0
-        self.assertFalse([n for n in self.notes() if n.startswith("Still reading")])
+        notes = self.notes()
+        self.assertFalse([n for n in notes if n.startswith("Still reading")])
+        self.assertNotIn("index_note", self.last)
+        self.assertNotIn("index_note_at", self.last)
 
     def test_the_real_indexer_counts_what_is_not_read_yet(self):
         ix = ask_index.Indexer(self.d, self.d)
