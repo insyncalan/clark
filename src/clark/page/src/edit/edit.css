@@ -1573,3 +1573,16 @@ table.items td.c-x-id { color: var(--link); font-weight: 600; white-space: nowra
 .ask-panel[data-drop] { outline: 2px dashed var(--brand-blue); outline-offset: -6px; }
 .ask-drop-line { flex: none; margin: 0 var(--space-4) 6px; color: var(--status-blue-text, var(--brand-blue)); font-size: var(--size-body); text-align: center; }
 .ask-actions #ask-attach { flex: none; }
+/* Row 1299 slice 2: Settings > Projects overview. A grey value is plain text colour, amber is a value to fix (and always has a word); the table scrolls inside its card at 900, never the page. */
+.ov-attn { margin: var(--space-2) 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--status-amber-text); border-radius: var(--radius); color: var(--status-amber-text); overflow-wrap: anywhere; }
+.ov-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-2) 0; }
+.ov-chip { all: unset; box-sizing: border-box; min-height: var(--space-6); padding: 0 var(--space-3); display: inline-flex; align-items: center; border: 1px solid var(--grey-200); border-radius: var(--radius-pill); color: var(--text); cursor: pointer; }
+.ov-chip[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); font-weight: var(--weight-medium); }
+.ov-chip:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.ov-scroll { max-width: 100%; overflow-x: auto; }
+.ov-table { width: 100%; }
+.ov-table td { vertical-align: top; }
+.ov-val { color: var(--text-muted); text-decoration: none; overflow-wrap: anywhere; }
+.ov-val:hover, .ov-val:focus-visible { text-decoration: underline; }
+.ov-table td:first-child .ov-val { color: var(--text); }
+.ov-val.warn { color: var(--status-amber-text); font-weight: var(--weight-medium); }
