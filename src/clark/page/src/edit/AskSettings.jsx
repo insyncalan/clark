@@ -8,6 +8,7 @@ import { askOn, askStatus, askSaved, askProvider, loadAsk, setAsk, ASK_OFF_LINE,
 import { named, ASK_NOTICE_LINE } from "./askWords.js";
 import { ConnectorsAll, ConnectorsProject } from "./ConnectorSettings.jsx";
 import { AiSettings } from "./AiSettings.jsx";
+import { UsageAll, UsageProject } from "./UsageSettings.jsx";
 import { AllInstructions, OwnInstructions } from "./AskInstructions.jsx";
 import { announceSwitch, leaveSwitch } from "./switchToast.js";
 import { classicTheme } from "../components/Contents.jsx";
@@ -196,6 +197,7 @@ function AskProject() {
       <div class="pub-msg" role={fmsg && fmsg.kind === "error" ? "alert" : "status"} aria-live="polite">{fmsg && fmsg.text ? <p class={fmsg.kind}>{fmsg.text}</p> : null}</div>
     </section>
     <OwnInstructions goAll={() => showAskTab(ALL)} />
+    <UsageProject />
     </>
   );
 }
@@ -214,6 +216,7 @@ function AllProjects() {
     <ConnectorsAll />
     <AllInstructions />
     <AllFolders />
+    <UsageAll />
     </>
   );
 }
