@@ -34,7 +34,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from clark import ask, ask_apply, ask_data, ask_files, ask_folders, ask_passages, pdf_link, pdf_reader, platform, publish, reach, secret_screen
-from clark.store import Store, connect
+from clark.store import CONNECTORS, Store, connect
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
 MESSAGES = {
@@ -174,6 +174,7 @@ class AskService:
                 except publish.PublishError:
                     return 404, self.fail("project_not_found")
                 folders = self.folders_for(store, code)
+                on_connectors = tuple(c for c in CONNECTORS if store.connector_allowed(c, code))      # row 1306: switch On and the project has not turned it Off
                 standing = {"all": store.ask_instructions(), "project": store.ask_instructions(code)}      # row 1294: sent with the question, the one for all projects first
             finally:
                 store.close()
@@ -191,17 +192,20 @@ class AskService:
         facts = data.facts
         if not self.enabled():                       # the gate again, just before anything leaves: a switch turned off meanwhile wins
             return 409, self.fail("asking_off")
-        reply = ask.ask_provider(self.provider, replace(request, owner=self.owner), codes=(code,), exists=lambda ref: ref in facts,
+        reply = ask.ask_provider(self.provider, replace(request, owner=self.owner, connectors=on_connectors), codes=(code,), exists=lambda ref: ref in facts,
                                  facts=lambda ref: facts.get(ref))
         if isinstance(reply, ask.Failure):
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
                              left_out_note(data.left_out + found.left_out), kinds_note(data.kinds_left_out), *folder_notes(found)) if n]
+        conn = connector_used(getattr(self.provider, "last_line", None))      # row 1306: what the real run did (None: no connector in the run)
+        if conn and conn["line"]:
+            notes.append(conn["line"])
         sent = tuple(data.passages) + tuple(found.passages) + tuple(added)      # (a file added to the question counts as one the answer read, so a change from it needs the separate Confirm)  # request.kept maps each passage sent to its place here (some may be left out)
         folder_ids = {pid for (pid, _label), i in zip(request.passages, request.kept) if i >= len(data.passages)}
         texts = {pid: sent[i].text for (pid, _label), i in zip(request.passages, request.kept)}
         held = self.hold(code, reply, request, folder_ids, texts) if reply.changes else None
-        return 200, {"ok": True, "answer": reply.answer, "parsed": reply.parsed, "cites": list(reply.cites),
+        return 200, {**({"used": conn} if conn else {}), "ok": True, "answer": reply.answer, "parsed": reply.parsed, "cites": list(reply.cites),
                      "sources": [{"id": pid, "label": label, "page": page_of(sent[i]), "file": file_of(sent[i])}
                                  for (pid, label), i in zip(request.passages, request.kept) if pid in reply.cites],
                      "flags": [{"kind": f.kind, "ref": f.ref, "message": f.message} for f in reply.flags],
@@ -357,6 +361,15 @@ def kinds_note(kinds):
         return ""
     names = ", ".join(ask_data.KIND_WORDS[k] for k in kinds)
     return f"The report leaves out {names}, so they were not part of what was read and the answer may be missing something."
+
+
+def connector_used(line):
+    """Row 1306: the answer's `used` data from the UsedLine of a run that had a connector in it: the line, what was used and not used,
+    and the parts read with the provenance flag. No connector content. None when no connector was in the run."""
+    if line is None:
+        return None
+    return {"line": line.text, "used": list(line.used), "not_used": list(line.not_used),
+            "sources": [{"part": part, "from_connector": True} for part in line.used]}
 
 
 def folder_notes(found):

@@ -219,6 +219,38 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 #usecases .ucl-box .ucl-st .cchip { padding: 2px 9px; border: 1px solid var(--grey-300); border-radius: var(--radius-pill); background: transparent; color: var(--text-muted); font-size: var(--size-small); font-weight: var(--weight-regular); }
 /* Row 1316c (issue 1316, Classic only): the Use cases Next steps count is plain text, not a round badge (prototype "1 next step"; by eye, the prototype files are not on this box). Rebrand only. */
 #usecases .ucsteps .ucn-b { min-width: 0; min-height: 0; padding: 0; margin-right: 0; border-radius: 0; background: none; color: inherit; font-size: inherit; font-weight: inherit; line-height: inherit; }
+/* Row 1317 (Settings sidebar): the menu is a grey panel (the Classic page ground equals the Cards panel fill, so it showed no panel), the group names are in sentence case, and the open page is a tinted bar with its square edge at the marker. The issue table names the grey panel and the tinted bar; it names no hover tint on a chip, so there is none. Classic only; Cards keeps its look. The Settings title is already 30 px in both Themes (measured), so it is not touched. Prototype files are not on this box: */
+@media (min-width: 900px) {
+  .set-bar { background: var(--grey-100); border-radius: var(--radius-lg); }
+  .set-group-name { text-transform: none; letter-spacing: normal; }
+  .set-chip[aria-current], .set-chip[aria-current]:hover { border-radius: 0 10px 10px 0; }
+}
+
+/* Row 1317 (Settings cards): the cards have radius 14 and no shadow (re-audit line "cards radius 12 + shadow vs radius 14 none"). Classic only. */
+.set-cards .frame { border-radius: 14px; box-shadow: none; }
+
+/* Row 1317 (Projects card): Add project is a filled blue button with its plus and its word always shown (shell.css hides the word until hover; the override is Classic only), and the table headers are bold, in the words' own case, without the divider line above them. Classic only; Cards keeps the dashed Add and the tracked capitals. Prototype files are not on this box: built from the issue table. */
+.projects #npBtn.newb { background: var(--brand-blue); border: 1px solid var(--brand-blue); color: var(--text-on-brand); }
+.projects #npBtn.newb .w { max-width: 180px; opacity: 1; margin-left: 6px; margin-right: var(--space-1); }
+.projects table.proj-table th { text-transform: none; letter-spacing: normal; font-weight: 700; border-top: 0; }
+
+/* Row 1317 (Projects Code cell): the Code cell stays on one line. shell.css/edit.css let the cell break anywhere, so MOSS broke as MOS / S once the sentence-case header made the column narrow. Classic only. */
+.projects table.proj-table td.num { white-space: nowrap; }
+.projects table.proj-table td:not(.acts) { overflow-wrap: normal; }
+
+/* Row 1315, timeline part (Classic only): the Milestones page's line as prototype 2.0 draws it. MsTimeline.jsx reads --tl-classic and sets data-look on the line, so Cards draws what it always did. */
+:root { --tl-classic: 1; }
+.mv[data-look="classic"] .mv-box { padding-bottom: 0; }
+.mv[data-look="classic"] .mv-today b { top: calc(var(--ly) + 14px); left: 6px; }
+.mv[data-look="classic"] .mv-grip { left: 0; right: 0; bottom: var(--sb); width: auto; height: 10px; margin-left: 0; border-radius: 0; justify-content: flex-end; align-items: flex-end; }
+.mv[data-look="classic"] .mv-grip span { width: 10px; height: 10px; border: 0; border-radius: 0; margin: 0 2px 2px 0; background: linear-gradient(135deg, transparent 0 45%, var(--grey-500) 45% 55%, transparent 55% 70%, var(--grey-500) 70% 80%, transparent 80%); }
+.mv[data-look="classic"] .mv-grip:hover span { background: linear-gradient(135deg, transparent 0 45%, var(--text-muted) 45% 55%, transparent 55% 70%, var(--text-muted) 70% 80%, transparent 80%); }
+/* Row 1315, progress part (Classic only): the Milestones list Progress bar is 145px with a bold right-aligned percent. */
+.msl-box[data-place="page"] .msl-prog .num { min-width: 2.75rem; text-align: right; font-weight: var(--weight-semibold); font-variant-numeric: tabular-nums; color: var(--heading); }
+@media (min-width: 1201px) { .msl-box[data-place="page"]:not([style*="--msl-cols:"]) :is(.msl-cells, .msl-hc) { grid-template-columns: minmax(240px, 17rem) minmax(160px, 1fr) 150px calc(145px + var(--space-2) + 2.75rem); } }
+/* Row 1315 frame and switches (Milestones page, Classic only): the sentence under the title is hidden, and the white card around the timeline and list is flat on screen. The Timeline / Calendar and Week / Month / Quarter switches are already joined with a dark active button by the rules above (rows 1313 and 1319), so nothing is added for them. Scoped to the Milestones page, so the Dashboard section is not touched. */
+#milestones .head-sub { display: none; }      /* the sentence under the title is removed (decided 16-11); also the empty and cancelled sentences, which the shared rule leaves shown; it stays in the page for the tests */
+@media screen { #milestones.frame.milestones:not(.pub) .msv { background: transparent; border: 0; box-shadow: none; padding: 0; } #milestones.frame.milestones:not(.pub) .msv-sw { top: 0; right: 0; } }      /* row 1315: the white card around the timeline and list (the .msv box, not the frame, which is already bare) is gone on screen, flat like the dashboard frame; the switch moves to the corner of the flat page; print keeps its look */
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
