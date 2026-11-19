@@ -22,7 +22,7 @@ import sys
 import tempfile
 from pathlib import Path
 
-from clark import backup, store as clark_store
+from clark import ask_index, backup, store as clark_store
 from clark.changes import _call
 from clark.store import key_of
 
@@ -142,6 +142,11 @@ def remove(store):
     if found:
         backup.take(store, "daily")                  # Invalid, in plain words, if it can't be made: nothing has changed yet
     store.remove_demo({code: sorted(keys) for code, keys in found.items()})
+    for code in found:
+        try:
+            ask_index.remove(Path(store.path).parent, code)         # Row 1366: the copy of the project's folder text goes with the project
+        except OSError:
+            pass
     return len(found)
 
 

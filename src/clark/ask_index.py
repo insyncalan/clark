@@ -66,6 +66,13 @@ def path_for(data_dir, code):
     return Path(data_dir) / "ask-index" / f"{safe}.db"
 
 
+def remove(data_dir, code):
+    """Delete the index of one project, with any -wal, -shm or -journal beside it (used when the project goes, or has no folder left)."""
+    base = path_for(data_dir, code)
+    for suffix in ("", "-wal", "-shm", "-journal"):
+        Path(str(base) + suffix).unlink(missing_ok=True)
+
+
 def _open(data_dir, code, create=True):
     p = path_for(data_dir, code)
     if not p.exists() and not create:
@@ -204,9 +211,7 @@ def refresh(data_dir, code, folders, home=None, stop=None, progress=None):
     usable, bad = _unusable(folders, data_dir, home)
     per = {str(f): {**dict.fromkeys(NAMES, 0), "safety": 1} for f in bad}
     if not usable:
-        p = path_for(data_dir, code)
-        if p.exists():
-            p.unlink()                       # no folder left: no copy of its text stays
+        remove(data_dir, code)               # no folder left: no copy of its text stays
         if bad:
             db = _open(data_dir, code)
             _set(db, "counts", {**dict.fromkeys(NAMES, 0), "safety": len(bad)})
@@ -354,9 +359,7 @@ def _read_one(db, path, label, low, st, usable, data_dir, home):
 
 def build(data_dir, code, folders, home=None):
     """Make the index again from nothing."""
-    p = path_for(data_dir, code)
-    if p.exists():
-        p.unlink()
+    remove(data_dir, code)
     refresh(data_dir, code, folders, home)
 
 
