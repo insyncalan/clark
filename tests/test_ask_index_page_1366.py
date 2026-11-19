@@ -79,7 +79,7 @@ class Page(unittest.TestCase):
             js = self.show(cdp, "project")
             self.until(js, "document.querySelectorAll('.ask-folder-line').length === 2", "two lines")
             self.until(js, "[...document.querySelectorAll('.ask-folder-line')].every(e => e.innerText.startsWith('Indexed'))", "indexed")
-            self.assertEqual(js("document.querySelector('#ask-folders-shared .ask-folder-line').innerText"), "Indexed 1 of 1 files.")
+            self.assertEqual(js("document.querySelector('#ask-folders-shared .ask-folder-line').innerText"), "Indexed 1 of 1 file.")
             self.assertEqual(js("document.querySelector('#ask-folders .ask-folder-line').innerText"), "Indexed 1 of 2 files. 1 is of a type clark can't read yet.")
             muted = js("getComputedStyle(document.querySelector('.ask-folders')).color && (() => { const p = document.createElement('p'); p.style.color = 'var(--text-muted)'; document.body.appendChild(p); const c = getComputedStyle(p).color; p.remove(); return c; })()")
             for w in WIDTHS:
@@ -96,13 +96,13 @@ class Page(unittest.TestCase):
         with chrome() as cdp:
             js = self.show(cdp, "all")
             self.until(js, "!!document.querySelector('#ask-all-folder-list .ask-folder-line')", "list")
-            self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === 'Reading 0 of 1 files.'", "reading")
+            self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === 'Reading 0 of 1 file.'", "reading")
             for w in WIDTHS:
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
                 look = js(self.LOOK % "#ask-all-folder-list .ask-folder-line")
                 self.assertEqual((look["size"], look["weight"], look["mt"], look["role"], look["live"], look["below"]), ("13px", "400", "2px", "status", "polite", True), (w, look))
             self.gate.set()
-            self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === 'Indexed 1 of 1 files.'", "indexed (asked again within 2 s polls)")
+            self.until(js, "document.querySelector('#ask-all-folder-list .ask-folder-line').innerText === 'Indexed 1 of 1 file.'", "indexed (asked again within 2 s polls)")
             js("document.querySelector('[data-ask-all-remove]').click()")
             self.until(js, "!!document.querySelector('#ask-all-folders-none')", "removed with its line")
             self.assertFalse(js("!!document.querySelector('#ask-all-folders .ask-folder-line')"))

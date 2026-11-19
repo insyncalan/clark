@@ -112,12 +112,12 @@ class Worker(Base):
         self.assertTrue(ix.start("ABC", [str(self.a)]))
         self.assertTrue(entered.wait(5))
         self.assertEqual(ix.busy, 1)
-        self.assertEqual(ix.status_for("ABC", [str(self.a)])[str(self.a)], {"state": "reading", "line": "Reading 0 of 1 files."})
+        self.assertEqual(ix.status_for("ABC", [str(self.a)])[str(self.a)], {"state": "reading", "line": "Reading 0 of 1 file."})
         self.assertFalse(ix.current("ABC", [str(self.a)]))
         gate.set()
         self.assertTrue(ix.wait_idle(5))
         self.assertEqual(ix.busy, 0)
-        self.assertEqual(ix.status_for("ABC", [str(self.a)])[str(self.a)]["line"], "Indexed 1 of 1 files.")
+        self.assertEqual(ix.status_for("ABC", [str(self.a)])[str(self.a)]["line"], "Indexed 1 of 1 file.")
         self.assertTrue(ix.current("ABC", [str(self.a)]))
 
     def test_shutdown_stops_a_run_at_the_next_file_and_refuses_new_ones(self):
@@ -177,7 +177,7 @@ class Route(Base):
         self.assertEqual(status, 200, body)
         self.assertTrue(self.ix.wait_idle(10))
         status, body = self.svc.read("ABC")
-        self.assertEqual(body["index"], {str(self.a): {"state": "done", "line": "Indexed 1 of 1 files."}})
+        self.assertEqual(body["index"], {str(self.a): {"state": "done", "line": "Indexed 1 of 1 file."}})
         self.assertTrue(ask_index.path_for(self.data, "ABC").exists())
         self.svc.change({"project": "ABC", "action": "remove", "path": str(self.a)})
         self.assertTrue(self.ix.wait_idle(10))
@@ -188,7 +188,7 @@ class Route(Base):
         self.put(self.b, "two.txt", "beta ocean")
         self.svc.change_all({"scope": "all", "action": "add", "path": str(self.b)})
         self.assertTrue(self.ix.wait_idle(10))
-        self.assertEqual(self.svc.read_all("ABC")[1]["index"], {str(self.b): {"state": "done", "line": "Indexed 1 of 1 files."}})
+        self.assertEqual(self.svc.read_all("ABC")[1]["index"], {str(self.b): {"state": "done", "line": "Indexed 1 of 1 file."}})
         self.assertEqual(self.svc.read("ABC")[1]["index"][str(self.b)]["state"], "done")
         self.assertNotIn("index", self.svc.read_all()[1])
 

@@ -125,31 +125,38 @@ class Types(Base):
         s = ix.status(self.data, "P1", [self.box])
         self.assertEqual((s["indexed"], s["type"], s["safety"]), (0, 1, 0))
 
-    def test_a_truncated_pptx_is_safety_not_an_error(self):
+    def test_a_truncated_pptx_is_type_not_an_error(self):
         self.put("cut.pptx", pptx({1: ["zqpptcut"]})[:-30], binary=True)
         self.build()
         s = ix.status(self.data, "P1", [self.box])
-        self.assertEqual((s["indexed"], s["safety"]), (0, 1))
+        self.assertEqual((s["indexed"], s["type"], s["safety"]), (0, 1, 0))
 
-    def test_a_pptx_with_broken_xml_is_safety(self):
+    def test_a_pptx_with_broken_xml_is_type(self):
         self.put("x.pptx", pptx({}, extra={"ppt/slides/slide1.xml": b"<a:p><a:t>zqpptbad</a:p>"}), binary=True)
         self.build()
         self.assertFalse(self.found("zqpptbad"))
-        self.assertEqual(ix.status(self.data, "P1", [self.box])["safety"], 1)
+        self.assertEqual(ix.status(self.data, "P1", [self.box])["type"], 1)
 
-    def test_a_pptx_with_an_entity_declaration_is_safety_and_nothing_is_expanded(self):
+    def test_a_pptx_with_an_entity_declaration_is_type_and_nothing_is_expanded(self):
         evil = b'<?xml version="1.0"?><!DOCTYPE s [<!ENTITY e "zqpptlol">]><a:p %s><a:r><a:t>&e;</a:t></a:r></a:p>' % NS.encode()
         self.put("e.pptx", pptx({}, extra={"ppt/slides/slide1.xml": evil}), binary=True)
         self.build()
         self.assertFalse(self.found("zqpptlol"))
-        self.assertEqual(ix.status(self.data, "P1", [self.box])["safety"], 1)
+        self.assertEqual(ix.status(self.data, "P1", [self.box])["type"], 1)
 
-    def test_a_zip_bomb_pptx_is_safety(self):
+    def test_a_real_secret_inside_a_pptx_is_still_safety(self):
+        self.put("k.pptx", pptx({1: ["zqpptkey", "password = " + "hunter2" * 3]}), binary=True)
+        self.build()
+        self.assertFalse(self.found("zqpptkey"))
+        s = ix.status(self.data, "P1", [self.box])
+        self.assertEqual((s["safety"], s["type"]), (1, 0))
+
+    def test_a_zip_bomb_pptx_is_type(self):
         big = b"<a:p %s><a:r><a:t>zqpptbomb</a:t></a:r></a:p>" % NS.encode() + b" " * (ask_extract.MAX_XML + 10)
         self.put("bomb.pptx", pptx({}, extra={"ppt/slides/slide1.xml": big}), binary=True)
         self.build()
         self.assertFalse(self.found("zqpptbomb"))
-        self.assertEqual(ix.status(self.data, "P1", [self.box])["safety"], 1)
+        self.assertEqual(ix.status(self.data, "P1", [self.box])["type"], 1)
 
     def test_a_pptx_with_a_forged_small_header_is_still_limited(self):
         big = b"<a:p %s><a:r><a:t>zqpptforge</a:t></a:r></a:p>" % NS.encode() + b" " * 4000
@@ -215,7 +222,7 @@ class Types(Base):
         self.assertEqual((s["indexed"], s["type"]), (1, 1))
         self.assertTrue(self.found("zqhtbad"))
 
-    def test_a_huge_html_file_is_safety_and_unclosed_tags_are_fine(self):
+    def test_a_huge_html_file_is_type_and_unclosed_tags_are_fine(self):
         with self.assertRaises(ValueError):
             ask_extract.html_groups(b"<p>a</p>", truncated=True)
         with mock.patch.object(ask_extract, "MAX_HTML_BYTES", 10):
@@ -226,7 +233,7 @@ class Types(Base):
         self.put("deep.html", b"<div>" * 20000 + b"zqhtdeep" + b"<script>", binary=True)
         self.build()
         s = ix.status(self.data, "P1", [self.box])
-        self.assertEqual((s["safety"], s["indexed"]), (1, 1))
+        self.assertEqual((s["type"], s["indexed"], s["safety"]), (1, 1, 0))
         self.assertFalse(self.found("zqhtbig"))
         self.assertTrue(self.found("zqhtdeep"))
 

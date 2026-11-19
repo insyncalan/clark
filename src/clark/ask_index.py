@@ -49,7 +49,7 @@ MAX_LEFT_OUT_SHOWN = 200
 LEFT_OUT_BUTTON = "Show the files left out"
 REASON_TYPE = "of a type clark can't read yet"
 REASON_SAFETY = "looks like a password or a key"
-REASON_TOO_LONG = "is a PDF that is too long to read"
+REASON_TOO_LONG = "is a PDF that is too long"
 COUNTED = ("indexed", "type", "too_long")          # the states that have their own count; any other state is a safety one
 
 
@@ -278,8 +278,8 @@ def _read_one(db, path, label, low, st, usable, data_dir, home):
     except reach.Never:
         state = "safety"
     except (docx_read.WordRefused, ValueError, UnicodeError):
-        # damaged or too big Word/Excel: left out as `type`, never said to look like a password; a hostile PowerPoint or web page stays `safety` (slice c)
-        state = "safety" if (is_pptx or is_html) else "type"
+        # damaged, too big or hostile Word/Excel/PowerPoint/web page: left out as `type`, never said to look like a password (a real secret inside still screens as `safety` below)
+        state = "type"
     if state == "indexed":
         every = "\n".join("\n".join(lines) for _n, lines in groups)
         if secret_screen.name_looks_like_secret(label) or secret_screen.looks_like_secret(every):
@@ -387,9 +387,9 @@ def _plural(n, one, many):
 def line_for(counts, reading=None):
     """The status line of one folder. `reading` is (done, total) while it is being read; `counts` the counts of its last full read."""
     if reading is not None:
-        return f"Reading {reading[0]} of {reading[1]} files."
+        return f"Reading {reading[0]} of {reading[1]} {_plural(reading[1], 'file', 'files')}."
     total = sum(counts.get(n, 0) for n in NAMES)
-    out = [f"Indexed {counts.get('indexed', 0)} of {total} files."]
+    out = [f"Indexed {counts.get('indexed', 0)} of {total} {_plural(total, 'file', 'files')}."]
     t, o, long_, s = (counts.get(k, 0) for k in ("type", "online_only", "too_long", "safety"))
     if t:
         out.append(f"{t} {_plural(t, 'is', 'are')} of a type clark can't read yet.")

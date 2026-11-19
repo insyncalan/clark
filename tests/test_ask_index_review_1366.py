@@ -82,6 +82,7 @@ class Reasons(Base):
         self.assertEqual(sum(c.get(n, 0) for n in ix.mod().NAMES), 2)
         self.assertEqual(ix.mod().line_for(c), "Indexed 0 of 2 files. 1 is of a type clark can't read yet. 1 PDF is too long.")
         self.assertEqual(dict(ix.mod().files_left_out(self.data, "P1", 200)["files"])["saved/big.pdf"], ix.mod().REASON_TOO_LONG)
+        self.assertEqual(ix.mod().REASON_TOO_LONG, "is a PDF that is too long")
 
 
 class Readers(Base):
