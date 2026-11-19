@@ -51,6 +51,20 @@ class Live(LiveBase):
                         self.assertEqual(len(r), len(got["heads"]), f"{tag}: group {n} has the header's columns")
                         self.assertTrue(all(abs(a - b) <= 1 for a, b in zip(r, got["heads"])), f"{tag}: group {n} rows start where the header columns start (within the 1 px of rounding): {r} against {got['heads']}")
 
+    def test_the_hidden_keyboard_entry_to_the_column_picker_sits_inside_the_table_block(self):
+        """The picker's keyboard button is drawn at the top right of the table block (it is positioned against .wtab); without that anchor it would
+        sit at the top right of some other box when it takes focus. Measured on the box it has now, at rest (it is transparent until focused)."""
+        for width in SIZES:
+            for theme in (None, NAME):
+                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                    sid = self.work(cdp, width, "light", theme)
+                    got = json.loads(cdp.js("""(() => { const b = document.querySelector('#work .wtab .cols-btn.cols-kbd'), w = document.querySelector('#work .wtab');
+                      if (!b || !w) return JSON.stringify({}); const r = b.getBoundingClientRect(), t = w.getBoundingClientRect();
+                      return JSON.stringify({ pos: getComputedStyle(w).position, inside: r.left >= t.left - 1 && r.right <= t.right + 1 && r.top >= t.top - 1 && r.top <= t.top + 40 }); })()""", sid))
+                    tag = f"{theme} {width}"
+                    self.assertEqual(got.get("pos"), "relative", tag + ": the table block anchors its absolutely placed children")
+                    self.assertTrue(got.get("inside"), tag + ": the keyboard entry sits at the top of the table block, not elsewhere on the page")
+
     def test_the_header_and_the_rows_sit_on_the_edges_and_the_header_menu_opens(self):
         with chrome() as cdp:
             sid = self.work(cdp, 1400, "light", None)
