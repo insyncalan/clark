@@ -58,7 +58,8 @@ function AskProject() {
   const [busy, setBusy] = useState(false);
   const [typing, setTyping] = useState(false);       // the server said no window can open here: a box to type the location into
   const [typed, setTyped] = useState("");
-  const [msg, setMsg] = useState(null);                  // {kind: "error" | "note", text}
+  const [msg, setMsg] = useState(null);                  // {kind: "error" | "note", text}: the switch's
+  const [fmsg, setFmsg] = useState(null);                // the same, for the folders
 
   const { switchRef, flip } = useAskFlip(on, busy, setBusy, setMsg);
 
@@ -85,7 +86,7 @@ function AskProject() {
   // After a Remove it goes to the Remove button that took its place, or to Choose folder when none is left.
   function refocusFolders(at) {
     setTimeout(() => {
-      const root = document.getElementById("ask-settings");
+      const root = document.getElementById("ask-folders-card");
       if (!root) return;
       const rm = root.querySelectorAll("[data-ask-remove]");
       const el = at >= 0 && rm.length ? rm[Math.min(at, rm.length - 1)] : root.querySelector("[data-ask-choose]");
@@ -96,7 +97,7 @@ function AskProject() {
   async function change(action, path) {
     const at = action === "remove" && Array.isArray(folders) ? folders.indexOf(path) : -1;
     setBusy(true);
-    setMsg(null);
+    setFmsg(null);
     const r = action === "choose" ? await askFoldersChoose(code) : await askFoldersChange(code, action, path);
     setBusy(false);
     const b = r.body;
@@ -104,11 +105,11 @@ function AskProject() {
     else setTimeout(() => { const i = document.getElementById("ask-folder-path"); if (i) i.focus(); }, 0);   // Add folder is disabled while the request runs: the focus goes to the box
     if (r.status === 200 && b && b.ok === true && Array.isArray(b.folders)) {
       setFolders(b.folders);
-      if (b.message) setMsg({ kind: "note", text: b.message });
+      if (b.message) setFmsg({ kind: "note", text: b.message });
       return true;
     }
     if (b && b.code === "no_window") setTyping(true);
-    setMsg({ kind: "error", text: failure(r) });
+    setFmsg({ kind: "error", text: failure(r) });
   }
 
   async function addTyped(e) {
@@ -122,7 +123,7 @@ function AskProject() {
   return (
     <>
     <section class="frame setting" id="ask-settings">
-      <h2 id="ask-settings-h" tabIndex={-1}>Asking</h2>
+      <h2 id="ask-settings-h" tabIndex={-1}>{`Asking in ${code}`}</h2>
       <p class="muted">{named("Claude is started on this computer for you.", askProvider.value)}</p>
       <p class="muted" id="ask-notice">{named(ASK_NOTICE_LINE, askProvider.value)}</p>
       <p id="ask-state">{status === "loading" ? ASK_CHECKING_LINE : status === "unavailable" ? ASK_UNAVAILABLE_LINE : on ? "Asking is on." : ASK_OFF_LINE}</p>
@@ -130,7 +131,16 @@ function AskProject() {
       <div class="row">
         <button type="button" class="btn" ref={switchRef} data-ask-switch aria-pressed={on ? "true" : "false"} disabled={busy || status !== "ready"} onClick={flip}>{on ? "Turn off asking" : "Turn on asking"}</button>
       </div>
-      <h3>Folders asking may read</h3>
+      <div class="pub-msg" role={msg && msg.kind === "error" ? "alert" : "status"} aria-live="polite">{msg && msg.text ? <p class={msg.kind}>{msg.text}</p> : null}</div>
+    </section>
+    <section class="frame setting" id="ask-used-all">
+      <h2>Used from All projects</h2>
+      <p class="muted">{USED_FROM_ALL}</p>
+      <div class="row"><button type="button" class="btn" data-ask-goall onClick={() => showAskTab(ALL)}>Change</button></div>
+    </section>
+    <ConnectorsProject code={code} />
+    <section class="frame setting" id="ask-folders-card">
+      <h2>{`Source folders for ${code}`}</h2>
       <p class="muted">{named("Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.", askProvider.value)}</p>
       {folders === "unavailable" ? <p class="muted" id="ask-folders-note">{NOT_READY}</p> : null}
       {folders !== "unavailable" && folders !== null && !list.length ? <p class="muted" id="ask-folders-none">No folders are set. Asking uses only this project's data.</p> : null}
@@ -161,13 +171,7 @@ function AskProject() {
           <button type="submit" class="btn" data-ask-add disabled={busy || !typed.trim()}>Add folder</button>
         </form>
       ) : null}
-      <div class="pub-msg" role={msg && msg.kind === "error" ? "alert" : "status"} aria-live="polite">{msg && msg.text ? <p class={msg.kind}>{msg.text}</p> : null}</div>
-    </section>
-    <ConnectorsProject code={code} />
-    <section class="frame setting" id="ask-used-all">
-      <h2>Used from All projects</h2>
-      <p class="muted">{USED_FROM_ALL}</p>
-      <div class="row"><button type="button" class="btn" data-ask-goall onClick={() => showAskTab(ALL)}>Change</button></div>
+      <div class="pub-msg" role={fmsg && fmsg.kind === "error" ? "alert" : "status"} aria-live="polite">{fmsg && fmsg.text ? <p class={fmsg.kind}>{fmsg.text}</p> : null}</div>
     </section>
     <OwnInstructions goAll={() => showAskTab(ALL)} />
     </>
