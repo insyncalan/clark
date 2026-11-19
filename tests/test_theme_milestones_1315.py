@@ -134,8 +134,7 @@ class Computed(unittest.TestCase):
                     self.assertEqual(c("#milestones .msv", "borderTopWidth"), "0px", tag)
                     self.assertEqual(c("#milestones .msv", "boxShadow"), "none", tag)
                     self.assertEqual(c("#milestones .msv", "paddingLeft"), "0px", tag)
-                    self.assertEqual(c("#milestones .msv-sw", "right"), "0px", tag)
-                    self.assertEqual(c("#milestones .msv-sw", "top"), "0px", tag)
+                    self.assertEqual(c("#milestones .msv-sw", "position"), "static", tag)      # row 1315 gaps: the switch is in the flow at the left edge, no longer in the corner
                     self.assertEqual(c("#pubm", "borderTopWidth"), "1px", tag)      # a published file keeps its card
                     self.assertEqual(c("#other .msv", "borderTopWidth"), "1px", tag)
                     self.assertNotEqual(c("#other .msv", "boxShadow"), "none", tag)
