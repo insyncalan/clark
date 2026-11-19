@@ -25,8 +25,8 @@ export const SLASH_FROM_ALL = "From All projects";
 export const SLASH_SEE = "See them";
 export const SLASH_NEW_TAB_ALL = "The editor is its own page: it opens in a new tab.";
 export const SLASH_NEW_TAB_PROJECT = "The editor opens in a new tab.";
-export const counts = (yours, built, actions) => `${yours} yours, ${built} built in, ${actions} actions`;
-export const SLASH_ALL_COUNTS = (n, yours, built, actions) => `The ${n} slash commands for all projects (${counts(yours, built, actions)}).`;
+export const counts = (yours, built, actions) => `${yours} yours, ${built} built in, ${actions} ${actions === 1 ? "action" : "actions"}`;
+export const SLASH_ALL_COUNTS = (n, yours, built, actions) => `The ${n} ${n === 1 ? "slash command" : "slash commands"} for all projects (${counts(yours, built, actions)}).`;
 
 /** The address of the editor page. `name` opens that command; "" opens it with nothing chosen; `isNew` opens a new one. */
 export function editorUrl(project, scope, name, isNew) {

@@ -61,3 +61,25 @@ class ProjectTab(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Singular(unittest.TestCase):
+    """The count words are singular at 1: '1 slash command', '1 action' (the real lines of SlashCommandsList.jsx run under node)."""
+    def run_node(self, call):
+        import json
+        import re
+        import subprocess
+        from _paths import ROOT
+        src = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "SlashCommandsList.jsx").read_text(encoding="utf-8")
+        lines = [re.search(r"^export const %s = .*?;$" % name, src, re.M).group(0).replace("export ", "", 1) for name in ("counts", "SLASH_ALL_COUNTS")]
+        out = subprocess.run(["node", "-e", "\n".join(lines) + "\nconsole.log(JSON.stringify(" + call + "))"], capture_output=True, text=True, check=True)
+        return json.loads(out.stdout)
+
+    def test_one_slash_command_and_one_action(self):
+        self.assertEqual(self.run_node("SLASH_ALL_COUNTS(1, 0, 0, 1)"), "The 1 slash command for all projects (0 yours, 0 built in, 1 action).")
+
+    def test_two_slash_commands_and_two_actions(self):
+        self.assertEqual(self.run_node("SLASH_ALL_COUNTS(2, 0, 0, 2)"), "The 2 slash commands for all projects (0 yours, 0 built in, 2 actions).")
+
+    def test_the_foot_counts_are_singular_at_one_action(self):
+        self.assertEqual(self.run_node("counts(1, 1, 1)"), "1 yours, 1 built in, 1 action")
