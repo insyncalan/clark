@@ -545,7 +545,7 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 /* Row 1372 (Classic only; the Cards look keeps its width): the item and milestone peeks open 62% of the window wide, at least 300px, as the approved peek mock-up draws it, instead of 640px. From 1000px up; below it the peek fills the window as before. A width the person dragged (the peek carries data-sized) is kept. Bare lengths with no token: the 300px least width and the 1000px switch. */
 @media (min-width: 1000px) { .peek:not(.hpk):not(.wide):not([data-sized]) { width: 62% !important; min-width: min(300px, 100vw); } }
 /* Row 1197: the Gantt toolbar as the approved mock-up draws it. Bar gap 6px, margin 4px 0 10px, icon buttons 34px (the grouped ones 36 wide), the zoom-fit button 34px high, and one divider between zoom in and the filter. */
-[data-gantt] .gt-bar { column-gap: 6px; margin: 4px 0 var(--space-3); }
+[data-gantt] .gt-bar { column-gap: 6px; margin: 4px 0 10px; }
 [data-gantt] .gt-bar .gt-ib { width: 34px; height: 34px; }
 [data-gantt] .gt-bar .gt-grp .gt-ib { width: 36px; }
 [data-gantt] .gt-bar .gt-zf { height: 34px; }
