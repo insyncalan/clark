@@ -418,18 +418,21 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .msl-box[data-place="page"] .msl-prog { gap: 4px; }
 .msl-box[data-place="page"] .msl-prog .num { min-width: 2.25rem; width: 2.5rem; flex: none; white-space: nowrap; font-weight: var(--weight-medium); }
 @media (min-width: 1201px) { .msl-box[data-place="page"]:not([style*="--msl-cols:"]) :is(.msl-cells, .msl-hc) { grid-template-columns: minmax(240px, 17rem) minmax(160px, 1fr) 150px calc(145px + var(--space-2) + 2.25rem); } }
+.msl-box .msl-hdw.plain { display: none; }      /* the Dashboard's list has no heading row in the prototype (View and a published file; Edit's row, with its grips and Columns button, stays) */
 .msl-box .msl-row.out { opacity: 1; }
 .msl-box .msl-row.out .msl-name { color: var(--text-muted); }
 .msl-box .node.c-green { border-color: var(--status-green-text); } .msl-box .node.c-amber { border-color: var(--ms-amber-shape); } .msl-box .node.c-red { border-color: var(--status-red-text); } .msl-box .node.c-blue { border-color: var(--tone-blue-text); }
 .msl-box .node.fill.c-green { background: var(--status-green-text); }
 .msl-box .mst.c-blue { color: var(--tone-blue-text); }
-/* Row 1397 (Milestones timeline strip and switch, Classic only; Cards unchanged): the strip has no fill, the line is 2px --grey-500, the Today line is 1.5px --brand-blue and its name is 13px, weight 600, --brand-blue, with no fill; the drawn mark is 20x20 inside its 24x24 button (the 24px target stays); the Timeline / Calendar switch text is 14px (its frame, radius 6 and padding are Row 1315's). Bare lengths: 1.5px line, 20px mark, 14px text. */
+/* Row 1397 (Milestones timeline strip and switch, Classic only; Cards unchanged): the strip has no fill, the line is 2px --grey-500, the Today line is 1.5px --brand-blue and its name is 13px, weight 600, --brand-blue, with no fill; the drawn mark is 20x20 inside its 24x24 button (the 24px target stays); the Timeline / Calendar switch has a --grey-500 frame and divider, radius 6, and 14px text at 600 (its padding is Row 1315's). Bare lengths: 1.5px line, 20px mark, 14px text, 6px radius. */
 .mv[data-look="classic"] .mv-wrap { background: transparent; }
 .mv[data-look="classic"] .mv-line { background: var(--grey-500); }
 .mv[data-look="classic"] .mv-today { width: 1.5px; background: var(--brand-blue); }
 .mv[data-look="classic"] .mv-today b { font-size: 13px; font-weight: 600; color: var(--brand-blue); background: none; }
 .mv[data-look="classic"] .mv-mk .ms-i { width: 20px; height: 20px; }
-#milestones .msv-b { font-size: 14px; }
+#milestones .msv-sw { border-color: var(--grey-500); border-radius: 6px; }
+#milestones .msv-b { font-size: 14px; font-weight: 600; }
+#milestones .msv-sw .msv-b + .msv-b { border-left-color: var(--grey-500); }
 /* Row 1398: the Classic Milestones calendar as the prototype draws it. A day cell is 78 high (900 and below keep their own 64), the out-of-month cells are clear and only the weekend columns are tinted, the rules are the soft line, today is a bold number in a 2px brand box on the cell (not a filled pill), the weekday names are 13px 600 in bordered cells, not capitals, and a chip is 13px, 1px 4px, one line with an ellipsis. Classic only; Cards keeps its own in shell.css. */
 @media (min-width: 901px) { .cal-d { min-height: 78px; } }
 .cal-g { border-top-color: var(--line-soft); border-left-color: var(--line-soft); }

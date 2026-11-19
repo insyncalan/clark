@@ -14,10 +14,10 @@ from test_server import chrome, wait
 RULES = ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css"
 READ = """(() => { const c = (s) => getComputedStyle(document.querySelector(s)), r = (s) => document.querySelector(s).getBoundingClientRect();
   const tok = (n) => { const d = document.createElement('i'); d.style.color = 'var(' + n + ')'; document.body.appendChild(d); const v = getComputedStyle(d).color; d.remove(); return v; };
-  const mk = r('.mv-mk'), ic = r('.mv-mk .ms-i'), sw = document.querySelector('#milestones .msv-b');
+  const mk = r('.mv-mk'), ic = r('.mv-mk .ms-i'), sw = document.querySelector('#milestones .msv-b'), fr = c('#milestones .msv-sw'), b2 = c('#milestones .msv-b + .msv-b');
   return JSON.stringify({ fill: c('.mv-wrap').backgroundColor, line: [c('.mv-line').height, c('.mv-line').backgroundColor], todayW: r('.mv-today').width, todayBg: c('.mv-today').backgroundColor,
     lab: [c('.mv-today b').fontSize, c('.mv-today b').fontWeight, c('.mv-today b').color, c('.mv-today b').backgroundColor],
-    mk: [mk.width, mk.height], ic: [ic.width, ic.height], sw: getComputedStyle(sw).fontSize, grey500: tok('--grey-500'), blue: tok('--brand-blue') }); })()"""
+    mk: [mk.width, mk.height], ic: [ic.width, ic.height], sw: getComputedStyle(sw).fontSize, swW: getComputedStyle(sw).fontWeight, frame: [fr.borderTopWidth, fr.borderTopColor, fr.borderTopLeftRadius], divider: [b2.borderLeftWidth, b2.borderLeftColor], grey500: tok('--grey-500'), blue: tok('--brand-blue') }); })()"""
 
 
 class Source(unittest.TestCase):
@@ -44,7 +44,9 @@ class Computed(Base, unittest.TestCase):
         self.assertEqual(m["lab"], ["13px", "600", m["blue"], "rgba(0, 0, 0, 0)"])
         self.assertEqual(m["mk"], [24, 24])
         self.assertEqual(m["ic"], [20, 20])
-        self.assertEqual(m["sw"], "14px")
+        self.assertEqual((m["sw"], m["swW"]), ("14px", "600"))
+        self.assertEqual(m["frame"], ["1px", m["grey500"], "6px"])
+        self.assertEqual(m["divider"], ["1px", m["grey500"]])
 
 
 if __name__ == "__main__":

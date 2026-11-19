@@ -146,6 +146,19 @@ class Computed(unittest.TestCase):
         got = self.measure(NAME, 1400, "dark")
         self.check_classic(got, "dark")
 
+    def dash_head(self, theme):
+        s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp(), theme=theme))
+        self.addCleanup(s.close)
+        with chrome() as cdp:
+            sid = open_page(cdp, 1400, "light", theme)
+            cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#dashboard&p={CODE}"}, sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.msl-box[data-place=\"dash\"] .msl-row, .msl-box:not([data-place=\"page\"]) .msl-row')", sid)), "the Dashboard list drew")
+            return cdp.js("(() => { const h = document.querySelector('.msl-box:not([data-place=\"page\"]) .msl-hdw'); return h ? getComputedStyle(h).display : 'absent'; })()", sid)
+
+    def test_dashboard_list_has_no_heading_row_in_classic_and_cards_keeps_it(self):
+        self.assertEqual(self.dash_head(NAME), "none")
+        self.assertNotIn(self.dash_head(None), ("none", "absent"))
+
     def test_cards_keeps_the_installed_values(self):
         got = self.measure(None, 1400, "light")
         self.assertEqual(got["pad"], ["14px", "8px", "14px", "22px"])
