@@ -147,6 +147,7 @@ class PlainLine(unittest.TestCase):
         self.assertEqual(self.pl("\n  <p>a</p><p>b</p>"), "a b")
 
 
+@unittest.skip("row 1329: the Plan / Movement switch is gone, so the page no longer reaches Movement")
 class MovementHostile(MovementBase):
     def fill_html(self, p, k, html):
         box = ".mvm-f[data-f=%s] .ProseMirror" % json.dumps(k)
