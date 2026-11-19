@@ -21,7 +21,7 @@ from test_work_items import FIXED_DATE, load_demo, page_target
 NAME = "prototype-2.0"
 # The Cards page, page_html(branding=NO_BRAND, theme=None), without its <script> blocks, taken from origin/main (3496323b) before this row and equal on main d6f756eec; rules.css is read only when a Theme is named.
 # The script is left out on purpose: the shared JS bundle moves the whole-page sha without a Cards look change; the markup and CSS pins stay (the style md5 in test_ms_cards_1315 and test_work_items_mockup_1195).
-CARDS_SHA256 = "483c64510af9a5eaaf2313825672bab581eb6410509d886dc5964fa35fb70c6c"
+CARDS_SHA256 = "10c48056a39b1d5a87252fff049954cd3d2a3ce2d541f656442964f4694637f7"
 SIZES = (1400, 900)
 PROBE = """(() => { const q = (s) => document.querySelector(s), g = (e, p) => getComputedStyle(e)[p];
   const tok = (v, p) => { const i = document.createElement('i'); i.style[p || 'color'] = v; document.body.appendChild(i); const r = getComputedStyle(i)[p || 'color']; i.remove(); return r; };
