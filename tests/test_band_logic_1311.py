@@ -67,6 +67,16 @@ class Pure(unittest.TestCase):
     def test_a_left_half_with_no_right_is_one_section(self):
         self.assertEqual(self.ids([it(1, "left"), it(2), it(3)]), [1, 3])
 
+    def test_a_summary_between_the_halves_splits_the_pair(self):
+        # left, summary, right: the right half is its own section (the summary resets the pair state), here the 2nd: plain
+        self.assertEqual(self.ids([it(1, "left"), it(2, summary=True), it(3, "right"), it(4)]), [1, 4])
+
+    def test_a_right_half_after_a_full_section_is_its_own_section(self):
+        self.assertEqual(self.ids([it(1), it(2, "right"), it(3)]), [1, 3])
+
+    def test_a_second_right_half_does_not_join_the_first_pair(self):
+        self.assertEqual(self.ids([it(1, "left"), it(2, "right"), it(3, "right"), it(4)]), [1, 2, 4])      # the 3rd right is the 2nd section: plain; 4 is the 3rd: banded
+
     def test_empty(self):
         self.assertEqual(self.ids([]), [])
 
@@ -89,6 +99,26 @@ class Follows(unittest.TestCase):
             # the border-top line: every visible section but the first has it
             lines = cdp.js("[...document.querySelectorAll('.secs > .sec')].map((e) => getComputedStyle(e).borderTopWidth)", sid)
             self.assertEqual(lines, ["0px", "1px", "1px", "1px", "1px"])
+
+    def test_a_drag_slot_does_not_count(self):
+        with chrome() as cdp:
+            sid, path = target(cdp)
+            self.addCleanup(lambda: (path.unlink(), path.parent.rmdir()))
+            got = cdp.js("""(() => { const secs = document.createElement('div'); secs.className = 'secs';
+                secs.innerHTML = '<div class="sec" data-type="text"></div><div class="sec drag-slot" data-type="text"></div><div class="sec" data-type="text"></div><div class="sec" data-type="text"></div>';
+                document.body.appendChild(secs); BD.applyBands(document);
+                return [...secs.children].map((e) => e.classList.contains('band')); })()""", sid)
+            self.assertEqual(got, [True, False, False, True])      # the drag slot is skipped: the 3rd child is the 2nd counted (plain), the 4th the 3rd (banded)
+
+    def test_only_direct_children_of_secs_are_banded(self):
+        with chrome() as cdp:
+            sid, path = target(cdp)
+            self.addCleanup(lambda: (path.unlink(), path.parent.rmdir()))
+            got = cdp.js("""(() => { const secs = document.createElement('div'); secs.className = 'secs';
+                secs.innerHTML = '<div class="sec" data-type="text"><div class="sec" id="inner"></div></div><div class="sec" data-type="text"></div>';
+                document.body.appendChild(secs); BD.applyBands(document);
+                return [secs.children[0].classList.contains('band'), document.getElementById('inner').classList.contains('band'), secs.children[1].classList.contains('band')]; })()""", sid)
+            self.assertEqual(got, [True, False, False])
 
     def test_hiding_needs_no_manual_call_in_the_page_wiring(self):
         """Dashboard.jsx wires applyBands on render, hashchange and a class change (read from the source: Chrome's page has no dashboard data here)."""
