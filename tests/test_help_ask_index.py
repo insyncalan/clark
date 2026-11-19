@@ -26,7 +26,7 @@ class HelpDescribesTheIndex(unittest.TestCase):
 
     def test_index_paragraph_says_what_where_when_and_nothing_sent(self):
         t = self.para("The index of your source folders.")
-        for words in ("ask-index", "one file for each project", "builds it again", "in the background",
+        for words in ("ask-index", "one file for each project", "it is only a copy", "in the background",
                       "added, changed or removed", "Nothing is sent anywhere when the index is made"):
             self.assertIn(words, t)
         for kind in ("Word", "PDF", "Excel", "PowerPoint", "web pages", "text", "Markdown", "CSV"):
