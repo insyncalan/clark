@@ -254,9 +254,10 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .ucl-group .grp-b:hover, .ucp-group .grp-b:hover, .ucl-group .grp-b:hover .i, .ucp-group .grp-b:hover .i { color: var(--brand-blue); }
 /* Row 1317 (Settings sidebar): the menu is a grey panel (the Classic page ground equals the Cards panel fill, so it showed no panel), the group names are in sentence case, and the open page is a tinted bar with its square edge at the marker. The issue table names the grey panel and the tinted bar; it names no hover tint on a chip, so there is none. Classic only; Cards keeps its look. The Settings title is already 30 px in both Themes (measured), so it is not touched. Prototype files are not on this box: */
 @media (min-width: 900px) {
-  .set-bar { background: var(--grey-100); border-radius: var(--radius-lg); }
-  .set-group-name { text-transform: none; letter-spacing: normal; }
-  .set-chip[aria-current], .set-chip[aria-current]:hover { border-radius: 0 10px 10px 0; }
+  .set-bar { background: var(--grey-100); border-radius: 10px; }
+  .set-group-name { text-transform: none; letter-spacing: normal; font-size: 14px; font-weight: 600; }
+  .set-chip[aria-current], .set-chip[aria-current]:hover { border-radius: 10px; }
+  .set-chip { min-height: 36px; }
 }
 
 /* Row 1317 (Settings cards): the cards have radius 14 and no shadow (re-audit line "cards radius 12 + shadow vs radius 14 none"). Classic only. */
@@ -265,7 +266,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 /* Row 1317 (Projects card): Add project is a filled blue button with its plus and its word always shown (shell.css hides the word until hover; the override is Classic only), and the table headers are bold, in the words' own case, without the divider line above them. Classic only; Cards keeps the dashed Add and the tracked capitals. Prototype files are not on this box: built from the issue table. */
 .projects #npBtn.newb { background: var(--brand-blue); border: 1px solid var(--brand-blue); color: var(--text-on-brand); }
 .projects #npBtn.newb .w { max-width: 180px; opacity: 1; margin-left: 6px; margin-right: var(--space-1); }
-.projects table.proj-table th { text-transform: none; letter-spacing: normal; font-weight: 700; border-top: 0; }
+.projects table.proj-table th { text-transform: none; letter-spacing: normal; font-weight: 600; border-top: 0; padding: 6px 10px 6px 0; }
 
 /* Row 1317 (Projects Code cell): the Code cell stays on one line. shell.css/edit.css let the cell break anywhere, so MOSS broke as MOS / S once the sentence-case header made the column narrow. Classic only. */
 .projects table.proj-table td.num { white-space: nowrap; }

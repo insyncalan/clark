@@ -41,9 +41,14 @@ PROBE = """(() => { const q = (s) => document.querySelector(s), g = (e, p) => ge
     icons: btn.querySelectorAll('svg, .i').length, iconW: Math.round((btn.querySelector('svg, .i') || {getBoundingClientRect: () => ({width: 0})}).getBoundingClientRect().width),
     codeText: mc.textContent.trim(), codeLines: lines, codeW: Math.round(mc.getBoundingClientRect().width), rowH: Math.round(mtr.getBoundingClientRect().height),
     brokenWords: broken, codeWs: g(mc, 'whiteSpace'), codeWrap: g(mc, 'overflowWrap'),
+    groupSize: g(name, 'fontSize'), groupWeight: g(name, 'fontWeight'), chipH: Math.round(q('.set-chip:not([aria-current])').getBoundingClientRect().height), thPad: g(th, 'padding'),
     tint: tok('color-mix(in srgb, var(--grey-500) 15%, var(--grey-100))', 'backgroundColor') }; })()"""
 HOVER = """(() => { const c = [...document.querySelectorAll('.set-chip:not([aria-current])')][0]; const r = c.getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)]; })()"""
 HOVERED = "getComputedStyle([...document.querySelectorAll('.set-chip:not([aria-current])')][0]).backgroundColor"
+
+
+def width_is_wide(tag):
+    return tag.endswith("1400")
 
 
 class RealSettings(unittest.TestCase):
@@ -95,10 +100,14 @@ class RealSettings(unittest.TestCase):
             self.assertEqual(c["barPos"], "sticky", tag + ": the real bar is still sticky")
             self.assertEqual(c["groupCase"], "none", tag + ": group names in sentence case")
             self.assertEqual(c["groupTrack"], "normal", tag)
-            self.assertEqual(c["curRadius"], "0px 10px", tag + ": the open page is a bar with its square edge at the marker")
+            self.assertEqual(c["curRadius"], "10px 10px", tag + ": the open page chip has radius 10 on all corners (ruling 19-11, prototype settings.css:36)")
+            self.assertEqual((c["barRadius"], c["groupSize"], c["groupWeight"]), ("10px", "14px", "600"), tag + ": panel radius 10, group name 14px 600")
+            if width_is_wide(tag):
+                self.assertEqual(c["chipH"], 36, tag + ": sidebar row 36px high")
+            self.assertEqual(c["thPad"], "6px 10px 6px 0px", tag + ": Projects header padding")
             self.assertNotEqual(c["chipHover"], c["tint"], tag + ": no hover tint on a sidebar chip (not in the list)")
             self.assertEqual((c["cardRadius"], c["cardShadow"]), ("14px", "none"), tag + ": Settings cards radius 14, no shadow")
-            self.assertEqual((c["thCase"], c["thTrack"], c["thWeight"], c["thBorderTop"]), ("none", "normal", "700", "0px"), tag + ": bold sentence-case header, no divider")
+            self.assertEqual((c["thCase"], c["thTrack"], c["thWeight"], c["thBorderTop"]), ("none", "normal", "600", "0px"), tag + ": bold sentence-case header, no divider")
             self.assertEqual((c["btnBg"], c["btnColor"]), (c["brand"], c["onBrand"]), tag + ": Add project is a filled blue button")
             self.assertEqual(c["icons"], 1, tag + ": one plus, as an svg or .i")
             self.assertGreater(c["iconW"], 0, tag)
