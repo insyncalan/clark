@@ -26,6 +26,9 @@ PROBE = """(() => { const q = (s) => document.querySelector(s), g = (e, p) => ge
   const bar = q('.set-bar'), cur = q('.set-chip[aria-current]'), name = q('.set-group-name'), card = q('.set-cards .frame'), th = q('#projects-table th');
   const mc = q('#projects-table tr[data-project="MOSS"] td.num'), rg = document.createRange(); rg.selectNodeContents(mc);
   const lines = new Set([...rg.getClientRects()].map((r) => Math.round(r.top))).size, mtr = mc.parentElement;
+  const broken = []; document.querySelectorAll('#projects-table tbody td:not(.acts)').forEach((td) => { const w = document.createTreeWalker(td, NodeFilter.SHOW_TEXT); let n;
+    while ((n = w.nextNode())) { const re = /\\S+/g; let m; while ((m = re.exec(n.data))) { const r = document.createRange(); r.setStart(n, m.index); r.setEnd(n, m.index + m[0].length);
+      if (new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size > 1) broken.push(m[0]); } } });
   const btn = q('#npBtn'), w = btn.querySelector('.w'), wr = w.getBoundingClientRect(), br = btn.getBoundingClientRect();
   return { barBg: g(bar, 'backgroundColor'), grey100: tok('var(--grey-100)', 'backgroundColor'), grey50: tok('var(--grey-50)', 'backgroundColor'), barPos: g(bar, 'position'),
     barRadius: g(bar, 'borderTopLeftRadius'), groupCase: g(name, 'textTransform'), groupTrack: g(name, 'letterSpacing'), curRadius: [g(cur, 'borderTopLeftRadius'), g(cur, 'borderTopRightRadius')].join(' '),
@@ -35,7 +38,7 @@ PROBE = """(() => { const q = (s) => document.querySelector(s), g = (e, p) => ge
     wMax: g(w, 'maxWidth'), wOpacity: g(w, 'opacity'), wWidth: Math.round(wr.width), btnW: Math.round(br.width), btnH: Math.round(br.height), word: w.textContent.trim(),
     icons: btn.querySelectorAll('svg, .i').length, iconW: Math.round((btn.querySelector('svg, .i') || {getBoundingClientRect: () => ({width: 0})}).getBoundingClientRect().width),
     codeText: mc.textContent.trim(), codeLines: lines, codeW: Math.round(mc.getBoundingClientRect().width), rowH: Math.round(mtr.getBoundingClientRect().height),
-    codeWs: g(mc, 'whiteSpace'), codeWrap: g(mc, 'overflowWrap'),
+    brokenWords: broken, codeWs: g(mc, 'whiteSpace'), codeWrap: g(mc, 'overflowWrap'),
     tint: tok('color-mix(in srgb, var(--grey-500) 15%, var(--grey-100))', 'backgroundColor') }; })()"""
 HOVER = """(() => { const c = [...document.querySelectorAll('.set-chip:not([aria-current])')][0]; const r = c.getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)]; })()"""
 HOVERED = "getComputedStyle([...document.querySelectorAll('.set-chip:not([aria-current])')][0]).backgroundColor"
@@ -108,6 +111,10 @@ class RealSettings(unittest.TestCase):
             self.assertEqual(c["codeText"], "MOSS", tag)
             self.assertEqual(c["codeLines"], 1, tag + f": the Code cell MOSS is one line, not broken (cell {c['codeW']} px, row {c['rowH']} px)")
             self.assertEqual((c["codeWs"], c["codeWrap"]), ("nowrap", "normal"), tag)
+
+    def test_classic_projects_table_never_breaks_a_word_in_the_middle(self):
+        for tag, c in self.each(NAME):
+            self.assertEqual(c["brokenWords"], [], tag + ": a word in a Projects cell is broken mid-word (the narrower table must wrap at spaces, as main does)")
 
     def test_cards_keeps_its_own_settings_look(self):
         for tag, c in self.each(None):
