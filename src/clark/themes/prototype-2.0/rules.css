@@ -20,7 +20,7 @@ body { background: var(--page-bg) var(--page-grad) fixed no-repeat; }
 :root[data-theme=dark] .fk.k-txt { background: var(--grey-100); color: var(--text); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .fline { border-bottom-color: var(--grey-500); } :root[data-theme=auto] .fk.k-txt { background: var(--grey-100); color: var(--text); } }
 .fline-tail { margin-right: 0; }
-.vicons .lsw, .vicons .btn.sm.vgb { border-radius: var(--radius-sm); }
+.vicons .lsw, .vicons .btn.sm.vgb { border-radius: var(--radius); }
 .vicons .seg.lsw button[aria-pressed="true"] { background-color: var(--grey-100); background-image: none; color: var(--heading); }
 .vicons .lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 table.items thead th + th, .wil-table thead th + th { border-left: 1px solid var(--grey-200); }
@@ -339,6 +339,21 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .cols-menu .ck[data-on]::before { content: "\2713"; }
 /* Row 1325 (Classic only): the view tabs are as wide as on Work items (the shared rule narrows them by two px a side; the Columns and Group by buttons moved off this row, so they fit). */
 #usecases .ucl-views .vtab { padding-left: 10px; padding-right: 10px; }
+/* Row 1351, the ask clark page tabs: 29 px high in Classic (the Settings mock-up's tab pills; the base, which Cards keeps, is 36). Only the height moves; the pill shape, padding and colours stay as they are. */
+.ask-tab { min-height: 29px; }
+
+/* Row 1351 part 2, the ask clark page tabs and the Model line (Classic only; Cards is unmaintained and keeps the base rules). The pill: padding 5px 14px, 13.5px type, 19px line so the pill is 29 px high, 6 px between pills; the chosen pill is --brand-blue with --text-on-brand text at weight 600; "Settings for" is 12.5px, muted, 6 px to its right. The Model line in the Used from All projects card: the name, the note, and Change as a link with a dashed underline. */
+.ask-tabs { gap: 6px; }
+.ask-tabs .ask-tabs-lab { margin-right: 6px; font-size: 12.5px; color: var(--text-muted); }
+.ask-tab { padding: 5px 14px; font-size: 13.5px; line-height: 19px; min-height: 29px; border-radius: 999px; }
+.ask-tab[aria-current] { background: var(--brand-blue); color: var(--text-on-brand); font-weight: 600; }
+@media (max-width: 900px) { #main:has(#ask-tabs) { padding: 6px 16px 30px; } }
+.ask-model { align-items: baseline; column-gap: 12px; }
+.ask-model .ask-model-name { font-weight: 600; color: var(--text); }
+.ask-model .ask-model-change { all: unset; cursor: pointer; color: var(--text); font-size: var(--size-small); border-bottom: 1px dashed var(--text-muted); }
+.ask-model .ask-model-change:hover { color: var(--brand-blue); border-bottom-color: var(--brand-blue); }
+.ask-model .ask-model-change:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+
 /* Row 1344: the peek as the approved peek mock-up draws it, Classic only (Cards keeps today's rules): a 1 px edge and a shadow thrown to the left in light (dark keeps the Theme's own tokens), and the 0.5 s slide fades in while it travels, opaque at 60 %. Reduced motion keeps the short fade of the base rules. */
 .peek { border-left-color: rgb(205, 211, 224); box-shadow: -10px 0 30px rgba(19, 35, 42, .14); }
 :root[data-theme=dark] .peek { border-left-color: var(--grey-200); box-shadow: var(--shadow); }
@@ -375,6 +390,8 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 /* Row 1312 keeps its 20px gutter padding on the Settings window (screen only; print has none): the window padding above is shorter. */
 @media screen { .set-layout.set-win { padding-left: 20px; } }
 @media print { .set-layout.set-win { padding-left: 0; } }
+/* Row 1372 (Classic only; the Cards look keeps its width): the item and milestone peeks open 62% of the window wide, at least 300px, as the approved peek mock-up draws it, instead of 640px. From 1000px up; below it the peek fills the window as before. A width the person dragged (the peek carries data-sized) is kept. Bare lengths with no token: the 300px least width and the 1000px switch. */
+@media (min-width: 1000px) { .peek:not(.hpk):not(.wide):not([data-sized]) { width: 62% !important; min-width: min(300px, 100vw); } }
 /* Row 1285: Close, focused as a peek opens with no key pressed (a click, a script), shows no focus ring until a key is pressed or the focus moves on. */
 #peek .pkp-btn[data-quiet]:focus-visible { outline: none; }
 
@@ -394,8 +411,31 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .fbt-tag { padding-top: 14px; padding-bottom: 14px; }
 /* Row 1342 part 2: the empty-send error (red 13px, 4 above) as the 1298 mockup draws it. */
 .fbt-error { margin-top: 4px; color: var(--status-red-text); font-size: 13px; }
+/* Row 1327 slice 2 (Classic only: Cards keeps its Settings Version panel as on main): the download panel's tinted block and 140 x 8 progress bar from the approved mock-up. */
+.upd-c .upd-up { padding: 6px 12px 10px; border-radius: 8px; background: var(--brand-blue-tint); }      /* 1327 s2, the mock-up's .row.up: a tinted block for the version that is ready, downloading or downloaded */
+.upd-c .upd-up > p:first-child { margin: 0 0 4px; }
+.upd-pg { display: inline-block; vertical-align: middle; width: 140px; height: 8px; border-radius: 4px; background: var(--grey-100); overflow: hidden; margin-right: 8px; }      /* the mock-up's .pg: 140 x 8, radius 4 */
+.upd-pg i { display: block; height: 100%; background: var(--brand-blue); }
+.upd-c .upd-up .row { align-items: center; }
 /* Row 1375: a wheel over the Dashboard's Work items box that has reached its top or bottom keeps scrolling the page (the shared rule's overscroll-behavior-y: contain made it stall inside the box); the box still scrolls its own rows. */
 .wil-scroll { overscroll-behavior-y: auto; }
+/* Row 1403 (Classic only, Cards unchanged; prototype index.html lines 160-169, widths over 900, 900 and below keep the shared rules): the Dashboard Use cases list as the prototype draws it. No column heading row. The row grid is ref | title | headline | status over commitment | next steps (minmax(52px,max-content) 1fr 1.5fr 132px 112px, gap 12, padding 9px 8px, no minimum height); the title cell gives its two lines to the grid (display: contents), the commitment sits under the status word. Hover is the band tint, the ID badge a 1px grey-500 outline at 400 with 1px 8px padding, the commitment a quiet pill (1px grey-200 line, muted, 400, line height 18; the Committed ink fill keeps its own colours). */
+.uc .ucheads:not(.ucheads-ed) { display: none; }
+@media (min-width: 901px) {
+  .uc .ucrow:not(.ucrow-ed) > .ucbar { grid-template-columns: minmax(52px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 132px 112px; column-gap: 12px; row-gap: 0; padding: 9px var(--space-2); min-height: 0; }
+  .uc .ucrow:not(.ucrow-ed) > .ucbar > .uctc { display: contents; }
+  .uc .ucrow:not(.ucrow-ed) > .ucbar > .uccell { grid-row: 1 / span 2; }
+  .uc .ucrow:not(.ucrow-ed) > .ucbar > [data-uccol="status"] { grid-column: 4; grid-row: 1; align-self: end; }
+  .uc .ucrow:not(.ucrow-ed) > .ucbar > [data-uccol="commit"] { grid-column: 4; grid-row: 2; align-self: start; margin-top: 3px; }
+  .uc .ucrow:not(.ucrow-ed) > .ucbar > [data-uccol="steps"] { grid-column: 5; }
+  .uc .ucrow:not(.ucrow-ed) > .ucbar > .uctitle, .uc .ucrow:not(.ucrow-ed) > .ucbar > .uchead { grid-row: 1 / span 2; }
+  .uc .ucrow:not(.ucrow-ed) > .ucbar > .uctitle { grid-column: 2; }
+  .uc .ucrow:not(.ucrow-ed) > .ucbar > .uchead { grid-column: 3; }
+}
+.uc .ucbar:hover, .uc .ucrow.open > .ucbar { background: var(--band-bg); }
+.uc .ucref { padding: 1px var(--space-2); border: 1px solid var(--grey-500); font-weight: var(--weight-regular); }
+.uc .cchip { border-radius: var(--radius-pill); font-weight: var(--weight-regular); line-height: 18px; }
+.uc .cchip:not(.cc-committed) { border-color: var(--grey-200); color: var(--text-muted); }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
