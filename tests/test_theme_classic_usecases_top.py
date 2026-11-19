@@ -30,7 +30,7 @@ READ = """(() => { const g = (sel, pseudo) => { const e = document.querySelector
   for (const id of ['ucl-group', 'ucl-sort', 'ucAddPage']) { const e = document.getElementById(id); if (e) { e.style.transition = 'none'; e.setAttribute('aria-expanded', 'true'); } }
   s = g('#ucl-group'); o.groupOpen = s && [s.backgroundColor, s.color];
   s = g('#ucAddPage'); o.plusOpen = s && [s.borderTopColor, s.backgroundColor];
-  const r = document.querySelector('#usecases .fline-row').getBoundingClientRect(); o.rowW = Math.round(r.width);
+  const r = document.querySelector('#usecases .fline-row').getBoundingClientRect(); o.rowW = Math.round(r.width); o.boxW = Math.round(document.querySelector('#usecases .fline').getBoundingClientRect().width);
   o.mag = g('#usecases .fline', '::before').content; o.handle = g('#usecases .fline', '::after').content;
   s = g('#usecases .fline'); o.padL = s.paddingLeft;
   const c = document.querySelector('#usecases .fcount').getBoundingClientRect(); o.countBox = [Math.round(c.width), Math.round(c.height)];
@@ -81,7 +81,7 @@ class Top(unittest.TestCase):
                 self.assertNotEqual(g["plusOpen"][1], g["brand"], "no brand fill on the +")
                 self.assertNotEqual(g["plus"][1], g["blue"], "the dashed + border is no longer the purple")
                 self.assertNotEqual(g["plus"][2], g["blue"], "nor its +")
-                self.assertEqual(g["rowW"], 560, "Search: 560 px box")
+                self.assertEqual(g["boxW"], 560, "Search: 560 px box")
                 self.assertEqual((g["mag"], g["handle"], g["padL"]), ('""', '""', "34px"), "Search: a magnifier")
                 self.assertEqual(g["countBox"], [1, 1], "the count in the box is visually hidden")
                 self.assertRegex(g["countText"], r"^\d+ of \d+$", "and still said")

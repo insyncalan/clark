@@ -32,6 +32,9 @@ RULE_LINES = [
     '/* Row 1316d (issue 1316, ruling 00:31; Classic only, Cards unchanged): the Use cases filter at rest is a box as in the prototype (pages/usecases.css:47: 34px high, 1px border, radius 6px). The border is --grey-500, the Classic token that equals the prototype --ui in light and in dark. Focus adds no ring and no colour (ruling 1137); a line the filter cannot read keeps its red. Bare lengths: 34px box height, 6px radius. */',
     '#usecases .fline { min-height: 34px; padding-top: 0; padding-bottom: 0; border: 1px solid var(--grey-500); border-radius: 6px; background: var(--surface); }',
     '#usecases .fline.bad, #usecases .fline.bad:focus-within { border-color: var(--status-red); box-shadow: none; }',
+    '/* Row 1316 gap (ruling 19-11): the 560px is the search box alone; the view icons stand beside it, not inside the 560. */',
+    '#usecases .fline-row { max-width: none; }',
+    '#usecases .fline-row > .fline { flex: 0 1 560px; }',
 ]
 
 
