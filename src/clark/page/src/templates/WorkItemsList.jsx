@@ -127,7 +127,7 @@ export function Scroller({ max, count, children, all }) {
     const el = box.current;
     if (!el) return undefined;
     let t = 0;
-    const on = () => { el.classList.add("sb"); clearTimeout(t); t = setTimeout(() => el.classList.remove("sb"), 900); };
+    const on = () => { el.classList.add("sb"); clearTimeout(t); t = setTimeout(() => el.classList.remove("sb"), 800); };
     el.addEventListener("scroll", on, { passive: true });
     return () => { el.removeEventListener("scroll", on); clearTimeout(t); };
   }, []);
