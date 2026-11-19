@@ -64,8 +64,10 @@ class PerFolder(Base):
         self.put(self.b, "secret.txt", FAKE_KEY)
         self.assertTrue(ask_index.refresh(self.data, "ABC", [str(self.a), str(self.b)], self.home))
         got = ask_index.folder_status(self.data, "ABC", [str(self.a), str(self.b)])
-        self.assertEqual(got[str(self.a)], {"state": "done", "line": "Indexed 2 of 3 files. 1 is of a type clark can't read yet."})
-        self.assertEqual(got[str(self.b)], {"state": "done", "line": "Indexed 1 of 2 files. 1 looks like a password or a key and was left out."})
+        self.assertEqual(got[str(self.a)], {"state": "done", "line": "Indexed 2 of 3 files. 1 is of a type clark can't read yet.",
+                                            "left": {"files": [["pic.png", "of a type clark can't read yet"]], "more": 0}})
+        self.assertEqual(got[str(self.b)], {"state": "done", "line": "Indexed 1 of 2 files. 1 looks like a password or a key and was left out.",
+                                            "left": {"files": [["secret.txt", "looks like a password or a key"]], "more": 0}})
         self.assertNotIn("hunter2", json.dumps(got))
 
     def test_a_folder_never_read_says_nothing(self):
