@@ -132,7 +132,9 @@ class OneHint(unittest.TestCase):
 
     def test_k3b_the_one_hint_carries_the_slice_9_words(self):
         body = tpl_edit()
-        self.assertIn("<GLANCE.Hint text={WORDS.hint} />", body)      # row 1336: the approved line replaces the two slice 9 sentences
+        self.assertIn("WORDS.hintEye", body)
+        self.assertIn("WORDS.hintAdd", body)
+        self.assertIn("text: WORDS.hint", body)      # row 1336: Classic says the approved line instead; Cards keeps the two sentences
         self.assertNotIn('<p class="glance-hint"', body)
 
 

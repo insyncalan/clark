@@ -70,7 +70,7 @@ class EmptyWords(L.Layout):
             got = self.page(cdp, 1400, edit=True).js(f"[...document.querySelectorAll('{self.sel('.glance-hint')}')].map(e => e.textContent)")
         self.assertEqual(len(got), 1, got)
         self.assertTrue(got[0].startswith("Drag a tile to move it"))
-        self.assertEqual(got[0], L.HINT_1336, "one paragraph: the row 1336 approved line")
+        self.assertTrue(got[0].endswith(f"page. {L.HINT_EYE} {L.HINT_ADD}"), "one space between the app words and the two sentences")
 
     def test_e5_a_shown_own_tile_is_a_list_so_edit_says_no_tiles_does_not(self):
         self.set_body({**HIDDEN_ALL, "bespoke": [{"id": "t1", "label": "Fictional own"}]})

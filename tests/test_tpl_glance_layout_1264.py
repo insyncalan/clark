@@ -20,8 +20,8 @@ from clark.section_kinds import glancetemplate as gt
 W_OWN, W_BESIDE = "Project health on its own row", "Tiles on a line"
 SHOW_HEALTH = "Show project health here"
 HALF_NOTE = "Half width always shows 2 on a line."
-HINT_1336 = ("Drag a tile to move it, or hold Alt and press an arrow key. The eye hides a tile from the published page; the bin deletes it. "
-             "The eye on Project health hides it completely.")
+HINT_EYE = "The eye on Project health hides it completely."
+HINT_ADD = "Use Add a tile to make your own. Click the pencil on your own tile to edit it."
 
 
 class Rules(unittest.TestCase):
@@ -395,11 +395,13 @@ class Edit(Layout):
             p = self.page(cdp, edit=True)
             self.assertIsNone(p.js(f"(function(){{ var n = document.querySelector('{self.sel('[data-gt-halfnote]')}'); return n && n.offsetParent !== null ? n.textContent : null; }})()"))
 
-    def test_E7_the_hint_is_the_row_1336_approved_line(self):
+    def test_E7_the_hint_keeps_the_app_words_and_adds_the_approved_sentences(self):
         with chrome() as cdp:
             p = self.page(cdp, edit=True)
             text = p.js(f"[...document.querySelectorAll('{self.sel('[data-glance-hint], [data-gt-hint]')}')].map(e => e.textContent).join(' ')")
-            self.assertEqual(text, HINT_1336)      # row 1336: the approved line, in place of the At a glance words plus the two sentences (HINT_ADD is no longer said)
+            self.assertIn("Drag a tile to move it, or hold Alt and press an arrow key.", text)
+            self.assertIn(HINT_EYE, text)
+            self.assertIn(HINT_ADD, text)
 
     def test_E8_it_fits_at_1400_and_900_in_light_and_dark_in_edit(self):
         for width in (1400, 900):
