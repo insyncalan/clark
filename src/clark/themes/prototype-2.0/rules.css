@@ -394,6 +394,9 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 :root[data-theme=dark] .projects #npBtn.newb { background: var(--brand-blue); border-color: var(--brand-blue); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .projects #npBtn.newb { background: var(--brand-blue); border-color: var(--brand-blue); } }
 
+/* Row 1406: the Settings card controls take the prototype's line colour for their 1px border (the field, the search box, the button, the choice and its dividers), as the prototype draws them; Cards keeps its control-edge token. Gantt card unchanged. */
+.set-cards .frame:not(#gantt-setting) .fld input, .set-cards .frame:not(#gantt-setting) .set-row-ctl input[type="text"], .set-cards .frame:not(#gantt-setting) .folder-paste input, .set-cards .frame:not(#gantt-setting) .set-reset, .set-cards .frame:not(#gantt-setting) .seg, .set-cards .frame:not(#gantt-setting) .btn:not(.pri):not(.ok), .set-cards .frame:not(#gantt-setting) .btn:not(.pri):not(.ok):hover, .set-search input { border-color: var(--grey-200); }
+.set-cards .frame:not(#gantt-setting) .seg button + button { border-left-color: var(--grey-200); }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
