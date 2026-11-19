@@ -19,6 +19,7 @@ from _paths import SRC
 from clark import changes, page, publish, theme
 import test_tpl_workitems as T
 from test_report_editor import Pg
+from test_server import wait
 from _real_server import real_server
 import _testpage as testpage
 
@@ -98,8 +99,14 @@ GOLDEN_LINES = [
     ".wil-views .vt { gap: 0; }",
     ".wil-views .vt:has(> .wil-vopts) .vtab { padding-right: calc(var(--space-5) + var(--space-1)); }",
     ".wil-views .vt > .wil-vopts { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); }",
-    "#report[data-mode=\"view\"] .wil-scroll { scrollbar-width: none; }",
-    "#report[data-mode=\"view\"] .wil-scroll::-webkit-scrollbar { display: none; }",
+    "#report[data-mode=\"view\"] .wil-scroll { scrollbar-width: thin; scrollbar-color: transparent transparent; }",
+    "#report[data-mode=\"view\"] .wil-scroll::-webkit-scrollbar-thumb { background: transparent; }",
+    "#report[data-mode=\"view\"] .wil-scroll.sb { scrollbar-color: var(--grey-300) transparent; }",
+    "#report[data-mode=\"view\"] .wil-scroll.sb::-webkit-scrollbar-thumb { background: var(--grey-300); }",
+    ".wil-half { width: 16px; height: 16px; }",
+    ".wil-table th.wil-drop { box-shadow: inset 3px 0 var(--brand-blue); }",
+    ".wil-table th.wil-dragging { opacity: 0.4; }",
+    ".wil-table th[draggable=\"true\"] { cursor: grab; }",
     ".wil-table .wil-c-type, .wil-cfg .wil-opts label:has(> input[value=\"type\"]) { display: none; }",
     ".wil-table .wil-own .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
     ".wil-lines li { grid-template-columns: calc(var(--space-5) + var(--space-1)) minmax(0, 1fr) auto; }",
@@ -467,19 +474,78 @@ class Classic(Look):
             p.edit()
             p.until(f"!!document.querySelector('{sec} [data-wil-gear]') && !!document.querySelector('{sec} .wil-all-b')", "Edit has the link too")
 
-    def test_the_views_list_scroll_bar_is_hidden_in_view_and_not_in_edit(self):
+    def test_the_views_list_scroll_bar_shows_only_while_scrolling_in_view_and_always_in_edit(self):      # the mock-up's .viewmode .rscroll / .sb
         ref = self.add({"mode": "all", "max": 2, "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
         with T.chrome() as cdp:
             p = self.show(cdp, 1400)
             sec = f'[data-id="{ref}"]'
             p.until(f"!!document.querySelector('{sec} .wil-scroll')", "View drew")
-            probe = f"(() => {{ const e = document.querySelector('{sec} .wil-scroll'); return [getComputedStyle(e).scrollbarWidth, e.scrollHeight > e.clientHeight, e.offsetWidth - e.clientWidth]; }})()"
-            width, scrolls, bar = p.js(probe)
+            probe = f"(() => {{ const e = document.querySelector('{sec} .wil-scroll'); return [getComputedStyle(e).scrollbarColor, e.scrollHeight > e.clientHeight, e.classList.contains('sb')]; }})()"
+            colour, scrolls, sb = p.js(probe)
             self.assertTrue(scrolls, "the rows still scroll")
-            self.assertEqual((width, bar), ("none", 0), "View: no scroll bar")
+            self.assertEqual((colour, sb), ("rgba(0, 0, 0, 0) rgba(0, 0, 0, 0)", False), "View at rest: the bar is not drawn")
+            p.js(f"(() => {{ const e = document.querySelector('{sec} .wil-scroll'); e.scrollTop = 20; }})()")
+            p.until(f"document.querySelector('{sec} .wil-scroll').classList.contains('sb')", "scrolling marks the list")
+            self.assertNotEqual(p.js(probe)[0], "rgba(0, 0, 0, 0) rgba(0, 0, 0, 0)", "while it scrolls the thumb has a colour")
+            p.until(f"!document.querySelector('{sec} .wil-scroll').classList.contains('sb')", "the bar goes again a moment after")
+            self.assertEqual(p.js(probe)[0], "rgba(0, 0, 0, 0) rgba(0, 0, 0, 0)", "at rest again")
             p.edit()
             p.until(f"!!document.querySelector('{sec} .wil-scroll') && document.querySelector('#report').dataset.mode === 'edit'", "Edit drew")
-            self.assertEqual(p.js(probe)[0], "auto", "Edit keeps its scroll bar")
+            self.assertEqual(p.js(probe)[0].startswith("rgba(0, 0, 0, 0)"), False, "Edit keeps its scroll bar")
+
+    def test_the_status_half_circle_is_16_px(self):      # the mock-up's .sti
+        ref = self.add({"mode": "all", "columns": ["status", "id"], "owner": ["Pat Demo", "Lee Demo"]})
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table .wil-half')", "View drew")
+            self.assertEqual(p.js(f"(() => {{ const r = document.querySelector('[data-id=\"{ref}\"] .wil-table .wil-half').getBoundingClientRect(); return [r.width, r.height]; }})()"), [16, 16])
+
+    def _heads(self, p, ref):
+        return p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table thead th[data-cw-head]')].map(h => h.dataset.cwHead)")
+
+    def test_a_heading_dragged_onto_another_moves_the_column_and_the_order_is_kept(self):      # README: drag a heading to re-order
+        ref = self.add({"mode": "all", "columns": ["owner", "due", "priority", "id"], "owner": ["Pat Demo", "Lee Demo"]})
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            p.edit()
+            p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=due]')", "Edit drew")
+            self.assertEqual(self._heads(p, ref), ["title", "owner", "due", "priority", "id"])
+            h = lambda c: f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head={c}]')"
+            self.assertEqual(p.js(f"{h('id')}.draggable"), True)
+            ev = lambda t, c: p.js(f"{h(c)}.dispatchEvent(new DragEvent('{t}', {{bubbles: true, cancelable: true, dataTransfer: new DataTransfer()}}))")
+            ev("dragstart", "id")
+            ev("dragover", "owner")
+            p.until(f"{h('owner')}.classList.contains('wil-drop')", "the drop mark shows on the target heading")
+            ev("drop", "owner")
+            ev("dragend", "id")
+            p.until(f"{h('owner')}.previousElementSibling.dataset.cwHead === 'id'", "the ID column moved before Owner")
+            self.assertEqual(self._heads(p, ref), ["title", "id", "owner", "due", "priority"])
+            body = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr:first-child td')].map(c => c.className.replace('wil-c-', ''))")
+            self.assertEqual([c for c in body if c in ("id", "owner", "due", "priority")], ["id", "owner", "due", "priority"], "the cells follow the headings")
+            p.js("location.reload()")
+            p.until(f"!!document.querySelector('#report')", "reloaded")
+            p.edit()
+            p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=due]')", "Edit drew again")
+            self.assertEqual(self._heads(p, ref), ["title", "id", "owner", "due", "priority"], "kept on this computer")
+
+    def test_alt_with_an_arrow_moves_a_heading_and_ctrl_with_an_arrow_resizes_it(self):      # README: Ctrl and an arrow to resize; Alt and an arrow moves it
+        ref = self.add({"mode": "all", "columns": ["owner", "due", "id"], "owner": ["Pat Demo", "Lee Demo"]})
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            p.edit()
+            h = lambda c: f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head={c}]')"
+            key = lambda c, k, **m: p.js(f"{h(c)}.dispatchEvent(new KeyboardEvent('keydown', {{key: '{k}', bubbles: true, cancelable: true, {', '.join(f'{a}: true' for a in m)}}}))")
+            p.until(f"!!{h('due')}", "Edit drew")
+            key("due", "ArrowRight", altKey=True)
+            self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "owner", "id", "due"]), "Alt+Right moved Due one place right")
+            self.assertEqual(p.js(f"{h('due')}.style.width"), "", "and did not resize it")
+            self.assertEqual(p.js("document.activeElement && document.activeElement.dataset.cwHead"), "due", "the heading keeps the focus")
+            key("due", "ArrowLeft", altKey=True)
+            self.assertTrue(wait(lambda: self._heads(p, ref) == ["title", "owner", "due", "id"]), "Alt+Left moved it back")
+            key("owner", "ArrowRight", ctrlKey=True)
+            p.until(f"{h('owner')}.style.width !== ''", "Ctrl+Right sets the Owner width")
+            self.assertEqual(self._heads(p, ref), ["title", "owner", "due", "id"], "and did not move it")
+            self.assertIn("Ctrl", p.js(f"{h('owner')}.getAttribute('aria-description')"))
 
     def test_the_type_column_is_not_drawn_nor_offered_in_configure(self):
         ref = self.add({"mode": "all", "columns": ["type", "id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})

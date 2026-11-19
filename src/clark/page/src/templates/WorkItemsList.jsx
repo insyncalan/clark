@@ -3,7 +3,7 @@
 // title, then the chosen columns on one line). Both are drawn and the section's slot shows one (shell.css), so nothing is measured.
 // View: a row opens the peek (row 1268); text nodes only, never dangerouslySetInnerHTML; only rows that would be published (the served page) or that the file
 // carries (a published file). isEmpty: no row to show, or no filter saved yet; the section then stays out of View and the file.
-import { useState, useRef, useLayoutEffect } from "preact/hooks";
+import { useState, useRef, useLayoutEffect, useEffect } from "preact/hooks";
 import { asAt, fromFile, openPeek, openWork } from "../stores/report.js";
 import { KIND_WORDS, dueCell, pillOf, ownerOf, todayIso } from "../workItems.js";
 import { listOf, drawRows, drawn, idsToShow, filterOf, footWords, reviewWords, pageState, priorityCell, WORDS } from "./workItemsList.js";
@@ -50,13 +50,15 @@ function Cell({ row, col, now }) {
 // Row 1195: the page layers a Theme in <style id="theme"> (clark.page.layer_theme); Cards layers nothing, so there is no such element.
 export const classicTheme = () => typeof document !== "undefined" && !!document.getElementById("theme");
 const PICKED = { owner: "owner", due: "due", status: "status", priority: "priority" };
-export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw }) {
+export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw, ord }) {
   const act = open ? (row) => ({ tabIndex: 0, role: "button", "aria-label": `Open ${row.id}: ${row.title || ""}`, onClick: () => open(row.id),
     onKeyDown: (e) => { if (e.target.closest && e.target.closest("button")) return; if ((e.key === "Enter" || e.key === " ") && !e.defaultPrevented) { e.preventDefault(); open(row.id); } } }) : () => ({});
-  const th = (c, text) => <th key={c} class={`wil-c-${c}`} scope="col" style={cw ? cw.style(c) : undefined} {...(cw ? cw.head(c, text) : {})}>{text}{cw ? cw.grip(c, text) : null}</th>;
+  // Row 1195 (Classic, Edit): the headings after Item can be dragged or moved with Alt and an arrow (edit/colWidths.jsx useColOrder); the order is kept on this computer.
+  const moved = ord && classicTheme() ? ord.apply(columns.filter((c) => c !== "type" && c !== "id").concat(columns.filter((c) => c === "id"))) : null;
+  const th = (c, text) => <th key={c} class={`wil-c-${c}${moved ? ord.cls(c) : ""}`} scope="col" style={cw ? cw.style(c) : undefined} {...(cw ? cw.head(c, text) : {})} {...(moved ? ord.props(c, moved) : {})}>{text}{cw ? cw.grip(c, text) : null}</th>;
   const cellOf = (row, c) => (Pick && PICKED[c] ? <Pick row={row} field={PICKED[c]} keep={c === "status"}><Cell row={row} col={c} now={now} /></Pick> : <Cell row={row} col={c} now={now} />);
   // Row 1268: one line as the built-in rows: the letter tile, the title, the chosen columns, the ID last; an item the client eye has taken off is greyed.
-  const before = columns.filter((c) => c === "type"), after = columns.filter((c) => c !== "type" && c !== "id").concat(columns.filter((c) => c === "id"));
+  const before = columns.filter((c) => c === "type"), after = moved || columns.filter((c) => c !== "type" && c !== "id").concat(columns.filter((c) => c === "id"));
   // Row 1195: the Classic theme colours the letter tile by the kind, so a row carries its kind as a class there; the Cards page gets exactly the markup it had.
   const kinds = classicTheme();      // also: Classic draws the mock-up's half row (the rating beside the title, the other columns as separate words on the second line)
   const off = (row) => `${kinds ? ` wil-k-${row.kind}` : ""}${Eye && Eye.isOff && Eye.isOff(row) ? " wil-off" : ""}`;
@@ -121,6 +123,14 @@ export function Scroller({ max, count, children, all }) {
     const h = vis.slice(0, max).reduce((n, r) => n + r.offsetHeight, 0) + (head && head.offsetHeight > 0 ? head.offsetHeight : 0);
     if (h > 0) el.style.maxHeight = `${h}px`;
   });
+  useEffect(() => {      // row 1195 (Classic View): the scroll bar shows while the list scrolls and goes again a moment after (the class is read by rules.css only)
+    const el = box.current;
+    if (!el) return undefined;
+    let t = 0;
+    const on = () => { el.classList.add("sb"); clearTimeout(t); t = setTimeout(() => el.classList.remove("sb"), 900); };
+    el.addEventListener("scroll", on, { passive: true });
+    return () => { el.removeEventListener("scroll", on); clearTimeout(t); };
+  }, []);
   return <div class="wil-scroll" data-wil-scroll="" ref={box} tabIndex={scrolls ? 0 : undefined} role={scrolls ? "region" : undefined} aria-label={scrolls ? "Work items, scroll for more" : undefined}>{children}</div>;
 }
 
