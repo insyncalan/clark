@@ -9,7 +9,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { data, rows, peek, openPeek, closePeek, mode, fromFile, view } from "../stores/report.js";
 import { isEditing } from "../logic/editing.js";
-import { width, wide, setWidth, resetWidth, MIN } from "../stores/peekState.js";
+import { width, wide, setWidth, resetWidth, MIN, DEFAULT } from "../stores/peekState.js";
 import { staleWords, notReviewed } from "../filters.js";
 import { KIND_WORDS, dueCell, pillOf, ownerOf, showDate, todayIso, isOpen, colourOf } from "../workItems.js";
 import { slideOut } from "../peek/exit.js";
@@ -343,7 +343,7 @@ export function Peek({ tools }) {
   const go = (id) => id && openPeek(id, p.kind);
   const title = row ? row.title : m.name;
   return (
-    <aside class={`peek${wide.value ? " wide" : ""}`} id="peek" ref={keep} aria-label={`${p.id} details`} style={wide.value ? "" : `width:${Math.min(width.value, document.documentElement.clientWidth)}px`} data-peek={p.id}>
+    <aside class={`peek${wide.value ? " wide" : ""}`} id="peek" ref={keep} aria-label={`${p.id} details`} style={wide.value ? "" : `width:${Math.min(width.value, document.documentElement.clientWidth)}px`} data-peek={p.id} data-sized={width.value !== DEFAULT ? "" : undefined}>
       <Edge />
       <PeekToolbar near={near} go={go} wide={wide.value} onWide={() => { wide.value = !wide.value; }} onClose={askClose}
         draft={editing && row && tools.peekDraft ? tools.peekDraft(row) : null} onCopy={editing && row && tools.copyLinkFor ? () => tools.copyLinkFor(row) : null}
