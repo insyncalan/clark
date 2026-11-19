@@ -286,7 +286,7 @@ export const KIND_NAMES = { actions: "Action", decisions: "Decision", milestones
 
 // Row 1292 (S12): the Draft beside the panel (mock-up image 09).
 export const DRAFT_TITLE = "Draft";
-// NEEDS APPROVAL: shown when a draft was written in a run that read a connector (names of the parts read, joined with "and").
+// Shown when a draft was written in a run that read a connector (names of the parts read, joined with "and").
 export const DRAFT_VIA = (names) => `Written using your ${names}. Read it before you apply it.`;
 export const DRAFT_HINT = "Edit it freely. Nothing is in the report yet.";
 export const DRAFT_CLOSE = "Close the draft";

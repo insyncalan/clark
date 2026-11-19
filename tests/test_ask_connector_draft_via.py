@@ -1,4 +1,4 @@
-"""Row 1306 F6: a draft written in a run that read a connector says so above the draft (the words are marked NEEDS APPROVAL in askWords.js).
+"""Row 1306 F6: a draft written in a run that read a connector says so above the draft (the words are in askWords.js, approved).
 The server hands the names of the parts read as `via` (never what they returned); a draft from a run with no connector is unchanged.
 Run: flock <lock> ~/bin/clark-chrome-slot env CLARK_CHROME=/usr/local/bin/clark-chrome python3 dev/run_tests.py test_ask_connector_draft_via
 Fictional text only.
