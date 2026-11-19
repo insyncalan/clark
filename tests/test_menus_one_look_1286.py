@@ -4,12 +4,14 @@ Run: python3 dev/run_tests.py test_menus_one_look_1286
 Classic only. Cards is proved unchanged without a browser: its page is byte for byte the page of main, and no Cards style block holds a Row 1286 rule.
 The browser part opens every menu of tests/test_menu_icons_every_1138.py (the dashboard, the Work items page and board, the Use cases pages, the row and
 bulk menus, the Gantt menus, the rich text style menu) at 1400 and 900, light and dark, with the Classic theme layered, and reads each open menu:
-  - the grid: every icon 17px in from the panel edge (+/-1) and 8px (+/-0.5) from the next thing drawn on its line (its words, or the tick of a
-    menu whose tick is on the left); the same for the pick menus, the row menus, the section menu, the bulk menu, the Gantt menus
-  - the type: 14px on every line (the Classic body size)
+  - the grid: every icon 16px wide, 17px in from the panel edge (+/-1: 1px border, 6px popup padding, 10px line padding) and 10px (+/-0.5: an 8px
+    gap and a 2px icon margin) from the next thing drawn on its line (its words, or the tick of a menu whose tick is on the left); the same for the
+    pick menus, the row menus, the section menu, the bulk menu, the Gantt menus
+  - the type: 15px on every line (the prototype menu line; the body is 14)
+  - the line: padding 7px 10px, radius 6px; the popup: radius 10px, padding 6px (the date and owner pickers are forms, not menus, and are left out)
   - the tick of the line in use is on the right of the words, except in the three menus whose mock-ups draw it on the left (Columns, the Gantt Show menus)
   - the head of a group is plain: no capitals, no letter spacing
-  - the width: no menu narrower than 200px, the Group by menus 240px at least
+  - the width: no menu narrower than 224px, the Group by menus too (ruling 19-11, from the prototype's work.css 81 and menu-icons.css 22-23)
 Words and icons are not read here (test_menu_icons_every_1138 does that); nothing here changes a word.
 """
 import json
@@ -31,8 +33,9 @@ NAME = "prototype-2.0"
 RULES = (ROOT / "src" / "clark" / "themes" / NAME / "rules.css").read_text(encoding="utf-8")
 TICK_LEFT = {"columns", "gantt-show-chart", "gantt-show-table"}          # their mock-ups draw the tick before the word (1195 Columns, 1197 Show)
 NO_ICON_GRID = {"owner-pick", "owner-pick-typed", "health", "report-headline-health"}    # an initials circle or a coloured pill, not an icon
-GROUP_BY = {"view", "uc-group"}
-MIN_W, GROUP_W = 200, 240
+MIN_W = 224
+PICKERS = {"owner-pick", "owner-pick-typed", "bulk-picker-due", "cell-Due date"}     # forms with their own look, not menus of lines
+PILL_MENU = {"health", "report-headline-health"}
 
 MEASURE = r"""(root => {
  const ok = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
@@ -50,22 +53,30 @@ MEASURE = r"""(root => {
    const dot = b.querySelector('.ragdot'); if (dot) { const d = dot.getBoundingClientRect(); if (d.width > 0 && d.left >= ir.right - 0.5) after.push(d.left); }      // the coloured dot of a status word is drawn before the word
    const checked = b.getAttribute('aria-checked') === 'true' || b.getAttribute('aria-current') === 'true';
    const side = !checked ? null : (ck && ck.textContent.trim() && ckr) ? (ckr.left + ckr.width / 2 > br.left + br.width / 2 ? 'right' : 'left') : (getComputedStyle(b, '::after').content.length > 4 ? 'right' : null);
-   return {t: b.textContent.trim().slice(0, 22), fs: cs(b).fontSize, icon: true, il: Math.round((Math.min(...before) - br.left) * 10) / 10, gap: after.length ? Math.round((Math.min(...after) - ir.right) * 10) / 10 : null, side};
+   const c = cs(b);
+   return {t: b.textContent.trim().slice(0, 22), fs: c.fontSize, pad: c.paddingTop + ' ' + c.paddingRight + ' ' + c.paddingBottom + ' ' + c.paddingLeft, rad: c.borderTopLeftRadius, iw: Math.round(ir.width * 10) / 10, icon: true, il: Math.round((Math.min(...before) - br.left) * 10) / 10, gap: after.length ? Math.round((Math.min(...after) - ir.right) * 10) / 10 : null, side};
  });
  const heads = [...box.querySelectorAll('.lab,.mh,.menu-head')].filter(ok).map(h => ({t: h.textContent.trim().slice(0, 24), tt: cs(h).textTransform, ls: cs(h).letterSpacing}));
- return {w: Math.round(br.width), rows, heads}; })"""
+ const bc = cs(box);
+ return {w: Math.round(br.width), cls: box.className, rad: bc.borderTopLeftRadius, pad: bc.paddingTop + ' ' + bc.paddingRight + ' ' + bc.paddingBottom + ' ' + bc.paddingLeft, bord: bc.borderTopWidth + ' ' + bc.borderTopStyle + ' ' + bc.borderTopColor, line: cs(document.documentElement).getPropertyValue('--line').trim(), rows, heads}; })"""
 
 
 def check(test, name, look, m):
     where = f"{name} at {look[0]} {look[1]}"
     test.assertTrue(m, where)
-    test.assertGreaterEqual(m["w"], GROUP_W if name in GROUP_BY else MIN_W, f"{where}: the menu is {m['w']}px wide")
+    test.assertGreaterEqual(m["w"], MIN_W, f"{where}: the menu is {m['w']}px wide")
+    if name not in PICKERS and name not in PILL_MENU:
+        test.assertEqual((m["rad"], m["pad"]), ("10px", "6px 6px 6px 6px"), f"{where}: the popup radius and padding")
     for r in m["rows"]:
-        test.assertEqual(r["fs"], "14px", f"{where}: the line {r['t']!r} is not 14px")
+        if name in PICKERS or name in PILL_MENU:
+            continue
+        test.assertEqual(r["fs"], "15px", f"{where}: the line {r['t']!r} is not 15px")
         if r["icon"] and name not in NO_ICON_GRID:
+            test.assertEqual((r["pad"], r["rad"]), ("7px 10px 7px 10px", "6px"), f"{where}: the line {r['t']!r} padding and radius")
+            test.assertEqual(r["iw"], 16, f"{where}: the icon of {r['t']!r} is {r['iw']}px wide")
             test.assertIsNotNone(r["gap"], f"{where}: {r['t']!r} has nothing after its icon")
             test.assertAlmostEqual(r["il"], 17, delta=1, msg=f"{where}: the icon of {r['t']!r} is {r['il']}px in from the edge, the grid is 17")
-            test.assertAlmostEqual(r["gap"], 8, delta=0.5, msg=f"{where}: {r['t']!r} has {r['gap']}px between its icon and the next thing, the grid is 8")
+            test.assertAlmostEqual(r["gap"], 10, delta=0.5, msg=f"{where}: {r['t']!r} has {r['gap']}px between its icon and the next thing, the grid is 10")
         if r.get("side"):
             test.assertEqual(r["side"], "left" if name in TICK_LEFT else "right", f"{where}: the tick of {r['t']!r}")
     for h in m["heads"]:
@@ -105,7 +116,11 @@ class Static(unittest.TestCase):
         self.assertIn("Row 1286", RULES)
         cards = page.page_html(branding=page.NO_BRAND, theme=None)
         self.assertNotIn("Row 1286", cards, "Cards holds no Row 1286 rule")
-        self.assertIn(".ddmenu .mi { margin-right: var(--space-2); }", page.page_html(branding=page.NO_BRAND, theme=NAME))
+        classic = page.page_html(branding=page.NO_BRAND, theme=NAME)
+        self.assertIn(".ddmenu, .cpop.cmenu:not(.bmenu), .cpop.bmenu, .gt-pop, .gt-menu, [data-gt] .gt-menu { min-width: 224px; }", classic)
+        self.assertIn(".ddmenu, .cpop.cmenu, .gt-pop, .gt-menu, [data-gt] .gt-menu, .menu { padding: 6px; border-radius: 10px; }", classic)
+        self.assertIn("padding: 7px 10px; border-radius: 6px; font-size: 15px; }", classic)
+        self.assertNotIn("240px", RULES.split("/* Row 1286")[1].split("/* Row 1314")[0], "no 240px menu is left in the block")
 
     def test_no_style_block_of_cards_names_the_row(self):
         for block in re.findall(r"<style[^>]*>(.*?)</style>", page.page_html(branding=page.NO_BRAND, theme=None), re.S):
