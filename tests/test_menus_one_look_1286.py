@@ -32,9 +32,9 @@ NAME = "prototype-2.0"
 RULES = (ROOT / "src" / "clark" / "themes" / NAME / "rules.css").read_text(encoding="utf-8")
 TICK_LEFT = {"columns", "gantt-show-chart", "gantt-show-table"}          # their mock-ups draw the tick before the word (1195 Columns, 1197 Show)
 NO_ICON_GRID = {"owner-pick", "owner-pick-typed", "health", "report-headline-health"}    # an initials circle or a coloured pill, not an icon
-GROUP_BY = {"uc-group"}
+GROUP_BY = set()
 MIN_W, GROUP_W = 200, 240
-PROTOTYPE_THREE = {"view", "board-move", "board-move-lanes", "new-tile"}       # row 1273: Group by (the View menu's), Move to and the Add menu: 15px, 224 wide, 26px icon gap, the tick before the icon
+PROTOTYPE_THREE = {"view", "uc-group", "board-move", "board-move-lanes"}       # row 1273: Group by (the View menu's), Move to and the Add menu: 15px, 224 wide, 26px icon gap, the tick before the icon
 THREE_W, THREE_FS, THREE_GAP = 224, "15px", 26
 
 MEASURE = r"""(root => {
