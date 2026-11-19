@@ -230,7 +230,7 @@ def project_data(store, code, question="", budget=BUDGET, as_at=None):
         more, n = _cut_screened(LABELS[kind], rows)
         passages += more
         secret += n
-        totals[kind] = len(rows)
+        totals[kind] = len(rows) - n          # a line screened out as a secret has its own note, so it is not counted a second time
     chosen, left = choose(passages, question, budget)
     counts = tuple((k, sum(p.text.count("\n") + 1 for p in chosen if p.label == LABELS[k]), t) for k, t in totals.items() if t)
     return ProjectData(chosen, facts_of(selected, inputs.get("as_at") if _is_day(inputs.get("as_at")) else None), left, secret, timefmt.day_text(inputs.get("as_at")) if _is_day(inputs.get("as_at")) else "", counts)
