@@ -21,7 +21,7 @@ Next, in this order:
 
 Do not build: a vector or model-based index (BM25 over FTS5 found 99% on the easy test; the real-question test was not run, so there is no evidence either way on vague questions); an index in `clark.db`; an index in a synced folder; a background run inside a question; recordings (out of scope, owner 19-11).
 
-Not measured and still open: FTS5 on the other supported Pythons and the Docker image (checked only on this box: Python 3.12.3, SQLite 3.45.1, FTS5 present; the owner's Mac was 3.9 / SQLite 3.54.0 per the spike; the Docker image was not checked); the model's own time; the hostile-file numbers for the extra types beyond the tests named in section 3.
+Not measured and still open: the Docker image's own SQLite (see section 6 for the Pythons measured on this box); the model's own time; the hostile-file numbers for the extra types beyond the tests named in section 3.
 
 ## 3. Threat model: an index holds copies of document text on disk
 
@@ -59,3 +59,31 @@ Residual risk accepted by this note: an indexed copy of document text exists on 
 1. Accept the order in section 2.
 2. Time Machine: exclude `ask-index/` from backups (needs a macOS step, not tested), or accept it is copied. (Not decided here.)
 3. Raise the PDF limits for the background run only, to the spike's numbers, once the hostile-PDF tests are done.
+
+## 6. Measured on this box (Linux aarch64, 20-11-2026) and what the ticket still asks
+
+Question 3 of the ticket, "is SQLite FTS5 available on the Python this Mac has and the other supported ones". Command: `python -c 'import sqlite3; c=sqlite3.connect(":memory:"); print("ENABLE_FTS5" in [r[0] for r in c.execute("pragma compile_options")]); c.execute("create virtual table t using fts5(x)")'`, run on each interpreter found (`ls /usr/bin/python3*`, `~/.local/share/uv/python`):
+
+| Python | SQLite | ENABLE_FTS5 | `create virtual table ... using fts5` |
+|---|---|---|---|
+| 3.9.25 (uv build) | 3.50.4 | yes | ok |
+| 3.12.3 (`/usr/bin/python3`) | 3.45.1 | yes | ok, `bm25()` returns a rank |
+| 3.14.9 (uv build) | 3.53.1 | yes | ok |
+| 3.15.2 (uv build) | 3.53.1 | yes | ok |
+| 3.9 on the owner's Mac (spike, #1368 part 1) | 3.54.0 | yes | reported, not rerun |
+
+Not checked: the Docker image `python:3.12.12-slim-bookworm` (`docker/compose.yaml:17`), because `docker` is not installed on this box (`command -v docker` prints nothing); Python 3.10, 3.11, 3.13 (not installed here); a Python from python.org or the Command Line Tools on an IT-managed Mac; Windows. The uv builds are not the vendors' system builds, so they show FTS5 is common, not that every supported install has it. The code must therefore treat a missing FTS5 as a state, not an error: whether `ask_index` does so was not checked for this note.
+
+What the ticket still asks that this note does not cover (quote, then status):
+
+1. Done-when: "Each question above has a measured answer, posted as a comment here with the numbers." Questions 1 to 6 are posted. Question 7 ("The threat model") is section 3 of this note, from code reading only; no hostile file was run.
+2. Question 4: "can Excel ..., PowerPoint and HTML be read safely". Part 1 on #1368 says "Hostile-file limits (zip bombs, huge sheets, macros, external links) not tested yet". Section 3 T6 names the tests in PR 2001 for a zip bomb and an entity; macros and external links are not tested.
+3. Question 5: "can a standard-library Python 3.9 reach it on an IT-managed laptop". The spike says "Not checked: another laptop, IT permission prompts". Still open; T7 says the helper is not built.
+4. Question 6: "what opening one costs (time, disk, an anti-virus scan)". The spike measured the count (8 files, 1.08 GB) and the cheap flag test, not the cost of opening one. Section 2 item 4 chooses never to open, so the cost stays unmeasured.
+5. Question 1: "Which of the 300-file, 60 MB and 20-second limits is hit". Answered (60 MB). The model's own time was "not measured" and is not here.
+6. Design note: "what to build first, in what order, and what not to build" is section 2. The ticket says the note lives "in the plan repo until the build starts" and "Nothing is committed to the clark repository"; this note is in the clark repo on branch `team-cap-1368` (PR 2023). Where it should live: for the Head to say.
+7. Done-when: "Jarvis and Alan have read it, and #1366's release and priority are set from it." Not done; section 5 lists the decisions.
+8. The ticket's later comment, "the real-question test has been run and its result is in the design note", was waived by the owner on 19-11 18:53 (section 1). Not run.
+9. The part 2 comment says the index should be "left out of Time Machine (to check how)". Not done: `grep -rn "tmutil\|xattr" src` finds nothing and this box is not a Mac, so how to exclude (`tmutil addexclusion` or the `com.apple.metadata:com_apple_backup_excludeItem` attribute) is not checked.
+10. Part 3 recommended "up to 2,000 pages, 100 MB and 120 s for one file" with "hostile-PDF tests ... still to do". `pdf_reader.py:22-23` still has `MAX_BYTES` 20 MB and `MAX_PAGES` 200; the index reuses the question limits (section 2 item 1). No hostile-PDF numbers exist.
+11. Project delete: `grep -rn "ask_index.remove" src` at this branch's base finds only the demo seed caller; the note's T5 gap stands (section 2 item 2).
