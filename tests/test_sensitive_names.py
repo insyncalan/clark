@@ -25,7 +25,7 @@ def tree(root, paths):
     for p in paths:
         f = Path(root, p)
         f.parent.mkdir(parents=True, exist_ok=True)
-        f.write_text("x")
+        f.write_text("x", encoding="utf-8")
 
 
 class Scan(unittest.TestCase):
