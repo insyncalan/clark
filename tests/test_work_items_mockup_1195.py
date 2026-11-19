@@ -8,12 +8,15 @@ The rules are pinned by their CSS text; the order and the look are pinned in the
 import hashlib
 import json
 import re
+import shutil
+import tempfile
 import unittest
+from pathlib import Path
 
 import test_server  # noqa: F401  this file drives Chrome through the template harness (the browser tier reads this line)
 
 from _paths import SRC
-from clark import page, theme
+from clark import changes, page, publish, theme
 import test_tpl_workitems as T
 from test_report_editor import Pg
 from _real_server import real_server
@@ -115,7 +118,7 @@ GOLDEN_LINES = [
     ".wil-all-b { color: var(--status-blue); font-weight: var(--weight-medium); min-height: var(--space-6); padding: 6px 0; }",
 ]
 
-# The Cards page as origin/main (7e25b6619) serves it: the md5 of every <style> block of page_html(branding=NO_BRAND, theme=None), and the md5 of
+# The Cards page as main serves it: the md5 of every <style> block of page_html(branding=NO_BRAND, theme=None), and the md5 of
 # the rendered Work items section (Edit; View; the Add menu opened) with its section id folded to REF and the day count of a due date ("In 1149 days", it changes every day) folded to "In N days", at 1400 and 900 (CARDS_DOM below).
 # This row must not change any of them. If one differs after a merge of main, re-measure on origin/main: a difference with no CSS or Work items
 # change in main is a Cards change made by this row.
@@ -332,6 +335,43 @@ class Look(T.PageBase):
         self.addCleanup(self.s.close)
 
 
+class ClassicFile(T.PublishedFile):
+    """A Classic published file has no Show all items link, even when its section lists more rows than it draws (the Foot is the served page's too)."""
+
+    def test_a_classic_file_never_shows_the_link_and_its_rows_keep_scrolling(self):
+        # a file's section carries its rows (View then takes Most rows from them), so the link cannot show there today; the gate is pinned in the source too
+        self.assertIn("classicTheme() && !fromFile.value && count > max", ROWS_JSX)
+        self.store.con.execute("UPDATE app_settings SET theme = 'classic' WHERE id = 1")
+        status, got = self.real_change({"project": "ABC", "kind": "report_sections", "op": changes.NEW, "values": {"type": "workitems", "title": "Due soon"}, "after": None})
+        ref = got["ref"]
+        body = {"mode": "all", "max": 3, "owner": ["Pat Demo", "Lee Demo"]}
+        status, got = self.real_change({"project": "ABC", "kind": "report_sections", "op": changes.UPDATE, "id": ref, "changes": {"body": json.dumps(body)}})
+        self.assertEqual(status, 200, got)
+        out = tempfile.mkdtemp(prefix="clark-1195-file-")
+        self.addCleanup(shutil.rmtree, out, ignore_errors=True)
+        path = Path(publish.publish(self.store, "ABC", out, by_user=T.USER, now=T.TODAY, branding=T.EMPTY_BRANDING)["path"])
+        text = path.read_text(encoding="utf-8")
+        head = '<script type="application/json" id="clark-data">'
+        start = text.index(head) + len(head)
+        end = text.index("</script>", start)
+        data = json.loads(text[start:end])
+        sec = next(s for s in data["sections"] if s["id"] == ref)
+        self.assertEqual(len(sec["items"]), 3, "the file carries three rows")
+        sec["body"] = T.stored(dict(body, max=2))      # the filter now says Most rows 2 over the three rows the file carries
+        raw = json.dumps(data).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
+        path.write_text(text[:start] + raw + text[end:], encoding="utf-8")
+        with T.chrome() as cdp:
+            tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
+            sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, sid)
+            cdp.call("Page.navigate", {"url": path.as_uri()}, sid)
+            p = Pg(self, cdp, sid)
+            p.until("document.documentElement.dataset.ready === '1' && !!document.querySelector('h1')", "the file drew")
+            p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr').length === 3", "the list drew its rows")
+            self.assertTrue(p.js("!!document.getElementById('theme')"), "the file is Classic")
+            self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-all]')"), "a file has no Show all items link")
+
+
 class Classic(Look):
     LIST = {"mode": "all", "columns": ["id", "owner", "due", "priority"], "owner": ["Pat Demo", "Lee Demo"]}
 
@@ -409,10 +449,17 @@ class Classic(Look):
             box = lambda: p.js(f"document.querySelector('{sec} .wil-scroll').style.maxHeight")
             self.assertEqual(word(), "Show all items")
             self.assertTrue(box(), "closed: the box is as tall as the first Most rows")
+            self.assertEqual(p.js(f"document.querySelector('{sec} .wil-scroll').getAttribute('role')"), "region")
             self.assertTrue(p.js(f"document.querySelector('{sec} .wil-all-b').getBoundingClientRect().top >= document.querySelector('{sec} .wil-scroll').getBoundingClientRect().bottom - 1"), "under the table")
             p.js(f"document.querySelector('{sec} .wil-all-b').click()")
             p.until(f"document.querySelector('{sec} .wil-all-b').textContent === 'Show only 2'", "open reads Show only N")
             self.assertEqual(box(), "", "open: every row is in view")
+            rows = json.loads(p.js(f"JSON.stringify((() => {{ const b = document.querySelector('{sec} .wil-scroll'), r0 = b.getBoundingClientRect(); return [...b.querySelectorAll('.wil-table tbody tr')].map(r => [r.offsetHeight, r.getBoundingClientRect().bottom <= r0.bottom + 1, b.scrollHeight <= b.clientHeight + 1]); }})())"))
+            self.assertEqual(len(rows), 3)
+            for h, inside, whole in rows:
+                self.assertGreater(h, 0, "every row is drawn")
+                self.assertTrue(inside and whole, "every row is inside the open box, nothing is left to scroll")
+            self.assertEqual(p.js(f"[document.querySelector('{sec} .wil-scroll').getAttribute('role'), document.querySelector('{sec} .wil-scroll').getAttribute('aria-label'), document.querySelector('{sec} .wil-scroll').tabIndex]"), [None, None, -1], "open: it no longer scrolls, so it is not a region")
             p.js(f"document.querySelector('{sec} .wil-all-b').click()")
             p.until(f"document.querySelector('{sec} .wil-all-b').textContent === 'Show all items'", "back")
             self.assertTrue(box())
@@ -476,6 +523,38 @@ class Classic(Look):
             self.assertNotIn("High", got["words"], "the rating is not repeated on the second line")
             self.assertNotIn("Action", got["words"], "no Type word")
             self.assertIn("Pat Demo", got["words"])
+
+    def half(self):
+        with self.store.step("dashboard", T.USER) as st:
+            text = st.create("report_sections", {"project": "ABC", "type": "text", "title": "Fictional notes", "sort_order": 1})
+        return self.add({"mode": "all", "columns": ["type", "id", "owner", "due", "priority"], "owner": ["Pat Demo", "Lee Demo"]}, after=text, beside=1)
+
+    def test_a_half_row_draws_the_rating_chip_only_for_a_rated_item_by_the_same_rule_as_the_table_cell(self):
+        # the store never holds an unrated action or decision (priority is NOT NULL, checked), so the rule is pinned in the source and the rated chips in the page
+        self.assertIn('kinds && columns.includes("priority") && ratedRow(row) ? <span class="wil-hpr">', ROWS_JSX)
+        ref = self.half()
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            sec = f'[data-id="{ref}"]'
+            p.until(f"!!document.querySelector('{sec} .wil-lines li .wil-hpr')", "the half rows drew")
+            got = json.loads(p.js("JSON.stringify([...document.querySelectorAll('" + sec + " .wil-lines li .wil-hpr')].map(e => e.textContent))"))
+            self.assertIn("High", got)
+            self.assertNotIn("—", got)
+
+    def test_in_edit_at_900_the_eye_does_not_cover_the_rating_chip_of_a_half_row(self):
+        ref = self.half()
+        for width in (1400, 900):
+            with T.chrome() as cdp:
+                p = self.show(cdp, width)
+                sec = f'[data-id="{ref}"]'
+                p.edit()
+                p.until(f"!!document.querySelector('{sec} .wil-lines li .wil-hpr') && !!document.querySelector('{sec} .wil-lines li .wil-eye')", "drew")
+                got = json.loads(p.js("JSON.stringify([...document.querySelectorAll('" + sec + " .wil-lines li')].filter(li => li.querySelector('.wil-hpr')).map(li => { const e = li.querySelector('.wil-eye').getBoundingClientRect(), h = li.querySelector('.wil-hpr').getBoundingClientRect();"
+                    "return [h.right <= e.left + 1 || h.left >= e.right - 1 || h.bottom <= e.top + 1 || h.top >= e.bottom - 1, e.width > 0, h.width > 0]; }))"))
+                self.assertTrue(got)
+                for apart, eye, chip in got:
+                    self.assertTrue(eye and chip)
+                    self.assertTrue(apart, f"the Edit eye and the rating chip overlap at {width}")
 
     def test_the_measured_values_of_the_mockup_caption_id_pill_tiles_plus_menu_and_columns(self):
         with self.store.step("dashboard", T.USER) as st:
@@ -653,6 +732,19 @@ class Cards(Look):
             p = self.show(cdp, 1400)
             p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-scroll')", "View drew")
             self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-all-b')"))
+
+    def test_cards_keeps_the_old_scroll_box_markup_and_the_classic_changes_are_gated_by_classicTheme(self):
+        # Cards: more rows than Most rows keeps role region, aria-label and a tab stop (the old expression); the Classic-only open-box rule is behind classicTheme()
+        self.assertIn("const scrolls = classicTheme() ? count > max && !all : count > max;", ROWS_JSX)
+        self.assertIn("const on = classicTheme() && !fromFile.value && count > max;", ROWS_JSX)
+        self.assertIn('{kinds && columns.includes("priority") && ratedRow(row)', ROWS_JSX)
+        self.assertIn('const kinds = classicTheme();', ROWS_JSX)
+        ref = self.add({"mode": "all", "max": 2, "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-scroll')", "View drew")
+            self.assertEqual(p.js(f"(() => {{ const b = document.querySelector('[data-id=\"{ref}\"] .wil-scroll'); return [b.getAttribute('role'), b.getAttribute('aria-label'), b.tabIndex]; }})()"), ["region", "Work items, scroll for more", 0])
+            self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-hpr')"), "a Cards row has no half-row chip")
 
     def test_a_cards_page_has_no_theme_block_and_so_no_kind_class(self):
         self.assertNotIn('id="theme"', testpage.html())
