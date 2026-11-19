@@ -103,7 +103,7 @@ RULE_LINES = [
         ':root[data-theme=dark] .fk.k-txt { background: var(--grey-100); color: var(--text); }',
         '@media (prefers-color-scheme: dark) { :root[data-theme=auto] .fline { border-bottom-color: var(--grey-500); } :root[data-theme=auto] .fk.k-txt { background: var(--grey-100); color: var(--text); } }',
         '.fline-tail { margin-right: 0; }',
-        '.vicons .lsw, .vicons .btn.sm.vgb { border-radius: var(--radius-sm); }',
+        '.vicons .lsw, .vicons .btn.sm.vgb { border-radius: var(--radius); }',
         '.vicons .seg.lsw button[aria-pressed="true"] { background-color: var(--grey-100); background-image: none; color: var(--heading); }',
         '.vicons .lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }',
         'table.items thead th + th, .wil-table thead th + th { border-left: 1px solid var(--grey-200); }',
