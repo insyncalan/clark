@@ -253,10 +253,6 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 /* Row 1315 frame and switches (Milestones page, Classic only): the sentence under the title is hidden, and the white card around the timeline and list is flat on screen. The Timeline / Calendar and Week / Month / Quarter switches are already joined with a dark active button by the rules above (rows 1313 and 1319), so nothing is added for them. Scoped to the Milestones page, so the Dashboard section is not touched. */
 #milestones .head-sub { display: none; }      /* the sentence under the title is removed (decided 16-11); also the empty and cancelled sentences, which the shared rule leaves shown; it stays in the page for the tests */
 @media screen { #milestones.frame.milestones:not(.pub) .msv { background: transparent; border: 0; box-shadow: none; padding: 0; } #milestones.frame.milestones:not(.pub) .msv-sw { top: 0; right: 0; } }      /* row 1315: the white card around the timeline and list (the .msv box, not the frame, which is already bare) is gone on screen, flat like the dashboard frame; the switch moves to the corner of the flat page; print keeps its look */
-/* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
-.fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
-@media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
-.fline.bad, .fline.bad:focus-within { border-bottom-color: var(--status-red); box-shadow: 0 1px 0 var(--status-red); }
 /* Row 1325 (Classic only; the Cards look layers none of this): the Use cases list is the Work items table, drawn by the page only while this Theme is on. */
 .ucl-wrap { margin-top: 14px; }
 .ucl-table.hdr { margin-top: 0; }
@@ -284,17 +280,17 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .ucl-table .prg i { display: block; height: 100%; background: var(--status-green); }
 .ucl-table .mslab { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ucl-table tbody tr:hover, .ucl-table tbody tr:focus-within { background: var(--grey-100); }
-#usecases .ucl-table { --uc-off: #667391; }
-:root[data-theme=dark] #usecases .ucl-table { --uc-off: var(--text-muted); }
-@media (prefers-color-scheme: dark) { :root[data-theme=auto] #usecases .ucl-table { --uc-off: var(--text-muted); } }
+#usecases .ucl-table { --wil-uc-off: #667391; }
+:root[data-theme=dark] #usecases .ucl-table { --wil-uc-off: var(--text-muted); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] #usecases .ucl-table { --wil-uc-off: var(--text-muted); } }
 /* A use case the client does not see: every word of the row the fixed grey 667391 (4.74:1 on white), the pill unfilled with a ring, the avatar grey, the eye crossed out. Colour, not opacity. */
-.ucl-table tr.off td, .ucl-table tr.off .t, .ucl-table tr.off .ucl-go, .ucl-table tr.off .where, .ucl-table tr.off .meta2, .ucl-table tr.off .mslab, .ucl-table tr.off .stp, .ucl-table tr.off .on, .ucl-table tr.off .ucn-b, .ucl-table tr.off .muted { color: var(--uc-off); }
+.ucl-table tr.off td, .ucl-table tr.off .t, .ucl-table tr.off .ucl-go, .ucl-table tr.off .where, .ucl-table tr.off .meta2, .ucl-table tr.off .mslab, .ucl-table tr.off .stp, .ucl-table tr.off .on, .ucl-table tr.off .ucn-b, .ucl-table tr.off .muted { color: var(--wil-uc-off); }
 .ucl-table tr.off .t .ucl-go { font-weight: var(--weight-regular); }
-.ucl-table tr.off .pill { background: transparent; color: var(--uc-off); box-shadow: inset 0 0 0 1px var(--grey-300); }
-.ucl-table tr.off .av { background: var(--uc-off); color: var(--white); }
+.ucl-table tr.off .pill { background: transparent; color: var(--wil-uc-off); box-shadow: inset 0 0 0 1px var(--grey-300); }
+.ucl-table tr.off .av { background: var(--wil-uc-off); color: var(--white); }
 .ucl-table tr.off .prg { background: var(--grey-100); }
 .ucl-table tr.off .prg i { background: var(--grey-500); }
-.ucl-table tr.off .weye, .ucl-table tr.off .ucl-eye { color: var(--uc-off); }
+.ucl-table tr.off .weye, .ucl-table tr.off .ucl-eye { color: var(--wil-uc-off); }
 @media (max-width: 900px) {      /* Milestone, Commitment, Release and On the dashboard are not drawn; the owner shows the avatar only; the commitment returns to the grey line (the page does that) */
   .ucl-table .c-ms, .ucl-table .c-cm, .ucl-table .c-rel, .ucl-table .c-dash { display: none; }
   .ucl-table .own .on { display: none; }
@@ -306,3 +302,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .cols-menu .ck[data-on]::before { content: "\2713"; }
 /* Row 1325 (Classic only): the view tabs are as wide as on Work items (the shared rule narrows them by two px a side; the Columns and Group by buttons moved off this row, so they fit). */
 #usecases .ucl-views .vtab { padding-left: 10px; padding-right: 10px; }
+/* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
+.fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
+@media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
+.fline.bad, .fline.bad:focus-within { border-bottom-color: var(--status-red); box-shadow: 0 1px 0 var(--status-red); }
