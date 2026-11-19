@@ -25,6 +25,11 @@ class Note(w.Run):
             self.assertIn(must, ac.CONNECTOR_NOTE)
         self.assertTrue(sent.endswith(self.provider.envelope("Q")), "the request itself follows the note unchanged")
 
+    def test_the_note_is_one_blank_line_before_the_request_and_nothing_else_is_added(self):
+        self.out = w.stream(w.final("ok"))
+        self.ask(["mail"])
+        self.assertEqual(self.sent.decode("utf-8"), ac.CONNECTOR_NOTE + "\n\n" + self.provider.envelope("Q"))
+
     def test_no_connector_means_no_note_and_the_same_bytes_as_today(self):
         self.ask(())
         self.assertEqual(self.sent, self.provider.envelope("Q").encode("utf-8"))
