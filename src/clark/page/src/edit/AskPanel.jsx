@@ -19,6 +19,7 @@ import { chatId, histOpen, histTick, chats, keepChat, deleteChat, when } from ".
 import { ChangeCards, fixedLine } from "./AskChange.jsx";
 import { FormattedAnswer } from "./AskFormat.jsx";
 import { sourcesOf, kindOf } from "./askCite.js";
+import { classicTheme } from "../components/Contents.jsx";
 import { AskDraft } from "./AskDraft.jsx";
 import { readDraft } from "./askDraft.js";
 import * as F from "./askFiles.js";
@@ -48,6 +49,7 @@ function readOf(r) {
 }
 
 // Row 1292: a citation or a Used chip opens that item or milestone in its peek, which sits left of the panel (the panel stays open).
+const cited = (t) => (classicTheme() ? sourcesOf(t.items) : []);       // row 1292: sources are Classic only; their CSS is the Classic theme's, so Cards draws none
 const openCite = (id) => openPeek(id, kindOf(id) === "milestone" ? "milestone" : "item");
 
 async function post(path, body) {
@@ -393,12 +395,12 @@ export function AskPanel() {
         ) : (
           <div key={i} class={`ask-turn ${t.role}${t.kind ? " " + t.kind : ""}`} data-role={t.role}>
             <div class="ask-who">{t.role === "user" ? W.YOU : W.REPLY}</div>
-            {t.kind === "changes" ? <ChangeCards turn={t} /> : t.role === "assistant" && !t.kind && typeof t.text === "string" ? <FormattedAnswer text={t.text} sources={sourcesOf(t.items)} open={openCite} /> : <div class="ask-text">{t.text}</div>}
+            {t.kind === "changes" ? <ChangeCards turn={t} /> : t.role === "assistant" && !t.kind && typeof t.text === "string" ? <FormattedAnswer text={t.text} sources={cited(t)} open={openCite} /> : <div class="ask-text">{t.text}</div>}
             {t.role === "user" && t.about ? <div class="ask-about-line">{W.ABOUT_LINE(t.about)}</div> : null}
-            {t.role === "assistant" && !t.kind && sourcesOf(t.items).length ? (
-              <p class="ask-used" data-ask-used><span class="ask-used-h">{W.USED}</span> {sourcesOf(t.items).map((x) => <button type="button" key={x.id} class="ask-used-chip" data-cite={x.id} aria-label={W.CITE_LABEL(x.n, x.id)} title={W.CITE_TITLE(x.id)} onClick={() => openCite(x.id)}><b>{x.n}</b> {x.id}</button>)}</p>
+            {t.role === "assistant" && !t.kind && cited(t).length ? (
+              <p class="ask-used" data-ask-used><span class="ask-used-h">{W.USED}</span> {cited(t).map((x) => <button type="button" key={x.id} class="ask-used-chip" data-cite={x.id} aria-label={W.CITE_LABEL(x.n, x.id)} title={W.CITE_TITLE(x.id)} onClick={() => openCite(x.id)}><b>{x.n}</b> {x.id}</button>)}</p>
             ) : null}
-            {t.role === "assistant" && !t.kind && W.READ_LINE(t.read) ? <p class="ask-read" data-ask-read>{W.READ_LINE(t.read)}</p> : null}
+            {t.role === "assistant" && !t.kind && classicTheme() && W.READ_LINE(t.read) ? <p class="ask-read" data-ask-read>{W.READ_LINE(t.read)}</p> : null}
             {t.draft ? (
               <div class="ask-draftcard" data-ask-draftcard>
                 <Icon name="doc" />

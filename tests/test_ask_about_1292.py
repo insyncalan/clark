@@ -14,6 +14,7 @@ from test_report_editor import Base, Pg, tearDownModule  # noqa: F401
 from test_tpl_workitems import plant
 from clark import changes
 from test_server import chrome
+from _demo import USER
 
 SPARKLES = "document.querySelectorAll('[data-ask-about]').length"
 
@@ -130,6 +131,67 @@ class AskAbout(Classic):
             p.until("document.querySelectorAll('.ask-turn').length >= 2", "answered")
             self.assertEqual([b for c, b in self.stub.calls if c == "ask"][-1]["question"], "Plain one")
 
+    def test_the_chip_is_cleared_when_the_project_changes(self):
+        with self.store.step("dashboard", USER) as st:
+            st.create("projects", {"code": "XYZ", "name": "Other Programme", "health": "On track"})
+        with chrome() as cdp:
+            p = self.edit_ready(cdp)
+            p.js("document.querySelector('.sec-head [data-ask-about]').click()")
+            p.until("!!document.querySelector('#ask-chip')", "chip")
+            p.js("location.hash = '#dashboard&p=XYZ'")
+            p.until("document.querySelector('#ask-chip') === null", "a chip about one project does not follow the person into another")
+
+    def test_the_chip_stays_while_the_project_does_not_change(self):
+        with chrome() as cdp:
+            p = self.edit_ready(cdp)
+            p.js("document.querySelector('.sec-head [data-ask-about]').click()")
+            p.until("!!document.querySelector('#ask-chip')", "chip")
+            p.js("location.hash = '#work&p=ABC&f=mode:all'")
+            p.until("!!document.querySelector('#work table.items tr[data-id]')", "the next page")
+            self.assertTrue(p.js("!!document.querySelector('#ask-chip')"), "the same project keeps the chip")
+
+    def test_a_chip_made_in_another_project_stays_in_that_project(self):
+        with self.store.step("dashboard", USER) as st:
+            st.create("projects", {"code": "XYZ", "name": "Other Programme", "health": "On track"})
+        status, got = self.real_change({"project": "XYZ", "kind": "report_sections", "op": changes.NEW, "values": {"type": "workitems", "title": "Other list"}, "after": None})
+        self.assertEqual(status, 200, got)
+        with chrome() as cdp:
+            p = self.visit(cdp, "#dashboard&p=XYZ")
+            p.edit()
+            p.until(f"{SPARKLES} > 0", "drawn in Edit")
+            p.js("document.querySelector('[data-ask-about]').click()")
+            p.until("!!document.querySelector('#ask-chip')", "chip")
+            p.until("!document.querySelector('#ask-send').disabled", "ready")
+            self.assertTrue(p.js("!!document.querySelector('#ask-chip')"), "a chip made in this project stays in it")
+
+    def test_a_use_case_row_has_a_sparkle(self):
+        with chrome() as cdp:
+            p = Pg.at(self, cdp, self.s.port, "#usecases&p=ABC")
+            p.until("document.querySelectorAll('tr.ucr[data-uc]').length > 0", "use case rows")
+            p.until(f"{SPARKLES} > 0", "drawn (the page is always editable)")
+            self.assertEqual(p.js("document.querySelectorAll('tr.ucr[data-uc] [data-ask-about]').length"), p.js("document.querySelectorAll('tr.ucr[data-uc]').length"))
+            self.assertEqual(p.js("document.querySelector('tr.ucr[data-uc] [data-ask-about]').getAttribute('data-ask-about')"), p.js("document.querySelector('tr.ucr[data-uc]').dataset.uc"))
+
+    def test_a_board_card_has_a_sparkle(self):
+        with chrome() as cdp:
+            p = Pg.at(self, cdp, self.s.port, "#work&p=ABC&f=mode:all")
+            p.until("document.querySelectorAll('#work table.items tr[data-id]').length > 0", "rows")
+            p.js("(() => { const b = [...document.querySelectorAll('#work [role=tab], #work button')].find(e => /board/i.test(e.getAttribute('aria-label') || e.textContent)); if (b) b.click(); })()")
+            p.until("document.querySelectorAll('.bc-top').length > 0", "cards")
+            self.assertEqual(p.js("document.querySelectorAll('.bc-top [data-ask-about]').length"), p.js("document.querySelectorAll('.bc-top').length"))
+
+    def test_a_list_row_in_edit_has_a_sparkle_and_view_has_none(self):
+        for kind, title in (("raid", "Risks and issues"), ("actions", "Open actions"), ("decisions", "Decisions")):
+            status, got = self.real_change({"project": "ABC", "kind": "report_sections", "op": changes.NEW, "values": {"type": kind, "title": title}, "after": None})
+            self.assertEqual(status, 200, got)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.assertGreater(p.js("document.querySelectorAll('.wl-row').length"), 0, "the report has list rows")
+            self.assertEqual(p.js("document.querySelectorAll('.wl-row [data-ask-about]').length"), 0, "View has none")
+            p.edit()
+            p.until("document.querySelectorAll('.wl-row [data-ask-about]').length > 0", "a sparkle in Edit")
+            self.assertEqual(p.js("document.querySelectorAll('.wl-row [data-ask-about]').length"), p.js("document.querySelectorAll('.wl-row').length"))
+
     def test_the_work_items_page_has_a_sparkle_on_every_row(self):
         with chrome() as cdp:
             p = Pg.at(self, cdp, self.s.port, "#work&p=ABC&f=mode:all")
@@ -216,6 +278,45 @@ class Sources(Classic):
             self.assertIn(ident, p.js("document.querySelector('[data-ask-used] button').getAttribute('aria-label')"))
             p.js("document.querySelector('[data-ask-used] button').click()")
             p.until("!!document.querySelector('.peek')", "peek")
+
+    def test_a_reopened_chat_keeps_its_chips_used_line_read_line_and_about_line(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            ident = self.item_id(p)
+            self.stub.answer = f"{ident} is late."
+            self.stub.items = [ident]
+            self.stub.read = {"work_items": 17, "milestones": 6, "use_cases": 8, "as_at": "17-11-2026"}
+            p.js("document.querySelector('.wil-table tr[data-id] [data-ask-about]').click()")
+            p.until("!document.querySelector('#ask-send').disabled", "ready")
+            self.ask(p, "Is it late?")
+            p.until("document.querySelectorAll('.ask-cite').length > 0 && !!document.querySelector('.ask-about-line')", "answered")
+            p.until("!!document.querySelector('#ask-new') && !document.querySelector('#ask-new').disabled", "idle")
+            p.js("document.querySelector('#ask-new').click()")
+            p.until("document.querySelectorAll('.ask-turn').length === 0", "a new chat")
+            p.js("document.querySelector('#ask-history').click()")
+            p.until("!!document.querySelector('.ask-hist-open')", "history open")
+            p.js("document.querySelector('.ask-hist-open').click()")
+            p.until("document.querySelectorAll('.ask-turn').length >= 2", "the chat is back")
+            self.assertGreater(p.js("document.querySelectorAll('.ask-cite').length"), 0, "the citation chips are back")
+            self.assertEqual(p.js("document.querySelector('[data-ask-used]').textContent.replace(/\\s+/g, ' ').trim()"), f"Used: 1 {ident}")
+            self.assertEqual(p.js("document.querySelector('[data-ask-read]').textContent.trim()"), "17 work items, 6 milestones and 8 use cases read · as at 17-11-2026")
+            self.assertTrue(p.js("!!document.querySelector('.ask-about-line')"), "the About line is back")
+
+    def test_cards_draws_no_citation_chips_used_line_or_read_line(self):
+        self.again(None)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            ident = self.item_id(p)
+            self.stub.answer = f"{ident} is late."
+            self.stub.items = [ident]
+            self.stub.read = {"work_items": 17, "milestones": 6, "use_cases": 8, "as_at": "17-11-2026"}
+            p.key("/", code="Slash", vk=191)
+            p.until("!document.querySelector('#ask-send') || !document.querySelector('#ask-send').disabled", "ready")
+            self.ask(p, "What is late?")
+            p.until("document.querySelectorAll('.ask-turn').length >= 2", "answered")
+            self.assertEqual(p.js("document.querySelectorAll('.ask-cite, [data-ask-used], [data-ask-read]').length"), 0, "Cards is left as it was")
 
     def test_the_peek_goes_back_to_the_edge_when_the_panel_is_closed(self):
         with chrome() as cdp:

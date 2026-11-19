@@ -2,7 +2,7 @@
 // focus back; the width is remembered in this browser (a convenience only). Nothing is sent while asking is off: the status route
 // is asked when the panel opens, and until it answers (or when it cannot) the panel reads as off.
 import { signal, effect } from "@preact/signals";
-import { peek } from "../stores/report.js";
+import { peek, project } from "../stores/report.js";
 import { helpOpen } from "../help/helpStore.js";
 import { singleKeys } from "../stores/keyPrefs.js";
 import { askOn, askProvider } from "./askState.js";
@@ -115,9 +115,12 @@ export function handOver(text, send) {
 
 /** Row 1292: the sparkle: the panel opens (or takes focus) with a chip naming what it was pressed on. */
 export function askAbout(what) {
-  subject.value = what && what.id ? { kind: String(what.kind || "item"), id: String(what.id), name: String(what.name || what.id) } : null;
+  subject.value = what && what.id ? { kind: String(what.kind || "item"), id: String(what.id), name: String(what.name || what.id), project: project.value } : null;
   if (panelOpen.value) panelFocus.value++; else openPanel();
 }
+
+// Row 1292: the chip names a row of one project, so it goes when the project changes (the panel and the chat stay).
+effect(() => { const s = subject.value; if (s && s.project !== project.value) subject.value = null; });
 
 /** Row 1220: the one place the queue is changed, so a changed list is never held, nor a drop warning kept, for a list it was not about. */
 export function setQueue(list) {
