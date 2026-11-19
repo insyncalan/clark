@@ -4,7 +4,10 @@ Sizes are the prototype's measured in Chrome at the same width (1385 px of page:
 
 Run: python3 dev/run_tests.py test_classic_dashboard_1345
 """
+import json
 import unittest
+
+from _demo import USER
 
 from test_classic_contents_1318 import Classic as Base
 from test_inline_67 import size
@@ -13,6 +16,7 @@ from clark import page, theme  # noqa: F401
 
 NAME = "prototype-2.0"
 MARK = "/* Row 1345 block"
+MARK2 = "/* Row 1345 title block"
 
 M = ("(function(){var r=function(e){var b=e.getBoundingClientRect();return [Math.round(b.left), Math.round(b.width)];}, s=document.querySelector('#report .secs > .sec:not(.is-hidden)'), cs=getComputedStyle(s);"
      "var n=document.querySelector('.cnt'), h=s.querySelector('.sec-h');"
@@ -66,6 +70,44 @@ class Measured(Dash):
         self.assertEqual(got, ["20px", "700", "none", "rgba(0, 0, 0, 0)", "0px"])
 
 
+HM = """(function(){var q=function(s){return document.querySelector(s)}, g=function(s){return getComputedStyle(q(s))}, r=function(s){var b=q(s).getBoundingClientRect(); return [Math.round(b.left), Math.round(b.width), Math.round(b.height)];};
+return {title: [g('.tpl-rh-title').fontSize, g('.tpl-rh-title').lineHeight, g('.tpl-rh-title').fontWeight, g('.tpl-rh-title').marginBottom, g('.tpl-rh-title').letterSpacing],
+meta: [g('.tpl-rh-meta').marginTop, g('.tpl-rh-meta').marginBottom], health: [g('.tpl-rh').gap, g('.tpl-rh').paddingTop, g('.tpl-rh').borderTopWidth, g('.tpl-rh').borderBottomWidth, g('.tpl-rh').flexDirection, g('.tpl-rh').marginBottom],
+pill: [g('.tpl-rh-pill').fontWeight, g('.tpl-rh-pill').paddingLeft, g('.tpl-rh-pill').paddingTop, g('.tpl-rh-pill').gap, g('.tpl-rh-pill').letterSpacing, g('.tpl-rh-pill').textTransform, r('.tpl-rh-pill')[2]],
+lead: [g('.tpl-rh-h').fontSize, g('.tpl-rh-h').fontWeight, g('.tpl-rh-h').marginBottom], sub: [g('.tpl-rh-p').marginTop],
+sec: [getComputedStyle(q('.tpl-rh-block').parentNode).paddingLeft, getComputedStyle(q('.tpl-rh-block').parentNode).paddingTop], block: r('.tpl-rh-block')};})()"""
+
+
+class TitleBlock(Dash):
+    """The Report headline section (row 1261) as prototype 2.0 index.html lines 111-119 draws it, measured at 1400 and 900."""
+
+    def setUp(self):
+        super().setUp()
+        with self.store.step("dashboard", USER) as st:
+            st.create("report_sections", {"project": "ABC", "type": "reportheadline", "title": "Fictional headline", "sort_order": -1,
+                                           "body": json.dumps({"v": 1, "health": "at_risk", "headline": "Fictional plan holds", "sentence": "Fictional reason."})})
+
+    def check(self, width, col):
+        with chrome() as cdp:
+            p = self.at(cdp, width)
+            p.js("document.documentElement.dataset.density = 'compact'")
+            got = p.js(HM)
+        self.assertEqual(got["title"], ["30px", "36px", "600", "4px", "-0.3px"])
+        self.assertEqual(got["meta"], ["0px", "16px"])
+        self.assertEqual(got["health"], ["12px", "12px", "1px", "1px", "row", "0px"])
+        self.assertEqual(got["pill"], ["700", "12px", "2px", "6px", "0.42px", "uppercase", 28])
+        self.assertEqual(got["lead"], ["16px", "600", "4px"])
+        self.assertEqual(got["sub"], ["0px"])
+        self.assertEqual(got["sec"], ["0px", "0px"])
+        self.assertEqual(got["block"][:2], col)
+
+    def test_at_1400(self):
+        self.check(1400, [262, 1017])      # the column less the section's 22 right padding
+
+    def test_at_900(self):
+        self.check(900, [32, 799])
+
+
 class Killers(Dash):
     def test_the_health_word_keeps_no_tracking_and_has_its_own_colour_for_each_state(self):
         with chrome() as cdp:
@@ -93,10 +135,16 @@ class Killers(Dash):
 class Text(unittest.TestCase):
     def test_the_block_is_one_comment_then_these_lines(self):
         rules = (theme_folder() / "rules.css").read_text(encoding="utf-8")
-        block = rules[rules.index(MARK):]
+        block = rules[rules.index(MARK):rules.index(MARK2)]
         lines = [l for l in block.split("\n")[1:] if l.strip()]
         self.assertEqual(rules.count(MARK), 1)
         self.assertEqual(lines, LINES)
+
+    def test_the_title_block_rules_are_these_lines(self):
+        rules = (theme_folder() / "rules.css").read_text(encoding="utf-8")
+        block = rules[rules.index(MARK2):rules.index("/* Row 1345 layout rows")]
+        self.assertEqual(rules.count(MARK2), 1)
+        self.assertEqual([l for l in block.split("\n")[1:] if l.strip()], HEAD_LINES)
 
 
 def theme_folder():
@@ -115,6 +163,19 @@ LINES = [
     '.glance .fig .tw { display: none; }',
     '.glance .fig .hpill { padding: 0; background: none; font-size: 20px; font-weight: 700; letter-spacing: 0; text-transform: none; }',
     '.glance .fig .hpill.g { color: var(--status-green-text); } .glance .fig .hpill.a { color: var(--status-amber-text); } .glance .fig .hpill.r { color: var(--status-red-text); } .glance .fig .hpill.n { color: var(--text-muted); }',
+]
+
+HEAD_LINES = [
+    'html:not([data-density="comfortable"]) .rbar + #report .secs > .sec:not(.slot-right):has(> .tpl-rh-block) { padding-top: 0; padding-left: 0; }',
+    '.sec:has(> .tpl-rh-block) { padding-top: 0; padding-left: 0; }',
+    '.tpl-rh-block { margin: 0; }',
+    '.tpl-rh-title { font-family: Montserrat, Inter, Arial, sans-serif; font-size: 30px; line-height: 1.2; font-weight: 600; margin: 0 0 4px; letter-spacing: -.01em; }',
+    '.tpl-rh-meta { margin: 0 0 16px; }',
+    '.tpl-rh-block .tpl-rh { margin: 0; gap: 12px; padding: 12px 0; }',
+    '.tpl-rh-block .tpl-rh-pill { gap: 6px; font-size: 14px; font-weight: 700; padding: 2px 12px; min-height: 28px; letter-spacing: .03em; text-transform: uppercase; }',
+    '.tpl-rh-block .tpl-rh-h { font-size: 16px; font-weight: 600; margin: 0 0 4px; }',
+    '.tpl-rh-block .tpl-rh-h + .tpl-rh-p { margin-top: 0; }',
+    '@media (max-width: 900px) { .tpl-rh-block .tpl-rh { flex-direction: row; gap: 12px; } }',
 ]
 
 if __name__ == "__main__":

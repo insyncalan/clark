@@ -312,14 +312,6 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .cols-menu .ck[data-on]::before { content: "\2713"; }
 /* Row 1325 (Classic only): the view tabs are as wide as on Work items (the shared rule narrows them by two px a side; the Columns and Group by buttons moved off this row, so they fit). */
 #usecases .ucl-views .vtab { padding-left: 10px; padding-right: 10px; }
-/* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
-.fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
-@media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
-.fline.bad, .fline.bad:focus-within { border-bottom-color: var(--status-red); box-shadow: 0 1px 0 var(--status-red); }
-/* Item 1286, one chosen-segment look: the Gantt chart's scale takes the same navy chosen half as every other segment (the .seg rule above), with the same dark ring. Classic only; Cards has its own in shell.css. The Timeline and Calendar switch keeps the Row 1313 heading fill, which Row 1313's test pins. */
-.gt-grp .gt-ib[aria-pressed="true"] { background-color: var(--brand-navy); background-image: none; color: var(--white); }
-:root[data-theme=dark] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); }
-@media (prefers-color-scheme: dark) { :root[data-theme=auto] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); } }
 /* Row 1345 block (Classic Dashboard layout vs prototype 2.0), Classic only. Bare values with no token: the 66px left edge of the Contents list, the 616px half-column of the right margin, the 20px and 22px section paddings, the 1000px break (the Contents column's own, row 1318). Compact spacing and the editor Dashboard only (the report bar sits before its #report, as for row 1152): Comfortable and a published file keep their own paddings and heading size. Not here: the page title and headline block (a content decision, open). */
 @media screen and (min-width: 1000px) {
   html:has(.cnt-grid) main { max-width: none; margin: 0; padding-left: 66px; padding-right: max(var(--space-5), calc(50vw - 616px)); }
@@ -331,3 +323,31 @@ html:not([data-density="comfortable"]) .rbar + #report .secs > .sec:not(.slot-ri
 .glance .fig .tw { display: none; }
 .glance .fig .hpill { padding: 0; background: none; font-size: 20px; font-weight: 700; letter-spacing: 0; text-transform: none; }
 .glance .fig .hpill.g { color: var(--status-green-text); } .glance .fig .hpill.a { color: var(--status-amber-text); } .glance .fig .hpill.r { color: var(--status-red-text); } .glance .fig .hpill.n { color: var(--text-muted); }
+/* Row 1345 title block = the Report headline section of row 1261, Classic only (prototype 2.0 index.html lines 111-119: h1 30px/1.2 weight 600 margin 0 0 4px tracking -.01em; .meta margin 0 0 16px; .health gap 12, padding 12px 0, 1px lines; .rag weight 700, padding 2px 12px, min-height 28, tracking .03em, capitals; .lead 600 16px margin 0 0 4px; #summary has no padding at the top and left). Bare values from the prototype, no token. The row stays beside the pill at 900. */
+html:not([data-density="comfortable"]) .rbar + #report .secs > .sec:not(.slot-right):has(> .tpl-rh-block) { padding-top: 0; padding-left: 0; }
+.sec:has(> .tpl-rh-block) { padding-top: 0; padding-left: 0; }
+.tpl-rh-block { margin: 0; }
+.tpl-rh-title { font-family: Montserrat, Inter, Arial, sans-serif; font-size: 30px; line-height: 1.2; font-weight: 600; margin: 0 0 4px; letter-spacing: -.01em; }
+.tpl-rh-meta { margin: 0 0 16px; }
+.tpl-rh-block .tpl-rh { margin: 0; gap: 12px; padding: 12px 0; }
+.tpl-rh-block .tpl-rh-pill { gap: 6px; font-size: 14px; font-weight: 700; padding: 2px 12px; min-height: 28px; letter-spacing: .03em; text-transform: uppercase; }
+.tpl-rh-block .tpl-rh-h { font-size: 16px; font-weight: 600; margin: 0 0 4px; }
+.tpl-rh-block .tpl-rh-h + .tpl-rh-p { margin-top: 0; }
+@media (max-width: 900px) { .tpl-rh-block .tpl-rh { flex-direction: row; gap: 12px; } }
+/* Row 1345 layout rows (re-spec of 19-11, prototype 2.0 index.html lines 88, 92, 112-113, 120-123, 785), Classic only, same scope as the Row 1345 block below: the page's top and bottom padding 32 and 56, the section heading's line 1.25 x 20 = 25, the section's right and bottom padding 22 and 18, and At a glance as a flat strip (cell padding and margin 0 20px 0 0, the 1px rule in --line-soft (this theme's name for the prototype's --line) on the right of every cell but the last, none on the left). Bare values from the prototype, no token. */
+@media screen and (min-width: 1000px) {
+  html:has(.cnt-grid) main { padding-top: 32px; padding-bottom: 56px; }
+}
+html:not([data-density="comfortable"]) .rbar + #report .secs > .sec:not(.slot-right) { padding-right: 22px; padding-bottom: 18px; }
+html:not([data-density="comfortable"]) .rbar + #report .sec-h { line-height: 1.25; }
+html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tcell { padding: 0 20px 0 0; margin: 0 20px 0 0; border-left: 0; border-right: 1px solid var(--line-soft); }
+html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tcell:last-child { border-right: 0; margin-right: 0; padding-right: 0; }
+@media (max-width: 1180px) { html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tcell.health { border-right: 0; } }
+/* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
+.fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
+@media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
+.fline.bad, .fline.bad:focus-within { border-bottom-color: var(--status-red); box-shadow: 0 1px 0 var(--status-red); }
+/* Item 1286, one chosen-segment look: the Gantt chart's scale takes the same navy chosen half as every other segment (the .seg rule above), with the same dark ring. Classic only; Cards has its own in shell.css. The Timeline and Calendar switch keeps the Row 1313 heading fill, which Row 1313's test pins. */
+.gt-grp .gt-ib[aria-pressed="true"] { background-color: var(--brand-navy); background-image: none; color: var(--white); }
+:root[data-theme=dark] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); } }
