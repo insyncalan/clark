@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { skeleton, reduced } from "../stores/motion.js";
 import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt, settingsPage, settingsFeedbackShown, showSettings } from "../stores/report.js";
-import { milestoneRows, emptyHead, showDate, todayIso } from "../logic/milestones.js";
+import { milestoneRows, emptyHead, todayIso } from "../logic/milestones.js";
 
 import { MsBlock } from "./MsBlock.jsx";
 

@@ -11,6 +11,7 @@ import shutil
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from _demo import USER, DemoStore
 from _paths import SRC
@@ -24,6 +25,7 @@ from test_work_items import page_target
 PAGE_SRC = SRC / "clark" / "page" / "src"
 SENTENCE = re.compile(r"(forecast for|agreed for|has no date yet|now expected|\d+ achieved|\d+ to come)")
 HINTS = ("Every milestone is on the timeline", "The list shows where each one stands", "Milestones view")
+REAL_PAGE_HTML = page.page_html
 SWITCH = "[data-mspage-switch], [data-mspv], [data-mspage-hint], #milestones .seg:not(.cal-sc)"
 
 
@@ -104,6 +106,28 @@ class Served(Base):
             p.until("!!document.querySelector('#milestones .msl-row')", "the plan list drew after the reload")
             self.assertEqual(p.js("!!document.querySelector('#movement')"), False, "no Movement section")
             self.assertEqual(self.reads, [], "no Movement request is made")
+
+
+class Classic(Base):
+    """The Classic theme once hid the Milestones hint line with a rule of its own; the hint and that rule are gone, and the title must still show."""
+    def setUp(self):
+        patch = mock.patch.object(page, "page_html", lambda branding=None, view=False, brand_id=None, theme=None: REAL_PAGE_HTML(branding, view, brand_id, "prototype-2.0"))
+        patch.start()
+        self.addCleanup(patch.stop)
+        super().setUp()
+
+    def test_mutant_classic_rule_left_in_the_theme_or_the_title_hidden_with_it(self):
+        # kills: the hint-hiding rule kept in Classic's rules.css; a replacement rule that also hides the title; Classic not the page under test
+        rules = (SRC / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+        self.assertNotIn("mspage", rules)
+        self.assertNotIn("[data-mspv", rules)
+        self.assertNotEqual(REAL_PAGE_HTML(EMPTY_BRANDING, theme="prototype-2.0"), REAL_PAGE_HTML(EMPTY_BRANDING), "the page under test is Classic, not Cards")
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.until("!!document.querySelector('#milestones .msl-row')", "the list drew")
+            self.assertEqual(p.js("document.querySelectorAll('[data-mspage-hint], [data-mspage-switch], #milestones .head-sub').length"), 0, "no hint element in the Classic head")
+            self.assertEqual(p.js("document.querySelector('#milestones h1').textContent"), "Milestones")
+            self.assertTrue(p.js("(() => { const h = document.querySelector('#milestones h1'); const r = h.getBoundingClientRect(); return getComputedStyle(h).display !== 'none' && getComputedStyle(h).visibility === 'visible' && r.width > 0 && r.height > 0; })()"), "the h1 is visible")
 
 
 class Published(unittest.TestCase):

@@ -160,9 +160,6 @@ class Base(unittest.TestCase):
             p.js(f"document.documentElement.dataset.theme = '{theme}'")
         return p
 
-    def open_movement(self, p):
-        self.skipTest("row 1329: the Plan / Movement switch is gone, so the page no longer reaches Movement")
-
     def toast(self, p):
         return wait_toast(lambda: p.js("(document.querySelector('.toast .toast-text') || {}).textContent || ''"))
 
@@ -176,105 +173,16 @@ class Block(Base):
             p = self.visit(cdp)
             self.assertEqual(p.js("!!document.querySelector('#movement')"), False)
             self.assertEqual(self.reads, [], "View asks for no Movement")
-            self.open_movement(p)
-            self.assertEqual(p.js("document.querySelector('#movement h2').textContent"), "Movement")
-            self.assertEqual(p.js("document.querySelector('#movement .tag').textContent"), mv.TAG_INTERNAL)
-            self.assertIn(mv.HELP_LINE, p.js("document.querySelector('#movement').textContent"))
-            self.assertEqual(p.js("document.querySelector('.mvm-sentence').textContent"), "1 of 2 open milestones are behind their agreed date; 1 overdue.")
-            self.assertEqual(p.js("[...document.querySelectorAll('.mvm-row .mvm-name')].map(e => e.textContent)"), ["Go live", "Pilot live"], "worst first")
-            self.assertIn("Go live is", p.js("document.querySelector('.mvm-worst').textContent"))
-            text = p.js("document.querySelector('.mvm-card').textContent")
-            for want in ("Original", "10-01-2020", "Agreed", "Forecast", "01-02-2020", "Never moved", "Progress", "Owner", "Priya Example",
-                         "What changed", mv.NOTHING_CHANGED, "Decide what to do", mv.HOLD_LABEL, mv.MOVE_LABEL, "Each choice changes the record at once, with Undo."):
-                self.assertIn(want, text)
-            outside = p.js("(() => { const c = document.body.cloneNode(true); const n = c.querySelector('#mvNote'); if (n) n.remove(); return c.innerHTML; })()")
-            self.assertNotIn(INTERNAL, outside, "the internal note is in no part of the page but its own box")      # item 1005: the box draws the note's words as its field; it was a textarea, whose text is no part of the markup
-            self.assertIn(INTERNAL, p.js("document.querySelector('#mvNote').textContent"), "an old plain note reads in its own box")
-            self.assertEqual(p.js("document.querySelector('#mv-move').disabled"), False)
-            p.js("document.querySelector('.mvm-row[data-id=\"%s\"]').click()" % PILOT)
-            p.until("document.querySelector('#mv-card-h').textContent === 'Pilot live'", "the card follows the row")
-            self.assertEqual(p.js("document.querySelector('#mv-move').disabled"), True, "not slipped: no move")
-            self.assertEqual(p.js("document.querySelector('#mv-why').textContent"), "This milestone hasn't slipped, so its agreed date can't be moved yet.")
-            self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
-            p.until("!!document.querySelector('#movement .mvm-card') && !!document.querySelector('#mv-hold') && !document.querySelector('#movement[data-readonly]')", "the choices are there (row 804: the page has no mode)")
+        self.skipTest("row 1329: the Plan / Movement switch is gone, so the page no longer reaches Movement")
 
     def test_a_hold_that_trims_the_note_says_so_and_undo_restores_it(self):      # #603
-        whole = "\n".join(["y" * 499] * 4)
-        with self.store.step("dashboard", USER) as st:
-            st.update("milestones", GO_LIVE, {"internal_note": whole})
-        with chrome() as cdp:
-            p = self.visit(cdp)
-            self.open_movement(p)
-            p.js("document.querySelector('#mv-hold').click()")
-            p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Hold recorded. The oldest lines of the note were removed to fit. Undo.'", "the trimmed Hold toast")
-            self.assertNotEqual(self.row(GO_LIVE)["internal_note"], whole)
-            p.js("document.querySelector('.toast [data-undo]').click()")
-            p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Undone.'", "Undone")
-            self.assertEqual(self.row(GO_LIVE)["internal_note"], whole, "Undo restores the whole note")
+        self.skipTest("row 1329: the Plan / Movement switch is gone, so the page no longer reaches Movement")
 
     def test_hold_is_recorded_with_its_toast_and_undo(self):
-        with chrome() as cdp:
-            p = self.visit(cdp)
-            self.open_movement(p)
-            p.js("document.querySelector('#mv-hold').click()")
-            p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Hold recorded in the note. Undo.'", "the Hold toast")
-            self.assertEqual(self.row(GO_LIVE)["movement"], "hold")
-            self.assertEqual(self.sent[-1][1]["place"], "movement")
-            p.until("document.querySelector('.mvm-list') && document.querySelector('.mvm-list').textContent.includes('Movement choice: Hold')", "What changed shows it")
-            self.assertEqual(p.js("document.activeElement.className.includes('mvm-row')"), True, "focus returns to the row")
-            p.js("document.querySelector('.toast [data-undo]').click()")
-            p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Undone.'", "Undone")
-            self.assertIsNone(self.row(GO_LIVE)["movement"])
-            p.until("!document.querySelector('.mvm-list') || !document.querySelector('.mvm-list').textContent.includes('Movement choice: Hold') "
-                    "|| !!document.querySelector('.mvm-en.undone')", "What changed follows the undo")
+        self.skipTest("row 1329: the Plan / Movement switch is gone, so the page no longer reaches Movement")
 
     def test_move_the_agreed_date_asks_confirms_refuses_moves_and_undoes(self):
-        iso, text = in_days(30)
-        with chrome() as cdp:
-            p = self.visit(cdp)
-            self.open_movement(p)
-            p.js("document.querySelector('#mv-move').click()")
-            p.until("!!document.querySelector('.mvm-form')", "the form opened")
-            p.until("document.activeElement.id === 'mv-to'", "focus goes to the first field")
-            self.assertEqual(p.js("document.querySelector('#mv-move').disabled"), True)
-            confirm = p.js("document.querySelector('#mvm-confirm').textContent")
-            self.assertTrue(confirm.startswith("Move the agreed date of Go live from 10-01-2020 to "), confirm)
-            self.assertTrue(confirm.endswith("The original date (10-01-2020) is kept and a decision is recorded. You can undo this."), confirm)
-            # nothing given: the three reasons, in order, and nothing is sent
-            before = len(self.sent)
-            p.js("document.querySelector('#mv-go').click()")
-            p.until("document.querySelectorAll('.mvm-problems p').length === 3", "three reasons")
-            self.assertEqual(p.js("[...document.querySelectorAll('.mvm-problems p')].map(e => e.textContent)"),
-                             ["Say who agreed the new date.", "Give the reason the agreed date is moving.",
-                              "Give the source: where it was agreed, for example the meeting or the email."])
-            self.assertEqual(len(self.sent), before)
-            self.assertEqual(p.js("document.querySelector('.mvm-problems').getAttribute('role')"), "alert")
-            self.fill(p, "mv-to", "05-01-2020")
-            self.fill(p, "mv-who", "Pat Example")
-            self.fill(p, "mv-reason", "The build ran long")
-            self.fill(p, "mv-source", "Steering minutes")
-            p.js("document.querySelector('#mv-go').click()")
-            p.until("!!document.querySelector('.mvm-problems p')", "an earlier date is refused")
-            self.assertEqual(p.js("document.querySelector('.mvm-problems p').textContent"), "The new agreed date must be later than the current one (10-01-2020).")
-            self.assertEqual(len(self.sent), before)
-            # a date the server refuses, in its words: the form stays, nothing is written
-            self.fill(p, "mv-to", text)
-            p.js("document.querySelector('#mv-go').click()")
-            p.until("!document.querySelector('.mvm-form')", "the form closed")
-            self.assertEqual(self.row(GO_LIVE)["baseline_date"], iso)
-            self.assertEqual(self.sent[-1][1]["rebaseline"], {"agreed_with": "Pat Example", "reason": "The build ran long", "source": "Steering minutes"})
-            p.until("document.querySelector('.toast .toast-text').textContent.startsWith('Go live: the agreed date is now ')", "the toast")
-            self.assertEqual(self.toast(p), f"Go live: the agreed date is now {text}. Undo.")
-            p.until("document.querySelector('.mvm-list') && document.querySelector('.mvm-list').textContent.includes('Rebaselined')", "What changed lists it")
-            self.assertIn("Pat Example", p.js("document.querySelector('.mvm-list').textContent") + "Pat Example")
-            self.assertEqual(p.js("document.querySelector('.mvm-chips').textContent.includes('Moved 1 time')"), True)
-            self.assertEqual(p.js("document.querySelector('.mvm-chips').textContent.includes('10-01-2020')"), True, "the original is kept")
-            p.js("document.querySelector('.toast [data-undo]').click()")
-            p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Undone.'", "Undone")
-            self.assertEqual(self.row(GO_LIVE)["baseline_date"], BEHIND)
-            p.until("document.querySelector('.mvm-chips').textContent.includes('Never moved')", "back to Never moved")
-            p.until("!!document.querySelector('.mvm-en.undone')", "the undone line stays, dimmed")
-            self.assertEqual(p.js("document.querySelector('.mvm-en.undone .tag').textContent"), "Undone")
+        self.skipTest("row 1329: the Plan / Movement switch is gone, so the page no longer reaches Movement")
 
     def fill(self, p, ident, value):
         if ident == "mv-to":
@@ -294,81 +202,16 @@ class Block(Base):
         p.until("!document.querySelector(%s)" % json.dumps(box), "the editor closed")
 
     def test_a_refusal_from_the_server_is_shown_in_its_fixed_words_and_writes_nothing(self):
-        _, text = in_days(30)
-        with chrome() as cdp:
-            p = self.visit(cdp)
-            self.open_movement(p)
-            p.js("document.querySelector('#mv-move').click()")
-            p.until("!!document.querySelector('.mvm-form')", "the form opened")
-            for ident, value in (("mv-to", text), ("mv-who", "Pat Example"), ("mv-reason", "r"), ("mv-source", "s")):
-                self.fill(p, ident, value)
-            with self.store.step("dashboard", USER) as st:
-                st.archive("milestones", GO_LIVE)
-            p.js("document.querySelector('#mv-go').click()")
-            p.until("!!document.querySelector('.mvm-problems p')", "the refusal")
-            self.assertEqual(p.js("document.querySelector('.mvm-problems p').textContent"), "That milestone is archived. Restore it first.")
-            self.assertEqual(self.row(GO_LIVE)["baseline_date"], BEHIND)
-            self.assertEqual(p.js("!!document.querySelector('.mvm-form')"), True, "the form stays, so nothing typed is lost")
+        self.skipTest("row 1329: the Plan / Movement switch is gone, so the page no longer reaches Movement")
 
     def test_escape_closes_the_form_and_keeps_the_date(self):
-        with chrome() as cdp:
-            p = self.visit(cdp)
-            self.open_movement(p)
-            p.js("document.querySelector('#mv-move').click()")
-            p.until("!!document.querySelector('.mvm-form')", "the form opened")
-            # The form takes focus after the next frame, not when it is drawn. A key pressed before then goes to the page, not
-            # the form, and on a slow runner that frame can come later than the next command.
-            p.until("document.activeElement.id === 'mv-to'", "focus went to the first field")
-            p.key("Escape", code="Escape", vk=27)
-            p.until("!document.querySelector('.mvm-form')", "Escape closed it")
-            p.until("document.activeElement.id === 'mv-move'", "focus is back on Move")
-            p.js("document.querySelector('#mv-move').click()")
-            p.until("!!document.querySelector('.mvm-form')", "reopened")
-            p.js("document.querySelector('#mv-keep').click()")
-            p.until("!document.querySelector('.mvm-form')", "Keep the date closed it")
-            self.assertEqual(self.row(GO_LIVE)["baseline_date"], BEHIND)
+        self.skipTest("row 1329: the Plan / Movement switch is gone, so the page no longer reaches Movement")
 
     def test_loading_and_cant_load_states(self):
         self.skipTest("row 1329: the Plan / Movement switch is gone, so the page no longer reaches Movement")
-        self.hold_read = threading.Event()
-        with chrome() as cdp:
-            p = self.visit(cdp)
-            p.until("!!document.querySelector('#movement')", "the block is there")
-            self.assertEqual(p.js("document.querySelector('#movement [role=status]').textContent"), "Loading Movement.")
-            self.fail_read = True
-            self.hold_read.set()
-            p.until("!!document.querySelector('#movement [role=alert]')", "it could not load")
-            self.assertIn(mv.READ_FAILS, p.js("document.querySelector('#movement').textContent"))
-            self.assertNotIn("Movement test marker", p.js("document.body.innerHTML"), "the server's text is never shown")
-            self.fail_read = False
-            p.js("document.querySelector('#movement .again').click()")
-            p.until("!!document.querySelector('#movement .mvm-sentence')", "Try again loads it")
 
     def test_keyboard_and_accessible_names(self):
-        with chrome() as cdp:
-            p = self.visit(cdp)
-            self.open_movement(p)
-            p.js("document.querySelector('.mvm-row').focus()")
-            first = p.js("document.activeElement.dataset.id")
-            p.key("ArrowDown", code="ArrowDown", vk=40)
-            self.assertNotEqual(p.js("document.activeElement.dataset.id"), first, "Down moves to the next row")
-            p.key("ArrowUp", code="ArrowUp", vk=38)
-            self.assertEqual(p.js("document.activeElement.dataset.id"), first)
-            p.js("document.querySelectorAll('.mvm-row')[1].focus()")
-            for kind in ("keyDown", "keyUp"):
-                cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13,
-                                                     **({"text": "\r"} if kind == "keyDown" else {})}, p.sid)
-            p.until("document.querySelector('#mv-card-h').textContent === 'Pilot live'", "Enter chooses the row")
-            self.assertEqual(p.js("document.querySelectorAll('.mvm-row')[1].getAttribute('aria-pressed')"), "true")
-            names = p.js("[...document.querySelectorAll('#movement button')].filter(b => b.getAttribute('aria-label')).length")
-            self.assertEqual(names, 0, "the visible words are the names")
-            p.js("document.querySelector('.mvm-row').click()")
-            p.js("document.querySelector('#mv-move').click()")
-            p.until("!!document.querySelector('.mvm-form')", "the form opened")
-            labels = p.js("(function(){return [...document.querySelectorAll('.mvm-form .mvm-f')].map(function(l){var r = l.querySelector('[aria-labelledby]'); var name = r ? document.getElementById(r.getAttribute('aria-labelledby')).textContent : 'label'; return l.querySelector('span').textContent + '|' + (r ? r.id : l.getAttribute('for')) + '|' + name;});})()")
-            self.assertEqual(labels, ["New agreed date (DD-MM-YYYY)|mv-to|label", "Who agreed it|mv-who|Who agreed it", "Reason|mv-reason|Reason", "Source|mv-source|Source"])
-            self.assertEqual(p.js("document.querySelector('.mvm-form').getAttribute('aria-labelledby')"), "mv-form-h")
-            self.assertEqual(p.js("document.getElementById('mv-form-h').textContent"), "Move the agreed date")
+        self.skipTest("row 1329: the Plan / Movement switch is gone, so the page no longer reaches Movement")
 
 
 AUDIT = """(function () {
@@ -403,23 +246,7 @@ AUDIT = """(function () {
 
 class Layout(Base):
     def test_1400_and_900_px_light_and_dark(self):
-        for width in (1400, 900):
-            for theme in ("light", "dark"):
-                with self.subTest(width=width, theme=theme), chrome() as cdp:
-                    with self.store.step("dashboard", USER) as st:          # so each Hold changes something and has its toast
-                        st.update("milestones", GO_LIVE, {"movement": None})
-                    p = self.visit(cdp, width=width, theme=theme)
-                    self.open_movement(p)
-                    p.js("document.querySelector('#mv-move').click()")
-                    p.until("!!document.querySelector('.mvm-form')", "the form opened")
-                    p.js("document.querySelector('#mv-hold').click()")
-                    p.until("!!document.querySelector('.toast')", "a toast")
-                    self.assertEqual(json.loads(p.js(AUDIT)), [])
-                    colour = p.js("getComputedStyle(document.querySelector('#movement .mvm-sentence')).color")
-                    background = p.js("getComputedStyle(document.querySelector('.frame')).backgroundColor")
-                    self.assertNotEqual(colour, background)
-                    dark = p.js("getComputedStyle(document.documentElement).colorScheme")
-                    self.assertEqual("dark" in dark, theme == "dark", dark)
+        self.skipTest("row 1329: the Plan / Movement switch is gone, so the page no longer reaches Movement")
 
 
 if __name__ == "__main__":
