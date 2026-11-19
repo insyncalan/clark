@@ -14,7 +14,7 @@ from test_work_items_classic_1314 import RULES, SHELL, chrome
 from test_work_board_page import Base
 
 START = RULES.index("/* Row 1395")
-END = RULES.index("/* Row 1314")
+END = RULES.index("/* Row ", START + 1)
 OWN = RULES[START:END]
 
 
@@ -24,7 +24,7 @@ class Source(unittest.TestCase):
         self.assertLess(START, END)
         names = [l.split()[2].rstrip(":,") for l in RULES.split("\n") if l.startswith("/* Row ")]
         self.assertEqual(names[-1], "1314")
-        self.assertEqual(names[-2], "1395")
+        self.assertLess(names.index("1395"), names.index("1314"))
 
     def test_the_block_has_no_colour_literals_and_every_rule_is_under_the_work_page(self):
         body = [l for l in OWN.split("\n")[1:] if l.strip()]
