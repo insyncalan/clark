@@ -6,7 +6,7 @@ It is a copy that can always be rebuilt: delete it and `build` makes the same pa
 WHAT GETS IN. Files are listed and opened only through `reach` (`readable_files`, `read_bytes`), the same gates as `ask_passages`.
 Text, Markdown, CSV, TSV, RST and Word are read like `ask_passages` reads them. PDF goes through `pdf_reader` (its own process, a passage per
 page: "<file>, page n"); Excel (.xlsx, .xlsm) through vendored openpyxl, read-only, stored values, a passage run per sheet ("<file>, sheet S"); a PDF with no
-readable text (scanned, encrypted, damaged) counts as `type` and is listed as left out, a damaged workbook as `safety`. A file whose name or text looks like a password or
+readable text (scanned, encrypted, damaged) counts as `type` and is listed as left out, a damaged workbook or a PDF over the page or size limit as `type`, `too_long` (never as a password). A file whose name or text looks like a password or
 a key is screened by `secret_screen` BEFORE any of it is stored: it leaves a row with no text (label and size only). Every
 other type (PowerPoint, HTML, pictures) is counted as `type` until its own slice. No per-question file, byte or time limit.
 
@@ -44,6 +44,8 @@ MAX_LEFT_OUT_SHOWN = 200
 LEFT_OUT_BUTTON = "Show the files left out"
 REASON_TYPE = "of a type clark can't read yet"
 REASON_SAFETY = "looks like a password or a key"
+REASON_TOO_LONG = "is a PDF that is too long to read"
+COUNTED = ("indexed", "type", "too_long")          # the states that have their own count; any other state is a safety one
 
 
 def path_for(data_dir, code):
@@ -203,7 +205,7 @@ def _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, prog
                     safety += 1
                     c["safety"] += 1
                 elif label in now_state:
-                    c[now_state[label] if now_state[label] in ("indexed", "type") else "safety"] += 1
+                    c[now_state[label] if now_state[label] in COUNTED else "safety"] += 1
                 else:
                     seen.add(label)
                     if kept.get(label, (None,))[:2] == (st.st_size, st.st_mtime_ns):
@@ -211,16 +213,17 @@ def _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, prog
                     else:
                         state = _read_one(db, path, label, low, st, usable, data_dir, home)
                     now_state[label] = state
-                    c[state if state in ("indexed", "type") else "safety"] += 1
+                    c[state if state in COUNTED else "safety"] += 1
             if progress:
                 progress(str(folder), done, total)
     for gone in set(kept) - seen:
         _drop(db, gone)
     db.execute("INSERT OR REPLACE INTO left SELECT label, ? FROM files WHERE state='safety'", (REASON_SAFETY,))
     db.execute("INSERT OR REPLACE INTO left SELECT label, ? FROM files WHERE state='type'", (REASON_TYPE,))
+    db.execute("INSERT OR REPLACE INTO left SELECT label, ? FROM files WHERE state='too_long'", (REASON_TOO_LONG,))
     states = [r[0] for r in db.execute("SELECT state FROM files")]
     counts = dict.fromkeys(NAMES, 0)
-    counts.update(indexed=states.count("indexed"), type=type_n + states.count("type"), online_only=online, safety=safety + states.count("safety"))
+    counts.update(indexed=states.count("indexed"), type=type_n + states.count("type"), too_long=states.count("too_long"), online_only=online, safety=safety + states.count("safety"))
     counts["stopped"] = stopped_listing
     _set(db, "counts", counts)
     _set(db, "folders", per)
@@ -245,15 +248,17 @@ def _read_one(db, path, label, low, st, usable, data_dir, home):
         if is_pdf:
             got = pdf_reader.read(raw, truncated=truncated)
             if got.status != "ok":
-                state = "type"
+                state = "too_long" if got.reason in ("too_big", "too_many_pages") else "type"
             else:
                 groups = [(f"page {n}", t.splitlines()) for n, t in got.pages]
         elif is_excel:
             groups = _excel_groups(raw, truncated)
         else:
             groups = [(None, _lines(raw, truncated, low, os.path.basename(str(path))))]
-    except (reach.Never, docx_read.WordRefused, ValueError, UnicodeError):
+    except reach.Never:
         state = "safety"
+    except (docx_read.WordRefused, ValueError, UnicodeError):
+        state = "type"                           # damaged or too big to read: left out, but never said to look like a password
     if state == "indexed":
         every = "\n".join("\n".join(lines) for _n, lines in groups)
         if secret_screen.name_looks_like_secret(label) or secret_screen.looks_like_secret(every):

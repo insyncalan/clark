@@ -57,3 +57,28 @@ class Closes(Base):
             self.assertFalse(ask_index.refresh(self.data, "P1", [self.box], stop=stop))
         with self.assertRaises(sqlite3.ProgrammingError):
             opened[0].execute("SELECT 1")
+
+
+class Reasons(Base):
+    def test_a_damaged_workbook_is_not_said_to_look_like_a_password(self):
+        self.put("bad.xlsx", b"not a workbook", binary=True)
+        self.put("keys.txt", "zqnote\n" + FAKE_KEY)
+        ix.build(self.data, "P1", [self.box])
+        c = ix.status(self.data, "P1", None)
+        self.assertEqual((c["type"], c["safety"]), (1, 1))
+        names = dict(ix.mod().files_left_out(self.data, "P1", 200)["files"])
+        self.assertEqual(names["saved/bad.xlsx"], ix.mod().REASON_TYPE)
+        self.assertEqual(names["saved/keys.txt"], ix.mod().REASON_SAFETY)
+
+    def test_a_pdf_over_the_page_limit_is_counted_too_long_and_listed(self):
+        from clark import pdf_reader
+        self.put("big.pdf", b"%PDF-1.4 x", binary=True)
+        self.put("scan.pdf", b"%PDF-1.4 y", binary=True)
+        results = {b"%PDF-1.4 x": pdf_reader.Result("not_read", "too_many_pages"), b"%PDF-1.4 y": pdf_reader.Result("not_read", "scanned")}
+        with mock.patch.object(pdf_reader, "read", lambda raw, truncated=False, **k: results[bytes(raw)]):
+            ix.build(self.data, "P1", [self.box])
+        c = ix.status(self.data, "P1", None)
+        self.assertEqual((c["too_long"], c["type"], c["indexed"], c["safety"]), (1, 1, 0, 0))
+        self.assertEqual(sum(c.get(n, 0) for n in ix.mod().NAMES), 2)
+        self.assertEqual(ix.mod().line_for(c), "Indexed 0 of 2 files. 1 is of a type clark can't read yet. 1 PDF is too long.")
+        self.assertEqual(dict(ix.mod().files_left_out(self.data, "P1", 200)["files"])["saved/big.pdf"], ix.mod().REASON_TOO_LONG)
