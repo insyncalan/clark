@@ -31,6 +31,24 @@ class EmptyPublished(unittest.TestCase):
                 self.assertEqual(cdp.js("(document.querySelector('#milestones .head-sub') || {textContent: ''}).textContent.trim()", sid), "No milestones yet.")
                 self.assertEqual(cdp.js("document.querySelectorAll('#milestones .msl-row').length", sid), 0)
 
+    def test_a_published_file_whose_only_milestone_is_cancelled_says_no_milestones_yet(self):
+        # row 1329: a file drops cancelled rows for the client, so the head reads them as none; the rows read without the client flag would say "The only milestone is cancelled."
+        def cancelled(plant):
+            rows = plant["data"]["milestones"]
+            del rows[1:]
+            rows[0]["status"] = "Cancelled"
+        _plant, pub, text = tp.made(cancelled)
+        self.assertEqual([m["status"] for m in pub["data"]["milestones"]], ["Cancelled"])
+        folder = Path(tempfile.mkdtemp(prefix="clark-1329-"))
+        self.addCleanup(lambda: shutil.rmtree(str(folder), ignore_errors=True))
+        path = folder / "report.html"
+        path.write_text(text, encoding="utf-8")
+        with chrome() as cdp:
+            sid = tp.opened(cdp, path.as_uri() + "#milestones&p=PUB", 1400)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#milestones .head')", sid), 10), "the head drew")
+            self.assertEqual(cdp.js("(document.querySelector('#milestones .head-sub') || {textContent: ''}).textContent.trim()", sid), "No milestones yet.")
+            self.assertEqual(cdp.js("document.querySelectorAll('#milestones .msl-row').length", sid), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

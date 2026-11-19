@@ -23,6 +23,7 @@ class Words(unittest.TestCase):
             const can = rows.filter((r) => r.state === 'Cancelled');
             return {sub: can.map((r) => MS.subLine(r)), n: can.length,
                     none: MS.emptyHead([]), nul: MS.emptyHead(null), undef: MS.emptyHead(undefined), many: MS.emptyHead(can.concat(can)), one: MS.emptyHead(can.slice(0, 1)),
+                    mixed: MS.emptyHead(rows), mixedN: rows.length, live: MS.emptyHead(rows.filter((r) => r.state !== 'Cancelled').slice(0, 1)),
                     agreed: MS.subLine({state: 'Planned', baseline: '2026-01-01', slip: null})};
         }""" + ")(" + json.dumps({"cases": CASES, "today": TODAY}) + ")")
         with chrome() as cdp:
@@ -43,6 +44,12 @@ class Words(unittest.TestCase):
         self.assertEqual(self.js["undef"], "No milestones yet.")
         self.assertEqual(self.js["one"], "The only milestone is cancelled.")
         self.assertEqual(self.js["many"], f"All {2 * self.js['n']} milestones are cancelled.")
+
+    def test_the_head_says_nothing_while_a_milestone_is_left_to_list(self):
+        # row 1329: dropping the guard in emptyHead would say "All N milestones are cancelled." over live rows; returning null would not be ""
+        self.assertGreater(self.js["mixedN"], self.js["n"], "the cases hold live rows beside the cancelled ones")
+        self.assertEqual(self.js["mixed"], "")
+        self.assertEqual(self.js["live"], "")
 
     def test_the_components_use_them(self):
         self.assertIn("subLine(r)", (SRCDIR / "components" / "MsList.jsx").read_text(encoding="utf-8"))

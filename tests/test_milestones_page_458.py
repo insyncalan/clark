@@ -280,6 +280,16 @@ class Page(Base):
             self.assertRegex(seen["text"], r"cancelled\.$")
             self.assertNotEqual(seen["display"], "none", "the cancelled sentence stays shown")
             self.assertGreater(seen["h"], 0)
+            self.assertEqual(p.js("document.querySelector('.head-sub').className"), "head-sub", "the sentence carries its one class")
+
+    def test_show_archived_is_on_the_served_page_when_a_milestone_is_archived(self):
+        # row 1329: the head rewrite must keep the Show archived button under the list
+        with self.store.step("dashboard", USER) as st:
+            st.archive("milestones", PILOT)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.until("!!document.querySelector('#ms-archived-pill')", "Show archived drew under the list")
+            self.assertEqual(p.js("document.querySelector('#ms-archived-pill').textContent.trim()"), "Show archived (1)")
 
     def test_view_has_add_milestone_and_sends_no_request_until_it_is_used(self):
         before = {r["id"] for r in self.store.read("milestones")}
