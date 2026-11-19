@@ -46,6 +46,15 @@ class Counting(unittest.TestCase):
         self.assertIsNone(ac.read_tokens(b"not json"))
         self.assertIsNone(ac.read_tokens(b"[1]"))
 
+    def test_a_price_in_the_result_is_never_read_only_the_counts(self):
+        got = json.loads(result())
+        got["total_cost_usd"] = 0.42
+        got["usage"].update({"cost_usd": 9.99, "cost": 3, "price": 1, "service_tier": "standard"})
+        got["modelUsage"] = {"sonnet": {"costUSD": 7.5, "inputTokens": 99999, "outputTokens": 99999}}
+        self.assertEqual(ac.read_tokens(json.dumps(got).encode()), 9829)
+        self.assertEqual(ac.read_tokens(result({"input_tokens": 1, "output_tokens": 1, "total_cost_usd": 5, "cost": 5})), 2)
+        self.assertIsNone(ac.read_tokens(json.dumps({"type": "result", "total_cost_usd": 0.42, "usage": {"cost_usd": 3}}).encode()))
+
     def test_the_provider_keeps_the_count_of_the_last_answered_question_only(self):
         from unittest import mock
         provider = ac.ClaudeCommand(places=(), env={}, limit=5)
@@ -84,6 +93,27 @@ class TheFile(unittest.TestCase):
         self.assertTrue(self.u.record("PUB", 1, DAY))
         (self.d / ask_usage.FILE).write_text(json.dumps({"2026-11": {"PUB": {"questions": -3, "tokens": "x"}, "bad": {"questions": 1}}}), encoding="utf-8")
         self.assertEqual(self.u.month(DAY), {"PUB": {"questions": 0, "tokens": 0}})
+
+    def test_the_same_month_of_another_year_is_not_counted(self):
+        self.u.record("PUB", 5, datetime.date(2025, 11, 20))
+        self.assertEqual(self.u.month(DAY), {})
+        self.assertEqual(self.u.month(datetime.date(2025, 11, 3)), {"PUB": {"questions": 1, "tokens": 5}})
+        (self.d / ask_usage.FILE).write_text(json.dumps({"2025-11": {"PUB": {"questions": 4, "tokens": 40}}, "2026-10": {"PUB": {"questions": 3, "tokens": 30}}}), encoding="utf-8")
+        self.assertEqual(self.u.month(DAY), {})
+        self.u.record("PUB", 1, DAY)
+        self.assertEqual(self.u.month(DAY), {"PUB": {"questions": 1, "tokens": 1}})
+
+    def test_a_count_that_is_not_a_whole_number_is_not_kept(self):
+        for bad in (1.5, "12", True, False, -1, None, [3], {"n": 3}, ask_usage.MAX_COUNT + 1):
+            (self.d / ask_usage.FILE).write_text(json.dumps({"2026-11": {"PUB": {"questions": bad, "tokens": bad}}}), encoding="utf-8")
+            self.assertEqual(self.u.month(DAY), {"PUB": {"questions": 0, "tokens": 0}}, repr(bad))
+        (self.d / ask_usage.FILE).write_text(json.dumps({"2026-11": {"PUB": {"questions": 4, "tokens": 0}, "OTH": {"questions": 2, "tokens": 12}}}), encoding="utf-8")
+        self.assertEqual(self.u.month(DAY), {"PUB": {"questions": 4, "tokens": 0}, "OTH": {"questions": 2, "tokens": 12}})
+        self.assertTrue(self.u.record("PUB", 1.5, DAY))
+        self.assertTrue(self.u.record("PUB", "12", DAY))
+        self.assertTrue(self.u.record("PUB", True, DAY))
+        self.assertTrue(self.u.record("PUB", -4, DAY))
+        self.assertEqual(self.u.month(DAY)["PUB"], {"questions": 8, "tokens": 0})
 
     def test_a_file_that_cannot_be_written_loses_the_count_and_never_raises(self):
         shutil.rmtree(self.d)
@@ -129,6 +159,21 @@ class Counted(unittest.TestCase):
         mine = [p for p in got["projects"] if p["code"] == "PUB"][0]
         self.assertEqual((mine["questions"], mine["tokens"]), (2, 2468))
         self.assertEqual(got["all"], {"questions": 2, "tokens": 2468})
+
+    def test_the_reply_to_a_question_carries_no_tokens_and_no_money(self):
+        status, body = self.ask()
+        self.assertEqual(status, 200)
+        self.assertTrue(body["ok"], body)
+        self.assertNotRegex(json.dumps(body), r"(?i)token|usage|cost|price|money|dollar|[$£€]|1234")
+        self.assertFalse([k for k in body if re.search(r"(?i)token|usage|cost|price", k)], list(body))
+
+    def test_the_report_has_counts_and_tokens_and_no_money_field(self):
+        self.ask()
+        got = self.usage()
+        self.assertEqual(sorted(got), ["all", "asking", "note", "ok", "projects", "title"])
+        self.assertEqual(sorted(got["all"]), ["questions", "tokens"])
+        self.assertTrue(all(sorted(p) == ["code", "name", "questions", "tokens"] for p in got["projects"]))
+        self.assertNotRegex(json.dumps(got), r"(?i)cost|price|money|dollar|usd|[$£€]")
 
     def test_a_refused_or_failed_question_counts_for_nothing(self):
         self.provider.failure = "No answer."
@@ -245,6 +290,65 @@ class TheWords(unittest.TestCase):
         self.assertIn("<UsageAll />", settings.split("function AllProjects()")[1].split("\n}\n")[0])
         self.assertIn("<UsageProject />", settings.split("function AskProject()")[1].split("\n}\n")[0])
         self.assertNotRegex(JSX, r"#\d")
+
+
+class OnThePage(unittest.TestCase):
+    """The Usage lists in a real browser at 1400 and 900, against the real usage route (the command is faked). Chrome is required."""
+
+    def setUp(self):
+        from test_ask_settings import make_db, service
+        from test_server import Running as Page
+        from clark import page
+        from test_page import DATA
+        self.s = Page(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        self.addCleanup(self.s.close)
+        self.d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
+        self.addCleanup(shutil.rmtree, self.d, True)
+        self.db = make_db(self.d)
+        store = st.open_store(self.db, onedrive_roots=[])
+        try:
+            with store.step("dashboard", "tester", place="menu") as step:
+                step.create("projects", {"code": "OTH", "name": "Second Programme"})
+        finally:
+            store.close()
+        self.s.httpd.app_settings = service(self.db)
+        self.service = ask_service.AskService(self.db, ask.StubProvider(reply="Fine.\nCITE: P1"), [])
+        self.service.today = lambda: DAY
+        self.service.usage.record("ABC", 1234, DAY)
+        self.service.usage.record("ABC", 766, DAY)
+        self.service.usage.record("OTH", 0, DAY)
+        self.s.httpd.ask = self.service
+
+    def open(self, cdp, tab):
+        from _editor_checks import for_project
+        from test_page import navigate
+        from test_server import wait
+        sid = navigate(cdp, self.s.port, for_project("#settings&p=ABC&s=claude"))
+        js = lambda e: cdp.js(e, sid)          # noqa: E731
+        self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-tab]')"), 20), "the tabs")
+        js(f"document.querySelector('[data-ask-tab={tab}]').click()")
+        return sid, js
+
+    def test_the_lists_show_names_and_numbers_and_do_not_overflow_at_1400_and_900(self):
+        from test_server import chrome, wait
+        for w in (1400, 900):
+            with self.subTest(width=w), chrome() as cdp:
+                sid, js = self.open(cdp, "all")
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+                self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-usage-list')"), 20), "the list")
+                self.assertEqual(js("document.querySelector('#ask-usage-all h2').innerText"), "Usage, 1 to 20 November 2026")
+                rows = js("[...document.querySelectorAll('#ask-usage-list li')].map(li => li.innerText.replace(/\\s+/g, ' ').trim())")
+                self.assertEqual(rows, ["ABC Asking is on 2 questions \u00b7 2000 tokens", "OTH Asking is on 1 question \u00b7 0 tokens",
+                                        "All projects Tokens used 3 questions \u00b7 2000 tokens"])
+                self.assertEqual(js("document.querySelector('#ask-usage-readonly').innerText"), "Read only. Nothing here leaves this computer.")
+                self.assertTrue(js("[...document.querySelectorAll('#ask-usage-list li')].every(li => li.scrollWidth <= li.clientWidth + 1 && li.getBoundingClientRect().right <= document.querySelector('#ask-usage-all').getBoundingClientRect().right)"), "each row inside its card")
+                self.assertTrue(wait(lambda: js("document.documentElement.scrollWidth <= window.innerWidth"), 10), f"no sideways scroll at {w}")
+                self.assertNotRegex(js("document.querySelector('#ask-usage-all').innerText"), r"(?i)cost|price|[$\u00a3\u20ac]")
+                js("document.querySelector('[data-ask-tab=project]').click()")
+                self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-usage-count')"), 20), "the project's count")
+                self.assertEqual(js("document.querySelector('#ask-usage-project h2').innerText"), "Usage this month")
+                self.assertEqual(js("document.querySelector('#ask-usage-count').innerText"), "2 questions")
+                self.assertTrue(wait(lambda: js("document.documentElement.scrollWidth <= window.innerWidth"), 10), f"no sideways scroll on the project tab at {w}")
 
 
 if __name__ == "__main__":
