@@ -162,7 +162,6 @@ function AskProject() {
       </>)}
     </section>
     <ConnectorsProject code={code} />
-    <FilesProject code={code} />
     <section class="frame setting" id="ask-folders-card">
       <h2>{`Source folders for ${code}`}</h2>
       <p class="muted">{named("Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.", askProvider.value)}</p>
@@ -198,6 +197,7 @@ function AskProject() {
       <div class="pub-msg" role={fmsg && fmsg.kind === "error" ? "alert" : "status"} aria-live="polite">{fmsg && fmsg.text ? <p class={fmsg.kind}>{fmsg.text}</p> : null}</div>
     </section>
     <OwnInstructions goAll={() => showAskTab(ALL)} />
+    <FilesProject code={code} />
     </>
   );
 }
@@ -214,8 +214,8 @@ function AllProjects() {
     </section>
     <AiSettings />
     <ConnectorsAll />
-    <FilesAll />
     <AllInstructions />
+    <FilesAll />
     <AllFolders />
     </>
   );
