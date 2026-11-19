@@ -53,6 +53,9 @@ class ToggleLook(BrowserBase, unittest.TestCase):
             sid = self.visit(cdp, width, "#milestones&p=MOSS", port)
             self.scheme(cdp, sid, scheme)
             got["switch"] = cdp.js(f"({LOOK})('.msv-b[aria-current=true]')", sid)
+            # the chosen half is set in the medium weight of the type scale (the Calendar scale's own semibold is not part of the shared look)
+            got["switch_weight"] = cdp.js("[getComputedStyle(document.querySelector('.msv-b[aria-current=true]')).fontWeight, "
+                                          "getComputedStyle(document.documentElement).getPropertyValue('--weight-medium').trim()]", sid)
             cdp.js("document.querySelector('[data-msvb=cal]').click()", sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.cal-sc')", sid)))
             got["calendar"] = cdp.js(f"({LOOK})('.cal-sc button[aria-current=true]')", sid)
@@ -79,6 +82,8 @@ class ToggleLook(BrowserBase, unittest.TestCase):
                 got = self.looks(theme, width, scheme)
                 for name, look in got.items():
                     self.assertIsNotNone(look, f"{name}: a chosen half is drawn")
+                with self.subTest(pair="weight"):
+                    self.assertEqual(got["switch_weight"][0], got["switch_weight"][1], "the chosen Timeline/Calendar half is in the medium weight")
                 if theme == "cards":          # Classic's switch is the Row 1313 heading fill, pinned by test_theme_dashboard_1313
                     with self.subTest(pair="switch"):
                         self.assertEqual(got["switch"], got["calendar"], "Timeline/Calendar switch against the Calendar scale")
