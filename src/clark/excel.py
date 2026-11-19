@@ -838,12 +838,6 @@ def wraps(table, field):
             or (field in REF_TABLES and table not in ("milestones", "use_cases")))
 
 
-def freeze_cell(table, cols):
-    """Where the panes freeze: below the header row, and after the item's title column (C2 where the title is the second column, D2 on Use cases, whose Reference comes second; item 1160)."""
-    fields = [f for _, f in cols]
-    return f"{get_column_letter(fields.index(TITLE_OF[table]) + 2)}2"
-
-
 def _ordered(table, rows):
     """A sheet's rows in order: by sort_order then ID for milestones and use cases, by ID for the rest (as the page lists
     them; creaite orders every sheet by its key)."""
@@ -978,7 +972,7 @@ def write_gantt(wb, lines, fields, name, today, pal=None):
             c.alignment = Alignment(wrap_text=f in ("name", "note", "deliverable", "depends"), vertical="top")
             if f in GANTT_DATES:
                 c.number_format = DATE_FORMAT
-    ws.freeze_panes = "C2"
+    ws.freeze_panes = "A2"          # row 1390: the header row only, no frozen columns
     ws.auto_filter.ref = f"A1:{get_column_letter(len(cols))}{len(lines) + 1}"
     protect_sheet(ws)
     return ws
@@ -1010,7 +1004,9 @@ def write_history(wb, view, pal=None):
     last = view["closing"] or (view["empty"] if not view["rows"] else "")
     if last:
         put(ws.max_row + 1, [history_cell(last)], italic=True)
-    ws.freeze_panes = "A3"
+    ws.freeze_panes = "A3"          # below the header (row 2)
+    ws.auto_filter.ref = f"A2:{get_column_letter(len(HISTORY_COLUMNS))}{2 + len(view['rows'])}"      # header and the history rows, not the closing line
+    ws.sheet_state = "hidden"       # row 1390: the editor export hides History (Review > Unhide shows it)
     protect_sheet(ws)
     return ws
 
@@ -1390,7 +1386,7 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
             note = Comment(INTERNAL_NOTE + "\n\n" + ID_NOTE, FIXED_NAME)    # one note per cell: both go on Milestones A1
             note.width, note.height = 320, 120
             ws["A1"].comment = note
-        ws.freeze_panes = freeze_cell(table, cols)
+        ws.freeze_panes = "A2"      # row 1390: the header row only
         ws.auto_filter.ref = f"A1:{get_column_letter(len(cols))}{len(rows) + 1}"
         protect_sheet(ws)
     gantt = rows_by_table.get("gantt_lines") or []
