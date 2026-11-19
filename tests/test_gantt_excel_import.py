@@ -320,17 +320,17 @@ class Refusals(Base):
     def test_a_client_copy_imported_by_hand_is_refused_and_nothing_is_written(self):
         path = self.client_copy()
         before, steps = self.lines(), self.steps()
-        p = self.plan(path)
-        self.assertEqual(p.changes, [])
-        self.assertTrue(any("Gantt: this is the copy made for the client, not a workbook to import, so the sheet was skipped." in x.message for x in p.problems), p.problems)
+        with self.assertRaises(store_module.Invalid) as cm:      # row 1390: the whole workbook is refused, not one sheet
+            self.plan(path)
+        self.assertEqual(str(cm.exception), "This is a client copy of the report. Import the Excel you exported from the editor.")
         self.assertEqual((self.lines(), self.steps()), (before, steps))
 
     def test_a_client_copy_with_the_title_band_deleted_is_still_refused_by_the_mark(self):
         path = self.client_copy(band=False)
         before = self.lines()
-        p = self.plan(path)
-        self.assertEqual(p.changes, [])
-        self.assertTrue(any(x.sheet == "Gantt" and "this is the copy made for the client" in x.message for x in p.problems), p.problems)
+        with self.assertRaises(store_module.Invalid) as cm:
+            self.plan(path)
+        self.assertIn("client copy of the report", str(cm.exception))
         self.assertEqual(self.lines(), before)
 
     def test_without_the_mark_only_the_layout_rule_refuses_a_client_copy(self):

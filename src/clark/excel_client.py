@@ -313,6 +313,8 @@ def workbook_bytes(published, palette=None):
         put_headline(ws, published, 1, palette)
         excel.print_setup(ws)
         excel.protect_sheet(ws)
+    if excel.CLIENT_COPY_NAME not in wb.defined_names:      # row 1390: every client copy carries the mark, so the import can refuse it whatever sheets it has
+        wb.defined_names[excel.CLIENT_COPY_NAME] = DefinedName(excel.CLIENT_COPY_NAME, attr_text=f"{quote_sheetname(wb.sheetnames[0])}!$A$1", hidden=True)
     props = wb.properties
     props.creator = props.lastModifiedBy = excel.FIXED_NAME
     stamp = datetime.fromisoformat(published["as_at"] + "T00:00:00")

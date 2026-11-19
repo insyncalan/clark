@@ -1650,6 +1650,9 @@ def _find_unknowns(plan, refs):
     return skip, clash
 
 
+CLIENT_COPY_REFUSAL = "This is a client copy of the report. Import the Excel you exported from the editor."      # row 1390: the approved sentence, verbatim
+
+
 def read_workbook(store, path, project, state_path=None, allow_unrecorded=False, sheets=None):
     """Compare the workbook at `path` with `project`'s rows in the database; returns an ImportPlan of staged changes (all waiting
     for a decision), the rows that were reported, and notes. Writes nothing. Raises Invalid if the file isn't a workbook, is too
@@ -1700,6 +1703,8 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False,
     except Exception:
         raise Invalid(f"{path.name} can't be read as an Excel workbook (.xlsx).")
     try:
+        if excel.CLIENT_COPY_NAME in wb.defined_names:      # row 1390: a client copy is never imported
+            raise Invalid(CLIENT_COPY_REFUSAL)
         try:
             created = excel.created_for(state_path, path, project)
         except (OSError, ValueError):
