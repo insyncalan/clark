@@ -9,8 +9,10 @@ page: "<file>, page n"); Excel (.xlsx, .xlsm) through vendored openpyxl, read-on
 readable text (scanned, encrypted, damaged) counts as `type` and is listed as left out, a damaged workbook or a PDF over the page or size limit as `type`, `too_long` (never as a password).
 PowerPoint (.pptx: slide text and notes, a passage run per slide, "<file>, slide n") and web pages (.html, .htm: the visible text) are read by `ask_extract`;
 a file with no text counts as `type`, a hostile or damaged one (zip bomb, too many parts, an entity declaration, broken XML, too big) as `safety`. A file whose name or text looks like a password or
-a key is screened by `secret_screen` BEFORE any of it is stored: it leaves a row with no text (label and size only). Every
-other type (pictures) is counted as `type` until its own slice. No per-question file, byte or time limit.
+a key is screened by `secret_screen` BEFORE any of it is stored: it leaves a row with no text (label and size only). A picture
+(.png, .jpg, .jpeg) goes through `ask_picture` (this Mac's own text recognition, nothing sent out): read it is `indexed` and counted in
+`pictures_read`; where no reader is available (not a Mac, or none built) it is counted `picture` and listed as left out. Every
+other type is counted as `type`. No per-question file, byte or time limit.
 
 FRESH. `refresh` compares each file's size and modified time with the row kept and reads again only what changed; a file that is gone,
 or a folder no longer in the project, loses its passages (and the free pages are wiped, so no copy of the text stays in the file).
@@ -30,14 +32,16 @@ import threading
 import time
 from pathlib import Path
 
-from clark import ask, ask_data, ask_extract, ask_passages, docx_read, pdf_reader, reach, secret_screen
+from clark import ask, ask_data, ask_extract, ask_passages, ask_picture, docx_read, pdf_reader, reach, secret_screen
 
 MAX_RESULTS = ask.MAX_PASSAGES
 MAX_PARTS_PER_FILE = 5000
 EXCEL_TYPES = (".xlsx", ".xlsm")
 PPTX_TYPES = (".pptx",)
 HTML_TYPES = (".html", ".htm")
+PICTURE_TYPES = ask_picture.PICTURE_TYPES
 INDEXED_TYPES = ask_passages.TEXT_TYPES + ask_passages.WORD_TYPES + ask_passages.PDF_TYPES + EXCEL_TYPES + PPTX_TYPES + HTML_TYPES
+TRACKED_TYPES = INDEXED_TYPES + PICTURE_TYPES          # the files that have a row in the index (a picture too, read or left out)
 MAX_PPTX_BYTES = 50 * 1024 * 1024
 MAX_EXCEL_BYTES = 25 * 1024 * 1024
 STALE_POLL_SECONDS = 5
@@ -49,7 +53,7 @@ MAX_EXCEL_SHARED = 8 * 1024 * 1024       # the shared strings part, unpacked: op
 MAX_EXCEL_PART = 30 * 1024 * 1024        # any other part, unpacked
 MAX_EXCEL_SECONDS = 20                   # wall clock for one workbook
 CLOCK = time.monotonic
-NAMES = ("indexed", "type", "online_only", "too_long", "safety", "not_yet")
+NAMES = ("indexed", "type", "online_only", "too_long", "safety", "picture", "not_yet")
 _WORD = re.compile(r"\w+", re.UNICODE)
 _CODE = re.compile(r"[^A-Za-z0-9._-]")
 MAX_LEFT_OUT_SHOWN = 200
@@ -57,7 +61,8 @@ LEFT_OUT_BUTTON = "Show the files left out"
 REASON_TYPE = "of a type clark can't read yet"
 REASON_SAFETY = "looks like a password or a key"
 REASON_TOO_LONG = "is a PDF that is too long"
-COUNTED = ("indexed", "type", "too_long")          # the states that have their own count; any other state is a safety one
+REASON_PICTURE = "is a picture and this computer cannot read pictures"
+COUNTED = ("indexed", "type", "too_long", "picture")          # the states that have their own count; any other state is a safety one
 
 
 def path_for(data_dir, code):
@@ -242,6 +247,7 @@ def _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, prog
         stopped_listing = stopped_listing or bool(listing.stopped)
         roots = reach.roots([folder], home)
         c = dict.fromkeys(NAMES, 0)
+        c["pictures_read"] = 0
         c["online_only"] = reasons.get(reach.ONLINE, 0)
         c["safety"] = listing.skipped - c["online_only"]
         online += c["online_only"]
@@ -257,7 +263,7 @@ def _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, prog
                 return False
             done += 1
             low = str(path).lower()
-            if not low.endswith(INDEXED_TYPES):
+            if not low.endswith(TRACKED_TYPES):
                 type_n += 1
                 c["type"] += 1
                 root = next((r for r in roots if reach.inside(path, r)), None)
@@ -276,14 +282,16 @@ def _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, prog
                     c["safety"] += 1
                 elif label in now_state:
                     c[now_state[label] if now_state[label] in COUNTED else "safety"] += 1
+                    c["pictures_read"] += _is_read_picture(label, now_state[label])
                 else:
                     seen.add(label)
-                    if kept.get(label, (None,))[:2] == (st.st_size, st.st_mtime_ns):
+                    if kept.get(label, (None,))[:2] == (st.st_size, st.st_mtime_ns) and not _picture_reader_changed(low, kept[label][2]):
                         state = kept[label][2]
                     else:
                         state = _read_one(db, path, label, low, st, usable, data_dir, home)
                     now_state[label] = state
                     c[state if state in COUNTED else "safety"] += 1
+                    c["pictures_read"] += _is_read_picture(label, state)
             if progress:
                 progress(str(folder), done, total)
     for gone in set(kept) - seen:
@@ -293,9 +301,11 @@ def _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, prog
     db.execute("INSERT OR REPLACE INTO left SELECT label, ? FROM files WHERE state='safety'", (REASON_SAFETY,))
     db.execute("INSERT OR REPLACE INTO left SELECT label, ? FROM files WHERE state='type'", (REASON_TYPE,))
     db.execute("INSERT OR REPLACE INTO left SELECT label, ? FROM files WHERE state='too_long'", (REASON_TOO_LONG,))
+    db.execute("INSERT OR REPLACE INTO left SELECT label, ? FROM files WHERE state='picture'", (REASON_PICTURE,))
     states = [r[0] for r in db.execute("SELECT state FROM files")]
+    read_pictures = sum(_is_read_picture(r[0], r[1]) for r in db.execute("SELECT label, state FROM files"))
     counts = dict.fromkeys(NAMES, 0)
-    counts.update(indexed=states.count("indexed"), type=type_n + states.count("type"), too_long=states.count("too_long"), online_only=online, safety=safety + states.count("safety"))
+    counts.update(indexed=states.count("indexed"), type=type_n + states.count("type"), too_long=states.count("too_long"), picture=states.count("picture"), pictures_read=read_pictures, online_only=online, safety=safety + states.count("safety"))
     counts["stopped"] = stopped_listing
     _set(db, "counts", counts)
     _set(db, "folders", per)
@@ -308,6 +318,16 @@ def _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, prog
     return True
 
 
+def _is_read_picture(label, state):
+    """1 when the file is a picture that was read (so it is counted `indexed` and also in `pictures_read`), else 0."""
+    return int(state == "indexed" and str(label).lower().endswith(PICTURE_TYPES))
+
+
+def _picture_reader_changed(low, state):
+    """A picture kept as left out is read again once a reader exists, and one kept as read is left out again when the reader is gone."""
+    return low.endswith(PICTURE_TYPES) and ((state == "picture") == (ask_picture.reader() is not None))
+
+
 def _read_one(db, path, label, low, st, usable, data_dir, home):
     """Read one changed file into the index; returns its state ("indexed", "safety", or "type" for a PDF with no text to read)."""
     _drop(db, label)
@@ -315,10 +335,19 @@ def _read_one(db, path, label, low, st, usable, data_dir, home):
     groups = []                                  # [(part name or None, lines)]
     is_pdf, is_excel, is_word = low.endswith(ask_passages.PDF_TYPES), low.endswith(EXCEL_TYPES), low.endswith(ask_passages.WORD_TYPES)
     is_pptx, is_html = low.endswith(PPTX_TYPES), low.endswith(HTML_TYPES)
-    limit = pdf_reader.MAX_BYTES if is_pdf else MAX_EXCEL_BYTES if is_excel else MAX_PPTX_BYTES if is_pptx else ask_extract.MAX_HTML_BYTES if is_html else docx_read.MAX_FILE_BYTES if is_word else ask_passages.MAX_TEXT_BYTES
+    is_picture = low.endswith(PICTURE_TYPES)
+    pic = ask_picture.reader() if is_picture else None
+    if is_picture and pic is None:
+        db.execute("INSERT INTO files VALUES(?,?,?,?)", (label, st.st_size, st.st_mtime_ns, "picture"))      # nothing is opened: this computer cannot read it
+        return "picture"
+    limit = ask_picture.MAX_PICTURE_BYTES if is_picture else pdf_reader.MAX_BYTES if is_pdf else MAX_EXCEL_BYTES if is_excel else MAX_PPTX_BYTES if is_pptx else ask_extract.MAX_HTML_BYTES if is_html else docx_read.MAX_FILE_BYTES if is_word else ask_passages.MAX_TEXT_BYTES
     try:
         raw, truncated = reach.read_bytes(path, usable, data_dir, limit, home)
-        if is_pdf:
+        if is_picture:
+            groups = [(None, pic(raw).splitlines())] if not truncated else None
+            if groups is None:
+                state = "too_long"           # over the size limit: counted like any file that is too big
+        elif is_pdf:
             got = pdf_reader.read(raw, truncated=truncated)
             if got.status != "ok":
                 state = "too_long" if got.reason in ("too_big", "too_many_pages") else "type"
@@ -336,7 +365,7 @@ def _read_one(db, path, label, low, st, usable, data_dir, home):
         state = "safety"
     except TooLong:
         state = "too_long"
-    except (docx_read.WordRefused, ValueError, UnicodeError):
+    except (docx_read.WordRefused, ask_picture.PictureUnreadable, ValueError, UnicodeError):
         # damaged, too big or hostile Word/Excel/PowerPoint/web page: left out as `type`, never said to look like a password (a real secret inside still screens as `safety` below)
         state = "type"
     if state == "indexed":
@@ -422,6 +451,8 @@ def more_line(n):
 
 def left_out_line(reason, n):
     """The approved sentence for `n` files left out for one reason (only "safety" so far)."""
+    if reason == "picture":
+        return f"{n} {_plural(n, 'is a picture', 'are pictures')} and this computer cannot read {_plural(n, 'pictures', 'them')}."
     if reason == "safety":
         return f"{n} look like a password or a key and were left out." if n != 1 else "1 looks like a password or a key and was left out."
     raise ValueError(reason)
@@ -447,9 +478,13 @@ def line_for(counts, reading=None):
         return f"Reading {reading[0]} of {reading[1]} {_plural(reading[1], 'file', 'files')}."
     total = sum(counts.get(n, 0) for n in NAMES)
     out = [f"Indexed {counts.get('indexed', 0)} of {total} {_plural(total, 'file', 'files')}."]
-    t, o, long_, s = (counts.get(k, 0) for k in ("type", "online_only", "too_long", "safety"))
+    t, o, long_, s, pic = (counts.get(k, 0) for k in ("type", "online_only", "too_long", "safety", "picture"))
+    if counts.get("pictures_read"):
+        out.append(f"{counts['pictures_read']} {_plural(counts['pictures_read'], 'picture', 'pictures')} read on this Mac.")
     if t:
         out.append(f"{t} {_plural(t, 'is', 'are')} of a type clark can't read yet.")
+    if pic:
+        out.append(left_out_line("picture", pic))
     if o:
         out.append(f"{o} {_plural(o, 'is', 'are')} online only and {_plural(o, 'was', 'were')} not opened.")
     if long_:
@@ -533,7 +568,7 @@ def stale(data_dir, code, folders, home=None):
             listing = reach.readable_files([folder], data_dir, None, home)
             roots = reach.roots([folder], home)
             for path in listing.files:
-                if not str(path).lower().endswith(INDEXED_TYPES):
+                if not str(path).lower().endswith(TRACKED_TYPES):
                     continue
                 root = next((r for r in roots if reach.inside(path, r)), None)
                 if root is None:
@@ -559,7 +594,7 @@ def folder_data(data_dir, code, question, budget=ask.BUDGET, max_passages=ask.MA
         left += len(chosen) - max_passages
         chosen = chosen[:max_passages]
     counts = status(data_dir, code)
-    return ask_passages.FolderData(tuple(chosen), left, counts.get("safety", 0), 0, counts.get("type", 0), bool(counts.get("stopped")))
+    return ask_passages.FolderData(tuple(chosen), left, counts.get("safety", 0), 0, counts.get("type", 0) + counts.get("picture", 0), bool(counts.get("stopped")))
 
 
 class Indexer:

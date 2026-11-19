@@ -103,8 +103,8 @@ class StoppedRun(Base):
     def test_a_stopped_run_keeps_the_whole_list_of_files_left_out(self):
         import threading
         self.put("a.txt", "zqone")
-        self.put("p.png", b"x", binary=True)
-        self.put("q.png", b"x", binary=True)
+        self.put("p.bin", b"x", binary=True)
+        self.put("q.bin", b"x", binary=True)
         ix.build(self.data, "P1", [self.box])
         before = ix.mod().files_left_out(self.data, "P1", 200)
         self.assertEqual(len(before["files"]), 2)

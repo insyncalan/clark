@@ -61,7 +61,7 @@ class Fresh(Base):
     def test_a_deleted_file_is_never_served_and_leaves_the_list(self):
         self.put("a.txt", "zqkeep")
         gone = self.put("gone.txt", "zqgonetext")
-        self.put("pic.png", b"x", binary=True)
+        self.put("pic.bin", b"x", binary=True)
         folders = self.first_build()
         gone.unlink()
         self.assertFalse(self.ix.current("P1", folders))
