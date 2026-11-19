@@ -10,6 +10,7 @@ import { ConnectorsAll, ConnectorsProject } from "./ConnectorSettings.jsx";
 import { AiSettings } from "./AiSettings.jsx";
 import { AllInstructions, OwnInstructions } from "./AskInstructions.jsx";
 import { announceSwitch, leaveSwitch } from "./switchToast.js";
+import { classicTheme } from "../components/Contents.jsx";
 import { aiConnectRead, askFoldersRead, askFoldersChange, askFoldersChoose, askFoldersAllRead, askFoldersAllChange, askFoldersAllChoose, words } from "./publishApi.js";
 
 const ASK_ON_TOAST = "ask clark is on";
@@ -65,6 +66,7 @@ function AskProject() {
   const [modelName, setModelName] = useState("");      // row 1351 part 2: the model asking uses, as the server names it; empty until read or when it cannot be read
 
   useEffect(() => {
+    if (!classicTheme()) return undefined;           // Cards keeps the card as it was: no model name, no extra read
     let live = true;
     aiConnectRead().then((r) => {
       const b = r.body;
@@ -147,11 +149,16 @@ function AskProject() {
     </section>
     <section class="frame setting" id="ask-used-all">
       <h2>Used from All projects</h2>
-      <div class="row ask-model">
-        {modelName ? <b class="ask-model-name" data-ask-model>{modelName}</b> : null}
-        <span class="muted ask-model-note">{USED_FROM_ALL}</span>
-        <button type="button" class="btn ask-model-change" data-ask-goall onClick={() => showAskTab(ALL)}>Change</button>
-      </div>
+      {classicTheme() ? (
+        <div class="row ask-model">
+          {modelName ? <b class="ask-model-name" data-ask-model>{modelName}</b> : null}
+          <span class="muted ask-model-note">{USED_FROM_ALL}</span>
+          <button type="button" class="btn ask-model-change" data-ask-goall onClick={() => showAskTab(ALL)}>Change</button>
+        </div>
+      ) : (<>
+        <p class="muted">{USED_FROM_ALL}</p>
+        <div class="row"><button type="button" class="btn" data-ask-goall onClick={() => showAskTab(ALL)}>Change</button></div>
+      </>)}
     </section>
     <ConnectorsProject code={code} />
     <section class="frame setting" id="ask-folders-card">
