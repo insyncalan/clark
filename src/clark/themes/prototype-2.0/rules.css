@@ -372,6 +372,10 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .fbt-error { margin-top: 4px; color: var(--status-red-text); font-size: 13px; }
 /* Row 1375: a wheel over the Dashboard's Work items box that has reached its top or bottom keeps scrolling the page (the shared rule's overscroll-behavior-y: contain made it stall inside the box); the box still scrolls its own rows. */
 .wil-scroll { overscroll-behavior-y: auto; }
+/* Row 1400 (Settings cards, Classic only): the card sub-heading is 15 px, 600, in the heading colour and face, sentence case; the field and row labels and the Update rows' labels are 15 px, 600; the spacing cards have a 1 px grey-500 border and radius 14 (the chosen and hover borders of shell.css still win). */
+.set-cards .setting > h3, .set-cards .setting-part > h3 { font-family: var(--font-head); font-size: 15px; font-weight: 600; color: var(--heading); text-transform: none; letter-spacing: normal; }
+.set-cards .fld > label, .set-cards .set-row-text label, .upd-rows p.upd-l { font-size: 15px; font-weight: 600; }
+.set-cards .secpick-card { border-color: var(--grey-500); border-radius: 14px; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
