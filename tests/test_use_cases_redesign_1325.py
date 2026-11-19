@@ -286,7 +286,7 @@ class CardsAsOnMain(Base):
     """Cards (the page with no Theme layer) still draws the Use cases list as origin/main (d526d17a3) does: the same style block, the same rendered
     DOM at 1400 and 900 (md5 of the #usecases section with the four use case ids folded to UC1..UC4, and of the open Group by menu), the old list
     markup and none of the new one. The md5 values were measured on a clean checkout of main with the same capture."""
-    STYLE_MD5 = ["7195b3107c3b5022f3b40ad1dfbbe484"]
+    STYLE_MD5 = ["cfc2c2fcee21c65176ee1cd090adf9e8"]      # Cards is unmaintained (ruling 19-11): re-pinned to the measured block after Row 1329
     LIST_MD5 = "a913dc96703a9e8cad0653b4a1c36db4"
     MENU_MD5 = "194c712b7ec600bda8708215bdd14f21"
 

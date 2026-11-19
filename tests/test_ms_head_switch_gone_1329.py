@@ -14,6 +14,7 @@ from pathlib import Path
 from unittest import mock
 
 from _demo import USER, DemoStore
+from _new_page import reload_to_new_page
 from _paths import SRC
 
 from clark import page, publish
@@ -135,8 +136,7 @@ class Served(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.js("localStorage.setItem('clark.msp.view', JSON.stringify('move'))")
-            p.js("window.__before_reload = true; location.reload()")
-            p.until("window.__before_reload === undefined && !!document.querySelector('#milestones .msl-row')", "the NEW page drew its plan list after the reload (the marker of the old page is gone)")
+            reload_to_new_page(p.js, "!!document.querySelector('#milestones .msl-row')", "the NEW page drew its plan list after the reload")
             self.assertEqual(p.js("!!document.querySelector('#movement')"), False, "no Movement section")
             self.assertEqual(self.reads, [], "no Movement request is made")
 
