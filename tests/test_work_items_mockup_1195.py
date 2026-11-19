@@ -503,6 +503,19 @@ class Classic(Look):
             p.edit()
             p.until(f"!!document.querySelector('{sec} [data-wil-gear]') && !!document.querySelector('{sec} .wil-all-b')", "Edit has the link too")
 
+    def test_view_draws_only_the_rows_no_tabs_filter_add_or_gear_and_edit_draws_all_four(self):      # row 1195: the mock-up's .viewmode hides .fviews, .fline-wrap, .addb and .cw
+        ref = self.add({"mode": "all", "max": 2, "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
+        probe = lambda sec: f"(() => {{ const s = document.querySelector('{sec}'); const v = (q) => [...s.querySelectorAll(q)].filter((e) => e.offsetParent).length; return [v('.wil-views'), v('[data-wil-line]'), v('[data-wil-add], .wil-add'), v('[data-wil-gear]')]; }})()"
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            sec = f'[data-id="{ref}"]'
+            p.until(f"!!document.querySelector('{sec} .wil-scroll')", "View drew")
+            self.assertEqual(p.js(probe(sec)), [0, 0, 0, 0], "View: no tabs, filter, + or gear")
+            p.edit()
+            p.until(f"!!document.querySelector('{sec} [data-wil-gear]')", "Edit drew")
+            got = p.js(probe(sec))
+            self.assertTrue(got[0] and got[1] and got[2] and got[3], f"Edit has tabs, filter, + and gear: {got}")
+
     def test_edit_foot_reads_showing_n_of_n_without_scroll_words_once_show_all_items_is_open(self):      # row 1195: the mock-up's foot when S.all
         ref = self.add({"mode": "all", "max": 2, "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
         with T.chrome() as cdp:
