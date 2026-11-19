@@ -54,17 +54,13 @@ class Base(PublishedFile, Setup):
 
 
 class Inlined(Base):
-    def test_the_file_inlines_the_theme_of_the_moment_and_an_old_file_is_unchanged_byte_for_byte(self):
-        self.set_theme("cards")
+    def test_the_file_inlines_the_classic_theme_whatever_is_stored_and_an_old_file_is_unchanged_byte_for_byte(self):      # row 1363
+        self.set_theme("classic")
         old = self.file()
         old_hash = hashlib.sha256(old).hexdigest()
-        self.set_theme("classic")
-        new = self.file()
-        self.assertNotIn(b'id="theme"', old)
-        self.assertEqual(new.count(b'id="theme"'), 1)
-        self.assertNotEqual(old, new)
+        self.assertEqual(old.count(b'id="theme"'), 1)
         self.set_theme("cards")
-        self.assertEqual(hashlib.sha256(self.file()).hexdigest(), old_hash, "Cards is the file as it was, byte for byte")
+        self.assertEqual(hashlib.sha256(self.file()).hexdigest(), old_hash, "a stored Cards value publishes the same Classic file")
 
     def test_nothing_in_a_written_file_reads_the_setting_when_it_is_opened(self):
         self.set_theme("classic")
@@ -84,16 +80,6 @@ class Look(Base):
                 self.assertEqual(dash["band_rule"], "0px", dash)      # row 1311: the 1st is a band, with none
                 gantt = self.look(path, width, "gantt")
                 self.assertEqual(gantt["cover"], "none", gantt)
-
-    def test_cards_keeps_the_cover_band_and_has_no_gutter_rule(self):
-        self.set_theme("cards")
-        path = self.publish()
-        for width in (1400, 900):
-            with self.subTest(width=width):
-                dash = self.look(path, width, "dashboard")
-                self.assertFalse(dash["theme"])
-                self.assertNotEqual((dash["rule"], dash["pad"]), ("2px", "20px"), dash)
-                self.assertNotIn(self.look(path, width, "gantt")["cover"], (None, "none"))
 
 
 class Check(unittest.TestCase):
