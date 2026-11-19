@@ -55,6 +55,50 @@ class Chats(Tabs):
             js("document.querySelector('[data-ask-tab=all]').click()")
             self.until(js, "!!document.querySelector('#ask-chats-keep') && document.querySelector('#ask-chats-keep').value === '10'", "kept after a reload")
 
+    def test_a_stored_number_that_is_not_an_offered_one_reads_as_30(self):
+        # askHistory.js readKeep: 7 and 0 are not in 10/20/30/50/100, so the select shows 30.
+        from _new_page import reload_to_new_page
+        with chrome() as cdp:
+            js = self.show(cdp)
+            for bad in ("7", "0", "100.5"):
+                js(f"localStorage.setItem('clark.askChatsKeep', '{bad}')")
+                reload_to_new_page(js, seconds=20)
+                self.until(js, "!!document.querySelector('[data-ask-tab=all]')", "the tabs")
+                js("document.querySelector('[data-ask-tab=all]').click()")
+                self.until(js, "!!document.querySelector('#ask-chats-keep')", "the Chats card")
+                self.assertEqual(js("document.querySelector('#ask-chats-keep').value"), "30", f"stored {bad}")
+
+    def test_entries_in_the_store_that_are_not_chats_are_ignored(self):
+        # askHistory.js chats(): null, a number, a chat without turns and one without a text id are skipped; the two real chats count.
+        from _new_page import reload_to_new_page
+        with chrome() as cdp:
+            js = self.show(cdp)
+            mixed = [None, 5, "x", {"id": "a"}, {"id": 7, "turns": []}, {"turns": []}, CHAT(1), CHAT(2)]
+            js(f"localStorage.setItem('clark.askChats.ABC', {json.dumps(json.dumps(mixed))})")
+            reload_to_new_page(js, seconds=20)
+            self.until(js, "!!document.querySelector('#ask-chats-clear')", "the chats card")
+            self.until(js, "document.querySelector('#ask-chats-clear').innerText === 'Clear all chats (2)'", "only the real chats count")
+
+    def test_the_controls_have_names_and_fit_at_1400_and_900(self):
+        with chrome() as cdp:
+            js = self.show(cdp)
+            self.seed(js, "ABC", 3)
+            for w in WIDTHS:
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                js("document.querySelector('[data-ask-tab=all]').click()")
+                self.until(js, "!!document.querySelector('#ask-chats-keep')", f"the select at {w}")
+                self.assertEqual(js("document.querySelector('#ask-chats-keep').labels.length"), 1, f"one label at {w}")
+                self.assertEqual(js("document.querySelector('#ask-chats-keep').labels[0].textContent"), "Chats kept", f"select name at {w}")
+                self.assertEqual(js("document.querySelector('#ask-chats-keep').getAttribute('aria-label')"), None)
+                self.assertTrue(js("(() => { const r = document.querySelector('#ask-chats-keep').getBoundingClientRect(); return r.width > 0 && r.right <= window.innerWidth; })()"), f"select inside at {w}")
+                self.assertTrue(js("document.documentElement.scrollWidth <= window.innerWidth"), f"no overflow at {w}")
+                js("document.querySelector('[data-ask-tab]:not([data-ask-tab=all])').click()")
+                self.until(js, "!!document.querySelector('#ask-chats-clear')", f"the button at {w}")
+                self.assertEqual(js("document.querySelector('#ask-chats-clear').tagName"), "BUTTON")
+                self.assertEqual(js("document.querySelector('#ask-chats-clear').textContent"), "Clear all chats (3)", f"button name at {w}")
+                self.assertTrue(js("(() => { const r = document.querySelector('#ask-chats-clear').getBoundingClientRect(); return r.width > 0 && r.right <= window.innerWidth; })()"), f"button inside at {w}")
+                self.assertTrue(js("document.documentElement.scrollWidth <= window.innerWidth"), f"no overflow at {w}")
+
     ORDER = "[...document.querySelectorAll('section.frame.setting')].map(e => e.id)"
 
     def test_the_cards_follow_the_ticket_order_chats_after_instructions_and_folders(self):
