@@ -298,8 +298,8 @@ class Settings(unittest.TestCase):
             self.assertTrue(wait(lambda: js("(document.querySelector('#ask-folders-none') || {}).innerText") == NONE, 10))
             self.assertFalse(js("!!document.querySelector('#ask-folder-path')"), "no box to type a location into")
             self.assertEqual(js("document.querySelector('[data-ask-choose]').innerText"), "Choose folder")
-            self.assertIn("Parts of the files in these folders can be sent to Claude", js("document.querySelector('#ask-settings').innerText"))
-            msg = "(document.querySelector('#ask-settings .pub-msg') || {}).innerText"
+            self.assertIn("Parts of the files in these folders can be sent to Claude", js("document.querySelector('#ask-folders-card').innerText"))
+            msg = "(document.querySelector('#ask-folders-card .pub-msg') || {}).innerText"
             js("window.__ask.choices = ['/bad', '/gone', '/Example/Programme files']")
             js("document.querySelector('[data-ask-choose]').click()")
             self.assertTrue(wait(lambda: js(msg) == "Asking can not read that folder, because it holds your passwords.", 10))
@@ -343,7 +343,7 @@ class Settings(unittest.TestCase):
                 cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, self.sid)
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
                 self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-choose]')"), 10))
-                msg = "(document.querySelector('#ask-settings .pub-msg') || {}).innerText"
+                msg = "(document.querySelector('#ask-folders-card .pub-msg') || {}).innerText"
                 js("window.__ask.choices = ['/nowin']")
                 js("document.querySelector('[data-ask-choose]').click()")
                 self.assertTrue(wait(lambda: "Type the folder location" in (js(msg) or ""), 10))
@@ -407,7 +407,7 @@ class Settings(unittest.TestCase):
             put("/bad")                                                                           # the server refuses it: the words stay to be corrected
             self.assertTrue(wait(lambda: not js("document.querySelector('[data-ask-add]').disabled"), 10))
             js("document.querySelector('[data-ask-add]').click()")
-            self.assertTrue(wait(lambda: "passwords" in (js("(document.querySelector('#ask-settings .pub-msg') || {}).innerText") or ""), 10))
+            self.assertTrue(wait(lambda: "passwords" in (js("(document.querySelector('#ask-folders-card .pub-msg') || {}).innerText") or ""), 10))
             self.assertEqual(js("document.querySelector('#ask-folder-path').value"), "/bad", "a refused location is not cleared")
             put("  /Example/typed  ")
             self.assertTrue(wait(lambda: not js("document.querySelector('[data-ask-add]').disabled"), 10))
