@@ -35,10 +35,10 @@ class Pinned1316Filter(unittest.TestCase):
         self.assertIn("--grey-500", c)
         self.assertIn("ruling 1137", c)
 
-    def test_it_stays_before_row_1314_which_stays_last(self):
-        names = [l.split()[2].rstrip(":") for l in RULES.split("\n") if l.startswith("/* Row ")]
+    def test_it_follows_1316c_and_row_1314_stays_last(self):
+        names = [l.split()[2].rstrip(":,") for l in RULES.split("\n") if l.startswith("/* Row ")]
         self.assertEqual(names[-1], "1314")
-        self.assertEqual(names[-2], "1316d")
+        self.assertEqual(names[names.index("1316d") - 1], "1316c")
 
     def test_no_other_rule_touches_the_usecases_filter(self):
         lines = RULES.split("\n")
