@@ -503,6 +503,21 @@ class Classic(Look):
             p.edit()
             p.until(f"!!document.querySelector('{sec} [data-wil-gear]') && !!document.querySelector('{sec} .wil-all-b')", "Edit has the link too")
 
+    def test_edit_foot_reads_showing_n_of_n_without_scroll_words_once_show_all_items_is_open(self):      # row 1195: the mock-up's foot when S.all
+        ref = self.add({"mode": "all", "max": 2, "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            sec = f'[data-id="{ref}"]'
+            p.until(f"!!document.querySelector('{sec} .wil-all-b')", "View drew")
+            p.edit()
+            p.until(f"!!document.querySelector('{sec} [data-wil-count]')", "Edit has the count")
+            foot = lambda: p.js(f"document.querySelector('{sec} [data-wil-count]').textContent")
+            self.assertEqual(foot(), "Showing 2 of 3, scroll for the rest")
+            p.js(f"document.querySelector('{sec} .wil-all-b').click()")
+            p.until(f"document.querySelector('{sec} [data-wil-count]').textContent === 'Showing 3 of 3'", "open: every row is in view")
+            p.js(f"document.querySelector('{sec} .wil-all-b').click()")
+            p.until(f"document.querySelector('{sec} [data-wil-count]').textContent === 'Showing 2 of 3, scroll for the rest'", "closed again")
+
     def test_the_views_list_scroll_bar_shows_only_while_scrolling_in_view_and_always_in_edit(self):      # the mock-up's .viewmode .rscroll / .sb
         ref = self.add({"mode": "all", "max": 2, "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
         with T.chrome() as cdp:
