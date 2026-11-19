@@ -32,14 +32,17 @@ class Words(unittest.TestCase):
         block = JSX[JSX.index("export const SAFETY"):JSX.index("const ALL_FOLDERS_COUNT")]
         titles = re.findall(r'^  \["([^"]+)"', block, re.M)
         self.assertEqual(titles, ["Every change needs your approval",
-                                  "A change taken from a file or passage needs an extra tick",
+                                  "A change taken from one of your own files or passages needs an extra tick",
                                   "ask clark is never on a published report",
                                   "Passwords and keys are never sent"])
         self.assertIn("<Safety />", JSX[JSX.index("function AllProjects"):JSX.index("function AllFolders")])
-        self.assertIn("These are not switches.", JSX)
+        self.assertIn('const SAFETY_NOTE = "These are not switches.";', JSX)
+        self.assertIn("A change can be taken back with Undo, except a decision marked Made, which a new decision replaces.", block)
+        self.assertIn("A published file has no ask clark button or panel, and it asks nothing.", block)
 
     def test_the_old_untrue_words_are_gone(self):
-        for old in ("what a client sees", "read-only or client page", "View mode", "Every change has an Undo."):
+        for old in ("what a client sees", "read-only or client page", "View mode", "Every change has an Undo.",
+                    "ask clark only suggests", "The published report has none.", "from a file or passage"):
             self.assertNotIn(old, JSX)
 
     def test_the_tick_words_are_the_boxs_own_words(self):
