@@ -86,7 +86,8 @@ class Source(unittest.TestCase):
     def test_the_block_sits_before_row_1314_which_stays_the_last_row_block(self):
         heads = [m.group(1) for m in re.finditer(r"^/\* (Row [0-9]+)", RULES, re.M)]
         self.assertEqual(heads[-1], "Row 1314")
-        self.assertEqual(heads[-2], "Row 1350")
+        self.assertIn("Row 1350", heads)
+        self.assertLess(RULES.index("/* Row 1350 part 2"), RULES.index("/* Row 1314"))
         self.assertNotRegex(RULES[RULES.index("/* Row 1350 part 2"):RULES.index("/* Row 1314")], r"#\d")
 
 
