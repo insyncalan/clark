@@ -60,7 +60,7 @@ class Classic(Base):
             self.assertNotIn("Export to Word", self.menu(p))
             self.assertEqual(p.js("document.querySelectorAll('#profile-menu [data-kind=word-export]').length"), 0)
             self.assertEqual(self.menu(p), [WHO] + ITEMS[:5] + ITEMS[5:])
-        src = (ROOT / "src" / "clark" / "page" / "src" / "clark" / "page" / "src" / "edit" / "Data.jsx")
+        src = ROOT / "src" / "clark" / "page" / "src" / "edit" / "Data.jsx"
         self.assertIn("Export to Word", src.read_text(encoding="utf-8"), "Settings > Data still has it")
 
     # The pill
