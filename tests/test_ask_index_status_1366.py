@@ -1,4 +1,4 @@
-"""#1366 slice (a): the per-folder status line, the background worker, the route and the question path (no browser).
+"""Row 1366 slice (a): the per-folder status line, the background worker, the route and the question path (no browser).
 
 Run: python3 dev/run_tests.py test_ask_index_status_1366
 Every file is made in the test from made-up text.

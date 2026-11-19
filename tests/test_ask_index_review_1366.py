@@ -1,4 +1,4 @@
-"""#1366 review fixes: modes of a folder made earlier, the worker's connection on a failed read, and the reasons given for files left out.
+"""Row 1366 review fixes: modes of a folder made earlier, the worker's connection on a failed read, and the reasons given for files left out.
 Made-up files only. Run: python3 dev/run_tests.py test_ask_index_review_1366"""
 import os
 import stat

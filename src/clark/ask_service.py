@@ -78,7 +78,7 @@ class AskService:
         self.lock = threading.Lock()                 # the store is opened by one question at a time
         self.applier = applier or ask_apply.AskApply(self.db_path, self.onedrive_roots)
         self.clock = clock
-        self.indexer = indexer                       # ask_index.Indexer or None (#1366): a finished index answers a question without opening a file
+        self.indexer = indexer                       # ask_index.Indexer or None (Row 1366): a finished index answers a question without opening a file
         self.open_pdf = open_pdf or platform.open_pdf_at      # #943: the one thing that starts a viewer (a stub in tests)
         self.replies = {}                            # reply ID -> Held: the changes an answer suggested, kept on the server
         self.replies_lock = threading.Lock()
@@ -201,8 +201,8 @@ class AskService:
         if isinstance(reply, ask.Failure):
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
-                             left_out_note(data.left_out + found.left_out), kinds_note(data.kinds_left_out), *folder_notes(found)) if n]
-        if folders and self.indexer is not None:        # row 7 of #1366: only while the index is still being read, never once it is complete
+                             left_out_note(found.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found)) if n]
+        if folders and self.indexer is not None:        # row 7 of Row 1366: only while the index is still being read, never once it is complete
             n = self.indexer.not_yet(code)
             note = ask_index.answer_note({"not_yet": n}) if isinstance(n, int) else ""
             if note:
@@ -363,14 +363,6 @@ def left_out_note(count):
     if not isinstance(count, int) or isinstance(count, bool) or count < 1:
         return ""
     return ("Some of the report was too long to send in full, so only the parts closest to your question were used.")
-
-
-def kinds_note(kinds):
-    """Row 1213: the plain line for the kinds the report leaves out, so a missing answer is not read as none exist."""
-    if not kinds:
-        return ""
-    names = ", ".join(ask_data.KIND_WORDS[k] for k in kinds)
-    return f"The report leaves out {names}, so they were not part of what was read and the answer may be missing something."
 
 
 def connector_used(line):
