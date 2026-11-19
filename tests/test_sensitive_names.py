@@ -53,7 +53,7 @@ class Scan(unittest.TestCase):
         d = Path(self.root, *[f"level{i}" for i in range(12)])
         d.mkdir(parents=True)
         for i in range(500):
-            (d / f"note{i}.txt").write_text("x")
+            (d / f"note{i}.txt").write_text("x", encoding="utf-8")
         self.assertEqual(sn.scan(self.root), [])
 
     def test_opens_nothing_and_sends_nothing(self):  # test 3
