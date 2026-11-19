@@ -4,7 +4,7 @@
 // Every value is a text node; nothing here is read as markup. While asking is off nothing on a card can be pressed.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { project, reread, token } from "../stores/report.js";
-import { sendUndo, zoneFetch } from "../api.js";
+import { sendUndo, sendUndoMany, zoneFetch } from "../api.js";
 import { showDate } from "../workItems.js";
 import { plainText } from "../logic/cleanHtml.js";
 import { panelState, turns } from "./askPanelState.js";
@@ -81,10 +81,8 @@ export function ChangeCards({ turn }) {
   async function undoAll() {
     if (!live || group.state !== "done" || !group.solo) return;
     keepGroup(turn, { state: "undoing" });
-    for (const step of [...group.steps].reverse()) {             // newest first, so each Undo meets the data as that step left it
-      const r = await sendUndo(project.value, step);
-      if (!r.ok) { keepGroup(turn, { state: "done", line: W.UNDO_FAILED_LINE }); reread(project.value); return; }
-    }
+    const r = await sendUndoMany(project.value, group.steps);    // one request: the server undoes them all (newest first) as one new step
+    if (!r.ok || r.reply.skipped.length) { keepGroup(turn, { state: "done", line: W.UNDO_FAILED_LINE }); reread(project.value); return; }
     plans.forEach((p, i) => { if (cardOf(turn, i).state === "done") keepCard(turn, i, { state: "undone", line: W.UNDONE_LINE }); });
     keepGroup(turn, { state: "undone", line: W.ALL_UNDONE_LINE });
     reread(project.value);

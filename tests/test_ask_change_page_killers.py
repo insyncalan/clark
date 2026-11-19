@@ -1,7 +1,7 @@
 """Row 1292 bundle B: killers for the survivors of the change-card sweep in AskChange.jsx (kept apart from test_ask_change_page).
 
 Run: python3 dev/run_tests.py test_ask_change_page_killers
-Covers: Undo all is not offered when one saved change cannot be undone, Undo all undoes newest first, a milestone card links to the
+Covers: Undo all is not offered when one saved change cannot be undone, Undo all sends one request for both steps, a milestone card links to the
 milestone. Fictional data only.
 """
 import json
@@ -22,7 +22,7 @@ SECOND_NOT_UNDOABLE = """(() => {
 RECORD_UNDOS = """(() => {
   const real = window.fetch; window.__undos = [];
   window.fetch = (url, init) => {
-    if (String(url).includes('/api/undo')) window.__undos.push(JSON.parse(init.body).apply_id);
+    if (String(url).includes('/api/undo')) window.__undos.push(JSON.parse(init.body));
     return real(url, init);
   };
 })()"""
@@ -43,7 +43,7 @@ class Killers(Card):
             self.assertEqual((self.status(), self.store.read("actions", ref=second)["status"]), ("Closed", "Closed"))
             self.assertEqual(p.js("document.querySelectorAll('[data-ask-undo-all]').length"), 0, "one step cannot be undone: no Undo all")
 
-    def test_undo_all_undoes_the_newest_step_first(self):
+    def test_undo_all_is_one_undo_request_for_both_steps(self):
         second = self.demo.action(owner="Kim Roe", description="Order the badges")
         self.says(self.close_it(), "CHANGE: " + json.dumps({"op": "change", "id": second, "current_title": "Order the badges", "status": "Closed"}))
         with chrome() as cdp:
@@ -56,9 +56,10 @@ class Killers(Card):
             p.until("!!document.querySelector('[data-ask-undo-all]')", "done with one Undo")
             p.js("document.querySelector('[data-ask-undo-all]').click()")
             p.until("document.querySelector('[data-ask-group-line]').textContent === 'Undone. The old values are back.'", "Undone")
-            steps = json.loads(p.js("JSON.stringify(window.__undos)"))
-            self.assertEqual(len(steps), 2)
-            self.assertEqual(steps, sorted(steps, reverse=True), "the later save is undone before the earlier one")
+            sent = json.loads(p.js("JSON.stringify(window.__undos)"))
+            self.assertEqual(len(sent), 1, "one undo request for the lot")
+            self.assertEqual(len(sent[0]["steps"]), 2)
+            self.assertEqual(self.status(), "Open")
 
     def test_a_milestone_card_links_to_the_milestone(self):
         ref = self.demo.milestone
