@@ -39,13 +39,12 @@ function Dialog({ ctx, onClose, clip }) {
       <p class="muted small">{L.TAG_LABELS.intro}</p>
       <div role="radiogroup" aria-label={L.TAG_LABELS.kind} class="fbt-kinds">
         {L.KINDS.map((k) => <button type="button" key={k} role="radio" aria-checked={k === kind} class={`fbt-kind${k === kind ? " on" : ""}`} data-fbt-kind={k} onClick={() => { setKind(k); setNote(""); }}>{k}</button>)}
-        <span class="fbt-proposed">{L.TAG_LABELS.proposed}</span>
       </div>
       <label for="fbt-message">{L.TAG_LABELS.message}</label>
       <textarea id="fbt-message" class="grow" rows={4} ref={area} aria-describedby={empty ? "fbt-error" : undefined} value={message} onInput={(e) => { setMessage(e.currentTarget.value); setNote(""); setEmpty(false); setRefused(false); }} />
       {empty ? <div class="fbt-error" id="fbt-error" role="alert">{L.EMPTY_SEND}</div> : null}
       <div class="fbt-added" id="fbt-added">
-        <b>{L.TAG_LABELS.addedHead}</b> <span class="fbt-proposed">{L.TAG_LABELS.proposed}</span>
+        <b>{L.TAG_LABELS.addedHead}</b>
         <ul class="plain">{L.contextLines(ctx).map((l) => <li key={l}>{l}</li>)}</ul>
         <span>{L.TAG_LABELS.addedNote}</span>
       </div>
@@ -77,8 +76,6 @@ export function FeedbackTag({ getVersion = healthVersion, nav, clip = realClip }
     return () => document.removeEventListener("keydown", esc);
   }, [open]);
   // The item peek is a card 16 px in from the edge, as wide as it was dragged, or the window less 32 px (wide, or under 1000 px): the tag reads where its left edge really is.
-  const [icon, setIcon] = useState(() => L.iconTag(window.innerWidth));     // a narrow window: the tag is a small envelope, not the word
-  useEffect(() => { const r = () => setIcon(L.iconTag(window.innerWidth)); window.addEventListener("resize", r); return () => window.removeEventListener("resize", r); }, []);
   const [gap, setGap] = useState(null);
   const dragged = peekWidth.value, spans = peekWide.value, shownPeek = !!peek.value;
   useEffect(() => {
@@ -98,7 +95,7 @@ export function FeedbackTag({ getVersion = healthVersion, nav, clip = realClip }
   const edge = beside && !open && gap != null ? `${gap}px` : "";
   return (
     <>
-      <button type="button" class={`fbt-tag${icon ? " icon" : ""}${beside ? " beside" : ""}${besideHelp ? " beside-help" : ""}${open ? " open" : ""}`} id="feedback-tag" style={edge ? `right:${edge}` : undefined} ref={tag} aria-label={L.TAG_LABELS.tagAria} aria-expanded={open ? "true" : "false"} aria-controls="feedback-tag-dialog" onClick={() => (open ? close() : setOpen(true))}>{icon ? L.TAG_LABELS.iconTag : L.TAG_LABELS.tag}</button>
+      <button type="button" class={`fbt-tag${beside ? " beside" : ""}${besideHelp ? " beside-help" : ""}${open ? " open" : ""}`} id="feedback-tag" style={edge ? `right:${edge}` : undefined} ref={tag} aria-label={L.TAG_LABELS.tagAria} aria-expanded={open ? "true" : "false"} aria-controls="feedback-tag-dialog" onClick={() => (open ? close() : setOpen(true))}>{L.TAG_LABELS.tag}</button>
       {open ? <Dialog ctx={ctx} onClose={close} clip={clip} /> : null}
     </>
   );
