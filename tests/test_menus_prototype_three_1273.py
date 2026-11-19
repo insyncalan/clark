@@ -11,6 +11,7 @@ from _paths import ROOT
 RULES = re.sub(r"/\*.*?\*/", "", (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8"), flags=re.S)
 BOARD = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "Board.jsx").read_text(encoding="utf-8")
 GROUP = '.ddmenu[aria-label="Group by"]'
+GROUP_ID = '#viewMenuList.ddmenu[aria-label="Group by"]'
 MOVE = '.ddmenu[aria-label^="Move "][aria-label$=" to"]'
 ADD = ".wil-add .ddmenu"
 
@@ -62,7 +63,7 @@ class ThreeMenus(unittest.TestCase):
         block = re.sub(r"/\*.*?\*/", "", block, flags=re.S)
         for sels, _ in [([" ".join(s.split()) for s in a.split(",")], b) for a, b in re.findall(r"([^{}]+)\{([^{}]*)\}", block)]:
             for s in sels:
-                self.assertTrue(s.startswith((GROUP, MOVE, ADD)), f"the rule {s!r} is not scoped to Group by, Move to or Add")
+                self.assertTrue(s.startswith((GROUP, GROUP_ID, MOVE, ADD)), f"the rule {s!r} is not scoped to Group by, Move to or Add")
 
     def test_the_move_to_head_holds_the_card_id(self):
         self.assertIn("head: `Move ${id} to`", BOARD)
