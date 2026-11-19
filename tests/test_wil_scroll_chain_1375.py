@@ -31,7 +31,7 @@ class Chain(base.PageBase):
         base.plant(self)
         self.ref = self.add({"mode": "all", "columns": ["id", "owner", "due", "status", "priority"], "max": 2})
 
-    def open(self, cdp, width):
+    def load(self, cdp, width):
         p = self.show(cdp, width)
         p.until(f"!!document.querySelector('{BOX % self.ref}') && document.querySelectorAll('[data-id=\"{self.ref}\"] .wil-lines li, [data-id=\"{self.ref}\"] .wil-table tbody tr').length > 0", "the list drew")
         p.js("(() => { const s = document.createElement('div'); s.id = 'spacer-1375'; s.style.height = '4000px'; document.body.appendChild(s); })()")
@@ -53,13 +53,13 @@ class Chain(base.PageBase):
 
     def test_the_box_does_not_hold_the_scroll(self):
         with chrome() as cdp:
-            p = self.open(cdp, 1400)
+            p = self.load(cdp, 1400)
             self.assertEqual(p.js(f"getComputedStyle(document.querySelector('{BOX % self.ref}')).overscrollBehaviorY"), "auto")
 
     def test_wheel_at_the_end_of_the_box_moves_the_page_both_ways_1400_900(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
-                p = self.open(cdp, width)
+                p = self.load(cdp, width)
                 self.assertTrue(p.js(f"(b => b.scrollHeight > b.clientHeight + 20)(document.querySelector('{BOX % self.ref}'))"), "the box scrolls (the test's own check)")
                 # inside the box: it moves its own rows, the page stays
                 p.js(f"document.querySelector('{BOX % self.ref}').scrollTop = 0")
