@@ -84,6 +84,7 @@ class Request:
     system: str = RULES           # the system prompt the caller wants: ask clark's own RULES unless the caller passes its own (suggestions do); "" is refused
     canary: str = field(default="", repr=False, compare=False)    # #277: this request's private marker; set by ask_provider, never kept
     owner: object = field(default=None, repr=False, compare=False)   # #284: who asked (a service's own token), so Stop can end only that service's run
+    connectors: tuple = field(default=(), repr=False, compare=False)  # row 1306: the connector ids that are On for this install and not Off for this project; set by the service from the store, () means none (the locked-down call)
     cancel: object = field(default=None, repr=False, compare=False)  # #284: a threading.Event; set before the run is registered, the run does not start
 
     @property
