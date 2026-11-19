@@ -151,8 +151,9 @@ class Redesign:
                 self.assertEqual(g["icons"], 2, "the Group by and Sort by icon buttons")
                 self.assertEqual([r["ref"].split(" · ")[0] for r in g["rows"]], ["UC 1.1", "UC 1.2", "UC 1.10", "UC 2.1"])
                 self.assertTrue(g["noScroll"])
-                for r in g["rows"]:
-                    self.assertEqual(r["rule"][:2], ["1px", "solid"], "a thin row rule under every row: " + r["uc"])
+                for i, r in enumerate(g["rows"]):
+                    last = i == len(g["rows"]) - 1   # Row 1405: no line under the last row
+                    self.assertEqual(r["rule"][:2], ["0px", "none"] if last else ["1px", "solid"], "a thin row rule under every row but the last: " + r["uc"])
                     self.assertTrue(r["eye"], "the eye is the last cell")
                     for k, hide in enumerate(NAMES):
                         left = r["left"][k]
@@ -186,7 +187,7 @@ class Redesign:
                 p.js("location.hash = '#work&p=ABC'")
                 p.until("!!document.querySelector('#work table.items tbody tr')", "Work items drew")
                 wk = p.js(LOOK + "('#work')")
-                for k in ("th", "td", "av", "vtab", "gutter"):   # not fline: Row 1316 ruled the Classic Use cases filter a boxed input (the prototype's), Work items keeps its line
+                for k in ("av", "vtab", "gutter"):   # not th and td: Row 1405 gives the Use cases list its own shaded heads and 12 px cell sides (pinned in test_use_cases_box_1405); not fline: Row 1316 ruled the Classic Use cases filter a boxed input (the prototype's), Work items keeps its line
                     self.assertIsNotNone(uc[k], k + ": drawn on Use cases")
                     self.assertEqual(uc[k], wk[k], k + ": the same as Work items, measured on both pages")
 
