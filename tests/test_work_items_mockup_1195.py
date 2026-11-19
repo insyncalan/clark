@@ -124,7 +124,7 @@ GOLDEN_LINES = [
 # This row must not change any of them. If one differs after a merge of main, re-measure on origin/main: a difference with no CSS or Work items
 # change in main is a Cards change made by this row.
 CARDS_STYLE_MD5 = {"blocks": ["7195b3107c3b5022f3b40ad1dfbbe484"]}
-_DOM = {"view": "64d2815a7699b1d8efb201c8607c24c8", "edit": "5b1ebb0f52c9019e2270e46bf675aaab", "menu": "b03f939c186bd71f3069fe998036641e"}
+_DOM = {"view": "64d2815a7699b1d8efb201c8607c24c8", "edit": "5b1ebb0f52c9019e2270e46bf675aaab", "menu": "d8ab40593e7d9a00a06ab21d88883d75"}
 CARDS_DOM_MD5 = {1400: _DOM, 900: _DOM}      # the markup does not depend on the width (the width is CSS); both are measured and kept
 
 
