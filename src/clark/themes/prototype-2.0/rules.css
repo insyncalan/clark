@@ -345,6 +345,9 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .ddmenu .lab, .ddmenu .who, .ddmenu .mh, .mh { padding-left: 16px; padding-right: 16px; }
 /* Row 1372 (Classic only; the Cards look keeps its width): the item and milestone peeks open 62% of the window wide, at least 300px, as the approved peek mock-up draws it, instead of 640px. From 1000px up; below it the peek fills the window as before. A width the person dragged (the peek carries data-sized) is kept. Bare lengths with no token: the 300px least width and the 1000px switch. */
 @media (min-width: 1000px) { .peek:not(.hpk):not(.wide):not([data-sized]) { width: 62% !important; min-width: min(300px, 100vw); } }
+/* Row 1336, the At a glance template in Edit, Classic only (the published View keeps the flat Row 1260 strip): the tile takes the mock-up's inner padding (12px top and bottom, 16px sides; the Row 1260 padding 0 removed it, and with it the pill touched the border) and shows its status dot 8x8 before the label (the Row 1260 rule hid it; the colour of the figure alone is the View's way). Not here, waiting for a ruling: the bin on built-in tiles, the grip and eye positions that go with it, the help text wording, the empty fourth column. */
+.tpl-edit-glancetemplate .glance .fig { padding: 12px 16px; }
+.tpl-edit-glancetemplate .glance .fig .ragdot { display: inline-block; flex: none; }
 /* Row 1342: the Feedback tag dialog as the 1298 mockup draws it: heading 17px / 600 with 2px under it, the dialog and the tag one step roomier (bottom padding 14, tag top and bottom padding 14). */
 .fbt-head h2 { margin: 0 0 2px; font-size: 17px; font-weight: 600; color: var(--heading); }
 .fbt-dlg { padding-bottom: 14px; }
