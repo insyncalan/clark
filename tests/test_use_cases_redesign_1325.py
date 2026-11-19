@@ -1,8 +1,8 @@
 """Row 1325 KILLERS: killers written first, red on main: the Use cases page redesigned to the approved mock-up (mockups/1325-use-cases-template/approved.html on the planning board).
 
 Run: python3 dev/run_tests.py test_use_cases_redesign_1325
-Chrome required (fails, never skips). 1400 and 900 px, light mode, under Cards (shell.css) and under Classic (the prototype-2.0 theme layer):
-both themes change for this row. Dark mode is not asserted (the mock-up did not draw it; open question on the row).
+Chrome required (fails, never skips). 1400 and 900 px, light mode, under Classic (the prototype-2.0 theme layer) only. Owner ruling 19-11: Classic only, layered; Cards is a
+production setting and every Cards look change needs the owner's word, so Cards must look as it does on main (CardsAsOnMain below pins it). Dark mode is not asserted (the mock-up did not draw it; open question on the row).
 Owner words (18-11-2026 18:34 Dubai): "1325 use cases fully approved, lock Status, Commitment replaces grey line".
 Every check is a computed style, a measured position or the page's own text in Chrome, not a source grep.
 Contract the build must meet (the names are the Work items names, so the build can share the Work items CSS):
@@ -14,7 +14,9 @@ Contract the build must meet (the names are the Work items names, so the build c
   R3  `button[aria-label=Columns]` in the last th; its menu `.cols-menu` of role=menuitemcheckbox rows; Use case and Status locked.
   R4  grouped = Option A of 1324: `tr.grp th > button.grp-b` with `.gl` (name) and `.gc` (count), no tile, one hairline, header row once on top.
 """
+import hashlib
 import json
+import re
 import unittest
 
 from clark import page, theme
@@ -103,7 +105,7 @@ GROUPS = """(() => [...document.querySelectorAll('#usecases .grp-b')].map((b) =>
 
 
 class Redesign:
-    """The tests; Cards and Classic below run them under each theme layer."""
+    """The tests, run under the Classic theme layer (Cards is pinned unchanged in CardsAsOnMain)."""
     css = None
 
     def open(self, cdp, width, hash_="#usecases&p=ABC", ready=None):
@@ -289,8 +291,42 @@ class Redesign:
                 self.assertEqual(p.js("document.querySelectorAll('#usecases tr[data-uc]').length"), 2, "a shut group hides its two rows")
 
 
-class Cards(Redesign, Base):
-    pass
+class CardsAsOnMain(Base):
+    """Cards (the page with no Theme layer) still draws the Use cases list as origin/main (d526d17a3) does: the same style block, the same rendered
+    DOM at 1400 and 900 (md5 of the #usecases section with the four use case ids folded to UC1..UC4, and of the open Group by menu), the old list
+    markup and none of the new one. The md5 values were measured on a clean checkout of main with the same capture."""
+    STYLE_MD5 = ["7195b3107c3b5022f3b40ad1dfbbe484"]
+    LIST_MD5 = "a913dc96703a9e8cad0653b4a1c36db4"
+    MENU_MD5 = "194c712b7ec600bda8708215bdd14f21"
+
+    def test_the_cards_style_block_is_the_one_main_has(self):
+        html = page.page_html(branding=page.NO_BRAND, theme=None)
+        self.assertEqual([hashlib.md5(b.encode("utf-8")).hexdigest() for b in re.findall(r"<style[^>]*>(.*?)</style>", html, re.S)], self.STYLE_MD5)
+
+    def test_the_cards_list_is_the_list_main_draws_at_1400_and_900(self):
+        plant(self)
+        self.s.close()
+        html = testpage.html()
+        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: html, seam=self.seam)
+        self.addCleanup(self.s.close)
+        ids = {self.uc1: "UC1", self.uc2: "UC2", self.uc3: "UC3", self.uc4: "UC4"}
+        for w in (1400, 900):
+            with self.subTest(width=w), chrome() as cdp:
+                p = Pg.at(self, cdp, self.s.port, "#usecases&p=ABC")
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 1000, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.until("document.querySelectorAll('#usecases [data-uc]').length > 0", "the list drew")
+                dom = p.js("document.querySelector('#usecases').outerHTML")
+                for k, v in ids.items():
+                    dom = dom.replace(k, v)
+                self.assertEqual(hashlib.md5(dom.encode("utf-8")).hexdigest(), self.LIST_MD5, "the Cards Use cases DOM")
+                self.assertEqual(p.js("[document.querySelectorAll('#usecases table.items').length, document.querySelectorAll('#usecases .ucl-box .ucl-cols').length, "
+                                      "document.querySelectorAll('#usecases .ucl-list .ucl-row').length, document.querySelectorAll('#usecases .fline-tail .vicons').length, "
+                                      "document.querySelectorAll('#usecases .ucl-tools #ucl-group, #usecases .ucl-tools #ucl-sort').length]"), [0, 1, 4, 0, 2],
+                                 "the old list: no table, one column strip, four rows, no icon pair, Group by and Sort by beside Add use case")
+                p.js("document.querySelector('#ucl-group').click()")
+                p.until("!!document.querySelector('.ddmenu')", "the Group by menu")
+                menu = re.sub(r'id="[^"]*"', "", p.js("document.querySelector('.ddmenu').outerHTML"))
+                self.assertEqual(hashlib.md5(menu.encode("utf-8")).hexdigest(), self.MENU_MD5, "the Cards Group by menu")
 
 
 class Classic(Redesign, Base):
