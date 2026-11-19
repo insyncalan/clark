@@ -1863,6 +1863,14 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 .setting h3 { margin: var(--space-4) 0 6px; font-size: var(--size-body); font-weight: var(--weight-medium); color: var(--heading); }
 .ask-folders { margin: var(--space-2) 0 0; padding: 0; list-style: none; }
 .ask-folders li { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; margin-top: var(--space-1); }
+.ask-folders li.ask-warn { display: block; margin-top: 6px; padding: 6px 12px; border: 0; border-radius: 6px; background: var(--amber-t); color: var(--amber); font-size: 13px; }   /* row 1365: amber, under the flagged folder's line, full width */
+.ask-warn p { margin: 0; }
+.ask-warn [data-ask-warn-name] { font-weight: 500; }
+.ask-warn-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.ask-warn-btns .btn:not(.pri) { color: var(--text); }
+:root { --amber-t: #fbf1da; --amber: #8a5a00; }
+:root[data-theme=dark] { --amber-t: #352a10; --amber: #f0be5a; }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] { --amber-t: #352a10; --amber: #f0be5a; } }
 #ask-folder-path { flex: 1 1 260px; min-height: 32px; padding: var(--space-1) var(--space-2); border: 1px solid var(--border); border-radius: var(--radius); font-size: var(--size-small); }
 /* The Add a section box (#96): a modal over the page, desktop and 900 px. Tokens only; no text under 13 px. */
 .ad-scrim { position: fixed; inset: 0; z-index: 50; display: flex; align-items: flex-start; justify-content: center; padding: calc(var(--topbar) + var(--space-6)) var(--space-4) var(--space-6); background: color-mix(in srgb, var(--black) 45%, transparent); overflow: auto; overscroll-behavior-y: contain; }   /* row 758: a box starts below the top bar, never over it */
