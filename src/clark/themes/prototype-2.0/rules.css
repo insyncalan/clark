@@ -268,3 +268,8 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .peek { border-left-color: var(--grey-200); box-shadow: var(--shadow); } }
 @keyframes pk-in-fade { from { opacity: 0; transform: translateX(100%); } 60% { opacity: 1; } }
 @media (prefers-reduced-motion: no-preference) { :root:not([data-motion="reduce"]) .peek:not(.leaving) { animation: pk-in-fade 500ms cubic-bezier(.22, 1, .36, 1) 1; } }
+/* Row 1348: the Ask clark panel opens from the right edge and leaves to it, as the prototype's does (Cards keeps its rise from the bottom). The shared rule keeps its names, gate, durations and curves (the panel's code waits for the animation named ask-down); only the two keyframes are laid again, later, from the side. 104 percent clears the panel's own shadow. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes ask-up { from { transform: translateX(104%); } to { transform: none; } }
+  @keyframes ask-down { from { transform: none; } to { transform: translateX(104%); } }
+}
