@@ -70,7 +70,7 @@ class Measured(M.Look):
             got = self.look(width)
             self.assertEqual((got["gear"]["w"], got["gear"]["h"]), (32, 32), (width, got))
             if self.classic:
-                self.assertIsNone(got["tag"], (width, got))      # row 1408 (Alan 19-11): Classic shows a line under the title, no Changed tag
+                self.assertIsNone(got["tag"], (width, got))      # row 1408: Classic shows a line under the title, no Changed tag
             else:
                 self.assertEqual(got["gear"]["l"] - got["tag"]["r"], 10, (width, got))      # the mock-up gap 10
             self.assertEqual(got["head"]["r"] - got["gear"]["r"], 0, (width, got))
