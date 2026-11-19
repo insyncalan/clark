@@ -1,4 +1,4 @@
-"""ask: a local, rebuildable index of the passages in a project's saved folders (#1366, slice 1). Standard library only (sqlite3 FTS5).
+"""ask: a local, rebuildable index of the passages in a project's saved folders (Row 1366, slice 1). Standard library only (sqlite3 FTS5).
 
 ONE FILE PER PROJECT: `<data folder>/ask-index/<project code>.db`, 0600 in a 0700 folder, never clark.db, never inside a source folder.
 It is a copy that can always be rebuilt: delete it and `build` makes the same passages again. A question calls `search` and opens no file.
@@ -160,16 +160,24 @@ def _excel_groups(raw, truncated):
     out, cells = [], 0
     try:
         for ws in wb.worksheets:
-            lines = []
+            if getattr(ws, "sheet_state", "visible") != "visible":
+                continue                       # a hidden or very hidden sheet is not read (the ticket: only if the person says so)
+            lines, header = [], None
             for n, row in enumerate(ws.iter_rows(values_only=True)):
                 if n >= MAX_EXCEL_ROWS or cells >= MAX_EXCEL_CELLS:
                     break
                 if CLOCK() - began > MAX_EXCEL_SECONDS:
                     raise TooLong("too slow")
-                vals = [str(v).replace("\n", " ") for v in row if v is not None and str(v).strip()]
                 cells += len(row)
-                if vals:
-                    lines.append(" | ".join(vals))
+                cols = [str(v).replace("\n", " ").strip() if v is not None else "" for v in row]
+                if not any(cols):
+                    continue
+                if header is None:
+                    header = cols if all(isinstance(v, str) for v in row if v is not None) else []
+                    lines.append(" | ".join(c for c in cols if c))
+                    continue
+                # every row carries its column headers, so a passage cut from the middle of a sheet still says what each cell is
+                lines.append(" | ".join(f"{header[i]}: {c}" if i < len(header) and header[i] else c for i, c in enumerate(cols) if c))
             if lines:
                 out.append((f"sheet {ws.title}", lines))
     except TooLong:
@@ -467,7 +475,7 @@ def answer_note(counts):
     return f"Still reading {n} file{'' if n == 1 else 's'}, so this answer may miss some."
 
 
-# ----- the per-folder status line (#1366 slice a; the words are the approved ones) -----
+# ----- the per-folder status line (Row 1366 slice a; the words are the approved ones) -----
 
 def _plural(n, one, many):
     return one if n == 1 else many

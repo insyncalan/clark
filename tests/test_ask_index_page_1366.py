@@ -1,4 +1,4 @@
-"""#1366 slice (a): the status line under each saved folder, in a real browser at 1400 and 900, in the project card (own and for-all folders)
+"""Row 1366 slice (a): the status line under each saved folder, in a real browser at 1400 and 900, in the project card (own and for-all folders)
 and the All projects card, against the real folder service and the real background reader (Classic).
 
 Run: python3 dev/run_tests.py test_ask_index_page_1366

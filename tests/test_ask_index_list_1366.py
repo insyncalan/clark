@@ -1,4 +1,4 @@
-"""#1366 rows 6 and 7: the files left out of a folder (Classic Settings page) and the answer note while the index is still being read.
+"""Row 1366 rows 6 and 7: the files left out of a folder (Classic Settings page) and the answer note while the index is still being read.
 
 Row 6: under each folder's status line in both Source folders lists a text button "Show the files left out" opens a plain list (file name, then the
 reason, muted 13px), collapsed by default, at most 200 shown and then "and N more" (N = the rest). Classic only (Cards is unchanged: no button).

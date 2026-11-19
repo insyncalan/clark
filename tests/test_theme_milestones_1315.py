@@ -134,8 +134,7 @@ class Computed(unittest.TestCase):
                     self.assertEqual(c("#milestones .msv", "borderTopWidth"), "0px", tag)
                     self.assertEqual(c("#milestones .msv", "boxShadow"), "none", tag)
                     self.assertEqual(c("#milestones .msv", "paddingLeft"), "0px", tag)
-                    self.assertEqual(c("#milestones .msv-sw", "right"), "0px", tag)
-                    self.assertEqual(c("#milestones .msv-sw", "top"), "0px", tag)
+                    self.assertEqual(c("#milestones .msv-sw", "position"), "absolute", tag)      # row 1355: at the top left of the page, not in the right corner
                     self.assertEqual(c("#pubm", "borderTopWidth"), "1px", tag)      # a published file keeps its card
                     self.assertEqual(c("#other .msv", "borderTopWidth"), "1px", tag)
                     self.assertNotEqual(c("#other .msv", "boxShadow"), "none", tag)

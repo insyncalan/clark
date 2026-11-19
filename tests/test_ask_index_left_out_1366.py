@@ -1,4 +1,4 @@
-"""#1366 slice (b): the list of files left out (spec row 6) and the answer note (spec row 7). Made-up files only."""
+"""Row 1366 slice (b): the list of files left out (spec row 6) and the answer note (spec row 7). Made-up files only."""
 import unittest
 
 from _paths import SRC  # noqa: F401
