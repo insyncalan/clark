@@ -3,8 +3,9 @@
 // back) or copied; /history and /new are actions and are shown locked. Files are kept by the server (ask_commands_service.py). Classic only.
 // Not in this page yet (see the pull request): AI help (Write it, Make it clearer, Shorter, the AI check) and the live run of the test on Claude.
 import { useEffect, useRef, useState } from "preact/hooks";
-import { BUILTINS, MENU_MAX, TEXT_MAX, PLACEHOLDERS, problems, fill, unfillable, nameProblem, copy } from "../logic/askShortcuts.js";
+import { BUILTINS, PLACEHOLDERS, problems, fill, unfillable, nameProblem, copy } from "../logic/askShortcuts.js";
 import { askCommandsRead, askCommandsChange, words } from "./publishApi.js";
+import { askOn, askStatus, loadAsk, ASK_OFF_LINE } from "./askState.js";
 import { rows, SLASH_ALL_HEAD, SLASH_PROJECT_HEAD, TAG_EDITED, TAG_PROJECT, TAG_ACTION } from "./SlashCommandsList.jsx";
 
 export const BACK = "← Back to Settings";
@@ -32,10 +33,13 @@ const CANT_READ = "Slash commands aren't ready on this computer yet. Nothing was
 const NO_FILL = (k) => `{${k}} has nothing to fill where this appears.`;                                          // NEEDS APPROVAL
 const LONG = "The instructions are long.";                                                                          // NEEDS APPROVAL
 const LONG_AT = 800;
+const REMOVE_ALL = "This slash command is kept for all projects. Remove it from the all projects tab.";       // NEEDS APPROVAL
+const RESET_ALL = "This version is kept for all projects. Reset it from the all projects tab.";               // NEEDS APPROVAL
+const COPY_NOTE = "Saving makes a copy for this project only. The one for all projects stays as it is.";      // NEEDS APPROVAL
 
 const query = () => { try { return new URLSearchParams(location.search); } catch (e) { return new URLSearchParams(""); } };
 const blank = () => ({ name: "", menu: "", text: "", scope: "anywhere", result: "answer", was: "", builtin: false, edited: false });
-const toDraft = (c) => ({ name: c.name, menu: c.menu, text: c.text, scope: c.scope, result: c.result, was: c.builtin ? "" : c.name, builtin: !!c.builtin, edited: !!c.edited, ai: !!c.ai });
+const toDraft = (c) => ({ name: c.name, menu: c.menu, text: c.text, scope: c.scope, result: c.result, was: c.builtin ? "" : c.name, builtin: !!c.builtin, edited: !!c.edited, ai: !!c.ai, inherited: !!c.inherited });
 const dmy = (d) => String(d.getDate()).padStart(2, "0") + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + d.getFullYear();
 
 // The instructions with each placeholder filled: a filled value is marked, one with nothing to fill reads "not set".
@@ -77,6 +81,7 @@ export function SlashEditor() {
     return b;
   }
   useEffect(() => { load(q.get("new") ? "" : (q.get("name") || null)); document.title = "Slash commands"; }, []);
+  useEffect(() => { loadAsk(); }, []);
   useEffect(() => { if (help && helpBox.current) helpBox.current.focus(); }, [help]);
 
   const list = data && data !== "unavailable" ? rows(data, scope, project) : [];
@@ -102,8 +107,9 @@ export function SlashEditor() {
   const record = () => (draft.builtin ? { name: draft.name, replaces: draft.name, menu: draft.menu, text: draft.text, scope: draft.scope, result: draft.result }
     : { name: draft.name, menu: draft.menu, text: draft.text, scope: draft.scope, result: draft.result, ...(draft.ai ? { ai: true } : {}) });
   const save = () => { if (!found.length) send({ action: "save", record: record(), ...(draft.was ? { was: draft.was } : {}) }, draft.name); };
-  const reset = () => send({ action: "reset", name: draft.name }, draft.name);
+  const reset = () => draft.inherited ? setMsg({ kind: "note", text: RESET_ALL }) : send({ action: "reset", name: draft.name }, draft.name);
   async function remove() {
+    if (draft.inherited) { setMsg({ kind: "note", text: REMOVE_ALL }); return; }
     const gone = { ...record() }; const was = draft.name;
     if (await send({ action: "remove", name: was }, null)) setUndo(gone);
   }
@@ -140,6 +146,7 @@ export function SlashEditor() {
         <h1 id="slash-h">{head}</h1>
       </header>
       <div class="pub-msg" role={msg && msg.kind === "error" ? "alert" : "status"} aria-live="polite">{msg && msg.text ? <p class={msg.kind}>{msg.text}</p> : null}{undo ? <button type="button" class="btn sm" id="slash-undo" onClick={unremove}>Undo</button> : null}</div>
+      {askStatus.value === "ready" && !askOn.value ? <p class="muted" id="slash-off">{ASK_OFF_LINE}</p> : null}
       {data === "unavailable" ? <p class="muted" id="slash-note">{CANT_READ}</p> : null}
       {data && data !== "unavailable" ? (
         <div class="slash-grid">
@@ -156,14 +163,15 @@ export function SlashEditor() {
             <div class="slash-main">
               <section class="slash-edit-card" aria-label="Edit slash command">
                 <h2>{draft.builtin || draft.was ? "/" + (draft.was || draft.name) : "New slash command"}</h2>
+                {draft.inherited ? <p class="muted" id="slash-copy-note">{COPY_NOTE}</p> : null}
                 {draft.builtin ? <p class="muted" id="slash-builtin-note">{NOTE_BUILTIN}</p> : null}
                 <label for="sl-name">Name</label> <span class="muted">what you type after /</span>
-                <div class="slash-name-in"><span>/</span><input id="sl-name" value={draft.name} maxLength={24} autocomplete="off" spellcheck={false} readOnly={draft.builtin} aria-describedby="sl-name-m" aria-invalid={nameBad ? "true" : undefined} onInput={(e) => edit({ name: e.currentTarget.value })} /></div>
+                <div class="slash-name-in"><span>/</span><input id="sl-name" value={draft.name} autocomplete="off" spellcheck={false} readOnly={draft.builtin} aria-describedby="sl-name-m" aria-invalid={nameBad ? "true" : undefined} onInput={(e) => edit({ name: e.currentTarget.value })} /></div>
                 <div id="sl-name-m" class={nameBad ? "slash-err" : "muted"}>{nameMsg}</div>
                 <label for="sl-menu">What it says in the menu</label>
-                <input id="sl-menu" value={draft.menu} maxLength={MENU_MAX} onInput={(e) => edit({ menu: e.currentTarget.value })} />
+                <input id="sl-menu" value={draft.menu} onInput={(e) => edit({ menu: e.currentTarget.value })} />
                 <label for="sl-text">What it should do, in plain words</label>
-                <textarea id="sl-text" ref={textRef} maxLength={TEXT_MAX} value={draft.text} onInput={(e) => edit({ text: e.currentTarget.value })} />
+                <textarea id="sl-text" ref={textRef} value={draft.text} onInput={(e) => edit({ text: e.currentTarget.value })} />
                 <div class="slash-add">
                   <span>Add: {Object.keys(PLACEHOLDERS).map((k) => <button type="button" class="slash-ph" key={k} data-ins={k} onClick={() => insert("{" + k + "}")}>{"{" + k + "}"}{k === "input" ? " " + HINT_ADD : ""}</button>)}</span>
                   <button type="button" class="slash-help" id="slash-help" ref={helpBtn} aria-label="About placeholders" aria-expanded={help ? "true" : "false"} onClick={() => setHelp(true)}>?</button>

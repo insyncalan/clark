@@ -4,6 +4,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { BUILTINS, LOCKED, listAll } from "../logic/askShortcuts.js";
 import { askCommandsRead } from "./publishApi.js";
+import { askOn, askStatus, loadAsk, ASK_OFF_LINE } from "./askState.js";
 
 export const SLASH_ALL_HEAD = "Slash commands for all projects";
 export const SLASH_PROJECT_HEAD = (code) => `Slash commands in ${code}`;
@@ -30,9 +31,11 @@ export function rows(data, scope, code) {
   const all = data.all || [], own = scope === "all" ? [] : data.project || [];
   const base = scope === "all" ? all : [...all.filter((m) => m.replaces), ...own.filter((m) => m.replaces)];
   const over = new Map(base.map((m) => [m.replaces, m]));
-  const builtIn = BUILTINS.map((b) => (over.has(b.name) ? { ...over.get(b.name), name: b.name, builtin: true, edited: true } : b));
+  const ownReplaces = new Set(own.filter((m) => m.replaces).map((m) => m.replaces));
+  // inherited: on a project tab, kept for all projects (Remove and Reset are not done from here; Save makes a project copy)
+  const builtIn = BUILTINS.map((b) => (over.has(b.name) ? { ...over.get(b.name), name: b.name, builtin: true, edited: true, inherited: scope !== "all" && !ownReplaces.has(b.name) } : b));
   const names = new Set(own.filter((m) => !m.replaces).map((m) => m.name));
-  const yours = [...all.filter((m) => !m.replaces && !names.has(m.name)).map((m) => ({ ...m, tag: TAG_YOURS })),
+  const yours = [...all.filter((m) => !m.replaces && !names.has(m.name)).map((m) => ({ ...m, tag: TAG_YOURS, inherited: true })),
                  ...own.filter((m) => !m.replaces).map((m) => ({ ...m, tag: TAG_PROJECT(code) }))];
   if (scope === "all") return [...listAll(all).yours.map((m) => ({ ...m, tag: TAG_YOURS })), ...builtIn.map(tagBuilt)];
   return [...yours, ...builtIn.map(tagBuilt)];
@@ -41,6 +44,7 @@ const tagBuilt = (b) => ({ ...b, tag: LOCKED.includes(b.name) ? TAG_ACTION : TAG
 
 export function SlashList({ scope, code }) {
   const [data, setData] = useState(null);                 // null: not read yet; "unavailable"; or the answer
+  useEffect(() => { loadAsk(); }, []);
   useEffect(() => {
     let live = true;
     askCommandsRead(scope === "all" ? "" : code).then((r) => {
@@ -58,6 +62,7 @@ export function SlashList({ scope, code }) {
         <a class="btn" data-slash-open href={link("", false)} target="_blank" rel="noopener">{SLASH_OPEN}</a>
         <a class="btn" data-slash-new href={link("", true)} target="_blank" rel="noopener">{SLASH_NEW}</a>
       </div>
+      {askStatus.value === "ready" && !askOn.value ? <p class="muted" id="slash-off">{ASK_OFF_LINE}</p> : null}
       {data === "unavailable" ? <p class="muted" id="slash-note">{SLASH_UNAVAILABLE}</p> : null}
       {list.length ? (
         <ul class="slash-rows">

@@ -19,6 +19,7 @@ import { holdScroll } from "../core/holdScroll.js";
 import { chatId, histOpen, histTick, chats, keepChat, deleteChat, when } from "./askHistory.js";
 import { ChangeCards, fixedLine } from "./AskChange.jsx";
 import { FormattedAnswer } from "./AskFormat.jsx";
+import { classicTheme } from "../components/Contents.jsx";
 import { AskDraft } from "./AskDraft.jsx";
 import { readDraft } from "./askDraft.js";
 import * as F from "./askFiles.js";
@@ -72,8 +73,9 @@ export function AskPanel() {
   const [note, setNote] = useState("");
   const [quip, setQuip] = useState("");
   const [pick, setPick] = useState(0), [shut, setShut] = useState(false);   // #1292 S10: the slash menu's chosen row, and whether Esc has closed it
-  const menu = shut ? null : slashMatches(text, ownCommands.value);
-  useEffect(() => { if (open) loadOwnCommands(project.value); }, [open, project.value]);      // row 1295: the person's own commands join the / menu
+  const usable = state === "ready" || state === "checking";      // the box takes text only then: with asking off no slash command is offered or run
+  const menu = shut || !usable ? null : slashMatches(text, classicTheme() ? ownCommands.value : []);
+  useEffect(() => { if (open && state === "ready" && classicTheme()) loadOwnCommands(project.value); }, [open, state, project.value]);      // row 1295: Classic only, and only while asking is on; the person's own commands join the / menu
   const [said, setSaid] = useState("");            // row 1220: what a screen reader is told when a message is queued or removed
   const waiting = queue.value, held = queueHeld.value, dropping = queueDrop.value;
   const showHist = histOpen.value && !busy;
@@ -164,7 +166,7 @@ export function AskPanel() {
 
   // #1292 S10: a chosen slash command. A question command sends its question as a suggestion does; /new and /history send nothing.
   function runSlash(c) {
-    if (!c) return;
+    if (!c || !usable) return;
     setText(""); setPick(0); setShut(false);
     if (c.act === "new") { newChat(); setNote(""); return; }
     if (c.act === "history") { if (!busy) histOpen.value = true; return; }

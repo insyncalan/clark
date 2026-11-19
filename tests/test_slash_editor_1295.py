@@ -8,11 +8,13 @@ import json
 import os
 import shutil
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
 from _editor_checks import for_project
 from test_ask_settings import make_db, service
+from test_ask_panel import Stub
 from test_page import DATA, navigate
 from test_server import Running, chrome, wait
 
@@ -103,6 +105,163 @@ class SettingsList(Base):
             self.until(js, "!!document.querySelector('#slash-note')", "the line is shown")
             self.assertEqual(js("document.querySelector('#slash-note').innerText"), "Slash commands aren't ready on this computer yet.")
             self.assertEqual(js("document.querySelectorAll('#slash-project [data-slash-row]').length"), 0)
+
+
+class Counting:
+    """Wraps the slash commands service and counts the reads, to show where the page asks for them."""
+
+    def __init__(self, inner):
+        self.inner, self.reads = inner, 0
+
+    def read(self, *a, **k):
+        self.reads += 1
+        return self.inner.read(*a, **k)
+
+    def __getattr__(self, name):
+        return getattr(self.inner, name)
+
+
+RECORD = {"menu": "Monday summary", "text": "Overdue by owner", "scope": "anywhere", "result": "answer"}
+
+
+class ProjectTabEdges(Base):
+    """Row 1295 D3: a command kept for all projects, opened on a project tab."""
+
+    def setUp(self):
+        super().setUp()
+        svc = self.s.httpd.ask_commands
+        svc.change({"scope": "all", "action": "save", "record": {**RECORD, "name": "shared"}})
+        svc.change({"scope": "all", "action": "save", "record": {**RECORD, "name": "check", "replaces": "check", "menu": "My check"}})
+
+    def test_remove_on_an_all_projects_command_is_a_message_and_removes_nothing(self):
+        with chrome() as cdp:
+            js = self.editor(cdp, EDITOR + "&name=shared")
+            self.until(js, "!!document.querySelector('#slash-remove')", "the command opens")
+            self.click(js, "#slash-remove")
+            self.until(js, "!!document.querySelector('.pub-msg p.note')", "a plain note, not an error")
+            self.assertEqual(js("document.querySelectorAll('.pub-msg p.error').length"), 0)
+            self.assertEqual(js("document.querySelector('.pub-msg p.note').innerText"), "This slash command is kept for all projects. Remove it from the all projects tab.")
+            self.assertEqual(self.files(), ["check.json", "shared.json"])
+            self.assertEqual(self.files("ABC"), [])
+
+    def test_reset_on_a_built_in_edited_for_all_projects_says_so_and_removes_nothing(self):
+        with chrome() as cdp:
+            js = self.editor(cdp, EDITOR + "&name=check")
+            self.until(js, "!!document.querySelector('#slash-reset')", "the built-in opens")
+            self.click(js, "#slash-reset")
+            self.until(js, "!!document.querySelector('.pub-msg p.note')", "a plain note")
+            self.assertEqual(js("document.querySelector('.pub-msg p.note').innerText"), "This version is kept for all projects. Reset it from the all projects tab.")
+            self.assertEqual(self.files(), ["check.json", "shared.json"])
+
+    def test_save_on_an_all_projects_command_says_it_makes_a_project_copy_and_does(self):
+        with chrome() as cdp:
+            js = self.editor(cdp, EDITOR + "&name=shared")
+            self.until(js, "!!document.querySelector('#slash-copy-note')", "the note shows before saving")
+            self.assertEqual(js("document.querySelector('#slash-copy-note').innerText"), "Saving makes a copy for this project only. The one for all projects stays as it is.")
+            self.type_into(js, "#sl-menu", "Own line")
+            self.click(js, "#slash-save")
+            self.until(js, "!!document.querySelector('.slash-side [data-pick=shared]')", "saved")
+            self.until(js, "!document.querySelector('#slash-copy-note')", "the note goes once the copy is the project's own")
+            self.assertEqual(self.files("ABC"), ["shared.json"])
+            self.assertEqual(json.loads((self.d / "ask-commands" / "shared.json").read_text(encoding="utf-8"))["menu"], "Monday summary")
+
+    def test_the_all_projects_tab_still_removes_and_resets(self):
+        with chrome() as cdp:
+            js = self.editor(cdp, "/?slash-editor=1&scope=all&name=shared")
+            self.until(js, "!!document.querySelector('#slash-remove')", "opens")
+            self.assertEqual(js("document.querySelectorAll('#slash-copy-note').length"), 0)
+            self.click(js, "#slash-remove")
+            self.until(js, "!document.querySelector('.slash-side [data-pick=shared]')", "removed")
+            self.assertEqual(self.files(), ["check.json"])
+
+
+class LimitsAreSaid(Base):
+    def test_a_line_past_the_limit_is_kept_and_said_not_cut(self):
+        with chrome() as cdp:
+            js = self.editor(cdp, EDITOR + "&new=1")
+            self.until(js, "!!document.querySelector('#sl-menu')", "the form opens")
+            self.type_into(js, "#sl-name", "long")
+            self.type_into(js, "#sl-menu", "m" * 71)
+            self.type_into(js, "#sl-text", "t" * 1001)
+            self.until(js, "document.querySelectorAll('.slash-err').length > 1", "the limits are said")
+            self.assertEqual(js("document.querySelector('#sl-menu').value.length"), 71)
+            self.assertEqual(js("document.querySelector('#sl-text').value.length"), 1001)
+            said = js("[...document.querySelectorAll('.slash-err')].map(e => e.innerText).join('|')")
+            self.assertIn("The line in the menu can be at most 70 characters.", said)
+            self.assertIn("The instructions can be at most 1,000 characters.", said)
+            self.assertTrue(js("document.querySelector('#slash-save').disabled"))
+            self.assertEqual(js("document.querySelector('#sl-menu').maxLength"), -1)
+
+
+class AskingOff(Base):
+    OFF = "Asking is off. Turn it on in Settings."
+
+    def turn_on(self):
+        self.s.httpd.app_settings.change_ask({"enabled": True})
+
+    def test_the_editor_and_the_settings_list_say_asking_is_off(self):
+        self.s.httpd.app_settings.change_ask({"enabled": False})
+        with chrome() as cdp:
+            js = self.editor(cdp)
+            self.until(js, "!!document.querySelector('#slash-off')", "the editor says so")
+            self.assertEqual(js("document.querySelector('#slash-off').innerText"), self.OFF)
+            js = self.settings(cdp)
+            self.until(js, "!!document.querySelector('#slash-project #slash-off')", "the list says so")
+            self.assertEqual(js("document.querySelector('#slash-project #slash-off').innerText"), self.OFF)
+
+    def test_with_asking_on_neither_says_it(self):
+        self.turn_on()
+        with chrome() as cdp:
+            js = self.editor(cdp)
+            self.until(js, "document.documentElement.dataset.ready === '1' && !!document.querySelector('.slash-side')", "drawn")
+            self.assertTrue(wait(lambda: js("document.querySelectorAll('#slash-off').length") == 0, 3))
+            js = self.settings(cdp)
+            self.until(js, "!!document.querySelector('#slash-project [data-slash-row]')", "the list is read")
+            self.assertEqual(js("document.querySelectorAll('#slash-off').length"), 0)
+
+
+class PanelFeed(Base):
+    def panel(self, enabled):
+        self.s.httpd.ask = Stub(enabled=enabled)
+        self.s.httpd.app_settings.change_ask({"enabled": enabled})
+        self.s.httpd.ask_commands = Counting(ask_commands_service.AskCommandsService(self.d))
+        return self.s.httpd.ask_commands
+
+    def open_panel(self, cdp):
+        sid = navigate(cdp, self.s.port, for_project("#dashboard&p=ABC"))
+        js = lambda e: cdp.js(e, sid)          # noqa: E731
+        self.until(js, "document.querySelectorAll('.sec').length > 0 || !!document.querySelector('#no-sections')", "the report drew", 30)
+        for kind in ("keyDown", "keyUp"):
+            cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "/", "code": "Slash", "windowsVirtualKeyCode": 191, "modifiers": 0}, sid)
+        self.until(js, "!!document.querySelector('#ask-box')", "the panel is open", 30)
+        time.sleep(1)
+        return js
+
+
+class PanelFeedClassic(PanelFeed):
+    def test_classic_reads_the_own_commands_when_the_panel_opens(self):
+        counter = self.panel(True)
+        with chrome() as cdp:
+            self.open_panel(cdp)
+        self.assertGreaterEqual(counter.reads, 1)
+
+    def test_asking_off_the_box_is_shut_so_no_slash_command_can_run(self):
+        counter = self.panel(False)
+        with chrome() as cdp:
+            js = self.open_panel(cdp)
+            self.until(js, "document.querySelector('#ask-box').disabled", "the box is shut")
+            self.assertEqual(js("document.querySelectorAll('#ask-slash').length"), 0)
+        self.assertEqual(counter.reads, 0)
+
+
+class PanelFeedCards(PanelFeed):
+    theme = None
+
+    def test_cards_makes_no_read_of_the_slash_commands(self):
+        counter = self.panel(True)
+        with chrome() as cdp:
+            self.open_panel(cdp)
+        self.assertEqual(counter.reads, 0)
 
 
 class CardsKeepsItsPage(Base):
