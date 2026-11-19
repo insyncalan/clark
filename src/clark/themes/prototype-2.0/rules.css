@@ -389,7 +389,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 /* Row 1401 (Settings sidebar): the prototype's chip text is 15 px; the open page is violet text on a lilac fill with a 3 px bar inset 7 px top and bottom; a group has 12 px above it and its pages 4 px apart. Dark keeps its own tokens. Classic only; Cards keeps its look. The spacing starts at 1100 px: from 900 to 1099 the list is packed on purpose (item 1177). */
 @media (min-width: 900px) {
   .set-chip { font-size: 15px; }
-  .set-chip[aria-current], .set-chip[aria-current]:hover { background: #ECE9FB; color: #5B47D8; }
+  .set-chip[aria-current], .set-chip[aria-current]:hover { background: #ECE9FB; color: var(--brand-blue); }
   :root[data-theme=dark] .set-chip[aria-current], :root[data-theme=dark] .set-chip[aria-current]:hover { background: var(--brand-blue-tint); color: var(--status-blue-text); }
   .set-chip[aria-current]::before { top: 7px; bottom: 7px; }
 }
@@ -400,11 +400,9 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
   .set-nav .plain { gap: 4px; }
 }
 /* Row 1402 (Settings Projects card, Classic only; Cards keeps its look): the prototype's header has a 1px rule under it and no dividers between cells, the cells are padded 8px 10px 8px 0, and Add project is the primary navy button with white text and radius 8. Dark keeps the Theme's own tokens for the colours. */
-.projects table.proj-table thead th { border-left: 0; border-bottom: 1px solid rgb(217, 224, 239); }
-:root[data-theme=dark] .projects table.proj-table thead th { border-bottom-color: var(--grey-200); }
-@media (prefers-color-scheme: dark) { :root[data-theme=auto] .projects table.proj-table thead th { border-bottom-color: var(--grey-200); } }
+.projects table.proj-table thead th { border-left: 0; border-bottom: 1px solid var(--grey-200); }
 .projects table.proj-table :is(th, td), .projects table.proj-table :is(th, td):first-child { padding: 8px 10px 8px 0; }
-.projects #npBtn.newb { background: rgb(6, 47, 58); border-color: rgb(6, 47, 58); border-radius: 8px; }
+.projects #npBtn.newb { background: var(--brand-navy); border-color: var(--brand-navy); border-radius: 8px; }
 :root[data-theme=dark] .projects #npBtn.newb { background: var(--brand-blue); border-color: var(--brand-blue); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .projects #npBtn.newb { background: var(--brand-blue); border-color: var(--brand-blue); } }
 

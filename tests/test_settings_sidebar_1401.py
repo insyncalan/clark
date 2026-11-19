@@ -75,6 +75,7 @@ class RealSettings(unittest.TestCase):
 
     def test_cards_unchanged(self):
         c = self.look(None, 1400, "light")
+        # Measured: Cards' chip is 15px (brand --size-body: 15px in src/clark/brand/tokens.css). The ticket's "built 14px" is the prototype Theme's --size-body, which Cards does not load.
         self.assertEqual(c["chipSize"], "15px")
         self.assertEqual(c["curColor"], c["oldFg"])
         self.assertEqual(c["curBg"], c["oldBg"])
