@@ -72,6 +72,19 @@ class BandWiring(Base):
                 p.until(f"JSON.stringify({BANDED}) === JSON.stringify({json.dumps(before)})", "shown again, the bands are back")
                 self.assertEqual(p.js("window.marker"), "same page", "no reload")
 
+    def test_the_default_text_section_titled_current_state_is_the_summary(self):
+        """Stark and Romanoff 19-11: the default summary is a TEXT section titled Current state (item 1188); it is never banded and does not count."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width)
+                n, right = len(p.js(BANDED)), p.js(RIGHT)
+                p.js("(() => { const e = document.querySelectorAll('.secs > .sec')[0]; e.dataset.type = 'text'; e.querySelector('.sec-h').textContent = 'Current state'; })()")
+                S = "[...document.querySelectorAll('.secs > .sec')].flatMap((e, i) => e.dataset.type === 'text' && e.querySelector('.sec-h').textContent.trim() === 'Current state' ? [i] : [])"
+                self.assertEqual(p.js(S), [0])
+                want = expect([True] * n, p.js(S), right)
+                p.until(f"JSON.stringify({BANDED}) === JSON.stringify({json.dumps(want)})", "the Current state text section is left out of the bands")
+                self.assertFalse(p.js("document.querySelectorAll('.secs > .sec')[0].classList.contains('band')"))
+
     def test_a_type_change_re_bands(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:

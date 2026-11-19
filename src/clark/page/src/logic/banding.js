@@ -24,11 +24,18 @@ export function bandIds(items) {
   return out;
 }
 
+// The summary is the Current state block: the older type "current", or the default text section titled "Current state" (item 1188).
+export function isSummary(e) {
+  if (e.dataset.type === "current") return true;
+  const h = e.querySelector(".sec-h");
+  return e.dataset.type === "text" && !!h && h.textContent.trim() === "Current state";
+}
+
 // The DOM side: read the sections of `.secs` under root, set or clear .band on each. Returns the ids banded.
 export function applyBands(root) {
   const els = [...root.querySelectorAll(".secs > .sec")];
   const ids = new Set(bandIds(els.map((e, i) => ({
-    id: i, hidden: e.classList.contains("is-hidden") || e.classList.contains("drag-slot"), summary: e.dataset.type === "current",
+    id: i, hidden: e.classList.contains("is-hidden") || e.classList.contains("drag-slot"), summary: isSummary(e),
     slot: e.classList.contains("slot-left") ? "left" : e.classList.contains("slot-right") ? "right" : "full" }))));
   els.forEach((e, i) => { if (e.classList.contains("band") !== ids.has(i)) e.classList.toggle("band", ids.has(i)); });
   return [...ids];

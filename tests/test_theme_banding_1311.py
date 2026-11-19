@@ -126,7 +126,8 @@ class Banding(unittest.TestCase):
         self.assertEqual(theme("auto")["--sec-band-bg"], theme("dark")["--sec-band-bg"])
 
     def test_band_declarations(self):
-        self.assertEqual(rule(SEL), ["background: var(--sec-band-bg)", "border-left: 0", "border-radius: 0", "padding: var(--sec-pad-t, 20px) var(--sec-px, 22px) 18px"])
+        self.assertEqual(rule(SEL), ["--sec-pad-t: 20px", "--sec-px: 22px", "background: var(--sec-band-bg)", "border-left: 0", "border-radius: 0", "padding: 20px 22px 18px"])
+
 
     def test_band_is_a_class_not_a_count(self):
         """Ruling 19-11: CSS cannot count only the visible sections, so no :nth-child band rule is left."""
