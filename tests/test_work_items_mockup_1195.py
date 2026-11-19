@@ -583,8 +583,9 @@ class Classic(Look):
             self.assertEqual(q(".wil-add .ddmenu", "boxShadow"), ["rgba(6, 47, 58, 0.2) 0px 10px 30px 0px"], "menu shadow")
 
     # The values below were measured in Chrome on work-items-mockup.html at 1400 and 900.
-    MOCK = {"th": ["11.5px", "rgb(85, 103, 122)"], "pr": ["rgb(246, 248, 252)", "rgb(14, 36, 48)", "rgb(217, 224, 239)", "12px", "600", "6px"],
-            "prh": ["rgb(254, 240, 199)", "rgb(181, 71, 8)", "rgb(242, 217, 138)"], "pru": ["rgb(253, 236, 234)", "rgb(180, 35, 24)", "rgb(244, 199, 194)"],
+    # Row 1409: the priority chips take the one mapping the rating matrix has (pr is Medium amber, prh High red, pru Urgent maroon), not the mock-up's grey / amber / red
+    MOCK = {"th": ["11.5px", "rgb(85, 103, 122)"], "pr": ["rgb(252, 239, 207)", "rgb(138, 90, 0)", "rgb(252, 239, 207)", "12px", "600", "6px"],
+            "prh": ["rgb(246, 224, 221)", "rgb(163, 48, 31)", "rgb(246, 224, 221)"], "pru": ["rgb(122, 27, 46)", "rgb(255, 255, 255)", "rgb(122, 27, 46)"],
             "tA": ["rgb(237, 233, 255)", "rgb(75, 58, 181)"], "tR": ["rgb(253, 236, 234)", "rgb(180, 35, 24)"], "tI": ["rgb(107, 31, 42)", "rgb(255, 255, 255)"],
             "tD": ["rgb(231, 246, 236)", "rgb(6, 118, 71)"], "hid": ["rgb(238, 240, 244)", "rgb(152, 162, 179)"], "add": ["rgb(152, 162, 179)", "rgb(91, 71, 216)", "6px", "dashed"]}
 
