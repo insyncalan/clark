@@ -355,7 +355,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 /* Row 1327 slice 2 (Classic only: Cards keeps its Settings Version panel as on main): the download panel's tinted block and 140 x 8 progress bar from the approved mock-up. */
 .upd-c .upd-up { padding: 6px 12px 10px; border-radius: 8px; background: var(--brand-blue-tint); }      /* 1327 s2, the mock-up's .row.up: a tinted block for the version that is ready, downloading or downloaded */
 .upd-c .upd-up > p:first-child { margin: 0 0 4px; }
-.upd-pg { display: inline-block; vertical-align: middle; width: 140px; height: 8px; border-radius: 4px; background: var(--grey-200); overflow: hidden; margin-right: 8px; }      /* the mock-up's .pg: 140 x 8, radius 4 */
+.upd-pg { display: inline-block; vertical-align: middle; width: 140px; height: 8px; border-radius: 4px; background: var(--grey-100); overflow: hidden; margin-right: 8px; }      /* the mock-up's .pg: 140 x 8, radius 4 */
 .upd-pg i { display: block; height: 100%; background: var(--brand-blue); }
 .upd-c .upd-up .row { align-items: center; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
