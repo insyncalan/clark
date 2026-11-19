@@ -13,7 +13,7 @@ import { DENSITIES, AppearancePick, KeysSwitch, pickDensity } from "./Personal.j
 import { CopyFolder } from "./Safety.jsx";
 import { listBackups, setCopyFolder } from "./safetyApi.js";
 import { LocalFolderPick } from "./ClientFolder.jsx";
-import { askOn, askStatus, loadAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
+import { askOn, askStatus, loadAsk, ASK_OFF_LINE, ASK_ON_ALL_LINE, ASK_TURN_OFF_ALL, ASK_TURN_ON_ALL, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
 import { useAskFlip } from "./AskSettings.jsx";
 import { announceSwitch, leaveSwitch } from "./switchToast.js";
 
@@ -95,8 +95,8 @@ function AskRow() {
   useEffect(() => { loadAsk(true); return leaveSwitch; }, []);      // row 1024: the Asking card is on another page now, so this row asks for the switch itself each time it opens; both show the same state
   const bad = msg && msg.text ? <small class={msg.kind === "error" ? "fld-bad" : ""} role={msg.kind === "error" ? "alert" : "status"}>{msg.text}</small> : null;
   return (
-    <SettingRow id="ess-ask" name="Asking on or off" help={status === "loading" ? ASK_CHECKING_LINE : status === "unavailable" ? ASK_UNAVAILABLE_LINE : on ? "Asking is on." : ASK_OFF_LINE} helpId="ess-ask-line" bad={bad}>
-      <button type="button" id="ess-ask" class="btn" ref={switchRef} data-ess-ask aria-pressed={on ? "true" : "false"} aria-describedby="ess-ask-line" disabled={busy || status !== "ready"} onClick={flip}>{on ? "Turn off asking" : "Turn on asking"}</button>
+    <SettingRow id="ess-ask" name="Asking on or off" help={status === "loading" ? ASK_CHECKING_LINE : status === "unavailable" ? ASK_UNAVAILABLE_LINE : on ? ASK_ON_ALL_LINE : ASK_OFF_LINE} helpId="ess-ask-line" bad={bad}>
+      <button type="button" id="ess-ask" class="btn" ref={switchRef} data-ess-ask aria-pressed={on ? "true" : "false"} aria-describedby="ess-ask-line" disabled={busy || status !== "ready"} onClick={flip}>{on ? ASK_TURN_OFF_ALL : ASK_TURN_ON_ALL}</button>
     </SettingRow>
   );
 }
