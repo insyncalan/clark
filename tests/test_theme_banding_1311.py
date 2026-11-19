@@ -20,6 +20,12 @@ TOKENS = (FOLDER / "tokens.css").read_text(encoding="utf-8")
 RULES = (FOLDER / "rules.css").read_text(encoding="utf-8")
 BRAND = (ROOT / "src" / "clark" / "brand" / "tokens.css").read_text(encoding="utf-8")
 SEL = ".secs > .sec:nth-child(odd):not(.is-hidden):not(.drag-slot)"
+HID = ":not(.is-hidden):not(.drag-slot)"
+PAIR_L = ".secs > .sec.slot-left:nth-child(odd)" + HID
+PAIR_R = ".secs > .sec.slot-left:nth-child(odd)" + HID + " + .sec.slot-right" + HID
+PAIR_L2 = ".secs > .sec.slot-left" + HID + ":has(+ .sec.slot-right:nth-child(odd)" + HID + ")"
+CMF = 'html[data-density="comfortable"] '
+PAIR_R2 = ".secs > .sec.slot-right:nth-child(odd)" + HID
 BLOCKS = {
     "light": r"^:root \{(.*?)^\}",
     "dark": r":root\[data-theme=dark\]\s*\{(.*?)\n\}",
@@ -104,10 +110,19 @@ class Banding(unittest.TestCase):
         self.assertEqual(theme("auto")["--sec-band-bg"], theme("dark")["--sec-band-bg"])
 
     def test_band_declarations(self):
-        self.assertEqual(rule(SEL), ["background: var(--sec-band-bg)", "border-left: 0", "border-radius: var(--radius-lg)"])
+        self.assertEqual(rule(SEL), ["background: var(--sec-band-bg)", "border-left: 0", "border-radius: 0"])
+
+    def test_pair_is_one_banded_row(self):
+        """Row 1311 gap: a pair (This week | Next week) is banded as one row, whichever half has the odd place, and the column gap is filled."""
+        self.assertEqual(rule(PAIR_L), ["background: var(--sec-band-bg)", "border-left: 0", "border-radius: 0"])
+        self.assertEqual(rule(PAIR_R), ["background: var(--sec-band-bg)", "border-left: 0", "border-radius: 0"])
+        self.assertEqual(rule(PAIR_L2), ["background: var(--sec-band-bg)", "border-left: 0", "border-radius: 0"])
+        self.assertEqual(rule(PAIR_R2), ["background: var(--sec-band-bg)", "border-left: 0", "border-radius: 0"])
+        self.assertEqual(rule(CMF + PAIR_L + ", " + CMF + PAIR_L2, prefix=r"^@media \(min-width: 901px\) \{ "), ["box-shadow: var(--space-5) 0 0 0 var(--sec-band-bg)"])
 
     def test_print_has_no_band(self):
-        self.assertEqual(rule(SEL, prefix=r"^@media print \{ "), ["background: none", "border-radius: 0"])
+        both = ", ".join((SEL, ".secs > .sec.slot-left" + HID, ".secs > .sec.slot-right" + HID))
+        self.assertEqual(rule(both, prefix=r"^@media print \{ "), ["background: none", "border-radius: 0", "box-shadow: none"])
 
     def test_odd_visible_sections_only(self):
         self.assertIn(":nth-child(odd)", SEL)
@@ -126,7 +141,7 @@ class Banding(unittest.TestCase):
         self.assertEqual(theme("dark")["--gutter-rule"], "#2A2650")
 
     def test_band_has_no_literal_colour_in_rules(self):
-        self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(", "\n".join(l for l in RULES.split("\n") if SEL in l)))
+        self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(", "\n".join(l for l in RULES.split("\n") if SEL in l or "slot-left" in l and "sec-band-bg" in l)))
 
 
 class Contrast(unittest.TestCase):
@@ -192,7 +207,7 @@ class RealColours(unittest.TestCase):
                     self.assertNotEqual(rows[2][0], "rgba(0, 0, 0, 0)", tag)      # the 3rd is
                     self.assertEqual(rows[3][0], "rgba(0, 0, 0, 0)", tag)
                     self.assertEqual(rows[4][0], "rgba(0, 0, 0, 0)", tag)      # an odd hidden one is not banded
-                    self.assertNotEqual(rows[0][2], "0px", tag)
+                    self.assertEqual(rows[0][2], "0px", tag)      # row 1311: square corners
                     grad = cdp.js("getComputedStyle(document.body).backgroundImage", sid)
                     stops = [nums(x)[:3] for x in re.findall(r"rgb\([^)]*\)", grad)]
                     band = nums(rows[0][0])
@@ -204,6 +219,34 @@ class RealColours(unittest.TestCase):
                             r = ratio(c, panel)
                             print(f"real {tag} {n} {r:.2f}")
                             self.assertGreaterEqual(r, 4.5, f"{tag} {n}")
+
+    def test_pair_is_banded_whole_row_with_square_corners_at_1400(self):
+        nums = lambda v: [float(x) for x in re.findall(r"[\d.]+", v)]
+        with chrome() as cdp:
+            for lead, dens in ((0, "compact"), (1, "compact"), (0, "comfortable"), (1, "comfortable")):      # the pair starts at an odd place (1st, 2nd child) or an even one
+                sid = self.load(cdp, 1400, "light")
+                cdp.js("document.documentElement.setAttribute('data-density', %r)" % dens, sid)
+                cdp.js("""(() => { const secs = document.querySelector('.secs'); secs.innerHTML = %s
+                    + '<div class="sec slot-left"><div class="sec-head">This week</div></div><div class="sec slot-right"><div class="sec-head">Next week</div></div><div class="sec slot-full"><div class="sec-head">After</div></div>'; })()""" % ("''" if lead == 0 else "'<div class=\"sec slot-full\"><div class=\"sec-head\">Lead</div></div>'"), sid)
+                rows = cdp.js("[...document.querySelectorAll('.secs > .sec')].map((e) => { const s = getComputedStyle(e), r = e.getBoundingClientRect(); return [s.backgroundColor, s.borderTopLeftRadius, s.borderTopRightRadius, s.borderBottomLeftRadius, s.borderBottomRightRadius, s.boxShadow, r.left, r.right, r.top, r.bottom]; })", sid)
+                a, b = rows[lead], rows[lead + 1]
+                tag = f"lead {lead} {dens}"
+                gap = b[6] - a[7]
+                self.assertAlmostEqual(gap, 24 if dens == "comfortable" else 0, delta=1.5, msg=f"{tag} {rows}")
+                for r in rows:
+                    self.assertEqual(r[1:5], ["0px"] * 4, tag)
+                if lead == 0:
+                    self.assertEqual([r[0] == "rgba(0, 0, 0, 0)" for r in rows], [False, False, False], tag)
+                else:
+                    self.assertEqual([r[0] == "rgba(0, 0, 0, 0)" for r in rows], [False, False, False, True], tag)
+                self.assertEqual(a[0], b[0], tag)
+                if dens == "comfortable":
+                    self.assertTrue(a[5].endswith("24px 0px 0px 0px"), tag + " (the left half fills the gap) " + a[5])
+                    self.assertEqual(b[5], "none", tag)
+                else:
+                    self.assertEqual(a[5], "none", tag + " (no gap, no shadow)")
+                self.assertEqual(a[8], b[8], tag)
+                self.assertEqual(a[9], b[9], tag)
 
 
 if __name__ == "__main__":

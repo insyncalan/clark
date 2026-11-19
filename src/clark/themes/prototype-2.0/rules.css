@@ -113,8 +113,14 @@ html[data-mode="view"] .sec { border-left: 2px solid var(--gutter-rule); padding
 .wil-table .wil-c-id { width: 84px; }
 .wil-all-b { color: var(--status-blue); font-weight: var(--weight-medium); min-height: var(--space-6); padding: 6px 0; }
 /* Row 1311: every other visible section (the odd ones: the picture bands At a glance, the 1st) is a white panel on the page gradient and has no gutter rule. The served View leaves hidden sections out of the page, so the odd child is the odd visible section there; Edit draws them (dashed, never banded). */
-.secs > .sec:nth-child(odd):not(.is-hidden):not(.drag-slot) { background: var(--sec-band-bg); border-left: 0; border-radius: var(--radius-lg); }
-@media print { .secs > .sec:nth-child(odd):not(.is-hidden):not(.drag-slot) { background: none; border-radius: 0; } }
+.secs > .sec:nth-child(odd):not(.is-hidden):not(.drag-slot) { background: var(--sec-band-bg); border-left: 0; border-radius: 0; }
+/* Row 1311, by-eye gaps: square corners (the prototype has none), and a pair (This week | Next week) is one section of the prototype, so the whole row is banded whichever half has the odd place, and in Comfortable density (24px column gap) the left half's shadow fills the gap; in Compact the right half already reaches back across it, so no shadow (it would double the band under the right half). */
+.secs > .sec.slot-left:nth-child(odd):not(.is-hidden):not(.drag-slot) { background: var(--sec-band-bg); border-left: 0; border-radius: 0; }
+.secs > .sec.slot-left:nth-child(odd):not(.is-hidden):not(.drag-slot) + .sec.slot-right:not(.is-hidden):not(.drag-slot) { background: var(--sec-band-bg); border-left: 0; border-radius: 0; }
+.secs > .sec.slot-left:not(.is-hidden):not(.drag-slot):has(+ .sec.slot-right:nth-child(odd):not(.is-hidden):not(.drag-slot)) { background: var(--sec-band-bg); border-left: 0; border-radius: 0; }
+.secs > .sec.slot-right:nth-child(odd):not(.is-hidden):not(.drag-slot) { background: var(--sec-band-bg); border-left: 0; border-radius: 0; }
+@media (min-width: 901px) { html[data-density="comfortable"] .secs > .sec.slot-left:nth-child(odd):not(.is-hidden):not(.drag-slot), html[data-density="comfortable"] .secs > .sec.slot-left:not(.is-hidden):not(.drag-slot):has(+ .sec.slot-right:nth-child(odd):not(.is-hidden):not(.drag-slot)) { box-shadow: var(--space-5) 0 0 0 var(--sec-band-bg); } }
+@media print { .secs > .sec:nth-child(odd):not(.is-hidden):not(.drag-slot), .secs > .sec.slot-left:not(.is-hidden):not(.drag-slot), .secs > .sec.slot-right:not(.is-hidden):not(.drag-slot) { background: none; border-radius: 0; box-shadow: none; } }
 .wil-table td { padding-top: 9px; padding-bottom: 9px; }
 .wil-table tbody tr { height: 49px; }
 .wil-table td.wil-c-due { font-size: var(--size-caption); line-height: normal; }
