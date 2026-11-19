@@ -235,6 +235,48 @@ class Types(Base):
             got = ask_extract.html_groups(b"".join(b"<p>l%d</p>" % i for i in range(10)))
         self.assertEqual(got, [(None, ["l0", "l1", "l2"])])
 
+    def test_pptx_paragraphs_runs_and_names(self):
+        two_runs = b'<a:p %s><a:r><a:t>he</a:t></a:r>junk<a:r><a:t>llo</a:t></a:r>tail</a:p><a:p %s><a:r><a:t>next</a:t></a:r></a:p>' % (NS.encode(), NS.encode())
+        raw = pptx({}, extra={"ppt/slides/slide1.xml": b"<r>" + two_runs + b"</r>"})
+        self.assertEqual(ask_extract.pptx_groups(raw), [("slide 1", ["hello", "next"])])
+        plain = b'<s><p><r><t>unprefixed</t></r>zzjunk</p><p><r><t>two</t></r></p></s>'
+        raw = pptx({}, extra={"ppt/slides/slide1.xml": plain})
+        self.assertEqual(ask_extract.pptx_groups(raw), [("slide 1", ["unprefixed", "two"])])
+        tab = b'<s %s><a:p><a:tab>zztab</a:tab><a:pt>zzpt</a:pt><a:r><a:t>ok</a:t></a:r></a:p></s>' % NS.encode()
+        self.assertEqual(ask_extract.pptx_groups(pptx({}, extra={"ppt/slides/slide1.xml": tab})), [("slide 1", ["ok"])])
+
+    def test_pptx_cut_off_xml_is_refused_and_a_part_of_exactly_the_limit_is_read(self):
+        cut = b'<a:p %s><a:r><a:t>zzcut' % NS.encode()
+        with self.assertRaises(ValueError):
+            ask_extract.pptx_groups(pptx({}, extra={"ppt/slides/slide1.xml": cut}))
+        ok = sxml("exact")
+        with mock.patch.object(ask_extract, "MAX_XML", len(ok)):
+            self.assertEqual(ask_extract.pptx_groups(pptx({1: ["exact"]})), [("slide 1", ["exact"])])
+        with mock.patch.object(ask_extract, "MAX_XML", len(ok) - 1):
+            with self.assertRaises(ValueError):
+                ask_extract.pptx_groups(pptx({1: ["exact"]}))
+
+    def test_the_limits_are_the_documented_ones(self):
+        mb = 1024 * 1024
+        self.assertEqual((ask_extract.MAX_MEMBERS, ask_extract.MAX_SLIDES, ask_extract.MAX_UNCOMPRESSED, ask_extract.MAX_XML),
+                         (5000, 2000, 100 * mb, 8 * mb))
+        self.assertEqual((ask_extract.MAX_HTML_BYTES, ask_extract.MAX_HTML_LINES), (5 * mb, 200000))
+
+    def test_every_html_block_tag_breaks_a_line_and_every_skipped_tag_hides_its_text(self):
+        blocks = ("p div br li ul ol tr table h1 h2 h3 h4 h5 h6 section article header footer blockquote pre hr td th title main nav aside "
+                  "form dd dt dl").split()
+        for tag in blocks:
+            self.assertEqual(ask_extract.html_groups(f"x<{tag}>y".encode()), [(None, ["x", "y"])], tag)
+        for tag in ("br", "hr"):
+            self.assertEqual(ask_extract.html_groups(f"x<{tag}/>y".encode()), [(None, ["x", "y"])], tag)
+        self.assertEqual(ask_extract.html_groups(b"x<span>y</span><b>z</b>"), [(None, ["xyz"])])
+        for tag in ("script", "style", "noscript", "template", "head"):
+            self.assertEqual(ask_extract.html_groups(f"x<{tag}>hidden</{tag}>y".encode()), [(None, ["xy"])], tag)
+
+    def test_html_unclosed_skip_tag_hides_the_rest(self):
+        self.assertEqual(ask_extract.html_groups(b"<p>shown</p><style>hidden"), [(None, ["shown"])])
+        self.assertEqual(ask_extract.html_groups(b"<head><p>no</p></head><p>yes</p>"), [(None, ["yes"])])
+
 
 if __name__ == "__main__":
     unittest.main()

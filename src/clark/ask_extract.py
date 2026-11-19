@@ -90,13 +90,12 @@ def pptx_groups(raw, truncated=False):
                 notes[int(m.group(1))] = i
         if len(slides) > MAX_SLIDES:
             raise ValueError("too many slides")
-        total, out = 0, []
+        out = []
         for n in sorted(set(slides) | set(notes)):
             lines = []
             for info in (slides.get(n), notes.get(n)):
                 if info is None:
                     continue
-                total += info.file_size
                 data = _member(z, info)
                 lines += _xml_lines(data)
             if lines:
@@ -111,7 +110,6 @@ def pptx_groups(raw, truncated=False):
 _SKIP = {"script", "style", "noscript", "template", "head"}
 _BREAK = {"p", "div", "br", "li", "ul", "ol", "tr", "table", "h1", "h2", "h3", "h4", "h5", "h6", "section", "article", "header",
           "footer", "blockquote", "pre", "hr", "td", "th", "title", "main", "nav", "aside", "form", "dd", "dt", "dl"}
-_VOID = {"br", "hr", "img", "input", "meta", "link", "area", "base", "col", "embed", "source", "track", "wbr"}
 
 
 class _Text(HTMLParser):
@@ -121,12 +119,12 @@ class _Text(HTMLParser):
 
     def _flush(self):
         text = " ".join("".join(self.cur).split())
-        if text and len(self.lines) < MAX_HTML_LINES:
+        if text:
             self.lines.append(text)
         del self.cur[:]
 
     def handle_starttag(self, tag, attrs):
-        if tag in _SKIP and tag not in _VOID:
+        if tag in _SKIP:
             self.skip += 1
         if tag in _BREAK:
             self._flush()
