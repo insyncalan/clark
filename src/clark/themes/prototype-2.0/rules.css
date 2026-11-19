@@ -349,7 +349,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .fbt-tag { padding-top: 14px; padding-bottom: 14px; }
 /* Row 1342 part 2: the empty-send error (red 13px, 4 above) as the 1298 mockup draws it. */
 .fbt-error { margin-top: 4px; color: var(--status-red-text); font-size: 13px; }
-/* Row 1365: the people or contract notice in Settings, Source folders (amber, under the flagged folder's line; Romanoff M7230/31). Classic only. */
+/* Row 1365: the people or contract notice in Settings, Source folders (amber, under the flagged folder's line). Classic only. */
 .ask-folders li.ask-warn { display: block; margin-top: 6px; padding: 6px 12px; border: 0; border-radius: 6px; background: var(--tone-amber-tint); color: var(--tone-amber-text); font-size: 13px; }   /* row 1365: amber, under the flagged folder's line, full width */
 .ask-warn p { margin: 0; }
 .ask-warn [data-ask-warn-name] { font-weight: 500; }
