@@ -43,8 +43,12 @@ def safe_settings(settings):
 
 
 def system_line(system=None, release=None):
-    name = SYSTEM_NAMES.get(system or sys.platform, "Other system")
-    return f"{name} {clog.scrub(release if release is not None else stdlib_platform.release(), 40)}".strip()
+    """The System line. On macOS the version is the one macOS names (14.5), not the Darwin kernel's; an empty answer falls back to the release text."""
+    system = system or sys.platform
+    name = SYSTEM_NAMES.get(system, "Other system")
+    if release is None:
+        release = (stdlib_platform.mac_ver()[0] if system == "darwin" else "") or stdlib_platform.release()
+    return f"{name} {clog.scrub(release, 40)}".strip()
 
 
 def build(log, version, settings=None, counts=None, home=None, now=None, python=None, system=None, release=None):

@@ -121,10 +121,31 @@ class Words(unittest.TestCase):
         self.assertEqual(call("FT.pageWords({view:'settings',page:''})"), "Settings, Projects")
         self.assertEqual(call("FT.pageWords({view:'dashboard',helpOpen:true})"), "Help and about")
 
-    def test_macos_version_from_the_user_agent(self):
-        self.assertEqual(call("FT.systemWords({userAgent:'Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit', platform:'MacIntel'})"), "macOS 14.5")
-        self.assertEqual(call("FT.systemWords({userAgent:'x', platform:'MacIntel'})"), "macOS")
-        self.assertEqual(call("FT.systemWords({userAgent:'x', platform:'Linux x86_64'})"), "Linux x86_64")
+    def test_macos_version_from_the_diagnostics_report(self):
+        # Row 1298: the browser's user agent is frozen at 10.15.7, so the version comes from the server's System line, never from the user agent.
+        ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit"
+        rep = json.dumps("Diagnostics report\n\nVersion: 1\nSystem: macOS 14.5\nLogging: normal")
+        self.assertEqual(call("FT.systemWords({userAgent:%s, platform:'MacIntel'}, %s)" % (json.dumps(ua), rep)), "macOS 14.5")
+        self.assertEqual(call("FT.systemWords({userAgent:'x', platform:'Linux x86_64'}, %s)" % rep), "Linux x86_64")
+
+    def test_macos_alone_when_the_call_failed_or_has_no_system_line(self):
+        ua = json.dumps("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit")
+        nav = "{userAgent:%s, platform:'MacIntel'}" % ua
+        for rep in ("undefined", "null", "''", json.dumps("Diagnostics report\nVersion: 1"), json.dumps("System: Linux 6.1"), json.dumps("System: macOS"), json.dumps("System: macOS \nx")):
+            self.assertEqual(call("FT.systemWords(%s, %s)" % (nav, rep)), "macOS", rep)
+
+    def test_only_a_whole_system_line_counts_and_its_spaces_are_tidied(self):
+        nav = "{userAgent:'x', platform:'MacIntel'}"      # the platform alone says Mac
+        self.assertEqual(call("FT.systemWords(%s, 'Version: 1\\nSystem: macOS  14.5 \\nLogging: normal')" % nav), "macOS 14.5")
+        for rep in ("a System: macOS 99", "System: 14.5", "System:macOS 14.5", "system: macOS 14.5", "System:  14.5"):
+            self.assertEqual(call("FT.systemWords(%s, %s)" % (nav, json.dumps(rep))), "macOS", rep)
+
+    def test_the_mail_carries_the_endpoint_value(self):
+        nav = "{userAgent:'Mac OS X 10_15_7', platform:'MacIntel'}"
+        ctx = "{version:'1', platform:FT.systemWords(%s, 'x\\nSystem: macOS 14.5\\ny'), page:'Help'}" % nav
+        self.assertIn("System%3A%20macOS%2014.5", call("FT.mail({kind:'Idea',message:'hi'}, %s).href" % ctx))
+        ctx = "{version:'1', platform:FT.systemWords(%s, null), page:'Help'}" % nav
+        self.assertIn("System%3A%20macOS%0A", call("FT.mail({kind:'Idea',message:'hi'}, %s).href" % ctx))
 
 
 class Killers(unittest.TestCase):
@@ -150,13 +171,13 @@ class Killers(unittest.TestCase):
     def test_help_wins_over_settings(self):
         self.assertEqual(call("FT.pageWords({view:'settings',page:'brand',helpOpen:true})"), "Help and about")
 
-    def test_system_patch_version_and_separators(self):
-        ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X %s) AppleWebKit"
-        for raw, want in (("14_5_1", "macOS 14.5.1"), ("14_5_0", "macOS 14.5"), ("14.5.1", "macOS 14.5.1"), ("10.15", "macOS 10.15")):
-            self.assertEqual(call("FT.systemWords({userAgent:%s,platform:'MacIntel'})" % json.dumps(ua % raw)), want, raw)
-
-    def test_system_mac_from_the_user_agent_alone(self):
-        self.assertEqual(call("FT.systemWords({userAgent:'X Mac OS X 13_2 Y',platform:'Other'})"), "macOS 13.2")
+    def test_system_version_is_not_read_from_the_user_agent(self):
+        # Replaces the two user-agent version tests: Row 1298 takes the version from the diagnostics System line only.
+        for raw in ("14_5_1", "13_2", "10.15"):
+            ua = "Mozilla/5.0 (Macintosh; Intel Mac OS X %s) AppleWebKit" % raw
+            self.assertEqual(call("FT.systemWords({userAgent:%s,platform:'MacIntel'})" % json.dumps(ua)), "macOS", raw)
+        self.assertEqual(call("FT.systemWords({userAgent:'X Mac OS X 13_2 Y',platform:'Other'})"), "macOS")
+        self.assertEqual(call("FT.systemWords({userAgent:'Mac OS X',platform:'Other'}, 'System: macOS 14.5.1')"), "macOS 14.5.1")
 
     def test_system_user_agent_data_platform_wins(self):
         self.assertEqual(call("FT.systemWords({userAgentData:{platform:'Windows'},platform:'Linux x86_64',userAgent:'x'})"), "Windows")

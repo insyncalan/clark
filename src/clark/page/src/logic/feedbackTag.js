@@ -46,13 +46,19 @@ export function pageWords({ view, page, helpOpen } = {}) {
   return text(view);
 }
 
-/** The system in words: macOS with its version when the browser's own text gives one, else the platform as the browser names it. */
-export function systemWords(nav) {
+/** The macOS line of the server's diagnostics report ("System: macOS 14.5"): the version, or "" when the report has no such line. */
+function macVersion(report) {
+  const m = /^System: macOS(?: ([^\r\n]*))?$/m.exec(text(report));
+  return m && m[1] ? oneLine(m[1]) : "";
+}
+
+/** The system in words: on a Mac, "macOS" and the version the server's diagnostics report gives (the browser's text is frozen at 10.15.7, so it is never read for a version); no report or no System line: just "macOS". Else the platform as the browser names it. */
+export function systemWords(nav, report) {
   const n = nav || (typeof navigator !== "undefined" ? navigator : {});
   const plat = oneLine((n.userAgentData && n.userAgentData.platform) || n.platform || "");
   if (/mac/i.test(plat) || /Mac OS X/.test(n.userAgent || "")) {
-    const m = /Mac OS X (\d+)[_.](\d+)(?:[_.](\d+))?/.exec(n.userAgent || "");
-    return m ? `macOS ${m[1]}.${m[2]}${m[3] && m[3] !== "0" ? "." + m[3] : ""}` : "macOS";
+    const v = macVersion(report);
+    return v ? `macOS ${v}` : "macOS";
   }
   return plat;
 }
