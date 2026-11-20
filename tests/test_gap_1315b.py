@@ -27,16 +27,18 @@ class Gap1315b(Base, unittest.TestCase):
         rows = [l for l in RULES.splitlines() if l.startswith("/* Row ")]
         i = next(n for n, l in enumerate(rows) if l.startswith("/* Row 1315 fill"))
         self.assertLess(i, next(n for n, l in enumerate(rows) if l.startswith("/* Row 1393")))      # before Row 1393, other rows may sit between
-        self.assertTrue(rows[-1].startswith("/* Row 1314"))
-        block = RULES.split("/* Row 1315 fill", 1)[1].split("\n/* Row ", 1)[0]
-        self.assertNotIn("font-weight: 600", block)
-        self.assertIn("#milestones .msv-b { min-height: 28px; padding: 0 12px; font-weight: var(--weight-medium); }", block)
-        self.assertIn("#milestones .cal-sc button { padding: 0 12px; }", block)
-        self.assertEqual(block.count("min-height"), 1)
-        self.assertEqual(block.count("font-weight"), 1)
-        self.assertNotIn("border-radius", block)
-        self.assertNotIn("background", block)
-        self.assertNotIn("mv-today", block)      # the Today name is the Row 1316 PR's line
+        block = RULES.split("/* Row 1315 fill", 1)[1].split("\n/*", 1)[0]      # up to the next comment of any kind
+        rules = {l.split(" {", 1)[0]: l for l in block.splitlines() if " {" in l}      # found by selector, never by position or count of other rules
+        self.assertIn("#milestones .msv-b", rules)
+        self.assertIn("min-height: 28px; padding: 0 12px; font-weight: var(--weight-medium);", rules["#milestones .msv-b"])
+        self.assertEqual(rules["#milestones .cal-sc button"].split("{", 1)[1].strip(), "padding: 0 12px; }")
+        self.assertIn("border: 1px solid var(--grey-500);", rules["#milestones .msv-sw, #milestones .cal-sc"])
+        self.assertIn("border-left: 1px solid var(--grey-500);", rules["#milestones .msv-b + .msv-b, #milestones .cal-sc button + button"])
+        for l in rules.values():
+            self.assertNotIn("font-weight: 600", l)
+            self.assertNotIn("border-radius", l)      # the radius is the Row 1316 pin's, not this block's
+            self.assertNotIn("background", l)
+            self.assertNotIn("mv-today", l)      # the Today name is the Row 1316 PR's line
 
     def test_frame_padding_12_divider_1px_at_1400(self):
         with chrome() as cdp:
