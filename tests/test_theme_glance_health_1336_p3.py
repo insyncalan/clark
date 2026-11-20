@@ -1,7 +1,8 @@
 """Row 1336 part 3: Project health and the status shapes of the At a glance template under the Classic Theme, measured at 1400 and 900 px
 against the approved mock-up (item 1264, the same elements in the page and in the mock-up): the reason box is as wide and as high as the mock-up's
 (the pill sits above it, not beside it), no word of the reason is broken in the middle, and the status shape in View is the 8x8 dot Edit
-and the mock-up draw. Fictional data only; the mock-up is read from the plan checkout named by the CLARK_PLAN_DIR variable (else the test is skipped).
+and the mock-up draw. Fictional data only; the values are pinned here as constants (tests C1 to C5, which CI runs); the mock-up compare (H1, H2, H4) is an extra that runs only when the plan checkout named by
+the CLARK_PLAN_DIR variable (else ~/ag/plan-1264) holds the mock-up.
 
 Run: TZ=UTC python3 dev/run_tests.py test_theme_glance_health_1336_p3
 """
@@ -12,11 +13,14 @@ import re
 import unittest
 
 from test_server import chrome, wait
+from test_tpl_glance_editor_1264 import OWN  # noqa: E402
 from test_theme_glance_edit_1336 import ClassicEdit, RULES, tearDownModule  # noqa: F401
 
 PLAN = os.environ.get("CLARK_PLAN_DIR") or str(pathlib.Path.home() / "ag" / "plan-1264")
 MOCK = pathlib.Path(PLAN) / "mockups" / "1264-at-a-glance-template" / "html" / "at-a-glance-builder.html"
 REASON = "Rights data for the 1970s catalogue is late; pilot labels are unaffected."
+TILE_LESS_BOX = 34   # the tile width less the reason box width: padding 16 and border 1 on both sides, measured in Chrome at 1400 and 900, Edit and View
+DOT = [8, 8, "block"]   # the counting tile's status shape in View and Edit
 LONG = "Supercalifragilisticexpialidocious catalogue reconciliation incomprehensibilities"
 
 # One health reason box, and what is in it: its box, the line count of its text, and whether any word was broken (a word drawn on two lines).
@@ -126,6 +130,53 @@ class Health(ClassicEdit):
                 for key in (f"view{width}", f"edit{width}"):
                     self.assertEqual(got[key]["page"]["shapes"], [[8, 8, "block"]] * 4, got[key]["page"]["shapes"])
                 self.assertEqual(got[f"view{width}"]["mock"]["shapes"], got[f"view{width}"]["page"]["shapes"])
+
+    def test_C1_the_tile_leaves_the_reason_box_34px_in_edit_and_view_at_1400_and_900(self):
+        with chrome() as cdp:
+            for width in (1400, 900):
+                for view in (False, True):
+                    with self.subTest(width=width, view=view):
+                        got = self.page_numbers(cdp, width, view)
+                        self.assertAlmostEqual(got["cell"]["w"] - got["box"]["w"], TILE_LESS_BOX, delta=1, msg=json.dumps(got))
+                        self.assertGreater(got["box"]["w"], 140, f"no strip of a few words: {got}")
+
+    def test_C2_the_reason_sits_under_the_pill_and_its_lines_do_not_exceed_the_measured_count(self):
+        # Pinned as structure (box top at or below the pill bottom), not as a number that depends on the side bar; 3 lines at 1400 and 4 at 900 are a ceiling.
+        with chrome() as cdp:
+            for width, most in ((1400, 3), (900, 4)):
+                for view in (False, True):
+                    with self.subTest(width=width, view=view):
+                        got = self.page_numbers(cdp, width, view)
+                        self.assertTrue(got["stacked"], f"the reason is under the pill: {got}")
+                        self.assertLessEqual(got["box"]["lines"], most, got)
+
+    def test_C3_no_word_is_broken_and_the_wrap_is_normal_with_break_word_only(self):
+        with chrome() as cdp:
+            for width in (1400, 900):
+                for view in (False, True):
+                    with self.subTest(width=width, view=view):
+                        b = self.page_numbers(cdp, width, view)["box"]
+                        self.assertEqual(b["broken"], 0, f"a word was drawn on two lines: {b}")
+                        self.assertEqual((b["wb"], b["ow"]), ("normal", "break-word"), b)
+                        self.assertLessEqual(b["over"], 0, b)
+
+    def test_C4_the_counting_tiles_draw_the_8_by_8_dot_in_view_and_edit(self):
+        with chrome() as cdp:
+            for width in (1400, 900):
+                for view in (False, True):
+                    with self.subTest(width=width, view=view):
+                        self.assertEqual(self.page_numbers(cdp, width, view)["shapes"], [DOT] * 4)
+
+    def test_C5_a_typed_own_tile_in_view_keeps_its_12_by_12_shape(self):
+        self.seed([dict(OWN)])
+        with chrome() as cdp:
+            for width in (1400, 900):
+                with self.subTest(width=width):
+                    p = self.page(cdp, width, False)
+                    p.view()
+                    q = self.sel('.tpl-gt [data-tile=t1] .tpl-gt-dot')
+                    p.until(f"!!document.querySelector('{q}')", "View drew the typed tile")
+                    self.assertEqual(p.js(f"(function(r){{ return [Math.round(r.width), Math.round(r.height)]; }})(document.querySelector('{q}').getBoundingClientRect())"), [12, 12])
 
     def test_H5_the_rules_sit_in_the_classic_block_before_row_1314_with_no_hash_and_digits(self):
         block = RULES.split("/* Row 1336 part 3")[1].split("/* Row 1342")[0]
