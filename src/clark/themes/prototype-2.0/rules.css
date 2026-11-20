@@ -520,6 +520,54 @@ html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tce
 .uc .ucref { padding: 1px var(--space-2); border: 1px solid var(--grey-500); font-weight: var(--weight-regular); }
 .uc .cchip { border-radius: var(--radius-pill); font-weight: var(--weight-regular); line-height: 18px; }
 .uc .cchip:not(.cc-committed) { border-color: var(--grey-200); color: var(--text-muted); }
+/* Row 1295 (Classic only; Cards does not draw these): the slash commands list in Settings and the editor page that opens in a new tab. A list row is name, menu line, tag and Edit; the editor page is a left list, the editor, a live preview and Test it underneath. Colours are the page's tokens. */
+.slash-list .slash-rows { list-style: none; margin: var(--space-3) 0 0; padding: 0; }
+.slash-list .slash-rows li { display: grid; grid-template-columns: minmax(90px, max-content) 1fr max-content max-content; gap: var(--space-3); align-items: baseline; padding: var(--space-2) 0; border-top: 1px solid var(--line-soft); }
+.slash-list .slash-tag, .slash-page .slash-tag { font-size: var(--size-caption); color: var(--text-muted); }
+.slash-page { max-width: 1240px; margin: 0 auto; padding: var(--space-4) var(--space-5) var(--space-6); color: var(--text); background: var(--surface); }
+.slash-top { display: flex; flex-direction: column; gap: var(--space-2); margin-bottom: var(--space-4); }
+.slash-grid { display: grid; grid-template-columns: 220px minmax(0, 1fr) minmax(240px, 300px); gap: var(--space-5); align-items: start; }
+.slash-grid .slash-pick-note { grid-column: 2 / 4; }
+.slash-side { display: flex; flex-direction: column; gap: var(--space-1); }
+.slash-side h2 { font-size: var(--size-caption); color: var(--text-muted); margin: var(--space-3) 0 var(--space-1); }
+.slash-side button { text-align: left; padding: var(--space-2) var(--space-3); border: 1px solid transparent; border-radius: var(--radius); background: none; color: var(--text); cursor: pointer; }
+.slash-side button[aria-current="true"] { background: var(--grey-100); border-color: var(--grey-200); }
+.slash-side button:disabled { opacity: .6; cursor: default; }
+.slash-side small { display: block; color: var(--text-muted); }
+.slash-main { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+.slash-edit-card input:not([type]), .slash-edit-card textarea, .slash-test input { width: 100%; box-sizing: border-box; font: inherit; padding: var(--space-2) var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius); }
+.slash-edit-card textarea { min-height: 120px; }
+.slash-name-in { display: flex; align-items: center; gap: var(--space-1); }
+.slash-err { color: var(--tone-red-text); font-size: var(--size-caption); margin: var(--space-1) 0; }
+.slash-add { display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); font-size: var(--size-caption); color: var(--text-muted); margin-top: var(--space-1); }
+.slash-ph { background: none; border: 0; padding: 0 var(--space-1); color: var(--status-blue-text); cursor: pointer; font: inherit; }
+.slash-help { width: 24px; height: 24px; border-radius: 999px; border: 1px solid var(--grey-500); background: var(--surface); color: var(--text); cursor: pointer; }
+.slash-pop { border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); padding: var(--space-3) var(--space-4); margin-top: var(--space-2); }
+.slash-pop-h { display: flex; justify-content: space-between; align-items: center; }
+.slash-pop table { border-collapse: collapse; width: 100%; font-size: var(--size-caption); }
+.slash-pop th, .slash-pop td { text-align: left; padding: var(--space-1) var(--space-2); border-top: 1px solid var(--line-soft); vertical-align: top; }
+.slash-pickers { display: flex; flex-wrap: wrap; gap: var(--space-4); margin-top: var(--space-3); }
+.slash-pickers .slash-lab { display: block; font-size: var(--size-caption); color: var(--text-muted); }
+.slash-pickers button { padding: var(--space-1) var(--space-3); border: 1px solid var(--grey-200); background: var(--surface); color: var(--text); cursor: pointer; }
+.slash-pickers button[aria-pressed="true"] { background: var(--brand-blue); color: var(--text-on-brand); border-color: var(--brand-blue); }
+.slash-actions { margin-top: var(--space-4); }
+.slash-reads { white-space: pre-wrap; border: 1px solid var(--grey-200); border-radius: var(--radius); padding: var(--space-3); }
+.slash-reads .ph-on { background: var(--grey-100); font-weight: var(--weight-semibold); }
+.slash-reads .ph-off { color: var(--tone-red-text); background: var(--tone-red-tint); }
+.slash-menu-prev > div { display: flex; gap: var(--space-2); align-items: baseline; padding: var(--space-1) var(--space-2); }
+.slash-menu-prev > div.on { background: var(--grey-100); }
+.slash-warn { color: var(--tone-amber-text); font-size: var(--size-caption); padding-left: var(--space-4); }
+.ask-slash .ask-slash-own { margin-left: auto; font-style: normal; font-size: var(--size-caption); color: var(--text-muted); }
+.slash-ai { margin-bottom: var(--space-3); }
+.slash-ai label { display: block; font-size: var(--size-caption); color: var(--text-muted); }
+.slash-edit-card .row { display: flex; gap: var(--space-2); align-items: center; flex-wrap: wrap; }
+.slash-edit-card .row > input { flex: 1 1 200px; min-width: 0; }
+.slash-added { margin-top: var(--space-1); font-size: var(--size-caption); }
+.slash-added ins { display: block; background: var(--grey-100); text-decoration: none; }
+.slash-check h3 { margin: var(--space-3) 0 var(--space-1); }
+.slash-verdict dt { font-size: var(--size-caption); color: var(--text-muted); margin-top: var(--space-2); }
+.slash-verdict dd { margin: 0; }
+@media (max-width: 900px) { .slash-grid { grid-template-columns: 1fr; } .slash-grid .slash-pick-note { grid-column: 1; } .slash-list .slash-rows li { grid-template-columns: 1fr max-content; } }
 /* Row 1292 (Classic only: the sparkle is drawn only when the Theme layer is on, so Cards has none): Ask about this, the numbered citations, the Used line and the read line, read off the approved ask clark prototype. The sparkle is faint until the pointer or the keyboard is on its row, section or card; a peek opened from an answer sits left of the panel (--ask-w is the panel's width, 0 while it is shut). */
 .ask-about { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: var(--radius-sm); cursor: pointer; opacity: 0; transition: opacity var(--dur-instant) var(--ease-out); }
 .ask-about .i { color: var(--brand-blue); width: 16px; height: 16px; }
