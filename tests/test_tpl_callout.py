@@ -76,9 +76,15 @@ class Words(unittest.TestCase):
         self.assertEqual(page, callout.ICONS, "client and server icon lists are the same names in the same order")
         self.assertEqual(list(page), list(callout.ICONS))
         glyphs = (src / "components" / "Icon.jsx").read_text()
+        drawn = {}
         for k in callout.ICONS:
             if k != "none":
-                self.assertTrue(re.search(rf"^\s*{k}: '<", glyphs, re.M), f"{k} has a drawing in Icon.jsx")
+                m = re.search(rf"^\s*{k}: '(<.*)$", glyphs, re.M)
+                self.assertTrue(m, f"{k} has a drawing in Icon.jsx")
+                drawn[k] = m.group(1)
+        same = sorted(k for k in drawn for j in drawn if k < j and drawn[k] == drawn[j])
+        self.assertEqual(same, [], "every icon has its own drawing: two keys share one glyph")
+        self.assertEqual(len(set(drawn.values())), len(drawn))
 
     def test_the_five_new_icons_are_kept_and_named_in_the_published_words(self):
         from clark.section_kinds import callout
