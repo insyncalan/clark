@@ -2,18 +2,47 @@
 
 Run: python3 dev/run_tests.py test_ask_commands_service
 """
+import http.client
 import json
 import re
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest import mock
 
 from _paths import ROOT  # noqa: F401  (puts src/ on the path)
-from test_server import Running
-
 from clark import ask_commands_service as svc
 from clark import server as sv
+
+class Running:
+    """A server on a free port in a thread (no browser, so this file stays out of the browser tier; the harness of the browser tests is not used)."""
+
+    def __init__(self):
+        self.httpd = sv.LocalServer((sv.HOST, 0))
+        self.port = self.httpd.server_port
+        threading.Thread(target=self.httpd.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True).start()
+
+    def close(self):
+        self.httpd.shutdown()
+        self.httpd.server_close()
+
+    def api(self, method, path, body=None, token=None):
+        """(status, headers, body bytes) with the token and a Host, as the page sends them; `body` is JSON bytes."""
+        conn = http.client.HTTPConnection(sv.HOST, self.port, timeout=10)
+        try:
+            conn.putrequest(method, path, skip_host=True, skip_accept_encoding=True)
+            conn.putheader("Host", f"127.0.0.1:{self.port}")
+            conn.putheader(sv.TOKEN_HEADER, sv.TOKEN if token is None else token)
+            if body is not None:
+                conn.putheader("Content-Type", "application/json")
+                conn.putheader("Content-Length", str(len(body)))
+            conn.endheaders(body)
+            r = conn.getresponse()
+            return r.status, r.msg, r.read()
+        finally:
+            conn.close()
+
 
 GOOD = {"name": "monday", "menu": "Monday summary", "text": "Group {today} overdue items by owner.", "scope": "anywhere", "result": "answer"}
 
