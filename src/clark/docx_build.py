@@ -60,7 +60,8 @@ NOT_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ud800-\udfff￾￿]")
 TITLES = {"current": "Current state", "glance": "At a glance", "usecases": "Use cases", "milestones": "Milestones",
           "text": "Notes", "raid": "Risks and issues", "actions": "Actions", "decisions": "Decisions", "gantt": "Gantt",
           "imagecap": "Image", "workitems": "Work items", "reportheadline": "Report headline",
-          "glancetemplate": "At a glance"}                            # row 1223: only a Full width image (body version 2) is written, and it has no heading; an Image with caption (version 1) is left out, as it was
+          "glancetemplate": "At a glance", "callout": "Callout"}                            # row 1223: only a Full width image (body version 2) is written, and it has no heading; an Image with caption (version 1) is left out, as it was
+CALLOUT_FILL = {"violet": "blue", "amber": "amber", "red": "red", "green": "green", "grey": "grey"}      # row 1272: Violet is the page's blue token; Plain has no fill
 HEALTH_PILL = {"on_track": ("On track", "green"), "at_risk": ("At risk", "amber"), "off_track": ("Off track", "red")}   # row 1261: the pill's words and tone
 HIDDEN_BY_KIND = ("actions", "raid", "decisions")
 HEADING_STYLE = {"h1": "Heading2", "h2": "Heading3", "h3": "Heading4"}
@@ -767,7 +768,26 @@ def section_glancetemplate(published, ctx, title, sec):
     return "".join(out) if (h or tiles) else ""
 
 
-SIMPLE = {"workitems": section_workitems, "imagecap": section_imagecap, "current": section_current, "text": section_text, "milestones": section_milestones, "actions": section_actions,
+def section_callout(published, ctx, title, sec):
+    """Row 1272 (1291): a callout as the page draws it, in words: the section heading (when its heading is on), then one shaded box
+    (when its tile is on; the colour is a help, never the carrier) holding the category, colour name and icon name on one bold line,
+    the callout's own title in bold, and its words. Tile off: the same lines on the page, no box. An empty callout is left out."""
+    c = sec.get("content") if isinstance(sec.get("content"), dict) else {}
+    head = [str(c.get(k) or "").strip() for k in ("category", "colour_name", "icon_name")]
+    line = " \u00b7 ".join(w for w in (head[0], "" if head[1] == "Plain" else head[1], head[2]) if w)
+    name = str(c.get("title") or "").strip()
+    body = rich(c["html"], ctx) if c.get("html") else "".join(text_paras(p, ctx, style=None) for p in c.get("paras") or ())
+    if not (name or body):
+        return ""
+    inner = (para(run(line, bold=True), "TableText") if line else "") + (para(run(name, bold=True), "TableText") if name else "") + body
+    out = _heading(title) if c.get("heading", True) else ""
+    if c.get("tile", True):
+        fill = ctx.hexes(CALLOUT_FILL[c["colour"]])[0] if c.get("colour") in CALLOUT_FILL else None
+        return out + table(ctx, None, [1], [[(inner, fill)]])
+    return out + inner
+
+
+SIMPLE = {"callout": section_callout, "workitems": section_workitems, "imagecap": section_imagecap, "current": section_current, "text": section_text, "milestones": section_milestones, "actions": section_actions,
           "raid": section_raid, "decisions": section_decisions, "gantt": section_gantt,
           "reportheadline": section_reportheadline, "glancetemplate": section_glancetemplate}
 
