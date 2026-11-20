@@ -69,6 +69,27 @@ class Published(unittest.TestCase):
                     self.assertNotRegex(shown, r"(?i)client (not )?visible")
                     self.assertNotRegex(shown, r"(?i)client wording")
 
+    def test_the_use_case_page_draws_no_client_visible_line_or_eye(self):
+        # Rule 2 names the use case too. Rule 1 has nothing to check there: the use-case page has no Client Message row (its words are the headline and the standing text).
+        # The published file draws UseCaseFilePage (read only); the Edit page's .ucd-eye ("On the dashboard") is an Edit-only button, so the file must have no eye at all.
+        _plant, _pub, text = tp.made()
+        folder = Path(tempfile.mkdtemp(prefix="clark-1466-"))
+        self.addCleanup(lambda: __import__("shutil").rmtree(str(folder), ignore_errors=True))
+        path = folder / "report.html"
+        path.write_text(text, encoding="utf-8")
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = tp.opened(cdp, path.as_uri(), width)
+                self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1"))
+                cdp.js("location.hash = '#usecases&p=PUB&uc=1.1'", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-ucf]')", sid)), "the published use-case page drew")
+                shown = cdp.js("document.querySelector('[data-ucf]').innerText", sid)
+                self.assertTrue(cdp.js("!!document.querySelector('[data-ucf-details]')", sid), "the Details card drew")
+                self.assertNotRegex(shown, r"(?i)client (not )?visible")
+                self.assertNotRegex(shown, r"(?i)client wording")
+                self.assertEqual(cdp.js("document.querySelectorAll('[data-ucf] .ucd-eye, [data-ucf] [data-eye], [data-ucf] .ucf-eye, [data-ucf] [data-pk-client-row], "
+                                        "[data-ucf] [data-pk-client-read], [data-ucf] [data-pk-client], [data-ucf] .cv').length", sid), 0)
+
     def test_the_built_published_page_has_no_client_visible_line_in_the_view_source(self):
         src = (ROOT / "src/clark/page/src/components/PeekActionBody.jsx").read_text(encoding="utf-8")
         self.assertIn("onFile ? null :", src, "the read-only line is left out for a published file")
