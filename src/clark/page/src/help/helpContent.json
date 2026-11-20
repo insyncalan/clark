@@ -2544,7 +2544,7 @@
     {
      "card": "personal",
      "title": "Personal",
-     "line": "How the Dashboard sections look, Light or Dark and the single-key shortcuts."
+     "line": "How the Dashboard sections look, System, Light or Dark and the single-key shortcuts."
     },
     {
      "card": "freshness",
@@ -2712,7 +2712,7 @@
      "d": "Read the list under the counts. Each change has a tag and the choice **Accept** or **Reject**: **New** rows will be added, **Changed** rows will update the item already in clark, and a row tagged Not in the workbook would archive its item. A line under a change says what differs."
     },
     {
-     "d": "Choose **Reject** for any change you do not want; **Accept all** and **Reject all** set every change at once. New and changed rows start on **Accept**, except a change that clashes: a line under it says it changed in clark after the workbook was made, and it starts on **Reject**. Rows tagged Not in the workbook also start on **Reject**. If clark has no record of exporting the workbook, it warns you, and the button reads **Import anyway**."
+     "d": "Choose **Reject** for any change you do not want; **Accept all** sets every change to **Accept** except the ones that start on **Reject**, and **Reject all** sets every change to **Reject**. New and changed rows start on **Accept**, except a change that clashes: a line under it says it changed in clark after the workbook was made, and it starts on **Reject**. Rows tagged Not in the workbook also start on **Reject**. If clark has no record of exporting the workbook, it warns you, and the button reads **Import anyway**."
     },
     {
      "d": "Press the button at the foot, which reads Import and the number you accepted, such as Import 3 changes. The whole import is one step. The box says what was done. Press **Undo this import** to put the project back as it was before, or **Close** to keep it. The project’s pages then show the new and changed items."
