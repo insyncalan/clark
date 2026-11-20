@@ -19,7 +19,7 @@ def _plain(value):
 def callout_lines(sec):
     """A callout section's lines as [(text, is_heading)], in order: its title (else "Callout") as the heading (left out when its Heading switch is off, as the Word build does: content "heading" false, on when absent); one line
     "Category: <c>. Colour: <c>. Icon: <i>." with each empty part left out (Plain colour and No icon count as empty; no line when
-    all are); then its words, one entry per paragraph. Ruling M8851 (#1272): [] only when all five fields (title, category, colour, icon, words)
+    all are); then its words, one entry per paragraph. Ruling M8851 (row 1272): [] only when all five fields (title, category, colour, icon, words)
     are empty (the colour and icon as the callout itself stores them: Plain and No icon are empty, and a tone's default words do not count), so a callout with just a category, colour or icon still gets its heading and its Category/Colour/Icon line."""
     c = sec.get("content") if isinstance(sec.get("content"), dict) else {}
     got = callout.words(c)

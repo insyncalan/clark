@@ -164,6 +164,11 @@ class Words(unittest.TestCase):
             at = got.index("Callout")
             self.assertEqual(got[at:at + 2], ["Callout", line], value)
 
+    def test_a_callout_with_only_a_title_is_written_as_its_heading(self):
+        got = texts(docx_build.build(direct({"title": "ZQ-TITLE-ONLY"})))
+        self.assertIn("ZQ-TITLE-ONLY", got)
+        self.assertNotIn("Callout", got)
+
     def test_all_five_fields_empty_writes_nothing(self):
         for value in ({}, {"category": "", "colour_name": "Plain", "icon_name": ""}):
             self.assertNotIn("Callout", texts(docx_build.build(direct(value))), value)
