@@ -14,6 +14,7 @@ import { pills, asking } from "./askPills.js";
 import { stateOf } from "./askPillState.js";
 import { helpOpen } from "../help/helpStore.js";
 import { slashMatches, stepSlash } from "./askSlash.js";
+import { ownCommands, loadOwnCommands } from "./askOwn.js";
 import { Icon } from "../components/Icon.jsx";
 import { holdScroll } from "../core/holdScroll.js";
 import { chatId, histOpen, histTick, chats, keepChat, deleteChat, when } from "./askHistory.js";
@@ -86,7 +87,9 @@ export function AskPanel() {
   const [quip, setQuip] = useState("");
   const [pick, setPick] = useState(0), [shut, setShut] = useState(false);   // #1292 S10: the slash menu's chosen row, and whether Esc has closed it
   const hold = classicTheme() ? W.PLACEHOLDER_CLASSIC : W.PLACEHOLDER;          // row 1350: the new placeholder is Classic only
-  const menu = shut ? null : slashMatches(text, classicTheme());
+  const usable = state === "ready" || state === "checking";      // the box takes text only then: with asking off no slash command is offered or run
+  const menu = shut || !usable ? null : slashMatches(text, classicTheme(), classicTheme() ? ownCommands.value : []);
+  useEffect(() => { if (open && state === "ready" && classicTheme()) loadOwnCommands(project.value); }, [open, state, project.value]);      // row 1295: Classic only, and only while asking is on; the person's own commands join the / menu
   const [said, setSaid] = useState("");            // row 1220: what a screen reader is told when a message is queued or removed
   const waiting = queue.value, held = queueHeld.value, dropping = queueDrop.value;
   const showHist = histOpen.value && !busy;
@@ -177,7 +180,7 @@ export function AskPanel() {
 
   // #1292 S10: a chosen slash command. A question command sends its question as a suggestion does; /new and /history send nothing.
   function runSlash(c) {
-    if (!c) return;
+    if (!c || !usable) return;
     setText(""); setPick(0); setShut(false);
     if (c.act === "new") { newChat(); setNote(""); return; }
     if (c.act === "history") { if (!busy) histOpen.value = true; return; }
@@ -488,7 +491,7 @@ export function AskPanel() {
           <ul class="ask-slash" id="ask-slash" role="listbox" aria-label={W.SLASH_LABEL}>
             {menu.length ? menu.map((c, i) => (
               <li key={c.name} role="option" id={"ask-slash-" + c.name} data-name={c.name} aria-selected={i === pick ? "true" : "false"} onMouseDown={(e) => { e.preventDefault(); runSlash(c); }}>
-                <b>{"/" + c.name}</b> <span>{c.hint}</span>
+                <b>{"/" + c.name}</b> <span>{c.hint}</span>{c.own ? <em class="ask-slash-own">{W.SLASH_YOURS}</em> : null}
               </li>
             )) : <li class="ask-slash-none">{W.SLASH_NONE}</li>}
           </ul>
