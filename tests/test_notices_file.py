@@ -121,7 +121,7 @@ class ReaderTest(Place):
         self.assertLess(time.monotonic() - start, 1.0)
 
     def test_nan_and_infinity_are_never_handed_out(self):
-        for i, raw in enumerate(('[{"a": NaN}]', '[{"id": "x", "body": Infinity}]', '[{"id": "x", "body": -Infinity}]', '[{"id": "x", "n": 1e999}]')):
+        for i, raw in enumerate(('[{"a": NaN}]', '[{"id": "x", "body": Infinity}]', '[{"id": "x", "body": -Infinity}]', '[{"id": "x", "n": 1e999}]', '[{"id": "x", "n": -1e999}]')):
             self.assertEqual(notices_file.read_place(self.put(f"nan{i}.json", raw, raw=True)), [], raw)
         settings.set_notices_path(self.data, str(self.put("nan.json", '[{"a": NaN}]', raw=True)))
         status, body = notices_file.Notices(self.data).read()
