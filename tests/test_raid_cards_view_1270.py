@@ -30,7 +30,7 @@ class RaidCardsView(PublishedFile, glance.Setup):
 
     def read(self, p):
         return p.js("""(() => { const cs = [...document.querySelectorAll('.raid-card')]; return cs.map(c => { const r = c.getBoundingClientRect(), m = c.querySelector('.raid-meta'), t = c.querySelector('.raid-title');
-            return { cls: c.className, top: getComputedStyle(c).borderTopWidth, rating: (c.querySelector('.raid-rating') || {}).textContent || '', label: !!c.querySelector('.raid-label'),
+            return { cls: c.className, top: getComputedStyle(c).borderTopWidth, rating: (c.querySelector('.raid-rating') || {}).textContent || '', label: !!c.querySelector('.raid-label:not(.raid-what)'),
               latest: (c.querySelector('.raid-latest') || {}).textContent || '', h: Math.round(r.height), foot: m ? Math.round(r.bottom - m.getBoundingClientRect().bottom) : -1,
               cut: t.scrollHeight > t.clientHeight + 1 || getComputedStyle(t).textOverflow === 'ellipsis', ws: getComputedStyle(t).whiteSpace }; }); })()""")
 

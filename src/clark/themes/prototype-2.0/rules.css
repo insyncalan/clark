@@ -973,3 +973,12 @@ table.items .weye { width: 30px; height: 30px; }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); } }
 #viewMenuList { min-width: 224px; }
 [data-gt] .gt-menu button, .gt-pop button { display: flex; align-items: center; gap: var(--space-2); }
+/* Row 1270, the card opens the Peek (mock-up states): the ID button is stretched over the whole card (::after), so the card is the click target and one tab stop. Hover: the shadow token, a grey-500 edge on the three plain sides (the rating edge on top stays) and the ID underlined. Focus: a 2 px ring in the focus colour, 2 px out, on the whole card (the button draws none). Selected, the card whose Peek is open: a 2 px brand-blue ring. */
+.raid-card { position: relative; }
+.raid-card .raid-id { cursor: pointer; }
+.raid-card .raid-id::after { content: ""; position: absolute; inset: 0; }
+.raid-card .raid-id:focus-visible { outline: none; }
+.raid-card:hover { box-shadow: var(--shadow); border-left-color: var(--grey-500); border-right-color: var(--grey-500); border-bottom-color: var(--grey-500); }
+.raid-card .raid-id:hover { text-decoration: underline; }
+.raid-card:has(.raid-id:focus-visible) { outline: 2px solid var(--focus); outline-offset: 2px; }
+.raid-card.rc-sel { box-shadow: 0 0 0 2px var(--brand-blue); }
