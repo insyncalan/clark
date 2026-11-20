@@ -31,8 +31,7 @@ def page_html():
 S = [sec("a", "Summary"), sec("b", "Milestones", type="milestones"), sec("c", "This week", beside=1), sec("d", "Next week"), sec("e", "Decisions", type="decisions")]
 FIRST_SLICE_DESCRIPTIONS = [
     {"id": "text-image", "description": "A story with a picture: a site visit, a design, a screenshot of the new system."},
-    {"id": "figures-4", "description": "Three or four numbers with labels and a change since last week."},
-    {"id": "figures-3", "description": "Three numbers with labels, in wider cards, so a short note fits under the change."},
+    {"id": "numbers", "description": "Three or four numbers with labels and a change since last week."},
     {"id": "raid-3", "description": "The risks, actions, issues or decisions you want the reader to see, as cards."},
     {"id": "raid-4", "description": "Four shorter cards: good for “this week’s actions” or “decisions needed”."},
     {"id": "work-items", "description": "Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed."},
@@ -53,7 +52,7 @@ FIRST_SLICE_DESCRIPTIONS = [
     {"id": "contacts", "description": "Who to ask."},
     {"id": "checklist", "description": "Next steps or readiness, ticked off."},
 ]
-FIRST_SLICE = ["text", "text-image", "figures-4", "figures-3", "glance-template", "gallery", "table", "raid-3", "raid-4", "work-items", "docs-links", "report-headline", "callout", "image-caption", "full-image", "quote", "contacts", "checklist", "key-dates", "link-preview", "current-state", "plan-summary", "one-doc"]      # the box's templates: the first slice, Needs from you (#121) and the two files and links ones moved in (#96 G7); every one built
+FIRST_SLICE = ["text", "text-image", "numbers", "glance-template", "gallery", "table", "raid-3", "raid-4", "work-items", "docs-links", "report-headline", "callout", "image-caption", "full-image", "quote", "contacts", "checklist", "key-dates", "link-preview", "current-state", "plan-summary", "one-doc"]      # the box's templates: the first slice, Needs from you (#121) and the two files and links ones moved in (#96 G7); every one built
 BOX = FIRST_SLICE[:-1] + ["gantt", "gantt-table"] + FIRST_SLICE[-1:]      # the box's cards: the Gantt (row 926) and the Gantt table (row 1068) sit before One document, placeable since the store takes their types (layouts 19 and 21)
 
 
@@ -129,9 +128,8 @@ class Logic(unittest.TestCase):
         self.assertEqual(got, {
             "text": ("Words under a heading, written in clark’s one editor.", ["Heading", "Text"], ["full", "half"]),
             "text-image": ("A story with a picture: a site visit, a design, a screenshot of the new system.", ["Heading", "Text", "Image", "Caption"], ["full", "half"]),
-            "figures-3": ("Three numbers with labels, in wider cards, so a short note fits under the change.", ["Heading", "Figure · live", "Figure · live", "Figure · typed"], ["full", "half"]),
             "glance-template": ("Three counts, an optional project health and tiles of your own.", ["Decisions needed", "High risks and issues", "Overdue actions", "optional Project health", "your own tiles"], ["full", "half"]),      # row 1264 slice 9: the ruled words, group 1
-            "figures-4": ("Three or four numbers with labels and a change since last week.", ["Heading", "Figure · live", "Figure · live", "Figure · typed", "Figure · typed", "Caption"], ["full", "half"]),
+            "numbers": ("Three or four numbers with labels and a change since last week.", ["Heading", "Figure · live", "Figure · live", "Figure · typed", "Figure · typed", "Caption"], ["full", "half"]),
             "raid-3": ("The risks, actions, issues or decisions you want the reader to see, as cards.", ["Heading", "RAID card ×3", "Text source", "Text"], ["full"]),
             "raid-4": ("Four shorter cards: good for “this week’s actions” or “decisions needed”.", ["Heading", "RAID card ×4"], ["full"]),
             "work-items": ("Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed.", ["Heading", "Filter (set in Edit)", "Work item list · live", "Caption (optional)"], ["full", "half"]),
@@ -252,15 +250,26 @@ class Logic(unittest.TestCase):
         p = self.t(f"plan({lit(with_glance)}, 'report-headline', 'a', true)")
         self.assertEqual(p["requests"][0]["values"]["body"], '{"pill":false,"v":1}', "beside, the same")
 
+    def test_row_1263_one_numbers_card_makes_figures4_and_the_two_old_cards_are_gone(self):
+        """Row 1263 slice 1: the library has one card, Numbers; it adds a figures4 section. Sections already stored as figures3 are
+        read by the figures3 part (tests/test_tpl_figures3.py), so no card is needed to keep them."""
+        by = {x["id"]: x for x in self.t("TEMPLATES")}
+        self.assertEqual(by["numbers"]["name"], "Numbers")
+        self.assertEqual((by["numbers"]["type"], by["numbers"]["kind"]), ("figures4", "figures"))
+        self.assertNotIn("figures-3", by)
+        self.assertNotIn("figures-4", by)
+        self.assertEqual(sorted(x["name"] for x in by.values() if "Key figures" in x["name"]), [])
+        self.assertEqual(sorted(x["id"] for x in by.values() if x["type"] in ("figures3", "figures4")), ["numbers"])
+
     def test_search_and_kinds_and_counts(self):
-        self.assertEqual(len(self.t("list()")), 25)      # row 1261: + the Headline card; row 1068: + the Plan table card; row 1264 slice 9: + Project at a glance
-        self.assertEqual([x["id"] for x in self.t('list({query: "figures"})')], ["figures-4", "figures-3", "glance-template"])      # the kind's name is searched too: Project at a glance is in Figures
+        self.assertEqual(len(self.t("list()")), 24)      # row 1261: + the Headline card; row 1068: + the Plan table card; row 1264 slice 9: + Project at a glance
+        self.assertEqual([x["id"] for x in self.t('list({query: "figures"})')], ["numbers", "glance-template"])      # the kind's name is searched too: Project at a glance is in Figures
         self.assertEqual([x["id"] for x in self.t('list({query: "KEY dates"})')], ["key-dates"], "case does not matter and every word must match")
         self.assertEqual(self.t('list({query: "zzz"})'), [])
         self.assertEqual([x["id"] for x in self.t('list({kind: "work"})')], ["raid-3", "raid-4", "work-items"])
         self.assertEqual([x["id"] for x in self.t('list({kind: "work", query: "list"})')], ["work-items"])
         c = self.t('counts({query: "key"})')
-        self.assertEqual((c["all"], c["figures"], c["dates"], c["text"], c["recent"]), (3, 2, 1, 0, 0))
+        self.assertEqual((c["all"], c["figures"], c["dates"], c["text"], c["recent"]), (1, 0, 1, 0, 0))      # row 1263: the Numbers card has no "key" in its name
         self.assertEqual([x["id"] for x in self.t('list({kind: "recent", recent: ["callout", "text", "nope"]})')], ["callout", "text"])
 
     def test_recently_used_is_newest_first_each_once_at_most_three_and_only_known(self):
@@ -392,9 +401,9 @@ class Box(Base):
             self.assertEqual(p.js(f"document.getElementById({d}.getAttribute('aria-labelledby')).textContent"), "Add a section")
             self.assertEqual(p.js("document.querySelector('#main').hasAttribute('inert') && document.querySelector('.top').hasAttribute('inert')"), True,
                              "the page behind cannot be reached")
-            self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 25)      # row 1261: + the Headline card; row 1407: the Risks and issues, Open actions and Decisions cards are gone (row 1193 had added them)
+            self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 24)      # row 1261: + the Headline card; row 1407: the Risks and issues, Open actions and Decisions cards are gone (row 1193 had added them)
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.textContent)"),
-                             ["All templates25", "Project information2", "Text and pictures8", "Figures3", "Work items3", "Files and links3", "People and dates5", "Notes1"])      # #1272: the Callout is in Project information      # row 1068: + the Gantt table card, in People and dates
+                             ["All templates24", "Project information2", "Text and pictures8", "Figures2", "Work items3", "Files and links3", "People and dates5", "Notes1"])      # #1272: the Callout is in Project information      # row 1068: + the Gantt table card, in People and dates
             self.assertEqual(self.sent, [], "opening sends nothing")
 
     def test_everything_outside_the_box_is_inert_while_it_is_open_and_restored_when_it_closes(self):
@@ -485,7 +494,7 @@ class Box(Base):
                   heard: document.querySelector('[data-template=text]').textContent.includes('Full width or Half width'),
                   big: !!document.querySelector('.ad-prev .ad-sk.big'),
                   holds: [...document.querySelectorAll('.ad-prev .ad-els li')].map(l => l.textContent)};})()""")
-            self.assertEqual(got, {"cards": 25, "sketched": 25, "radios": 25, "firstRow": 3, "text": ["Full width", "Half width"], "gallery": ["Full width"],
+            self.assertEqual(got, {"cards": 24, "sketched": 24, "radios": 24, "firstRow": 3, "text": ["Full width", "Half width"], "gallery": ["Full width"],
                                    "chipsHidden": "true", "heard": True, "big": True, "holds": ["Heading", "Text"]})
             x = "document.querySelector('.ad-head [data-close]')"
             self.assertEqual(p.js(f"{x}.getAttribute('aria-label')"), "Close")
@@ -542,11 +551,11 @@ class Box(Base):
             p = self.visit(cdp)
             p.edit()
             self.open_box(p, "ABC-S-003")
-            p.type("key")
-            p.until("document.querySelectorAll('[data-template]').length === 3", "the search narrowed the list")
-            self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.querySelector('.ad-n').textContent)"), ["3", "0", "0", "2", "0", "0", "1", "0"])
+            p.type("figures")
+            p.until("document.querySelectorAll('[data-template]').length === 2", "the search narrowed the list")
+            self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.querySelector('.ad-n').textContent)"), ["2", "0", "0", "2", "0", "0", "0", "0"])
             p.key("ArrowDown", code="ArrowDown", vk=40)
-            self.assertTrue(p.js("document.activeElement.matches('input[name=template]:checked') && document.activeElement.value === 'figures-4'"),
+            self.assertTrue(p.js("document.activeElement.matches('input[name=template]:checked') && document.activeElement.value === 'numbers'"),
                             "a template that cannot be placed yet can still be reached and chosen, so Down goes to it")
             p.js("var s = document.querySelector('input[type=search]'); s.value = ''; s.dispatchEvent(new Event('input', {bubbles: true}))")
             p.type("text")
@@ -573,7 +582,7 @@ class Box(Base):
             p = self.visit(cdp)
             p.edit()
             self.open_box(p, "ABC-S-003")
-            self.assertEqual(p.js("document.querySelectorAll('input[name=template]:not([disabled])').length"), 25, "every template can be focused")
+            self.assertEqual(p.js("document.querySelectorAll('input[name=template]:not([disabled])').length"), 24, "every template can be focused")
             self.assertEqual(p.js("document.querySelector('button[data-place]').disabled"), False, "Text is chosen and can be placed")
             cat = {x["id"]: x["description"] for x in FIRST_SLICE_DESCRIPTIONS}
             for tid, desc in cat.items():
