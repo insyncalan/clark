@@ -3,7 +3,7 @@
 Run: python3 dev/run_tests.py test_ask_1369
 Pure logic, made-up files. Asserted with numbers: 180 files are all opened (no cut at 10); the first-ten cap does not exist; the
 read caps (files, bytes) count a readable file as `limit`, never as `other` (type); the counts by reason add up to the files; the
-note says "because of its type" only for an unreadable type; the 40,000 character budget cuts exactly above the limit.
+note says "because of its type" only for an unreadable type; the character budget (ask.BUDGET) cuts exactly above the limit.
 """
 import unittest
 from unittest import mock
@@ -83,6 +83,11 @@ class Counts(tp.Folders):
         self.assertEqual(len({p.file for p in got.passages}), 12)
         self.assertEqual((got.other, got.limit), (0, 8))
 
+    def test_a_found_without_a_limit_count_gets_no_limit_note(self):
+        from types import SimpleNamespace
+        found = SimpleNamespace(other=0, stopped=False, safety=0, pdf=0, pdf_reasons=(), secret_labels=())
+        self.assertEqual([n for n in ask_service.folder_notes(found) if "limit" in n], [])
+
     def test_limit_note_comes_with_the_listing_cut_note(self):
         notes = ask_service.folder_notes(ask_passages.FolderData(limit=2, stopped=True))
         self.assertEqual(len(notes), 2)
@@ -94,9 +99,9 @@ class Budget(unittest.TestCase):
         return [ask.Passage(f"p{i}", "x" * n) for i, n in enumerate(sizes)]
 
     def test_exactly_at_below_and_above_the_limit(self):
-        self.assertEqual(ask.BUDGET, 40000)
-        for total, kept in ((39999, 2), (40000, 2), (40001, 1)):
-            ps = self.passages([20000, total - 20000])
+        half = ask.BUDGET // 2
+        for total, kept in ((ask.BUDGET - 1, 2), (ask.BUDGET, 2), (ask.BUDGET + 1, 1)):
+            ps = self.passages([half, total - half])
             got, left = ask_data.choose(ps, "", ask.BUDGET)
             self.assertEqual((len(got), left), (kept, 2 - kept), total)
 
