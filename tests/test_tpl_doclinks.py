@@ -322,6 +322,29 @@ class Saved(Api):
         status, got = self.save(ref, body([a_link(), old, a_link(href="https://example.org/n", label="")]))
         self.assertEqual((status, got["message"]), (400, "Link 3: Enter a link description."), "a new bad entry after the Undo is refused")
 
+    def test_a_stored_entry_sent_back_with_only_its_description_changed_is_a_new_entry(self):
+        """Mutation sweep (1194, S1): the description is part of what makes an entry 'the same one'; change or blank it and the entry meets every rule."""
+        ref = self.make("Fictional description change")
+        old = a_file(name="old.zip", label="Old words")
+        self.stored(ref, section_bodies.canonical({"v": 1, "items": [a_link(), old]}))
+        before = self.snapshot()
+        for label in ("New words", ""):
+            with self.subTest(label=label):
+                status, got = self.save(ref, body([a_link(), dict(old, label=label)]))
+                self.assertEqual((status, got["message"]), (400, "old.zip: " + doclinks.BAD_TYPE_TAIL))
+        self.assertEqual(self.snapshot(), before)
+        status, got = self.save(ref, body([a_link(), old]))
+        self.assertEqual(status, 200, got)
+
+    def test_the_undoing_marker_never_stays_in_the_change_set(self):
+        """Mutation sweep (1194, S2): the marker rides in `changed` for the checker only; it never reaches what the store does next."""
+        ref = self.make("Fictional marker")
+        row = dict(self.s.con.execute("SELECT * FROM report_sections WHERE id = ?", (ref,)).fetchone())
+        row["body"] = body([a_link()])
+        changed = {"body", store_module.UNDOING}
+        store_module._section_rules(self.s.con, "report_sections", row, changed)
+        self.assertNotIn(store_module.UNDOING, changed)
+
     def test_the_store_waives_old_entries_only_for_an_undo(self):
         """At the store's own door (no request check before it): a write of a body with a new entry that fails the rules is refused;
         the same text put back by an Undo (revert) is kept; an Undo still refuses a text that cannot be read at all."""

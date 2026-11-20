@@ -313,6 +313,38 @@ class Route(unittest.TestCase):
         self.assertEqual(self.attach(ref)[0], 200)
         self.assertEqual(self.files(), ["Plan.PDF"])
 
+    def test_the_ending_is_judged_on_the_name_that_is_saved_before_the_file_is_written(self):
+        ref = self.section()
+        for name in ("..pdf", " .pdf", ". .pdf"):
+            with self.subTest(name=name):
+                bad = self.src / name
+                bad.write_bytes(b"fictional")
+                self.chosen = [bad]
+                before = self.snapshot()
+                got = self.pub.section_file({"project": "ABC", "section": ref})
+                self.assertEqual((got[0], got[1]["ok"], got[1]["code"]), (409, False, "bad_type"), got)
+                self.assertEqual(got[1]["message"], doclinks.bad_type(name))
+                self.assertIn(self.files(), (None, []), "nothing in Report files")
+                self.assertEqual(self.snapshot(), before)
+                self.assertIsNone(self.items(ref))
+        (self.client / "Report files").mkdir(exist_ok=True)
+        for name in ("..pdf", " .pdf", ". .pdf"):
+            with self.subTest(same_folder=name):
+                there = self.client / "Report files" / name
+                there.write_bytes(b"fictional")
+                self.chosen = [there]
+                got = self.pub.section_file({"project": "ABC", "section": ref})
+                self.assertEqual((got[0], got[1]["ok"], got[1]["code"]), (409, False, "bad_type"), got)
+                self.assertEqual(got[1]["message"], doclinks.bad_type(name))
+                self.assertIsNone(self.items(ref))
+                there.unlink()
+        self.assertEqual(self.files(), [])
+        fine = self.src / "a.pdf"
+        fine.write_bytes(PDF)
+        self.chosen = [fine]
+        self.assertEqual(self.attach(ref)[0], 200)
+        self.assertEqual(self.files(), ["a.pdf"])
+
     def test_a_folder_a_missing_file_and_a_file_too_big(self):
         ref = self.section()
         self.chosen = [self.src]
