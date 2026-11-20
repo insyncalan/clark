@@ -64,6 +64,7 @@ html[data-mode="view"] .sec { border-left: 2px solid var(--gutter-rule); padding
 .sec:has(.wil-cw) > .sec-head { padding-right: calc(var(--space-6) + var(--space-2) + 2px); }
 .wil-cfg { width: min(calc(var(--space-4) * 19), calc(100vw - var(--space-6))); }
 .wil-cfg h4 { font-family: var(--font-head); font-weight: var(--weight-semibold); color: var(--heading); }
+.wil-cfg .wil-sel { gap: var(--space-1); }
 .wil-cfg .wil-sel > span, .wil-cfg .wil-f legend { font-weight: var(--weight-medium); color: var(--text-muted); }
 .wil-cfg .wil-opts input[type="checkbox"] { width: var(--space-4); height: var(--space-4); margin: 0; accent-color: var(--brand-blue); }
 .wil-cfg .wil-sel select:focus-visible, .wil-cfg .wil-sel input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
