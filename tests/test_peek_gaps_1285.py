@@ -113,13 +113,14 @@ class Warnbar(unittest.TestCase):
                     got = cdp.js("(() => { const b = document.querySelector('#peek .pk-warnbar'), w = b.querySelector('.pk-warn'), m = [...b.querySelectorAll('[data-pk-move]')], g = (e, p) => getComputedStyle(e)[p];"
                                  " const tok = (v) => { const i = document.createElement('i'); i.style.color = v; document.body.append(i); const c = getComputedStyle(i).color; i.remove(); return c; };"
                                  " return {moves: m.length, border: g(b, 'borderTopWidth'), bg: g(b, 'backgroundColor'), size: g(w, 'fontSize'), ink: g(w, 'color'), muted: tok('var(--text-muted)'),"
-                                 " link: m.map(e => [g(e, 'borderTopWidth'), g(e, 'backgroundColor'), g(e, 'textDecorationLine'), g(e, 'color')]), blue: tok('var(--brand-blue)')}; })()", sid)
+                                 " link: m.map(e => [g(e, 'borderTopWidth'), g(e, 'backgroundColor'), g(e, 'textDecorationLine'), g(e, 'color'), g(e, 'fontWeight'), g(e, 'fontSize')]), marginBottom: g(b, 'marginBottom'), blue: tok('var(--brand-blue)')}; })()", sid)
                     self.assertEqual(got["moves"], 2, "the function stays: two move buttons")
                     self.assertEqual((got["border"], got["bg"]), ("0px", "rgba(0, 0, 0, 0)"), got)
                     self.assertEqual(got["size"], "13px")
                     self.assertEqual(got["ink"], got["muted"])
-                    for border, bg, line, colour in got["link"]:
-                        self.assertEqual((border, bg, line, colour), ("0px", "rgba(0, 0, 0, 0)", "underline", got["blue"]))
+                    self.assertEqual(got["marginBottom"], "12px", "the approved spec: 12px under the note")
+                    for border, bg, line, colour, weight, size in got["link"]:
+                        self.assertEqual((border, bg, line, colour, weight, size), ("0px", "rgba(0, 0, 0, 0)", "underline", got["blue"], "600", "13px"))
 
 
 class Prompts(unittest.TestCase):
