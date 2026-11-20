@@ -3,6 +3,7 @@
 Run: python3 dev/run_tests.py test_gantt_header_1197
 Measures the real page against the real server (the rig of test_gantt_e2e): the Gantt tab is the last tab and the open one;
 the table and chart buttons are two equal icon buttons side by side, left of the scale switches;
+the one View/Edit control is the pill above the toolbar (Classic has no text button);
 the zoom buttons sit left of the filter (Show), then Today, then full screen, all on one row.
 Not measured here (not built on main): the gap between header and toolbar, icon sizes. Look in Chrome: not checked.
 """
@@ -31,7 +32,14 @@ class HeaderAndToolbar(E2E):
         with chrome() as cdp:
             br = Browser(self, cdp, self.rig.httpd.server_port)
             self.settings_and_the_tab(br)
-            self.add_edit_drag_eye(br)      # three lines, so the chart draws its whole toolbar
+            br.click(".modes [data-mode=edit]")      # Classic: the pill is the one View/Edit control (no text button in the toolbar)
+            br.until("document.querySelector('#gantt-page').dataset.mode === 'edit'", "Edit")
+            br.click("[data-gp-first]")
+            br.until("document.querySelector('[data-g-row]')", "the first line is drawn")
+            for kind, n in (("task", 2), ("milestone", 3)):      # three lines, so the chart draws its whole toolbar
+                br.click("[data-g-add]" if n == 2 else "[data-g-add='GNT-002']")
+                br.click(f"[data-g-addtype={kind}]")
+                br.until(f"document.querySelectorAll('[data-g-row]').length === {n}", "the line is drawn")
             br.until("document.querySelector('[data-g-scale]')", "the chart toolbar")
             for width in (1400, 900):
                 br.width(width)
@@ -44,9 +52,14 @@ class HeaderAndToolbar(E2E):
                     self.assertGreater(tab[3] - tab[2], 0, "the tab has a height")
                     self.assertLessEqual(tab[1], width, "the tab is inside the window")
                     bar = self.box(br, "[data-gantt] .gt-bar")
+                    self.assertEqual(br.js("document.querySelectorAll('[data-gp-mode]').length"), 0, "Classic has no text View/Edit button in the toolbar")
+                    view, edit = self.box(br, ".modes [data-mode=view]"), self.box(br, ".modes [data-mode=edit]")
+                    self.assertEqual(view[2], edit[2], "the pill's two buttons are on one line")
+                    self.assertLessEqual(min(view[1], edit[1]), max(view[0], edit[0]) + 1, "side by side")
+                    self.assertLessEqual(max(view[3], edit[3]), bar[2] + 1, "the pill sits above the toolbar")
                     tbl, cht = self.box(br, "[data-gp-layout=table]"), self.box(br, "[data-gp-layout=chart]")
                     self.assertEqual([tbl[1] - tbl[0], tbl[3] - tbl[2]], [cht[1] - cht[0], cht[3] - cht[2]], "the two layout buttons are the same size")
-                    self.assertEqual(tbl[3] - tbl[2], 32, "32 high on main (36 wide: square is the open PR's)")
+                    self.assertEqual([tbl[1] - tbl[0], tbl[3] - tbl[2]], [36, 34], "36 wide, 34 high as this PR draws them (main: 36 by 32)")
                     self.assertEqual(tbl[2], cht[2], "on one line")
                     self.assertLessEqual(tbl[1], cht[0] + 8, "side by side")
                     self.assertLess(min(tbl[0], cht[0]), self.box(br, "[data-g-scale]")[0], "left of the scale switches")
