@@ -174,6 +174,7 @@ export const SKETCHES = {
   "built-in-usecases": ["grid-template-rows:repeat(4,1fr)", ["width:35%", "width:90%", "width:75%", "width:85%"]],
   "plan-summary": ["grid-template-rows:repeat(4,1fr)", ["width:40%", "width:80%", "width:40%", "width:70%"]],
   "glance-template": ["grid-template-columns:repeat(3,1fr)", ["border-top:3px solid var(--status-red)", "border-top:3px solid var(--status-amber)", "border-top:3px solid var(--status-green)"]],      // row 1264: low tiles, a tone edge on each
+  "built-in-glance": ["grid-template-columns:repeat(4,1fr)", ["", "border-top:3px solid var(--status-red)", "border-top:3px solid var(--status-amber)", ""]],      // kept: the Cards look is frozen (row 1411 removes only the card)
 };
 
 export const find = (id) => TEMPLATES.find((t) => t.id === id) || BUILT_INS.find((t) => t.id === id) || null;
