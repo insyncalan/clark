@@ -61,7 +61,8 @@ class ThreeMenus(unittest.TestCase):
     def test_no_other_menu_is_named(self):
         """Every selector of the Row 1273 block names one of the three menus."""
         text = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
-        block = text[text.index("/* Row 1273"):text.index("/* Row 1314")]
+        start = text.index("/* Row 1273")
+        block = text[start:text.index("/*", start + 2)]  # the one Row 1273 comment and the rules after it, up to the next comment
         block = re.sub(r"/\*.*?\*/", "", block, flags=re.S)
         for sels, _ in [([" ".join(s.split()) for s in a.split(",")], b) for a, b in re.findall(r"([^{}]+)\{([^{}]*)\}", block)]:
             for s in sels:
