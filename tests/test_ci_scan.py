@@ -303,6 +303,64 @@ class Scan(unittest.TestCase):
                 r = self.shots(self.SHOTS, self.SHOTS_BASE + text)
                 self.refused(r, "file #1: uses a secret or write access")
 
+    def test_the_argos_token_is_refused_in_a_workflow_level_env(self):
+        r = self.shots(self.SHOTS, "env:\n  ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n" + self.SHOTS_BASE)
+        self.refused(r, "file #1: uses a secret or write access")
+        self.refused(r, "file #1: uses a secret or write access")
+
+    def test_the_argos_token_is_refused_in_a_job_level_env(self):
+        job = "    env:\n      ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n"
+        r = self.shots(self.SHOTS, self.SHOTS_BASE.replace("    steps:\n", job + "    steps:\n"))
+        self.refused(r, "file #1: uses a secret or write access")
+
+    def test_the_argos_token_is_refused_inside_a_run_block(self):
+        for key, text in {"deep": "      - run: |\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n",
+                          "right shape": "    - name: x\n      run: |\n" + "        env:\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n",
+                          "folded": "      - run: >\n" + "        env:\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n",
+                          "dash key": "      - run: |\n" + "        env:\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n",
+                          "hyphen key": "      - my-key: |-\n" + "        env:\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n",
+                          "after a blank line": "      - run: |\n\n" + "        env:\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n"}.items():
+            with self.subTest(key):
+                r = self.shots(self.SHOTS, self.SHOTS_BASE + text)
+                self.refused(r, "file #1: uses a secret or write access")
+
+    def test_the_argos_token_is_refused_in_a_job_env_of_a_four_space_workflow_and_at_other_env_indents(self):
+        four = "on:\n  pull_request:\npermissions:\n  contents: read\njobs:\n    a:\n        runs-on: x\n"
+        for key, text in {"job env, 4-space style": four + self.TOKEN_LINE + "        steps:\n          - run: echo hi\n",
+                          "job env after a key, 4-space style": four + "        name: x\n" + self.TOKEN_LINE,
+                          "env at 6 spaces": self.SHOTS_BASE + "      env:\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n",
+                          "env at 10 spaces": self.SHOTS_BASE + "          env:\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n",
+                          "no step item above": "        env:\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n",
+                          "item at 5 spaces": "     - run: x\n" + self.TOKEN_LINE,
+                          "item at 7 spaces above a real item": self.SHOTS_BASE + "       - run: x\n" + self.TOKEN_LINE,
+                          "item at 7 spaces": "       - run: x\n" + self.TOKEN_LINE,
+                          "dash without a space": "      -run: x\n" + self.TOKEN_LINE}.items():
+            with self.subTest(key):
+                r = self.shots(self.SHOTS, text)
+                self.refused(r, "file #1: uses a secret or write access")
+
+    def test_the_argos_env_may_sit_after_other_step_keys_and_blank_lines(self):
+        r = self.shots(self.SHOTS, self.SHOTS_BASE + "      - name: u\n        with:\n          a: b\n\n" + self.TOKEN_LINE)
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+
+    def test_the_argos_token_needs_its_env_line_directly_before_it(self):
+        tok = "          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n"
+        for key, text in {"another key before": "        with:\n" + tok, "env not directly before": "        env:\n        x: y\n" + tok,
+                          "env is the last line, token the first": tok + self.SHOTS_BASE + "        env:\n",
+                          "no space in the braces": "        env:\n          ARGOS_TOKEN: ${{secrets.ARGOS_TOKEN}}\n"}.items():
+            with self.subTest(key):
+                r = self.shots(self.SHOTS, self.SHOTS_BASE + text if key != "env is the last line, token the first" else text)
+                self.refused(r, "file #1: uses a secret or write access")
+
+    def test_the_argos_token_may_follow_a_run_block_and_end_in_blanks(self):
+        for key, text in {"trailing blanks": "        env: \n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}  \n",
+                          "same step run block before": "        run: |\n          echo hi\n" + self.TOKEN_LINE}.items():
+            with self.subTest(key):
+                r = self.shots(self.SHOTS, self.SHOTS_BASE + text)
+                rc, out = r.scan()
+                self.assertEqual(rc, 0, out)
+
     def test_the_argos_secret_is_refused_in_any_other_workflow_path(self):
         for path in (".github/workflows/x.yml", ".github/workflows/screenshots.yaml", ".github/workflows/sub/screenshots.yml",
                      ".github/workflows/screenshots2.yml", ".github/screenshots.yml"):

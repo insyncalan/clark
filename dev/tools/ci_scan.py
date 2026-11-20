@@ -46,6 +46,32 @@ USES = re.compile(r"^\s*-?\s*uses:\s*(\S+)")
 ALLOWED_SECRET = {".github/workflows/screenshots.yml": "ARGOS_TOKEN"}
 
 
+def secret_in_step_env(code, name):
+    """True only for the exact 8-space 'env:' line directly followed by the 10-space token line (a step's env, never a workflow or
+    job env, also in a 4-space-indented workflow: the nearest line above 'env:' that is indented less than 8 must be a step item,
+    exactly 6 spaces then '- '), and only when that line is not inside a run: | style block. The caller strips comments first."""
+    lines = code.splitlines()
+    want = re.compile(r"^          %s: \$\{\{ secrets\.%s \}\}[ \t]*$" % (name, name))
+    block = None                                       # indent of the key that opened a block scalar
+    for i, ln in enumerate(lines):
+        if block is not None and (not ln.strip() or len(ln) - len(ln.lstrip()) > block):
+            continue
+        block = None
+        m = re.match(r"^(\s*)(?:-\s+)?[\w-]+:\s*[|>][-+0-9]*\s*$", ln)
+        if m:
+            block = len(m.group(1))
+        if want.match(ln) and i and lines[i - 1].rstrip() == "        env:" and step_item_above(lines, i - 1):
+            return True
+    return False
+
+
+def step_item_above(lines, k):
+    for ln in reversed(lines[:k]):
+        if ln.strip() and len(ln) - len(ln.lstrip()) < 8:
+            return ln.startswith("      - ") and not ln.startswith("       ")
+    return False
+
+
 # A picture or font is allowed only if it is well formed for its own extension and ENDS where its format says it ends, so a
 # picture cannot carry an archive or a program after its end. (A comment segment inside it is still read by the content scans.)
 # The chunk types the repo's own pictures use, and the safe ancillary ones. Anything else is refused: eXIf, the text chunks
@@ -370,7 +396,7 @@ class Scan:
                 bad.append("file #%d: uses a secret or write access" % tag)
             named = re.findall(r"secrets\.(\w+)", code)
             allowed = ALLOWED_SECRET.get(e.path)
-            if named and not (allowed and named == [allowed] and re.search(r"^\s+%s:\s*\$\{\{\s*secrets\.%s\s*\}\}\s*$" % (allowed, allowed), code, re.M)):
+            if named and not (allowed and named == [allowed] and secret_in_step_env(code, allowed)):
                 bad.append("file #%d: uses a secret or write access" % tag)
             if re.search(r"^\s*(?:self-hosted|runs-on:.*self-hosted)", code, re.M):
                 bad.append("file #%d: runs on a self-hosted machine" % tag)
