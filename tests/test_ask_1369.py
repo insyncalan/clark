@@ -62,9 +62,14 @@ class Counts(tp.Folders):
         typ = ask_service.folder_notes(ask_passages.FolderData(other=3))
         self.assertEqual(typ, ["3 files were not read because of its type."])
         both = ask_service.folder_notes(ask_passages.FolderData(other=1, limit=1))
-        self.assertEqual(len(both), 2)
+        self.assertEqual(both, [typ[0].replace("3 files were", "1 file was"), "1 file was not opened because the limit for one question was reached."])
+        self.assertEqual(lim, ["8 files were not opened because the limit for one question was reached."])
         self.assertEqual(ask_service.folder_notes(ask_passages.FolderData(limit=1))[0].split()[:3], ["1", "file", "was"])
 
+
+    def test_only_unusable_folders_give_no_limit(self):
+        got = ask_passages.folder_data([str(self.data)], self.data, "plan")
+        self.assertEqual((got.passages, got.safety, got.limit, got.other), ((), 1, 0, 0))
 
     def test_byte_cap_stops_at_exactly_the_cap(self):
         self.make(20, size=1000)
