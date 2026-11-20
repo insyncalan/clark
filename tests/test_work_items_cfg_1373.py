@@ -1,7 +1,7 @@
 """Row 1373: the Work items Configure box is the approved mock-up's box (line 61 of work-items-mockup.html), in the Classic theme layer only.
 
 Run: python3 dev/run_tests.py test_work_items_cfg_1373
-Measured in Chrome at 1400 (the priority width): box 300 wide, padding 14, radius 12, shadow, 6 below the gear, heading 15, labels 12.5,
+Measured in Chrome at 1400 (the priority width): box 300 wide, padding 14, radius 12, shadow (the page token --shadow), 6 below the gear, heading 15, labels 12.5,
 fields 38 tall, ticks 32 tall with an 18 box. The Cards files do not carry any of it. Not checked here: 900, dark mode.
 """
 import json
@@ -53,7 +53,7 @@ class Measured(M.Look):
         got = self.look(1400)
         b = got["box"]
         self.assertEqual((b["w"], b["top"], b["pad"], b["rad"], b["sh"], b["gap"]),
-                         (300, 6, "14px 14px", "12px", "rgba(6, 47, 58, 0.2) 0px 10px 30px 0px", "12px"), got)
+                         (300, 6, "14px 14px", "12px", "rgba(6, 47, 58, 0.18) 0px 8px 24px 0px", "12px"), got)
         self.assertEqual(b["bord"], "1px rgb(217, 224, 239)", got)            # the mock-up line #D9E0EF
         self.assertEqual((got["h4"]["fs"], got["h4"]["fw"]), ("15px", "700"), got)
         self.assertIn("Montserrat", got["h4"]["ff"], got)
