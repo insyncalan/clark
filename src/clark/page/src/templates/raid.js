@@ -35,9 +35,9 @@ export function bodyOf(cards) {
 
 // The words under a card, as the published file chooses them (raid3.py _words).
 export function wordsOf(card, row) {
-  if (card.source === "own") return card.own || "";
+  if (card.source === "own") return richWords(card.own).split(/\s+/).filter(Boolean).join(" ");      // row 1288: the editor's HTML (or an older plain line), as one line of words
   if (card.source === "latest") return kindOfId(card.id) === "actions" ? richWords(row && row.latest_update).trim() : "";
-  return String((row && row.client_message) || "").trim() || (row ? titleOf(row, kindOfId(card.id)) : "");
+  return richWords(row && row.client_message).trim() || (row ? titleOf(row, kindOfId(card.id)) : "");
 }
 
 export const titleOf = (row, kind) => String((kind === "decisions" ? row.decision : row.description) || "").trim();

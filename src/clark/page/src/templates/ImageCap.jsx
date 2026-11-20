@@ -9,7 +9,7 @@
 // original lives in the editor's data and is never in a view. A small image sits centred at its own size with a fill each side
 // (content.fill: "blur" the image's own blurred copy, "brand" the brand colour, "plain" none), or across the width when content.fit is
 // "stretch". Same words and keys as section_kinds/imagecap.py published().
-import { contentOf, Figure, lineOf, picturesOf } from "./pictures.jsx";
+import { contentOf, Figure, lineOf, captionOf, picturesOf } from "./pictures.jsx";
 import { safeImage } from "./safe.js";
 import { FITS, FILLS } from "../logic/fullImageWords.js";
 
@@ -20,7 +20,7 @@ export const READY = true;
 export function shown(v) {
   const image = lineOf(picturesOf(v).image);
   if (!image) return null;
-  const out = { image, caption: lineOf(v.caption), alt: lineOf(v.alt) };
+  const out = { image, caption: captionOf(v.caption), alt: lineOf(v.alt) };
   if (v.v === 2) {
     out.full = 1;
     if (v.fit === "stretch") out.fit = "stretch";

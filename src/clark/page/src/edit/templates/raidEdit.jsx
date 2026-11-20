@@ -5,9 +5,9 @@ import { data } from "../../stores/report.js";
 import { change } from "../../stores/changes.js";
 import { RichField } from "../RichField.jsx";
 import { TOO_LONG } from "../RichText.jsx";
-import { legacyToHtml } from "../../logic/richOrPlain.js";
+import { richOrPlain } from "../../logic/richOrPlain.js";
+import { richWords } from "../../logic/richWords.js";
 import { putCard } from "../../logic/putCard.js";
-import { plainLine } from "../../logic/plainLine.js";
 import { publishable } from "../../logic/publishable.js";
 import { OWN_MAX, SOURCES, bodyOf, kindOfId, kindWords, parse, rowOf, rulesOf, titleOf, wordsOf } from "../../templates/raid.js";
 
@@ -55,11 +55,12 @@ export function RaidEdit({ section, size }) {
       return put(i, { id, source, own: card ? card.own : "" }, card ? "Card changed." : "Card added.");
     };
     const pick = (e) => put(i, { ...card, source: e.currentTarget.value }, "Card text changed.");
-    // Item 1005: Own words is the one editor. The card keeps one line of plain text (plainLine of what was typed); more than the limit is not saved.
+    // Row 1288: Own words is the Full editor and keeps its HTML (the server cleans it; the file carries its words on one line). The limit counts
+    // the words; more than it is not saved. Nothing typed is no text; the card's older plain line is shown as the same words and left as it is until changed.
     const commit = (html) => {
-      const text = plainLine(html);
-      if (text === card.own) return true;
-      if (Array.from(text).length > OWN_MAX) return TOO_LONG;      // the field stays open and says so, in the words every too-long field uses
+      const text = richWords(html).trim() ? html : "";
+      if (text === card.own || text === richOrPlain(card.own)) return true;
+      if (Array.from(richWords(html).split(/\s+/).filter(Boolean).join(" ")).length > OWN_MAX) return TOO_LONG;      // the field stays open and says so, in the words every too-long field uses
       return put(i, { ...card, own: text }, "Card text changed.", { inline: true });      // a refusal (hidden text) is said in the editor too
     };
     const missing = card && !found;
@@ -83,7 +84,7 @@ export function RaidEdit({ section, size }) {
               </select></label>
             {card.source === "own" ? (
               <div class="rce-f rce-own"><span id={`rce-own-${i}`}>Own words</span>
-                <RichField field="raid_own" value={legacyToHtml(card.own)} label="own words" labelledBy={`rce-own-${i}`} save={commit} oneLine /></div>
+                <RichField field="raid_own" value={richOrPlain(card.own)} label="own words" labelledBy={`rce-own-${i}`} save={commit} /></div>
             ) : null}
             {found ? <p class="quiet rce-what">{`${kindWords(found.row, found.kind)}: ${cut(titleOf(found.row, found.kind), 100)}`}</p> : null}
             {note ? <p class="quiet rce-note">{note}</p> : null}

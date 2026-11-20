@@ -111,12 +111,12 @@ def _row(kind, r, today, ucs=None, ms=None):
            "priority": None if kind == "decision" else r.get("priority"),
            "use_case": "Use case %s" % (ucs or {})[r.get("use_case")] if (ucs or {}).get(r.get("use_case")) else None,
            "milestone": None if kind == "decision" else (ms or {}).get(r.get("milestone")) or None,
-           "latest_update": sanitise.rich_plain_text(r.get("latest_update")) or r.get("client_message") or ""}
+           "latest_update": sanitise.rich_plain_text(r.get("latest_update")) or sanitise.rich_plain_text(r.get("client_message"))}
     out["due"] = glance.due_field({"kind": kind, "status": r.get("status"), "due_date": r.get("due_date"),
                                    "needed_by": r.get("needed_by"), "date": r.get("date")})
     out["bucket"] = bucket_of(out, today)
     # the search also reads the client message when the update is a different text
-    out["_search"] = " ".join(str(x) for x in (r.get("client_message"), sanitise.rich_plain_text(r.get("latest_update"))) if x)
+    out["_search"] = " ".join(str(x) for x in (sanitise.rich_plain_text(r.get("client_message")), sanitise.rich_plain_text(r.get("latest_update"))) if x)
     out["_uc_id"] = r.get("use_case") or ""
     return out
 

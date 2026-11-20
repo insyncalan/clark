@@ -453,6 +453,11 @@ def _checked_item_changes(fields, blank_clears=()):
         if isinstance(latest, str) and "\r" in latest:             # as before: a carriage return is a hidden character in a latest update (a milestone's description folds it into a line break)
             raise Refused(LATEST_HIDDEN_WORDS)
         latest = _rich_field(latest, LATEST_UPDATE_MAX, LATEST_LONG_WORDS, LATEST_HIDDEN_WORDS)
+    wording = fields.get("client_message")                          # row 1288: the Full editor's HTML, stored cleaned as the latest update is; plain text from any other caller is checked below as it always was
+    sent_wording = isinstance(wording, str) and bool(sanitise.HTML_START.match(wording))
+    if sent_wording:
+        del fields["client_message"]
+        wording = _rich_field(wording, ITEM_TITLE_MAX, ITEM_VALUE_WORDS, ITEM_TEXT_WORDS)
     flag = {k: _flag(v) for k, v in fields.items() if k in ("client_visible", "client_action")}         # #97: the eye, 0 or 1 as on a use case; nothing else is a number
     fields = {k: v for k, v in fields.items() if k not in flag}
     for k, v in fields.items():
@@ -464,6 +469,8 @@ def _checked_item_changes(fields, blank_clears=()):
     out.update(cleared)
     if sent_latest:
         out["latest_update"] = latest
+    if sent_wording:
+        out["client_message"] = wording or ""                       # no words in it: cleared, as a blank is
     return {**out, **flag}
 
 

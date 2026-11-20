@@ -6,6 +6,7 @@
 // published file leaves an empty section out, heading and all (Dashboard.jsx fileDraws), so a client never reads that line.
 import { data, rows as allRows, fromFile, asAt, openPeek } from "../stores/report.js";
 import { ownerOf, showDate, todayIso, dueField, isOpen, isLate, dayNumber, KIND_WORDS, kindLetter } from "../workItems.js";
+import { richWords } from "../logic/richWords.js";
 import { sectionRows, listed, dateWord, clientPill, lateWord, keptIds } from "../logic/sectionRows.js";
 
 export const NOTHING = "Nothing to show.";
@@ -13,10 +14,11 @@ export const NOTHING = "Nothing to show.";
 // The words a row is drawn with, by ID: the client's own wording, or, when an item shown to the client has none, the item's title: its
 // description (the decision text for a decision), which is its visible name in the published lists. Internal fields (the latest update,
 // notes) are never used. Row 851: the eye is the control, so a marked item is listed; a missing wording never takes it off the list.
+// Row 1288: a row's wording is the Full editor's HTML, or the plain text an older clark stored: its words are what is listed.
 export function wordings(d) {
   const out = {};
   for (const [k, own] of [["actions", "description"], ["raid", "description"], ["decisions", "decision"]]) {
-    for (const r of d[k] || []) { const t = String(r.client_message || "").trim() || String(r[own] || "").trim(); if (t) out[r.id] = t; }
+    for (const r of d[k] || []) { const t = richWords(r.client_message).trim() || String(r[own] || "").trim(); if (t) out[r.id] = t; }
   }
   return out;
 }
