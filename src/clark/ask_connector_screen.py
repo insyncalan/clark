@@ -14,7 +14,7 @@ import unicodedata
 from dataclasses import dataclass, field
 
 MAX_RESULT = 40000
-MAX_TOTAL = 70000
+MAX_TOTAL = 1_230_000    # row 1293: the same as ask.MAX_REQUEST (the budget of passages and 30,000 for the question, turns and rules)
 
 # connector part -> the read-only tool names allowed for it. Nothing that sends, replies, deletes, moves, creates or updates.
 ALLOWED_TOOLS = {
