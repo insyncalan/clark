@@ -536,6 +536,11 @@ html:not([data-density="comfortable"]) .rbar + #report .sec-h { line-height: 1.2
 html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tcell { padding: 0 20px 0 0; margin: 0 20px 0 0; border-left: 0; border-right: 1px solid var(--grey-200); }
 html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tcell:last-child { border-right: 0; margin-right: 0; padding-right: 0; }
 @media (max-width: 1180px) { html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tcell.health { border-right: 0; } }
+/* Row 1345 at 900 and below (ruled: one column, content at x=20, right margin 24; prototype 2.0 index.html lines 88 and 92). No token holds 20 or 24, so they are bare lengths. */
+@media screen and (max-width: 900px) {
+  html:has(.rbar + #report .cnt-grid) main { padding-left: 20px; padding-right: 24px; }
+  html:has(.rbar + #report .cnt-grid) #report.frame.report { padding-left: 0; padding-right: 0; }
+}
 /* Row menu-radius, Classic menus: every menu panel (.ddmenu, .menu, .cpop, .gt-pop, .gt-menu) takes the prototype popover radius, 10px (design/prototype-clark-classic/index.html line 63, .pop), where the shared rule drew 12px. The Work items add menu keeps its own approved rule above. */
 .ddmenu, .menu, .cpop, .gt-pop, .gt-menu, [data-gt] .gt-menu { border-radius: 10px; }
 /* Row 1403 (Classic only, Cards unchanged; prototype index.html lines 160-169, widths over 900, 900 and below keep the shared rules): the Dashboard Use cases list as the prototype draws it. */
@@ -707,11 +712,21 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 .wil-cfg .wil-opts label { gap: var(--space-2); min-height: 32px; font-size: var(--size-small); font-weight: 400; }
 .wil-cfg .wil-opts input[type="checkbox"] { width: 18px; height: 18px; }
 .wil-cfg .wil-opts input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+/* Row 1319, segment size (Classic only; Cards layers none of this): the text segmented control (.seg, not the header mode switch .modes nor .lsw, which keep the --radius), the switches and the text tabs take a 6px corner (--radius less 2px); the segment buttons are 28px tall with padding 3px 14px and weight 600 (--weight-medium); the crumb is 13px. Primaries and plain buttons stay at the 8px --radius. The icon segments (34px by 32px) and the top bar's Dashboard and Edit switch keep their size. */
+/* Row 1319, values and their source (ticket 1319, spec table, prototype index.html:49-51): radius 6px = "Segmented control: border 1px, radius 6px" (calc of the 8px --radius less 2px, no new token); min-height 28px and padding 3px 14px = "buttons padding 3px 14px, min-height 28px"; the crumb 13px = "Crumb: normal case, 13px" (--size-caption). Amendment AP4 (the lead amendment): "not .lsw/.icons/.modes", so the layout switch is left out. */
+.seg:not(.modes):not(.lsw), .mv-txt { border-radius: calc(var(--radius) - 2px); }
+.seg:not(.icons):not(.modes):not(.lsw) button { min-height: 28px; padding: 3px 14px; font-weight: var(--weight-medium); }
+.crumbs, .ucd-crumb, .ucf-crumb { font-size: var(--size-caption); }
+/* Row 1319, header mode switch (Classic only; Cards keeps the aqua pill): the pressed half of View | Edit is a white fill with navy text, as the prototype draws it (.seg button[aria-pressed="true"] { white fill, navy text }). The sliding thumb is what paints the fill, so it takes --white; with the glide off the button itself takes it. Text stays --pill-fg, the navy the page already uses on that half. */
+:root:not([data-motion="reduce"]) .modes.seg.glide::before, .modes.seg:not(.glide) button[aria-pressed="true"] { background-color: var(--white); background-image: none; }
+.modes.seg button[aria-pressed="true"] { color: var(--pill-fg); }
 /* Row 1370 (Classic only): scrolling further up at the top of the page, or down at its bottom, does not move the page, so no strip shows above the header or under the last card; if the window still shows the page behind it, the page colour is a token (--page-bg), not white. */
 html { overscroll-behavior-y: none; }
 /* Row 1305 (Classic only, the Cards look keeps the wrapped name of row 1239): the project name where it is the page title, that is the editor header's name button (.hdr-project, its static form too) and the published file's bar (.top-name), stays on one line and is cut with an ellipsis only when its box reaches half the header's width (the Dashboard link, the tabs and the buttons are never pushed). Left alone: the cover's name button (.cover-switch) and the Gantt page's cover, which are not the header. The full name is the hover tip of the editor's name button (set in the page only when this theme is on, with its "Click to change project") and the title of the file's name. Bare length: the 50 percent. */
 .hdr-id, .top-id { max-width: 50%; }
 .hdr-project, .hdr-project > span, .top-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Row 1293 (ruling R-1293 (b), duplicate note marker, Classic only): the note above Apply when a new item has the same kind, title and owner as one already there; Apply stays. A 3px bar in --status-amber on the left, then --space-2 of padding. Bare length: the 3px bar width (a rule weight, as the Row 1318 .tpl-rh-warn bar). Pinned by tests/test_ask_rulings_page_1293.py. */
+.ask-duplicate { margin: 0; border-left: 3px solid var(--status-amber); padding-left: var(--space-2); }
 /* Row 1393 (Work items table, Classic only; the Cards look layers none of this, shell.css is untouched): item title weight 500 in the heading colour, the row line in --grey-200, the column names 13px weight 500 with 9px above and below (the Comfortable density keeps its own larger padding), the Status / Owner / Due / Priority columns 76 / 170 / 134 / 104 px as the prototype page draws them (its default column widths; only Priority changes from the shared 122) above 900 (900 keeps the shared widths), due words 13px with the late one at 600, the red and green status tile text in the status tokens, the row hover in --band-bg and the eye button 30 px. Bare lengths: the 9px header padding, the 500 weight, the widths. */
 :root { --d-colh-y: 9px; }
 table.items th { font-size: var(--size-caption); font-weight: 500; }
