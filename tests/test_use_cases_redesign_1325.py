@@ -151,8 +151,9 @@ class Redesign:
                 self.assertEqual(g["icons"], 2, "the Group by and Sort by buttons (labelled since Row 1316 follow-up)")
                 self.assertEqual([r["ref"].split(" · ")[0] for r in g["rows"]], ["UC 1.1", "UC 1.2", "UC 1.10", "UC 2.1"])
                 self.assertTrue(g["noScroll"])
-                for r in g["rows"]:
-                    self.assertEqual(r["rule"][:2], ["1px", "solid"], "a thin row rule under every row: " + r["uc"])
+                for i, r in enumerate(g["rows"]):
+                    last = i == len(g["rows"]) - 1   # Row 1405: no line under the last row
+                    self.assertEqual(r["rule"][:2], ["0px", "none"] if last else ["1px", "solid"], "a thin row rule under every row but the last: " + r["uc"])
                     self.assertTrue(r["eye"], "the eye is the last cell")
                     for k, hide in enumerate(NAMES):
                         left = r["left"][k]
@@ -168,9 +169,7 @@ class Redesign:
                 self.assertEqual(one["av"], "PD")
                 self.assertEqual(g["rows"][3]["av"], None, "no owner, no avatar")
                 self.assertEqual(one["stp"], "1 next step")
-                self.assertEqual(one["prgH"], 4)
-                self.assertAlmostEqual(one["prgFill"], 0.5, delta=0.02, msg="1 of 2 work items closed")
-                self.assertAlmostEqual(g["rows"][1]["prgFill"], 0.0, delta=0.02)
+                self.assertEqual(one["prgH"], 0, "Row 1399: the prototype draws no progress bar under the next steps (it stays in the markup, not drawn)")
                 if w == 1400:
                     self.assertTrue(one["onVis"] and one["onText"] == "Pat Demo", "1400: the owner's name beside the avatar")
                     self.assertTrue(one["msVis"] and (one["ms"] or "").strip(), "the milestone cell names the linked milestone")
@@ -186,7 +185,7 @@ class Redesign:
                 p.js("location.hash = '#work&p=ABC'")
                 p.until("!!document.querySelector('#work table.items tbody tr')", "Work items drew")
                 wk = p.js(LOOK + "('#work')")
-                for k in ("th", "td", "av", "vtab", "gutter"):   # not fline: Row 1316 ruled the Classic Use cases filter a boxed input (the prototype's), Work items keeps its line
+                for k in ("av", "gutter"):   # Row 1399 and Row 1405: th, td and vtab are the prototype's on Use cases and no longer equal to Work items (pinned in test_use_cases_rows_1399 and test_use_cases_box_1405); not fline: Row 1316 ruled the Classic Use cases filter a boxed input (the prototype's), Work items keeps its line
                     self.assertIsNotNone(uc[k], k + ": drawn on Use cases")
                     self.assertEqual(uc[k], wk[k], k + ": the same as Work items, measured on both pages")
 

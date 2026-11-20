@@ -15,7 +15,8 @@ export function readDraft(d) {
   let html;
   try { html = cleanHtml(d.html); } catch (e) { html = d.html.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean).map((p) => "<p>" + esc(p).replace(/\n/g, "<br>") + "</p>").join(""); }
   try { if (!plainText(html).trim()) return null; } catch (e) { return null; }      // too long for a field even as plain paragraphs: no draft, the answer is still shown
-  return { html, title: cut(d.title), sec: typeof d.sec === "string" ? d.sec : "" };
+  const via = Array.isArray(d.via) ? d.via.filter((v) => typeof v === "string" && v).slice(0, 8) : [];
+  return { html, title: cut(d.title), sec: typeof d.sec === "string" ? d.sec : "", ...(via.length ? { via } : {}) };
 }
 
 /** The words in a body, for "(38 words now)". */
