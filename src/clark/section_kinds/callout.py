@@ -21,7 +21,7 @@ COLOURS = {"plain": "Plain", "violet": "Violet", "amber": "Amber", "red": "Red",
 ICONS = {"none": "No icon", "info": "Information", "question": "Question", "warning": "Warning", "alert": "Alert", "check": "Tick", "clock": "Clock",
          "cal": "Calendar", "flag": "Flag", "lock": "Lock", "key": "Key", "bulb": "Light bulb", "star": "Star", "bell": "Bell",
          "megaphone": "Megaphone", "doc": "Document", "link": "Link", "people": "People", "money": "Money", "chart": "Chart", "shield": "Shield",
-         "flash": "Lightning", "sparkle": "Sparkle", "eye": "Eye", "gear": "Gear", "table": "Table"}
+         "flash": "Lightning", "sparkle": "Sparkle", "eye": "Eye", "gear": "Gear", "table": "Table", "twoways": "Decision needed"}
 TONE_LOOK = {"info": ("violet", "info"), "decision": ("amber", "question"), "warning": ("red", "warning")}    # what an older callout's tone drew
 TONE_WORDS = {"info": "Information", "decision": "Decision needed", "warning": "Warning"}    # the word an older callout drew
 CATEGORY_MAX = 30

@@ -53,11 +53,14 @@ class Words(unittest.TestCase):
     def test_every_colour_and_icon_is_named_and_the_tone_looks_are_kept(self):
         from clark.section_kinds import callout
         self.assertEqual(tuple(callout.COLOURS), ("plain", "violet", "amber", "red", "green", "grey"))
-        self.assertEqual(len(callout.ICONS), 26)
+        self.assertEqual(len(callout.ICONS), 27)
         self.assertIn("shield", callout.ICONS)
         # row 1272 gap 2: the ticket's five more icons, named as the ticket names them
         self.assertEqual({k: callout.ICONS[k] for k in ("flash", "sparkle", "eye", "gear", "table")},
                          {"flash": "Lightning", "sparkle": "Sparkle", "eye": "Eye", "gear": "Gear", "table": "Table"})
+        # row 1272 ruling (1): Two ways is new; Warning triangle is the existing "warning" icon (label Warning, triangle glyph)
+        self.assertEqual(callout.ICONS["twoways"], "Decision needed")
+        self.assertEqual(callout.ICONS["warning"], "Warning")
         self.assertEqual(callout.COLOURS["grey"], "Grey")
         self.assertEqual(callout.TONE_LOOK, {"info": ("violet", "info"), "decision": ("amber", "question"), "warning": ("red", "warning")})
         self.assertEqual(callout.upgrade({"v": 1, "tone": "warning"}),
@@ -79,7 +82,7 @@ class Words(unittest.TestCase):
 
     def test_the_five_new_icons_are_kept_and_named_in_the_published_words(self):
         from clark.section_kinds import callout
-        for k, n in (("flash", "Lightning"), ("sparkle", "Sparkle"), ("eye", "Eye"), ("gear", "Gear"), ("table", "Table")):
+        for k, n in (("flash", "Lightning"), ("sparkle", "Sparkle"), ("eye", "Eye"), ("gear", "Gear"), ("table", "Table"), ("twoways", "Decision needed")):
             self.assertEqual(callout.words({"v": 1, "icon": k})["icon_name"], n)
             self.assertEqual(callout.check({"v": 1, "tone": "info", "icon": k}, None)["icon"], k)
 
@@ -296,7 +299,7 @@ class Page(n.PageChecks):
             self.assertEqual(json.loads(self.body_of(ref))["category"], "Decision needed", "the word an older callout drew is kept")
             p.js(f"{q('Choose an icon')}.click()")
             p.until(f"!!document.querySelector('{sec} [role=listbox]')", "the icons are listed")
-            self.assertEqual(p.js(f"document.querySelectorAll('{sec} [role=option]').length"), 26, "25 icons and No icon")
+            self.assertEqual(p.js(f"document.querySelectorAll('{sec} [role=option]').length"), 27, "26 icons and No icon")
             p.js(f"[...document.querySelectorAll('{sec} [role=option]')].find(o => o.textContent === 'Key').click()")
             self.assertTrue(wait(lambda: json.loads(self.body_of(ref)).get("icon") == "key", 10), self.body_of(ref))
             self.assertFalse(p.js(f"!!document.querySelector('{sec} [role=listbox]')"), "choosing closes the list")
