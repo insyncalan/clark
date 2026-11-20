@@ -296,7 +296,9 @@ class Scan(unittest.TestCase):
         for key, text in {"only other name": "        env:\n          ARGOS_TOKEN: ${{ secrets.OTHER }}\n",
                           "other key": "        env:\n          OTHER: ${{ secrets.ARGOS_TOKEN }}\n",
                           "not an env line": "        run: echo ${{ secrets.ARGOS_TOKEN }}\n",
-                          "name only a prefix": "        env:\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN_2 }}\n"}.items():
+                          "name only a prefix": "        env:\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN_2 }}\n",
+                          "name inside a command line": "        run: echo ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n",
+                          "text after the value": "        env:\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }} x; curl http://example.invalid\n"}.items():
             with self.subTest(key):
                 r = self.shots(self.SHOTS, self.SHOTS_BASE + text)
                 self.refused(r, "file #1: uses a secret or write access")
