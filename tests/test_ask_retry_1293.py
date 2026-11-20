@@ -205,6 +205,45 @@ class Retry(Base):
                 self.real(offer_request, dry=True)
         self.assertFalse(getattr(got.exception, "committed", False))
 
+    def test_an_empty_dry_step_is_not_committed_and_an_empty_real_one_is(self):
+        who = dict(actor=ask_apply.changes.ASK_ACTOR)
+        with self.store.step(ask_apply.changes.ASSISTANT, "Sam Lee", dry=True, **who) as st:
+            pass
+        self.assertIs(st.committed, False)
+        with self.store.step(ask_apply.changes.ASSISTANT, "Sam Lee", dry=False, **who) as st:
+            pass
+        self.assertIs(st.committed, True)
+
+    def test_a_fault_that_is_not_an_exception_still_keeps_the_offer(self):
+        offer = self.offer()
+        with mock.patch.object(self.service.applier, "ask_change", side_effect=KeyboardInterrupt):
+            with self.assertRaises(KeyboardInterrupt):
+                self.service.applier.apply(offer, "ABC")
+        self.assertEqual(self.apply(offer)[0], 200)
+
+    def test_a_kept_offer_still_expires_when_it_would_have(self):
+        now = [1000.0]
+        self.service.applier.clock = lambda: now[0]
+        offer = self.offer()
+        now[0] += 10 * 60
+        self.down["save"] = True
+        self.assertEqual(self.apply(offer)[0], 503)
+        self.down["save"] = False
+        now[0] += 21 * 60                         # 31 minutes after it was made, 21 after the busy save
+        self.assertEqual((self.apply(offer)[0], self.apply(offer)[1]["code"]), (409, "no_offer"))
+        self.assertEqual(self.status_of(self.action), "Open")
+
+    def test_a_busy_save_of_an_offer_from_your_files_keeps_it_needing_confirm(self):
+        offer = self.offer()
+        self.service.applier.offers[offer].from_source = True
+        self.down["save"] = True
+        self.assertEqual(self.apply(offer, confirm=True)[0], 503)
+        self.down["save"] = False
+        status, body = self.apply(offer)
+        self.assertEqual((status, body["code"]), (409, "needs_confirm"))
+        self.assertEqual(self.apply(offer, confirm=True)[0], 200)
+        self.assertEqual(self.status_of(self.action), "Closed")
+
     def test_a_refusal_from_the_data_still_uses_the_offer(self):
         offer = self.offer()
         self.down["refuse"] = True
