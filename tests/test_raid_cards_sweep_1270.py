@@ -165,6 +165,14 @@ class Edit(PageBase):
                 self.assertTrue(self.wait_for(lambda: self.stored(sec)["cards"][n - 1]["id"] == made[k]))
             self.assertEqual([c["id"] for c in self.stored(sec)["cards"][1:3]], [made[6], made[7]])
 
+    def test_a_card_whose_item_is_gone_says_so_and_a_present_one_says_nothing(self):
+        sec, made = self.make(lambda m: json.dumps({"v": 2, "across": 4, "cards": [{"id": "ABC-099", "source": "client"}, {"id": m[1], "source": "client"}]}))
+        with chrome() as cdp:
+            p, q = self.show_picker(cdp, sec)
+            p.until(f"document.querySelectorAll('{q} .rce-card').length >= 2", "the cards are there")
+            self.assertEqual(p.js(f"[...document.querySelectorAll('{q} .rce-card')].slice(0, 2).map(c => (c.querySelector('.rce-note') || {{}}).textContent || '')"),
+                             ["This item is not in the record any more. Choose another item or remove the card.", ""])
+
     def test_no_words_choice_is_offered_and_an_old_one_is_kept(self):
         old = lambda m: json.dumps({"v": 2, "across": 4, "cards": [{"id": m[0], "source": "own", "own": "Old own words"}, {"id": m[1], "source": "client"}]})
         sec, made = self.make(old)
