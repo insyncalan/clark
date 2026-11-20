@@ -454,6 +454,8 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .fbt-error { margin-top: 4px; color: var(--status-red-text); font-size: 13px; }
 /* Row 1358 (Classic only): a pressed main button or mode pill keeps easing its glow over the same 0.12 s as its press sink (the shared press rule lists only the transform, so the glow snapped). */
 :root:not([data-motion="reduce"]) :is(.again, .btn.primary, .btn.pri, .modes.seg .mode, #mode-pill .mode):not(:disabled):active { transition: transform var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
+/* Row 1358 part 2 (Classic only): the corners of the Milestones text tabs and the Use cases Group by, Sort by and New view controls are 6px, as the prototype draws them (the shared token is 8px, and the two icon buttons took 4px). */
+.mv-txt, #usecases #ucl-group, #usecases #ucl-sort, #usecases #ucAddPage.newb { border-radius: 6px; }
 
 /* Row 1355 (Milestones page, Classic only): the View switch (Timeline / Calendar) and the Zoom hint share ONE row, the switch at the top left and the Zoom hint at the far right (spread apart as justify-content: space-between does), as the prototype does; the controls row sits under that row. */
 @media screen { #milestones.frame.milestones:not(.pub) .msv-sw { position: absolute; top: 0; left: 0; right: auto; display: inline-flex; margin: 0; } #milestones.frame.milestones:not(.pub) .mv-bar { padding-right: 0; row-gap: var(--space-2); } #milestones.frame.milestones:not(.pub) .mv-zoom { order: -1; flex: 0 0 100%; display: flex; align-items: center; justify-content: flex-end; min-height: 30px; box-sizing: border-box; } }
@@ -673,6 +675,14 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 @media (min-width: 901px) { html[data-density="comfortable"] .gp-plan { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); margin-right: calc(-1 * (var(--space-5) + var(--space-1))); } }
 /* Row 1372 (Classic only; the Cards look keeps its width): the item and milestone peeks open 62% of the window wide, at least 300px, as the approved peek mock-up draws it, instead of 640px. From 1000px up; below it the peek fills the window as before. A width the person dragged (the peek carries data-sized) is kept. Bare lengths with no token: the 300px least width and the 1000px switch. */
 @media (min-width: 1000px) { .peek:not(.hpk):not(.wide):not([data-sized]) { width: 62% !important; min-width: min(300px, 100vw); } }
+/* Row 1357 (Use cases page, Classic only): item 2, Group by and Sort by keep their icons and take the prototype's button line (1px, the prototype's --ui is this theme's --grey-500) and 6px corners, 28px high; item 6, the status pill is 13px weight 600 as the prototype's pill; item 9, the left rule has square corners (border-radius 0). */
+#usecases #ucl-group, #usecases #ucl-sort { border: 1px solid var(--grey-500); border-radius: 6px; min-height: 28px; height: 28px; box-sizing: border-box; font-weight: 500; }
+#usecases .pill { font-size: 13px; font-weight: 600; height: 20px; line-height: 20px; padding: 0 10px; }
+/* Row 1357 follow-up (Classic only): item 2, Group by and Sort by weight 500 (usecases.css line 10); item 3, + New view has 6px corners; item 6, the pill is 20px high with line-height 20px and padding 0 10px (usecases.css line 73). Row 1358 follow-up: the glow of the main buttons eases on hover over the press time, and + New view on the Work items saved-views row takes the brand colour and the far right (work.css line 43). */
+#usecases #ucl-viewNew { border-radius: 6px; }
+:root:not([data-motion="reduce"]) :is(.again, .btn.primary, .btn.pri, .modes.seg .mode, #mode-pill .mode):not(:disabled):hover { transition: transform var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
+#work .vnew, #work .vnew:hover { color: var(--brand-blue); margin-left: auto; }
+.frame.ucl { border-radius: 0; }
 /* Row 1197: the Gantt toolbar as the approved mock-up draws it. Bar gap 6px, margin 4px 0 10px, icon buttons 34px (the grouped ones 36 wide), the zoom-fit button 34px high, and one divider between zoom in and the filter. */
 [data-gantt] .gt-bar { column-gap: 6px; margin: 4px 0 10px; }
 [data-gantt] .gt-bar .gt-ib { width: 34px; height: 34px; }
@@ -707,6 +717,14 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 .wil-cfg .wil-opts label { gap: var(--space-2); min-height: 32px; font-size: var(--size-small); font-weight: 400; }
 .wil-cfg .wil-opts input[type="checkbox"] { width: 18px; height: 18px; }
 .wil-cfg .wil-opts input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+/* Row 1319, segment size (Classic only; Cards layers none of this): the text segmented control (.seg, not the header mode switch .modes nor .lsw, which keep the --radius), the switches and the text tabs take a 6px corner (--radius less 2px); the segment buttons are 28px tall with padding 3px 14px and weight 600 (--weight-medium); the crumb is 13px. Primaries and plain buttons stay at the 8px --radius. The icon segments (34px by 32px) and the top bar's Dashboard and Edit switch keep their size. */
+/* Row 1319, values and their source (ticket 1319, spec table, prototype index.html:49-51): radius 6px = "Segmented control: border 1px, radius 6px" (calc of the 8px --radius less 2px, no new token); min-height 28px and padding 3px 14px = "buttons padding 3px 14px, min-height 28px"; the crumb 13px = "Crumb: normal case, 13px" (--size-caption). Amendment AP4 (the lead amendment): "not .lsw/.icons/.modes", so the layout switch is left out. */
+.seg:not(.modes):not(.lsw), .mv-txt { border-radius: calc(var(--radius) - 2px); }
+.seg:not(.icons):not(.modes):not(.lsw) button { min-height: 28px; padding: 3px 14px; font-weight: var(--weight-medium); }
+.crumbs, .ucd-crumb, .ucf-crumb { font-size: var(--size-caption); }
+/* Row 1319, header mode switch (Classic only; Cards keeps the aqua pill): the pressed half of View | Edit is a white fill with navy text, as the prototype draws it (.seg button[aria-pressed="true"] { white fill, navy text }). The sliding thumb is what paints the fill, so it takes --white; with the glide off the button itself takes it. Text stays --pill-fg, the navy the page already uses on that half. */
+:root:not([data-motion="reduce"]) .modes.seg.glide::before, .modes.seg:not(.glide) button[aria-pressed="true"] { background-color: var(--white); background-image: none; }
+.modes.seg button[aria-pressed="true"] { color: var(--pill-fg); }
 /* Row 1370 (Classic only): scrolling further up at the top of the page, or down at its bottom, does not move the page, so no strip shows above the header or under the last card; if the window still shows the page behind it, the page colour is a token (--page-bg), not white. */
 html { overscroll-behavior-y: none; }
 /* Row 1305 (Classic only, the Cards look keeps the wrapped name of row 1239): the project name where it is the page title, that is the editor header's name button (.hdr-project, its static form too) and the published file's bar (.top-name), stays on one line and is cut with an ellipsis only when its box reaches half the header's width (the Dashboard link, the tabs and the buttons are never pushed). Left alone: the cover's name button (.cover-switch) and the Gantt page's cover, which are not the header. The full name is the hover tip of the editor's name button (set in the page only when this theme is on, with its "Click to change project") and the title of the file's name. Bare length: the 50 percent. */
