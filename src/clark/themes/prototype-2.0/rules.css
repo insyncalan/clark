@@ -511,6 +511,9 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .slash-verdict dt { font-size: var(--size-caption); color: var(--text-muted); margin-top: var(--space-2); }
 .slash-verdict dd { margin: 0; }
 @media (max-width: 900px) { .slash-grid { grid-template-columns: 1fr; } .slash-grid .slash-pick-note { grid-column: 1; } .slash-list .slash-rows li { grid-template-columns: 1fr max-content; } }
+.ask-safety { margin: var(--space-2) 0 0; padding: 0; list-style: none; }   /* row 1294: the Changes and safety list is plain like .ask-folders: no bullets */
+.ask-safety li { margin-top: var(--space-1); }
+
 /* Row 1409: ONE colour per priority, read by the Work items table chip and by the rating matrix cell alike (Low green, Medium amber, High red, Urgent maroon; the word stays on both). The four pairs below are the only source; Brands reach them through the tokens they name. */
 :root { --pri-low-bg: var(--status-green-tint); --pri-low-fg: var(--status-green-text); --pri-medium-bg: var(--status-amber-tint); --pri-medium-fg: var(--status-amber-text); --pri-high-bg: var(--status-red-tint); --pri-high-fg: var(--status-red-text); --pri-urgent-bg: var(--tone-urgent); --pri-urgent-fg: var(--tone-on-urgent); }
 .wil-pr[data-pri="Low"], .cpop .rmx-c[data-level="Low"] { background: var(--pri-low-bg); color: var(--pri-low-fg); }
