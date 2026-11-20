@@ -98,6 +98,21 @@ class Controls(ClassicEdit):
             gap = got["tiles"]["risks"]["x"] - got["tiles"]["overdue"]["x"] - w
             self.assertAlmostEqual(w, (g - 2 * gap) / 3, delta=0.6)
 
+    def test_P4b_bin_rests_in_body_colour_and_the_show_line_gap_is_14(self):
+        probe = """(function(sel){ var g = document.querySelector(sel + ' [data-glance-template]'), e = document.createElement('i'), o = {};
+          function res(v){ e.style.color = v; document.body.appendChild(e); var c = getComputedStyle(e).color; e.remove(); return c; }
+          var bin = g.querySelector('[data-tile-bin]'), sh = g.querySelector('[data-gt-showhealth]');
+          o.text = res('var(--text)'); o.muted = res('var(--text-muted)'); o.bin = bin ? getComputedStyle(bin).color : null;
+          o.gap = sh ? getComputedStyle(sh).columnGap : null; return o; })"""
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                self.seed_body({"v": 1, "health": {"shown": False}})
+                with chrome() as cdp:
+                    got = self.page(cdp, width, False).js(f"({probe})({json.dumps(self.sel())})")
+                self.assertEqual(got["bin"], got["text"], got)
+                self.assertNotEqual(got["bin"], got["muted"], got)
+                self.assertEqual(got["gap"], "14px", got)
+
     def test_P5_the_help_text_is_the_approved_line(self):
         for width in (1400, 900):
             with self.subTest(width=width):

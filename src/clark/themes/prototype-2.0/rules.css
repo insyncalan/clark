@@ -422,6 +422,10 @@ html:has(.top-hdr) :is(.hdr-project, .hdr-project > span) { white-space: nowrap;
 /* Row 1336 part 3 (Classic only; Cards keeps its rules): Project health as the mock-up draws it, in Edit and in View: the pill row wraps, so the reason sits under the pill at the tile's inner width instead of beside it in a strip a few words wide, and a word is kept whole (a break inside a word only when it is longer than the line). In View the counting tiles draw their status shape as the 8x8 dot Edit and the mock-up draw (a typed tile keeps its 12px shape, as the mock-up does). The 8px is the mock-up's own length and has no token. */
 .tpl-edit-glancetemplate .glance .hrow, .tpl-gt-health .hrow { flex-wrap: wrap; }
 .tpl-edit-glancetemplate .glance .hreason, .tpl-gt-health .hreason { overflow-wrap: break-word; }
+/* Row 1336 part 2, two values the mock-up draws (at-a-glance-builder.html:429 and :431; the ruling of 19-11 takes the bin and the line as the mock-up): the bin on a tile rests in the body colour (the pen keeps the muted one; the hover colours already match) and the 'Show project health here' line keeps 14px between the eye and its text (Classic only; Cards keeps the shared 12px and the muted bin). */
+.tpl-edit-glancetemplate .glance .tdel { color: var(--text); }
+.tpl-edit-glancetemplate .glance .tdel:hover { color: var(--status-red-text); }
+.tpl-edit-glancetemplate .glance .gt-showhealth { gap: 14px; }
 .tpl-gt .tpl-gt-tile.go .tpl-gt-dot { width: 8px; height: 8px; }
 /* Row 1342: the Feedback tag dialog as the 1298 mockup draws it: heading 17px / 600 with 2px under it, the dialog and the tag one step roomier (bottom padding 14, tag top and bottom padding 14). */
 .fbt-head h2 { margin: 0 0 2px; font-size: 17px; font-weight: 600; color: var(--heading); }
