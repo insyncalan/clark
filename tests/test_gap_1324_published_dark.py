@@ -137,15 +137,20 @@ class Published(unittest.TestCase):
         # A published file carries no data-theme (stores/appearance.js:5), so the computer's own scheme never darkens it: "os-dark" is that
         # case (the computer is dark, the file stays light); "dark" sets data-theme=dark by hand, the one way the dark tokens reach it.
         cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "light" if scheme == "light" else "dark"}]}, sid)
-        if scheme == "dark":
-            cdp.js("document.documentElement.dataset.theme = 'dark'", sid)
         self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1"))
+        if scheme == "dark":
+            # after the page has started, so its own start-up cannot put the theme back (a slow runner did that); then wait until it shows
+            cdp.js("document.documentElement.dataset.theme = 'dark'", sid)
+            self.assertTrue(wait(lambda: cdp.js("(() => { const c = getComputedStyle(document.body).backgroundColor.match(/[\\d.]+/g).slice(0, 3).map(Number); return c[0] + c[1] + c[2] < 300; })()", sid)), "the dark tokens reached the file")
         cdp.js("document.querySelector('[data-view=work]').click()", sid)
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#work h1')", sid)), "the Work items tab drew")
         cdp.js("document.querySelector('#group-by, [aria-label^=\"Group by\"]').click()", sid)
         self.assertTrue(wait(lambda: cdp.js("!![...document.querySelectorAll('[role^=menuitem]')].find(e => e.textContent.replace('✓', '').trim() === '" + by + "')", sid)))
         cdp.js("[...document.querySelectorAll('[role^=menuitem]')].find(e => e.textContent.replace('✓', '').trim() === '%s').click()", sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work .grp-b').length", sid) >= 2))
+        if scheme == "dark":
+            cdp.js("document.documentElement.dataset.theme = 'dark'", sid)       # again, in case the page's own redraw took it off
+            self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.theme", sid) == "dark"))
         return sid
 
     def test_the_published_group_is_a_heading_line_in_light_and_dark(self):
