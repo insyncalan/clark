@@ -34,7 +34,7 @@ class Store(unittest.TestCase):
                 quote.check({"v": 1, "quotes": bad}, None)
 
     def test_align_per_row_tile_and_heading_are_checked(self):
-        for field, bad in (("align", "right"), ("align", 1), ("perRow", 4), ("perRow", "2"), ("perRow", True), ("tile", "no"), ("heading", 0)):
+        for field, bad in (("align", "right"), ("align", 1), ("perRow", 4), ("perRow", "2"), ("perRow", 2.0), ("perRow", True), ("tile", "no"), ("heading", 0)):
             with self.subTest(field=field, bad=bad), self.assertRaises(quote.Bad):
                 quote.check({**LIST, field: bad}, None)
 
