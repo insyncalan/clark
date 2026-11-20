@@ -300,7 +300,7 @@ class Words(unittest.TestCase):
                     "Standing instructions",      # row 1294, slice 3: the card for the project's own (this server has no instructions route, so it says they could not be read)
                     "The standing instructions could not be read just now. Reload the page to try again.",
                     "For all projects", "Set under All projects. Sent first.", "Change",
-                    "For ABC", "Up to 4,000 characters, sent after the ones for all projects. Long instructions count towards the 300,000 tokens every time.", "0 of 4,000",
+                    "For ABC", "Up to 4,000 characters, sent after the ones for all projects. Long instructions count towards the size of one question every time.", "0 of 4,000",
                 ]),
                 ('logs', 'Logs and diagnostics', [
                     "Logs and diagnostics",      # #110

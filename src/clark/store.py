@@ -46,6 +46,7 @@ SCHEMA_VERSION = 32          # 2 (#126): documents can be archived; 3 (#48): ite
 TABLES = ("projects", "milestones", "workstreams", "actions", "raid", "decisions", "use_cases", "links", "labels",
           "item_labels", "updates", "report_sections", "glance_tiles", "report_hidden", "documents", "source_folders", "people", "gantt_lines", "use_case_milestones")
 SETTINGS_TABLES = ("app_settings", "install_defaults", "connector_switches", "project_connectors")     # clark (#47): the writer's too, but kept apart from TABLES: what walks TABLES (backups, the demo, publishing) has no use for it
+HIDDEN_CONNECTORS = ("todoist",)      # row 1306: found but never offered, never On: its read-only tools are not checked yet (filed as a Tech Debt row)
 CONNECTORS = ("mail", "calendar", "teams", "sharepoint", "todoist")      # row 1306: the connectors asking may one day be allowed to read; the same five words as schema.sql's CHECKs
 THEMES = ("classic", "cards")      # row 1269: the install's Theme, Clark Classic or Clark Cards (schema.sql's CHECK says the same)
 THEME_WHEN_MISSING = "cards"   # row 1269: a file with no answer keeps today's look (Cards); it never turns a Theme on by itself
@@ -4225,7 +4226,7 @@ class Store:
             if self.connectors_ready():
                 for c, v in self.con.execute("SELECT connector, is_on FROM connector_switches"):
                     if c in out:
-                        out[c] = v == 1
+                        out[c] = v == 1 and c not in HIDDEN_CONNECTORS
         except sqlite3.Error:
             return {c: False for c in CONNECTORS}
         return out
@@ -4294,66 +4295,94 @@ class Store:
         when it is Movement), at most MOVE_PER_MILESTONE each and MOVE_PER_PROJECT in all (the newest across the project);
         `total` counts them before the cut and `truncated` says something was cut. A note row is kept only in a step that also
         has a date, status, state or Movement row, so a note written alone (a Hold's dated line) never comes out."""
-        con = connect(self.path, readonly=True)
-        try:
-            con.execute("BEGIN")
-            if con.execute("SELECT 1 FROM projects WHERE code = ?", (code,)).fetchone() is None:
-                return None
-            live = [r["id"] for r in con.execute("SELECT id FROM milestones WHERE project = ? AND archived = 0 ORDER BY id", (code,))]
-            rows = sorted(con.execute(MOVE_SQL % ", ".join("?" * len(MOVE_FIELDS)), (code + "-M-", code + "-M.") + MOVE_FIELDS),
-                          key=lambda r: r["rowid"])
-            reverted = reverted_rowids(con)
-        finally:
-            con.close()
+        read = _move_read(self.path, code)
+        if read is None:
+            return None
+        live, rows, reverted = read
         by_milestone = {m: [] for m in live}
         for r in rows:
             if r["item_id"] in by_milestone:
                 by_milestone[r["item_id"]].append(r)
-        out, kept = {}, []
-        for mid, mine in by_milestone.items():
-            beside = {r["apply_id"] for r in mine if r["field"] in MOVE_DATED}
-            steps = {}
-            for r in mine:
-                if r["field"] == "note":
-                    steps.setdefault(r["apply_id"], []).append(r["new_value"] or "")
-            original = next((r["new_value"] for r in mine if r["field"] == "baseline_date" and r["new_value"] is not None
-                             and r["undone_at"] is None and not str(r["via"]).startswith(REVERT_VIA)
-                             and r["rowid"] not in reverted), None)
-            made = {r["apply_id"] for r in mine if r["field"] == "id"}     # the step that made the milestone is not a movement
-            shown = [r for r in mine if r["apply_id"] not in made and (r["field"] != "note" or r["apply_id"] in beside)]
-            undone_by = {r["undoes"]: r["event_id"] for r in shown if r["undoes"] is not None}
-            events = []
-            for r in shown:
-                found = MOVE_DECISION.findall(" ".join(steps.get(r["apply_id"], ())))
-                events.append({
-                    "event_id": r["event_id"], "at": r["at"], "step": r["apply_id"], "by_user": r["by_user"], "table": "milestones",
-                    "ref": r["item_id"], "field": r["field"], "before": r["old_value"], "after": r["new_value"], "op": r["op"],
-                    "route": r["route"], "place": r["place"], "origin": r["origin"], "actor": r["actor"],
-                    "src_ref": r["src_ref"] if r["src_ref"] == MOVE_PLACE_NAME else None, "decision": found[-1] if found else "",
-                    "undoes": r["undoes"], "is_undo": str(r["via"]).startswith(REVERT_VIA),
-                    "undone_by": undone_by.get(r["event_id"]), "in_force": not r["undone_at"] and r["rowid"] not in reverted})
-            events.sort(key=lambda e: e["event_id"], reverse=True)
-            from clark import milestone_rows        # the count of moves is made here, over the whole history, before any cut
-            # Same counting rule as the Movement page's list and card (one function, milestone_rows.moves); test_store_movement pins the two together.
-            moves = milestone_rows.moves(milestone_rows.movement(events, mid))
-            out[mid] = {"original": original, "total": len(events), "moves": moves, "events": cut_whole_steps(events, MOVE_PER_MILESTONE)}
-            kept.extend((e["event_id"], mid) for e in out[mid]["events"])
+        out = {mid: _move_block(mid, mine, reverted) for mid, mine in by_milestone.items()}
         truncated = any(len(b["events"]) < b["total"] for b in out.values())
-        if len(kept) > MOVE_PER_PROJECT:
-            groups = {}
-            for b_id, b in out.items():
-                for e in b["events"]:
-                    groups.setdefault((b_id, e["step"]), []).append(e)
-            keep, used = set(), 0
-            for key, g in sorted(groups.items(), key=lambda kv: max(e["event_id"] for e in kv[1]), reverse=True):
-                if keep and used + len(g) > MOVE_PER_PROJECT:
-                    break
-                keep.add(key)
-                used += len(g)
-            for b_id, b in out.items():
-                b["events"] = [e for e in b["events"] if (b_id, e["step"]) in keep]
+        if sum(len(b["events"]) for b in out.values()) > MOVE_PER_PROJECT:
+            _cut_project_moves(out)
             truncated = True
         return {"project": code, "milestones": out, "truncated": truncated}
+
+
+def _move_read(path, code):
+    """milestone_moves, the read: (live milestone ids, change rows oldest first, reverted rowids) in one read-only transaction, or None
+    when there is no such project."""
+    con = connect(path, readonly=True)
+    try:
+        con.execute("BEGIN")
+        if con.execute("SELECT 1 FROM projects WHERE code = ?", (code,)).fetchone() is None:
+            return None
+        live = [r["id"] for r in con.execute("SELECT id FROM milestones WHERE project = ? AND archived = 0 ORDER BY id", (code,))]
+        rows = sorted(con.execute(MOVE_SQL % ", ".join("?" * len(MOVE_FIELDS)), (code + "-M-", code + "-M.") + MOVE_FIELDS),
+                      key=lambda r: r["rowid"])
+        return live, rows, reverted_rowids(con)
+    finally:
+        con.close()
+
+
+def _move_original(mine, reverted):
+    """The first agreed date still standing: the first baseline_date row that was not undone or reverted."""
+    return next((r["new_value"] for r in mine if r["field"] == "baseline_date" and r["new_value"] is not None
+                 and r["undone_at"] is None and not str(r["via"]).startswith(REVERT_VIA)
+                 and r["rowid"] not in reverted), None)
+
+
+def _move_events(mid, mine, reverted):
+    """One milestone's events, newest first: the step that made it is left out, and a note row stays only in a step that also has a date,
+    status, state or Movement row."""
+    beside = {r["apply_id"] for r in mine if r["field"] in MOVE_DATED}
+    steps = {}
+    for r in mine:
+        if r["field"] == "note":
+            steps.setdefault(r["apply_id"], []).append(r["new_value"] or "")
+    made = {r["apply_id"] for r in mine if r["field"] == "id"}     # the step that made the milestone is not a movement
+    shown = [r for r in mine if r["apply_id"] not in made and (r["field"] != "note" or r["apply_id"] in beside)]
+    undone_by = {r["undoes"]: r["event_id"] for r in shown if r["undoes"] is not None}
+    events = []
+    for r in shown:
+        found = MOVE_DECISION.findall(" ".join(steps.get(r["apply_id"], ())))
+        events.append({
+            "event_id": r["event_id"], "at": r["at"], "step": r["apply_id"], "by_user": r["by_user"], "table": "milestones",
+            "ref": r["item_id"], "field": r["field"], "before": r["old_value"], "after": r["new_value"], "op": r["op"],
+            "route": r["route"], "place": r["place"], "origin": r["origin"], "actor": r["actor"],
+            "src_ref": r["src_ref"] if r["src_ref"] == MOVE_PLACE_NAME else None, "decision": found[-1] if found else "",
+            "undoes": r["undoes"], "is_undo": str(r["via"]).startswith(REVERT_VIA),
+            "undone_by": undone_by.get(r["event_id"]), "in_force": not r["undone_at"] and r["rowid"] not in reverted})
+    events.sort(key=lambda e: e["event_id"], reverse=True)
+    return events
+
+
+def _move_block(mid, mine, reverted):
+    """One milestone's reply block: original, total, moves and the events cut to MOVE_PER_MILESTONE."""
+    from clark import milestone_rows        # the count of moves is made here, over the whole history, before any cut
+    events = _move_events(mid, mine, reverted)
+    # Same counting rule as the Movement page's list and card (one function, milestone_rows.moves); test_store_movement pins the two together.
+    moves = milestone_rows.moves(milestone_rows.movement(events, mid))
+    return {"original": _move_original(mine, reverted), "total": len(events), "moves": moves,
+            "events": cut_whole_steps(events, MOVE_PER_MILESTONE)}
+
+
+def _cut_project_moves(out):
+    """Keep the newest whole steps across the project, at most MOVE_PER_PROJECT events (the newest step is always kept)."""
+    groups = {}
+    for b_id, b in out.items():
+        for e in b["events"]:
+            groups.setdefault((b_id, e["step"]), []).append(e)
+    keep, used = set(), 0
+    for key, g in sorted(groups.items(), key=lambda kv: max(e["event_id"] for e in kv[1]), reverse=True):
+        if keep and used + len(g) > MOVE_PER_PROJECT:
+            break
+        keep.add(key)
+        used += len(g)
+    for b_id, b in out.items():
+        b["events"] = [e for e in b["events"] if (b_id, e["step"]) in keep]
 
 
 OWNER_TEXT = {"actions": "owner", "raid": "owner", "milestones": "owner", "workstreams": "lead", "decisions": "made_by", "use_cases": "owner"}   # #115: the text column beside each owner_id
