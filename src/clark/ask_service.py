@@ -169,7 +169,7 @@ class AskService:
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         try:
-            # #1292 S14: the files of this question only, screened like any passage; nothing is kept. Row 1294: the Files switch is read now, only for a question that carries files
+            # item 1292 S14: the files of this question only, screened like any passage; nothing is kept. Row 1294: the Files switch is read now, only for a question that carries files
             added = ask_files.passages(body.get("files"), self.files_allowed(code) if body.get("files") else True)
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
