@@ -416,7 +416,11 @@ class TheFilesRules(Base):
     def test_the_two_flags_in_every_combination_decide_a_question_with_files(self):
         for on, off, want in ((1, 0, 200), (1, 1, 400), (0, 0, 400), (0, 1, 400)):
             self.flags(on=on, off_here=off)
-            self.assertEqual(self.question(files=[f("a.txt", b"x")])[0], want, (on, off))
+            status, got = self.question(files=[f("a.txt", b"x")])
+            self.assertEqual(status, want, (on, off))
+            if want == 400:
+                self.assertEqual(got["message"], ThePassagesGate.WORDS, (on, off))
+                self.assertNotIn("Reload", got["message"], (on, off))
             status, got = self.api("GET", query="?project=PUB")
             self.assertEqual((got["on"], got["off_here"], got["allowed"]), (bool(on), bool(off), want == 200), (on, off))
 
@@ -621,7 +625,7 @@ class TheFilesRules(Base):
 
 class ThePassagesGate(unittest.TestCase):
     """Row 1294: ask_files.passages(files, allowed) with the Files switch off."""
-    WORDS = "The files could not be read. Nothing was sent. Reload the page and ask again."
+    WORDS = "Files are turned off for asking, so none were sent. Turn them on in Settings, or ask again without them."
 
     def test_with_the_switch_off_any_file_is_refused_in_one_set_of_words(self):
         from clark import ask, ask_files
@@ -629,6 +633,13 @@ class ThePassagesGate(unittest.TestCase):
             with self.assertRaises(ask.AskRefused) as caught:
                 ask_files.passages(files, False)
             self.assertEqual(str(caught.exception), self.WORDS, files)
+
+    def test_with_the_switch_on_a_wrong_shape_keeps_the_reload_words_and_the_off_words_are_not_them(self):
+        from clark import ask, ask_files
+        with self.assertRaises(ask.AskRefused) as caught:
+            ask_files.passages("a.txt", True)
+        self.assertEqual(str(caught.exception), "The files could not be read. Nothing was sent. Reload the page and ask again.")
+        self.assertNotEqual(self.WORDS, str(caught.exception))
 
     def test_with_the_switch_off_no_file_is_still_no_file(self):
         from clark import ask_files
