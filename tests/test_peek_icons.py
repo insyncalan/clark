@@ -81,6 +81,11 @@ class ToneRules(unittest.TestCase):
         out = self.run_js('console.log(JSON.stringify(["Urgent", "High", "Medium", "Low", null, "", "Odd"].map(I.priorityTone)))')
         self.assertEqual(out, ["r", "a", "b", "n", "n", "n", "n"])
 
+    def test_the_maroon_tone_has_its_own_class_and_the_default_follows_the_page_theme_element(self):
+        out = self.run_js('const on = (has) => { globalThis.document = { getElementById: (id) => (has && id === "theme" ? {} : null) }; return I.priorityToneFor("Urgent"); }; '
+                          'console.log(JSON.stringify([I.iconClass("m"), I.iconClass("x"), on(true), on(false)]))')
+        self.assertEqual(out, ["ic-m", "ic-n", "m", "r"])
+
     def test_the_date_is_red_late_amber_within_a_week_blue_later_and_grey_with_none(self):
         today = "2026-10-28"
         act = lambda due, status="Open": {"kind": "action", "status": status, "due_date": due}
@@ -101,6 +106,31 @@ class ToneRules(unittest.TestCase):
         out = self.run_js(f"console.log(JSON.stringify([{json.dumps(rows)}.map((r) => I.statusTone(r, {json.dumps(today)})), "
                           f"[\"r\", \"x\", undefined].map(I.iconClass)]))")
         self.assertEqual(out, [["r", "a", "r", "g", "n"], ["ic-r", "ic-n", "ic-n"]])
+
+
+class PeekItemChipsClassicPriority(unittest.TestCase):
+    """Row 1390: every Peek.jsx priority icon takes priorityToneFor (Classic: Urgent maroon m, High red r, Medium blue b, Low grey n; Cards keeps priorityTone)."""
+    PEEK = (SRC / "components" / "Peek.jsx").read_text(encoding="utf-8")
+
+    def line_with(self, needle):
+        hits = [ln for ln in self.PEEK.splitlines() if needle in ln]
+        self.assertEqual(len(hits), 1, needle)
+        return hits[0]
+
+    def test_the_item_chip_priority_icon_uses_the_classic_gated_tone(self):
+        self.assertIn("tone={rated ? colourOf(prio).class : priorityToneFor(prio)}", self.line_with('field="priority" name={(row.kind'))
+
+    def test_the_issue_rating_row_icon_uses_the_classic_gated_tone(self):
+        self.assertIn("<Toned icon=\"bars\" tone={priorityToneFor(row.priority)}>", self.line_with('name="Rating"'))
+
+    def test_the_decision_and_plain_priority_row_icon_uses_the_classic_gated_tone(self):
+        self.assertIn("tone={priorityToneFor(row.kind === \"decision\" ? row.peek_priority : row.priority)}", self.line_with('name="Priority"><Toned'))
+
+    def test_no_ungated_priority_tone_call_is_left_in_the_page_components(self):
+        for path in sorted((SRC).rglob("*.js*")):
+            if path.name == "iconColours.js":
+                continue
+            self.assertNotRegex(path.read_text(encoding="utf-8"), r"\bpriorityTone\(", path.name)
 
 
 class TokensOnly(unittest.TestCase):
