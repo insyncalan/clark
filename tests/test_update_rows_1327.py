@@ -12,7 +12,7 @@ from clark import updater as up
 BASE = {**STATUS, "available": None, "line": None, "last": None}
 AVAIL = {"state": "avail", "version": "0.3.2", "notes": "Faster.", "checked": "19-11-2026 11:42", "date": "18-11-2026", "size": "38 MB"}
 LABELS = "[...document.querySelectorAll('#update .upd-l')].map(e => e.textContent)"
-QUIET = "The newest version is looked up quietly when clark starts and when you choose Check now. It never installs by itself."
+QUIET = "The newest version is looked up quietly when you open this card and when you choose Check now. It never installs by itself."
 OFFLINE = "clark could not reach the releases page. Check your connection, or use a file you downloaded."
 FAILED = "It was not installed and nothing changed. Try the download again; if it happens again, use a file from the releases page."
 
