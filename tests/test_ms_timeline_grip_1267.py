@@ -14,16 +14,26 @@ from test_server import Running, chrome, wait
 from test_work_items import page_target
 
 HASH = "#milestones&p=TUL"
+CLASSIC = "prototype-2.0"
 GEO = """(() => { const w = document.querySelector('.mv-wrap').getBoundingClientRect(), g = document.querySelector('[data-grip]').getBoundingClientRect();
   return [(g.left + g.width / 2) - (w.left + w.width / 2), w.bottom - g.bottom, w.bottom - g.top, getComputedStyle(document.querySelector('.mv-wrap')).resize]; })()"""
 PCT = "document.querySelector('.mv-wrap').dataset.zoomPct"
 KEY = "(k) => { const g = document.querySelector('[data-grip]'); g.focus(); g.dispatchEvent(new KeyboardEvent('keydown', {key: k, bubbles: true, cancelable: true})); }"
 
 
-class Grip(BrowserBase, unittest.TestCase):
+class Classic:
+    """Row 1267 is a Classic rule: the look of the grip is on both pages; the slider keys and the no-grip-on-a-short-line rule are Classic only (Cards is frozen). serve() is the Cards page, serve(CLASSIC) the Classic one."""
+
+    def serve(self, theme=None):
+        s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp(), theme=theme))
+        self.addCleanup(s.close)
+        return s.port
+
     def press(self, cdp, sid, key):
         cdp.js(f"({KEY})('{key}')", sid)
 
+
+class Grip(Classic, BrowserBase, unittest.TestCase):
     def test_the_grip_is_centred_on_the_bottom_edge_and_the_corner_handle_is_gone(self):
         port = self.serve()
         for width in (1400, 900):
@@ -46,7 +56,7 @@ class Grip(BrowserBase, unittest.TestCase):
                 self.assertEqual(bounds, ["vertical", "70", "300"], f"{width}: the slider says which way it moves and where it ends")
 
     def test_slider_keys_up_and_right_raise_down_and_left_lower_home_is_100_end_the_most(self):
-        port = self.serve()
+        port = self.serve(CLASSIC)
         for width in (1400, 900):
             with chrome() as cdp:
                 sid = self.visit(cdp, width, HASH, port)
@@ -120,7 +130,7 @@ class Grip(BrowserBase, unittest.TestCase):
                 self.assertIn("touch", cdp.js("window.__pt", sid), f"{width}: the events were touch pointers")
 
     def test_the_ends_hold_once_settled_home_is_remembered_and_the_grip_is_off_the_paper(self):
-        port = self.serve()
+        port = self.serve(CLASSIC)
         for width in (1400, 900):
             with chrome() as cdp:
                 sid = self.visit(cdp, width, HASH, port)
@@ -139,6 +149,14 @@ class Grip(BrowserBase, unittest.TestCase):
                 self.press(cdp, sid, "Home")
                 self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "100"), f"{width}: Home is 100%")
                 self.assertEqual(cdp.js("localStorage.getItem('clark.tlZoom.page')", sid), "1", f"{width}: Home remembered")
+
+    def test_reset_puts_it_back_and_the_grip_is_off_the_paper(self):
+        port = self.serve()
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width, HASH, port)
+                self.press(cdp, sid, "ArrowDown")
+                self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "110"), f"{width}: Down raises on the Cards page")
                 cdp.js("document.querySelector('[data-zreset]').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "100"), f"{width}: Reset puts it back")
                 self.assertNotEqual(cdp.js("getComputedStyle(document.querySelector('[data-grip]')).display", sid), "none", f"{width}: shown on screen")
@@ -158,7 +176,7 @@ class Grip(BrowserBase, unittest.TestCase):
                 self.assertGreaterEqual(lift, 18, f"{width}: the caption is lifted over the strip's bottom edge, clear of the grip's room ({lift})")
 
     def test_the_arrow_keys_are_taken_by_the_grip_and_other_keys_are_not(self):
-        port = self.serve()
+        port = self.serve(CLASSIC)
         for width in (1400, 900):
             with chrome() as cdp:
                 sid = self.visit(cdp, width, HASH, port)
@@ -201,7 +219,7 @@ def real_press(cdp, sid, key):
         cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": key, "windowsVirtualKeyCode": REAL[key]}, sid)
 
 
-class DarkAndSideways(BrowserBase, unittest.TestCase):
+class DarkAndSideways(Classic, BrowserBase, unittest.TestCase):
     def test_the_grip_in_the_dark_theme_uses_the_dark_tokens_and_still_works(self):
         port = self.serve()
         read = """(() => { const g = document.querySelector('[data-grip]'), s = g.querySelector('span'), root = getComputedStyle(document.documentElement);
@@ -224,8 +242,8 @@ class DarkAndSideways(BrowserBase, unittest.TestCase):
                     cdp.js("document.querySelector('[data-grip]').focus(); true", sid)
                     self.assertEqual(cdp.js("getComputedStyle(document.querySelector('[data-grip]')).outlineStyle", sid), "solid", f"{where}: a visible focus ring")
                     if scheme == "dark":
-                        real_press(cdp, sid, "ArrowUp")
-                        self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "110"), f"{where}: a real Up press zooms one step")
+                        real_press(cdp, sid, "ArrowDown")
+                        self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "110"), f"{where}: a real Down press zooms one step")
                         real_press(cdp, sid, "Home")
                         self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "100"), f"{where}: a real Home press goes to 100%")
         for width in (1400, 900):
@@ -241,7 +259,8 @@ class DarkAndSideways(BrowserBase, unittest.TestCase):
             with chrome() as cdp:
                 sid = self.visit(cdp, width, HASH, port)
                 cdp.js("document.querySelector('[data-grip]').focus(); true", sid)
-                real_press(cdp, sid, "End")
+                for _ in range(21):
+                    real_press(cdp, sid, "ArrowDown")
                 self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "300"), f"{width}: zoomed to the most so the strip is wide")
                 self.assertTrue(wait(lambda: cdp.js("(() => { const w = document.querySelector('.mv-wrap'); return w.scrollWidth > w.clientWidth + 50; })()", sid)), f"{width}: the strip scrolls sideways")
                 spot = "(() => { const r = document.querySelector('[data-grip]').getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width)]; })()"
@@ -266,15 +285,15 @@ class DarkAndSideways(BrowserBase, unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelector('[data-grip]') === document.activeElement", sid), True, f"{width}: focus stayed on it")
 
 
-class ShortList(BrowserBase, unittest.TestCase):
+class ShortList(Classic, BrowserBase, unittest.TestCase):
     """A line of fewer than three milestones has nothing to spread: no grip, on the page or in a section."""
 
-    def serve(self):
+    def serve(self, theme=CLASSIC):
         def short(code, archived="hide"):
             d = copy.deepcopy(self.store.data_for(code, archived))
             d["milestones"] = d["milestones"][:self.COUNT]
             return d
-        s = Running(data_for=short, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        s = Running(data_for=short, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp(), theme=theme))
         self.addCleanup(s.close)
         return s.port
 
@@ -319,9 +338,9 @@ class ThreeMilestones(ShortList):
         pass
 
 
-class KeyGuards(BrowserBase, unittest.TestCase):
+class KeyGuards(Classic, BrowserBase, unittest.TestCase):
     def test_a_modified_key_is_left_to_the_browser_and_a_handled_key_is_claimed(self):
-        port = self.serve()
+        port = self.serve(CLASSIC)
         fire = """(init) => { const g = document.querySelector('[data-grip]'); g.focus();
           return [['ArrowUp', {}], ['ArrowUp', {altKey: true}], ['ArrowUp', {ctrlKey: true}], ['ArrowUp', {metaKey: true}], ['Home', {ctrlKey: true}]].map(([key, m]) => {
             const e = new KeyboardEvent('keydown', Object.assign({key, bubbles: true, cancelable: true}, m)); g.dispatchEvent(e); return e.defaultPrevented; }); }"""
@@ -330,6 +349,46 @@ class KeyGuards(BrowserBase, unittest.TestCase):
                 sid = self.visit(cdp, width, HASH, port)
                 self.assertEqual(cdp.js(f"({fire})()", sid), [True, False, False, False, False], f"{width}: only the bare key is claimed")
                 self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "110"), f"{width}: one bare Up moved it, the modified ones did not")
+
+
+class CardsKeepsItsGrip(ShortList):
+    """Cards is frozen: it has none of the Classic grip rule (the grip stays on a short line, Up lowers and Down raises as on main, End is not a key), and Classic has all of it."""
+    COUNT = 2
+
+    def serve(self, theme=None):
+        return super().serve(theme)
+
+    def test_two_milestones_draw_the_line_and_no_grip(self):
+        pass
+
+    def test_a_stored_zoom_keeps_the_grip_on_a_short_line_so_it_can_be_put_back(self):
+        pass
+
+    def test_cards_keeps_the_grip_on_a_line_of_two_and_its_old_keys(self):
+        port = self.serve()
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width, HASH, port)
+                self.assertEqual(cdp.js("document.querySelectorAll('[data-grip]').length", sid), 1, f"{width}: Cards draws the grip on two milestones")
+                self.assertEqual(cdp.js("!document.querySelector('#theme')", sid), True, f"{width}: this is the Cards page")
+                self.press(cdp, sid, "ArrowDown")
+                self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "110"), f"{width}: Down raises, as on main")
+                self.press(cdp, sid, "ArrowUp")
+                self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "100"), f"{width}: Up lowers, as on main")
+                self.press(cdp, sid, "ArrowRight")
+                self.press(cdp, sid, "End")
+                cdp.js("new Promise((r) => setTimeout(r, 300))", sid)
+                self.assertEqual(cdp.js(PCT, sid), "100", f"{width}: Right and End are not Cards grip keys")
+                self.assertEqual(cdp.js("(() => { const g = document.querySelector('[data-grip]'); const e = new KeyboardEvent('keydown', {key: 'End', bubbles: true, cancelable: true}); g.dispatchEvent(e); return e.defaultPrevented; })()", sid), False, f"{width}: End is left to the browser")
+
+    def test_classic_gets_the_rule_on_the_same_data(self):
+        port = ShortList.serve(self, CLASSIC)
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width, HASH, port)
+                self.assertEqual(cdp.js("!!document.querySelector('#theme')", sid), True, f"{width}: this is the Classic page")
+                self.assertEqual(cdp.js("document.querySelectorAll('[data-grip]').length", sid), 0, f"{width}: Classic leaves the grip off two milestones")
+                self.assertEqual(cdp.js("document.querySelectorAll('.mv-mk').length", sid), 2, f"{width}: the line is drawn")
 
 
 if __name__ == "__main__":
