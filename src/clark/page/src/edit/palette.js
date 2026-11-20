@@ -15,6 +15,7 @@ import { preview, exportExcel } from "./ProfileMenu.jsx";
 import { openHelp, closeHelp, helpOpen } from "../help/helpStore.js";
 import { openPanel, handOver } from "./askPanelState.js";
 import { PANEL_TITLE } from "./askWords.js";
+import { classicTheme } from "../components/Contents.jsx";
 
 export const paletteOpen = signal(false);
 export const MOST_ITEMS = 8;          // work items shown at most, all kinds together (cut after the ID ranking), so a short word does not fill the box
@@ -86,19 +87,19 @@ export function sendKey(nav) {
   return /^(mac|iphone|ipad|ipod)/i.test(where) ? "Cmd+Enter" : "Ctrl+Enter";
 }
 
-/** S11: the "Ask ... in ask clark" row for the typed words (none when nothing is typed). Enter or a click opens the panel with the words in its box; Ctrl or Cmd + Enter sends them (handOver). */
+/** S11: the "Ask ... in ask clark" row for the typed words (none when nothing is typed). Classic only: the row carries the send-key hint (Cards: none, as before row 1350). Enter or a click opens the panel with the words in its box; Ctrl or Cmd + Enter sends them (handOver). */
 export function askRow(query) {
   const q = String(query == null ? "" : query).trim();
   if (!q) return null;
   const shown = q.length > ASK_SHOWN ? q.slice(0, ASK_SHOWN - 1).trimEnd() + "…" : q;
-  return { id: "ask-row", kind: PANEL_TITLE, label: `Ask “${shown}” in ${PANEL_TITLE}`, more: sendKey(), disabled: "", question: q, first: /\?$/.test(q) || QUESTION_WORDS.test(q), run: () => handOver(q, false) };
+  return { id: "ask-row", kind: PANEL_TITLE, label: `Ask “${shown}” in ${PANEL_TITLE}`, more: classicTheme() ? sendKey() : "", disabled: "", question: q, first: /\?$/.test(q) || QUESTION_WORDS.test(q), run: () => handOver(q, false) };
 }
 
 /** The results for `query`, in the order they are shown: pages, actions, projects, commands, then (when words are typed) the data right after the pages. */
 export function search(query) {
   const ws = words(query), all = (t, extra) => !ws.length || hits(t + " " + (extra || ""), ws);
-  const out = [];
-  if (ws.length) for (const c of commands()) if (all(c.label + " command", c.more)) out.push(c);          // row 1350: with words typed, commands come before the pages
+  const out = [], classic = classicTheme();
+  if (ws.length && classic) for (const c of commands()) if (all(c.label + " command", c.more)) out.push(c);          // row 1350 (Classic only): with words typed, commands come before the pages
   for (const p of pages()) if (all(p.label + " page")) out.push(p);
   out.push(...dataResults(query, ws));          // row 901: with words typed, the data comes right after the pages
   for (const a of actions()) if (all(a.label + " action", a.more)) out.push(a);
@@ -107,7 +108,7 @@ export function search(query) {
     const here = p.code === project.value;
     out.push({ id: "project-" + p.code, kind: "Project", label: p.name || p.code, more: p.code, disabled: "", current: here, run: () => { if (!here) setProject(p.code); } });
   }
-  if (!ws.length) for (const c of commands()) if (all(c.label + " command", c.more)) out.push(c);
+  if (!ws.length || !classic) for (const c of commands()) if (all(c.label + " command", c.more)) out.push(c);
   const ask = askRow(query);
   if (ask) { if (ask.first) out.unshift(ask); else out.push(ask); }          // a question first, anything else after the search
   return out;
