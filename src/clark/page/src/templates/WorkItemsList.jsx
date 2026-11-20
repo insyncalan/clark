@@ -152,7 +152,7 @@ export function Foot({ section, total, max, edit, nameOf }) {
   if (!filter || !total) return null;
   return (
     <div class="wil-foot" data-wil-foot="">
-      {edit || (classicTheme() && !fromFile.value) ? <span data-wil-count="">{footWords(total, max, open)}</span> : <span></span>}
+      {edit || (classicTheme() && !fromFile.value) ? <span data-wil-count="">{footWords(total, max, open, classicTheme())}</span> : <span></span>}
       <button type="button" class="wil-review" data-wil-review="" onClick={() => openWork(pageState(filter, nameOf))}>{reviewWords(total)}</button>
     </div>
   );

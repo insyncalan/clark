@@ -93,7 +93,13 @@ class Tabs(unittest.TestCase):
 
     def test_foot_words_with_every_row_open_count_all_rows_and_drop_the_scroll_words(self):      # row 1195: the mock-up's S.all foot, 'Showing N of N'
         self.assertEqual(run('WL.footWords(3, 2, true)'), "Showing all of 3")
-        self.assertEqual(run('WL.footWords(2, 2, true)'), "Showing 2 of 2")      # nothing was cut, so there is no Show all items and no change
+        self.assertEqual(run('WL.footWords(2, 2, true)'), "Showing 2 of 2")      # Cards: nothing was cut, no change
+        self.assertEqual(run('WL.footWords(2, 2, false, true)'), "Showing all of 2")      # Classic: nothing cut
+        self.assertEqual(run('WL.footWords(8, 10, false, true)'), "Showing all of 8")
+        self.assertEqual(run('WL.footWords(1, 10, false, true)'), "Showing all of 1")
+        self.assertEqual(run('WL.footWords(8, 10, false, false)'), "Showing 8 of 8")
+        self.assertEqual(run('WL.footWords(25, 10, false, true)'), "Showing 10 of 25, scroll for the rest")
+        self.assertEqual(run('WL.footWords(25, 10, true, true)'), "Showing all of 25")
         self.assertEqual(run('WL.footWords(25, 10, true)'), "Showing all of 25")
         self.assertEqual(run('WL.footWords(25, 10)'), "Showing 10 of 25, scroll for the rest")
         self.assertEqual(run('WL.footWords(3, 2, false)'), "Showing 2 of 3, scroll for the rest")

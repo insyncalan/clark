@@ -82,7 +82,7 @@ export function windowOf(total, max, showAll) {
 
 // Row 1268 (mock-up work-items-mockup.html, rows()): the foot under the scrolling rows. Edit says how many of the rows are in view and that the
 // rest scroll; View and Edit both carry the link that opens the Work items page on the same filter.
-export const footWords = (total, max, all = false) => (all && total > max ? `Showing all of ${total}` : `Showing ${Math.min(total, max)} of ${total}${total > max ? ", scroll for the rest" : ""}`);      // row 1195: with Show all items open ruling NEW-WORDS 04:2x, WO-M8284: Showing all of N
+export const footWords = (total, max, all = false, classic = false) => ((all && total > max) || (classic && total <= max) ? `Showing all of ${total}` : `Showing ${Math.min(total, max)} of ${total}${total > max ? ", scroll for the rest" : ""}`);      // row 1195 (Classic): ruling NEW-WORDS 04:2x, WO-M8328: Showing all of N when nothing is cut and after Show all items
 export const reviewWords = (total) => `Review all ${total} items`;
 
 // The Work items page's filter state (filters.js shape) for a list's saved filter, so "Review all N items" opens the page on the same rows.

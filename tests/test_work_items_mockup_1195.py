@@ -516,26 +516,31 @@ class Classic(Look):
             got = p.js(probe(sec))
             self.assertTrue(got[0] and got[1] and got[2] and got[3], f"Edit has tabs, filter, + and gear: {got}")
 
-    def test_foot_words_in_view_and_edit_at_1400_and_900_are_cut_then_showing_all_of_n_then_cut_again_and_show_all_items_does_not_say_showing_n_of_n(self):      # row 1195: ruling NEW-WORDS 04:2x, WO-M8284
-        few = self.add({"mode": "all", "max": 10, "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
-        ref = self.add({"mode": "all", "max": 2, "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
+    def test_foot_words_in_view_and_edit_at_1400_and_900_say_showing_all_of_n_when_nothing_is_cut_and_after_show_all_and_scroll_words_only_while_cut(self):      # row 1195: ruling NEW-WORDS 04:2x, WO-M8328
+        for owner, n in (("Zed Demo", 25), ("Yan Demo", 8), ("Xi Demo", 1)):
+            for k in range(n):
+                self.demo.action(description=f"Foot step {owner} {k}", owner=owner, due_date="2030-02-01")
+        lists = {n: self.add({"mode": "all", "max": 10, "columns": ["id", "owner"], "owner": [o]}) for o, n in (("Zed Demo", 25), ("Yan Demo", 8), ("Xi Demo", 1))}
         for width in (1400, 900):
             with self.subTest(width=width), T.chrome() as cdp:
                 p = self.show(cdp, width)
-                sec = f'[data-id="{ref}"]'
-                p.until(f"!!document.querySelector('{sec} .wil-all-b')", "View drew")
-                foot = lambda q=sec: p.js(f"document.querySelector('{q} [data-wil-count]').textContent")
+                for ref in lists.values():
+                    p.until(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-scroll], [data-id=\"{ref}\"] .wil-scroll')", "View drew")
+                foot = lambda n: p.js(f"document.querySelector('[data-id=\"{lists[n]}\"] [data-wil-count]').textContent")
+                btn = lambda n: f"document.querySelector('[data-id=\"{lists[n]}\"] .wil-all-b')"
                 for mode in ("View", "Edit"):
                     if mode == "Edit":
                         p.edit()
-                        p.until(f"!!document.querySelector('{sec} [data-wil-gear]')", "Edit drew")
-                    p.until(f"!!document.querySelector('{sec} [data-wil-count]')", f"{mode} has the foot words")
-                    self.assertEqual(foot(), "Showing 2 of 3, scroll for the rest", f"{mode}: cut")
-                    self.assertEqual(foot(f'[data-id="{few}"]'), "Showing 3 of 3", f"{mode}: not cut, 3 rows, Most rows 10")
-                    p.js(f"document.querySelector('{sec} .wil-all-b').click()")
-                    p.until(f"document.querySelector('{sec} [data-wil-count]').textContent === 'Showing all of 3'", f"{mode}: Show all items reads Showing all of N")
-                    p.js(f"document.querySelector('{sec} .wil-all-b').click()")
-                    p.until(f"document.querySelector('{sec} [data-wil-count]').textContent === 'Showing 2 of 3, scroll for the rest'", f"{mode}: closed again")
+                        p.until(f"!!document.querySelector('[data-id=\"{lists[25]}\"] [data-wil-gear]')", "Edit drew")
+                    p.until(f"!!document.querySelector('[data-id=\"{lists[25]}\"] [data-wil-count]')", f"{mode} has the foot words")
+                    self.assertEqual(foot(8), "Showing all of 8", f"{mode}: fits")
+                    self.assertEqual(foot(1), "Showing all of 1", f"{mode}: one item fits")
+                    self.assertEqual(foot(25), "Showing 10 of 25, scroll for the rest", f"{mode}: cut")
+                    p.js(f"{btn(25)}.click()")
+                    p.until(f"document.querySelector('[data-id=\"{lists[25]}\"] [data-wil-count]').textContent === 'Showing all of 25'", f"{mode}: Show all items")
+                    self.assertEqual(foot(8), "Showing all of 8")
+                    p.js(f"{btn(25)}.click()")
+                    p.until(f"document.querySelector('[data-id=\"{lists[25]}\"] [data-wil-count]').textContent === 'Showing 10 of 25, scroll for the rest'", f"{mode}: closed again")
 
     def test_the_views_list_scroll_bar_shows_only_while_scrolling_in_view_and_always_in_edit(self):      # the mock-up's .viewmode .rscroll / .sb
         ref = self.add({"mode": "all", "max": 2, "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
