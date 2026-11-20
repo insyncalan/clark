@@ -239,7 +239,7 @@ class Classic(Setup):
             self.assertLessEqual(long["name"], long["lh"] + 1, "one line")
             self.assertEqual((long["ws"], long["to"], long["ov"]), ("nowrap", "ellipsis", "hidden"))
             self.assertTrue(long["clip"], "the long title is cut with an ellipsis")
-            self.assertEqual(g["longname_off"], ["normal", "clip", "visible"], "only the dashboard title takes the ellipsis; other pages keep the wrapping name")
+            self.assertEqual(g["longname_off"], ["nowrap", "ellipsis", "hidden"], "row 1341: every page's title takes the ellipsis, not only the dashboard's")
             self.assertTrue(long["wide"], "no sideways scroll")
             n = g["narrow"]
             self.assertEqual((n["token"], n["min"]), (("85px", "85px") if width == 1400 else ("103px", "103px")), "the token the stylesheet gives, with the script's override off")

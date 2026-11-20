@@ -10,6 +10,7 @@ import { token, project, setProject } from "../stores/report.js";
 import { zoneFetch } from "../api.js";
 import { navigate } from "../router.js";
 import { actionIcon } from "../menuIcons.js";
+import { classicTheme } from "../components/Contents.jsx";
 
 export const openWords = (n) => (typeof n === "number" ? `${n} open ${n === 1 ? "item" : "items"}` : undefined);
 
@@ -33,6 +34,6 @@ export function ProjectSwitch({ name, cover, header }) {      // `cover` (item 1
     setProject(id);
   };
   if (cover) return <Menu btnCls="cover-switch" label={shown} tip="Click to change project" ariaLabel={`Project: ${shown}. Click to change project`} menuId="cover-project-menu" menuLabel="Projects" left fixed="start" items={items} onPick={pick} onOpen={read} focusChecked />;
-  if (header) return <Menu id="project-name" btnCls="hdr-project" label={shown} tip="Click to change project" ariaLabel={`Project: ${shown}. Change project`} menuId="project-menu" menuLabel="Projects" left chevron={false} items={items} onPick={pick} onOpen={read} focusChecked />;      // item 1177: in the editor's one header the name is the button itself (drawn, not hidden), with the tooltip
+  if (header) return <Menu id="project-name" btnCls="hdr-project" label={shown} tip={classicTheme() ? shown : "Click to change project"} ariaLabel={`Project: ${shown}. Change project`} menuId="project-menu" menuLabel="Projects" left chevron={false} items={items} onPick={pick} onOpen={read} focusChecked />;      // item 1177: in the editor's one header the name is the button itself (drawn, not hidden), with the tooltip
   return <Menu id="project-name" btnCls="proj projbtn" label={shown} ariaLabel={`Project: ${shown}. Change project`} menuId="project-menu" menuLabel="Projects" left labelCls="pname" tip="Click to change project" items={items} onPick={pick} onOpen={read} focusChecked />;
 }
