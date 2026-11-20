@@ -14,6 +14,7 @@ GROUP = '.ddmenu[aria-label="Group by"]'
 GROUP_ID = '#viewMenuList.ddmenu[aria-label="Group by"]'
 MOVE = '.ddmenu[aria-label^="Move "][aria-label$=" to"]'
 ADD = ".wil-add .ddmenu"
+ADD_ALL = "#newBtnMenu.ddmenu"
 
 
 def rules():
@@ -36,17 +37,18 @@ def decls(selector, prop):
 
 class ThreeMenus(unittest.TestCase):
     def test_width_224_for_the_three(self):
-        for sel in (GROUP, MOVE, ADD):
+        for sel in (GROUP, MOVE, ADD, ADD_ALL):
             self.assertEqual(decls(sel, "min-width"), "224px", sel)
 
     def test_item_text_15px(self):
-        for sel in (GROUP + ' [role="menuitemradio"]', MOVE + ' [role="menuitem"]', ADD + ' [role="menuitem"]'):
-            self.assertEqual(decls(sel, "font-size"), "15px", sel)
+        for sel in (GROUP + ' [role="menuitemradio"]', MOVE + ' [role="menuitem"]', ADD + ' [role="menuitem"]', ADD_ALL + ' [role="menuitem"]'):
+            self.assertEqual(decls(sel, "font-size"), "calc(var(--size-body) + 1px)", sel)  # 15px in Chrome (the Classic body is 14px); the 1195 pin forbids a bare px size
 
-    def test_icon_gap_26px(self):
-        self.assertEqual(decls(GROUP + " .mi", "margin-right"), "26px")
-        self.assertEqual(decls(MOVE + " .mi", "margin-right"), "26px")
-        self.assertEqual(decls(ADD + ' [role="menuitem"]', "gap"), "26px")
+    def test_icon_gap_34px(self):
+        self.assertEqual(decls(GROUP + " .mi", "margin-right"), "34px")
+        self.assertEqual(decls(MOVE + " .mi", "margin-right"), "34px")
+        self.assertEqual(decls(ADD + ' [role="menuitem"]', "gap"), "34px")
+        self.assertEqual(decls(ADD_ALL + ' [role="menuitem"]', "gap"), "34px")
 
     def test_tick_before_the_icon_in_group_by_and_move_to(self):
         self.assertEqual(decls(GROUP + ' [role="menuitemradio"] .ck', "order"), "-1")
@@ -63,7 +65,7 @@ class ThreeMenus(unittest.TestCase):
         block = re.sub(r"/\*.*?\*/", "", block, flags=re.S)
         for sels, _ in [([" ".join(s.split()) for s in a.split(",")], b) for a, b in re.findall(r"([^{}]+)\{([^{}]*)\}", block)]:
             for s in sels:
-                self.assertTrue(s.startswith((GROUP, GROUP_ID, MOVE, ADD)), f"the rule {s!r} is not scoped to Group by, Move to or Add")
+                self.assertTrue(s.startswith((GROUP, GROUP_ID, MOVE, ADD, ADD_ALL)), f"the rule {s!r} is not scoped to Group by, Move to or Add")
 
     def test_the_move_to_head_holds_the_card_id(self):
         self.assertIn("head: `Move ${id} to`", BOARD)

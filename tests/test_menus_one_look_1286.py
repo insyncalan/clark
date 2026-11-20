@@ -34,8 +34,8 @@ TICK_LEFT = {"columns", "gantt-show-chart", "gantt-show-table"}          # their
 NO_ICON_GRID = {"owner-pick", "owner-pick-typed", "health", "report-headline-health"}    # an initials circle or a coloured pill, not an icon
 GROUP_BY = set()
 MIN_W, GROUP_W = 200, 240
-PROTOTYPE_THREE = {"view", "uc-group", "board-move", "board-move-lanes"}       # row 1273: Group by (the View menu's), Move to and the Add menu: 15px, 224 wide, 26px icon gap, the tick before the icon
-THREE_W, THREE_FS, THREE_GAP = 224, "15px", 26
+PROTOTYPE_THREE = {"view", "uc-group", "board-move", "board-move-lanes", "new-tile"}       # row 1273: Group by (the View menu's), Move to and the Add menu: 15px, 224 wide, 26px icon gap, the tick before the icon
+THREE_W, THREE_FS, THREE_GAP = 224, "15px", 34
 
 MEASURE = r"""(root => {
  const ok = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
