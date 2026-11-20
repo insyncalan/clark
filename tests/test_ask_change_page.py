@@ -225,7 +225,7 @@ class TheCard(Card):
     def change_line(self, ref, title, **more):
         return "CHANGE: " + json.dumps({"op": "change", "id": ref, "current_title": title, "status": "Closed", **more})
 
-    def test_owner_tbc_shows_owner_tbc_as_stored(self):         # Romanoff via Jarvis 20-11, 2035: TBC shows 'Owner: TBC'
+    def test_owner_tbc_shows_owner_tbc_as_stored(self):         # ruling 20-11 on 2035: TBC shows 'Owner: TBC'
         tbc = self.demo.action(owner="TBC", description="Unassigned job")
         self.owners_page([self.change_line(self.action, "Draft the cut-over plan"), self.change_line(tbc, "Unassigned job")],
                          ["named", "tbc"], ["Owner: Sam Lee", "Owner: TBC"])
