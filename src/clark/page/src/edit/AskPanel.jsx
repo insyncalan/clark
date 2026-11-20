@@ -24,6 +24,7 @@ import { sourcesOf, kindOf } from "./askCite.js";
 import { AskDraft } from "./AskDraft.jsx";
 import { readDraft } from "./askDraft.js";
 import * as F from "./askFiles.js";
+import { nowMs } from "../workItems.js";
 
 // Row 890: the files an answer used, as the server sends them ({id, label}). A long file is cut into parts labelled "name (part N)":
 // the suffix is dropped and each file is listed once, in the order first seen.
@@ -84,12 +85,13 @@ export function AskPanel() {
   const classic = classicTheme();
   const [text, setText] = useState("");
   const [note, setNote] = useState("");
-  const [quip, setQuip] = useState("");
   const [pick, setPick] = useState(0), [shut, setShut] = useState(false);   // #1292 S10: the slash menu's chosen row, and whether Esc has closed it
   const hold = classicTheme() ? W.PLACEHOLDER_CLASSIC : W.PLACEHOLDER;          // row 1350: the new placeholder is Classic only
   const usable = state === "ready" || state === "checking";      // the box takes text only then: with asking off no slash command is offered or run
   const menu = shut || !usable ? null : slashMatches(text, classicTheme(), classicTheme() ? ownCommands.value : []);
   useEffect(() => { if (open && state === "ready" && classicTheme()) loadOwnCommands(project.value); }, [open, state, project.value]);      // row 1295: Classic only, and only while asking is on; the person's own commands join the / menu
+  const [secs, setSecs] = useState(0);
+  const [quip, setQuip] = useState("");
   const [said, setSaid] = useState("");            // row 1220: what a screen reader is told when a message is queued or removed
   const waiting = queue.value, held = queueHeld.value, dropping = queueDrop.value;
   const showHist = histOpen.value && !busy;
@@ -130,8 +132,14 @@ export function AskPanel() {
     else el.scrollTop = el.scrollHeight;
   }, [list.length, busy]);
   useEffect(() => {
-    if (!busy) { setQuip(""); return undefined; }
-    let t = null;
+    if (!busy) { setSecs(0); setQuip(""); return undefined; }
+    if (classicTheme()) {      // row 1292, Classic only: the working line counts seconds from the send
+      const from = nowMs();
+      setSecs(0);
+      const c = setInterval(() => setSecs((nowMs() - from) / 1000), 1000);
+      return () => clearInterval(c);
+    }
+    let t = null;      // Cards keeps its quips, as before
     setQuip(drawQuip());
     const tick = () => { t = setTimeout(() => { setQuip(drawQuip()); tick(); }, quipDelay()); };
     tick();
@@ -435,7 +443,7 @@ export function AskPanel() {
       {busy ? (
         <p class="ask-work" id="ask-work">
           <span class="ask-dots" aria-hidden="true"><i /><i /><i /></span>
-          <span class="ask-quip" id="ask-quip" aria-hidden="true">{quip}</span>
+          {classic ? <span class="ask-quip ask-step" id="ask-step" aria-hidden="true">{W.workingLine(askProvider.value, secs)}</span> : <span class="ask-quip" id="ask-quip" aria-hidden="true">{quip}</span>}
         </p>
       ) : (state === "ready" || state === "off") && !text.trim() ? (
         <div class="ask-pills" id="ask-pills" role="group" aria-label={W.PILLS_LABEL}>
