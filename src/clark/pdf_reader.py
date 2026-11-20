@@ -68,13 +68,17 @@ def _env():
     return {"PATH": "/usr/bin:/bin", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8", "PYTHONDONTWRITEBYTECODE": "1"}
 
 
-def read(raw, vendor=None, truncated=False):
-    """The pages of the PDF `raw` (bytes); `truncated` says the file held more than was read. Never raises."""
+def read(raw, vendor=None, truncated=False, max_bytes=None, max_pages=None, seconds=None):
+    """The pages of the PDF `raw` (bytes); `truncated` says the file held more than was read. Never raises.
+    The question path passes no limits and gets MAX_BYTES, MAX_PAGES and SECONDS; the background index passes its own larger ones."""
     try:
-        if truncated or not isinstance(raw, (bytes, bytearray)) or len(raw) > MAX_BYTES:
+        size, count, wall = MAX_BYTES if max_bytes is None else max_bytes, MAX_PAGES if max_pages is None else max_pages, SECONDS if seconds is None else seconds
+        if truncated or not isinstance(raw, (bytes, bytearray)) or len(raw) > size:
             return _no("too_big")
-        args = [sys.executable, "-I", "-S", str(CHILD), str(vendor or VENDOR), str(MAX_PAGES), str(MAX_PAGE_CHARS), str(OUT_BUDGET)]
-        status, out, _code = platform.run_stoppable(args, bytes(raw), _env(), SECONDS, MAX_OUT, prefix="clark-pdf-")
+        args = [sys.executable, "-I", "-S", str(CHILD), str(vendor or VENDOR), str(count), str(MAX_PAGE_CHARS), str(OUT_BUDGET)]
+        if seconds is not None:
+            args.append(str(int(wall) + 5))                # the child's own CPU limit follows the wall clock
+        status, out, _code = platform.run_stoppable(args, bytes(raw), _env(), wall, MAX_OUT, prefix="clark-pdf-")
         if status == "slow":
             return _no("timeout")
         if status != "ok":

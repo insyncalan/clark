@@ -6,7 +6,7 @@ It is a copy that can always be rebuilt: delete it and `build` makes the same pa
 WHAT GETS IN. Files are listed and opened only through `reach` (`readable_files`, `read_bytes`), the same gates as `ask_passages`.
 Text, Markdown, CSV, TSV, RST and Word are read like `ask_passages` reads them. PDF goes through `pdf_reader` (its own process, a passage per
 page: "<file>, page n"); Excel (.xlsx, .xlsm) through vendored openpyxl, read-only, stored values, a passage run per sheet ("<file>, sheet S"); a PDF with no
-readable text (scanned, encrypted, damaged) counts as `type` and is listed as left out, a damaged workbook or a PDF over the page or size limit as `type`, `too_long` (never as a password).
+readable text (scanned, encrypted, damaged) counts as `type` and is listed as left out, a damaged workbook as `type`, a PDF over INDEX_PDF_PAGES / INDEX_PDF_BYTES / INDEX_PDF_SECONDS (or a workbook over its limits) as `too_long`, listed "too long to read" (never as a password).
 PowerPoint (.pptx: slide text and notes, a passage run per slide, "<file>, slide n") and web pages (.html, .htm: the visible text) are read by `ask_extract`;
 a file with no text, and a hostile or damaged one (zip bomb, too many parts, an entity declaration, broken XML, too big), count as `type`, never as a password. A file whose name or text looks like a password or
 a key is screened by `secret_screen` BEFORE any of it is stored: it leaves a row with no text (label and size only). Every
@@ -34,6 +34,9 @@ from clark import ask, ask_data, ask_extract, ask_passages, docx_read, pdf_reade
 
 MAX_RESULTS = ask.MAX_PASSAGES
 MAX_PARTS_PER_FILE = 5000
+INDEX_PDF_PAGES = 2000                   # background index runs: a PDF over any of these three is skipped and listed (the question path keeps pdf_reader's own, smaller limits)
+INDEX_PDF_BYTES = 100 * 1024 * 1024
+INDEX_PDF_SECONDS = 120
 EXCEL_TYPES = (".xlsx", ".xlsm")
 PPTX_TYPES = (".pptx",)
 HTML_TYPES = (".html", ".htm")
@@ -56,7 +59,7 @@ MAX_LEFT_OUT_SHOWN = 200
 LEFT_OUT_BUTTON = "Show the files left out"
 REASON_TYPE = "of a type clark can't read yet"
 REASON_SAFETY = "looks like a password or a key"
-REASON_TOO_LONG = "is a PDF that is too long"
+REASON_TOO_LONG = "too long to read"
 COUNTED = ("indexed", "type", "too_long")          # the states that have their own count; any other state is a safety one
 
 
@@ -323,13 +326,13 @@ def _read_one(db, path, label, low, st, usable, data_dir, home):
     groups = []                                  # [(part name or None, lines)]
     is_pdf, is_excel, is_word = low.endswith(ask_passages.PDF_TYPES), low.endswith(EXCEL_TYPES), low.endswith(ask_passages.WORD_TYPES)
     is_pptx, is_html = low.endswith(PPTX_TYPES), low.endswith(HTML_TYPES)
-    limit = pdf_reader.MAX_BYTES if is_pdf else MAX_EXCEL_BYTES if is_excel else MAX_PPTX_BYTES if is_pptx else ask_extract.MAX_HTML_BYTES if is_html else docx_read.MAX_FILE_BYTES if is_word else ask_passages.MAX_TEXT_BYTES
+    limit = INDEX_PDF_BYTES if is_pdf else MAX_EXCEL_BYTES if is_excel else MAX_PPTX_BYTES if is_pptx else ask_extract.MAX_HTML_BYTES if is_html else docx_read.MAX_FILE_BYTES if is_word else ask_passages.MAX_TEXT_BYTES
     try:
         raw, truncated = reach.read_bytes(path, usable, data_dir, limit, home)
         if is_pdf:
-            got = pdf_reader.read(raw, truncated=truncated)
+            got = pdf_reader.read(raw, truncated=truncated, max_bytes=INDEX_PDF_BYTES, max_pages=INDEX_PDF_PAGES, seconds=INDEX_PDF_SECONDS)
             if got.status != "ok":
-                state = "too_long" if got.reason in ("too_big", "too_many_pages") else "type"
+                state = "too_long" if got.reason in ("too_big", "too_many_pages", "timeout") else "type"
             else:
                 groups = [(f"page {n}", t.splitlines()) for n, t in got.pages]
         elif is_excel:
