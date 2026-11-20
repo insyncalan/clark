@@ -29,10 +29,8 @@ class Gap1315b(Base, unittest.TestCase):
         self.assertLess(i, next(n for n, l in enumerate(rows) if l.startswith("/* Row 1393")))      # before Row 1393, other rows may sit between
         block = RULES.split("/* Row 1315 fill", 1)[1].split("\n/*", 1)[0]      # up to the next comment of any kind
         rules = {l.split(" {", 1)[0]: l for l in block.splitlines() if " {" in l}      # found by selector, never by position or count of other rules
-        self.assertNotIn("#milestones .msv-b", rules)      # padding, height and weight are Row 1319's (3px 14px, 28, 600), ruled 20-11, newer
-        self.assertNotIn("#milestones .cal-sc button", rules)
-        for l in rules.values():
-            self.assertNotIn("padding", l)
+        self.assertEqual(rules["#milestones .msv-sw .msv-b"].split("{", 1)[1].strip(), "min-height: 28px; padding: 3px 14px; font-weight: var(--weight-medium); }")      # Row 1319's three values (ruled 20-11, newer) for the Timeline / Calendar buttons, which are not .seg
+        self.assertNotIn("#milestones .cal-sc button", rules)      # the Week / Month / Quarter buttons are .seg: Row 1319 reaches them
         self.assertIn("border: 1px solid var(--grey-500);", rules["#milestones .msv-sw, #milestones .cal-sc"])
         self.assertIn("border-left: 1px solid var(--grey-500);", rules["#milestones .msv-b + .msv-b, #milestones .cal-sc button + button"])
         for l in rules.values():
@@ -48,7 +46,7 @@ class Gap1315b(Base, unittest.TestCase):
             print("row 1315 fill 1400", m)
             for k in ("sw", "sc"):
                 g = m[k]
-                self.assertEqual(g["pad"], {"sw": "12px 12px", "sc": "14px 14px"}[k], (k, m))      # sc is a .seg: Row 1319 3px 14px; sw (Timeline / Calendar) is not a .seg, it keeps the shared 12px sides
+                self.assertEqual(g["pad"], "14px 14px", (k, m))      # left and right of the 3px 14px on all five buttons
                 self.assertEqual(g["border"], "1px", (k, m))
                 self.assertEqual(g["bc"], "rgb(135, 148, 179)", (k, m))
             self.assertEqual((m["sw"]["h"], m["sw"]["w"]), (28, "600"), m)      # Timeline / Calendar; Week / Month / Quarter height and weight are the Row 1316 PR's rule
