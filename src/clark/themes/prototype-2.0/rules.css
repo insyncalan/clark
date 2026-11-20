@@ -465,7 +465,9 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .ask-about:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; opacity: 1; }
 .wl-row:hover .ask-about, .wl-row:focus-within .ask-about, table.items tr:hover .ask-about, table.items tr:focus-within .ask-about, .wil-table tr:hover .ask-about, .wil-table tr:focus-within .ask-about, .sec:hover .ask-about, .sec:focus-within .ask-about, .ucrow:hover .ask-about, .ucrow:focus-within .ask-about, .ucr:hover .ask-about, .ucr:focus-within .ask-about, .bcard:hover .ask-about, .bcard:focus-within .ask-about { opacity: 1; }
 table.items .c-eye, .wil-table .wil-c-eye { width: 76px; }
-.c-eye .ask-about, .wil-c-eye .ask-about { vertical-align: middle; }
+.c-eye .ask-about { vertical-align: middle; }
+.wil-c-eye .ask-about { vertical-align: baseline; }
+.ucl-table thead th.c-eye { text-align: right; }
 .sec-head > .ask-about { margin-left: auto; }
 .ucsteps .ask-about { vertical-align: middle; margin-left: var(--space-1); }
 .bc-top .ask-about { width: 24px; height: 24px; margin-left: auto; }

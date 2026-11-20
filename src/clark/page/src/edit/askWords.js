@@ -328,8 +328,8 @@ export const SLASH_HINT = {
 };
 
 // Row 1292 (reopened): Ask about this, and where an answer came from. Each line names its source: M = the approved ask clark prototype, T = the ticket body, A = the new-words log.
-export const ABOUT_LABEL = (name) => `ask clark about ${name}`;                // M views.js: aria-label "ask clark about <id>"
-export const ABOUT_TITLE = "ask clark about this";                              // M views.js: title
+export const ABOUT_LABEL = (name) => `Ask clark about ${name}`;                // M views.js: aria-label "Ask clark about <id>"
+export const ABOUT_TITLE = "Ask clark about this";                              // M views.js: title
 export const ABOUT_CHIP = (label) => `About ${label}`;                          // M ask.js drawCtx, T feature 1 ("About PDF-A-018 Write the user test scripts")
 export const ABOUT_REMOVE = (label) => `Stop asking about ${label}`;            // M ask.js drawCtx: aria-label
 export const ABOUT_REMOVE_TITLE = "Remove";                                     // M ask.js drawCtx: title; A 11-13: "Remove" is the app's word for a bin

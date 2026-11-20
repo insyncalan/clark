@@ -376,11 +376,12 @@ class NeverDelete(unittest.TestCase):
 # Row 1077: the words box's heading is the owner's own words of 09-11-2026, "Ask clark to update for you", with its capital A. It is the one
 # spelling allowed beside "ask clark"; the heading is matched whole, so "Ask clark" anywhere else still fails.
 WORDS_BOX_HEADING = "Ask clark to update for you"
-ASK_CLARK = re.compile(r"(?i)\bask clark\b(?: to update for you)?")
+ABOUT_WORDS = "Ask clark about"      # row 1292, the approved words (NEW-WORDS L1491 tooltip 'Ask clark about this', L1500 aria 'Ask clark about <id title>'): a capital A at the start of the tooltip and the label; 'clark' stays lower case
+ASK_CLARK = re.compile(r"(?i)\bask clark\b(?: to update for you| about\b)?")
 
 
 def ask_clark_misspelt(text):
-    return [m for m in ASK_CLARK.findall(text) if m not in ("ask clark", WORDS_BOX_HEADING)]
+    return [m for m in ASK_CLARK.findall(text) if m not in ("ask clark", "ask clark about", WORDS_BOX_HEADING, ABOUT_WORDS)]
 
 
 class AskClark(unittest.TestCase):
@@ -403,6 +404,7 @@ class AskClark(unittest.TestCase):
         self.assertEqual(ask_clark_misspelt("Ask clark to update for you. Then ask clark again."), [])
         self.assertEqual(ask_clark_misspelt("Ask clark to update. ASK CLARK now. Ask Clark to update for you"), ["Ask clark", "ASK CLARK", "Ask Clark to update for you"])
         self.assertEqual(ask_clark_misspelt("Use ask clark to **Check this report**"), [])
+        self.assertEqual(ask_clark_misspelt("Ask clark about this. Ask Clark about it. ASK CLARK ABOUT it. Ask clark now"), ["Ask Clark about", "ASK CLARK ABOUT", "Ask clark"])      # only the approved capital A before 'about' is allowed
 
     def test_the_first_step_no_longer_starts_with_it(self):
         raw = json.dumps(RAW, ensure_ascii=False)
