@@ -3205,7 +3205,7 @@ def migrate_ask_files(con):
     for table, column in ASK_FILES_COLUMNS:
         have = columns(con, table)
         if have and column.split()[0] not in have:
-            con.execute(f"ALTER TABLE {table} ADD COLUMN " + column)      # fixed text per table, never a person's value
+            con.execute(f"ALTER TABLE {_table(table)} ADD COLUMN " + column)      # fixed text per table, never a person's value
 
 
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
