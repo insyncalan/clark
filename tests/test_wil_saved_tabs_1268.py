@@ -91,18 +91,26 @@ class Tabs(unittest.TestCase):
         self.assertEqual(run('WL.footWords(1, 2)'), "Showing 1 of 1")
         self.assertEqual(run('WL.reviewWords(7)'), "Review all 7 items")
 
-    def test_foot_words_with_every_row_open_count_all_rows_and_drop_the_scroll_words(self):      # row 1195: the mock-up's S.all foot, 'Showing N of N'
-        self.assertEqual(run('WL.footWords(3, 2, true)'), "Showing all of 3")
-        self.assertEqual(run('WL.footWords(2, 2, true)'), "Showing 2 of 2")      # Cards: nothing was cut, no change
-        self.assertEqual(run('WL.footWords(2, 2, false, true)'), "Showing all of 2")      # Classic: nothing cut
-        self.assertEqual(run('WL.footWords(8, 10, false, true)'), "Showing all of 8")
-        self.assertEqual(run('WL.footWords(1, 10, false, true)'), "Showing all of 1")
-        self.assertEqual(run('WL.footWords(8, 10, false, false)'), "Showing 8 of 8")
-        self.assertEqual(run('WL.footWords(25, 10, false, true)'), "Showing 10 of 25, scroll for the rest")
-        self.assertEqual(run('WL.footWords(25, 10, true, true)'), "Showing all of 25")
-        self.assertEqual(run('WL.footWords(25, 10, true)'), "Showing all of 25")
-        self.assertEqual(run('WL.footWords(25, 10)'), "Showing 10 of 25, scroll for the rest")
-        self.assertEqual(run('WL.footWords(3, 2, false)'), "Showing 2 of 3, scroll for the rest")
+    def test_foot_words_every_branch_for_cards_and_classic(self):      # row 1195: Cards keeps main's words in every state; Classic: ruling NEW-WORDS 04:2x
+        cases = [
+            # (total, max, all, classic, words)
+            (25, 10, False, False, "Showing 10 of 25, scroll for the rest"),      # Cards cut
+            (25, 10, True, False, "Showing 10 of 25, scroll for the rest"),      # Cards after Show all: unchanged
+            (8, 10, False, False, "Showing 8 of 8"),      # Cards nothing cut
+            (8, 10, True, False, "Showing 8 of 8"),
+            (1, 10, False, False, "Showing 1 of 1"),
+            (10, 10, False, False, "Showing 10 of 10"),
+            (25, 10, False, True, "Showing 10 of 25, scroll for the rest"),      # Classic cut
+            (25, 10, True, True, "Showing all of 25"),      # Classic after Show all
+            (8, 10, False, True, "Showing all of 8"),      # Classic nothing cut
+            (8, 10, True, True, "Showing all of 8"),
+            (1, 10, False, True, "Showing all of 1"),
+            (10, 10, False, True, "Showing all of 10"),
+            (11, 10, False, True, "Showing 10 of 11, scroll for the rest"),
+        ]
+        for total, mx, all_, classic, words in cases:
+            self.assertEqual(run(f'WL.footWords({total}, {mx}, {str(all_).lower()}, {str(classic).lower()})'), words, (total, mx, all_, classic))
+        self.assertEqual(run('WL.footWords(25, 10)'), "Showing 10 of 25, scroll for the rest", "main's two-argument call")
 
     def test_page_state_for_review_all_maps_kinds_to_the_pages_type_and_keeps_the_choices(self):      # row 1268: killer for the kinds mapping
         def st(kinds, **kw):

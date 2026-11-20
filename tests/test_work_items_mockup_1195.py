@@ -170,6 +170,7 @@ def menu_walk(test, p, ref):
     return dom, walked
 
 
+ITEM_LABEL = "Item column. Drag its right edge or press Ctrl with an arrow key to resize"
 HEAD_LABEL = "%s column. Drag to move it; Alt with an arrow key moves it; drag its right edge or press Ctrl with an arrow key to resize"      # the mock-up's words (work-items-mockup.html, the .hc heading)
 
 
@@ -618,6 +619,32 @@ class Classic(Look):
             self.assertEqual(p.js(f"{h('owner')}.getAttribute('aria-label')"), HEAD_LABEL % "Owner")
             self.assertEqual(p.js(f"{h('title')}.getAttribute('aria-label')"), "Item column. Drag its right edge or press Ctrl with an arrow key to resize", "the Item heading does not move")
 
+    def test_the_two_heading_labels_are_the_exact_aria_label_in_view_and_edit_at_1400_and_900_and_the_edge_handle_has_none(self):      # row 1195: Approved: WO-M8361, logged NEW-WORDS
+        ref = self.add({"mode": "all", "columns": ["owner", "due", "priority", "id"], "owner": ["Pat Demo", "Lee Demo"]})
+        for width in (1400, 900):
+            with self.subTest(width=width), T.chrome() as cdp:
+                p = self.show(cdp, width)
+                for mode in ("View", "Edit"):
+                    if mode == "Edit":
+                        p.edit()
+                    p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=due]')", f"{mode} drew")
+                    got = p.js(f"Object.fromEntries([...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table thead th[data-cw-head]')].map(h => [h.dataset.cwHead, h.getAttribute('aria-label')]))")
+                    self.assertEqual(got, {"title": ITEM_LABEL, "owner": HEAD_LABEL % "Owner", "due": HEAD_LABEL % "Due", "priority": HEAD_LABEL % "Priority", "id": HEAD_LABEL % "ID"}, f"{mode} at {width}")
+                    self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .cgrip')].map(g => [g.getAttribute('aria-hidden'), g.getAttribute('aria-label')])"), [["true", None]] * 5, f"{mode}: the edge handles stay aria-hidden, no label")
+
+    def test_an_empty_match_says_the_mockups_words_in_view_and_the_long_sentence_in_edit_at_1400_and_900(self):      # row 1195: WO-M8425, the words are the mock-up's
+        ref = self.add({"owner": ["Nobody Demo"]})
+        for width in (1400, 900):
+            with self.subTest(width=width), T.chrome() as cdp:
+                p = self.show(cdp, width)
+                say = f"document.querySelector('[data-id=\"{ref}\"] [data-wil-none]')"
+                p.until(f"!!{say}", "View says it")
+                self.assertEqual(p.js(f"{say}.textContent"), "No work items match this filter.")
+                p.edit()
+                say = f"document.querySelector('[data-id=\"{ref}\"] [data-wil-say=none]')"
+                p.until(f"!!{say} && {say}.textContent.length > 40", "Edit says the long sentence")
+                self.assertEqual(p.js(f"{say}.textContent"), "No work items match this filter, so this section is left out of the published page. Change the filter to list some.")
+
     def _edit(self, cdp, columns):
         ref = self.add({"mode": "all", "columns": columns, "owner": ["Pat Demo", "Lee Demo"]})
         p = self.show(cdp, 1400)
@@ -992,6 +1019,26 @@ class Classic(Look):
 
 class Cards(Look):
     classic = False
+
+    def test_a_cards_view_still_leaves_an_empty_match_out(self):      # row 1195: the mock-up's words are Classic only
+        ref = self.add({"owner": ["Nobody Demo"]})
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"]')"), "Cards View leaves it out")
+            p.edit()
+            p.until(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-say=none]')", "Edit says it")
+            self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-say=none]').textContent"), "No work items match this filter, so this section is left out of the published page. Change the filter to list some.")
+
+    def test_a_cards_heading_has_no_aria_label_and_keeps_its_alt_sentence(self):      # row 1195: the new heading labels are Classic only
+        ref = self.add({"mode": "all", "columns": ["owner", "due"], "owner": ["Pat Demo", "Lee Demo"]})
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            p.edit()
+            h = f"document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=owner]')"
+            p.until(f"!!{h}", "Edit drew")
+            self.assertIsNone(p.js(f"{h}.getAttribute('aria-label')"))
+            self.assertEqual(p.js(f"{h}.getAttribute('aria-description')"), "Width of the Owner column. Alt with Left or Right arrow changes it.")
+            self.assertEqual(p.js(f"{h}.tabIndex"), -1)
 
     def capture(self, width):
         ref = self.add(Classic.LIST)

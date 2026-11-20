@@ -158,7 +158,9 @@ export function Foot({ section, total, max, edit, nameOf }) {
   );
 }
 
+export const NONE_WORDS = "No work items match this filter.";      // row 1195 (Classic View): the mock-up's words, WO-M8425
 export function isEmpty(section, data) {
+  if (classicTheme() && !fromFile.value && filterOf(section)) return false;      // row 1195 (Classic, the served View): a saved filter with no row says so, it is not left out; the published file still leaves it out
   return drawRows(listOf(section, data, today()).items, data).length === 0;
 }
 
@@ -175,7 +177,7 @@ export function View({ section, data }) {
   const now = today();
   const list = listOf(section, data, now);
   const rows = drawRows(idsToShow(list, !fromFile.value), drawn(data, !fromFile.value));
-  if (!rows.length) return null;
+  if (!rows.length) return classicTheme() && !fromFile.value && filterOf(section) ? <div class="wil" data-wil=""><p class="wil-none" data-wil-none="" role="status">{NONE_WORDS}</p></div> : null;
   const draw = (cw, ord) => (
     <div class="wil" data-wil="">
       {list.caption ? <p class="wil-cap">{list.caption}</p> : null}
