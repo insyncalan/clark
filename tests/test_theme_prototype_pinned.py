@@ -43,6 +43,9 @@ LIGHT = {
         '--gutter-rule': '#EEEBFB',
         '--sec-number-color': 'var(--brand-blue)',
         '--sec-number-size': '20px',
+        # Re-pinned for row 1395 (spec Design rules 19-11, design lead, table row 2: pressed layout tile fill #ECE9FB, glyph #5B47D8).
+        '--tile-on-bg': '#ECE9FB',
+        '--tile-on-fg': 'var(--brand-blue)',
         '--sec-band-bg': 'rgba(255, 255, 255, .72)',
     }
 DARK = {
@@ -77,6 +80,8 @@ DARK = {
         '--gutter-rule': '#2A2650',
         '--sec-number-color': 'var(--brand-blue)',
         '--sec-number-size': '20px',
+        '--tile-on-bg': 'var(--brand-blue-tint)',
+        '--tile-on-fg': 'var(--brand-blue)',
         '--sec-band-bg': 'rgba(255, 255, 255, .04)',
     }
 RULE_LINES = [

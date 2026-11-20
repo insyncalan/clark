@@ -35,6 +35,7 @@ import { narrowHeader as narrow } from "./narrowHeader.js";
 import { ownerOf } from "../workItems.js";
 import { CommitChip } from "../components/CommitChip.jsx";
 import { classicTheme } from "../components/Contents.jsx";
+import { AskAbout } from "./AskAbout.jsx";
 
 const kept = {};                                              // project -> state: a browser that refuses storage still narrows the list
 const tick = signal(0);
@@ -94,7 +95,7 @@ function ClassicRow({ r, stop, shown, cols }) {
       onClick={(e) => { if (e.target.closest("button, a, input") || String(getSelection()).trim()) return; open(); }}>
       {cols.map((id) => cell[id])}
       <td class="c-eye"><button type="button" class="ucl-eye weye" tabIndex={-1} data-eye aria-pressed={r.on ? "true" : "false"} title={eyeWords} aria-label={`${r.ref || "Use case"} ${r.name}: ${eyeWords}. ${r.on ? "Take it off the dashboard" : "Put it on the dashboard"}`}
-        onFocus={() => { current.value = r.id; }} onClick={(e) => { blink(e); setEye(r, shown); }}><Icon name={r.on ? "eye" : "eyeoff"} /></button></td>
+        onFocus={() => { current.value = r.id; }} onClick={(e) => { blink(e); setEye(r, shown); }}><Icon name={r.on ? "eye" : "eyeoff"} /></button><AskAbout kind="use case" id={r.id} name={`${r.ref || r.id} ${r.name}`.trim()} /></td>
     </tr>
   );
 }
