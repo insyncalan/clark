@@ -160,6 +160,85 @@ class Reader(unittest.TestCase):
             self.assertIn(words, str(caught.exception))
 
 
+class SweepKillers(unittest.TestCase):
+    """Pins found by a mutation sweep of ask_vision_mac and run_jxa: limits, reasons, text decoding and the off-Mac words."""
+
+    def on_mac(self):
+        p = mock.patch.object(pl, "system", return_value=pl.MAC)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def reason(self, raw, stub):
+        with self.assertRaises(ask_picture.PictureUnreadable) as caught:
+            vm.read(raw, run=stub)
+        return str(caught.exception)
+
+    def test_the_time_limit_is_30_seconds_for_the_reader_and_the_default_of_run_jxa(self):
+        self.assertEqual(vm.TIMEOUT, 30)
+        seen = []
+
+        def fake(argv, **kw):
+            seen.append(kw)
+            return subprocess.CompletedProcess(argv, 0, "x", "")
+
+        pl.run_jxa("x", [], run=fake, on="darwin")
+        self.assertEqual(seen[0]["timeout"], 30)
+
+    def test_run_jxa_decodes_utf8_replacing_bad_bytes_and_a_missing_answer_is_empty(self):
+        seen = []
+
+        def fake(argv, **kw):
+            seen.append(kw)
+            return subprocess.CompletedProcess(argv, 0, None, "")
+
+        self.assertEqual(pl.run_jxa("x", [], 5, run=fake, on="darwin"), "")
+        self.assertEqual(seen[0]["encoding"], "utf-8")
+        self.assertEqual(seen[0]["errors"], "replace")
+
+    def test_run_jxa_off_a_mac_says_the_system_and_that_it_is_not_built_yet(self):
+        with mock.patch.dict(os.environ, {"CLARK_CONTAINER": ""}):
+            for on, name in (("win32", "Windows"), ("freebsd", "freebsd"), ("linux", "linux")):
+                with self.assertRaises(pl.NotBuiltYet) as caught:
+                    pl.run_jxa("x", [], 5, run=Stub(), on=on)
+                self.assertEqual(str(caught.exception), f"Reading a picture on {name} is not built yet: clark runs on macOS for now")
+
+    def test_in_a_container_linux_says_the_terminal_words_and_windows_does_not(self):
+        with mock.patch.object(pl, "container_mode", return_value=True):
+            with self.assertRaises(pl.NotBuiltYet) as linux:
+                pl.run_jxa("x", [], 5, run=Stub(), on="linux")
+            with self.assertRaises(pl.NotBuiltYet) as windows:
+                pl.run_jxa("x", [], 5, run=Stub(), on="win32")
+        self.assertEqual(str(linux.exception), pl.needs_mac_words())
+        self.assertEqual(str(windows.exception), "Reading a picture on Windows is not built yet: clark runs on macOS for now")
+        with mock.patch.object(pl, "container_mode", return_value=False):
+            with self.assertRaises(pl.NotBuiltYet) as plain:
+                pl.run_jxa("x", [], 5, run=Stub(), on="linux")
+        self.assertNotEqual(str(plain.exception), pl.needs_mac_words())
+
+    def test_the_reasons_for_an_unreadable_picture_are_told_apart(self):
+        self.on_mac()
+        self.assertEqual(self.reason(b"", Stub()), "size")
+        self.assertEqual(self.reason(b"\0" * (vm.MAX_BYTES + 1), Stub()), "size")
+        self.assertEqual(self.reason(b"PIC", Stub(out="  \n")), "no text")
+        self.assertEqual(self.reason(b"PIC", Stub(code=1)), "the reader failed")
+        self.assertEqual(self.reason(b"PIC", Stub(error=OSError("none"))), "the reader failed")
+
+    def test_a_program_that_is_not_built_for_this_system_reads_as_the_reader_failed(self):
+        self.on_mac()
+        with mock.patch.object(pl, "run_jxa", side_effect=pl.NotBuiltYet("not here")):
+            self.assertEqual(self.reason(b"PIC", Stub()), "the reader failed")
+
+    def test_a_bytearray_picture_is_read(self):
+        self.on_mac()
+        self.assertEqual(vm.read(bytearray(b"PICBYTES"), run=Stub()), "hello\nworld")
+
+    def test_the_temporary_file_is_named_clark_picture(self):
+        self.on_mac()
+        s = Stub()
+        vm.read(b"PIC", run=s)
+        self.assertTrue(os.path.basename(s.seen[0][0]).startswith("clark-picture-"))
+
+
 class InTheIndex(Base):
     def reader(self, stub):
         for p in (mock.patch.object(pl, "system", return_value=pl.MAC), mock.patch.object(ask_picture, "_READER", lambda raw: vm.read(raw, run=stub))):
