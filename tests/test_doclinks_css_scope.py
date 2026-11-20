@@ -1,11 +1,13 @@
 """Item 1194: the Documents and links row rules are scoped to the doc-links list (class tpl-dl-links), so the editor's other lists and the
 One document file row keep their old geometry; and the published file's plain badge (a box of words, no svg) keeps its rules.
-Reads the sources (shell.css, the two DocLinks.jsx, docIcons.jsx); no browser."""
+The look is Classic's: its rules are in the theme's rules.css (themes/prototype-2.0), and shell.css, edit.css and tokens.css carry none of
+them, so the Cards page is what main serves. Reads the sources (shell.css, edit.css, rules.css, the two DocLinks.jsx, docIcons.jsx); no browser."""
 import re
 import unittest
 from pathlib import Path
 
 SRC = Path(__file__).resolve().parent.parent / "src" / "clark" / "page"
+THEME = Path(__file__).resolve().parent.parent / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css"
 SCOPE = ".tpl-dl-links"
 
 # What only the approved mockup's rows carry: any rule holding one of these must be scoped, and the shared base rules must not hold them.
@@ -34,11 +36,12 @@ def declarations(sheet, selector):
 
 class Scope(unittest.TestCase):
     sheet = rules((SRC / "shell.css").read_text(encoding="utf-8"))
+    classic = rules(THEME.read_text(encoding="utf-8"))
 
     def test_the_mockup_row_rules_exist_and_every_selector_of_them_is_scoped(self):
         for selector in SCOPED:
-            self.assertTrue(declarations(self.sheet, selector), selector)
-        for sels, body in self.sheet:
+            self.assertTrue(declarations(self.classic, selector), selector)
+        for sels, body in self.sheet + self.classic:
             if any(m in body for m in MOCKUP) and not any(s.startswith((".tpl-ic", ".tpl-badge.tpl-plain")) for s in sels):
                 for s in sels:
                     if s.startswith((".tpl-dl", ".tpl-badge", ".tpl-od", ".tpl-name", ".tpl-main", ".tpl-rename")):
@@ -62,14 +65,50 @@ class Scope(unittest.TestCase):
             self.assertIn('<ul class="tpl-dl tpl-dl-links">', (SRC / path).read_text(encoding="utf-8"), path)
 
 
+class ClassicOnly(unittest.TestCase):
+    """The rules of item 1194 are the Classic theme's: shell.css, edit.css and tokens.css hold none of them (Cards is what main serves)."""
+    NAMES = (".tpl-dl-links", "tpl-ic-", ".tpl-page", ".tpl-plain", "tpl-act-", ".tpl-allowed", ".tpl-icon", ".tpl-icons", ".tpl-rename", ".tpl-files-edit .tpl-hint",
+             "a.tpl-act", ":has(.tpl-files-edit)", ".tpl-files-edit .tpl-dl-i")
+
+    def test_the_cards_sheets_carry_none_of_the_rules(self):
+        for path in ("shell.css", "src/edit/edit.css"):
+            text = (SRC / path).read_text(encoding="utf-8")
+            for sels, _ in rules(text):
+                for s in sels:
+                    self.assertFalse(any(n in s for n in self.NAMES), "%s holds %s" % (path, s))
+        self.assertNotIn("--badge-", (SRC.parent / "brand" / "tokens.css").read_text(encoding="utf-8"))
+        shell = rules((SRC / "shell.css").read_text(encoding="utf-8"))
+        self.assertEqual(declarations(shell, ".tpl-acts")["display"], "flex", "the Cards row of buttons is main's")
+        self.assertIn("button.tpl-act", [s for sels, _ in shell for s in sels])
+
+    def test_the_classic_rules_are_in_rules_css_below_row_1318_and_above_the_last_block(self):
+        text = THEME.read_text(encoding="utf-8")
+        mine, last = text.index("/* Row 1194 (Documents and links; Classic only"), text.index("/* Row 1314:")
+        self.assertGreater(mine, text.index("/* Row 1318"))
+        self.assertLess(mine, last)
+        self.assertEqual(text.count("/* Row 1314:"), 1)
+        self.assertNotIn("/* Row 1", text[last + 5:], "the Row 1314 block stays the last")
+        self.assertLess(len(text.encode("utf-8")), 128 * 1024, "theme.LIMIT")
+        sheet = rules(text)
+        for selector in (".tpl-files-edit .tpl-icons", ".tpl-files-edit .tpl-rename", ".tpl-files-edit .tpl-allowed", ".tpl-badge.tpl-page",
+                         ".tpl-dl-links .tpl-acts", ".tpl-dl-links button.tpl-act", ".sec:has(.tpl-files-edit) .sec-head"):
+            self.assertTrue(declarations(sheet, selector), selector)
+
+    def test_both_jsx_parts_draw_the_new_markup_only_when_a_theme_is_layered(self):
+        for path in ("src/templates/DocLinks.jsx", "src/edit/templates/DocLinks.jsx"):
+            text = (SRC / path).read_text(encoding="utf-8")
+            self.assertIn("classicTheme() ?", text, path)
+            self.assertIn("Cards", text, path)
+
+
 class PlainBadge(unittest.TestCase):
-    sheet = rules((SRC / "shell.css").read_text(encoding="utf-8"))
+    sheet = rules(THEME.read_text(encoding="utf-8"))
 
     def test_the_plain_badge_rule_and_each_kind_s_fill_and_text_are_pinned(self):
         plain = declarations(self.sheet, ".tpl-badge.tpl-plain")
         self.assertEqual({k: plain[k] for k in ("width", "padding", "color", "font-size", "font-weight", "letter-spacing")},
                          {"width": "41px", "padding": "0", "color": "var(--white)", "font-size": "var(--size-caption)", "font-weight": "800", "letter-spacing": "0"})
-        tok = dict(re.findall(r"(--[a-z-]+):\s*(#[0-9A-Fa-f]{3,6})", (SRC.parent / "brand" / "tokens.css").read_text(encoding="utf-8")))
+        tok = dict(re.findall(r"(--[a-z-]+):\s*(#[0-9A-Fa-f]{3,6})", (SRC.parent / "brand" / "tokens.css").read_text(encoding="utf-8") + THEME.read_text(encoding="utf-8")))
         val = lambda v: (tok[re.fullmatch(r"var\((--[a-z-]+)\)", v).group(1)] if v.startswith("var(") else v).replace("#ffffff", "#fff")
         for kind, (fill, text) in PLAIN_FILL.items():
             with self.subTest(kind=kind):

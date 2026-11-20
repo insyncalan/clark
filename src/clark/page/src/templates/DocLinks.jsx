@@ -7,6 +7,7 @@ import { fromFile } from "../stores/report.js";
 import { docItems, kindWords, sizeWords, badgeWords, factsWords } from "./files.js";
 import { PageIcon, ActIcon } from "./docIcons.jsx";
 import * as W from "../logic/docLinksWords.js";
+import { classicTheme } from "../components/Contents.jsx";
 
 export const READY = true;
 
@@ -36,7 +37,19 @@ export function FileRow({ file, label }) {
 // (a file's own address resolves only beside the client's copy of the report), so its Open and Download read the file through clark.
 export const fileReader = { read: null };
 
-// The Open and Download of a row: 44px icon buttons named for a screen reader. A link has Open on every row (in a new tab). A file has
+// Cards (no Theme layered) keeps its file row as it was: Open and Download as words, in the editor's View only.
+function FileActions({ file }) {
+  const read = fileReader.read;
+  if (!read) return null;
+  return (
+    <span class="tpl-acts">
+      <button type="button" class="tpl-act" aria-label={`${W.UNRULED_OPEN} ${file.name}`} onClick={() => read(file.name, false)}>{W.UNRULED_OPEN}</button>
+      <button type="button" class="tpl-act" aria-label={`${W.UNRULED_DOWNLOAD} ${file.name}`} onClick={() => read(file.name, true)}>{W.UNRULED_DOWNLOAD}</button>
+    </span>
+  );
+}
+
+// The Open and Download of a row (Classic): 44px icon buttons named for a screen reader. A link has Open on every row (in a new tab). A file has
 // Open and Download as links in a published file, and as buttons that read through clark in the editor's View (when the editor set fileReader).
 function Actions({ item }) {
   const name = item.label || (item.kind === "file" ? item.name : item.shown);
@@ -81,7 +94,27 @@ export function EntryRow({ item, nameNode }) {
   );
 }
 
-export function View({ section }) {
+function CardsView({ section }) {
+  return (
+    <ul class="tpl-dl">
+      {docItems(section).map((i, n) => (
+        <li key={n} class={`tpl-dl-i tpl-dl-${i.kind}`}>
+          {i.kind === "file" ? <><FileRow file={i} label={i.label} />{fromFile.value ? null : <FileActions file={i} />}</> : (
+            <>
+              <span class="tpl-badge">Link</span>
+              <span class="tpl-main">
+                <a class="tpl-name" href={i.href} target="_blank" rel="noopener noreferrer">{i.label || i.shown}</a>
+                {i.label ? <span class="tpl-facts">{i.shown}</span> : null}
+              </span>
+            </>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ClassicView({ section }) {
   return (
     <ul class="tpl-dl tpl-dl-links">
       {docItems(section).map((i, n) => (
@@ -92,6 +125,11 @@ export function View({ section }) {
       ))}
     </ul>
   );
+}
+
+// The look of item 1194 is Classic's; with no Theme (Cards) the list is drawn as it always was.
+export function View({ section }) {
+  return classicTheme() ? <ClassicView section={section} /> : <CardsView section={section} />;
 }
 
 export const isEmpty = (section) => docItems(section).length === 0;

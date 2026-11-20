@@ -1,3 +1,6 @@
+// Row 1221, Cards: the two words on a file row in the editor's View. Both are UNRULED (not yet ruled).
+export const UNRULED_OPEN = "Open";
+export const UNRULED_DOWNLOAD = "Download";
 // Item 1194, Documents and links: every visible string of the section, as one named constant each. All are ruled (16-11).
 export const DESCRIPTION_LABEL = "Link description (required)";
 export const NO_DESCRIPTION = (n) => `Link ${n}: Enter a link description.`;

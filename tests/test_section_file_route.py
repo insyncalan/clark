@@ -22,7 +22,7 @@ from unittest import mock
 
 from _demo import USER, DemoStore
 from _real_server import real_server
-from clark import changes, log as clark_log, page, platform, publish_flow, section_files, server as sv, to_client
+from clark import changes, log as clark_log, page, platform, publish_flow, section_files, server as sv, theme, to_client
 from clark.section_kinds import doclinks
 from test_report_editor import EMPTY_BRANDING, Base as PageBase
 from test_server import Running, chrome
@@ -395,8 +395,8 @@ class InThePage(PageBase):
             st.update("projects", "ABC", {"publish_client": str(self.client)})
         self.pub = publish_flow.Publisher(self.store.path, [], fs=to_client.RealFs(), choose_open_file=lambda prompt, start=None, types=None: self.source,
                                           by_user=lambda: USER, data_dir=self.tmp / "data", today=lambda: "2030-01-15")
-        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING), seam=self.seam,
-                             publisher=self.pub)
+        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING, theme=theme.CLASSIC), seam=self.seam,
+                             publisher=self.pub)      # the look of item 1194 is Classic's
         self.addCleanup(self.s.close)
 
     def add(self, kind):

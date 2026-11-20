@@ -1,9 +1,10 @@
-"""Item 1194: the type badge text reaches 4.5:1 on every file kind, in the published file (css) and in the editor icon (docIcons.jsx)."""
+"""Item 1194: the type badge text reaches 4.5:1 on every file kind, in the Classic theme's rules.css (the published file and the editor's View) and in the editor icon (docIcons.jsx)."""
 import re
 import unittest
 from pathlib import Path
 
 SRC = Path(__file__).resolve().parent.parent / "src" / "clark" / "page"
+THEME = Path(__file__).resolve().parent.parent / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css"
 KINDS = "PDF DOC XLS PPT JPG PNG TXT URL MAIL FILE".split()
 
 
@@ -23,16 +24,16 @@ def ratio(a, b):
 
 def table(src, name):
     body = re.search(r"export const %s = \{(.*?)\};" % name, src, re.S).group(1)
-    return dict(re.findall(r'(\w+): "(#[0-9A-Fa-f]{3,6})"', body))
+    return dict(re.findall(r'(\w+): "var\((--[a-z-]+)\)"', body))
 
 
 class BadgeContrast(unittest.TestCase):
     def test_the_published_badge_text_reaches_4_5_on_every_kind(self):
-        css = (SRC / "shell.css").read_text(encoding="utf-8")
+        css = THEME.read_text(encoding="utf-8")
         for kind in KINDS:
             rule = re.search(r"\.tpl-badge\.tpl-ic-%s \{([^}]*)\}" % kind, css)
             self.assertTrue(rule, kind)
-            tok = dict(re.findall(r"(--[a-z-]+):\s*(#[0-9A-Fa-f]{3,6})", (SRC.parent / "brand" / "tokens.css").read_text(encoding="utf-8")))
+            tok = dict(re.findall(r"(--[a-z-]+):\s*(#[0-9A-Fa-f]{3,6})", css + (SRC.parent / "brand" / "tokens.css").read_text(encoding="utf-8")))
             val = lambda v: tok[v] if v.startswith("--") else v
             bg = val(re.search(r"background:\s*var\((--badge-[a-z]+)\)", rule.group(1)).group(1))
             fg = re.search(r"(?<!-)color:\s*var\((--badge-ink)\)", rule.group(1))
@@ -42,9 +43,10 @@ class BadgeContrast(unittest.TestCase):
     def test_the_editor_icon_band_text_reaches_4_5_on_every_kind(self):
         src = (SRC / "src" / "templates" / "docIcons.jsx").read_text(encoding="utf-8")
         band, text = table(src, "BAND"), table(src, "BAND_TEXT")
+        tok = dict(re.findall(r"(--[a-z-]+):\s*(#[0-9A-Fa-f]{3,6})", THEME.read_text(encoding="utf-8") + (SRC.parent / "brand" / "tokens.css").read_text(encoding="utf-8")))
         for kind in KINDS:
             self.assertIn(kind, band)
-            r = ratio(text.get(kind, "#fff"), band[kind])
+            r = ratio(tok[text.get(kind, "--white")], tok[band[kind]])
             self.assertGreaterEqual(r, 4.5, "%s editor icon band %.2f:1" % (kind, r))
 
 

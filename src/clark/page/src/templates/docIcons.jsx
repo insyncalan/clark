@@ -3,10 +3,10 @@
 import { fromFile } from "../stores/report.js";
 
 // A published file's cards carry no picture, so there the page icon is a plain box of words and the action icons are CSS-drawn characters (css .tpl-plain).
-const COLOURS = { PDF: "#E8410C", DOC: "#1F5FBF", XLS: "#1E9B4B", PPT: "#E8601C", JPG: "#6B46C1", PNG: "#E0358B", TXT: "#F2A400", URL: "#5B47D8", MAIL: "#0E7C86", FILE: "#5A6B77" };
+const COLOURS = { PDF: "var(--badge-pdf)", DOC: "var(--badge-doc)", XLS: "var(--badge-xls)", PPT: "var(--badge-ppt)", JPG: "var(--badge-jpg)", PNG: "var(--badge-png)", TXT: "var(--badge-txt)", URL: "var(--badge-url)", MAIL: "var(--badge-mail)", FILE: "var(--badge-file)" };
 // The coloured label band and its text, at least 4.5:1 on every kind; the same pairs as the published file's badge (css .tpl-ic-*).
-export const BAND = { PDF: "#C93608", DOC: "#1F5FBF", XLS: "#1E9B4B", PPT: "#E8601C", JPG: "#6B46C1", PNG: "#C72A7A", TXT: "#F2A400", URL: "#5B47D8", MAIL: "#0E7C86", FILE: "#5A6B77" };
-export const BAND_TEXT = { XLS: "#111", PPT: "#111", TXT: "#111" };
+export const BAND = { PDF: "var(--badge-pdf)", DOC: "var(--badge-doc)", XLS: "var(--badge-xls)", PPT: "var(--badge-ppt)", JPG: "var(--badge-jpg)", PNG: "var(--badge-png)", TXT: "var(--badge-txt)", URL: "var(--badge-url)", MAIL: "var(--badge-mail)", FILE: "var(--badge-file)" };
+export const BAND_TEXT = { XLS: "var(--badge-ink)", PPT: "var(--badge-ink)", TXT: "var(--badge-ink)" };
 const LINES = (c) => <path d="M12 12h14M12 17h16M12 22h10" stroke={c} />;
 const GLYPHS = {
   PDF: LINES(COLOURS.PDF), DOC: LINES(COLOURS.DOC), FILE: LINES(COLOURS.FILE),
@@ -18,7 +18,7 @@ const GLYPHS = {
   URL: <g transform="translate(8.5 7) scale(.95)" stroke={COLOURS.URL}><path d="M10 14a4 4 0 0 0 6 0l3-3a4 4 0 0 0-6-6l-1 1M14 10a4 4 0 0 0-6 0l-3 3a4 4 0 0 0 6 6l1-1" transform="scale(.75) translate(-2 -1)" /></g>,
   MAIL: <><rect x="11" y="11" width="18" height="13" rx="1.5" stroke={COLOURS.MAIL} /><path d="M11 13l9 6 9-6" stroke={COLOURS.MAIL} /></>,
 };
-const INK = "#0E2430";
+const INK = "var(--badge-ink)";
 
 // The icon for a label (PDF DOC XLS PPT JPG PNG TXT URL MAIL, else FILE): 41px tall, the height of a row's two text lines.
 export function PageIcon({ label }) {
@@ -27,11 +27,11 @@ export function PageIcon({ label }) {
   return (
     <span class="tpl-badge tpl-page">
       <svg viewBox="0 0 40 48" width="34" height="41" aria-hidden="true" focusable="false">
-        <path d="M4 2h22l10 10v34H4z" fill="#fff" stroke={INK} stroke-width="2.2" stroke-linejoin="round" />
+        <path d="M4 2h22l10 10v34H4z" fill="var(--white)" stroke={INK} stroke-width="2.2" stroke-linejoin="round" />
         <path d="M26 2v10h10" fill="none" stroke={INK} stroke-width="2.2" stroke-linejoin="round" />
         <g fill="none" stroke-width="2" stroke-linecap="round">{GLYPHS[key]}</g>
         <path d="M5.1 31h29.8v14.9H5.1z" fill={BAND[key]} />
-        <text transform={`translate(20 42) scale(${label.length > 3 ? 0.6 : 0.73})`} text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-weight="800" font-size="13" fill={BAND_TEXT[key] || "#fff"}>{label}</text>
+        <text transform={`translate(20 42) scale(${label.length > 3 ? 0.6 : 0.73})`} text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-weight="800" font-size="13" fill={BAND_TEXT[key] || "var(--white)"}>{label}</text>
       </svg>
     </span>
   );

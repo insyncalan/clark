@@ -3,11 +3,12 @@
 // required), then the list with rename in place, move up and down, and Remove. Each is one change: one step, one Undo, place "report".
 import { useState, useRef } from "preact/hooks";
 import { docItems, linkProblem } from "../../templates/files.js";
-import { EntryRow } from "../../templates/DocLinks.jsx";
+import { EntryRow, FileRow } from "../../templates/DocLinks.jsx";
 import { ActIcon } from "../../templates/docIcons.jsx";
 import { chooseFile } from "./fileRoute.js";
 import { stored, oneLine, labelProblem, saveContent } from "./filesEdit.js";
 import * as W from "../../logic/docLinksWords.js";
+import { classicTheme } from "../../components/Contents.jsx";
 
 export const MAX_ITEMS = 20;
 export const FULL = `A Documents and links section can hold ${MAX_ITEMS} files and links at most. Remove one, then add the new one.`;
@@ -18,7 +19,7 @@ const LINK_ICON = "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1 M14 10a4 4 
 const UP_ICON = "M6 15l6-6 6 6";
 const DOWN_ICON = "M6 9l6 6 6-6";
 
-export function Edit({ section }) {
+function ClassicEdit({ section }) {
   const [href, setHref] = useState("");
   const [label, setLabel] = useState("");
   const [boxOpen, setBoxOpen] = useState(false);
@@ -103,6 +104,7 @@ export function Edit({ section }) {
               <li key={n} data-row={n} class={`tpl-dl-i tpl-dl-${i.kind}`}>
                 <EntryRow item={i} nameNode={
                   <input key={`${n}:${name}`} class="tpl-rename" data-rename-input type="text" autocomplete="off" defaultValue={name} aria-label={W.RENAME(name)}
+                    onInput={(e) => { delete e.currentTarget.dataset.done; }}      /* Enter on a name that did not change leaves the flag set: typing again clears it, so the next blur saves */
                     onKeyDown={(e) => {
                       const box = e.currentTarget;
                       if (e.key === "Enter") { e.preventDefault(); box.dataset.done = "1"; rename(n, box.value, box); }
@@ -122,4 +124,79 @@ export function Edit({ section }) {
       <p class="quiet tpl-hint">{W.RENAME_HINT} {W.NOTE}</p>
     </div>
   );
+}
+
+// Cards (no Theme layered) keeps Edit as it was before item 1194; the new form is Classic's.
+function CardsEdit({ section }) {
+  const [href, setHref] = useState("");
+  const [label, setLabel] = useState("");
+  const [problem, setProblem] = useState("");
+  const [busy, setBusy] = useState(false);
+  const content = stored(section);
+  const raw = Array.isArray(content.items) ? content.items : [];
+  const shown = docItems(section);
+  const full = raw.length >= MAX_ITEMS;
+
+  const remove = (n) => {
+    const item = raw[n];
+    const words = item && item.kind === "file" ? "File taken off the section. It stays in the client folder." : "Link removed.";
+    saveContent(section, { ...content, items: raw.filter((_, i) => i !== n) }, words);
+  };
+  const addFile = async () => {
+    if (full) { setProblem(FULL); return; }
+    setProblem("");
+    setBusy(true);
+    try { await chooseFile(section.id); } finally { setBusy(false); }
+  };
+  const addLink = async (e) => {
+    e.preventDefault();
+    const link = href.trim(), words = oneLine(label);
+    const why = full ? FULL : linkProblem(link) || labelProblem(words);
+    setProblem(why);
+    if (why) return;
+    const reply = await saveContent(section, { ...content, items: [...raw, { kind: "link", href: link, label: words }] }, "Link added.");
+    if (reply) { setHref(""); setLabel(""); }
+  };
+  const fid = `tpl-${section.id}`;
+  return (
+    <div class="tpl-edit tpl-files-edit">
+      {shown.length ? (
+        <ul class="tpl-dl">
+          {raw.map((item, n) => {
+            const i = docItems({ content: { items: [item] } })[0];
+            if (!i) return null;
+            return (
+              <li key={n} class={`tpl-dl-i tpl-dl-${i.kind}`}>
+                {i.kind === "file" ? <FileRow file={i} label={i.label} /> : (
+                  <>
+                    <span class="tpl-badge">Link</span>
+                    <span class="tpl-main"><span class="tpl-name">{i.label || i.shown}</span>{i.label ? <span class="tpl-facts">{i.shown}</span> : null}</span>
+                  </>
+                )}
+                <button type="button" class="btn sm quiet tpl-remove" onClick={() => remove(n)}
+                  aria-label={`Remove ${i.label || i.name || i.shown}`}>Remove</button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : <p class="quiet tpl-empty">No files or links yet. Add one below: until then this section stays out of the published page.</p>}
+      <div class="tpl-actions">
+        <button type="button" class="btn" data-add-file disabled={busy} onClick={addFile}>{busy ? "Choosing a file…" : "Add a file…"}</button>
+      </div>
+      <form class="tpl-form" onSubmit={addLink} data-add-link>
+        <label for={`${fid}-href`}>Link</label>
+        <input id={`${fid}-href`} type="text" inputMode="url" autocomplete="off" spellcheck={false} placeholder="https://"
+          value={href} onInput={(e) => setHref(e.currentTarget.value)} />
+        <label for={`${fid}-label`}>Words to show (optional)</label>
+        <input id={`${fid}-label`} type="text" autocomplete="off" value={label} onInput={(e) => setLabel(e.currentTarget.value)} />
+        <button type="submit" class="btn">Add link</button>
+      </form>
+      {problem ? <p class="tpl-problem" role="alert">{problem}</p> : null}
+      <p class="quiet tpl-hint">A file is copied into the client folder's “Report files” folder and opens from the client's copy of the report.</p>
+    </div>
+  );
+}
+
+export function Edit({ section }) {
+  return classicTheme() ? <ClassicEdit section={section} /> : <CardsEdit section={section} />;
 }

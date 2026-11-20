@@ -11,12 +11,15 @@ import json
 import re
 import shutil
 import tempfile
+import hashlib
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from _demo import USER
 from _paths import SRC
-from clark import changes, publish, section_bodies, store as store_module
+import _testpage
+from clark import changes, page, publish, section_bodies, store as store_module, theme
 from clark.section_kinds import base, doclinks
 from test_changes import Api
 from test_report_editor import EMPTY_BRANDING, Base as PageBase, Pg
@@ -327,7 +330,18 @@ class Saved(Api):
         self.assertNotIn("body", sections[shown], "the stored text is never in the file")
 
 
-class InThePage(PageBase):
+class ClassicPage(PageBase):
+    """The page with the Classic theme layered (the look of item 1194 is Classic's; Cards keeps its old rows, see CardsUnchanged)."""
+
+    def setUp(self):
+        real = _testpage.html
+        patch = mock.patch.object(_testpage, "html", lambda branding=None: page.layer_theme(real(branding), theme.css("prototype-2.0")))
+        patch.start()
+        self.addCleanup(patch.stop)
+        super().setUp()
+
+
+class InThePage(ClassicPage):
     """The served View and the file draw the same entries; Edit adds and removes a link, one step each."""
 
     def add(self, items, title="Fictional papers", kind="doclinks"):
@@ -479,6 +493,34 @@ class InThePage(PageBase):
             self.assertEqual(p.js(f"document.querySelector('{sel} [data-add-link] .tpl-problem').textContent"), "Link 3: Enter a link description.")
             self.assertEqual(len(self.sent), sent, "nothing was sent")
 
+    def test_enter_on_an_unchanged_name_does_not_swallow_the_next_rename(self):
+        """Row 1194 read (Enter on an unchanged name): Enter saves nothing, then the next name typed and left by a click away is saved."""
+        ref = self.add([a_link(label="The plan")])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"document.querySelectorAll('{sel} input[data-rename-input]').length === 1", "the row drew")
+            RenameTest.type(p, sel, "The plan", "Enter", 0)
+            p.js(f"(() => {{ const el = document.querySelector({json.dumps(sel + ' input[data-rename-input]')}); el.focus(); el.value = 'Next name';"
+                 " el.dispatchEvent(new Event('input', {bubbles: true})); el.blur(); })()")
+            p.until("document.querySelector('.toast') && document.querySelector('.toast').textContent.includes('Name saved')", "the next name was saved")
+            self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["items"][0]["label"], "Next name")
+
+    def test_the_page_icon_colours_are_the_badge_tokens_not_literals(self):
+        """Row 1194 read (colour literals): the drawn icon takes its colours from the --badge-* tokens, none is a hex literal."""
+        src = (SRC / "clark" / "page" / "src" / "templates" / "docIcons.jsx").read_text(encoding="utf-8")
+        self.assertEqual(re.findall(r"#[0-9A-Fa-f]{3,6}\b|rgba?\(", src), [], "no colour literal in docIcons.jsx")
+        ref = self.add([a_file("Plan v2.pdf"), a_file("Notes.txt", 2048)])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.until(f"!!document.querySelector('{sel} .tpl-dl')", "the list drew")
+            got = p.js(f"[...document.querySelectorAll('{sel} .tpl-badge svg')].map(s => [getComputedStyle(s.querySelector('g[fill] path')).stroke, getComputedStyle([...s.querySelectorAll('path')].pop()).fill, getComputedStyle(s.querySelector('text')).fill])")
+            want = p.js("(() => { const t = document.createElement('i'); document.body.append(t); const c = v => { t.style.color = v; return getComputedStyle(t).color; }; "
+                        "const r = [[c('var(--badge-pdf)'), c('var(--badge-pdf)'), c('var(--white)')], [c('var(--badge-txt)'), c('var(--badge-txt)'), c('var(--badge-ink)')]]; t.remove(); return r; })()")
+            self.assertEqual(got, want)
+
     def test_edit_renames_in_place_and_moves_rows_one_step_each(self):
         ref = self.add([a_link(), a_file()])
         sel = f"[data-id={json.dumps(ref)}]"
@@ -591,7 +633,7 @@ class MockupLook(InThePage):
                 self.assertEqual(got["off"], "0.3", w)
                 self.assertEqual(got["step"], [46, 46], f"the three icon buttons are 2 px apart at {w}")
                 self.assertEqual(got["facts"], 16.9, f"the facts line is 13 px on a 1.3 line at {w}")
-                self.assertEqual([h[:4] for h in got["head"]], [["1px", "1.8px", "rgb(14, 36, 48)", "rgb(217, 224, 239)"]] * 2, f"file and link icon buttons at {w}")
+                self.assertEqual([h[:4] for h in got["head"]], [["1px", "1.8px", "rgb(29, 36, 51)", "rgb(217, 224, 239)"]] * 2, f"file and link icon buttons at {w} (ink = Classic --text 1D2433; the Cards value was 0E2430)")
                 self.assertLessEqual(max(abs(h[4]) for h in got["head"]), 2, f"the icon buttons sit on the title's line at {w}")
                 self.assertIn(got["gap"], range(56, 61), f"the list starts 58 px under the icon buttons' top at {w}")
                 self.assertEqual(got["allowed"], ["13px", "10px 14px", "12px"], w)
@@ -626,6 +668,29 @@ class MockupLook(InThePage):
             p.js(f"document.querySelectorAll('{sel} .tpl-remove')[0].click()")
             p.until("document.querySelector('.toast').textContent.includes('Removed')", "the remove toast")
             self.assertEqual(p.js("document.querySelector('.toast').textContent").replace("Undo", "").replace("Close", "").strip(), "Removed Scope statement.docx. The file stays in the client folder.")
+
+
+CARDS_DOM_MD5 = {"view": "1c4fa7af9e9e6576852aa571e5063d10", "edit": "40e88aa997edd5048eba345c1dd317cb"}
+
+
+class CardsUnchanged(PageBase):
+    """Cards (no Theme layered) draws the Documents and links section as main does: the md5 of the section's DOM in View and in Edit
+    (measured on origin/main 75bebf66 with this same list; a Cards change would change these values)."""
+
+    def test_the_cards_section_dom_is_what_main_draws(self):
+        ref = InThePage.add(self, [a_file("Scope statement.docx", 88 * 1024, label="The scope"), a_link("https://example.org/x", "A page"), a_link("mailto:team@example.org", "Team")])
+        sel = f"[data-id={json.dumps(ref)}]"
+        got = {}
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.assertFalse(p.js("!!document.getElementById('theme')"), "no Theme is layered")
+            p.until(f"!!document.querySelector('{sel} .tpl-dl')", "the list drew")
+            got["view"] = p.js(f"document.querySelector('{sel}').outerHTML")
+            p.edit()
+            p.until(f"!!document.querySelector('{sel} .tpl-files-edit')", "the Edit part drew")
+            got["edit"] = p.js(f"document.querySelector('{sel}').outerHTML")
+        md5 = {k: hashlib.md5(v.replace(ref, "REF").encode("utf-8")).hexdigest() for k, v in got.items()}
+        self.assertEqual(md5, CARDS_DOM_MD5, got)
 
 
 class Published(PageBase):
