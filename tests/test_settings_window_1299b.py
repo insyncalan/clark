@@ -139,7 +139,7 @@ class Window(Base):
                         self.assertEqual(g["svgs"], 1, slug + ": one icon in the tile")
                     self.assertEqual(len({g["art"] for g in got}), len(got), "every page has an icon of its own (no two tiles draw the same glyph)")
 
-    def test_W4_the_window_is_twelve_pixels_round_with_a_one_pixel_ring_and_its_own_padding(self):
+    def test_W4_the_window_is_eighteen_pixels_round_with_a_one_pixel_ring_a_drop_shadow_and_its_own_padding(self):
         for w in WIDTHS:
             for mode in MODES:
                 with self.subTest(width=w, mode=mode), chrome() as cdp:
@@ -147,10 +147,10 @@ class Window(Base):
                     self.open_settings(p, w, mode)
                     r = p.js("(() => { const cs = getComputedStyle(document.querySelector('.set-win')); return {radius: cs.borderTopLeftRadius, shadow: cs.boxShadow, bg: cs.backgroundColor,"
                              " pt: cs.paddingTop, pr: cs.paddingRight, pb: cs.paddingBottom, pl: cs.paddingLeft, border: cs.borderTopWidth}; })()")
-                    self.assertEqual(r["radius"], self.token(p, "var(--radius-lg)")["w"], "the radius is the large-radius token")
-                    self.assertEqual(r["radius"], "12px", "the radius as built (a ruling on 12 against the mock-up's 18 is pending)")
+                    self.assertEqual(r["radius"], "18px", "the radius is the mock-up's 18px (row 1299 ruling): 12px and 14px both fail here")
+                    self.assertNotIn(r["radius"], ("12px", "14px"), "neither the large-radius token nor 14")
                     ring = self.token(p, "var(--border)")["bg"]
-                    self.assertEqual(r["shadow"], f"{ring} 0px 0px 0px 1px", "a one pixel ring in the border colour, drawn as a shadow so it takes no room")
+                    self.assertEqual(r["shadow"], f"{ring} 0px 0px 0px 1px, rgba(6, 47, 58, 0.18) 0px 12px 36px 0px", "a one pixel ring in the border colour drawn as a shadow (it takes no room), then the mock-up's 0 12px 36px drop shadow")
                     self.assertEqual(r["bg"], self.token(p, "var(--surface)")["bg"], "the ground is the surface token")
                     self.assertEqual(r["border"], "0px", "the ring is not a border")
                     self.assertEqual((r["pt"], r["pr"], r["pb"]), (self.token(p, "var(--space-4)")["w"], self.token(p, "var(--space-4)")["w"], self.token(p, "var(--space-5)")["w"]), "padding: space-4 above and right, space-5 below")
@@ -178,7 +178,7 @@ class Window(Base):
                     self.assertEqual(col, want, "the menu column")
                 else:
                     self.assertNotEqual(col, "164px", "164px is for 900 to 1099 only")
-                    self.assertGreaterEqual(float(col[:-2]), 150, "at 1400 the column keeps the shared rule's width")
+                    self.assertEqual(col, "270px", "at 1400 the sidebar column is the mock-up's 270px (row 1299 ruling)")
 
     def test_W4_print_drops_the_left_gutter_padding(self):
         with chrome() as cdp:
