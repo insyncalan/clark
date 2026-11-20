@@ -24,7 +24,9 @@ PROBE = """(() => { const q = (s) => document.querySelector(s), R = (e) => e.get
   const c = getComputedStyle(box), lh = parseFloat(getComputedStyle(btn).lineHeight), b = R(bar), l = R(line), n = R(btn);
   return {text: btn.textContent.trim(), tip: btn.getAttribute('title'), aria: btn.getAttribute('aria-label'), h: R(box).height, lh, ws: c.whiteSpace, to: c.textOverflow, ov: c.overflow,
     barH: b.height, token, sh: bar.scrollHeight, ch: bar.clientHeight, wide: root.scrollWidth <= window.innerWidth,
-    lineIn: l.top >= b.top && l.bottom <= b.bottom && l.left >= b.left && l.right <= b.right, nameIn: n.top >= b.top && n.bottom <= b.bottom}; })()"""
+    lineIn: l.top >= b.top && l.bottom <= b.bottom && l.left >= b.left && l.right <= b.right, nameIn: n.top >= b.top && n.bottom <= b.bottom,
+    tabs: [...document.querySelectorAll('.top-hdr .tabs, .top-hdr .tab')].map((e) => R(e)).filter((r) => r.top < b.top - 0.5 || r.bottom > b.bottom + 0.5 || r.left < b.left - 0.5 || r.right > b.right + 0.5).length,
+    tabCount: document.querySelectorAll('.top-hdr .tab').length}; })()"""
 
 
 class OneLine(Setup):
@@ -52,6 +54,8 @@ class OneLine(Setup):
         self.assertEqual(g["token"], "85px" if width == 1400 else "103px", ctx)
         self.assertTrue(g["lineIn"], ("WEEKLY REPORT is inside the bar", ctx))
         self.assertTrue(g["nameIn"], ctx)
+        self.assertGreater(g["tabCount"], 0, ctx)
+        self.assertEqual(g["tabs"], 0, ("no tab lies outside the bar", ctx))
         self.assertTrue(g["wide"], ("no sideways scroll", ctx))
         self.assertEqual(g["tip"], LONG, ("the tooltip is the full name", ctx))
         self.assertNotIn("Click to change project", g["tip"])
