@@ -29,6 +29,7 @@ def table(src, name):
 
 class BadgeContrast(unittest.TestCase):
     def test_the_published_badge_text_reaches_4_5_on_every_kind(self):
+        """Code measurement, not mock: the mock draws white text; this pins white on each fill at 4.5:1 or more (a TXT fill the mock does not have is one of them)."""
         css = THEME.read_text(encoding="utf-8")
         for kind in KINDS:
             rule = re.search(r"\.tpl-badge\.tpl-ic-%s \{([^}]*)\}" % kind, css)
@@ -41,6 +42,7 @@ class BadgeContrast(unittest.TestCase):
             self.assertGreaterEqual(r, 4.5, "%s published badge %.2f:1" % (kind, r))
 
     def test_the_editor_icon_band_text_reaches_4_5_on_every_kind(self):
+        """Code measurement, not mock: the same 4.5:1 rule for the drawn page icon's band."""
         src = (SRC / "src" / "templates" / "docIcons.jsx").read_text(encoding="utf-8")
         band, text = table(src, "BAND"), table(src, "BAND_TEXT")
         tok = dict(re.findall(r"(--[a-z-]+):\s*(#[0-9A-Fa-f]{3,6})", THEME.read_text(encoding="utf-8") + (SRC.parent / "brand" / "tokens.css").read_text(encoding="utf-8")))

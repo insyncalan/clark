@@ -6,7 +6,7 @@ import { fromFile } from "../stores/report.js";
 const COLOURS = { PDF: "var(--badge-pdf)", DOC: "var(--badge-doc)", XLS: "var(--badge-xls)", PPT: "var(--badge-ppt)", JPG: "var(--badge-jpg)", PNG: "var(--badge-png)", TXT: "var(--badge-txt)", URL: "var(--badge-url)", MAIL: "var(--badge-mail)", FILE: "var(--badge-file)" };
 // The coloured label band and its text, at least 4.5:1 on every kind; the same pairs as the published file's badge (css .tpl-ic-*).
 export const BAND = { PDF: "var(--badge-pdf)", DOC: "var(--badge-doc)", XLS: "var(--badge-xls)", PPT: "var(--badge-ppt)", JPG: "var(--badge-jpg)", PNG: "var(--badge-png)", TXT: "var(--badge-txt)", URL: "var(--badge-url)", MAIL: "var(--badge-mail)", FILE: "var(--badge-file)" };
-export const BAND_TEXT = { XLS: "var(--badge-ink)", PPT: "var(--badge-ink)", TXT: "var(--badge-ink)" };
+export const BAND_TEXT = {};
 const LINES = (c) => <path d="M12 12h14M12 17h16M12 22h10" stroke={c} />;
 const GLYPHS = {
   PDF: LINES(COLOURS.PDF), DOC: LINES(COLOURS.DOC), FILE: LINES(COLOURS.FILE),

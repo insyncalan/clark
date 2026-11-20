@@ -687,25 +687,25 @@ table.items .weye { width: 30px; height: 30px; }
 #report[data-mode="edit"] .wil-scroll { scrollbar-width: none; }
 #report[data-mode="edit"] .wil-scroll::-webkit-scrollbar { display: none; }
 /* Row 1194 (Documents and links; Classic only, Cards keeps the rows, buttons and form it has: its markup is the old one, see templates/DocLinks.jsx). The type badges' fills, the page icon, the row of the approved mockup, the Open and Download icon buttons and the Edit form's icon row. Every rule names the list (.tpl-dl-links) or the editor's group (.tpl-files-edit), so the base rules of shell.css and edit.css, which stay as they are, lose where both apply. */
-:root { --badge-pdf: #C93608; --badge-doc: #1F5FBF; --badge-xls: #1E9B4B; --badge-ppt: #E8601C; --badge-jpg: #6B46C1; --badge-png: #C72A7A; --badge-txt: #F2A400; --badge-url: #5B47D8; --badge-mail: #0E7C86; --badge-file: #5A6B77; --badge-ink: #111; }
+:root { --badge-pdf: #C62828; --badge-doc: #1F5FBF; --badge-xls: #1E7B45; --badge-ppt: #C4501B; --badge-jpg: #7B3FB8; --badge-png: #7B3FB8; --badge-txt: #5A6B77; --badge-url: #5B47D8; --badge-mail: #0E7C86; --badge-file: #5A6B77; --badge-ink: #111; }
 .tpl-dl-links .tpl-badge { height: 41px; min-width: 41px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
 .tpl-badge.tpl-page { min-width: 0; width: 41px; padding: 0; background: none; }
 .tpl-badge.tpl-page svg { display: block; }
 .tpl-dl-links .tpl-dl-i { padding: 8px 10px 8px 14px; border-radius: 12px; }     /* item 1194: the approved mockup's row */
-.tpl-dl-links .tpl-dl-i .tpl-name, .tpl-dl-links .tpl-dl-i .tpl-rename { font-size: 15px; font-weight: 500; }      /* bare 15px and weight 500, the mockup's measured values (Classic's --size-body is 14px, --weight-medium 600), the mockup's measured size: Classic's --size-body is 14px */
+.tpl-dl-links .tpl-dl-i .tpl-name, .tpl-dl-links .tpl-dl-i .tpl-rename { font-size: 16px; font-weight: 500; }      /* bare 16px and weight 500: the approved mock-up's .nm and .nmin (Classic's --size-body is 14px, --weight-medium 600) */
 .tpl-dl-links .tpl-dl-i .tpl-main { line-height: 1.3; }
 .tpl-dl-links .tpl-acts { display: inline-flex; gap: var(--space-1); align-self: center; }
 .tpl-dl-links a.tpl-act, .tpl-dl-links button.tpl-act { display: inline-flex; padding: 0; border: 0; background: none; font: inherit; cursor: pointer; align-items: center; min-height: 44px; min-width: 44px; justify-content: center; border-radius: var(--radius); color: var(--text-muted); }
 .tpl-dl-links a.tpl-act:hover, .tpl-dl-links button.tpl-act:hover { background: var(--grey-100); color: var(--link); }
 .tpl-dl-links a.tpl-act:focus-visible, .tpl-dl-links button.tpl-act:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
-.tpl-badge.tpl-plain { width: 41px; padding: 0; border-radius: var(--radius-sm); color: var(--white); font-size: var(--size-caption); font-weight: 800; letter-spacing: 0; }
-.tpl-badge.tpl-ic-PDF { background: var(--badge-pdf); }  /* white 5.23:1 */
+.tpl-badge.tpl-plain { width: 41px; padding: 0; border-radius: var(--radius-sm); color: var(--white); font-size: 11px; font-weight: 700; letter-spacing: .04em; }
+.tpl-badge.tpl-ic-PDF { background: var(--badge-pdf); }  /* white */
 .tpl-badge.tpl-ic-DOC { background: var(--badge-doc); }
-.tpl-badge.tpl-ic-XLS { background: var(--badge-xls); color: var(--badge-ink); }  /* dark 5.26:1 */
-.tpl-badge.tpl-ic-PPT { background: var(--badge-ppt); color: var(--badge-ink); }  /* dark 5.50:1 */
+.tpl-badge.tpl-ic-XLS { background: var(--badge-xls); }  /* white */
+.tpl-badge.tpl-ic-PPT { background: var(--badge-ppt); }  /* white */
 .tpl-badge.tpl-ic-JPG { background: var(--badge-jpg); }
-.tpl-badge.tpl-ic-PNG { background: var(--badge-png); }  /* white 5.20:1 */
-.tpl-badge.tpl-ic-TXT { background: var(--badge-txt); color: var(--badge-ink); }  /* dark 9.07:1 */
+.tpl-badge.tpl-ic-PNG { background: var(--badge-png); }  /* white */
+.tpl-badge.tpl-ic-TXT { background: var(--badge-txt); }  /* white: the mock's file tile, TXT has no tile of its own */
 .tpl-badge.tpl-ic-URL { background: var(--badge-url); }
 .tpl-badge.tpl-ic-MAIL { background: var(--badge-mail); }
 .tpl-badge.tpl-ic-FILE { background: var(--badge-file); }
@@ -726,7 +726,7 @@ table.items .weye { width: 30px; height: 30px; }
 .tpl-files-edit .tpl-dl-i .tpl-icon:hover:not([disabled]) { background: var(--brand-blue-tint); color: var(--brand-blue); }
 .tpl-files-edit .tpl-dl-i .tpl-icon[disabled] { opacity: .3; }
 .tpl-files-edit .tpl-hint { font-size: var(--size-caption); }
-.tpl-files-edit .tpl-rename { width: calc(100% + 12px); min-width: 0; margin: -3px -6px; padding: 2px 6px; border: 1px solid transparent; border-radius: var(--radius); background: none; color: var(--text); font: inherit; font-size: 15px; font-weight: 500; }
+.tpl-files-edit .tpl-rename { width: calc(100% + 12px); min-width: 0; margin: -3px -6px; padding: 2px 6px; border: 1px solid transparent; border-radius: var(--radius); background: none; color: var(--text); font: inherit; font-size: 16px; font-weight: 500; }
 .tpl-files-edit .tpl-rename:hover { border-color: var(--grey-300); }
 .tpl-files-edit .tpl-dl-i { align-items: center; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */

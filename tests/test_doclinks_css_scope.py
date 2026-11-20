@@ -14,8 +14,10 @@ SCOPE = ".tpl-dl-links"
 MOCKUP = ("padding: 8px 10px 8px 14px", "border-radius: 12px", "font-size: 16px", "font-weight: 500", "line-height: 1.3", "height: 41px")
 SCOPED = (".tpl-dl-links .tpl-badge", ".tpl-dl-links .tpl-dl-i", ".tpl-dl-links .tpl-dl-i .tpl-name", ".tpl-dl-links .tpl-dl-i .tpl-rename",
           ".tpl-dl-links .tpl-dl-i .tpl-main")
-PLAIN_FILL = {"PDF": ("#C93608", "#fff"), "DOC": ("#1F5FBF", "#fff"), "XLS": ("#1E9B4B", "#111"), "PPT": ("#E8601C", "#111"),
-              "JPG": ("#6B46C1", "#fff"), "PNG": ("#C72A7A", "#fff"), "TXT": ("#F2A400", "#111"), "URL": ("#5B47D8", "#fff"),
+# The approved mock-up's tiles (.t-pdf, .t-word, .t-excel, .t-ppt, .t-img, .t-link, .t-mail, .t-file), text white on all. JPG and PNG are the mock's one image tile.
+# TXT has no tile in the mock: it takes the mock's file tile 5A6B77 (code choice, not a mock value).
+PLAIN_FILL = {"PDF": ("#C62828", "#fff"), "DOC": ("#1F5FBF", "#fff"), "XLS": ("#1E7B45", "#fff"), "PPT": ("#C4501B", "#fff"),
+              "JPG": ("#7B3FB8", "#fff"), "PNG": ("#7B3FB8", "#fff"), "TXT": ("#5A6B77", "#fff"), "URL": ("#5B47D8", "#fff"),
               "MAIL": ("#0E7C86", "#fff"), "FILE": ("#5A6B77", "#fff")}
 
 
@@ -107,7 +109,7 @@ class PlainBadge(unittest.TestCase):
     def test_the_plain_badge_rule_and_each_kind_s_fill_and_text_are_pinned(self):
         plain = declarations(self.sheet, ".tpl-badge.tpl-plain")
         self.assertEqual({k: plain[k] for k in ("width", "padding", "color", "font-size", "font-weight", "letter-spacing")},
-                         {"width": "41px", "padding": "0", "color": "var(--white)", "font-size": "var(--size-caption)", "font-weight": "800", "letter-spacing": "0"})
+                         {"width": "41px", "padding": "0", "color": "var(--white)", "font-size": "11px", "font-weight": "700", "letter-spacing": ".04em"})      # the mock's .fi: 11px, 700, .04em
         tok = dict(re.findall(r"(--[a-z-]+):\s*(#[0-9A-Fa-f]{3,6})", (SRC.parent / "brand" / "tokens.css").read_text(encoding="utf-8") + THEME.read_text(encoding="utf-8")))
         val = lambda v: (tok[re.fullmatch(r"var\((--[a-z-]+)\)", v).group(1)] if v.startswith("var(") else v).replace("#ffffff", "#fff")
         for kind, (fill, text) in PLAIN_FILL.items():

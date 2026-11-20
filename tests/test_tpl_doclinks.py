@@ -582,7 +582,7 @@ class InThePage(ClassicPage):
             p.until(f"!!document.querySelector('{sel} .tpl-dl')", "the list drew")
             got = p.js(f"[...document.querySelectorAll('{sel} .tpl-badge svg')].map(s => [getComputedStyle(s.querySelector('g[fill] path')).stroke, getComputedStyle([...s.querySelectorAll('path')].pop()).fill, getComputedStyle(s.querySelector('text')).fill])")
             want = p.js("(() => { const t = document.createElement('i'); document.body.append(t); const c = v => { t.style.color = v; return getComputedStyle(t).color; }; "
-                        "const r = [[c('var(--badge-pdf)'), c('var(--badge-pdf)'), c('var(--white)')], [c('var(--badge-txt)'), c('var(--badge-txt)'), c('var(--badge-ink)')]]; t.remove(); return r; })()")
+                        "const r = [[c('var(--badge-pdf)'), c('var(--badge-pdf)'), c('var(--white)')], [c('var(--badge-txt)'), c('var(--badge-txt)'), c('var(--white)')]]; t.remove(); return r; })()")
             self.assertEqual(got, want)
 
     def test_edit_renames_in_place_and_moves_rows_one_step_each(self):
@@ -691,17 +691,17 @@ class MockupLook(InThePage):
             for w in self.widths(p, cdp):
                 got = p.js(self.PROBE % json.dumps(sel))
                 self.assertEqual(got["row"], ["12px", "8px 10px 8px 14px", 62], f"row radius, padding and height at {w}")
-                self.assertEqual(got["name"], ["15px", "500"], w)
+                self.assertEqual(got["name"], ["16px", "500"], w)      # the mock's .nm and .nmin: 16px, 500
                 self.assertLessEqual(abs(got["align"]), 1, f"the name box's text lines up with the facts line at {w}")
                 self.assertEqual(got["mark"], [["0px", "10px", 44, 44, "1.8px"]] * 3, f"move and remove: borderless 44 px icons, 1.8 stroke, at {w}")
                 self.assertEqual(got["off"], "0.3", w)
                 self.assertEqual(got["step"], [46, 46], f"the three icon buttons are 2 px apart at {w}")
                 self.assertEqual(got["facts"], 16.9, f"the facts line is 13 px on a 1.3 line at {w}")
-                self.assertEqual([h[:4] for h in got["head"]], [["1px", "1.8px", "rgb(29, 36, 51)", "rgb(217, 224, 239)"]] * 2, f"file and link icon buttons at {w} (ink = Classic --text 1D2433; the Cards value was 0E2430)")
-                self.assertLessEqual(max(abs(h[4]) for h in got["head"]), 2, f"the icon buttons sit on the title's line at {w}")
-                self.assertIn(got["gap"], range(56, 61), f"the list starts 58 px under the icon buttons' top at {w}")
-                self.assertEqual(got["allowed"], ["13px", "10px 14px", "12px"], w)
-                self.assertEqual(got["hint"], "13px", w)
+                self.assertEqual([h[:4] for h in got["head"]], [["1px", "1.8px", "rgb(29, 36, 51)", "rgb(217, 224, 239)"]] * 2, f"file and link icon buttons at {w} (ink = Classic --text 1D2433; the Cards value was 0E2430)")      # kept: Classic --text / line token, the 1194 mock predates the token set
+                self.assertLessEqual(max(abs(h[4]) for h in got["head"]), 2, f"the icon buttons sit on the title's line at {w}")      # code measurement, not a mock-up value (the margin -56px on .tpl-icons follows the title line)
+                self.assertIn(got["gap"], range(56, 61), f"the list starts 58 px under the icon buttons' top at {w}")      # code measurement, not a mock-up value
+                self.assertEqual(got["allowed"], ["13px", "10px 14px", "12px"], w)      # kept: 13 is the --size-caption token, off the type scale otherwise
+                self.assertEqual(got["hint"], "13px", w)      # kept: 13 is the --size-caption token, off the type scale otherwise
                 self.assertTrue(got["font"].startswith("Inter"), "the label band uses the page font")
 
     def test_view_rows_match_the_mockup_sizes_and_spacing(self):
@@ -713,7 +713,7 @@ class MockupLook(InThePage):
             for w in self.widths(p, cdp):
                 got = p.js(f"(() => {{ const li = document.querySelector('{sel} .tpl-dl-i'), n = li.querySelector('.tpl-name'), cs = (e, k) => getComputedStyle(e)[k];"
                            " return [cs(li, 'borderTopLeftRadius'), cs(li, 'padding'), Math.round(li.getBoundingClientRect().height), cs(n, 'fontSize'), cs(n, 'fontWeight')]; })()")
-                self.assertEqual(got, ["12px", "8px 10px 8px 14px", 62, "15px", "500"], w)
+                self.assertEqual(got, ["12px", "8px 10px 8px 14px", 62, "16px", "500"], w)
 
     def test_toasts_say_what_the_ticket_quotes(self):
         ref = self.add([a_file("Scope statement.docx", 88 * 1024)])
