@@ -198,6 +198,31 @@ class TheCard(Card):
             self.assertEqual(p.js("document.querySelectorAll('[data-ask-change] table').length"), 0, "the table is gone")
             self.assertEqual(p.js("document.querySelectorAll('[data-ask-apply-all]').length"), 0, "one card: no Apply all")
 
+    def test_the_card_shows_the_owner_beside_the_title_and_nothing_when_there_is_none(self):         # #1293 line 4
+        empty = self.demo.action(owner=None, description="Unowned job")
+        uc = self.demo.use_case
+        with self.store.step("dashboard", USER) as st:
+            dec = st.create("decisions", {"project": "ABC", "decision": "Use the new tool", "status": "Pending", "made_by": "Dev Lal", "source": "demo"})
+        self.says(self.close_it(),
+                  "CHANGE: " + json.dumps({"op": "change", "id": dec, "current_title": "Use the new tool", "needed_by": "2030-01-05"}),
+                  "CHANGE: " + json.dumps({"op": "change", "id": empty, "current_title": "Unowned job", "status": "Closed"}),
+                  "CHANGE: " + json.dumps({"op": "change", "id": uc, "current_title": "Invoice matching", "status": "Flag"}))
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            p.until("document.querySelectorAll('[data-ask-change]').length === 4", "four cards")
+            cards = "document.querySelectorAll('[data-ask-change]')"
+            card = lambda ref: f"document.querySelector('[data-ask-change][data-ref=\"{ref}\"]')"
+            for width in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                self.assertEqual(p.js(f"{card(self.action)}.querySelector('[data-ask-owner]').textContent"), "Owner: Sam Lee")
+                self.assertEqual(p.js(f"{card(dec)}.querySelector('[data-ask-owner]').textContent"), "Made by: Dev Lal")
+                self.assertEqual(p.js(f"{card(self.action)}.querySelector('[data-ask-title]').textContent"), "Draft the cut-over plan")
+                self.assertEqual(p.js(f"{card(empty)}.querySelectorAll('[data-ask-owner]').length"), 0, "an empty owner draws nothing")
+                self.assertEqual(p.js(f"{card(uc)}.querySelectorAll('[data-ask-owner]').length"), 0, "a use case has no owner")
+                self.assertEqual(p.js(f"[...{cards}].filter(c => c.scrollWidth > c.clientWidth).length"), 0, "no overflow")
+
     def test_a_reason_with_markup_is_drawn_as_text(self):
         self.says(self.close_it(why="<img src=x onerror=alert(1)> done"))
         with chrome() as cdp:

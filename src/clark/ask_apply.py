@@ -200,6 +200,14 @@ class Offer:
     at: float
 
 
+def _owner_shown(before, plan):
+    """The owner the card shows beside the title: the stored owner of a changed item; none for a new item, a use case, or a blank or TBC owner."""
+    if plan.op != OP_CHANGE or plan.table not in OWNER:
+        return None
+    owner = (before or {}).get(OWNER[plan.table])
+    return owner if isinstance(owner, str) and owner.strip() and owner.strip().upper() != "TBC" else None
+
+
 class AskApply:
     """`db_path` the database; `ask_change` changes.make_ask_change's function (made here when not given); `clock` for tests."""
 
@@ -276,7 +284,8 @@ class AskApply:
         offer = self.keep(Offer(plan.request["project"], plan.request, before, plan.from_source, self.clock()))
         return 200, {"ok": True, "offer": offer, "kind": body["kind"], "ref": body["ref"] if plan.op == OP_CHANGE else None,
                      "new": plan.op == OP_NEW, "before": before, "after": after, "fields": fields,
-                     "title": (before or {}).get(TITLE[plan.table]) if plan.op == OP_CHANGE else None, "why": plan.why,
+                     "title": (before or {}).get(TITLE[plan.table]) if plan.op == OP_CHANGE else None,
+                     "owner": _owner_shown(before, plan), "why": plan.why,
                      "needs_confirm": plan.from_source}
 
     def plan_all(self, project, suggested, from_source=False):

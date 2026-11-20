@@ -128,6 +128,23 @@ class WorkItems(Base):
         self.assertIsNone(self.planned({"op": "change", "id": self.action, "owner": "Lee Poe", "why": " \n\x00 "})["why"], "nothing left is no reason")
         self.refused({"op": "change", "id": self.action, "owner": "Lee Poe", "why": 5}, "not_a_change")
 
+    def test_a_plan_carries_the_items_current_owner_for_a_change_only(self):         # #1293 line 4: the card shows the owner
+        with self.s.step("dashboard", USER) as st:
+            risk = st.create("raid", {"project": "ABC", "type": "Risk", "description": "Supplier slips", "raised": "2026-10-01",
+                                      "owner": "Rita Fox", "source": "demo"})
+            dec = st.create("decisions", {"project": "ABC", "decision": "Use the new tool", "status": "Pending", "made_by": "Dev Lal",
+                                          "source": "demo"})
+            st.update("milestones", self.demo.milestone, {"owner": "Mo Ito"})
+        self.assertEqual(self.planned({"op": "change", "id": self.action, "status": "Closed"})["owner"], "Sam Lee")
+        self.assertEqual(self.planned({"op": "change", "id": risk, "status": "Closed"})["owner"], "Rita Fox")
+        self.assertEqual(self.planned({"op": "change", "id": dec, "needed_by": "2030-01-05"})["owner"], "Dev Lal", "a decision's owner is made_by")
+        self.assertEqual(self.planned({"op": "change", "id": self.demo.milestone, "status": "Done"})["owner"], "Mo Ito")
+        self.assertIsNone(self.planned({"op": "change", "id": self.demo.use_case, "status": "Flag"})["owner"], "a use case has none")
+        self.assertIsNone(self.planned({"op": "new", "kind": "action", "title": "Book the room", "owner": "Zed Ng"})["owner"], "a new item shows what it creates")
+        self.assertIsNone(self.planned({"op": "change", "id": self.demo.action(owner=None), "status": "Closed"})["owner"], "an empty owner stays empty")
+        for blank in ("  ", "tbc", " TBC "):
+            self.assertIsNone(self.planned({"op": "change", "id": self.demo.action(owner=blank), "status": "Closed"})["owner"], f"{blank!r} is no owner")
+
     def test_the_card_title_is_the_title_now_even_when_the_change_renames_it(self):         # #1292 sweep A: kills after-for-before
         plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "title": "Cut-over plan v2"})
         self.assertEqual(plan["title"], "Draft the cut-over plan")
