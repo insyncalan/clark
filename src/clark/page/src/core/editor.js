@@ -17,6 +17,7 @@
 import { createEditor } from "tiptap";
 import { cleanHtml, href, SanitiseError } from "../logic/cleanHtml.js";
 import { toHtml, forEditor } from "./richHtml.js";
+import { FontColour, FONT_COLOUR_NAMES } from "./fontColour.js";
 
 export { SanitiseError };
 
@@ -34,7 +35,7 @@ function rich(list) {
         isAllowedUri: (url) => !!href(url), HTMLAttributes: { rel: "noopener noreferrer", target: null, class: null } });
     }
     return e;
-  });
+  }).concat([FontColour]);                                  // row 1364: the font colour mark (core/fontColour.js)
 }
 
 const textOf = (doc) => (doc.content || []).map((p) => (p.content || []).map((n) => (n.type === "hardBreak" ? " " : n.text || "")).join("")).join("\n");
@@ -60,7 +61,7 @@ const COMMANDS = {
   quote: (c) => c.toggleBlockquote(), rule: (c) => c.setHorizontalRule(),
   undo: (c) => c.undo(), redo: (c) => c.redo(),
 };
-export const COMMAND_NAMES = Object.keys(COMMANDS).concat(["link", "unlink"]);
+export const COMMAND_NAMES = Object.keys(COMMANDS).concat(["link", "unlink", "colour"]);
 
 const ACTIVE = { bold: ["bold"], italic: ["italic"], strike: ["strike"], h1: ["heading", { level: 1 }], h2: ["heading", { level: 2 }],
   h3: ["heading", { level: 3 }], bullet: ["bulletList"], numbered: ["orderedList"], checklist: ["taskList"], quote: ["blockquote"],
@@ -126,9 +127,11 @@ export function clarkEditor(el, { profile = "rich", html = "", onSave, onCancel,
         return c.extendMarkRange("link").setLink({ href: a }).run();
       }
       if (name === "unlink") return c.extendMarkRange("link").unsetLink().run();
+      if (name === "colour") return FONT_COLOUR_NAMES.includes(arg) ? c.setMark("fontColour", { colour: arg }).run() : c.unsetMark("fontColour").run();      // row 1364: a name from the fixed set, or null for Automatic
       const f = COMMANDS[name];
       return f ? f(c).run() : false;
     },
+    colour: () => (editor.getAttributes("fontColour") || {}).colour || null,          // row 1364: the colour at the caret or over the selection, or null (Automatic)
     linkAddress: () => (editor.getAttributes("link") || {}).href || "",
     focus: () => editor.commands.focus("end"),
     destroy() { if (!done) { done = true; editor.destroy(); } },

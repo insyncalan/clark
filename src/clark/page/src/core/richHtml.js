@@ -3,13 +3,13 @@
 // and then runs that through cleanHtml, so what it hands out is always exactly what the server will keep.
 //   toHtml(doc)        a Tiptap document (editor.getJSON()) as cleaned HTML
 //   forEditor(clean)   cleaned HTML in the form Tiptap reads (a checklist marked with data-type)
-import { cleanHtml } from "../logic/cleanHtml.js";
+import { cleanHtml, FONT_COLOURS } from "../logic/cleanHtml.js";
 
 const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const escAttr = (s) => esc(s).replace(/"/g, "&quot;");
 
-// Marks nest in one fixed order, so the same text always gives the same string: link outside, then strong, em, s.
-const ORDER = ["link", "bold", "italic", "strike"];
+// Marks nest in one fixed order, so the same text always gives the same string: link outside, then the font colour (row 1364), then strong, em, s.
+const ORDER = ["link", "fontColour", "bold", "italic", "strike"];
 const TAGS = { bold: "strong", italic: "em", strike: "s" };
 
 function text(node) {
@@ -19,6 +19,9 @@ function text(node) {
     if (m.type === "link") {
       const a = m.attrs && m.attrs.href;
       if (typeof a === "string" && a) s = `<a href="${escAttr(a)}" rel="noopener noreferrer">${s}</a>`;
+    } else if (m.type === "fontColour") {
+      const c = m.attrs && m.attrs.colour;
+      if (FONT_COLOURS.includes(c)) s = `<span class="rt-c-${c}">${s}</span>`;
     } else if (TAGS[m.type]) s = `<${TAGS[m.type]}>${s}</${TAGS[m.type]}>`;
   }
   return s;

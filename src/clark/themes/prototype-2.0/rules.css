@@ -673,6 +673,33 @@ table.items .weye { width: 30px; height: 30px; }
 /* Row 1308 (Classic only): a scrolling work-item list shows no scroll bar in Edit either, as in View; the rows still scroll by wheel, touch and keys. */
 #report[data-mode="edit"] .wil-scroll { scrollbar-width: none; }
 #report[data-mode="edit"] .wil-scroll::-webkit-scrollbar { display: none; }
+/* Row 1364 (Classic only): the rich editor's Font colour. The six classes are what the editor stores (<span class="rt-c-grey"> and the rest, the only span the cleaners keep), so the editor, the page and the published file all draw a colour from the theme's own tokens, light and dark. Then the toolbar entry and its palette. */
+.rt-c-grey { color: var(--text-muted); }
+.rt-c-brand { color: var(--brand-blue); }
+.rt-c-red { color: var(--tone-red-text); }
+.rt-c-amber { color: var(--tone-amber-text); }
+.rt-c-green { color: var(--tone-green-text); }
+.rt-c-blue { color: var(--tone-blue-text); }
+.rt-fc { position: relative; display: inline-flex; }
+.rt-btn.rt-fc-btn { width: 32px; padding: 0; }
+.rt-fc-a { display: inline-flex; flex-direction: column; align-items: center; gap: 1px; }
+.rt-fc-g { font-weight: 700; font-size: var(--size-body); line-height: 1; color: var(--text); }
+.rt-fc-bar { width: 14px; height: 3px; background: currentColor; color: var(--text); }
+.rt-fc-bar.rt-c-grey { color: var(--text-muted); }
+.rt-fc-bar.rt-c-brand { color: var(--brand-blue); }
+.rt-fc-bar.rt-c-red { color: var(--tone-red-text); }
+.rt-fc-bar.rt-c-amber { color: var(--tone-amber-text); }
+.rt-fc-bar.rt-c-green { color: var(--tone-green-text); }
+.rt-fc-bar.rt-c-blue { color: var(--tone-blue-text); }
+.rt-fc-pal { position: absolute; top: calc(100% + 4px); left: 0; z-index: 40; width: 208px; box-sizing: border-box; padding: 8px; border: 1px solid var(--grey-200); border-radius: 8px; background: var(--surface); box-shadow: 0 6px 18px rgba(14, 36, 48, .12); }
+.rt-fc-auto { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 8px; width: 100%; height: 32px; padding: 0 8px; border-radius: 6px; font-size: var(--size-small); color: var(--text); cursor: pointer; }
+.rt-fc-auto:hover { background: var(--grey-100); }
+.rt-fc-tick { width: 16px; text-align: center; color: var(--brand-blue); }
+.rt-fc-grid { display: grid; grid-template-columns: repeat(4, 32px); gap: 6px; margin-top: 6px; }
+.rt-fc-sw { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid var(--grey-200); border-radius: 6px; background: var(--surface); font-weight: 700; font-size: var(--size-body); cursor: pointer; }
+.rt-fc-sw:hover { background: var(--grey-100); }
+.rt-fc-sw.on { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.rt-fc-auto:focus-visible, .rt-fc-sw:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }

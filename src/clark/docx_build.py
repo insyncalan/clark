@@ -259,6 +259,10 @@ def word_cell(text, ctx, colour=None, late=False, extra=()):
 
 
 # ===== Rich text =====
+FONT_COLOUR_TOKEN = {"grey": "grey-700", "brand": "brand-blue", "red": "tone-red-text", "amber": "tone-amber-text",
+                     "green": "tone-green-text", "blue": "tone-blue-text"}      # row 1364: the six font colours, as the Word palette's tokens (Word has the light values only; grey is the page's muted text)
+
+
 class _Rich:
     """Maps cleaned rich text (sanitise's allow-list) to paragraphs."""
 
@@ -267,6 +271,7 @@ class _Rich:
         self.floor = floor                             # the shallowest heading level inside: below a Heading3 parent nothing may sit higher
         self.fmt = {"strong": 0, "em": 0, "s": 0}
         self.link = None
+        self.colours = []                              # row 1364: the open coloured spans, innermost last
         self.stack, self.lists = [], []
 
     def add_text(self, text):
@@ -274,7 +279,7 @@ class _Rich:
             return
         c = self.ctx
         r = run(text, bold=bool(self.fmt["strong"]), italic=bool(self.fmt["em"]), strike=bool(self.fmt["s"]),
-                color=c.tok["status-blue-text"] if self.link else None, style="Hyperlink" if self.link else None)
+                color=c.tok["status-blue-text"] if self.link else (c.tok[self.colours[-1]] if self.colours and self.colours[-1] else None), style="Hyperlink" if self.link else None)
         self.runs.append(f'<w:hyperlink r:id="{self.link}" w:history="1">{r}</w:hyperlink>' if self.link else r)
 
     def flush(self):
@@ -309,6 +314,8 @@ class _Rich:
             self.add_text("☑ " if "checked" in dict(attrs) else "☐ ")
         elif name in self.fmt:
             self.fmt[name] += 1
+        elif name == "span":
+            self.colours.append(FONT_COLOUR_TOKEN.get(str(dict(attrs).get("class", "")).removeprefix("rt-c-")))
         elif name == "a":
             address = sanitise.href(dict(attrs).get("href"))
             if address and address.lower().startswith(("https://", "mailto:")):
@@ -319,6 +326,9 @@ class _Rich:
     def end(self, name):
         if name in self.fmt:
             self.fmt[name] = max(0, self.fmt[name] - 1)
+        elif name == "span":
+            if self.colours:
+                self.colours.pop()
         elif name == "a":
             self.link = None
         if name in ("p", "h1", "h2", "h3", "li", "blockquote", "ul", "ol"):

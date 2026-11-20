@@ -14,9 +14,11 @@ const MAX_HREF = 8000;
 const MAX_BLANK_RUN = 5;              // blank lines (empty paragraphs) in a row that are kept; a longer run is cut to this (#84)
 
 const set = (words) => new Set(words.split(" "));
-const ALLOWED = set("p br strong em s h1 h2 h3 ul ol li blockquote hr a input");
+const ALLOWED = set("p br strong em s h1 h2 h3 ul ol li blockquote hr a input span");
+export const FONT_COLOURS = ["grey", "brand", "red", "amber", "green", "blue"];      // row 1364: a coloured span's class is rt-c-<name>
+const COLOUR_CLASSES = new Set(FONT_COLOURS.map((c) => `rt-c-${c}`));
 const VOID = set("br hr input");
-const INLINE = set("strong em s a");
+const INLINE = set("strong em s a span");
 const PARAGRAPH = set("p h1 h2 h3");
 const ENDS_PARAGRAPH = set("p h1 h2 h3 ul ol li blockquote hr");
 const DROP_WITH_CONTENT = set("script style iframe object applet form svg math template noscript noembed noframes textarea select title xmp plaintext head");
@@ -329,6 +331,7 @@ class Cleaner {
     if (!ALLOWED.has(tag)) return;                              // the tag goes, its text stays
     const given = new Map();
     for (const [name, value] of attrs) if (!given.has(name)) given.set(name, value);   // the first of a repeated attribute counts
+    if (tag === "span" && !(given.has("class") && COLOUR_CLASSES.has(given.get("class")))) return;   // row 1364: a span is kept only for one of the fixed colour classes
     this.makeRoom(tag);
     if (tag === "input") {
       if (pyStrip(given.has("type") ? given.get("type") : "").toLowerCase() !== "checkbox") return;
@@ -341,6 +344,8 @@ class Cleaner {
       const target = href(given.has("href") ? given.get("href") : null);
       if (target === null) return;                              // a link with no safe address is just its text
       opening = `<a href="${attrEscape(target)}" rel="noopener noreferrer">`;
+    } else if (tag === "span") {
+      opening = `<span class="${given.get("class")}">`;
     } else {
       opening = `<${tag}>`;
     }

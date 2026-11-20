@@ -12,13 +12,15 @@ import { Icon } from "../components/Icon.jsx";
 import { actionIcon } from "../menuIcons.js";
 import { AiFlow, DRAFT_WITH_AI } from "./DraftAi.jsx";
 import { aiClient } from "./aiShared.js";
+import { FontColourButton, FONT_COLOUR } from "./FontColour.jsx";
+import { classicTheme } from "../components/Contents.jsx";
 
 const BAR = [
-  ["bold", "B", "Bold"], ["italic", "I", "Italic"], ["strike", "S", "Strikethrough"],
+  ["bold", "B", "Bold"], ["italic", "I", "Italic"], ["strike", "S", "Strikethrough"], ["colour", "A", FONT_COLOUR],
   "|", ["bullet", "•", "Bulleted list"], ["numbered", "1.", "Numbered list"], ["checklist", "☑", "Checklist"],
   ["quote", "❝", "Quote"], ["rule", "―", "Divider"], "|", ["link", "Link", "Link"], "|", ["undo", "↶", "Undo"], ["redo", "↷", "Redo"],
 ];
-const BUBBLE = [["bold", "B", "Bold"], ["italic", "I", "Italic"], ["strike", "S", "Strikethrough"], ["link", "Link", "Link"]];
+const BUBBLE = [["bold", "B", "Bold"], ["italic", "I", "Italic"], ["strike", "S", "Strikethrough"], ["colour", "A", FONT_COLOUR], ["link", "Link", "Link"]];
 const STYLES = [["paragraph", "Text"], ["h1", "Heading 1"], ["h2", "Heading 2"], ["h3", "Heading 3"]];
 const SLASH = [["h1", "Heading 1"], ["h2", "Heading 2"], ["h3", "Heading 3"], ["bullet", "Bulleted list"], ["numbered", "Numbered list"],
   ["checklist", "Checklist"], ["quote", "Quote"], ["rule", "Divider"]];
@@ -197,7 +199,7 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
     if (name === "link") { setLinkOpen(true); return; }
     h.run(name); tick((n) => n + 1);
   };
-  const button = ([name, glyph, words]) => (
+  const button = ([name, glyph, words]) => (name === "colour" ? (classicTheme() ? <FontColourButton key={name} h={h} after={() => { tick((n) => n + 1); refocus(); }} /> : null) :
     <button type="button" key={name} class={`rt-btn${h && h.active(name) ? " on" : ""}`} aria-label={words} title={words}
       aria-pressed={["undo", "redo", "rule", "link"].includes(name) ? undefined : (h && h.active(name) ? "true" : "false")}
       onMouseDown={hold} onClick={() => press(name)}>{glyph}</button>

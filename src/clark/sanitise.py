@@ -7,6 +7,8 @@ was a model for the shape of an allow-list only and nothing is copied (so there 
 
 What may stay, and nothing else:
 - p, br, strong, em, s, h1, h2, h3, ul, ol, li, blockquote, hr, with no attributes at all;
+- span, only with class="rt-c-<name>" for one of the six font colours in FONT_COLOURS (row 1364) and nothing else: a span with any other
+  class, no class, or a style is just its text, so a pasted hex colour never survives;
 - a, with href only and rel="noopener noreferrer" added: the address must be http:, https:, mailto: or a #fragment;
 - input, only as `input type="checkbox"` (a checklist item), with `checked` and `disabled` as its only other attributes.
 Every other tag is removed and its text stays (a removed block tag such as div or td leaves a line break between its text and
@@ -37,9 +39,11 @@ MAX_DEPTH = 50               # open tags nested deeper than this are removed (th
 MAX_HREF = 8000
 MAX_BLANK_RUN = 5            # blank lines (empty paragraphs) in a row that are kept; a longer run is cut to this (#84)
 
-ALLOWED = frozenset(("p", "br", "strong", "em", "s", "h1", "h2", "h3", "ul", "ol", "li", "blockquote", "hr", "a", "input"))
+ALLOWED = frozenset(("p", "br", "strong", "em", "s", "h1", "h2", "h3", "ul", "ol", "li", "blockquote", "hr", "a", "input", "span"))
+FONT_COLOURS = ("grey", "brand", "red", "amber", "green", "blue")      # row 1364: the fixed set of font colours; the class of a coloured span is rt-c-<name>
+COLOUR_CLASSES = frozenset(f"rt-c-{c}" for c in FONT_COLOURS)
 VOID = frozenset(("br", "hr", "input"))
-INLINE = frozenset(("strong", "em", "s", "a"))
+INLINE = frozenset(("strong", "em", "s", "a", "span"))
 PARAGRAPH = frozenset(("p", "h1", "h2", "h3"))                  # these hold inline content only: a block ends them
 ENDS_PARAGRAPH = frozenset(("p", "h1", "h2", "h3", "ul", "ol", "li", "blockquote", "hr"))
 # Removed with everything inside (an unclosed one takes the rest of the field with it). Others just lose their tag.
@@ -275,6 +279,8 @@ class _Cleaner:
         given = {}
         for name, value in attrs:
             given.setdefault(name, value)                     # the first of a repeated attribute counts, as in a browser
+        if tag == "span" and given.get("class") not in COLOUR_CLASSES:
+            return                                            # row 1364: a span is kept only for one of the fixed colour classes; any other is just its text
         self._make_room(tag)
         if tag == "input":
             if given.get("type", "").strip().lower() != "checkbox":
@@ -287,6 +293,8 @@ class _Cleaner:
             if target is None:
                 return                                        # a link with no safe address is just its text
             opening = f'<a href="{attr_escape(target)}" rel="noopener noreferrer">'
+        elif tag == "span":
+            opening = f'<span class="{given["class"]}">'
         else:
             opening = f"<{tag}>"
         if tag in VOID:

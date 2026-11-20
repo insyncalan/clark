@@ -37,6 +37,14 @@ KNOWN_DIFFERENCES = {}
 # ===== The corpus =====
 # The #66 attack corpus: the reviewer's hand-written cases, copied from their gen2.py, with leave: the classic mutation-XSS and nesting payloads and the fixes' cases. Control characters are written as escapes, never raw bytes.
 REVIEWER_CASES = [
+    # Row 1364: the span the cleaners keep, and every way a span or a colour can be written that they must not
+    '<p><span class="rt-c-red">a</span></p>', '<span class="rt-c-grey">a</span>', '<span class="rt-c-blue" style="color:#f00" id="x">a</span>',
+    '<span class="rt-c-pink">a</span>', '<span class="rt-c-red other">a</span>', '<span class="RT-C-RED">a</span>', '<span class=rt-c-green>a</span>',
+    '<span class=" rt-c-red">a</span>', '<span>a</span>', '<span class>a</span>', '<span style="color:#00f">a</span>', '<font color="#f00">a</font>',
+    '<p><span class="rt-c-amber"><strong>a</strong><a href="https://a.example"><span class="rt-c-brand">b</span></a></span></p>',
+    '<span class="rt-c-red">a<p>b</span>c', '<p><span class="rt-c-red"><span>a</span>b</span>c</p>', '<p><span class="rt-c-red"><span class="rt-c-blue">a</span></span></p>',
+    '<span class="rt-c-red" class="rt-c-blue">a</span>', '<span CLASS="rt-c-red">a</span>', '</span><span class="rt-c-red">a', '<span class="rt-c-red">' * 60,
+    '<ul><li><span class="rt-c-red">a</span><li>b</ul>', '<h1><span class="rt-c-red">a</h1>b',
     '<a href="https://x.example/?a=1&region=eu&copy=2&copy;3&amp=4&notit;x">q</a>', '<embed src=x><p>after embed</p>', '<embed><b>x</b>',
     '<svg/><p>after</p>', '<svg />p', '<math/>x<p>y</p>', 'a<div>b</div>c<td>d</td>e', '<p>one</p><div>two</div>three', 'x<pre>y</pre>z',
     '<a href="http://a.example/\U000e0001x">t</a>', '<a href="http://a.example/\u0890x">t</a>', '<a href="http://a.example/\ufdd0">t</a>',
