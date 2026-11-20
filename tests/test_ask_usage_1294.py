@@ -78,7 +78,7 @@ class TheFile(unittest.TestCase):
         self.assertTrue(self.u.record("PUB", 100, DAY))
         self.assertTrue(self.u.record("PUB", None, DAY))
         self.assertTrue(self.u.record("OTH", 7, DAY))
-        self.assertEqual(self.u.month(DAY), {"PUB": {"questions": 2, "tokens": 100}, "OTH": {"questions": 1, "tokens": 7}})
+        self.assertEqual(self.u.month(DAY), {"PUB": {"questions": 2, "tokens": 100, "unreported": 1}, "OTH": {"questions": 1, "tokens": 7, "unreported": 0}})
 
     def test_only_this_month_shows_and_an_old_month_is_dropped_at_the_next_question(self):
         self.u.record("PUB", 5, datetime.date(2026, 10, 31))
@@ -92,28 +92,28 @@ class TheFile(unittest.TestCase):
         self.assertFalse(self.u.record("../x", 1, DAY))
         self.assertTrue(self.u.record("PUB", 1, DAY))
         (self.d / ask_usage.FILE).write_text(json.dumps({"2026-11": {"PUB": {"questions": -3, "tokens": "x"}, "bad": {"questions": 1}}}), encoding="utf-8")
-        self.assertEqual(self.u.month(DAY), {"PUB": {"questions": 0, "tokens": 0}})
+        self.assertEqual(self.u.month(DAY), {"PUB": {"questions": 0, "tokens": 0, "unreported": 0}})
 
     def test_the_same_month_of_another_year_is_not_counted(self):
         self.u.record("PUB", 5, datetime.date(2025, 11, 20))
         self.assertEqual(self.u.month(DAY), {})
-        self.assertEqual(self.u.month(datetime.date(2025, 11, 3)), {"PUB": {"questions": 1, "tokens": 5}})
+        self.assertEqual(self.u.month(datetime.date(2025, 11, 3)), {"PUB": {"questions": 1, "tokens": 5, "unreported": 0}})
         (self.d / ask_usage.FILE).write_text(json.dumps({"2025-11": {"PUB": {"questions": 4, "tokens": 40}}, "2026-10": {"PUB": {"questions": 3, "tokens": 30}}}), encoding="utf-8")
         self.assertEqual(self.u.month(DAY), {})
         self.u.record("PUB", 1, DAY)
-        self.assertEqual(self.u.month(DAY), {"PUB": {"questions": 1, "tokens": 1}})
+        self.assertEqual(self.u.month(DAY), {"PUB": {"questions": 1, "tokens": 1, "unreported": 0}})
 
     def test_a_count_that_is_not_a_whole_number_is_not_kept(self):
         for bad in (1.5, "12", True, False, -1, None, [3], {"n": 3}, ask_usage.MAX_COUNT + 1):
             (self.d / ask_usage.FILE).write_text(json.dumps({"2026-11": {"PUB": {"questions": bad, "tokens": bad}}}), encoding="utf-8")
-            self.assertEqual(self.u.month(DAY), {"PUB": {"questions": 0, "tokens": 0}}, repr(bad))
+            self.assertEqual(self.u.month(DAY), {"PUB": {"questions": 0, "tokens": 0, "unreported": 0}}, repr(bad))
         (self.d / ask_usage.FILE).write_text(json.dumps({"2026-11": {"PUB": {"questions": 4, "tokens": 0}, "OTH": {"questions": 2, "tokens": 12}}}), encoding="utf-8")
-        self.assertEqual(self.u.month(DAY), {"PUB": {"questions": 4, "tokens": 0}, "OTH": {"questions": 2, "tokens": 12}})
+        self.assertEqual(self.u.month(DAY), {"PUB": {"questions": 4, "tokens": 0, "unreported": 4}, "OTH": {"questions": 2, "tokens": 12, "unreported": 0}})
         self.assertTrue(self.u.record("PUB", 1.5, DAY))
         self.assertTrue(self.u.record("PUB", "12", DAY))
         self.assertTrue(self.u.record("PUB", True, DAY))
         self.assertTrue(self.u.record("PUB", -4, DAY))
-        self.assertEqual(self.u.month(DAY)["PUB"], {"questions": 8, "tokens": 0})
+        self.assertEqual(self.u.month(DAY)["PUB"], {"questions": 8, "tokens": 0, "unreported": 4})
 
     def test_a_file_that_cannot_be_written_loses_the_count_and_never_raises(self):
         shutil.rmtree(self.d)
@@ -121,7 +121,7 @@ class TheFile(unittest.TestCase):
 
     def test_the_file_holds_counts_and_nothing_else(self):
         self.u.record("PUB", 3, DAY)
-        self.assertEqual(json.loads((self.d / ask_usage.FILE).read_text()), {"2026-11": {"PUB": {"questions": 1, "tokens": 3}}})
+        self.assertEqual(json.loads((self.d / ask_usage.FILE).read_text()), {"2026-11": {"PUB": {"questions": 1, "tokens": 3, "unreported": 0}}})
 
 
 class Counted(unittest.TestCase):
@@ -148,7 +148,7 @@ class Counted(unittest.TestCase):
     def test_nothing_asked_shows_the_month_so_far_with_zeros(self):
         got = self.usage()
         self.assertEqual((got["ok"], got["title"], got["note"]), (True, "Usage, 1 to 20 November 2026", "Read only. Nothing here leaves this computer."))
-        self.assertEqual(got["all"], {"questions": 0, "tokens": 0})
+        self.assertEqual(got["all"], {"questions": 0, "tokens": 0, "unreported": 0})
         self.assertIn("PUB", [p["code"] for p in got["projects"]])
         self.assertTrue(all(p["questions"] == p["tokens"] == 0 for p in got["projects"]))
 
@@ -158,7 +158,7 @@ class Counted(unittest.TestCase):
         got = self.usage()
         mine = [p for p in got["projects"] if p["code"] == "PUB"][0]
         self.assertEqual((mine["questions"], mine["tokens"]), (2, 2468))
-        self.assertEqual(got["all"], {"questions": 2, "tokens": 2468})
+        self.assertEqual(got["all"], {"questions": 2, "tokens": 2468, "unreported": 0})
 
     def test_the_reply_to_a_question_carries_no_tokens_and_no_money(self):
         status, body = self.ask()
@@ -171,20 +171,20 @@ class Counted(unittest.TestCase):
         self.ask()
         got = self.usage()
         self.assertEqual(sorted(got), ["all", "asking", "note", "ok", "projects", "title"])
-        self.assertEqual(sorted(got["all"]), ["questions", "tokens"])
-        self.assertTrue(all(sorted(p) == ["code", "name", "questions", "tokens"] for p in got["projects"]))
+        self.assertEqual(sorted(got["all"]), ["questions", "tokens", "unreported"])
+        self.assertTrue(all(sorted(p) == ["code", "name", "questions", "tokens", "unreported"] for p in got["projects"]))
         self.assertNotRegex(json.dumps(got), r"(?i)cost|price|money|dollar|usd|[$£€]")
 
     def test_a_refused_or_failed_question_counts_for_nothing(self):
         self.provider.failure = "No answer."
         self.assertEqual(self.ask()[1]["ok"], False)
         self.assertEqual(self.ask("NOPE1")[0], 404)
-        self.assertEqual(self.usage()["all"], {"questions": 0, "tokens": 0})
+        self.assertEqual(self.usage()["all"], {"questions": 0, "tokens": 0, "unreported": 0})
 
     def test_a_question_with_no_count_from_the_command_is_counted_with_no_tokens(self):
         self.provider.last_tokens = None
         self.ask()
-        self.assertEqual(self.usage()["all"], {"questions": 1, "tokens": 0})
+        self.assertEqual(self.usage()["all"], {"questions": 1, "tokens": 0, "unreported": 1})
 
     def test_asking_on_or_off_is_what_the_page_says_beside_each_project(self):
         self.assertTrue(self.usage()["asking"])
@@ -240,20 +240,70 @@ class ThroughTheChosenProvider(unittest.TestCase):
 
     def test_the_count_in_the_command_result_reaches_the_usage_record(self):
         self.assertEqual(self.ask()[0], 200)
-        self.assertEqual(self.usage()["all"], {"questions": 1, "tokens": 9829})
+        self.assertEqual(self.usage()["all"], {"questions": 1, "tokens": 9829, "unreported": 0})
 
     def test_a_result_with_no_or_a_damaged_count_is_counted_with_no_tokens(self):
         for usage in (None, {"input_tokens": 3}, {"input_tokens": "3", "output_tokens": 1}):
             self.command.out = result(usage)
             self.assertEqual(self.ask()[1]["ok"], True, usage)
-        self.assertEqual(self.usage()["all"], {"questions": 3, "tokens": 0})
+        self.assertEqual(self.usage()["all"], {"questions": 3, "tokens": 0, "unreported": 3})
 
     def test_a_failed_question_does_not_leave_the_last_count_behind(self):
         self.ask()
         self.command.out = b"garbage"
         self.assertEqual(self.ask()[1]["ok"], False)
         self.assertEqual(self.service.provider.last_tokens, None)
-        self.assertEqual(self.usage()["all"], {"questions": 1, "tokens": 9829})
+        self.assertEqual(self.usage()["all"], {"questions": 1, "tokens": 9829, "unreported": 0})
+
+
+class ThroughTheChatGPTCommand(unittest.TestCase):
+    """The real path for ChatGPT: AskService -> Chosen -> ChatGPTSubscription -> the real CodexCommand running a stand-in script that prints the
+    Codex event lines. The command reports no count, so each answer must be counted as unreported, never as a reported 0."""
+    ask, usage = Counted.ask, Counted.usage
+
+    def setUp(self):
+        from unittest import mock
+        from clark import ai_codex
+        Counted.setUp(self)
+        script = self.d / "codex"
+        events = self.d / "events"
+        events.write_text(json.dumps({"type": "item.completed", "item": {"type": "agent_message", "text": "Fine.\nCITE: P1"}}) + "\n", encoding="utf-8")
+        script.write_text(f'#!/bin/sh\ncat > /dev/null\ncat "{events}"\n', encoding="utf-8")
+        script.chmod(0o700)
+        command = ai_codex.CodexCommand(places=(str(self.d / "none"),), env={}, walled=False)
+        for patch in (mock.patch.object(ai_codex.CodexCommand, "usable", return_value=(script, None)), mock.patch.object(ai_codex, "own_home", return_value="/Users/sam"),
+                      mock.patch.object(ai_codex.platform, "scratch_parent", return_value=str(self.d))):
+            patch.start()
+            self.addCleanup(patch.stop)
+        sub = ai_providers.ChatGPTSubscription(command)
+        self.service.provider = ai_providers.Chosen([sub], lambda: (sub, None, True), "Not connected.")
+
+    def test_a_chatgpt_answer_is_counted_as_a_question_with_no_count_reported(self):
+        for _ in range(2):
+            status, body = self.ask()
+            self.assertEqual((status, body["ok"]), (200, True), body)
+        self.assertEqual(self.usage()["all"], {"questions": 2, "tokens": 0, "unreported": 2})
+        mine = [p for p in self.usage()["projects"] if p["code"] == "PUB"][0]
+        self.assertEqual(ask_usage.count_line(mine["questions"], mine["tokens"], mine["unreported"]), "2 questions · tokens not reported")
+
+
+class ThroughBothProviders(unittest.TestCase):
+    """A month with a Claude answer that reported a count and one that did not: the row says some were not reported."""
+    ask, usage = Counted.ask, Counted.usage
+
+    def setUp(self):
+        Counted.setUp(self)
+        self.command = FakeCommand(result())
+        sub = ai_providers.ClaudeSubscription(self.command)
+        self.service.provider = ai_providers.Chosen([sub], lambda: (sub, None, True), "Not connected.")
+
+    def test_one_counted_and_one_not_reads_as_some_not_reported(self):
+        self.ask()
+        self.command.out = result(None)
+        self.ask()
+        got = self.usage()["all"]
+        self.assertEqual(got, {"questions": 2, "tokens": 9829, "unreported": 1})
+        self.assertEqual(ask_usage.count_line(got["questions"], got["tokens"], got["unreported"]), "2 questions · 9829 tokens, some not reported")
 
 
 class TheWords(unittest.TestCase):
@@ -266,14 +316,29 @@ class TheWords(unittest.TestCase):
         self.assertEqual((ask_usage.ALL_ROW, ask_usage.ALL_NOTE), ("All projects", "Tokens used"))
         self.assertEqual(ask_usage.READ_ONLY, "Read only. Nothing here leaves this computer.")
         self.assertEqual((ask_usage.THIS_MONTH, ask_usage.NO_QUESTIONS), ("Usage this month", "No questions: asking is off."))
-        self.assertEqual(ask_usage.count_line(12, 3456), "12 questions · 3456 tokens")
-        self.assertEqual(ask_usage.count_line(1, 0), "1 question · 0 tokens")
+        for args, words in (((12, 3456, 0), "12 questions · 3456 tokens"), ((1, 1, 0), "1 question · 1 token"), ((2, 0, 0), "2 questions · 0 tokens"),
+                            ((1, 0, 1), "1 question · tokens not reported"), ((2, 0, 2), "2 questions · tokens not reported"),
+                            ((2, 40, 1), "2 questions · 40 tokens, some not reported"), ((3, 1, 2), "3 questions · 1 token, some not reported"),
+                            ((12, 3456), "12 questions · 3456 tokens")):
+            self.assertEqual(ask_usage.count_line(*args), words, args)
+
+    def test_a_file_from_before_the_unreported_count_reads_as_nothing_unreported_unless_it_has_no_tokens_at_all(self):
+        d = Path(tempfile.mkdtemp(prefix="clark-test-"))
+        self.addCleanup(shutil.rmtree, d, True)
+        (d / ask_usage.FILE).write_text(json.dumps({"2026-11": {"PUB": {"questions": 3, "tokens": 90}, "OTH": {"questions": 2, "tokens": 0},
+                                                              "ABC": {"questions": 2, "tokens": 5, "unreported": 9}}}), encoding="utf-8")
+        got = ask_usage.AskUsage(d).month(DAY)
+        self.assertEqual([got[c]["unreported"] for c in ("PUB", "OTH", "ABC")], [0, 2, 2])
+        self.assertEqual(ask_usage.count_line(3, 90, got["PUB"]["unreported"]), "3 questions · 90 tokens")
+        self.assertEqual(ask_usage.count_line(2, 0, got["OTH"]["unreported"]), "2 questions · tokens not reported")
 
     def test_the_page_holds_the_same_words(self):
         for name, text in (("ASKING_ON", ask_usage.ASKING_ON), ("ASKING_OFF", ask_usage.ASKING_OFF), ("ALL_ROW", ask_usage.ALL_ROW), ("ALL_NOTE", ask_usage.ALL_NOTE),
                            ("READ_ONLY", ask_usage.READ_ONLY), ("THIS_MONTH", ask_usage.THIS_MONTH), ("NO_QUESTIONS", ask_usage.NO_QUESTIONS)):
             self.assertIn(f'const {name} = "{text}";', JSX, name)
-        self.assertIn("`${questionsWords(q)} \u00b7 ${t} tokens`", JSX)
+        for text in ("`${questionsWords(q)} \u00b7 ${tokensWords(t)}`", "`${questionsWords(q)} \u00b7 tokens not reported`",
+                     "`${questionsWords(q)} \u00b7 ${tokensWords(t)}, some not reported`", "`${n} token`", "`${n} tokens`"):
+            self.assertIn(text, JSX, text)
         self.assertIn("`${n} question`", JSX)
         self.assertIn("`${n} questions`", JSX)
 
@@ -309,6 +374,7 @@ class OnThePage(unittest.TestCase):
         try:
             with store.step("dashboard", "tester", place="menu") as step:
                 step.create("projects", {"code": "OTH", "name": "Second Programme"})
+                step.create("projects", {"code": "NEW", "name": "Third Programme"})
         finally:
             store.close()
         self.s.httpd.app_settings = service(self.db)
@@ -316,7 +382,8 @@ class OnThePage(unittest.TestCase):
         self.service.today = lambda: DAY
         self.service.usage.record("ABC", 1234, DAY)
         self.service.usage.record("ABC", 766, DAY)
-        self.service.usage.record("OTH", 0, DAY)
+        self.service.usage.record("OTH", 1, DAY)
+        self.service.usage.record("NEW", None, DAY)
         self.s.httpd.ask = self.service
 
     def open(self, cdp, tab):
@@ -338,8 +405,9 @@ class OnThePage(unittest.TestCase):
                 self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-usage-list')"), 20), "the list")
                 self.assertEqual(js("document.querySelector('#ask-usage-all h2').innerText"), "Usage, 1 to 20 November 2026")
                 rows = js("[...document.querySelectorAll('#ask-usage-list li')].map(li => li.innerText.replace(/\\s+/g, ' ').trim())")
-                self.assertEqual(rows, ["ABC Asking is on 2 questions \u00b7 2000 tokens", "OTH Asking is on 1 question \u00b7 0 tokens",
-                                        "All projects Tokens used 3 questions \u00b7 2000 tokens"])
+                self.assertEqual(rows, ["ABC Asking is on 2 questions \u00b7 2000 tokens", "NEW Asking is on 1 question \u00b7 tokens not reported",
+                                        "OTH Asking is on 1 question \u00b7 1 token",
+                                        "All projects Tokens used 4 questions \u00b7 2001 tokens, some not reported"])
                 self.assertEqual(js("document.querySelector('#ask-usage-readonly').innerText"), "Read only. Nothing here leaves this computer.")
                 self.assertTrue(js("[...document.querySelectorAll('#ask-usage-list li')].every(li => li.scrollWidth <= li.clientWidth + 1 && li.getBoundingClientRect().right <= document.querySelector('#ask-usage-all').getBoundingClientRect().right)"), "each row inside its card")
                 self.assertTrue(wait(lambda: js("document.documentElement.scrollWidth <= window.innerWidth"), 10), f"no sideways scroll at {w}")

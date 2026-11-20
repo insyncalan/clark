@@ -124,7 +124,7 @@ class AskService:
     # ----- GET /api/ask-usage -----
     def usage_read(self, *_ignored):
         """Usage in tokens (row 1294): this month so far, per project and in all, read only. {ok, title, asking, projects: [{code, name, questions,
-        tokens}], all: {questions, tokens}, note}; a project with no question shows 0. Archived projects with no question are left out."""
+        tokens, unreported}], all: {questions, tokens, unreported}, note}; a project with no question shows 0. Archived projects with no question are left out."""
         day = self.today()
         kept = self.usage.month(day)
         try:
@@ -137,11 +137,12 @@ class AskService:
             store.close()
         out = []
         for r in sorted(rows, key=lambda r: r["code"]):
-            got = kept.get(r["code"], {"questions": 0, "tokens": 0})
+            got = kept.get(r["code"], {"questions": 0, "tokens": 0, "unreported": 0})
             if r.get("archived") and not got["questions"]:
                 continue
             out.append({"code": r["code"], "name": r.get("name") or "", **got})
-        total = {"questions": sum(p["questions"] for p in out), "tokens": sum(p["tokens"] for p in out)}
+        total = {"questions": sum(p["questions"] for p in out), "tokens": sum(p["tokens"] for p in out),
+                 "unreported": sum(p["unreported"] for p in out)}
         return 200, {"ok": True, "title": ask_usage.group_title(day), "asking": self.enabled(), "projects": out, "all": total, "note": ask_usage.READ_ONLY}
 
     # ----- POST /api/ask/stop -----

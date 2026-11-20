@@ -15,7 +15,10 @@ const NO_QUESTIONS = "No questions: asking is off.";
 const NOT_READ = "Usage could not be read just now.";
 
 export const questionsWords = (n) => (n === 1 ? `${n} question` : `${n} questions`);
-const countLine = (q, t) => `${questionsWords(q)} · ${t} tokens`;
+export const tokensWords = (n) => (n === 1 ? `${n} token` : `${n} tokens`);
+// every answer counted; none counted; or some not
+export const countLine = (q, t, u) => (!u ? `${questionsWords(q)} · ${tokensWords(t)}`
+  : u >= q ? `${questionsWords(q)} · tokens not reported` : `${questionsWords(q)} · ${tokensWords(t)}, some not reported`);
 
 function useUsage() {
   const [usage, setUsage] = useState(null);          // null: not read yet; "unavailable"; or the answer
@@ -42,10 +45,10 @@ export function UsageAll() {
         <ul class="ask-usage" id="ask-usage-list">
           {usage.projects.map((p) => (
             <li key={p.code} data-ask-usage-project={p.code}>
-              <b>{p.code}</b> <span class="muted">{usage.asking ? ASKING_ON : ASKING_OFF}</span> <span>{countLine(p.questions, p.tokens)}</span>
+              <b>{p.code}</b> <span class="muted">{usage.asking ? ASKING_ON : ASKING_OFF}</span> <span>{countLine(p.questions, p.tokens, p.unreported)}</span>
             </li>
           ))}
-          <li id="ask-usage-total"><b>{ALL_ROW}</b> <span class="muted">{ALL_NOTE}</span> <span>{countLine(usage.all.questions, usage.all.tokens)}</span></li>
+          <li id="ask-usage-total"><b>{ALL_ROW}</b> <span class="muted">{ALL_NOTE}</span> <span>{countLine(usage.all.questions, usage.all.tokens, usage.all.unreported)}</span></li>
         </ul>
       ) : null}
       {ok ? <p class="muted" id="ask-usage-readonly">{READ_ONLY}</p> : null}
