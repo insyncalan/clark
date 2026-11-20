@@ -5,7 +5,7 @@
   4. Help text (help/helpText.jsx Md: **bold**, `code`, keys, links; the strings hold no heading or bullet marks)  -> checked below
   Peek and Prep notes are plain typed text by design (ruled, plan comment 17-11) and are not markdown places.
 The renderer is the one ask clark uses (edit/askFormat.js, edit/AskFormat.jsx): text nodes only, no HTML read. Copy keeps the original markdown.
-Classic, 1400 then 900.
+All themes including Cards (ruling 20-11 14:32): formatted notes are a defect fix, not a Classic look. The Cards pin below runs the default Cards look (no Classic theme layer), 1400 then 900.
 
 Run: python3 dev/run_tests.py test_markdown_notes_1278
 """
@@ -89,6 +89,37 @@ class Notes(InBrowser):
         self.click("[data-review]")
         self.assertEqual(self.text("#update-notes"), "No release notes.")
         self.assertFalse(self.present("[data-copy]"))
+
+
+class CardsPin(InBrowser):
+    """The default Cards look (no Classic theme layer in the page) draws the notes through FormattedAnswer in both places."""
+
+    prep, styled, check_formatted, check_safe = Notes.prep, Notes.styled, Notes.check_formatted, Notes.check_safe
+
+    def check_cards(self, box):
+        self.assertFalse(self.js("!!document.getElementById('theme')"), "this is Cards: no Classic layer")
+        self.assertFalse(self.present(box + " pre"), "the notes are not a raw <pre>")
+        self.assertFalse(self.present("pre.update-notes"))
+        self.check_formatted(box)
+        self.check_safe(box)
+
+    def test_cards_review_panel_notes_are_drawn_by_formatted_answer_at_1400_and_900(self):
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                self.prep(width)
+                self.styled()
+                self.mount()
+                self.click("[data-review]")
+                self.check_cards("#update-panel #update-notes")
+
+    def test_cards_newest_release_notes_are_drawn_by_formatted_answer_at_1400_and_900(self):
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                self.prep(width, latest=True)
+                self.styled()
+                self.mount()
+                self.js("document.querySelector('#update-avail details').open = true")
+                self.check_cards("#update-avail #update-notes")
 
 
 class HelpHasNoUnrenderedMarks(unittest.TestCase):
