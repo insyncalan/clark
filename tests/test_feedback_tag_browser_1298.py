@@ -173,6 +173,55 @@ class FeedbackTagBrowser(unittest.TestCase):
                     self.assertEqual(round(cdp.js(f"{DLG}.getBoundingClientRect().width", sid)), 360)
                     self.assertTrue(wait(lambda: round(cdp.js(f"{BAR}.getBoundingClientRect().right", sid)) == width - 360), "tag beside the dialog")
 
+    def test_slide_in_easing_and_distance_are_pinned(self):
+        """Row 1298 follow-up: the dialog's slide is 0.4 s on cubic-bezier(.22, 1, .36, 1), translateX(100%) to 0 (pins the CSS values, not just the animation's name)."""
+        with chrome() as cdp:
+            for width in WIDTHS:
+                self.open_page(cdp, width)
+                sid = self.sid
+                self.look(cdp, sid, "light", reduce=False)
+                self.open_help(cdp, sid)
+                cdp.js(f"{BAR}.click()", sid)
+                self.assertTrue(wait(lambda: cdp.js(f"!!{DLG}", sid)))
+                where = f"{width} px"
+                self.assertEqual(cdp.js(f"getComputedStyle({DLG}).animationDuration", sid), "0.4s", where)
+                self.assertEqual(cdp.js(f"getComputedStyle({DLG}).animationTimingFunction", sid), "cubic-bezier(0.22, 1, 0.36, 1)", where)
+                frames = cdp.js(f"{DLG}.getAnimations()[0].effect.getKeyframes().map(k => k.transform)", sid)
+                self.assertEqual(frames, ["translateX(100%)", "translateX(0px)"], where)
+
+    def test_tag_pulls_out_five_px_on_hover_and_on_focus(self):
+        """Row 1298 follow-up: the tag's padding-right is 7 px at rest and 12 px (+5) on hover and on keyboard focus; the transition is 0.15 s (padding) and 0.3 s (right)."""
+        pad = f"parseFloat(getComputedStyle({BAR}).paddingRight)"
+        with chrome() as cdp:
+            for width in WIDTHS:
+                self.open_page(cdp, width)
+                sid = self.sid
+                self.look(cdp, sid, "light", reduce=False)
+                self.open_help(cdp, sid)
+                where = f"{width} px"
+                self.assertEqual(cdp.js(pad, sid), 7, where + ": at rest")
+                self.assertEqual(cdp.js(f"getComputedStyle({BAR}).transitionProperty", sid), "padding-right, right", where)
+                self.assertEqual(cdp.js(f"getComputedStyle({BAR}).transitionDuration", sid), "0.15s, 0.3s", where)
+                self.assertEqual(cdp.js(f"getComputedStyle({BAR}).transitionTimingFunction", sid), "cubic-bezier(0.25, 1, 0.5, 1), cubic-bezier(0.22, 1, 0.36, 1)", where)
+                box = cdp.js(f"(() => {{ const r = {BAR}.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }})()", sid)
+                cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": box[0], "y": box[1]}, sid)
+                self.assertTrue(wait(lambda: cdp.js(f"{BAR}.matches(':hover') && {pad} === 12", sid)), where + ": hover pulls out +5 px")
+                cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 2, "y": 2}, sid)
+                self.assertTrue(wait(lambda: cdp.js(pad, sid) == 7), where + ": back at rest")
+                self.press(cdp, sid, "Tab")
+                self.press(cdp, sid, "Tab", shift=True)
+                cdp.js(f"{BAR}.focus()", sid)
+                self.assertTrue(wait(lambda: cdp.js(f"{BAR}.matches(':focus-visible') && {pad} === 12", sid)), where + ": focus pulls out +5 px")
+
+    def test_approved_words_exactly(self):
+        """Row 1298 follow-up: the dialog's lead line and the tag's aria-label are exactly the approved words."""
+        for cdp, sid, where in self.each():
+            self.open_help(cdp, sid)
+            self.assertEqual(cdp.js(f"{BAR}.getAttribute('aria-label')", sid), "Give feedback", where)
+            cdp.js(f"{BAR}.click()", sid)
+            self.assertTrue(wait(lambda: cdp.js(f"!!{DLG}", sid)), where)
+            self.assertEqual(cdp.js(f"{DLG}.querySelector('.fbt-head + p').textContent", sid), "Tell us what is wrong or what you would like to see.", where)
+
     def test_reduced_motion_has_no_slide(self):
         for cdp, sid, where in self.each():
             self.open_help(cdp, sid)
