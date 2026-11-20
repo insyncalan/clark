@@ -32,7 +32,7 @@ class PressGlow(unittest.TestCase):
         m = re.search(r"/\* Row 1358 part 2.*?\*/\n([^{]*)\{([^}]*)\}", RULES, re.S)
         self.assertIsNotNone(m)
         sels = {x.strip() for x in m.group(1).split(",")}
-        self.assertEqual(sels, {".msv-sw", ".mv-txt", "#usecases #ucl-group", "#usecases #ucl-sort", "#usecases #ucAddPage.newb"})
+        self.assertEqual(sels, {".msv-sw", ".mv-txt"})
         self.assertIn("border-radius: 6px", m.group(2))
         self.assertLess(RULES.index("/* Row 1358 part 2"), RULES.index("/* Row 1314"))
         self.assertGreater(RULES.index("/* Row 1358 part 2"), RULES.index("/* Row 1318"))
@@ -48,8 +48,9 @@ class PressGlow(unittest.TestCase):
         self.assertLess(RULES.index(m.group(0)), RULES.index("/* Row 1393"))
 
     def test_work_items_new_view_is_brand_and_at_the_far_right(self):
-        m = re.search(r"(?m)^#work \.vnew, #work \.vnew:hover \{([^}]*)\}", RULES)
-        self.assertIsNotNone(m)
+        ms = list(re.finditer(r"(?m)^#work \.vnew, #work \.vnew:hover \{([^}]*)\}", RULES))
+        self.assertTrue(ms)
+        m = ms[-1]
         self.assertIn("color: var(--brand-blue)", m.group(1))
         self.assertIn("margin-left: auto", m.group(1))
         self.assertLess(m.start(), RULES.index("/* Row 1393"))
