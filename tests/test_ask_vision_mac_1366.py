@@ -46,6 +46,7 @@ class Reader(unittest.TestCase):
         self.assertNotIn(argv[5], vm.SCRIPT)                       # the path is an argument, never put into the script text
         self.assertFalse(kw.get("shell", False))
         self.assertEqual(kw["timeout"], vm.TIMEOUT)
+        self.assertIs(kw["stdin"], subprocess.DEVNULL)               # the program never reads this process's input
 
     def test_the_script_asks_for_accurate_recognition_and_does_nothing_over_a_network(self):
         for word in ("VNRequestTextRecognitionLevelAccurate", "VNRecognizeTextRequest"):
