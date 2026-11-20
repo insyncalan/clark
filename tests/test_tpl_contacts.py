@@ -2,6 +2,7 @@
 Run: python3 dev/run_tests.py test_tpl_contacts
 Needs Chrome (the #33 harness): the page tests fail, never skip, without it. Fictional data only.
 """
+from _classic_page import classic
 import json
 import unittest
 
@@ -43,6 +44,7 @@ class Page(n.PageChecks):
     CHANGED = lambda self, body: json.loads(body)["people"][0]["name"] == "Sam Changed"
 
     def test_an_empty_one_shows_the_starting_text_and_keeps_the_empty_for_now_line(self):
+        classic(self)          # the starting text is a Classic look; Cards keeps its old words
         ref = self.make(None)
         with chrome() as cdp:
             p = self.visit(cdp)

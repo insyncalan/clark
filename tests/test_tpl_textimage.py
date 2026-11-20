@@ -428,7 +428,7 @@ class InThePage(PageBase):
             p.js(f"document.querySelector('{sel} .tpl-pic-field .ProseMirror').cxed.editor.commands.insertContent('Fictional hall'); true")
             p.key("Escape", code="Escape", vk=27)
             p.until(f"!document.querySelector('{sel} .tpl-pic-field .ProseMirror')", "Esc closed it")
-            self.assertEqual(p.js(f"document.querySelector('{cap}').textContent.trim()"), "Say what the picture shows.", "Esc puts the saved words back")
+            self.assertEqual(p.js(f"document.querySelector('{cap}').textContent.trim()"), "Click to write.", "Esc puts the saved words back")
             self.assertEqual(self.applies(), start + 1, "Esc saves nothing")
             self.open_caption(p, sel, cap, "it opens again")
             p.js(f"document.querySelector('{sel} .tpl-pic-field .ProseMirror').cxed.editor.commands.insertContent('Fictional hall'); true")

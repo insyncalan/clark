@@ -3,7 +3,7 @@
 // Undo, place "report"). Under it, the rows it lists now, exactly as View and the published page will show them; each row opens
 // its peek (a click, or Enter). An empty match says so here, and only here: View and the published page leave the section out.
 import { StartPrompt } from "../StartPrompt.jsx";
-import { startText } from "../startingText.js";
+import { startOr } from "../startingText.js";
 import { useRef, useState } from "preact/hooks";
 import { MenuPanel } from "../../components/Menu.jsx";
 import { Icon } from "../../components/Icon.jsx";
@@ -165,7 +165,7 @@ export function Edit({ section }) {
           </label>
           <Boxes id={id} legend="Columns at full width" field="columns" values={COLUMNS} words={(v) => WORDS.columns[v]} chosen={filter.columns} onToggle={toggleColumn} />
             <label class="wil-sel wil-capf" data-field="caption"><span>Footnote (optional)</span>
-              <input type="text" name="caption" placeholder={startText("work-items", "caption")} value={filter.caption} onInput={capInput} onChange={commitCaption} onKeyDown={keys} />
+              <input type="text" name="caption" placeholder={startOr("Shown above the list", "work-items", "caption")} value={filter.caption} onInput={capInput} onChange={commitCaption} onKeyDown={keys} />
             </label>
             <div class="wil-cacts"><button type="button" data-wil-cfgdone="" onClick={() => { setCfg(false); if (gearRef.current) gearRef.current.focus(); }}>Done</button></div>
           </div>

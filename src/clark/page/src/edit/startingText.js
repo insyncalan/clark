@@ -32,6 +32,11 @@ export const STARTING_TEXT = {
 // never a saved body, so nothing is left at them and nothing extra is built (this switch stays false and nothing reads it): a prompt is never in View or the published file.
 export const HIDE_STARTING_TEXT_ON_PUBLISH = false;
 
+// Row 1251: the starting text is a Classic look. Cards keeps its own words and draws no prompt (the Cards look is frozen).
+export const classicLook = () => typeof document !== "undefined" && !!document.getElementById("theme");
+/** The words of startText in Classic; `old` (what the part showed before row 1251) in Cards. */
+export const startOr = (old, id, part = "empty", n = 0) => (classicLook() ? startText(id, part, n) : old);
+
 /** The prompt for part `part` ("empty" or "caption") of template `id`; `n` picks one of several empty prompts. "" when there is none. */
 export function startText(id, part = "empty", n = 0) {
   const t = STARTING_TEXT[id];

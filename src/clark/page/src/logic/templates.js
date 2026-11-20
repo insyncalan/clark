@@ -84,7 +84,7 @@ export const TEMPLATES = [
     description: "What’s coming, from the milestones.", holds: ["Heading", "Date (from milestones)"] },
   { id: "link-preview", name: "Link preview", kind: "files", fit: ["full"], type: "linkcard", title: "Link preview", body: "", ready: true,
     description: "A web page shown as a card you write: a dashboard, a news item, a recording.", holds: ["Heading", "Link", "Card text"] },
-  { id: "current-state", name: "Header and Text", kind: "text", fit: ["full", "half"], type: "text", title: "Header", body: "", ready: true,
+  { id: "current-state", name: "Header and Text", kind: "text", fit: ["full", "half"], type: "text", title: "Current state", body: "", ready: true,
     description: "The state of the project in a few lines, to sit beside another section.", holds: ["Heading", "Text"] },
   { id: "plan-summary", name: "Plan summary", kind: "text", fit: ["full", "half"], type: "text", title: "Plan summary", ready: true,
     body: PLAN_SUMMARY_BODY,
@@ -244,6 +244,8 @@ export function besideState(sections, after, template) {
 // before anything is sent.
 // Row 1261: health shows once. A new Report headline starts with its pill off when At a glance already shows the health (a new project starts with the built-in one), on otherwise.
 export const REPORT_HEADLINE_NO_PILL = '{"pill":false,"v":1}';      // section_kinds/reportheadline.py START
+// Row 1251: Header and Text starts with the title Header in Classic (the page has <style id="theme">); Cards keeps Current state (its look is frozen).
+const startTitle = (t) => (t.id === "current-state" && typeof document !== "undefined" && document.getElementById("theme") ? "Header" : t.title);
 export function plan(sections, id, after, beside = false) {
   const t0 = find(id);
   const t = t0 && t0.type === "reportheadline" && glanceShowsHealth(sections) ? { ...t0, start: REPORT_HEADLINE_NO_PILL } : t0;
@@ -255,9 +257,9 @@ export function plan(sections, id, after, beside = false) {
   if (beside) {
     const b = besideState(sections, after, t);
     if (!b.ok) return b;
-    return { ok: true, requests: [{ op: "new", values: { type: t.type, title: t.title, ...(t.start ? { body: t.start } : {}) }, after: a.id, beside: 1, place: "report" }],
+    return { ok: true, requests: [{ op: "new", values: { type: t.type, title: startTitle(t), ...(t.start ? { body: t.start } : {}) }, after: a.id, beside: 1, place: "report" }],
              words: `${t.name} added, beside the section above.`, template: t };
   }
   // clark clears a stale pairing flag on the last section in the same step (#244), so this is one request and one Undo.
-  return { ok: true, requests: [{ op: "new", values: { type: t.type, title: t.title, ...(t.start ? { body: t.start } : {}) }, after: a.id, place: "report" }], words: `${t.name} added.`, template: t };
+  return { ok: true, requests: [{ op: "new", values: { type: t.type, title: startTitle(t), ...(t.start ? { body: t.start } : {}) }, after: a.id, place: "report" }], words: `${t.name} added.`, template: t };
 }

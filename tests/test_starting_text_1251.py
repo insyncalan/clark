@@ -3,7 +3,9 @@ edit tools, and are in NO shared source, NOT in page-view.html (the published bu
 Run: python3 dev/run_tests.py test_starting_text_1251
 Without a browser: the built page files, the page sources and publish.build.
 """
+import json
 import re
+import subprocess
 import unittest
 
 from _demo import DemoStore
@@ -12,6 +14,7 @@ from clark import page, publish
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
 DATA = PAGE_SRC / "edit" / "startingText.js"
+LIB = PAGE_SRC / "logic" / "templates.js"
 
 # The slice's words, verbatim from the ruled list (~/ag/1251-starting-text.md), by template id.
 WANT = {
@@ -69,10 +72,19 @@ class TheList(unittest.TestCase):
         text = DATA.read_text(encoding="utf-8")
         self.assertEqual(re.findall(r"export const (\w*PUBLISH\w*) = (\w+);", text), [("HIDE_STARTING_TEXT_ON_PUBLISH", "false")])
 
-    def test_header_and_text_starts_with_the_title_Header(self):
-        lib = (PAGE_SRC / "logic" / "templates.js").read_text(encoding="utf-8")
+    def test_header_and_text_is_added_as_Header_in_Classic_and_as_Current_state_in_Cards(self):
+        lib = LIB.read_text(encoding="utf-8")
         m = re.search(r'\{ id: "current-state", name: "([^"]+)", kind: "text", fit: \[[^\]]*\], type: "text", title: "([^"]+)"', lib)
-        self.assertEqual(m.groups(), ("Header and Text", "Header"))
+        self.assertEqual(m.groups(), ("Header and Text", "Current state"))
+        for theme_on, want in ((True, "Header"), (False, "Current state")):        # the page the card is added in decides; plan() is what Add runs
+            doc = 'globalThis.document = { getElementById: (i) => (i === "theme" ? {} : null) };' if theme_on else 'globalThis.document = { getElementById: () => null };'
+            for beside in ("false", "true"):
+                script = f'{doc} import("{LIB.as_uri()}").then((T) => console.log(JSON.stringify(T.plan([{{ id: "S1", type: "text", title: "x", beside: 0 }}], "current-state", "S1", {beside}))));'
+                got = subprocess.run(["node", "-e", script], capture_output=True, text=True, timeout=60)
+                self.assertEqual(got.returncode, 0, got.stderr)
+                plan = json.loads(got.stdout)
+                self.assertTrue(plan["ok"], plan)
+                self.assertEqual(plan["requests"][0]["values"]["title"], want, (theme_on, beside))
 
 
 class SliceTwoIsReached(unittest.TestCase):
@@ -82,11 +94,11 @@ class SliceTwoIsReached(unittest.TestCase):
         "FiguresEdit.jsx": ['StartPrompt id={type === "figures4" ? "figures-4" : "figures-3"}'],
         "Table.jsx": ['<StartPrompt id="table"'],
         "raidEdit.jsx": ['<StartPrompt id={`raid-${size}`}'],
-        "WorkItemsList.jsx": ['<StartPrompt id="work-items"', 'startText("work-items", "caption")'],
+        "WorkItemsList.jsx": ['<StartPrompt id="work-items"', 'startOr("Shown above the list", "work-items", "caption")'],
         "DocLinks.jsx": ['<StartPrompt id="docs-links"'],
         "Checklist.jsx": ['<StartPrompt id="checklist"'],
         "KeyDates.jsx": ['<StartPrompt id="key-dates"'],
-        "LinkCard.jsx": ['<StartPrompt id="link-preview"', 'startText("link-preview", "empty", 1)'],
+        "LinkCard.jsx": ['<StartPrompt id="link-preview"', 'startOr("Click to write.", "link-preview", "empty", 1)'],
         "GanttSection.jsx": ['<StartPrompt id="gantt"'],
         "GanttTableSection.jsx": ['<StartPrompt id="gantt-table"'],
     }
@@ -105,6 +117,24 @@ class SliceTwoIsReached(unittest.TestCase):
                 text = p.read_text(encoding="utf-8")
                 for w in words:
                     self.assertNotIn(w, text, f"{w!r} typed in {p.name}")
+
+
+class ClassicOnly(unittest.TestCase):
+    """Cards is frozen: the prompt and every new placeholder are behind classicTheme() (startingText.classicLook), nothing else decides."""
+    EDIT = PAGE_SRC / "edit"
+
+    def test_the_prompt_and_the_hint_and_the_prompts_ask_for_classic(self):
+        self.assertIn('classicLook() ? startText(id, part, n) : ""', (self.EDIT / "StartPrompt.jsx").read_text(encoding="utf-8"))
+        hint = (self.EDIT / "richHint.js").read_text(encoding="utf-8")
+        self.assertIn('section.type === "text" && classicLook() ? startText(', hint)
+        self.assertIn("const id = classicLook() && section", hint)
+
+    def test_every_placeholder_keeps_its_old_words_for_Cards(self):
+        t = self.EDIT / "templates"
+        for name, old in (("WorkItemsList.jsx", 'startOr("Shown above the list"'), ("Callout.jsx", "startOr(PROMPTS.words"), ("TextImage.jsx", 'startOr("Click to write."'),
+                          ("LinkCard.jsx", 'startOr("Click to write."'), ("Quote.jsx", 'startOr(""'), ("Gallery.jsx", 'startOr(undefined'), ("ImageCap.jsx", 'startOr(undefined')):
+            self.assertIn(old, (t / name).read_text(encoding="utf-8"), name)
+            self.assertNotIn("startText(", (t / name).read_text(encoding="utf-8"), name)
 
 
 class NotInTheShared(unittest.TestCase):

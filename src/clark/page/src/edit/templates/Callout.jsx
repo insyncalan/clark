@@ -8,7 +8,7 @@ import { Field, useSaver } from "./noteEdit.jsx";
 import { RichField } from "../RichField.jsx";
 import { Icon } from "../../components/Icon.jsx";
 import { wordsAsHtml, noBreaks } from "./filesEdit.js";
-import { startText } from "../startingText.js";
+import { startOr } from "../startingText.js";
 
 // The three words a category can be picked from: each sets the colour and the icon the old tone drew.
 const SUGGESTED = { info: ["violet", "info"], decision: ["amber", "question"], warning: ["red", "warning"] };
@@ -88,7 +88,7 @@ export function Edit({ section }) {
         <div class="tpl-callout-main">
           {k.word ? <p class="tpl-callout-tone">{k.word}</p> : null}
           <Field value={saved.title} label="Callout title" max={LIMITS.title} placeholder={PROMPTS.title} cls="cb-title" onDraft={setTyped} onCommit={(title) => write({ title })} />
-          <RichField field="callout" empty={startText("callout", "empty")} id={section.id} value={wordsAsHtml(saved.html, saved.paras)} label="Callout words" save={(html) => write({ html: noBreaks(html), paras: [] })} />
+          <RichField field="callout" empty={startOr(PROMPTS.words, "callout", "empty")} id={section.id} value={wordsAsHtml(saved.html, saved.paras)} label="Callout words" save={(html) => write({ html: noBreaks(html), paras: [] })} />
         </div>
       </div>
       {!saved.title && saved.paras.length === 0 && !saved.html ? <p class="quiet">Empty for now: add a title or some words. It stays out of the published page until then.</p> : null}

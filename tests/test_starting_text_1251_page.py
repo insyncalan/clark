@@ -5,6 +5,7 @@ Needs Chrome (the harness): the page tests fail, never skip, without it. Fiction
 import json
 import unittest
 
+from _classic_page import classic
 from _demo import USER
 from test_report_editor import Base
 from test_server import chrome
@@ -39,6 +40,10 @@ SEEN = "(function(sel){var s=document.querySelector(sel);if(!s)return null;var t
 
 
 class Page(Base):
+    def setUp(self):
+        super().setUp()
+        classic(self)          # the starting text is a Classic look (Cards keeps its old words, see Cards below)
+
     def make(self, typ, title):
         with self.store.step("dashboard", USER) as st:
             return st.create("report_sections", {"project": "ABC", "type": typ, "title": title, "sort_order": 999 + len(title)})
@@ -47,14 +52,17 @@ class Page(Base):
         refs = [(self.make(t, ti), ws) for t, ti, ws in CASES]
         with chrome() as cdp:
             p = self.visit(cdp)
-            p.edit()
-            for ref, ws in refs:
-                sel = f"[data-id={json.dumps(ref)}]"
-                p.until(f"!!document.querySelector({json.dumps(sel)})", "the section is drawn")
-                text = p.js(f"{SEEN}({json.dumps(sel)})")
-                for w in ws:
-                    if w:
-                        self.assertIn(w, text, f"{ref}: {w}")
+            for width in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.edit()
+                for ref, ws in refs:
+                    sel = f"[data-id={json.dumps(ref)}]"
+                    p.until(f"!!document.querySelector({json.dumps(sel)})", "the section is drawn")
+                    text = p.js(f"{SEEN}({json.dumps(sel)})")
+                    for w in ws:
+                        if w:
+                            self.assertIn(w, text, f"{ref}: {w} at {width}")
+                p.view()
             p.view()
             body = p.js("document.body.innerText + [...document.querySelectorAll('[placeholder]')].map(e => e.placeholder).join('\\n')")
             for w in ALL:
@@ -86,6 +94,35 @@ class Page(Base):
             p.view()
             body = p.js("document.body.innerText")
             self.assertNotIn("Add a step.", body)
+
+
+class Cards(Base):
+    """Cards is frozen: its Edit draws none of the starting text and no prompt, at 1400 and 900 (its old words stay)."""
+
+    def test_cards_edit_draws_none_of_the_words_and_no_prompt(self):
+        refs = [self.make_one(t, ti) for t, ti, _ in CASES]
+        refs.append(self.make_one("text", "Plan summary", "<h2>Where we are</h2><p></p><ul><li></li></ul>"))
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.assertFalse(p.js("!!document.getElementById('theme')"), "this is a Cards page")
+            for width in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.edit()
+                for ref in refs:
+                    sel = f"[data-id={json.dumps(ref)}]"
+                    p.until(f"!!document.querySelector({json.dumps(sel)})", "the section is drawn")
+                    text = p.js(f"{SEEN}({json.dumps(sel)})")
+                    self.assertFalse(p.js(f"!!document.querySelector({json.dumps(sel)} + ' [data-tpl-prompt]')"), f"{ref}: a prompt in Cards at {width}")
+                    for w in [w for w in ALL if w != "Add a picture."] + ["Add a step."]:          # "Add a picture." is also the old Image with caption hint
+                        self.assertNotIn(w, text, f"{ref}: {w!r} in Cards at {width}")
+                p.view()
+
+    def make_one(self, typ, title, body=None):
+        with self.store.step("dashboard", USER) as st:
+            row = {"project": "ABC", "type": typ, "title": title, "sort_order": 999 + len(title)}
+            if body:
+                row["body"] = body
+            return st.create("report_sections", row)
 
 
 if __name__ == "__main__":

@@ -1147,7 +1147,7 @@ class InThePage(PageBase):
                 p.until(f"!!document.querySelector('{root} .wil-table')", "the list drew")
                 got = p.js(script)
                 self.assertIsNotNone(got, "the Footnote box, the Columns, Done, the caption and the list all drew")
-                self.assertEqual(got[:3], ["Footnote (optional)", "Say what the list shows.", "Fictional caption"])
+                self.assertEqual(got[:3], ["Footnote (optional)", "Shown above the list", "Fictional caption"])
                 self.assertTrue(got[3], "the Footnote box follows the Columns")
                 self.assertTrue(got[4], "the Footnote box comes before Done")
                 self.assertEqual(got[5], "Fictional caption")
