@@ -438,5 +438,32 @@ class Eye(Base):
                     self.assertGreaterEqual(ratio, 4.5, f"{rest} in {theme}: {ratio:.2f}:1")
 
 
+    def test_all_four_pills_text_passes_4_5_to_1_in_light_and_dark_at_1400(self):
+        js = """(function(ref, rest){
+          function parse(c){ var m = c.match(/[\\d.]+/g).map(Number); return {r: m[0], g: m[1], b: m[2], a: m.length > 3 ? m[3] : 1}; }
+          function over(f, b){ return {r: f.r * f.a + b.r * (1 - f.a), g: f.g * f.a + b.g * (1 - f.a), b: f.b * f.a + b.b * (1 - f.a), a: 1}; }
+          function lin(v){ v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }
+          function lum(c){ return 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b); }
+          var el = document.querySelector('[data-id="' + ref + '"] ' + rest); if (!el) return null;
+          var layers = [], n = el; while (n && n.nodeType === 1) { layers.push(parse(getComputedStyle(n).backgroundColor)); n = n.parentElement; }
+          var bg = {r: 255, g: 255, b: 255, a: 1}; for (var i = layers.length - 1; i >= 0; i--) bg = over(layers[i], bg);
+          var fg = over(parse(getComputedStyle(el).color), bg), a = lum(fg), b = lum(bg);
+          return [el.textContent.trim(), (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)]; })(%s, %s)"""
+        refs = {}
+        with self.store.step("dashboard", USER) as st:
+            for i, (health, word) in enumerate((("at_risk", "At risk"), ("on_track", "On track"), ("off_track", "Off track"), ("", "Not set"))):
+                refs[word] = st.create("report_sections", {"project": "ABC", "type": "reportheadline", "title": "Fictional " + word, "sort_order": 980 + i,
+                                                           "body": json.dumps({"v": 1, "health": health, "headline": "Fictional plan holds", "sentence": "Fictional reason."})})
+        for theme in ("light", "dark"):
+            with chrome() as cdp:
+                p = self.sized(cdp, 1400, theme)
+                p.until(f"!!document.querySelector('[data-id=\"{refs['Not set']}\"] .tpl-rh-pill')", "drew")
+                for word, ref in refs.items():
+                    got = p.js(js % (json.dumps(ref), json.dumps(".tpl-rh-pill")))
+                    self.assertIsNotNone(got, f"{word} pill drawn")
+                    self.assertEqual(got[0], word)
+                    self.assertGreaterEqual(got[1], 4.5, f"{word} pill in {theme}: {got[1]:.2f}:1")
+
+
 if __name__ == "__main__":
     unittest.main()
