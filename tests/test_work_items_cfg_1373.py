@@ -71,6 +71,34 @@ class Measured(M.Look):
         self.assertEqual(k["focus"], {"w": "2px", "o": "1px", "c": "rgb(91, 71, 216)"}, got)
 
 
+    PINS = ("JSON.stringify((() => { const s = %s, q = (x) => document.querySelector(s + ' ' + x), c = (e) => getComputedStyle(e), r = (e) => e.getBoundingClientRect();"
+            "const box = q('.wil-cfg'), opts = q('.wil-opts'), oc = c(opts), lab = q('.wil-sel > span'), sel = q('.wil-sel select'), lg = q('.wil-f legend');"
+            "return {cols: oc.gridTemplateColumns.split(' '), disp: oc.display, rowGap: oc.rowGap, colGap: oc.columnGap, labelGap: r(sel).top - r(lab).bottom, h4m: c(q('.wil-cfg h4')).marginTop + ' ' + c(q('.wil-cfg h4')).marginBottom,"
+            "legPad: c(lg).paddingBottom, right: c(box).right, parentRight: r(box.offsetParent).right - r(box).right, boxW: r(box).width}; })())")
+
+    def test_classic_grid_gaps_label_heading_legend_and_right_edge_at_1400(self):
+        """Each pin goes red when its CSS value changes: opts grid 1fr 1fr, gap 4px 10px, label 4px above select, h4 margin 0, legend padding-bottom 4, box right 0."""
+        ref = self.add(LIST)
+        with T.chrome() as cdp:
+            p = self.show(cdp, 1400)
+            sec = f'[data-id="{ref}"]'
+            p.edit()
+            p.until(f"!!document.querySelector('{sec} [data-wil-gear]')", "drew")
+            p.js(f"document.querySelector('{sec} [data-wil-gear]').click()")
+            p.until(f"!!document.querySelector('{sec} .wil-cfg:not([hidden])')", "the box")
+            got = json.loads(p.js(self.PINS % json.dumps(sec)))
+        self.assertEqual(got["disp"], "grid", got)
+        self.assertEqual(len(got["cols"]), 2, got)                                  # two columns
+        self.assertEqual(got["cols"][0], got["cols"][1], got)                       # 1fr 1fr: equal
+        self.assertEqual(2 * float(got["cols"][0][:-2]) + 10, 300 - 30, got)         # and they fill the 270 inside the box (300, 14 padding, 1 line) with the 10 gap
+        self.assertEqual((got["rowGap"], got["colGap"]), ("4px", "10px"), got)       # gap 4px 10px
+        self.assertEqual(got["labelGap"], 4, got)                                   # label 4px above the select
+        self.assertEqual(got["h4m"], "0px 0px", got)                                # h4 margin 0
+        self.assertEqual(got["legPad"], "4px", got)                                 # legend padding-bottom 4
+        self.assertEqual(got["right"], "0px", got)                                  # box right 0 ...
+        self.assertEqual(got["parentRight"], 0, got)                                # ... and flush with its parent's right edge
+
+
 class CardsMeasured(Measured):
     classic = False
 
@@ -78,6 +106,9 @@ class CardsMeasured(Measured):
         self.skipTest("Classic only")
 
     def test_classic_select_is_270_wide_at_1400(self):
+        self.skipTest("Classic only")
+
+    def test_classic_grid_gaps_label_heading_legend_and_right_edge_at_1400(self):
         self.skipTest("Classic only")
 
     def test_cards_box_keeps_320_and_12_padding(self):
