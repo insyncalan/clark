@@ -1227,17 +1227,15 @@ def ask_instructions_route(method):
 
 
 def connector_change_route(handler, *req):
-    """POST /api/ask-connectors (row 1306): the change is app_settings' to make; when it turned a connector Off (for every project or for one),
-    a question running on that connector is stopped, so nothing keeps reading from it. Turning On, or a refused change, stops nothing."""
+    """POST /api/ask-connectors (row 1306): the change is app_settings' to make; when it turned a connector Off (by a change or by an Undo, for every
+    project or for one), a question running on that connector is stopped, so nothing keeps reading from it. Turning On, or a refused change, stops nothing."""
     service = getattr(handler.server, "app_settings", None)
     if service is None:
         return handler.send(404, error_body("not_found"))
     status, body = service.change_connectors(*req)
-    given = req[0] if req else None
-    off = isinstance(given, dict) and (given.get("on") is False or given.get("off_here") is True)
     asking = getattr(handler.server, "ask", None)
-    if status == 200 and off and asking is not None:
-        asking.stop_using(given["id"], given.get("project"))
+    if status == 200 and asking is not None:
+        asking.stop_off()                            # an Off, or an Undo back to Off: whatever is no longer On stops; On or "same" touches nothing
     return handler.send(status, body)
 
 

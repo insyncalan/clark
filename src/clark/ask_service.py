@@ -64,6 +64,30 @@ PASSAGE_SHOWN = 600        # characters of a source passage shown beside a chang
 PROJECT_SHARE = 25000      # characters of the budget the project's own data may take; the folders get the rest
 
 
+class Started(threading.Event):
+    """The `cancel` event of one question. A provider reads it once, the moment it has taken its place and the run really starts (a
+    question that finds the provider busy never reads it), so reading it is what marks the run as started."""
+
+    def __init__(self):
+        super().__init__()
+        self.started = False
+
+    def is_set(self):
+        self.started = True
+        return super().is_set()
+
+
+class Run:
+    """Row 1306 test 7: one question's own record: its project, the connectors it was given, and its own cancel event."""
+
+    def __init__(self, project, connectors):
+        self.project, self.connectors, self.cancel = project, tuple(connectors), Started()
+
+    @property
+    def started(self):
+        return self.cancel.started
+
+
 class AskService:
     """`db_path` is the database; `provider` an ask.Provider (the one provider module's in clark; a stub in tests); `onedrive_roots` as
     the launcher's."""
@@ -81,7 +105,7 @@ class AskService:
         self.open_pdf = open_pdf or platform.open_pdf_at      # #943: the one thing that starts a viewer (a stub in tests)
         self.replies = {}                            # reply ID -> Held: the changes an answer suggested, kept on the server
         self.replies_lock = threading.Lock()
-        self.using = None                            # row 1306 test 7: (project, connectors) of the question now at the provider, else None
+        self.runs = []                               # row 1306 test 7: the questions on their way to or at the provider, each a Run (its own, never shared)
         self.using_lock = threading.Lock()
 
     def fail(self, code, message=None):
@@ -126,15 +150,21 @@ class AskService:
         finally:
             store.close()
 
-    def stop_using(self, connector, project=None):
-        """Row 1306 test 7: a connector was turned Off (for every project, or for `project` only): stop the question now at the provider
-        when it was given that connector. True when one was stopped. The sign-in is not touched and nothing is changed."""
+    def stop_off(self):
+        """Row 1306 test 7: after a connector change was saved (an Off, or an Undo that went back to Off), stop every question that was given a
+        connector which is no longer On for its project. One that has not reached the provider yet is cancelled so it never starts; one at the
+        provider is stopped. A question the change does not touch is left alone. True when a running one was stopped. Nothing is changed."""
         with self.using_lock:
-            now = self.using
-        if now is None or connector not in now[1] or (project is not None and now[0] != project):
-            return False
-        stop = getattr(self.provider, "stop", None)
-        return bool(stop(owner=self.owner)) if callable(stop) else False
+            runs = list(self.runs)
+        stopped = False
+        for run in runs:
+            if self.connectors_now(run.project, run.connectors) == run.connectors:
+                continue
+            run.cancel.set()                         # a question still before the provider's start never starts (it reads this when it starts)
+            if run.started:
+                stop = getattr(self.provider, "stop", None)
+                stopped = (bool(stop(owner=self.owner)) if callable(stop) else False) or stopped
+        return stopped
 
     # ----- GET /api/ask/status -----
     def status(self, *_ignored):
@@ -218,14 +248,15 @@ class AskService:
         if not self.enabled():                       # the gate again, just before anything leaves: a switch turned off meanwhile wins
             return 409, self.fail("asking_off")
         on_connectors = self.connectors_now(code, on_connectors)      # row 1306 test 7: a connector turned Off meanwhile is not used
+        run = Run(code, on_connectors)
         with self.using_lock:
-            self.using = (code, frozenset(on_connectors))
+            self.runs.append(run)
         try:
-            reply = ask.ask_provider(self.provider, replace(request, owner=self.owner, connectors=on_connectors), codes=(code,), exists=lambda ref: ref in facts,
+            reply = ask.ask_provider(self.provider, replace(request, owner=self.owner, connectors=on_connectors, cancel=run.cancel), codes=(code,), exists=lambda ref: ref in facts,
                                      facts=lambda ref: facts.get(ref))
         finally:
             with self.using_lock:
-                self.using = None
+                self.runs.remove(run)                # only this question's own entry: another's is never touched
         if isinstance(reply, ask.Failure):
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
