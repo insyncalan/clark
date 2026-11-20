@@ -177,7 +177,7 @@ class IdPattern(unittest.TestCase):
 class Defaults(unittest.TestCase):
     def test_project_data_defaults_say_nothing(self):
         d = ask_data.ProjectData((), {}, 0)
-        self.assertEqual((d.today, d.counts, d.secret, d.kinds_left_out), ("", (), 0, ()))
+        self.assertEqual((d.today, d.counts, d.secret), ("", (), 0))
 
     def test_only_a_text_day_is_a_day(self):
         self.assertTrue(ask_data._is_day("2026-11-17"))
@@ -206,7 +206,7 @@ class CountsFromTheData(unittest.TestCase):
         with mock.patch.object(publish, "read_inputs", return_value=given) as read:
             got = ask_data.project_data(object(), "PUB", "q", as_at="2026-11-17")
         read.assert_called_once_with(mock.ANY, "PUB", "2026-11-17")
-        selected = publish.select(given)["data"]
+        selected = ask_data.own_rows(given)      # row 1367: the project's own rows, not the published ones
         self.assertEqual({k: t for k, _s, t in got.counts}, {k: len(selected[k]) for k in ask_data.KIND_ORDER if selected.get(k)})
         self.assertNotIn("decisions", [k for k, _s, _t in got.counts])
         self.assertGreater(len(selected["actions"]), 1)
@@ -222,13 +222,7 @@ class CountsFromTheData(unittest.TestCase):
             row["description"] = "x " * ask_data.MAX_PASSAGE + "pass" + "word: Welcome" + "2026!"
         with mock.patch.object(publish, "read_inputs", return_value=given):
             got = ask_data.project_data(object(), "PUB", "q", as_at="2026-11-17")
-        self.assertEqual(got.secret, len(publish.select(given)["data"]["actions"]))
-
-    def test_the_kinds_left_out_are_carried_on_the_data(self):
-        with mock.patch.object(publish, "read_inputs", return_value=plant.inputs()), \
-                mock.patch.object(ask_data, "kinds_left_out", return_value=("raid",)):
-            got = ask_data.project_data(object(), "PUB", "q", as_at="2026-11-17")
-        self.assertEqual(got.kinds_left_out, ("raid",))
+        self.assertEqual(got.secret, len(ask_data.own_rows(given)["actions"]))
 
 
 if __name__ == "__main__":

@@ -28,7 +28,6 @@ EXTRA_PAIRS = (
     ("brand-navy", "white", "the header and the title band"),
     ("status-red", "white", "the cover's INTERNAL tag"),
     ("tone-urgent", "white", "the Urgent tile's white letter"),
-    ("locked-fill", "brand-ink", "a locked cell"),
     ("grey-50", "grey-700", "the cover's quiet rows"),
     ("white", "tone-red-text", "a late date"),
     ("white", "brand-blue", "the cover's headings"),
@@ -58,7 +57,7 @@ def contrast_ratio(hex_a, hex_b):
 
 @dataclass(frozen=True)
 class Palette:
-    tokens: dict            # token name -> hex (no #), excel_colours.TOKEN_NAMES and EXPORT_TOKENS
+    tokens: dict            # token name -> hex (no #), the same 17 names as excel_colours.TOKEN_NAMES
     colours: dict           # colour name -> (fill token, text token), the same as excel_colours.COLOURS
     font: str               # the office font
     warnings: list = field(default_factory=list)
@@ -155,12 +154,12 @@ def palette(css=None, branding=None, warnings=None):
         merged, note = _merged(css)
         if note:
             notes.append(note)
-        for name in base.TOKEN_NAMES + tuple(base.EXPORT_TOKENS):
+        for name in base.TOKEN_NAMES:
             try:
                 tokens[name] = look.colour(name, css=merged)
             except look.LookError as e:
                 notes.append(f"The brand colour {name} could not be used, so clark's standard colour was used for it in the workbook.")
-        for _ in range(len(base.TOKEN_NAMES) + len(base.EXPORT_TOKENS)):
+        for _ in range(len(base.TOKEN_NAMES)):
             bad = [(f, t, what) for f, t, what in _pairs(colours) if contrast_ratio(tokens[f], tokens[t]) < MIN_CONTRAST]
             changed = False
             for f, t, what in bad:
