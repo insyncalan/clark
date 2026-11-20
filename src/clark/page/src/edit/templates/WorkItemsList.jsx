@@ -2,6 +2,8 @@
 // ticked, a choice picked, the number or the caption left with Enter or Tab) saves the whole filter as ONE change (one step, one
 // Undo, place "report"). Under it, the rows it lists now, exactly as View and the published page will show them; each row opens
 // its peek (a click, or Enter). An empty match says so here, and only here: View and the published page leave the section out.
+import { StartPrompt } from "../StartPrompt.jsx";
+import { startOr } from "../startingText.js";
 import { useRef, useState } from "preact/hooks";
 import { MenuPanel } from "../../components/Menu.jsx";
 import { Icon } from "../../components/Icon.jsx";
@@ -147,7 +149,7 @@ export function Edit({ section }) {
   const rows = drawRows(idsToShow(list, true), drawn(d, true));
   return (
     <div class="wil wil-edit" key={tick} data-wil-edit="" data-wil-id={id}>
-      {saved ? null : <p class="quiet wil-say" data-wil-say="not-yet">{NOT_YET}</p>}
+      {saved ? null : <><StartPrompt id="work-items" /><p class="quiet wil-say" data-wil-say="not-yet">{NOT_YET}</p></>}
       <div class="wil-line" data-wil-line="">
         <LineBox line={lineOf(filter, nameOf)} now={() => lineOf(latest(), nameOf)} apply={applyLine} rows={reportRows.value} ctx={filterCtx()}
           ids={{ input: `${id}-line`, list: `${id}-line-list`, count: `${id}-line-count`, x: `${id}-line-x`, msg: `${id}-line-msg`, gloss: `${id}-line-gloss`, opt: `${id}-line-o` }} label="Filter" />
@@ -166,7 +168,7 @@ export function Edit({ section }) {
           </label>
           <Boxes id={id} legend="Columns at full width" field="columns" values={COLUMNS} words={(v) => WORDS.columns[v]} chosen={filter.columns} onToggle={toggleColumn} />
             <label class="wil-sel wil-capf" data-field="caption"><span>Footnote (optional)</span>
-              <input type="text" name="caption" placeholder="Shown above the list" value={filter.caption} onInput={capInput} onChange={commitCaption} onKeyDown={keys} />
+              <input type="text" name="caption" placeholder={startOr("Shown above the list", "work-items", "caption")} value={filter.caption} onInput={capInput} onChange={commitCaption} onKeyDown={keys} />
             </label>
             <div class="wil-cacts"><button type="button" data-wil-cfgdone="" onClick={() => { setCfg(false); if (gearRef.current) gearRef.current.focus(); }}>Done</button></div>
           </div>
