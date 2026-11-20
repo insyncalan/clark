@@ -93,7 +93,7 @@ export const PILLS_STATE = {
 // state words overdue / red / no_owner). The two questions about one item or a few carry the ids in brackets only in the question sent, never in the shown words; the rest are plain questions.
 export const PILLS_ITEM_DUE = "Change the due date";
 export const PILLS_ITEM_URGENCY = "Raise the urgency";
-export const PILLS_ITEM_REPORT = "Add to the weekly report";
+export const PILLS_ITEM_REPORT = "Include in the weekly report";
 export const PILLS_ITEM_OWNERS = "Who owns these?";
 export const PILLS_ITEM_LATE = "Why are these late?";
 export const PILLS_MAX = 6;
@@ -318,6 +318,7 @@ export const DRAFT_EMPTY = "The draft is empty. Write something, or close it.";
 
 // #1292 S10: the slash menu. NEEDS RULING: the one-line hint under each command is a draft, to be ruled with the other new words (decision 25).
 export const SLASH_LABEL = "Commands";
+export const SLASH_YOURS = "Yours";      // row 1295: the tag of a command the person wrote (the editor mock-up marks it "you"; Settings calls it Yours)
 export const SLASH_NONE = "No command by that name";
 export const SLASH_HINT = {
   check: "Check this report",
