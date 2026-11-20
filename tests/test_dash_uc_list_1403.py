@@ -100,6 +100,39 @@ class Classic(Dash, Base):
         self.assertEqual(g["chip"], ["1px", "rgb(217, 224, 239)", "999px", "rgb(71, 85, 119)", "400", "18px"], f"chip: {g['chip']}")
 
 
+class ChipStyles(Dash, Base):
+    css = theme.css("prototype-2.0")
+    WANT = ["solid", "1px", "rgb(217, 224, 239)", "999px", "400", "rgba(0, 0, 0, 0)"]
+    PROBE = "(() => { const c = getComputedStyle(document.querySelector('.uc .cchip')); return [c.borderTopStyle, c.borderTopWidth, c.borderTopColor, c.borderTopLeftRadius, c.fontWeight, c.backgroundColor, c.color]; })()"
+
+    def read_all(self, width, dark=False):
+        got = {}
+        with chrome() as cdp:
+            p = self.open_page(cdp, width)
+            if dark:
+                p.js("document.documentElement.setAttribute('data-theme', 'dark')")
+            for k in ("cc-committed", "cc-planned-2026", "cc-planned-2027"):
+                p.js("document.querySelector('.uc .cchip').className = 'cchip %s'" % k)
+                got[k] = p.js(self.PROBE)
+        return got
+
+    def test_committed_planned_2026_and_planned_2027_are_one_solid_muted_pill_at_1400_and_900(self):
+        """Committed, Planned 2026 and Planned 2027 are solid 1px D9E0EF, pill 999, weight 400, no fill, muted text (light)."""
+        for w in (1400, 900):
+            got = self.read_all(w)
+            for k, g in got.items():
+                self.assertEqual(g[:6], self.WANT, f"{w} {k}: {g}")
+                self.assertEqual(g[6], "rgb(71, 85, 119)", f"{w} {k} colour: {g}")
+
+    def test_the_same_in_the_dark_theme(self):
+        """In the dark theme all three have the same line, radius, weight and no fill (the shell dark fill on Committed is gone)."""
+        for w in (1400, 900):
+            got = self.read_all(w, dark=True)
+            for k, g in got.items():
+                self.assertEqual([g[0], g[1], g[3], g[4], g[5]], ["solid", "1px", "999px", "400", "rgba(0, 0, 0, 0)"], f"dark {w} {k}: {g}")
+            self.assertEqual(len({tuple(g) for g in got.values()}), 1, f"dark {w}: the three differ: {got}")
+
+
 class CardsKeepsShared(Dash, Base):
     """Cards (no Theme layer) keeps the shared rules: the heading row is drawn, the badge is 600 (grey-300 outline) and the chip radius 4."""
     def test_cards_as_on_main(self):

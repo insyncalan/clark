@@ -523,7 +523,7 @@ html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tce
 .uc .ucbar:hover, .uc .ucrow.open > .ucbar { background: var(--band-bg); }
 .uc .ucref { padding: 1px var(--space-2); border: 1px solid var(--grey-500); font-weight: var(--weight-regular); }
 .uc .cchip { border-radius: var(--radius-pill); font-weight: var(--weight-regular); line-height: 18px; }
-.uc .cchip:not(.cc-committed) { border-color: var(--grey-200); color: var(--text-muted); }
+.uc .cchip.cchip { border-style: solid; border-color: var(--grey-200); background: transparent; color: var(--text-muted); }      /* every chip, Committed and both Planned, is the same muted pill: no fill, solid line (it beats the shell fill and dashed line) */
 /* Row 1295 (Classic only; Cards does not draw these): the slash commands list in Settings and the editor page that opens in a new tab. A list row is name, menu line, tag and Edit; the editor page is a left list, the editor, a live preview and Test it underneath. Colours are the page's tokens. */
 .slash-list .slash-rows { list-style: none; margin: var(--space-3) 0 0; padding: 0; }
 .slash-list .slash-rows li { display: grid; grid-template-columns: minmax(90px, max-content) 1fr max-content max-content; gap: var(--space-3); align-items: baseline; padding: var(--space-2) 0; border-top: 1px solid var(--line-soft); }
