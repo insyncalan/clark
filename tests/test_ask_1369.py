@@ -111,5 +111,17 @@ class Budget(unittest.TestCase):
             self.assertEqual((len(got), left), (kept, 2 - kept), total)
 
 
+class SettingsSize(unittest.TestCase):
+    """Test 4 of the row: the size the Settings page states is the size the code uses (the page reads the code's constant)."""
+
+    def test_the_page_size_is_the_code_size_and_the_line_states_it(self):
+        from clark import ai_connect
+        self.assertIs(ai_connect.QUESTION_CHARS, ask.BUDGET)
+        self.assertEqual(ask.BUDGET, 1_200_000)
+        line = ai_connect.SIZE_LINE.format(tokens=ai_connect.QUESTION_CHARS // ai_connect.CHARS_PER_TOKEN, chars=ai_connect.QUESTION_CHARS)
+        self.assertIn(f"{ask.BUDGET // 4:,} tokens", line)
+        self.assertIn(f"{ask.BUDGET:,} characters", line)
+
+
 if __name__ == "__main__":
     unittest.main()
