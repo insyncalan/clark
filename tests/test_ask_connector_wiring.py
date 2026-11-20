@@ -185,7 +185,7 @@ class Wired(Run):
         self.assertEqual(self.args, want)
         self.assertNotIn("--strict-mcp-config", self.args)
         self.assertIn(f"--allowedTools={P}__outlook_email_search", self.args)
-        self.assertEqual(self.discoveries, 1)
+        self.assertEqual(self.discoveries, 2)         # one before the run (the argument list) and one after it (F5: a server that appeared)
 
     def test_only_the_output_the_turns_and_the_connector_flags_differ_from_today(self):
         self.ask(["mail"])
