@@ -38,7 +38,7 @@ class Source(unittest.TestCase):
         self.assertIn("display: flex; align-items: center;", rule(self.css, ".fig .vrow"), "the figure and its chip share a row, centred on each other")
         self.assertIn("margin-left: auto", rule(self.css, ".fig .vrow .tw, .fig .k .tw"), "at the right of the row, as the prototype's .k .sw")
         jsx = (PAGE / "src" / "components" / "Glance.jsx").read_text(encoding="utf-8")
-        self.assertRegex(jsx, r'<span class="vrow">\s*<span class="v num">\{t\.value\}</span>\s*\{t\.word \? <span class="tw" aria-hidden="true">', "figure then chip, in one row")
+        self.assertRegex(jsx, r'<span class="vrow">\s*<span class="v num">\{t\.value\}</span>\s*(?:\{inline \? <span class="dd of">\{t\.detail\}</span> : null\}\s*)?\{t\.word \? <span class="tw" aria-hidden="true">', "figure then chip, in one row")
         self.assertIn('Project health{t.word ? <span class="tw">{t.word}</span> : null}</span>', jsx, "Project health's chip is in its label row")
         self.assertNotIn("</div>\n      {t.word", jsx, "no chip on a line of its own under Project health")
         self.assertIn('#report[data-mode="edit"] .fig.health-fig .k { padding-right:', self.css, "in Edit the label row stops short of the move grip")
