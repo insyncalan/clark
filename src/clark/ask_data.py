@@ -1,12 +1,11 @@
 """ask: the open project's own data as passages (#47d, commit 8 of the design note). Read only.
 
-ONE FILTER, NOT TWO (owner decision: "report only"; a reviewer's MEDIUM 4 on the design note). The passages are built from
-`publish.select(publish.read_inputs(store, code))`: exactly what the published file would carry, and nothing else. So a row hidden
-from the report, a row that isn't client-visible, an archived row, a row labelled Sensitive (or with any label that is left out of
-the report), a hidden section, and every column the published file never carries (internal notes, Movement, sources, reasoning,
-options, response actions) can never become a passage, because select() never hands them over. This module adds no second rule
-of its own about what may be seen; it only turns the selected rows into text, cuts the text into passages and picks the ones that
-fit the budget.
+ROW 1367 (ruling 19-11, reverses the earlier "report only" rule): the passages are built from the project's OWN rows as
+`publish.read_inputs` hands them over, not from `publish.select`. A row hidden from the report (eye off, not client visible,
+in a hidden section) IS read, for the owner. Still left out: an archived row (unless a later change reads them), a row with a label
+the report leaves out (Sensitive), every column read_inputs does not ask for (team-only fields wait for an answer, row 1367 Q4), and
+any line that looks like a password or a key (ask._secret, via _cut_screened). Nothing the client gets changes: publish.select is
+untouched. This module adds the cut to the budget only; the note says what was cut, with counts.
 
 The store is read through read_inputs' one read-only transaction (store.publish_inputs); nothing here opens the database, a file
 or a process, and nothing is written.
@@ -15,16 +14,16 @@ import html
 import re
 from dataclasses import dataclass
 
-from clark import publish, sanitise
+from clark import glance, publish, sanitise
 from clark import ask
-from clark import timefmt
+from clark import milestones, timefmt
 from clark.ask import BUDGET, MAX_PASSAGE, Passage
 
 PASSAGE_SIZE = 1200          # characters a passage is cut to, about (one or a few rows)
 KIND_WORDS = {"milestones": "milestones", "actions": "actions", "raid": "risks and issues", "decisions": "decisions",
               "use_cases": "use cases"}
 LABELS = {"project": "report: the project", "milestones": "report: milestones", "actions": "report: actions",
-          "raid": "report: risks and issues", "decisions": "report: decisions", "use_cases": "report: use cases", "left_out": "report: left out"}
+          "raid": "report: risks and issues", "decisions": "report: decisions", "use_cases": "report: use cases"}
 KIND_ORDER = ("milestones", "actions", "raid", "decisions", "use_cases")
 TITLE = {"milestones": "name", "actions": "description", "raid": "description", "decisions": "decision", "use_cases": "title"}
 OWNER = {"milestones": "owner", "actions": "owner", "raid": "owner", "decisions": "made_by"}
@@ -41,6 +40,7 @@ SHOWN = {
     "use_cases": ("ref", "status", "commitment", "headline", "standing"),
 }
 WORDS = re.compile(r"[^\W_]{3,}", re.UNICODE)
+ID_PATTERN = re.compile(r"\b[A-Z][A-Z0-9]{2,6}-[A-Z]?-?\d{1,4}\b")
 _TAG = re.compile(r"<[^>]*>")
 
 
@@ -53,7 +53,12 @@ class ProjectData:
     facts: dict
     left_out: int
     secret: int = 0
-    kinds_left_out: tuple = ()          # row 1213: the kinds whose whole section is left out of the report (named in a passage and a note)
+    today: str = ""                     # #1293 B: the report's as-at day as DD-MM-YYYY ("" when it is not a day)
+    counts: tuple = ()                  # #1293 B: (kind, rows sent, rows in all) for each kind that has rows
+
+
+def _is_day(value):
+    return isinstance(value, str) and timefmt.day_text(value) != value
 
 
 def plain(value):
@@ -123,7 +128,7 @@ def choose(passages, question, budget=BUDGET):
     counts most), kept in their original order. Returns (chosen, left_out_count). The first passage (the project) always goes
     first when it fits."""
     words = {w.casefold() for w in WORDS.findall(question or "")}
-    ids = set(re.findall(r"\b[A-Z][A-Z0-9]{2,6}-[A-Z]?-?\d{1,4}\b", question or ""))
+    ids = set(ID_PATTERN.findall(question or ""))
     ranked = sorted(range(len(passages)), key=lambda i: (i != 0, -_score(words, ids, passages[i]), i))
     keep, used = set(), 0
     for i in ranked:
@@ -134,41 +139,98 @@ def choose(passages, question, budget=BUDGET):
     return tuple(passages[i] for i in sorted(keep)), len(passages) - len(keep)
 
 
-def facts_of(selected):
-    """{id: {"title", "owner"}} for every published row, so the claims check can compare a reply's title or owner."""
+def state_of(kind, row, today):
+    """DRAFT contract (row 1332): the words of ask.ITEM_STATES that apply to a published row. overdue: open and due before `today`
+    (a milestone: its own state is Overdue); red: an open risk, issue, assumption or dependency rated Urgent or High, the same rows the
+    page's High risks and issues tile counts (an action, a decision or a milestone is never red); no_owner: open and the owner field is blank
+    or TBC, as the page reads an owner (a kind without an owner field has none to miss)."""
+    if kind == "milestones":
+        state = row.get("state")
+        live = state != "Achieved"
+        late, red = state == "Overdue", False
+    else:
+        full = {**row, "kind": "decision"} if kind == "decisions" else row
+        live = glance.is_open(full)
+        late = glance.is_overdue(full, today)
+        red = live and kind == "raid" and glance.colour_of_priority(row.get("priority")) == "red"
+    owner = plain(row.get(OWNER.get(kind, "")) or "").strip()
+    blank = live and kind in OWNER and (not owner or owner.upper() == "TBC")
+    return [w for w, on in (("overdue", late), ("red", red), ("no_owner", blank)) if on]
+
+
+def facts_of(selected, today=None):
+    """{id: {"title", "owner", "state"}} for every published row, so the claims check can compare a reply's title or owner, and the
+    reply's items can say which rows are overdue, red or without an owner. `today` is the report's as-at day (ISO), None for none."""
     out = {}
     for kind in KIND_ORDER:
         for row in selected.get(kind) or ():
             if row.get("id"):
-                out[row["id"]] = {"title": plain(row.get(TITLE[kind]) or ""), "owner": plain(row.get(OWNER.get(kind, "")) or "")}
+                out[row["id"]] = {"title": plain(row.get(TITLE[kind]) or ""), "owner": plain(row.get(OWNER.get(kind, "")) or ""),
+                                  "state": state_of(kind, row, today)}
     return out
 
 
-def kinds_left_out(inputs):
-    """Row 1213: the kinds whose whole section is left out of the report (names only, never a row or a count)."""
-    hidden = publish.hidden_types(inputs.get("sections"), bool(inputs.get("sections_deleted")))
-    return tuple(k for k in KIND_ORDER if publish.SECTION_OF_KIND[k] in hidden)
+def ids_in_turns(turns, last=4):
+    """The item IDs named in the last few turns of a chat, in order, so a follow-up ("and when is it due?") ranks the same items."""
+    found = []
+    for _role, text in list(turns or ())[-last:]:
+        for i in ID_PATTERN.findall(text):
+            if i not in found:
+                found.append(i)
+    return found
 
 
-def left_out_line(kinds):
-    """The plain words that say which kinds the report leaves out, so the answer never says none exist."""
-    names = ", ".join(KIND_WORDS[k] for k in kinds)
-    return (f"Left out of the report this answer reads: {names}. They may exist in the project, but they are not given here. "
-            "Do not say there are none; say they were not part of what you were given.")
+def partial_lines(counts):
+    """One line per kind that was sent in part: "actions: 7 of 12 rows sent". Nothing for a kind sent whole."""
+    return [f"{KIND_WORDS[k]}: {sent} of {total} rows sent" for k, sent, total in counts if sent < total]
 
 
-def project_data(store, code, question="", budget=BUDGET):
-    """The open project's data for one question, from what the published file would carry (publish.select). Raises
-    publish.PublishError (plain words) for a code that isn't a project."""
-    inputs = publish.read_inputs(store, code)
-    selected = publish.select(inputs)["data"]
-    passages, secret = _cut_screened(LABELS["project"], project_lines(selected.get("project") or {}))
-    left_kinds = kinds_left_out(inputs)
-    if left_kinds:
-        passages += _cut(LABELS["left_out"], [left_out_line(left_kinds)])
+def left_out_lines(counts):
+    """Row 1367 R3: one plain line per kind that was cut, with counts, for the person. Nothing for a kind sent whole, so a project
+    where nothing was cut gives no line at all."""
+    return [f"Sent {sent} of {total} {KIND_WORDS[k]} (the closest to your question); {total - sent} {'was' if total - sent == 1 else 'were'} left out."
+            for k, sent, total in counts if sent < total]
+
+
+def own_rows(inputs):
+    """Row 1367: the project's own rows by kind as read from the store, hidden ones included. Left out: an archived row, a row of
+    another project, a row with a label the report excludes. A milestone carries its state words as the report would give them."""
+    data, as_at = inputs["data"], inputs["as_at"]
+    code = (data.get("project") or {}).get("code")
+    blocked = publish._excluded_labels(inputs.get("label_rules"))
+    labels = data.get("labels") or {}
+    out = {}
     for kind in KIND_ORDER:
-        more, n = _cut_screened(LABELS[kind], [row_line(kind, r) for r in selected.get(kind) or ()])
+        rows = []
+        for r in data.get(kind) or ():
+            if r.get("archived") or (code and r.get("project", code) != code):
+                continue
+            if any(str(x).casefold() in blocked for x in labels.get(r.get("id"), ())):
+                continue
+            c = dict(r)
+            for f in publish.RICH.get(kind, ()):          # the same clean-up the report gives its rich text (script and style bodies dropped)
+                c[f] = publish.clean_html(sanitise.legacy_to_html(c[f]) if (kind, f) in publish.LEGACY_RICH and c.get(f) and not sanitise.HTML_START.match(c[f]) else c.get(f))
+            if kind == "milestones":
+                state = milestones.milestone_state(r, as_at)
+                c.update(state=state, state_word=milestones.client_word(state))
+            rows.append(c)
+        out[kind] = rows
+    return out
+
+
+def project_data(store, code, question="", budget=BUDGET, as_at=None):
+    """The open project's own data for one question (row 1367), hidden rows included, archived left out, secret lines screened.
+    Raises publish.PublishError (plain words) for a code that isn't a project."""
+    inputs = publish.read_inputs(store, code, as_at)
+    selected = own_rows(inputs)
+    passages, secret = _cut_screened(LABELS["project"], project_lines(publish.select(inputs)["data"].get("project") or {}))
+    totals = {}
+    for kind in KIND_ORDER:
+        rows = [row_line(kind, r) for r in selected[kind]]
+        more, n = _cut_screened(LABELS[kind], rows)
         passages += more
         secret += n
+        totals[kind] = len(rows) - n          # a line screened out as a secret has its own note, so it is not counted a second time
     chosen, left = choose(passages, question, budget)
-    return ProjectData(chosen, facts_of(selected), left, secret, left_kinds)
+    counts = tuple((k, sum(p.text.count("\n") + 1 for p in chosen if p.label == LABELS[k]), t) for k, t in totals.items() if t)
+    return ProjectData(chosen, facts_of(selected, inputs.get("as_at") if _is_day(inputs.get("as_at")) else None), left, secret, timefmt.day_text(inputs.get("as_at")) if _is_day(inputs.get("as_at")) else "", counts)

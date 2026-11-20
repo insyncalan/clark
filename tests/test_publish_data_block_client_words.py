@@ -35,7 +35,10 @@ class DataBlockClientWords(unittest.TestCase):
             return st.create("raid", {**base, **values})
 
     def word_text(self):
-        pub = publish.select(publish.read_inputs(self.s, "ABC", "2026-10-29"))
+        inputs = publish.read_inputs(self.s, "ABC", "2026-10-29")
+        # a new project's Open actions is a Work items list with no Latest update column; these tests pin the built-in section's wording, so the report has it
+        inputs["sections"] = [{"id": "1", "type": "actions", "title": "Open actions", "sort_order": 0, "hidden": 0}]
+        pub = publish.select(inputs)
         with zipfile.ZipFile(io.BytesIO(docx_build.build(pub))) as z:
             return "".join(z.read(n).decode("utf-8", "replace") for n in z.namelist() if n.endswith(".xml"))
 

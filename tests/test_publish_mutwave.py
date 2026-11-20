@@ -23,7 +23,10 @@ class Pinned(unittest.TestCase):
         self.s = self.demo.store
 
     def data(self):
-        return publish.select(publish.read_inputs(self.s, "ABC", "2026-10-29"))["data"]
+        inputs = publish.read_inputs(self.s, "ABC", "2026-10-29")
+        # a new project's report lists items in Work items lists (open ones only); these tests pin the built-in sections' fields, so the report has those
+        inputs["sections"] = [{"id": str(i), "type": t, "title": t, "sort_order": i, "hidden": 0} for i, t in enumerate(("actions", "decisions"))]
+        return publish.select(inputs)["data"]
 
     def test_a_published_decision_carries_who_made_it(self):
         with self.s.step("dashboard", USER) as st:

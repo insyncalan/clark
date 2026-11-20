@@ -13,7 +13,7 @@ import { ADD_MILESTONE } from "./movementWords.js";
 import { openPublish } from "./Publish.jsx";
 import { preview, exportExcel } from "./ProfileMenu.jsx";
 import { openHelp, closeHelp, helpOpen } from "../help/helpStore.js";
-import { openPanel } from "./askPanelState.js";
+import { openPanel, handOver } from "./askPanelState.js";
 import { PANEL_TITLE } from "./askWords.js";
 
 export const paletteOpen = signal(false);
@@ -77,10 +77,28 @@ function dataResults(query, ws) {
   return out;
 }
 
+const QUESTION_WORDS = /^(what|who|whom|whose|when|where|why|how|which|is|are|was|were|can|could|do|does|did|should|will|would|has|have)\s/i;
+const ASK_SHOWN = 60;          // the typed words are cut here in the row's label; the whole text is handed over
+/** The word for the send key in the row's hint: "Cmd+Enter" on a Mac, "Ctrl+Enter" elsewhere. `nav` is the browser's navigator (a plain object in tests). */
+export function sendKey(nav) {
+  const n = nav === undefined ? (typeof navigator === "undefined" ? null : navigator) : nav;
+  const where = String((n && ((n.userAgentData && n.userAgentData.platform) || n.platform)) || "");
+  return /^(mac|iphone|ipad|ipod)/i.test(where) ? "Cmd+Enter" : "Ctrl+Enter";
+}
+
+/** S11: the "Ask ... in ask clark" row for the typed words (none when nothing is typed). Enter or a click opens the panel with the words in its box; Ctrl or Cmd + Enter sends them (handOver). */
+export function askRow(query) {
+  const q = String(query == null ? "" : query).trim();
+  if (!q) return null;
+  const shown = q.length > ASK_SHOWN ? q.slice(0, ASK_SHOWN - 1).trimEnd() + "…" : q;
+  return { id: "ask-row", kind: PANEL_TITLE, label: `Ask “${shown}” in ${PANEL_TITLE}`, more: sendKey(), disabled: "", question: q, first: /\?$/.test(q) || QUESTION_WORDS.test(q), run: () => handOver(q, false) };
+}
+
 /** The results for `query`, in the order they are shown: pages, actions, projects, commands, then (when words are typed) the data right after the pages. */
 export function search(query) {
   const ws = words(query), all = (t, extra) => !ws.length || hits(t + " " + (extra || ""), ws);
   const out = [];
+  if (ws.length) for (const c of commands()) if (all(c.label + " command", c.more)) out.push(c);          // row 1350: with words typed, commands come before the pages
   for (const p of pages()) if (all(p.label + " page")) out.push(p);
   out.push(...dataResults(query, ws));          // row 901: with words typed, the data comes right after the pages
   for (const a of actions()) if (all(a.label + " action", a.more)) out.push(a);
@@ -89,7 +107,9 @@ export function search(query) {
     const here = p.code === project.value;
     out.push({ id: "project-" + p.code, kind: "Project", label: p.name || p.code, more: p.code, disabled: "", current: here, run: () => { if (!here) setProject(p.code); } });
   }
-  for (const c of commands()) if (all(c.label + " command", c.more)) out.push(c);
+  if (!ws.length) for (const c of commands()) if (all(c.label + " command", c.more)) out.push(c);
+  const ask = askRow(query);
+  if (ask) { if (ask.first) out.unshift(ask); else out.push(ask); }          // a question first, anything else after the search
   return out;
 }
 

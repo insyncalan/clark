@@ -28,7 +28,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from clark import changes, edit_ai, platform
+from clark import ask_data, changes, edit_ai, platform
 from clark.store import CODE_RE, Store, connect
 
 MAX_AT_ONCE = 5                 # FR-62a: more than five items at once asks first and lists them; part 1 refuses it (not yet)
@@ -92,7 +92,7 @@ def fail(code, message, status=400):
 
 
 def _fold(text):
-    return " ".join(edit_ai.normal(str(text or "")).casefold().split())
+    return " ".join(edit_ai.normal(ask_data.plain(text or "")).casefold().split())      # #1293 A: the saved text may hold HTML; the model was shown it plain
 
 
 def _plain_name(name):
