@@ -8,7 +8,7 @@ bulk menus, the Gantt menus, the rich text style menu) at 1400 and 900, light an
     menu whose tick is on the left); the same for the pick menus, the row menus, the section menu, the bulk menu, the Gantt menus
   - the type: 14px on every line (the Classic body size)
   - the tick of the line in use is on the right of the words, except in the three menus whose mock-ups draw it on the left (Columns, the Gantt Show menus)
-  - the head of a group is plain: no capitals, no letter spacing
+  - the head of a group is plain: no capitals, no letter spacing, except the two heads Row 1273 draws in capitals (the Group by head of the View menu and the Move <id> to head of a card)
   - the panel radius: 10px as the prototype .pop (Row menu-radius)
   - the width: no menu narrower than 200px, the Group by menus 240px at least
 Words and icons are not read here (test_menu_icons_every_1138 does that); nothing here changes a word.
@@ -34,8 +34,8 @@ TICK_LEFT = {"columns", "gantt-show-chart", "gantt-show-table"}          # their
 NO_ICON_GRID = {"owner-pick", "owner-pick-typed", "health", "report-headline-health"}    # an initials circle or a coloured pill, not an icon
 GROUP_BY = {"uc-group"}
 MIN_W, GROUP_W = 200, 240
-PROTOTYPE_THREE = {"view", "board-move", "board-move-lanes", "new-tile"}       # row 1273: Group by (the View menu's), Move to and the Add menu: 15px, 224 wide, 34px icon gap, the tick before the icon
-THREE_W, THREE_FS, THREE_GAP = 224, "15px", 34
+PROTOTYPE_THREE = {"view", "board-move", "board-move-lanes", "new-tile"}       # row 1273: Group by (the View menu's), Move to and the Add menu: 15px, 224 wide, a 16px tick slot before the icon, 10px icon gap
+THREE_W, THREE_FS, THREE_GAP, THREE_SLOT = 224, "15px", 10, 16
 
 MEASURE = r"""(root => {
  const ok = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
@@ -53,7 +53,7 @@ MEASURE = r"""(root => {
    const dot = b.querySelector('.ragdot'); if (dot) { const d = dot.getBoundingClientRect(); if (d.width > 0 && d.left >= ir.right - 0.5) after.push(d.left); }      // the coloured dot of a status word is drawn before the word
    const checked = b.getAttribute('aria-checked') === 'true' || b.getAttribute('aria-current') === 'true';
    const side = !checked ? null : (ck && ck.textContent.trim() && ckr) ? (ckr.left + ckr.width / 2 > br.left + br.width / 2 ? 'right' : 'left') : (getComputedStyle(b, '::after').content.length > 4 ? 'right' : null);
-   return {t: b.textContent.trim().slice(0, 22), fs: cs(b).fontSize, icon: true, il: Math.round((Math.min(...before) - br.left) * 10) / 10, gap: after.length ? Math.round((Math.min(...after) - ir.right) * 10) / 10 : null, side};
+   return {t: b.textContent.trim().slice(0, 22), fs: cs(b).fontSize, icon: true, il: Math.round((Math.min(...before) - br.left) * 10) / 10, slot: Math.round((ir.left - (b.getBoundingClientRect().left + 16)) * 10) / 10, gap: after.length ? Math.round((Math.min(...after) - ir.right) * 10) / 10 : null, side};
  });
  const heads = [...box.querySelectorAll('.lab,.mh,.menu-head')].filter(ok).map(h => ({t: h.textContent.trim().slice(0, 24), tt: cs(h).textTransform, ls: cs(h).letterSpacing}));
  return {w: Math.round(br.width), rows, heads, rad: cs(box).borderTopLeftRadius}; })"""
@@ -69,6 +69,7 @@ def check(test, name, look, m):
         test.assertEqual(r["fs"], THREE_FS if three else "14px", f"{where}: the line {r['t']!r} is not {THREE_FS if three else '14px'}")
         if r["icon"] and three:
             test.assertAlmostEqual(r["gap"], THREE_GAP, delta=0.5, msg=f"{where}: {r['t']!r} has {r['gap']}px between its icon and its words, row 1273 draws {THREE_GAP}")
+            test.assertAlmostEqual(r["slot"], THREE_SLOT, delta=0.5, msg=f"{where}: {r['t']!r} has {r['slot']}px of tick slot before its icon, row 1273 reserves {THREE_SLOT}")
         elif r["icon"] and name not in NO_ICON_GRID:
             test.assertIsNotNone(r["gap"], f"{where}: {r['t']!r} has nothing after its icon")
             test.assertAlmostEqual(r["il"], 17, delta=1, msg=f"{where}: the icon of {r['t']!r} is {r['il']}px in from the edge, the grid is 17")
@@ -76,8 +77,9 @@ def check(test, name, look, m):
         if r.get("side"):
             test.assertEqual(r["side"], "left" if name in TICK_LEFT or three else "right", f"{where}: the tick of {r['t']!r}")
     for h in m["heads"]:
-        test.assertEqual(h["tt"], "uppercase" if name.startswith("board-move") else "none", f"{where}: the head {h['t']!r} is in the wrong case")
-        if not name.startswith("board-move"):
+        caps = (name == "view" and h["t"] == "Group by") or (name.startswith("board-move") and re.fullmatch(r"Move \S+ to", h["t"]) is not None)    # row 1273: only these two heads
+        test.assertEqual(h["tt"], "uppercase" if caps else "none", f"{where}: the head {h['t']!r} is in the wrong case")
+        if not caps:
             test.assertIn(h["ls"], ("normal", "0px"), f"{where}: the head {h['t']!r} is letter-spaced")
 
 

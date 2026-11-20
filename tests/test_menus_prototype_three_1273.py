@@ -43,19 +43,36 @@ class ThreeMenus(unittest.TestCase):
         for sel in (GROUP + ' [role="menuitemradio"]', MOVE + ' [role="menuitem"]', ADD + ' [role="menuitem"]', ADD_ALL + ' [role="menuitem"]'):
             self.assertEqual(decls(sel, "font-size"), "calc(var(--size-body) + 1px)", sel)  # 15px in Chrome (the Classic body is 14px); the 1195 pin forbids a bare px size
 
-    def test_icon_gap_34px(self):
-        self.assertEqual(decls(GROUP + " .mi", "margin-right"), "34px")
-        self.assertEqual(decls(MOVE + " .mi", "margin-right"), "34px")
-        self.assertEqual(decls(ADD + ' [role="menuitem"]', "gap"), "34px")
-        self.assertEqual(decls(ADD_ALL + ' [role="menuitem"]', "gap"), "34px")
+    def test_icon_gap_10px_and_no_34(self):
+        ten = "calc(var(--space-2) + 2px)"
+        self.assertEqual(decls(GROUP + " .mi", "margin-right"), ten)
+        self.assertEqual(decls(MOVE + " .mi", "margin-right"), ten)
+        self.assertEqual(decls(ADD + ' [role="menuitem"]', "gap"), ten)
+        self.assertEqual(decls(ADD_ALL + ' [role="menuitem"]', "gap"), ten)
+        text = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+        start = text.index("/* Row 1273")
+        self.assertNotIn("34px", text[start:text.index("/* Row 1409", start)])   # the 34px gap is gone from the Row 1273 block
+
+    def test_tick_slot_16px_in_all_three(self):
+        self.assertEqual(decls(GROUP + ' [role="menuitemradio"] .ck', "width"), "var(--space-4)")
+        self.assertEqual(decls(MOVE + ' [role="menuitem"] > .ck', "width"), "var(--space-4)")
+        self.assertEqual(decls(MOVE + ' [role="menuitem"]:not(:has(> .ck))::before', "width"), "var(--space-4)")
+        self.assertEqual(decls(ADD + ' [role="menuitem"]', "padding-left"), "calc(var(--space-2) + var(--space-4))")   # the item's own 8px plus the empty slot
+        self.assertEqual(decls(ADD_ALL + ' [role="menuitem"]', "padding-left"), "calc(var(--space-4) + var(--space-4))")  # the item's own 16px plus the empty slot
 
     def test_tick_before_the_icon_in_group_by_and_move_to(self):
         self.assertEqual(decls(GROUP + ' [role="menuitemradio"] .ck', "order"), "-1")
         self.assertEqual(decls(MOVE + ' [role="menuitem"] > .ck', "order"), "-1")
         self.assertEqual(decls(MOVE + ' [role="menuitem"]:not(:has(> .ck))::before', "order"), "-1", "the items without a tick keep the tick's column free")
 
-    def test_move_to_head_is_in_capitals(self):
-        self.assertEqual(decls(MOVE + " .mh.caps", "text-transform"), "uppercase")
+    def test_two_heads_are_in_capitals_and_no_other(self):
+        for sel in ("#viewMenuList.ddmenu .lab.caps", MOVE + " .mh.caps.mh-card"):
+            self.assertEqual(decls(sel, "text-transform"), "uppercase", sel)
+        for sel, body in rules():
+            if any("uppercase" in b for b in [body]) and any(s.startswith((GROUP, MOVE, ADD, ADD_ALL)) for s in sel):
+                self.assertTrue(all(s in ("#viewMenuList.ddmenu .lab.caps", MOVE + " .mh.caps.mh-card") for s in sel if s.startswith((GROUP, MOVE, ADD, ADD_ALL))), sel)
+        self.assertIn('class={it.card ? "mh caps mh-card" : "mh caps"}', BOARD)   # only the card's own head carries the mark, not the lane head
+        self.assertIn("`Move to ${groupLabel(g)}`, card: true }", BOARD)
 
     def test_no_other_menu_is_named(self):
         """Every selector of the Row 1273 block names one of the three menus."""

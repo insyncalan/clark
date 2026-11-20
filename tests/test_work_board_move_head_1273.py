@@ -32,6 +32,8 @@ class MoveHead(wb.Base):
                 self.until(cdp, sid, "!!document.querySelector('.ddmenu')", "the menu")
                 heads = cdp.js("[...document.querySelectorAll('.ddmenu .mh')].map(h => h.textContent)", sid)
                 self.assertEqual(heads, [f"Move {a} to", "Move to Workstream"])
+                tt = cdp.js("[...document.querySelectorAll('.ddmenu .mh')].map(h => getComputedStyle(h).textTransform)", sid)
+                self.assertEqual(tt, ["uppercase", "none"], "only the card's head is drawn in capitals")
 
 
 if __name__ == "__main__":
