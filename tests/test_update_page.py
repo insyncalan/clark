@@ -448,7 +448,7 @@ class Rows(InBrowser):
     def test_row_58_each_row_has_its_label_at_the_left_and_a_hint_line_under_its_control(self):
         for _ in self.each({**STATUS, "last": LAST}):
             self.assertEqual(self.val("[...document.querySelectorAll('#update .upd-l')].map(e => e.textContent)"),
-                             ["Installed", "Update", "Install from a file", "Last update"])
+                             ["Installed", "Update", "Use a file instead", "Updated to clark 0.3.1"])
             rows = self.val("[...document.querySelectorAll('#update .upd-l')].map(l => { const c = l.nextElementSibling, a = l.getBoundingClientRect(), "
                             "b = c.getBoundingClientRect(); return [c.getAttribute('aria-labelledby') === l.id, a.right <= b.left, Math.abs(a.top - b.top) < 8]; })")
             self.assertEqual(rows, [[True, True, True]] * 4, "each control is named by its label, which sits at its left on the same line")

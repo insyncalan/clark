@@ -210,6 +210,18 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
               </>
             )}
           </div>
+          {st.blocked || st.fetch.kind !== "avail" || !L.releasedText(st.fetch) ? null : (
+            <>
+              <p class="upd-l" id="update-released-l">{L.ROWS.released}</p>
+              <div class="upd-c" role="group" aria-labelledby="update-released-l" id="update-released"><p>{L.releasedText(st.fetch)}</p></div>
+            </>
+          )}
+          {st.blocked || st.fetch.kind === "none" ? null : (
+            <>
+              <p class="upd-l" id="update-checked-l">{L.ROWS.checked}</p>
+              <div class="upd-c" role="group" aria-labelledby="update-checked-l" id="update-checked"><p>{L.checkedText(st.fetch.when, L.dayText(new Date()))}</p></div>
+            </>
+          )}
           {st.blocked ? null : (
             <>
               <p class="upd-l" id="update-file-l">{L.ROWS.file}</p>
@@ -224,7 +236,7 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
           )}
           {st.last ? (
             <>
-              <p class="upd-l" id="update-last-l">{L.ROWS.last}</p>
+              <p class="upd-l" id="update-last-l">{st.lastTo ? L.updatedTo(st.lastTo) : L.ROWS.last}</p>
               <div class="upd-c" role="group" aria-labelledby="update-last-l" id="update-last">
                 <p>{st.last}</p>
                 {armed ? (
