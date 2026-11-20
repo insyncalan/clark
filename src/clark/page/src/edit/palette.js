@@ -1,6 +1,6 @@
 // The command palette's search and actions (#198), Edit parts only: a published file has no palette. Plain JS that draws nothing and touches no DOM itself: it takes
 // what the page already holds (the open project's data, the project list, the tabs) and gives back the results in order:
-// pages, then (when words are typed) work items (an ID first), use cases and milestones, then actions, projects, commands; with no words: pages, actions, projects, commands (row 900). Words match the text, the ID and the owner's name. Nothing here asks a server, and a
+// with words typed: commands, pages, work items (an ID first), use cases and milestones, then actions, projects (Classic: projects come right after the pages, before the work items); with no words: pages, actions, projects, commands (row 900). Words match the text, the ID and the owner's name. Nothing here asks a server, and a
 // command that changes anything calls the very function the existing button or menu entry calls (profile menu, Publish).
 import { signal } from "@preact/signals";
 import { data, shownTabs, TITLES, project, projects, view, rows, show, setProject, openPeek, openUseCase, fromFile, status } from "../stores/report.js";
@@ -16,6 +16,7 @@ import { openHelp, closeHelp, helpOpen } from "../help/helpStore.js";
 import { classicTheme } from "../components/Contents.jsx";
 import { openPanel, handOver } from "./askPanelState.js";
 import { PANEL_TITLE } from "./askWords.js";
+import { classicTheme } from "../components/Contents.jsx";
 
 export const paletteOpen = signal(false);
 export const MOST_ITEMS = 8;          // work items shown at most, all kinds together (cut after the ID ranking), so a short word does not fill the box
@@ -102,13 +103,17 @@ export function search(query) {
   const out = [];
   if (ws.length) for (const c of commands()) if (all(c.label + " command", c.more)) out.push(c);          // row 1350: with words typed, commands come before the pages
   for (const p of pages()) if (all(p.label + " page")) out.push(p);
-  out.push(...dataResults(query, ws));          // row 901: with words typed, the data comes right after the pages
+  const projectRows = () => {
+    for (const p of projects.value || []) {
+      if (!all(p.name + " " + p.code + " project")) continue;
+      const here = p.code === project.value;
+      out.push({ id: "project-" + p.code, kind: "Project", label: p.name || p.code, more: p.code, disabled: "", current: here, run: () => { if (!here) setProject(p.code); } });
+    }
+  };
+  if (ws.length && classicTheme()) projectRows();          // row 1350 (Classic only): with words typed, projects come right after the pages, before the data
+  out.push(...dataResults(query, ws));          // row 901: with words typed, the data comes right after the pages (after the projects in Classic)
   for (const a of actions()) if (all(a.label + " action", a.more)) out.push(a);
-  for (const p of projects.value || []) {
-    if (!all(p.name + " " + p.code + " project")) continue;
-    const here = p.code === project.value;
-    out.push({ id: "project-" + p.code, kind: "Project", label: p.name || p.code, more: p.code, disabled: "", current: here, run: () => { if (!here) setProject(p.code); } });
-  }
+  if (!ws.length || !classicTheme()) projectRows();          // nothing typed, or Cards: projects after the actions, as before
   if (!ws.length) for (const c of commands()) if (all(c.label + " command", c.more)) out.push(c);
   const ask = askRow(query);
   if (ask) { if (ask.first) out.unshift(ask); else out.push(ask); }          // a question first, anything else after the search
