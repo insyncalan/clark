@@ -230,7 +230,9 @@ class AskApply:
             if row is None or row.get("project") != project or row.get("archived"):
                 raise Refusal("unknown_id", UNKNOWN_ID.format(ref=plan.ref))
             title = plan.claims.get("current_title")
-            if title is not None and _fold(title) != _fold(row.get(TITLE[plan.table])):
+            if title is None or not _fold(title):      # #1293: a change must name the title it is about, so the card can show it
+                raise Refusal("no_title", NOT_A_CHANGE)
+            if _fold(title) != _fold(row.get(TITLE[plan.table])):
                 raise Refusal("wrong_title", WRONG_TITLE.format(ref=plan.ref))
             owner = plan.claims.get("current_owner")
             if owner is not None and _fold(owner) != _fold(row.get(OWNER[plan.table])):

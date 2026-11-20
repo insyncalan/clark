@@ -38,7 +38,7 @@ function Cell({ row, col, now }) {
     return <><span class="num">{d.date}</span>{d.words ? <span class={`due-l${d.tone ? " " + d.tone : ""}`}>{d.words}</span> : null}</>;
   }
   if (col === "status") { const p = clientPill(row, now); return <span class="wil-st"><svg class={`wil-half ic-${p.class}`} viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 3a9 9 0 0 1 0 18z" /></svg>{p.text}</span>; }      // row 1199: a half-circle, coloured as the status pill, before the status word
-  if (col === "priority") { const p = priorityCell(row); const rated = p.text && (p.text !== "Not rated" || row.kind === "risk" || row.kind === "issue"); return rated ? <span class={`wil-pr${p.text === "Urgent" ? " u" : p.text === "High" ? " h" : ""}`}>{p.text}</span> : <span class="muted">—</span>; }      // row 1268: the rating chip, in the colour of the pills
+  if (col === "priority") { const p = priorityCell(row); const rated = p.text && (p.text !== "Not rated" || row.kind === "risk" || row.kind === "issue"); return rated ? <span class={`wil-pr${p.text === "Urgent" ? " u" : p.text === "High" ? " h" : ""}`} data-pri={classicTheme() ? p.text : undefined}>{p.text}</span> : <span class="muted">—</span>; }      // row 1268: the rating chip, in the colour of the pills
   if (col === "owner") { const o = ownerOf(row.owner); return o.initials ? <span class="wil-own"><span class="av" aria-hidden="true">{o.initials}</span><span class="nm">{o.text}</span></span> : <span class="muted">{o.text}</span>; }      // row 1268: the avatar and the name, as the built-in rows
   return cellText(row, col, now);
 }
@@ -78,7 +78,7 @@ export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw }) {
               {before.map((c) => <td key={c} class={`wil-c-${c}`}>{cellOf(row, c)}</td>)}
               <td class="wil-c-title">{row.title || ""}</td>
               {after.map((c) => <td key={c} class={`wil-c-${c}`}>{cellOf(row, c)}</td>)}
-              {Eye ? <td class="wil-c-eye"><Eye row={row} /></td> : null}
+              {Eye ? <td class="wil-c-eye"><Eye row={row} />{Eye.Ask ? <Eye.Ask row={row} /> : null}</td> : null}
             </tr>
           ))}
         </tbody>
