@@ -357,7 +357,7 @@ class Walk(Base):
 
     def test_a_left_out_file_that_looks_like_a_secret_is_never_read_or_counted(self):
         self.put("Notes/a.txt", "alpha notes")
-        self.put("Notes/pw.txt", "password = Tr0ub4dor&3xyz")
+        self.put("Notes/pw.txt", "password = " + "hunter2" * 3)
         got = ask_passages.folder_data([str(self.root)], self.data, "alpha password", home=self.home, leave_out={str(self.root): '["Notes/pw.txt"]'})
         self.assertEqual((got.safety, got.secret_labels), (0, ()), "never reached the secret screen")
         again = ask_passages.folder_data([str(self.root)], self.data, "alpha password", home=self.home)
