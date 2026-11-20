@@ -400,6 +400,12 @@ class AskClark(unittest.TestCase):
                 bad += [(f.name, m) for m in ask_clark_misspelt(f.read_text(encoding="utf-8"))]
         self.assertEqual(bad, [])
 
+    def test_the_ask_about_words_are_the_approved_ones(self):
+        """Row 1292: the tooltip and the aria label start with a capital A (NEW-WORDS L1491 and L1500); 'clark' stays lower case."""
+        words = (PAGE_SRC / "edit" / "askWords.js").read_text(encoding="utf-8")
+        self.assertIn('export const ABOUT_TITLE = "Ask clark about this";', words)
+        self.assertIn("export const ABOUT_LABEL = (name) => `Ask clark about ${name}`;", words)
+
     def test_the_heading_is_the_only_exception_and_the_rule_still_bites(self):
         self.assertEqual(ask_clark_misspelt("Ask clark to update for you. Then ask clark again."), [])
         self.assertEqual(ask_clark_misspelt("Ask clark to update. ASK CLARK now. Ask Clark to update for you"), ["Ask clark", "ASK CLARK", "Ask Clark to update for you"])
