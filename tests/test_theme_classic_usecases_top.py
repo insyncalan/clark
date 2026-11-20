@@ -70,7 +70,7 @@ class Top(unittest.TestCase):
                 self.assertEqual(g["crumb"][3], "13px", "Crumb: 13 px")
                 self.assertEqual(g["listCrumb"], ["none", "normal", "400", "13px"])
                 for k in ("group", "sort"):
-                    self.assertEqual(g[k][0], "rgba(0, 0, 0, 0)", k + ": no border")
+                    self.assertEqual(g[k][0], g["grey500"], k + ": the 1px grey border of rows 1316 and 1357 item 2 (Classic)")
                     self.assertEqual(g[k][1], "rgba(0, 0, 0, 0)", k + ": no fill")
                 self.assertEqual((g["groupChev"], g["sortChev"], g["menuChev"]), (False, False, "none"), "no chevrons (row 1325, Classic only: Group by and Sort by are icon buttons)")
                 self.assertEqual(g["menuDots"], '"…"', "the tab menu is the three dots")
