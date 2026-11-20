@@ -488,6 +488,26 @@ html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tce
 .uc .ucref { padding: 1px var(--space-2); border: 1px solid var(--grey-500); font-weight: var(--weight-regular); }
 .uc .cchip { border-radius: var(--radius-pill); font-weight: var(--weight-regular); line-height: 18px; }
 .uc .cchip:not(.cc-committed) { border-color: var(--grey-200); color: var(--text-muted); }
+/* Row 1261 (Classic only, Cards unchanged; mock-up headline-approved.html .swrow, .teye.inl, .warnline): the Report headline's eye row in Edit. The eye is a 28 by 28 button with a 1px control edge, in the flow (the shared .teye sits at a tile's corner), beside the words "Show project health here"; the warning when At a glance also shows the health is a 3px amber left edge on the amber tint, 13px. With the pill hidden the headline and the sentence start at the left (View: .nopill). */
+.tpl-rh-eyerow { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 10px; font-size: var(--size-caption); color: var(--text); }
+.tpl-rh-eyerow .teye { position: static; width: 28px; height: 28px; border: 1px solid var(--control-edge); }
+.tpl-rh-warn { margin: 0 0 10px; padding: 6px 10px; border-left: 3px solid var(--status-amber); background: var(--status-amber-tint); color: var(--text); font-size: var(--size-caption); }
+.tpl-rh.nopill .tpl-rh-text { flex: 1 1 100%; width: 100%; }
+/* Row 1261 (Classic only): the Report headline's View sizes are the approved mock-up's, not the shared tokens' (mock-up .health, h1, .meta, .rag, .lead): title 30px, weight 600, line 1.2, 4px under it; meta 4px under (the rendered mock-up: its `.top p` rule beats the `.meta` 16px, ruling 20-11), so the title top to the rule is 65px; the row gap 12px; the pill 14px bold, 2px 12px, at least 28px high, icon gap 6px, tracking .03em; the headline 16px bold. The pill stays beside the text at 900 and in a half column (the mock-up has no stacking rule), so the shared column rule at 900 is undone. */
+.sec[data-type="reportheadline"] .tpl-rh-title { line-height: 1.2; letter-spacing: -.01em; margin-bottom: 4px; }
+.sec[data-type="reportheadline"] .tpl-rh-title { font-family: var(--font-head); }
+.sec[data-type="reportheadline"] .tpl-rh-meta { margin: 0 0 4px; }
+.sec[data-type="reportheadline"] .tpl-rh { gap: 12px; padding: 12px 0; border-top-color: var(--grey-200); border-bottom-color: var(--grey-200); }
+.sec[data-type="reportheadline"] .tpl-rh-pill { gap: 6px; min-height: 28px; padding: 2px 12px; font-size: 14px; font-weight: 700; letter-spacing: .03em; }
+.sec[data-type="reportheadline"] .tpl-rh-h { font-size: 16px; font-weight: 700; }
+@media (max-width: 900px) { .sec[data-type="reportheadline"] .tpl-rh { flex-direction: row; gap: 12px; } }
+/* Row 1261 (Classic only, ruling 20-11): the View has no section heading for the Report headline (the mock-up is the flat block with only its page title); it stays in the page for a screen reader (visually hidden, as the shared no-head rule does) and Edit keeps it. The Edit pill is the View capsule (same tint, icon, caps text) plus a small arrow; the Edit fields are the mock-up's boxes: 1px --grey-500 edge, radius 6px, at least 64px, padding 6px 10px, the headline box bold, 2px between a label and its box. */
+#report[data-mode="view"] .sec[data-type="reportheadline"] > .sec-head { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+button.pillbtn.tpl-rh-pill { font-weight: 700; border-radius: var(--radius-pill); }
+button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
+.tpl-rh-edit-text { gap: 2px; }
+.tpl-rh-in { border: 1px solid var(--grey-500); border-radius: 6px; min-height: 64px; padding: 6px 10px; }
+.tpl-rh-in.tpl-rh-hin { font-weight: 700; }
 .ask-safety { margin: var(--space-2) 0 0; padding: 0; list-style: none; }   /* row 1294: the Changes and safety list is plain like .ask-folders: no bullets */
 .ask-safety li { margin-top: var(--space-1); }
 
