@@ -78,7 +78,7 @@ export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw }) {
               {before.map((c) => <td key={c} class={`wil-c-${c}`}>{cellOf(row, c)}</td>)}
               <td class="wil-c-title">{row.title || ""}</td>
               {after.map((c) => <td key={c} class={`wil-c-${c}`}>{cellOf(row, c)}</td>)}
-              {Eye ? <td class="wil-c-eye"><Eye row={row} /></td> : null}
+              {Eye ? <td class="wil-c-eye"><Eye row={row} />{Eye.Ask ? <Eye.Ask row={row} /> : null}</td> : null}
             </tr>
           ))}
         </tbody>
