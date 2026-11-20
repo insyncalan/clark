@@ -11,6 +11,7 @@ import { Menu, Fade } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { actionIcon } from "../menuIcons.js";
 import { AiFlow, DRAFT_WITH_AI } from "./DraftAi.jsx";
+import { classicTheme } from "../components/Contents.jsx";
 import { aiClient } from "./aiShared.js";
 
 const BAR = [
@@ -18,6 +19,9 @@ const BAR = [
   "|", ["bullet", "•", "Bulleted list"], ["numbered", "1.", "Numbered list"], ["checklist", "☑", "Checklist"],
   ["quote", "❝", "Quote"], ["rule", "―", "Divider"], "|", ["link", "Link", "Link"], "|", ["undo", "↶", "Undo"], ["redo", "↷", "Redo"],
 ];
+// Row 1288 (Classic only, Cards keeps its words): the "/" menu ends with Ask AI... and its filter box says Filter blocks...
+export const ASK_AI = "Ask AI\u2026";
+const FILTER_WORDS = "Filter blocks\u2026";
 const BUBBLE = [["bold", "B", "Bold"], ["italic", "I", "Italic"], ["strike", "S", "Strikethrough"], ["link", "Link", "Link"]];
 const STYLES = [["paragraph", "Text"], ["h1", "Heading 1"], ["h2", "Heading 2"], ["h3", "Heading 3"]];
 const SLASH = [["h1", "Heading 1"], ["h2", "Heading 2"], ["h3", "Heading 3"], ["bullet", "Bulleted list"], ["numbered", "Numbered list"],
@@ -49,6 +53,7 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
   const aiBox = useRef(null), aiOpen = useRef(false);
   const slashRef = useRef(null); slashRef.current = slash;
   const askRef = useRef(null); askRef.current = () => askFromSlash();
+  const classic = classicTheme();
   const askLine = () => !!ai && classicTheme();               // the "/" menu's foot line (Classic only, and only where the field has an AI place)
   const busy = useRef(false), closed = useRef(false), keep = useRef(false);
   const props = useRef({}); props.current = { onSave, onClose };
@@ -252,7 +257,7 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
       {aiAt ? <div class="rt-ai" ref={aiBox} data-rt-ai><AiFlow place={ai} text={aiAt.text} floating boxRef={null} onAccept={aiAccept} onDone={aiDone} /></div> : null}
       {slash ? (
         <Fade class="rt-slash" boxRef={slashBox} role="listbox" aria-label="Insert">
-          {classic ? <div class="rt-slash-filter" data-rt-slash-filter>{slash.query}</div> : null}
+          {classic ? <div class="rt-slash-filter" data-rt-slash-filter data-ph={FILTER_WORDS}>{slash.query}</div> : null}
           {slash.items.map(([n, w], i) => (
             <button type="button" key={n} role="option" aria-selected={i === slash.at ? "true" : "false"} class={`rt-opt${i === slash.at ? " on" : ""}`}
               onMouseDown={hold} onClick={() => chooseSlash(n)}><Icon name={SLASH_ICON[n] || "tline"} cls="mi" />{w}</button>

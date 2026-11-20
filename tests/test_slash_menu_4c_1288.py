@@ -63,6 +63,8 @@ class Slash(unittest.TestCase):
         with rp.Harness(chrome) as h:
             self.open(h, True, 1400, "")
             self.assertEqual(h.ev("document.querySelector('.rt-slash-filter').textContent"), "")
+            self.assertEqual(h.ev("document.querySelector('.rt-slash-filter').getAttribute('data-ph')"), "Filter blocks\u2026")   # the ruled placeholder, not "Filter"
+            self.assertEqual(h.ev("getComputedStyle(document.querySelector('.rt-slash-filter'), '::before').content"), '"Filter blocks\u2026"')
             h.type("head")
             self.assertTrue(h.until("document.querySelectorAll('.rt-slash [role=option]').length === 4"))   # 3 headings + Ask
             self.assertEqual(h.ev("document.querySelector('.rt-slash-filter').textContent"), "head")
