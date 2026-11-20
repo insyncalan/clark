@@ -260,6 +260,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
   .set-bar { background: var(--grey-50); border-radius: 10px; }   /* Row 1356: the prototype's panel fill (soft, F6F8FC) and radius 10 */
   .set-group-name { text-transform: none; letter-spacing: normal; font-size: 14px; font-weight: 600; }
   .set-chip[aria-current], .set-chip[aria-current]:hover { border-radius: 10px; }
+  .set-chip[aria-current]::before { top: 7px; bottom: 7px; left: 0; width: 3px; border-radius: 3px; }   /* ruling 20-11 (prototype settings.css:34-37): the chip is 10px on all four corners and the 3px marker is drawn inside it, 7px from its top and bottom */
   .set-chip { min-height: 36px; }
 }
 
