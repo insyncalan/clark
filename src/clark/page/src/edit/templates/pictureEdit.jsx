@@ -118,8 +118,9 @@ export function CaptionField({ section, field, label, value, max, words, save, e
   );
 }
 
+// Row 1251: `sample` (Classic only) draws a sample picture in an empty slot: drawn by the page, never saved, so it is never in a published file.
 // One picture's place: the picture, or an empty frame; Add a picture (or drop one here), Change picture, Take the picture out.
-export function PictureSlot({ section, slot, image, label, longest = 1600, most = 1024 * 1024, words, emptyWords = "" }) {
+export function PictureSlot({ section, slot, image, label, longest = 1600, most = 1024 * 1024, words, emptyWords = "", sample = false }) {
   const input = useRef(null);
   const [busy, setBusy] = useState(false);
   const [over, setOver] = useState(false);
@@ -140,6 +141,7 @@ export function PictureSlot({ section, slot, image, label, longest = 1600, most 
   return (
     <div class={`tpl-pic-slot${pic ? " has-pic" : ""}${over ? " over" : ""}`} data-slot={slot}
       onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)} onDrop={onDrop}>
+      {!pic && sample ? <div class="tpl-pic-sample" data-sample aria-hidden="true"><i /><b /></div> : null}
       {pic ? <img src={pic} alt="" class="tpl-pic-slot-img" /> : <p class="tpl-pic-slot-empty">{busy ? "Making the picture smaller…" : (emptyWords || `${label}: choose a picture, or drop one here.`)}</p>}
       <div class="tpl-pic-slot-acts">
         <button type="button" class="btn sm" data-act="pick" disabled={busy} onClick={() => input.current && input.current.click()}>

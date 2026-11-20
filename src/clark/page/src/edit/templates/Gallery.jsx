@@ -3,7 +3,7 @@
 // (pictureEdit.jsx), made smaller than in the one-picture templates so six fit one section. Taking a picture out takes its caption
 // with it. Given { section, tools }. Limits are gallery.py's.
 import { LineField, CaptionField, PictureSlot, PicturesTotal, saveWords, wordsOf } from "./pictureEdit.jsx";
-import { startOr } from "../startingText.js";
+import { startOr, classicLook } from "../startingText.js";
 import { picturesOf, stored } from "../../templates/pictures.jsx";
 import { SLOTS } from "../../templates/Gallery.jsx";
 
@@ -42,7 +42,7 @@ export function Edit({ section }) {
       <div class="tpl-gal-grid">
         {shownSlots.map((s, i) => (
           <div class="tpl-gal-one" key={s}>
-            <PictureSlot section={section} slot={s} image={pics[s] || ""} label={`Picture ${i + 1}`} longest={LONGEST} most={MOST} words={WORDS} emptyWords={startOr("", "gallery", "empty")} />
+            <PictureSlot section={section} slot={s} image={pics[s] || ""} label={`Picture ${i + 1}`} longest={LONGEST} most={MOST} words={WORDS} emptyWords={startOr("", "gallery", "empty")} sample={classicLook() && !filled.length} />
             {pics[s] ? <ItemField section={section} slot={s} field="caption" label={`Caption ${i + 1}`} value={(items[s] || {}).caption} words="Caption saved." empty={startOr(undefined, "gallery", "caption")} /> : null}
             {pics[s] ? <ItemField section={section} slot={s} field="alt" label={`Describe picture ${i + 1}`} value={(items[s] || {}).alt} words="Description saved." /> : null}
           </div>
