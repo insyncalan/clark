@@ -153,6 +153,8 @@ h1, h2, h3 { font-weight: var(--weight-medium); }
 .cnt li a:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 @media print { .cnt { display: none; } .cnt-grid { display: block; } }
 html.print-all .cnt { display: none; }
+/* The Work items + New view button is the brand colour in Classic (row 1314; the shared button is grey, and Cards keeps it). Same as the Use cases button above; scoped to the Work items page. */
+#work .vnew, #work .vnew:hover { color: var(--brand-blue); }
 /* Row 1313 block (dashboard style gaps vs prototype 2.0), Classic only. Kept apart from the rules above so it merges cleanly. Bare values with no token, as for row 1260: the 103px height of the narrow bar, the 1px divider width and the 1180px break (the shell's own break for Project health). The editor bar title is one line with an ellipsis on every page that has the editor bar (issue 1341); the published file bar, .top-file, keeps row 1239 and wraps. */
 .glance[data-glance] { gap: 0; }
 .glance[data-glance] .fig { border: 0; border-radius: 0; background: none; }
