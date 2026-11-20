@@ -35,7 +35,7 @@ function lastItems(list) {
 }
 
 // What can be done about those items, each built from the items it is true of: the due date of the overdue ones, the urgency of the overdue ones that
-// are not red yet. Why late is asked only when one is overdue; who owns whenever the answer named an item.
+// are not red yet. Why late is asked only when one is overdue; who owns, and the report, whenever the answer named an item.
 function actionsFor(items) {
   if (!items.length) return [];
   const has = (i, w) => i.state.includes(w);
@@ -47,6 +47,7 @@ function actionsFor(items) {
     soft.length ? { label: W.PILLS_ITEM_URGENCY, ask: `${W.PILLS_ITEM_URGENCY} (${ids(soft)})` } : null,
     late.length ? { label: W.PILLS_ITEM_LATE, ask: W.PILLS_ITEM_LATE } : null,
     { label: W.PILLS_ITEM_OWNERS, ask: W.PILLS_ITEM_OWNERS },
+    { label: W.PILLS_ITEM_REPORT, ask: W.PILLS_ITEM_REPORT },
   ].filter(Boolean);
 }
 
