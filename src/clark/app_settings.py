@@ -18,7 +18,7 @@ import re
 import threading
 from pathlib import Path
 
-from clark import ask_connectors, platform
+from clark import ask_connectors, ask_words, platform
 from clark.store import CODE_RE, CONNECTORS, HIDDEN_CONNECTORS, THEMES, Invalid, open_store
 
 SETTINGS_FIELDS = ("ask_enabled", "updated_at", "theme")
@@ -94,6 +94,8 @@ class AppSettings:
     # ----- the ask switch -----
     def answer_ask(self, store, message=None, apply_id=None):
         body = {"ok": True, "ask_enabled": store.ask_enabled(), "saved": store.settings_ready()}
+        if platform.container_mode():             # Row 1293: Settings says asking is not available in Docker
+            body["docker"], body["docker_line"] = True, ask_words.DOCKER
         if message:
             body["message"] = message
         if apply_id:
