@@ -23,7 +23,6 @@ const ICONS = {
   pencil: '<path d="M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4"/>',
   filter: '<path d="M3 5h18l-7 8v6l-4-2v-4z"/>',
   table: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/>',
-  twoways: '<path d="M12 21v-8M12 13 5 6M12 13l7-7M5 10V6h4M15 6h4v4"/>',
   columns: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16M15 4v16"/>',
   board: '<rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="10" rx="1"/><rect x="17" y="4" width="4" height="13" rx="1"/>',
   group: '<rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/>',
@@ -60,6 +59,8 @@ const ICONS = {
   // Row 1272: the Callout's icons (question to shield) and the five shapes a colour draws when it has no word and no icon.
   question: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.6 2.3c-.7.4-1.1.9-1.1 1.7M12 16.8v.2"/>',
   warning: '<path d="M12 3.5 22 20H2z"/><path d="M12 10v5M12 17.4v.2"/>',
+  // Row 1272 (owner ruling 20-11): fork is the two-way fork (mock-up gen.py ICONS_NEW); the one triangle is the key warning above.
+  fork: '<circle cx="12" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="19" r="2"/><path d="M12 7v4M12 11l-6 6M12 11l6 6"/>',
   alert: '<path d="M8.5 3h7L21 8.5v7L15.5 21h-7L3 15.5v-7z"/><path d="M12 8v5M12 16v.2"/>',
   lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3M12 15v2"/>',
   key: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M16 7l3 3M14 9l2 2"/>',

@@ -48,6 +48,9 @@ class Data(n.DataChecks):
         self.assertNotIn(ref, self.file_sections())
 
 
+NEW_ICON_NAMES = ("Lightning", "Eye", "Table", "Gear", "Sparkle", "Two ways", "Warning triangle")
+
+
 class Words(unittest.TestCase):
     """The named lists and defaults themselves (mutation check): every colour and icon, the tone looks, words() alone."""
 
@@ -56,42 +59,21 @@ class Words(unittest.TestCase):
         self.assertEqual(tuple(callout.COLOURS), ("plain", "violet", "amber", "red", "green", "grey"))
         self.assertEqual(len(callout.ICONS), 27)
         self.assertIn("shield", callout.ICONS)
-        # row 1272 gap 2: the ticket's five more icons, named as the ticket names them
-        self.assertEqual({k: callout.ICONS[k] for k in ("flash", "sparkle", "eye", "gear", "table")},
-                         {"flash": "Lightning", "sparkle": "Sparkle", "eye": "Eye", "gear": "Gear", "table": "Table"})
-        # row 1272 ruling (1): Two ways is new; Warning triangle is the existing "warning" icon (label Warning, triangle glyph)
-        self.assertEqual(callout.ICONS["twoways"], "Two ways")   # the name approved in NEW-WORDS.md lines 1784 and 1899 (Lightning, Sparkle, Eye, Gear, Table, Two ways)
-        self.assertEqual(callout.ICONS["warning"], "Warning")
+        self.assertEqual(callout.ICONS["warning"], "Warning triangle")
+        self.assertNotIn("warn", callout.ICONS)
         self.assertEqual(callout.COLOURS["grey"], "Grey")
         self.assertEqual(callout.TONE_LOOK, {"info": ("violet", "info"), "decision": ("amber", "question"), "warning": ("red", "warning")})
         self.assertEqual(callout.upgrade({"v": 1, "tone": "warning"}),
                          {"v": 1, "tone": "warning", "category": "Warning", "colour": "red", "icon": "warning", "tile": True, "heading": True})
 
-    def test_every_server_icon_is_drawable_and_the_page_list_matches_the_server_list(self):
-        import re
+    def test_the_decision_suggestion_icon_is_fork_named_two_ways_and_the_warning_icon_is_named_warning_triangle(self):
         from pathlib import Path
         from clark.section_kinds import callout
-        src = Path(callout.__file__).parent.parent / "page" / "src"
-        notes = (src / "templates" / "notes.js").read_text()
-        page = dict(re.findall(r'(\w+): "([^"]+)"', re.search(r"export const ICONS = \{(.*?)\};", notes, re.S).group(1)))
-        self.assertEqual(page, callout.ICONS, "client and server icon lists are the same names in the same order")
-        self.assertEqual(list(page), list(callout.ICONS))
-        glyphs = (src / "components" / "Icon.jsx").read_text()
-        drawn = {}
-        for k in callout.ICONS:
-            if k != "none":
-                m = re.search(rf"^\s*{k}: '(<.*)$", glyphs, re.M)
-                self.assertTrue(m, f"{k} has a drawing in Icon.jsx")
-                drawn[k] = m.group(1)
-        same = sorted(k for k in drawn for j in drawn if k < j and drawn[k] == drawn[j])
-        self.assertEqual(same, [], "every icon has its own drawing: two keys share one glyph")
-        self.assertEqual(len(set(drawn.values())), len(drawn))
-
-    def test_the_five_new_icons_are_kept_and_named_in_the_published_words(self):
-        from clark.section_kinds import callout
-        for k, n in (("flash", "Lightning"), ("sparkle", "Sparkle"), ("eye", "Eye"), ("gear", "Gear"), ("table", "Table"), ("twoways", "Two ways")):
-            self.assertEqual(callout.words({"v": 1, "icon": k})["icon_name"], n)
-            self.assertEqual(callout.check({"v": 1, "tone": "info", "icon": k}, None)["icon"], k)
+        self.assertEqual(callout.words({"v": 1, "icon": "fork"})["icon_name"], "Two ways")
+        self.assertEqual(callout.words({"v": 1, "icon": "warning"})["icon_name"], "Warning triangle")
+        self.assertNotIn("twoways", callout.ICONS)
+        jsx = (Path(callout.__file__).parent.parent / "page" / "src" / "edit" / "templates" / "Callout.jsx").read_text(encoding="utf-8")
+        self.assertIn('decision: ["amber", "fork"]', jsx)
 
     def test_words_alone_carries_the_category_colour_and_icon(self):
         from clark.section_kinds import callout
@@ -302,7 +284,7 @@ class Page(n.PageChecks):
 
     def test_edit_each_suggestion_sets_its_own_colour_and_icon(self):
         from test_server import wait
-        for label, want in (("Use Decision needed", ("Decision needed", "amber", "twoways", "decision")), ("Use Information", ("Information", "violet", "info", "info"))):
+        for label, want in (("Use Decision needed", ("Decision needed", "amber", "fork", "decision")), ("Use Information", ("Information", "violet", "info", "info"))):
             ref = self.make({**GOOD, "tone": "warning"})
             with self.subTest(label=label), chrome() as cdp:
                 p = self.visit(cdp)
@@ -330,6 +312,18 @@ class Page(n.PageChecks):
             p.js(f"{q('Choose an icon')}.click()")
             p.until(f"!!document.querySelector('{sec} [role=listbox]')", "the icons are listed")
             self.assertEqual(p.js(f"document.querySelectorAll('{sec} [role=option]').length"), 27, "26 icons and No icon")
+            names = p.js(f"[...document.querySelectorAll('{sec} [role=option]')].map(o => o.textContent)")
+            for n in ("Two ways", "Warning triangle"):
+                self.assertIn(n, names, "each named icon is in the picker")
+            self.assertEqual(names.count("Warning triangle"), 1, "one triangle entry")
+            self.assertNotIn("Warning", names, "the old name is not shown beside it")
+            names = p.js(f"[...document.querySelectorAll('{sec} [role=option]')].map(o => o.textContent)")
+            for n in NEW_ICON_NAMES:
+                self.assertIn(n, names, "each new icon is in the picker")
+            self.assertEqual(names.count("Warning triangle"), 1, "one triangle entry")
+            self.assertNotIn("Warning", names, "the old name is not shown beside it")
+            self.assertNotIn("Magnifier", names)
+            self.assertNotIn("Person", names)
             p.js(f"[...document.querySelectorAll('{sec} [role=option]')].find(o => o.textContent === 'Key').click()")
             self.assertTrue(wait(lambda: json.loads(self.body_of(ref)).get("icon") == "key", 10), self.body_of(ref))
             self.assertFalse(p.js(f"!!document.querySelector('{sec} [role=listbox]')"), "choosing closes the list")
@@ -354,7 +348,7 @@ class Page(n.PageChecks):
             self.assertEqual((got["category"], got["colour"], got["icon"]), ("Legal hold", "amber", "question"))
 
     def test_edit_the_decision_icon_is_two_ways_the_title_and_words_line_up_with_the_category_and_the_counter_counts(self):
-        """Row 1272 (read of PR 2089 of 20-11: Two ways): the Decision suggestion sets the Two ways icon; the title text and the words text start where the
+        """Row 1272 (read of PR 2089 of 20-11: Two ways): the Decision suggestion sets the Two ways icon (key fork); the title text and the words text start where the
         category word starts; the toolbar says "Title N of 120" (N = characters typed, Edit only)."""
         for width in (1400, 900):
             ref = self.make(GOOD)
@@ -366,7 +360,7 @@ class Page(n.PageChecks):
                 p.until(f"!!document.querySelector('{sec} [aria-label=\"Use Decision needed\"]')", "the toolbar")
                 p.js(f"document.querySelector('{sec} [aria-label=\"Use Decision needed\"]').click()")
                 p.saved()
-                self.assertEqual(json.loads(self.body_of(ref))["icon"], "twoways")
+                self.assertEqual(json.loads(self.body_of(ref))["icon"], "fork")
                 p.until(f"!!document.querySelector('{sec} .tpl-callout-tone')", "the category word")
                 left = p.js(f"""(() => {{ const q = (s) => document.querySelector('{sec} ' + s), edge = (el) => {{ const r = el.getBoundingClientRect(), c = getComputedStyle(el);
                     return Math.round((r.left + parseFloat(c.borderLeftWidth) + parseFloat(c.paddingLeft)) * 10) / 10; }};

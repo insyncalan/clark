@@ -28,6 +28,7 @@ from clark import excel, glance
 from clark import excel_colours as colours
 from clark import platform, publish, sanitise
 from clark import glance_print
+from clark.excel_callout_lines import callout_lines
 from clark.section_kinds import reportheadline
 
 NAME = re.compile(r'[^\\/:*?"<>|\x00-\x1f]{1,120}')      # what the page accepts as a download name
@@ -292,6 +293,23 @@ def write_glance_sheet(wb, published, sec, palette=None):
     return ws
 
 
+def write_callout_text(ws, sec):
+    """Row 1272: a callout section as text blocks on the workbook's first sheet (Actions when the page has it), below that sheet's table,
+    the lines `callout_lines` gives (heading, then the category, colour and icon line, then the words), one row each in
+    column A below the last row the sheet already holds, after one empty row. The heading line is bold and is left out when the callout's Heading
+    switch is off. Locked text, not wrapped (it runs across the empty cells to its right). Returns the number of lines written."""
+    lines = callout_lines(sec)
+    if not lines:
+        return 0
+    r = ws.max_row + 2
+    for r, (text, heading) in enumerate(lines, start=r):
+        cell = ws.cell(row=r, column=1, value=excel.cell_text(text))
+        cell.font = Font(name=FONT, size=11, bold=heading)
+        cell.alignment = Alignment(vertical="top")
+        excel.protect_text_cell(cell)
+    return len(lines)
+
+
 def workbook_bytes(published, palette=None):
     """The client workbook as .xlsx bytes (the same bytes for the same published content)."""
     wb = Workbook()
@@ -313,6 +331,9 @@ def workbook_bytes(published, palette=None):
         put_headline(ws, published, 1, palette)
         excel.print_setup(ws)
         excel.protect_sheet(ws)
+    for sec in published.get("sections") or ():
+        if sec.get("type") == "callout":
+            write_callout_text(wb[wb.sheetnames[0]], sec)
     props = wb.properties
     props.creator = props.lastModifiedBy = excel.FIXED_NAME
     stamp = datetime.fromisoformat(published["as_at"] + "T00:00:00")
