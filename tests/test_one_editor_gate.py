@@ -108,9 +108,12 @@ class MovedFields(unittest.TestCase):
             self.assertIn("richOrPlain(", (PAGE_SRC / rel).read_text(encoding="utf-8"), rel)
 
     def test_plain_text_fields_on_the_editor_save_plain_text_never_markup(self):
-        """Item 1005: Client wording and captions are stored, published and exported as plain text, so the editor's HTML is flattened before it is sent."""
-        for rel in ("edit/templates/pictureEdit.jsx", "edit/ItemRowsEdit.jsx"):
-            self.assertIn("plainFromEditor(", (PAGE_SRC / rel).read_text(encoding="utf-8"), rel)
+        """Item 1005: captions are stored, published and exported as plain text, so the editor's HTML is flattened before it is sent.
+        Row 1288: a row's Client wording is the Full editor and sends the editor's HTML (the server cleans it; the file and the exports carry its words)."""
+        self.assertIn("plainFromEditor(", (PAGE_SRC / "edit/templates/pictureEdit.jsx").read_text(encoding="utf-8"))
+        rows = (PAGE_SRC / "edit/ItemRowsEdit.jsx").read_text(encoding="utf-8")
+        self.assertNotIn("plainFromEditor(", rows)
+        self.assertNotRegex(rows, r"<RichField[^>]*\boneLine\b")
         # Row 1078: a milestone's client wording is rich now (the editor's HTML is saved as it is), so the peek does not flatten it.
         peek = (PAGE_SRC / "edit/MilestonePeek.jsx").read_text(encoding="utf-8")
         self.assertNotIn("plainFromEditor(", peek)
@@ -125,7 +128,7 @@ class MovedFields(unittest.TestCase):
         """Row 1005: Words (a report row's Client wording, also the work item peek's) is the RichField with one-line plain storage, not plainBox."""
         rows = (PAGE_SRC / "edit" / "ItemRowsEdit.jsx").read_text(encoding="utf-8")
         self.assertNotIn("plainBox", rows)
-        self.assertIn("oneLine", rows)
+        self.assertNotRegex(rows, r"<RichField[^>]*\boneLine\b")      # row 1288: the Full editor
         self.assertIn("changeCell(", rows, "still one change with one Undo")
         peek = (PAGE_SRC / "edit" / "PeekWording.jsx").read_text(encoding="utf-8")
         self.assertIn("Words", peek)
@@ -479,7 +482,7 @@ class MovedLatestFields(unittest.TestCase):
         from clark import excel
         self.assertEqual(set(excel.RICH_WORDS), set(publish.LEGACY_RICH) | {("milestones", "internal_note"), ("use_cases", "standing")}, "the workbook carries the words of the same fields, of the Movement note (never published, so not in the published list) and, row 1060, of a use case's Where it stands (HTML from the start, so not legacy)")
         src = (SRC / "clark" / "changes.py").read_text(encoding="utf-8")
-        self.assertEqual(src.count("_rich_field("), 6, "the definition and the five writes (latest update, Internal note, a milestone's latest update, description, client wording)")
+        self.assertEqual(src.count("_rich_field("), 7, "the definition and the six writes (latest update, Internal note, a milestone's latest update, description, milestone words, an item's client wording)")
 
     def test_the_published_page_carries_no_editor_for_them(self):
         page.ensure_built()

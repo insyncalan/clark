@@ -13,6 +13,7 @@
 // adds or removes it, Cmd or Ctrl+A selects every row shown; each group heading has a tick box. The rules are in pick.js.
 // Hand over (#199, edit/HandOver.jsx): while pick mode is on the table is drawn with a tick box on each open item, a click or Space on a
 // row only ticks it, and none of the keys above, the cells' pickers or the peek is on. The ticks are stores/handover.js `ticks`.
+import { richWords } from "../logic/richWords.js";
 import { signal } from "@preact/signals";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { cursor, stopOf as stopOfIds, moveTo } from "../listKeys.js";
@@ -146,7 +147,7 @@ const labelOf = (id) => (defsOf("work").find((c) => c.id === id) || {}).label ||
 const EXTRA = {
   id: (r) => r.id, type: (r) => KIND_WORDS[r.kind] || "", workstream: (r) => r.workstream, milestone: (r) => r.milestone, usecase: (r) => r.uc,
   raised: (r) => { const d = r.raised || r.raised_on; return d ? showDate(d) : ""; }, closed: (r) => (r.closed ? showDate(r.closed) : ""),
-  labels: labelsText, latest: (r) => r.latest_update, wording: (r) => r.client_message,
+  labels: labelsText, latest: (r) => r.latest_update, wording: (r) => richWords(r.client_message),
 };
 const extraCell = (id, row) => { const t = String((EXTRA[id] || (() => ""))(row) || "").trim(); return t ? (id === "id" || id === "raised" || id === "closed" ? <span class="num">{t}</span> : t) : <span class="muted">{"—"}</span>; };
 const extras = (cols) => cols.filter((id) => !isStd(id));

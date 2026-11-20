@@ -3,6 +3,7 @@
 // (an accordion): where it stands, the open next steps as "Owner: what it is", and "See all N work items". Read-only here: changing a
 // status, linking a work item and editing the text are other items'. In a published file every use case and linked item on the page
 // is one the file kept (publish.select), so the page counts what it holds and a Sensitive or client-off item is never drawn.
+import { richWords } from "../logic/richWords.js";
 import { watchRefit } from "../logic/ucRefit.js";
 import { StepsBadge } from "./StepsBadge.jsx";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
@@ -45,7 +46,7 @@ const press = (e, run) => { if (e.key === "Enter" || e.key === " ") { e.preventD
 /** One next step: the owner's initials in a circle, the owner, then the client's wording when the item has some, else its own title. */
 export function StepLine({ r }) {
   const o = ownerOf(r.owner), who = o.initials ? o.text : "No owner";
-  return <>{o.initials ? <span class="av" data-step-av aria-hidden="true">{o.initials}</span> : null}<span class="ucstept"><b>{who}:</b> {r.client_message || r.title}</span></>;
+  return <>{o.initials ? <span class="av" data-step-av aria-hidden="true">{o.initials}</span> : null}<span class="ucstept"><b>{who}:</b> {richWords(r.client_message) || r.title}</span></>;
 }
 
 function Row({ s, shown, toggle, ed }) {
