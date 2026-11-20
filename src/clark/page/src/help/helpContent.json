@@ -814,7 +814,7 @@
     "go": "settings#update",
     "s": [
      "Open [Settings](go:settings#update) and find **Version and updates**. **Installed** is the version you have now.",
-     "From the clark releases page, download the update attached to the release for your computer. If it is in Downloads, **Update** shows a **Review** button with the new version number; otherwise press **Choose zip…** under **Use a file instead** and pick the update.",
+     "In **Settings**, open **Version and updates** and press **Check now**. When a newer version is there, press **Download**; when it says the download is checked, press **Install and restart**. If you were sent the update file, press **Choose zip…** under **Use a file instead** and pick it; **Review** shows the version before you install.",
      "Read the review: the version change, the release notes, the files replaced, added and removed. Your projects, settings and published reports are kept, and a copy of your data is made first.",
      "Press **Install**. The new version starts by itself and the page reloads.",
      "To go back, press **Undo update** in the **Updated to clark** row, then press it again within five seconds. More in [Updating clark](#ref-updating-clark)."
