@@ -280,12 +280,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 /* Row 1317 (Projects card): Add project is a filled blue button with its plus and its word always shown (shell.css hides the word until hover; the override is Classic only), and the table headers are bold, in the words' own case, without the divider line above them. Classic only; Cards keeps the dashed Add and the tracked capitals. Prototype files are not on this box: built from the issue table. */
 .projects #npBtn.newb { background: var(--brand-blue); border: 1px solid var(--brand-blue); color: var(--text-on-brand); }
 .projects #npBtn.newb .w { max-width: 180px; opacity: 1; margin-left: 6px; margin-right: var(--space-1); }
-.projects table.proj-table th { text-transform: none; letter-spacing: normal; font-weight: 600; color: var(--text-muted); border-top: 0; border-bottom: 1px solid var(--grey-200); padding: 6px 10px 6px 0; }      /* row 1317 follow-up: prototype settings.css:141, --line = grey-200 */
-.projects table.proj-table td { border-top: 0; border-bottom: 1px solid var(--grey-100); padding: 8px 10px 8px 0; }      /* settings.css:142, --line2 = grey-100 */
-/* Row 1317, table ruling (19-11; Classic only): the Settings table header is weight 600, muted, sentence case, padding 6px 10px 6px 0, 1px --line under it; body cells 8px 10px 8px 0 with 1px --line2 under them; the card head has a 1px --line2 divider. The Classic tokens carry no --line / --line2 name: --line is the Classic hairline grey-200 (= --line-soft) and --line2 the lighter grey-100. */
-.set-cards .frame table th { color: var(--text-muted); font-weight: 600; text-transform: none; letter-spacing: normal; padding: 6px 10px 6px 0; border-top: 0; border-bottom: 1px solid var(--grey-200); }
-.set-cards .frame table td { padding: 8px 10px 8px 0; border-top: 0; border-bottom: 1px solid var(--grey-100); }
-.set-cards .frame > :is(h2, .proj-head) { padding-bottom: var(--space-2); border-bottom: 1px solid var(--grey-100); }
+.projects table.proj-table th { text-transform: none; letter-spacing: normal; font-weight: 700; border-top: 0; }
 
 /* Row 1317 (Projects Code cell): the Code cell stays on one line. shell.css/edit.css let the cell break anywhere, so MOSS broke as MOS / S once the sentence-case header made the column narrow. Classic only. */
 .projects table.proj-table td.num { white-space: nowrap; }

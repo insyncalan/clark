@@ -25,7 +25,7 @@ CARDS_SHA256 = "bbd5f8b4139b78174b4cf9c5bcd4e75657e00645009f5790869c1e68a4b068a2
 SIZES = (1400, 900)
 PROBE = """(() => { const q = (s) => document.querySelector(s), g = (e, p) => getComputedStyle(e)[p];
   const tok = (v, p) => { const i = document.createElement('i'); i.style[p || 'color'] = v; document.body.appendChild(i); const r = getComputedStyle(i)[p || 'color']; i.remove(); return r; };
-  const bar = q('.set-bar'), cur = q('.set-chip[aria-current]'), name = q('.set-group-name'), card = q('.set-cards .frame'), th = q('#projects-table th'), td = q('#projects-table tbody td'), hd = q('#projects > .proj-head');
+  const bar = q('.set-bar'), cur = q('.set-chip[aria-current]'), name = q('.set-group-name'), card = q('.set-cards .frame'), th = q('#projects-table th');
   const mc = q('#projects-table tr[data-project="MOSS"] td.num'), rg = document.createRange(); rg.selectNodeContents(mc);
   const lines = new Set([...rg.getClientRects()].map((r) => Math.round(r.top))).size, mtr = mc.parentElement;
   const broken = []; document.querySelectorAll('#projects-table tbody td:not(.acts)').forEach((td) => { const w = document.createTreeWalker(td, NodeFilter.SHOW_TEXT); let n;
@@ -42,8 +42,7 @@ PROBE = """(() => { const q = (s) => document.querySelector(s), g = (e, p) => ge
     icons: btn.querySelectorAll('svg, .i').length, iconW: Math.round((btn.querySelector('svg, .i') || {getBoundingClientRect: () => ({width: 0})}).getBoundingClientRect().width),
     codeText: mc.textContent.trim(), codeLines: lines, codeW: Math.round(mc.getBoundingClientRect().width), rowH: Math.round(mtr.getBoundingClientRect().height),
     brokenWords: broken, codeWs: g(mc, 'whiteSpace'), codeWrap: g(mc, 'overflowWrap'),
-    groupSize: g(name, 'fontSize'), groupWeight: g(name, 'fontWeight'), chipH: Math.round(q('.set-chip:not([aria-current])').getBoundingClientRect().height), thPad: g(th, 'padding'), thColor: g(th, 'color'), muted: tok('var(--text-muted)'), thBB: [g(th, 'borderBottomWidth'), g(th, 'borderBottomStyle'), g(th, 'borderBottomColor')].join(' '), line: tok('var(--grey-200)', 'borderBottomColor'), line2: tok('var(--grey-100)', 'borderBottomColor'),
-    tdPad: g(td, 'padding'), tdBB: [g(td, 'borderBottomWidth'), g(td, 'borderBottomStyle'), g(td, 'borderBottomColor')].join(' '), hdBB: [g(hd, 'borderBottomWidth'), g(hd, 'borderBottomStyle'), g(hd, 'borderBottomColor')].join(' '),
+    groupSize: g(name, 'fontSize'), groupWeight: g(name, 'fontWeight'), chipH: Math.round(q('.set-chip:not([aria-current])').getBoundingClientRect().height),
     tint: tok('color-mix(in srgb, var(--grey-500) 15%, var(--grey-100))', 'backgroundColor') }; })()"""
 HOVER = """(() => { const c = [...document.querySelectorAll('.set-chip:not([aria-current])')][0]; const r = c.getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)]; })()"""
 HOVERED = "getComputedStyle([...document.querySelectorAll('.set-chip:not([aria-current])')][0]).backgroundColor"
@@ -108,17 +107,9 @@ class RealSettings(unittest.TestCase):
             self.assertEqual((c["barRadius"], c["groupSize"], c["groupWeight"]), ("10px", "14px", "600"), tag + ": panel radius 10, group name 14px 600")
             if width_is_wide(tag):
                 self.assertEqual(c["chipH"], 36, tag + ": sidebar row 36px high")
-            self.assertEqual(c["thPad"], "6px 10px 6px 0px", tag + ": Projects header padding")
-            # Row 1317 table ruling: muted header, --line under it, body cells 8px 10px 8px 0 with --line2, card head divider --line2 (1px each)
-            self.assertEqual(c["thColor"], c["muted"], tag + ": the header is the muted text colour")
-            self.assertEqual(c["thBB"], "1px solid " + c["line"], tag + ": header border-bottom 1px --line")
-            self.assertEqual(c["tdPad"], "8px 10px 8px 0px", tag + ": body cell padding")
-            self.assertEqual(c["tdBB"], "1px solid " + c["line2"], tag + ": body cell border-bottom 1px --line2")
-            self.assertEqual(c["hdBB"], "1px solid " + c["line2"], tag + ": card head divider 1px --line2")
-            self.assertNotEqual(c["line"], c["line2"], tag)
             self.assertNotEqual(c["chipHover"], c["tint"], tag + ": no hover tint on a sidebar chip (not in the list)")
             self.assertEqual((c["cardRadius"], c["cardShadow"]), ("14px", "none"), tag + ": Settings cards radius 14, no shadow")
-            self.assertEqual((c["thCase"], c["thTrack"], c["thWeight"], c["thBorderTop"]), ("none", "normal", "600", "0px"), tag + ": bold sentence-case header, no divider")
+            self.assertEqual((c["thCase"], c["thTrack"], c["thWeight"], c["thBorderTop"]), ("none", "normal", "700", "0px"), tag + ": bold sentence-case header, no divider")
             self.assertEqual((c["btnBg"], c["btnColor"]), (c["brand"], c["onBrand"]), tag + ": Add project is a filled blue button")
             self.assertEqual(c["icons"], 1, tag + ": one plus, as an svg or .i")
             self.assertGreater(c["iconW"], 0, tag)
