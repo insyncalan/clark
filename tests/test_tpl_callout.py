@@ -47,13 +47,16 @@ class Data(n.DataChecks):
         self.assertNotIn(ref, self.file_sections())
 
 
+NEW_ICON_NAMES = ("Lightning", "Eye", "Table", "Gear", "Sparkle", "Two ways", "Warning triangle")
+
+
 class Words(unittest.TestCase):
     """The named lists and defaults themselves (mutation check): every colour and icon, the tone looks, words() alone."""
 
     def test_every_colour_and_icon_is_named_and_the_tone_looks_are_kept(self):
         from clark.section_kinds import callout
         self.assertEqual(tuple(callout.COLOURS), ("plain", "violet", "amber", "red", "green", "grey"))
-        self.assertEqual(len(callout.ICONS), 21)
+        self.assertEqual(len(callout.ICONS), 28)
         self.assertIn("shield", callout.ICONS)
         self.assertEqual(callout.COLOURS["grey"], "Grey")
         self.assertEqual(callout.TONE_LOOK, {"info": ("violet", "info"), "decision": ("amber", "question"), "warning": ("red", "warning")})
@@ -285,7 +288,12 @@ class Page(n.PageChecks):
             self.assertEqual(json.loads(self.body_of(ref))["category"], "Decision needed", "the word an older callout drew is kept")
             p.js(f"{q('Choose an icon')}.click()")
             p.until(f"!!document.querySelector('{sec} [role=listbox]')", "the icons are listed")
-            self.assertEqual(p.js(f"document.querySelectorAll('{sec} [role=option]').length"), 21, "20 icons and No icon")
+            self.assertEqual(p.js(f"document.querySelectorAll('{sec} [role=option]').length"), 28, "27 icons and No icon")
+            names = p.js(f"[...document.querySelectorAll('{sec} [role=option]')].map(o => o.textContent)")
+            for n in NEW_ICON_NAMES:
+                self.assertIn(n, names, "each new icon is in the picker")
+            self.assertNotIn("Magnifier", names)
+            self.assertNotIn("Person", names)
             p.js(f"[...document.querySelectorAll('{sec} [role=option]')].find(o => o.textContent === 'Key').click()")
             self.assertTrue(wait(lambda: json.loads(self.body_of(ref)).get("icon") == "key", 10), self.body_of(ref))
             self.assertFalse(p.js(f"!!document.querySelector('{sec} [role=listbox]')"), "choosing closes the list")
