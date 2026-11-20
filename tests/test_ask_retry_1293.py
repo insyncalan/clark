@@ -5,9 +5,10 @@ A busy or unusable database (status 503) or a fault saves nothing, so the reply 
 A refusal that reads the data (a changed item, a wrong title) still uses the offer. Fictional data only.
 """
 import unittest
+from unittest import mock
 
 from test_ask_change_route import Base, change_line
-from clark import ask_service
+from clark import ask_apply, ask_service
 
 
 class Retry(Base):
@@ -104,6 +105,104 @@ class Retry(Base):
             self.service.applier.apply(offer, "ABC")
         self.down["boom"] = False
         self.assertEqual(self.apply(offer)[0], 200)
+
+    def test_a_fault_after_the_save_was_committed_does_not_restore_the_offer(self):
+        reply = self.answer(change_line(op="new", kind="action", title="Task once", owner="Sam Lee"))["reply"]
+        status, dry = self.dry(reply)
+        self.assertEqual(status, 200, dry)
+        offer = dry["plans"][0]["offer"]
+        before = self.counts()[0]
+        with mock.patch("clark.backup.finish", side_effect=RuntimeError("after the commit")):
+            with self.assertRaises(RuntimeError):
+                self.service.applier.apply(offer, "ABC")
+        self.assertEqual(self.counts()[0], before + 1, "the save happened")
+        self.assertEqual(self.apply(offer)[1]["code"], "no_offer", "the offer is used up: a second Apply saves nothing")
+        self.assertEqual(self.counts()[0], before + 1, "saved once")
+
+    def test_a_fault_before_the_commit_restores_the_offer_and_nothing_is_saved(self):
+        offer = self.offer()
+        with mock.patch("clark.store.Store.ask_enabled", side_effect=RuntimeError("before the commit")):
+            with self.assertRaises(RuntimeError):
+                self.service.applier.apply(offer, "ABC")
+        self.assertEqual(self.status_of(self.action), "Open")
+        self.assertEqual(self.apply(offer)[0], 200)
+        self.assertEqual(self.status_of(self.action), "Closed")
+
+    def new_offer(self):
+        reply = self.answer(change_line(op="new", kind="action", title="Task once", owner="Sam Lee"))["reply"]
+        status, dry = self.dry(reply)
+        self.assertEqual(status, 200, dry)
+        return dry["plans"][0]["offer"]
+
+    def test_a_busy_answer_after_the_save_was_committed_does_not_restore_the_offer(self):
+        self.service.applier.ask_change = self.real                       # the real save: its own busy answer
+        offer = self.new_offer()
+        before = self.counts()[0]
+        busy = ask_apply.changes.Invalid("clark's data is in use by another window")
+        with mock.patch("clark.backup.finish", side_effect=busy):
+            status, body = self.service.applier.apply(offer, "ABC")
+        self.assertEqual((status, body["code"]), (503, "busy"))
+        self.assertEqual(self.counts()[0], before + 1, "the save happened")
+        self.assertEqual(self.apply(offer)[1]["code"], "no_offer")
+        self.assertEqual(self.counts()[0], before + 1, "saved once")
+
+    def test_a_busy_answer_before_the_save_keeps_the_offer_through_the_real_save(self):
+        self.service.applier.ask_change = self.real
+        offer = self.new_offer()
+        before = self.counts()[0]
+        busy = ask_apply.changes.Invalid("clark's data is in use by another window")
+        with mock.patch("clark.store.Store.step", side_effect=busy):
+            status, body = self.service.applier.apply(offer, "ABC")
+        self.assertEqual((status, body["code"]), (503, "busy"))
+        self.assertEqual(self.counts()[0], before)
+        self.assertEqual(self.apply(offer)[0], 200, "kept for the next Apply")
+        self.assertEqual(self.counts()[0], before + 1)
+
+    def test_a_fault_inside_the_step_before_the_commit_restores_the_offer(self):
+        self.service.applier.ask_change = self.real
+        offer = self.new_offer()
+        before = self.counts()[0]
+        with mock.patch("clark.changes._AskStore.shown", side_effect=RuntimeError("inside the step")):
+            with self.assertRaises(RuntimeError):
+                self.service.applier.apply(offer, "ABC")
+        self.assertEqual(self.counts()[0], before)
+        self.assertEqual(self.apply(offer)[0], 200)
+        self.assertEqual(self.counts()[0], before + 1)
+
+    def test_a_commit_that_fails_restores_the_offer(self):
+        self.service.applier.ask_change = self.real
+        offer = self.new_offer()
+        before = self.counts()[0]
+        real_open = ask_apply.changes.clark_store.open_store
+
+        class Con:
+            def __init__(self, con):
+                self.con = con
+
+            def execute(self, sql, *a):
+                if sql == "COMMIT":
+                    raise RuntimeError("the commit failed")
+                return self.con.execute(sql, *a)
+
+            def __getattr__(self, name):
+                return getattr(self.con, name)
+
+        def open_store(*a, **kw):
+            store = real_open(*a, **kw)
+            store.con = Con(store.con)
+            return store
+        with mock.patch.object(ask_apply.changes.clark_store, "open_store", open_store):
+            with self.assertRaises(RuntimeError):
+                self.service.applier.apply(offer, "ABC")
+        self.assertEqual(self.counts()[0], before)
+        self.assertEqual(self.apply(offer)[0], 200, "nothing was committed, so the offer was kept")
+
+    def test_a_fault_in_a_dry_run_is_not_a_committed_save(self):
+        offer_request = self.service.applier.offers[self.new_offer()].request
+        with mock.patch("clark.changes._AskStore.shown", side_effect=RuntimeError("inside the step")):
+            with self.assertRaises(RuntimeError) as got:
+                self.real(offer_request, dry=True)
+        self.assertFalse(getattr(got.exception, "committed", False))
 
     def test_a_refusal_from_the_data_still_uses_the_offer(self):
         offer = self.offer()

@@ -3522,6 +3522,7 @@ class Store:
         try:
             yield st
             self.con.execute("ROLLBACK" if dry else "COMMIT")
+            st.committed = not dry
         except BaseException:
             self.con.execute("ROLLBACK")
             backup.finish(pending, False)        # a failed undo or import leaves no copy behind and costs no older one its place
@@ -4431,6 +4432,7 @@ class Step:
         self.via, self.route, self.place, self.origin, self.actor, self.src_ref = via, route, place, origin, actor, src_ref
         self.by_user = str(by_user).strip()
         self._apply_id = None
+        self.committed = False                 # Row 1293: set once COMMIT has run, so a fault after it is known to have saved
         self.result = {}                       # #126: what a project's archive or restore did: {"counts": {table: n}, "found_step": bool}
 
     def apply_id(self):

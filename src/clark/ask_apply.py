@@ -300,10 +300,12 @@ class AskApply:
             del self.offers[offer]                     # taken while it is saved, so a second Apply at the same moment finds nothing
         try:
             status, body = self.ask_change(held.request, dry=False, expect=held.expect)
-        except BaseException:                          # row 1293 line 10: an unexpected fault saved nothing, so the offer stays
-            self.restore(offer, held)
+        except BaseException as e:                     # row 1293 line 10: an unexpected fault saved nothing, so the offer stays
+            committed = getattr(e, "committed", False) is True       # unless the save had been committed: then it is used up
+            if not committed:
+                self.restore(offer, held)
             raise
-        if status == 503:                              # row 1293 line 10: a busy or unusable database saved nothing: the offer is kept for the next Apply
+        if status == 503 and body.get("committed") is not True:                              # row 1293 line 10: a busy or unusable database saved nothing: the offer is kept for the next Apply
             self.restore(offer, held)
         if status != 200 or not body.get("ok"):
             return status, {"ok": False, "code": body.get("code", "refused"), "message": body.get("message", NOT_A_CHANGE)}
