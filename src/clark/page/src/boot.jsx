@@ -4,7 +4,16 @@ import { load } from "./stores/report.js";
 import { App } from "./components/App.jsx";
 import { keepChoices } from "./stores/clientMemory.js";
 
+const wantsEditor = () => { try { return new URLSearchParams(location.search).get("slash-editor") === "1" && !!document.getElementById("theme"); } catch (e) { return false; } };
+
 export function boot(tools) {
+  // Row 1295: the slash commands editor is a page of its own, opened in a new tab (Classic only). It holds the token in the page and needs no report data,
+  // so none of the app's keys, panel or data read start here.
+  if (tools && tools.SlashEditor && wantsEditor()) {
+    render(<tools.SlashEditor />, document.getElementById("app"));
+    document.documentElement.dataset.ready = "1";
+    return;
+  }
   if (tools && tools.help) tools.help.installKeys();
   if (!tools) keepChoices();                 // a published file remembers the client's choices in their own browser (#69)
   if (tools && tools.pageErrors) tools.pageErrors();        // page faults reach the log through the server (#110); a published file has none

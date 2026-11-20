@@ -214,13 +214,14 @@ class AskService:
         sent = tuple(data.passages) + tuple(found.passages) + tuple(added)      # (a file added to the question counts as one the answer read, so a change from it needs the separate Confirm)  # request.kept maps each passage sent to its place here (some may be left out)
         folder_ids = {pid for (pid, _label), i in zip(request.passages, request.kept) if i >= len(data.passages)}
         texts = {pid: sent[i].text for (pid, _label), i in zip(request.passages, request.kept)}
-        held = self.hold(code, reply, request, folder_ids, texts) if reply.changes else None
+        held = self.hold(code, reply, request, folder_ids, texts, bool(conn) or bool(on_connectors)) if reply.changes else None      # fail closed: a connector On and no Used line read (a second run reset it) still needs the Confirm
         return 200, {**({"used": conn} if conn else {}), "ok": True, "answer": reply.answer, "parsed": reply.parsed, "cites": list(reply.cites),
                      "sources": [{"id": pid, "label": label, "page": page_of(sent[i]), "file": file_of(sent[i])}
                                  for (pid, label), i in zip(request.passages, request.kept) if pid in reply.cites],
                      "flags": [{"kind": f.kind, "ref": f.ref, "message": f.message} for f in reply.flags],
                      "items": [{"id": i["id"], "state": list(i["state"])} for i in reply.items],
-                     "changes": [dict(c) for c in reply.changes], "notes": notes, **index_note, "reply": held, "draft": reply.draft,
+                     "read": ask_data.read_counts(data),
+                     "changes": [dict(c) for c in reply.changes], "notes": notes, **index_note, "reply": held, "draft": draft_via(reply.draft, conn),
                      "left_out_for_safety": found.safety}
 
     # ----- POST /api/ask/open-source (#943) -----
@@ -278,14 +279,15 @@ class AskService:
         return 409, self.fail("file_unavailable")
 
     # ----- the changes an answer suggested, held on the server (#47e) -----
-    def hold(self, code, reply, request, folder_ids, texts):
-        """Keep a reply's changes under a new reply ID, marked from_source when any folder passage was sent. The passages shown
+    def hold(self, code, reply, request, folder_ids, texts, from_connector=False):
+        """Keep a reply's changes under a new reply ID, marked from_source when any folder passage was sent or a connector was in the run (row 1306:
+        what a connector returns is text anyone can write, so a change after it needs the same separate Confirm). The passages shown
         beside a change are the folder passages it names or the answer cites (their labels and the start of their text)."""
         labels = dict(request.passages)
         shown = [pid for pid in dict.fromkeys([c.get("source") for c in reply.changes] + list(reply.cites))
                  if isinstance(pid, str) and pid in folder_ids]
         passages = tuple({"id": pid, "label": labels[pid], "text": texts.get(pid, "")[:PASSAGE_SHOWN]} for pid in shown)
-        entry = Held(code, tuple(dict(c) for c in reply.changes), bool(folder_ids), passages, self.clock())
+        entry = Held(code, tuple(dict(c) for c in reply.changes), bool(folder_ids) or bool(from_connector), passages, self.clock())
         with self.replies_lock:
             now = self.clock()
             for k in [k for k, h in self.replies.items() if now - h.at > REPLY_MINUTES * 60]:
@@ -364,6 +366,14 @@ def left_out_note(count):
     if not isinstance(count, int) or isinstance(count, bool) or count < 1:
         return ""
     return ("Some of the report was too long to send in full, so only the parts closest to your question were used.")
+
+
+def draft_via(draft, conn):
+    """Row 1306 F6: a draft written in a run that read a connector carries the names of the parts read (`via`), so the page can say so above it.
+    Nothing the connector returned is kept. The draft is otherwise unchanged and is still only a card the person adds."""
+    if not isinstance(draft, dict) or not conn or not conn.get("used"):
+        return draft
+    return {**draft, "via": [str(p) for p in conn["used"]]}
 
 
 def connector_used(line):

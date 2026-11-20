@@ -161,7 +161,7 @@
    ],
    [
     "ask clark reads; you decide",
-    "It works from this project’s data and the source folders you list, never mail, Teams or calendars. What it changes can be undone."
+    "It works from this project’s data and the source folders you list. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings. What it changes can be undone."
    ]
   ],
   "text": {
@@ -1068,6 +1068,11 @@
         "Full or half"
        ],
        [
+        "Report headline",
+        "A health pill, a headline and a supporting sentence at the top of the report.",
+        "Full or half"
+       ],
+       [
         "Callout",
         "One thing the reader must see.",
         "Half or full"
@@ -1402,7 +1407,7 @@
     "b": [
      [
       "p",
-      "Its purpose is to help you make the report as accurate as it can be. It works from this project’s data and the source folders listed in Settings. It never reads mail, Teams or calendars. It can suggest changes to work items and to milestones, and a new work item or milestone. It never archives or restores anything, and it never takes one out."
+      "Its purpose is to help you make the report as accurate as it can be. It works from this project’s data and the source folders listed in Settings. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings. It can suggest changes to work items and to milestones, and a new work item or milestone. It never archives or restores anything, and it never takes one out."
      ],
      [
       "p",
@@ -1897,7 +1902,7 @@
        ],
        [
         "Theme",
-        "Choose the look of your pages from the two the card offers. Your choice applies the next time the page loads, and pages you published before keep the look they had."
+        "Choose the look of your pages from the two the card offers. Your choice applies the next time the page loads, and pages you published before keep the look they had. The Theme changes the pages. Word, Excel and email files, and the installed app, keep clark’s own colours."
        ],
        [
         "People",

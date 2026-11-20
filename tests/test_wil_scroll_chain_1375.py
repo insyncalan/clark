@@ -57,7 +57,7 @@ class Chain(base.PageBase):
             self.assertEqual(p.js(f"getComputedStyle(document.querySelector('{BOX % self.ref}')).overscrollBehaviorY"), "auto")
 
     def test_wheel_at_the_end_of_the_box_moves_the_page_both_ways_1400_900(self):
-        for width in (1400,):      # 1400 is the priority width; at 900 the wheel at the box end does not move the page once the Row 1345 layout is on (a 900-only difference, filed separately)
+        for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.load(cdp, width)
                 self.assertTrue(p.js(f"(b => b.scrollHeight > b.clientHeight + 20)(document.querySelector('{BOX % self.ref}'))"), "the box scrolls (the test's own check)")
@@ -68,6 +68,10 @@ class Chain(base.PageBase):
                 self.assertGreater(top, 0, f"{width}: the box still scrolls its own rows")
                 # bottom edge: keep scrolling down, the page moves
                 p.js(f"(b => b.scrollTop = b.scrollHeight)(document.querySelector('{BOX % self.ref}'))")
+                # The page can sit on a half pixel (the At a glance figures have a normal line height, Row 1404), so the box's end is
+                # fractional and the first wheel only uses up the last sub-pixel without handing on. One small wheel settles it; the
+                # 300 px wheel below must then move the page.
+                self.wheel(p, 3)
                 y1 = p.js(PAGE_Y)
                 page, _ = self.wheel(p, 300)
                 self.assertGreater(page, y1, f"{width}: a wheel down at the bottom of the box moved the page")
