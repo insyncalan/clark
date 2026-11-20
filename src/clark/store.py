@@ -46,6 +46,7 @@ SCHEMA_VERSION = 33          # 2 (#126): documents can be archived; 3 (#48): ite
 TABLES = ("projects", "milestones", "workstreams", "actions", "raid", "decisions", "use_cases", "links", "labels",
           "item_labels", "updates", "report_sections", "glance_tiles", "report_hidden", "documents", "source_folders", "people", "gantt_lines", "use_case_milestones")
 SETTINGS_TABLES = ("app_settings", "install_defaults", "connector_switches", "project_connectors")     # clark (#47): the writer's too, but kept apart from TABLES: what walks TABLES (backups, the demo, publishing) has no use for it
+HIDDEN_CONNECTORS = ("todoist",)      # row 1306: found but never offered, never On: its read-only tools are not checked yet (filed as a Tech Debt row)
 CONNECTORS = ("mail", "calendar", "teams", "sharepoint", "todoist")      # row 1306: the connectors asking may one day be allowed to read; the same five words as schema.sql's CHECKs
 THEMES = ("classic", "cards")      # row 1269: the install's Theme, Clark Classic or Clark Cards (schema.sql's CHECK says the same)
 THEME_WHEN_MISSING = "cards"   # row 1269: a file with no answer keeps today's look (Cards); it never turns a Theme on by itself
@@ -4246,7 +4247,7 @@ class Store:
             if self.connectors_ready():
                 for c, v in self.con.execute("SELECT connector, is_on FROM connector_switches"):
                     if c in out:
-                        out[c] = v == 1
+                        out[c] = v == 1 and c not in HIDDEN_CONNECTORS
         except sqlite3.Error:
             return {c: False for c in CONNECTORS}
         return out

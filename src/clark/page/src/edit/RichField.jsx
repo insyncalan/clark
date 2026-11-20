@@ -8,10 +8,13 @@ import { RichText } from "./RichText.jsx";
 import { saveRich } from "./richSave.js";
 
 const shown = (html) => { try { return cleanHtml(html || ""); } catch (e) { return ""; } };
+const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;");
+// Row 1251: Edit-only prompts, drawn under an empty paragraph and an empty list item of a body that has some other words (Plan summary). Never saved.
+const prompted = (html, prompts) => !prompts ? html : html.replace(/<p>\s*(<br\s*\/?>)?\s*<\/p>/g, `<p class="quiet tpl-prompt" data-tpl-prompt="paragraph">${esc(prompts.p)}</p>`).replace(/<li>\s*(<br\s*\/?>)?\s*<\/li>/g, `<li class="quiet tpl-prompt" data-tpl-prompt="item">${esc(prompts.li)}</li>`);
 
 // A field may bring a look and a few controls of its own (the At a glance Reason): `cls` and `attrs` go on the view and on the open box, `aria` is the
 // view's name instead of "Edit <label>", `ai` is the AI place (aiPlaces.js) that turns on the right-click AI menu on a selection (row 1179; null: the browser's own menu), `forceOpen` opens it from outside (a health picked with no reason yet), `onClose(refocus)` is told when it closes.
-export function RichField({ field, id, value, label, empty = "Click to write.", save, viewId, labelledBy, cls = "", attrs = null, aria = "", forceOpen = false, onClose = null, oneLine = false, ai = null }) {
+export function RichField({ field, id, value, label, empty = "Click to write.", save, viewId, labelledBy, cls = "", attrs = null, aria = "", forceOpen = false, onClose = null, oneLine = false, ai = null, prompts = null }) {
   const [open, setOpen] = useState(false);
   const view = useRef(null), back = useRef(false);
   // Esc or Cmd/Ctrl+Enter closed the editor: the focus goes to the field's view, not to the page body (#188). A close because the
@@ -22,7 +25,7 @@ export function RichField({ field, id, value, label, empty = "Click to write.", 
     const editor = <RichText oneLine={oneLine} ai={ai} value={value || ""} label={label} onSave={(html) => (save ? save(html) : saveRich(field, id, html))} onClose={(refocus) => { back.current = refocus === true; if (onClose) onClose(refocus); setOpen(false); }} />;
     return cls ? <div class={`${cls} rich`} {...(attrs || {})}>{editor}</div> : editor;
   }
-  const html = shown(value);
+  const html = prompted(shown(value), prompts);
   return (
     <div class={cls ? `rt-view ${cls}` : "rt-view"} ref={view} data-edit-only data-rich={field} role="button" tabindex="0" id={viewId} aria-label={labelledBy ? undefined : (aria || `Edit ${label || "text"}`)} aria-labelledby={labelledBy} {...(attrs || {})}
       onClick={(e) => { if (!e.target.closest("a")) setOpen(true); }}

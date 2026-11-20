@@ -1,7 +1,7 @@
 // The ask panel's state and keys (#47a). Edit pages only. "/" outside a field (or Ctrl or Cmd + J anywhere) opens it (not while a peek is open); Esc, Close or the ask button closes it (a click outside does not) and puts
 // focus back; the width is remembered in this browser (a convenience only). Nothing is sent while asking is off: the status route
 // is asked when the panel opens, and until it answers (or when it cannot) the panel reads as off.
-import { signal } from "@preact/signals";
+import { signal, effect } from "@preact/signals";
 import { peek, project } from "../stores/report.js";
 import { helpOpen } from "../help/helpStore.js";
 import { singleKeys } from "../stores/keyPrefs.js";
@@ -28,6 +28,7 @@ export const queueHeld = signal("");                   // row 1220: "" (the queu
 export const queueDrop = signal(0);                    // row 1220: the number of waiting messages the person has been told would be dropped
 export const QUEUE_MAX = 5;
 export const draft = signal(null);                     // row 1292 (S12): the Draft open beside the panel, {html, title, sec} (askDraft.js readDraft), or null; closing the panel or leaving the chat closes it, the report is unchanged
+export const subject = signal(null);                   // row 1292: what "Ask about this" was pressed on, {kind: "item" | "section" | "use case", id, name}, or null; shown as a chip the person can remove
 export const answersReady = signal(0);                 // row 1292: answers that landed while the panel was closed; cleared when it opens
 export const chatEpoch = signal(0);                    // row 1119: kept for a chat that is dropped while an answer is out; row 1292: leaving a page or project no longer bumps it
 
@@ -129,6 +130,15 @@ export function handOver(text, send) {
   openPanel();
 }
 
+/** Row 1292: the sparkle: the panel opens (or takes focus) with a chip naming what it was pressed on. */
+export function askAbout(what) {
+  subject.value = what && what.id ? { kind: String(what.kind || "item"), id: String(what.id), name: String(what.name || what.id), project: project.value } : null;
+  if (panelOpen.value) panelFocus.value++; else openPanel();
+}
+
+// Row 1292: the chip names a row of one project, so it goes when the project changes (the panel and the chat stay).
+effect(() => { const s = subject.value; if (s && s.project !== project.value) subject.value = null; });
+
 /** Row 1220: the one place the queue is changed, so a changed list is never held, nor a drop warning kept, for a list it was not about. */
 export function setQueue(list) {
   queue.value = list;
@@ -148,6 +158,7 @@ export function newChat() {
   if (pending.value || !mayDrop()) return;
   setQueue([]);
   draft.value = null;
+  subject.value = null;
   turns.value = [];
   chatId.value = null; histOpen.value = false;
 }
@@ -174,6 +185,8 @@ const typing = (el) => !!el && !!el.tagName && (el.isContentEditable || ["INPUT"
 const otherLayer = () => !!document.querySelector("dialog[open], [role=dialog], [role=menu]");
 
 export function installAskKeys() {
+  // Row 1292: the panel's width is on the page as --ask-w (0 while it is shut), so a peek opened from an answer sits left of the panel, not behind it.
+  effect(() => { document.documentElement.style.setProperty("--ask-w", panelOpen.value ? clampWidth(panelWidth.value) + "px" : "0px"); });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !e.isComposing && panelOpen.value) {
       if (draft.value && e.target && e.target.closest && e.target.closest("#ask-draft")) return;      // row 1292: Esc in the Draft is the Draft's (it closes its menu, then itself), the panel stays

@@ -102,9 +102,15 @@ export const askFoldersAllRead = () => call("GET", "/api/ask-folders?scope=all")
 export const askFoldersAllChoose = () => call("POST", "/api/ask-folders", { scope: "all", action: "choose" });
 export const askFoldersAllChange = (action, path) => call("POST", "/api/ask-folders", { scope: "all", action, path });
 
+// Usage in tokens (row 1294): GET answers {ok, title, asking, projects: [{code, name, questions, tokens}], all: {questions, tokens}, note}.
+export const askUsageRead = () => call("GET", "/api/ask-usage");
+
 // The standing instructions of asking (row 1294): GET answers {ok, all, project, saved, max}; POST takes {scope: "all" | "project", project?, text} or {scope, project?, undo}.
 export const askInstructionsRead = (project) => call("GET", `/api/ask-instructions?project=${encodeURIComponent(project || "")}`);
 export const askInstructionsChange = (body) => call("POST", "/api/ask-instructions", body);
+// The slash commands of ask clark (row 1295): GET answers {ok, all, project, damaged, max, builtins}; POST takes {scope: "all" | "project", project?, action: "save" | "remove" | "reset", ...}.
+export const askCommandsRead = (project) => call("GET", `/api/ask-commands?project=${encodeURIComponent(project || "")}`);
+export const askCommandsChange = (body) => call("POST", "/api/ask-commands", body);
 // Connectors set up on this computer (row 1306, slice C3). GET /api/ask-connectors?project= answers {ok, connectors: [{id, label, on, off_here}]}: only the ones found
 // on this computer, `on` the choice for every project (off until turned on), `off_here` the project's own turn-off. POST {id, on} changes the first, {project, id, off_here}
 // the second; both answer the same list. Words and true or false only: nothing about a connector is kept in a project's data and no key is held.

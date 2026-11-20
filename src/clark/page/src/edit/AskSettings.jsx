@@ -9,7 +9,9 @@ import { named, ASK_NOTICE_LINE } from "./askWords.js";
 import { ConnectorsAll, ConnectorsProject } from "./ConnectorSettings.jsx";
 import { AiSettings } from "./AiSettings.jsx";
 import { NewProjectsAll, AskHere } from "./NewProjects.jsx";
+import { UsageAll, UsageProject } from "./UsageSettings.jsx";
 import { AllInstructions, OwnInstructions } from "./AskInstructions.jsx";
+import { SlashList } from "./SlashCommandsList.jsx";
 import { announceSwitch, leaveSwitch } from "./switchToast.js";
 import { classicTheme } from "../components/Contents.jsx";
 import { aiConnectRead, askFoldersRead, askFoldersChange, askFoldersChoose, askFoldersAllRead, askFoldersAllChange, askFoldersAllChoose, words } from "./publishApi.js";
@@ -161,11 +163,17 @@ function AskProject() {
     <section class="frame setting" id="ask-used-all">
       <h2>Used from All projects</h2>
       {classicTheme() ? (
-        <div class="row ask-model">
-          {modelName ? <b class="ask-model-name" data-ask-model>{modelName}</b> : null}
-          <span class="muted ask-model-note">{USED_FROM_ALL}</span>
-          <button type="button" class="btn ask-model-change" data-ask-goall onClick={() => showAskTab(ALL)}>Change</button>
-        </div>
+        <>
+          <div class="row ask-model">
+            <div class="ask-model-text">
+              <span class="ask-model-label">Model</span>
+              <small class="muted ask-model-same">Same for every project.</small>
+            </div>
+            {modelName ? <b class="ask-model-name" data-ask-model>{modelName}</b> : null}
+            <button type="button" class="btn ask-model-change" data-ask-goall onClick={() => showAskTab(ALL)}>Change</button>
+          </div>
+          <p class="muted ask-model-note">{USED_FROM_ALL}</p>
+        </>
       ) : (<>
         <p class="muted">{USED_FROM_ALL}</p>
         <div class="row"><button type="button" class="btn" data-ask-goall onClick={() => showAskTab(ALL)}>Change</button></div>
@@ -207,6 +215,8 @@ function AskProject() {
       <div class="pub-msg" role={fmsg && fmsg.kind === "error" ? "alert" : "status"} aria-live="polite">{fmsg && fmsg.text ? <p class={fmsg.kind}>{fmsg.text}</p> : null}</div>
     </section>
     <OwnInstructions goAll={() => showAskTab(ALL)} />
+    {classicTheme() ? <UsageProject /> : null}
+    {classicTheme() ? <SlashList scope="project" code={code} goAll={() => showAskTab(ALL)} /> : null}
     </>
   );
 }
@@ -225,7 +235,9 @@ function AllProjects() {
     <AiSettings />
     <ConnectorsAll />
     <AllInstructions />
+    {classicTheme() ? <SlashList scope="all" code="" /> : null}
     <AllFolders />
+    {classicTheme() ? <UsageAll /> : null}
     {classicTheme() ? <Safety /> : null}
     </>
   );
