@@ -3,6 +3,7 @@
 Run: python3 dev/run_tests.py test_palette_order_1350p3
 With words typed: Command, Page, Project, then the data (a work item such as a Risk, Milestone), then Action, and the ask row last (a question first). Where Action rows go
 with words typed is not in the agreed table: they keep their place after the data. With nothing typed the order stays Page, Action, Project, Command.
+Classic only: the page here carries the <style id="theme"> layer; without it (Cards) the order is main's, see test_classic_gate_1350.
 Chrome is required: it fails, never skips, without it (set CLARK_CHROME).
 """
 import unittest
@@ -22,6 +23,11 @@ class Order(Base):
         tp.LIST[1] = {"code": "DEF", "name": "Pilot supplier programme"}
         self.addCleanup(lambda: (tp.DATA.__setitem__("DEF", project("DEF", "Second Programme")), tp.LIST.__setitem__(1, {"code": "DEF", "name": "Second Programme"})))
         super().setUp()
+
+    def visit(self, cdp, *a, **k):
+        p = super().visit(cdp, *a, **k)
+        p.js("(function(){var s=document.createElement('style'); s.id='theme'; document.head.appendChild(s);})()")          # the Classic layer: classicTheme() reads it when the bar searches
+        return p
 
     def kinds(self, p, q):
         p.find(q)
