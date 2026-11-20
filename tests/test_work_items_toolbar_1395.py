@@ -10,7 +10,8 @@ import tempfile
 
 from clark import page, theme
 from _real_server import real_server
-from test_work_items_classic_1314 import RULES, SHELL, chrome
+from test_server import chrome
+from test_work_items_classic_1314 import RULES, SHELL
 from test_work_board_page import Base
 
 START = RULES.index("/* Row 1395")
