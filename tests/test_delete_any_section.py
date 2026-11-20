@@ -242,7 +242,7 @@ class ReAdd(Base):
         self.ok("delete", id=self.of_type("current")[0]["id"])
         got = self.ok("new", values={"type": "current", "title": "Something else"})
         row = self.s.read(KIND, ref=got["ref"])
-        self.assertEqual((row["type"], row["title"], row["body"], row["hidden"], row["beside"]), ("current", "Current state", "", 0, 0))
+        self.assertEqual((row["type"], row["title"], row["body"], row["hidden"], row["beside"]), ("current", "Header", "", 0, 0))
         self.refused(self.req("new", values={"type": "current"}), changes.NEW_TYPE_WORDS)
 
     def test_a_built_in_already_in_the_report_is_refused_a_second_time_and_nothing_is_written(self):

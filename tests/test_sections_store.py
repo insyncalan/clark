@@ -84,9 +84,9 @@ class Seed(Base):
         self.assertEqual(len(self.sections("XYZ")), 10)
 
     def test_the_re_addable_current_section_is_named_current_state(self):
-        """Add a section offers the older "current" type again, under the title Current state (the first default is text now)."""
+        """Add a section offers the older "current" type again, under the title Header (the first default is text now)."""
         from clark import changes
-        self.assertEqual(changes.BUILT_IN_TITLES["current"], "Current state")
+        self.assertEqual(changes.BUILT_IN_TITLES["current"], "Header")
 
     def test_the_default_sections_are_pinned(self):
         self.assertEqual([(s["type"], s["title"], s.get("beside", 0)) for s in default_sections.DEFAULT_SECTIONS], list(TEN))
