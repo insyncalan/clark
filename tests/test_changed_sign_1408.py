@@ -145,6 +145,45 @@ class Sign(tre.Base):
                     self.assertFalse(g["cap"])
                     self.assertEqual(g["sanim"], "none")
 
+    def test_the_line_grows_from_the_left_edge(self):
+        with chrome() as cdp:
+            p = self.start(cdp)
+            for w in TE.WIDTHS:
+                with self.subTest(width=w):
+                    self.setup_page(w, False)
+                    origin = p.js("getComputedStyle(document.querySelector('[data-id=\"ABC-S-002\"] .sec-t'), '::after').transformOrigin")
+                    self.assertEqual(float(origin.split()[0][:-2]), 0.0, "the sweep's origin is the left edge: " + origin)
+                    mid = self.at(p, 200)["tf"]
+                    nums = [float(x) for x in mid[mid.index("(") + 1:-1].split(",")]
+                    self.assertTrue(0 < nums[0] < 1, mid)
+
+    def test_the_page_own_data_motion_reduce_stops_the_sweep(self):
+        with chrome() as cdp:
+            p = self.start(cdp)
+            for w in TE.WIDTHS:
+                with self.subTest(width=w):
+                    self.setup_page(w, False)
+                    self.assertFalse(p.js("matchMedia('(prefers-reduced-motion: reduce)').matches"), "the computer does not ask for reduced motion here")
+                    self.assertEqual(self.read(p)["aname"], "sec-sweep-1408", "the sweep runs without the attribute")
+                    p.js("document.documentElement.dataset.motion = 'reduce'")
+                    try:
+                        self.assertEqual(self.read(p)["aname"], "none", "clark's own reduced motion switch turns the sweep off")
+                    finally:
+                        p.js("delete document.documentElement.dataset.motion")
+                    self.assertEqual(self.read(p)["aname"], "sec-sweep-1408", "and back on without it")
+
+    def test_the_line_does_not_catch_clicks(self):
+        with chrome() as cdp:
+            p = self.start(cdp)
+            for w in TE.WIDTHS:
+                with self.subTest(width=w):
+                    self.setup_page(w, False)
+                    g = p.js("""(function(){var t=document.querySelector('[data-id="ABC-S-002"] .sec-t'), r=t.getBoundingClientRect(), a=getComputedStyle(t,'::after');
+                      var x=r.left+r.width/2, y=r.bottom+5, e=document.elementFromPoint(x,y);
+                      return {pe:a.pointerEvents, hit:e===t||t.contains(e), tag:e&&e.className};})()""")
+                    self.assertEqual(g["pe"], "none")
+                    self.assertFalse(g["hit"], "a click at the line's centre goes to what is under it, not to the title: " + str(g["tag"]))
+
     def test_forced_colours_still_show_the_sign(self):
         with chrome() as cdp:
             p = self.start(cdp)
