@@ -28,6 +28,9 @@ function cellText(row, col, now) {
   return "";
 }
 
+// Row 1195: a rating worth a chip: a word, and "Not rated" only on a risk or an issue (the others show a bare dash, which the half row does not draw).
+const ratedRow = (row) => { const p = priorityCell(row); return !!(p.text && (p.text !== "Not rated" || row.kind === "risk" || row.kind === "issue")); };
+
 function Cell({ row, col, now }) {
   if (col === "type") return <span class={`type k-${row.kind}`}>{KIND_WORDS[row.kind] || row.kind}</span>;
   if (col === "due") {
@@ -35,7 +38,7 @@ function Cell({ row, col, now }) {
     return <><span class="num">{d.date}</span>{d.words ? <span class={`due-l${d.tone ? " " + d.tone : ""}`}>{d.words}</span> : null}</>;
   }
   if (col === "status") { const p = clientPill(row, now); return <span class="wil-st"><svg class={`wil-half ic-${p.class}`} viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 3a9 9 0 0 1 0 18z" /></svg>{p.text}</span>; }      // row 1199: a half-circle, coloured as the status pill, before the status word
-  if (col === "priority") { const p = priorityCell(row); const rated = p.text && (p.text !== "Not rated" || row.kind === "risk" || row.kind === "issue"); return rated ? <span class={`wil-pr${p.text === "Urgent" ? " u" : p.text === "High" ? " h" : ""}`}>{p.text}</span> : <span class="muted">—</span>; }      // row 1268: the rating chip, in the colour of the pills
+  if (col === "priority") { const p = priorityCell(row); const rated = p.text && (p.text !== "Not rated" || row.kind === "risk" || row.kind === "issue"); return rated ? <span class={`wil-pr${p.text === "Urgent" ? " u" : p.text === "High" ? " h" : ""}`} data-pri={classicTheme() ? p.text : undefined}>{p.text}</span> : <span class="muted">—</span>; }      // row 1268: the rating chip, in the colour of the pills
   if (col === "owner") { const o = ownerOf(row.owner); return o.initials ? <span class="wil-own"><span class="av" aria-hidden="true">{o.initials}</span><span class="nm">{o.text}</span></span> : <span class="muted">{o.text}</span>; }      // row 1268: the avatar and the name, as the built-in rows
   return cellText(row, col, now);
 }
@@ -44,6 +47,8 @@ function Cell({ row, col, now }) {
 // `Eye` (Edit only): the Work items page's own Client-visible eye (edit/cells/Eye.jsx), drawn at the end of each row, so it means the same thing here.
 // Row 1268, item 12 (Edit only): `Cell` is the Work items page's own in-place picker (edit/cells/Cell.jsx) round the Owner, Due, Status and Priority cells,
 // and `cw` the page's own column widths (edit/colWidths.jsx: drag a heading's edge, Alt with Left or Right). View and a published file pass neither.
+// Row 1195: the page layers a Theme in <style id="theme"> (clark.page.layer_theme); Cards layers nothing, so there is no such element.
+export const classicTheme = () => typeof document !== "undefined" && !!document.getElementById("theme");
 const PICKED = { owner: "owner", due: "due", status: "status", priority: "priority" };
 export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw, edit }) {
   const act = open ? (row) => ({ tabIndex: 0, role: "button", "aria-label": `Open ${row.id}: ${row.title || ""}`, onClick: () => open(row.id),
@@ -53,7 +58,9 @@ export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw, edit
   const cellOf = (row, c) => (Pick && PICKED[c] ? <Pick row={row} field={PICKED[c]} keep={c === "status"}><Cell row={row} col={c} now={now} /></Pick> : <Cell row={row} col={c} now={now} />);
   // Row 1268: one line as the built-in rows: the letter tile, the title, the chosen columns, the ID last; an item the client eye has taken off is greyed.
   const before = columns.filter((c) => c === "type"), after = columns.filter((c) => c !== "type" && c !== "id").concat(columns.filter((c) => c === "id"));
-  const off = (row) => (Eye && Eye.isOff && Eye.isOff(row) ? " wil-off" : "");
+  // Row 1195: the Classic theme colours the letter tile by the kind, so a row carries its kind as a class there; the Cards page gets exactly the markup it had.
+  const kinds = classicTheme();      // also: Classic draws the mock-up's half row (the rating beside the title, the other columns as separate words on the second line)
+  const off = (row) => `${kinds ? ` wil-k-${row.kind}` : ""}${Eye && Eye.isOff && Eye.isOff(row) ? " wil-off" : ""}`;
   const tile = (row) => <ItemIcon row={row} pill={clientPill(row, now)} today={now} plain={!!open} />;
   return (
     <>
@@ -72,7 +79,7 @@ export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw, edit
               {before.map((c) => <td key={c} class={`wil-c-${c}`}>{cellOf(row, c)}</td>)}
               <td class="wil-c-title" {...titleOpen(row)}>{row.title || ""}</td>
               {after.map((c) => <td key={c} class={`wil-c-${c}`}>{cellOf(row, c)}</td>)}
-              {Eye ? <td class="wil-c-eye"><Eye row={row} /></td> : null}
+              {Eye ? <td class="wil-c-eye"><Eye row={row} />{Eye.Ask ? <Eye.Ask row={row} /> : null}</td> : null}
             </tr>
           ))}
         </tbody>
@@ -82,7 +89,9 @@ export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw, edit
           <li key={row.id} data-id={row.id} class={off(row).trim() || undefined} {...act(row)}>
             <span class="wil-tile">{tile(row)}</span>
             <span class="wil-t" {...titleOpen(row)}>{row.title || ""}</span>
-            <span class="wil-m">{columns.map((c) => cellText(row, c, now)).filter(Boolean).join(" · ")}</span>
+            {kinds && columns.includes("priority") && ratedRow(row) ? <span class="wil-hpr"><Cell row={row} col="priority" now={now} /></span> : null}
+            {kinds ? <span class="wil-m">{columns.filter((c) => c !== "type" && c !== "priority").map((c) => cellText(row, c, now)).filter(Boolean).map((t, i) => <span key={i}>{t}</span>)}</span>
+              : <span class="wil-m">{columns.map((c) => cellText(row, c, now)).filter(Boolean).join(" · ")}</span>}
             {Eye ? <span class="wil-eye"><Eye row={row} /></span> : null}
           </li>
         ))}
@@ -100,19 +109,28 @@ export function ShowAll({ list, all, onToggle }) {
 // Row 1268: the rows scroll inside a box as tall as the first Most rows (measured from the drawn rows, as the mock-up's fitScroll does), so
 // every row the filter lists is on the page and the rest are a scroll away. Only the table or the lines are visible at a time (shell.css), so
 // the one with a height is measured. No limit when there are no more rows than Most rows.
-export function Scroller({ max, count, children }) {
+export function Scroller({ max, count, children, all }) {
   const box = useRef(null);
+  const scrolls = classicTheme() ? count > max && !all : count > max;      // row 1195 (Classic only): open (Show all items) the box no longer scrolls, so it is neither a region nor a tab stop; Cards keeps the old expression
   useLayoutEffect(() => {
     const el = box.current;
     if (!el) return;
     el.style.maxHeight = "";
-    if (count <= max) return;
+    if (count <= max || all) return;      // row 1195 (Classic): Show all items has opened the box to every row
     const vis = [...el.querySelectorAll(".wil-table tbody tr, .wil-lines li")].filter((r) => r.offsetHeight > 0);
     const head = el.querySelector(".wil-table thead");
     const h = vis.slice(0, max).reduce((n, r) => n + r.offsetHeight, 0) + (head && head.offsetHeight > 0 ? head.offsetHeight : 0);
     if (h > 0) el.style.maxHeight = `${h}px`;
   });
-  return <div class="wil-scroll" data-wil-scroll="" ref={box} tabIndex={count > max ? 0 : undefined} role={count > max ? "region" : undefined} aria-label={count > max ? "Work items, scroll for more" : undefined}>{children}</div>;
+  return <div class="wil-scroll" data-wil-scroll="" ref={box} tabIndex={scrolls ? 0 : undefined} role={scrolls ? "region" : undefined} aria-label={scrolls ? "Work items, scroll for more" : undefined}>{children}</div>;
+}
+
+// Row 1195 (Classic only, the README's "Show all items"): the scrolling rows and, under them (View and Edit, never a published file), the link when there are more rows than Most rows; open, the box
+// shows every row and the link reads "Show only N". The Cards page gets the Scroller alone, exactly as before.
+export function Listing({ max, count, children }) {
+  const [all, setAll] = useState(false);
+  const on = classicTheme() && !fromFile.value && count > max;      // the served page only, as the Foot is: a published file has no link
+  return <><Scroller max={max} count={count} all={on && all}>{children}</Scroller>{on ? <ShowAll list={{ more: true, max }} all={all} onToggle={() => setAll(!all)} /> : null}</>;
 }
 
 // The foot under the rows (the served page only): "Showing N of M" in Edit, and the link to the Work items page on the same filter.
@@ -139,7 +157,7 @@ export function View({ section, data, pick }) {
   return (
     <div class="wil" data-wil="">
       {list.caption ? <p class="wil-cap">{list.caption}</p> : null}
-      <Scroller max={list.max || rows.length} count={rows.length}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Cell={fromFile.value ? undefined : pick || undefined} edit={fromFile.value || !pick ? undefined : openPeekEdit} /></Scroller>      {/* row 1268: a row opens the peek in View and in a published file: read only there (Peek draws no control unless the page is editing), editable in Edit */}
+      <Listing max={list.max || rows.length} count={rows.length}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Cell={fromFile.value ? undefined : pick || undefined} edit={fromFile.value || !pick ? undefined : openPeekEdit} /></Listing>      {/* row 1268: a row opens the peek in View and in a published file: read only there (Peek draws no control unless the page is editing), editable in Edit */}
       {fromFile.value ? null : <Foot section={section} total={rows.length} max={list.max} edit={false} />}
     </div>
   );

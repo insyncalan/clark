@@ -2,7 +2,7 @@
 // "Make Dashboard same width as work items"). The Work items list is WorkItems.jsx (#36).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { skeleton, reduced } from "../stores/motion.js";
-import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt, settingsPage, showSettings } from "../stores/report.js";
+import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt, settingsPage, settingsFeedbackShown, showSettings } from "../stores/report.js";
 import { milestoneRows, headLine, emptyHead, showDate, todayIso } from "../logic/milestones.js";
 
 import { MsBlock } from "./MsBlock.jsx";
@@ -82,7 +82,7 @@ function MsHead({ Add }) {
       <div class="head">
         <div>
           <h1>Milestones</h1>
-          <p class="head-sub" id="ms-summary">
+          <p class={line ? "head-sub head-sub-off" : "head-sub"} id="ms-summary">
             {line
               ? <><b>{line.name}</b>{line.date ? ` is ${line.agreed ? "agreed" : "forecast"} for ${showDate(line.date)}` : " has no date yet"}{line.expected ? ` and now expected ${showDate(line.expected)}` : ""}. {line.achieved} achieved, {line.toCome} to come.</>
               : emptyHead(rows)}
@@ -112,14 +112,14 @@ export function Milestones({ tools }) {
 // Search settings looks at every page at once: while the box holds words the menu is hidden and all the cards that match are shown.
 const GROUPS = [
   ["Everyday", [["projects", "Projects", ["Projects"]], ["people", "People", ["People"]], ["profile", "Profile", ["Essentials", "Profile"]]]],
-  ["Publishing", [["folder", "Folder", ["ClientFolder"]], ["brand", "Brand", ["Brands"]]]],
+  ["Publishing", [["folder", "Folder", ["ClientFolder"]], ["brand", "Brand", ["Brands"]], ["theme", "Theme", ["ThemeSettings"]]]],
   ["Look and feel", [["appearance", "Appearance", ["Personal"]], ["reports", "Reports", ["ReviewDays", "GanttSetting"]]]],
   ["Data and safety", [["backups", "Backups", ["Safety"]], ["data", "Export and import", ["Data"]]]],
   ["Advanced", [["claude", "Claude and AI", ["AskSettings"]], ["logs", "Logs and diagnostics", ["Diagnostics"]], ["version", "Version and updates", ["Update", "Feedback", "Quit"]]]],
 ];
 const NEEDS_PROJECT = ["ClientFolder", "ReviewDays", "GanttSetting"];
 const ADVANCED_LINE = "These are for setting up Claude, and for when something goes wrong. Most people never need them.";
-const HEADS = { Essentials: "essentials-h", Profile: "profile-h", ClientFolder: "client-folder-h", Personal: "personal-h", ReviewDays: "review-days-h", GanttSetting: "gantt-setting-h", Diagnostics: "diagnostics-h", Projects: "projects-h", Data: "data-card-h", Safety: "safety-h", Update: "update-h", Brands: "brands-h", People: "people-h", AskSettings: "ask-settings-h", Feedback: "feedback-h", Quit: "quit-h" };
+const HEADS = { Essentials: "essentials-h", Profile: "profile-h", ClientFolder: "client-folder-h", Personal: "personal-h", ReviewDays: "review-days-h", GanttSetting: "gantt-setting-h", Diagnostics: "diagnostics-h", Projects: "projects-h", Data: "data-card-h", Safety: "safety-h", Update: "update-h", Brands: "brands-h", ThemeSettings: "theme-settings-h", People: "people-h", AskSettings: "ask-settings-h", Feedback: "feedback-h", Quit: "quit-h" };
 
 /** The pages this page can show now, as groups: [[group, [[slug, name, [tool names that are here]]]]]. */
 function pagesOf(tools, open) {
@@ -145,6 +145,8 @@ function searchCards(root, query) {
     else { for (const r of rows) r.hidden = false; if (!show) show = hit(card); }
     card.hidden = !show;
   }
+  const fb = document.getElementById("feedback-h"), card = fb && fb.closest("section, .setting");
+  settingsFeedbackShown.value = !!card && root.contains(card) && !card.hidden;   // #1298: the Feedback tag stands aside while the search shows the Feedback card
 }
 
 function SettingsSearch({ onQuery }) {
@@ -157,7 +159,7 @@ function SettingsSearch({ onQuery }) {
     const seen = window.MutationObserver ? new MutationObserver(run) : null;
     if (seen) seen.observe(root, { childList: true, subtree: true });
     onQuery(q.trim() !== "");
-    return () => { if (seen) seen.disconnect(); };
+    return () => { if (seen) seen.disconnect(); settingsFeedbackShown.value = false; };
   }, [q]);
   return (
     <div class="set-search">

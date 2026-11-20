@@ -8,6 +8,7 @@ page must say the plain words for it and never the server's own text. The non-br
 the published build names no route that changes anything) need no browser.
 """
 import json
+import os
 import shutil
 import sys
 import tempfile
@@ -107,7 +108,9 @@ class Pg:
         self.until(f"((document.querySelector('.toast-text') || {{}}).textContent || '') === {json.dumps(text)}", f"the toast says: {text}")
 
     def key(self, key, modifiers=0, code=None, vk=0):
-        for kind in ("keyDown", "keyUp"):
+        # Tab goes as rawKeyDown (no text, no char phase): on macOS a plain keyDown is turned into an editing command (insertTab)
+        # and the browser's own Tab focus step never runs. Linux does not translate it, and rawKeyDown is what keyDown becomes there anyway.
+        for kind in ("rawKeyDown" if key == "Tab" else "keyDown", "keyUp"):
             self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code or key, "windowsVirtualKeyCode": vk,
                                                       "modifiers": modifiers}, self.sid)
 
@@ -115,8 +118,14 @@ class Pg:
         self.cdp.call("Input.insertText", {"text": text}, self.sid)
 
     def mouse(self, kind, x, y, buttons=0):
+        if kind == "mouseMoved":
+            time.sleep(float(os.environ.get("CLARK_SLOW_CDP", "0")))     # Row 1277: a slow CDP (e.g. CLARK_SLOW_CDP=0.15) puts more than REST_MS between the steps of a drag
         self.cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left", "buttons": buttons,
                                                     "clickCount": 0 if kind == "mouseMoved" else 1}, self.sid)
+
+    def rested(self):
+        """300 ms after the last move: the pointer has rested longer than REST_MS (110), so the shown target is the one it is on (drag.js drops on state.shown, no last aim)."""
+        time.sleep(0.3)
 
     def box(self, selector):
         """[centre x, centre y, bottom] of the first element that matches."""
@@ -126,7 +135,7 @@ class Pg:
 
     def tall(self, cdp, width=1400):
         """A window tall enough for every section, so a drag never needs the page to scroll."""
-        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 2400, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 3600, "deviceScaleFactor": 1, "mobile": False}, self.sid)      # rows 1193-8 to 10: three Work items lists in Edit make the page taller than 2400 px
 
     def rect(self, ref):
         """{left, top, right, bottom} of section `ref`, once the sections have stopped gliding (edit mode, a hide and a resize
@@ -158,6 +167,7 @@ class Pg:
         if release:
             if drops:
                 self.until(self.SHOWN, "the drop target is shown before the release")
+                self.rested()                                   # Row 1277: the last move is more than REST_MS ago, so state.shown is the target under the pointer
             self.mouse("mouseReleased", x, y, 0)
             if drops:
                 self.stored(n0)
@@ -281,7 +291,7 @@ class Modes(Base):
             # in View, the four text sections (A-D4: the saved text, or "Nothing recorded.") are drawn; every type still not
             # drawn says the one plain line
             # #74: Supporting documents draws its own list (and is left out of View while it has no document), so it is not one of these
-            sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases', 'text', 'current', 'docs'].includes(s.dataset.type))"
+            sec = "[...document.querySelectorAll('.secs > .sec')].filter(s => !['milestones', 'glance', 'usecases', 'text', 'current', 'docs', 'workitems'].includes(s.dataset.type))"      # rows 1193-8 to 10: a Work items list has its own tests (test_tpl_workitems)
             texts = "[...document.querySelectorAll('.secs > .sec')].filter(s => ['text', 'current'].includes(s.dataset.type)).map(s => s.querySelector('.quiet, .sec-body').textContent)"
             self.assertEqual(p.js(texts), ["Nothing recorded."] * 3, "View: a text section with nothing saved says so in plain words, the four default ones too: their guiding lines are the editor's hint, never a body (items 1188, 1193)")
             quiet = sec + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet, [data-nothing]').textContent)"
@@ -296,7 +306,7 @@ class Modes(Base):
                 self.assertEqual(len([f for f in found if what in f]), 10, what)        # a title for each section; the three seeded rows have no client wording to edit
             sec_other = sec + ".filter(s => !['raid', 'actions', 'decisions'].includes(s.dataset.type))"
             self.assertEqual(p.js(sec_other + ".map(s => s.dataset.type + ':' + s.querySelector('.quiet').textContent)"), [w for w in want if w.split(':')[0] not in ('raid', 'actions', 'decisions')], "Edit: the same line")
-            self.assertEqual(p.js(sec + ".filter(s => ['raid', 'actions', 'decisions'].includes(s.dataset.type)).map(s => !!s.querySelector('[data-showing]'))"), [True] * 3, "Edit: the three row sections say Showing N of M instead (A-D5)")
+            self.assertEqual(p.js(sec + ".filter(s => ['raid', 'actions', 'decisions'].includes(s.dataset.type)).map(s => !!s.querySelector('[data-showing]'))"), [], "Edit: no built-in row section is a default now (A-D5; rows 1193-8 to 10: Risks, actions and decisions are Work items lists)")
             self.assertEqual(p.js(texts), [SECTION_HINTS[t] for t in ("Current state", "This week", "Next week")], "Edit: the four text sections are empty and each shows its guiding line as the editor's hint (items 1188, 1193)")
             self.assertNotIn("is not shown", p.js("document.querySelector('main').textContent"))
             p.view()
@@ -444,7 +454,7 @@ class Sections(Base):
             self.assertEqual(self.sent[-1][1]["changes"], {"hidden": 1}, "0 or 1, never true")
             self.assertEqual(p.toast(), "Section left out of the published page.")
             p.view()
-            self.assertEqual(p.ids(), [i for i in IDS if i not in ("ABC-S-002", "ABC-S-010")], "gone in View (#74: so is Supporting documents, with no document)")
+            self.assertEqual(p.ids(), [i for i in IDS if i not in ("ABC-S-002", "ABC-S-007", "ABC-S-008", "ABC-S-009", "ABC-S-010")], "gone in View (#74: so is Supporting documents, with no document; rows 1193-8 to 10: so are the three lists, with no row to show)")
             self.assertNotIn("At a glance", p.js("document.querySelector('main').innerText"))
             p.edit()
             p.clear_toast()
@@ -678,6 +688,7 @@ class Sections(Base):
             p.drag("ABC-S-007", r["left"] + (r["right"] - r["left"]) * 0.25, (r["top"] + r["bottom"]) / 2)
             p.until("document.querySelector('[data-id=\"ABC-S-007\"]').classList.contains('slot-left')", "beside, on the left")
             p.reload()
+            p.edit()                                         # row 1193-8: View leaves the Risks and issues list out when it has no row to show
             self.assertTrue(p.js("document.querySelector('[data-id=\"ABC-S-007\"]').classList.contains('slot-left')"))
             self.assertEqual(self.ids_in_store()[1:3], ["ABC-S-007", "ABC-S-002"])
 
@@ -824,7 +835,7 @@ class Sections(Base):
             p.until("!!document.querySelector('[data-id=\"ABC-S-006\"].is-hidden')", "hidden")
             p.view()
             self.assertIsNone(p.js("document.querySelector('[data-id=\"ABC-S-006\"]')"))
-            for ref in ("ABC-S-005", "ABC-S-007"):
+            for ref in ("ABC-S-005", "ABC-S-004"):      # rows 1193-8 to 10: View leaves the three lists (S-007 to S-009) out when they have no row to show
                 self.assertTrue(p.js(f"document.querySelector('[data-id=\"{ref}\"]').classList.contains('slot-full')"), ref)
 
     def test_escape_right_after_the_menu_opens_closes_it_even_when_focus_is_late(self):
@@ -1014,7 +1025,7 @@ class Gutter(Base):
             self.assertEqual(p.js("document.querySelectorAll('.sec-ctl').length"), 10, "one control for each section")
             self.assertEqual(p.js("document.querySelectorAll('.sec-ctl > [data-drag]').length"), 10)
             self.assertEqual(p.js("document.querySelectorAll('.sec-ctl > [data-add]').length"), 10, "a + under each grip")
-            self.assertEqual(p.js("document.querySelectorAll('.sec-add, .opts, .opts-btn').length"), 0,
+            self.assertEqual(p.js("document.querySelectorAll('.sec-add:not(.tileadd), .opts, .opts-btn').length"), 0,
                              "no Add line between sections and no separate options button")
             self.assertNotIn("Add a text section", p.js("document.querySelector('main').textContent"))
             self.assertNotIn("Add a text section", p.js("document.documentElement.outerHTML"))
@@ -1546,7 +1557,7 @@ class Published(unittest.TestCase):
         store = demo.store
         sections = order.in_order(store.read("report_sections", "ABC"))
         kinds = {s["type"] for s in sections}
-        self.assertTrue({"glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs"} <= kinds,
+        self.assertTrue({"glance", "usecases", "milestones", "text", "workitems", "docs"} <= kinds,
                         kinds)
         with store.step("dashboard", USER) as st:
             for s in sections:

@@ -64,6 +64,7 @@ class RowWords(unittest.TestCase):
         self.addCleanup(self.demo.close)
         self.store = self.demo.store
         fill(self.store)
+        self.demo.plant_builtin_sections()      # the rows are in the built-in sections, which a new project no longer has (row 1193)
         self.s = edit_server(self, self.store)
 
     def stored(self, table, ident):

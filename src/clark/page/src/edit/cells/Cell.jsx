@@ -4,7 +4,7 @@
 // never opens the peek; a click anywhere else on the row still does. In the peek (#448) the same cell takes `place="peek"`: its
 // own picker key, so the table's picker and the peek's are never both open, and a pick is about the open item alone (never the bulk plan). One picker is open at a time. The Status cell shows the
 // item's live look (itemEdit.statusPill, the same pill as View, #448); its picker and its toast say the status words. Item 210: a risk's or issue's Priority opens a
-// picker for its impact and likelihood (RatingPick), the two its priority is worked out from. An assumption's or dependency's
+// matrix for its impact and likelihood (PeekRating), the two its priority is worked out from. An assumption's or dependency's
 // Priority is not a picker: its tooltip says it is set from impact and likelihood (a decision has none, and shows a dash).
 import { openCell } from "../../stores/openCell.js";
 import { useRef } from "preact/hooks";

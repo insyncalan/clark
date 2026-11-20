@@ -60,7 +60,8 @@ NOT_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ud800-\udfff￾￿]")
 TITLES = {"current": "Current state", "glance": "At a glance", "usecases": "Use cases", "milestones": "Milestones",
           "text": "Notes", "raid": "Risks and issues", "actions": "Actions", "decisions": "Decisions", "gantt": "Gantt",
           "imagecap": "Image", "workitems": "Work items", "reportheadline": "Report headline",
-          "glancetemplate": "At a glance"}                            # row 1223: only a Full width image (body version 2) is written, and it has no heading; an Image with caption (version 1) is left out, as it was
+          "glancetemplate": "At a glance", "callout": "Callout"}                            # row 1223: only a Full width image (body version 2) is written, and it has no heading; an Image with caption (version 1) is left out, as it was
+CALLOUT_FILL = {"violet": "blue", "amber": "amber", "red": "red", "green": "green", "grey": "grey"}      # row 1272: Violet is the page's blue token; Plain has no fill
 HEALTH_PILL = {"on_track": ("On track", "green"), "at_risk": ("At risk", "amber"), "off_track": ("Off track", "red")}   # row 1261: the pill's words and tone
 HIDDEN_BY_KIND = ("actions", "raid", "decisions")
 HEADING_STYLE = {"h1": "Heading2", "h2": "Heading3", "h3": "Heading4"}
@@ -692,7 +693,11 @@ def section_workitems(published, ctx, title, sec):
                      "due": word_cell(when + (" " + _late_words(r.get("needed_by"), ctx) if late and when and pending else ""), ctx, late=late), "status": word_cell(r.get("status"), ctx, colour=colours_table.colour_for("decisions", "status", r.get("status")))}
         else:
             kind = "action" if t == "actions" else str(r.get("type") or "").lower()
-            cells = {"type": word_cell(kind.capitalize(), ctx), "id": word_cell(i, ctx), "item": (text_paras(_words(r, "client_message", "description"), ctx), None),
+            body = text_paras(_words(r, "client_message", "description"), ctx)
+            words = sanitise.rich_plain_text(r.get("latest_update")) if t == "actions" else ""
+            if words:
+                body += text_paras(f"Latest update: {words}", ctx, color=ctx.tok["grey-700"])      # row 1307: an action's update line under its text, as in the Actions section
+            cells = {"type": word_cell(kind.capitalize(), ctx), "id": word_cell(i, ctx), "item": (body, None),
                      "owner": word_cell(r.get("owner"), ctx), "workstream": word_cell(r.get("workstream"), ctx), "milestone": word_cell(names.get(r.get("milestone")), ctx),
                      "priority": word_cell(r.get("priority"), ctx, colour=colours_table.colour_for(t, "priority", r.get("priority"))),
                      "due": _list_due(r.get("due_date"), colours_table.is_late(t, "due_date", r, ctx.today), ctx), "status": _status_cell(r, kind, ctx)}
@@ -711,6 +716,8 @@ def section_reportheadline(published, ctx, title, sec):
     none of the three is left out. The words are the published content's own; none are added."""
     c = sec.get("content") if isinstance(sec.get("content"), dict) else {}
     health, headline, sentence = (c[k].strip() if isinstance(c.get(k), str) else "" for k in ("health", "headline", "sentence"))
+    if c.get("pill") is False:      # row 1261: the eye is off, so the pill is not drawn (the page and the file leave it out)
+        health = ""
     if not (health or headline or sentence):
         return ""
     out = [para(rule=True, spacing=(120, 0))]
@@ -763,7 +770,27 @@ def section_glancetemplate(published, ctx, title, sec):
     return "".join(out) if (h or tiles) else ""
 
 
-SIMPLE = {"workitems": section_workitems, "imagecap": section_imagecap, "current": section_current, "text": section_text, "milestones": section_milestones, "actions": section_actions,
+def section_callout(published, ctx, title, sec):
+    """Row 1272 (1291), ruling M8780: a callout as a text block, in Dashboard order: the heading (the callout's own title, else "Callout"; left out when its
+    heading is off), one bold line "Category: <category>. Colour: <colour>. Icon: <icon>." (empty parts left out; Plain and No icon say nothing extra),
+    then the words. Tile on: the line and words sit in one shaded box (the colour is a help, never the carrier). An empty callout is left out."""
+    c = sec.get("content") if isinstance(sec.get("content"), dict) else {}
+    cat, col, ico = (str(c.get(k) or "").strip() for k in ("category", "colour_name", "icon_name"))
+    parts = [f"{label}: {w}." for label, w in (("Category", cat), ("Colour", "" if col == "Plain" else col), ("Icon", ico)) if w]
+    line = " ".join(parts)
+    name = str(c.get("title") or "").strip()
+    body = rich(c["html"], ctx) if c.get("html") else "".join(text_paras(p, ctx, style=None) for p in c.get("paras") or ())
+    if not (name or body):
+        return ""
+    inner = (para(run(line, bold=True), "TableText") if line else "") + body
+    out = _heading(name or "Callout") if c.get("heading", True) else ""
+    if c.get("tile", True):
+        fill = ctx.hexes(CALLOUT_FILL[c["colour"]])[0] if c.get("colour") in CALLOUT_FILL else None
+        return out + table(ctx, None, [1], [[(inner, fill)]])
+    return out + inner
+
+
+SIMPLE = {"callout": section_callout, "workitems": section_workitems, "imagecap": section_imagecap, "current": section_current, "text": section_text, "milestones": section_milestones, "actions": section_actions,
           "raid": section_raid, "decisions": section_decisions, "gantt": section_gantt,
           "reportheadline": section_reportheadline, "glancetemplate": section_glancetemplate}
 

@@ -9,7 +9,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { data, rows, peek, peekEdit, openPeek, closePeek, mode, fromFile, view } from "../stores/report.js";
 import { isEditing } from "../logic/editing.js";
-import { width, wide, setWidth, resetWidth, MIN } from "../stores/peekState.js";
+import { width, wide, setWidth, resetWidth, MIN, DEFAULT } from "../stores/peekState.js";
 import { staleWords, notReviewed } from "../filters.js";
 import { KIND_WORDS, dueCell, pillOf, ownerOf, showDate, todayIso, isOpen, colourOf } from "../workItems.js";
 import { slideOut } from "../peek/exit.js";
@@ -17,6 +17,7 @@ import { closesPeek } from "../peek/outside.js";
 import { itemIds, milestoneIds, around, placeIn } from "../peek/list.js";
 import { holdScroll } from "../core/holdScroll.js";
 import { Icon } from "./Icon.jsx";
+import { classicTheme } from "./Contents.jsx";
 import { wordsOpen, flashed, askFrom } from "../stores/wordsState.js";
 import { singleKeys } from "../stores/keyPrefs.js";
 import { statusTone, priorityTone, dateTone, iconClass } from "../iconColours.js";
@@ -40,6 +41,11 @@ const say = (text) => { said.value = { text, n: said.value.n + 1 }; };
 
 // Where the peek takes an arrow (#289): only Up and Down, only plain, only on one of its own buttons. A box, the width edge, a tab,
 // a menu, a dialog, the words box, the activity list and the palette keep their arrows; so does the page's own scrolling, which is why a key aimed at nothing is left too.
+// Row 1285: a decision's date chip names its date under the value, as the approved mock-up does ("needed by" while Pending, "made on" once Made, "was needed by" once Withdrawn); an overdue date keeps its own red "overdue N days".
+const decisionDateWord = (row) => (!classicTheme() || row.kind !== "decision" ? "" : row.status === "Made" ? "made on" : row.status === "Withdrawn" ? "was needed by" : "needed by");
+// Row 1285: whether the last thing the person did was a key press (a keyboard open keeps the ring on Close; a mouse open does not draw one).
+let keyedLast = false;
+if (typeof document !== "undefined") { document.addEventListener("keydown", () => { keyedLast = true; }, true); document.addEventListener("pointerdown", () => { keyedLast = false; }, true); }
 const OWN = "[role=textbox],[role=combobox],[role=listbox],[role=menu],[role=dialog],[role=alertdialog],[role=tab],[role=separator],[role=toolbar]:not(.pk-tb),dialog,.wordsbox,.pk-activity";
 function peekOwnsArrow(e) {
   if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return false;
@@ -87,9 +93,9 @@ function ItemChips({ row, tools, editing }) {
       <PeekChip Live={Live} id={row.id} field="status" name="Status" icon="half" tone={openRI ? "b" : statusTone(row, today)} value={openRI ? "Open" : pill.text} sub={kept ? `${kept} kept` : ""} subTone={kept ? "kept" : ""} flash={hit("status")} pop={pop("status")} />
       <PeekChip Live={Live} id={row.id} field="priority" name={(row.kind === "risk" || row.kind === "issue") ? "Rating" : "Priority"} icon="bars" tone={rated ? colourOf(prio).class : priorityTone(prio)} value={rated ? colourOf(prio).word : text(prio)} sub={rated ? text(prio) : ""} subTone={rated ? `lvl ${colourOf(prio).class}` : ""}
         flash={hit("priority")} tip={fixed ? "Set from impact and likelihood" : row.kind === "risk" || row.kind === "issue" ? "Priority from impact and likelihood" : undefined} pop={pop("priority")} />
-      <PeekChip Live={Live} id={row.id} field="owner" name={row.kind === "decision" ? "Decider" : "Owner"} icon="user" tone="b" value={who.text} flash={hit("owner")} pop={pop("owner")} />
+      <PeekChip Live={Live} id={row.id} field="owner" name={row.kind === "decision" ? "Decider" : "Owner"} icon="user" tone="b" value={who.text} sub={classicTheme() && row.kind === "decision" ? "made by" : ""} flash={hit("owner")} pop={pop("owner")} />
       <PeekChip Live={Live} id={row.id} field="due" name={row.kind !== "decision" ? "Due date" : row.status === "Pending" ? "Needed-by date" : "Decision date"} icon="cal" tone={dateTone(row, today)} value={due.date}
-        sub={overdue} subTone={late ? "late" : ""} late={late} flash={hit("due")} pop={pop("due")} />
+        sub={overdue || decisionDateWord(row)} subTone={late ? "late" : ""} late={late} flash={hit("due")} pop={pop("due")} />
     </PeekChips>
   );
 }
@@ -195,7 +201,7 @@ function MilestoneFields({ m, tools }) {
 export function Edge() {
   const start = useRef(null);
   const down = (e) => { start.current = true; try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* no capture: the move still follows */ } e.preventDefault(); };
-  const move = (e) => { if (start.current) setWidth(document.documentElement.clientWidth - 16 - e.clientX); };
+  const move = (e) => { if (start.current) setWidth(document.documentElement.clientWidth - e.clientX); };
   const up = () => { start.current = null; };
   const key = (e) => {
     const step = e.shiftKey ? 80 : 20;
@@ -234,7 +240,15 @@ export function Peek({ tools }) {
     opened.current = p.id;
     said.value = { text: "", n: 0 };
     const close = box.current && box.current.querySelector("[data-pk-close]");
-    if (close) close.focus();
+    if (close) {
+      close.focus();
+      // Row 1285: Close takes the focus when a peek opens; with no key pressed (a click, a script) it shows no focus ring until a key is pressed or the focus moves on.
+      if (classicTheme() && !keyedLast) {
+        close.setAttribute("data-quiet", "");
+        const off = () => { close.removeAttribute("data-quiet"); close.removeEventListener("blur", off); document.removeEventListener("keydown", off, true); };
+        close.addEventListener("blur", off); document.addEventListener("keydown", off, true);
+      }
+    }
     return () => {
       wordsOpen.value = false;
       unsaved.value = false;
@@ -343,7 +357,7 @@ export function Peek({ tools }) {
   const go = (id) => id && openPeek(id, p.kind);
   const title = row ? row.title : m.name;
   return (
-    <aside class={`peek${wide.value ? " wide" : ""}`} id="peek" ref={keep} aria-label={`${p.id} details`} style={wide.value ? "" : `width:${Math.min(width.value, document.documentElement.clientWidth)}px`} data-peek={p.id}>
+    <aside class={`peek${wide.value ? " wide" : ""}`} id="peek" ref={keep} aria-label={`${p.id} details`} style={wide.value ? "" : `width:${Math.min(width.value, document.documentElement.clientWidth)}px`} data-peek={p.id} data-sized={width.value !== DEFAULT ? "" : undefined}>
       <Edge />
       <PeekToolbar near={near} go={go} wide={wide.value} onWide={() => { wide.value = !wide.value; }} onClose={askClose}
         draft={editing && row && tools.peekDraft ? tools.peekDraft(row) : null} onCopy={editing && row && tools.copyLinkFor ? () => tools.copyLinkFor(row) : null}

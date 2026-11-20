@@ -15,6 +15,7 @@ import { Figure, Health } from "../../components/Glance.jsx";
 import { GLANCE } from "../GlanceEdit.jsx";
 import { note } from "../notes.js";
 import { readBody, compact, withChange, moved, builtinTiles, PER_ROWS } from "../../templates/glanceBody.js";
+import { drawnTiles, hiddenTiles } from "../../glanceHidden.js";
 import { Icon } from "../../components/Icon.jsx";
 import { tileActions, OwnControls, OwnTile, PendingCell, AddTile, editor, WORDS as TILE_WORDS } from "./glanceTileEditor.jsx";
 
@@ -73,7 +74,8 @@ export function Edit({ section }) {
   const u = readBody(section), d = data.value;
   const built = Object.fromEntries(builtinTiles(u, rows.value, todayIso(), d.project).map((t) => [t.key, t]));
   const typed = Object.fromEntries(u.bespoke.map((t) => [t.id, { ...t, key: t.id, own: true, hidden: t.hidden === true }]));
-  const list = u.order.filter((k) => k !== "health" || u.health.shown).map((k) => built[k] || typed[k]).filter(Boolean), order = list.map((t) => t.key), Cell = GLANCE.Cell;
+  const every = u.order.filter((k) => k !== "health" || u.health.shown).map((k) => built[k] || typed[k]).filter(Boolean);
+  const list = drawnTiles(every), away = hiddenTiles(every), order = list.map((t) => t.key), Cell = GLANCE.Cell;      // row 1303: a hidden tile leaves Edit; Add a tile lists it
   const own = { ...tileActions(section, u), sid: section.id }, act = actions(section, u, own), shown = editor.value;
   return (
     <div class="tpl-edit tpl-edit-glancetemplate" data-tpl="glancetemplate">
@@ -88,7 +90,7 @@ export function Edit({ section }) {
         ))}
         <PendingCell tools={own} />
       </div>
-      {list.every((t) => t.key === "health" || t.hidden) ? <p class="tile-empty" data-gt-empty>{`No tiles. Use ${TILE_WORDS.add}.`}</p> : null}
+      {list.every((t) => t.key === "health") ? <p class="tile-empty" data-gt-empty>{`No tiles. Use ${TILE_WORDS.add}.`}</p> : null}
       <div class="tpl-gt-opts" data-gt-opts>
         <span class="tpl-gt-perrow" role="group" aria-label={WORDS.perRow}>{WORDS.perRow}
           {PER_ROWS.map((n) => <button type="button" key={n} class="gt-per" data-gt-per={n} aria-pressed={u.per_row === n ? "true" : "false"} onClick={() => act.perRow(n)}>{n}</button>)}
@@ -98,7 +100,7 @@ export function Edit({ section }) {
         </button>
         <span class="tpl-gt-halfnote" data-gt-halfnote>{WORDS.halfNote}</span>
       </div>
-      <AddTile tools={own} count={u.bespoke.length} />
+      <AddTile tools={own} count={u.bespoke.length} hidden={away.map((t) => ({ key: t.key, title: t.own ? t.label : TILE_TITLES[t.key] }))} show={(key) => act.hide(key, false)} />
       <GLANCE.Hint more={`${WORDS.hintEye} ${WORDS.hintAdd}`} />
     </div>
   );

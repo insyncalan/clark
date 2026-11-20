@@ -14,7 +14,11 @@ export const STATUSES = ["Open", "Delayed", "Pending", "Closed", "Cancelled", "M
 export const DUE = ["overdue", "soon", "none", "later"];
 export const NONE = "(none)";
 export const PRIORITIES = ["Urgent", "High", "Medium", "Low"];
-export const SORTS = ["due", "priority", "id"];
+export const SORTS = ["due", "priority", "id", "type", "owner"];
+export const CARDS_SORTS = ["due", "priority", "id"];      // what the Cards Configure box offers, unchanged
+export const DESIGN_SORTS = ["due", "priority", "type", "owner"];
+// The options of the Configure box's Sort by: the layer's own list, and the saved sort too when that list lacks it, so the box never shows a sort the list does not have.
+export const sortChoices = (classic, saved) => { const own = classic ? DESIGN_SORTS : CARDS_SORTS; return own.includes(saved) ? own : [...own, saved]; };      // row 1339: the approved Configure box offers these four, in this order; a saved sort by ID is kept (SORTS) and still read
 export const COLUMNS = ["type", "id", "owner", "due", "status", "priority", "workstream", "milestone"];
 export const DEFAULT_COLUMNS = ["type", "id", "owner", "due", "priority"];      // row 1199: Status, Workstream and Milestone start off in a new list; a saved list keeps its own columns
 export const MAX_ROWS = 50;
@@ -32,7 +36,7 @@ export const WORDS = {
   kinds: { action: "Actions", risk: "Risks", issue: "Issues", assumption: "Assumptions", dependency: "Dependencies", decision: "Decisions" },
   mode: { open: "Open", closed: "Closed", all: "Open and closed", current: "Open, and decisions made in the last 14 days" },
   due: { overdue: "Overdue", soon: "Due in 7 days", none: "No date", later: "Later" },
-  sort: { due: "Due date", priority: "Priority", id: "ID" },
+  sort: { due: "Due date", priority: "Priority", id: "ID", type: "Type", owner: "Owner" },
   columns: { type: "Type", id: "ID", owner: "Owner", due: "Due", status: "Status", workstream: "Workstream", priority: "Priority", milestone: "Milestone" },
   none: { owner: "No owner", workstream: "No workstream", use_case: "No use case", priority: "No priority" },
 };
@@ -187,6 +191,8 @@ function byDue(x, y) {
   const a = dueKey(x), b = dueKey(y);
   return cmp(a[0], b[0]) || cmp(a[1], b[1]);
 }
+const kindRank = (r) => { const i = KINDS.indexOf(r.kind); return i < 0 ? KINDS.length : i; };
+const ownerKey = (r) => { const o = String(r.owner == null ? "" : r.owner).trim().toLowerCase(); return o ? [0, o] : [1, ""]; };
 const rank = (r) => { const i = PRIORITIES.indexOf(r.priority); return i < 0 ? PRIORITIES.length : i; };
 
 // The filter with the owners, workstreams and use cases that no longer exist taken out of its choices; null when a choice list had
@@ -223,6 +229,8 @@ export function matching(filter, rows, today, live, all) {
   const closedLast = (x, y) => cmp(isOpen(x) ? 0 : 1, isOpen(y) ? 0 : 1);
   if (filter.sort === "id") hits.sort((x, y) => cmp(x.id, y.id));
   else if (filter.sort === "priority") hits.sort((x, y) => closedLast(x, y) || cmp(rank(x), rank(y)) || byDue(x, y) || cmp(x.id, y.id));
+  else if (filter.sort === "type") hits.sort((x, y) => closedLast(x, y) || cmp(kindRank(x), kindRank(y)) || byDue(x, y) || cmp(x.id, y.id));
+  else if (filter.sort === "owner") hits.sort((x, y) => closedLast(x, y) || cmp(ownerKey(x)[0], ownerKey(y)[0]) || cmp(ownerKey(x)[1], ownerKey(y)[1]) || byDue(x, y) || cmp(x.id, y.id));
   else hits.sort((x, y) => closedLast(x, y) || byDue(x, y) || cmp(x.id, y.id));
   return (all ? hits : hits.slice(0, filter.max)).map((r) => r.id);
 }

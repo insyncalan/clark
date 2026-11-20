@@ -23,6 +23,14 @@ export function menuMove(e, items) {
   return true;
 }
 
+function fitHeight(el, room) {
+  if (el.offsetHeight <= room) return;
+  el.style.boxSizing = "border-box"; el.style.maxHeight = `${Math.max(room, 96)}px`; el.style.overflowY = "auto";
+}
+
+// Row 1286 (M5c): the bottom edge of the sticky page header (read from the DOM, 0 when there is none): a menu never sits above this line.
+const headerBottom = () => { const t = document.querySelector(".top"); return t ? Math.max(0, Math.round(t.getBoundingClientRect().bottom)) : 0; };
+
 // The role="menu" box: focus to its first item (or, with `focusChecked`, the marked one) when it opens, the keys, and a click away.
 export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focusChecked, leaving, onGone, fade, children }) {
   const own = useRef(null), box = boxRef || own;
@@ -32,10 +40,13 @@ export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focu
   // there is no room below), its right edge on the button's (`fixed="start"`: its left edge). It is placed once, so any scroll (the row's own included) or a resize closes it.
   useLayoutEffect(() => {
     if (!fixed || !anchor || !box.current) return;
-    const el = box.current, a = anchor.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
+    const el = box.current, a = anchor.getBoundingClientRect(), w = el.offsetWidth;
+    const lo = Math.max(8, headerBottom() + 8);        // the menu stays under the sticky header
+    fitHeight(el, window.innerHeight - lo - 8);
+    const h = el.offsetHeight;
     el.style.position = "fixed"; el.style.right = "auto";
     const below = Math.round(a.bottom + 4), above = Math.round(a.top - 4 - h);
-    el.style.top = `${below + h > window.innerHeight && above >= 0 ? above : below}px`;
+    el.style.top = `${Math.max(lo, below + h > window.innerHeight && above >= lo ? above : below)}px`;
     const edge = fixed === "start" ? a.left : a.right - w;       // "start": the menu's left edge on the button's (a button near the page's left edge), else its right edge on the button's
     el.style.left = `${Math.round(Math.max(8, Math.min(edge, window.innerWidth - w - 8)))}px`;
     const shut = () => closeRef.current("away");
@@ -43,6 +54,16 @@ export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focu
     window.addEventListener("resize", shut);
     return () => { window.removeEventListener("scroll", shut, true); window.removeEventListener("resize", shut); };
   }, []);
+  // Row 1286 (B-M5): a menu that opens under its button (not `fixed`) and would run past the bottom of the window: it goes above the button when there
+  // is more room there, and a list still taller than the room scrolls inside its own box (the look is the same where it fits).
+  useLayoutEffect(() => {
+    if (fixed || !box.current) return;
+    const el = box.current, r = el.getBoundingClientRect();
+    const lo = headerBottom() + 8;
+    if (r.bottom <= window.innerHeight - 8 && r.top >= lo) return;
+    const a = anchor ? anchor.getBoundingClientRect() : null, below = window.innerHeight - 8 - r.top, above = a ? a.top - 4 - lo : 0;
+    if (above > below) { el.style.top = "auto"; el.style.bottom = "calc(100% + 4px)"; fitHeight(el, above); } else fitHeight(el, below);
+  }, []);                                        // eslint-disable-line react-hooks/exhaustive-deps
   // Row 800: opened with the mouse (the button does not show a focus ring), the first item takes the focus without a ring until a key is used.
   useLayoutEffect(() => {
     if (anchor && !anchor.matches(":focus-visible")) box.current.dataset.pointer = "1";
@@ -106,7 +127,7 @@ function groupedItems(items, menuId) {
       const kids = [];
       let j = i + 1;
       while (items[j] && items[j].checked !== undefined) kids.push(items[j++]);
-      out.push({ group: true, id: "g-" + it.id, labelId: `${menuId || "menu"}-${it.id}`, lab: it.lab, items: kids });
+      out.push({ group: true, id: "g-" + it.id, labelId: `${menuId || "menu"}-${it.id}`, lab: it.lab, caps: it.caps, items: kids });
       i = j - 1;
     } else out.push({ item: it });
   }
@@ -115,7 +136,7 @@ function groupedItems(items, menuId) {
 
 // One entry of the menu: a separator, the top line, a line of words, or a command or radio item.
 function entry(it, close, onPick) {
-  return it.sep ? <div key={it.id} class="sep" role="separator"></div> : it.head ? <div key={it.id} class="who" role="presentation" title={it.head.title}><b>{it.head.name}</b>{it.head.line ? <small>{it.head.line}</small> : null}</div> : it.lab ? <div key={it.id} class="lab" role="presentation">{it.lab}</div> : (
+  return it.sep ? <div key={it.id} class="sep" role="separator"></div> : it.head ? <div key={it.id} class="who" role="presentation" title={it.head.title}><b>{it.head.name}</b>{it.head.line ? <small>{it.head.line}</small> : null}</div> : it.lab ? <div key={it.id} class={it.caps ? "lab caps" : "lab"} role="presentation">{it.lab}</div> : (
     <button key={it.id} type="button" class={it.link ? "who-link" : it.pill ? "hp" : it.danger ? "danger" : undefined} role={it.checked === undefined ? "menuitem" : "menuitemradio"} aria-checked={it.checked === undefined ? undefined : it.checked ? "true" : "false"}
       tabIndex={-1} data-kind={it.id} onClick={() => { close("pick"); onPick(it.id); }}>
       {it.icon ? <Icon name={it.icon} cls="mi" /> : null}
@@ -126,7 +147,7 @@ function entry(it, close, onPick) {
   );
 }
 
-// items: [{id, name, line?, checked?, pill?}] (`checked` true or false makes it a radio item, marked when it is the one in use; `word` "g", "a" or "r" draws the name as a status word with its coloured dot (the use case rows' own look), `pill` "g", "a" or "r" draws the name as a filled status pill, with a check mark shape after it when in use), or {id, sep: true} for a separator, or {id, lab} for a line of words that is not a command, or {id, head: {name, line, title}} for the top line (a name and, under it, a quiet line), or a command with `link` true, drawn as a link. `onPick(id)` runs after the menu has closed. With no items the button is a plain button and a click
+// items: [{id, name, line?, checked?, pill?}] (`checked` true or false makes it a radio item, marked when it is the one in use; `word` "g", "a" or "r" draws the name as a status word with its coloured dot (the use case rows' own look), `pill` "g", "a" or "r" draws the name as a filled status pill, with a check mark shape after it when in use), or {id, sep: true} for a separator, or {id, lab, caps?} for a line of words that is not a command (`caps` draws it in capitals, the words unchanged), or {id, head: {name, line, title}} for the top line (a name and, under it, a quiet line), or a command with `link` true, drawn as a link. `onPick(id)` runs after the menu has closed. With no items the button is a plain button and a click
 // is `onClick()` (so a button that sometimes has a menu keeps the same element when it has none).
 export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, ariaDescription, id, btnCls, labelCls, menuId, menuLabel, left, fixed, chevron = true, onOpen, focusChecked, tab }) {
   const [open, setOpen] = useMenuState();
@@ -158,7 +179,7 @@ export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, aria
         <MenuPanel key={gen.current} leaving={leaving} onGone={gone} label={menuLabel || ariaLabel || label} id={menuId} cls={left ? "left" : ""} fixed={fixed} focusChecked={focusChecked} anchor={btn.current} onClose={close}>
           {groupedItems(items, menuId).map((n) => n.group
             ? <div key={n.id} role="group" aria-labelledby={n.labelId}>
-                <div class="lab" role="presentation" id={n.labelId}>{n.lab}</div>
+                <div class={n.caps ? "lab caps" : "lab"} role="presentation" id={n.labelId}>{n.lab}</div>
                 {n.items.map((it) => entry(it, close, onPick))}
               </div>
             : entry(n.item, close, onPick))}
