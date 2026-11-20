@@ -16,7 +16,7 @@ could not be read (scanned, encrypted, damaged, too big, too slow) is counted in
 WHAT COMES BACK. `FolderData`: the chosen passages (each labelled with a name inside its folder, never a path), `left_out` (how
 many did not fit the budget), `safety` (how many files were left out for safety, with the listing's own count), `pdf` and
 `other` (files of a type not read), `stopped` (the listing was cut short) and `secret_labels` (#215: files left out whole because
-the text looks like a password or a key, screened by `secret_screen` before any of it becomes a passage; counted in `safety` too). No path, no file text and no reason that holds a
+the text looks like a password or a key, screened by `secret_screen` before any of it becomes a passage; counted in `safety` too) and `limit` (files not opened because the limit for one question was reached: the file, byte, character or time cap; kept apart from `other`, which is the type). No path, no file text and no reason that holds a
 path is returned or logged here.
 """
 import codecs

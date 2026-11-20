@@ -65,6 +65,8 @@ class Counts(tp.Folders):
         self.assertEqual(both, [typ[0].replace("3 files were", "1 file was"), "1 file was not opened because the limit for one question was reached."])
         self.assertEqual(lim, ["8 files were not opened because the limit for one question was reached."])
         self.assertEqual(ask_service.folder_notes(ask_passages.FolderData(limit=1))[0].split()[:3], ["1", "file", "was"])
+        two = ask_service.folder_notes(ask_passages.FolderData(limit=2))
+        self.assertEqual(two, ["2 files were not opened because the limit for one question was reached."])
 
 
     def test_only_unusable_folders_give_no_limit(self):
