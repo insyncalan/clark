@@ -61,7 +61,7 @@ class Injected(tc.Base):
         self.assertNotIn(ask.RULES, self.provider.sent[-1], "and not as a rule")
         self.assertEqual((self.counts(), self.status_of(self.action)), (before, "Open"), kind)
         # 2. a model that is fooled into archiving: the change is refused by the checks, and the one it may take is still behind Confirm
-        got = self.answer(tc.change_line(op="archive", id=self.action), tc.change_line(op="change", id=self.action, status="Closed"), "CITE: P1", files=found)
+        got = self.answer(tc.change_line(op="archive", id=self.action), tc.change_line(op="change", id=self.action, current_title="Draft the cut-over plan", status="Closed"), "CITE: P1", files=found)
         status, dry = self.dry(got["reply"])
         self.assertEqual(status, 200, dry)
         self.assertEqual([p["ok"] for p in dry["plans"]].count(False), 1, "the archive is refused: " + kind)
