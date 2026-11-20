@@ -22,7 +22,7 @@ ALLOWED_TOOLS = {
     "Calendar": frozenset(("outlook_calendar_search", "outlook_find_available_time", "find_meeting_availability")),
     "Teams": frozenset(("chat_message_search", "teams_list_teams", "teams_list_channels", "teams_list_channel_messages",
                         "teams_list_chats")),
-    "SharePoint and OneDrive": frozenset(("sharepoint_search", "sharepoint_folder_search", "read_resource")),
+    "SharePoint and OneDrive": frozenset(("sharepoint_search", "sharepoint_folder_search")),
     "Todoist": frozenset(("find-tasks", "find-tasks-by-date", "find-projects", "find-sections", "find-comments",
                           "find-completed-tasks", "fetch-object", "get-overview")),
 }
