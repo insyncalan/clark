@@ -3,6 +3,7 @@
 // linkcard.py), so a person reads why and what to do instead of a general refusal. Pure but for change().
 import { change } from "../../stores/changes.js";
 import { contentOf } from "../../templates/files.js";
+import { richWords } from "../../logic/richWords.js";
 
 export const LABEL_MAX = 120;
 export const BAD_LABEL = `Words for a file or link must be one line of ${LABEL_MAX} characters at most. Shorten them and try again.`;
@@ -25,6 +26,14 @@ export const noBreaks = (html) => String(html || "").replace(/[\r\n]+/g, " ");
 export function wordsAsHtml(html, lines) {
   if (typeof html === "string" && html.trim()) return html;
   return (Array.isArray(lines) ? lines : []).filter((t) => typeof t === "string" && t.trim()).map((t) => `<p>${escaped(t)}</p>`).join("");
+}
+
+// Not rich (row 1288): the words as plain lines in a box, one paragraph per line. What an earlier editor stored as HTML reads as its text.
+export const plainWords = (html, lines) => richWords(wordsAsHtml(html, lines)).split("\n").map(oneLine).filter(Boolean).join("\n");
+// The section's content with its words set to the typed lines: the lines in `text`, no `html` (the old html is dropped; nothing else changes).
+export function withPlainWords(content, typed) {
+  const { html, ...rest } = content;
+  return { ...rest, text: paragraphsOf(typed) };
 }
 
 // "" when `items` are at most `most` paragraphs of at most `each` characters; else the words `refusal`.
