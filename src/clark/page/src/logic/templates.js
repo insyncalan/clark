@@ -44,7 +44,7 @@ export const TEMPLATES = [
     description: "Three or four numbers with labels and a change since last week.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed", "Figure · typed", "Caption"] },
   { id: "figures-3", name: "Key figures, three", kind: "figures", fit: ["full", "half"], type: "figures3", title: "Key figures", body: "", ready: true,
     description: "Three numbers with labels, in wider cards, so a short note fits under the change.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed"] },
-  // Row 1264 slice 9: the glance template (type glancetemplate), its own card beside the built-in At a glance card (that name is taken). The words are
+  // Row 1264 slice 9: the glance template (type glancetemplate), its own card (row 1411 removed the built-in At a glance card). The words are
   // the ruled ones (words file group 1): the name, the description and the holds list, quoted. The new section starts with the card's name as its title.
   { id: "glance-template", name: "Project at a glance", kind: "figures", fit: ["full", "half"], type: "glancetemplate", title: "Project at a glance", body: "", ready: true,
     description: "Three counts, an optional project health and tiles of your own.",
