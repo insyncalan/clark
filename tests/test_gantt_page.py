@@ -228,20 +228,16 @@ class Page(unittest.TestCase):
 
     # ── the pill, the Edit/View button and the keys ──────────────────────────
 
-    def test_the_edit_button_names_the_mode_you_switch_to_and_follows_the_pill(self):
+    def test_the_pill_is_the_one_view_edit_control_and_the_toolbar_has_no_text_button(self):
         self.look(1400)
         self.mount()
-        b = "[data-gp-mode]"
-        self.assertEqual(self.text(b), "Edit")
-        self.assertEqual(self.js(f"document.querySelector({lit(b)}).title"), "Edit the plan")
-        self.click(b)
+        self.assertEqual(self.count("[data-gp-mode]"), 0, "row 1197: the text View/Edit button is gone")
+        self.assertEqual(self.js("document.querySelector('.modes [data-mode=view]').getAttribute('aria-pressed')"), "true")
+        self.click(".modes [data-mode=edit]")
         self.until("document.querySelector('#gantt-page').dataset.mode === 'edit'", "Edit")
-        self.assertEqual(self.text(b), "View")
-        self.assertEqual(self.js(f"document.querySelector({lit(b)}).title"), "Back to the view (what the client sees)")
         self.assertEqual(self.js("document.querySelector('.modes [data-mode=edit]').getAttribute('aria-pressed')"), "true", "the pill follows")
         self.click(".modes [data-mode=view]")
         self.until("document.querySelector('#gantt-page').dataset.mode === 'view'", "the pill's View")
-        self.assertEqual(self.text(b), "Edit")
 
     def test_e_and_v_switch_the_mode_with_the_dashboards_own_keys_and_leave_a_field_alone(self):
         self.mount()
@@ -372,7 +368,7 @@ class Page(unittest.TestCase):
         self.assertEqual(self.count("[data-gp-filter]"), 4)
         self.click("[data-gp-filter=phases]")
         self.until("document.querySelectorAll('.gt-scroll tbody tr').length === 2", "phases only")
-        self.click("[data-gp-mode]")
+        self.click(".modes [data-mode=view]")
         self.until("document.querySelector('#gantt-page').dataset.mode === 'view'", "View")
         self.click("[data-gp-show]")
         self.assertEqual(self.count("[data-gp-filter]"), 3)
@@ -473,7 +469,7 @@ class Page(unittest.TestCase):
         self.assertEqual(never, [], "type, start, end and pct are never in what is saved")
         self.assertEqual(self.calls()[-1][2], "Hidden columns changed.")
         self.click("[data-gp-layout=chart]")
-        self.click("[data-gp-mode]")
+        self.click(".modes [data-mode=view]")
         self.until("document.querySelector('#gantt-page').dataset.mode === 'view'", "View")
         self.assertEqual(self.count("[data-g-rz=end]"), 1, "the dates stay in the client view")
 
@@ -484,7 +480,7 @@ class Page(unittest.TestCase):
         self.key("ArrowUp", "document.querySelector('[data-g-grip]')")
         self.until("P.settings().gantt_default_rows !== null", "the height is saved")
         self.assertRegex(self.calls()[-1][2], r"^Plan height saved: \d+ of 6 rows\. Viewers can still change their own\.$")
-        self.click("[data-gp-mode]")
+        self.click(".modes [data-mode=view]")
         self.until("document.querySelector('#gantt-page').dataset.mode === 'view'", "View")
         n = len(self.calls())
         self.js("(function(){ var g = document.querySelector('[data-g-grip]'); g.focus(); })()")

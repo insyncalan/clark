@@ -61,10 +61,25 @@ class Toolbar(GP.Page):
                     self.until("document.querySelector('[data-g-showmenu]')", "the menu")
                     m = self.val("""(() => { const q = s => document.querySelector(s), cs = e => getComputedStyle(e), menu = q('[data-g-showmenu]'), fit = q('[data-g-fit]'), row = menu.querySelector('button');
                       return {fitMin: cs(fit).minWidth, fitFont: cs(fit).fontSize, w: menu.getBoundingClientRect().width, pad: cs(menu).padding, radius: cs(menu).borderRadius,
-                        rowPad: cs(row).padding, rowFont: cs(row).fontSize}; })()""")
+                        rowPad: cs(row).padding, rowFont: cs(row).fontSize, rowGap: cs(row).columnGap, tick: cs(menu.querySelector('.gt-ck')).width}; })()""")
                     self.assertEqual((m["fitMin"], m["fitFont"]), ("56px", "14px"))
                     self.assertEqual((m["w"], m["pad"], m["radius"]), (240, "6px", "12px"))
                     self.assertEqual((m["rowPad"], m["rowFont"]), ("8px 10px", "14px"))
+                    self.assertEqual((m["rowGap"], m["tick"]), ("10px", "14px"), "rows gap 10, tick slot 14")
+
+    def test_the_one_view_edit_control_is_the_pill_and_the_cover_band_is_not_drawn(self):
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                self.look(width)
+                self.mount(mode="edit")
+                self.assertEqual(self.count("[data-gp-mode]"), 0, "no text View/Edit button in the toolbar")
+                self.assertEqual(self.count(".modes [data-mode=view], .modes [data-mode=edit]"), 2, "the pill's two buttons")
+                self.assertEqual(self.count("#cover"), 0, "the approved Gantt page has no Cover band")
+                self.assertEqual(self.val("getComputedStyle(document.querySelector('[data-gp-plan]')).marginTop"), "0px", "no gap above the toolbar")
+                self.click(".modes [data-mode=view]")
+                self.until("document.querySelector('#gantt-page').dataset.mode === 'view'", "View")
+                self.click(".modes [data-mode=edit]")
+                self.until("document.querySelector('#gantt-page').dataset.mode === 'edit'", "Edit")
 
 
 for _n in [n for n in dir(GP.Page) if n.startswith("test_")]:

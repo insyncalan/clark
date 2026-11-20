@@ -12,6 +12,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { mode, fromFile, asAt } from "../../stores/report.js";
 import { Cover } from "../../components/Cover.jsx";
+import { classicTheme } from "../../components/Contents.jsx";
 import { Fade } from "../../components/Menu.jsx";
 import { Icon } from "../../components/Icon.jsx";
 import { actionIcon } from "../../menuIcons.js";
@@ -120,12 +121,6 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
   const bar = (
     <div class="gt gp-tools" data-gp-tools>
       <div class="gt-bar" role="toolbar" aria-label="Gantt">
-        {Toggle ? (
-          <button type="button" class="gt-wd" data-gp-mode={editing ? "view" : "edit"} aria-label={editing ? E.view : E.edit} title={editing ? E.viewTip : E.editTip}
-            onClick={() => { mode.value = editing ? "view" : "edit"; }}>
-            <Icon name={editing ? "eye" : "pencil"} /> {editing ? E.view : E.edit}
-          </button>
-        ) : null}
         {dated && layout === "table" ? layouts : null}
         <span class="gt-sp" />
         {layout === "table" ? (
@@ -158,7 +153,7 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
     <>
     {Toggle ? <div class="rbar" id="gantt-bar"><Toggle pill />{editing && BarNote ? <BarNote /> : null}</div> : null}      {/* above the banner, as the Dashboard's bar is */}
     <section class="frame report gp" id="gantt-page" data-mode={editing ? "edit" : "view"} data-gp-shown={layout}>
-      {fromFile.value ? null : <Cover title={editing && Title ? <Title text={title} label={E.titleLabel} onSave={saveTitle} /> : title} lines={coverLine(project, now)} />}      {/* issue 1146: a published file shows these words in its one top bar */}
+      {fromFile.value || classicTheme() ? null : <Cover title={editing && Title ? <Title text={title} label={E.titleLabel} onSave={saveTitle} /> : title} lines={coverLine(project, now)} />}      {/* issue 1146: a published file shows these words in its one top bar. Row 1197 (Classic): the approved Gantt page has no Cover band, so it is not drawn */}
       {above ? <div class="gp-slot gp-above" data-slot="above">{above}</div> : null}
       <div class="gp-plan" data-gp-plan>
         {Toggle || layout === "table" ? bar : null}

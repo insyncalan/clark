@@ -229,7 +229,7 @@ class E2E(unittest.TestCase):
         br.snap("gantt-empty-view")
 
     def add_edit_drag_eye(self, br):
-        br.click("[data-gp-mode=edit]")
+        br.click(".modes [data-mode=edit]")
         br.until("document.querySelector('#gantt-page').dataset.mode === 'edit'", "Edit")
         br.until("document.querySelector('[data-gp-first]')", "an empty plan in Edit offers the first line")
         br.snap("gantt-empty-edit")
@@ -308,7 +308,7 @@ class E2E(unittest.TestCase):
         self.assertEqual(br.js("document.querySelector('#gantt-page').dataset.mode"), "edit")
         self.assertEqual(br.js("document.querySelectorAll('[data-g-row]').length"), 3, "Edit draws every line")
         # View: only the lines with the eye on
-        br.click("[data-gp-mode=view]")
+        br.click(".modes [data-mode=view]")
         br.until("document.querySelector('#gantt-page').dataset.mode === 'view'", "View")
         self.assertEqual(br.js("document.querySelectorAll('[data-g-row]').length"), 2)
         self.assertEqual(br.js("[].map.call(document.querySelectorAll('[data-g-row] .gt-nm'), function(e){return e.textContent}).join('|')"), "Discovery|Scan paper files")
@@ -319,7 +319,7 @@ class E2E(unittest.TestCase):
         self.assertEqual(br.js("document.querySelectorAll('.gt-scroll td[data-c=\"1\"]').length"), 2, "the View table has the two lines with the eye on")
         br.snap("gantt-view-table")
         br.click("[data-gp-layout=chart]")
-        br.click("[data-gp-mode=edit]")
+        br.click(".modes [data-mode=edit]")
         br.until("document.querySelector('#gantt-page').dataset.mode === 'edit'", "Edit again")
 
     def undo_and_reload(self, br):
@@ -351,7 +351,7 @@ class E2E(unittest.TestCase):
         br.visit(self.base + f"#gantt&p={CODE}")
         br.until("document.querySelector('[data-g-row]')", "the Gantt page after a reload")
         self.assertEqual(br.js("document.querySelector('#gantt-page').dataset.mode"), "view", "a reload is View")
-        br.click("[data-gp-mode=edit]")
+        br.click(".modes [data-mode=edit]")
         br.until("document.querySelectorAll('[data-g-row]').length === 3", "all three lines are back")
         again = br.js("[].map.call(document.querySelectorAll('[data-g-row] .gt-nm'), function(e){return e.value||e.textContent}).join('|')")
         self.assertEqual(again, shown)
