@@ -388,8 +388,6 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .wgroup table.items.grouped .grp-b .gc { flex: none; white-space: nowrap; font-size: 13px; margin-left: 2px; }
 .wgroup table.items.grouped .grp-b:hover, .wgroup table.items.grouped .grp-b:hover .i { color: var(--brand-blue); }
 .wgroup table.items.grouped .grp-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: 6px; }
-/* Row 1372 (Classic only; the Cards look keeps its width): the item and milestone peeks open 62% of the window wide, at least 300px, as the approved peek mock-up draws it, instead of 640px. From 1000px up; below it the peek fills the window as before. A width the person dragged (the peek carries data-sized) is kept. Bare lengths with no token: the 300px least width and the 1000px switch. */
-@media (min-width: 1000px) { .peek:not(.hpk):not(.wide):not([data-sized]) { width: 62% !important; min-width: min(300px, 100vw); } }
 /* Row 1286 (B-M3, ruling 17-11 on the menu comparison answers): the prototype's menu values (work.css 81-84, menu-icons.css 6-23) apply ONLY to Group by (the View menu, #viewMenuList), the Add menu (#newBtnMenu and the other Add menus) and Move to; the other menus keep production's 14px lines, widths, padding and radius. */
 #viewMenuList, #newBtnMenu, .ddmenu[aria-label^="Add "], .ddmenu[aria-label^="Move "][aria-label$=" to"] { min-width: 224px; padding: 6px; border-radius: 10px; }
 :is(#viewMenuList, #newBtnMenu, .ddmenu[aria-label^="Add "], .ddmenu[aria-label^="Move "][aria-label$=" to"]) :is([role="menuitem"], [role="menuitemradio"]:not(.hp)) { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; font-size: 15px; }
@@ -405,6 +403,8 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .pal-kind { min-width: 0; font-size: calc(var(--size-caption) - 1px); letter-spacing: .04em; }
 .pal-more, .pal-why { font-size: calc(var(--size-caption) - 1px); }
 .pal-why { grid-column: 2 / -1; padding-left: 0; }
+/* Row 1350 part 4 (Classic only): at 700px and below the row is two columns and the kind takes a line of its own above the label and the hint, as the mock-up's last media rule draws it (app.css line 1575). The bare length 700px is the mock-up's break and has no token. */
+@media (max-width: 700px) { .pal-row { grid-template-columns: minmax(0, 1fr) auto; } .pal-kind { grid-column: 1 / -1; } }
 /* Row 1336, the At a glance template in Edit, Classic only (the published View keeps the flat Row 1260 strip): the tile takes the mock-up's inner padding (12px top and bottom, 16px sides; the Row 1260 padding 0 removed it, and with it the pill touched the border) and shows its status dot 8x8 before the label (the Row 1260 rule hid it; the colour of the figure alone is the View's way). */
 .tpl-edit-glancetemplate .glance .fig { padding: 12px 16px; }
 .tpl-edit-glancetemplate .glance .fig .ragdot { display: inline-block; flex: none; }
@@ -461,6 +461,20 @@ table.items .weye { width: 30px; height: 30px; }
 #work .vicons .seg.lsw button { box-sizing: border-box; width: 36px; height: 32px; }
 #work .vicons .seg.lsw button[aria-pressed="true"] { background-color: var(--tile-on-bg); color: var(--tile-on-fg); }
 #work .newb:not(:hover):not(:focus-visible):not([aria-expanded="true"]) { border-color: var(--grey-500); border-radius: 6px; background: transparent; color: var(--brand-blue); }
+/* Row 1399 (Use cases rows audit, Classic only): the rows as the prototype draws them. Cell padding 6px 12px with a 40px row, the hover tint, the title at 500, the reference as a chip, no progress bar under the next steps, and the view tabs 15px with 6px 8px. */
+#usecases .ucl-table td { padding: 6px 12px; height: 40px; }
+#usecases .ucl-table tbody tr:hover, #usecases .ucl-table tbody tr:focus-within { background: #F3F5FB; }
+:root[data-theme=dark] #usecases .ucl-table tbody tr:hover, :root[data-theme=dark] #usecases .ucl-table tbody tr:focus-within { background: var(--grey-100); }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] #usecases .ucl-table tbody tr:hover, :root[data-theme=auto] #usecases .ucl-table tbody tr:focus-within { background: var(--grey-100); } }
+#usecases .ucl-table .ucl-go, #usecases .ucl-table .uctitle { font-weight: 500; }
+#usecases .ucl-table .ucl-ref { display: inline-block; box-sizing: border-box; border: 1px solid var(--grey-500); border-radius: 4px; padding: 2px 8px; font-size: 13px; font-weight: 500; line-height: 1.3; }
+#usecases .ucl-table .prg { display: none; }
+#usecases .ucl-views .vtab { font-size: 15px; padding: 6px 8px; }
+/* Row 1405 (Classic only): the ungrouped Use cases list is one box (kept) whose column heads are a shaded strip, with 12 px on the box sides and no line under the last row. The grouped list is not touched. */
+.ucl-wrap > .wgroup:not(.ucl-group):not(:has(+ .ucl-group)) table.ucl-table thead th { background: var(--band-bg); padding: 8px 12px; font-size: 13px; font-weight: 500; letter-spacing: .08em; color: var(--text-muted); border-top: 0; border-bottom: 1px solid var(--grey-200); }
+.ucl-wrap > .wgroup:not(.ucl-group):not(:has(+ .ucl-group)) table.ucl-table tbody td { padding-left: 12px; padding-right: 12px; }
+.ucl-wrap > .wgroup:not(.ucl-group):not(:has(+ .ucl-group)) table.ucl-table tbody tr:first-child td { border-top: 0; }
+.ucl-wrap > .wgroup:not(.ucl-group):not(:has(+ .ucl-group)) table.ucl-table tbody tr:last-child td { border-bottom: 0; }
 /* Row 1345 block (Classic Dashboard layout vs prototype 2.0), Classic only, compact spacing, editor Dashboard only: Contents at 66, right margin 616, section paddings 20 and 22, break 1000 (row 1318). */
 @media screen and (min-width: 1000px) {
   html:has(.rbar + #report .cnt-grid) main { max-width: none; margin: 0; padding-left: 66px; padding-right: max(var(--space-5), calc(50vw - 616px)); }
@@ -546,6 +560,8 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 .wil-pr[data-pri="Urgent"] { border-color: var(--pri-urgent-bg); }
 /* Row 1197: Classic only, comfortable: the Gantt plan runs the page band's width. */
 @media (min-width: 901px) { html[data-density="comfortable"] .gp-plan { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); margin-right: calc(-1 * (var(--space-5) + var(--space-1))); } }
+/* Row 1372 (Classic only; the Cards look keeps its width): the item and milestone peeks open 62% of the window wide, at least 300px, as the approved peek mock-up draws it, instead of 640px. From 1000px up; below it the peek fills the window as before. A width the person dragged (the peek carries data-sized) is kept. Bare lengths with no token: the 300px least width and the 1000px switch. */
+@media (min-width: 1000px) { .peek:not(.hpk):not(.wide):not([data-sized]) { width: 62% !important; min-width: min(300px, 100vw); } }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
