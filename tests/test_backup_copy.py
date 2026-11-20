@@ -722,5 +722,44 @@ class KeptPublications(Rig):
         self.assertEqual({n: now.get(n) for n in there}, there)           # the copies already in the copy folder stay as they were
 
 
+class HelpSaysKeptCopiesAreCopied(unittest.TestCase):
+    """Row 1380: two Help sentences about the kept copies of published pages are pinned, each once, in its own entry."""
+    CARD = ("The kept copies of your published pages are copied there too; without that folder they are in no backup.")
+    STEP = ("Backups do not include the kept copies of the pages you sent to your client; to have them copied too, "
+            "type a folder in the Copy my backups to box and press **Save**.")
+
+    @classmethod
+    def setUpClass(cls):
+        src = Path(__file__).resolve().parent.parent / "src" / "clark" / "page" / "src" / "help" / "helpContent.json"
+        cls.strings = []
+        def walk(o):
+            if isinstance(o, str):
+                cls.strings.append(o)
+            elif isinstance(o, dict):
+                for v in o.values():
+                    walk(v)
+            elif isinstance(o, list):
+                for v in o:
+                    walk(v)
+        walk(json.loads(src.read_text(encoding="utf-8")))
+
+    def entries_with(self, sentence):
+        return [t for t in self.strings if sentence in t]
+
+    def test_backups_card_says_the_kept_copies_are_copied_to_the_folder(self):
+        hits = self.entries_with(self.CARD)
+        self.assertEqual(len(hits), 1)
+        self.assertEqual(hits[0].count(self.CARD), 1)
+        self.assertIn("The backups clark keeps", hits[0])         # the Backups card entry
+        self.assertTrue(hits[0].endswith(self.CARD))
+
+    def test_restore_step_says_backups_do_not_include_the_kept_copies(self):
+        hits = self.entries_with(self.STEP)
+        self.assertEqual(len(hits), 1)
+        self.assertEqual(hits[0].count(self.STEP), 1)
+        self.assertIn("Before a restore", hits[0])                # the restore step entry
+        self.assertTrue(hits[0].endswith(self.STEP))
+
+
 if __name__ == "__main__":
     unittest.main()
