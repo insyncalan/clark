@@ -59,7 +59,7 @@ const ICONS = {
   // Row 1272: the Callout's icons (question to shield) and the five shapes a colour draws when it has no word and no icon.
   question: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.6 2.3c-.7.4-1.1.9-1.1 1.7M12 16.8v.2"/>',
   warning: '<path d="M12 3.5 22 20H2z"/><path d="M12 10v5M12 17.4v.2"/>',
-  // Row 1272 (Romanoff 20-11): two more callout icons; warn is the triangle again under its own name, fork is the two-way fork (mock-up gen.py ICONS_NEW, lines 27 and 30).
+  // Row 1272 (owner ruling 20-11): two more callout icons; warn is the triangle again under its own name, fork is the two-way fork (mock-up gen.py ICONS_NEW, lines 27 and 30).
   warn: '<path d="M12 3.5 22 20H2z"/><path d="M12 10v5M12 17.4v.2"/>',
   fork: '<circle cx="12" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="19" r="2"/><path d="M12 7v4M12 11l-6 6M12 11l6 6"/>',
   alert: '<path d="M8.5 3h7L21 8.5v7L15.5 21h-7L3 15.5v-7z"/><path d="M12 8v5M12 16v.2"/>',

@@ -1,4 +1,4 @@
-"""Row 1272 (Romanoff 20-11): the callout icon set is 27 icons and No icon; each new one is named, drawn, checked, and written as words.
+"""Row 1272 (owner ruling 20-11): the callout icon set is 27 icons and No icon; each new one is named, drawn, checked, and written as words.
 
 Run: python3 dev/run_tests.py test_callout_icons_27_1272
 """
