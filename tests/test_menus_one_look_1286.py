@@ -65,7 +65,7 @@ def check(test, name, look, m):
     where = f"{name} at {look[0]} {look[1]}"
     test.assertTrue(m, where)
     three = name in THREE
-    r1273 = three and name != "new-tile"     # row 1273 changes Group by and Move to only; the Add menu is row 1462
+    r1273 = name in {"view", "board-move", "board-move-lanes"}     # row 1273 changes Group by and Move to only; the Add menu is row 1462
     test.assertEqual(m["rad"], "10px", f"{where}: the panel radius is {m['rad']}, the prototype popover (.pop) draws 10px")
     if three:
         test.assertGreaterEqual(m["w"], MIN_W, f"{where}: the menu is {m['w']}px wide")
