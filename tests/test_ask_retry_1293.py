@@ -199,7 +199,7 @@ class Retry(Base):
 
     def test_a_fault_in_a_dry_run_is_not_a_committed_save(self):
         offer_request = self.service.applier.offers[self.new_offer()].request
-        with mock.patch("clark.changes._AskStore.shown", side_effect=RuntimeError("inside the step")):
+        with mock.patch("clark.backup.finish", side_effect=RuntimeError("after the rollback")):
             with self.assertRaises(RuntimeError) as got:
                 self.real(offer_request, dry=True)
         self.assertFalse(getattr(got.exception, "committed", False))
