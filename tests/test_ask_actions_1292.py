@@ -178,7 +178,9 @@ class Page(Classic):
                 p.js("document.querySelector('[data-ask-copy]').click()")
                 p.until("window.__clip.length === 1", f"{w}: copied")
                 self.assertEqual(p.js("window.__clip[0]"), {"text/html": "<p><strong>Health:</strong> steady.</p>", "text/plain": "Health: steady."})
-                p.until("document.body.textContent.includes('Copied. It pastes into Word or an email with its formatting.')", f"{w}: the notice")
+                self.assertEqual(p.js("[...document.querySelectorAll('.ask-turn-acts button')].map(b => b.getAttribute('aria-label'))"), ["Copy this answer", "Ask this question again"], f"{w}: the screen-reader names")
+                p.until("document.querySelector('#ask-note').textContent === 'Copied'", f"{w}: the notice is just Copied")
+                p.until("document.querySelector('#ask-note').textContent === ''", f"{w}: Copied goes after 2 s")
                 p.js("document.querySelector('[data-ask-again]').click()")
                 p.until("document.querySelectorAll('.ask-turn.assistant').length === 2 && !document.querySelector('#ask-work')", f"{w}: asked again")
                 asks = [c[1]["question"] for c in self.stub.calls if c[0] == "ask"]

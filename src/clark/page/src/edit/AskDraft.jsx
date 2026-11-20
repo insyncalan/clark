@@ -54,12 +54,13 @@ export function AskDraft() {
 
   const list = choices(sections, d.sec);
   return (
-    <section id="ask-draft" class="ask-draft" role="complementary" aria-label={W.DRAFT_TITLE} style={{ right: clampWidth(panelWidth.value) + "px" }}>
+    <section id="ask-draft" class="ask-draft" role="complementary" aria-label={W.DRAFT_TITLE} style={{ right: clampWidth(panelWidth.value) + "px", "--ad-r": clampWidth(panelWidth.value) + "px" }}>
       <header class="ad-h">
         <h2>{W.DRAFT_TITLE}</h2>
         <span class="ad-hint">{W.DRAFT_HINT}</span>
         <button type="button" class="pkp-btn" id="ask-draft-close" title={W.DRAFT_CLOSE} aria-label={W.DRAFT_CLOSE} onClick={() => { draft.value = null; }}><Icon name="x" /></button>
       </header>
+      {d.via && d.via.length ? <p class="ad-note" id="ask-draft-via">{W.DRAFT_VIA(d.via.join(" and "))}</p> : null}
       <div class="ad-doc" id="ask-draft-doc" ref={doc} contentEditable="true" role="textbox" aria-multiline="true" aria-label={W.DRAFT_TEXT_LABEL} spellcheck="true" />
       <p class="ad-note" id="ask-draft-note" role="status" aria-live="polite">{note}</p>
       <footer class="ad-f">
