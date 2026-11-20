@@ -79,10 +79,10 @@ export function RaidEdit({ section, size: base, choice = false }) {
     <div class="rce" data-edit-only="">
       {cards.length === 0 ? <p class="quiet rce-first">Choose an item for the first card. This section stays out of the published page until a card is chosen.</p> : null}
       {choice ? (
-        <label class="rce-f rce-across"><span>RAID cards</span>
-          <select aria-label="RAID cards" value={String(across)} onChange={setAcross}>
-            <option value="3">RAID cards, three</option>
-            <option value="4">RAID cards, four</option>
+        <label class="rce-f rce-across"><span>Cards across</span>
+          <select aria-label="Cards across" value={String(across)} onChange={setAcross}>
+            <option value="3">3</option>
+            <option value="4">4</option>
           </select></label>
       ) : null}
       <ul class="rce-list">{rows}</ul>

@@ -144,14 +144,14 @@ class Edit(PageBase):
             cdp.FOCUS_EMULATION = False
             p = self.visit(cdp)
             p.edit()
-            p.until(f"!!document.querySelector('{q} select[aria-label=\"RAID cards\"]')", "the choice is there")
-            self.assertEqual(self.arr(p, f"[...document.querySelectorAll('{q} select[aria-label=\"RAID cards\"] option')].map(o => o.textContent)"), ["RAID cards, three", "RAID cards, four"])
-            self.assertEqual(p.js(f"document.querySelector('{q} select[aria-label=\"RAID cards\"]').value"), "4", "an old four across body reads as four")
+            p.until(f"!!document.querySelector('{q} select[aria-label=\"Cards across\"]')", "the choice is there")
+            self.assertEqual(self.arr(p, f"[...document.querySelectorAll('{q} select[aria-label=\"Cards across\"] option')].map(o => o.textContent)"), ["3", "4"])
+            self.assertEqual(p.js(f"document.querySelector('{q} select[aria-label=\"Cards across\"]').value"), "4", "an old four across body reads as four")
             self.assertEqual(self.stored(sec)["v"], 1, "opening Edit changes nothing")
             self.set_select(p, f"{q} select[aria-label='Card 2 item']", made[1])
             self.assertTrue(self.wait_for(lambda: len(self.stored(sec)["cards"]) == 2), "the second card is saved")
             self.assertEqual(self.stored(sec)["v"], 1, "a card on a four across body keeps the old shape")
-            self.set_select(p, f"{q} select[aria-label='RAID cards']", "3")
+            self.set_select(p, f"{q} select[aria-label='Cards across']", "3")
             self.assertTrue(self.wait_for(lambda: self.stored(sec).get("across") == 3))
             self.assertEqual([c["id"] for c in self.stored(sec)["cards"]], made[:2])
             for i in range(3, 9):

@@ -104,14 +104,14 @@ class Edit(PageBase):
         return ref, made
 
     def across(self, p, q):
-        return p.js(f"document.querySelector('{q} select[aria-label=\"RAID cards\"]').value")
+        return p.js(f"document.querySelector('{q} select[aria-label=\"Cards across\"]').value")
 
     def show_picker(self, cdp, sec):
         q = f"[data-id={json.dumps(sec)}]"
         cdp.FOCUS_EMULATION = False
         p = self.visit(cdp)
         p.edit()
-        p.until(f"!!document.querySelector('{q} select[aria-label=\"RAID cards\"]')", "the choice is there")
+        p.until(f"!!document.querySelector('{q} select[aria-label=\"Cards across\"]')", "the choice is there")
         return p, q
 
     def cards(self, made, n, source="client"):
@@ -125,8 +125,8 @@ class Edit(PageBase):
             with chrome() as cdp:
                 p, q = self.show_picker(cdp, sec)
                 self.assertEqual(self.across(p, q), want)
-                self.assertIn("RAID cards", p.js(f"document.querySelector('{q} .rce-across span').textContent"))
-                self.assertEqual(p.js(f"document.querySelector('{q} .rce-across span').textContent"), "RAID cards")
+                self.assertIn("Cards across", p.js(f"document.querySelector('{q} .rce-across span').textContent"))
+                self.assertEqual(p.js(f"document.querySelector('{q} .rce-across span').textContent"), "Cards across")
 
     def test_a_change_keeps_version_two_and_the_choice(self):
         sec, made = self.make(lambda m: json.dumps({"v": 2, "across": 4, "cards": self.cards(m, 6)}))
@@ -136,10 +136,10 @@ class Edit(PageBase):
             self.assertTrue(self.wait_for(lambda: self.stored(sec)["cards"][1]["id"] == made[6]))
             got = self.stored(sec)
             self.assertEqual((got["v"], got["across"], len(got["cards"])), (2, 4, 6))
-            self.set_select(p, f"{q} select[aria-label='RAID cards']", "3")
+            self.set_select(p, f"{q} select[aria-label='Cards across']", "3")
             self.assertTrue(self.wait_for(lambda: self.stored(sec).get("across") == 3))
             self.assertEqual(len(self.stored(sec)["cards"]), 6, "all six cards kept")
-            self.set_select(p, f"{q} select[aria-label='RAID cards']", "4")
+            self.set_select(p, f"{q} select[aria-label='Cards across']", "4")
             self.assertTrue(self.wait_for(lambda: self.stored(sec).get("across") == 4))
             self.assertEqual(self.across(p, q), "4")
 
@@ -179,7 +179,7 @@ class Edit(PageBase):
         with chrome() as cdp:
             p, q = self.show_picker(cdp, sec)
             self.assertEqual(p.js(f"document.querySelectorAll('{q} select[aria-label$=\" text\"], {q} .rce-own').length"), 0, "no text choice and no own words field")
-            self.set_select(p, f"{q} select[aria-label='RAID cards']", "3")
+            self.set_select(p, f"{q} select[aria-label='Cards across']", "3")
             self.assertTrue(self.wait_for(lambda: self.stored(sec).get("across") == 3))
             self.assertEqual(self.stored(sec)["cards"][0], {"id": made[0], "source": "own", "own": "Old own words"}, "an old saved choice is kept as it was")
             self.set_select(p, f"{q} select[aria-label='Card 1 item']", made[5])
