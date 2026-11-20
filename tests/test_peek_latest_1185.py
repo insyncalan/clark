@@ -13,6 +13,7 @@ import test_peek_latest
 from test_server import chrome, wait
 
 PAGE = SRC / "clark" / "page" / "src"
+LAYER_DOC = "(function(){var add=function(){if(!document.head||document.getElementById('theme'))return !!document.head; var s=document.createElement('style'); s.id='theme'; document.head.appendChild(s); return true;}; if(!add()) new MutationObserver(function(m,o){if(add()) o.disconnect();}).observe(document,{childList:true,subtree:true});})()"      # the Classic layer (classicTheme() reads it), added before the page's script runs
 
 
 class PeekSource(unittest.TestCase):
@@ -24,7 +25,7 @@ class PeekSource(unittest.TestCase):
         ms = self.read("edit/MilestonePeek.jsx")
         self.assertNotIn('<Row name="Latest update"', ms, "row 1184: the milestone's box is above Details, not a row")
         self.assertIn("<LatestBox", ms, "the milestone uses the work item peek's box")
-        self.assertNotIn("PeekLatestHistory", self.read("edit/PeekLatest.jsx"), "row 1258: no Show history link; the Updates tab is the history")
+        self.assertIn("{classic ? null : <PeekLatestHistory", self.read("edit/PeekLatest.jsx"), "row 1258, Classic only: no Show history link; the Updates tab is the history (Cards is frozen and keeps it)")
         peek = self.read("components/Peek.jsx")
         shown = [l for l in peek.splitlines() if 'name="Latest update"' in l]
         self.assertEqual(len(shown), 3, "a published work item, a published action (row 1181: its own file rows above the Details) and a published milestone each show it")
@@ -47,7 +48,7 @@ class RaidBox(unittest.TestCase):
         for ref, kind in (("TUL-007", "Risk"), ("TUL-010", "Issue")):
             for width in (1400, 900):
                 with self.subTest(kind=kind, width=width), chrome() as cdp:
-                    sent, sid = self.load(cdp, width, ref, edit=True)
+                    sent, sid = self.load(cdp, width, ref, edit=True, classic=True)
                     row = lambda: self.store.read("raid", ref=ref)["latest_update"]
                     self.assertFalse(cdp.js("!!document.querySelector('#peek [data-pk-lh-btn]')", sid), "row 1258: no Show history link before any change")
                     was = row()
@@ -97,14 +98,28 @@ class MilestonePublished(unittest.TestCase):
 
 class MilestoneBox(Base):
     """The milestone peek in a real browser (1400 and 900): the box saves the editor's HTML, one Undo puts it back, the history lists it."""
+    def visit_classic(self, cdp, width):
+        """The milestone peek on the Classic page: the layer is added before the page's script runs, then the page loads again."""
+        p = self.visit_peek(cdp, width=width)
+        cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": LAYER_DOC}, p.sid)
+        p.js("location.reload()")
+        p.until("!!document.querySelector('#peek [data-rich=latest_update]') && !!document.getElementById('theme')", "the Classic peek drew")
+        return p
+
     visit_peek, click, undo, until_store, saved, toast_text = (Fields.visit_peek, Fields.click, Fields.undo, Fields.until_store,
                                                                 Fields.saved, Fields.toast_text)
     cur = GO_LIVE
 
-    def test_the_milestone_latest_update_saves_undoes_and_is_listed(self):
+    def test_cards_keeps_the_show_history_link_on_the_milestone_box(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.visit_peek(cdp, width=width)
+                p.until("!!document.querySelector('#peek [data-pk-latest] [data-pk-lh-btn]')", "Cards draws the Show history link")
+
+    def test_the_milestone_latest_update_saves_undoes_and_is_listed(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit_classic(cdp, width)
                 was, before = self.row(GO_LIVE)["latest_update"], len(self.sent)
                 self.click(p, "#peek [data-rich=latest_update]")
                 p.until("!!document.querySelector('#peek .ProseMirror') && document.activeElement.classList.contains('ProseMirror')", "the editor opened")

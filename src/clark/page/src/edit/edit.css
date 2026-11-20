@@ -111,6 +111,7 @@
 .aim-ask input { box-sizing: border-box; width: 100%; min-height: 24px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-small); }
 .rt-ai { position: fixed; z-index: 60; max-width: min(360px, calc(100vw - 16px)); max-height: calc(100vh - 16px); overflow: auto; }
 .rt-ai .aic { margin: 0; }
+.pk-latest-client { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: var(--text-muted); font-size: var(--size-small); }
 .pk-latest-text, .pk-latest-in { display: block; box-sizing: border-box; width: 100%; min-height: var(--space-7); margin: 0; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: var(--text); font: inherit; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }
 .pk-latest-text { cursor: text; }
 .pk-latest-text:hover { background: var(--grey-50); }   /* row 1077 (flat): a quiet tint, not a border, says the text can be changed */
@@ -1279,6 +1280,14 @@ body > .gt-menu.leaving hr { border: 0; border-top: 1px solid var(--border); mar
 .pp-earlier .pubs td.num, .pp-earlier .pubs td.files { white-space: nowrap; }      /* a date or 'Page, PDF' never breaks inside */
 .pubs-intro { margin: var(--space-2) 0 0; font-size: var(--size-small); color: var(--white); max-width: 70ch; }
 .pp-earlier .pubs td .muted.small { white-space: normal; }
+/* Row 1082: Show history under the peek's Latest update. Five rows in view, the rest scroll. Tokens only. */
+.pk-lh { margin-top: 0; }
+.pk-lh-btn { display: block; margin-left: auto; min-height: 24px; padding: 0; border: 0; background: none; color: var(--brand-blue); font: inherit; font-size: var(--size-small); cursor: pointer; text-decoration: underline; }
+.pk-lh-btn:focus-visible, .pk-lh-list:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pk-lh-panel { margin-top: var(--space-1); }
+.pk-lh-h { margin: 0 0 var(--space-1); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--heading); }
+.pk-lh-list { list-style: none; margin: 0; padding: 0; max-height: calc(5 * 4.5em); overflow-y: auto; }
+.pk-lh-row { box-sizing: border-box; min-height: 4.5em; padding: var(--space-1) 0; border-top: 1px solid var(--grey-100); overflow-wrap: anywhere; }
 
 [data-ms-range] { height: 24px; }      /* the progress slider is a target of 24 px */
 
