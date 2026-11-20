@@ -633,6 +633,15 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 .wil-pr[data-pri="Medium"] { border-color: var(--pri-medium-bg); }
 .wil-pr[data-pri="High"] { border-color: var(--pri-high-bg); }
 .wil-pr[data-pri="Urgent"] { border-color: var(--pri-urgent-bg); }
+/* Row 1285 (Classic only; Cards keeps its captions and its amber bar): the Settings menu is a flat list, so the group captions are not drawn (kept for a screen reader) and one thin line sits between every pair of groups (four), at 1400 and 900; and the overdue bar in a peek keeps its buttons but is a quiet 13px muted note with text links, no amber border or tint. */
+.set-group-name { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.set-nav > .set-group, .set-nav > .set-group:first-child { margin-top: 0; }
+.set-nav > .set-group + .set-group { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--grey-200, var(--grey-100)); }
+.pk-warnbar { padding: 0; border: 0; border-radius: 0; background: none; }
+.pk-warnbar .pk-warn { font-size: 13px; color: var(--text-muted); }
+.pk-warnbar .pk-fix { gap: var(--space-1) var(--space-3); margin-top: var(--space-1); }
+.pk-warnbar .pk-fix button { min-height: 24px; padding: 0; border: 0; border-radius: 0; background: none; color: var(--brand-blue); font-size: 13px; font-weight: 400; text-decoration: underline; }
+.pk-warnbar .pk-fix button:hover { background: none; }
 /* Row 1197: Classic only, comfortable: the Gantt plan runs the page band's width. */
 @media (min-width: 901px) { html[data-density="comfortable"] .gp-plan { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); margin-right: calc(-1 * (var(--space-5) + var(--space-1))); } }
 /* Row 1372 (Classic only; the Cards look keeps its width): the item and milestone peeks open 62% of the window wide, at least 300px, as the approved peek mock-up draws it, instead of 640px. From 1000px up; below it the peek fills the window as before. A width the person dragged (the peek carries data-sized) is kept. Bare lengths with no token: the 300px least width and the 1000px switch. */

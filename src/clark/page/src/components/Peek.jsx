@@ -127,8 +127,8 @@ export function ItemFields({ row, editing, Cell, Wording, Pick, slim = false, Cl
       {row.kind === "decision" ? <>
         {editing ? <Row name="Reasoning" ms="reasoning">{text(row.reasoning)}</Row> : null}      {/* a published file carries neither the reasoning nor the options (publish.PUBLISH_FIELDS) */}
         {editing ? <Row name="Options considered" ms="options">{text(row.options)}</Row> : null}
-        <Row name="Revisit" ms="revisit">{text(row.revisit)}</Row>
-        <Row name="Replaces" ms="replaces">{text(row.replaces)}</Row>
+        <Row name="Revisit" ms="revisit">{editing && !row.revisit ? <span class="muted" data-pk-prompt>Add when to look at this again.</span> : text(row.revisit)}</Row>      {/* row 1285: in Edit an empty Revisit says what to add; the view keeps the dash */}
+        <Row name="Replaces" ms="replaces">{editing && !row.replaces ? <span class="muted" data-pk-prompt>Add the decision this replaces.</span> : text(row.replaces)}</Row>
       </> : null}
       <Row name="Use case" icon={slim ? "flag" : undefined}>{Pick ? <Pick row={row} field="use_case" /> : text(row.uc)}</Row>
       {editing ? (slim && ClientLine ? <div class="pk-row" data-pk-client-row><dd><ClientLine row={row} /></dd></div> : <Row name={(clientName && clientName(row)) || "Shown to client"}>{row.client ? "Yes" : "No"}</Row>) : null}

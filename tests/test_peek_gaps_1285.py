@@ -94,6 +94,58 @@ class Milestone(_Fields):
                     self.assertNotEqual(g["ell"], "ellipsis", f"an ellipsis: {g}")
 
 
+class Warnbar(unittest.TestCase):
+    """Row 1285 ruling: the overdue bar keeps its two move buttons but is a quiet 13px muted note with text links, no amber border or tint (Classic only)."""
+    load, fresh, refused = _B.load, _B.fresh, _B.refused
+    _base_setup = _B.setUp
+
+    def setUp(self):
+        self._base_setup()
+        p = classic()
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_the_overdue_bar_is_a_quiet_note_with_text_links(self):
+        for width in (1400, 900):
+            for dark in (False, True):
+                with self.subTest(width=width, dark=dark), chrome() as cdp:
+                    sent, sid = self.load(cdp, width, "TUL-A-002", edit=True, dark=dark)
+                    got = cdp.js("(() => { const b = document.querySelector('#peek .pk-warnbar'), w = b.querySelector('.pk-warn'), m = [...b.querySelectorAll('[data-pk-move]')], g = (e, p) => getComputedStyle(e)[p];"
+                                 " const tok = (v) => { const i = document.createElement('i'); i.style.color = v; document.body.append(i); const c = getComputedStyle(i).color; i.remove(); return c; };"
+                                 " return {moves: m.length, border: g(b, 'borderTopWidth'), bg: g(b, 'backgroundColor'), size: g(w, 'fontSize'), ink: g(w, 'color'), muted: tok('var(--text-muted)'),"
+                                 " link: m.map(e => [g(e, 'borderTopWidth'), g(e, 'backgroundColor'), g(e, 'textDecorationLine'), g(e, 'color')]), blue: tok('var(--brand-blue)')}; })()", sid)
+                    self.assertEqual(got["moves"], 2, "the function stays: two move buttons")
+                    self.assertEqual((got["border"], got["bg"]), ("0px", "rgba(0, 0, 0, 0)"), got)
+                    self.assertEqual(got["size"], "13px")
+                    self.assertEqual(got["ink"], got["muted"])
+                    for border, bg, line, colour in got["link"]:
+                        self.assertEqual((border, bg, line, colour), ("0px", "rgba(0, 0, 0, 0)", "underline", got["blue"]))
+
+
+class Prompts(unittest.TestCase):
+    """Row 1285 ruling: an empty Revisit and Replaces say what to add in Edit; the view keeps the dash."""
+    load, fresh, refused = _B.load, _B.fresh, _B.refused
+    _base_setup = _B.setUp
+    JS = "[...document.querySelectorAll('#peek [data-ms-row=revisit] dd, #peek [data-ms-row=replaces] dd')].map(e => e.textContent.trim())"
+
+    def setUp(self):
+        self._base_setup()
+        with self.store.step("dashboard", "Demo User") as st:
+            st.update("decisions", "TUL-D-016", {"revisit": "", "replaces": ""})
+
+    def test_edit_says_what_to_add_and_the_view_keeps_the_dash(self):
+        for width in (1400, 900):
+            for edit, want in ((True, ["Add when to look at this again.", "Add the decision this replaces."]), (False, ["—", "—"])):
+                with self.subTest(width=width, edit=edit), chrome() as cdp:
+                    sent, sid = self.load(cdp, width, "TUL-D-016", edit=edit)
+                    if not edit:        # the Dashboard in View is the one place that is not Edit (row 824): open the same peek from there
+                        cdp.js("document.querySelector('[data-view=dashboard]').click()", sid)
+                        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-mode=view][aria-pressed=true]')", sid)))
+                        cdp.js("clarkPage.openPeek('TUL-D-016')", sid)
+                        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-ms-row=revisit]')", sid)))
+                    self.assertEqual(cdp.js(self.JS, sid), want)
+
+
 for _n in [n for n in dir(_Fields) if n.startswith('test')]:
     setattr(Milestone, _n, None)      # only this file's own test runs, not the base class's
 
@@ -103,3 +155,4 @@ del _m, _B, _Fields
 
 if __name__ == "__main__":
     unittest.main()
+
