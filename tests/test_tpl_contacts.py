@@ -2,6 +2,7 @@
 Run: python3 dev/run_tests.py test_tpl_contacts
 Needs Chrome (the #33 harness): the page tests fail, never skip, without it. Fictional data only.
 """
+from _classic_page import classic
 import json
 import unittest
 
@@ -37,9 +38,21 @@ class Data(n.DataChecks):
 
 class Page(n.PageChecks):
     TYPE, GOOD, HOSTILE_BODY = "contacts", GOOD, HOSTILE
+    EMPTY_LINE = "Empty for now: add a person."      # row 1251 ruling: the approved line stays for a truly empty card, beside the starting text
     SHOWS = ("Sam Example", "Fictional lead", "sam@example.org", "+44 20 7946 0000", "Alex Example")
     FIELD, TYPED = "Person 1 name", "Sam Changed"
     CHANGED = lambda self, body: json.loads(body)["people"][0]["name"] == "Sam Changed"
+
+    def test_an_empty_one_shows_the_starting_text_and_keeps_the_empty_for_now_line(self):
+        classic(self)          # the starting text is a Classic look; Cards keeps its old words
+        ref = self.make(None)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] .tpl-edit')", "Edit shows the fields")
+            lines = p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-edit p.quiet')].map(e => e.textContent)")
+            self.assertIn("Add a person.", lines)
+            self.assertIn("Empty for now: add a person. It stays out of the published page until then.", lines)
 
     def test_an_email_is_a_mailto_link_and_nothing_else_is_a_link(self):
         ref = self.make(self.GOOD)
