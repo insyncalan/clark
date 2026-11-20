@@ -54,6 +54,9 @@ class HelpWordsB(unittest.TestCase):
         self.assertIn('class="mv-ghost"', tl)
         css = read(PAGE / "shell.css")
         self.assertIn(".mv-ghost {", css)
+        # a name with no room: the mark (a button when the page can open it) shows the name on hover and on keyboard focus
+        self.assertIn(".mv-mk[data-hid]:hover::after, .mv-mk[data-hid]:focus-visible::after { content: attr(data-hid)", css)
+        self.assertIn("type: \"button\", onClick: () => open(r.id)", tl)
         self.assertIn("border: 2px dashed var(--status-red)", css)
         self.assertIn(".cal-ms.ghost { background: transparent; border: 1px dashed var(--status-red)", css)
         safety = read(SRC / "safety.py")
