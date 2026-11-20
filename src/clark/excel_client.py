@@ -293,39 +293,21 @@ def write_glance_sheet(wb, published, sec, palette=None):
     return ws
 
 
-CALLOUT_SHEET = "Callout"
-CALLOUT_WIDTH = 100
-
-
-def write_callout_sheet(wb, published, sec, palette=None):
-    """Row 1272: a callout section as one sheet, the lines `callout_lines` gives (heading, then the category, colour and icon line,
-    then the words), one row each from row 4, in column A, as Word writes them. The heading line is bold and is left out when the
-    callout's Heading switch is off. Locked text. None (no sheet) when the callout has no line."""
+def write_callout_text(ws, sec):
+    """Row 1272: a callout section as text blocks on the Report sheet (the workbook's first sheet, which carries the title band and the
+    headline), the lines `callout_lines` gives (heading, then the category, colour and icon line, then the words), one row each in
+    column A below what the sheet already holds, after one empty row. The heading line is bold and is left out when the callout's Heading
+    switch is off. Locked text, not wrapped (it runs across the empty cells to its right). Returns the number of lines written."""
     lines = callout_lines(sec)
     if not lines:
-        return None
-    HEAD, TITLE, SUB, HEAD_FILL = styles(palette)
-    name, n = CALLOUT_SHEET, len(wb.sheetnames) + 1
-    while name in wb.sheetnames:
-        name, n = f"{CALLOUT_SHEET} {n}", n + 1
-    ws = wb.create_sheet(name)
-    title, sub = title_text(published)
-    for r, (text, font) in enumerate(((title, TITLE), (sub, SUB)), start=1):
-        ws.cell(row=r, column=1).fill = HEAD_FILL
-        cell = ws.cell(row=r, column=1, value=excel.cell_text(text))
-        cell.font = font
-        excel.protect_text_cell(cell)
-    ws.row_dimensions[1].height = 26
-    ws.column_dimensions["A"].width = CALLOUT_WIDTH
-    for r, (text, heading) in enumerate(lines, start=4):
+        return 0
+    r = ws.max_row + 2
+    for r, (text, heading) in enumerate(lines, start=r):
         cell = ws.cell(row=r, column=1, value=excel.cell_text(text))
         cell.font = Font(name=FONT, size=11, bold=heading)
-        cell.alignment = Alignment(wrap_text=True, vertical="top")
+        cell.alignment = Alignment(vertical="top")
         excel.protect_text_cell(cell)
-    excel.print_setup(ws)
-    excel.protect_sheet(ws)
-    wb.defined_names[excel.CLIENT_COPY_NAME] = DefinedName(excel.CLIENT_COPY_NAME, attr_text=f"{quote_sheetname(ws.title)}!$A$1", hidden=True)
-    return ws
+    return len(lines)
 
 
 def workbook_bytes(published, palette=None):
@@ -339,8 +321,6 @@ def workbook_bytes(published, palette=None):
     for sec in published.get("sections") or ():
         if sec.get("type") == "glancetemplate":
             write_glance_sheet(wb, published, sec, palette)
-        elif sec.get("type") == "callout":
-            write_callout_sheet(wb, published, sec, palette)
     name, sub = title_text(published)
     if not wb.sheetnames:                       # no table section on the page: one sheet with the title band alone
         ws = wb.create_sheet(excel.SHEET_OF["actions"])
@@ -351,6 +331,9 @@ def workbook_bytes(published, palette=None):
         put_headline(ws, published, 1, palette)
         excel.print_setup(ws)
         excel.protect_sheet(ws)
+    for sec in published.get("sections") or ():
+        if sec.get("type") == "callout":
+            write_callout_text(wb[wb.sheetnames[0]], sec)
     props = wb.properties
     props.creator = props.lastModifiedBy = excel.FIXED_NAME
     stamp = datetime.fromisoformat(published["as_at"] + "T00:00:00")
