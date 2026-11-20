@@ -109,7 +109,7 @@ class ToneRules(unittest.TestCase):
 
 
 class PeekItemChipsClassicPriority(unittest.TestCase):
-    """Row 1390: every Peek.jsx priority icon takes priorityToneFor (Classic: Urgent maroon m, High red r, Medium blue b, Low grey n; Cards keeps priorityTone)."""
+    """Row 1390: every Peek.jsx priority icon takes priorityToneFor (Classic: Urgent maroon m, High red r, Medium and Low grey n, a risk or issue Medium amber a, Low green g; Cards keeps priorityTone)."""
     PEEK = (SRC / "components" / "Peek.jsx").read_text(encoding="utf-8")
 
     def line_with(self, needle):
@@ -118,10 +118,10 @@ class PeekItemChipsClassicPriority(unittest.TestCase):
         return hits[0]
 
     def test_the_item_chip_priority_icon_uses_the_classic_gated_tone(self):
-        self.assertIn("tone={rated ? colourOf(prio).class : priorityToneFor(prio)}", self.line_with('field="priority" name={(row.kind'))
+        self.assertIn("tone={rated ? colourOf(prio).class : priorityToneFor(prio, undefined, row.kind)}", self.line_with('field="priority" name={(row.kind'))
 
     def test_the_issue_rating_row_icon_uses_the_classic_gated_tone(self):
-        self.assertIn("<Toned icon=\"bars\" tone={priorityToneFor(row.priority)}>", self.line_with('name="Rating"'))
+        self.assertIn("<Toned icon=\"bars\" tone={priorityToneFor(row.priority, undefined, row.kind)}>", self.line_with('name="Rating"'))
 
     def test_the_decision_and_plain_priority_row_icon_uses_the_classic_gated_tone(self):
         self.assertIn("tone={priorityToneFor(row.kind === \"decision\" ? row.peek_priority : row.priority)}", self.line_with('name="Priority"><Toned'))
@@ -376,7 +376,7 @@ class PlainWords(unittest.TestCase):
         text = (SRC / "iconColours.js").read_text(encoding="utf-8")
         code = code_of(text)
         strings = set(re.findall(r'"([^"]*)"', code)) - {"./workItems.js"}
-        allowed = set(TONES) | {"Urgent", "High", "Medium", "Low", "action"}      # "action" is the row kind the date rule compares with, never shown
+        allowed = set(TONES) | {"Urgent", "High", "Medium", "Low", "action", "risk", "issue"}      # "action", "risk" and "issue" are the row kinds the rules compare with, never shown
         for s in strings:
             self.assertTrue(s in allowed, f"{s!r} would be a word nobody planned")
 

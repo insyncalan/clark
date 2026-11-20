@@ -26,7 +26,16 @@ class IconTones(unittest.TestCase):
         return json.loads(done.stdout)
 
     def test_classic_icon_urgent_maroon_high_red(self):
-        self.assertEqual(self.tones(True), ["m", "r", "b", "n", "n", "n"])
+        self.assertEqual(self.tones(True), ["m", "r", "n", "n", "n", "n"])
+
+    def test_classic_risk_and_issue_icon_medium_amber_low_green_no_blue(self):
+        node = need_node(self)
+        code = (f'import * as I from "{ICONS.as_uri()}"; '
+                'console.log(JSON.stringify(["risk", "issue", "action"].map((k) => ["Urgent", "High", "Medium", "Low", null].map((p) => I.priorityToneFor(p, true, k)))))')
+        done = subprocess.run([node, "--input-type=module", "-e", code], capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        rating, plain = ["m", "r", "a", "g", "n"], ["m", "r", "n", "n", "n"]
+        self.assertEqual(json.loads(done.stdout), [rating, rating, plain])
 
     def test_cards_icon_is_unchanged(self):
         self.assertEqual(self.tones(False), ["r", "a", "b", "n", "n", "n"])
