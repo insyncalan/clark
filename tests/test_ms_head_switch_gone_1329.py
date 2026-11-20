@@ -150,6 +150,9 @@ class Classic(Base):
     def test_mutant_classic_rule_left_in_the_theme_or_the_title_hidden_with_it(self):
         # kills: the hint-hiding rule kept in Classic's rules.css; a replacement rule that also hides the title; Classic not the page under test
         rules = (SRC / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
+        g4 = [ln for ln in rules.split("\n") if ln.startswith("/* Row 1260 G4:") or ("[data-mspage-hint]" in ln and "[data-mspv" in ln)]
+        self.assertEqual(len(g4), 2, "the restored Row 1260 G4 rule (comment + rule) is still in the theme")      # it stays: the Row 1260 test pins it; dead in Classic now the switch is gone
+        rules = "\n".join(ln for ln in rules.split("\n") if ln not in g4)
         self.assertNotIn("mspage", rules)
         self.assertNotIn("[data-mspv", rules)
         self.assertNotEqual(REAL_PAGE_HTML(EMPTY_BRANDING, theme="prototype-2.0"), REAL_PAGE_HTML(EMPTY_BRANDING), "the page under test is Classic, not Cards")
