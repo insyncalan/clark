@@ -358,6 +358,37 @@ class QuietLookTest(Served2):
         self.net.routes[rf.API_URL] = json.dumps(self.doc).encode()
         self.assertEqual("1.7 MB", self.up.check({})[1]["latest"]["size"])
 
+    def test_check_reads_the_size_exactly_as_size_text_gives_it(self):
+        """The size the page is told is size_text of the release's byte count, no more, no less, no fallback text (Row 1327)."""
+        def check(size):
+            if size is None:
+                del self.doc["assets"][0]["size"]
+            else:
+                self.doc["assets"][0]["size"] = size
+            self.net.routes[rf.API_URL] = json.dumps(self.doc).encode()
+            self.up = self.make(release_opener=self.net, spawn=lambda work: work())      # a fresh look: a failed one keeps the last answer
+            return self.up.check({})[1]
+        for size, want in ((1, "0.1 MB"), (4_200_000, "4.2 MB"), (9_949_999, "9.9 MB"), (9_950_000, "10 MB"), (10_000_000, "10 MB"),
+                           (12_000_000, "12 MB")):
+            with self.subTest(size=size):
+                body = check(size)
+                self.assertEqual(want, body["latest"]["size"])
+                self.assertEqual(updates.size_text(size), body["latest"]["size"])
+                self.assertNotIn("0 MB", body["latest"]["size"].replace("10 MB", "").replace("0.1 MB", ""))
+        for size in (0, None, "", -5):                   # the fetch refuses these, so nothing is shown ...
+            with self.subTest(size=size):
+                self.assertNotIn(" MB", json.dumps(check(size)))
+        self.doc["assets"][0]["size"] = 4_200_000
+        self.net.routes[rf.API_URL] = json.dumps(self.doc).encode()
+        real = rf.latest(self.up.system, self.net)       # ... and if one ever got through, the size text is empty, not a made-up size
+        for size in (0, None, -5, "5"):
+            with self.subTest(through=size), mock.patch.object(rf, "latest", return_value=dict(real, size=size)):
+                self.up = self.make(release_opener=self.net, spawn=lambda work: work())
+                latest = self.up.check({})[1]["latest"]
+                self.assertEqual("avail", latest["state"])
+                self.assertEqual("", latest["size"])
+                self.assertNotIn(" MB", json.dumps(latest))
+
     def test_what_the_page_is_told(self):
         latest = self.up.status()[1]["latest"]
         self.assertEqual({"state", "version", "date", "size", "notes", "checked"}, set(latest))
