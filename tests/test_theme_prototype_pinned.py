@@ -28,7 +28,7 @@ LIGHT = {
         '--tone-green-tint': '#E0F3EF',
         '--tone-blue-tint': '#E8EDFB',
         '--tone-grey-tint': '#ECEFF5',
-        '--tone-urgent': '#7A1B2E',
+        '--tone-urgent': '#6B1D2A',
         '--size-body': '14px',
         '--bar-end': '#0B3F4C',
         '--accent-line': '#38E0EE',
