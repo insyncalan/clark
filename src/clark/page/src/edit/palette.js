@@ -79,7 +79,7 @@ function dataResults(query, ws) {
 }
 
 const QUESTION_WORDS = /^(what|who|whom|whose|when|where|why|how|which|is|are|was|were|can|could|do|does|did|should|will|would|has|have)\s/i;
-const CLASSIC_WORDS = /^(check|draft)\s/i;          // row 1350, Classic only: the prototype also lists summar (a stem), check and draft; Cards keeps its list
+const CLASSIC_WORDS = /^(summar\w*|check|draft)\s/i;          // row 1350, Classic only: the prototype also lists summar (a stem), check and draft; Cards keeps its list
 const ASK_SHOWN = 60;          // the typed words are cut here in the row's label; the whole text is handed over
 /** The word for the send key in the row's hint: "Cmd+Enter" on a Mac, "Ctrl+Enter" elsewhere. `nav` is the browser's navigator (a plain object in tests). */
 export function sendKey(nav) {
