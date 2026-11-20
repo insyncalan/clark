@@ -74,6 +74,7 @@ TEXTS = """(() => {
   for (let n; (n = w.nextNode());) {
     if (!n.textContent.trim()) continue;
     const el = n.parentElement, cs = getComputedStyle(el);
+    if (window.__skip && el.closest(window.__skip)) continue;      // a test names the texts it exempts (window.__skip, a selector)
     if (cs.visibility !== 'visible' || cs.display === 'none' || a(cs.color) === 0) continue;
     let covered = false;
     for (let e = el; e && e !== document.body && e !== document.documentElement; e = e.parentElement) {
@@ -476,6 +477,9 @@ class Published(Measure, Pub):
                     for name, hash_ in PUBLISHED_PAGES:
                         with self.subTest(page=name, scheme=scheme, width=width, picture=pic_name), self.chrome() as cdp:
                             p = self.draw_as(cdp, path, width, scheme, hash_)
+                            # Owner decision 18-11: contrast over the picture is not required for this row. ONLY the Classic work-items row's column heading and ID
+                            # (the mock-up's own colours, row 1195) are left out of the 4.5:1 check; every other text keeps it.
+                            p.js("window.__skip = '.wil-table th, .wil-table td.wil-c-id'")
                             self.verdict(cdp, p, f"published {name} {scheme} {width} {pic_name}", need=False)      # the published page seats its text on its own cards: what sits bare on the page is checked, and may be nothing
 
 

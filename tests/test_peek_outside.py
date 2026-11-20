@@ -90,7 +90,7 @@ class OutsideBrowser(unittest.TestCase):
                                 # a press inside that ends outside (selecting text) keeps it
                                 # below 1000 px the peek fills the window (row 847): there is no page outside it to click, so Esc and Close are the way out
                                 if width < 1000:
-                                    self.assertEqual(round(cdp.js("document.querySelector('#peek').getBoundingClientRect().left", sid)), 16, where)      # row 1258: the card keeps 16 px of page each side; the strip is no place to click, so Esc and Close stay the way out
+                                    self.assertEqual(round(cdp.js("document.querySelector('#peek').getBoundingClientRect().left", sid)), 0, where)      # row 1289: flush to both sides, no strip of page to click, so Esc and Close stay the way out
                                     continue
                                 cdp.js("document.querySelector('#peek .pk-title').dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}))", sid)
                                 self.assertTrue(cdp.js(PROBE, sid), f"{where}: a blank place outside the peek to click")

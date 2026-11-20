@@ -19,6 +19,7 @@ import { Eye as WorkEye } from "./cells/Eye.jsx";
 import { cursor, stopOf, cardKeys } from "../listKeys.js";
 import { GroupTick } from "../components/SelectBar.jsx";
 import { workSelection as pickSel } from "../stores/selection.js";
+import { AskAbout } from "./AskAbout.jsx";
 import { ownClick, noTextRange, pickClick, pickOpen, pickKeys } from "../components/pick.js";
 
 const TONED = ["status", "due", "priority"];             // the groups whose columns carry their state's colour
@@ -63,7 +64,7 @@ function Card({ card, editing, selected, picked, dragging, ask, menu, stop, pos,
           pickKeys(e, card.id, focusCard);
           cardKeys(e);
         }}>
-        <div class="bc-top"><span class={`type tl ${card.typeClass}`} role="img" aria-label={card.type} title={card.type}>{TYPE_LETTER[card.typeClass.slice(2)] || card.type.charAt(0)}</span><span class="bc-id num">{card.id}</span><CardEye card={card} /></div>
+        <div class="bc-top"><span class={`type tl ${card.typeClass}`} role="img" aria-label={card.type} title={card.type}>{TYPE_LETTER[card.typeClass.slice(2)] || card.type.charAt(0)}</span><span class="bc-id num">{card.id}</span><CardEye card={card} />{editing ? <AskAbout kind="item" id={card.id} name={`${card.id} ${card.title || ""}`.trim()} /> : null}</div>
         <div class="bc-title">{card.title}</div>
         <div class="bc-foot">
           {card.initials ? <span class="av" title={card.owner} aria-hidden="true">{card.initials}</span> : null}
@@ -345,20 +346,23 @@ export function Board({ rows, today, type }) {
   b.lanes.forEach((ln) => ln.columns.forEach((c) => c.cards.forEach((cd) => { cardCell[cd.id] = from(cd.id, ln.key, c.key); })));
   live.current.cardCell = cardCell;
 
-  // The items of a card's Move to... menu: every column (and lane) moveFor accepts, not where the card is now.
+  // The items of a card's Move to... menu (row 1273, the prototype's list): every column (and lane) moveFor accepts, and the one the card is in now, ticked and not
+  // a choice. A column moveFor refuses stays out, as before.
   function menuFor(id) {
     const row = byId[id], here = cardCell[id], out = [];
     if (!row || !here) return out;
     const ok = (t) => { const r = moveFor(row, here, t, ctx); return r.ok && !r.noop; };
-    const cols = b.lanes[0].columns.filter((c) => ok({ ...here, key: c.key }));
-    if (cols.length) out.push({ head: `Move to ${groupLabel(g)}` }, ...cols.map((c) => ({ key: c.key, name: c.label })));
+    const cols = b.lanes[0].columns.filter((c) => c.key === here.key || ok({ ...here, key: c.key }));
+    if (cols.length) out.push({ head: `Move to ${groupLabel(g)}` }, ...cols.map((c) => ({ key: c.key, name: c.label, here: c.key === here.key })));
     if (b.lane) {
-      const lanes = b.lanes.filter((l) => ok({ ...here, lane: { group: b.lane, key: l.key } }));
-      if (lanes.length) out.push({ head: `Move to ${LANE_WORDS[b.lane]}` }, ...lanes.map((l) => ({ key: l.key, name: l.label || "No " + LANE_WORDS[b.lane].toLowerCase(), lane: true })));
+      const lanes = b.lanes.filter((l) => (here.lane && l.key === here.lane.key) || ok({ ...here, lane: { group: b.lane, key: l.key } }));
+      if (lanes.length) out.push({ head: `Move to ${LANE_WORDS[b.lane]}` }, ...lanes.map((l) => ({ key: l.key, name: l.label || "No " + LANE_WORDS[b.lane].toLowerCase(), lane: true, here: !!here.lane && l.key === here.lane.key })));
     }
-    return out;
+    return out.some((it) => !it.head && !it.here) ? out : [];     // nothing to choose: the card's "can't move" line alone
   }
 
+  // The Move to... panel opens to the right of its button; a card in the right-most columns has no room there, so its panel opens to the left (its right edge on the button's).
+  const roomRight = (id) => { const a = document.querySelector(`[data-move="${id}"]`); return !a || window.innerWidth - a.getBoundingClientRect().left >= 340; };
   const drawn = [];                                   // the cards on screen in reading order: the board's one tab stop (#194)
   b.lanes.forEach((ln) => ln.columns.forEach((c) => { if (!isCollapsed(st, g, c.key)) c.cards.forEach((cd) => drawn.push(cd.id)); }));
   const stopId = stopOf(drawn);
@@ -378,11 +382,11 @@ export function Board({ rows, today, type }) {
               : <Confirm onCancel={() => setAsk(null)} onYes={() => { const { move, row } = ask; setAsk(null); changeItem(move.request, movedWords(move, row)); }} />
             : null}>
           {menu === cd.id ? (
-            <MenuPanel label={`Move ${cd.id} to`} cls="left" fade anchor={document.querySelector(`[data-move="${cd.id}"]`)} onClose={() => { setMenu(null); const el = document.querySelector(`[data-move="${cd.id}"]`); if (el) el.focus(); }}>
+            <MenuPanel label={`Move ${cd.id} to`} cls={roomRight(cd.id) ? "left" : ""} fade anchor={document.querySelector(`[data-move="${cd.id}"]`)} onClose={() => { setMenu(null); const el = document.querySelector(`[data-move="${cd.id}"]`); if (el) el.focus(); }}>
               {menuFor(cd.id).map((it, i) => it.head
-                ? <div key={"h" + i} class="mh" role="presentation">{it.head}</div>
+                ? <div key={"h" + i} class="mh caps" role="presentation">{it.head}</div>
                 : <button key={(it.lane ? "l" : "c") + it.key} type="button" role="menuitem" tabIndex={-1} data-to={it.key} data-lane={it.lane ? "1" : undefined}
-                    onClick={() => sendMenu(cd.id, it)}><Icon name={groupIcon(it.lane ? b.lane : g)} cls="mi" />{it.name}</button>)}
+                    aria-disabled={it.here ? "true" : undefined} aria-current={it.here ? "true" : undefined} onClick={() => { if (!it.here) sendMenu(cd.id, it); }}><Icon name={groupIcon(it.lane ? b.lane : g)} cls="mi" />{it.here ? <span class="ck" aria-hidden="true">✓</span> : null}{it.name}</button>)}
               {menuFor(cd.id).length === 0 ? <button type="button" role="menuitem" aria-disabled="true" tabIndex={-1}><Icon name={actionIcon("none")} cls="mi" />{noMove(byId[cd.id])}</button> : null}
             </MenuPanel>
           ) : null}

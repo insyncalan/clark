@@ -185,7 +185,7 @@ COVERED = [
     ("A-D3", "Every section is a card with one square.",
      "test_section_card_look_page::Cards::test_every_section_is_a_card_with_one_square_in_each_style"),
     ("A-D3", "The published file draws the same cards.",
-     "test_section_card_look_page::PublishedCards::test_the_published_file_draws_the_same_cards"),
+     "test_section_card_look_page::PublishedCards::test_the_published_file_draws_classic_sections"),
     ("A-D11", "See all counts every linked item and opens that list.",
      "test_glance_page::UseCases::test_see_all_counts_every_linked_item_and_opens_that_same_list"),
     ("A-D11", "A row opens in place with next steps and See all.",

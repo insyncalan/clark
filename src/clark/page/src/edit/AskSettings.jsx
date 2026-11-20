@@ -2,15 +2,36 @@
 // file has no Settings. The switch is askState.js, kept by the server for this computer; the folders are saved by the server too (the
 // page asks the server to open the folder window and shows what the server answers, in its words).
 import { useEffect, useRef, useState } from "preact/hooks";
+import { signal } from "@preact/signals";
 import { project } from "../stores/report.js";
 import { askOn, askStatus, askSaved, askProvider, loadAsk, setAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
 import { named, ASK_NOTICE_LINE } from "./askWords.js";
+import { ConnectorsAll, ConnectorsProject } from "./ConnectorSettings.jsx";
 import { AiSettings } from "./AiSettings.jsx";
+import { AllInstructions, OwnInstructions } from "./AskInstructions.jsx";
+import { SlashList } from "./SlashCommandsList.jsx";
 import { announceSwitch, leaveSwitch } from "./switchToast.js";
-import { askFoldersRead, askFoldersChange, askFoldersChoose, words } from "./publishApi.js";
+import { classicTheme } from "../components/Contents.jsx";
+import { aiConnectRead, askFoldersRead, askFoldersChange, askFoldersChoose, askFoldersAllRead, askFoldersAllChange, askFoldersAllChoose, words } from "./publishApi.js";
 
 const ASK_ON_TOAST = "ask clark is on";
 const ASK_OFF_TOAST = "ask clark is off";
+const ALL = "all", PROJECT = "project";
+const ALL_LINE = "What is the same in every project. A project's own tab shows what belongs to that project.";
+const USED_FROM_ALL = "Connections and the model are yours, not this project's. They are the same in every project.";
+export const askTab = signal(PROJECT);
+export function showAskTab(t) { askTab.value = t === ALL ? ALL : PROJECT; }
+const MAX_FOLDERS = 20;
+// Changes and safety (row 1294, area 5): four statements about the code, not switches. Each is pinned by tests/test_ask_safety_1294.py.
+export const SAFETY = [
+  ["Every change needs your approval", "A change can be taken back with Undo, except a decision marked Made, which a new decision replaces."],
+  ["A change taken from one of your own files or passages needs an extra tick", "You confirm \u201cI have checked this change and want to save it\u201d first."],
+  ["ask clark is never on a published report", "A published file has no ask clark button or panel, and it asks nothing."],
+  ["Passwords and keys are never sent", "A question or a file that looks like one is stopped, and you are told."],
+];
+const SAFETY_NOTE = "These are not switches.";
+const ALL_FOLDERS_COUNT = "Counts towards each project's 20.";
+const ALL_FOLDERS_NONE = "No folders are set for all projects.";
 const NOT_READY = "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.";
 
 // The asking switch's behaviour, shared by this card and the Essentials card (row 1115): `flip` turns asking on or off and says so in the toast
@@ -37,19 +58,33 @@ export function useAskFlip(on, busy, setBusy, setMsg) {
   return { switchRef, flip };
 }
 
-export function AskSettings() {
+function AskProject() {
   const on = askOn.value;
   const status = askStatus.value;
   const saved = askSaved.value;
   const code = project.value;
   const [folders, setFolders] = useState(null);          // null: not read yet; "unavailable"; or the list
+  const [shared, setShared] = useState([]);               // the folders for all projects (row 1294), read in this project too
   const [busy, setBusy] = useState(false);
   const [typing, setTyping] = useState(false);       // the server said no window can open here: a box to type the location into
   const [typed, setTyped] = useState("");
-  const [msg, setMsg] = useState(null);                  // {kind: "error" | "note", text}
+  const [msg, setMsg] = useState(null);                  // {kind: "error" | "note", text}: the switch's
+  const [fmsg, setFmsg] = useState(null);                // the same, for the folders
 
   const { switchRef, flip } = useAskFlip(on, busy, setBusy, setMsg);
-  useEffect(() => { loadAsk(true); return leaveSwitch; }, []);      // asked again each time Settings opens, so the page never shows a stale choice
+  const [modelName, setModelName] = useState("");      // row 1351 part 2: the model asking uses, as the server names it; empty until read or when it cannot be read
+
+  useEffect(() => {
+    if (!classicTheme()) return undefined;           // Cards keeps the card as it was: no model name, no extra read
+    let live = true;
+    aiConnectRead().then((r) => {
+      const b = r.body;
+      if (!live || r.status !== 200 || !b || !Array.isArray(b.models)) return;
+      const m = b.models.find((x) => x.id === b.model);
+      setModelName(m ? m.label : "");
+    });
+    return () => { live = false; };
+  }, []);
 
   useEffect(() => {
     let live = true;
@@ -58,6 +93,7 @@ export function AskSettings() {
       if (!live) return;
       const b = r.body;
       setFolders(r.status === 200 && b && b.ok === true && Array.isArray(b.folders) ? b.folders : "unavailable");
+      setShared(r.status === 200 && b && Array.isArray(b.shared) ? b.shared : []);
     });
     return () => { live = false; };
   }, [code]);
@@ -73,7 +109,7 @@ export function AskSettings() {
   // After a Remove it goes to the Remove button that took its place, or to Choose folder when none is left.
   function refocusFolders(at) {
     setTimeout(() => {
-      const root = document.getElementById("ask-settings");
+      const root = document.getElementById("ask-folders-card");
       if (!root) return;
       const rm = root.querySelectorAll("[data-ask-remove]");
       const el = at >= 0 && rm.length ? rm[Math.min(at, rm.length - 1)] : root.querySelector("[data-ask-choose]");
@@ -84,7 +120,7 @@ export function AskSettings() {
   async function change(action, path) {
     const at = action === "remove" && Array.isArray(folders) ? folders.indexOf(path) : -1;
     setBusy(true);
-    setMsg(null);
+    setFmsg(null);
     const r = action === "choose" ? await askFoldersChoose(code) : await askFoldersChange(code, action, path);
     setBusy(false);
     const b = r.body;
@@ -92,11 +128,11 @@ export function AskSettings() {
     else setTimeout(() => { const i = document.getElementById("ask-folder-path"); if (i) i.focus(); }, 0);   // Add folder is disabled while the request runs: the focus goes to the box
     if (r.status === 200 && b && b.ok === true && Array.isArray(b.folders)) {
       setFolders(b.folders);
-      if (b.message) setMsg({ kind: "note", text: b.message });
+      if (b.message) setFmsg({ kind: "note", text: b.message });
       return true;
     }
     if (b && b.code === "no_window") setTyping(true);
-    setMsg({ kind: "error", text: failure(r) });
+    setFmsg({ kind: "error", text: failure(r) });
   }
 
   async function addTyped(e) {
@@ -110,7 +146,7 @@ export function AskSettings() {
   return (
     <>
     <section class="frame setting" id="ask-settings">
-      <h2 id="ask-settings-h" tabIndex={-1}>Asking</h2>
+      <h2 id="ask-settings-h" tabIndex={-1}>{`Asking in ${code}`}</h2>
       <p class="muted">{named("Claude is started on this computer for you.", askProvider.value)}</p>
       <p class="muted" id="ask-notice">{named(ASK_NOTICE_LINE, askProvider.value)}</p>
       <p id="ask-state">{status === "loading" ? ASK_CHECKING_LINE : status === "unavailable" ? ASK_UNAVAILABLE_LINE : on ? "Asking is on." : ASK_OFF_LINE}</p>
@@ -118,10 +154,40 @@ export function AskSettings() {
       <div class="row">
         <button type="button" class="btn" ref={switchRef} data-ask-switch aria-pressed={on ? "true" : "false"} disabled={busy || status !== "ready"} onClick={flip}>{on ? "Turn off asking" : "Turn on asking"}</button>
       </div>
-      <h3>Folders asking may read</h3>
+      <div class="pub-msg" role={msg && msg.kind === "error" ? "alert" : "status"} aria-live="polite">{msg && msg.text ? <p class={msg.kind}>{msg.text}</p> : null}</div>
+    </section>
+    <section class="frame setting" id="ask-used-all">
+      <h2>Used from All projects</h2>
+      {classicTheme() ? (
+        <>
+          <div class="row ask-model">
+            <div class="ask-model-text">
+              <span class="ask-model-label">Model</span>
+              <small class="muted ask-model-same">Same for every project.</small>
+            </div>
+            {modelName ? <b class="ask-model-name" data-ask-model>{modelName}</b> : null}
+            <button type="button" class="btn ask-model-change" data-ask-goall onClick={() => showAskTab(ALL)}>Change</button>
+          </div>
+          <p class="muted ask-model-note">{USED_FROM_ALL}</p>
+        </>
+      ) : (<>
+        <p class="muted">{USED_FROM_ALL}</p>
+        <div class="row"><button type="button" class="btn" data-ask-goall onClick={() => showAskTab(ALL)}>Change</button></div>
+      </>)}
+    </section>
+    <ConnectorsProject code={code} />
+    <section class="frame setting" id="ask-folders-card">
+      <h2>{`Source folders for ${code}`}</h2>
       <p class="muted">{named("Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.", askProvider.value)}</p>
       {folders === "unavailable" ? <p class="muted" id="ask-folders-note">{NOT_READY}</p> : null}
       {folders !== "unavailable" && folders !== null && !list.length ? <p class="muted" id="ask-folders-none">No folders are set. Asking uses only this project's data.</p> : null}
+      {shared.length && Array.isArray(folders) ? (
+        <ul class="ask-folders" id="ask-folders-shared">
+          {shared.map((p) => (
+            <li key={p}><span class="folder-now">{p}</span> <span class="muted">All projects</span> <button type="button" class="btn sm quiet" data-ask-change-shared onClick={() => showAskTab(ALL)}>Change</button></li>
+          ))}
+        </ul>
+      ) : null}
       {list.length ? (
         <ul class="ask-folders" id="ask-folders">
           {list.map((p) => (
@@ -129,6 +195,7 @@ export function AskSettings() {
           ))}
         </ul>
       ) : null}
+      {Array.isArray(folders) && shared.length + list.length ? <p class="muted" id="ask-folders-count">{shared.length + list.length} of {MAX_FOLDERS}</p> : null}
       {Array.isArray(folders) ? (
         <div class="row">
           <button type="button" class="btn" data-ask-choose disabled={busy} onClick={() => change("choose")}>Choose folder</button>
@@ -141,9 +208,146 @@ export function AskSettings() {
           <button type="submit" class="btn" data-ask-add disabled={busy || !typed.trim()}>Add folder</button>
         </form>
       ) : null}
-      <div class="pub-msg" role={msg && msg.kind === "error" ? "alert" : "status"} aria-live="polite">{msg && msg.text ? <p class={msg.kind}>{msg.text}</p> : null}</div>
+      <div class="pub-msg" role={fmsg && fmsg.kind === "error" ? "alert" : "status"} aria-live="polite">{fmsg && fmsg.text ? <p class={fmsg.kind}>{fmsg.text}</p> : null}</div>
+    </section>
+    <OwnInstructions goAll={() => showAskTab(ALL)} />
+    {classicTheme() ? <SlashList scope="project" code={code} /> : null}
+    </>
+  );
+}
+
+// The page's two tabs (row 1294, A8, first slice): "All projects" holds what is the same everywhere (the connections and the model, for now) and the project's
+// own tab holds what belongs to this project. One shows at a time. They are two buttons in a group (aria-current names the one shown), so Tab and Enter work and
+// the cards stay direct children of the Settings page, where Search settings reads them.
+function AllProjects() {
+  return (
+    <>
+    <section class="frame setting" id="ask-all">
+      <h2 id="ask-settings-h" tabIndex={-1}>Asking for all projects</h2>
+      <p class="muted">{ALL_LINE}</p>
     </section>
     <AiSettings />
+    <ConnectorsAll />
+    <AllInstructions />
+    {classicTheme() ? <SlashList scope="all" code="" /> : null}
+    <AllFolders />
+    {classicTheme() ? <Safety /> : null}
+    </>
+  );
+}
+
+function Safety() {
+  return (
+    <section class="frame setting" id="ask-safety">
+      <h2>Changes and safety</h2>
+      <ul class="ask-safety">
+        {SAFETY.map(([title, line]) => (
+          <li key={title}><strong>{title}</strong> <span class="muted">Always.</span><br /><span class="muted">{line}</span></li>
+        ))}
+      </ul>
+      <p class="muted">{SAFETY_NOTE}</p>
+    </section>
+  );
+}
+
+// The folders for all projects (row 1294): read in every project and counted towards its 20. The same list, Remove, Choose folder and typed location as a project's own.
+// Remove touches no file; the toast's Undo adds the folder back (at the end of the list).
+function AllFolders() {
+  const [folders, setFolders] = useState(null);          // null: not read yet; "unavailable"; or the list
+  const [busy, setBusy] = useState(false);
+  const [typing, setTyping] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [msg, setMsg] = useState(null);
+
+  useEffect(() => {
+    let live = true;
+    askFoldersAllRead().then((r) => {
+      if (!live) return;
+      const b = r.body;
+      setFolders(r.status === 200 && b && b.ok === true && Array.isArray(b.folders) ? b.folders : "unavailable");
+    });
+    return () => { live = false; };
+  }, []);
+
+  function refocus(at) {
+    setTimeout(() => {
+      const root = document.getElementById("ask-all-folders");
+      if (!root) return;
+      const rm = root.querySelectorAll("[data-ask-all-remove]");
+      const el = at >= 0 && rm.length ? rm[Math.min(at, rm.length - 1)] : root.querySelector("[data-ask-all-choose]");
+      if (el) el.focus();
+    }, 0);
+  }
+
+  async function change(action, path) {
+    const at = action === "remove" && Array.isArray(folders) ? folders.indexOf(path) : -1;
+    setBusy(true);
+    setMsg(null);
+    const r = action === "choose" ? await askFoldersAllChoose() : await askFoldersAllChange(action, path);
+    setBusy(false);
+    const b = r.body;
+    if (action !== "add") refocus(at);
+    else setTimeout(() => { const i = document.getElementById("ask-all-folder-path"); if (i) i.focus(); }, 0);
+    if (r.status === 200 && b && b.ok === true && Array.isArray(b.folders)) {
+      setFolders(b.folders);
+      if (b.message) setMsg({ kind: "note", text: b.message });
+      return true;
+    }
+    if (b && b.code === "no_window") setTyping(true);
+    setMsg({ kind: "error", text: r.status === 0 || r.status === 403 || (b && typeof b.code === "string") ? words(r, "save that folder") : "That folder could not be saved just now. Wait a moment and try again; if it keeps happening, close clark and start it again." });
+  }
+
+  async function addTyped(e) {
+    e.preventDefault();
+    const path = typed.trim();
+    if (!path) return;
+    if (await change("add", path)) setTyped("");
+  }
+
+  const list = Array.isArray(folders) ? folders : [];
+  return (
+    <section class="frame setting" id="ask-all-folders">
+      <h2>Source folders for all projects</h2>
+      <p class="muted">{ALL_FOLDERS_COUNT}</p>
+      {folders === "unavailable" ? <p class="muted" id="ask-all-folders-note">{NOT_READY}</p> : null}
+      {folders !== "unavailable" && folders !== null && !list.length ? <p class="muted" id="ask-all-folders-none">{ALL_FOLDERS_NONE}</p> : null}
+      {list.length ? (
+        <ul class="ask-folders" id="ask-all-folder-list">
+          {list.map((p) => (
+            <li key={p}><span class="folder-now">{p}</span> <button type="button" class="btn sm quiet" data-ask-all-remove={p} disabled={busy} onClick={() => change("remove", p)}>Remove</button></li>
+          ))}
+        </ul>
+      ) : null}
+      {Array.isArray(folders) ? (
+        <div class="row">
+          <button type="button" class="btn" data-ask-all-choose disabled={busy} onClick={() => change("choose")}>Choose folder</button>
+        </div>
+      ) : null}
+      {typing && Array.isArray(folders) ? (
+        <form class="row" id="ask-all-folder-form" onSubmit={addTyped}>
+          <label for="ask-all-folder-path">Folder location</label>
+          <input id="ask-all-folder-path" class="grow" type="text" autocomplete="off" spellcheck={false} value={typed} onInput={(e) => setTyped(e.currentTarget.value)} />
+          <button type="submit" class="btn" data-ask-all-add disabled={busy || !typed.trim()}>Add folder</button>
+        </form>
+      ) : null}
+      <div class="pub-msg" role={msg && msg.kind === "error" ? "alert" : "status"} aria-live="polite">{msg && msg.text ? <p class={msg.kind}>{msg.text}</p> : null}</div>
+    </section>
+  );
+}
+
+export function AskSettings() {
+  const code = project.value;
+  const tab = askTab.value === ALL ? ALL : PROJECT;
+  useEffect(() => { loadAsk(true); return leaveSwitch; }, []);      // asked again each time Settings opens, so the page never shows a stale choice; once for the page, not per tab, so a tab change cannot re-read the switch under a click
+  return (
+    <>
+    <div class="ask-tabs" id="ask-tabs" role="group" aria-label="Asking settings for">
+      <span class="muted ask-tabs-lab" aria-hidden="true">Settings for</span>
+      {[ALL, PROJECT].map((id) => (
+        <button type="button" class="ask-tab" key={id} data-ask-tab={id} aria-current={tab === id ? "true" : undefined} onClick={() => showAskTab(id)}>{id === ALL ? "All projects" : code}</button>
+      ))}
+    </div>
+    {tab === ALL ? <AllProjects /> : <AskProject />}
     </>
   );
 }

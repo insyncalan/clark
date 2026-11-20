@@ -9,6 +9,7 @@ import { signal } from "@preact/signals";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, project, view, openPeek, item as peeked, closePeek } from "../stores/report.js";
 import { itemRows, announce } from "../stores/work.js";
+import { rowsFor } from "../logic/board.js";
 import { changeCell, changeNewPerson, changeRecord, say } from "../stores/changes.js";
 import { readDraftEmail, sendEmailSent } from "../api.js";
 import { DraftEmail } from "../components/DraftEmail.jsx";
@@ -36,17 +37,19 @@ const withOwnerLink = (row, d) => {
   return src && typeof src.owner_id === "string" ? { ...row, owner_id: src.owner_id } : row;
 };
 
-const ROW = "tr[data-id], article.bcard";
+const ROW = "tr[data-id], article.bcard, li.wl-row[data-id], ul.wil-lines li[data-id]";      // row 1296: a Dashboard list row (risks, actions, decisions) and a half-width Work items list row have the same menu
+const onPage = () => view.value === "work" || view.value === "dashboard";
+const itemOf = (id) => itemRows.value.find((r) => r.id === id) || rowsFor(data.value || {}).find((r) => r.id === id);      // a Dashboard row may be outside the Work items search
 const draftOpen = signal(null);                // null, or { id, items, state, draft, today, from }: the Draft email dialog over the page
 const state = signal(null);                    // null, or { id, x, y, fly: "" | "status" | "due" | "owner" (the short list open beside its entry), focusFly: bool, pick: bool, adding: string (the New person form open over the menu, item 1070), from: the element to give focus back to }
 
 // The element a menu belongs to, and where focus goes back to: a table row, or a card's own button.
-const homeOf = (el) => (el.matches("article.bcard") ? el.querySelector(".bc-main") || el : el);
+const homeOf = (el) => (el.matches("article.bcard") ? el.querySelector(".bc-main") || el : el.matches("li.wl-row") ? el.querySelector(".idl") || el : el);   // a half-width Work items row (ul.wil-lines li) has its own focus (tabIndex 0)
 function refocus(id) {
   const back = () => {
     const now = document.activeElement;
     if (now && now !== document.body && now.isConnected) return;
-    const el = document.querySelector(`tr[data-id="${CSS.escape(id)}"], article.bcard[data-id="${CSS.escape(id)}"]`);
+    const el = Array.from(document.querySelectorAll(`tr[data-id="${CSS.escape(id)}"], article.bcard[data-id="${CSS.escape(id)}"], li.wl-row[data-id="${CSS.escape(id)}"], ul.wil-lines li[data-id="${CSS.escape(id)}"]`)).find((e) => e.offsetParent);   // the one drawn: a list has a table and a half-width list, one of them hidden
     if (el) homeOf(el).focus({ preventScroll: true });
   };
   setTimeout(back, 0);
@@ -77,7 +80,7 @@ function openFor(el, x, y, pointer) {
 function useOpeners() {
   useEffect(() => {
     const onContext = (e) => {
-      if (view.value !== "work" || !e.target.closest || workSelection.size.value >= 1 || handing()) return;   // Hand over (item 199) ticks and nothing else
+      if (!onPage() || !e.target.closest || (view.value === "work" && workSelection.size.value >= 1) || handing()) return;   // Hand over (item 199) ticks and nothing else
       const el = e.target.closest(ROW);
       if (!el || e.target.isContentEditable || e.target.closest("input, textarea, select, .cpop, .ddmenu, .rowmenu")) return;
       e.preventDefault();
@@ -86,7 +89,7 @@ function useOpeners() {
       openFor(el, kbd ? r.left + 24 : e.clientX, kbd ? r.bottom : e.clientY, !kbd);
     };
     const onKey = (e) => {
-      if (view.value !== "work" || workSelection.size.value >= 1 || handing() || !(e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey))) return;
+      if (!onPage() || (view.value === "work" && workSelection.size.value >= 1) || handing() || !(e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey))) return;
       const at = document.activeElement, el = at && at.closest ? at.closest(ROW) : null;
       if (!el || at.isContentEditable || at.closest(".cpop, .ddmenu, .rowmenu, input, textarea")) return;
       e.preventDefault();
@@ -225,7 +228,7 @@ function Fly({ level, entries: shown, owner, focus, wrap, hover, keep, hold, onP
 const REST = 140;      // ms the pointer rests on an entry before its list opens (row 979)
 
 function Panel({ s }) {
-  const row = withOwnerLink(itemRows.value.find((r) => r.id === s.id), data.value), d = data.value, edit = true;     // Work items are always editable: View and Edit exist only on the Dashboard (ruled 02-11-2026); this menu is an Edit part, so a published file never draws it
+  const row = withOwnerLink(itemOf(s.id), data.value), d = data.value, edit = isEditing();     // edit is isEditing(): View and Edit exist only on the Dashboard (ruled 02-11-2026); this menu is an Edit part, so a published file never draws it
   const wrap = useRef(null), today = todayIso();
   const reg = s.reg;                              // #1048: the People list, read before the menu opens (null when it could not be read)
   const set = (patch) => { state.value = { ...state.value, ...patch }; };
@@ -287,8 +290,8 @@ function Panel({ s }) {
     if (id === "link") { close("pick"); copied(linkFor(row, project.value, location.origin + location.pathname, format), `Link to ${row.id} copied.`); return undefined; }
     if (id === "copyid") { close("pick"); copied(row.id, `${row.id} copied.`); return undefined; }
     if (id === "archive") {
-      const rows = Array.from(document.querySelectorAll(ROW)), at = rows.findIndex((el) => el.dataset.id === row.id), nb = rows[at + 1] || rows[at - 1];   // row 865: the row leaves, so focus goes to its neighbour
-      const sel = (id) => `tr[data-id="${CSS.escape(id)}"], article.bcard[data-id="${CSS.escape(id)}"] .bc-main`;
+      const rows = Array.from(document.querySelectorAll(ROW)).filter((e) => e.offsetParent), at = rows.findIndex((el) => el.dataset.id === row.id), nb = rows[at + 1] || rows[at - 1];   // row 865: the row leaves, so focus goes to its neighbour
+      const sel = (id) => `tr[data-id="${CSS.escape(id)}"], article.bcard[data-id="${CSS.escape(id)}"] .bc-main, li.wl-row[data-id="${CSS.escape(id)}"] .idl, ul.wil-lines li[data-id="${CSS.escape(id)}"]`;
       return record({ kind: tableOf(row), op: "archive", id: row.id, place: "menu" }, { text: `${row.id} archived. It is out of the lists and the published page.`, back: `${row.id} is back.`, focus: sel(row.id) })
         .then((r) => { if (r && peeked.value === row.id) closePeek(); if (r && nb && nb.dataset.id) refocus(nb.dataset.id); });
     }
@@ -380,8 +383,8 @@ function DraftHost({ d }) {
     if (box) box.setAttribute("aria-modal", "true");
     return root.current ? holdBehind(root.current) : undefined;
   }, []);
-  useEffect(() => { if (view.value !== "work") draftOpen.value = null; }, [view.value]);        // another page: the dialog goes with it
-  useEffect(() => { if (!data.value || !itemRows.value.some((r) => r.id === d.id)) draftOpen.value = null; }, [itemRows.value]);   // the item went
+  useEffect(() => { if (!onPage()) draftOpen.value = null; }, [view.value]);        // another page: the dialog goes with it
+  useEffect(() => { if (!data.value || !itemOf(d.id)) draftOpen.value = null; }, [itemRows.value]);   // the item went
   const onChange = (next) => {
     const n = ++asked.current;
     draftOpen.value = { ...draftOpen.value, state: next };           // the ticks and options show at once; the email follows

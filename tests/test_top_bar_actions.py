@@ -125,7 +125,7 @@ class TopBarActions(Base):
             p.until("document.querySelectorAll('.top #ask-btn, .top #pal-btn').length === 0", "the resize event alone dropped the search and ask buttons")
 
     def test_a_long_project_name_at_900_px_light_and_dark_keeps_the_bar_inside_the_window(self):
-        # The project name shortens first; the new buttons must not push anything out.
+        # The project name wraps (row 1239: never an ellipsis); the new buttons must not push anything out.
         for width in (900,):
             for theme in ("light", "dark"):
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
@@ -139,8 +139,8 @@ class TopBarActions(Base):
                                "for (var j=i+1;j<r.length;j++) if (r[i][1].left < r[j][1].right - 0.5 && r[j][1].left < r[i][1].right - 0.5 && r[i][1].top < r[j][1].bottom - 0.5 && r[j][1].top < r[i][1].bottom - 0.5 && r[i][1].width && r[j][1].width) bad.push(r[i][0] + ' over ' + r[j][0]); }"
                                "return bad.concat(document.documentElement.scrollWidth > document.documentElement.clientWidth ? ['sideways scroll'] : []);})()")
                     self.assertEqual(got, [], f"at {width} px, {theme}, long name")
-                    clipped = p.js("(function(){ var s = document.querySelector('.top .hdr-project > span'); return s ? [s.textContent.length > 40, s.scrollWidth > s.clientWidth] : null; })()")
-                    self.assertEqual(clipped, [True, True], f"at {width} px, {theme}: the long name is in the bar and is the part that gives way (its ellipsis)")
+                    clipped = p.js("(function(){ var s = document.querySelector('.top .hdr-project > span'); return s ? [s.textContent.length > 40, s.scrollWidth > s.clientWidth, getComputedStyle(s).textOverflow === 'ellipsis'] : null; })()")
+                    self.assertEqual(clipped, [True, False, False], f"at {width} px, {theme}: the long name is in the bar, whole (it wraps), never an ellipsis (row 1239)")
                     self.assertEqual(p.js("document.querySelectorAll('.top #ask-btn, .top #pal-btn').length"), 0, "item 1177: at 900 both buttons are in the profile menu, not the header")
 
 

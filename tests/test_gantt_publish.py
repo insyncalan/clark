@@ -348,7 +348,7 @@ class FromTheStore(unittest.TestCase):
         body = built["body"].decode("utf-8")
         self.assertNotIn('"gantt":', body, "no Gantt data in the file (the page's own code names the tab, so the word alone is not the test)")
         self.assertNotIn('"tabs":["dashboard","work","milestones","usecases","gantt"', body.replace(" ", ""))
-        self.assertNotIn("Dig", body)
+        self.assertNotIn('"Dig"', body, "the item name as data; a bare Dig can sit inside the page hash")
         self.assertNotIn("gantt", built["published"]["tabs"])
 
 

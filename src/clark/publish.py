@@ -649,7 +649,7 @@ def select(inputs):
         out["gantt"] = {"columns": table["columns"], "lines": table["lines"]}      # row 1068: the eye-on lines for the table section alone, with no tab (tabs below), no tab name and no title: the same copy the tab would carry
     out["use_case_pages"] = client_use_cases(d, code, hidden_ids, inputs.get("label_rules"), hidden_types)
     tabs = ["dashboard"]
-    if any(SECTION_OF_KIND[k] not in hidden_types for k in WORK_KINDS):
+    if any(SECTION_OF_KIND[k] not in hidden_types for k in WORK_KINDS) or any(x.get("type") == "workitems" for x in shown):      # row 1307: a shown Work items list section brings the tab as a built-in section does, so its glance tiles are buttons
         tabs.append("work")
     if "milestones" not in hidden_types:
         tabs.append("milestones")
@@ -1406,6 +1406,12 @@ def read_inputs(store, code, as_at=None):
 
 
 # ===== Making the file =====
+def theme_of(store):
+    """The Theme folder name for the Theme `store` holds at this moment, or None for Cards (row 1269): one answer for the file, the PDF and the markers."""
+    from clark import theme      # here: clark.theme imports clark.page
+    return theme.of_store(store)
+
+
 def build(store, code, now=None, branding=None, section_style=None, number=None, workbook=False, past_reports=None):
     """Make the report once, in memory, and write nothing: {"body", "sha256", "project", "as_at", "published"}. `body` is the
     finished file's UTF-8 bytes, `published` is what select() kept (the same object render() was given). `now` is the publish
@@ -1447,7 +1453,7 @@ def build(store, code, now=None, branding=None, section_style=None, number=None,
     if past:
         published["data"]["past_reports"] = past
     n = store.next_publication(code) if number is None else number
-    text = render(published, page.page_html(branding, view=True), as_at, project["name"], n)      # #65: the view-only page
+    text = render(published, page.page_html(branding, view=True, theme=theme_of(store)), as_at, project["name"], n)      # #65: the view-only page
     body = text.encode("utf-8")
     if len(body) > MAX_BYTES:
         raise PublishError(f"The report is {len(body) / 1048576:.1f} MB, which is over the {MAX_BYTES // 1048576} MB limit. "

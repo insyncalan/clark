@@ -37,6 +37,7 @@ class ExportButton(unittest.TestCase):
 
     def test_the_published_file_has_no_export_icon(self):
         demo = DemoStore()
+        demo.plant_builtin_sections("ABC")      # a new project's lists are Work items lists; the published Work items tab needs a built-in section (row 1193)
         folder = tempfile.mkdtemp(prefix="clark-pub-")
         self.addCleanup(demo.close)
         self.addCleanup(shutil.rmtree, folder, True)

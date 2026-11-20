@@ -29,3 +29,23 @@ def _build_pages():
 
 
 _build_pages()
+
+
+def _block_the_network():
+    """No test reaches the real network by default (Row 1327): the updater's default opener (clark.release_fetch.default_opener) is
+    swapped for one that fails the way an offline computer does, and counts the call in `calls`. A test that wants a lookup gives
+    the Updater its own release_opener. Production keeps release_fetch.real_opener."""
+    try:
+        import urllib.error
+        from clark import release_fetch
+    except ImportError:
+        return
+
+    def no_network(request, timeout):
+        no_network.calls.append(getattr(request, "full_url", str(request)))
+        raise urllib.error.URLError("no network in tests")
+    no_network.calls = []
+    release_fetch.default_opener = no_network
+
+
+_block_the_network()

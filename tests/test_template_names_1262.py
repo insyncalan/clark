@@ -21,7 +21,7 @@ NAMES = {                                      # id -> the name on the card (the
     "gallery": "Picture grid",
     "raid-3": "Item cards, three",
     "raid-4": "Item cards, four",
-    "work-items": "Live work list",
+    "work-items": "Work items",
     "docs-links": "Files and links",
     "callout": "Must-see note",
     "image-caption": "One picture",
@@ -71,7 +71,7 @@ class TemplateNames(unittest.TestCase):
 
     def test_help_rows_for_the_old_names_are_gone(self):
         heads = [r[0] for r in help_rows()]
-        for old in ("Key figures, four", "Key figures, three", "Image gallery", "RAID cards, three", "RAID cards, four", "Work items list",
+        for old in ("Key figures, four", "Key figures, three", "Image gallery", "RAID cards, three", "RAID cards, four", "Work items list", "Live work list",
                     "Documents and links", "Callout", "Image with caption", "Full width image", "Contacts", "Checklist", "Key dates",
                     "Link preview", "One document", "Plan summary", "Text and image"):
             self.assertNotIn(old, heads, old)

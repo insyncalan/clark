@@ -167,12 +167,22 @@ class WhatIsSent(Base):
         (text,) = self.provider.sent
         return text
 
+    # row 1367 (ruling 19-11): an eye-off or report-hidden row is read for the owner; these markers are no longer held back.
+    READ_NOW = frozenset({"PUB-A-010", "PUB-A-011", "PUB-002", "PUB-D-002", "PUB-M-003", "PUB-M-004", "PUB-U-002", "PUB-W-002"})
+
     def test_nothing_the_published_file_leaves_out_is_ever_sent(self):
         text = self.sent()
         p = plant.load()
         for where, marker in p["markers"].items():
+            if where in self.READ_NOW:
+                continue
             for spelled in plant.spellings(marker):
                 self.assertNotIn(spelled, text, f"{where}: {marker!r}")
+
+    def test_the_hidden_rows_are_sent_for_the_owner(self):
+        text = self.sent()
+        for where in ("PUB-A-011", "PUB-M-004", "PUB-D-002"):
+            self.assertIn(plant.load()["markers"][where], text, where)
 
     def test_another_projects_rows_are_never_sent(self):
         text = self.sent("What about the other programme and its actions?")
@@ -222,9 +232,13 @@ class TheReply(Base):
         self.assertEqual(kinds.get("unknown_id"), "PUB-A-999")
         self.assertEqual(kinds.get("unsent_passage"), "P99")
 
-    def test_a_row_the_report_hides_counts_as_unknown(self):
+    def test_an_archived_row_counts_as_unknown(self):      # row 1367: an archived row is not read
+        got = self.ask_with("PUB-A-016 is fine.")
+        self.assertIn(("unknown_id", "PUB-A-016"), [(f["kind"], f["ref"]) for f in got["flags"]])
+
+    def test_a_row_the_report_hides_is_known_to_the_owner(self):      # row 1367: read for the owner
         got = self.ask_with("PUB-A-011 is fine.")
-        self.assertIn(("unknown_id", "PUB-A-011"), [(f["kind"], f["ref"]) for f in got["flags"]])
+        self.assertNotIn(("unknown_id", "PUB-A-011"), [(f["kind"], f["ref"]) for f in got["flags"]])
 
     def test_a_wrong_owner_is_flagged_with_the_reports_owner(self):
         facts = ask_service.ask_data.project_data(st.open_store(self.db, onedrive_roots=[]), CODE).facts
@@ -239,6 +253,16 @@ class TheReply(Base):
         got = self.ask_with('Close it.\nCHANGE: {"id": "PUB-A-001", "status": "Closed"}')
         self.assertEqual(got["changes"], [{"id": "PUB-A-001", "status": "Closed"}])
         self.assertEqual(self.counts(), before)
+
+    def test_a_draft_comes_back_as_data_and_is_not_saved(self):
+        before = self.counts()
+        got = self.ask_with('Here.\nDRAFT: {"title": "This week", "html": "<p>Kit ordered.</p>", "sec": "PUB-S-001"}')
+        self.assertEqual(got["draft"], {"title": "This week", "html": "<p>Kit ordered.</p>", "sec": "PUB-S-001"})
+        self.assertEqual(got["answer"], "Here.")
+        self.assertEqual(self.counts(), before)
+
+    def test_an_answer_without_a_draft_says_none(self):
+        self.assertIsNone(self.ask_with("Fine.")["draft"])
 
     def test_the_sources_list_names_only_cited_passages(self):
         got = self.ask_with("Fine.\nCITE: P1")

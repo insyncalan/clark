@@ -35,7 +35,7 @@ EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
 # low-priority follow-up. Moving it onto clarkEditor's plain profile is a separate change (it would rewrite #65's tests of the title).
 # The other: the Draft email preview is a plain editable box on purpose (its styled HTML and table are what Outlook pastes, as in creaite). It holds an email, not a report field. keys.js and help/helpStore.js only READ isContentEditable to leave typing alone.
 # The tracker's status words (row 930) are the same kind of field as the title: one limited plain-text line on a contenteditable="plaintext-only" span (edit/TrackerWords.jsx), with no styled content and no AI place (test_ai_places leaves it out).
-NAMED = {"edit/Title.jsx", "components/DraftEmail.jsx", "edit/TrackerWords.jsx"}
+NAMED = {"edit/Title.jsx", "components/DraftEmail.jsx", "edit/TrackerWords.jsx", "edit/AskDraft.jsx"}      # row 1292: the Draft beside the ask panel is the answer's own text, edited in place; it is saved nowhere but through one change (Add to the report)
 PATTERN = re.compile(r"new\s+Editor\b|createEditor\b|contenteditable(?!\w*\)?\s*\|\|)", re.I)
 
 
