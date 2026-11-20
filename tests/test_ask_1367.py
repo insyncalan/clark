@@ -43,6 +43,16 @@ class HiddenRowsAreRead(unittest.TestCase):
         self.assertNotIn("PUB-M-003", ids)
         self.assertNotIn("PUB-A-011", ids)
 
+    def test_workstreams_are_read_as_their_own_kind(self):
+        got, given = read("workstreams?")
+        hidden = plant.load()["markers"]["PUB-W-002"]
+        self.assertIn(hidden, text_of(got), "the workstream the report leaves out is read")
+        self.assertIn(hidden, "\n".join(p.text for p in got.passages if p.label == ask_data.LABELS["workstreams"]))
+        total = len([w for w in given["data"]["workstreams"] if not w.get("archived") and w.get("project", "PUB") == "PUB"])
+        self.assertIn(("workstreams", total, total), got.counts)
+        cut = ask_data.left_out_lines([("workstreams", total - 1, total)])
+        self.assertEqual(cut, [f"Sent {total - 1} of {total} workstreams (the closest to your question); 1 was left out."])
+
 
 class WhatStaysOut(unittest.TestCase):
     def test_an_archived_row_is_not_read(self):
