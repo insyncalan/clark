@@ -16,10 +16,10 @@ from clark import page
 NAME = "prototype-2.0"
 RULES = ROOT / "src" / "clark" / "themes" / NAME / "rules.css"
 READ = """(() => JSON.stringify({h1: [...document.querySelectorAll('h1')].filter(e => !e.classList.contains('hdr-h1')).map(e => { const c = getComputedStyle(e); return [c.fontSize, c.lineHeight, c.marginBottom, c.fontWeight]; }),
-  seg: [...document.querySelectorAll('.seg button')].map(e => { const c = getComputedStyle(e); return [e.parentElement.className, c.padding, c.minHeight, c.fontWeight, e.offsetHeight]; })}))()"""
+  seg: [...document.querySelectorAll('.seg button')].map(e => { const c = getComputedStyle(e); return [e.parentElement.className, c.padding, c.minHeight, c.fontWeight, e.offsetHeight, getComputedStyle(e.parentElement).borderRadius]; })}))()"""
 H1_30 = ["30px", "36px", "4px", "600"]
 H1_HEAD = ["30px", "36px", "0px", "600"]
-TEXT_SEG = ["3px 14px", "28px", "600", 28]
+TEXT_SEG = ["3px 14px", "28px", "600", 28, "6px"]   # last: the segment box radius, ruled 6 on 20-11
 ICON_SEG = ["2px 8px", "32px"]
 
 

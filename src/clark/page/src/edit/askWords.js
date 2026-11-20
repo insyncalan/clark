@@ -13,15 +13,29 @@ export const ASK_NOTICE_LINE = "Your question and the passages it needs go to Cl
 // row 1292 feature 2: the first-run card in an empty chat, three plain lines. Written for Claude; named() swaps the provider in use.
 // The sentences are a draft: the spec gives the ideas, the words wait for the project head (listed as B1 in the words file).
 export const FIRST_RUN_LABEL = "About ask clark";
-export const FIRST_RUN_READS = "It reads what is in this project. It never reads your mail, Teams or calendars.";
+export const FIRST_RUN_READS = "It reads what is in this project. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings.";
 export const FIRST_RUN_CHANGES = "It can suggest changes. Nothing is saved until you press Apply, and every change can be undone.";
 export const FIRST_RUN_SENT = "Your question goes to Claude, which Anthropic runs.";
 export const FIRST_RUN_LINK = "Open the Asking card in Settings";
+// item 1352, Classic only (Cards keeps the three plain lines and the status words above): the card as the prototype draws it, a heading, three bullets and a tip.
+// The connector sentence is rule 11 of the 1292 rules: the connectors are used only when they are turned on in Settings.
+export const CARD_HEAD = "Ask about this project";
+export const CARD_READS = "I read this project's work items, milestones and use cases. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings.";
+export const CARD_CHANGES = "I can suggest changes. Nothing is saved until you press Apply, and every change can be undone.";
+export const CARD_CHANGES_BOLD = "Nothing is saved until you press Apply";      // drawn in the heavier weight, as the prototype does
+export const CARD_SENT = "Your question and what it needs go to Claude.";
+export const CARD_LINK = "What will be sent? (Settings)";
+export const CARD_TIP_BEFORE = "Tip: press the sparkle on a work item, a section or a use case to ask about just that. Type ";
+export const CARD_TIP_KEY = "/";
+export const CARD_TIP_AFTER = " in the box for shortcuts.";
+export const CLASSIC_STATUS_READY = "Ready. Reading this project's report data.";   // the prototype's status line; it does not name the model
+export const CLASSIC_STANDING = "Standing instructions on";                          // the prototype's words, no full stop (the line is a button there)
 export const CHECKING_LINE = "Checking whether you can ask…";
 export const READY_LINE = "Ready. Ask about this project.";
 export const MODEL_LINE = (name) => `Answering with ${name}.`;
 export const STANDING_LINE = "Standing instructions on.";   // #1292 S13, the mock-up's words with the full stop every line of the panel ends in
 export const PLACEHOLDER = "Ask a question about this project";
+export const PLACEHOLDER_CLASSIC = "Ask a question or give an instruction... (type / for shortcuts)";          // row 1350: Classic only; Cards keeps PLACEHOLDER
 export const SEND = "Ask";
 export const STOP = "Stop";
 export const CLOSE = "Close";
@@ -79,6 +93,7 @@ export const PILLS_STATE = {
 // state words overdue / red / no_owner). The two questions about one item or a few carry the ids in brackets only in the question sent, never in the shown words; the rest are plain questions.
 export const PILLS_ITEM_DUE = "Change the due date";
 export const PILLS_ITEM_URGENCY = "Raise the urgency";
+export const PILLS_ITEM_REPORT = "Add to the weekly report";
 export const PILLS_ITEM_OWNERS = "Who owns these?";
 export const PILLS_ITEM_LATE = "Why are these late?";
 export const PILLS_MAX = 6;
@@ -286,6 +301,8 @@ export const KIND_NAMES = { actions: "Action", decisions: "Decision", milestones
 
 // Row 1292 (S12): the Draft beside the panel (mock-up image 09).
 export const DRAFT_TITLE = "Draft";
+// Shown when a draft was written in a run that read a connector (names of the parts read, joined with "and").
+export const DRAFT_VIA = (names) => `Written using your ${names}. Read it before you apply it.`;
 export const DRAFT_HINT = "Edit it freely. Nothing is in the report yet.";
 export const DRAFT_CLOSE = "Close the draft";
 export const DRAFT_TEXT_LABEL = "Draft text";
@@ -311,4 +328,9 @@ export const SLASH_HINT = {
   usecases: "Which use cases need attention",
   history: "Earlier chats",
   new: "Start a new chat",
+};
+// row 1350: the two hints Classic words differently; Cards keeps SLASH_HINT. A Classic hint is SLASH_HINT_CLASSIC[name] when there is one.
+export const SLASH_HINT_CLASSIC = {
+  summary: "Summarise this week into a draft",
+  overdue: "What is overdue?",
 };
