@@ -94,6 +94,7 @@ def check(test, name, look, m):
 class Seen:
     """Records and checks every menu a Drive reads."""
     names = set()
+    leaving = None
 
 
 def setUpModule():
@@ -113,6 +114,9 @@ def setUpModule():
         # Row 1463: read the menu only once its open animation has ended (a rise or slide moves the icon a pixel or two while it runs)
         self.until(f"(r => {{ const b = [...document.querySelectorAll(r)].filter(e => e.getBoundingClientRect().width > 0).pop(); return !!b && b.getAnimations({{subtree: true}}).every(a => a.playState === 'finished' || a.playState === 'idle'); }})({json.dumps(root)})", f"{name}: the menu {root} finished opening")
         check(self.t, name, self.look_is, self.js(f"({MEASURE})({json.dumps(root)})"))
+        if not Seen.leaving:     # row 1463: the fade copy of a Gantt menu (body > .gt-menu.leaving, edit.css) keeps the box padding and the line padding: read its computed values from a copy on the page
+            Seen.leaving = self.js("(() => { const d = document.createElement('div'); d.className = 'gt-menu leaving'; d.innerHTML = '<button>x</button>'; document.body.append(d); const b = d.firstChild, p = e => { const c = getComputedStyle(e); return c.paddingTop + ' ' + c.paddingRight + ' ' + c.paddingBottom + ' ' + c.paddingLeft; }; const r = [p(d), p(b)]; d.remove(); return r; })()")
+            self.t.assertEqual(Seen.leaving, ["4px 4px 4px 4px", "6px 10px 6px 10px"], "the fading Gantt menu: box padding and line padding")
         Seen.names.add(name)
         return got
     start(mock.patch.object(T.Drive, "lines", lines))
