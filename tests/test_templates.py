@@ -170,6 +170,19 @@ class Logic(unittest.TestCase):
         self.assertEqual(self.t(f"plan({lit(have)}, 'built-in-milestones', 'a', false)")["requests"],
                          [{"op": "new", "values": {"type": "milestones", "title": "Milestones"}, "after": "a", "place": "report"}])
 
+    def test_no_card_for_risks_and_issues_open_actions_or_decisions(self):
+        """Row 1407: the Work items list covers them; the library offers no card for those three, with or without a section of that type."""
+        types = {x["type"] for x in self.t("BUILT_INS")}
+        self.assertFalse(types & {"raid", "actions", "decisions"}, "no built-in card of the three")
+        offered = [x["name"] for x in self.t("list({sections: []})")]
+        for name in ("Risks and issues", "Open actions", "Decisions"):
+            self.assertNotIn(name, offered)
+        self.assertIsNone(self.t('find("built-in-raid")'))
+        self.assertIsNone(self.t('find("built-in-actions")'))
+        self.assertIsNone(self.t('find("built-in-decisions")'))
+        self.assertIn("work-items", [x["id"] for x in self.t("list({sections: []})")], "Work items list stays")
+        self.assertTrue({"raid", "actions", "decisions"} <= set(self.t("ACCEPTS")["types"]), "the store still takes sections of the three types, so a report that holds one opens and exports")
+
     @staticmethod
     def _rows(o, out=None):
         out = [] if out is None else out
@@ -372,9 +385,9 @@ class Box(Base):
             self.assertEqual(p.js(f"document.getElementById({d}.getAttribute('aria-labelledby')).textContent"), "Add a section")
             self.assertEqual(p.js("document.querySelector('#main').hasAttribute('inert') && document.querySelector('.top').hasAttribute('inert')"), True,
                              "the page behind cannot be reached")
-            self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 28)      # row 1261: + the Headline card; row 1193: + the three built-in cards, offered while the report lacks them (a new project has Work items lists)
+            self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 25)      # row 1261: + the Headline card; row 1407: the Risks and issues, Open actions and Decisions cards are gone (row 1193 had added them)
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.textContent)"),
-                             ["All templates28", "Project information2", "Text and pictures8", "Figures3", "Work items6", "Files and links3", "People and dates5", "Notes1"])      # #1272: the Callout is in Project information      # row 1068: + the Gantt table card, in People and dates
+                             ["All templates25", "Project information2", "Text and pictures8", "Figures3", "Work items3", "Files and links3", "People and dates5", "Notes1"])      # #1272: the Callout is in Project information      # row 1068: + the Gantt table card, in People and dates
             self.assertEqual(self.sent, [], "opening sends nothing")
 
     def test_everything_outside_the_box_is_inert_while_it_is_open_and_restored_when_it_closes(self):
@@ -465,7 +478,7 @@ class Box(Base):
                   heard: document.querySelector('[data-template=text]').textContent.includes('Full width or Half width'),
                   big: !!document.querySelector('.ad-prev .ad-sk.big'),
                   holds: [...document.querySelectorAll('.ad-prev .ad-els li')].map(l => l.textContent)};})()""")
-            self.assertEqual(got, {"cards": 28, "sketched": 25, "radios": 28, "firstRow": 3, "text": ["Full width", "Half width"], "gallery": ["Full width"],
+            self.assertEqual(got, {"cards": 25, "sketched": 25, "radios": 25, "firstRow": 3, "text": ["Full width", "Half width"], "gallery": ["Full width"],
                                    "chipsHidden": "true", "heard": True, "big": True, "holds": ["Heading", "Text"]})
             x = "document.querySelector('.ad-head [data-close]')"
             self.assertEqual(p.js(f"{x}.getAttribute('aria-label')"), "Close")
@@ -540,7 +553,7 @@ class Box(Base):
             self.assertTrue(p.js("document.querySelector('button[data-place]').disabled"), "nothing chosen: Place it is off")
             p.js("document.querySelector('[data-kind=work]').click()")
             p.js("var s = document.querySelector('input[type=search]'); s.value = ''; s.dispatchEvent(new Event('input', {bubbles: true}))")
-            p.until("document.querySelectorAll('[data-template]').length === 6", "Work items shows six")
+            p.until("document.querySelectorAll('[data-template]').length === 3", "Work items shows three")
             self.assertEqual(p.js("document.querySelector('.ad-kind[aria-pressed=true]').dataset.kind"), "work")
             p.js("var s = document.querySelector('input[type=search]'); s.value = 'zzz'; s.dispatchEvent(new Event('input', {bubbles: true}))")
             p.until("document.querySelectorAll('[data-template]').length === 0", "nothing in Work items matches")
@@ -553,7 +566,7 @@ class Box(Base):
             p = self.visit(cdp)
             p.edit()
             self.open_box(p, "ABC-S-003")
-            self.assertEqual(p.js("document.querySelectorAll('input[name=template]:not([disabled])').length"), 28, "every template can be focused")
+            self.assertEqual(p.js("document.querySelectorAll('input[name=template]:not([disabled])').length"), 25, "every template can be focused")
             self.assertEqual(p.js("document.querySelector('button[data-place]').disabled"), False, "Text is chosen and can be placed")
             cat = {x["id"]: x["description"] for x in FIRST_SLICE_DESCRIPTIONS}
             for tid, desc in cat.items():

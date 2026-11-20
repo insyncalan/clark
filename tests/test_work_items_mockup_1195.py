@@ -84,12 +84,6 @@ GOLDEN_LINES = [
     ".wil-add .ddmenu [role=\"menuitem\"] { display: flex; align-items: center; gap: var(--space-2); min-height: calc(var(--space-6) + var(--space-3)); padding: 0 var(--space-2); border-radius: var(--radius); font-weight: var(--weight-medium); color: var(--text); }",
     ".wil-add .ddmenu [role=\"menuitem\"]:hover, .wil-add .ddmenu [role=\"menuitem\"]:focus-visible { background: var(--grey-50); color: var(--text); }",
     ".wil-add .ddmenu [role=\"menuitem\"]:focus-visible { outline: 0; }",
-    ".wil-add .ddmenu [role=\"menuitem\"] .mi { display: none; }",
-    ".wil-add .ddmenu [role=\"menuitem\"]::before { content: attr(data-kind); display: inline-grid; place-items: center; flex: none; width: var(--space-5); height: var(--space-5); border-radius: 6px; font-size: var(--size-caption); font-weight: var(--weight-semibold); line-height: 1; background: var(--tone-grey-tint); color: var(--tone-grey-text); }",
-    ".wil-add .ddmenu [role=\"menuitem\"][data-kind=\"action\"]::before { content: \"A\"; background: var(--brand-blue-tint); color: var(--status-blue-text); }",
-    ".wil-add .ddmenu [role=\"menuitem\"][data-kind=\"risk\"]::before { content: \"R\"; background: var(--tone-red-tint); color: var(--tone-red-text); }",
-    ".wil-add .ddmenu [role=\"menuitem\"][data-kind=\"issue\"]::before { content: \"I\"; background: var(--tone-urgent); color: var(--tone-on-urgent); }",
-    ".wil-add .ddmenu [role=\"menuitem\"][data-kind=\"decision\"]::before { content: \"D\"; background: var(--tone-green-tint); color: var(--tone-green-text); }",
     ".wil-views .vtab { font-weight: var(--weight-medium); }",
     ".wil-views .vtab em { font-weight: var(--weight-regular); color: var(--text-muted); }",
     ".wil-views .vnew { color: var(--status-blue-text); font-weight: var(--weight-medium); }",
@@ -253,8 +247,7 @@ class SourceRules(unittest.TestCase):
             return rule(RULES, f".wil-table tr.wil-k-{kind}:not(.wil-off) .ico, .wil-lines li.wil-k-{kind}:not(.wil-off) .ico")
         for kind, k in (("action", "ta"), ("risk", "tr"), ("issue", "ti"), ("decision", "td")):
             self.assertIn(f"background: var(--wil-{k}-bg); color: var(--wil-{k}-fg)", tile(kind))
-        for kind, letter in (("action", "A"), ("risk", "R"), ("issue", "I"), ("decision", "D")):
-            self.assertIn(f'content: "{letter}"', rule(RULES, f'.wil-add .ddmenu [role="menuitem"][data-kind="{kind}"]::before'))
+        self.assertNotIn('.wil-add .ddmenu [role="menuitem"][data-kind=', RULES)      # item 1273: the Add menu draws the + icon, not a letter chip
         self.assertIn('document.getElementById("theme")', ROWS_JSX)
         self.assertIn('kinds ? ` wil-k-${row.kind}` : ""', ROWS_JSX)
 
@@ -396,8 +389,11 @@ class Classic(Look):
                 self.assertFalse(p.js(f"!!document.querySelector('{sec} .wil-form') && getComputedStyle(document.querySelector('{sec} .wil-form')).backgroundColor !== 'rgba(0, 0, 0, 0)'"), "no pale bar")
                 p.js(f"document.querySelector('{sec} .wil-add .newb').click()")
                 p.until(f"!!document.querySelector('{sec} .wil-add .ddmenu')", "menu")
-                tiles = p.js("[...document.querySelectorAll('" + sec + " .wil-add .ddmenu [role=menuitem]')].map(e => getComputedStyle(e, '::before').content).join('')")
-                self.assertEqual(tiles, '"R""A""I""D"', "RAID order in the markup, so in the arrow keys too")
+                kinds = p.js("[...document.querySelectorAll('" + sec + " .wil-add .ddmenu [role=menuitem]')].map(e => e.dataset.kind[0].toUpperCase()).join('')")
+                self.assertEqual(kinds, "RAID", "RAID order in the markup, so in the arrow keys too")
+                icons = p.js("[...document.querySelectorAll('" + sec + " .wil-add .ddmenu [role=menuitem]')].map(e => getComputedStyle(e, '::before').content + ':' + (e.querySelector('.mi') ? Math.round(e.querySelector('.mi').getBoundingClientRect().width) : 0)).join(' ')")
+                self.assertNotIn('"', icons, "item 1273: no letter chip is drawn in the Add menu")
+                self.assertNotIn(":0", icons, icons)
                 self.assertEqual(p.js(f"Math.round(document.querySelector('{sec} .wil-add .newb').getBoundingClientRect().width)"), 34, "open: still the square")
 
     def test_configure_lists_the_columns_in_the_mockup_order(self):
@@ -583,8 +579,9 @@ class Classic(Look):
             self.assertEqual(q(".wil-add .ddmenu", "boxShadow"), ["rgba(6, 47, 58, 0.2) 0px 10px 30px 0px"], "menu shadow")
 
     # The values below were measured in Chrome on work-items-mockup.html at 1400 and 900.
-    MOCK = {"th": ["11.5px", "rgb(85, 103, 122)"], "pr": ["rgb(246, 248, 252)", "rgb(14, 36, 48)", "rgb(217, 224, 239)", "12px", "600", "6px"],
-            "prh": ["rgb(254, 240, 199)", "rgb(181, 71, 8)", "rgb(242, 217, 138)"], "pru": ["rgb(253, 236, 234)", "rgb(180, 35, 24)", "rgb(244, 199, 194)"],
+    # Row 1409: the priority chips take the one mapping the rating matrix has (pr is Medium amber, prh High red, pru Urgent maroon), not the mock-up's grey / amber / red
+    MOCK = {"th": ["11.5px", "rgb(85, 103, 122)"], "pr": ["rgb(252, 239, 207)", "rgb(138, 90, 0)", "rgb(252, 239, 207)", "12px", "600", "6px"],
+            "prh": ["rgb(246, 224, 221)", "rgb(163, 48, 31)", "rgb(246, 224, 221)"], "pru": ["rgb(107, 29, 42)", "rgb(255, 255, 255)", "rgb(107, 29, 42)"],
             "tA": ["rgb(237, 233, 255)", "rgb(75, 58, 181)"], "tR": ["rgb(253, 236, 234)", "rgb(180, 35, 24)"], "tI": ["rgb(107, 31, 42)", "rgb(255, 255, 255)"],
             "tD": ["rgb(231, 246, 236)", "rgb(6, 118, 71)"], "hid": ["rgb(238, 240, 244)", "rgb(152, 162, 179)"], "add": ["rgb(152, 162, 179)", "rgb(91, 71, 216)", "6px", "dashed"]}
 
