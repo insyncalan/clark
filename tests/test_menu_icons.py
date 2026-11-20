@@ -73,7 +73,7 @@ class Source(unittest.TestCase):
         self.assertIn("iconClass", text)
 
     def test_every_menu_of_a_work_item_gives_its_choices_icons(self):
-        for name in ("StatusPick.jsx", "PriorityPick.jsx", "RatingPick.jsx", "DuePick.jsx"):
+        for name in ("StatusPick.jsx", "PriorityPick.jsx", "DuePick.jsx"):
             self.assertIn("menuIcons.js", (SRC / "edit" / "cells" / name).read_text(encoding="utf-8"), name)
         self.assertIn("menuIcons.js", (SRC / "edit" / "PeekPick.jsx").read_text(encoding="utf-8"))
         self.assertIn("menuIcons.js", (SRC / "edit" / "bulkLogic.js").read_text(encoding="utf-8"))

@@ -178,7 +178,7 @@ COVERED = [
     ("#851", 'Marked items with no client wording are listed under their own text.',
      "test_item_rows::UnwordedRows::test_marked_items_with_no_wording_are_listed_in_view_and_edit_with_n_of_m"),
     ("#773", 'The report bar hint is a chip and a hidden tile is dashed and untinted.',
-     "test_dashboard_edit_look::EditLook::test_the_note_is_a_chip_and_a_hidden_tile_is_dashed_and_untinted"),
+     "test_dashboard_edit_look::EditLook::test_the_note_is_a_chip_and_a_hidden_tile_is_not_drawn_in_edit"),
     ("#774", 'A hover tooltip hides when its menu opens and sits under menus.',
      "test_menu_tooltip::MenuTooltip::test_the_tip_hides_when_the_menu_opens_on_leave_on_esc_and_on_blur_and_sits_under_menus"),
     ("#784", 'The published Work items Item column is wide enough at 900 px.',

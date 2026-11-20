@@ -204,6 +204,7 @@ export function GanttChart({
   if (!range || !total) {
     return (
       <section class="gt" data-gantt data-mode={edit ? "edit" : "view"}>
+        {lead ? <div class="gt-bar" role="toolbar" aria-label="Chart">{lead}</div> : null}      {/* row 1197: an empty chart still carries the table and chart buttons, so the way back to the table is there */}
         <p class="gt-none" data-g-none>{WORDS.noLines}</p>
         {out ? <p data-g-count>{linesShown(0, out)}</p> : null}
       </section>

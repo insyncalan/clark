@@ -69,8 +69,8 @@ class Pg:
     def type(self, text):
         self.cdp.call("Input.insertText", {"text": text}, self.sid)
 
-    def rows(self):
-        return self.js("[...document.querySelectorAll('#palette .pal-row')].map(e => [e.dataset.kind, e.querySelector('.pal-label').textContent, e.getAttribute('aria-disabled') === 'true'])")
+    def rows(self, ask=False):
+        return self.js("[...document.querySelectorAll('#palette .pal-row')].filter(e => " + ("true" if ask else "e.id !== 'pal-ask-row'") + ").map(e => [e.dataset.kind, e.querySelector('.pal-label').textContent, e.getAttribute('aria-disabled') === 'true'])")
 
     def find(self, text):
         self.js("(function(){var q=document.querySelector('#palette-q'); q.value=''; q.focus();})()")
@@ -274,11 +274,12 @@ class Results(Base):
             p.until("document.body.innerText.length > 20", "the page has words")
             p.show()
             p.find("publish")
-            p.until("document.querySelector('#palette .pal-row') && document.querySelector('#palette .pal-row').getAttribute('aria-disabled') === 'true'", "Publish cannot run without a project")
+            p.until("document.querySelector('#palette .pal-row:not(#pal-ask-row)') && document.querySelector('#palette .pal-row:not(#pal-ask-row)').getAttribute('aria-disabled') === 'true'", "Publish cannot run without a project")
             self.assertIn("Open a project first", p.js("document.querySelector('#palette .pal-why').textContent"))
-            p.key("Enter", 0, "Enter", 13)
-            self.assertTrue(p.js("!!document.querySelector('#palette[open]')"), "Enter on it leaves the palette open")
-            self.assertEqual(p.js("document.querySelector('#palette .pal-row').getAttribute('aria-selected')"), "false")
+            self.assertEqual(p.js("document.querySelector('#palette .pal-row:not(#pal-ask-row)').getAttribute('aria-selected')"), "false", "the one that cannot run is not the chosen one")
+            p.key("Enter", 0, "Enter", 13)          # the ask row is the only one that can run: Enter reaches it, not Publish
+            p.until("!document.querySelector('#palette')", "Enter went to the ask row")
+            self.assertFalse(p.js("!!document.querySelector('#publish-dialog')"), "Publish did nothing")
 
     def test_the_appearance_commands_use_the_real_setting(self):
         """Light, Dark and System each change the page's own appearance (the one Settings and the profile menu set), say which is in use, and a reload keeps it."""
@@ -288,7 +289,7 @@ class Results(Base):
             p.show()
             p.find("appearance")
             self.assertEqual([r[1] for r in p.rows()], ["Appearance: System", "Appearance: Light", "Appearance: Dark"])
-            self.assertEqual(p.js("[...document.querySelectorAll('#palette .pal-row')].map(e => !!e.querySelector('.pal-more.muted:not(.num)') && /In use/.test(e.textContent))"), [True, False, False], "System is in use first")
+            self.assertEqual(p.js("[...document.querySelectorAll('#palette .pal-row:not(#pal-ask-row)')].map(e => !!e.querySelector('.pal-more.muted:not(.num)') && /In use/.test(e.textContent))"), [True, False, False], "System is in use first")
             p.key("Escape", 0, "Escape", 27)
             for mode in ("dark", "light", "system", "dark"):
                 p.show()
@@ -301,7 +302,7 @@ class Results(Base):
                 self.assertTrue(p.js("document.activeElement !== null"), "focus is back in the page")
                 p.show()
                 p.find("appearance")
-                self.assertEqual(p.js("[...document.querySelectorAll('#palette .pal-row')].filter(e => /In use/.test(e.textContent)).map(e => e.querySelector('.pal-label').textContent)"),
+                self.assertEqual(p.js("[...document.querySelectorAll('#palette .pal-row:not(#pal-ask-row)')].filter(e => /In use/.test(e.textContent)).map(e => e.querySelector('.pal-label').textContent)"),
                                  ["Appearance: " + mode.capitalize()], "the one in use says so")
                 p.key("Escape", 0, "Escape", 27)
             p.js("window.__old_document = true")
@@ -381,7 +382,7 @@ class Click(Base):
             p.js("document.activeElement && document.activeElement.blur()")
             p.show()
             p.find("abc-a-001")
-            p.until("document.querySelectorAll('#palette .pal-row').length === 1", "one result")
+            p.until("document.querySelectorAll('#palette .pal-row:not(#pal-ask-row)').length === 1", "one result")
             p.click("#palette .pal-row")
             p.until("!document.querySelector('#palette')", "the palette closed on the click")
             p.until("!!document.querySelector('#peek[data-peek=\"ABC-A-001\"]')", "the peek opened on the item")

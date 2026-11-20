@@ -64,6 +64,21 @@ export function TopBar({ tools }) {
     later();
     return () => { if (watch) watch.disconnect(); if (frame) cancelAnimationFrame(frame); };
   }, [tabs.value.length]);
+  useEffect(() => {      // row 1239: a long project name wraps instead of ending in an ellipsis, so the bar grows; every offset that reads --topbar follows the bar's real height
+    const bar = document.querySelector("header.top");
+    if (!bar) return undefined;
+    const root = document.documentElement;
+    const read = () => {      // the bar's own height never depends on --topbar (its minimum is --bar-min), so the override can be dropped before it is measured against the stylesheet's token
+      const h = bar.getBoundingClientRect().height;
+      root.style.removeProperty("--topbar");
+      const token = parseFloat(getComputedStyle(root).getPropertyValue("--topbar"));
+      if (h > 0 && !(Math.abs(h - token) < 0.01)) root.style.setProperty("--topbar", h + "px");      // only a bar grown past its token (a long name wrapped) needs the override; otherwise the stylesheet's token follows a resize at once, with no frame of lag
+    };
+    const watch = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(read);
+    if (watch) watch.observe(bar);
+    read();
+    return () => { if (watch) watch.disconnect(); root.style.removeProperty("--topbar"); };
+  }, []);
   const vs = tabs.value, stop = vs.includes(view.value) ? view.value : vs[0];      // roving tabindex: one tab is in the Tab order, the open one (the first when none is open)
   const onTabKey = (e) => {      // Left/Right/Home/End move between the tabs and open the one reached, as in Help
     const i = vs.indexOf(e.target && e.target.dataset ? e.target.dataset.view : "");

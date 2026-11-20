@@ -28,7 +28,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from clark import changes, edit_ai, platform
+from clark import ask_data, changes, edit_ai, platform
 from clark.store import CODE_RE, Store, connect
 
 MAX_AT_ONCE = 5                 # FR-62a: more than five items at once asks first and lists them; part 1 refuses it (not yet)
@@ -92,7 +92,7 @@ def fail(code, message, status=400):
 
 
 def _fold(text):
-    return " ".join(edit_ai.normal(str(text or "")).casefold().split())
+    return " ".join(edit_ai.normal(ask_data.plain(text or "")).casefold().split())      # #1293 A: the saved text may hold HTML; the model was shown it plain
 
 
 def _plain_name(name):
@@ -230,7 +230,9 @@ class AskApply:
             if row is None or row.get("project") != project or row.get("archived"):
                 raise Refusal("unknown_id", UNKNOWN_ID.format(ref=plan.ref))
             title = plan.claims.get("current_title")
-            if title is not None and _fold(title) != _fold(row.get(TITLE[plan.table])):
+            if title is None or not _fold(title):      # #1293: a change must name the title it is about, so the card can show it
+                raise Refusal("no_title", NOT_A_CHANGE)
+            if _fold(title) != _fold(row.get(TITLE[plan.table])):
                 raise Refusal("wrong_title", WRONG_TITLE.format(ref=plan.ref))
             owner = plan.claims.get("current_owner")
             if owner is not None and _fold(owner) != _fold(row.get(OWNER[plan.table])):

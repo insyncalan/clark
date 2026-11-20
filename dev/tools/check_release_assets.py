@@ -7,7 +7,8 @@ Run by whoever verifies the release (step 20 of dev/RELEASING.md), after publish
 
 It reads only `gh api repos/<owner>/<repo>/releases` (REST, no GraphQL), page by page, from insyncalan/clark unless
 `--repo owner/name` (or `--repo=owner/name`) names another repository. A release passes when it has an asset
-named clark-<version>-mac.zip that is not empty, is marked Pre-release, has "(Beta)" in its title and "Beta" in its text.
+named clark-<version>-mac.zip that is not empty, is marked Pre-release, has "(Beta)" in its title and "Beta" in its text
+(from 1.2.0 on a release is a full release: it is asked for none of those three).
 From 0.5.0 on it must also carry the zip's own SHA-256 in its text (the 64-character digest GitHub reports for the zip asset;
 when GitHub gives no digest for the asset, as on an older release, any 64-character SHA-256 in the text passes and the check says
 so), and its zip must have been attached before the release was published (the order in dev/RELEASING.md: build, attach, launch, then publish; 0.3.0 and 0.4.0 got their zips afterwards).
@@ -37,6 +38,7 @@ REPO = "insyncalan/clark"
 REPO_FORM = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
 GH_TIMEOUT = 60              # seconds one `gh api` call may take before the check gives up (exit 2)
 FIRST_CHECKED = (0, 1, 0)
+FIRST_FULL = (1, 2, 0)       # from this release on a release is a full release: not asked to be a pre-release, to say (Beta) or to say Beta in its text
 FIRST_ORDERED = (0, 5, 0)    # the first release cut with the build-attach-launch-then-publish steps
 FIRST_SIGNED = ""            # when RELEASE_PUBLIC_KEY became a real key, as the UTC time GitHub uses (2026-11-05T00:00:00Z); set it in the
                              # pull request that sets the key. Empty: every release from 0.5.0 on is asked for its .sig.
@@ -124,15 +126,16 @@ def _rules(r, tag, want, notes=None, fetch=None, key=None, named=True):
     """The lines for a release that has its zip but breaks a release rule (Beta, pre-release, digest, publish order).
     A line added to `notes` (when given) is not a failure: it says a check was done in its looser form."""
     out = []
-    if not r.get("prerelease"):
-        out.append(f"{tag}: the release is not marked Pre-release. Every clark release is a pre-release until version 1.0: "
-                   f"edit the release on GitHub and tick Pre-release.")
-    if "(Beta)" not in (r.get("name") or ""):
-        out.append(f"{tag}: the title does not say (Beta). Edit the release on GitHub and make the title "
-                   f"`clark {tag.lstrip('v')} (Beta), Mac`.")
-    if "Beta" not in (r.get("body") or ""):
-        out.append(f"{tag}: the release text does not say clark is Beta. Edit the release text on GitHub and add the Beta line "
-                   f"from the notes file.")
+    if _ver(tag) < FIRST_FULL:
+        if not r.get("prerelease"):
+            out.append(f"{tag}: the release is not marked Pre-release. Every clark release is a pre-release until version 1.0: "
+                       f"edit the release on GitHub and tick Pre-release.")
+        if "(Beta)" not in (r.get("name") or ""):
+            out.append(f"{tag}: the title does not say (Beta). Edit the release on GitHub and make the title "
+                       f"`clark {tag.lstrip('v')} (Beta), Mac`.")
+        if "Beta" not in (r.get("body") or ""):
+            out.append(f"{tag}: the release text does not say clark is Beta. Edit the release text on GitHub and add the Beta line "
+                       f"from the notes file.")
     if _ver(tag) < FIRST_ORDERED:
         return out
     out.extend(_signature_lines(r, tag, want, notes, fetch, key, named))
