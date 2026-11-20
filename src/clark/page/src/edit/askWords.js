@@ -13,7 +13,7 @@ export const ASK_NOTICE_LINE = "Your question and the passages it needs go to Cl
 // row 1292 feature 2: the first-run card in an empty chat, three plain lines. Written for Claude; named() swaps the provider in use.
 // The sentences are a draft: the spec gives the ideas, the words wait for the project head (listed as B1 in the words file).
 export const FIRST_RUN_LABEL = "About ask clark";
-export const FIRST_RUN_READS = "It reads what is in this project. It never reads your mail, Teams or calendars.";
+export const FIRST_RUN_READS = "It reads what is in this project. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings.";
 export const FIRST_RUN_CHANGES = "It can suggest changes. Nothing is saved until you press Apply, and every change can be undone.";
 export const FIRST_RUN_SENT = "Your question goes to Claude, which Anthropic runs.";
 export const FIRST_RUN_LINK = "Open the Asking card in Settings";
@@ -300,6 +300,8 @@ export const KIND_NAMES = { actions: "Action", decisions: "Decision", milestones
 
 // Row 1292 (S12): the Draft beside the panel (mock-up image 09).
 export const DRAFT_TITLE = "Draft";
+// Shown when a draft was written in a run that read a connector (names of the parts read, joined with "and").
+export const DRAFT_VIA = (names) => `Written using your ${names}. Read it before you apply it.`;
 export const DRAFT_HINT = "Edit it freely. Nothing is in the report yet.";
 export const DRAFT_CLOSE = "Close the draft";
 export const DRAFT_TEXT_LABEL = "Draft text";
