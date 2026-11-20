@@ -15,6 +15,7 @@ from pathlib import Path
 
 import test_server  # noqa: F401  this file drives Chrome through the template harness (the browser tier reads this line)
 
+from _new_page import reload_to_new_page
 from _paths import SRC
 from clark import changes, page, publish, theme
 import test_tpl_workitems as T
@@ -580,8 +581,7 @@ class Classic(Look):
             self.assertEqual(self._heads(p, ref), ["title", "id", "owner", "due", "priority"])
             body = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr:first-child td')].map(c => c.className.replace('wil-c-', ''))")
             self.assertEqual([c for c in body if c in ("id", "owner", "due", "priority")], ["id", "owner", "due", "priority"], "the cells follow the headings")
-            p.js("location.reload()")
-            p.until(f"!!document.querySelector('#report')", "reloaded")
+            reload_to_new_page(p.js, "!!document.querySelector('#report')", "the page reloaded")
             p.edit()
             p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=due]')", "Edit drew again")
             self.assertEqual(self._heads(p, ref), ["title", "id", "owner", "due", "priority"], "kept on this computer")
@@ -762,8 +762,7 @@ class Classic(Look):
             self.assertEqual([c for c in body if c in ("id", "owner", "due", "priority")], ["id", "owner", "due", "priority"], "the cells follow")
             self.assertEqual(p.js("document.querySelector('#report').dataset.mode"), "view", "still View")
             self.assertEqual(self._bodies(), before, "nothing was written to the document")
-            p.js("location.reload()")
-            p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=due]')", "View drew again")
+            reload_to_new_page(p.js, f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table th[data-cw-head=due]')", "View drew again")
             self.assertEqual(self._heads(p, ref), ["title", "id", "owner", "due", "priority"], "kept on this computer")
 
     def test_view_the_width_handle_alt_move_and_ctrl_resize_work_and_the_heading_says_so(self):      # row 1195 ruling: View too, unsaved
