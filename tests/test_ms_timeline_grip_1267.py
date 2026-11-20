@@ -45,7 +45,7 @@ class Grip(BrowserBase, unittest.TestCase):
                 bounds = cdp.js("(() => { const g = document.querySelector('[data-grip]'); return [g.getAttribute('aria-orientation'), g.getAttribute('aria-valuemin'), g.getAttribute('aria-valuemax')]; })()", sid)
                 self.assertEqual(bounds, ["vertical", "70", "300"], f"{width}: the slider says which way it moves and where it ends")
 
-    def test_slider_keys_up_and_right_raise_down_and_left_lower_home_is_the_least_end_the_most(self):
+    def test_slider_keys_up_and_right_raise_down_and_left_lower_home_is_100_end_the_most(self):
         port = self.serve()
         for width in (1400, 900):
             with chrome() as cdp:
@@ -66,8 +66,8 @@ class Grip(BrowserBase, unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "300"), f"{width}: End is the most")
                 self.assertEqual(cdp.js(now, sid), "300")
                 self.press(cdp, sid, "Home")
-                self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "70"), f"{width}: Home is the least")
-                self.assertEqual(cdp.js(now, sid), "70")
+                self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "100"), f"{width}: Home is 100%")
+                self.assertEqual(cdp.js(now, sid), "100")
                 self.assertEqual(cdp.js("(() => { const e = new KeyboardEvent('keydown', {key: 'a', bubbles: true, cancelable: true}); document.querySelector('[data-grip]').dispatchEvent(e); return e.defaultPrevented; })()", sid), False, f"{width}: other keys are left alone")
 
     def test_dragging_the_grip_down_zooms_and_is_remembered(self):
@@ -137,8 +137,8 @@ class Grip(BrowserBase, unittest.TestCase):
                 self.assertEqual(cdp.js(PCT, sid), "300", f"{width}: the ceiling holds after settling")
                 self.assertEqual(cdp.js("localStorage.getItem('clark.tlZoom.page')", sid), "3", f"{width}: ceiling remembered")
                 self.press(cdp, sid, "Home")
-                self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "70"), f"{width}: Home is the least")
-                self.assertEqual(cdp.js("localStorage.getItem('clark.tlZoom.page')", sid), "0.7", f"{width}: Home remembered")
+                self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "100"), f"{width}: Home is 100%")
+                self.assertEqual(cdp.js("localStorage.getItem('clark.tlZoom.page')", sid), "1", f"{width}: Home remembered")
                 cdp.js("document.querySelector('[data-zreset]').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "100"), f"{width}: Reset puts it back")
                 self.assertNotEqual(cdp.js("getComputedStyle(document.querySelector('[data-grip]')).display", sid), "none", f"{width}: shown on screen")
@@ -227,7 +227,7 @@ class DarkAndSideways(BrowserBase, unittest.TestCase):
                         real_press(cdp, sid, "ArrowUp")
                         self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "110"), f"{where}: a real Up press zooms one step")
                         real_press(cdp, sid, "Home")
-                        self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "70"), f"{where}: a real Home press goes to the least")
+                        self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "100"), f"{where}: a real Home press goes to 100%")
         for width in (1400, 900):
             light, dark = seen[(width, "light")], seen[(width, "dark")]
             self.assertNotEqual(light["bg"], dark["bg"], f"{width}: the dark theme is really on")
