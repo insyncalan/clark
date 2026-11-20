@@ -46,6 +46,7 @@ TRACKED_TYPES = INDEXED_TYPES + PICTURE_TYPES          # the files that have a r
 MAX_PPTX_BYTES = 50 * 1024 * 1024
 MAX_EXCEL_BYTES = 25 * 1024 * 1024
 STALE_POLL_SECONDS = 5
+SCREEN_VERSION = 2                       # the version of the secret screen the text was checked with; raise it whenever secret_screen gets tighter, and every index made under an older one is read again (and refused until it is)
 MAX_EXCEL_ROWS = 50000                   # per sheet
 MAX_EXCEL_CELLS = 1000000                # per file
 MAX_EXCEL_MEMBERS = 2000                 # parts in the zip
@@ -70,6 +71,18 @@ def path_for(data_dir, code):
     """The index file of one project."""
     safe = _CODE.sub("_", str(code)).lstrip(".") or "project"
     return Path(data_dir) / "ask-index" / f"{safe}.db"
+
+
+def remove_all(data_dir):
+    """Delete every project's index (asking turned Off: no copy of the folders' text is kept while nothing may be asked)."""
+    folder = Path(data_dir) / "ask-index"
+    try:
+        names = [p.name for p in folder.iterdir()]
+    except OSError:
+        return
+    for name in names:
+        if name.endswith((".db", ".db-wal", ".db-shm", ".db-journal")):
+            (folder / name).unlink(missing_ok=True)
 
 
 def remove(data_dir, code):
@@ -194,6 +207,31 @@ def _drop(db, label):
     db.execute("DELETE FROM files WHERE label=?", (label,))
 
 
+def _prefixes(roots):
+    """{root: the name its files carry in a label}. The folder's own name, unless another saved folder has the same name (a/docs, b/docs):
+    then the fewest trailing parts of the path that tell them apart (a/docs, b/docs), so two files of the same name never share a label."""
+    roots = list(dict.fromkeys(roots))
+    by_name = {}
+    for r in roots:
+        by_name.setdefault(os.path.basename(str(r)), []).append(r)
+    out = {}
+    for name, group in by_name.items():
+        if len(group) == 1:
+            out[group[0]] = name
+            continue
+        parts = {r: [x for x in Path(r).parts if x not in ("/", "\\")] for r in group}
+        depth = 2
+        while depth < max(len(v) for v in parts.values()) and len({tuple(v[-depth:]) for v in parts.values()}) < len(group):
+            depth += 1
+        for r in group:
+            out[r] = "/".join(parts[r][-depth:])
+    return out
+
+
+def _all_roots(usable, home):
+    return [r for f in usable for r in reach.roots([f], home)]
+
+
 def _unusable(folders, data_dir, home):
     usable, bad = [], []
     for f in folders or ():
@@ -211,6 +249,15 @@ def _open_read(data_dir, code):
         return _open(data_dir, code, create=False)
     except (sqlite3.Error, OSError):
         return None
+
+
+def _screen_ok(db):
+    """True when the text in this index was screened by the current version of the secret screen (an index made before the version was kept has none: not ok)."""
+    try:
+        row = db.execute("SELECT v FROM meta WHERE k='screen'").fetchone()
+    except sqlite3.Error:
+        return False
+    return row is not None and row[0] == str(SCREEN_VERSION)
 
 
 def _set(db, k, v):
@@ -246,6 +293,8 @@ def _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, prog
     _set(db, "complete", "0")
     db.commit()
     kept = {r[0]: (r[1], r[2], r[3]) for r in db.execute("SELECT label, size, mtime_ns, state FROM files")}
+    reuse = kept if _screen_ok(db) else {}        # text kept under an older screen is read and screened again, not trusted
+    names = _prefixes(_all_roots(usable, home))
     seen, now_state = set(), {}
     type_labels = set()                          # `left` is kept as it was until the run ends, so a stopped run leaves the whole list, not part of it
     type_n, online, safety = 0, 0, len(bad)
@@ -277,10 +326,10 @@ def _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, prog
                 c["type"] += 1
                 root = next((r for r in roots if reach.inside(path, r)), None)
                 if root is not None:
-                    type_labels.add(ask_passages._label(root, path))
+                    type_labels.add(ask_passages._label(root, path, names.get(root)))
             else:
                 root = next((r for r in roots if reach.inside(path, r)), None)
-                label = ask_passages._label(root, path) if root is not None else None
+                label = ask_passages._label(root, path, names.get(root)) if root is not None else None
                 state = None
                 try:
                     st = os.stat(path) if label is not None else None
@@ -294,8 +343,8 @@ def _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, prog
                     c["pictures_read"] += _is_read_picture(label, now_state[label])
                 else:
                     seen.add(label)
-                    if kept.get(label, (None,))[:2] == (st.st_size, st.st_mtime_ns) and not _picture_reader_changed(low, kept[label][2]):
-                        state = kept[label][2]
+                    if reuse.get(label, (None,))[:2] == (st.st_size, st.st_mtime_ns) and not _picture_reader_changed(low, reuse[label][2]):
+                        state = reuse[label][2]
                     else:
                         state = _read_one(db, path, label, low, st, usable, data_dir, home)
                     now_state[label] = state
@@ -318,6 +367,7 @@ def _refresh_open(db, data_dir, code, usable, bad, per, listed, home, stop, prog
     counts["stopped"] = stopped_listing
     _set(db, "counts", counts)
     _set(db, "folders", per)
+    _set(db, "screen", str(SCREEN_VERSION))
     _set(db, "listed", listed)
     _set(db, "complete", "1")
     db.commit()
@@ -410,6 +460,8 @@ def search(data_dir, code, question, limit=MAX_RESULTS):
     if db is None:
         return []
     try:
+        if not _screen_ok(db):
+            return []                                # text screened by an older screen is never given out; the next read screens it again
         match = " OR ".join('"' + w.replace('"', "") + '"' for w in words[:40])
         rows = db.execute("SELECT text, file, part, mtime FROM p WHERE p MATCH ? ORDER BY round(rank, 6), mtime DESC LIMIT ?", (match, limit)).fetchall()
     except sqlite3.Error:
@@ -509,13 +561,18 @@ def _left_by_folder(data_dir, code, folders, limit=MAX_LEFT_OUT_SHOWN):
     with the same name (a/docs, b/docs) share that prefix, so there a file is given to the folder that really holds it."""
     whole = files_left_out(data_dir, code, 10 ** 9)["files"]
     out = {}
-    names = [os.path.basename(str(f).rstrip("/\\")) for f in folders or ()]
+    roots = {}
+    for f in folders or ():
+        got = reach.roots([f])
+        if got:
+            roots[str(f)] = got[0]
+    names = _prefixes(roots.values())
     for f in folders or ():
         f = str(f)
-        name = os.path.basename(f.rstrip("/\\"))
+        name = names.get(roots.get(f)) or os.path.basename(f.rstrip("/\\"))
         prefix = name + "/"
         mine = [[label[len(prefix):], reason] for label, reason in whole if label.startswith(prefix)]
-        if names.count(name) > 1:
+        if sum(1 for n in names.values() if os.path.basename(n) == os.path.basename(name)) > 1 or name != os.path.basename(name):
             mine = [m for m in mine if os.path.lexists(os.path.join(f, *m[0].split("/")))]
         if mine:
             out[f] = {"files": mine[:limit], "more": max(len(mine) - limit, 0)}
@@ -555,7 +612,7 @@ def current(data_dir, code, folders):
         return False
     try:
         meta = dict(db.execute("SELECT k, v FROM meta WHERE k IN ('complete', 'listed')").fetchall())
-        return meta.get("complete") == "1" and json.loads(meta.get("listed", "null")) == sorted(str(f) for f in folders or ())
+        return _screen_ok(db) and meta.get("complete") == "1" and json.loads(meta.get("listed", "null")) == sorted(str(f) for f in folders or ())
     except (sqlite3.Error, ValueError):
         return False
     finally:
@@ -570,12 +627,15 @@ def stale(data_dir, code, folders, home=None):
     if db is None:
         return True
     try:
+        if not _screen_ok(db):
+            return True                              # read again so the text is screened again
         kept = {r[0]: (r[1], r[2]) for r in db.execute("SELECT label, size, mtime_ns FROM files")}
     except sqlite3.Error:
         return True
     finally:
         db.close()
     usable, _bad = _unusable(folders, data_dir, home)
+    names = _prefixes(_all_roots(usable, home))
     seen = set()
     try:
         for folder in usable:
@@ -587,7 +647,7 @@ def stale(data_dir, code, folders, home=None):
                 root = next((r for r in roots if reach.inside(path, r)), None)
                 if root is None:
                     continue
-                label = ask_passages._label(root, path)
+                label = ask_passages._label(root, path, names.get(root))
                 if label is None:
                     continue
                 st = os.stat(path)
@@ -615,8 +675,9 @@ class Indexer:
     """One background thread that keeps the indexes up to date. `start(code, folders)` queues a run (the newest request for a project
     replaces an older one still waiting); `busy` counts runs queued or running; `shutdown()` stops the run at the next file and ends the thread."""
 
-    def __init__(self, data_dir, home=None, refresh_fn=None):
+    def __init__(self, data_dir, home=None, refresh_fn=None, allowed=None):
         self.data_dir = Path(data_dir)
+        self.allowed = allowed               # None, or a function that says whether asking is On: while it is Off no index is built and none is kept
         self.home = home
         self.refresh = refresh_fn or refresh
         self.wake = threading.Condition()
@@ -628,7 +689,19 @@ class Indexer:
         self.stop = threading.Event()
         self.thread = None
 
+    def _on(self):
+        """False while asking is Off (or cannot be read): the index of the project is deleted and nothing is built. Never fails open."""
+        if self.allowed is None:
+            return True
+        try:
+            return self.allowed() is True
+        except Exception:                    # noqa: BLE001 a switch that can't be read is off
+            return False
+
     def start(self, code, folders):
+        if not self._on():
+            remove(self.data_dir, code)
+            return False
         with self.wake:
             if self.stop.is_set():
                 return False
@@ -655,11 +728,16 @@ class Indexer:
                 folders = self.queue.pop(code)
                 self.live[code] = {}
             try:
+                if not self._on():
+                    remove(self.data_dir, code)
+                    continue
                 try:
                     os.nice(10)
                 except (OSError, AttributeError):
                     pass
                 self.refresh(self.data_dir, code, folders, self.home, stop=self.stop, progress=lambda f, d, t, c=code: self._note(c, f, d, t))
+                if not self._on():
+                    remove(self.data_dir, code)      # asking was turned Off while it ran
             except Exception:              # noqa: BLE001 a run that fails leaves the index not current; the next start tries again
                 pass
             finally:
@@ -674,6 +752,9 @@ class Indexer:
                 self.live[code][folder] = (done, total)
 
     def status_for(self, code, folders):
+        if not self._on():
+            remove(self.data_dir, code)
+            return {}
         with self.wake:
             live = dict(self.live[code]) if code in self.live else None
             idle = code not in self.queue and code not in self.live
@@ -713,6 +794,9 @@ class Indexer:
             return sum(max(t - d, 0) for d, t in self.live.get(code, {}).values())
 
     def current(self, code, folders):
+        if not self._on():
+            remove(self.data_dir, code)
+            return False
         with self.wake:
             if code in self.queue or code in self.live:
                 return False
