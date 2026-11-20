@@ -707,7 +707,7 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 .seg:not(.modes):not(.lsw), .mv-txt { border-radius: calc(var(--radius) - 2px); }
 .seg:not(.icons):not(.modes):not(.lsw) button { min-height: 28px; padding: 3px 14px; font-weight: var(--weight-medium); }
 .crumbs, .ucd-crumb, .ucf-crumb { font-size: var(--size-caption); }
-/* Row 1319, header mode switch (Classic only; Cards keeps the aqua pill): the pressed half of View | Edit is a white fill with navy text, as the prototype draws it (.seg button[aria-pressed="true"] { background: #fff; color: navy }). The sliding thumb is what paints the fill, so it takes --white; with the glide off the button itself takes it. Text stays --pill-fg, the navy the page already uses on that half. */
+/* Row 1319, header mode switch (Classic only; Cards keeps the aqua pill): the pressed half of View | Edit is a white fill with navy text, as the prototype draws it (.seg button[aria-pressed="true"] { white fill, navy text }). The sliding thumb is what paints the fill, so it takes --white; with the glide off the button itself takes it. Text stays --pill-fg, the navy the page already uses on that half. */
 :root:not([data-motion="reduce"]) .modes.seg.glide::before, .modes.seg:not(.glide) button[aria-pressed="true"] { background-color: var(--white); background-image: none; }
 .modes.seg button[aria-pressed="true"] { color: var(--pill-fg); }
 /* Row 1370 (Classic only): scrolling further up at the top of the page, or down at its bottom, does not move the page, so no strip shows above the header or under the last card; if the window still shows the page behind it, the page colour is a token (--page-bg), not white. */
