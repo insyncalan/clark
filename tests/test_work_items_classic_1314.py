@@ -99,7 +99,7 @@ class Browser(Base):
                 self.assertNotEqual(got["style"], "none", got)
 
     def test_the_pressed_layout_tile_is_grey_in_both_modes(self):
-        # Row 1314 draws the chosen layout tile light, not navy and white; row 1395 gives it the brand tint and brand glyph in light (--tile-on-bg, --tile-on-fg), dark keeps the grey and the heading colour.
+        # Row 1314 draws the chosen layout tile light, not navy and white; row 1395 gives it the brand tint and brand glyph in light (--tile-on-bg, --tile-on-fg), dark gives it the brand tint and the brand colour.
         probe = ("(() => { const b = document.querySelector('#work [data-lay=table]'), s = getComputedStyle(b), t = (v, p) => { const e = document.createElement('i'); e.style[p] = 'var(' + v + ')'; document.body.append(e); const c = getComputedStyle(e)[p]; e.remove(); return c; }; "
                  "return {pressed: b.getAttribute('aria-pressed'), bg: s.backgroundColor, fg: s.color, wantBg: t('--tile-on-bg', 'backgroundColor'), wantFg: t('--tile-on-fg', 'color'), icon: getComputedStyle(b.querySelector('svg') || b).color}; })()")
         for width in (1400, 900):

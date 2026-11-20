@@ -80,8 +80,8 @@ DARK = {
         '--gutter-rule': '#2A2650',
         '--sec-number-color': 'var(--brand-blue)',
         '--sec-number-size': '20px',
-        '--tile-on-bg': 'var(--grey-100)',
-        '--tile-on-fg': 'var(--heading)',
+        '--tile-on-bg': 'var(--brand-blue-tint)',
+        '--tile-on-fg': 'var(--brand-blue)',
         '--sec-band-bg': 'rgba(255, 255, 255, .04)',
     }
 RULE_LINES = [
