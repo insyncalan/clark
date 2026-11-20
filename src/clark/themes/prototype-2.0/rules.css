@@ -647,6 +647,31 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 .pk-ai { padding: 4px 8px; }
 .pk-lfoot { gap: 10px; padding-right: 10px; }
 .pk-key { padding: 0 5px; border-radius: 5px; font-size: 11px; font-weight: 600; }
+/* Row 1285 ruling (Classic only; Cards keeps every one of these). Settings at 900 (the 900 to 1099 list): the chip looks as the Settings sidebar chip of row 1401 does, 15px text and the open page in the brand colour on the Work items tile fill (the same two tokens), geometry as built; the row 1401 rule itself comes with that row. */
+@media (min-width: 900px) and (max-width: 1099px) {
+  .set-chip { font-size: 15px; }
+  .set-chip[aria-current], .set-chip[aria-current]:hover { background: var(--tile-on-bg); color: var(--tile-on-fg); }
+}
+/* The milestone peek's four tiles keep their full text: it wraps at words and the tile grows in height, with the padding as built and no ellipsis. */
+.pk-chips.ms .pkc .pkc-v { max-width: none; overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: break-word; }
+.pk-chips.ms .pkc-btn { align-self: stretch; height: auto; }
+/* Show history is a row like the other Details rows: its word at the left, a chevron at the right, 36px high as the mock-up's rows (the .dg row, min-height 36). */
+.pk-lh-btn { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 36px; margin: 0; color: var(--text-muted); font-size: var(--size-small); text-decoration: none; }
+.pk-lh-btn .pk-lh-car { display: inline-flex; }
+.pk-lh-car svg { width: 16px; height: 16px; }
+.pk-lh-btn[aria-expanded="true"] .pk-lh-car { transform: rotate(180deg); }
+/* The client line is a row of its own: the label at the left, the mock-up's switch (.sw: 40 x 22, a 18px knob 2px in) at the right. The words stay as they are. */
+.pk-row[data-pk-client-row] .pk-client { display: flex; width: 100%; justify-content: space-between; min-height: 36px; }
+.pk-client .pk-sw { display: block; position: relative; flex: none; width: 40px; height: 22px; margin-left: auto; border-radius: 999px; background: var(--grey-300); }
+.pk-client .pk-sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: var(--white); box-shadow: 0 1px 3px rgba(0, 0, 0, .3); transition: left var(--dur-instant) var(--ease-out); }
+.pk-client.on .pk-sw { background: var(--brand-blue); }
+.pk-client.on .pk-sw::after { left: 20px; }
+/* The mock-up's .val look on the value of every Details property row (not the decision rows alone): padding 4px 8px, margin-left -8px, radius 8px, weight 500; the soft fill on hover. */
+.pk-details-body .pk-fields > .pk-row:not([data-pk-client-row]) dd .pk-pick { padding: 4px 8px; margin-left: -8px; border: 0; border-radius: 8px; font-weight: 500; }
+.pk-details-body .pk-fields > .pk-row:not([data-pk-client-row]) > dd:not(:has(.pk-pick, .pk-rich, .rt, input, textarea, button)) { font-weight: 500; }
+/* The chips row: 6px under it as the mock-up's .flat, and the small word under a decision's owner and date is the mock-up's pill (11px, weight 700, padding 0 8px, fully round). */
+.pk-chips { margin-bottom: 6px; }
+.pkc-sub.word { padding: 0 8px; border-radius: 999px; background: var(--status-red-tint); color: var(--status-red-text); font-size: 11px; font-weight: 700; }
 /* Row 1197: Classic only, comfortable: the Gantt plan runs the page band's width. */
 @media (min-width: 901px) { html[data-density="comfortable"] .gp-plan { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); margin-right: calc(-1 * (var(--space-5) + var(--space-1))); } }
 /* Row 1372 (Classic only; the Cards look keeps its width): the item and milestone peeks open 62% of the window wide, at least 300px, as the approved peek mock-up draws it, instead of 640px. From 1000px up; below it the peek fills the window as before. A width the person dragged (the peek carries data-sized) is kept. Bare lengths with no token: the 300px least width and the 1000px switch. */
