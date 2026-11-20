@@ -213,22 +213,21 @@ class Fields(Base):
             self.undo(p)
             self.saved(p, "forecast_date", before)
 
-    def test_description_is_the_one_rich_editor_enter_adds_a_line_and_ctrl_enter_saves(self):
-        """Item 1005: the description is on RichField. Enter is a new paragraph (nothing sent), Ctrl or Cmd with Enter saves the editor's HTML, one Undo."""
+    def test_description_is_a_one_line_editor_enter_saves_the_line_one_undo(self):
+        """Row 1288: the description is One line (RichField oneLine): no toolbar blocks, Enter saves the one line, one Undo."""
         with chrome() as cdp:
             p = self.visit_peek(cdp)
             self.click(p, "#peek [data-rich=description]")
             p.until("!!document.querySelector('#peek .ProseMirror') && document.activeElement.classList.contains('ProseMirror')", "the editor opened with the focus")
-            self.assertEqual(p.js("document.querySelectorAll('#peek textarea[data-ms-in=description]').length"), 0, "not a plain box any more")
+            self.assertEqual(p.js("document.querySelectorAll('#peek textarea[data-ms-in=description]').length"), 0, "not a plain box")
+            self.assertEqual(p.js("document.querySelectorAll('#peek .rt-style, #peek .rt-bubble').length"), 0, "One line: no style menu")
             p.js("document.querySelector('#peek .ProseMirror').cxed.editor.commands.insertContent('Scope line'); true")
+            self.assertEqual(self.sent, [], "typing sends nothing")
             p.key("Enter", code="Enter", vk=13)
-            p.js("document.querySelector('#peek .ProseMirror').cxed.editor.commands.insertContent('Second line'); true")
-            self.assertEqual(self.sent, [], "a plain Enter only adds a line")
-            p.key("Enter", modifiers=4 if p.js("/Mac/.test(navigator.platform)") else 2, code="Enter", vk=13)
-            self.saved(p, "description", "<p>Scope line</p><p>Second line</p>")
-            self.assertEqual(self.sent[-1][1]["changes"]["description"], "<p>Scope line</p><p>Second line</p>")
+            self.saved(p, "description", "<p>Scope line</p>")
+            self.assertEqual(self.sent[-1][1]["changes"]["description"], "<p>Scope line</p>")
             p.until("!document.querySelector('#peek .ProseMirror')", "the editor closed after the save")
-            self.assertEqual(p.js("[...document.querySelectorAll('#peek [data-rich=description] p')].map((e) => e.textContent)"), ["Scope line", "Second line"])
+            self.assertEqual(p.js("[...document.querySelectorAll('#peek [data-rich=description] p')].map((e) => e.textContent)"), ["Scope line"])
             self.assertIn("Description of", self.toast_text(p))
             self.undo(p)
             self.saved(p, "description", None)
@@ -249,6 +248,31 @@ class Fields(Base):
             p.until("!document.querySelector('#peek .ProseMirror')", "Esc closed it")
             self.assertEqual(self.sent, [], "looking saved nothing")
             self.assertEqual(self.row(GO_LIVE)["description"], legacy, "the old row is still plain text")
+
+    def test_an_old_several_paragraph_description_opens_in_the_one_line_editor_loses_no_line_and_is_not_saved_by_looking(self):
+        """Row 1288 (review): a description an earlier editor saved as several paragraphs with bold and a list. The One line editor opens it
+        with every line, looking saves nothing, and an edit keeps every line's words (marks go: One line has none)."""
+        old = "<p>Scope <strong>line</strong> one</p><p>Second paragraph</p><ul><li>List item</li></ul>"
+        with chrome() as cdp:
+            with self.store.step("dashboard", USER) as st:
+                st.update("milestones", GO_LIVE, {"description": old})
+            p = self.visit_peek(cdp)
+            self.click(p, "#peek [data-rich=description]")
+            p.until("!!document.querySelector('#peek .ProseMirror') && document.activeElement.classList.contains('ProseMirror')", "the editor opened")
+            self.assertEqual(p.js("document.querySelector('#peek .ProseMirror').textContent"), "Scope line oneSecond paragraphList item", "every line is in the editor")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('#peek .ProseMirror')", "Esc closed it")
+            self.assertEqual(self.sent, [], "looking saved nothing")
+            self.assertEqual(self.row(GO_LIVE)["description"], old, "the old row is byte for byte as it was")
+            self.click(p, "#peek [data-rich=description]")
+            p.until("!!document.querySelector('#peek .ProseMirror') && document.activeElement.classList.contains('ProseMirror')", "the editor opened again")
+            p.js("document.querySelector('#peek .ProseMirror').cxed.editor.commands.insertContent(' ZQ'); true")
+            p.key("Enter", code="Enter", vk=13)
+            p.until("!document.querySelector('#peek .ProseMirror')", "the save closed it")
+            kept = self.row(GO_LIVE)["description"]
+            for words in ("Scope line one", "Second paragraph", "List item", "ZQ"):
+                self.assertIn(words, kept.replace("<strong>", "").replace("</strong>", ""), "no line is lost: " + words)
+            self.assertNotIn("<strong>", kept, "One line keeps no bold")
 
     def test_workstream_and_client_wording_and_visible_to_client(self):
         with chrome() as cdp:
