@@ -42,8 +42,16 @@ class ThemeReading(unittest.TestCase):
         with mock.patch.object(theme, "LIMIT", biggest - 1):
             self.assertIsNone(theme.css(NAME))
 
-    def test_the_limit_is_64_kilobytes(self):
-        self.assertEqual(theme.LIMIT, 64 * 1024)
+    def test_the_limit_is_128_kilobytes(self):
+        self.assertEqual(theme.LIMIT, 128 * 1024)
+
+    def test_every_shipped_theme_file_is_under_the_limit(self):
+        """A file over the limit is not read and the whole Theme drops: the next overrun fails here, not on the page."""
+        for name in theme.installed():
+            for f in theme.FILES:
+                size = (theme.THEMES / name / f).stat().st_size
+                self.assertLessEqual(size, theme.LIMIT, f"{name}/{f} is {size} bytes, over the {theme.LIMIT} limit")
+            self.assertIsNotNone(theme.css(name), name)
 
     def test_a_symlinked_theme_file_is_refused(self):
         root = Path(tempfile.mkdtemp())

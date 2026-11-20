@@ -33,12 +33,11 @@ import { NewTile } from "./NewTile.jsx";
 import { Menu } from "./Menu.jsx";
 import { isChanged, WORD } from "../stores/changed.js";
 import { Icon } from "./Icon.jsx";
-import { classicTheme } from "./Contents.jsx";   // row 1324 (Option A, Classic only): the column names are drawn once over the groups; Cards keeps them in every group
+import { classicTheme } from "./Contents.jsx";   // row 1324 (Option A, Classic only): the column names are drawn once over the groups; Cards keeps them in every group; row 1409: the Classic priority chip carries its word (data-pri) for the one colour mapping (rules.css), Cards markup is unchanged
 import { groupIcon } from "../menuIcons.js";
 import { printing } from "../stores/print.js";
 import { work, setWork, announce, contextFor } from "../stores/work.js";
 import { GROUPS, groupLabel, boardGroup, columnsFor, cellOf, isCollapsed, toggleCollapsed } from "../logic/board.js";
-const classicTheme = () => typeof document !== "undefined" && !!document.getElementById("theme");      // row 1409: the Classic priority chip carries its word for the one colour mapping (rules.css); Cards markup is unchanged
 
 // The Add button (gap list B-8): in clark, a pick makes the item at once and opens it, with "<ID> added" and Undo in the toast
 // (tools.addItem, edit/addItem.js). The published file has no Add (#204); a page with no tools says, in words, that nothing was added.
