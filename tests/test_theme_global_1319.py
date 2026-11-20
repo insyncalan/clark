@@ -1,4 +1,4 @@
-"""Row 1319, Classic theme, all pages: heading weight 600, 8px radius on buttons and segments with the lavender chosen half, plain crumbs.
+"""Row 1319, Classic theme, all pages: heading weight 600, 8px radius on buttons, 6px on segments with the lavender chosen half, plain crumbs.
 
 Run: python3 dev/run_tests.py test_theme_global_1319
 Fails, never skips, without Chrome. Computed styles at 1400 and 900, light and dark. Cards (no Theme layer) keeps today's page.
@@ -72,7 +72,9 @@ class Computed(unittest.TestCase):
                     tag = f"{scheme} {w}"
                     for h in ("h1", "h2", "h3"):
                         self.assertEqual(self.style(cdp, sid, "#probe " + h, "fontWeight"), "600", f"{tag} {h}")
-                    for sel in ("#sg", "#sc", "#cs", "#b1", "#md"):
+                    for sel in ("#sg", "#sc", "#cs"):
+                        self.assertEqual(self.style(cdp, sid, sel, "borderRadius"), "6px", f"{tag} {sel} (segments 6, ruled 20-11)")
+                    for sel in ("#b1", "#md"):
                         self.assertEqual(self.style(cdp, sid, sel, "borderRadius"), "8px", f"{tag} {sel}")
                     for sel in (".crumbs", ".ucd-crumb", ".ucf-crumb"):
                         self.assertEqual(self.style(cdp, sid, "#probe " + sel, "textTransform"), "none", f"{tag} {sel}")

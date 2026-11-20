@@ -143,6 +143,7 @@ h1, h2, h3 { font-weight: var(--weight-medium); }
 @media (min-width: 1000px) {
   .cnt-grid { display: grid; grid-template-columns: 168px minmax(0, 1fr); column-gap: 28px; align-items: start; }
   html[data-density] #report.frame .cnt-grid > .secs { margin-left: 0; }      /* the comfortable-density pull of 28px to the left would run under the column */
+  #report.frame:has(> .cnt-grid) { padding-left: 0; }      /* row 1318 follow-up: measured at 1400, the column sat at x=105 = main 52.5 + 24 padding + the frame's 28px left padding; the prototype's .wrap has no such padding */
   .cnt { display: block; position: sticky; top: calc(var(--topbar) + var(--space-4)); max-height: calc(100vh - var(--topbar) - var(--space-6)); overflow-y: auto; }
 }
 .cnt-h { margin: 0 0 var(--space-2); font-size: 13px; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: 500; }
@@ -270,7 +271,8 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 /* Row 1317 (Projects card): Add project is a filled blue button with its plus and its word always shown (shell.css hides the word until hover; the override is Classic only), and the table headers are bold, in the words' own case, without the divider line above them. Classic only; Cards keeps the dashed Add and the tracked capitals. Prototype files are not on this box: built from the issue table. */
 .projects #npBtn.newb { background: var(--brand-blue); border: 1px solid var(--brand-blue); color: var(--text-on-brand); }
 .projects #npBtn.newb .w { max-width: 180px; opacity: 1; margin-left: 6px; margin-right: var(--space-1); }
-.projects table.proj-table th { text-transform: none; letter-spacing: normal; font-weight: 600; border-top: 0; padding: 6px 10px 6px 0; }
+.projects table.proj-table th { text-transform: none; letter-spacing: normal; font-weight: 600; color: var(--text-muted); border-top: 0; border-bottom: 1px solid var(--grey-200); padding: 6px 10px 6px 0; }      /* row 1317 follow-up: prototype settings.css:141, --line = grey-200 */
+.projects table.proj-table td { border-top: 0; border-bottom: 1px solid var(--grey-100); padding: 8px 10px 8px 0; }      /* settings.css:142, --line2 = grey-100 */
 /* Row 1317, table ruling (19-11; Classic only): the Settings table header is weight 600, muted, sentence case, padding 6px 10px 6px 0, 1px --line under it; body cells 8px 10px 8px 0 with 1px --line2 under them; the card head has a 1px --line2 divider. The Classic tokens carry no --line / --line2 name: --line is the Classic hairline grey-200 (= --line-soft) and --line2 the lighter grey-100. */
 .set-cards .frame table th { color: var(--text-muted); font-weight: 600; text-transform: none; letter-spacing: normal; padding: 6px 10px 6px 0; border-top: 0; border-bottom: 1px solid var(--grey-200); }
 .set-cards .frame table td { padding: 8px 10px 8px 0; border-top: 0; border-bottom: 1px solid var(--grey-100); }
@@ -398,6 +400,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .seg:not(.lsw):not(.icons):not(.modes) button { padding: 3px 14px; min-height: 28px; font-weight: 600; }
 /* Row 1372 (Classic only; the Cards look keeps its width): the item and milestone peeks open 62% of the window wide, at least 300px, as the approved peek mock-up draws it, instead of 640px. From 1000px up; below it the peek fills the window as before. A width the person dragged (the peek carries data-sized) is kept. Bare lengths with no token: the 300px least width and the 1000px switch. */
 @media (min-width: 1000px) { .peek:not(.hpk):not(.wide):not([data-sized]) { width: 62% !important; min-width: min(300px, 100vw); } }
+.seg:not(.modes) { border-radius: 6px; }   /* ruled 20-11: a segmented control is radius 6 (buttons stay 8; the top bar's switch keeps its own) */
 /* Row 1357, items 3 and 7 (Classic only): + New view on the Use cases page takes the brand colour (the shared button is grey), and the Next steps text in the list is 13 px (the shared rule stays 14 px for the dashboard and the published list). */
 #usecases .vnew, #usecases .vnew:hover { color: var(--brand-blue); }
 .ucl-table .ucsteps { font-size: var(--size-caption); }
