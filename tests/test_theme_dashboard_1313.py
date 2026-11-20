@@ -239,7 +239,7 @@ class Classic(Setup):
             self.assertLessEqual(long["name"], long["lh"] + 1, "one line")
             self.assertEqual((long["ws"], long["to"], long["ov"]), ("nowrap", "ellipsis", "hidden"))
             self.assertTrue(long["clip"], "the long title is cut with an ellipsis")
-            self.assertEqual(g["longname_off"], ["normal", "clip", "visible"], "only the dashboard title takes the ellipsis; other pages keep the wrapping name")
+            self.assertEqual(g["longname_off"], ["nowrap", "ellipsis", "hidden"], "row 1305: every Classic page's title takes the one-line ellipsis, not only the dashboard's")
             self.assertTrue(long["wide"], "no sideways scroll")
             n = g["narrow"]
             self.assertEqual((n["token"], n["min"]), (("85px", "85px") if width == 1400 else ("103px", "103px")), "the token the stylesheet gives, with the script's override off")
@@ -297,7 +297,7 @@ class Classic(Setup):
 
 class Published(PublishedFile, Setup):
     theme = None      # set per case below
-    """Row 1239 still rules the published file: a long name wraps on the bar, in Classic as in Cards. Only the dashboard title is one line."""
+    """Row 1305 replaces the wrapping name of row 1239 in the published file (Classic, which a stored Cards value publishes too, row 1363): one line, ellipsis."""
 
     def look(self, theme_name, width):
         with self.store.con:
@@ -314,16 +314,16 @@ class Published(PublishedFile, Setup):
             got["before"] = before
             return got
 
-    def test_the_published_title_still_wraps_in_classic_and_cards_at_1400_and_900(self):
-        for name, classic in (("classic", True), ("cards", True)):      # row 1363: a stored Cards value publishes Classic
+    def test_the_published_title_is_one_line_with_an_ellipsis_in_classic_at_1400_and_900(self):
+        for name in ("classic", "cards"):      # row 1363: a stored Cards value publishes Classic
             for width in (1400, 900):
                 with self.subTest(theme=name, width=width):
                     g = self.look(name, width)
-                    self.assertEqual(g["theme"], classic)
-                    self.assertEqual((g["ws"], g["to"], g["ov"]), ("normal", "clip", "visible"), "no nowrap, no ellipsis, no clipping")
-                    self.assertGreater(g["name"], g["lh"] * 1.5, "the 90 character name wraps to more than one line")
-                    self.assertFalse(g["clip"], "nothing is cut off")
-                    self.assertGreater(g["bar"], g["before"], "the bar grows with the wrapped name (row 1239)")
+                    self.assertTrue(g["theme"])
+                    self.assertEqual((g["ws"], g["to"], g["ov"]), ("nowrap", "ellipsis", "hidden"))
+                    self.assertLessEqual(g["name"], g["lh"] + 1, "one line")
+                    self.assertTrue(g["clip"], "the 90 character name is cut")
+                    self.assertEqual(g["bar"], g["before"], "the bar does not grow")
                     self.assertTrue(g["wide"])
 
 
