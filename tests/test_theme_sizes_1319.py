@@ -1,4 +1,4 @@
-"""Row 1319, Classic theme: segments and buttons have a 6px corner, segments and plain buttons are 28px tall with padding 3px 14px, crumbs are 13px.
+"""Row 1319, Classic theme: segments, switches and text tabs have a 6px corner, segment buttons are 28px tall with padding 3px 14px, crumbs are 13px; primaries and plain buttons stay 8px.
 
 Run: python3 dev/run_tests.py test_theme_sizes_1319
 Fails, never skips, without Chrome. Computed styles at 1400 and 900. Cards (no Theme layer) keeps the pill and its own sizes.
@@ -18,10 +18,15 @@ class Sizes(Computed):
         with chrome() as cdp:
             for w in SIZES:
                 sid = self.load(cdp, w, "light", html)
-                for sel in ("#sg", "#sc", "#cs", "#b1", "#b2", "#b3", "#b4"):
+                for sel in ("#sg", "#sc", "#cs"):
                     self.assertEqual(self.style(cdp, sid, sel, "borderRadius"), "6px", f"{w} {sel}")
+                cdp.js("document.getElementById('probe').insertAdjacentHTML('beforeend', '<button class=\"msv-sw\" id=\"sw1\">S</button><button class=\"mv-txt\" id=\"tx1\">T</button>')", sid)
+                for sel in ("#sw1", "#tx1"):
+                    self.assertEqual(self.style(cdp, sid, sel, "borderRadius"), "6px", f"{w} {sel}")
+                for sel in ("#b1", "#b2", "#b3", "#b4"):
+                    self.assertEqual(self.style(cdp, sid, sel, "borderRadius"), "8px", f"{w} {sel} primaries and plain buttons stay 8")
                 self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#md'), '::before').borderRadius", sid), "6px", w)
-                for sel in ("#sg button", "#sc button", "#cs button", "#b1"):
+                for sel in ("#sg button", "#sc button", "#cs button"):
                     self.assertEqual(self.style(cdp, sid, sel, "minHeight"), "28px", f"{w} {sel}")
                     self.assertEqual(self.style(cdp, sid, sel, "paddingTop"), "3px", f"{w} {sel}")
                     self.assertEqual(self.style(cdp, sid, sel, "paddingBottom"), "3px", f"{w} {sel}")

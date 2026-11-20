@@ -72,8 +72,9 @@ class Computed(unittest.TestCase):
                     tag = f"{scheme} {w}"
                     for h in ("h1", "h2", "h3"):
                         self.assertEqual(self.style(cdp, sid, "#probe " + h, "fontWeight"), "600", f"{tag} {h}")
-                    for sel in ("#sg", "#sc", "#cs", "#b1", "#md"):
+                    for sel in ("#sg", "#sc", "#cs", "#md"):
                         self.assertEqual(self.style(cdp, sid, sel, "borderRadius"), "6px", f"{tag} {sel}")
+                    self.assertEqual(self.style(cdp, sid, "#b1", "borderRadius"), "8px", f"{tag} #b1")
                     for sel in (".crumbs", ".ucd-crumb", ".ucf-crumb"):
                         self.assertEqual(self.style(cdp, sid, "#probe " + sel, "textTransform"), "none", f"{tag} {sel}")
                         self.assertEqual(self.style(cdp, sid, "#probe " + sel, "letterSpacing"), "normal", f"{tag} {sel}")
