@@ -42,6 +42,30 @@ class Sizes(Computed):
                     for sel in ("#b2", "#b3", "#b4"):
                         self.assertEqual(self.style(cdp, sid, sel, "minHeight"), "38px", f"{w} {sel}")
 
+    def test_crumb_is_13px_at_each_width(self):
+        # Row 1319, the crumb line: 13px (prototype index.html:49-51), measured from the rendered page.
+        html = page.page_html(branding=page.NO_BRAND, theme=NAME)
+        with chrome() as cdp:
+            for scheme in ("light", "dark"):
+                for w in SIZES:
+                    sid = self.load(cdp, w, scheme, html)
+                    for sel in (".crumbs", ".ucd-crumb", ".ucf-crumb"):
+                        self.assertEqual(self.style(cdp, sid, "#probe " + sel, "fontSize"), "13px", f"{scheme} {w} {sel}")
+                        self.assertEqual(self.style(cdp, sid, "#probe " + sel, "textTransform"), "none", f"{scheme} {w} {sel}")
+
+    def test_mode_switch_pressed_text_is_navy_at_each_width(self):
+        # Row 1319, pressed state of the header mode switch (View | Edit): navy text on the chosen half, the other half not navy-on-fill.
+        # The fill itself is not pinned here: the ticket says white, the Classic page paints the aqua pill (needs a ruling).
+        html = page.page_html(branding=page.NO_BRAND, theme=NAME)
+        with chrome() as cdp:
+            for scheme in ("light", "dark"):
+                for w in SIZES:
+                    sid = self.load(cdp, w, scheme, html)
+                    tag = f"{scheme} {w}"
+                    self.assertEqual(self.style(cdp, sid, "#md button[aria-pressed=true]", "color"), "rgb(6, 47, 58)", tag)
+                    self.assertEqual(self.style(cdp, sid, "#md button[aria-pressed=true]", "backgroundImage"), "none", tag)
+                    self.assertNotEqual(self.style(cdp, sid, "#md button[aria-pressed=false]", "color"), "rgb(6, 47, 58)", tag)
+
     def test_cards_keeps_its_pill_and_sizes(self):
         html = page.page_html(branding=page.NO_BRAND)
         with chrome() as cdp:
