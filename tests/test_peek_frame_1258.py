@@ -1,10 +1,10 @@
 """Row 1258 (v1.1.1), the peek's frame, toolbar and ID tag as the approved mockup (comms/mockups/peek-redesign/peek-mockup.html, layout A) draws them.
 Run: python3 dev/run_tests.py test_peek_frame_1258
 
-Measured on the mockup at 1400 and 900 px: the panel floats 16 px in from the right and the bottom, radius 16, a 1 px #D9E0EF border and the shadow
-0 10px 40px rgba(6,47,58,.18); the toolbar is 59 px high (12 + 34 + 12 + a 1 px rule) with 34 px buttons of radius 8; the ID tag is mono 12 px / 600
-on #F6F8FC, radius 6, 20 px high (81 px wide for a nine-character ID); the project line is 13 px. The live page keeps its banner, so the card
-starts 16 px under it. The Help peek is not one of the four peeks of the row and keeps its flush shape.
+Measured on the mockup at 1400 and 900 px: the panel was a card 16 px in from the right and the bottom, radius 16 (row 1289 reverses that: flush right, banner to window bottom, square), with a 1 px border;
+the toolbar is 59 px high (12 + 34 + 12 + a 1 px rule) with 34 px buttons of radius 8; the ID tag is mono 12 px / 600
+on #F6F8FC, radius 6, 20 px high (81 px wide for a nine-character ID); the project line is 13 px. The live page keeps its banner; the peek starts on its bottom edge.
+
 Part 1 reads the stylesheets; part 2 measures a real browser at 1400 and 900 px, every kind of work item on the demo page, and a milestone.
 """
 import json
@@ -30,16 +30,10 @@ def rule(text, selector):
 
 class FrameCss(unittest.TestCase):
     def test_the_card_frame(self):
-        body = rule(CSS, ".peek:not(.hpk)")
-        self.assertRegex(body, r"top:\s*calc\(var\(--topbar\) \+ 16px\)")
-        self.assertRegex(body, r"right:\s*16px")
-        self.assertRegex(body, r"bottom:\s*16px")
-        self.assertRegex(body, r"border-radius:\s*16px")
-        self.assertRegex(body, r"border:\s*1px solid var\(--grey-200\)")
-        self.assertIn("0 10px 40px rgba(6, 47, 58, .18)", body)
+        self.assertNotRegex(CSS, r"(?m)^\.peek:not\(\.hpk\) \{")      # row 1289: the card is gone, see test_peek_anchor_1289
 
     def test_the_narrow_window_keeps_the_16_px_on_both_sides(self):
-        self.assertRegex(CSS, r"@media \(max-width: 999px\) \{ \.peek:not\(\.hpk\) \{ width: calc\(100% - 32px\) !important; \}")
+        self.assertRegex(CSS, r"@media \(max-width: 999px\) \{ \.peek:not\(\.hpk\) \{ width: 100% !important; \}")
 
     def test_the_toolbar_is_59_high_with_34_buttons(self):
         self.assertRegex(rule(CSS, ".pk-tb"), r"min-height:\s*59px")
@@ -56,7 +50,7 @@ class FrameCss(unittest.TestCase):
         self.assertRegex(EDIT_CSS, r'prefers-color-scheme: dark\) \{ :root:not\(\[data-theme="light"\]\) \.peek \.pkh-id \{ background: var\(--grey-50\); \}')
 
     def test_dragging_the_edge_allows_for_the_16_px(self):
-        self.assertIn("clientWidth - 16 - e.clientX", PEEK_JSX)
+        self.assertIn("clientWidth - e.clientX", PEEK_JSX)
 
 
 GEOM = """(() => {
@@ -92,16 +86,14 @@ class FrameBrowser(unittest.TestCase):
                         self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').getAnimations().length === 0", sid)), where)
                         g = cdp.js(GEOM, sid)
                         pk = g["peek"]
-                        self.assertEqual(round(pk["top"]), round(g["banner"] + 16), f"{where}: 16 px under the banner")
-                        self.assertEqual(round(pk["bottom"]), g["height"] - 16, f"{where}: 16 px off the bottom")
-                        self.assertEqual(round(pk["right"]), g["win"] - 16, f"{where}: 16 px off the right edge")
-                        self.assertEqual(pk["radius"], "16px", where)
-                        self.assertEqual(pk["border"], "1px rgb(217, 224, 239)", where)
-                        self.assertEqual(pk["shadow"], "rgba(6, 47, 58, 0.18) 0px 10px 40px 0px", where)
+                        self.assertEqual(round(pk["top"]), round(g["banner"]), f"{where}: top on the banner's bottom edge (row 1289)")
+                        self.assertEqual(round(pk["bottom"]), g["height"], f"{where}: bottom on the window's bottom")
+                        self.assertEqual(round(pk["right"]), g["win"], f"{where}: flush to the right edge")
+                        self.assertEqual(pk["radius"], "0px", where)
                         if width == 1400:
                             self.assertEqual(round(pk["w"]), 640, where)
                         else:
-                            self.assertEqual(round(pk["w"]), g["win"] - 32, f"{where}: the narrow peek leaves 16 px each side")
+                            self.assertEqual(round(pk["w"]), g["win"], f"{where}: the narrow peek fills the window")
                         self.assertEqual(round(g["tb"]["h"]), 59, f"{where}: toolbar 59 px")
                         self.assertGreaterEqual(len(g["btns"]), 5, where)
                         for b in g["btns"]:
@@ -123,8 +115,8 @@ class FrameBrowser(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').getAnimations().length === 0", sid)))
                 g = cdp.js(GEOM, sid)
                 pk = g["peek"]
-                self.assertEqual((round(pk["top"]), round(pk["bottom"]), round(pk["right"])), (round(g["banner"] + 16), g["height"] - 16, g["win"] - 16), width)
-                self.assertEqual((pk["radius"], pk["border"], pk["shadow"]), ("16px", "1px rgb(217, 224, 239)", "rgba(6, 47, 58, 0.18) 0px 10px 40px 0px"), width)
+                self.assertEqual((round(pk["top"]), round(pk["bottom"]), round(pk["right"])), (round(g["banner"]), g["height"], g["win"]), width)
+                self.assertEqual(pk["radius"], "0px", width)
                 self.assertEqual(round(g["tb"]["h"]), 59, width)
                 for b in g["btns"]:
                     self.assertEqual((round(b["w"]), round(b["h"]), b["radius"]), (34, 34, "8px"), width)
@@ -140,7 +132,7 @@ class FrameBrowser(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-id]')", sid)))
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').getAnimations().length === 0", sid)))
                 g = cdp.js(GEOM, sid)
-                self.assertEqual(g["peek"]["radius"], "16px", width)
+                self.assertEqual(g["peek"]["radius"], "0px", width)
                 self.assertNotEqual(g["id"]["bg"], "rgb(246, 248, 252)", f"{width}: the tag is not the light tone in dark")
                 grey50 = cdp.js("(() => { const d = document.createElement('i'); d.style.background = 'var(--grey-50)'; document.body.append(d); const c = getComputedStyle(d).backgroundColor; d.remove(); return c; })()", sid)
                 self.assertEqual(g["id"]["bg"], grey50, f"{width}: the dark tag is exactly the --grey-50 tone")
@@ -156,8 +148,8 @@ class FrameBrowser(unittest.TestCase):
               e.dispatchEvent(new PointerEvent('pointerdown', {...o, clientX: 760}));
               e.dispatchEvent(new PointerEvent('pointermove', {...o, clientX: 700}));
               e.dispatchEvent(new PointerEvent('pointerup', {...o, clientX: 700})); })()""", sid)
-            self.assertTrue(wait(lambda: round(cdp.js("document.querySelector('#peek').getBoundingClientRect().width", sid)) == win - 16 - 700))
-            self.assertEqual(round(cdp.js("document.querySelector('#peek').getBoundingClientRect().right", sid)), win - 16)
+            self.assertTrue(wait(lambda: round(cdp.js("document.querySelector('#peek').getBoundingClientRect().width", sid)) == win - 700))
+            self.assertEqual(round(cdp.js("document.querySelector('#peek').getBoundingClientRect().right", sid)), win)
 
 
 if __name__ == "__main__":

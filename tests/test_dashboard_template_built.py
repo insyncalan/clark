@@ -15,9 +15,10 @@ from clark import default_sections
 
 PENDING = {      # built-in type -> the row whose template replaces it
     "glance": 1190, "usecases": 1191, "milestones": 1192,
-    "raid": 1193, "actions": 1193, "decisions": 1193, "docs": 1194,
+    "docs": 1194,      # rows 8, 9 and 10 of item 1193: Risks and issues, Open actions and Decisions are Work items lists now
 }
 OLDER = {"current", "tracker"}       # still read and drawn, no longer a default: "current" (row 1188) and the Progress tracker (#189)
+OLD_REPORTS = {"raid", "actions", "decisions"}      # no longer a default (rows 8 to 10 of 1193), still drawn for a report that has them
 PAGE = SRC / "clark" / "page" / "src"
 
 
@@ -47,9 +48,9 @@ class DashboardFromLibrary(unittest.TestCase):
             self.assertIn(t, defaults, "%s is no longer a default: take it out of PENDING" % t)
 
     def test_section_draws_no_hand_coded_branch_beyond_the_pending_ones(self):
-        extra = section_branches() - set(PENDING) - OLDER - {"text"}
+        extra = section_branches() - set(PENDING) - OLDER - OLD_REPORTS - {"text"}
         self.assertEqual(extra, set(), "Section.jsx has a hand-coded branch for %s: use a library template" % sorted(extra))
-        self.assertTrue(set(PENDING) <= section_branches() | {"raid", "actions", "decisions", "docs"})
+        self.assertTrue(set(PENDING) <= section_branches() | {"docs"})
 
 
 if __name__ == "__main__":

@@ -73,6 +73,10 @@ class FitInTheEditor(Fit, Base):
 
 
 class FitInThePublishedFile(Fit, Base):
+    def setUp(self):
+        super().setUp()
+        self.demo.plant_builtin_sections()      # a new project's lists are Work items lists; these tests pin the built-in sections' rows (row 1193)
+
     def load_app(self, cdp):
         path = self.published()
         tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")

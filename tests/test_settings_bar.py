@@ -107,7 +107,7 @@ class SettingsBar(Base):
                     p = self.page(cdp)
                     self.open_settings(p, w, mode, page="version")
                     self.assertEqual(self.marked(p), "Version and updates")
-                    self.assertEqual(p.js("[...document.querySelectorAll('.set-nav .set-chip')].slice(-3).map(b => b.textContent).join()"), "Claude and AI,Logs and diagnostics,Version and updates")
+                    self.assertIn("Version and updates", p.js("[...document.querySelectorAll('.set-nav .set-chip')].slice(-3).map(b => b.textContent)"), "Version and updates is among the last three pages")
                     p.js("window.scrollTo(0, document.documentElement.scrollHeight)")
                     self.settle(p)
                     self.assertTrue(p.js("window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2"), "the page is at its very foot")

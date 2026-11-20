@@ -77,6 +77,20 @@ class Check(unittest.TestCase):
             self.assertEqual(len(out), 1, name)
             self.assertIn("the title does not say (Beta)", out[0])
 
+    def test_a_full_release_from_1_2_0_on_is_not_asked_to_be_a_pre_release_or_to_say_beta(self):
+        full = {"prerelease": False, "name": "clark 1.2.0, Mac", "body": "Notes. " + "a1" * 32}
+        self.assertEqual(mod.problems([good("v1.2.0", **full)]), [])
+        self.assertEqual(mod.problems([good("v1.3.0", **full)]), [])
+        out = mod.problems([good("v1.1.1", **full)])        # the last release before it is still asked for all three
+        self.assertEqual(len(out), 3)
+        self.assertTrue(any("not marked Pre-release" in l for l in out))
+
+    def test_a_full_release_still_needs_its_zip_and_digest(self):
+        full = {"prerelease": False, "name": "clark 1.2.0, Mac", "body": "Notes."}
+        out = mod.problems([good("v1.2.0", **full)])
+        self.assertEqual(len(out), 1)
+        self.assertIn("no SHA-256", out[0])
+
     def test_a_release_text_that_does_not_say_beta_fails(self):
         out = mod.problems([good("v0.5.0", body="Notes. " + "a1" * 32)])
         self.assertEqual(len(out), 1)

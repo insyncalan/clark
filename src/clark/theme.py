@@ -12,7 +12,7 @@ from clark import page
 
 THEMES = Path(__file__).resolve().parent / "themes"
 FILES = ("tokens.css", "rules.css")         # in this order: the values first, then the rules that use them
-LIMIT = 64 * 1024                          # a Theme file larger than this is not read
+LIMIT = 128 * 1024                         # a Theme file larger than this is not read (the shipped files are held under it by a test)
 
 
 def installed():
@@ -37,3 +37,19 @@ def css(name):
         except (OSError, UnicodeDecodeError):
             return None
     return page.escape_style("\n".join(parts))
+
+
+# Row 1269 slice B, changed by row 1363: Classic (the prototype-2.0 folder) is the only theme applied. The install's stored setting
+# ('classic' or 'cards') is only read and is never rewritten; a stored 'cards' value stays in the file, unused, so bringing Cards back needs no migration.
+# The Cards page is still what page.page_html(theme=None) draws; nothing in the app asks for it.
+CLASSIC = "prototype-2.0"
+
+
+def name_for(setting):
+    """The Theme folder name page.page_html(theme=...) takes for an install setting: Classic for every value, a stored 'cards' included (row 1363)."""
+    return CLASSIC
+
+
+def of_store(store):
+    """The Theme folder name for the Theme the open `store` holds now (read only; Classic whatever it holds)."""
+    return name_for(store.theme())

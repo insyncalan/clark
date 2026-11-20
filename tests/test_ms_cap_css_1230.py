@@ -21,7 +21,7 @@ class CapOffset(unittest.TestCase):
 
     def test_every_mv_cap_sits_in_a_box_that_sets_sb(self):
         src = (PAGE / "src" / "components" / "MsTimeline.jsx").read_text(encoding="utf-8")
-        self.assertIn('class: "mv-box", style: { "--sb"', src, "the box that holds the caption sets --sb")
+        self.assertIn('class="mv-box" style={{ "--sb"', src, "the box that holds the caption sets --sb")
         self.assertEqual(len(re.findall(r'"mv-cap"', src)), 1, "one place renders the caption, and it is inside that box")
 
 

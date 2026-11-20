@@ -13,7 +13,7 @@ from clark import ai_codex, ask, ask_claude
 # Each model's context window in tokens (the owner's answer on #53, question 6). Characters allowed are half of it: a token is often
 # more than two characters of English, but text in other scripts can be fewer, and the provider's own prompt and the reply need room.
 CONTEXT_TOKENS = {"opus": 1000000, "sonnet": 1000000, "haiku": 1000000, "fable": 1000000}
-CHARS_PER_TOKEN = 0.5
+CHARS_PER_TOKEN = 2.0       # row 1293: characters allowed per token of the window (half of the 4 a token often is); it was 0.5, a unit bug
 TOO_BIG = "That is too much text for {model}, so nothing was sent. Ask about less, or choose another model in Settings."
 
 
@@ -104,6 +104,7 @@ class Chosen(ask.Provider):
 
     def __init__(self, providers, pick, off_words):
         self.providers, self.pick, self.off_words = tuple(providers), pick, off_words
+        self.last_line = None              # row 1306: the whole UsedLine of the last answered question's connector run, None when none (or ChatGPT)
         self.lock = threading.Lock()       # one run at a time across providers, even if the person switches while a question runs (ai_service.busy reads it)
         for provider in self.providers:
             provider.command.lock = self.lock
@@ -122,9 +123,12 @@ class Chosen(ask.Provider):
 
     def ask(self, request):
         provider, model, prefer = self._active()
+        self.last_line = None
         if provider is None:
             return ask.Failure(self.off_words)
-        return provider.ask(request, model, prefer=prefer)
+        got = provider.ask(request, model, prefer=prefer)
+        self.last_line = getattr(provider.command, "last_line", None) if isinstance(got, str) else None      # row 1306: read at once, before a choice can change
+        return got
 
     def stop(self, owner=None):
         return any([p.stop(owner) for p in self.providers])     # every one: a run may have started before the choice changed
