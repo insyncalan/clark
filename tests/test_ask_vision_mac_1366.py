@@ -122,6 +122,19 @@ class Reader(unittest.TestCase):
                 vm.register()
                 self.assertIs(ask_picture._READER, expect)
 
+    def test_ask_index_registers_the_reader_when_it_loads_on_a_mac_and_not_elsewhere(self):
+        import importlib.util
+        for system, expect in (("linux", None), ("win32", None), (pl.MAC, vm.read)):
+            spec = importlib.util.spec_from_file_location("ask_index_fresh_1366", ask_index.__file__)
+            fresh = importlib.util.module_from_spec(spec)
+            with mock.patch.object(ask_picture, "_READER", None), mock.patch.object(pl, "system", return_value=system):
+                spec.loader.exec_module(fresh)
+                self.assertIs(ask_picture._READER, expect, system)
+
+    def test_every_line_of_the_answer_is_trimmed_and_empty_lines_dropped(self):
+        self.on_mac()
+        self.assertEqual(vm.read(b"PIC", run=Stub(out="  a  \n b\n\n   \n")), "a\nb")
+
     def test_run_jxa_refuses_off_a_mac_before_starting_anything(self):
         s = Stub()
         with self.assertRaises(pl.NotBuiltYet):

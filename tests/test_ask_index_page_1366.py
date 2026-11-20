@@ -17,7 +17,7 @@ from test_ask_settings import make_db, service
 from test_page import DATA, navigate
 from test_server import Running, chrome, wait
 
-from clark import ask_folders, ask_index, page, platform as pl, theme
+from clark import ask_folders, ask_index, ask_picture, page, platform as pl, theme
 
 WIDTHS = (1400, 900)
 
@@ -26,9 +26,10 @@ class Fixture(unittest.TestCase):
     CLASSIC = True
 
     def setUp(self):
-        patch = mock.patch.object(pl, "system", return_value=pl.MAC)
-        patch.start()
-        self.addCleanup(patch.stop)
+        for patch in (mock.patch.object(pl, "system", return_value=pl.MAC),
+                      mock.patch.object(ask_picture, "_READER", None)):      # on a Mac ask_index registers the real reader at import: no picture here may start it
+            patch.start()
+            self.addCleanup(patch.stop)
         html = page.page_html(tempfile.mkdtemp())
         if self.CLASSIC:
             html = page.layer_theme(html, theme.css("prototype-2.0"))      # the status-line rules are Classic-only

@@ -1,12 +1,21 @@
 """Row 1366 slice (b): the list of files left out (spec row 6) and the answer note (spec row 7). Made-up files only."""
 import unittest
+from unittest import mock
 
 from _paths import SRC  # noqa: F401
 
 from test_ask_index_1366 import Base, FAKE_KEY, ix
 
+from clark import ask_picture
+
 
 class LeftOut(Base):
+    def setUp(self):
+        super().setUp()
+        p = mock.patch.object(ask_picture, "_READER", None)        # on a Mac ask_index registers the real reader at import: these tests start with none
+        p.start()
+        self.addCleanup(p.stop)
+
     def test_list_names_each_file_with_a_plain_reason_and_never_the_matched_text(self):
         self.put("a.txt", "zqone")
         self.put("c.bin", b"\x89BIN", binary=True)
