@@ -50,7 +50,7 @@ class Checker(unittest.TestCase):
         got = check({})
         self.assertEqual(got, {"v": 1, "kinds": [], "mode": "open", "status": [], "due": [], "owner": [], "workstream": [],
                                "use_case": [], "priority": [], "sort": "due", "max": 10,
-                               "columns": ["type", "id", "owner", "due", "priority"], "caption": "",      # row 1199: Status, Workstream and Milestone start off
+                               "columns": ["id", "owner", "due", "priority"], "caption": "",      # row 1268: no Type; row 1199: Status, Workstream and Milestone start off
                                "milestone": [], "not": {k: [] for k in wi.LEFT_OUT}, "has": [], "no": [], "text": []})
         self.assertEqual(set(got), set(wi.KEYS))
 

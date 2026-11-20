@@ -20,7 +20,7 @@ export const DESIGN_SORTS = ["due", "priority", "type", "owner"];
 // The options of the Configure box's Sort by: the layer's own list, and the saved sort too when that list lacks it, so the box never shows a sort the list does not have.
 export const sortChoices = (classic, saved) => { const own = classic ? DESIGN_SORTS : CARDS_SORTS; return own.includes(saved) ? own : [...own, saved]; };      // row 1339: the approved Configure box offers these four, in this order; a saved sort by ID is kept (SORTS) and still read
 export const COLUMNS = ["type", "id", "owner", "due", "status", "priority", "workstream", "milestone"];
-export const DEFAULT_COLUMNS = ["type", "id", "owner", "due", "priority"];      // row 1199: Status, Workstream and Milestone start off in a new list; a saved list keeps its own columns
+export const DEFAULT_COLUMNS = ["id", "owner", "due", "priority"];      // row 1199: Status, Workstream and Milestone start off in a new list; a saved list keeps its own columns
 export const MAX_ROWS = 50;
 export const DEFAULT_MAX = 10;
 export const RECENT = 14;      // row 1268: "current" lists a decision made in the last 14 days, as the built-in Decisions section does (logic/sectionRows.js)
