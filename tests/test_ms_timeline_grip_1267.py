@@ -11,6 +11,7 @@ from clark import page
 from _new_page import reload_to_new_page_cdp
 from test_milestones_page import BrowserBase
 from test_server import Running, chrome, wait
+from test_work_items import page_target
 
 HASH = "#milestones&p=TUL"
 GEO = """(() => { const w = document.querySelector('.mv-wrap').getBoundingClientRect(), g = document.querySelector('[data-grip]').getBoundingClientRect();
@@ -189,6 +190,73 @@ class Grip(BrowserBase, unittest.TestCase):
                 self.synth(cdp, sid, "pointermove", 200)
                 cdp.js("new Promise((r) => setTimeout(r, 200))", sid)
                 self.assertEqual(cdp.js(PCT, sid), now, f"{width}: after a cancel the grip no longer follows the pointer")
+
+
+REAL = {"ArrowUp": 38, "ArrowDown": 40, "End": 35, "Home": 36}
+
+
+def real_press(cdp, sid, key):
+    """A real key press through the browser's input (not a dispatched event)."""
+    for kind in ("rawKeyDown", "keyUp"):
+        cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": key, "windowsVirtualKeyCode": REAL[key]}, sid)
+
+
+class DarkAndSideways(BrowserBase, unittest.TestCase):
+    def test_the_grip_in_the_dark_theme_uses_the_dark_tokens_and_still_works(self):
+        port = self.serve()
+        read = """(() => { const g = document.querySelector('[data-grip]'), s = g.querySelector('span'), root = getComputedStyle(document.documentElement);
+          const r = g.getBoundingClientRect(), w = document.querySelector('.mv-wrap').getBoundingClientRect();
+          return {bar: getComputedStyle(s).borderTopColor, grey500: root.getPropertyValue('--grey-500').trim(), bg: getComputedStyle(document.body).backgroundColor,
+                  dx: (r.left + r.width / 2) - (w.left + w.width / 2), shown: getComputedStyle(g).display, native: getComputedStyle(document.querySelector('.mv-wrap')).resize}; })()"""
+        seen = {}
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with chrome() as cdp:
+                    sid = page_target(cdp)
+                    cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
+                    sid = self.visit(cdp, width, HASH, port)
+                    got = cdp.js(read, sid)
+                    where = f"{width} {scheme}"
+                    self.assertNotEqual(got["shown"], "none", where)
+                    self.assertEqual(got["native"], "none", where)
+                    self.assertLess(abs(got["dx"]), 1.5, f"{where}: centred")
+                    seen[(width, scheme)] = got
+                    cdp.js("document.querySelector('[data-grip]').focus(); true", sid)
+                    self.assertEqual(cdp.js("getComputedStyle(document.querySelector('[data-grip]')).outlineStyle", sid), "solid", f"{where}: a visible focus ring")
+                    if scheme == "dark":
+                        real_press(cdp, sid, "ArrowUp")
+                        self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "110"), f"{where}: a real Up press zooms one step")
+                        real_press(cdp, sid, "Home")
+                        self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "70"), f"{where}: a real Home press goes to the least")
+        for width in (1400, 900):
+            light, dark = seen[(width, "light")], seen[(width, "dark")]
+            self.assertNotEqual(light["bg"], dark["bg"], f"{width}: the dark theme is really on")
+            self.assertNotEqual(light["bar"], dark["bar"], f"{width}: the grip's bar follows the theme")
+            self.assertNotEqual(dark["bar"], light["bar"])
+            self.assertNotEqual(dark["bar"], dark["bg"], f"{width}: the bar can be seen against the dark page")
+
+    def test_the_grip_stays_put_when_the_strip_scrolls_sideways(self):
+        port = self.serve()
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width, HASH, port)
+                cdp.js("document.querySelector('[data-grip]').focus(); true", sid)
+                real_press(cdp, sid, "End")
+                self.assertTrue(wait(lambda: cdp.js(PCT, sid) == "300"), f"{width}: zoomed to the most so the strip is wide")
+                self.assertTrue(wait(lambda: cdp.js("(() => { const w = document.querySelector('.mv-wrap'); return w.scrollWidth > w.clientWidth + 50; })()", sid)), f"{width}: the strip scrolls sideways")
+                spot = "(() => { const r = document.querySelector('[data-grip]').getBoundingClientRect(); return [Math.round(r.left), Math.round(r.top), Math.round(r.width)]; })()"
+                def settled():
+                    a = cdp.js(spot, sid)
+                    cdp.js("new Promise((r) => setTimeout(r, 350))", sid)
+                    return cdp.js(spot, sid) == a
+                self.assertTrue(wait(settled, 20), f"{width}: the strip finished growing before the scroll starts")
+                before = cdp.js(spot, sid)
+                for left in ("document.querySelector('.mv-wrap').scrollWidth", "200", "0"):
+                    cdp.js(f"document.querySelector('.mv-wrap').scrollTo({{left: {left}, behavior: 'instant'}}); true", sid)
+                    self.assertTrue(wait(lambda: cdp.js(f"Math.abs(document.querySelector('.mv-wrap').scrollLeft - Math.min({left}, document.querySelector('.mv-wrap').scrollWidth - document.querySelector('.mv-wrap').clientWidth)) < 2", sid), 15), f"{width}: scrolled to {left}")
+                    self.assertEqual(cdp.js(spot, sid), before, f"{width}: the grip did not move with the strip at scrollLeft {left}")
+                self.assertEqual(cdp.js("document.querySelector('.mv-wrap').contains(document.querySelector('[data-grip]'))", sid), False, f"{width}: it sits in the box, outside the scrolling strip")
+                self.assertEqual(cdp.js("document.querySelector('[data-grip]') === document.activeElement", sid), True, f"{width}: focus stayed on it")
 
 
 class ShortList(BrowserBase, unittest.TestCase):
