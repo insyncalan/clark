@@ -41,6 +41,11 @@ class ProjectsCard(t13.RealSettings):
         time.sleep(0.3)
         r["rest"] = rest
         r["hover"] = cdp.js("(() => { const b = document.querySelector('#npBtn'); const g = (p) => getComputedStyle(b)[p]; const i = document.createElement('i'); i.style.boxShadow = 'var(--pill-glow-hover)'; document.body.appendChild(i); const glow = getComputedStyle(i).boxShadow; i.remove(); return { bg: g('backgroundColor'), tr: g('transform'), sh: g('boxShadow'), glow: glow, hov: b.matches(':hover') }; })()", sid)
+        cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 1, "y": 1}, sid)
+        cdp.js("document.documentElement.dataset.motion = 'reduce'", sid)  # clark's own reduced-motion setting, the same attribute the page paints at load
+        cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": box[0], "y": box[1]}, sid)
+        time.sleep(0.3)
+        r["reduced"] = cdp.js("(() => { const b = document.querySelector('#npBtn'); const g = (p) => getComputedStyle(b)[p]; return { tr: g('transform'), sh: g('boxShadow'), hov: b.matches(':hover') }; })()", sid)
         return r
 
     def test_classic_projects_card(self):
@@ -65,6 +70,18 @@ class ProjectsCard(t13.RealSettings):
             self.assertEqual(h["tr"], "matrix(1, 0, 0, 1, 0, -1)", tag + ": hover lifts 1px")
             self.assertEqual(h["sh"], h["glow"], tag + ": hover takes the glow token")
             self.assertEqual(c["rest"]["tr"], "none", tag + ": at rest no lift")
+            # the token compared with itself cannot fail, so the real value is pinned: --pill-glow-hover in brand/tokens.css line 6 is 0 0 44px rgba(56, 224, 238, .55)
+            self.assertEqual(h["sh"], "rgba(56, 224, 238, 0.55) 0px 0px 44px 0px", tag + ": the hover glow is the brand token's value")
+            self.assertNotEqual(h["sh"], "none", tag + ": a glow is drawn")
+            self.assertNotEqual(h["sh"], c["rest"]["sh"], tag + ": the glow differs from rest")
+
+    def test_add_project_hover_is_still_when_motion_is_reduced(self):
+        # clark's own setting (data-motion=reduce on the root) removes the lift and the glow, as for the other primary buttons
+        for tag, c in self.each(NAME):
+            m = c["reduced"]
+            self.assertTrue(m["hov"], tag + ": the pointer is over the button")
+            self.assertEqual(m["tr"], "none", tag + ": no lift when motion is reduced")
+            self.assertEqual(m["sh"], c["rest"]["sh"], tag + ": no glow when motion is reduced")
 
     def test_cards_projects_card_unchanged(self):
         for tag, c in self.each(None):
