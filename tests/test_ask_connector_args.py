@@ -64,7 +64,7 @@ class Args(unittest.TestCase):
         self.assertEqual(got, {"outlook_email_search", "outlook_calendar_search", "outlook_find_available_time",
                                "find_meeting_availability", "chat_message_search", "teams_list_teams", "teams_list_channels",
                                "teams_list_chats", "teams_list_channel_messages", "sharepoint_search",
-                               "sharepoint_folder_search", "read_resource", "search_people", "get_me"})
+                               "sharepoint_folder_search", "search_people", "get_me"})
         for t in got:
             self.assertNotIn(f"--disallowedTools={P}__{t}", a)
 

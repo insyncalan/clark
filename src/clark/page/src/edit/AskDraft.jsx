@@ -60,6 +60,7 @@ export function AskDraft() {
         <span class="ad-hint">{W.DRAFT_HINT}</span>
         <button type="button" class="pkp-btn" id="ask-draft-close" title={W.DRAFT_CLOSE} aria-label={W.DRAFT_CLOSE} onClick={() => { draft.value = null; }}><Icon name="x" /></button>
       </header>
+      {d.via && d.via.length ? <p class="ad-note" id="ask-draft-via">{W.DRAFT_VIA(d.via.join(" and "))}</p> : null}
       <div class="ad-doc" id="ask-draft-doc" ref={doc} contentEditable="true" role="textbox" aria-multiline="true" aria-label={W.DRAFT_TEXT_LABEL} spellcheck="true" />
       <p class="ad-note" id="ask-draft-note" role="status" aria-live="polite">{note}</p>
       <footer class="ad-f">
