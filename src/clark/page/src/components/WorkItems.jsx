@@ -33,7 +33,7 @@ import { NewTile } from "./NewTile.jsx";
 import { Menu } from "./Menu.jsx";
 import { isChanged, WORD } from "../stores/changed.js";
 import { Icon } from "./Icon.jsx";
-import { classicTheme } from "./Contents.jsx";   // row 1324 (Option A, Classic only): the column names are drawn once over the groups; Cards keeps them in every group
+import { classicTheme } from "./Contents.jsx";   // row 1324 (Option A, Classic only): the column names are drawn once over the groups; Cards keeps them in every group; row 1409: the Classic priority chip carries its word (data-pri) for the one colour mapping (rules.css), Cards markup is unchanged
 import { groupIcon } from "../menuIcons.js";
 import { printing } from "../stores/print.js";
 import { work, setWork, announce, contextFor } from "../stores/work.js";
@@ -188,7 +188,7 @@ function Row({ row, today, Cell, Eye, stop, pos, size, group, motion, onMotionEn
       </td>
       {cols.includes("owner") ? <td class="c-owner" data-col="owner">{cell("owner", ownerOf(row.owner).text === "—" ? "none" : ownerOf(row.owner).text, <Owner name={row.owner} />)}</td> : null}
       {cols.includes("due") ? <td class="c-due" data-col="due">{cell("due", due.date === "—" ? "none" : due.date, <><span class="num">{due.date}</span>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}>{due.words}</span> : null}</>)}</td> : null}
-      {cols.includes("prio") ? <td class="c-prio" data-col="prio">{cell("priority", row.priority || "none", row.priority ? <span class={`wil-pr${row.priority === "Urgent" ? " u" : row.priority === "High" ? " h" : ""}`}>{row.priority}</span> : <span class="muted">{"—"}</span>)}</td> : null}
+      {cols.includes("prio") ? <td class="c-prio" data-col="prio">{cell("priority", row.priority || "none", row.priority ? <span class={`wil-pr${row.priority === "Urgent" ? " u" : row.priority === "High" ? " h" : ""}`} data-pri={classicTheme() ? row.priority : undefined}>{row.priority}</span> : <span class="muted">{"—"}</span>)}</td> : null}
       {extras(cols).map((id) => <td key={id} class={`c-x c-x-${id}`} data-col={id} data-label={labelOf(id)}>{extraCell(id, row)}</td>)}
       {Eye ? <td class="c-eye"><Eye row={row} /></td> : null}
     </tr>

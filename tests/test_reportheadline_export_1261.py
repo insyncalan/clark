@@ -51,7 +51,7 @@ class Published(unittest.TestCase):
     def test_the_file_carries_the_three_fields_by_name(self):
         s = [x for x in select()["sections"] if x["type"] == "reportheadline"]
         self.assertEqual(len(s), 1)
-        self.assertEqual(s[0]["content"], {"health": "at_risk", "headline": BODY["headline"], "sentence": BODY["sentence"]})
+        self.assertEqual(s[0]["content"], {"health": "at_risk", "headline": BODY["headline"], "sentence": BODY["sentence"], "pill": True})
 
     def test_a_hidden_or_empty_section_is_not_in_the_file_or_the_exports(self):
         for kw in ({"hidden": 1}, {"body": ""}, {"body": {"v": 1}}):
