@@ -29,9 +29,7 @@ SECTION_DELETE = "Delete section"
 VIEW_DELETE = "To remove a view you no longer want, open it, press the small arrow and choose **Delete view**. A message at the foot of the page has **Undo**, which puts the view back. This works for the five starting tabs too."
 # Row menu Delete, signed WO-M0270, #1101 comment 6835416954 (exact string only).
 ROW_DELETE = "A row’s menu has **Delete**. It asks first, then removes the row from your project record. A message at the foot of the page has **Undo**, which puts the row back where it was."
-# The peek top bar line names Delete (the More actions menu's own entry, edit/PeekMore.jsx), approved word for word, WO-M8645 20-11, ticket 1437 (exact string only).
-PEEK_DELETE = "At the top: **Previous item** and **Next item**, the item’s ID, then (in Edit) **More actions**, a menu with **Duplicate**, **Archive** and **Delete**, then **Make this panel fill the screen** and **Close this panel**."
-SIGNED_DELETE = {"Move, hide and delete sections", VIEW_DELETE, ROW_DELETE, PEEK_DELETE}
+SIGNED_DELETE = {"Move, hide and delete sections", VIEW_DELETE, ROW_DELETE}
 # A feature word in shown text needs proof that the page has it: a pattern that must match the page's own code (outside Help).
 FEATURES = [
     ("the peek", r"\bpeek\b", r"<Peek\b"),

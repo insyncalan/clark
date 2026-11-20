@@ -85,9 +85,10 @@ def one(start):
 
 
 class WorkItemsHelpMatchesTheCode(unittest.TestCase):
-    def test_peek_top_bar_names_more_actions_with_duplicate_archive_delete(self):
+    def test_peek_top_bar_names_more_actions_without_delete(self):
         text = one("At the top: **Previous item** and **Next item**")
-        self.assertIn("(in Edit) **More actions**, a menu with **Duplicate**, **Archive** and **Delete**,", text)
+        self.assertIn("(in Edit) **More actions**, a menu of actions for this item, such as **Duplicate** and **Archive**, then", text)
+        self.assertNotIn("Delete", text)
 
     def test_right_click_menu_names_open_the_peek(self):
         text = one("The right-click menu has a small picture")
