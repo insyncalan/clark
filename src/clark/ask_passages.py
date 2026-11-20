@@ -91,6 +91,28 @@ def _gone(rels):
     return lambda names: ask_exclude.left_out(names, rels)
 
 
+def left_out_path(path, leave_out, home=None):
+    """True when `path` is, or is below, a subfolder or file the person left out of any saved folder in `leave_out` ({saved folder: stored list}),
+    the same rule the folder walk applies (row 1365). Fails closed: a path that cannot be resolved, or a saved folder holding it whose list cannot be read, is True."""
+    try:
+        names = reach.real(path, home).parts
+    except (reach.BadPath, OSError, ValueError, RuntimeError):
+        return True
+    for folder, raw in (leave_out or {}).items():
+        try:
+            base = reach.real(folder, home).parts
+        except (reach.BadPath, OSError, ValueError, RuntimeError):
+            continue
+        if names[:len(base)] != base:
+            continue
+        try:
+            if ask_exclude.left_out(names[len(base):], ask_exclude.parse(raw)):
+                return True
+        except ValueError:
+            return True
+    return False
+
+
 def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, max_passages=ask.MAX_PASSAGES, leave_out=None):
     """Passages from the saved `folders` (a list of paths) for one question; `data_dir` is clark's own folder. See the module note.
     `leave_out` (row 1365) is {saved folder: the stored list of subfolders left out (text or list)}: those are never entered or read. A

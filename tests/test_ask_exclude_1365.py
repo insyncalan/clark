@@ -306,6 +306,63 @@ class Walk(Base):
         self.assertEqual(files, ["HR/Candidates/cv.txt", "HR/Policy/rules.txt"])
         self.assertFalse([p for p in opened if p.endswith("Contract") or p.endswith("Notes")], opened)
 
+    def test_a_parent_saved_beside_a_child_with_a_list_still_leaves_the_childs_subfolders_out(self):
+        self.tree()
+        child = self.root / "HR"
+        both = {str(child): ask_passages._gone(["Candidates"])}
+        for order in ([str(self.root), str(child)], [str(child), str(self.root)]):
+            got = reach.readable_files(order, self.data, None, self.home, both)
+            names = sorted(os.path.relpath(f, self.root) for f in got.files)
+            self.assertEqual(names, ["Contract/deep/more.txt", "Contract/terms.txt", "HR/Policy/rules.txt", "Notes/a.txt"], order)
+        data = ask_passages.folder_data([str(self.root), str(child)], self.data, "candidate policy alpha terms", home=self.home,
+                                        leave_out={str(child): '["Candidates"]'})
+        self.assertNotIn("candidate one", "\n".join(p.text for p in data.passages))
+        self.assertIn("policy text", "\n".join(p.text for p in data.passages))
+
+    def test_a_childs_list_cuts_only_below_the_child_and_not_a_same_named_folder_elsewhere_in_the_parent(self):
+        self.tree()
+        self.put("Other/Candidates/keep.txt")
+        self.put("Other/HR/Candidates/keep2.txt")
+        child = self.root / "HR"
+        got = reach.readable_files([str(self.root), str(child)], self.data, None, self.home, {str(child): ask_passages._gone(["Candidates"])})
+        names = sorted(os.path.relpath(f, self.root) for f in got.files)
+        self.assertEqual(names, ["Contract/deep/more.txt", "Contract/terms.txt", "HR/Policy/rules.txt", "Notes/a.txt", "Other/Candidates/keep.txt",
+                                 "Other/HR/Candidates/keep2.txt"])
+
+    def test_a_parents_own_list_does_not_cut_a_child_saved_folder_named_the_same(self):
+        self.tree()
+        child = self.root / "HR"
+        got = reach.readable_files([str(child)], self.data, None, self.home, {str(self.root): ask_passages._gone(["HR"])})
+        self.assertEqual(sorted(os.path.relpath(f, child) for f in got.files), ["Candidates/cv.txt", "Policy/rules.txt"])
+
+    def test_a_left_out_name_is_cut_in_a_folder_added_after_the_list_was_saved(self):
+        self.put("Notes/a.txt")
+        later = {str(self.root): ["Archive", "Notes/Old"]}
+        self.assertEqual(self.listed(later)[0], ["Notes/a.txt"], "nothing of that name yet: nothing changes")
+        self.put("Archive/b.txt")
+        self.put("Notes/Old/c.txt")
+        self.put("Notes/New/d.txt")
+        self.assertEqual(self.listed(later)[0], ["Notes/New/d.txt", "Notes/a.txt"], "a folder added later with a left-out name is left out too")
+
+    def test_a_left_out_folder_the_system_would_skip_for_safety_is_not_counted_either(self):
+        self.put(".ssh/id_rsa")
+        self.put("Keep/a.txt")
+        files, got = self.listed()
+        self.assertEqual((files, got.skipped), (["Keep/a.txt"], 1), "unlisted: counted as left out for safety")
+        files, got = self.listed({str(self.root): [".ssh"]})
+        self.assertEqual((files, got.skipped), (["Keep/a.txt"], 0), "left out by the person first: not counted, not looked at")
+        with mock.patch.object(reach, "MAX_ENTRIES", 2):
+            files, got = self.listed({str(self.root): [".ssh"]})
+        self.assertEqual((files, got.stopped), (["Keep/a.txt"], False), "and it takes nothing from the entry cap")
+
+    def test_a_left_out_file_that_looks_like_a_secret_is_never_read_or_counted(self):
+        self.put("Notes/a.txt", "alpha notes")
+        self.put("Notes/pw.txt", "password = Tr0ub4dor&3xyz")
+        got = ask_passages.folder_data([str(self.root)], self.data, "alpha password", home=self.home, leave_out={str(self.root): '["Notes/pw.txt"]'})
+        self.assertEqual((got.safety, got.secret_labels), (0, ()), "never reached the secret screen")
+        again = ask_passages.folder_data([str(self.root)], self.data, "alpha password", home=self.home)
+        self.assertEqual(again.safety, 1, "without the list the same file is a secret left out for safety")
+
     def test_a_folder_that_is_not_in_the_list_of_saved_folders_or_cannot_be_resolved_is_ignored(self):
         self.tree()
         got = reach.readable_files([str(self.root)], self.data, None, self.home, {f: ask_passages._gone(["Notes"]) for f in ("relative/path", "", "bad\x00")})
@@ -390,6 +447,14 @@ class Scan(Base):
         with mock.patch.object(os, "scandir", side_effect=watch):
             sn.scan(self.root, ["Contract/sub"])
         self.assertFalse([p for p in opened if p.endswith("sub")], opened)
+
+    def test_a_left_out_folder_deep_inside_a_flagged_folder_is_not_counted(self):
+        self.put("Contract/x/y/a.txt")
+        self.put("Contract/x/b.txt")
+        self.put("Contract/c.txt")
+        self.assertEqual([r["readable_files"] for r in sn.scan(self.root, ())], [3])
+        self.assertEqual([r["readable_files"] for r in sn.scan(self.root, ["Contract/x/y"])], [2])
+        self.assertEqual([r["readable_files"] for r in sn.scan(self.root, ["Contract/x/b.txt"])], [2])
 
     def test_each_hit_says_whether_it_is_a_folder(self):
         self.put("Contract/a.txt")
@@ -520,6 +585,33 @@ class Route(Base):
         self.assertEqual((status, "apply_id" in body), (200, False))
         self.assertEqual(self.stored(), "[]")
         self.assertEqual([i["dir"] for w in body["warnings"] for i in w["items"]], [False])
+
+    def test_the_same_folder_saved_in_two_projects_keeps_each_projects_own_list(self):
+        self.add()
+        with self.store().step("dashboard", "tester", place="menu") as step:
+            step.create("projects", {"code": "OTH", "name": "Other Programme"})
+            step.create("source_folders", {"project": "OTH", "path": str(self.root), "sort_order": 0, "excluded": '["Notes"]'})
+        body = self.svc.change({"project": "ABC", "action": "exclude", "path": str(self.root)})[1]
+        self.assertTrue(body["ok"])
+        rows = {r["project"]: r["excluded"] for r in self.store().read("source_folders")}
+        self.assertEqual({k: json.loads(v) for k, v in rows.items()}, {"ABC": ["Contract"], "OTH": ["Notes"]})
+        self.assertEqual(len(self.svc.read("OTH")[1]["warnings"]), 1, "the other project's list is its own: its flagged Contract is still named")
+
+    def test_a_saved_entry_for_a_folder_that_is_not_there_yet_is_kept_by_a_later_leave_out(self):
+        self.add()
+        with self.store().step("dashboard", "tester", place="menu") as step:
+            step.update("source_folders", f"ABC|{self.root}", {"excluded": '["Archive"]'})
+        self.svc.change({"project": "ABC", "action": "exclude", "path": str(self.root)})
+        self.assertEqual(json.loads(self.stored()), ["Archive", "Contract"])
+
+    def test_a_folder_taken_out_and_put_back_starts_with_nothing_left_out(self):
+        self.add()
+        self.svc.change({"project": "ABC", "action": "exclude", "path": str(self.root)})
+        self.assertEqual(json.loads(self.stored()), ["Contract"])
+        self.assertTrue(self.svc.change({"project": "ABC", "action": "remove", "path": str(self.root)})[1]["ok"])
+        body = self.add()[1]
+        self.assertEqual(self.stored(), "[]")
+        self.assertEqual([i["name"] for w in body["warnings"] for i in w["items"]], ["Contract"], "named again, as for a new folder")
 
     def test_the_page_is_told_which_hits_are_folders(self):
         status, body = self.add()

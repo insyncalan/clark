@@ -339,12 +339,15 @@ class AskService:
                 if store.read("projects", ref=code) is None:
                     return 404, self.fail("project_not_found")
                 folders = self.folders_for(store, code)
+                cut_subs = self.left_out_for(store, code)
             finally:
                 store.close()
         for folder in folders:
             if Path(str(folder)).name != parts[0]:
                 continue
             path = Path(str(folder)).joinpath(*parts[1:])
+            if ask_passages.left_out_path(path, cut_subs, self.home):      # row 1365: a file in a subfolder left out is not opened either
+                continue
             try:
                 kind, _why = reach.classify(path, "read", folders, self.data_dir, self.home)
                 url = pdf_link.pdf_url(path, page, folders)

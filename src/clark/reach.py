@@ -497,12 +497,14 @@ def readable_files(folders, data, reasons=None, home_dir=None, leave_out=None):
             reasons[why] = reasons.get(why, 0) + 1
 
     saved = roots(folders, home_dir)
-    cuts = {}
+    cuts = []                                                # (the parts of a saved folder, its test): a cut holds wherever that folder is walked, also from a saved folder above it
     for f, gone in (leave_out or {}).items():
         try:
-            cuts.setdefault(real(f, home_dir), []).append(gone)
+            base = real(f, home_dir)
         except (BadPath, OSError, ValueError, RuntimeError):
             continue
+        if base in saved:
+            cuts.append((base.parts, gone))
 
     def failed(e):
         skip("a folder couldn't be opened")
@@ -513,16 +515,20 @@ def readable_files(folders, data, reasons=None, home_dir=None, leave_out=None):
             skip(why)
             continue
         stopped = False
-        out = tuple(cuts.get(root, ()))
         for dirpath, dirnames, filenames in os.walk(root, followlinks=False, onerror=failed):
             depth = len(Path(dirpath).parts) - len(root.parts)
             keep = []
-            here = Path(dirpath).relative_to(root).parts
+            above = Path(dirpath).parts
+
+            def cut_out(name):
+                full = (*above, name)
+                return any(full[:len(b)] == b and gone(full[len(b):]) for b, gone in cuts)
+
             for name in sorted(dirnames):
                 full = os.path.join(dirpath, name)
                 if is_noise(name):
                     continue
-                if out and any(gone((*here, name)) for gone in out):
+                if cuts and cut_out(name):
                     continue
                 why = over()
                 if why:
@@ -546,7 +552,7 @@ def readable_files(folders, data, reasons=None, home_dir=None, leave_out=None):
             for name in sorted(filenames):
                 if is_noise(name):
                     continue
-                if out and any(gone((*here, name)) for gone in out):
+                if cuts and cut_out(name):
                     continue
                 why = over()
                 if why:
