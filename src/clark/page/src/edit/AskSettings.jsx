@@ -257,7 +257,7 @@ function AskProject() {
     </section>
     <OwnInstructions goAll={() => showAskTab(ALL)} />
     {classicTheme() ? <UsageProject /> : null}
-    {classicTheme() ? <SlashList scope="project" code={code} /> : null}
+    {classicTheme() ? <SlashList scope="project" code={code} goAll={() => showAskTab(ALL)} /> : null}
     </>
   );
 }
