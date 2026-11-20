@@ -17,6 +17,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/ho
 import { Fade } from "../../components/Menu.jsx";
 import { actionIcon } from "../../menuIcons.js";
 import { Icon } from "../../components/Icon.jsx";
+import { classicTheme } from "../../components/Contents.jsx";
 import { todayIso } from "../../workItems.js";
 import { reduced } from "../../stores/motion.js";
 import { fitCharts } from "../logic/printFit.js";
@@ -375,6 +376,7 @@ export function GanttChart({
         <button type="button" class="gt-ib" onClick={zoomOutTo} disabled={zoom <= 1} aria-label={WORDS.zoomOut} title={WORDS.zoomOut} data-g-zout><Glyph name="zout" /></button>
         <button type="button" class="gt-zf" ref={fitBtn} onClick={() => setZoom(1)} aria-label={WORDS.fit} title={WORDS.fit} data-g-fit>{Math.round(zoom * 100)}%</button>
         <button type="button" class="gt-ib" onClick={() => setZoom(zoomIn(zoom))} aria-label={WORDS.zoomIn} title={WORDS.zoomIn} data-g-zin><Glyph name="zin" /></button>
+        {classicTheme() ? <span class="gt-sep" aria-hidden="true" /> : null}
         <span class="gt-showwrap" data-g-showwrap>
           <button type="button" class="gt-ib" aria-haspopup="menu" aria-expanded={showOpen} aria-label={`${WORDS.show}: ${filterWord(filter)}`} title={`${WORDS.show}: ${filterWord(filter)}`}
             data-g-show ref={showBtn} onClick={(e) => { opener.current = e.currentTarget; setShowOpen(!showOpen); }}><Glyph name="filter" /></button>
