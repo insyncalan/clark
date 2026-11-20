@@ -42,6 +42,8 @@ RISKY_CONTEXT = re.compile(r"\$\{\{[^}]*(?:github\.head_ref|\.title|\.body|\.hea
                            r"\.author\.name|\.name\b[^}]*pull_request|\.ref\b)[^}]*\}\}")
 SAFE_LINE = re.compile(r"^\s*(?:-\s+)?(?:if|name|run-name|group|[A-Z][A-Z0-9_]*):")        # an expression or an env value, never shell
 USES = re.compile(r"^\s*-?\s*uses:\s*(\S+)")
+# Row Argos: ONE workflow may read ONE named secret, in one step's env, and nothing else (no other secret, no write, no id-token).
+ALLOWED_SECRET = {".github/workflows/screenshots.yml": "ARGOS_TOKEN"}
 
 
 # A picture or font is allowed only if it is well formed for its own extension and ENDS where its format says it ends, so a
@@ -364,7 +366,11 @@ class Scan:
             tag = e.index
             if re.search(r"pull_request_target|workflow_run", code):
                 bad.append("file #%d: uses a trigger that runs with this repository's token on outside code" % tag)
-            if re.search(r"secrets\.|secrets:\s|\bwrite\b|write-all|id-token", code):
+            if re.search(r"secrets:\s|\bwrite\b|write-all|id-token", code):
+                bad.append("file #%d: uses a secret or write access" % tag)
+            named = re.findall(r"secrets\.(\w+)", code)
+            allowed = ALLOWED_SECRET.get(e.path)
+            if named and not (allowed and named == [allowed] and re.search(r"^\s+%s:\s*\$\{\{\s*secrets\.%s\s*\}\}\s*$" % (allowed, allowed), code, re.M)):
                 bad.append("file #%d: uses a secret or write access" % tag)
             if re.search(r"^\s*(?:self-hosted|runs-on:.*self-hosted)", code, re.M):
                 bad.append("file #%d: runs on a self-hosted machine" % tag)

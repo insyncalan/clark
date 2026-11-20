@@ -270,6 +270,72 @@ class Scan(unittest.TestCase):
                 r.commit("add")
                 self.refused(r, "file #1:")
 
+    SHOTS = ".github/workflows/screenshots.yml"
+    TOKEN_LINE = "        env:\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN }}\n"
+    SHOTS_BASE = "on:\n  pull_request:\npermissions:\n  contents: read\njobs:\n  a:\n    steps:\n      - run: echo hi\n"
+
+    def shots(self, path, text):
+        r = self.repo()
+        r.write(path, text)
+        r.commit("add")
+        return r
+
+    def test_the_one_argos_secret_passes_in_the_one_argos_workflow(self):
+        r = self.shots(self.SHOTS, self.SHOTS_BASE + self.TOKEN_LINE)
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+        self.assertIn("workflow files follow the rules", out)
+        self.assertNotIn("REFUSED", out)
+
+    def test_a_second_or_other_secret_is_refused_in_the_argos_workflow(self):
+        for key, extra in {"second use": "          B: ${{ secrets.ARGOS_TOKEN }}\n", "other name": "          B: ${{ secrets.OTHER }}\n",
+                           "inherit": "    secrets: inherit\n"}.items():
+            with self.subTest(key):
+                r = self.shots(self.SHOTS, self.SHOTS_BASE + self.TOKEN_LINE + extra)
+                self.refused(r, "file #1: uses a secret or write access")
+        for key, text in {"only other name": "        env:\n          ARGOS_TOKEN: ${{ secrets.OTHER }}\n",
+                          "other key": "        env:\n          OTHER: ${{ secrets.ARGOS_TOKEN }}\n",
+                          "not an env line": "        run: echo ${{ secrets.ARGOS_TOKEN }}\n",
+                          "name only a prefix": "        env:\n          ARGOS_TOKEN: ${{ secrets.ARGOS_TOKEN_2 }}\n"}.items():
+            with self.subTest(key):
+                r = self.shots(self.SHOTS, self.SHOTS_BASE + text)
+                self.refused(r, "file #1: uses a secret or write access")
+
+    def test_the_argos_secret_is_refused_in_any_other_workflow_path(self):
+        for path in (".github/workflows/x.yml", ".github/workflows/screenshots.yaml", ".github/workflows/sub/screenshots.yml",
+                     ".github/workflows/screenshots2.yml", ".github/screenshots.yml"):
+            with self.subTest(path):
+                r = self.shots(path, self.SHOTS_BASE + self.TOKEN_LINE)
+                self.refused(r, "file #1: uses a secret or write access")
+
+    def test_write_access_is_refused_in_the_argos_workflow(self):
+        for key, text in {"write": "permissions:\n  contents: write\n", "write-all": "permissions: write-all\n",
+                          "id-token": "permissions:\n  id-token: read\n"}.items():
+            with self.subTest(key):
+                r = self.shots(self.SHOTS, self.SHOTS_BASE + self.TOKEN_LINE + text)
+                self.refused(r, "file #1: uses a secret or write access")
+
+    def test_the_other_checks_still_run_on_the_argos_workflow(self):
+        for key, text, needle in (("unpinned", "      - uses: actions/checkout@v5\n", "not pinned"),
+                                  ("trigger", "on:\n  pull_request_target:\n", "trigger that runs"),
+                                  ("self-hosted", "    runs-on: self-hosted\n", "self-hosted"),
+                                  ("injection", "      - run: echo ${{ github.event.pull_request.title }}\n", "outside text")):
+            with self.subTest(key):
+                r = self.shots(self.SHOTS, self.SHOTS_BASE + self.TOKEN_LINE + text)
+                self.refused(r, needle)
+
+    def test_the_allowance_is_one_name_for_one_path(self):
+        self.assertEqual(ci_scan.ALLOWED_SECRET, {".github/workflows/screenshots.yml": "ARGOS_TOKEN"})
+
+    def test_the_real_screenshots_workflow_passes_and_the_tests_workflow_keeps_no_secret(self):
+        real = (ROOT / self.SHOTS).read_text(encoding="utf-8")
+        self.assertEqual(len(re.findall(r"secrets\.", real)), 1)
+        r = self.shots(self.SHOTS, real)
+        rc, out = r.scan()
+        self.assertEqual(rc, 0, out)
+        tests_yml = (ROOT / ".github" / "workflows" / "tests.yml").read_text(encoding="utf-8")
+        self.assertNotIn("secrets.", tests_yml)
+
     def test_a_safe_changed_workflow_is_a_notice_for_a_branch_and_a_refusal_for_a_fork(self):
         text = WORKFLOW.read_text(encoding="utf-8")
         r = self.repo()
