@@ -22,10 +22,13 @@ CARDS_SEARCH = {"light": "#C4CEE3", "dark": "#2B5868"}     # the Cards Settings 
 DARK_LINE = "#2B3850"     # the Classic dark value of the same grey-200 token
 PROBE = """(() => { const q = (s) => document.querySelector(s), g = (s) => { const e = q(s); return e ? [getComputedStyle(e).borderTopColor, getComputedStyle(e).borderTopWidth] : null; };
   if (!q('.frame:not(#gantt-setting) .set-reset')) { const f = q('#ess-name') && q('#ess-name').closest('.frame'); if (f) f.insertAdjacentHTML('beforeend', '<button type="button" class="set-reset">Reset</button>'); }  /* the real Reset button (SettingRow.jsx) shows only after a change; add its markup to a real non-Gantt card */
+  const inv = {}; for (const [k, sel] of [['name', '#ess-name'], ['rowtext', '.set-row-ctl input[type="text"]']]) { const e = q(sel); if (e) { e.setAttribute('aria-invalid', 'true'); inv[k] = getComputedStyle(e).borderTopColor; e.removeAttribute('aria-invalid'); } }
+  const redp = document.createElement('i'); redp.style.borderTopColor = 'var(--status-red-text)'; redp.style.borderTopStyle = 'solid'; document.body.appendChild(redp); const red = getComputedStyle(redp).borderTopColor; redp.remove();
   const b = q('.seg button + button');
   const ground = (s) => { let e = q(s); while (e) { const c = getComputedStyle(e).backgroundColor; if (c !== 'rgba(0, 0, 0, 0)' && c !== 'transparent') return c; e = e.parentElement; } return null; };
   return {ground: ground('#safety-copy-box') || ground('#ess-name') || ground('.seg'),
           edges: {box: g('#safety-copy-box'), save: g('[data-copy-save]'), choice: g('.seg'), name: g('#ess-name'), paste: g('#client-folder-paste'), use: g('[data-copy-suggestion]'), search: g('.set-search input'), reset: g('.frame:not(#gantt-setting) .set-reset'), rowtext: g('.set-row-ctl input[type="text"]'), gantt: g('#gantt-name')},
+          invalid: inv, red: red,
           divider: b ? getComputedStyle(b).borderLeftColor : null}; })()"""
 
 
@@ -72,6 +75,10 @@ class SettingsEdge(unittest.TestCase):
                         got["edges"][k] = v
                 if r["ground"] and not got["ground"]:
                     got["ground"] = r["ground"]
+                got.setdefault("invalid", {})
+                for k, v in (r.get("invalid") or {}).items():
+                    got["invalid"].setdefault(k, v)
+                got["red"] = r["red"]
                 if r["divider"] and "divider" not in got:
                     got["divider"] = r["divider"]
         return got
@@ -85,6 +92,17 @@ class SettingsEdge(unittest.TestCase):
                         self.assertEqual(got["edges"][name], [rgb(line), "1px"], f"{name} edge, Classic {scheme} {w}")
                     self.assertEqual(got["divider"], rgb(line), f"choice divider, Classic {scheme} {w}")
                     self.assertEqual(got["edges"]["gantt"][0], "rgb(196, 206, 227)" if scheme == "light" else "rgb(43, 88, 104)", f"the Gantt card keeps its edge, Classic {scheme} {w}")
+
+    def test_a_field_marked_invalid_keeps_its_red_border(self):
+        """The line colour is for a valid field only: with aria-invalid set, the Settings field and the row text input keep the red error border of shell.css."""
+        for scheme in ("light", "dark"):
+            for w in WIDTHS:
+                with self.subTest(scheme=scheme, width=w):
+                    got = self.read(NAME, w, scheme)
+                    self.assertEqual(sorted(got["invalid"]), ["name", "rowtext"], f"both fields probed, Classic {scheme} {w}")
+                    for name, colour in got["invalid"].items():
+                        self.assertNotEqual(colour, got["edges"][name][0], f"{name} invalid border is not the line colour, Classic {scheme} {w}")
+                        self.assertEqual(colour, got["red"], f"{name} invalid border is the error red, Classic {scheme} {w}")
 
     def test_reset_markup_matches_the_real_page_source(self):
         src = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "SettingRow.jsx").read_text(encoding="utf-8")
