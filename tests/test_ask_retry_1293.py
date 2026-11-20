@@ -77,9 +77,10 @@ class Retry(Base):
         self.assertEqual((self.dry(reply)[0], self.dry(reply)[1]["code"]), (409, "shown_already"))
 
     def test_a_refused_dry_run_of_too_many_changes_leaves_the_reply_usable(self):
-        many = [change_line(op="new", kind="action", title=f"Task {i}", owner="Sam Lee") for i in range(6)]
-        reply = self.answer(*many)["reply"]
-        self.assertEqual((self.dry(reply)[0], self.dry(reply)[1]["code"]), (400, "too_many"))
+        many = [change_line(op="new", kind="action", title=f"Task {i}", owner="Sam Lee") for i in range(2)]
+        reply = self.answer(*many)["reply"]          # the reply reader now cuts at the limit, so the limit is lowered for this run
+        with mock.patch.object(ask_apply, "MAX_AT_ONCE", 1):
+            self.assertEqual((self.dry(reply)[0], self.dry(reply)[1]["code"]), (400, "too_many"))
 
     def offer(self):
         status, dry = self.dry(self.reply())
