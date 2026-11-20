@@ -548,6 +548,22 @@ class TheFilesRules(Base):
         status, got = self.api("POST", {"undo": both})
         self.assertEqual((status, got["message"], got["on"], got["off_here"]), (200, "Undone.", True, True))
 
+    def test_undo_refuses_a_step_from_another_route_that_really_changed_the_flag(self):
+        # The step is the latest change of the flag and nothing else blocks the undo, so only the
+        # "written from the dashboard" check can refuse it.
+        from clark import store as st
+        store = st.open_store(self.db, onedrive_roots=[])
+        try:
+            with store.step("excel", "tester", place="menu") as s:
+                s.update("app_settings", "1", {"ask_files": 0})
+                imported = s.peek_apply_id()
+        finally:
+            store.close()
+        self.assertEqual(self.api("GET")[1]["on"], False, "the import really turned the flag off")
+        status, got = self.api("POST", {"undo": imported})
+        self.assertEqual((status, got["code"]), (409, "no_undo"), got)
+        self.assertEqual(self.api("GET")[1]["on"], False, "the refused undo left the flag as it was")
+
     def test_a_refused_undo_does_not_change_the_flags(self):
         self.flags(on=0)
         self.assertEqual(self.api("POST", {"undo": 999999})[0], 409)
