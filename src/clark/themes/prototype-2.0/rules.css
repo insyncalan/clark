@@ -349,7 +349,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 #ask-draft-close svg path { d: path("M5 12h14M13 6l6 6-6 6"); }
 /* Row 1347 (Classic only; Cards is not touched): the draft-ready card and its Open the draft button as the prototype draws them. The button is a blue rectangle, not the aqua pill; the prototype's blue has no token here: ruling 19-11 'the prototype blue, no token', so it is a named exception, held in local custom properties on this one rule and read by var() everywhere else. */
 .ask-draftcard { margin-top: 10px; gap: 10px; padding: 10px 12px; border-radius: 10px; }
-.ask-draftcard .btn.pri.sm.ask-draftcard-open { margin-left: auto; flex: none; min-height: 0; padding: 4px 10px; font-size: 13px; border-radius: 6px; --adc-blue: #3B5BDB; --adc-blue-hover: #2F4AC0; --adc-blue-dark: #3962FE; --adc-blue-glow: rgba(57,98,254,.22); background: var(--adc-blue); background-image: none; border: 1px solid var(--adc-blue); color: #fff; box-shadow: none; }
+.ask-draftcard .btn.pri.sm.ask-draftcard-open { margin-left: auto; flex: none; min-height: 0; padding: 4px 10px; font-size: 13px; border-radius: 6px; --adc-blue: #3B5BDB; --adc-blue-hover: #2F4AC0; --adc-blue-dark: #3962FE; --adc-blue-glow: rgba(57,98,254,.22); background: var(--adc-blue); background-image: none; border: 1px solid var(--adc-blue); color: var(--white); box-shadow: none; }
 .ask-draftcard .btn.pri.sm.ask-draftcard-open:hover { background: var(--adc-blue-hover); border-color: var(--adc-blue-hover); box-shadow: 0 4px 12px var(--adc-blue-glow); transform: none; }
 .ask-draftcard .btn.pri.sm.ask-draftcard-open:active { transform: scale(.98); }
 :root[data-theme=dark] .ask-draftcard .btn.pri.sm.ask-draftcard-open { background: var(--adc-blue-dark); border-color: var(--adc-blue-dark); }
@@ -677,6 +677,15 @@ html { overscroll-behavior-y: none; }
 /* Row 1305 (Classic only, the Cards look keeps the wrapped name of row 1239): the project name where it is the page title, that is the editor header's name button (.hdr-project, its static form too) and the published file's bar (.top-name), stays on one line and is cut with an ellipsis only when its box reaches half the header's width (the Dashboard link, the tabs and the buttons are never pushed). Left alone: the cover's name button (.cover-switch) and the Gantt page's cover, which are not the header. The full name is the hover tip of the editor's name button (set in the page only when this theme is on, with its "Click to change project") and the title of the file's name. Bare length: the 50 percent. */
 .hdr-id, .top-id { max-width: 50%; }
 .hdr-project, .hdr-project > span, .top-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Row 1349, ask clark button in Classic: the badge is a 9 by 9 dot at the top right corner of the button (cyan when an answer is ready, amber while one is made), ringed in the bar colour; the words stay in the button's aria-label. Bare values with no token: the 9px dot, the 4px offset of the dot's top and right edges (top: 4px, right: 4px, measured from the padding edge inside the 1px border, so 5px from the button's outer edge) and the 2px ring, as in the prototype. */
+.tb-ask { position: relative; }
+.tb-ask .tb-ask-ready, .tb-ask .tb-ask-dots { position: absolute; top: 4px; right: 4px; margin: 0; width: 9px; height: 9px; min-width: 0; padding: 0; border-radius: 50%; background: var(--brand-cyan); box-shadow: 0 0 0 2px var(--brand-navy); font-size: 0; line-height: 0; overflow: hidden; }
+.tb-ask .tb-ask-dots { background: var(--status-amber); }
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduce"]) .tb-ask .tb-ask-dots { animation: tb-ask-pulse 1s var(--ease-toggle) infinite; }
+  @keyframes tb-ask-pulse { 0%, 100% { opacity: .3; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-3px); } }
+}
+.tb-ask .tb-ask-dots i { display: none; }
 /* Row 1393 (Work items table, Classic only; the Cards look layers none of this, shell.css is untouched): item title weight 500 in the heading colour, the row line in --grey-200, the column names 13px weight 500 with 9px above and below (the Comfortable density keeps its own larger padding), the Status / Owner / Due / Priority columns 76 / 170 / 134 / 104 px as the prototype page draws them (its default column widths; only Priority changes from the shared 122) above 900 (900 keeps the shared widths), due words 13px with the late one at 600, the red and green status tile text in the status tokens, the row hover in --band-bg and the eye button 30 px. Bare lengths: the 9px header padding, the 500 weight, the widths. */
 :root { --d-colh-y: 9px; }
 table.items th { font-size: var(--size-caption); font-weight: 500; }
@@ -711,14 +720,5 @@ table.items .weye { width: 30px; height: 30px; }
 .gt-grp .gt-ib[aria-pressed="true"] { background-color: var(--brand-navy); background-image: none; color: var(--white); }
 :root[data-theme=dark] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); } }
-/* Item 1349, ask clark button in Classic: the badge is a 9 by 9 dot at the top right corner of the button (cyan when an answer is ready, amber while one is made), ringed in the bar colour; the words stay in the button's aria-label. Bare values with no token: the 9px dot, the 3px offset (4px from the button edge, past its 1px border) and the 2px ring, as in the prototype. */
-.tb-ask { position: relative; }
-.tb-ask .tb-ask-ready, .tb-ask .tb-ask-dots { position: absolute; top: 4px; right: 4px; margin: 0; width: 9px; height: 9px; min-width: 0; padding: 0; border-radius: 50%; background: var(--brand-cyan); box-shadow: 0 0 0 2px var(--brand-navy); font-size: 0; line-height: 0; overflow: hidden; }
-.tb-ask .tb-ask-dots { background: var(--status-amber); }
-@media (prefers-reduced-motion: no-preference) {
-  :root:not([data-motion="reduce"]) .tb-ask .tb-ask-dots { animation: tb-ask-pulse 1s var(--ease-toggle) infinite; }
-  @keyframes tb-ask-pulse { 0%, 100% { opacity: .3; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-3px); } }
-}
-.tb-ask .tb-ask-dots i { display: none; }
 #viewMenuList { min-width: 224px; }
 [data-gt] .gt-menu button, .gt-pop button { display: flex; align-items: center; gap: var(--space-2); }
