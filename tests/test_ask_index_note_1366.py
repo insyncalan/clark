@@ -19,12 +19,15 @@ class Reading(Stub):
         super().__init__()
         self.notes = ["Two files were left out.", "Used the Mail connector."]
         self.note = note
+        self.raw = None                      # fields set as the test says, whatever their type
 
     def ask(self, body):
         status, got = super().ask(body)
         if got.get("ok"):
             got["flags"] = [{"kind": "x", "ref": "", "message": "A flag line."}]          # the checks' lines follow all the notes
-            if self.note is False:
+            if self.raw is not None:
+                got.update(self.raw)
+            elif self.note is False:
                 got.update(index_note=None, index_note_at=1)
             elif self.note is not None:
                 got.update(index_note=self.note, index_note_at=1)          # between the two notes, as the server put it before
@@ -71,6 +74,34 @@ class Note(Classic):
             self.assertEqual(p.js(self.LINES), ["Two files were left out.", "Used the Mail connector.", "A flag line."])
 
 
+    TURNS = "[...document.querySelectorAll('.ask-turn')].map(e => e.textContent.trim())"
+
+    def lines_with(self, **raw):
+        self.stub.raw = raw
+        with chrome() as cdp:
+            p = self.asked(cdp)
+            self.turns = p.js(self.TURNS)
+            return p.js(self.LINES)
+
+    def test_classic_without_a_whole_place_puts_the_note_after_the_other_notes_before_the_flag_line(self):
+        last = ["Two files were left out.", "Used the Mail connector.", SAID, "A flag line."]
+        self.assertEqual(self.lines_with(index_note=SAID), last, "no index_note_at")
+        for at in ("1", 1.5, None, True, [1], {}):
+            self.assertEqual(self.lines_with(index_note=SAID, index_note_at=at), last, repr(at))
+
+    def test_classic_places_a_whole_number_place_and_clamps_one_past_the_end(self):
+        two = ["Two files were left out.", "Used the Mail connector."]
+        self.assertEqual(self.lines_with(index_note=SAID, index_note_at=0), [SAID] + two + ["A flag line."])
+        self.assertEqual(self.lines_with(index_note=SAID, index_note_at=2), two + [SAID, "A flag line."])
+        self.assertEqual(self.lines_with(index_note=SAID, index_note_at=99), two + [SAID, "A flag line."])
+
+    def test_classic_draws_no_note_for_an_empty_string_a_number_or_an_object(self):
+        two = ["Two files were left out.", "Used the Mail connector.", "A flag line."]
+        for bad in ("", 5, 0, {}, {"a": 1}, [SAID], True):
+            self.assertEqual(self.lines_with(index_note=bad, index_note_at=1), two, repr(bad))
+            self.assertEqual(len(self.turns), 3, f"the question, the answer and the notes block, and no turn made of {bad!r}: {self.turns}")
+
+
 class CardsNote(Note):
     THEME = None
 
@@ -82,6 +113,10 @@ class CardsNote(Note):
 
     def test_classic_draws_nothing_for_an_empty_or_malformed_note(self):
         pass
+
+    test_classic_without_a_whole_place_puts_the_note_after_the_other_notes_before_the_flag_line = test_classic_draws_nothing_for_an_empty_or_malformed_note
+    test_classic_places_a_whole_number_place_and_clamps_one_past_the_end = test_classic_draws_nothing_for_an_empty_or_malformed_note
+    test_classic_draws_no_note_for_an_empty_string_a_number_or_an_object = test_classic_draws_nothing_for_an_empty_or_malformed_note
 
     def test_cards_shows_only_the_notes_it_had(self):
         with chrome() as cdp:
