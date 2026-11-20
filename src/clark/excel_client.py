@@ -294,9 +294,9 @@ def write_glance_sheet(wb, published, sec, palette=None):
 
 
 def write_callout_text(ws, sec):
-    """Row 1272: a callout section as text blocks on the Report sheet (the workbook's first sheet, which carries the title band and the
-    headline), the lines `callout_lines` gives (heading, then the category, colour and icon line, then the words), one row each in
-    column A below what the sheet already holds, after one empty row. The heading line is bold and is left out when the callout's Heading
+    """Row 1272: a callout section as text blocks on the workbook's first sheet (Actions when the page has it), below that sheet's table,
+    the lines `callout_lines` gives (heading, then the category, colour and icon line, then the words), one row each in
+    column A below the last row the sheet already holds, after one empty row. The heading line is bold and is left out when the callout's Heading
     switch is off. Locked text, not wrapped (it runs across the empty cells to its right). Returns the number of lines written."""
     lines = callout_lines(sec)
     if not lines:
