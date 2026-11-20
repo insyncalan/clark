@@ -47,6 +47,7 @@ class Bar(unittest.TestCase):
                         self.assertEqual(names[i + 1], "More blocks: Quote, Divider", where)
                         box = h.ev("(b => { const r = b.getBoundingClientRect(); return [r.width, r.height]; })(document.querySelector('.rt-bar .rt-more'))")
                         self.assertGreaterEqual(box[0], 40, where)
+                        self.assertEqual(h.ev("document.querySelector('.rt-bar .rt-more').title"), "More blocks: Quote, Divider", where)   # the aria-label AND the tooltip
                     else:
                         self.assertIn("Quote", names, where)
                         self.assertIn("Divider", names, where)

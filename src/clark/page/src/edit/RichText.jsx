@@ -22,6 +22,7 @@ const BAR = [
 // Row 1288 (Classic only, Cards keeps its own toolbar and words): Quote and Divider share one drop-down ("1C"), and the bubble ends with Ask AI...
 const MORE = [["quote", "Quote"], ["rule", "Divider"]];
 export const ASK_AI = "Ask AI\u2026";
+const MORE_WORDS = "More blocks: Quote, Divider";
 const BUBBLE = [["bold", "B", "Bold"], ["italic", "I", "Italic"], ["strike", "S", "Strikethrough"], ["link", "Link", "Link"]];
 const STYLES = [["paragraph", "Text"], ["h1", "Heading 1"], ["h2", "Heading 2"], ["h3", "Heading 3"]];
 const SLASH = [["h1", "Heading 1"], ["h2", "Heading 2"], ["h3", "Heading 3"], ["bullet", "Bulleted list"], ["numbered", "Numbered list"],
@@ -225,7 +226,7 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
         {!oneLine && <Menu label={current ? current[1] : "Text"} ariaLabel={`Text style: ${current ? current[1] : "Text"}`} btnCls="rt-btn rt-style" left
           items={STYLES.map(([n, w]) => ({ id: n, name: w, icon: actionIcon("textStyle"), checked: current ? current[0] === n : n === "paragraph" }))} onPick={(n) => { h.run(n); tick((x) => x + 1); refocus(); }} />}
         {bar.map((b, i) => [b === "|" ? <span class="rt-sep" key={i} aria-hidden="true" /> : button(b),
-          more.length && i + 1 === moreIdx ? <Menu key="more" label="❝" ariaLabel="More blocks: Quote, Divider" btnCls="rt-btn rt-more"
+          more.length && i + 1 === moreIdx ? <Menu key="more" label="❝" ariaLabel={MORE_WORDS} tip={MORE_WORDS} btnCls="rt-btn rt-more"
             items={MORE.map(([n, w]) => ({ id: n, name: w, icon: actionIcon("textStyle") }))} onPick={(n) => { h.run(n); tick((x) => x + 1); refocus(); }} /> : null])}
         <span class="rt-keys">Cmd+Enter saves. Esc cancels.</span>
       </div>
