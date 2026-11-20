@@ -578,6 +578,8 @@ table.items .weye { width: 30px; height: 30px; }
 #feedback label { display: block; margin: var(--space-3) 0 var(--space-1); font-size: var(--size-body); font-weight: var(--weight-medium); color: var(--text); }
 #feedback textarea.grow, #feedback input.grow { display: block; box-sizing: border-box; flex: none; width: 100%; padding: var(--space-1) 10px; border: 1px solid var(--control-edge); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-body); }
 #feedback textarea.grow { min-height: calc(5 * var(--leading) * var(--size-body) + 2 * var(--space-1) + 2px); resize: vertical; }
+/* Row 1279 (Romanoff ruling 14:22, option b): under the disabled Copy as text button a muted line, the existing NOTHING_YET words, at the --size-caption 13px; the markup is drawn only in Classic and only while the button is disabled. */
+#feedback [data-feedback-hint] { margin: var(--space-1) 0 0; font-size: var(--size-caption); }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }

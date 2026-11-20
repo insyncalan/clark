@@ -85,5 +85,60 @@ class Classic(base.InBrowser):
                 self.assertEqual(m["msg"]["width"], "1px", m)
 
 
+HINT = """(function () {
+  const h = document.querySelector('[data-feedback-hint]');
+  const probe = document.createElement('i'); probe.style.color = 'var(--text-muted)'; document.body.appendChild(probe);
+  const want = getComputedStyle(probe).color; probe.remove();
+  const b = document.querySelector('[data-feedback-copy]');
+  if (!h) return JSON.stringify({present: false, disabled: b.disabled});
+  const c = getComputedStyle(h), hr = h.getBoundingClientRect(), br = b.getBoundingClientRect();
+  return JSON.stringify({present: true, disabled: b.disabled, text: h.textContent, size: c.fontSize, color: c.color, want: want,
+    below: hr.top >= br.bottom - 1, visible: hr.width > 0 && hr.height > 0});
+})()"""
+FILL = """(function () {
+  const t = document.querySelector('#feedback-message'); t.value = %s; t.dispatchEvent(new Event('input', {bubbles: true}));
+})()"""
+
+
+class Hint(Classic):
+    def hint(self, width, text=""):
+        self.measure(width)
+        if text:
+            self.js(FILL % json.dumps(text))
+            self.settle()
+        return json.loads(self.js(HINT))
+
+    def test_the_muted_line_under_the_disabled_copy_button_at_1400_and_900(self):
+        for w in (1400, 900):
+            with self.subTest(width=w):
+                m = self.hint(w)
+                self.assertTrue(m["disabled"], m)
+                self.assertTrue(m["present"], m)
+                self.assertEqual(m["text"], self.val("T.logic.NOTHING_YET"), m)
+                self.assertEqual(m["size"], "13px", m)
+                self.assertEqual(m["color"], m["want"], m)
+                self.assertTrue(m["below"] and m["visible"], m)
+
+    def test_the_line_is_gone_when_the_button_is_enabled_at_1400_and_900(self):
+        for w in (1400, 900):
+            with self.subTest(width=w):
+                m = self.hint(w, "the page is slow")
+                self.assertFalse(m["disabled"], m)
+                self.assertFalse(m["present"], m)
+
+
+class Cards(base.InBrowser):
+    def test_cards_has_no_line_at_1400_and_900(self):
+        for w in (1400, 900):
+            with self.subTest(width=w):
+                self.cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                self.js("T.mount('1.3.0', 'Win32')")
+                self.assertTrue(base.wait(lambda: self.js("!!document.querySelector('#feedback-message')"), 5), "the card is drawn")
+                self.assertFalse(self.js("!!document.getElementById('theme')"))
+                m = json.loads(self.js(HINT))
+                self.assertTrue(m["disabled"], m)
+                self.assertFalse(m["present"], m)
+
+
 if __name__ == "__main__":
     unittest.main()
