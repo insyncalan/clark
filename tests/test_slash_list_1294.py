@@ -78,6 +78,9 @@ class Singular(unittest.TestCase):
     def test_one_slash_command_and_one_action(self):
         self.assertEqual(self.run_node("SLASH_ALL_COUNTS(1, 0, 0, 1)"), "The 1 slash command for all projects (0 yours, 0 built in, 1 action).")
 
+    def test_zero_slash_commands_and_zero_actions(self):
+        self.assertEqual(self.run_node("SLASH_ALL_COUNTS(0, 0, 0, 0)"), "The 0 slash commands for all projects (0 yours, 0 built in, 0 actions).")
+
     def test_two_slash_commands_and_two_actions(self):
         self.assertEqual(self.run_node("SLASH_ALL_COUNTS(2, 0, 0, 2)"), "The 2 slash commands for all projects (0 yours, 0 built in, 2 actions).")
 
