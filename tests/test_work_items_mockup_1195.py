@@ -463,7 +463,7 @@ class Classic(Look):
             p.edit()
             p.until(f"!!document.querySelector('{sec} [data-wil-gear]') && !!document.querySelector('{sec} .wil-all-b')", "Edit has the link too")
 
-    def test_the_views_list_scroll_bar_is_hidden_in_view_and_not_in_edit(self):
+    def test_the_views_list_scroll_bar_is_hidden_in_view_and_in_edit_row_1308(self):
         ref = self.add({"mode": "all", "max": 2, "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
         with T.chrome() as cdp:
             p = self.show(cdp, 1400)
@@ -475,7 +475,7 @@ class Classic(Look):
             self.assertEqual((width, bar), ("none", 0), "View: no scroll bar")
             p.edit()
             p.until(f"!!document.querySelector('{sec} .wil-scroll') && document.querySelector('#report').dataset.mode === 'edit'", "Edit drew")
-            self.assertEqual(p.js(probe)[0], "auto", "Edit keeps its scroll bar")
+            self.assertEqual(p.js(probe)[0], "none", "Edit: no scroll bar either (Row 1308)")
 
     def test_the_type_column_is_not_drawn_nor_offered_in_configure(self):
         ref = self.add({"mode": "all", "columns": ["type", "id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})

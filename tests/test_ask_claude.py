@@ -194,7 +194,13 @@ class Arguments(Fake):
         self.assertEqual(ac.arguments("/x/claude"), [
             "/x/claude", "--print", "--safe-mode", "--disable-slash-commands", "--tools", "", "--strict-mcp-config",
             "--setting-sources", "", "--no-session-persistence", "--max-turns", "1", "--output-format", "json",
-            "--max-budget-usd", "1.00", "--system-prompt", ask.RULES])
+            "--system-prompt", ask.RULES])
+
+    def test_there_is_no_cost_cap_flag_on_the_command_line_and_none_is_required(self):
+        for model in (None, "opus"):
+            self.assertNotIn("--max-budget-usd", ac.arguments("/x/claude", model=model))
+        self.assertNotIn("--max-budget-usd", ac.NEEDED_FLAGS)
+        self.assertFalse(hasattr(ac, "MAX_BUDGET_USD"))
 
     def test_every_flag_the_run_uses_is_checked_in_the_help_except_the_documented_unlisted_one(self):
         used = {a for a in ac.arguments("/x/claude", model="opus")[1:] if a.startswith("--") and a != ask.RULES}
