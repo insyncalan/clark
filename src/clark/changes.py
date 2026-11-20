@@ -287,7 +287,7 @@ UC_STANDING_WORDS = "That text can't be saved. It may be too long, or not text."
 UC_REF_WORDS = f"A use case needs an ID of 1 to {UC_REF_LIMIT} characters, with no line breaks or hidden characters."
 UC_REF_USED = "That ID is already used by another use case of this project."
 UC_NOT_MINE = NOT_MINE_RECORD                          # another project's use case and a missing one: the same words
-BUILT_IN_TITLES = {"current": "Current state", **{s["type"]: s["title"] for s in clark_store.DEFAULT_SECTIONS if s["type"] != "text"}}   # item 1188: "current" is no longer a default section (the first is text now), but it stays re-addable, so it is named here
+BUILT_IN_TITLES = {"current": "Current state", "glance": "At a glance", "usecases": "Use case summary", "milestones": "Milestones", "raid": "Risks and issues", "actions": "Open actions", "decisions": "Decisions", "docs": "Supporting documents"}   # rows 1193-8, 9 and 10: spelled out, not read from the defaults, because the default Risks and issues is a Work items list now (a template type: many, any title, so not a built-in) and so are the default Open actions and Decisions; every older built-in stays re-addable under its own title; item 1188: "current" is no longer a default section
 BUILT_IN_TYPES = tuple(BUILT_IN_TITLES)   # row 906: re-added from Add a section, one of each
 NEW_SECTION_TYPES = ("text",) + tuple(t for t in section_bodies.BODY_TYPES if t != section_bodies.NEEDS) + tuple(t for t in BUILT_IN_TYPES if t != section_bodies.NEEDS) + ("gantt", "gantttable")         # item 1158: no new needs section; what a new section may be: an allow-list, never the request's own spelling; gantttable (row 1068) is the Gantt table alone, no body either
 NEW_TYPE_WORDS = "That kind of section can't be added."
@@ -536,6 +536,7 @@ PICTURES = "pictures"                     # the one field of a picture template'
 IMAGE_KEYS = ("project", "section", "slot", "image", "place")
 FULL_IMAGE_START = section_kinds.REGISTRY["imagecap"].START         # row 1223: the one body a new imagecap section may be given (the Full width image)
 WORK_ITEMS_START = section_kinds.REGISTRY["workitems"].START       # row 1268: the one body a new Work items list may be given (the saved filter it starts from)
+REPORT_HEADLINE_START = section_kinds.REGISTRY["reportheadline"].START   # row 1261: the one body a new Report headline may be given (the health pill off, when At a glance already shows the health)
 SIDE_BY_SIDE_START = section_kinds.REGISTRY["textimage"].START   # row 1232: the one body a new textimage section may be given (Text and Image Side by Side)
 NO_PICTURE_HERE = "That section can't hold a picture."
 PICTURE_NOT_TEXT = "Send the picture as text, or nothing to take it out."
@@ -802,6 +803,8 @@ def _do_change(store, by_user, req):
                 start_body = values["body"]                         # row 1223: the Full width image starts as an imagecap body of version 2, and only with this body
             elif new_type == "workitems" and values["body"] == WORK_ITEMS_START:
                 start_body = values["body"]                         # row 1268: a new Work items list starts with a saved filter, and only with this one
+            elif new_type == "reportheadline" and values["body"] == REPORT_HEADLINE_START:
+                start_body = values["body"]                         # row 1261: a new Report headline starts with its health pill off, and only with this body
             elif new_type != "text":
                 raise Refused(NO_BODY_HERE)
             else:

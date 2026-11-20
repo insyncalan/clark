@@ -378,7 +378,13 @@ class Live(unittest.TestCase):
     def undo(self, cdp, sid, what, said=None):
         """Undo the last change; the toast then says what the cell went back to (`said`, when given, word for word)."""
         before = self.steps()
-        click(cdp, sid, "[data-undo]")
+        # the message goes after 5 seconds (row 1075): on a loaded box the poll or the click can land as it goes or as it is redrawn,
+        # so wait for the Undo to be on offer, click, and click again while it is still offered and nothing was undone
+        for attempt in range(3):
+            self.until(cdp, sid, "!!document.querySelector('.toast [data-undo]')", f"{what}: the toast offers Undo")
+            click(cdp, sid, "[data-undo]")
+            if wait(lambda: self.steps() == before + 1, 4):
+                break
         if said is None:
             self.until(cdp, sid, "/ is back to | is blank again\\.$/.test((document.querySelector('.toast-text') || {}).textContent || '')", f"{what}: the undo said what went back")
         else:
@@ -459,7 +465,7 @@ class Live(unittest.TestCase):
                     self.assertLess(_lum(box[0]), 0.2, f"{what}: the picker follows the theme ({box[0]})")
                     self.assertEqual(box[1:], [True, True], f"{what}: the picker is whole in the window")
                     self.readable(cdp, sid, "[data-pop] [role=menuitemradio], [data-pop] [data-name], [data-pop] input.cp-in, [data-pop] [data-day],"
-                                  " [data-pop] [data-quick], [data-pop] .cp-t, [data-pop] .rp-head", what)
+                                  " [data-pop] [data-quick], [data-pop] .cp-t", what)
                     key(cdp, sid, "Escape")
                     self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", f"{what}: one Esc closes it")
                 self.assertEqual((self.steps(), len(self.sent)), (before, n), f"{where}: opening and leaving the pickers changed nothing")

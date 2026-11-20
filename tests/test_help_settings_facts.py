@@ -17,7 +17,7 @@ PROFILE_TASK = next(t for t in RAW["howto"]["tasks"] if t["id"] == "set-your-pro
 
 
 CARD_NAMES = {"Essentials": "Essentials", "Profile": "Profile", "ClientFolder": "Publishing", "Personal": "Personal", "ReviewDays": "Freshness", "GanttSetting": "Gantt", "Diagnostics": "Logs and diagnostics",
-              "Projects": "Projects", "Data": "Data", "Safety": "Backups", "Update": "Version and updates", "Brands": "Brands", "People": "People", "AskSettings": "Asking", "Feedback": "Feedback", "Quit": "Quit"}
+              "Projects": "Projects", "Data": "Data", "Safety": "Backups", "Update": "Version and updates", "Brands": "Brands", "ThemeSettings": "Theme", "People": "People", "AskSettings": "Asking", "Feedback": "Feedback", "Quit": "Quit"}
 
 
 def chips():

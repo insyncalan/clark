@@ -400,7 +400,7 @@ class PageSide(unittest.TestCase):
         """Their words are held back with Help's until their slice ships: no name, description or parts on the page."""
         self.assertEqual({k for x in self.val("T.templates.LATER") for k in x}, {"id", "type", "ready"})
         later = [x["id"] for x in self.val("T.templates.LATER")]
-        self.assertEqual(len(later), 3)      # three entries are held (headline, the report headline of row 1261 slice 1, the glance template of row 1264 slice 1: their words wait); the rest are in the box
+        self.assertEqual(len(later), 1)      # one entry is held (headline: its words wait); the report headline is a card now (row 1261); the rest are in the box, the glance template of row 1264 slice 9 among them
         listed = [x["id"] for x in self.val("T.templates.list()")]
         self.assertEqual(set(later) & set(listed), set())
         for tid in later:
@@ -408,7 +408,11 @@ class PageSide(unittest.TestCase):
 
     def test_a_stub_is_empty_and_a_built_in_type_is_not_a_template(self):
         for t in section_kinds.TYPES:
-            self.assertIs(self.val(f"T.templateEmpty({{id: 'x', type: {json.dumps(t)}, body: '{{\"v\":1}}'}}, {{}})"), True, t)
+            body = '{"v":1}'   # row 1264: the glance template with no rows and no bespoke tile has nothing to show
+            self.assertIs(self.val(f"T.templateEmpty({{id: 'x', type: {json.dumps(t)}, body: {json.dumps(body)}}}, {{}})"), True, t)
+        # row 1264 (B4): a glance template with every counting eye off is emptied on purpose; the View says so, so it is not empty
+        allhid = '{"v":1,"builtin":{"overdue":{"hidden":true},"risks":{"hidden":true},"decisions":{"hidden":true}}}'
+        self.assertIs(self.val(f"T.templateEmpty({{id: 'x', type: 'glancetemplate', body: {json.dumps(allhid)}}}, {{}})"), False)
         for t in BUILT_IN:
             self.assertIsNone(self.val(f"T.templateFor({json.dumps(t)})"), t)
             self.assertIs(self.val(f"T.templateEmpty({{id: 'x', type: {json.dumps(t)}}}, {{}})"), False, t)

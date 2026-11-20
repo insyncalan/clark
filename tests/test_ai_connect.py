@@ -183,7 +183,7 @@ class Both(Base):
         self.claude.signed_in = False
         _, b = self.connect.connect({"provider": "chatgpt"})
         self.assertEqual(b["model"], "gpt-6.1-sol")
-        self.assertIn("GPT-6.1 Sol", b["message"])
+        self.assertEqual(b["message"], ac.CONNECTED)
         self.chain.ask(self.request())
         self.assertEqual(self.chatgpt.asked, ["gpt-6.1-sol"])
 
@@ -230,9 +230,9 @@ class TheFileLock(Base):
 class TheSizes(unittest.TestCase):
     def test_chatgpt_has_its_own_limit_per_model(self):
         prov = ai_providers.ChatGPTSubscription(command=FakeProviderCommand())
-        self.assertEqual(prov.most_chars("gpt-6.1-sol"), 250000)
-        self.assertEqual(prov.most_chars("gpt-6-luna"), 136000)
-        got = prov.ask(ask.Request(text="x" * 136001, question="q"), "gpt-6-luna")
+        self.assertEqual(prov.most_chars("gpt-6.1-sol"), 1_000_000)       # row 1293: 500,000 tokens at 2 characters a token
+        self.assertEqual(prov.most_chars("gpt-6-luna"), 544_000)
+        got = prov.ask(ask.Request(text="x" * 544_001, question="q"), "gpt-6-luna")
         self.assertEqual(got, ask.Failure(ai_providers.TOO_BIG.format(model="GPT-6 Luna")))
 
 

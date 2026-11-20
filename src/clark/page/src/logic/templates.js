@@ -11,6 +11,8 @@ import { rows } from "./placement.js";
 import { TEMPLATE_TYPES, PENDING_TYPES } from "../templates/types.js";
 import { WORDS } from "./fullImageWords.js";
 import { defaults, bodyOf } from "../templates/workItemsList.js";
+import { glanceShowsHealth } from "../templates/glanceBody.js";
+import { PLAN_SUMMARY_BODY } from "./planSummaryBody.js";
 
 // What the store takes in a new section (changes.py NEW_SECTION_TYPES: text
 // and every type in the template registry (#96)). A template whose type is not here is listed but not offered.
@@ -42,6 +44,11 @@ export const TEMPLATES = [
     description: "Three or four numbers with labels and a change since last week.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed", "Figure · typed", "Caption"] },
   { id: "figures-3", name: "Key figures, three", kind: "figures", fit: ["full", "half"], type: "figures3", title: "Key figures", body: "", ready: true,
     description: "Three numbers with labels, in wider cards, so a short note fits under the change.", holds: ["Heading", "Figure · live", "Figure · live", "Figure · typed"] },
+  // Row 1264 slice 9: the glance template (type glancetemplate), its own card beside the built-in At a glance card (that name is taken). The words are
+  // the ruled ones (words file group 1): the name, the description and the holds list, quoted. The new section starts with the card's name as its title.
+  { id: "glance-template", name: "Project at a glance", kind: "figures", fit: ["full", "half"], type: "glancetemplate", title: "Project at a glance", body: "", ready: true,
+    description: "Three counts, an optional project health and tiles of your own.",
+    holds: ["Decisions needed", "High risks and issues", "Overdue actions", "optional Project health", "your own tiles"] },
   { id: "gallery", name: "Image gallery", kind: "text", fit: ["full"], type: "gallery", title: "Image gallery", body: "", ready: true,
     description: "Pictures in a grid, each with a caption.", holds: ["Heading", "Image", "Caption", "Image", "Caption", "Image"] },
   { id: "table", name: "Table", kind: "notes", fit: ["full"], type: "table", title: "Table", body: "", ready: true,
@@ -54,6 +61,10 @@ export const TEMPLATES = [
     description: "Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed.", holds: ["Heading", "Filter (set in Edit)", "Work item list · live", "Caption (optional)"] },
   { id: "docs-links", name: "Documents and links", kind: "files", fit: ["full", "half"], type: "doclinks", title: "Documents and links", body: "", ready: true,
     description: "The papers that go with this week’s report.", holds: ["Heading", "File (one or more)", "Link list"] },
+  // Row 1261: the Report headline card (type reportheadline). Name: "Report headline" (the owner's rename 16-11, the ticket title; ruling 20-11). Description:
+  // the ticket's own title words (Row 1261: "health pill, headline and supporting sentence at the top of the report"); `holds` are the Edit part's fields.
+  { id: "report-headline", name: "Report headline", kind: "info", fit: ["full", "half"], type: "reportheadline", title: "Headline", body: "", ready: true,
+    description: "A health pill, a headline and a supporting sentence at the top of the report.", holds: ["Health pill · optional", "Headline", "Supporting sentence"] },
   { id: "callout", name: "Callout", kind: "info", fit: ["half", "full"], type: "callout", title: "Callout", body: "", ready: true,
     description: "One thing the reader must see.", more: "Type a category of your own or pick one, then a colour and an icon. Or leave them out.",
     holds: ["Heading", "Callout · decision", "Callout · category, colour, icon", "Callout · tile and heading on or off"] },      // item 1272 G: `more` is the extra line under the description
@@ -76,7 +87,7 @@ export const TEMPLATES = [
   { id: "current-state", name: "Header and Text", kind: "text", fit: ["full", "half"], type: "text", title: "Current state", body: "", ready: true,
     description: "The state of the project in a few lines, to sit beside another section.", holds: ["Heading", "Text"] },
   { id: "plan-summary", name: "Plan summary", kind: "text", fit: ["full", "half"], type: "text", title: "Plan summary", ready: true,
-    body: "<h2>Where we are</h2><p></p><h2>What is next</h2><ul><li></li></ul>",
+    body: PLAN_SUMMARY_BODY,
     description: "Where the plan stands, in clark’s one editor: headings, lists and links. Starts with two headings to fill in.",
     holds: ["Heading", "Rich text: headings, lists, quote, links"] },
   { id: "gantt", name: "Gantt", kind: "dates", fit: ["full"], type: "gantt", title: "Gantt", body: "", ready: true,
@@ -93,12 +104,11 @@ export const TEMPLATES = [
 // words and its Help row.
 export const LATER = [
   { id: "headline", type: "headline", ready: true },
-  { id: "glance-template", type: "glancetemplate", ready: true },     // row 1264 slice 1: data layer only; View, Edit and the library card come later
-  { id: "report-headline", type: "reportheadline", ready: true },     // row 1261 slice 1: View only; Edit and the library card come later
 ];
 
 // The built-in sections (row 906): a deleted one is added again from the box, one of each, with the title and settings it starts
 // with (changes.py BUILT_IN_TYPES). Listed only while the report has no section of that type (`list` and `counts` take `sections`).
+// Row 1407: Risks and issues, Open actions and Decisions are not in this list; the Work items list (its views in filterLine.js) covers them.
 // Item 1190: At a glance has its words, parts and width like any template; the section it makes is the built-in's own (type glance),
 // so the tiles, the edit in place, View, Word, Excel and the published file are the built-in's. Offered while the report has none.
 const GLANCE_CARD = { fit: ["full"], description: "The project’s health, and counts of overdue actions, high risks and issues, and decisions needed.",
@@ -114,8 +124,7 @@ export const MILESTONES_CARD = { fit: ["full"], description: "The milestones on 
 const builtIn = (type, title, kind, more = {}) => ({ id: `built-in-${type}`, name: title, kind, fit: ["full"], type, title, body: "", ready: true, description: "", holds: [], builtIn: true, ...more });
 export const BUILT_INS = [
   builtIn("current", "Current state", "text"), builtIn("glance", "At a glance", "figures", GLANCE_CARD), builtIn("usecases", "Use case summary", "work", USECASES_CARD),
-  builtIn("milestones", "Milestones", "dates", MILESTONES_CARD), builtIn("raid", "Risks and issues", "work"), builtIn("actions", "Open actions", "work"),
-  builtIn("decisions", "Decisions", "work"), builtIn("docs", "Supporting documents", "files"),
+  builtIn("milestones", "Milestones", "dates", MILESTONES_CARD), builtIn("docs", "Supporting documents", "files"),      // row 1407: no Risks and issues, Open actions or Decisions card: the Work items list covers them
 ];
 // Item 1188: the first default section is now the text section "Current state", which "Header and Text" also adds, so the older
 // "current" built-in is not offered (a second card that makes the same heading); a report that has one keeps it.
@@ -151,6 +160,7 @@ export const SKETCHES = {
   "raid-4": ["grid-template-columns:repeat(4,1fr)", ["border-top:3px solid var(--status-red)", "border-top:3px solid var(--status-amber)", "border-top:3px solid var(--status-amber)", ""]],
   "work-items": ["grid-template-rows:repeat(4,1fr)", ["width:90%", "width:75%", "width:85%", "width:70%"]],
   "docs-links": ["grid-template-rows:repeat(3,1fr)", ["", "", ""]],
+  "report-headline": ["grid-template-columns:1fr 3fr", ["border-radius:999px;background:var(--status-amber-tint)", ""]],
   "callout": ["", ["background:var(--status-amber-tint);border-left:3px solid var(--status-amber)"]],
   "image-caption": ["grid-template-rows:2fr 1fr", [IMG, "width:50%"]],
   "full-image": ["grid-template-rows:3fr 1fr", [IMG, "width:40%"]],
@@ -166,6 +176,7 @@ export const SKETCHES = {
   "current-state": ["grid-template-rows:repeat(3,1fr)", ["width:85%", "width:70%", "width:50%"]],
   "built-in-usecases": ["grid-template-rows:repeat(4,1fr)", ["width:35%", "width:90%", "width:75%", "width:85%"]],
   "plan-summary": ["grid-template-rows:repeat(4,1fr)", ["width:40%", "width:80%", "width:40%", "width:70%"]],
+  "glance-template": ["grid-template-columns:repeat(3,1fr)", ["border-top:3px solid var(--status-red)", "border-top:3px solid var(--status-amber)", "border-top:3px solid var(--status-green)"]],      // row 1264: low tiles, a tone edge on each
   "built-in-glance": ["grid-template-columns:repeat(4,1fr)", ["", "border-top:3px solid var(--status-red)", "border-top:3px solid var(--status-amber)", ""]],
 };
 
@@ -231,8 +242,11 @@ export function besideState(sections, after, template) {
 // half. { ok: true, requests, words } or { ok: false, message }. Always one request: `new` takes `beside`, and clark sets the pairing
 // (or clears a stale one on the last section) in the same step. Today a template other than the available ones is refused here, in words,
 // before anything is sent.
+// Row 1261: health shows once. A new Report headline starts with its pill off when At a glance already shows the health (a new project starts with the built-in one), on otherwise.
+export const REPORT_HEADLINE_NO_PILL = '{"pill":false,"v":1}';      // section_kinds/reportheadline.py START
 export function plan(sections, id, after, beside = false) {
-  const t = find(id);
+  const t0 = find(id);
+  const t = t0 && t0.type === "reportheadline" && glanceShowsHealth(sections) ? { ...t0, start: REPORT_HEADLINE_NO_PILL } : t0;
   if (!t) return { ok: false, message: MESSAGES.unknown };
   if (t.builtIn && !missing(sections).includes(t)) return { ok: false, message: MESSAGES.unknown };      // already in the report: not offered twice
   if (!available(t)) return { ok: false, message: MESSAGES.later };

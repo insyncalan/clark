@@ -30,6 +30,7 @@ class PublishedTabs(unittest.TestCase):
 
     def test_one_eyebrow_style_and_the_headline_on_the_use_cases_tab(self):
         demo = DemoStore()
+        demo.plant_builtin_sections()      # the Work items tab is in the file only with a built-in section (row 1193)
         HEAD = "Matching is on track for the next close"
         with demo.store.step("dashboard", USER) as st:
             st.update("use_cases", demo.use_case, {"headline": HEAD})
