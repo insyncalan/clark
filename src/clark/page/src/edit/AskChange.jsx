@@ -121,7 +121,7 @@ function ChangeCard({ plan, turn, index, passages }) {
   const kept = (turn.cards && turn.cards[index]) || {};
   const state = kept.state || "offered", line = kept.line || "", step = kept.step === undefined ? null : kept.step;
   const classic = classicTheme();
-  const grouped = classic && !!(turn.group && turn.group.state);          // one Undo for the lot sits above the cards
+  const grouped = !!(turn.group && turn.group.state);          // one Undo for the lot sits above the cards
   const [ticked, setTicked] = useState(false);
   const setState = (v) => keepCard(turn, index, { state: v }), setLine = (v) => keepCard(turn, index, { line: v });
   const live = panelState.value === "ready";
@@ -167,7 +167,7 @@ function ChangeCard({ plan, turn, index, passages }) {
         <header class="ask-change-head">
           {plan.new ? <strong>{W.NEW_HEAD}</strong> : <ItemLink plan={plan} />}
           {plan.new ? <span class="muted">{kind}</span> : typeof plan.title === "string" && plan.title ? <span class="ask-change-title" data-ask-title>{plan.title}</span> : null}
-          {!plan.new && typeof plan.owner === "string" && plan.owner.trim() ? <span class="muted ask-change-owner" data-ask-owner>{W.FIELD_NAMES[plan.kind === "decisions" ? "made_by" : "owner"]}: {plan.owner}</span> : null}
+          {!plan.new && typeof plan.owner === "string" && plan.owner !== "" ? <span class="muted ask-change-owner" data-ask-owner>{W.FIELD_NAMES[plan.kind === "decisions" ? "made_by" : "owner"]}: {plan.owner}</span> : null}
         </header>
       ) : (
         <header class="ask-change-head">
