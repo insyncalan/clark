@@ -19,7 +19,7 @@ from clark import page, theme
 NAME = "prototype-2.0"
 RULES = (ROOT / "src" / "clark" / "themes" / NAME / "rules.css").read_text(encoding="utf-8")
 M1370, NEXT = "/* Row 1370", "/* Row 1393"
-PART = RULES[RULES.index(M1370):RULES.index(NEXT)]
+PART = RULES[RULES.index(M1370):RULES.index("/* Row 1305")]
 HEADER = "document.querySelector('.top-hdr, .top-file')"
 PAGE_PROBE = """(() => { const h = getComputedStyle(document.documentElement), b = getComputedStyle(document.body);
   return {overscroll: h.overscrollBehaviorY, bg: b.backgroundColor, top: %s.getBoundingClientRect().top, scrollTop: document.scrollingElement.scrollTop}; })()""" % HEADER
