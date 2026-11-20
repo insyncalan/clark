@@ -28,7 +28,21 @@ MAX_TURN = 4000
 MAX_PASSAGES = 60
 MAX_PASSAGE = ask_words.ROW_CUT_AT          # one passage is a paragraph or two (about 1,200 characters in the plan); this is the hard ceiling
 MAX_LABEL = 200
-MAX_REQUEST = BUDGET + 30000   # 1,230,000: the whole text: question, earlier turns and passages
+REQUEST_OVERHEAD = 30000       # characters kept free beside the passages: the question, earlier turns, standing instructions and the provider's own prompt
+MAX_REQUEST = BUDGET + REQUEST_OVERHEAD   # 1,230,000: the whole text: question, earlier turns and passages
+
+
+def budget_for(limit):
+    """Row 1293: the characters of passages one request may carry for a model that takes `limit` characters in all (None: not known, the
+    fixed BUDGET). A full question is cut to this and said, never refused for the model's window."""
+    if limit is None:
+        return BUDGET
+    return max(0, min(BUDGET, limit - REQUEST_OVERHEAD))
+
+
+def request_cap(limit):
+    """The longest whole request text for a model that takes `limit` characters (None: MAX_REQUEST)."""
+    return MAX_REQUEST if limit is None else min(MAX_REQUEST, limit)
 
 TOO_LONG = f"That question is too long. It can be {MAX_QUESTION:,} characters at most. Make it shorter and ask again."
 CHAT_TOO_LONG = "This chat has got too long. Start a new chat and ask again."
@@ -237,11 +251,12 @@ def _standing(instructions):
     return out
 
 
-def build_request(question, passages, earlier=(), today="", partial=(), instructions=None):
+def build_request(question, passages, earlier=(), today="", partial=(), instructions=None, max_request=None):
     """Build the one request text. `passages` is a sequence of `Passage` (or (label, text) pairs); the builder gives them the IDs
     P1, P2 ... in order. `earlier` is the chat so far as (role, text) pairs, role "user" or "assistant". Raises `AskRefused` (plain
     words) for an empty or over-long question, a password-looking string in what the person typed, a label that is a path, or more
     text than the budget. Text is carried exactly as given."""
+    max_request = MAX_REQUEST if max_request is None else max_request      # Row 1293: a model with a smaller window gives a smaller cap
     turns, gone = _trim(check_question(question, earlier))
     chosen, kept, secret_out = [], [], 0
     for n, p in enumerate(passages or ()):
@@ -263,7 +278,7 @@ def build_request(question, passages, earlier=(), today="", partial=(), instruct
     dropped = 0
     while True:                     # a long chat gives up its oldest turns first, so a narrow question isn't refused for them
         body, ids, hidden = _assemble(question, turns[dropped:], chosen, head, standing)
-        if len(body) <= MAX_REQUEST:
+        if len(body) <= max_request:
             break
         if dropped >= len(turns):
             raise AskRefused(TOO_MUCH)

@@ -189,6 +189,8 @@ class AskService:
             added = ask_files.passages(body.get("files"))      # #1292 S14: the files of this question only, screened like any passage; nothing is kept
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
+        window = getattr(self.provider, "most_chars", lambda: None)()      # Row 1293: what the chosen model takes; a full question is cut to it, not refused
+        budget = ask.budget_for(window)
         with self.lock:
             try:
                 store = self.reader()
@@ -201,7 +203,7 @@ class AskService:
                 if row.get("archived"):
                     return 409, self.fail("project_archived")
                 try:
-                    data = ask_data.project_data(store, code, " ".join([question, *ask_data.ids_in_turns(earlier)]), PROJECT_SHARE)
+                    data = ask_data.project_data(store, code, " ".join([question, *ask_data.ids_in_turns(earlier)]), min(PROJECT_SHARE, budget))
                 except publish.PublishError:
                     return 404, self.fail("project_not_found")
                 folders = self.folders_for(store, code)
@@ -211,13 +213,14 @@ class AskService:
                 store.close()
         used = sum(len(p.text) for p in data.passages)         # the folders get what the project's own data left of the budget
         try:
-            found = ask_passages.folder_data(folders, self.data_dir, question, ask.BUDGET - used, self.home,
+            found = ask_passages.folder_data(folders, self.data_dir, question, budget - used, self.home,
                                              ask.MAX_PASSAGES - len(data.passages))
         except Exception:                            # noqa: BLE001 a folder that fails in a way not foreseen sends nothing
             return 200, self.fail("folders_unreadable")
         try:
             request = ask.build_request(question, tuple(data.passages) + tuple(found.passages) + tuple(added), earlier,
-                                        today=data.today, partial=ask_data.partial_lines(data.counts), instructions=standing)
+                                        today=data.today, partial=ask_data.partial_lines(data.counts), instructions=standing,
+                                        max_request=ask.request_cap(window))
         except ask.AskRefused as e:
             return 400, self.fail("refused", str(e))
         facts = data.facts
