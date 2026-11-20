@@ -93,6 +93,19 @@ class AskAbout(Classic):
                 self.assertTrue(p.js("""(() => { const r = document.querySelector('.wil-table tr[data-id]'); const s = r.querySelector('[data-ask-about]').getBoundingClientRect();
                   const t = r.querySelector('.wil-c-title').getBoundingClientRect(); return s.left > t.right - 1 && s.width >= 24 && s.height >= 24; })()"""), "right of the title, a target of 24 px or more")
 
+    def test_the_sparkle_says_the_approved_words_in_its_tooltip_and_its_label(self):
+        """Row 1292 (NEW-WORDS L1491 tooltip, L1500 aria label): a capital A, 'clark' lower case; the label names the row's id and title."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.edit_ready(cdp, width)
+                got = p.js("""(() => { const r = document.querySelector('.wil-table tr[data-id]'); const b = r.querySelector('[data-ask-about]');
+                  const s = document.querySelector('.sec-head [data-ask-about]');
+                  return [b.getAttribute('title'), b.getAttribute('aria-label'), r.dataset.id, s.getAttribute('title'), s.getAttribute('aria-label')]; })()""")
+                self.assertEqual(got[0], "Ask clark about this")
+                self.assertEqual(got[3], "Ask clark about this")
+                self.assertTrue(got[1].startswith("Ask clark about ") and got[1][len("Ask clark about "):].startswith(got[2]), got)
+                self.assertTrue(got[4].startswith("Ask clark about ") and len(got[4]) > len("Ask clark about "), got)
+
     def test_a_sparkle_opens_the_panel_with_a_chip_and_suggestions_about_it(self):
         with chrome() as cdp:
             p = self.edit_ready(cdp)
