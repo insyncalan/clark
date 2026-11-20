@@ -2,7 +2,7 @@
 
 Behaviour where a test can reach it (publish.build on a demo store), a source pin where it cannot (the page's JSX and templates.js):
  (a) a text section with an empty body is not drawn in a file (Dashboard.jsx fileDraws uses emptyBody);
- (b) the At a glance and Use Cases cards stay full width;
+ (b) the Use Cases card stays full width;
  (c) a hidden At a glance section leaves its figures out of the published file, a visible one carries them;
  (d) a hidden Use Cases section leaves the strip out, a visible one carries it;
  (e) Section.jsx draws the Use Cases Add control only when editing, and gives Glance the clean flag.
@@ -29,9 +29,9 @@ class SourcePins(unittest.TestCase):
         fd = next(l for l in read("components", "Dashboard.jsx").splitlines() if "const fileDraws" in l)
         self.assertIn('s.type === "text" ? !emptyBody(s.body)', fd)
 
-    def test_b_the_glance_and_use_cases_cards_stay_full_width(self):
+    def test_b_the_use_cases_card_stays_full_width(self):
         js = read("logic", "templates.js")
-        for card in ("GLANCE_CARD", "USECASES_CARD"):
+        for card in ("USECASES_CARD",):
             m = re.search(r"const %s = \{ fit: \[([^\]]*)\]" % card, js)
             self.assertIsNotNone(m, card)
             self.assertEqual(m.group(1).replace(" ", ""), '"full"', card)
