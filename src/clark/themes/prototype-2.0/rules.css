@@ -313,7 +313,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .ucl-table .stp { display: block; }
 .ucl-table .prg { display: block; box-sizing: border-box; width: 88px; max-width: 100%; height: 4px; margin-top: 7px; border-radius: 2px; background: var(--grey-100); overflow: hidden; }
 .ucl-table .prg i { display: block; height: 100%; background: var(--status-green); }
-.ucl-table .mslab { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ucl-table .mslab { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--text-muted); }   /* slice B: 13px, the muted grey (spec: base.css .mslab) */
 .ucl-table tbody tr:hover, .ucl-table tbody tr:focus-within { background: var(--grey-100); }
 #usecases .ucl-table { --wil-uc-off: #667391; }
 :root[data-theme=dark] #usecases .ucl-table { --wil-uc-off: var(--text-muted); }
@@ -330,11 +330,13 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
   .ucl-table .c-ms, .ucl-table .c-cm, .ucl-table .c-rel, .ucl-table .c-dash { display: none; }
   .ucl-table .own .on { display: none; }
   .ucl-table .c-where { width: 25%; }
-  .ucl-table .c-status { width: 96px; }
-  .ucl-table .c-owner { width: 88px; white-space: nowrap; }
+  .ucl-table.items .c-status { width: 96px; }      /* slice B: .items makes these as strong as the shared 900px rules (76, 130), which came later and won */
+  .ucl-table.items .c-owner { width: 88px; white-space: nowrap; }
   .ucl-table .c-steps { width: 124px; }
 }
 .cols-menu .ck[data-on]::before { content: "\2713"; }
+#usecases .ddmenu.cols-menu { width: 280px; }      /* slice B: the Use cases Columns menu is 280px wide, 260px at 900 and narrower (spec: extra.css .cols-menu) */
+@media (max-width: 900px) { #usecases .ddmenu.cols-menu { width: 260px; } }
 /* Row 1325 (Classic only): the view tabs are as wide as on Work items (the shared rule narrows them by two px a side; the Columns and Group by buttons moved off this row, so they fit). */
 #usecases .ucl-views .vtab { padding-left: 10px; padding-right: 10px; }
 /* Row 1351, the ask clark page tabs: 29 px high in Classic (the Settings mock-up's tab pills; the base, which Cards keeps, is 36). Only the height moves; the pill shape, padding and colours stay as they are. */
@@ -347,7 +349,11 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .ask-tab[aria-current] { background: var(--brand-blue); color: var(--text-on-brand); font-weight: 600; }
 @media (max-width: 900px) { #main:has(#ask-tabs) { padding: 6px 16px 30px; } }
 .ask-model { align-items: baseline; column-gap: 12px; }
-.ask-model .ask-model-name { font-weight: 600; color: var(--text); }
+.ask-model .ask-model-text { flex: 1 1 auto; }
+.ask-model .ask-model-label { display: block; font-weight: 400; color: var(--text); }
+.ask-model .ask-model-same { display: block; font-size: 13px; color: var(--text-muted); }
+.ask-model .ask-model-name { font-weight: 400; color: var(--text-muted); }
+#ask-used-all .ask-model-note { margin: 6px 6px 0; font-size: 13px; }
 .ask-model .ask-model-change { all: unset; cursor: pointer; color: var(--text); font-size: var(--size-small); border-bottom: 1px dashed var(--text-muted); }
 .ask-model .ask-model-change:hover { color: var(--brand-blue); border-bottom-color: var(--brand-blue); }
 .ask-model .ask-model-change:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
@@ -518,6 +524,34 @@ html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tce
 .uc .ucref { padding: 1px var(--space-2); border: 1px solid var(--grey-500); font-weight: var(--weight-regular); }
 .uc .cchip { border-radius: var(--radius-pill); font-weight: var(--weight-regular); line-height: 18px; }
 .uc .cchip:not(.cc-committed) { border-color: var(--grey-200); color: var(--text-muted); }
+/* Row 1292 (Classic only: the sparkle is drawn only when the Theme layer is on, so Cards has none): Ask about this, the numbered citations, the Used line and the read line, read off the approved ask clark prototype. The sparkle is faint until the pointer or the keyboard is on its row, section or card; a peek opened from an answer sits left of the panel (--ask-w is the panel's width, 0 while it is shut). */
+.ask-about { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: var(--radius-sm); cursor: pointer; opacity: 0; transition: opacity var(--dur-instant) var(--ease-out); }
+.ask-about .i { color: var(--brand-blue); width: 16px; height: 16px; }
+.ask-about:hover { background: var(--brand-blue-tint); }
+.ask-about:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; opacity: 1; }
+.wl-row:hover .ask-about, .wl-row:focus-within .ask-about, table.items tr:hover .ask-about, table.items tr:focus-within .ask-about, .wil-table tr:hover .ask-about, .wil-table tr:focus-within .ask-about, .sec:hover .ask-about, .sec:focus-within .ask-about, .ucrow:hover .ask-about, .ucrow:focus-within .ask-about, .ucr:hover .ask-about, .ucr:focus-within .ask-about, .bcard:hover .ask-about, .bcard:focus-within .ask-about { opacity: 1; }
+table.items .c-eye, .wil-table .wil-c-eye { width: 76px; }
+.c-eye .ask-about { vertical-align: middle; }
+.wil-c-eye .ask-about { vertical-align: baseline; }
+.ucl-table thead th.c-eye { text-align: right; }
+.sec-head > .ask-about { margin-left: auto; }
+.ucsteps .ask-about { vertical-align: middle; margin-left: var(--space-1); }
+.bc-top .ask-about { width: 24px; height: 24px; margin-left: auto; }
+.peek { right: var(--ask-w, 0px); }
+.ask-chip { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; max-width: 100%; margin: 0 0 var(--space-2); padding: 2px 2px 2px 8px; border-radius: 8px; background: var(--brand-blue-tint); color: var(--status-blue-text); font-size: 13px; }
+.ask-chip .i { flex: none; width: 14px; height: 14px; }
+.ask-chip-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ask-chip-x { all: unset; box-sizing: border-box; flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius-sm); color: inherit; cursor: pointer; }
+.ask-chip-x .i { width: 14px; height: 14px; }
+.ask-chip-x:focus-visible, .ask-cite:focus-visible, .ask-used-chip:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.ask-about-line { margin-top: var(--space-1); font-size: 12px; color: var(--text-muted); }
+.ask-cite { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 6px; margin: -4px 2px; border-radius: 12px; background: var(--brand-blue-tint); color: var(--status-blue-text); font-size: 12px; font-weight: 700; vertical-align: middle; cursor: pointer; }
+.ask-cite:hover { background: var(--brand-blue); color: var(--surface); }
+.ask-used { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 0; font-size: 13px; }
+.ask-used-h { color: var(--text-muted); }
+.ask-used-chip { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 5px; min-height: 24px; padding: 1px 9px; border: 1px solid var(--grey-200); border-radius: 999px; background: var(--grey-50); font-size: 12.5px; cursor: pointer; }
+.ask-used-chip:hover { border-color: var(--brand-blue); background: var(--brand-blue-tint); }
+.ask-read { margin: 6px 0 0; font-size: 12px; color: var(--text-muted); }
 /* Row 1261 (Classic only, Cards unchanged; mock-up headline-approved.html .swrow, .teye.inl, .warnline): the Report headline's eye row in Edit. The eye is a 28 by 28 button with a 1px control edge, in the flow (the shared .teye sits at a tile's corner), beside the words "Show project health here"; the warning when At a glance also shows the health is a 3px amber left edge on the amber tint, 13px. With the pill hidden the headline and the sentence start at the left (View: .nopill). */
 .tpl-rh-eyerow { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 10px; font-size: var(--size-caption); color: var(--text); }
 .tpl-rh-eyerow .teye { position: static; width: 28px; height: 28px; border: 1px solid var(--control-edge); }
