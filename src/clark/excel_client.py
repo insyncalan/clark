@@ -28,6 +28,7 @@ from clark import excel, glance
 from clark import excel_colours as colours
 from clark import platform, publish, sanitise
 from clark import glance_print
+from clark.section_kinds import callout
 from clark.section_kinds import reportheadline
 
 NAME = re.compile(r'[^\\/:*?"<>|\x00-\x1f]{1,120}')      # what the page accepts as a download name
@@ -292,6 +293,49 @@ def write_glance_sheet(wb, published, sec, palette=None):
     return ws
 
 
+CALLOUT_SHEET = "Callout"
+CALLOUT_HEADS = (("Category", 20), ("Colour", 14), ("Icon", 16), ("Title", 36), ("Words", 60))
+
+
+def write_callout_sheet(wb, published, sec, palette=None):
+    """Row 1272: a callout section as one sheet, one row: Category, Colour, Icon, Title, Words. The category, the colour's name and the icon's
+    name are written as words (callout.words()), so nothing rests on colour. Locked text. A callout with nothing in it is not in the file."""
+    c = sec.get("content") if isinstance(sec.get("content"), dict) else {}
+    got = callout.words(c)
+    words = plain(c["html"]) if isinstance(c.get("html"), str) and c["html"] else "\n".join(p for p in c.get("paras") or () if isinstance(p, str))
+    title = c.get("title") if isinstance(c.get("title"), str) else ""
+    if not title and not words:
+        return None
+    HEAD, TITLE, SUB, HEAD_FILL = styles(palette)
+    name, n = CALLOUT_SHEET, len(wb.sheetnames) + 1
+    while name in wb.sheetnames:
+        name, n = f"{CALLOUT_SHEET} {n}", n + 1
+    ws = wb.create_sheet(name)
+    band, sub = title_text(published)
+    for r, (text, font) in enumerate(((band, TITLE), (sub, SUB)), start=1):
+        for i in range(1, len(CALLOUT_HEADS) + 1):
+            ws.cell(row=r, column=i).fill = HEAD_FILL
+        cell = ws.cell(row=r, column=1, value=excel.cell_text(text))
+        cell.font = font
+        excel.protect_text_cell(cell)
+    ws.row_dimensions[1].height = 26
+    put_headline(ws, published, len(CALLOUT_HEADS), palette)
+    for i, (label, width) in enumerate(CALLOUT_HEADS, start=1):
+        head = ws.cell(row=4, column=i, value=label)
+        head.font, head.fill = HEAD, HEAD_FILL
+        ws.column_dimensions[get_column_letter(i)].width = width
+    for i, v in enumerate((got["category"], got["colour_name"], got["icon_name"], title, words), start=1):
+        cell = ws.cell(row=5, column=i, value=excel.cell_text(v))
+        cell.font = BODY
+        cell.alignment = Alignment(wrap_text=True, vertical="top")
+        excel.protect_text_cell(cell)
+    ws.freeze_panes = "A5"
+    excel.print_setup(ws)
+    excel.protect_sheet(ws)
+    wb.defined_names[excel.CLIENT_COPY_NAME] = DefinedName(excel.CLIENT_COPY_NAME, attr_text=f"{quote_sheetname(ws.title)}!$A$1", hidden=True)
+    return ws
+
+
 def workbook_bytes(published, palette=None):
     """The client workbook as .xlsx bytes (the same bytes for the same published content)."""
     wb = Workbook()
@@ -303,6 +347,8 @@ def workbook_bytes(published, palette=None):
     for sec in published.get("sections") or ():
         if sec.get("type") == "glancetemplate":
             write_glance_sheet(wb, published, sec, palette)
+        elif sec.get("type") == "callout":
+            write_callout_sheet(wb, published, sec, palette)
     name, sub = title_text(published)
     if not wb.sheetnames:                       # no table section on the page: one sheet with the title band alone
         ws = wb.create_sheet(excel.SHEET_OF["actions"])
