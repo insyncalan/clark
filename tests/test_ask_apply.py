@@ -149,7 +149,7 @@ class WorkItems(Base):
         self.s.con.commit()
         return ref
 
-    def test_a_tbc_owner_is_passed_through_as_stored(self):         # Romanoff via Jarvis 20-11, 2035: TBC shows 'Owner: TBC'
+    def test_a_tbc_owner_is_passed_through_as_stored(self):         # ruling 20-11 on 2035: TBC shows 'Owner: TBC'
         with self.s.step("dashboard", USER) as st:
             dec = st.create("decisions", {"project": "ABC", "decision": "Pick a venue", "status": "Pending", "made_by": "TBC", "source": "demo"})
         self.assertEqual(self.planned({"op": "change", "id": self.demo.action(owner="TBC"), "status": "Closed"})["owner"], "TBC")
