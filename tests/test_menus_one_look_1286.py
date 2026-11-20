@@ -35,7 +35,7 @@ NO_ICON_GRID = {"owner-pick", "owner-pick-typed", "health", "report-headline-hea
 GANTT_SHOW = {"gantt-show-chart"}     # the Gantt Show panel (.gt-pop under [data-gantt]): radius 12 by the measured mock-up of 1197 item 10 (comment 7022907667), by ruling; it wins over 1286's general 10px. The Work items table Show menu (gantt-show-table) is a .gt-pop outside [data-gantt], draws 10 and stays 10 here
 MIN_W = 224
 THREE = {"view", "new-tile", "board-move", "board-move-lanes"}     # Group by (the View menu), Add, Move to: the prototype's values (ruling 17-11)
-PICKERS = {"owner-pick", "owner-pick-typed", "bulk-picker-due", "cell-Due date"}     # forms with their own look, not menus of lines
+PICKERS = {"owner-pick", "owner-pick-typed", "bulk-picker-owner", "bulk-picker-due", "cell-Due date"}     # forms with their own look, not menus of lines
 PILL_MENU = {"health", "report-headline-health"}
 
 MEASURE = r"""(root => {
@@ -97,6 +97,7 @@ def check(test, name, look, m):
 class Seen:
     """Records and checks every menu a Drive reads."""
     names = set()
+    leaving = None
 
 
 def setUpModule():
@@ -113,7 +114,12 @@ def setUpModule():
 
     def lines(self, root, name, minimum):
         got = orig_lines(self, root, name, minimum)
+        # Row 1463: read the menu only once its open animation has ended (a rise or slide moves the icon a pixel or two while it runs)
+        self.until(f"(r => {{ const b = [...document.querySelectorAll(r)].filter(e => e.getBoundingClientRect().width > 0).pop(); return !!b && b.getAnimations({{subtree: true}}).every(a => a.playState === 'finished' || a.playState === 'idle'); }})({json.dumps(root)})", f"{name}: the menu {root} finished opening")
         check(self.t, name, self.look_is, self.js(f"({MEASURE})({json.dumps(root)})"))
+        if not Seen.leaving:     # row 1463: the fade copy of a Gantt menu (body > .gt-menu.leaving, edit.css) keeps the box padding and the line padding: read its computed values from a copy on the page
+            Seen.leaving = self.js("(() => { const d = document.createElement('div'); d.className = 'gt-menu leaving'; d.innerHTML = '<button>x</button>'; document.body.append(d); const b = d.firstChild, p = e => { const c = getComputedStyle(e); return c.paddingTop + ' ' + c.paddingRight + ' ' + c.paddingBottom + ' ' + c.paddingLeft; }; const r = [p(d), p(b)]; d.remove(); return r; })()")
+            self.t.assertEqual(Seen.leaving, ["4px 4px 4px 4px", "6px 10px 6px 10px"], "the fading Gantt menu: box padding and line padding")
         Seen.names.add(name)
         return got
     start(mock.patch.object(T.Drive, "lines", lines))
