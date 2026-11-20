@@ -258,7 +258,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .ucl-group .grp-b:focus-visible, .ucp-group .grp-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: 6px; }   /* spec 19-11: 6 px radius on the group heading only; the global ring stays 4 px */
 .ucp-grp + .ucp { border-top: 0; }   /* spec 19-11: the group's hairline is the only line over its first row */
 .ucl-group .grp-b:hover, .ucp-group .grp-b:hover, .ucl-group .grp-b:hover .i, .ucp-group .grp-b:hover .i { color: var(--brand-blue); }
-/* Row 1317 (Settings sidebar): the menu is a grey panel (the Classic page ground equals the Cards panel fill, so it showed no panel), the group names are in sentence case, and the open page is a tinted bar with its square edge at the marker. The issue table names the grey panel and the tinted bar; it names no hover tint on a chip, so there is none. Classic only; Cards keeps its look. The Settings title is already 30 px in both Themes (measured), so it is not touched. Prototype files are not on this box: */
+/* Row 1317 (Settings sidebar): the menu is a grey panel (the Classic page ground equals the Cards panel fill, so it showed no panel), the group names are in sentence case, and the open page is a tinted bar with its square edge at the marker. */
 @media (min-width: 900px) {
   .set-bar { background: var(--grey-50); border-radius: 10px; }   /* Row 1356: the prototype's panel fill (soft, F6F8FC) and radius 10 */
   .set-group-name { text-transform: none; letter-spacing: normal; }
@@ -396,6 +396,11 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .wgroup table.items.grouped .grp-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: 6px; }
 /* Row 1372 (Classic only; the Cards look keeps its width): the item and milestone peeks open 62% of the window wide, at least 300px, as the approved peek mock-up draws it, instead of 640px. From 1000px up; below it the peek fills the window as before. A width the person dragged (the peek carries data-sized) is kept. Bare lengths with no token: the 300px least width and the 1000px switch. */
 @media (min-width: 1000px) { .peek:not(.hpk):not(.wide):not([data-sized]) { width: 62% !important; min-width: min(300px, 100vw); } }
+/* Row 1286 (B-M3, ruling 17-11 on the menu comparison answers): the prototype's menu values (work.css 81-84, menu-icons.css 6-23) apply ONLY to Group by (the View menu, #viewMenuList), the Add menu (#newBtnMenu and the other Add menus) and Move to; the other menus keep production's 14px lines, widths, padding and radius. */
+#viewMenuList, #newBtnMenu, .ddmenu[aria-label^="Add "], .ddmenu[aria-label^="Move "][aria-label$=" to"] { min-width: 224px; padding: 6px; border-radius: 10px; }
+:is(#viewMenuList, #newBtnMenu, .ddmenu[aria-label^="Add "], .ddmenu[aria-label^="Move "][aria-label$=" to"]) :is([role="menuitem"], [role="menuitemradio"]:not(.hp)) { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; font-size: 15px; }
+:is(#viewMenuList, #newBtnMenu, .ddmenu[aria-label^="Add "], .ddmenu[aria-label^="Move "][aria-label$=" to"]) .mi { margin-right: 2px; }
+:is(#viewMenuList, #newBtnMenu, .ddmenu[aria-label^="Add "], .ddmenu[aria-label^="Move "][aria-label$=" to"]) :is(.lab, .who, .mh) { padding-left: 10px; padding-right: 10px; }
 /* Row 1285: Close, focused as a peek opens with no key pressed (a click, a script), shows no focus ring until a key is pressed or the focus moves on. */
 #peek .pkp-btn[data-quiet]:focus-visible { outline: none; }
 
@@ -406,7 +411,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .pal-kind { min-width: 0; font-size: calc(var(--size-caption) - 1px); letter-spacing: .04em; }
 .pal-more, .pal-why { font-size: calc(var(--size-caption) - 1px); }
 .pal-why { grid-column: 2 / -1; padding-left: 0; }
-/* Row 1336, the At a glance template in Edit, Classic only (the published View keeps the flat Row 1260 strip): the tile takes the mock-up's inner padding (12px top and bottom, 16px sides; the Row 1260 padding 0 removed it, and with it the pill touched the border) and shows its status dot 8x8 before the label (the Row 1260 rule hid it; the colour of the figure alone is the View's way). Not here, waiting for a ruling: the bin on built-in tiles, the grip and eye positions that go with it, the help text wording, the empty fourth column. */
+/* Row 1336, the At a glance template in Edit, Classic only (the published View keeps the flat Row 1260 strip): the tile takes the mock-up's inner padding (12px top and bottom, 16px sides; the Row 1260 padding 0 removed it, and with it the pill touched the border) and shows its status dot 8x8 before the label (the Row 1260 rule hid it; the colour of the figure alone is the View's way). */
 .tpl-edit-glancetemplate .glance .fig { padding: 12px 16px; }
 .tpl-edit-glancetemplate .glance .fig .ragdot { display: inline-block; flex: none; }
 /* Row 1342: the Feedback tag dialog as the 1298 mockup draws it: heading 17px / 600 with 2px under it, the dialog and the tag one step roomier (bottom padding 14, tag top and bottom padding 14). */
@@ -499,6 +504,8 @@ html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tce
 .wil-pr[data-pri="Medium"] { border-color: var(--pri-medium-bg); }
 .wil-pr[data-pri="High"] { border-color: var(--pri-high-bg); }
 .wil-pr[data-pri="Urgent"] { border-color: var(--pri-urgent-bg); }
+/* Row 1197: Classic only, comfortable: the Gantt plan runs the page band's width. */
+@media (min-width: 901px) { html[data-density="comfortable"] .gp-plan { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); margin-right: calc(-1 * (var(--space-5) + var(--space-1))); } }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
@@ -507,5 +514,5 @@ html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tce
 .gt-grp .gt-ib[aria-pressed="true"] { background-color: var(--brand-navy); background-image: none; color: var(--white); }
 :root[data-theme=dark] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); } }
-#viewMenuList { min-width: 240px; }
+#viewMenuList { min-width: 224px; }
 [data-gt] .gt-menu button, .gt-pop button { display: flex; align-items: center; gap: var(--space-2); }
