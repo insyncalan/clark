@@ -6,6 +6,7 @@ Run: python3 dev/run_tests.py test_view_picks_1287_rows   (headless Chrome; fail
 import unittest
 
 import test_tpl_workitems as T
+from test_view_picks_1287_more import classic
 from test_report_editor import Pg, tearDownModule  # noqa: F401
 from test_server import chrome
 
@@ -19,6 +20,7 @@ class ViewPickRows(T.InThePage):
         return p.js(f"[...document.querySelectorAll('{row} .cell-pick')].map(e => e.dataset.cell.split(':').pop())")
 
     def test_actions_rows_pick_status_owner_and_date_not_the_title(self):
+        classic(self)
         ref = self.section("actions", "Fictional actions")
         row = f"[data-id=\"{ref}\"] .wl-row[data-id=\"{self.a_due}\"]"
         for width in (1400, 900):
@@ -37,6 +39,7 @@ class ViewPickRows(T.InThePage):
                 p.until("!document.querySelector('[data-cell][aria-expanded=true]')", "the picker closed")
 
     def test_actions_title_opens_the_peek_in_edit_and_the_id_button_opens_it_read_only(self):
+        classic(self)
         ref = self.section("actions", "Fictional actions")
         row = f"[data-id=\"{ref}\"] .wl-row[data-id=\"{self.a_due}\"]"
         with chrome() as cdp:
@@ -51,6 +54,7 @@ class ViewPickRows(T.InThePage):
             p.until("!document.querySelector('#peek [data-cell], #peek .cell-pick')", "another open clears the edit")
 
     def test_risks_rows_pick_the_urgency_too(self):
+        classic(self)
         ref = self.section("raid", "Fictional risks")
         row = f"[data-id=\"{ref}\"] .wl-row[data-id=\"{self.risk}\"]"
         with chrome() as cdp:

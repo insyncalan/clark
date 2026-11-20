@@ -114,7 +114,7 @@ export function Dashboard({ tools }) {
   const classic = classicTheme();      // row 1318: Classic has the left Contents column and no Minimap; Cards (no Theme layer) keeps the Minimap and draws exactly what it drew
   const secs = (
     <div class={`secs${editing && dropAt.value && dropAt.value.line === "end" && !dragList.value ? " drop-end" : ""}`}>
-      {list.map((s, i) => <Section key={s.id} section={s} index={i} count={list.length} slot={places[i]} anchor={anchors[s.id]} tools={editing ? tools : null} clean={!fromFile.value && tools ? tools.clean : null} pick={!editing && !fromFile.value && tools && places[i] === "full" ? tools.Cell : null} />)}
+      {list.map((s, i) => <Section key={s.id} section={s} index={i} count={list.length} slot={places[i]} anchor={anchors[s.id]} tools={editing ? tools : null} clean={!fromFile.value && tools ? tools.clean : null} pick={classic && !editing && !fromFile.value && tools && places[i] === "full" ? tools.Cell : null} />)}
     </div>
   );
   return (

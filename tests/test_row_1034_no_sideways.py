@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from clark import page
+from clark import page, theme
 from test_server import chrome, wait, Running
 from test_work_items import FIXED_DATE, load_demo, page_target
 
@@ -25,12 +25,11 @@ MEASURE = r"""(() => {
 })()"""
 
 
-# Row 1287: the Dashboard lists in View now hold pickers (class cell-pick) and the work-item cells (wil-c-due, wil-c-priority). Measured 20-11 on the
-# merged tree, demo project: each runs a few px past its own box (caret room) and stays inside its table cell; the page and the sections do not
+# Row 1287: the Dashboard lists in View now hold pickers (class cell-pick) and the work-item cells (wil-c-due, wil-c-priority). Measured 21-11 on the
+# Classic page (theme layered), demo project: each runs a few px past its own box (caret room) and stays inside its table cell; the page and the sections do not
 # scroll. These are the exact lists, so any other element running past its box still fails.
-PICKS = {1400: ["cell-pick", "wil-c-priority", "cell-pick"],
-         900: ["wil-c-due", "cell-pick", "cell-pick", "wil-c-due", "cell-pick", "wil-c-due", "cell-pick", "wil-c-due", "cell-pick", "wil-c-priority",
-               "cell-pick", "wil-c-due", "cell-pick", "wil-c-due", "cell-pick", "wil-c-due", "cell-pick", "wil-c-due", "cell-pick"]}
+PICKS = {1400: ["cell-pick"] * 5 + ["wil-c-priority"] + ["cell-pick"] * 5,
+         900: ["cell-pick"] * 10}
 
 
 class Css(unittest.TestCase):
@@ -52,7 +51,7 @@ class Dashboard(unittest.TestCase):
         cls.store.close()
 
     def test_nothing_scrolls_sideways_at_1400_and_900(self):
-        s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.layer_theme(page.page_html(tempfile.mkdtemp()), theme.css("prototype-2.0")))      # row 1287 is Classic only: the pickers are measured on the Classic page
         self.addCleanup(s.close)
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:

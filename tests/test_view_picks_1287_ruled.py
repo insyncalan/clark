@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 import test_tpl_workitems as T
+from test_view_picks_1287_more import classic
 from _publish import PublishedFile
 from test_report_editor import Pg, tearDownModule  # noqa: F401
 from test_server import chrome
@@ -51,6 +52,7 @@ class InTheToasts(T.InThePage):
         self.press(p, f"[data-pop] [data-value={value}]")
 
     def test_a_pick_shows_one_toast_in_view_and_one_in_edit(self):
+        classic(self)
         cell = f".wl-row[data-id=\"{self.a_due}\"] .c-ico .cell-pick"
         for mode in ("view", "edit"):
             for width in (1400, 900):

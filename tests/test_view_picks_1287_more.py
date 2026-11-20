@@ -31,6 +31,7 @@ class ViewPickMore(T.InThePage):
         return f"[data-id=\"{ref}\"] .wl-row[data-id=\"{rid}\"]"
 
     def test_the_status_picker_wraps_the_report_icon_with_its_words_and_one_tab_stop(self):
+        classic(self)
         ref = self.section("actions", "Fictional actions")
         row = self.row_of(ref, self.a_due)
         with chrome() as cdp:
@@ -43,6 +44,7 @@ class ViewPickMore(T.InThePage):
             self.assertTrue(p.js(f"(document.querySelector('{row} .c-ico .cell-pick .ico').getAttribute('aria-label') || '').startsWith('Action')"))
 
     def test_the_date_picker_says_the_plain_date_and_a_decision_keeps_its_word_in_the_cell_only(self):
+        classic(self)
         ref = self.section("actions", "Fictional actions")
         with self.store.step("dashboard", T.USER) as st:
             dec = st.create("decisions", {"project": "ABC", "decision": "Pick the supplier", "status": "Pending", "needed_by": "2030-02-02", "source": "demo"})

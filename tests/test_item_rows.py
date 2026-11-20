@@ -16,7 +16,7 @@ from _demo import USER, DemoStore
 from _paths import TOOLS
 
 sys.path.insert(0, str(TOOLS))
-from clark import changes, page, publish  # noqa: E402
+from clark import changes, page, publish, theme  # noqa: E402
 from test_report_editor import EMPTY_BRANDING, Pg  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
 
@@ -290,7 +290,9 @@ class CurrentStateInEdit(unittest.TestCase):
 
 def edit_server(test, store):
     """The page clark serves over a real store, with the real change and undo routes."""
-    s = Running(data_for=store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING),
+    # row 1287 is Classic only: a test that sets test.classic_layer is served the page with the Classic theme layered; any other gets the Cards page
+    html = lambda: (page.layer_theme(page.page_html(EMPTY_BRANDING), theme.css("prototype-2.0")) if getattr(test, "classic_layer", False) else page.page_html(EMPTY_BRANDING))
+    s = Running(data_for=store.data_for, page_html=html,
                 change=changes.make_change(store.path, [], USER), undo=changes.make_undo(store.path, [], USER))
     test.addCleanup(s.close)
     return s
@@ -435,6 +437,7 @@ class EditRows(unittest.TestCase):
             p.until("document.activeElement && document.activeElement.getAttribute('data-addfrom') === 'raid'", "the focus is on the Add from button")
 
     def test_the_eye_takes_a_row_off_and_add_from_your_project_record_puts_it_back(self):
+        self.classic_layer = True
         gone = id_of(self.store, "Supplier delivery may slip")
         with chrome() as cdp:
             p = self.page(cdp)
@@ -533,7 +536,7 @@ class EditRows(unittest.TestCase):
             text = js(words)
             for bad in internal + ours:
                 self.assertNotIn(bad, text, f"{where}: {bad!r} is not for a client")
-        s = Running(data_for=self.store.data_for, page_html=lambda: page.page_html(EMPTY_BRANDING))
+        s = Running(data_for=self.store.data_for, page_html=lambda: page.layer_theme(page.page_html(EMPTY_BRANDING), theme.css("prototype-2.0")))      # row 1287: Classic layered
         self.addCleanup(s.close)
         with chrome() as cdp:
             p = Pg.at(self, cdp, s.port)
