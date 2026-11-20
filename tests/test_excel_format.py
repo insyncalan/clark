@@ -187,7 +187,7 @@ class Formatting(unittest.TestCase):
                 if field in excel.WIDE:
                     self.assertEqual(width, 48)
         ws = wb["Actions"]
-        for label, field in (("Description", True), ("Latest update", True), ("Client wording", True), ("ID", False),
+        for label, field in (("Description", True), ("Latest update", True), ("Client Message", True), ("ID", False),
                              ("Owner", False), ("Due", False), ("Priority", False), ("Client-visible", False)):
             c = self.cell(ws, "DEMO-A-001", label)
             self.assertEqual(bool(c.alignment.wrap_text), field, label)

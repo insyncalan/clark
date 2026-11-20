@@ -2,7 +2,7 @@
 peek, work item or milestone, shows its Source by NAME (never a path): the live page in Edit and in View, and a published file too;
 (3) the words box is headed "Ask clark to update for you"; (4) a client's peek (the Dashboard in View, and a published file) is the editor's,
 read only: no button, box or editable text among its fields, and the same field rows as the editor's, less the two rows that are themselves
-controls (Shown to client, Client wording); (5, ruled 10-11-2026) the peek is flat: the four property cells have no tile, a tab's focus is an
+controls (Shown to client, Client Message); (5, ruled 10-11-2026) the peek is flat: the four property cells have no tile, a tab's focus is an
 underline and not a box, the Latest update field has no box at rest or under the pointer, and the words box is a foot band pinned to the
 bottom of the peek while its body scrolls; the flat cells reach the published peek too (shell.css is the published page's).
 Run: python3 dev/run_tests.py test_peek_ruled_1077
@@ -30,8 +30,8 @@ import test_publish as tp  # noqa: E402
 SRC = ROOT / "src" / "clark" / "page" / "src"
 LABEL = "Ask clark to update for you"
 OLD_LABEL = "Change an item with words"
-EDIT_ONLY_ROWS = ("Client wording",)                              # the row that is a control, not a field: the editor's alone (row 1180: Client visible is one clickable line with no label)
-FILE_ONLY_ROWS = ("Client wording", "Latest update")                # row 1111: a published peek adds these two, as text, when the file carries them
+EDIT_ONLY_ROWS = ("Client Message",)                              # the row that is a control, not a field: the editor's alone (row 1180: Client visible is one clickable line with no label)
+FILE_ONLY_ROWS = ("Client Message", "Latest update")                # row 1111: a published peek adds these two, as text, when the file carries them
 HISTORY_ROWS = ("Last reviewed",)                                  # worked out from the item's history on the live page; a published file carries no history
 CONTROLS = "button, input, textarea, select, [contenteditable], [role=textbox], [role=combobox]"
 ACTION, MILESTONE = "TUL-A-001", "TUL-M-002"
@@ -221,7 +221,7 @@ class Browser(Peeks):
                 for sel in (".pk-tabs", "[data-sneak]", "[data-pk-latest]", "[data-pk-title-in]", "[data-pk-needed]"):
                     self.assertFalse(cdp.js(f"!!document.querySelector('#peek {sel}')", sid), f"{sel} is the editor's alone")
                 client = self.labels(cdp, sid)
-                self.assertTrue(len(client) >= 4, client)      # rows 1181 and 1256: Status, Owner, Due and Priority are chips, not rows; a risk keeps Workstream, Milestone, Use case and Raised (no Client wording or Last reviewed)
+                self.assertTrue(len(client) >= 4, client)      # rows 1181 and 1256: Status, Owner, Due and Priority are chips, not rows; a risk keeps Workstream, Milestone, Use case and Raised (no Client Message or Last reviewed)
                 self.to_edit(cdp, sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-tabs')", sid)), "Edit: the tabs are drawn")
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-htab=source]')", sid)), "Edit keeps Source (row 1180: it is the Source tab of the history)")
@@ -296,7 +296,7 @@ class Browser(Peeks):
                 self.assertTrue(set(FILE_ONLY_ROWS) <= set(shown), "row 1111: a published peek draws the client wording and latest update the file carries, read only")
                 published = [l for l in shown if l not in FILE_ONLY_ROWS]
                 self.assertEqual(published, [l for l in editor if l not in EDIT_ONLY_ROWS + HISTORY_ROWS], "the published rows are the editor's, read only")
-                self.assertEqual(sorted(set(editor) - set(published)), [], "item 1181: an action's Details has no Client wording, Last reviewed or Shown to client row, so the editor adds none")
+                self.assertEqual(sorted(set(editor) - set(published)), [], "item 1181: an action's Details has no Client Message, Last reviewed or Shown to client row, so the editor adds none")
                 self.assertIn("Raised", published, "the date raised is published, so its row stays")
                 # the milestone peek in the same file: fields only, nothing to press
                 cdp.js("location.hash = '#dashboard&p=PUB&ms=PUB-M-001'", sid)

@@ -41,14 +41,14 @@ ON = "2030-06-01"
 HEADERS = {
     "Milestones": ["ID", "Milestone", "Project", "Description", "Workstream", "Original", "Agreed", "Forecast", "Status",
                    "Order", "% complete", "Owner", "Shown state", "State", "State set by you", "State reason", "Movement",
-                   "Achieved on", "Client-visible", "Client wording", "Latest update", "Internal note", "Open work items", "Source", "Updated"],
+                   "Achieved on", "Client-visible", "Client Message", "Latest update", "Internal note", "Open work items", "Source", "Updated"],
     "Actions": ["ID", "Description", "Project", "Workstream", "Owner", "Priority", "Due", "Status", "Raised", "Closed",
-                "Latest update", "Client-visible", "Client wording", "Milestone", "Use case", "Labels", "Source", "Updated"],
+                "Latest update", "Client-visible", "Client Message", "Milestone", "Use case", "Labels", "Source", "Updated"],
     "Risks & Issues": ["ID", "Description", "Project", "Type", "Workstream", "Owner", "Response action", "Due", "Impact", "Likelihood",
-             "Priority", "Status", "Raised", "Closed", "Latest update", "Client-visible", "Client wording", "Milestone", "Use case", "Labels",
+             "Priority", "Status", "Raised", "Closed", "Latest update", "Client-visible", "Client Message", "Milestone", "Use case", "Labels",
              "Source", "Updated"],
     "Decisions": ["ID", "Decision", "Project", "Status", "Priority", "Made by", "Needed by", "Date", "Reasoning", "Options", "Revisit",
-                  "Replaces", "Latest update", "Client-visible", "Client wording", "Use case", "Labels", "Source", "Updated"],
+                  "Replaces", "Latest update", "Client-visible", "Client Message", "Use case", "Labels", "Source", "Updated"],
     "Use cases": ["ID", "Reference", "Use case", "Project", "Status", "Commitment", "Headline", "Where it stands", "Order", "Client-visible",
                   "Linked milestones", "Open work items", "Source", "Updated"],
 }

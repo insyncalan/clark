@@ -15,7 +15,7 @@ from test_server import chrome, wait  # noqa: E402
 from test_work_filters import click  # noqa: E402
 
 ACTION = "TUL-A-001"
-RISK = "TUL-007"     # rows 1181 and 1256: an action no longer draws a Use case picker, and no action, risk or issue draws Client wording; those tests use a risk (Use case) or a decision (Client wording)
+RISK = "TUL-007"     # rows 1181 and 1256: an action no longer draws a Use case picker, and no action, risk or issue draws Client Message; those tests use a risk (Use case) or a decision (Client Message)
 SRC = ROOT / "src/clark/page/src"
 
 
@@ -135,7 +135,7 @@ class Title(Fields):
 
 
 class Wording(Fields):
-    # row 1256: an action, a risk and an issue no longer draw Client wording in the peek (their Details are one body); a decision still does,
+    # row 1256: an action, a risk and an issue no longer draw Client Message in the peek (their Details are one body); a decision still does,
     # and the report rows edit it for the others (test_inline_edits)
     def decision(self):
         return self.data["decisions"][0]
@@ -155,7 +155,7 @@ class Wording(Fields):
         for width, dark in self.widths():
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 sent, sid = self.load(cdp, width, self.decision()["id"], dark=dark)
-                self.assertEqual(cdp.js("document.querySelector('#peek [data-ce]').closest('.pk-row').querySelector('dt').textContent", sid), "Client wording")
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-ce]').closest('.pk-row').querySelector('dt').textContent", sid), "Client Message")
                 self.assertEqual(self.words(cdp, sid), was)
                 self.assertTrue(self.inside(cdp, sid, BOX_PK), "the box fits the peek")
                 self.type_words(cdp, sid, "Plain words a client can read")
