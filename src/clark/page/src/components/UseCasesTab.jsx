@@ -3,9 +3,10 @@
 // Row 1114: the list as the full app's Use cases page draws it, read only: the tabs with their counts (no "On the dashboard" tab, every
 // published row is on it), Sort by and Group by menus (item 1149: the rows are the dashboard summary's) with groups that shut, the count line and the filtered-empty state.
 // A published row carries no work item count, so there is no Work items heading to sort by. The choice lives for the visit only.
+import { StepsBadge } from "./StepsBadge.jsx";
 import { signal } from "@preact/signals";
 import { data, uc, project } from "../stores/report.js";
-import { ucFor, ucKey, refBox, stepsWord, listOf, pickRows, groupsOf, groupLabel, TABS, GROUPS, SORTS, FIRST } from "../logic/useCasesList.js";
+import { ucFor, ucKey, refBox, listOf, pickRows, groupsOf, groupLabel, TABS, GROUPS, SORTS, FIRST } from "../logic/useCasesList.js";
 import { commitWords } from "../logic/commitment.js";
 import { plural } from "../workItems.js";
 import { UseCaseFilePage } from "./UseCaseFilePage.jsx";
@@ -13,6 +14,7 @@ import { printing } from "../stores/print.js";
 import { CommitChip } from "./CommitChip.jsx";
 import { Menu } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
+import { classicTheme } from "./Contents.jsx";   // row 1324-A: the column names over the published list are Classic only (Cards draws what it drew)
 import { groupIcon, sortIcon } from "../menuIcons.js";
 
 const RAGS = { "On track": "g", Flag: "a", "High risk": "r", Done: "n" };
@@ -34,7 +36,7 @@ function Item({ p, u, steps, marks }) {
         <span class="uctitle ucp-title">{u.title}</span>
         <span class="uchead ucp-headline">{u.headline}</span>
         <span class="ucstc"><span class={`ucword rag-${(RAGS[u.status] || "n")}`} data-word><i class="ragdot" aria-hidden="true"></i>{u.status}</span><CommitChip u={u} /></span>
-        <span class="ucsteps num">{stepsWord(mine.length)}</span>
+        <span class={`ucsteps num${mine.length ? " some" : ""}`}><StepsBadge n={mine.length} /></span>
       </summary>
       <div class="ucp-body">
         <p><a class="link" data-uc-page href={`#usecases&p=${project.value}&uc=${encodeURIComponent(ucKey(d, u))}`}>Open the page</a></p>
@@ -77,7 +79,11 @@ function UseCasesList({ d, pages, cases, steps, marks }) {
           <p class="muted">No use cases match these filters.</p>
           <button type="button" class="btn" data-clear-all onClick={() => set({ tab: "all" })}>Clear the filters</button>
         </div>
-      ) : f.group === "nothing" ? items(kept) : groups.map((g) => (
+      ) : (<>
+        {classicTheme() ? <div class="ucp-cols" aria-hidden="true">
+          <span class="ucl-c1">Use case</span><span>Where it stands</span><span>Status</span><span>Next steps</span><span></span>
+        </div> : null}
+        {f.group === "nothing" ? items(kept) : groups.map((g) => (
         <div class="wgroup ucp-group" key={g.key} data-group={g.key}>
           <div class="ucp-grp">
             <button type="button" class="grp-b" aria-expanded={g.shut ? "false" : "true"} onClick={() => toggle(g)}>
@@ -86,7 +92,8 @@ function UseCasesList({ d, pages, cases, steps, marks }) {
           </div>
           {g.shut ? null : items(g.rows)}
         </div>
-      ))}
+        ))}
+      </>)}
       {paper ? null : <p class="ucp-count num" id="ucp-count" role="status">{plural(kept.length, "use case")}</p>}
     </>
   );

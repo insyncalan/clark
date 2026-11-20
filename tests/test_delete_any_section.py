@@ -16,6 +16,39 @@ BUILT_INS = ("glance", "usecases", "milestones", "raid", "actions", "decisions",
 
 
 class Base(Api):
+    def setUp(self):
+        super().setUp()
+        self.old_actions_row()
+        self.old_decisions_row()
+        self.old_raid_row()
+
+    def old_raid_row(self):
+        """row 1193-8: a new project starts with Risks and issues as a Work items list; an existing report still has the built-in raid section, which these tests are about."""
+        con = sqlite3.connect(str(self.path))
+        try:
+            con.execute("UPDATE report_sections SET type = 'raid', body = '' WHERE project = 'ABC' AND type = 'workitems' AND title = 'Risks and issues'")
+            con.commit()
+        finally:
+            con.close()
+
+    def old_actions_row(self):
+        """row 1193-9: a new project starts with Open actions as a Work items list; an existing report still has the built-in actions section, which these tests are about."""
+        con = sqlite3.connect(str(self.path))
+        try:
+            con.execute("UPDATE report_sections SET type = 'actions', body = '' WHERE project = 'ABC' AND type = 'workitems' AND title = 'Open actions'")
+            con.commit()
+        finally:
+            con.close()
+
+    def old_decisions_row(self):
+        """row 1193-10: a new project starts with Decisions as a Work items list; an existing report still has the built-in decisions section, which these tests are about."""
+        con = sqlite3.connect(str(self.path))
+        try:
+            con.execute("UPDATE report_sections SET type = 'decisions', body = '' WHERE project = 'ABC' AND type = 'workitems' AND title = 'Decisions'")
+            con.commit()
+        finally:
+            con.close()
+
     def counts(self):
         con = sqlite3.connect(str(self.path))
         try:
@@ -225,7 +258,7 @@ class ReAdd(Base):
             self.refused(self.req("new", values={"type": t}), changes.NEW_TYPE_WORDS)
 
     def test_the_new_types_are_exactly_text_the_content_types_and_the_built_ins(self):
-        self.assertEqual(set(changes.NEW_SECTION_TYPES) - set(store_module.BODY_TYPES), (set(BUILT_INS) - {"usecases"}) | {"current", "gantt", "gantttable"})      # row 1234: usecases carries a view setting in its body, so it is a body type too
+        self.assertEqual(set(changes.NEW_SECTION_TYPES) - set(store_module.BODY_TYPES), (set(BUILT_INS) - {"usecases", "milestones"}) | {"current", "gantt", "gantttable"})      # row 1234, row 1230: usecases and milestones carry a view setting in their body, so they are body types too
 
 
 if __name__ == "__main__":

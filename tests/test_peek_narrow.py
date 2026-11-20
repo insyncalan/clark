@@ -50,11 +50,11 @@ class NarrowBrowser(unittest.TestCase):
                                 self.show(cdp, sid, view, item)
                                 left, right, w, win = cdp.js(WIDTH, sid)
                                 if width < 1000:
-                                    self.assertEqual((round(left), round(w)), (0, round(win)), f"{where}: the peek takes the whole window")
+                                    self.assertEqual((round(left), round(w)), (0, round(win)), f"{where}: the peek takes the whole window (row 1289)")
                                 else:
                                     self.assertEqual(round(w), 640, f"{where}: the 640 px default (item 1202)")
                                     self.assertGreater(left, 300, f"{where}: the list stays beside it")
-                                self.assertEqual(round(right), round(win), where)
+                                self.assertEqual(round(right), round(win), where)      # row 1289: flush right
                                 self.assertEqual(cdp.js("document.documentElement.scrollWidth - document.documentElement.clientWidth", sid) <= 1, True, where)
                                 cdp.js("document.activeElement.blur()", sid)
                                 key(cdp, sid, "Escape")

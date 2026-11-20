@@ -9,7 +9,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { data, rows, peek, openPeek, closePeek, mode, fromFile, view } from "../stores/report.js";
 import { isEditing } from "../logic/editing.js";
-import { width, wide, setWidth, resetWidth, MIN } from "../stores/peekState.js";
+import { width, wide, setWidth, resetWidth, MIN, DEFAULT } from "../stores/peekState.js";
 import { staleWords, notReviewed } from "../filters.js";
 import { KIND_WORDS, dueCell, pillOf, ownerOf, showDate, todayIso, isOpen, colourOf } from "../workItems.js";
 import { slideOut } from "../peek/exit.js";
@@ -17,6 +17,7 @@ import { closesPeek } from "../peek/outside.js";
 import { itemIds, milestoneIds, around, placeIn } from "../peek/list.js";
 import { holdScroll } from "../core/holdScroll.js";
 import { Icon } from "./Icon.jsx";
+import { classicTheme } from "./Contents.jsx";
 import { wordsOpen, flashed, askFrom } from "../stores/wordsState.js";
 import { singleKeys } from "../stores/keyPrefs.js";
 import { statusTone, priorityTone, dateTone, iconClass } from "../iconColours.js";
@@ -30,6 +31,7 @@ import { PeekChips, PeekChip } from "./PeekChips.jsx";
 import { PeekDetails } from "./PeekDetails.jsx";
 import { ActionChips } from "./PeekActionChips.jsx";
 import { PeekActionBody } from "./PeekActionBody.jsx";
+import { MilestoneChips } from "./PeekMilestoneChips.jsx";
 
 // Up and Down while the peek is open (#246): the peek steps to the item before or after in the list it was opened from, the same list
 // Previous and Next use. What it says after a step (a polite line only a screen reader hears) is kept here; `n` makes a repeat say it again.
@@ -39,6 +41,11 @@ const say = (text) => { said.value = { text, n: said.value.n + 1 }; };
 
 // Where the peek takes an arrow (#289): only Up and Down, only plain, only on one of its own buttons. A box, the width edge, a tab,
 // a menu, a dialog, the words box, the activity list and the palette keep their arrows; so does the page's own scrolling, which is why a key aimed at nothing is left too.
+// Row 1285: a decision's date chip names its date under the value, as the approved mock-up does ("needed by" while Pending, "made on" once Made, "was needed by" once Withdrawn); an overdue date keeps its own red "overdue N days".
+const decisionDateWord = (row) => (!classicTheme() || row.kind !== "decision" ? "" : row.status === "Made" ? "made on" : row.status === "Withdrawn" ? "was needed by" : "needed by");
+// Row 1285: whether the last thing the person did was a key press (a keyboard open keeps the ring on Close; a mouse open does not draw one).
+let keyedLast = false;
+if (typeof document !== "undefined") { document.addEventListener("keydown", () => { keyedLast = true; }, true); document.addEventListener("pointerdown", () => { keyedLast = false; }, true); }
 const OWN = "[role=textbox],[role=combobox],[role=listbox],[role=menu],[role=dialog],[role=alertdialog],[role=tab],[role=separator],[role=toolbar]:not(.pk-tb),dialog,.wordsbox,.pk-activity";
 function peekOwnsArrow(e) {
   if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return false;
@@ -76,17 +83,19 @@ function ItemChips({ row, tools, editing }) {
   const late = due.tone === "late", days = late ? /^(\d+) days? late$/.exec(due.words) : null;
   const overdue = late ? `overdue ${days ? days[1] : "1"} ${days && days[1] !== "1" ? "days" : "day"}` : "";
   const prio = row.kind === "decision" ? row.peek_priority : row.priority;      // row 1195: a decision's priority is peek_priority
-  // row 1182: an open risk or issue's chip face is its colour word with the level as a small pill ("Red" + "High"), as in the design image; the icon tone stays the level's.
+  // row 1182: an open risk or issue's chip face is its colour word with the level as a small pill ("Red" + "High"), as in the design image; the icon takes the colour word's own tone (row 1257: Red, Amber, Green, as in the design image).
   const rated = (row.kind === "risk" || row.kind === "issue") && isOpen(row) && !!prio;
+  // row 1256: an open risk or issue's Status chip says Open (as Closed and Cancelled say theirs); its colour is on the Rating chip.
+  const openRI = (row.kind === "risk" || row.kind === "issue") && isOpen(row);
   const fixed = row.kind === "assumption" || row.kind === "dependency";
   return (
     <PeekChips>
-      <PeekChip Live={Live} id={row.id} field="status" name="Status" icon="half" tone={statusTone(row, today)} value={pill.text} sub={kept ? `${kept} kept` : ""} flash={hit("status")} pop={pop("status")} />
-      <PeekChip Live={Live} id={row.id} field="priority" name={(row.kind === "risk" || row.kind === "issue") ? "Rating" : "Priority"} icon="bars" tone={priorityTone(prio)} value={rated ? colourOf(prio).word : text(prio)} sub={rated ? text(prio) : ""} subTone={rated ? `lvl ${colourOf(prio).class}` : ""}
-        flash={hit("priority")} tip={fixed ? "Set from impact and likelihood" : row.kind === "risk" ? "Priority from impact and likelihood" : row.kind === "issue" ? `${colourOf(prio).word} rating, set from impact and likelihood` : undefined} pop={pop("priority")} />
-      <PeekChip Live={Live} id={row.id} field="owner" name={row.kind === "decision" ? "Decider" : "Owner"} icon="user" tone="b" value={who.text} flash={hit("owner")} pop={pop("owner")} />
+      <PeekChip Live={Live} id={row.id} field="status" name="Status" icon="half" tone={openRI ? "b" : statusTone(row, today)} value={openRI ? "Open" : pill.text} sub={kept ? `${kept} kept` : ""} subTone={kept ? "kept" : ""} flash={hit("status")} pop={pop("status")} />
+      <PeekChip Live={Live} id={row.id} field="priority" name={(row.kind === "risk" || row.kind === "issue") ? "Rating" : "Priority"} icon="bars" tone={rated ? colourOf(prio).class : priorityTone(prio)} value={rated ? colourOf(prio).word : text(prio)} sub={rated ? text(prio) : ""} subTone={rated ? `lvl ${colourOf(prio).class}` : ""}
+        flash={hit("priority")} tip={fixed ? "Set from impact and likelihood" : row.kind === "risk" || row.kind === "issue" ? "Priority from impact and likelihood" : undefined} pop={pop("priority")} />
+      <PeekChip Live={Live} id={row.id} field="owner" name={row.kind === "decision" ? "Decider" : "Owner"} icon="user" tone="b" value={who.text} sub={classicTheme() && row.kind === "decision" ? "made by" : ""} flash={hit("owner")} pop={pop("owner")} />
       <PeekChip Live={Live} id={row.id} field="due" name={row.kind !== "decision" ? "Due date" : row.status === "Pending" ? "Needed-by date" : "Decision date"} icon="cal" tone={dateTone(row, today)} value={due.date}
-        sub={overdue} subTone={late ? "late" : ""} late={late} flash={hit("due")} pop={pop("due")} />
+        sub={overdue || decisionDateWord(row)} subTone={late ? "late" : ""} late={late} flash={hit("due")} pop={pop("due")} />
     </PeekChips>
   );
 }
@@ -214,7 +223,7 @@ export function Peek({ tools }) {
   const forItem = !!p && p.kind !== "milestone";
   const Words = editing && !!p && tools.Words;
   const History = editing && tools.PeekHistory;      // row 1180: the history tabs (All, Activity, Updates, Source) under the body
-  const MsTitle = msEditing && tools.PeekMilestoneTitle;     // row 1078: the milestone's name is its title, changed in place (row 1180: a textarea, as the work item's)
+  const MsTitle = msEditing && tools.PeekMilestoneTitle, MsLatest = msEditing && tools.PeekMsLatest;     // row 1078: the milestone's name is its title, changed in place (row 1180: a textarea, as the work item's)
   const TitleBox = editing && forItem && tools.PeekItemTitle, MoreBtn = editing && forItem && tools.PeekMore, MsMoreBtn = msEditing && tools.RecordMore;      // row 1180: More holds Duplicate, Archive and Delete (item 1148: a milestone's holds Archive and Delete)
   const Warn = editing && forItem && tools.PeekWarn, Latest = editing && forItem && tools.PeekLatest;      // the warning bar and Latest update (peek, Edit only)
   // Row 1077 (the owner's ruling): every peek, item or milestone, shows its Source, in Edit and in View alike. On the live page the Edit part
@@ -231,7 +240,15 @@ export function Peek({ tools }) {
     opened.current = p.id;
     said.value = { text: "", n: 0 };
     const close = box.current && box.current.querySelector("[data-pk-close]");
-    if (close) close.focus();
+    if (close) {
+      close.focus();
+      // Row 1285: Close takes the focus when a peek opens; with no key pressed (a click, a script) it shows no focus ring until a key is pressed or the focus moves on.
+      if (classicTheme() && !keyedLast) {
+        close.setAttribute("data-quiet", "");
+        const off = () => { close.removeAttribute("data-quiet"); close.removeEventListener("blur", off); document.removeEventListener("keydown", off, true); };
+        close.addEventListener("blur", off); document.addEventListener("keydown", off, true);
+      }
+    }
     return () => {
       wordsOpen.value = false;
       unsaved.value = false;
@@ -340,7 +357,7 @@ export function Peek({ tools }) {
   const go = (id) => id && openPeek(id, p.kind);
   const title = row ? row.title : m.name;
   return (
-    <aside class={`peek${wide.value ? " wide" : ""}`} id="peek" ref={keep} aria-label={`${p.id} details`} style={wide.value ? "" : `width:${Math.min(width.value, document.documentElement.clientWidth)}px`} data-peek={p.id}>
+    <aside class={`peek${wide.value ? " wide" : ""}`} id="peek" ref={keep} aria-label={`${p.id} details`} style={wide.value ? "" : `width:${Math.min(width.value, document.documentElement.clientWidth)}px`} data-peek={p.id} data-sized={width.value !== DEFAULT ? "" : undefined}>
       <Edge />
       <PeekToolbar near={near} go={go} wide={wide.value} onWide={() => { wide.value = !wide.value; }} onClose={askClose}
         draft={editing && row && tools.peekDraft ? tools.peekDraft(row) : null} onCopy={editing && row && tools.copyLinkFor ? () => tools.copyLinkFor(row) : null}
@@ -351,16 +368,16 @@ export function Peek({ tools }) {
       <p class="sr-only" role="status" aria-live="polite" data-pk-live>{said.value.text}</p>
       <h2 class="pk-title" tabIndex={-1}>{TitleBox && row ? <><TitleBox key={row.id} row={row} /></> : MsTitle && m ? <><MsTitle key={m.id} m={m} /></> : title}</h2>
       {row && typeof row.not_reviewed === "boolean" && notReviewed(row, todayIso()) ? <p class="pk-stale"><span class="pk-chip" data-stale>{staleWords(row.review_days || undefined)}</span></p> : null}
-      {row && row.kind === "action" ? <ActionChips row={row} tools={tools} editing={editing} /> : row ? <ItemChips row={row} tools={tools} editing={editing} /> : null}
+      {row && row.kind === "action" ? <ActionChips row={row} tools={tools} editing={editing} /> : row ? <ItemChips row={row} tools={tools} editing={editing} /> : m && msEditing ? <MilestoneChips m={m} tools={tools} editing /> : null}      {/* row 1184: the editor's milestone peek has the chip row; View and a published file keep the header line (MsHead) as before */}
       <div class="pk-body" key={p.id} data-pk-body>      {/* a new key each step: the body fades in as Previous or Next moves on */}
       <div>
-          {Latest && row ? <Latest key={row.id} row={row} /> : null}      {/* item 1181: the Latest update sits above the Details */}
-          {row && row.kind === "action" ? <>
+          {Latest && row ? <Latest key={row.id} row={row} /> : MsLatest && m ? <MsLatest key={m.id} m={m} /> : null}      {/* item 1181: the Latest update sits above the Details */}
+          {row && (row.kind === "action" || row.kind === "risk" || row.kind === "issue") ? <>      {/* row 1256: a risk's and an issue's Details are drawn like an action's */}
             {!editing && fromFile.value && (row.client_message || row.latest_update) ? <dl class="pk-fields" data-pk-file-rows>
               {row.latest_update ? <Row name="Latest update" ms="latest_update"><Rich html={String(row.latest_update)} /></Row> : null}
               {row.client_message ? <Row name="Client wording" ms="client_message">{row.client_message}</Row> : null}
             </dl> : null}
-            <PeekActionBody row={row} editing={editing} Pick={editing && tools.PeekPick ? tools.PeekPick : null} ClientLine={editing && tools.PeekClientLine ? tools.PeekClientLine : null} />
+            <PeekActionBody row={row} editing={editing} Pick={editing && tools.PeekPick ? tools.PeekPick : null} ClientLine={editing && tools.PeekClientLine ? tools.PeekClientLine : null} onFile={fromFile.value} />
           </> : row ? <ItemFields row={row} editing={editing} slim clientName={editing && tools.clientRowName ? tools.clientRowName : null} ClientLine={editing && tools.PeekClientLine ? tools.PeekClientLine : null} Cell={null} Wording={editing && tools.PeekWording ? tools.PeekWording : null} Pick={editing && tools.PeekPick ? tools.PeekPick : null} /> : msEditing ? <tools.MilestoneEdit m={m} /> : <MilestoneFields m={m} tools={tools} />}
           {Source && !History ? <Source key={`s-${p.id}`} row={row || m} /> : FileSource ? <SourceLine text={(row || m).source} /> : null}      {/* with the history tabs the source is its own tab */}
         </div>

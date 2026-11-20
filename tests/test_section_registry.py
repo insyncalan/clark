@@ -75,9 +75,9 @@ PAGE_FIRST = ("gantt", "gantttable")      # rows 926, 1068: template types with 
 
 
 class PythonSide(unittest.TestCase):
-    def test_the_store_the_schema_and_the_registry_name_the_same_eighteen_types(self):
-        self.assertEqual(len(section_kinds.TYPES), 18)
-        self.assertEqual(len(set(section_kinds.TYPES)), 18)
+    def test_the_store_the_schema_and_the_registry_name_the_same_twenty_types(self):
+        self.assertEqual(len(section_kinds.TYPES), 20)
+        self.assertEqual(len(set(section_kinds.TYPES)), 20)
         self.assertEqual(store_module.SECTION_TYPES, BUILT_IN + section_kinds.TYPES + PAGE_FIRST, "the store lists them in the registry's order, then the Gantt and the Gantt table (rows 926, 1068: no content, no registry module)")
         self.assertEqual(schema_types(), store_module.SECTION_TYPES)
         self.assertEqual(store_module.ALLOWED[("report_sections", "type")], store_module.SECTION_TYPES)
@@ -337,14 +337,26 @@ class PageSide(unittest.TestCase):
         self.assertTrue(all(p["view"] == "function" and p["isEmpty"] == "function" for p in self.val("T.parts").values()))
         cat = self.val("T.templates.CATALOGUE")
         cat_types = [x["type"] for x in cat if x["type"] not in ("text",) + PAGE_FIRST and not x.get("start")]
+        # row 1268: the Work items list has no entry without a start (its start is the saved filter it begins from), so it counts here by that one entry
+        cat_types += [x["type"] for x in cat if x.get("start") and x["type"] == "workitems"]
         self.assertEqual(sorted(cat_types), sorted(types), "one catalogue entry per template type")
-        self.assertEqual([(x["id"], x["type"], x["start"]) for x in cat if x.get("start")], [("full-image", "imagecap", '{"v":2}')],
+        self.assertEqual([(x["id"], x["type"], x["start"]) for x in cat if x.get("start") and x["type"] != "workitems"], [("full-image", "imagecap", '{"v":2}')],
                          "row 1223: Full width image is the same store type as Image with caption, started with a version 2 body; no type of its own")
         self.assertEqual([x["type"] for x in cat if x["type"] == "text"], ["text", "text", "text"], "Text, Current state and Plan summary (all the type text), in the catalogue's order; item 1158: no Needs from you")
         self.assertEqual(len({x["id"] for x in cat}), len(cat))
         self.assertEqual(self.val("T.templates.TEMPLATES.length + T.templates.LATER.length"), len(cat))
         self.assertTrue(set(store_module.SECTION_TYPES) >= set(x["type"] for x in cat if x["type"] not in PAGE_FIRST))
 
+
+    def test_the_work_items_catalogue_entry_is_the_one_entry_with_its_saved_filter_as_the_start(self):
+        """Row 1268: the Work items list is in the catalogue once, as "work-items", and its start is the saved filter (a version 1 body, open items, with columns) it begins from."""
+        cat = self.val("T.templates.CATALOGUE")
+        wi = [x for x in cat if x["type"] == "workitems"]
+        self.assertEqual([x["id"] for x in wi], ["work-items"])
+        body = json.loads(wi[0].get("start") or "null")
+        self.assertIsInstance(body, dict, "the entry starts from a saved filter")
+        self.assertEqual((body.get("v"), body.get("mode")), (1, "open"))
+        self.assertTrue(body.get("columns"), "the filter names its columns")
     def test_every_template_view_file_and_edit_file_is_there_and_pre_filled(self):
         for t in section_kinds.TYPES:
             self.assertIn(f'store type "{t}"', "".join(p.read_text(encoding="utf-8") for p in (PAGE_SRC / "templates").glob("*.jsx")))
@@ -388,7 +400,7 @@ class PageSide(unittest.TestCase):
         """Their words are held back with Help's until their slice ships: no name, description or parts on the page."""
         self.assertEqual({k for x in self.val("T.templates.LATER") for k in x}, {"id", "type", "ready"})
         later = [x["id"] for x in self.val("T.templates.LATER")]
-        self.assertEqual(len(later), 1)      # one entry is still held (the headline template: its words wait for an owner decision); the rest are in the box
+        self.assertEqual(len(later), 2)      # two entries are held (headline, the report headline of row 1261 slice 1: their words wait); the rest are in the box, the glance template of row 1264 slice 9 among them
         listed = [x["id"] for x in self.val("T.templates.list()")]
         self.assertEqual(set(later) & set(listed), set())
         for tid in later:
@@ -396,7 +408,11 @@ class PageSide(unittest.TestCase):
 
     def test_a_stub_is_empty_and_a_built_in_type_is_not_a_template(self):
         for t in section_kinds.TYPES:
-            self.assertIs(self.val(f"T.templateEmpty({{id: 'x', type: {json.dumps(t)}, body: '{{\"v\":1}}'}}, {{}})"), True, t)
+            body = '{"v":1}'   # row 1264: the glance template with no rows and no bespoke tile has nothing to show
+            self.assertIs(self.val(f"T.templateEmpty({{id: 'x', type: {json.dumps(t)}, body: {json.dumps(body)}}}, {{}})"), True, t)
+        # row 1264 (B4): a glance template with every counting eye off is emptied on purpose; the View says so, so it is not empty
+        allhid = '{"v":1,"builtin":{"overdue":{"hidden":true},"risks":{"hidden":true},"decisions":{"hidden":true}}}'
+        self.assertIs(self.val(f"T.templateEmpty({{id: 'x', type: 'glancetemplate', body: {json.dumps(allhid)}}}, {{}})"), False)
         for t in BUILT_IN:
             self.assertIsNone(self.val(f"T.templateFor({json.dumps(t)})"), t)
             self.assertIs(self.val(f"T.templateEmpty({{id: 'x', type: {json.dumps(t)}}}, {{}})"), False, t)

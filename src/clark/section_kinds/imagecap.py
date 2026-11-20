@@ -462,7 +462,9 @@ def with_picture(value, slot, image):
     return set_picture(value, slot, image, V1_SLOTS, {"v": 1})
 
 
-def _with_original(value, slot, image):
+def _with_original(value, slot, image, view=None):
+    """`view(body)` (row 1232) gives the numbers of the framing in this template's own spelling; Full width image reads its body as it is."""
+    view = view or (lambda body: body)
     if slot != "original":
         raise Bad(MADE_HERE)
     had = bool((value.get(PICTURES) or {}).get("original"))
@@ -493,7 +495,7 @@ def _with_original(value, slot, image):
             raise Bad(TOO_WIDE)
     image = picture(image, ORIGINAL_MAX)
     out[PICTURES] = dict(out.get(PICTURES) or {}, original=image)
-    numbers = _frame_numbers(out)
+    numbers = _frame_numbers(view(out))
     out[PICTURES]["image"] = _make_framed(image, numbers)
     return out
 

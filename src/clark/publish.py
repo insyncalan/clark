@@ -321,9 +321,9 @@ def _content(s, ctx=None):
     try:
         text = check_section_body(s["type"], s.get("body"))
     except StoreInvalid:
-        return {} if s["type"] == section_bodies.USECASES else None      # row 1234: the use case summary is never left out for its view setting: no setting, or a bad one, is the defaults
+        return {} if s["type"] in section_bodies.VIEW_TYPES else None      # row 1234, row 1230: the use case summary and the Milestones section are never left out for its view setting: no setting, or a bad one, is the defaults
     if not text:
-        return {} if s["type"] == section_bodies.USECASES else None
+        return {} if s["type"] in section_bodies.VIEW_TYPES else None
     return section_bodies.published(s["type"], json.loads(text), ctx)
 
 
@@ -545,6 +545,7 @@ def select(inputs):
 
     rows = {k: ([r for r in d.get(k) or () if keep(r, k)] if SECTION_OF_KIND[k] not in hidden_types else [])
             for k in KINDS}
+    kept_work = {k: [r for r in d.get(k) or () if keep(r, k)] for k in WORK_KINDS}      # row 1268: kept even when the built-in section is hidden, for the Work items lists alone (see `named` below)
     ids = {k: {r["id"] for r in rows[k]} for k in KINDS}
     linkable = ids["milestones"] | ids["actions"] | ids["raid"] | ids["decisions"]
 
@@ -553,10 +554,10 @@ def select(inputs):
         if field in c and c[field] not in ids[kind]:
             c[field] = None
 
-    out = {}
+    out, built = {}, {}
     for k in KINDS:
-        out[k] = []
-        for r in rows[k]:
+        built[k] = []
+        for r in (kept_work[k] if k in WORK_KINDS else rows[k]):
             c = _pick(r, PUBLISH_FIELDS[k])
             if k in SOURCED:                                      # row 1077: the source by name, never a path
                 c["source"] = source_name(c.get("source"), published=True) or None
@@ -579,7 +580,8 @@ def select(inputs):
                 c.update(state=state, state_word=milestones.client_word(state), slip_days=milestones.slip_days(r, as_at),
                          original_date=milestones.original_date(mine, r["id"], r.get("baseline_date"),
                                                                 inputs.get("undone") or ()))
-            out[k].append(c)
+            built[k].append(c)
+        out[k] = built[k] if rows[k] or k not in WORK_KINDS else []      # a hidden built-in section carries no row of its own (trimmed to the lists' own rows below)
     used = {str(r.get("workstream")).casefold() for k in ("milestones", "actions", "raid") for r in rows[k] if r.get("workstream")}
     out["workstreams"] = [_pick(w, PUBLISH_FIELDS["workstreams"]) for w in d.get("workstreams") or ()
                           if w.get("archived") == 0 and (str(w.get("name")).casefold() in used or w.get("id") in used)]
@@ -601,21 +603,26 @@ def select(inputs):
         proj["gantt_default_rows"] = gantt["default_rows"]
     shown = []
     pairs = set()                  # ids that open a row of two whose halves BOTH show: rows are read from every section, then the hidden are left out
-    for_templates = {k: out[k] for k in KINDS}
+    for_templates = {"use_cases": built["use_cases"]}            # the four work and milestone kinds follow, each with its words made plain
     for_templates["actions"] = [{**r, "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") else r
-                                for r in out["actions"]]                      # row 1005: a template (pure) is handed the words of the latest update, as the file's HTML would be markup to it
+                                for r in built["actions"]]                      # row 1005: a template (pure) is handed the words of the latest update, as the file's HTML would be markup to it
     for_templates["raid"] = [{**r, "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") else r
-                             for r in out["raid"]]                            # item 1185: the same for a risk or issue
+                             for r in built["raid"]]                            # item 1185: the same for a risk or issue
     for_templates["decisions"] = [{**r, "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") else r
-                                  for r in out["decisions"]]                  # row 1195: the same for a decision
+                                  for r in built["decisions"]]                  # row 1195: the same for a decision
     for_templates["milestones"] = [{**r, "client_message": sanitise.rich_plain_text(r.get("client_message")), "latest_update": sanitise.rich_plain_text(r.get("latest_update"))}
                                    if r.get("client_message") or r.get("latest_update") else r
-                                   for r in out["milestones"]]                # row 1078: the same for a milestone's client wording
+                                   for r in built["milestones"]]                # row 1078: the same for a milestone's client wording
     live = {"workstream": frozenset(" ".join(str(w.get("name") or "").split()).lower() for w in d["workstreams"] if not w.get("archived")) if "workstreams" in d else None,
             "use_case": frozenset(u.get("id") for u in d["use_cases"] if not u.get("archived")) if "use_cases" in d else None,
             "gone_owner": frozenset(inputs.get("gone_owners") or ())}      # row 1113: a Work items filter naming what is gone lists nothing
     ctx = section_bodies.Context(for_templates, as_at, live)          # #96: only what is already kept, as the file carries it
-    extra = {s["id"]: _content(s, ctx) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
+    shown_ctx = section_bodies.Context({**for_templates, **{k: out[k] for k in WORK_KINDS if not rows[k]}}, as_at, live)      # row 1268: a hidden built-in section's rows reach a Work items list alone; every other template sees only what the section left in
+    extra = {s["id"]: _content(s, ctx if s.get("type") == "workitems" else shown_ctx) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
+    named = {i for s in sections if s.get("type") == "workitems" and extra.get(s["id"]) for i in extra[s["id"]].get("items") or ()}
+    for k in WORK_KINDS:
+        if not rows[k]:
+            out[k] = [c for c in built[k] if c.get("id") in named]      # row 1268: a hidden built-in section still lets a list print the rows it names, and no other row of it
     out_of_file = lambda x: (x.get("hidden") or x.get("type") not in SECTION_TYPES or x.get("type") == section_bodies.NEEDS or (x.get("type") in section_bodies.CHECKERS and extra.get(x["id"]) is None)
                              or (x.get("type") == "docs" and not out["documents"])       # #74: no document to show, no section
                              or (x.get("type") == "gantt" and not gantt)                 # row 926: no Gantt tab in the file, no Gantt section; the lines are data.gantt's, gated in gantt_for_client
@@ -641,7 +648,7 @@ def select(inputs):
         out["gantt"] = {"columns": table["columns"], "lines": table["lines"]}      # row 1068: the eye-on lines for the table section alone, with no tab (tabs below), no tab name and no title: the same copy the tab would carry
     out["use_case_pages"] = client_use_cases(d, code, hidden_ids, inputs.get("label_rules"), hidden_types)
     tabs = ["dashboard"]
-    if any(SECTION_OF_KIND[k] not in hidden_types for k in WORK_KINDS):
+    if any(SECTION_OF_KIND[k] not in hidden_types for k in WORK_KINDS) or any(x.get("type") == "workitems" for x in shown):      # row 1307: a shown Work items list section brings the tab as a built-in section does, so its glance tiles are buttons
         tabs.append("work")
     if "milestones" not in hidden_types:
         tabs.append("milestones")
@@ -1398,6 +1405,12 @@ def read_inputs(store, code, as_at=None):
 
 
 # ===== Making the file =====
+def theme_of(store):
+    """The Theme folder name for the Theme `store` holds at this moment, or None for Cards (row 1269): one answer for the file, the PDF and the markers."""
+    from clark import theme      # here: clark.theme imports clark.page
+    return theme.of_store(store)
+
+
 def build(store, code, now=None, branding=None, section_style=None, number=None, workbook=False, past_reports=None):
     """Make the report once, in memory, and write nothing: {"body", "sha256", "project", "as_at", "published"}. `body` is the
     finished file's UTF-8 bytes, `published` is what select() kept (the same object render() was given). `now` is the publish
@@ -1439,7 +1452,7 @@ def build(store, code, now=None, branding=None, section_style=None, number=None,
     if past:
         published["data"]["past_reports"] = past
     n = store.next_publication(code) if number is None else number
-    text = render(published, page.page_html(branding, view=True), as_at, project["name"], n)      # #65: the view-only page
+    text = render(published, page.page_html(branding, view=True, theme=theme_of(store)), as_at, project["name"], n)      # #65: the view-only page
     body = text.encode("utf-8")
     if len(body) > MAX_BYTES:
         raise PublishError(f"The report is {len(body) / 1048576:.1f} MB, which is over the {MAX_BYTES // 1048576} MB limit. "

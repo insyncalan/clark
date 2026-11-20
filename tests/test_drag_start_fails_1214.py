@@ -66,7 +66,7 @@ class DragStartFails(unittest.TestCase):
                 got = self.run_drag(w)
                 self.assertEqual(got["thrown"], 1, "the unmeasurable start fails")
                 self.assertEqual(got["afterFail"], [], "and adds no document listener")
-                self.assertEqual(got["adds"], 4, "the next press added its own four listeners")
+                self.assertEqual(got["adds"], 5, "the next press added its own five listeners")
 
 
 if __name__ == "__main__":

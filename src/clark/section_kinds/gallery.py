@@ -10,9 +10,10 @@ picture is held to V1_PICTURE_MAX, as before; a stored version 1 gallery always 
 VERSION 2 (row 1233, the redesign on the Full width image's framing, which this reuses from imagecap.py): `{"v": 2, ...}`. A version 1
 gallery becomes version 2 by the words alone (the pictures it holds are slots "1" to "6" of a version 2 body too), so nothing is
 migrated. The fields:
-- `cols` 2 or 3 (default 3, left out when 3): how many across at full width. The page shows two across at half width and at 900 px.
-- `shape` for ALL the images: "whole" (default, left out), "4:3", "square" or "16:9". A body saved by 1.0.7 has none, and the page
-  draws it 4:3 as 1.0.7 did; a shape other than "whole" is cut here, by clark, from a PNG.
+- `columns` 2 or 3 (default 3, left out when 3): how many across at full width. The page shows two across at half width and at 900 px.
+- `shape` for ALL the images: "4:3" (default, left out), "square", "16:9" or "whole" (never the default). A shape other than "whole" is
+  cut here, by clark, from a PNG. A version 1 body has none and is published exactly as 1.0.7 did (no columns, no shape: the page draws
+  it 4:3 as before); only a version 2 body publishes `columns` and `shape`, always both.
 - `order`: the slots in the order shown, all six (only when it is not the plain order 1 to 6). Dragging an image changes this and nothing
   else, so its caption, description, framing and image move with it. All six slots are listed (the pictures stay where they are).
 - `items[slot]`: `caption` and `alt` (the description), and that image's own framing, all numbers clark validates (the Image
@@ -30,7 +31,7 @@ Sizes (decided here, stated for the report file, the Word export and the backup)
 ORIGINAL_MAX (1 MiB), decoded. Six framed copies are 4.1 MB as text, inside the 5 MiB a published report may take; the stored section
 may reach LIMIT (12.1 MB: six framed copies and six originals), which is what a backup of the project can grow by.
 
-Published (version 2): ONLY the framed copies, in `order`, with their captions and descriptions, `cols` and `shape`; never an original,
+Published (version 2): ONLY the framed copies, in `order`, with their captions and descriptions, `columns` and `shape`; never an original,
 so a cropped part is not in the report file. No image: not published.
 """
 from clark.section_kinds import imagecap
@@ -51,8 +52,10 @@ V1_LIMIT = 3 * 1024 * KIB + 256 * KIB    # what a version 1 body may take, as be
 LIMIT = 6 * ((FRAMED_MAX + 2) // 3 * 4 + (ORIGINAL_MAX + 2) // 3 * 4) + 64 * KIB     # the stored body (either version): six framed copies, six originals and the words
 EMPTY = ""
 START = '{"v":2}'                   # the body a version 2 gallery starts from (and what upgrades a version 1 gallery: its pictures are kept)
-COLS = (2, 3)
-SHAPES = ("whole", "4:3", "square", "16:9")
+COLUMNS = (2, 3)                    # Row 1233: how many across; the view draws two across at half width and at 900 px whatever is said
+SHAPES = ("4:3", "square", "16:9", "whole")     # one shape for every image; none said is 4:3 (a new gallery and 1.0.7 alike), "whole" is never the default
+DEFAULT_COLUMNS = 3
+DEFAULT_SHAPE = "4:3"
 RATIOS = {"4:3": 1333, "square": 1000, "16:9": 1778}      # width over height, in thousandths (the Image template's "free" shape)
 WORDS = ("caption", "alt")
 FRAMING = ("fx", "fy", "crop", "fit", "fill", "from_w")
@@ -150,10 +153,12 @@ def _order(value):
     return given + [s for s in SLOTS if s not in given]
 
 
-def _numbers(item, shape):
-    """The framing of one image as the Image template's code takes it: its own numbers and the one shape for all."""
+def _numbers(item, shape, image):
+    """The framing of one image as the Image template's code takes it: its own numbers and the one shape for all. The default shape does
+    not cut a JPEG or a WebP (clark cuts only a PNG): such an image stays as it is and the page draws it in 4:3, as 1.0.7 did, so a
+    version 1 gallery that holds one is upgraded by its words alone without losing it."""
     numbers = {k: item[k] for k in ("fx", "fy", "crop") if k in item}
-    if shape != "whole":
+    if shape != "whole" and not (shape == DEFAULT_SHAPE and imagecap._decode_data(image)[0] != "png"):
         numbers["shape"], numbers["ratio"] = "free", RATIOS[shape]
     return numbers
 
@@ -164,18 +169,18 @@ def _make(original, numbers):
 
 def _check_v2(value):
     for k in value:
-        if k not in ("v", "items", "cols", "shape", "order", PICTURES):
+        if k not in ("v", "items", "columns", "shape", "order", PICTURES):
             raise Bad(UNKNOWN_FIELD)
     out = {"v": 2}
-    cols = value.get("cols", 3)
-    if type(cols) is not int or cols not in COLS:
+    columns = value.get("columns", DEFAULT_COLUMNS)
+    if type(columns) is not int or columns not in COLUMNS:
         raise Bad(BAD_LAYOUT)
-    if cols != 3:
-        out["cols"] = cols
-    shape = value.get("shape", "whole")
+    if columns != DEFAULT_COLUMNS:
+        out["columns"] = columns
+    shape = value.get("shape", DEFAULT_SHAPE)
     if shape not in SHAPES:
         raise Bad(BAD_LAYOUT)
-    if shape != "whole":
+    if shape != DEFAULT_SHAPE:
         out["shape"] = shape
     items = _items_v2(value)
     pics = pictures_of(value, SLOTS + ORIGINALS, ORIGINAL_MAX)
@@ -185,8 +190,8 @@ def _check_v2(value):
             raise Bad(NOT_ALONE)
         if not framed:
             continue
-        numbers = _numbers(items.get(slot, {}), shape)
         source = original or framed                       # with no original kept, the copy is its own original
+        numbers = _numbers(items.get(slot, {}), shape, source)
         if not imagecap._framed_belongs(source, framed, numbers):
             framed = _make(source, numbers)               # the framing changed (or the copy is not ours): made again here
             original = source
@@ -266,7 +271,7 @@ def _with_image(value, slot, image):
         if size[0] > WIDTH_MAX:
             raise Bad(TOO_WIDE)
     image = picture(image, ORIGINAL_MAX)
-    framed = _make(image, _numbers(item, out.get("shape", "whole")))
+    framed = _make(image, _numbers(item, out.get("shape", DEFAULT_SHAPE), image))
     pics[slot] = framed
     if framed == image:
         pics.pop("o" + slot, None)
@@ -291,7 +296,7 @@ def _put_back(out, pics, items):
 
 
 def published(value, ctx):
-    """The images in the order shown, each with its caption and description; None while there is no image. Version 2 adds `cols` and
+    """The images in the order shown, each with its caption and description; None while there is no image. Version 2 adds `columns` and
     `shape`, and publishes only the framed copy (never an original), and only when it is the one made from the stored original and
     framing."""
     if type(value) is not dict:
@@ -301,8 +306,15 @@ def published(value, ctx):
     if value.get("v") != 2:
         shown = [{"image": pics[s], "caption": (items.get(s) or {}).get("caption", ""), "alt": (items.get(s) or {}).get("alt", "")}
                  for s in SLOTS if pics.get(s)]
-        return {"content": {"pictures": shown}} if shown else None
-    shape = value.get("shape", "whole")
+        if not shown:
+            return None
+        content = {"pictures": shown}                        # a version 1 body: exactly as 1.0.7 and the first view published it
+        if value.get("columns") in COLUMNS:
+            content["columns"] = value["columns"]
+        if value.get("shape") in SHAPES:
+            content["shape"] = value["shape"]
+        return {"content": content}
+    shape = value.get("shape", DEFAULT_SHAPE)
     shown = []
     try:
         if shape not in SHAPES:
@@ -313,7 +325,8 @@ def published(value, ctx):
             if not framed:
                 continue
             item = items.get(s) or {}
-            if not imagecap._framed_belongs(pics.get("o" + s) or framed, framed, _numbers(item, shape)):
+            source = pics.get("o" + s) or framed
+            if not imagecap._framed_belongs(source, framed, _numbers(item, shape, source)):
                 continue
             one = {"image": framed, "caption": item.get("caption", ""), "alt": item.get("alt", "")}
             for key in ("fit", "fill"):
@@ -324,4 +337,7 @@ def published(value, ctx):
         return None
     if not shown:
         return None
-    return {"content": {"pictures": shown, "cols": value.get("cols", 3), "shape": shape}}
+    columns = value.get("columns", DEFAULT_COLUMNS)
+    if columns not in COLUMNS:
+        return None
+    return {"content": {"pictures": shown, "columns": columns, "shape": shape}}

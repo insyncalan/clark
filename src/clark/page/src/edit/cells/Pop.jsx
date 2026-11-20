@@ -31,6 +31,8 @@ export function Pop({ anchor, label, role = "dialog", cls = "", onClose, childre
   const place = () => {
     const el = box.current, a = anchor && anchor.current;
     if (!el || !a) return;
+    const cap = window.innerHeight - 16;                // row 1286 (B-M5): a list taller than the window scrolls inside its own box, first line first
+    if (el.offsetHeight > cap) { el.style.boxSizing = "border-box"; el.style.maxHeight = `${cap}px`; el.style.overflowY = "auto"; }
     const r = a.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
     const left = Math.max(8, Math.min(r.left, document.documentElement.clientWidth - w - 8));
     let top = r.bottom + 4;
@@ -49,10 +51,13 @@ export function Pop({ anchor, label, role = "dialog", cls = "", onClose, childre
     };
     const moved = (e) => { if (!box.current || !box.current.contains(e.target)) place(); };
     const resized = () => onClose(false);
+    const esc = (e) => { const a = anchor && anchor.current; if (e.key === "Escape" && !e.defaultPrevented && box.current && a && a.contains(e.target)) { e.preventDefault(); e.stopPropagation(); onClose(true); } };   // row 1184: focus is still on the chip that opened it, so the panel's own key handler never hears the Esc; it closes the panel and not the peek
+    document.addEventListener("keydown", esc, true);
     document.addEventListener("pointerdown", away, true);
     document.addEventListener("scroll", moved, true);
     window.addEventListener("resize", resized);
     return () => {
+      document.removeEventListener("keydown", esc, true);
       document.removeEventListener("pointerdown", away, true);
       document.removeEventListener("scroll", moved, true);
       window.removeEventListener("resize", resized);
@@ -102,13 +107,14 @@ export function Pop({ anchor, label, role = "dialog", cls = "", onClose, childre
 }
 
 // The arrows, Home and End move focus through a list of controls (wrapping); returns whether the key was one of them.
-export function roam(e, items) {
+// `across`: a row of choices where Right and Left also step on (Down and Up always do).
+export function roam(e, items, across = false) {
   const all = items.filter((el) => el && !el.disabled);
   if (!all.length) return false;
   const at = all.indexOf(document.activeElement);
   let next = -1;
-  if (e.key === "ArrowDown") next = (at + 1) % all.length;
-  else if (e.key === "ArrowUp") next = at <= 0 ? all.length - 1 : at - 1;
+  if (e.key === "ArrowDown" || (across && e.key === "ArrowRight")) next = (at + 1) % all.length;
+  else if (e.key === "ArrowUp" || (across && e.key === "ArrowLeft")) next = at <= 0 ? all.length - 1 : at - 1;
   else if (e.key === "Home") next = 0;
   else if (e.key === "End") next = all.length - 1;
   if (next < 0) return false;

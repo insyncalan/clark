@@ -26,7 +26,7 @@ export const hintOf = (impact, likelihood) => {
   return `${impact} impact, ${likelihood} likelihood: ${p} (${colourOf(p).word})`;
 };
 
-export function Matrix({ row, anchor, onClose }) {
+export function Matrix({ row, anchor, onClose, place = "peek" }) {   // row 1282: the one control, in the peek and in the Work items list (place: where the change says it was made)
   const box = useRef(null);
   const [at, setAt] = useState({ i: row.impact, l: row.likelihood });      // the cell under the pointer or the focus: the hint says its result
   const cells = () => Array.from(box.current ? box.current.querySelectorAll("[data-impact]") : []);
@@ -39,7 +39,7 @@ export function Matrix({ row, anchor, onClose }) {
     if (impact === row.impact && likelihood === row.likelihood) return;
     const was = [row.impact, row.likelihood];
     changeRating(tableOf(row), row.id, { impact, likelihood },
-      { text: `Impact of ${row.id} is ${impact} and likelihood ${likelihood}.`, back: `Impact and likelihood of ${row.id} are back to ${was[0]} and ${was[1]}.`, place: "peek" });
+      { text: `Impact of ${row.id} is ${impact} and likelihood ${likelihood}.`, back: `Impact and likelihood of ${row.id} are back to ${was[0]} and ${was[1]}.`, place });
   };
   const key = (e) => {
     const ar = { ArrowLeft: [0, -1], ArrowRight: [0, 1], ArrowUp: [-1, 0], ArrowDown: [1, 0] }[e.key];
@@ -66,8 +66,10 @@ export function Matrix({ row, anchor, onClose }) {
             })}
           </>
         ))}
+        <span class="rmx-colhead" aria-hidden="true" />
+        {LIKELIHOODS.map((li) => <span class="rmx-h rmx-col" key={`h-${li}`} aria-hidden="true">{li}</span>)}
       </div>
-      <p class="rmx-hint" data-rmx-hint data-pk-matrix-say>{at.i && at.l ? hintOf(at.i, at.l) : ""}</p>
+      <p class="rmx-hint" data-rmx-hint data-pk-matrix-say>{at.i && at.l ? <>{at.i} impact, {at.l} likelihood: <b data-rmx-level>{levelOf(at.i, at.l)}</b> ({colourOf(levelOf(at.i, at.l)).word})</> : ""}</p>
     </Pop>
   );
 }

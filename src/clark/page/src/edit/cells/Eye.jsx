@@ -45,4 +45,5 @@ export function Eye({ row, card }) {   // `card`: the board's card, whose button
   );
 }
 
+Eye.isOff = (row) => !eyeOf(row).on;        // row 1268: the list greys a row the client eye has taken off, as the mock-up draws it
 Eye.heading = "Client-visible";                // the column's name for a screen reader (the heading is drawn by the table, which holds no word of it)

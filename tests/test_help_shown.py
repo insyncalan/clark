@@ -103,8 +103,8 @@ class Held(unittest.TestCase):
         self.assertEqual(task["s"][2], intro)
         self.assertIn("No password or key is kept.", src)
         self.assertIn("Connect Claude or ChatGPT for ask clark: the passages it sends leave this computer, go to the one you choose and count against that plan. ", src)
-        self.assertEqual(task["s"][1][:len("Press **Connect** under the one you use if it says **Not connected**.")], "Press **Connect** under the one you use if it says **Not connected**.")
-        self.assertEqual(task["s"][4], "To stop, press **Disconnect**. The card then says: Disconnected. You're still signed in to Claude or ChatGPT on this computer, but clark won't use it.")
+        self.assertEqual(task["s"][1][:len("Press **Turn on** under the one you use if it says **Not connected**.")], "Press **Turn on** under the one you use if it says **Not connected**.")
+        self.assertEqual(task["s"][4], "To stop, press **Turn off** under the one you want to stop. The card then says: Disconnected. You're still signed in to Claude or ChatGPT on this computer, but clark won't use it.")
         self.assertIn("Disconnected. You're still signed in to {name} on this computer, but clark won't use it.", src)
         self.assertNotIn("settings", LATER["reference"])      # the Settings entries are released: every card they name is on the page (checked below)
         self.assertIn("No password or key is kept: the sign-in already on this computer is used.", json.dumps(RAW["reference"]["sections"]))
@@ -162,7 +162,7 @@ class AgainstThePage(unittest.TestCase):
 
     def test_every_bold_name_shown_is_on_the_page(self):
         norm = lambda t: re.sub(r"[‘’]", "'", t)
-        code = norm(self.HELPCODE) + norm((ROOT / "src" / "clark" / "default_sections.py").read_text(encoding="utf-8"))      # the starting sections' titles (Summary, This week, Next week) come from the server
+        code = norm(self.HELPCODE) + norm((ROOT / "src" / "clark" / "default_sections.py").read_text(encoding="utf-8"))      # the starting sections' titles (Current state, This week, Next week) come from the server
         missing = sorted({b for t in shown_texts() for b in re.findall(r"\*\*(.+?)\*\*", t) if lacks(code, b)})
         self.assertEqual(missing, [], "Help names buttons the page does not have: hold the entry in helpLater.json, or reword it")
 
@@ -464,6 +464,8 @@ class HelpWordsMatchScreen(unittest.TestCase):
         m = re.search(r"`Show all \$\{n\} (milestones)`", MILESTONES)
         self.assertIsNotNone(m, "the screen's word changed")
         self.assertTrue(any("**Show all N milestones** shows the rest" in s for s in ALL))
+        self.assertTrue(any("**Show all N milestones** shows the rest, unless a number is set in **Configure**" in s for s in ALL))
+        self.assertTrue(any("The first five, then **Show all**, unless a number is set in **Configure**" in s for s in ALL))
         self.assertFalse(any("each milestone with its date" in s and "**Show all** shows" in s for s in ALL))
 
     def test_swimlane_choices(self):

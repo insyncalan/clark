@@ -62,7 +62,7 @@ const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 
 export function GanttChart({
   lines, edit = false, today, filter: filterProp, onFilter, defaultRows = null, onDefaultRows, hiddenCols = [], projectKey = "",
-  onChange, onToggleEye, onAdd, onDelete, addBelowWord = "", eyeWords = {},      // addBelowWord: the Edit-only add button's words (edit/ganttWords.js), given by the page
+  onChange, onToggleEye, onAdd, onDelete, addBelowWord = "", eyeWords = {}, lead = null,      // lead: row 1197, the page's table and chart buttons, drawn first in the bar; addBelowWord: the Edit-only add button's words (edit/ganttWords.js), given by the page
 }) {
   const now = today || todayIso();
   const all = useMemo(() => tidyAll(lines), [lines]);
@@ -204,6 +204,7 @@ export function GanttChart({
   if (!range || !total) {
     return (
       <section class="gt" data-gantt data-mode={edit ? "edit" : "view"}>
+        {lead ? <div class="gt-bar" role="toolbar" aria-label="Chart">{lead}</div> : null}      {/* row 1197: an empty chart still carries the table and chart buttons, so the way back to the table is there */}
         <p class="gt-none" data-g-none>{WORDS.noLines}</p>
         {out ? <p data-g-count>{linesShown(0, out)}</p> : null}
       </section>
@@ -363,9 +364,7 @@ export function GanttChart({
   return (
     <section class={`gt${full ? " gt-full" : ""}`} data-gantt data-mode={edit ? "edit" : "view"} data-full={full ? "1" : "0"}>
       <div class="gt-bar" role="toolbar" aria-label="Chart">
-        <button type="button" class="gt-ib" onClick={zoomOutTo} disabled={zoom <= 1} aria-label={WORDS.zoomOut} title={WORDS.zoomOut} data-g-zout><Glyph name="zout" /></button>
-        <button type="button" class="gt-zf" ref={fitBtn} onClick={() => setZoom(1)} aria-label={WORDS.fit} title={WORDS.fit} data-g-fit>{Math.round(zoom * 100)}%</button>
-        <button type="button" class="gt-ib" onClick={() => setZoom(zoomIn(zoom))} aria-label={WORDS.zoomIn} title={WORDS.zoomIn} data-g-zin><Glyph name="zin" /></button>
+        {lead}
         <span class="gt-sep" aria-hidden="true" />
         <span class="gt-grp" role="group" aria-label="Scale">
           {SCALES.map((s) => (
@@ -373,6 +372,9 @@ export function GanttChart({
           ))}
         </span>
         <span class="gt-sp" />
+        <button type="button" class="gt-ib" onClick={zoomOutTo} disabled={zoom <= 1} aria-label={WORDS.zoomOut} title={WORDS.zoomOut} data-g-zout><Glyph name="zout" /></button>
+        <button type="button" class="gt-zf" ref={fitBtn} onClick={() => setZoom(1)} aria-label={WORDS.fit} title={WORDS.fit} data-g-fit>{Math.round(zoom * 100)}%</button>
+        <button type="button" class="gt-ib" onClick={() => setZoom(zoomIn(zoom))} aria-label={WORDS.zoomIn} title={WORDS.zoomIn} data-g-zin><Glyph name="zin" /></button>
         <span class="gt-showwrap" data-g-showwrap>
           <button type="button" class="gt-ib" aria-haspopup="menu" aria-expanded={showOpen} aria-label={`${WORDS.show}: ${filterWord(filter)}`} title={`${WORDS.show}: ${filterWord(filter)}`}
             data-g-show ref={showBtn} onClick={(e) => { opener.current = e.currentTarget; setShowOpen(!showOpen); }}><Glyph name="filter" /></button>

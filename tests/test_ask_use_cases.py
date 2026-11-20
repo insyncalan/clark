@@ -109,7 +109,8 @@ class UseCaseChanges(Base):
     def test_row_875_the_facts_of_a_use_case_never_carry_an_owner_even_if_a_row_did(self):
         """Second line of defence: the claims check's facts for a use case have an empty owner, whatever the row it is given holds."""
         facts = ask_data.facts_of({"use_cases": [{"id": self.uc, "title": "Invoice matching", "owner": "ZQ-OWNER-FACT-6605 Placeholder"}]})
-        self.assertEqual(facts[self.uc], {"title": "Invoice matching", "owner": ""})
+        # Row 1332 added "state" to a use case's facts (an empty list when the row carries none); the owner stays empty whatever the row holds.
+        self.assertEqual(facts[self.uc], {"title": "Invoice matching", "owner": "", "state": []})
 
     def test_archive_delete_a_new_use_case_and_an_owner_claim_are_still_refused(self):
         for op in ("archive", "delete", "restore", "remove"):
@@ -161,14 +162,14 @@ class WhatTheModelSees(Base):
         self.assertEqual(ask_data.SHOWN["use_cases"], ("ref", "status", "commitment", "headline", "standing"))
         self.assertIn(uc, data.facts)
 
-    def test_a_hidden_use_case_is_not_offered(self):
+    def test_a_hidden_use_case_is_offered_to_the_owner(self):      # row 1367 (ruling 19-11)
         uc = self.demo.use_case
         with self.s.step("dashboard", USER) as st:
             st.update("use_cases", uc, {"headline": "Hidden words ZQ-HIDDEN", "client_visible": 0})
         data, text = self.passages()
-        self.assertNotIn(uc, text)
-        self.assertNotIn("ZQ-HIDDEN", text)
-        self.assertNotIn(uc, data.facts)
+        self.assertIn(uc, text)
+        self.assertIn("ZQ-HIDDEN", text)
+        self.assertIn(uc, data.facts)
 
     def test_an_archived_use_case_is_not_offered(self):
         uc = self.demo.use_case

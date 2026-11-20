@@ -378,7 +378,13 @@ class Live(unittest.TestCase):
     def undo(self, cdp, sid, what, said=None):
         """Undo the last change; the toast then says what the cell went back to (`said`, when given, word for word)."""
         before = self.steps()
-        click(cdp, sid, "[data-undo]")
+        # the message goes after 5 seconds (row 1075): on a loaded box the poll or the click can land as it goes or as it is redrawn,
+        # so wait for the Undo to be on offer, click, and click again while it is still offered and nothing was undone
+        for attempt in range(3):
+            self.until(cdp, sid, "!!document.querySelector('.toast [data-undo]')", f"{what}: the toast offers Undo")
+            click(cdp, sid, "[data-undo]")
+            if wait(lambda: self.steps() == before + 1, 4):
+                break
         if said is None:
             self.until(cdp, sid, "/ is back to | is blank again\\.$/.test((document.querySelector('.toast-text') || {}).textContent || '')", f"{what}: the undo said what went back")
         else:
@@ -459,7 +465,7 @@ class Live(unittest.TestCase):
                     self.assertLess(_lum(box[0]), 0.2, f"{what}: the picker follows the theme ({box[0]})")
                     self.assertEqual(box[1:], [True, True], f"{what}: the picker is whole in the window")
                     self.readable(cdp, sid, "[data-pop] [role=menuitemradio], [data-pop] [data-name], [data-pop] input.cp-in, [data-pop] [data-day],"
-                                  " [data-pop] [data-quick], [data-pop] .cp-t, [data-pop] .rp-head", what)
+                                  " [data-pop] [data-quick], [data-pop] .cp-t", what)
                     key(cdp, sid, "Escape")
                     self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", f"{what}: one Esc closes it")
                 self.assertEqual((self.steps(), len(self.sent)), (before, n), f"{where}: opening and leaving the pickers changed nothing")
@@ -721,8 +727,8 @@ class Live(unittest.TestCase):
             pcell = "#peek [data-cell='peek:TUL-007:status']"
             self.until(cdp, sid, f"!!document.querySelector(\"{pcell}\")", "the peek's Status row is a picker in Edit")
             self.until(cdp, sid, "document.querySelector('#peek').getAnimations({subtree: true}).length === 0", "the peek's slide-in (#131) has ended, so a click lands where it is drawn")
-            self.assertEqual(cdp.js(f"document.querySelector(\"{pcell}\").textContent", sid), "Red")
-            self.assertEqual(cdp.js(f"document.querySelector(\"{pcell}\").getAttribute('aria-label')", sid), "Status of TUL-007: Red. Change")
+            self.assertEqual(cdp.js(f"document.querySelector(\"{pcell}\").textContent", sid), "Open")  # row 1256: the colour is on the Rating chip
+            self.assertEqual(cdp.js(f"document.querySelector(\"{pcell}\").getAttribute('aria-label')", sid), "Status of TUL-007: Open. Change")
             click(cdp, sid, pcell)
             self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the peek's menu opened")
             self.assertEqual(cdp.js("document.querySelectorAll('[data-pop]').length", sid), 1, "one picker open, not the table's too")
@@ -792,7 +798,7 @@ class Live(unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelector('#peek [data-row=status] .pk-chip-sub').textContent", sid), "Amber kept")
                 kept = self.look(cdp, sid, "#peek [data-row=status] .pk-chip-sub")
                 self.assertTrue(kept["shown"], f"the rating word shows at {width}")
-                self.assertEqual(kept["color"], "rgb(169, 203, 212)", "--text-muted, dark")
+                self.assertEqual(kept["color"], "rgb(240, 138, 124)", "the kept rating is the red pill (row 1256), dark")
                 self.assertGreaterEqual(kept["ratio"], 4.5, f"the rating word is readable in dark at {width}")
                 click(cdp, sid, pcell)
                 self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the peek's menu opened")

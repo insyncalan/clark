@@ -39,6 +39,19 @@ class ChipFace(unittest.TestCase):
                     if level:
                         self.assertEqual((got["v"], got["sub"]), ("Red", level))
 
+    def test_row_1256_the_status_chip_says_open_or_closed_and_the_colour_is_on_the_rating_chip(self):
+        """Row 1256: the Status chip of a risk or issue reads Open, Closed or Cancelled, never a colour word; the colour is the Rating chip's. CLARK_CHROME runs it."""
+        want = {"TUL-007": ("Open", "Red"), "TUL-010": ("Open", None), "TUL-008": ("Closed", None), "TUL-012": ("Cancelled", None)}
+        with chrome() as cdp:
+            sid = self.open_page(cdp, 1400)
+            for ref, (status, colour) in want.items():
+                self.face(cdp, sid, ref)
+                got = cdp.js("(() => { const q = (r) => document.querySelector('#peek .pk-chips [data-row=' + r + '] .pkc-v'); return [q('status').textContent.trim(), q('priority').textContent.trim()]; })()", sid)
+                self.assertEqual(got[0], status, ref)
+                self.assertNotIn(got[0], ("Red", "Amber", "Green"), ref)
+                if colour:
+                    self.assertEqual(got[1], colour, ref)
+
     def test_an_open_risk_with_no_rating_has_no_pill(self):
         """Mutant survivor: without the `!!prio` guard an unrated open risk drew "Not rated" + a dash pill. It keeps the plain dash and no pill."""
         self.store.con.execute("UPDATE raid SET priority = NULL, impact = NULL, likelihood = NULL WHERE id = 'TUL-007'")

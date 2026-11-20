@@ -73,14 +73,14 @@ class Source(unittest.TestCase):
         self.assertIn("iconClass", text)
 
     def test_every_menu_of_a_work_item_gives_its_choices_icons(self):
-        for name in ("StatusPick.jsx", "PriorityPick.jsx", "RatingPick.jsx", "DuePick.jsx"):
+        for name in ("StatusPick.jsx", "PriorityPick.jsx", "DuePick.jsx"):
             self.assertIn("menuIcons.js", (SRC / "edit" / "cells" / name).read_text(encoding="utf-8"), name)
         self.assertIn("menuIcons.js", (SRC / "edit" / "PeekPick.jsx").read_text(encoding="utf-8"))
         self.assertIn("menuIcons.js", (SRC / "edit" / "bulkLogic.js").read_text(encoding="utf-8"))
 
     def test_the_milestone_peek_workstream_is_a_menu_with_icons_not_a_native_select(self):
         text = (SRC / "edit" / "MilestonePeek.jsx").read_text(encoding="utf-8")
-        body = text[text.index("function Workstream"):text.index("function Visible")]
+        body = text[text.index("function Workstream"):text.index("function UseCase")]
         self.assertNotIn("<select", body)
         self.assertIn("MenuPick", body)
         self.assertIn("fieldIcon", body)

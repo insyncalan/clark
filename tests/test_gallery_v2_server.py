@@ -20,13 +20,16 @@ from clark.section_kinds.textimage import BAD_SLOT, BIG_PICTURE, CAMERA_DETAILS,
 IMAGE_SLOT = "That image's place isn't in this section. Reload the page and try again."      # BAD_SLOT, said of images
 
 
+WHOLE = {"v": 2, "shape": "whole"}      # the shape that leaves every image as it is (never the default)
+
+
 def add(body, slot, image):
     """The body after the image is put in `slot` (the route's step), checked as the store checks it."""
     return gallery.check(gallery.with_picture(body, slot, image), None)
 
 
-def six(shape=None):
-    body = {"v": 2, **({"shape": shape} if shape else {})}
+def six(shape="whole"):
+    body = {"v": 2, "shape": shape}
     for n in range(1, 7):
         body = add(body, str(n), halves(8 + n, 6))
     return body
@@ -42,14 +45,15 @@ class Shape(unittest.TestCase):
         self.assertEqual(gallery.START, '{"v":2}')
 
     def test_a_version_2_body_keeps_its_fields_and_leaves_out_the_defaults(self):
-        body = gallery.check({"v": 2, "cols": 3, "shape": "whole", "items": {"1": {"caption": " Fictional ", "alt": "A hall", "fx": 500}}}, None)
+        body = gallery.check({"v": 2, "columns": 3, "shape": "4:3", "items": {"1": {"caption": " Fictional ", "alt": "A hall", "fx": 500}}}, None)
         self.assertEqual(body, {"v": 2, "items": {"1": {"caption": "Fictional", "alt": "A hall"}}})
-        body = gallery.check({"v": 2, "cols": 2, "shape": "square", "items": {"2": {"fx": 100, "fy": 900, "crop": [0, 0, 500, 500]}}}, None)
-        self.assertEqual(body, {"v": 2, "cols": 2, "shape": "square", "items": {"2": {"fx": 100, "fy": 900, "crop": [0, 0, 500, 500]}}})
+        body = gallery.check({"v": 2, "columns": 2, "shape": "square", "items": {"2": {"fx": 100, "fy": 900, "crop": [0, 0, 500, 500]}}}, None)
+        self.assertEqual(body, {"v": 2, "columns": 2, "shape": "square", "items": {"2": {"fx": 100, "fy": 900, "crop": [0, 0, 500, 500]}}})
         self.assertEqual(gallery.check({"v": 2}, None), {"v": 2})
+        self.assertEqual(gallery.check({"v": 2, "shape": "whole"}, None), {"v": 2, "shape": "whole"}, "whole is never the default, so it is kept")
 
     def test_what_is_refused(self):
-        for bad, words in (({"v": 2, "cols": 4}, gallery.BAD_LAYOUT), ({"v": 2, "cols": "3"}, gallery.BAD_LAYOUT), ({"v": 2, "cols": True}, gallery.BAD_LAYOUT),
+        for bad, words in (({"v": 2, "columns": 4}, gallery.BAD_LAYOUT), ({"v": 2, "columns": "3"}, gallery.BAD_LAYOUT), ({"v": 2, "columns": True}, gallery.BAD_LAYOUT),
                            ({"v": 2, "shape": "banner"}, gallery.BAD_LAYOUT), ({"v": 2, "order": ["1", "1"]}, gallery.BAD_LAYOUT),
                            ({"v": 2, "order": ["7"]}, gallery.BAD_LAYOUT), ({"v": 2, "order": "12"}, gallery.BAD_LAYOUT),
                            ({"v": 2, "items": {"7": {"caption": "x"}}}, IMAGE_SLOT), ({"v": 2, "items": {"1": "x"}}, NOT_CONTENT),
@@ -69,10 +73,10 @@ class Shape(unittest.TestCase):
                 gallery.check(bad, None)
 
     def test_the_store_takes_the_same_body_and_refuses_what_check_refuses(self):
-        text = store_module.check_section_body("gallery", json.dumps({"v": 2, "cols": 2, "items": {"1": {"caption": "Fictional"}}}))
-        self.assertEqual(json.loads(text), {"v": 2, "cols": 2, "items": {"1": {"caption": "Fictional"}}})
+        text = store_module.check_section_body("gallery", json.dumps({"v": 2, "columns": 2, "items": {"1": {"caption": "Fictional"}}}))
+        self.assertEqual(json.loads(text), {"v": 2, "columns": 2, "items": {"1": {"caption": "Fictional"}}})
         with self.assertRaises(store_module.Invalid):
-            store_module.check_section_body("gallery", json.dumps({"v": 2, "cols": 5}))
+            store_module.check_section_body("gallery", json.dumps({"v": 2, "columns": 5}))
 
 
 class SixImages(unittest.TestCase):
@@ -97,7 +101,7 @@ class SixImages(unittest.TestCase):
     def test_a_jpeg_and_a_png_with_camera_details_are_refused_as_for_every_picture(self):
         for bad, words in ((EXIF, CAMERA_DETAILS), (data(b"nope", "png"), NOT_A_PICTURE)):
             with self.assertRaises(Bad) as e:
-                gallery.with_picture({"v": 2}, "1", bad)
+                gallery.with_picture(WHOLE, "1", bad)
             self.assertIn("image", str(e.exception))
             self.assertNotIn("picture", str(e.exception).replace("Pictures", ""))
         self.assertIn("image", str(CAMERA_DETAILS.replace("picture", "image")))
@@ -105,18 +109,18 @@ class SixImages(unittest.TestCase):
 
 class Sizes(unittest.TestCase):
     def test_a_very_large_image_becomes_1600_wide_and_a_small_one_is_not_enlarged(self):
-        body = add({"v": 2}, "1", make_png(2400, 8, lambda x, y: RED if x < 1200 else BLUE))
+        body = add(WHOLE, "1", make_png(2400, 8, lambda x, y: RED if x < 1200 else BLUE))
         w, h, rows = decode(body["pictures"]["1"])
         self.assertEqual((w, h), (1600, 5))
         self.assertEqual(body["items"]["1"]["from_w"], 2400)
         self.assertEqual((rows[0][0], rows[0][-1]), (RED, BLUE))
         self.assertNotIn("o1", body["pictures"], "the shrunk image is its own original")
-        small = add({"v": 2}, "2", halves(30, 20))
+        small = add(WHOLE, "2", halves(30, 20))
         self.assertEqual(decode(small["pictures"]["2"])[:2], (30, 20))
         self.assertNotIn("items", small)
 
     def test_the_original_is_the_shrunk_image_so_a_crop_decodes_to_the_framed_part_only(self):
-        body = add({"v": 2}, "1", make_png(2400, 8, lambda x, y: RED if x < 1200 else BLUE))
+        body = add(WHOLE, "1", make_png(2400, 8, lambda x, y: RED if x < 1200 else BLUE))
         body["items"]["1"]["crop"] = [500, 0, 1000, 1000]
         out = gallery.check(body, None)
         w, h, rows = decode(out["pictures"]["1"])
@@ -126,19 +130,19 @@ class Sizes(unittest.TestCase):
 
     def test_a_jpeg_wider_than_1600_is_refused_in_words_and_a_png_cut_is_asked_for(self):
         with self.assertRaises(Bad) as e:
-            gallery.with_picture({"v": 2}, "1", sized_jpeg(2000))
+            gallery.with_picture(WHOLE, "1", sized_jpeg(2000))
         self.assertEqual(str(e.exception), gallery.TOO_WIDE)
-        body = add({"v": 2}, "1", sized_jpeg(800))
+        body = add(WHOLE, "1", sized_jpeg(800))
         self.assertEqual(body["pictures"], {"1": sized_jpeg(800)})
         with self.assertRaises(Bad) as e:
             gallery.with_picture({"v": 2, "shape": "square"}, "1", sized_jpeg(800))
         self.assertEqual(str(e.exception), imagecap.CANT_FRAME.replace("picture", "image"))
 
     def test_a_jpeg_exactly_1600_wide_is_kept_and_one_pixel_wider_is_refused(self):
-        body = add({"v": 2}, "1", sized_jpeg(gallery.WIDTH_MAX))
+        body = add(WHOLE, "1", sized_jpeg(gallery.WIDTH_MAX))
         self.assertEqual(body["pictures"], {"1": sized_jpeg(gallery.WIDTH_MAX)})
         with self.assertRaises(Bad) as e:
-            gallery.with_picture({"v": 2}, "1", sized_jpeg(gallery.WIDTH_MAX + 1))
+            gallery.with_picture(WHOLE, "1", sized_jpeg(gallery.WIDTH_MAX + 1))
         self.assertEqual(str(e.exception), gallery.TOO_WIDE)
 
     def test_a_framed_copy_over_its_limit_is_refused(self):
@@ -170,17 +174,16 @@ class Framing(unittest.TestCase):
         body = add({"v": 2, "shape": "square"}, "1", halves(40, 10))
         self.assertEqual(decode(body["pictures"]["1"])[:2], (10, 10))
         body["shape"] = "whole"
-        body.pop("shape")
         back = gallery.check(body, None)
         self.assertEqual(back["pictures"]["1"], halves(40, 10))
         self.assertNotIn("o1", back["pictures"], "one copy of the same image is kept")
 
     def test_the_published_file_carries_each_image_as_framed(self):
-        body = add({"v": 2}, "1", halves(40, 10))
+        body = add(WHOLE, "1", halves(40, 10))
         body["items"] = {"1": {"crop": [500, 0, 1000, 1000], "caption": "Fictional"}}
         body = gallery.check(body, None)
         out = gallery.published(body, None)
-        self.assertEqual(out, {"content": {"pictures": [{"image": body["pictures"]["1"], "caption": "Fictional", "alt": ""}], "cols": 3, "shape": "whole"}})
+        self.assertEqual(out, {"content": {"pictures": [{"image": body["pictures"]["1"], "caption": "Fictional", "alt": ""}], "columns": 3, "shape": "whole"}})
         w, h, rows = decode(out["content"]["pictures"][0]["image"])
         self.assertEqual((w, {px for row in rows for px in row}), (20, {BLUE}))
         self.assertNotIn(body["pictures"]["o1"], repr(out))
@@ -193,7 +196,7 @@ class Framing(unittest.TestCase):
         self.assertIsNone(gallery.published(add({"v": 2, "shape": "square"}, "1", halves(40, 10)) | {"shape": "4:3"}, None))
 
     def test_a_new_image_in_a_used_slot_starts_unframed_and_keeps_the_words(self):
-        body = add({"v": 2}, "1", halves(40, 10))
+        body = add(WHOLE, "1", halves(40, 10))
         body["items"] = {"1": {"caption": "Fictional", "alt": "A hall", "fx": 100, "crop": [0, 0, 500, 1000]}}
         body = gallery.check(body, None)
         body = add(body, "1", halves(20, 10))
@@ -214,10 +217,11 @@ class Remove(unittest.TestCase):
         self.assertNotIn("Fictional", json.dumps(out))
 
     def test_the_last_removed_leaves_an_empty_gallery_that_is_not_published(self):
-        body = add({"v": 2}, "1", halves(8, 6))
+        body = add(WHOLE, "1", halves(8, 6))
         out = gallery.check(gallery.with_picture(body, "1", None), None)
-        self.assertEqual(out, {"v": 2})
+        self.assertEqual(out, {"v": 2, "shape": "whole"})
         self.assertIsNone(gallery.published(out, None))
+        self.assertIsNone(gallery.published({"v": 2}, None))
 
     def test_the_others_keep_their_words_and_the_order_without_it(self):
         body = six()
@@ -244,7 +248,7 @@ class Order(unittest.TestCase):
         self.assertNotIn("order", gallery.check(body, None))
 
     def test_an_order_names_all_six_slots_and_an_empty_one_is_skipped_in_view(self):
-        body = add(add({"v": 2}, "2", halves(8, 6)), "5", halves(9, 6))
+        body = add(add(WHOLE, "2", halves(8, 6)), "5", halves(9, 6))
         body["order"] = ["5"]
         body = gallery.check(body, None)
         self.assertEqual(body["order"], ["5", "1", "2", "3", "4", "6"])
@@ -253,10 +257,10 @@ class Order(unittest.TestCase):
 
 class Columns(unittest.TestCase):
     def test_columns_and_shape_are_published_for_the_page_to_draw(self):
-        body = gallery.check({**six("square"), "cols": 2}, None)
+        body = gallery.check({**six("square"), "columns": 2}, None)
         content = gallery.published(body, None)["content"]
-        self.assertEqual((content["cols"], content["shape"], len(content["pictures"])), (2, "square", 6))
-        self.assertEqual(gallery.published(six(), None)["content"]["cols"], 3)
+        self.assertEqual((content["columns"], content["shape"], len(content["pictures"])), (2, "square", 6))
+        self.assertEqual(gallery.published(six(), None)["content"]["columns"], 3)
 
 
 class Version1Stays(unittest.TestCase):
@@ -267,7 +271,7 @@ class Version1Stays(unittest.TestCase):
         self.assertEqual(gallery.published(self.OLD, None), {"content": {"pictures": [
             {"image": GOOD, "caption": "Fictional one", "alt": "A room"}, {"image": GOOD_JPEG, "caption": "Two", "alt": ""}]}})
         self.assertIsNone(gallery.published({"v": 1, "items": {"1": {"caption": "x"}}}, None))
-        for bad in ({"v": 1, "cols": 2}, {"v": 1, "order": ["1"]}, {"v": 1, "items": {"1": {"fx": 5}}}, {"v": 1, "pictures": {"o1": GOOD}}):
+        for bad in ({"v": 1, "columns": 2}, {"v": 1, "order": ["1"]}, {"v": 1, "items": {"1": {"fx": 5}}}, {"v": 1, "pictures": {"o1": GOOD}}):
             with self.assertRaises(Bad):
                 gallery.check(bad, None)
 
@@ -293,11 +297,116 @@ class Version1Stays(unittest.TestCase):
     def test_the_words_alone_upgrade_it_and_keep_every_image_caption_and_description(self):
         upgraded = {"v": 2, "items": self.OLD["items"], "pictures": self.OLD["pictures"]}
         got = gallery.check(upgraded, None)
-        self.assertEqual(got, upgraded, "no shape, so each image is as stored and the page draws it 4:3 as 1.0.7 did")
+        self.assertEqual(got["items"], self.OLD["items"], "every caption and description is kept")
+        self.assertEqual(got["pictures"]["2"], GOOD_JPEG, "a JPEG is not cut by the default shape: it is kept as stored")
+        self.assertEqual(got["pictures"]["o1"], GOOD, "the old PNG is kept whole as the original, so the upgrade loses nothing")
         shown = gallery.published(got, None)["content"]
-        self.assertEqual([(p["image"], p["caption"], p["alt"]) for p in shown["pictures"]], [(GOOD, "Fictional one", "A room"), (GOOD_JPEG, "Two", "")])
-        cut = gallery.check({"v": 2, "pictures": {"1": GOOD}, "shape": "4:3"}, None)
-        self.assertEqual(cut["pictures"]["o1"], GOOD, "a shape chosen later keeps the old image as the original")
+        self.assertEqual([(p["caption"], p["alt"]) for p in shown["pictures"]], [("Fictional one", "A room"), ("Two", "")])
+        self.assertEqual(shown["pictures"][1]["image"], GOOD_JPEG)
+        self.assertEqual((shown["columns"], shown["shape"]), (3, "4:3"))
+        self.assertNotIn(GOOD, [p["image"] for p in shown["pictures"][1:]])
+        back = gallery.check({"v": 2, "shape": "whole", "items": got["items"], "pictures": got["pictures"]}, None)
+        self.assertEqual(back["pictures"]["1"], GOOD, "the original comes back whole")
+        self.assertNotIn("o1", back["pictures"])
+
+    def test_a_shape_said_on_a_jpeg_is_still_refused_in_words(self):
+        with self.assertRaises(Bad):
+            gallery.check({"v": 2, "shape": "square", "pictures": {"1": GOOD_JPEG}}, None)
+
+
+class RuledRules(unittest.TestCase):
+    """Row 1233 ruling: the new gallery starts 4:3, 3 across (the page draws 2 across at half width and at 900 px); old galleries stay;
+    whole is never the default. Real checks and the real store; the page side is in test_tpl_gallery_view."""
+
+    def test_a_new_gallery_is_4_3_three_across_and_a_png_is_cut_to_4_3(self):
+        self.assertEqual(gallery.START, '{"v":2}')
+        self.assertEqual((gallery.DEFAULT_SHAPE, gallery.DEFAULT_COLUMNS), ("4:3", 3))
+        self.assertEqual((gallery.COLUMNS, gallery.SHAPES), ((2, 3), ("4:3", "square", "16:9", "whole")))
+        body = add({"v": 2}, "1", halves(40, 10))
+        self.assertNotIn("shape", body)
+        self.assertNotIn("columns", body)
+        w, h, _ = decode(body["pictures"]["1"])
+        self.assertEqual((w, h), (13, 10), "cut to 4:3 around the focus")
+        self.assertIn("o1", body["pictures"], "the whole image is kept as the original")
+        content = gallery.published(body, None)["content"]
+        self.assertEqual((content["columns"], content["shape"]), (3, "4:3"))
+        self.assertEqual(decode(content["pictures"][0]["image"])[:2], (13, 10))
+
+    def test_whole_is_never_the_default_not_in_check_not_in_published_not_for_a_new_image(self):
+        self.assertNotIn("shape", gallery.check({"v": 2}, None))
+        self.assertEqual(gallery.published(add({"v": 2}, "1", halves(40, 10)), None)["content"]["shape"], "4:3")
+        self.assertNotEqual(gallery.published(add({"v": 2}, "1", halves(40, 10)), None)["content"]["shape"], "whole")
+        self.assertEqual(gallery.published(add({"v": 2, "shape": "whole"}, "1", halves(40, 10)), None)["content"]["shape"], "whole")
+        self.assertNotIn("o1", add({"v": 2, "shape": "whole"}, "1", halves(40, 10))["pictures"])
+
+    def test_columns_default_3_and_2_is_kept_and_published_under_main_names(self):
+        body = add({"v": 2}, "1", halves(40, 10))
+        self.assertEqual(gallery.published(body, None)["content"]["columns"], 3)
+        two = gallery.check({**body, "columns": 2}, None)
+        self.assertEqual(two["columns"], 2)
+        self.assertEqual(gallery.published(two, None)["content"]["columns"], 2)
+        with self.assertRaises(Bad):
+            gallery.check({"v": 2, "cols": 2}, None)
+        for bad in (2.0, 3.0, True, "2", None, [2]):
+            with self.assertRaises(Bad, msg=repr(bad)):
+                gallery.check({"v": 2, "columns": bad}, None)
+        for bad in (["4:3"], {"a": 1}, 43, None, True):
+            with self.assertRaises(Bad, msg=repr(bad)):
+                gallery.check({"v": 2, "shape": bad}, None)
+        self.assertIsNone(gallery.published({**body, "columns": 4}, None), "a stored number that is not 2 or 3 is never published")
+        for odd in ("tall", ["4:3"], 43, None):
+            self.assertIsNone(gallery.published({**body, "shape": odd}, None), repr(odd))
+
+    def test_a_new_image_is_cut_to_4_3_by_with_picture_itself_before_any_check(self):
+        raw = gallery.with_picture({"v": 2}, "1", halves(40, 10))
+        self.assertEqual(decode(raw["pictures"]["1"])[:2], (13, 10))
+        self.assertEqual(raw["pictures"]["o1"], halves(40, 10))
+        sq = gallery.with_picture({"v": 2, "shape": "square"}, "1", halves(40, 10))
+        self.assertEqual(decode(sq["pictures"]["1"])[:2], (10, 10))
+        whole = gallery.with_picture({"v": 2, "shape": "whole"}, "1", halves(40, 10))
+        self.assertEqual(whole["pictures"], {"1": halves(40, 10)})
+
+    def test_a_sent_framed_copy_is_never_trusted_whatever_its_type(self):
+        got = gallery.check({"v": 2, "pictures": {"1": GOOD_JPEG, "o1": halves(40, 10)}}, None)
+        self.assertEqual(decode(got["pictures"]["1"])[:2], (13, 10), "made again from the PNG original, cut to 4:3 (the copy sent was a JPEG)")
+        self.assertEqual(got["pictures"]["o1"], halves(40, 10))
+        with self.assertRaises(Bad):
+            gallery.check({"v": 2, "pictures": {"1": halves(40, 10), "o1": GOOD_JPEG}}, None)
+
+    def test_a_version_1_body_publishes_a_columns_and_shape_it_holds_only_when_valid(self):
+        old = {"v": 1, "pictures": {"1": GOOD}}
+        got = gallery.published({**old, "columns": 2, "shape": "square"}, None)["content"]
+        self.assertEqual((got["columns"], got["shape"]), (2, "square"))
+        got = gallery.published({**old, "columns": 4, "shape": "tall"}, None)["content"]
+        self.assertEqual(set(got), {"pictures"})
+
+    def test_a_png_default_and_the_published_never_carries_the_original(self):
+        body = add({"v": 2}, "1", halves(40, 10))
+        self.assertNotIn(body["pictures"]["o1"], repr(gallery.published(body, None)))
+
+    def test_old_v1_file_is_unchanged_in_check_published_and_the_real_store(self):
+        old = {"v": 1, "items": {"1": {"caption": "Fictional one"}}, "pictures": {"1": GOOD, "2": GOOD_JPEG}}
+        text = json.dumps(old)
+        self.assertEqual(json.loads(store_module.check_section_body("gallery", text)), old, "opens and saves as it was")
+        self.assertEqual(gallery.published(old, None), {"content": {"pictures": [
+            {"image": GOOD, "caption": "Fictional one", "alt": ""}, {"image": GOOD_JPEG, "caption": "", "alt": ""}]}},
+            "no columns and no shape are published: the page draws it 4:3 as before")
+        self.assertEqual(gallery.with_picture(old, "3", GOOD)["pictures"]["3"], GOOD)
+        self.assertEqual(gallery.with_picture(old, "3", GOOD)["v"], 1, "a picture added to an old gallery does not upgrade it")
+
+    def test_v2_round_trip_through_the_real_store(self):
+        body = add({"v": 2, "shape": "16:9", "columns": 2}, "1", halves(40, 10))
+        body["items"] = {"1": {"caption": "Fictional", "alt": "A hall", "fx": 100, "fy": 300, "crop": [0, 0, 1000, 800]}}
+        body = gallery.check(body, None)
+        text = store_module.check_section_body("gallery", json.dumps(body))
+        self.assertEqual(json.loads(text), body, "what is saved is what comes back")
+        again = json.loads(store_module.check_section_body("gallery", text))
+        self.assertEqual(again, body)
+        self.assertEqual(body["items"]["1"], {"caption": "Fictional", "alt": "A hall", "fx": 100, "fy": 300, "crop": [0, 0, 1000, 800]})
+        self.assertEqual(body["pictures"]["o1"], halves(40, 10), "the original is the full image")
+        got = gallery.published(body, None)["content"]
+        self.assertEqual((got["columns"], got["shape"], got["pictures"][0]["caption"], got["pictures"][0]["alt"]), (2, "16:9", "Fictional", "A hall"))
+        self.assertEqual(got["pictures"][0]["image"], body["pictures"]["1"], "the framed copy, never the original")
 
 
 class ThroughTheRoute(unittest.TestCase):
