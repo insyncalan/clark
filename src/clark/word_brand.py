@@ -176,7 +176,7 @@ def merged_numbering(raw, mine, shift):
 
 def wrap(template, built):
     infos, parts = word_template._load(template, NAME)
-    for n in sorted(parts):                                # a DOCTYPE or entity is refused in any part, whatever it is named: the document points at parts by relationship
+    for n in sorted(parts):                                # a plain-text (ASCII/UTF-8) DOCTYPE or entity is refused in any part, whatever it is named; UTF-16 or NUL-split spellings are only caught in word/document.xml and .rels (by the reader), not in other parts
         if _r.DOCTYPE.search(parts[n].decode("utf-8", "replace")):
             raise _r._not_safe(NAME)
     with zipfile.ZipFile(io.BytesIO(built)) as z:

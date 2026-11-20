@@ -149,7 +149,7 @@ EVIL = '<!DOCTYPE r [<!ENTITY e "boom">]><x/>'
 
 
 class DoctypeInAnyPart(unittest.TestCase):
-    """Row 1383: a DOCTYPE or entity is refused in every part, whatever the part is named (the document points at parts by relationship)."""
+    """Row 1383: a DOCTYPE or entity, spelled in plain ASCII (or UTF-8), is refused in every part whatever the part is named (the document points at parts by relationship). Not covered, and the same on main: a DOCTYPE hidden in UTF-16 or split by NUL bytes in a part other than word/document.xml and .rels."""
 
     def refused(self, extra):
         with self.assertRaises(WordRefused) as e:
@@ -182,6 +182,22 @@ class DoctypeInAnyPart(unittest.TestCase):
                 z.writestr(zipfile.ZipInfo(n, (2020, 1, 1, 0, 0, 0)), dd, zipfile.ZIP_DEFLATED)
         with self.assertRaises(WordRefused):
             word_brand.wrap(out.getvalue(), BUILT)
+
+    def test_a_doctype_in_the_main_document_is_refused_through_wrap(self):
+        t = rebuilt(template(), lambda n, d: (HEAD + EVIL.replace("<x/>", f'<w:document xmlns:w="{W}"><w:body><w:p/></w:body></w:document>')).encode() if n == "word/document.xml" else d)
+        with self.assertRaises(WordRefused) as e:
+            word_brand.wrap(t, BUILT)
+        self.assertIn("could not be read safely", str(e.exception))     # not the later "no body" refusal
+
+    def test_the_refusal_names_the_template(self):
+        with self.assertRaises(WordRefused) as e:
+            word_brand.wrap(template(extra=[("word/other.dat", HEAD + EVIL)]), BUILT)
+        self.assertTrue(str(e.exception).startswith(word_brand.NAME + " could not be read safely"), str(e.exception))
+
+    def test_a_doctype_at_the_very_first_byte_of_a_part_is_refused(self):
+        self.refused([("word/first.dat", EVIL)])
+        self.refused([("word/first2.dat", "<!ENTITY e 'x'>")])
+        self.refused([("word/ends.dat", "<!DOCTYPE")])               # the match runs to the last byte of the part
 
     def test_a_clean_template_with_an_oddly_named_part_still_opens(self):
         for name in ("word/clean.dat", "customXml/item", "word/x.XML.bak"):
