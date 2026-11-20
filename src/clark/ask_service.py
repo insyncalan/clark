@@ -197,7 +197,7 @@ class AskService:
         if isinstance(reply, ask.Failure):
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
-                             left_out_note(data.left_out + found.left_out), kinds_note(data.kinds_left_out), *folder_notes(found)) if n]
+                             left_out_note(found.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found)) if n]
         conn = connector_used(getattr(self.provider, "last_line", None))      # row 1306: what the real run did (None: no connector in the run)
         if conn and conn["line"]:
             notes.append(conn["line"])
@@ -355,14 +355,6 @@ def left_out_note(count):
     if not isinstance(count, int) or isinstance(count, bool) or count < 1:
         return ""
     return ("Some of the report was too long to send in full, so only the parts closest to your question were used.")
-
-
-def kinds_note(kinds):
-    """Row 1213: the plain line for the kinds the report leaves out, so a missing answer is not read as none exist."""
-    if not kinds:
-        return ""
-    names = ", ".join(ask_data.KIND_WORDS[k] for k in kinds)
-    return f"The report leaves out {names}, so they were not part of what was read and the answer may be missing something."
 
 
 def draft_via(draft, conn):
