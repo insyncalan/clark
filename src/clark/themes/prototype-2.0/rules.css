@@ -458,10 +458,8 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .uc .ucref { padding: 1px var(--space-2); border: 1px solid var(--grey-500); font-weight: var(--weight-regular); }
 .uc .cchip { border-radius: var(--radius-pill); font-weight: var(--weight-regular); line-height: 18px; }
 .uc .cchip:not(.cc-committed) { border-color: var(--grey-200); color: var(--text-muted); }
-/* Row 1288: the editor bubble ends with Ask AI in purple words only (the approved mock-up draws no other colour), lightened on the dark pages. */
-.rt-bubble .rt-bubble-ai { color: #7C4DFF; padding: 0 10px; font-size: 13px; font-weight: var(--weight-regular); }
-:root[data-theme=dark] .rt-bubble .rt-bubble-ai { color: #B39DFF; }
-@media (prefers-color-scheme: dark) { :root[data-theme=auto] .rt-bubble .rt-bubble-ai { color: #B39DFF; } }
+/* Row 1288: the editor bubble ends with Ask AI in purple words only. */
+.rt-bubble .rt-bubble-ai { color: var(--ai-fg); padding: 0 10px; font-size: var(--size-caption); font-weight: var(--weight-regular); }
 .rt-bar .rt-more { min-width: 40px; gap: 2px; }
 /* Row 1197: the Gantt toolbar as the approved mock-up draws it. Bar gap 6px, margin 4px 0 10px, icon buttons 34px (the grouped ones 36 wide), the zoom-fit button 34px high, and one divider between zoom in and the filter. */
 [data-gantt] .gt-bar { column-gap: 6px; margin: 4px 0 10px; }
