@@ -34,9 +34,9 @@ class GlanceCardRemoved(unittest.TestCase):
             self.assertNotIn("At a glance", names)
             self.assertEqual(run(f'T.list({{sections: {json.dumps(secs)}}}).filter(x => x.type === "glance").length'), 0)
 
-    def test_it_has_no_catalogue_entry_sketch_or_plan(self):
+    def test_it_has_no_catalogue_entry_or_plan(self):
         self.assertIsNone(run('T.find("built-in-glance")'))
-        self.assertFalse(run('!!T.SKETCHES["built-in-glance"]'))
+        # the sketch entry stays: the Cards look is frozen and the entry is part of its pin; no card can reach it
         got = run('T.plan([{id: "a", type: "text", title: "Summary", beside: 0}], "built-in-glance", "a")')
         self.assertFalse(got["ok"], got)
 
