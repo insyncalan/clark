@@ -368,6 +368,7 @@ class TheCard(Card):
             p.until("!!document.querySelector('[data-ask-undo-all]')", "done with one Undo")
             with self.store.step("dashboard", USER) as st:          # a later change to the second action: its step is left as it is
                 st.update("actions", self.second, {"status": "Delayed"})
+            p.js("window.__undoBodies = []; const f = window.fetch; window.fetch = (u, o) => { if (String(u).includes('/api/undo')) window.__undoBodies.push(JSON.parse(o.body)); return f(u, o); }")
             p.js("document.querySelector('[data-ask-undo-all]').click()")
             p.until("document.querySelectorAll('[data-ask-line]')[0] && document.querySelectorAll('[data-ask-line]')[0].textContent.startsWith('Undone.')", "the first card undone")
             lines = p.js("[...document.querySelectorAll('[data-ask-line]')].map((l) => l.firstChild.textContent)")
@@ -380,6 +381,11 @@ class TheCard(Card):
             p.until("document.querySelectorAll('[data-ask-undo-all]').length === 1", "the second press is answered")
             self.assertEqual(p.js("[...document.querySelectorAll('[data-ask-line]')].map((l) => l.firstChild.textContent.slice(0, 7))"), ["Undone.", "That co"])
             self.assertEqual((self.status(), self.store.read("actions", ref=self.second)["status"]), ("Open", "Delayed"), "nothing moved on the second press")
+            sent = p.js("window.__undoBodies.map((b) => b.steps)")      # the steps each press sent: the second press asks again for the stuck one only
+            self.assertEqual(len(sent), 2, "one request per press")
+            self.assertEqual(len(sent[0]), 2)
+            self.assertEqual(len(sent[1]), 1, "the done step is not sent again")
+            self.assertEqual(sent[1], [max(sent[0])], "the stuck step is the second action's, the later one")
 
     def test_one_change_that_cannot_be_undone_leaves_the_other_cards_their_undo(self):         # row 1292
         self.two_cards()
