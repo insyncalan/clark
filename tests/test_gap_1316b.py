@@ -1,4 +1,4 @@
-"""Row 1316 follow-up (ruling 19-11, Classic only): Group by and Sort by are labelled buttons (the table keeps its box and heads, Row 1405 owns the heads; was: flat table, removed by ruling 21:01 muted over a 1px rule; item min 40 high over a hairline) and Group by / Sort by are labelled buttons (28 high, padding 0 10, 1px border, radius 6, 14px/500).
+"""Row 1316 follow-up (ruling 19-11, Classic only): Group by and Sort by are labelled buttons (28 high, padding 0 10, 1px --grey-500 border, radius 6, 14px/500); the Use cases table keeps its framed box and heads (Row 1405 owns the heads).
 Run: python3 dev/run_tests.py test_gap_1316b   Chrome required."""
 import unittest
 
