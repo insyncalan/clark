@@ -5,6 +5,7 @@ and the Update rows' label (15 px, 600). Cards is the control and keeps what it 
 Run: python3 dev/run_tests.py test_settings_cards_1400
 Fails, never skips, without Chrome."""
 import shutil
+from pathlib import Path
 import tempfile
 import unittest
 
@@ -77,6 +78,12 @@ class Real(unittest.TestCase):
                 self.assertEqual(c["border"].split(" ", 1)[0], "1px", tag)
                 self.assertEqual(c["radius"], "14px", tag + ": spacing card radius 14")
                 self.assertEqual(c["border"].split(" ", 1)[1], c["grey500"], tag + ": spacing card border in the grey-500 tone")
+
+    def test_update_rows_markup_matches_the_real_page_source(self):
+        # the injected rows above copy Update.jsx; this fails if the real markup loses the class names the CSS and the probe rely on
+        src = (Path(page.__file__).parent / "src" / "edit" / "Update.jsx").read_text(encoding="utf-8")
+        self.assertIn('<div class="upd-rows">', src)
+        self.assertIn('<p class="upd-l" id="update-installed-l">', src)
 
     def test_cards_keeps_its_own_look(self):
         for tag, slug, c in self.each(None):
