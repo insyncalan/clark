@@ -1,10 +1,12 @@
 """Argos step 1: save the Classic screens of the tickets in Building as PNGs, at widths 1400 and 900.
 
-Run from the repository root:  python3 dev/tools/argos_shots.py [output folder, default ./screenshots]
+Run from the repository root:  python3 dev/tools/argos_shots.py [--out DIR] [--width 1400|900 ...]
+--out is the output folder (default ./screenshots). --width may repeat; only 1400 or 900 are allowed (anything else exits 2); none given means both.
 It starts the real page from the demo database on 127.0.0.1 and a headless Chrome, the way tests/test_theme_classic_1317.py does.
 No network, no upload, no token. The upload step is not here. At most MAX_SHOTS files are saved per run; the rest are counted and printed.
 File names: <ticket>-<screen>-<width>.png
 """
+import argparse
 import base64
 import sys
 import tempfile
@@ -42,8 +44,17 @@ def save_all(out, grab, screens=SCREENS, widths=WIDTHS, limit=MAX_SHOTS):
     return [k[0] for k in keep], dropped
 
 
+def parse(argv):
+    ap = argparse.ArgumentParser(prog="argos_shots.py", description="Save the Classic screens as PNGs.")
+    ap.add_argument("--out", default="screenshots", help="output folder (default screenshots)")
+    ap.add_argument("--width", type=int, action="append", choices=WIDTHS, metavar="N",
+                    help="1400 or 900; may repeat; default both")
+    a = ap.parse_args(argv[1:])
+    return Path(a.out), tuple(dict.fromkeys(a.width)) if a.width else WIDTHS
+
+
 def main(argv):
-    out = Path(argv[1]) if len(argv) > 1 else Path("screenshots")
+    out, widths = parse(argv)
     sys.path[:0] = [str(ROOT / "tests"), str(ROOT / "src"), str(ROOT / "dev" / "tools")]
     from _editor_checks import for_url
     from clark import page
@@ -67,7 +78,7 @@ def main(argv):
                     wait(lambda: bool(cdp.js("document.readyState === 'complete' && !!document.body.children.length", sid)), 30)
                     time.sleep(0.5)
                     return base64.b64decode(cdp.call("Page.captureScreenshot", {"format": "png"}, sid)["data"])
-            saved, dropped = save_all(out, grab)
+            saved, dropped = save_all(out, grab, widths=widths)
         finally:
             server.close()
     finally:
