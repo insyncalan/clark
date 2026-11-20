@@ -56,7 +56,8 @@ MESSAGES = {
 }
 FOLDER_LABEL = "Copy my backups to"
 FOLDER_HELP = ("Optional. After each backup, clark also puts a finished copy in this folder, so you have a copy that is not only on this "
-             "computer. The folder can be in OneDrive. clark's live data is never kept there. Leave it empty to turn this off.")
+             "computer. The kept copies of your published pages go here too. Without this folder they are only on this computer, in the clark data "
+             "folder, and are in no backup. The folder can be in OneDrive. clark's live data is never kept there. Leave it empty to turn this off.")
 FOLDER_ON = "Saved. Each backup is now copied there too, starting with the next one."
 FOLDER_OFF = "Saved. Backups are no longer copied anywhere else."
 FOLDER_SUGGESTED = "clark backups"

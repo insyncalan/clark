@@ -35,7 +35,7 @@ class Words(unittest.TestCase):
                                   "A change taken from one of your own files or passages needs an extra tick",
                                   "ask clark is never on a published report",
                                   "Passwords and keys are never sent"])
-        self.assertIn("<Safety />", JSX[JSX.index("function AllProjects"):JSX.index("function AllFolders")])
+        self.assertIn("{classicTheme() ? <Safety /> : null}", JSX[JSX.index("function AllProjects"):JSX.index("function AllFolders")])
         self.assertIn('const SAFETY_NOTE = "These are not switches.";', JSX)
         self.assertIn("A change can be taken back with Undo, except a decision marked Made, which a new decision replaces.", block)
         self.assertIn("A published file has no ask clark button or panel, and it asks nothing.", block)
@@ -194,6 +194,29 @@ class CardLayout(unittest.TestCase):
                 self.assertEqual(got["style"], "none", f"no bullets at {w}")
                 self.assertTrue(got["left"] >= 0 and got["right"] <= got["vw"], f"the card is inside the page at {w}: {got}")
                 self.assertFalse(got["over"], f"the card does not scroll sideways at {w}")
+
+
+class CardsUnchanged(unittest.TestCase):
+    """Cards is frozen: with no theme the All projects tab draws no Changes and safety card."""
+    ready = True
+    folder, until = (settings.Settings.__dict__[n] for n in ("folder", "until"))
+
+    def setUp(self):
+        self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page_module.page_html(tempfile.mkdtemp()))
+        self.addCleanup(self.s.close)
+        self.db = settings.make_db(self.folder(), ready=True, cleanup=self.addCleanup)
+        self.s.httpd.app_settings = settings.service(self.db)
+
+    def test_cards_all_projects_tab_has_no_safety_card(self):
+        with chrome() as cdp:
+            self.sid = navigate(cdp, self.s.port, for_project("#settings&p=ABC&s=claude"))
+            js = lambda e: cdp.js(e, self.sid)          # noqa: E731
+            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-tab=all]')"), 20))
+            self.assertFalse(js("!!document.querySelector('style#theme')"), "this page is Cards: no theme element")
+            js("document.querySelector('[data-ask-tab=all]').click()")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-all')"), 20), "the All projects tab is drawn")
+            self.assertFalse(js("!!document.querySelector('#ask-safety, ul.ask-safety')"), "Cards draws no safety card")
+            self.assertNotIn("Changes and safety", js("document.body.innerText"))
 
 
 class Secrets(unittest.TestCase):

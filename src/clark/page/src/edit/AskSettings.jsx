@@ -222,7 +222,7 @@ function AllProjects() {
     <ConnectorsAll />
     <AllInstructions />
     <AllFolders />
-    <Safety />
+    {classicTheme() ? <Safety /> : null}
     </>
   );
 }
