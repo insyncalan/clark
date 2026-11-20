@@ -65,6 +65,30 @@ PASSAGE_SHOWN = 600        # characters of a source passage shown beside a chang
 PROJECT_SHARE = 25000      # characters of the budget the project's own data may take; the folders get the rest
 
 
+class Started(threading.Event):
+    """The `cancel` event of one question. A provider reads it once, the moment it has taken its place and the run really starts (a
+    question that finds the provider busy never reads it), so reading it is what marks the run as started."""
+
+    def __init__(self):
+        super().__init__()
+        self.started = False
+
+    def is_set(self):
+        self.started = True
+        return super().is_set()
+
+
+class Run:
+    """Row 1306 test 7: one question's own record: its project, the connectors it was given, and its own cancel event."""
+
+    def __init__(self, project, connectors):
+        self.project, self.connectors, self.cancel = project, tuple(connectors), Started()
+
+    @property
+    def started(self):
+        return self.cancel.started
+
+
 class AskService:
     """`db_path` is the database; `provider` an ask.Provider (the one provider module's in clark; a stub in tests); `onedrive_roots` as
     the launcher's."""
@@ -84,6 +108,8 @@ class AskService:
         self.today = datetime.date.today                    # a seam for tests
         self.replies = {}                            # reply ID -> Held: the changes an answer suggested, kept on the server
         self.replies_lock = threading.Lock()
+        self.runs = []                               # row 1306 test 7: the questions on their way to or at the provider, each a Run (its own, never shared)
+        self.using_lock = threading.Lock()
 
     def fail(self, code, message=None):
         return {"ok": False, "code": code, "message": message or MESSAGES[code]}
@@ -113,6 +139,35 @@ class AskService:
             return False
         finally:
             store.close()
+
+    def connectors_now(self, code, chosen):
+        """The connectors of `chosen` that are still On for project `code`, read now; none when the store can't say (never fails open)."""
+        try:
+            store = self.reader()
+        except (sqlite3.Error, OSError, TypeError):
+            return ()
+        try:
+            return tuple(c for c in chosen if store.connector_allowed(c, code))
+        except Exception:  # noqa: BLE001  a switch that can't be read is off
+            return ()
+        finally:
+            store.close()
+
+    def stop_off(self):
+        """Row 1306 test 7: after a connector change was saved (an Off, or an Undo that went back to Off), stop every question that was given a
+        connector which is no longer On for its project. One that has not reached the provider yet is cancelled so it never starts; one at the
+        provider is stopped. A question the change does not touch is left alone. True when a running one was stopped. Nothing is changed."""
+        with self.using_lock:
+            runs = list(self.runs)
+        stopped = False
+        for run in runs:
+            if self.connectors_now(run.project, run.connectors) == run.connectors:
+                continue
+            run.cancel.set()                         # a question still before the provider's start never starts (it reads this when it starts)
+            if run.started:
+                stop = getattr(self.provider, "stop", None)
+                stopped = (bool(stop(owner=self.owner)) if callable(stop) else False) or stopped
+        return stopped
 
     # ----- GET /api/ask/status -----
     def status(self, *_ignored):
@@ -219,8 +274,17 @@ class AskService:
         facts = data.facts
         if not self.enabled():                       # the gate again, just before anything leaves: a switch turned off meanwhile wins
             return 409, self.fail("asking_off")
-        reply = ask.ask_provider(self.provider, replace(request, owner=self.owner, connectors=on_connectors), codes=(code,), exists=lambda ref: ref in facts,
-                                 facts=lambda ref: facts.get(ref))
+        run = Run(code, on_connectors)               # row 1306 test 7: the record goes in first, holding what the store said earlier ...
+        with self.using_lock:
+            self.runs.append(run)
+        on_connectors = self.connectors_now(code, on_connectors)      # ... so an Off saved from here on finds it (stop_off) and one saved before is read here
+        run.connectors = on_connectors               # (an Off between the read and this line still differs from the wider list and cancels the run)
+        try:
+            reply = ask.ask_provider(self.provider, replace(request, owner=self.owner, connectors=on_connectors, cancel=run.cancel), codes=(code,), exists=lambda ref: ref in facts,
+                                     facts=lambda ref: facts.get(ref))
+        finally:
+            with self.using_lock:
+                self.runs.remove(run)                # only this question's own entry: another's is never touched
         if isinstance(reply, ask.Failure):
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
         self.usage.record(code, getattr(self.provider, "last_tokens", None), self.today())      # row 1294: one answered question, with the tokens the command reported
