@@ -722,6 +722,12 @@ table.items .weye { width: 30px; height: 30px; }
 #work .vicons .seg.lsw button { box-sizing: border-box; width: 36px; height: 32px; }
 #work .vicons .seg.lsw button[aria-pressed="true"] { background-color: var(--tile-on-bg); color: var(--tile-on-fg); }
 #work .newb:not(:hover):not(:focus-visible):not([aria-expanded="true"]) { border-color: var(--grey-500); border-radius: 6px; background: transparent; color: var(--brand-blue); }
+/* Row 1279 (Classic only): the Settings Feedback card. Each label sits above its own box (block, a --space-1 gap, a --space-3 step from the box above), both boxes run the card's width, the message box is several lines tall, and both take the one clark input look (the 8px --radius, the --control-edge border, the surface fill) the other Settings cards use. */
+#feedback label { display: block; margin: var(--space-3) 0 var(--space-1); font-size: var(--size-body); font-weight: var(--weight-medium); color: var(--text); }
+#feedback textarea.grow, #feedback input.grow { display: block; box-sizing: border-box; flex: none; width: 100%; padding: var(--space-1) 10px; border: 1px solid var(--control-edge); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-body); }
+#feedback textarea.grow { min-height: calc(5 * var(--leading) * var(--size-body) + 2 * var(--space-1) + 2px); resize: vertical; }
+/* Row 1279 (option b of the ruling of 20-11): under the disabled Copy as text button a muted line, the existing NOTHING_YET words, at the --size-caption 13px; the markup is drawn only in Classic and only while the button is disabled. */
+#feedback [data-feedback-hint] { margin: var(--space-1) 0 0; font-size: var(--size-caption); }
 /* Row 1308 (Classic only): a scrolling work-item list shows no scroll bar in Edit either, as in View; the rows still scroll by wheel, touch and keys. */
 #report[data-mode="edit"] .wil-scroll { scrollbar-width: none; }
 #report[data-mode="edit"] .wil-scroll::-webkit-scrollbar { display: none; }
