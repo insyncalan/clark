@@ -33,14 +33,22 @@ export const DISARMED = "Undo update was not confirmed in time, so nothing was c
 // and Install from a file rows. The file hint names only the update for this computer; it names neither the other download nor the
 // file type (updates.py: a sentence a person reads holds no word for the file type).
 export const ROWS = { installed: "Installed", update: "Update", file: "Use a file instead", last: "Last update",
-  // Row 1327, the four approved rows: "Released | <date> · <size>", "Last checked | <time>" (or "Not checked yet"), "Use a file instead", and
-  // the last update's title "Updated to clark <X>" (the only approved words; the version X comes from the server's record).
-  released: "Released", checked: "Last checked", notChecked: "Not checked yet" };
+  // Row 1327, the approved table (comment 7016158346, rows 2 to 8): the row titles "Last checked", "Use a file instead", "Updated to clark <X>"
+  // (X from the server's record) and "The download failed its check"; "Not checked yet" before the first look.
+  checked: "Last checked", notChecked: "Not checked yet" };
 export const updatedTo = (v) => `Updated to clark ${v}`;
+export const FAILED_TITLE = "The download failed its check";
+// The sentence under that title; it is the one the server sends for a download that failed its check (updater.py FETCH_TOOBIG), shown as sent.
+export const FAILED_TEXT = "It was not installed and nothing changed. Try the download again; if it happens again, use a file from the releases page.";
+export const FILE_TEXT = "For a computer with no internet. Review a clark download you already have.";
+export const REVIEW_LABEL = "Review";
+export const QUIET = "clark looks quietly when it starts and when you choose Check now. It never installs by itself.";
+export const KEPT = "Your projects, settings and published reports are kept.";
+// The installed row's text (table row 4); `from` is the version the update replaced.
+export const installedText = (from) => `clark restarted and kept everything. If something looks wrong you can go back to ${from}.`;
 export const HINTS = {
   upToDate: "Download the new version from the clark releases page, then choose it below.",
   ready: (v) => `Version ${v} is ready to install.`,
-  file: "The update attached to the release for your computer.",
 };
 // The newest version on the releases page (the server's "latest" and "fetch"; updater.py). The sentences that come from the server
 // (offline, the failed check) are shown as it sends them. None says "signed", and none names a file type.
@@ -49,8 +57,7 @@ export const FETCH = {
   notesLabel: "What is new in this version",
   cancelled: "Download cancelled.",
   ready: (v) => `Version ${v} is ready to download.`,
-  quiet: "The newest version is looked up quietly when clark starts and when you choose Check now. It never installs by itself.",
-  latest: (v, when) => `You have the latest version (${v}).${when ? ` Last checked ${when}.` : ""}`,
+  latest: (v, when, today) => `You have the latest version (${v}).${checkedAt(when, today) ? ` Last checked ${checkedAt(when, today).replace(/^Today/, "today")}.` : ""}`,
   downloading: (v) => `Downloading version ${v}`,
   downloadingHint: "From the clark releases page, straight into clark. You do not need to sign in.",
   checkingHint: "Checking the download is complete and every file matches its list.",
@@ -113,17 +120,24 @@ export function reviewView(r) {
   };
 }
 
-// The Released row's value: "<date> · <size>", the part the server did not know left out (no date and no size: "" and no row).
+// The ready card's second line (table row 1): "Released <date> · <size>." The size the server did not know is left out with its "·"
+// (never "unknown"); with no date there is no line.
 export function releasedText(f) {
-  return f && f.kind === "avail" ? [f.date, f.size].filter(Boolean).join(" · ") : "";
+  return f && f.kind === "avail" && f.date ? `Released ${[f.date, f.size].filter(Boolean).join(" · ")}.` : "";
 }
 
-// The Last checked row's value from the server's stamp "DD-MM-YYYY HH:MM": "Today HH:MM" when the day is `today` ("DD-MM-YYYY"), the stamp
-// as it is on another day, "Not checked yet" before the first look (never "Never").
-export function checkedText(when, today) {
+// The server's stamp "DD-MM-YYYY HH:MM" as words: "Today HH:MM" when the day is `today` ("DD-MM-YYYY"), the stamp as it is on another day,
+// "" when it is not a stamp.
+function checkedAt(when, today) {
   const m = /^(\d\d-\d\d-\d{4}) (\d\d:\d\d)$/.exec(typeof when === "string" ? when : "");
-  if (!m) return ROWS.notChecked;
+  if (!m) return "";
   return m[1] === today ? `Today ${m[2]}` : when;
+}
+
+// The Last checked row's text (table row 2): "Today 11:42. <QUIET>", or "18-11-2026 11:42. <QUIET>", or "Not checked yet." alone (never "Never").
+export function checkedText(when, today) {
+  const t = checkedAt(when, today);
+  return t ? `${t}. ${QUIET}` : `${ROWS.notChecked}.`;
 }
 
 // Today as "DD-MM-YYYY" (the stamp's own spelling), from a Date.
@@ -143,6 +157,7 @@ export function statusView(s) {
     line: s.line ? text(s.line, 200) : "",
     last: s.last && typeof s.last.line === "string" ? text(s.last.line, 200).replace(/^Last update: /, "") : "",
     lastTo: s.last && typeof s.last.to === "string" ? text(s.last.to, 40) : "",
+    lastFrom: s.last && typeof s.last.from === "string" ? text(s.last.from, 40) : "",
     notice: s.notice ? text(s.notice, 600) : "",
     fetch: fetchView(s),
   };

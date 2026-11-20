@@ -158,7 +158,7 @@ class Logic(InBrowser):
         every = self.val("[...Object.values(T.logic.WORDS), T.logic.GENERIC, T.logic.NOT_ANSWERING, T.logic.STALE, T.logic.LOADING, "
                          "T.logic.TITLE, T.logic.INTRO, T.logic.CANCELLED, T.logic.COPIED, T.logic.NOT_COPIED, T.logic.SLOW, "
                          "T.logic.DISARMED, ...Object.values(T.logic.LABELS), ...Object.values(T.logic.ROWS), T.logic.HINTS.upToDate, "
-                         "T.logic.HINTS.file, T.logic.HINTS.ready('1.2.3')]")
+                         "T.logic.FILE_TEXT, T.logic.HINTS.ready('1.2.3')]")
         for text in every:
             self.assertIsNone(re.search(r"(?i)\b(zip|manifest|sha|path|token|json|database|stale)\b", text.replace("Choose zip…", "")), text)
             self.assertFalse(text.startswith(("clark", "Clark")), text)
@@ -193,7 +193,8 @@ class Card(InBrowser):
     def test_installed_and_review_or_up_to_date(self):
         self.mount()
         self.assertEqual(self.text("#update-installed"), "Version 0.3.0, released 20-10-2026.")
-        self.assertEqual(self.text("[data-review]"), "Review 0.3.1")
+        self.assertEqual(self.text("[data-review]"), "Review")      # Row 1327 table row 3: the button says Review (its aria-label keeps the version)
+        self.assertEqual(self.val("document.querySelector('[data-review]').getAttribute('aria-label')"), "Review 0.3.1")
         self.assertEqual(self.text("[data-choose]"), "Choose zip…")
         self.replies(status=OK({**STATUS, "available": None, "line": "Up to date."}))
         self.mount()
@@ -453,9 +454,8 @@ class Rows(InBrowser):
                             "b = c.getBoundingClientRect(); return [c.getAttribute('aria-labelledby') === l.id, a.right <= b.left, Math.abs(a.top - b.top) < 8]; })")
             self.assertEqual(rows, [[True, True, True]] * 4, "each control is named by its label, which sits at its left on the same line")
             self.assertEqual(self.text("#update-installed"), "Version 0.3.0, released 20-10-2026.")
-            self.assertEqual(self.text("#update-last p"), "0.3.0 → 0.3.1 on 01-11-2026.")
+            self.assertEqual(self.text("#update-last p.muted"), "0.3.0 → 0.3.1 on 01-11-2026.")      # Row 1327 table row 4 puts its sentence first; the dated line stays under it
             self.assertTrue(self.present("#update-last [data-undo]"))
-            self.below("[data-review]", "#update-hint")
             self.below("[data-choose]", "#update-file-hint")
             for sel in ("#update-installed-l", "#update-row-l", "#update-file-l", "#update-last-l", "#update-hint", "#update-file-hint"):
                 self.readable(sel)
@@ -476,18 +476,17 @@ class Rows(InBrowser):
             self.readable("#update-line")
             self.readable("#update-hint")
         for _ in self.each(STATUS):
-            self.assertEqual(self.text("[data-review]"), "Review 0.3.1")
+            self.assertEqual(self.text("[data-review]"), "Review")      # Row 1327 table row 3: the button is in the Use a file instead row
             self.assertEqual(self.text("#update-hint"), "Version 0.3.1 is ready to install.")
-            self.assertEqual(self.val("document.querySelector('[data-review]').getAttribute('aria-describedby')"), "update-hint")
-            self.below("[data-review]", "#update-hint")
+            self.assertEqual(self.val("document.querySelector('[data-review]').getAttribute('aria-describedby')"), "update-file-hint")
+            self.below("[data-review]", "#update-file-hint")
             self.readable("#update-hint")
 
     def test_row_60_the_choose_hint_names_the_update_for_this_computer_and_never_the_file_type_or_the_source_code(self):
         for _ in self.each(UP_TO_DATE):
             hint = self.text("#update-file-hint")
-            self.assertEqual(hint, "The update attached to the release for your computer.")
+            self.assertEqual(hint, "For a computer with no internet. Review a clark download you already have.")      # Row 1327 table row 3
             self.assertIsNone(re.search(r"(?i)zip|source|manifest|sha", hint), hint)
-            self.assertFalse(hint.startswith(("clark", "Clark")))
             self.assertEqual(self.text("[data-choose]"), "Choose zip…")
             self.assertEqual(self.val("document.querySelector('[data-choose]').getAttribute('aria-describedby')"), "update-file-hint")
             self.below("[data-choose]", "#update-file-hint")
