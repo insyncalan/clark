@@ -479,6 +479,12 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .cal-ms { font-size: var(--size-caption); padding: 1px 4px; }
 .cal-ms:not(:hover):not(.ghost) { background: var(--band-bg); }
 .cal-ms span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; overflow-wrap: normal; }
+/* Row 1404: the At a glance strip as the prototype draws it. The "of N" note sits in the figure line (14px, muted; Glance.jsx puts it there under Classic only), the label is Inter 400, the figure is Inter in the text colour with normal line height (amber and red keep their status colour). */
+.glance .fig .k { font-weight: var(--weight-regular); }
+.glance .fig .v { font-family: var(--font-label); letter-spacing: normal; line-height: normal; color: var(--text); }
+.glance .fig .vrow { align-items: baseline; column-gap: var(--space-1); }
+.glance .fig .vrow .dd { color: var(--text-muted); font-weight: 400; line-height: 1.5; }
+
 /* Row 1399 (Use cases rows audit, Classic only): the rows as the prototype draws them. Cell padding 6px 12px with a 40px row, the hover tint, the title at 500, the reference as a chip, no progress bar under the next steps, and the view tabs 15px with 6px 8px. */
 #usecases .ucl-table td { padding: 6px 12px; height: 40px; }
 #usecases .ucl-group .ucl-table td { padding: 6px 4px; }      /* ticket 1399 row 1: 6px 4px in a grouped card, 6px 12px inside the box */
