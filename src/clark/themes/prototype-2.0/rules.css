@@ -95,9 +95,13 @@ html[data-mode="view"] .sec { border-left: 2px solid var(--gutter-rule); padding
 .wil-views .vt { gap: 0; }
 .wil-views .vt:has(> .wil-vopts) .vtab { padding-right: calc(var(--space-5) + var(--space-1)); }
 .wil-views .vt > .wil-vopts { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); }
-/* Row 1195, the mock-up's last changes (Classic only): the View list's scroll bar is hidden, Type is not drawn, an owner name is one line with an ellipsis, and a half-width row is the mock-up's two lines. */
+/* Row 1195, the mock-up's last changes (Classic only): the View list's scroll bar is hidden, the status half-circle is 16 px, a dragged column heading is dimmed with a drop mark, Type is not drawn, an owner name is one line with an ellipsis, and a half-width row is the mock-up's two lines. */
 #report[data-mode="view"] .wil-scroll { scrollbar-width: none; }
 #report[data-mode="view"] .wil-scroll::-webkit-scrollbar { display: none; }
+.wil-half { width: 16px; height: 16px; }
+.wil-table th.wil-drop { box-shadow: inset 3px 0 var(--brand-blue); }
+.wil-table th.wil-dragging { opacity: 0.4; }
+.wil-table th[draggable="true"] { cursor: grab; }
 .wil-table .wil-c-type, .wil-cfg .wil-opts label:has(> input[value="type"]) { display: none; }
 .wil-table .wil-own .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wil-lines li { grid-template-columns: calc(var(--space-5) + var(--space-1)) minmax(0, 1fr) auto; }
