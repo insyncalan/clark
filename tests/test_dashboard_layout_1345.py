@@ -76,7 +76,7 @@ class Text(unittest.TestCase):
 
 LINES = [
     '@media screen and (min-width: 1000px) {',
-    '  html:has(.cnt-grid) main { padding-top: 32px; padding-bottom: 56px; }',
+    '  html:has(.rbar + #report .cnt-grid) main { padding-top: 32px; padding-bottom: 56px; }',
     '}',
     'html:not([data-density="comfortable"]) .rbar + #report .secs > .sec:not(.slot-right) { padding-right: 22px; padding-bottom: 18px; }',
     'html:not([data-density="comfortable"]) .rbar + #report .sec-h { line-height: 1.25; }',

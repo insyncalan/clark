@@ -154,8 +154,8 @@ def theme_folder():
 
 LINES = [
     '@media screen and (min-width: 1000px) {',
-    '  html:has(.cnt-grid) main { max-width: none; margin: 0; padding-left: 66px; padding-right: max(var(--space-5), calc(50vw - 616px)); }',
-    '  html:has(.cnt-grid) #report.frame.report { padding-left: 0; padding-right: 0; }',
+    '  html:has(.rbar + #report .cnt-grid) main { max-width: none; margin: 0; padding-left: 66px; padding-right: max(var(--space-5), calc(50vw - 616px)); }',
+    '  html:has(.rbar + #report .cnt-grid) #report.frame.report { padding-left: 0; padding-right: 0; }',
     '  html[data-density] #report.frame .cnt-grid > .secs { margin-right: 0; }',
     '}',
     'html:not([data-density="comfortable"]) .rbar + #report { --sec-pad-t: 20px; --size-sec: var(--size-h3); }',
@@ -169,7 +169,7 @@ HEAD_LINES = [
     'html:not([data-density="comfortable"]) .rbar + #report .secs > .sec:not(.slot-right):has(> .tpl-rh-block) { padding-top: 0; padding-left: 0; }',
     '.sec:has(> .tpl-rh-block) { padding-top: 0; padding-left: 0; }',
     '.tpl-rh-block { margin: 0; }',
-    '.tpl-rh-title { font-family: Montserrat, Inter, Arial, sans-serif; font-size: 30px; line-height: 1.2; font-weight: 600; margin: 0 0 4px; letter-spacing: -.01em; }',
+    '.tpl-rh-title { font-family: var(--font-head); font-size: 30px; line-height: 1.2; font-weight: 600; margin: 0 0 4px; letter-spacing: -.01em; }',
     '.tpl-rh-meta { margin: 0 0 16px; }',
     '.tpl-rh-block .tpl-rh { margin: 0; gap: 12px; padding: 12px 0; }',
     '.tpl-rh-block .tpl-rh-pill { gap: 6px; font-size: 14px; font-weight: 700; padding: 2px 12px; min-height: 28px; letter-spacing: .03em; text-transform: uppercase; }',
