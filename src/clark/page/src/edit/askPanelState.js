@@ -44,6 +44,12 @@ export function setWidth(w, keep) {
   if (keep) { try { localStorage.setItem(KEY, String(panelWidth.value)); } catch (e) { /* only a convenience */ } }
 }
 
+/** Row 1292: a double-click on the grip puts the panel back to its usual width and forgets the kept one, so the next visit opens at the usual width too. */
+export function resetWidth() {
+  panelWidth.value = clampWidth(DEFAULT);
+  try { localStorage.removeItem(KEY); } catch (e) { /* only a convenience */ }
+}
+
 /** A deck of every quip index in a random order (Fisher-Yates). `rand` is Math.random's shape. */
 export function quipDeal(rand = Math.random) {
   const d = QUIPS.map((_, i) => i);
