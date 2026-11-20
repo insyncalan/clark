@@ -236,7 +236,9 @@ def project_data(store, code, question="", budget=BUDGET, as_at=None):
     Raises publish.PublishError (plain words) for a code that isn't a project."""
     inputs = publish.read_inputs(store, code, as_at)
     selected = own_rows(inputs)
-    passages, secret = _cut_screened(LABELS["project"], project_lines(publish.select(inputs)["data"].get("project") or {}))
+    project = dict(publish.select(inputs)["data"].get("project") or {})
+    project["current_state"] = publish.clean_html((inputs["data"].get("project") or {}).get("current_state") or "") or project.get("current_state")    # a hidden Current state section does not change what is read
+    passages, secret = _cut_screened(LABELS["project"], project_lines(project))
     totals = {}
     for kind in KIND_ORDER:
         rows = [row_line(kind, r) for r in selected[kind]]

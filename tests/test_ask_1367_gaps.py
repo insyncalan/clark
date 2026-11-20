@@ -104,6 +104,30 @@ class LinkFieldsByName(unittest.TestCase):
         self.assertNotIn("use case:", line)
 
 
+class TeamOnlyAndCurrentState(unittest.TestCase):
+    def test_no_team_only_column_is_a_shown_field_of_any_kind(self):
+        from clark import store
+        for kind, fields in ask_data.SHOWN.items():
+            self.assertEqual(set(fields) & store.NEVER_PUBLISH, set(), kind)
+
+    def test_team_only_fields_are_not_read(self):
+        def put(given):
+            for kind, title in (("actions", "description"), ("raid", "description"), ("decisions", "decision"), ("milestones", "name")):
+                add_row(given, kind, id="PUB-T-9" + kind[:2], **{title: "ZQ-TEAM-ROW", "internal_note": "ZQ-TEAM-NOTE",
+                        "reasoning": "ZQ-TEAM-REASON", "options": "ZQ-TEAM-OPTIONS", "response_action": "ZQ-TEAM-RESPONSE",
+                        "movement": "ZQ-TEAM-MOVE"})
+        text = text_of(read(edit=put)[0])
+        self.assertIn("ZQ-TEAM-ROW", text)
+        for marker in ("NOTE", "REASON", "OPTIONS", "RESPONSE", "MOVE"):
+            self.assertNotIn("ZQ-TEAM-" + marker, text)
+
+    def test_a_hidden_current_state_section_does_not_change_what_is_read(self):
+        def hide(given):
+            given["sections"] = [{**s, "hidden": 1} if s.get("type") == "current" else s for s in given["sections"]]
+        self.assertIn("ZQ-KEEP-CURRENT", text_of(read(edit=hide)[0]))
+        self.assertIn("ZQ-KEEP-CURRENT", text_of(read()[0]))
+
+
 class DraftQuotingAHiddenItem(unittest.TestCase):
     def test_a_file_that_quotes_a_hidden_item_is_stopped_by_the_client_check(self):
         given = read()[1]
