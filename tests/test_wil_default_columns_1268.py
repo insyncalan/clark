@@ -25,6 +25,19 @@ class DefaultColumns(unittest.TestCase):
         self.assertEqual(json.loads(wi.START)["columns"], WANT)
         self.assertEqual(list(wi.DEFAULT_COLUMNS), WANT)
 
+    def test_a_saved_list_keeps_the_columns_and_the_order_it_names(self):
+        saved = ["type", "id", "owner", "due", "priority"]
+        body = json.loads(wi.START)
+        body["columns"] = saved
+        self.assertEqual(wi.check(body, None)["columns"], saved)
+        self.assertEqual(run_node("W.listOf({items: [], columns: " + json.dumps(saved) + "}, {}, '2030-01-01').columns"), saved)
+
+    def test_a_list_or_file_that_names_no_column_shows_what_it_always_showed(self):
+        old = ["type", "id", "owner", "due", "priority"]
+        self.assertEqual(run_node("W.listOf({items: [], columns: []}, {}, '2030-01-01').columns"), old)
+        self.assertEqual(run_node("W.listOf({items: []}, {}, '2030-01-01').columns"), old)
+        self.assertNotEqual(old, WANT)
+
     def test_type_is_still_a_choice(self):
         self.assertIn("type", wi.COLUMNS)
         self.assertIn("type", run_node("W.COLUMNS"))

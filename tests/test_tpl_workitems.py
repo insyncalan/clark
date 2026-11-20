@@ -690,7 +690,7 @@ class InThePage(PageBase):
             p = self.show(cdp)
             p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table')", "the list drew")
             self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-all]')"))
-            self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table th')].map(e => e.textContent)"), ["", "Type", "Item", "Owner", "Due", "Priority", "ID"])
+            self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table th')].map(e => e.textContent)"), ["", "Item", "Owner", "Due", "Priority", "ID"])
 
     def test_the_status_column_is_a_half_circle_coloured_as_the_status_and_the_word(self):
         ref = self.add({"mode": "all", "columns": ["id", "status"], "owner": ["Pat Demo", "Lee Demo"]})
@@ -1164,13 +1164,13 @@ class InThePage(PageBase):
             p.until(f"!!document.querySelector({json.dumps(base + '[value=status]')})", "Configure opened")
             steps = self.demo.last_step()
             p.js(f"(() => {{ for (const v of ['status', 'workstream']) document.querySelector({json.dumps(base)}.replace('input', 'input[value=' + v + ']')).click(); }})()")
-            p.until(f"document.querySelectorAll({json.dumps(base + ':checked')}).length === 7", "both ticks stay")
+            p.until(f"document.querySelectorAll({json.dumps(base + ':checked')}).length === 6", "both ticks stay")
             p.saved()
             # Two saves are in flight and saved() returns on the FIRST toast; under load the second reply lands after that, so wait
             # for the second step in the store before reading the body (the store is the truth here, not the toast).
             self.assertTrue(wait(lambda: self.demo.last_step() == steps + 2), "two ticks, two steps")
             body = json.loads(self.store.read("report_sections", ref=ref)["body"])
-            self.assertEqual(body["columns"], ["type", "id", "owner", "due", "status", "priority", "workstream"])
+            self.assertEqual(body["columns"], ["id", "owner", "due", "status", "priority", "workstream"])
 
     def test_a_caption_of_many_emoji_is_typed_and_saved_as_counted_by_the_store(self):
         ref = self.add({})
