@@ -25,6 +25,7 @@ from test_server import Running, chrome, wait  # noqa: E402
 
 CODE = "LONGPRJ"
 LONG_OWNER = "Bartholomew Featherstone-Hall"
+CARD4_OWNER = "Bartholomew Smythe"
 LONG_WORDS = ("Confirm the whole cut-over plan with every supplier, the hosting team and the steering group before the freeze "
               "and write down who signs off each step of the move, in order, with the dates they agreed to ") * 2
 NO_SPACE = "Supercalifragilisticexpialidocious" * 5
@@ -50,9 +51,17 @@ def seed(store):
                                "impact": "High", "likelihood": "High", "raised": "2026-10-01", "client_message": LONG_WORDS, "source": "demo"})
         d = st.create("decisions", {"project": CODE, "decision": LONG_WORDS, "made_by": LONG_OWNER, "needed_by": "2026-11-23",
                                     "status": "Pending", "client_message": LONG_WORDS, "source": "demo"})
-        for kind, n in (("raid3", 3), ("raid4", 4)):
+        # row 1270: four across hold at 1400 (a card is 225 px, 191 px inside), so a name that is whole there is at most about 22 letters; the four cards
+        # of the four-across section carry the owner below, the longer LONG_OWNER stays on the three-across cards and the rows
+        a4 = st.create("actions", {"project": CODE, "description": LONG_WORDS, "owner": CARD4_OWNER, "due_date": "2026-11-20",
+                                   "raised": "2026-10-01", "client_message": LONG_WORDS, "source": "demo"})
+        r4 = st.create("raid", {"project": CODE, "type": "Risk", "description": LONG_WORDS, "owner": CARD4_OWNER, "due_date": "2026-11-22",
+                                "impact": "High", "likelihood": "High", "raised": "2026-10-01", "client_message": LONG_WORDS, "source": "demo"})
+        d4 = st.create("decisions", {"project": CODE, "decision": LONG_WORDS, "made_by": CARD4_OWNER, "needed_by": "2026-11-23",
+                                     "status": "Pending", "client_message": LONG_WORDS, "source": "demo"})
+        for kind, n, ids in (("raid3", 3, (a, b, r)), ("raid4", 4, (a4, b, r4, d4))):
             ref = st.create("report_sections", {"project": CODE, "type": kind, "title": "Fictional cards %d" % n, "sort_order": 990 + n})
-            st.update("report_sections", ref, {"body": json.dumps({"v": 1, "cards": [{"id": i, "source": "client"} for i in (a, b, r, d)[:n]]})})
+            st.update("report_sections", ref, {"body": json.dumps({"v": 1, "cards": [{"id": i, "source": "client"} for i in ids]})})
 
 
 # (selector of the row or card, the parts that never wrap, the title). The item rows are the one-line rows (row 1021): their id, owner, date and
