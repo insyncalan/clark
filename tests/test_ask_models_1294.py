@@ -78,9 +78,21 @@ class Models(unittest.TestCase):
         self.assertFalse(b["chatgpt"]["connected"])
         self.assertTrue(self.chatgpt.signed_in)
 
+    def test_the_size_the_page_states_is_the_size_the_code_cuts_at(self):
+        # row 1294 audit: the page said 300,000 tokens while ask.BUDGET cut at 40,000 characters
+        from clark import ask
+        line = self.connect.get()[1]["size"]
+        self.assertIn(format(ask.BUDGET, ","), line)
+        self.assertIn(format(ask.BUDGET // 4, ","), line)
+        self.assertNotIn("300,000", line)
+        passages = [("P%d" % i, "x" * 4000) for i in range(11)]       # 44,000 characters: over the figure the page states
+        with self.assertRaises(ask.AskRefused):
+            ask.build_request("What is open?", passages)
+        ask.build_request("What is open?", passages[:10])             # 40,000: at the figure, accepted
+
     def test_the_size_of_one_question_is_stated_with_the_lower_limit_rule(self):
         line = self.connect.get()[1]["size"]
-        self.assertEqual(line, "Size of one question: 300,000 tokens. Each model has its own limit and the lower one applies.")
+        self.assertEqual(line, "Size of one question: about 10,000 tokens (40,000 characters of passages). Each model has its own limit and the lower one applies.")
 
 
 class TestTheConnection(unittest.TestCase):
@@ -209,7 +221,7 @@ class OnThePage(unittest.TestCase):
     def test_test_the_connection_shows_the_seconds_for_each_model_on_and_the_size_line(self):
         with chrome() as cdp:
             js = self.show(cdp, 900)
-            self.assertEqual(js("document.querySelector('[data-ai-size]').innerText"), "Size of one question: 300,000 tokens. Each model has its own limit and the lower one applies.")
+            self.assertEqual(js("document.querySelector('[data-ai-size]').innerText"), "Size of one question: about 10,000 tokens (40,000 characters of passages). Each model has its own limit and the lower one applies.")
             self.assertEqual(js("document.querySelector('[data-ai-test]').innerText"), "Test the connection")
             js("document.querySelector('[data-ai-test]').click()")
             self.assertTrue(wait(lambda: re.fullmatch(r"Claude answered in \d+(\.\d)? seconds\.", js("document.querySelector('[data-ai-test-out]').innerText") or ""), 15))
