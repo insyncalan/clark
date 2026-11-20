@@ -113,7 +113,7 @@ export function search(query) {
   out.push(...dataResults(query, ws));          // row 901: with words typed, the data comes right after the pages (after the projects in Classic)
   for (const a of actions()) if (all(a.label + " action", a.more)) out.push(a);
   if (!ws.length || !classicTheme()) projectRows();          // nothing typed, or Cards: projects after the actions, as before
-  if (!ws.length) for (const c of commands()) if (all(c.label + " command", c.more)) out.push(c);
+  if (!ws.length || !classic) for (const c of commands()) if (all(c.label + " command", c.more)) out.push(c);          // nothing typed, or Cards: commands last, as before row 1350
   const ask = askRow(query);
   if (ask) { if (ask.first) out.unshift(ask); else out.push(ask); }          // a question first, anything else after the search
   return out;
