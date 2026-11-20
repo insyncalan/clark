@@ -51,7 +51,7 @@ class View(PublishedFile, glance.Setup):
                 self.assertEqual([c["text"] for c in cs], [False] * 3, "slice A: client and own words are never drawn, only the latest update")
                 self.assertEqual(cs[0]["label"], "Latest update")
                 self.assertFalse(cs[1]["rating"], "an action has no rating element")
-                self.assertEqual(cs[0]["btn"], ["Open " + ids[0], True], "the id button names its item and keeps the peek open")
+                self.assertEqual(cs[0]["btn"], ["Open " + ids[0] + " details", True], "the id button names its item and keeps the peek open")
 
     def test_card_colours_by_rating(self):
         ids = self.put([("raid", {"type": "Risk", "description": "Red one", "impact": "High", "likelihood": "High", "client_message": "Words.", "latest_update": "Called them.", "owner": "Pat"}),

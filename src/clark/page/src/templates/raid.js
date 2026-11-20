@@ -60,6 +60,10 @@ export const titleOf = (row, kind) => String((kind === "decisions" ? row.decisio
 export function kindWords(row, kind) {
   return kind === "raid" ? (String(row.type || "").toLowerCase() === "issue" ? "Issue" : "Risk") : kind === "actions" ? "Action" : "Decision";
 }
+// The label above a card's words (row 1270): the part of the item the card shows.
+export function partWords(row, kind) {
+  return kind === "raid" ? (String(row.type || "").toLowerCase() === "issue" ? "The issue" : "The risk") : kind === "actions" ? "The action" : (row.status === "Pending" ? "The decision needed" : "The decision");
+}
 // The line under a card's title: status, owner and the date that matters, in plain words.
 export function metaBits(row, kind) {
   const who = kind === "decisions" ? row.made_by : row.owner;

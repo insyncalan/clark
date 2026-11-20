@@ -73,6 +73,20 @@ class Pure(unittest.TestCase):
         self.assertTrue(html and html[0], html)
         self.assertNotIn("raid-text", [c for row in html for c in row], html)
 
+    def test_each_card_names_its_part_and_its_id_button_says_details(self):
+        rows = {"raid": [{"id": "ABC-001", "type": "Risk"}, {"id": "ABC-002", "type": "Issue"}], "actions": [{"id": "ABC-003"}],
+                "decisions": [{"id": "ABC-004", "status": "Pending"}, {"id": "ABC-005", "status": "Made"}]}
+        got = run("[%s].map(([r, k]) => RP.partWords(r, k))" % ", ".join("[%s, %s]" % (json.dumps(rows[k][i]), json.dumps(k)) for k, i in (("raid", 0), ("raid", 1), ("actions", 0), ("decisions", 0), ("decisions", 1))))
+        self.assertEqual(got, ["The risk", "The issue", "The action", "The decision needed", "The decision"])
+        src = (PAGE_SRC / "templates" / "RaidCards.jsx").read_text(encoding="utf-8")
+        self.assertIn("aria-label={`Open ${c.id} details`}", src)
+        self.assertIn("{partWords(c.row, c.kind)}", src)
+
+    def test_the_edit_counts_the_picked_cards_and_names_the_remove_choice(self):
+        src = (PAGE_SRC / "edit" / "templates" / "raidEdit.jsx").read_text(encoding="utf-8")
+        self.assertIn("`${cards.length} of ${size} picked`", src)
+        self.assertIn("`Remove card ${i + 1}`", src)
+
     def test_the_library_card_sketch_is_three_columns_with_three_edges(self):
         cols, edges = run('RP.SKETCHES["raid-cards"]')
         self.assertEqual(cols, "grid-template-columns:repeat(3,1fr)")
@@ -80,7 +94,7 @@ class Pure(unittest.TestCase):
 
 
 class Prototype(unittest.TestCase):
-    DESC = "The risks, actions, issues or decisions you want the reader to see, as cards."
+    DESC = "Highlight the biggest risks, actions, issues or decisions as cards. You pick which ones to show, three or four across. Each card shows the description and the latest update."
 
     def test_the_prototype_has_the_one_raid_cards_row_in_the_page_words(self):
         views = (ROOT / "system" / "prototype" / "views.js").read_text(encoding="utf-8")

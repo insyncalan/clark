@@ -1,6 +1,7 @@
-// The Edit part RAID cards (#96) share: one row per card (the work item; slice A: no words choice, an old saved one is kept in the body),
+// The Edit part RAID cards (item 96) share: one row per card (the work item; slice A: no words choice, an old saved one is kept in the body),
 // saved in place. Every committed choice is one change() to the section's body: one step, one Undo, place "report". A card holds
-// the item's id only, so what the item says is read when the page is drawn or published.
+// the item's id only, so what the item says is read when the page is drawn or published. Plain text only (the Own words are typed in the one editor and kept as one plain line); nothing is drawn as markup.
+import { StartPrompt } from "../StartPrompt.jsx";
 import { data } from "../../stores/report.js";
 import { change } from "../../stores/changes.js";
 import { putCard } from "../../logic/putCard.js";
@@ -62,7 +63,7 @@ export function RaidEdit({ section, size: base, choice = false }) {
       <li class="rce-card" key={i} data-slot={i}>
         <label class="rce-f"><span>{`Card ${i + 1}`}</span>
           <select aria-label={`Card ${i + 1} item`} value={card ? card.id : ""} onChange={choose}>
-            <option value="">{card ? "No item (remove this card)" : "Choose an item…"}</option>
+            <option value="">{card ? `Remove card ${i + 1}` : "Choose an item…"}</option>
             {missing ? <option value={card.id}>{`${card.id}: not in the record any more`}</option> : null}
             {options(card && card.id)}
           </select></label>
@@ -77,6 +78,7 @@ export function RaidEdit({ section, size: base, choice = false }) {
   }
   return (
     <div class="rce" data-edit-only="">
+      {cards.length === 0 ? <StartPrompt id={`raid-${size}`} /> : null}
       {cards.length === 0 ? <p class="quiet rce-first">Choose an item for the first card. This section stays out of the published page until a card is chosen.</p> : null}
       {choice ? (
         <label class="rce-f rce-across"><span>Cards across</span>
@@ -85,6 +87,7 @@ export function RaidEdit({ section, size: base, choice = false }) {
             <option value="4">4</option>
           </select></label>
       ) : null}
+      {choice ? <p class="quiet rce-picked">{`${cards.length} of ${size} picked`}</p> : null}
       <ul class="rce-list">{rows}</ul>
     </div>
   );

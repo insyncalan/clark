@@ -33,7 +33,7 @@ FIRST_SLICE_DESCRIPTIONS = [
     {"id": "text-image", "description": "A story with a picture: a site visit, a design, a screenshot of the new system."},
     {"id": "figures-4", "description": "Three or four numbers with labels and a change since last week."},
     {"id": "figures-3", "description": "Three numbers with labels, in wider cards, so a short note fits under the change."},
-    {"id": "raid-cards", "description": "The risks, actions, issues or decisions you want the reader to see, as cards."},
+    {"id": "raid-cards", "description": "Highlight the biggest risks, actions, issues or decisions as cards. You pick which ones to show, three or four across. Each card shows the description and the latest update."},
     {"id": "work-items", "description": "Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed."},
     {"id": "docs-links", "description": "The papers that go with this week’s report."},
     {"id": "report-headline", "description": "A health pill, a headline and a supporting sentence at the top of the report."},
@@ -131,7 +131,7 @@ class Logic(unittest.TestCase):
             "figures-3": ("Three numbers with labels, in wider cards, so a short note fits under the change.", ["Heading", "Figure · live", "Figure · live", "Figure · typed"], ["full", "half"]),
             "glance-template": ("Three counts, an optional project health and tiles of your own.", ["Decisions needed", "High risks and issues", "Overdue actions", "optional Project health", "your own tiles"], ["full", "half"]),      # row 1264 slice 9: the ruled words, group 1
             "figures-4": ("Three or four numbers with labels and a change since last week.", ["Heading", "Figure · live", "Figure · live", "Figure · typed", "Figure · typed", "Caption"], ["full", "half"]),
-            "raid-cards": ("The risks, actions, issues or decisions you want the reader to see, as cards.", ["Heading", "RAID cards", "Text source", "Text"], ["full"]),
+            "raid-cards": ("Highlight the biggest risks, actions, issues or decisions as cards. You pick which ones to show, three or four across. Each card shows the description and the latest update.", ["Heading", "RAID cards", "Text source", "Text"], ["full"]),
             "work-items": ("Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed.", ["Heading", "Filter (set in Edit)", "Work item list · live", "Caption (optional)"], ["full", "half"]),
             "docs-links": ("The papers that go with this week’s report.", ["Heading", "File (one or more)", "Link list"], ["full", "half"]),
             "report-headline": ("A health pill, a headline and a supporting sentence at the top of the report.", ["Health pill · optional", "Headline", "Supporting sentence"], ["full", "half"]),      # row 1261

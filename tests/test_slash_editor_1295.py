@@ -70,22 +70,21 @@ class Base(unittest.TestCase):
 
 
 class SettingsList(Base):
-    def test_the_project_tab_lists_every_command_and_opens_the_editor_in_a_new_tab(self):
+    def test_the_project_tab_lists_the_projects_own_and_opens_the_editor_in_a_new_tab(self):
+        self.s.httpd.ask_commands.change({"scope": "project", "project": "ABC", "action": "save", "record": {"menu": "Own line", "text": "Overdue by owner", "scope": "anywhere", "result": "answer", "name": "monday"}})
         with chrome() as cdp:
             js = self.settings(cdp)
             self.until(js, "!!document.querySelector('#slash-project [data-slash-row]')", "the list is read")
             self.assertEqual(js("document.querySelector('#slash-project h2').innerText"), "Slash commands in ABC")
             rows = js("[...document.querySelectorAll('#slash-project [data-slash-row]')].map(r => [r.dataset.slashRow, r.querySelector('.slash-tag').innerText, !!r.querySelector('.slash-edit')])")
-            self.assertEqual([r[0] for r in rows], ["check", "summary", "overdue", "risks", "milestones", "usecases", "history", "new"])
-            self.assertEqual({r[0]: r[1] for r in rows}["history"], "Action")
-            self.assertEqual({r[0]: r[2] for r in rows}, {"check": True, "summary": True, "overdue": True, "risks": True, "milestones": True, "usecases": True, "history": False, "new": False})
+            self.assertEqual(rows, [["monday", "ABC only", True]])
             links = js("[...document.querySelectorAll('#slash-project a')].map(a => [a.innerText, a.target, a.rel, a.getAttribute('href')])")
             self.assertEqual(links[0], ["Open the editor ↗", "_blank", "noopener", "/?slash-editor=1&project=ABC"])
             self.assertEqual(links[1][0], "New slash command ↗")
             self.assertIn("new=1", links[1][3])
-            self.assertEqual(links[2], ["Edit ↗", "_blank", "noopener", "/?slash-editor=1&project=ABC&name=check"])
+            self.assertEqual(links[2], ["Edit ↗", "_blank", "noopener", "/?slash-editor=1&project=ABC&name=monday"])
 
-    def test_a_file_of_yours_and_one_of_the_project_show_their_tags_and_the_project_one_wins(self):
+    def test_a_file_of_yours_and_one_of_the_project_show_their_tags_in_their_own_lists(self):
         svc = self.s.httpd.ask_commands
         rec = {"menu": "Monday summary", "text": "Overdue by owner", "scope": "anywhere", "result": "answer"}
         svc.change({"scope": "all", "action": "save", "record": {**rec, "name": "monday"}})
@@ -94,16 +93,14 @@ class SettingsList(Base):
         svc.change({"scope": "all", "action": "save", "record": {**rec, "name": "check", "replaces": "check", "menu": "My check"}})
         with chrome() as cdp:
             js = self.settings(cdp)
-            self.until(js, "document.querySelectorAll('#slash-project [data-slash-row]').length > 8", "the list is read")
+            self.until(js, "!!document.querySelector('#slash-project [data-slash-row]')", "the list is read")
             got = js("Object.fromEntries([...document.querySelectorAll('#slash-project [data-slash-row]')].map(r => [r.dataset.slashRow, [r.querySelector('.slash-menu').innerText, r.querySelector('.slash-tag').innerText]]))")
-            self.assertEqual(got["monday"], ["Own line", "ABC only"])
-            self.assertEqual(got["shared"], ["Monday summary", "Yours"])
-            self.assertEqual(got["check"], ["My check", "Built in · edited"])
-            self.assertEqual(js("document.querySelectorAll('#slash-project [data-slash-row=monday]').length"), 1)
+            self.assertEqual(got, {"monday": ["Own line", "ABC only"]})
             js("document.querySelector('[data-ask-tab=all]').click()")
             self.until(js, "!!document.querySelector('#slash-all [data-slash-row]')", "the all projects list is read")
             self.assertEqual(js("document.querySelector('#slash-all h2').innerText"), "Slash commands for all projects")
             self.assertEqual(js("[...document.querySelectorAll('#slash-all [data-slash-row]')].slice(0, 2).map(r => r.dataset.slashRow)"), ["monday", "shared"])
+            self.assertEqual(js("document.querySelector('#slash-all [data-slash-row=check] .slash-tag').innerText"), "Built in · edited")
 
     def test_a_server_without_the_route_says_so_in_one_line(self):
         self.s.httpd.ask_commands = None
@@ -223,7 +220,8 @@ class AskingOff(Base):
             self.until(js, "document.documentElement.dataset.ready === '1' && !!document.querySelector('.slash-side')", "drawn")
             self.assertTrue(wait(lambda: js("document.querySelectorAll('#slash-off').length") == 0, 3))
             js = self.settings(cdp)
-            self.until(js, "!!document.querySelector('#slash-project [data-slash-row]')", "the list is read")
+            # named exemption: the project list now shows only the project's own commands (none here), so the read is seen by the From All projects row
+            self.until(js, "!!document.querySelector('#slash-project #slash-from-all')", "the list is read")
             self.assertEqual(js("document.querySelectorAll('#slash-off').length"), 0)
 
 

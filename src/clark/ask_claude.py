@@ -53,7 +53,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from clark import ask, ask_connector_args, ask_connector_stream, platform
+from clark import ask, ask_connector_args, ask_connector_stream, ask_usage, platform
 
 PROVIDER = "claude"
 # An npm global or nvm install is looked for too (a "*" stands for one nvm node version). Its `claude` is a link: it is followed to the file
@@ -355,6 +355,15 @@ def read_answer(out):
     return text
 
 
+def read_tokens(out):
+    """The tokens the command reports for a run (its result object's `usage`, see ask_usage.tokens_in), or None when it gives none."""
+    try:
+        got = json.loads(out.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError, RecursionError):
+        return None
+    return ask_usage.tokens_in(got.get("usage")) if isinstance(got, dict) else None
+
+
 LIMIT_TEXT = re.compile(r"(hit your (usage |rate )?limit|(usage|rate|message) limit (reached|exceeded)|limit reached)", re.I)
 MODEL_TEXT = re.compile(r"(selected model|unrecognized model|model .{0,80}(not found|not available|may not exist|don't have access))", re.I)
 
@@ -447,6 +456,7 @@ class ClaudeCommand(ask.Provider):
         self.connector_runner = None           # row 1306: the discovery command's seam for tests (None: the real one)
         self.last_used = ""                    # row 1306: the Used line of the last connector run (names only), "" when none was used
         self.last_line = None                  # row 1306: the whole UsedLine of the last run that had a connector On and found, None otherwise
+        self.last_tokens = None                # row 1294: the tokens the command reported for the last answered question, None when none were
         self.passed = None                     # (path, when) of the last sign-in check status() passed, used once by ask()
 
     # ----- the checks -----
@@ -541,6 +551,7 @@ class ClaudeCommand(ask.Provider):
         status, out, _code = run(args, text.encode("utf-8"), self.env, self.limit, self.max_out, stop=self.stop_event)
         self.last_used = ""
         self.last_line = None
+        self.last_tokens = None
         if screened and status == "ok":
             names = part_of()
             good, line, result = ask_connector_stream.inspect(out, {names[c] for c in connectors if c in names})
@@ -565,6 +576,7 @@ class ClaudeCommand(ask.Provider):
         reply = read_answer(out) if status == "ok" else None
         if reply is None:
             return ask.Failure(" ".join([NO_ANSWER] + hints()))
+        self.last_tokens = read_tokens(out)
         return reply
 
     @staticmethod
