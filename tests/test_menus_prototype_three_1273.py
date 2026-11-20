@@ -1,6 +1,6 @@
 """Row 1273 (Classic): Group by, Move to and the Add menu take the prototype's look, and no other menu does.
 
-Reads rules.css and Board.jsx (no browser): the rules are scoped to the three menus by their labels; the Move to head holds the card id.
+Reads rules.css and Board.jsx (no browser): the rules are scoped to the three menus by their ids and labels (the View menu by #viewMenuList, so the use case Group by menus are untouched); the Move to head holds the card id.
 Run: python3 dev/run_tests.py test_menus_prototype_three_1273
 """
 import re
@@ -10,8 +10,7 @@ from _paths import ROOT
 
 RULES = re.sub(r"/\*.*?\*/", "", (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8"), flags=re.S)
 BOARD = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "Board.jsx").read_text(encoding="utf-8")
-GROUP = '.ddmenu[aria-label="Group by"]'
-GROUP_ID = '#viewMenuList.ddmenu[aria-label="Group by"]'
+GROUP = "#viewMenuList.ddmenu"
 MOVE = '.ddmenu[aria-label^="Move "][aria-label$=" to"]'
 ADD = ".wil-add .ddmenu"
 ADD_ALL = "#newBtnMenu.ddmenu"
@@ -62,15 +61,14 @@ class ThreeMenus(unittest.TestCase):
         """Every selector of the Row 1273 block names one of the three menus."""
         text = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
         start = text.index("/* Row 1273")
-        block = text[start:text.index("/*", start + 2)]  # the one Row 1273 comment and the rules after it, up to the next comment
+        block = text[start:text.index("/* Row", start + 2)]  # the Row 1273 comment and the rules after it, up to the next Row comment
         block = re.sub(r"/\*.*?\*/", "", block, flags=re.S)
         for sels, _ in [([" ".join(s.split()) for s in a.split(",")], b) for a, b in re.findall(r"([^{}]+)\{([^{}]*)\}", block)]:
             for s in sels:
-                self.assertTrue(s.startswith((GROUP, GROUP_ID, MOVE, ADD, ADD_ALL)), f"the rule {s!r} is not scoped to Group by, Move to or Add")
+                self.assertTrue(s.startswith((GROUP, MOVE, ADD, ADD_ALL)), f"the rule {s!r} is not scoped to Group by, Move to or Add")
 
     def test_the_move_to_head_holds_the_card_id(self):
-        self.assertIn("head: `Move ${id} to`", BOARD)
-        self.assertNotIn("head: `Move to ${groupLabel(g)}`", BOARD)
+        self.assertIn("classicTheme() ? `Move ${id} to` : `Move to ${groupLabel(g)}`", BOARD)   # Classic holds the id, Cards keeps Move to <group>
 
 
 if __name__ == "__main__":

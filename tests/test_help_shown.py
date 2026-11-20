@@ -142,12 +142,14 @@ class Held(unittest.TestCase):
 
 def lacks(code, name):
     """True when the page's code lacks the bold name. "N" stands for a count the screen builds (`Show all ${n} use cases`) and a menu
-    heading built from the Group by word is read as its template."""
+    heading built from the Group by word (`Move to ${groupLabel(g)}`) is read as its template."""
     name = re.sub(r"[‘’]", "'", name).strip(" .,:;…")
     if name in code:
         return False
     if re.fullmatch(r"Show all N [a-z ]+", name):
         return name.replace(" N ", " ${n} ") not in code
+    if name == "Move to Status":
+        return "`Move to ${groupLabel(g)}`" not in code
     if re.fullmatch(r"(Workstream|Type) lanes", name):
         return "${groupLabel(x)} lanes" not in code
     return True
@@ -264,6 +266,7 @@ GLANCE_PY = ROOT / "src" / "clark" / "glance.py"
 SECTIONS_PY = ROOT / "src" / "clark" / "default_sections.py"      # the titles of the sections a new report starts with
 # Words a shown Reference entry quotes that the page builds from data, so no source file holds them whole (each with the reason).
 COMPUTED = {
+    "Move to Status": "the board card menu's heading, built from the Group by word (edit/Board.jsx menuFor)",
     "Workstream lanes": "a Swimlanes choice, built from the group's word (components/FilterLine.jsx)",
     "Type lanes": "a Swimlanes choice, built from the group's word (components/FilterLine.jsx)",
     "3 days late": "Due, built from the date (workItems.js dueCell)",
@@ -473,9 +476,9 @@ class HelpWordsMatchScreen(unittest.TestCase):
         self.assertFalse(any("by No lanes, Workstream or Type" in s for s in ALL))
 
     def test_move_to_lists(self):
-        self.assertIn("head: `Move ${id} to`", BOARD)
+        self.assertIn("head: classicTheme() ? `Move ${id} to` : `Move to ${groupLabel(g)}`", BOARD)      # Cards keeps the help words; Classic holds the card id (row 1273)
         self.assertIn("head: `Move to ${LANE_WORDS[b.lane]}`", BOARD)
-        self.assertTrue(any("choose from the **Move to** lists: first the columns, then the lanes." in s for s in ALL))
+        self.assertTrue(any("choose from the **Move to** lists: first the columns (such as **Move to Status**), then the lanes." in s for s in ALL))
         self.assertFalse(any("**Move to…**" in s for s in ALL))
 
     def test_add_menu_words(self):
