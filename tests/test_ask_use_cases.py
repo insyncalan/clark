@@ -46,7 +46,7 @@ class UseCaseChanges(Base):
         with self.s.step("dashboard", USER) as st:
             st.update("use_cases", self.uc, {"owner": "ZQ-OWNER-ASK-6604 Placeholder"})
         before = self.counts()
-        plan = self.planned({"op": "change", "id": self.uc, "status": "Flag"})
+        plan = self.planned({"op": "change", "id": self.uc, "current_title": "Invoice matching", "status": "Flag"})
         self.assertNotIn("ZQ-OWNER", repr(plan))
         self.assertNotIn("owner", {k.lower() for k in plan["before"]} | {k.lower() for k in plan["after"]})
         self.refused({"op": "change", "id": self.uc, "current_owner": "ZQ-OWNER-ASK-6604 Placeholder", "status": "Flag"}, "not_a_change")
@@ -60,7 +60,7 @@ class UseCaseChanges(Base):
         for field, value, words in (("status", "Great", changes.UC_STATUS_WORDS), ("headline", "x" * 400, changes.UC_HEADLINE_WORDS)):
             with self.subTest(field=field, value=value[:12]):
                 before = self.counts()
-                status, body = self.ask.plan("ABC", {"op": "change", "id": self.uc, field: value})
+                status, body = self.ask.plan("ABC", {"op": "change", "id": self.uc, "current_title": "Invoice matching", field: value})
                 self.assertEqual((status, body["ok"]), (400, False), body)
                 self.assertEqual(body["message"], words)
                 self.assertEqual(self.counts(), before)
@@ -126,10 +126,10 @@ class UseCaseChanges(Base):
     def test_the_wrong_title_is_refused_and_the_kind_must_agree(self):
         self.refused({"op": "change", "id": self.uc, "current_title": "Pay the supplier", "status": "Flag"}, "wrong_title")
         self.refused({"op": "change", "kind": "milestone", "id": self.uc, "status": "Flag"}, "wrong_kind")
-        self.planned({"op": "change", "kind": "use case", "id": self.uc, "status": "Flag"})
+        self.planned({"op": "change", "kind": "use case", "id": self.uc, "current_title": "Invoice matching", "status": "Flag"})
 
     def test_a_suggestion_from_a_real_reply_is_planned(self):
-        reply = ask.read_reply('Flagging it.\nCHANGE: {"op": "change", "id": "%s", "status": "Flag"}' % self.uc,
+        reply = ask.read_reply('Flagging it.\nCHANGE: {"op": "change", "id": "%s", "current_title": "Invoice matching", "status": "Flag"}' % self.uc,
                                codes=("ABC",), exists=lambda ref: ref == self.uc)
         self.assertEqual(len(reply.changes), 1)
         self.assertEqual(self.planned(reply.changes[0])["after"]["status"], "Flag")
@@ -162,14 +162,14 @@ class WhatTheModelSees(Base):
         self.assertEqual(ask_data.SHOWN["use_cases"], ("ref", "status", "commitment", "headline", "standing"))
         self.assertIn(uc, data.facts)
 
-    def test_a_hidden_use_case_is_not_offered(self):
+    def test_a_hidden_use_case_is_offered_to_the_owner(self):      # row 1367 (ruling 19-11)
         uc = self.demo.use_case
         with self.s.step("dashboard", USER) as st:
             st.update("use_cases", uc, {"headline": "Hidden words ZQ-HIDDEN", "client_visible": 0})
         data, text = self.passages()
-        self.assertNotIn(uc, text)
-        self.assertNotIn("ZQ-HIDDEN", text)
-        self.assertNotIn(uc, data.facts)
+        self.assertIn(uc, text)
+        self.assertIn("ZQ-HIDDEN", text)
+        self.assertIn(uc, data.facts)
 
     def test_an_archived_use_case_is_not_offered(self):
         uc = self.demo.use_case

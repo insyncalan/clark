@@ -9,6 +9,7 @@ import { stopRestore } from "../router.js";
 import { askProvider } from "./askState.js";
 import { draft, panelOpen, panelState, panelDisconnected, panelModel, panelStanding, panelWidth, panelFocus, turns, pending, chatEpoch, handed, answersReady, queue, queueHeld, queueDrop, QUEUE_MAX, setQueue, closePanel, newChat, setWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
 import * as W from "./askWords.js";
+import { classicTheme } from "../components/Contents.jsx";
 import { pills, asking } from "./askPills.js";
 import { stateOf } from "./askPillState.js";
 import { helpOpen } from "../help/helpStore.js";
@@ -67,11 +68,13 @@ function shownTurns(list) {
 export function AskPanel() {
   const open = panelOpen.value, state = panelState.value, model = panelModel.value, width = panelWidth.value;
   const list = turns.value, busy = pending.value;
+  const classic = classicTheme();
   const [text, setText] = useState("");
   const [note, setNote] = useState("");
   const [quip, setQuip] = useState("");
   const [pick, setPick] = useState(0), [shut, setShut] = useState(false);   // #1292 S10: the slash menu's chosen row, and whether Esc has closed it
-  const menu = shut ? null : slashMatches(text);
+  const hold = classicTheme() ? W.PLACEHOLDER_CLASSIC : W.PLACEHOLDER;          // row 1350: the new placeholder is Classic only
+  const menu = shut ? null : slashMatches(text, classicTheme());
   const [said, setSaid] = useState("");            // row 1220: what a screen reader is told when a message is queued or removed
   const waiting = queue.value, held = queueHeld.value, dropping = queueDrop.value;
   const showHist = histOpen.value && !busy;
@@ -344,8 +347,8 @@ export function AskPanel() {
         </div>
       </header>
       <p class="ask-status" id="ask-status" role="status" aria-live="polite">
-        {busy ? W.WORKING : state === "checking" ? W.CHECKING_LINE : state === "unknown" ? null : state === "off" ? W.READY_LINE : state === "signed-out" ? null : model ? W.MODEL_LINE(model) : W.READY_LINE}
-        {panelStanding.value && !busy && (state === "ready" || state === "signed-out") ? <> <a href="#settings&s=claude" id="ask-instr" data-ask-settings onClick={toSettings}>{W.STANDING_LINE}</a></> : null}
+        {busy ? W.WORKING : state === "checking" ? W.CHECKING_LINE : state === "unknown" ? null : state === "off" ? (classic ? W.CLASSIC_STATUS_READY : W.READY_LINE) : state === "signed-out" ? null : classic ? W.CLASSIC_STATUS_READY : model ? W.MODEL_LINE(model) : W.READY_LINE}
+        {panelStanding.value && !busy && (state === "ready" || state === "signed-out") ? <> <a href="#settings&s=claude" id="ask-instr" data-ask-settings onClick={toSettings}>{classic ? W.CLASSIC_STANDING : W.STANDING_LINE}</a></> : null}
       </p>
       {state === "off" ? (
         <p class="ask-off" id="ask-off">{W.OFF_LINE} <a href="#settings&s=claude" data-ask-settings onClick={toSettings}>{W.OFF_LINK}</a></p>
@@ -369,10 +372,20 @@ export function AskPanel() {
       ) : null}
       {!showHist && !list.length && (state === "ready" || state === "off") ? (
         <section class="ask-first-run" id="ask-first-run" aria-label={W.FIRST_RUN_LABEL}>
-          <p>{W.FIRST_RUN_READS}</p>
-          <p>{W.FIRST_RUN_CHANGES}</p>
-          <p>{W.named(W.FIRST_RUN_SENT, askProvider.value)}</p>
-          <div class="ask-first-link"><a href="#settings&s=claude" data-ask-first-settings onClick={toSettings}>{W.FIRST_RUN_LINK}</a></div>
+          {classic ? (<>
+            <h3>{W.CARD_HEAD}</h3>
+            <ul>
+              <li>{W.CARD_READS}</li>
+              <li>{W.CARD_CHANGES.split(W.CARD_CHANGES_BOLD)[0]}<b>{W.CARD_CHANGES_BOLD}</b>{W.CARD_CHANGES.split(W.CARD_CHANGES_BOLD)[1]}</li>
+              <li>{W.named(W.CARD_SENT, askProvider.value)} <a href="#settings&s=claude" data-ask-first-settings onClick={toSettings}>{W.CARD_LINK}</a></li>
+            </ul>
+            <p class="ask-first-tip">{W.CARD_TIP_BEFORE}<kbd>{W.CARD_TIP_KEY}</kbd>{W.CARD_TIP_AFTER}</p>
+          </>) : (<>
+            <p>{W.FIRST_RUN_READS}</p>
+            <p>{W.FIRST_RUN_CHANGES}</p>
+            <p>{W.named(W.FIRST_RUN_SENT, askProvider.value)}</p>
+            <div class="ask-first-link"><a href="#settings&s=claude" data-ask-first-settings onClick={toSettings}>{W.FIRST_RUN_LINK}</a></div>
+          </>)}
         </section>
       ) : null}
       <div class="ask-log" id="ask-log" hidden={showHist} role="log" aria-live="polite" aria-label={W.LOG_LABEL} ref={log}>
@@ -385,7 +398,7 @@ export function AskPanel() {
             {t.draft ? (
               <div class="ask-draftcard" data-ask-draftcard>
                 <Icon name="doc" />
-                <span><span class="ask-draftcard-title">{W.DRAFT_READY}</span><br /><span class="ask-draftcard-note">{t.draft.title ? t.draft.title + ". " : ""}{W.DRAFT_READY_LINE}</span></span>
+                <span><span class="ask-draftcard-title">{W.DRAFT_READY}</span><br /><span class="ask-draftcard-note">{t.draft.title ? t.draft.title + ". " : ""}{W.DRAFT_READY_LINE}{t.draft.via && t.draft.via.length ? <span data-ask-draft-via>{" " + W.DRAFT_VIA(t.draft.via.join(" and "))}</span> : null}</span></span>
                 <button type="button" class="btn primary" onClick={() => { draft.value = t.draft; }}>{W.DRAFT_OPEN}</button>
               </div>
             ) : null}
@@ -455,7 +468,7 @@ export function AskPanel() {
             )) : <li class="ask-slash-none">{W.SLASH_NONE}</li>}
           </ul>
         ) : null}
-        <textarea ref={box} id="ask-box" rows="1" value={text} placeholder={W.PLACEHOLDER} aria-label={W.PLACEHOLDER} disabled={state !== "ready" && state !== "checking"}
+        <textarea ref={box} id="ask-box" rows="1" value={text} placeholder={hold} aria-label={hold} disabled={state !== "ready" && state !== "checking"}
           role={menu ? "combobox" : undefined} aria-expanded={menu ? "true" : undefined} aria-controls={menu ? "ask-slash" : undefined} aria-autocomplete={menu ? "list" : undefined}
           aria-activedescendant={menu && menu.length ? "ask-slash-" + menu[pick].name : undefined}
           onInput={(e) => { setText(e.currentTarget.value); setPick(0); setShut(false); }}
