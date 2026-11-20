@@ -573,9 +573,11 @@ class Route(Base):
         for i in range(ex.MAX_LEFT_OUT):
             self.put(f"Contract {i:02d}/x.txt")
         self.add()
-        status, body = self.svc.change({"project": "ABC", "action": "exclude", "path": str(self.root)})
+        with mock.patch.object(self.svc, "save", wraps=self.svc.save) as saving:
+            status, body = self.svc.change({"project": "ABC", "action": "exclude", "path": str(self.root)})
         self.assertEqual((status, body["code"]), (409, "cant_save"))
         self.assertEqual(self.stored(), "[]")
+        saving.assert_not_called()      # refused before any step is tried, not left to the store's own check
 
     def test_only_folders_are_left_out_a_flagged_file_is_not(self):
         shutil.rmtree(self.root / "Contract")
@@ -603,6 +605,19 @@ class Route(Base):
             step.update("source_folders", f"ABC|{self.root}", {"excluded": '["Archive"]'})
         self.svc.change({"project": "ABC", "action": "exclude", "path": str(self.root)})
         self.assertEqual(json.loads(self.stored()), ["Archive", "Contract"])
+
+    def test_the_scan_for_a_leave_out_does_not_count_what_is_already_left_out_against_its_entry_cap(self):
+        wide = Path(os.path.realpath(self.home)) / "Wide"
+        for rel in ("Archive/a.txt", "Archive/b.txt", "Archive/c.txt", "Contract/t.txt"):
+            (wide / rel).parent.mkdir(parents=True, exist_ok=True)
+            (wide / rel).write_text("text")
+        with self.store().step("dashboard", "tester", place="menu") as step:
+            step.create("source_folders", {"project": "ABC", "path": str(wide), "sort_order": 0, "excluded": '["Archive"]'})
+        with mock.patch.object(sn, "MAX_ENTRIES", 3):
+            body = self.svc.change({"project": "ABC", "action": "exclude", "path": str(wide)})[1]
+        self.assertTrue(body["ok"])
+        rows = {r["path"]: r["excluded"] for r in self.store().read("source_folders", "ABC")}
+        self.assertEqual(json.loads(rows[str(wide)]), ["Archive", "Contract"], "Archive and its three files would have used the cap before Contract was reached")
 
     def test_a_folder_taken_out_and_put_back_starts_with_nothing_left_out(self):
         self.add()
