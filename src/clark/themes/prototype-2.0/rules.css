@@ -551,6 +551,16 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 @media (min-width: 901px) { html[data-density="comfortable"] .gp-plan { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); margin-right: calc(-1 * (var(--space-5) + var(--space-1))); } }
 /* Row 1372 (Classic only; the Cards look keeps its width): the item and milestone peeks open 62% of the window wide, at least 300px, as the approved peek mock-up draws it, instead of 640px. From 1000px up; below it the peek fills the window as before. A width the person dragged (the peek carries data-sized) is kept. Bare lengths with no token: the 300px least width and the 1000px switch. */
 @media (min-width: 1000px) { .peek:not(.hpk):not(.wide):not([data-sized]) { width: 62% !important; min-width: min(300px, 100vw); } }
+/* Row 1373 (Classic only; the Cards look keeps its Configure box): the Work items Configure box is the approved mock-up's, work-items-mockup.html line 61. 300 wide, 14 padding, radius 12, the 0 10px 30px shadow, 6 below the gear; heading 15 (the small size plus 1); labels and legends 12.5 (the caption size less .5); fields 38 tall with radius 8 and 10 side padding; the column ticks 32 tall with an 18 box; the focus ring 2px with offset 1 on every field and tick. No token holds the 300, the 14, the 15, the 12.5, the 38, the 18 or the shadow. */
+.wil-cfg { top: calc(100% + 6px); width: min(300px, calc(100vw - var(--space-6))); padding: 14px; border-color: var(--grey-200); border-radius: var(--radius-lg); box-shadow: 0 10px 30px rgba(6, 47, 58, .2); }
+.wil-cfg h4 { font-size: calc(var(--size-small) + 1px); line-height: normal; }
+.wil-cfg .wil-sel > span, .wil-cfg .wil-f legend { font-size: calc(var(--size-caption) - .5px); }
+.wil-cfg .wil-f legend { margin-bottom: 0; padding-bottom: var(--space-1); }
+.wil-cfg .wil-sel select, .wil-cfg .wil-sel input { min-height: 38px; height: 38px; padding: 0 10px; border-color: var(--grey-200); border-radius: var(--radius); background: var(--surface); font-weight: 400; }
+.wil-cfg .wil-opts { gap: var(--space-1) 10px; }
+.wil-cfg .wil-opts label { gap: var(--space-2); min-height: 32px; font-size: var(--size-small); font-weight: 400; }
+.wil-cfg .wil-opts input[type="checkbox"] { width: 18px; height: 18px; }
+.wil-cfg .wil-opts input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 /* Row 1393 (Work items table, Classic only; the Cards look layers none of this, shell.css is untouched): item title weight 500 in the heading colour, the row line in --grey-200, the column names 13px weight 500 with 9px above and below (the Comfortable density keeps its own larger padding), the Status / Owner / Due / Priority columns 76 / 170 / 134 / 104 px as the prototype page draws them (its default column widths; only Priority changes from the shared 122) above 900 (900 keeps the shared widths), due words 13px with the late one at 600, the red and green status tile text in the status tokens, the row hover in --band-bg and the eye button 30 px. Bare lengths: the 9px header padding, the 500 weight, the widths. */
 :root { --d-colh-y: 9px; }
 table.items th { font-size: var(--size-caption); font-weight: 500; }
