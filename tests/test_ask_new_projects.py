@@ -160,7 +160,7 @@ class TheRoute(Base):
 
 
 class TheGates(Base):
-    """Row 1294 (Stark's CHANGES on 2062): each of the five project gates in ask_service is the one that answers, so dropping the project test from any single one fails a test here."""
+    """Row 1294: each of the five project gates in ask_service is the one that answers, so dropping the project test from any single one fails a test here."""
     SECRET = "my " + "pass" + "word" + ": " + "Hunt" + "er2-Zq-99"      # built at run time, so the publish tool's scan has nothing to find
     flags = TheRoute.flags
 
