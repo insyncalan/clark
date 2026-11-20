@@ -17,7 +17,7 @@ from clark import page
 
 NAME = "prototype-2.0"
 RULES = ROOT / "src" / "clark" / "themes" / NAME / "rules.css"
-SHADOW_CSS = "box-shadow: 0 6px 18px rgba(14,36,48,.12);"      # Romanoff, Row 1321
+SHADOW_CSS = "box-shadow: 0 6px 18px rgba(14,36,48,.12);"      # ruling, Row 1321
 SHADOW = "rgba(14, 36, 48, 0.12) 0px 6px 18px 0px"
 WANT = {"light": ("rgb(255, 255, 255)", "rgb(217, 224, 239)", "rgb(29, 36, 51)"),      # --surface, --grey-200 (#D9E0EF, the ticket's hairline), --text
         "dark": ("rgb(18, 28, 40)", "rgb(43, 56, 80)", "rgb(230, 235, 245)")}

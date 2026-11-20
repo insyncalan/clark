@@ -47,7 +47,7 @@ class Parts(Base):
                 self.assertEqual(h["shown"], "block")
                 self.assertIn(h["after"], ("none", "normal"))      # no pseudo-element is made
                 self.assertEqual(h["card"], ["rgb(255, 255, 255)", "1px", "9px", "500"])
-                self.assertEqual(h["shadow"], "rgba(14, 36, 48, 0.12) 0px 6px 18px 0px")   # Romanoff, Row 1321
+                self.assertEqual(h["shadow"], "rgba(14, 36, 48, 0.12) 0px 6px 18px 0px")   # ruling, Row 1321
                 self.assertEqual(h["kind"], "600")
                 self.assertEqual(h["late"][1], "600")
                 self.assertNotEqual(h["late"][0], h["dot"])
