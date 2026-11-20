@@ -212,6 +212,104 @@ class Unsaved(test_peek_latest.Browser):
             self.assertEqual(sent, [], "Discard stores nothing")
 
 
+    # Row 1467 (read changes): the ask works for every kind of opener, not the Work items rows alone: a milestone row, a use case page work item.
+    def rowpress(self, cdp, sid, selector):
+        """A real mouse click (move, press, release) on the left part of the first visible element `selector` finds (at 900 px the peek stands over the row's middle)."""
+        probe = (f"(() => {{ const e = [...document.querySelectorAll({json.dumps(selector)})].find(e => e.offsetParent !== null), b = e.getBoundingClientRect(), x = b.left + Math.min(b.width / 2, 120), y = b.top + b.height / 2;"
+                 " return { x, y, top: b.top, free: e.contains(document.elementFromPoint(x, y)) }; })()")
+        still = "(p => p ? JSON.stringify(p.getBoundingClientRect()) : '')(document.querySelector('#peek'))"
+        wait(lambda: (lambda a: (time.sleep(0.15), a == cdp.js(still, sid))[1])(cdp.js(still, sid)))      # the peek slides in: click once it rests
+        got = cdp.js(probe, sid)
+        if not got["free"]:                       # at 900 px the open peek stands over the whole list: no mouse can reach the row, so the press is sent to the row itself, as the browser would
+            cdp.js(f"(() => {{ const e = [...document.querySelectorAll({json.dumps(selector)})].find(e => e.offsetParent !== null); for (const t of ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']) e.dispatchEvent(new (t.startsWith('pointer') ? PointerEvent : MouseEvent)(t, {{ bubbles: true, cancelable: true, composed: true, button: 0, clientX: {got['x']}, clientY: {got['y']} }})); }})()", sid)
+            return
+        x, y = got["x"], got["y"]
+        for kind, extra in (("mouseMoved", {}), ("mousePressed", {"button": "left", "buttons": 1, "clickCount": 1}), ("mouseReleased", {"button": "left", "clickCount": 1})):
+            cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, **extra}, sid)
+
+    def ms_peek(self, cdp, width):
+        sent, sid = self.load(cdp, width, OVERDUE)
+        cdp.js("document.querySelector('[data-view=milestones]').click()", sid)
+        self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.msl-row[data-ms]').length", sid) > 1), "the Milestones list drew")
+        ms = cdp.js("[...new Set([...document.querySelectorAll('.msl-row[data-ms]')].filter(e => e.offsetParent).map(e => e.dataset.ms))]", sid)
+        self.assertGreaterEqual(len(ms), 2)
+        cdp.js(f"clarkPage.openPeek({json.dumps(ms[0])}, 'milestone')", sid)
+        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-latest]')", sid)), "the milestone peek has its Latest update")
+        self.open_box(cdp, sid)
+        self.type_in(cdp, sid, "Not yet saved")
+        return sent, sid, ms
+
+    def uc_peek(self, cdp, width):
+        sent, sid = self.load(cdp, width, OVERDUE)
+        cdp.js("document.querySelector('[data-view=usecases]').click()", sid)
+        self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#usecases .ucl-go').length", sid) > 0), "the Use cases list drew")
+        n = cdp.js("document.querySelectorAll('#usecases [data-uc] .ucl-go').length", sid)
+        items = []
+        for i in range(n):
+            cdp.js(f"[...document.querySelectorAll('#usecases [data-uc] .ucl-go')].filter(e => e.offsetParent)[{i}].click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-ucd]')", sid)), "the use case page opened")
+            wait(lambda: True)
+            items = cdp.js("[...document.querySelectorAll('[data-item]')].map(b => b.dataset.item)", sid)
+            if len(items) >= 2:
+                break
+            cdp.js("history.back()", sid)
+            self.assertTrue(wait(lambda: cdp.js("!document.querySelector('[data-ucd]')", sid)))
+        self.assertGreaterEqual(len(items), 2, "a use case page lists two work items")
+        self.rowpress(cdp, sid, f"[data-item={items[0]}]")
+        self.assertTrue(wait(lambda: cdp.js("(p => !!p && p.dataset.peek)(document.querySelector('#peek'))", sid) == items[0]))
+        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-latest]')", sid)))
+        self.open_box(cdp, sid)
+        self.type_in(cdp, sid, "Not yet saved")
+        return sent, sid, items
+
+    def shown(self, cdp, sid):
+        return cdp.js("(p => !!p && p.dataset.peek)(document.querySelector('#peek'))", sid)
+
+    def test_a_milestone_row_asks_first_when_the_open_milestone_update_is_unsaved(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sent, sid, ms = self.ms_peek(cdp, width)
+                self.rowpress(cdp, sid, f".msl-row[data-ms={ms[1]}] .msl-cells")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-unsaved]')", sid)), "the bar asks")
+                self.assertEqual(self.shown(cdp, sid), ms[0], "the peek still shows the first milestone")
+                self.assertEqual(sent, [], "nothing is saved while it asks")
+                self.press(cdp, sid, "[data-pk-keep]")
+                self.assertIn("Not yet saved", cdp.js(f"document.querySelector({json.dumps(self.BOX)}).textContent", sid), "Keep editing keeps the text")
+                self.rowpress(cdp, sid, f".msl-row[data-ms={ms[1]}] .msl-cells")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-discard]')", sid)))
+                self.press(cdp, sid, "[data-pk-discard]")
+                self.assertTrue(wait(lambda: self.shown(cdp, sid) == ms[1]), "Discard switches to the clicked milestone")
+                self.assertEqual(sent, [], "Discard stores nothing")
+
+    def test_a_use_case_work_item_asks_first_when_the_open_update_is_unsaved(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sent, sid, items = self.uc_peek(cdp, width)
+                self.rowpress(cdp, sid, f"[data-item={items[1]}]")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-unsaved]')", sid)), "the bar asks")
+                self.assertEqual(self.shown(cdp, sid), items[0], "the peek still shows the first item")
+                self.assertEqual(sent, [], "nothing is saved while it asks")
+                self.press(cdp, sid, "[data-pk-keep]")
+                self.rowpress(cdp, sid, f"[data-item={items[1]}]")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-discard]')", sid)))
+                self.press(cdp, sid, "[data-pk-discard]")
+                self.assertTrue(wait(lambda: self.shown(cdp, sid) == items[1]), "Discard switches to the clicked item")
+                self.assertEqual(sent, [], "Discard stores nothing")
+
+    def test_clean_milestone_and_use_case_switches_do_not_ask(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sent, sid = self.load(cdp, width, OVERDUE)
+                cdp.js("document.querySelector('[data-view=milestones]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.msl-row[data-ms]').length", sid) > 1))
+                ms = cdp.js("[...new Set([...document.querySelectorAll('.msl-row[data-ms]')].filter(e => e.offsetParent).map(e => e.dataset.ms))]", sid)
+                cdp.js(f"clarkPage.openPeek({json.dumps(ms[0])}, 'milestone')", sid)
+                self.assertTrue(wait(lambda: self.shown(cdp, sid) == ms[0]))
+                self.rowpress(cdp, sid, f".msl-row[data-ms={ms[1]}] .msl-cells")
+                self.assertTrue(wait(lambda: self.shown(cdp, sid) == ms[1]), "a clean peek switches at once")
+                self.assertFalse(cdp.js("!!document.querySelector('[data-pk-unsaved]')", sid), "and does not ask")
+
+
 for _name in dir(test_peek_latest.Browser):      # only the loader and helpers of that class are wanted here, not its own tests
     if _name.startswith("test_"):
         setattr(Unsaved, _name, None)

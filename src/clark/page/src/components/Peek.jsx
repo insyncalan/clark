@@ -215,7 +215,7 @@ export function Edge() {
 
 export function Peek({ tools }) {
   const p = peek.value;
-  const box = useRef(null), back = useRef(null), pending = useRef(""), opened = useRef(""), shown = useRef(""), stepped = useRef(false);
+  const box = useRef(null), back = useRef(null), pending = useRef(""), pendingKind = useRef("item"), opened = useRef(""), shown = useRef(""), stepped = useRef(false);
   const lastBox = useRef(null), keep = useCallback((n) => { box.current = n; if (n) { lastBox.current = n; holdScroll(n, { keys: false }); } }, []);
   const editing = !!tools && !fromFile.value && isEditing();      // every page but a Dashboard in View (row 824)
   const msEditing = !!tools && !!tools.MilestoneEdit && !fromFile.value && (mode.value === "edit" || view.value === "milestones");     // row 828: the milestone's own fields are editable on the Milestones page with no View mode, and in Edit elsewhere
@@ -340,14 +340,24 @@ export function Peek({ tools }) {
     const hold = (e) => { if (e.target.closest && e.target.closest("[data-pk-close]")) e.preventDefault(); };
     // Row 1467: a click on another item's row switches the peek. With an unsaved Latest update in the open peek the click asks first, as Close does
     // (the bar: Save and close, Discard, Keep editing); the press keeps the focus in the editor so that leaving it does not save the update unasked.
-    const opener = (t) => (t && t.closest && !t.closest("#peek") ? t.closest("#work tr[data-id], #work article[data-id], .wl-row[data-id], .wil-table tr[data-id]") : null);
+    // Three kinds of opener: a work item's row or card, a milestone's row (or its name link), a use case page's step or work item. Each gives the id and the kind to switch to.
+    const opener = (t) => {
+      if (!t || !t.closest || t.closest("#peek")) return null;
+      const w = t.closest("#work tr[data-id], #work article[data-id], .wl-row[data-id], .wil-table tr[data-id]");
+      if (w) return { id: w.dataset.id, kind: "item" };
+      const m = t.closest(".msl-row[data-ms], [data-ms-open]");
+      if (m) return { id: m.dataset.ms || m.dataset.msOpen, kind: "milestone" };
+      const u = t.closest("[data-item], [data-stepid], li[data-step]");
+      const id = u && (u.dataset.item || u.dataset.stepid || (u.querySelector("[data-stepid]") || {}).dataset?.stepid);
+      return id ? { id, kind: "item" } : null;
+    };
     const dirty = () => !!(tools && tools.peekDirty && tools.peekDirty());
     const keepFocus = (e) => { if (opener(e.target) && dirty()) e.preventDefault(); };
     const ask = (e) => {
       const row = opener(e.target);
       if (!row || !dirty()) return;
       e.stopPropagation(); e.preventDefault();
-      pending.current = row.dataset.id; unsaved.value = true;
+      pending.current = row.id; pendingKind.current = row.kind; unsaved.value = true;
     };
     document.addEventListener("pointerdown", press, true);
     document.addEventListener("mousedown", hold, true);
@@ -375,7 +385,7 @@ export function Peek({ tools }) {
       <PeekToolbar near={near} go={go} wide={wide.value} onWide={() => { wide.value = !wide.value; }} onClose={askClose}
         draft={editing && row && tools.peekDraft ? tools.peekDraft(row) : null} onCopy={editing && row && tools.copyLinkFor ? () => tools.copyLinkFor(row) : null}
         more={MoreBtn && row ? <MoreBtn row={row} /> : MsMoreBtn && m ? <MsMoreBtn row={m} kind="milestones" place="peek" cls="pkp-btn" id="pk-more" fixed={false} /> : null} />
-      {unsaved.value && tools && tools.PeekUnsavedBar ? <tools.PeekUnsavedBar onClose={() => { const to = pending.current; pending.current = ""; if (to) openPeek(to, "item"); else closePeek(); }} onDone={() => { unsaved.value = false; }} /> : null}
+      {unsaved.value && tools && tools.PeekUnsavedBar ? <tools.PeekUnsavedBar onClose={() => { const to = pending.current; pending.current = ""; if (to) openPeek(to, pendingKind.current); else closePeek(); }} onDone={() => { unsaved.value = false; }} /> : null}
       {Warn && row ? <Warn key={`w-${row.id}`} row={row} /> : null}
       <PeekIdLine id={p.id} />
       <p class="sr-only" role="status" aria-live="polite" data-pk-live>{said.value.text}</p>
