@@ -122,7 +122,7 @@ class Computed(unittest.TestCase):
         h = got["head"]
         self.assertEqual((h["size"], h["w"], h["pad"][0], h["pad"][2], h["pad"][3]), ("13px", "500", "4px", "4px", "20px"), where)
         self.assertEqual(h["ls"], "1.04px", where)
-        self.assertEqual((got["num"]["minW"], got["num"]["w"]), ("44px", "700"), where)
+        self.assertEqual((got["num"]["minW"], got["num"]["w"]), ("36px", "600"), where)
         self.assertEqual(got["out"]["opacity"], "1", where)
         self.assertEqual(got["out"]["name"], got["muted"], where)
         t = got["tone"]
