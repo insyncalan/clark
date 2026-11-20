@@ -473,6 +473,8 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .wil-pr[data-pri="Medium"] { border-color: var(--pri-medium-bg); }
 .wil-pr[data-pri="High"] { border-color: var(--pri-high-bg); }
 .wil-pr[data-pri="Urgent"] { border-color: var(--pri-urgent-bg); }
+/* Row 1197: Classic only, comfortable: the Gantt plan runs the page band's width. */
+@media (min-width: 901px) { html[data-density="comfortable"] .gp-plan { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); margin-right: calc(-1 * (var(--space-5) + var(--space-1))); } }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
