@@ -293,43 +293,48 @@ def write_glance_sheet(wb, published, sec, palette=None):
     return ws
 
 
-CALLOUT_SHEET = "Callout"
-CALLOUT_HEADS = (("Category", 20), ("Colour", 14), ("Icon", 16), ("Title", 36), ("Words", 60))
+REPORT_SHEET = "Report"
 
 
-def write_callout_sheet(wb, published, sec, palette=None):
-    """Row 1272: a callout section as one sheet, one row: Category, Colour, Icon, Title, Words. The category, the colour's name and the icon's
-    name are written as words (callout.words()), so nothing rests on colour. Locked text. A callout with nothing in it is not in the file."""
+def callout_lines(sec):
+    """Row 1272: a callout's lines, in order: its title (else "Callout"); "Category: <category>. Colour: <colour>. Icon: <icon>." with each
+    part left out when empty (no line at all when all three are); then its words, a line for each line of them. [] when it has no title and no words."""
     c = sec.get("content") if isinstance(sec.get("content"), dict) else {}
     got = callout.words(c)
     words = plain(c["html"]) if isinstance(c.get("html"), str) and c["html"] else "\n".join(p for p in c.get("paras") or () if isinstance(p, str))
     title = c.get("title") if isinstance(c.get("title"), str) else ""
     if not title and not words:
+        return []
+    parts = [f"{label}: {got[key]}." for label, key in (("Category", "category"), ("Colour", "colour_name"), ("Icon", "icon_name")) if got[key]]
+    return [title or "Callout"] + ([" ".join(parts)] if parts else []) + [w for w in words.split("\n") if w.strip()]
+
+
+def write_report_sheet(wb, published, palette=None):
+    """Row 1272: the callouts as text blocks on one Report sheet, in the page's (Dashboard) order, one line to a row in column A: each
+    callout's callout_lines, a blank row between callouts. Locked text. No callout with words, no sheet."""
+    blocks = [lines for lines in (callout_lines(s) for s in published.get("sections") or () if s.get("type") == "callout") if lines]
+    if not blocks:
         return None
     HEAD, TITLE, SUB, HEAD_FILL = styles(palette)
-    name, n = CALLOUT_SHEET, len(wb.sheetnames) + 1
-    while name in wb.sheetnames:
-        name, n = f"{CALLOUT_SHEET} {n}", n + 1
-    ws = wb.create_sheet(name)
-    band, sub = title_text(published)
-    for r, (text, font) in enumerate(((band, TITLE), (sub, SUB)), start=1):
-        for i in range(1, len(CALLOUT_HEADS) + 1):
-            ws.cell(row=r, column=i).fill = HEAD_FILL
+    ws = wb.create_sheet(REPORT_SHEET if REPORT_SHEET not in wb.sheetnames else f"{REPORT_SHEET} {len(wb.sheetnames) + 1}")
+    title, sub = title_text(published)
+    for r, (text, font) in enumerate(((title, TITLE), (sub, SUB)), start=1):
+        ws.cell(row=r, column=1).fill = HEAD_FILL
         cell = ws.cell(row=r, column=1, value=excel.cell_text(text))
         cell.font = font
         excel.protect_text_cell(cell)
     ws.row_dimensions[1].height = 26
-    put_headline(ws, published, len(CALLOUT_HEADS), palette)
-    for i, (label, width) in enumerate(CALLOUT_HEADS, start=1):
-        head = ws.cell(row=4, column=i, value=label)
-        head.font, head.fill = HEAD, HEAD_FILL
-        ws.column_dimensions[get_column_letter(i)].width = width
-    for i, v in enumerate((got["category"], got["colour_name"], got["icon_name"], title, words), start=1):
-        cell = ws.cell(row=5, column=i, value=excel.cell_text(v))
-        cell.font = BODY
-        cell.alignment = Alignment(wrap_text=True, vertical="top")
-        excel.protect_text_cell(cell)
-    ws.freeze_panes = "A5"
+    put_headline(ws, published, 1, palette)
+    ws.column_dimensions["A"].width = 100
+    n = 5
+    for lines in blocks:
+        for k, line in enumerate(lines):
+            cell = ws.cell(row=n, column=1, value=excel.cell_text(line))
+            cell.font = Font(name=BODY.name, size=BODY.size, bold=True) if k == 0 else BODY
+            cell.alignment = Alignment(wrap_text=True, vertical="top")
+            excel.protect_text_cell(cell)
+            n += 1
+        n += 1
     excel.print_setup(ws)
     excel.protect_sheet(ws)
     wb.defined_names[excel.CLIENT_COPY_NAME] = DefinedName(excel.CLIENT_COPY_NAME, attr_text=f"{quote_sheetname(ws.title)}!$A$1", hidden=True)
@@ -347,8 +352,7 @@ def workbook_bytes(published, palette=None):
     for sec in published.get("sections") or ():
         if sec.get("type") == "glancetemplate":
             write_glance_sheet(wb, published, sec, palette)
-        elif sec.get("type") == "callout":
-            write_callout_sheet(wb, published, sec, palette)
+    write_report_sheet(wb, published, palette)
     name, sub = title_text(published)
     if not wb.sheetnames:                       # no table section on the page: one sheet with the title band alone
         ws = wb.create_sheet(excel.SHEET_OF["actions"])
