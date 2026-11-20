@@ -343,7 +343,11 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .ask-tab[aria-current] { background: var(--brand-blue); color: var(--text-on-brand); font-weight: 600; }
 @media (max-width: 900px) { #main:has(#ask-tabs) { padding: 6px 16px 30px; } }
 .ask-model { align-items: baseline; column-gap: 12px; }
-.ask-model .ask-model-name { font-weight: 600; color: var(--text); }
+.ask-model .ask-model-text { flex: 1 1 auto; }
+.ask-model .ask-model-label { display: block; font-weight: 400; color: var(--text); }
+.ask-model .ask-model-same { display: block; font-size: 13px; color: var(--text-muted); }
+.ask-model .ask-model-name { font-weight: 400; color: var(--text-muted); }
+#ask-used-all .ask-model-note { margin: 6px 6px 0; font-size: 13px; }
 .ask-model .ask-model-change { all: unset; cursor: pointer; color: var(--text); font-size: var(--size-small); border-bottom: 1px dashed var(--text-muted); }
 .ask-model .ask-model-change:hover { color: var(--brand-blue); border-bottom-color: var(--brand-blue); }
 .ask-model .ask-model-change:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
