@@ -10,7 +10,7 @@ Standard library only, Python 3.9."""
 
 from clark import changes, history
 from clark.source_name import source_name
-from clark.store import OP_MADE, Store, connect
+from clark.store import Store, connect
 
 TABLES = ("actions", "raid", "decisions", "milestones")      # the rows a peek opens on
 ROW_KEYS = ("step", "when_text", "who", "how", "kind", "field", "from", "to", "diff", "diff_note", "from_file", "undo_refused")
