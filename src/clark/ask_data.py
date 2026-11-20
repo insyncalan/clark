@@ -126,16 +126,18 @@ def _score(words, ids, passage):
     return sum(5 for i in ids if i.casefold() in text) + sum(1 for w in words if w in text)
 
 
-def choose(passages, question, budget=BUDGET):
+def choose(passages, question, budget=BUDGET, limit=None):
     """The passages that fit `budget` characters, best first by plain keyword overlap with the question (an item ID it names
     counts most), kept in their original order. Returns (chosen, left_out_count). The first passage (the project) always goes
-    first when it fits."""
+    first when it fits. `limit` is the most passages kept (none: no limit); the rest count as left out like any that did not fit."""
     words = {w.casefold() for w in WORDS.findall(question or "")}
     ids = set(ID_PATTERN.findall(question or ""))
     ranked = sorted(range(len(passages)), key=lambda i: (i != 0, -_score(words, ids, passages[i]), i))
     keep, used = set(), 0
     for i in ranked:
         size = len(passages[i].text)
+        if limit is not None and len(keep) >= limit:
+            break
         if used + size <= budget:
             keep.add(i)
             used += size
@@ -242,6 +244,6 @@ def project_data(store, code, question="", budget=BUDGET, as_at=None):
         passages += more
         secret += n
         totals[kind] = len(rows) - n          # a line screened out as a secret has its own note, so it is not counted a second time
-    chosen, left = choose(passages, question, budget)
+    chosen, left = choose(passages, question, budget, ask.MAX_PASSAGES)     # the request takes at most MAX_PASSAGES: more is refused
     counts = tuple((k, sum(p.text.count("\n") + 1 for p in chosen if p.label == LABELS[k]), t) for k, t in totals.items() if t)
     return ProjectData(chosen, facts_of(selected, inputs.get("as_at") if _is_day(inputs.get("as_at")) else None), left, secret, timefmt.day_text(inputs.get("as_at")) if _is_day(inputs.get("as_at")) else "", counts)

@@ -12,7 +12,7 @@ from _paths import SRC  # noqa: F401
 import _testpage as testpage
 from _real_server import real_server
 import test_ask_1367 as base
-from clark import ask_data, page, publish, theme as themes, to_client
+from clark import ask, ask_data, page, publish, theme as themes, to_client
 from test_ask_panel import Stub
 from test_report_editor import Base
 from test_server import chrome
@@ -204,6 +204,48 @@ class NoteInThePanel(Classic):
         for line in ask_data.left_out_lines([(k, 1, 3) for k in ask_data.KIND_ORDER]):
             self.assertIsNone(american.search(line), line)
             self.assertRegex(line, r"^Sent \d+ of \d+ [a-z ]+ \(the closest to your question\); \d+ (was|were) left out\.$")
+
+
+class RealStoreAndCount(unittest.TestCase):
+    """Row 1367: what a real store gives (not planted inputs), and the request never refused for the project's own passages."""
+
+    def test_a_workstreams_created_day_is_read_from_a_real_store(self):
+        from _demo import DemoStore
+        demo = DemoStore()
+        try:
+            demo.store.con.execute("UPDATE workstreams SET created = '2026-09-01' WHERE project = 'ABC'")
+            got = ask_data.project_data(demo.store, "ABC", "workstreams?")
+            self.assertIn("ABC-W-001 Build | status: Active | created: 01-09-2026", "\n".join(p.text for p in got.passages))
+            self.assertNotIn("created", publish.PUBLISH_FIELDS["workstreams"], "the published file is unchanged")
+            for w in publish.select(publish.read_inputs(demo.store, "ABC"))["data"]["workstreams"]:
+                self.assertNotIn("created", w)
+        finally:
+            demo.close()
+
+    def _many(self, n):
+        def plant(given):
+            given["data"]["actions"] = [{"id": f"PUB-A-{i:03d}", "project": "PUB", "archived": 0, "description": f"Action {i} " + "lorem ipsum " * 90,
+                                         "status": "Open"} for i in range(n)]
+        return read(edit=plant)[0]
+
+    def test_a_project_of_100_passages_builds_a_request_and_counts_what_was_left_out(self):
+        got = self._many(400)
+        self.assertEqual(len(got.passages), ask.MAX_PASSAGES)
+        self.assertGreater(got.left_out, 0)
+        self.assertTrue(ask.build_request("what?", got.passages).text)
+
+    def test_exactly_max_passages_are_all_kept_and_one_more_is_left_out(self):
+        few = [ask.Passage("p", f"{i} " + "x" * 50) for i in range(ask.MAX_PASSAGES)]
+        kept, left = ask_data.choose(few, "q", ask.BUDGET, ask.MAX_PASSAGES)
+        self.assertEqual((len(kept), left), (ask.MAX_PASSAGES, 0))
+        kept, left = ask_data.choose(few + [ask.Passage("p", "last")], "q", ask.BUDGET, ask.MAX_PASSAGES)
+        self.assertEqual((len(kept), left), (ask.MAX_PASSAGES, 1))
+        self.assertEqual(kept[0], few[0])
+
+    def test_the_count_cut_says_it_with_the_existing_words(self):
+        got = self._many(400)
+        line = " ".join(ask_data.left_out_lines(got.counts))
+        self.assertRegex(line, r"Sent \d+ of \d+ actions \(the closest to your question\); \d+ were left out\.")
 
 
 if __name__ == "__main__":
