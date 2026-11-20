@@ -29,7 +29,9 @@ class Sizes(Computed):
                         self.assertEqual(self.style(cdp, sid, sel, "borderRadius"), "6px", f"{w} {sel}")
                     for sel in ("#b1", "#b2", "#b3", "#b4"):
                         self.assertEqual(self.style(cdp, sid, sel, "borderRadius"), "8px", f"{w} {sel} primaries and plain buttons stay 8")
-                    self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#md'), '::before').borderRadius", sid), "6px", w)
+                    self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#md'), '::before').borderRadius", sid), "8px", w)
+                    self.assertEqual(self.style(cdp, sid, "#md", "borderRadius"), "8px", f"{w} the mode switch keeps the --radius")
+                    self.assertEqual(self.style(cdp, sid, "#lw", "borderRadius"), "8px", f"{w} the .lsw switch keeps the --radius")
                     for sel in ("#sg button", "#sc button", "#cs button"):
                         self.assertEqual(self.style(cdp, sid, sel, "minHeight"), "28px", f"{w} {sel}")
                         self.assertEqual(self.style(cdp, sid, sel, "paddingTop"), "3px", f"{w} {sel}")
