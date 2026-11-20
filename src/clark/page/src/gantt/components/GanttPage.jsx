@@ -122,6 +122,12 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
   const bar = (
     <div class="gt gp-tools" data-gp-tools>
       <div class="gt-bar" role="toolbar" aria-label="Gantt">
+        {Toggle && !classic ? (
+          <button type="button" class="gt-wd" data-gp-mode={editing ? "view" : "edit"} aria-label={editing ? E.view : E.edit} title={editing ? E.viewTip : E.editTip}
+            onClick={() => { mode.value = editing ? "view" : "edit"; }}>
+            <Icon name={editing ? "eye" : "pencil"} /> {editing ? E.view : E.edit}
+          </button>
+        ) : null}
         {dated && layout === "table" ? layouts : null}
         <span class="gt-sp" />
         {layout === "table" ? (

@@ -18,6 +18,9 @@ NAME = "prototype-2.0"
 RULES = (ROOT / "src" / "clark" / "themes" / NAME / "rules.css").read_text(encoding="utf-8")
 
 
+PLAIN = GP.page_html
+
+
 def setUpModule():
     css = theme.css(NAME)
     orig = GP.page_html
@@ -99,8 +102,34 @@ class Toolbar(GP.Page):
                 self.assertAlmostEqual(m["left"], m["bar"], delta=1, msg="same left edge as the toolbar")
 
 
+class CardsPlain(GP.Page):
+    """The Cards look (no theme) is untouched by row 1197: the text View/Edit button stays, with the pill above it."""
+
+    @classmethod
+    def setUpClass(cls):
+        p = mock.patch.object(GP, "page_html", PLAIN)      # this class serves the page with no theme
+        p.start()
+        cls.addClassCleanup(p.stop)
+        super().setUpClass()
+
+    def test_cards_keep_the_text_view_edit_button_and_the_pill(self):
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                self.look(width)
+                self.assertEqual(self.val("document.getElementById('theme')"), None, "no theme: Cards")
+                self.mount()
+                self.assertEqual(self.count(".gt-bar [data-gp-mode=edit]"), 1, "Cards: the toolbar keeps its text button")
+                self.assertEqual(self.text("[data-gp-mode]"), "Edit", "its main label in View")
+                self.assertEqual(self.count(".modes [data-mode=view], .modes [data-mode=edit]"), 2, "the pill stays")
+                self.click("[data-gp-mode]")
+                self.until("document.querySelector('#gantt-page').dataset.mode === 'edit'", "Edit")
+                self.assertEqual(self.text("[data-gp-mode]"), "View", "its main label in Edit")
+                self.assertEqual(self.count(".modes [data-mode=view], .modes [data-mode=edit]"), 2)
+
+
 for _n in [n for n in dir(GP.Page) if n.startswith("test_")]:
     setattr(Toolbar, _n, None)
+    setattr(CardsPlain, _n, None) if _n != "test_cards_keep_the_text_view_edit_button_and_the_pill" else None
 if __name__ == "__main__":
     unittest.main()
 

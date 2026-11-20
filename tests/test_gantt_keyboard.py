@@ -28,7 +28,7 @@ class Keyboard(Base):
                 with self.subTest(width=w):
                     br.width(w)
                     br.visit(self.base + f"#gantt&p={CODE}", "document.querySelector('#gantt-page')")
-                    br.click(".modes [data-mode=edit]")
+                    br.click("[data-gp-mode=edit]")
                     br.until("document.querySelector('[data-g-bar]')", "bars drawn")
                     # Tab order: from one bar the next Tab lands on a later bar, in row order
                     br.js("document.querySelector(\"[data-g-bar='GNT-001']\").focus()")
