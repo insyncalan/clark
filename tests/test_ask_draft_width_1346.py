@@ -2,13 +2,26 @@
 
 Run: flock <lock> ~/bin/clark-chrome-slot env CLARK_CHROME=/usr/local/bin/clark-chrome python3 dev/run_tests.py test_ask_draft_width_1346
 """
+import tempfile
 import unittest
 
 import test_ask_draft
+from _real_server import real_server
+from clark import page, theme
 from test_server import chrome
 
 
 class DraftWidth(test_ask_draft.Draft):
+    """The Classic page (the Classic theme layered); Cards keeps its own width."""
+
+    def setUp(self):
+        super().setUp()
+        self.s.close()
+        css = theme.css("prototype-2.0")
+        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: page.layer_theme(page.page_html(tempfile.mkdtemp()), css), seam=lambda real, which: real)
+        self.s.httpd.ask = self.stub
+        self.addCleanup(self.s.close)
+
     def test_the_sheet_fits_on_the_screen_with_24_px_to_spare_at_1400_and_900(self):
         for width in (1400, 900):
             with self.subTest(width=width):
