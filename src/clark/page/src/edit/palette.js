@@ -1,6 +1,6 @@
 // The command palette's search and actions (#198), Edit parts only: a published file has no palette. Plain JS that draws nothing and touches no DOM itself: it takes
 // what the page already holds (the open project's data, the project list, the tabs) and gives back the results in order:
-// pages, then (when words are typed) work items (an ID first), use cases and milestones, then actions, projects, commands; with no words: pages, actions, projects, commands (row 900). Words match the text, the ID and the owner's name. Nothing here asks a server, and a
+// with words typed: commands, pages, work items (an ID first), use cases and milestones, then actions, projects (Classic: projects come right after the pages, before the work items); with no words: pages, actions, projects, commands (row 900). Words match the text, the ID and the owner's name. Nothing here asks a server, and a
 // command that changes anything calls the very function the existing button or menu entry calls (profile menu, Publish).
 import { signal } from "@preact/signals";
 import { data, shownTabs, TITLES, project, projects, view, rows, show, setProject, openPeek, openUseCase, fromFile, status } from "../stores/report.js";
@@ -13,6 +13,7 @@ import { ADD_MILESTONE } from "./movementWords.js";
 import { openPublish } from "./Publish.jsx";
 import { preview, exportExcel } from "./ProfileMenu.jsx";
 import { openHelp, closeHelp, helpOpen } from "../help/helpStore.js";
+import { classicTheme } from "../components/Contents.jsx";
 import { openPanel, handOver } from "./askPanelState.js";
 import { PANEL_TITLE } from "./askWords.js";
 
@@ -78,6 +79,7 @@ function dataResults(query, ws) {
 }
 
 const QUESTION_WORDS = /^(what|who|whom|whose|when|where|why|how|which|is|are|was|were|can|could|do|does|did|should|will|would|has|have)\s/i;
+const CLASSIC_WORDS = /^(summar\w*|check|draft)\s/i;          // row 1350, Classic only: the prototype also lists summar (a stem), check and draft; Cards keeps its list
 const ASK_SHOWN = 60;          // the typed words are cut here in the row's label; the whole text is handed over
 /** The word for the send key in the row's hint: "Cmd+Enter" on a Mac, "Ctrl+Enter" elsewhere. `nav` is the browser's navigator (a plain object in tests). */
 export function sendKey(nav) {
@@ -86,28 +88,32 @@ export function sendKey(nav) {
   return /^(mac|iphone|ipad|ipod)/i.test(where) ? "Cmd+Enter" : "Ctrl+Enter";
 }
 
-/** S11: the "Ask ... in ask clark" row for the typed words (none when nothing is typed). Enter or a click opens the panel with the words in its box; Ctrl or Cmd + Enter sends them (handOver). */
+/** S11: the "Ask ... in ask clark" row for the typed words (none when nothing is typed). Classic only: the row carries the send-key hint (Cards: none, as before row 1350). Enter or a click opens the panel with the words in its box; Ctrl or Cmd + Enter sends them (handOver). */
 export function askRow(query) {
   const q = String(query == null ? "" : query).trim();
   if (!q) return null;
   const shown = q.length > ASK_SHOWN ? q.slice(0, ASK_SHOWN - 1).trimEnd() + "…" : q;
-  return { id: "ask-row", kind: PANEL_TITLE, label: `Ask “${shown}” in ${PANEL_TITLE}`, more: sendKey(), disabled: "", question: q, first: /\?$/.test(q) || QUESTION_WORDS.test(q), run: () => handOver(q, false) };
+  return { id: "ask-row", kind: PANEL_TITLE, label: `Ask “${shown}” in ${PANEL_TITLE}`, more: classicTheme() ? sendKey() : "", disabled: "", question: q, first: /\?$/.test(q) || QUESTION_WORDS.test(q) || (classicTheme() && CLASSIC_WORDS.test(q)), run: () => handOver(q, false) };
 }
 
 /** The results for `query`, in the order they are shown: pages, actions, projects, commands, then (when words are typed) the data right after the pages. */
 export function search(query) {
   const ws = words(query), all = (t, extra) => !ws.length || hits(t + " " + (extra || ""), ws);
-  const out = [];
-  if (ws.length) for (const c of commands()) if (all(c.label + " command", c.more)) out.push(c);          // row 1350: with words typed, commands come before the pages
+  const out = [], classic = classicTheme();
+  if (ws.length && classic) for (const c of commands()) if (all(c.label + " command", c.more)) out.push(c);          // row 1350 (Classic only): with words typed, commands come before the pages
   for (const p of pages()) if (all(p.label + " page")) out.push(p);
-  out.push(...dataResults(query, ws));          // row 901: with words typed, the data comes right after the pages
+  const projectRows = () => {
+    for (const p of projects.value || []) {
+      if (!all(p.name + " " + p.code + " project")) continue;
+      const here = p.code === project.value;
+      out.push({ id: "project-" + p.code, kind: "Project", label: p.name || p.code, more: p.code, disabled: "", current: here, run: () => { if (!here) setProject(p.code); } });
+    }
+  };
+  if (ws.length && classicTheme()) projectRows();          // row 1350 (Classic only): with words typed, projects come right after the pages, before the data
+  out.push(...dataResults(query, ws));          // row 901: with words typed, the data comes right after the pages (after the projects in Classic)
   for (const a of actions()) if (all(a.label + " action", a.more)) out.push(a);
-  for (const p of projects.value || []) {
-    if (!all(p.name + " " + p.code + " project")) continue;
-    const here = p.code === project.value;
-    out.push({ id: "project-" + p.code, kind: "Project", label: p.name || p.code, more: p.code, disabled: "", current: here, run: () => { if (!here) setProject(p.code); } });
-  }
-  if (!ws.length) for (const c of commands()) if (all(c.label + " command", c.more)) out.push(c);
+  if (!ws.length || !classicTheme()) projectRows();          // nothing typed, or Cards: projects after the actions, as before
+  if (!ws.length || !classic) for (const c of commands()) if (all(c.label + " command", c.more)) out.push(c);          // nothing typed, or Cards: commands last, as before row 1350
   const ask = askRow(query);
   if (ask) { if (ask.first) out.unshift(ask); else out.push(ask); }          // a question first, anything else after the search
   return out;

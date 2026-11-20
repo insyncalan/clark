@@ -400,7 +400,7 @@ class PageSide(unittest.TestCase):
         """Their words are held back with Help's until their slice ships: no name, description or parts on the page."""
         self.assertEqual({k for x in self.val("T.templates.LATER") for k in x}, {"id", "type", "ready"})
         later = [x["id"] for x in self.val("T.templates.LATER")]
-        self.assertEqual(len(later), 2)      # two entries are held (headline, the report headline of row 1261 slice 1: their words wait); the rest are in the box, the glance template of row 1264 slice 9 among them
+        self.assertEqual(len(later), 1)      # one entry is held (headline: its words wait); the report headline is a card now (row 1261); the rest are in the box, the glance template of row 1264 slice 9 among them
         listed = [x["id"] for x in self.val("T.templates.list()")]
         self.assertEqual(set(later) & set(listed), set())
         for tid in later:

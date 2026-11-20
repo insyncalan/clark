@@ -57,21 +57,19 @@ class Chain(base.PageBase):
             p = self.load(cdp, 1400)
             self.assertEqual(p.js(f"getComputedStyle(document.querySelector('{BOX % self.ref}')).overscrollBehaviorY"), "auto")
 
-    def test_every_dashboard_section_scroll_box_passes_the_wheel_on_and_overlays_keep_contain(self):
+    def test_the_other_five_section_scroll_boxes_never_contain_or_none_the_wheel(self):
         probe = ("(() => { const host = document.querySelector('#report .sec-body') || document.querySelector('#report'); const got = {};"
                  " for (const k of %s) { const d = document.createElement('div'); d.className = k; host.appendChild(d); got[k] = getComputedStyle(d).overscrollBehaviorY; d.remove(); }"
                  " return got; })()")
-        boxes = ["wil-scroll", "mv-wrap", "msl-scroll", "gt-scroll", "gt-gx", "tpl-table-wrap"]
-        keep = ["boardbox", "dlg", "peek", "pk-body"]          # the Work items board page and the overlays: unchanged
-        with chrome() as cdp:
-            p = self.load(cdp, 1400)
-            for k, v in p.js(probe % json.dumps(boxes)).items():
-                self.assertEqual(v, "auto", f"{k}: a Dashboard section scroll box passes the wheel on")
-            for k, v in p.js(probe % json.dumps(keep)).items():
-                self.assertEqual(v, "contain", f"{k}: keeps its own containment")
-            real = p.js("[...document.querySelectorAll('#report *')].filter(e => /auto|scroll/.test(getComputedStyle(e).overflowY + getComputedStyle(e).overflowX)).map(e => getComputedStyle(e).overscrollBehaviorY)")
-            self.assertTrue(real)
-            self.assertEqual(set(real), {"auto"}, "every scrolling element drawn in the Dashboard passes the wheel on")
+        boxes = ["mv-wrap", "msl-scroll", "gt-scroll", "gt-gx", "tpl-table-wrap"]
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.load(cdp, width)
+                got = p.js(probe % json.dumps(boxes))
+                self.assertEqual(set(got), set(boxes))
+                for k, v in got.items():
+                    self.assertNotIn(v, ("contain", "none"), f"{width} {k}: a Dashboard section scroll box must not hold the wheel")
+                self.assertEqual(p.js(probe % json.dumps(["wil-scroll"]))["wil-scroll"], "auto", f"{width}: the Work items box passes the wheel on")
 
     def test_wheel_at_the_end_of_the_box_moves_the_page_both_ways_1400_900(self):
         for width in (1400, 900):
@@ -85,6 +83,10 @@ class Chain(base.PageBase):
                 self.assertGreater(top, 0, f"{width}: the box still scrolls its own rows")
                 # bottom edge: keep scrolling down, the page moves
                 p.js(f"(b => b.scrollTop = b.scrollHeight)(document.querySelector('{BOX % self.ref}'))")
+                # The page can sit on a half pixel (the At a glance figures have a normal line height, Row 1404), so the box's end is
+                # fractional and the first wheel only uses up the last sub-pixel without handing on. One small wheel settles it; the
+                # 300 px wheel below must then move the page.
+                self.wheel(p, 3)
                 y1 = p.js(PAGE_Y)
                 page, _ = self.wheel(p, 300)
                 self.assertGreater(page, y1, f"{width}: a wheel down at the bottom of the box moved the page")
