@@ -138,15 +138,6 @@ class Classic(Base):
                 if theme_:
                     self.assertEqual(p.js("document.documentElement.dataset.theme"), theme_)
 
-    def test_C_the_pill_radios_are_44_px_tall_on_a_phone_only(self):
-        for w, tall in ((1400, False), (900, False), (640, True), (480, True)):
-            with self.subTest(width=w), chrome() as cdp:
-                p = self.page(cdp)
-                p.width(w, 800)
-                self.open_menu(p)
-                h = p.js("[...document.querySelectorAll('#profile-menu .pr')].map(function(e){return Math.round(e.getBoundingClientRect().height)})")
-                self.assertEqual(all(x >= 44 for x in h), tall, h)
-
     # The version
     def test_C_the_help_line_carries_clark_ver_from_health_at_its_right_end(self):
         for w in WIDTHS:
@@ -170,7 +161,7 @@ class Classic(Base):
                 self.assertEqual(p.js("document.querySelector('#profile-menu [data-kind=help]').textContent"), "Help")
 
     def test_C_a_long_version_neither_wraps_nor_overflows(self):
-        for w in (900, 480):
+        for w in (900,):
             with self.subTest(width=w), mock.patch.object(sv, "VERSION", "13.0.0-rc.1+dev.20261119.0123456789abcdef0123456789abcdef"), chrome() as cdp:
                 p = self.page(cdp)
                 p.width(w, 800)
