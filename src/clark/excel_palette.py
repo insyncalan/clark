@@ -28,6 +28,7 @@ EXTRA_PAIRS = (
     ("brand-navy", "white", "the header and the title band"),
     ("status-red", "white", "the cover's INTERNAL tag"),
     ("tone-urgent", "white", "the Urgent tile's white letter"),
+    ("locked-fill", "brand-ink", "a locked cell"),
     ("grey-50", "grey-700", "the cover's quiet rows"),
     ("white", "tone-red-text", "a late date"),
     ("white", "brand-blue", "the cover's headings"),

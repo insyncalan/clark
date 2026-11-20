@@ -33,28 +33,32 @@ COLOURS = {
     "green": ("tone-green-tint", "tone-green-text"),
     "blue": ("tone-blue-tint", "tone-blue-text"),
     "grey": ("tone-grey-tint", "tone-grey-text"),
+    "maroon": ("tone-urgent", "white"),      # item 1390: Urgent, the page's solid tile with a white letter
 }
 
 HEADER_FILL = TOKENS["brand-navy"]
 HEADER_TEXT = TOKENS["white"]
 LATE_TEXT = TOKENS["tone-red-text"]       # an open item past its date: red text (the page's .late)
 
-# Each kind of row follows what the page shows for it (the Head's decision on #85).
-# RAID priority: D-12 (Urgent or High red, Medium amber, Low green). Impact and likelihood use the same scale.
-PRIORITY = {"Urgent": "red", "High": "red", "Medium": "amber", "Low": "green"}
-# Action priority: the page's .prio pills (app.css): Urgent red, High amber, Medium and Low grey; no green.
-ACTION_PRIORITY = {"Urgent": "red", "High": "amber", "Medium": "grey", "Low": "grey"}
+# Each kind of row follows what the page shows for it (item 1390: the page's tone pairs).
+# RAID priority, the page's chip: Urgent maroon, High red, Medium amber, Low green. Impact and likelihood: High red, Medium amber, Low green.
+PRIORITY = {"Urgent": "maroon", "High": "red", "Medium": "amber", "Low": "green"}
+# Action priority, the page's chip: Urgent maroon, High red, Medium and Low grey; no amber and no green.
+ACTION_PRIORITY = {"Urgent": "maroon", "High": "red", "Medium": "grey", "Low": "grey"}
 RATING = {"High": "red", "Medium": "amber", "Low": "green"}
 # A milestone's state, as the page draws it (views.js MS_CLS): Achieved and On track green, At risk amber, Slipped and Overdue
 # red, Forecast blue.
 MILESTONE_STATE = {"Achieved": "green", "On track": "green", "At risk": "amber", "Slipped": "red", "Overdue": "red",
                    "Forecast": "blue"}
-DECISION_STATUS = {"Pending": "green", "Made": "blue", "Withdrawn": "grey"}
+DECISION_STATUS = {"Pending": "blue", "Made": "green", "Withdrawn": "grey"}
 USE_CASE_STATUS = {"On track": "green", "Flag": "amber", "High risk": "red", "Done": "grey"}     # Done: finished, grey as on the page
 
-# Action and RAID status, in the final 1021 tones: Open green, Delayed amber, Closed blue, Cancelled grey.
-ACTION_STATUS = {"Open": "green", "Delayed": "amber", "Closed": "blue", "Cancelled": "grey"}
-RAID_STATUS = {"Open": "green", "Closed": "blue", "Cancelled": "grey"}
+# Action status (item 1390): Open blue, Delayed amber, Closed and Cancelled grey.
+ACTION_STATUS = {"Open": "blue", "Delayed": "amber", "Closed": "grey", "Cancelled": "grey"}
+# RAID status: Closed and Cancelled grey. Open takes the row's own Priority colour (the page's workItems.js colourOf): a rule that reads
+# the Priority cell, written by excel.add_open_by_priority_rules from OPEN_BY_PRIORITY, so it is not in this table.
+RAID_STATUS = {"Closed": "grey", "Cancelled": "grey"}
+OPEN_BY_PRIORITY = dict(PRIORITY)
 
 # (table, field) -> the value table. A value not in the table (or an empty cell) gets no colour.
 BY_FIELD = {

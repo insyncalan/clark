@@ -10,15 +10,15 @@ from clark import excel_colours as ec, look
 TODAY = date(2026, 11, 11)
 
 EXPECTED = {
-    ("actions", "priority"): {"Urgent": "red", "High": "amber", "Medium": "grey", "Low": "grey"},
-    ("raid", "priority"): {"Urgent": "red", "High": "red", "Medium": "amber", "Low": "green"},
-    ("actions", "status"): {"Open": "green", "Delayed": "amber", "Closed": "blue", "Cancelled": "grey"},
-    ("raid", "status"): {"Open": "green", "Closed": "blue", "Cancelled": "grey"},
+    ("actions", "priority"): {"Urgent": "maroon", "High": "red", "Medium": "grey", "Low": "grey"},
+    ("raid", "priority"): {"Urgent": "maroon", "High": "red", "Medium": "amber", "Low": "green"},
+    ("actions", "status"): {"Open": "blue", "Delayed": "amber", "Closed": "grey", "Cancelled": "grey"},
+    ("raid", "status"): {"Closed": "grey", "Cancelled": "grey"},
     ("raid", "impact"): {"High": "red", "Medium": "amber", "Low": "green"},
     ("raid", "likelihood"): {"High": "red", "Medium": "amber", "Low": "green"},
     ("milestones", "shown_state"): {"Achieved": "green", "On track": "green", "At risk": "amber", "Slipped": "red",
                                     "Overdue": "red", "Forecast": "blue"},
-    ("decisions", "status"): {"Pending": "green", "Made": "blue", "Withdrawn": "grey"},
+    ("decisions", "status"): {"Pending": "blue", "Made": "green", "Withdrawn": "grey"},
     ("use_cases", "status"): {"On track": "green", "Flag": "amber", "High risk": "red", "Done": "grey"},
 }
 
@@ -43,6 +43,9 @@ class Tables(unittest.TestCase):
         for name in ("red", "amber", "green", "blue", "grey"):
             self.assertEqual(ec.COLOURS[name], ("tone-%s-tint" % name, "tone-%s-text" % name))
             self.assertEqual(ec.hexes(name), (look.colour("tone-%s-tint" % name), look.colour("tone-%s-text" % name)))
+        self.assertEqual(ec.COLOURS["maroon"], ("tone-urgent", "white"))      # item 1390: Urgent, a solid maroon with white text
+        self.assertEqual(ec.hexes("maroon"), ("6B1D2A", "FFFFFF"))
+        self.assertEqual(ec.OPEN_BY_PRIORITY, ec.PRIORITY)      # an open Risk or Issue takes its Priority's colour
         self.assertEqual(ec.HEADER_FILL, look.colour("brand-navy"))
         self.assertEqual(ec.HEADER_TEXT, look.colour("white"))
         self.assertEqual(ec.LATE_TEXT, look.colour("tone-red-text"))
