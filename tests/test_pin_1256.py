@@ -66,7 +66,7 @@ class Page(unittest.TestCase):
 
     def test_the_help_says_a_client_sees_the_peek_without_the_visible_to_client_row(self):          # J10 (helpContent.json)
         text = json.dumps(json.loads(read("help", "helpContent.json")), ensure_ascii=False)
-        self.assertIn("A client sees the same peek, read only, without the Shown to the client line.", text)
+        self.assertIn("A client sees the same peek, read only, without the Client visible line.", text)
 
     def test_the_client_wording_of_a_milestone_is_an_ai_place(self):          # J13 (aiPlaces.js)
         src = read("logic", "aiPlaces.js")
