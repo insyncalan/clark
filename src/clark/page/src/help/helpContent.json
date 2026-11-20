@@ -643,8 +643,8 @@
      "The two buttons at the top right, **Timeline** and **Calendar**, switch between them. Your choice is kept.",
      "The calendar shows **Week**, **Month** (the standard) or **Quarter**, with the arrows and **Today**. In Quarter, click a month’s name to open that month.",
      "With the keyboard, [[Tab]] reaches the calendar once, on today (or the first day when today is not shown). [[Left]] and [[Right]] move a day at a time, and [[Up]] and [[Down]] a week. [[Enter]] on a day with milestones goes to the first of them, and [[Shift+Tab]] or [[Esc]] comes back to the day.",
-     "**Legend**, at the right under the milestones, explains every mark when you point at it or tab to it.",
-     "Under the Legend, the list shows each milestone with its date, state and progress. The first five show; **Show all N milestones** shows the rest, unless a number is set in **Configure**. **Hide milestone details** folds the list away and **Show milestone details** brings it back. Your choice is kept. On the Dashboard the list has a heading row: **Milestone**, **State**, **Agreed**, **Expected or achieved** and **Progress**."
+     "**Legend**, at the right of the bar above the milestones, explains every mark when you point at it or tab to it.",
+     "Under that bar, the list shows each milestone with its date, state and progress. The first five show; **Show all N milestones** shows the rest, unless a number is set in **Configure**. **Hide milestone details** folds the list away and **Show milestone details** brings it back. Your choice is kept. On the Dashboard the list has a heading row: **Milestone**, **State**, **Agreed**, **Expected or achieved** and **Progress**."
     ],
     "n": "On the published page, Slipped reads “Expected later” and Overdue reads “Late”.",
     "page": [
@@ -2544,7 +2544,7 @@
     {
      "card": "personal",
      "title": "Personal",
-     "line": "How the Dashboard sections look, Light or Dark and the single-key shortcuts."
+     "line": "How the Dashboard sections look, System, Light or Dark and the single-key shortcuts."
     },
     {
      "card": "freshness",
@@ -2712,7 +2712,7 @@
      "d": "Read the list under the counts. Each change has a tag and the choice **Accept** or **Reject**: **New** rows will be added, **Changed** rows will update the item already in clark, and a row tagged Not in the workbook would archive its item. A line under a change says what differs."
     },
     {
-     "d": "Choose **Reject** for any change you do not want; **Accept all** and **Reject all** set every change at once. New and changed rows start on **Accept**, except a change that clashes: a line under it says it changed in clark after the workbook was made, and it starts on **Reject**. Rows tagged Not in the workbook also start on **Reject**. If clark has no record of exporting the workbook, it warns you, and the button reads **Import anyway**."
+     "d": "Choose **Reject** for any change you do not want; **Accept all** sets every change to **Accept** except the ones that start on **Reject**, and **Reject all** sets every change to **Reject**. New and changed rows start on **Accept**, except a change that clashes: a line under it says it changed in clark after the workbook was made, and it starts on **Reject**. Rows tagged Not in the workbook also start on **Reject**. If clark has no record of exporting the workbook, it warns you, and the button reads **Import anyway**."
     },
     {
      "d": "Press the button at the foot, which reads Import and the number you accepted, such as Import 3 changes. The whole import is one step. The box says what was done. Press **Undo this import** to put the project back as it was before, or **Close** to keep it. The project’s pages then show the new and changed items."
