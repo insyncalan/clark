@@ -29,6 +29,24 @@ class LeftOut(Base):
         self.assertEqual((len(out["files"]), out["more"]), (5, 2))
         self.assertEqual(ix.mod().more_line(2), "and 2 more")
 
+    def test_two_folders_with_the_same_name_each_list_only_their_own_files(self):
+        one, two = self.d / "a" / "docs", self.d / "b" / "docs"
+        self.put("one.png", b"\x89PNG", binary=True, folder=one)
+        self.put("two.png", b"\x89PNG", binary=True, folder=two)
+        ix.build(self.data, "P1", [one, two])
+        got = ix.mod()._left_by_folder(self.data, "P1", [str(one), str(two)])
+        self.assertEqual([f[0] for f in got[str(one)]["files"]], ["one.png"])
+        self.assertEqual([f[0] for f in got[str(two)]["files"]], ["two.png"])
+
+    def test_a_folder_whose_name_only_starts_the_same_gets_nothing_of_the_other(self):
+        one, two = self.d / "docs", self.d / "docs2"
+        self.put("one.png", b"\x89PNG", binary=True, folder=one)
+        self.put("two.png", b"\x89PNG", binary=True, folder=two)
+        ix.build(self.data, "P1", [one, two])
+        got = ix.mod()._left_by_folder(self.data, "P1", [str(one), str(two)])
+        self.assertEqual([f[0] for f in got[str(one)]["files"]], ["one.png"])
+        self.assertEqual([f[0] for f in got[str(two)]["files"]], ["two.png"])
+
     def test_list_follows_a_refresh(self):
         p = self.put("c.bin", b"\x89BIN", binary=True)
         self.build()

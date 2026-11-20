@@ -281,6 +281,34 @@ class Types(Base):
         tab = b'<s %s><a:p><a:tab>zztab</a:tab><a:pt>zzpt</a:pt><a:r><a:t>ok</a:t></a:r></a:p></s>' % NS.encode()
         self.assertEqual(ask_extract.pptx_groups(pptx({}, extra={"ppt/slides/slide1.xml": tab})), [("slide 1", ["ok"])])
 
+    def test_a_hidden_slide_and_its_notes_are_not_read(self):
+        hide = lambda n, v: b'<p:sld %s xmlns:p="p" show="%s"><a:p><a:r><a:t>' % (NS.encode(), v) + n + b'</a:t></a:r></a:p></p:sld>'     # noqa: E731
+        for v in (b"0", b"false"):
+            raw = pptx({2: ["zqshown"]}, notes={1: ["zqhiddennote"], 2: ["zqshownnote"]}, extra={"ppt/slides/slide1.xml": hide(b"zqhidden", v)})
+            self.assertEqual(ask_extract.pptx_groups(raw), [("slide 2", ["zqshown", "zqshownnote"])], v)
+        shown = pptx({}, extra={"ppt/slides/slide1.xml": hide(b"zqkept", b"1")})
+        self.assertEqual(ask_extract.pptx_groups(shown), [("slide 1", ["zqkept"])], "show=1 is an ordinary slide")
+        self.assertEqual(ask_extract.pptx_groups(pptx({}, extra={"ppt/slides/slide1.xml": hide(b"zqonly", b"0")})), [], "a deck of hidden slides has no text")
+
+    def test_only_the_slide_element_itself_says_hidden(self):
+        child = b'<p:sld %s xmlns:p="p"><p:x show="0"/><a:p><a:r><a:t>zqchild</a:t></a:r></a:p></p:sld>' % NS.encode()
+        self.assertEqual(ask_extract.pptx_groups(pptx({}, extra={"ppt/slides/slide1.xml": child})), [("slide 1", ["zqchild"])], "a child with show=0 hides nothing")
+        note = b'<p:notes %s xmlns:p="p" show="0"><a:p><a:r><a:t>zqnote</a:t></a:r></a:p></p:notes>' % NS.encode()
+        raw = pptx({1: ["zqslide"]}, extra={"ppt/notesSlides/notesSlide1.xml": note})
+        self.assertEqual(ask_extract.pptx_groups(raw), [("slide 1", ["zqslide", "zqnote"])], "only the slide's own show counts")
+
+    def test_a_hidden_slide_is_not_found_in_the_index(self):
+        raw = pptx({2: ["zqvisible"]}, notes={1: ["zqsecretnote"]}, extra={"ppt/slides/slide1.xml": b'<p:sld %s xmlns:p="p" show="0"><a:p><a:r><a:t>zqhiddentext</a:t></a:r></a:p></p:sld>' % NS.encode()})
+        self.put("deck.pptx", raw, binary=True)
+        self.build()
+        self.assertTrue(self.found("zqvisible"))
+        self.assertFalse(self.found("zqhiddentext"))
+        self.assertFalse(self.found("zqsecretnote"))
+
+    def test_the_module_notes_do_not_call_a_hostile_or_damaged_file_a_safety_one(self):
+        for doc in (ask_extract.__doc__, __import__("clark.ask_index", fromlist=["x"]).__doc__):
+            self.assertNotIn("as `safety`", doc.replace("password-like", ""), "such a file counts as `type`")
+
     def test_pptx_cut_off_xml_is_refused_and_a_part_of_exactly_the_limit_is_read(self):
         cut = b'<a:p %s><a:r><a:t>zzcut' % NS.encode()
         with self.assertRaises(ValueError):

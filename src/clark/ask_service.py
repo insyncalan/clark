@@ -200,13 +200,14 @@ class AskService:
                                  facts=lambda ref: facts.get(ref))
         if isinstance(reply, ask.Failure):
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
+        index_note = {}
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
                              left_out_note(found.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found)) if n]
         if folders and self.indexer is not None:        # row 7 of Row 1366: only while the index is still being read, never once it is complete
             n = self.indexer.not_yet(code)
             note = ask_index.answer_note({"not_yet": n}) if isinstance(n, int) else ""
             if note:
-                notes.append(note)
+                index_note = {"index_note": note, "index_note_at": len(notes)}      # its own field, so a page that draws only some notes (Cards) never gets it
         conn = connector_used(getattr(self.provider, "last_line", None))      # row 1306: what the real run did (None: no connector in the run)
         if conn and conn["line"]:
             notes.append(conn["line"])
@@ -219,7 +220,7 @@ class AskService:
                                  for (pid, label), i in zip(request.passages, request.kept) if pid in reply.cites],
                      "flags": [{"kind": f.kind, "ref": f.ref, "message": f.message} for f in reply.flags],
                      "items": [{"id": i["id"], "state": list(i["state"])} for i in reply.items],
-                     "changes": [dict(c) for c in reply.changes], "notes": notes, "reply": held, "draft": reply.draft,
+                     "changes": [dict(c) for c in reply.changes], "notes": notes, **index_note, "reply": held, "draft": reply.draft,
                      "left_out_for_safety": found.safety}
 
     # ----- POST /api/ask/open-source (#943) -----
