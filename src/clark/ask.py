@@ -21,14 +21,14 @@ from dataclasses import dataclass, field, replace
 
 from clark import edit_ai
 
-BUDGET = 40000              # characters of passages in one request (readiness Open 3; the fixed budget, no follow-up rounds)
+BUDGET = 1_200_000          # characters of passages in one request: 300,000 tokens at 4 characters each (row 1293; the fixed budget, no follow-up rounds)
 MAX_QUESTION = 4000
 MAX_EARLIER_TURNS = 10
 MAX_TURN = 4000
 MAX_PASSAGES = 60
 MAX_PASSAGE = 4000          # one passage is a paragraph or two (about 1,200 characters in the plan); this is the hard ceiling
 MAX_LABEL = 200
-MAX_REQUEST = 70000         # the whole text: question, earlier turns and passages
+MAX_REQUEST = BUDGET + 30000   # 1,230,000: the whole text: question, earlier turns and passages
 
 TOO_LONG = f"That question is too long. It can be {MAX_QUESTION:,} characters at most. Make it shorter and ask again."
 CHAT_TOO_LONG = "This chat has got too long. Start a new chat and ask again."
