@@ -211,8 +211,7 @@ class MovementEntries(unittest.TestCase):
         self.assertIn("data-edit-only", self.BLOCK)
         self.assertIn("never published", self.WORDS)
         ref = json.dumps(entry("ref", "milestones-page"), ensure_ascii=False)
-        self.assertIn("**Movement** is the switch next to **Plan** at the top", ref)
-        self.assertIn("Plan", read("page", "src", "edit", "MilestonesPage.jsx"))        # the page has a Plan | Movement switch
+        self.assertNotIn("switch next to **Plan**", ref)        # row 1329: the page has no Plan | Movement switch, so no Help line sends the reader to one
 
     def test_the_rows_keys_are_the_arrows(self):
         self.assertIn("ArrowDown", self.BLOCK)

@@ -122,7 +122,7 @@
    ],
    [
     "Milestones",
-    "**Plan** shows every milestone on a timeline or calendar; **Movement** shows slippage, for you and the team only.",
+    "Milestones shows every milestone for the project, including internal ones.",
     "milestones"
    ],
    [
@@ -658,7 +658,6 @@
     "w": "Milestones › Movement",
     "go": "milestones",
     "s": [
-     "On **Milestones**, use the **Movement** switch next to **Plan** at the top. It is for you and the team: it is never published.",
      "The first line says how many open milestones are behind their agreed date. The line under it names the one furthest behind.",
      "Each open milestone has a row, the furthest behind first: its state, its agreed date, a small bar with a mark for the agreed date, one for the forecast and one for today, how far after the agreed date it is, and how often the agreed date has moved. Click a row, or move between rows with [[Up]] and [[Down]] and press [[Enter]], to choose it.",
      "Its card shows the original, agreed and forecast dates, its progress and its owner, then **What changed**: each change, with who made it and when.",
@@ -676,7 +675,6 @@
     "w": "Milestones › Movement",
     "go": "milestones",
     "s": [
-     "On **Milestones**, press **Movement**. It is for you and the team: it is never published.",
      "Click a row to choose it. Its card shows the dates, how often it moved, and **What changed**.",
      "Then decide: **Hold** (adds a dated line to the **Internal note** and keeps the agreed date), **Move the agreed date** (you say who agreed it, why and where; the original date is kept), **Add a recovery action** (a High priority action due in 7 days, linked to the milestone, in its workstream or the first open one) or **Escalate to steering** (a Pending decision needed in 7 days, named for the milestone: a decision can’t be linked to a milestone). Each new item opens in the peek, with a line saying how far behind the milestone is. A new item starts hidden from the client (its eye is off), so neither it nor that line reaches the client until you show it.",
      "Write an **Internal note**. It saves when you leave the box and is never published."
@@ -1388,10 +1386,6 @@
      [
       "p",
       "The Milestones screen shows every milestone, internal ones too. Switch between **Timeline** and **Calendar** at the top right. The **Legend** and the list of milestones are below; a milestone that is not shown to the client has the tag **Internal only**."
-     ],
-     [
-      "p",
-      "**Movement** is the switch next to **Plan** at the top: the open milestones against their agreed and forecast dates, with how far after the agreed date each is, what changed and a choice to make. It is never published. See [Deal with a slipped milestone](#howto-handle-a-slipped-milestone)."
      ],
      [
       "p",
@@ -2516,8 +2510,7 @@
     "Milestones shows every milestone for the project, including internal ones.",
     "Switch between **Timeline** and **Calendar** at the top right.",
     "The **Legend** explains the marks, and a milestone that is not shown to the client has the tag **Internal only**.",
-    "Use **Add milestone** to add one.",
-    "Use the **Movement** switch next to **Plan** to see which are behind their agreed date."
+    "Use **Add milestone** to add one."
    ],
    "full": "ref-milestones-page"
   },

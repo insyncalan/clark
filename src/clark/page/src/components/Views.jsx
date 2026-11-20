@@ -71,8 +71,8 @@ function Empty({ title, children, action }) {
   return <section class="frame empty"><h1>{title}</h1><p class="muted">{children}</p>{action}</section>;
 }
 
-// The head of the Milestones page (#458; the prototype's): the project, the title, a sentence on where the last milestone stands and,
-// in the editor, the Add milestone button. The sentence is worked out from the rows the list shows, so a published file's is the client's.
+// The head of the Milestones page (#458; the prototype's): the project, the title, the empty or cancelled line when there is one and,
+// in the editor, the Add milestone button (row 1329: no forecast sentence).
 function MsHead({ Add }) {
   const client = fromFile.value, today = client && asAt.value ? asAt.value : todayIso();
   const rows = milestoneRows(data.value.milestones, today, client), line = headLine(rows);
@@ -82,11 +82,7 @@ function MsHead({ Add }) {
       <div class="head">
         <div>
           <h1>Milestones</h1>
-          <p class={line ? "head-sub head-sub-off" : "head-sub"} id="ms-summary">
-            {line
-              ? <><b>{line.name}</b>{line.date ? ` is ${line.agreed ? "agreed" : "forecast"} for ${showDate(line.date)}` : " has no date yet"}{line.expected ? ` and now expected ${showDate(line.expected)}` : ""}. {line.achieved} achieved, {line.toCome} to come.</>
-              : emptyHead(rows)}
-          </p>
+          {line ? null : <p class="head-sub" id="ms-summary">{emptyHead(rows)}</p>}      {/* row 1329: the forecast sentence is not drawn at all; only the empty and cancelled words stay */}
         </div>
         {Add ? <Add /> : null}
       </div>
@@ -95,14 +91,13 @@ function MsHead({ Add }) {
 }
 
 export function Milestones({ tools }) {
-  const Wrap = tools && tools.MilestonesPage;     // the owner's Plan / Movement switch and Movement view (#136, C-M2): the served page only, so a published page has none
   const Archived = tools && tools.ArchivedMilestones;   // Show archived (C-M4): the served page only; a published file holds no archived row
   const Add = tools && !fromFile.value ? tools.MsAdd : null;      // the owner's Add milestone (row 458): always on this page (it has no mode), and never in a published file
   const plan = <><MsBlock place="page" tools={tools} />{Archived ? <Archived /> : null}</>;
   return (
     <section class={`frame milestones${fromFile.value ? " pub" : ""}`} id="milestones">
       <MsHead Add={Add} />
-      {Wrap ? <Wrap plan={plan} /> : plan}
+      {plan}      {/* row 1329: the Plan | Movement switch is gone (edit/MilestonesPage.jsx and Movement.jsx are kept, not reached) */}
     </section>
   );
 }
