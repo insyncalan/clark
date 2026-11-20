@@ -83,7 +83,7 @@ class Health(ClassicEdit):
                     got[f"{mode}{width}"] = {"page": self.page_numbers(cdp, width, mode == "view"), "mock": self.mock_numbers(cdp, width, mode)}
         out = os.environ.get("MEASURE_OUT")
         if out:
-            pathlib.Path(out).write_text(json.dumps(got, indent=1))
+            pathlib.Path(out).write_text(json.dumps(got, indent=1), encoding="utf-8")
         return got
 
     @unittest.skipUnless(MOCK.exists(), "the checkout with the mock-up is not here")
