@@ -105,7 +105,7 @@ class TitleBlock(Dash):
         self.check(1400, [262, 1017])      # the column less the section's 22 right padding
 
     def test_at_900(self):
-        self.check(900, [32, 799])
+        self.check(900, [20, 819])      # 885 of page less 20, 24 and the section's 22 right padding
 
 
 class Killers(Dash):
@@ -127,9 +127,9 @@ class Killers(Dash):
             got = p.js("getComputedStyle(document.querySelectorAll('#report .secs > .sec')[1]).paddingLeft")
         self.assertNotEqual(got, "22px")
 
-    def test_at_900_the_page_keeps_its_margins(self):
+    def test_at_900_the_column_is_at_20_and_ends_24_before_the_right_edge(self):
         got = self.measure(900)
-        self.assertEqual(got["secs"][0], 32)
+        self.assertEqual(got["secs"], [20, got["vw"] - 44])      # one column; prototype 856 wide on a 900 page without a scrollbar
 
 
 class Text(unittest.TestCase):
