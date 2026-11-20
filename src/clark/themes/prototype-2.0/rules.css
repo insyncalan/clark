@@ -574,6 +574,10 @@ table.items .weye { width: 30px; height: 30px; }
 #work .vicons .seg.lsw button { box-sizing: border-box; width: 36px; height: 32px; }
 #work .vicons .seg.lsw button[aria-pressed="true"] { background-color: var(--tile-on-bg); color: var(--tile-on-fg); }
 #work .newb:not(:hover):not(:focus-visible):not([aria-expanded="true"]) { border-color: var(--grey-500); border-radius: 6px; background: transparent; color: var(--brand-blue); }
+/* Row 1279 (Classic only): the Settings Feedback card. Each label sits above its own box (block, a --space-1 gap, a --space-3 step from the box above), both boxes run the card's width, the message box is several lines tall, and both take the one clark input look (the 8px --radius, the --control-edge border, the surface fill) the other Settings cards use. */
+#feedback label { display: block; margin: var(--space-3) 0 var(--space-1); font-size: var(--size-body); font-weight: var(--weight-medium); color: var(--text); }
+#feedback textarea.grow, #feedback input.grow { display: block; box-sizing: border-box; flex: none; width: 100%; padding: var(--space-1) 10px; border: 1px solid var(--control-edge); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-body); }
+#feedback textarea.grow { min-height: calc(5 * var(--leading) * var(--size-body) + 2 * var(--space-1) + 2px); resize: vertical; }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
