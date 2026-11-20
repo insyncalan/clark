@@ -443,9 +443,16 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
 .upd-c .upd-up .row { align-items: center; }
 /* Row 1375: a wheel over the Dashboard's Work items box that has reached its top or bottom keeps scrolling the page (the shared rule's overscroll-behavior-y: contain made it stall inside the box); the box still scrolls its own rows. */
 .wil-scroll { overscroll-behavior-y: auto; }
+/* Row 1404: the At a glance strip as the prototype draws it. The "of N" note sits in the figure line (14px, muted; Glance.jsx puts it there under Classic only), the label is Inter 400, the figure is Inter in the text colour with normal line height (amber and red keep their status colour). */
+.glance .fig .k { font-weight: var(--weight-regular); }
+.glance .fig .v { font-family: var(--font-label); letter-spacing: normal; line-height: normal; color: var(--text); }
+.glance .fig .vrow { align-items: baseline; column-gap: var(--space-1); }
+.glance .fig .vrow .dd { color: var(--text-muted); font-weight: 400; line-height: 1.5; }
+
 /* Row 1399 (Use cases rows audit, Classic only): the rows as the prototype draws them. Cell padding 6px 12px with a 40px row, the hover tint, the title at 500, the reference as a chip, no progress bar under the next steps, and the view tabs 15px with 6px 8px. */
 #usecases .ucl-table td { padding: 6px 12px; height: 40px; }
-#usecases .ucl-table tbody tr:hover, #usecases .ucl-table tbody tr:focus-within { background: #F3F5FB; }
+#usecases .ucl-group .ucl-table td { padding: 6px 4px; }      /* ticket 1399 row 1: 6px 4px in a grouped card, 6px 12px inside the box */
+#usecases .ucl-table tbody tr:hover, #usecases .ucl-table tbody tr:focus-within { background: var(--band-bg); }
 :root[data-theme=dark] #usecases .ucl-table tbody tr:hover, :root[data-theme=dark] #usecases .ucl-table tbody tr:focus-within { background: var(--grey-100); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] #usecases .ucl-table tbody tr:hover, :root[data-theme=auto] #usecases .ucl-table tbody tr:focus-within { background: var(--grey-100); } }
 #usecases .ucl-table .ucl-go, #usecases .ucl-table .uctitle { font-weight: 500; }
@@ -507,6 +514,34 @@ html:not([data-density="comfortable"]) .rbar + #report .glance[data-glance] .tce
 .uc .ucref { padding: 1px var(--space-2); border: 1px solid var(--grey-500); font-weight: var(--weight-regular); }
 .uc .cchip { border-radius: var(--radius-pill); font-weight: var(--weight-regular); line-height: 18px; }
 .uc .cchip:not(.cc-committed) { border-color: var(--grey-200); color: var(--text-muted); }
+/* Row 1292 (Classic only: the sparkle is drawn only when the Theme layer is on, so Cards has none): Ask about this, the numbered citations, the Used line and the read line, read off the approved ask clark prototype. The sparkle is faint until the pointer or the keyboard is on its row, section or card; a peek opened from an answer sits left of the panel (--ask-w is the panel's width, 0 while it is shut). */
+.ask-about { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: var(--radius-sm); cursor: pointer; opacity: 0; transition: opacity var(--dur-instant) var(--ease-out); }
+.ask-about .i { color: var(--brand-blue); width: 16px; height: 16px; }
+.ask-about:hover { background: var(--brand-blue-tint); }
+.ask-about:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; opacity: 1; }
+.wl-row:hover .ask-about, .wl-row:focus-within .ask-about, table.items tr:hover .ask-about, table.items tr:focus-within .ask-about, .wil-table tr:hover .ask-about, .wil-table tr:focus-within .ask-about, .sec:hover .ask-about, .sec:focus-within .ask-about, .ucrow:hover .ask-about, .ucrow:focus-within .ask-about, .ucr:hover .ask-about, .ucr:focus-within .ask-about, .bcard:hover .ask-about, .bcard:focus-within .ask-about { opacity: 1; }
+table.items .c-eye, .wil-table .wil-c-eye { width: 76px; }
+.c-eye .ask-about { vertical-align: middle; }
+.wil-c-eye .ask-about { vertical-align: baseline; }
+.ucl-table thead th.c-eye { text-align: right; }
+.sec-head > .ask-about { margin-left: auto; }
+.ucsteps .ask-about { vertical-align: middle; margin-left: var(--space-1); }
+.bc-top .ask-about { width: 24px; height: 24px; margin-left: auto; }
+.peek { right: var(--ask-w, 0px); }
+.ask-chip { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; max-width: 100%; margin: 0 0 var(--space-2); padding: 2px 2px 2px 8px; border-radius: 8px; background: var(--brand-blue-tint); color: var(--status-blue-text); font-size: 13px; }
+.ask-chip .i { flex: none; width: 14px; height: 14px; }
+.ask-chip-t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ask-chip-x { all: unset; box-sizing: border-box; flex: none; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: var(--radius-sm); color: inherit; cursor: pointer; }
+.ask-chip-x .i { width: 14px; height: 14px; }
+.ask-chip-x:focus-visible, .ask-cite:focus-visible, .ask-used-chip:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
+.ask-about-line { margin-top: var(--space-1); font-size: 12px; color: var(--text-muted); }
+.ask-cite { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 6px; margin: -4px 2px; border-radius: 12px; background: var(--brand-blue-tint); color: var(--status-blue-text); font-size: 12px; font-weight: 700; vertical-align: middle; cursor: pointer; }
+.ask-cite:hover { background: var(--brand-blue); color: var(--surface); }
+.ask-used { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 0; font-size: 13px; }
+.ask-used-h { color: var(--text-muted); }
+.ask-used-chip { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 5px; min-height: 24px; padding: 1px 9px; border: 1px solid var(--grey-200); border-radius: 999px; background: var(--grey-50); font-size: 12.5px; cursor: pointer; }
+.ask-used-chip:hover { border-color: var(--brand-blue); background: var(--brand-blue-tint); }
+.ask-read { margin: 6px 0 0; font-size: 12px; color: var(--text-muted); }
 /* Row 1261 (Classic only, Cards unchanged; mock-up headline-approved.html .swrow, .teye.inl, .warnline): the Report headline's eye row in Edit. The eye is a 28 by 28 button with a 1px control edge, in the flow (the shared .teye sits at a tile's corner), beside the words "Show project health here"; the warning when At a glance also shows the health is a 3px amber left edge on the amber tint, 13px. With the pill hidden the headline and the sentence start at the left (View: .nopill). */
 .tpl-rh-eyerow { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 10px; font-size: var(--size-caption); color: var(--text); }
 .tpl-rh-eyerow .teye { position: static; width: 28px; height: 28px; border: 1px solid var(--control-edge); }
@@ -544,6 +579,29 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 @media (min-width: 901px) { html[data-density="comfortable"] .gp-plan { margin-left: calc(-1 * (var(--space-5) + var(--space-1))); margin-right: calc(-1 * (var(--space-5) + var(--space-1))); } }
 /* Row 1372 (Classic only; the Cards look keeps its width): the item and milestone peeks open 62% of the window wide, at least 300px, as the approved peek mock-up draws it, instead of 640px. From 1000px up; below it the peek fills the window as before. A width the person dragged (the peek carries data-sized) is kept. Bare lengths with no token: the 300px least width and the 1000px switch. */
 @media (min-width: 1000px) { .peek:not(.hpk):not(.wide):not([data-sized]) { width: 62% !important; min-width: min(300px, 100vw); } }
+/* Row 1393 (Work items table, Classic only; the Cards look layers none of this, shell.css is untouched): item title weight 500 in the heading colour, the row line in --grey-200, the column names 13px weight 500 with 9px above and below (the Comfortable density keeps its own larger padding), the Status / Owner / Due / Priority columns 76 / 170 / 134 / 104 px as the prototype page draws them (its default column widths; only Priority changes from the shared 122) above 900 (900 keeps the shared widths), due words 13px with the late one at 600, the red and green status tile text in the status tokens, the row hover in --band-bg and the eye button 30 px. Bare lengths: the 9px header padding, the 500 weight, the widths. */
+:root { --d-colh-y: 9px; }
+table.items th { font-size: var(--size-caption); font-weight: 500; }
+table.items td { border-top-color: var(--grey-200); }
+table.items .t { font-weight: 500; color: var(--heading); }
+table.items .due-l { font-size: var(--size-caption); }
+table.items .due-l.late { font-weight: var(--weight-medium); }
+table.items .ico.r { color: var(--status-red-text); }
+table.items .ico.g { color: var(--status-green-text); }
+table.items tbody tr:hover { background: var(--band-bg); }
+table.items .weye { width: 30px; height: 30px; }
+@media (min-width: 901px) { table.items .c-status { width: 76px; } table.items .c-owner { width: 170px; } table.items .c-due { width: 134px; } table.items .c-prio { width: 104px; } }
+/* Row 1394: the Work items view tabs as the prototype draws them (Classic only; Cards keeps shell.css). Tabs 15px with padding 9px 10px 8px and a 3px underline, count pills 13px with padding 1px 8px and min-width 22 (grey; the open tab brand-tinted), + New view padding 6px 12px. */
+#work .vtab { padding: 9px 10px 8px; min-height: 0; font-size: 15px; border-bottom-width: 3px; }
+#work .vtab em { padding: 1px 8px; min-width: 22px; background: var(--tone-grey-tint); color: var(--text-muted); }
+#work .vtab[aria-pressed="true"] em { background: var(--brand-blue-tint); color: var(--brand-blue); }
+#work .vnew { padding: 6px 12px; }
+/* Row 1395: the Work items toolbar as the prototype draws it at 1400, Classic only (the page is #work). The filter box types 15px (its drawn copy, .fhi, follows so the caret stays on the letters) and its count 13px; the chosen layout tile is 36 x 32 with the brand tint and the brand blue glyph (--tile-on-bg, --tile-on-fg, set in tokens.css); the Add tile is a dashed grey-500 box, radius 6, no fill, brand blue. Hover and focus of the Add tile stay as they are. */
+#work .fedit input, #work .fhi { font-size: 15px; }
+#work .fcount { font-size: var(--size-caption); }
+#work .vicons .seg.lsw button { box-sizing: border-box; width: 36px; height: 32px; }
+#work .vicons .seg.lsw button[aria-pressed="true"] { background-color: var(--tile-on-bg); color: var(--tile-on-fg); }
+#work .newb:not(:hover):not(:focus-visible):not([aria-expanded="true"]) { border-color: var(--grey-500); border-radius: 6px; background: transparent; color: var(--brand-blue); }
 /* Row 1314: three gaps in the Classic Work items page. The pressed layout tile keeps the Classic ring (the shared .seg rule is two classes stronger without this), the view tabs wrap at 900 and below as the prototype's do (Cards keeps its sideways scroll), and a line the filter cannot read is a red underline, not a red box. */
 .fline-tail .vicons .seg.lsw button[aria-pressed="true"]:focus-visible { outline-color: var(--brand-blue); outline-offset: -2px; }
 @media (max-width: 900px) { .vtabs { flex-wrap: wrap; overflow-x: visible; } }
