@@ -69,12 +69,12 @@ export function Words({ row, text, cls = "wl-words" }) {
     const t = plainFromEditor(value, true);
     if (t === was) return true;
     if (Array.from(t).length > WORDS_MAX) return `The wording can be ${WORDS_MAX} characters at most. Shorten it and try again.`;
-    const reply = await changeCell(tableOf(row), row.id, { client_message: t }, { text: `Wording of ${row.id} changed.`, back: `Wording of ${row.id} is back as it was.` });
+    const reply = await changeCell(tableOf(row), row.id, { client_message: t }, { text: `Client Message of ${row.id} changed.`, back: `Client Message of ${row.id} is back as it was.` });
     if (!reply) return false;
     await refresh();                                  // the reply never carries the words (as a title is not said back): read them again
     return true;
   };
-  return <RichField field="client_message" id={row.id} value={html} label={`Wording of ${row.id}`} empty="" cls={cls} attrs={{ "data-ce": row.id }} oneLine save={put} />;
+  return <RichField field="client_message" id={row.id} value={html} label={`Client Message of ${row.id}`} empty="" cls={cls} attrs={{ "data-ce": row.id }} oneLine save={put} />;
 }
 
 function EditRow({ row, today, words, type }) {

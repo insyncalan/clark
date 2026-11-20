@@ -162,7 +162,7 @@ class Wording(Fields):
                 key(cdp, sid, "Enter")
                 self.assertTrue(wait(lambda: len(sent) == 1))
                 self.assertEqual((sent[0]["kind"], sent[0]["id"], sent[0]["changes"]), ("decisions", self.decision()["id"], {"client_message": "Plain words a client can read"}))
-                self.assertTrue(wait(lambda: f"Wording of {self.decision()['id']} changed." in self.toast(cdp, sid)))
+                self.assertTrue(wait(lambda: f"Client Message of {self.decision()['id']} changed." in self.toast(cdp, sid)))
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.toast [data-undo]')", sid)))
                 cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
                 self.assertTrue(wait(lambda: self.words(cdp, sid) == was), "one Undo puts the old words back")

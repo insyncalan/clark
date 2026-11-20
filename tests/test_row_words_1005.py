@@ -110,7 +110,7 @@ class RowWords(unittest.TestCase):
                     self.assertTrue(p.js(f"(r => {{ const e = r.querySelector('.ProseMirror').getBoundingClientRect(), c = r.closest('.wl').getBoundingClientRect(); return e.left >= c.left - 1 && e.right <= c.right + 1; }})(document.querySelector({row!r}))"), f"{where}: the editor stays inside its card")
                     self.type(p, "Plain words\na client can read")
                     p.key("Enter", code="Enter", vk=13)
-                    p.toast_is(f"Wording of {ident} changed.")
+                    p.toast_is(f"Client Message of {ident} changed.")
                     sent = [json.loads(b) for b in p.js("window.__sent") if "client_message" in b]
                     self.assertEqual(sent[-1]["changes"], {"client_message": "Plain words a client can read"}, where)
                     self.assertEqual(self.stored(table, ident), "Plain words a client can read", where)
@@ -199,7 +199,7 @@ class RowWords(unittest.TestCase):
             self.open_editor(p, row)
             self.type(p, "")
             p.key("Enter", code="Enter", vk=13)
-            p.toast_is(f"Wording of {ident} changed.")
+            p.toast_is(f"Client Message of {ident} changed.")
             self.assertEqual(self.stored("actions", ident), "")
             p.until(f"document.querySelector({row!r} + ' {SHOWN}').textContent.includes('Agree the cut-over plan')", "the title shows")
 

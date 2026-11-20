@@ -33,6 +33,13 @@ class Words(unittest.TestCase):
             with self.subTest(table=table):
                 self.assertEqual(history.field_name(table, "client_message"), "Client Message")
 
+    def test_the_row_editor_label_and_toasts_say_client_message_of(self):
+        html = page.page_html(tp.EMPTY_BRANDING, view=False)
+        for words in ("`Client Message of ${", "} changed.`", "} is back as it was.`"):
+            with self.subTest(words=words):
+                self.assertIn(words, html)
+        self.assertNotIn("`Wording of ${", html)
+
     def test_help_says_client_message(self):
         text = HELP.read_text(encoding="utf-8")
         self.assertIsNone(OLD.search(text))
