@@ -162,14 +162,14 @@ class WhatTheModelSees(Base):
         self.assertEqual(ask_data.SHOWN["use_cases"], ("ref", "status", "commitment", "headline", "standing"))
         self.assertIn(uc, data.facts)
 
-    def test_a_hidden_use_case_is_not_offered(self):
+    def test_a_hidden_use_case_is_offered_to_the_owner(self):      # row 1367 (ruling 19-11)
         uc = self.demo.use_case
         with self.s.step("dashboard", USER) as st:
             st.update("use_cases", uc, {"headline": "Hidden words ZQ-HIDDEN", "client_visible": 0})
         data, text = self.passages()
-        self.assertNotIn(uc, text)
-        self.assertNotIn("ZQ-HIDDEN", text)
-        self.assertNotIn(uc, data.facts)
+        self.assertIn(uc, text)
+        self.assertIn("ZQ-HIDDEN", text)
+        self.assertIn(uc, data.facts)
 
     def test_an_archived_use_case_is_not_offered(self):
         uc = self.demo.use_case
