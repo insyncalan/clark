@@ -1,10 +1,13 @@
-"""Key figures, four (#96, F3): the content of a section of type 'figures4': 4 places, each a typed figure or a live one
-(the same figures as the At a glance tiles). The shared rules below also serve figures3 (Key figures, three).
+"""Numbers (#96, F3; one card since row 1263): the content of a section of type 'figures4': 3 or 4 places, each a typed figure or a live
+one (the same figures as the At a glance tiles). The shared rules below also serve figures3, the type the old "Key figures, three"
+card stored (no migration: both types are read by the one card).
 
 Pure: no file, no database; it imports nothing from clark at load time (the publish path imports the registry), and reaches glance
 only inside published(), when publish has already loaded it.
 
-Stored body, one object: {"v": 1, "figures": [slot, ...]}, at most as many slots as the template has places (4 or 3).
+Stored body, one object: {"v": 1, "figures": [slot, ...]} or, since row 1263, {"v": 1, "count": 3 | 4, "figures": [...]}, at most as many
+slots as the count; a body with no count (every body stored before row 1263) has the places of its type (figures4: 4, figures3: 3) and is
+checked, stored and published exactly as it always was: the entry carries "count" only when the body does.
 A slot is {"mode": "typed", "label", "value", "detail", "asof"} (plain text; asof a real day YYYY-MM-DD or "") or
 {"mode": "live", "metric": "overdue" | "risks" | "decisions"}: the same three figures as the At a glance tiles, counted by
 glance.py (the reference) from the rows publish kept, so a hidden, archived, not client-visible or Sensitive item is never
@@ -19,6 +22,7 @@ from clark.section_kinds.base import Bad
 LIMIT = 8192
 EMPTY = ""
 VERSION = 1
+COUNTS = (3, 4)
 METRICS = ("overdue", "risks", "decisions")
 KIND_OF_METRIC = {"overdue": "actions", "risks": "raid", "decisions": "decisions"}
 LABEL_MAX, VALUE_MAX, DETAIL_MAX = 60, 30, 80
@@ -60,14 +64,25 @@ def _text(slot, field, limit, rules):
     return got
 
 
+def counted(value, places):
+    """How many places a body has: its own count (3 or 4, row 1263) or, with none, the places of its type. None when the count is not 3 or 4."""
+    if not isinstance(value, dict) or "count" not in value:
+        return places
+    count = value["count"]
+    return count if type(count) is int and count in COUNTS else None
+
+
 def checker(places):
     def check(value, rules):
-        if type(value) is not dict or value.get("v") != VERSION or set(value) - {"v", "figures"}:
+        if type(value) is not dict or value.get("v") != VERSION or set(value) - {"v", "figures", "count"}:
             raise Bad(BAD_SHAPE)
         slots = value.get("figures", [])
         if type(slots) is not list:
             raise Bad(BAD_SHAPE)
-        if len(slots) > places:
+        room = counted(value, places)
+        if room is None:
+            raise Bad(BAD_SHAPE)
+        if len(slots) > room:
             raise Bad(TOO_MANY)
         out = []
         for slot in slots:
@@ -91,7 +106,7 @@ def checker(places):
                 out.append(one)
             else:
                 raise Bad(BAD_MODE)
-        return {"v": VERSION, "figures": out}
+        return {"v": VERSION, "count": room, "figures": out} if "count" in value else {"v": VERSION, "figures": out}
     return check
 
 
@@ -111,8 +126,9 @@ def publisher(places):
     def published(value, ctx):
         live = None
         out = []
+        room = counted(value, places) or places
         for slot in (value.get("figures") if isinstance(value, dict) else None) or []:
-            if len(out) >= places:
+            if len(out) >= room:
                 break
             if slot.get("mode") == "live":
                 live = _live(ctx) if live is None else live
@@ -122,7 +138,9 @@ def publisher(places):
             elif slot.get("mode") == "typed" and slot.get("label") and slot.get("value"):
                 out.append({"mode": "typed", "label": slot["label"], "value": slot["value"], "detail": slot.get("detail") or "",
                             "rag": "n", "asof": slot.get("asof") or ""})
-        return {"figures": out} if out else None
+        if not out:
+            return None
+        return {"figures": out, "count": room} if isinstance(value, dict) and "count" in value else {"figures": out}
     return published
 
 
