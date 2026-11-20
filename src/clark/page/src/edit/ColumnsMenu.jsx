@@ -9,6 +9,7 @@ import { project } from "../stores/report.js";
 import { announce } from "../stores/work.js";
 import { MenuPanel } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
+import { classicTheme } from "../components/Contents.jsx";
 import { defsOf, shownIds, toggled, readChoice, writeChoice, standardIds } from "../logic/tableColumns.js";
 import { columnIcon, actionIcon } from "../menuIcons.js";
 import * as W from "../logic/columnsWords.js";
@@ -18,10 +19,11 @@ const typing = (t) => !!(t && t.closest && (t.isContentEditable || t.closest("in
 
 // The menu is placed under the heading it was opened from (MenuPanel); a long one is moved up, or cut and scrolled, so all of it is inside the window.
 // Row 1286 (B-M5b): MenuPanel cut the box to the window height but left its top under the heading, so its foot was below the window (164 high: top 38,
-// bottom 186). The move waits one microtask (before the first paint) so it runs after MenuPanel's own placement, whatever order the effects run in.
+// bottom 186). Classic only (Cards keeps its own placement, below). The move waits one microtask (before the first paint) so it runs after MenuPanel's own placement, whatever order the effects run in.
 export function ColsPanel(props) {
   const box = useRef(null);
   useLayoutEffect(() => {
+    if (!classicTheme()) return;
     queueMicrotask(() => {
       const el = box.current;
       if (!el || !el.isConnected) return;
@@ -33,13 +35,22 @@ export function ColsPanel(props) {
       else if (top + h > window.innerHeight - 8) el.style.top = `${Math.max(floor, window.innerHeight - h - 8)}px`;
     });
   }, []);
-  return <MenuPanel {...props} boxRef={box} />;
+  return <MenuPanel {...props} boxRef={props.boxRef || box} />;
 }
 
 // `css`: the tick is drawn by the stylesheet and the reason is set off by a space, so a row reads "Status Always shown..." as text (the Use cases table, row 1325).
 export function useColumns(table, css = false) {
-  const code = project.value, [mem, setMem] = useState({}), [at, setAt] = useState(null);
+  const code = project.value, [mem, setMem] = useState({}), [at, setAt] = useState(null), box = useRef(null);
   const shown = mem[code] || readChoice(table, code);
+  // Cards: the menu is placed under the heading it was opened from (MenuPanel); a long one is moved up, or cut and scrolled, so all of it is inside the window. (Classic: ColsPanel.)
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!at || !el) return;
+    const h = el.offsetHeight, room = window.innerHeight - 16;
+    if (h > room) { el.style.maxHeight = `${room}px`; el.style.top = "8px"; return; }
+    const top = parseFloat(el.style.top) || 0;
+    if (top + h > window.innerHeight - 8) el.style.top = `${Math.max(8, window.innerHeight - h - 8)}px`;
+  }, [at]);
   const set = (next) => { writeChoice(table, code, next); setMem({ ...mem, [code]: next }); };
   const close = (how) => { const a = at; setAt(null); if (how === "esc" && a && a.isConnected) { if (!a.matches("button, [tabindex]")) a.setAttribute("tabindex", "-1"); a.focus({ preventScroll: true }); } };
   const open = (el) => setAt(el);
@@ -60,7 +71,7 @@ export function useColumns(table, css = false) {
     announce.value = W.UNRULED_ANNOUNCE(label, next.includes(id));
   };
   const menu = at ? (
-    <ColsPanel label={W.UNRULED_MENU_LABEL} cls="cols-menu" anchor={at} fixed="start" onClose={close}>
+    <ColsPanel label={W.UNRULED_MENU_LABEL} cls="cols-menu" anchor={at} fixed="start" boxRef={classicTheme() ? undefined : box} onClose={close}>
       {defsOf(table).map((c) => {
         const on = shown.includes(c.id);
         return (

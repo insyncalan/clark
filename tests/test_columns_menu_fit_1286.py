@@ -1,14 +1,16 @@
 """Row 1286 (B-M5b): the Columns menu of a Work items table stays inside a short window (top >= 0, bottom <= window height) and scrolls inside itself.
 
 Run: python3 dev/run_tests.py test_columns_menu_fit_1286
-The real page in headless Chrome (Classic), 1400 and 900 wide, window heights 164, 130 and 420; the menu top never goes under the sticky top bar (its floor). The menu is opened by a right click on the Owner heading
+The real page in headless Chrome (Classic, and a Cards pin), 1400 and 900 wide, window heights 164, 130 and 420; the menu top never goes under the sticky top bar (its floor). The menu is opened by a right click on the Owner heading
 of a Work items table in Edit, with the heading scrolled to the top of the window. Chrome is required: the test fails, never skips, without it.
 """
 import json
 import time
 import unittest
 
+import _testpage as testpage
 import test_tpl_workitems as base
+from clark import page, theme as themes
 from test_report_editor import tearDownModule  # noqa: F401
 from test_server import chrome
 
@@ -18,6 +20,12 @@ MEASURE = """(() => { const el = document.querySelector('.cols-menu'); if (!el) 
 
 
 class ColumnsMenuFit(base.InThePage):
+    def setUp(self):
+        super().setUp()
+        plain = testpage.html
+        testpage.html = lambda branding=None: page.layer_theme(plain(branding), themes.css("prototype-2.0"))      # the Classic page: <style id="theme"> is what classicTheme() looks for
+        self.addCleanup(setattr, testpage, "html", plain)
+
     def test_columns_menu_inside_short_windows(self):
         ref = self.add({"mode": "all", "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
         with chrome() as cdp:
@@ -76,6 +84,38 @@ class ColumnsMenuFit(base.InThePage):
             self.assertGreaterEqual(got["top"], got["floor"], f"at 1400x{h}: {got}")
             self.assertLess(got["top"], tall["top"], f"at 1400x{h}: the menu was moved up from {tall['top']}: {got}")
             closed()
+
+class ColumnsMenuCardsPinned(base.InThePage):
+    """Cards is frozen: its Columns menu is placed as before Row 1286 (MenuPanel alone, cut to the window, its top left under the heading). Values measured on main."""
+
+    PINNED = {(1400, 164): (93, 189), (1400, 420): (93, 403), (900, 164): (137, 233), (900, 420): (137, 412)}
+
+    def test_cards_columns_menu_is_placed_as_on_main(self):
+        ref = self.add({"mode": "all", "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
+        with chrome() as cdp:
+            p = self.show(cdp)
+            self.assertFalse(p.js("!!document.getElementById('theme')"), "this is the Cards page")
+            p.edit()
+            head = f"[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-owner"
+            p.until(f"!!document.querySelector({json.dumps(head)})", "the list")
+            for (w, h), (top, bottom) in self.PINNED.items():
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": h, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.until(f"innerHeight === {h}", f"window {w}x{h}")
+                p.js(f"document.querySelector({json.dumps(head)}).scrollIntoView({{block:'start'}})")
+                time.sleep(0.3)
+                p.js(f"document.querySelector({json.dumps(head)}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
+                p.until(f"!!({MEASURE})", f"the Columns menu opened at {w}x{h}")
+                p.until("document.getAnimations().length === 0", "animations finished")
+                got = p.js(MEASURE)
+                self.assertEqual((got["top"], got["bottom"]), (top, bottom), f"Cards at {w}x{h}: {got}")
+                p.js("document.querySelector('.cols-menu').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))")
+                p.until("!document.querySelector('.cols-menu')", f"closed at {w}x{h}")
+
+
+for _cls in (ColumnsMenuFit, ColumnsMenuCardsPinned):
+    for _name in dir(base.InThePage):      # the Work items tests of the base class are run by their own file, not again here
+        if _name.startswith("test_") and _name not in _cls.__dict__:
+            setattr(_cls, _name, None)
 
 if __name__ == "__main__":
     unittest.main()
