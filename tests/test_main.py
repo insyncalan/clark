@@ -440,6 +440,15 @@ class InProcess(TempFolder):
         self.assertEqual(call["projects"](), [])
         self.assertEqual(call["demo"].status()[1], {"ok": True, "demo": False})
 
+    def test_the_bell_reads_the_notices_set_in_the_data_folder(self):
+        # row 1046: the launcher passes a Notices over the data folder itself (not None, not the database file)
+        data = self.tmp / "bell-data"
+        code, out, err, serve = self.run_main("--data", str(data), "--port", "8123")
+        self.assertEqual((code, err), (0, ""))
+        (call,) = serve.calls
+        self.assertIsInstance(call["notices"], launcher.notices_file.Notices)
+        self.assertEqual(call["notices"].data_dir, data)
+
     def test_a_data_folder_that_has_data_does_not_get_the_demo(self):
         data = self.tmp / "old-data"
         from clark import store as clark_store

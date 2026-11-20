@@ -2,7 +2,7 @@
 anything at that place, and nothing is sent over a network.
 
 The place may be one JSON file or a folder of `.json` files. A file holds a list of notices, or an object {"notices": [...]}. A notice
-is passed on as plain data (strings, numbers, lists and objects); what is shown, and what is dropped (an action that leaves clark, a
+is passed on as plain data (only the text fields the page uses, each cut to FIELD_MAX characters; NaN and Infinity are refused); what is shown, and what is dropped (an action that leaves clark, a
 too-long title, a notice past its date), is decided by the page (logic/notices.js), which never reads any of it as HTML.
 
 A place that is away (an unreachable share, a missing file, a file that is not JSON) is never an error for the person: the answer is
@@ -19,7 +19,38 @@ TIMEOUT = 3.0                 # seconds to wait for the place before giving up
 FILE_LIMIT = 64 * 1024        # a file larger than this is not read
 MAX_FILES = 30                # in a folder: the first 30 `.json` files by name
 MAX_NOTICES = 200             # passed to the page; the page keeps at most 30 shown
+FIELD_MAX = 1000              # each kept text field is cut to this many characters
+FIELDS = ("id", "severity", "title", "body", "date", "expires")       # the text fields the page uses (logic/notices.js clean)
 WHY = ("off", "away", "none", "ok")      # off: no path set; away: not reachable in time; none: nothing readable there; ok
+
+
+def _refuse(word):
+    raise ValueError(word)       # NaN, Infinity and -Infinity are not JSON: the whole file is left out
+
+
+def _finite(text):
+    value = float(text)
+    if value in (float("inf"), float("-inf")):
+        raise ValueError(text)   # 1e999 reads as Infinity
+    return value
+
+
+def _text(value):
+    return value[:FIELD_MAX] if isinstance(value, str) else None
+
+
+def _keep(raw):
+    """Only the fields the page uses, each text cut to FIELD_MAX: id, severity, title, body, date, expires, test.installedBelow, action.label/to."""
+    out = {k: _text(raw[k]) for k in FIELDS if _text(raw.get(k)) is not None}
+    test = raw.get("test")
+    if isinstance(test, dict) and _text(test.get("installedBelow")) is not None:
+        out["test"] = {"installedBelow": _text(test["installedBelow"])}
+    action = raw.get("action")
+    if isinstance(action, dict):
+        kept = {k: _text(action[k]) for k in ("label", "to") if _text(action.get(k)) is not None}
+        if kept:
+            out["action"] = kept
+    return out
 
 
 def _items(path):
@@ -27,12 +58,12 @@ def _items(path):
     try:
         if path.is_symlink() or not path.is_file() or path.stat().st_size > FILE_LIMIT:
             return []
-        value = json.loads(path.read_text(encoding="utf-8"))
+        value = json.loads(path.read_text(encoding="utf-8"), parse_constant=_refuse, parse_float=_finite)
     except (OSError, ValueError, RecursionError):
         return []
     if isinstance(value, dict):
         value = value.get("notices")
-    return [n for n in value if isinstance(n, dict)] if isinstance(value, list) else []
+    return [_keep(n) for n in value if isinstance(n, dict)] if isinstance(value, list) else []
 
 
 def read_place(place):

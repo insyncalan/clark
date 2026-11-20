@@ -105,6 +105,10 @@ class Logic(InBrowser):
         got = self.shown([n("a", "2030-10-01", title="old"), n("a", "2030-10-05", title="new"), n("a", "2030-10-02", title="mid")])
         self.assertEqual([(x["id"], x["title"]) for x in got], [("a", "new")])
 
+    def test_equal_dates_the_later_one_in_the_list_wins(self):
+        got = self.shown([n("a", "2030-10-05", title="first"), n("a", "2030-10-05", title="second")])
+        self.assertEqual([(x["id"], x["title"]) for x in got], [("a", "second")])
+
     def test_newest_first_then_by_id(self):
         self.assertEqual(self.ids([n("b", "2030-10-05"), n("c", "2030-10-09"), n("a", "2030-10-05")]), ["c", "a", "b"])
 
@@ -144,6 +148,7 @@ class Logic(InBrowser):
         self.assertEqual(action("Open Settings", "/settings"), {"label": "Open Settings", "to": "/settings"})
         for to in ("https://example.com/", "//example.com/", "javascript:alert(1)", "settings", "/a/../b", "mailto:a@b.c", ""):
             self.assertIsNone(action("Open", to), to)
+        self.assertEqual(action("Open the settings", "/settings"), None)      # three words
         self.assertIsNone(action("Open the settings page", "/settings"))
         self.assertIsNone(action("", "/settings"))
 

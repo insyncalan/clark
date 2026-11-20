@@ -5,6 +5,8 @@ No browser. Every place and notice here is made up in a temporary folder.
 """
 import http.client
 import json
+import locale
+import socket
 import tempfile
 import threading
 import time
@@ -67,7 +69,7 @@ class SettingTest(Place):
         self.assertEqual((self.data / settings.FILE).read_text(encoding="utf-8"), "not json")
 
     def test_a_bad_saved_value_reads_as_not_set(self):
-        for bad in (7, "relative.json", "", ["/x"]):
+        for bad in (7, "relative.json", "", ["/x"], "/a\x00b", "/" + "x" * 1001):
             (self.data / settings.FILE).write_text(json.dumps({"notices_path": bad}), encoding="utf-8")
             self.assertIsNone(settings.notices_path(self.data))
 
@@ -118,6 +120,83 @@ class ReaderTest(Place):
         self.assertEqual(got, ([], "away"))
         self.assertLess(time.monotonic() - start, 1.0)
 
+    def test_nan_and_infinity_are_never_handed_out(self):
+        for i, raw in enumerate(('[{"a": NaN}]', '[{"id": "x", "body": Infinity}]', '[{"id": "x", "body": -Infinity}]', '[{"id": "x", "n": 1e999}]')):
+            self.assertEqual(notices_file.read_place(self.put(f"nan{i}.json", raw, raw=True)), [], raw)
+        settings.set_notices_path(self.data, str(self.put("nan.json", '[{"a": NaN}]', raw=True)))
+        status, body = notices_file.Notices(self.data).read()
+        json.loads(json.dumps(body, allow_nan=False))      # strict: would raise on NaN or Infinity
+
+    def test_only_the_fields_the_page_uses_are_kept_and_each_is_cut(self):
+        rich = dict(ONE, expires="2030-01-01", test={"installedBelow": "1.2", "junk": 1},
+                    action={"label": "Open", "to": "/settings", "junk": 1}, junk={"deep": [1, 2]}, other="x")
+        want = dict(ONE, expires="2030-01-01", test={"installedBelow": "1.2"}, action={"label": "Open", "to": "/settings"})
+        self.assertEqual(notices_file.read_place(self.put("r.json", [rich])), [want])
+        self.assertEqual(notices_file.FIELD_MAX, 1000)
+        long = "y" * 12000      # five of them still fit in a file under FILE_LIMIT
+        got = notices_file.read_place(self.put("l.json", [dict(ONE, body=long, title=long, test={"installedBelow": long}, action={"label": long, "to": long})]))[0]
+        self.assertEqual(len(got["body"]), 1000)
+        self.assertEqual(len(got["title"]), 1000)
+        self.assertEqual((len(got["test"]["installedBelow"]), len(got["action"]["label"]), len(got["action"]["to"])), (1000, 1000, 1000))
+        self.assertEqual(notices_file.read_place(self.put("t.json", [dict(ONE, title=5, body=None, test=3, action="x")])), [{"id": ONE["id"], "severity": "info", "date": ONE["date"]}])
+
+    def test_the_limits_are_these_numbers(self):
+        self.assertEqual((notices_file.FILE_LIMIT, notices_file.MAX_NOTICES, notices_file.MAX_FILES, notices_file.TIMEOUT), (65536, 200, 30, 3.0))
+
+    def test_a_file_of_exactly_the_limit_is_read_one_byte_more_is_not(self):
+        base = json.dumps([dict(ONE, body="")])
+        for extra, want in ((0, [dict(ONE, body="x" * 0)]), (1, [])):
+            pad = notices_file.FILE_LIMIT - len(base) + extra
+            raw = json.dumps([dict(ONE, body="x" * pad)])
+            self.assertEqual(len(raw.encode()), notices_file.FILE_LIMIT + extra)
+            got = notices_file.read_place(self.put(f"edge{extra}.json", raw, raw=True))
+            self.assertEqual(len(got), 1 - extra)
+
+    def test_deeply_nested_json_gives_nothing(self):
+        self.assertEqual(notices_file.read_place(self.put("deep.json", "[" * 30000 + "]" * 30000, raw=True)), [])
+
+    def test_at_most_200_notices_from_a_folder_and_from_a_file(self):
+        many = [dict(ONE, id=f"i{i}") for i in range(250)]
+        small = [{"id": f"i{i}"} for i in range(250)]
+        self.assertEqual(len(notices_file.read_place(self.put("one.json", small))), 200)
+        for i in range(10):
+            self.put(f"f/{i}.json", [{"id": f"f{i}-{j}"} for j in range(30)])
+        self.assertEqual(len(notices_file.read_place(self.root / "f")), 200)
+        self.assertEqual(len(many), 250)
+
+    def test_only_json_files_in_a_folder_are_read(self):
+        self.put("m/a.json", [ONE])
+        self.put("m/b.txt", [dict(ONE, id="txt")])
+        self.put("m/c", [dict(ONE, id="none")])
+        self.put("m/d.json.bak", [dict(ONE, id="bak")])
+        self.assertEqual(notices_file.read_place(self.root / "m"), [ONE])
+
+    def test_a_utf8_file_is_read_as_utf8_whatever_the_locale(self):
+        one = dict(ONE, title="Caf\u00e9 \u2014 \u65e5\u672c\u8a9e")
+        path = self.root / "u.json"
+        path.write_bytes(json.dumps([one], ensure_ascii=False).encode("utf-8"))
+        with mock.patch.object(locale, "getpreferredencoding", lambda *a, **k: "cp1252"), \
+             mock.patch("io.text_encoding", lambda enc, *a: "cp1252" if enc is None else enc, create=True):
+            self.assertEqual(notices_file.read_place(path), [one])
+
+    def test_a_read_that_outlives_the_timeout_is_given_up_and_the_thread_is_a_daemon(self):
+        gate = threading.Event()
+        seen = []
+        def slow(_):
+            seen.append(threading.current_thread())
+            gate.wait(5)
+            return [ONE]
+        with mock.patch.object(notices_file, "read_place", slow):
+            got = notices_file.read_within(self.root, timeout=0.2)
+        self.assertEqual(got, ([], "away"))
+        self.assertTrue(seen[0].daemon)
+        gate.set()
+        seen[0].join(2)
+
+    def test_a_read_that_just_finished_late_in_time_is_still_not_given_up_when_it_answered(self):
+        with mock.patch.object(notices_file, "read_place", lambda _: [ONE]):
+            self.assertEqual(notices_file.read_within(self.root, timeout=1), ([ONE], "ok"))
+
 
 class SeamTest(Place):
     def test_why_words(self):
@@ -156,6 +235,20 @@ class RouteTest(Place):
         seam = notices_file.Notices(self.data)
         self.assertEqual(self.ask("GET", "/api/notices", seam, token=False)[0], 403)
         self.assertEqual(self.ask("GET", "/api/notices?path=/etc", seam)[0], 400)
+
+    def test_a_body_on_the_get_is_refused(self):
+        seam = notices_file.Notices(self.data)
+        httpd = sv.LocalServer((sv.HOST, 0), notices=seam)
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        self.addCleanup(lambda: (httpd.shutdown(), httpd.server_close()))
+        head = f"GET /api/notices HTTP/1.1\r\nHost: 127.0.0.1:{httpd.server_port}\r\n{sv.TOKEN_HEADER}: {sv.TOKEN}\r\nConnection: close\r\n"
+        for extra, body in (("Content-Length: 2\r\n", b"{}"), ("Transfer-Encoding: chunked\r\n", b"2\r\n{}\r\n0\r\n\r\n")):
+            with socket.create_connection((sv.HOST, httpd.server_port), timeout=10) as conn:
+                conn.sendall((head + extra + "\r\n").encode() + body)
+                reply = b""
+                while chunk := conn.recv(4096):
+                    reply += chunk
+            self.assertTrue(reply.startswith(b"HTTP/1.1 400") or reply.startswith(b"HTTP/1.0 400"), (extra, reply[:60]))
 
     def test_post_is_not_a_route(self):
         self.assertNotEqual(self.ask("POST", "/api/notices", notices_file.Notices(self.data), body=b"{}")[0], 200)
