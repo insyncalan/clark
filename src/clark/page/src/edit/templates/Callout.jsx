@@ -91,6 +91,7 @@ export function Edit({ section }) {
           <RichField field="callout" empty={startText("callout", "empty")} id={section.id} value={wordsAsHtml(saved.html, saved.paras)} label="Callout words" save={(html) => write({ html: noBreaks(html), paras: [] })} />
         </div>
       </div>
+      {!saved.title && saved.paras.length === 0 && !saved.html ? <p class="quiet">Empty for now: add a title or some words. It stays out of the published page until then.</p> : null}
     </div>
   );
 }

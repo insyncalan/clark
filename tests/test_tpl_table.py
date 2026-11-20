@@ -36,9 +36,18 @@ class Data(n.DataChecks):
 class Page(n.PageChecks):
     TYPE, GOOD, HOSTILE_BODY = "table", GOOD, HOSTILE
     SHOWS = ("Item", "Owner", "Fictional scope", "Alex Example", "Fictional table.")
-    EMPTY_LINE, STAYS_OUT = "Add the first row.", False     # row 1251: the starting text of an empty Table
     FIELD, TYPED = "Row 1 column 1", "Fictional changed scope"
     CHANGED = lambda self, body: json.loads(body)["rows"][0][0] == "Fictional changed scope"
+
+    def test_an_empty_one_shows_the_starting_text_and_keeps_the_empty_for_now_line(self):
+        ref = self.make(None)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] .tpl-edit')", "Edit shows the fields")
+            shown = p.js(f"document.querySelector('[data-id={json.dumps(ref)}] .tpl-edit').textContent + ' ' + [...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-edit [placeholder]')].map(e => e.getAttribute('placeholder')).join(' ')")
+            self.assertIn('Add the first row.', shown)
+            self.assertIn('Empty for now: type in a heading or a cell. It stays out of the published page until then.', shown)
 
     def test_view_draws_a_real_table_with_column_headings(self):
         ref = self.make(self.GOOD)

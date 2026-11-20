@@ -26,9 +26,18 @@ class Data(n.DataChecks):
 class Page(n.PageChecks):
     TYPE, GOOD, HOSTILE_BODY = "quote", GOOD, HOSTILE
     SHOWS = ("Fictional words of thanks.", "Sam Example, Fictional sponsor")
-    EMPTY_LINE, STAYS_OUT = "", False     # row 1251: its starting text is a field hint, pinned in test_starting_text_1251
     FIELD, TYPED = "Quote words", "Fictional new words"
     CHANGED = lambda self, body: json.loads(body)["quote"] == "Fictional new words"
+
+    def test_an_empty_one_shows_the_starting_text_and_keeps_the_empty_for_now_line(self):
+        ref = self.make(None)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] .tpl-edit')", "Edit shows the fields")
+            shown = p.js(f"document.querySelector('[data-id={json.dumps(ref)}] .tpl-edit').textContent + ' ' + [...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-edit [placeholder]')].map(e => e.getAttribute('placeholder')).join(' ')")
+            self.assertIn('Write what they said.', shown)
+            self.assertIn('Empty for now: add the words. It stays out of the published page until then.', shown)
 
     def test_the_quote_is_a_blockquote_with_who_said_it_under_it(self):
         ref = self.make(self.GOOD)
