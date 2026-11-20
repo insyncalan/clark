@@ -55,6 +55,18 @@ class TemplateNames(unittest.TestCase):
         for id_, name in NAMES.items():
             self.assertRegex(TEMPLATES, r'\{ id: "%s", name: "%s", kind:' % (re.escape(id_), re.escape(name)), f"{id_} is called {name}")
 
+    def test_no_built_in_keeps_a_name_from_the_old_list(self):      # row 1262 table: Use case summary -> Use cases, Supporting documents -> Documents
+        from clark import changes
+        old = ("Use case summary", "Supporting documents")
+        lines = TEMPLATES.splitlines()
+        block = next(l for l in lines if l.lstrip().startswith('builtIn("current"')) + "\n" + next(l for l in lines if l.lstrip().startswith('builtIn("milestones"'))
+        for name in old:
+            self.assertNotIn(f'"{name}"', block, f"the built-in cards in templates.js no longer use {name}")
+            self.assertNotIn(name, changes.BUILT_IN_TITLES.values(), f"Add a section no longer makes a section titled {name}")
+        self.assertIn('builtIn("usecases", "Use cases"', block)
+        self.assertIn('builtIn("docs", "Documents"', block)
+        self.assertEqual((changes.BUILT_IN_TITLES["usecases"], changes.BUILT_IN_TITLES["docs"]), ("Use cases", "Documents"))
+
     def test_the_gantt_table_card_is_called_gantt_table(self):
         self.assertIn('export const GANTT_TABLE_NAME = "Gantt table";', TEMPLATES)
         self.assertRegex(TEMPLATES, r'\{ id: "gantt-table", name: GANTT_TABLE_NAME, ')
