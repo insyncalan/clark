@@ -197,7 +197,7 @@ function AskProject() {
       <div class="pub-msg" role={fmsg && fmsg.kind === "error" ? "alert" : "status"} aria-live="polite">{fmsg && fmsg.text ? <p class={fmsg.kind}>{fmsg.text}</p> : null}</div>
     </section>
     <OwnInstructions goAll={() => showAskTab(ALL)} />
-    <UsageProject />
+    {classicTheme() ? <UsageProject /> : null}
     </>
   );
 }
@@ -216,7 +216,7 @@ function AllProjects() {
     <ConnectorsAll />
     <AllInstructions />
     <AllFolders />
-    <UsageAll />
+    {classicTheme() ? <UsageAll /> : null}
     </>
   );
 }

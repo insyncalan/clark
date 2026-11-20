@@ -12,6 +12,7 @@ import os
 import re
 import shutil
 import tempfile
+import time
 import threading
 import unittest
 from pathlib import Path
@@ -352,12 +353,13 @@ class TheWords(unittest.TestCase):
 
     def test_the_two_places_the_page_shows_it_and_no_comment_has_hash_digits(self):
         settings = (SRC / "clark" / "page" / "src" / "edit" / "AskSettings.jsx").read_text(encoding="utf-8")
-        self.assertIn("<UsageAll />", settings.split("function AllProjects()")[1].split("\n}\n")[0])
-        self.assertIn("<UsageProject />", settings.split("function AskProject()")[1].split("\n}\n")[0])
+        self.assertIn("{classicTheme() ? <UsageAll /> : null}", settings.split("function AllProjects()")[1].split("\n}\n")[0])
+        self.assertIn("{classicTheme() ? <UsageProject /> : null}", settings.split("function AskProject()")[1].split("\n}\n")[0])
         self.assertNotRegex(JSX, r"#\d")
 
 
 class OnThePage(unittest.TestCase):
+    classic = True
     """The Usage lists in a real browser at 1400 and 900, against the real usage route (the command is faked). Chrome is required."""
 
     def setUp(self):
@@ -365,7 +367,10 @@ class OnThePage(unittest.TestCase):
         from test_server import Running as Page
         from clark import page
         from test_page import DATA
-        self.s = Page(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        from clark import theme
+        css = theme.css("prototype-2.0")
+        self.s = Page(data_for=lambda code, archived=None: DATA.get(code),
+                      page_html=lambda: page.layer_theme(page.page_html(tempfile.mkdtemp()), css) if self.classic else page.page_html(tempfile.mkdtemp()))
         self.addCleanup(self.s.close)
         self.d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
         self.addCleanup(shutil.rmtree, self.d, True)
@@ -417,6 +422,24 @@ class OnThePage(unittest.TestCase):
                 self.assertEqual(js("document.querySelector('#ask-usage-project h2').innerText"), "Usage this month")
                 self.assertEqual(js("document.querySelector('#ask-usage-count').innerText"), "2 questions")
                 self.assertTrue(wait(lambda: js("document.documentElement.scrollWidth <= window.innerWidth"), 10), f"no sideways scroll on the project tab at {w}")
+
+
+class CardsUnchanged(OnThePage):
+    """Classic only: in Cards (no theme layer) neither Usage card is drawn, on either tab."""
+    classic = False
+
+    def test_the_lists_show_names_and_numbers_and_do_not_overflow_at_1400_and_900(self):
+        pass
+
+    def test_cards_draws_no_usage_card_on_either_tab(self):
+        from test_server import chrome, wait
+        with chrome() as cdp:
+            for tab in ("all", "project"):
+                sid, js = self.open(cdp, tab)
+                self.assertFalse(js("!!document.getElementById('theme')"), "Cards has no theme layer")
+                self.assertTrue(wait(lambda: js("document.querySelectorAll('section.frame.setting').length > 0"), 20), "the tab drew")
+                time.sleep(3)          # the Classic page shows the card once its read answers; give it that long
+                self.assertEqual(js("document.querySelectorAll('#ask-usage-all, #ask-usage-project, #ask-usage-list, #ask-usage-count, #ask-usage-readonly').length"), 0, tab)
 
 
 if __name__ == "__main__":
