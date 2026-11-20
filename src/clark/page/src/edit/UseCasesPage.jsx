@@ -315,8 +315,8 @@ function UseCasesList() {
         <button type="button" data-lay="table" aria-label="List" title="List" aria-pressed="true"><Icon name="table" /></button>
         <button type="button" data-lay="board" aria-label="Board" title="Board" aria-pressed="false" aria-disabled="true" onClick={() => say("problem", "There is no board for use cases yet.")}><Icon name="board" /></button>
       </div>
-      <Menu label="Group by" ariaLabel={`Group by: ${groupLabel(f.group)}`} chevron={false} id="ucl-group" btnCls="btn sm ucl-lb" menuLabel="Group by" items={GROUPS.map(([k, w]) => ({ id: k, name: w, icon: groupIcon(k), checked: f.group === k }))} onPick={(k) => set({ group: k })} />
-      <Menu label="Sort by" ariaLabel={`Sort by: ${(SORTS.find(([k]) => k === f.sort) || SORTS[0])[1]}`} chevron={false} id="ucl-sort" btnCls="btn sm ucl-lb" menuLabel="Sort by" items={SORTS.map(([k, w]) => ({ id: k, name: w, icon: sortIcon(k), checked: f.sort === k }))} onPick={(k) => set({ sort: k })} />
+      <Menu label="Group by" ariaLabel={`Group by: ${groupLabel(f.group)}`} chevron={false} id="ucl-group" btnCls="btn sm" menuLabel="Group by" items={GROUPS.map(([k, w]) => ({ id: k, name: w, icon: groupIcon(k), checked: f.group === k }))} onPick={(k) => set({ group: k })} />
+      <Menu label="Sort by" ariaLabel={`Sort by: ${(SORTS.find(([k]) => k === f.sort) || SORTS[0])[1]}`} chevron={false} id="ucl-sort" btnCls="btn sm" menuLabel="Sort by" items={SORTS.map(([k, w]) => ({ id: k, name: w, icon: sortIcon(k), checked: f.sort === k }))} onPick={(k) => set({ sort: k })} />
     </span>
   ) : null;
   const cols = cm.shown;
