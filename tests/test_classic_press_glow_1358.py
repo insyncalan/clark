@@ -28,6 +28,16 @@ class PressGlow(unittest.TestCase):
     def test_the_block_sits_before_the_row_1314_block(self):
         self.assertLess(RULES.index("/* Row 1358"), RULES.index("/* Row 1314"))
 
+    def test_the_switch_and_use_cases_controls_have_6px_corners(self):
+        m = re.search(r"/\* Row 1358 part 2.*?\*/\n([^{]*)\{([^}]*)\}", RULES, re.S)
+        self.assertIsNotNone(m)
+        sels = {x.strip() for x in m.group(1).split(",")}
+        self.assertEqual(sels, {".msv-sw", ".mv-txt", "#usecases #ucl-group", "#usecases #ucl-sort", "#usecases #ucAddPage.newb"})
+        self.assertIn("border-radius: 6px", m.group(2))
+        self.assertLess(RULES.index("/* Row 1358 part 2"), RULES.index("/* Row 1314"))
+        self.assertGreater(RULES.index("/* Row 1358 part 2"), RULES.index("/* Row 1318"))
+        self.assertNotIn("6px", EDIT[EDIT.index("#ucAddPage.newb"):EDIT.index("#ucAddPage.newb") + 120], "the Cards stylesheet is untouched")
+
 
 if __name__ == "__main__":
     unittest.main()
