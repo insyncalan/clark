@@ -318,6 +318,7 @@ export const DRAFT_EMPTY = "The draft is empty. Write something, or close it.";
 
 // #1292 S10: the slash menu. NEEDS RULING: the one-line hint under each command is a draft, to be ruled with the other new words (decision 25).
 export const SLASH_LABEL = "Commands";
+export const SLASH_YOURS = "Yours";      // row 1295: the tag of a command the person wrote (the editor mock-up marks it "you"; Settings calls it Yours)
 export const SLASH_NONE = "No command by that name";
 export const SLASH_HINT = {
   check: "Check this report",
