@@ -13,7 +13,7 @@ export const ASK_NOTICE_LINE = "Your question and the passages it needs go to Cl
 // row 1292 feature 2: the first-run card in an empty chat, three plain lines. Written for Claude; named() swaps the provider in use.
 // The sentences are a draft: the spec gives the ideas, the words wait for the project head (listed as B1 in the words file).
 export const FIRST_RUN_LABEL = "About ask clark";
-export const FIRST_RUN_READS = "It reads what is in this project. It never reads your mail, Teams or calendars.";
+export const FIRST_RUN_READS = "It reads what is in this project. Mail, Teams, calendars and SharePoint are used only if you turn that connector on in Settings.";
 export const FIRST_RUN_CHANGES = "It can suggest changes. Nothing is saved until you press Apply, and every change can be undone.";
 export const FIRST_RUN_SENT = "Your question goes to Claude, which Anthropic runs.";
 export const FIRST_RUN_LINK = "Open the Asking card in Settings";
@@ -35,6 +35,7 @@ export const READY_LINE = "Ready. Ask about this project.";
 export const MODEL_LINE = (name) => `Answering with ${name}.`;
 export const STANDING_LINE = "Standing instructions on.";   // #1292 S13, the mock-up's words with the full stop every line of the panel ends in
 export const PLACEHOLDER = "Ask a question about this project";
+export const PLACEHOLDER_CLASSIC = "Ask a question or give an instruction... (type / for shortcuts)";          // row 1350: Classic only; Cards keeps PLACEHOLDER
 export const SEND = "Ask";
 export const STOP = "Stop";
 export const CLOSE = "Close";
@@ -92,6 +93,7 @@ export const PILLS_STATE = {
 // state words overdue / red / no_owner). The two questions about one item or a few carry the ids in brackets only in the question sent, never in the shown words; the rest are plain questions.
 export const PILLS_ITEM_DUE = "Change the due date";
 export const PILLS_ITEM_URGENCY = "Raise the urgency";
+export const PILLS_ITEM_REPORT = "Include in the weekly report";
 export const PILLS_ITEM_OWNERS = "Who owns these?";
 export const PILLS_ITEM_LATE = "Why are these late?";
 export const PILLS_MAX = 6;
@@ -113,12 +115,166 @@ export const QUEUE_DROP = (n) => `${waitingCount(n)} waiting and would be droppe
 export const QUEUE_SAY_ADDED = (n) => `Message queued. ${n} waiting`;
 export const QUEUE_SAY_REMOVED = (n) => `Message removed. ${n} waiting`;
 export const LOG_LABEL = "The chat so far";
-// Row 1292 (S6, no streaming yet): the working line says the one step the page really knows (the question is out to the provider) and how long
-// it has been going, counted from the send. A longer step list waits for real progress from the server. These words need approval.
+// The office quips shown while an answer is worked on (item 1094: the creaite list of 150, copied as it is). One shows at a time and
+// changes every 5 to 10 seconds, from a shuffled deck so none comes round again until all have been shown (askPanelState.js).
+export const QUIPS = [
+  "Percolating coffee…",
+  "Getting my steps in…",
+  "Waiting for the conference call to start…",
+  "You're on mute…",
+  "Circling back…",
+  "Touching base…",
+  "Taking this offline…",
+  "Finding a biscuit…",
+  "Passing the slides round…",
+  "Putting it in the parking lot…",
+  "Boiling a small ocean…",
+  "Moving the needle…",
+  "Picking the low-hanging fruit…",
+  "Running it up the flagpole…",
+  "Booking a meeting about the meeting…",
+  "Waiting for the projector to connect…",
+  "Hunting for a free meeting room…",
+  "Reply-all-ing, carefully…",
+  "Turning amber back to green…",
+  "Herding the cats…",
+  "Adding an action to the action log…",
+  "Queueing for the kettle…",
+  "Looking for the HDMI dongle…",
+  "Can everyone see my screen?…",
+  "Rescheduling the reschedule…",
+  "Doing a deep dive…",
+  "Taking it to the committee…",
+  "Double-clicking on that…",
+  "Going round the room…",
+  "Adding it to the backlog…",
+  "Chasing a signature…",
+  "Checking who is in the room…",
+  "Redrawing the plan…",
+  "Catching up before the catch-up…",
+  "Grabbing five minutes…",
+  "Reading the notes beforehand…",
+  "Finding a whiteboard pen that works…",
+  "Raising a ticket with IT…",
+  "Wordsmithing the slide…",
+  "Thinking out loud…",
+  "Shaking the vending machine…",
+  "Watering the office plant…",
+  "Waiting for the lift…",
+  "Joining from my phone…",
+  "Finding the meeting link…",
+  "Sorry, you go…",
+  "Just finishing another call…",
+  "Knocking on a few doors…",
+  "Bringing the deck to life…",
+  "Locking in the agenda…",
+  "Finding the action log…",
+  "Unmuting…",
+  "Sharing the wrong screen…",
+  "Sharing the right screen…",
+  "Waiting for the room to empty…",
+  "Collecting the printouts…",
+  "Refilling the stapler…",
+  "Looking for a working pen…",
+  "Fixing the wobbly chair…",
+  "Warming up the projector…",
+  "Asking who has the clicker…",
+  "Moving the stand-up to a later slot…",
+  "Waiting for everyone to arrive…",
+  "Taking the minutes…",
+  "Agreeing the next steps…",
+  "Parking that for now…",
+  "Coming back to that…",
+  "Noting what depends on what…",
+  "Updating your project record…",
+  "Colour-coding the spreadsheet…",
+  "Merging two spreadsheets…",
+  "Finding the latest version…",
+  "Renaming it final_final…",
+  "Checking the shared drive…",
+  "Clearing the inbox…",
+  "Flagging it for later…",
+  "Drafting a polite nudge…",
+  "Softening the wording…",
+  "Adding a gentle reminder…",
+  "Writing the out-of-office…",
+  "Booking the next check-in…",
+  "Finding a slot that suits everyone…",
+  "Declining a clashing invite…",
+  "Accepting tentatively…",
+  "Waiting for the calendar to load…",
+  "Moving my lunch…",
+  "Reheating my coffee…",
+  "Finding the good mugs…",
+  "Wiping the whiteboard…",
+  "Taking a photo of the whiteboard…",
+  "Drawing a box and an arrow…",
+  "Adding another arrow…",
+  "Labelling the swimlanes…",
+  "Sorting the sticky notes…",
+  "Grouping the sticky notes…",
+  "Voting with dots…",
+  "Timeboxing it…",
+  "Setting a five-minute timer…",
+  "Running slightly over…",
+  "Going round once more…",
+  "Asking any other business…",
+  "Thanking everyone for their time…",
+  "Sending the follow-up…",
+  "Attaching the slides…",
+  "Forgetting the attachment…",
+  "Tidying the agenda…",
+  "Numbering the actions…",
+  "Assigning an owner…",
+  "Agreeing a due date…",
+  "Nudging the due date…",
+  "Checking the dependencies…",
+  "Raising a risk…",
+  "Scoring the risk…",
+  "Mitigating the risk…",
+  "Closing the issue…",
+  "Logging a decision…",
+  "Recording who agreed…",
+  "Printing double-sided…",
+  "Unjamming the printer…",
+  "Finding the meeting room key…",
+  "Adjusting the air conditioning…",
+  "Opening a window…",
+  "Charging my laptop…",
+  "Finding a free socket…",
+  "Restarting for updates…",
+  "Reconnecting to the Wi-Fi…",
+  "Dialling in…",
+  "Spelling my name for the call…",
+  "Waiting in the lobby…",
+  "Admitting everyone from the lobby…",
+  "Turning my camera on…",
+  "Blurring my background…",
+  "Checking I'm not on mute…",
+  "Saying hello to the room…",
+  "Asking for a quick show of hands…",
+  "Reading the room…",
+  "Summarising the discussion…",
+  "Playing it back…",
+  "Checking for questions…",
+  "Writing it in plain English…",
+  "Cutting it to one page…",
+  "Making the font smaller…",
+  "Aligning the boxes…",
+  "Fixing the bullet points…",
+  "Choosing a better chart…",
+  "Labelling the axes…",
+  "Checking the numbers add up…",
+  "Double-checking the dates…",
+  "Converting the time zones…",
+  "Proofreading…",
+];
+
+// Row 1292 (S6, no streaming yet; Classic only): the working line says the one step the page really knows (the question is out to the provider) and how long
+// it has been going, counted from the send. A longer step list waits for real progress from the server. Cards keeps the quips above.
 export const STEP_ASKING = "Asking Claude";
 export const workingFor = (secs) => `Working ${Math.max(0, Math.floor(secs))}s`;
 export const workingLine = (who, secs) => `${named(STEP_ASKING, who)} · ${workingFor(secs)}`;
-
 
 // A change an answer suggests (#47e). The before and after come from the saved data, never from the answer's words.
 export const CHANGE_HEAD = "Suggested change";
@@ -151,6 +307,8 @@ export const KIND_NAMES = { actions: "Action", decisions: "Decision", milestones
 
 // Row 1292 (S12): the Draft beside the panel (mock-up image 09).
 export const DRAFT_TITLE = "Draft";
+// Shown when a draft was written in a run that read a connector (names of the parts read, joined with "and").
+export const DRAFT_VIA = (names) => `Written using your ${names}. Read it before you apply it.`;
 export const DRAFT_HINT = "Edit it freely. Nothing is in the report yet.";
 export const DRAFT_CLOSE = "Close the draft";
 export const DRAFT_TEXT_LABEL = "Draft text";
@@ -166,6 +324,7 @@ export const DRAFT_EMPTY = "The draft is empty. Write something, or close it.";
 
 // #1292 S10: the slash menu. NEEDS RULING: the one-line hint under each command is a draft, to be ruled with the other new words (decision 25).
 export const SLASH_LABEL = "Commands";
+export const SLASH_YOURS = "Yours";      // row 1295: the tag of a command the person wrote (the editor mock-up marks it "you"; Settings calls it Yours)
 export const SLASH_NONE = "No command by that name";
 export const SLASH_HINT = {
   check: "Check this report",
@@ -176,4 +335,40 @@ export const SLASH_HINT = {
   usecases: "Which use cases need attention",
   history: "Earlier chats",
   new: "Start a new chat",
+};
+
+// Row 1292 (reopened): Ask about this, and where an answer came from. Each line names its source: M = the approved ask clark prototype, T = the ticket body, A = the new-words log.
+export const ABOUT_LABEL = (name) => `Ask clark about ${name}`;                // M views.js: aria-label "Ask clark about <id>"
+export const ABOUT_TITLE = "Ask clark about this";                              // M views.js: title
+export const ABOUT_CHIP = (label) => `About ${label}`;                          // M ask.js drawCtx, T feature 1 ("About PDF-A-018 Write the user test scripts")
+export const ABOUT_REMOVE = (label) => `Stop asking about ${label}`;            // M ask.js drawCtx: aria-label
+export const ABOUT_REMOVE_TITLE = "Remove";                                     // M ask.js drawCtx: title; A 11-13: "Remove" is the app's word for a bin
+export const ABOUT_SECTION = (title) => `Section: ${title}`;                    // M ask.js ctxLabel
+export const ABOUT_LINE = (label) => `About ${label}`;                          // M ask.js: the small line under the person's question
+// What is sent ahead of the person's words so the answer is about the subject. Model-facing, never shown (the same rule as the request lines A approved 17-11).
+export const ABOUT_LEAD = (kind, id, name) => `About ${kind} ${id}${name && name !== id ? ` (${name})` : ""}: `;
+// The suggestions once a subject is chosen (M ask.js PILLS; T feature 1 names the item ones).
+export const PILLS_ABOUT = {
+  item: ["Is it late?", "Who owns it?", "What is it needed for?", "Draft an update", "Move it a week"],
+  milestone: ["Is it on track?", "What is holding it up?"],
+  "use case": ["Where does it stand?", "What work sits behind it?"],
+  section: ["Summarise this section", "What is missing here?"],
+};
+export const CITE_LABEL = (n, id) => `Source ${n}: open ${id}`;                 // M ask.js cite(): aria-label
+export const CITE_TITLE = (id) => `Open ${id}`;                                 // M ask.js cite(): title
+export const USED = "Used:";                                                    // M ask.js botHtml; A 18-11: the heading is "Used"
+const COUNT = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+/** T feature 3: "17 work items, 6 milestones and 8 use cases read · as at DD-MM-YYYY". A kind with none is left out; the day only when the server gave one. */
+export function READ_LINE(read) {
+  if (!read || typeof read !== "object") return "";
+  const parts = [[read.work_items, "work item", "work items"], [read.milestones, "milestone", "milestones"], [read.use_cases, "use case", "use cases"]]
+    .filter(([n]) => Number.isInteger(n) && n > 0).map(([n, one, many]) => COUNT(n, one, many));
+  if (!parts.length) return "";
+  const said = parts.length > 1 ? parts.slice(0, -1).join(", ") + " and " + parts[parts.length - 1] : parts[0];
+  return `${said} read${typeof read.as_at === "string" && read.as_at ? " · as at " + read.as_at : ""}`;
+}
+// row 1350: the two hints Classic words differently; Cards keeps SLASH_HINT. A Classic hint is SLASH_HINT_CLASSIC[name] when there is one.
+export const SLASH_HINT_CLASSIC = {
+  summary: "Summarise this week into a draft",
+  overdue: "What is overdue?",
 };

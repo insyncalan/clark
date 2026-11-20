@@ -5,7 +5,7 @@ Headless Chrome through the shared harness; the page is the real one with fictio
 records every request, so "nothing was sent" is checked by what reached it. Covers: "/" opens the panel outside a field and not
 inside one, Esc and a click outside close it and put focus back, the width is kept after a reload, Stop leaves the chat as it was,
 the off state sends no request, a reply that looks like markup is inert text, the sign-in line, the status line's model name, the
-working line that counts seconds, 1400 and 900 px in light and dark, the published page has no panel, and every sentence the panel says.
+rotating quip, 1400 and 900 px in light and dark, the published page has no panel, and every sentence the panel says.
 """
 import json
 import re
@@ -692,15 +692,23 @@ class Panel(Base):
             p.until("!!document.querySelector('#ask-off')", "the off line")
             self.assertEqual(p.js("document.querySelector('#ask-sent')"), None)
 
-    def test_the_working_line_counts_the_seconds(self):
+    def test_the_quip_rotates_and_never_repeats(self):
         self.stub.hold.clear()
         with chrome() as cdp:
             p = self.opened(cdp)
             self.ask(p, "Anything?")
-            p.until("!!document.querySelector('#ask-step') && document.querySelector('#ask-step').textContent === 'Asking Claude \u00b7 Working 0s'", "the step and the clock at zero")
-            p.until("document.querySelector('#ask-step').textContent === 'Asking Claude \u00b7 Working 2s'", "the clock went on", seconds=6)
+            p.until("!!document.querySelector('#ask-quip') && document.querySelector('#ask-quip').textContent !== ''", "a quip while waiting")
+            seen = [p.js("document.querySelector('#ask-quip').textContent")]
+            p.until("document.querySelector('#ask-quip').textContent !== " + json.dumps(seen[0]), "the quip changed within ten seconds", seconds=12)
+            seen.append(p.js("document.querySelector('#ask-quip').textContent"))
+            self.assertNotEqual(seen[0], seen[1])
             self.stub.hold.set()
-            p.until("document.querySelector('#ask-step') === null", "the line went when the answer came")
+            p.until("document.querySelector('#ask-quip') === null", "the quip went when the answer came")
+
+    def test_there_are_enough_different_quips_to_never_repeat(self):
+        quips = re.findall(r'^  "(.+)",$', WORDS[WORDS.index("QUIPS"):], re.M)
+        self.assertGreaterEqual(len(quips), 5)
+        self.assertEqual(len(set(quips)), len(quips))
 
     def test_left_out_notes_are_one_small_grey_block_under_the_answer(self):
         """Row 1218: four notes are one block (one list), smaller than the answer, tighter, grey at 4.5 to 1 or more, at 1400 and 900, light and dark."""

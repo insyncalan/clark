@@ -12,7 +12,8 @@ class WorkingLineSweep(unittest.TestCase):
         self.assertIn('<span class="ask-quip ask-step" id="ask-step" aria-hidden="true">', PANEL)
 
     def test_the_clock_effect_runs_again_on_each_change_of_busy_not_only_on_mount(self):
-        self.assertIn("return () => clearInterval(t);\n  }, [busy]);", PANEL)
+        self.assertIn("return () => clearInterval(c);\n    }", PANEL)
+        self.assertIn("return () => clearTimeout(t);\n  }, [busy]);", PANEL)
 
 
 if __name__ == "__main__":
