@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 from _demo import USER, DemoStore
+from _ask_index_pin import ASK_INDEX, problems as ask_index_problems
 from _paths import ROOT, SRC
 from clark import store as store_module
 from clark.store import Invalid, connect, open_store
@@ -406,20 +407,54 @@ class OneWriter(unittest.TestCase):
         for path in sorted((SRC / "clark").rglob("*.py")):
             yield path, ast.parse(path.read_text(encoding="utf-8"))
 
+    def writer_problems(self, rel, tree):
+        if rel == ASK_INDEX and not ask_index_problems(tree):
+            return []           # Row 1366 exception: it opens and writes only its own index file (see _ask_index_pin), never clark.db
+        problems = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                if writes_sql(node.value):
+                    problems.append(f"{rel}:{node.lineno}: writes SQL")
+            if isinstance(node, ast.Attribute) and node.attr == "connect" and isinstance(node.value, ast.Name) \
+                    and node.value.id == "sqlite3" and rel not in (READONLY_HELPER, STARTER_CHECK):
+                problems.append(f"{rel}:{node.lineno}: opens a database (only store.py may)")
+        return problems
+
     def test_only_store_py_writes_or_opens_the_database_for_writing(self):
         problems = []
         for path, tree in self.modules():
-            if path == STORE:
-                continue
-            rel = path.relative_to(SRC).as_posix()
-            for node in ast.walk(tree):
-                if isinstance(node, ast.Constant) and isinstance(node.value, str):
-                    if writes_sql(node.value):
-                        problems.append(f"{rel}:{node.lineno}: writes SQL")
-                if isinstance(node, ast.Attribute) and node.attr == "connect" and isinstance(node.value, ast.Name) \
-                        and node.value.id == "sqlite3" and rel not in (READONLY_HELPER, STARTER_CHECK):
-                    problems.append(f"{rel}:{node.lineno}: opens a database (only store.py may)")
+            if path != STORE:
+                problems += self.writer_problems(path.relative_to(SRC).as_posix(), tree)
         self.assertEqual(problems, [])
+
+    def test_the_exception_is_for_ask_index_only_and_only_while_it_opens_its_own_file(self):
+        shape = ('import sqlite3\ndef path_for(d, c):\n    return d / "ask-index" / f"{c}.db"\n'
+                 'def _open(d, c):\n    p = path_for(d, c)\n    db = sqlite3.connect(p)\n    db.execute("DELETE FROM t")\n    return db\n')
+        self.assertEqual(self.writer_problems(ASK_INDEX, ast.parse(shape)), [])
+        self.assertNotEqual(self.writer_problems("clark/other.py", ast.parse(shape)), [])          # the same text in another file
+        self.assertNotEqual(self.writer_problems(ASK_INDEX, ast.parse(shape + 'def w():\n    return sqlite3.connect("clark.db")\n')), [])
+        self.assertNotEqual(self.writer_problems(ASK_INDEX, ast.parse(shape.replace("connect(p)", "connect(d)"))), [])
+
+    def test_ask_index_opens_only_its_own_index_file_and_never_clark_db(self):
+        tree = ast.parse((SRC / ASK_INDEX).read_text(encoding="utf-8"))
+        self.assertEqual(ask_index_problems(tree), [])
+
+    def test_the_ask_index_exception_refuses_anything_that_could_reach_clark_db(self):
+        base = ('import sqlite3\n'
+                'def path_for(d, c):\n    return d / "ask-index" / f"{c}.db"\n'
+                'def _open(d, c):\n    p = path_for(d, c)\n    return sqlite3.connect(p)\n')
+        self.assertEqual(ask_index_problems(ast.parse(base)), [])
+        for name, src in (
+                ("other path", base.replace("p = path_for(d, c)", "p = d / 'clark.db'")),
+                ("other function's path", base.replace("p = path_for(d, c)", "p = elsewhere(d, c)")),
+                ("literal path", base.replace("sqlite3.connect(p)", "sqlite3.connect('x.db')")),
+                ("second connect", base + 'def other(d):\n    q = d\n    return sqlite3.connect(q)\n'),
+                ("imports store", "from clark import store\n" + base),
+                ("imports store module", "import clark.store\n" + base),
+                ("names clark.db", base + 'NAME = "clark.db"\n'),
+                ("path_for elsewhere", base.replace('"ask-index"', '"data"'))):
+            with self.subTest(name):
+                self.assertNotEqual(ask_index_problems(ast.parse(src)), [])
 
     def test_the_kept_update_helper_opens_the_database_only_read_only(self):
         tree = ast.parse((SRC / READONLY_HELPER).read_text(encoding="utf-8"))
