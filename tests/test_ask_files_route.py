@@ -221,6 +221,8 @@ class TheFilesSwitch(Base):
         self.assertEqual((status, got["code"]), (400, "refused"), got)
         self.assertEqual(self.sent(), [])
         self.assertEqual(self.question("A plain question")[0], 200, "a question without files still goes")
+        self.assertEqual(len(self.sent()), 1, "only the plain question reached the AI")
+        self.assertNotIn("ZQ-FILE-LINE", repr(self.sent()), "no file passage is in anything sent to the AI while the switch is off")
 
     def test_a_project_turned_off_refuses_files_and_another_project_still_takes_them(self):
         self.flags(off_here=1)

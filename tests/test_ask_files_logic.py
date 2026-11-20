@@ -145,7 +145,7 @@ class Words(unittest.TestCase):
         got = run_node("[AF.SCREEN_LINE, AF.THIS_QUESTION_LINE, AF.ATTACH_LABEL, AF.REMOVE_FILE('a.txt'), AF.DROP_LINE]")
         self.assertEqual(got[0], "Screened for passwords and keys, then sent with your next question to Claude.")
         self.assertEqual(got[1], "Files you add are used for this question only and are not kept in the project.")
-        self.assertEqual(got[2], "Add a file or picture")
+        self.assertEqual(got[2], "Add a file")
         self.assertEqual(got[3], "Remove a.txt")
         self.assertEqual(got[4], "Drop a file or picture to add it to your next question")
 

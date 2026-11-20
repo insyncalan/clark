@@ -5,7 +5,7 @@ export const FILE_BYTES = 10 * 1024 * 1024;
 
 const TEXT = /\.(txt|md|csv)$/i, PICTURE = /\.(png|jpe?g)$/i, DOCUMENT = /\.(pdf|docx|xlsx)$/i;
 
-export const ATTACH_LABEL = "Add a file or picture";
+export const ATTACH_LABEL = "Add a file";
 export const FILES_LABEL = "Files for the next question";
 export const SCREEN_LINE = "Screened for passwords and keys, then sent with your next question to Claude.";
 export const THIS_QUESTION_LINE = "Files you add are used for this question only and are not kept in the project.";
