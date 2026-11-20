@@ -102,6 +102,34 @@ class Peek(unittest.TestCase):
                     self.assertEqual(x[1:], ["11px", "700", "8px", "999px"])
 
 
+class PromptsCards(unittest.TestCase):
+    load, fresh, refused = _B.load, _B.fresh, _B.refused
+    _base_setup = _B.setUp
+    classic_on = False
+
+    def setUp(self):
+        self._base_setup()
+        if self.classic_on:
+            p = classic()
+            p.start()
+            self.addCleanup(p.stop)
+
+    def test_the_edit_prompts_on_an_empty_decision_are_classic_only(self):
+        for width in (1400, 900):
+            with self.subTest(width=width, classic=self.classic_on), chrome() as cdp:
+                sent, sid = self.load(cdp, width, "TUL-D-016", edit=True)
+                got = cdp.js("[...document.querySelectorAll('#peek [data-pk-prompt]')].map(e => e.textContent.trim())", sid)
+                if self.classic_on:
+                    self.assertTrue(got, "Classic shows the prompts")
+                    self.assertTrue(any(w.startswith("Add ") for w in got), got)
+                else:
+                    self.assertEqual(got, [], "Cards draws no prompt: its text is as on main")
+
+
+class PromptsClassic(PromptsCards):
+    classic_on = True
+
+
 class Milestone(_m.Base):
     cur = _m.GO_LIVE
     visit_peek = _m.Fields.visit_peek
