@@ -429,6 +429,19 @@ class TheCard(Card):
                              "1 of 2 changes were saved. The others were not. Check the board and ask again.", "real N and M, exact words")
             self.assertEqual((self.status(), self.store.read("actions", ref=self.second)["status"]), ("Closed", "Open"))
 
+    def test_apply_all_says_nothing_of_partial_saves_when_none_saved(self):         # the note is for some but not all
+        self.two_cards()
+        busy = (409, {"ok": False, "code": "busy", "message": "Another change is being saved. Try again in a moment."})
+        with chrome() as cdp, mock.patch.object(self.service, "change_apply", lambda body: busy):
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            p.until("document.querySelectorAll('[data-ask-change]').length === 2", "both cards")
+            p.js("document.querySelector('[data-ask-apply-all]').click()")
+            p.until("document.querySelectorAll('[data-ask-line]').length === 2", "both cards say it was not saved")
+            self.assertEqual(p.js("document.querySelectorAll('[data-ask-group-line], [data-ask-undo-all]').length"), 0, "no 'N of M saved' note, no Undo all")
+            self.assertEqual((self.status(), self.store.read("actions", ref=self.second)["status"]), ("Open", "Open"))
+
     def test_off_leaves_nothing_to_press(self):
         self.says(self.close_it())
         with chrome() as cdp:
