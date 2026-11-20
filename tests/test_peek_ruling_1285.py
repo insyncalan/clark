@@ -4,7 +4,7 @@ Run: python3 dev/run_tests.py test_peek_ruling_1285
 3. Settings at 900: the chips are 15px, the open page is the brand colour on the tile fill (the 1401 chip), and no chip is clipped.
 4. The milestone peek's tiles keep their full text: wraps at words, grows in height, no ellipsis, scrollHeight not above clientHeight.
 5. Show history is a row: the word at the left, a chevron at the right, 36px high.
-6. The client line is a row with a 40 x 22 switch at the right (the words are the existing ones; the new word is pending).
+6. The client line is a row with a 40 x 22 switch at the right (the words are Shown to the client and Hidden from the client).
 8. A Details value that is a picker carries the mock-up's .val look.
 9. The chips row has 6px under it; a decision's small words are the mock-up's pill.
 """
@@ -63,8 +63,13 @@ class Peek(unittest.TestCase):
                     self.assertEqual((g["w"], g["h"]), (40, 22), g)
                     self.assertLess(g["right"], 3, g)
                     self.assertGreaterEqual(g["rowH"], 36, g)
-                    self.assertEqual(g["words"], "Shown to the client" if g["on"] == "true" else "Client not visible", "the label is the approved one; the off words stay")
+                    self.assertEqual(g["words"], "Shown to the client" if g["on"] == "true" else "Hidden from the client", "the labels are the approved pair")
                     self.assertNotIn("Client visible", g["words"])
+                    self.assertNotIn("Client not visible", g["words"])
+                    want = "Hidden from the client" if g["on"] == "true" else "Shown to the client"
+                    cdp.js("document.querySelector('#peek [data-pk-client]').click()", sid)
+                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek [data-pk-client]').textContent.trim()", sid) == want), "one click flips the pair: " + want)
+                    self.assertNotIn("Client not visible", cdp.js("document.querySelector('#peek').textContent", sid), "Classic never says Client not visible")
 
     def test_an_empty_use_case_button_says_select_use_case_and_a_set_one_its_name(self):
         for width in (1400, 900):
@@ -160,14 +165,15 @@ class Milestone(_m.Base):
                     self.assertIn("Featherstonehaugh", owner["text"], "the full name is in the tile")
 
 
-    def test_the_milestone_client_line_says_shown_to_the_client_and_keeps_the_off_words(self):
+    def test_the_milestone_client_line_says_shown_to_the_client_and_hidden_from_the_client(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.visit_peek(cdp, width=width, view="milestones")
                 p.js("(() => { const h = document.querySelector('#peek [data-pk-details]'); if (h && h.getAttribute('aria-expanded') === 'false') h.click(); })()")
                 self.assertEqual(p.js("document.querySelector('#peek [data-pk-client]').textContent.trim()"), "Shown to the client")
                 p.js("document.querySelector('#peek [data-pk-client]').click()")
-                p.until("document.querySelector('#peek [data-pk-client]').textContent.trim() === 'Client not visible'", "the off words stay")
+                p.until("document.querySelector('#peek [data-pk-client]').textContent.trim() === 'Hidden from the client'", "the off word is the approved one")
+                self.assertNotIn("Client not visible", p.js("document.querySelector('#peek').textContent"))
                 p.js("document.querySelector('#peek [data-pk-client]').click()")           # back on for the next width
                 p.until("document.querySelector('#peek [data-pk-client]').textContent.trim() === 'Shown to the client'", "on again")
 

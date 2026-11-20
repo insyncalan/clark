@@ -252,7 +252,7 @@ function MsClientLine({ m }) {
   return (
     <button type="button" class={`pk-client cv${on ? " on" : ""}`} data-pk-client data-ms-visible aria-pressed={on ? "true" : "false"} disabled={internal}
       onClick={() => setMsHidden(m.id, on, m.name).then(() => reread(project.value))}>
-      <Icon name={on ? "eye" : "eyeoff"} />{on ? (classicTheme() ? "Shown to the client" : "Client visible") : "Client not visible"}{classicTheme() ? <span class="pk-sw" aria-hidden="true" /> : null}
+      <Icon name={on ? "eye" : "eyeoff"} />{on ? (classicTheme() ? "Shown to the client" : "Client visible") : (classicTheme() ? "Hidden from the client" : "Client not visible")}{classicTheme() ? <span class="pk-sw" aria-hidden="true" /> : null}
     </button>
   );
 }

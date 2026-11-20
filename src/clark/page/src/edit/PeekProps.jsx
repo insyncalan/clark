@@ -45,7 +45,7 @@ export function ClientLine({ row }) {
   const run = () => { const c = eyeChange(row); changeCell(c.table, c.id, c.changes, { text: c.words, back: c.back, place: PLACE }); };
   return (
     <button type="button" class={`pk-client cv${on ? " on" : ""}`} data-pk-client aria-pressed={on ? "true" : "false"} onClick={run}>
-      <Icon name={on ? "eye" : "eyeoff"} />{on ? (classicTheme() ? "Shown to the client" : "Client visible") : "Client not visible"}{classicTheme() ? <span class="pk-sw" aria-hidden="true" /> : null}
+      <Icon name={on ? "eye" : "eyeoff"} />{on ? (classicTheme() ? "Shown to the client" : "Client visible") : (classicTheme() ? "Hidden from the client" : "Client not visible")}{classicTheme() ? <span class="pk-sw" aria-hidden="true" /> : null}
     </button>
   );
 }
