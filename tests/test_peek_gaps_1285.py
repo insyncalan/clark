@@ -131,6 +131,9 @@ class Prompts(unittest.TestCase):
 
     def setUp(self):
         self._base_setup()
+        p = classic()          # the prompts are Classic only: the page needs the Theme layered on, as in the Focus class
+        p.start()
+        self.addCleanup(p.stop)
         with self.store.step("dashboard", "Demo User") as st:
             st.update("decisions", "TUL-D-016", {"revisit": "", "replaces": ""})
 
