@@ -259,7 +259,7 @@ class Classic(Setup):
             self.assertIsNotNone(sc)
             for grp in (sw, sc):
                 self.assertEqual(grp["gap"], "0px", "joined")
-                self.assertEqual(grp["rad"], g["radius"], "the group keeps the rounded outer corners")
+                self.assertEqual(grp["rad"], "6px", "the group keeps rounded outer corners, 6px since row 1319 (the --radius less 2px)")
                 self.assertEqual(grp["ov"], "hidden", "the square buttons are clipped to the rounded outer corners")
                 self.assertEqual(grp["pad"], "12px 12px", "each button keeps its side padding")
                 self.assertEqual(grp["div"], rgb_of(g["heading"]), "the rule between neighbours is the heading colour")

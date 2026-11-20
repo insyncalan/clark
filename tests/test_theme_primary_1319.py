@@ -33,7 +33,7 @@ class PrimaryRect(Computed):
 
     def test_each_primary_selector_is_the_navy_rect_at_each_width_in_light_and_dark(self):
         html = page.page_html(branding=page.NO_BRAND, theme=NAME)
-        want = {"borderTopWidth": "0px", "borderRadius": "8px", "paddingLeft": "22px", "paddingRight": "22px", "minHeight": "38px",
+        want = {"borderTopWidth": "0px", "borderRadius": "6px", "paddingLeft": "22px", "paddingRight": "22px", "minHeight": "38px",
                 "fontWeight": "800", "letterSpacing": "0.56px", "backgroundColor": {"light": "rgb(6, 47, 58)", "dark": "rgb(4, 32, 42)"},
                 "backgroundImage": "none", "color": "rgb(255, 255, 255)",
                 "boxShadow": {"light": "none", "dark": "rgb(111, 127, 163) 0px 0px 0px 1px inset"}}
@@ -52,7 +52,7 @@ class PrimaryRect(Computed):
                         self.assertEqual(self.style(cdp, sid, sel, "outlineWidth"), "2px", f"{tag} {sel}")
                         self.assertEqual(self.style(cdp, sid, sel, "outlineOffset"), "2px", f"{tag} {sel}")
                     # the plain button keeps its 8px corner
-                    self.assertEqual(self.style(cdp, sid, "#b1", "borderRadius"), "8px", tag)
+                    self.assertEqual(self.style(cdp, sid, "#b1", "borderRadius"), "6px", tag)
                     self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), tag)
 
     def test_disabled_finished_spinner_and_tick(self):
@@ -68,7 +68,7 @@ class PrimaryRect(Computed):
                     self.assertEqual(self.style(cdp, sid, "#e-ok", "backgroundColor"), green[scheme], tag)
                     self.assertEqual(self.style(cdp, sid, "#e-ok", "backgroundImage"), "none", tag)
                     self.assertEqual(self.style(cdp, sid, "#e-ok", "color"), "rgb(255, 255, 255)" if scheme == "light" else "rgb(4, 34, 42)", tag)
-                    self.assertEqual(self.style(cdp, sid, "#e-ok", "borderRadius"), "8px", tag)
+                    self.assertEqual(self.style(cdp, sid, "#e-ok", "borderRadius"), "6px", tag)
                     self.assertEqual(self.style(cdp, sid, "#e-go .spin", "borderTopColor"), "rgb(255, 255, 255)", tag)
                     self.assertEqual(self.style(cdp, sid, "#e-tick .pub-tick", "backgroundColor"), "rgb(255, 255, 255)", tag)
                     self.assertEqual(self.style(cdp, sid, "#e-tick .pub-tick", "color"), green[scheme], tag)

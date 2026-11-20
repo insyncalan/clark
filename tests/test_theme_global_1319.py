@@ -73,7 +73,7 @@ class Computed(unittest.TestCase):
                     for h in ("h1", "h2", "h3"):
                         self.assertEqual(self.style(cdp, sid, "#probe " + h, "fontWeight"), "600", f"{tag} {h}")
                     for sel in ("#sg", "#sc", "#cs", "#b1", "#md"):
-                        self.assertEqual(self.style(cdp, sid, sel, "borderRadius"), "8px", f"{tag} {sel}")
+                        self.assertEqual(self.style(cdp, sid, sel, "borderRadius"), "6px", f"{tag} {sel}")
                     for sel in (".crumbs", ".ucd-crumb", ".ucf-crumb"):
                         self.assertEqual(self.style(cdp, sid, "#probe " + sel, "textTransform"), "none", f"{tag} {sel}")
                         self.assertEqual(self.style(cdp, sid, "#probe " + sel, "letterSpacing"), "normal", f"{tag} {sel}")
@@ -83,7 +83,7 @@ class Computed(unittest.TestCase):
                         self.assertGreaterEqual(ratio(parse(bg), parse(fg)), 4.5, f"{tag} {sel} {bg} {fg}")
                         self.assertEqual(bg, "rgb(4, 32, 42)" if scheme == "dark" else "rgb(6, 47, 58)", f"{tag} {sel}")
                         self.assertEqual(fg, "rgb(255, 255, 255)", f"{tag} {sel}")
-                    self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#md'), '::before').borderRadius", sid), "8px", tag)
+                    self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#md'), '::before').borderRadius", sid), "6px", tag)
                     cdp.js("document.querySelector('#sg button').focus()", sid)
                     self.assertEqual(self.style(cdp, sid, "#sg button[aria-pressed=true]", "outlineColor"), "rgb(255, 255, 255)", tag)
                     self.assertEqual(self.style(cdp, sid, "#sg button[aria-pressed=true]", "outlineOffset"), "-3px", tag)
