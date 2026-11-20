@@ -53,12 +53,35 @@ class Words(unittest.TestCase):
     def test_every_colour_and_icon_is_named_and_the_tone_looks_are_kept(self):
         from clark.section_kinds import callout
         self.assertEqual(tuple(callout.COLOURS), ("plain", "violet", "amber", "red", "green", "grey"))
-        self.assertEqual(len(callout.ICONS), 21)
+        self.assertEqual(len(callout.ICONS), 26)
         self.assertIn("shield", callout.ICONS)
+        # row 1272 gap 2: the ticket's five more icons, named as the ticket names them
+        self.assertEqual({k: callout.ICONS[k] for k in ("flash", "sparkle", "eye", "gear", "table")},
+                         {"flash": "Lightning", "sparkle": "Sparkle", "eye": "Eye", "gear": "Gear", "table": "Table"})
         self.assertEqual(callout.COLOURS["grey"], "Grey")
         self.assertEqual(callout.TONE_LOOK, {"info": ("violet", "info"), "decision": ("amber", "question"), "warning": ("red", "warning")})
         self.assertEqual(callout.upgrade({"v": 1, "tone": "warning"}),
                          {"v": 1, "tone": "warning", "category": "Warning", "colour": "red", "icon": "warning", "tile": True, "heading": True})
+
+    def test_every_server_icon_is_drawable_and_the_page_list_matches_the_server_list(self):
+        import re
+        from pathlib import Path
+        from clark.section_kinds import callout
+        src = Path(callout.__file__).parent.parent / "page" / "src"
+        notes = (src / "templates" / "notes.js").read_text()
+        page = dict(re.findall(r'(\w+): "([^"]+)"', re.search(r"export const ICONS = \{(.*?)\};", notes, re.S).group(1)))
+        self.assertEqual(page, callout.ICONS, "client and server icon lists are the same names in the same order")
+        self.assertEqual(list(page), list(callout.ICONS))
+        glyphs = (src / "components" / "Icon.jsx").read_text()
+        for k in callout.ICONS:
+            if k != "none":
+                self.assertTrue(re.search(rf"^\s*{k}: '<", glyphs, re.M), f"{k} has a drawing in Icon.jsx")
+
+    def test_the_five_new_icons_are_kept_and_named_in_the_published_words(self):
+        from clark.section_kinds import callout
+        for k, n in (("flash", "Lightning"), ("sparkle", "Sparkle"), ("eye", "Eye"), ("gear", "Gear"), ("table", "Table")):
+            self.assertEqual(callout.words({"v": 1, "icon": k})["icon_name"], n)
+            self.assertEqual(callout.check({"v": 1, "tone": "info", "icon": k}, None)["icon"], k)
 
     def test_words_alone_carries_the_category_colour_and_icon(self):
         from clark.section_kinds import callout
@@ -273,7 +296,7 @@ class Page(n.PageChecks):
             self.assertEqual(json.loads(self.body_of(ref))["category"], "Decision needed", "the word an older callout drew is kept")
             p.js(f"{q('Choose an icon')}.click()")
             p.until(f"!!document.querySelector('{sec} [role=listbox]')", "the icons are listed")
-            self.assertEqual(p.js(f"document.querySelectorAll('{sec} [role=option]').length"), 21, "20 icons and No icon")
+            self.assertEqual(p.js(f"document.querySelectorAll('{sec} [role=option]').length"), 26, "25 icons and No icon")
             p.js(f"[...document.querySelectorAll('{sec} [role=option]')].find(o => o.textContent === 'Key').click()")
             self.assertTrue(wait(lambda: json.loads(self.body_of(ref)).get("icon") == "key", 10), self.body_of(ref))
             self.assertFalse(p.js(f"!!document.querySelector('{sec} [role=listbox]')"), "choosing closes the list")
