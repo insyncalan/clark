@@ -16,7 +16,8 @@ PROBE = """(() => { const g = id => { const e = document.getElementById(id); con
   const pill = document.querySelector('#usecases .pill'); const pc = pill ? getComputedStyle(pill) : null;
   const rule = getComputedStyle(document.querySelector('.frame.ucl'));
   const ref = document.createElement('i'); ref.style.color = 'var(--grey-500)'; document.body.appendChild(ref); const grey = getComputedStyle(ref).color; ref.remove();
-  return { group: g('ucl-group'), sort: g('ucl-sort'), grey, pill: pc && { size: pc.fontSize, weight: pc.fontWeight, h: pill.getBoundingClientRect().height, lh: pc.lineHeight },
+  return { group: g('ucl-group'), sort: g('ucl-sort'), grey, pill: pc && { size: pc.fontSize, weight: pc.fontWeight, h: pill.getBoundingClientRect().height, lh: pc.lineHeight, pl: pc.paddingLeft, pr: pc.paddingRight },
+    add: (() => { const a = document.getElementById('ucAddPage'); return { h: a.getBoundingClientRect().height, r: getComputedStyle(a).borderTopLeftRadius }; })(),
     vnewR: getComputedStyle(document.getElementById('ucl-viewNew')).borderTopLeftRadius,
     rule: { r: rule.borderTopLeftRadius, rb: rule.borderBottomLeftRadius, left: rule.borderLeftWidth } }; })()"""
 
@@ -36,7 +37,9 @@ class App(ucl.Setup):
                 for k in ("group", "sort"):
                     self.assertEqual((g[k]["w"], g[k]["s"], g[k]["r"]), ("1px", "solid", "6px"), f"{width} {k}")
                     self.assertEqual(g[k]["col"], g["grey"], f"{width} {k} line colour is --grey-500")
-                    self.assertGreaterEqual(g[k]["h"], 28, f"{width} {k} at least 28 px high")
+                    self.assertEqual(g[k]["h"], 28, f"{width} {k} exactly 28 px high")
+                self.assertEqual(g["add"]["h"], 28, f"{width} Add exactly 28 px high")
+                self.assertEqual(g["add"]["r"], "6px", f"{width} Add 6px corners")
 
     def test_item_2_weight_500_and_new_view_radius_6(self):
         for width in (1400, 900):
@@ -49,8 +52,8 @@ class App(ucl.Setup):
     def test_item_6_pill_is_20px_high(self):
         for width in (1400, 900):
             with self.subTest(width=width):
-                g = self.got(width)
-                self.assertEqual((g["pill"]["h"], g["pill"]["lh"]), (20, "20px"), "usecases.css line 73: line-height 20px, 20 px high")
+                p = self.got(width)["pill"]
+                self.assertEqual((p["h"], p["lh"], p["pl"], p["pr"], p["size"], p["weight"]), (20, "20px", "10px", "10px", "13px", "600"), "usecases.css line 73: box 20 high, line-height 20, padding 0 10, 13px/600")
 
     def test_item_9_left_rule_square_in_dark_at_900_and_1400(self):
         for width in (900, 1400):

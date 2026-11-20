@@ -22,7 +22,7 @@ class App(ucl.Setup):
                 p = self.show(cdp, width=width, dark=False)
                 got = p.js(PROBE)
                 self.assertEqual(got["h"], 28, f"{width}: Add button 28 px high")
-                self.assertEqual(got["w"], "1px")
+                self.assertEqual((got["w"], got["style"]), ("1px", "dashed"))
 
 
 if __name__ == "__main__":
