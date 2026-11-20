@@ -25,10 +25,12 @@ export function ColsPanel(props) {
     queueMicrotask(() => {
       const el = box.current;
       if (!el || !el.isConnected) return;
-      const h = el.offsetHeight, room = window.innerHeight - 16;
-      if (h > room) { el.style.maxHeight = `${room}px`; el.style.top = "8px"; return; }
+      const bar = document.querySelector(".top"), floor = Math.max(8, bar && getComputedStyle(bar).position === "sticky" ? Math.ceil(bar.getBoundingClientRect().bottom) + 8 : 8);      // the sticky top bar is the floor: the menu never goes under it
+      const h = el.offsetHeight, room = window.innerHeight - floor - 8;
+      if (h > room) { el.style.maxHeight = `${room}px`; el.style.top = `${floor}px`; return; }
       const top = parseFloat(el.style.top) || 0;
-      if (top + h > window.innerHeight - 8) el.style.top = `${Math.max(8, window.innerHeight - h - 8)}px`;
+      if (top < floor) el.style.top = `${floor}px`;
+      else if (top + h > window.innerHeight - 8) el.style.top = `${Math.max(floor, window.innerHeight - h - 8)}px`;
     });
   }, []);
   return <MenuPanel {...props} boxRef={box} />;
