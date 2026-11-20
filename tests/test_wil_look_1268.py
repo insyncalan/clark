@@ -53,7 +53,7 @@ class FilterNoRing(Look):
 
 class NewListOrder(Look):
     def test_a_new_classic_list_draws_owner_due_priority_id_and_no_type_at_1400_and_900(self):
-        ref = self.add({})
+        ref = self.add(json.loads(T.wi.START))
         for width in (1400, 900):
             with T.chrome() as cdp:
                 p = self.show(cdp, width)

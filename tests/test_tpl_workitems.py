@@ -50,7 +50,7 @@ class Checker(unittest.TestCase):
         got = check({})
         self.assertEqual(got, {"v": 1, "kinds": [], "mode": "open", "status": [], "due": [], "owner": [], "workstream": [],
                                "use_case": [], "priority": [], "sort": "due", "max": 10,
-                               "columns": ["id", "owner", "due", "priority"], "caption": "",      # row 1268: no Type; row 1199: Status, Workstream and Milestone start off
+                               "columns": ["type", "id", "owner", "due", "priority"], "caption": "",      # row 1268: a body with no columns key keeps Type (only the new-list body, START, drops it); row 1199: Status, Workstream and Milestone start off
                                "milestone": [], "not": {k: [] for k in wi.LEFT_OUT}, "has": [], "no": [], "text": []})
         self.assertEqual(set(got), set(wi.KEYS))
 
@@ -313,11 +313,14 @@ class PageRules(unittest.TestCase):
                 self.assertIn("problem", self.val(f"L.readLine({json.dumps(line)}, W.defaults(), [])"))
 
     def test_the_page_and_publish_name_the_same_choices(self):
-        for name in ("KINDS", "MODES", "STATUSES", "DUE", "PRIORITIES", "SORTS", "COLUMNS", "DEFAULT_COLUMNS"):
+        for name in ("KINDS", "MODES", "STATUSES", "DUE", "PRIORITIES", "SORTS", "COLUMNS"):
             self.assertEqual(self.val(f"W.{name}"), list(getattr(wi, name)), name)
+        # row 1268: a new list starts without Type (the page's DEFAULT_COLUMNS = the START body); a body naming no column keeps Type (SAVED_FALLBACK_COLUMNS = DEFAULT_COLUMNS here)
+        self.assertEqual(self.val("W.DEFAULT_COLUMNS"), json.loads(wi.START)["columns"])
+        self.assertEqual(self.val("W.SAVED_FALLBACK_COLUMNS"), list(wi.DEFAULT_COLUMNS))
         for name in ("NONE", "MAX_ROWS", "DEFAULT_MAX", "MAX_CAPTION"):
             self.assertEqual(self.val(f"W.{name}"), getattr(wi, name), name)
-        self.assertEqual(self.val("W.defaults()"), check({}))
+        self.assertEqual(self.val("W.defaults()"), check(json.loads(wi.START)))
 
     def test_the_served_list_keeps_only_what_would_publish(self):
         data = {"project": {"code": "ABC"}, "labels": {"ABC-A-002": ["Sensitive"]}, "report_sections": [], "use_cases": [], "milestones": [],
@@ -685,7 +688,7 @@ class InThePage(PageBase):
                 self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr').length"), 3)
 
     def test_no_link_when_every_row_is_already_shown_and_new_columns_start_off(self):
-        ref = self.add({"mode": "all", "owner": ["Pat Demo", "Lee Demo"]})
+        ref = self.add(dict(json.loads(wi.START), mode="all", owner=["Pat Demo", "Lee Demo"]))
         with chrome() as cdp:
             p = self.show(cdp)
             p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .wil-table')", "the list drew")
@@ -793,7 +796,7 @@ class InThePage(PageBase):
             self.assertEqual(self.store.read("report_sections", ref=ref)["body"], "")
 
     def test_the_number_and_the_caption_save_when_left_and_a_bad_number_is_refused(self):
-        ref = self.add({})
+        ref = self.add(json.loads(wi.START))
         with chrome() as cdp:
             p = self.show(cdp)
             p.edit()
@@ -1155,7 +1158,7 @@ class InThePage(PageBase):
                 self.assertTrue(got[7], "no Caption box is left under the list")
 
     def test_two_ticks_made_before_the_first_reply_are_both_kept(self):
-        ref = self.add({})
+        ref = self.add(json.loads(wi.START))
         with chrome() as cdp:
             p = self.show(cdp)
             p.edit()

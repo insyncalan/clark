@@ -120,6 +120,7 @@ export function filterOf(section) {
   if (!v || typeof v !== "object" || Array.isArray(v)) return null;
   const out = defaults();
   for (const f of [...FILTERS, "columns", "milestone", "text"]) if (isList(v[f])) out[f] = v[f].slice();
+  if (!isList(v.columns)) out.columns = SAVED_FALLBACK_COLUMNS.slice();      // row 1268: a saved body with no columns key keeps what it always showed; only a NEW list starts without Type
   if (v.not && typeof v.not === "object" && !Array.isArray(v.not)) for (const f of LEFT_OUT) if (isList(v.not[f])) out.not[f] = v.not[f].slice();
   for (const f of ["has", "no"]) if (Array.isArray(v[f])) out[f] = v[f].filter((g) => isList(g) && g.length).map((g) => g.slice());
   if (MODES.includes(v.mode)) out.mode = v.mode;

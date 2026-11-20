@@ -23,7 +23,6 @@ class DefaultColumns(unittest.TestCase):
 
     def test_the_saved_start_body_has_no_type(self):
         self.assertEqual(json.loads(wi.START)["columns"], WANT)
-        self.assertEqual(list(wi.DEFAULT_COLUMNS), WANT)
 
     def test_a_saved_list_keeps_the_columns_and_the_order_it_names(self):
         saved = ["type", "id", "owner", "due", "priority"]
@@ -37,6 +36,15 @@ class DefaultColumns(unittest.TestCase):
         self.assertEqual(run_node("W.listOf({items: [], columns: []}, {}, '2030-01-01').columns"), old)
         self.assertEqual(run_node("W.listOf({items: []}, {}, '2030-01-01').columns"), old)
         self.assertNotEqual(old, WANT)
+
+    def test_a_saved_filter_body_with_no_columns_key_keeps_type(self):
+        old = ["type", "id", "owner", "due", "priority"]
+        body = json.loads(wi.START)
+        del body["columns"]
+        self.assertEqual(wi.check(body, None)["columns"], old)
+        js = json.dumps(json.dumps(body))
+        self.assertEqual(run_node("W.filterOf({body: " + js + "}).columns"), old)
+        self.assertEqual(run_node("W.filterOf({body: JSON.stringify(W.defaults())}).columns"), WANT)
 
     def test_type_is_still_a_choice(self):
         self.assertIn("type", wi.COLUMNS)
