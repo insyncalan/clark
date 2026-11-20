@@ -1068,6 +1068,11 @@
         "Full or half"
        ],
        [
+        "Report headline",
+        "A health pill, a headline and a supporting sentence at the top of the report.",
+        "Full or half"
+       ],
+       [
         "Callout",
         "One thing the reader must see.",
         "Half or full"
@@ -1897,7 +1902,7 @@
        ],
        [
         "Theme",
-        "Choose the look of your pages from the two the card offers. Your choice applies the next time the page loads, and pages you published before keep the look they had."
+        "Choose the look of your pages from the two the card offers. Your choice applies the next time the page loads, and pages you published before keep the look they had. The Theme changes the pages. Word, Excel and email files, and the installed app, keep clark’s own colours."
        ],
        [
         "People",
