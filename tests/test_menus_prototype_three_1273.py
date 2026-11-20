@@ -49,9 +49,9 @@ class ThreeMenus(unittest.TestCase):
         start = text.index("/* Row 1273")
         self.assertNotIn("34px", text[start:text.index("/* Row 1409", start)])   # the 34px gap is gone from the Row 1273 block
 
-    def test_item_padding_is_the_tick_slot_and_no_other_offset(self):
-        self.assertEqual(decls(GROUP + ' [role="menuitemradio"]', "padding-left"), "var(--space-4)")
-        self.assertEqual(decls(MOVE + ':not(#none) [role="menuitem"]', "padding-left"), "var(--space-4)")
+    def test_item_padding_left_is_the_prototype_10px(self):
+        self.assertEqual(decls(GROUP + ' [role="menuitemradio"]', "padding-left"), "calc(var(--space-2) + 2px)")   # the prototype's 7px 10px
+        self.assertEqual(decls(MOVE + ':not(#none) [role="menuitem"]', "padding-left"), "calc(var(--space-2) + 2px)")
 
     def test_tick_slot_16px_in_group_by_and_move_to(self):
         self.assertEqual(decls(GROUP + ' [role="menuitemradio"] .ck', "width"), "var(--space-4)")
