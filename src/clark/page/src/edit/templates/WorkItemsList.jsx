@@ -9,12 +9,14 @@ import { columnIcon } from "../../menuIcons.js";
 import { data, openPeek, rows as reportRows, filterCtx } from "../../stores/report.js";
 import { LineBox } from "../../components/FilterLine.jsx";
 import { change, say } from "../../stores/changes.js";
-import { Rows, Listing, Foot, today, classicTheme } from "../../templates/WorkItemsList.jsx";
+import { Rows, Listing, Foot, today, classicTheme, colTools } from "../../templates/WorkItemsList.jsx";
 import { sortChoices, COLUMNS, MAX_ROWS, MAX_CAPTION, WORDS, defaults, filterOf, bodyOf,
   editListOf, drawRows, drawn, idsToShow } from "../../templates/workItemsList.js";
 import { Eye } from "../cells/Eye.jsx";
 import { Cell } from "../cells/Cell.jsx";
-import { useColWidths } from "../colWidths.jsx";
+import { useColWidths, useColOrder } from "../colWidths.jsx";
+
+colTools.current = { useColWidths, useColOrder };      // row 1195: the View list uses the same hooks (Classic)
 import { NewTile } from "../../components/NewTile.jsx";
 import { addItem, ADDABLE } from "../addItem.js";
 import { plural } from "../../workItems.js";
@@ -69,7 +71,8 @@ const addOne = (kind) => addItem(kind, "report", true);
 export function Edit({ section }) {
   const [cfg, setCfg] = useState(false);          // row 1268: the Configure box (the gear) is open
   const gearRef = useRef(null);
-  const cw = useColWidths(`wil-${section.id}`);      // row 1268, item 12: the page's column widths, kept for this list
+  const cw = useColWidths(`wil-${section.id}`, classicTheme());      // row 1268, item 12: the page's column widths, kept for this list
+  const ord = useColOrder(`wil-${section.id}`);     // row 1195: the order of the columns (Classic), kept for this list
   const [tick, setTick] = useState(0);              // a refused save draws the form again from what is saved
   const d = data.value || {};
   const saved = filterOf(section);
@@ -173,7 +176,7 @@ export function Edit({ section }) {
       {saved && !rows.length ? <p class="wil-none" data-wil-say="none" role="status">{NO_MATCH}</p> : null}
       {saved && rows.length && rows.length === list.off.length ? <p class="wil-none" data-wil-say="all-hidden" role="status">{ALL_HIDDEN}</p> : null}
       {saved && list.caption && rows.length ? <p class="wil-cap">{list.caption}</p> : null}
-      {saved && rows.length ? <Listing max={list.max} count={rows.length}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Eye={Eye} Cell={Cell} cw={cw} head={headProps} /></Listing> : null}
+      {saved && rows.length ? <Listing max={list.max} count={rows.length} sid={section.id}><Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} Eye={Eye} Cell={Cell} cw={cw} ord={ord} head={headProps} /></Listing> : null}
       {colMenu}
       {saved && rows.length ? <Foot section={section} total={rows.length} max={list.max} edit nameOf={nameOf} /> : null}
     </div>
