@@ -24,7 +24,7 @@ PROBE = """function(sel) { const e = document.querySelector(sel); if (!e) return
   const tok = (v, p) => { const i = document.createElement('i'); i.style[p] = v; document.body.appendChild(i); const r = getComputedStyle(i)[p]; i.remove(); return r; };
   return { size: g('fontSize'), weight: g('fontWeight'), color: g('color'), parent: getComputedStyle(e.parentElement).color, case: g('textTransform'), track: g('letterSpacing'), family: g('fontFamily'),
     border: g('borderTopWidth') + ' ' + g('borderTopColor'), radius: g('borderTopLeftRadius'), grey500: tok('var(--grey-500)', 'borderTopColor'), heading: tok('var(--heading)', 'color'),
-    head: tok('var(--font-head)', 'fontFamily') }; }"""
+    head: tok('var(--font-head)', 'fontFamily'), muted: tok('var(--text-muted)', 'color') }; }"""
 
 
 class Real(unittest.TestCase):
@@ -75,6 +75,8 @@ class Real(unittest.TestCase):
                 self.assertEqual(c["family"], c["head"], tag + ": sub-heading in the heading face")
             elif slug in ("profile", "essentials", "version"):
                 self.assertEqual((c["size"], c["weight"]), ("15px", "600"), tag + ": label 15 px, 600")
+                if slug == "version":      # the ticket names size and weight only: the Update rows' label keeps the muted colour it was built with
+                    self.assertEqual(c["color"], c["muted"], tag + ": the Update rows' label stays the muted text colour (computed)")
             else:
                 self.assertEqual(c["border"].split(" ", 1)[0], "1px", tag)
                 self.assertEqual(c["radius"], "14px", tag + ": spacing card radius 14")

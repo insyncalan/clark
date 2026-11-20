@@ -117,7 +117,7 @@ class SettingsEdge(unittest.TestCase):
         rules = (ROOT / "src" / "clark" / "themes" / NAME / "rules.css").read_text(encoding="utf-8")
         hits = re.findall(r"^[^/\n][^\n]*border-color: var\(--grey-200\); \}$", rules, re.M)
         self.assertEqual(len([h for h in hits if ".set-cards .frame" in h]), 1, "one rule sets the exempt border")
-        self.assertNotIn(".btn.pri", rules.split("/* Row 1406")[1].split("/* Row 1314")[0], "primary buttons are not exempt")
+        self.assertNotIn(".btn.pri", rules.split("/* Row 1406")[1].split("/* Row 1400")[0], "primary buttons are not exempt")
 
 
 if __name__ == "__main__":
