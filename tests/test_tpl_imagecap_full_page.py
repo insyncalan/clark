@@ -455,6 +455,23 @@ class Page(unittest.TestCase):
                 self.assertTrue(m["fits"] and m["bar"], (page, theme, m))
                 self.assertAlmostEqual(m["stage"], width, delta=2)
 
+    def test_half_width_edit_and_view_fit_with_the_toolbar_wrapping_and_the_pair_stacks_at_900(self):
+        """Row 1223: Image at half width (about 600 px at 1400; the pair stacks at 900, where it is the full width the tests above draw)."""
+        big = self.framed(2000, 800)
+        self.mount({"v": 2, "pictures": {"image": big}}, "view", 600, 1400)
+        self.until("document.querySelector('.tpl-fullimg-img').complete", "loaded")
+        m = self.val("(function(){const i = document.querySelector('.tpl-fullimg-img').getBoundingClientRect(); return {fits: document.documentElement.scrollWidth <= window.innerWidth, img: i.width};})()")
+        self.assertTrue(m["fits"])
+        self.assertAlmostEqual(m["img"], 600, delta=1)
+        self.mount(None, "edit", 600, 1400)
+        self.val("drop(2400, 1200, 'bands')", True)
+        self.until("document.querySelector('.fi-stage') && document.querySelector('.fi-pic').complete", "the stage")
+        m = self.val("(function(){const s = document.querySelector('.fi-stage').getBoundingClientRect(), b = document.querySelector('.fi-bar').getBoundingClientRect(); const out = [...document.querySelectorAll('.fi-bar .fi-btn')].filter(x => { const r = x.getBoundingClientRect(); return r.right > b.right + 1 || r.left < b.left - 1; }).length; return {fits: document.documentElement.scrollWidth <= window.innerWidth, stage: s.width, bar: b.right <= s.right + 1, clipped: out, rows: b.height};})()")
+        self.assertTrue(m["fits"] and m["bar"], m)
+        self.assertEqual(m["clipped"], 0, "no tool clipped at half width")
+        self.assertAlmostEqual(m["stage"], 600, delta=2)
+        self.assertGreater(m["rows"], 40, "the toolbar wraps onto a second row")
+
     def test_the_published_image_is_the_framed_copy_view_reads_and_an_old_image_with_caption_still_draws(self):
         url = self.framed(900, 300, "bands")
         body = {"v": 2, "pictures": {"image": url, "original": self.framed(900, 900, "bands")}, "shape": "banner"}
