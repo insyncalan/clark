@@ -53,12 +53,12 @@ def js(expr, timeout=None):
 
 class Names(unittest.TestCase):
     def test_each_rule_gives_its_message(self):
-        self.assertIn("at least 2", js('AS.nameProblem("a")'))
-        self.assertIn("at most 24", js('AS.nameProblem("a".repeat(25))'))
-        self.assertIn("lower case", js('AS.nameProblem("Check")'))
-        self.assertIn("spaces", js('AS.nameProblem("my check")'))
-        self.assertIn("start with a letter", js('AS.nameProblem("1ab")'))
-        self.assertIn("only lower case letters, numbers and hyphens", js('AS.nameProblem("a_b")'))
+        self.assertEqual(js('AS.nameProblem("a")'), "The name needs at least 2 characters.")
+        self.assertEqual(js('AS.nameProblem("a".repeat(25))'), "The name can be at most 24 characters.")
+        self.assertEqual(js('AS.nameProblem("Check")'), "Use lower case letters only in the name.")
+        self.assertEqual(js('AS.nameProblem("my check")'), "The name cannot have spaces. Use a hyphen instead.")
+        self.assertEqual(js('AS.nameProblem("1ab")'), "The name must start with a letter.")
+        self.assertEqual(js('AS.nameProblem("a_b")'), "The name can have only lower case letters, numbers and hyphens.")
         self.assertIn("built-in", js('AS.nameProblem("who",[],"",B)'))
         self.assertIn("already have", js('AS.nameProblem("check",["check"],"",B)'))
 
@@ -109,8 +109,8 @@ class Limits(unittest.TestCase):
         self.assertIn("20 slash commands", js('T(()=>AS.copy(%s,{name:"aa-1"},B))' % many))
 
     def test_lengths_say_why(self):
-        self.assertIn("at most 70", js('AS.problems({...%s,menu:"m".repeat(71)},[],B)[0]' % GOOD))
-        self.assertIn("at most 1,000", js('AS.problems({...%s,text:"t".repeat(1001)},[],B)[0]' % GOOD))
+        self.assertEqual(js('AS.problems({...%s,menu:"m".repeat(71)},[],B)[0]' % GOOD), "The line in the menu can be at most 70 characters.")
+        self.assertEqual(js('AS.problems({...%s,text:"t".repeat(1001)},[],B)[0]' % GOOD), "The instructions can be at most 1,000 characters.")
         self.assertEqual(js('AS.problems(%s,[],B)' % GOOD), [])
         self.assertTrue(js('AS.problems({...%s,text:"  "},[],B).length' % GOOD))
 
@@ -180,7 +180,7 @@ class Killers(unittest.TestCase):
     def test_copy_details(self):
         self.assertEqual(js('AS.copy([{name:"check-2",%s,result:"draft"}],{name:"check-2"},B).map(x=>[x.name,x.result])' % 'menu:"m",text:"t",scope:"anywhere"')[1], ["check-3", "draft"])
         self.assertEqual(js('AS.copy([],{builtin:true,name:"who"},[{name:"who",menu:"m",text:"t",scope:"anywhere",result:"answer",builtin:true},{name:"who-2",menu:"m",text:"t",scope:"anywhere",result:"answer",builtin:true}])[0].name'), "who-3")
-        self.assertIn("Nothing to copy", js('T(()=>AS.copy([],{name:"zz"},B))'))
+        self.assertEqual(js('T(()=>AS.copy([],{name:"zz"},B))'), "ERR Nothing to copy.")
         self.assertLessEqual(len(js('AS.copy([{name:%s,%s}],{name:%s},B)[1].name' % ((json.dumps("a" * 23),) + (OWN,) + (json.dumps("a" * 23),)))), 24)
         r = js('AS.copy(AS.save([],{builtin:true,name:"who",menu:"Mine",text:"My text",scope:"anywhere",result:"draft"},B),{builtin:true,name:"who"},B)')
         self.assertEqual([r[1]["text"], r[1]["result"]], ["My text", "draft"])
