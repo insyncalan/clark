@@ -22,6 +22,7 @@ import { FormattedAnswer } from "./AskFormat.jsx";
 import { AskDraft } from "./AskDraft.jsx";
 import { readDraft } from "./askDraft.js";
 import * as F from "./askFiles.js";
+import { nowMs } from "../workItems.js";
 
 // Row 890: the files an answer used, as the server sends them ({id, label}). A long file is cut into parts labelled "name (part N)":
 // the suffix is dropped and each file is listed once, in the order first seen.
@@ -115,9 +116,9 @@ export function AskPanel() {
   }, [list.length, busy]);
   useEffect(() => {
     if (!busy) { setSecs(0); return undefined; }
-    const from = Date.now();
+    const from = nowMs();
     setSecs(0);
-    const t = setInterval(() => setSecs((Date.now() - from) / 1000), 1000);
+    const t = setInterval(() => setSecs((nowMs() - from) / 1000), 1000);
     return () => clearInterval(t);
   }, [busy]);
 

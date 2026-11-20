@@ -53,8 +53,8 @@ class Gone(unittest.TestCase):
         self.assertRegex(PANEL, r'id="ask-step" aria-hidden="true"')
 
     def test_the_clock_ticks_each_second_from_the_moment_of_the_send_in_whole_seconds_of_ms(self):
-        self.assertIn("const from = Date.now();", PANEL)
-        self.assertIn("setSecs((Date.now() - from) / 1000), 1000)", PANEL)
+        self.assertIn("const from = nowMs();", PANEL)
+        self.assertIn("setSecs((nowMs() - from) / 1000), 1000)", PANEL)
 
     def test_the_line_stays_on_one_row_and_shrinks_with_an_ellipsis(self):
         rule = re.search(r"\.ask-step \{([^}]*)\}", CSS).group(1)
