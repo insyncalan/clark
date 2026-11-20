@@ -7,7 +7,7 @@ from _paths import SRC  # noqa: F401
 
 from test_ask_index_1366 import Base, ix
 from test_ask_pdf_passages import FAKE_PYPDF, pdf
-from clark import pdf_reader, platform
+from clark import ask_passages, pdf_reader, platform
 
 
 class Limits(Base):
@@ -38,6 +38,16 @@ class Limits(Base):
         self.build()
         self.assertEqual(ix.status(self.data, "P1", None)["indexed"], 1)
         self.assertTrue(self.found("zqpage201"))
+
+    def test_the_question_path_passes_no_limits_to_the_pdf_reader(self):
+        self.put("long.pdf", pdf([f"zqpage{i}" for i in range(1, 202)]), binary=True)
+        real = pdf_reader.read
+        with mock.patch.object(pdf_reader, "read", side_effect=real) as spy:
+            found = ask_passages.folder_data([str(self.box)], self.data, "zqpage1", home=None)
+        self.assertEqual(spy.call_count, 1)
+        self.assertEqual(set(spy.call_args.kwargs), {"truncated"})
+        self.assertEqual(len(spy.call_args.args), 1)
+        self.assertEqual((found.pdf, found.pdf_reasons), (1, (("saved/long.pdf", "too_many_pages"),)))
 
     def test_the_page_limit_is_the_index_constant_and_a_file_at_it_is_kept(self):
         self.put("four.pdf", pdf(["zqa", "zqb", "zqc", "zqd"]), binary=True)
