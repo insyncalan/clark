@@ -77,7 +77,10 @@ class HelpAskAndSneakPeek(unittest.TestCase):
         self.assertNotRegex(ASK + json.dumps(RAW["start"]) + json.dumps(RAW["reference"]["keys"]), r"(?i)off until|until you (switch|turn) (it )?on|Turn on asking|switch(ed)? on (in|from) Settings")
         ref = entry("reference", "ask-clark")
         self.assertIn("on from the first start", ref)
-        self.assertIn("**Turn off asking for all projects**", ref)
+        self.assertIn("The Asking switch in the **Asking** card in Settings stops it.", ref)      # row 1294 ruling 33: no quoted label
+        self.assertNotIn("Turn off asking", ref)
+        self.assertIn("The Asking switch (it is on from the first start)", json.dumps(RAW))
+        self.assertNotIn("Turn off asking", json.dumps(RAW), "Help names the switch, not a label that Cards does not show")
         settings = (PAGE / "edit" / "AskSettings.jsx").read_text(encoding="utf-8")
         for name in ("Source folders for ", "Asking in "):
             self.assertIn(name, settings)
