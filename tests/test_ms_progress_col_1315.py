@@ -149,7 +149,7 @@ class ProgressRulesPinned(unittest.TestCase):
         start = rules.index("/* Row 1315, progress part")
         got = [l for l in rules[start:].split("\n/* Row ", 2)[0].split("\n") if l.strip()]
         self.assertEqual(got, [
-            '/* Row 1315, progress part (Classic only): the Milestones list Progress bar is 145px with a bold right-aligned percent. */',
-            '.msl-box[data-place="page"] .msl-prog .num { min-width: 36px; width: 2.75rem; flex: none; text-align: right; font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; color: var(--heading); }',
+            '/* Row 1315, progress part (Classic only): the Milestones list Progress bar is 145px with a right-aligned percent at weight 600. */',
+            '.msl-box[data-place="page"] .msl-prog .num { min-width: 36px; width: 2.75rem; flex: none; text-align: right; font-weight: var(--weight-medium); font-variant-numeric: tabular-nums; color: var(--heading); }      /* min-width 36px is the ticket value (prototype); it is inert beside the fixed 2.75rem slot, which keeps every bar the same length */',
             '@media (min-width: 1201px) { .msl-box[data-place="page"]:not([style*="--msl-cols:"]) :is(.msl-cells, .msl-hc) { grid-template-columns: minmax(240px, 17rem) minmax(160px, 1fr) 150px calc(145px + var(--space-2) + 2.75rem); } }',
         ])
