@@ -11,6 +11,7 @@ import { rows } from "./placement.js";
 import { TEMPLATE_TYPES, PENDING_TYPES } from "../templates/types.js";
 import { WORDS } from "./fullImageWords.js";
 import { defaults, bodyOf } from "../templates/workItemsList.js";
+import { glanceShowsHealth } from "../templates/glanceBody.js";
 import { PLAN_SUMMARY_BODY } from "./planSummaryBody.js";
 
 // What the store takes in a new section (changes.py NEW_SECTION_TYPES: text
@@ -60,6 +61,10 @@ export const TEMPLATES = [
     description: "Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed.", holds: ["Heading", "Filter (set in Edit)", "Work item list · live", "Caption (optional)"] },
   { id: "docs-links", name: "Documents and links", kind: "files", fit: ["full", "half"], type: "doclinks", title: "Documents and links", body: "", ready: true,
     description: "The papers that go with this week’s report.", holds: ["Heading", "File (one or more)", "Link list"] },
+  // Row 1261: the Report headline card (type reportheadline). Name: "Report headline" (the owner's rename 16-11, the ticket title; ruling 20-11). Description:
+  // the ticket's own title words (Row 1261: "health pill, headline and supporting sentence at the top of the report"); `holds` are the Edit part's fields.
+  { id: "report-headline", name: "Report headline", kind: "info", fit: ["full", "half"], type: "reportheadline", title: "Headline", body: "", ready: true,
+    description: "A health pill, a headline and a supporting sentence at the top of the report.", holds: ["Health pill · optional", "Headline", "Supporting sentence"] },
   { id: "callout", name: "Callout", kind: "info", fit: ["half", "full"], type: "callout", title: "Callout", body: "", ready: true,
     description: "One thing the reader must see.", more: "Type a category of your own or pick one, then a colour and an icon. Or leave them out.",
     holds: ["Heading", "Callout · decision", "Callout · category, colour, icon", "Callout · tile and heading on or off"] },      // item 1272 G: `more` is the extra line under the description
@@ -99,7 +104,6 @@ export const TEMPLATES = [
 // words and its Help row.
 export const LATER = [
   { id: "headline", type: "headline", ready: true },
-  { id: "report-headline", type: "reportheadline", ready: true },     // row 1261 slice 1: View only; Edit and the library card come later
 ];
 
 // The built-in sections (row 906): a deleted one is added again from the box, one of each, with the title and settings it starts
@@ -153,6 +157,7 @@ export const SKETCHES = {
   "raid-4": ["grid-template-columns:repeat(4,1fr)", ["border-top:3px solid var(--status-red)", "border-top:3px solid var(--status-amber)", "border-top:3px solid var(--status-amber)", ""]],
   "work-items": ["grid-template-rows:repeat(4,1fr)", ["width:90%", "width:75%", "width:85%", "width:70%"]],
   "docs-links": ["grid-template-rows:repeat(3,1fr)", ["", "", ""]],
+  "report-headline": ["grid-template-columns:1fr 3fr", ["border-radius:999px;background:var(--status-amber-tint)", ""]],
   "callout": ["", ["background:var(--status-amber-tint);border-left:3px solid var(--status-amber)"]],
   "image-caption": ["grid-template-rows:2fr 1fr", [IMG, "width:50%"]],
   "full-image": ["grid-template-rows:3fr 1fr", [IMG, "width:40%"]],
@@ -233,8 +238,11 @@ export function besideState(sections, after, template) {
 // half. { ok: true, requests, words } or { ok: false, message }. Always one request: `new` takes `beside`, and clark sets the pairing
 // (or clears a stale one on the last section) in the same step. Today a template other than the available ones is refused here, in words,
 // before anything is sent.
+// Row 1261: health shows once. A new Report headline starts with its pill off when At a glance already shows the health (a new project starts with the built-in one), on otherwise.
+export const REPORT_HEADLINE_NO_PILL = '{"pill":false,"v":1}';      // section_kinds/reportheadline.py START
 export function plan(sections, id, after, beside = false) {
-  const t = find(id);
+  const t0 = find(id);
+  const t = t0 && t0.type === "reportheadline" && glanceShowsHealth(sections) ? { ...t0, start: REPORT_HEADLINE_NO_PILL } : t0;
   if (!t) return { ok: false, message: MESSAGES.unknown };
   if (t.builtIn && !missing(sections).includes(t)) return { ok: false, message: MESSAGES.unknown };      // already in the report: not offered twice
   if (!available(t)) return { ok: false, message: MESSAGES.later };
