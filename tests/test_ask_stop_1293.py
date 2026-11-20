@@ -76,5 +76,45 @@ class StopBeforeTheProvider(unittest.TestCase):
         self.assertFalse(self.provider.cancels[0].is_set())
 
 
+    def stop_inside(self, name, after_data=False):
+        real, read = getattr(self.service, name), []
+        real_data = ask_data.project_data
+
+        def seen_data(*a, **k):
+            read.append(1)
+            return real_data(*a, **k)
+
+        def stop_then(*a, **k):
+            if read or not after_data:
+                self.service.stop()
+            return real(*a, **k)
+
+        return mock.patch.object(self.service, name, stop_then), mock.patch.object(ask_data, "project_data", seen_data)
+
+    def reaches_the_provider_cancelled(self, name, after_data):
+        patch_service, patch_data = self.stop_inside(name, after_data)
+        with patch_service, patch_data:
+            self.question()
+        self.assertTrue(self.provider.cancels and self.provider.cancels[-1].is_set(), "the provider is handed a cancelled request")
+
+    def test_a_stop_after_the_data_check_but_before_the_run_is_recorded_reaches_the_provider_cancelled(self):
+        self.reaches_the_provider_cancelled("enabled", True)        # the gate is asked again just after the data check, before the run is recorded
+
+    def test_a_stop_once_the_run_is_recorded_reaches_the_provider_cancelled(self):
+        self.reaches_the_provider_cancelled("connectors_now", False)    # asked after the run is recorded, before the provider
+
+
+    def test_a_stop_on_the_way_into_the_provider_reaches_it_cancelled(self):
+        real = ask.ask_provider
+
+        def stop_then_ask(*a, **k):
+            self.service.stop()                          # after the run is recorded and checked, just before the provider is called
+            return real(*a, **k)
+
+        with mock.patch.object(ask, "ask_provider", stop_then_ask):
+            self.question()
+        self.assertTrue(self.provider.cancels and self.provider.cancels[-1].is_set(), "the provider is handed a cancelled request")
+
+
 if __name__ == "__main__":
     unittest.main()

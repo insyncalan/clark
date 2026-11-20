@@ -111,7 +111,7 @@ class AskService:
         self.today = datetime.date.today                    # a seam for tests
         self.replies = {}                            # reply ID -> Held: the changes an answer suggested, kept on the server
         self.replies_lock = threading.Lock()
- = []                               # row 1306 test 7: the questions on their way to or at the provider, each a Run (its own, never shared)
+        self.runs = []                               # row 1306 test 7: the questions on their way to or at the provider, each a Run (its own, never shared)
         self.using_lock = threading.Lock()
         self.cancels = set()                         # one threading.Event per question being prepared or asked; Stop sets them all
         self.cancels_lock = threading.Lock()
@@ -323,7 +323,7 @@ class AskService:
             return 200, {"ok": False, "code": "no_answer", "message": ask.STOPPED}
         if not self.enabled():                       # the gate again, just before anything leaves: a switch turned off meanwhile wins
             return 409, self.fail("asking_off")
-(code, on_connectors)               # row 1306 test 7: the record goes in first, holding what the store said earlier ...
+        run = Run(code, on_connectors)               # row 1306 test 7: the record goes in first, holding what the store said earlier ...
         with self.using_lock:
             self.runs.append(run)
         on_connectors = self.connectors_now(code, on_connectors)      # ... so an Off saved from here on finds it (stop_off) and one saved before is read here
