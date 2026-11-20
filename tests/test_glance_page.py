@@ -592,7 +592,7 @@ class Published(PublishedFile, Setup):
                 self.assertEqual(p.js("document.querySelector('.uctotal').textContent"), "2 use cases")
                 health, overdue = (p.js(f"document.querySelector('[data-tile={t}]').getBoundingClientRect().width") for t in ("health", "overdue"))
                 # Classic draws the wide health tile and the overdue tile in the measured widths (row 1363: measured on the Classic page, 11-19)
-                self.assertEqual((round(health), round(overdue)), {1400: (474, 243), 900: (801, 392)}[width], "the Classic tile widths")
+                self.assertEqual((round(health), round(overdue)), {1400: (462, 237), 900: (777, 380)}[width], "the Classic tile widths")
 
     def test_the_file_draws_done_with_its_word_count_and_grey_mark(self):
         """#412: the published page shows a Done use case as the dashboard does, from the file's own figures."""

@@ -10,7 +10,7 @@ connector_args(discovered, on): one '--disallowedTools=<prefix>' for every disco
 that has no allow table, even when asked On), then for the On server '--allowedTools=<prefix>__<tool>' for the exact read-only
 tools of the On connectors, then '--disallowedTools=<prefix>__<tool>' by name for every other known tool of that server (every
 write tool, and the read tools of its connectors that are Off). A name with a hidden character, '=', a leading '-' or odd spacing is
-dropped and counted. build_call(on, run): discovery is run FRESH for each call; if it fails, or an On connector is not found, the
+dropped and counted. build_call(on, run): discovery is run FRESH for each call; if it fails, a listed server name was dropped, or an On connector is not found, the
 call is refused with no arguments.
 """
 import re
@@ -25,8 +25,9 @@ FLAG_ALLOW, FLAG_DENY = "--allowedTools=", "--disallowedTools="
 LOADER = "ToolSearch"
 
 # Every claude.ai server known today (the Connected ones the command can show, and those that only offer an authorize tool). When a connector is On, each of
-# these is denied whole by its prefix, except the server of the part that is On. A server that is NOT in this list (a new one) is not denied here: the
-# stream check catches a call to it after the fact (nothing is shown), it cannot prevent it.
+# these is denied whole by its prefix, except the server of the part that is On, found or not. A server that is NOT in this list but IS in the fresh
+# discovery is denied whole too (connector_plan), so a call to it is refused before it is made; a listed server whose name cannot be turned into a
+# prefix refuses the whole connector run (build_call). The stream check stays as the last net.
 KNOWN_SERVERS = ("Claude_Docs", "Gmail", "Google_Calendar", "Google_Drive", "Linear", "Microsoft_365", "Plaud", "Slides_AI", "Todoist", "Uber", "Vercel")
 
 # server -> connector -> read-only tools (fixed order). The only tools that can ever be allowed.
@@ -36,10 +37,14 @@ READ_TOOLS = {
         "calendar": ("outlook_calendar_search", "outlook_find_available_time", "find_meeting_availability"),
         "teams": ("chat_message_search", "teams_list_teams", "teams_list_channels", "teams_list_chats",
                   "teams_list_channel_messages"),
-        "sharepoint": ("sharepoint_search", "sharepoint_folder_search", "read_resource"),
+        "sharepoint": ("sharepoint_search", "sharepoint_folder_search"),
         "people": ("search_people", "get_me"),
     },
 }
+
+# server -> read tools that are never allowed, whichever part is On: read_resource is a general reader of the server (it can be given a mail or
+# calendar address), so SharePoint and OneDrive being On must not open it. Denied by name.
+NEVER_ALLOWED = {M365: ("read_resource",)}
 
 # server -> every other known tool: denied by name when the server is On.
 WRITE_TOOLS = {
@@ -103,7 +108,7 @@ def connector_plan(discovered, on):
             if c in live:
                 allowed.extend(table[c])
         allow.extend(f"{FLAG_ALLOW}{p}__{t}" for t in allowed)
-        names = set(WRITE_TOOLS[server]) | {t for c in table for t in table[c]}
+        names = set(WRITE_TOOLS[server]) | set(NEVER_ALLOWED.get(server, ())) | {t for c in table for t in table[c]}
         named.extend(f"{FLAG_DENY}{p}__{t}" for t in sorted(names - set(allowed)))
     if any_on:
         have = {a[len(FLAG_DENY):] for a in whole}
@@ -120,10 +125,11 @@ def connector_args(discovered, on):
 class Call:
     """The verdict for one call: ok, args (empty when refused or when no connector is On), reason, dropped, connectors (False
     when nothing is On: the caller then keeps its normal locked-down path)."""
-    __slots__ = ("ok", "args", "reason", "dropped", "connectors")
+    __slots__ = ("ok", "args", "reason", "dropped", "connectors", "servers")
 
-    def __init__(self, ok, args=(), reason="", dropped=0, connectors=False):
+    def __init__(self, ok, args=(), reason="", dropped=0, connectors=False, servers=()):
         self.ok, self.args, self.reason, self.dropped, self.connectors = ok, tuple(args), reason, dropped, connectors
+        self.servers = frozenset(servers)         # the server names the argument list was built from (the fresh discovery of this call)
 
 
 def build_call(on, run=None):
@@ -136,10 +142,19 @@ def build_call(on, run=None):
     if not ok:
         return Call(False, reason="discovery failed")
     args, dropped = connector_plan(found, on_ids)
+    if dropped:         # a listed server whose name cannot be denied by prefix: it could be called, so no connector run at all
+        return Call(False, reason="server name not readable", dropped=dropped)
     present = {e["connector"] for e in found if _clean(e)}
     if not set(on_ids) <= present or not any(a.startswith(FLAG_ALLOW) for a in args):
         return Call(False, reason="connector not found", dropped=dropped)
-    return Call(True, args, dropped=dropped, connectors=True)
+    return Call(True, args, dropped=dropped, connectors=True, servers={e["server"] for e in found})
+
+
+def server_appeared(call, run=None):
+    """Row 1306 F5: True when a server is listed NOW that the call's argument list was not built from (it appeared after the discovery, so no deny
+    covers it), or when the list cannot be read to check. Asked after a connector run, from a fresh discovery; the run's answer is then not used."""
+    ok, found = ask_connectors.list_fresh(run)
+    return not ok or bool({e["server"] for e in found} - call.servers)
 
 
 def compose(base, call):
