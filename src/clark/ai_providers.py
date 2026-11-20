@@ -104,6 +104,7 @@ class Chosen(ask.Provider):
 
     def __init__(self, providers, pick, off_words):
         self.providers, self.pick, self.off_words = tuple(providers), pick, off_words
+        self.last_line = None              # row 1306: the whole UsedLine of the last answered question's connector run, None when none (or ChatGPT)
         self.lock = threading.Lock()       # one run at a time across providers, even if the person switches while a question runs (ai_service.busy reads it)
         for provider in self.providers:
             provider.command.lock = self.lock
@@ -122,9 +123,12 @@ class Chosen(ask.Provider):
 
     def ask(self, request):
         provider, model, prefer = self._active()
+        self.last_line = None
         if provider is None:
             return ask.Failure(self.off_words)
-        return provider.ask(request, model, prefer=prefer)
+        got = provider.ask(request, model, prefer=prefer)
+        self.last_line = getattr(provider.command, "last_line", None) if isinstance(got, str) else None      # row 1306: read at once, before a choice can change
+        return got
 
     def stop(self, owner=None):
         return any([p.stop(owner) for p in self.providers])     # every one: a run may have started before the choice changed
