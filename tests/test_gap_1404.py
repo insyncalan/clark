@@ -18,7 +18,7 @@ PROBE = """(() => { const cs = (e, p) => getComputedStyle(e)[p], R = (e) => e.ge
   return [...document.querySelectorAll('.glance .fig:not(.health-fig)')].map((f) => { const k = f.querySelector('.k'), v = f.querySelector('.v'), dd = f.querySelector('.dd'), row = f.querySelector('.vrow');
     return { key: f.dataset.fig, label: k.textContent, labelFont: cs(k, 'fontFamily').split(',')[0], labelWeight: cs(k, 'fontWeight'), labelSize: cs(k, 'fontSize'),
       figFont: cs(v, 'fontFamily').split(',')[0], figWeight: cs(v, 'fontWeight'), figSize: cs(v, 'fontSize'), figLH: cs(v, 'lineHeight'), figSpacing: cs(v, 'letterSpacing'), figColor: cs(v, 'color'), tint: f.className,
-      note: dd ? dd.textContent : null, noteInRow: !!(dd && row && row.contains(dd)), noteSize: dd ? cs(dd, 'fontSize') : null, noteColor: dd ? cs(dd, 'color') : null,
+      note: dd ? dd.textContent : null, noteInRow: !!(dd && row && row.contains(dd)), noteSize: dd ? cs(dd, 'fontSize') : null, noteWeight: dd ? cs(dd, 'fontWeight') : null, noteLH: dd ? cs(dd, 'lineHeight') : null, noteColor: dd ? cs(dd, 'color') : null,
       ddCount: f.querySelectorAll('.dd').length, rowAlign: row ? cs(row, 'alignItems') : null, noteBelow: dd ? Math.round(R(dd).top - R(v).bottom) : null, sameLine: dd ? Math.abs((R(dd).bottom) - (R(v).bottom)) < 6 : null, h: Math.round(R(f).height) }; }); })()"""
 
 
@@ -48,6 +48,8 @@ class Classic(Base):
         for t in of:
             self.assertTrue(t["noteInRow"], t)
             self.assertEqual(t["noteSize"], "14px", t)
+            self.assertEqual(t["noteWeight"], "400", t)                    # 400 explicit, the prototype wins over the ticket
+            self.assertEqual(t["noteLH"], "21px", t)                       # line height 1.5 (14px x 1.5)
             self.assertTrue(t["sameLine"], t)
             self.assertEqual(t["noteColor"], "rgb(71, 85, 119)", t)       # the muted text colour
             self.assertEqual(t["ddCount"], 1, t)                           # one note, not a second copy under the row
@@ -68,6 +70,14 @@ class Classic(Base):
         self.assertLess(RULES.index("/* Row 1404"), RULES.index("/* Row 1314"))
         block = RULES.split("/* Row 1404")[1].split("\n/* Row ")[0]          # to the next Row comment, not to Row 1314: blocks merged in from main between them are not this one
         self.assertIsNone(re.search(r"#[0-9a-fA-F]", block), "colours from tokens only")
+
+    def test_T4_the_note_rule_pins_weight_400_and_line_height_1_5(self):
+        rule = re.search(r"\.glance \.fig \.vrow \.dd \{([^}]*)\}", RULES).group(1)
+        self.assertRegex(rule, r"font-weight:\s*400\s*;")
+        self.assertRegex(rule, r"line-height:\s*1\.5\s*;")
+        self.assertRegex(rule, r"color:\s*var\(--text-muted\)\s*;")
+        block = RULES.split("/* Row 1404")[1].split("\n/* Row ")[0]
+        self.assertIn(".glance .fig .vrow .dd {", block, "the note rule sits inside the Row 1404 block")
 
 
 class Cards(Base):
