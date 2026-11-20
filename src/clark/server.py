@@ -47,6 +47,7 @@ Routes:
 - POST /api/draft-email/sent  "I sent it" (#50): records the ids, the mode and the day, and one History sentence (the recipient's name and the subject, composed here; never the address or the body) (draft_email_feed.make_sent)
 - GET  /api/ask-commands?project=CODE and POST /api/ask-commands {scope, project?, action: save | remove | reset, ...}: the slash commands of ask clark (row 1295; ask_commands_service.py)
 - GET  /api/ask-instructions?project=CODE and POST /api/ask-instructions {scope: all | project, project?, text} or {scope, project?, undo}: the standing instructions of asking, for all projects and for one (row 1294; ask_instructions.py)
+- GET  /api/ask-usage: this month's questions and tokens, per project and in all, read only (row 1294; ask_usage.py, ask_service.py)
 - POST /api/ask/change/dry    {project, reply}: the dry run of the changes an answer suggested, held on the server (#47e; ask_service.py)
 - POST /api/ask/open-source   {project, file, page|null}: open a saved folder's PDF at a page in the system's viewer (#943; ask_service.py, platform.py)
 - POST /api/ask/change/apply  {project, offer, confirm?}: one offer saved as one undoable step (#47e; ask_apply.py, changes.make_ask_change)
@@ -1498,7 +1499,7 @@ class BrandLibrary:
 GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/publication": publisher_route("latest"),
               "/api/export": export_route, "/api/section-file": section_file_read_route, "/api/use-cases": use_cases_route, "/api/backups": safety_route("listing"),
               "/api/movement": movement_route, "/api/activity": activity_route, "/api/milestones": milestones_route, "/api/ask-folders": ask_folders_route("read"), "/api/ask-instructions": ask_instructions_route("read"), "/api/ask-commands": ask_commands_route("read"),
-              "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask-connectors": ask_connectors_read_route, "/api/theme": app_settings_route("read_theme"), "/api/providers": ai_connect_route("get"), "/api/ask/status": ask_route("status"), "/api/ai/status": ask_route("status", "ai"),
+              "/api/ask-enabled": app_settings_route("read_ask"), "/api/ask-connectors": ask_connectors_read_route, "/api/theme": app_settings_route("read_theme"), "/api/providers": ai_connect_route("get"), "/api/ask/status": ask_route("status"), "/api/ask-usage": ask_route("usage_read"), "/api/ai/status": ask_route("status", "ai"),
               "/api/profile": profile_route("get"), "/api/people": people_route("people_list"), "/api/update": update_route("status"), "/api/diagnostics": logs_route("diagnostics"),
               "/api/publications": past_route("listing"), "/api/past-report": past_route("open"), "/api/as-at": as_at_route, "/api/demo": demo_route("status"),
               "/api/brands": brand_route("listing")}
