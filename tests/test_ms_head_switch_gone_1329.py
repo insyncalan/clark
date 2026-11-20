@@ -27,6 +27,7 @@ PAGE_SRC = SRC / "clark" / "page" / "src"
 SENTENCE = re.compile(r"(forecast for|agreed for|has no date yet|now expected|\d+ achieved|\d+ to come)")
 HINTS = ("Every milestone is on the timeline. ", "The list shows where each one stands", "Milestones view")
 REAL_PAGE_HTML = page.page_html
+HELP_LINE = "Milestones shows every milestone for the project, including internal ones. Where the page has a Plan and Movement switch, Movement shows slippage, for you and the team only."
 SWITCH = "[data-mspage-switch], [data-mspv], [data-mspage-hint], #milestones .seg:not(.cal-sc)"
 
 
@@ -62,6 +63,21 @@ def classic_page(case):
     case.addCleanup(patch.stop)
 
 
+def help_milestones_line(case, p):
+    p.cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)
+    p.js("document.querySelector('#profile-btn').click()")
+    p.until("!!document.querySelector('#profile-menu')", "profile menu")
+    p.js("[...document.querySelectorAll('#profile-menu [role=menuitem]')].find(e => e.textContent === 'Help').click()")
+    p.until("!!document.querySelector('#help') || !!document.querySelector('#help-peek')", "Help opened")
+    if p.js("!!document.querySelector('#help-peek')"):
+        p.js("document.querySelector('#help-peek [data-hpk-full]').click()")
+        p.until("!!document.querySelector('#hpTab-start')", "the full Help")
+    p.js("document.querySelector('#hpTab-start').click()")
+    p.until("!!document.querySelector('#help .hp-where-g li')", "the Help drew the screens")
+    line = p.js("[...document.querySelectorAll('#help .hp-where-g li')].map(l => l.textContent).join(' | ')")
+    case.assertIn(HELP_LINE, " ".join(line.split()))
+
+
 def milestones_text(p):
     return p.js("document.querySelector('#milestones').textContent")
 
@@ -86,6 +102,11 @@ class Served(Base):
                         self.assertNotIn(word, body)
                     for word in ("Plan", "Movement"):
                         self.assertEqual(p.js("[...document.querySelectorAll('#milestones button')].filter(b => b.textContent.trim() === %s).length" % json.dumps(word)), 0, word)
+
+    def test_help_milestones_line_is_the_approved_text_in_this_theme(self):
+        # Row 1329: Help is shared by both looks; the Milestones line says where the switch exists. kills: the line reworded for one look, or the Movement entries dropped
+        with chrome() as cdp:
+            help_milestones_line(self, self.visit(cdp))
 
     def test_mutant_h1_gap_under_the_title_is_zero(self):
         # kills: .head h1 { margin-bottom } given a value (the title then floats away from the list at both widths)
@@ -130,6 +151,11 @@ class Served(Base):
 
 class Cards(Base):
     """Cards (no Theme) keeps what main had: the forecast sentence (hidden by its own rule) and the Plan | Movement switch."""
+    def test_help_milestones_line_is_the_approved_text_in_this_theme(self):
+        # Row 1329: Help is shared by both looks; the Milestones line says where the switch exists. kills: the line reworded for one look, or the Movement entries dropped
+        with chrome() as cdp:
+            help_milestones_line(self, self.visit(cdp))
+
     def test_mutant_cards_lost_its_switch_or_its_sentence_node(self):
         # kills: the Classic gate applied to every theme
         self.assertEqual(REAL_PAGE_HTML(EMPTY_BRANDING).count("data-mspage-switch"), 1)

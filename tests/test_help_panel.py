@@ -133,7 +133,7 @@ class Panel(Base):
         from test_server import chrome
         with chrome() as cdp:
             p = self.in_help(cdp)
-            for word, first, where in (("diagnostics", "Diagnostics and logs", "ref-diagnostics"),):
+            for word, first, where in (("movement", "Milestones and Movement", "ref-milestones-page"), ("diagnostics", "Diagnostics and logs", "ref-diagnostics")):
                 p.js("var q=document.querySelector('#hpQ'); q.value=''; q.focus()")
                 p.type(word)
                 p.until("document.querySelectorAll('#hpRes a.hp-r').length > 0", f"results for {word}")
