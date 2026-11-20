@@ -19,7 +19,7 @@ from clark import page
 
 WIDTHS = (1400, 900)
 FILES_LINE = "Files: text, Markdown and CSV (5 files of 10 MB, for that question only). A project can turn these off for itself."
-UNAVAILABLE = "Files can't be checked just now. None can be added until they can be."
+UNAVAILABLE = "Files cannot be checked just now. clark checks again when you ask, and sends none if they are off."
 # mode: ok | get500_ok (500 with an ok body) | get500 (the read fails) | get_not_ok (200, ok false) | on_not_bool (200, on is a word) | post503 | post_known (400 with a code and words) | hold (a change waits for release())
 FAKE = """
 window.__f = {calls: [], on: true, off_here: false, mode: '%s', next: 7, hist: [], held: null};

@@ -493,7 +493,7 @@ export function AskPanel() {
             if (e.key === "Enter" && !e.shiftKey && !e.isComposing) send(e);
           }} />
         <div class="ask-actions">
-          {filesOk ? <input ref={picker} type="file" id="ask-file-input" multiple hidden accept=".txt,.md,.csv,.pdf,.docx,.xlsx,.png,.jpg,.jpeg" tabindex="-1" onChange={(e) => { addFiles(Array.from(e.currentTarget.files)); e.currentTarget.value = ""; }} /> : null}
+          {filesOk ? <input ref={picker} type="file" id="ask-file-input" multiple hidden accept=".txt,.md,.csv" tabindex="-1" onChange={(e) => { addFiles(Array.from(e.currentTarget.files)); e.currentTarget.value = ""; }} /> : null}
           {filesOk ?
           <button type="button" class="pkp-btn" id="ask-attach" title={F.ATTACH_LABEL} aria-label={F.ATTACH_LABEL} disabled={state !== "ready"} onClick={() => picker.current && picker.current.click()}><Icon name="paperclip" /></button> : null}
           {busy ? (

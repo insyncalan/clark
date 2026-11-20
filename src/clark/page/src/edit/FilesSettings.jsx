@@ -52,7 +52,7 @@ export function FilesAll() {
   return (
     <section class="frame setting" id="ask-files-all">
       <h2>Files</h2>
-      {state === "unavailable" ? <p class="muted" id="ask-files-unavailable">Files can't be checked just now. None can be added until they can be.</p> : null}
+      {state === "unavailable" ? <p class="muted" id="ask-files-unavailable">Files cannot be checked just now. clark checks again when you ask, and sends none if they are off.</p> : null}
       <p class="muted" id="ask-files-line">{FILES_LINE}</p>
       {ready ? <div class="row"><button type="button" class="switch" role="switch" data-files-switch aria-checked={state.on ? "true" : "false"} aria-label="Files" disabled={busy} onClick={() => change({ on: !state.on })} /></div> : null}
       <Msg msg={msg} undo={undo} busy={busy} change={change} />
@@ -67,7 +67,7 @@ export function FilesProject({ code }) {
   return (
     <section class="frame setting" id="ask-files-project">
       <h2>{`Files in ${code}`}</h2>
-      {state === "unavailable" ? <p class="muted" id="ask-files-unavailable">Files can't be checked just now. None can be added until they can be.</p> : null}
+      {state === "unavailable" ? <p class="muted" id="ask-files-unavailable">Files cannot be checked just now. clark checks again when you ask, and sends none if they are off.</p> : null}
       {ready ? (
         <div class="row">
           <span class="folder-now">Files</span> <span class="muted" id="ask-files-here-line">{state.on ? `On for all projects. Turn it off here for ${code} only.` : "Off for all projects."}</span>
