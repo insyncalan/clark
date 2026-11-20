@@ -52,5 +52,18 @@ class BadgeContrast(unittest.TestCase):
             self.assertGreaterEqual(r, 4.5, "%s editor icon band %.2f:1" % (kind, r))
 
 
+    def test_the_editor_page_icon_band_is_the_tile_colour_on_every_kind(self):
+        """F4 (ruling 20-11 23:0x): the editor's page icon follows the tile palette (C62828 1E7B45 C4501B 7B3FB8 5A6B77, white text), not the mock's page-icon palette."""
+        src = (SRC / "src" / "templates" / "docIcons.jsx").read_text(encoding="utf-8")
+        band = table(src, "BAND")
+        css = THEME.read_text(encoding="utf-8")
+        tok = dict(re.findall(r"(--[a-z-]+):\s*(#[0-9A-Fa-f]{3,6})", css))
+        for kind in KINDS:
+            rule = re.search(r"\.tpl-badge\.tpl-ic-%s \{([^}]*)\}" % kind, css)
+            self.assertEqual(band[kind], re.search(r"background:\s*var\((--badge-[a-z]+)\)", rule.group(1)).group(1), "%s: page icon band token = tile token" % kind)
+        self.assertEqual([tok["--badge-" + k].upper() for k in ("pdf", "xls", "ppt", "jpg", "txt")], ["#C62828", "#1E7B45", "#C4501B", "#7B3FB8", "#5A6B77"])
+        self.assertEqual(table(src, "BAND_TEXT"), {}, "white text on every band")
+
+
 if __name__ == "__main__":
     unittest.main()

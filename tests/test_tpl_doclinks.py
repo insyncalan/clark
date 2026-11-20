@@ -695,14 +695,34 @@ class MockupLook(InThePage):
                 self.assertLessEqual(abs(got["align"]), 1, f"the name box's text lines up with the facts line at {w}")
                 self.assertEqual(got["mark"], [["0px", "10px", 44, 44, "1.8px"]] * 3, f"move and remove: borderless 44 px icons, 1.8 stroke, at {w}")
                 self.assertEqual(got["off"], "0.3", w)
-                self.assertEqual(got["step"], [46, 46], f"the three icon buttons are 2 px apart at {w}")
+                self.assertEqual(got["step"], [46, 46], f"the three icon buttons are 2 px apart at {w}")      # the mock's .act gap 2px with 44 px buttons (46 = 44 + 2); measured at 1400 and 900; the mock's 6px is .hdb, the header icons
                 self.assertEqual(got["facts"], 16.9, f"the facts line is 13 px on a 1.3 line at {w}")
                 self.assertEqual([h[:4] for h in got["head"]], [["1px", "1.8px", "rgb(29, 36, 51)", "rgb(217, 224, 239)"]] * 2, f"file and link icon buttons at {w} (ink = Classic --text 1D2433; the Cards value was 0E2430)")      # kept: Classic --text / line token, the 1194 mock predates the token set
                 self.assertLessEqual(max(abs(h[4]) for h in got["head"]), 2, f"the icon buttons sit on the title's line at {w}")      # code measurement, not a mock-up value (the margin -56px on .tpl-icons follows the title line)
                 self.assertIn(got["gap"], range(56, 61), f"the list starts 58 px under the icon buttons' top at {w}")      # code measurement, not a mock-up value
-                self.assertEqual(got["allowed"], ["13px", "10px 14px", "12px"], w)      # kept: 13 is the --size-caption token, off the type scale otherwise
+                self.assertEqual(got["allowed"], ["13px", "10px 14px", "12px"], w)      # padding 10px 14px and radius 12px are the mock's .al; 13 is kept: the --size-caption token, off the type scale otherwise
                 self.assertEqual(got["hint"], "13px", w)      # kept: 13 is the --size-caption token, off the type scale otherwise
                 self.assertTrue(got["font"].startswith("Inter"), "the label band uses the page font")
+
+    def test_values_the_code_measured_and_the_ones_the_mock_gives_are_pinned_and_labelled(self):
+        """F3 (ruling 20-11 23:0x): each value below is labelled. Code measurement, not from the mock: --badge-ink #111 (the page icon outline), the header's padding-right 112px,
+        the icon row's margin -56px (see the title-line pin above). From the mock: the link box width 340px and top 54px (its .pop), the note's padding 10px 14px (its .al)."""
+        ref = self.add([a_file("Scope statement.docx", 88 * 1024), a_link()])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('{sel} [data-open-link]')", "the Edit part drew")
+            for w in self.widths(p, cdp):
+                self.assertEqual(p.js("getComputedStyle(document.documentElement).getPropertyValue('--badge-ink').trim()"), "#111", f"code measurement, not from the mock, at {w}")
+                self.assertEqual(p.js(f"getComputedStyle(document.querySelector('{sel} .sec-head') || document.querySelector('{sel}').closest('.sec').querySelector('.sec-head')).paddingRight"), "112px", f"code measurement, not from the mock, at {w}")
+                p.js(f"document.querySelector('{sel} [data-open-link]').click()")
+                p.until(f"!!document.querySelector('{sel} [data-add-link]')", "the box opened")
+                got = p.js(f"(() => {{ const f = document.querySelector('{sel} [data-add-link]'), b = document.querySelector('{sel} [data-open-link]'), r = f.getBoundingClientRect(), i = document.querySelector('{sel} .tpl-icons').getBoundingClientRect();"
+                           " return [Math.round(r.width), Math.round(r.top - i.top)]; })()")
+                self.assertEqual(got, [340, 54], f"the link box is the mock's .pop: 340 px wide, 54 px under the icon row's top, at {w}")
+                p.js(f"document.querySelector('{sel} [data-open-link]').click()")
+                p.until(f"!document.querySelector('{sel} [data-add-link]')", "the box closed")
 
     def test_view_rows_match_the_mockup_sizes_and_spacing(self):
         ref = self.add([a_link("https://www.example.org/x", "some notes"), a_link("mailto:pmo@example.com", "Ask the PMO")])
@@ -760,7 +780,7 @@ class CardsUnchanged(PageBase):
 
 
 class CardsDescriptionRequired(PageBase):
-    """Row 1194 (ruled WO-M11002): the link description is a server rule, so Cards drops '(optional)' and shows the server's refusal."""
+    """Row 1194 (ruled WO-M11002; ruling 20-11 23:0x, F1 A: Cards link description required, label Words to show): the link description is a server rule, so Cards drops '(optional)' and refuses with 'Link N: Enter a link description.'."""
 
     def test_cards_says_words_to_show_without_optional_and_refuses_a_link_with_no_description(self):
         ref = InThePage.add(self, [a_link(), a_file()])
@@ -777,7 +797,7 @@ class CardsDescriptionRequired(PageBase):
                 InThePage.set_value(p, f"{sel} [data-add-link] input[type=text]", "https://example.org/ok", 0)
                 p.js(f"document.querySelector('{sel} [data-add-link] button[type=submit]').click()")
                 p.until(f"!!document.querySelector('{sel} .tpl-problem')", "the missing description is refused")
-                self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-problem').textContent"), "Enter a link description.")
+                self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-problem').textContent"), "Link 3: Enter a link description.")      # ruling 20-11 23:0x, F1 A: Cards link description required, label Words to show; the refusal is the approved 'Link N: Enter a link description.' (N = entries + 1)
                 self.assertEqual(len(self.sent), sent, "nothing was sent")
 
 

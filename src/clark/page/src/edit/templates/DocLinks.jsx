@@ -151,7 +151,7 @@ function CardsEdit({ section }) {
   const addLink = async (e) => {
     e.preventDefault();
     const link = href.trim(), words = oneLine(label);
-    const why = full ? FULL : linkProblem(link) || (words ? labelProblem(words) : "Enter a link description.");
+    const why = full ? FULL : linkProblem(link) || (words ? labelProblem(words) : W.NO_DESCRIPTION(raw.length + 1));
     setProblem(why);
     if (why) return;
     const reply = await saveContent(section, { ...content, items: [...raw, { kind: "link", href: link, label: words }] }, "Link added.");
