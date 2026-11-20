@@ -247,6 +247,19 @@ class RealStoreAndCount(unittest.TestCase):
         line = " ".join(ask_data.left_out_lines(got.counts))
         self.assertRegex(line, r"Sent \d+ of \d+ actions \(the closest to your question\); \d+ were left out\.")
 
+    def test_the_project_share_is_a_whole_number_of_characters(self):
+        from clark import ask_service
+        self.assertIs(type(ask_service.PROJECT_SHARE), int)
+        self.assertEqual(ask_service.PROJECT_SHARE, ask.BUDGET // 2)
+
+    def test_the_kinds_are_kept_in_the_reading_order(self):
+        self.assertEqual(ask_data.KIND_ORDER, ("milestones", "actions", "raid", "decisions", "use_cases", "workstreams"))
+
+    def test_a_limit_of_zero_keeps_nothing(self):
+        few = [ask.Passage("p", f"{i} x") for i in range(3)]
+        kept, left = ask_data.choose(few, "q", ask.BUDGET, 0)
+        self.assertEqual((kept, left), ((), 3))
+
 
 if __name__ == "__main__":
     unittest.main()
