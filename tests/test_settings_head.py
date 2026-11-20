@@ -193,7 +193,8 @@ class Head(Base):
                         self.assertEqual(p.js("[...document.querySelectorAll('.set-cards h2[id], .set-cards h3[id]')].map(h => h.id).filter(i => i.endsWith('-h'))"),
                                          [head for _, head in cards], f"the {name} page draws its cards and no others")
                         for card, head_id in cards:
-                            self.assertEqual(p.js(f"document.getElementById('{head_id}').textContent"), card, "a card's heading says its name")
+                            said = p.js(f"document.getElementById('{head_id}').textContent")
+                            self.assertEqual(said, card, "a card's heading says its name") if card != "Asking" else self.assertTrue(said.startswith("Asking in "), "the Asking card's heading says Asking in the project (row 1351)")
                             self.assertEqual(p.js(f"document.getElementById('{head_id}').getAttribute('tabindex')"), "-1")
                     for gone in ("AI", "Client folder", "Published reports"):
                         self.assertNotIn(gone, self.chips(p), f"no menu item for {gone}: there is no such page")
