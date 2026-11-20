@@ -211,6 +211,29 @@ class Dropped(Plant):
         _, pub, _ = made(hide("current"))
         self.assertEqual(pub["data"]["project"]["current_state"], "", "a hidden Current state section is dropped with its text")
 
+    def test_row_1307_a_shown_work_items_list_alone_brings_the_work_tab(self):
+        def lists_only(plant):
+            for s in plant["sections"]:
+                s["hidden"] = 1 if s["type"] in ("actions", "raid", "decisions") else s["hidden"]
+            plant["sections"].append({"id": "s-list-1307", "type": "workitems", "title": "Open", "body": json.dumps({"mode": "all"}),
+                                      "beside": 0, "hidden": 0, "sort_order": 90})
+        _, pub, _ = made(lists_only)
+        self.assertEqual(pub["tabs"], ["dashboard", "work", "milestones", "usecases"], "a new project's report: lists, no built-in section")
+        self.assertIn("s-list-1307", [x["id"] for x in pub["sections"]])
+
+    def test_row_1307_a_hidden_list_or_no_list_and_no_built_in_section_has_no_work_tab(self):
+        def none_shown(hidden_list):
+            def go(plant):
+                for s in plant["sections"]:
+                    s["hidden"] = 1 if s["type"] in ("actions", "raid", "decisions") else s["hidden"]
+                if hidden_list:
+                    plant["sections"].append({"id": "s-list-1307", "type": "workitems", "title": "Open", "body": json.dumps({"mode": "all"}),
+                                              "beside": 0, "hidden": 1, "sort_order": 90})
+            return go
+        for hidden_list in (False, True):
+            _, pub, _ = made(none_shown(hidden_list))
+            self.assertEqual(pub["tabs"], ["dashboard", "milestones", "usecases"], hidden_list)
+
     def test_every_marker_absent_in_four_spellings(self):
         for key in self.plant["markers"]:
             self.assertAbsent(key)

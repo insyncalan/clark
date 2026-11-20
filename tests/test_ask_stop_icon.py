@@ -18,7 +18,7 @@ LOOK = ("JSON.stringify((function(){var b=document.querySelector('#ask-stop'), r
         "return {w:r.width,h:r.height,radius:getComputedStyle(b).borderRadius,text:b.textContent.trim(),label:b.getAttribute('aria-label'),title:b.title,"
         "rect:!!b.querySelector('svg rect'),tab:b.tabIndex,disabled:b.disabled,type:b.type,boxRight:t.right,left:r.left,boxW:t.width,"
         "pills:document.querySelectorAll('.ask-actions .btn:not(.primary)').length,sends:document.querySelectorAll('#ask-send').length,"
-        "buttons:document.querySelectorAll('.ask-actions button').length}})())")
+        "buttons:document.querySelectorAll('.ask-actions button:not(#ask-attach)').length}})())")
 
 
 class StopIcon(Base):

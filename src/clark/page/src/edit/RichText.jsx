@@ -10,7 +10,7 @@ import { href } from "../logic/cleanHtml.js";
 import { Menu, Fade } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { actionIcon } from "../menuIcons.js";
-import { AiFlow } from "./DraftAi.jsx";
+import { AiFlow, DRAFT_WITH_AI } from "./DraftAi.jsx";
 import { aiClient } from "./aiShared.js";
 
 const BAR = [
@@ -169,15 +169,21 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
   // Leaving the whole field (focus goes outside it, and outside its floating boxes) saves.
   const away = (e) => {
     const to = e.relatedTarget;
-    if (to && (root.current.contains(to) || (bubble.current && bubble.current.contains(to)) || (slashBox.current && slashBox.current.contains(to)))) return;
-    if (!to && document.hasFocus() === false) return;
+    const inside = (n) => (root.current && root.current.contains(n)) || (bubble.current && bubble.current.contains(n)) || (slashBox.current && slashBox.current.contains(n));   // contains(null) is false
+    if (inside(to)) return;
+    // No target and the page reports no focus: a window left (the active element stays in the field) unless the focus is already on something outside (macOS order).
+    if (!to && document.hasFocus() === false && (!document.activeElement || document.activeElement === document.body || inside(document.activeElement))) return;
     if (keep.current || aiOpen.current) return;                  // a menu or the link box just closed: its focus is being put back (the AI menu and card are part of the field)
-    setTimeout(() => {
+    const look = (again) => {
       if (aiOpen.current) return;
       const at = document.activeElement;
-      if (at && at !== document.body && (root.current.contains(at) || (bubble.current && bubble.current.contains(at)))) return;
+      if (inside(at)) {
+        if (again && to) setTimeout(() => look(false), 50);     // the focus was sent outside but the active element has not moved yet (macOS): look once more
+        return;
+      }
       finishRef.current(false);
-    }, 0);
+    };
+    setTimeout(() => look(true), 0);
   };
 
   // Focus back to the text after a menu or the link box closed: after their own focus handling has finished.
@@ -210,7 +216,7 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
     <div class="rt" ref={root} data-rt aria-label={label || "Rich text"} onFocusOut={away} onContextMenu={onContext} onKeyDown={onKeyAi}>
       <div class="rt-bar" role="toolbar" aria-label="Formatting">
         {!oneLine && <Menu label={current ? current[1] : "Text"} ariaLabel={`Text style: ${current ? current[1] : "Text"}`} btnCls="rt-btn rt-style" left
-          items={STYLES.map(([n, w]) => ({ id: n, name: w, icon: actionIcon("textStyle") }))} onPick={(n) => { h.run(n); tick((x) => x + 1); refocus(); }} />}
+          items={STYLES.map(([n, w]) => ({ id: n, name: w, icon: actionIcon("textStyle"), checked: current ? current[0] === n : n === "paragraph" }))} onPick={(n) => { h.run(n); tick((x) => x + 1); refocus(); }} />}
         {bar.map((b, i) => (b === "|" ? <span class="rt-sep" key={i} aria-hidden="true" /> : button(b)))}
         <span class="rt-keys">Cmd+Enter saves. Esc cancels.</span>
       </div>
@@ -224,7 +230,8 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
       ) : null}
       <div class="rt-host prose" ref={host} />
       {problem ? <p class="rt-problem" role="alert">{problem}</p> : null}
-      {sel && !linkOpen && !oneLine ? <div class="rt-bubble" ref={bubble} role="toolbar" aria-label="Format the selection">{BUBBLE.map(button)}</div> : null}
+      {sel && !linkOpen && !oneLine ? <div class="rt-bubble" ref={bubble} role="toolbar" aria-label="Format the selection">{BUBBLE.map(button)}
+        {ai ? <button type="button" class="rt-btn rt-bubble-ai" data-rt-bubble-ai onMouseDown={hold} onClick={() => { const r = bubble.current.getBoundingClientRect(); openAi(r.left + r.width / 2, r.bottom + 4); }}>{DRAFT_WITH_AI}</button> : null}</div> : null}
       {aiAt ? <div class="rt-ai" ref={aiBox} data-rt-ai><AiFlow place={ai} text={aiAt.text} floating boxRef={null} onAccept={aiAccept} onDone={aiDone} /></div> : null}
       {slash ? (
         <Fade class="rt-slash" boxRef={slashBox} role="listbox" aria-label="Insert">

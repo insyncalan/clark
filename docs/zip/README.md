@@ -4,7 +4,7 @@
 
 This is a report editor for programme managers. It keeps a project's actions, risks, issues, decisions, milestones and use cases in one place on your own computer, with a history and Undo. You can move them in and out of Excel, and publish the weekly report as one web page you can send to a client. Your data stays on your computer. It goes only where you send it: a published report, an Excel or Word file you save, a backup folder you choose, or, when you ask clark a question, the passages it needs go to the Claude or ChatGPT you connected.
 
-> **Beta.** This is the 1.0 build. It is still marked Beta because updating from inside clark is not switched on yet: install a new version by downloading it and replacing the old one. It works and is tested, but expect rough edges and changes between versions. It runs on a Mac today. Windows and Linux downloads come later.
+> **Version 1.2.** clark runs on a Mac. On Windows, unzip the same download and run clark in Docker; the release notes say how.
 
 ## What you can do with it
 

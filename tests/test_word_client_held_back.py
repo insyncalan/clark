@@ -334,6 +334,9 @@ class GanttLeftOutSameAsKeptNonRow(Setup, unittest.TestCase):
     are also found inside a longer kept row: both copies still save."""
 
     def plant(self):
+        # a new project's Open actions is a Work items list, which carries no labels; the label is a kept non-row value only with the built-in section
+        with self.store.step("dashboard", USER) as st:
+            st.create("report_sections", {"project": "ABC", "type": "actions", "title": "Open actions", "sort_order": 1})
         plant_label_on_kept_action(self.demo, LABEL_NAME, around=f"Next: {LABEL_NAME} this month")
         plant_gantt_line(self.demo, LABEL_NAME)
 

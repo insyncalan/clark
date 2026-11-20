@@ -3,7 +3,7 @@
 Run: python3 dev/run_tests.py -j 1 test_ms_header_1230
 The page runs from the real server over a real store (fictional data) in headless Chrome (required: it fails, never skips, without
 Chrome). Dashboard section only (place sec-<id>): the Timeline / Calendar tabs on the section's heading row; Earlier, Later, Today and the
-range on the left of the toolbar and Week, Month, Quarter on the right; the caption "Drag the bottom edge to zoom" at the bottom edge of
+range on the left of the toolbar and Week, Month, Quarter on the right; the caption "Drag the grip below the timeline to zoom" at the bottom edge of
 the box; every name shown, in up to four tiers (two above the line, two below) with a thin leader from each label to its mark; each label
 two lines (name, then date and "+N days"); the Today marker a pill. No new word is added: every string is one the page already had.
 The Milestones page (place page) keeps its markup. Widths 1400 and 900 only.
@@ -139,7 +139,7 @@ class Header(Base):
         for width, edit in CASES:
             with self.subTest(width=width, edit=edit), self.case(width, edit) as (cdp, sid, got):
                 self.assertEqual(got["caps"], 1)
-                self.assertIn("Drag the bottom edge to zoom", got["capText"])
+                self.assertIn("Drag the grip below the timeline to zoom", got["capText"])
                 self.assertTrue(got["capSibling"], "a child of the box's wrapper, beside the scrolling line")
                 self.assertFalse(got["capInBar"], "not in the toolbar")
                 self.assertGreater(got["capTop"], got["wrapTop"] + (got["wrapBottom"] - got["wrapTop"]) / 2, "in the lower half")

@@ -40,7 +40,7 @@ export function layoutItems(w, board) {
   const onBoard = board && w.view === "board", g = onBoard ? boardGroup(w.group) : w.group;
   const lane = onBoard && w.lane && w.lane !== g && LANE_GROUPS.includes(w.lane) ? w.lane : "none";
   const out = [];
-  out.push({ id: "lab-group", lab: "Group by" }, ...GROUPS.filter((x) => !onBoard || x.id !== "nothing").map((x) => ({ id: `group:${x.id}`, name: x.label, icon: groupIcon(x.id), checked: x.id === g })));
+  out.push({ id: "lab-group", lab: "Group by", caps: true }, ...GROUPS.filter((x) => !onBoard || x.id !== "nothing").map((x) => ({ id: `group:${x.id}`, name: x.label, icon: groupIcon(x.id), checked: x.id === g })));
   if (onBoard) out.push({ id: "sep-lanes", sep: true }, { id: "lab-lanes", lab: "Swimlanes" }, { id: "lane:none", name: "No lanes", icon: actionIcon("none"), checked: lane === "none" },
     ...LANE_GROUPS.filter((x) => x !== g).map((x) => ({ id: `lane:${x}`, name: `${groupLabel(x)} lanes`, icon: groupIcon(x), checked: lane === x })));
   return { items: out, label: `Group by: ${groupLabel(g)}${lane !== "none" ? `, ${groupLabel(lane).toLowerCase()} lanes` : ""}` };
@@ -79,7 +79,7 @@ function pickLayout(id) {
   else if (what === "lane") { setWork({ lane: v === "none" ? null : v }); announce.value = v === "none" ? "No lanes." : `${groupLabel(v)} lanes.`; }
 }
 
-function SavedViews({ board }) {
+function SavedViews({ board, add = null }) {
   const code = project.value, rows = allRows.value, ctx = filterCtx(), line = lineText.value;
   const [moving, setMoving] = useState(null);             // row 1071: the id of the tab Move view is moving with the arrow keys, or null
   const [draft, setDraft] = useState(null);               // row 1071: while a tab is dragged, the ids of the tabs in the order shown; saved when it is let go
@@ -303,6 +303,7 @@ function SavedViews({ board }) {
           <button type="button" class="link" id="fvRevert" onClick={() => act("discard")}>Discard changes</button>
         </span>
       )}
+      {add}   {/* row 1260 G11: Classic puts the Add tile at the far right of the tabs row (the page passes it only then) */}
       </div>
       {asked ? (
         <div class="vform vask" role="group" aria-label={LEAVE_PROMPT} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); const f = document.getElementById("fline-input"); if (f) f.focus(); asking.value = false; } }}>      {/* the focus goes to the line first: a prompt removed while it holds the focus would otherwise count as leaving the box and ask again */}
@@ -538,11 +539,11 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
 }
 
 // The Work items line: the box over the app's line store (stores/line.js), with the saved views over it, each chip's plain words and the owner:me note.
-export function FilterLine({ board, tools }) {
+export function FilterLine({ board, tools, add = null }) {
   const code = project.value, rows = allRows.value, ctx = filterCtx(), line = lineText.value;
   const meaning = (c) => { const p = FL.parse(c, rows, ctx); return p.errors.length || !p.chips[0] ? c : p.chips[0].say; };      // a chip in plain words, as the prototype says it (the word itself when the line cannot read it)
   return (
-    <LineBox head={<SavedViews board={board} />} onLeave={() => { if (dirtyNow) asking.value = true; }} onEnter={(e) => { if (!(e.target && e.target.closest && e.target.closest(".vask"))) asking.value = false; }} line={line} now={() => lineText.value} apply={setLine} rows={rows} ctx={ctx} label="Filter work items"
+    <LineBox head={<SavedViews board={board} add={add} />} onLeave={() => { if (dirtyNow) asking.value = true; }} onEnter={(e) => { if (!(e.target && e.target.closest && e.target.closest(".vask"))) asking.value = false; }} line={line} now={() => lineText.value} apply={setLine} rows={rows} ctx={ctx} label="Filter work items"
       tail={<ViewIcons board={board} />} meaning={meaning} notes={(p) => (Q.wantsMe(p, ctx) ? [Q.NO_ME] : [])} onClear={() => { chosen.value = { ...chosen.value, [code]: "" }; }} />
   );
 }

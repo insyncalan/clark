@@ -29,6 +29,11 @@ MEASURE = r"""(() => { const out = {edge: [], head: [], owner: [], title: [], ca
 
 
 class HalfCards(Base):
+    def setUp(self):
+        super().setUp()
+        # a new project's Risks, Actions and Decisions are Work items lists (row 1193); these tests pin the built-in sections
+        self.demo.plant_builtin_sections(project="ABC")
+
     def test_half_width_cards_fit_in_view_and_edit_light_and_dark(self):
         with chrome() as cdp:
             p = Pg.at(self, cdp, self.served().port)
