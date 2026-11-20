@@ -190,7 +190,7 @@ function Row({ row, today, Cell, Eye, stop, pos, size, group, motion, onMotionEn
       {cols.includes("due") ? <td class="c-due" data-col="due">{cell("due", due.date === "—" ? "none" : due.date, <><span class="num">{due.date}</span>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}>{due.words}</span> : null}</>)}</td> : null}
       {cols.includes("prio") ? <td class="c-prio" data-col="prio">{cell("priority", row.priority || "none", row.priority ? <span class={`wil-pr${row.priority === "Urgent" ? " u" : row.priority === "High" ? " h" : ""}`} data-pri={classicTheme() ? row.priority : undefined}>{row.priority}</span> : <span class="muted">{"—"}</span>)}</td> : null}
       {extras(cols).map((id) => <td key={id} class={`c-x c-x-${id}`} data-col={id} data-label={labelOf(id)}>{extraCell(id, row)}</td>)}
-      {Eye ? <td class="c-eye"><Eye row={row} /></td> : null}
+      {Eye ? <td class="c-eye"><Eye row={row} />{Eye.Ask ? <Eye.Ask row={row} /> : null}</td> : null}
     </tr>
   );
 }

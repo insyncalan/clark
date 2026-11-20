@@ -29,11 +29,12 @@ import re
 import secrets
 import sqlite3
 import threading
+import datetime
 import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-from clark import ask, ask_apply, ask_data, ask_files, ask_folders, ask_passages, pdf_link, pdf_reader, platform, publish, reach, secret_screen
+from clark import ask, ask_apply, ask_data, ask_files, ask_folders, ask_passages, ask_usage, pdf_link, pdf_reader, platform, publish, reach, secret_screen
 from clark.store import CONNECTORS, Store, connect
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -79,6 +80,8 @@ class AskService:
         self.applier = applier or ask_apply.AskApply(self.db_path, self.onedrive_roots)
         self.clock = clock
         self.open_pdf = open_pdf or platform.open_pdf_at      # #943: the one thing that starts a viewer (a stub in tests)
+        self.usage = ask_usage.AskUsage(self.data_dir)      # row 1294: questions and tokens this month, per project, kept on this computer
+        self.today = datetime.date.today                    # a seam for tests
         self.replies = {}                            # reply ID -> Held: the changes an answer suggested, kept on the server
         self.replies_lock = threading.Lock()
 
@@ -117,6 +120,30 @@ class AskService:
         st = ask.answer_status(self.provider) if on else {"connected": False, "why": MESSAGES["asking_off"]}
         label = getattr(self.provider, "label", "")      # #54: who a question goes to, so the page can say so truly
         return 200, {"ok": True, "ask_enabled": on, "connected": st["connected"], "why": st["why"], **({"provider": label} if label else {})}
+
+    # ----- GET /api/ask-usage -----
+    def usage_read(self, *_ignored):
+        """Usage in tokens (row 1294): this month so far, per project and in all, read only. {ok, title, asking, projects: [{code, name, questions,
+        tokens, unreported}], all: {questions, tokens, unreported}, note}; a project with no question shows 0. Archived projects with no question are left out."""
+        day = self.today()
+        kept = self.usage.month(day)
+        try:
+            store = self.reader()
+        except (sqlite3.Error, OSError, TypeError):
+            return 409, self.fail("busy")
+        try:
+            rows = [r for r in store.read("projects") if isinstance(r.get("code"), str)]
+        finally:
+            store.close()
+        out = []
+        for r in sorted(rows, key=lambda r: r["code"]):
+            got = kept.get(r["code"], {"questions": 0, "tokens": 0, "unreported": 0})
+            if r.get("archived") and not got["questions"]:
+                continue
+            out.append({"code": r["code"], "name": r.get("name") or "", **got})
+        total = {"questions": sum(p["questions"] for p in out), "tokens": sum(p["tokens"] for p in out),
+                 "unreported": sum(p["unreported"] for p in out)}
+        return 200, {"ok": True, "title": ask_usage.group_title(day), "asking": self.enabled(), "projects": out, "all": total, "note": ask_usage.READ_ONLY}
 
     # ----- POST /api/ask/stop -----
     def stop(self, body=None):
@@ -196,6 +223,7 @@ class AskService:
                                  facts=lambda ref: facts.get(ref))
         if isinstance(reply, ask.Failure):
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
+        self.usage.record(code, getattr(self.provider, "last_tokens", None), self.today())      # row 1294: one answered question, with the tokens the command reported
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
                              left_out_note(found.left_out), *ask_data.left_out_lines(data.counts), *folder_notes(found)) if n]
         conn = connector_used(getattr(self.provider, "last_line", None))      # row 1306: what the real run did (None: no connector in the run)
@@ -210,6 +238,7 @@ class AskService:
                                  for (pid, label), i in zip(request.passages, request.kept) if pid in reply.cites],
                      "flags": [{"kind": f.kind, "ref": f.ref, "message": f.message} for f in reply.flags],
                      "items": [{"id": i["id"], "state": list(i["state"])} for i in reply.items],
+                     "read": ask_data.read_counts(data),
                      "changes": [dict(c) for c in reply.changes], "notes": notes, "reply": held, "draft": draft_via(reply.draft, conn),
                      "left_out_for_safety": found.safety}
 
