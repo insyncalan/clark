@@ -268,12 +268,12 @@ class Classic(Setup):
                 self.assertEqual([b["left"] for b in grp["btns"]], ["0px"] + ["1px"] * (len(grp["btns"]) - 1), "a rule between neighbours")
                 active = [b for b in grp["btns"] if b["cur"] == "true"]
                 self.assertEqual(len(active), 1)
-                self.assertEqual(active[0]["bg"], rgb_of(g["heading"]), "the chosen one is filled dark (light page) with the heading colour")
+                self.assertEqual(active[0]["bg"], "rgb(43, 56, 80)" if dark else rgb_of("#062F3A"), "row 1354: the chosen one is navy (light) or 2b3850 (dark)")
                 for r in grp["ratios"]:
                     self.assertGreaterEqual(r, 4.5)
                 self.assertNotEqual(active[0]["bg"], [b for b in grp["btns"] if b["cur"] != "true"][0]["bg"])
-            for grp in (sw, sc):
-                self.assertGreaterEqual(grp["edge"], 3.0, "the dark fill against the page beside it, as a control edge")
+            for grp in (sw, sc) if not dark else ():      # dark: the fill is 1.46 to 1 on its ground, so row 1354 draws a 1px edge instead
+                self.assertGreaterEqual(grp["edge"], 3.0, "the fill against the page beside it, as a control edge")
             print("row 1313 contrast", width, "dark" if dark else "light", "switch edge %.2f" % sw["edge"], "scale edge %.2f" % sc["edge"],
                   "active text %.2f" % min(r for r, b in zip(sw["ratios"], sw["btns"]) if b["cur"] == "true"), "ground", sw["ground"])
             self.assertEqual(sw["border"], "1px")

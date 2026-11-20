@@ -54,6 +54,7 @@ export function Section({ section, index, count, slot, anchor, tools, clean }) {
       {editing ? <tools.Gutter section={section} count={count} /> : null}
       <header class="sec-head">
         <h2 class="sec-h">{editing ? <tools.Title section={section} /> : section.title}</h2>
+        {editing && tools.AskAbout ? <tools.AskAbout kind="section" id={section.id} name={section.title} /> : null}
         {changed ? <span class="tag chg">{WORD}</span> : null}
         {editing && notShownTag(shows) ? <span class="tag hid" data-not-shown>{notShownTag(shows)}</span> : null}
         {editing && hidden ? <span class="tag hid">Left out of the published page</span> : null}

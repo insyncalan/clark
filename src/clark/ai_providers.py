@@ -13,7 +13,7 @@ from clark import ai_codex, ask, ask_claude
 # Each model's context window in tokens (the owner's answer on #53, question 6). Characters allowed are half of it: a token is often
 # more than two characters of English, but text in other scripts can be fewer, and the provider's own prompt and the reply need room.
 CONTEXT_TOKENS = {"opus": 1000000, "sonnet": 1000000, "haiku": 1000000, "fable": 1000000}
-CHARS_PER_TOKEN = 0.5
+CHARS_PER_TOKEN = 2.0       # row 1293: characters allowed per token of the window (half of the 4 a token often is); it was 0.5, a unit bug
 TOO_BIG = "That is too much text for {model}, so nothing was sent. Ask about less, or choose another model in Settings."
 
 

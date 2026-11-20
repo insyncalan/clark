@@ -85,6 +85,82 @@ class Resume(Base):
         self.assertTrue(ixr.wait_idle(10))
         self.assertEqual(calls, [])
 
+    def test_a_changed_folder_list_builds_the_index_for_the_new_folders(self):
+        ix.build(self.data, "P1", self.folders)
+        other = self.box.parent / "other"
+        self.put("o.txt", "zqother text", folder=other)
+        folders = self.folders + [str(other)]
+        ixr = self.indexer()
+        self.assertFalse(ixr.current("P1", folders), "this question reads the folders")
+        self.assertTrue(ixr.wait_idle(10))
+        self.assertTrue(ixr.current("P1", folders))
+        self.assertTrue(ix.search(self.data, "P1", "zqother"), "the new folder is in")
+
+    def blocked(self):
+        """An Indexer whose reads wait on `go`; `calls` holds the codes it was asked to read, `entered` is set at the first one."""
+        go, entered, calls = threading.Event(), threading.Event(), []
+
+        def fn(data, code, *a, **k):
+            calls.append(code)
+            entered.set()
+            go.wait(10)
+        self.addCleanup(go.set)
+        return self.indexer(fn), go, entered, calls
+
+    def test_resume_says_whether_it_started_and_waits_the_whole_wait(self):
+        self.stopped_pass()
+        ixr = self.indexer(lambda *a, **k: None)
+        self.assertIs(ixr.resume("P1", self.folders), True)
+        self.assertTrue(ixr.wait_idle(10))
+        self.assertIs(ixr.resume("P1", self.folders), False, "inside the wait")
+        stamp = ixr.resumed["P1"]
+        wait = ask_index.STALE_POLL_SECONDS
+        with mock.patch.object(ask_index.time, "monotonic", return_value=stamp + wait):
+            self.assertIs(ixr.resume("P1", self.folders), True, "exactly when the wait is over")
+        self.assertTrue(ixr.wait_idle(10))
+        with mock.patch.object(ask_index.time, "monotonic", return_value=ixr.resumed["P1"] + wait - 0.5):
+            self.assertIs(ixr.resume("P1", self.folders), False, "half a second short")
+
+    def test_a_run_going_is_not_started_again(self):
+        self.stopped_pass()
+        ixr, go, entered, calls = self.blocked()
+        self.assertTrue(ixr.start("P1", self.folders))
+        self.assertTrue(entered.wait(10))
+        self.assertIs(ixr.resume("P1", self.folders), False, "its run is going")
+        go.set()
+        self.assertTrue(ixr.wait_idle(10))
+        self.assertEqual(calls, ["P1"], "one run, not two")
+
+    def test_a_run_waiting_in_the_queue_is_not_queued_again(self):
+        self.stopped_pass()
+        ixr, go, entered, calls = self.blocked()
+        self.assertTrue(ixr.start("P2", self.folders))
+        self.assertTrue(entered.wait(10))
+        self.assertTrue(ixr.start("P1", self.folders))
+        self.assertIs(ixr.resume("P1", self.folders), False, "it is already waiting its turn")
+        self.assertEqual(ixr.busy, 2)
+        go.set()
+        self.assertTrue(ixr.wait_idle(10))
+        self.assertEqual(sorted(calls), ["P1", "P2"])
+
+    def test_a_poll_with_no_folder_starts_nothing_even_when_it_is_due(self):
+        self.stopped_pass()
+        calls = []
+        ixr = self.indexer(lambda *a, **k: calls.append(1))
+        ixr.status_for("P1", [])
+        self.assertTrue(ixr.wait_idle(10))
+        self.assertEqual(calls, [])
+
+    def test_a_poll_inside_the_wait_after_a_poll_starts_nothing_more(self):
+        self.stopped_pass()
+        calls = []
+        ixr = self.indexer(lambda *a, **k: calls.append(1))
+        ixr.status_for("P1", self.folders)
+        self.assertTrue(ixr.wait_idle(10))
+        ixr.status_for("P1", self.folders)          # not due again yet: the poll itself waits too
+        self.assertTrue(ixr.wait_idle(10))
+        self.assertEqual(len(calls), 1)
+
     def test_a_clark_that_is_closing_does_not_start_it_again(self):
         self.stopped_pass()
         ixr = self.indexer(lambda *a, **k: self.fail("a run was started after shutdown"))
