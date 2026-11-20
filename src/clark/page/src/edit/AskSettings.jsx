@@ -197,7 +197,7 @@ function AskProject() {
       {list.length ? (
         <ul class="ask-folders" id="ask-folders">
           {list.flatMap((p) => {
-            const w = warns.find((x) => x.folder === p);
+            const w = classicTheme() ? warns.find((x) => x.folder === p) : null;      // Classic only: the notice's CSS is Classic-only (rules.css), Cards shows nothing new
             const row = <li key={p}><span class="folder-now">{p}</span> <button type="button" class="btn sm quiet" data-ask-remove={p} disabled={busy} onClick={() => change("remove", p)}>Remove</button></li>;
             if (!w) return [row];
             const names = w.items.map((i, k) => <span key={i.name}>{k ? PEOPLE_CONTRACT_AND : null}<span data-ask-warn-name>{i.name}</span></span>);
