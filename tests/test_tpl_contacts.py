@@ -37,10 +37,20 @@ class Data(n.DataChecks):
 
 class Page(n.PageChecks):
     TYPE, GOOD, HOSTILE_BODY = "contacts", GOOD, HOSTILE
-    EMPTY_LINE = "Add a person."      # row 1251: the starting text of an empty Contacts
+    EMPTY_LINE = "Empty for now: add a person."      # row 1251 ruling: the approved line stays for a truly empty card, beside the starting text
     SHOWS = ("Sam Example", "Fictional lead", "sam@example.org", "+44 20 7946 0000", "Alex Example")
     FIELD, TYPED = "Person 1 name", "Sam Changed"
     CHANGED = lambda self, body: json.loads(body)["people"][0]["name"] == "Sam Changed"
+
+    def test_an_empty_one_shows_the_starting_text_and_keeps_the_empty_for_now_line(self):
+        ref = self.make(None)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] .tpl-edit')", "Edit shows the fields")
+            lines = p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-edit p.quiet')].map(e => e.textContent)")
+            self.assertIn("Add a person.", lines)
+            self.assertIn("Empty for now: add a person. It stays out of the published page until then.", lines)
 
     def test_an_email_is_a_mailto_link_and_nothing_else_is_a_link(self):
         ref = self.make(self.GOOD)

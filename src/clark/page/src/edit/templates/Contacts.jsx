@@ -62,7 +62,8 @@ export function Edit({ section }) {
       {rows.length < LIMITS.people
         ? <button type="button" class="btn sm" onClick={() => { draft.current = [...rows, { ...BLANK }]; setRows(draft.current); }}>Add a person</button>
         : <p class="quiet">A contacts section holds {LIMITS.people} people at most.</p>}
-      {rows.length === 0 ? <StartPrompt id="contacts"> It stays out of the published page until then.</StartPrompt> : null}
+      {rows.length === 0 ? <StartPrompt id="contacts" /> : null}
+      {rows.length === 0 ? <p class="quiet">Empty for now: add a person. It stays out of the published page until then.</p> : null}
     </div>
   );
 }
