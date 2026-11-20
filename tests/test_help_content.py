@@ -523,5 +523,25 @@ class ProfileCircleWords(unittest.TestCase):
         self.assertIn("a person icon at the top right that opens the menu", json.dumps(SRC["reference"], ensure_ascii=False))
 
 
+class MilestonesHelpWithoutMovement(unittest.TestCase):
+    """Row 1329: Classic has no Plan | Movement switch, so Help no longer teaches it. The approved strings are pinned, and so is their absence from the old wording."""
+
+    def _text(self):
+        return json.dumps(SRC, ensure_ascii=False)
+
+    def test_the_approved_milestones_strings_are_in_the_source(self):
+        text = self._text()
+        self.assertEqual(text.count("Milestones shows every milestone for the project, including internal ones."), 2)
+        self.assertIn('"t": "Milestones"', text)
+        self.assertIn("(the Client wording on a row, picture captions and the Own words of risks and issues) have no / menu", text)
+        self.assertIn("Use **Add milestone** to add one.", text)
+
+    def test_nothing_in_the_source_teaches_the_removed_switch(self):
+        text = self._text()
+        for gone in ("Movement is the switch next to", "**Movement** shows slippage", "Use the **Movement** switch next to **Plan**",
+                     "Milestones and Movement", "handle-a-slipped-milestone", "act-on-a-slipped-milestone", "Movement words"):
+            self.assertNotIn(gone, text, gone)
+
+
 if __name__ == "__main__":
     unittest.main()
