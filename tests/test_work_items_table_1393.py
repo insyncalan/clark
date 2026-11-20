@@ -145,3 +145,35 @@ class Browser(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Clip900(Browser):
+    """Row 1393, measured widths at 900 and the clip check on every named column (1400 and 900)."""
+
+    def look_at(self, width):
+        cm = chrome()
+        cdp = cm.__enter__()
+        self.addCleanup(cm.__exit__, None, None, None)
+        sid = self.visit(cdp, width=width)
+        time.sleep(0.5)
+        return cdp, sid
+
+    def widths(self, cdp, sid):
+        return cdp.js("(() => { const o = {}; ['status', 'owner', 'due', 'prio'].forEach(k => { o[k] = document.querySelector('#work table.items tr.colh th.c-' + k).getBoundingClientRect().width; }); return o; })()", sid)
+
+    def clipped(self, cdp, sid):
+        return cdp.js("(() => { const o = []; ['status', 'owner', 'due', 'prio'].forEach(k => { document.querySelectorAll('#work table.items th.c-' + k + ', #work table.items td.c-' + k).forEach(c => {"
+                      " const w = Math.max(c.scrollWidth, ...[...c.querySelectorAll('*')].map(e => e.scrollWidth)); if (w > c.clientWidth) o.push([k, c.clientWidth, w, c.textContent.trim()]); }); }); return o; })()", sid)
+
+    def test_row4_columns_at_900_keep_the_shared_widths_not_the_row_1393_ones(self):
+        cdp, sid = self.look_at(900)
+        got = self.widths(cdp, sid)
+        self.assertEqual(got, {"status": 76, "owner": 130, "due": 139, "prio": 121}, got)
+
+    def test_row4_no_named_cell_is_clipped_at_1400(self):
+        cdp, sid = self.look_at(1400)
+        self.assertEqual(self.clipped(cdp, sid), [])
+
+    def test_row4_no_named_cell_is_clipped_at_900(self):
+        cdp, sid = self.look_at(900)
+        self.assertEqual(self.clipped(cdp, sid), [])
