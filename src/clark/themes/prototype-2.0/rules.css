@@ -660,10 +660,11 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
   .set-group:first-child { margin-top: 0; }
   .set-nav .plain { gap: 4px; }
 }
-/* Row 1402 (Settings Projects card, Classic only; Cards keeps its look): the prototype's header has a 1px rule under it and no dividers between cells, the cells are padded 8px 10px 8px 0, and Add project is the primary navy button with white text and radius 8. Dark keeps the Theme's own tokens for the colours. */
+/* Row 1402 (Settings Projects card, Classic only; Cards keeps its look): the prototype's header has a 1px rule under it and no dividers between cells, the cells are padded 8px 10px 8px 0, and Add project is the primary navy button with white text and radius 8; on hover it lifts 1px with the glow like the other primary buttons (its fill and its focus ring do not change). Dark keeps the Theme's own tokens for the colours. */
 .projects table.proj-table thead th { border-left: 0; border-bottom: 1px solid var(--grey-200); }
 .projects table.proj-table :is(th, td), .projects table.proj-table :is(th, td):first-child { padding: 8px 10px 8px 0; }
 .projects #npBtn.newb { background: var(--brand-navy); border-color: var(--brand-navy); border-radius: 8px; }
+:root:not([data-motion="reduce"]) .projects #npBtn.newb:hover { transform: translateY(-1px); box-shadow: var(--pill-glow-hover); }
 :root[data-theme=dark] .projects #npBtn.newb { background: var(--brand-blue); border-color: var(--brand-blue); }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .projects #npBtn.newb { background: var(--brand-blue); border-color: var(--brand-blue); } }
 
@@ -672,7 +673,7 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 .set-cards .frame:not(#gantt-setting) .seg button + button { border-left-color: var(--grey-200); }
 /* Row 1400 (Settings cards, Classic only): the card sub-heading is 15 px, 600, in the heading colour and face, sentence case; the field and row labels and the Update rows' labels are 15 px, 600; the spacing cards have a 1 px grey-500 border and radius 14 (the chosen and hover borders of shell.css still win). */
 .set-cards .setting > h3, .set-cards .setting-part > h3 { font-family: var(--font-head); font-size: 15px; font-weight: 600; color: var(--heading); text-transform: none; letter-spacing: normal; }
-.set-cards .fld > label, .set-cards .set-row-text label, .upd-rows p.upd-l { font-size: 15px; font-weight: 600; }
+.set-cards .fld > label, .set-cards .set-row-text label, .upd-rows p.upd-l { font-size: 15px; font-weight: 600; color: var(--heading); }
 .set-cards .secpick-card { border-color: var(--grey-500); border-radius: 14px; }
 /* Row 1393 (Work items table, Classic only; the Cards look layers none of this, shell.css is untouched): item title weight 500 in the heading colour, the row line in --grey-200, the column names 13px weight 500 with 9px above and below (the Comfortable density keeps its own larger padding), the Status / Owner / Due / Priority columns 76 / 170 / 134 / 104 px as the prototype page draws them (its default column widths; only Priority changes from the shared 122) above 900 (900 keeps the shared widths), due words 13px with the late one at 600, the red and green status tile text in the status tokens, the row hover in --band-bg and the eye button 30 px. Bare lengths: the 9px header padding, the 500 weight, the widths. */
 :root { --d-colh-y: 9px; }

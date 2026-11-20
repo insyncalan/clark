@@ -74,6 +74,8 @@ class Real(unittest.TestCase):
                 self.assertEqual(c["family"], c["head"], tag + ": sub-heading in the heading face")
             elif slug in ("profile", "essentials", "version"):
                 self.assertEqual((c["size"], c["weight"]), ("15px", "600"), tag + ": label 15 px, 600")
+                if slug == "version":
+                    self.assertEqual(c["color"], c["heading"], tag + ": update-row label in the heading colour")
             else:
                 self.assertEqual(c["border"].split(" ", 1)[0], "1px", tag)
                 self.assertEqual(c["radius"], "14px", tag + ": spacing card radius 14")

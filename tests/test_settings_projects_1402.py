@@ -4,6 +4,7 @@ Values (light, 1400): header rule 1px rgb(217, 224, 239) under the header, no ve
 Add project is navy rgb(6, 47, 58), white text, radius 8. Dark keeps the Theme's tokens for colours.
 
 Run: python3 dev/run_tests.py test_settings_projects_1402"""
+import time
 import unittest
 
 import test_theme_classic_1317 as t13
@@ -33,7 +34,14 @@ class ProjectsCard(t13.RealSettings):
         cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{port}/#settings&p=TUL")}, sid)
         self.assertTrue(wait(lambda: bool(cdp.js("!!document.querySelector('#projects-table tbody tr') && !!document.querySelector('#npBtn')", sid)), 30), "timed out waiting for Settings")
         cdp.js("document.querySelectorAll('#npBtn').forEach((e) => { e.style.transition = 'none'; })", sid)
-        return cdp.js(PROBE, sid)
+        r = cdp.js(PROBE, sid)
+        rest = cdp.js("(() => { const b = document.querySelector('#npBtn'); const g = (p) => getComputedStyle(b)[p]; return { bg: g('backgroundColor'), tr: g('transform'), sh: g('boxShadow') }; })()", sid)
+        box = cdp.js("(() => { const r = document.querySelector('#npBtn').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()", sid)
+        cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": box[0], "y": box[1]}, sid)
+        time.sleep(0.3)
+        r["rest"] = rest
+        r["hover"] = cdp.js("(() => { const b = document.querySelector('#npBtn'); const g = (p) => getComputedStyle(b)[p]; const i = document.createElement('i'); i.style.boxShadow = 'var(--pill-glow-hover)'; document.body.appendChild(i); const glow = getComputedStyle(i).boxShadow; i.remove(); return { bg: g('backgroundColor'), tr: g('transform'), sh: g('boxShadow'), glow: glow, hov: b.matches(':hover') }; })()", sid)
+        return r
 
     def test_classic_projects_card(self):
         for tag, c in self.each(NAME):
@@ -47,6 +55,16 @@ class ProjectsCard(t13.RealSettings):
                 self.assertEqual((c["btnBg"], c["btnColor"]), ("rgb(6, 47, 58)", "rgb(255, 255, 255)"), tag + ": navy Add project, white text")
             else:
                 self.assertEqual(c["btnBg"], c["brand"], tag + ": dark keeps the Theme's brand token")
+
+    def test_add_project_hover_is_the_primary_button_hover(self):
+        # the other Classic primary buttons (.btn.pri) keep their fill on hover, lift 1px and take the hover glow; the focus ring is untouched
+        for tag, c in self.each(NAME):
+            h = c["hover"]
+            self.assertTrue(h["hov"], tag + ": the pointer is over the button")
+            self.assertEqual(h["bg"], c["rest"]["bg"], tag + ": hover keeps the fill")
+            self.assertEqual(h["tr"], "matrix(1, 0, 0, 1, 0, -1)", tag + ": hover lifts 1px")
+            self.assertEqual(h["sh"], h["glow"], tag + ": hover takes the glow token")
+            self.assertEqual(c["rest"]["tr"], "none", tag + ": at rest no lift")
 
     def test_cards_projects_card_unchanged(self):
         for tag, c in self.each(None):
