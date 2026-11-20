@@ -305,9 +305,9 @@ class TheMenuFeed(unittest.TestCase):
         self.assertEqual([m[0] for m in menu], ["check", "summary", "overdue", "risks", "milestones", "usecases", "history", "new"])
 
     def test_a_new_one_follows_the_built_ins_and_a_typed_prefix_filters(self):
-        menu = js('AS.slashMatches("/m", AS.menuCommands({all:[%s],project:[]})).map((c) => c.name)' % self.REC)
+        menu = js('AS.slashMatches("/m", false, AS.menuCommands({all:[%s],project:[]})).map((c) => c.name)' % self.REC)
         self.assertEqual(menu, ["milestones", "monday"])
-        self.assertEqual(js('AS.slashMatches("/", []).length'), 8)
+        self.assertEqual(js('AS.slashMatches("/", false, []).length'), 8)
 
     def test_the_built_in_questions_are_answers_that_may_be_anywhere_and_an_act_is_kept_by_its_name(self):
         """Row 1295 mutation sweep: BUILTINS' scope and result, and withOwn keeping a built-in act when a name clashes."""
