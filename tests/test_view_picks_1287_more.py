@@ -83,6 +83,21 @@ class ViewPickMore(T.InThePage):
             p.until(f"!!document.querySelector('{row}')", "the list drew")
             self.assertEqual(p.js(f"document.querySelectorAll('{row} .wil-c-priority .cell-pick[data-cell$=\":priority\"]').length"), 1)
 
+    def test_the_work_items_pickers_say_the_cell_in_their_label_never_undefined(self):
+        ref = self.add({"mode": "all", "columns": ["id", "owner", "due", "status", "priority"], "owner": ["Pat Demo", "Lee Demo"]})
+        row = f"[data-id=\"{ref}\"] .wil-table tbody tr[data-id=\"{self.a_due}\"]"
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width)
+                p.until(f"!!document.querySelector('{row} .cell-pick')", "the list drew")
+                for col in ("owner", "due", "status", "priority"):
+                    label = p.js(f"document.querySelector('{row} .wil-c-{col} .cell-pick').getAttribute('aria-label')")
+                    self.assertNotIn("undefined", label, col)
+                    said = label.split(": ", 1)[1].rsplit(". Change", 1)[0]
+                    self.assertTrue(said, col)
+                    if col != "status":      # the status cell draws the live pill, whose words the label need not repeat
+                        self.assertIn(said.split(" (")[0], p.js(f"document.querySelector('{row} .wil-c-{col} .cell-pick').textContent"), col)
+
 
 if __name__ == "__main__":
     unittest.main()

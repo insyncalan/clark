@@ -58,7 +58,7 @@ export function Rows({ rows, columns, now, open, Eye, head, Cell: Pick, cw, ord,
   // Row 1195 (Classic, Edit): the headings after Item can be dragged or moved with Alt and an arrow (edit/colWidths.jsx useColOrder); the order is kept on this computer.
   const moved = ord && classicTheme() ? ord.apply(columns.filter((c) => c !== "type" && c !== "id").concat(columns.filter((c) => c === "id"))) : null;
   const th = (c, text) => <th key={c} class={`wil-c-${c}${moved ? ord.cls(c) : ""}`} scope="col" style={cw ? cw.style(c) : undefined} {...(cw ? cw.head(c, text) : {})} {...(moved ? ord.props(c, moved) : {})}>{text}{cw ? cw.grip(c, text) : null}</th>;
-  const cellOf = (row, c) => (Pick && PICKED[c] ? <Pick row={row} field={PICKED[c]} keep={c === "status"}><Cell row={row} col={c} now={now} /></Pick> : <Cell row={row} col={c} now={now} />);
+  const cellOf = (row, c) => (Pick && PICKED[c] ? <Pick row={row} field={PICKED[c]} said={cellText(row, c, now)} keep={c === "status"}><Cell row={row} col={c} now={now} /></Pick> : <Cell row={row} col={c} now={now} />);
   // Row 1268: one line as the built-in rows: the letter tile, the title, the chosen columns, the ID last; an item the client eye has taken off is greyed.
   const before = columns.filter((c) => c === "type"), after = moved || columns.filter((c) => c !== "type" && c !== "id").concat(columns.filter((c) => c === "id"));
   // Row 1195: the Classic theme colours the letter tile by the kind, so a row carries its kind as a class there; the Cards page gets exactly the markup it had.
