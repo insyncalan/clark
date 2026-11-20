@@ -647,6 +647,12 @@ button.pillbtn.tpl-rh-pill .nch { width: 12px; height: 12px; flex: none; }
 .wil-cfg .wil-opts label { gap: var(--space-2); min-height: 32px; font-size: var(--size-small); font-weight: 400; }
 .wil-cfg .wil-opts input[type="checkbox"] { width: 18px; height: 18px; }
 .wil-cfg .wil-opts input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+/* Row 1319, segment size (Classic only; Cards layers none of this): the segments, the switches and the text tabs take a 6px corner (--radius less 2px); the segment buttons are 28px tall with padding 3px 14px; the crumb is 13px. Primaries and plain buttons stay at the 8px --radius. The icon segments (34px by 32px) and the top bar's Dashboard and Edit switch keep their size. */
+/* Row 1319, values and their source (ticket 1319, spec table, prototype index.html:49-51): radius 6px = "Segmented control: border 1px, radius 6px" (calc of the 8px --radius less 2px, no new token); min-height 28px and padding 3px 14px = "buttons padding 3px 14px, min-height 28px"; the crumb 13px = "Crumb: normal case, 13px" (--size-caption). Amendment AP4 (Jarvis 18:06): "not .lsw/.icons/.modes", so the layout switch is left out. */
+.seg, .msv-sw, .mv-txt { border-radius: calc(var(--radius) - 2px); }
+:root:not([data-motion="reduce"]) .modes.seg.glide::before { border-radius: calc(var(--radius) - 2px); }
+.seg:not(.icons):not(.modes):not(.lsw) button { min-height: 28px; padding: 3px 14px; }
+.crumbs, .ucd-crumb, .ucf-crumb { font-size: var(--size-caption); }
 /* Row 1393 (Work items table, Classic only; the Cards look layers none of this, shell.css is untouched): item title weight 500 in the heading colour, the row line in --grey-200, the column names 13px weight 500 with 9px above and below (the Comfortable density keeps its own larger padding), the Status / Owner / Due / Priority columns 76 / 170 / 134 / 104 px as the prototype page draws them (its default column widths; only Priority changes from the shared 122) above 900 (900 keeps the shared widths), due words 13px with the late one at 600, the red and green status tile text in the status tokens, the row hover in --band-bg and the eye button 30 px. Bare lengths: the 9px header padding, the 500 weight, the widths. */
 :root { --d-colh-y: 9px; }
 table.items th { font-size: var(--size-caption); font-weight: 500; }
@@ -683,8 +689,3 @@ table.items .weye { width: 30px; height: 30px; }
 @media (prefers-color-scheme: dark) { :root[data-theme=auto] .gt-grp .gt-ib[aria-pressed="true"] { box-shadow: inset 0 0 0 1px var(--grey-500); } }
 #viewMenuList { min-width: 224px; }
 [data-gt] .gt-menu button, .gt-pop button { display: flex; align-items: center; gap: var(--space-2); }
-/* Row 1319, segment size (Classic only; Cards layers none of this): the segments, the switches and the text tabs take a 6px corner (--radius less 2px); the segment buttons are 28px tall with padding 3px 14px; the crumb is 13px. Primaries and plain buttons stay at the 8px --radius. The icon segments (34px by 32px) and the top bar's Dashboard and Edit switch keep their size. */
-.seg, .msv-sw, .mv-txt { border-radius: calc(var(--radius) - 2px); }
-:root:not([data-motion="reduce"]) .modes.seg.glide::before { border-radius: calc(var(--radius) - 2px); }
-.seg:not(.icons):not(.modes) button { min-height: 28px; padding: 3px 14px; }
-.crumbs, .ucd-crumb, .ucf-crumb { font-size: var(--size-caption); }
