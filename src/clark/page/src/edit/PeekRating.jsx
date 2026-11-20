@@ -8,6 +8,7 @@ import { Pop } from "./cells/Pop.jsx";
 import { changeRating } from "../stores/changes.js";
 import { colourOf } from "../workItems.js";
 import { tableOf } from "./itemEdit.js";
+import { classicTheme } from "../components/Contents.jsx";
 
 export const IMPACTS = ["High", "Medium", "Low"];          // the matrix rows, top to bottom
 export const LIKELIHOODS = ["Low", "Medium", "High"];      // the matrix columns, left to right
@@ -20,10 +21,12 @@ export function levelOf(impact, likelihood) {
   if (impact === "Low" && likelihood === "Low") return "Low";
   return "Medium";
 }
+/** Row 1409: the colour word in the line under the matrix; Classic names Urgent's colour Maroon (the chip and cell are maroon there), Cards keeps Red. */
+export const lineWord = (level) => (level === "Urgent" && classicTheme() ? "Maroon" : colourOf(level).word);
 /** "High impact, Medium likelihood: High (Red)": the line under the matrix. */
 export const hintOf = (impact, likelihood) => {
   const p = levelOf(impact, likelihood);
-  return `${impact} impact, ${likelihood} likelihood: ${p} (${colourOf(p).word})`;
+  return `${impact} impact, ${likelihood} likelihood: ${p} (${lineWord(p)})`;
 };
 
 export function Matrix({ row, anchor, onClose, place = "peek" }) {   // row 1282: the one control, in the peek and in the Work items list (place: where the change says it was made)
@@ -69,7 +72,7 @@ export function Matrix({ row, anchor, onClose, place = "peek" }) {   // row 1282
         <span class="rmx-colhead" aria-hidden="true" />
         {LIKELIHOODS.map((li) => <span class="rmx-h rmx-col" key={`h-${li}`} aria-hidden="true">{li}</span>)}
       </div>
-      <p class="rmx-hint" data-rmx-hint data-pk-matrix-say>{at.i && at.l ? <>{at.i} impact, {at.l} likelihood: <b data-rmx-level>{levelOf(at.i, at.l)}</b> ({colourOf(levelOf(at.i, at.l)).word})</> : ""}</p>
+      <p class="rmx-hint" data-rmx-hint data-pk-matrix-say>{at.i && at.l ? <>{at.i} impact, {at.l} likelihood: <b data-rmx-level>{levelOf(at.i, at.l)}</b> ({lineWord(levelOf(at.i, at.l))})</> : ""}</p>
     </Pop>
   );
 }

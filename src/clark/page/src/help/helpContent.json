@@ -606,7 +606,7 @@
     "s": [
      "In **Settings**, the **Personal** card has **Spacing**: **Compact** (the standard) or **Comfortable**. Your spacing choice is used on the published report too; Appearance, below, is yours alone.",
      "**Appearance**, in the same card, is **Light**, **Dark** or **System**. System is the standard: it follows your computer’s setting and changes when the computer does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
-     "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others), and / and ?, do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
+     "Personal › Keys has Single-key slash commands, on as standard. Turn them off and the letter keys (V, E and the others), and / and ?, do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
     ],
     "page": [
      "settings"
@@ -1136,11 +1136,6 @@
         "Table",
         "The plan as a table, from your Gantt lines. Only lines put in the client view show.",
         "Full or half"
-       ],
-       [
-        "At a glance",
-        "The project’s health, and counts of overdue actions, high risks and issues, and decisions needed.",
-        "Full"
        ],
        [
         "Use case summary",
@@ -1854,7 +1849,7 @@
       [
        [
         "Essentials",
-        "Your name, Appearance, Spacing, Motion, Single-key shortcuts, Backups, Publishing folder, Asking on or off."
+        "Your name, Appearance, Spacing, Motion, Single-key slash commands, Backups, Publishing folder, Asking on or off."
        ],
        [
         "Profile",
@@ -1866,7 +1861,7 @@
        ],
        [
         "Personal",
-        "Spacing (Compact or Comfortable), Appearance (System, Light or Dark) and Keys (Single-key shortcuts)."
+        "Spacing (Compact or Comfortable), Appearance (System, Light or Dark) and Keys (Single-key slash commands)."
        ],
        [
         "Freshness",
@@ -2159,11 +2154,11 @@
    ],
    [
     "[[V]]",
-    "Switches to View, like the **View** button. Works on the Dashboard and the Gantt page only, and not while you are typing in a box. A single letter key: it does nothing when Single-key shortcuts is off in Settings › Personal"
+    "Switches to View, like the **View** button. Works on the Dashboard and the Gantt page only, and not while you are typing in a box. A single letter key: it does nothing when Single-key slash commands are off in Settings › Personal"
    ],
    [
     "[[E]]",
-    "Switches to Edit, like the **Edit** button. Works on the Dashboard and the Gantt page only, and not while you are typing in a box. A single letter key: it does nothing when Single-key shortcuts is off in Settings › Personal"
+    "Switches to Edit, like the **Edit** button. Works on the Dashboard and the Gantt page only, and not while you are typing in a box. A single letter key: it does nothing when Single-key slash commands are off in Settings › Personal"
    ],
    [
     "[[Alt+Up]] [[Alt+Down]]",
@@ -2231,7 +2226,7 @@
    ],
    [
     "[[O]] [[S]] [[P]] [[T]] [[C]]",
-    "Work items in Edit, on a row, a card, the selection or the item you have open: change the owner (O), status (S), priority (P) or due date (T), or close it (C). Several selected change together, in one step with one Undo. Not while you are typing in a box. Single letter keys: they do nothing when Single-key shortcuts is off in Settings › Personal"
+    "Work items in Edit, on a row, a card, the selection or the item you have open: change the owner (O), status (S), priority (P) or due date (T), or close it (C). Several selected change together, in one step with one Undo. Not while you are typing in a box. Single letter keys: they do nothing when Single-key slash commands are off in Settings › Personal"
    ],
    [
     "[[Shift+F10]]",
@@ -2534,7 +2529,7 @@
     {
      "card": "essentials",
      "title": "Essentials",
-     "line": "Your name, Appearance, Spacing, Motion, Single-key shortcuts, Backups, Publishing folder, Asking on or off."
+     "line": "Your name, Appearance, Spacing, Motion, Single-key slash commands, Backups, Publishing folder, Asking on or off."
     },
     {
      "card": "profile",
@@ -2549,7 +2544,7 @@
     {
      "card": "personal",
      "title": "Personal",
-     "line": "How the Dashboard sections look, System, Light or Dark and the single-key shortcuts."
+     "line": "How the Dashboard sections look, System, Light or Dark and the single-key slash commands."
     },
     {
      "card": "freshness",
