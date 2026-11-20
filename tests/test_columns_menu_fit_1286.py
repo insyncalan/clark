@@ -40,6 +40,42 @@ class ColumnsMenuFit(base.InThePage):
                 p.js("document.querySelector('.cols-menu').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))")
                 p.until("!document.querySelector('.cols-menu')", f"closed at {w}x{h}")
 
+    def test_columns_menu_foot_is_shifted_up_to_the_window_bottom_margin(self):
+        """A menu that fits the window (it is not cut) but whose foot, placed under the heading, would be lower than 8px above the window bottom is moved up so its foot is at innerHeight - 8.
+
+        Accepted gap (Tech Debt v1.4): the 900x130 window, where room <= 0 (the top bar fills it), is not tested.
+        """
+        ref = self.add({"mode": "all", "columns": ["id", "owner"], "owner": ["Pat Demo", "Lee Demo"]})
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.edit()
+            head = f"[data-id=\"{ref}\"] [data-wil-edit] .wil-table th.wil-c-owner"
+            p.until(f"!!document.querySelector({json.dumps(head)})", "the list")
+
+            def opened(h):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": h, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.until(f"innerHeight === {h}", f"window 1400x{h}")
+                p.js(f"document.querySelector({json.dumps(head)}).scrollIntoView({{block:'start'}})")
+                time.sleep(0.3)
+                p.js(f"document.querySelector({json.dumps(head)}).dispatchEvent(new MouseEvent('contextmenu', {{bubbles: true, cancelable: true}}))")
+                p.until(f"!!({MEASURE})", f"the Columns menu opened at 1400x{h}")
+                p.until("document.getAnimations().length === 0", "animations finished")      # the menu is measured at rest
+                return p.js(MEASURE)
+
+            def closed():
+                p.js("document.querySelector('.cols-menu').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))")
+                p.until("!document.querySelector('.cols-menu')", "closed")
+
+            tall = opened(900)      # nothing is cut or moved: its top is where it sits under the heading, its height is the whole menu
+            closed()
+            natural_foot = tall["bottom"]
+            h = natural_foot + 4      # the foot (natural_foot) is 4px below the 8px margin, and the menu is lower than the window less the floor and the margin: no cut
+            self.assertLessEqual(tall["bottom"] - tall["top"], h - tall["floor"] - 8, f"the window is tall enough to need no cut: {tall}")
+            got = opened(h)
+            self.assertLessEqual(abs(got["bottom"] - (h - 8)), 1, f"at 1400x{h}: the menu foot is at the window bottom less 8: {got}")
+            self.assertGreaterEqual(got["top"], got["floor"], f"at 1400x{h}: {got}")
+            self.assertLess(got["top"], tall["top"], f"at 1400x{h}: the menu was moved up from {tall['top']}: {got}")
+            closed()
 
 if __name__ == "__main__":
     unittest.main()
