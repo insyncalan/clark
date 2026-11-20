@@ -151,9 +151,38 @@ for _n in [n for n in dir(_Fields) if n.startswith('test')]:
     setattr(Milestone, _n, None)      # only this file's own test runs, not the base class's
 
 
-del _m, _B, _Fields
+del _m, _Fields
 
 
 if __name__ == "__main__":
     unittest.main()
 
+
+
+class LatestValues(unittest.TestCase):
+    """Row 1285, the approved peek mock-up's measured values for the Latest update (Classic): label 18px above, Draft with AI padding 4px 8px, footer gap 10 and right padding 10, key 11px / 600 / radius 5 / padding 0 5px."""
+    load, fresh, refused = _B.load, _B.fresh, _B.refused
+    _base_setup = _B.setUp
+
+    def setUp(self):
+        self._base_setup()
+        p = classic()
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_the_latest_update_label_button_footer_and_key_match_the_mock_up(self):
+        for width in (1400, 900):
+            for ref, kind in ITEMS:
+                with self.subTest(width=width, kind=kind), chrome() as cdp:
+                    sent, sid = self.load(cdp, width, ref, edit=True)
+                    got = cdp.js("(() => { const g = (s, ps) => { const e = document.querySelector(s); if (!e) return null; const c = getComputedStyle(e); return ps.map(p => c[p]); };"
+                                 " return {lab: g('#peek .pk-lab', ['marginTop', 'marginBottom']), ai: g('#peek .pk-ai', ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft']),"
+                                 " foot: g('#peek .pk-lfoot', ['columnGap', 'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft']),"
+                                 " key: g('#peek .pk-key', ['fontSize', 'fontWeight', 'borderTopLeftRadius', 'paddingLeft', 'paddingRight'])}; })()", sid)
+                    self.assertEqual(got["lab"], ["18px", "8px"], got)
+                    self.assertEqual(got["ai"], ["4px", "8px", "4px", "8px"], got)
+                    self.assertEqual(got["foot"], ["10px", "8px", "10px", "8px", "14px"], got)
+                    self.assertEqual(got["key"], ["11px", "600", "5px", "5px", "5px"], got)
+
+
+del _B
