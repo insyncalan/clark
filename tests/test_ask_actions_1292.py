@@ -282,6 +282,51 @@ class More(Classic):
                 p.key("ArrowUp", code="ArrowUp", vk=38)
                 self.assertEqual(p.js(UP), "Two?", f"{w}: a send started the walk again")
 
+    def test_a_send_starts_the_walk_again_even_through_the_duplicate_at_1400_and_900(self):
+        """After a recalled question is sent it is in the list twice: the next two Up-arrows must give it twice, not walk on to the one before."""
+        for w in (1400, 900):
+            with chrome() as cdp:
+                p = self.visit(cdp)
+                self.at(p, w)
+                self.open(p)
+                self.ask(p, "One?")
+                self.answered(p, 1, f"{w}: first")
+                self.ask(p, "Two?")
+                self.answered(p, 2, f"{w}: second")
+                p.js("document.querySelector('#ask-box').focus()")
+                p.key("ArrowUp", code="ArrowUp", vk=38)
+                self.assertEqual(p.js(UP), "Two?", f"{w}: brought back")
+                p.js("document.querySelector('#ask-send').click()")
+                self.answered(p, 3, f"{w}: sent again")
+                p.js("document.querySelector('#ask-box').focus()")
+                p.key("ArrowUp", code="ArrowUp", vk=38)
+                self.assertEqual(p.js(UP), "Two?", f"{w}: the walk began again")
+                p.key("ArrowUp", code="ArrowUp", vk=38)
+                self.assertEqual(p.js(UP), "Two?", f"{w}: the second step is the sent copy, not the one before")
+
+    def test_words_put_in_the_box_by_the_quick_bar_are_not_walked_over_at_1400_and_900(self):
+        """A question recalled with Up-arrow, then the box filled by the quick bar: Up-arrow leaves those words alone."""
+        for w in (1400, 900):
+            with chrome() as cdp:
+                p = self.visit(cdp)
+                self.at(p, w)
+                self.open(p)
+                self.ask(p, "One?")
+                self.answered(p, 1, f"{w}: first")
+                p.js("document.querySelector('#ask-box').focus()")
+                p.key("ArrowUp", code="ArrowUp", vk=38)
+                self.assertEqual(p.js(UP), "One?", f"{w}: brought back")
+                p.key("k", 2, "KeyK", 75)
+                p.until("!!document.querySelector('#palette[open]')", f"{w}: quick bar open")
+                p.js("document.querySelector('#palette-q').focus()")
+                p.type("Handed words?")
+                p.key("Enter", 0, "Enter", 13)
+                p.until("!document.querySelector('#palette')", f"{w}: quick bar closed")
+                p.until(f"document.querySelector('#ask-box').value === 'Handed words?'", f"{w}: the words are in the box")
+                p.js("document.querySelector('#ask-box').focus()")
+                p.key("ArrowUp", code="ArrowUp", vk=38)
+                self.assertEqual(p.js(UP), "Handed words?", f"{w}: Up-arrow left them alone")
+
     def test_ask_again_waits_while_a_question_is_being_answered_at_1400_and_900(self):
         for w in (1400, 900):
             self.stub.hold.set()
