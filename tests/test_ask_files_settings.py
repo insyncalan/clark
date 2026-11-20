@@ -37,8 +37,10 @@ PROJECT_ORDER = ["ask-folders-card", "ask-instructions-own-card", "ask-files-pro
 
 
 class FilesCards(unittest.TestCase):
+    theme = "prototype-2.0"          # Classic: the Files cards are drawn here only; Cards is frozen (see test_ask_files_cards_1294)
+
     def setUp(self):
-        self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.page_html(tempfile.mkdtemp(), theme=self.theme))
         self.addCleanup(self.s.close)
         self.s.httpd.app_settings = service(make_db(tempfile.mkdtemp(), cleanup=self.addCleanup))
 

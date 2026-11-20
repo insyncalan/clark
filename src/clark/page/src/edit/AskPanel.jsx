@@ -80,7 +80,7 @@ export function AskPanel() {
   const saved = showHist ? (histTick.value, chats()) : [];
   const [files, setFiles] = useState([]);       // #1292 S14: the files and pictures waiting for the next question (used for that question only)
   const [dropOver, setDropOver] = useState(false);
-  const [filesOk, setFilesOk] = useState(false);     // row 1294: the Files switch (all projects) and this project's own turn-off, read each time the panel opens; unknown reads as off
+  const [filesOk, setFilesOk] = useState(true);     // row 1294: the Files switch (all projects) and this project's own turn-off, read each time the panel opens; until the server says "not allowed" the paperclip stays, as it does on main (the server checks again for every question)
   const box = useRef(null), log = useRef(null), stopped = useRef(false), picker = useRef(null);
   // Row 1215: the box is one line high when empty and grows with its text; the cap and the line height are in edit.css, past the cap it scrolls inside.
   useLayoutEffect(() => { const b = box.current; if (!b) return; b.style.height = "auto"; b.style.height = text ? b.scrollHeight + 2 + "px" : ""; });   // empty: the placeholder never makes it taller
@@ -95,10 +95,10 @@ export function AskPanel() {
     if (!open) return undefined;
     let live = true;
     askFilesRead(project.value).then((r) => {
-      const b = r.body, ok = r.status === 200 && !!b && b.ok === true && b.allowed === true;
       if (!live) return;
-      setFilesOk(ok);
-      if (!ok) setFiles([]);
+      const b = r.body, off = r.status === 200 && !!b && b.ok === true && b.allowed === false;
+      setFilesOk(!off);
+      if (off) setFiles([]);
     });
     return () => { live = false; };
   }, [open, project.value]);
