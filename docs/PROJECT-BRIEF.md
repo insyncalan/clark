@@ -34,7 +34,7 @@ Each copy is proposed first in the reuse record and copied from a release tag on
 
 ## Out of scope (for now)
 
-- Reading mail, Teams, calendars or meeting transcripts.
+- Reading meeting transcripts. Mail, Teams, calendars and SharePoint are read only through a connector that the person turns on in Settings (off by default, read only, a project can turn it off for itself).
 - Sending by email, Teams or any message. **Changed 27-10-2026, approved by the owner 28-10-2026:** Publish may also put the report in the client's SharePoint folder, but only when the user ticks "To client" for that publish (Local is always used). It does this by copying the file into the client folder that the user's OneDrive app already syncs, so clark holds no Microsoft sign-in and no network code.
 - Anything from creaite's private repos, and any real client, company or person's name. All data is fictional demo data.
 

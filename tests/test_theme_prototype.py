@@ -16,7 +16,7 @@ RULES = (FOLDER / "rules.css").read_text(encoding="utf-8")
 NAME = re.compile(r"(--[a-z0-9-]+)\s*:")
 DECL = re.compile(r"(--[a-z0-9-]+)\s*:\s*([^;]+);")
 SHELL_DECLARED = {"--sec-pad-t", "--sec-px"}      # row 1195: set by shell.css (the section padding), read by the Work items gear rule
-THEME_ONLY = {"--sec-band-bg"}      # row 1311: set and read by this Theme alone; declaring it in the committed file would change the Cards page bytes
+THEME_ONLY = {"--sec-band-bg", "--tile-on-bg", "--tile-on-fg"}      # row 1311: set and read by this Theme alone; declaring it in the committed file would change the Cards page bytes
 NEW_NINE = {"--page-bg", "--page-grad", "--band-bg", "--line-soft", "--gutter-rule", "--sec-number-color", "--sec-number-size", "--logo-width", "--logo-height"}
 
 
@@ -59,8 +59,8 @@ class ThemePrototype(unittest.TestCase):
         declared = set(NAME.findall(BASE)) | NEW_NINE | SHELL_DECLARED | THEME_ONLY      # the nine are declared by the sibling row 1260 tokens PR
         self.assertEqual(sorted(set(NAME.findall(TOKENS)) - declared), [], "a Theme sets existing names only")
         used = set(re.findall(r"var\((--[a-z0-9-]+)", RULES))
-        own = set(re.findall(r"(--wil-[a-z0-9-]+)\s*:", RULES))      # row 1195: the Work items colours the mock-up measures, set and read by rules.css alone
-        self.assertEqual(sorted(used - declared - own - {"--ly", "--sb", "--ask-pw"}), [], "rules.css reads declared names only, and three that are set elsewhere: --ly inline and --sb on its box (row 1315), --ask-pw inline by the Ask Draft sheet (row 1346)")
+        own = set(re.findall(r"(--(?:wil|pri)-[a-z0-9-]+)\s*:", RULES))      # row 1195: the Work items colours the mock-up measures; row 1409: the four --pri-* priority pairs; set and read by rules.css alone
+        self.assertEqual(sorted(used - declared - own - {"--ly", "--sb", "--ask-w", "--ask-pw"}), [], "rules.css reads declared names only, and the page sets itself: --ly inline and --sb on its box (row 1315), --ask-w on the root while the ask panel is open (row 1292, askPanelState.js), --ask-pw inline by the Ask Draft sheet (row 1346)")
 
     def test_the_two_dark_copies_are_equal(self):
         b = blocks(TOKENS)
