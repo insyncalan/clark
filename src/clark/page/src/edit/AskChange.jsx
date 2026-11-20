@@ -7,6 +7,7 @@ import { project, reread, token } from "../stores/report.js";
 import { sendUndo, sendUndoMany, zoneFetch } from "../api.js";
 import { showDate } from "../workItems.js";
 import { plainText } from "../logic/cleanHtml.js";
+import { classicTheme } from "../components/Contents.jsx";
 import { panelState, turns } from "./askPanelState.js";
 import * as W from "./askWords.js";
 
@@ -64,9 +65,10 @@ export function ChangeCards({ turn }) {
   const plans = turn.plans || [];
   const group = turn.group || {};
   const live = panelState.value === "ready";
+  const classic = classicTheme();            // row 1292: every piece of the new card is Classic only; Cards draws the card as it was
   // Apply all: only when two or more are still offered and none needs the Confirm box (that choice is always made one card at a time).
   const offered = plans.map((p, i) => i).filter((i) => plans[i] && plans[i].ok === true && (cardOf(turn, i).state || "offered") === "offered");
-  const allOk = !plans.some((p) => p && p.ok === true && p.needs_confirm === true) && !group.state;
+  const allOk = classic && !plans.some((p) => p && p.ok === true && p.needs_confirm === true) && !group.state;
   async function applyAll() {
     if (!live || !allOk || offered.length < 2) return;
     const steps = [];
@@ -76,7 +78,7 @@ export function ChangeCards({ turn }) {
       if (step !== false) saved++;
       if (Number.isInteger(step)) steps.push(step);
     }
-    keepGroup(turn, { state: "done", steps, line: saved === offered.length ? W.ALL_DONE_LINE(saved) : W.ALL_PARTLY_LINE(saved, offered.length), solo: steps.length === saved });
+    keepGroup(turn, { state: "done", steps, line: saved === offered.length ? W.ALL_DONE_LINE(saved) : saved ? W.ALL_PARTLY_LINE(saved, offered.length) : "", solo: steps.length === saved });
   }
   async function undoAll() {
     if (!live || group.state !== "done" || !group.solo) return;
@@ -118,7 +120,8 @@ export function ChangeCards({ turn }) {
 function ChangeCard({ plan, turn, index, passages }) {
   const kept = (turn.cards && turn.cards[index]) || {};
   const state = kept.state || "offered", line = kept.line || "", step = kept.step === undefined ? null : kept.step;
-  const grouped = !!(turn.group && turn.group.state);          // one Undo for the lot sits above the cards
+  const classic = classicTheme();
+  const grouped = classic && !!(turn.group && turn.group.state);          // one Undo for the lot sits above the cards
   const [ticked, setTicked] = useState(false);
   const setState = (v) => keepCard(turn, index, { state: v }), setLine = (v) => keepCard(turn, index, { line: v });
   const live = panelState.value === "ready";
@@ -160,22 +163,44 @@ function ChangeCard({ plan, turn, index, passages }) {
 
   return (
     <section class="ask-change" data-ask-change data-ref={plan.ref || ""} ref={card}>
-      <header class="ask-change-head">
-        {plan.new ? <strong>{W.NEW_HEAD}</strong> : <ItemLink plan={plan} />}
-        {plan.new ? <span class="muted">{kind}</span> : typeof plan.title === "string" && plan.title ? <span class="ask-change-title" data-ask-title>{plan.title}</span> : null}
-        {!plan.new && typeof plan.owner === "string" && plan.owner.trim() ? <span class="muted ask-change-owner" data-ask-owner>{W.FIELD_NAMES[plan.kind === "decisions" ? "made_by" : "owner"]}: {plan.owner}</span> : null}
-      </header>
-      <div class="ask-diff" role="list">
-        {fields.map((f) => (
-          <div key={f} class="ask-diff-row" role="listitem" data-field={f}>
-            <span class="ask-diff-field" data-label>{W.FIELD_NAMES[f] || f}</span>
-            <del class="ask-old" data-before>{shownIn(f, before ? before[f] : null)}</del>
-            <span aria-hidden="true">{"\u2192"}</span>
-            <mark class="ask-new" data-after>{shownIn(f, after[f])}</mark>
-          </div>
-        ))}
-      </div>
-      {typeof plan.why === "string" && plan.why ? <p class="ask-why" data-ask-why><span class="muted">{W.WHY}: </span>{plan.why}</p> : null}
+      {classic ? (
+        <header class="ask-change-head">
+          {plan.new ? <strong>{W.NEW_HEAD}</strong> : <ItemLink plan={plan} />}
+          {plan.new ? <span class="muted">{kind}</span> : typeof plan.title === "string" && plan.title ? <span class="ask-change-title" data-ask-title>{plan.title}</span> : null}
+          {!plan.new && typeof plan.owner === "string" && plan.owner.trim() ? <span class="muted ask-change-owner" data-ask-owner>{W.FIELD_NAMES[plan.kind === "decisions" ? "made_by" : "owner"]}: {plan.owner}</span> : null}
+        </header>
+      ) : (
+        <header class="ask-change-head">
+          <strong>{plan.new ? W.NEW_HEAD : W.CHANGE_HEAD}</strong>
+          <span class="muted">{plan.new ? kind : plan.ref || ""}</span>
+        </header>
+      )}
+      {classic ? (
+        <div class="ask-diff" role="list">
+          {fields.map((f) => (
+            <div key={f} class="ask-diff-row" role="listitem" data-field={f}>
+              <span class="ask-diff-field" data-label>{W.FIELD_NAMES[f] || f}</span>
+              <del class="ask-old" data-before>{shownIn(f, before ? before[f] : null)}</del>
+              <span aria-hidden="true">{"\u2192"}</span>
+              <mark class="ask-new" data-after>{shownIn(f, after[f])}</mark>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <table class="ask-diff">
+          <thead><tr><th scope="col">{W.FIELD}</th><th scope="col">{W.NOW}</th><th scope="col">{W.AFTER}</th></tr></thead>
+          <tbody>
+            {fields.map((f) => (
+              <tr key={f} data-field={f}>
+                <th scope="row">{W.FIELD_NAMES[f] || f}</th>
+                <td data-before>{shownIn(f, before ? before[f] : null)}</td>
+                <td data-after>{shownIn(f, after[f])}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      {classic && typeof plan.why === "string" && plan.why ? <p class="ask-why" data-ask-why><span class="muted">{W.WHY}: </span>{plan.why}</p> : null}
       {confirm && state === "offered" && live ? (
         <div class="ask-confirm">
           <p class="ask-confirm-line">{passages ? W.CONFIRM_LINE : W.CONFIRM_NO_PASSAGE_LINE}</p>
@@ -186,7 +211,7 @@ function ChangeCard({ plan, turn, index, passages }) {
       {state === "offered" && live ? (
         <div class="ask-change-actions">
           <button type="button" class="btn primary sm" data-ask-apply disabled={confirm && !ticked} onKeyDown={applyKey} onClick={apply}>{W.APPLY}</button>
-          <button type="button" class="btn sm quiet" data-ask-not-now onClick={() => { setState("dismissed"); setLine(W.NOT_NOW_LINE); }}>{W.NOT_NOW}</button>
+          {classic ? <button type="button" class="btn sm quiet" data-ask-not-now onClick={() => { setState("dismissed"); setLine(W.NOT_NOW_LINE); }}>{W.NOT_NOW}</button> : null}
         </div>
       ) : null}
       {line ? (

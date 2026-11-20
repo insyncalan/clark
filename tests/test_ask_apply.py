@@ -141,9 +141,26 @@ class WorkItems(Base):
         self.assertEqual(self.planned({"op": "change", "id": self.demo.milestone, "status": "Done"})["owner"], "Mo Ito")
         self.assertIsNone(self.planned({"op": "change", "id": self.demo.use_case, "status": "Flag"})["owner"], "a use case has none")
         self.assertIsNone(self.planned({"op": "new", "kind": "action", "title": "Book the room", "owner": "Zed Ng"})["owner"], "a new item shows what it creates")
-        self.assertIsNone(self.planned({"op": "change", "id": self.demo.action(owner=None), "status": "Closed"})["owner"], "an empty owner stays empty")
-        for blank in ("  ", "tbc", " TBC "):
-            self.assertIsNone(self.planned({"op": "change", "id": self.demo.action(owner=blank), "status": "Closed"})["owner"], f"{blank!r} is no owner")
+
+    def blank_owner(self, owner):
+        """An action whose stored owner is exactly `owner` (the store makes a missing owner TBC, so a blank one is written straight in)."""
+        ref = self.demo.action()
+        self.s.con.execute("UPDATE actions SET owner = ? WHERE id = ?", (owner, ref))
+        self.s.con.commit()
+        return ref
+
+    def test_a_tbc_owner_is_passed_through_as_stored(self):         # Romanoff via Jarvis 20-11, 2035: TBC shows 'Owner: TBC'
+        with self.s.step("dashboard", USER) as st:
+            dec = st.create("decisions", {"project": "ABC", "decision": "Pick a venue", "status": "Pending", "made_by": "TBC", "source": "demo"})
+        self.assertEqual(self.planned({"op": "change", "id": self.demo.action(owner="TBC"), "status": "Closed"})["owner"], "TBC")
+        self.assertEqual(self.planned({"op": "change", "id": self.demo.action(owner=None), "status": "Closed"})["owner"], "TBC", "a missing owner is stored as TBC")
+        self.assertEqual(self.planned({"op": "change", "id": self.blank_owner("tbc"), "status": "Closed"})["owner"], "tbc", "as stored, not respelt")
+        self.assertEqual(self.planned({"op": "change", "id": dec, "needed_by": "2030-01-05"})["owner"], "TBC", "a decision's TBC too")
+
+    def test_a_blank_owner_or_a_new_item_has_no_owner_to_show(self):
+        for blank in ("", "   "):
+            self.assertIsNone(self.planned({"op": "change", "id": self.blank_owner(blank), "status": "Closed"})["owner"], f"{blank!r}")
+        self.assertIsNone(self.planned({"op": "new", "kind": "action", "title": "Book the room", "owner": "TBC"})["owner"], "a new item, even with TBC")
 
     def test_the_card_title_is_the_title_now_even_when_the_change_renames_it(self):         # #1292 sweep A: kills after-for-before
         plan = self.planned({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "title": "Cut-over plan v2"})

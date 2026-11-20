@@ -201,11 +201,11 @@ class Offer:
 
 
 def _owner_shown(before, plan):
-    """The owner the card shows beside the title: the stored owner of a changed item; none for a new item, a use case, or a blank or TBC owner."""
+    """The owner the card shows beside the title: the stored owner of a changed item; none for a new item, a use case, or a blank owner. TBC is shown as stored (Romanoff via Jarvis, 20-11)."""
     if plan.op != OP_CHANGE or plan.table not in OWNER:
         return None
     owner = (before or {}).get(OWNER[plan.table])
-    return owner if isinstance(owner, str) and owner.strip() and owner.strip().upper() != "TBC" else None
+    return owner if isinstance(owner, str) and owner.strip() else None
 
 
 class AskApply:

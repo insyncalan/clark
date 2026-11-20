@@ -16,6 +16,9 @@ from unittest import mock
 
 from _demo import USER
 from _paths import ROOT
+import _testpage as testpage
+from _real_server import real_server
+from clark import page, theme as themes
 from test_report_editor import Base
 from test_server import chrome
 from clark import ask, ask_apply, ask_passages, ask_service
@@ -30,8 +33,14 @@ NEW_WORDS = ("CHANGE_HEAD", "NEW_HEAD", "FIELD", "NOW", "AFTER", "NOT_SET", "APP
 
 
 class Card(Base):
+    THEME = "prototype-2.0"      # row 1292: the new card is Classic only; CardsStayAsTheyWere serves no Theme
+
     def setUp(self):
         super().setUp()
+        self.s.close()
+        css = themes.css(self.THEME) if self.THEME else None
+        self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: page.layer_theme(testpage.html(), css) if css else testpage.html(), seam=self.seam)
+        self.addCleanup(self.s.close)
         self.demo.plant_builtin_sections()      # row 1193: a new project's report has Work items lists, these tests pin the built-in sections
         self.action = self.demo.action(owner="Sam Lee", client_visible=1)
         self.provider = ask.StubProvider(reply="")
@@ -198,30 +207,45 @@ class TheCard(Card):
             self.assertEqual(p.js("document.querySelectorAll('[data-ask-change] table').length"), 0, "the table is gone")
             self.assertEqual(p.js("document.querySelectorAll('[data-ask-apply-all]').length"), 0, "one card: no Apply all")
 
-    def test_the_card_shows_the_owner_beside_the_title_and_nothing_when_there_is_none(self):         # #1293 line 4
-        empty = self.demo.action(owner=None, description="Unowned job")
-        uc = self.demo.use_case
-        with self.store.step("dashboard", USER) as st:
-            dec = st.create("decisions", {"project": "ABC", "decision": "Use the new tool", "status": "Pending", "made_by": "Dev Lal", "source": "demo"})
-        self.says(self.close_it(),
-                  "CHANGE: " + json.dumps({"op": "change", "id": dec, "current_title": "Use the new tool", "needed_by": "2030-01-05"}),
-                  "CHANGE: " + json.dumps({"op": "change", "id": empty, "current_title": "Unowned job", "status": "Closed"}),
-                  "CHANGE: " + json.dumps({"op": "change", "id": uc, "current_title": "Invoice matching", "status": "Flag"}))
+    def owners_page(self, lines, ids, expect):
+        """Ask for `lines`, then read each card's owner span at 1400 and 900: expect maps an ID (or 'new') to its text, or None for no span."""
+        self.says(*lines)
         with chrome() as cdp:
             p = self.opened(cdp)
             self.ask_it(p)
             self.card(p)
-            p.until("document.querySelectorAll('[data-ask-change]').length === 4", "four cards")
-            cards = "document.querySelectorAll('[data-ask-change]')"
-            card = lambda ref: f"document.querySelector('[data-ask-change][data-ref=\"{ref}\"]')"
+            p.until(f"document.querySelectorAll('[data-ask-change]').length === {len(lines)}", "the cards")
             for width in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
-                self.assertEqual(p.js(f"{card(self.action)}.querySelector('[data-ask-owner]').textContent"), "Owner: Sam Lee")
-                self.assertEqual(p.js(f"{card(dec)}.querySelector('[data-ask-owner]').textContent"), "Made by: Dev Lal")
-                self.assertEqual(p.js(f"{card(self.action)}.querySelector('[data-ask-title]').textContent"), "Draft the cut-over plan")
-                self.assertEqual(p.js(f"{card(empty)}.querySelectorAll('[data-ask-owner]').length"), 0, "an empty owner draws nothing")
-                self.assertEqual(p.js(f"{card(uc)}.querySelectorAll('[data-ask-owner]').length"), 0, "a use case has no owner")
-                self.assertEqual(p.js(f"[...{cards}].filter(c => c.scrollWidth > c.clientWidth).length"), 0, "no overflow")
+                for i, want in enumerate(expect):
+                    card = f"document.querySelectorAll('[data-ask-change]')[{i}]"
+                    got = p.js(f"[...{card}.querySelectorAll('[data-ask-owner]')].map(e => e.textContent)")
+                    self.assertEqual(got, [] if want is None else [want], f"{width}: card {i} {ids[i]}")
+
+    def change_line(self, ref, title, **more):
+        return "CHANGE: " + json.dumps({"op": "change", "id": ref, "current_title": title, "status": "Closed", **more})
+
+    def test_owner_tbc_shows_owner_tbc_as_stored(self):         # Romanoff via Jarvis 20-11, 2035: TBC shows 'Owner: TBC'
+        tbc = self.demo.action(owner="TBC", description="Unassigned job")
+        self.owners_page([self.change_line(self.action, "Draft the cut-over plan"), self.change_line(tbc, "Unassigned job")],
+                         ["named", "tbc"], ["Owner: Sam Lee", "Owner: TBC"])
+
+    def test_a_blank_owner_and_a_new_item_show_no_owner(self):
+        blank = self.demo.action(description="Blank job")
+        self.store.con.execute("UPDATE actions SET owner = '  ' WHERE id = ?", (blank,))
+        self.store.con.commit()
+        uc = self.demo.use_case
+        new = "CHANGE: " + json.dumps({"op": "new", "kind": "action", "title": "Book the room", "owner": "Zed Ng"})
+        new_tbc = "CHANGE: " + json.dumps({"op": "new", "kind": "action", "title": "Book the hall", "owner": "TBC"})
+        self.owners_page([self.change_line(blank, "Blank job"), new, new_tbc, self.change_line(uc, "Invoice matching", status="Flag")],
+                         ["blank", "new", "new TBC", "use case"], [None, None, None, None])
+
+    def test_a_decision_shows_made_by_the_name_or_tbc(self):
+        with self.store.step("dashboard", USER) as st:
+            named = st.create("decisions", {"project": "ABC", "decision": "Use the new tool", "status": "Pending", "made_by": "Dev Lal", "source": "demo"})
+            tbc = st.create("decisions", {"project": "ABC", "decision": "Pick a venue", "status": "Pending", "made_by": "TBC", "source": "demo"})
+        lines = ["CHANGE: " + json.dumps({"op": "change", "id": r, "current_title": t, "needed_by": "2030-01-05"}) for r, t in ((named, "Use the new tool"), (tbc, "Pick a venue"))]
+        self.owners_page(lines, ["named", "tbc"], ["Made by: Dev Lal", "Made by: TBC"])
 
     def test_a_reason_with_markup_is_drawn_as_text(self):
         self.says(self.close_it(why="<img src=x onerror=alert(1)> done"))
@@ -250,6 +274,7 @@ class TheCard(Card):
             p.until("document.querySelector('[data-ask-line]') && document.querySelector('[data-ask-line]').textContent.startsWith('Not now.')", "Not now")
             self.assertEqual(p.js("document.querySelectorAll('[data-ask-apply]').length"), 0)
             self.assertEqual(self.status(), "Open")
+            self.assertEqual(p.js("document.querySelector('[data-ask-bring-back]').textContent"), "Bring it back")
             p.js("document.querySelector('[data-ask-bring-back]').click()")
             p.until("!!document.querySelector('[data-ask-apply]')", "Apply is back")
             self.assertEqual(p.js("document.querySelectorAll('[data-ask-line]').length"), 0)
@@ -275,6 +300,7 @@ class TheCard(Card):
             self.assertEqual((self.status(), self.store.read("actions", ref=self.second)["status"]), ("Closed", "Closed"))
             self.assertEqual(p.js("document.querySelectorAll('[data-ask-apply-all], [data-ask-apply], [data-ask-undo]').length"), 0, "one Undo for the lot, none per card")
             self.assertEqual(p.js("document.querySelectorAll('[data-ask-undo-all]').length"), 1)
+            self.assertEqual(p.js("document.querySelector('[data-ask-undo-all]').textContent"), "Undo all")
             p.js("document.querySelector('[data-ask-undo-all]').click()")
             p.until("document.querySelector('[data-ask-group-line]').textContent === 'Undone. The old values are back.'", "Undone")
             self.assertEqual((self.status(), self.store.read("actions", ref=self.second)["status"]), ("Open", "Open"))
@@ -293,6 +319,25 @@ class TheCard(Card):
             p.js("document.querySelector('[data-ask-apply]').click()")
             p.until("document.querySelector('[data-ask-line]').textContent.startsWith('Done.')", "Done.")
             self.assertEqual((self.status(), self.store.read("actions", ref=self.second)["status"]), ("Closed", "Open"))
+
+    def test_apply_all_n_counts_and_applies_only_the_cards_still_offered(self):
+        third = self.demo.action(owner="Pat Kay", description="Book the room")
+        self.two_cards()
+        self.says(self.close_it(), "CHANGE: " + json.dumps({"op": "change", "id": self.second, "current_title": "Order the badges", "status": "Closed"}),
+                  "CHANGE: " + json.dumps({"op": "change", "id": third, "current_title": "Book the room", "status": "Closed"}))
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            p.until("document.querySelectorAll('[data-ask-change]').length === 3", "three cards")
+            self.assertEqual(p.js("document.querySelector('[data-ask-apply-all]').textContent"), "Apply all 3")
+            p.js("document.querySelectorAll('[data-ask-not-now]')[2].click()")
+            p.until("document.querySelector('[data-ask-apply-all]').textContent === 'Apply all 2'", "N follows what will be applied")
+            p.js("document.querySelector('[data-ask-apply-all]').click()")
+            p.until("!!document.querySelector('[data-ask-group-line]')", "the group line")
+            self.assertEqual(p.js("document.querySelector('[data-ask-group-line]').firstChild.textContent"), "Done. 2 changes saved.")
+            self.assertEqual((self.status(), self.store.read("actions", ref=self.second)["status"], self.store.read("actions", ref=third)["status"]),
+                             ("Closed", "Closed", "Open"), "exactly those 2")
 
     def test_undo_all_leaves_a_card_put_aside_with_not_now_as_it_was(self):         # #1292 sweep: only a card that was Done is marked Undone
         self.two_cards()
@@ -380,7 +425,8 @@ class TheCard(Card):
             p.until("document.querySelectorAll('[data-ask-change]').length === 2", "both cards")
             p.js("document.querySelector('[data-ask-apply-all]').click()")
             p.until("!!document.querySelector('[data-ask-group-line]')", "the group line")
-            self.assertEqual(p.js("document.querySelector('[data-ask-group-line]').textContent.startsWith('1 of 2 changes were saved.')"), True)
+            self.assertEqual(p.js("document.querySelector('[data-ask-group-line]').firstChild.textContent"),
+                             "1 of 2 changes were saved. The others were not. Check the board and ask again.", "real N and M, exact words")
             self.assertEqual((self.status(), self.store.read("actions", ref=self.second)["status"]), ("Closed", "Open"))
 
     def test_off_leaves_nothing_to_press(self):
@@ -430,6 +476,53 @@ class TheCard(Card):
                              "b=document.querySelector('#ask-panel').getBoundingClientRect();return a.right<=b.right && a.left>=b.left})()")
                     self.assertTrue(r, "Apply is inside the panel")
 
+
+    def test_the_published_css_has_neither_changed_rule(self):         # row 936: edit.css is served-page only
+        css = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "edit.css").read_text(encoding="utf-8")
+        self.assertIn(".ask-passage {", css)
+        view = (ROOT / "src" / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
+        for needle in (".ask-passage", ".ask-change {"):
+            self.assertNotIn(needle, view)
+        self.assertIn(".ask-passage {", (ROOT / "src" / "clark" / "page" / "page.html").read_text(encoding="utf-8"))
+
+
+class CardsStayAsTheyWere(Card):
+    """Row 1292: Cards (no Theme) is frozen. The card draws as it did on main: the table, the old header, Apply alone."""
+    THEME = None
+
+    def test_a_card_in_cards_is_the_card_main_drew_and_has_none_of_the_new_pieces(self):
+        second = self.demo.action(owner="Kim Roe", description="Order the badges")
+        self.says("CHANGE: " + json.dumps({"op": "change", "id": self.action, "current_title": "Draft the cut-over plan", "owner": "Ana Ruiz", "why": "She took it on."}),
+                  "CHANGE: " + json.dumps({"op": "change", "id": second, "current_title": "Order the badges", "status": "Closed"}))
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            p.until("document.querySelectorAll('[data-ask-change]').length === 2", "two cards")
+            self.assertFalse(p.js("!!document.getElementById('theme')"), "no Theme layered")
+            html = p.js("document.querySelectorAll('[data-ask-change]')[0].outerHTML")
+            ref = self.action
+            expect = (f'<section class="ask-change" data-ask-change="true" data-ref="{ref}"><header class="ask-change-head"><strong>Suggested change</strong>'
+                      f'<span class="muted">{ref}</span></header><table class="ask-diff"><thead><tr><th scope="col">Field</th><th scope="col">Now</th>'
+                      '<th scope="col">After Apply</th></tr></thead><tbody><tr data-field="owner"><th scope="row">Owner</th><td data-before="true">Sam Lee</td>'
+                      '<td data-after="true">Ana Ruiz</td></tr></tbody></table><div class="ask-change-actions"><button type="button" class="btn primary sm" '
+                      'data-ask-apply="true">Apply</button></div></section>')
+            self.maxDiff = None
+            self.assertEqual(html, expect)
+            for sel in ("[data-ask-owner]", "[data-ask-why]", "[data-ask-title]", "[data-ask-item]", "[data-ask-not-now]", "[data-ask-apply-all]", "[data-ask-group-line]"):
+                self.assertEqual(p.js(f"document.querySelectorAll('{sel}').length"), 0, f"{sel} is Classic only")
+
+    def test_a_group_line_cannot_appear_in_cards_after_applying_each(self):
+        second = self.demo.action(owner="Kim Roe", description="Order the badges")
+        self.says(self.close_it(), "CHANGE: " + json.dumps({"op": "change", "id": second, "current_title": "Order the badges", "status": "Closed"}))
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            p.until("document.querySelectorAll('[data-ask-apply]').length === 2", "two Apply buttons")
+            p.js("document.querySelector('[data-ask-apply]').click()")
+            p.until("!!document.querySelector('[data-ask-undo]')", "Done with Undo")
+            self.assertEqual(p.js("document.querySelectorAll('[data-ask-undo-all], [data-ask-bring-back]').length"), 0)
 
     def test_the_card_has_a_quiet_look_and_a_small_flat_apply(self):         # row 780
         self.says(self.close_it())
@@ -486,14 +579,6 @@ class TheCard(Card):
             p.until("!!document.querySelector('[data-ask-passage]')", "the passage")
             self.check_no_stripe(p, cdp, "[data-ask-passage] blockquote")
             self.check_no_stripe(p, cdp, "[data-ask-passage]")
-
-    def test_the_published_css_has_neither_changed_rule(self):         # row 936: edit.css is served-page only
-        css = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "edit.css").read_text(encoding="utf-8")
-        self.assertIn(".ask-passage {", css)
-        view = (ROOT / "src" / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
-        for needle in (".ask-passage", ".ask-change {"):
-            self.assertNotIn(needle, view)
-        self.assertIn(".ask-passage {", (ROOT / "src" / "clark" / "page" / "page.html").read_text(encoding="utf-8"))
 
 
 class Words(unittest.TestCase):
