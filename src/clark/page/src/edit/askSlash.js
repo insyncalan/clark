@@ -14,12 +14,13 @@ export const COMMANDS = [
   { name: "new", hint: W.SLASH_HINT.new, act: "new" },
 ];
 
-/** The commands the box text matches, or null when the menu is not open. Open only for "/" at the start followed by letters (no space yet). */
-export function slashMatches(text) {
+/** The commands the box text matches, or null when the menu is not open. The caller passes classic (classicTheme()); Cards gets the hints it always had. Open only for "/" at the start followed by letters (no space yet). */
+export function slashMatches(text, classic = false) {
   const m = /^\/([a-z]*)$/i.exec(String(text || ""));
   if (!m) return null;
   const typed = m[1].toLowerCase();
-  return COMMANDS.filter((c) => c.name.startsWith(typed));
+  const all = classic ? COMMANDS.map((c) => ({ ...c, hint: W.SLASH_HINT_CLASSIC[c.name] || c.hint })) : COMMANDS;          // row 1350: the Classic wording is for Classic only; the caller says which
+  return all.filter((c) => c.name.startsWith(typed));
 }
 
 /** The next highlighted row for ArrowDown / ArrowUp, wrapping round; Home and End go to the ends. */
