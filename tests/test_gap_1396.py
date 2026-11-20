@@ -161,7 +161,7 @@ class Computed(unittest.TestCase):
         self.assertNotIn(self.dash_head(None), ("none", "absent"))
 
     def test_plain_class_is_in_classic_dom_only(self):
-        src = (ROOT / "src/clark/page/src/components/MsList.jsx").read_text()
+        src = (ROOT / "src/clark/page/src/components/MsList.jsx").read_text(encoding="utf-8")
         self.assertIn('class={`msl-hdw${classicTheme() ? " plain" : ""}`}', src, "the heading row's plain class is gated with classicTheme()")
         self.assertNotIn('class="msl-hdw plain"', src)
 
