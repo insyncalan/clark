@@ -85,6 +85,12 @@ export const PROMPTS = { title: "Add a title: what the reader must see", words: 
 // item 1272 decision 4, the shared part: whether a section shows its tile and its heading, for every type. A callout keeps the two switches in its own content (slice 2);
 // any other type reads the same two flags from the section itself (`tile`, `heading`: false turns it off) once the store carries them. Nothing else in the page
 // asks the section type, so the store step only has to fill these two fields.
+// item 1272: the tag Edit puts beside a section whose tile or heading View does not draw, as the ticket's mock-up words it. The one place these words live.
+export const NOT_SHOWN = { tile: "Tile not shown in View", heading: "Heading not shown in View", both: "Heading and tile not shown in View" };
+export function notShownTag(shows) {
+  return shows.tile && shows.heading ? "" : !shows.tile && !shows.heading ? NOT_SHOWN.both : shows.tile ? NOT_SHOWN.heading : NOT_SHOWN.tile;
+}
+
 export function sectionShows(section) {
   const c = section.type === "callout" ? tidyCallout(source(section)) : section;
   return { tile: c.tile !== false, heading: c.heading !== false };
