@@ -354,7 +354,7 @@ def _button_test(self):
 Draft.test_the_open_the_draft_button_is_the_prototypes_blue_rectangle_in_classic_only = _button_test
 
 def _blue_named_exception_test(self):
-    """Row 1347: the blue is a named exception (Alan 19-11): the three values live once, as --adc- custom properties on the button rule; hover and dark read them by var(), and no other rule of the block holds a colour literal."""
+    """Row 1347: the blue is a named exception (ruling 19-11): the three values live once, as --adc- custom properties on the button rule; hover and dark read them by var(), and no other rule of the block holds a colour literal."""
     rules = (pathlib.Path(themes.__file__).parent / "themes" / "prototype-2.0" / "rules.css").read_text(encoding="utf-8")
     block = rules.split("/* Row 1347 (Classic only; Cards is not touched)")[1].split(".ad-count")[0]
     for lit in ("#3B5BDB", "#2F4AC0", "#3962FE", "rgba(57,98,254,.22)"):

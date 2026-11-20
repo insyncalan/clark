@@ -347,7 +347,7 @@ html:has(#report.frame.report) :is(.hdr-project, .hdr-project > span) { white-sp
   @keyframes ask-draft-in { from { transform: translateX(110%); } to { transform: none; } }
 }
 #ask-draft-close svg path { d: path("M5 12h14M13 6l6 6-6 6"); }
-/* Row 1347 (Classic only; Cards is not touched): the draft-ready card and its Open the draft button as the prototype draws them. The button is a blue rectangle, not the aqua pill; the prototype's blue has no token here: Alan 19-11 'the prototype blue, no token', so it is a named exception, held in local custom properties on this one rule and read by var() everywhere else. */
+/* Row 1347 (Classic only; Cards is not touched): the draft-ready card and its Open the draft button as the prototype draws them. The button is a blue rectangle, not the aqua pill; the prototype's blue has no token here: ruling 19-11 'the prototype blue, no token', so it is a named exception, held in local custom properties on this one rule and read by var() everywhere else. */
 .ask-draftcard { margin-top: 10px; gap: 10px; padding: 10px 12px; border-radius: 10px; }
 .ask-draftcard .btn.pri.sm.ask-draftcard-open { margin-left: auto; flex: none; min-height: 0; padding: 4px 10px; font-size: 13px; border-radius: 6px; --adc-blue: #3B5BDB; --adc-blue-hover: #2F4AC0; --adc-blue-dark: #3962FE; --adc-blue-glow: rgba(57,98,254,.22); background: var(--adc-blue); background-image: none; border: 1px solid var(--adc-blue); color: #fff; box-shadow: none; }
 .ask-draftcard .btn.pri.sm.ask-draftcard-open:hover { background: var(--adc-blue-hover); border-color: var(--adc-blue-hover); box-shadow: 0 4px 12px var(--adc-blue-glow); transform: none; }
