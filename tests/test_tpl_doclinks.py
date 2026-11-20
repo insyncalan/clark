@@ -145,6 +145,14 @@ class Checker(unittest.TestCase):
         self.assertEqual(page, doclinks.bad_type(name))
         self.assertEqual(route, doclinks.bad_type(name))
 
+    def test_a_name_with_nothing_before_its_ending_is_not_a_type_and_a_long_name_is_cut_in_the_refusal(self):
+        """Mutation sweep (1194): ".pdf" has an ending but no name; a refusal quotes at most NAME_MAX characters of a file's name."""
+        for name in (".pdf", "pdf", "."):
+            with self.assertRaises(section_bodies.Bad, msg=name):
+                doclinks.allowed_type(name)
+        text = self.refused("doclinks", body([a_file(name="x" * 300 + ".pdf")]))
+        self.assertEqual(text.split(": ")[0], "x" * doclinks.NAME_MAX, "the name in the refusal is cut at NAME_MAX")
+
     def test_the_shape_is_fixed_and_nothing_unknown_is_stored(self):
         self.refused("doclinks", json.dumps({"v": 2, "items": []}), doclinks.BAD_VERSION)
         self.refused("doclinks", json.dumps({"v": True, "items": []}), doclinks.BAD_VERSION)
@@ -262,6 +270,25 @@ class Saved(Api):
                 built = publish.build(self.s, "ABC", now="2030-01-15")
                 self.assertEqual([i["href"] for i in next(s for s in built["published"]["sections"] if s["id"] == ref)["content"]["items"]],
                                  ["https://example.org/plan"], "once the old entry is gone the section is published again")
+
+    def test_a_stored_body_that_cannot_be_read_does_not_stop_a_good_save(self):
+        """Mutation sweep (1194): what the section holds is only a place to keep old entries; if it cannot be read, the new content is checked on its own."""
+        ref = self.make("Fictional unreadable")
+        self.stored(ref, "this is not json")
+        status, got = self.save(ref, body([a_link()]))
+        self.assertEqual(status, 200, got)
+        self.assertEqual(json.loads(self.s.read("report_sections", ref=ref)["body"])["items"], [a_link()])
+
+    def test_undo_of_a_delete_puts_back_a_section_with_an_old_entry(self):
+        """Mutation sweep (1194): a section deleted with an old entry (a link with no words) comes back whole by Undo."""
+        ref = self.make("Fictional deleted old")
+        before = section_bodies.canonical({"v": 1, "items": [a_link(), a_link(label="")]})
+        self.stored(ref, before)
+        status, gone = self.change(self.req("delete", id=ref))
+        self.assertEqual(status, 200, gone)
+        status, back = self.undone(gone["apply_id"])
+        self.assertEqual(status, 200, back)
+        self.assertEqual(self.s.read("report_sections", ref=ref)["body"], before)
 
     def test_undo_of_a_save_puts_back_an_old_entry_the_new_rules_refuse(self):
         """Row 1194, the Undo defect: a body stored before item 1194 holds a link with no words; a save drops that link; Undo of the

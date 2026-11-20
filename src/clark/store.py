@@ -2107,7 +2107,7 @@ def _revert_removed(con, table, key, rows_, step, apply_id, removed):
         if x["rowid"] < r["rowid"] and x["field"] in columns(con, table) and x["field"] not in before:
             before[x["field"]] = x["old_value"]
     back.update(_typed(con, table, before))       # a first old value of NULL is put back as NULL, never the column's default
-    check_row(con, table, dict(back), set(back))
+    check_row(con, table, dict(back), set(back) | ({UNDOING} if table == "report_sections" else set()))   # item 1194: a section deleted with an old entry comes back whole
     _insert_sql(con, table, back)
     for f, v in back.items():
         log(con, step, table, key, f, None, v, OP_MADE, undoes=r["rowid"])

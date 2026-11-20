@@ -132,6 +132,13 @@ class OpenAndReveal(TempHome):
 
 
 class Dialogs(unittest.TestCase):
+    def test_the_open_with_types_script_takes_every_ending_after_the_prompt(self):
+        """Mutation sweep (1194): the AppleScript reads the endings from the second argument on and offers only those."""
+        script = pl.OPEN_TYPES_SCRIPT
+        self.assertIn("repeat with i from 2 to (count of argv)", script)
+        self.assertIn("set end of kinds to (item i of argv)", script)
+        self.assertIn("choose file with prompt (item 1 of argv) of type kinds", script)
+
     def test_the_folder_dialog_passes_text_as_arguments_not_script(self):
         run = FakeRun(stdout="/Users/demo/Reports/\n")
         prompt = 'Choose "Reports" & then quit'
