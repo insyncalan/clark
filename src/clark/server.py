@@ -1226,6 +1226,21 @@ def ask_instructions_route(method):
     return route
 
 
+def connector_change_route(handler, *req):
+    """POST /api/ask-connectors (row 1306): the change is app_settings' to make; when it turned a connector Off (for every project or for one),
+    a question running on that connector is stopped, so nothing keeps reading from it. Turning On, or a refused change, stops nothing."""
+    service = getattr(handler.server, "app_settings", None)
+    if service is None:
+        return handler.send(404, error_body("not_found"))
+    status, body = service.change_connectors(*req)
+    given = req[0] if req else None
+    off = isinstance(given, dict) and (given.get("on") is False or given.get("off_here") is True)
+    asking = getattr(handler.server, "ask", None)
+    if status == 200 and off and asking is not None:
+        asking.stop_using(given["id"], given.get("project"))
+    return handler.send(status, body)
+
+
 def app_settings_route(method):
     """GET and POST /api/ask-enabled (#47): asking's on/off switch for this computer. The server's `app_settings`
     (app_settings.AppSettings) answers (status, body); without one there is nothing to ask: not found. The token, the Host, the
@@ -1489,7 +1504,7 @@ GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/pu
 POST_ROUTES = {"/api/change": change_route, "/api/section-body": section_body_route, "/api/undo": undo_route, "/api/section-image": section_image_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
                "/api/quit": quit_route, "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"), "/api/backups/copy-folder": safety_route("copy_folder"),
-                "/api/ask-folders": ask_folders_route("change"), "/api/ask-instructions": ask_instructions_route("change"), "/api/ask-enabled": app_settings_route("change_ask"), "/api/ask-connectors": app_settings_route("change_connectors"), "/api/theme": app_settings_route("change_theme"), "/api/providers/connect": ai_connect_route("connect"),
+                "/api/ask-folders": ask_folders_route("change"), "/api/ask-instructions": ask_instructions_route("change"), "/api/ask-enabled": app_settings_route("change_ask"), "/api/ask-connectors": connector_change_route, "/api/theme": app_settings_route("change_theme"), "/api/providers/connect": ai_connect_route("connect"),
                 "/api/providers/disconnect": ai_connect_route("disconnect"), "/api/providers/model": ai_connect_route("choose"), "/api/providers/test": ai_connect_route("test"),
                 "/api/ask": ask_route("ask"), "/api/ask/stop": ask_route("stop"),
                 "/api/ai/suggest": ask_route("suggest", "ai"), "/api/ai/stop": ask_route("stop", "ai"),

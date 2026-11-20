@@ -81,6 +81,8 @@ class AskService:
         self.open_pdf = open_pdf or platform.open_pdf_at      # #943: the one thing that starts a viewer (a stub in tests)
         self.replies = {}                            # reply ID -> Held: the changes an answer suggested, kept on the server
         self.replies_lock = threading.Lock()
+        self.using = None                            # row 1306 test 7: (project, connectors) of the question now at the provider, else None
+        self.using_lock = threading.Lock()
 
     def fail(self, code, message=None):
         return {"ok": False, "code": code, "message": message or MESSAGES[code]}
@@ -110,6 +112,29 @@ class AskService:
             return False
         finally:
             store.close()
+
+    def connectors_now(self, code, chosen):
+        """The connectors of `chosen` that are still On for project `code`, read now; none when the store can't say (never fails open)."""
+        try:
+            store = self.reader()
+        except (sqlite3.Error, OSError, TypeError):
+            return ()
+        try:
+            return tuple(c for c in chosen if store.connector_allowed(c, code))
+        except Exception:  # noqa: BLE001  a switch that can't be read is off
+            return ()
+        finally:
+            store.close()
+
+    def stop_using(self, connector, project=None):
+        """Row 1306 test 7: a connector was turned Off (for every project, or for `project` only): stop the question now at the provider
+        when it was given that connector. True when one was stopped. The sign-in is not touched and nothing is changed."""
+        with self.using_lock:
+            now = self.using
+        if now is None or connector not in now[1] or (project is not None and now[0] != project):
+            return False
+        stop = getattr(self.provider, "stop", None)
+        return bool(stop(owner=self.owner)) if callable(stop) else False
 
     # ----- GET /api/ask/status -----
     def status(self, *_ignored):
@@ -192,8 +217,15 @@ class AskService:
         facts = data.facts
         if not self.enabled():                       # the gate again, just before anything leaves: a switch turned off meanwhile wins
             return 409, self.fail("asking_off")
-        reply = ask.ask_provider(self.provider, replace(request, owner=self.owner, connectors=on_connectors), codes=(code,), exists=lambda ref: ref in facts,
-                                 facts=lambda ref: facts.get(ref))
+        on_connectors = self.connectors_now(code, on_connectors)      # row 1306 test 7: a connector turned Off meanwhile is not used
+        with self.using_lock:
+            self.using = (code, frozenset(on_connectors))
+        try:
+            reply = ask.ask_provider(self.provider, replace(request, owner=self.owner, connectors=on_connectors), codes=(code,), exists=lambda ref: ref in facts,
+                                     facts=lambda ref: facts.get(ref))
+        finally:
+            with self.using_lock:
+                self.using = None
         if isinstance(reply, ask.Failure):
             return 200, {"ok": False, "code": "no_answer", "message": reply.message, **({"held": True} if reply.message == ask.HELD_BACK else {})}
         notes = [n for n in (ask.dropped_note(request.dropped_turns), ask.secret_note(request.left_out_secret + data.secret),
