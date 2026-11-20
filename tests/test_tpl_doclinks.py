@@ -697,7 +697,7 @@ class MockupLook(InThePage):
             self.assertEqual(p.js("document.querySelector('.toast').textContent").replace("Undo", "").replace("Close", "").strip(), "Removed Scope statement.docx. The file stays in the client folder.")
 
 
-CARDS_DOM_MD5 = {"view": "1c4fa7af9e9e6576852aa571e5063d10", "edit": "40e88aa997edd5048eba345c1dd317cb"}
+CARDS_DOM_MD5 = {"view": "1c4fa7af9e9e6576852aa571e5063d10", "edit": "78cd867aabc294d13e9b918fe72b7c8b"}
 
 
 class CardsUnchanged(PageBase):
@@ -718,6 +718,30 @@ class CardsUnchanged(PageBase):
             got["edit"] = p.js(f"document.querySelector('{sel}').outerHTML")
         md5 = {k: hashlib.md5(v.replace(ref, "REF").encode("utf-8")).hexdigest() for k, v in got.items()}
         self.assertEqual(md5, CARDS_DOM_MD5, got)
+        old = got["edit"].replace(ref, "REF").replace(">Words to show</label>", ">Words to show (optional)</label>")
+        self.assertEqual(hashlib.md5(old.encode("utf-8")).hexdigest(), "40e88aa997edd5048eba345c1dd317cb", "the Edit DOM differs from main's only by the label losing (optional)")
+
+
+class CardsDescriptionRequired(PageBase):
+    """Row 1194 (ruled WO-M11002): the link description is a server rule, so Cards drops '(optional)' and shows the server's refusal."""
+
+    def test_cards_says_words_to_show_without_optional_and_refuses_a_link_with_no_description(self):
+        ref = InThePage.add(self, [a_link(), a_file()])
+        sel = f"[data-id={json.dumps(ref)}]"
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit(cdp)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.edit()
+                p.until(f"!!document.querySelector('{sel} [data-add-link]')", "the Cards Edit part drew")
+                self.assertFalse(p.js("!!document.getElementById('theme')"), "Cards: no Theme layered")
+                self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} [data-add-link] label')].map(l => l.textContent)"), ["Link", "Words to show"])
+                sent = len(self.sent)
+                InThePage.set_value(p, f"{sel} [data-add-link] input[type=text]", "https://example.org/ok", 0)
+                p.js(f"document.querySelector('{sel} [data-add-link] button[type=submit]').click()")
+                p.until(f"!!document.querySelector('{sel} .tpl-problem')", "the missing description is refused")
+                self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-problem').textContent"), "Enter a link description.")
+                self.assertEqual(len(self.sent), sent, "nothing was sent")
 
 
 class Published(PageBase):

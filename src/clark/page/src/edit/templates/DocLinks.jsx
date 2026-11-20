@@ -151,7 +151,7 @@ function CardsEdit({ section }) {
   const addLink = async (e) => {
     e.preventDefault();
     const link = href.trim(), words = oneLine(label);
-    const why = full ? FULL : linkProblem(link) || labelProblem(words);
+    const why = full ? FULL : linkProblem(link) || (words ? labelProblem(words) : "Enter a link description.");
     setProblem(why);
     if (why) return;
     const reply = await saveContent(section, { ...content, items: [...raw, { kind: "link", href: link, label: words }] }, "Link added.");
@@ -187,7 +187,7 @@ function CardsEdit({ section }) {
         <label for={`${fid}-href`}>Link</label>
         <input id={`${fid}-href`} type="text" inputMode="url" autocomplete="off" spellcheck={false} placeholder="https://"
           value={href} onInput={(e) => setHref(e.currentTarget.value)} />
-        <label for={`${fid}-label`}>Words to show (optional)</label>
+        <label for={`${fid}-label`}>Words to show</label>
         <input id={`${fid}-label`} type="text" autocomplete="off" value={label} onInput={(e) => setLabel(e.currentTarget.value)} />
         <button type="submit" class="btn">Add link</button>
       </form>
