@@ -12,7 +12,7 @@ from clark import page
 
 THEMES = Path(__file__).resolve().parent / "themes"
 FILES = ("tokens.css", "rules.css")         # in this order: the values first, then the rules that use them
-LIMIT = 64 * 1024                          # a Theme file larger than this is not read
+LIMIT = 128 * 1024                         # a Theme file larger than this is not read (the shipped files are held under it by a test)
 
 
 def installed():

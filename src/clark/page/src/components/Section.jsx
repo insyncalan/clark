@@ -24,7 +24,7 @@ import { MsBlock } from "./MsBlock.jsx";
 import { emptyBody } from "../logic/emptyBody.js";
 import { Documents } from "./Documents.jsx";
 import { Tracker } from "./Tracker.jsx";
-import { sectionShows } from "../templates/notes.js";
+import { sectionShows, notShownTag } from "../templates/notes.js";
 
 // View's text for a text or current section: cleaned HTML in the prose style, or one plain line when there is nothing to read.
 function ViewText({ html }) {
@@ -56,6 +56,7 @@ export function Section({ section, index, count, slot, anchor, tools, clean }) {
         <h2 class="sec-h">{editing ? <tools.Title section={section} /> : section.title}</h2>
         {editing && tools.AskAbout ? <tools.AskAbout kind="section" id={section.id} name={section.title} /> : null}
         {changed ? <span class="tag chg">{WORD}</span> : null}
+        {editing && notShownTag(shows) ? <span class="tag hid" data-not-shown>{notShownTag(shows)}</span> : null}
         {editing && hidden ? <span class="tag hid">Left out of the published page</span> : null}
         {editing && section.type === "usecases" && tools.ucEdit ? <tools.ucEdit.Configure section={section} /> : null}
         {editing && section.type === "milestones" && tools.ucEdit ? <tools.ucEdit.Configure section={section} /> : null}
