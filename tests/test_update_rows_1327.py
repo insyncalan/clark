@@ -44,7 +44,7 @@ class Words(InBrowser):
     def test_the_approved_titles_and_sentences(self):
         self.assertEqual(["Last checked", "Not checked yet", "Use a file instead", "Updated to clark 1.3.2", "The download failed its check", "Review",
                           "For a computer with no internet. Review a clark download you already have.",
-                          "clark restarted and kept everything. If something looks wrong you can go back to 1.3.1.", FAILED],
+                          "Everything was kept when clark restarted. If something looks wrong you can go back to 1.3.1.", FAILED],
                          [self.val("T.logic.ROWS.checked"), self.val("T.logic.ROWS.notChecked"), self.val("T.logic.ROWS.file"),
                           self.val("T.logic.updatedTo('1.3.2')"), self.val("T.logic.FAILED_TITLE"), self.val("T.logic.REVIEW_LABEL"),
                           self.val("T.logic.FILE_TEXT"), self.val("T.logic.installedText('1.3.1')"), self.val("T.logic.FAILED_TEXT")])
@@ -113,7 +113,7 @@ class OnThePage(InBrowser):
         last = {"from": "0.3.0", "to": "0.3.1", "line": "Last update: 0.3.0 → 0.3.1 on 01-11-2026."}
         for _ in self.each({**BASE, "last": last}):
             self.assertEqual("Updated to clark 0.3.1", self.text("#update-last-l"))
-            self.assertEqual("clark restarted and kept everything. If something looks wrong you can go back to 0.3.0.", self.text("#update-last p"))
+            self.assertEqual("Everything was kept when clark restarted. If something looks wrong you can go back to 0.3.0.", self.text("#update-last p"))
             self.assertEqual("Undo update", self.text("#update-last [data-undo]"))
         for _ in self.each({**BASE, "last": {"line": "Last update: x."}}):
             self.assertEqual("Last update", self.text("#update-last-l"))
