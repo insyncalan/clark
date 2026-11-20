@@ -17,13 +17,39 @@ from test_server import chrome  # noqa: E402
 
 CSS = theme.css("prototype-2.0")
 LOOKS = [(1400, "light"), (1400, "dark"), (900, "light"), (900, "dark")]
-PURPLE = {"light": "rgb(124, 77, 255)", "dark": "rgb(179, 157, 255)"}
+PURPLE = {"light": "rgb(124, 77, 255)", "dark": "rgb(158, 123, 255)"}
 
 
 def layer(h, on):
     h.ev("var o = document.getElementById('theme'); if (o) o.remove(); true")
     if on:
         h.ev(f"var s = document.createElement('style'); s.id = 'theme'; s.textContent = {json.dumps(CSS)}; document.head.appendChild(s); true")
+
+
+def lum(h):
+    c = [int(h[i:i + 2], 16) / 255 for i in (1, 3, 5)]
+    l = [x / 12.92 if x <= 0.03928 else ((x + 0.055) / 1.055) ** 2.4 for x in c]
+    return 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2]
+
+
+def ratio(a, b):
+    hi, lo = sorted((lum(a), lum(b)), reverse=True)
+    return (hi + 0.05) / (lo + 0.05)
+
+
+class Contrast(unittest.TestCase):
+    """The Ask AI words read on their panel at 4.5 to 1, light and dark (dark is not drawn: the dark value is the light hue lightened until it does)."""
+
+    def test_ask_ai_reads_on_the_panel_in_light_and_both_dark_blocks(self):
+        import re
+        tokens = (ROOT / "src" / "clark" / "themes" / "prototype-2.0" / "tokens.css").read_text(encoding="utf-8")
+        light = re.search(r"^:root \{(.*?)^\}", tokens, re.S | re.M).group(1)
+        darks = re.findall(r":root\[data-theme=(?:dark|auto)\]\s*\{(.*?)\n\s*\}", tokens, re.S)
+        get = lambda b, n: re.search(re.escape(n) + r":\s*(#[0-9A-Fa-f]{6})", b).group(1).upper()
+        self.assertGreaterEqual(ratio(get(light, "--ai-fg"), "#FFFFFF"), 4.5)
+        self.assertEqual(len(darks), 2)
+        for b in darks:
+            self.assertGreaterEqual(ratio(get(b, "--ai-fg"), get(b, "--surface")), 4.5)
 
 
 class Bar(unittest.TestCase):

@@ -83,7 +83,7 @@ DARK = {
         '--sec-number-size': '20px',
         '--tile-on-bg': 'var(--brand-blue-tint)',
         '--tile-on-fg': 'var(--brand-blue)',
-        '--ai-fg': '#B39DFF',
+        '--ai-fg': '#9E7BFF',
         '--sec-band-bg': 'rgba(255, 255, 255, .04)',
     }
 RULE_LINES = [
