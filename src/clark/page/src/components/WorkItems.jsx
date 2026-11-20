@@ -33,7 +33,7 @@ import { NewTile } from "./NewTile.jsx";
 import { Menu } from "./Menu.jsx";
 import { isChanged, WORD } from "../stores/changed.js";
 import { Icon } from "./Icon.jsx";
-import { classicTheme } from "./Contents.jsx";   // row 1324 (Option A, Classic only): the column names are drawn once over the groups; Cards keeps them in every group
+import { classicTheme } from "./Contents.jsx";   // row 1324 (Option A, Classic only): the column names are drawn once over the groups; Cards keeps them in every group; row 1409: the Classic priority chip carries its word (data-pri) for the one colour mapping (rules.css), Cards markup is unchanged
 import { groupIcon } from "../menuIcons.js";
 import { printing } from "../stores/print.js";
 import { work, setWork, announce, contextFor } from "../stores/work.js";

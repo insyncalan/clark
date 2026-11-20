@@ -1885,7 +1885,7 @@
        ],
        [
         "Backups",
-        "The backups clark keeps (a copy of your data each day, and before an undo or an import), each with **Preview** and **Restore**; **Put it back** brings one back, and what you have now is kept first. A box under the list, with **Save**, also puts a copy in a folder of your choice."
+        "The backups clark keeps (a copy of your data each day, and before an undo or an import), each with **Preview** and **Restore**; **Put it back** brings one back, and what you have now is kept first. A box under the list, with **Save**, also puts a copy in a folder of your choice. The kept copies of your published pages are copied there too; without that folder they are in no backup."
        ],
        [
         "Version and updates",
@@ -2937,7 +2937,7 @@
      "d": "Press **Put it back** to go ahead, or **Cancel** to stop with nothing changed. If your data changed after you pressed **Preview**, clark refuses and asks you to look at the backup again."
     },
     {
-     "d": "The page reloads and one line says that the backup was restored and that your data from before is kept in case you need it. There is no Undo button for a restore: to go back, look in the list for the Before a restore copy and put that one back."
+     "d": "The page reloads and one line says that the backup was restored and that your data from before is kept in case you need it. There is no Undo button for a restore: to go back, look in the list for the Before a restore copy and put that one back. Backups do not include the kept copies of the pages you sent to your client; to have them copied too, type a folder in the Copy my backups to box and press **Save**."
     }
    ],
    "result": "Your pages show the data from the copy you chose, a line confirms the restore, and a Before a restore copy of the data you had is in the list.",
