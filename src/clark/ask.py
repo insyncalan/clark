@@ -550,8 +550,10 @@ def _cap(flags):
 
 def read_reply(text, sent=(), codes=(), exists=lambda ref: False, facts=None):
     """Read one reply. Returns a `Reply`. A reply that doesn't follow the form (empty, over MAX_REPLY, a CITE line that isn't passage
-    IDs, a CHANGE line that isn't one flat JSON object within the limits, more than MAX_CHANGES, or a marker disguised with hidden
-    characters) is returned whole as text, with `parsed` False and no change. The claims check runs either way. Never raises on odd text."""
+    IDs, or a marker disguised with hidden characters) is returned whole as text, with `parsed` False and no change. The claims check
+    runs either way. A CHANGE line that isn't one flat JSON object within the limits is left out and said (change_unreadable); the
+    answer and the other changes stand. Good changes past MAX_CHANGES are cut, the first MAX_CHANGES kept, and said (change_limit).
+    Never raises on odd text."""
     if not isinstance(text, str):
         text = ""
     text = text[:MAX_REPLY]

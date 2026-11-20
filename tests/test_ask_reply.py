@@ -112,6 +112,16 @@ class Form(unittest.TestCase):
         r = read("\n".join(["Answer", "CHANGE: nope"] + ['CHANGE: {"n": %d}' % i for i in range(6)]))
         self.assertEqual(kinds(r), ["change_unreadable", "change_limit"])
 
+    def test_a_bad_line_with_exactly_five_good_changes_says_only_unreadable(self):          # Row 1293
+        r = read("\n".join(["Answer", "CHANGE: nope"] + ['CHANGE: {"n": %d}' % i for i in range(5)]))
+        self.assertEqual([c["n"] for c in r.changes], [0, 1, 2, 3, 4])
+        self.assertEqual(kinds(r), ["change_unreadable"])
+
+    def test_a_bad_line_with_six_good_changes_keeps_five_and_says_unreadable_then_limit(self):          # Row 1293
+        r = read("\n".join(["Answer", "CHANGE: nope"] + ['CHANGE: {"n": %d}' % i for i in range(6)]))
+        self.assertEqual([c["n"] for c in r.changes], [0, 1, 2, 3, 4])
+        self.assertEqual(kinds(r), ["change_unreadable", "change_limit"])
+
     def test_the_most_changes_allowed_are_read(self):
         r = read("\n".join(["Answer"] + ['CHANGE: {"a": 1}'] * ask.MAX_CHANGES))
         self.assertEqual((r.parsed, len(r.changes)), (True, ask.MAX_CHANGES))
