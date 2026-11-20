@@ -12,6 +12,11 @@ from test_server import chrome
 
 
 class ViewPickWrites(T.InThePage):
+    def setUp(self):
+        super().setUp()
+        with self.store.step("dashboard", T.USER) as st:       # a new project has Work items lists, not the Actions section (row 1193): these tests read the Actions rows, so the section is made
+            st.create("report_sections", {"project": "ABC", "type": "actions", "title": "Open actions", "sort_order": 50, "hidden": 0})
+
     def steps(self):
         return self.store.con.execute("SELECT count(*) FROM applies").fetchone()[0]
 
