@@ -17,7 +17,7 @@ def _plain(value):
 
 
 def callout_lines(sec):
-    """A callout section's lines as [(text, is_heading)], in order: its title (else "Callout") as the heading; one line
+    """A callout section's lines as [(text, is_heading)], in order: its title (else "Callout") as the heading (left out when its Heading switch is off, as the Word build does: content "heading" false, on when absent); one line
     "Category: <c>. Colour: <c>. Icon: <i>." with each empty part left out (Plain colour and No icon count as empty; no line when
     all are); then its words, one entry per paragraph. [] when it has no title and no words."""
     c = sec.get("content") if isinstance(sec.get("content"), dict) else {}
@@ -28,4 +28,5 @@ def callout_lines(sec):
         return []
     colour = "" if got["colour_name"] == callout.COLOURS["plain"] else got["colour_name"]
     parts = [f"{label}: {value}." for label, value in (("Category", got["category"]), ("Colour", colour), ("Icon", got["icon_name"])) if value]
-    return [(title or "Callout", True)] + ([(" ".join(parts), False)] if parts else []) + [(w, False) for w in words.split("\n") if w.strip()]
+    head = [(title or "Callout", True)] if c.get("heading", True) else []
+    return head + ([(" ".join(parts), False)] if parts else []) + [(w, False) for w in words.split("\n") if w.strip()]

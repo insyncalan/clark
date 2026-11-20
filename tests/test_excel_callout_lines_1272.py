@@ -59,7 +59,30 @@ class CalloutLines(unittest.TestCase):
         self.assertEqual(callout_lines({"type": "callout"}), [])
 
     def test_only_the_heading_is_flagged(self):
-        self.assertEqual([h for _, h in lines()], [True, False, False])
+        self.assertEqual([h for _, h in lines(heading=True)], [True, False, False])
+        self.assertEqual([h for _, h in lines(heading=False)], [False, False])
+
+    def test_heading_off_with_title_drops_only_the_heading(self):
+        self.assertEqual(lines(heading=False), [("Category: ZQ-Choice. Colour: Amber. Icon: Flag.", False), ("ZQ-para", False)])
+
+    def test_heading_off_without_title_drops_the_callout_fallback(self):
+        self.assertEqual(lines(heading=False, title=""), [("Category: ZQ-Choice. Colour: Amber. Icon: Flag.", False), ("ZQ-para", False)])
+
+    def test_heading_on_explicit(self):
+        self.assertEqual(lines(heading=True), [("ZQ-Pick one", True), ("Category: ZQ-Choice. Colour: Amber. Icon: Flag.", False), ("ZQ-para", False)])
+
+    def test_heading_flag_absent_is_on(self):
+        self.assertEqual(lines(), lines(heading=True))
+        self.assertEqual(lines()[0], ("ZQ-Pick one", True))
+
+    def test_heading_off_and_empty_callout_is_empty(self):
+        self.assertEqual(lines(heading=False, title="", paras=[]), [])
+
+    def test_heading_off_title_only_keeps_the_parts_line(self):
+        self.assertEqual(lines(heading=False, paras=[]), [("Category: ZQ-Choice. Colour: Amber. Icon: Flag.", False)])
+
+    def test_heading_off_keeps_word_order(self):
+        self.assertEqual(lines(heading=False, paras=["ZQ-a", "ZQ-b"])[1:], [("ZQ-a", False), ("ZQ-b", False)])
 
 
 if __name__ == "__main__":
