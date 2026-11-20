@@ -29,9 +29,9 @@ class SourcePins(unittest.TestCase):
         fd = next(l for l in read("components", "Dashboard.jsx").splitlines() if "const fileDraws" in l)
         self.assertIn('s.type === "text" ? !emptyBody(s.body)', fd)
 
-    def test_b_the_glance_and_use_cases_cards_stay_full_width(self):
+    def test_b_the_use_cases_card_stays_full_width(self):
         js = read("logic", "templates.js")
-        for card in ("GLANCE_CARD", "USECASES_CARD"):
+        for card in ("USECASES_CARD",):
             m = re.search(r"const %s = \{ fit: \[([^\]]*)\]" % card, js)
             self.assertIsNotNone(m, card)
             self.assertEqual(m.group(1).replace(" ", ""), '"full"', card)

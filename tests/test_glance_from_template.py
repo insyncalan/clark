@@ -27,31 +27,16 @@ def run(expr):
 
 
 class GlanceFromTemplate(unittest.TestCase):
-    def card(self):
-        return run('T.list({sections: []}).find(x => x.type === "glance")')
-
     def default(self):
         return [d for d in default_sections.DEFAULT_SECTIONS if d["type"] == "glance"]
 
-    def test_the_new_project_has_one_glance_section_and_it_is_the_cards_type_and_title(self):
-        card, have = self.card(), self.default()
+    def test_the_new_project_has_one_glance_section(self):
+        """Row 1411: the card is gone; the default section stays, titled At a glance."""
+        have = self.default()
         self.assertEqual(len(have), 1)
-        self.assertEqual((have[0]["type"], have[0]["title"]), (card["type"], card["title"]))
-
-    def test_placing_the_card_asks_for_the_section_a_new_project_starts_with(self):
-        got = run('T.plan([{id: "a", type: "text", title: "Summary", beside: 0}], "built-in-glance", "a")')
-        values = got["requests"][0]["values"]
-        self.assertEqual(values, {k: self.default()[0][k] for k in ("type", "title")})
-        self.assertIn(values["type"], changes.NEW_SECTION_TYPES)
-        self.assertIn(values["type"], store_module.SECTION_TYPES)
-
-    def test_the_cards_parts_are_the_tiles_the_section_draws_in_order(self):
-        parts = self.card()["holds"]
-        self.assertEqual(parts[0], "Heading")
-        self.assertEqual(parts[1:], [glance.TILE_TITLES[k] for k in glance.TILES])
-        tiles_js = (PAGE / "glanceTiles.js").read_text(encoding="utf-8")
-        for title in parts[1:]:
-            self.assertIn(f'"{title}"', tiles_js, "the page draws the tile the card promises")
+        self.assertEqual((have[0]["type"], have[0]["title"]), ("glance", "At a glance"))
+        self.assertIn("glance", changes.NEW_SECTION_TYPES)
+        self.assertIn("glance", store_module.SECTION_TYPES)
 
     def test_view_word_excel_and_the_published_file_all_draw_the_type(self):
         self.assertIn("glance", publish.BUILT_IN_SECTIONS)
@@ -59,11 +44,6 @@ class GlanceFromTemplate(unittest.TestCase):
         self.assertIn('t == "glance"', (SRC / "clark" / "docx_build.py").read_text(encoding="utf-8"))
         self.assertIn('kind == "glance"', (SRC / "clark" / "excel_cover.py").read_text(encoding="utf-8"))
         self.assertTrue(excel_cover)
-
-    def test_the_card_makes_no_second_kind_of_section(self):
-        """The template adds no type of its own: a report built from it reads, edits and publishes as any report has."""
-        self.assertEqual(self.card()["kind"], "figures")
-        self.assertNotIn("glance-template", store_module.SECTION_TYPES)
 
 
 if __name__ == "__main__":

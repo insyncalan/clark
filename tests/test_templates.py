@@ -170,6 +170,17 @@ class Logic(unittest.TestCase):
         self.assertEqual(self.t(f"plan({lit(have)}, 'built-in-milestones', 'a', false)")["requests"],
                          [{"op": "new", "values": {"type": "milestones", "title": "Milestones"}, "after": "a", "place": "report"}])
 
+    def test_row_1411_no_at_a_glance_card_and_project_at_a_glance_stays(self):
+        """Row 1411: the built-in At a glance card is gone from the box, with or without a glance section; Project at a glance stays.
+        A report that already has a glance section keeps it: only the card goes, not the section type."""
+        self.assertNotIn("glance", {x["type"] for x in self.t("BUILT_INS")})
+        self.assertIsNone(self.t('find("built-in-glance")'))
+        for sections in ("[]", lit(S + [sec("g", "At a glance", type="glance")])):
+            offered = [x["name"] for x in self.t(f"list({{sections: {sections}}})")]
+            self.assertNotIn("At a glance", offered)
+            self.assertIn("Project at a glance", offered)
+        self.assertIn("glance", self.t("ACCEPTS")["types"])
+
     def test_no_card_for_risks_and_issues_open_actions_or_decisions(self):
         """Row 1407: the Work items list covers them; the library offers no card for those three, with or without a section of that type."""
         types = {x["type"] for x in self.t("BUILT_INS")}

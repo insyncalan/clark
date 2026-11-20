@@ -1,4 +1,4 @@
-"""Item 1190: At a glance as a library template. The Add a section box offers it with the built-in's own behaviour: it makes the
+"""Item 1190 (card removed by row 1411): At a glance was a library template. The Add a section box offers it with the built-in's own behaviour: it makes the
 same section type (glance), so the tiles, the edit in place, View, Word, Excel and the published file are the built-in's own;
 the card has its words, parts and sketch, and Help's table of section templates says the same words.
 
@@ -37,54 +37,22 @@ class GlanceTemplate(unittest.TestCase):
     def test_node_is_there(self):
         self.assertTrue(NODE, "node is needed to run the page's catalogue")
 
-    def test_the_card_has_its_words_parts_and_fit(self):
-        card = self.card()
-        self.assertIsNotNone(card, "the box offers At a glance when the report has none")
-        self.assertEqual((card["name"], card["title"], card["type"], card["kind"]), ("At a glance", "At a glance", "glance", "figures"))
-        self.assertTrue(card["description"].endswith("."))
-        self.assertEqual(card["holds"], ["Heading", "Project health", "Overdue actions", "High risks and issues", "Decisions needed"])
-        self.assertEqual(card["fit"], ["full"])
-        self.assertIs(card["ready"], True)
-
-    def test_the_card_has_a_sketch_for_the_box(self):
-        self.assertTrue(run('!!T.SKETCHES["built-in-glance"]'))
-
-    def test_help_says_the_same_words_as_the_card(self):
-        card = self.card()
-        rows = []
-
-        def walk(o):
-            if isinstance(o, dict):
-                for v in o.values():
-                    walk(v)
-            elif isinstance(o, list):
-                if len(o) == 3 and all(isinstance(x, str) for x in o):
-                    rows.append(tuple(o))
-                for v in o:
-                    walk(v)
-        walk(json.loads(HELP.read_text(encoding="utf-8")))
-        self.assertIn((card["name"], card["description"], "Full"), rows)
-
-    def test_it_is_offered_once_like_the_built_in_and_not_while_it_is_there(self):
+    def test_row_1411_the_card_is_gone_but_the_section_type_stays(self):
+        """Row 1411: the box offers no At a glance card (with or without a glance section); the type stays in the store, so a report that
+        holds one keeps it, and the published file still draws it by its type."""
+        self.assertIsNone(self.card(), "no At a glance card")
+        self.assertIsNone(run('T.find("built-in-glance")'))
+        self.assertIsNone(run('T.SKETCHES["built-in-glance"] || null'))
         has = [sec("a", "text"), sec("b", "glance")]
         self.assertIsNone(run(f'T.list({{sections: {json.dumps(has)}}}).find(x => x.type === "glance") || null'))
-        gone = run(f'T.plan({json.dumps(has)}, "built-in-glance", "a")')
-        self.assertFalse(gone["ok"])
-
-    def test_placing_it_sends_the_one_request_the_store_takes(self):
-        got = run('T.plan([{id: "a", type: "text", title: "Summary", beside: 0}], "built-in-glance", "a")')
-        self.assertTrue(got["ok"], got)
-        self.assertEqual(got["requests"], [{"op": "new", "values": {"type": "glance", "title": "At a glance"}, "after": "a", "place": "report"}])
-        self.assertEqual(got["words"], "At a glance added.")
+        self.assertFalse(run(f'T.plan({json.dumps(has)}, "built-in-glance", "a")')["ok"])
         self.assertIn("glance", changes.NEW_SECTION_TYPES)
         self.assertIn("glance", store_module.SECTION_TYPES)
         self.assertIn("glance", publish.BUILT_IN_SECTIONS, "the published file draws the section by its type, as for the built-in")
 
-    def test_beside_is_refused_full_width_only(self):
-        # Half width is not checked in a browser (item 1190), so the card is full width only.
-        got = run('T.plan([{id: "a", type: "text", title: "Summary", beside: 0}], "built-in-glance", "a", true)')
-        self.assertFalse(got["ok"], got)
-        self.assertEqual(got["message"], "This template needs the full width. Place it on its own row.")
+    def test_help_has_no_row_for_the_card(self):
+        text = HELP.read_text(encoding="utf-8")
+        self.assertNotIn("The project’s health, and counts of overdue actions, high risks and issues, and decisions needed.", text)
 
 
 if __name__ == "__main__":
