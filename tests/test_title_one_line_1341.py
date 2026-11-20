@@ -4,6 +4,7 @@ Measured in Chrome at 1400 and 900 px with the Classic Theme layered: a long pro
 Use cases pages, and the 'No project open' text on Settings. The title is one line (height not above its line height), the line under it
 ('Weekly report') stays inside the bar, and the page does not scroll sideways. Fictional data only.
 """
+import re
 import unittest
 from unittest import mock
 
@@ -71,6 +72,14 @@ class Title(Setup):
                     self.assertLessEqual(g["nameH"], g["lh"] + 1, (width, text, g))
                     self.assertEqual((g["ws"], g["to"], g["ov"]), ("nowrap", "ellipsis", "hidden"), (width, text))
                     self.assertTrue(g["lineInside"] and g["wide"], (width, text, g))
+
+    def test_the_static_title_span_carries_the_full_name_as_its_tooltip(self):
+        """Ruling a (12:43): the plain title span in the bar (no project switch) has title = the full name. The standard test page always
+        mounts the switch, so the span is pinned in the source: the span's title is the same expression as its text."""
+        src = (ROOT / "src/clark/page/src/components/TopBar.jsx").read_text(encoding="utf-8")
+        m = re.search(r'<span class="hdr-project hdr-static" id="project-name" title=\{([^}]*)\}>\{([^}]*)\}</span>', src)
+        self.assertTrue(m, "the static title span has a title attribute")
+        self.assertEqual(m.group(1).strip(), m.group(2).strip(), "title and text are the same full name")
 
 
 for _w in (1400, 900):
