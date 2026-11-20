@@ -5,7 +5,9 @@ Run: python3 dev/run_tests.py test_xml_bomb_1383      No browser; the files are 
 import io
 import tempfile
 import unittest
+import warnings
 import zipfile
+import zlib
 from pathlib import Path
 from unittest import mock
 
@@ -178,6 +180,35 @@ class OddlyNamedPart(unittest.TestCase):
         raw[raw.index(b"x" * 100)] ^= 0xFF                   # the stored bytes no longer match the zip's check value
         p = self.save(bytes(raw))
         excel.check_workbook_size(p)                         # not refused here: a damaged part is the later steps' to refuse
+
+    def test_a_part_with_a_corrupt_deflate_stream_is_left_to_the_later_steps(self):
+        out = io.BytesIO()
+        with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+            z.writestr("xl/blob.dat", b"<a>" + b"hello world " * 400 + b"</a>")
+        raw = bytearray(out.getvalue())
+        start = 30 + len("xl/blob.dat")                       # the local header, then the compressed bytes
+        raw[start:start + 12] = b"\xff" * 12                    # a valid zip directory, but the deflate data is garbage
+        p = self.save(bytes(raw))
+        with zipfile.ZipFile(p) as z:                         # the damage is the deflate kind, not a check-value mismatch
+            with self.assertRaises(zlib.error):
+                z.read("xl/blob.dat")
+        excel.check_workbook_size(p)                          # not a crash and not a refusal: the later steps refuse it in plain words
+
+    def test_two_parts_of_the_same_name_are_both_scanned(self):
+        clean = b"<?xml version='1.0'?><a/>"
+        bomb = b"<?xml version='1.0'?>" + LAUGHS.encode() + b"<a/>"
+        for first, second in ((clean, bomb), (bomb, clean)):
+            out = io.BytesIO()
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")                # zipfile warns about a duplicate name
+                with zipfile.ZipFile(out, "w") as z:
+                    z.writestr("xl/dup.xml", first)
+                    z.writestr("xl/dup.xml", second)
+            p = self.save(out.getvalue())
+            with zipfile.ZipFile(p) as z:
+                self.assertEqual(len(z.infolist()), 2)
+            with self.assertRaises(excel.NotSafe):             # opening by name would read one of the two, twice
+                excel.check_workbook_size(p)
 
     def test_the_import_route_refuses_it_in_plain_words_and_creates_nothing(self):
         from _demo import DemoStore
