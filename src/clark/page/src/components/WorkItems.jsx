@@ -33,6 +33,7 @@ import { NewTile } from "./NewTile.jsx";
 import { Menu } from "./Menu.jsx";
 import { isChanged, WORD } from "../stores/changed.js";
 import { Icon } from "./Icon.jsx";
+import { classicTheme } from "./Contents.jsx";   // row 1324 (Option A, Classic only): the column names are drawn once over the groups; Cards keeps them in every group
 import { groupIcon } from "../menuIcons.js";
 import { printing } from "../stores/print.js";
 import { work, setWork, announce, contextFor } from "../stores/work.js";
@@ -261,13 +262,15 @@ function Table({ rows, today, type, Cell, Eye, CW, CM }) {
   const drawnRows = groups.flatMap((c) => (c.shut ? [] : c.rows)), stop = stopOf(drawnRows);
   order = drawnRows.map((r) => r.id);
   mo = useRowMotion(groups.map((c) => ({ key: c.key, rows: c.shut ? [] : c.rows })));
+  const once = classicTheme();
   return (
     <>
+      {once ? <div class="wgroup wcolh">{cm ? cm.button("key") : null}<table class="items"><Cols eye={Eye} hand={hand} cw={cw} cols={cols} /><thead><tr class="colh" {...(cm ? cm.rowProps : {})}><Heads eye={Eye} hand={hand} cw={cw} cm={cm} cols={cols} /></tr></thead></table>{cm ? cm.menu : null}</div> : null}
       {groups.map((c) => {
         const shut = c.shut;
         return (
           <div class="wgroup" key={c.key}>
-            {cm && c.key === groups[0].key ? cm.button("key") : null}
+            {!once && cm && c.key === groups[0].key ? cm.button("key") : null}
             <table class="items grouped" {...grid}>
               <Cols eye={Eye} hand={hand} cw={cw} cols={cols} />
               <thead data-group={c.key} class={justOpened === c.key && !shut && !fromFile.value ? "opening" : undefined} onAnimationEnd={opened(c.key)}>
@@ -278,13 +281,13 @@ function Table({ rows, today, type, Cell, Eye, CW, CM }) {
                     <Icon name="chevdown" cls={shut ? "turn" : ""} /><span class="gl">{c.label}</span><span class="gc num">{c.rows.length} {c.rows.length === 1 ? "item" : "items"}</span>
                   </button>
                 </th></tr>
-                {shut ? null : <tr class="colh" {...(cm ? cm.rowProps : {})}><Heads eye={Eye} hand={hand} cw={cw} cm={cm} cols={cols} /></tr>}
+                {shut || once ? null : <tr class="colh" {...(cm ? cm.rowProps : {})}><Heads eye={Eye} hand={hand} cw={cw} cm={cm} cols={cols} /></tr>}
               </thead>
               <tbody data-group={c.key} class={justOpened === c.key && !shut && !fromFile.value ? "opening" : undefined} onAnimationEnd={opened(c.key)}>
                 {shut ? null : rowsOf(c.key, c.rows, stop)}
               </tbody>
             </table>
-            {cm && c.key === groups[0].key ? cm.menu : null}
+            {!once && cm && c.key === groups[0].key ? cm.menu : null}
           </div>
         );
       })}
