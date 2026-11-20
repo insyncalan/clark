@@ -357,5 +357,13 @@ class AskCommandsKillersRound2Test(unittest.TestCase):
         self.assertEqual(list(self.root.rglob("*.json*")), [])
 
 
+class DocstringTest(unittest.TestCase):
+    def test_the_module_says_json_in_the_store_and_row_1295(self):
+        d = " ".join(ac.__doc__.split("\n\n")[0].split())
+        self.assertTrue(d.startswith("Row 1295:"))
+        self.assertIn("JSON in the store", d)
+        self.assertNotIn("files, not the settings store", d)
+
+
 if __name__ == "__main__":
     unittest.main()

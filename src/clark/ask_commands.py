@@ -1,5 +1,5 @@
-"""#1295: where the slash commands of ask clark are kept, one small JSON file per slash command in an `ask-commands` folder (ruled: files, not the settings
-store). Unguarded; ask_commands_service.py routes to it. The rules are those of page/src/logic/askShortcuts.js, in the same words.
+"""Row 1295: where the slash commands of ask clark are kept: the store, one small JSON per slash command in an `ask-commands` folder of clark's own data folder
+(ruled 20-11: JSON in the store). Unguarded; ask_commands_service.py routes to it. The rules are those of page/src/logic/askShortcuts.js, in the same words.
 
 A file is `<name>.json` holding {name, menu, text, scope, result} (a person's own version of a built-in also has "replaces": that name; an
 AI-written one has "ai": true). read() skips a file it cannot trust and lists it, so one damaged file never hides the rest. write() checks
