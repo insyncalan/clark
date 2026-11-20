@@ -96,3 +96,7 @@ export function builtinTiles(u, rows, today, project) {
     return { ...by[key], hidden: key === "health" ? !u.health.shown : u.builtin[key].hidden, outline, auto: by[key].rag, rag, word: tileWord(key, rag, outline, HEALTH_WORDS[health] || "") };
   });
 }
+
+// Does an At a glance section of this report show Project health too? The built-in section (type glance) always does; the template (type glancetemplate) does
+// while its own eye is on (readBody: a never-written one starts off). A section hidden from the published report does not count. (Row 1261.)
+export const glanceShowsHealth = (sections) => (sections || []).filter((s) => !s.hidden).some((s) => s.type === "glance" || (s.type === "glancetemplate" && readBody(s).health.shown));
