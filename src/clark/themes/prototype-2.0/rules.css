@@ -717,7 +717,5 @@ table.items .weye { width: 30px; height: 30px; }
   @keyframes tb-ask-pulse { 0%, 100% { opacity: .3; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-3px); } }
 }
 .tb-ask .tb-ask-dots i { display: none; }
-/* Ticket 1346: the Ask clark Draft sheet leaves 24px at the window's left edge, beside the panel, instead of running off screen at 900 (the panel's width reaches it as --ask-pw). */
-.ask-draft { width: min(560px, calc(100% - var(--ask-pw, 320px) - var(--space-5))); }
 #viewMenuList { min-width: 224px; }
 [data-gt] .gt-menu button, .gt-pop button { display: flex; align-items: center; gap: var(--space-2); }

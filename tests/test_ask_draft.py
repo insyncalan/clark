@@ -6,12 +6,10 @@ beside the panel with the words of the mock-up and an editable body; nothing is 
 section and a new one; a replace and an add are each one step that Undo takes back; Esc and the close button leave the report as it was; closing
 the panel closes the draft. Fictional text only.
 """
-import json
 import pathlib
 import time
 import unittest
 
-from clark import theme
 import _testpage as testpage
 from clark import page, theme as themes
 from test_ask_panel import Panel, Stub
@@ -55,35 +53,6 @@ class Draft(Panel):
             left = p.js("document.querySelector('#ask-draft').getBoundingClientRect().right")
             panel = p.js("document.querySelector('#ask-panel').getBoundingClientRect().left")
             self.assertAlmostEqual(left, panel, delta=2, msg="the draft's right edge is the panel's left edge")
-
-    def test_the_draft_stays_inside_the_window_at_1400_and_900(self):
-        """Ticket 1346 (Classic): at 900 the Draft was at x=-80 (width 560); it is at x=24, width 456 now, and 560 wide beside the panel at 1400."""
-        with chrome() as cdp:
-            p = self.visit(cdp)
-            p.js("document.querySelector('[data-mode=edit]').click()")
-            p.js("(function(){var s=new CSSStyleSheet();s.replaceSync(" + json.dumps(theme.css("prototype-2.0")) + ");document.adoptedStyleSheets=[s]})()")      # the Classic theme layer (a constructed sheet: the page's policy lets no inline style element in)
-            for width, want_w in ((1400, 560), (900, None)):
-                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
-                p.key("/", code="Slash", vk=191)
-                p.until("!!document.querySelector('#ask-panel')", f"opened at {width}")
-                p.until("document.querySelector('#ask-panel').getAnimations().length === 0", "risen")
-                p.until("!document.querySelector('#ask-send').disabled", "ready")
-                self.ask(p, "Summarise this week")
-                p.until("!!document.querySelector('#ask-draft')", f"the draft opened at {width}")
-                p.until("document.querySelector('#ask-draft').getAnimations().length === 0", f"the slide-in has finished at {width}")      # row 1347: Classic slides in; measure it at rest
-                r = p.js("(function(){var r=document.querySelector('#ask-draft').getBoundingClientRect();return {l:r.left,w:r.width,r:r.right}})()")
-                panel = p.js("document.querySelector('#ask-panel').getBoundingClientRect().left")
-                self.assertGreaterEqual(r["l"], 0, f"{width}: the draft starts inside the window")
-                edge = p.js("document.documentElement.clientWidth")      # the window less a classic scroll bar (Linux shows one; a Mac hides it)
-                pw = edge - panel
-                if want_w is None:       # 900: the sheet leaves a 24 px gap at the left
-                    self.assertAlmostEqual(r["l"], 24, delta=2)
-                    self.assertAlmostEqual(r["w"], edge - pw - 24, delta=2)
-                else:                    # 1400: the full 560 beside the panel
-                    self.assertAlmostEqual(r["w"], want_w, delta=2)
-                self.assertAlmostEqual(r["r"], panel, delta=2)
-                p.key("Escape", code="Escape", vk=27)
-                p.until("document.querySelector('#ask-panel') === null", "closed")
 
     def test_closing_it_leaves_the_report_as_it_was(self):
         with chrome() as cdp:

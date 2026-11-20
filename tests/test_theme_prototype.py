@@ -60,7 +60,7 @@ class ThemePrototype(unittest.TestCase):
         self.assertEqual(sorted(set(NAME.findall(TOKENS)) - declared), [], "a Theme sets existing names only")
         used = set(re.findall(r"var\((--[a-z0-9-]+)", RULES))
         own = set(re.findall(r"(--(?:wil|pri|adc)-[a-z0-9-]+)\s*:", RULES))      # row 1347: the four --adc-blue* properties (Draft ready button blue, a named exception, ruling 19-11); row 1195: the Work items colours the mock-up measures; row 1409: the four --pri-* priority pairs; set and read by rules.css alone
-        self.assertEqual(sorted(used - declared - own - {"--ly", "--sb", "--ask-w", "--ask-pw"}), [], "rules.css reads declared names only, and the page sets itself: --ly inline and --sb on its box (row 1315), --ask-w on the root while the ask panel is open (row 1292, askPanelState.js), --ask-pw inline by the Ask Draft sheet (row 1346)")
+        self.assertEqual(sorted(used - declared - own - {"--ly", "--sb", "--ask-w"}), [], "rules.css reads declared names only, and three the page sets itself: --ly inline and --sb on its box (row 1315), --ask-w on the root while the ask panel is open (row 1292, askPanelState.js)")
 
     def test_the_two_dark_copies_are_equal(self):
         b = blocks(TOKENS)
