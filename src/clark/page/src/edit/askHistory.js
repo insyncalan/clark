@@ -19,7 +19,14 @@ export function chats() {
   return Array.isArray(l) ? l.filter((c) => c && typeof c.id === "string" && Array.isArray(c.turns)) : [];
 }
 
-const plain = (t) => ({ role: t.role, text: String(t.text).slice(0, MAX_TEXT), ...(t.kind ? { kind: t.kind } : {}), ...(t.sources && t.sources.length ? { sources: t.sources } : {}) });
+// Row 1292: a turn keeps what the panel draws from it: the items an answer named (citation chips and the Used line), what it read (the read line)
+// and what the question was about (the About line), so a reopened chat reads as it did.
+const plain = (t) => ({
+  role: t.role, text: String(t.text).slice(0, MAX_TEXT), ...(t.kind ? { kind: t.kind } : {}), ...(t.sources && t.sources.length ? { sources: t.sources } : {}),
+  ...(Array.isArray(t.items) && t.items.length ? { items: t.items } : {}),
+  ...(t.read && typeof t.read === "object" ? { read: t.read } : {}),
+  ...(typeof t.about === "string" && t.about ? { about: t.about } : {}),
+});
 
 /** Keeps the chat as it stands: a new entry the first time, the same entry after. Only a chat that has an answer is kept. */
 export function keepChat(turns, now = nowMs()) {
