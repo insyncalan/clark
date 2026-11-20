@@ -9,7 +9,8 @@ Cards (no Theme) is pinned unchanged by test_use_cases_redesign_1325.CardsAsOnMa
 """
 import unittest
 
-from test_use_cases_redesign_1325 import Redesign, Base, theme, chrome
+from test_server import chrome
+from test_use_cases_redesign_1325 import Redesign, Base, theme
 
 READ = """(() => {
   const q = (s) => document.querySelector(s), cs = (e) => getComputedStyle(e);
