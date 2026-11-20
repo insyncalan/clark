@@ -410,6 +410,31 @@ class Panel(Base):
             self.assertNotIn("A late draft.", text)
             self.assertIn("Stopped. Nothing was changed.", text)
 
+    def test_stop_pressed_while_the_changes_are_being_drawn_holds_the_queue(self):          # row 1293 line 7
+        self.stub.extra = {"reply": "r1", "changes": [{"op": "edit"}]}
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            p.js("window.__go = null; const f = window.fetch; window.fetch = function (u, ...a) { if (String(u).includes('/api/ask/change/dry')) { window.__dry = true; return new Promise((ok) => { window.__go = () => ok(f.call(this, u, ...a)); }); } return f.call(this, u, ...a); }")
+            self.stub.hold.clear()
+            self.ask(p, "Question A")
+            p.until("!!document.querySelector('#ask-stop')", "Stop appeared while the question was out")
+            p.js("document.querySelector('#ask-box').focus()")
+            p.type("Question B")
+            p.key("Enter", code="Enter", vk=13)
+            p.until("document.querySelectorAll('#ask-queue li[data-queued]').length === 1", "B was queued")
+            self.stub.hold.set()
+            p.until("window.__dry === true", "the answer is in and the changes are being drawn (held)")
+            p.until("!!document.querySelector('#ask-stop')", "Stop is still there while the changes are drawn")
+            p.js("document.querySelector('#ask-stop').click()")
+            p.until("window.__go !== null", "the dry run waits")
+            time.sleep(0.5)
+            p.js("window.__go()")
+            p.until("!!document.querySelector('#ask-queue-held')", "the queue is held", 30)
+            time.sleep(0.5)
+            self.assertEqual(p.js("document.querySelector('#ask-queue-held span').textContent"), "Stopped. 1 message is waiting")
+            self.assertEqual(self.stub.count("ask"), 1, "B was not sent")
+            self.assertEqual(p.js("document.querySelectorAll('#ask-queue li[data-queued]').length"), 1, "B is still waiting")
+
     def test_a_new_question_after_stop_is_answered_normally(self):          # row 1293 line 7
         self.stub.hold.clear()
         self.stub.late = True
