@@ -1,7 +1,7 @@
 """Row 1375 (every Dashboard scroll section): a wheel at the end of a scrolling Dashboard section keeps moving the page (Classic).
 The Dashboard scrollers are the Work items box (.wil-scroll, covered by test_wil_scroll_chain_1375), the Milestones list (.msl-scroll),
-the Use case summary rows (.ucrows) and the Contents column (.cnt). Only .wil-scroll was held by shell.css (contain); the others never set a
-value, so they chain. This file pins all four, a real wheel at the end of the Milestones list and the Use case rows at 1400 and 900 px, the
+the Use case summary rows (.ucrows) and the Contents column (.cnt, drawn at 1400 only; display none at 900). Only .wil-scroll was held by shell.css (contain); the others never set a
+value, so they chain. This file pins all four, a real wheel at the end of the Milestones list and the Use case rows at 1400 and 900 px (the Work items box wheel is in test_wil_scroll_chain_1375), the
 rule text, and that the Cards page keeps its own value. Not in scope: dialogs, Gantt, menus, the Work items page's board (not on the Dashboard).
 Run: cd tests && PYTHONPATH=../src bash ~/ag/slot.sh python3 -m unittest test_dashboard_scroll_chain_1375b
 """
@@ -49,8 +49,19 @@ class Chain(Setup):
         p.until(f"!!document.querySelector('{sel}')", "the section drew")
         p.js("(() => { const s = document.createElement('div'); s.style.height = '4000px'; document.body.appendChild(s); })()")
         p.js(f"document.querySelector('{sel}').scrollIntoView({{block: 'center'}})")
-        time.sleep(0.5)
+        self.settle(p)
         return p
+
+    def settle(self, p):
+        """Wait until the page scroll position is the same on two reads 50 ms apart (max 5 s)."""
+        last, end = None, time.time() + 5
+        while time.time() < end:
+            now = p.js(PAGE_Y)
+            if now == last:
+                return
+            last = now
+            time.sleep(0.05)
+        self.fail("the page scroll did not settle within 5 s")
 
     def wheel(self, p, sel, dy):
         x, y = p.js(f"(() => {{ const r = document.querySelector('{sel}').getBoundingClientRect(); return [Math.round(r.left + r.width / 2), Math.round(r.top + r.height / 2)]; }})()")
@@ -96,13 +107,19 @@ class Chain(Setup):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.load(cdp, MS, width)
-                got = p.js("({wil: [...document.querySelectorAll('.wil-scroll')].map(e => getComputedStyle(e).overscrollBehaviorY),"
-                           " ms: getComputedStyle(document.querySelector('" + MS + "')).overscrollBehaviorY,"
-                           " uc: getComputedStyle(document.querySelector('" + UC + "')).overscrollBehaviorY,"
-                           " cnt: [...document.querySelectorAll('.cnt')].map(e => getComputedStyle(e).overscrollBehaviorY)})")
-                self.assertEqual((got["ms"], got["uc"]), ("auto", "auto"))
-                for v in got["wil"] + got["cnt"]:
-                    self.assertEqual(v, "auto")
+                for name, sel in (("Milestones list", MS), ("Use case rows", UC)):
+                    self.assertEqual(p.js(f"getComputedStyle(document.querySelector('{sel}')).overscrollBehaviorY"), "auto", f"{width}: {name} chains to the page")
+                # the Work items box (.wil-scroll) at both widths is held by test_wil_scroll_chain_1375, not repeated here
+                cnt = p.js("[...document.querySelectorAll('.cnt')].map(e => [getComputedStyle(e).display, getComputedStyle(e).overscrollBehaviorY])")
+                self.assertTrue(cnt, f"{width}: the Contents column is in the page")
+                if width == 900:
+                    # vacuous by design: the Contents column is display none below 1000 px, so it cannot scroll or chain at 900
+                    for display, _ in cnt:
+                        self.assertEqual(display, "none", "900: the Contents column is not drawn (nothing to scroll; overscroll is not checked)")
+                else:
+                    for display, ob in cnt:
+                        self.assertEqual(display, "block", f"{width}: the Contents column is drawn")
+                        self.assertEqual(ob, "auto", f"{width}: the Contents column chains to the page")
 
 
 class Cards(Chain):
