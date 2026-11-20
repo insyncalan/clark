@@ -245,7 +245,7 @@ class TooBig(Refused):
 
 
 class NotSafe(TooBig):
-    """A workbook with a DOCTYPE or entity in one of its XML parts (entity expansion can use all the memory); refused before it is opened."""
+    """A workbook with a DOCTYPE or entity in any of its parts, whatever the part is named (entity expansion can use all the memory); refused before it is opened."""
 
 
 # What a workbook may be before clark opens it. A real export of a large project is far below all four. The sizes are those the
@@ -284,7 +284,7 @@ def check_workbook_size(path):
                      "so it was not opened. A clark export is far smaller: check it is the right file.")
     with zipfile.ZipFile(path) as z:
         for i in infos:
-            if i.filename.lower().endswith((".xml", ".rels")) and _has_doctype_or_damaged(z, i):
+            if _has_doctype_or_damaged(z, i):                 # every member, whatever its name: openpyxl reads a part by the workbook's relationships
                 raise NotSafe(f"{path.name} holds a part ({i.filename}) with a DOCTYPE or entity declaration, which a workbook from clark "
                               "never has, so it was not opened. Check it is the right file.")
 

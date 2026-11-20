@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest import mock
 
 import _paths  # noqa: F401
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 
 from clark import excel, excel_picture, word_brand
 from clark.docx_read import WordRefused
@@ -114,6 +114,91 @@ class XlsxBomb(unittest.TestCase):
         self.assertTrue(excel_picture.has_doctype(b"<!  ENTITY x 'y'>"))
         self.assertTrue(excel_picture.has_doctype(b"<!doctype x>"))
         self.assertFalse(excel_picture.has_doctype(b"<a>DOCTYPE and ENTITY words</a>"))
+
+
+def renamed(data, old, new):
+    """`data` (a zip) with the part `old` stored as `new`, and the content-types and relationship records following it, so openpyxl
+    still finds the part (it is reached by relationship, not by name)."""
+    out = io.BytesIO()
+    with zipfile.ZipFile(io.BytesIO(data)) as src, zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as dst:
+        for i in src.infolist():
+            d = src.read(i.filename)
+            if i.filename in ("[Content_Types].xml", "xl/_rels/workbook.xml.rels"):
+                d = d.replace(old.encode(), new.encode()).replace(old.split("xl/", 1)[1].encode(), new.split("xl/", 1)[1].encode())
+            dst.writestr(new if i.filename == old else i.filename, d)
+    return out.getvalue()
+
+
+SHEET = "xl/worksheets/sheet1.xml"
+
+
+class OddlyNamedPart(unittest.TestCase):
+    """The check follows what openpyxl will parse, which is any part the workbook points at, not only a name ending .xml or .rels."""
+
+    def setUp(self):
+        self.dir = Path(tempfile.mkdtemp())
+        self.addCleanup(__import__("shutil").rmtree, self.dir, True)
+
+    def save(self, data):
+        p = self.dir / "odd.xlsx"
+        p.write_bytes(data)
+        return p
+
+    def test_the_renamed_clean_workbook_really_opens_and_passes(self):
+        for new in ("xl/worksheets/sheet1.dat", "xl/worksheets/sheet1"):
+            p = self.save(renamed(plain_xlsx(), SHEET, new))
+            self.assertEqual(load_workbook(p)["Sheet"]["A1"].value, "x")   # the rename is real
+            excel.check_workbook_size(p)                                                                          # no false refusal
+
+    def test_a_doctype_in_a_part_named_dat_or_with_no_extension_is_refused(self):
+        for new in ("xl/worksheets/sheet1.dat", "xl/worksheets/sheet1", "xl/worksheets/sheet1.XML.bak"):
+            p = self.save(with_doctype(renamed(plain_xlsx(), SHEET, new), new))
+            with self.assertRaises(excel.NotSafe, msg=new) as e:
+                excel.check_workbook_size(p)
+            self.assertIn(new, str(e.exception))
+
+    def test_a_long_prolog_in_an_oddly_named_part_is_still_found(self):
+        new = "xl/worksheets/sheet1.dat"
+        p = self.save(with_doctype(renamed(plain_xlsx(), SHEET, new), new, pad=3 * 1024 * 1024))
+        with self.assertRaises(excel.NotSafe):
+            excel.check_workbook_size(p)
+
+    def test_the_first_and_the_last_part_are_scanned_too(self):
+        z = zipfile.ZipFile(io.BytesIO(plain_xlsx()))
+        names = z.namelist()
+        for member in (names[0], names[-1]):
+            with self.assertRaises(excel.NotSafe, msg=member):
+                excel.check_workbook_size(self.save(with_doctype(plain_xlsx(), member)))
+
+    def test_a_damaged_oddly_named_part_is_left_to_the_later_steps(self):
+        out = io.BytesIO()
+        with zipfile.ZipFile(out, "w") as z:
+            z.writestr("xl/blob.dat", b"x" * 100)
+        raw = bytearray(out.getvalue())
+        raw[raw.index(b"x" * 100)] ^= 0xFF                   # the stored bytes no longer match the zip's check value
+        p = self.save(bytes(raw))
+        excel.check_workbook_size(p)                         # not refused here: a damaged part is the later steps' to refuse
+
+    def test_the_import_route_refuses_it_in_plain_words_and_creates_nothing(self):
+        from _demo import DemoStore
+        import _workbook as wbk
+        from clark import excel_import as xi
+        from clark.store import Invalid
+        demo = DemoStore()
+        self.addCleanup(demo.close)
+        good = wbk.make_workbook(demo.store, self.dir / "ABC.xlsx")
+        new = "xl/worksheets/sheet1.dat"
+        bad = self.dir / "bad.xlsx"
+        bad.write_bytes(with_doctype(renamed(Path(good).read_bytes(), SHEET, new), new))
+        count = lambda: demo.store.con.execute("SELECT count(*) FROM applies").fetchone()[0]
+        before = count()
+        with self.assertRaises(Invalid) as e:
+            xi.read_workbook(demo.store, bad, "ABC", allow_unrecorded=True)
+        self.assertIn("DOCTYPE or entity", str(e.exception))
+        self.assertIn(new, str(e.exception))
+        with self.assertRaises(Invalid):
+            xi.list_sheets(bad)
+        self.assertEqual(count(), before)
 
 
 class DocxBomb(unittest.TestCase):
