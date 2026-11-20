@@ -383,3 +383,37 @@ class ZeroOnThePage(OnThePage):
                 rows = js("[...document.querySelectorAll('#ask-usage-list li')].map(li => li.innerText.replace(/\\s+/g, ' ').trim())")
                 self.assertIn("NIL Asking is on 0 questions \u00b7 0 tokens", rows)
                 self.assertIn("ZER Asking is on 1 question \u00b7 0 tokens", rows)
+
+
+class SortAndSkip(unittest.TestCase):
+    """The report's rows: sorted by code, no cap, archived with no question skipped (row 1294)."""
+    setUp = Counted.setUp
+    ask, usage = Counted.ask, Counted.usage
+
+    def rows_from(self, projects, kept=None):
+        class Store:
+            def read(self, table):
+                return projects
+
+            def close(self):
+                pass
+        self.service.reader = lambda: Store()
+        for code, n in (kept or {}).items():
+            for _ in range(n):
+                self.service.usage.record(code, 3, USAGE_DAY)
+        return self.service.usage_read()[1]
+
+    def test_twenty_five_projects_all_show_in_code_order_whatever_the_store_order_or_names(self):
+        codes = ["P%02d" % i for i in range(25)]
+        shuffled = codes[12:] + codes[:12]
+        projects = [{"code": c, "name": "N%02d" % (24 - int(c[1:]))} for c in reversed(shuffled)]
+        got = self.rows_from(projects, {"P03": 1})
+        self.assertEqual([p["code"] for p in got["projects"]], codes)
+        self.assertEqual(len(got["projects"]), 25)
+        self.assertEqual(got["all"], {"questions": 1, "tokens": 3, "unreported": 0})
+
+    def test_an_archived_project_is_skipped_unless_it_had_a_question(self):
+        projects = [{"code": "AAA", "name": "a", "archived": 1}, {"code": "BBB", "name": "b", "archived": 1},
+                    {"code": "CCC", "name": "c", "archived": 0}, {"code": "DDD", "name": "d"}]
+        got = self.rows_from(projects, {"BBB": 2})
+        self.assertEqual([(p["code"], p["questions"]) for p in got["projects"]], [("BBB", 2), ("CCC", 0), ("DDD", 0)])
