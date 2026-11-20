@@ -92,7 +92,10 @@ class Tabs(unittest.TestCase):
         self.assertEqual(run('WL.reviewWords(7)'), "Review all 7 items")
 
     def test_foot_words_with_every_row_open_count_all_rows_and_drop_the_scroll_words(self):      # row 1195: the mock-up's S.all foot, 'Showing N of N'
-        self.assertEqual(run('WL.footWords(3, 2, true)'), "Showing 3 of 3")
+        self.assertEqual(run('WL.footWords(3, 2, true)'), "Showing all of 3")
+        self.assertEqual(run('WL.footWords(2, 2, true)'), "Showing 2 of 2")      # nothing was cut, so there is no Show all items and no change
+        self.assertEqual(run('WL.footWords(25, 10, true)'), "Showing all of 25")
+        self.assertEqual(run('WL.footWords(25, 10)'), "Showing 10 of 25, scroll for the rest")
         self.assertEqual(run('WL.footWords(3, 2, false)'), "Showing 2 of 3, scroll for the rest")
 
     def test_page_state_for_review_all_maps_kinds_to_the_pages_type_and_keeps_the_choices(self):      # row 1268: killer for the kinds mapping
