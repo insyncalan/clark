@@ -217,7 +217,7 @@ RULE_LINES = [
         '.wil-table td.wil-c-due { font-size: var(--size-caption); line-height: normal; }',
         '.wil-table .num { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: var(--size-caption); line-height: normal; }',
         '.wil-table .due-l { font-size: calc(var(--size-caption) - 1.5px); line-height: normal; }',
-            "/* Row 1319, Classic type and controls (generic; Cards layers none of this). Weight 600 for headings; buttons and segments take the 8px --radius instead of the pill (the three primary buttons keep the pill, see the block below); the chosen segment (not the top bar's Dashboard and Edit switch) is --brand-navy with --white text instead of aqua; crumbs are plain, not tracked capitals. */",
+            "/* Row 1319, Classic type and controls (generic; Cards layers none of this). Weight 600 for headings; buttons and segments take the 8px --radius instead of the pill (the three primary buttons are 8px navy rectangles too, see the block below); the chosen segment (not the top bar's Dashboard and Edit switch) is --brand-navy with --white text instead of aqua; crumbs are plain, not tracked capitals. */",
         'h1, h2, h3 { font-weight: var(--weight-medium); }',
         '.btn, .seg { border-radius: var(--radius); }',
         ':root:not([data-motion="reduce"]) .modes.seg.glide::before { border-radius: var(--radius); }',
